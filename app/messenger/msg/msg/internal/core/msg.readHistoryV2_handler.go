@@ -42,7 +42,7 @@ func (c *MsgCore) MsgReadHistoryV2(in *msg.TLMsgReadHistoryV2) (*mtproto.Message
 		c.Logger.Errorf("msg.readHistoryV2 - error: invalid peer %v", err)
 		return nil, mtproto.ErrInternalServerError
 	} else if dlg == nil {
-		c.Logger.Errorf("msg.readHistoryV2 - error: not found dialog, request: %s", in)
+		c.Logger.Errorf("msg.readHistoryV2 - error: not found dialog, request: {user_id: %d, peer: %d/%d}", in.UserId, in.PeerType, in.PeerId)
 		return nil, mtproto.ErrPeerIdInvalid
 	}
 
@@ -57,7 +57,7 @@ func (c *MsgCore) MsgReadHistoryV2(in *msg.TLMsgReadHistoryV2) (*mtproto.Message
 	// inbox readed
 	// if dlg.ReadInboxMaxId >= maxId || dlg.UnreadCount == 0 {
 	if dlg.ReadInboxMaxId >= maxId {
-		c.Logger.Debugf("dlg: %#v", dlg)
+		c.Logger.Debugf("dlg: {read_inbox_max_id: %d, top_message: %d}", dlg.ReadInboxMaxId, dlg.TopMessage)
 		pts = c.svcCtx.Dao.IDGenClient2.CurrentPtsId(c.ctx, in.UserId)
 		ptsCount = 0
 		_ = ptsCount

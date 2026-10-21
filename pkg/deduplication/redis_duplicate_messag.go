@@ -71,7 +71,7 @@ func (m *MessageDeDuplicate) PutDuplicateMessage(ctx context.Context, senderUser
 	cacheData, _ := proto.Marshal(upd)
 
 	if err := m.kv.SetexCtx(ctx, k, string(cacheData), expireTimeout); err != nil {
-		logx.WithContext(ctx).Errorf("putDuplicateMessage - SET {%s, %s, %d}, error: %s", k, cacheData, expireTimeout, err)
+		logx.WithContext(ctx).Errorf("putDuplicateMessage - SET {%s, %d bytes, %d}, error: %s", k, len(cacheData), expireTimeout, err)
 		return err
 	}
 

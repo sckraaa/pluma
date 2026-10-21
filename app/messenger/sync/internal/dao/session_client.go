@@ -89,7 +89,7 @@ func (c *Session) process(sessionChan chan sessionDataCtx) {
 			case *session.TLSessionPushSessionUpdatesData:
 				_, err = c.client.SessionPushSessionUpdatesData(sessionData.ctx, r)
 				if err != nil {
-					logx.Errorf("c.client.PushSessionUpdates(%s, %v, reply) serverId:%s error(%v)", r, c.serverId, c.serverId, err)
+					logx.Errorf("c.client.PushSessionUpdates(perm_auth_key_id: %d, session_id: %d) serverId:%s error(%v)", r.GetPermAuthKeyId(), r.GetSessionId(), c.serverId, err)
 					if isSessionConnError(err) {
 						c.unavailable.Store(true)
 						logx.Errorf("session(%s) marked unavailable due to conn error", c.serverId)
@@ -98,7 +98,7 @@ func (c *Session) process(sessionChan chan sessionDataCtx) {
 			case *session.TLSessionPushUpdatesData:
 				_, err = c.client.SessionPushUpdatesData(sessionData.ctx, r)
 				if err != nil {
-					logx.Errorf("c.client.PushUpdates(%s, %v, reply) serverId:%s error(%v)", r, c.serverId, c.serverId, err)
+					logx.Errorf("c.client.PushUpdates(perm_auth_key_id: %d) serverId:%s error(%v)", r.GetPermAuthKeyId(), c.serverId, err)
 					if isSessionConnError(err) {
 						c.unavailable.Store(true)
 						logx.Errorf("session(%s) marked unavailable due to conn error", c.serverId)
@@ -107,14 +107,14 @@ func (c *Session) process(sessionChan chan sessionDataCtx) {
 			case *session.TLSessionPushRpcResultData:
 				_, err = c.client.SessionPushRpcResultData(sessionData.ctx, r)
 				if err != nil {
-					logx.Errorf("c.client.PushRpcResult(%s, %v, reply) serverId:%s error(%v)", r, c.serverId, c.serverId, err)
+					logx.Errorf("c.client.PushRpcResult(perm_auth_key_id: %d, req_msg_id: %d) serverId:%s error(%v)", r.GetPermAuthKeyId(), r.GetClientReqMsgId(), c.serverId, err)
 					if isSessionConnError(err) {
 						c.unavailable.Store(true)
 						logx.Errorf("session(%s) marked unavailable due to conn error", c.serverId)
 					}
 				}
 			default:
-				logx.Errorf("invalid type: %#v", r)
+				logx.Errorf("invalid type: %T", r)
 			}
 		case <-c.ctx.Done():
 			return

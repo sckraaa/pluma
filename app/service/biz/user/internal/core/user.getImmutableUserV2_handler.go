@@ -34,7 +34,7 @@ func (c *UserCore) UserGetImmutableUserV2(in *user.TLUserGetImmutableUserV2) (*m
 		in.HasTo,
 		in.To)
 	if err != nil {
-		c.Logger.Errorf("user.getImmutableUserV2(%s) - error: %v", in, err)
+		c.Logger.Errorf("user.getImmutableUserV2(%d) - error: %v", in.Id, err)
 		return nil, err
 	}
 

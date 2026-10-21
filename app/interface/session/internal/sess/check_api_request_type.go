@@ -120,10 +120,10 @@ func checkRpcWithoutLogin(tl mtproto.TLObject) bool {
 		*mtproto.TLLangpackGetLanguage:
 		return true
 
-	// TODO(@benqi): debug.
-	case *mtproto.TLUploadGetWebFile,
-		*mtproto.TLUploadGetFile:
-		return true
+	// upload.getFile and upload.getWebFile need a logged-in session: Telegram
+	// lists neither among the methods available before authorization
+	// (https://core.telegram.org/api/auth), and official clients only
+	// download files after login.
 
 	// noop
 	case *mtproto.TLHelpTest:
@@ -136,6 +136,22 @@ func checkRpcWithoutLogin(tl mtproto.TLObject) bool {
 	case *mtproto.TLJsonObject:
 		return true
 
+	default:
+		return false
+	}
+}
+
+// checkRpcWithUnboundTempKey reports whether a request may run over a
+// temporary key that is not bound to a permanent key yet. Per
+// https://core.telegram.org/api/pfs an unbound temp_auth_key_id may only be
+// used with auth.bindTempAuthKey, help.getConfig and help.getNearestDc;
+// everything else gets AUTH_KEY_PERM_EMPTY.
+func checkRpcWithUnboundTempKey(tl mtproto.TLObject) bool {
+	switch tl.(type) {
+	case *mtproto.TLAuthBindTempAuthKey,
+		*mtproto.TLHelpGetConfig,
+		*mtproto.TLHelpGetNearestDc:
+		return true
 	default:
 		return false
 	}

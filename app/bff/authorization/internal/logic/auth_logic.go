@@ -23,276 +23,242 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/dao"
+	"github.com/teamgram/proto/mtproto/crypto"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
-	"github.com/teamgram/teamgram-server/pkg/code"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type AuthLogic struct {
-	*dao.Dao
-	code.VerifyCodeInterface
+// PhoneCodeStore keeps login requests (model.PhoneCodeTransaction) by auth
+// key and phone. *dao.Dao implements it on Redis.
+type PhoneCodeStore interface {
+	GetCachePhoneCode(ctx context.Context, authKeyId int64, phoneNumber string) (*model.PhoneCodeTransaction, error)
+	PutCachePhoneCode(ctx context.Context, authKeyId int64, phoneNumber string, codeData *model.PhoneCodeTransaction) error
+	DeleteCachePhoneCode(ctx context.Context, authKeyId int64, phoneNumber string) error
 }
 
-func NewAuthSignLogic(dao *dao.Dao, code2 code.VerifyCodeInterface) *AuthLogic {
+// CodeDelivery sends login codes to the Telegram app of a registered user,
+// as Telegram does with auth.sentCodeTypeApp.
+type CodeDelivery interface {
+	// HasOtherAuthorizations reports whether userId has an authorized session
+	// other than authKeyId (the one asking for the code).
+	HasOtherAuthorizations(ctx context.Context, userId, authKeyId int64) (bool, error)
+	// DeliverToApp sends code to userId as a message from the service
+	// notifications account (777000).
+	DeliverToApp(ctx context.Context, userId int64, code string)
+}
+
+// AuthLogic runs the login requests of auth.sendCode, auth.resendCode,
+// auth.cancelCode, auth.signIn and auth.signUp. The code policy (allowlist,
+// flood limits, code storage and checks) is pkg/logincode.
+type AuthLogic struct {
+	store PhoneCodeStore
+	Codes *logincode.Service
+	now   func() time.Time
+}
+
+func NewAuthSignLogic(store PhoneCodeStore, codes *logincode.Service) *AuthLogic {
 	return &AuthLogic{
-		Dao:                 dao,
-		VerifyCodeInterface: code2,
+		store: store,
+		Codes: codes,
+		now:   time.Now,
 	}
 }
 
-func (m *AuthLogic) DoAuthSendCode(
-	ctx context.Context,
+// DoAuthSendCode starts a new login request of phoneNumber for authKeyId,
+// replacing an earlier one of the same auth key. userId is the account of the
+// phone, 0 if it is not registered. The phone must have passed
+// Codes.CheckSendCode.
+//
+// The code goes to the user's other authorized sessions when there are any
+// (auth.sentCodeTypeApp). Otherwise the answer is auth.sentCodeTypeSms and
+// nothing is sent: the administrator issues the code (pluma-admin login-code).
+func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	authKeyId int64,
 	sessionId int64,
 	phoneNumber string,
-	phoneRegistered,
-	allowFlashCall,
-	currentNumber bool,
-	apiId int32,
-	apiHash string,
-	cb func(codeData *model.PhoneCodeTransaction) error) (codeData *model.PhoneCodeTransaction, err error) {
-
-	sentCodeType, nextCodeType := model.MakeCodeType(phoneRegistered, allowFlashCall, currentNumber)
-	if codeData, err = m.Dao.CreatePhoneCode(ctx,
-		authKeyId,
-		sessionId,
-		phoneNumber,
-		phoneRegistered,
-		sentCodeType,
-		nextCodeType,
-		model.CodeStateSend); err != nil {
-		return
+	userId int64,
+	clientIp string,
+	delivery CodeDelivery) (*model.PhoneCodeTransaction, error) {
+	old, err := m.store.GetCachePhoneCode(ctx, authKeyId, phoneNumber)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("getCachePhoneCode - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	if old != nil {
+		m.Codes.Cancel(ctx, phoneNumber, old.PhoneCodeHash)
 	}
 
-	if cb != nil {
-		if err = cb(codeData); err != nil {
-			return
+	toApp := false
+	if userId != 0 && delivery != nil {
+		if toApp, err = delivery.HasOtherAuthorizations(ctx, userId, authKeyId); err != nil {
+			// Fall back to the administrator: the code is still never exposed.
+			logx.WithContext(ctx).Errorf("auth.sendCode - list authorizations of user %d: %v", userId, err)
+			toApp = false
 		}
 	}
 
-	// TODO(@benqi): after sendSms success, save codeData
-	_ = m.Dao.UpdatePhoneCodeData(ctx, authKeyId, phoneNumber, codeData.PhoneCodeHash, codeData)
+	codeData := &model.PhoneCodeTransaction{
+		AuthKeyId:             authKeyId,
+		SessionId:             sessionId,
+		PhoneNumber:           phoneNumber,
+		PhoneNumberRegistered: userId != 0,
+		PhoneCodeHash:         crypto.GenerateStringNonce(16),
+		PhoneCodeExpired:      int32(m.now().Add(logincode.TransactionTTL).Unix()),
+		SentCodeType:          model.SentCodeTypeSms,
+		NextCodeType:          model.CodeTypeNone,
+		State:                 model.CodeStateSent,
+	}
+	if toApp {
+		codeData.SentCodeType = model.SentCodeTypeApp
+		// auth.resendCode falls back to the administrator ("send as SMS").
+		codeData.NextCodeType = model.CodeTypeSms
+	}
 
-	//if codeData.State == model.CodeStateSend {
-	//	//switch codeData.State {
-	//	//case model.CodeStateSend:
-	//	//	codeData.State = model.CodeStateSent
-	//	//case model.CodeStateSent:
-	//	//	codeData.State = model.CodeStateSent
-	//	//default:
-	//	//	// codeData = newCodeData()
-	//	//}
-	//	codeData.State = model.CodeStateSent
-	//
-	//	go func() {
-	//		// 400	SMS_CODE_CREATE_FAILED	An error occurred while creating the SMS code
-	//		if m.VerifyCodeInterface != nil {
-	//			m.VerifyCodeInterface.SendSmsVerifyCode(context.Background(), phoneNumber, codeData.PhoneCode, codeData.PhoneCodeHash)
-	//		}
-	//
-	//		// TODO(@benqi): after sendSms success, save codeData
-	//		m.AuthCore.UpdatePhoneCodeData(context.Background(), authKeyId, phoneNumber, codeData.PhoneCodeHash, codeData)
-	//	}()
-	//}
-
-	return
+	code, err := m.Codes.Issue(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp, toApp)
+	if err != nil {
+		return nil, err
+	}
+	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
+		m.Codes.Cancel(ctx, phoneNumber, codeData.PhoneCodeHash)
+		return nil, mtproto.ErrInternalServerError
+	}
+	if toApp {
+		delivery.DeliverToApp(ctx, userId, code)
+	}
+	return codeData, nil
 }
 
-// DoAuthReSendCode
-// auth.resendCode
+// DoAuthReSendCode switches a request delivered in the app to the
+// administrator path (auth.sentCodeTypeSms, no next type). The phone must have
+// passed Codes.CheckSendCode.
 func (m *AuthLogic) DoAuthReSendCode(ctx context.Context,
 	authKeyId int64,
-	phoneNumber, phoneCodeHash string,
-	cb func(codeData *model.PhoneCodeTransaction) error) (codeData *model.PhoneCodeTransaction, err error) {
-	if codeData, err = m.Dao.GetPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash); err != nil {
-		return
+	phoneNumber, phoneCodeHash string) (*model.PhoneCodeTransaction, error) {
+	codeData, err := m.getPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash)
+	if err != nil {
+		return nil, err
+	}
+	if codeData.State != model.CodeStateSent || m.expired(codeData) {
+		return nil, mtproto.ErrPhoneCodeExpired
+	}
+	if codeData.NextCodeType == model.CodeTypeNone {
+		// 406: every delivery option was already used.
+		return nil, mtproto.ErrSendCodeUnavailable
 	}
 
-	//// TODO(@benqi): attempts
-	//if do.Attempts > 3 {
-	//	// TODO(@benqi): 输入了太多次错
-	//
-	// 误的phone code
-	//	err := mtproto.NewFloodWaitX(15*60, "too many attempts.")
-	//	return err
-	//}
-	//
-	//// TODO(@benqi): check phone code valid, only number etc.
-	//if do.Code == "" {
-	//	err := mtproto.NewRpcError(int32(mtproto.TLRpcErrorCodes_PHONE_CODE_INVALID), "code invalid")
-	//	log.Error(err.Error())
-	//	return err
-	//}
-
-	// check state invalid.
-	if codeData.State != model.CodeStateSent && codeData.State != model.CodeStateSignIn {
-		err = mtproto.ErrInternalServerError
-		return
+	codeData.SentCodeType = model.SentCodeTypeSms
+	codeData.NextCodeType = model.CodeTypeNone
+	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
+		return nil, mtproto.ErrInternalServerError
 	}
-
-	now := int32(time.Now().Unix())
-	if now > codeData.PhoneCodeExpired {
-		// TODO(@benqi): update timeout state?
-		err = mtproto.ErrPhoneCodeExpired
-		return
-	}
-
-	if cb != nil {
-		err = cb(codeData)
-		if err != nil {
-			return
-		}
-	}
-
-	m.Dao.UpdatePhoneCodeData(context.Background(), authKeyId, phoneNumber, codeData.PhoneCodeHash, codeData)
-
-	//go func() {
-	//	if m.VerifyCodeInterface != nil {
-	//		m.VerifyCodeInterface.SendSmsVerifyCode(context.Background(), phoneNumber, codeData.PhoneCode, codeData.PhoneCodeHash)
-	//	}
-	//
-	//	// TODO(@benqi): after sendSms success, save codeData
-	//	codeData.State = model.CodeStateSent
-	//	m.AuthCore.UpdatePhoneCodeData(context.Background(), authKeyId, phoneNumber, codeData.PhoneCodeHash, codeData)
-	//}()
-
-	return
+	return codeData, nil
 }
 
-// DoAuthCancelCode
-// auth.cancelCode
+// DoAuthCancelCode drops the request phoneCodeHash of authKeyId, if it is
+// the current one.
 func (m *AuthLogic) DoAuthCancelCode(ctx context.Context, authKeyId int64, phoneNumber, phoneCodeHash string) error {
-	return m.Dao.DeletePhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash)
+	codeData, err := m.store.GetCachePhoneCode(ctx, authKeyId, phoneNumber)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("getCachePhoneCode - error: %v", err)
+		return mtproto.ErrInternalServerError
+	}
+	if codeData == nil || codeData.PhoneCodeHash != phoneCodeHash {
+		return nil
+	}
+	m.Codes.Cancel(ctx, phoneNumber, phoneCodeHash)
+	if err = m.DeletePhoneCode(ctx, authKeyId, phoneNumber); err != nil {
+		return mtproto.ErrInternalServerError
+	}
+	return nil
 }
 
+// DoAuthSignIn checks phoneCode for the request and records the result:
+// CodeStateOk for a registered phone (the caller logs in and deletes the
+// request), CodeStateSignIn for a new one (auth.signUp comes next).
 func (m *AuthLogic) DoAuthSignIn(ctx context.Context,
 	authKeyId int64,
 	phoneNumber,
 	phoneCode,
-	phoneCodeHash string,
-	cb func(codeData *model.PhoneCodeTransaction) error) (codeData *model.PhoneCodeTransaction, err error) {
-	if codeData, err = m.Dao.GetPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash); err != nil {
-		return
+	phoneCodeHash,
+	clientIp string) (*model.PhoneCodeTransaction, error) {
+	codeData, err := m.getPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash)
+	if err != nil {
+		return nil, err
 	}
-
-	//// TODO(@benqi): attempts
-	//if do.Attempts > 3 {
-	//	// TODO(@benqi): 输入了太多次错误的phone code
-	//	err := mtproto.NewFloodWaitX(15*60, "too many attempts.")
-	//	return err
-	//}
-
-	// TODO(@benqi): 重复请求处理...
-	// check state invalid.
-	if codeData.State != model.CodeStateOk &&
-		codeData.State != model.CodeStateSent &&
-		codeData.State != model.CodeStateSignIn {
-		logx.WithContext(ctx).Errorf("error - invalid codeData state: %v", codeData)
-		err = mtproto.ErrInternalServerError
-		return
+	if m.expired(codeData) {
+		return nil, mtproto.ErrPhoneCodeExpired
 	}
-
-	now := int32(time.Now().Unix())
-	if now > codeData.PhoneCodeExpired {
-		// TODO(@benqi): update timeout state?
-		// code.dao.AuthPhoneTransactionsDAO.UpdateState(kCodeStateTimeout, do.Id)
-		err = mtproto.ErrPhoneCodeExpired
-		return
-	}
-
-	// TODO(@benqi): check phone code valid, only number etc.
-	//if phoneCode != "12345" && codeData.PhoneCode != phoneCode {
-	//	err := mtproto.NewRpcError2(mtproto.TLRpcErrorCodes_PHONE_CODE_INVALID)
-	//	return err
-	//}
-
-	if cb != nil {
-		if err = cb(codeData); err != nil {
-			err = mtproto.ErrPhoneCodeInvalid
-			return
+	switch codeData.State {
+	case model.CodeStateSent:
+	case model.CodeStateSignIn:
+		// A repeated auth.signIn of this auth key, which already proved the
+		// code: the account still has to be created with auth.signUp.
+		if !codeData.PhoneNumberRegistered {
+			return codeData, nil
 		}
+		return nil, mtproto.ErrPhoneCodeExpired
+	default:
+		return nil, mtproto.ErrPhoneCodeExpired
 	}
-	//if m.VerifyCodeInterface != nil {
-	//	err = m.VerifyCodeInterface.VerifySmsCode(ctx, codeData.PhoneCodeHash, phoneCode, codeData.PhoneCode)
-	//	if err != nil {
-	//		err = mtproto.ErrPhoneCodeInvalid
-	//		return
-	//	}
-	//} else if phoneCode != "12345" {
-	//	err = mtproto.ErrPhoneCodeInvalid
-	//	return
-	//}
 
-	// code.state = kCodeStateSignIn
+	if err = m.Codes.Verify(ctx, phoneNumber, phoneCodeHash, phoneCode, clientIp); err != nil {
+		return nil, err
+	}
+
 	if codeData.PhoneNumberRegistered {
 		codeData.State = model.CodeStateOk
 	} else {
 		codeData.State = model.CodeStateSignIn
 	}
-
-	err = m.Dao.UpdatePhoneCodeData(ctx, authKeyId, phoneNumber, phoneCodeHash, codeData)
-	return
+	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
+		return nil, mtproto.ErrInternalServerError
+	}
+	return codeData, nil
 }
 
-// DoAuthSignUp
-// TODO(@benqi): 合并DoSignUp和DoSignIn部分代码
-func (m *AuthLogic) DoAuthSignUp(ctx context.Context, authKeyId int64, phoneNumber string, phoneCode *string, phoneCodeHash string) (codeData *model.PhoneCodeTransaction, err error) {
-	if codeData, err = m.Dao.GetPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash); err != nil {
-		return
+// DoAuthSignUp returns the request if its code was accepted by auth.signIn
+// for a phone without an account; it is the only way to auth.signUp.
+func (m *AuthLogic) DoAuthSignUp(ctx context.Context, authKeyId int64, phoneNumber string, phoneCodeHash string) (*model.PhoneCodeTransaction, error) {
+	codeData, err := m.getPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash)
+	if err != nil {
+		return nil, err
 	}
-
-	// TODO(@benqi): 重复请求处理...
-	// check state invalid.
-	// TODO(@benqi): remote client error, state is Ok
-	if codeData.State != model.CodeStateOk &&
-		codeData.State != model.CodeStateSignIn &&
-		codeData.State != model.CodeStateDeleted &&
-		codeData.State != model.CodeStateSignUp {
-		err = mtproto.ErrInputRequestInvalid
-		logx.WithContext(ctx).Errorf("invalid code state(%d) - err: %v", codeData.State, err)
-		return
+	if codeData.State != model.CodeStateSignIn || codeData.PhoneNumberRegistered {
+		logx.WithContext(ctx).Errorf("auth.signUp - invalid code state(%d), registered: %v", codeData.State, codeData.PhoneNumberRegistered)
+		return nil, mtproto.ErrInputRequestInvalid
 	}
-
-	now := int32(time.Now().Unix())
-	if now > codeData.PhoneCodeExpired {
-		// TODO(@benqi): update timeout state?
-		err = mtproto.ErrPhoneCodeExpired
-		return
+	if m.expired(codeData) {
+		return nil, mtproto.ErrPhoneCodeExpired
 	}
+	return codeData, nil
+}
 
-	// auth.signUp#1b067634 phone_number:string phone_code_hash:string phone_code:string first_name:string last_name:string = auth.Authorization;
-	if phoneCode != nil {
-		if err = m.VerifyCodeInterface.VerifySmsCode(ctx,
-			codeData.PhoneCodeHash,
-			*phoneCode,
-			codeData.PhoneCodeExtraData); err != nil {
-			return
-		}
-		//if m.VerifyCodeInterface != nil {
-		//	err = m.VerifyCodeInterface.VerifySmsCode(ctx, codeData.PhoneCodeHash, *phoneCode, codeData.PhoneCode)
-		//	if err != nil {
-		//		log.Errorf("verifySmsCode error: %v", err)
-		//		err = mtproto.ErrPhoneCodeInvalid
-		//		return
-		//	}
-		//} else if *phoneCode != "12345" {
-		//	log.Errorf("verifySmsCode error: %v", err)
-		//	err = mtproto.ErrPhoneCodeInvalid
-		//	return
-		//}
+// DeletePhoneCode deletes the request of authKeyId and phoneNumber.
+func (m *AuthLogic) DeletePhoneCode(ctx context.Context, authKeyId int64, phoneNumber string) error {
+	return m.store.DeleteCachePhoneCode(ctx, authKeyId, phoneNumber)
+}
+
+// getPhoneCode returns the current request of authKeyId and phoneNumber if
+// its phone_code_hash is phoneCodeHash.
+func (m *AuthLogic) getPhoneCode(ctx context.Context,
+	authKeyId int64,
+	phoneNumber, phoneCodeHash string) (*model.PhoneCodeTransaction, error) {
+	codeData, err := m.store.GetCachePhoneCode(ctx, authKeyId, phoneNumber)
+	switch {
+	case err != nil:
+		logx.WithContext(ctx).Errorf("getPhoneCode by {authKeyId: %d} error - %v", authKeyId, err)
+		return nil, mtproto.ErrPhoneCodeExpired
+	case codeData == nil:
+		return nil, mtproto.ErrPhoneCodeExpired
+	case codeData.PhoneCodeHash != phoneCodeHash:
+		logx.WithContext(ctx).Errorf("getPhoneCode by {authKeyId: %d} error - invalid phoneCodeHash", authKeyId)
+		return nil, mtproto.ErrPhoneCodeInvalid
 	}
+	return codeData, nil
+}
 
-	codeData.State = model.CodeStateOk
-
-	/*
-		if !m.AuthCore.UpdatePhoneCodeData(ctx, authKeyId, phoneNumber, phoneCodeHash, codeData) {
-			err = mtproto.ErrInternalServerError
-			return
-		}
-
-		m.PhoneCodeTransaction = codeData
-	*/
-	return
+func (m *AuthLogic) expired(codeData *model.PhoneCodeTransaction) bool {
+	return m.now().Unix() > int64(codeData.PhoneCodeExpired)
 }

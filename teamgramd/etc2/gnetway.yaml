@@ -8,7 +8,8 @@ Log:
   ServiceName: interface.gateway
   #Mode: file
   #Path: ../logs/gnetway
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 #监控
 Prometheus:
   Host: 0.0.0.0

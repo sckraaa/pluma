@@ -27,7 +27,7 @@ func New(svcCtx *svc.ServiceContext, conf kafka.KafkaConsumerConf) *kafka.Consum
 	s.RegisterHandlers(
 		conf.Topics[0],
 		func(ctx context.Context, method, key string, value []byte) {
-			logx.WithContext(ctx).Debugf("method: %s, key: %s, value: %s", key, value)
+			logx.WithContext(ctx).Debugf("method: %s, key: %s, value: %d bytes", method, key, len(value))
 
 			switch protoreflect.FullName(method) {
 			case proto.MessageName((*sync.TLSyncUpdatesMe)(nil)):
@@ -38,7 +38,6 @@ func New(svcCtx *svc.ServiceContext, conf kafka.KafkaConsumerConf) *kafka.Consum
 					c.Logger.Error(err.Error())
 					return
 				}
-				c.Logger.Debugf("sync.updatesMe - request: %s", r)
 
 				c.SyncUpdatesMe(r)
 			case proto.MessageName((*sync.TLSyncUpdatesNotMe)(nil)):
@@ -49,7 +48,6 @@ func New(svcCtx *svc.ServiceContext, conf kafka.KafkaConsumerConf) *kafka.Consum
 					c.Logger.Error(err.Error())
 					return
 				}
-				c.Logger.Debugf("sync.updatesNotMe - request: %s", r)
 
 				c.SyncUpdatesNotMe(r)
 			case proto.MessageName((*sync.TLSyncPushUpdates)(nil)):
@@ -60,7 +58,6 @@ func New(svcCtx *svc.ServiceContext, conf kafka.KafkaConsumerConf) *kafka.Consum
 					c.Logger.Error(err.Error())
 					return
 				}
-				c.Logger.Debugf("sync.pushUpdates - request: %s", r)
 
 				c.SyncPushUpdates(r)
 			case proto.MessageName((*sync.TLSyncPushRpcResult)(nil)):
@@ -71,7 +68,6 @@ func New(svcCtx *svc.ServiceContext, conf kafka.KafkaConsumerConf) *kafka.Consum
 					c.Logger.Error(err.Error())
 					return
 				}
-				c.Logger.Debugf("sync.pushRpcResult - request: %s", r)
 
 				c.SyncPushRpcResult(r)
 			case proto.MessageName((*sync.TLSyncBroadcastUpdates)(nil)):
@@ -82,7 +78,6 @@ func New(svcCtx *svc.ServiceContext, conf kafka.KafkaConsumerConf) *kafka.Consum
 					c.Logger.Error(err.Error())
 					return
 				}
-				c.Logger.Debugf("sync.broadcastUpdates - request: %s", r)
 
 				c.SyncBroadcastUpdates(r)
 			default:

@@ -9,7 +9,8 @@ Log:
   ServiceName: service.dfs
   #Mode: file
   #Path: ../logs/dfs
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 #监控
 Prometheus:
   Host: 0.0.0.0
@@ -22,9 +23,11 @@ Telemetry:
   Sampler: 1.0
   Batcher: otlpgrpc
   
+# Serves uploaded files to dfs's own ffmpeg (http://127.0.0.1:11701), without
+# authentication: loopback only. No timeout: ffmpeg reads while it transcodes.
 MiniHttp:
   Name: service.dfs.minihttp
-  Host: 0.0.0.0
+  Host: 127.0.0.1
   Port: 11701
   Timeout: 0
 Cache:

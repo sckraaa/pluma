@@ -21,7 +21,6 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
-	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
 )
 
 /*
@@ -57,8 +56,14 @@ func (c *AuthorizationCore) AuthResendCode(in *mtproto.TLAuthResendCode) (*mtpro
 	// client phone number format: "+86 111 1111 1111"
 	_, phoneNumber, err := checkPhoneNumberInvalid(in.PhoneNumber)
 	if err != nil {
-		c.Logger.Errorf("check phone_number(%s) error - %v", in.PhoneNumber, err)
+		c.Logger.Errorf("check phone_number error - %v", err)
 		err = mtproto.ErrPhoneNumberInvalid
+		return nil, err
+	}
+
+	// A resend is a code request: same allowlist and flood limits as auth.sendCode.
+	if err = c.svcCtx.AuthLogic.Codes.CheckSendCode(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
+		c.Logger.Errorf("auth.resendCode - error: %v", err)
 		return nil, err
 	}
 
@@ -101,7 +106,7 @@ func (c *AuthorizationCore) AuthResendCode(in *mtproto.TLAuthResendCode) (*mtpro
 	if c.svcCtx.Plugin != nil {
 		banned, _ := c.svcCtx.Plugin.CheckPhoneNumberBanned(c.ctx, phoneNumber)
 		if banned {
-			c.Logger.Errorf("{phone_number: %s} banned: %v", phoneNumber, err)
+			c.Logger.Errorf("phone number banned: %v", err)
 			err = mtproto.ErrPhoneNumberBanned
 			return nil, err
 		}
@@ -114,47 +119,12 @@ func (c *AuthorizationCore) AuthResendCode(in *mtproto.TLAuthResendCode) (*mtpro
 	//    Please wait for a few days before signing up again.</string>
 	//
 
-	// 6. check can do action
-	actionType := logic.GetActionType(in)
-	if err = c.svcCtx.Dao.CheckCanDoAction(c.ctx, c.MD.PermAuthKeyId, phoneNumber, actionType); err != nil {
-		c.Logger.Errorf("check can do action - %s: %v", phoneNumber, err)
-		return nil, err
-	}
-
-	// codeLogic := logic.NewAuthSignLogic(s.AuthCore)
+	// The in-app code falls back to the administrator ("send as SMS"):
+	// nothing is sent from here, pluma-admin login-code issues the code.
 	codeData, err2 := c.svcCtx.AuthLogic.DoAuthReSendCode(c.ctx,
 		c.MD.PermAuthKeyId,
 		phoneNumber,
-		in.PhoneCodeHash,
-		func(codeData2 *model.PhoneCodeTransaction) error {
-			//if codeData2.State == model.CodeStateSent {
-			//	return
-			//}
-
-			// 400	SMS_CODE_CREATE_FAILED	An error occurred while creating the SMS code
-			extraData, err2 := c.svcCtx.AuthLogic.VerifyCodeInterface.SendSmsVerifyCode(c.ctx, phoneNumber, codeData2.PhoneCode, codeData2.PhoneCodeHash)
-			if err2 != nil {
-				c.Logger.Errorf("sendSmsVerifyCode error: %v", err2)
-				return err2
-			}
-
-			codeData2.SentCodeType = model.SentCodeTypeSms
-			codeData2.NextCodeType = model.CodeTypeSms
-			codeData2.State = model.CodeStateSent
-			codeData2.PhoneCodeExtraData = extraData
-
-			return nil
-
-			//go func() {
-			//	if m.VerifyCodeInterface != nil {
-			//		m.VerifyCodeInterface.SendSmsVerifyCode(context.Background(), phoneNumber, codeData.PhoneCode, codeData.PhoneCodeHash)
-			//	}
-			//
-			//	// TODO(@benqi): after sendSms success, save codeData
-			//	codeData.State = model.CodeStateSent
-			//	m.AuthCore.UpdatePhoneCodeData(context.Background(), authKeyId, phoneNumber, codeData.PhoneCodeHash, codeData)
-			//}()
-		})
+		in.PhoneCodeHash)
 	if err2 != nil {
 		c.Logger.Errorf("auth.resendCode - error: %v", err2)
 		err = err2

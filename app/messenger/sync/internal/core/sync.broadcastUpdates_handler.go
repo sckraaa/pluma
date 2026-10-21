@@ -26,7 +26,7 @@ func (c *SyncCore) SyncBroadcastUpdates(in *sync.TLSyncBroadcastUpdates) (*mtpro
 	}
 
 	if in.BroadcastType != sync.BroadcastTypeChat {
-		c.Logger.Errorf("invalid broadcast_type: %s", in)
+		c.Logger.Errorf("invalid broadcast_type: %d", in.BroadcastType)
 		return mtproto.EmptyVoid, nil
 	}
 

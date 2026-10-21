@@ -40,7 +40,7 @@ import (
 // from outBox --> make inBox
 func (d *Dao) makeMessageInBox(fromId int64, peer *mtproto.PeerUtil, toUserId int64, clientRandomId int64, dialogMessageId int64, message *mtproto.Message) *mtproto.MessageBox {
 	mentioned := mtproto.CheckHasMention(message.Entities, toUserId)
-	logx.Infof("insert to inbox: %#v, message: {%#v}", mentioned, message)
+	logx.Debugf("insert to inbox: {to_user_id: %d, dialog_message_id: %d, mentioned: %v}", toUserId, dialogMessageId, mentioned)
 
 	did := mtproto.MakeDialogId(fromId, peer.PeerType, peer.PeerId)
 	// from outBox --> make inBox
@@ -252,7 +252,8 @@ func (d *Dao) sendMessageToInbox(ctx context.Context, fromId int64, peer *mtprot
 		ctx,
 		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
 			lastInsertId, rowsAffected, err := d.DialogsDAO.InsertOrUpdate(ctx, dialogDO)
-			logx.WithContext(ctx).Infof("lastInsertId:%d, rowsAffected: %d, result: %v, do: %v", lastInsertId, rowsAffected, err, dialogDO)
+			logx.WithContext(ctx).Debugf("lastInsertId:%d, rowsAffected: %d, result: %v, dialog: {user_id: %d, peer_dialog_id: %d}",
+				lastInsertId, rowsAffected, err, dialogDO.UserId, dialogDO.PeerDialogId)
 			return 0, 0, err
 		},
 		dialog.GetDialogCacheKey(dialogDO.UserId, dialogDO.PeerDialogId))

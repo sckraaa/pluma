@@ -39,7 +39,7 @@ func (c *MsgCore) MsgReadHistory(in *msg.TLMsgReadHistory) (*mtproto.Messages_Af
 		c.Logger.Errorf("messages.readHistory - error: invalid peer %v", err)
 		return nil, mtproto.ErrInternalServerError
 	} else if dlg == nil {
-		c.Logger.Errorf("messages.readHistory - error: not found dialog, request: %s", in)
+		c.Logger.Errorf("messages.readHistory - error: not found dialog, request: {user_id: %d, peer: %d/%d}", in.UserId, in.PeerType, in.PeerId)
 		return nil, mtproto.ErrPeerIdInvalid
 	}
 

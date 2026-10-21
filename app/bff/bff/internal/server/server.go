@@ -118,7 +118,8 @@ func (s *Server) Initialize() error {
 				authorization_helper.Config{
 					RpcServerConf:             c.RpcServerConf,
 					KV:                        c.KV,
-					Code:                      c.Code,
+					Mysql:                     c.Mysql,
+					LoginCode:                 c.LoginCode,
 					UserClient:                c.BizServiceClient,
 					AuthsessionClient:         c.AuthSessionClient,
 					ChatClient:                c.BizServiceClient,
@@ -128,7 +129,6 @@ func (s *Server) Initialize() error {
 					SignInMessage:             c.SignInMessage,
 					SignInServiceNotification: c.SignInServiceNotification,
 				},
-				nil,
 				nil))
 
 		// premium_helper
@@ -299,12 +299,13 @@ func (s *Server) Initialize() error {
 				account_helper.Config{
 					RpcServerConf:     c.RpcServerConf,
 					KV:                c.KV,
+					Mysql:             c.Mysql,
+					LoginCode:         c.LoginCode,
 					UserClient:        c.BizServiceClient,
 					AuthsessionClient: c.AuthSessionClient,
 					ChatClient:        c.BizServiceClient,
 					SyncClient:        c.SyncClient,
 				},
-				nil,
 				nil))
 		// usernames_helper
 		mtproto.RegisterRPCUsernamesServer(

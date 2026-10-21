@@ -24,7 +24,6 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
-	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -66,7 +65,7 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 
 	if phoneCode == "" || phoneCodeHash == "" {
 		err := mtproto.ErrPhoneCodeEmpty
-		c.Logger.Errorf("auth.sendCode - error: %v", err)
+		c.Logger.Errorf("auth.signIn - error: %v", err)
 		return nil, err
 	}
 
@@ -74,32 +73,26 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 	// client phone number format: "+86 111 1111 1111"
 	_, phoneNumber, err := checkPhoneNumberInvalid(in.PhoneNumber)
 	if err != nil {
-		c.Logger.Errorf("check phone_number(%s) error - %v", in.PhoneNumber, err)
+		c.Logger.Errorf("check phone_number error - %v", err)
 		err = mtproto.ErrPhoneNumberInvalid
 		return nil, err
 	}
 
-	// 6. check can do action
-	actionType := logic.GetActionType(in)
-	if err = c.svcCtx.Dao.CheckCanDoAction(c.ctx, c.MD.PermAuthKeyId, phoneNumber, actionType); err != nil {
-		c.Logger.Errorf("check can do action - %s: %v", phoneNumber, err)
+	// Closed registration: PHONE_NUMBER_INVALID whether or not an account exists.
+	if err = c.svcCtx.AuthLogic.Codes.CheckPhone(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
+		c.Logger.Errorf("auth.signIn - error: %v", err)
 		return nil, err
 	}
 
+	// Checks the code with the attempt and flood limits of pkg/logincode.
 	codeData, err2 := c.svcCtx.AuthLogic.DoAuthSignIn(c.ctx,
 		c.MD.PermAuthKeyId,
 		phoneNumber,
 		phoneCode,
 		phoneCodeHash,
-		func(codeData2 *model.PhoneCodeTransaction) error {
-			return c.svcCtx.AuthLogic.VerifyCodeInterface.VerifySmsCode(c.ctx,
-				codeData2.PhoneCodeHash,
-				phoneCode,
-				codeData2.PhoneCodeExtraData)
-		})
-
+		c.MD.ClientAddr)
 	if err2 != nil {
-		c.Logger.Error(err2.Error())
+		c.Logger.Errorf("auth.signIn - error: %v", err2)
 		err = err2
 		return nil, err
 	}
@@ -139,10 +132,10 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 		Phone: phoneNumber,
 	})
 	if err != nil {
-		c.Logger.Errorf("user(%s) is err - %v", phoneNumber, err)
+		c.Logger.Errorf("user by phone - error: %v", err)
 		return nil, err
 	} else if user == nil {
-		c.Logger.Errorf("user(%s) is nil", phoneNumber)
+		c.Logger.Errorf("user by phone - not found")
 		err = mtproto.ErrInternalServerError
 		return nil, err
 	}
@@ -166,7 +159,7 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 
 	selfUser := user.ToSelfUser()
 
-	c.svcCtx.AuthLogic.DeletePhoneCode(c.ctx, c.MD.PermAuthKeyId, in.PhoneNumber, phoneCodeHash)
+	_ = c.svcCtx.AuthLogic.DeletePhoneCode(c.ctx, c.MD.PermAuthKeyId, phoneNumber)
 
 	region, _ := c.svcCtx.Dao.GetCountryAndRegionByIp(c.MD.ClientAddr)
 

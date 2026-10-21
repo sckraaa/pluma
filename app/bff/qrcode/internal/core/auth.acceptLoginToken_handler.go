@@ -53,7 +53,7 @@ func (c *QrCodeCore) AuthAcceptLoginToken(in *mtproto.TLAuthAcceptLoginToken) (*
 		return nil, err
 	}
 
-	c.Logger.Infof("auth.acceptLoginToken - qrCode: %#v", qrCode)
+	c.Logger.Infof("auth.acceptLoginToken - qrCode: {perm_auth_key_id: %d, state: %d}", qrCode.PermAuthKeyId, qrCode.State)
 
 	if !qrCode.CheckByToken(in.Token) {
 		err := mtproto.ErrAuthTokenInvalid

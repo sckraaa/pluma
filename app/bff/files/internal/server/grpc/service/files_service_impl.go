@@ -21,14 +21,13 @@ import (
 // messages.getDocumentByHash#b1f2061f sha256:bytes size:long mime_type:string = Document;
 func (s *Service) MessagesGetDocumentByHash(ctx context.Context, request *mtproto.TLMessagesGetDocumentByHash) (*mtproto.Document, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.getDocumentByHash - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.getDocumentByHash - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesGetDocumentByHash(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.getDocumentByHash - reply: {%s}", r)
 	return r, err
 }
 
@@ -36,14 +35,13 @@ func (s *Service) MessagesGetDocumentByHash(ctx context.Context, request *mtprot
 // messages.uploadMedia#14967978 flags:# business_connection_id:flags.0?string peer:InputPeer media:InputMedia = MessageMedia;
 func (s *Service) MessagesUploadMedia(ctx context.Context, request *mtproto.TLMessagesUploadMedia) (*mtproto.MessageMedia, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.uploadMedia - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.uploadMedia - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesUploadMedia(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.uploadMedia - reply: {%s}", r)
 	return r, err
 }
 
@@ -51,14 +49,13 @@ func (s *Service) MessagesUploadMedia(ctx context.Context, request *mtproto.TLMe
 // messages.uploadEncryptedFile#5057c497 peer:InputEncryptedChat file:InputEncryptedFile = EncryptedFile;
 func (s *Service) MessagesUploadEncryptedFile(ctx context.Context, request *mtproto.TLMessagesUploadEncryptedFile) (*mtproto.EncryptedFile, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.uploadEncryptedFile - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.uploadEncryptedFile - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesUploadEncryptedFile(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.uploadEncryptedFile - reply: {%s}", r)
 	return r, err
 }
 
@@ -77,7 +74,6 @@ func (s *Service) UploadSaveFilePart(ctx context.Context, request *mtproto.TLUpl
 		return nil, err
 	}
 
-	c.Logger.Debugf("upload.saveFilePart - reply: {%s}", r)
 	return r, err
 }
 
@@ -85,7 +81,7 @@ func (s *Service) UploadSaveFilePart(ctx context.Context, request *mtproto.TLUpl
 // upload.getFile#be5335be flags:# precise:flags.0?true cdn_supported:flags.1?true location:InputFileLocation offset:long limit:int = upload.File;
 func (s *Service) UploadGetFile(ctx context.Context, request *mtproto.TLUploadGetFile) (*mtproto.Upload_File, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("upload.getFile - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("upload.getFile - metadata: {%s}", c.MD)
 
 	r, err := c.UploadGetFile(request)
 	if err != nil {
@@ -114,7 +110,6 @@ func (s *Service) UploadSaveBigFilePart(ctx context.Context, request *mtproto.TL
 		return nil, err
 	}
 
-	c.Logger.Debugf("upload.saveBigFilePart - reply: {%s}", r)
 	return r, err
 }
 
@@ -122,7 +117,7 @@ func (s *Service) UploadSaveBigFilePart(ctx context.Context, request *mtproto.TL
 // upload.getWebFile#24e6818d location:InputWebFileLocation offset:int limit:int = upload.WebFile;
 func (s *Service) UploadGetWebFile(ctx context.Context, request *mtproto.TLUploadGetWebFile) (*mtproto.Upload_WebFile, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("upload.getWebFile - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("upload.getWebFile - metadata: {%s}", c.MD)
 
 	r, err := c.UploadGetWebFile(request)
 	if err != nil {
@@ -141,14 +136,13 @@ func (s *Service) UploadGetWebFile(ctx context.Context, request *mtproto.TLUploa
 // upload.getCdnFile#395f69da file_token:bytes offset:long limit:int = upload.CdnFile;
 func (s *Service) UploadGetCdnFile(ctx context.Context, request *mtproto.TLUploadGetCdnFile) (*mtproto.Upload_CdnFile, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("upload.getCdnFile - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("upload.getCdnFile - metadata: {%s}", c.MD)
 
 	r, err := c.UploadGetCdnFile(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("upload.getCdnFile - reply: {%s}", r)
 	return r, err
 }
 
@@ -156,14 +150,13 @@ func (s *Service) UploadGetCdnFile(ctx context.Context, request *mtproto.TLUploa
 // upload.reuploadCdnFile#9b2754a8 file_token:bytes request_token:bytes = Vector<FileHash>;
 func (s *Service) UploadReuploadCdnFile(ctx context.Context, request *mtproto.TLUploadReuploadCdnFile) (*mtproto.Vector_FileHash, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("upload.reuploadCdnFile - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("upload.reuploadCdnFile - metadata: {%s}", c.MD)
 
 	r, err := c.UploadReuploadCdnFile(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("upload.reuploadCdnFile - reply: {%s}", r)
 	return r, err
 }
 
@@ -171,14 +164,13 @@ func (s *Service) UploadReuploadCdnFile(ctx context.Context, request *mtproto.TL
 // upload.getCdnFileHashes#91dc3f31 file_token:bytes offset:long = Vector<FileHash>;
 func (s *Service) UploadGetCdnFileHashes(ctx context.Context, request *mtproto.TLUploadGetCdnFileHashes) (*mtproto.Vector_FileHash, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("upload.getCdnFileHashes - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("upload.getCdnFileHashes - metadata: {%s}", c.MD)
 
 	r, err := c.UploadGetCdnFileHashes(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("upload.getCdnFileHashes - reply: {%s}", r)
 	return r, err
 }
 
@@ -186,14 +178,13 @@ func (s *Service) UploadGetCdnFileHashes(ctx context.Context, request *mtproto.T
 // upload.getFileHashes#9156982a location:InputFileLocation offset:long = Vector<FileHash>;
 func (s *Service) UploadGetFileHashes(ctx context.Context, request *mtproto.TLUploadGetFileHashes) (*mtproto.Vector_FileHash, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("upload.getFileHashes - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("upload.getFileHashes - metadata: {%s}", c.MD)
 
 	r, err := c.UploadGetFileHashes(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("upload.getFileHashes - reply: {%s}", r)
 	return r, err
 }
 
@@ -201,13 +192,12 @@ func (s *Service) UploadGetFileHashes(ctx context.Context, request *mtproto.TLUp
 // help.getCdnConfig#52029342 = CdnConfig;
 func (s *Service) HelpGetCdnConfig(ctx context.Context, request *mtproto.TLHelpGetCdnConfig) (*mtproto.CdnConfig, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("help.getCdnConfig - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("help.getCdnConfig - metadata: {%s}", c.MD)
 
 	r, err := c.HelpGetCdnConfig(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("help.getCdnConfig - reply: {%s}", r)
 	return r, err
 }

@@ -23,7 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/account/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/account/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/account/plugin"
-	"github.com/teamgram/teamgram-server/pkg/code"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 )
 
 type ServiceContext struct {
@@ -33,16 +33,12 @@ type ServiceContext struct {
 	Plugin plugin.AuthorizationPlugin
 }
 
-func NewServiceContext(c config.Config, code2 code.VerifyCodeInterface, plugin plugin.AuthorizationPlugin) *ServiceContext {
+func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *ServiceContext {
 	d := dao.New(c)
-	if code2 == nil {
-		code2 = code.NewVerifyCode(c.Code)
-	}
-
 	return &ServiceContext{
 		Config:    c,
-		Dao:       dao.New(c),
-		AuthLogic: logic.NewAuthSignLogic(d, code2),
+		Dao:       d,
+		AuthLogic: logic.NewAuthSignLogic(d, logincode.MustNewService(c.LoginCode, c.Mysql, c.KV)),
 		Plugin:    plugin,
 	}
 }

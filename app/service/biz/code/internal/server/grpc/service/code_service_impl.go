@@ -22,14 +22,13 @@ import (
 // code.createPhoneCode flags:# auth_key_id:long session_id:long phone:string phone_number_registered:flags.0?true sent_code_type:int next_code_type:int state:int = PhoneCodeTransaction;
 func (s *Service) CodeCreatePhoneCode(ctx context.Context, request *code.TLCodeCreatePhoneCode) (*code.PhoneCodeTransaction, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("code.createPhoneCode - metadata: %s, request: %s", c.MD, request)
+	c.Logger.Debugf("code.createPhoneCode - metadata: %s", c.MD)
 
 	r, err := c.CodeCreatePhoneCode(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("code.createPhoneCode - reply: %s", r)
 	return r, err
 }
 
@@ -37,14 +36,13 @@ func (s *Service) CodeCreatePhoneCode(ctx context.Context, request *code.TLCodeC
 // code.getPhoneCode auth_key_id:long phone:string phone_code_hash:string = PhoneCodeTransaction;
 func (s *Service) CodeGetPhoneCode(ctx context.Context, request *code.TLCodeGetPhoneCode) (*code.PhoneCodeTransaction, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("code.getPhoneCode - metadata: %s, request: %s", c.MD, request)
+	c.Logger.Debugf("code.getPhoneCode - metadata: %s", c.MD)
 
 	r, err := c.CodeGetPhoneCode(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("code.getPhoneCode - reply: %s", r)
 	return r, err
 }
 
@@ -52,14 +50,13 @@ func (s *Service) CodeGetPhoneCode(ctx context.Context, request *code.TLCodeGetP
 // code.deletePhoneCode auth_key_id:long phone:string phone_code_hash:string = Bool;
 func (s *Service) CodeDeletePhoneCode(ctx context.Context, request *code.TLCodeDeletePhoneCode) (*mtproto.Bool, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("code.deletePhoneCode - metadata: %s, request: %s", c.MD, request)
+	c.Logger.Debugf("code.deletePhoneCode - metadata: %s", c.MD)
 
 	r, err := c.CodeDeletePhoneCode(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("code.deletePhoneCode - reply: %s", r)
 	return r, err
 }
 
@@ -67,13 +64,12 @@ func (s *Service) CodeDeletePhoneCode(ctx context.Context, request *code.TLCodeD
 // code.updatePhoneCodeData auth_key_id:long phone:string phone_code_hash:string code_data:PhoneCodeTransaction = Bool;
 func (s *Service) CodeUpdatePhoneCodeData(ctx context.Context, request *code.TLCodeUpdatePhoneCodeData) (*mtproto.Bool, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("code.updatePhoneCodeData - metadata: %s, request: %s", c.MD, request)
+	c.Logger.Debugf("code.updatePhoneCodeData - metadata: %s", c.MD)
 
 	r, err := c.CodeUpdatePhoneCodeData(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("code.updatePhoneCodeData - reply: %s", r)
 	return r, err
 }

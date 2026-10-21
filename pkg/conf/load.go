@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/teamgram/teamgram-server/pkg/logpolicy"
+
 	zeroconf "github.com/zeromicro/go-zero/core/conf"
 )
 
@@ -25,7 +27,13 @@ var envRef = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 // an error instead of an empty string: a missing secret stops the service at
 // startup. A variable explicitly set to "" is allowed. Values are substituted
 // verbatim, so keep them free of YAML/DSN syntax (generate secrets as hex).
+//
+// Every service starts by loading its config here, so Load also applies the
+// log policy (logpolicy.Apply): go-zero must not log RPC requests, SQL
+// statements or Redis commands, which carry user content and keys.
 func Load(path string, v any) error {
+	logpolicy.Apply()
+
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return err

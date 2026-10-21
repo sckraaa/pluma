@@ -70,7 +70,7 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 			TtlSeconds: nil,
 		})
 		if err != nil {
-			c.Logger.Errorf("UploadPhoto error: %v, by %s", err, media)
+			c.Logger.Errorf("UploadPhoto error: %v, by %s", err, media.GetPredicateName())
 			return
 		}
 

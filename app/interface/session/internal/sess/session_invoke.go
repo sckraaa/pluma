@@ -20,6 +20,7 @@ package sess
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"strconv"
 	"strings"
@@ -31,86 +32,113 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-func (c *session) onInvokeWithLayer(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithLayer) {
-	logx.WithContext(ctx).Infof("onInvokeWithLayer - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+// maxInvokeNesting bounds the invoke*/initConnection wrappers around one
+// query. Official clients use a few, e.g. invokeAfterMsg(invokeWithLayer(
+// initConnection(invokeWithoutUpdates(query)))). Each level is decoded and
+// handled recursively, so without a bound a single message of nested
+// wrappers costs memory quadratic in its size and can exhaust the goroutine
+// stack, before any login.
+const maxInvokeNesting = 10
+
+var (
+	errInvokeTooDeep = errors.New("invoke wrappers nested too deeply")
+	errInvokeNoQuery = errors.New("invoke wrapper without a query")
+)
+
+// invokeChain is where a query sits in its invoke* wrappers: the nesting
+// level and the buffer the enclosing wrapper was decoded from, whose nesting
+// depth and allocation budget the query's decoding continues
+// (mtproto.DecodeBuf.NewNestedDecodeBuf), so the decoder limits hold for the
+// whole chain.
+type invokeChain struct {
+	level  int
+	parent *mtproto.DecodeBuf
+}
+
+// decodeQuery decodes the query of a wrapper found at k.
+func (k invokeChain) decodeQuery(query []byte) (mtproto.TLObject, invokeChain, error) {
+	if k.level >= maxInvokeNesting {
+		return nil, k, errInvokeTooDeep
+	}
+	if len(query) == 0 {
+		return nil, k, errInvokeNoQuery
+	}
+	var dBuf *mtproto.DecodeBuf
+	if k.parent == nil {
+		dBuf = mtproto.NewDecodeBuf(query)
+	} else {
+		dBuf = k.parent.NewNestedDecodeBuf(query)
+	}
+	obj := dBuf.Object()
+	if err := dBuf.GetError(); err != nil {
+		return nil, k, err
+	}
+	if obj == nil {
+		return nil, k, errInvokeNoQuery
+	}
+	return obj, invokeChain{level: k.level + 1, parent: dBuf}, nil
+}
+
+// decodeInvokeQuery decodes the query of the wrapper method received as
+// msgId. Wrappers nested deeper than maxInvokeNesting are answered with
+// 400 INPUT_REQUEST_INVALID.
+func (c *session) decodeInvokeQuery(ctx context.Context, gatewayId string, msgId *inboxMsg, method string, query []byte, chain invokeChain) (mtproto.TLObject, invokeChain, bool) {
+	obj, next, err := chain.decodeQuery(query)
+	switch {
+	case err == nil:
+		return obj, next, true
+	case errors.Is(err, errInvokeTooDeep):
+		logx.WithContext(ctx).Errorf("%s - msg_id %d: invoke wrappers nested deeper than %d", method, msgId.msgId, maxInvokeNesting)
+		c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, mtproto.NewRpcError(mtproto.ErrInputRequestInvalid))
+		msgId.state = RECEIVED | RESPONSE_GENERATED
+	default:
+		logx.WithContext(ctx).Errorf("%s - msg_id %d: query: %v", method, msgId.msgId, err)
+	}
+	return nil, chain, false
+}
+
+func (c *session) onInvokeWithLayer(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithLayer, chain invokeChain) {
+	logx.WithContext(ctx).Infof("onInvokeWithLayer - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, layer: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		request.GetLayer())
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeWithLayer Query is nil, query: {%s}", request)
-		return
-	}
-
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithLayer", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
 	c.sessList.cb.onUpdateLayer(ctx, request.Layer)
 
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
-func (c *session) onInvokeAfterMsg(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeAfterMsg) {
-	logx.WithContext(ctx).Infof("onInvokeAfterMsg - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%v}}",
+func (c *session) onInvokeAfterMsg(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeAfterMsg, chain invokeChain) {
+	logx.WithContext(ctx).Infof("onInvokeAfterMsg - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
-		msgId.seqNo,
-		request)
+		msgId.seqNo)
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeAfterMsg Query is nil, query: {%s}", request)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeAfterMsg", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
-		return
-	}
-
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
-func (c *session) onInvokeAfterMsgs(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeAfterMsgs) {
-	logx.WithContext(ctx).Infof("onInvokeAfterMsgs - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%v}}",
+func (c *session) onInvokeAfterMsgs(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeAfterMsgs, chain invokeChain) {
+	logx.WithContext(ctx).Infof("onInvokeAfterMsgs - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
-		msgId.seqNo,
-		request)
+		msgId.seqNo)
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeAfterMsgs Query is nil, query: {%s}", request)
-		return
-	}
-
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeAfterMsgs", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
@@ -172,10 +200,10 @@ func (c *session) onInvokeAfterMsgs(ctx context.Context, gatewayId, clientIp str
 		}
 	*/
 
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
-func (c *session) onInvokeWithoutUpdates(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithoutUpdates) {
+func (c *session) onInvokeWithoutUpdates(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithoutUpdates, chain invokeChain) {
 	logx.WithContext(ctx).Infof("onInvokeWithoutUpdates - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
@@ -183,27 +211,15 @@ func (c *session) onInvokeWithoutUpdates(ctx context.Context, gatewayId, clientI
 		msgId.seqNo,
 		reflect.TypeOf(request))
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeWithoutUpdates Query is nil, query: {%s}", request)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithoutUpdates", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
-		return
-	}
-
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
-func (c *session) onInvokeWithMessagesRange(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithMessagesRange) {
+func (c *session) onInvokeWithMessagesRange(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithMessagesRange, chain invokeChain) {
 	logx.WithContext(ctx).Infof("onInvokeWithMessagesRange - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
@@ -211,27 +227,15 @@ func (c *session) onInvokeWithMessagesRange(ctx context.Context, gatewayId, clie
 		msgId.seqNo,
 		reflect.TypeOf(request))
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeWithMessagesRange Query is nil, query: {%s}", request)
-		return
-	}
-
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
+	query, _, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithMessagesRange", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
 	c.onRpcRequest(ctx, gatewayId, clientIp, msgId, query, newTakeoutMetadata(0, request.GetRange()))
 }
 
-func (c *session) onInvokeWithTakeout(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithTakeout) {
+func (c *session) onInvokeWithTakeout(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithTakeout, chain invokeChain) {
 	logx.WithContext(ctx).Infof("onInvokeWithTakeout - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
@@ -239,20 +243,8 @@ func (c *session) onInvokeWithTakeout(ctx context.Context, gatewayId, clientIp s
 		msgId.seqNo,
 		reflect.TypeOf(request))
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeWithTakeout Query is nil, query: {%s}", request)
-		return
-	}
-
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
+	query, _, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithTakeout", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
@@ -272,7 +264,7 @@ func (c *session) onInvokeWithTakeout(ctx context.Context, gatewayId, clientIp s
 	c.onRpcRequest(ctx, gatewayId, clientIp, msgId, query, takeout)
 }
 
-func (c *session) onInvokeWithBusinessConnection(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithBusinessConnection) {
+func (c *session) onInvokeWithBusinessConnection(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithBusinessConnection, chain invokeChain) {
 	logx.WithContext(ctx).Infof("onInvokeWithBusinessConnection - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
@@ -280,118 +272,65 @@ func (c *session) onInvokeWithBusinessConnection(ctx context.Context, gatewayId,
 		msgId.seqNo,
 		reflect.TypeOf(request))
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeWithBusinessConnection Query is nil, query: {%s}", request)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithBusinessConnection", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
-		return
-	}
-
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
-func (c *session) onInvokeWithGooglePlayIntegrity(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithGooglePlayIntegrity) {
-	logx.WithContext(ctx).Infof("onInvokeWithGooglePlayIntegrity - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, nonce: %s, token: %s, request: {%s}}",
+func (c *session) onInvokeWithGooglePlayIntegrity(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithGooglePlayIntegrity, chain invokeChain) {
+	logx.WithContext(ctx).Infof("onInvokeWithGooglePlayIntegrity - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request.Nonce,
-		request.Token,
 		reflect.TypeOf(request))
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("onInvokeWithGooglePlayIntegrity Query is nil, query: {%s}", request)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithGooglePlayIntegrity", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
-		return
-	}
-
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
 // onInvokeWithApnsSecret
-func (c *session) onInvokeWithApnsSecret(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithApnsSecret) {
-	logx.WithContext(ctx).Infof("onInvokeWithApnsSecret - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, nonce: %s, secret: %s, request: {%s}}",
+func (c *session) onInvokeWithApnsSecret(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithApnsSecret, chain invokeChain) {
+	logx.WithContext(ctx).Infof("onInvokeWithApnsSecret - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request.Nonce,
-		request.Secret,
 		reflect.TypeOf(request))
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("invokeWithApnsSecret Query is nil, query: {%s}", request)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithApnsSecret", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
-		return
-	}
-
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
 // onInvokeWithReCaptcha
-func (c *session) onInvokeWithReCaptcha(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithReCaptcha) {
-	logx.WithContext(ctx).Infof("onInvokeWithReCaptcha - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, nonce: %s, secret: %s, request: {%s}}",
+func (c *session) onInvokeWithReCaptcha(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithReCaptcha, chain invokeChain) {
+	logx.WithContext(ctx).Infof("onInvokeWithReCaptcha - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request.Token,
 		reflect.TypeOf(request))
 
-	if request.GetQuery() == nil {
-		logx.WithContext(ctx).Errorf("onInvokeWithReCaptcha Query is nil, query: {%s}", request)
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "invokeWithReCaptcha", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
-	dBuf := mtproto.NewDecodeBuf(request.Query)
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %v", dBuf.GetError())
-		return
-	}
-
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
-		return
-	}
-
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
-func (c *session) onInitConnection(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInitConnection) {
+func (c *session) onInitConnection(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInitConnection, chain invokeChain) {
 	logx.WithContext(ctx).Infof("onInitConnection - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
@@ -401,19 +340,12 @@ func (c *session) onInitConnection(ctx context.Context, gatewayId, clientIp stri
 
 	c.sessList.cb.onUpdateInitConnection(ctx, clientIp, request)
 
-	dBuf := mtproto.NewDecodeBuf(request.GetQuery())
-	query := dBuf.Object()
-	if dBuf.GetError() != nil {
-		logx.WithContext(ctx).Errorf("dBuf query error: %s", dBuf.GetError().Error())
+	query, next, ok := c.decodeInvokeQuery(ctx, gatewayId, msgId, "initConnection", request.GetQuery(), chain)
+	if !ok {
 		return
 	}
 
-	if query == nil {
-		logx.WithContext(ctx).Errorf("decode buf is nil, query: %v", query)
-		return
-	}
-
-	c.processMsg(ctx, gatewayId, clientIp, msgId, query)
+	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
 func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, query mtproto.TLObject, takeout *rpcmetadata.Takeout) bool {
@@ -423,6 +355,12 @@ func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, 
 		msgId.msgId,
 		msgId.seqNo,
 		reflect.TypeOf(query))
+
+	if c.sessList.cb.unboundTempKey && !checkRpcWithUnboundTempKey(query) {
+		c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, mtproto.NewRpcError(mtproto.ErrAuthKeyPermEmpty))
+		msgId.state = RECEIVED | RESPONSE_GENERATED
+		return false
+	}
 
 	// TODO(@benqi): sync AuthUserId??
 	//requestMessage := &mtproto.TLMessage2{
@@ -538,12 +476,11 @@ func (c *session) onRpcResult(ctx context.Context, rpcResult *rpcApiMessage) {
 	hasCanSync := false
 	switch request := rpcResult.reqMsg.(type) {
 	case *mtproto.TLAuthBindTempAuthKey:
-		if rpcErr != nil {
-			_ = request
-			if rpcErr.Message() == "ENCRYPTED_MESSAGE_INVALID" {
-				c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateUnknown, 0)
-			}
-		} else {
+		// A failed binding changes no state: the client retries or creates a
+		// new temporary key (https://core.telegram.org/api/pfs), and the
+		// wrapper is never another key's to tear down.
+		_ = request
+		if rpcErr == nil {
 			c.sessList.changeAuthState(mtproto.AuthStatePermBound)
 		}
 	case *mtproto.TLAuthLogOut:

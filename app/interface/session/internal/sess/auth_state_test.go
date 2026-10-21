@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/interface/session/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	authsessionclient "github.com/teamgram/teamgram-server/app/service/authsession/client"
@@ -102,6 +103,14 @@ var _ authsessionclient.AuthsessionClient = (*fakeAuthsessionClient)(nil)
 type fakeAuthsessionClient struct {
 	authStateData         *authsession.AuthKeyStateData
 	getAuthStateDataCalls int
+
+	setLayerCalls          int
+	setInitConnectionCalls int
+
+	bindTempAuthKeyCalls int
+	bindTempAuthKeyMD    *metadata.RpcMetadata
+	bindTempAuthKeyIn    *authsession.TLAuthsessionBindTempAuthKey
+	bindTempAuthKeyErr   error
 }
 
 func (f *fakeAuthsessionClient) AuthsessionGetAuthStateData(ctx context.Context, in *authsession.TLAuthsessionGetAuthStateData) (*authsession.AuthKeyStateData, error) {
@@ -151,8 +160,14 @@ func (f *fakeAuthsessionClient) AuthsessionUnbindAuthKeyUser(context.Context, *a
 func (f *fakeAuthsessionClient) AuthsessionGetPermAuthKeyId(context.Context, *authsession.TLAuthsessionGetPermAuthKeyId) (*mtproto.Int64, error) {
 	return nil, nil
 }
-func (f *fakeAuthsessionClient) AuthsessionBindTempAuthKey(context.Context, *authsession.TLAuthsessionBindTempAuthKey) (*mtproto.Bool, error) {
-	return nil, nil
+func (f *fakeAuthsessionClient) AuthsessionBindTempAuthKey(ctx context.Context, in *authsession.TLAuthsessionBindTempAuthKey) (*mtproto.Bool, error) {
+	f.bindTempAuthKeyCalls++
+	f.bindTempAuthKeyMD = metadata.RpcMetadataFromIncoming(ctx)
+	f.bindTempAuthKeyIn = in
+	if f.bindTempAuthKeyErr != nil {
+		return nil, f.bindTempAuthKeyErr
+	}
+	return mtproto.BoolTrue, nil
 }
 func (f *fakeAuthsessionClient) AuthsessionSetClientSessionInfo(context.Context, *authsession.TLAuthsessionSetClientSessionInfo) (*mtproto.Bool, error) {
 	return nil, nil
@@ -161,9 +176,11 @@ func (f *fakeAuthsessionClient) AuthsessionGetAuthorization(context.Context, *au
 	return nil, nil
 }
 func (f *fakeAuthsessionClient) AuthsessionSetLayer(context.Context, *authsession.TLAuthsessionSetLayer) (*mtproto.Bool, error) {
+	f.setLayerCalls++
 	return nil, nil
 }
 func (f *fakeAuthsessionClient) AuthsessionSetInitConnection(context.Context, *authsession.TLAuthsessionSetInitConnection) (*mtproto.Bool, error) {
+	f.setInitConnectionCalls++
 	return nil, nil
 }
 func (f *fakeAuthsessionClient) AuthsessionSetAndroidPushSessionId(context.Context, *authsession.TLAuthsessionSetAndroidPushSessionId) (*mtproto.Bool, error) {

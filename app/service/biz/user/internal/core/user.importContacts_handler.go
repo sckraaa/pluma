@@ -204,8 +204,8 @@ func (c *UserCore) UserImportContacts(in *user.TLUserImportContacts) (*user.User
 				_, _, _ = c.svcCtx.Dao.UserContactsDAO.InsertOrUpdate(c.ctx, userContactsDO)
 			}
 
-			c.Logger.Infof("userContactsDO - %v", userContactsDO)
-			c.Logger.Infof("c2 - %v", c2)
+			// Never the contact itself: names and phone numbers.
+			c.Logger.Debugf("importContacts - owner %d, contact %d", userContactsDO.OwnerUserId, userContactsDO.ContactUserId)
 
 			importedContact := mtproto.MakeTLImportedContact(&mtproto.ImportedContact{
 				UserId:   userContactsDO.ContactUserId,

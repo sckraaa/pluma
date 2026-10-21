@@ -22,14 +22,13 @@ import (
 // updates.getStateV2 auth_key_id:long user_id:long = updates.State;
 func (s *Service) UpdatesGetStateV2(ctx context.Context, request *updates.TLUpdatesGetStateV2) (*mtproto.Updates_State, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("updates.getStateV2 - metadata: %s, request: %s", c.MD, request)
+	c.Logger.Debugf("updates.getStateV2 - metadata: %s", c.MD)
 
 	r, err := c.UpdatesGetStateV2(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("updates.getStateV2 - reply: %s", r)
 	return r, err
 }
 
@@ -37,14 +36,13 @@ func (s *Service) UpdatesGetStateV2(ctx context.Context, request *updates.TLUpda
 // updates.getDifferenceV2 flags:# auth_key_id:long user_id:long pts:int pts_total_limit:flags.0?int date:long = Difference;
 func (s *Service) UpdatesGetDifferenceV2(ctx context.Context, request *updates.TLUpdatesGetDifferenceV2) (*updates.Difference, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("updates.getDifferenceV2 - metadata: %s, request: %s", c.MD, request)
+	c.Logger.Debugf("updates.getDifferenceV2 - metadata: %s", c.MD)
 
 	r, err := c.UpdatesGetDifferenceV2(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("updates.getDifferenceV2 - reply: %s", r)
 	return r, err
 }
 
@@ -52,13 +50,12 @@ func (s *Service) UpdatesGetDifferenceV2(ctx context.Context, request *updates.T
 // updates.getChannelDifferenceV2 auth_key_id:long user_id:long channel_id:long pts:int limit:int = ChannelDifference;
 func (s *Service) UpdatesGetChannelDifferenceV2(ctx context.Context, request *updates.TLUpdatesGetChannelDifferenceV2) (*updates.ChannelDifference, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("updates.getChannelDifferenceV2 - metadata: %s, request: %s", c.MD, request)
+	c.Logger.Debugf("updates.getChannelDifferenceV2 - metadata: %s", c.MD)
 
 	r, err := c.UpdatesGetChannelDifferenceV2(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("updates.getChannelDifferenceV2 - reply: %s", r)
 	return r, err
 }

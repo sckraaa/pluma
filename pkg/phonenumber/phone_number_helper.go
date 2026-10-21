@@ -50,11 +50,12 @@ func MakePhoneNumberHelper(number, region string) (*phoneNumberHelper, error) {
 
 	// check phone invalid
 	pNumber, err = phonenumbers.Parse(number, region)
+	// The errors are logged: never the number itself, only its length.
 	if err != nil {
-		err = fmt.Errorf("parse phone number %s err: %v", number, err)
+		err = fmt.Errorf("parse phone number of %d characters err: %v", len(number), err)
 	} else {
 		if !phonenumbers.IsValidNumber(pNumber) {
-			err = fmt.Errorf("invalid phone number: %s - %v", number, pNumber)
+			err = fmt.Errorf("invalid phone number of %d characters", len(number))
 		}
 	}
 

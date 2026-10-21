@@ -23,147 +23,152 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strconv"
+	"time"
 
-	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/dal/dataobject"
 
-	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/threading"
 )
 
 const (
-	cacheAuthKeyPrefix   = "auth_keys"
-	cacheAuthKeyV2Prefix = "auth_keys2"
+	// auth_keys3 holds authKeyData (with expires_at); auth_keys2 entries,
+	// which held AuthKeyInfo, are no longer read, nor are the auth_keys_<id>
+	// hashes of old teamgram versions (see authKeyDataFromRows).
+	cacheAuthKeyV2Prefix = "auth_keys3"
 )
-
-func genCacheAuthKeyKey(id int64) string {
-	return fmt.Sprintf("%s_%d", cacheAuthKeyPrefix, id)
-}
 
 func genCacheAuthKeyV2Key(id int64) string {
 	return fmt.Sprintf("%s_%d", cacheAuthKeyV2Prefix, id)
 }
 
-func (d *Dao) getAuthKey(ctx context.Context, keyId int64) (keyData *mtproto.AuthKeyInfo, err error) {
-	var (
-		key    = genCacheAuthKeyKey(keyId)
-		values map[string]string
-	)
+// authKeyData is how an auth key is cached: AuthKeyInfo plus the expiry of a
+// temporary key, for which AuthKeyInfo has no field.
+type authKeyData struct {
+	AuthKeyId          int64  `json:"auth_key_id"`
+	AuthKey            []byte `json:"auth_key"`
+	AuthKeyType        int32  `json:"auth_key_type"`
+	PermAuthKeyId      int64  `json:"perm_auth_key_id"`
+	TempAuthKeyId      int64  `json:"temp_auth_key_id"`
+	MediaTempAuthKeyId int64  `json:"media_temp_auth_key_id"`
+	ExpiresAt          int64  `json:"expires_at"`
+}
 
-	values, err = d.kv.HgetallCtx(ctx, key)
-	if err != nil {
-		logx.WithContext(ctx).Errorf("conn.Do(HGETALL %s) error(%v)", key, err)
-		return
-	} else if len(values) == 0 {
-		err = sqlc.ErrNotFound
-		return
-	}
+func (k *authKeyData) toAuthKeyInfo() *mtproto.AuthKeyInfo {
+	return mtproto.MakeTLAuthKeyInfo(&mtproto.AuthKeyInfo{
+		AuthKeyId:          k.AuthKeyId,
+		AuthKey:            k.AuthKey,
+		AuthKeyType:        k.AuthKeyType,
+		PermAuthKeyId:      k.PermAuthKeyId,
+		TempAuthKeyId:      k.TempAuthKeyId,
+		MediaTempAuthKeyId: k.MediaTempAuthKeyId,
+	}).To_AuthKeyInfo()
+}
 
-	// TODO(@benqi): check len(values)
+// unboundTemp reports a temporary key that auth.bindTempAuthKey has not bound
+// to a permanent key yet.
+func (k *authKeyData) unboundTemp() bool {
+	return IsTempAuthKeyType(k.AuthKeyType) && k.PermAuthKeyId == 0
+}
 
-	keyData = mtproto.MakeTLAuthKeyInfo(&mtproto.AuthKeyInfo{}).To_AuthKeyInfo()
-	for k, v := range values {
-		switch k {
-		case "auth_key_type":
-			authKeyType, _ := strconv.Atoi(v)
-			keyData.AuthKeyType = int32(authKeyType)
-		case "auth_key_id":
-			keyData.AuthKeyId, _ = strconv.ParseInt(v, 10, 64)
-		case "auth_key":
-			keyData.AuthKey = []byte(v)
-		case "perm_auth_key_id":
-			keyData.PermAuthKeyId, _ = strconv.ParseInt(v, 10, 64)
-		case "temp_auth_key_id":
-			keyData.TempAuthKeyId, _ = strconv.ParseInt(v, 10, 64)
-		case "media_temp_auth_key_id":
-			keyData.MediaTempAuthKeyId, _ = strconv.ParseInt(v, 10, 64)
-		}
-	}
+func (k *authKeyData) expired(now int64) bool {
+	return IsTempAuthKeyType(k.AuthKeyType) && k.ExpiresAt != 0 && now >= k.ExpiresAt
+}
 
-	return
+// IsTempAuthKeyType reports whether keyType is one of the temporary key types
+// (PFS, https://core.telegram.org/api/pfs).
+func IsTempAuthKeyType(keyType int32) bool {
+	return keyType == mtproto.AuthKeyTypeTemp || keyType == mtproto.AuthKeyTypeMediaTemp
 }
 
 func (d *Dao) QueryAuthKeyV2(ctx context.Context, authKeyId int64) (*mtproto.AuthKeyInfo, error) {
-	var (
-		keyInfo = mtproto.MakeTLAuthKeyInfo(&mtproto.AuthKeyInfo{
-			AuthKeyId:          authKeyId,
-			AuthKey:            nil,
-			AuthKeyType:        0,
-			PermAuthKeyId:      0,
-			TempAuthKeyId:      0,
-			MediaTempAuthKeyId: 0,
-		}).To_AuthKeyInfo()
-	)
-
-	err := d.CachedConn.QueryRow(
-		ctx,
-		keyInfo,
-		genCacheAuthKeyV2Key(authKeyId),
-		func(ctx context.Context, conn *sqlx.DB, v interface{}) error {
-			kInfo := v.(*mtproto.AuthKeyInfo)
-
-			do1, err1 := d.AuthKeyInfosDAO.SelectByAuthKeyId(ctx, authKeyId)
-			if err1 != nil {
-				return err1
-			}
-			do2, err2 := d.AuthKeysDAO.SelectByAuthKeyId(ctx, authKeyId)
-			if err2 != nil {
-				return err2
-			}
-
-			if do1 != nil && do2 != nil {
-				kInfo.AuthKeyType = do1.AuthKeyType
-				kInfo.PermAuthKeyId = do1.PermAuthKeyId
-				kInfo.TempAuthKeyId = do1.TempAuthKeyId
-				kInfo.MediaTempAuthKeyId = do1.MediaTempAuthKeyId
-				kInfo.AuthKey, _ = base64.RawStdEncoding.DecodeString(do2.Body)
-			} else {
-				kInfo2, _ := d.getAuthKey(ctx, authKeyId)
-				if kInfo2 != nil {
-					kInfo.AuthKeyType = kInfo2.AuthKeyType
-					kInfo.AuthKey = kInfo2.AuthKey
-					kInfo.TempAuthKeyId = kInfo2.TempAuthKeyId
-					kInfo.PermAuthKeyId = kInfo2.PermAuthKeyId
-					kInfo.MediaTempAuthKeyId = kInfo2.MediaTempAuthKeyId
-					threading.GoSafe(func() {
-						_, _, _ = d.AuthKeyInfosDAO.Insert(
-							contextx.ValueOnlyFrom(ctx),
-							&dataobject.AuthKeyInfosDO{
-								AuthKeyId:          keyInfo.AuthKeyId,
-								AuthKeyType:        keyInfo.AuthKeyType,
-								PermAuthKeyId:      keyInfo.PermAuthKeyId,
-								TempAuthKeyId:      keyInfo.TempAuthKeyId,
-								MediaTempAuthKeyId: keyInfo.MediaTempAuthKeyId,
-								Deleted:            false,
-							})
-					})
-					// err = nil
-				} else {
-					return sqlc.ErrNotFound
-				}
-			}
-
-			return nil
-		})
-	if err != nil {
-		if errors.Is(err, sqlc.ErrNotFound) {
-			err = mtproto.ErrAuthKeyUnregistered
-		} else {
-			err = mtproto.ErrInternalServerError
-		}
-		return nil, err
-	}
-
-	return keyInfo, nil
+	keyInfo, _, err := d.QueryAuthKeyWithExpiry(ctx, authKeyId)
+	return keyInfo, err
 }
 
-func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, expiredIn int32) (err error) {
-	// TODO(@benqi): expiredIn
-	_ = expiredIn
+// QueryAuthKeyWithExpiry returns the key and the unix time a temporary key
+// expires at (0: never). An expired temporary key is reported as
+// AUTH_KEY_UNREGISTERED, the same as an unknown one, so the gateway answers
+// with transport error -404 and the client creates a new temporary key.
+func (d *Dao) QueryAuthKeyWithExpiry(ctx context.Context, authKeyId int64) (*mtproto.AuthKeyInfo, int64, error) {
+	var (
+		key   = genCacheAuthKeyV2Key(authKeyId)
+		kData = &authKeyData{}
+	)
+
+	if err := d.CachedConn.GetCache(ctx, key, kData); err != nil || kData.AuthKeyId != authKeyId {
+		kData, err = d.loadAuthKeyData(ctx, authKeyId)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		// An unbound temporary key changes when auth.bindTempAuthKey succeeds.
+		// It is never cached, so a read that races with the binding cannot
+		// leave a stale unbound copy behind.
+		if !kData.unboundTemp() {
+			if err = d.CachedConn.SetCache(ctx, key, kData); err != nil {
+				logx.WithContext(ctx).Errorf("queryAuthKey(%d) - set cache error: %v", authKeyId, err)
+			}
+		}
+	}
+
+	if kData.expired(time.Now().Unix()) {
+		return nil, 0, mtproto.ErrAuthKeyUnregistered
+	}
+
+	return kData.toAuthKeyInfo(), kData.ExpiresAt, nil
+}
+
+func (d *Dao) loadAuthKeyData(ctx context.Context, authKeyId int64) (*authKeyData, error) {
+	do1, err := d.AuthKeyInfosDAO.SelectByAuthKeyId(ctx, authKeyId)
+	if err != nil {
+		return nil, mtproto.ErrInternalServerError
+	}
+	do2, err := d.AuthKeysDAO.SelectByAuthKeyId(ctx, authKeyId)
+	if err != nil {
+		return nil, mtproto.ErrInternalServerError
+	}
+	return authKeyDataFromRows(authKeyId, do1, do2)
+}
+
+// authKeyDataFromRows builds a key from its MySQL rows; a key without both
+// rows is unknown. Old teamgram versions fell back to a Redis hash
+// auth_keys_<id> and trusted its type and perm_auth_key_id; before task 001
+// Redis was reachable without a password, so such a hash may be planted (a
+// temporary key "bound" to someone's permanent key) and is never read.
+func authKeyDataFromRows(authKeyId int64, info *dataobject.AuthKeyInfosDO, key *dataobject.AuthKeysDO) (*authKeyData, error) {
+	if info == nil || key == nil {
+		return nil, mtproto.ErrAuthKeyUnregistered
+	}
+	kData := &authKeyData{
+		AuthKeyId:          authKeyId,
+		AuthKeyType:        info.AuthKeyType,
+		PermAuthKeyId:      info.PermAuthKeyId,
+		TempAuthKeyId:      info.TempAuthKeyId,
+		MediaTempAuthKeyId: info.MediaTempAuthKeyId,
+		ExpiresAt:          info.ExpiresAt,
+	}
+	kData.AuthKey, _ = base64.RawStdEncoding.DecodeString(key.Body)
+	return kData, nil
+}
+
+// errTempKeyWithoutExpiry: a temporary key must expire.
+var errTempKeyWithoutExpiry = errors.New("temporary auth key without a positive expires_in")
+
+// SetAuthKeyV2 stores a key created by a handshake. expiresIn is the
+// expires_in of p_q_inner_data_temp(_dc); a temporary key stops working
+// expiresIn seconds from now.
+func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, expiresIn int32) (err error) {
+	var expiresAt int64
+	if IsTempAuthKeyType(authKey.AuthKeyType) {
+		// expires_at 0 means "never": the handshake refuses such keys, and
+		// they are not stored either.
+		if expiresIn <= 0 {
+			return errTempKeyWithoutExpiry
+		}
+		expiresAt = time.Now().Unix() + int64(expiresIn)
+	}
 
 	tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
 		_, _, err = d.AuthKeysDAO.InsertTx(tx, &dataobject.AuthKeysDO{
@@ -180,6 +185,7 @@ func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, ex
 			PermAuthKeyId:      authKey.PermAuthKeyId,
 			TempAuthKeyId:      authKey.TempAuthKeyId,
 			MediaTempAuthKeyId: authKey.MediaTempAuthKeyId,
+			ExpiresAt:          expiresAt,
 			Deleted:            false,
 		})
 		if err != nil {
@@ -190,48 +196,86 @@ func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, ex
 	return tR.Err
 }
 
-func (d *Dao) UnsafeBindKeyIdV2(ctx context.Context, keyId int64, bindType int32, bindKeyId int64) (err error) {
-	var (
-		key = genCacheAuthKeyV2Key(keyId)
-	)
-
-	_, _, err = d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			//
-			var (
-				err2 error
-			)
-
-			switch bindType {
-			case mtproto.AuthKeyTypePerm:
-				_, err2 = d.AuthKeyInfosDAO.UpdateCustomMap(
-					ctx,
-					map[string]interface{}{
-						"perm_auth_key_id": bindKeyId,
-					},
-					keyId)
-			case mtproto.AuthKeyTypeTemp:
-				_, err2 = d.AuthKeyInfosDAO.UpdateCustomMap(
-					ctx,
-					map[string]interface{}{
-						"temp_auth_key_id": bindKeyId,
-					},
-					keyId)
-			case mtproto.AuthKeyTypeMediaTemp:
-				_, err2 = d.AuthKeyInfosDAO.UpdateCustomMap(
-					ctx,
-					map[string]interface{}{
-						"media_temp_auth_key_id": bindKeyId,
-					},
-					keyId)
+// BindTempAuthKey records, after auth.bindTempAuthKey has been verified, that
+// the temporary key tempAuthKeyId acts for the permanent key permAuthKeyId
+// until expiresAt.
+//
+// A temporary key is bound to one permanent key for its whole life: binding it
+// again to the same key succeeds (the client may repeat the request), binding
+// it to another key fails with TEMP_AUTH_KEY_ALREADY_BOUND. expires_at never
+// moves later than the value stored at the handshake. Both rows change in one
+// transaction; the cached copies are dropped after it commits.
+func (d *Dao) BindTempAuthKey(ctx context.Context, permAuthKeyId, tempAuthKeyId int64, expiresAt int64) error {
+	tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
+		tempKey := &dataobject.AuthKeyInfosDO{}
+		err := tx.QueryRowPartial(
+			tempKey,
+			"select auth_key_id, auth_key_type, perm_auth_key_id, expires_at from auth_key_infos where auth_key_id = ? limit 1 for update",
+			tempAuthKeyId)
+		if err != nil {
+			if errors.Is(err, sqlx.ErrNotFound) {
+				result.Err = mtproto.ErrTempAuthKeyEmpty
+			} else {
+				result.Err = err
 			}
+			return
+		}
 
-			return 0, 0, err2
-		},
-		key)
+		var permColumn string
+		switch tempKey.AuthKeyType {
+		case mtproto.AuthKeyTypeTemp:
+			permColumn = "temp_auth_key_id"
+		case mtproto.AuthKeyTypeMediaTemp:
+			permColumn = "media_temp_auth_key_id"
+		default:
+			result.Err = mtproto.ErrTempAuthKeyEmpty
+			return
+		}
 
-	return
+		if tempKey.PermAuthKeyId != 0 && tempKey.PermAuthKeyId != permAuthKeyId {
+			result.Err = mtproto.ErrTempAuthKeyAlreadyBound
+			return
+		}
+
+		if tempKey.ExpiresAt != 0 && tempKey.ExpiresAt < expiresAt {
+			expiresAt = tempKey.ExpiresAt
+		}
+
+		if _, err = d.AuthKeyInfosDAO.UpdateCustomMapTx(
+			tx,
+			map[string]interface{}{
+				"perm_auth_key_id": permAuthKeyId,
+				"expires_at":       expiresAt,
+			},
+			tempAuthKeyId); err != nil {
+			result.Err = err
+			return
+		}
+
+		// Informational: the permanent key's latest temporary key of this type.
+		if _, err = d.AuthKeyInfosDAO.UpdateCustomMapTx(
+			tx,
+			map[string]interface{}{
+				permColumn: tempAuthKeyId,
+			},
+			permAuthKeyId); err != nil {
+			result.Err = err
+		}
+	})
+	if tR.Err != nil {
+		if errors.Is(tR.Err, mtproto.ErrTempAuthKeyEmpty) || errors.Is(tR.Err, mtproto.ErrTempAuthKeyAlreadyBound) {
+			return tR.Err
+		}
+		logx.WithContext(ctx).Errorf("bindTempAuthKey(temp: %d, perm: %d) - error: %v", tempAuthKeyId, permAuthKeyId, tR.Err)
+		return mtproto.ErrInternalServerError
+	}
+
+	if err := d.CachedConn.DelCache(ctx, genCacheAuthKeyV2Key(tempAuthKeyId), genCacheAuthKeyV2Key(permAuthKeyId)); err != nil {
+		logx.WithContext(ctx).Errorf("bindTempAuthKey(temp: %d, perm: %d) - del cache error: %v", tempAuthKeyId, permAuthKeyId, err)
+		return mtproto.ErrInternalServerError
+	}
+
+	return nil
 }
 
 func (d *Dao) GetPermAuthKeyId(ctx context.Context, authKeyId int64) int64 {

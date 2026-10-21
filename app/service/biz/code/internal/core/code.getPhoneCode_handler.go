@@ -19,18 +19,15 @@ import (
 func (c *CodeCore) CodeGetPhoneCode(in *code.TLCodeGetPhoneCode) (*code.PhoneCodeTransaction, error) {
 	codeData, err := c.svcCtx.Dao.GetCachePhoneCode(c.ctx, in.AuthKeyId, in.Phone)
 	if err != nil {
-		c.Logger.Errorf("getPhoneCode by {authKeyId: %d, phoneNumber: %s} error - %v", in.AuthKeyId, in.Phone, err)
+		c.Logger.Errorf("getPhoneCode by {authKeyId: %d} error - %v", in.AuthKeyId, err)
 		err = mtproto.ErrPhoneCodeExpired
 		return nil, err
 	} else if codeData == nil {
-		c.Logger.Errorf("getPhoneCode by {authKeyId: %d, phoneNumber: %s} error - %v", in.AuthKeyId, in.Phone, err)
+		c.Logger.Errorf("getPhoneCode by {authKeyId: %d} error - not found", in.AuthKeyId)
 		err = mtproto.ErrPhoneCodeExpired
 		return nil, err
 	} else if codeData.PhoneCodeHash != in.PhoneCodeHash {
-		c.Logger.Errorf("getPhoneCode by {authKeyId: %d, phoneNumber: %s, phoneCodeHash: %s} error - invalid phoneCodeHash",
-			in.AuthKeyId,
-			in.Phone,
-			in.PhoneCodeHash)
+		c.Logger.Errorf("getPhoneCode by {authKeyId: %d} error - invalid phoneCodeHash", in.AuthKeyId)
 		err = mtproto.ErrPhoneCodeInvalid
 		return nil, err
 	}

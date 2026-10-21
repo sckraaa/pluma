@@ -36,7 +36,8 @@ func (c *SessionCore) SessionCloseSession(in *session.TLSessionCloseSession) (*m
 		return nil, err
 	}
 
-	mainAuth := c.svcCtx.MainAuthMgr.GetMainAuthWrapper(cli.PermAuthKeyId)
+	routeKey, _ := session.RouteKey(cli.AuthKeyId, cli.KeyType, cli.PermAuthKeyId)
+	mainAuth := c.svcCtx.MainAuthMgr.GetMainAuthWrapper(routeKey)
 	if mainAuth == nil {
 		// Session 已经不存在，从调用方视角看可以视作已关闭。
 		c.Logger.Errorf("session.closeSession - not found sessList by keyId: %s", cli)

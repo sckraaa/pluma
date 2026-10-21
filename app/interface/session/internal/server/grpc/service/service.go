@@ -51,3 +51,10 @@ func (s *Service) checkShardingV(ctx context.Context, authId int64) (err error) 
 
 	return
 }
+
+// clientRouteKey is the sharding key of client traffic; the gateway dispatches
+// by the same key (session.RouteKey).
+func clientRouteKey(authKeyId int64, keyType int32, permAuthKeyId int64) int64 {
+	routeKey, _ := session.RouteKey(authKeyId, keyType, permAuthKeyId)
+	return routeKey
+}

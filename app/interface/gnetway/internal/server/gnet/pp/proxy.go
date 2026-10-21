@@ -3,7 +3,6 @@ package pp
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -88,5 +87,6 @@ func ReadHeader(r io.Reader) (*Header, error) {
 		return h, nil
 	}
 
-	return nil, fmt.Errorf("expected proxy protocol; found '%s' instead", hex.Dump(buf[0:14]))
+	// Not the bytes: without a PROXY header they are the client's traffic.
+	return nil, errors.New("expected proxy protocol; found other data instead")
 }

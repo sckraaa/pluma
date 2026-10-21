@@ -56,7 +56,7 @@ func (c *AbridgedCodec) Encode(conn CodecWriter, msg interface{}) ([]byte, error
 
 	rm, ok := msg.(*mtproto.MTPRawMessage)
 	if !ok {
-		err := fmt.Errorf("conn(%s) msg type error, only MTPRawMessage, msg: %s", conn, rm)
+		err := fmt.Errorf("conn(%s) msg type error, only MTPRawMessage, msg: %T", conn, msg)
 		return nil, err
 	} else if rm == nil {
 		return nil, nil
@@ -170,8 +170,9 @@ func (c *AbridgedCodec) Decode(conn CodecReader) (bool, []byte, error) {
 		if buf, err = in.readN(n); err != nil {
 			return false, nil, ErrUnexpectedEOF
 		} else if len(buf) <= 8 {
-			// TODO: fix
-			return false, nil, ErrUnexpectedEOF
+			// No client message is this short. Waiting for more data would
+			// never consume it and let the buffer grow without bound.
+			return false, nil, ErrProtoBadLength
 		}
 
 		buf = c.Decrypt(buf)
@@ -187,8 +188,9 @@ func (c *AbridgedCodec) Decode(conn CodecReader) (bool, []byte, error) {
 		if buf, err = in.readN(n); err != nil {
 			return false, nil, ErrUnexpectedEOF
 		} else if len(buf) <= 8 {
-			// TODO: fix
-			return false, nil, ErrUnexpectedEOF
+			// No client message is this short. Waiting for more data would
+			// never consume it and let the buffer grow without bound.
+			return false, nil, ErrProtoBadLength
 		}
 		// log.Debugf("n = %d", n)
 
@@ -218,8 +220,9 @@ func (c *AbridgedCodec) Decode(conn CodecReader) (bool, []byte, error) {
 		if buf, err = in.readN(n); err != nil {
 			return false, nil, ErrUnexpectedEOF
 		} else if len(buf) <= 8 {
-			// TODO: fix
-			return false, nil, ErrUnexpectedEOF
+			// No client message is this short. Waiting for more data would
+			// never consume it and let the buffer grow without bound.
+			return false, nil, ErrProtoBadLength
 		}
 
 		buf = c.Decrypt(buf)
@@ -238,8 +241,9 @@ func (c *AbridgedCodec) Decode(conn CodecReader) (bool, []byte, error) {
 		if buf, err = in.readN(n); err != nil {
 			return false, nil, ErrUnexpectedEOF
 		} else if len(buf) <= 8 {
-			// TODO: fix
-			return false, nil, ErrUnexpectedEOF
+			// No client message is this short. Waiting for more data would
+			// never consume it and let the buffer grow without bound.
+			return false, nil, ErrProtoBadLength
 		}
 
 		buf = c.Decrypt(buf)

@@ -76,8 +76,9 @@ type messageData struct {
 	obj          mtproto.TLObject
 }
 
+// String prints the type of obj, never obj itself: it is user content.
 func (m *messageData) String() string {
-	return fmt.Sprintf("{confirmFlag: %v, compressFlag: %v, obj: {%s}}", m.confirmFlag, m.compressFlag, m.obj)
+	return fmt.Sprintf("{confirmFlag: %v, compressFlag: %v, obj: %T}", m.confirmFlag, m.compressFlag, m.obj)
 }
 
 type serverIdCtx struct {
@@ -274,7 +275,7 @@ func (c *session) onSessionMessageData(ctx context.Context, gatewayId, clientIp 
 	}
 
 	if c.sessionState == kSessionStateNew || c.firstMsgId == 0 || minMsgId < c.firstMsgId {
-		logx.WithContext(ctx).Infof("onNewSessionCreated - %#v, c: %s", msgs, c)
+		logx.WithContext(ctx).Infof("onNewSessionCreated - first_msg_id: %d, messages: %d, c: %s", minMsgId, len(msgs), c)
 		c.onNewSessionCreated(ctx, gatewayId, minMsgId)
 		c.firstMsgId = minMsgId
 		c.sessionState = kSessionStateCreated
@@ -298,7 +299,7 @@ func (c *session) onSessionMessageData(ctx context.Context, gatewayId, clientIp 
 		}
 
 		if m2.Object == nil {
-			logx.WithContext(ctx).Errorf("obj is nil: %v", m2)
+			logx.WithContext(ctx).Errorf("obj is nil: {msg_id: %d, seqno: %d}", m2.MsgId, m2.Seqno)
 			continue
 		}
 
@@ -313,7 +314,7 @@ func (c *session) onSessionMessageData(ctx context.Context, gatewayId, clientIp 
 			inMsg := c.inQueue.AddMsgId(m2.MsgId)
 			if inMsg.state == NONE {
 				// 第一次收到
-				c.processMsg(ctx, gatewayId, clientIp, inMsg, m2.Object)
+				c.processMsg(ctx, gatewayId, clientIp, inMsg, m2.Object, invokeChain{})
 			} else {
 				// Duplicate message: for large RPC replies, prefer sending MsgDetailedInfo
 				// instead of resending the full answer.
@@ -326,7 +327,9 @@ func (c *session) onSessionMessageData(ctx context.Context, gatewayId, clientIp 
 	}
 }
 
-func (c *session) processMsg(ctx context.Context, gatewayId, clientIp string, inMsg *inboxMsg, r mtproto.TLObject) {
+// processMsg handles one message; chain is where it sits in invoke* wrappers
+// (invokeChain{} for a message of its own).
+func (c *session) processMsg(ctx context.Context, gatewayId, clientIp string, inMsg *inboxMsg, r mtproto.TLObject, chain invokeChain) {
 	switch r.(type) {
 	case *mtproto.TLDestroyAuthKey: // 所有连接都有可能
 		c.onDestroyAuthKey(ctx, gatewayId, inMsg, r.(*mtproto.TLDestroyAuthKey))
@@ -353,27 +356,27 @@ func (c *session) processMsg(ctx context.Context, gatewayId, clientIp string, in
 	case *mtproto.TLMsgNewDetailedInfo: // 都有可能
 		c.onMsgNewDetailInfo(ctx, gatewayId, inMsg, r.(*mtproto.TLMsgDetailedInfo))
 	case *mtproto.TLInvokeWithLayer:
-		c.onInvokeWithLayer(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithLayer))
+		c.onInvokeWithLayer(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithLayer), chain)
 	case *mtproto.TLInvokeAfterMsg:
-		c.onInvokeAfterMsg(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeAfterMsg))
+		c.onInvokeAfterMsg(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeAfterMsg), chain)
 	case *mtproto.TLInvokeAfterMsgs:
-		c.onInvokeAfterMsgs(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeAfterMsgs))
+		c.onInvokeAfterMsgs(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeAfterMsgs), chain)
 	case *mtproto.TLInvokeWithoutUpdates:
-		c.onInvokeWithoutUpdates(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithoutUpdates))
+		c.onInvokeWithoutUpdates(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithoutUpdates), chain)
 	case *mtproto.TLInvokeWithMessagesRange:
-		c.onInvokeWithMessagesRange(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithMessagesRange))
+		c.onInvokeWithMessagesRange(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithMessagesRange), chain)
 	case *mtproto.TLInvokeWithTakeout:
-		c.onInvokeWithTakeout(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithTakeout))
+		c.onInvokeWithTakeout(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithTakeout), chain)
 	case *mtproto.TLInvokeWithBusinessConnection:
-		c.onInvokeWithBusinessConnection(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithBusinessConnection))
+		c.onInvokeWithBusinessConnection(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithBusinessConnection), chain)
 	case *mtproto.TLInvokeWithGooglePlayIntegrity:
-		c.onInvokeWithGooglePlayIntegrity(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithGooglePlayIntegrity))
+		c.onInvokeWithGooglePlayIntegrity(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithGooglePlayIntegrity), chain)
 	case *mtproto.TLInvokeWithApnsSecret:
-		c.onInvokeWithApnsSecret(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithApnsSecret))
+		c.onInvokeWithApnsSecret(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithApnsSecret), chain)
 	case *mtproto.TLInvokeWithReCaptcha:
-		c.onInvokeWithReCaptcha(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithReCaptcha))
+		c.onInvokeWithReCaptcha(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithReCaptcha), chain)
 	case *mtproto.TLInitConnection:
-		c.onInitConnection(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInitConnection))
+		c.onInitConnection(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInitConnection), chain)
 	case *mtproto.TLGzipPacked:
 		c.onRpcRequest(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLGzipPacked).Obj, nil)
 	default:

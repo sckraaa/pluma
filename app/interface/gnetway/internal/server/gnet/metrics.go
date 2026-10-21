@@ -68,6 +68,14 @@ var (
 		Labels:    []string{},
 	})
 
+	metricPanicRecovered = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: namespace,
+		Subsystem: "conn",
+		Name:      "panic_recovered_total",
+		Help:      "Panics while processing a connection, recovered by closing it.",
+		Labels:    []string{"where"}, // traffic, trigger, worker, close
+	})
+
 	metricCodecDecodeError = metric.NewCounterVec(&metric.CounterVecOpts{
 		Namespace: namespace,
 		Subsystem: "codec",

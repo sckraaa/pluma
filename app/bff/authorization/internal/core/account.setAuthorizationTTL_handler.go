@@ -38,7 +38,7 @@ func (c *AuthorizationCore) AccountSetAuthorizationTTL(in *mtproto.TLAccountSetA
 	case 730:
 	default:
 		// err := mtproto.ErrTtlDaysInvalid
-		c.Logger.Errorf("account.setAuthorizationTTL - error: %s", in)
+		c.Logger.Errorf("account.setAuthorizationTTL - error: authorization_ttl_days %d", in.GetAuthorizationTtlDays())
 		// return nil, err
 	}
 

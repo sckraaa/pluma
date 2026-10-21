@@ -120,8 +120,8 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 
 	t := mtproto.FindRPCContextTuple(object)
 	if t == nil {
-		err = fmt.Errorf("Invoke error: %v not regist!\n", object)
-		logger.Error("FindRPCContextTuple error: %v", err)
+		err = fmt.Errorf("Invoke error: %T not regist!", object)
+		logger.Errorf("FindRPCContextTuple error: %v", err)
 		return nil, mtproto.NewRpcError(mtproto.ErrEnterpriseIsBlocked)
 	}
 
@@ -152,7 +152,7 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 	ctx2, _ := metadata.RpcMetadataToOutgoing(ctxWithTimeout, rpcMetaData)
 	rt := time.Now()
 
-	logger.Debugf("rpc Invoke: {method: %s, metadata: %s, NewReplyFunc: {%#v}}",
+	logger.Debugf("rpc Invoke: {method: %s, metadata: %s, reply: %T}",
 		t.Method,
 		rpcMetaData,
 		r)
@@ -194,7 +194,7 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 		//}
 	} else {
 		if reply, ok := r.(mtproto.TLObject); !ok {
-			logger.Errorf("invalid reply type, maybe server side bug, %v", reply)
+			logger.Errorf("invalid reply type, maybe server side bug, %T", r)
 			return nil, mtproto.NewRpcError(mtproto.ErrInternalServerError)
 		} else {
 			return reply, nil

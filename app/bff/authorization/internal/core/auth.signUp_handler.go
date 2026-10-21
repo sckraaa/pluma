@@ -63,11 +63,6 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 			"auth.signUp")
 	}
 
-	// 1. check phone_code empty
-	var (
-		phoneCode *string = nil
-	)
-
 	// 3. check number
 	// 3.1. empty
 	if in.PhoneNumber == "" {
@@ -83,6 +78,12 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 	if err != nil {
 		c.Logger.Errorf("check phone_number error - %v", err)
 		err = mtproto.ErrPhoneNumberInvalid
+		return nil, err
+	}
+
+	// Closed registration: the phone may have left the allowlist since auth.signIn.
+	if err = c.svcCtx.AuthLogic.Codes.CheckPhone(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
+		c.Logger.Errorf("auth.signUp - error: %v", err)
 		return nil, err
 	}
 
@@ -109,14 +110,13 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 	var (
 		codeData *model.PhoneCodeTransaction
 	)
-	// phoneRegistered := auth.CheckPhoneNumberExist(phoneNumber)
-	codeData, err = c.svcCtx.AuthLogic.DoAuthSignUp(c.ctx, c.MD.PermAuthKeyId, phoneNumber, phoneCode, in.PhoneCodeHash)
+	// Only after auth.signIn accepted the code for this auth key and phone.
+	codeData, err = c.svcCtx.AuthLogic.DoAuthSignUp(c.ctx, c.MD.PermAuthKeyId, phoneNumber, in.PhoneCodeHash)
 	if err != nil {
-		c.Logger.Errorf(err.Error())
+		c.Logger.Errorf("auth.signUp - error: %v", err)
 		return nil, err
-	} else {
-		_ = codeData
 	}
+	_ = codeData
 
 	var (
 		user *mtproto.ImmutableUser
@@ -182,8 +182,7 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 		}).To_Auth_Authorization(),
 		func(ctx context.Context) {
 			// on event
-			c.svcCtx.AuthLogic.DeletePhoneCode(ctx, c.MD.PermAuthKeyId, phoneNumber, in.PhoneCodeHash)
-			c.pushSignInMessage(ctx, user.Id(), codeData.PhoneCode)
+			_ = c.svcCtx.AuthLogic.DeletePhoneCode(ctx, c.MD.PermAuthKeyId, phoneNumber)
 			c.onContactSignUp(ctx, c.MD.PermAuthKeyId, user.Id(), phoneNumber)
 		},
 	).(*mtproto.Auth_Authorization), nil
@@ -195,7 +194,7 @@ func (c *AuthorizationCore) onContactSignUp(ctx context.Context, authKeyId, user
 	})
 
 	for _, c2 := range importers.GetDatas() {
-		c.Logger.Infof("importer: %v", c2)
+		c.Logger.Infof("importer: user %d", c2.GetClientId())
 		v, _ := c.svcCtx.Dao.UserClient.UserGetContactSignUpNotification(ctx, &userpb.TLUserGetContactSignUpNotification{
 			UserId: c2.ClientId,
 		})

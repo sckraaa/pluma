@@ -62,6 +62,6 @@ func (c *UserCore) UserSearchUsername(in *user.TLUserSearchUsername) (*user.Vect
 			}
 		})
 
-	c.Logger.Infof("username.search - doList: %v", doList)
+	c.Logger.Debugf("username.search - %d found", len(doList))
 	return rValList, nil
 }

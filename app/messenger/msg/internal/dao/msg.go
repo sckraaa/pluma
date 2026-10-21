@@ -49,7 +49,7 @@ func (d *Dao) GetLastMessageAndIdListByDialog(ctx context.Context, userId int64,
 				)
 				err := jsonx.UnmarshalFromString(v.MessageData, m)
 				if err != nil {
-					logx.WithContext(ctx).Errorf("error: %v, do: %v", err, v)
+					logx.WithContext(ctx).Errorf("error: %v, message: {user_id: %d, user_message_box_id: %d}", err, v.UserId, v.UserMessageBoxId)
 				} else {
 					lastMessage = m.FixData()
 				}

@@ -21,14 +21,13 @@ import (
 // messages.exportChatInvite#a455de90 flags:# legacy_revoke_permanent:flags.2?true request_needed:flags.3?true peer:InputPeer expire_date:flags.0?int usage_limit:flags.1?int title:flags.4?string subscription_pricing:flags.5?StarsSubscriptionPricing = ExportedChatInvite;
 func (s *Service) MessagesExportChatInvite(ctx context.Context, request *mtproto.TLMessagesExportChatInvite) (*mtproto.ExportedChatInvite, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.exportChatInvite - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.exportChatInvite - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesExportChatInvite(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.exportChatInvite - reply: {%s}", r)
 	return r, err
 }
 
@@ -36,14 +35,13 @@ func (s *Service) MessagesExportChatInvite(ctx context.Context, request *mtproto
 // messages.checkChatInvite#3eadb1bb hash:string = ChatInvite;
 func (s *Service) MessagesCheckChatInvite(ctx context.Context, request *mtproto.TLMessagesCheckChatInvite) (*mtproto.ChatInvite, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.checkChatInvite - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.checkChatInvite - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesCheckChatInvite(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.checkChatInvite - reply: {%s}", r)
 	return r, err
 }
 
@@ -51,14 +49,13 @@ func (s *Service) MessagesCheckChatInvite(ctx context.Context, request *mtproto.
 // messages.importChatInvite#de91436e hash:string = messages.ChatInviteJoinResult;
 func (s *Service) MessagesImportChatInviteDE91436E(ctx context.Context, request *mtproto.TLMessagesImportChatInviteDE91436E) (*mtproto.Messages_ChatInviteJoinResult, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.importChatInviteDE91436E - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.importChatInviteDE91436E - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesImportChatInviteDE91436E(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.importChatInviteDE91436E - reply: {%s}", r)
 	return r, err
 }
 
@@ -66,14 +63,13 @@ func (s *Service) MessagesImportChatInviteDE91436E(ctx context.Context, request 
 // messages.getExportedChatInvites#a2b5a3f6 flags:# revoked:flags.3?true peer:InputPeer admin_id:InputUser offset_date:flags.2?int offset_link:flags.2?string limit:int = messages.ExportedChatInvites;
 func (s *Service) MessagesGetExportedChatInvites(ctx context.Context, request *mtproto.TLMessagesGetExportedChatInvites) (*mtproto.Messages_ExportedChatInvites, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.getExportedChatInvites - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.getExportedChatInvites - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesGetExportedChatInvites(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.getExportedChatInvites - reply: {%s}", r)
 	return r, err
 }
 
@@ -81,14 +77,13 @@ func (s *Service) MessagesGetExportedChatInvites(ctx context.Context, request *m
 // messages.getExportedChatInvite#73746f5c peer:InputPeer link:string = messages.ExportedChatInvite;
 func (s *Service) MessagesGetExportedChatInvite(ctx context.Context, request *mtproto.TLMessagesGetExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.getExportedChatInvite - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.getExportedChatInvite - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesGetExportedChatInvite(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.getExportedChatInvite - reply: {%s}", r)
 	return r, err
 }
 
@@ -96,14 +91,13 @@ func (s *Service) MessagesGetExportedChatInvite(ctx context.Context, request *mt
 // messages.editExportedChatInvite#bdca2f75 flags:# revoked:flags.2?true peer:InputPeer link:string expire_date:flags.0?int usage_limit:flags.1?int request_needed:flags.3?Bool title:flags.4?string = messages.ExportedChatInvite;
 func (s *Service) MessagesEditExportedChatInvite(ctx context.Context, request *mtproto.TLMessagesEditExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.editExportedChatInvite - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.editExportedChatInvite - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesEditExportedChatInvite(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.editExportedChatInvite - reply: {%s}", r)
 	return r, err
 }
 
@@ -111,14 +105,13 @@ func (s *Service) MessagesEditExportedChatInvite(ctx context.Context, request *m
 // messages.deleteRevokedExportedChatInvites#56987bd5 peer:InputPeer admin_id:InputUser = Bool;
 func (s *Service) MessagesDeleteRevokedExportedChatInvites(ctx context.Context, request *mtproto.TLMessagesDeleteRevokedExportedChatInvites) (*mtproto.Bool, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.deleteRevokedExportedChatInvites - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.deleteRevokedExportedChatInvites - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesDeleteRevokedExportedChatInvites(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.deleteRevokedExportedChatInvites - reply: {%s}", r)
 	return r, err
 }
 
@@ -126,14 +119,13 @@ func (s *Service) MessagesDeleteRevokedExportedChatInvites(ctx context.Context, 
 // messages.deleteExportedChatInvite#d464a42b peer:InputPeer link:string = Bool;
 func (s *Service) MessagesDeleteExportedChatInvite(ctx context.Context, request *mtproto.TLMessagesDeleteExportedChatInvite) (*mtproto.Bool, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.deleteExportedChatInvite - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.deleteExportedChatInvite - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesDeleteExportedChatInvite(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.deleteExportedChatInvite - reply: {%s}", r)
 	return r, err
 }
 
@@ -141,14 +133,13 @@ func (s *Service) MessagesDeleteExportedChatInvite(ctx context.Context, request 
 // messages.getAdminsWithInvites#3920e6ef peer:InputPeer = messages.ChatAdminsWithInvites;
 func (s *Service) MessagesGetAdminsWithInvites(ctx context.Context, request *mtproto.TLMessagesGetAdminsWithInvites) (*mtproto.Messages_ChatAdminsWithInvites, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.getAdminsWithInvites - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.getAdminsWithInvites - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesGetAdminsWithInvites(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.getAdminsWithInvites - reply: {%s}", r)
 	return r, err
 }
 
@@ -156,14 +147,13 @@ func (s *Service) MessagesGetAdminsWithInvites(ctx context.Context, request *mtp
 // messages.getChatInviteImporters#df04dd4e flags:# requested:flags.0?true subscription_expired:flags.3?true peer:InputPeer link:flags.1?string q:flags.2?string offset_date:int offset_user:InputUser limit:int = messages.ChatInviteImporters;
 func (s *Service) MessagesGetChatInviteImporters(ctx context.Context, request *mtproto.TLMessagesGetChatInviteImporters) (*mtproto.Messages_ChatInviteImporters, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.getChatInviteImporters - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.getChatInviteImporters - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesGetChatInviteImporters(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.getChatInviteImporters - reply: {%s}", r)
 	return r, err
 }
 
@@ -171,14 +161,13 @@ func (s *Service) MessagesGetChatInviteImporters(ctx context.Context, request *m
 // messages.hideChatJoinRequest#7fe7e815 flags:# approved:flags.0?true peer:InputPeer user_id:InputUser = Updates;
 func (s *Service) MessagesHideChatJoinRequest(ctx context.Context, request *mtproto.TLMessagesHideChatJoinRequest) (*mtproto.Updates, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.hideChatJoinRequest - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.hideChatJoinRequest - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesHideChatJoinRequest(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.hideChatJoinRequest - reply: {%s}", r)
 	return r, err
 }
 
@@ -186,14 +175,13 @@ func (s *Service) MessagesHideChatJoinRequest(ctx context.Context, request *mtpr
 // messages.hideAllChatJoinRequests#e085f4ea flags:# approved:flags.0?true peer:InputPeer link:flags.1?string = Updates;
 func (s *Service) MessagesHideAllChatJoinRequests(ctx context.Context, request *mtproto.TLMessagesHideAllChatJoinRequests) (*mtproto.Updates, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.hideAllChatJoinRequests - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.hideAllChatJoinRequests - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesHideAllChatJoinRequests(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.hideAllChatJoinRequests - reply: {%s}", r)
 	return r, err
 }
 
@@ -201,14 +189,13 @@ func (s *Service) MessagesHideAllChatJoinRequests(ctx context.Context, request *
 // channels.toggleJoinToSend#e4cb9580 channel:InputChannel enabled:Bool = Updates;
 func (s *Service) ChannelsToggleJoinToSend(ctx context.Context, request *mtproto.TLChannelsToggleJoinToSend) (*mtproto.Updates, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("channels.toggleJoinToSend - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("channels.toggleJoinToSend - metadata: {%s}", c.MD)
 
 	r, err := c.ChannelsToggleJoinToSend(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("channels.toggleJoinToSend - reply: {%s}", r)
 	return r, err
 }
 
@@ -216,14 +203,13 @@ func (s *Service) ChannelsToggleJoinToSend(ctx context.Context, request *mtproto
 // channels.toggleJoinRequest#ecc2618 flags:# apply_to_invites:flags.1?true channel:InputChannel enabled:Bool guard_bot:flags.0?InputUser = Updates;
 func (s *Service) ChannelsToggleJoinRequest(ctx context.Context, request *mtproto.TLChannelsToggleJoinRequest) (*mtproto.Updates, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("channels.toggleJoinRequest - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("channels.toggleJoinRequest - metadata: {%s}", c.MD)
 
 	r, err := c.ChannelsToggleJoinRequest(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("channels.toggleJoinRequest - reply: {%s}", r)
 	return r, err
 }
 
@@ -231,13 +217,12 @@ func (s *Service) ChannelsToggleJoinRequest(ctx context.Context, request *mtprot
 // messages.importChatInvite#6c50051c hash:string = Updates;
 func (s *Service) MessagesImportChatInvite6C50051C(ctx context.Context, request *mtproto.TLMessagesImportChatInvite6C50051C) (*mtproto.Updates, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("messages.importChatInvite6C50051C - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("messages.importChatInvite6C50051C - metadata: {%s}", c.MD)
 
 	r, err := c.MessagesImportChatInvite6C50051C(request)
 	if err != nil {
 		return nil, err
 	}
 
-	c.Logger.Debugf("messages.importChatInvite6C50051C - reply: {%s}", r)
 	return r, err
 }

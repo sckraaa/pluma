@@ -46,9 +46,9 @@ func main() {
 	summaryOnly := flag.Bool("summary", false, "print summary to stdout, write nothing")
 	flag.Parse()
 
-	dir, err := protoDir()
+	dir, version, err := protoModuleInfo()
 	check(err)
-	methods, layer, err := loadMethods(dir)
+	methods, layer, err := loadMethods(dir, version)
 	check(err)
 	handlers, err := loadHandlers("app")
 	check(err)
@@ -71,22 +71,29 @@ func main() {
 	fmt.Printf("written %s\n", *out)
 }
 
-func protoDir() (string, error) {
-	b, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", protoModule).Output()
+// protoModuleInfo returns the source directory of the proto module (the
+// third_party copy when replaced) and its required version, which encodes the
+// layer (v0.228.0 -> 228).
+func protoModuleInfo() (dir, version string, err error) {
+	b, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}} {{.Version}}", protoModule).Output()
 	if err != nil {
-		return "", fmt.Errorf("go list %s: %w (run `go mod download`)", protoModule, err)
+		return "", "", fmt.Errorf("go list %s: %w (run `go mod download`)", protoModule, err)
 	}
-	return strings.TrimSpace(string(b)), nil
+	fields := strings.Fields(string(b))
+	if len(fields) != 2 {
+		return "", "", fmt.Errorf("go list %s: unexpected output %q", protoModule, b)
+	}
+	return fields[0], fields[1], nil
 }
 
 var (
 	rpcRe     = regexp.MustCompile(`^\s*rpc\s+([A-Za-z0-9_]+)\s*\(`)
 	serviceRe = regexp.MustCompile(`^service\s+(\w+)`)
-	layerRe   = regexp.MustCompile(`teamgram/proto@v0\.(\d+)\.`)
+	layerRe   = regexp.MustCompile(`^v0\.(\d+)\.`)
 )
 
 // loadMethods reads the client-facing RPC list from schema.tl.sync_service.proto.
-func loadMethods(dir string) ([]*method, string, error) {
+func loadMethods(dir, version string) ([]*method, string, error) {
 	f, err := os.Open(filepath.Join(dir, "mtproto", "schema.tl.sync_service.proto"))
 	if err != nil {
 		return nil, "", err
@@ -94,7 +101,7 @@ func loadMethods(dir string) ([]*method, string, error) {
 	defer f.Close()
 
 	layer := "?"
-	if m := layerRe.FindStringSubmatch(dir); m != nil {
+	if m := layerRe.FindStringSubmatch(version); m != nil {
 		layer = m[1]
 	}
 

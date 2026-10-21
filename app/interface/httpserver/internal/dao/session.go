@@ -95,7 +95,7 @@ func (sess *Session) watch(c zrpc.RpcClientConf) {
 			c.Endpoints = []string{v}
 			cli, err := zrpc.NewClient(c)
 			if err != nil {
-				logx.Error("watchComet NewClient(%+v) error(%v)", values, err)
+				logx.Errorf("watchComet NewClient(%+v) error(%v)", values, err)
 				return
 			}
 			sessionCli := sessionclient.NewSessionClient(cli)

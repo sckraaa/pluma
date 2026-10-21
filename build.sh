@@ -48,6 +48,10 @@ echo "build gnetway ..."
 cd ${TEAMGRAMAPP}/interface/gnetway/cmd/gnetway
 go build -o ${INSTALL}/bin/gnetway
 
+echo "build pluma-admin ..."
+cd ${TEAMGRAMAPP}/../tools/pluma-admin
+go build -o ${INSTALL}/bin/pluma-admin
+
 #echo "build httpserver ..."
 #cd ${TEAMGRAMAPP}/interface/httpserver/cmd/httpserver
 #go build -o ${INSTALL}/bin/httpserver

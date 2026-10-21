@@ -7,13 +7,12 @@
 package gnet
 
 import (
-	"bytes"
+	"fmt"
 
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	httpcodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/http"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/ws"
 
-	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -29,16 +28,20 @@ type HandshakeStateCtx struct {
 	ExpiresIn     int32  `json:"expires_in,omitempty"`
 }
 
-func (m *HandshakeStateCtx) DebugString() string {
-	s, _ := jsonx.MarshalToString(m)
-	return s
+// Format prints the state without NewNonce and A: with them anyone reading
+// a log could recompute the auth key (audit finding #8). It applies to every
+// verb, so neither %v nor %+v nor %#v can print them.
+func (m HandshakeStateCtx) Format(f fmt.State, _ rune) {
+	fmt.Fprintf(f, "{state: %d, res_state: %d, handshake_type: %d, expires_in: %d}",
+		m.State, m.ResState, m.HandshakeType, m.ExpiresIn)
 }
 
 type connContext struct {
-	codec      codec.Codec
-	authKey    *authKeyUtil
-	sessionId  int64
-	handshakes []*HandshakeStateCtx
+	codec     codec.Codec
+	authKey   *authKeyUtil
+	sessionId int64
+	// handshakes in progress on this connection; see handshakeIO.
+	handshakes *handshakeIO
 	clientIp   string
 	tcp        bool
 	websocket  bool
@@ -50,6 +53,13 @@ type connContext struct {
 	nextSeqNo  int32
 	closeDate  int64
 	ppv1       bool
+	// authenticated: a message on this connection decrypted with a known
+	// auth key. Until then the connection gets no more time than it was
+	// given when it opened, whatever it sends.
+	authenticated bool
+	// keyQuery: the auth key of this connection is being read from
+	// authsession (queryAuthKey).
+	keyQuery *pendingKeyQuery
 }
 
 func newConnContext() *connContext {
@@ -79,26 +89,4 @@ func (ctx *connContext) getAuthKey() *authKeyUtil {
 
 func (ctx *connContext) putAuthKey(k *authKeyUtil) {
 	ctx.authKey = k
-}
-
-func (ctx *connContext) getHandshakeStateCtx(nonce []byte) *HandshakeStateCtx {
-	for _, state := range ctx.handshakes {
-		if bytes.Equal(nonce, state.Nonce) {
-			return state
-		}
-	}
-
-	return nil
-}
-
-const maxHandshakes = 3
-
-func (ctx *connContext) putHandshakeStateCt(state *HandshakeStateCtx) {
-	if len(ctx.handshakes) >= maxHandshakes {
-		// Evict oldest handshake to prevent unbounded growth
-		copy(ctx.handshakes, ctx.handshakes[1:])
-		ctx.handshakes[len(ctx.handshakes)-1] = state
-		return
-	}
-	ctx.handshakes = append(ctx.handshakes, state)
 }

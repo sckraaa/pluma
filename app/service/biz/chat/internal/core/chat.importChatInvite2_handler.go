@@ -40,7 +40,7 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 
 	// check expire
 	if chatInviteDO.Revoked {
-		c.Logger.Errorf("chat.checkChatInvite - error: invite hash %s expired", in.Hash)
+		c.Logger.Errorf("chat.checkChatInvite - error: invite of chat %d revoked", chatInviteDO.ChatId)
 		err = mtproto.ErrInviteHashExpired
 		return nil, err
 	}

@@ -37,7 +37,7 @@ func (d *Dao) AddToPtsQueueE(ctx context.Context, userId int64, pts, ptsCount in
 
 	i, _, err := d.UserPtsUpdatesDAO.Insert(ctx, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("AddToPtsQueue - insert into user_pts_updates error: %v, do: %v", err, do)
+		logx.WithContext(ctx).Errorf("AddToPtsQueue - insert into user_pts_updates error: %v, {user_id: %d, pts: %d}", err, do.UserId, do.Pts)
 		return int32(i), err
 	}
 	return int32(i), nil

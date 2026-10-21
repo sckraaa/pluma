@@ -48,7 +48,7 @@
 | `account.addNoPaidMessagesException` | missing |  |
 | `account.cancelPasswordEmail` | missing |  |
 | `account.changeAuthorizationSettings` | blocked | app/bff/authorization/internal/core/account.changeAuthorizationSettings_handler.go:27 |
-| `account.changePhone` | ok | app/bff/account/internal/core/account.changePhone_handler.go:35 |
+| `account.changePhone` | ok | app/bff/account/internal/core/account.changePhone_handler.go:29 |
 | `account.checkUsername` | ok | app/bff/usernames/internal/core/account.checkUsername_handler.go:30 |
 | `account.clearRecentEmojiStatuses` | missing |  |
 | `account.confirmBotConnection` | blocked | app/bff/account/internal/core/account.confirmBotConnection_handler.go:26 |
@@ -132,7 +132,7 @@
 | `account.saveSecureValue` | blocked | app/bff/passport/internal/core/account.saveSecureValue_handler.go:27 |
 | `account.saveTheme` | missing |  |
 | `account.saveWallPaper` | missing |  |
-| `account.sendChangePhoneCode` | ok | app/bff/account/internal/core/account.sendChangePhoneCode_handler.go:51 |
+| `account.sendChangePhoneCode` | ok | app/bff/account/internal/core/account.sendChangePhoneCode_handler.go:48 |
 | `account.sendConfirmPhoneCode` | blocked | app/bff/account/internal/core/account.sendConfirmPhoneCode_handler.go:27 |
 | `account.sendVerifyEmailCode` | blocked | app/bff/authorization/internal/core/account.sendVerifyEmailCode_handler.go:27 |
 | `account.sendVerifyPhoneCode` | blocked | app/bff/passport/internal/core/account.sendVerifyPhoneCode_handler.go:27 |
@@ -195,7 +195,7 @@
 |---|---|---|
 | `auth.acceptLoginToken` | ok | app/bff/qrcode/internal/core/auth.acceptLoginToken_handler.go:37 |
 | `auth.bindTempAuthKey` | notimpl | app/bff/authorization/internal/core/auth.bindTempAuthKey_handler.go:27 |
-| `auth.cancelCode` | ok | app/bff/authorization/internal/core/auth.cancelCode_handler.go:28 |
+| `auth.cancelCode` | ok | app/bff/authorization/internal/core/auth.cancelCode_handler.go:27 |
 | `auth.checkPaidAuth` | blocked | app/bff/authorization/internal/core/auth.checkPaidAuth_handler.go:27 |
 | `auth.checkPassword` | ok | app/bff/authorization/internal/core/auth.checkPassword_handler.go:28 |
 | `auth.checkRecoveryPassword` | blocked | app/bff/authorization/internal/core/auth.checkRecoveryPassword_handler.go:27 |
@@ -213,11 +213,11 @@
 | `auth.reportMissingCode` | blocked | app/bff/authorization/internal/core/auth.reportMissingCode_handler.go:27 |
 | `auth.requestFirebaseSms` | blocked | app/bff/authorization/internal/core/auth.requestFirebaseSms_handler.go:27 |
 | `auth.requestPasswordRecovery` | blocked | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:27 |
-| `auth.resendCode` | ok | app/bff/authorization/internal/core/auth.resendCode_handler.go:48 |
+| `auth.resendCode` | ok | app/bff/authorization/internal/core/auth.resendCode_handler.go:47 |
 | `auth.resetAuthorizations` | blocked | app/bff/authorization/internal/core/auth.resetAuthorizations_handler.go:27 |
 | `auth.resetLoginEmail` | blocked | app/bff/authorization/internal/core/auth.resetLoginEmail_handler.go:27 |
-| `auth.sendCode` | ok | app/bff/authorization/internal/core/auth.sendCode_handler.go:117 |
-| `auth.signIn` | ok | app/bff/authorization/internal/core/auth.signIn_handler.go:57 |
+| `auth.sendCode` | ok | app/bff/authorization/internal/core/auth.sendCode_handler.go:113 |
+| `auth.signIn` | ok | app/bff/authorization/internal/core/auth.signIn_handler.go:56 |
 | `auth.signUp` | ok | app/bff/authorization/internal/core/auth.signUp_handler.go:55 |
 | `auth.toggleBan` | blocked | app/bff/authorization/internal/core/auth.toggleBan_handler.go:27 |
 

@@ -44,7 +44,7 @@ func (d *Dao) SetCacheFileInfo(ctx context.Context, id int64, dfsFileInfo *model
 	)
 
 	if err = d.ssdb.Setex(key, fmt.Sprintf("%d_%d", dfsFileInfo.Creator, dfsFileInfo.FileId), 2*60*60); err != nil {
-		logx.WithContext(ctx).Errorf("conn.Do(SETEX %s,%v) error(%v)", key, dfsFileInfo, err)
+		logx.WithContext(ctx).Errorf("conn.Do(SETEX %s) error(%v)", key, err)
 	}
 
 	return

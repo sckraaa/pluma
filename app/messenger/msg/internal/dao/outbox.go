@@ -203,7 +203,7 @@ func (d *Dao) sendMessageToOutbox(ctx context.Context, fromId int64, peer *mtpro
 			result.Data = outMsgBox
 		default:
 			result.Err = fmt.Errorf("fatal error - invalid peer_type: %v", peer)
-			logx.WithContext(ctx).Errorf("%v", result)
+			logx.WithContext(ctx).Errorf("%v", result.Err)
 			return
 		}
 
@@ -554,7 +554,7 @@ func (d *Dao) DeletePhoneCallHistory(ctx context.Context, userId int64) ([]int32
 		return []int32{}, []int64{}, nil
 	}
 
-	logx.WithContext(ctx).Infof("phone: %v", dialogIdMap)
+	logx.WithContext(ctx).Debugf("delete messages in %d dialogs", len(dialogIdMap))
 
 	for dialogId, msgIds := range dialogIdMap {
 		_, err = d.MessagesDAO.DeleteMessagesByMessageIdList(ctx, userId, msgIds)

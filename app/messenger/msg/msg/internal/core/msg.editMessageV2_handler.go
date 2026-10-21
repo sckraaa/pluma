@@ -41,7 +41,7 @@ func (c *MsgCore) MsgEditMessageV2(in *msg.TLMsgEditMessageV2) (*mtproto.Updates
 
 	if dstMessage == nil {
 		err = mtproto.ErrInputRequestInvalid
-		c.Logger.Errorf("msg.editMessage - error: request(%s) error - %v", in, err)
+		c.Logger.Errorf("msg.editMessage - error: request{user_id: %d, peer: %d/%d} error - %v", in.GetUserId(), in.GetPeerType(), in.GetPeerId(), err)
 		return nil, err
 	}
 

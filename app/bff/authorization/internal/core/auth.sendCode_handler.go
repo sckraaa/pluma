@@ -19,16 +19,12 @@
 package core
 
 import (
-	"context"
 	"fmt"
 
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
-	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
-	statuspb "github.com/teamgram/teamgram-server/app/service/status/status"
 
 	"google.golang.org/grpc/status"
 )
@@ -163,8 +159,14 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 	// client phone number format: "+86 111 1111 1111"
 	_, phoneNumber, err := checkPhoneNumberInvalid(request.PhoneNumber)
 	if err != nil {
-		c.Logger.Errorf("check phone_number(%s) error - %v", request.PhoneNumber, err)
+		c.Logger.Errorf("check phone_number error - %v", err)
 		err = mtproto.ErrPhoneNumberInvalid
+		return
+	}
+
+	// Closed registration and flood limits, before anything that depends on
+	// whether the phone has an account (future auth tokens included).
+	if err = c.svcCtx.AuthLogic.Codes.CheckSendCode(c.ctx, phoneNumber, authKeyId, c.MD.ClientAddr); err != nil {
 		return
 	}
 
@@ -207,7 +209,7 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 	if c.svcCtx.Plugin != nil {
 		banned, _ := c.svcCtx.Plugin.CheckPhoneNumberBanned(c.ctx, phoneNumber)
 		if banned {
-			c.Logger.Errorf("{phone_number: %s} banned: %v", phoneNumber, err)
+			c.Logger.Errorf("phone number banned: %v", err)
 			err = mtproto.ErrPhoneNumberBanned
 			return
 		}
@@ -219,13 +221,6 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 	// <string name="PhoneNumberFlood">Sorry, you have deleted and re-created your account too many times recently.
 	//    Please wait for a few days before signing up again.</string>
 	//
-
-	// 6. check can do action
-	actionType := logic.GetActionType(request)
-	if err = c.svcCtx.Dao.CheckCanDoAction(c.ctx, authKeyId, phoneNumber, actionType); err != nil {
-		c.Logger.Errorf("check can do action - %s: %v", phoneNumber, err)
-		return
-	}
 
 	// logic
 	// Always crated new phoneCode
@@ -308,118 +303,17 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 			}
 		}
 	}
-	// phoneRegistered = user != nil
-
-	// codeLogic := logic.NewAuthSignLogic(s.AuthCore)
+	var userId int64
+	if phoneRegistered {
+		userId = user.Id()
+	}
 	codeData, err2 := c.svcCtx.AuthLogic.DoAuthSendCode(c.ctx,
 		authKeyId,
 		sessionId,
 		phoneNumber,
-		phoneRegistered,
-		request.Settings.AllowFlashcall,
-		request.Settings.CurrentNumber,
-		request.ApiId,
-		request.ApiHash,
-		func(codeData2 *model.PhoneCodeTransaction) error {
-			if codeData2.State == model.CodeStateSent {
-				c.Logger.Infof("codeSent")
-				return nil
-			}
-
-			var (
-				needSendSms = true
-			)
-
-			if phoneRegistered {
-				if user.GetUser().GetUserType() == userpb.UserTypeTest {
-					needSendSms = false
-					codeData2.SentCodeType = model.SentCodeTypeApp
-					codeData2.PhoneCode = "12345"
-					codeData2.PhoneCodeExtraData = "12345"
-					c.Logger.Infof("is test server: %v", codeData2)
-				} else {
-					if status2, _ := c.svcCtx.StatusClient.StatusGetUserOnlineSessions(c.ctx, &statuspb.TLStatusGetUserOnlineSessions{
-						UserId: user.User.Id,
-					}); len(status2.GetUserSessions()) > 0 {
-						c.Logger.Infof("user online")
-						needSendSms = false
-						codeData2.SentCodeType = model.SentCodeTypeApp
-						codeData2.PhoneCodeExtraData = codeData2.PhoneCode
-					}
-				}
-				threading2.WrapperGoFunc(c.ctx, nil, func(ctx context.Context) {
-					c.pushSignInMessage(ctx, user.Id(), codeData2.PhoneCode)
-				})
-			}
-
-			if needSendSms {
-				c.Logger.Infof("send code by sms")
-				extraData, err2 := c.svcCtx.AuthLogic.VerifyCodeInterface.SendSmsVerifyCode(
-					context.Background(),
-					phoneNumber,
-					codeData2.PhoneCode,
-					codeData2.PhoneCodeHash)
-				if err2 != nil {
-					c.Logger.Errorf("send sms code error: %v", err2)
-					return err2
-				} else {
-					// codeData2.SentCodeType = model.CodeTypeSms
-					codeData2.SentCodeType = model.SentCodeTypeSms
-					codeData2.PhoneCodeExtraData = extraData
-				}
-			}
-
-			//if user.User.UserType == userpb.UserTypeTest {
-			//	c.Logger.Infof("test user: %s, %s", phoneNumber, user)
-			//	codeData2.SentCodeType = model.CodeTypeApp
-			//	codeData2.PhoneCode = "12345"
-			//	codeData2.PhoneCodeExtraData = "12345"
-			//	go func() {
-			//		// c.pushSignInMessage(context.Background(), user.Id, codeData2.PhoneCode)
-			//	}()
-			//} else {
-			//	var (
-			//		online = false
-			//	)
-			//
-			//	if phoneRegistered {
-			//		if status, _ := c.svcCtx.StatusClient.StatusGetUserOnlineSessions(c.ctx, &status.TLStatusGetUserOnlineSessions{
-			//			UserId: user.User.Id,
-			//		}); len(status.GetUserSessions()) > 0 {
-			//			c.Logger.Infof("user online")
-			//			online = true
-			//
-			//			codeData2.SentCodeType = model.CodeTypeApp
-			//			codeData2.PhoneCodeExtraData = codeData2.PhoneCode
-			//			go func() {
-			//				// s.pushSignInMessage(context.Background(), user.Id, codeData2.PhoneCode)
-			//			}()
-			//		}
-			//		// &&
-			//	}
-			//
-			//	if !phoneRegistered || !online {
-			//		c.Logger.Infof("send code by sms")
-			//		if extraData, err := c.svcCtx.AuthLogic.VerifyCodeInterface.SendSmsVerifyCode(
-			//			context.Background(),
-			//			phoneNumber,
-			//			codeData2.PhoneCode,
-			//			codeData2.PhoneCodeHash); err != nil {
-			//			return err
-			//		} else {
-			//			codeData2.SentCodeType = model.CodeTypeSms
-			//			codeData2.PhoneCodeExtraData = extraData
-			//		}
-			//	}
-			//}
-
-			codeData2.NextCodeType = model.CodeTypeSms
-			codeData2.State = model.CodeStateSent
-			codeData2.PhoneNumberRegistered = phoneRegistered
-
-			return nil
-		})
-
+		userId,
+		c.MD.ClientAddr,
+		codeDelivery{c: c})
 	if err2 != nil {
 		c.Logger.Errorf("auth.sendCode - error: %v", err2)
 		err = err2

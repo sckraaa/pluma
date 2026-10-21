@@ -26,44 +26,40 @@ import (
 	"strconv"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// PhoneCodeTransaction
+// PhoneCodeTransaction is the state of one login (or phone change) request,
+// identified by its phone_code_hash. The code itself is not here: only its
+// HMAC is stored, by pkg/logincode.
 // TODO(@benqi): Add phone region
 type PhoneCodeTransaction struct {
 	AuthKeyId             int64  `json:"auth_key_id"`
 	SessionId             int64  `json:"session_id"`
 	PhoneNumber           string `json:"phone_number"`
 	PhoneNumberRegistered bool   `json:"phone_number_registered"`
-	PhoneCode             string `json:"phone_code"`
 	PhoneCodeHash         string `json:"phone_code_hash"`
-	PhoneCodeExpired      int32  `json:"phone_code_expired"`
-	PhoneCodeExtraData    string `json:"phone_code_extra_data"`
+	PhoneCodeExpired      int32  `json:"phone_code_expired"` // end of the request, unix seconds
 	SentCodeType          int    `json:"sent_code_type"`
 	FlashCallPattern      string `json:"flash_call_pattern"`
 	NextCodeType          int    `json:"next_code_type"`
 	State                 int    `json:"state"`
 }
 
-// ToAuthSentCode
-// TODO(@benqi): 如果手机号已经注册，检查是否有其他设备在线，有则使用sentCodeTypeApp
-//
-//	否则使用sentCodeTypeSms
-//
-// TODO(@benqi): 有则使用sentCodeTypeFlashCall和entCodeTypeCall？？
+// ToAuthSentCode returns the auth.sentCode for the request.
 func (m *PhoneCodeTransaction) ToAuthSentCode() *mtproto.Auth_SentCode {
-	// TODO(@benqi): only use sms
-
 	authSentCode := mtproto.MakeTLAuthSentCode(&mtproto.Auth_SentCode{
-		Type:          makeAuthSentCodeType(m.SentCodeType, len(m.PhoneCode), m.FlashCallPattern),
+		Type:          makeAuthSentCodeType(m.SentCodeType, logincode.Length, m.FlashCallPattern),
 		PhoneCodeHash: m.PhoneCodeHash,
 		NextType:      makeAuthCodeType(m.NextCodeType),
-		Timeout:       &wrapperspb.Int32Value{Value: 60}, // TODO(@benqi): 默认60s
+		Timeout:       nil,
 	}).To_Auth_SentCode()
-	if m.SentCodeType == SentCodeTypeApp {
-		authSentCode.Timeout = nil
+	// timeout only means something when auth.resendCode can switch to
+	// next_type; the in-app code (sentCodeTypeApp) offers that at any time.
+	if authSentCode.NextType != nil && m.SentCodeType != SentCodeTypeApp {
+		authSentCode.Timeout = &wrapperspb.Int32Value{Value: 60}
 	}
 	return authSentCode
 }
