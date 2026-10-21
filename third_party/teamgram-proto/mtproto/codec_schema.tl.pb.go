@@ -15,6 +15,7 @@ package mtproto
 
 import (
 	"fmt"
+	"unsafe" // pluma: element sizes for the vector allocation budget
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -145,12 +146,12 @@ func (m *TLFutureSalts) Decode(dBuf *DecodeBuf) error {
 		//     return dBuf.err
 		// }
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(TLFutureSalt{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*TLFutureSalt, l2)
-		for i := int32(0); i < l2; i++ {
-			v2[i] = &TLFutureSalt{}
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
+			v2[i] = MakeTLFutureSalt(&FutureSalt{Constructor: CRC32_future_salt}) // pluma: bare element; &TLFutureSalt{} has no Data2 and panicked
 			v2[i].Decode(dBuf)
 		}
 		m.SetSalts(v2)
@@ -2063,11 +2064,11 @@ func (m *TLAccessPointRule) Decode(dBuf *DecodeBuf) error {
 		//     return dBuf.err
 		// }
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(IpPort{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*IpPort, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &IpPort{}
 			v2[i].Decode(dBuf)
 		}
@@ -2583,11 +2584,11 @@ func (m *TLHelpConfigSimple) Decode(dBuf *DecodeBuf) error {
 		//     return dBuf.err
 		// }
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(AccessPointRule{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*AccessPointRule, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &AccessPointRule{}
 			v2[i].Decode(dBuf)
 		}
@@ -4334,6 +4335,11 @@ func (m *TlsBlock) CalcByteSize(layer int32) int {
 }
 
 func (m *TlsBlock) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x4218a164:
@@ -4799,11 +4805,11 @@ func (m *TLTlsBlockScope) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(TlsBlock{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*TlsBlock, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &TlsBlock{}
 			v3[i].Decode(dBuf)
 		}
@@ -4926,11 +4932,11 @@ func (m *TLTlsClientHello) Decode(dBuf *DecodeBuf) error {
 		//     return dBuf.err
 		// }
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(TlsBlock{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*TlsBlock, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &TlsBlock{}
 			v0[i].Decode(dBuf)
 		}
@@ -5263,11 +5269,11 @@ func (m *TLAccountAuthorizationForm) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(SecureRequiredType{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*SecureRequiredType, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &SecureRequiredType{}
 			v1[i].Decode(dBuf)
 		}
@@ -5279,11 +5285,11 @@ func (m *TLAccountAuthorizationForm) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(SecureValue{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*SecureValue, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &SecureValue{}
 			v2[i].Decode(dBuf)
 		}
@@ -5295,11 +5301,11 @@ func (m *TLAccountAuthorizationForm) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(SecureValueError{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*SecureValueError, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &SecureValueError{}
 			v3[i].Decode(dBuf)
 		}
@@ -5311,11 +5317,11 @@ func (m *TLAccountAuthorizationForm) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -5460,11 +5466,11 @@ func (m *TLAccountAuthorizations) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Authorization{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Authorization, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Authorization{}
 			v1[i].Decode(dBuf)
 		}
@@ -5798,11 +5804,11 @@ func (m *TLAccountAutoSaveSettings) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(AutoSaveException{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*AutoSaveException, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &AutoSaveException{}
 			v3[i].Decode(dBuf)
 		}
@@ -5814,11 +5820,11 @@ func (m *TLAccountAutoSaveSettings) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Chat{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Chat, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Chat{}
 			v4[i].Decode(dBuf)
 		}
@@ -5830,11 +5836,11 @@ func (m *TLAccountAutoSaveSettings) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -6007,11 +6013,11 @@ func (m *TLAccountBusinessChatLinks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(BusinessChatLink{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*BusinessChatLink, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &BusinessChatLink{}
 			v0[i].Decode(dBuf)
 		}
@@ -6023,11 +6029,11 @@ func (m *TLAccountBusinessChatLinks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -6039,11 +6045,11 @@ func (m *TLAccountBusinessChatLinks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -6401,11 +6407,11 @@ func (m *TLAccountChatThemes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(ChatTheme{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*ChatTheme, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &ChatTheme{}
 			v2[i].Decode(dBuf)
 		}
@@ -6417,11 +6423,11 @@ func (m *TLAccountChatThemes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -6433,11 +6439,11 @@ func (m *TLAccountChatThemes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -6458,11 +6464,11 @@ func (m *TLAccountChatThemes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(ChatTheme{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*ChatTheme, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &ChatTheme{}
 			v2[i].Decode(dBuf)
 		}
@@ -6474,11 +6480,11 @@ func (m *TLAccountChatThemes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -6490,11 +6496,11 @@ func (m *TLAccountChatThemes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -6651,11 +6657,11 @@ func (m *TLAccountConnectedBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(ConnectedBot{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*ConnectedBot, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &ConnectedBot{}
 			v0[i].Decode(dBuf)
 		}
@@ -6667,11 +6673,11 @@ func (m *TLAccountConnectedBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -7198,11 +7204,11 @@ func (m *TLAccountEmojiStatuses) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(EmojiStatus{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*EmojiStatus, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &EmojiStatus{}
 			v1[i].Decode(dBuf)
 		}
@@ -7553,11 +7559,11 @@ func (m *TLAccountPasskeys) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Passkey{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Passkey, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Passkey{}
 			v0[i].Decode(dBuf)
 		}
@@ -8464,11 +8470,11 @@ func (m *TLAccountPrivacyRules) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(PrivacyRule{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*PrivacyRule, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &PrivacyRule{}
 			v0[i].Decode(dBuf)
 		}
@@ -8480,11 +8486,11 @@ func (m *TLAccountPrivacyRules) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -8496,11 +8502,11 @@ func (m *TLAccountPrivacyRules) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -8952,11 +8958,11 @@ func (m *TLAccountResolvedBusinessChatLinks) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -8968,11 +8974,11 @@ func (m *TLAccountResolvedBusinessChatLinks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Chat{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Chat, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Chat{}
 			v4[i].Decode(dBuf)
 		}
@@ -8984,11 +8990,11 @@ func (m *TLAccountResolvedBusinessChatLinks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -9545,11 +9551,11 @@ func (m *TLAccountSavedRingtones) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Document{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Document, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Document{}
 			v1[i].Decode(dBuf)
 		}
@@ -9973,11 +9979,11 @@ func (m *TLAccountThemes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Theme{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Theme, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Theme{}
 			v1[i].Decode(dBuf)
 		}
@@ -10294,11 +10300,11 @@ func (m *TLAccountWallPapers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(WallPaper{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*WallPaper, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &WallPaper{}
 			v1[i].Decode(dBuf)
 		}
@@ -10455,11 +10461,11 @@ func (m *TLAccountWebAuthorizations) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(WebAuthorization{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*WebAuthorization, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &WebAuthorization{}
 			v0[i].Decode(dBuf)
 		}
@@ -10471,11 +10477,11 @@ func (m *TLAccountWebAuthorizations) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -10742,11 +10748,11 @@ func (m *TLAccountWebBrowserSettings) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(WebDomainException{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*WebDomainException, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &WebDomainException{}
 			v3[i].Decode(dBuf)
 		}
@@ -10758,11 +10764,11 @@ func (m *TLAccountWebBrowserSettings) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(WebDomainException{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*WebDomainException, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &WebDomainException{}
 			v4[i].Decode(dBuf)
 		}
@@ -11409,11 +11415,11 @@ func (m *TLAicomposeTones) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(AiComposeTone{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*AiComposeTone, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &AiComposeTone{}
 			v1[i].Decode(dBuf)
 		}
@@ -11425,11 +11431,11 @@ func (m *TLAicomposeTones) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -11879,11 +11885,11 @@ func (m *TLAttachMenuBot) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(AttachMenuPeerType{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l9)
 			}
 			v9 := make([]*AttachMenuPeerType, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &AttachMenuPeerType{}
 				v9[i].Decode(dBuf)
 			}
@@ -11895,11 +11901,11 @@ func (m *TLAttachMenuBot) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(AttachMenuBotIcon{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*AttachMenuBotIcon, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &AttachMenuBotIcon{}
 			v10[i].Decode(dBuf)
 		}
@@ -11926,11 +11932,11 @@ func (m *TLAttachMenuBot) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(AttachMenuPeerType{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*AttachMenuPeerType, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &AttachMenuPeerType{}
 			v9[i].Decode(dBuf)
 		}
@@ -11942,11 +11948,11 @@ func (m *TLAttachMenuBot) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(AttachMenuBotIcon{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*AttachMenuBotIcon, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &AttachMenuBotIcon{}
 			v10[i].Decode(dBuf)
 		}
@@ -11967,11 +11973,11 @@ func (m *TLAttachMenuBot) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(AttachMenuBotIcon{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*AttachMenuBotIcon, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &AttachMenuBotIcon{}
 			v10[i].Decode(dBuf)
 		}
@@ -12138,11 +12144,11 @@ func (m *TLAttachMenuBotIcon) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(AttachMenuBotIconColor{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*AttachMenuBotIconColor, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &AttachMenuBotIconColor{}
 				v3[i].Decode(dBuf)
 			}
@@ -12479,11 +12485,11 @@ func (m *TLAttachMenuBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(AttachMenuBot{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*AttachMenuBot, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &AttachMenuBot{}
 			v1[i].Decode(dBuf)
 		}
@@ -12495,11 +12501,11 @@ func (m *TLAttachMenuBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -12642,11 +12648,11 @@ func (m *TLAttachMenuBotsBot) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -21028,11 +21034,11 @@ func (m *TLBotInfo) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotCommand{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*BotCommand, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &BotCommand{}
 				v6[i].Decode(dBuf)
 			}
@@ -21089,11 +21095,11 @@ func (m *TLBotInfo) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotCommand{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*BotCommand, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &BotCommand{}
 				v6[i].Decode(dBuf)
 			}
@@ -21145,11 +21151,11 @@ func (m *TLBotInfo) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotCommand{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*BotCommand, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &BotCommand{}
 				v6[i].Decode(dBuf)
 			}
@@ -21196,11 +21202,11 @@ func (m *TLBotInfo) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotCommand{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*BotCommand, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &BotCommand{}
 				v6[i].Decode(dBuf)
 			}
@@ -21221,11 +21227,11 @@ func (m *TLBotInfo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotCommand{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*BotCommand, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &BotCommand{}
 			v6[i].Decode(dBuf)
 		}
@@ -21245,11 +21251,11 @@ func (m *TLBotInfo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotCommand{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*BotCommand, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &BotCommand{}
 			v6[i].Decode(dBuf)
 		}
@@ -21552,11 +21558,11 @@ func (m *TLBotInlineMessageMediaAuto) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -21694,11 +21700,11 @@ func (m *TLBotInlineMessageText) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -22344,11 +22350,11 @@ func (m *TLBotInlineMessageMediaWebPage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -23601,11 +23607,11 @@ func (m *TLBotsAccessSettings) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l2 := dBuf.Int()
-			if l2 < 0 || l2 > maxVectorLen {
+			if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l2)
 			}
 			v2 := make([]*User, l2)
-			for i := int32(0); i < l2; i++ {
+			for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v2[i] = &User{}
 				v2[i].Decode(dBuf)
 			}
@@ -23990,11 +23996,11 @@ func (m *TLBotsPopularAppBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -24132,11 +24138,11 @@ func (m *TLBotsPreviewInfo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(BotPreviewMedia{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*BotPreviewMedia, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &BotPreviewMedia{}
 			v0[i].Decode(dBuf)
 		}
@@ -25747,11 +25753,11 @@ func (m *TLBusinessChatLink) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -26600,11 +26606,11 @@ func (m *TLBusinessWorkHours) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(BusinessWeeklyOpen{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*BusinessWeeklyOpen, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &BusinessWeeklyOpen{}
 			v3[i].Decode(dBuf)
 		}
@@ -26737,11 +26743,11 @@ func (m *TLCdnConfig) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(CdnPublicKey{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*CdnPublicKey, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &CdnPublicKey{}
 			v0[i].Decode(dBuf)
 		}
@@ -32312,11 +32318,11 @@ func (m *TLChannelMessagesFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(MessageRange{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*MessageRange, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &MessageRange{}
 			v2[i].Decode(dBuf)
 		}
@@ -34065,11 +34071,11 @@ func (m *TLChannelsAdminLogResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(ChannelAdminLogEvent{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*ChannelAdminLogEvent, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &ChannelAdminLogEvent{}
 			v0[i].Decode(dBuf)
 		}
@@ -34081,11 +34087,11 @@ func (m *TLChannelsAdminLogResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -34097,11 +34103,11 @@ func (m *TLChannelsAdminLogResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -34266,11 +34272,11 @@ func (m *TLChannelsChannelParticipant) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -34282,11 +34288,11 @@ func (m *TLChannelsChannelParticipant) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -34487,11 +34493,11 @@ func (m *TLChannelsChannelParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ChannelParticipant{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ChannelParticipant, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ChannelParticipant{}
 			v1[i].Decode(dBuf)
 		}
@@ -34503,11 +34509,11 @@ func (m *TLChannelsChannelParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -34519,11 +34525,11 @@ func (m *TLChannelsChannelParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -34809,11 +34815,11 @@ func (m *TLChannelsSendAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(SendAsPeer{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*SendAsPeer, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &SendAsPeer{}
 			v0[i].Decode(dBuf)
 		}
@@ -34825,11 +34831,11 @@ func (m *TLChannelsSendAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -34841,11 +34847,11 @@ func (m *TLChannelsSendAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -34859,11 +34865,11 @@ func (m *TLChannelsSendAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Peer{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Peer, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Peer{}
 			v0[i].Decode(dBuf)
 		}
@@ -34875,11 +34881,11 @@ func (m *TLChannelsSendAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -34891,11 +34897,11 @@ func (m *TLChannelsSendAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -35074,11 +35080,11 @@ func (m *TLChannelsSponsoredMessageReportResultChooseOption) Decode(dBuf *Decode
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(SponsoredMessageReportOption{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*SponsoredMessageReportOption, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &SponsoredMessageReportOption{}
 			v1[i].Decode(dBuf)
 		}
@@ -38680,11 +38686,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -38716,11 +38722,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -38882,11 +38888,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -38918,11 +38924,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -39080,11 +39086,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -39116,11 +39122,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -39268,11 +39274,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -39304,11 +39310,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -39449,11 +39455,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -39485,11 +39491,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -39626,11 +39632,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -39662,11 +39668,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -39796,11 +39802,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -39832,11 +39838,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -39962,11 +39968,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -39998,11 +40004,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -40114,11 +40120,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -40150,11 +40156,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -40269,11 +40275,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -40305,11 +40311,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -40407,11 +40413,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -40443,11 +40449,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l44 := dBuf.Int()
-			if l44 < 0 || l44 > maxVectorLen {
+			if dBuf.vectorTooLong(l44, unsafe.Sizeof(Username{})) || l44 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l44)
 			}
 			v44 := make([]*Username, l44)
-			for i := int32(0); i < l44; i++ {
+			for i := int32(0); i < l44 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v44[i] = &Username{}
 				v44[i].Decode(dBuf)
 			}
@@ -40536,11 +40542,11 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(RestrictionReason{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*RestrictionReason, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &RestrictionReason{}
 				v42[i].Decode(dBuf)
 			}
@@ -42352,11 +42358,11 @@ func (m *TLChatFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l10 := dBuf.Int()
-			if l10 < 0 || l10 > maxVectorLen {
+			if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l10)
 			}
 			v10 := make([]*BotInfo, l10)
-			for i := int32(0); i < l10; i++ {
+			for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v10[i] = &BotInfo{}
 				v10[i].Decode(dBuf)
 			}
@@ -42446,11 +42452,11 @@ func (m *TLChatFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l10 := dBuf.Int()
-			if l10 < 0 || l10 > maxVectorLen {
+			if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l10)
 			}
 			v10 := make([]*BotInfo, l10)
-			for i := int32(0); i < l10; i++ {
+			for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v10[i] = &BotInfo{}
 				v10[i].Decode(dBuf)
 			}
@@ -42533,11 +42539,11 @@ func (m *TLChatFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l10 := dBuf.Int()
-			if l10 < 0 || l10 > maxVectorLen {
+			if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l10)
 			}
 			v10 := make([]*BotInfo, l10)
-			for i := int32(0); i < l10; i++ {
+			for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v10[i] = &BotInfo{}
 				v10[i].Decode(dBuf)
 			}
@@ -46770,11 +46776,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -47028,11 +47034,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -47282,11 +47288,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -47531,11 +47537,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -47770,11 +47776,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -48005,11 +48011,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -48226,11 +48232,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -48437,11 +48443,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -48635,11 +48641,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -48822,11 +48828,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -48995,11 +49001,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -49161,11 +49167,11 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(BotInfo{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*BotInfo, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &BotInfo{}
 			v10[i].Decode(dBuf)
 		}
@@ -49396,11 +49402,11 @@ func (m *TLCommunityFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l70 := dBuf.Int()
-		if l70 < 0 || l70 > maxVectorLen {
+		if dBuf.vectorTooLong(l70, unsafe.Sizeof(CommunityPeer{})) || l70 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l70)
 		}
 		v70 := make([]*CommunityPeer, l70)
-		for i := int32(0); i < l70; i++ {
+		for i := int32(0); i < l70 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v70[i] = &CommunityPeer{}
 			v70[i].Decode(dBuf)
 		}
@@ -50063,11 +50069,11 @@ func (m *TLChatInvite) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(User{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l15)
 			}
 			v15 := make([]*User, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &User{}
 				v15[i].Decode(dBuf)
 			}
@@ -50136,11 +50142,11 @@ func (m *TLChatInvite) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(User{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l15)
 			}
 			v15 := make([]*User, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &User{}
 				v15[i].Decode(dBuf)
 			}
@@ -50201,11 +50207,11 @@ func (m *TLChatInvite) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(User{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l15)
 			}
 			v15 := make([]*User, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &User{}
 				v15[i].Decode(dBuf)
 			}
@@ -50257,11 +50263,11 @@ func (m *TLChatInvite) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(User{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l15)
 			}
 			v15 := make([]*User, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &User{}
 				v15[i].Decode(dBuf)
 			}
@@ -51247,11 +51253,11 @@ func (m *TLChatParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(ChatParticipant{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*ChatParticipant, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &ChatParticipant{}
 			v3[i].Decode(dBuf)
 		}
@@ -51757,11 +51763,11 @@ func (m *TLChatReactionsSome) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Reaction{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Reaction, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Reaction{}
 			v2[i].Decode(dBuf)
 		}
@@ -51976,11 +51982,11 @@ func (m *TLChatThemeUniqueGift) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(ThemeSettings{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*ThemeSettings, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &ThemeSettings{}
 			v2[i].Decode(dBuf)
 		}
@@ -52200,11 +52206,11 @@ func (m *TLChatlistsChatlistInviteAlready) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Peer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Peer, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Peer{}
 			v1[i].Decode(dBuf)
 		}
@@ -52216,11 +52222,11 @@ func (m *TLChatlistsChatlistInviteAlready) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Peer{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Peer, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Peer{}
 			v2[i].Decode(dBuf)
 		}
@@ -52232,11 +52238,11 @@ func (m *TLChatlistsChatlistInviteAlready) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -52248,11 +52254,11 @@ func (m *TLChatlistsChatlistInviteAlready) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -52500,11 +52506,11 @@ func (m *TLChatlistsChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(Peer{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*Peer, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &Peer{}
 			v9[i].Decode(dBuf)
 		}
@@ -52516,11 +52522,11 @@ func (m *TLChatlistsChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -52532,11 +52538,11 @@ func (m *TLChatlistsChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -52557,11 +52563,11 @@ func (m *TLChatlistsChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(Peer{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*Peer, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &Peer{}
 			v9[i].Decode(dBuf)
 		}
@@ -52573,11 +52579,11 @@ func (m *TLChatlistsChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -52589,11 +52595,11 @@ func (m *TLChatlistsChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -52766,11 +52772,11 @@ func (m *TLChatlistsChatlistUpdates) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Peer{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Peer, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Peer{}
 			v0[i].Decode(dBuf)
 		}
@@ -52782,11 +52788,11 @@ func (m *TLChatlistsChatlistUpdates) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -52798,11 +52804,11 @@ func (m *TLChatlistsChatlistUpdates) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -53096,11 +53102,11 @@ func (m *TLChatlistsExportedInvites) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(ExportedChatlistInvite{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*ExportedChatlistInvite, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &ExportedChatlistInvite{}
 			v0[i].Decode(dBuf)
 		}
@@ -53112,11 +53118,11 @@ func (m *TLChatlistsExportedInvites) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -53128,11 +53134,11 @@ func (m *TLChatlistsExportedInvites) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -53572,11 +53578,11 @@ func (m *TLCommunitiesParticipantJoinedChats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -53588,11 +53594,11 @@ func (m *TLCommunitiesParticipantJoinedChats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -53801,11 +53807,11 @@ func (m *TLCommunitiesPeerLinkRequests) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(CommunityPeerRequest{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*CommunityPeerRequest, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &CommunityPeerRequest{}
 			v2[i].Decode(dBuf)
 		}
@@ -53821,11 +53827,11 @@ func (m *TLCommunitiesPeerLinkRequests) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Chat{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Chat, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Chat{}
 			v4[i].Decode(dBuf)
 		}
@@ -53837,11 +53843,11 @@ func (m *TLCommunitiesPeerLinkRequests) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -54922,11 +54928,11 @@ func (m *TLConfig) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(DcOption{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*DcOption, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &DcOption{}
 			v10[i].Decode(dBuf)
 		}
@@ -55045,11 +55051,11 @@ func (m *TLConfig) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(DcOption{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*DcOption, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &DcOption{}
 			v10[i].Decode(dBuf)
 		}
@@ -55168,11 +55174,11 @@ func (m *TLConfig) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(DcOption{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*DcOption, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &DcOption{}
 			v10[i].Decode(dBuf)
 		}
@@ -56447,11 +56453,11 @@ func (m *TLContactsBlocked) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(PeerBlocked{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*PeerBlocked, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &PeerBlocked{}
 			v0[i].Decode(dBuf)
 		}
@@ -56463,11 +56469,11 @@ func (m *TLContactsBlocked) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -56479,11 +56485,11 @@ func (m *TLContactsBlocked) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -56609,11 +56615,11 @@ func (m *TLContactsBlockedSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(PeerBlocked{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*PeerBlocked, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &PeerBlocked{}
 			v0[i].Decode(dBuf)
 		}
@@ -56625,11 +56631,11 @@ func (m *TLContactsBlockedSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -56641,11 +56647,11 @@ func (m *TLContactsBlockedSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -56798,11 +56804,11 @@ func (m *TLContactsContactBirthdays) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(ContactBirthday{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*ContactBirthday, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &ContactBirthday{}
 			v0[i].Decode(dBuf)
 		}
@@ -56814,11 +56820,11 @@ func (m *TLContactsContactBirthdays) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -57042,11 +57048,11 @@ func (m *TLContactsContacts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Contact{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Contact, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Contact{}
 			v0[i].Decode(dBuf)
 		}
@@ -57059,11 +57065,11 @@ func (m *TLContactsContacts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -57256,11 +57262,11 @@ func (m *TLContactsFound) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Peer{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Peer, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Peer{}
 			v0[i].Decode(dBuf)
 		}
@@ -57272,11 +57278,11 @@ func (m *TLContactsFound) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Peer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Peer, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Peer{}
 			v1[i].Decode(dBuf)
 		}
@@ -57288,11 +57294,11 @@ func (m *TLContactsFound) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -57304,11 +57310,11 @@ func (m *TLContactsFound) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -57490,11 +57496,11 @@ func (m *TLContactsImportedContacts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(ImportedContact{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*ImportedContact, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &ImportedContact{}
 			v0[i].Decode(dBuf)
 		}
@@ -57506,11 +57512,11 @@ func (m *TLContactsImportedContacts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(PopularContact{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*PopularContact, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &PopularContact{}
 			v1[i].Decode(dBuf)
 		}
@@ -57524,11 +57530,11 @@ func (m *TLContactsImportedContacts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -57691,11 +57697,11 @@ func (m *TLContactsResolvedPeer) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -57707,11 +57713,11 @@ func (m *TLContactsResolvedPeer) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -57950,11 +57956,11 @@ func (m *TLContactsSponsoredPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(SponsoredPeer{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*SponsoredPeer, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &SponsoredPeer{}
 			v0[i].Decode(dBuf)
 		}
@@ -57966,11 +57972,11 @@ func (m *TLContactsSponsoredPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -57982,11 +57988,11 @@ func (m *TLContactsSponsoredPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -58243,11 +58249,11 @@ func (m *TLContactsTopPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(TopPeerCategoryPeers{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*TopPeerCategoryPeers, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &TopPeerCategoryPeers{}
 			v0[i].Decode(dBuf)
 		}
@@ -58259,11 +58265,11 @@ func (m *TLContactsTopPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -58275,11 +58281,11 @@ func (m *TLContactsTopPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -60009,11 +60015,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(InputPeer{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*InputPeer, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &InputPeer{}
 			v14[i].Decode(dBuf)
 		}
@@ -60025,11 +60031,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(InputPeer{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*InputPeer, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &InputPeer{}
 			v15[i].Decode(dBuf)
 		}
@@ -60041,11 +60047,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(InputPeer{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*InputPeer, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &InputPeer{}
 			v16[i].Decode(dBuf)
 		}
@@ -60095,11 +60101,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(InputPeer{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*InputPeer, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &InputPeer{}
 			v14[i].Decode(dBuf)
 		}
@@ -60111,11 +60117,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(InputPeer{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*InputPeer, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &InputPeer{}
 			v15[i].Decode(dBuf)
 		}
@@ -60127,11 +60133,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(InputPeer{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*InputPeer, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &InputPeer{}
 			v16[i].Decode(dBuf)
 		}
@@ -60177,11 +60183,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(InputPeer{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*InputPeer, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &InputPeer{}
 			v14[i].Decode(dBuf)
 		}
@@ -60193,11 +60199,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(InputPeer{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*InputPeer, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &InputPeer{}
 			v15[i].Decode(dBuf)
 		}
@@ -60209,11 +60215,11 @@ func (m *TLDialogFilter) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(InputPeer{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*InputPeer, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &InputPeer{}
 			v16[i].Decode(dBuf)
 		}
@@ -60574,11 +60580,11 @@ func (m *TLDialogFilterChatlist) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(InputPeer{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*InputPeer, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &InputPeer{}
 			v14[i].Decode(dBuf)
 		}
@@ -60590,11 +60596,11 @@ func (m *TLDialogFilterChatlist) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(InputPeer{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*InputPeer, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &InputPeer{}
 			v15[i].Decode(dBuf)
 		}
@@ -60623,11 +60629,11 @@ func (m *TLDialogFilterChatlist) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(InputPeer{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*InputPeer, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &InputPeer{}
 			v14[i].Decode(dBuf)
 		}
@@ -60639,11 +60645,11 @@ func (m *TLDialogFilterChatlist) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(InputPeer{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*InputPeer, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &InputPeer{}
 			v15[i].Decode(dBuf)
 		}
@@ -60668,11 +60674,11 @@ func (m *TLDialogFilterChatlist) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(InputPeer{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*InputPeer, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &InputPeer{}
 			v14[i].Decode(dBuf)
 		}
@@ -60684,11 +60690,11 @@ func (m *TLDialogFilterChatlist) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(InputPeer{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*InputPeer, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &InputPeer{}
 			v15[i].Decode(dBuf)
 		}
@@ -61629,11 +61635,11 @@ func (m *TLDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(PhotoSize{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*PhotoSize, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &PhotoSize{}
 				v7[i].Decode(dBuf)
 			}
@@ -61646,11 +61652,11 @@ func (m *TLDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(VideoSize{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*VideoSize, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &VideoSize{}
 				v8[i].Decode(dBuf)
 			}
@@ -61663,11 +61669,11 @@ func (m *TLDocument) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(DocumentAttribute{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*DocumentAttribute, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &DocumentAttribute{}
 			v10[i].Decode(dBuf)
 		}
@@ -61690,11 +61696,11 @@ func (m *TLDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(PhotoSize{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*PhotoSize, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &PhotoSize{}
 				v7[i].Decode(dBuf)
 			}
@@ -61707,11 +61713,11 @@ func (m *TLDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(VideoSize{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*VideoSize, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &VideoSize{}
 				v8[i].Decode(dBuf)
 			}
@@ -61724,11 +61730,11 @@ func (m *TLDocument) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(DocumentAttribute{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*DocumentAttribute, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &DocumentAttribute{}
 			v10[i].Decode(dBuf)
 		}
@@ -63462,11 +63468,11 @@ func (m *TLDraftMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -63515,11 +63521,11 @@ func (m *TLDraftMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -63563,11 +63569,11 @@ func (m *TLDraftMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -63606,11 +63612,11 @@ func (m *TLDraftMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -63641,11 +63647,11 @@ func (m *TLDraftMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -64767,11 +64773,11 @@ func (m *TLEmojiKeywordsDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(EmojiKeyword{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*EmojiKeyword, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &EmojiKeyword{}
 			v3[i].Decode(dBuf)
 		}
@@ -66900,11 +66906,11 @@ func (m *TLEphemeralMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l9)
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -67646,11 +67652,11 @@ func (m *TLExportedChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Peer{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Peer, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Peer{}
 			v3[i].Decode(dBuf)
 		}
@@ -72231,11 +72237,11 @@ func (m *TLGroupCallParticipantVideo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(GroupCallParticipantVideoSourceGroup{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*GroupCallParticipantVideoSourceGroup, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &GroupCallParticipantVideoSourceGroup{}
 			v3[i].Decode(dBuf)
 		}
@@ -72874,11 +72880,11 @@ func (m *TLHelpAppUpdate) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessageEntity{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*MessageEntity, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &MessageEntity{}
 			v5[i].Decode(dBuf)
 		}
@@ -73144,11 +73150,11 @@ func (m *TLHelpCountriesList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Help_Country{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Help_Country, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Help_Country{}
 			v0[i].Decode(dBuf)
 		}
@@ -73330,11 +73336,11 @@ func (m *TLHelpCountry) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Help_CountryCode{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Help_CountryCode, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Help_CountryCode{}
 			v5[i].Decode(dBuf)
 		}
@@ -73713,11 +73719,11 @@ func (m *TLHelpDeepLinkInfo) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -74723,11 +74729,11 @@ func (m *TLHelpPeerColors) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Help_PeerColorOption{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Help_PeerColorOption, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Help_PeerColorOption{}
 			v1[i].Decode(dBuf)
 		}
@@ -75006,11 +75012,11 @@ func (m *TLHelpPremiumPromo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(MessageEntity{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*MessageEntity, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &MessageEntity{}
 			v1[i].Decode(dBuf)
 		}
@@ -75024,11 +75030,11 @@ func (m *TLHelpPremiumPromo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Document{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Document, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Document{}
 			v3[i].Decode(dBuf)
 		}
@@ -75040,11 +75046,11 @@ func (m *TLHelpPremiumPromo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(PremiumSubscriptionOption{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*PremiumSubscriptionOption, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &PremiumSubscriptionOption{}
 			v4[i].Decode(dBuf)
 		}
@@ -75056,11 +75062,11 @@ func (m *TLHelpPremiumPromo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -75075,11 +75081,11 @@ func (m *TLHelpPremiumPromo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(MessageEntity{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*MessageEntity, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &MessageEntity{}
 			v1[i].Decode(dBuf)
 		}
@@ -75093,11 +75099,11 @@ func (m *TLHelpPremiumPromo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Document{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Document, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Document{}
 			v3[i].Decode(dBuf)
 		}
@@ -75111,11 +75117,11 @@ func (m *TLHelpPremiumPromo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -75519,11 +75525,11 @@ func (m *TLHelpPromoData) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(Chat{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*Chat, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &Chat{}
 			v9[i].Decode(dBuf)
 		}
@@ -75535,11 +75541,11 @@ func (m *TLHelpPromoData) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(User{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*User, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &User{}
 			v10[i].Decode(dBuf)
 		}
@@ -75564,11 +75570,11 @@ func (m *TLHelpPromoData) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(Chat{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*Chat, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &Chat{}
 			v9[i].Decode(dBuf)
 		}
@@ -75580,11 +75586,11 @@ func (m *TLHelpPromoData) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(User{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*User, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &User{}
 			v10[i].Decode(dBuf)
 		}
@@ -75765,11 +75771,11 @@ func (m *TLHelpRecentMeUrls) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(RecentMeUrl{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*RecentMeUrl, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &RecentMeUrl{}
 			v0[i].Decode(dBuf)
 		}
@@ -75781,11 +75787,11 @@ func (m *TLHelpRecentMeUrls) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -75797,11 +75803,11 @@ func (m *TLHelpRecentMeUrls) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -76208,11 +76214,11 @@ func (m *TLHelpTermsOfService) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(MessageEntity{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*MessageEntity, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &MessageEntity{}
 			v4[i].Decode(dBuf)
 		}
@@ -76612,11 +76618,11 @@ func (m *TLHelpTimezonesList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Timezone{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Timezone, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Timezone{}
 			v0[i].Decode(dBuf)
 		}
@@ -76831,11 +76837,11 @@ func (m *TLHelpUserInfo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(MessageEntity{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*MessageEntity, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &MessageEntity{}
 			v1[i].Decode(dBuf)
 		}
@@ -77266,11 +77272,11 @@ func (m *TLImmutableChat) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l17 := dBuf.Int()
-			if l17 < 0 || l17 > maxVectorLen {
+			if dBuf.vectorTooLong(l17, unsafe.Sizeof(BotInfo{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l17)
 			}
 			v17 := make([]*BotInfo, l17)
-			for i := int32(0); i < l17; i++ {
+			for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v17[i] = &BotInfo{}
 				v17[i].Decode(dBuf)
 			}
@@ -77690,11 +77696,11 @@ func (m *TLImmutableUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(ContactData{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*ContactData, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &ContactData{}
 				v3[i].Decode(dBuf)
 			}
@@ -77707,11 +77713,11 @@ func (m *TLImmutableUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(ContactData{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*ContactData, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &ContactData{}
 				v4[i].Decode(dBuf)
 			}
@@ -77723,11 +77729,11 @@ func (m *TLImmutableUser) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PrivacyKeyRules{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PrivacyKeyRules, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PrivacyKeyRules{}
 			v5[i].Decode(dBuf)
 		}
@@ -79462,11 +79468,11 @@ func (m *TLInputBotInlineMessageMediaAuto) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -79604,11 +79610,11 @@ func (m *TLInputBotInlineMessageText) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -80329,11 +80335,11 @@ func (m *TLInputBotInlineMessageMediaWebPage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l3)
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -81551,11 +81557,11 @@ func (m *TLInputBusinessBotRecipients) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputUser{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*InputUser, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputUser{}
 				v6[i].Decode(dBuf)
 			}
@@ -81568,11 +81574,11 @@ func (m *TLInputBusinessBotRecipients) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(InputUser{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*InputUser, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &InputUser{}
 				v7[i].Decode(dBuf)
 			}
@@ -81739,11 +81745,11 @@ func (m *TLInputBusinessChatLink) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l2 := dBuf.Int()
-			if l2 < 0 || l2 > maxVectorLen {
+			if dBuf.vectorTooLong(l2, unsafe.Sizeof(MessageEntity{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l2)
 			}
 			v2 := make([]*MessageEntity, l2)
-			for i := int32(0); i < l2; i++ {
+			for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v2[i] = &MessageEntity{}
 				v2[i].Decode(dBuf)
 			}
@@ -82210,11 +82216,11 @@ func (m *TLInputBusinessRecipients) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputUser{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*InputUser, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputUser{}
 				v6[i].Decode(dBuf)
 			}
@@ -88493,6 +88499,11 @@ func (m *InputMedia) CalcByteSize(layer int32) int {
 }
 
 func (m *InputMedia) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x9664f57f:
@@ -88993,11 +89004,11 @@ func (m *TLInputMediaUploadedPhoto) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputDocument{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*InputDocument, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputDocument{}
 				v4[i].Decode(dBuf)
 			}
@@ -89031,11 +89042,11 @@ func (m *TLInputMediaUploadedPhoto) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputDocument{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*InputDocument, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputDocument{}
 				v4[i].Decode(dBuf)
 			}
@@ -89626,11 +89637,11 @@ func (m *TLInputMediaUploadedDocument) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l17 := dBuf.Int()
-		if l17 < 0 || l17 > maxVectorLen {
+		if dBuf.vectorTooLong(l17, unsafe.Sizeof(DocumentAttribute{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l17)
 		}
 		v17 := make([]*DocumentAttribute, l17)
-		for i := int32(0); i < l17; i++ {
+		for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v17[i] = &DocumentAttribute{}
 			v17[i].Decode(dBuf)
 		}
@@ -89643,11 +89654,11 @@ func (m *TLInputMediaUploadedDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputDocument{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*InputDocument, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputDocument{}
 				v4[i].Decode(dBuf)
 			}
@@ -89696,11 +89707,11 @@ func (m *TLInputMediaUploadedDocument) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l17 := dBuf.Int()
-		if l17 < 0 || l17 > maxVectorLen {
+		if dBuf.vectorTooLong(l17, unsafe.Sizeof(DocumentAttribute{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l17)
 		}
 		v17 := make([]*DocumentAttribute, l17)
-		for i := int32(0); i < l17; i++ {
+		for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v17[i] = &DocumentAttribute{}
 			v17[i].Decode(dBuf)
 		}
@@ -89713,11 +89724,11 @@ func (m *TLInputMediaUploadedDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputDocument{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*InputDocument, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputDocument{}
 				v4[i].Decode(dBuf)
 			}
@@ -90973,11 +90984,11 @@ func (m *TLInputMediaPoll) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(MessageEntity{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*MessageEntity, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &MessageEntity{}
 				v42[i].Decode(dBuf)
 			}
@@ -91011,11 +91022,11 @@ func (m *TLInputMediaPoll) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(MessageEntity{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*MessageEntity, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &MessageEntity{}
 				v42[i].Decode(dBuf)
 			}
@@ -91386,11 +91397,11 @@ func (m *TLInputMediaPaidMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l33 := dBuf.Int()
-		if l33 < 0 || l33 > maxVectorLen {
+		if dBuf.vectorTooLong(l33, unsafe.Sizeof(InputMedia{})) || l33 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l33)
 		}
 		v33 := make([]*InputMedia, l33)
-		for i := int32(0); i < l33; i++ {
+		for i := int32(0); i < l33 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v33[i] = &InputMedia{}
 			v33[i].Decode(dBuf)
 		}
@@ -91409,11 +91420,11 @@ func (m *TLInputMediaPaidMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l33 := dBuf.Int()
-		if l33 < 0 || l33 > maxVectorLen {
+		if dBuf.vectorTooLong(l33, unsafe.Sizeof(InputMedia{})) || l33 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l33)
 		}
 		v33 := make([]*InputMedia, l33)
-		for i := int32(0); i < l33; i++ {
+		for i := int32(0); i < l33 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v33[i] = &InputMedia{}
 			v33[i].Decode(dBuf)
 		}
@@ -93383,6 +93394,11 @@ func (m *InputPeer) CalcByteSize(layer int32) int {
 }
 
 func (m *InputPeer) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x7f3b18ea:
@@ -95973,11 +95989,11 @@ func (m *TLInputPrivacyValueAllowUsers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(InputUser{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*InputUser, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &InputUser{}
 			v0[i].Decode(dBuf)
 		}
@@ -96153,11 +96169,11 @@ func (m *TLInputPrivacyValueDisallowUsers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(InputUser{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*InputUser, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &InputUser{}
 			v0[i].Decode(dBuf)
 		}
@@ -97250,11 +97266,11 @@ func (m *TLInputReplyToMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessageEntity{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*MessageEntity, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessageEntity{}
 				v5[i].Decode(dBuf)
 			}
@@ -97302,11 +97318,11 @@ func (m *TLInputReplyToMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessageEntity{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*MessageEntity, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessageEntity{}
 				v5[i].Decode(dBuf)
 			}
@@ -97350,11 +97366,11 @@ func (m *TLInputReplyToMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessageEntity{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*MessageEntity, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessageEntity{}
 				v5[i].Decode(dBuf)
 			}
@@ -97394,11 +97410,11 @@ func (m *TLInputReplyToMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessageEntity{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*MessageEntity, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessageEntity{}
 				v5[i].Decode(dBuf)
 			}
@@ -97433,11 +97449,11 @@ func (m *TLInputReplyToMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessageEntity{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*MessageEntity, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessageEntity{}
 				v5[i].Decode(dBuf)
 			}
@@ -98118,11 +98134,11 @@ func (m *TLInputRichMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(PageBlock{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*PageBlock, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &PageBlock{}
 			v3[i].Decode(dBuf)
 		}
@@ -98135,11 +98151,11 @@ func (m *TLInputRichMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputPhoto{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*InputPhoto, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputPhoto{}
 				v4[i].Decode(dBuf)
 			}
@@ -98152,11 +98168,11 @@ func (m *TLInputRichMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputDocument{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*InputDocument, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &InputDocument{}
 				v5[i].Decode(dBuf)
 			}
@@ -98169,11 +98185,11 @@ func (m *TLInputRichMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputUser{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*InputUser, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputUser{}
 				v6[i].Decode(dBuf)
 			}
@@ -98393,11 +98409,11 @@ func (m *TLInputRichMessageHTML) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(InputRichFile{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*InputRichFile, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &InputRichFile{}
 				v8[i].Decode(dBuf)
 			}
@@ -98421,11 +98437,11 @@ func (m *TLInputRichMessageHTML) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputPhoto{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*InputPhoto, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputPhoto{}
 				v4[i].Decode(dBuf)
 			}
@@ -98438,11 +98454,11 @@ func (m *TLInputRichMessageHTML) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputDocument{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*InputDocument, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &InputDocument{}
 				v5[i].Decode(dBuf)
 			}
@@ -98455,11 +98471,11 @@ func (m *TLInputRichMessageHTML) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputUser{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*InputUser, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputUser{}
 				v6[i].Decode(dBuf)
 			}
@@ -98679,11 +98695,11 @@ func (m *TLInputRichMessageMarkdown) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(InputRichFile{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*InputRichFile, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &InputRichFile{}
 				v8[i].Decode(dBuf)
 			}
@@ -98707,11 +98723,11 @@ func (m *TLInputRichMessageMarkdown) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputPhoto{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*InputPhoto, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputPhoto{}
 				v4[i].Decode(dBuf)
 			}
@@ -98724,11 +98740,11 @@ func (m *TLInputRichMessageMarkdown) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputDocument{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*InputDocument, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &InputDocument{}
 				v5[i].Decode(dBuf)
 			}
@@ -98741,11 +98757,11 @@ func (m *TLInputRichMessageMarkdown) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputUser{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*InputUser, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputUser{}
 				v6[i].Decode(dBuf)
 			}
@@ -99464,11 +99480,11 @@ func (m *TLInputSecureValue) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputSecureFile{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*InputSecureFile, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputSecureFile{}
 				v6[i].Decode(dBuf)
 			}
@@ -99481,11 +99497,11 @@ func (m *TLInputSecureValue) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(InputSecureFile{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*InputSecureFile, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &InputSecureFile{}
 				v7[i].Decode(dBuf)
 			}
@@ -99662,11 +99678,11 @@ func (m *TLInputSingleMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(MessageEntity{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*MessageEntity, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &MessageEntity{}
 				v4[i].Decode(dBuf)
 			}
@@ -101745,11 +101761,11 @@ func (m *TLInputStorePaymentPremiumGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputUser{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*InputUser, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &InputUser{}
 			v6[i].Decode(dBuf)
 		}
@@ -101777,11 +101793,11 @@ func (m *TLInputStorePaymentPremiumGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputUser{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*InputUser, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &InputUser{}
 			v6[i].Decode(dBuf)
 		}
@@ -102021,11 +102037,11 @@ func (m *TLInputStorePaymentPremiumGiveaway) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l11 := dBuf.Int()
-			if l11 < 0 || l11 > maxVectorLen {
+			if dBuf.vectorTooLong(l11, unsafe.Sizeof(InputPeer{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l11)
 			}
 			v11 := make([]*InputPeer, l11)
-			for i := int32(0); i < l11; i++ {
+			for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v11[i] = &InputPeer{}
 				v11[i].Decode(dBuf)
 			}
@@ -102061,11 +102077,11 @@ func (m *TLInputStorePaymentPremiumGiveaway) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l11 := dBuf.Int()
-			if l11 < 0 || l11 > maxVectorLen {
+			if dBuf.vectorTooLong(l11, unsafe.Sizeof(InputPeer{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l11)
 			}
 			v11 := make([]*InputPeer, l11)
-			for i := int32(0); i < l11; i++ {
+			for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v11[i] = &InputPeer{}
 				v11[i].Decode(dBuf)
 			}
@@ -102442,11 +102458,11 @@ func (m *TLInputStorePaymentStarsGiveaway) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l11 := dBuf.Int()
-			if l11 < 0 || l11 > maxVectorLen {
+			if dBuf.vectorTooLong(l11, unsafe.Sizeof(InputPeer{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l11)
 			}
 			v11 := make([]*InputPeer, l11)
-			for i := int32(0); i < l11; i++ {
+			for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v11[i] = &InputPeer{}
 				v11[i].Decode(dBuf)
 			}
@@ -103788,11 +103804,11 @@ func (m *TLInputWebDocument) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(DocumentAttribute{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*DocumentAttribute, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &DocumentAttribute{}
 			v3[i].Decode(dBuf)
 		}
@@ -104954,11 +104970,11 @@ func (m *TLInvoice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l11 := dBuf.Int()
-		if l11 < 0 || l11 > maxVectorLen {
+		if dBuf.vectorTooLong(l11, unsafe.Sizeof(LabeledPrice{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l11)
 		}
 		v11 := make([]*LabeledPrice, l11)
-		for i := int32(0); i < l11; i++ {
+		for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v11[i] = &LabeledPrice{}
 			v11[i].Decode(dBuf)
 		}
@@ -105017,11 +105033,11 @@ func (m *TLInvoice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l11 := dBuf.Int()
-		if l11 < 0 || l11 > maxVectorLen {
+		if dBuf.vectorTooLong(l11, unsafe.Sizeof(LabeledPrice{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l11)
 		}
 		v11 := make([]*LabeledPrice, l11)
-		for i := int32(0); i < l11; i++ {
+		for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v11[i] = &LabeledPrice{}
 			v11[i].Decode(dBuf)
 		}
@@ -105076,11 +105092,11 @@ func (m *TLInvoice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l11 := dBuf.Int()
-		if l11 < 0 || l11 > maxVectorLen {
+		if dBuf.vectorTooLong(l11, unsafe.Sizeof(LabeledPrice{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l11)
 		}
 		v11 := make([]*LabeledPrice, l11)
-		for i := int32(0); i < l11; i++ {
+		for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v11[i] = &LabeledPrice{}
 			v11[i].Decode(dBuf)
 		}
@@ -105132,11 +105148,11 @@ func (m *TLInvoice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l11 := dBuf.Int()
-		if l11 < 0 || l11 > maxVectorLen {
+		if dBuf.vectorTooLong(l11, unsafe.Sizeof(LabeledPrice{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l11)
 		}
 		v11 := make([]*LabeledPrice, l11)
-		for i := int32(0); i < l11; i++ {
+		for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v11[i] = &LabeledPrice{}
 			v11[i].Decode(dBuf)
 		}
@@ -105189,6 +105205,11 @@ func (m *JSONObjectValue) CalcByteSize(layer int32) int {
 }
 
 func (m *JSONObjectValue) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0xc0de1bd9:
@@ -105340,6 +105361,11 @@ func (m *JSONValue) CalcByteSize(layer int32) int {
 }
 
 func (m *JSONValue) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x3f6d7b68:
@@ -105696,11 +105722,11 @@ func (m *TLJsonArray) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(JSONValue{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*JSONValue, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &JSONValue{}
 			v0[i].Decode(dBuf)
 		}
@@ -105784,11 +105810,11 @@ func (m *TLJsonObject) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(JSONObjectValue{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*JSONObjectValue, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &JSONObjectValue{}
 			v0[i].Decode(dBuf)
 		}
@@ -107215,11 +107241,11 @@ func (m *TLKeyboardButtonSwitchInline) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(InlineQueryPeerType{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*InlineQueryPeerType, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &InlineQueryPeerType{}
 				v8[i].Decode(dBuf)
 			}
@@ -107241,11 +107267,11 @@ func (m *TLKeyboardButtonSwitchInline) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(InlineQueryPeerType{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*InlineQueryPeerType, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &InlineQueryPeerType{}
 				v8[i].Decode(dBuf)
 			}
@@ -108847,11 +108873,11 @@ func (m *TLKeyboardButtonRow) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(KeyboardButton{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*KeyboardButton, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &KeyboardButton{}
 			v0[i].Decode(dBuf)
 		}
@@ -109268,11 +109294,11 @@ func (m *TLLangPackDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(LangPackString{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*LangPackString, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &LangPackString{}
 			v3[i].Decode(dBuf)
 		}
@@ -115489,11 +115515,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -115536,11 +115562,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -115705,11 +115731,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -115752,11 +115778,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -115911,11 +115937,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -115958,11 +115984,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -116113,11 +116139,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -116160,11 +116186,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -116315,11 +116341,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -116362,11 +116388,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -116513,11 +116539,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -116560,11 +116586,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -116701,11 +116727,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -116748,11 +116774,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -116884,11 +116910,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -116931,11 +116957,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -117063,11 +117089,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -117110,11 +117136,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -117235,11 +117261,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -117282,11 +117308,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -117402,11 +117428,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -117449,11 +117475,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -117556,11 +117582,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -117603,11 +117629,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -117710,11 +117736,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -117757,11 +117783,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -117857,11 +117883,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -117904,11 +117930,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -117999,11 +118025,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l32 := dBuf.Int()
-			if l32 < 0 || l32 > maxVectorLen {
+			if dBuf.vectorTooLong(l32, unsafe.Sizeof(MessageEntity{})) || l32 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l32)
 			}
 			v32 := make([]*MessageEntity, l32)
-			for i := int32(0); i < l32; i++ {
+			for i := int32(0); i < l32 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v32[i] = &MessageEntity{}
 				v32[i].Decode(dBuf)
 			}
@@ -118046,11 +118072,11 @@ func (m *TLMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l40 := dBuf.Int()
-			if l40 < 0 || l40 > maxVectorLen {
+			if dBuf.vectorTooLong(l40, unsafe.Sizeof(RestrictionReason{})) || l40 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l40)
 			}
 			v40 := make([]*RestrictionReason, l40)
-			for i := int32(0); i < l40; i++ {
+			for i := int32(0); i < l40 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v40[i] = &RestrictionReason{}
 				v40[i].Decode(dBuf)
 			}
@@ -121506,11 +121532,11 @@ func (m *TLMessageActionSecureValuesSentMe) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l29 := dBuf.Int()
-		if l29 < 0 || l29 > maxVectorLen {
+		if dBuf.vectorTooLong(l29, unsafe.Sizeof(SecureValue{})) || l29 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l29)
 		}
 		v29 := make([]*SecureValue, l29)
-		for i := int32(0); i < l29; i++ {
+		for i := int32(0); i < l29 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v29[i] = &SecureValue{}
 			v29[i].Decode(dBuf)
 		}
@@ -121594,11 +121620,11 @@ func (m *TLMessageActionSecureValuesSent) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l31 := dBuf.Int()
-		if l31 < 0 || l31 > maxVectorLen {
+		if dBuf.vectorTooLong(l31, unsafe.Sizeof(SecureValueType{})) || l31 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l31)
 		}
 		v31 := make([]*SecureValueType, l31)
-		for i := int32(0); i < l31; i++ {
+		for i := int32(0); i < l31 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v31[i] = &SecureValueType{}
 			v31[i].Decode(dBuf)
 		}
@@ -122946,11 +122972,11 @@ func (m *TLMessageActionRequestedPeer) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l52 := dBuf.Int()
-		if l52 < 0 || l52 > maxVectorLen {
+		if dBuf.vectorTooLong(l52, unsafe.Sizeof(Peer{})) || l52 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l52)
 		}
 		v52 := make([]*Peer, l52)
-		for i := int32(0); i < l52; i++ {
+		for i := int32(0); i < l52 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v52[i] = &Peer{}
 			v52[i].Decode(dBuf)
 		}
@@ -123830,11 +123856,11 @@ func (m *TLMessageActionRequestedPeerSentMe) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l52 := dBuf.Int()
-		if l52 < 0 || l52 > maxVectorLen {
+		if dBuf.vectorTooLong(l52, unsafe.Sizeof(RequestedPeer{})) || l52 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l52)
 		}
 		v52 := make([]*RequestedPeer, l52)
-		for i := int32(0); i < l52; i++ {
+		for i := int32(0); i < l52 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v52[i] = &RequestedPeer{}
 			v52[i].Decode(dBuf)
 		}
@@ -126498,11 +126524,11 @@ func (m *TLMessageActionConferenceCall) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l100 := dBuf.Int()
-			if l100 < 0 || l100 > maxVectorLen {
+			if dBuf.vectorTooLong(l100, unsafe.Sizeof(Peer{})) || l100 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l100)
 			}
 			v100 := make([]*Peer, l100)
-			for i := int32(0); i < l100; i++ {
+			for i := int32(0); i < l100 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v100[i] = &Peer{}
 				v100[i].Decode(dBuf)
 			}
@@ -126645,11 +126671,11 @@ func (m *TLMessageActionTodoAppendTasks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l103 := dBuf.Int()
-		if l103 < 0 || l103 > maxVectorLen {
+		if dBuf.vectorTooLong(l103, unsafe.Sizeof(TodoItem{})) || l103 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l103)
 		}
 		v103 := make([]*TodoItem, l103)
-		for i := int32(0); i < l103; i++ {
+		for i := int32(0); i < l103 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v103[i] = &TodoItem{}
 			v103[i].Decode(dBuf)
 		}
@@ -128359,11 +128385,11 @@ func (m *TLMessageBoxList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(MessageBox{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*MessageBox, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &MessageBox{}
 			v0[i].Decode(dBuf)
 		}
@@ -128449,11 +128475,11 @@ func (m *TLMessageBoxListSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(MessageBox{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*MessageBox, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &MessageBox{}
 			v0[i].Decode(dBuf)
 		}
@@ -130614,6 +130640,11 @@ func (m *MessageExtendedMedia) CalcByteSize(layer int32) int {
 }
 
 func (m *MessageExtendedMedia) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0xad628cc8:
@@ -131516,6 +131547,11 @@ func (m *MessageMedia) CalcByteSize(layer int32) int {
 }
 
 func (m *MessageMedia) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x3ded6320:
@@ -132515,11 +132551,11 @@ func (m *TLMessageMediaDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l16 := dBuf.Int()
-			if l16 < 0 || l16 > maxVectorLen {
+			if dBuf.vectorTooLong(l16, unsafe.Sizeof(Document{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l16)
 			}
 			v16 := make([]*Document, l16)
-			for i := int32(0); i < l16; i++ {
+			for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v16[i] = &Document{}
 				v16[i].Decode(dBuf)
 			}
@@ -132569,11 +132605,11 @@ func (m *TLMessageMediaDocument) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l16 := dBuf.Int()
-			if l16 < 0 || l16 > maxVectorLen {
+			if dBuf.vectorTooLong(l16, unsafe.Sizeof(Document{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l16)
 			}
 			v16 := make([]*Document, l16)
-			for i := int32(0); i < l16; i++ {
+			for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v16[i] = &Document{}
 				v16[i].Decode(dBuf)
 			}
@@ -134219,11 +134255,11 @@ func (m *TLMessageMediaPaidMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l37 := dBuf.Int()
-		if l37 < 0 || l37 > maxVectorLen {
+		if dBuf.vectorTooLong(l37, unsafe.Sizeof(MessageExtendedMedia{})) || l37 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l37)
 		}
 		v37 := make([]*MessageExtendedMedia, l37)
-		for i := int32(0); i < l37; i++ {
+		for i := int32(0); i < l37 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v37[i] = &MessageExtendedMedia{}
 			v37[i].Decode(dBuf)
 		}
@@ -134332,11 +134368,11 @@ func (m *TLMessageMediaToDo) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l69 := dBuf.Int()
-			if l69 < 0 || l69 > maxVectorLen {
+			if dBuf.vectorTooLong(l69, unsafe.Sizeof(TodoCompletion{})) || l69 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l69)
 			}
 			v69 := make([]*TodoCompletion, l69)
-			for i := int32(0); i < l69; i++ {
+			for i := int32(0); i < l69 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v69[i] = &TodoCompletion{}
 				v69[i].Decode(dBuf)
 			}
@@ -135433,11 +135469,11 @@ func (m *TLMessageReactions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(ReactionCount{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*ReactionCount, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &ReactionCount{}
 			v4[i].Decode(dBuf)
 		}
@@ -135450,11 +135486,11 @@ func (m *TLMessageReactions) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessagePeerReaction{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*MessagePeerReaction, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessagePeerReaction{}
 				v5[i].Decode(dBuf)
 			}
@@ -135467,11 +135503,11 @@ func (m *TLMessageReactions) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageReactor{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*MessageReactor, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageReactor{}
 				v6[i].Decode(dBuf)
 			}
@@ -135496,11 +135532,11 @@ func (m *TLMessageReactions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(ReactionCount{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*ReactionCount, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &ReactionCount{}
 			v4[i].Decode(dBuf)
 		}
@@ -135513,11 +135549,11 @@ func (m *TLMessageReactions) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessagePeerReaction{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*MessagePeerReaction, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessagePeerReaction{}
 				v5[i].Decode(dBuf)
 			}
@@ -135882,11 +135918,11 @@ func (m *TLMessageReplies) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(Peer{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*Peer, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &Peer{}
 				v4[i].Decode(dBuf)
 			}
@@ -136563,11 +136599,11 @@ func (m *TLMessageReplyHeader) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l11 := dBuf.Int()
-			if l11 < 0 || l11 > maxVectorLen {
+			if dBuf.vectorTooLong(l11, unsafe.Sizeof(MessageEntity{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l11)
 			}
 			v11 := make([]*MessageEntity, l11)
-			for i := int32(0); i < l11; i++ {
+			for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v11[i] = &MessageEntity{}
 				v11[i].Decode(dBuf)
 			}
@@ -136632,11 +136668,11 @@ func (m *TLMessageReplyHeader) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l11 := dBuf.Int()
-			if l11 < 0 || l11 > maxVectorLen {
+			if dBuf.vectorTooLong(l11, unsafe.Sizeof(MessageEntity{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l11)
 			}
 			v11 := make([]*MessageEntity, l11)
-			for i := int32(0); i < l11; i++ {
+			for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v11[i] = &MessageEntity{}
 				v11[i].Decode(dBuf)
 			}
@@ -136697,11 +136733,11 @@ func (m *TLMessageReplyHeader) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l11 := dBuf.Int()
-			if l11 < 0 || l11 > maxVectorLen {
+			if dBuf.vectorTooLong(l11, unsafe.Sizeof(MessageEntity{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l11)
 			}
 			v11 := make([]*MessageEntity, l11)
-			for i := int32(0); i < l11; i++ {
+			for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v11[i] = &MessageEntity{}
 				v11[i].Decode(dBuf)
 			}
@@ -136758,11 +136794,11 @@ func (m *TLMessageReplyHeader) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l11 := dBuf.Int()
-			if l11 < 0 || l11 > maxVectorLen {
+			if dBuf.vectorTooLong(l11, unsafe.Sizeof(MessageEntity{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l11)
 			}
 			v11 := make([]*MessageEntity, l11)
-			for i := int32(0); i < l11; i++ {
+			for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v11[i] = &MessageEntity{}
 				v11[i].Decode(dBuf)
 			}
@@ -139215,11 +139251,11 @@ func (m *TLMessagesAllStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerSet{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerSet, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerSet{}
 			v1[i].Decode(dBuf)
 		}
@@ -139358,11 +139394,11 @@ func (m *TLMessagesArchivedStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerSetCovered{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerSetCovered, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerSetCovered{}
 			v1[i].Decode(dBuf)
 		}
@@ -139587,11 +139623,11 @@ func (m *TLMessagesAvailableEffects) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(AvailableEffect{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*AvailableEffect, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &AvailableEffect{}
 			v1[i].Decode(dBuf)
 		}
@@ -139603,11 +139639,11 @@ func (m *TLMessagesAvailableEffects) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Document{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Document, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Document{}
 			v2[i].Decode(dBuf)
 		}
@@ -139812,11 +139848,11 @@ func (m *TLMessagesAvailableReactions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(AvailableReaction{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*AvailableReaction, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &AvailableReaction{}
 			v1[i].Decode(dBuf)
 		}
@@ -140560,11 +140596,11 @@ func (m *TLMessagesBotResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotInlineResult{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*BotInlineResult, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &BotInlineResult{}
 			v6[i].Decode(dBuf)
 		}
@@ -140577,11 +140613,11 @@ func (m *TLMessagesBotResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(User{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*User, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &User{}
 			v8[i].Decode(dBuf)
 		}
@@ -140610,11 +140646,11 @@ func (m *TLMessagesBotResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(BotInlineResult{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*BotInlineResult, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &BotInlineResult{}
 			v6[i].Decode(dBuf)
 		}
@@ -140627,11 +140663,11 @@ func (m *TLMessagesBotResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(User{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*User, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &User{}
 			v8[i].Decode(dBuf)
 		}
@@ -140784,11 +140820,11 @@ func (m *TLMessagesChatAdminsWithInvites) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(ChatAdminWithInvites{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*ChatAdminWithInvites, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &ChatAdminWithInvites{}
 			v0[i].Decode(dBuf)
 		}
@@ -140800,11 +140836,11 @@ func (m *TLMessagesChatAdminsWithInvites) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -140967,11 +141003,11 @@ func (m *TLMessagesChatFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -140983,11 +141019,11 @@ func (m *TLMessagesChatFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -141148,11 +141184,11 @@ func (m *TLMessagesChatInviteImporters) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ChatInviteImporter{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ChatInviteImporter, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ChatInviteImporter{}
 			v1[i].Decode(dBuf)
 		}
@@ -141164,11 +141200,11 @@ func (m *TLMessagesChatInviteImporters) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -141449,11 +141485,11 @@ func (m *TLMessagesChatInviteJoinResultWebView) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -141473,11 +141509,11 @@ func (m *TLMessagesChatInviteJoinResultWebView) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -141494,11 +141530,11 @@ func (m *TLMessagesChatInviteJoinResultWebView) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -141649,11 +141685,11 @@ func (m *TLMessagesChats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Chat{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Chat, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Chat{}
 			v0[i].Decode(dBuf)
 		}
@@ -141739,11 +141775,11 @@ func (m *TLMessagesChatsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Chat{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Chat, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Chat{}
 			v0[i].Decode(dBuf)
 		}
@@ -142453,11 +142489,11 @@ func (m *TLMessagesDialogFilters) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(DialogFilter{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*DialogFilter, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &DialogFilter{}
 			v2[i].Decode(dBuf)
 		}
@@ -142686,11 +142722,11 @@ func (m *TLMessagesDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Dialog{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Dialog, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Dialog{}
 			v0[i].Decode(dBuf)
 		}
@@ -142702,11 +142738,11 @@ func (m *TLMessagesDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Message{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Message, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Message{}
 			v1[i].Decode(dBuf)
 		}
@@ -142718,11 +142754,11 @@ func (m *TLMessagesDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -142734,11 +142770,11 @@ func (m *TLMessagesDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -142884,11 +142920,11 @@ func (m *TLMessagesDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Dialog{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Dialog, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Dialog{}
 			v0[i].Decode(dBuf)
 		}
@@ -142900,11 +142936,11 @@ func (m *TLMessagesDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Message{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Message, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Message{}
 			v1[i].Decode(dBuf)
 		}
@@ -142916,11 +142952,11 @@ func (m *TLMessagesDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -142932,11 +142968,11 @@ func (m *TLMessagesDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -143221,11 +143257,11 @@ func (m *TLMessagesDiscussionMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Message{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Message, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Message{}
 			v1[i].Decode(dBuf)
 		}
@@ -143250,11 +143286,11 @@ func (m *TLMessagesDiscussionMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(Chat{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*Chat, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &Chat{}
 			v6[i].Decode(dBuf)
 		}
@@ -143266,11 +143302,11 @@ func (m *TLMessagesDiscussionMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -143811,11 +143847,11 @@ func (m *TLMessagesEmojiGroups) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(EmojiGroup{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*EmojiGroup, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &EmojiGroup{}
 			v1[i].Decode(dBuf)
 		}
@@ -143976,11 +144012,11 @@ func (m *TLMessagesExportedChatInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -144082,11 +144118,11 @@ func (m *TLMessagesExportedChatInviteReplaced) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -144245,11 +144281,11 @@ func (m *TLMessagesExportedChatInvites) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ExportedChatInvite{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ExportedChatInvite, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ExportedChatInvite{}
 			v1[i].Decode(dBuf)
 		}
@@ -144261,11 +144297,11 @@ func (m *TLMessagesExportedChatInvites) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -144490,11 +144526,11 @@ func (m *TLMessagesFavedStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerPack{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerPack, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerPack{}
 			v1[i].Decode(dBuf)
 		}
@@ -144506,11 +144542,11 @@ func (m *TLMessagesFavedStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Document{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Document, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Document{}
 			v2[i].Decode(dBuf)
 		}
@@ -144783,11 +144819,11 @@ func (m *TLMessagesFeaturedStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(StickerSetCovered{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*StickerSetCovered, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &StickerSetCovered{}
 			v4[i].Decode(dBuf)
 		}
@@ -144805,11 +144841,11 @@ func (m *TLMessagesFeaturedStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(StickerSetCovered{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*StickerSetCovered, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &StickerSetCovered{}
 			v4[i].Decode(dBuf)
 		}
@@ -145038,11 +145074,11 @@ func (m *TLMessagesForumTopics) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(ForumTopic{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*ForumTopic, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &ForumTopic{}
 			v3[i].Decode(dBuf)
 		}
@@ -145054,11 +145090,11 @@ func (m *TLMessagesForumTopics) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Message{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Message, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Message{}
 			v4[i].Decode(dBuf)
 		}
@@ -145070,11 +145106,11 @@ func (m *TLMessagesForumTopics) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -145086,11 +145122,11 @@ func (m *TLMessagesForumTopics) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(User{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*User, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &User{}
 			v6[i].Decode(dBuf)
 		}
@@ -145296,11 +145332,11 @@ func (m *TLMessagesFoundStickerSets) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerSetCovered{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerSetCovered, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerSetCovered{}
 			v1[i].Decode(dBuf)
 		}
@@ -145565,11 +145601,11 @@ func (m *TLMessagesFoundStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Document{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Document, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Document{}
 			v3[i].Decode(dBuf)
 		}
@@ -145722,11 +145758,11 @@ func (m *TLMessagesHighScores) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(HighScore{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*HighScore, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &HighScore{}
 			v0[i].Decode(dBuf)
 		}
@@ -145738,11 +145774,11 @@ func (m *TLMessagesHighScores) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -146157,11 +146193,11 @@ func (m *TLMessagesInactiveChats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -146173,11 +146209,11 @@ func (m *TLMessagesInactiveChats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -146322,11 +146358,11 @@ func (m *TLMessagesInvitedUsers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(MissingInvitee{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*MissingInvitee, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &MissingInvitee{}
 			v1[i].Decode(dBuf)
 		}
@@ -146662,11 +146698,11 @@ func (m *TLMessagesMessageReactionsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(MessagePeerReaction{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*MessagePeerReaction, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &MessagePeerReaction{}
 			v2[i].Decode(dBuf)
 		}
@@ -146678,11 +146714,11 @@ func (m *TLMessagesMessageReactionsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -146694,11 +146730,11 @@ func (m *TLMessagesMessageReactionsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -146875,11 +146911,11 @@ func (m *TLMessagesMessageViews) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(MessageViews{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*MessageViews, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &MessageViews{}
 			v0[i].Decode(dBuf)
 		}
@@ -146891,11 +146927,11 @@ func (m *TLMessagesMessageViews) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -146907,11 +146943,11 @@ func (m *TLMessagesMessageViews) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -147225,11 +147261,11 @@ func (m *TLMessagesMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Message{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Message, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Message{}
 			v0[i].Decode(dBuf)
 		}
@@ -147241,11 +147277,11 @@ func (m *TLMessagesMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ForumTopic{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ForumTopic, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ForumTopic{}
 			v1[i].Decode(dBuf)
 		}
@@ -147257,11 +147293,11 @@ func (m *TLMessagesMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -147273,11 +147309,11 @@ func (m *TLMessagesMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -147291,11 +147327,11 @@ func (m *TLMessagesMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Message{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Message, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Message{}
 			v0[i].Decode(dBuf)
 		}
@@ -147307,11 +147343,11 @@ func (m *TLMessagesMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -147323,11 +147359,11 @@ func (m *TLMessagesMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -147720,11 +147756,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Message{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Message, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Message{}
 			v0[i].Decode(dBuf)
 		}
@@ -147736,11 +147772,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ForumTopic{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ForumTopic, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ForumTopic{}
 			v1[i].Decode(dBuf)
 		}
@@ -147752,11 +147788,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -147768,11 +147804,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -147805,11 +147841,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Message{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Message, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Message{}
 			v0[i].Decode(dBuf)
 		}
@@ -147821,11 +147857,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -147837,11 +147873,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -147869,11 +147905,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Message{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Message, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Message{}
 			v0[i].Decode(dBuf)
 		}
@@ -147885,11 +147921,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -147901,11 +147937,11 @@ func (m *TLMessagesMessagesSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -148176,11 +148212,11 @@ func (m *TLMessagesChannelMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Message{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Message, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Message{}
 			v0[i].Decode(dBuf)
 		}
@@ -148192,11 +148228,11 @@ func (m *TLMessagesChannelMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ForumTopic{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ForumTopic, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ForumTopic{}
 			v1[i].Decode(dBuf)
 		}
@@ -148208,11 +148244,11 @@ func (m *TLMessagesChannelMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -148224,11 +148260,11 @@ func (m *TLMessagesChannelMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -148253,11 +148289,11 @@ func (m *TLMessagesChannelMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Message{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Message, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Message{}
 			v0[i].Decode(dBuf)
 		}
@@ -148269,11 +148305,11 @@ func (m *TLMessagesChannelMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -148285,11 +148321,11 @@ func (m *TLMessagesChannelMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -148482,11 +148518,11 @@ func (m *TLMessagesMyStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerSetCovered{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerSetCovered, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerSetCovered{}
 			v1[i].Decode(dBuf)
 		}
@@ -148684,11 +148720,11 @@ func (m *TLMessagesPeerDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Dialog{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Dialog, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Dialog{}
 			v0[i].Decode(dBuf)
 		}
@@ -148700,11 +148736,11 @@ func (m *TLMessagesPeerDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Message{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Message, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Message{}
 			v1[i].Decode(dBuf)
 		}
@@ -148716,11 +148752,11 @@ func (m *TLMessagesPeerDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -148732,11 +148768,11 @@ func (m *TLMessagesPeerDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -148903,11 +148939,11 @@ func (m *TLMessagesPeerSettings) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -148919,11 +148955,11 @@ func (m *TLMessagesPeerSettings) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -149100,11 +149136,11 @@ func (m *TLMessagesPreparedInlineMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InlineQueryPeerType{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*InlineQueryPeerType, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InlineQueryPeerType{}
 			v2[i].Decode(dBuf)
 		}
@@ -149117,11 +149153,11 @@ func (m *TLMessagesPreparedInlineMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -149332,11 +149368,11 @@ func (m *TLMessagesQuickReplies) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(QuickReply{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*QuickReply, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &QuickReply{}
 			v0[i].Decode(dBuf)
 		}
@@ -149348,11 +149384,11 @@ func (m *TLMessagesQuickReplies) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Message{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Message, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Message{}
 			v1[i].Decode(dBuf)
 		}
@@ -149364,11 +149400,11 @@ func (m *TLMessagesQuickReplies) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -149380,11 +149416,11 @@ func (m *TLMessagesQuickReplies) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -149637,11 +149673,11 @@ func (m *TLMessagesReactions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Reaction{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Reaction, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Reaction{}
 			v1[i].Decode(dBuf)
 		}
@@ -149871,11 +149907,11 @@ func (m *TLMessagesRecentStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerPack{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerPack, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerPack{}
 			v1[i].Decode(dBuf)
 		}
@@ -149887,11 +149923,11 @@ func (m *TLMessagesRecentStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Document{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Document, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Document{}
 			v2[i].Decode(dBuf)
 		}
@@ -150122,11 +150158,11 @@ func (m *TLMessagesSavedDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(SavedDialog{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*SavedDialog, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &SavedDialog{}
 			v0[i].Decode(dBuf)
 		}
@@ -150138,11 +150174,11 @@ func (m *TLMessagesSavedDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Message{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Message, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Message{}
 			v1[i].Decode(dBuf)
 		}
@@ -150154,11 +150190,11 @@ func (m *TLMessagesSavedDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -150170,11 +150206,11 @@ func (m *TLMessagesSavedDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -150320,11 +150356,11 @@ func (m *TLMessagesSavedDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(SavedDialog{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*SavedDialog, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &SavedDialog{}
 			v0[i].Decode(dBuf)
 		}
@@ -150336,11 +150372,11 @@ func (m *TLMessagesSavedDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Message{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Message, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Message{}
 			v1[i].Decode(dBuf)
 		}
@@ -150352,11 +150388,11 @@ func (m *TLMessagesSavedDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -150368,11 +150404,11 @@ func (m *TLMessagesSavedDialogsSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -150631,11 +150667,11 @@ func (m *TLMessagesSavedGifs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Document{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Document, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Document{}
 			v1[i].Decode(dBuf)
 		}
@@ -150839,11 +150875,11 @@ func (m *TLMessagesSavedReactionTags) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(SavedReactionTag{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*SavedReactionTag, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &SavedReactionTag{}
 			v0[i].Decode(dBuf)
 		}
@@ -151237,11 +151273,11 @@ func (m *TLMessagesSearchResultsCalendar) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(SearchResultsCalendarPeriod{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*SearchResultsCalendarPeriod, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &SearchResultsCalendarPeriod{}
 			v6[i].Decode(dBuf)
 		}
@@ -151253,11 +151289,11 @@ func (m *TLMessagesSearchResultsCalendar) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(Message{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*Message, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &Message{}
 			v7[i].Decode(dBuf)
 		}
@@ -151269,11 +151305,11 @@ func (m *TLMessagesSearchResultsCalendar) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(Chat{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*Chat, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &Chat{}
 			v8[i].Decode(dBuf)
 		}
@@ -151285,11 +151321,11 @@ func (m *TLMessagesSearchResultsCalendar) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(User{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*User, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &User{}
 			v9[i].Decode(dBuf)
 		}
@@ -151432,11 +151468,11 @@ func (m *TLMessagesSearchResultsPositions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(SearchResultsPosition{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*SearchResultsPosition, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &SearchResultsPosition{}
 			v1[i].Decode(dBuf)
 		}
@@ -152015,11 +152051,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(SponsoredMessage{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*SponsoredMessage, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &SponsoredMessage{}
 			v4[i].Decode(dBuf)
 		}
@@ -152031,11 +152067,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -152047,11 +152083,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(User{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*User, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &User{}
 			v6[i].Decode(dBuf)
 		}
@@ -152071,11 +152107,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(SponsoredMessage{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*SponsoredMessage, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &SponsoredMessage{}
 			v4[i].Decode(dBuf)
 		}
@@ -152087,11 +152123,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -152103,11 +152139,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(User{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*User, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &User{}
 			v6[i].Decode(dBuf)
 		}
@@ -152121,11 +152157,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(SponsoredMessage{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*SponsoredMessage, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &SponsoredMessage{}
 			v4[i].Decode(dBuf)
 		}
@@ -152137,11 +152173,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -152153,11 +152189,11 @@ func (m *TLMessagesSponsoredMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(User{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*User, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &User{}
 			v6[i].Decode(dBuf)
 		}
@@ -152449,11 +152485,11 @@ func (m *TLMessagesStickerSet) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerPack{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerPack, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerPack{}
 			v1[i].Decode(dBuf)
 		}
@@ -152465,11 +152501,11 @@ func (m *TLMessagesStickerSet) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StickerKeyword{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StickerKeyword, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StickerKeyword{}
 			v2[i].Decode(dBuf)
 		}
@@ -152481,11 +152517,11 @@ func (m *TLMessagesStickerSet) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Document{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Document, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Document{}
 			v3[i].Decode(dBuf)
 		}
@@ -152504,11 +152540,11 @@ func (m *TLMessagesStickerSet) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerPack{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StickerPack, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StickerPack{}
 			v1[i].Decode(dBuf)
 		}
@@ -152520,11 +152556,11 @@ func (m *TLMessagesStickerSet) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Document{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Document, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Document{}
 			v3[i].Decode(dBuf)
 		}
@@ -152773,11 +152809,11 @@ func (m *TLMessagesStickerSetInstallResultArchive) Decode(dBuf *DecodeBuf) error
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StickerSetCovered{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StickerSetCovered, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StickerSetCovered{}
 			v0[i].Decode(dBuf)
 		}
@@ -152982,11 +153018,11 @@ func (m *TLMessagesStickers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Document{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Document, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Document{}
 			v1[i].Decode(dBuf)
 		}
@@ -153323,11 +153359,11 @@ func (m *TLMessagesTranslatedRichMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(RichMessage{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*RichMessage, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &RichMessage{}
 			v0[i].Decode(dBuf)
 		}
@@ -153496,11 +153532,11 @@ func (m *TLMessagesTranslateResult) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(TextWithEntities{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*TextWithEntities, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &TextWithEntities{}
 			v0[i].Decode(dBuf)
 		}
@@ -153877,11 +153913,11 @@ func (m *TLMessagesVotesList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(MessagePeerVote{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*MessagePeerVote, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &MessagePeerVote{}
 			v2[i].Decode(dBuf)
 		}
@@ -153893,11 +153929,11 @@ func (m *TLMessagesVotesList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -153909,11 +153945,11 @@ func (m *TLMessagesVotesList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -153934,11 +153970,11 @@ func (m *TLMessagesVotesList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(MessageUserVote{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*MessageUserVote, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &MessageUserVote{}
 			v2[i].Decode(dBuf)
 		}
@@ -153950,11 +153986,11 @@ func (m *TLMessagesVotesList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -154121,11 +154157,11 @@ func (m *TLMessagesWebPage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -154137,11 +154173,11 @@ func (m *TLMessagesWebPage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -154330,11 +154366,11 @@ func (m *TLMessagesWebPagePreview) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -154346,11 +154382,11 @@ func (m *TLMessagesWebPagePreview) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -154369,11 +154405,11 @@ func (m *TLMessagesWebPagePreview) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -154659,11 +154695,11 @@ func (m *TLMutableChat) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ImmutableChatParticipant{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ImmutableChatParticipant, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ImmutableChatParticipant{}
 			v1[i].Decode(dBuf)
 		}
@@ -154796,11 +154832,11 @@ func (m *TLMutableUsers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(ImmutableUser{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*ImmutableUser, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &ImmutableUser{}
 			v0[i].Decode(dBuf)
 		}
@@ -156294,11 +156330,11 @@ func (m *TLPage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PageBlock{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PageBlock, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PageBlock{}
 			v5[i].Decode(dBuf)
 		}
@@ -156310,11 +156346,11 @@ func (m *TLPage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(Photo{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*Photo, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &Photo{}
 			v6[i].Decode(dBuf)
 		}
@@ -156326,11 +156362,11 @@ func (m *TLPage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(Document{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*Document, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &Document{}
 			v7[i].Decode(dBuf)
 		}
@@ -156646,6 +156682,11 @@ func (m *PageBlock) CalcByteSize(layer int32) int {
 }
 
 func (m *PageBlock) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x13567e8a:
@@ -157782,11 +157823,11 @@ func (m *TLPageBlockList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PageListItem{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PageListItem, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PageListItem{}
 			v5[i].Decode(dBuf)
 		}
@@ -158472,11 +158513,11 @@ func (m *TLPageBlockEmbedPost) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l24 := dBuf.Int()
-		if l24 < 0 || l24 > maxVectorLen {
+		if dBuf.vectorTooLong(l24, unsafe.Sizeof(PageBlock{})) || l24 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l24)
 		}
 		v24 := make([]*PageBlock, l24)
-		for i := int32(0); i < l24; i++ {
+		for i := int32(0); i < l24 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v24[i] = &PageBlock{}
 			v24[i].Decode(dBuf)
 		}
@@ -158571,11 +158612,11 @@ func (m *TLPageBlockCollage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PageBlock{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PageBlock, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PageBlock{}
 			v5[i].Decode(dBuf)
 		}
@@ -158672,11 +158713,11 @@ func (m *TLPageBlockSlideshow) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PageBlock{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PageBlock, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PageBlock{}
 			v5[i].Decode(dBuf)
 		}
@@ -158981,11 +159022,11 @@ func (m *TLPageBlockTable) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l30 := dBuf.Int()
-		if l30 < 0 || l30 > maxVectorLen {
+		if dBuf.vectorTooLong(l30, unsafe.Sizeof(PageTableRow{})) || l30 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l30)
 		}
 		v30 := make([]*PageTableRow, l30)
-		for i := int32(0); i < l30; i++ {
+		for i := int32(0); i < l30 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v30[i] = &PageTableRow{}
 			v30[i].Decode(dBuf)
 		}
@@ -159135,11 +159176,11 @@ func (m *TLPageBlockOrderedList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PageListOrderedItem{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PageListOrderedItem, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PageListOrderedItem{}
 			v5[i].Decode(dBuf)
 		}
@@ -159161,11 +159202,11 @@ func (m *TLPageBlockOrderedList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PageListOrderedItem{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PageListOrderedItem, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PageListOrderedItem{}
 			v5[i].Decode(dBuf)
 		}
@@ -159274,11 +159315,11 @@ func (m *TLPageBlockDetails) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l24 := dBuf.Int()
-		if l24 < 0 || l24 > maxVectorLen {
+		if dBuf.vectorTooLong(l24, unsafe.Sizeof(PageBlock{})) || l24 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l24)
 		}
 		v24 := make([]*PageBlock, l24)
-		for i := int32(0); i < l24; i++ {
+		for i := int32(0); i < l24 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v24[i] = &PageBlock{}
 			v24[i].Decode(dBuf)
 		}
@@ -159372,11 +159413,11 @@ func (m *TLPageBlockRelatedArticles) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l35 := dBuf.Int()
-		if l35 < 0 || l35 > maxVectorLen {
+		if dBuf.vectorTooLong(l35, unsafe.Sizeof(PageRelatedArticle{})) || l35 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l35)
 		}
 		v35 := make([]*PageRelatedArticle, l35)
-		for i := int32(0); i < l35; i++ {
+		for i := int32(0); i < l35 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v35[i] = &PageRelatedArticle{}
 			v35[i].Decode(dBuf)
 		}
@@ -160089,11 +160130,11 @@ func (m *TLPageBlockBlockquoteBlocks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l24 := dBuf.Int()
-		if l24 < 0 || l24 > maxVectorLen {
+		if dBuf.vectorTooLong(l24, unsafe.Sizeof(PageBlock{})) || l24 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l24)
 		}
 		v24 := make([]*PageBlock, l24)
-		for i := int32(0); i < l24; i++ {
+		for i := int32(0); i < l24 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v24[i] = &PageBlock{}
 			v24[i].Decode(dBuf)
 		}
@@ -160269,6 +160310,11 @@ func (m *PageListItem) CalcByteSize(layer int32) int {
 }
 
 func (m *PageListItem) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x2f58683c:
@@ -160530,11 +160576,11 @@ func (m *TLPageListItemBlocks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(PageBlock{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*PageBlock, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &PageBlock{}
 			v4[i].Decode(dBuf)
 		}
@@ -160548,11 +160594,11 @@ func (m *TLPageListItemBlocks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(PageBlock{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*PageBlock, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &PageBlock{}
 			v4[i].Decode(dBuf)
 		}
@@ -160605,6 +160651,11 @@ func (m *PageListOrderedItem) CalcByteSize(layer int32) int {
 }
 
 func (m *PageListOrderedItem) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x15031189:
@@ -160959,11 +161010,11 @@ func (m *TLPageListOrderedItemBlocks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(PageBlock{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*PageBlock, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &PageBlock{}
 			v7[i].Decode(dBuf)
 		}
@@ -160986,11 +161037,11 @@ func (m *TLPageListOrderedItemBlocks) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(PageBlock{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*PageBlock, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &PageBlock{}
 			v7[i].Decode(dBuf)
 		}
@@ -161523,11 +161574,11 @@ func (m *TLPageTableRow) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(PageTableCell{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*PageTableCell, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &PageTableCell{}
 			v0[i].Decode(dBuf)
 		}
@@ -162763,11 +162814,11 @@ func (m *TLPaymentsBankCardData) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(BankCardOpenUrl{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*BankCardOpenUrl, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &BankCardOpenUrl{}
 			v1[i].Decode(dBuf)
 		}
@@ -163362,11 +163413,11 @@ func (m *TLPaymentsCheckedGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(Chat{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*Chat, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &Chat{}
 			v8[i].Decode(dBuf)
 		}
@@ -163378,11 +163429,11 @@ func (m *TLPaymentsCheckedGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(User{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*User, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &User{}
 			v9[i].Decode(dBuf)
 		}
@@ -163420,11 +163471,11 @@ func (m *TLPaymentsCheckedGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(Chat{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*Chat, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &Chat{}
 			v8[i].Decode(dBuf)
 		}
@@ -163436,11 +163487,11 @@ func (m *TLPaymentsCheckedGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(User{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*User, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &User{}
 			v9[i].Decode(dBuf)
 		}
@@ -163478,11 +163529,11 @@ func (m *TLPaymentsCheckedGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(Chat{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*Chat, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &Chat{}
 			v8[i].Decode(dBuf)
 		}
@@ -163494,11 +163545,11 @@ func (m *TLPaymentsCheckedGiftCode) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(User{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*User, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &User{}
 			v9[i].Decode(dBuf)
 		}
@@ -163661,11 +163712,11 @@ func (m *TLPaymentsConnectedStarRefBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(ConnectedBotStarRef{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*ConnectedBotStarRef, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &ConnectedBotStarRef{}
 			v1[i].Decode(dBuf)
 		}
@@ -163677,11 +163728,11 @@ func (m *TLPaymentsConnectedStarRefBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -164737,11 +164788,11 @@ func (m *TLPaymentsPaymentForm) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l13 := dBuf.Int()
-			if l13 < 0 || l13 > maxVectorLen {
+			if dBuf.vectorTooLong(l13, unsafe.Sizeof(PaymentFormMethod{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l13)
 			}
 			v13 := make([]*PaymentFormMethod, l13)
-			for i := int32(0); i < l13; i++ {
+			for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v13[i] = &PaymentFormMethod{}
 				v13[i].Decode(dBuf)
 			}
@@ -164759,11 +164810,11 @@ func (m *TLPaymentsPaymentForm) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(PaymentSavedCredentials{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l15)
 			}
 			v15 := make([]*PaymentSavedCredentials, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &PaymentSavedCredentials{}
 				v15[i].Decode(dBuf)
 			}
@@ -164775,11 +164826,11 @@ func (m *TLPaymentsPaymentForm) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(User{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*User, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &User{}
 			v16[i].Decode(dBuf)
 		}
@@ -164836,11 +164887,11 @@ func (m *TLPaymentsPaymentForm) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(User{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*User, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &User{}
 			v16[i].Decode(dBuf)
 		}
@@ -164890,11 +164941,11 @@ func (m *TLPaymentsPaymentForm) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(User{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*User, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &User{}
 			v16[i].Decode(dBuf)
 		}
@@ -165033,11 +165084,11 @@ func (m *TLPaymentsPaymentFormStars) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(User{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*User, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &User{}
 			v16[i].Decode(dBuf)
 		}
@@ -165375,11 +165426,11 @@ func (m *TLPaymentsPaymentReceipt) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(User{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*User, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &User{}
 			v14[i].Decode(dBuf)
 		}
@@ -165533,11 +165584,11 @@ func (m *TLPaymentsPaymentReceiptStars) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(User{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*User, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &User{}
 			v14[i].Decode(dBuf)
 		}
@@ -165991,11 +166042,11 @@ func (m *TLPaymentsResaleStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StarGift{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StarGift, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StarGift{}
 			v2[i].Decode(dBuf)
 		}
@@ -166012,11 +166063,11 @@ func (m *TLPaymentsResaleStarGifts) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(StarGiftAttribute{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*StarGiftAttribute, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &StarGiftAttribute{}
 				v4[i].Decode(dBuf)
 			}
@@ -166032,11 +166083,11 @@ func (m *TLPaymentsResaleStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(Chat{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*Chat, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &Chat{}
 			v6[i].Decode(dBuf)
 		}
@@ -166049,11 +166100,11 @@ func (m *TLPaymentsResaleStarGifts) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(StarGiftAttributeCounter{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*StarGiftAttributeCounter, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &StarGiftAttributeCounter{}
 				v7[i].Decode(dBuf)
 			}
@@ -166065,11 +166116,11 @@ func (m *TLPaymentsResaleStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(User{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*User, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &User{}
 			v8[i].Decode(dBuf)
 		}
@@ -166430,11 +166481,11 @@ func (m *TLPaymentsSavedStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(SavedStarGift{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*SavedStarGift, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &SavedStarGift{}
 			v3[i].Decode(dBuf)
 		}
@@ -166450,11 +166501,11 @@ func (m *TLPaymentsSavedStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -166466,11 +166517,11 @@ func (m *TLPaymentsSavedStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(User{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*User, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &User{}
 			v6[i].Decode(dBuf)
 		}
@@ -166754,11 +166805,11 @@ func (m *TLPaymentsStarGiftActiveAuctions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StarGiftActiveAuctionState{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StarGiftActiveAuctionState, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StarGiftActiveAuctionState{}
 			v0[i].Decode(dBuf)
 		}
@@ -166770,11 +166821,11 @@ func (m *TLPaymentsStarGiftActiveAuctions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -166786,11 +166837,11 @@ func (m *TLPaymentsStarGiftActiveAuctions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -166804,11 +166855,11 @@ func (m *TLPaymentsStarGiftActiveAuctions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StarGiftActiveAuctionState{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StarGiftActiveAuctionState, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StarGiftActiveAuctionState{}
 			v0[i].Decode(dBuf)
 		}
@@ -166820,11 +166871,11 @@ func (m *TLPaymentsStarGiftActiveAuctions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -167001,11 +167052,11 @@ func (m *TLPaymentsStarGiftAuctionAcquiredGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StarGiftAuctionAcquiredGift{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StarGiftAuctionAcquiredGift, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StarGiftAuctionAcquiredGift{}
 			v0[i].Decode(dBuf)
 		}
@@ -167017,11 +167068,11 @@ func (m *TLPaymentsStarGiftAuctionAcquiredGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -167033,11 +167084,11 @@ func (m *TLPaymentsStarGiftAuctionAcquiredGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -167254,11 +167305,11 @@ func (m *TLPaymentsStarGiftAuctionState) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -167270,11 +167321,11 @@ func (m *TLPaymentsStarGiftAuctionState) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -167302,11 +167353,11 @@ func (m *TLPaymentsStarGiftAuctionState) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -167509,11 +167560,11 @@ func (m *TLPaymentsStarGiftCollections) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StarGiftCollection{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StarGiftCollection, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StarGiftCollection{}
 			v0[i].Decode(dBuf)
 		}
@@ -167650,11 +167701,11 @@ func (m *TLPaymentsStarGiftUpgradeAttributes) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StarGiftAttribute{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StarGiftAttribute, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StarGiftAttribute{}
 			v0[i].Decode(dBuf)
 		}
@@ -167859,11 +167910,11 @@ func (m *TLPaymentsStarGiftUpgradePreview) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StarGiftAttribute{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StarGiftAttribute, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StarGiftAttribute{}
 			v0[i].Decode(dBuf)
 		}
@@ -167875,11 +167926,11 @@ func (m *TLPaymentsStarGiftUpgradePreview) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StarGiftUpgradePrice{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StarGiftUpgradePrice, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StarGiftUpgradePrice{}
 			v1[i].Decode(dBuf)
 		}
@@ -167891,11 +167942,11 @@ func (m *TLPaymentsStarGiftUpgradePreview) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StarGiftUpgradePrice{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StarGiftUpgradePrice, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StarGiftUpgradePrice{}
 			v2[i].Decode(dBuf)
 		}
@@ -167909,11 +167960,11 @@ func (m *TLPaymentsStarGiftUpgradePreview) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StarGiftAttribute{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StarGiftAttribute, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StarGiftAttribute{}
 			v0[i].Decode(dBuf)
 		}
@@ -168291,11 +168342,11 @@ func (m *TLPaymentsStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StarGift{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StarGift, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StarGift{}
 			v1[i].Decode(dBuf)
 		}
@@ -168307,11 +168358,11 @@ func (m *TLPaymentsStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -168323,11 +168374,11 @@ func (m *TLPaymentsStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -168342,11 +168393,11 @@ func (m *TLPaymentsStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StarGift{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StarGift, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StarGift{}
 			v1[i].Decode(dBuf)
 		}
@@ -169200,11 +169251,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l2 := dBuf.Int()
-			if l2 < 0 || l2 > maxVectorLen {
+			if dBuf.vectorTooLong(l2, unsafe.Sizeof(StarsSubscription{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l2)
 			}
 			v2 := make([]*StarsSubscription, l2)
-			for i := int32(0); i < l2; i++ {
+			for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v2[i] = &StarsSubscription{}
 				v2[i].Decode(dBuf)
 			}
@@ -169225,11 +169276,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(StarsTransaction{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*StarsTransaction, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &StarsTransaction{}
 				v5[i].Decode(dBuf)
 			}
@@ -169245,11 +169296,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(Chat{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*Chat, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &Chat{}
 			v7[i].Decode(dBuf)
 		}
@@ -169261,11 +169312,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(User{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*User, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &User{}
 			v8[i].Decode(dBuf)
 		}
@@ -169283,11 +169334,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l2 := dBuf.Int()
-			if l2 < 0 || l2 > maxVectorLen {
+			if dBuf.vectorTooLong(l2, unsafe.Sizeof(StarsSubscription{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l2)
 			}
 			v2 := make([]*StarsSubscription, l2)
-			for i := int32(0); i < l2; i++ {
+			for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v2[i] = &StarsSubscription{}
 				v2[i].Decode(dBuf)
 			}
@@ -169308,11 +169359,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(StarsTransaction{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*StarsTransaction, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &StarsTransaction{}
 				v5[i].Decode(dBuf)
 			}
@@ -169328,11 +169379,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(Chat{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*Chat, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &Chat{}
 			v7[i].Decode(dBuf)
 		}
@@ -169344,11 +169395,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(User{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*User, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &User{}
 			v8[i].Decode(dBuf)
 		}
@@ -169365,11 +169416,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(StarsTransaction{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*StarsTransaction, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &StarsTransaction{}
 			v5[i].Decode(dBuf)
 		}
@@ -169385,11 +169436,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(Chat{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*Chat, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &Chat{}
 			v7[i].Decode(dBuf)
 		}
@@ -169401,11 +169452,11 @@ func (m *TLPaymentsStarsStatus) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(User{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*User, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &User{}
 			v8[i].Decode(dBuf)
 		}
@@ -169596,11 +169647,11 @@ func (m *TLPaymentsSuggestedStarRefBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StarRefProgram{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StarRefProgram, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StarRefProgram{}
 			v2[i].Decode(dBuf)
 		}
@@ -169612,11 +169663,11 @@ func (m *TLPaymentsSuggestedStarRefBots) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -169809,11 +169860,11 @@ func (m *TLPaymentsUniqueStarGift) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -169825,11 +169876,11 @@ func (m *TLPaymentsUniqueStarGift) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -169848,11 +169899,11 @@ func (m *TLPaymentsUniqueStarGift) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -170334,11 +170385,11 @@ func (m *TLPaymentsUserStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(UserStarGift{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*UserStarGift, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &UserStarGift{}
 			v2[i].Decode(dBuf)
 		}
@@ -170354,11 +170405,11 @@ func (m *TLPaymentsUserStarGifts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -170529,11 +170580,11 @@ func (m *TLPaymentsValidatedRequestedInfo) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l2 := dBuf.Int()
-			if l2 < 0 || l2 > maxVectorLen {
+			if dBuf.vectorTooLong(l2, unsafe.Sizeof(ShippingOption{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l2)
 			}
 			v2 := make([]*ShippingOption, l2)
-			for i := int32(0); i < l2; i++ {
+			for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v2[i] = &ShippingOption{}
 				v2[i].Decode(dBuf)
 			}
@@ -172699,11 +172750,11 @@ func (m *TLPeerStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(StoryItem{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*StoryItem, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &StoryItem{}
 			v3[i].Decode(dBuf)
 		}
@@ -173993,11 +174044,11 @@ func (m *TLPhoneCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(PhoneConnection{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*PhoneConnection, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &PhoneConnection{}
 			v15[i].Decode(dBuf)
 		}
@@ -174037,11 +174088,11 @@ func (m *TLPhoneCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(PhoneConnection{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*PhoneConnection, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &PhoneConnection{}
 			v15[i].Decode(dBuf)
 		}
@@ -174086,11 +174137,11 @@ func (m *TLPhoneCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(PhoneConnection{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*PhoneConnection, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &PhoneConnection{}
 			v15[i].Decode(dBuf)
 		}
@@ -175484,11 +175535,11 @@ func (m *TLPhoneGroupCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(GroupCallParticipant{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*GroupCallParticipant, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &GroupCallParticipant{}
 			v1[i].Decode(dBuf)
 		}
@@ -175501,11 +175552,11 @@ func (m *TLPhoneGroupCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -175517,11 +175568,11 @@ func (m *TLPhoneGroupCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -175700,11 +175751,11 @@ func (m *TLPhoneGroupCallStars) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(GroupCallDonor{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*GroupCallDonor, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &GroupCallDonor{}
 			v1[i].Decode(dBuf)
 		}
@@ -175716,11 +175767,11 @@ func (m *TLPhoneGroupCallStars) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Chat{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Chat, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Chat{}
 			v2[i].Decode(dBuf)
 		}
@@ -175732,11 +175783,11 @@ func (m *TLPhoneGroupCallStars) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(User{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*User, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &User{}
 			v3[i].Decode(dBuf)
 		}
@@ -175873,11 +175924,11 @@ func (m *TLPhoneGroupCallStreamChannels) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(GroupCallStreamChannel{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*GroupCallStreamChannel, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &GroupCallStreamChannel{}
 			v0[i].Decode(dBuf)
 		}
@@ -176182,11 +176233,11 @@ func (m *TLPhoneGroupParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(GroupCallParticipant{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*GroupCallParticipant, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &GroupCallParticipant{}
 			v1[i].Decode(dBuf)
 		}
@@ -176199,11 +176250,11 @@ func (m *TLPhoneGroupParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -176215,11 +176266,11 @@ func (m *TLPhoneGroupParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -176393,11 +176444,11 @@ func (m *TLPhoneJoinAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Peer{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Peer, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Peer{}
 			v0[i].Decode(dBuf)
 		}
@@ -176409,11 +176460,11 @@ func (m *TLPhoneJoinAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -176425,11 +176476,11 @@ func (m *TLPhoneJoinAsPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -176572,11 +176623,11 @@ func (m *TLPhonePhoneCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -176855,11 +176906,11 @@ func (m *TLPhoto) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(PhotoSize{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*PhotoSize, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &PhotoSize{}
 			v6[i].Decode(dBuf)
 		}
@@ -176872,11 +176923,11 @@ func (m *TLPhoto) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(VideoSize{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*VideoSize, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &VideoSize{}
 				v7[i].Decode(dBuf)
 			}
@@ -177545,11 +177596,11 @@ func (m *TLPhotosPhoto) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -177720,11 +177771,11 @@ func (m *TLPhotosPhotos) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Photo{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Photo, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Photo{}
 			v0[i].Decode(dBuf)
 		}
@@ -177736,11 +177787,11 @@ func (m *TLPhotosPhotos) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -177846,11 +177897,11 @@ func (m *TLPhotosPhotosSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Photo{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Photo, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Photo{}
 			v0[i].Decode(dBuf)
 		}
@@ -177862,11 +177913,11 @@ func (m *TLPhotosPhotosSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -177912,6 +177963,11 @@ func (m *Poll) CalcByteSize(layer int32) int {
 }
 
 func (m *Poll) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x966e2dbf:
@@ -178372,11 +178428,11 @@ func (m *TLPoll) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l13 := dBuf.Int()
-		if l13 < 0 || l13 > maxVectorLen {
+		if dBuf.vectorTooLong(l13, unsafe.Sizeof(PollAnswer{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l13)
 		}
 		v13 := make([]*PollAnswer, l13)
-		for i := int32(0); i < l13; i++ {
+		for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v13[i] = &PollAnswer{}
 			v13[i].Decode(dBuf)
 		}
@@ -178437,11 +178493,11 @@ func (m *TLPoll) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l13 := dBuf.Int()
-		if l13 < 0 || l13 > maxVectorLen {
+		if dBuf.vectorTooLong(l13, unsafe.Sizeof(PollAnswer{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l13)
 		}
 		v13 := make([]*PollAnswer, l13)
-		for i := int32(0); i < l13; i++ {
+		for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v13[i] = &PollAnswer{}
 			v13[i].Decode(dBuf)
 		}
@@ -178484,11 +178540,11 @@ func (m *TLPoll) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l13 := dBuf.Int()
-		if l13 < 0 || l13 > maxVectorLen {
+		if dBuf.vectorTooLong(l13, unsafe.Sizeof(PollAnswer{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l13)
 		}
 		v13 := make([]*PollAnswer, l13)
-		for i := int32(0); i < l13; i++ {
+		for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v13[i] = &PollAnswer{}
 			v13[i].Decode(dBuf)
 		}
@@ -178526,11 +178582,11 @@ func (m *TLPoll) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l13 := dBuf.Int()
-		if l13 < 0 || l13 > maxVectorLen {
+		if dBuf.vectorTooLong(l13, unsafe.Sizeof(PollAnswer{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l13)
 		}
 		v13 := make([]*PollAnswer, l13)
-		for i := int32(0); i < l13; i++ {
+		for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v13[i] = &PollAnswer{}
 			v13[i].Decode(dBuf)
 		}
@@ -178591,6 +178647,11 @@ func (m *PollAnswer) CalcByteSize(layer int32) int {
 }
 
 func (m *PollAnswer) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x4b7d786a:
@@ -179087,11 +179148,11 @@ func (m *TLPollAnswerVoters) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(Peer{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l5)
 			}
 			v5 := make([]*Peer, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &Peer{}
 				v5[i].Decode(dBuf)
 			}
@@ -179149,6 +179210,11 @@ func (m *PollResults) CalcByteSize(layer int32) int {
 }
 
 func (m *PollResults) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0xba7bb15e:
@@ -179563,11 +179629,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(PollAnswerVoters{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*PollAnswerVoters, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &PollAnswerVoters{}
 				v4[i].Decode(dBuf)
 			}
@@ -179584,11 +179650,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(Peer{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*Peer, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &Peer{}
 				v6[i].Decode(dBuf)
 			}
@@ -179605,11 +179671,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(MessageEntity{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*MessageEntity, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &MessageEntity{}
 				v8[i].Decode(dBuf)
 			}
@@ -179634,11 +179700,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(PollAnswerVoters{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*PollAnswerVoters, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &PollAnswerVoters{}
 				v4[i].Decode(dBuf)
 			}
@@ -179655,11 +179721,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(Peer{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*Peer, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &Peer{}
 				v6[i].Decode(dBuf)
 			}
@@ -179676,11 +179742,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(MessageEntity{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*MessageEntity, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &MessageEntity{}
 				v8[i].Decode(dBuf)
 			}
@@ -179700,11 +179766,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(PollAnswerVoters{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*PollAnswerVoters, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &PollAnswerVoters{}
 				v4[i].Decode(dBuf)
 			}
@@ -179728,11 +179794,11 @@ func (m *TLPollResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(MessageEntity{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l8)
 			}
 			v8 := make([]*MessageEntity, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &MessageEntity{}
 				v8[i].Decode(dBuf)
 			}
@@ -181151,11 +181217,11 @@ func (m *TLPremiumBoostsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Boost{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Boost, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Boost{}
 			v2[i].Decode(dBuf)
 		}
@@ -181171,11 +181237,11 @@ func (m *TLPremiumBoostsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -181421,11 +181487,11 @@ func (m *TLPremiumBoostsStatus) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(PrepaidGiveaway{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l9)
 			}
 			v9 := make([]*PrepaidGiveaway, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &PrepaidGiveaway{}
 				v9[i].Decode(dBuf)
 			}
@@ -181601,11 +181667,11 @@ func (m *TLPremiumMyBoosts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(MyBoost{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*MyBoost, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &MyBoost{}
 			v0[i].Decode(dBuf)
 		}
@@ -181617,11 +181683,11 @@ func (m *TLPremiumMyBoosts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -181633,11 +181699,11 @@ func (m *TLPremiumMyBoosts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -182949,11 +183015,11 @@ func (m *TLPrivacyKeyRules) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(PrivacyRule{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*PrivacyRule, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &PrivacyRule{}
 			v1[i].Decode(dBuf)
 		}
@@ -186804,11 +186870,11 @@ func (m *TLReplyKeyboardMarkup) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(KeyboardButtonRow{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*KeyboardButtonRow, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &KeyboardButtonRow{}
 			v6[i].Decode(dBuf)
 		}
@@ -186892,11 +186958,11 @@ func (m *TLReplyInlineMarkup) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(KeyboardButtonRow{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*KeyboardButtonRow, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &KeyboardButtonRow{}
 			v6[i].Decode(dBuf)
 		}
@@ -187766,11 +187832,11 @@ func (m *TLReportResultChooseOption) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(MessageReportOption{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*MessageReportOption, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &MessageReportOption{}
 			v1[i].Decode(dBuf)
 		}
@@ -189446,11 +189512,11 @@ func (m *TLRichMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(PageBlock{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*PageBlock, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &PageBlock{}
 			v3[i].Decode(dBuf)
 		}
@@ -189462,11 +189528,11 @@ func (m *TLRichMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Photo{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Photo, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Photo{}
 			v4[i].Decode(dBuf)
 		}
@@ -189478,11 +189544,11 @@ func (m *TLRichMessage) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Document{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Document, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Document{}
 			v5[i].Decode(dBuf)
 		}
@@ -189731,6 +189797,11 @@ func (m *RichText) CalcByteSize(layer int32) int {
 }
 
 func (m *RichText) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0xdc3d824f:
@@ -190660,11 +190731,11 @@ func (m *TLTextConcat) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(RichText{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*RichText, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &RichText{}
 			v4[i].Decode(dBuf)
 		}
@@ -195350,6 +195421,11 @@ func (m *SecureRequiredType) CalcByteSize(layer int32) int {
 }
 
 func (m *SecureRequiredType) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x829d99da:
@@ -195547,11 +195623,11 @@ func (m *TLSecureRequiredTypeOneOf) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(SecureRequiredType{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*SecureRequiredType, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &SecureRequiredType{}
 			v5[i].Decode(dBuf)
 		}
@@ -195932,11 +196008,11 @@ func (m *TLSecureValue) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(SecureFile{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l6)
 			}
 			v6 := make([]*SecureFile, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &SecureFile{}
 				v6[i].Decode(dBuf)
 			}
@@ -195949,11 +196025,11 @@ func (m *TLSecureValue) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(SecureFile{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*SecureFile, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &SecureFile{}
 				v7[i].Decode(dBuf)
 			}
@@ -199610,11 +199686,11 @@ func (m *TLShippingOption) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(LabeledPrice{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*LabeledPrice, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &LabeledPrice{}
 			v2[i].Decode(dBuf)
 		}
@@ -201006,11 +201082,11 @@ func (m *TLSponsoredMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -201069,11 +201145,11 @@ func (m *TLSponsoredMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -201124,11 +201200,11 @@ func (m *TLSponsoredMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -201207,11 +201283,11 @@ func (m *TLSponsoredMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -201275,11 +201351,11 @@ func (m *TLSponsoredMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -201334,11 +201410,11 @@ func (m *TLSponsoredMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -201393,11 +201469,11 @@ func (m *TLSponsoredMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l7)
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -204872,11 +204948,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -204895,11 +204971,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(StarsAmount{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*StarsAmount, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &StarsAmount{}
 				v42[i].Decode(dBuf)
 			}
@@ -204982,11 +205058,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205005,11 +205081,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(StarsAmount{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*StarsAmount, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &StarsAmount{}
 				v42[i].Decode(dBuf)
 			}
@@ -205088,11 +205164,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205111,11 +205187,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(StarsAmount{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*StarsAmount, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &StarsAmount{}
 				v42[i].Decode(dBuf)
 			}
@@ -205186,11 +205262,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205209,11 +205285,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(StarsAmount{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*StarsAmount, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &StarsAmount{}
 				v42[i].Decode(dBuf)
 			}
@@ -205271,11 +205347,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205294,11 +205370,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(StarsAmount{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*StarsAmount, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &StarsAmount{}
 				v42[i].Decode(dBuf)
 			}
@@ -205350,11 +205426,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205373,11 +205449,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l42 := dBuf.Int()
-			if l42 < 0 || l42 > maxVectorLen {
+			if dBuf.vectorTooLong(l42, unsafe.Sizeof(StarsAmount{})) || l42 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l42)
 			}
 			v42 := make([]*StarsAmount, l42)
-			for i := int32(0); i < l42; i++ {
+			for i := int32(0); i < l42 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v42[i] = &StarsAmount{}
 				v42[i].Decode(dBuf)
 			}
@@ -205418,11 +205494,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205470,11 +205546,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205517,11 +205593,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205560,11 +205636,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205594,11 +205670,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -205618,11 +205694,11 @@ func (m *TLStarGiftUnique) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l39 := dBuf.Int()
-		if l39 < 0 || l39 > maxVectorLen {
+		if dBuf.vectorTooLong(l39, unsafe.Sizeof(StarGiftAttribute{})) || l39 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l39)
 		}
 		v39 := make([]*StarGiftAttribute, l39)
-		for i := int32(0); i < l39; i++ {
+		for i := int32(0); i < l39 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v39[i] = &StarGiftAttribute{}
 			v39[i].Decode(dBuf)
 		}
@@ -207887,11 +207963,11 @@ func (m *TLStarGiftAuctionState) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(AuctionBidLevel{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*AuctionBidLevel, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &AuctionBidLevel{}
 			v4[i].Decode(dBuf)
 		}
@@ -207910,11 +207986,11 @@ func (m *TLStarGiftAuctionState) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l11 := dBuf.Int()
-		if l11 < 0 || l11 > maxVectorLen {
+		if dBuf.vectorTooLong(l11, unsafe.Sizeof(StarGiftAuctionRound{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l11)
 		}
 		v11 := make([]*StarGiftAuctionRound, l11)
-		for i := int32(0); i < l11; i++ {
+		for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v11[i] = &StarGiftAuctionRound{}
 			v11[i].Decode(dBuf)
 		}
@@ -207932,11 +208008,11 @@ func (m *TLStarGiftAuctionState) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(AuctionBidLevel{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*AuctionBidLevel, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &AuctionBidLevel{}
 			v4[i].Decode(dBuf)
 		}
@@ -209367,11 +209443,11 @@ func (m *TLStarsGiveawayOption) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(StarsGiveawayWinnersOption{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*StarsGiveawayWinnersOption, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &StarsGiveawayWinnersOption{}
 			v8[i].Decode(dBuf)
 		}
@@ -212083,11 +212159,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -212216,11 +212292,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -212335,11 +212411,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -212439,11 +212515,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -212529,11 +212605,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -212615,11 +212691,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -212696,11 +212772,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -212770,11 +212846,11 @@ func (m *TLStarsTransaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l26 := dBuf.Int()
-			if l26 < 0 || l26 > maxVectorLen {
+			if dBuf.vectorTooLong(l26, unsafe.Sizeof(MessageMedia{})) || l26 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l26)
 			}
 			v26 := make([]*MessageMedia, l26)
-			for i := int32(0); i < l26; i++ {
+			for i := int32(0); i < l26 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v26[i] = &MessageMedia{}
 				v26[i].Decode(dBuf)
 			}
@@ -214808,11 +214884,11 @@ func (m *TLStatsBroadcastRevenueTransactions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(BroadcastRevenueTransaction{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*BroadcastRevenueTransaction, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &BroadcastRevenueTransaction{}
 			v1[i].Decode(dBuf)
 		}
@@ -215314,11 +215390,11 @@ func (m *TLStatsBroadcastStats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l21 := dBuf.Int()
-		if l21 < 0 || l21 > maxVectorLen {
+		if dBuf.vectorTooLong(l21, unsafe.Sizeof(PostInteractionCounters{})) || l21 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l21)
 		}
 		v21 := make([]*PostInteractionCounters, l21)
-		for i := int32(0); i < l21; i++ {
+		for i := int32(0); i < l21 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v21[i] = &PostInteractionCounters{}
 			v21[i].Decode(dBuf)
 		}
@@ -215389,11 +215465,11 @@ func (m *TLStatsBroadcastStats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l22 := dBuf.Int()
-		if l22 < 0 || l22 > maxVectorLen {
+		if dBuf.vectorTooLong(l22, unsafe.Sizeof(MessageInteractionCounters{})) || l22 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l22)
 		}
 		v22 := make([]*MessageInteractionCounters, l22)
-		for i := int32(0); i < l22; i++ {
+		for i := int32(0); i < l22 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v22[i] = &MessageInteractionCounters{}
 			v22[i].Decode(dBuf)
 		}
@@ -215696,11 +215772,11 @@ func (m *TLStatsMegagroupStats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l13 := dBuf.Int()
-		if l13 < 0 || l13 > maxVectorLen {
+		if dBuf.vectorTooLong(l13, unsafe.Sizeof(StatsGroupTopPoster{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l13)
 		}
 		v13 := make([]*StatsGroupTopPoster, l13)
-		for i := int32(0); i < l13; i++ {
+		for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v13[i] = &StatsGroupTopPoster{}
 			v13[i].Decode(dBuf)
 		}
@@ -215712,11 +215788,11 @@ func (m *TLStatsMegagroupStats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l14 := dBuf.Int()
-		if l14 < 0 || l14 > maxVectorLen {
+		if dBuf.vectorTooLong(l14, unsafe.Sizeof(StatsGroupTopAdmin{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l14)
 		}
 		v14 := make([]*StatsGroupTopAdmin, l14)
-		for i := int32(0); i < l14; i++ {
+		for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v14[i] = &StatsGroupTopAdmin{}
 			v14[i].Decode(dBuf)
 		}
@@ -215728,11 +215804,11 @@ func (m *TLStatsMegagroupStats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l15 := dBuf.Int()
-		if l15 < 0 || l15 > maxVectorLen {
+		if dBuf.vectorTooLong(l15, unsafe.Sizeof(StatsGroupTopInviter{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l15)
 		}
 		v15 := make([]*StatsGroupTopInviter, l15)
-		for i := int32(0); i < l15; i++ {
+		for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v15[i] = &StatsGroupTopInviter{}
 			v15[i].Decode(dBuf)
 		}
@@ -215744,11 +215820,11 @@ func (m *TLStatsMegagroupStats) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(User{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*User, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &User{}
 			v16[i].Decode(dBuf)
 		}
@@ -216201,11 +216277,11 @@ func (m *TLStatsPublicForwards) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(PublicForward{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*PublicForward, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &PublicForward{}
 			v2[i].Decode(dBuf)
 		}
@@ -216221,11 +216297,11 @@ func (m *TLStatsPublicForwards) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Chat{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Chat, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Chat{}
 			v4[i].Decode(dBuf)
 		}
@@ -216237,11 +216313,11 @@ func (m *TLStatsPublicForwards) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -216972,11 +217048,11 @@ func (m *TLStickerSet) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l13 := dBuf.Int()
-			if l13 < 0 || l13 > maxVectorLen {
+			if dBuf.vectorTooLong(l13, unsafe.Sizeof(PhotoSize{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l13)
 			}
 			v13 := make([]*PhotoSize, l13)
-			for i := int32(0); i < l13; i++ {
+			for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v13[i] = &PhotoSize{}
 				v13[i].Decode(dBuf)
 			}
@@ -217030,11 +217106,11 @@ func (m *TLStickerSet) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l13 := dBuf.Int()
-			if l13 < 0 || l13 > maxVectorLen {
+			if dBuf.vectorTooLong(l13, unsafe.Sizeof(PhotoSize{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l13)
 			}
 			v13 := make([]*PhotoSize, l13)
-			for i := int32(0); i < l13; i++ {
+			for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v13[i] = &PhotoSize{}
 				v13[i].Decode(dBuf)
 			}
@@ -217310,11 +217386,11 @@ func (m *TLStickerSetMultiCovered) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Document{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Document, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Document{}
 			v2[i].Decode(dBuf)
 		}
@@ -217484,11 +217560,11 @@ func (m *TLStickerSetFullCovered) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(StickerPack{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*StickerPack, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &StickerPack{}
 			v3[i].Decode(dBuf)
 		}
@@ -217500,11 +217576,11 @@ func (m *TLStickerSetFullCovered) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(StickerKeyword{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*StickerKeyword, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &StickerKeyword{}
 			v4[i].Decode(dBuf)
 		}
@@ -217516,11 +217592,11 @@ func (m *TLStickerSetFullCovered) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Document{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Document, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Document{}
 			v5[i].Decode(dBuf)
 		}
@@ -217539,11 +217615,11 @@ func (m *TLStickerSetFullCovered) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(StickerPack{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*StickerPack, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &StickerPack{}
 			v3[i].Decode(dBuf)
 		}
@@ -217555,11 +217631,11 @@ func (m *TLStickerSetFullCovered) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Document{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Document, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Document{}
 			v5[i].Decode(dBuf)
 		}
@@ -218775,11 +218851,11 @@ func (m *TLStoriesAlbums) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(StoryAlbum{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*StoryAlbum, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &StoryAlbum{}
 			v1[i].Decode(dBuf)
 		}
@@ -219222,11 +219298,11 @@ func (m *TLStoriesAllStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(PeerStories{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*PeerStories, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &PeerStories{}
 			v5[i].Decode(dBuf)
 		}
@@ -219238,11 +219314,11 @@ func (m *TLStoriesAllStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(Chat{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*Chat, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &Chat{}
 			v6[i].Decode(dBuf)
 		}
@@ -219254,11 +219330,11 @@ func (m *TLStoriesAllStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -219283,11 +219359,11 @@ func (m *TLStoriesAllStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(UserStories{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*UserStories, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &UserStories{}
 			v8[i].Decode(dBuf)
 		}
@@ -219299,11 +219375,11 @@ func (m *TLStoriesAllStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -219328,11 +219404,11 @@ func (m *TLStoriesAllStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(UserStories{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*UserStories, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &UserStories{}
 			v8[i].Decode(dBuf)
 		}
@@ -219344,11 +219420,11 @@ func (m *TLStoriesAllStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -219531,11 +219607,11 @@ func (m *TLStoriesBoostersList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Booster{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Booster, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Booster{}
 			v2[i].Decode(dBuf)
 		}
@@ -219551,11 +219627,11 @@ func (m *TLStoriesBoostersList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -220003,11 +220079,11 @@ func (m *TLStoriesCanApplyBoostReplace) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -220317,11 +220393,11 @@ func (m *TLStoriesFoundStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(FoundStory{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*FoundStory, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &FoundStory{}
 			v2[i].Decode(dBuf)
 		}
@@ -220337,11 +220413,11 @@ func (m *TLStoriesFoundStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Chat{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Chat, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Chat{}
 			v4[i].Decode(dBuf)
 		}
@@ -220353,11 +220429,11 @@ func (m *TLStoriesFoundStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -220520,11 +220596,11 @@ func (m *TLStoriesPeerStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -220536,11 +220612,11 @@ func (m *TLStoriesPeerStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -220846,11 +220922,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StoryItem{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StoryItem, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StoryItem{}
 			v2[i].Decode(dBuf)
 		}
@@ -220865,11 +220941,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Chat{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Chat, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Chat{}
 			v4[i].Decode(dBuf)
 		}
@@ -220881,11 +220957,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -220900,11 +220976,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StoryItem{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StoryItem, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StoryItem{}
 			v2[i].Decode(dBuf)
 		}
@@ -220916,11 +220992,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Chat{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Chat, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Chat{}
 			v4[i].Decode(dBuf)
 		}
@@ -220932,11 +221008,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -220951,11 +221027,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StoryItem{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StoryItem, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StoryItem{}
 			v2[i].Decode(dBuf)
 		}
@@ -220967,11 +221043,11 @@ func (m *TLStoriesStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(User{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*User, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &User{}
 			v5[i].Decode(dBuf)
 		}
@@ -221178,11 +221254,11 @@ func (m *TLStoriesStoryReactionsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(StoryReaction{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*StoryReaction, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &StoryReaction{}
 			v2[i].Decode(dBuf)
 		}
@@ -221194,11 +221270,11 @@ func (m *TLStoriesStoryReactionsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(Chat{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*Chat, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &Chat{}
 			v3[i].Decode(dBuf)
 		}
@@ -221210,11 +221286,11 @@ func (m *TLStoriesStoryReactionsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(User{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*User, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &User{}
 			v4[i].Decode(dBuf)
 		}
@@ -221371,11 +221447,11 @@ func (m *TLStoriesStoryViews) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(StoryViews{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*StoryViews, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &StoryViews{}
 			v0[i].Decode(dBuf)
 		}
@@ -221387,11 +221463,11 @@ func (m *TLStoriesStoryViews) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -221714,11 +221790,11 @@ func (m *TLStoriesStoryViewsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(StoryView{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*StoryView, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &StoryView{}
 			v5[i].Decode(dBuf)
 		}
@@ -221730,11 +221806,11 @@ func (m *TLStoriesStoryViewsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(Chat{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*Chat, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &Chat{}
 			v6[i].Decode(dBuf)
 		}
@@ -221746,11 +221822,11 @@ func (m *TLStoriesStoryViewsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -221772,11 +221848,11 @@ func (m *TLStoriesStoryViewsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(StoryView{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*StoryView, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &StoryView{}
 			v5[i].Decode(dBuf)
 		}
@@ -221788,11 +221864,11 @@ func (m *TLStoriesStoryViewsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -221811,11 +221887,11 @@ func (m *TLStoriesStoryViewsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(StoryView{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*StoryView, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &StoryView{}
 			v5[i].Decode(dBuf)
 		}
@@ -221827,11 +221903,11 @@ func (m *TLStoriesStoryViewsList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -221974,11 +222050,11 @@ func (m *TLStoriesUserStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*User, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &User{}
 			v1[i].Decode(dBuf)
 		}
@@ -222360,6 +222436,11 @@ func (m *StoryItem) CalcByteSize(layer int32) int {
 }
 
 func (m *StoryItem) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x51e6ee4f:
@@ -223561,11 +223642,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l17 := dBuf.Int()
-			if l17 < 0 || l17 > maxVectorLen {
+			if dBuf.vectorTooLong(l17, unsafe.Sizeof(MessageEntity{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l17)
 			}
 			v17 := make([]*MessageEntity, l17)
-			for i := int32(0); i < l17; i++ {
+			for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v17[i] = &MessageEntity{}
 				v17[i].Decode(dBuf)
 			}
@@ -223583,11 +223664,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l19 := dBuf.Int()
-			if l19 < 0 || l19 > maxVectorLen {
+			if dBuf.vectorTooLong(l19, unsafe.Sizeof(MediaArea{})) || l19 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l19)
 			}
 			v19 := make([]*MediaArea, l19)
-			for i := int32(0); i < l19; i++ {
+			for i := int32(0); i < l19 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v19[i] = &MediaArea{}
 				v19[i].Decode(dBuf)
 			}
@@ -223600,11 +223681,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l20 := dBuf.Int()
-			if l20 < 0 || l20 > maxVectorLen {
+			if dBuf.vectorTooLong(l20, unsafe.Sizeof(PrivacyRule{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l20)
 			}
 			v20 := make([]*PrivacyRule, l20)
-			for i := int32(0); i < l20; i++ {
+			for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v20[i] = &PrivacyRule{}
 				v20[i].Decode(dBuf)
 			}
@@ -223683,11 +223764,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l17 := dBuf.Int()
-			if l17 < 0 || l17 > maxVectorLen {
+			if dBuf.vectorTooLong(l17, unsafe.Sizeof(MessageEntity{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l17)
 			}
 			v17 := make([]*MessageEntity, l17)
-			for i := int32(0); i < l17; i++ {
+			for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v17[i] = &MessageEntity{}
 				v17[i].Decode(dBuf)
 			}
@@ -223705,11 +223786,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l19 := dBuf.Int()
-			if l19 < 0 || l19 > maxVectorLen {
+			if dBuf.vectorTooLong(l19, unsafe.Sizeof(MediaArea{})) || l19 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l19)
 			}
 			v19 := make([]*MediaArea, l19)
-			for i := int32(0); i < l19; i++ {
+			for i := int32(0); i < l19 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v19[i] = &MediaArea{}
 				v19[i].Decode(dBuf)
 			}
@@ -223722,11 +223803,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l20 := dBuf.Int()
-			if l20 < 0 || l20 > maxVectorLen {
+			if dBuf.vectorTooLong(l20, unsafe.Sizeof(PrivacyRule{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l20)
 			}
 			v20 := make([]*PrivacyRule, l20)
-			for i := int32(0); i < l20; i++ {
+			for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v20[i] = &PrivacyRule{}
 				v20[i].Decode(dBuf)
 			}
@@ -223800,11 +223881,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l17 := dBuf.Int()
-			if l17 < 0 || l17 > maxVectorLen {
+			if dBuf.vectorTooLong(l17, unsafe.Sizeof(MessageEntity{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l17)
 			}
 			v17 := make([]*MessageEntity, l17)
-			for i := int32(0); i < l17; i++ {
+			for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v17[i] = &MessageEntity{}
 				v17[i].Decode(dBuf)
 			}
@@ -223822,11 +223903,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l19 := dBuf.Int()
-			if l19 < 0 || l19 > maxVectorLen {
+			if dBuf.vectorTooLong(l19, unsafe.Sizeof(MediaArea{})) || l19 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l19)
 			}
 			v19 := make([]*MediaArea, l19)
-			for i := int32(0); i < l19; i++ {
+			for i := int32(0); i < l19 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v19[i] = &MediaArea{}
 				v19[i].Decode(dBuf)
 			}
@@ -223839,11 +223920,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l20 := dBuf.Int()
-			if l20 < 0 || l20 > maxVectorLen {
+			if dBuf.vectorTooLong(l20, unsafe.Sizeof(PrivacyRule{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l20)
 			}
 			v20 := make([]*PrivacyRule, l20)
-			for i := int32(0); i < l20; i++ {
+			for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v20[i] = &PrivacyRule{}
 				v20[i].Decode(dBuf)
 			}
@@ -223909,11 +223990,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l17 := dBuf.Int()
-			if l17 < 0 || l17 > maxVectorLen {
+			if dBuf.vectorTooLong(l17, unsafe.Sizeof(MessageEntity{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l17)
 			}
 			v17 := make([]*MessageEntity, l17)
-			for i := int32(0); i < l17; i++ {
+			for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v17[i] = &MessageEntity{}
 				v17[i].Decode(dBuf)
 			}
@@ -223931,11 +224012,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l19 := dBuf.Int()
-			if l19 < 0 || l19 > maxVectorLen {
+			if dBuf.vectorTooLong(l19, unsafe.Sizeof(MediaArea{})) || l19 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l19)
 			}
 			v19 := make([]*MediaArea, l19)
-			for i := int32(0); i < l19; i++ {
+			for i := int32(0); i < l19 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v19[i] = &MediaArea{}
 				v19[i].Decode(dBuf)
 			}
@@ -223948,11 +224029,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l20 := dBuf.Int()
-			if l20 < 0 || l20 > maxVectorLen {
+			if dBuf.vectorTooLong(l20, unsafe.Sizeof(PrivacyRule{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l20)
 			}
 			v20 := make([]*PrivacyRule, l20)
-			for i := int32(0); i < l20; i++ {
+			for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v20[i] = &PrivacyRule{}
 				v20[i].Decode(dBuf)
 			}
@@ -224013,11 +224094,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l17 := dBuf.Int()
-			if l17 < 0 || l17 > maxVectorLen {
+			if dBuf.vectorTooLong(l17, unsafe.Sizeof(MessageEntity{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l17)
 			}
 			v17 := make([]*MessageEntity, l17)
-			for i := int32(0); i < l17; i++ {
+			for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v17[i] = &MessageEntity{}
 				v17[i].Decode(dBuf)
 			}
@@ -224035,11 +224116,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l19 := dBuf.Int()
-			if l19 < 0 || l19 > maxVectorLen {
+			if dBuf.vectorTooLong(l19, unsafe.Sizeof(MediaArea{})) || l19 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l19)
 			}
 			v19 := make([]*MediaArea, l19)
-			for i := int32(0); i < l19; i++ {
+			for i := int32(0); i < l19 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v19[i] = &MediaArea{}
 				v19[i].Decode(dBuf)
 			}
@@ -224052,11 +224133,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l20 := dBuf.Int()
-			if l20 < 0 || l20 > maxVectorLen {
+			if dBuf.vectorTooLong(l20, unsafe.Sizeof(PrivacyRule{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l20)
 			}
 			v20 := make([]*PrivacyRule, l20)
-			for i := int32(0); i < l20; i++ {
+			for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v20[i] = &PrivacyRule{}
 				v20[i].Decode(dBuf)
 			}
@@ -224114,11 +224195,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l17 := dBuf.Int()
-			if l17 < 0 || l17 > maxVectorLen {
+			if dBuf.vectorTooLong(l17, unsafe.Sizeof(MessageEntity{})) || l17 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l17)
 			}
 			v17 := make([]*MessageEntity, l17)
-			for i := int32(0); i < l17; i++ {
+			for i := int32(0); i < l17 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v17[i] = &MessageEntity{}
 				v17[i].Decode(dBuf)
 			}
@@ -224136,11 +224217,11 @@ func (m *TLStoryItem) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l20 := dBuf.Int()
-			if l20 < 0 || l20 > maxVectorLen {
+			if dBuf.vectorTooLong(l20, unsafe.Sizeof(PrivacyRule{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l20)
 			}
 			v20 := make([]*PrivacyRule, l20)
-			for i := int32(0); i < l20; i++ {
+			for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v20[i] = &PrivacyRule{}
 				v20[i].Decode(dBuf)
 			}
@@ -225094,11 +225175,11 @@ func (m *TLStoryViews) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(ReactionCount{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l4)
 			}
 			v4 := make([]*ReactionCount, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &ReactionCount{}
 				v4[i].Decode(dBuf)
 			}
@@ -225533,11 +225614,11 @@ func (m *TLTextWithEntities) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(MessageEntity{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*MessageEntity, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &MessageEntity{}
 			v1[i].Decode(dBuf)
 		}
@@ -225772,11 +225853,11 @@ func (m *TLTheme) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(ThemeSettings{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l9)
 			}
 			v9 := make([]*ThemeSettings, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &ThemeSettings{}
 				v9[i].Decode(dBuf)
 			}
@@ -226516,11 +226597,11 @@ func (m *TLTodoList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(TodoItem{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*TodoItem, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &TodoItem{}
 			v4[i].Decode(dBuf)
 		}
@@ -227479,11 +227560,11 @@ func (m *TLTopPeerCategoryPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(TopPeer{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*TopPeer, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &TopPeer{}
 			v2[i].Decode(dBuf)
 		}
@@ -231388,11 +231469,11 @@ func (m *TLUpdateUserName) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l16 := dBuf.Int()
-		if l16 < 0 || l16 > maxVectorLen {
+		if dBuf.vectorTooLong(l16, unsafe.Sizeof(Username{})) || l16 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l16)
 		}
 		v16 := make([]*Username, l16)
-		for i := int32(0); i < l16; i++ {
+		for i := int32(0); i < l16 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v16[i] = &Username{}
 			v16[i].Decode(dBuf)
 		}
@@ -231987,11 +232068,11 @@ func (m *TLUpdateDcOptions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l27 := dBuf.Int()
-		if l27 < 0 || l27 > maxVectorLen {
+		if dBuf.vectorTooLong(l27, unsafe.Sizeof(DcOption{})) || l27 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l27)
 		}
 		v27 := make([]*DcOption, l27)
-		for i := int32(0); i < l27; i++ {
+		for i := int32(0); i < l27 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v27[i] = &DcOption{}
 			v27[i].Decode(dBuf)
 		}
@@ -232205,11 +232286,11 @@ func (m *TLUpdateServiceNotification) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l35 := dBuf.Int()
-		if l35 < 0 || l35 > maxVectorLen {
+		if dBuf.vectorTooLong(l35, unsafe.Sizeof(MessageEntity{})) || l35 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l35)
 		}
 		v35 := make([]*MessageEntity, l35)
-		for i := int32(0); i < l35; i++ {
+		for i := int32(0); i < l35 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v35[i] = &MessageEntity{}
 			v35[i].Decode(dBuf)
 		}
@@ -232299,11 +232380,11 @@ func (m *TLUpdatePrivacy) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l37 := dBuf.Int()
-		if l37 < 0 || l37 > maxVectorLen {
+		if dBuf.vectorTooLong(l37, unsafe.Sizeof(PrivacyRule{})) || l37 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l37)
 		}
 		v37 := make([]*PrivacyRule, l37)
-		for i := int32(0); i < l37; i++ {
+		for i := int32(0); i < l37 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v37[i] = &PrivacyRule{}
 			v37[i].Decode(dBuf)
 		}
@@ -234902,11 +234983,11 @@ func (m *TLUpdatePinnedDialogs) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l49 := dBuf.Int()
-			if l49 < 0 || l49 > maxVectorLen {
+			if dBuf.vectorTooLong(l49, unsafe.Sizeof(DialogPeer{})) || l49 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l49)
 			}
 			v49 := make([]*DialogPeer, l49)
-			for i := int32(0); i < l49; i++ {
+			for i := int32(0); i < l49 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v49[i] = &DialogPeer{}
 				v49[i].Decode(dBuf)
 			}
@@ -236189,11 +236270,11 @@ func (m *TLUpdateFolderPeers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l78 := dBuf.Int()
-		if l78 < 0 || l78 > maxVectorLen {
+		if dBuf.vectorTooLong(l78, unsafe.Sizeof(FolderPeer{})) || l78 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l78)
 		}
 		v78 := make([]*FolderPeer, l78)
-		for i := int32(0); i < l78; i++ {
+		for i := int32(0); i < l78 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v78[i] = &FolderPeer{}
 			v78[i].Decode(dBuf)
 		}
@@ -236341,11 +236422,11 @@ func (m *TLUpdatePeerLocated) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l80 := dBuf.Int()
-		if l80 < 0 || l80 > maxVectorLen {
+		if dBuf.vectorTooLong(l80, unsafe.Sizeof(PeerLocated{})) || l80 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l80)
 		}
 		v80 := make([]*PeerLocated, l80)
-		for i := int32(0); i < l80; i++ {
+		for i := int32(0); i < l80 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v80[i] = &PeerLocated{}
 			v80[i].Decode(dBuf)
 		}
@@ -237861,11 +237942,11 @@ func (m *TLUpdateGroupCallParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l12 := dBuf.Int()
-		if l12 < 0 || l12 > maxVectorLen {
+		if dBuf.vectorTooLong(l12, unsafe.Sizeof(GroupCallParticipant{})) || l12 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l12)
 		}
 		v12 := make([]*GroupCallParticipant, l12)
-		for i := int32(0); i < l12; i++ {
+		for i := int32(0); i < l12 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v12[i] = &GroupCallParticipant{}
 			v12[i].Decode(dBuf)
 		}
@@ -238649,11 +238730,11 @@ func (m *TLUpdateBotCommands) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l106 := dBuf.Int()
-		if l106 < 0 || l106 > maxVectorLen {
+		if dBuf.vectorTooLong(l106, unsafe.Sizeof(BotCommand{})) || l106 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l106)
 		}
 		v106 := make([]*BotCommand, l106)
-		for i := int32(0); i < l106; i++ {
+		for i := int32(0); i < l106 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v106[i] = &BotCommand{}
 			v106[i].Decode(dBuf)
 		}
@@ -239773,11 +239854,11 @@ func (m *TLUpdateMessageExtendedMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l116 := dBuf.Int()
-		if l116 < 0 || l116 > maxVectorLen {
+		if dBuf.vectorTooLong(l116, unsafe.Sizeof(MessageExtendedMedia{})) || l116 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l116)
 		}
 		v116 := make([]*MessageExtendedMedia, l116)
-		for i := int32(0); i < l116; i++ {
+		for i := int32(0); i < l116 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v116[i] = &MessageExtendedMedia{}
 			v116[i].Decode(dBuf)
 		}
@@ -240626,11 +240707,11 @@ func (m *TLUpdateBotMessageReaction) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l126 := dBuf.Int()
-		if l126 < 0 || l126 > maxVectorLen {
+		if dBuf.vectorTooLong(l126, unsafe.Sizeof(Reaction{})) || l126 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l126)
 		}
 		v126 := make([]*Reaction, l126)
-		for i := int32(0); i < l126; i++ {
+		for i := int32(0); i < l126 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v126[i] = &Reaction{}
 			v126[i].Decode(dBuf)
 		}
@@ -240642,11 +240723,11 @@ func (m *TLUpdateBotMessageReaction) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l127 := dBuf.Int()
-		if l127 < 0 || l127 > maxVectorLen {
+		if dBuf.vectorTooLong(l127, unsafe.Sizeof(Reaction{})) || l127 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l127)
 		}
 		v127 := make([]*Reaction, l127)
-		for i := int32(0); i < l127; i++ {
+		for i := int32(0); i < l127 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v127[i] = &Reaction{}
 			v127[i].Decode(dBuf)
 		}
@@ -240756,11 +240837,11 @@ func (m *TLUpdateBotMessageReactions) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l110 := dBuf.Int()
-		if l110 < 0 || l110 > maxVectorLen {
+		if dBuf.vectorTooLong(l110, unsafe.Sizeof(ReactionCount{})) || l110 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l110)
 		}
 		v110 := make([]*ReactionCount, l110)
-		for i := int32(0); i < l110; i++ {
+		for i := int32(0); i < l110 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v110[i] = &ReactionCount{}
 			v110[i].Decode(dBuf)
 		}
@@ -240946,11 +241027,11 @@ func (m *TLUpdatePinnedSavedDialogs) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l49 := dBuf.Int()
-			if l49 < 0 || l49 > maxVectorLen {
+			if dBuf.vectorTooLong(l49, unsafe.Sizeof(DialogPeer{})) || l49 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l49)
 			}
 			v49 := make([]*DialogPeer, l49)
-			for i := int32(0); i < l49; i++ {
+			for i := int32(0); i < l49 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v49[i] = &DialogPeer{}
 				v49[i].Decode(dBuf)
 			}
@@ -241132,11 +241213,11 @@ func (m *TLUpdateQuickReplies) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l129 := dBuf.Int()
-		if l129 < 0 || l129 > maxVectorLen {
+		if dBuf.vectorTooLong(l129, unsafe.Sizeof(QuickReply{})) || l129 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l129)
 		}
 		v129 := make([]*QuickReply, l129)
-		for i := int32(0); i < l129; i++ {
+		for i := int32(0); i < l129 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v129[i] = &QuickReply{}
 			v129[i].Decode(dBuf)
 		}
@@ -243478,11 +243559,11 @@ func (m *TLUpdateBotGuestChatQuery) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l148 := dBuf.Int()
-			if l148 < 0 || l148 > maxVectorLen {
+			if dBuf.vectorTooLong(l148, unsafe.Sizeof(Message{})) || l148 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l148)
 			}
 			v148 := make([]*Message, l148)
-			for i := int32(0); i < l148; i++ {
+			for i := int32(0); i < l148 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v148[i] = &Message{}
 				v148[i].Decode(dBuf)
 			}
@@ -244877,11 +244958,11 @@ func (m *TLUpdateList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(Update{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*Update, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &Update{}
 			v0[i].Decode(dBuf)
 		}
@@ -245328,11 +245409,11 @@ func (m *TLUpdateShortMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l14)
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -245561,11 +245642,11 @@ func (m *TLUpdateShortChatMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l14)
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -245765,11 +245846,11 @@ func (m *TLUpdatesCombined) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l19 := dBuf.Int()
-		if l19 < 0 || l19 > maxVectorLen {
+		if dBuf.vectorTooLong(l19, unsafe.Sizeof(Update{})) || l19 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l19)
 		}
 		v19 := make([]*Update, l19)
-		for i := int32(0); i < l19; i++ {
+		for i := int32(0); i < l19 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v19[i] = &Update{}
 			v19[i].Decode(dBuf)
 		}
@@ -245781,11 +245862,11 @@ func (m *TLUpdatesCombined) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l20 := dBuf.Int()
-		if l20 < 0 || l20 > maxVectorLen {
+		if dBuf.vectorTooLong(l20, unsafe.Sizeof(User{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l20)
 		}
 		v20 := make([]*User, l20)
-		for i := int32(0); i < l20; i++ {
+		for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v20[i] = &User{}
 			v20[i].Decode(dBuf)
 		}
@@ -245797,11 +245878,11 @@ func (m *TLUpdatesCombined) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l21 := dBuf.Int()
-		if l21 < 0 || l21 > maxVectorLen {
+		if dBuf.vectorTooLong(l21, unsafe.Sizeof(Chat{})) || l21 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l21)
 		}
 		v21 := make([]*Chat, l21)
-		for i := int32(0); i < l21; i++ {
+		for i := int32(0); i < l21 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v21[i] = &Chat{}
 			v21[i].Decode(dBuf)
 		}
@@ -245933,11 +246014,11 @@ func (m *TLUpdates) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l19 := dBuf.Int()
-		if l19 < 0 || l19 > maxVectorLen {
+		if dBuf.vectorTooLong(l19, unsafe.Sizeof(Update{})) || l19 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l19)
 		}
 		v19 := make([]*Update, l19)
-		for i := int32(0); i < l19; i++ {
+		for i := int32(0); i < l19 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v19[i] = &Update{}
 			v19[i].Decode(dBuf)
 		}
@@ -245949,11 +246030,11 @@ func (m *TLUpdates) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l20 := dBuf.Int()
-		if l20 < 0 || l20 > maxVectorLen {
+		if dBuf.vectorTooLong(l20, unsafe.Sizeof(User{})) || l20 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l20)
 		}
 		v20 := make([]*User, l20)
-		for i := int32(0); i < l20; i++ {
+		for i := int32(0); i < l20 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v20[i] = &User{}
 			v20[i].Decode(dBuf)
 		}
@@ -245965,11 +246046,11 @@ func (m *TLUpdates) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l21 := dBuf.Int()
-		if l21 < 0 || l21 > maxVectorLen {
+		if dBuf.vectorTooLong(l21, unsafe.Sizeof(Chat{})) || l21 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l21)
 		}
 		v21 := make([]*Chat, l21)
-		for i := int32(0); i < l21; i++ {
+		for i := int32(0); i < l21 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v21[i] = &Chat{}
 			v21[i].Decode(dBuf)
 		}
@@ -246125,11 +246206,11 @@ func (m *TLUpdateShortSentMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l14)
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -246540,11 +246621,11 @@ func (m *TLUpdatesChannelDifferenceTooLong) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Message{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Message, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Message{}
 			v5[i].Decode(dBuf)
 		}
@@ -246556,11 +246637,11 @@ func (m *TLUpdatesChannelDifferenceTooLong) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(Chat{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*Chat, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &Chat{}
 			v6[i].Decode(dBuf)
 		}
@@ -246572,11 +246653,11 @@ func (m *TLUpdatesChannelDifferenceTooLong) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -246759,11 +246840,11 @@ func (m *TLUpdatesChannelDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(Message{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*Message, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &Message{}
 			v8[i].Decode(dBuf)
 		}
@@ -246775,11 +246856,11 @@ func (m *TLUpdatesChannelDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(Update{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l9)
 		}
 		v9 := make([]*Update, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &Update{}
 			v9[i].Decode(dBuf)
 		}
@@ -246791,11 +246872,11 @@ func (m *TLUpdatesChannelDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(Chat{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*Chat, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &Chat{}
 			v6[i].Decode(dBuf)
 		}
@@ -246807,11 +246888,11 @@ func (m *TLUpdatesChannelDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(User{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*User, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &User{}
 			v7[i].Decode(dBuf)
 		}
@@ -247146,11 +247227,11 @@ func (m *TLUpdatesDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Message{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Message, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Message{}
 			v2[i].Decode(dBuf)
 		}
@@ -247162,11 +247243,11 @@ func (m *TLUpdatesDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(EncryptedMessage{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*EncryptedMessage, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &EncryptedMessage{}
 			v3[i].Decode(dBuf)
 		}
@@ -247178,11 +247259,11 @@ func (m *TLUpdatesDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Update{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Update, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Update{}
 			v4[i].Decode(dBuf)
 		}
@@ -247194,11 +247275,11 @@ func (m *TLUpdatesDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -247210,11 +247291,11 @@ func (m *TLUpdatesDifference) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(User{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*User, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &User{}
 			v6[i].Decode(dBuf)
 		}
@@ -247391,11 +247472,11 @@ func (m *TLUpdatesDifferenceSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(Message{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*Message, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &Message{}
 			v2[i].Decode(dBuf)
 		}
@@ -247407,11 +247488,11 @@ func (m *TLUpdatesDifferenceSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(EncryptedMessage{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*EncryptedMessage, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &EncryptedMessage{}
 			v3[i].Decode(dBuf)
 		}
@@ -247423,11 +247504,11 @@ func (m *TLUpdatesDifferenceSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(Update{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*Update, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &Update{}
 			v4[i].Decode(dBuf)
 		}
@@ -247439,11 +247520,11 @@ func (m *TLUpdatesDifferenceSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(Chat{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l5)
 		}
 		v5 := make([]*Chat, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &Chat{}
 			v5[i].Decode(dBuf)
 		}
@@ -247455,11 +247536,11 @@ func (m *TLUpdatesDifferenceSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(User{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l6)
 		}
 		v6 := make([]*User, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &User{}
 			v6[i].Decode(dBuf)
 		}
@@ -248063,11 +248144,11 @@ func (m *TLUploadFileCdnRedirect) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(FileHash{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l7)
 		}
 		v7 := make([]*FileHash, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &FileHash{}
 			v7[i].Decode(dBuf)
 		}
@@ -251968,11 +252049,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -251998,11 +252079,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -252177,11 +252258,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -252207,11 +252288,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -252370,11 +252451,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -252400,11 +252481,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -252559,11 +252640,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -252589,11 +252670,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -252744,11 +252825,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -252774,11 +252855,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -252922,11 +253003,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -252952,11 +253033,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -253090,11 +253171,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -253120,11 +253201,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -253256,11 +253337,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -253286,11 +253367,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -253405,11 +253486,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -253435,11 +253516,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l45 := dBuf.Int()
-			if l45 < 0 || l45 > maxVectorLen {
+			if dBuf.vectorTooLong(l45, unsafe.Sizeof(Username{})) || l45 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l45)
 			}
 			v45 := make([]*Username, l45)
-			for i := int32(0); i < l45; i++ {
+			for i := int32(0); i < l45 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v45[i] = &Username{}
 				v45[i].Decode(dBuf)
 			}
@@ -253545,11 +253626,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -253668,11 +253749,11 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l41 := dBuf.Int()
-			if l41 < 0 || l41 > maxVectorLen {
+			if dBuf.vectorTooLong(l41, unsafe.Sizeof(RestrictionReason{})) || l41 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l41)
 			}
 			v41 := make([]*RestrictionReason, l41)
-			for i := int32(0); i < l41; i++ {
+			for i := int32(0); i < l41 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v41[i] = &RestrictionReason{}
 				v41[i].Decode(dBuf)
 			}
@@ -254092,11 +254173,11 @@ func (m *TLUserData) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l18 := dBuf.Int()
-			if l18 < 0 || l18 > maxVectorLen {
+			if dBuf.vectorTooLong(l18, unsafe.Sizeof(RestrictionReason{})) || l18 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l18)
 			}
 			v18 := make([]*RestrictionReason, l18)
-			for i := int32(0); i < l18; i++ {
+			for i := int32(0); i < l18 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v18[i] = &RestrictionReason{}
 				v18[i].Decode(dBuf)
 			}
@@ -254152,11 +254233,11 @@ func (m *TLUserData) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l33 := dBuf.Int()
-			if l33 < 0 || l33 > maxVectorLen {
+			if dBuf.vectorTooLong(l33, unsafe.Sizeof(Username{})) || l33 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l33)
 			}
 			v33 := make([]*Username, l33)
-			for i := int32(0); i < l33; i++ {
+			for i := int32(0); i < l33 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v33[i] = &Username{}
 				v33[i].Decode(dBuf)
 			}
@@ -261014,11 +261095,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -261212,11 +261293,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -261405,11 +261486,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -261587,11 +261668,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -261762,11 +261843,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -261917,11 +261998,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -262043,11 +262124,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -262163,11 +262244,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -262278,11 +262359,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -262375,11 +262456,11 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l61 := dBuf.Int()
-			if l61 < 0 || l61 > maxVectorLen {
+			if dBuf.vectorTooLong(l61, unsafe.Sizeof(PremiumGiftOption{})) || l61 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l61)
 			}
 			v61 := make([]*PremiumGiftOption, l61)
-			for i := int32(0); i < l61; i++ {
+			for i := int32(0); i < l61 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v61[i] = &PremiumGiftOption{}
 				v61[i].Decode(dBuf)
 			}
@@ -263809,11 +263890,11 @@ func (m *TLUserStories) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(StoryItem{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l3)
 		}
 		v3 := make([]*StoryItem, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &StoryItem{}
 			v3[i].Decode(dBuf)
 		}
@@ -264163,11 +264244,11 @@ func (m *TLUsersSavedMusic) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Document{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Document, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Document{}
 			v1[i].Decode(dBuf)
 		}
@@ -264330,11 +264411,11 @@ func (m *TLUsersUserFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(Chat{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l1)
 		}
 		v1 := make([]*Chat, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &Chat{}
 			v1[i].Decode(dBuf)
 		}
@@ -264346,11 +264427,11 @@ func (m *TLUsersUserFull) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(User{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l2)
 		}
 		v2 := make([]*User, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &User{}
 			v2[i].Decode(dBuf)
 		}
@@ -264501,11 +264582,11 @@ func (m *TLUsersUsers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(User{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*User, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &User{}
 			v0[i].Decode(dBuf)
 		}
@@ -264591,11 +264672,11 @@ func (m *TLUsersUsersSlice) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l0 := dBuf.Int()
-		if l0 < 0 || l0 > maxVectorLen {
+		if dBuf.vectorTooLong(l0, unsafe.Sizeof(User{})) || l0 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l0)
 		}
 		v0 := make([]*User, l0)
-		for i := int32(0); i < l0; i++ {
+		for i := int32(0); i < l0 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v0[i] = &User{}
 			v0[i].Decode(dBuf)
 		}
@@ -265989,11 +266070,11 @@ func (m *TLWebDocument) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(DocumentAttribute{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*DocumentAttribute, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &DocumentAttribute{}
 			v4[i].Decode(dBuf)
 		}
@@ -266089,11 +266170,11 @@ func (m *TLWebDocumentNoProxy) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(DocumentAttribute{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l4)
 		}
 		v4 := make([]*DocumentAttribute, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &DocumentAttribute{}
 			v4[i].Decode(dBuf)
 		}
@@ -266304,6 +266385,11 @@ func (m *WebPage) CalcByteSize(layer int32) int {
 }
 
 func (m *WebPage) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x211a1788:
@@ -266862,11 +266948,11 @@ func (m *TLWebPage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l21 := dBuf.Int()
-			if l21 < 0 || l21 > maxVectorLen {
+			if dBuf.vectorTooLong(l21, unsafe.Sizeof(WebPageAttribute{})) || l21 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l21)
 			}
 			v21 := make([]*WebPageAttribute, l21)
-			for i := int32(0); i < l21; i++ {
+			for i := int32(0); i < l21 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v21[i] = &WebPageAttribute{}
 				v21[i].Decode(dBuf)
 			}
@@ -267034,6 +267120,11 @@ func (m *WebPageAttribute) CalcByteSize(layer int32) int {
 }
 
 func (m *WebPageAttribute) Decode(dBuf *DecodeBuf) error {
+	if !dBuf.enterNested() { // pluma: recursive type, bound the nesting depth
+		return dBuf.GetError()
+	}
+	defer dBuf.leaveNested()
+
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
 	case 0x54b56617:
@@ -267222,11 +267313,11 @@ func (m *TLWebPageAttributeTheme) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l1 := dBuf.Int()
-			if l1 < 0 || l1 > maxVectorLen {
+			if dBuf.vectorTooLong(l1, unsafe.Sizeof(Document{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				return fmt.Errorf("invalid vector length: %d", l1)
 			}
 			v1 := make([]*Document, l1)
-			for i := int32(0); i < l1; i++ {
+			for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v1[i] = &Document{}
 				v1[i].Decode(dBuf)
 			}
@@ -267477,11 +267568,11 @@ func (m *TLWebPageAttributeStickerSet) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(Document{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l8)
 		}
 		v8 := make([]*Document, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &Document{}
 			v8[i].Decode(dBuf)
 		}
@@ -267619,11 +267710,11 @@ func (m *TLWebPageAttributeStarGiftCollection) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(Document{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			return fmt.Errorf("invalid vector length: %d", l10)
 		}
 		v10 := make([]*Document, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &Document{}
 			v10[i].Decode(dBuf)
 		}
@@ -268614,7 +268705,7 @@ func (m *TLInvokeAfterMsg) Decode(dBuf *DecodeBuf) error {
 		// not has flags
 
 		m.MsgId = dBuf.Long()
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -268655,7 +268746,7 @@ func (m *TLInvokeAfterMsgs) Decode(dBuf *DecodeBuf) error {
 
 		m.MsgIds = dBuf.VectorLong()
 
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -268770,7 +268861,7 @@ func (m *TLInitConnection) Decode(dBuf *DecodeBuf) error {
 			m10.Decode(dBuf)
 			m.Params = m10
 		}
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 	case 0x785188b8:
 
@@ -268795,7 +268886,7 @@ func (m *TLInitConnection) Decode(dBuf *DecodeBuf) error {
 			m10.Decode(dBuf)
 			m.Params = m10
 		}
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -268834,7 +268925,7 @@ func (m *TLInvokeWithLayer) Decode(dBuf *DecodeBuf) error {
 		// not has flags
 
 		m.Layer = dBuf.Int()
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -268871,7 +268962,7 @@ func (m *TLInvokeWithoutUpdates) Decode(dBuf *DecodeBuf) error {
 
 		// not has flags
 
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -268913,7 +269004,7 @@ func (m *TLInvokeWithMessagesRange) Decode(dBuf *DecodeBuf) error {
 		m1.Decode(dBuf)
 		m.Range = m1
 
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -268952,7 +269043,7 @@ func (m *TLInvokeWithTakeout) Decode(dBuf *DecodeBuf) error {
 		// not has flags
 
 		m.TakeoutId = dBuf.Long()
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -268991,7 +269082,7 @@ func (m *TLInvokeWithBusinessConnection) Decode(dBuf *DecodeBuf) error {
 		// not has flags
 
 		m.ConnectionId = dBuf.String()
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -269032,7 +269123,7 @@ func (m *TLInvokeWithGooglePlayIntegrity) Decode(dBuf *DecodeBuf) error {
 
 		m.Nonce = dBuf.String()
 		m.Token = dBuf.String()
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -269073,7 +269164,7 @@ func (m *TLInvokeWithApnsSecret) Decode(dBuf *DecodeBuf) error {
 
 		m.Nonce = dBuf.String()
 		m.Secret = dBuf.String()
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -269112,7 +269203,7 @@ func (m *TLInvokeWithReCaptcha) Decode(dBuf *DecodeBuf) error {
 		// not has flags
 
 		m.Token = dBuf.String()
-		m.Query = dBuf.Bytes(dBuf.GetSize() - dBuf.GetOffset())
+		m.Query = dBuf.BytesNoCopy(dBuf.GetSize() - dBuf.GetOffset()) // pluma: the query is decoded right after; copying it at every invoke* level cost O(n^2)
 		return dBuf.GetError()
 
 	default:
@@ -271006,12 +271097,12 @@ func (m *TLAccountSetPrivacy) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputPrivacyRule{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputPrivacyRule, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputPrivacyRule{}
 			v2[i].Decode(dBuf)
 		}
@@ -271790,12 +271881,12 @@ func (m *TLAccountGetSecureValue) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(SecureValueType{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*SecureValueType, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &SecureValueType{}
 			v1[i].Decode(dBuf)
 		}
@@ -271900,12 +271991,12 @@ func (m *TLAccountDeleteSecureValue) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(SecureValueType{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*SecureValueType, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &SecureValueType{}
 			v1[i].Decode(dBuf)
 		}
@@ -272018,12 +272109,12 @@ func (m *TLAccountAcceptAuthorization) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(SecureValueHash{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 			return dBuf.err
 		}
 		v4 := make([]*SecureValueHash, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &SecureValueHash{}
 			v4[i].Decode(dBuf)
 		}
@@ -273160,12 +273251,12 @@ func (m *TLAccountCreateTheme) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputThemeSettings{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*InputThemeSettings, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &InputThemeSettings{}
 				v5[i].Decode(dBuf)
 			}
@@ -273283,12 +273374,12 @@ func (m *TLAccountUpdateTheme) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(InputThemeSettings{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*InputThemeSettings, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &InputThemeSettings{}
 				v7[i].Decode(dBuf)
 			}
@@ -273709,12 +273800,12 @@ func (m *TLAccountGetMultiWallPapers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputWallPaper{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputWallPaper, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputWallPaper{}
 			v1[i].Decode(dBuf)
 		}
@@ -276718,12 +276809,12 @@ func (m *TLUsersGetUsers) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputUser{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputUser, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputUser{}
 			v1[i].Decode(dBuf)
 		}
@@ -276832,12 +276923,12 @@ func (m *TLUsersSetSecureValueErrors) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(SecureValueError{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*SecureValueError, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &SecureValueError{}
 			v2[i].Decode(dBuf)
 		}
@@ -276900,12 +276991,12 @@ func (m *TLUsersGetRequirementsToContact) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputUser{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputUser, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputUser{}
 			v1[i].Decode(dBuf)
 		}
@@ -277020,12 +277111,12 @@ func (m *TLUsersGetSavedMusicByID) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputDocument{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputDocument, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputDocument{}
 			v2[i].Decode(dBuf)
 		}
@@ -277241,12 +277332,12 @@ func (m *TLContactsImportContacts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputContact{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputContact, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputContact{}
 			v1[i].Decode(dBuf)
 		}
@@ -277309,12 +277400,12 @@ func (m *TLContactsDeleteContacts) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputUser{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputUser, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputUser{}
 			v1[i].Decode(dBuf)
 		}
@@ -278460,12 +278551,12 @@ func (m *TLContactsSetBlocked) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(InputPeer{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*InputPeer, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &InputPeer{}
 			v3[i].Decode(dBuf)
 		}
@@ -278652,12 +278743,12 @@ func (m *TLMessagesGetMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputMessage{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputMessage, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputMessage{}
 			v1[i].Decode(dBuf)
 		}
@@ -278994,12 +279085,12 @@ func (m *TLMessagesSearch) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(Reaction{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*Reaction, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &Reaction{}
 				v6[i].Decode(dBuf)
 			}
@@ -280381,12 +280472,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -280483,12 +280574,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -280580,12 +280671,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -280673,12 +280764,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -280761,12 +280852,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -280842,12 +280933,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l14)
 				return dBuf.err
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -280919,12 +281010,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l14)
 				return dBuf.err
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -280991,12 +281082,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l14)
 				return dBuf.err
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -281059,12 +281150,12 @@ func (m *TLMessagesSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l13 := dBuf.Int()
-			if l13 < 0 || l13 > maxVectorLen {
+			if dBuf.vectorTooLong(l13, unsafe.Sizeof(MessageEntity{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l13)
 				return dBuf.err
 			}
 			v13 := make([]*MessageEntity, l13)
-			for i := int32(0); i < l13; i++ {
+			for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v13[i] = &MessageEntity{}
 				v13[i].Decode(dBuf)
 			}
@@ -281942,12 +282033,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -282041,12 +282132,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -282136,12 +282227,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -282226,12 +282317,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l15 := dBuf.Int()
-			if l15 < 0 || l15 > maxVectorLen {
+			if dBuf.vectorTooLong(l15, unsafe.Sizeof(MessageEntity{})) || l15 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l15)
 				return dBuf.err
 			}
 			v15 := make([]*MessageEntity, l15)
-			for i := int32(0); i < l15; i++ {
+			for i := int32(0); i < l15 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v15[i] = &MessageEntity{}
 				v15[i].Decode(dBuf)
 			}
@@ -282309,12 +282400,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l14)
 				return dBuf.err
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -282388,12 +282479,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l14)
 				return dBuf.err
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -282461,12 +282552,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l14 := dBuf.Int()
-			if l14 < 0 || l14 > maxVectorLen {
+			if dBuf.vectorTooLong(l14, unsafe.Sizeof(MessageEntity{})) || l14 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l14)
 				return dBuf.err
 			}
 			v14 := make([]*MessageEntity, l14)
-			for i := int32(0); i < l14; i++ {
+			for i := int32(0); i < l14 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v14[i] = &MessageEntity{}
 				v14[i].Decode(dBuf)
 			}
@@ -282530,12 +282621,12 @@ func (m *TLMessagesSendMedia) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l13 := dBuf.Int()
-			if l13 < 0 || l13 > maxVectorLen {
+			if dBuf.vectorTooLong(l13, unsafe.Sizeof(MessageEntity{})) || l13 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l13)
 				return dBuf.err
 			}
 			v13 := make([]*MessageEntity, l13)
-			for i := int32(0); i < l13; i++ {
+			for i := int32(0); i < l13 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v13[i] = &MessageEntity{}
 				v13[i].Decode(dBuf)
 			}
@@ -284359,12 +284450,12 @@ func (m *TLMessagesCreateChat92CEDDD4) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputUser{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputUser, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputUser{}
 			v2[i].Decode(dBuf)
 		}
@@ -285068,12 +285159,12 @@ func (m *TLMessagesGetWebPagePreview570D6F6F) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 				return dBuf.err
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -286253,12 +286344,12 @@ func (m *TLMessagesSetInlineBotResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputBotInlineResult{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 			return dBuf.err
 		}
 		v5 := make([]*InputBotInlineResult, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &InputBotInlineResult{}
 			v5[i].Decode(dBuf)
 		}
@@ -286299,12 +286390,12 @@ func (m *TLMessagesSetInlineBotResults) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputBotInlineResult{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 			return dBuf.err
 		}
 		v5 := make([]*InputBotInlineResult, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &InputBotInlineResult{}
 			v5[i].Decode(dBuf)
 		}
@@ -287258,12 +287349,12 @@ func (m *TLMessagesEditMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 				return dBuf.err
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -287326,12 +287417,12 @@ func (m *TLMessagesEditMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 				return dBuf.err
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -287389,12 +287480,12 @@ func (m *TLMessagesEditMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 				return dBuf.err
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -287448,12 +287539,12 @@ func (m *TLMessagesEditMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 				return dBuf.err
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -287654,12 +287745,12 @@ func (m *TLMessagesEditInlineBotMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(MessageEntity{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 				return dBuf.err
 			}
 			v8 := make([]*MessageEntity, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &MessageEntity{}
 				v8[i].Decode(dBuf)
 			}
@@ -287709,12 +287800,12 @@ func (m *TLMessagesEditInlineBotMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(MessageEntity{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 				return dBuf.err
 			}
 			v8 := make([]*MessageEntity, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &MessageEntity{}
 				v8[i].Decode(dBuf)
 			}
@@ -287931,12 +288022,12 @@ func (m *TLMessagesGetPeerDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputDialogPeer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputDialogPeer, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputDialogPeer{}
 			v1[i].Decode(dBuf)
 		}
@@ -288352,12 +288443,12 @@ func (m *TLMessagesSaveDraft) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -288413,12 +288504,12 @@ func (m *TLMessagesSaveDraft) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -288469,12 +288560,12 @@ func (m *TLMessagesSaveDraft) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -288520,12 +288611,12 @@ func (m *TLMessagesSaveDraft) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -288566,12 +288657,12 @@ func (m *TLMessagesSaveDraft) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -288603,12 +288694,12 @@ func (m *TLMessagesSaveDraft) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -289455,12 +289546,12 @@ func (m *TLMessagesReorderPinnedDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputDialogPeer{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 			return dBuf.err
 		}
 		v4 := make([]*InputDialogPeer, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &InputDialogPeer{}
 			v4[i].Decode(dBuf)
 		}
@@ -289586,12 +289677,12 @@ func (m *TLMessagesSetBotShippingResults) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(ShippingOption{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 				return dBuf.err
 			}
 			v4 := make([]*ShippingOption, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &ShippingOption{}
 				v4[i].Decode(dBuf)
 			}
@@ -290635,12 +290726,12 @@ func (m *TLMessagesSendMultiMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l11 := dBuf.Int()
-		if l11 < 0 || l11 > maxVectorLen {
+		if dBuf.vectorTooLong(l11, unsafe.Sizeof(InputSingleMedia{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l11)
 			return dBuf.err
 		}
 		v11 := make([]*InputSingleMedia, l11)
-		for i := int32(0); i < l11; i++ {
+		for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v11[i] = &InputSingleMedia{}
 			v11[i].Decode(dBuf)
 		}
@@ -290712,12 +290803,12 @@ func (m *TLMessagesSendMultiMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l11 := dBuf.Int()
-		if l11 < 0 || l11 > maxVectorLen {
+		if dBuf.vectorTooLong(l11, unsafe.Sizeof(InputSingleMedia{})) || l11 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l11)
 			return dBuf.err
 		}
 		v11 := make([]*InputSingleMedia, l11)
-		for i := int32(0); i < l11; i++ {
+		for i := int32(0); i < l11 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v11[i] = &InputSingleMedia{}
 			v11[i].Decode(dBuf)
 		}
@@ -290782,12 +290873,12 @@ func (m *TLMessagesSendMultiMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(InputSingleMedia{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l10)
 			return dBuf.err
 		}
 		v10 := make([]*InputSingleMedia, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &InputSingleMedia{}
 			v10[i].Decode(dBuf)
 		}
@@ -290848,12 +290939,12 @@ func (m *TLMessagesSendMultiMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(InputSingleMedia{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l10)
 			return dBuf.err
 		}
 		v10 := make([]*InputSingleMedia, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &InputSingleMedia{}
 			v10[i].Decode(dBuf)
 		}
@@ -290909,12 +291000,12 @@ func (m *TLMessagesSendMultiMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(InputSingleMedia{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l10)
 			return dBuf.err
 		}
 		v10 := make([]*InputSingleMedia, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &InputSingleMedia{}
 			v10[i].Decode(dBuf)
 		}
@@ -290966,12 +291057,12 @@ func (m *TLMessagesSendMultiMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(InputSingleMedia{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 			return dBuf.err
 		}
 		v9 := make([]*InputSingleMedia, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &InputSingleMedia{}
 			v9[i].Decode(dBuf)
 		}
@@ -291917,12 +292008,12 @@ func (m *TLMessagesGetSearchCounters) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessagesFilter{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 			return dBuf.err
 		}
 		v5 := make([]*MessagesFilter, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &MessagesFilter{}
 			v5[i].Decode(dBuf)
 		}
@@ -291950,12 +292041,12 @@ func (m *TLMessagesGetSearchCounters) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(MessagesFilter{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 			return dBuf.err
 		}
 		v4 := make([]*MessagesFilter, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &MessagesFilter{}
 			v4[i].Decode(dBuf)
 		}
@@ -291976,12 +292067,12 @@ func (m *TLMessagesGetSearchCounters) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(MessagesFilter{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*MessagesFilter, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &MessagesFilter{}
 			v2[i].Decode(dBuf)
 		}
@@ -292700,12 +292791,12 @@ func (m *TLMessagesToggleStickerSets) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l5 := dBuf.Int()
-		if l5 < 0 || l5 > maxVectorLen {
+		if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputStickerSet{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 			return dBuf.err
 		}
 		v5 := make([]*InputStickerSet, l5)
-		for i := int32(0); i < l5; i++ {
+		for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v5[i] = &InputStickerSet{}
 			v5[i].Decode(dBuf)
 		}
@@ -294627,12 +294718,12 @@ func (m *TLMessagesSendReaction) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(Reaction{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*Reaction, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &Reaction{}
 				v6[i].Decode(dBuf)
 			}
@@ -295257,12 +295348,12 @@ func (m *TLMessagesTranslateText) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(TextWithEntities{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 				return dBuf.err
 			}
 			v4 := make([]*TextWithEntities, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &TextWithEntities{}
 				v4[i].Decode(dBuf)
 			}
@@ -295295,12 +295386,12 @@ func (m *TLMessagesTranslateText) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(TextWithEntities{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 				return dBuf.err
 			}
 			v4 := make([]*TextWithEntities, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &TextWithEntities{}
 				v4[i].Decode(dBuf)
 			}
@@ -297413,12 +297504,12 @@ func (m *TLMessagesSendBotRequestedPeer) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l6 := dBuf.Int()
-		if l6 < 0 || l6 > maxVectorLen {
+		if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputPeer{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 			return dBuf.err
 		}
 		v6 := make([]*InputPeer, l6)
-		for i := int32(0); i < l6; i++ {
+		for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v6[i] = &InputPeer{}
 			v6[i].Decode(dBuf)
 		}
@@ -297441,12 +297532,12 @@ func (m *TLMessagesSendBotRequestedPeer) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputPeer{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 			return dBuf.err
 		}
 		v4 := make([]*InputPeer, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &InputPeer{}
 			v4[i].Decode(dBuf)
 		}
@@ -298464,12 +298555,12 @@ func (m *TLMessagesReorderPinnedSavedDialogs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(InputDialogPeer{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*InputDialogPeer, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &InputDialogPeer{}
 			v3[i].Decode(dBuf)
 		}
@@ -300024,12 +300115,12 @@ func (m *TLMessagesSavePreparedInlineMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InlineQueryPeerType{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 				return dBuf.err
 			}
 			v4 := make([]*InlineQueryPeerType, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InlineQueryPeerType{}
 				v4[i].Decode(dBuf)
 			}
@@ -300275,12 +300366,12 @@ func (m *TLMessagesGetSavedDialogsByID) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(InputPeer{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*InputPeer, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &InputPeer{}
 			v3[i].Decode(dBuf)
 		}
@@ -300449,12 +300540,12 @@ func (m *TLMessagesAppendTodoList) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(TodoItem{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*TodoItem, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &TodoItem{}
 			v3[i].Decode(dBuf)
 		}
@@ -301543,12 +301634,12 @@ func (m *TLMessagesReportReadMetrics) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputMessageReadMetric{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputMessageReadMetric, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputMessageReadMetric{}
 			v2[i].Decode(dBuf)
 		}
@@ -302140,12 +302231,12 @@ func (m *TLMessagesTranslateRichMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputRichMessage{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 				return dBuf.err
 			}
 			v4 := make([]*InputRichMessage, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputRichMessage{}
 				v4[i].Decode(dBuf)
 			}
@@ -302918,12 +303009,12 @@ func (m *TLPhotosDeletePhotos) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputPhoto{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputPhoto, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputPhoto{}
 			v1[i].Decode(dBuf)
 		}
@@ -304084,12 +304175,12 @@ func (m *TLHelpSaveAppLog) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputAppEvent{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputAppEvent, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputAppEvent{}
 			v1[i].Decode(dBuf)
 		}
@@ -304271,12 +304362,12 @@ func (m *TLHelpEditUserInfo) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*MessageEntity, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &MessageEntity{}
 			v3[i].Decode(dBuf)
 		}
@@ -304789,12 +304880,12 @@ func (m *TLChannelsGetMessages) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputMessage{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputMessage, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputMessage{}
 			v2[i].Decode(dBuf)
 		}
@@ -304964,12 +305055,12 @@ func (m *TLChannelsGetChannels) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputChannel{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputChannel, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputChannel{}
 			v1[i].Decode(dBuf)
 		}
@@ -305592,12 +305683,12 @@ func (m *TLChannelsInviteToChannelC9E33D54) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputUser{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputUser, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputUser{}
 			v2[i].Decode(dBuf)
 		}
@@ -305995,12 +306086,12 @@ func (m *TLChannelsGetAdminLog) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputUser{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*InputUser, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &InputUser{}
 				v5[i].Decode(dBuf)
 			}
@@ -307995,12 +308086,12 @@ func (m *TLBotsSetBotCommands) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(BotCommand{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*BotCommand, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &BotCommand{}
 			v3[i].Decode(dBuf)
 		}
@@ -308866,12 +308957,12 @@ func (m *TLBotsDeletePreviewMedia) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(InputMedia{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*InputMedia, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &InputMedia{}
 			v3[i].Decode(dBuf)
 		}
@@ -308942,12 +309033,12 @@ func (m *TLBotsReorderPreviewMedias) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(InputMedia{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*InputMedia, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &InputMedia{}
 			v3[i].Decode(dBuf)
 		}
@@ -309753,12 +309844,12 @@ func (m *TLBotsEditAccessSettings) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputUser{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 				return dBuf.err
 			}
 			v4 := make([]*InputUser, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &InputUser{}
 				v4[i].Decode(dBuf)
 			}
@@ -311408,12 +311499,12 @@ func (m *TLPaymentsGetStarsTransactionsByID) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l4 := dBuf.Int()
-		if l4 < 0 || l4 > maxVectorLen {
+		if dBuf.vectorTooLong(l4, unsafe.Sizeof(InputStarsTransaction{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 			return dBuf.err
 		}
 		v4 := make([]*InputStarsTransaction, l4)
-		for i := int32(0); i < l4; i++ {
+		for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v4[i] = &InputStarsTransaction{}
 			v4[i].Decode(dBuf)
 		}
@@ -311434,12 +311525,12 @@ func (m *TLPaymentsGetStarsTransactionsByID) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputStarsTransaction{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputStarsTransaction, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputStarsTransaction{}
 			v2[i].Decode(dBuf)
 		}
@@ -312758,12 +312849,12 @@ func (m *TLPaymentsGetSavedStarGift) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputSavedStarGift{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputSavedStarGift, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputSavedStarGift{}
 			v1[i].Decode(dBuf)
 		}
@@ -312931,12 +313022,12 @@ func (m *TLPaymentsToggleStarGiftsPinnedToTop) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputSavedStarGift{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputSavedStarGift, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputSavedStarGift{}
 			v2[i].Decode(dBuf)
 		}
@@ -313092,12 +313183,12 @@ func (m *TLPaymentsGetResaleStarGifts) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(StarGiftAttributeId{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 				return dBuf.err
 			}
 			v8 := make([]*StarGiftAttributeId, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &StarGiftAttributeId{}
 				v8[i].Decode(dBuf)
 			}
@@ -313233,12 +313324,12 @@ func (m *TLPaymentsCreateStarGiftCollection) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(InputSavedStarGift{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*InputSavedStarGift, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &InputSavedStarGift{}
 			v3[i].Decode(dBuf)
 		}
@@ -313375,12 +313466,12 @@ func (m *TLPaymentsUpdateStarGiftCollection) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputSavedStarGift{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*InputSavedStarGift, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &InputSavedStarGift{}
 				v5[i].Decode(dBuf)
 			}
@@ -313393,12 +313484,12 @@ func (m *TLPaymentsUpdateStarGiftCollection) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputSavedStarGift{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*InputSavedStarGift, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputSavedStarGift{}
 				v6[i].Decode(dBuf)
 			}
@@ -313411,12 +313502,12 @@ func (m *TLPaymentsUpdateStarGiftCollection) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(InputSavedStarGift{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*InputSavedStarGift, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &InputSavedStarGift{}
 				v7[i].Decode(dBuf)
 			}
@@ -313995,12 +314086,12 @@ func (m *TLPaymentsCraftStarGift) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputSavedStarGift{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputSavedStarGift, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputSavedStarGift{}
 			v1[i].Decode(dBuf)
 		}
@@ -314119,12 +314210,12 @@ func (m *TLStickersCreateStickerSet) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(InputStickerSetItem{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 			return dBuf.err
 		}
 		v9 := make([]*InputStickerSetItem, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &InputStickerSetItem{}
 			v9[i].Decode(dBuf)
 		}
@@ -315546,12 +315637,12 @@ func (m *TLPhoneInviteToGroupCall) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputUser{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputUser, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputUser{}
 			v2[i].Decode(dBuf)
 		}
@@ -315892,12 +315983,12 @@ func (m *TLPhoneGetGroupParticipants) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputPeer{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputPeer, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputPeer{}
 			v2[i].Decode(dBuf)
 		}
@@ -317640,12 +317731,12 @@ func (m *TLFoldersEditPeerFolders) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputFolderPeer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputFolderPeer, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputFolderPeer{}
 			v1[i].Decode(dBuf)
 		}
@@ -318138,12 +318229,12 @@ func (m *TLChatlistsExportChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l3 := dBuf.Int()
-		if l3 < 0 || l3 > maxVectorLen {
+		if dBuf.vectorTooLong(l3, unsafe.Sizeof(InputPeer{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 			return dBuf.err
 		}
 		v3 := make([]*InputPeer, l3)
-		for i := int32(0); i < l3; i++ {
+		for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v3[i] = &InputPeer{}
 			v3[i].Decode(dBuf)
 		}
@@ -318280,12 +318371,12 @@ func (m *TLChatlistsEditExportedInvite) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(InputPeer{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*InputPeer, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &InputPeer{}
 				v5[i].Decode(dBuf)
 			}
@@ -318428,12 +318519,12 @@ func (m *TLChatlistsJoinChatlistInvite) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputPeer{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputPeer, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputPeer{}
 			v2[i].Decode(dBuf)
 		}
@@ -318542,12 +318633,12 @@ func (m *TLChatlistsJoinChatlistUpdates) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputPeer{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputPeer, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputPeer{}
 			v2[i].Decode(dBuf)
 		}
@@ -318696,12 +318787,12 @@ func (m *TLChatlistsLeaveChatlist) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputPeer{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputPeer, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputPeer{}
 			v2[i].Decode(dBuf)
 		}
@@ -319421,12 +319512,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MediaArea{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MediaArea, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MediaArea{}
 				v7[i].Decode(dBuf)
 			}
@@ -319443,12 +319534,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 				return dBuf.err
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -319460,12 +319551,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(InputPrivacyRule{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l10)
 			return dBuf.err
 		}
 		v10 := make([]*InputPrivacyRule, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &InputPrivacyRule{}
 			v10[i].Decode(dBuf)
 		}
@@ -319525,12 +319616,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MediaArea{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MediaArea, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MediaArea{}
 				v7[i].Decode(dBuf)
 			}
@@ -319547,12 +319638,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 				return dBuf.err
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -319564,12 +319655,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(InputPrivacyRule{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l10)
 			return dBuf.err
 		}
 		v10 := make([]*InputPrivacyRule, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &InputPrivacyRule{}
 			v10[i].Decode(dBuf)
 		}
@@ -319624,12 +319715,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MediaArea{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MediaArea, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MediaArea{}
 				v7[i].Decode(dBuf)
 			}
@@ -319646,12 +319737,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l9 := dBuf.Int()
-			if l9 < 0 || l9 > maxVectorLen {
+			if dBuf.vectorTooLong(l9, unsafe.Sizeof(MessageEntity{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 				return dBuf.err
 			}
 			v9 := make([]*MessageEntity, l9)
-			for i := int32(0); i < l9; i++ {
+			for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v9[i] = &MessageEntity{}
 				v9[i].Decode(dBuf)
 			}
@@ -319663,12 +319754,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l10 := dBuf.Int()
-		if l10 < 0 || l10 > maxVectorLen {
+		if dBuf.vectorTooLong(l10, unsafe.Sizeof(InputPrivacyRule{})) || l10 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l10)
 			return dBuf.err
 		}
 		v10 := make([]*InputPrivacyRule, l10)
-		for i := int32(0); i < l10; i++ {
+		for i := int32(0); i < l10 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v10[i] = &InputPrivacyRule{}
 			v10[i].Decode(dBuf)
 		}
@@ -319717,12 +319808,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MediaArea{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*MediaArea, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MediaArea{}
 				v6[i].Decode(dBuf)
 			}
@@ -319739,12 +319830,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(MessageEntity{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 				return dBuf.err
 			}
 			v8 := make([]*MessageEntity, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &MessageEntity{}
 				v8[i].Decode(dBuf)
 			}
@@ -319756,12 +319847,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l9 := dBuf.Int()
-		if l9 < 0 || l9 > maxVectorLen {
+		if dBuf.vectorTooLong(l9, unsafe.Sizeof(InputPrivacyRule{})) || l9 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l9)
 			return dBuf.err
 		}
 		v9 := make([]*InputPrivacyRule, l9)
-		for i := int32(0); i < l9; i++ {
+		for i := int32(0); i < l9 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v9[i] = &InputPrivacyRule{}
 			v9[i].Decode(dBuf)
 		}
@@ -319797,12 +319888,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MediaArea{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*MediaArea, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MediaArea{}
 				v5[i].Decode(dBuf)
 			}
@@ -319819,12 +319910,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -319836,12 +319927,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(InputPrivacyRule{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 			return dBuf.err
 		}
 		v8 := make([]*InputPrivacyRule, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &InputPrivacyRule{}
 			v8[i].Decode(dBuf)
 		}
@@ -319881,12 +319972,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -319898,12 +319989,12 @@ func (m *TLStoriesSendStory) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l7 := dBuf.Int()
-		if l7 < 0 || l7 > maxVectorLen {
+		if dBuf.vectorTooLong(l7, unsafe.Sizeof(InputPrivacyRule{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 			return dBuf.err
 		}
 		v7 := make([]*InputPrivacyRule, l7)
-		for i := int32(0); i < l7; i++ {
+		for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v7[i] = &InputPrivacyRule{}
 			v7[i].Decode(dBuf)
 		}
@@ -320306,12 +320397,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MediaArea{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*MediaArea, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MediaArea{}
 				v5[i].Decode(dBuf)
 			}
@@ -320328,12 +320419,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -320346,12 +320437,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(InputPrivacyRule{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 				return dBuf.err
 			}
 			v8 := make([]*InputPrivacyRule, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &InputPrivacyRule{}
 				v8[i].Decode(dBuf)
 			}
@@ -320387,12 +320478,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MediaArea{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*MediaArea, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MediaArea{}
 				v5[i].Decode(dBuf)
 			}
@@ -320409,12 +320500,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -320427,12 +320518,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l8 := dBuf.Int()
-			if l8 < 0 || l8 > maxVectorLen {
+			if dBuf.vectorTooLong(l8, unsafe.Sizeof(InputPrivacyRule{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 				return dBuf.err
 			}
 			v8 := make([]*InputPrivacyRule, l8)
-			for i := int32(0); i < l8; i++ {
+			for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v8[i] = &InputPrivacyRule{}
 				v8[i].Decode(dBuf)
 			}
@@ -320458,12 +320549,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l4 := dBuf.Int()
-			if l4 < 0 || l4 > maxVectorLen {
+			if dBuf.vectorTooLong(l4, unsafe.Sizeof(MediaArea{})) || l4 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l4)
 				return dBuf.err
 			}
 			v4 := make([]*MediaArea, l4)
-			for i := int32(0); i < l4; i++ {
+			for i := int32(0); i < l4 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v4[i] = &MediaArea{}
 				v4[i].Decode(dBuf)
 			}
@@ -320480,12 +320571,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -320498,12 +320589,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(InputPrivacyRule{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*InputPrivacyRule, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &InputPrivacyRule{}
 				v7[i].Decode(dBuf)
 			}
@@ -320533,12 +320624,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l5 := dBuf.Int()
-			if l5 < 0 || l5 > maxVectorLen {
+			if dBuf.vectorTooLong(l5, unsafe.Sizeof(MessageEntity{})) || l5 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l5)
 				return dBuf.err
 			}
 			v5 := make([]*MessageEntity, l5)
-			for i := int32(0); i < l5; i++ {
+			for i := int32(0); i < l5 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v5[i] = &MessageEntity{}
 				v5[i].Decode(dBuf)
 			}
@@ -320551,12 +320642,12 @@ func (m *TLStoriesEditStory) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(InputPrivacyRule{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*InputPrivacyRule, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &InputPrivacyRule{}
 				v6[i].Decode(dBuf)
 			}
@@ -321707,12 +321798,12 @@ func (m *TLStoriesGetPeerMaxIDs78499170) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputPeer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputPeer, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputPeer{}
 			v1[i].Decode(dBuf)
 		}
@@ -322497,12 +322588,12 @@ func (m *TLStoriesStartLive) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l7 := dBuf.Int()
-			if l7 < 0 || l7 > maxVectorLen {
+			if dBuf.vectorTooLong(l7, unsafe.Sizeof(MessageEntity{})) || l7 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l7)
 				return dBuf.err
 			}
 			v7 := make([]*MessageEntity, l7)
-			for i := int32(0); i < l7; i++ {
+			for i := int32(0); i < l7 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v7[i] = &MessageEntity{}
 				v7[i].Decode(dBuf)
 			}
@@ -322514,12 +322605,12 @@ func (m *TLStoriesStartLive) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l8 := dBuf.Int()
-		if l8 < 0 || l8 > maxVectorLen {
+		if dBuf.vectorTooLong(l8, unsafe.Sizeof(InputPrivacyRule{})) || l8 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l8)
 			return dBuf.err
 		}
 		v8 := make([]*InputPrivacyRule, l8)
-		for i := int32(0); i < l8; i++ {
+		for i := int32(0); i < l8 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v8[i] = &InputPrivacyRule{}
 			v8[i].Decode(dBuf)
 		}
@@ -324045,12 +324136,12 @@ func (m *TLEphemeralSendMessage) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l6 := dBuf.Int()
-			if l6 < 0 || l6 > maxVectorLen {
+			if dBuf.vectorTooLong(l6, unsafe.Sizeof(MessageEntity{})) || l6 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l6)
 				return dBuf.err
 			}
 			v6 := make([]*MessageEntity, l6)
-			for i := int32(0); i < l6; i++ {
+			for i := int32(0); i < l6 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v6[i] = &MessageEntity{}
 				v6[i].Decode(dBuf)
 			}
@@ -324564,12 +324655,12 @@ func (m *TLStoriesGetPeerMaxIDs535983C3) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputPeer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputPeer, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputPeer{}
 			v1[i].Decode(dBuf)
 		}
@@ -325531,12 +325622,12 @@ func (m *TLUsersGetIsPremiumRequiredToContact) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputUser{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputUser, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputUser{}
 			v1[i].Decode(dBuf)
 		}
@@ -325696,12 +325787,12 @@ func (m *TLMessagesGetWebPagePreview8B68B0CC) Decode(dBuf *DecodeBuf) error {
 				return dBuf.GetError()
 			}
 			l3 := dBuf.Int()
-			if l3 < 0 || l3 > maxVectorLen {
+			if dBuf.vectorTooLong(l3, unsafe.Sizeof(MessageEntity{})) || l3 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 				dBuf.err = fmt.Errorf("invalid vector length: %d", l3)
 				return dBuf.err
 			}
 			v3 := make([]*MessageEntity, l3)
-			for i := int32(0); i < l3; i++ {
+			for i := int32(0); i < l3 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 				v3[i] = &MessageEntity{}
 				v3[i].Decode(dBuf)
 			}
@@ -326317,12 +326408,12 @@ func (m *TLMessagesCreateChat34A818) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputUser{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputUser, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputUser{}
 			v2[i].Decode(dBuf)
 		}
@@ -326396,12 +326487,12 @@ func (m *TLChannelsInviteToChannel199F3A6C) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l2 := dBuf.Int()
-		if l2 < 0 || l2 > maxVectorLen {
+		if dBuf.vectorTooLong(l2, unsafe.Sizeof(InputUser{})) || l2 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l2)
 			return dBuf.err
 		}
 		v2 := make([]*InputUser, l2)
-		for i := int32(0); i < l2; i++ {
+		for i := int32(0); i < l2 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v2[i] = &InputUser{}
 			v2[i].Decode(dBuf)
 		}
@@ -326792,12 +326883,12 @@ func (m *TLUsersGetStoriesMaxIDs) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputUser{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputUser, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputUser{}
 			v1[i].Decode(dBuf)
 		}
@@ -327326,12 +327417,12 @@ func (m *TLMessagesCreateChat9CB126E) Decode(dBuf *DecodeBuf) error {
 			return dBuf.GetError()
 		}
 		l1 := dBuf.Int()
-		if l1 < 0 || l1 > maxVectorLen {
+		if dBuf.vectorTooLong(l1, unsafe.Sizeof(InputUser{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 			dBuf.err = fmt.Errorf("invalid vector length: %d", l1)
 			return dBuf.err
 		}
 		v1 := make([]*InputUser, l1)
-		for i := int32(0); i < l1; i++ {
+		for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 			v1[i] = &InputUser{}
 			v1[i].Decode(dBuf)
 		}
@@ -328194,11 +328285,11 @@ func (m *Vector_SecureValue) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_SecureValue) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(SecureValue{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*SecureValue, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(SecureValue)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328235,11 +328326,11 @@ func (m *Vector_WallPaper) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_WallPaper) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(WallPaper{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*WallPaper, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(WallPaper)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328276,11 +328367,11 @@ func (m *Vector_User) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_User) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(User{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*User, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(User)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328317,11 +328408,11 @@ func (m *Vector_RequirementToContact) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_RequirementToContact) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(RequirementToContact{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*RequirementToContact, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(RequirementToContact)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328376,11 +328467,11 @@ func (m *Vector_ContactStatus) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_ContactStatus) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(ContactStatus{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*ContactStatus, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(ContactStatus)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328417,11 +328508,11 @@ func (m *Vector_SavedContact) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_SavedContact) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(SavedContact{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*SavedContact, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(SavedContact)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328458,11 +328549,11 @@ func (m *Vector_ReceivedNotifyMessage) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_ReceivedNotifyMessage) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(ReceivedNotifyMessage{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*ReceivedNotifyMessage, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(ReceivedNotifyMessage)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328517,11 +328608,11 @@ func (m *Vector_StickerSetCovered) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_StickerSetCovered) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(StickerSetCovered{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*StickerSetCovered, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(StickerSetCovered)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328558,11 +328649,11 @@ func (m *Vector_MessageRange) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_MessageRange) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(MessageRange{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*MessageRange, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(MessageRange)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328599,11 +328690,11 @@ func (m *Vector_DialogPeer) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_DialogPeer) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(DialogPeer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*DialogPeer, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(DialogPeer)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328640,11 +328731,11 @@ func (m *Vector_EmojiLanguage) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_EmojiLanguage) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(EmojiLanguage{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*EmojiLanguage, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(EmojiLanguage)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328681,11 +328772,11 @@ func (m *Vector_Messages_SearchCounter) Encode(x *EncodeBuf, layer int32) error 
 func (m *Vector_Messages_SearchCounter) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(Messages_SearchCounter{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*Messages_SearchCounter, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(Messages_SearchCounter)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328722,11 +328813,11 @@ func (m *Vector_DialogFilterSuggested) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_DialogFilterSuggested) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(DialogFilterSuggested{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*DialogFilterSuggested, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(DialogFilterSuggested)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328763,11 +328854,11 @@ func (m *Vector_ReadParticipantDate) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_ReadParticipantDate) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(ReadParticipantDate{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*ReadParticipantDate, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(ReadParticipantDate)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328804,11 +328895,11 @@ func (m *Vector_Document) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_Document) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(Document{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*Document, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(Document)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328845,11 +328936,11 @@ func (m *Vector_FactCheck) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_FactCheck) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(FactCheck{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*FactCheck, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(FactCheck)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328886,11 +328977,11 @@ func (m *Vector_FileHash) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_FileHash) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(FileHash{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*FileHash, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(FileHash)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328927,11 +329018,11 @@ func (m *Vector_BotCommand) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_BotCommand) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(BotCommand{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*BotCommand, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(BotCommand)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -328968,11 +329059,11 @@ func (m *Vector_BotPreviewMedia) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_BotPreviewMedia) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(BotPreviewMedia{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*BotPreviewMedia, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(BotPreviewMedia)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329009,11 +329100,11 @@ func (m *Vector_PremiumGiftCodeOption) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_PremiumGiftCodeOption) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(PremiumGiftCodeOption{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*PremiumGiftCodeOption, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(PremiumGiftCodeOption)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329050,11 +329141,11 @@ func (m *Vector_StarsTopupOption) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_StarsTopupOption) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(StarsTopupOption{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*StarsTopupOption, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(StarsTopupOption)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329091,11 +329182,11 @@ func (m *Vector_StarsGiftOption) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_StarsGiftOption) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(StarsGiftOption{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*StarsGiftOption, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(StarsGiftOption)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329132,11 +329223,11 @@ func (m *Vector_StarsGiveawayOption) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_StarsGiveawayOption) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(StarsGiveawayOption{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*StarsGiveawayOption, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(StarsGiveawayOption)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329173,11 +329264,11 @@ func (m *Vector_LangPackString) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_LangPackString) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(LangPackString{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*LangPackString, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(LangPackString)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329214,11 +329305,11 @@ func (m *Vector_LangPackLanguage) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_LangPackLanguage) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(LangPackLanguage{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*LangPackLanguage, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(LangPackLanguage)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329255,11 +329346,11 @@ func (m *Vector_Peer) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_Peer) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(Peer{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*Peer, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(Peer)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329296,11 +329387,11 @@ func (m *Vector_RecentStory) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_RecentStory) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(RecentStory{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*RecentStory, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(RecentStory)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329337,11 +329428,11 @@ func (m *Vector_Bool) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_Bool) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(Bool{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*Bool, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(Bool)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329378,11 +329469,11 @@ func (m *Vector_DialogFilter) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_DialogFilter) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(DialogFilter{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*DialogFilter, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(DialogFilter)
 		(*m.Datas[i]).Decode(dBuf)
 	}
@@ -329437,11 +329528,11 @@ func (m *Vector_PredefinedUser) Encode(x *EncodeBuf, layer int32) error {
 func (m *Vector_PredefinedUser) Decode(dBuf *DecodeBuf) error {
 	dBuf.Int() // TODO(@benqi): Check crc32 invalid
 	l1 := dBuf.Int()
-	if l1 < 0 || l1 > maxVectorLen {
+	if dBuf.vectorTooLong(l1, unsafe.Sizeof(PredefinedUser{})) || l1 > maxVectorLen { // pluma: bound the length by the remaining input and budget
 		return fmt.Errorf("invalid vector length: %d", l1)
 	}
 	m.Datas = make([]*PredefinedUser, l1)
-	for i := int32(0); i < l1; i++ {
+	for i := int32(0); i < l1 && dBuf.err == nil; i++ { // pluma: stop at the first decode error
 		m.Datas[i] = new(PredefinedUser)
 		(*m.Datas[i]).Decode(dBuf)
 	}

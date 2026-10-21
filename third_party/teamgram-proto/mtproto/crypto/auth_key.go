@@ -22,9 +22,9 @@ import (
 	"bytes"
 	"crypto/sha1"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/binary"
-	"encoding/hex"
-	"fmt"
+	"errors"
 )
 
 const (
@@ -269,72 +269,96 @@ func (k *AuthKey) AesIgeEncrypt(rawData []byte) ([]byte, []byte, error) {
 	return result, x, nil
 }
 
+// pluma: limits checked on every decrypted message (MTProto security
+// guidelines). The plaintext is salt:long session_id:long msg_id:long
+// seq_no:int message_data_length:int message_data padding.
+const (
+	decryptedHeaderSize = 32
+	minPaddingV2        = 12
+	maxPaddingV2        = 1024
+	maxPaddingV1        = 15
+)
+
+// pluma: ErrDecryptMessage is the only error AesIgeDecrypt and
+// AesIgeDecryptV1 return for a message that does not decrypt or is malformed:
+// the same answer whatever check failed (security guidelines), and nothing
+// derived from the key or the data.
+var ErrDecryptMessage = errors.New("aesIgeDecrypt: invalid encrypted message")
+
+// pluma: checkMessageLength reports whether message_data_length in a
+// plaintext of dataLen bytes is valid: divisible by 4 and leaving between
+// minPadding and maxPadding bytes of padding (computed without overflow).
+func checkMessageLength(x []byte, minPadding, maxPadding int) bool {
+	if len(x) < decryptedHeaderSize {
+		return false
+	}
+	messageLen := uint64(binary.LittleEndian.Uint32(x[28:]))
+	if messageLen%4 != 0 || messageLen > uint64(len(x)-decryptedHeaderSize) {
+		return false
+	}
+	padding := uint64(len(x)-decryptedHeaderSize) - messageLen
+	return padding >= uint64(minPadding) && padding <= uint64(maxPadding)
+}
+
 func (k *AuthKey) AesIgeDecryptV1(msgKey, rawData []byte) ([]byte, error) {
+	// pluma: reject short or misaligned input before any slicing (it used to
+	// panic) and check message_data_length; errors carry no key material.
+	if len(msgKey) < 16 || len(rawData) < decryptedHeaderSize || len(rawData)%16 != 0 {
+		return nil, ErrDecryptMessage
+	}
+
 	aesKey, aesIV := k.prepareAESV1(msgKey, false)
 	d := NewAES256IGECryptor(aesKey, aesIV)
 	x, err := d.Decrypt(rawData)
 	if err != nil {
-		return nil, err
+		return nil, ErrDecryptMessage
 	}
 
-	var dataLen = uint32(len(rawData))
-	messageLen := binary.LittleEndian.Uint32(x[28:])
-	if messageLen+32 > dataLen {
-		err = fmt.Errorf("aesIgeDecrypt data(%d) error - Wrong message length %d", dataLen, messageLen)
-		return nil, err
+	// MTProto 1.0: msg_key is the SHA1 of the plaintext without its 0..15
+	// bytes of padding, so the length must be valid to compute it.
+	if !checkMessageLength(x, 0, maxPaddingV1) {
+		return nil, ErrDecryptMessage
 	}
+	messageLen := binary.LittleEndian.Uint32(x[28:])
 
 	var calcMsgKey [32]byte
-	sha1Sum := sha1.Sum(x[:32+messageLen])
+	sha1Sum := sha1.Sum(x[:decryptedHeaderSize+int(messageLen)])
 	copy(calcMsgKey[4:], sha1Sum[:])
 
-	if !bytes.Equal(calcMsgKey[8:8+16], msgKey[:16]) {
-		err = fmt.Errorf("aesIgeDecrypt data error - (data: %s, aesKey: %s, aseIV: %s, authKeyId: %d, authKey: %s), msgKey verify error, sign: %s, msgKey: %s",
-			hex.EncodeToString(rawData[:64]),
-			hex.EncodeToString(aesKey),
-			hex.EncodeToString(aesIV),
-			k.authKeyId,
-			hex.EncodeToString(k.authKey[88:88+32]),
-			hex.EncodeToString(calcMsgKey[8:8+16]),
-			hex.EncodeToString(msgKey[:16]))
-		return nil, err
+	if subtle.ConstantTimeCompare(calcMsgKey[8:8+16], msgKey[:16]) != 1 {
+		return nil, ErrDecryptMessage
 	}
 
 	return x, nil
 }
 
 func (k *AuthKey) AesIgeDecrypt(msgKey, rawData []byte) ([]byte, error) {
+	// pluma: reject short or misaligned input before any slicing (it used to
+	// panic); the smallest message is a 32-byte header and 12 bytes of
+	// padding, rounded up to the block size.
+	if len(msgKey) < 16 || len(rawData) < decryptedHeaderSize+minPaddingV2 || len(rawData)%16 != 0 {
+		return nil, ErrDecryptMessage
+	}
+
 	aesKey, aesIV := k.prepareAES(msgKey, false)
 	d := NewAES256IGECryptor(aesKey, aesIV)
 	x, err := d.Decrypt(rawData)
 	if err != nil {
-		return nil, err
+		return nil, ErrDecryptMessage
 	}
 
-	var dataLen = uint32(len(rawData))
-	messageLen := binary.LittleEndian.Uint32(x[28:])
-
-	if messageLen+32 > dataLen {
-		err = fmt.Errorf("aesIgeDecrypt data(%d) error - Wrong message length %d", dataLen, messageLen)
-		return nil, err
-	}
-
+	// pluma: msg_key covers the whole plaintext, padding included, and is
+	// checked whatever the length fields say; any failure gives the same
+	// error (security guidelines).
 	sha256Dig := sha256.New()
 	sha256Dig.Write(k.partForMsgKey(false))
-	sha256Dig.Write(x[:dataLen])
+	sha256Dig.Write(x)
 	var calcMsgKey [32]byte
 	sha256Dig.Sum(calcMsgKey[:0])
 
-	if !bytes.Equal(calcMsgKey[8:8+16], msgKey[:16]) {
-		err = fmt.Errorf("aesIgeDecrypt data error - (data: %s, aesKey: %s, aseIV: %s, authKeyId: %d, authKey: %s), msgKey verify error, sign: %s, msgKey: %s",
-			hex.EncodeToString(rawData[:64]),
-			hex.EncodeToString(aesKey),
-			hex.EncodeToString(aesIV),
-			k.authKeyId,
-			hex.EncodeToString(k.authKey[88:88+32]),
-			hex.EncodeToString(calcMsgKey[8:8+16]),
-			hex.EncodeToString(msgKey[:16]))
-		return nil, err
+	msgKeyOk := subtle.ConstantTimeCompare(calcMsgKey[8:8+16], msgKey[:16]) == 1
+	if !msgKeyOk || !checkMessageLength(x, minPaddingV2, maxPaddingV2) {
+		return nil, ErrDecryptMessage
 	}
 
 	return x, nil

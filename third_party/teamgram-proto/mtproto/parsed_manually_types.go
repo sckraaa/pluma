@@ -23,12 +23,31 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"encoding/binary"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
 	"sync"
+	"unsafe" // pluma: element sizes for the vector allocation budget
 )
+
+// pluma: limits for manually parsed types.
+const (
+	// minMessage2Size is msg_id:long seqno:int bytes:int, the smallest
+	// encoding of a container element.
+	minMessage2Size = 16
+	// maxGzipUnpackedSize bounds what gzip_packed objects may unpack to
+	// within one decoded message; a whole MTProto message is at most
+	// 16 MiB, and so is anything it legitimately packs.
+	maxGzipUnpackedSize = 16 << 20
+	// maxPooledGzipBufSize keeps buffers grown by large payloads out of
+	// gzipBufPool.
+	maxPooledGzipBufSize = 1 << 20
+)
+
+// pluma: errGzipTooLarge rejects gzip_packed data that unpacks to more than
+// maxGzipUnpackedSize (a decompression bomb).
+var errGzipTooLarge = errors.New("gzip_packed: unpacked data too large")
 
 // TLMessageRawData
 // message2 msg_id:long seqno:int bytes:int body:Object = Message2; // parsed manually
@@ -117,6 +136,9 @@ func (m *TLMsgRawDataContainer) Encode(x *EncodeBuf, layer int32) error {
 
 func (m *TLMsgRawDataContainer) Decode(dbuf *DecodeBuf) error {
 	n := dbuf.Int()
+	if dbuf.vectorTooLongN(n, minMessage2Size, 0) || dbuf.vectorTooLong(n, unsafe.Sizeof(TLMessageRawData{})) { // pluma: bound by the input and the budget
+		return dbuf.err
+	}
 	if n > 0 {
 		m.Messages = make([]*TLMessageRawData, 0, int(n))
 	}
@@ -167,16 +189,19 @@ func (m *TLMessage2) Decode(dBuf *DecodeBuf) error {
 	m.Seqno = dBuf.Int()
 	m.Bytes = dBuf.Int()
 	// log.Debugf("message2: {msg_id: %d, seqno: %d, bytes: %d}", m.MsgId, m.Seqno, m.Bytes)
-	b := dBuf.Bytes(int(m.Bytes))
+	// pluma: decode the body in place; a copy per level made nested
+	// containers cost O(depth × size). Decoded objects copy what they keep.
+	b := dBuf.BytesNoCopy(int(m.Bytes))
+	if dBuf.err != nil { // pluma: a negative or too large length
+		return dBuf.err
+	}
 
-	dBuf2 := NewDecodeBuf(b)
+	dBuf2 := dBuf.newNestedDecodeBuf(b) // pluma: keep the nesting depth and gzip budget
 	m.Object = dBuf2.Object()
 	if m.Object == nil {
-		hexLen := len(b)
-		if hexLen > 128 {
-			hexLen = 128
-		}
-		return fmt.Errorf("decode core_message error(%v): %s", dBuf2.err, hex.EncodeToString(b[:hexLen]))
+		// pluma: %w keeps the cause; the body is decrypted message content, so
+		// only its length goes into the error (it is logged by callers).
+		return fmt.Errorf("decode core_message error(%w): %d bytes", dBuf2.err, len(b))
 	}
 
 	// log.Info("Sucess decoded core_message: ", m.Object.String())
@@ -213,6 +238,9 @@ func (m *TLMsgContainer) Encode(x *EncodeBuf, layer int32) error {
 
 func (m *TLMsgContainer) Decode(dbuf *DecodeBuf) error {
 	n := dbuf.Int()
+	if dbuf.vectorTooLongN(n, minMessage2Size, 0) || dbuf.vectorTooLong(n, unsafe.Sizeof(TLMessage2{})) { // pluma: bound by the input and the budget
+		return dbuf.err
+	}
 	if n > 0 {
 		m.Messages = make([]*TLMessage2, 0, int(n))
 	}
@@ -322,21 +350,31 @@ func (m *TLGzipPacked) Decode(dbuf *DecodeBuf) error {
 	buf := gzipBufPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer func() {
+		if buf.Cap() > maxPooledGzipBufSize { // pluma: do not pool huge buffers
+			return
+		}
 		buf.Reset()
 		gzipBufPool.Put(buf)
 	}()
-	_, err = io.Copy(buf, gz)
+	// pluma: unpack at most what is left of the message's budget, so that a
+	// small gzip bomb (or many of them in a container) cannot exhaust memory.
+	budget := dbuf.gzipBudget()
+	n, err := io.Copy(buf, io.LimitReader(gz, int64(budget)+1))
 	clErr := gz.Close()
+	if err == nil && n > int64(budget) {
+		err = errGzipTooLarge
+	}
 	if err != nil {
 		dbuf.err = err
-		return fmt.Errorf("gzip read2: %v", err)
+		return fmt.Errorf("gzip read2: %w", err) // pluma: %w, see errGzipTooLarge
 	}
 	if clErr != nil {
 		dbuf.err = clErr
 		return clErr
 	}
+	dbuf.useGzipBudget(int(n))
 	m.PackedData = append([]byte(nil), buf.Bytes()...)
-	dbuf2 := NewDecodeBuf(m.PackedData)
+	dbuf2 := dbuf.newNestedDecodeBuf(m.PackedData) // pluma: keep the nesting depth and gzip budget
 	m.Obj = dbuf2.Object()
 	dbuf.err = dbuf2.err
 	return dbuf.err

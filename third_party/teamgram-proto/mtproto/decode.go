@@ -25,6 +25,7 @@ import (
 	"math"
 	"math/big"
 	"sync"
+	"unsafe" // pluma: element sizes for the vector allocation budget
 )
 
 // Sentinel errors for hot-path decode operations to avoid per-call allocations.
@@ -39,13 +40,48 @@ var (
 	errDecodeVectorLong  = errors.New("DecodeVectorLong: Wrong size")
 	errDecodeVectorStr   = errors.New("DecodeVectorString: Wrong size")
 	errDecodeVectorBytes = errors.New("DecodeVectorBytes: Wrong size")
+	// pluma: errors for input that the limits below reject.
+	errDecodeVectorLen   = errors.New("DecodeVector: length exceeds input")
+	errDecodeVectorAlloc = errors.New("DecodeVector: allocation budget exceeded")
+	errDecodeTooDeep     = errors.New("Decode: objects nested too deeply")
 )
+
+// pluma: limits that keep the decoding of untrusted input bounded in memory
+// and stack, whatever the input claims.
+const (
+	// minVectorElemSize is the smallest TL encoding of a vector element (an
+	// int or a constructor id): a vector never holds more elements than the
+	// remaining input divided by it.
+	minVectorElemSize = 4
+	// maxVectorAlloc bounds the memory allocated for vector elements while
+	// decoding one message (with its nested objects). Element structs are
+	// much larger than their encoding (an Update is over 2 KB, its smallest
+	// encoding 4 bytes), so the input size alone does not bound it.
+	// Legitimate client requests stay far below.
+	maxVectorAlloc = 16 << 20
+	// maxDecodeDepth bounds the nesting of recursive TL types and of
+	// objects decoded through Object() (containers, gzip_packed,
+	// rpc_result): exhausting the goroutine stack is a fatal error that
+	// recover cannot catch.
+	maxDecodeDepth = 100
+)
+
+// pluma: decodeBudget is what one message may still consume; a buffer shares
+// it with the buffers of the objects nested in it (newNestedDecodeBuf).
+type decodeBudget struct {
+	vectorAlloc int // bytes allocated for vector elements
+	unpacked    int // bytes unpacked from gzip_packed
+}
 
 type DecodeBuf struct {
 	buf  []byte
 	off  int
 	size int
 	err  error
+	// pluma: nesting depth (enterNested) and the shared budget of the
+	// message; nil until first needed.
+	depth  int
+	budget *decodeBudget
 }
 
 var decodeBufPool = sync.Pool{
@@ -59,6 +95,8 @@ func GetDecodeBuf(b []byte) *DecodeBuf {
 	m.off = 0
 	m.size = len(b)
 	m.err = nil
+	m.depth = 0    // pluma: see enterNested
+	m.budget = nil // pluma: see getBudget
 	return m
 }
 
@@ -66,11 +104,109 @@ func GetDecodeBuf(b []byte) *DecodeBuf {
 func PutDecodeBuf(m *DecodeBuf) {
 	m.buf = nil
 	m.err = nil
+	m.budget = nil // pluma: see getBudget
 	decodeBufPool.Put(m)
 }
 
 func NewDecodeBuf(b []byte) *DecodeBuf {
-	return &DecodeBuf{b, 0, len(b), nil}
+	return &DecodeBuf{buf: b, size: len(b)} // pluma: keyed, DecodeBuf has more fields
+}
+
+// pluma: remaining returns the number of undecoded bytes.
+func (m *DecodeBuf) remaining() int {
+	return m.size - m.off
+}
+
+// pluma: getBudget returns the budget of the message m belongs to.
+func (m *DecodeBuf) getBudget() *decodeBudget {
+	if m.budget == nil {
+		m.budget = &decodeBudget{}
+	}
+	return m.budget
+}
+
+// pluma: vectorTooLong must be called before allocating a vector of n
+// elements of elemSize bytes (plus a pointer each), whose encoding takes at
+// least minVectorElemSize bytes per element. It reports (and records as the
+// decode error) a negative length, one the remaining input cannot hold, or
+// one that would exceed the message's allocation budget; otherwise it charges
+// the budget.
+func (m *DecodeBuf) vectorTooLong(n int32, elemSize uintptr) bool {
+	return m.vectorTooLongN(n, minVectorElemSize, int(elemSize)+8)
+}
+
+func (m *DecodeBuf) vectorTooLongN(n int32, minEncodedSize, allocSize int) bool {
+	if m.err != nil {
+		return true
+	}
+	if n < 0 || int64(n)*int64(minEncodedSize) > int64(m.remaining()) {
+		m.err = errDecodeVectorLen
+		return true
+	}
+	b := m.getBudget()
+	alloc := int64(n) * int64(allocSize)
+	if alloc > int64(maxVectorAlloc-b.vectorAlloc) {
+		m.err = errDecodeVectorAlloc
+		return true
+	}
+	b.vectorAlloc += int(alloc)
+	return false
+}
+
+// pluma: enterNested must be called (and paired with leaveNested) before
+// decoding a value of a recursive TL type or a nested object, so that the
+// nesting depth stays below maxDecodeDepth. It returns false, with the decode
+// error set, when the input is nested too deeply or already failed.
+func (m *DecodeBuf) enterNested() bool {
+	if m.err != nil {
+		return false
+	}
+	if m.depth >= maxDecodeDepth {
+		m.err = errDecodeTooDeep
+		return false
+	}
+	m.depth++
+	return true
+}
+
+func (m *DecodeBuf) leaveNested() {
+	m.depth--
+}
+
+// pluma: newNestedDecodeBuf returns a buffer for bytes embedded in m (a
+// message body, unpacked gzip data) that continues m's nesting depth and
+// shares its budget.
+func (m *DecodeBuf) newNestedDecodeBuf(b []byte) *DecodeBuf {
+	d := NewDecodeBuf(b)
+	d.depth = m.depth
+	d.budget = m.getBudget()
+	return d
+}
+
+// NewNestedDecodeBuf returns a buffer for a query embedded in an object
+// decoded from m (the query of invoke* and initConnection, kept as raw bytes),
+// one nesting level deeper than m and sharing its allocation budget.
+// pluma: a caller that decodes such queries one level at a time (session)
+// keeps the limits of the whole message instead of starting each level at
+// depth 0 with a fresh budget.
+func (m *DecodeBuf) NewNestedDecodeBuf(b []byte) *DecodeBuf {
+	d := m.newNestedDecodeBuf(b)
+	if d.depth >= maxDecodeDepth {
+		d.err = errDecodeTooDeep
+	} else {
+		d.depth++
+	}
+	return d
+}
+
+// pluma: gzipBudget returns how many bytes gzip_packed objects may still
+// unpack within the message m belongs to; useGzipBudget charges it.
+func (m *DecodeBuf) gzipBudget() int {
+	return maxGzipUnpackedSize - m.getBudget().unpacked
+}
+
+func (m *DecodeBuf) useGzipBudget(n int) {
+	m.getBudget().unpacked += n
 }
 
 func (m *DecodeBuf) GetOffset() int {
@@ -145,7 +281,7 @@ func (m *DecodeBuf) Bytes(size int) []byte {
 	if m.err != nil {
 		return nil
 	}
-	if m.off+size > m.size {
+	if size < 0 || size > m.remaining() { // pluma: a negative size made make() panic
 		m.err = errDecodeBytes
 		return nil
 	}
@@ -162,7 +298,7 @@ func (m *DecodeBuf) BytesNoCopy(size int) []byte {
 	if m.err != nil {
 		return nil
 	}
-	if m.off+size > m.size {
+	if size < 0 || size > m.remaining() { // pluma: a negative size made slicing panic
 		m.err = errDecodeBytes
 		return nil
 	}
@@ -323,6 +459,9 @@ func (m *DecodeBuf) VectorInt() []int32 {
 		m.err = errDecodeVectorInt
 		return nil
 	}
+	if m.vectorTooLongN(size, 4, int(unsafe.Sizeof(int32(0)))) { // pluma: bound by the input and the budget
+		return nil
+	}
 	x := make([]int32, size)
 	i := int32(0)
 	for i < size {
@@ -351,6 +490,9 @@ func (m *DecodeBuf) VectorLong() []int64 {
 	}
 	if size < 0 {
 		m.err = errDecodeVectorLong
+		return nil
+	}
+	if m.vectorTooLongN(size, 8, int(unsafe.Sizeof(int64(0)))) { // pluma: bound by the input and the budget
 		return nil
 	}
 	x := make([]int64, size)
@@ -383,6 +525,9 @@ func (m *DecodeBuf) VectorString() []string {
 		m.err = errDecodeVectorStr
 		return nil
 	}
+	if m.vectorTooLongN(size, 4, int(unsafe.Sizeof(""))) { // pluma: bound by the input and the budget
+		return nil
+	}
 	x := make([]string, size)
 	i := int32(0)
 	for i < size {
@@ -411,6 +556,9 @@ func (m *DecodeBuf) VectorBytes() [][]byte {
 	}
 	if size < 0 {
 		m.err = errDecodeVectorBytes
+		return nil
+	}
+	if m.vectorTooLongN(size, 4, int(unsafe.Sizeof([]byte(nil)))) { // pluma: bound by the input and the budget
 		return nil
 	}
 	x := make([][]byte, size)
@@ -473,6 +621,13 @@ func (m *DecodeBuf) Vector() []TLObject {
 */
 
 func (m *DecodeBuf) Object() (r TLObject) {
+	// pluma: objects decoded here may contain further objects (containers,
+	// gzip_packed, rpc_result); bound the nesting.
+	if !m.enterNested() {
+		return nil
+	}
+	defer m.leaveNested()
+
 	classID := m.Int()
 	if m.err != nil {
 		return nil
@@ -487,7 +642,11 @@ func (m *DecodeBuf) Object() (r TLObject) {
 	// log.Infof("newTLObjectByClassID, classID: %x", uint32(classID))
 	err := r.Decode(m)
 	if err != nil {
-		m.err = fmt.Errorf("object(%x) decode error: %v", uint32(classID), err)
+		// pluma: keep the cause a limit recorded (errors.Is works on it).
+		if m.err != nil {
+			err = m.err
+		}
+		m.err = fmt.Errorf("object(%x) decode error: %w", uint32(classID), err)
 	}
 
 	return
