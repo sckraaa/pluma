@@ -12,7 +12,7 @@
 - Отдельный репозиторий (или каталог `clients/`) с патчами поверх тегов upstream: iOS `release-12.9.2`, Android 12.9.1 (`aac1efcb83`), tdesktop v7.0.x, Web K/A — найти коммиты на layer 228.
 - Патч: адреса серверов (`pluma.chat`), публичный RSA-ключ, api_id/api_hash, ID приложений `chat.pluma.*`, push-ключи.
 - Preflight за секунды: версии Xcode/NDK, патчи применились, layer = 228, отпечаток RSA-ключа, профили для всех iOS-целей и App Group, keystore.
-- Self-hosted runners GitHub Actions: Mac (iOS, `Make.py --cacheDir --cacheHost`), Ryzen-ПК (Android в Docker с ccache и Gradle cache, tdesktop Linux, bazel-remote как кэш для iOS). Web — на GitHub-раннерах.
+- Сборка в облаке по ADR 0010 (`docs/audit/05-cloud-builds.md`): публичные репозитории клиентов, стандартные GitHub-hosted раннеры, кэш в `actions/cache` с сохранением даже при падении, preflight → build → sign → publish на VPS, еженедельная «канарейка». Своё железо не используется.
 - Подпись отдельным шагом после компиляции.
 - Порядок: Android → Web → iOS → Desktop.
 
