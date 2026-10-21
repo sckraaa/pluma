@@ -147,3 +147,5 @@ require (
 // github.com/teamgram/marmota => ../marmota
 // github.com/teamgram/proto => ../proto
 replace github.com/panjf2000/gnet/v2 v2.9.1 => github.com/teamgram/gnet/v2 v2.9.1-teamgram
+
+replace github.com/teamgram/proto => ./third_party/teamgram-proto
