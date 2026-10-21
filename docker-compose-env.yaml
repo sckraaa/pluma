@@ -2,6 +2,12 @@
 # 组件: jaeger, prometheus, grafana, elasticsearch, kibana,
 #       go-stash, filebeat, kafka, mysql, redis, etcd, minio, minio-mc, node-exporter
 # 启动: docker compose -f docker-compose-env2.yaml up -d
+#
+# Security (docs/ops/security-setup.md): nothing here is published on public
+# interfaces. Services talk over teamgram_net; ports that are useful for local
+# administration are bound to 127.0.0.1 only (Docker port publishing bypasses
+# host firewalls such as ufw). Passwords come from .env; compose refuses to
+# start while a required one is missing.
 
 services:
   # --- 消息队列 (Bitnami Kafka KRaft 模式，无需 Zookeeper) ---
@@ -10,8 +16,8 @@ services:
     image: apache/kafka:3.9.0
     container_name: kafka
     ports:
-      - 9092:9092  # 容器内部之间使用的监听端口
-      - 9094:9094  # 容器外部访问监听端口
+      - "127.0.0.1:9092:9092"  # 容器内部之间使用的监听端口
+      - "127.0.0.1:9094:9094"  # 容器外部访问监听端口
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -39,9 +45,9 @@ services:
   etcd:
     image: quay.io/coreos/etcd:v3.5.11
     container_name: etcd
+    # No authentication: must never be reachable from outside the host.
     ports:
-      - "2379:2379"
-      - "2380:2380"
+      - "127.0.0.1:2379:2379"
     environment:
       ETCD_NAME: node1
       ETCD_DATA_DIR: /etcd-data
@@ -64,13 +70,16 @@ services:
     image: redis:7-alpine
     container_name: redis
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
+      - "127.0.0.1:6379:6379"
+    environment:
+      # Lets redis-cli (healthcheck, docker exec) authenticate.
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
     volumes:
       - ./data/redis:/data
     restart: always
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -82,12 +91,14 @@ services:
     image: mysql:8.0
     container_name: mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-teamgram}
-      MYSQL_USER: ${MYSQL_USER:-teamgram}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-teamgram}
+      # Applied only when ./data/mysql is empty (first start).
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      # Database and user the services connect as (teamgramd/etc2 DSNs).
+      MYSQL_DATABASE: teamgram
+      MYSQL_USER: teamgram
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - ./data/mysql:/var/lib/mysql
       - ./teamgramd/deploy/sql:/docker-entrypoint-initdb.d/
@@ -97,7 +108,7 @@ services:
       - --default-authentication-plugin=mysql_native_password
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" || exit 1"]
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_ROOT_PASSWORD\" mysqladmin ping -h localhost -uroot || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,11 +121,11 @@ services:
     image: minio/minio:latest
     container_name: minio
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"  # console
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniostorage}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
     command: server /data --console-address ":9001"
     volumes:
       - ./data/minio:/data
@@ -129,14 +140,14 @@ services:
     command:
       - |
         sleep 10
-        mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER:-minio} $${MINIO_ROOT_PASSWORD:-miniostorage}
+        mc alias set myminio http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
         mc mb myminio/documents --ignore-existing
         mc mb myminio/encryptedfiles --ignore-existing
         mc mb myminio/photos --ignore-existing
         mc mb myminio/videos --ignore-existing
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniostorage}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
     depends_on:
       - minio
     networks:
@@ -148,14 +159,10 @@ services:
     image: jaegertracing/all-in-one:1.63.0
     container_name: jaeger
     restart: always
+    # Services send traces over teamgram_net (jaeger:4317); agent ports are not published.
     ports:
-      - "5775:5775/udp"
-      - "6831:6831/udp"
-      - "6832:6832/udp"
-      - "5778:5778"
-      - "16686:16686"
-      - "14268:14268"
-      - "9411:9411"
+      - "127.0.0.1:16686:16686"  # UI
+      - "127.0.0.1:14268:14268"  # collector for services run on the host (teamgramd/etc)
     environment:
       - SPAN_STORAGE_TYPE=elasticsearch
       - ES_SERVER_URLS=http://elasticsearch:9200
@@ -169,8 +176,7 @@ services:
   node-exporter:
     image: prom/node-exporter:v1.7.0
     container_name: node-exporter
-    ports:
-      - "9100:9100"
+    # Scraped by prometheus over teamgram_net; not published.
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -200,7 +206,7 @@ services:
     restart: always
     user: root
     ports:
-      - 9090:9090
+      - "127.0.0.1:9090:9090"
     networks:
       - teamgram_net
 
@@ -214,12 +220,12 @@ services:
       TZ: Asia/Shanghai
       # 首次启动时生效；若已有数据卷则需在容器内用 grafana-cli 重置 - Only used on first run; reset via grafana-cli if volume exists
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
     restart: always
     volumes:
       - ./data/grafana/data:/var/lib/grafana
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     networks:
       - teamgram_net
 
@@ -233,9 +239,9 @@ services:
       - "TZ=Asia/Shanghai"
       - "discovery.type=single-node"
       - "xpack.security.enabled=false"
+    # xpack security is off (no authentication): local access only.
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - "127.0.0.1:9200:9200"
     volumes:
       # Named volumes avoid bind-mount permission errors (node.lock AccessDeniedException
       # when ./data/es/* is root-owned from sudo compose).
@@ -254,7 +260,7 @@ services:
       - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
       - "XPACK_SECURITY_ENABLED=false"
     ports:
-      - "5601:5601"
+      - "127.0.0.1:5601:5601"
     networks:
       - teamgram_net
     depends_on:

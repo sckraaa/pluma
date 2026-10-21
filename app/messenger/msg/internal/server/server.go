@@ -26,8 +26,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/config"
 	msg_helper "github.com/teamgram/teamgram-server/app/messenger/msg/msg"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/conf"
 
-	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -48,7 +48,8 @@ func (s *Server) Initialize() error {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	logx.Infov(c)
+	// The config carries secrets from the environment (passwords, keys): never log it whole.
+	logx.Infof("loaded config %s", *configFile)
 	// ctx := svc.NewServiceContext(c)
 	// s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
 

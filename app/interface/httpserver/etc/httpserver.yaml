@@ -10,8 +10,9 @@ Http:
     Path: ../logs/httpserver
     Level: debug
 
-KeyFile: "./server_pkcs1.key"
-KeyFingerprint: "12240908862933197005"
+# MTProto server RSA key, the same as gnetway's (docs/ops/security-setup.md).
+KeyFile: "../../secrets/server_pkcs1.key"
+KeyFingerprint: "${SERVER_RSA_KEY_FINGERPRINT}"
 
 Session:
   Etcd:

@@ -33,15 +33,17 @@ Routine:
   Size: 100
 
 Mysql:
-  DSN: teamgram:teamgram@tcp(mysql:3306)/teamgram?charset=utf8mb4&parseTime=true
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(mysql:3306)/teamgram?charset=utf8mb4&parseTime=true"
   Active: 64
   Idle: 64
   IdleTimeout: 4h
 
 Cache:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
 KV:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
 
 IdgenClient:
   Etcd:

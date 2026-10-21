@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+# The configs in ../etc read secrets as ${NAME} from the environment and refuse
+# to load while one is unset (docs/ops/security-setup.md). Take them from the
+# repository .env when it exists.
+if [ -f ../../.env ]; then
+  set -a
+  . ../../.env
+  set +a
+fi
+
 echo "run idgen ..."
 nohup ./idgen -f=../etc/idgen.yaml >> ../logs/idgen.log  2>&1 &
 sleep 1

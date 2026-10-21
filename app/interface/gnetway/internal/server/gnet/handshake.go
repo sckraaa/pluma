@@ -36,6 +36,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
 	sessionclient "github.com/teamgram/teamgram-server/app/interface/session/client"
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
+	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -155,37 +156,54 @@ func (m *handshake) getKey(keyFingerprint int64) *crypto.RSACryptor {
 	return nil
 }
 
-func mustNewHandshake(cList []config.RSAKey) *handshake {
-	var (
-		h = &handshake{
-			keyFingerprints: make([]int64, 0, len(cList)),
-			rsaList:         make([]rsaKeyHelper, 0, len(cList)),
-			dh2048p:         dh2048P,
-			dh2048g:         dh2048G,
-		}
-		// rsaList = make([]rsaKeyHelper, 0, len(cList))
-	)
+// LoadRSAKeys loads the server RSA keys listed in the config and verifies
+// each of them (file permissions, key size, fingerprint), so that gnetway
+// refuses to start rather than serve handshakes with a missing, exposed or
+// mismatching key. Several keys may be listed to rotate without downtime.
+func LoadRSAKeys(cList []config.RSAKey) ([]*serverkey.Key, error) {
+	if len(cList) == 0 {
+		return nil, fmt.Errorf("no server RSA key configured (RSAKey is empty)")
+	}
 
+	keys := make([]*serverkey.Key, 0, len(cList))
+	seen := make(map[uint64]string, len(cList))
 	for _, c := range cList {
-		rsa, err := crypto.NewRSACryptor(c.KeyFile)
+		key, err := serverkey.Load(c.KeyFile, c.KeyFingerprint)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
-		keyFingerprint, err := strconv.ParseUint(c.KeyFingerprint, 10, 64)
+		if prev, ok := seen[key.Fingerprint]; ok {
+			return nil, fmt.Errorf("server RSA key %s duplicates %s (fingerprint %d)", c.KeyFile, prev, key.Fingerprint)
+		}
+		seen[key.Fingerprint] = c.KeyFile
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+func newHandshake(keys []*serverkey.Key) (*handshake, error) {
+	h := &handshake{
+		keyFingerprints: make([]int64, 0, len(keys)),
+		rsaList:         make([]rsaKeyHelper, 0, len(keys)),
+		dh2048p:         dh2048P,
+		dh2048g:         dh2048G,
+	}
+
+	for _, key := range keys {
+		rsa, err := crypto.NewRSACryptorByKeyData(key.PEM)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("server RSA key %s: %w", key.Path, err)
 		}
 
-		// TODO: check fingerprint
-
-		h.keyFingerprints = append(h.keyFingerprints, int64(keyFingerprint))
+		h.keyFingerprints = append(h.keyFingerprints, int64(key.Fingerprint))
 		h.rsaList = append(h.rsaList, rsaKeyHelper{
 			rsa:            rsa,
-			keyFingerprint: int64(keyFingerprint),
+			keyFingerprint: int64(key.Fingerprint),
 		})
 	}
 
-	return h
+	return h, nil
 }
 
 // //////////////////////////////////////////////////////////////////////////////////////////////////

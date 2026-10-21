@@ -23,6 +23,7 @@ Telemetry:
   
 Cache:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
   
 AuthSession:
   Etcd:

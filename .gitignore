@@ -4,6 +4,14 @@ target/
 
 # env (do not commit secrets)
 .env
+.env.*
+!.env.example
+
+# secrets: the MTProto server RSA key and anything else generated at setup
+# (docs/ops/security-setup.md). The key that used to be committed is revoked.
+/secrets/
+/server_pkcs1.key
+/teamgramd/bin/server_pkcs1.key
 
 #fixed file
 .class
@@ -38,7 +46,6 @@ teamgramd/bin/*
 !teamgramd/bin/killall.sh
 !teamgramd/bin/runall2.sh
 !teamgramd/bin/runall-docker.sh
-!teamgramd/bin/server_pkcs1.key
 
 teamgramd/logs/*
 !teamgramd/logs/.gitkeep

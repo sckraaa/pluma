@@ -4,8 +4,9 @@ Etcd:
   Hosts:
     - 127.0.0.1:2379
   Key: interface.gateway
-KeyFile: "./server_pkcs1.key"
-KeyFingerprint: "12240908862933197005"
+RSAKey:
+  - KeyFile: "../../secrets/server_pkcs1.key"
+    KeyFingerprint: "${SERVER_RSA_KEY_FINGERPRINT}"
 MaxProc: 4
 Server:
   Addrs:

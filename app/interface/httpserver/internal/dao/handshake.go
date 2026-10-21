@@ -32,6 +32,7 @@ import (
 	"github.com/teamgram/marmota/pkg/hex2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
+	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -154,14 +155,14 @@ func (m *HandshakeStateCtx) DebugString() (s string) {
 	return
 }
 
-func newHandshake(keyFile string, keyFingerprint uint64, createdCB keyCreatedF) (*handshake, error) {
-	rsa, err := crypto.NewRSACryptor(keyFile)
+func newHandshake(key *serverkey.Key, createdCB keyCreatedF) (*handshake, error) {
+	rsa, err := crypto.NewRSACryptorByKeyData(key.PEM)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("server RSA key %s: %w", key.Path, err)
 	}
 	return &handshake{
 		rsa:            rsa,
-		keyFingerprint: keyFingerprint,
+		keyFingerprint: key.Fingerprint,
 		dh2048p:        dh2048P,
 		dh2048g:        dh2048G,
 		keyCreatedF:    createdCB,

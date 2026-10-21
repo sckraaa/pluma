@@ -24,6 +24,7 @@ Telemetry:
   
 KV:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
 
 Code:
   Name: "none"

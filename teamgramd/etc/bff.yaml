@@ -24,6 +24,7 @@ Log:
 
 KV:
   - Host: localhost:6379
+    Pass: "${REDIS_PASSWORD}"
 
 Code:
   Name: "none"

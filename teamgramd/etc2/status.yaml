@@ -23,5 +23,6 @@ Telemetry:
   
 Status:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
 
 StatusExpire: 90

@@ -1,0 +1,9 @@
+# Keep secrets and runtime data out of the build context and the image
+# (docs/ops/security-setup.md). The server RSA key reaches the container as a
+# compose secret at runtime, never through the image.
+.env
+.env.*
+secrets/
+**/server_pkcs1.key
+data/
+teamgramd/logs/

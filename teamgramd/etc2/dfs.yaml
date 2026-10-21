@@ -29,10 +29,11 @@ MiniHttp:
   Timeout: 0
 Cache:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
 Minio:
   Endpoint: minio:9000
-  AccessKeyID: minio
-  SecretAccessKey: miniostorage
+  AccessKeyID: "${MINIO_ROOT_USER}"
+  SecretAccessKey: "${MINIO_ROOT_PASSWORD}"
   UseSSL: false
   Bucket:
     Documents: documents
@@ -46,3 +47,4 @@ IdGen:
     Key: service.idgen
 SSDB:
   - Host: redis:6379 # if use pika, change to 9221
+    Pass: "${REDIS_PASSWORD}"
