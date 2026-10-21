@@ -14,4 +14,4 @@
 | [0006](0006-ios-distribution.md) | Распространение iOS: ad-hoc | accepted |
 | [0007](0007-repo-as-memory.md) | Репозиторий как память проекта | accepted |
 | [0008](0008-client-layer-pinning.md) | Закрепление версий клиентов по layer | accepted |
-| [0009](0009-dependency-forks.md) | Форки teamgram/proto и teamgram/marmota | accepted |
+| [0009](0009-dependency-forks.md) | Свои копии teamgram/proto и teamgram/marmota в third_party | accepted |
