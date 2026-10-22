@@ -116,6 +116,17 @@ func allocDuring(f func()) uint64 {
 	return after.TotalAlloc - before.TotalAlloc
 }
 
+// allocLimit scales an allocation bound to the build: with -race the compiler
+// keeps temporary allocations it otherwise elides (bytes.Buffer growth then
+// allocates twice), so the same decoding allocates up to twice as much. The
+// bounds still catch unbounded allocation in both builds.
+func allocLimit(n uint64) uint64 {
+	if raceEnabled {
+		return 2 * n
+	}
+	return n
+}
+
 func TestDecodeLimits(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -158,8 +169,8 @@ func TestDecodeLimits(t *testing.T) {
 			case tc.wantErr != nil && tc.wantErr != errAny && !errors.Is(err, tc.wantErr):
 				t.Fatalf("err = %v, want %v", err, tc.wantErr)
 			}
-			if alloc > tc.maxAlloc {
-				t.Fatalf("decoding %d bytes allocated %d bytes, want <= %d", len(tc.in), alloc, tc.maxAlloc)
+			if alloc > allocLimit(tc.maxAlloc) {
+				t.Fatalf("decoding %d bytes allocated %d bytes, want <= %d", len(tc.in), alloc, allocLimit(tc.maxAlloc))
 			}
 		})
 	}
@@ -208,7 +219,7 @@ func TestDecodeBufBounds(t *testing.T) {
 			if n != 0 || !errors.Is(d.GetError(), errDecodeVectorLen) {
 				t.Fatalf("got %d elements, err %v", n, d.GetError())
 			}
-			if alloc > 4<<10 {
+			if alloc > allocLimit(4<<10) {
 				t.Fatalf("allocated %d bytes", alloc)
 			}
 
@@ -249,7 +260,7 @@ func TestDecodeGzipBomb(t *testing.T) {
 	}
 	// Unpacking stops at the limit: what is allocated is the limit and the
 	// buffer growth around it, not the 256 MiB.
-	if alloc > 5*maxGzipUnpackedSize {
+	if alloc > allocLimit(5*maxGzipUnpackedSize) {
 		t.Fatalf("allocated %d bytes", alloc)
 	}
 
@@ -309,8 +320,7 @@ func FuzzDecodeObject(f *testing.F) {
 		f.Add(s)
 	}
 	f.Fuzz(func(t *testing.T, in []byte) {
-		var alloc uint64
-		alloc = allocDuring(func() {
+		alloc := allocDuring(func() {
 			d := GetDecodeBuf(in)
 			_ = d.Object()
 			PutDecodeBuf(d)
@@ -321,7 +331,7 @@ func FuzzDecodeObject(f *testing.F) {
 		if limit > 3*maxVectorAlloc+3*maxGzipUnpackedSize {
 			limit = 3*maxVectorAlloc + 3*maxGzipUnpackedSize
 		}
-		if alloc > limit {
+		if limit = allocLimit(limit); alloc > limit {
 			t.Fatalf("decoding %d bytes allocated %d bytes (limit %d)", len(in), alloc, limit)
 		}
 	})
@@ -355,7 +365,7 @@ func FuzzDecodeEachConstructor(f *testing.F) {
 			PutDecodeBuf(d)
 		})
 		limit := uint64(1<<20) + 2048*uint64(len(in))
-		if alloc > limit {
+		if limit = allocLimit(limit); alloc > limit {
 			t.Fatalf("decoding %d bytes allocated %d bytes (limit %d)", len(in), alloc, limit)
 		}
 	})
