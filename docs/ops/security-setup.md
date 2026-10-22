@@ -64,8 +64,11 @@ openssl rand -hex 24   # по одному значению на каждый п
 
 ```bash
 docker compose -f docker-compose-env.yaml up -d   # инфраструктура
+docker compose -f docker-compose-env.yaml ps      # дождаться healthy у mysql, redis, kafka, etcd и minio
 docker compose up -d --build                      # сервисы teamgram
 ```
+
+Сервисы подключаются к Kafka при старте и без неё не работают, поэтому запускайте их, когда инфраструктура healthy. Контейнер `teamgram` сам становится healthy, когда запущены все 11 сервисов и gateway принимает соединения (`docker compose ps`).
 
 Сеть:
 - Наружу опубликованы только порты клиентов: `10443` и `5222` (MTProto TCP), `11443` (WebSocket для веб-клиентов), и только по IPv4 (`0.0.0.0:…`). Сеть `teamgram_net` без IPv6: если опубликовать порт и на IPv6, Docker проводит такие соединения через docker-proxy, и gateway видит всех IPv6-клиентов как один адрес моста (`172.20.0.1`). Тогда один клиент исчерпывает лимиты входа «по IP» для всех IPv6-пользователей, а в уведомлениях о входе и в `pluma-admin` стоит адрес моста. Нужен IPv6 — сначала включите его в `teamgram_net` (или запустите gnetway с `network_mode: host`), чтобы до gateway доходили настоящие адреса. Адреса IPv6 лимиты считают по /64.

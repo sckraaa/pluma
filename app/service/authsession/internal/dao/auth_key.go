@@ -206,6 +206,13 @@ func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, ex
 // moves later than the value stored at the handshake. Both rows change in one
 // transaction; the cached copies are dropped after it commits.
 func (d *Dao) BindTempAuthKey(ctx context.Context, permAuthKeyId, tempAuthKeyId int64, expiresAt int64) error {
+	// rejected is the client error a check inside the transaction found. It
+	// does not leave the transaction as an error: go-zero's circuit breaker
+	// counts every error a transaction returns as a database failure, so a
+	// burst of rejected bindings (concurrent requests for one temporary key)
+	// opened it and failed every query of authsession for a while. A rejected
+	// binding commits having written nothing.
+	var rejected error
 	tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
 		tempKey := &dataobject.AuthKeyInfosDO{}
 		err := tx.QueryRowPartial(
@@ -214,7 +221,7 @@ func (d *Dao) BindTempAuthKey(ctx context.Context, permAuthKeyId, tempAuthKeyId 
 			tempAuthKeyId)
 		if err != nil {
 			if errors.Is(err, sqlx.ErrNotFound) {
-				result.Err = mtproto.ErrTempAuthKeyEmpty
+				rejected = mtproto.ErrTempAuthKeyEmpty
 			} else {
 				result.Err = err
 			}
@@ -228,12 +235,12 @@ func (d *Dao) BindTempAuthKey(ctx context.Context, permAuthKeyId, tempAuthKeyId 
 		case mtproto.AuthKeyTypeMediaTemp:
 			permColumn = "media_temp_auth_key_id"
 		default:
-			result.Err = mtproto.ErrTempAuthKeyEmpty
+			rejected = mtproto.ErrTempAuthKeyEmpty
 			return
 		}
 
 		if tempKey.PermAuthKeyId != 0 && tempKey.PermAuthKeyId != permAuthKeyId {
-			result.Err = mtproto.ErrTempAuthKeyAlreadyBound
+			rejected = mtproto.ErrTempAuthKeyAlreadyBound
 			return
 		}
 
@@ -263,11 +270,11 @@ func (d *Dao) BindTempAuthKey(ctx context.Context, permAuthKeyId, tempAuthKeyId 
 		}
 	})
 	if tR.Err != nil {
-		if errors.Is(tR.Err, mtproto.ErrTempAuthKeyEmpty) || errors.Is(tR.Err, mtproto.ErrTempAuthKeyAlreadyBound) {
-			return tR.Err
-		}
 		logx.WithContext(ctx).Errorf("bindTempAuthKey(temp: %d, perm: %d) - error: %v", tempAuthKeyId, permAuthKeyId, tR.Err)
 		return mtproto.ErrInternalServerError
+	}
+	if rejected != nil {
+		return rejected
 	}
 
 	if err := d.CachedConn.DelCache(ctx, genCacheAuthKeyV2Key(tempAuthKeyId), genCacheAuthKeyV2Key(permAuthKeyId)); err != nil {

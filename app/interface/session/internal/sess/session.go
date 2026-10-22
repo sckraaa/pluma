@@ -330,55 +330,55 @@ func (c *session) onSessionMessageData(ctx context.Context, gatewayId, clientIp 
 // processMsg handles one message; chain is where it sits in invoke* wrappers
 // (invokeChain{} for a message of its own).
 func (c *session) processMsg(ctx context.Context, gatewayId, clientIp string, inMsg *inboxMsg, r mtproto.TLObject, chain invokeChain) {
-	switch r.(type) {
+	switch r := r.(type) {
 	case *mtproto.TLDestroyAuthKey: // 所有连接都有可能
-		c.onDestroyAuthKey(ctx, gatewayId, inMsg, r.(*mtproto.TLDestroyAuthKey))
+		c.onDestroyAuthKey(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLRpcDropAnswer: // 所有连接都有可能
-		c.onRpcDropAnswer(ctx, gatewayId, inMsg, r.(*mtproto.TLRpcDropAnswer))
+		c.onRpcDropAnswer(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLGetFutureSalts: // GENERIC
-		c.onGetFutureSalts(ctx, gatewayId, inMsg, r.(*mtproto.TLGetFutureSalts))
+		c.onGetFutureSalts(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLPing: // android未用
-		c.onPing(ctx, gatewayId, inMsg, r.(*mtproto.TLPing))
+		c.onPing(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLPingDelayDisconnect: // PUSH和GENERIC
-		c.onPingDelayDisconnect(ctx, gatewayId, inMsg, r.(*mtproto.TLPingDelayDisconnect))
+		c.onPingDelayDisconnect(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLDestroySession: // GENERIC
-		c.onDestroySession(ctx, gatewayId, inMsg, r.(*mtproto.TLDestroySession))
+		c.onDestroySession(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLMsgsStateReq: // android未用
-		c.onMsgsStateReq(ctx, gatewayId, inMsg, r.(*mtproto.TLMsgsStateReq))
+		c.onMsgsStateReq(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLMsgsStateInfo: // android未用
-		c.onMsgsStateInfo(ctx, gatewayId, inMsg, r.(*mtproto.TLMsgsStateInfo))
+		c.onMsgsStateInfo(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLMsgsAllInfo: // android未用
-		c.onMsgsAllInfo(ctx, gatewayId, inMsg, r.(*mtproto.TLMsgsAllInfo))
+		c.onMsgsAllInfo(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLMsgResendReq: // 都有可能
-		c.onMsgResendReq(ctx, gatewayId, inMsg, r.(*mtproto.TLMsgResendReq))
+		c.onMsgResendReq(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLMsgDetailedInfo: // 都有可能
-		c.onMsgDetailInfo(ctx, gatewayId, inMsg, r.(*mtproto.TLMsgDetailedInfo))
+		c.onMsgDetailInfo(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLMsgNewDetailedInfo: // 都有可能
-		c.onMsgNewDetailInfo(ctx, gatewayId, inMsg, r.(*mtproto.TLMsgDetailedInfo))
+		c.onMsgNewDetailInfo(ctx, gatewayId, inMsg, r)
 	case *mtproto.TLInvokeWithLayer:
-		c.onInvokeWithLayer(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithLayer), chain)
+		c.onInvokeWithLayer(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeAfterMsg:
-		c.onInvokeAfterMsg(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeAfterMsg), chain)
+		c.onInvokeAfterMsg(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeAfterMsgs:
-		c.onInvokeAfterMsgs(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeAfterMsgs), chain)
+		c.onInvokeAfterMsgs(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeWithoutUpdates:
-		c.onInvokeWithoutUpdates(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithoutUpdates), chain)
+		c.onInvokeWithoutUpdates(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeWithMessagesRange:
-		c.onInvokeWithMessagesRange(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithMessagesRange), chain)
+		c.onInvokeWithMessagesRange(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeWithTakeout:
-		c.onInvokeWithTakeout(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithTakeout), chain)
+		c.onInvokeWithTakeout(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeWithBusinessConnection:
-		c.onInvokeWithBusinessConnection(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithBusinessConnection), chain)
+		c.onInvokeWithBusinessConnection(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeWithGooglePlayIntegrity:
-		c.onInvokeWithGooglePlayIntegrity(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithGooglePlayIntegrity), chain)
+		c.onInvokeWithGooglePlayIntegrity(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeWithApnsSecret:
-		c.onInvokeWithApnsSecret(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithApnsSecret), chain)
+		c.onInvokeWithApnsSecret(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInvokeWithReCaptcha:
-		c.onInvokeWithReCaptcha(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInvokeWithReCaptcha), chain)
+		c.onInvokeWithReCaptcha(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLInitConnection:
-		c.onInitConnection(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLInitConnection), chain)
+		c.onInitConnection(ctx, gatewayId, clientIp, inMsg, r, chain)
 	case *mtproto.TLGzipPacked:
-		c.onRpcRequest(ctx, gatewayId, clientIp, inMsg, r.(*mtproto.TLGzipPacked).Obj, nil)
+		c.onRpcRequest(ctx, gatewayId, clientIp, inMsg, r.Obj, nil)
 	default:
 		c.onRpcRequest(ctx, gatewayId, clientIp, inMsg, r, nil)
 	}

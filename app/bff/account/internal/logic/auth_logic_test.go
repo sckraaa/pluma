@@ -53,9 +53,11 @@ func rpcMessage(err error) string {
 // account.changePhone ignored the result of the code check.
 func TestChangePhoneRequiresCode(t *testing.T) {
 	ctx := context.Background()
+	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
+	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
 	codes, err := logincode.NewService(logincode.Config{HmacKey: strings.Repeat("k", 32)}, allowlist{newPhone: true}, kv.NewStore(kv.KvConf{cache.NodeConf{
-		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType},
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
 		Weight:    100,
 	}}))
 	if err != nil {

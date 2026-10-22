@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Stop at the first failed build: otherwise the script (and the image build
+# that runs it) succeeds with a binary missing.
+set -euo pipefail
+
 PWD=`pwd`
 TEAMGRAMAPP=${PWD}"/app"
 INSTALL=${PWD}"/teamgramd"

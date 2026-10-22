@@ -76,11 +76,18 @@ func (c *session) onNewSessionCreated(ctx context.Context, gatewayId string, msg
 
 	logx.WithContext(ctx).Infof("onNewSessionCreated - reply: {first_msg_id: %d}", msgId)
 
-	_, _ = c.sendDirectToGateway(ctx, gatewayId, true, newSessionCreated, func(sentRaw *mtproto.TLMessageRawData) {
-		id2 := c.sessList.cb.getNextNotifyId()
-		sentMsg := c.outQueue.AddNotifyMsg(id2, true, sentRaw)
-		sentMsg.sent = 0
+	// It goes out at once and stays in the outgoing queue until the client
+	// acknowledges it. Once on the wire it counts as sent, so the queue
+	// re-sends it only after waitMsgAcksTimeout without an ack; it used to be
+	// queued as unsent and went out a second time, with the same msg_id, with
+	// the replies to the client's first message.
+	var queued *outboxMsg
+	sent, err := c.sendDirectToGateway(ctx, gatewayId, true, newSessionCreated, func(sentRaw *mtproto.TLMessageRawData) {
+		queued = c.outQueue.AddNotifyMsg(c.sessList.cb.getNextNotifyId(), true, sentRaw)
 	})
+	if queued != nil && sent && err == nil {
+		queued.sent = time.Now().Unix()
+	}
 }
 
 /*

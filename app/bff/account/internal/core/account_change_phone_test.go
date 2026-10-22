@@ -78,9 +78,11 @@ func (a allowlist) Contains(_ context.Context, phone string) (bool, error) { ret
 
 func newChangePhoneCore(t *testing.T) (*AccountCore, *fakeUserClient, *logincode.Service) {
 	t.Helper()
+	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
+	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
 	codes, err := logincode.NewService(logincode.Config{HmacKey: strings.Repeat("k", 32)}, allowlist{testNewPhone: true}, kv.NewStore(kv.KvConf{cache.NodeConf{
-		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType},
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
 		Weight:    100,
 	}}))
 	if err != nil {

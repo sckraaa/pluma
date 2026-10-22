@@ -1,0 +1,178 @@
+# Тесты и проверки: как запускать локально
+
+Все проверки запускаются через `make`. CI (`.github/workflows/ci.yml`) выполняет ту же последовательность, что и `make ci`, поэтому зелёный `make ci` локально почти гарантирует зелёный CI.
+
+## Что нужно
+
+- **Go** — версия берётся из `go.mod` (`toolchain go1.27.3`). При `GOTOOLCHAIN=auto` (по умолчанию) `go` сам скачает нужный тулчейн.
+- **ffmpeg и ffprobe** в `PATH` — для тестов `app/service/dfs/internal/ffmpegutil` и `pkg/goffmpeg/tests`. Для `ffmpegutil` нужен ffmpeg с libx264, как в production-образе. Если бинарников нет, эти тесты пропускаются (`SKIP` с причиной). В CI ffmpeg ставится, так что там они выполняются всегда. Установка: macOS — `brew install ffmpeg`, Ubuntu/Debian — `apt-get install ffmpeg`.
+- **git с полной историей**: линтер сравнивает код с базовым коммитом апстрима (см. ниже).
+- **Docker** (Docker Engine, colima, OrbStack или Docker Desktop) с `docker compose` не ниже 2.24 — только для `make test-integration` и `make e2e`. Обычный `make test` и `go test ./...` Docker не требуют.
+- Линтеры и сканер ставить не нужно: `make` запускает их через `go run module@version` с версиями, закреплёнными в `Makefile`. shellcheck — не Go-программа: `make` скачивает закреплённый релиз в `.tools/` (в git не попадает) и сверяет SHA-256 архива. Для этого нужен `curl`.
+
+## Цели
+
+| Команда | Что делает |
+|---|---|
+| `make test` | `go test -count=1 ./...` в корневом модуле и в `third_party/teamgram-proto` |
+| `make test-race` | тесты с `-race` на нашем коде: `pkg/`, `tools/`, gnetway, session, authsession, bff authorization/account, dfs ffmpegutil и весь модуль proto |
+| `make test-integration` | интеграционные тесты (тег `integration`) на настоящих MySQL, Redis и Kafka в контейнерах, с `-race`; нужен Docker |
+| `make e2e` | сквозной тест: весь стек через `docker compose`, два клиента по MTProto; нужен Docker |
+| `make vet` | `go vet -unreachable=false` в обоих модулях |
+| `make lint` | golangci-lint (конфигурация `.golangci.yml`) в обоих модулях |
+| `make vuln` | govulncheck в обоих модулях |
+| `make coverage` | покрытие тестами: `coverage.out` в каждом модуле (в git не попадает), печатает итоговый процент |
+| `make apicoverage` | перегенерирует `docs/project/api-coverage.md` |
+| `make apicoverage-check` | падает, если `docs/project/api-coverage.md` не совпадает с тем, что генерирует инструмент из текущего кода. Рабочее дерево не меняет |
+| `make actionlint` | проверяет workflow-файлы GitHub Actions, в том числе `run:`-блоки закреплённым shellcheck |
+| `make shellcheck` | shellcheck наших скриптов: `test/e2e/run.sh`, `teamgramd/docker/healthcheck.sh` |
+| `make ci` | build → vet → test → test-race → lint → vuln → сводка apicoverage → apicoverage-check → actionlint → shellcheck |
+
+`make` без аргументов, как и раньше, собирает бинарники сервисов (`all`). `make ci` не включает `test-integration` и `e2e`: им нужен Docker, в CI они идут отдельными задачами.
+
+Один пакет или один тест удобнее гонять напрямую: `go test -race -run TestName ./app/interface/gnetway/...`.
+
+## Почему так
+
+- **Два модуля.** `third_party/teamgram-proto` — отдельный Go-модуль (ADR 0009), и `./...` из корня его не захватывает. Поэтому каждая цель `make` обходит оба модуля.
+- **vet без `unreachable`.** Сгенерированные mtprotoc-кодеки (`codec_schema.tl.pb.go`) содержат недостижимый код. Генерированный код руками не правим, поэтому этот анализатор выключен. Все остальные анализаторы vet работают, и их находки в нашем коде исправляются.
+- **Линтер только по изменённому коду.** Апстрим никогда не прогонялся через линтер, и полный отчёт утопил бы реальные находки. Поэтому `issues.new-from-rev` установлен в `708fb953` (последний коммит апстрима): проверяются новые файлы целиком и строки, изменённые после него. Для модуля proto базой служит `d6a35e59` — немодифицированная вендорная копия. Набор линтеров и обоснования описаны в комментариях `.golangci.yml`.
+- **`//nolint`** допустим, только если указан конкретный линтер и причина (за этим следит `nolintlint`), например `//nolint:gosec // MTProto: auth_key_id = low 64 bits of SHA1(auth_key)`. В `third_party` такой комментарий дополнительно помечается `pluma:`.
+
+## Версии инструментов
+
+Версии закреплены в одном месте — в начале `Makefile` (`GOLANGCI_LINT_VERSION`, `GOVULNCHECK_VERSION`, `ACTIONLINT_VERSION`, `SHELLCHECK_VERSION`). CI читает их через `make print-tool-versions`. Чтобы обновить Go-инструмент, достаточно поменять версию там и прогнать `make ci`. Для shellcheck нужно ещё заменить SHA-256 архивов для четырёх платформ: их показывает страница релиза на GitHub (поле `digest` у файлов в API релизов).
+
+GitHub Actions в `ci.yml` закреплены полным SHA коммита, версия указана в комментарии. При обновлении берётся SHA нового тега (`git ls-remote https://github.com/<owner>/<action> refs/tags/<tag>`; у аннотированного тега нужен коммит из строки `^{}`).
+
+## Обновления зависимостей
+
+Всё закреплено по версии и digest, поэтому само по себе ничего не обновляется. Обновления приходят pull request'ами Dependabot (`.github/dependabot.yml`) раз в неделю, по понедельникам:
+
+- GitHub Actions — одним PR на все;
+- Go-модули корневого модуля и `third_party/teamgram-proto` — minor и patch группой. Коммиты для proto получают префикс `third_party(proto):` (ADR 0009). Сам `github.com/teamgram/proto` не обновляется: это вендорная копия, смена layer делается вручную;
+- базовые образы `Dockerfile` — `golang` по версиям, `ubuntu` только новыми digest того же тега 26.04 (исправления безопасности). Версия Go в образе и `toolchain` в `go.mod` должны совпадать: в PR с новым `golang` директиву `toolchain` (в обоих модулях) поправить в том же PR;
+- образы `docker-compose-env.yaml` и `docker-compose.yaml`, кроме major-версий: MySQL 9, Redis 8 и подобное меняют формат данных или поведение, это отдельное решение.
+
+Каждый такой PR проходит весь CI, включая интеграционные тесты и e2e. Интеграционные тесты берут образы из `docker-compose-env.yaml`, поэтому новая версия MySQL, Redis или Kafka сразу проверяется на них.
+
+Кроме того, CI раз в неделю запускается по расписанию на основной ветке. Так govulncheck находит уязвимости, опубликованные после последнего push.
+
+Вручную обновляются:
+- инструменты из `Makefile` (см. выше);
+- digest образа Ryuk (`RyukImage` в `pkg/testinfra/images.go`). Если обновление testcontainers-go меняет образ уборщика, `TestRyukImagePinned` падает, пока не закреплён digest нового. Digest берётся так: `docker buildx imagetools inspect testcontainers/ryuk:<версия>`, строка `Digest`.
+
+## CI
+
+`.github/workflows/ci.yml` запускается на push в любую ветку (кроме веток Dependabot: их проверяют их PR), на pull request, раз в неделю по расписанию (понедельник, 04:17 UTC) и вручную (workflow_dispatch). Права — только `contents: read`. Повторный push отменяет незавершённый прогон той же ветки или PR. Прогон по расписанию или вручную push-прогоны не отменяет. Три задачи на `ubuntu-24.04` идут параллельно:
+
+- **Build, test, lint** — то же, что `make ci`. Go ставится по `go.mod`, модули и кэш сборки кэшируются. Сводка API-покрытия выводится в summary прогона. Последний шаг проверяет, что прогон не изменил ни одного файла в репозитории.
+- **Integration tests** — `make test-integration` на Docker раннера.
+- **End-to-end** — `make e2e`. При падении логи сервисов из `.e2e/logs` загружаются артефактом `e2e-service-logs` (хранится 14 дней).
+
+Ключ кэша `actions/setup-go` — это хэш файлов из `cache-dependency-path`, и больше ничего. Поэтому у каждой задачи свой набор файлов: `go.sum` плюс свой файл (`Makefile` у integration, `test/e2e/run.sh` у e2e). Иначе ключ у задач общий, кэш сохраняет та, что закончит первой, и integration каждый раз заново собирает всё с `-race`.
+
+## Интеграционные тесты
+
+Файлы `*_integration_test.go` с `//go:build integration`. Без тега они не компилируются, поэтому `go test ./...` Docker не трогает. `make test-integration` сам находит все пакеты с такими файлами.
+
+Контейнеры поднимает [testcontainers-go](https://golang.testcontainers.org/) (версия в `go.mod`) через общий пакет `pkg/testinfra`. Его используют и следующие задачи:
+
+- Образы MySQL, Redis и Kafka читаются из `docker-compose-env.yaml` (`ComposeImage`) и должны быть закреплены тегом и digest. Обновил образ в compose — тесты идут на новом.
+- `StartMySQL` запускает этот образ MySQL с теми же параметрами сервера, что и compose. Схему он загружает так же, как прод при первом старте: все `teamgramd/deploy/sql/*.sql` попадают в `docker-entrypoint-initdb.d` и применяются в порядке имён (байтовый порядок: `1_teamgram.sql`, затем `migrate-*.sql`, `z_init.sql` последним; `migrate-20261021-pfs.sql` идёт раньше `migrate-20261021.sql`). Данные лежат в tmpfs. Подключение — пользователем `teamgram` с DSN, как в `teamgramd/etc2`.
+- Для теста миграции: `WithSchemaFiles(SchemaFilesBefore("migrate-X.sql"))` поднимает базу в состоянии «до X». Тест начинается с `Reset`: тот удаляет все таблицы и заново применяет те же файлы схемы. Затем тест наполняет базу данными и применяет X через `ApplySQLFile` клиентом `mysql` в контейнере, как это делает образ. `Reset` нужен, потому что миграция необратима: без него тест не перезапустить (`-count=N`) и он зависит от порядка тестов. Сама база остаётся, поэтому соединения из пула продолжают работать.
+- `StartRedis` — Redis с `--appendonly yes --requirepass`, как в compose. `StartKafka` — один узел KRaft на образе из compose. Адрес брокера объявлен с проброшенным портом, поэтому клиенты на хосте работают как обычно.
+- Обычный (не интеграционный) тест `TestComposeServices` проверяет, что образы в compose закреплены digest и что параметры серверов в compose совпадают с тем, что запускает `testinfra`.
+- Уборщик testcontainers (Ryuk) получает Docker-сокет, поэтому его образ тоже закреплён по digest (`RyukImage`). testcontainers-go запускает его по тегу и скачивает только при отсутствии тега локально. Поэтому `testinfra` перед первым контейнером скачивает образ по digest (если его ещё нет) и ставит на него этот тег.
+- Как и сервисы (`conf.Load`), `testinfra` включает `logpolicy`: SQL-запросы и команды Redis в лог не пишутся.
+
+Что проверяется:
+
+| Пакет | Что |
+|---|---|
+| `pkg/testinfra` | вся схема применяется к пустой базе (так поднимается свежая установка); на месте таблицы и колонки, на которые опирается код |
+| `app/service/authsession/internal/dao` | `BindTempAuthKey`: запись привязки в обе строки в транзакции, `expires_at` не растёт, сброс кэша, `TEMP_AUTH_KEY_ALREADY_BOUND` / `TEMP_AUTH_KEY_EMPTY`; гонка восьми perm-ключей за один temp-ключ (`select … for update`: побеждает ровно один; отклонённые привязки не открывают circuit breaker go-zero); миграция `migrate-20261021-pfs.sql` гасит и отвязывает старые temp-ключи |
+| `pkg/phoneallowlist` | DAO allowlist на настоящей схеме; миграция `migrate-20261021.sql` переносит в allowlist только обычные живые аккаунты |
+| `pkg/logincode` | Lua-скрипты хранилища кодов и лимитов на настоящем Redis (юнит-тесты гоняют их на miniredis): HMAC вместо кода, TTL, атомарный счётчик попыток при 50 параллельных проверках, путь через администратора, чистка старых запросов, лимитер |
+| `app/messenger/sync/client` | путь Kafka: `SyncMqClient` → топик → consumer group, как у `sync`. Проверяются заголовок `method`, ключ = `user_id`, JSON-декодирование и порядок сообщений одного пользователя |
+
+Новый интеграционный тест: файл `*_integration_test.go` с тегом и `TestMain`, который один раз на пакет поднимает нужное через `testinfra.Start*` (см. пример в комментарии пакета). Пакеты выполняются параллельно, у каждого свои контейнеры.
+
+Тесты пакета делят контейнеры между собой, поэтому каждый тест должен проходить при повторном запуске и в любом порядке. Для этого телефоны и адреса уникальны на каждый запуск (`itPhone`, `itIP` в `pkg/logincode`) или тест убирает свои записи до и после себя (`TestAllowlistDAO`), а тесты миграций начинаются с `Reset`. Проверка: `go test -tags integration -count=3 -shuffle=on <пакеты>` (с переменными Docker из следующего раздела).
+
+### Docker не на /var/run/docker.sock
+
+testcontainers ищет Docker по `DOCKER_HOST`. Если переменная не задана, `make test-integration` берёт адрес из текущего `docker context`. Для рантаймов в виртуальной машине под домашним каталогом (colima, OrbStack, Docker Desktop) он ещё выставляет `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock`: это путь сокета внутри ВМ, его монтирует контейнер-уборщик Ryuk. При запуске `go test -tags integration …` вручную их нужно задать самим:
+
+```sh
+export DOCKER_HOST=$(docker context inspect --format '{{.Endpoints.docker.Host}}')
+export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock   # colima / OrbStack / Docker Desktop
+go test -tags integration -run TestBindTempAuthKey ./app/service/authsession/internal/dao/
+```
+
+## Сквозной тест (e2e)
+
+`make e2e` вызывает `test/e2e/run.sh all`:
+
+1. **Секреты на один прогон.** Пароли MySQL/Redis/MinIO и ключ HMAC (`openssl rand`) плюс RSA-ключ сервера (`tools/genserverkey`) пишутся в `.e2e/` в корне репозитория. Этот каталог исключён и из git, и из контекста сборки Docker. Он лежит в репозитории, а не во временном каталоге, потому что colima монтирует в ВМ только домашний каталог. Секреты удаляются вместе со стеком.
+2. **Сборка и запуск.** Образ собирается из `Dockerfile`, стек поднимается из `docker-compose-env.yaml` и `docker-compose.yaml` с наложением `test/e2e/docker-compose.e2e.yaml` под проектом `pluma-e2e`. Запускаются только mysql, redis, kafka, etcd, minio, minio-mc, jaeger и teamgram. Elasticsearch, Kibana, filebeat, go-stash и мониторинг в тестах не нужны. Наложение убирает фиксированные имена контейнеров, порты на хосте, `./data` и фиксированную подсеть, поэтому тестовый стек не мешает рабочему на той же машине. MySQL работает в tmpfs, Jaeger хранит трейсы в памяти, перезапуски выключены (упавший сервис должен валить тест, а не перезапускаться). Наружу открыт только MTProto-порт gnetway, и только на случайном порту 127.0.0.1. `up --wait` ждёт healthcheck инфраструктуры. teamgram стартует, когда MySQL, Redis, Kafka и etcd здоровы, а бакеты MinIO созданы.
+3. **Тест** `test/e2e` (тег `e2e`) ходит в стек по MTProto, как официальный клиент:
+   - Alice и Bob попадают в allowlist (`pluma-admin allowlist add` внутри контейнера).
+   - Каждый подключается: DH-handshake с RSA-ключом прогона, `invokeWithLayer(228, initConnection(help.getConfig))`, `auth.sendCode`, код через `pluma-admin login-code`, `auth.signIn` и, для нового номера, `auth.signUp`.
+   - Alice находит Bob через `contacts.resolvePhone` и отправляет `messages.sendMessage`.
+   - Bob получает `updateNewMessage` пушем и видит то же сообщение (тот же id и текст, входящее от Alice) в `updates.getDifference` от состояния до отправки.
+   - PFS: временный ключ, `auth.bindTempAuthKey` к perm-ключу Alice. Через временный ключ `users.getUsers(self)` возвращает Alice. Повторная привязка того же temp-ключа к другому perm-ключу даёт `TEMP_AUTH_KEY_ALREADY_BOUND`.
+   - Номера берутся из диапазона 201-555-0100…0199, зарезервированного для вымышленных номеров.
+   - В конце тест проверяет, что сервер ни разу не прислал сообщение повторно с уже полученным msg_id (`Duplicates()` клиента равен 0). Повтор допустим, только если клиент не подтвердил сообщение вовремя, а клиент подтверждает за 100 мс. Так был найден двойной `new_session_created`: сервер отправлял его сразу и ещё раз из очереди.
+4. **При падении** логи всех сервисов и `docker compose ps` сохраняются в `.e2e/logs/`.
+5. **Остановка:** `down -v` и удаление секретов.
+
+Для отладки шаги запускаются по одному:
+
+```sh
+test/e2e/run.sh up                       # поднять стек (секреты в .e2e/)
+test/e2e/run.sh test                     # прогнать тесты; E2E_GOTEST_FLAGS='-run TestPrivateMessage'
+test/e2e/run.sh admin allowlist list     # pluma-admin внутри контейнера
+test/e2e/run.sh compose logs -f teamgram # любая команда docker compose над тестовым проектом
+test/e2e/run.sh logs                     # логи в .e2e/logs
+test/e2e/run.sh down                     # остановить и удалить всё
+E2E_KEEP=1 make e2e                      # не останавливать стек после прогона
+```
+
+### Тестовый клиент MTProto: `pkg/mtclient`
+
+Клиент на Go для тестов: e2e сейчас, сравнительные (conformance) тесты задачи 007 потом. Что он умеет:
+
+- транспорт intermediate по TCP;
+- DH-handshake с проверками протокола: разложение pq, RSA_PAD, проверка dh_prime и g_a/g_b; постоянные и временные (PFS) ключи;
+- шифрование MTProto 2.0 и msg_id/seqno по правилам протокола;
+- разбор `msg_container` и `gzip_packed`;
+- проверка входящих msg_id: чётность, повторы и слишком старые id. Клиент помнит 400 последних id, как tdesktop. Повтор подтверждается ещё раз и в остальном игнорируется, а счётчик `Duplicates()` позволяет тесту проверить, что повторов не было;
+- подтверждения: msgs_ack уходит в контейнере со следующим запросом или отдельно через 100 мс;
+- повтор запроса после `bad_server_salt` и `bad_msg_notification` 16/17/32/33;
+- `rpc_result` и `rpc_error` (`*RPCError`), ошибки транспорта (`*TransportError`, например -404);
+- очередь пушей (`WaitUpdate`). Ждать могут несколько горутин сразу, каждая свои апдейты: новый апдейт или остановка клиента будят всех;
+- `auth.bindTempAuthKey`;
+- конструкторы запросов под нужный layer (`Constructor`).
+
+Типы TL и шифрование берутся из `third_party/teamgram-proto`. Handshake клиента в юнит-тесте gnetway (`TestMTClientKeyExchange`) прогоняется против кода сервера, и gnetway-тесты используют его `RSAPad`/`TempAESKeyIV`. Остальное покрыто юнит-тестами с подставным сервером (`pkg/mtclient/client_test.go`). Запросы и ответы клиент пишет в лог только типами и id, без содержимого.
+
+## Время прогона
+
+Замеры на MacBook (colima: 4 CPU, 6 ГБ), образы скачаны заранее:
+
+| Команда | Время |
+|---|---|
+| `make test-integration` | ~30 с: пять пакетов параллельно, у каждого свои контейнеры; MySQL со схемой стартует за 10–15 с |
+| `make e2e`, кэш сборки прогрет | ~2 мин: сборка образа ~75 с, подъём стека до healthy ~25 с, тест ~5 с, остановка ~20 с |
+| `make e2e` с нуля | ~4 мин: сборка без кэша ~3 мин (больше всего времени и памяти, до ~4,3 ГБ, уходит на `teamgram/proto/mtproto`) |
+
+Остановка занимает 20 секунд, потому что контейнер teamgram не обрабатывает SIGTERM: ENTRYPOINT в shell-форме, и `docker compose down` ждёт таймаут, а потом убивает процесс. Это исправляется в задаче 004.
+
+В CI кэша сборки Docker нет, поэтому задача e2e каждый раз собирает образ с нуля.
+
+## Readiness стека
+
+Сервисы в контейнере teamgram стартуют по очереди, примерно за 15 секунд. Образ объявляет `HEALTHCHECK` (`teamgramd/docker/healthcheck.sh`): контейнер считается healthy, когда запущены все 11 процессов и gnetway принимает соединения на 10443. Если какой-то процесс упал, контейнер становится unhealthy. Перезапускать его пока некому: супервизора процессов нет, это задача 004. `up --wait` в e2e ждёт именно этого состояния. Без healthcheck тест подключался раньше, чем поднимался gateway, и получал EOF.
+
+Consumer group Kafka (`Inbox-MainCommunity-S` у msg, `Sync-MainCommunity-S` у sync) читают с `OffsetNewest`. Сообщения, отправленные до первого назначения партиций группе, они пропускают. Healthcheck этого не видит. Поэтому `run.sh up` после `up --wait` ждёт, пока обе группы не получат все партиции своих топиков: опрашивает `kafka-consumer-groups.sh --describe` в контейнере kafka раз в секунду, не дольше 120 секунд. Обычно группы уже готовы к этому моменту, и ожидание занимает пару секунд на запуск JVM. Без него тест зависел бы от того, что группы успевают стабилизироваться за ~7 секунд фиксированных `sleep` в `runall-docker.sh` до старта gnetway. Само чтение с `OffsetNewest` — дефект семантики консьюмеров, он относится к задаче 003 (доставка без потерь). После исправления ожидание можно оставить: оно не мешает.

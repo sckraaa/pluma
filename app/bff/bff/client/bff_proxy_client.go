@@ -120,7 +120,7 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 
 	t := mtproto.FindRPCContextTuple(object)
 	if t == nil {
-		err = fmt.Errorf("Invoke error: %T not regist!", object)
+		err = fmt.Errorf("invoke error: %T not registered", object)
 		logger.Errorf("FindRPCContextTuple error: %v", err)
 		return nil, mtproto.NewRpcError(mtproto.ErrEnterpriseIsBlocked)
 	}
@@ -131,23 +131,22 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 
 	var (
 		header, trailer metadata.MD
-		ctxWithTimeout  context.Context
 	)
 
 	// Fixed @LionPuChiPuChi, 2018-12-19
 	// hack
+	timeout := 5 * time.Second
 	switch object.(type) {
-	case *mtproto.TLMessagesSendMedia:
-		ctxWithTimeout, _ = context.WithTimeout(context.Background(), 60*time.Second)
-	case *mtproto.TLMessagesSendMultiMedia:
-		ctxWithTimeout, _ = context.WithTimeout(context.Background(), 60*time.Second)
-	case *mtproto.TLMessagesUploadMedia:
-		ctxWithTimeout, _ = context.WithTimeout(context.Background(), 60*time.Second)
-	case *mtproto.TLMessagesEditMessage:
-		ctxWithTimeout, _ = context.WithTimeout(context.Background(), 60*time.Second)
-	default:
-		ctxWithTimeout, _ = context.WithTimeout(context.Background(), 5*time.Second)
+	case *mtproto.TLMessagesSendMedia,
+		*mtproto.TLMessagesSendMultiMedia,
+		*mtproto.TLMessagesUploadMedia,
+		*mtproto.TLMessagesEditMessage:
+		timeout = 60 * time.Second
 	}
+	// Cancel on return: otherwise every call keeps its timer (and context)
+	// alive until the timeout fires.
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
 	ctx2, _ := metadata.RpcMetadataToOutgoing(ctxWithTimeout, rpcMetaData)
 	rt := time.Now()

@@ -57,8 +57,10 @@ func TestAuthKeyDataState(t *testing.T) {
 }
 
 func TestQueryAuthKeyWithExpiryFromCache(t *testing.T) {
+	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
+	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
-	d := &Dao{CachedConn: sqlc.NewNodeConn(nil, redis.MustNewRedis(redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType}))}
+	d := &Dao{CachedConn: sqlc.NewNodeConn(nil, redis.MustNewRedis(redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true}))}
 	ctx := context.Background()
 	now := time.Now().Unix()
 

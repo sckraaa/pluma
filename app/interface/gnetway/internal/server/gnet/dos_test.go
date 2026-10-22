@@ -340,7 +340,7 @@ func TestPanicClosesOnlyThatConnection(t *testing.T) {
 	c2 := h.newConn(2, nil)
 	h.s.trigger(2, func(gnet.Conn) {
 		var m map[string]int
-		m["x"]++ // nil map
+		m["x"]++ //nolint:govet,staticcheck // nilness, SA5000: the panic is the point
 	})
 	if !c2.closed {
 		t.Fatal("trigger: connection not closed")
@@ -369,7 +369,7 @@ func TestPanicSite(t *testing.T) {
 			}
 		}()
 		var b []byte
-		_ = b[3]
+		_ = b[3] //nolint:govet // nilness: the panic is the point
 	}()
 	if !strings.Contains(site, "dos_test.go:") {
 		t.Fatalf("site %q", site)
@@ -499,8 +499,6 @@ func TestHandshakeStore(t *testing.T) {
 		if _, err := hs.begin(n, sn, STATE_pq_res, STATE_DH_params, testNow); err == nil {
 			t.Fatal("the same step started twice")
 		}
-		// The copy is not the stored state.
-		snap.NewNonce = []byte{1}
 		// A new req_pq with the nonce restarts it: the step's result is dropped.
 		hs.put(st(1), testNow)
 		if hs.finish(n, STATE_DH_params, testNow, func(*HandshakeStateCtx) bool { return true }) {

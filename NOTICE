@@ -1,0 +1,17 @@
+Pluma
+https://github.com/sckraaa/pluma
+
+This product is a modified version of Teamgram Server
+(https://github.com/teamgram/teamgram-server), Copyright Teamgram Authors,
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The Pluma contributors modified the files of Teamgram Server in this
+repository and added new ones, starting after upstream commit 708fb953. Every
+change is recorded in the git history of this repository
+(git log 708fb953..HEAD); docs/project/STATUS.md summarizes them.
+
+third_party/teamgram-proto is a copy of github.com/teamgram/proto v0.228.0
+(Copyright Teamgram Authors, Apache License 2.0, see
+third_party/teamgram-proto/LICENSE). Our changes to it are separate commits
+with the prefix "third_party(proto):", and the changed code is marked with
+"pluma:" comments (docs/adr/0009-dependency-forks.md).

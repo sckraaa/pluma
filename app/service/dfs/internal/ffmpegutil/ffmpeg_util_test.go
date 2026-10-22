@@ -19,34 +19,55 @@
 package ffmpegutil
 
 import (
-	"io/ioutil"
+	"bytes"
+	"image/jpeg"
+	"os/exec"
 	"testing"
-
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// TestConvertGifToMp4 runs the GIF upload pipeline used by dfs
+// (uploadGifDocumentMedia, uploadProfilePhotoFileV2): GIF -> mp4 through
+// pipes, first frame -> JPEG, mp4 metadata. It needs the ffmpeg and ffprobe
+// binaries (with libx264, as in the production image).
 func TestConvertGifToMp4(t *testing.T) {
+	for _, bin := range []string{"ffmpeg", "ffprobe"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			t.Skipf("%s is not installed: %v", bin, err)
+		}
+	}
+
 	ffmpegUtil := NewFFmpegUtil()
-	data, duration, err := ffmpegUtil.ConvertToMp4ByPipe("./gsmarena_003.gif", -1, 320)
+
+	// safe_image.gif: 705x591, 5.4 s.
+	data, duration, err := ffmpegUtil.ConvertToMp4ByPipe("./safe_image.gif", 320, -2)
 	if err != nil {
-		logx.Errorf("%v", err)
-		return
+		t.Fatalf("ConvertToMp4ByPipe: %v", err)
 	}
-	logx.Infof("duration = %d", duration)
-	ioutil.WriteFile("./gsmarena_003.gif.mp4", data, 0644)
+	if len(data) == 0 {
+		t.Fatal("ConvertToMp4ByPipe: empty mp4")
+	}
+	if duration < 5 || duration > 6 {
+		t.Errorf("ConvertToMp4ByPipe: duration = %d, want 5..6", duration)
+	}
 
-	oData, err := ffmpegUtil.GetFirstFrameByPipe(data)
+	frame, err := ffmpegUtil.GetFirstFrameByPipe(data)
 	if err != nil {
-		logx.Errorf("%v", err)
-		return
+		t.Fatalf("GetFirstFrameByPipe: %v", err)
+	}
+	cfg, err := jpeg.DecodeConfig(bytes.NewReader(frame))
+	if err != nil {
+		t.Fatalf("first frame is not a JPEG: %v", err)
+	}
+	if cfg.Width != 320 {
+		t.Errorf("first frame width = %d, want 320", cfg.Width)
 	}
 
-	ioutil.WriteFile("./gsmarena_003.gif.jpg", oData, 0644)
-
-	md, _ := ffmpegUtil.GetMetadataByPipe(data)
-	if md != nil {
-		logx.Infof("%#v", md)
-		w, h := GetWidthHeight(md)
-		logx.Infof("duration: %d, (w, h): (%d,%d)", GetDuration(md), w, h)
+	md, err := ffmpegUtil.GetMetadataByPipe(data)
+	if err != nil {
+		t.Fatalf("GetMetadataByPipe: %v", err)
+	}
+	w, h := GetWidthHeight(md)
+	if w != 320 || h <= 0 || h%2 != 0 {
+		t.Errorf("mp4 size = %dx%d, want 320 x even height", w, h)
 	}
 }

@@ -65,8 +65,10 @@ func main() {
 		fmt.Print(renderSummary(methods, layer))
 		return
 	}
-	check(os.MkdirAll(filepath.Dir(*out), 0o755))
-	check(os.WriteFile(*out, []byte(render(methods, layer)), 0o644))
+	// A document checked into the repository, not a secret: the usual
+	// permissions of checked-in files.
+	check(os.MkdirAll(filepath.Dir(*out), 0o755))                    //nolint:gosec // G301: a repository directory
+	check(os.WriteFile(*out, []byte(render(methods, layer)), 0o644)) //nolint:gosec // G306: a checked-in document
 	fmt.Print(renderSummary(methods, layer))
 	fmt.Printf("written %s\n", *out)
 }
@@ -170,7 +172,7 @@ func loadHandlers(root string) (map[string]handler, error) {
 		if !strings.Contains(path, string(filepath.Separator)+"core"+string(filepath.Separator)) {
 			return nil
 		}
-		b, err := os.ReadFile(path)
+		b, err := os.ReadFile(path) //nolint:gosec // G122: reads the developer's own source tree
 		if err != nil {
 			return err
 		}
@@ -211,19 +213,34 @@ func classify(body string) string {
 			n++
 		}
 	}
-	blocked := strings.Contains(code, "ErrEnterpriseIsBlocked")
+	// Upstream enterprise stubs either return ErrEnterpriseIsBlocked or log the
+	// "License key ... required" message and return an empty but valid result.
+	// The marker is matched in body: stripComments cuts the URL at "//".
+	licensed := strings.Contains(body, licenseStubMarker)
+	blocked := strings.Contains(code, "ErrEnterpriseIsBlocked") || licensed
 	notimpl := strings.Contains(code, "ErrMethodNotImpl") || strings.Contains(body, "TODO: not impl")
 	switch {
 	case n <= stubMaxLines && blocked:
 		return "blocked"
 	case n <= stubMaxLines && notimpl:
 		return "notimpl"
-	case blocked || strings.Contains(code, "ErrMethodNotImpl"):
+	case n <= emptyResultStubMaxLines && licensed:
+		return "blocked"
+	case n <= emptyResultStubMaxLines && strings.Contains(body, "TODO: not impl"):
+		return "notimpl"
+	case blocked || notimpl:
 		return "partial"
 	default:
 		return "ok"
 	}
 }
+
+// licenseStubMarker is logged by upstream handlers that are enterprise-only.
+const licenseStubMarker = "License key from https://teamgram.net required"
+
+// emptyResultStubMaxLines bounds stubs that build an empty result object
+// (a constructor call with a few empty fields) instead of returning an error.
+const emptyResultStubMaxLines = 14
 
 func stripComments(s string) string {
 	var b strings.Builder

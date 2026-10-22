@@ -88,7 +88,7 @@ func (c *HttpserverCore) onUnencryptedMessage(mmsg *mtproto.MTPRawMessage) (*mtp
 	_, obj, err := parseFromIncomingMessage(mmsg.Payload[8:])
 	if err != nil {
 		err := fmt.Errorf("invalid data len < 8")
-		logx.Errorf(err.Error())
+		logx.Error(err.Error())
 		return nil, err
 	}
 

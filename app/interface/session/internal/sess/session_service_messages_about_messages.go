@@ -804,7 +804,7 @@ func (c *session) onMsgDetailInfo(ctx context.Context, gatewayId string, msgId *
 	// NOTE(@benqi): not received by server
 }
 
-func (c *session) onMsgNewDetailInfo(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgDetailedInfo) {
+func (c *session) onMsgNewDetailInfo(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgNewDetailedInfo) {
 	logx.WithContext(ctx).Errorf("onMsgNewDetailInfo - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, answer_msg_id: %d}",
 		c,
 		gatewayId,

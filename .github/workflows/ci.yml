@@ -1,0 +1,180 @@
+# Build, vet, unit and race tests, lint, vulnerability scan and the API
+# coverage matrix on every push and pull request. The same sequence runs
+# locally with `make ci` (docs/ops/testing.md). Integration tests on real
+# MySQL/Redis/Kafka (`make test-integration`) and the end-to-end test of the
+# docker compose stack (`make e2e`) run as jobs of their own, in parallel.
+# Tool versions are pinned in the Makefile; actions are pinned by commit SHA.
+# Updates of everything pinned come as Dependabot pull requests
+# (.github/dependabot.yml); the weekly run catches vulnerabilities published
+# since the last push (govulncheck) on the default branch.
+name: CI
+
+on:
+  push:
+    # Dependabot branches are tested by their pull requests.
+    branches-ignore: ["dependabot/**"]
+  pull_request:
+  schedule:
+    - cron: "17 4 * * 1" # Mondays 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A scheduled or manual run does not cancel a push run of the same branch.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Build, test, lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # golangci-lint reports issues new since the upstream base commit
+          # (issues.new-from-rev), so the whole history is needed.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # The toolchain directive of go.mod (the exact Go release).
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            third_party/teamgram-proto/go.sum
+
+      - name: Install ffmpeg
+        # dfs and pkg/goffmpeg tests run the ffmpeg/ffprobe binaries (with
+        # libx264, as in the production image); without them they would skip.
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends ffmpeg
+          ffmpeg -hide_banner -version | head -n 1
+
+      - name: Tool versions
+        id: tools
+        run: make -s print-tool-versions | tee -a "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: make build
+
+      - name: Vet
+        run: make vet
+
+      - name: Unit tests
+        run: make test
+
+      - name: Race tests
+        run: make test-race
+
+      - name: golangci-lint (root module)
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: ${{ steps.tools.outputs.golangci_lint }}
+          # Built with the go.mod toolchain, like `make lint`: a prebuilt
+          # binary may be built with an older Go than the code targets.
+          install-mode: goinstall
+
+      - name: golangci-lint (third_party/teamgram-proto)
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: ${{ steps.tools.outputs.golangci_lint }}
+          install-mode: goinstall
+          working-directory: third_party/teamgram-proto
+          args: --config=${{ github.workspace }}/.golangci.yml --new-from-rev=${{ steps.tools.outputs.proto_lint_base }}
+
+      - name: govulncheck
+        run: make vuln
+
+      - name: API coverage summary
+        run: |
+          {
+            echo "### API coverage"
+            echo
+            make -s apicoverage-summary
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: API coverage matrix is up to date
+        run: make apicoverage-check
+
+      - name: actionlint
+        # With the pinned shellcheck for the run: blocks.
+        run: make actionlint
+
+      - name: shellcheck
+        run: make shellcheck
+
+      - name: Working tree unchanged
+        # No step may modify tracked files or leave new ones behind (e.g. a
+        # regenerated docs/project/api-coverage.md, go.mod/go.sum changes,
+        # test output written into the repository).
+        run: |
+          git status --porcelain
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
+
+  integration:
+    name: Integration tests (MySQL, Redis, Kafka)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # The cache key is the hash of these files and nothing else: each
+          # job lists a file of its own, or the jobs share a key and only the
+          # first to finish saves its cache (this one builds with -race).
+          cache-dependency-path: |
+            go.sum
+            Makefile
+
+      - name: Integration tests
+        # testcontainers-go starts the containers on the runner's Docker.
+        run: make test-integration
+
+  e2e:
+    name: End-to-end (docker compose)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        # genserverkey and the Go test client run on the runner.
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          # A cache key of its own (see the integration job).
+          cache-dependency-path: |
+            go.sum
+            test/e2e/run.sh
+
+      - name: End-to-end test
+        # Builds the image, starts the stack with throwaway secrets, runs
+        # test/e2e and stops the stack; on failure the service logs are saved
+        # to .e2e/logs first.
+        run: make e2e
+
+      - name: Upload service logs
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-service-logs
+          path: .e2e/logs/
+          if-no-files-found: ignore
+          retention-days: 14

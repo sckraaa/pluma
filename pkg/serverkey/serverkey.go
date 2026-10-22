@@ -10,7 +10,7 @@ package serverkey
 
 import (
 	"crypto/rsa"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // the MTProto key fingerprint is defined over SHA-1
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
@@ -60,7 +60,7 @@ func Fingerprint(pub *rsa.PublicKey) uint64 {
 	x := mtproto.NewEncodeBuf(512)
 	x.StringBytes(pub.N.Bytes())
 	x.StringBytes(big.NewInt(int64(pub.E)).Bytes())
-	sum := sha1.Sum(x.GetBuf())
+	sum := sha1.Sum(x.GetBuf()) //nolint:gosec // MTProto key fingerprint
 	return binary.LittleEndian.Uint64(sum[12:20])
 }
 

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/pem"
@@ -22,6 +21,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
+	"github.com/teamgram/teamgram-server/pkg/mtclient"
 	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/panjf2000/gnet/v2"
@@ -294,37 +294,15 @@ func (tc *testClient) onResPQ(o mtproto.TLObject) {
 	tc.serverNonce = res.GetServerNonce()
 }
 
-// rsaPad implements RSA_PAD(data, server_public_key).
+// rsaPad implements RSA_PAD(data, server_public_key) with the client of
+// pkg/mtclient, which the end-to-end tests use against the real server.
 func (tc *testClient) rsaPad(data []byte) []byte {
 	tc.t.Helper()
-	if len(data) > 144 {
-		tc.t.Fatalf("data is %d bytes", len(data))
+	b, err := mtclient.RSAPad(rand.Reader, tc.pub, data)
+	if err != nil {
+		tc.t.Fatal(err)
 	}
-	for {
-		dataWithPadding := append(append([]byte(nil), data...), crypto.GenerateNonce(192-len(data))...)
-		reversed := slices.Clone(dataWithPadding)
-		slices.Reverse(reversed)
-		tempKey := crypto.GenerateNonce(32)
-		h := sha256.Sum256(append(append([]byte(nil), tempKey...), dataWithPadding...))
-		dataWithHash := append(reversed, h[:]...)
-		aesEncrypted, err := crypto.NewAES256IGECryptor(tempKey, make([]byte, 32)).Encrypt(dataWithHash)
-		if err != nil {
-			tc.t.Fatal(err)
-		}
-		h2 := sha256.Sum256(aesEncrypted)
-		keyAesEncrypted := make([]byte, 0, 256)
-		for i := 0; i < 32; i++ {
-			keyAesEncrypted = append(keyAesEncrypted, tempKey[i]^h2[i])
-		}
-		keyAesEncrypted = append(keyAesEncrypted, aesEncrypted...)
-		m := new(big.Int).SetBytes(keyAesEncrypted)
-		if m.Cmp(tc.pub.N) >= 0 {
-			continue
-		}
-		c := new(big.Int).Exp(m, big.NewInt(int64(tc.pub.E)), tc.pub.N)
-		out := make([]byte, 256)
-		return c.FillBytes(out)
-	}
+	return b
 }
 
 func (tc *testClient) reqDHParams(temp bool) []byte {
@@ -356,16 +334,7 @@ func (tc *testClient) reqDHParams(temp bool) []byte {
 }
 
 func (tc *testClient) tmpAes() (key, iv []byte) {
-	s := func(a, b []byte) []byte {
-		h := sha1.Sum(append(append([]byte(nil), a...), b...))
-		return h[:]
-	}
-	ns := s(tc.newNonce, tc.serverNonce)
-	sn := s(tc.serverNonce, tc.newNonce)
-	nn := s(tc.newNonce, tc.newNonce)
-	key = append(append([]byte(nil), ns...), sn[:12]...)
-	iv = append(append(append([]byte(nil), sn[12:20]...), nn...), tc.newNonce[:4]...)
-	return key, iv
+	return mtclient.TempAESKeyIV(tc.newNonce, tc.serverNonce)
 }
 
 func (tc *testClient) onServerDHParams(o mtproto.TLObject) {

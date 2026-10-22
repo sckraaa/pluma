@@ -587,7 +587,7 @@ func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq
 		answerLen += 16 - answerLen%16
 	}
 	answerWithHash := make([]byte, answerLen)
-	sha1Answer := sha1.Sum(serverDHInnerDataBuf)
+	sha1Answer := sha1.Sum(serverDHInnerDataBuf) //nolint:gosec // MTProto: answer_with_hash = SHA1(answer) + answer
 	copy(answerWithHash, sha1Answer[:])
 	copy(answerWithHash[20:], serverDHInnerDataBuf)
 	copy(answerWithHash[20+len(serverDHInnerDataBuf):], crypto.GenerateNonce(answerLen-20-len(serverDHInnerDataBuf)))
@@ -616,7 +616,7 @@ func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq
 //	tmp_aes_iv  := substr(SHA1(server_nonce + new_nonce), 12, 8) + SHA1(new_nonce + new_nonce) + substr(new_nonce, 0, 4);
 func tmpAesKeyAndIV(newNonce, serverNonce []byte) (key, iv []byte) {
 	cat := func(a, b []byte) [20]byte {
-		return sha1.Sum(append(append(make([]byte, 0, len(a)+len(b)), a...), b...))
+		return sha1.Sum(append(append(make([]byte, 0, len(a)+len(b)), a...), b...)) //nolint:gosec // MTProto: tmp_aes_key/iv derivation
 	}
 	sha1A := cat(newNonce, serverNonce)
 	sha1B := cat(serverNonce, newNonce)
@@ -682,7 +682,7 @@ func processSetClientDHParams(st *HandshakeStateCtx, req *mtproto.TLSetClient_DH
 	authKeyNum.FillBytes(authKey)
 
 	// auth_key_id: the 64 lower-order bits of SHA1(auth_key).
-	sha1Key := sha1.Sum(authKey)
+	sha1Key := sha1.Sum(authKey) //nolint:gosec // MTProto: auth_key_id = low 64 bits of SHA1(auth_key)
 	return &dhGenKey{
 		authKeyId: int64(binary.LittleEndian.Uint64(sha1Key[12:20])),
 		authKey:   authKey,

@@ -16,24 +16,35 @@
 // Author: teamgramio (teamgram.io@gmail.com)
 //
 
+// download is a manual tool for the dfs DAO: it reads back a file stored as
+// upload parts (see ../upload), checks that the streaming reader and ReadAll
+// return the same bytes and writes the file out. Run it against a dev
+// environment:
+//
+//	go run ./app/service/dfs/internal/dao/examples/download -f etc/dfs.yaml -out test001.jpeg
 package main
 
 import (
+	"bytes"
 	"context"
-	"crypto/md5"
-	"fmt"
-	"io/ioutil"
+	"crypto/sha256"
+	"flag"
+	"io"
 	"os"
 
 	"github.com/teamgram/marmota/pkg/commands"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/config"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 
+	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 var (
-	c config.Config
+	configFile = flag.String("f", "etc/dfs.yaml", "the config file")
+	outputFile = flag.String("out", "test001.jpeg", "where to write the file")
+	ownerId    = flag.Int64("owner", 7997959636588162716, "owner (creator) id of the file")
+	fileId     = flag.Int64("id", -8695032368284712706, "file id")
 )
 
 func main() {
@@ -50,6 +61,11 @@ func New() *Server {
 }
 
 func (s *Server) Initialize() error {
+	var c config.Config
+	conf.MustLoad(*configFile, &c)
+
+	// The config carries secrets (passwords, keys): never log it whole.
+	logx.Infof("loaded config %s", *configFile)
 	s.dao = dao.New(c)
 	return nil
 }
@@ -60,31 +76,30 @@ func (s *Server) RunLoop() {
 		os.Exit(0)
 	}()
 
-	r, err := s.dao.OpenFile(context.Background(), 7997959636588162716, -8695032368284712706, 1)
+	r, err := s.dao.OpenFile(context.Background(), *ownerId, *fileId, 1)
 	if err != nil {
-		logx.Error("open error: %v", err)
-		// panic(err)
+		logx.Errorf("open error: %v", err)
 		return
 	}
 
-	b, err := ioutil.ReadAll(r)
+	b, err := io.ReadAll(r)
 	if err != nil {
-		logx.Error("open error: %v", err)
-		// panic(err)
+		logx.Errorf("read error: %v", err)
 		return
 	}
 
 	b2, err := r.ReadAll(context.Background())
 	if err != nil {
-		logx.Error("open error: %v", err)
-		// panic(err)
+		logx.Errorf("readAll error: %v", err)
 		return
 	}
 
-	logx.Infof("%s", fmt.Sprintf("%x", md5.Sum(b)))
-	logx.Infof("%s", fmt.Sprintf("%x", md5.Sum(b2)))
-	err = ioutil.WriteFile("test001.jpeg", b, 0644)
-	if err != nil {
+	if !bytes.Equal(b, b2) {
+		logx.Errorf("stream and ReadAll differ: %d vs %d bytes", len(b), len(b2))
+		return
+	}
+	logx.Infof("read %d bytes, sha256 %x", len(b), sha256.Sum256(b))
+	if err = os.WriteFile(*outputFile, b, 0o600); err != nil {
 		logx.Errorf("write error: %v", err)
 	}
 }

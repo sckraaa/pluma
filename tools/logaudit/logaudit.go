@@ -149,7 +149,7 @@ func Check(root string, dirs []string, skip []string) ([]Finding, error) {
 			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 				return nil
 			}
-			src, err := os.ReadFile(path)
+			src, err := os.ReadFile(path) //nolint:gosec // G122: reads the developer's own source tree
 			if err != nil {
 				return err
 			}
@@ -407,7 +407,7 @@ func opaqueValue(e ast.Expr) bool {
 		return false
 	}
 	lower := strings.ToLower(name)
-	return !(strings.HasPrefix(lower, "err") || strings.HasSuffix(lower, "err") || lower == "e")
+	return !strings.HasPrefix(lower, "err") && !strings.HasSuffix(lower, "err") && lower != "e"
 }
 
 // wholeObject reports an argument that is a TL object, its String() or its

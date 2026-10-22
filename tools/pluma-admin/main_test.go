@@ -57,9 +57,11 @@ type harness struct {
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
+	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
+	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
 	store := kv.NewStore(kv.KvConf{cache.NodeConf{
-		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType},
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
 		Weight:    100,
 	}})
 	h := &harness{list: memAllowlist{}}

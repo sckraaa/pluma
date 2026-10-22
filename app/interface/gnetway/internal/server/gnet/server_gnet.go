@@ -187,9 +187,9 @@ const (
 func (s *Server) extendDeadline(c gnet.Conn, ctx *connContext) {
 	oldCloseDate := ctx.closeDate
 	if ctx.http {
-		ctx.closeDate = s.CachedNow() + httpIdleTimeout + rand.Int63()%10
+		ctx.closeDate = s.CachedNow() + httpIdleTimeout + rand.Int63()%10 //nolint:gosec // deadline jitter, not a secret
 	} else {
-		ctx.closeDate = s.CachedNow() + tcpIdleTimeout + rand.Int63()%10
+		ctx.closeDate = s.CachedNow() + tcpIdleTimeout + rand.Int63()%10 //nolint:gosec // deadline jitter, not a secret
 	}
 	s.timeoutWheel.Move(c.ConnId(), oldCloseDate, ctx.closeDate)
 }

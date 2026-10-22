@@ -35,9 +35,11 @@ func (brokenAllowlist) Contains(context.Context, string) (bool, error) {
 
 func newTestKV(t *testing.T) (*miniredis.Miniredis, kv.Store) {
 	t.Helper()
+	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
+	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
 	return mr, kv.NewStore(kv.KvConf{cache.NodeConf{
-		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType},
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
 		Weight:    100,
 	}})
 }

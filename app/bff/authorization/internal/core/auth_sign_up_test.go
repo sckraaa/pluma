@@ -121,9 +121,11 @@ func rpcErrorMessage(err error) string {
 // auth.signUp created an account for any phone_code_hash, without the code
 // having been accepted by auth.signIn.
 func TestAuthSignUpHandlerRequiresAcceptedCode(t *testing.T) {
+	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
+	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
 	codes, err := logincode.NewService(logincode.Config{HmacKey: strings.Repeat("k", 32)}, allowedPhones{signUpPhone: true}, kv.NewStore(kv.KvConf{cache.NodeConf{
-		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType},
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
 		Weight:    100,
 	}}))
 	if err != nil {

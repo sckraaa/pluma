@@ -12,6 +12,10 @@ target/
 /secrets/
 /server_pkcs1.key
 /teamgramd/bin/server_pkcs1.key
+# end-to-end test run: throwaway secrets and service logs (test/e2e/run.sh)
+/.e2e/
+# check tools downloaded by make (shellcheck)
+/.tools/
 
 #fixed file
 .class
@@ -75,3 +79,6 @@ docs/specs
 
 .pending
 AGENTS.md
+
+# test coverage profiles (make coverage)
+coverage.out
