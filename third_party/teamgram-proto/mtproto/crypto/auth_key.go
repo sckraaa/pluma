@@ -322,7 +322,7 @@ func (k *AuthKey) AesIgeDecryptV1(msgKey, rawData []byte) ([]byte, error) {
 	messageLen := binary.LittleEndian.Uint32(x[28:])
 
 	var calcMsgKey [32]byte
-	sha1Sum := sha1.Sum(x[:decryptedHeaderSize+int(messageLen)])
+	sha1Sum := sha1.Sum(x[:decryptedHeaderSize+int(messageLen)]) //nolint:gosec // pluma: MTProto 1.0 msg_key is defined over SHA-1
 	copy(calcMsgKey[4:], sha1Sum[:])
 
 	if subtle.ConstantTimeCompare(calcMsgKey[8:8+16], msgKey[:16]) != 1 {
