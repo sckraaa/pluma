@@ -40,6 +40,16 @@ func newTx(c context.Context, sess sqlx.Session) *Tx {
 	}
 }
 
+// NewTx returns a Tx that runs its statements on sess with ctx, for a
+// transaction the caller begins and ends itself (its own isolation level and
+// context, outside go-zero's TransactCtx). The *Tx methods of the DAOs then
+// work inside it.
+//
+// pluma: exported for pkg/userbox (ADR 0011).
+func NewTx(ctx context.Context, sess sqlx.Session) *Tx {
+	return newTx(ctx, sess)
+}
+
 func (tx *Tx) Context() context.Context {
 	return tx.ctx
 }
