@@ -118,8 +118,10 @@ SHELL_SCRIPTS := test/e2e/run.sh teamgramd/docker/healthcheck.sh
 # does not reach it, so every check runs there as well.
 PROTO_DIR := third_party/teamgram-proto
 # Lint reports only code changed since the upstream base: 708fb953 for the root
-# module (.golangci.yml), the unmodified vendored copy for the proto module.
-PROTO_LINT_BASE := d6a35e59
+# module (.golangci.yml), the unmodified vendored copy for the proto module —
+# the commit that added its go.mod, looked up so that it survives history
+# rewrites (needs full history: CI checks out with fetch-depth: 0).
+PROTO_LINT_BASE := $(shell git log --format=%H --diff-filter=A -- $(PROTO_DIR)/go.mod | tail -n 1)
 
 # `unreachable` is off: the mtprotoc codecs (codec_schema.tl.pb.go) have dead
 # code after returns, and generated code is not edited by hand. All other vet
