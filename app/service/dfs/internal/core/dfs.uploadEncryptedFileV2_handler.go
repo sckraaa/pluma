@@ -25,9 +25,14 @@ func (c *DfsCore) DfsUploadEncryptedFileV2(in *dfs.TLDfsUploadEncryptedFileV2) (
 	var (
 		file            = in.GetFile()
 		creatorId       = in.GetCreator()
-		encryptedFileId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+		encryptedFileId int64
 		accessHash      = int64(mtproto.CRC32_storage_filePartial)<<32 | int64(rand.Uint32())
 	)
+
+	encryptedFileId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	fileInfo, err := c.svcCtx.Dao.GetFileInfo(c.ctx, creatorId, file.Id)
 	if err != nil {

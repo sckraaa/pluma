@@ -1,0 +1,7 @@
+<table sqlname="user_pts_updates">
+    <operation name="Insert">
+        <sql>
+            INSERT INTO user_pts_updates (user_id, pts) VALUES (:user_id, :pts)
+        </sql>
+    </operation>
+</table>

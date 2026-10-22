@@ -31,6 +31,5 @@ type Config struct {
 	Cache           cache.CacheConf
 	KV              kv.KvConf
 	MediaClient     zrpc.RpcClientConf
-	IdgenClient     zrpc.RpcClientConf
 	MessageSharding int `json:",default=1"`
 }

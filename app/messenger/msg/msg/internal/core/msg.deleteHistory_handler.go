@@ -22,194 +22,72 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
-	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // MsgDeleteHistory
 // msg.deleteHistory user_id:long auth_key_id:long peer_type:int peer_id:long just_clear:Bool revoke:Bool = messages.AffectedHistory;
+//
+// It deletes a portion of the newest messages of the dialog, as Telegram
+// does: offset above 0 asks the client to repeat the call. Without
+// just_clear the last portion deletes the dialog row too. With revoke (and
+// not just_clear) each portion also deletes the dialog's history of every
+// other member.
 func (c *MsgCore) MsgDeleteHistory(in *msg.TLMsgDeleteHistory) (*mtproto.Messages_AffectedHistory, error) {
-	var (
-		rValue *mtproto.Messages_AffectedHistory
-		err    error
-	)
+	peerType, peerId := selfPeer(in.UserId, in.PeerType, in.PeerId)
+	if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT {
+		c.Logger.Errorf("msg.deleteHistory - error: invalid peer %d/%d", in.PeerType, in.PeerId)
+		return nil, mtproto.ErrPeerIdInvalid
+	}
 
-	switch in.PeerType {
-	case mtproto.PEER_SELF,
-		mtproto.PEER_USER,
-		mtproto.PEER_CHAT:
-		rValue, err = c.deleteUserHistory(in)
-		if err != nil {
+	revoke := in.Revoke && !in.JustClear
+	var recipients []int64
+	if revoke {
+		var err error
+		if recipients, err = c.recipients(in.UserId, peerType, peerId); err != nil {
 			c.Logger.Errorf("msg.deleteHistory - error: %v", err)
 			return nil, err
 		}
+	}
 
-	case mtproto.PEER_CHANNEL:
-	default:
-		err = mtproto.ErrPeerIdInvalid
+	var left int32
+	res, err := c.svcCtx.Dao.RunBox(c.ctx, in.UserId,
+		[]string{dialog.GetDialogCacheKeyByPeer(in.UserId, peerType, peerId)},
+		func(b *userbox.Box) error {
+			left = 0
+			cleared, err := c.svcCtx.Dao.ClearHistory(b, peerType, peerId, in.JustClear)
+			if err != nil || cleared == nil {
+				return err
+			}
+			left = cleared.Left
+			if len(cleared.Updates) > 0 {
+				if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, in.UserId, in.AuthKeyId, mtproto.MakeUpdatesByUpdates(cleared.Updates...)); err != nil {
+					return err
+				}
+			}
+			if cleared.Deleted == nil {
+				return nil
+			}
+			for _, to := range recipients {
+				if peerType == mtproto.PEER_USER {
+					err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxDeleteUserHistoryToInbox{UserId: to, FromId: in.UserId})
+				} else {
+					err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxDeleteChatHistoryToInbox{UserId: to, FromId: in.UserId, PeerChatId: peerId})
+				}
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	if err != nil {
 		c.Logger.Errorf("msg.deleteHistory - error: %v", err)
 		return nil, err
 	}
-
-	return rValue, nil
-}
-
-func (c *MsgCore) deleteUserHistory(in *msg.TLMsgDeleteHistory) (reply *mtproto.Messages_AffectedHistory, err error) {
-	var (
-		pts, ptsCount int32
-		peer          = mtproto.MakePeerUtil(in.PeerType, in.PeerId)
-	)
-
-	lastMessage, deleteIds := c.svcCtx.Dao.GetLastMessageAndIdListByDialog(c.ctx, in.UserId, peer)
-	if len(deleteIds) == 0 ||
-		len(deleteIds) == 1 &&
-			in.GetJustClear() &&
-			lastMessage.GetPredicateName() == mtproto.Predicate_messageService &&
-			lastMessage.GetAction().GetPredicateName() == mtproto.Predicate_messageActionHistoryClear {
-		pts = c.svcCtx.Dao.IDGenClient2.CurrentPtsId(c.ctx, in.UserId)
-		ptsCount = 0
-
-		return mtproto.MakeTLMessagesAffectedHistory(&mtproto.Messages_AffectedHistory{
-			Pts:      pts,
-			PtsCount: ptsCount,
-			Offset:   0,
-		}).To_Messages_AffectedHistory(), nil
-	}
-
-	// TODO(@benqi): chat
-	pts = c.svcCtx.Dao.IDGenClient2.NextNPtsId(c.ctx, in.UserId, len(deleteIds)+1)
-	ptsCount = int32(len(deleteIds) + 1)
-	if in.JustClear {
-		deleteIds = deleteIds[1:]
-		if _, err = c.svcCtx.Dao.DeleteByMessageIdList(c.ctx, in.UserId, deleteIds); err != nil {
-			return nil, err
-		}
-
-		clearHistoryMessage := mtproto.MakeTLMessageService(&mtproto.Message{
-			Out:         true,
-			Mentioned:   false,
-			MediaUnread: false,
-			Silent:      false,
-			Post:        false,
-			Legacy:      false,
-			Id:          lastMessage.Id,
-			FromId:      mtproto.MakePeerUser(in.UserId),
-			PeerId:      peer.ToPeer(),
-			ReplyTo:     nil,
-			Date:        lastMessage.GetDate(),
-			Action:      mtproto.MakeTLMessageActionHistoryClear(nil).To_MessageAction(),
-			TtlPeriod:   nil,
-		}).To_Message()
-		c.svcCtx.Dao.EditUserOutboxMessage(c.ctx, in.UserId, in.PeerId, clearHistoryMessage)
-
-		updateDelete := mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{
-			Messages:  deleteIds,
-			Pts_INT32: pts - 2,
-			PtsCount:  ptsCount - 2,
-		}).To_Update()
-		updateReadInbox := mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{
-			Peer_PEER: peer.ToPeer(),
-			MaxId:     lastMessage.Id,
-			Pts_INT32: pts - 1,
-			PtsCount:  1,
-		}).To_Update()
-		updateEdit := mtproto.MakeTLUpdateEditMessage(&mtproto.Update{
-			Message_MESSAGE: clearHistoryMessage,
-			Pts_INT32:       pts,
-			PtsCount:        1,
-		}).To_Update()
-
-		// Write user_pts_updates before RPC return to guarantee getDifference completeness
-		c.svcCtx.Dao.AddToPtsQueue(c.ctx, in.UserId, pts-2, ptsCount-2, updateDelete)
-		c.svcCtx.Dao.AddToPtsQueue(c.ctx, in.UserId, pts-1, 1, updateReadInbox)
-		c.svcCtx.Dao.AddToPtsQueue(c.ctx, in.UserId, pts, 1, updateEdit)
-
-		syncUpdates := mtproto.MakeUpdatesByUpdates(updateDelete, updateReadInbox, updateEdit)
-		c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(
-			c.ctx,
-			&sync.TLSyncUpdatesNotMe{
-				UserId:        in.UserId,
-				PermAuthKeyId: in.AuthKeyId,
-				Updates:       syncUpdates,
-			})
-	} else {
-		if _, err = c.svcCtx.Dao.DeleteByMessageIdList(c.ctx, in.UserId, deleteIds); err != nil {
-			return nil, err
-		}
-
-		updateDelete := mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{
-			Messages:  deleteIds,
-			Pts_INT32: pts - 2,
-			PtsCount:  ptsCount - 2,
-		}).To_Update()
-		updateReadInbox := mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{
-			Peer_PEER: peer.ToPeer(),
-			MaxId:     lastMessage.Id,
-			Pts_INT32: pts - 1,
-			PtsCount:  1,
-		}).To_Update()
-
-		// Write user_pts_updates before RPC return to guarantee getDifference completeness
-		c.svcCtx.Dao.AddToPtsQueue(c.ctx, in.UserId, pts-2, ptsCount-2, updateDelete)
-		c.svcCtx.Dao.AddToPtsQueue(c.ctx, in.UserId, pts-1, 1, updateReadInbox)
-
-		syncUpdates := mtproto.MakeUpdatesByUpdates(updateDelete, updateReadInbox)
-		c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(
-			c.ctx,
-			&sync.TLSyncUpdatesNotMe{
-				UserId:        in.UserId,
-				PermAuthKeyId: in.AuthKeyId,
-				Updates:       syncUpdates,
-			})
-	}
-
-	reply = mtproto.MakeTLMessagesAffectedHistory(&mtproto.Messages_AffectedHistory{
-		Pts:      pts,
-		PtsCount: ptsCount,
-		Offset:   0,
-	}).To_Messages_AffectedHistory()
-
-	if in.Revoke {
-		switch peer.PeerType {
-		case mtproto.PEER_USER:
-			if in.UserId == in.PeerId {
-				return
-			}
-
-			_, _ = c.svcCtx.Dao.InboxClient.InboxDeleteUserHistoryToInbox(
-				c.ctx,
-				&inbox.TLInboxDeleteUserHistoryToInbox{
-					FromId:     in.UserId,
-					PeerUserId: in.PeerId,
-					JustClear:  in.JustClear,
-					MaxId:      in.MaxId,
-				})
-		case mtproto.PEER_CHAT:
-			chat, err2 := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(
-				c.ctx,
-				&chatpb.TLChatGetMutableChat{
-					ChatId: in.PeerId,
-				})
-			if err2 != nil {
-				c.Logger.Errorf("inbox.sendChatMessageToInbox - error: %v", err2)
-			} else {
-				chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-					if in.UserId != userId {
-						_, _ = c.svcCtx.Dao.InboxClient.InboxDeleteChatHistoryToInbox(
-							c.ctx,
-							&inbox.TLInboxDeleteChatHistoryToInbox{
-								FromId:     userId,
-								PeerChatId: in.PeerId,
-								MaxId:      in.MaxId,
-							})
-					}
-
-					return nil
-				})
-			}
-
-		}
-	}
-
-	return
+	return mtproto.MakeTLMessagesAffectedHistory(&mtproto.Messages_AffectedHistory{
+		Pts:      res.State.Pts,
+		PtsCount: ptsCount(res),
+		Offset:   left,
+	}).To_Messages_AffectedHistory(), nil
 }

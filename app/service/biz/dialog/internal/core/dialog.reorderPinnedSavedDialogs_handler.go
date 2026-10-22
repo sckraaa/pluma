@@ -19,48 +19,60 @@
 package core
 
 import (
+	"cmp"
+	"slices"
 	"time"
 
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // DialogReorderPinnedSavedDialogs
 // dialog.reorderPinnedSavedDialogs user_id:long force:Bool order:Vector<PeerUtil> = Bool;
+//
+// One box transaction of the user: the pinned saved dialogs are read, then
+// each row changes by its key, in key order.
 func (c *DialogCore) DialogReorderPinnedSavedDialogs(in *dialog.TLDialogReorderPinnedSavedDialogs) (*mtproto.Bool, error) {
-	var (
-		userId      = in.GetUserId()
-		force       = mtproto.FromBool(in.GetForce())
-		orderPinned = time.Now().Unix()
-	)
-
-	sqlx.TxWrapper(
-		c.ctx,
-		c.svcCtx.Dao.DB,
-		func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-			if force {
-				_, result.Err = c.svcCtx.Dao.SavedDialogsDAO.UpdateUserUnPinnedTx(
-					tx,
-					userId)
-				if result.Err != nil {
-					return
-				}
+	type peerKey struct {
+		PeerType int32 `db:"peer_type"`
+		PeerId   int64 `db:"peer_id"`
+	}
+	userId := in.GetUserId()
+	err := c.svcCtx.Dao.RunBox(c.ctx, userId, nil, func(b *userbox.Box) error {
+		values := map[peerKey]int64{}
+		if mtproto.FromBool(in.GetForce()) {
+			var pinned []peerKey
+			if err := b.Tx().QueryRowsPartial(&pinned,
+				"SELECT peer_type, peer_id FROM saved_dialogs WHERE user_id = ? AND pinned > 0 AND deleted = 0", userId); err != nil {
+				return err
 			}
-
-			for _, id := range in.Order {
-				_, result.Err = c.svcCtx.Dao.SavedDialogsDAO.UpdateUserPeerPinnedTx(
-					tx,
-					orderPinned<<32,
-					in.UserId,
-					id.PeerType,
-					id.PeerId)
-				if result.Err != nil {
-					return
-				}
-				orderPinned -= 1
+			for _, k := range pinned {
+				values[k] = 0
 			}
+		}
+		order := time.Now().Unix()
+		for _, p := range in.GetOrder() {
+			values[peerKey{PeerType: p.GetPeerType(), PeerId: p.GetPeerId()}] = order << 32
+			order--
+		}
+		keys := make([]peerKey, 0, len(values))
+		for k := range values {
+			keys = append(keys, k)
+		}
+		slices.SortFunc(keys, func(a, b peerKey) int {
+			return cmp.Or(cmp.Compare(a.PeerType, b.PeerType), cmp.Compare(a.PeerId, b.PeerId))
 		})
-
+		for _, k := range keys {
+			if _, err := c.svcCtx.Dao.SavedDialogsDAO.UpdateUserPeerPinnedTx(b.Tx(), values[k], userId, k.PeerType, k.PeerId); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		c.Logger.Errorf("dialog.reorderPinnedSavedDialogs - error: %v", err)
+		return nil, err
+	}
 	return mtproto.BoolTrue, nil
 }

@@ -27,9 +27,7 @@ const (
 	CRC32_message_getSearchCounter                     TLConstructor = -489963706  // 0xe2cbbf46
 	CRC32_message_searchV2                             TLConstructor = -356633351  // 0xeabe34f9
 	CRC32_message_getLastTwoPinnedMessageId            TLConstructor = -1348859861 // 0xaf9a082b
-	CRC32_message_updatePinnedMessageId                TLConstructor = -182391344  // 0xf520edd0
 	CRC32_message_getPinnedMessageIdList               TLConstructor = -637415203  // 0xda01d0dd
-	CRC32_message_unPinAllMessages                     TLConstructor = -368432525  // 0xea0a2a73
 	CRC32_message_getUnreadMentions                    TLConstructor = 1877050548  // 0x6fe184b4
 	CRC32_message_getUnreadMentionsCount               TLConstructor = -1254023095 // 0xb5412049
 	CRC32_message_getSavedHistoryMessages              TLConstructor = -60243377   // 0xfc68c24f

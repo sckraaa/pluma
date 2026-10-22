@@ -21,55 +21,46 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // InboxDeleteChatHistoryToInbox
-// inbox.deleteChatHistoryToInbox from_id:long peer_chat_id:long max_id:int = Void;
-func (c *InboxCore) InboxDeleteChatHistoryToInbox(in *inbox.TLInboxDeleteChatHistoryToInbox) (*mtproto.Void, error) {
-	var (
-		pts, ptsCount int32
-		peer          = mtproto.MakePeerUtil(mtproto.PEER_CHAT, in.PeerChatId)
-	)
+// inbox.deleteChatHistoryToInbox user_id:long from_id:long peer_chat_id:long = Void;
+//
+// from_id deleted the chat's history for every member: the recipient's
+// history of the chat goes in portions. The recipient stays a member of the
+// group, so its dialog row stays.
+func (c *InboxCore) InboxDeleteChatHistoryToInbox(in *inbox.TLInboxDeleteChatHistoryToInbox) error {
+	return c.deleteDialog(in.UserId, mtproto.MakePeerUtil(mtproto.PEER_CHAT, in.PeerChatId), false)
+}
 
-	lastMessage, deleteIds := c.svcCtx.Dao.GetLastMessageAndIdListByDialog(c.ctx, in.FromId, peer)
-	if len(deleteIds) == 0 ||
-		len(deleteIds) == 1 &&
-			lastMessage.GetPredicateName() == mtproto.Predicate_messageService &&
-			lastMessage.GetAction().GetPredicateName() == mtproto.Predicate_messageActionHistoryClear {
-		return mtproto.EmptyVoid, nil
-	}
-
-	// TODO(@benqi): chat
-	pts = c.svcCtx.Dao.IDGenClient2.NextNPtsId(c.ctx, in.FromId, len(deleteIds)+1)
-	ptsCount = int32(len(deleteIds) + 1)
-
-	if _, err := c.svcCtx.Dao.DeleteByMessageIdList(c.ctx, in.FromId, deleteIds); err != nil {
-		return nil, err
-	}
-
-	updateDeleteMessages := mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{
-		Messages:  deleteIds,
-		Pts_INT32: pts - 2,
-		PtsCount:  ptsCount - 2,
-	}).To_Update()
-	updateReadHistoryInbox := mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{
-		Peer_PEER: peer.ToPeer(),
-		MaxId:     lastMessage.Id,
-		Pts_INT32: pts - 1,
-		PtsCount:  1,
-	}).To_Update()
-	c.persistPtsUpdate(c.ctx, in.FromId, updateDeleteMessages)
-	c.persistPtsUpdate(c.ctx, in.FromId, updateReadHistoryInbox)
-
-	pushUpdates := mtproto.MakeUpdatesByUpdates(updateDeleteMessages, updateReadHistoryInbox)
-
-	_, _ = c.svcCtx.Dao.SyncClient.SyncPushUpdates(
-		c.ctx,
-		&sync.TLSyncPushUpdates{
-			UserId:  in.FromId,
-			Updates: pushUpdates,
+// deleteDialog deletes userId's dialog with peer, a portion per
+// transaction, each pushed, until no message is left.
+// deleteDialog deletes userId's history of the dialog with peer in portions,
+// one transaction each. With dropRow the last portion deletes the dialog row
+// too, in its transaction: a message that arrives later creates a new row.
+func (c *InboxCore) deleteDialog(userId int64, peer *mtproto.PeerUtil, dropRow bool) error {
+	for {
+		var left int32
+		err := c.run(userId, peer, func(b *userbox.Box) error {
+			left = 0
+			deleted, err := c.svcCtx.Dao.DeleteDialogPortion(b, peer.PeerType, peer.PeerId)
+			if err != nil {
+				return err
+			}
+			if deleted != nil {
+				left = deleted.Left
+				if err = c.push(b, deleted.Update); err != nil {
+					return err
+				}
+			}
+			if left == 0 && dropRow {
+				_, err = c.svcCtx.Dao.DeleteDialogRow(b, peer.PeerType, peer.PeerId)
+			}
+			return err
 		})
-
-	return mtproto.EmptyVoid, nil
+		if err != nil || left == 0 {
+			return err
+		}
+	}
 }

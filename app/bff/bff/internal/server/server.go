@@ -50,7 +50,9 @@ import (
 	usernames_helper "github.com/teamgram/teamgram-server/app/bff/usernames"
 	users_helper "github.com/teamgram/teamgram-server/app/bff/users"
 	webbrowserhelper "github.com/teamgram/teamgram-server/app/bff/webbrowser"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -73,6 +75,12 @@ func (s *Server) Initialize() error {
 
 	// The config carries secrets from the environment (passwords, keys): never log it whole.
 	logx.Infof("loaded config %s", *configFile)
+
+	// dialog methods of biz run box transactions (pkg/userbox): the client
+	// deadline must outlive them.
+	if err := userbox.CheckRPCTimeout("BizServiceClient.Timeout", c.BizServiceClient.Timeout, dialog.MaxBoxOpTime); err != nil {
+		return err
+	}
 	// ctx := svc.NewServiceContext(c)
 	// s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
 
@@ -250,6 +258,7 @@ func (s *Server) Initialize() error {
 				IdgenClient:   c.IdgenClient,
 				MessageClient: c.BizServiceClient,
 				MediaClient:   c.MediaClient,
+				UpdatesClient: c.BizServiceClient,
 				SyncClient:    c.SyncClient,
 			}, nil))
 

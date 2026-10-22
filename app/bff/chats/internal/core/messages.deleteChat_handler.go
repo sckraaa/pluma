@@ -23,7 +23,6 @@ import (
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
-	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
 // MessagesDeleteChat
@@ -48,14 +47,10 @@ func (c *ChatsCore) MessagesDeleteChat(in *mtproto.TLMessagesDeleteChat) (*mtpro
 		[]*mtproto.Chat{chat.ToChatForbidden()},
 		mtproto.MakeUpdateChat(chat.Id()))
 
-	// 1. kicked all
+	// 1. kicked all: each member's history of the chat goes, with the
+	// dialog row in the transaction of the last portion.
+	var firstErr error
 	chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-		c.svcCtx.Dao.DialogClient.DialogDeleteDialog(c.ctx, &dialog.TLDialogDeleteDialog{
-			UserId:   userId,
-			PeerType: mtproto.PEER_CHAT,
-			PeerId:   chat.Id(),
-		})
-
 		if userId == c.MD.UserId || participant.IsChatMemberStateNormal() {
 			c.svcCtx.Dao.SyncClient.SyncPushUpdates(c.ctx, &sync.TLSyncPushUpdates{
 				UserId:  userId,
@@ -63,16 +58,38 @@ func (c *ChatsCore) MessagesDeleteChat(in *mtproto.TLMessagesDeleteChat) (*mtpro
 			})
 		}
 
-		c.svcCtx.Dao.MsgClient.MsgDeleteHistory(c.ctx, &msgpb.TLMsgDeleteHistory{
+		if err := c.deleteChatHistory(userId, chat.Id()); err != nil {
+			c.Logger.Errorf("messages.deleteChat - delete the history of user %d in chat %d: %v", userId, chat.Id(), err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+		return nil
+	})
+	if firstErr != nil {
+		return nil, firstErr
+	}
+
+	return mtproto.BoolTrue, nil
+}
+
+// deleteChatHistory deletes userId's history of the chat and its dialog row,
+// repeating msg.deleteHistory while portions are left.
+func (c *ChatsCore) deleteChatHistory(userId, chatId int64) error {
+	for {
+		r, err := c.svcCtx.Dao.MsgClient.MsgDeleteHistory(c.ctx, &msgpb.TLMsgDeleteHistory{
 			UserId:    userId,
 			AuthKeyId: 0,
 			PeerType:  mtproto.PEER_CHAT,
-			PeerId:    chat.Id(),
+			PeerId:    chatId,
 			JustClear: false,
 			Revoke:    false,
 		})
-		return nil
-	})
-
-	return mtproto.BoolTrue, nil
+		if err != nil {
+			return err
+		}
+		if r.GetOffset() <= 0 {
+			return nil
+		}
+	}
 }

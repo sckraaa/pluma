@@ -44,9 +44,7 @@ const (
 	RPCMessage_MessageGetSearchCounter_FullMethodName                     = "/message.RPCMessage/message_getSearchCounter"
 	RPCMessage_MessageSearchV2_FullMethodName                             = "/message.RPCMessage/message_searchV2"
 	RPCMessage_MessageGetLastTwoPinnedMessageId_FullMethodName            = "/message.RPCMessage/message_getLastTwoPinnedMessageId"
-	RPCMessage_MessageUpdatePinnedMessageId_FullMethodName                = "/message.RPCMessage/message_updatePinnedMessageId"
 	RPCMessage_MessageGetPinnedMessageIdList_FullMethodName               = "/message.RPCMessage/message_getPinnedMessageIdList"
-	RPCMessage_MessageUnPinAllMessages_FullMethodName                     = "/message.RPCMessage/message_unPinAllMessages"
 	RPCMessage_MessageGetUnreadMentions_FullMethodName                    = "/message.RPCMessage/message_getUnreadMentions"
 	RPCMessage_MessageGetUnreadMentionsCount_FullMethodName               = "/message.RPCMessage/message_getUnreadMentionsCount"
 	RPCMessage_MessageGetSavedHistoryMessages_FullMethodName              = "/message.RPCMessage/message_getSavedHistoryMessages"
@@ -72,9 +70,7 @@ type RPCMessageClient interface {
 	MessageGetSearchCounter(ctx context.Context, in *TLMessageGetSearchCounter, opts ...grpc.CallOption) (*mtproto.Int32, error)
 	MessageSearchV2(ctx context.Context, in *TLMessageSearchV2, opts ...grpc.CallOption) (*mtproto.MessageBoxList, error)
 	MessageGetLastTwoPinnedMessageId(ctx context.Context, in *TLMessageGetLastTwoPinnedMessageId, opts ...grpc.CallOption) (*Vector_Int, error)
-	MessageUpdatePinnedMessageId(ctx context.Context, in *TLMessageUpdatePinnedMessageId, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	MessageGetPinnedMessageIdList(ctx context.Context, in *TLMessageGetPinnedMessageIdList, opts ...grpc.CallOption) (*Vector_Int, error)
-	MessageUnPinAllMessages(ctx context.Context, in *TLMessageUnPinAllMessages, opts ...grpc.CallOption) (*Vector_Int, error)
 	MessageGetUnreadMentions(ctx context.Context, in *TLMessageGetUnreadMentions, opts ...grpc.CallOption) (*Vector_MessageBox, error)
 	MessageGetUnreadMentionsCount(ctx context.Context, in *TLMessageGetUnreadMentionsCount, opts ...grpc.CallOption) (*mtproto.Int32, error)
 	MessageGetSavedHistoryMessages(ctx context.Context, in *TLMessageGetSavedHistoryMessages, opts ...grpc.CallOption) (*mtproto.MessageBoxList, error)
@@ -224,27 +220,9 @@ func (c *rPCMessageClient) MessageGetLastTwoPinnedMessageId(ctx context.Context,
 	return out, nil
 }
 
-func (c *rPCMessageClient) MessageUpdatePinnedMessageId(ctx context.Context, in *TLMessageUpdatePinnedMessageId, opts ...grpc.CallOption) (*mtproto.Bool, error) {
-	out := new(mtproto.Bool)
-	err := c.cc.Invoke(ctx, RPCMessage_MessageUpdatePinnedMessageId_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *rPCMessageClient) MessageGetPinnedMessageIdList(ctx context.Context, in *TLMessageGetPinnedMessageIdList, opts ...grpc.CallOption) (*Vector_Int, error) {
 	out := new(Vector_Int)
 	err := c.cc.Invoke(ctx, RPCMessage_MessageGetPinnedMessageIdList_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *rPCMessageClient) MessageUnPinAllMessages(ctx context.Context, in *TLMessageUnPinAllMessages, opts ...grpc.CallOption) (*Vector_Int, error) {
-	out := new(Vector_Int)
-	err := c.cc.Invoke(ctx, RPCMessage_MessageUnPinAllMessages_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -306,9 +284,7 @@ type RPCMessageServer interface {
 	MessageGetSearchCounter(context.Context, *TLMessageGetSearchCounter) (*mtproto.Int32, error)
 	MessageSearchV2(context.Context, *TLMessageSearchV2) (*mtproto.MessageBoxList, error)
 	MessageGetLastTwoPinnedMessageId(context.Context, *TLMessageGetLastTwoPinnedMessageId) (*Vector_Int, error)
-	MessageUpdatePinnedMessageId(context.Context, *TLMessageUpdatePinnedMessageId) (*mtproto.Bool, error)
 	MessageGetPinnedMessageIdList(context.Context, *TLMessageGetPinnedMessageIdList) (*Vector_Int, error)
-	MessageUnPinAllMessages(context.Context, *TLMessageUnPinAllMessages) (*Vector_Int, error)
 	MessageGetUnreadMentions(context.Context, *TLMessageGetUnreadMentions) (*Vector_MessageBox, error)
 	MessageGetUnreadMentionsCount(context.Context, *TLMessageGetUnreadMentionsCount) (*mtproto.Int32, error)
 	MessageGetSavedHistoryMessages(context.Context, *TLMessageGetSavedHistoryMessages) (*mtproto.MessageBoxList, error)
@@ -364,14 +340,8 @@ func (UnimplementedRPCMessageServer) MessageSearchV2(context.Context, *TLMessage
 func (UnimplementedRPCMessageServer) MessageGetLastTwoPinnedMessageId(context.Context, *TLMessageGetLastTwoPinnedMessageId) (*Vector_Int, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MessageGetLastTwoPinnedMessageId not implemented")
 }
-func (UnimplementedRPCMessageServer) MessageUpdatePinnedMessageId(context.Context, *TLMessageUpdatePinnedMessageId) (*mtproto.Bool, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MessageUpdatePinnedMessageId not implemented")
-}
 func (UnimplementedRPCMessageServer) MessageGetPinnedMessageIdList(context.Context, *TLMessageGetPinnedMessageIdList) (*Vector_Int, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MessageGetPinnedMessageIdList not implemented")
-}
-func (UnimplementedRPCMessageServer) MessageUnPinAllMessages(context.Context, *TLMessageUnPinAllMessages) (*Vector_Int, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MessageUnPinAllMessages not implemented")
 }
 func (UnimplementedRPCMessageServer) MessageGetUnreadMentions(context.Context, *TLMessageGetUnreadMentions) (*Vector_MessageBox, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MessageGetUnreadMentions not implemented")
@@ -667,24 +637,6 @@ func _RPCMessage_MessageGetLastTwoPinnedMessageId_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RPCMessage_MessageUpdatePinnedMessageId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TLMessageUpdatePinnedMessageId)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RPCMessageServer).MessageUpdatePinnedMessageId(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RPCMessage_MessageUpdatePinnedMessageId_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RPCMessageServer).MessageUpdatePinnedMessageId(ctx, req.(*TLMessageUpdatePinnedMessageId))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RPCMessage_MessageGetPinnedMessageIdList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLMessageGetPinnedMessageIdList)
 	if err := dec(in); err != nil {
@@ -699,24 +651,6 @@ func _RPCMessage_MessageGetPinnedMessageIdList_Handler(srv interface{}, ctx cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCMessageServer).MessageGetPinnedMessageIdList(ctx, req.(*TLMessageGetPinnedMessageIdList))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RPCMessage_MessageUnPinAllMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TLMessageUnPinAllMessages)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RPCMessageServer).MessageUnPinAllMessages(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RPCMessage_MessageUnPinAllMessages_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RPCMessageServer).MessageUnPinAllMessages(ctx, req.(*TLMessageUnPinAllMessages))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -861,16 +795,8 @@ var RPCMessage_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RPCMessage_MessageGetLastTwoPinnedMessageId_Handler,
 		},
 		{
-			MethodName: "message_updatePinnedMessageId",
-			Handler:    _RPCMessage_MessageUpdatePinnedMessageId_Handler,
-		},
-		{
 			MethodName: "message_getPinnedMessageIdList",
 			Handler:    _RPCMessage_MessageGetPinnedMessageIdList_Handler,
-		},
-		{
-			MethodName: "message_unPinAllMessages",
-			Handler:    _RPCMessage_MessageUnPinAllMessages_Handler,
 		},
 		{
 			MethodName: "message_getUnreadMentions",

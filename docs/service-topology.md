@@ -46,7 +46,7 @@ Services must be started in this order (as in `runall2.sh`):
 
 | Service     | etcd | MySQL | Redis (Cache/KV) | Kafka        | MinIO |
 |-------------|------|-------|------------------|--------------|-------|
-| **idgen**   | ✓    | —     | ✓ (SeqIDGen)     | —            | —     |
+| **idgen**   | ✓    | —     | —                | —            | —     |
 | **status**  | ✓    | —     | ✓ (Status)       | —            | —     |
 | **authsession** | ✓ | ✓     | ✓ (Cache, KV)    | —            | —     |
 | **dfs**     | ✓    | —     | ✓ (Cache, SSDB)  | —            | ✓     |
@@ -68,9 +68,9 @@ Default endpoints in configs: **etcd** 127.0.0.1:2379, **MySQL** 127.0.0.1:3306,
 - **gnetway** → discovers and uses **session** (interface.session).
 - **session** → **authsession**, **status**, **bff** (BFFProxyClients; routes MTProto RPC to bff).
 - **bff** → **biz**, **authsession**, **media**, **idgen**, **msg**, **dfs**, **status**; publishes to Kafka **Sync-T**.
-- **biz** → **media**, **idgen**.
+- **biz** → **media**.
 - **msg** → **idgen**, **biz**; consumes **Inbox-T**, produces/consumes **Sync-T**.
-- **sync** → **idgen**, **status**, **session**, **biz** (Channel/Chat); consumes **Sync-T**.
+- **sync** → **status**, **session**, **biz** (Channel/Chat); consumes **Sync-T**.
 - **media** → **dfs**.
 - **dfs** → **idgen**; uses MinIO for object storage.
 - **authsession**, **idgen**, **status** → no gRPC callouts (only etcd, DB, Redis).
@@ -135,12 +135,10 @@ flowchart TB
   BFF --> Status
   BFF -->|Sync-T| Kafka
   Biz --> Media
-  Biz --> Idgen
   Msg --> Idgen
   Msg --> Biz
   Msg --> Kafka
   Sync --> Kafka
-  Sync --> Idgen
   Sync --> Status
   Sync --> Session
   Sync --> Biz
@@ -149,7 +147,6 @@ flowchart TB
   Dfs --> MinIO
   AuthSession --> MySQL
   AuthSession --> Redis
-  Idgen --> Redis
   Status --> Redis
   Biz --> MySQL
   Biz --> Redis

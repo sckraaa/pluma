@@ -19,34 +19,30 @@
 package core
 
 import (
-	"context"
-
-	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // InboxDeleteMessagesToInbox
-// inbox.deleteMessagesToInbox from_id:long id:Vector<int> = Void;
-func (c *InboxCore) InboxDeleteMessagesToInbox(in *inbox.TLInboxDeleteMessagesToInbox) (*mtproto.Void, error) {
-	_ = c.svcCtx.Dao.DeleteInboxMessages(
-		c.ctx,
-		in.FromId,
-		mtproto.MakePeerUtil(in.PeerType, in.PeerId),
-		in.Id,
-		func(ctx context.Context, userId int64, idList []int32) {
-			updateDeleteMessages := mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{
-				Messages:  idList,
-				Pts_INT32: c.svcCtx.Dao.IDGenClient2.NextNPtsId(ctx, userId, len(idList)),
-				PtsCount:  int32(len(idList)),
-				PeerId:    mtproto.MakePeerUser(in.FromId),
-			}).To_Update()
-			c.persistPtsUpdate(ctx, userId, updateDeleteMessages)
-
-			_, _ = c.svcCtx.Dao.SyncClient.SyncPushUpdates(ctx, &sync.TLSyncPushUpdates{
-				UserId:  userId,
-				Updates: mtproto.MakeUpdatesByUpdates(updateDeleteMessages),
-			})
+// inbox.deleteMessagesToInbox user_id:long from_id:long peer_type:int peer_id:long id:Vector<long> = Void;
+//
+// The recipient's copies of the messages are deleted in portions, one
+// transaction and one push each.
+func (c *InboxCore) InboxDeleteMessagesToInbox(in *inbox.TLInboxDeleteMessagesToInbox) error {
+	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
+	for {
+		var left int32
+		err := c.run(in.UserId, peer, func(b *userbox.Box) error {
+			left = 0
+			deleted, err := c.svcCtx.Dao.DeleteCopies(b, in.Id)
+			if err != nil || deleted == nil {
+				return err
+			}
+			left = deleted.Left
+			return c.push(b, deleted.Update)
 		})
-	return mtproto.EmptyVoid, nil
+		if err != nil || left == 0 {
+			return err
+		}
+	}
 }

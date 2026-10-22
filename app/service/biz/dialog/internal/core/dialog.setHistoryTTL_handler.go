@@ -19,32 +19,19 @@
 package core
 
 import (
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
 // DialogSetHistoryTTL
 // dialog.setHistoryTTL user_id:long peer_type:int peer_id:long ttl_period:int = Bool;
+//
+// In a private chat both users' dialog rows change, each in its box
+// transaction, by ascending user id; a repeated call gives the same rows.
 func (c *DialogCore) DialogSetHistoryTTL(in *dialog.TLDialogSetHistoryTTL) (*mtproto.Bool, error) {
-	sqlx.TxWrapper(c.ctx, c.svcCtx.Dao.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-		c.svcCtx.Dao.DialogsDAO.UpdateCustomMapTx(
-			tx,
-			map[string]interface{}{
-				"ttl_period": in.TtlPeriod,
-			},
-			in.UserId,
-			in.PeerType,
-			in.PeerId)
-		c.svcCtx.Dao.DialogsDAO.UpdateCustomMapTx(
-			tx,
-			map[string]interface{}{
-				"ttl_period": in.TtlPeriod,
-			},
-			in.PeerId,
-			in.PeerType,
-			in.UserId)
-	})
-
+	if err := c.setBothDialogs(in.UserId, in.PeerType, in.PeerId, "ttl_period", in.TtlPeriod); err != nil {
+		c.Logger.Errorf("dialog.setHistoryTTL - error: %v", err)
+		return nil, err
+	}
 	return mtproto.BoolTrue, nil
 }

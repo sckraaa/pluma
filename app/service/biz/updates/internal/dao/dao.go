@@ -10,25 +10,27 @@
 package dao
 
 import (
-	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"database/sql"
+
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/internal/config"
-	idgen_client "github.com/teamgram/teamgram-server/app/service/idgen/client"
-
-	"github.com/zeromicro/go-zero/core/stores/kv"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 type Dao struct {
 	*Mysql
-	kv kv.Store
-	idgen_client.IDGenClient2
+	// BoxDB reads the committed state of users' boxes (pkg/userbox).
+	BoxDB *sql.DB
 }
 
 func New(c config.Config) *Dao {
 	db := sqlx.NewMySQL(&c.Mysql)
+	boxDB, err := userbox.Open(c.Mysql.DSN)
+	if err != nil {
+		panic(err)
+	}
 	return &Dao{
-		Mysql:        newMysqlDao(db),
-		kv:           kv.NewStore(c.KV),
-		IDGenClient2: idgen_client.NewIDGenClient2(rpcx.GetCachedRpcClient(c.IdgenClient)),
+		Mysql: newMysqlDao(db),
+		BoxDB: boxDB,
 	}
 }

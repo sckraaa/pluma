@@ -30,9 +30,8 @@ import (
 // dfs.uploadWallPaperFile creator:long file:InputFile mime_type:string admin:Bool = Document;
 func (c *DfsCore) DfsUploadWallPaperFile(in *dfs.TLDfsUploadWallPaperFile) (*mtproto.Document, error) {
 	var (
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
-		path       string
-		err        error
+		path string
+		err  error
 
 		file       = in.GetFile()
 		cacheData  []byte
@@ -41,6 +40,11 @@ func (c *DfsCore) DfsUploadWallPaperFile(in *dfs.TLDfsUploadWallPaperFile) (*mtp
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 		r          *dao.SSDBReader
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		thumb image.Image

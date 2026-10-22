@@ -52,11 +52,14 @@ func (c *ChatsCore) MessagesDeleteChatUser(in *mtproto.TLMessagesDeleteChatUser)
 		c.Logger.Errorf("messages.deleteChatUser - error: %v", err)
 		return nil, err
 	}
-	c.svcCtx.Dao.DialogClient.DialogDeleteDialog(c.ctx, &dialog.TLDialogDeleteDialog{
+	if _, err = c.svcCtx.Dao.DialogClient.DialogDeleteDialog(c.ctx, &dialog.TLDialogDeleteDialog{
 		UserId:   deleteUser.PeerId,
 		PeerType: mtproto.PEER_CHAT,
 		PeerId:   in.ChatId,
-	})
+	}); err != nil {
+		// The user is out of the chat already: the reply stays a success.
+		c.Logger.Errorf("messages.deleteChatUser - delete the dialog of user %d with chat %d: %v", deleteUser.PeerId, in.ChatId, err)
+	}
 
 	if c.MD.Client == "ios" || c.MD.Client == "android" {
 		chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {

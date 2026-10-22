@@ -136,11 +136,6 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -92425614,
 		}
 	},
-	1563133986: func() mtproto.TLObject { // 0x5d2b8822
-		return &TLDialogInsertOrUpdateDialog{
-			Constructor: 1563133986,
-		}
-	},
 	28515811: func() mtproto.TLObject { // 0x1b31de3
 		return &TLDialogDeleteDialog{
 			Constructor: 28515811,
@@ -239,11 +234,6 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 	-959749265: func() mtproto.TLObject { // 0xc6cb636f
 		return &TLDialogCreateDialogFilter{
 			Constructor: -959749265,
-		}
-	},
-	732705613: func() mtproto.TLObject { // 0x2bac334d
-		return &TLDialogUpdateUnreadCount{
-			Constructor: 732705613,
 		}
 	},
 	-1597149815: func() mtproto.TLObject { // 0xa0cd6d89
@@ -1794,126 +1784,6 @@ func (m *TLDialogGetTopMessage) Decode(dBuf *mtproto.DecodeBuf) error {
 	return dBuf.GetError()
 }
 
-// TLDialogInsertOrUpdateDialog
-///////////////////////////////////////////////////////////////////////////////
-
-func (m *TLDialogInsertOrUpdateDialog) Encode(x *mtproto.EncodeBuf, layer int32) error {
-	switch uint32(m.Constructor) {
-	case 0x5d2b8822:
-		x.UInt(0x5d2b8822)
-
-		// set flags
-		var flags uint32 = 0
-
-		if m.GetTopMessage() != nil {
-			flags |= 1 << 0
-		}
-		if m.GetReadOutboxMaxId() != nil {
-			flags |= 1 << 1
-		}
-		if m.GetReadInboxMaxId() != nil {
-			flags |= 1 << 2
-		}
-		if m.GetUnreadCount() != nil {
-			flags |= 1 << 3
-		}
-		if m.GetUnreadMark() == true {
-			flags |= 1 << 4
-		}
-		if m.GetDate2() != nil {
-			flags |= 1 << 5
-		}
-		if m.GetPinnedMsgId() != nil {
-			flags |= 1 << 6
-		}
-
-		x.UInt(flags)
-
-		// flags Debug by @benqi
-		x.Long(m.GetUserId())
-		x.Int(m.GetPeerType())
-		x.Long(m.GetPeerId())
-		if m.GetTopMessage() != nil {
-			x.Int(m.GetTopMessage().Value)
-		}
-
-		if m.GetReadOutboxMaxId() != nil {
-			x.Int(m.GetReadOutboxMaxId().Value)
-		}
-
-		if m.GetReadInboxMaxId() != nil {
-			x.Int(m.GetReadInboxMaxId().Value)
-		}
-
-		if m.GetUnreadCount() != nil {
-			x.Int(m.GetUnreadCount().Value)
-		}
-
-		if m.GetDate2() != nil {
-			x.Long(m.GetDate2().Value)
-		}
-
-		if m.GetPinnedMsgId() != nil {
-			x.Int(m.GetPinnedMsgId().Value)
-		}
-
-	default:
-		// log.Errorf("")
-	}
-
-	return nil
-}
-
-func (m *TLDialogInsertOrUpdateDialog) CalcByteSize(layer int32) int {
-	return 0
-}
-
-func (m *TLDialogInsertOrUpdateDialog) Decode(dBuf *mtproto.DecodeBuf) error {
-	switch uint32(m.Constructor) {
-	case 0x5d2b8822:
-
-		flags := dBuf.UInt()
-		_ = flags
-
-		// flags Debug by @benqi
-		m.UserId = dBuf.Long()
-		m.PeerType = dBuf.Int()
-		m.PeerId = dBuf.Long()
-		if (flags & (1 << 0)) != 0 {
-			m.TopMessage = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
-
-		if (flags & (1 << 1)) != 0 {
-			m.ReadOutboxMaxId = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
-
-		if (flags & (1 << 2)) != 0 {
-			m.ReadInboxMaxId = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
-
-		if (flags & (1 << 3)) != 0 {
-			m.UnreadCount = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
-
-		if (flags & (1 << 4)) != 0 {
-			m.UnreadMark = true
-		}
-		if (flags & (1 << 5)) != 0 {
-			m.Date2 = &wrapperspb.Int64Value{Value: dBuf.Long()}
-		}
-
-		if (flags & (1 << 6)) != 0 {
-			m.PinnedMsgId = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
-
-		return dBuf.GetError()
-
-	default:
-		// log.Errorf("")
-	}
-	return dBuf.GetError()
-}
-
 // TLDialogDeleteDialog
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -2809,87 +2679,6 @@ func (m *TLDialogCreateDialogFilter) Decode(dBuf *mtproto.DecodeBuf) error {
 		m2 := &DialogFilterExt{}
 		m2.Decode(dBuf)
 		m.DialogFilter = m2
-
-		return dBuf.GetError()
-
-	default:
-		// log.Errorf("")
-	}
-	return dBuf.GetError()
-}
-
-// TLDialogUpdateUnreadCount
-///////////////////////////////////////////////////////////////////////////////
-
-func (m *TLDialogUpdateUnreadCount) Encode(x *mtproto.EncodeBuf, layer int32) error {
-	switch uint32(m.Constructor) {
-	case 0x2bac334d:
-		x.UInt(0x2bac334d)
-
-		// set flags
-		var flags uint32 = 0
-
-		if m.GetUnreadCount() != nil {
-			flags |= 1 << 0
-		}
-		if m.GetUnreadMentionsCount() != nil {
-			flags |= 1 << 1
-		}
-		if m.GetUnreadReactionsCount() != nil {
-			flags |= 1 << 2
-		}
-
-		x.UInt(flags)
-
-		// flags Debug by @benqi
-		x.Long(m.GetUserId())
-		x.Int(m.GetPeerType())
-		x.Long(m.GetPeerId())
-		if m.GetUnreadCount() != nil {
-			x.Int(m.GetUnreadCount().Value)
-		}
-
-		if m.GetUnreadMentionsCount() != nil {
-			x.Int(m.GetUnreadMentionsCount().Value)
-		}
-
-		if m.GetUnreadReactionsCount() != nil {
-			x.Int(m.GetUnreadReactionsCount().Value)
-		}
-
-	default:
-		// log.Errorf("")
-	}
-
-	return nil
-}
-
-func (m *TLDialogUpdateUnreadCount) CalcByteSize(layer int32) int {
-	return 0
-}
-
-func (m *TLDialogUpdateUnreadCount) Decode(dBuf *mtproto.DecodeBuf) error {
-	switch uint32(m.Constructor) {
-	case 0x2bac334d:
-
-		flags := dBuf.UInt()
-		_ = flags
-
-		// flags Debug by @benqi
-		m.UserId = dBuf.Long()
-		m.PeerType = dBuf.Int()
-		m.PeerId = dBuf.Long()
-		if (flags & (1 << 0)) != 0 {
-			m.UnreadCount = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
-
-		if (flags & (1 << 1)) != 0 {
-			m.UnreadMentionsCount = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
-
-		if (flags & (1 << 2)) != 0 {
-			m.UnreadReactionsCount = &wrapperspb.Int32Value{Value: dBuf.Int()}
-		}
 
 		return dBuf.GetError()
 

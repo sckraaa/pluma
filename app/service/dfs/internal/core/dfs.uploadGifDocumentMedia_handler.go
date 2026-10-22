@@ -89,12 +89,16 @@ func (c *DfsCore) DfsUploadGifDocumentMedia(in *dfs.TLDfsUploadGifDocumentMedia)
 
 func (c *DfsCore) uploadGifMedia(creatorId int64, media *mtproto.InputMedia, fileInfo *model.DfsFileInfo) (*mtproto.Document, error) {
 	var (
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 		ext        = model.GetFileExtName(media.GetFile().GetName())
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 		file       = media.GetFile()
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	gifData, err := c.svcCtx.Dao.NewSSDBReader(fileInfo).ReadAll(c.ctx)
 	if err != nil {
@@ -152,11 +156,15 @@ func (c *DfsCore) uploadGifMedia(creatorId int64, media *mtproto.InputMedia, fil
 
 func (c *DfsCore) uploadHasThumbGifMp4Media(creatorId int64, media *mtproto.InputMedia) (*mtproto.Document, error) {
 	var (
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 		ext        = model.GetFileExtName(media.GetFile().GetName())
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// 1. thumb
 	thumbFile := media.GetThumb()
@@ -263,11 +271,15 @@ func (c *DfsCore) uploadHasThumbGifMp4Media(creatorId int64, media *mtproto.Inpu
 
 func (c *DfsCore) uploadGifMp4Media(creatorId int64, media *mtproto.InputMedia) (*mtproto.Document, error) {
 	var (
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 		ext        = model.GetFileExtName(media.GetFile().GetName())
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	//	// convert gif to mp4
 	imgSize := mtproto.GetDocumentAttribute(media.GetAttributes(), mtproto.Predicate_documentAttributeImageSize)

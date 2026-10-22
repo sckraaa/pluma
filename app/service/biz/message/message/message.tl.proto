@@ -36,9 +36,7 @@ enum TLConstructor {
   CRC32_message_getSearchCounter = -489963706;
   CRC32_message_searchV2 = -356633351;
   CRC32_message_getLastTwoPinnedMessageId = -1348859861;
-  CRC32_message_updatePinnedMessageId = -182391344;
   CRC32_message_getPinnedMessageIdList = -637415203;
-  CRC32_message_unPinAllMessages = -368432525;
   CRC32_message_getUnreadMentions = 1877050548;
   CRC32_message_getUnreadMentionsCount = -1254023095;
   CRC32_message_getSavedHistoryMessages = -60243377;
@@ -187,25 +185,7 @@ message TL_message_getLastTwoPinnedMessageId {
 }
 
 //--------------------------------------------------------------------------------------------
-message TL_message_updatePinnedMessageId {
-  TLConstructor constructor = 1;
-  int64 user_id = 3;
-  int32 peer_type = 4;
-  int64 peer_id = 5;
-  int32 id = 6;
-  mtproto.Bool pinned = 7;
-}
-
-//--------------------------------------------------------------------------------------------
 message TL_message_getPinnedMessageIdList {
-  TLConstructor constructor = 1;
-  int64 user_id = 3;
-  int32 peer_type = 4;
-  int64 peer_id = 5;
-}
-
-//--------------------------------------------------------------------------------------------
-message TL_message_unPinAllMessages {
   TLConstructor constructor = 1;
   int64 user_id = 3;
   int32 peer_type = 4;
@@ -302,11 +282,7 @@ service RPCMessage {
   rpc message_searchV2(TL_message_searchV2) returns (mtproto.MessageBoxList) {}
   rpc message_getLastTwoPinnedMessageId(TL_message_getLastTwoPinnedMessageId)
       returns (Vector_Int) {}
-  rpc message_updatePinnedMessageId(TL_message_updatePinnedMessageId)
-      returns (mtproto.Bool) {}
   rpc message_getPinnedMessageIdList(TL_message_getPinnedMessageIdList)
-      returns (Vector_Int) {}
-  rpc message_unPinAllMessages(TL_message_unPinAllMessages)
       returns (Vector_Int) {}
   rpc message_getUnreadMentions(TL_message_getUnreadMentions)
       returns (Vector_MessageBox) {}

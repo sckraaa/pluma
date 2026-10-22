@@ -34,12 +34,16 @@ func (c *DfsCore) DfsUploadThemeFile(in *dfs.TLDfsUploadThemeFile) (*mtproto.Doc
 		path string
 		err  error
 
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 		file       = in.GetFile()
 		ext        = model.GetFileExtName(file.GetName())
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		thumbFile     = in.GetThumb()

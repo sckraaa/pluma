@@ -228,20 +228,6 @@ func (s *Service) DialogGetTopMessage(ctx context.Context, request *dialog.TLDia
 	return r, err
 }
 
-// DialogInsertOrUpdateDialog
-// dialog.insertOrUpdateDialog flags:# user_id:long peer_type:int peer_id:long top_message:flags.0?int read_outbox_max_id:flags.1?int read_inbox_max_id:flags.2?int unread_count:flags.3?int unread_mark:flags.4?true date2:flags.5?long pinned_msg_id:flags.6?int = Bool;
-func (s *Service) DialogInsertOrUpdateDialog(ctx context.Context, request *dialog.TLDialogInsertOrUpdateDialog) (*mtproto.Bool, error) {
-	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("dialog.insertOrUpdateDialog - metadata: {%s}", c.MD)
-
-	r, err := c.DialogInsertOrUpdateDialog(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, err
-}
-
 // DialogDeleteDialog
 // dialog.deleteDialog user_id:long peer_type:int peer_id:long = Bool;
 func (s *Service) DialogDeleteDialog(ctx context.Context, request *dialog.TLDialogDeleteDialog) (*mtproto.Bool, error) {
@@ -515,20 +501,6 @@ func (s *Service) DialogCreateDialogFilter(ctx context.Context, request *dialog.
 	c.Logger.Debugf("dialog.createDialogFilter - metadata: {%s}", c.MD)
 
 	r, err := c.DialogCreateDialogFilter(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, err
-}
-
-// DialogUpdateUnreadCount
-// dialog.updateUnreadCount flags:# user_id:long peer_type:int peer_id:long unread_count:flags.0?int unread_mentions_count:flags.1?int unread_reactions_count:flags.2?int = Bool;
-func (s *Service) DialogUpdateUnreadCount(ctx context.Context, request *dialog.TLDialogUpdateUnreadCount) (*mtproto.Bool, error) {
-	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("dialog.updateUnreadCount - metadata: {%s}", c.MD)
-
-	r, err := c.DialogUpdateUnreadCount(request)
 	if err != nil {
 		return nil, err
 	}

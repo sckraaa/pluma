@@ -39,13 +39,17 @@ func (c *DfsCore) DfsUploadRingtoneFile(in *dfs.TLDfsUploadRingtoneFile) (*mtpro
 	var (
 		err error
 
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 		file       = in.GetFile()
 		ext        = model.GetFileExtName(file.GetName())
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 		creatorId  = in.GetCreator()
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// upload file
 	if file == nil {

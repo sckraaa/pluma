@@ -505,7 +505,7 @@
 | `messages.createChat9CB126E` | ok | app/bff/chats/internal/core/messages.createChat9CB126E_handler.go:27 |
 | `messages.createForumTopic` | missing |  |
 | `messages.declineUrlAuth` | missing |  |
-| `messages.deleteChat` | ok | app/bff/chats/internal/core/messages.deleteChat_handler.go:31 |
+| `messages.deleteChat` | ok | app/bff/chats/internal/core/messages.deleteChat_handler.go:30 |
 | `messages.deleteChatUser` | ok | app/bff/chats/internal/core/messages.deleteChatUser_handler.go:32 |
 | `messages.deleteExportedChatInvite` | ok | app/bff/chatinvites/internal/core/messages.deleteExportedChatInvite_handler.go:28 |
 | `messages.deleteFactCheck` | missing |  |
@@ -655,7 +655,7 @@
 | `messages.readFeaturedStickers` | missing |  |
 | `messages.readHistory` | ok | app/bff/messages/internal/core/messages.readHistory_handler.go:28 |
 | `messages.readMentions` | blocked | app/bff/messages/internal/core/messages.readMentions_handler.go:27 |
-| `messages.readMessageContents` | ok | app/bff/messages/internal/core/messages.readMessageContents_handler.go:33 |
+| `messages.readMessageContents` | ok | app/bff/messages/internal/core/messages.readMessageContents_handler.go:31 |
 | `messages.readPollVotes` | missing |  |
 | `messages.readReactions` | missing |  |
 | `messages.readSavedHistory` | blocked | app/bff/savedmessagedialogs/internal/core/messages.readSavedHistory_handler.go:27 |

@@ -41,7 +41,6 @@ type Config struct {
 	Routine          Routine
 	SyncConsumer     kafka.KafkaConsumerConf
 	SessionClient    zrpc.RpcClientConf
-	IdgenClient      zrpc.RpcClientConf
 	StatusClient     zrpc.RpcClientConf
 	ChatClient       zrpc.RpcClientConf
 	PushClient       *kafka.KafkaProducerConf `json:",optional"`

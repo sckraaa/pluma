@@ -32,7 +32,6 @@ const (
 	Predicate_dialog_reorderPinnedDialogs              = "dialog_reorderPinnedDialogs"
 	Predicate_dialog_getDialogById                     = "dialog_getDialogById"
 	Predicate_dialog_getTopMessage                     = "dialog_getTopMessage"
-	Predicate_dialog_insertOrUpdateDialog              = "dialog_insertOrUpdateDialog"
 	Predicate_dialog_deleteDialog                      = "dialog_deleteDialog"
 	Predicate_dialog_getUserPinnedMessage              = "dialog_getUserPinnedMessage"
 	Predicate_dialog_updateUserPinnedMessage           = "dialog_updateUserPinnedMessage"
@@ -53,7 +52,6 @@ const (
 	Predicate_dialog_getDialogFilter                   = "dialog_getDialogFilter"
 	Predicate_dialog_getDialogFilterBySlug             = "dialog_getDialogFilterBySlug"
 	Predicate_dialog_createDialogFilter                = "dialog_createDialogFilter"
-	Predicate_dialog_updateUnreadCount                 = "dialog_updateUnreadCount"
 	Predicate_dialog_toggleDialogFilterTags            = "dialog_toggleDialogFilterTags"
 	Predicate_dialog_getDialogFilterTags               = "dialog_getDialogFilterTags"
 	Predicate_dialog_setChatWallpaper                  = "dialog_setChatWallpaper"
@@ -144,10 +142,6 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -92425614, // 0xfa7db272
 
 	},
-	Predicate_dialog_insertOrUpdateDialog: {
-		0: 1563133986, // 0x5d2b8822
-
-	},
 	Predicate_dialog_deleteDialog: {
 		0: 28515811, // 0x1b31de3
 
@@ -228,10 +222,6 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -959749265, // 0xc6cb636f
 
 	},
-	Predicate_dialog_updateUnreadCount: {
-		0: 732705613, // 0x2bac334d
-
-	},
 	Predicate_dialog_toggleDialogFilterTags: {
 		0: -1597149815, // 0xa0cd6d89
 
@@ -268,7 +258,6 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-18664089:   Predicate_dialog_reorderPinnedDialogs,              // 0xfee33567
 	-1587594251: Predicate_dialog_getDialogById,                     // 0xa15f3bf5
 	-92425614:   Predicate_dialog_getTopMessage,                     // 0xfa7db272
-	1563133986:  Predicate_dialog_insertOrUpdateDialog,              // 0x5d2b8822
 	28515811:    Predicate_dialog_deleteDialog,                      // 0x1b31de3
 	-1885617487: Predicate_dialog_getUserPinnedMessage,              // 0x8f9bc2b1
 	371388970:   Predicate_dialog_updateUserPinnedMessage,           // 0x1622f22a
@@ -289,7 +278,6 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-209189348:  Predicate_dialog_getDialogFilter,                   // 0xf388061c
 	1313177583:  Predicate_dialog_getDialogFilterBySlug,             // 0x4e457fef
 	-959749265:  Predicate_dialog_createDialogFilter,                // 0xc6cb636f
-	732705613:   Predicate_dialog_updateUnreadCount,                 // 0x2bac334d
 	-1597149815: Predicate_dialog_toggleDialogFilterTags,            // 0xa0cd6d89
 	-84870505:   Predicate_dialog_getDialogFilterTags,               // 0xfaf0fa97
 	-1252926702: Predicate_dialog_setChatWallpaper,                  // 0xb551db12

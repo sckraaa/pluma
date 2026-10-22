@@ -67,12 +67,16 @@ func (c *DfsCore) DfsUploadPhotoFileV2(in *dfs.TLDfsUploadPhotoFileV2) (*mtproto
 	}
 
 	var (
-		photoId    = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 		ext        = model.GetFileExtName(file.GetName())
 		sizeList   = make([]*mtproto.PhotoSize, 0, 3)
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 	)
+
+	photoId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	_, err = c.svcCtx.Dao.PutPhotoFile(c.ctx, fmt.Sprintf("0/%d.dat", photoId), cacheData)
 	if err != nil {

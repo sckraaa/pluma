@@ -14,10 +14,6 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-func (d *Dao) ReadReactionUnreadMessage(ctx context.Context, userId int64, msgId int32) error {
-	return mtproto.ErrMethodNotImpl
-}
-
 func (d *Dao) UsernameResolveUsername(ctx context.Context, in *user.TLUserResolveUsername) (*mtproto.Peer, error) {
 	return d.UserClient.UserResolveUsername(ctx, in)
 }

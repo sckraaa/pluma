@@ -12,8 +12,6 @@ package mysql_dao
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/internal/dal/dataobject"
@@ -31,133 +29,23 @@ func NewUserPtsUpdatesDAO(db *sqlx.DB) *UserPtsUpdatesDAO {
 	}
 }
 
-// Insert
-// insert into user_pts_updates(user_id, pts, pts_count, update_type, update_data, date2) values (:user_id, :pts, :pts_count, :update_type, :update_data, :date2)
-func (dao *UserPtsUpdatesDAO) Insert(ctx context.Context, do *dataobject.UserPtsUpdatesDO) (lastInsertId, rowsAffected int64, err error) {
-	var (
-		query string
-		r     sql.Result
-	)
-	query = "insert into user_pts_updates(user_id, pts, pts_count, update_type, update_data, date2) values (:user_id, :pts, :pts_count, :update_type, :update_data, :date2)"
-
-	r, err = dao.db.NamedExec(ctx, query, do)
-	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in Insert(_), error: %v", err)
-		return
-	}
-
-	lastInsertId, err = r.LastInsertId()
-	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in Insert(_), error: %v", err)
-		return
-	}
-	rowsAffected, err = r.RowsAffected()
-	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in Insert(_), error: %v", err)
-	}
-
-	return
-}
-
-// InsertTx
-// insert into user_pts_updates(user_id, pts, pts_count, update_type, update_data, date2) values (:user_id, :pts, :pts_count, :update_type, :update_data, :date2)
-func (dao *UserPtsUpdatesDAO) InsertTx(tx *sqlx.Tx, do *dataobject.UserPtsUpdatesDO) (lastInsertId, rowsAffected int64, err error) {
-	var (
-		query string
-		r     sql.Result
-	)
-	query = "insert into user_pts_updates(user_id, pts, pts_count, update_type, update_data, date2) values (:user_id, :pts, :pts_count, :update_type, :update_data, :date2)"
-
-	r, err = tx.NamedExec(query, do)
-	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in Insert(_), error: %v", err)
-		return
-	}
-
-	lastInsertId, err = r.LastInsertId()
-	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in Insert(_), error: %v", err)
-		return
-	}
-	rowsAffected, err = r.RowsAffected()
-	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in Insert(_), error: %v", err)
-	}
-
-	return
-}
-
-// SelectLastPts
-// select pts from user_pts_updates where user_id = :user_id order by pts desc limit 1
-func (dao *UserPtsUpdatesDAO) SelectLastPts(ctx context.Context, userId int64) (rValue *dataobject.UserPtsUpdatesDO, err error) {
-	var (
-		query string
-		do    = &dataobject.UserPtsUpdatesDO{}
-	)
-	query = "select pts from user_pts_updates where user_id = ? order by pts desc limit 1"
-
-	err = dao.db.QueryRowPartial(ctx, do, query, userId)
-
-	if err != nil {
-		if !errors.Is(err, sqlx.ErrNotFound) {
-			logx.WithContext(ctx).Errorf("queryx in SelectLastPts(_), error: %v", err)
-			return
-		} else {
-			// not found not error, return nil, nil
-			err = nil
-		}
-	} else {
-		rValue = do
-	}
-
-	return
-}
-
-// SelectByGtPts
-// select user_id, pts, pts_count, update_type, update_data from user_pts_updates where user_id = :user_id and pts > :pts order by pts asc limit :limit
-func (dao *UserPtsUpdatesDAO) SelectByGtPts(ctx context.Context, userId int64, pts int32, limit int32) (rList []dataobject.UserPtsUpdatesDO, err error) {
+// SelectByPtsRange
+// select user_id, pts, pts_count, update_type, update_data from user_pts_updates where user_id = :user_id and pts > :pts and pts <= :max_pts order by pts asc limit :limit
+func (dao *UserPtsUpdatesDAO) SelectByPtsRange(ctx context.Context, userId int64, pts int32, maxPts int32, limit int32) (rList []dataobject.UserPtsUpdatesDO, err error) {
 	var (
 		query  string
 		values []dataobject.UserPtsUpdatesDO
 	)
-	query = "select user_id, pts, pts_count, update_type, update_data from user_pts_updates where user_id = ? and pts > ? order by pts asc limit ?"
+	query = "select user_id, pts, pts_count, update_type, update_data from user_pts_updates where user_id = ? and pts > ? and pts <= ? order by pts asc limit ?"
 
-	err = dao.db.QueryRowsPartial(ctx, &values, query, userId, pts, limit)
+	err = dao.db.QueryRowsPartial(ctx, &values, query, userId, pts, maxPts, limit)
 
 	if err != nil {
-		logx.WithContext(ctx).Errorf("queryx in SelectByGtPts(_), error: %v", err)
+		logx.WithContext(ctx).Errorf("queryx in SelectByPtsRange(_), error: %v", err)
 		return
 	}
 
 	rList = values
-
-	return
-}
-
-// SelectByGtPtsWithCB
-// select user_id, pts, pts_count, update_type, update_data from user_pts_updates where user_id = :user_id and pts > :pts order by pts asc limit :limit
-func (dao *UserPtsUpdatesDAO) SelectByGtPtsWithCB(ctx context.Context, userId int64, pts int32, limit int32, cb func(sz, i int, v *dataobject.UserPtsUpdatesDO)) (rList []dataobject.UserPtsUpdatesDO, err error) {
-	var (
-		query  string
-		values []dataobject.UserPtsUpdatesDO
-	)
-	query = "select user_id, pts, pts_count, update_type, update_data from user_pts_updates where user_id = ? and pts > ? order by pts asc limit ?"
-
-	err = dao.db.QueryRowsPartial(ctx, &values, query, userId, pts, limit)
-
-	if err != nil {
-		logx.WithContext(ctx).Errorf("queryx in SelectByGtPts(_), error: %v", err)
-		return
-	}
-
-	rList = values
-
-	if cb != nil {
-		sz := len(rList)
-		for i := range sz {
-			cb(sz, i, &rList[i])
-		}
-	}
 
 	return
 }

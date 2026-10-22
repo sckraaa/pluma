@@ -15,7 +15,6 @@ import (
 )
 
 type MsgPlugin interface {
-	ReadReactionUnreadMessage(ctx context.Context, userId int64, msgId int32) error
 	UsernameResolveUsername(ctx context.Context, in *user.TLUserResolveUsername) (*mtproto.Peer, error)
 	GetWebpagePreview(ctx context.Context, url string) (*mtproto.WebPage, error)
 }

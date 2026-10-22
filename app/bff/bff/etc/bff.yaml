@@ -29,6 +29,8 @@ BizServiceClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.biz_service
+  # Covers the box transactions of dialog (checked at start).
+  Timeout: 30000
 AuthSessionClient:
   Etcd:
     Hosts:

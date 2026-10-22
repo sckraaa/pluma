@@ -4,6 +4,9 @@ Etcd:
   Hosts:
     - 127.0.0.1:2379
   Key: service.biz_service
+# dialog runs box transactions (pkg/userbox): the deadline outlives them
+# (dialog.MaxBoxOpTime, checked at start; docs/ops/user-state.md).
+Timeout: 30000
 Log:
   ServiceName: service.biz_service
   Mode: file
@@ -23,7 +26,7 @@ Log:
 #  Batcher: jaeger
 
 Mysql:
-  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true&innodb_lock_wait_timeout=2"
   Active: 64
   Idle: 64
   IdleTimeout: 4h
@@ -40,8 +43,3 @@ MediaClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.media
-IdgenClient:
-  Etcd:
-    Hosts:
-      - 127.0.0.1:2379
-    Key: service.idgen

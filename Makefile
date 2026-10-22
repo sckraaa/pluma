@@ -116,6 +116,10 @@ SHELL_SCRIPTS := test/e2e/run.sh teamgramd/docker/healthcheck.sh
 
 # The vendored proto module is a Go module of its own: `./...` at the root
 # does not reach it, so every check runs there as well.
+# third_party/teamgram-marmota (ADR 0009, 0011) is not checked on its own: its
+# upstream code was never vetted or linted, govulncheck at the root covers
+# the dependency versions our binaries link, and our patches there are
+# exercised by the root module's tests (pkg/userbox).
 PROTO_DIR := third_party/teamgram-proto
 # Lint reports only code changed since the upstream base: 708fb953 for the root
 # module (.golangci.yml), the unmodified vendored copy for the proto module —
@@ -140,6 +144,9 @@ API_COVERAGE_DOC := docs/project/api-coverage.md
 # Packages with integration tests (build tag integration): every directory
 # holding a test file with that tag, so new ones are picked up.
 INTEGRATION_PKGS = $(shell grep -rl --include='*_test.go' -e '^//go:build integration' app pkg tools | xargs -n1 dirname | sort -u | sed 's|^|./|')
+# Packages tested at once: each starts its own MySQL (pkg/userbox two), and
+# more at once run a Docker VM of 6 GB out of memory.
+INTEGRATION_PARALLEL ?= 4
 
 .PHONY: build vet test test-race test-integration e2e lint vuln coverage apicoverage apicoverage-summary apicoverage-check actionlint shellcheck ci print-tool-versions
 
@@ -172,8 +179,8 @@ test-integration:
 		unix://$$HOME/*) export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=$${TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE:-/var/run/docker.sock} ;; \
 		esac; \
 	fi; \
-	echo "go test -tags integration $(INTEGRATION_PKGS)"; \
-	go test -tags integration -race -count=1 -timeout 20m $(INTEGRATION_PKGS)
+	echo "go test -tags integration -p $(INTEGRATION_PARALLEL) $(INTEGRATION_PKGS)"; \
+	go test -tags integration -race -count=1 -p $(INTEGRATION_PARALLEL) -timeout 20m $(INTEGRATION_PKGS)
 
 # End-to-end test of the whole stack through docker compose: throwaway
 # secrets, build, start, test, service logs on failure (in .e2e/logs), stop.

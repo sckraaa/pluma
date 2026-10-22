@@ -34,7 +34,10 @@ func newMysqlDao(db *sqlx.DB) *Mysql {
 	return &Mysql{
 		DB:                db,
 		AuthSeqUpdatesDAO: mysql_dao.NewAuthSeqUpdatesDAO(db),
-		UserPtsUpdatesDAO: mysql_dao.NewUserPtsUpdatesDAO(db),
+		// The journal is read where the state is (BoxDB, the master): a
+		// reader that sees state pts P must see every journal row up to P
+		// (ADR 0011, p. 7), which a lagging read replica (ReadDSN) breaks.
+		UserPtsUpdatesDAO: mysql_dao.NewUserPtsUpdatesDAO(db.Master()),
 		CommonDAO:         sqlx.NewCommonDAO(db),
 	}
 }

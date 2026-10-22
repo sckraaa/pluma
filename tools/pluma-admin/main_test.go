@@ -231,6 +231,12 @@ func TestUsage(t *testing.T) {
 		{"login-unblock", "1", "2"},
 		{"reset-everything"},
 		{"-bogus-flag"},
+		{"state-raise"},
+		{"state-raise", "-by", "0"},
+		{"state-raise", "-by", "10", "extra"},
+		{"state-export-legacy"},
+		{"verify-pts"},
+		{"verify-pts", "-after"},
 	} {
 		if code, _, _ := h.run(args...); code != 2 {
 			t.Errorf("%q: exit %d, want 2", args, code)
@@ -244,6 +250,9 @@ func TestUsage(t *testing.T) {
 		if code, _, errOut := h.run(args...); code != 1 || !strings.Contains(errOut, "invalid phone number") {
 			t.Errorf("%q: exit %d %q", args, code, errOut)
 		}
+	}
+	if code, _, errOut := h.run("verify-pts", "alice"); code != 1 || !strings.Contains(errOut, "invalid user id") {
+		t.Errorf("verify-pts alice: exit %d %q", code, errOut)
 	}
 }
 

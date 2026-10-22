@@ -46,7 +46,7 @@
 
 | 服务        | etcd | MySQL | Redis (Cache/KV) | Kafka        | MinIO |
 |-------------|------|-------|------------------|--------------|-------|
-| **idgen**   | ✓    | —     | ✓ (SeqIDGen)     | —            | —     |
+| **idgen**   | ✓    | —     | —                | —            | —     |
 | **status**  | ✓    | —     | ✓ (Status)       | —            | —     |
 | **authsession** | ✓ | ✓     | ✓ (Cache, KV)    | —            | —     |
 | **dfs**     | ✓    | —     | ✓ (Cache, SSDB)  | —            | ✓     |
@@ -68,9 +68,9 @@
 - **gnetway** → 通过 etcd 发现并调用 **session**（interface.session）。
 - **session** → 调用 **authsession**、**status**，并将 MTProto RPC 转发到 **bff**（BFFProxyClients）。
 - **bff** → 调用 **biz**、**authsession**、**media**、**idgen**、**msg**、**dfs**、**status**，并向 Kafka **Sync-T** 生产消息。
-- **biz** → 调用 **media**、**idgen**。
+- **biz** → 调用 **media**。
 - **msg** → 调用 **idgen**、**biz**；消费 **Inbox-T**，生产/消费 **Sync-T**。
-- **sync** → 调用 **idgen**、**status**、**session**、**biz**（Channel/Chat）；消费 **Sync-T**。
+- **sync** → 调用 **status**、**session**、**biz**（Channel/Chat）；消费 **Sync-T**。
 - **media** → 调用 **dfs**。
 - **dfs** → 调用 **idgen**；使用 MinIO 存储对象。
 - **authsession**、**idgen**、**status** 不调用其他 gRPC 服务（仅依赖 etcd、DB、Redis）。
@@ -135,12 +135,10 @@ flowchart TB
   BFF --> Status
   BFF -->|Sync-T| Kafka
   Biz --> Media
-  Biz --> Idgen
   Msg --> Idgen
   Msg --> Biz
   Msg --> Kafka
   Sync --> Kafka
-  Sync --> Idgen
   Sync --> Status
   Sync --> Session
   Sync --> Biz
@@ -149,7 +147,6 @@ flowchart TB
   Dfs --> MinIO
   AuthSession --> MySQL
   AuthSession --> Redis
-  Idgen --> Redis
   Status --> Redis
   Biz --> MySQL
   Biz --> Redis

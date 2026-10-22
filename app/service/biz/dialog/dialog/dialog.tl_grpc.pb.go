@@ -44,7 +44,6 @@ const (
 	RPCDialog_DialogReorderPinnedDialogs_FullMethodName              = "/dialog.RPCDialog/dialog_reorderPinnedDialogs"
 	RPCDialog_DialogGetDialogById_FullMethodName                     = "/dialog.RPCDialog/dialog_getDialogById"
 	RPCDialog_DialogGetTopMessage_FullMethodName                     = "/dialog.RPCDialog/dialog_getTopMessage"
-	RPCDialog_DialogInsertOrUpdateDialog_FullMethodName              = "/dialog.RPCDialog/dialog_insertOrUpdateDialog"
 	RPCDialog_DialogDeleteDialog_FullMethodName                      = "/dialog.RPCDialog/dialog_deleteDialog"
 	RPCDialog_DialogGetUserPinnedMessage_FullMethodName              = "/dialog.RPCDialog/dialog_getUserPinnedMessage"
 	RPCDialog_DialogUpdateUserPinnedMessage_FullMethodName           = "/dialog.RPCDialog/dialog_updateUserPinnedMessage"
@@ -65,7 +64,6 @@ const (
 	RPCDialog_DialogGetDialogFilter_FullMethodName                   = "/dialog.RPCDialog/dialog_getDialogFilter"
 	RPCDialog_DialogGetDialogFilterBySlug_FullMethodName             = "/dialog.RPCDialog/dialog_getDialogFilterBySlug"
 	RPCDialog_DialogCreateDialogFilter_FullMethodName                = "/dialog.RPCDialog/dialog_createDialogFilter"
-	RPCDialog_DialogUpdateUnreadCount_FullMethodName                 = "/dialog.RPCDialog/dialog_updateUnreadCount"
 	RPCDialog_DialogToggleDialogFilterTags_FullMethodName            = "/dialog.RPCDialog/dialog_toggleDialogFilterTags"
 	RPCDialog_DialogGetDialogFilterTags_FullMethodName               = "/dialog.RPCDialog/dialog_getDialogFilterTags"
 	RPCDialog_DialogSetChatWallpaper_FullMethodName                  = "/dialog.RPCDialog/dialog_setChatWallpaper"
@@ -90,7 +88,6 @@ type RPCDialogClient interface {
 	DialogReorderPinnedDialogs(ctx context.Context, in *TLDialogReorderPinnedDialogs, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogGetDialogById(ctx context.Context, in *TLDialogGetDialogById, opts ...grpc.CallOption) (*DialogExt, error)
 	DialogGetTopMessage(ctx context.Context, in *TLDialogGetTopMessage, opts ...grpc.CallOption) (*mtproto.Int32, error)
-	DialogInsertOrUpdateDialog(ctx context.Context, in *TLDialogInsertOrUpdateDialog, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogDeleteDialog(ctx context.Context, in *TLDialogDeleteDialog, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogGetUserPinnedMessage(ctx context.Context, in *TLDialogGetUserPinnedMessage, opts ...grpc.CallOption) (*mtproto.Int32, error)
 	DialogUpdateUserPinnedMessage(ctx context.Context, in *TLDialogUpdateUserPinnedMessage, opts ...grpc.CallOption) (*mtproto.Bool, error)
@@ -111,7 +108,6 @@ type RPCDialogClient interface {
 	DialogGetDialogFilter(ctx context.Context, in *TLDialogGetDialogFilter, opts ...grpc.CallOption) (*DialogFilterExt, error)
 	DialogGetDialogFilterBySlug(ctx context.Context, in *TLDialogGetDialogFilterBySlug, opts ...grpc.CallOption) (*DialogFilterExt, error)
 	DialogCreateDialogFilter(ctx context.Context, in *TLDialogCreateDialogFilter, opts ...grpc.CallOption) (*DialogFilterExt, error)
-	DialogUpdateUnreadCount(ctx context.Context, in *TLDialogUpdateUnreadCount, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogToggleDialogFilterTags(ctx context.Context, in *TLDialogToggleDialogFilterTags, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(ctx context.Context, in *TLDialogGetDialogFilterTags, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(ctx context.Context, in *TLDialogSetChatWallpaper, opts ...grpc.CallOption) (*mtproto.Bool, error)
@@ -269,16 +265,6 @@ func (c *rPCDialogClient) DialogGetTopMessage(ctx context.Context, in *TLDialogG
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Int32)
 	err := c.cc.Invoke(ctx, RPCDialog_DialogGetTopMessage_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *rPCDialogClient) DialogInsertOrUpdateDialog(ctx context.Context, in *TLDialogInsertOrUpdateDialog, opts ...grpc.CallOption) (*mtproto.Bool, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(mtproto.Bool)
-	err := c.cc.Invoke(ctx, RPCDialog_DialogInsertOrUpdateDialog_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -485,16 +471,6 @@ func (c *rPCDialogClient) DialogCreateDialogFilter(ctx context.Context, in *TLDi
 	return out, nil
 }
 
-func (c *rPCDialogClient) DialogUpdateUnreadCount(ctx context.Context, in *TLDialogUpdateUnreadCount, opts ...grpc.CallOption) (*mtproto.Bool, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(mtproto.Bool)
-	err := c.cc.Invoke(ctx, RPCDialog_DialogUpdateUnreadCount_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *rPCDialogClient) DialogToggleDialogFilterTags(ctx context.Context, in *TLDialogToggleDialogFilterTags, opts ...grpc.CallOption) (*mtproto.Bool, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Bool)
@@ -544,7 +520,6 @@ type RPCDialogServer interface {
 	DialogReorderPinnedDialogs(context.Context, *TLDialogReorderPinnedDialogs) (*mtproto.Bool, error)
 	DialogGetDialogById(context.Context, *TLDialogGetDialogById) (*DialogExt, error)
 	DialogGetTopMessage(context.Context, *TLDialogGetTopMessage) (*mtproto.Int32, error)
-	DialogInsertOrUpdateDialog(context.Context, *TLDialogInsertOrUpdateDialog) (*mtproto.Bool, error)
 	DialogDeleteDialog(context.Context, *TLDialogDeleteDialog) (*mtproto.Bool, error)
 	DialogGetUserPinnedMessage(context.Context, *TLDialogGetUserPinnedMessage) (*mtproto.Int32, error)
 	DialogUpdateUserPinnedMessage(context.Context, *TLDialogUpdateUserPinnedMessage) (*mtproto.Bool, error)
@@ -565,7 +540,6 @@ type RPCDialogServer interface {
 	DialogGetDialogFilter(context.Context, *TLDialogGetDialogFilter) (*DialogFilterExt, error)
 	DialogGetDialogFilterBySlug(context.Context, *TLDialogGetDialogFilterBySlug) (*DialogFilterExt, error)
 	DialogCreateDialogFilter(context.Context, *TLDialogCreateDialogFilter) (*DialogFilterExt, error)
-	DialogUpdateUnreadCount(context.Context, *TLDialogUpdateUnreadCount) (*mtproto.Bool, error)
 	DialogToggleDialogFilterTags(context.Context, *TLDialogToggleDialogFilterTags) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(context.Context, *TLDialogGetDialogFilterTags) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(context.Context, *TLDialogSetChatWallpaper) (*mtproto.Bool, error)
@@ -622,9 +596,6 @@ func (UnimplementedRPCDialogServer) DialogGetDialogById(context.Context, *TLDial
 }
 func (UnimplementedRPCDialogServer) DialogGetTopMessage(context.Context, *TLDialogGetTopMessage) (*mtproto.Int32, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogGetTopMessage not implemented")
-}
-func (UnimplementedRPCDialogServer) DialogInsertOrUpdateDialog(context.Context, *TLDialogInsertOrUpdateDialog) (*mtproto.Bool, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DialogInsertOrUpdateDialog not implemented")
 }
 func (UnimplementedRPCDialogServer) DialogDeleteDialog(context.Context, *TLDialogDeleteDialog) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogDeleteDialog not implemented")
@@ -685,9 +656,6 @@ func (UnimplementedRPCDialogServer) DialogGetDialogFilterBySlug(context.Context,
 }
 func (UnimplementedRPCDialogServer) DialogCreateDialogFilter(context.Context, *TLDialogCreateDialogFilter) (*DialogFilterExt, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogCreateDialogFilter not implemented")
-}
-func (UnimplementedRPCDialogServer) DialogUpdateUnreadCount(context.Context, *TLDialogUpdateUnreadCount) (*mtproto.Bool, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DialogUpdateUnreadCount not implemented")
 }
 func (UnimplementedRPCDialogServer) DialogToggleDialogFilterTags(context.Context, *TLDialogToggleDialogFilterTags) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogToggleDialogFilterTags not implemented")
@@ -984,24 +952,6 @@ func _RPCDialog_DialogGetTopMessage_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCDialogServer).DialogGetTopMessage(ctx, req.(*TLDialogGetTopMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RPCDialog_DialogInsertOrUpdateDialog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TLDialogInsertOrUpdateDialog)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RPCDialogServer).DialogInsertOrUpdateDialog(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RPCDialog_DialogInsertOrUpdateDialog_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RPCDialogServer).DialogInsertOrUpdateDialog(ctx, req.(*TLDialogInsertOrUpdateDialog))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1366,24 +1316,6 @@ func _RPCDialog_DialogCreateDialogFilter_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RPCDialog_DialogUpdateUnreadCount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TLDialogUpdateUnreadCount)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RPCDialogServer).DialogUpdateUnreadCount(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RPCDialog_DialogUpdateUnreadCount_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RPCDialogServer).DialogUpdateUnreadCount(ctx, req.(*TLDialogUpdateUnreadCount))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _RPCDialog_DialogToggleDialogFilterTags_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLDialogToggleDialogFilterTags)
 	if err := dec(in); err != nil {
@@ -1506,10 +1438,6 @@ var RPCDialog_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _RPCDialog_DialogGetTopMessage_Handler,
 		},
 		{
-			MethodName: "dialog_insertOrUpdateDialog",
-			Handler:    _RPCDialog_DialogInsertOrUpdateDialog_Handler,
-		},
-		{
 			MethodName: "dialog_deleteDialog",
 			Handler:    _RPCDialog_DialogDeleteDialog_Handler,
 		},
@@ -1588,10 +1516,6 @@ var RPCDialog_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "dialog_createDialogFilter",
 			Handler:    _RPCDialog_DialogCreateDialogFilter_Handler,
-		},
-		{
-			MethodName: "dialog_updateUnreadCount",
-			Handler:    _RPCDialog_DialogUpdateUnreadCount_Handler,
 		},
 		{
 			MethodName: "dialog_toggleDialogFilterTags",
