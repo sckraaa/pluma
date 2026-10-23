@@ -490,3 +490,30 @@ func TestTimersAfterTheBrokerIsGone(t *testing.T) {
 		t.Fatal("connection kept after the topic check failed")
 	}
 }
+
+// TestRoundAfterTheTopicCheckDroppedTheConnection: a topic check due in the
+// same step drops the connection when the broker is gone; the round must
+// not publish on it (it did: a nil dereference crashed msg).
+func TestRoundAfterTheTopicCheckDroppedTheConnection(t *testing.T) {
+	st, k := newFakeStore(), newFakeKafka()
+	r := testRelay(st, k)
+	ctx := context.Background()
+	st.add("Inbox-T", 7, userbox.EventPending)
+	r.step(ctx) // lead, connect, publish
+	r.waitFinished()
+
+	st.add("Inbox-T", 7, userbox.EventPending)
+	k.mu.Lock()
+	k.metaErr = errFake
+	k.mu.Unlock()
+	r.checkNow = true
+	if wait := r.step(ctx); wait <= 0 {
+		t.Fatalf("step after a dropped connection: wait %v, want the reconnect pause", wait)
+	}
+	if r.kafka != nil {
+		t.Fatal("connection kept after the topic check failed")
+	}
+	if n := len(k.taken()); n != 1 {
+		t.Fatalf("%d messages published, want the first one only", n)
+	}
+}
