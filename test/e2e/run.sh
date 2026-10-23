@@ -4,6 +4,7 @@
 #   test/e2e/run.sh all        up, test, logs on failure, down (what `make e2e` runs)
 #   test/e2e/run.sh up         generate throwaway secrets, build the image, start the stack
 #   test/e2e/run.sh test       run the Go e2e tests against the running stack
+#   test/e2e/run.sh wait       start stopped services, wait until the stack serves
 #   test/e2e/run.sh logs       save service logs to $E2E_DIR/logs
 #   test/e2e/run.sh down       stop the stack, delete its volumes and the secrets
 #   test/e2e/run.sh admin ...  run tools/pluma-admin inside the bff container
@@ -99,7 +100,7 @@ EOF
 cmd_up() {
 	gen_secrets || return
 	log "building the teamgram image"
-	compose build gnetway || return
+	compose build idgen || return
 	log "starting ${SERVICES[*]}"
 	compose up --detach --wait --wait-timeout 300 "${SERVICES[@]}" || return
 	wait_consumers || return
@@ -209,6 +210,11 @@ cmd_all() {
 
 case ${1:-} in
 up) cmd_up ;;
+wait)
+	# After a chaos step: start whatever was stopped and wait until the
+	# stack serves again (healthchecks, consumer groups own their partitions).
+	compose up --detach --wait --wait-timeout 300 "${SERVICES[@]}" && wait_consumers
+	;;
 test) cmd_test ;;
 logs) cmd_logs ;;
 down) cmd_down ;;

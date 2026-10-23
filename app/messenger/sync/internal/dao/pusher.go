@@ -349,7 +349,8 @@ func (p *Pusher) call(ctx context.Context, st *nodeState, f func(ctx context.Con
 }
 
 // waitNode waits for a paused node, but not longer than NodePauseLimit since
-// the pause began.
+// the pause began. Past the limit it does not wait at all, but a node whose
+// connection is ready again is still tried: a successful push ends the pause.
 func (p *Pusher) waitNode(ctx context.Context, st *nodeState) bool {
 	st.mu.Lock()
 	since := st.pausedSince
@@ -357,10 +358,7 @@ func (p *Pusher) waitNode(ctx context.Context, st *nodeState) bool {
 	if since.IsZero() {
 		return true
 	}
-	left := NodePauseLimit - p.now().Sub(since)
-	if left <= 0 {
-		return false
-	}
+	left := max(NodePauseLimit-p.now().Sub(since), 0)
 	wctx, cancel := context.WithTimeout(ctx, left)
 	defer cancel()
 	return st.node.waitReady(wctx)

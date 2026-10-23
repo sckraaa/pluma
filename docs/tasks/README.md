@@ -28,7 +28,7 @@
 |---|---|---|
 | [001](001-security-p0.md) | Безопасность P0: закрыть критические дыры | done (код) |
 | [002](002-durable-sequences.md) | Долговечные счётчики и транзакционный путь записи | done |
-| [003](003-reliable-delivery.md) | Надёжная доставка через Kafka и push в сессии | todo |
+| [003](003-reliable-delivery.md) | Надёжная доставка через Kafka и push в сессии | done |
 | [004](004-deployment.md) | Развёртывание, наблюдаемость, бэкапы | todo |
 | [005](005-tests-and-ci.md) | Зелёная база тестов и CI | done |
 | [006](006-client-build-pipeline.md) | Конвейер сборки клиентов | todo |

@@ -14,7 +14,8 @@
 
 x-teamgram: &teamgram
   image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
-  build: .
+  # Built locally by idgen (below), never pulled.
+  pull_policy: never
   restart: ${TEAMGRAM_RESTART:-unless-stopped}
   working_dir: /app/bin
   networks:
@@ -30,6 +31,9 @@ x-db-env: &db-env
 services:
   idgen:
     <<: *teamgram
+    # The one service that builds the shared image: with build on every
+    # service compose would run eleven builds of it at once.
+    build: .
     command: ["./idgen", "-f=../etc2/idgen.yaml"]
     stop_grace_period: 15s
 

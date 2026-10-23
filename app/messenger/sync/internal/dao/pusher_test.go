@@ -259,6 +259,20 @@ func TestPushGivesUpOnNodePausedTooLong(t *testing.T) {
 	}
 }
 
+func TestPushResumesNodeBackAfterLongPause(t *testing.T) {
+	n := &fakeNode{ready: true}
+	p, c := newTestPusher(t, map[string]*fakeNode{"s1": n})
+	// Paused for longer than the limit, and the connection is ready again:
+	// the push goes through and ends the pause.
+	p.pause(p.nodes["s1"])
+	c.add(NodePauseLimit + time.Minute)
+	push(context.Background(), &Dao{pusher: p}, "s1", 1, ptsUpdates())
+	eq(t, n.calls(), "updates:1ns")
+	if !p.nodes["s1"].pausedSince.IsZero() || p.marked(device{"s1", 1}) {
+		t.Fatal("node still paused or device marked after a delivered push")
+	}
+}
+
 func TestStalePush(t *testing.T) {
 	n := &fakeNode{ready: true}
 	p, c := newTestPusher(t, map[string]*fakeNode{"s1": n})
