@@ -35,6 +35,18 @@
 
 Образ MySQL из `docker-compose-env.yaml` (8.0) с параметрами по умолчанию требованиям сервера удовлетворяет; это проверяет интеграционный тест `TestCheckServerSettings` в `pkg/userbox`.
 
+## Как применяются миграции
+
+С задачи 004 схему применяет `pluma-admin migrate up` (пакет `pkg/migrate`): файлы `teamgramd/deploy/sql/*.sql` по порядку имён, каждый применённый записывается в `schema_migrations` с контрольной суммой. В Docker это одноразовый сервис `migrate` (`docker-compose.yaml`): он ждёт MySQL, применяет недостающие файлы и завершается, остальные сервисы стартуют только после его успеха. Изменённый применённый файл и файл неизвестной (более новой) версии останавливают запуск — менять схему можно только новым файлом.
+
+| Команда | Что делает |
+|---|---|
+| `pluma-admin migrate status` | сколько применено и что ждёт |
+| `pluma-admin migrate up [-wait 60s]` | применить недостающие |
+| `pluma-admin migrate baseline -through <файл>` | для базы, созданной до версионируемых миграций: записать файлы до `<файл>` включительно как применённые, ничего не выполняя |
+
+Файл выполняется одним запросом из нескольких операторов; DDL в MySQL фиксируется по оператору, поэтому упавший посередине файл не записывается в историю, и его нужно доделать или откатить вручную, затем снова `migrate up`. Новые файлы пишутся так, чтобы повторный прогон ничего не ломал.
+
 ## Миграция `teamgramd/deploy/sql/migrate-20261022-dialog-index.sql`
 
 Заменяет индекс `messages.user_id (user_id, dialog_id1, dialog_id2)` на `(user_id, dialog_id1, dialog_id2, deleted, user_message_box_id)`: верхнее сообщение диалога и непрочитанные читаются из индекса, а не перебором всех сообщений диалога под блокировкой ящика. Online DDL (`ALGORITHM=INPLACE, LOCK=NONE`): чтение и запись `messages` идут, пока строится индекс. Время — порядка построения индекса по всей `messages`. Повторный прогон строит тот же индекс заново.
@@ -74,7 +86,7 @@ WHERE table_schema = 'teamgram' AND table_name = 'user_pts_updates';
 1. Остановить gnetway (закрыть вход клиентов).
 2. Дождаться нулевого лага обеих групп старой версией: в контейнере kafka `/opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9094 --describe --group Inbox-MainCommunity-S` (и `Sync-MainCommunity-S`), колонка `LAG` равна 0 по всем партициям.
 3. Остановить сервисы, сделать резервную копию MySQL.
-4. Применить `migrate-20261022-dialog-index.sql`, `migrate-20261022.sql` и `migrate-20261023-delivery.sql` (в этом порядке, как их сортирует имя).
+4. Записать историю миграций старой базы (один раз, ADR 0013): `pluma-admin migrate baseline -through migrate-20260610.sql` — последний файл апстрима; новые файлы применит сервис `migrate` при запуске (шаг 8), их можно применить и заранее: `pluma-admin migrate up`. `z_init.sql` (служебный пользователь 777000) идёт по имени после новых файлов и повторно ничего не вставляет.
 5. Удалить группы (иначе они хранят offset-ы старых партиций): `kafka-consumer-groups.sh --bootstrap-server localhost:9094 --delete --group Inbox-MainCommunity-S`, то же для `Sync-MainCommunity-S`.
 6. Удалить `Inbox-T` и `Sync-T` (по шагу 2 они пусты): `kafka-topics.sh --bootstrap-server localhost:9094 --delete --topic Inbox-T`, то же для `Sync-T`; дождаться, пока они исчезнут из `kafka-topics.sh --list` (удаление в KRaft асинхронное).
 7. Создать топики: `docker compose up kafka-init` (или `teamgramd/deploy/kafka/topics.sh <брокер>` без Docker). Брокер больше не создаёт топики сам (`KAFKA_AUTO_CREATE_TOPICS_ENABLE=false`).

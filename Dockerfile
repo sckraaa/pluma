@@ -21,6 +21,8 @@ RUN apt-get update -y && apt-get install -y ffmpeg && apt-get clean && rm -rf /v
 WORKDIR /app
 COPY --from=builder /app/teamgramd/bin/ /app/bin/
 COPY --from=builder /app/teamgramd/etc2/ /app/etc2/
+# Schema migrations, applied by the migrate service (pluma-admin migrate up).
+COPY --from=builder /app/teamgramd/deploy/sql/ /app/sql/
 # One image for all services: docker-compose.yaml runs each binary as its own
 # service (exec form, so SIGTERM reaches it).
 WORKDIR /app/bin

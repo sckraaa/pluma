@@ -74,6 +74,17 @@ func TestComposeServices(t *testing.T) {
 	}
 
 	varRe := regexp.MustCompile(`\$\{([A-Z_][A-Z0-9_]*)\}`)
+
+	// The one-shot migrate service runs pluma-admin with the bff config
+	// before everything else.
+	mig, ok := compose.Services["migrate"]
+	if !ok {
+		t.Error("no migrate service")
+	} else if mig.Restart != "no" || len(mig.Command) < 4 || mig.Command[0] != "./pluma-admin" || mig.Command[2] != "migrate" || mig.Command[3] != "up" {
+		t.Errorf("migrate: command %q, restart %q", mig.Command, mig.Restart)
+	}
+	delete(compose.Services, "migrate")
+
 	for name, s := range compose.Services {
 		if !want[name] {
 			t.Errorf("compose service %s has no config in teamgramd/etc2", name)

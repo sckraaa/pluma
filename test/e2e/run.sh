@@ -35,7 +35,7 @@ LOG_DIR=$E2E_DIR/logs
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync bff session gnetway)
-SERVICES=(mysql redis kafka kafka-init etcd minio minio-mc jaeger "${TEAMGRAM_SERVICES[@]}")
+SERVICES=(mysql redis kafka kafka-init etcd minio minio-mc jaeger migrate "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick).

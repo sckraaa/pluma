@@ -38,6 +38,17 @@ x-db-env: &db-env
   REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
 
 services:
+  # Applies the schema migrations (pkg/migrate) and exits; every service
+  # starts only after it succeeded. MySQL itself is in docker-compose-env.yaml:
+  # it waits for it.
+  migrate:
+    <<: *teamgram
+    command: ["./pluma-admin", "-f=../etc2/bff.yaml", "migrate", "up", "-dir=../sql", "-wait=180s"]
+    restart: "no"
+    environment:
+      <<: *db-env
+      LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env (openssl rand -hex 32)}
+
   idgen:
     <<: *teamgram
     # The one service that builds the shared image: with build on every
@@ -48,6 +59,9 @@ services:
       <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20660"]
     stop_grace_period: 15s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   status:
     <<: *teamgram
@@ -57,6 +71,9 @@ services:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20670"]
     environment: *redis-env
     stop_grace_period: 15s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   authsession:
     <<: *teamgram
@@ -66,6 +83,9 @@ services:
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20450"]
     environment: *db-env
     stop_grace_period: 15s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   dfs:
     <<: *teamgram
@@ -78,6 +98,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
     stop_grace_period: 30s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   media:
     <<: *teamgram

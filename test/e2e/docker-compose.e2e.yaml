@@ -34,10 +34,9 @@ services:
   mysql:
     container_name: !reset null
     ports: !reset []
-    # The schema is applied from teamgramd/deploy/sql on the first start, as in
-    # production; the data lives in memory.
-    volumes: !override
-      - ./teamgramd/deploy/sql:/docker-entrypoint-initdb.d/:ro
+    # The schema is applied by the migrate service, as in production; the
+    # data lives in memory.
+    volumes: !reset []
     tmpfs:
       - /var/lib/mysql
     restart: "no"

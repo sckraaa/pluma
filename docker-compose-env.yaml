@@ -129,8 +129,9 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
+      # The schema is applied by the migrate service of docker-compose.yaml
+      # (pluma-admin migrate up), not by the image's init directory.
       - ./data/mysql:/var/lib/mysql
-      - ./teamgramd/deploy/sql:/docker-entrypoint-initdb.d/
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
