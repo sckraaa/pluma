@@ -52,9 +52,20 @@ jobs:
       - name: Install ffmpeg
         # dfs and pkg/goffmpeg tests run the ffmpeg/ffprobe binaries (with
         # libx264, as in the production image); without them they would skip.
+        # A hung Ubuntu mirror once held this step for the whole job timeout:
+        # each attempt is bounded and retried, and the step has its own limit.
+        timeout-minutes: 15
         run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q --no-install-recommends ffmpeg
+          apt_opts=(-q -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+          for attempt in 1 2 3; do
+            if timeout 240 sudo apt-get "${apt_opts[@]}" update &&
+              timeout 240 sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends ffmpeg; then
+              break
+            fi
+            if [ "$attempt" = 3 ]; then exit 1; fi
+            echo "apt attempt $attempt failed, retrying"
+            sleep 10
+          done
           ffmpeg -hide_banner -version | head -n 1
 
       - name: Tool versions
