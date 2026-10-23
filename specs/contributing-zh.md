@@ -39,7 +39,7 @@
 
 ### 运行服务
 
-- `cd teamgramd/bin && ./runall2.sh`（Docker 下可用 `./runall-docker.sh`）。
+- `cd teamgramd/bin && ./runall2.sh`（Docker 下每个服务是单独的 compose 服务，见 `docker-compose.yaml`）。
 
 ### 测试
 

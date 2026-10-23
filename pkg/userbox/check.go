@@ -16,18 +16,20 @@ import (
 //     LockWaitTimeout (DSN parameter innodb_lock_wait_timeout=2);
 //   - innodb_flush_log_at_trx_commit = 1;
 //   - with the binary log on: binlog_format = ROW (READ COMMITTED needs
-//     row-based logging) and sync_binlog = 1.
+//     row-based logging) and sync_binlog = 1;
+//   - max_allowed_packet is at least MinMaxAllowedPacket: a statement that
+//     writes events carries up to 4 MiB of payloads.
 //
 // A client sees a pts as soon as its transaction commits, so a commit lost
 // by a MySQL crash would roll pts back under the client, as a Redis loss
 // used to.
 func Check(ctx context.Context, db *sql.DB) error {
 	var (
-		lockWait, flushLog, logBin, syncBinlog int64
-		binlogFormat                           string
+		lockWait, flushLog, logBin, syncBinlog, maxPacket int64
+		binlogFormat                                      string
 	)
-	err := db.QueryRowContext(ctx, "SELECT @@SESSION.innodb_lock_wait_timeout, @@GLOBAL.innodb_flush_log_at_trx_commit, @@GLOBAL.log_bin, @@GLOBAL.binlog_format, @@GLOBAL.sync_binlog").
-		Scan(&lockWait, &flushLog, &logBin, &binlogFormat, &syncBinlog)
+	err := db.QueryRowContext(ctx, "SELECT @@SESSION.innodb_lock_wait_timeout, @@GLOBAL.innodb_flush_log_at_trx_commit, @@GLOBAL.log_bin, @@GLOBAL.binlog_format, @@GLOBAL.sync_binlog, @@SESSION.max_allowed_packet").
+		Scan(&lockWait, &flushLog, &logBin, &binlogFormat, &syncBinlog, &maxPacket)
 	if err != nil {
 		return fmt.Errorf("userbox: read MySQL settings: %w", err)
 	}
@@ -39,6 +41,9 @@ func Check(ctx context.Context, db *sql.DB) error {
 	}
 	if flushLog != 1 {
 		errs = append(errs, fmt.Errorf("innodb_flush_log_at_trx_commit is %d, want 1", flushLog))
+	}
+	if maxPacket < MinMaxAllowedPacket {
+		errs = append(errs, fmt.Errorf("max_allowed_packet is %d bytes, want at least %d", maxPacket, MinMaxAllowedPacket))
 	}
 	if logBin != 0 {
 		if !strings.EqualFold(binlogFormat, "ROW") {
@@ -56,14 +61,15 @@ func Check(ctx context.Context, db *sql.DB) error {
 
 // CheckRPCTimeout verifies the deadline of an RPC, in milliseconds as in a
 // go-zero config (name is its key), whose handler runs a box operation that
-// takes up to need: 0 (no deadline) or at least need. A shorter deadline
-// ends a request waiting for a busy user's lock with a bare
-// DeadlineExceeded instead of the operation's own error, and a COMMIT that
-// went through then answers the client with an error.
+// takes up to need. 0 (no deadline) is refused: a request without a deadline
+// can hang forever (ADR 0012, p. 9). A deadline shorter than need ends a
+// request waiting for a busy user's lock with a bare DeadlineExceeded
+// instead of the operation's own error, and a COMMIT that went through then
+// answers the client with an error.
 func CheckRPCTimeout(name string, timeoutMs int64, need time.Duration) error {
-	if timeoutMs == 0 || time.Duration(timeoutMs)*time.Millisecond >= need {
+	if timeoutMs > 0 && time.Duration(timeoutMs)*time.Millisecond >= need {
 		return nil
 	}
-	return fmt.Errorf("userbox: %s is %d ms, want 0 (no deadline) or at least %d ms: the box operations behind it take up to %v",
+	return fmt.Errorf("userbox: %s is %d ms, want at least %d ms: the box operations behind it take up to %v",
 		name, timeoutMs, need.Milliseconds(), need)
 }

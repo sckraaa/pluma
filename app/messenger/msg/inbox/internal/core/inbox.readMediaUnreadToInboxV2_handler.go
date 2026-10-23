@@ -29,11 +29,11 @@ import (
 // from_id opened the media of the recipient's messages: one
 // updateReadMessagesContents with the copies whose flag was set.
 func (c *InboxCore) InboxReadMediaUnreadToInboxV2(in *inbox.TLInboxReadMediaUnreadToInboxV2) error {
-	return c.run(in.UserId, nil, func(b *userbox.Box) error {
+	return c.apply(in.UserId, nil, func(b *userbox.Box) (bool, error) {
 		update, err := c.svcCtx.Dao.ReadMediaOutgoing(b, in.Id)
 		if err != nil || update == nil {
-			return err
+			return true, err
 		}
-		return c.push(b, update)
+		return true, c.push(b, update)
 	})
 }

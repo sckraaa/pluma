@@ -9,7 +9,8 @@
 
 ## Область
 По `docs/audit/03-architecture-and-ops.md`:
-- docker-compose: один процесс — один сервис; `restart: unless-stopped`; healthcheck; exec-form entrypoint (SIGTERM доходит до процесса, graceful shutdown).
+- docker-compose: healthcheck по сервисам. Один процесс — один сервис, `restart: unless-stopped`, exec-form, `stop_grace_period` и порядок остановки делает задача 003 (ADR 0012, п. 8).
+- Доставка алертов (Alertmanager и один получатель) — условие выкатки 002+003 пользователям (ADR 0012, п. 10).
 - Образы с закреплёнными версиями (никаких `:latest`).
 - Redis: AOF, `maxmemory`; MySQL: `max_connections` согласован с пулами (сейчас пулы ≈400 при лимите 151).
 - Версионируемые миграции схемы (golang-migrate или аналог) вместо ручного SQL.

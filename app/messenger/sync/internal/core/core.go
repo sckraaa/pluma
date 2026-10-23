@@ -11,12 +11,12 @@ package core
 
 import (
 	"context"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/svc"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/status/status"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -140,9 +140,8 @@ func (c *SyncCore) processUpdates(syncType SyncType, userId int64, isBot bool, u
 
 func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId int64, hasServerId *wrapperspb.StringValue, authKeyId, sessionId *wrapperspb.Int64Value, pushData *mtproto.Updates, notification bool) {
 	if syncType == syncTypeUserMe && hasServerId != nil {
-		c.Logger.Debugf("pushUpdatesToSession - pushData: {server_id: %v, auth_key_id: %v}", hasServerId, authKeyId)
 		if sessionId != nil {
-			_ = c.svcCtx.Dao.PushSessionUpdatesToSession(
+			c.svcCtx.Dao.PushSessionUpdates(
 				c.ctx,
 				hasServerId.GetValue(),
 				&session.TLSessionPushSessionUpdatesData{
@@ -152,7 +151,7 @@ func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId
 					Updates:       pushData,
 				})
 		} else {
-			_ = c.svcCtx.Dao.PushUpdatesToSession(
+			c.svcCtx.Dao.PushUpdates(
 				c.ctx,
 				hasServerId.GetValue(),
 				&session.TLSessionPushUpdatesData{
@@ -161,53 +160,54 @@ func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId
 					Updates:       pushData,
 				})
 		}
-	} else {
-		var (
-			pushExcludeList   = make([]int64, 0)
-			serverIdKeyIdList = make(map[string][]int64)
-		)
+		return
+	}
 
-		statusList, _ := c.svcCtx.Dao.StatusClient.StatusGetUserOnlineSessions(c.ctx, &status.TLStatusGetUserOnlineSessions{
+	sessions, err := c.onlineSessions(userId)
+	if err != nil {
+		// The devices catch up with getDifference on their next update or
+		// reconnect.
+		c.Logger.Errorf("sync: online sessions of user %d: %v; push dropped", userId, err)
+		return
+	}
+	for _, sess := range sessions {
+		if syncType == syncTypeUserNotMe && sess.AuthKeyId == permAuthKeyId {
+			continue
+		}
+		c.svcCtx.Dao.PushUpdates(
+			c.ctx,
+			sess.Gateway,
+			&session.TLSessionPushUpdatesData{
+				PermAuthKeyId: sess.AuthKeyId,
+				Notification:  notification,
+				Updates:       pushData,
+			})
+	}
+}
+
+// Online sessions are looked up with a short deadline and retried for a
+// while (ADR 0012, p. 7): pushes of one partition wait for each other, so
+// a slow status service must not hold them for long.
+const (
+	onlineSessionsCallTimeout = 2 * time.Second
+	onlineSessionsRetryFor    = 10 * time.Second
+	onlineSessionsRetryDelay  = 200 * time.Millisecond
+)
+
+func (c *SyncCore) onlineSessions(userId int64) ([]*status.SessionEntry, error) {
+	deadline := time.Now().Add(onlineSessionsRetryFor)
+	for {
+		ctx, cancel := context.WithTimeout(c.ctx, onlineSessionsCallTimeout)
+		list, err := c.svcCtx.Dao.StatusClient.StatusGetUserOnlineSessions(ctx, &status.TLStatusGetUserOnlineSessions{
 			UserId: userId,
 		})
-		c.Logger.Debugf("statusList - #%v", statusList)
-		for _, sess := range statusList.GetUserSessions() {
-			if syncType == syncTypeUserNotMe && sess.AuthKeyId == permAuthKeyId {
-				continue
-			}
-			pushExcludeList = append(pushExcludeList, sess.PermAuthKeyId)
-			if keyIdList, ok := serverIdKeyIdList[sess.Gateway]; ok {
-				keyIdList = append(keyIdList, sess.AuthKeyId)
-				serverIdKeyIdList[sess.Gateway] = keyIdList
-			} else {
-				serverIdKeyIdList[sess.Gateway] = []int64{sess.AuthKeyId}
-			}
+		cancel()
+		if err == nil {
+			return list.GetUserSessions(), nil
 		}
-
-		c.Logger.Debugf("serverIdKeyIdList - #%v", serverIdKeyIdList)
-		for serverId, keyIdList := range serverIdKeyIdList {
-			for _, keyId := range keyIdList {
-				// log.Debugf("serverIdKeyIdList - #%v", serverIdKeyIdList)
-				_ = c.svcCtx.Dao.PushUpdatesToSession(
-					c.ctx,
-					serverId,
-					&session.TLSessionPushUpdatesData{
-						PermAuthKeyId: keyId,
-						Notification:  notification,
-						Updates:       pushData,
-					})
-			}
+		if time.Now().Add(onlineSessionsRetryDelay).After(deadline) {
+			return nil, err
 		}
-
-		if syncType == syncTypeUser {
-			if c.svcCtx.Dao.PushClient != nil {
-				c.Logger.Debugf("push PushClient...")
-				_, _ = c.svcCtx.Dao.PushClient.SyncPushUpdatesIfNot(c.ctx, &sync.TLSyncPushUpdatesIfNot{
-					UserId:   userId,
-					Excludes: pushExcludeList,
-					Updates:  pushData,
-				})
-			}
-		}
+		time.Sleep(onlineSessionsRetryDelay)
 	}
 }

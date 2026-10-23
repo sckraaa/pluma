@@ -18,7 +18,7 @@ import (
 // SyncPushRpcResult
 // sync.pushRpcResult server_id:long auth_key_id:long req_msg_id:long result:bytes = PushUpdates;
 func (c *SyncCore) SyncPushRpcResult(in *sync.TLSyncPushRpcResult) (*mtproto.Void, error) {
-	_ = c.svcCtx.Dao.PushRpcResultToSession(
+	c.svcCtx.Dao.PushRpcResult(
 		c.ctx,
 		in.ServerId,
 		&session.TLSessionPushRpcResultData{

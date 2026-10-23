@@ -12,3 +12,6 @@ const (
 // A comment saying UPDATE user_state is not SQL.
 var raw = `DELETE
 	FROM user_pts_updates WHERE user_id = ?`
+
+// The events: only pkg/userbox and pkg/outbox.
+var events = "DELETE FROM mq_outbox WHERE id = ?"

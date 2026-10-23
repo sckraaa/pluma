@@ -19,7 +19,6 @@
 package config
 
 import (
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/pkg/code/conf"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
@@ -37,9 +36,15 @@ type Config struct {
 	MediaClient               zrpc.RpcClientConf
 	IdgenClient               zrpc.RpcClientConf
 	MsgClient                 zrpc.RpcClientConf
-	SyncClient                *kafka.KafkaProducerConf
+	SyncClient                SyncClientConf
 	DfsClient                 zrpc.RpcClientConf
 	StatusClient              zrpc.RpcClientConf
 	SignInServiceNotification []conf.MessageEntityConfig `json:",optional"`
 	SignInMessage             []conf.MessageEntityConfig `json:",optional"`
+}
+
+// SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in
+// the database of Mysql, published by the relay of msg (ADR 0012, p. 4).
+type SyncClientConf struct {
+	Topic string
 }

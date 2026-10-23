@@ -11,10 +11,10 @@ Log:
   # debug is for troubleshooting; no level logs keys, login codes or message content.
   Level: info
 ##监控
-#Prometheus:
-#  Host: 0.0.0.0
-#  Port: 20421
-#  Path: /metrics
+Prometheus:
+  Host: 127.0.0.1
+  Port: 20421
+  Path: /metrics
 # #链路追踪
 #Telemetry:
 #  Name: messenger.sync
@@ -23,15 +23,11 @@ Log:
 #  Batcher: jaeger
   
 SyncConsumer:
-  Topics:
-    - "Sync-T"
   Brokers:
     - 127.0.0.1:9092
+  Topic: "Sync-T"
   Group: "Sync-MainCommunity-S"
 
-Routine:
-  Chan: 16
-  Size: 100
 
 Mysql:
   DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
@@ -47,11 +43,13 @@ KV:
     Pass: "${REDIS_PASSWORD}"
 
 StatusClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379
     Key: service.status
 SessionClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379
@@ -63,6 +61,7 @@ ChannelClient:
       - 127.0.0.1:2379
     Key: service.biz_service
 ChatClient:
+  Timeout: 5000
   Etcd:
     Hosts:
       - 127.0.0.1:2379

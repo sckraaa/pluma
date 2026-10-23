@@ -19,7 +19,6 @@
 package dao
 
 import (
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
@@ -55,6 +54,6 @@ func New(c config.Config) *Dao {
 		IDGenClient2:  idgen_client.NewIDGenClient2(rpcx.GetCachedRpcClient(c.IdgenClient)),
 		MessageClient: message_client.NewMessageClient(rpcx.GetCachedRpcClient(c.MessageClient)),
 		UpdatesClient: updates_client.NewUpdatesClient(rpcx.GetCachedRpcClient(c.UpdatesClient)),
-		SyncClient:    sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.SyncClient)),
+		SyncClient:    sync_client.MustNewSyncOutboxClient(c.SyncClient),
 	}
 }

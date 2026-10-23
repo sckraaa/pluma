@@ -655,7 +655,7 @@ func TestCommitOutcomeUnknown(t *testing.T) {
 			attempts := 0
 			res, err := Run(context.Background(), db, u, func(b *Box) error {
 				attempts++
-				b.Emit(Event{Recipient: 2, Method: fmt.Sprint("attempt ", attempts)})
+				b.Emit(Event{Topic: "Sync-T", Recipient: 2, Method: fmt.Sprint("attempt ", attempts), Data: []byte("{}")})
 				return send(b)
 			})
 			if err != nil {
@@ -667,8 +667,13 @@ func TestCommitOutcomeUnknown(t *testing.T) {
 			if attempts != c.attempts {
 				t.Errorf("%d attempts, want %d", attempts, c.attempts)
 			}
-			if len(res.Events) != 1 || res.Events[0].Method != fmt.Sprint("attempt ", c.attempts) {
-				t.Errorf("events %+v", res.Events)
+			// The event of the attempt that committed, once.
+			var methods []string
+			for _, r := range storedRows(t, db, "initiator_id = ?", u) {
+				methods = append(methods, r.method)
+			}
+			if res.Emitted != 1 || !slices.Equal(methods, []string{fmt.Sprint("attempt ", c.attempts)}) {
+				t.Errorf("emitted %d, events %v", res.Emitted, methods)
 			}
 			if got := counter(t, "userbox_commit_unknown_total", c.outcome) - before; got != 1 {
 				t.Errorf("userbox_commit_unknown_total{outcome=%s} grew by %v, want 1", c.outcome, got)

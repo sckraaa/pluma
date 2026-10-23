@@ -25,7 +25,7 @@ High-level diagram in the project README:
 | **status** | 20670 | — | User online status |
 | **httpserver** | 8801 | 8801 (HTTP) | Optional: HTTP API or web callbacks |
 
-Discovery is via **etcd**; config files live under `teamgramd/etc/` (or `teamgramd/etc2/` for Docker). Startup order: see `teamgramd/bin/runall2.sh` or `teamgramd/bin/runall-docker.sh`.
+Discovery is via **etcd**; config files live under `teamgramd/etc/` (or `teamgramd/etc2/` for Docker). Startup order: see `teamgramd/bin/runall2.sh` (bare metal) or the `depends_on` chain in `docker-compose.yaml`.
 
 ## Request path (summary)
 

@@ -29,9 +29,11 @@ func (c *SessionCore) SessionPushRpcResultData(in *session.TLSessionPushRpcResul
 	mainAuth, err := c.getOrFetchMainAuthWrapper(in.PermAuthKeyId)
 	if err != nil {
 		c.Logger.Errorf("session.pushRpcResultData - %v", err)
-		return nil, err
+		return nil, pushFetchError(err)
 	}
-	_ = mainAuth.SyncRpcResultDataArrived(c.ctx, in.AuthKeyId, in.SessionId, in.ClientReqMsgId, in.RpcResultData)
+	if err := mainAuth.SyncRpcResultDataArrived(c.ctx, in.AuthKeyId, in.SessionId, in.ClientReqMsgId, in.RpcResultData); err != nil {
+		return nil, pushArriveError(err)
+	}
 
 	return mtproto.BoolTrue, nil
 }

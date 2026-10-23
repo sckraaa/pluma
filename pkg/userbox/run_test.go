@@ -84,10 +84,14 @@ func TestRunAllocatesInOneTransaction(t *testing.T) {
 		t.Errorf("statements %v, want %v", got, want)
 	}
 
-	// The next transaction continues from the committed state.
+	// The next transaction continues from the committed state; its event
+	// is the last statement before COMMIT.
 	res, err = Run(ctx, db, 7, sendMessage)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got := s.statements()[len(want):]; !slices.Equal(got[len(got)-4:], []string{"update_state", "events", "commit", "tx_commit"}) {
+		t.Errorf("statements %v: want the events after the state, right before COMMIT", got)
 	}
 	if u := res.Updates[0]; u.Pts_INT32 != 6 || u.PtsCount != 1 || u.Message_MESSAGE.Id != 3 {
 		t.Errorf("next update pts %d count %d id %d, want 6, 1, 3", u.Pts_INT32, u.PtsCount, u.Message_MESSAGE.Id)
@@ -148,7 +152,7 @@ func TestRunRetries(t *testing.T) {
 			attempt := 0
 			res, err := Run(context.Background(), db, 7, func(b *Box) error {
 				attempt++
-				b.Emit(Event{Recipient: 2, Method: fmt.Sprint("attempt ", attempt)})
+				b.Emit(Event{Topic: "Sync-T", Recipient: 2, Method: fmt.Sprint("attempt ", attempt), Data: []byte("{}")})
 				b.InvalidateCache(fmt.Sprint("attempt ", attempt))
 				return sendMessage(b)
 			})
@@ -168,8 +172,11 @@ func TestRunRetries(t *testing.T) {
 			if len(res.Updates) != 1 || res.Updates[0].Pts_INT32 != 2 || res.Updates[0].Message_MESSAGE.Id != 1 {
 				t.Errorf("updates %v", res.Updates)
 			}
-			if len(res.Events) != 2 || res.Events[0].Method != "attempt 2" {
-				t.Errorf("events %+v", res.Events)
+			if res.Emitted != 2 {
+				t.Errorf("%d events emitted, want 2", res.Emitted)
+			}
+			if ev := s.events(); len(ev) != 2 || ev[0].method != "attempt 2" || ev[1].method != "send" {
+				t.Errorf("events %+v", ev)
 			}
 			if !slices.Equal(res.CacheKeys, []string{"attempt 2", "dialog_1"}) {
 				t.Errorf("cache keys %v", res.CacheKeys)
@@ -366,7 +373,7 @@ func TestRunCommitOutcome(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(res.Events) != 1 || res.State.Pts != BasePts+1 {
+		if res.Emitted != 1 || res.State.Pts != BasePts+1 {
 			t.Errorf("result %+v", res)
 		}
 		if s.count("verify_lock") != 1 || s.count("verify_row") != 1 || s.count("lock") != 1 {
@@ -535,12 +542,13 @@ func TestCheck(t *testing.T) {
 		settings []driver.Value
 		bad      string
 	}{
-		{"ok", []driver.Value{int64(2), int64(1), int64(1), "ROW", int64(1)}, ""},
-		{"ok without binlog", []driver.Value{int64(1), int64(1), int64(0), "STATEMENT", int64(0)}, ""},
-		{"lock wait", []driver.Value{int64(50), int64(1), int64(1), "ROW", int64(1)}, "innodb_lock_wait_timeout"},
-		{"flush", []driver.Value{int64(2), int64(2), int64(1), "ROW", int64(1)}, "innodb_flush_log_at_trx_commit"},
-		{"format", []driver.Value{int64(2), int64(1), int64(1), "MIXED", int64(1)}, "binlog_format"},
-		{"sync", []driver.Value{int64(2), int64(1), int64(1), "ROW", int64(0)}, "sync_binlog"},
+		{"ok", []driver.Value{int64(2), int64(1), int64(1), "ROW", int64(1), int64(64 << 20)}, ""},
+		{"ok without binlog", []driver.Value{int64(1), int64(1), int64(0), "STATEMENT", int64(0), int64(16 << 20)}, ""},
+		{"lock wait", []driver.Value{int64(50), int64(1), int64(1), "ROW", int64(1), int64(64 << 20)}, "innodb_lock_wait_timeout"},
+		{"flush", []driver.Value{int64(2), int64(2), int64(1), "ROW", int64(1), int64(64 << 20)}, "innodb_flush_log_at_trx_commit"},
+		{"format", []driver.Value{int64(2), int64(1), int64(1), "MIXED", int64(1), int64(64 << 20)}, "binlog_format"},
+		{"sync", []driver.Value{int64(2), int64(1), int64(1), "ROW", int64(0), int64(64 << 20)}, "sync_binlog"},
+		{"packet", []driver.Value{int64(2), int64(1), int64(1), "ROW", int64(1), int64(4 << 20)}, "max_allowed_packet"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := newFakeServer()

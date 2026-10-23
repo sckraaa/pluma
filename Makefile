@@ -112,7 +112,7 @@ ACTIONLINT    := go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_
 SHELLCHECK_PLATFORM := $(shell uname -s | tr A-Z a-z).$(shell uname -m | sed 's/^arm64$$/aarch64/')
 SHELLCHECK          := $(CURDIR)/.tools/shellcheck-$(SHELLCHECK_VERSION)/shellcheck
 # Our shell scripts (the upstream ones in teamgramd/bin are not checked).
-SHELL_SCRIPTS := test/e2e/run.sh teamgramd/docker/healthcheck.sh
+SHELL_SCRIPTS := test/e2e/run.sh teamgramd/deploy/kafka/topics.sh
 
 # The vendored proto module is a Go module of its own: `./...` at the root
 # does not reach it, so every check runs there as well.
@@ -133,7 +133,7 @@ PROTO_LINT_BASE := $(shell git log --format=%H --diff-filter=A -- $(PROTO_DIR)/g
 VET_FLAGS := -unreachable=false -tags=integration,e2e
 
 # Race tests run on our own code (the rest of the tree has few tests).
-RACE_PKGS := ./pkg/... ./tools/... \
+RACE_PKGS := ./pkg/... ./tools/... ./app/messenger/... \
 	./app/interface/gnetway/... ./app/interface/session/... \
 	./app/service/authsession/... ./app/bff/authorization/... ./app/bff/account/... \
 	./app/service/dfs/internal/ffmpegutil/...

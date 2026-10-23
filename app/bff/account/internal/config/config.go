@@ -19,8 +19,8 @@
 package config
 
 import (
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -35,5 +35,5 @@ type Config struct {
 	UserClient        zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
 	ChatClient        zrpc.RpcClientConf
-	SyncClient        *kafka.KafkaProducerConf
+	SyncClient        sync_client.OutboxConf
 }

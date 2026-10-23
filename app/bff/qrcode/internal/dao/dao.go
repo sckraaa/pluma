@@ -19,7 +19,6 @@
 package dao
 
 import (
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/kv"
 	"github.com/teamgram/teamgram-server/app/bff/qrcode/internal/config"
@@ -40,6 +39,6 @@ func New(c config.Config) *Dao {
 		kv:                kv.NewStore(c.KV),
 		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthSessionClient)),
-		SyncClient:        sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.SyncClient)),
+		SyncClient:        sync_client.MustNewSyncOutboxClient(c.SyncClient),
 	}
 }

@@ -10,10 +10,6 @@
 package core
 
 import (
-	"context"
-	"strconv"
-	"strings"
-
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
@@ -65,14 +61,20 @@ func (c *MsgCore) MsgSendMessageV2(in *msg.TLMsgSendMessageV2) (*mtproto.Updates
 	return rUpdates, nil
 }
 
-// idempotencyKey is the key of a send in the idempotency window: the
-// messages' random ids.
-func idempotencyKey(outBoxList []*msg.OutboxMessage) string {
-	ids := make([]string, len(outBoxList))
+// randomIds are the random ids of a send that a repeat is recognized by
+// (dao.SentBefore): none when a message has no random id.
+func randomIds(outBoxList []*msg.OutboxMessage) ([]int64, error) {
+	ids := make([]int64, len(outBoxList))
 	for i, outBox := range outBoxList {
-		ids[i] = strconv.FormatInt(outBox.RandomId, 10)
+		if outBox.RandomId == 0 {
+			return nil, nil
+		}
+		ids[i] = outBox.RandomId
 	}
-	return strings.Join(ids, "-")
+	if dao.RepeatedRandomIds(ids) {
+		return nil, mtproto.ErrRandomIdDuplicate
+	}
+	return ids, nil
 }
 
 // outgoing issues the dialog_message_id of each message.
@@ -104,9 +106,10 @@ func sendReply(boxes []*mtproto.MessageBox, users func([]int64) []*mtproto.User,
 }
 
 // sendUserMessages sends messages from fromUserId to the private chat with
-// toUserId: the sender's box in one transaction, then the push to the
-// sender's other devices and one inbox event with all the messages to the
-// recipient, unless it blocked the sender.
+// toUserId: the sender's box, the push to the sender's other devices and
+// one inbox event with all the messages to the recipient (unless it
+// blocked the sender), in one transaction. A send repeated with the same
+// random ids gets the first reply (dao.SentBefore).
 func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, outBoxList []*msg.OutboxMessage) (*mtproto.Updates, error) {
 	idHelper := mtproto.NewIDListHelper(fromUserId, toUserId)
 	for _, outBox := range outBoxList {
@@ -142,42 +145,51 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 	for _, outBox := range outBoxList {
 		outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
 	}
+	repeat, err := randomIds(outBoxList)
+	if err != nil {
+		return nil, err
+	}
 	msgs, err := c.outgoing(outBoxList)
 	if err != nil {
 		return nil, err
 	}
 
 	var rUpdates *mtproto.Updates
-	err = c.svcCtx.Dao.SendOnce(c.ctx, fromUserId, idempotencyKey(outBoxList), &rUpdates, func(ctx context.Context) error {
-		_, err := c.svcCtx.Dao.RunBox(ctx, fromUserId,
-			[]string{dialog.GetDialogCacheKeyByPeer(fromUserId, mtproto.PEER_USER, toUserId)},
-			func(b *userbox.Box) error {
-				boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_USER, toUserId, msgs)
-				if err != nil {
-					return err
-				}
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId,
+		[]string{dialog.GetDialogCacheKeyByPeer(fromUserId, mtproto.PEER_USER, toUserId)},
+		func(b *userbox.Box) error {
+			reply := func(boxes []*mtproto.MessageBox) {
 				rUpdates = sendReply(boxes,
 					func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
 					func([]int64) []*mtproto.Chat { return []*mtproto.Chat{} })
+			}
+			sent, err := c.svcCtx.Dao.SentBefore(b, mtproto.PEER_USER, toUserId, repeat)
+			if err != nil || sent != nil {
+				reply(sent)
+				return err
+			}
+			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_USER, toUserId, msgs)
+			if err != nil {
+				return err
+			}
+			reply(boxes)
 
-				if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
-					mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, newMessageUpdates(boxes)...)); err != nil {
-					return err
-				}
-				if toUserId == fromUserId || blocked {
-					return nil
-				}
-				return c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
-					UserId:   toUserId,
-					FromId:   fromUserId,
-					PeerType: mtproto.PEER_USER,
-					PeerId:   toUserId,
-					BoxList:  boxes,
-					Users:    users.GetUserListByIdList(toUserId, idHelper.UserIdList...),
-				})
+			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
+				mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, newMessageUpdates(boxes)...)); err != nil {
+				return err
+			}
+			if toUserId == fromUserId || blocked {
+				return nil
+			}
+			return c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
+				UserId:   toUserId,
+				FromId:   fromUserId,
+				PeerType: mtproto.PEER_USER,
+				PeerId:   toUserId,
+				BoxList:  boxes,
+				Users:    users.GetUserListByIdList(toUserId, idHelper.UserIdList...),
 			})
-		return err
-	})
+		})
 	if err != nil {
 		return nil, err
 	}
@@ -229,9 +241,10 @@ func usersFor(users *mtproto.MutableUsers, userId int64) []*mtproto.User {
 }
 
 // sendChatMessages sends messages from fromUserId to the basic group
-// peerChatId: the sender's box in one transaction, then the push to the
-// sender's other devices and one inbox event with all the messages to each
-// member.
+// peerChatId: the sender's box, the push to the sender's other devices and
+// one inbox event with all the messages to each member, in one
+// transaction. A send repeated with the same random ids gets the first
+// reply (dao.SentBefore).
 func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, outBoxList []*msg.OutboxMessage) (*mtproto.Updates, error) {
 	idHelper := mtproto.NewIDListHelper(fromUserId)
 	for _, outBox := range outBoxList {
@@ -258,6 +271,10 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 	for _, outBox := range outBoxList {
 		outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
 	}
+	repeat, err := randomIds(outBoxList)
+	if err != nil {
+		return nil, err
+	}
 	msgs, err := c.outgoing(outBoxList)
 	if err != nil {
 		return nil, err
@@ -265,39 +282,44 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 	recipients := chatRecipients(chat, fromUserId, true)
 
 	var rUpdates *mtproto.Updates
-	err = c.svcCtx.Dao.SendOnce(c.ctx, fromUserId, idempotencyKey(outBoxList), &rUpdates, func(ctx context.Context) error {
-		_, err := c.svcCtx.Dao.RunBox(ctx, fromUserId,
-			[]string{dialog.GetDialogCacheKeyByPeer(fromUserId, mtproto.PEER_CHAT, peerChatId)},
-			func(b *userbox.Box) error {
-				boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_CHAT, peerChatId, msgs)
-				if err != nil {
-					return err
-				}
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId,
+		[]string{dialog.GetDialogCacheKeyByPeer(fromUserId, mtproto.PEER_CHAT, peerChatId)},
+		func(b *userbox.Box) error {
+			reply := func(boxes []*mtproto.MessageBox) {
 				rUpdates = sendReply(boxes,
 					func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
 					func([]int64) []*mtproto.Chat { return []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)} })
+			}
+			sent, err := c.svcCtx.Dao.SentBefore(b, mtproto.PEER_CHAT, peerChatId, repeat)
+			if err != nil || sent != nil {
+				reply(sent)
+				return err
+			}
+			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_CHAT, peerChatId, msgs)
+			if err != nil {
+				return err
+			}
+			reply(boxes)
 
-				if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
-					mtproto.MakeUpdatesByUpdatesUsersChats(usersFor(users, fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {
+			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
+				mtproto.MakeUpdatesByUpdatesUsersChats(usersFor(users, fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {
+				return err
+			}
+			for _, userId := range recipients {
+				if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
+					UserId:   userId,
+					FromId:   fromUserId,
+					PeerType: mtproto.PEER_CHAT,
+					PeerId:   peerChatId,
+					BoxList:  boxes,
+					Users:    usersFor(users, userId),
+					Chats:    []*mtproto.Chat{chat.ToUnsafeChat(userId)},
+				}); err != nil {
 					return err
 				}
-				for _, userId := range recipients {
-					if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
-						UserId:   userId,
-						FromId:   fromUserId,
-						PeerType: mtproto.PEER_CHAT,
-						PeerId:   peerChatId,
-						BoxList:  boxes,
-						Users:    usersFor(users, userId),
-						Chats:    []*mtproto.Chat{chat.ToUnsafeChat(userId)},
-					}); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
-		return err
-	})
+			}
+			return nil
+		})
 	if err != nil {
 		return nil, err
 	}

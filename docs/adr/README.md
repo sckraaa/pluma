@@ -17,3 +17,4 @@
 | [0009](0009-dependency-forks.md) | Свои копии teamgram/proto и teamgram/marmota в third_party | accepted |
 | [0010](0010-cloud-client-builds.md) | Сборка клиентов в облаке (публичные репо, GitHub Actions) | accepted |
 | [0011](0011-durable-sequences.md) | Долговечные счётчики: состояние ящика пользователя в MySQL и одна транзакция на ящик | accepted |
+| [0012](0012-reliable-delivery.md) | Надёжная доставка: outbox в транзакции ящика, применение событий ровно один раз, push по порядку | accepted |

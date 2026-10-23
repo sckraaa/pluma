@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -62,6 +63,16 @@ func boxCommand(args []string, configFile string, stdout io.Writer) error {
 				return err
 			}
 			fmt.Fprintf(stdout, "user_state: %d row(s) raised by %d above the journal and the messages, %d added.\n", raised, *by, added)
+			if *user != 0 {
+				return nil
+			}
+			// Event ids too: copies in Kafka may carry ids given after
+			// the backup (ADR 0012, p. 11).
+			next, err := outbox.RaiseIds(ctx, st.db, outbox.IdMargin)
+			if err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "mq_outbox: new events get ids from %d.\n", next)
 			return nil
 		}
 	case "state-export-legacy":

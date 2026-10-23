@@ -12,6 +12,9 @@
 //	pluma-admin [-f bff.yaml] state-raise -by <margin> [-user <id>]
 //	pluma-admin [-f bff.yaml] state-export-legacy -margin <margin>
 //	pluma-admin [-f bff.yaml] verify-pts [-after <pts>] <user id>
+//	pluma-admin [-f bff.yaml] outbox list [-state <state>] [-user <id>] [-limit <n>]
+//	pluma-admin [-f bff.yaml] outbox replay -user <id>
+//	pluma-admin [-f bff.yaml] outbox discard -id <event id>
 //
 // login-code generates a fresh code for a pending code request of the phone
 // (auth.sendCode or account.sendChangePhoneCode that answered "code sent by
@@ -30,6 +33,13 @@
 // after a rollback or a restore from a backup; state-export-legacy writes
 // the counters to Redis for a rollback to a version before task 002.
 // verify-pts checks that a user's journal has no gaps or overlaps.
+//
+// outbox shows and repairs the delivery of events (mq_outbox, ADR 0012,
+// p. 5): list prints the rows without their content (state pending,
+// published, dead or parked); replay returns a user's dead and parked
+// events to pending, to be applied in order (after the cause is fixed);
+// discard deletes one event for good. replay and discard print who did
+// what on stderr.
 //
 // From the repo root (services run with teamgramd/etc, secrets in .env):
 //
@@ -115,6 +125,9 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] state-raise -by <margin> [-user <id>]
   pluma-admin [-f bff.yaml] state-export-legacy -margin <margin>
   pluma-admin [-f bff.yaml] verify-pts [-after <pts>] <user id>
+  pluma-admin [-f bff.yaml] outbox list [-state pending|published|dead|parked] [-user <id>] [-limit <n>]
+  pluma-admin [-f bff.yaml] outbox replay -user <id>
+  pluma-admin [-f bff.yaml] outbox discard -id <event id>
 
 Phones are international numbers, e.g. +79991234567.
 state-raise and state-export-legacy run only while msg and biz are stopped.
@@ -157,6 +170,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 	switch args[0] {
 	case "state-raise", "state-export-legacy", "verify-pts":
 		return boxCommand(args, configFile, stdout)
+	case "outbox":
+		return outboxCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

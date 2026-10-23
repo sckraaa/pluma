@@ -1,13 +1,120 @@
-# Teamgram services (one container). Infrastructure lives in docker-compose-env.yaml.
-# Secrets come from .env (see .env.example and docs/ops/security-setup.md);
-# compose refuses to start while a required one is missing.
+# Teamgram services: one process per compose service, all on one image.
+# Infrastructure lives in docker-compose-env.yaml. Secrets come from .env (see
+# .env.example and docs/ops/security-setup.md); compose refuses to start while
+# a required one is missing.
+#
+# Every service runs its binary directly (exec form), so `docker compose stop`
+# delivers SIGTERM to the service, which drains within its stop_grace_period
+# (ADR 0012, p. 8). A crashed service is restarted by Docker with a growing
+# pause. Stopping in the middle of work is safe by construction: box
+# transactions and their outbox rows commit together or not at all.
+#
+# TEAMGRAM_IMAGE and TEAMGRAM_RESTART exist for the end-to-end tests
+# (test/e2e/run.sh); production keeps the defaults.
+
+x-teamgram: &teamgram
+  image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
+  # Built locally by idgen (below), never pulled.
+  pull_policy: never
+  restart: ${TEAMGRAM_RESTART:-unless-stopped}
+  working_dir: /app/bin
+  networks:
+    - teamgram_net
+
+x-redis-env: &redis-env
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+
+x-db-env: &db-env
+  MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+
 services:
-  teamgram:
+  idgen:
+    <<: *teamgram
+    # The one service that builds the shared image: with build on every
+    # service compose would run eleven builds of it at once.
     build: .
-    restart: always
+    command: ["./idgen", "-f=../etc2/idgen.yaml"]
+    stop_grace_period: 15s
+
+  status:
+    <<: *teamgram
+    command: ["./status", "-f=../etc2/status.yaml"]
+    environment: *redis-env
+    stop_grace_period: 15s
+
+  authsession:
+    <<: *teamgram
+    command: ["./authsession", "-f=../etc2/authsession.yaml"]
+    environment: *db-env
+    stop_grace_period: 15s
+
+  dfs:
+    <<: *teamgram
+    command: ["./dfs", "-f=../etc2/dfs.yaml"]
+    environment:
+      <<: *redis-env
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    stop_grace_period: 30s
+
+  media:
+    <<: *teamgram
+    command: ["./media", "-f=../etc2/media.yaml"]
+    environment: *db-env
+    stop_grace_period: 30s
+    depends_on: [dfs]
+
+  biz:
+    <<: *teamgram
+    command: ["./biz", "-f=../etc2/biz.yaml"]
+    environment: *db-env
+    stop_grace_period: 40s
+    depends_on: [idgen, status, authsession, media]
+
+  msg:
+    <<: *teamgram
+    command: ["./msg", "-f=../etc2/msg.yaml"]
+    environment: *db-env
+    stop_grace_period: 50s
+    depends_on: [biz]
+
+  sync:
+    <<: *teamgram
+    command: ["./sync", "-f=../etc2/sync.yaml"]
+    environment: *db-env
+    stop_grace_period: 15s
+    depends_on: [msg]
+
+  bff:
+    <<: *teamgram
+    command: ["./bff", "-f=../etc2/bff.yaml"]
+    environment:
+      <<: *db-env
+      LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env (openssl rand -hex 32)}
+    stop_grace_period: 30s
+    depends_on: [sync]
+
+  session:
+    <<: *teamgram
+    command: ["./session", "-f=../etc2/session.yaml"]
+    environment: *redis-env
+    stop_grace_period: 20s
+    depends_on: [bff]
+
+  gnetway:
+    <<: *teamgram
+    command: ["./gnetway", "-f=../etc2/gnetway.yaml"]
+    environment:
+      SERVER_RSA_KEY_FINGERPRINT: ${SERVER_RSA_KEY_FINGERPRINT:?set SERVER_RSA_KEY_FINGERPRINT in .env (printed by tools/genserverkey)}
+    secrets:
+      # Mounted read-only at /run/secrets/server_pkcs1.key (teamgramd/etc2/gnetway.yaml).
+      - source: server_rsa_key
+        target: server_pkcs1.key
     # Only the MTProto client ports are published. Internal gRPC (20xxx) and
-    # metrics stay on teamgram_net (dfs HTTP on loopback); Docker port publishing bypasses
-    # host firewalls such as ufw, so nothing else may be listed here.
+    # metrics stay on teamgram_net (dfs HTTP on loopback); Docker port
+    # publishing bypasses host firewalls such as ufw, so nothing else may be
+    # listed here.
     # IPv4 only: teamgram_net has no IPv6, so Docker would accept IPv6
     # clients through docker-proxy and the gateway would see them all as the
     # bridge address, which breaks per-address login limits and the IPs shown
@@ -17,20 +124,15 @@ services:
       - "0.0.0.0:10443:10443" # MTProto TCP
       - "0.0.0.0:5222:5222"   # MTProto TCP, alternative port
       - "0.0.0.0:11443:11443" # MTProto over WebSocket (Web clients)
-    environment:
-      # Read by the service configs in teamgramd/etc2 as ${NAME}.
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
-      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-      SERVER_RSA_KEY_FINGERPRINT: ${SERVER_RSA_KEY_FINGERPRINT:?set SERVER_RSA_KEY_FINGERPRINT in .env (printed by tools/genserverkey)}
-      LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env (openssl rand -hex 32)}
-    secrets:
-      # Mounted read-only at /run/secrets/server_pkcs1.key (teamgramd/etc2/gnetway.yaml).
-      - source: server_rsa_key
-        target: server_pkcs1.key
-    networks:
-      - teamgram_net
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/10443"]
+      interval: 10s
+      timeout: 5s
+      start_period: 60s
+      start_interval: 2s
+      retries: 3
+    stop_grace_period: 15s
+    depends_on: [session]
 
 secrets:
   server_rsa_key:

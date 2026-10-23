@@ -4,7 +4,7 @@ Etcd:
   Hosts:
     - etcd:2379
   Key: messenger.msg
-Timeout: 0
+Timeout: 40000
 Log:
   ServiceName: messenger.msg
   #Mode: file
@@ -32,36 +32,37 @@ Cache:
   - Host: redis:6379
     Pass: "${REDIS_PASSWORD}"
 
-InboxConsumer:
-  Topics:
-    - "Inbox-T"
+# Events of box transactions: rows of mq_outbox, published by the relay
+# (ADR 0012). Kafka is not needed to start.
+Topics:
+  Inbox: "Inbox-T"
+  Sync: "Sync-T"
+
+Relay:
   Brokers:
     - kafka:9092
+  Groups:
+    - Topic: "Inbox-T"
+      Group: "Inbox-MainCommunity-S"
+    - Topic: "Sync-T"
+      Group: "Sync-MainCommunity-S"
+
+InboxConsumer:
+  Brokers:
+    - kafka:9092
+  Topic: "Inbox-T"
   Group: "Inbox-MainCommunity-S"
 
 IdgenClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - etcd:2379
     Key: service.idgen
 
 BizServiceClient:
+  Timeout: 5000
   Etcd:
     Hosts:
       - etcd:2379
     Key: service.biz_service
-
-InboxClient:
-  Topic:   "Inbox-T"
-  Brokers:
-    - kafka:9092
-
-SyncClient:
-  Topic:   "Sync-T"
-  Brokers:
-    - kafka:9092
-
-Redis2:
-  Host: redis:6379
-  Pass: "${REDIS_PASSWORD}"
-  Type: node

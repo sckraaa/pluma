@@ -13,23 +13,45 @@ import (
 	"strings"
 )
 
-// stateWrite matches SQL that writes the box state or the journal. Only
-// pkg/userbox may: a journal row written outside a box transaction is either
-// above the committed pts (getDifference does not return it) or collides
-// with the next transaction's row (UNIQUE (user_id, pts)), and a counter
-// moved outside one breaks the conditional UPDATE of the next.
-var stateWrite = regexp.MustCompile("(?is)\\b(insert\\s+(ignore\\s+)?into|replace\\s+into|update|delete\\s+from)\\s+`?(user_state|user_pts_updates)`?\\b")
+// tableWrite matches SQL that writes a table of the box: the box state,
+// the journal or the events. Only pkg/userbox writes the state and the
+// journal: a journal row written outside a box transaction is either above
+// the committed pts (getDifference does not return it) or collides with the
+// next transaction's row (UNIQUE (user_id, pts)), and a counter moved
+// outside one breaks the conditional UPDATE of the next. The events
+// (mq_outbox, ADR 0012) are written by pkg/userbox in box transactions and
+// by pkg/outbox (the relay, Insert, the operator's commands): a row written
+// elsewhere could be published before the change it describes commits, or
+// a decision of the consumer could be overwritten.
+var tableWrite = regexp.MustCompile("(?is)\\b(insert\\s+(ignore\\s+)?into|replace\\s+into|update|delete\\s+from)\\s+`?(user_state|user_pts_updates|mq_outbox)`?\\b")
 
-// Writers finds SQL that writes user_state or user_pts_updates outside
-// pkg/userbox, in the Go string literals and the DAO table definitions
-// (*.xml) under dir. Tests, test data and third_party are not looked at:
-// tests set up states on purpose, migrations are SQL files.
+// writers are the packages that may write each table, relative to the root.
+var writers = map[string][]string{
+	"user_state":       {"pkg/userbox"},
+	"user_pts_updates": {"pkg/userbox"},
+	"mq_outbox":        {"pkg/userbox", "pkg/outbox"},
+}
+
+// allowed tells whether the file rel may write the table of a match.
+func allowed(rel string, match []string) bool {
+	dir := filepath.ToSlash(filepath.Dir(rel))
+	for _, w := range writers[strings.ToLower(match[3])] {
+		if dir == w {
+			return true
+		}
+	}
+	return false
+}
+
+// Writers finds SQL that writes user_state, user_pts_updates or mq_outbox
+// outside the packages allowed to, in the Go string literals and the DAO
+// table definitions (*.xml) under dir. Tests, test data and third_party are
+// not looked at: tests set up states on purpose, migrations are SQL files.
 func Writers(dir string) ([]Finding, error) {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
 	}
-	userbox := filepath.Join(root, "pkg", "userbox")
 	fset := token.NewFileSet()
 	var findings []Finding
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
@@ -38,7 +60,7 @@ func Writers(dir string) ([]Finding, error) {
 		}
 		if d.IsDir() {
 			switch {
-			case path == userbox, d.Name() == "testdata", d.Name() == "third_party", path != root && strings.HasPrefix(d.Name(), "."):
+			case d.Name() == "testdata", d.Name() == "third_party", path != root && strings.HasPrefix(d.Name(), "."):
 				return filepath.SkipDir
 			}
 			return nil
@@ -78,7 +100,7 @@ func writerFinding(file string, line int, sql string) Finding {
 	return Finding{
 		Pos:  token.Position{Filename: file, Line: line},
 		Rule: "writer",
-		Msg:  "the box state and the journal are written only by pkg/userbox: " + strings.Join(strings.Fields(sql), " "),
+		Msg:  "the box state, the journal and the events are written only by their packages (pkg/userbox, pkg/outbox): " + strings.Join(strings.Fields(sql), " "),
 	}
 }
 
@@ -97,8 +119,8 @@ func goWriters(fset *token.FileSet, path, rel string) ([]Finding, error) {
 		if err != nil {
 			return true
 		}
-		if m := stateWrite.FindString(s); m != "" {
-			findings = append(findings, writerFinding(rel, fset.Position(lit.Pos()).Line, m))
+		if m := tableWrite.FindStringSubmatch(s); m != nil && !allowed(rel, m) {
+			findings = append(findings, writerFinding(rel, fset.Position(lit.Pos()).Line, m[0]))
 		}
 		return true
 	})
@@ -111,9 +133,13 @@ func textWriters(path, rel string) ([]Finding, error) {
 		return nil, err
 	}
 	var findings []Finding
-	for _, loc := range stateWrite.FindAllIndex(b, -1) {
+	for _, loc := range tableWrite.FindAllSubmatchIndex(b, -1) {
+		m := []string{string(b[loc[0]:loc[1]]), "", "", string(b[loc[6]:loc[7]])}
+		if allowed(rel, m) {
+			continue
+		}
 		line := 1 + strings.Count(string(b[:loc[0]]), "\n")
-		findings = append(findings, writerFinding(rel, line, string(b[loc[0]:loc[1]])))
+		findings = append(findings, writerFinding(rel, line, m[0]))
 	}
 	return findings, nil
 }

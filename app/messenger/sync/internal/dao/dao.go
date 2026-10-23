@@ -10,12 +10,8 @@
 package dao
 
 import (
-	"sync"
-
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
-	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/config"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
@@ -25,31 +21,30 @@ import (
 
 type Dao struct {
 	*Mysql
-	kv               kv.Store
-	conf             *config.Config
-	mu               sync.RWMutex
-	sessionServers   map[string]SessionPusher
-	useStreamSession bool
+	kv     kv.Store
+	conf   *config.Config
+	pusher *Pusher
 	status_client.StatusClient
 	chat_client.ChatClient
-	PushClient sync_client.SyncClient
 }
 
 func New(c config.Config) *Dao {
 	db := sqlx.NewMySQL(&c.Mysql)
+	sessionConf := c.SessionClient
 	d := &Dao{
-		Mysql:            newMysqlDao(db),
-		kv:               kv.NewStore(c.KV),
-		conf:             &c,
-		sessionServers:   make(map[string]SessionPusher),
-		useStreamSession: c.UseStreamSession,
-		StatusClient:     status_client.NewStatusClient(zrpc.MustNewClient(c.StatusClient)),
-		ChatClient:       chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		Mysql:        newMysqlDao(db),
+		kv:           kv.NewStore(c.KV),
+		conf:         &c,
+		pusher:       newPusher(func(addr string) (sessionNode, error) { return newRpcNode(sessionConf, addr) }),
+		StatusClient: status_client.NewStatusClient(zrpc.MustNewClient(c.StatusClient)),
+		ChatClient:   chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 	}
-	if c.PushClient != nil {
-		d.PushClient = sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.PushClient))
-	}
-
-	go d.watch(c.SessionClient)
+	d.pusher.Start()
+	watchNodes(c.SessionClient, d.pusher)
 	return d
+}
+
+// Close stops pushing to the session nodes.
+func (d *Dao) Close() {
+	d.pusher.Close()
 }

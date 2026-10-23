@@ -2,8 +2,6 @@ package userbox
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"math"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -11,17 +9,6 @@ import (
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
-
-// Event is a side effect of a box transaction: one Kafka message, exactly
-// what the MQ clients send (a push to sync, an event for another user's
-// inbox). Run returns the events in Result; they are published after commit
-// (Publish), never from inside the transaction.
-type Event struct {
-	Topic     string // Kafka topic
-	Recipient int64  // the user the event is addressed to; the Kafka key is its decimal form
-	Method    string // the "method" header: the request's proto message name
-	Data      []byte // JSON of the request
-}
 
 // Result is the outcome of a committed box transaction.
 type Result struct {
@@ -32,8 +19,11 @@ type Result struct {
 	// Updates are the journaled updates, in ascending pts, with their
 	// pts and pts_count set.
 	Updates []*mtproto.Update
-	// Events, in the order emitted, to publish after commit.
-	Events []Event
+	// Emitted is the number of events the transaction wrote to mq_outbox.
+	Emitted int
+	// Taken is what TakeEvent decided in the transaction, 0 without it.
+	// TakeDeferred returned rows to pending for the relay.
+	Taken TakeOutcome
 	// CacheKeys to delete after commit.
 	CacheKeys []string
 }
@@ -61,11 +51,13 @@ type Box struct {
 
 	journal []journalRow
 	updates []*mtproto.Update
-	events  []Event
+	events  []outboxRow
 	keys    []string
+	taken   *takenEvent
 
 	// err is a misuse of the Box (bad pts_count, an update that is not of
-	// the common box, ids out of range): the transaction is rolled back.
+	// the common box, ids out of range, an invalid event): the transaction
+	// is rolled back.
 	err error
 }
 
@@ -96,7 +88,7 @@ func (b *Box) NextMessageId() int32 {
 		return 0
 	}
 	if b.boxId == math.MaxInt32 {
-		b.err = fmt.Errorf("userbox: user %d: message box ids exhausted", b.userId)
+		b.err = misuse("user %d: message box ids exhausted", b.userId)
 		return 0
 	}
 	b.boxId++
@@ -113,18 +105,18 @@ func (b *Box) AddPtsUpdate(u *mtproto.Update, ptsCount int32) {
 	}
 	switch {
 	case u == nil:
-		b.err = errors.New("userbox: nil update")
+		b.err = misuse("nil update")
 		return
 	case ptsCount < 1:
-		b.err = fmt.Errorf("userbox: user %d: pts_count %d of %s", b.userId, ptsCount, u.PredicateName)
+		b.err = misuse("user %d: pts_count %d of %s", b.userId, ptsCount, u.PredicateName)
 		return
 	case b.pts > math.MaxInt32-ptsCount:
-		b.err = fmt.Errorf("userbox: user %d: pts exhausted", b.userId)
+		b.err = misuse("user %d: pts exhausted", b.userId)
 		return
 	}
 	updateType := mtproto.GetUpdateType(u)
 	if !commonBoxUpdate(updateType) {
-		b.err = fmt.Errorf("userbox: %s is not an update of the common message box", u.PredicateName)
+		b.err = misuse("%s is not an update of the common message box", u.PredicateName)
 		return
 	}
 
@@ -133,7 +125,7 @@ func (b *Box) AddPtsUpdate(u *mtproto.Update, ptsCount int32) {
 	u.PtsCount = ptsCount
 	data, err := jsonx.Marshal(u)
 	if err != nil {
-		b.err = fmt.Errorf("userbox: encode %s: %w", u.PredicateName, err)
+		b.err = misuse("encode %s: %v", u.PredicateName, err)
 		return
 	}
 	b.journal = append(b.journal, journalRow{pts: b.pts, ptsCount: ptsCount, updateType: updateType, data: string(data)})
@@ -143,11 +135,6 @@ func (b *Box) AddPtsUpdate(u *mtproto.Update, ptsCount int32) {
 // InvalidateCache adds cache keys to delete after commit.
 func (b *Box) InvalidateCache(keys ...string) {
 	b.keys = append(b.keys, keys...)
-}
-
-// Emit adds an event to publish after commit, in this order.
-func (b *Box) Emit(ev Event) {
-	b.events = append(b.events, ev)
 }
 
 // allocated tells whether the transaction changes the counters.
@@ -161,12 +148,12 @@ func (b *Box) checkJournal() error {
 	next := b.state.Pts
 	for _, r := range b.journal {
 		if r.ptsCount < 1 || r.pts-r.ptsCount != next {
-			return fmt.Errorf("userbox: user %d: journal row pts %d (count %d) does not follow pts %d", b.userId, r.pts, r.ptsCount, next)
+			return misuse("user %d: journal row pts %d (count %d) does not follow pts %d", b.userId, r.pts, r.ptsCount, next)
 		}
 		next = r.pts
 	}
 	if next != b.pts {
-		return fmt.Errorf("userbox: user %d: journal ends at pts %d, allocated up to %d", b.userId, next, b.pts)
+		return misuse("user %d: journal ends at pts %d, allocated up to %d", b.userId, next, b.pts)
 	}
 	return nil
 }
@@ -183,7 +170,8 @@ func (b *Box) result() *Result {
 		UserId:    b.userId,
 		State:     st,
 		Updates:   b.updates,
-		Events:    b.events,
+		Emitted:   len(b.events),
+		Taken:     b.takenOutcome(),
 		CacheKeys: b.keys,
 	}
 }

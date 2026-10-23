@@ -1,7 +1,13 @@
-# 最小 Prometheus 配置，用于 docker-compose-env2
-# 抓取目标来自 teamgramd/etc2 各服务的 Prometheus 配置
+# Minimal Prometheus config for docker-compose-env.yaml. Targets are the
+# compose services of docker-compose.yaml (one per process) with the metrics
+# ports of their teamgramd/etc2 configs.
 global:
   scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Delivery alerts (ADR 0012, p. 10). Notifications (Alertmanager) are task 004.
+rule_files:
+  - /etc/prometheus/rules/*.yml
 
 scrape_configs:
   - job_name: prometheus
@@ -17,7 +23,7 @@ scrape_configs:
   - job_name: service.authsession
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20451"]
+      - targets: ["authsession:20451"]
         labels:
           job: service.authsession
           app: service.authsession
@@ -25,7 +31,7 @@ scrape_configs:
   - job_name: bff.bff
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20011"]
+      - targets: ["bff:20011"]
         labels:
           job: bff.bff
           app: bff.bff
@@ -33,7 +39,7 @@ scrape_configs:
   - job_name: service.biz_service
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20021"]
+      - targets: ["biz:20021"]
         labels:
           job: service.biz_service
           app: service.biz_service
@@ -41,7 +47,7 @@ scrape_configs:
   - job_name: service.dfs
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20641"]
+      - targets: ["dfs:20641"]
         labels:
           job: service.dfs
           app: service.dfs
@@ -49,7 +55,7 @@ scrape_configs:
   - job_name: interface.gateway
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20111"]
+      - targets: ["gnetway:20111"]
         labels:
           job: interface.gateway
           app: interface.gateway
@@ -57,7 +63,7 @@ scrape_configs:
   # - job_name: interface.httpserver
   #   metrics_path: /metrics
   #   static_configs:
-  #     - targets: ["teamgram:20011"]
+  #     - targets: ["bff:20011"]
   #       labels:
   #         job: interface.httpserver
   #         app: interface.httpserver
@@ -65,7 +71,7 @@ scrape_configs:
   - job_name: service.idgen
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20661"]
+      - targets: ["idgen:20661"]
         labels:
           job: service.idgen
           app: service.idgen
@@ -73,7 +79,7 @@ scrape_configs:
   - job_name: service.media
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20651"]
+      - targets: ["media:20651"]
         labels:
           job: service.media
           app: service.media
@@ -81,7 +87,7 @@ scrape_configs:
   - job_name: messenger.msg
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20031"]
+      - targets: ["msg:20031"]
         labels:
           job: messenger.msg
           app: messenger.msg
@@ -89,7 +95,7 @@ scrape_configs:
   - job_name: interface.session
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20121"]
+      - targets: ["session:20121"]
         labels:
           job: interface.session
           app: interface.session
@@ -97,7 +103,7 @@ scrape_configs:
   - job_name: service.status
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20671"]
+      - targets: ["status:20671"]
         labels:
           job: service.status
           app: service.status
@@ -105,7 +111,7 @@ scrape_configs:
   - job_name: messenger.sync
     metrics_path: /metrics
     static_configs:
-      - targets: ["teamgram:20421"]
+      - targets: ["sync:20421"]
         labels:
           job: messenger.sync
           app: messenger.sync

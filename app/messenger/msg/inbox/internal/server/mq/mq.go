@@ -21,31 +21,37 @@ package mq
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/internal/core"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/internal/svc"
-	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/mqconsumer"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"go.opentelemetry.io/otel/propagation"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// Retries of an event whose box transaction failed with a retryable error
-// (userbox.Retryable): a brief failure of MySQL or a busy user must not
-// lose the event. The consumer is sequential, so meanwhile the partition
-// waits (ADR 0011, p. 9). Until task 003 an event that never applies is
-// logged, counted and acknowledged.
+// The consumer of inbox events (ADR 0012, p. 5). A copy in Kafka names the
+// event's mq_outbox row (header event-id); the event is applied from the
+// row by its recipient's box transaction, which deletes the row with the
+// change. A copy of an applied event finds no row and changes nothing.
+
+// loadTimeout bounds the read of an event's row before its transaction; the
+// transaction has the limits of userbox.Run.
+const loadTimeout = 5 * time.Second
+
+// Outcomes of an inbox message, for mq_consumer_events_total.
 const (
-	retryBudget   = 30 * time.Second
-	retryFirst    = 100 * time.Millisecond
-	retryMaxPause = 5 * time.Second
+	outcomeDuplicate mqconsumer.Outcome = "duplicate"
+	outcomeMismatch  mqconsumer.Outcome = "mismatch"
 )
 
 // event is an inbox event: addressed to user_id, caused by from_id.
@@ -97,88 +103,112 @@ var handlers = map[protoreflect.FullName]handler{
 		(*core.InboxCore).InboxUnpinAllMessages),
 }
 
-// New returns the consumer of inbox events.
-func New(svcCtx *svc.ServiceContext, conf kafka.KafkaConsumerConf) *kafka.ConsumerGroup {
-	s := kafka.MustKafkaConsumer(&conf)
-	s.RegisterHandlers(conf.Topics[0], func(ctx context.Context, method, key string, value []byte) {
-		Handle(ctx, svcCtx, method, key, value)
-	})
-	return s
-}
+// errUndecodable marks an event whose row cannot be applied by any version
+// of the code that wrote it: an unknown method, a payload that is not its
+// JSON, a recipient that is not the row's or is its initiator.
+var errUndecodable = fmt.Errorf("%w: undecodable inbox event", userbox.ErrMisuse)
 
-// Handle applies one inbox event: the box transaction of its recipient,
-// retried on retryable errors within retryBudget. An event that is not
-// applied is logged with its method, recipient and messages, without
-// content, and counted.
-func Handle(ctx context.Context, svcCtx *svc.ServiceContext, method, key string, value []byte) {
-	log := logx.WithContext(ctx)
-	h, ok := handlers[protoreflect.FullName(method)]
+// decode returns the request of an event row.
+func decode(ev *outbox.Stored) (event, handler, error) {
+	h, ok := handlers[protoreflect.FullName(ev.Method)]
 	if !ok {
-		dao.InboxHandlerFailed("unknown")
-		log.Errorf("inbox: unknown event %q", method)
-		return
+		return nil, h, fmt.Errorf("%w: unknown method %q", errUndecodable, ev.Method)
 	}
 	in := h.new()
-	if err := json.Unmarshal(value, in); err != nil {
-		dao.InboxHandlerFailed(method)
-		log.Errorf("inbox: decode %s: %v", method, err)
-		return
+	if err := json.Unmarshal(ev.Data, in); err != nil {
+		return nil, h, fmt.Errorf("%w: %s: %v", errUndecodable, ev.Method, err)
 	}
-	// The initiator's own box is written in its transaction: an event to
-	// it would write it twice.
-	if in.GetUserId() <= 0 || in.GetUserId() == in.GetFromId() {
-		dao.InboxHandlerFailed(method)
-		log.Errorf("inbox: %s rejected: recipient %d, from %d", method, in.GetUserId(), in.GetFromId())
-		return
+	// The initiator's own box is written in its transaction: an event to it
+	// would write it twice.
+	if in.GetUserId() != ev.Recipient || in.GetUserId() == in.GetFromId() {
+		return nil, h, fmt.Errorf("%w: %s to user %d from %d in the row of user %d", errUndecodable, ev.Method, in.GetUserId(), in.GetFromId(), ev.Recipient)
 	}
-	if key != strconv.FormatInt(in.GetUserId(), 10) {
-		log.Errorf("inbox: %s to user %d published with key %q", method, in.GetUserId(), key)
-	}
+	return in, h, nil
+}
 
-	deadline := time.Now().Add(retryBudget)
-	pause := retryFirst
-	for attempt := 1; ; attempt++ {
-		err := h.apply(core.New(ctx, svcCtx), in)
-		if err == nil {
-			return
+// eventId is the id of the row a copy names, 0 when it names none.
+func eventId(m *mqconsumer.Message) int64 {
+	id, err := strconv.ParseInt(m.Header(outbox.HeaderEventId), 10, 64)
+	if err != nil || id < 0 {
+		return 0
+	}
+	return id
+}
+
+// Consumer handles the copies of inbox events.
+type Consumer struct {
+	svcCtx *svc.ServiceContext
+}
+
+func New(svcCtx *svc.ServiceContext) *Consumer { return &Consumer{svcCtx: svcCtx} }
+
+// Handle applies the event a copy names. A transient error leaves the copy
+// to be handled again; a deterministic one, after the policy's attempts,
+// makes the event dead (Dead).
+func (c *Consumer) Handle(ctx context.Context, m *mqconsumer.Message) (mqconsumer.Outcome, error) {
+	log := logx.WithContext(ctx)
+	id := eventId(m)
+	if id <= 0 {
+		log.Errorf("inbox: copy %s %d/%d without an event id: skipped", m.Topic, m.Partition, m.Offset)
+		return mqconsumer.OutcomeSkipped, nil
+	}
+	// Without a transaction or a lock: most copies after a lost offset or
+	// a repeated publication end here.
+	lctx, cancel := context.WithTimeout(ctx, loadTimeout)
+	ev, err := outbox.Load(lctx, c.svcCtx.Dao.BoxDB, id)
+	cancel()
+	if err != nil {
+		return "", err
+	}
+	if ev == nil {
+		return outcomeDuplicate, nil
+	}
+	if ev.Topic != m.Topic || strconv.FormatInt(ev.Recipient, 10) != string(m.Key) ||
+		strconv.FormatInt(ev.CreatedAt, 10) != m.Header(outbox.HeaderCreatedAt) {
+		// Another event with the same id: the ids were reused against the
+		// procedures (a restore without raising AUTO_INCREMENT). Its own
+		// copy comes separately or the redelivery timer sends it.
+		log.Errorf("inbox: copy %d/%d of event %d does not match its row (topic %s, user %d): skipped",
+			m.Partition, m.Offset, id, ev.Topic, ev.Recipient)
+		return outcomeMismatch, nil
+	}
+	if ev.Trace != "" {
+		ctx = propagation.TraceContext{}.Extract(ctx, propagation.MapCarrier{outbox.HeaderTraceParent: ev.Trace})
+	}
+	in, h, err := decode(ev)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("inbox: event %d: %v; dead", id, err)
+		if err = core.Fail(ctx, c.svcCtx, id, ev.Recipient, err, 1); err != nil {
+			return "", err
 		}
-		if !userbox.Retryable(err) || time.Now().Add(pause).After(deadline) {
-			dao.InboxHandlerFailed(method)
-			log.Errorf("inbox: %s to user %d from %d (%s) not applied after %d attempts: %v",
-				method, in.GetUserId(), in.GetFromId(), messagesOf(in), attempt, err)
-			return
-		}
-		select {
-		case <-ctx.Done():
-			dao.InboxHandlerFailed(method)
-			log.Errorf("inbox: %s to user %d from %d (%s) not applied: %v", method, in.GetUserId(), in.GetFromId(), messagesOf(in), ctx.Err())
-			return
-		case <-time.After(pause):
-		}
-		pause = min(2*pause, retryMaxPause)
+		return mqconsumer.OutcomeDead, nil
+	}
+	ic := core.New(ctx, c.svcCtx, id)
+	if err = h.apply(ic, in); err != nil {
+		return "", err
+	}
+	switch o := ic.Outcome(); o {
+	case userbox.TakeWaiting, userbox.TakeParked:
+		return "parked", nil
+	default:
+		return mqconsumer.Outcome(o.String()), nil
 	}
 }
 
-// messagesOf names the messages of an event by dialog_message_id, to find
-// the event again.
-func messagesOf(in event) string {
-	switch e := in.(type) {
-	case *inbox.TLInboxSendUserMessageToInboxV2:
-		ids := make([]int64, 0, len(e.BoxList))
-		for _, b := range e.BoxList {
-			ids = append(ids, b.GetDialogMessageId())
-		}
-		return fmt.Sprintf("dialog_message_id %v", ids)
-	case *inbox.TLInboxEditMessageToInboxV2:
-		return fmt.Sprintf("dialog_message_id %d", e.GetNewMessage().GetDialogMessageId())
-	case *inbox.TLInboxDeleteMessagesToInbox:
-		return fmt.Sprintf("dialog_message_id %v", e.Id)
-	case *inbox.TLInboxReadMediaUnreadToInboxV2:
-		return fmt.Sprintf("dialog_message_id %v", e.Id)
-	case *inbox.TLInboxReadOutboxHistory:
-		return fmt.Sprintf("dialog_message_id %d", e.MaxDialogMessageId)
-	case *inbox.TLInboxUpdatePinnedMessage:
-		return fmt.Sprintf("dialog_message_id %d", e.DialogMessageId)
+// Policy is the consumer's: userbox.Deterministic errors, three attempts,
+// then the event is dead.
+func (c *Consumer) Policy() mqconsumer.Policy {
+	return mqconsumer.Policy{
+		Deterministic: userbox.Deterministic,
+		Attempts:      mqconsumer.DefaultAttempts,
+		Dead: func(ctx context.Context, m *mqconsumer.Message, cause error, attempts int) error {
+			id := eventId(m)
+			recipient, err := strconv.ParseInt(string(m.Key), 10, 64)
+			if err != nil || recipient <= 0 {
+				return errors.Join(fmt.Errorf("inbox: copy of event %d with key %q", id, m.Key), err)
+			}
+			logx.WithContext(ctx).Errorf("inbox: event %d to user %d not applied after %d attempts, dead: %s", id, recipient, attempts, userbox.EventError(cause))
+			return core.Fail(ctx, c.svcCtx, id, recipient, cause, attempts)
+		},
 	}
-	return "dialog"
 }

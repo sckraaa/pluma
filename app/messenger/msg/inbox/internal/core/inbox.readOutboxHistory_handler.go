@@ -30,11 +30,11 @@ import (
 // read_outbox_max_id of the recipient's dialog only grows.
 func (c *InboxCore) InboxReadOutboxHistory(in *inbox.TLInboxReadOutboxHistory) error {
 	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
-	return c.run(in.UserId, peer, func(b *userbox.Box) error {
+	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
 		update, err := c.svcCtx.Dao.ReadOutbox(b, peer.PeerType, peer.PeerId, in.FromId, in.MaxDialogMessageId)
 		if err != nil || update == nil {
-			return err
+			return true, err
 		}
-		return c.push(b, update)
+		return true, c.push(b, update)
 	})
 }

@@ -29,11 +29,11 @@ import (
 // from_id pinned (or unpinned) a message: the recipient's copy follows.
 func (c *InboxCore) InboxUpdatePinnedMessage(in *inbox.TLInboxUpdatePinnedMessage) error {
 	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
-	return c.run(in.UserId, peer, func(b *userbox.Box) error {
+	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
 		pinned, err := c.svcCtx.Dao.PinCopy(b, peer.PeerType, peer.PeerId, in.DialogMessageId, in.Unpin)
 		if err != nil || pinned == nil {
-			return err
+			return true, err
 		}
-		return c.push(b, pinned.Update)
+		return true, c.push(b, pinned.Update)
 	})
 }
