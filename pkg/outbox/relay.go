@@ -360,12 +360,18 @@ func (r *Relay) timers(ctx context.Context, connected bool) {
 		run("replay", replayInterval, func() { r.replay(ctx, false) })
 		return
 	}
-	if r.kafka == nil {
-		return
+	// A step may drop the connection (checkTopics on a broker error): the
+	// ones after it in this pass wait for the next connection.
+	connectedOnly := func(f func()) func() {
+		return func() {
+			if r.kafka != nil {
+				f()
+			}
+		}
 	}
-	run("topics", topicCheckInterval, r.checkTopics)
-	run("redelivery", redeliveryInterval, func() { r.redeliver(ctx) })
-	run("lag", countsInterval, r.lag)
+	run("topics", topicCheckInterval, connectedOnly(r.checkTopics))
+	run("redelivery", redeliveryInterval, connectedOnly(func() { r.redeliver(ctx) }))
+	run("lag", countsInterval, connectedOnly(r.lag))
 }
 
 func nowMs() int64 { return time.Now().UnixMilli() }

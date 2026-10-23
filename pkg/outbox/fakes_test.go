@@ -269,6 +269,7 @@ type fakeKafka struct {
 	dropped    int
 	committed  map[string]map[int32]int64
 	first      map[string]int64 // topic/partition → first offset
+	metaErr    error            // Partitions fails with it (a broker gone)
 }
 
 func newFakeKafka() *fakeKafka {
@@ -335,6 +336,9 @@ func (c *fakeConn) DropProducer() {
 func (c *fakeConn) Partitions(topics []string) (map[string]int, map[string]error, error) {
 	c.k.mu.Lock()
 	defer c.k.mu.Unlock()
+	if c.k.metaErr != nil {
+		return nil, nil, c.k.metaErr
+	}
 	counts, errs := map[string]int{}, map[string]error{}
 	for _, t := range topics {
 		if n, ok := c.k.partitions[t]; ok {
