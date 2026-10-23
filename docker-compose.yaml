@@ -33,6 +33,11 @@ x-health: &health
 x-redis-env: &redis-env
   REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
 
+x-s3-env: &s3-env
+  REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env (echo GK$$(openssl rand -hex 12))}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env (openssl rand -hex 32)}
+
 x-db-env: &db-env
   MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
   REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
@@ -48,6 +53,16 @@ services:
     environment:
       <<: *db-env
       LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env (openssl rand -hex 32)}
+
+  # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
+  # key, the buckets. Idempotent; dfs starts only after it succeeded.
+  storage-init:
+    <<: *teamgram
+    command: ["./pluma-admin", "-f=../etc2/dfs.yaml", "storage", "init", "-admin=http://garage:3903", "-wait=180s"]
+    restart: "no"
+    environment:
+      <<: *s3-env
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?set GARAGE_ADMIN_TOKEN in .env (openssl rand -hex 32)}
 
   idgen:
     <<: *teamgram
@@ -93,13 +108,12 @@ services:
     healthcheck:
       <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20640"]
-    environment:
-      <<: *redis-env
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    environment: *s3-env
     stop_grace_period: 30s
     depends_on:
       migrate:
+        condition: service_completed_successfully
+      storage-init:
         condition: service_completed_successfully
 
   media:

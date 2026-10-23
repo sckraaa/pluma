@@ -34,10 +34,11 @@ Cache:
   - Host: redis:6379
     Pass: "${REDIS_PASSWORD}"
 Minio:
-  Endpoint: minio:9000
-  AccessKeyID: "${MINIO_ROOT_USER}"
-  SecretAccessKey: "${MINIO_ROOT_PASSWORD}"
+  Endpoint: garage:3900
+  AccessKeyID: "${S3_ACCESS_KEY_ID}"
+  SecretAccessKey: "${S3_SECRET_ACCESS_KEY}"
   UseSSL: false
+  Region: garage
   Bucket:
     Documents: documents
     Photos: photos

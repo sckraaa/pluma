@@ -103,7 +103,12 @@ services:
     environment:
       # Lets redis-cli (healthcheck, docker exec) authenticate.
       REDISCLI_AUTH: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
+    # Redis holds caches, sessions, login codes and their rate limits (MySQL
+    # is the source of truth, ADR 0005). With a memory limit and noeviction a
+    # full Redis refuses writes instead of silently dropping rate-limit
+    # counters; AOF keeps sessions over a restart.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "1gb", "--maxmemory-policy", "noeviction",
+              "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
     volumes:
       - ./data/redis:/data
     restart: always
@@ -136,6 +141,8 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=mysql_native_password
+      # Above the sum of the services' pools (TestMySQLConnectionBudget).
+      - --max-connections=1000
     restart: always
     healthcheck:
       # Over TCP: on the first start the image runs the init scripts on a
@@ -154,45 +161,21 @@ services:
   # since 2026). pgsty/minio and pgsty/mc are community builds of the MinIO
   # community edition from source (https://github.com/pgsty/minio), drop-in
   # compatible with the old images. Pinned by tag and digest.
-  minio:
-    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
-    container_name: minio
+  # Object store of dfs (ADR 0014). storage-init of docker-compose.yaml
+  # prepares it (node layout, the dfs key, buckets). The image has no shell:
+  # no health check here; storage-init waits for its admin API.
+  garage:
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    container_name: garage
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?set GARAGE_RPC_SECRET in .env (openssl rand -hex 32)}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?set GARAGE_ADMIN_TOKEN in .env (openssl rand -hex 32)}
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"  # console
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-    command: server /data --console-address ":9001"
+      - "127.0.0.1:3900:3900"  # S3 API for local administration
     volumes:
-      - ./data/minio:/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - teamgram_net
-
-  # Creates the buckets dfs uses, once MinIO is up; exits when done.
-  minio-mc:
-    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z@sha256:cfc83108c3abb371f8fb84d99c1fdc88f8c237e022409b0081fb7c0a3be634dd
-    container_name: minio-mc
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        mc alias set myminio http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
-        mc mb myminio/documents --ignore-existing
-        mc mb myminio/encryptedfiles --ignore-existing
-        mc mb myminio/photos --ignore-existing
-        mc mb myminio/videos --ignore-existing
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-    depends_on:
-      minio:
-        condition: service_healthy
+      - ./teamgramd/deploy/garage/garage.toml:/etc/garage.toml:ro
+      - ./data/garage:/var/lib/garage
+    restart: unless-stopped
     networks:
       - teamgram_net
 
@@ -299,6 +282,37 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:3001:3000"
+    networks:
+      - teamgram_net
+
+  # Daily encrypted backups to S3 outside the server and a weekly restore
+  # check (teamgramd/deploy/backup/backup.sh, docs/ops/backup.md).
+  backup:
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/backup/Dockerfile
+    image: pluma-backup:local
+    container_name: backup
+    environment:
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:?set RESTIC_REPOSITORY in .env (s3:https://<endpoint>/<bucket>)}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?set RESTIC_PASSWORD in .env and keep a copy off the server}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:?set BACKUP_S3_ACCESS_KEY_ID in .env}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:?set BACKUP_S3_SECRET_ACCESS_KEY in .env}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-auto}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      BACKUP_AT: ${BACKUP_AT:-03:30}
+      # Garage's live metadata database is not copied: its hourly snapshot is.
+      FILES_EXCLUDE: /data/files/meta/db.*
+    volumes:
+      - ./data/garage:/data/files:ro
+      - ${SERVER_RSA_KEY_FILE:-./secrets/server_pkcs1.key}:/data/secrets/server_pkcs1.key:ro
+      # The whole .env: after losing the server, Garage's restored metadata
+      # needs the same S3 key and the services the same secrets.
+      - ./.env:/data/secrets/env:ro
+      - node_textfile:/textfile
+    depends_on:
+      - mysql
+    restart: unless-stopped
     networks:
       - teamgram_net
 

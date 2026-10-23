@@ -1,6 +1,6 @@
 # 004. Развёртывание, наблюдаемость, бэкапы
 
-- Статус: todo
+- Статус: done (2026-10-23)
 - Зависит от: 001 (сетевые настройки compose)
 - ADR: 0005
 
@@ -25,4 +25,14 @@
 - Дашборд Grafana и хотя бы алерты: сервис недоступен, лаг доставки, DLQ не пуст, диск.
 
 ## Результат
-—
+Решения — ADR 0013 (наблюдаемость, алерты, бэкапы) и ADR 0014 (Garage).
+- **Алерты на телефон**, независимо от Pluma и Telegram: Prometheus → Alertmanager → `alertpush` (`app/ops/alertpush`) → ntfy; `Watchdog` раз в минуту пингует healthchecks.io — если сервер умер целиком, пуш приходит оттуда. Правила: доставка (ADR 0012) и хост/сервисы/бэкапы; инструкции — `docs/ops/monitoring.md`, `docs/ops/delivery.md`. Цепочка проверена на стенде тестовым алертом.
+- **Мониторинг**: Prometheus 3, Grafana 13 с дашбордом «Pluma overview», node-exporter, все образы по digest, данные в именованных томах. **Логи**: Loki + Alloy вместо Elasticsearch/Kibana/Filebeat/go-stash и топика `teamgram-log`.
+- **Процессы**: у каждого сервиса healthcheck на своём порту, старт по цепочке «после здорового». `sync` теперь отдаёт метрики (раньше не отдавал вовсе).
+- **Миграции**: `pkg/migrate`, `pluma-admin migrate up|status|baseline`, таблица `schema_migrations` с контрольными суммами; одноразовый сервис `migrate` до старта всех.
+- **Бэкапы**: сервис `backup` (restic в S3): дамп MySQL, блоки и снимки метаданных Garage, RSA-ключ сервера и `.env`; еженедельная проверка восстановления во временную MySQL; метрики и алерты. Инструкция восстановления на чистой машине — `docs/ops/backup.md`, весь цикл проверяет e2e `TestBackupAndRestore`.
+- **Хранилище**: Garage вместо сторонней сборки MinIO; подготовка — сервис `storage-init` (`pkg/garage`, Admin API v2), интеграционный тест вызовов dfs.
+- **MySQL/Redis**: `max_connections` 1000 с тестом бюджета пулов; Redis — AOF, `maxmemory 1gb`, `noeviction`.
+- Найдено и исправлено попутно: падение relay msg при обрыве Kafka (влито в задачу 003), отсутствие метрик sync.
+
+Не сделано: метрики самого Garage в Prometheus (нужен токен метрик), Jaeger v1 (EOL) — на память, переход на v2 отдельно.

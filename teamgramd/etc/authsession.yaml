@@ -24,8 +24,8 @@ Log:
 
 Mysql:
   DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
-  Active: 64
-  Idle: 64
+  Active: 32
+  Idle: 32
   IdleTimeout: 4h
 
 Cache:

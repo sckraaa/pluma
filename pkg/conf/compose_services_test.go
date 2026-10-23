@@ -84,6 +84,13 @@ func TestComposeServices(t *testing.T) {
 		t.Errorf("migrate: command %q, restart %q", mig.Command, mig.Restart)
 	}
 	delete(compose.Services, "migrate")
+	// storage-init prepares Garage with the dfs config before dfs starts.
+	if si, ok := compose.Services["storage-init"]; !ok {
+		t.Error("no storage-init service")
+	} else if si.Restart != "no" || len(si.Command) < 5 || si.Command[0] != "./pluma-admin" || si.Command[1] != "-f=../etc2/dfs.yaml" || si.Command[2] != "storage" || si.Command[3] != "init" {
+		t.Errorf("storage-init: command %q, restart %q", si.Command, si.Restart)
+	}
+	delete(compose.Services, "storage-init")
 
 	for name, s := range compose.Services {
 		if !want[name] {

@@ -230,24 +230,7 @@ func checkSums(files []File, applied map[string]string) error {
 }
 
 func execFile(ctx context.Context, conn *sql.Conn, f File) error {
-	rows, err := conn.QueryContext(ctx, f.SQL)
-	if err != nil {
-		return fmt.Errorf("migrate: %s: %w", f.Name, err)
-	}
-	// Every result set of the multi-statement request must be read, or
-	// errors of later statements go unnoticed.
-	for {
-		for rows.Next() {
-		}
-		if !rows.NextResultSet() {
-			break
-		}
-	}
-	if err := rows.Err(); err != nil {
-		_ = rows.Close()
-		return fmt.Errorf("migrate: %s: %w", f.Name, err)
-	}
-	if err := rows.Close(); err != nil {
+	if err := runStatements(ctx, conn, f.SQL); err != nil {
 		return fmt.Errorf("migrate: %s: %w", f.Name, err)
 	}
 	// A file may change the session (USE, SQL_MODE, an open transaction):
@@ -256,6 +239,28 @@ func execFile(ctx context.Context, conn *sql.Conn, f File) error {
 		return fmt.Errorf("migrate: %s: commit: %w", f.Name, err)
 	}
 	return nil
+}
+
+// runStatements runs a multi-statement request and reads every result set:
+// an error of a later statement surfaces only there.
+func runStatements(ctx context.Context, conn *sql.Conn, text string) (err error) {
+	rows, err := conn.QueryContext(ctx, text)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if cerr := rows.Close(); err == nil {
+			err = cerr
+		}
+	}()
+	for {
+		for rows.Next() {
+		}
+		if !rows.NextResultSet() {
+			break
+		}
+	}
+	return rows.Err()
 }
 
 // emptySchema reports whether the current database has no tables besides

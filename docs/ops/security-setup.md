@@ -52,7 +52,8 @@ openssl rand -hex 24   # по одному значению на каждый п
 | `MYSQL_ROOT_PASSWORD` | root MySQL, только для администрирования |
 | `MYSQL_PASSWORD` | пользователь `teamgram`, под которым ходят сервисы |
 | `REDIS_PASSWORD` | `requirepass` Redis |
-| `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | MinIO (им же пользуется dfs); пароль не короче 8 символов |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | ключ S3 dfs в Garage: `GK` + 24 hex и 64 hex (ADR 0014) |
+| `GARAGE_RPC_SECRET`, `GARAGE_ADMIN_TOKEN` | секреты узла Garage, по `openssl rand -hex 32` |
 | `GRAFANA_ADMIN_PASSWORD` | вход в Grafana |
 | `SERVER_RSA_KEY_FILE` | путь к ключу на хосте, по умолчанию `./secrets/server_pkcs1.key` |
 | `SERVER_RSA_KEY_FINGERPRINT` | fingerprint из `genserverkey` |
@@ -64,7 +65,7 @@ openssl rand -hex 24   # по одному значению на каждый п
 
 ```bash
 docker compose -f docker-compose-env.yaml up -d   # инфраструктура
-docker compose -f docker-compose-env.yaml ps      # дождаться healthy у mysql, redis, kafka, etcd и minio
+docker compose -f docker-compose-env.yaml ps      # дождаться healthy у mysql, redis, kafka и etcd (Garage без healthcheck: его ждёт storage-init)
 docker compose up -d --build                      # сервисы teamgram
 ```
 
@@ -74,7 +75,7 @@ docker compose up -d --build                      # сервисы teamgram
 - Наружу опубликованы только порты клиентов: `10443` и `5222` (MTProto TCP), `11443` (WebSocket для веб-клиентов), и только по IPv4 (`0.0.0.0:…`). Сеть `teamgram_net` без IPv6: если опубликовать порт и на IPv6, Docker проводит такие соединения через docker-proxy, и gateway видит всех IPv6-клиентов как один адрес моста (`172.20.0.1`). Тогда один клиент исчерпывает лимиты входа «по IP» для всех IPv6-пользователей, а в уведомлениях о входе и в `pluma-admin` стоит адрес моста. Нужен IPv6 — сначала включите его в `teamgram_net` (или запустите gnetway с `network_mode: host`), чтобы до gateway доходили настоящие адреса. Адреса IPv6 лимиты считают по /64.
 - Gateway должен видеть настоящий адрес клиента. Если перед ним стоит TLS-терминатор или балансировщик (например, для WebSocket веб-клиентов), он должен передавать адрес по PROXY protocol, иначе все клиенты за ним — один адрес для лимитов входа.
 - Внутренние gRPC-порты (`20xxx`), метрики и dfs HTTP доступны только внутри сети `teamgram_net`.
-- Порты для администрирования привязаны к `127.0.0.1`: MySQL 3306, Redis 6379, etcd 2379, MinIO 9000/9001, Kafka 9092/9094, Grafana 3001, Prometheus 9090, Jaeger 16686/14268, Kibana 5601, Elasticsearch 9200. С другой машины к ним ходят через SSH-туннель: `ssh -L 3001:127.0.0.1:3001 user@server`.
+- Порты для администрирования привязаны к `127.0.0.1`: MySQL 3306, Redis 6379, etcd 2379, Garage S3 3900, Kafka 9092/9094, Grafana 3001, Prometheus 9090, Alertmanager 9093, Jaeger 16686/14268. С другой машины к ним ходят через SSH-туннель: `ssh -L 3001:127.0.0.1:3001 user@server`.
 - Публикация портов в Docker обходит ufw/iptables INPUT. Поэтому любой новый порт добавляйте с `127.0.0.1:`, если он не должен быть открыт в интернет.
 
 Проверить итоговую публикацию портов: `docker compose config | grep -A3 ports` (или `docker ps`).
@@ -88,7 +89,7 @@ docker compose up -d --build                      # сервисы teamgram
   ALTER USER 'root'@'localhost' IDENTIFIED BY '<MYSQL_ROOT_PASSWORD>';
   ```
 - **Grafana:** пароль из переменной действует только для нового тома: `docker exec grafana grafana-cli admin reset-admin-password <пароль>`.
-- **Redis, MinIO:** новые учётные данные применяются после перезапуска контейнеров.
+- **Redis:** новый пароль применяется после перезапуска контейнера. **Garage:** новый ключ S3 dfs `storage-init` не заменит (ключ с другим секретом — ошибка): удалить старый ключ в Garage (`docker compose -f docker-compose-env.yaml exec garage /garage key delete --yes <id>`), затем `docker compose up storage-init`.
 - **Ключ:** клиенты со старым (скомпрометированным) ключом перестанут подключаться. Их нужно пересобрать с новым публичным ключом.
 - **Временные ключи (PFS):** до запуска новой версии authsession примените `mysql -uroot -p teamgram < teamgramd/deploy/sql/migrate-20261021-pfs.sql` (колонка `auth_key_infos.expires_at`). Без неё authsession не прочитает ни один ключ, и клиенты не подключатся. Новая база получает колонку сама. Миграция также гасит все временные ключи, созданные до неё: их привязки записывал старый `auth.bindTempAuthKey`, который ничего не проверял, так что любая из них могла быть подделана. Клиенты получат -404 и создадут новые временные ключи; постоянные ключи и входы сохраняются. Ключи, которые старые версии teamgram держали только в Redis (`auth_keys_<id>`), больше не читаются.
 - **Если старая установка была доступна из интернета** (MySQL и Redis без паролей были опубликованы до задачи 001), в базу и Redis мог писать кто угодно: подделать привязки, ключи, коды. После обновления завершите все сессии: при остановленных сервисах `DELETE FROM auth_users; DELETE FROM auths; DELETE FROM auth_key_infos; DELETE FROM auth_keys;` и удалите их кэш в Redis (`redis-cli -a "$REDIS_PASSWORD" --scan --pattern 'auth_*' | xargs -r redis-cli -a "$REDIS_PASSWORD" del`; не `FLUSHALL`: в Redis лежат pts и счётчики id). Всем пользователям придётся войти заново, зато не останется ключей, которые мог создать посторонний. Проверьте и `phone_allowlist`.

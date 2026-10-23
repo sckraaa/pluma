@@ -9,6 +9,7 @@
 > - **Closed sign-in**: only phones on an allowlist can sign in or sign up; one-time codes are issued by the administrator (`tools/pluma-admin`), with rate limits.
 > - **Security**: a rotatable server RSA key checked at startup, verified PFS (`auth.bindTempAuthKey`), limits against pre-auth DoS, bounded TL and gzip decoding, logs without keys, codes or message text, secrets only from `.env`, internal ports closed.
 > - **Tests and CI**: unit and race tests, lint, govulncheck, integration tests on real MySQL/Redis/Kafka and an end-to-end test of the whole `docker compose` stack over MTProto ([docs/ops/testing.md](docs/ops/testing.md)).
+> - **Operations**: one compose service per process with health checks and graceful stop, versioned schema migrations, alerts to the phone (ntfy, dead man's switch), Loki logs, encrypted off-site backups with a weekly restore check; object storage is Garage instead of MinIO ([docs/ops](docs/ops)).
 > - The vendored `github.com/teamgram/proto` lives in `third_party/teamgram-proto`, with our patches as separate commits.
 >
 > The rest of this README is the upstream one and does not describe all of the above yet: for a deployment of the fork, follow [docs/ops/security-setup.md](docs/ops/security-setup.md) (in Russian) as well. Project documents under `docs/project`, `docs/adr`, `docs/tasks` and `docs/ops` are in Russian.

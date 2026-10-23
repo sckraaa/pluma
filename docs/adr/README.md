@@ -19,3 +19,4 @@
 | [0011](0011-durable-sequences.md) | Долговечные счётчики: состояние ящика пользователя в MySQL и одна транзакция на ящик | accepted |
 | [0012](0012-reliable-delivery.md) | Надёжная доставка: outbox в транзакции ящика, применение событий ровно один раз, push по порядку | accepted |
 | [0013](0013-observability-alerts-backups.md) | Наблюдаемость, алерты на телефон (ntfy + healthchecks.io), бэкапы restic в S3 | accepted |
+| [0014](0014-object-storage-garage.md) | Объектное хранилище: Garage вместо MinIO | accepted |
