@@ -305,6 +305,9 @@ func TestRelayCrashBeforeFinish(t *testing.T) {
 	eventually(t, 20*time.Second, "published", func() bool {
 		return countRows(t, db, "recipient_id = ? AND state = ?", recipient, userbox.EventPublished) == 5
 	})
+	// The rows turn published on the broker's answer; the test's reader
+	// may still be fetching the second copies.
+	eventually(t, 20*time.Second, "second copies", func() bool { return len(tr.of(key)) >= 10 })
 	ids := map[int64]int{}
 	for _, r := range tr.of(key) {
 		ids[r.eventId]++

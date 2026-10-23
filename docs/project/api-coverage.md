@@ -6,7 +6,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 119, partial 27, blocked 124, notimpl 8, missing 591 (ok = 13.7%)
+    layer 228: 869 methods — ok 121, partial 27, blocked 122, notimpl 8, missing 591 (ok = 13.9%)
 
 | namespace | total | ok | partial | blocked | notimpl | missing |
 |---|---|---|---|---|---|---|
@@ -22,7 +22,7 @@
 | ephemeral | 4 | 0 | 0 | 0 | 0 | 4 |
 | folders | 2 | 0 | 0 | 0 | 0 | 2 |
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 |
-| help | 28 | 1 | 0 | 17 | 0 | 10 |
+| help | 28 | 3 | 0 | 15 | 0 | 10 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 5 |
 | messages | 273 | 53 | 21 | 22 | 5 | 172 |
 | payments | 70 | 0 | 0 | 4 | 0 | 66 |
@@ -449,10 +449,10 @@
 | `help.getAppUpdate` | blocked | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:27 |
 | `help.getCdnConfig` | blocked | app/bff/files/internal/core/help.getCdnConfig_handler.go:27 |
 | `help.getConfig` | ok | app/bff/configuration/internal/core/help.getConfig_handler.go:57 |
-| `help.getCountriesList` | blocked | app/bff/configuration/internal/core/help.getCountriesList_handler.go:27 |
+| `help.getCountriesList` | ok | app/bff/configuration/internal/core/help.getCountriesList_handler.go:28 |
 | `help.getDeepLinkInfo` | missing |  |
 | `help.getInviteText` | blocked | app/bff/configuration/internal/core/help.getInviteText_handler.go:27 |
-| `help.getNearestDc` | blocked | app/bff/configuration/internal/core/help.getNearestDc_handler.go:27 |
+| `help.getNearestDc` | ok | app/bff/configuration/internal/core/help.getNearestDc_handler.go:31 |
 | `help.getPassportConfig` | blocked | app/bff/passport/internal/core/help.getPassportConfig_handler.go:27 |
 | `help.getPeerColors` | missing |  |
 | `help.getPeerProfileColors` | missing |  |

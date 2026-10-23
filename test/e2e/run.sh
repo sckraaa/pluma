@@ -18,6 +18,13 @@
 #   E2E_PROJECT  compose project name (default pluma-e2e)
 #   E2E_KEEP=1   `all` leaves the stack running after the tests
 #   E2E_GOTEST_FLAGS  extra flags for go test (e.g. -run TestX)
+#   E2E_GATEWAY_PORT  the host port of the gateway's TCP transport on
+#                127.0.0.1 (default: an ephemeral one)
+#   E2E_GATEWAY_WS_PORT  the same for its WebSocket transport
+#   E2E_SERVER_KEY    a server private key to use instead of a new one, e.g.
+#                the development key of the client repositories: their
+#                development builds can then sign in to the stand
+#                (docs/ops/clients.md)
 #
 # The secrets (passwords, the server RSA key) are generated for one run and
 # deleted by `down`; they are never written anywhere git tracks.
@@ -70,12 +77,20 @@ secret() { openssl rand -hex "$1"; }
 # gen_secrets writes the env file and the server RSA key for this run.
 gen_secrets() {
 	if [[ -f $ENV_FILE && -f $KEY_FILE ]]; then
+		if [[ -n ${E2E_SERVER_KEY:-} ]] && ! cmp -s "$E2E_SERVER_KEY" "$KEY_FILE"; then
+			log "E2E_SERVER_KEY is not the key of the existing stand; run down first"
+			return 1
+		fi
 		return
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE"
 	mkdir -p "$E2E_DIR" && chmod 700 "$E2E_DIR" || return
-	local fp
-	fp=$(cd "$ROOT" && go run ./tools/genserverkey -out "$KEY_FILE" |
+	local fp keytool=(-out "$KEY_FILE")
+	if [[ -n ${E2E_SERVER_KEY:-} ]]; then
+		install -m 600 "$E2E_SERVER_KEY" "$KEY_FILE" || return
+		keytool=(-show "$KEY_FILE")
+	fi
+	fp=$(cd "$ROOT" && go run ./tools/genserverkey "${keytool[@]}" |
 		sed -n 's/^ *KeyFingerprint ([^)]*): *\([0-9][0-9]*\)$/\1/p')
 	if [[ -z $fp ]]; then
 		log "genserverkey printed no fingerprint"
