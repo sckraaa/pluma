@@ -6,13 +6,18 @@ _Обновлено: 2026-10-23. Держать коротким._
 Этап 0 — фундамент. Аудит завершён, вердикт: ядро teamgram оставляем и глубоко чиним (`docs/audit/00-summary.md`). План этапа 0 — задачи 001–010 (`docs/tasks/README.md`), две параллельные линии: сервер и клиенты.
 
 ## Цифры
-- API layer 228: 869 методов; реализовано 119 (13,7%), частично 27, заглушки 132, нет обработчика 591 (заглушки апстрима с «License key» и пустым ответом теперь считаются заглушками). Источник: `docs/project/api-coverage.md` (`go run ./tools/apicoverage`).
+- API layer 228: 869 методов; реализовано 121 (13,9%), частично 27, заглушки 130, нет обработчика 591 (заглушки апстрима с «License key» и пустым ответом теперь считаются заглушками). Источник: `docs/project/api-coverage.md` (`go run ./tools/apicoverage`).
 - Сравнительных тестов: 0. Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
-—
+- **Задача 006 (клиенты в облаке): Android готов**, дальше Web → iOS → Desktop (`docs/tasks/006-client-build-pipeline.md`).
 
 ## Последнее сделано
+- **Android-клиент** (ветка `task/006-client-builds`, репозиторий `sckraaa/pluma-android`).
+  - Сборка: официальный клиент 12.9.1 с патчем под Pluma собирается в GitHub Actions. Холодная сборка — 48 мин, тёплая — 5 мин (ccache + Gradle cache).
+  - Подпись — в защищённом environment `release`. APK для настоящего сервера шифруется age (ADR 0010).
+  - Проверка: dev-сборка на эмуляторе прошла handshake, вход по коду, регистрацию и отправку сообщения на локальном стенде.
+  - Попутно на сервере: настоящий `help.getCountriesList` (без него официальный клиент не мог войти) и честный `help.getNearestDc`. Стенд e2e получил `E2E_SERVER_KEY` и `E2E_GATEWAY_PORT` (`docs/ops/clients.md`).
 - **Задача 004 (развёртывание, наблюдаемость, бэкапы) — готова** (ветка `task/004-deployment`, ADR 0013, 0014): алерты на телефон (ntfy + healthchecks.io), Loki вместо ELK, актуальный мониторинг и дашборд, healthcheck и старт по цепочке, версионируемые миграции (`migrate`), бэкапы restic в S3 с еженедельной проверкой восстановления, Garage вместо MinIO. Первый запуск — `docs/ops/monitoring.md`, `docs/ops/backup.md`.
 - **Задача 003 (надёжная доставка) — готова** (ветка `task/003-reliable-delivery`, ADR 0012): outbox в транзакции ящика, relay — единственный продюсер Kafka, применение ровно один раз, dead/parked с автоповтором; пуши в `session` по порядку и без залипания; 11 сервисов compose с перезапуском и остановкой; дедлайны RPC; алерты доставки (`docs/ops/delivery.md`). Хаос-тесты на живом стеке зелёные. При развёртывании: `migrate-20261023-delivery.sql`, пересоздание групп и топиков (`docs/ops/user-state.md`).
 - **Задача 002 (долговечные счётчики) — готова в коде** (ветка `task/002-durable-sequences`, ADR 0011): `pts` и id в ящике — только в MySQL (`user_state`, `pkg/userbox`); сообщения, `dialogs` (включая удаление строки), журнал и счётчики — одна транзакция на пользователя, push и inbox-события — сразу после commit; `getState`/`getDifference` читают закоммиченное с мастера; V3 и мёртвые пути удалены, idgen — только snowflake; `tools/boxaudit` (код транзакций и запись журнала только в `pkg/userbox`). По ревью: удаление `dialogs` в транзакции последней порции, `deleteChat` до конца истории, индекс диалога вместо перебора, пределы публикации Kafka, дедлайны RPC biz 30 с. Тесты зелёные. **Критерий задержки не проверен** (разброс прогонов на macOS больше порога 20%): замер на Linux — до выкатки вместе с 003. При развёртывании: `migrate-20261022-dialog-index.sql` и `migrate-20261022.sql` (`docs/ops/user-state.md`).
@@ -22,10 +27,10 @@ _Обновлено: 2026-10-23. Держать коротким._
 - При развёртывании обязательно: `teamgramd/deploy/sql/migrate-20261021.sql` и `migrate-20261021-pfs.sql`, переменные из `.env.example` (в т.ч. `LOGIN_CODE_HMAC_KEY`, `SERVER_RSA_KEY_FINGERPRINT`) — см. `docs/ops/security-setup.md`.
 
 ## Следующий шаг
-Сервер готов к первому развёртыванию для закрытой группы, когда будут клиенты: задача 006 (сборка клиентов в облаке). До выкатки пользователям: замер задержки на Linux (ADR 0011, п. 12) — на том же VPS. На сервере дальше: 007 (сравнительные тесты), 010 (seq и полнота getDifference), 008 (2FA, PFS-сроки, проверки протокола), 009 (push).
+Задача 006 дальше: Android на телефоне владельца (dev-сборка с LAN-адресом Mac и стенд, слушающий LAN), затем Web → iOS → Desktop. Для выпуска Android на настоящий сервер владельцу нужно создать ключ подписи, age-ключ и environment `release` (README `pluma-android`). До выкатки пользователям: замер задержки на Linux (ADR 0011, п. 12) — на том же VPS. На сервере дальше: 007 (сравнительные тесты), 010 (seq и полнота getDifference), 008 (2FA, PFS-сроки, проверки протокола), 009 (push).
 
 ## Принятые решения вне ADR
-- Домен проекта — `pluma.chat`; ID приложений — `chat.pluma.*`. Пометка домена в Safe Browsing принята как допустимая — 2026-10-21.
+- Домен проекта — `pluma.chat`; ID приложения на Android и iOS — `chat.pluma.app` (расширения iOS — `chat.pluma.app.<имя>`), название — «Pluma» (2026-10-23); репозитории клиентов — `sckraaa/pluma-android`, `pluma-ios`, `pluma-desktop`, `pluma-web`; `api_id` Pluma: Android 10001, iOS 10002, Desktop 10003, Web 10004. Пометка домена в Safe Browsing принята как допустимая — 2026-10-21.
 
 ## Открытые вопросы к владельцу
 - Название и иконка приложения (не блокирует).
@@ -38,4 +43,7 @@ _Обновлено: 2026-10-23. Держать коротким._
 - `messages.deleteChatUser` удаляет строку диалога исключённого участника, а его сообщения группы остаются (поведение апстрима; в Telegram чат у исключённого остаётся в списке).
 - Свежие клиенты на layer 229–232; держим клиентов на 228 (ADR 0008). Обновление layer зависит от upstream `teamgram/proto` — генераторы TL не открыты.
 - Каналы: 1 из 74 методов; звонки: 0 из 45; push: заглушка.
+- Клиенты пока выглядят как Telegram: логотип, «Telegram» в заголовке и на приветствии, пункты Premium/Business/FAQ. До раздачи — ребрендинг (иконки патчем, строки через langpack сервера).
+- `help.getNearestDc` не знает страну клиента (нет GeoIP-базы; клиент берёт страну SIM). `config.json` сервера ещё ссылается на teamgram.io (`me_url_prefix`) и `apv2.stel.com`. `auth.sentCode` говорит «SMS», хотя код приходит из `pluma-admin` или в приложение.
+- `help.getCountriesList` без `prefixes` (Android их не использует) — проверить на iOS и Desktop.
 - `contacts.importContacts` — заглушка апстрима: пишет в лог «License key … required» и возвращает пустой ответ, поэтому официальный клиент не добавит контакт по номеру (работает только `contacts.resolvePhone`). `tools/apicoverage` считает такие обработчики заглушками (`blocked`/`partial`).
