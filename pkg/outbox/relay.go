@@ -200,6 +200,11 @@ func (r *Relay) step(ctx context.Context) time.Duration {
 	if r.checkNow {
 		r.checkTopics()
 	}
+	// The checks above drop the connection on a broker error: publish only
+	// after the next connection.
+	if r.kafka == nil {
+		return max(r.connectAt.Sub(r.now()), 0)
+	}
 	selected, progress := r.round(ctx)
 	switch {
 	case selected == 0:
@@ -444,6 +449,9 @@ type answer struct {
 // that did not answer in time is dropped with what it still holds.
 func (r *Relay) send(ctx context.Context, rows []row, payloads map[int64][]byte) []answer {
 	answers := make([]answer, len(rows))
+	if r.kafka == nil {
+		return answers
+	}
 	p, err := r.kafka.Producer()
 	if err != nil {
 		r.disconnect(err)
