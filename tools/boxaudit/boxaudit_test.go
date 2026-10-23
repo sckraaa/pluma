@@ -37,7 +37,7 @@ func TestWritersInRepository(t *testing.T) {
 
 // TestWriters runs the writer rule over a fixture (testdata/writers): SQL
 // in Go strings and in a table definition is found, reads, other tables,
-// comments, tests and pkg/userbox are not.
+// comments, tests, pkg/userbox and the events in pkg/outbox are not.
 func TestWriters(t *testing.T) {
 	findings, err := Writers("testdata/writers")
 	if err != nil {
@@ -47,7 +47,7 @@ func TestWriters(t *testing.T) {
 	for _, f := range findings {
 		got = append(got, f.Rule+"@"+f.Pos.Filename+":"+strconv.Itoa(f.Pos.Line))
 	}
-	want := []string{"writer@tables.xml:4", "writer@writers.go:6", "writer@writers.go:7", "writer@writers.go:13"}
+	want := []string{"writer@pkg/outbox/outbox.go:5", "writer@tables.xml:4", "writer@writers.go:6", "writer@writers.go:7", "writer@writers.go:13", "writer@writers.go:17"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("findings\n%v\nwant\n%v\n%v", got, want, findings)
 	}

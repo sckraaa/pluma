@@ -25,7 +25,7 @@ const maxPortion = 1000
 const (
 	messageColumns = "user_id, user_message_box_id, dialog_id1, dialog_id2, dialog_message_id, sender_user_id, peer_type, peer_id, random_id, message_filter_type, message_data, message, mentioned, media_unread, pinned, has_reaction, reaction, reaction_date, reaction_unread, saved_peer_type, saved_peer_id, date2, ttl_period"
 
-	insertMessageQuery = "INSERT INTO messages (user_id, user_message_box_id, dialog_id1, dialog_id2, dialog_message_id, sender_user_id, peer_type, peer_id, random_id, message_filter_type, message_data, message, mentioned, media_unread, pinned, saved_peer_type, saved_peer_id, date2, ttl_period) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	insertMessageQuery = "INSERT INTO messages (user_id, user_message_box_id, dialog_id1, dialog_id2, dialog_message_id, sender_user_id, peer_type, peer_id, random_id, message_filter_type, message_data, message, mentioned, media_unread, pinned, saved_peer_type, saved_peer_id, date2, ttl_period, pts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 
 	dialogColumns = "user_id, peer_type, peer_id, peer_dialog_id, pinned, top_message, pinned_msg_id, read_inbox_max_id, read_outbox_max_id, unread_count, unread_mentions_count, unread_reactions_count, unread_mark, folder_id, date2, deleted"
 
@@ -74,14 +74,21 @@ func inList(n int) string {
 	return string(b)
 }
 
-func insertMessage(b *userbox.Box, do *dataobject.MessagesDO) error {
+// insertMessage writes a message row of the box: pts is the pts of the
+// journal row that adds it to the box (a repeated send answers with it).
+// Every copy carries the id of its message in every box,
+// dialog_message_id, which is unique in a box: a copy written twice fails.
+func insertMessage(b *userbox.Box, do *dataobject.MessagesDO, pts int32) error {
 	if do.UserId != b.UserId() {
 		return fmt.Errorf("msg: message of user %d in the box of %d", do.UserId, b.UserId())
+	}
+	if do.DialogMessageId <= 0 {
+		return fmt.Errorf("msg: message %d of user %d without a dialog_message_id", do.UserMessageBoxId, do.UserId)
 	}
 	_, err := b.Tx().Exec(insertMessageQuery,
 		do.UserId, do.UserMessageBoxId, do.DialogId1, do.DialogId2, do.DialogMessageId, do.SenderUserId,
 		do.PeerType, do.PeerId, do.RandomId, do.MessageFilterType, do.MessageData, do.Message,
-		do.Mentioned, do.MediaUnread, do.Pinned, do.SavedPeerType, do.SavedPeerId, do.Date2, do.TtlPeriod)
+		do.Mentioned, do.MediaUnread, do.Pinned, do.SavedPeerType, do.SavedPeerId, do.Date2, do.TtlPeriod, pts)
 	return err
 }
 

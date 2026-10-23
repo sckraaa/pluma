@@ -60,6 +60,9 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 			MessageFilterType: mtproto.GetMediaType(message),
 			Message:           message,
 		}
+		update := mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: message}).To_Update()
+		b.AddPtsUpdate(update, 1)
+		box.Pts, box.PtsCount = update.Pts_INT32, update.PtsCount
 		if err = insertMessage(b, &dataobject.MessagesDO{
 			UserId:            userId,
 			UserMessageBoxId:  id,
@@ -77,16 +80,12 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 			SavedPeerType:     saved.PeerType,
 			SavedPeerId:       saved.PeerId,
 			Date2:             int64(message.GetDate()),
-		}); err != nil {
+		}, box.Pts); err != nil {
 			return nil, err
 		}
 		if err = d.replaceHashTags(b, peer, id, message, false); err != nil {
 			return nil, err
 		}
-
-		update := mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: message}).To_Update()
-		b.AddPtsUpdate(update, 1)
-		box.Pts, box.PtsCount = update.Pts_INT32, update.PtsCount
 		boxes = append(boxes, box)
 
 		if peerType == mtproto.PEER_USER && peerId == userId && saved.PeerType != mtproto.PEER_EMPTY {
@@ -202,6 +201,9 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 			Mentioned:         message.Mentioned,
 			MediaUnread:       message.MediaUnread,
 		}
+		update := mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: message}).To_Update()
+		b.AddPtsUpdate(update, 1)
+		box.Pts, box.PtsCount = update.Pts_INT32, update.PtsCount
 		if err = insertMessage(b, &dataobject.MessagesDO{
 			UserId:            userId,
 			UserMessageBoxId:  id,
@@ -218,16 +220,12 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 			Mentioned:         message.Mentioned,
 			MediaUnread:       message.MediaUnread,
 			Date2:             b.Date(),
-		}); err != nil {
+		}, box.Pts); err != nil {
 			return nil, err
 		}
 		if err = d.replaceHashTags(b, rowPeer, id, message, false); err != nil {
 			return nil, err
 		}
-
-		update := mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: message}).To_Update()
-		b.AddPtsUpdate(update, 1)
-		box.Pts, box.PtsCount = update.Pts_INT32, update.PtsCount
 		out.Boxes = append(out.Boxes, box)
 		out.Updates = append(out.Updates, update)
 

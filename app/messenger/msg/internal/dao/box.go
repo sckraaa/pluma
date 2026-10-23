@@ -8,6 +8,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -15,40 +16,40 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Bounds of the steps of a request of msg. A lock held around a step (the
-// idempotency lock of a send) and the wait for running requests at shutdown
-// derive from them.
+// Bounds of the steps of a request of msg. The wait for running requests
+// at shutdown derives from them.
 const (
 	// cacheTimeout limits one Redis operation of a request: a cache
-	// deletion around a box transaction, a step of the idempotency window.
+	// deletion around a box transaction.
 	cacheTimeout = 5 * time.Second
 	// MaxBoxOpTime is the longest RunBox can take: the cache deletions
-	// before and after the transaction, the transaction, and the
-	// publication of its events.
-	MaxBoxOpTime = cacheTimeout + userbox.MaxRunTime + userbox.PublishTimeout + cacheTimeout
+	// before and after the transaction, and the transaction.
+	MaxBoxOpTime = cacheTimeout + userbox.MaxRunTime + cacheTimeout
+	// MaxRequestTime bounds a request of msg from its box operation on;
+	// RPCs to other services before it are not counted.
+	MaxRequestTime = MaxBoxOpTime
 )
 
-// RunBox changes userId's box in one transaction (userbox.Run on BoxDB) and
-// publishes the events of the transaction right after commit.
+// RunBox changes userId's box in one transaction (userbox.Run on BoxDB).
+// The events of the transaction are its mq_outbox rows: committed with it,
+// published by the relay; RunBox wakes the relay of the process after a
+// commit that gave it rows to publish.
 //
 // rowKeys are the cache keys of dialog rows the operation is known to
 // change: they are deleted before the transaction and again after commit,
 // with the keys fn added (b.InvalidateCache), which narrows the window in
 // which a reader puts an old row back into the cache. A failed deletion is
 // logged and counted; the operation stays successful.
-//
-// The events go out before the cache deletion after commit, with nothing
-// between commit and publication that waits on the network: two
-// transactions of one user that commit one after the other publish in that
-// order unless the first one's publication is slower than the whole second
-// transaction (task 003 publishes from an outbox in commit order).
 func (d *Dao) RunBox(ctx context.Context, userId int64, rowKeys []string, fn func(b *userbox.Box) error) (*userbox.Result, error) {
 	d.deleteCache(ctx, rowKeys)
 	res, err := userbox.Run(ctx, d.BoxDB, userId, fn)
 	if err != nil {
 		return nil, err
 	}
-	d.Publish(ctx, res.Events)
+	// New rows, or rows a deferral returned to pending.
+	if res.Emitted > 0 || res.Taken == userbox.TakeDeferred {
+		outbox.Notify()
+	}
 	d.deleteCache(ctx, append(rowKeys, res.CacheKeys...))
 	return res, nil
 }
@@ -70,25 +71,11 @@ func (d *Dao) deleteCache(ctx context.Context, keys []string) {
 	}
 }
 
-// Publish sends the events of a committed transaction, in order
-// (userbox.Publish). A failure is logged with the method and the recipient
-// and counted; the operation stays successful: the data is committed and
-// devices catch up with updates.getDifference.
-func (d *Dao) Publish(ctx context.Context, events []userbox.Event) {
-	for _, f := range userbox.Publish(ctx, events, d.Publisher.Publish) {
-		metricPostCommitErrors.Inc("publish")
-		logx.WithContext(ctx).Errorf("msg: event %s to user %d not published: %v", f.Event.Method, f.Event.Recipient, f.Err)
-	}
-}
-
-// PublishEvent sends an event that no transaction wrote anything for, under
-// the limits of userbox.Publish, and returns the error: the caller may try
-// the whole operation again.
-func (d *Dao) PublishEvent(ctx context.Context, ev userbox.Event) error {
-	if f := userbox.Publish(ctx, []userbox.Event{ev}, d.Publisher.Publish); len(f) > 0 {
-		return f[0].Err
-	}
-	return nil
+// InsertEvent writes an event that no box transaction goes with
+// (outbox.Insert): once it returns, the event is durable.
+func (d *Dao) InsertEvent(ctx context.Context, ev userbox.Event) error {
+	_, err := outbox.Insert(ctx, d.BoxDB, ev)
+	return err
 }
 
 // userEvent is an event request addressed to one user, user_id.
@@ -136,7 +123,7 @@ func (d *Dao) EmitInbox(b *userbox.Box, in fromEvent) error {
 	return nil
 }
 
-// InboxEvent returns an inbox event to publish outside a box transaction.
+// InboxEvent returns an inbox event to write outside a box transaction.
 func (d *Dao) InboxEvent(in fromEvent) (userbox.Event, error) {
 	if in.GetUserId() == in.GetFromId() {
 		return userbox.Event{}, errSelfEvent

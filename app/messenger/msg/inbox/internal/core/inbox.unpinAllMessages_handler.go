@@ -30,19 +30,11 @@ import (
 // messages go in portions, one transaction and one push each.
 func (c *InboxCore) InboxUnpinAllMessages(in *inbox.TLInboxUnpinAllMessages) error {
 	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
-	for {
-		var left int32
-		err := c.run(in.UserId, peer, func(b *userbox.Box) error {
-			left = 0
-			unpinned, err := c.svcCtx.Dao.UnpinPortion(b, peer.PeerType, peer.PeerId)
-			if err != nil || unpinned == nil {
-				return err
-			}
-			left = unpinned.Left
-			return c.push(b, unpinned.Update)
-		})
-		if err != nil || left == 0 {
-			return err
+	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
+		unpinned, err := c.svcCtx.Dao.UnpinPortion(b, peer.PeerType, peer.PeerId)
+		if err != nil || unpinned == nil {
+			return true, err
 		}
-	}
+		return unpinned.Left == 0, c.push(b, unpinned.Update)
+	})
 }

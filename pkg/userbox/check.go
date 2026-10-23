@@ -16,18 +16,20 @@ import (
 //     LockWaitTimeout (DSN parameter innodb_lock_wait_timeout=2);
 //   - innodb_flush_log_at_trx_commit = 1;
 //   - with the binary log on: binlog_format = ROW (READ COMMITTED needs
-//     row-based logging) and sync_binlog = 1.
+//     row-based logging) and sync_binlog = 1;
+//   - max_allowed_packet is at least MinMaxAllowedPacket: a statement that
+//     writes events carries up to 4 MiB of payloads.
 //
 // A client sees a pts as soon as its transaction commits, so a commit lost
 // by a MySQL crash would roll pts back under the client, as a Redis loss
 // used to.
 func Check(ctx context.Context, db *sql.DB) error {
 	var (
-		lockWait, flushLog, logBin, syncBinlog int64
-		binlogFormat                           string
+		lockWait, flushLog, logBin, syncBinlog, maxPacket int64
+		binlogFormat                                      string
 	)
-	err := db.QueryRowContext(ctx, "SELECT @@SESSION.innodb_lock_wait_timeout, @@GLOBAL.innodb_flush_log_at_trx_commit, @@GLOBAL.log_bin, @@GLOBAL.binlog_format, @@GLOBAL.sync_binlog").
-		Scan(&lockWait, &flushLog, &logBin, &binlogFormat, &syncBinlog)
+	err := db.QueryRowContext(ctx, "SELECT @@SESSION.innodb_lock_wait_timeout, @@GLOBAL.innodb_flush_log_at_trx_commit, @@GLOBAL.log_bin, @@GLOBAL.binlog_format, @@GLOBAL.sync_binlog, @@SESSION.max_allowed_packet").
+		Scan(&lockWait, &flushLog, &logBin, &binlogFormat, &syncBinlog, &maxPacket)
 	if err != nil {
 		return fmt.Errorf("userbox: read MySQL settings: %w", err)
 	}
@@ -39,6 +41,9 @@ func Check(ctx context.Context, db *sql.DB) error {
 	}
 	if flushLog != 1 {
 		errs = append(errs, fmt.Errorf("innodb_flush_log_at_trx_commit is %d, want 1", flushLog))
+	}
+	if maxPacket < MinMaxAllowedPacket {
+		errs = append(errs, fmt.Errorf("max_allowed_packet is %d bytes, want at least %d", maxPacket, MinMaxAllowedPacket))
 	}
 	if logBin != 0 {
 		if !strings.EqualFold(binlogFormat, "ROW") {

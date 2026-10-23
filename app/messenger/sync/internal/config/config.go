@@ -19,7 +19,7 @@
 package config
 
 import (
-	kafka "github.com/teamgram/marmota/pkg/mq"
+	"github.com/teamgram/teamgram-server/pkg/mqconsumer"
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -39,10 +39,9 @@ type Config struct {
 	Cache            cache.CacheConf
 	KV               kv.KvConf
 	Routine          Routine
-	SyncConsumer     kafka.KafkaConsumerConf
+	SyncConsumer     mqconsumer.Conf
 	SessionClient    zrpc.RpcClientConf
 	StatusClient     zrpc.RpcClientConf
 	ChatClient       zrpc.RpcClientConf
-	PushClient       *kafka.KafkaProducerConf `json:",optional"`
-	UseStreamSession bool                     `json:",default=false"`
+	UseStreamSession bool `json:",default=false"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

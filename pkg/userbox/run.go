@@ -34,8 +34,7 @@ const (
 	// VerifyTimeout limits finding out, on another connection, whether a
 	// COMMIT that failed was applied.
 	VerifyTimeout = 5 * time.Second
-	// MaxRunTime is the longest Run can take. A lock held around Run (the
-	// idempotency lock of sending) must outlive it.
+	// MaxRunTime is the longest Run can take.
 	MaxRunTime = Budget + CommitTimeout + VerifyTimeout
 
 	retryPauseMin = 10 * time.Millisecond
@@ -88,16 +87,16 @@ type boxKey struct{}
 func insideRun(ctx context.Context) bool { return ctx.Value(boxKey{}) != nil }
 
 // Run changes userId's box in one MySQL transaction (READ COMMITTED): it
-// locks the user's user_state row, calls fn, writes the journal rows and the
-// new counters, and commits. See the package documentation for what fn may
-// do.
+// locks the user's user_state row, calls fn, writes the journal rows, the
+// new counters and the events, and commits. See the package documentation
+// for what fn may do.
 //
 // A deadlock, a lock wait timeout or a commit found not applied rolls the
 // attempt back and runs it again with a fresh Box: the updates, events, ids
 // and cache keys of a failed attempt are dropped. fn's own error rolls back
 // and is returned as is, without a retry. On success the Result holds the
-// committed state, the journaled updates, the events to publish and the
-// cache keys to delete; doing that is the caller's job, after Run returns.
+// committed state, the journaled updates and the cache keys to delete;
+// deleting them is the caller's job, after Run returns.
 func Run(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) error) (*Result, error) {
 	if insideRun(ctx) {
 		return nil, ErrInsideRun
@@ -194,6 +193,9 @@ func runAttempt(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) e
 	if b.err != nil {
 		return nil, false, b.err
 	}
+	if b.unfinished() {
+		return nil, false, ErrEventNotFinished
+	}
 
 	if b.allocated() {
 		if err = b.checkJournal(); err != nil {
@@ -202,6 +204,12 @@ func runAttempt(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) e
 		if err = writeState(ctx, b); err != nil {
 			return nil, false, err
 		}
+	}
+	// The events go last: the ids they take are held for the shortest
+	// time before commit, which keeps a recipient's consumer from seeing a
+	// later row before this one commits (ADR 0012, p. 2).
+	if err = writeEvents(ctx, b); err != nil {
+		return nil, false, err
 	}
 
 	ended = true

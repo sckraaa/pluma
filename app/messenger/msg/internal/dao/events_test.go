@@ -36,9 +36,13 @@ func inboxEvents(t *testing.T) []protoreflect.MessageType {
 }
 
 // Every inbox event is addressed to one user, its user_id, which is the
-// Kafka key: the events of one recipient keep their order in one partition.
+// Kafka key: the events of one recipient go to one partition, and its lane
+// of mq_outbox rows orders them.
 func TestInboxEventKeyIsRecipient(t *testing.T) {
 	d := &Dao{Topics: Topics{Inbox: "Inbox-T", Sync: "Sync-T"}}
+	if err := RegisterTopics(d.Topics); err != nil {
+		t.Fatal(err)
+	}
 	for _, mt := range inboxEvents(t) {
 		name := mt.Descriptor().FullName()
 		t.Run(string(name), func(t *testing.T) {
@@ -63,8 +67,8 @@ func TestInboxEventKeyIsRecipient(t *testing.T) {
 				t.Errorf("event %+v", ev)
 			}
 
-			b := &userbox.Box{}
-			if err = d.EmitInbox(b, in); err != nil {
+			// Its initiator may write it.
+			if err = userbox.CheckEvent(ev, 3); err != nil {
 				t.Fatal(err)
 			}
 

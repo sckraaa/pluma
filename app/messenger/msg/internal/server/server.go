@@ -25,13 +25,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	inbox_helper "github.com/teamgram/teamgram-server/app/messenger/msg/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/config"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	msg_helper "github.com/teamgram/teamgram-server/app/messenger/msg/msg"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/mqconsumer"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -44,16 +45,14 @@ import (
 
 var configFile = flag.String("f", "etc/msg.yaml", "the config file")
 
-// drainTimeout bounds the wait for running requests at shutdown: the
-// longest box transaction and the publication of its events.
 // drainTimeout is how long Destroy waits for running requests: a request
-// that started its box operation commits and publishes within it.
+// that started its box operation commits within it.
 const drainTimeout = dao.MaxRequestTime
 
 type Server struct {
 	grpcSrv *zrpc.RpcServer
-	mq      *kafka.ConsumerGroup
-	dao     *dao.Dao
+	inbox   *mqconsumer.Consumer
+	relay   *outbox.Relay
 
 	draining atomic.Bool
 	running  sync.WaitGroup
@@ -81,10 +80,9 @@ func (s *Server) Initialize() error {
 	if err != nil {
 		return err
 	}
-	s.dao = d
 
-	// Destroy waits for running requests and events; the forced exit of
-	// go-zero must not cut that short.
+	// Destroy waits for running requests and the event being applied; the
+	// forced exit of go-zero must not cut that short.
 	proc.SetTimeToForceQuit(drainTimeout + 10*time.Second)
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
@@ -93,8 +91,12 @@ func (s *Server) Initialize() error {
 	s.grpcSrv.AddUnaryInterceptors(s.track)
 	go s.grpcSrv.Start()
 
-	s.mq = inbox_helper.New(d, c.InboxConsumer)
-	go s.mq.Start()
+	// Neither needs Kafka to start: both connect in the background, and
+	// the events wait in mq_outbox meanwhile.
+	s.relay = outbox.NewRelay(d.BoxDB, c.Relay)
+	s.relay.Start()
+	s.inbox = inbox_helper.New(d, c.InboxConsumer)
+	s.inbox.Start()
 
 	return nil
 }
@@ -112,31 +114,37 @@ func (s *Server) track(ctx context.Context, req any, info *grpc.UnaryServerInfo,
 func (s *Server) RunLoop() {
 }
 
-// Destroy stops msg without losing what is committed: it refuses new
-// requests, waits for the running ones (their events are published before
-// they return), closes the inbox consumer, which waits for the event being
-// applied, and flushes the producers.
+// Destroy stops msg: it refuses new requests and, at the same time, waits
+// for the running ones and stops the inbox consumer, which lets the event
+// being applied finish; then it stops the relay, which records what the
+// broker answered. Nothing committed is lost on a harder stop either: the
+// events are rows of mq_outbox.
 func (s *Server) Destroy() {
 	s.draining.Store(true)
-	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
 	go func() {
-		s.running.Wait()
-		close(done)
+		defer wg.Done()
+		done := make(chan struct{})
+		go func() {
+			s.running.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+		case <-time.After(drainTimeout):
+			logx.Errorf("msg: requests still running after %v", drainTimeout)
+		}
 	}()
-	select {
-	case <-done:
-	case <-time.After(drainTimeout):
-		logx.Errorf("msg: requests still running after %v", drainTimeout)
-	}
-	if s.mq != nil {
-		if err := s.mq.Close(); err != nil {
-			logx.Errorf("msg: close the inbox consumer: %v", err)
+	go func() {
+		defer wg.Done()
+		if s.inbox != nil {
+			s.inbox.Stop()
 		}
-	}
-	if s.dao != nil {
-		if err := s.dao.Close(); err != nil {
-			logx.Errorf("msg: close the producers: %v", err)
-		}
+	}()
+	wg.Wait()
+	if s.relay != nil {
+		s.relay.Stop()
 	}
 	s.grpcSrv.Stop()
 }

@@ -50,6 +50,7 @@ import (
 	usernames_helper "github.com/teamgram/teamgram-server/app/bff/usernames"
 	users_helper "github.com/teamgram/teamgram-server/app/bff/users"
 	webbrowserhelper "github.com/teamgram/teamgram-server/app/bff/webbrowser"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -84,6 +85,10 @@ func (s *Server) Initialize() error {
 	// ctx := svc.NewServiceContext(c)
 	// s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
 
+	// Pushes are rows of mq_outbox in bff's database: Kafka is not on the
+	// path of a request.
+	syncClient := sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}
+
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		// tos_helper
 		mtproto.RegisterRPCTosServer(
@@ -108,7 +113,7 @@ func (s *Server) Initialize() error {
 					KV:                c.KV,
 					UserClient:        c.BizServiceClient,
 					AuthSessionClient: c.AuthSessionClient,
-					SyncClient:        c.SyncClient,
+					SyncClient:        syncClient,
 				},
 				nil))
 
@@ -132,7 +137,7 @@ func (s *Server) Initialize() error {
 					AuthsessionClient:         c.AuthSessionClient,
 					ChatClient:                c.BizServiceClient,
 					StatusClient:              c.StatusClient,
-					SyncClient:                c.SyncClient,
+					SyncClient:                syncClient,
 					MsgClient:                 c.MsgClient,
 					SignInMessage:             c.SignInMessage,
 					SignInServiceNotification: c.SignInServiceNotification,
@@ -154,7 +159,7 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				ChatClient:    c.BizServiceClient,
 				MsgClient:     c.MsgClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 			}))
 
 		// chats_helper
@@ -166,7 +171,7 @@ func (s *Server) Initialize() error {
 				ChatClient:        c.BizServiceClient,
 				MsgClient:         c.MsgClient,
 				DialogClient:      c.BizServiceClient,
-				SyncClient:        c.SyncClient,
+				SyncClient:        syncClient,
 				MediaClient:       c.MediaClient,
 				AuthsessionClient: c.AuthSessionClient,
 				IdgenClient:       c.IdgenClient,
@@ -211,7 +216,7 @@ func (s *Server) Initialize() error {
 					RpcServerConf: c.RpcServerConf,
 					UserClient:    c.BizServiceClient,
 					ChatClient:    c.BizServiceClient,
-					SyncClient:    c.SyncClient,
+					SyncClient:    syncClient,
 				},
 				nil))
 
@@ -224,7 +229,7 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				ChatClient:    c.BizServiceClient,
 				DialogClient:  c.BizServiceClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 				MessageClient: c.BizServiceClient,
 			}, nil))
 
@@ -235,7 +240,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				DialogClient:  c.BizServiceClient,
 				UserClient:    c.BizServiceClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 				ChatClient:    c.BizServiceClient,
 			}, nil))
 
@@ -259,7 +264,7 @@ func (s *Server) Initialize() error {
 				MessageClient: c.BizServiceClient,
 				MediaClient:   c.MediaClient,
 				UpdatesClient: c.BizServiceClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 			}, nil))
 
 		// notification_helper
@@ -269,7 +274,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				UserClient:    c.BizServiceClient,
 				ChatClient:    c.BizServiceClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 			}, nil))
 
 		// users_helper
@@ -313,7 +318,7 @@ func (s *Server) Initialize() error {
 					UserClient:        c.BizServiceClient,
 					AuthsessionClient: c.AuthSessionClient,
 					ChatClient:        c.BizServiceClient,
-					SyncClient:        c.SyncClient,
+					SyncClient:        syncClient,
 				},
 				nil))
 		// usernames_helper
@@ -323,7 +328,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				UserClient:    c.BizServiceClient,
 				ChatClient:    c.BizServiceClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 			}, nil))
 
 		// privacysettingshelper
@@ -334,7 +339,7 @@ func (s *Server) Initialize() error {
 				UserClient:        c.BizServiceClient,
 				AuthsessionClient: c.AuthSessionClient,
 				ChatClient:        c.BizServiceClient,
-				SyncClient:        c.SyncClient,
+				SyncClient:        syncClient,
 			}))
 
 		// savedmessagedialogshelper
@@ -346,7 +351,7 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				ChatClient:    c.BizServiceClient,
 				DialogClient:  c.BizServiceClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 				MessageClient: c.BizServiceClient,
 			}))
 
@@ -357,7 +362,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				MediaClient:   c.MediaClient,
 				UserClient:    c.BizServiceClient,
-				SyncClient:    c.SyncClient,
+				SyncClient:    syncClient,
 			}))
 
 		mtproto.RegisterRPCPasskeyServer(

@@ -2,10 +2,17 @@ package testinfra
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/teamgram/teamgram-server/pkg/outbox"
+
+	"gopkg.in/yaml.v3"
 )
 
 // TestComposeServices keeps the integration tests on what production runs:
@@ -33,8 +40,64 @@ func TestComposeServices(t *testing.T) {
 		t.Errorf("redis command %q: StartRedis runs redis-server --appendonly yes --requirepass", redisArgs)
 	}
 
-	if got := envValue(c.Services["kafka"].Environment, "KAFKA_NUM_PARTITIONS"); got != "3" {
-		t.Errorf("kafka KAFKA_NUM_PARTITIONS is %q, StartKafka uses 3", got)
+	// Topics come from topics.sh only, in production (kafka-init, the
+	// same image) and in the tests (StartKafka).
+	if got := envValue(c.Services["kafka"].Environment, "KAFKA_AUTO_CREATE_TOPICS_ENABLE"); got != "false" {
+		t.Errorf("kafka KAFKA_AUTO_CREATE_TOPICS_ENABLE is %q, want false (StartKafka sets it)", got)
+	}
+	if got := envValue(c.Services["kafka"].Environment, "KAFKA_NUM_PARTITIONS"); got != "" {
+		t.Errorf("kafka KAFKA_NUM_PARTITIONS is %q: the partitions are topics.sh's", got)
+	}
+	if init, kafka := c.Services["kafka-init"].Image, c.Services["kafka"].Image; init != kafka {
+		t.Errorf("kafka-init runs %q, kafka %q", init, kafka)
+	}
+}
+
+// TestTopicsScript: topics.sh creates every topic the services use, with the
+// partitions the relay expects, and the log topic of filebeat.
+func TestTopicsScript(t *testing.T) {
+	root, err := RepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := os.ReadFile(filepath.Join(root, TopicsScript))
+	if err != nil {
+		t.Fatal(err)
+	}
+	partitions := map[string]string{}
+	for _, m := range regexp.MustCompile(`(?m)^\s+"(\S+) (\d+) \S+"$`).FindAllStringSubmatch(string(script), -1) {
+		partitions[m[1]] = m[2]
+	}
+	used := map[string]string{"teamgram-log": "1"}
+	for file, keys := range map[string][][]string{
+		"msg.yaml":  {{"Topics", "Inbox"}, {"Topics", "Sync"}, {"InboxConsumer", "Topic"}},
+		"sync.yaml": {{"SyncConsumer", "Topic"}},
+		"bff.yaml":  {{"SyncClient", "Topic"}},
+	} {
+		for _, dir := range []string{"teamgramd/etc", "teamgramd/etc2"} {
+			b, err := os.ReadFile(filepath.Join(root, dir, file))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var conf map[string]any
+			if err = yaml.Unmarshal(b, &conf); err != nil {
+				t.Fatalf("%s/%s: %v", dir, file, err)
+			}
+			for _, path := range keys {
+				section, _ := conf[path[0]].(map[string]any)
+				topic, _ := section[path[1]].(string)
+				if topic == "" {
+					t.Errorf("%s/%s: no %s", dir, file, strings.Join(path, "."))
+					continue
+				}
+				used[topic] = strconv.Itoa(outbox.Partitions)
+			}
+		}
+	}
+	for topic, want := range used {
+		if got := partitions[topic]; got != want {
+			t.Errorf("topics.sh: %s with %q partitions, want %s", topic, got, want)
+		}
 	}
 }
 
@@ -71,7 +134,9 @@ func TestRyukImagePinned(t *testing.T) {
 func envValue(env any, name string) string {
 	switch e := env.(type) {
 	case map[string]any:
-		return fmt.Sprint(e[name])
+		if v, ok := e[name]; ok {
+			return fmt.Sprint(v)
+		}
 	case []any:
 		for _, x := range e {
 			if s, ok := x.(string); ok && strings.HasPrefix(s, name+"=") {

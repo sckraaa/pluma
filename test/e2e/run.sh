@@ -32,7 +32,7 @@ LOG_DIR=$E2E_DIR/logs
 
 # Services the tests need; everything else in docker-compose-env.yaml
 # (Elasticsearch, Kibana, filebeat, go-stash, metrics) is not started.
-SERVICES=(mysql redis kafka etcd minio minio-mc jaeger teamgram)
+SERVICES=(mysql redis kafka kafka-init etcd minio minio-mc jaeger teamgram)
 
 # Kafka consumer groups of msg and sync and the topic each reads, as
 # group:topic (InboxConsumer in teamgramd/etc2/msg.yaml, SyncConsumer in
@@ -100,9 +100,9 @@ cmd_up() {
 
 # wait_consumers waits until the Kafka consumer groups of msg and sync own
 # every partition of their topics. The container is healthy once the processes
-# run and the gateway listens, but a group gets its partitions a little later,
-# and it starts at the newest offset (sarama OffsetNewest): a message produced
-# before that is never delivered (docs/ops/testing.md, task 003).
+# run and the gateway listens, but a group gets its partitions a little later.
+# Nothing is lost meanwhile (the groups start from the oldest offset, the
+# events wait in mq_outbox), but the first pushes of a test would come late.
 wait_consumers() {
 	local deadline=$((SECONDS + CONSUMERS_TIMEOUT)) entry group topic out rows owned
 	for entry in "${CONSUMER_GROUPS[@]}"; do

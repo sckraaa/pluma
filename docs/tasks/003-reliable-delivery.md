@@ -1,8 +1,8 @@
 # 003. Надёжная доставка через Kafka и push в сессии
 
-- Статус: todo
+- Статус: in-progress (ветка `task/003-reliable-delivery`)
 - Зависит от: 002, 005
-- ADR: 0005, 0009
+- ADR: 0005, 0009, 0011; решение — 0012 (принят)
 
 ## Цель
 Ни одно сообщение и ни один апдейт не теряется и не дублируется при сбоях обработчиков, рестартах Kafka, `session` или `sync`.
@@ -21,6 +21,20 @@
 ## Критерии приёмки
 - Chaos-тесты: kill обработчика посреди пачки; рестарт Kafka; рестарт `session` — после восстановления все сообщения доставлены ровно один раз, в порядке.
 - Тест порядка: 1000 сообщений одному пользователю из разных отправителей — апдейты приходят по возрастанию `pts`.
+
+## Ход работы
+
+**Шаг A — outbox, relay, консьюмер, идемпотентность (сделан, не закоммичен).** По ADR 0012, пп. 1–6, 11:
+- Миграция `migrate-20261023-delivery.sql`: `mq_outbox`; отвязка копий без связи и повторных копий, обнуление повторных `random_id`; `messages.pts`, `out_random_id`, `UNIQUE (user_id, dialog_message_id)` и `(user_id, out_random_id)`. Скорость на MacBook — ~150 000 строк/с.
+- `pkg/userbox`: `Emit` проверяет событие (реестр топиков, получатель, 4 МиБ, inbox не самому себе) и пишет строки последними операторами перед `COMMIT` (≤ 4 МиБ на оператор); `TakeEvent`/`FinishEvent`/`KeepEvent`/`FailEvent` — применение по строке, порядок полосы, откладывание (10 раз, затем `lane_blocked`), парковка; `ErrEventNotFinished`; `Deterministic` (закрытый список); `Check` — `max_allowed_packet ≥ 16 МиБ`. `Publish` и публикация после commit удалены.
+- `pkg/outbox`: `Insert`, `Notify`, `Load`, relay (лидер по `GET_LOCK` с именем базы, раунд ≤ 500 строк и 16 МиБ, финишер с условием на `revision`, классы ошибок брокера, `RoundTimeout`/`StopRoundWait`, сверка топиков, таймер повторной доставки по offset-у группы и границам лога, автоповтор dead-полос, сброс published при лидерстве, метрики), продюсер sarama по таблице п. 4, команды оператора и `RaiseIds`.
+- `pkg/mqconsumer`: группа sarama со статическим членством, `OffsetOldest`, отметка offset-а только завершённого сообщения, временные ошибки — повтор без предела 100 мс → 30 с, детерминированные — 3 попытки и `Dead`, паника — детерминированная, метрики.
+- msg: `RunBox` без публикации, inbox-консьюмер с предпроверкой (`duplicate`, `mismatch`), хелпер `apply` с `done`, dead через `FailEvent`; relay в процессе msg; окно Redis `SendOnce` удалено — повтор `random_id` отвечает исходным ответом из журнала или `RANDOM_ID_DUPLICATE`; `pushUserMessage` — через `outbox.Insert`. sync — консьюмер на `pkg/mqconsumer`, `PushClient` удалён. bff — push-и в `mq_outbox` (`SyncClient` поверх `outbox.Insert`), Kafka ушла с пути RPC. marmota `pkg/mq` в коде больше не используется.
+- Kafka: `teamgramd/deploy/kafka/topics.sh` (16 партиций, параметры п. 4), `kafka-init` в compose, автосоздание выключено, `restart: unless-stopped`; `testinfra.StartKafka` создаёт топики тем же скриптом и держит порт хоста.
+- `pluma-admin outbox list|replay|discard`, `state-raise` поднимает AUTO_INCREMENT `mq_outbox`; `tools/boxaudit` — писать `mq_outbox` могут только `pkg/userbox` и `pkg/outbox`.
+- Тесты: юнит (событие, `TakeEvent` на фейковом драйвере, relay на фейковых хранилище и брокере, политика консьюмера на фейковой сессии), интеграционные на MySQL и Kafka (relay, путь msg с настоящими relay и консьюмером, миграция) — `docs/ops/testing.md`. Задержка в тестовом стенде: отправка → применение у получателя ~40 мс.
+
+Осталось (следующие шаги): пушер sync → session с очередью на устройство и resync, ответы `session` (п. 7); процессы по сервисам compose и остановка (п. 8); дедлайны RPC (п. 9); правила алертов (п. 10); e2e и chaos, `TestSendLatency` (п. 12).
 
 ## Результат
 —

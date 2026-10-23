@@ -30,19 +30,11 @@ import (
 // transaction and one push each.
 func (c *InboxCore) InboxDeleteMessagesToInbox(in *inbox.TLInboxDeleteMessagesToInbox) error {
 	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
-	for {
-		var left int32
-		err := c.run(in.UserId, peer, func(b *userbox.Box) error {
-			left = 0
-			deleted, err := c.svcCtx.Dao.DeleteCopies(b, in.Id)
-			if err != nil || deleted == nil {
-				return err
-			}
-			left = deleted.Left
-			return c.push(b, deleted.Update)
-		})
-		if err != nil || left == 0 {
-			return err
+	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
+		deleted, err := c.svcCtx.Dao.DeleteCopies(b, in.Id)
+		if err != nil || deleted == nil {
+			return true, err
 		}
-	}
+		return deleted.Left == 0, c.push(b, deleted.Update)
+	})
 }

@@ -23,10 +23,9 @@ Log:
 #   Batcher: otlpgrpc
   
 SyncConsumer:
-  Topics:
-    - "Sync-T"
   Brokers:
     - kafka:9092
+  Topic: "Sync-T"
   Group: "Sync-MainCommunity-S"
 
 Routine:

@@ -1,7 +1,7 @@
 # End-to-end test stack (docs/ops/testing.md): applied on top of
 # docker-compose-env.yaml and docker-compose.yaml by test/e2e/run.sh, which
-# starts only the services listed there (the core: MySQL, Redis, Kafka, etcd,
-# MinIO, Jaeger and teamgram). Elasticsearch, Kibana, filebeat, go-stash and
+# starts only the services listed there (the core: MySQL, Redis, Kafka with
+# its topics, etcd, MinIO, Jaeger and teamgram). Elasticsearch, Kibana, filebeat, go-stash and
 # the metrics stack are never started in tests.
 #
 # Everything a test run creates is thrown away with `down -v`: no fixed
@@ -14,6 +14,9 @@ services:
   kafka:
     container_name: !reset null
     ports: !reset []
+    restart: "no"
+
+  kafka-init:
     restart: "no"
 
   etcd:
@@ -70,8 +73,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
       etcd:
         condition: service_healthy
       minio-mc:

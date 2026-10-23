@@ -31,12 +31,12 @@ import (
 // copy, nothing to do.
 func (c *InboxCore) InboxEditMessageToInboxV2(in *inbox.TLInboxEditMessageToInboxV2) error {
 	bot := isBot(in.UserId, in.Users)
-	return c.run(in.UserId, nil, func(b *userbox.Box) error {
+	return c.apply(in.UserId, nil, func(b *userbox.Box) (bool, error) {
 		update, err := c.svcCtx.Dao.EditIncoming(b, in.GetNewMessage().GetDialogMessageId(), in.GetNewMessage().GetMessage())
 		if err != nil || update == nil {
-			return err
+			return true, err
 		}
-		return c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, bot,
+		return true, c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, bot,
 			mtproto.MakeUpdatesByUpdatesUsersChats(in.Users, in.Chats, update))
 	})
 }

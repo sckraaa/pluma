@@ -82,7 +82,6 @@ StatusClient:
       - 127.0.0.1:2379
     Key: service.status
 
+# Pushes are rows of mq_outbox in the database of Mysql (ADR 0012).
 SyncClient:
-  Topic:   "Sync-T"
-  Brokers:
-    - 127.0.0.1:9092
+  Topic: "Sync-T"

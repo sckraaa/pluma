@@ -237,6 +237,12 @@ func TestUsage(t *testing.T) {
 		{"state-export-legacy"},
 		{"verify-pts"},
 		{"verify-pts", "-after"},
+		{"outbox"},
+		{"outbox", "purge"},
+		{"outbox", "replay"},
+		{"outbox", "discard"},
+		{"outbox", "discard", "-id", "0"},
+		{"outbox", "list", "extra"},
 	} {
 		if code, _, _ := h.run(args...); code != 2 {
 			t.Errorf("%q: exit %d, want 2", args, code)
@@ -253,6 +259,25 @@ func TestUsage(t *testing.T) {
 	}
 	if code, _, errOut := h.run("verify-pts", "alice"); code != 1 || !strings.Contains(errOut, "invalid user id") {
 		t.Errorf("verify-pts alice: exit %d %q", code, errOut)
+	}
+	if code, _, errOut := h.run("outbox", "list", "-state", "lost"); code != 1 || !strings.Contains(errOut, "unknown event state") {
+		t.Errorf("outbox list -state lost: exit %d %q", code, errOut)
+	}
+}
+
+// TestLoadsOutboxConfig: the outbox commands find the push topic of bff.
+func TestLoadsOutboxConfig(t *testing.T) {
+	t.Setenv("MYSQL_PASSWORD", "pw")
+	t.Setenv("REDIS_PASSWORD", "rpw")
+	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
+	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
+		var c outboxConfig
+		if err := conf.Load(f, &c); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if c.SyncClient.Topic != "Sync-T" {
+			t.Errorf("%s: push topic %q", f, c.SyncClient.Topic)
+		}
 	}
 }
 

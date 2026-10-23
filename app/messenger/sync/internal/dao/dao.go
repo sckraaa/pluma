@@ -12,10 +12,8 @@ package dao
 import (
 	"sync"
 
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
-	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/config"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
@@ -32,7 +30,6 @@ type Dao struct {
 	useStreamSession bool
 	status_client.StatusClient
 	chat_client.ChatClient
-	PushClient sync_client.SyncClient
 }
 
 func New(c config.Config) *Dao {
@@ -46,10 +43,6 @@ func New(c config.Config) *Dao {
 		StatusClient:     status_client.NewStatusClient(zrpc.MustNewClient(c.StatusClient)),
 		ChatClient:       chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 	}
-	if c.PushClient != nil {
-		d.PushClient = sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.PushClient))
-	}
-
 	go d.watch(c.SessionClient)
 	return d
 }

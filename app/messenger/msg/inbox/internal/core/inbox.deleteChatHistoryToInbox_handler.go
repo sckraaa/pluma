@@ -34,33 +34,26 @@ func (c *InboxCore) InboxDeleteChatHistoryToInbox(in *inbox.TLInboxDeleteChatHis
 	return c.deleteDialog(in.UserId, mtproto.MakePeerUtil(mtproto.PEER_CHAT, in.PeerChatId), false)
 }
 
-// deleteDialog deletes userId's dialog with peer, a portion per
-// transaction, each pushed, until no message is left.
 // deleteDialog deletes userId's history of the dialog with peer in portions,
-// one transaction each. With dropRow the last portion deletes the dialog row
-// too, in its transaction: a message that arrives later creates a new row.
+// one transaction each, each pushed. With dropRow the last portion deletes
+// the dialog row too, in its transaction: a message that arrives later
+// creates a new row.
 func (c *InboxCore) deleteDialog(userId int64, peer *mtproto.PeerUtil, dropRow bool) error {
-	for {
-		var left int32
-		err := c.run(userId, peer, func(b *userbox.Box) error {
-			left = 0
-			deleted, err := c.svcCtx.Dao.DeleteDialogPortion(b, peer.PeerType, peer.PeerId)
-			if err != nil {
-				return err
-			}
-			if deleted != nil {
-				left = deleted.Left
-				if err = c.push(b, deleted.Update); err != nil {
-					return err
-				}
-			}
-			if left == 0 && dropRow {
-				_, err = c.svcCtx.Dao.DeleteDialogRow(b, peer.PeerType, peer.PeerId)
-			}
-			return err
-		})
-		if err != nil || left == 0 {
-			return err
+	return c.apply(userId, peer, func(b *userbox.Box) (bool, error) {
+		deleted, err := c.svcCtx.Dao.DeleteDialogPortion(b, peer.PeerType, peer.PeerId)
+		if err != nil {
+			return false, err
 		}
-	}
+		var left int32
+		if deleted != nil {
+			left = deleted.Left
+			if err = c.push(b, deleted.Update); err != nil {
+				return false, err
+			}
+		}
+		if left == 0 && dropRow {
+			_, err = c.svcCtx.Dao.DeleteDialogRow(b, peer.PeerType, peer.PeerId)
+		}
+		return left == 0, err
+	})
 }

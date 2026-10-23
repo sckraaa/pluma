@@ -31,12 +31,12 @@ import (
 // transaction.
 func (c *InboxCore) InboxSendUserMessageToInboxV2(in *inbox.TLInboxSendUserMessageToInboxV2) error {
 	bot := isBot(in.UserId, in.Users)
-	return c.run(in.UserId, recipientPeer(in.FromId, in.PeerType, in.PeerId), func(b *userbox.Box) error {
+	return c.apply(in.UserId, recipientPeer(in.FromId, in.PeerType, in.PeerId), func(b *userbox.Box) (bool, error) {
 		received, err := c.svcCtx.Dao.ReceiveIncoming(b, in.FromId, in.PeerType, in.PeerId, in.BoxList)
 		if err != nil || len(received.Updates) == 0 {
-			return err
+			return true, err
 		}
-		return c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, bot,
+		return true, c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, bot,
 			mtproto.MakeUpdatesByUpdatesUsersChats(in.Users, in.Chats, received.Updates...))
 	})
 }

@@ -19,7 +19,7 @@
 package config
 
 import (
-	kafka "github.com/teamgram/marmota/pkg/mq"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -28,5 +28,5 @@ type Config struct {
 	UserClient zrpc.RpcClientConf
 	ChatClient zrpc.RpcClientConf
 	MsgClient  zrpc.RpcClientConf
-	SyncClient *kafka.KafkaProducerConf
+	SyncClient sync_client.OutboxConf
 }

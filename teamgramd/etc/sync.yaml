@@ -23,10 +23,9 @@ Log:
 #  Batcher: jaeger
   
 SyncConsumer:
-  Topics:
-    - "Sync-T"
   Brokers:
     - 127.0.0.1:9092
+  Topic: "Sync-T"
   Group: "Sync-MainCommunity-S"
 
 Routine:

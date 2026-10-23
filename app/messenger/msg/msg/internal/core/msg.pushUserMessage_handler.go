@@ -69,7 +69,7 @@ func (c *MsgCore) MsgPushUserMessage(in *msg.TLMsgPushUserMessage) (*mtproto.Boo
 	}
 
 	// No box of the sender changes: the event is the whole operation, and a
-	// failure to publish it is the operation's failure.
+	// failure to write it is the operation's failure.
 	ev, err := c.svcCtx.Dao.InboxEvent(&inbox.TLInboxSendUserMessageToInboxV2{
 		UserId:   peer.PeerId,
 		FromId:   in.UserId,
@@ -90,7 +90,7 @@ func (c *MsgCore) MsgPushUserMessage(in *msg.TLMsgPushUserMessage) (*mtproto.Boo
 	if err != nil {
 		return nil, err
 	}
-	if err = c.svcCtx.Dao.PublishEvent(c.ctx, ev); err != nil {
+	if err = c.svcCtx.Dao.InsertEvent(c.ctx, ev); err != nil {
 		c.Logger.Errorf("msg.pushUserMessage - error: %v", err)
 		return nil, err
 	}

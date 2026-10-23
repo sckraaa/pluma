@@ -12,11 +12,11 @@ package server
 import (
 	"flag"
 
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/config"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/server/mq"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/svc"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/mqconsumer"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -25,7 +25,7 @@ var configFile = flag.String("f", "etc/sync.yaml", "the config file")
 
 type Server struct {
 	// grpcSrv *zrpc.RpcServer
-	mq *kafka.ConsumerGroup
+	mq *mqconsumer.Consumer
 }
 
 func New() *Server {
@@ -47,7 +47,7 @@ func (s *Server) Initialize() error {
 	s.mq = mq.New(ctx, c.SyncConsumer)
 
 	// go s.grpcSrv.Start()
-	go s.mq.Start()
+	s.mq.Start()
 
 	return nil
 }

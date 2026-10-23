@@ -19,23 +19,21 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
-	inbox_helper "github.com/teamgram/teamgram-server/app/messenger/msg/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	msg_helper "github.com/teamgram/teamgram-server/app/messenger/msg/msg"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	syncpb "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_helper "github.com/teamgram/teamgram-server/app/service/biz/dialog"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	mqoutbox "github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 // The write path of msg on MySQL and Redis (ADR 0011, p. 14): the RPC
@@ -47,27 +45,45 @@ import (
 var (
 	itDB    *testinfra.MySQL
 	itRedis *testinfra.Redis
+	itKafka *testinfra.Kafka
+	// itCheck reads what the tests check, outside msg's pools.
+	itCheck    *sql.DB
+	itDelivery *delivery
+	itTopics   = dao.Topics{Inbox: "Inbox-T", Sync: "Sync-T"}
 )
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
 	var (
 		wg   sync.WaitGroup
-		errs = make([]error, 2)
+		errs = make([]error, 3)
 	)
-	wg.Add(2)
+	wg.Add(3)
 	go func() { defer wg.Done(); itDB, errs[0] = testinfra.StartMySQL(ctx) }()
 	go func() { defer wg.Done(); itRedis, errs[1] = testinfra.StartRedis(ctx) }()
+	go func() { defer wg.Done(); itKafka, errs[2] = testinfra.StartKafka(ctx) }()
 	wg.Wait()
 
 	code := 1
-	if err := errors.Join(errs...); err != nil {
+	err := errors.Join(errs...)
+	if err == nil {
+		err = dao.RegisterTopics(itTopics)
+	}
+	if err == nil {
+		itCheck, err = sql.Open("mysql", itDB.DSN())
+	}
+	if err == nil {
+		itDelivery, err = startDelivery(ctx)
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		code = m.Run()
+		itDelivery.stop()
 	}
 	_ = itDB.Terminate(ctx)
 	_ = itRedis.Terminate(ctx)
+	_ = itKafka.Terminate(ctx)
 	os.Exit(code)
 }
 
@@ -185,106 +201,21 @@ type push struct {
 	updates *mtproto.Updates
 }
 
-// fakePublisher delivers inbox events to the inbox handlers, in order per
-// recipient, and records pushes. Each push's pts must already be committed.
-type fakePublisher struct {
-	t     testing.TB
-	check *sql.DB
-	inbox func(ctx context.Context, method, key string, value []byte)
-
-	mu      sync.Mutex
-	queues  map[int64]chan userbox.Event
-	pushes  map[int64][]push
-	pending sync.WaitGroup
-	fail    func(ev userbox.Event) error
-}
-
-func (p *fakePublisher) Publish(ctx context.Context, ev userbox.Event) error {
-	p.mu.Lock()
-	fail := p.fail
-	p.mu.Unlock()
-	if fail != nil {
-		if err := fail(ev); err != nil {
-			return err
-		}
-	}
-	if ev.Topic == "Inbox-T" {
-		p.mu.Lock()
-		q, ok := p.queues[ev.Recipient]
-		if !ok {
-			q = make(chan userbox.Event, 1024)
-			p.queues[ev.Recipient] = q
-			go func() {
-				for ev := range q {
-					p.inbox(context.Background(), ev.Method, strconv.FormatInt(ev.Recipient, 10), ev.Data)
-					p.pending.Done()
-				}
-			}()
-		}
-		p.pending.Add(1)
-		p.mu.Unlock()
-		q <- ev
-		return nil
-	}
-
-	var (
-		updates *mtproto.Updates
-		notMe   bool
-	)
-	switch ev.Method {
-	case "sync.TL_sync_updatesNotMe":
-		var in syncpb.TLSyncUpdatesNotMe
-		if err := json.Unmarshal(ev.Data, &in); err != nil {
-			return err
-		}
-		updates, notMe = in.Updates, true
-	case "sync.TL_sync_pushUpdates":
-		var in syncpb.TLSyncPushUpdates
-		if err := json.Unmarshal(ev.Data, &in); err != nil {
-			return err
-		}
-		updates = in.Updates
-	default:
-		p.t.Errorf("unexpected event %s", ev.Method)
-		return nil
-	}
-	st, err := userbox.Read(ctx, p.check, ev.Recipient)
-	if err != nil {
-		return err
-	}
-	for _, u := range updates.GetUpdates() {
-		if u.GetPts_INT32() > st.Pts {
-			p.t.Errorf("push of %s with pts %d to user %d before commit (committed pts %d)", u.GetPredicateName(), u.GetPts_INT32(), ev.Recipient, st.Pts)
-		}
-	}
-	p.mu.Lock()
-	p.pushes[ev.Recipient] = append(p.pushes[ev.Recipient], push{notMe: notMe, updates: updates})
-	p.mu.Unlock()
-	return nil
-}
-
-// drain waits until every inbox event published so far, and every event
-// they caused, is applied.
-func (p *fakePublisher) drain() { p.pending.Wait() }
-
-func (p *fakePublisher) pushesTo(userId int64) []push {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return slices.Clone(p.pushes[userId])
-}
-
-// world is msg over the test MySQL and Redis.
+// world is msg over the test MySQL and Redis, with the delivery of
+// production: the relay publishes mq_outbox to Kafka, the inbox consumer
+// applies the inbox events, and the push reader reads Sync-T as sync does.
 type world struct {
 	t     *testing.T
 	d     *dao.Dao
 	rpc   msg.RPCMsgServer
-	pub   *fakePublisher
+	pub   *worldDelivery
 	check *sql.DB
 	users *fakeUsers
 	chats *fakeChats
 }
 
 // newWorld builds msg on the pool of dsn; maxConns limits the pool when > 0.
+// The inbox consumer of the package applies the events with this world.
 func newWorld(t *testing.T, dsn string, maxConns int) *world {
 	t.Helper()
 	db := sqlx.NewMySQL(&sqlx.Config{DSN: dsn})
@@ -298,17 +229,12 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 	if err = userbox.Check(context.Background(), boxDB); err != nil {
 		t.Fatal(err)
 	}
-	check, err := sql.Open("mysql", itDB.DSN())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = check.Close() })
-
 	w := &world{
 		t:     t,
-		check: check,
+		check: itCheck,
 		users: &fakeUsers{blocked: map[[2]int64]bool{}},
 		chats: &fakeChats{members: map[int64][]int64{}},
+		pub:   &worldDelivery{delivery: itDelivery, t: t},
 	}
 	w.d = &dao.Dao{
 		Mysql:       dao.NewMysqlDao(db, 1),
@@ -316,19 +242,11 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 		IdGenerator: snowflake{},
 		UserClient:  w.users,
 		ChatClient:  w.chats,
-		Redis:       redis.MustNewRedis(itRedis.RedisConf()),
 		BoxDB:       boxDB,
-		Topics:      dao.Topics{Inbox: "Inbox-T", Sync: "Sync-T"},
+		Topics:      itTopics,
 	}
-	w.pub = &fakePublisher{
-		t:      t,
-		check:  check,
-		inbox:  inbox_helper.Handler(w.d),
-		queues: map[int64]chan userbox.Event{},
-		pushes: map[int64][]push{},
-	}
-	w.d.Publisher = w.pub
 	w.rpc = msg_helper.New(w.d, nil)
+	itDelivery.use(w.d)
 	t.Cleanup(w.pub.drain)
 	return w
 }
@@ -986,44 +904,15 @@ func TestFirstMessageInvalidatesDialogLists(t *testing.T) {
 	}
 }
 
-// brokenCache fails to cache the reply of a send.
-type brokenCache struct{}
-
-func (brokenCache) TryGetCacheValue(context.Context, any) (bool, error) { return false, nil }
-func (brokenCache) Lock(context.Context, int) (bool, error)             { return true, nil }
-func (brokenCache) Unlock(context.Context) error                        { return nil }
-func (brokenCache) SetCacheValue(context.Context, any, int) error {
-	return errors.New("redis down")
-}
-
-// TestSendWithBrokenIdempotencyCache: the reply cannot be cached after
-// commit; the send still succeeds, with one message.
-func TestSendWithBrokenIdempotencyCache(t *testing.T) {
-	w := newWorld(t, boxDSN(""), 0)
-	w.d.SetIdempotentStore(func(string) dao.IdempotentStore { return brokenCache{} })
-	a, b := newUser(), newUser()
-	if ids := sentIds(w.send(a, mtproto.PEER_USER, b, "once")); len(ids) != 1 {
-		t.Fatalf("sent %v", ids)
-	}
-	w.pub.drain()
-	if n := len(w.messages(a)); n != 1 {
-		t.Errorf("A has %d messages", n)
-	}
-	if n := len(w.messages(b)); n != 1 {
-		t.Errorf("B has %d messages", n)
-	}
-}
-
-// TestInboxEvents: an event to its own initiator is refused; an event whose
-// recipient is locked longer than a box transaction may wait is applied
-// once the lock goes.
+// TestInboxEvents: an event to its own initiator is dead at once, applied
+// to nobody; an event whose recipient is locked longer than a box
+// transaction may wait is applied once the lock goes.
 func TestInboxEvents(t *testing.T) {
 	w := newWorld(t, boxDSN(""), 0)
 	ctx := context.Background()
 	a, b := newUser(), newUser()
-	handle := inbox_helper.Handler(w.d)
 
-	event := func(to, from int64) []byte {
+	event := func(to, from int64) userbox.Event {
 		data, err := json.Marshal(&inbox.TLInboxSendUserMessageToInboxV2{
 			UserId: to, FromId: from, PeerType: mtproto.PEER_USER, PeerId: to,
 			BoxList: []*mtproto.MessageBox{{
@@ -1035,14 +924,18 @@ func TestInboxEvents(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return data
+		return userbox.Event{Topic: "Inbox-T", Recipient: to, Method: "inbox.TL_inbox_sendUserMessageToInboxV2", Data: data}
 	}
-	method := "inbox.TL_inbox_sendUserMessageToInboxV2"
 
-	handle(ctx, method, strconv.FormatInt(a, 10), event(a, a))
+	self, err := mqoutbox.Insert(ctx, w.d.BoxDB, event(a, a))
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitState(t, self, userbox.EventDead)
 	if st := w.state(a); st.Pts != userbox.BasePts {
 		t.Errorf("event to its initiator applied: %+v", st)
 	}
+	discard(t, self)
 
 	// Hold B's box past the budget of a box transaction.
 	lock, err := w.check.BeginTx(ctx, nil)
@@ -1058,8 +951,11 @@ func TestInboxEvents(t *testing.T) {
 		close(released)
 	})
 	start := time.Now()
-	handle(ctx, method, strconv.FormatInt(b, 10), event(b, a))
+	if _, err = mqoutbox.Insert(ctx, w.d.BoxDB, event(b, a)); err != nil {
+		t.Fatal(err)
+	}
 	<-released
+	w.pub.drain()
 	if n := len(w.messages(b)); n != 1 {
 		t.Errorf("after %v, B has %d messages", time.Since(start).Round(time.Second), n)
 	}

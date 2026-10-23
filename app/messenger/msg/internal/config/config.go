@@ -19,23 +19,32 @@
 package config
 
 import (
-	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/mqconsumer"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/zeromicro/go-zero/core/stores/cache"
-	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
-	InboxConsumer    kafka.KafkaConsumerConf
 	Mysql            sqlx.Config
 	Cache            cache.CacheConf
 	IdgenClient      zrpc.RpcClientConf
 	BizServiceClient zrpc.RpcClientConf
-	InboxClient      *kafka.KafkaProducerConf
-	SyncClient       *kafka.KafkaProducerConf
-	BotSyncClient    *kafka.KafkaProducerConf `json:",optional"`
-	MessageSharding  int                      `json:",default=1"`
-	Redis2           redis.RedisConf
+	// Topics of the events msg writes; the relay of msg publishes them.
+	Topics Topics
+	// Relay publishes mq_outbox to Kafka (pkg/outbox).
+	Relay outbox.RelayConf
+	// InboxConsumer applies the inbox events (pkg/mqconsumer).
+	InboxConsumer   mqconsumer.Conf
+	MessageSharding int `json:",default=1"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// Topics are the Kafka topics of msg's events.
+type Topics struct {
+	Inbox string // inbox events, applied by msg itself
+	Sync  string // pushes to users' devices
+	// BotSync gets the pushes to bots; empty when bots are not served.
+	BotSync string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

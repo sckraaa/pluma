@@ -16,7 +16,6 @@ import (
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/svc"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/status/status"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -162,10 +161,7 @@ func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId
 				})
 		}
 	} else {
-		var (
-			pushExcludeList   = make([]int64, 0)
-			serverIdKeyIdList = make(map[string][]int64)
-		)
+		serverIdKeyIdList := make(map[string][]int64)
 
 		statusList, _ := c.svcCtx.Dao.StatusClient.StatusGetUserOnlineSessions(c.ctx, &status.TLStatusGetUserOnlineSessions{
 			UserId: userId,
@@ -175,7 +171,6 @@ func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId
 			if syncType == syncTypeUserNotMe && sess.AuthKeyId == permAuthKeyId {
 				continue
 			}
-			pushExcludeList = append(pushExcludeList, sess.PermAuthKeyId)
 			if keyIdList, ok := serverIdKeyIdList[sess.Gateway]; ok {
 				keyIdList = append(keyIdList, sess.AuthKeyId)
 				serverIdKeyIdList[sess.Gateway] = keyIdList
@@ -196,17 +191,6 @@ func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId
 						Notification:  notification,
 						Updates:       pushData,
 					})
-			}
-		}
-
-		if syncType == syncTypeUser {
-			if c.svcCtx.Dao.PushClient != nil {
-				c.Logger.Debugf("push PushClient...")
-				_, _ = c.svcCtx.Dao.PushClient.SyncPushUpdatesIfNot(c.ctx, &sync.TLSyncPushUpdatesIfNot{
-					UserId:   userId,
-					Excludes: pushExcludeList,
-					Updates:  pushData,
-				})
 			}
 		}
 	}
