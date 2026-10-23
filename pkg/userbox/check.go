@@ -61,14 +61,15 @@ func Check(ctx context.Context, db *sql.DB) error {
 
 // CheckRPCTimeout verifies the deadline of an RPC, in milliseconds as in a
 // go-zero config (name is its key), whose handler runs a box operation that
-// takes up to need: 0 (no deadline) or at least need. A shorter deadline
-// ends a request waiting for a busy user's lock with a bare
-// DeadlineExceeded instead of the operation's own error, and a COMMIT that
-// went through then answers the client with an error.
+// takes up to need. 0 (no deadline) is refused: a request without a deadline
+// can hang forever (ADR 0012, p. 9). A deadline shorter than need ends a
+// request waiting for a busy user's lock with a bare DeadlineExceeded
+// instead of the operation's own error, and a COMMIT that went through then
+// answers the client with an error.
 func CheckRPCTimeout(name string, timeoutMs int64, need time.Duration) error {
-	if timeoutMs == 0 || time.Duration(timeoutMs)*time.Millisecond >= need {
+	if timeoutMs > 0 && time.Duration(timeoutMs)*time.Millisecond >= need {
 		return nil
 	}
-	return fmt.Errorf("userbox: %s is %d ms, want 0 (no deadline) or at least %d ms: the box operations behind it take up to %v",
+	return fmt.Errorf("userbox: %s is %d ms, want at least %d ms: the box operations behind it take up to %v",
 		name, timeoutMs, need.Milliseconds(), need)
 }

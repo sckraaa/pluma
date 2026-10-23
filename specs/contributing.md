@@ -39,7 +39,7 @@ This document covers branching, PR rules, code style, commit messages, and local
 
 ### Run services
 
-- `cd teamgramd/bin && ./runall2.sh` (or `./runall-docker.sh` in Docker).
+- `cd teamgramd/bin && ./runall2.sh` (in Docker every service is its own compose service, see `docker-compose.yaml`).
 
 ### Tests
 

@@ -4,7 +4,7 @@ Etcd:
   Hosts:
     - etcd:2379
   Key: service.media
-Timeout: 0
+Timeout: 120000
 Log:
   ServiceName: service.media
   #Mode: file
@@ -38,4 +38,4 @@ Dfs:
     Hosts:
       - etcd:2379
     Key: service.dfs
-  Timeout: 0
+  Timeout: 120000

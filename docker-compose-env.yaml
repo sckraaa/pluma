@@ -241,6 +241,7 @@ services:
       TZ: Asia/Shanghai
     volumes:
       - ./teamgramd/deploy/prometheus/server/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./teamgramd/deploy/prometheus/server/rules:/etc/prometheus/rules:ro
       - ./data/prometheus/data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'

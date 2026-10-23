@@ -27,11 +27,13 @@ Cache:
     Pass: "${REDIS_PASSWORD}"
 
 AuthSession:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379
     Key: service.authsession
 StatusClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379
@@ -48,7 +50,7 @@ BFFProxyClients:
         Hosts:
           - 127.0.0.1:2379
         Key: bff.bff
-      Timeout: 0
+      Timeout: 150000
   IDMap:
     "/mtproto.RPCTos": "bff.bff"
     #"/mtproto.RPCReports": "bff.bff"

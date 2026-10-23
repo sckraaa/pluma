@@ -4,7 +4,7 @@ Etcd:
   Hosts:
     - 127.0.0.1:2379
   Key: bff.bff
-Timeout: 0
+Timeout: 150000
 Log:
   ServiceName: bff.bff
   Mode: file
@@ -49,6 +49,7 @@ BizServiceClient:
   # Covers the box transactions of dialog (checked at start).
   Timeout: 30000
 AuthSessionClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379
@@ -58,8 +59,9 @@ MediaClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.media
-  Timeout: 0
+  Timeout: 120000
 IdgenClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379
@@ -69,14 +71,15 @@ MsgClient:
     Hosts:
       - 127.0.0.1:2379
     Key: messenger.msg
-  Timeout: 0
+  Timeout: 45000
 DfsClient:
   Etcd:
     Hosts:
       - 127.0.0.1:2379
     Key: service.dfs
-  Timeout: 0
+  Timeout: 120000
 StatusClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379

@@ -1,0 +1,106 @@
+# Delivery alerts (ADR 0012, p. 10). They fire also when the metrics are
+# missing: a process that is down or in a restart loop exports nothing, so
+# every "is it working" rule has an absent() or up == 0 branch.
+groups:
+  - name: delivery
+    rules:
+      - alert: DeliveryServiceDown
+        expr: up{job=~"messenger.msg|messenger.sync|interface.session"} == 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: "Messages are not applied or pushed while it is down. docs/ops/delivery.md"
+
+      - alert: DeliveryRelayDown
+        expr: absent(outbox_relay_leader) or max(outbox_relay_leader) < 1
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "No outbox relay leader"
+          description: "Nothing is published to Kafka: events stay in mq_outbox. docs/ops/delivery.md"
+
+      - alert: DeliveryKafkaDown
+        expr: max(outbox_relay_connected) < 1
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "The relay cannot reach Kafka"
+          description: "Events stay in mq_outbox until Kafka is back. docs/ops/delivery.md"
+
+      - alert: DeliveryTopicNotReady
+        expr: min(outbox_topic_ready) < 1
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "A delivery topic is missing or misconfigured"
+          description: "Run teamgramd/deploy/kafka/topics.sh. docs/ops/delivery.md"
+
+      - alert: DeliveryOutboxBacklog
+        expr: outbox_oldest_unapplied_seconds > 30
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "Outbox events older than 30 s are not applied"
+          description: "Recipients do not get messages. docs/ops/delivery.md"
+
+      - alert: DeliveryDeadEvents
+        expr: outbox_rows{state=~"dead|parked"} > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $value }} outbox events are {{ $labels.state }}"
+          description: "Inspect with pluma-admin outbox list; replay after the fix. docs/ops/delivery.md"
+
+      - alert: DeliveryConsumerStuck
+        expr: mq_consumer_stuck_seconds > 120
+        labels: {severity: critical}
+        annotations:
+          summary: "A consumer retries one message of {{ $labels.topic }}/{{ $labels.partition }} for over 2 minutes"
+          description: "The partition is blocked for every user on it. docs/ops/delivery.md"
+
+      - alert: DeliveryPartitionsUnassigned
+        expr: absent(mq_consumer_assigned_partitions) or sum by (group) (mq_consumer_assigned_partitions) < 16
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "Consumer group {{ $labels.group }} does not own all 16 partitions"
+          description: "Events on unowned partitions are not consumed. docs/ops/delivery.md"
+
+      - alert: DeliveryLag
+        expr: min_over_time(kafka_group_lag[2m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Lag of {{ $labels.group }} on {{ $labels.topic }} did not reach 0 for 2 minutes"
+
+      - alert: DeliveryConsumerSlow
+        expr: histogram_quantile(0.95, sum by (le) (rate(mq_consumer_event_age_seconds_bucket{topic="Inbox-T"}[5m]))) > 5
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "p95 from the sender's commit to the recipient's box is above 5 s"
+
+      - alert: DeliveryRedelivered
+        expr: increase(outbox_redelivered_total{reason!="leader"}[15m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "The relay published events again ({{ $labels.reason }})"
+          description: "A consumer skipped a copy or it left the Kafka log."
+
+      - alert: DeliveryPublishErrors
+        expr: increase(outbox_publish_errors_total{kind!="transient"}[15m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Non-transient publish errors on {{ $labels.topic }} ({{ $labels.kind }})"
+
+      - alert: DeliveryForeignEvents
+        expr: increase(mq_consumer_events_total{outcome="mismatch"}[15m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Consumers saw events that do not match their outbox rows"
+
+      - alert: PushDropped
+        expr: increase(sync_push_total{outcome="dropped"}[10m]) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Pushes to devices were dropped"
+          description: "The devices got updatesTooLong and caught up with getDifference."

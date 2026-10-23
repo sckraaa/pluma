@@ -4,7 +4,7 @@ Etcd:
   Hosts:
     - 127.0.0.1:2379
   Key: service.dfs
-Timeout: 0
+Timeout: 120000
 Log:
   ServiceName: service.dfs
   Mode: file
@@ -29,7 +29,7 @@ MiniHttp:
   Name: service.dfs.minihttp
   Host: 127.0.0.1
   Port: 11701
-  Timeout: 0
+  Timeout: 120000
 Cache:
   - Host: 127.0.0.1:6379
     Pass: "${REDIS_PASSWORD}"
@@ -44,6 +44,7 @@ Minio:
     Videos: videos
     EncryptedFiles: encryptedfiles
 IdGen:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379

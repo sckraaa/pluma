@@ -21,14 +21,17 @@
 
 ## Дедлайны RPC
 
-Запрос, за которым транзакция ящика, должен жить дольше неё, иначе ожидание блокировки занятого пользователя заканчивается голым `DeadlineExceeded`, а `COMMIT`, успевший пройти, отвечает клиенту ошибкой. Проверяет `userbox.CheckRPCTimeout` при старте: значение 0 (без дедлайна) или не меньше длительности операции, иначе сервис не запускается.
+Запрос, за которым транзакция ящика, должен жить дольше неё, иначе ожидание блокировки занятого пользователя заканчивается голым `DeadlineExceeded`, а `COMMIT`, успевший пройти, отвечает клиенту ошибкой. Значение 0 (без дедлайна) запрещено: такой запрос может висеть вечно (ADR 0012, п. 9). При старте проверяет `userbox.CheckRPCTimeout`; всю цепочку «клиент ждёт не меньше сервера» — тест `TestRPCTimeouts` в `pkg/conf`.
 
-| Где | Значение в `teamgramd/etc*` | Нужно не меньше |
+| Где | Значение в `teamgramd/etc*` | Почему |
 |---|---|---|
-| `Timeout` biz | 30000 | `dialog.MaxBoxOpTime` = 26 с (сброс кэша 5 с, `Run` до 16 с, сброс кэша 5 с) |
-| `BizServiceClient.Timeout` в bff | 30000 | то же |
-| `Timeout` msg | 0 | `MaxRequestTime` msg = `MaxBoxOpTime` = 26 с (сброс кэша, `Run`, сброс кэша); Kafka и Redis-окно идемпотентности с пути запроса ушли (ADR 0012) |
-| `MsgClient.Timeout` в bff | 0 | то же (не проверяется при старте: держать 0) |
+| `Timeout` msg | 40000 | `MaxRequestTime` msg = 26 с плюс запрос до транзакции |
+| `MsgClient.Timeout` в bff | 45000 | не меньше сервера msg |
+| `Timeout` biz, `BizServiceClient.Timeout` в bff | 30000 | `dialog.MaxBoxOpTime` = 26 с |
+| `BizServiceClient.Timeout` в msg, `ChatClient.Timeout` в sync | 5000 | только чтения |
+| клиенты idgen, status, authsession, `SessionClient` sync | 2000 | короткие вызовы; повторы и resync — у вызывающего |
+| `Timeout` media и dfs, `MiniHttp` dfs, клиенты media и dfs | 120000 | загрузка и обработка больших файлов |
+| `Timeout` bff, `BFFProxyClients` в session | 150000 | не меньше любого вызова bff |
 
 Образ MySQL из `docker-compose-env.yaml` (8.0) с параметрами по умолчанию требованиям сервера удовлетворяет; это проверяет интеграционный тест `TestCheckServerSettings` в `pkg/userbox`.
 

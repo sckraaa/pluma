@@ -25,7 +25,7 @@
 | `make apicoverage` | перегенерирует `docs/project/api-coverage.md` |
 | `make apicoverage-check` | падает, если `docs/project/api-coverage.md` не совпадает с тем, что генерирует инструмент из текущего кода. Рабочее дерево не меняет |
 | `make actionlint` | проверяет workflow-файлы GitHub Actions, в том числе `run:`-блоки закреплённым shellcheck |
-| `make shellcheck` | shellcheck наших скриптов: `test/e2e/run.sh`, `teamgramd/docker/healthcheck.sh` |
+| `make shellcheck` | shellcheck наших скриптов: `test/e2e/run.sh`, `teamgramd/deploy/kafka/topics.sh` |
 | `make ci` | build → vet → test → test-race → lint → vuln → сводка apicoverage → apicoverage-check → actionlint → shellcheck |
 
 `make` без аргументов, как и раньше, собирает бинарники сервисов (`all`). `make ci` не включает `test-integration` и `e2e`: им нужен Docker, в CI они идут отдельными задачами.
@@ -180,12 +180,12 @@ E2E_KEEP=1 make e2e                      # не останавливать ст�
 | `make e2e`, кэш сборки прогрет | ~2,5 мин: сборка образа ~75 с, подъём стека до healthy ~25 с, тест ~20 с (из них 1200 отправок `TestDeleteHistoryInPortions` ~12 с), остановка ~20 с |
 | `make e2e` с нуля | ~4 мин: сборка без кэша ~3 мин (больше всего времени и памяти, до ~4,3 ГБ, уходит на `teamgram/proto/mtproto`) |
 
-Остановка занимает 20 секунд, потому что контейнер teamgram не обрабатывает SIGTERM: ENTRYPOINT в shell-форме, и `docker compose down` ждёт таймаут, а потом убивает процесс. Это исправляется в задаче 004.
+Сервисы получают SIGTERM напрямую (exec-форма в `docker-compose.yaml`) и завершаются в пределах своего `stop_grace_period`.
 
 В CI кэша сборки Docker нет, поэтому задача e2e каждый раз собирает образ с нуля.
 
 ## Readiness стека
 
-Сервисы в контейнере teamgram стартуют по очереди, примерно за 15 секунд. Образ объявляет `HEALTHCHECK` (`teamgramd/docker/healthcheck.sh`): контейнер считается healthy, когда запущены все 11 процессов и gnetway принимает соединения на 10443. Если какой-то процесс упал, контейнер становится unhealthy. Перезапускать его пока некому: супервизора процессов нет, это задача 004. `up --wait` в e2e ждёт именно этого состояния. Без healthcheck тест подключался раньше, чем поднимался gateway, и получал EOF.
+Каждый сервис teamgram — отдельный сервис compose на одном образе (`docker-compose.yaml`); в e2e они не перезапускаются (`TEAMGRAM_RESTART=no`), и после тестов `run.sh` проверяет, что ни один не завершился: падение валит прогон, а не прячется за перезапуском. `up --wait` ждёт healthcheck gnetway (порт 10443 принимает соединения), затем `run.sh` ждёт, пока группы консьюмеров получат все партиции. Образ e2e (`pluma-e2e-teamgram:local`) удаляется при `down`, кэш сборки Go остаётся в BuildKit (`E2E_KEEP_IMAGE=1` — оставить и образ).
 
-Топики создаёт одноразовый сервис `kafka-init` (`teamgramd/deploy/kafka/topics.sh`); в e2e контейнер teamgram ждёт его завершения. Consumer group Kafka (`Inbox-MainCommunity-S` у msg, `Sync-MainCommunity-S` у sync) читают с `OffsetOldest`, события ждут в `mq_outbox`, пока брокера нет, поэтому сообщения до назначения партиций не теряются. `run.sh up` после `up --wait` всё равно ждёт, пока обе группы не получат все партиции своих топиков (опрашивает `kafka-consumer-groups.sh --describe` раз в секунду, не дольше 120 секунд): иначе первые пуши теста пришли бы с задержкой.
+Топики создаёт одноразовый сервис `kafka-init` (`teamgramd/deploy/kafka/topics.sh`); в e2e сервисы teamgram ждут его завершения. Consumer group Kafka (`Inbox-MainCommunity-S` у msg, `Sync-MainCommunity-S` у sync) читают с `OffsetOldest`, события ждут в `mq_outbox`, пока брокера нет, поэтому сообщения до назначения партиций не теряются. `run.sh up` после `up --wait` всё равно ждёт, пока обе группы не получат все партиции своих топиков (опрашивает `kafka-consumer-groups.sh --describe` раз в секунду, не дольше 120 секунд): иначе первые пуши теста пришли бы с задержкой.

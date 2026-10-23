@@ -11,7 +11,7 @@ func TestCheckRPCTimeout(t *testing.T) {
 		ms int64
 		ok bool
 	}{
-		{0, true},       // no deadline
+		{0, false},      // no deadline: refused
 		{26_000, true},  // exactly the operation's limit
 		{30_000, true},  // more
 		{2_000, false},  // go-zero's default

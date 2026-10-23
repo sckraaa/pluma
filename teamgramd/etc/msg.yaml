@@ -4,7 +4,7 @@ Etcd:
   Hosts:
     - 127.0.0.1:2379
   Key: messenger.msg
-Timeout: 0
+Timeout: 40000
 Log:
   ServiceName: messenger.msg
   Mode: file
@@ -54,12 +54,14 @@ InboxConsumer:
   Group: "Inbox-MainCommunity-S"
 
 IdgenClient:
+  Timeout: 2000
   Etcd:
     Hosts:
       - 127.0.0.1:2379
     Key: service.idgen
 
 BizServiceClient:
+  Timeout: 5000
   Etcd:
     Hosts:
       - 127.0.0.1:2379

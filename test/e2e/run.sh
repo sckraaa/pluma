@@ -6,7 +6,7 @@
 #   test/e2e/run.sh test       run the Go e2e tests against the running stack
 #   test/e2e/run.sh logs       save service logs to $E2E_DIR/logs
 #   test/e2e/run.sh down       stop the stack, delete its volumes and the secrets
-#   test/e2e/run.sh admin ...  run tools/pluma-admin inside the teamgram container
+#   test/e2e/run.sh admin ...  run tools/pluma-admin inside the bff container
 #   test/e2e/run.sh compose .. any docker compose command on the test project
 #
 # Environment:
@@ -30,9 +30,17 @@ ENV_FILE=$E2E_DIR/env
 KEY_FILE=$E2E_DIR/server_pkcs1.key
 LOG_DIR=$E2E_DIR/logs
 
-# Services the tests need; everything else in docker-compose-env.yaml
-# (Elasticsearch, Kibana, filebeat, go-stash, metrics) is not started.
-SERVICES=(mysql redis kafka kafka-init etcd minio minio-mc jaeger teamgram)
+# Teamgram services (docker-compose.yaml) and the infrastructure the tests
+# need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
+# filebeat, go-stash, metrics) is not started.
+TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync bff session gnetway)
+SERVICES=(mysql redis kafka kafka-init etcd minio minio-mc jaeger "${TEAMGRAM_SERVICES[@]}")
+
+# One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
+# (the Go build cache stays in BuildKit, so the next build is quick).
+export TEAMGRAM_IMAGE=${TEAMGRAM_IMAGE:-pluma-e2e-teamgram:local}
+# A crash must fail the test, not be hidden by a restart.
+export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
 
 # Kafka consumer groups of msg and sync and the topic each reads, as
 # group:topic (InboxConsumer in teamgramd/etc2/msg.yaml, SyncConsumer in
@@ -91,11 +99,22 @@ EOF
 cmd_up() {
 	gen_secrets || return
 	log "building the teamgram image"
-	compose build teamgram || return
+	compose build gnetway || return
 	log "starting ${SERVICES[*]}"
 	compose up --detach --wait --wait-timeout 300 "${SERVICES[@]}" || return
 	wait_consumers || return
 	log "stack is up; gateway at $(gateway_addr)"
+}
+
+# check_running fails when a teamgram service has exited: with restarts off
+# a crash during the tests must fail them.
+check_running() {
+	local exited
+	exited=$(compose ps --all --status exited --format '{{.Service}}' "${TEAMGRAM_SERVICES[@]}") || return
+	if [[ -n $exited ]]; then
+		log "services exited during the run: $(tr '\n' ' ' <<<"$exited")"
+		return 1
+	fi
 }
 
 # wait_consumers waits until the Kafka consumer groups of msg and sync own
@@ -131,7 +150,7 @@ wait_consumers() {
 }
 
 gateway_addr() {
-	compose port teamgram 10443
+	compose port gnetway 10443
 }
 
 cmd_test() {
@@ -145,7 +164,8 @@ cmd_test() {
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 10m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/...
-	)
+	) || return
+	check_running
 }
 
 cmd_logs() {
@@ -160,7 +180,10 @@ cmd_logs() {
 
 cmd_down() {
 	if [[ -f $ENV_FILE ]]; then
-		compose down --volumes --remove-orphans --timeout 20 || true
+		compose down --volumes --remove-orphans --timeout 60 || true
+	fi
+	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
+		docker image rm "$TEAMGRAM_IMAGE" >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
@@ -192,7 +215,7 @@ down) cmd_down ;;
 all) cmd_all ;;
 admin)
 	shift
-	compose exec -T teamgram /app/bin/pluma-admin -f /app/etc2/bff.yaml "$@"
+	compose exec -T bff ./pluma-admin -f ../etc2/bff.yaml "$@"
 	;;
 compose)
 	shift

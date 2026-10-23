@@ -1,7 +1,7 @@
 # End-to-end test stack (docs/ops/testing.md): applied on top of
 # docker-compose-env.yaml and docker-compose.yaml by test/e2e/run.sh, which
 # starts only the services listed there (the core: MySQL, Redis, Kafka with
-# its topics, etcd, MinIO, Jaeger and teamgram). Elasticsearch, Kibana, filebeat, go-stash and
+# its topics, etcd, MinIO, Jaeger and the teamgram services). Elasticsearch, Kibana, filebeat, go-stash and
 # the metrics stack are never started in tests.
 #
 # Everything a test run creates is thrown away with `down -v`: no fixed
@@ -62,12 +62,11 @@ services:
     depends_on: !reset []
     restart: "no"
 
-  teamgram:
-    image: pluma-e2e-teamgram
-    # An ephemeral port on the loopback interface; run.sh asks Docker for it.
-    ports: !override
-      - "127.0.0.1::10443"
-    restart: "no"
+  # The teamgram services take their image and restart policy from
+  # TEAMGRAM_IMAGE and TEAMGRAM_RESTART (set by run.sh); here they only wait
+  # for the infrastructure. The others start after these (depends_on chain in
+  # docker-compose.yaml).
+  idgen: &needs-infra
     depends_on:
       mysql:
         condition: service_healthy
@@ -81,6 +80,14 @@ services:
         condition: service_completed_successfully
       jaeger:
         condition: service_started
+  status: *needs-infra
+  authsession: *needs-infra
+  dfs: *needs-infra
+
+  gnetway:
+    # An ephemeral port on the loopback interface; run.sh asks Docker for it.
+    ports: !override
+      - "127.0.0.1::10443"
 
 networks:
   teamgram_net:
