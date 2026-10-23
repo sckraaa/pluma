@@ -24,15 +24,12 @@ Log:
 #  Batcher: jaeger
   
 Mysql:
-  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true&innodb_lock_wait_timeout=2"
   Active: 64
   Idle: 64
   IdleTimeout: 4h
 Cache:
   - Host: localhost:6379
-    Pass: "${REDIS_PASSWORD}"
-KV:
-  - Host: 127.0.0.1:6379
     Pass: "${REDIS_PASSWORD}"
 
 InboxConsumer:

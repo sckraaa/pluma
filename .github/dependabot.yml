@@ -29,9 +29,10 @@ updates:
       interval: weekly
       day: monday
     ignore:
-      # The vendored copy under third_party (replace in go.mod); a new layer
-      # is a deliberate update (ADR 0008, ADR 0009).
+      # The vendored copies under third_party (replace in go.mod); a new layer
+      # or marmota release is a deliberate update (ADR 0008, ADR 0009).
       - dependency-name: github.com/teamgram/proto
+      - dependency-name: github.com/teamgram/marmota
     groups:
       go-minor-patch:
         update-types: [minor, patch]

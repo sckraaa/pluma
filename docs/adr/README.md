@@ -16,3 +16,4 @@
 | [0008](0008-client-layer-pinning.md) | Закрепление версий клиентов по layer | accepted |
 | [0009](0009-dependency-forks.md) | Свои копии teamgram/proto и teamgram/marmota в third_party | accepted |
 | [0010](0010-cloud-client-builds.md) | Сборка клиентов в облаке (публичные репо, GitHub Actions) | accepted |
+| [0011](0011-durable-sequences.md) | Долговечные счётчики: состояние ящика пользователя в MySQL и одна транзакция на ящик | accepted |

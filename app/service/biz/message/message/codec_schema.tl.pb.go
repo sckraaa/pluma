@@ -106,19 +106,9 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1348859861,
 		}
 	},
-	-182391344: func() mtproto.TLObject { // 0xf520edd0
-		return &TLMessageUpdatePinnedMessageId{
-			Constructor: -182391344,
-		}
-	},
 	-637415203: func() mtproto.TLObject { // 0xda01d0dd
 		return &TLMessageGetPinnedMessageIdList{
 			Constructor: -637415203,
-		}
-	},
-	-368432525: func() mtproto.TLObject { // 0xea0a2a73
-		return &TLMessageUnPinAllMessages{
-			Constructor: -368432525,
 		}
 	},
 	1877050548: func() mtproto.TLObject { // 0x6fe184b4
@@ -840,56 +830,6 @@ func (m *TLMessageGetLastTwoPinnedMessageId) Decode(dBuf *mtproto.DecodeBuf) err
 	return dBuf.GetError()
 }
 
-// TLMessageUpdatePinnedMessageId
-///////////////////////////////////////////////////////////////////////////////
-
-func (m *TLMessageUpdatePinnedMessageId) Encode(x *mtproto.EncodeBuf, layer int32) error {
-	switch uint32(m.Constructor) {
-	case 0xf520edd0:
-		x.UInt(0xf520edd0)
-
-		// no flags
-
-		x.Long(m.GetUserId())
-		x.Int(m.GetPeerType())
-		x.Long(m.GetPeerId())
-		x.Int(m.GetId())
-		m.GetPinned().Encode(x, layer)
-
-	default:
-		// log.Errorf("")
-	}
-
-	return nil
-}
-
-func (m *TLMessageUpdatePinnedMessageId) CalcByteSize(layer int32) int {
-	return 0
-}
-
-func (m *TLMessageUpdatePinnedMessageId) Decode(dBuf *mtproto.DecodeBuf) error {
-	switch uint32(m.Constructor) {
-	case 0xf520edd0:
-
-		// not has flags
-
-		m.UserId = dBuf.Long()
-		m.PeerType = dBuf.Int()
-		m.PeerId = dBuf.Long()
-		m.Id = dBuf.Int()
-
-		m5 := &mtproto.Bool{}
-		m5.Decode(dBuf)
-		m.Pinned = m5
-
-		return dBuf.GetError()
-
-	default:
-		// log.Errorf("")
-	}
-	return dBuf.GetError()
-}
-
 // TLMessageGetPinnedMessageIdList
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -918,48 +858,6 @@ func (m *TLMessageGetPinnedMessageIdList) CalcByteSize(layer int32) int {
 func (m *TLMessageGetPinnedMessageIdList) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
 	case 0xda01d0dd:
-
-		// not has flags
-
-		m.UserId = dBuf.Long()
-		m.PeerType = dBuf.Int()
-		m.PeerId = dBuf.Long()
-		return dBuf.GetError()
-
-	default:
-		// log.Errorf("")
-	}
-	return dBuf.GetError()
-}
-
-// TLMessageUnPinAllMessages
-///////////////////////////////////////////////////////////////////////////////
-
-func (m *TLMessageUnPinAllMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
-	switch uint32(m.Constructor) {
-	case 0xea0a2a73:
-		x.UInt(0xea0a2a73)
-
-		// no flags
-
-		x.Long(m.GetUserId())
-		x.Int(m.GetPeerType())
-		x.Long(m.GetPeerId())
-
-	default:
-		// log.Errorf("")
-	}
-
-	return nil
-}
-
-func (m *TLMessageUnPinAllMessages) CalcByteSize(layer int32) int {
-	return 0
-}
-
-func (m *TLMessageUnPinAllMessages) Decode(dBuf *mtproto.DecodeBuf) error {
-	switch uint32(m.Constructor) {
-	case 0xea0a2a73:
 
 		// not has flags
 

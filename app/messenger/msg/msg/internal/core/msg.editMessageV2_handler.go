@@ -1,20 +1,11 @@
-// Copyright 2024 Teamgram Authors
-//  All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//   http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//
-// Author: teamgramio (teamgram.io@gmail.com)
-//
+/*
+ * Created from 'scheme.tl' by 'mtprotoc'
+ *
+ * Copyright (c) 2021-present,  Teamgram Studio (https://teamgram.io).
+ *  All rights reserved.
+ *
+ * Author: teamgramio (teamgram.io@gmail.com)
+ */
 
 package core
 
@@ -23,314 +14,160 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/plugin"
-	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
-
-	"github.com/zeromicro/go-zero/core/mr"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // MsgEditMessageV2
-// msg.editMessageV2 user_id:long auth_key_id:long peer_type:int peer_id:long edit_type:int new_message:OutboxMessage dst_message:Message = Updates;
+// msg.editMessageV2 user_id:long auth_key_id:long peer_type:int peer_id:long edit_type:int new_message:OutboxMessage dst_message:MessageBox = Updates;
+//
+// dst_message names the edited message; the message itself is read in the
+// box transaction, the edit is applied to what is stored.
 func (c *MsgCore) MsgEditMessageV2(in *msg.TLMsgEditMessageV2) (*mtproto.Updates, error) {
-	var (
-		err        error
-		rUpdates   *mtproto.Updates
-		newMessage = in.NewMessage
-		dstMessage = in.DstMessage
-	)
-
-	if dstMessage == nil {
-		err = mtproto.ErrInputRequestInvalid
-		c.Logger.Errorf("msg.editMessage - error: request{user_id: %d, peer: %d/%d} error - %v", in.GetUserId(), in.GetPeerType(), in.GetPeerId(), err)
-		return nil, err
+	if in.DstMessage == nil || in.NewMessage.GetMessage() == nil {
+		c.Logger.Errorf("msg.editMessage - error: request{user_id: %d, peer: %d/%d} without the message", in.GetUserId(), in.GetPeerType(), in.GetPeerId())
+		return nil, mtproto.ErrInputRequestInvalid
 	}
 
+	var (
+		rUpdates *mtproto.Updates
+		err      error
+	)
 	switch in.PeerType {
 	case mtproto.PEER_USER:
-		rUpdates, err = c.editUserOutgoingMessageV2(in.UserId, in.AuthKeyId, in.PeerId, newMessage, dstMessage)
+		rUpdates, err = c.editUserMessage(in.UserId, in.AuthKeyId, in.PeerId, in.NewMessage, in.DstMessage.MessageId)
 	case mtproto.PEER_CHAT:
-		rUpdates, err = c.editChatOutgoingMessageV2(in.UserId, in.AuthKeyId, in.PeerId, newMessage, dstMessage)
+		rUpdates, err = c.editChatMessage(in.UserId, in.AuthKeyId, in.PeerId, in.NewMessage, in.DstMessage.MessageId)
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("msg.sendMessageV2 blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		c.Logger.Errorf("msg.editMessageV2 blocked, License key from https://teamgram.net required to unlock enterprise features.")
 		return nil, mtproto.ErrEnterpriseIsBlocked
 	default:
 		err = mtproto.ErrPeerIdInvalid
-		c.Logger.Errorf("msg.editMessage - error: %v", err)
-		return nil, err
 	}
-
 	if err != nil {
 		c.Logger.Errorf("msg.editMessage - error: %v", err)
 		return nil, err
 	}
-
 	return rUpdates, nil
 }
 
-func (c *MsgCore) editUserOutgoingMessageV2(fromUserId, fromAuthKeyId, toUserId int64, editBox *msg.OutboxMessage, dstMessage *mtproto.MessageBox) (*mtproto.Updates, error) {
-	var (
-		idHelper = mtproto.NewIDListHelper(fromUserId, toUserId)
-	)
-
+func (c *MsgCore) editUserMessage(fromUserId, fromAuthKeyId, toUserId int64, editBox *msg.OutboxMessage, id int32) (*mtproto.Updates, error) {
+	idHelper := mtproto.NewIDListHelper(fromUserId, toUserId)
 	idHelper.PickByMessage(editBox.GetMessage())
-
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
 		Id: idHelper.UserIdList,
 		To: []int64{fromUserId, toUserId},
 	})
 	if err != nil {
-		c.Logger.Errorf("msg.sendUserOutgoingMessageV2 - error: %v", err)
 		return nil, err
 	}
-
-	sender, _ := users.GetImmutableUser(fromUserId)
-	if sender == nil || sender.Deleted() {
-		err = mtproto.ErrInputUserDeactivated
-		c.Logger.Errorf("msg.sendUserOutgoingMessageV2 - error: %v", err)
-		return nil, err
+	if sender, _ := users.GetImmutableUser(fromUserId); sender == nil || sender.Deleted() {
+		return nil, mtproto.ErrInputUserDeactivated
 	}
-
-	// TODO(@benqi): check
-	// if sender.Restricted() {
-	//	err = mtproto.ErrUserRestricted
-	//	return
-	// }
-
-	peerUser, _ := users.GetImmutableUser(toUserId)
-	if peerUser == nil || peerUser.Deleted() {
-		err = mtproto.ErrInputUserDeactivated
-		c.Logger.Errorf("msg.sendUserOutgoingMessage - error: %v", err)
-		return nil, err
+	if peerUser, _ := users.GetImmutableUser(toUserId); peerUser == nil || peerUser.Deleted() {
+		return nil, mtproto.ErrInputUserDeactivated
 	}
-
-	editBox.Message = plugin.RemakeMessage(
-		c.ctx,
-		c.svcCtx.MsgPlugin,
-		editBox.Message,
-		fromUserId,
-		editBox.NoWebpage,
-		func() bool {
-			hasBot := false
-			users.Visit(func(it *mtproto.ImmutableUser) {
-				if it.IsBot() {
-					hasBot = true
-				}
-			})
-
-			return hasBot
-		})
-
-	outBox, err := c.svcCtx.Dao.EditUserOutboxMessageV2(c.ctx, fromUserId, toUserId, editBox, dstMessage)
+	blocked, err := c.isBlockedBy(fromUserId, toUserId)
 	if err != nil {
-		c.Logger.Errorf("msg.editMessage - error: %v", err)
 		return nil, err
 	}
-
-	_ = outBox
-	_, err2 := c.svcCtx.Dao.InboxClient.InboxEditMessageToInboxV2(
-		c.ctx,
-		&inbox.TLInboxEditMessageToInboxV2{
-			UserId:        fromUserId,
-			Out:           true,
-			FromId:        fromUserId,
-			FromAuthKeyId: fromAuthKeyId,
-			PeerType:      mtproto.PEER_USER,
-			PeerId:        toUserId,
-			NewMessage:    outBox,
-			DstMessage:    dstMessage,
-			Users:         users.GetUserListByIdList(fromUserId, idHelper.UserIdList...),
-			Chats:         nil,
-		})
-	if err2 != nil {
-		return nil, err2
-	}
-
-	if fromUserId != toUserId {
-		blocked, _ := c.svcCtx.Dao.UserClient.UserBlockedByUser(c.ctx, &userpb.TLUserBlockedByUser{
-			UserId:     toUserId,
-			PeerUserId: fromUserId,
-		})
-
-		if !mtproto.FromBool(blocked) {
-			_, err2 = c.svcCtx.Dao.InboxClient.InboxEditMessageToInboxV2(
-				c.ctx,
-				&inbox.TLInboxEditMessageToInboxV2{
-					UserId:        toUserId,
-					Out:           false,
-					FromId:        fromUserId,
-					FromAuthKeyId: fromAuthKeyId,
-					PeerType:      mtproto.PEER_USER,
-					PeerId:        toUserId,
-					NewMessage:    outBox,
-					DstMessage:    nil,
-					Users:         users.GetUserListByIdList(toUserId, idHelper.UserIdList...),
-					Chats:         nil,
-				})
-			if err2 != nil {
-				return nil, err2
+	editBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, editBox.Message, fromUserId, editBox.NoWebpage, func() bool {
+		hasBot := false
+		users.Visit(func(it *mtproto.ImmutableUser) {
+			if it.IsBot() {
+				hasBot = true
 			}
-		}
-	}
+		})
+		return hasBot
+	})
 
+	var update *mtproto.Update
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId, nil, func(b *userbox.Box) error {
+		box, edited, err := c.svcCtx.Dao.EditOutgoing(b, mtproto.PEER_USER, toUserId, id, editBox.Message)
+		if err != nil {
+			return err
+		}
+		update = edited
+		if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
+			mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, update)); err != nil {
+			return err
+		}
+		if toUserId == fromUserId || blocked {
+			return nil
+		}
+		return c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxEditMessageToInboxV2{
+			UserId:     toUserId,
+			FromId:     fromUserId,
+			PeerType:   mtproto.PEER_USER,
+			PeerId:     toUserId,
+			NewMessage: box,
+			Users:      users.GetUserListByIdList(toUserId, idHelper.UserIdList...),
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
 	return mtproto.MakeReplyUpdates(
-		func(idList []int64) []*mtproto.User {
-			return users.GetUserListByIdList(fromUserId, idList...)
-		},
-		func(idList []int64) []*mtproto.Chat {
-			return []*mtproto.Chat{}
-		},
-		func(idList []int64) []*mtproto.Chat {
-			return []*mtproto.Chat{}
-		},
-		mtproto.MakeTLUpdateEditMessage(&mtproto.Update{
-			Pts_INT32:       outBox.Pts,
-			PtsCount:        outBox.PtsCount,
-			Message_MESSAGE: outBox.Message,
-		}).To_Update()), nil
+		func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
+		func([]int64) []*mtproto.Chat { return []*mtproto.Chat{} },
+		func([]int64) []*mtproto.Chat { return []*mtproto.Chat{} },
+		update), nil
 }
 
-func (c *MsgCore) editChatOutgoingMessageV2(fromUserId, fromAuthKeyId, peerChatId int64, editBox *msg.OutboxMessage, dstMessage *mtproto.MessageBox) (*mtproto.Updates, error) {
-	var (
-		chat      *mtproto.MutableChat
-		sUserList *mtproto.MutableUsers
-		idHelper  = mtproto.NewIDListHelper(fromUserId)
-	)
+func (c *MsgCore) editChatMessage(fromUserId, fromAuthKeyId, peerChatId int64, editBox *msg.OutboxMessage, id int32) (*mtproto.Updates, error) {
+	idHelper := mtproto.NewIDListHelper(fromUserId)
 	idHelper.PickByMessage(editBox.GetMessage())
-
-	err := mr.Finish(
-		func() error {
-			var (
-				err error
-			)
-			chat, err = c.svcCtx.Dao.ChatClient.ChatGetMutableChat(
-				c.ctx,
-				&chatpb.TLChatGetMutableChat{
-					ChatId: peerChatId,
-				})
-			if err != nil {
-				c.Logger.Errorf("inbox.sendChatMessageToInbox - error: %v", err)
-			}
-			return err
-		},
-		func() error {
-			var (
-				err error
-			)
-			sUserList, err = c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(
-				c.ctx,
-				&userpb.TLUserGetMutableUsersV2{
-					Id:      idHelper.UserIdList,
-					Privacy: true,
-					HasTo:   true,
-					To:      nil,
-				})
-			if err != nil {
-				c.Logger.Errorf("inbox.sendChatMessageToInbox - error: %v", err)
-			}
-
-			return err
-		})
+	chat, users, err := c.chatAndUsers(peerChatId, idHelper)
 	if err != nil {
-		// c.Logger.Errorf("inbox.sendChatMessageToInbox - error: %v", err)
 		return nil, err
 	}
-
 	if _, ok := chat.GetImmutableChatParticipant(fromUserId); !ok {
-		c.Logger.Errorf("msg.sendChatOutgoingMessageV2 - error: ErrChatParticipantNotExists")
-		err = mtproto.ErrChatWriteForbidden
-		return nil, err
+		return nil, mtproto.ErrChatWriteForbidden
 	}
-
-	editBox.Message = plugin.RemakeMessage(
-		c.ctx,
-		c.svcCtx.MsgPlugin,
-		editBox.Message,
-		fromUserId,
-		editBox.NoWebpage,
-		func() bool {
-			hasBot := false
-			chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-				if participant.IsBot {
-					hasBot = true
-				}
-				return nil
-			})
-
-			return hasBot
+	editBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, editBox.Message, fromUserId, editBox.NoWebpage, func() bool {
+		hasBot := false
+		chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
+			if participant.IsBot {
+				hasBot = true
+			}
+			return nil
 		})
+		return hasBot
+	})
+	recipients := chatRecipients(chat, fromUserId, false)
 
-	outBox, err2 := c.svcCtx.Dao.EditChatOutboxMessageV2(c.ctx, fromUserId, peerChatId, editBox, dstMessage)
-	if err != nil {
-		c.Logger.Errorf("msg.editMessage - error: %v", err)
-		return nil, err
-	}
-
-	chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-		if !participant.IsChatMemberStateNormal() {
-			return nil
+	var update *mtproto.Update
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId, nil, func(b *userbox.Box) error {
+		box, edited, err := c.svcCtx.Dao.EditOutgoing(b, mtproto.PEER_CHAT, peerChatId, id, editBox.Message)
+		if err != nil {
+			return err
 		}
-		if err2 != nil {
-			return nil
+		update = edited
+		if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
+			mtproto.MakeUpdatesByUpdatesUsersChats(usersFor(users, fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, update)); err != nil {
+			return err
 		}
-
-		out := participant.UserId == fromUserId
-		if out {
-			_, err2 = c.svcCtx.Dao.InboxClient.InboxEditMessageToInboxV2(
-				c.ctx,
-				&inbox.TLInboxEditMessageToInboxV2{
-					UserId:        participant.UserId,
-					Out:           true,
-					FromId:        fromUserId,
-					FromAuthKeyId: fromAuthKeyId,
-					PeerType:      mtproto.PEER_CHAT,
-					PeerId:        peerChatId,
-					NewMessage:    outBox,
-					DstMessage:    dstMessage,
-					Users:         sUserList.GetUserListByIdList(participant.UserId, idHelper.UserIdList...),
-					Chats:         []*mtproto.Chat{chat.ToUnsafeChat(participant.UserId)},
-				})
-		} else {
-			toUsers := make([]*mtproto.User, 0, sUserList.Length())
-			sUserList.Visit(func(it *mtproto.ImmutableUser) {
-				toUsers = append(toUsers, it.ToUser(participant.UserId))
-			})
-			_, err2 = c.svcCtx.Dao.InboxClient.InboxEditMessageToInboxV2(
-				c.ctx,
-				&inbox.TLInboxEditMessageToInboxV2{
-					UserId:        participant.UserId,
-					Out:           false,
-					FromId:        fromUserId,
-					FromAuthKeyId: fromAuthKeyId,
-					PeerType:      mtproto.PEER_CHAT,
-					PeerId:        peerChatId,
-					NewMessage:    outBox,
-					DstMessage:    nil,
-					Users:         toUsers,
-					Chats:         []*mtproto.Chat{chat.ToUnsafeChat(participant.UserId)},
-				})
+		for _, userId := range recipients {
+			if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxEditMessageToInboxV2{
+				UserId:     userId,
+				FromId:     fromUserId,
+				PeerType:   mtproto.PEER_CHAT,
+				PeerId:     peerChatId,
+				NewMessage: box,
+				Users:      usersFor(users, userId),
+				Chats:      []*mtproto.Chat{chat.ToUnsafeChat(userId)},
+			}); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
-
-	if err2 != nil {
-		c.Logger.Error(err2.Error())
+	if err != nil {
 		return nil, err
 	}
-
 	return mtproto.MakeReplyUpdates(
-		func(idList []int64) []*mtproto.User {
-			return sUserList.GetUserListByIdList(fromUserId, idList...)
-		},
-		func(idList []int64) []*mtproto.Chat {
-			return []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}
-		},
-		func(idList []int64) []*mtproto.Chat {
-			// TODO
-			return nil
-		},
-		mtproto.MakeTLUpdateEditMessage(&mtproto.Update{
-			Pts_INT32:       outBox.Pts,
-			PtsCount:        outBox.PtsCount,
-			Message_MESSAGE: outBox.Message,
-		}).To_Update()), nil
+		func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
+		func([]int64) []*mtproto.Chat { return []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)} },
+		func([]int64) []*mtproto.Chat { return nil },
+		update), nil
 }

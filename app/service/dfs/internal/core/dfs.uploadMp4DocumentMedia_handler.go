@@ -59,9 +59,8 @@ func makeMp4DocumentAttributes(attrs []*mtproto.DocumentAttribute) []*mtproto.Do
 // dfs.uploadMp4DocumentMedia creator:long media:InputMedia = Document;
 func (c *DfsCore) DfsUploadMp4DocumentMedia(in *dfs.TLDfsUploadMp4DocumentMedia) (*mtproto.Document, error) {
 	var (
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
-		path       string
-		err        error
+		path string
+		err  error
 
 		file      = in.GetMedia().GetFile()
 		creatorId = in.GetCreator()
@@ -71,6 +70,11 @@ func (c *DfsCore) DfsUploadMp4DocumentMedia(in *dfs.TLDfsUploadMp4DocumentMedia)
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		thumbData []byte

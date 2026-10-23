@@ -21,7 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
 )
 
 // MessagesDeleteHistory
@@ -44,9 +44,16 @@ func (c *MessagesCore) MessagesDeleteHistory(in *mtproto.TLMessagesDeleteHistory
 
 	if in.GetMinDate() != nil || in.GetMaxDate() != nil {
 		// TODO: not impl
-		pts := c.svcCtx.Dao.IDGenClient2.CurrentPtsId(c.ctx, c.MD.UserId)
+		state, err := c.svcCtx.Dao.UpdatesClient.UpdatesGetStateV2(c.ctx, &updates.TLUpdatesGetStateV2{
+			AuthKeyId: c.MD.PermAuthKeyId,
+			UserId:    c.MD.UserId,
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.deleteHistory - error: %v", err)
+			return nil, err
+		}
 		return mtproto.MakeTLMessagesAffectedHistory(&mtproto.Messages_AffectedHistory{
-			Pts:      pts,
+			Pts:      state.GetPts(),
 			PtsCount: 0,
 			Offset:   0,
 		}).To_Messages_AffectedHistory(), nil
@@ -67,22 +74,8 @@ func (c *MessagesCore) MessagesDeleteHistory(in *mtproto.TLMessagesDeleteHistory
 		return nil, err
 	}
 
-	if !in.GetJustClear() {
-		if peer.IsUser() {
-			c.svcCtx.Dao.DialogDeleteDialog(c.ctx, &dialog.TLDialogDeleteDialog{
-				UserId:   c.MD.UserId,
-				PeerType: peer.PeerType,
-				PeerId:   peer.PeerId,
-			})
-			if in.Revoke && !peer.IsSelf() {
-				c.svcCtx.Dao.DialogDeleteDialog(c.ctx, &dialog.TLDialogDeleteDialog{
-					UserId:   peer.PeerId,
-					PeerType: peer.PeerType,
-					PeerId:   c.MD.UserId,
-				})
-			}
-		}
-	}
-
+	// The history goes in portions; without just_clear msg deletes the
+	// dialog rows (the user's, and with revoke the other user's) in the
+	// transactions of the last portions.
 	return affectedHistory, nil
 }

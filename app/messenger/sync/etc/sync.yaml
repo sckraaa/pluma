@@ -30,11 +30,6 @@ Cache:
 KV:
   - Host: 127.0.0.1:6379
 
-IdgenClient:
-  Etcd:
-    Hosts:
-      - 127.0.0.1:2379
-    Key: service.idgen
 StatusClient:
   Etcd:
     Hosts:

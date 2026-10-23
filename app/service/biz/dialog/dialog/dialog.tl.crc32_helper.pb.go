@@ -33,7 +33,6 @@ const (
 	CRC32_dialog_reorderPinnedDialogs              TLConstructor = -18664089   // 0xfee33567
 	CRC32_dialog_getDialogById                     TLConstructor = -1587594251 // 0xa15f3bf5
 	CRC32_dialog_getTopMessage                     TLConstructor = -92425614   // 0xfa7db272
-	CRC32_dialog_insertOrUpdateDialog              TLConstructor = 1563133986  // 0x5d2b8822
 	CRC32_dialog_deleteDialog                      TLConstructor = 28515811    // 0x1b31de3
 	CRC32_dialog_getUserPinnedMessage              TLConstructor = -1885617487 // 0x8f9bc2b1
 	CRC32_dialog_updateUserPinnedMessage           TLConstructor = 371388970   // 0x1622f22a
@@ -54,7 +53,6 @@ const (
 	CRC32_dialog_getDialogFilter                   TLConstructor = -209189348  // 0xf388061c
 	CRC32_dialog_getDialogFilterBySlug             TLConstructor = 1313177583  // 0x4e457fef
 	CRC32_dialog_createDialogFilter                TLConstructor = -959749265  // 0xc6cb636f
-	CRC32_dialog_updateUnreadCount                 TLConstructor = 732705613   // 0x2bac334d
 	CRC32_dialog_toggleDialogFilterTags            TLConstructor = -1597149815 // 0xa0cd6d89
 	CRC32_dialog_getDialogFilterTags               TLConstructor = -84870505   // 0xfaf0fa97
 	CRC32_dialog_setChatWallpaper                  TLConstructor = -1252926702 // 0xb551db12

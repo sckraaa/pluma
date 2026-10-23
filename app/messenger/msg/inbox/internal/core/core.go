@@ -22,19 +22,21 @@ import (
 	"context"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/internal/svc"
-	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// InboxCore applies inbox events. Each event changes the box of one user,
+// its user_id, in one box transaction (or one per portion), and pushes what
+// changed to that user's devices after commit.
 type InboxCore struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 	logx.Logger
-	MD *metadata.RpcMetadata
 }
 
 func New(ctx context.Context, svcCtx *svc.ServiceContext) *InboxCore {
@@ -42,63 +44,36 @@ func New(ctx context.Context, svcCtx *svc.ServiceContext) *InboxCore {
 		ctx:    ctx,
 		svcCtx: svcCtx,
 		Logger: logx.WithContext(ctx),
-		MD:     metadata.RpcMetadataFromIncoming(ctx),
 	}
 }
 
-func (c *InboxCore) makeUpdateNewMessageListUpdates(selfUserId int64, boxList ...*mtproto.MessageBox) *mtproto.Updates {
-	var (
-		messages      = make([]*mtproto.Message, 0, len(boxList))
-		updateNewList = make([]*mtproto.Update, 0, len(boxList))
-	)
+// run runs fn as a box transaction of userId whose dialog with peer may
+// change, and publishes its events.
+func (c *InboxCore) run(userId int64, peer *mtproto.PeerUtil, fn func(b *userbox.Box) error) error {
+	var keys []string
+	if peer != nil {
+		keys = []string{dialog.GetDialogCacheKeyByPeer(userId, peer.PeerType, peer.PeerId)}
+	}
+	_, err := c.svcCtx.Dao.RunBox(c.ctx, userId, keys, fn)
+	return err
+}
 
-	for _, box := range boxList {
-		if box == nil {
-			continue
-		}
-		if box.PeerType == mtproto.PEER_CHANNEL {
-			m := box.ToMessage(selfUserId)
-			messages = append(messages, m)
-			updateNewMessage := mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{
-				Message_MESSAGE: box.ToMessage(selfUserId),
-				Pts_INT32:       box.Pts,
-				PtsCount:        box.PtsCount,
-			})
-			updateNewList = append(updateNewList, updateNewMessage.To_Update())
-		} else {
-			m := box.ToMessage(selfUserId)
-			messages = append(messages, m)
-			updateNewMessage := mtproto.MakeTLUpdateNewMessage(&mtproto.Update{
-				Message_MESSAGE: box.ToMessage(selfUserId),
-				Pts_INT32:       box.Pts,
-				PtsCount:        box.PtsCount,
-			})
-			updateNewList = append(updateNewList, updateNewMessage.To_Update())
+// push adds the push of journaled updates to the box owner's devices.
+func (c *InboxCore) push(b *userbox.Box, updates ...*mtproto.Update) error {
+	return c.svcCtx.Dao.EmitPushUpdates(b, b.UserId(), false, mtproto.MakeUpdatesByUpdates(updates...))
+}
+
+// recipientPeer is the recipient's dialog of an event (dao.RecipientPeer).
+func recipientPeer(fromId int64, peerType int32, peerId int64) *mtproto.PeerUtil {
+	return dao.RecipientPeer(fromId, peerType, peerId)
+}
+
+// isBot tells whether userId is a bot by the users of an event.
+func isBot(userId int64, users []*mtproto.User) bool {
+	for _, u := range users {
+		if u.GetId() == userId {
+			return u.GetBot()
 		}
 	}
-
-	rUpdates := mtproto.MakeUpdatesByUpdates(updateNewList...)
-
-	idHelper := mtproto.NewIDListHelper(selfUserId)
-	idHelper.PickByMessages(messages...)
-	idHelper.Visit(
-		func(userIdList []int64) {
-			users, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx,
-				&userpb.TLUserGetMutableUsers{
-					Id: userIdList,
-				})
-			rUpdates.PushUser(users.GetUserListByIdList(selfUserId, userIdList...)...)
-		},
-		func(chatIdList []int64) {
-			chats, _ := c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx,
-				&chatpb.TLChatGetChatListByIdList{
-					IdList: chatIdList,
-				})
-			rUpdates.PushChat(chats.GetChatListByIdList(selfUserId, chatIdList...)...)
-		},
-		func(channelIdList []int64) {
-			// TODO
-		})
-
-	return rUpdates
+	return false
 }

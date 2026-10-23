@@ -4,13 +4,16 @@ Etcd:
   Hosts:
     - 127.0.0.1:2379
   Key: service.biz_service
+# dialog runs box transactions (pkg/userbox): the deadline outlives them
+# (dialog.MaxBoxOpTime, checked at start; docs/ops/user-state.md).
+Timeout: 30000
 Cache:
   - Host: localhost:6379
 KV:
   - Host: localhost:6379
 Mysql:
   Addr: 127.0.0.1:3306
-  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
+  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai&innodb_lock_wait_timeout=2
   Active: 64
   Idle: 64
   IdleTimeout: 4h
@@ -25,10 +28,3 @@ MediaClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.media
-IdgenClient:
-  #  Endpoints:
-  #    - 127.0.0.1:20660
-  Etcd:
-    Hosts:
-      - 127.0.0.1:2379
-    Key: service.idgen

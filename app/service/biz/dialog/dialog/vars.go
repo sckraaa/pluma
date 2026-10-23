@@ -147,3 +147,32 @@ func GetAllDraftIdListCacheKey(userId int64) string {
 func GetDraftCacheKey(userId, peerDialogId int64) string {
 	return GetCacheTwoKey(draftKeyPrefix, userId, peerDialogId)
 }
+
+// UpsertCacheKeys returns the cache keys an upsert of userId's dialog row
+// with peer invalidates, by its rows affected (without clientFoundRows in
+// the DSN): the row's key, and when the row was created (1) also the lists
+// of dialogs it now belongs to. Used by biz dialog and by msg, which writes
+// dialog rows in box transactions (ADR 0011, p. 4).
+func UpsertCacheKeys(userId int64, peerType int32, peerId int64, rowsAffected int64) []string {
+	keys := []string{GetDialogCacheKeyByPeer(userId, peerType, peerId)}
+	if rowsAffected == 1 {
+		if k := GetCacheKeyByPeerType(userId, peerType); k != "" {
+			keys = append(keys, k)
+		}
+		keys = append(keys, GetNotPinnedDialogIdListCacheKey(userId), GetFolderNotPinnedDialogIdListCacheKey(userId))
+	}
+	return keys
+}
+
+// DeleteCacheKeys returns the cache keys a deletion of userId's dialog row
+// with peer invalidates: the row's key and every list of dialogs the row may
+// have been in, pinned or not, in a folder or not.
+func DeleteCacheKeys(userId int64, peerType int32, peerId int64) []string {
+	keys := []string{GetDialogCacheKeyByPeer(userId, peerType, peerId)}
+	if k := GetCacheKeyByPeerType(userId, peerType); k != "" {
+		keys = append(keys, k)
+	}
+	return append(keys,
+		GetPinnedDialogIdListCacheKey(userId), GetNotPinnedDialogIdListCacheKey(userId),
+		GetFolderPinnedDialogIdListCacheKey(userId), GetFolderNotPinnedDialogIdListCacheKey(userId))
+}

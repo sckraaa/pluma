@@ -14,12 +14,10 @@ import (
 
 	"github.com/bwmarrin/snowflake"
 	"github.com/teamgram/teamgram-server/app/service/idgen/internal/config"
-	"github.com/zeromicro/go-zero/core/stores/kv"
 )
 
 type Dao struct {
 	*snowflake.Node
-	KV kv.Store
 }
 
 func New(c config.Config) *Dao {
@@ -32,7 +30,6 @@ func New(c config.Config) *Dao {
 	if err != nil {
 		log.Fatal("new snowflake node error: ", err)
 	}
-	d.KV = kv.NewStore(c.SeqIDGen)
 
 	return d
 }

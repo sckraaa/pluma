@@ -46,11 +46,6 @@ KV:
   - Host: redis:6379
     Pass: "${REDIS_PASSWORD}"
 
-IdgenClient:
-  Etcd:
-    Hosts:
-      - etcd:2379
-    Key: service.idgen
 StatusClient:
   Etcd:
     Hosts:

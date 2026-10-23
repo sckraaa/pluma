@@ -27,6 +27,7 @@ import (
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
+	updates_client "github.com/teamgram/teamgram-server/app/service/biz/updates/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	idgen_client "github.com/teamgram/teamgram-server/app/service/idgen/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
@@ -40,6 +41,7 @@ type Dao struct {
 	message_client.MessageClient
 	idgen_client.IDGenClient2
 	dialog_client.DialogClient
+	updates_client.UpdatesClient
 	sync_client.SyncClient
 }
 
@@ -52,6 +54,7 @@ func New(c config.Config) *Dao {
 		DialogClient:  dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
 		IDGenClient2:  idgen_client.NewIDGenClient2(rpcx.GetCachedRpcClient(c.IdgenClient)),
 		MessageClient: message_client.NewMessageClient(rpcx.GetCachedRpcClient(c.MessageClient)),
+		UpdatesClient: updates_client.NewUpdatesClient(rpcx.GetCachedRpcClient(c.UpdatesClient)),
 		SyncClient:    sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.SyncClient)),
 	}
 }

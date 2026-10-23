@@ -19,188 +19,57 @@
 package core
 
 import (
-	"context"
-	"math"
-
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // MsgReadHistoryV2
 // msg.readHistoryV2 user_id:long auth_key_id:long peer_type:int peer_id:long max_id:int = messages.AffectedMessages;
+//
+// The dialog is read in one box transaction: read_inbox_max_id only grows
+// and unread_count is counted from the messages under the box lock. The
+// senders of the messages read learn it with inbox events.
 func (c *MsgCore) MsgReadHistoryV2(in *msg.TLMsgReadHistoryV2) (*mtproto.Messages_AffectedMessages, error) {
-	var (
-		pts, ptsCount int32
-		maxId         = in.MaxId
-	)
-
-	dlg, err := c.svcCtx.Dao.DialogsDAO.SelectDialog(c.ctx, in.UserId, in.PeerType, in.PeerId)
-	if err != nil {
-		c.Logger.Errorf("msg.readHistoryV2 - error: invalid peer %v", err)
-		return nil, mtproto.ErrInternalServerError
-	} else if dlg == nil {
-		c.Logger.Errorf("msg.readHistoryV2 - error: not found dialog, request: {user_id: %d, peer: %d/%d}", in.UserId, in.PeerType, in.PeerId)
+	peerType, peerId := selfPeer(in.UserId, in.PeerType, in.PeerId)
+	if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT {
+		c.Logger.Errorf("msg.readHistoryV2 - error: invalid peer %d/%d", in.PeerType, in.PeerId)
 		return nil, mtproto.ErrPeerIdInvalid
 	}
+	// The chat with oneself has no incoming messages to read.
+	self := peerType == mtproto.PEER_USER && peerId == in.UserId
 
-	if maxId == 0 || maxId == math.MaxInt32 {
-		maxId = dlg.TopMessage
-	}
-
-	if in.PeerType == mtproto.PEER_SELF || in.PeerType == mtproto.PEER_USER && in.PeerId == in.UserId {
-		maxId = 0
-	}
-
-	// inbox readed
-	// if dlg.ReadInboxMaxId >= maxId || dlg.UnreadCount == 0 {
-	if dlg.ReadInboxMaxId >= maxId {
-		c.Logger.Debugf("dlg: {read_inbox_max_id: %d, top_message: %d}", dlg.ReadInboxMaxId, dlg.TopMessage)
-		pts = c.svcCtx.Dao.IDGenClient2.CurrentPtsId(c.ctx, in.UserId)
-		ptsCount = 0
-		_ = ptsCount
-
-		return mtproto.MakeTLMessagesAffectedMessages(&mtproto.Messages_AffectedMessages{
-			Pts:      pts,
-			PtsCount: 0,
-		}).To_Messages_AffectedMessages(), nil
-	}
-
-	if kUseV3 {
-		return c.msgReadHistoryV3(c.ctx, in, maxId, dlg)
-	} else {
-		return c.msgReadHistoryV2(c.ctx, in, maxId, dlg)
-	}
-}
-
-func (c *MsgCore) msgReadHistoryV2(ctx context.Context, in *msg.TLMsgReadHistoryV2, maxId int32, dlg *dataobject.DialogsDO) (*mtproto.Messages_AffectedMessages, error) {
-	var (
-		pts, ptsCount int32
-		// maxId         = in.MaxId
-	)
-
-	maxInboxMsg, err3 := c.svcCtx.Dao.MessagesDAO.SelectByMessageId(ctx, in.UserId, maxId)
-	if err3 != nil {
-		c.Logger.Errorf("msg.readHistoryV2 - error: not found dialog(%d,%d), error is %v", in.UserId, maxId, err3)
-		return nil, mtproto.ErrInternalServerError
-	} else if maxInboxMsg == nil {
-		c.Logger.Errorf("msg.readHistoryV2 - error: not found dialog(%d,%d)", in.UserId, maxId)
-		return nil, mtproto.ErrMsgIdInvalid
-	}
-
-	pts = c.svcCtx.Dao.IDGenClient2.NextPtsId(ctx, in.UserId)
-	ptsCount = 1
-
-	// Write user_pts_updates before RPC return to guarantee getDifference completeness
-	c.svcCtx.Dao.AddToPtsQueue(ctx, in.UserId, pts, ptsCount, mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{
-		Peer_PEER: mtproto.MakePeer(in.PeerType, in.PeerId),
-		MaxId:     maxId,
-		Pts_INT32: pts,
-		PtsCount:  ptsCount,
-	}).To_Update())
-
-	_, _ = c.svcCtx.Dao.InboxClient.InboxReadInboxHistory(
-		ctx,
-		&inbox.TLInboxReadInboxHistory{
-			UserId:         in.UserId,
-			AuthKeyId:      in.AuthKeyId,
-			PeerType:       in.PeerType,
-			PeerId:         in.PeerId,
-			Pts:            pts,
-			PtsCount:       ptsCount,
-			UnreadCount:    dlg.UnreadCount,
-			ReadInboxMaxId: dlg.ReadInboxMaxId,
-			MaxId:          maxId,
-		})
-
-	switch in.PeerType {
-	case mtproto.PEER_USER:
-		_, _ = c.svcCtx.Dao.InboxClient.InboxReadOutboxHistory(
-			ctx,
-			&inbox.TLInboxReadOutboxHistory{
-				UserId:             maxInboxMsg.SenderUserId,
-				PeerType:           in.PeerType,
-				PeerId:             in.UserId,
-				MaxDialogMessageId: maxInboxMsg.DialogMessageId,
-			})
-	case mtproto.PEER_CHAT:
-		_, _ = c.svcCtx.Dao.InboxClient.InboxReadOutboxHistory(
-			ctx,
-			&inbox.TLInboxReadOutboxHistory{
-				UserId:             maxInboxMsg.SenderUserId,
-				PeerType:           in.PeerType,
-				PeerId:             in.PeerId,
-				MaxDialogMessageId: maxInboxMsg.DialogMessageId,
-			})
-	}
-
-	return mtproto.MakeTLMessagesAffectedMessages(&mtproto.Messages_AffectedMessages{
-		Pts:      pts,
-		PtsCount: ptsCount,
-	}).To_Messages_AffectedMessages(), nil
-}
-
-func (c *MsgCore) msgReadHistoryV3(ctx context.Context, in *msg.TLMsgReadHistoryV2, maxId int32, dlg *dataobject.DialogsDO) (*mtproto.Messages_AffectedMessages, error) {
-	var (
-		pts, ptsCount int32
-		// maxId         = in.MaxId
-	)
-
-	maxInboxMsg, err3 := c.svcCtx.Dao.MessagesDAO.SelectByMessageId(ctx, in.UserId, maxId)
-	if err3 != nil {
-		c.Logger.Errorf("msg.readHistoryV2 - error: not found dialog(%d,%d), error is %v", in.UserId, maxId, err3)
-		return nil, mtproto.ErrInternalServerError
-	} else if maxInboxMsg == nil {
-		c.Logger.Errorf("msg.readHistoryV2 - error: not found dialog(%d,%d)", in.UserId, maxId)
-		return nil, mtproto.ErrMsgIdInvalid
-	}
-
-	return threading2.WrapperGoFunc(
-		ctx,
-		(*mtproto.Messages_AffectedMessages)(nil),
-		func(ctx context.Context) {
-			pts = 0
-			ptsCount = 1
-
-			_, _ = c.svcCtx.Dao.InboxClient.InboxReadInboxHistory(
-				ctx,
-				&inbox.TLInboxReadInboxHistory{
-					UserId:         in.UserId,
-					AuthKeyId:      in.AuthKeyId,
-					PeerType:       in.PeerType,
-					PeerId:         in.PeerId,
-					Pts:            pts,
-					PtsCount:       ptsCount,
-					UnreadCount:    dlg.UnreadCount,
-					ReadInboxMaxId: dlg.ReadInboxMaxId,
-					MaxId:          maxId,
-					Layer:          mtproto.MakeFlagsInt32(c.MD.Layer),
-					ServerId:       mtproto.MakeFlagsString(c.MD.ServerId),
-					SessionId:      mtproto.MakeFlagsInt64(c.MD.SessionId),
-					ClientReqMsgId: mtproto.MakeFlagsInt64(c.MD.ClientMsgId),
-				})
-
-			switch in.PeerType {
-			case mtproto.PEER_USER:
-				_, _ = c.svcCtx.Dao.InboxClient.InboxReadOutboxHistory(
-					ctx,
-					&inbox.TLInboxReadOutboxHistory{
-						UserId:             maxInboxMsg.SenderUserId,
-						PeerType:           in.PeerType,
-						PeerId:             in.UserId,
-						MaxDialogMessageId: maxInboxMsg.DialogMessageId,
-					})
-			case mtproto.PEER_CHAT:
-				_, _ = c.svcCtx.Dao.InboxClient.InboxReadOutboxHistory(
-					ctx,
-					&inbox.TLInboxReadOutboxHistory{
-						UserId:             maxInboxMsg.SenderUserId,
-						PeerType:           in.PeerType,
-						PeerId:             in.PeerId,
-						MaxDialogMessageId: maxInboxMsg.DialogMessageId,
-					})
+	res, err := c.svcCtx.Dao.RunBox(c.ctx, in.UserId,
+		[]string{dialog.GetDialogCacheKeyByPeer(in.UserId, peerType, peerId)},
+		func(b *userbox.Box) error {
+			if self {
+				return nil
 			}
-		}).(*mtproto.Messages_AffectedMessages), mtproto.ErrPushRpcClient
+			read, err := c.svcCtx.Dao.ReadHistory(b, peerType, peerId, in.MaxId)
+			if err != nil || read == nil {
+				return err
+			}
+			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, in.UserId, in.AuthKeyId, mtproto.MakeUpdatesByUpdates(read.Update)); err != nil {
+				return err
+			}
+			for _, s := range read.Senders {
+				if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxReadOutboxHistory{
+					UserId:             s.UserId,
+					FromId:             in.UserId,
+					PeerType:           peerType,
+					PeerId:             peerId,
+					MaxDialogMessageId: s.DialogMessageId,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		c.Logger.Errorf("msg.readHistoryV2 - error: %v", err)
+		return nil, err
+	}
+	return affectedMessages(res), nil
 }

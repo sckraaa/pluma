@@ -1,6 +1,6 @@
 # 005. Зелёная база тестов и CI
 
-- Статус: in-progress (ветка `task/005-tests-and-ci`, от `task/001-security-p0`)
+- Статус: done (CI зелёный на GitHub в PR sckraaa/pluma#1, 2026-10-22)
 - Зависит от: —
 - ADR: 0002
 
@@ -20,7 +20,7 @@
 - Хотя бы один интеграционный тест полного пути: handshake → вход → отправка сообщения → получение апдейта вторым клиентом.
 
 ## Результат
-Всё готово и зелёное локально; не закоммичено. Остался критерий «CI зелёный на master»: workflow ещё ни разу не запускался на GitHub, проверить после первого push в `sckraaa/pluma`. Как запускать и почему так устроено — `docs/ops/testing.md`.
+Всё готово: локально и на GitHub (PR sckraaa/pluma#1, все 6 проверок зелёные). В `master` — после слияния PR. Как запускать и почему так устроено — `docs/ops/testing.md`.
 
 - **База.** Тулчейн go1.27.3, обновлены уязвимые зависимости. Починены несобиравшиеся и падавшие тесты и реальные находки `go vet`; выключен только `unreachable`, из-за сгенерированных кодеков. Оба модуля (корень и `third_party/teamgram-proto`) проверяются всеми целями.
 - **`make ci` = CI.** build, vet, test, test-race, golangci-lint (по коду после апстрима), govulncheck, apicoverage-check, actionlint и shellcheck. Все инструменты закреплены в `Makefile`; shellcheck — релизный бинарник с проверкой SHA-256, actionlint проверяет `run:`-блоки тем же shellcheck. Actions закреплены по SHA. У задач integration и e2e разные ключи кэша Go.

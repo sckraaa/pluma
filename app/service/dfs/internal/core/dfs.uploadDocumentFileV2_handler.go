@@ -28,11 +28,15 @@ import (
 // dfs.uploadDocumentFileV2 creator:long media:InputMedia = Document;
 func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*mtproto.Document, error) {
 	var (
-		documentId = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 		//idgen.GetUUID()
 		file      = in.GetMedia().GetFile()
 		cacheData []byte
 	)
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	// 有点难理解，主要是为了不在这里引入snowflake
 	ext := model.GetFileExtName(file.GetName())

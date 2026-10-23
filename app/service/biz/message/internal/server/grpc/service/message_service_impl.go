@@ -228,20 +228,6 @@ func (s *Service) MessageGetLastTwoPinnedMessageId(ctx context.Context, request 
 	return r, err
 }
 
-// MessageUpdatePinnedMessageId
-// message.updatePinnedMessageId user_id:long peer_type:int peer_id:long id:int pinned:Bool = Bool;
-func (s *Service) MessageUpdatePinnedMessageId(ctx context.Context, request *message.TLMessageUpdatePinnedMessageId) (*mtproto.Bool, error) {
-	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("message.updatePinnedMessageId - metadata: {%s}", c.MD)
-
-	r, err := c.MessageUpdatePinnedMessageId(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, err
-}
-
 // MessageGetPinnedMessageIdList
 // message.getPinnedMessageIdList user_id:long peer_type:int peer_id:long = Vector<int>;
 func (s *Service) MessageGetPinnedMessageIdList(ctx context.Context, request *message.TLMessageGetPinnedMessageIdList) (*message.Vector_Int, error) {
@@ -249,20 +235,6 @@ func (s *Service) MessageGetPinnedMessageIdList(ctx context.Context, request *me
 	c.Logger.Debugf("message.getPinnedMessageIdList - metadata: {%s}", c.MD)
 
 	r, err := c.MessageGetPinnedMessageIdList(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, err
-}
-
-// MessageUnPinAllMessages
-// message.unPinAllMessages user_id:long peer_type:int peer_id:long = Vector<int>;
-func (s *Service) MessageUnPinAllMessages(ctx context.Context, request *message.TLMessageUnPinAllMessages) (*message.Vector_Int, error) {
-	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("message.unPinAllMessages - metadata: {%s}", c.MD)
-
-	r, err := c.MessageUnPinAllMessages(request)
 	if err != nil {
 		return nil, err
 	}

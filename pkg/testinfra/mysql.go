@@ -43,6 +43,7 @@ type MySQL struct {
 	Container    *testcontainers.DockerContainer
 	rootPassword string
 	dsn          string
+	rootDSN      string
 	schema       []string // file names in mysqlInitDir, in the order applied
 }
 
@@ -133,12 +134,17 @@ func StartMySQL(ctx context.Context, opts ...MySQLOption) (*MySQL, error) {
 	}
 	// The DSN parameters of teamgramd/etc2.
 	m.dsn = fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true", MySQLUser, password, endpoint, MySQLDatabase)
+	m.rootDSN = fmt.Sprintf("root:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true", m.rootPassword, endpoint, MySQLDatabase)
 	return m, nil
 }
 
 // DSN is the data source name of the service user, with the parameters the
 // services use.
 func (m *MySQL) DSN() string { return m.dsn }
+
+// RootDSN is the data source name of root, for what the service user may not
+// see (information_schema.INNODB_TRX needs PROCESS).
+func (m *MySQL) RootDSN() string { return m.rootDSN }
 
 // Config is a sqlx config for DSN, as the services configure MySQL.
 func (m *MySQL) Config() sqlx.Config {

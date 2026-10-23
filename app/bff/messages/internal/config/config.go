@@ -33,5 +33,6 @@ type Config struct {
 	IdgenClient   zrpc.RpcClientConf
 	MessageClient zrpc.RpcClientConf
 	MediaClient   zrpc.RpcClientConf
+	UpdatesClient zrpc.RpcClientConf
 	SyncClient    *kafka.KafkaProducerConf
 }

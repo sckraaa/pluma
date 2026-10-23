@@ -37,9 +37,7 @@ type MessageClient interface {
 	MessageGetSearchCounter(ctx context.Context, in *message.TLMessageGetSearchCounter) (*mtproto.Int32, error)
 	MessageSearchV2(ctx context.Context, in *message.TLMessageSearchV2) (*mtproto.MessageBoxList, error)
 	MessageGetLastTwoPinnedMessageId(ctx context.Context, in *message.TLMessageGetLastTwoPinnedMessageId) (*message.Vector_Int, error)
-	MessageUpdatePinnedMessageId(ctx context.Context, in *message.TLMessageUpdatePinnedMessageId) (*mtproto.Bool, error)
 	MessageGetPinnedMessageIdList(ctx context.Context, in *message.TLMessageGetPinnedMessageIdList) (*message.Vector_Int, error)
-	MessageUnPinAllMessages(ctx context.Context, in *message.TLMessageUnPinAllMessages) (*message.Vector_Int, error)
 	MessageGetUnreadMentions(ctx context.Context, in *message.TLMessageGetUnreadMentions) (*message.Vector_MessageBox, error)
 	MessageGetUnreadMentionsCount(ctx context.Context, in *message.TLMessageGetUnreadMentionsCount) (*mtproto.Int32, error)
 	MessageGetSavedHistoryMessages(ctx context.Context, in *message.TLMessageGetSavedHistoryMessages) (*mtproto.MessageBoxList, error)
@@ -161,25 +159,11 @@ func (m *defaultMessageClient) MessageGetLastTwoPinnedMessageId(ctx context.Cont
 	return client.MessageGetLastTwoPinnedMessageId(ctx, in)
 }
 
-// MessageUpdatePinnedMessageId
-// message.updatePinnedMessageId user_id:long peer_type:int peer_id:long id:int pinned:Bool = Bool;
-func (m *defaultMessageClient) MessageUpdatePinnedMessageId(ctx context.Context, in *message.TLMessageUpdatePinnedMessageId) (*mtproto.Bool, error) {
-	client := message.NewRPCMessageClient(m.cli.Conn())
-	return client.MessageUpdatePinnedMessageId(ctx, in)
-}
-
 // MessageGetPinnedMessageIdList
 // message.getPinnedMessageIdList user_id:long peer_type:int peer_id:long = Vector<int>;
 func (m *defaultMessageClient) MessageGetPinnedMessageIdList(ctx context.Context, in *message.TLMessageGetPinnedMessageIdList) (*message.Vector_Int, error) {
 	client := message.NewRPCMessageClient(m.cli.Conn())
 	return client.MessageGetPinnedMessageIdList(ctx, in)
-}
-
-// MessageUnPinAllMessages
-// message.unPinAllMessages user_id:long peer_type:int peer_id:long = Vector<int>;
-func (m *defaultMessageClient) MessageUnPinAllMessages(ctx context.Context, in *message.TLMessageUnPinAllMessages) (*message.Vector_Int, error) {
-	client := message.NewRPCMessageClient(m.cli.Conn())
-	return client.MessageUnPinAllMessages(ctx, in)
 }
 
 // MessageGetUnreadMentions

@@ -12,102 +12,60 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
-
-	"google.golang.org/protobuf/types/known/wrapperspb"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // MsgUnpinAllMessages
 // msg.unpinAllMessages user_id:long auth_key_id:long peer_type:int peer_id:long = messages.AffectedHistory;
+//
+// It unpins a portion of the dialog's pinned messages; offset above 0 asks
+// the client to repeat the call. The other members unpin theirs.
 func (c *MsgCore) MsgUnpinAllMessages(in *msg.TLMsgUnpinAllMessages) (*mtproto.Messages_AffectedHistory, error) {
-	var (
-		peer     = mtproto.MakePeerUtil(in.PeerType, in.PeerId)
-		dialogId = mtproto.MakeDialogId(in.UserId, peer.PeerType, peer.PeerId)
-		idList   = make([]int32, 0)
-		pts      int32
-		ptsCount int32
-	)
-
-	switch peer.PeerType {
-	case mtproto.PEER_SELF,
-		mtproto.PEER_USER,
-		mtproto.PEER_CHAT:
-		boxMsgList, err := c.svcCtx.Dao.MessagesDAO.SelectPinnedListWithCB(
-			c.ctx,
-			in.UserId,
-			dialogId.A,
-			dialogId.B,
-			func(sz, i int, v *dataobject.MessagesDO) {
-				idList = append(idList, v.UserMessageBoxId)
-			})
-		if err != nil {
-			c.Logger.Errorf("msg.updatePinnedMessage - error: %v", err)
-			return nil, mtproto.ErrMsgIdInvalid
-		}
-		if len(boxMsgList) == 0 {
-			c.Logger.Errorf("msg.updatePinnedMessage - error: %v", err)
-			return nil, mtproto.ErrMsgIdInvalid
-		}
-
-		c.svcCtx.Dao.DialogClient.DialogInsertOrUpdateDialog(
-			c.ctx,
-			&dialog.TLDialogInsertOrUpdateDialog{
-				UserId:          in.UserId,
-				PeerType:        peer.PeerType,
-				PeerId:          peer.PeerId,
-				TopMessage:      nil,
-				ReadOutboxMaxId: nil,
-				ReadInboxMaxId:  nil,
-				UnreadCount:     nil,
-				UnreadMark:      false,
-				PinnedMsgId:     &wrapperspb.Int32Value{Value: 0},
-				Date2:           nil,
-			})
-
-		c.svcCtx.Dao.MessagesDAO.UpdateUnPinnedByIdList(c.ctx, in.UserId, idList)
-
-		// update
-		pts = c.svcCtx.Dao.IDGenClient2.NextNPtsId(c.ctx, in.UserId, len(idList))
-		ptsCount = int32(len(idList))
-
-		// Write user_pts_updates before RPC return to guarantee getDifference completeness
-		updateUnpin := mtproto.MakeTLUpdatePinnedMessages(&mtproto.Update{
-			Pinned:    false,
-			Peer_PEER: peer.ToPeer(),
-			Messages:  idList,
-			Pts_INT32: pts,
-			PtsCount:  ptsCount,
-		}).To_Update()
-		c.svcCtx.Dao.AddToPtsQueue(c.ctx, in.UserId, pts, ptsCount, updateUnpin)
-
-		c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(
-			c.ctx,
-			&sync.TLSyncUpdatesNotMe{
-				UserId:        in.UserId,
-				PermAuthKeyId: in.AuthKeyId,
-				Updates:       mtproto.MakeUpdatesByUpdates(updateUnpin),
-			})
-
-		// inbox
-		c.svcCtx.Dao.InboxClient.InboxUnpinAllMessages(c.ctx, &inbox.TLInboxUnpinAllMessages{
-			UserId:   in.UserId,
-			PeerType: peer.PeerType,
-			PeerId:   peer.PeerId,
-		})
-
-	case mtproto.PEER_CHANNEL:
-	default:
-		err := mtproto.ErrPeerIdInvalid
-		c.Logger.Errorf("msg.updatePinnedMessage - error: %v", err)
+	peerType, peerId := selfPeer(in.UserId, in.PeerType, in.PeerId)
+	if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT {
+		c.Logger.Errorf("msg.unpinAllMessages - error: invalid peer %d/%d", in.PeerType, in.PeerId)
+		return nil, mtproto.ErrPeerIdInvalid
+	}
+	recipients, err := c.recipients(in.UserId, peerType, peerId)
+	if err != nil {
+		c.Logger.Errorf("msg.unpinAllMessages - error: %v", err)
 		return nil, err
 	}
 
+	var left int32
+	res, err := c.svcCtx.Dao.RunBox(c.ctx, in.UserId,
+		[]string{dialog.GetDialogCacheKeyByPeer(in.UserId, peerType, peerId)},
+		func(b *userbox.Box) error {
+			left = 0
+			unpinned, err := c.svcCtx.Dao.UnpinPortion(b, peerType, peerId)
+			if err != nil || unpinned == nil {
+				return err
+			}
+			left = unpinned.Left
+			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, in.UserId, in.AuthKeyId, mtproto.MakeUpdatesByUpdates(unpinned.Update)); err != nil {
+				return err
+			}
+			for _, to := range recipients {
+				if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxUnpinAllMessages{
+					UserId:   to,
+					FromId:   in.UserId,
+					PeerType: peerType,
+					PeerId:   peerId,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+	if err != nil {
+		c.Logger.Errorf("msg.unpinAllMessages - error: %v", err)
+		return nil, err
+	}
 	return mtproto.MakeTLMessagesAffectedHistory(&mtproto.Messages_AffectedHistory{
-		Pts:      pts,
-		PtsCount: ptsCount,
-		Offset:   0,
+		Pts:      res.State.Pts,
+		PtsCount: ptsCount(res),
+		Offset:   left,
 	}).To_Messages_AffectedHistory(), nil
 }

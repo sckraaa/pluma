@@ -34,6 +34,8 @@ func TestSchemaLoads(t *testing.T) {
 		{"chat_invite_participants", "requested"}, // used by the chat DAO
 		{"chat_invite_participants", "approved_by"},
 		{"users", "main_tab"}, // the last upstream migration of users
+		{"user_state", "pts"}, // migrate-20261022.sql
+		{"user_state", "last_message_box_id"},
 	} {
 		var n int
 		err = db.QueryRow("select count(*) from information_schema.columns where table_schema = ? and table_name = ? and column_name = ?",
@@ -41,6 +43,15 @@ func TestSchemaLoads(t *testing.T) {
 		if err != nil || n != 1 {
 			t.Errorf("%s.%s: %d, %v", c.table, c.column, n, err)
 		}
+	}
+
+	// One journal row per (user_id, pts), as pkg/userbox relies on
+	// (migrate-20261022.sql).
+	var nonUnique int
+	err = db.QueryRow("select min(non_unique) from information_schema.statistics where table_schema = ? and table_name = 'user_pts_updates' and index_name = 'user_id'",
+		MySQLDatabase).Scan(&nonUnique)
+	if err != nil || nonUnique != 0 {
+		t.Errorf("user_pts_updates index user_id: non_unique %d, %v", nonUnique, err)
 	}
 
 	// z_init.sql, the last file, ran: the service account exists.

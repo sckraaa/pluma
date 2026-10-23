@@ -23,7 +23,3 @@ Telemetry:
   Batcher: otlpgrpc
   
 NodeId: 1
-
-SeqIDGen:
-  - Host: redis:6379
-    Pass: "${REDIS_PASSWORD}"

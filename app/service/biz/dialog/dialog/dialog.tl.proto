@@ -42,7 +42,6 @@ enum TLConstructor {
   CRC32_dialog_reorderPinnedDialogs = -18664089;
   CRC32_dialog_getDialogById = -1587594251;
   CRC32_dialog_getTopMessage = -92425614;
-  CRC32_dialog_insertOrUpdateDialog = 1563133986;
   CRC32_dialog_deleteDialog = 28515811;
   CRC32_dialog_getUserPinnedMessage = -1885617487;
   CRC32_dialog_updateUserPinnedMessage = 371388970;
@@ -63,7 +62,6 @@ enum TLConstructor {
   CRC32_dialog_getDialogFilter = -209189348;
   CRC32_dialog_getDialogFilterBySlug = 1313177583;
   CRC32_dialog_createDialogFilter = -959749265;
-  CRC32_dialog_updateUnreadCount = 732705613;
   CRC32_dialog_toggleDialogFilterTags = -1597149815;
   CRC32_dialog_getDialogFilterTags = -84870505;
   CRC32_dialog_setChatWallpaper = -1252926702;
@@ -282,21 +280,6 @@ message TL_dialog_getTopMessage {
 }
 
 //--------------------------------------------------------------------------------------------
-message TL_dialog_insertOrUpdateDialog {
-  TLConstructor constructor = 1;
-  int64 user_id = 3;
-  int32 peer_type = 4;
-  int64 peer_id = 5;
-  google.protobuf.Int32Value top_message = 6;
-  google.protobuf.Int32Value read_outbox_max_id = 7;
-  google.protobuf.Int32Value read_inbox_max_id = 8;
-  google.protobuf.Int32Value unread_count = 9;
-  bool unread_mark = 10;
-  google.protobuf.Int64Value date2 = 11;
-  google.protobuf.Int32Value pinned_msg_id = 12;
-}
-
-//--------------------------------------------------------------------------------------------
 message TL_dialog_deleteDialog {
   TLConstructor constructor = 1;
   int64 user_id = 3;
@@ -454,17 +437,6 @@ message TL_dialog_createDialogFilter {
 }
 
 //--------------------------------------------------------------------------------------------
-message TL_dialog_updateUnreadCount {
-  TLConstructor constructor = 1;
-  int64 user_id = 3;
-  int32 peer_type = 4;
-  int64 peer_id = 5;
-  google.protobuf.Int32Value unread_count = 6;
-  google.protobuf.Int32Value unread_mentions_count = 7;
-  google.protobuf.Int32Value unread_reactions_count = 8;
-}
-
-//--------------------------------------------------------------------------------------------
 message TL_dialog_toggleDialogFilterTags {
   TLConstructor constructor = 1;
   int64 user_id = 3;
@@ -539,8 +511,6 @@ service RPCDialog {
       returns (mtproto.Bool) {}
   rpc dialog_getDialogById(TL_dialog_getDialogById) returns (DialogExt) {}
   rpc dialog_getTopMessage(TL_dialog_getTopMessage) returns (mtproto.Int32) {}
-  rpc dialog_insertOrUpdateDialog(TL_dialog_insertOrUpdateDialog)
-      returns (mtproto.Bool) {}
   rpc dialog_deleteDialog(TL_dialog_deleteDialog) returns (mtproto.Bool) {}
   rpc dialog_getUserPinnedMessage(TL_dialog_getUserPinnedMessage)
       returns (mtproto.Int32) {}
@@ -578,8 +548,6 @@ service RPCDialog {
       returns (DialogFilterExt) {}
   rpc dialog_createDialogFilter(TL_dialog_createDialogFilter)
       returns (DialogFilterExt) {}
-  rpc dialog_updateUnreadCount(TL_dialog_updateUnreadCount)
-      returns (mtproto.Bool) {}
   rpc dialog_toggleDialogFilterTags(TL_dialog_toggleDialogFilterTags)
       returns (mtproto.Bool) {}
   rpc dialog_getDialogFilterTags(TL_dialog_getDialogFilterTags)

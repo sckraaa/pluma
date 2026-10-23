@@ -9,6 +9,9 @@
 //	pluma-admin [-f bff.yaml] allowlist list
 //	pluma-admin [-f bff.yaml] login-code <phone> [request-id]
 //	pluma-admin [-f bff.yaml] login-unblock <phone|ip>
+//	pluma-admin [-f bff.yaml] state-raise -by <margin> [-user <id>]
+//	pluma-admin [-f bff.yaml] state-export-legacy -margin <margin>
+//	pluma-admin [-f bff.yaml] verify-pts [-after <pts>] <user id>
 //
 // login-code generates a fresh code for a pending code request of the phone
 // (auth.sendCode or account.sendChangePhoneCode that answered "code sent by
@@ -19,6 +22,14 @@
 //
 // login-unblock clears the login flood counters of a phone (code requests and
 // wrong codes; FLOOD_WAIT on every login attempt) or of a client address.
+//
+// state-raise, state-export-legacy and verify-pts maintain the state of
+// users' boxes (user_state, ADR 0011, pp. 10-11; docs/ops/user-state.md).
+// The first two run only while msg and biz are stopped: state-raise lifts
+// every user's (or one user's) pts and box ids above everything written,
+// after a rollback or a restore from a backup; state-export-legacy writes
+// the counters to Redis for a rollback to a version before task 002.
+// verify-pts checks that a user's journal has no gaps or overlaps.
 //
 // From the repo root (services run with teamgramd/etc, secrets in .env):
 //
@@ -101,8 +112,12 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] allowlist list
   pluma-admin [-f bff.yaml] login-code <phone> [request-id]
   pluma-admin [-f bff.yaml] login-unblock <phone|ip>
+  pluma-admin [-f bff.yaml] state-raise -by <margin> [-user <id>]
+  pluma-admin [-f bff.yaml] state-export-legacy -margin <margin>
+  pluma-admin [-f bff.yaml] verify-pts [-after <pts>] <user id>
 
 Phones are international numbers, e.g. +79991234567.
+state-raise and state-export-legacy run only while msg and biz are stopped.
 `
 
 var errUsage = errors.New("usage")
@@ -138,6 +153,10 @@ func run(args []string, stdout, stderr io.Writer, connect backend) int {
 func dispatch(args []string, configFile string, stdout io.Writer, connect backend) error {
 	if len(args) == 0 {
 		return errUsage
+	}
+	switch args[0] {
+	case "state-raise", "state-export-legacy", "verify-pts":
+		return boxCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

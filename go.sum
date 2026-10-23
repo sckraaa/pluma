@@ -294,8 +294,6 @@ github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/teamgram/gnet/v2 v2.9.1-teamgram h1:C/5fSDyK+HgiTLeTn58h1EhYy9pGMRU1xQV3tgQkfPE=
 github.com/teamgram/gnet/v2 v2.9.1-teamgram/go.mod h1:WQTxDWYuQ/hz3eccH0FN32IVuvZ19HewEWx0l62fx7E=
-github.com/teamgram/marmota v0.2.0 h1:kmOIg+s54x0mtuDSHTF4jblgeH6fIHWhGqNdHheYAAU=
-github.com/teamgram/marmota v0.2.0/go.mod h1:nEZdVPvIT6ZQSi55H26YL6dVaZ+VMt6w79sCDubPrsM=
 github.com/testcontainers/testcontainers-go v0.44.0 h1:/Fwh6HY1mIikhnm9e7HwoxGycx0lzRAE0f5VQpjFxzI=
 github.com/testcontainers/testcontainers-go v0.44.0/go.mod h1:IcnwQrYTO86xHXu5bvMaBH7ATlbS3Qn1M1QWW3c66rE=
 github.com/titanous/json5 v1.0.0 h1:hJf8Su1d9NuI/ffpxgxQfxh/UiBFZX7bMPid0rIL/7s=

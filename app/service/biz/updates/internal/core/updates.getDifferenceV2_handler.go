@@ -15,67 +15,51 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
 
 // UpdatesGetDifferenceV2
 // updates.getDifferenceV2 flags:# auth_key_id:long user_id:long pts:int pts_total_limit:flags.0?int date:long = Difference;
+//
+// It reads the committed state S of the box first and then the journal rows
+// in (pts, S.pts]: every row up to S.pts committed before S became visible,
+// so the rows are complete; rows committed after are left for the next push
+// or getDifference. With fewer than the limit, the reply is a difference up
+// to S.pts, even with no rows (a jump of the state, e.g. by the migration of
+// user_state).
 func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV2) (*updates.Difference, error) {
 	limit := in.GetPtsTotalLimit().GetValue()
-	// check pts_total_limit
 	if limit <= 0 || limit > 5000 {
 		limit = 5000
 	}
 
-	updateList, lastPts, lastSeq, lastDate := c.GetMergedUpdateList(in.UserId, in.AuthKeyId, in.Pts, int32(in.Date), limit)
+	st, err := userbox.Read(c.ctx, c.svcCtx.Dao.BoxDB, in.UserId)
+	if err != nil {
+		c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	updateList, lastPts, lastSeq, lastDate, full, err := c.GetMergedUpdateList(in.UserId, in.AuthKeyId, in.Pts, st.Pts, int32(in.Date), limit)
+	if err != nil {
+		c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
 	if lastDate == 0 {
 		lastDate = time.Now().Unix()
 	}
+	if lastSeq == 0 {
+		lastSeq = st.Seq
+	}
 
-	if len(updateList) == 0 {
-		// 1. updates.differenceTooLong#4afe8f6d pts:int = updates.Difference;
-		if lastSeq == 0 {
-			lastSeq = c.svcCtx.Dao.IDGenClient2.CurrentSeqId(c.ctx, in.AuthKeyId)
-		}
-
+	if len(updateList) == 0 && in.Pts >= st.Pts {
 		return updates.MakeTLDifferenceEmpty(&updates.Difference{
 			State: mtproto.MakeTLUpdatesState(&mtproto.Updates_State{
-				Pts:         lastPts,
-				Date:        int32(lastDate),
-				UnreadCount: 0,
-				Seq:         lastSeq,
+				Pts:  st.Pts,
+				Date: int32(lastDate),
+				Seq:  lastSeq,
 			}).To_Updates_State(),
 		}).To_Difference(), nil
-	} else if len(updateList) >= int(limit) {
-		// 2. updates.difference#f49ca0
-		//	new_messages:Vector<Message>
-		//	new_encrypted_messages:Vector<EncryptedMessage>
-		//	other_updates:Vector<Update>
-		//	chats:Vector<Chat>
-		//	users:Vector<User>
-		//	state:updates.State = updates.Difference;
-		// 2. 1 updates.differenceEmpty#5d75a138 date:int seq:int = updates.Difference;
-		//
-
-		var (
-			totalUpdatesCount = int32(len(updateList))
-			maxPts            = lastPts
-		)
-		if lastPts > in.Pts {
-			maxPts = c.svcCtx.Dao.IDGenClient2.CurrentPtsId(c.ctx, in.UserId)
-			totalUpdatesCount += maxPts - lastPts
-		}
-
-		if lastSeq > 0 {
-			totalUpdatesCount += c.svcCtx.Dao.IDGenClient2.CurrentSeqId(c.ctx, in.AuthKeyId) - lastSeq
-		}
-
-		//if totalUpdatesCount >= 1000 {
-		//	return updates.MakeTLDifferenceTooLong(&updates.Difference{
-		//		Pts: maxPts,
-		//	}).To_Difference(), nil
-		//}
 	}
 
 	merge := newMergeUpdatesHelper()
@@ -83,45 +67,26 @@ func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV
 		merge.merge(update, lastPts)
 	}
 
-	if lastSeq == 0 {
-		lastSeq = c.svcCtx.Dao.IDGenClient2.CurrentSeqId(c.ctx, in.AuthKeyId)
-	}
-	state := mtproto.MakeTLUpdatesState(&mtproto.Updates_State{
-		Pts:         lastPts,
-		Date:        int32(lastDate),
-		UnreadCount: 0,
-		Seq:         lastSeq,
-	}).To_Updates_State()
-
-	if len(updateList) >= int(limit) {
-		// 2.2 updates.differenceSlice#a8fb1981
-		//	new_messages:Vector<Message>
-		//	new_encrypted_messages:Vector<EncryptedMessage>
-		//	other_updates:Vector<Update>
-		//	chats:Vector<Chat>
-		//	users:Vector<User>
-		//	intermediate_state:updates.State = updates.Difference;
-		//
+	if full {
 		return updates.MakeTLDifferenceSlice(&updates.Difference{
-			NewMessages:       merge.newMessages,
-			OtherUpdates:      merge.toUpdates(),
-			IntermediateState: state,
-		}).To_Difference(), nil
-	} else {
-		// 2. updates.difference#f49ca0
-		//	new_messages:Vector<Message>
-		//	new_encrypted_messages:Vector<EncryptedMessage>
-		//	other_updates:Vector<Update>
-		//	chats:Vector<Chat>
-		//	users:Vector<User>
-		//	state:updates.State = updates.Difference;
-		return updates.MakeTLDifference(&updates.Difference{
 			NewMessages:  merge.newMessages,
 			OtherUpdates: merge.toUpdates(),
-			State:        state,
+			IntermediateState: mtproto.MakeTLUpdatesState(&mtproto.Updates_State{
+				Pts:  lastPts,
+				Date: int32(lastDate),
+				Seq:  lastSeq,
+			}).To_Updates_State(),
 		}).To_Difference(), nil
 	}
-
+	return updates.MakeTLDifference(&updates.Difference{
+		NewMessages:  merge.newMessages,
+		OtherUpdates: merge.toUpdates(),
+		State: mtproto.MakeTLUpdatesState(&mtproto.Updates_State{
+			Pts:  st.Pts,
+			Date: int32(lastDate),
+			Seq:  lastSeq,
+		}).To_Updates_State(),
+	}).To_Difference(), nil
 }
 
 func (c *UpdatesCore) addPtsUpdate(updates []*mtproto.Update, do *dataobject.UserPtsUpdatesDO) []*mtproto.Update {
@@ -150,17 +115,23 @@ func (c *UpdatesCore) addSeqUpdate(updates []*mtproto.Update, do *dataobject.Aut
 	return updates
 }
 
-func (c *UpdatesCore) GetMergedUpdateList(userId int64, authId int64, pts, date, limit int32) ([]*mtproto.Update, int32, int32, int64) {
-	// ptsDOList, _ := m.ChannelPtsUpdatesDAO.SelectByGtPts(ctx, channelId, pts)
-	a, _ := c.svcCtx.Dao.UserPtsUpdatesDAO.SelectByGtPts(c.ctx, userId, pts, limit)
-	b, _ := c.svcCtx.Dao.AuthSeqUpdatesDAO.SelectByGtDate(c.ctx, authId, userId, int64(date), limit)
+// GetMergedUpdateList returns the journal rows of the box in (pts, maxPts],
+// at most limit, merged by date with the seq updates of the auth key after
+// date, and the last pts, seq and date of what it returns. full reports that
+// the journal rows reached the limit.
+func (c *UpdatesCore) GetMergedUpdateList(userId int64, authId int64, pts, maxPts, date, limit int32) (list []*mtproto.Update, lastPts, lastSeq int32, lastDate int64, full bool, err error) {
+	a, err := c.svcCtx.Dao.UserPtsUpdatesDAO.SelectByPtsRange(c.ctx, userId, pts, maxPts, limit)
+	if err != nil {
+		return nil, 0, 0, 0, false, err
+	}
+	b, err := c.svcCtx.Dao.AuthSeqUpdatesDAO.SelectByGtDate(c.ctx, authId, userId, int64(date), limit)
+	if err != nil {
+		return nil, 0, 0, 0, false, err
+	}
+	full = len(a) >= int(limit)
 
 	//创建结果集数组
-	var (
-		lastDate int64 = 0
-		lastSeq  int32 = 0
-		c2             = make([]*mtproto.Update, 0, len(a)+len(b))
-	)
+	c2 := make([]*mtproto.Update, 0, len(a)+len(b))
 
 	alen := len(a)
 	blen := len(b)
@@ -224,5 +195,5 @@ func (c *UpdatesCore) GetMergedUpdateList(userId int64, authId int64, pts, date,
 		}
 	}
 
-	return c2, pts, lastSeq, lastDate
+	return c2, pts, lastSeq, lastDate, full, nil
 }

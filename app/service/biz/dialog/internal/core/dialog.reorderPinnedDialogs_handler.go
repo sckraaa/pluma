@@ -10,106 +10,73 @@
 package core
 
 import (
-	"context"
+	"slices"
 	"time"
 
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // DialogReorderPinnedDialogs
 // dialog.reorderPinnedDialogs user_id:long force:Bool folder_id:int id_list:Vector<long> = Bool;
+//
+// One box transaction of the user: the pinned dialogs are read, then each
+// row changes by its key, in key order.
 func (c *DialogCore) DialogReorderPinnedDialogs(in *dialog.TLDialogReorderPinnedDialogs) (*mtproto.Bool, error) {
 	var (
-		userId      = in.GetUserId()
-		force       = mtproto.FromBool(in.GetForce())
-		folderId    = in.GetFolderId()
-		idList      = in.GetIdList()
-		orderPinned = time.Now().Unix()
-		keyList     = make([]string, 0, len(idList)+1)
+		userId  = in.GetUserId()
+		force   = mtproto.FromBool(in.GetForce())
+		idList  = in.GetIdList()
+		column  = "pinned"
+		folder  = "folder_id = 0"
+		listKey = dialog.GetPinnedDialogIdListCacheKey(userId)
+		keys    = make([]string, 0, len(idList))
 	)
+	if in.GetFolderId() != 0 {
+		column, folder, listKey = "folder_pinned", "folder_id = 1", dialog.GetFolderPinnedDialogIdListCacheKey(userId)
+	}
 	for _, id := range idList {
-		keyList = append(keyList, dialog.GetDialogCacheKey(in.GetUserId(), id))
+		keys = append(keys, dialog.GetDialogCacheKey(userId, id))
 	}
 
-	if folderId == 0 {
-		c.svcCtx.Dao.CachedConn.Exec(
-			c.ctx,
-			func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-				tR := sqlx.TxWrapper(
-					ctx,
-					conn,
-					func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-						if force {
-							if len(idList) > 0 {
-								_, result.Err = c.svcCtx.Dao.DialogsDAO.UpdateUnPinnedNotIdListTx(
-									tx,
-									userId,
-									idList)
-							} else {
-								_, result.Err = c.svcCtx.Dao.DialogsDAO.UpdateUnPinnedNotIdListTx(
-									tx,
-									userId,
-									[]int64{0}) // hack
-							}
-							if result.Err != nil {
-								return
-							}
-						}
-
-						for _, id := range idList {
-							_, result.Err = c.svcCtx.Dao.DialogsDAO.UpdatePeerDialogListPinnedTx(
-								tx,
-								orderPinned<<32,
-								in.UserId, []int64{id})
-							if result.Err != nil {
-								return
-							}
-							orderPinned -= 1
-						}
-					})
-				return 0, 0, tR.Err
-			},
-			append(keyList, dialog.GetPinnedDialogIdListCacheKey(in.GetUserId()))...)
-	} else {
-		c.svcCtx.Dao.CachedConn.Exec(
-			c.ctx,
-			func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-				tR := sqlx.TxWrapper(
-					c.ctx,
-					c.svcCtx.Dao.DB,
-					func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-						if force {
-							if len(idList) > 0 {
-								_, result.Err = c.svcCtx.Dao.DialogsDAO.UpdateUnPinnedNotIdListTx(
-									tx,
-									userId,
-									idList)
-							} else {
-								_, result.Err = c.svcCtx.Dao.DialogsDAO.UpdateUnPinnedNotIdListTx(
-									tx,
-									userId,
-									[]int64{0}) // hack
-							}
-							if result.Err != nil {
-								return
-							}
-						}
-
-						for _, id := range idList {
-							_, result.Err = c.svcCtx.Dao.DialogsDAO.UpdateFolderPeerDialogListPinnedTx(
-								tx,
-								orderPinned<<32,
-								in.UserId,
-								[]int64{id})
-							orderPinned -= 1
-						}
-					})
-				return 0, 0, tR.Err
-			},
-			append(keyList, dialog.GetFolderPinnedDialogIdListCacheKey(in.GetUserId()))...)
+	err := c.svcCtx.Dao.RunBox(c.ctx, userId, keys, func(b *userbox.Box) error {
+		values := make(map[int64]int64, len(idList))
+		if force {
+			var pinned []int64
+			if err := b.Tx().QueryRowsPartial(&pinned,
+				"SELECT peer_dialog_id FROM dialogs WHERE user_id = ? AND "+folder+" AND "+column+" > 0", userId); err != nil {
+				return err
+			}
+			for _, id := range pinned {
+				if !slices.Contains(idList, id) {
+					values[id] = 0
+				}
+			}
+		}
+		order := time.Now().Unix()
+		for _, id := range idList {
+			values[id] = order << 32
+			order--
+		}
+		ids := make([]int64, 0, len(values))
+		for id := range values {
+			ids = append(ids, id)
+		}
+		slices.Sort(ids)
+		for _, id := range ids {
+			if _, err := b.Tx().Exec("UPDATE dialogs SET "+column+" = ? WHERE user_id = ? AND "+folder+" AND peer_dialog_id = ?",
+				values[id], userId, id); err != nil {
+				return err
+			}
+			b.InvalidateCache(dialog.GetDialogCacheKey(userId, id))
+		}
+		b.InvalidateCache(listKey)
+		return nil
+	})
+	if err != nil {
+		c.Logger.Errorf("dialog.reorderPinnedDialogs - error: %v", err)
+		return nil, err
 	}
-
 	return mtproto.BoolTrue, nil
 }

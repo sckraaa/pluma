@@ -19,6 +19,7 @@
 package server
 
 import (
+	"context"
 	"flag"
 	"github.com/teamgram/teamgram-server/app/service/biz/biz/internal/config"
 	chat_helper "github.com/teamgram/teamgram-server/app/service/biz/chat"
@@ -34,6 +35,8 @@ import (
 	user_helper "github.com/teamgram/teamgram-server/app/service/biz/user"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
+	"time"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -56,8 +59,18 @@ func (s *Server) Initialize() error {
 
 	// The config carries secrets from the environment (passwords, keys): never log it whole.
 	logx.Infof("loaded config %s", *configFile)
-	// ctx := svc.NewServiceContext(c)
-	// s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
+
+	// dialog changes several dialog rows of a user in box transactions and
+	// updates reads the boxes' state (pkg/userbox): MySQL must be set up as
+	// they need (docs/ops/user-state.md).
+	if err := checkBoxSettings(c.Mysql.DSN); err != nil {
+		return err
+	}
+	// A request of dialog waiting for a busy user's box must end with the
+	// box operation's own result, not the server's deadline.
+	if err := userbox.CheckRPCTimeout("Timeout", c.Timeout, dialog.MaxBoxOpTime); err != nil {
+		return err
+	}
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		// chat_helper
@@ -109,8 +122,6 @@ func (s *Server) Initialize() error {
 			updates_helper.New(updates_helper.Config{
 				RpcServerConf: c.RpcServerConf,
 				Mysql:         c.Mysql,
-				KV:            c.KV,
-				IdgenClient:   c.IdgenClient,
 			}))
 
 		// user_helper
@@ -136,4 +147,16 @@ func (s *Server) RunLoop() {
 
 func (s *Server) Destroy() {
 	s.grpcSrv.Stop()
+}
+
+// checkBoxSettings verifies the MySQL settings box transactions rely on
+// (userbox.Check) on the pool of dsn.
+func checkBoxSettings(dsn string) error {
+	db, err := userbox.Open(dsn)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return userbox.Check(ctx, db)
 }

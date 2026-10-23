@@ -79,7 +79,10 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 		schedule_date	flags.10?int	Scheduled message date for scheduled messages
 	*/
 
-	groupedId := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	groupedId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 	//, &idgen.TLIdgenNextId{
 	//	Constructor:          0,
 	//	XXX_NoUnkeyedLiteral: struct{}{},
