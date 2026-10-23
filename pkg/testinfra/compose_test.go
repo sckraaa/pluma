@@ -54,7 +54,7 @@ func TestComposeServices(t *testing.T) {
 }
 
 // TestTopicsScript: topics.sh creates every topic the services use, with the
-// partitions the relay expects, and the log topic of filebeat.
+// partitions the relay expects.
 func TestTopicsScript(t *testing.T) {
 	root, err := RepoRoot()
 	if err != nil {
@@ -68,7 +68,7 @@ func TestTopicsScript(t *testing.T) {
 	for _, m := range regexp.MustCompile(`(?m)^\s+"(\S+) (\d+) \S+"$`).FindAllStringSubmatch(string(script), -1) {
 		partitions[m[1]] = m[2]
 	}
-	used := map[string]string{"teamgram-log": "1"}
+	used := map[string]string{}
 	for file, keys := range map[string][][]string{
 		"msg.yaml":  {{"Topics", "Inbox"}, {"Topics", "Sync"}, {"InboxConsumer", "Topic"}},
 		"sync.yaml": {{"SyncConsumer", "Topic"}},

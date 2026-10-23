@@ -22,7 +22,6 @@ TOPICS=(
 	"Inbox-T 16 retention.ms=604800000,min.insync.replicas=1"
 	"Sync-T 16 retention.ms=86400000,min.insync.replicas=1,max.message.bytes=8388608"
 	"BotSync 16 retention.ms=86400000,min.insync.replicas=1,max.message.bytes=8388608"
-	"teamgram-log 1 retention.ms=86400000,retention.bytes=1073741824,min.insync.replicas=1"
 )
 
 for entry in "${TOPICS[@]}"; do

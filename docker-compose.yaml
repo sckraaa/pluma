@@ -21,6 +21,15 @@ x-teamgram: &teamgram
   networks:
     - teamgram_net
 
+# Healthy once the service accepts connections on its port (sync has no gRPC
+# server: its metrics port). Dependents start only after that.
+x-health: &health
+  interval: 10s
+  timeout: 5s
+  start_period: 60s
+  start_interval: 2s
+  retries: 3
+
 x-redis-env: &redis-env
   REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
 
@@ -35,23 +44,35 @@ services:
     # service compose would run eleven builds of it at once.
     build: .
     command: ["./idgen", "-f=../etc2/idgen.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20660"]
     stop_grace_period: 15s
 
   status:
     <<: *teamgram
     command: ["./status", "-f=../etc2/status.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20670"]
     environment: *redis-env
     stop_grace_period: 15s
 
   authsession:
     <<: *teamgram
     command: ["./authsession", "-f=../etc2/authsession.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20450"]
     environment: *db-env
     stop_grace_period: 15s
 
   dfs:
     <<: *teamgram
     command: ["./dfs", "-f=../etc2/dfs.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20640"]
     environment:
       <<: *redis-env
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
@@ -61,46 +82,82 @@ services:
   media:
     <<: *teamgram
     command: ["./media", "-f=../etc2/media.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20650"]
     environment: *db-env
     stop_grace_period: 30s
-    depends_on: [dfs]
+    depends_on:
+      dfs:
+        condition: service_healthy
 
   biz:
     <<: *teamgram
     command: ["./biz", "-f=../etc2/biz.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20020"]
     environment: *db-env
     stop_grace_period: 40s
-    depends_on: [idgen, status, authsession, media]
+    depends_on:
+      idgen:
+        condition: service_healthy
+      status:
+        condition: service_healthy
+      authsession:
+        condition: service_healthy
+      media:
+        condition: service_healthy
 
   msg:
     <<: *teamgram
     command: ["./msg", "-f=../etc2/msg.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20030"]
     environment: *db-env
     stop_grace_period: 50s
-    depends_on: [biz]
+    depends_on:
+      biz:
+        condition: service_healthy
 
   sync:
     <<: *teamgram
     command: ["./sync", "-f=../etc2/sync.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20421"]
     environment: *db-env
     stop_grace_period: 15s
-    depends_on: [msg]
+    depends_on:
+      msg:
+        condition: service_healthy
 
   bff:
     <<: *teamgram
     command: ["./bff", "-f=../etc2/bff.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20010"]
     environment:
       <<: *db-env
       LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env (openssl rand -hex 32)}
     stop_grace_period: 30s
-    depends_on: [sync]
+    depends_on:
+      sync:
+        condition: service_healthy
 
   session:
     <<: *teamgram
     command: ["./session", "-f=../etc2/session.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20120"]
     environment: *redis-env
     stop_grace_period: 20s
-    depends_on: [bff]
+    depends_on:
+      bff:
+        condition: service_healthy
 
   gnetway:
     <<: *teamgram
@@ -125,14 +182,12 @@ services:
       - "0.0.0.0:5222:5222"   # MTProto TCP, alternative port
       - "0.0.0.0:11443:11443" # MTProto over WebSocket (Web clients)
     healthcheck:
+      <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/10443"]
-      interval: 10s
-      timeout: 5s
-      start_period: 60s
-      start_interval: 2s
-      retries: 3
     stop_grace_period: 15s
-    depends_on: [session]
+    depends_on:
+      session:
+        condition: service_healthy
 
 secrets:
   server_rsa_key:

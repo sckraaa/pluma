@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,9 @@ type composeService struct {
 	Ports           []string          `yaml:"ports"`
 	Secrets         []any             `yaml:"secrets"`
 	StopGracePeriod string            `yaml:"stop_grace_period"`
+	Healthcheck     struct {
+		Test []string `yaml:"test"`
+	} `yaml:"healthcheck"`
 }
 
 // TestComposeServices keeps docker-compose.yaml at one process per service
@@ -82,6 +86,12 @@ func TestComposeServices(t *testing.T) {
 		if s.Restart == "" || s.Image == "" {
 			t.Errorf("%s: image %q, restart %q: both must come from the x-teamgram anchor", name, s.Image, s.Restart)
 		}
+		// The health check connects to the service's own port: its gRPC
+		// ListenOn, or for sync (no gRPC server) its metrics port.
+		port := listenPort(t, name)
+		if want := "exec 3<>/dev/tcp/127.0.0.1/" + port; len(s.Healthcheck.Test) == 0 || s.Healthcheck.Test[len(s.Healthcheck.Test)-1] != want {
+			t.Errorf("%s: healthcheck %q, want a connect to port %s", name, s.Healthcheck.Test, port)
+		}
 		grace, err := time.ParseDuration(s.StopGracePeriod)
 		if err != nil || grace < 15*time.Second {
 			t.Errorf("%s: stop_grace_period %q, want at least 15s", name, s.StopGracePeriod)
@@ -118,4 +128,32 @@ func TestComposeServices(t *testing.T) {
 			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway may", name, s.Ports, s.Secrets)
 		}
 	}
+}
+
+// listenPort returns the port a service's health check connects to.
+func listenPort(t *testing.T, name string) string {
+	t.Helper()
+	cfg, err := os.ReadFile(filepath.Join(repoRoot, "teamgramd/etc2", name+".yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c struct {
+		ListenOn   string `yaml:"ListenOn"`
+		Prometheus struct {
+			Port int `yaml:"Port"`
+		} `yaml:"Prometheus"`
+	}
+	if err := yaml.Unmarshal(cfg, &c); err != nil {
+		t.Fatal(err)
+	}
+	switch {
+	case name == "gnetway":
+		return "10443"
+	case name == "sync": // its gRPC server is not started (Sync-T consumer only)
+		return strconv.Itoa(c.Prometheus.Port)
+	case c.ListenOn != "":
+		return c.ListenOn[strings.LastIndex(c.ListenOn, ":")+1:]
+	}
+	t.Fatalf("%s: no port to check", name)
+	return ""
 }

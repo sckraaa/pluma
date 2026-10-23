@@ -39,7 +39,9 @@ func (s *Server) Initialize() error {
 	// The config carries secrets from the environment (passwords, keys): never log it whole.
 	logx.Infof("loaded config %s", *configFile)
 
-	if err := logx.SetUp(c.Log); err != nil {
+	// sync runs no gRPC server, which would set these up: logs, metrics
+	// endpoint (Prometheus, health check of the compose service), tracing.
+	if err := c.SetUp(); err != nil {
 		return err
 	}
 
