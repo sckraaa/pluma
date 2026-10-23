@@ -1,8 +1,9 @@
 # Клиенты под свой сервер
 
-Решение — ADR 0010, задача 006. Клиенты — официальные приложения Telegram, собранные в облаке из закреплённого релиза upstream с патчем под сервер Pluma. Репозитории (публичные):
+Решение — ADR 0010, задачи 006 и 012. Клиенты — официальные приложения Telegram, собранные в облаке из закреплённого релиза или коммита upstream с патчем под сервер Pluma. Репозитории (публичные):
 - Android — [`sckraaa/pluma-android`](https://github.com/sckraaa/pluma-android): инструкции по переменным, подписи и выпуску — в его README.
-- iOS, Desktop, Web — `pluma-ios`, `pluma-desktop`, `pluma-web` (ещё не созданы).
+- Web — [`sckraaa/pluma-web`](https://github.com/sckraaa/pluma-web) (Telegram Web K): переменные, артефакт и проверка на стенде — в его README.
+- iOS, Desktop — `pluma-ios`, `pluma-desktop` (ещё не созданы).
 
 ## Что вшивается в клиент
 
@@ -38,3 +39,50 @@
    test/e2e/run.sh admin login-code +79990000001
    ```
 6. После проверки снести стенд, его тома и секреты: `test/e2e/run.sh down`.
+
+## Веб-клиент
+
+Официальный Telegram Web K ([morethanwords/tweb](https://github.com/morethanwords/tweb)) на последнем коммите с layer 228 (`346844bf`, 2026-09-22) с патчем под Pluma. Его собирает workflow `web` репозитория `sckraaa/pluma-web`. Результат — статический сайт и его архив `.tar.gz` с SHA-256 в артефакте запуска. Архив не шифруется: эту статику и так публично раздаёт сайт сервера.
+
+Отличия от мобильных клиентов:
+- **Адрес сервера — URL WebSocket** `wss://<домен>/apiws` (переменная `PLUMA_SERVER_URL`), а не IPv4 и порт.
+  - Страница, открытая по HTTPS, может ходить только на `wss://`. Поэтому WebSocket-порт шлюза (11443) публикуется через обратный прокси с TLS по пути `/apiws`.
+  - Раздача сайта, TLS и домен — отдельная серверная задача.
+  - `ws://` сборка принимает только для `localhost`.
+- Все DC клиента ведут на этот URL: для клиента сервер — DC 1. HTTP-транспорт tweb (`/apiw1`) выключен: шлюз принимает MTProto только по WebSocket.
+- Ключ задаётся переменной `PLUMA_RSA_PUBLIC_KEY` (PKCS#1 PEM, как у Android). Сборка печатает отпечаток в hex и десятичном виде; десятичный должен совпасть с `SERVER_RSA_KEY_FINGERPRINT`.
+- `api_id` — 10004.
+- Web push выключен до задачи 009: без VAPID-ключа сервера клиент не подписывается.
+
+### Проверка веб-клиента на локальном стенде
+
+Одна команда в рабочей копии `pluma-web`:
+1. поднимает e2e-стенд указанной рабочей копии сервера с одноразовым ключом;
+2. собирает клиент под этот ключ;
+3. в headless Chromium проходит вход по номеру из allowlist с кодом из `pluma-admin`, регистрацию и отправку сообщения в «Избранное»; второй браузер входит в тот же аккаунт и должен найти сообщение;
+4. сносит стенд.
+
+```bash
+PLUMA_SERVER_DIR=~/pluma e2e/run.sh
+```
+
+Вручную, dev-сборкой — она идёт на `ws://localhost:11443/apiws` с dev-ключом:
+1. Поднять стенд с dev-ключом и WebSocket-портом шлюза 11443:
+   ```bash
+   E2E_SERVER_KEY=~/pluma-dev-secrets/server_pkcs1.key E2E_GATEWAY_WS_PORT=11443 test/e2e/run.sh up
+   ```
+2. Добавить номер в allowlist:
+   ```bash
+   test/e2e/run.sh admin allowlist add +79990000001
+   ```
+3. Взять dev-сборку: артефакт `pluma-web-<версия>-dev` запуска workflow `web` или `ci/build.sh dev` в рабочей копии клиента. Распаковать и раздать на localhost:
+   ```bash
+   python3 -m http.server --bind 127.0.0.1 --directory pluma-web-2.2-676-dev 8080
+   ```
+4. Открыть http://localhost:8080/, нажать «Log in by phone number», ввести номер. Код получить так:
+   ```bash
+   test/e2e/run.sh admin login-code +79990000001
+   ```
+5. Снести стенд: `test/e2e/run.sh down`.
+
+Сейчас после входа список чатов пуст: на сервере нет `messages.getDialogFilters` (задача 013), а без папок Web K не рисует список. Сообщения работают, «Избранное» открывается из меню.

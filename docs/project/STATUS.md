@@ -10,9 +10,15 @@ _Обновлено: 2026-10-23. Держать коротким._
 - Сравнительных тестов: 0. Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
-- **Задача 006 (клиенты в облаке): Android готов**, дальше Web → iOS → Desktop (`docs/tasks/006-client-build-pipeline.md`).
+- **Задача 006 (клиенты в облаке):** Android и Web готовы, дальше iOS → Desktop.
+- **011 (контакты: импорт по номеру)** и **013 (папки чатов)** — в работе, каждая в своей ветке.
 
 ## Последнее сделано
+- **Веб-клиент** (задача 012, репозиторий `sckraaa/pluma-web`).
+  - Web K на последнем коммите tweb с layer 228 (`346844bf`).
+  - Патч: один URL WebSocket `wss://<домен>/apiws`, ключ сервера, `api_id` 10004, без HTTP-транспорта и обращений к Telegram; собранный сайт проверяется на следы Telegram.
+  - Проверка: в headless Chromium на стенде — вход, регистрация, сообщение в «Избранное», видимое со второго браузера.
+  - Раздача с сервера (TLS, прокси `/apiws`, домен) — отдельной задачей.
 - **Android-клиент** (ветка `task/006-client-builds`, репозиторий `sckraaa/pluma-android`).
   - Сборка: официальный клиент 12.9.1 с патчем под Pluma собирается в GitHub Actions. Холодная сборка — 48 мин, тёплая — 5 мин (ccache + Gradle cache).
   - Подпись — в защищённом environment `release`. APK для настоящего сервера шифруется age (ADR 0010).
@@ -45,5 +51,6 @@ _Обновлено: 2026-10-23. Держать коротким._
 - Каналы: 1 из 74 методов; звонки: 0 из 45; push: заглушка.
 - Клиенты пока выглядят как Telegram: логотип, «Telegram» в заголовке и на приветствии, пункты Premium/Business/FAQ. До раздачи — ребрендинг (иконки патчем, строки через langpack сервера).
 - `help.getNearestDc` не знает страну клиента (нет GeoIP-базы; клиент берёт страну SIM). `config.json` сервера ещё ссылается на teamgram.io (`me_url_prefix`) и `apv2.stel.com`. `auth.sentCode` говорит «SMS», хотя код приходит из `pluma-admin` или в приложение.
+- Web K: после входа пуст список чатов, пока нет `messages.getDialogFilters` (задача 013). «Избранное» во втором браузере показывает «0 messages» при видимом сообщении — счётчик не сходится, причина не найдена.
 - `help.getCountriesList` без `prefixes` (Android их не использует) — проверить на iOS и Desktop.
 - `contacts.importContacts` — заглушка апстрима: пишет в лог «License key … required» и возвращает пустой ответ, поэтому официальный клиент не добавит контакт по номеру (работает только `contacts.resolvePhone`). `tools/apicoverage` считает такие обработчики заглушками (`blocked`/`partial`).
