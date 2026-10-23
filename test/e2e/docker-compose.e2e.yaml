@@ -81,9 +81,11 @@ services:
   dfs: *needs-infra
 
   gnetway:
-    # An ephemeral port on the loopback interface; run.sh asks Docker for it.
+    # An ephemeral port on the loopback interface (run.sh asks Docker for
+    # it), or E2E_GATEWAY_PORT: 10443 for a development client in an
+    # emulator, which dials 10.0.2.2:10443 (docs/ops/clients.md).
     ports: !override
-      - "127.0.0.1::10443"
+      - "127.0.0.1:${E2E_GATEWAY_PORT:-}:10443"
 
   backup:
     container_name: !reset null
