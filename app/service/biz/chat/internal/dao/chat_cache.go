@@ -17,7 +17,6 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 
-	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/mr"
 )
 
@@ -128,12 +127,10 @@ func (d *Dao) getChatParticipantListByIdList(ctx context.Context, chatId int64, 
 					if do2 == nil {
 						return sqlc.ErrNotFound
 					}
-					logx.WithContext(ctx).Infof("do2: %v", do2)
 					*v.(**mtproto.ImmutableChatParticipant) = d.MakeImmutableChatParticipant(do2)
 					return nil
 				})
 
-			logx.WithContext(ctx).Infof("do: %v", p)
 			if err2 == nil {
 				participantList[idx.idx] = p
 			}

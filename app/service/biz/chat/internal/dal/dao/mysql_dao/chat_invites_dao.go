@@ -44,18 +44,18 @@ func (dao *ChatInvitesDAO) Insert(ctx context.Context, do *dataobject.ChatInvite
 
 	r, err = dao.db.NamedExec(ctx, query, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in Insert(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("namedExec in Insert(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in Insert(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in Insert(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in Insert(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in Insert(_), error: %v", err)
 	}
 
 	return
@@ -72,18 +72,18 @@ func (dao *ChatInvitesDAO) InsertTx(tx *sqlx.Tx, do *dataobject.ChatInvitesDO) (
 
 	r, err = tx.NamedExec(query, do)
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in Insert(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("namedExec in Insert(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in Insert(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("lastInsertId in Insert(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in Insert(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("rowsAffected in Insert(_), error: %v", err)
 	}
 
 	return

@@ -88,7 +88,7 @@ func (c *HttpserverCore) onUnencryptedMessage(mmsg *mtproto.MTPRawMessage) (*mtp
 	_, obj, err := parseFromIncomingMessage(mmsg.Payload[8:])
 	if err != nil {
 		err := fmt.Errorf("invalid data len < 8")
-		logx.Errorf(err.Error())
+		logx.Error(err.Error())
 		return nil, err
 	}
 
@@ -96,7 +96,7 @@ func (c *HttpserverCore) onUnencryptedMessage(mmsg *mtproto.MTPRawMessage) (*mtp
 
 	switch request := obj.(type) {
 	case *mtproto.TLReqPq:
-		logx.Infof("TLReqPq - {\"request\":%s", request)
+		logx.Debugf("handshake: TLReqPq")
 		resPQ, err := c.svcCtx.Dao.Handshake.OnReqPq(request)
 		if err != nil {
 			// logx.Errorf("onHandshake error: {%v} - {peer: %s, ctx: %s, mmsg: %s}", err, ctx, mmsg)
@@ -110,7 +110,7 @@ func (c *HttpserverCore) onUnencryptedMessage(mmsg *mtproto.MTPRawMessage) (*mtp
 		})
 		serializeToBuffer(x, mtproto.GenerateMessageId(), resPQ)
 	case *mtproto.TLReqPqMulti:
-		logx.Infof("TLReqPqMulti - {\"request\":%s", request)
+		logx.Debugf("handshake: TLReqPqMulti")
 		resPQ, err := c.svcCtx.Dao.Handshake.OnReqPqMulti(request)
 		if err != nil {
 			// logx.Errorf("onHandshake error: {%v} - {peer: %s, ctx: %s, mmsg: %s}", err, conn, ctx, mmsg)
@@ -124,7 +124,7 @@ func (c *HttpserverCore) onUnencryptedMessage(mmsg *mtproto.MTPRawMessage) (*mtp
 		})
 		serializeToBuffer(x, mtproto.GenerateMessageId(), resPQ)
 	case *mtproto.TLReq_DHParams:
-		logx.Infof("TLReq_DHParams - {\"request\":%s", request)
+		logx.Debugf("handshake: TLReq_DHParams")
 		if state := c.svcCtx.Dao.GetHandshakeStateCtx(request.Nonce); state != nil {
 			resServerDHParam, err := c.svcCtx.Dao.Handshake.OnReqDHParams(state, obj.(*mtproto.TLReq_DHParams))
 			if err != nil {
@@ -139,7 +139,7 @@ func (c *HttpserverCore) onUnencryptedMessage(mmsg *mtproto.MTPRawMessage) (*mtp
 			// return conn.Close()
 		}
 	case *mtproto.TLSetClient_DHParams:
-		logx.Infof("TLSetClient_DHParams - {\"request\":%s", request)
+		logx.Debugf("handshake: TLSetClient_DHParams")
 		if state := c.svcCtx.Dao.GetHandshakeStateCtx(request.Nonce); state != nil {
 			resSetClientDHParamsAnswer, err := c.svcCtx.Dao.Handshake.OnSetClientDHParams(state, obj.(*mtproto.TLSetClient_DHParams))
 			if err != nil {
@@ -153,7 +153,7 @@ func (c *HttpserverCore) onUnencryptedMessage(mmsg *mtproto.MTPRawMessage) (*mtp
 			// return conn.Close()
 		}
 	case *mtproto.TLMsgsAck:
-		logx.Infof("TLMsgsAck - {\"request\":%s", request)
+		logx.Debugf("handshake: TLMsgsAck")
 		//err = s.onMsgsAck(state, obj.(*mtproto.TLMsgsAck))
 		//return nil, err
 		return nil, err

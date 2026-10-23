@@ -42,6 +42,6 @@ func main() {
 	if err != nil {
 		logx.Errorf("getDocument - error: %v", err)
 	} else {
-		logx.Infof("getDocument - reply: %s", document)
+		logx.Infof("getDocument - reply: document %d", document.GetId())
 	}
 }

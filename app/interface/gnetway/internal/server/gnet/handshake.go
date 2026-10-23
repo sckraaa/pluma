@@ -23,23 +23,23 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/binary"
-	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/teamgram/marmota/pkg/hack"
-	"github.com/teamgram/marmota/pkg/hex2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
 	sessionclient "github.com/teamgram/teamgram-server/app/interface/session/client"
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
+	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/zeromicro/go-zero/core/logx"
-	"github.com/zeromicro/go-zero/core/timex"
 )
 
 const (
@@ -155,709 +155,542 @@ func (m *handshake) getKey(keyFingerprint int64) *crypto.RSACryptor {
 	return nil
 }
 
-func mustNewHandshake(cList []config.RSAKey) *handshake {
-	var (
-		h = &handshake{
-			keyFingerprints: make([]int64, 0, len(cList)),
-			rsaList:         make([]rsaKeyHelper, 0, len(cList)),
-			dh2048p:         dh2048P,
-			dh2048g:         dh2048G,
-		}
-		// rsaList = make([]rsaKeyHelper, 0, len(cList))
-	)
+// LoadRSAKeys loads the server RSA keys listed in the config and verifies
+// each of them (file permissions, key size, fingerprint), so that gnetway
+// refuses to start rather than serve handshakes with a missing, exposed or
+// mismatching key. Several keys may be listed to rotate without downtime.
+func LoadRSAKeys(cList []config.RSAKey) ([]*serverkey.Key, error) {
+	if len(cList) == 0 {
+		return nil, fmt.Errorf("no server RSA key configured (RSAKey is empty)")
+	}
 
+	keys := make([]*serverkey.Key, 0, len(cList))
+	seen := make(map[uint64]string, len(cList))
 	for _, c := range cList {
-		rsa, err := crypto.NewRSACryptor(c.KeyFile)
+		key, err := serverkey.Load(c.KeyFile, c.KeyFingerprint)
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
-		keyFingerprint, err := strconv.ParseUint(c.KeyFingerprint, 10, 64)
+		if prev, ok := seen[key.Fingerprint]; ok {
+			return nil, fmt.Errorf("server RSA key %s duplicates %s (fingerprint %d)", c.KeyFile, prev, key.Fingerprint)
+		}
+		seen[key.Fingerprint] = c.KeyFile
+		keys = append(keys, key)
+	}
+
+	return keys, nil
+}
+
+func newHandshake(keys []*serverkey.Key) (*handshake, error) {
+	h := &handshake{
+		keyFingerprints: make([]int64, 0, len(keys)),
+		rsaList:         make([]rsaKeyHelper, 0, len(keys)),
+		dh2048p:         dh2048P,
+		dh2048g:         dh2048G,
+	}
+
+	for _, key := range keys {
+		rsa, err := crypto.NewRSACryptorByKeyData(key.PEM)
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("server RSA key %s: %w", key.Path, err)
 		}
 
-		// TODO: check fingerprint
-
-		h.keyFingerprints = append(h.keyFingerprints, int64(keyFingerprint))
+		h.keyFingerprints = append(h.keyFingerprints, int64(key.Fingerprint))
 		h.rsaList = append(h.rsaList, rsaKeyHelper{
 			rsa:            rsa,
-			keyFingerprint: int64(keyFingerprint),
+			keyFingerprint: int64(key.Fingerprint),
 		})
 	}
 
-	return h
+	return h, nil
 }
 
 // //////////////////////////////////////////////////////////////////////////////////////////////////
-func (s *Server) onHandshake(c gnet.Conn, mmsg []byte) (interface{}, error) {
-	if len(mmsg) < 8 {
-		err := fmt.Errorf("invalid data len < 8")
-		// logx.Errorf("conn(%s) onHandshake error: %v", c, err)
-		return nil, err
-	}
+// Handshake messages (https://core.telegram.org/mtproto/auth_key) are
+// untrusted input that arrives before any authentication. Each step checks the
+// handshake state of its nonce (handshake_state.go) and the lengths of every
+// field before using them, and the expensive steps (RSA, DH) run in the
+// worker pool on a copy of the state, never on state the event loop may
+// change at the same time.
 
-	ctx, ok := c.Context().(*connContext)
-	if !ok {
-		return nil, fmt.Errorf("unknown error")
-	}
+const (
+	// unencrypted message: auth_key_id:long msg_id:long message_data_length:int message_data
+	unencryptedHeaderSize = 20
+	rsaEncryptedDataSize  = 256
+	newNonceSize          = 32
+	dhSecretSize          = 256
+)
 
-	_, obj, err := parseFromIncomingMessage(mmsg[8:])
+var (
+	errHandshakeMessage = errors.New("handshake: malformed message")
+	errHandshakeData    = errors.New("handshake: invalid encrypted data")
+	errTempKeyExpiresIn = errors.New("handshake: temporary key without a positive expires_in")
+)
+
+// handshakeConstructors are the only objects a client may send unencrypted.
+var handshakeConstructors = []mtproto.TLConstructor{
+	mtproto.CRC32_req_pq,
+	mtproto.CRC32_req_pq_multi,
+	mtproto.CRC32_req_DH_params,
+	mtproto.CRC32_set_client_DH_params,
+	mtproto.CRC32_msgs_ack,
+}
+
+var pqInnerDataConstructors = []mtproto.TLConstructor{
+	mtproto.CRC32_p_q_inner_data,
+	mtproto.CRC32_p_q_inner_data_dc,
+	mtproto.CRC32_p_q_inner_data_temp,
+	mtproto.CRC32_p_q_inner_data_temp_dc,
+}
+
+var clientDHInnerDataConstructors = []mtproto.TLConstructor{
+	mtproto.CRC32_client_DH_inner_data,
+}
+
+// decodeObjectOf decodes b as one of the allowed objects; nothing else is
+// decoded at all.
+func decodeObjectOf(b []byte, allowed []mtproto.TLConstructor) (mtproto.TLObject, error) {
+	if len(b) < 4 {
+		return nil, errHandshakeMessage
+	}
+	if !slices.Contains(allowed, mtproto.TLConstructor(binary.LittleEndian.Uint32(b))) {
+		return nil, errHandshakeMessage
+	}
+	dBuf := mtproto.GetDecodeBuf(b)
+	defer mtproto.PutDecodeBuf(dBuf)
+	obj := dBuf.Object()
+	if err := dBuf.GetError(); err != nil || obj == nil {
+		return nil, errHandshakeMessage
+	}
+	return obj, nil
+}
+
+// parseHandshakeMessage parses an unencrypted transport frame (auth_key_id
+// 0). message_data_length must fit the frame; bytes after the message (the
+// padding of the padded intermediate transport) are ignored.
+func parseHandshakeMessage(frame []byte) (mtproto.TLObject, error) {
+	if len(frame) < unencryptedHeaderSize+4 {
+		return nil, errHandshakeMessage
+	}
+	n := binary.LittleEndian.Uint32(frame[16:unencryptedHeaderSize])
+	if n < 4 || uint64(n) > uint64(len(frame)-unencryptedHeaderSize) {
+		return nil, errHandshakeMessage
+	}
+	return decodeObjectOf(frame[unencryptedHeaderSize:unencryptedHeaderSize+int(n)], handshakeConstructors)
+}
+
+// handshakePayload serializes an answer as an unencrypted message.
+func handshakePayload(obj mtproto.TLObject) []byte {
+	x := mtproto.GetEncodeBuf()
+	defer mtproto.PutEncodeBuf(x)
+	_ = serializeToBuffer(x, mtproto.GenerateMessageId(), obj)
+	return append([]byte(nil), x.GetBuf()...)
+}
+
+// handshakeIO is how a transport keeps handshake state and answers. reply
+// and fail run on the event loop of connection connId; fail is called when a
+// step computed in the worker pool fails.
+type handshakeIO struct {
+	connId int64
+	states *handshakeStore
+	reply  func(c gnet.Conn, answer mtproto.TLObject)
+	fail   func(c gnet.Conn, err error)
+}
+
+// onHandshakeMessage processes an unencrypted message. req_pq is answered at
+// once (the answer is returned); the DH steps run in the worker pool and
+// answer through io later (pending). msgs_ack needs no answer. An error means
+// the message is malformed or does not match the handshake state.
+func (s *Server) onHandshakeMessage(io *handshakeIO, frame []byte) (answer mtproto.TLObject, pending bool, err error) {
+	obj, err := parseHandshakeMessage(frame)
 	if err != nil {
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
+		return nil, false, err
 	}
 
-	switch request := obj.(type) {
+	now := s.CachedNow()
+	switch req := obj.(type) {
 	case *mtproto.TLReqPq:
-		resPQ, err := s.onReqPq(c, request)
-		if err != nil {
-			return nil, err
-		}
-		ctx.putHandshakeStateCt(&HandshakeStateCtx{
-			State:       STATE_pq_res,
-			Nonce:       resPQ.GetNonce(),
-			ServerNonce: resPQ.GetServerNonce(),
-		})
-		payload := func() []byte {
-			x := mtproto.GetEncodeBuf()
-			defer mtproto.PutEncodeBuf(x)
-			_ = serializeToBuffer(x, mtproto.GenerateMessageId(), resPQ)
-			return append([]byte(nil), x.GetBuf()...)
-		}()
-		return &mtproto.MTPRawMessage{
-			Payload: payload,
-		}, nil
+		answer, err = s.startHandshake(io.states, req.GetNonce(), now)
+		return answer, false, err
 	case *mtproto.TLReqPqMulti:
-		resPQ, err := s.onReqPqMulti(c, request)
-		if err != nil {
-			return nil, err
-		}
-		ctx.putHandshakeStateCt(&HandshakeStateCtx{
-			State:       STATE_pq_res,
-			Nonce:       resPQ.GetNonce(),
-			ServerNonce: resPQ.GetServerNonce(),
-		})
-		logx.Infof("req_pq_multi: nonce: %s, nonce: %s", hex.EncodeToString(request.Nonce), hex.EncodeToString(resPQ.Nonce))
-		payload := func() []byte {
-			x := mtproto.GetEncodeBuf()
-			defer mtproto.PutEncodeBuf(x)
-			_ = serializeToBuffer(x, mtproto.GenerateMessageId(), resPQ)
-			return append([]byte(nil), x.GetBuf()...)
-		}()
-		return &mtproto.MTPRawMessage{
-			Payload: payload,
-		}, nil
+		answer, err = s.startHandshake(io.states, req.GetNonce(), now)
+		return answer, false, err
 	case *mtproto.TLReq_DHParams:
-		if ctx == nil {
-			// logx.Errorf("conn(%s), ctx is nil", c)
-			return nil, fmt.Errorf("unknown error")
-		}
-
-		if state := ctx.getHandshakeStateCtx(request.Nonce); state != nil {
-			_, err = s.onReqDHParams(c, state, obj.(*mtproto.TLReq_DHParams))
-			if err != nil {
-				// log.Errorf("onHandshake error: {%v} - {peer: %s, ctx: %s, mmsg: %s}", err, conn, ctx, mmsg)
-				// conn.Close()
-				return nil, err
-			}
-			// state.State = STATE_DH_params_res
-			// rData = SerializeToBuffer(mtproto.GenerateMessageId(), resServerDHParam)
-		} else {
-			// log.Errorf("onHandshake error: {invalid nonce} - {peer: %s, ctx: %s, mmsg: %s}", conn, ctx, mmsg)
-			// return nil, conn.Close()
-			// logx.Errorf("conn(%s), state is nil", c)
-			err = fmt.Errorf("state error")
-			return nil, err
-		}
+		err = s.onReqDHParams(io, req, now)
+		return nil, err == nil, err
 	case *mtproto.TLSetClient_DHParams:
-		if ctx == nil {
-			// logx.Errorf("conn(%s), ctx is nil", c)
-			return nil, fmt.Errorf("unknown error")
-		}
-
-		if state := ctx.getHandshakeStateCtx(request.Nonce); state != nil {
-			_, err = s.onSetClientDHParams(c, state, obj.(*mtproto.TLSetClient_DHParams))
-			if err != nil {
-				//log.Errorf("onHandshake error: {%v} - {peer: %s, ctx: %s, mmsg: %s}", err, conn, ctx, mmsg)
-				// return conn.Close()
-				return nil, err
-			}
-			// state.State = STATE_dh_gen_res
-			// rData = SerializeToBuffer(mtproto.GenerateMessageId(), resSetClientDHParamsAnswer)
-		} else {
-			// log.Errorf("onHandshake error: {invalid nonce} - {peer: %s, ctx: %s, mmsg: %s}", conn, ctx, mmsg)
-			// return conn.Close()
-			return nil, err
-		}
+		err = s.onSetClientDHParams(io, req, now)
+		return nil, err == nil, err
 	case *mtproto.TLMsgsAck:
-		//err = s.onMsgsAck(state, obj.(*mtproto.TLMsgsAck))
-		//return nil, err
-		return nil, nil
+		return nil, false, nil
 	default:
-		// logx.Errorf("conn(%s), invalid handshake type", c)
-		err = fmt.Errorf("invalid handshake type")
-		return nil, err
+		return nil, false, errHandshakeMessage
 	}
-
-	return nil, nil
 }
 
-// req_pq#60469778 nonce:int128 = ResPQ;
-func (s *Server) onReqPq(c gnet.Conn, request *mtproto.TLReqPq) (*mtproto.ResPQ, error) {
-	since := timex.Now()
-	defer func() {
-		logx.WithDuration(timex.Since(since)).Infof("onReqPq: %s", c)
-	}()
-
-	// logx.Infof("req_pq#60469778 - conn(%s) request: %s", c, request)
-
-	// check State and ResState
-
-	// 检查数据是否合法
-	if request.GetNonce() == nil || len(request.GetNonce()) != 16 {
-		err := fmt.Errorf("onReqPq - invalid nonce: %v", request)
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
+// startHandshake answers req_pq / req_pq_multi:
+// resPQ#05162463 nonce:int128 server_nonce:int128 pq:string server_public_key_fingerprints:Vector<long> = ResPQ;
+func (s *Server) startHandshake(states *handshakeStore, nonce []byte, now int64) (mtproto.TLObject, error) {
+	if len(nonce) != 16 {
+		return nil, errHandshakeMessage
 	}
 
 	resPQ := mtproto.MakeTLResPQ(&mtproto.ResPQ{
-		Nonce:                       request.Nonce,
+		Nonce:                       nonce,
 		ServerNonce:                 crypto.GenerateNonce(16),
 		Pq:                          pq,
 		ServerPublicKeyFingerprints: s.handshake.keyFingerprints,
 	}).To_ResPQ()
 
-	// logx.Infof("req_pq#60469778 - conn(%s) reply: {\"resPQ\":%s", c, resPQ)
+	states.put(HandshakeStateCtx{
+		State:       STATE_pq_res,
+		Nonce:       resPQ.GetNonce(),
+		ServerNonce: resPQ.GetServerNonce(),
+	}, now)
+
 	return resPQ, nil
 }
 
-// req_pq_multi#be7e8ef1 nonce:int128 = ResPQ;
-func (s *Server) onReqPqMulti(c gnet.Conn, request *mtproto.TLReqPqMulti) (*mtproto.ResPQ, error) {
-	since := timex.Now()
-	defer func() {
-		logx.WithDuration(timex.Since(since)).Infof("onReqPqMulti: %s", c)
-	}()
-
-	// logx.Infof("req_pq_multi#be7e8ef1 request - conn(%s) request: %s", c, request)
-
-	// check State and ResState
-
-	// 检查数据是否合法
-	if request.GetNonce() == nil || len(request.GetNonce()) != 16 {
-		err := fmt.Errorf("onReqPqMulti - invalid nonce: %v", request)
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	resPQ := mtproto.MakeTLResPQ(&mtproto.ResPQ{
-		Nonce:                       request.Nonce,
-		ServerNonce:                 crypto.GenerateNonce(16),
-		Pq:                          pq,
-		ServerPublicKeyFingerprints: s.handshake.keyFingerprints,
-	}).To_ResPQ()
-
-	// logx.Infof("req_pq_multi#be7e8ef1 - conn(%s) reply: %s", c, resPQ)
-	return resPQ, nil
-}
-
-// req_DH_params#d712e4be nonce:int128 server_nonce:int128 p:string q:string public_key_fingerprint:long encrypted_data:string = Server_DH_Params;
-func (s *Server) onReqDHParams(c gnet.Conn, ctx *HandshakeStateCtx, request *mtproto.TLReq_DHParams) (*mtproto.Server_DH_Params, error) {
-	since := timex.Now()
-	defer func() {
-		logx.WithDuration(timex.Since(since)).Infof("onReqDHParams: %s", c)
-	}()
-
-	// logx.Infof("req_DH_params#d712e4be - conn(%s) state: {%s}, request: %s", c, ctx, request)
-
-	var (
-		err            error
-		serverDHParams *mtproto.Server_DH_Params
-		handshakeType  int
-		expiresIn      int32
-		A              []byte
-		P              = s.handshake.dh2048p
-		newNonce       []byte
-	)
-
-	// 客户端传输数据解析
-	// check Nonce
-	if !bytes.Equal(request.Nonce, ctx.Nonce) {
-		err = fmt.Errorf("onReq_DHParams - Invalid Nonce, req: %s, back: %s",
-			hex2.HexDump(request.Nonce),
-			hex2.HexDump(ctx.Nonce))
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	// check ServerNonce
-	if !bytes.Equal(request.ServerNonce, ctx.ServerNonce) {
-		err = fmt.Errorf("onReq_DHParams - Wrong ServerNonce, req: %s, back: %s",
-			hex2.HexDump(request.ServerNonce),
-			hex2.HexDump(ctx.ServerNonce))
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	// check P
-	if !bytes.Equal([]byte(request.P), p) {
-		err = fmt.Errorf("onReq_DHParams - Invalid p valuee")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	// check Q
-	if !bytes.Equal([]byte(request.Q), q) {
-		err = fmt.Errorf("onReq_DHParams - Invalid q value")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	rsa := s.handshake.getKey(request.PublicKeyFingerprint)
-	if rsa == nil {
-		err = fmt.Errorf("onReq_DHParams - Invalid PublicKeyFingerprint value")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	since2 := timex.Now()
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	s.asyncRun(c.ConnId(),
-		func() error {
-			logx.WithDuration(timex.Since(since2)).Infof("s.asyncRun(c.ConnId()")
-			/*
-				### 4.1) RSA_PAD(data, server_public_key) mentioned above is implemented as follows:
-
-				- data_with_padding := data + random_padding_bytes; — where random_padding_bytes are chosen so that the
-				  resulting length of data_with_padding is precisely 192 bytes, and data is the TL-serialized data to be encrypted
-				  as before. One has to check that data is not longer than 144 bytes.
-				- data_pad_reversed := BYTE_REVERSE(data_with_padding); — is obtained from data_with_padding by
-				  reversing the byte order.
-				- a random 32-byte temp_key is generated.
-				- data_with_hash := data_pad_reversed + SHA256(temp_key + data_with_padding); — after this assignment,
-				  data_with_hash is exactly 224 bytes long.
-				- aes_encrypted := AES256_IGE(data_with_hash, temp_key, 0); — AES256-IGE encryption with zero IV.
-				- temp_key_xor := temp_key XOR SHA256(aes_encrypted); — adjusted key, 32 bytes
-				- key_aes_encrypted := temp_key_xor + aes_encrypted; — exactly 256 bytes (2048 bits) long
-				- The value of key_aes_encrypted is compared with the RSA-modulus of server_pubkey as a big-endian 2048-bit
-				  (256-byte) unsigned integer. If key_aes_encrypted turns out to be greater than or equal to the RSA modulus, the
-				  previous steps starting from the generation of new random temp_key are repeated. Otherwise the final step is
-				  performed:
-				- encrypted_data := RSA(key_aes_encrypted, server_pubkey); — 256-byte big-endian integer is elevated to
-				  the requisite power from the RSA public key modulo the RSA modulus, and the result is stored as a big-endian
-				  integer consisting of exactly 256 bytes (with leading zero bytes if required).
-			*/
-
-			// encryptedData := []byte(request.EncryptedData)
-			//
-			// log.Debugf("EncryptedData: len = %d, data: %s", len(request.EncryptedData), hex.EncodeToString(hack.Bytes(request.EncryptedData)))
-
-			if len(request.EncryptedData) < 256 {
-				logx.Error("need len(encryptedPQInnerData) < 256")
-				return fmt.Errorf("process Req_DHParams - len(encryptedPQInnerData) != 256")
-			}
-
-			//
-			// 1. 解密
-			innerData := rsa.Decrypt([]byte(request.EncryptedData))
-			if len(innerData) != 256 {
-				logx.Error("need len(encryptedPQInnerData) < 256")
-				return fmt.Errorf("process Req_DHParams - len(encryptedPQInnerData) != 256")
-			}
-			logx.WithDuration(timex.Since(since2)).Infof("innerData := rsa.Decrypt([]byte(request.EncryptedData))")
-
-			// void Datacenter::aesIgeEncryption(uint8_t *buffer, uint8_t *key, uint8_t *iv, bool encrypt, bool changeIv, uint32_t length) {
-			// Datacenter::aesIgeEncryption(
-			//	innerDataBuffer->bytes() + keySize,
-			//	innerDataBuffer->bytes(),
-			//	innerDataBuffer->bytes() + encryptedDataSize + paddedDataSize,
-			//	true,
-			//	true,
-			//	paddedDataSize + SHA256_DIGEST_LENGTH);
-			//
-
-			key := innerData[:32]
-			// log.Debugf("key1: %s", hex.EncodeToString(key))
-			hash := crypto.Sha256Digest(innerData[32:])
-			for i := 0; i < 32; i++ {
-				key[i] = key[i] ^ hash[i]
-			}
-			// log.Debugf("key2: %s", hex.EncodeToString(key))
-
-			paddedDataWithHash, err := crypto.NewAES256IGECryptor(key, zeroIV).Decrypt(innerData[32:])
-			if err != nil {
-				err = fmt.Errorf("onReq_DHParams - decode P_Q_inner_data error")
-				logx.Error(err.Error())
-				return err
-			}
-
-			// log.Debugf("paddedDataWithHash1: %s", hex.EncodeToString(paddedDataWithHash))
-
-			//if !bytes.Equal(crypto.Sha256Digest(paddedDataWithHash[:192]), paddedDataWithHash[192:]) {
-			//	log.Error("process Req_DHParams - sha1Check error")
-			//	return nil, fmt.Errorf("process Req_DHParams - sha1Check error")
-			//}
-
-			for i, j := 0, 191; i < j; i, j = i+1, j-1 {
-				paddedDataWithHash[i], paddedDataWithHash[j] = paddedDataWithHash[j], paddedDataWithHash[i]
-			}
-			// log.Debugf("paddedDataWithHash2: %s", hex.EncodeToString(paddedDataWithHash))
-
-			// TODO
-			//if !checkSha1(encryptedPQInnerData, 256-SHA_DIGEST_LENGTH) {
-			//	log.Error("process Req_DHParams - sha1Check error")
-			//	return nil, fmt.Errorf("process Req_DHParams - sha1Check error")
-			//}
-
-			// 2. 反序列化出pqInnerData
-			dbuf := mtproto.GetDecodeBuf(paddedDataWithHash)
-			o := dbuf.Object()
-			if dbuf.GetError() != nil {
-				mtproto.PutDecodeBuf(dbuf)
-				err = fmt.Errorf("onReq_DHParams - decode P_Q_inner_data error")
-				logx.Error(err.Error())
-				return err
-			}
-			mtproto.PutDecodeBuf(dbuf)
-
-			var pqInnerData *mtproto.P_QInnerData
-			// TODO(@benqi):
-			switch innerData := o.(type) {
-			case *mtproto.TLPQInnerData:
-				handshakeType = mtproto.AuthKeyTypePerm
-				pqInnerData = innerData.To_P_QInnerData()
-			case *mtproto.TLPQInnerDataDc:
-				handshakeType = mtproto.AuthKeyTypePerm
-				pqInnerData = innerData.To_P_QInnerData()
-			case *mtproto.TLPQInnerDataTemp:
-				handshakeType = mtproto.AuthKeyTypeTemp
-				expiresIn = innerData.GetExpiresIn()
-				pqInnerData = innerData.To_P_QInnerData()
-			case *mtproto.TLPQInnerDataTempDc:
-				if innerData.GetDc() < 0 {
-					handshakeType = mtproto.AuthKeyTypeMediaTemp
-				} else {
-					handshakeType = mtproto.AuthKeyTypeTemp
-				}
-				expiresIn = innerData.GetExpiresIn()
-				pqInnerData = innerData.To_P_QInnerData()
-			default:
-				err = fmt.Errorf("onReq_DHParams - decode P_Q_inner_data error")
-				logx.Error(err.Error())
-				return err
-			}
-
-			// 2. 再检查一遍p_q_inner_data里的pq, p, q, nonce, server_nonce合法性
-			// 客户端传输数据解析
-			// PQ
-			if !bytes.Equal([]byte(pqInnerData.GetPq()), []byte(pq)) {
-				logx.Error("process Req_DHParams - Invalid p_q_inner_data.pq value")
-				return fmt.Errorf("process Req_DHParams - Invalid p_q_inner_data.pq value")
-			}
-
-			// P
-			if !bytes.Equal([]byte(pqInnerData.GetP()), p) {
-				logx.Error("process Req_DHParams - Invalid p_q_inner_data.p value")
-				return fmt.Errorf("process Req_DHParams - Invalid p_q_inner_data.p value")
-			}
-
-			// Q
-			if !bytes.Equal([]byte(pqInnerData.GetQ()), q) {
-				logx.Error("process Req_DHParams - Invalid p_q_inner_data.q value")
-				return fmt.Errorf("process Req_DHParams - Invalid p_q_inner_data.q value")
-			}
-
-			// Nonce
-			if !bytes.Equal(pqInnerData.GetNonce(), request.Nonce) {
-				logx.Error("process Req_DHParams - Invalid Nonce")
-				return fmt.Errorf("process Req_DHParams - InvalidNonce")
-			}
-
-			// ServerNonce
-			if !bytes.Equal(pqInnerData.GetServerNonce(), request.ServerNonce) {
-				logx.Error("process Req_DHParams - Wrong ServerNonce")
-				return fmt.Errorf("process Req_DHParams - Wrong ServerNonce")
-			}
-
-			// TODO(@benqi): check dc
-			// log.Info("processReq_DHParams - pqInnerData Decode sucess: ", pqInnerData.String())
-
-			// 检查NewNonce的长度(int256)
-			// 缓存NewNonce
-			newNonce = pqInnerData.GetNewNonce()
-			A = crypto.GenerateNonce(256)
-			// ctx.A = A
-			// ctx.P = s.handshake.dh2048p
-
-			bigIntA := new(big.Int).SetBytes(A)
-
-			// 服务端计算GA = g^a mod p
-			gA := new(big.Int).Exp(gBigIntDH2048G, bigIntA, gBigIntDH2048P)
-
-			// ServerNonce
-			serverDHInnerData := &mtproto.TLServer_DHInnerData{Data2: &mtproto.Server_DHInnerData{
-				Nonce:       request.Nonce,
-				ServerNonce: request.ServerNonce,
-				G:           int32(s.handshake.dh2048g[0]),
-				GA:          string(gA.Bytes()),
-				DhPrime:     string(P),
-				ServerTime:  int32(time.Now().Unix()),
-			}}
-
-			serverDHInnerDataBuf := func() []byte {
-				x := mtproto.GetEncodeBuf()
-				defer mtproto.PutEncodeBuf(x)
-				serverDHInnerData.Encode(x, 0)
-				return append([]byte(nil), x.GetBuf()...)
-			}()
-
-			// 创建aes和iv key
-			tmpAesKeyAndIV := make([]byte, 64)
-			var shaBuf [64]byte // stack buffer for SHA1 input concatenation
-			// sha1(newNonce + serverNonce)
-			copy(shaBuf[:], newNonce)
-			copy(shaBuf[len(newNonce):], request.ServerNonce)
-			sha1A := sha1.Sum(shaBuf[:len(newNonce)+len(request.ServerNonce)])
-			// sha1(serverNonce + newNonce)
-			copy(shaBuf[:], request.ServerNonce)
-			copy(shaBuf[len(request.ServerNonce):], newNonce)
-			sha1B := sha1.Sum(shaBuf[:len(request.ServerNonce)+len(newNonce)])
-			// sha1(newNonce + newNonce)
-			copy(shaBuf[:], newNonce)
-			copy(shaBuf[len(newNonce):], newNonce)
-			sha1C := sha1.Sum(shaBuf[:len(newNonce)+len(newNonce)])
-			copy(tmpAesKeyAndIV, sha1A[:])
-			copy(tmpAesKeyAndIV[20:], sha1B[:])
-			copy(tmpAesKeyAndIV[40:], sha1C[:])
-			copy(tmpAesKeyAndIV[60:], newNonce[:4])
-
-			tmpLen := 20 + len(serverDHInnerDataBuf)
-			if tmpLen%16 > 0 {
-				tmpLen = (tmpLen/16 + 1) * 16
-			} else {
-				tmpLen = 20 + len(serverDHInnerDataBuf)
-			}
-
-			tmpEncryptedAnswer := make([]byte, tmpLen)
-			sha1Tmp := sha1.Sum(serverDHInnerDataBuf)
-			copy(tmpEncryptedAnswer, sha1Tmp[:])
-			copy(tmpEncryptedAnswer[20:], serverDHInnerDataBuf)
-
-			e := crypto.NewAES256IGECryptor(tmpAesKeyAndIV[:32], tmpAesKeyAndIV[32:64])
-			tmpEncryptedAnswer, _ = e.Encrypt(tmpEncryptedAnswer)
-			logx.WithDuration(timex.Since(since2)).Infof("tmpEncryptedAnswer, _ = e.Encrypt(tmpEncryptedAnswer)")
-
-			serverDHParams = mtproto.MakeTLServer_DHParamsOk(&mtproto.Server_DH_Params{
-				Nonce:           request.Nonce,
-				ServerNonce:     request.ServerNonce,
-				EncryptedAnswer: hack.String(tmpEncryptedAnswer),
-			}).To_Server_DH_Params()
-
-			return nil
-		},
-		func(c gnet.Conn) {
-			logx.WithDuration(timex.Since(since2)).Infof("func(c gnet.Conn) {")
-			// logx.Infof("c.UnThreadSafeWrite - conn(%s)", c)
-			ctx.HandshakeType = handshakeType
-			ctx.ExpiresIn = expiresIn
-			ctx.NewNonce = newNonce
-			ctx.A = A
-			ctx.P = P
-			ctx.State = STATE_DH_params_res
-
-			payload := func() []byte {
-				x := mtproto.GetEncodeBuf()
-				defer mtproto.PutEncodeBuf(x)
-				_ = serializeToBuffer(x, mtproto.GenerateMessageId(), serverDHParams)
-				return append([]byte(nil), x.GetBuf()...)
-			}()
-			_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{
-				Payload: payload,
-			})
-			logx.WithDuration(timex.Since(since2)).Infof("_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{")
-		})
-
-	return nil, nil
-}
-
-// set_client_DH_params#f5045f1f nonce:int128 server_nonce:int128 encrypted_data:string = Set_client_DH_params_answer;
-func (s *Server) onSetClientDHParams(c gnet.Conn, ctx *HandshakeStateCtx, request *mtproto.TLSetClient_DHParams) (*mtproto.SetClient_DHParamsAnswer, error) {
-	since := timex.Now()
-	defer func() {
-		logx.WithDuration(timex.Since(since)).Infof("onSetClientDHParams: %s", c)
-	}()
-
-	logx.Infof("set_client_DH_params#f5045f1f conn(%s) - state: {%s}, request: %s", c, ctx, request)
-
-	// TODO(@benqi): Impl SetClient_DHParams logic
-	// 客户端传输数据解析
-	// Nonce
-	if !bytes.Equal(request.Nonce, ctx.Nonce) {
-		err := fmt.Errorf("onSetClientDHParams - Wrong Nonce")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	// ServerNonce
-	if !bytes.Equal(request.ServerNonce, ctx.ServerNonce) {
-		err := fmt.Errorf("onSetClientDHParams - Wrong ServerNonce")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	bEncryptedData := []byte(request.EncryptedData)
-
-	// 创建aes和iv key
-	tmpAesKeyAndIv := make([]byte, 64)
-	var shaBuf2 [64]byte
-	copy(shaBuf2[:], ctx.NewNonce)
-	copy(shaBuf2[len(ctx.NewNonce):], ctx.ServerNonce)
-	sha1A := sha1.Sum(shaBuf2[:len(ctx.NewNonce)+len(ctx.ServerNonce)])
-	copy(shaBuf2[:], ctx.ServerNonce)
-	copy(shaBuf2[len(ctx.ServerNonce):], ctx.NewNonce)
-	sha1B := sha1.Sum(shaBuf2[:len(ctx.ServerNonce)+len(ctx.NewNonce)])
-	copy(shaBuf2[:], ctx.NewNonce)
-	copy(shaBuf2[len(ctx.NewNonce):], ctx.NewNonce)
-	sha1C := sha1.Sum(shaBuf2[:len(ctx.NewNonce)+len(ctx.NewNonce)])
-	copy(tmpAesKeyAndIv, sha1A[:])
-	copy(tmpAesKeyAndIv[20:], sha1B[:])
-	copy(tmpAesKeyAndIv[40:], sha1C[:])
-	copy(tmpAesKeyAndIv[60:], ctx.NewNonce[:4])
-
-	d := crypto.NewAES256IGECryptor(tmpAesKeyAndIv[:32], tmpAesKeyAndIv[32:64])
-	decryptedData, err := d.Decrypt(bEncryptedData)
+// onReqDHParams starts req_DH_params; it is answered by server_DH_params_ok
+// computed in the worker pool.
+func (s *Server) onReqDHParams(io *handshakeIO, req *mtproto.TLReq_DHParams, now int64) error {
+	st, err := io.states.begin(req.GetNonce(), req.GetServerNonce(), STATE_pq_res, STATE_DH_params, now)
 	if err != nil {
-		err := fmt.Errorf("onSetClientDHParams - AES256IGECryptor descrypt error")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
+		return err
 	}
-	logx.WithDuration(timex.Since(since)).Infof("decryptedData, err := d.Decrypt(bEncryptedData): %s", c)
 
-	// TODO(@benqi): 检查签名是否合法
-	dBuf := mtproto.GetDecodeBuf(decryptedData[20:])
-	clientDHInnerData := mtproto.MakeTLClient_DHInnerData(nil)
-	clientDHInnerData.Data2.Constructor = mtproto.TLConstructor(dBuf.Int())
-	err = clientDHInnerData.Decode(dBuf)
-	mtproto.PutDecodeBuf(dBuf)
+	nonce := req.GetNonce()
+	err = s.submit(io.connId, func() {
+		res, err := s.handshake.processReqDHParams(&st, req, time.Now().Unix())
+		if err != nil {
+			io.states.drop(nonce)
+			s.trigger(io.connId, func(c gnet.Conn) { io.fail(c, err) })
+			return
+		}
+
+		if !io.states.finish(nonce, STATE_DH_params, s.CachedNow(), func(st *HandshakeStateCtx) bool {
+			st.NewNonce = res.newNonce
+			st.A = res.a
+			st.P = s.handshake.dh2048p
+			st.HandshakeType = res.handshakeType
+			st.ExpiresIn = res.expiresIn
+			st.State = STATE_DH_params_res
+			return true
+		}) {
+			// Restarted by a new req_pq with this nonce, or evicted, meanwhile.
+			// The request still needs an answer: over HTTP the connection
+			// waits for it and parses nothing else until then.
+			s.trigger(io.connId, func(c gnet.Conn) { io.fail(c, errHandshakeState) })
+			return
+		}
+		s.trigger(io.connId, func(c gnet.Conn) { io.reply(c, res.answer) })
+	})
 	if err != nil {
-		logx.Errorf("onSetClientDHParams conn(%s) - TLClient_DHInnerData decode error: %s", c, err)
-		return nil, err
+		io.states.drop(nonce)
+		return err
 	}
-
-	// logx.Infof("onSetClientDHParams conn(%s) - client_DHInnerData: %#v", c, clientDHInnerData.String())
-
-	//
-	if !bytes.Equal(clientDHInnerData.GetNonce(), ctx.Nonce) {
-		err := fmt.Errorf("onSetClientDHParams - Wrong client_DHInnerData's Nonce")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	// ServerNonce
-	if !bytes.Equal(clientDHInnerData.GetServerNonce(), ctx.ServerNonce) {
-		err := fmt.Errorf("onSetClientDHParams - Wrong client_DHInnerData's ServerNonce")
-		// logx.Errorf("conn(%s) error: %v", c, err)
-		return nil, err
-	}
-
-	bigIntA := new(big.Int).SetBytes(ctx.A)
-	// bigIntP := new(big.Int).SetBytes(authKeyMD.P)
-
-	// hash_key
-	authKeyNum := new(big.Int)
-	authKeyNum.Exp(new(big.Int).SetBytes([]byte(clientDHInnerData.GetGB())), bigIntA, gBigIntDH2048P)
-
-	authKey := make([]byte, 256)
-
-	// TODO(@benqi): dhGenRetry and dhGenFail
-	copy(authKey[256-len(authKeyNum.Bytes()):], authKeyNum.Bytes())
-
-	authKeyAuxHash := make([]byte, len(ctx.NewNonce))
-	copy(authKeyAuxHash, ctx.NewNonce)
-	authKeyAuxHash = append(authKeyAuxHash, byte(0x01))
-	sha1D := sha1.Sum(authKey)
-	authKeyAuxHash = append(authKeyAuxHash, sha1D[:]...)
-	sha1E := sha1.Sum(authKeyAuxHash[:len(authKeyAuxHash)-12])
-	authKeyAuxHash = append(authKeyAuxHash, sha1E[:]...)
-
-	logx.WithDuration(timex.Since(since)).Infof("authKeyAuxHash = append(authKeyAuxHash, sha1E[:]...): %s", c)
-
-	// 至此key已经创建成功
-	var (
-		authKeyId = int64(binary.LittleEndian.Uint64(authKeyAuxHash[len(ctx.NewNonce)+1+12 : len(ctx.NewNonce)+1+12+8]))
-		dhGen     *mtproto.SetClient_DHParamsAnswer
-	)
-
-	s.asyncRun(c.ConnId(),
-		func() error {
-			// TODO(@benqi): authKeyId生成后要检查在数据库里是否已经存在，有非常小的概率会碰撞
-			// 如果碰撞让客户端重新再来一轮
-
-			// state.Ctx, _ = proto.Marshal(authKeyMD)
-			if s.saveAuthKeyInfo(ctx, mtproto.NewAuthKeyInfo(authKeyId, authKey, ctx.HandshakeType)) {
-				dhGen = mtproto.MakeTLDhGenOk(&mtproto.SetClient_DHParamsAnswer{
-					Nonce:         ctx.Nonce,
-					ServerNonce:   ctx.ServerNonce,
-					NewNonceHash1: calcNewNonceHash(ctx.NewNonce, authKey, 0x01),
-				}).To_SetClient_DHParamsAnswer()
-
-				//ctx.AuthKeyId = authKeyId
-				//ctx.AuthKey = authKey
-
-				logx.Infof("onSetClient_DHParams conn(%s) - ctx: {%s}, reply: %s", c, ctx, dhGen)
-				return nil
-			} else {
-				// TODO(@benqi): dhGenFail
-				dhGen = mtproto.MakeTLDhGenRetry(&mtproto.SetClient_DHParamsAnswer{
-					Nonce:         ctx.Nonce,
-					ServerNonce:   ctx.ServerNonce,
-					NewNonceHash2: calcNewNonceHash(ctx.NewNonce, authKey, 0x02),
-				}).To_SetClient_DHParamsAnswer()
-
-				logx.Infof("onSetClient_DHParams conn(%s) - ctx: {%v}, reply: %s", c, ctx, dhGen)
-				return nil
-			}
-		},
-		func(c gnet.Conn) {
-			ctx.State = STATE_dh_gen_res
-
-			payload := func() []byte {
-				x := mtproto.GetEncodeBuf()
-				defer mtproto.PutEncodeBuf(x)
-				serializeToBuffer(x, mtproto.GenerateMessageId(), dhGen)
-				return append([]byte(nil), x.GetBuf()...)
-			}()
-			UnThreadSafeWrite(c, &mtproto.MTPRawMessage{
-				Payload: payload,
-			})
-		})
-
-	return nil, nil
-}
-
-// msgs_ack#62d6b459 msg_ids:Vector<long> = MsgsAck;
-func (s *Server) onMsgsAck(c gnet.Conn, state *HandshakeStateCtx, request *mtproto.TLMsgsAck) error {
-	since := timex.Now()
-	defer func() {
-		logx.WithDuration(timex.Since(since)).Infof("onMsgsAck: %s", c)
-	}()
-
-	logx.Infof("msgs_ack#62d6b459 conn(%s) - state: {%s}, request: %s", c, state, request)
-
-	switch state.State {
-	case STATE_pq_res:
-		state.State = STATE_pq_ack
-	case STATE_DH_params_res:
-		state.State = STATE_DH_params_ack
-	case STATE_dh_gen_res:
-		state.State = STATE_dh_gen_ack
-	default:
-		return fmt.Errorf("invalid state: %v", state)
-	}
-
 	return nil
 }
 
+// onSetClientDHParams starts set_client_DH_params; it is answered by
+// dh_gen_ok (the key is saved) or dh_gen_retry, computed in the worker pool.
+func (s *Server) onSetClientDHParams(io *handshakeIO, req *mtproto.TLSetClient_DHParams, now int64) error {
+	st, err := io.states.begin(req.GetNonce(), req.GetServerNonce(), STATE_DH_params_res, STATE_dh_gen, now)
+	if err != nil {
+		return err
+	}
+
+	nonce := req.GetNonce()
+	err = s.submit(io.connId, func() {
+		key, err := processSetClientDHParams(&st, req)
+		if err != nil {
+			io.states.drop(nonce)
+			s.trigger(io.connId, func(c gnet.Conn) { io.fail(c, err) })
+			return
+		}
+
+		var answer *mtproto.SetClient_DHParamsAnswer
+		saved := s.saveAuthKey(&st, mtproto.NewAuthKeyInfo(key.authKeyId, key.authKey, st.HandshakeType))
+		if saved {
+			answer = mtproto.MakeTLDhGenOk(&mtproto.SetClient_DHParamsAnswer{
+				Nonce:         st.Nonce,
+				ServerNonce:   st.ServerNonce,
+				NewNonceHash1: calcNewNonceHash(st.NewNonce, key.authKey, 0x01),
+			}).To_SetClient_DHParamsAnswer()
+		} else {
+			// The key could not be stored: the client may retry with a new g_b.
+			answer = mtproto.MakeTLDhGenRetry(&mtproto.SetClient_DHParamsAnswer{
+				Nonce:         st.Nonce,
+				ServerNonce:   st.ServerNonce,
+				NewNonceHash2: calcNewNonceHash(st.NewNonce, key.authKey, 0x02),
+			}).To_SetClient_DHParamsAnswer()
+		}
+
+		// dh_gen_ok ends the handshake; after dh_gen_retry the client may send
+		// set_client_DH_params again.
+		pending := io.states.finish(nonce, STATE_dh_gen, s.CachedNow(), func(st *HandshakeStateCtx) bool {
+			if saved {
+				return false
+			}
+			st.State = STATE_DH_params_res
+			return true
+		})
+		if !pending && !saved {
+			// Restarted by a new req_pq with this nonce, or evicted, meanwhile:
+			// answer anyway (see onReqDHParams).
+			s.trigger(io.connId, func(c gnet.Conn) { io.fail(c, errHandshakeState) })
+			return
+		}
+		s.trigger(io.connId, func(c gnet.Conn) { io.reply(c, answer) })
+	})
+	if err != nil {
+		io.states.drop(nonce)
+		return err
+	}
+	return nil
+}
+
+type reqDHParamsResult struct {
+	answer        *mtproto.Server_DH_Params
+	newNonce      []byte
+	a             []byte
+	handshakeType int
+	expiresIn     int32
+}
+
+// processReqDHParams checks req_DH_params against the handshake state st and
+// computes server_DH_params_ok.
+//
+// req_DH_params#d712e4be nonce:int128 server_nonce:int128 p:string q:string public_key_fingerprint:long encrypted_data:string = Server_DH_Params;
+func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq_DHParams, now int64) (*reqDHParamsResult, error) {
+	if !bytes.Equal(req.GetNonce(), st.Nonce) || !bytes.Equal(req.GetServerNonce(), st.ServerNonce) {
+		return nil, errHandshakeState
+	}
+	if req.GetP() != string(p) || req.GetQ() != string(q) {
+		return nil, fmt.Errorf("handshake: req_DH_params: invalid p or q")
+	}
+	rsa := h.getKey(req.GetPublicKeyFingerprint())
+	if rsa == nil {
+		return nil, fmt.Errorf("handshake: req_DH_params: unknown public key fingerprint")
+	}
+
+	/*
+		RSA_PAD(data, server_public_key) (https://core.telegram.org/mtproto/auth_key):
+
+		- data_with_padding := data + random_padding_bytes; — 192 bytes.
+		- data_pad_reversed := BYTE_REVERSE(data_with_padding);
+		- data_with_hash := data_pad_reversed + SHA256(temp_key + data_with_padding); — 224 bytes.
+		- aes_encrypted := AES256_IGE(data_with_hash, temp_key, 0);
+		- temp_key_xor := temp_key XOR SHA256(aes_encrypted); — 32 bytes.
+		- key_aes_encrypted := temp_key_xor + aes_encrypted; — 256 bytes.
+		- encrypted_data := RSA(key_aes_encrypted, server_pubkey); — exactly 256 bytes.
+	*/
+	encryptedData := req.GetEncryptedData()
+	if len(encryptedData) != rsaEncryptedDataSize {
+		return nil, errHandshakeData
+	}
+	decrypted := rsa.Decrypt([]byte(encryptedData))
+	if len(decrypted) > rsaEncryptedDataSize {
+		return nil, errHandshakeData
+	}
+	// RSA yields a number: put back the leading zero bytes it lost.
+	keyAesEncrypted := make([]byte, rsaEncryptedDataSize)
+	copy(keyAesEncrypted[rsaEncryptedDataSize-len(decrypted):], decrypted)
+
+	tempKey := keyAesEncrypted[:32]
+	hash := crypto.Sha256Digest(keyAesEncrypted[32:])
+	for i := 0; i < 32; i++ {
+		tempKey[i] ^= hash[i]
+	}
+	dataWithHash, err := crypto.NewAES256IGECryptor(tempKey, zeroIV).Decrypt(keyAesEncrypted[32:])
+	if err != nil || len(dataWithHash) != 224 {
+		return nil, errHandshakeData
+	}
+	dataWithPadding := dataWithHash[:192]
+	slices.Reverse(dataWithPadding)
+
+	o, err := decodeObjectOf(dataWithPadding, pqInnerDataConstructors)
+	if err != nil {
+		return nil, errHandshakeData
+	}
+
+	var (
+		pqInnerData   *mtproto.P_QInnerData
+		handshakeType int
+		expiresIn     int32
+	)
+	switch innerData := o.(type) {
+	case *mtproto.TLPQInnerData:
+		handshakeType = mtproto.AuthKeyTypePerm
+		pqInnerData = innerData.To_P_QInnerData()
+	case *mtproto.TLPQInnerDataDc:
+		handshakeType = mtproto.AuthKeyTypePerm
+		pqInnerData = innerData.To_P_QInnerData()
+	case *mtproto.TLPQInnerDataTemp:
+		handshakeType = mtproto.AuthKeyTypeTemp
+		expiresIn = innerData.GetExpiresIn()
+		pqInnerData = innerData.To_P_QInnerData()
+	case *mtproto.TLPQInnerDataTempDc:
+		if innerData.GetDc() < 0 {
+			handshakeType = mtproto.AuthKeyTypeMediaTemp
+		} else {
+			handshakeType = mtproto.AuthKeyTypeTemp
+		}
+		expiresIn = innerData.GetExpiresIn()
+		pqInnerData = innerData.To_P_QInnerData()
+	default:
+		return nil, errHandshakeData
+	}
+	if handshakeType != mtproto.AuthKeyTypePerm && expiresIn <= 0 {
+		// A temporary key must expire (https://core.telegram.org/api/pfs);
+		// stored with expires_in 0 it would never stop working.
+		return nil, errTempKeyExpiresIn
+	}
+
+	// p_q_inner_data repeats pq, p, q, nonce and server_nonce.
+	if pqInnerData.GetPq() != pq ||
+		pqInnerData.GetP() != string(p) ||
+		pqInnerData.GetQ() != string(q) ||
+		!bytes.Equal(pqInnerData.GetNonce(), st.Nonce) ||
+		!bytes.Equal(pqInnerData.GetServerNonce(), st.ServerNonce) {
+		return nil, fmt.Errorf("handshake: p_q_inner_data does not match req_DH_params")
+	}
+	newNonce := pqInnerData.GetNewNonce()
+	if len(newNonce) != newNonceSize {
+		return nil, errHandshakeData
+	}
+
+	a := crypto.GenerateNonce(dhSecretSize)
+	gA := new(big.Int).Exp(gBigIntDH2048G, new(big.Int).SetBytes(a), gBigIntDH2048P)
+
+	// server_DH_inner_data#b5890dba nonce:int128 server_nonce:int128 g:int dh_prime:string g_a:string server_time:int = Server_DH_inner_data;
+	serverDHInnerData := &mtproto.TLServer_DHInnerData{Data2: &mtproto.Server_DHInnerData{
+		Nonce:       st.Nonce,
+		ServerNonce: st.ServerNonce,
+		G:           int32(h.dh2048g[0]),
+		GA:          string(gA.Bytes()),
+		DhPrime:     string(h.dh2048p),
+		ServerTime:  int32(now),
+	}}
+	serverDHInnerDataBuf := func() []byte {
+		x := mtproto.GetEncodeBuf()
+		defer mtproto.PutEncodeBuf(x)
+		_ = serverDHInnerData.Encode(x, 0)
+		return append([]byte(nil), x.GetBuf()...)
+	}()
+
+	// answer_with_hash := SHA1(answer) + answer + (0-15 random bytes), encrypted
+	// with tmp_aes_key and tmp_aes_iv derived from new_nonce and server_nonce.
+	tmpAesKey, tmpAesIV := tmpAesKeyAndIV(newNonce, st.ServerNonce)
+	answerLen := 20 + len(serverDHInnerDataBuf)
+	if answerLen%16 != 0 {
+		answerLen += 16 - answerLen%16
+	}
+	answerWithHash := make([]byte, answerLen)
+	sha1Answer := sha1.Sum(serverDHInnerDataBuf) //nolint:gosec // MTProto: answer_with_hash = SHA1(answer) + answer
+	copy(answerWithHash, sha1Answer[:])
+	copy(answerWithHash[20:], serverDHInnerDataBuf)
+	copy(answerWithHash[20+len(serverDHInnerDataBuf):], crypto.GenerateNonce(answerLen-20-len(serverDHInnerDataBuf)))
+	encryptedAnswer, err := crypto.NewAES256IGECryptor(tmpAesKey, tmpAesIV).Encrypt(answerWithHash)
+	if err != nil {
+		return nil, err
+	}
+
+	return &reqDHParamsResult{
+		answer: mtproto.MakeTLServer_DHParamsOk(&mtproto.Server_DH_Params{
+			Nonce:           st.Nonce,
+			ServerNonce:     st.ServerNonce,
+			EncryptedAnswer: hack.String(encryptedAnswer),
+		}).To_Server_DH_Params(),
+		newNonce:      newNonce,
+		a:             a,
+		handshakeType: handshakeType,
+		expiresIn:     expiresIn,
+	}, nil
+}
+
+// tmpAesKeyAndIV derives the key and IV that encrypt server_DH_inner_data and
+// client_DH_inner_data:
+//
+//	tmp_aes_key := SHA1(new_nonce + server_nonce) + substr(SHA1(server_nonce + new_nonce), 0, 12);
+//	tmp_aes_iv  := substr(SHA1(server_nonce + new_nonce), 12, 8) + SHA1(new_nonce + new_nonce) + substr(new_nonce, 0, 4);
+func tmpAesKeyAndIV(newNonce, serverNonce []byte) (key, iv []byte) {
+	cat := func(a, b []byte) [20]byte {
+		return sha1.Sum(append(append(make([]byte, 0, len(a)+len(b)), a...), b...)) //nolint:gosec // MTProto: tmp_aes_key/iv derivation
+	}
+	sha1A := cat(newNonce, serverNonce)
+	sha1B := cat(serverNonce, newNonce)
+	sha1C := cat(newNonce, newNonce)
+
+	keyAndIV := make([]byte, 64)
+	copy(keyAndIV, sha1A[:])
+	copy(keyAndIV[20:], sha1B[:])
+	copy(keyAndIV[40:], sha1C[:])
+	copy(keyAndIV[60:], newNonce[:4])
+	return keyAndIV[:32], keyAndIV[32:64]
+}
+
+type dhGenKey struct {
+	authKeyId int64
+	authKey   []byte
+}
+
+// processSetClientDHParams checks set_client_DH_params against the handshake
+// state st (which req_DH_params completed) and computes the auth key.
+//
+// set_client_DH_params#f5045f1f nonce:int128 server_nonce:int128 encrypted_data:string = Set_client_DH_params_answer;
+func processSetClientDHParams(st *HandshakeStateCtx, req *mtproto.TLSetClient_DHParams) (*dhGenKey, error) {
+	if !bytes.Equal(req.GetNonce(), st.Nonce) || !bytes.Equal(req.GetServerNonce(), st.ServerNonce) {
+		return nil, errHandshakeState
+	}
+	// The state must be the one req_DH_params left.
+	if len(st.NewNonce) != newNonceSize || len(st.A) != dhSecretSize {
+		return nil, errHandshakeState
+	}
+
+	// encrypted_data := AES256_ige_encrypt(SHA1(client_DH_inner_data) + client_DH_inner_data + (0-15 random bytes))
+	encryptedData := []byte(req.GetEncryptedData())
+	if len(encryptedData) < 32 || len(encryptedData)%16 != 0 {
+		return nil, errHandshakeData
+	}
+	tmpAesKey, tmpAesIV := tmpAesKeyAndIV(st.NewNonce, st.ServerNonce)
+	decrypted, err := crypto.NewAES256IGECryptor(tmpAesKey, tmpAesIV).Decrypt(encryptedData)
+	if err != nil || len(decrypted) <= 20 {
+		return nil, errHandshakeData
+	}
+
+	o, err := decodeObjectOf(decrypted[20:], clientDHInnerDataConstructors)
+	if err != nil {
+		return nil, errHandshakeData
+	}
+	inner, ok := o.(*mtproto.TLClient_DHInnerData)
+	if !ok {
+		return nil, errHandshakeData
+	}
+	// client_DH_inner_data#6643b654 nonce:int128 server_nonce:int128 retry_id:long g_b:string = Client_DH_Inner_Data;
+	if !bytes.Equal(inner.GetNonce(), st.Nonce) || !bytes.Equal(inner.GetServerNonce(), st.ServerNonce) {
+		return nil, fmt.Errorf("handshake: client_DH_inner_data does not match set_client_DH_params")
+	}
+	gB := []byte(inner.GetGB())
+	if len(gB) == 0 || len(gB) > dhSecretSize {
+		return nil, errHandshakeData
+	}
+
+	// auth_key := g_b^a mod dh_prime, 256 bytes big-endian.
+	authKeyNum := new(big.Int).Exp(new(big.Int).SetBytes(gB), new(big.Int).SetBytes(st.A), gBigIntDH2048P)
+	authKey := make([]byte, 256)
+	authKeyNum.FillBytes(authKey)
+
+	// auth_key_id: the 64 lower-order bits of SHA1(auth_key).
+	sha1Key := sha1.Sum(authKey) //nolint:gosec // MTProto: auth_key_id = low 64 bits of SHA1(auth_key)
+	return &dhGenKey{
+		authKeyId: int64(binary.LittleEndian.Uint64(sha1Key[12:20])),
+		authKey:   authKey,
+	}, nil
+}
+
+// saveAuthKeyInfo stores a key created by a handshake (with its first server
+// salt) through the session service and caches it.
 func (s *Server) saveAuthKeyInfo(ctx *HandshakeStateCtx, key *mtproto.AuthKeyInfo) bool {
 	var (
 		salt = int64(0)
@@ -905,13 +738,22 @@ func (s *Server) saveAuthKeyInfo(ctx *HandshakeStateCtx, key *mtproto.AuthKeyInf
 		logx.Errorf("saveAuthKeyInfo not successful - auth_key_id:%d, err:%v", key.AuthKeyId, err)
 		return false
 	} else {
-		s.PutAuthKey(&mtproto.AuthKeyInfo{
-			AuthKeyId:          keyInfo.AuthKeyId,
-			AuthKey:            keyInfo.AuthKey,
-			AuthKeyType:        keyInfo.AuthKeyType,
-			PermAuthKeyId:      keyInfo.PermAuthKeyId,
-			TempAuthKeyId:      keyInfo.TempAuthKeyId,
-			MediaTempAuthKeyId: keyInfo.MediaTempAuthKeyId})
+		// A temporary key expires expires_in seconds after the handshake
+		// (authsession stores the same deadline).
+		var expiresAt int64
+		if ctx.ExpiresIn > 0 {
+			expiresAt = int64(now) + int64(ctx.ExpiresIn)
+		}
+		s.PutAuthKey(newCheckedAuthKeyUtil(
+			&mtproto.AuthKeyInfo{
+				AuthKeyId:          keyInfo.AuthKeyId,
+				AuthKey:            keyInfo.AuthKey,
+				AuthKeyType:        keyInfo.AuthKeyType,
+				PermAuthKeyId:      keyInfo.PermAuthKeyId,
+				TempAuthKeyId:      keyInfo.TempAuthKeyId,
+				MediaTempAuthKeyId: keyInfo.MediaTempAuthKeyId},
+			int64(now),
+			expiresAt))
 	}
 	return true
 }

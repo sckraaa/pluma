@@ -7,10 +7,10 @@
 package gnet
 
 import (
-	"encoding/binary"
 	"errors"
 
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
+	wscodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/ws"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -38,54 +38,59 @@ func (s *Server) onWebsocketData(ctx *connContext, c gnet.Conn) (action gnet.Act
 	}
 	for _, message := range messages {
 		ws.Conn.Buffer = message.Payload
-
-		if ctx.codec == nil {
-			ctx.codec, err = codec.CreateCodec(&ctx.wsCodec.Conn)
-			if err != nil {
-				if errors.Is(err, codec.ErrUnexpectedEOF) {
-					metricCodecDecodeError.Inc("websocket", classifyCodecError(err))
-					return gnet.None
-				}
-
-				metricCodecDecodeError.Inc("websocket", classifyCodecError(err))
-				logx.Errorf("conn(%s) create codec error: %v", c, err)
-				return gnet.Close
-			}
+		if s.onWebsocketMessage(ctx, c) == gnet.Close {
+			return gnet.Close
 		}
-
-		needAck, frame, err := ctx.codec.Decode(&ws.Conn)
-		if err != nil {
-			if errors.Is(err, codec.ErrUnexpectedEOF) {
-				metricCodecDecodeError.Inc("websocket", classifyCodecError(err))
-				return gnet.None
-			}
-
-			metricCodecDecodeError.Inc("websocket", classifyCodecError(err))
-			logx.Errorf("conn(%s) frame is error: %v", c, err)
-			action = gnet.Close
-			return
-		} else if frame == nil {
-			logx.Debugf("conn(%s) frame is nil", c)
-			return
+		if ws.Conn.InboundBuffered() > wscodec.MaxMessageSize {
+			logx.Errorf("conn(%d) websocket: %v", c.ConnId(), wscodec.ErrBufferFull)
+			return gnet.Close
 		}
-
-		//msg2, ok := frame.(*mtproto.MTPRawMessage)
-		//if !ok {
-		//	logx.Errorf("conn(%s) recv error: msg2 not codec.MTPRawMessage type", c)
-		//	action = gnet.Close
-		//	return
-		//}
-		//
-		//logx.Infof("conn(%s) recv frame: %s", c, msg2)
-
-		action = s.onMTPRawMessage(ctx, c, int64(binary.LittleEndian.Uint64(frame)), needAck, frame)
-		if action == gnet.Close {
-			return
-		}
-
-		_, _ = ws.Conn.InboundBuffer.Write(ws.Conn.Buffer)
-		ws.Conn.Buffer = ws.Conn.Buffer[:0]
-
 	}
 	return gnet.None
+}
+
+// onWebsocketMessage decodes the transport frames of one WebSocket message
+// (in ws.Conn.Buffer, after what earlier messages left in InboundBuffer). All
+// complete frames are processed; the start of a frame that continues in the
+// next message is kept for it. What is kept is at most one frame, which the
+// transport codecs bound.
+func (s *Server) onWebsocketMessage(ctx *connContext, c gnet.Conn) gnet.Action {
+	ws := ctx.wsCodec
+	defer func() {
+		if len(ws.Conn.Buffer) > 0 {
+			_, _ = ws.Conn.InboundBuffer.Write(ws.Conn.Buffer)
+			ws.Conn.Buffer = ws.Conn.Buffer[:0]
+		}
+	}()
+
+	if ctx.codec == nil {
+		var err error
+		ctx.codec, err = codec.CreateCodec(&ws.Conn)
+		if err != nil {
+			metricCodecDecodeError.Inc("websocket", classifyCodecError(err))
+			if errors.Is(err, codec.ErrUnexpectedEOF) {
+				return gnet.None
+			}
+			logx.Errorf("conn(%s) create codec error: %v", c, err)
+			return gnet.Close
+		}
+	}
+
+	for {
+		needAck, frame, err := ctx.codec.Decode(&ws.Conn)
+		if err != nil {
+			metricCodecDecodeError.Inc("websocket", classifyCodecError(err))
+			if errors.Is(err, codec.ErrUnexpectedEOF) {
+				return gnet.None
+			}
+			logx.Errorf("conn(%s) frame is error: %v", c, err)
+			return gnet.Close
+		} else if frame == nil {
+			return gnet.None
+		}
+
+		if s.onMTPRawMessage(ctx, c, needAck, frame) == gnet.Close {
+			return gnet.Close
+		}
+	}
 }

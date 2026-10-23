@@ -16,22 +16,35 @@
 // Author: teamgramio (teamgram.io@gmail.com)
 //
 
+// upload is a manual tool for the dfs DAO: it writes a local file as upload
+// parts to the temporary part storage (Redis) and records its file info, the
+// way upload.saveFilePart does. Run it against a dev environment:
+//
+//	go run ./app/service/dfs/internal/dao/examples/upload -f etc/dfs.yaml -in image.jpeg
 package main
 
 import (
 	"context"
+	"flag"
 	"os"
+	"path/filepath"
 
 	"github.com/teamgram/marmota/pkg/commands"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/config"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
 
+	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+const filePartSize = 10240
+
 var (
-	c config.Config
+	configFile = flag.String("f", "etc/dfs.yaml", "the config file")
+	inputFile  = flag.String("in", "test001.jpeg", "the file to upload")
+	ownerId    = flag.Int64("owner", 100, "owner (creator) id of the file")
+	fileId     = flag.Int64("id", 1, "file id")
 )
 
 func main() {
@@ -48,6 +61,11 @@ func New() *Server {
 }
 
 func (s *Server) Initialize() error {
+	var c config.Config
+	conf.MustLoad(*configFile, &c)
+
+	// The config carries secrets (passwords, keys): never log it whole.
+	logx.Infof("loaded config %s", *configFile)
 	s.dao = dao.New(c)
 	return nil
 }
@@ -58,44 +76,44 @@ func (s *Server) RunLoop() {
 		os.Exit(0)
 	}()
 
-	logx.Infof("aaaa", "aa")
-	// buf, err := os.ReadFile("./test001.jpeg")
-	// ../../../../../../../tools/gif2mp4/safe_image.gif
-	buf, err := os.ReadFile("../../../../../../../tools/gif2mp4/safe_image.gif")
+	buf, err := os.ReadFile(*inputFile)
 	if err != nil {
-		logx.Error("open error: %v", err)
+		logx.Errorf("open error: %v", err)
 		return
 	}
 
-	logx.Infof("aaaa", "bb")
+	szParts := len(buf) / filePartSize
+	lastSize := len(buf) % filePartSize
+	logx.Infof("uploading %s: size = %d, full parts = %d, last part = %d", *inputFile, len(buf), szParts, lastSize)
 
-	szParts := len(buf) / 10240
-	lastSize := len(buf) % 10240
-	_ = lastSize
-	// idx := sz/10240
+	ctx := context.Background()
 	for i := 0; i < szParts; i++ {
-		s.dao.WriteFilePartData(context.Background(), 100, 1, int32(i), buf[i*10240:(i+1)*10240])
+		if err = s.dao.WriteFilePartData(ctx, *ownerId, *fileId, int32(i), buf[i*filePartSize:(i+1)*filePartSize]); err != nil {
+			logx.Errorf("write part %d error: %v", i, err)
+			return
+		}
 	}
-	logx.Infof("aaaa", "cc")
+	totalParts := szParts
 	if lastSize > 0 {
-		logx.Infof("aaaa: lastSize = %d, bufSize = %d", lastSize, len(buf))
-		// szParts++
-		s.dao.WriteFilePartData(context.Background(), 100, 1, int32(szParts), buf[szParts*10240:])
+		if err = s.dao.WriteFilePartData(ctx, *ownerId, *fileId, int32(szParts), buf[szParts*filePartSize:]); err != nil {
+			logx.Errorf("write part %d error: %v", szParts, err)
+			return
+		}
+		totalParts++
 	}
 
-	logx.Infof("aaaa", "dd")
-
-	if err = s.dao.SetFileInfo(context.Background(), &model.DfsFileInfo{
-		Creator:        100,
-		FileId:         1,
+	if err = s.dao.SetFileInfo(ctx, &model.DfsFileInfo{
+		Creator:        *ownerId,
+		FileId:         *fileId,
 		Big:            false,
-		FileName:       "safe_image.gif",
-		FileTotalParts: szParts + 1,
-		FilePartSize:   10240,
-		// FileSize:       int64(len(buf)),
+		FileName:       filepath.Base(*inputFile),
+		FileTotalParts: totalParts,
+		FilePartSize:   filePartSize,
 	}); err != nil {
-		logx.Errorf("%v", err)
+		logx.Errorf("set file info error: %v", err)
+		return
 	}
+	logx.Infof("uploaded %s as (%d, %d) in %d parts", *inputFile, *ownerId, *fileId, totalParts)
 }
 
 func (s *Server) Destroy() {

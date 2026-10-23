@@ -47,7 +47,7 @@ func (c *InboxCore) InboxReadOutboxHistory(in *inbox.TLInboxReadOutboxHistory) (
 			c.Logger.Errorf("inbox.readOutboxHistory - error: %v", err)
 			return nil, err
 		}
-		c.Logger.Infof("inbox.readOutboxHistory: %v", replyId)
+		c.Logger.Debugf("inbox.readOutboxHistory: {user_id: %d, user_message_box_id: %d}", replyId.UserId, replyId.UserMessageBoxId)
 
 		// TODO: check if the message is already read
 		_, _, err2 := c.svcCtx.Dao.MessageReadOutboxDAO.InsertOrUpdate(
@@ -108,7 +108,7 @@ func (c *InboxCore) InboxReadOutboxHistory(in *inbox.TLInboxReadOutboxHistory) (
 			c.Logger.Errorf("inbox.readOutboxHistory - error: %v", err)
 			return nil, err
 		}
-		c.Logger.Infof("inbox.readOutboxHistory: %v", replyId)
+		c.Logger.Debugf("inbox.readOutboxHistory: {user_id: %d, user_message_box_id: %d}", replyId.UserId, replyId.UserMessageBoxId)
 
 		_, _ = c.svcCtx.Dao.DialogsDAO.SelectPeerDialogListWithCB(
 			c.ctx,

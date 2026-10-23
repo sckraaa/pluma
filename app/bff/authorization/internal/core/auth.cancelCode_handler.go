@@ -20,29 +20,34 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 )
 
 // AuthCancelCode
 // auth.cancelCode#1f040578 phone_number:string phone_code_hash:string = Bool;
 func (c *AuthorizationCore) AuthCancelCode(in *mtproto.TLAuthCancelCode) (*mtproto.Bool, error) {
-	//// 1. check phone code
-	//if request.PhoneCodeHash == "" {
-	//	err := mtproto.NewRpcError2(mtproto.TLRpcErrorCodes_PHONE_CODE_EMPTY)
-	//	return nil, err
-	//}
-	//
-	// 2. check number
+	if in.PhoneCodeHash == "" {
+		err := mtproto.ErrPhoneCodeHashEmpty
+		c.Logger.Errorf("auth.cancelCode - error: %v", err)
+		return nil, err
+	}
+
 	// 客户端发送的手机号格式为: "+86 111 1111 1111"，归一化
-	_, err := phonenumber.CheckAndGetPhoneNumber(in.GetPhoneNumber())
+	_, phoneNumber, err := checkPhoneNumberInvalid(in.GetPhoneNumber())
 	if err != nil {
 		c.Logger.Errorf("check phone_number error - %v", err)
 		err = mtproto.ErrPhoneNumberInvalid
 		return nil, err
 	}
 
-	// code := logic.NewAuthSignLogic(s.AuthFacade)
-	// canceled := mtproto.ToBool(code.DoAuthCancelCode(md.AuthId, phoneNumber, request.PhoneCodeHash))
+	if err = c.svcCtx.AuthLogic.Codes.CheckPhone(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
+		c.Logger.Errorf("auth.cancelCode - error: %v", err)
+		return nil, err
+	}
+
+	if err = c.svcCtx.AuthLogic.DoAuthCancelCode(c.ctx, c.MD.PermAuthKeyId, phoneNumber, in.PhoneCodeHash); err != nil {
+		c.Logger.Errorf("auth.cancelCode - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }

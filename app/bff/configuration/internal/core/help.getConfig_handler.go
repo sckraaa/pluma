@@ -44,13 +44,11 @@ func init() {
 	configData, err := os.ReadFile(configFile)
 	if err != nil {
 		panic(err)
-		return
 	}
 
 	err = jsonx.Unmarshal(configData, &config)
 	if err != nil {
 		panic(err)
-		return
 	}
 }
 

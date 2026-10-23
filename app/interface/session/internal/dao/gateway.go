@@ -35,7 +35,7 @@ func SerializeToBuffer2(salt, sessionId int64, msg2 *mtproto.TLMessageRawData) [
 func (d *Dao) watchGateway(c zrpc.RpcClientConf) {
 	sub, err := discov.NewSubscriber(c.Etcd.Hosts, c.Etcd.Key)
 	if err != nil {
-		logx.Errorf("watchGateway NewSubscriber(%+v) error: %v", c.Etcd, err)
+		logx.Errorf("watchGateway NewSubscriber(hosts: %v, key: %s) error: %v", c.Etcd.Hosts, c.Etcd.Key, err)
 		return
 	}
 

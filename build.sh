@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Stop at the first failed build: otherwise the script (and the image build
+# that runs it) succeeds with a binary missing.
+set -euo pipefail
+
 PWD=`pwd`
 TEAMGRAMAPP=${PWD}"/app"
 INSTALL=${PWD}"/teamgramd"
@@ -47,6 +51,10 @@ go build -o ${INSTALL}/bin/session
 echo "build gnetway ..."
 cd ${TEAMGRAMAPP}/interface/gnetway/cmd/gnetway
 go build -o ${INSTALL}/bin/gnetway
+
+echo "build pluma-admin ..."
+cd ${TEAMGRAMAPP}/../tools/pluma-admin
+go build -o ${INSTALL}/bin/pluma-admin
 
 #echo "build httpserver ..."
 #cd ${TEAMGRAMAPP}/interface/httpserver/cmd/httpserver

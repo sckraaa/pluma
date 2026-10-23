@@ -46,18 +46,18 @@ func (dao *BotCommandsDAO) InsertBulk(ctx context.Context, doList []*dataobject.
 
 	r, err = dao.db.NamedExec(ctx, query, doList)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in InsertBulk(%v), error: %v", doList, err)
+		logx.WithContext(ctx).Errorf("namedExec in InsertBulk(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in InsertBulk(%v), error: %v", doList, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in InsertBulk(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in InsertBulk(%v), error: %v", doList, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in InsertBulk(_), error: %v", err)
 	}
 
 	return
@@ -78,18 +78,18 @@ func (dao *BotCommandsDAO) InsertBulkTx(tx *sqlx.Tx, doList []*dataobject.BotCom
 
 	r, err = tx.NamedExec(query, doList)
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in InsertBulk(%v), error: %v", doList, err)
+		logx.WithContext(tx.Context()).Errorf("namedExec in InsertBulk(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertBulk(%v), error: %v", doList, err)
+		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertBulk(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertBulk(%v), error: %v", doList, err)
+		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertBulk(_), error: %v", err)
 	}
 
 	return
@@ -154,18 +154,18 @@ func (dao *BotCommandsDAO) InsertOrUpdate(ctx context.Context, do *dataobject.Bo
 
 	r, err = dao.db.NamedExec(ctx, query, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("namedExec in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in InsertOrUpdate(_), error: %v", err)
 	}
 
 	return
@@ -182,18 +182,18 @@ func (dao *BotCommandsDAO) InsertOrUpdateTx(tx *sqlx.Tx, do *dataobject.BotComma
 
 	r, err = tx.NamedExec(query, do)
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("namedExec in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertOrUpdate(_), error: %v", err)
 	}
 
 	return

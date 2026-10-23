@@ -50,8 +50,8 @@ import (
 	usernames_helper "github.com/teamgram/teamgram-server/app/bff/usernames"
 	users_helper "github.com/teamgram/teamgram-server/app/bff/users"
 	webbrowserhelper "github.com/teamgram/teamgram-server/app/bff/webbrowser"
+	"github.com/teamgram/teamgram-server/pkg/conf"
 
-	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -71,7 +71,8 @@ func (s *Server) Initialize() error {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	logx.Infov(c)
+	// The config carries secrets from the environment (passwords, keys): never log it whole.
+	logx.Infof("loaded config %s", *configFile)
 	// ctx := svc.NewServiceContext(c)
 	// s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
 
@@ -117,7 +118,8 @@ func (s *Server) Initialize() error {
 				authorization_helper.Config{
 					RpcServerConf:             c.RpcServerConf,
 					KV:                        c.KV,
-					Code:                      c.Code,
+					Mysql:                     c.Mysql,
+					LoginCode:                 c.LoginCode,
 					UserClient:                c.BizServiceClient,
 					AuthsessionClient:         c.AuthSessionClient,
 					ChatClient:                c.BizServiceClient,
@@ -127,7 +129,6 @@ func (s *Server) Initialize() error {
 					SignInMessage:             c.SignInMessage,
 					SignInServiceNotification: c.SignInServiceNotification,
 				},
-				nil,
 				nil))
 
 		// premium_helper
@@ -298,12 +299,13 @@ func (s *Server) Initialize() error {
 				account_helper.Config{
 					RpcServerConf:     c.RpcServerConf,
 					KV:                c.KV,
+					Mysql:             c.Mysql,
+					LoginCode:         c.LoginCode,
 					UserClient:        c.BizServiceClient,
 					AuthsessionClient: c.AuthSessionClient,
 					ChatClient:        c.BizServiceClient,
 					SyncClient:        c.SyncClient,
 				},
-				nil,
 				nil))
 		// usernames_helper
 		mtproto.RegisterRPCUsernamesServer(

@@ -50,7 +50,8 @@ func (s *Server) Initialize() error {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	logx.Infov(c)
+	// The config carries secrets (passwords, keys): never log it whole.
+	logx.Infof("loaded config %s", *configFile)
 	s.dao = dao.New(c)
 	return nil
 }

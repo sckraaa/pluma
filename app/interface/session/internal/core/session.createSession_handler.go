@@ -36,7 +36,7 @@ func (c *SessionCore) SessionCreateSession(in *session.TLSessionCreateSession) (
 		return nil, err
 	}
 
-	mainAuth, err := c.getOrFetchMainAuthWrapper(cli.PermAuthKeyId)
+	mainAuth, err := c.getOrFetchClientMainAuthWrapper(cli.AuthKeyId, cli.KeyType, cli.PermAuthKeyId)
 	if err != nil {
 		c.Logger.Errorf("session.createSession - error: %v", err)
 		return nil, err

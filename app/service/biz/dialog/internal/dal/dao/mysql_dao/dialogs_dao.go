@@ -44,18 +44,18 @@ func (dao *DialogsDAO) InsertIgnore(ctx context.Context, do *dataobject.DialogsD
 
 	r, err = dao.db.NamedExec(ctx, query, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in InsertIgnore(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("namedExec in InsertIgnore(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in InsertIgnore(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in InsertIgnore(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in InsertIgnore(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in InsertIgnore(_), error: %v", err)
 	}
 
 	return
@@ -72,18 +72,18 @@ func (dao *DialogsDAO) InsertIgnoreTx(tx *sqlx.Tx, do *dataobject.DialogsDO) (la
 
 	r, err = tx.NamedExec(query, do)
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in InsertIgnore(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("namedExec in InsertIgnore(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertIgnore(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertIgnore(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertIgnore(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertIgnore(_), error: %v", err)
 	}
 
 	return
@@ -100,18 +100,18 @@ func (dao *DialogsDAO) InsertOrUpdate(ctx context.Context, do *dataobject.Dialog
 
 	r, err = dao.db.NamedExec(ctx, query, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("namedExec in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in InsertOrUpdate(_), error: %v", err)
 	}
 
 	return
@@ -128,18 +128,18 @@ func (dao *DialogsDAO) InsertOrUpdateTx(tx *sqlx.Tx, do *dataobject.DialogsDO) (
 
 	r, err = tx.NamedExec(query, do)
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("namedExec in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertOrUpdate(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertOrUpdate(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertOrUpdate(_), error: %v", err)
 	}
 
 	return
@@ -156,18 +156,18 @@ func (dao *DialogsDAO) InsertOrUpdateDialog(ctx context.Context, do *dataobject.
 
 	r, err = dao.db.NamedExec(ctx, query, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in InsertOrUpdateDialog(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("namedExec in InsertOrUpdateDialog(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in InsertOrUpdateDialog(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in InsertOrUpdateDialog(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in InsertOrUpdateDialog(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in InsertOrUpdateDialog(_), error: %v", err)
 	}
 
 	return
@@ -184,18 +184,18 @@ func (dao *DialogsDAO) InsertOrUpdateDialogTx(tx *sqlx.Tx, do *dataobject.Dialog
 
 	r, err = tx.NamedExec(query, do)
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in InsertOrUpdateDialog(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("namedExec in InsertOrUpdateDialog(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertOrUpdateDialog(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("lastInsertId in InsertOrUpdateDialog(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertOrUpdateDialog(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("rowsAffected in InsertOrUpdateDialog(_), error: %v", err)
 	}
 
 	return

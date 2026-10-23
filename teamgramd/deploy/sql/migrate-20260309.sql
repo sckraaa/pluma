@@ -35,7 +35,14 @@ ALTER TABLE `chats`
   ADD KEY `idx_creator_date` (`creator_user_id`, `date`);
 
 -- 5) chat_invite_participants: speed up operations by chat_id / (chat_id, user_id)
+-- pluma: the requested and approved_by columns, which the chat DAO
+-- (chat_invite_participants_dao.go) reads and writes, were in no schema file,
+-- so idx_chat_requested could not be created: this statement failed on every
+-- database and a fresh install (docker-entrypoint-initdb.d) stopped here. The
+-- columns are added first.
 ALTER TABLE `chat_invite_participants`
+  ADD `requested` tinyint(1) NOT NULL DEFAULT '0' AFTER `user_id`,
+  ADD `approved_by` bigint(20) NOT NULL DEFAULT '0' AFTER `requested`,
   ADD KEY `idx_chat_user` (`chat_id`, `user_id`),
   ADD KEY `idx_chat_requested` (`chat_id`, `requested`);
 

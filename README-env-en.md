@@ -35,17 +35,7 @@ cp .env.example .env
 # Edit .env for MYSQL_*, MINIO_*, GRAFANA_*, etc.
 ```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| MYSQL_ROOT_PASSWORD | root | MySQL root password |
-| MYSQL_DATABASE | teamgram | Default database name |
-| MYSQL_USER | teamgram | Application DB user |
-| MYSQL_PASSWORD | teamgram | Application DB password |
-| MINIO_ROOT_USER | minio | MinIO username |
-| MINIO_ROOT_PASSWORD | miniostorage | MinIO password |
-| GRAFANA_ADMIN_USER | admin | Grafana admin username |
-| GRAFANA_ADMIN_PASSWORD | admin | Grafana admin password |
-| GRAFANA_ROOT_URL | http://localhost:3000 | Grafana root URL |
+There are no default passwords. Every secret (`MYSQL_ROOT_PASSWORD`, `MYSQL_PASSWORD`, `REDIS_PASSWORD`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `GRAFANA_ADMIN_PASSWORD`, `SERVER_RSA_KEY_FINGERPRINT`) must be set in `.env`; compose refuses to start while one is missing. The services connect as MySQL user `teamgram` to database `teamgram`. Setup and the server RSA key: `docs/ops/security-setup.md`.
 
 ## Start and Stop
 
@@ -63,7 +53,7 @@ docker compose -f docker-compose-env2.yaml down
 docker compose -f docker-compose-env2.yaml down
 ```
 
-Compose reads `.env` from the current directory; if absent, the defaults above are used.
+Compose reads `.env` from the current directory; without it (or with an empty secret) it refuses to start.
 
 ## Ports and Access URLs
 

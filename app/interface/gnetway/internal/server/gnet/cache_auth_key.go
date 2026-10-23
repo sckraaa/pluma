@@ -16,21 +16,23 @@
 package gnet
 
 import (
-	"encoding/hex"
 	"fmt"
-
-	"github.com/teamgram/proto/mtproto"
 )
 
+// cachedAuthKeySize approximates the memory one cached key takes (the
+// 256-byte key, AuthKeyInfo, authKeyUtil and the LRU entry), so that
+// Gnetway.AuthKeyCacheM really bounds the cache in megabytes.
+const cachedAuthKeySize = 640
+
 type CacheV struct {
-	V *mtproto.AuthKeyInfo
+	V *authKeyUtil
 }
 
 func (c CacheV) Size() int {
-	return 1
+	return cachedAuthKeySize
 }
 
-func (s *Server) GetAuthKey(authKeyId int64) *mtproto.AuthKeyInfo {
+func (s *Server) GetAuthKey(authKeyId int64) *authKeyUtil {
 	var (
 		cacheK = fmt.Sprintf("%d", authKeyId)
 		value  *CacheV
@@ -47,35 +49,18 @@ func (s *Server) GetAuthKey(authKeyId int64) *mtproto.AuthKeyInfo {
 	}
 }
 
-func (s *Server) PutAuthKey(keyInfo *mtproto.AuthKeyInfo) {
+// PutAuthKey caches a key read from authsession or created by a handshake.
+// Its binding is whatever authsession returned: the gateway never derives it
+// from client messages.
+func (s *Server) PutAuthKey(key *authKeyUtil) {
 	var (
-		cacheK = fmt.Sprintf("%d", keyInfo.AuthKeyId)
+		cacheK = fmt.Sprintf("%d", key.AuthKeyId())
 	)
 
-	// TODO: expires_in
-	s.cache.Set(cacheK, &CacheV{V: keyInfo})
+	s.cache.Set(cacheK, &CacheV{V: key})
 }
 
-// HandshakeCacheV wraps HandshakeStateCtx for LRU cache storage.
-type HandshakeCacheV struct {
-	State *HandshakeStateCtx
-}
-
-func (c HandshakeCacheV) Size() int {
-	return 1
-}
-
-// GetHttpHandshakeState retrieves handshake state from cache by nonce (for HTTP transport).
-func (s *Server) GetHttpHandshakeState(nonce []byte) *HandshakeStateCtx {
-	key := "hs:" + hex.EncodeToString(nonce)
-	if v, ok := s.cache.Get(key); ok {
-		return v.(*HandshakeCacheV).State
-	}
-	return nil
-}
-
-// PutHttpHandshakeState stores handshake state in cache by nonce (for HTTP transport).
-func (s *Server) PutHttpHandshakeState(state *HandshakeStateCtx) {
-	key := "hs:" + hex.EncodeToString(state.Nonce)
-	s.cache.Set(key, &HandshakeCacheV{State: state})
+// RemoveAuthKey drops a key that authsession no longer knows (or that expired).
+func (s *Server) RemoveAuthKey(authKeyId int64) {
+	s.cache.Delete(fmt.Sprintf("%d", authKeyId))
 }

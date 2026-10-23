@@ -20,7 +20,8 @@ package config
 
 import (
 	kafka "github.com/teamgram/marmota/pkg/mq"
-	"github.com/teamgram/teamgram-server/pkg/code/conf"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -29,7 +30,8 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	KV                kv.KvConf
-	Code              *conf.SmsVerifyCodeConfig
+	Mysql             sqlx.Config // phone allowlist
+	LoginCode         logincode.Config
 	UserClient        zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
 	ChatClient        zrpc.RpcClientConf

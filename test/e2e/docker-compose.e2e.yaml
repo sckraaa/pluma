@@ -1,0 +1,85 @@
+# End-to-end test stack (docs/ops/testing.md): applied on top of
+# docker-compose-env.yaml and docker-compose.yaml by test/e2e/run.sh, which
+# starts only the services listed there (the core: MySQL, Redis, Kafka, etcd,
+# MinIO, Jaeger and teamgram). Elasticsearch, Kibana, filebeat, go-stash and
+# the metrics stack are never started in tests.
+#
+# Everything a test run creates is thrown away with `down -v`: no fixed
+# container names, no host ports except an ephemeral loopback port for the
+# MTProto gateway, no bind-mounted ./data, no fixed subnet, so the test stack
+# can run next to a development stack on the same Docker host. Containers are
+# not restarted: a crash must fail the test, not be hidden by a restart.
+
+services:
+  kafka:
+    container_name: !reset null
+    ports: !reset []
+    restart: "no"
+
+  etcd:
+    container_name: !reset null
+    ports: !reset []
+    volumes: !reset []
+    restart: "no"
+
+  redis:
+    container_name: !reset null
+    ports: !reset []
+    volumes: !reset []
+    restart: "no"
+
+  mysql:
+    container_name: !reset null
+    ports: !reset []
+    # The schema is applied from teamgramd/deploy/sql on the first start, as in
+    # production; the data lives in memory.
+    volumes: !override
+      - ./teamgramd/deploy/sql:/docker-entrypoint-initdb.d/:ro
+    tmpfs:
+      - /var/lib/mysql
+    restart: "no"
+
+  minio:
+    container_name: !reset null
+    ports: !reset []
+    volumes: !reset []
+    restart: "no"
+
+  minio-mc:
+    container_name: !reset null
+    restart: "no"
+
+  jaeger:
+    container_name: !reset null
+    ports: !reset []
+    # Spans are kept in memory: the production setup stores them in
+    # Elasticsearch, which tests do not start.
+    environment: !override
+      - SPAN_STORAGE_TYPE=memory
+    depends_on: !reset []
+    restart: "no"
+
+  teamgram:
+    image: pluma-e2e-teamgram
+    # An ephemeral port on the loopback interface; run.sh asks Docker for it.
+    ports: !override
+      - "127.0.0.1::10443"
+    restart: "no"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      etcd:
+        condition: service_healthy
+      minio-mc:
+        condition: service_completed_successfully
+      jaeger:
+        condition: service_started
+
+networks:
+  teamgram_net:
+    # Docker picks a free subnet: 172.20.0.0/16 may be taken on a shared host.
+    ipam: !reset {}

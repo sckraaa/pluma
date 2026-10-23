@@ -9,7 +9,8 @@ Log:
   ServiceName: messenger.msg
   Mode: file
   Path: ../logs/msg
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 ##监控
 #Prometheus:
 #  Host: 0.0.0.0
@@ -23,14 +24,16 @@ Log:
 #  Batcher: jaeger
   
 Mysql:
-  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
   Active: 64
   Idle: 64
   IdleTimeout: 4h
 Cache:
   - Host: localhost:6379
+    Pass: "${REDIS_PASSWORD}"
 KV:
   - Host: 127.0.0.1:6379
+    Pass: "${REDIS_PASSWORD}"
 
 InboxConsumer:
   Topics:
@@ -63,4 +66,5 @@ SyncClient:
 
 Redis2:
   Host: 127.0.0.1:6379
+  Pass: "${REDIS_PASSWORD}"
   Type: node

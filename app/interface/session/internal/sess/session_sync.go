@@ -29,7 +29,7 @@ import (
 func (c *session) onSyncData(ctx context.Context, obj mtproto.TLObject) {
 	// for android, obj maybe is nil
 	if obj != nil {
-		logx.WithContext(ctx).Infof("session]]>> - session: %s, syncData: %s", c, obj)
+		logx.WithContext(ctx).Infof("session]]>> - session: %s, syncData: %T", c, obj)
 	} else {
 		logx.WithContext(ctx).Infof("session]]>> - session: %s, syncData: nil", c)
 	}
@@ -55,7 +55,7 @@ func (c *session) onSyncData(ctx context.Context, obj mtproto.TLObject) {
 
 func (c *session) onSyncRpcResultData(ctx context.Context, reqMsgId int64, data []byte) {
 	// TODO(@benqi):
-	logx.WithContext(ctx).Debugf("onSyncRpcResultData]]>> - %s", data)
+	logx.WithContext(ctx).Debugf("onSyncRpcResultData]]>> - req_msg_id: %d, %d bytes", reqMsgId, len(data))
 	c.pendingQueue.Remove(reqMsgId)
 	gatewayId := c.getGatewayId()
 	c.sendPushRpcResultToQueue(gatewayId, reqMsgId, data)

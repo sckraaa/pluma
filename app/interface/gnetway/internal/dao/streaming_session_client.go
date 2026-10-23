@@ -69,7 +69,7 @@ func NewStreamingSessionDispatcher(c config.Config) *StreamingSessionDispatcher 
 func (d *StreamingSessionDispatcher) watch(c zrpc.RpcClientConf) {
 	sub, err := discov.NewSubscriber(c.Etcd.Hosts, c.Etcd.Key)
 	if err != nil {
-		logx.Errorf("StreamingSessionDispatcher watch NewSubscriber(%+v) error: %v", c.Etcd, err)
+		logx.Errorf("StreamingSessionDispatcher watch NewSubscriber(hosts: %v, key: %s) error: %v", c.Etcd.Hosts, c.Etcd.Key, err)
 		return
 	}
 

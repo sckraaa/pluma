@@ -54,7 +54,7 @@ func (c *DialogCore) DialogGetDialogFilter(in *dialog.TLDialogGetDialogFilter) (
 					}
 
 					if df, err := mtproto.UnmarshalDialogFilter(v.DialogFilter); err != nil {
-						c.Logger.Errorf("jsonx.UnmarshalFromString(%v) - error: %v", v, err)
+						c.Logger.Errorf("jsonx.UnmarshalFromString(dialog filter %d of user %d) - error: %v", v.DialogFilterId, v.UserId, err)
 						// continue
 						return
 					} else {

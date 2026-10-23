@@ -58,13 +58,14 @@ func (c *QrCodeCore) AuthExportLoginToken(in *mtproto.TLAuthExportLoginToken) (*
 			UserId:        0,
 			State:         model.QRCodeStateNew,
 		}
-		c.Logger.Infof("putQRCode - %#v", qrCode)
+		// Never the transaction itself: code_hash is the login token.
+		c.Logger.Infof("putQRCode - new, perm_auth_key_id: %d", qrCode.PermAuthKeyId)
 		if err = c.svcCtx.Dao.PutCacheQRLoginCode(c.ctx, c.MD.PermAuthKeyId, qrCode, qrCodeTimeout+2); err != nil {
 			c.Logger.Errorf("putQRCode - error: %v", err)
 			return nil, err
 		}
 	} else {
-		c.Logger.Infof("putQRCode - %#v", qrCode)
+		c.Logger.Infof("putQRCode - found, perm_auth_key_id: %d, state: %d", qrCode.PermAuthKeyId, qrCode.State)
 	}
 
 	var (

@@ -40,7 +40,7 @@ func (c *MsgCore) MsgSendMessageV2(in *msg.TLMsgSendMessageV2) (*mtproto.Updates
 
 	if len(outBoxList) == 0 {
 		err = mtproto.ErrInputRequestInvalid
-		c.Logger.Errorf("msg.sendMessageV2: {%s} - error: len(outBoxList) == 0", in)
+		c.Logger.Errorf("msg.sendMessageV2: {user_id: %d, peer: %d/%d} - error: len(outBoxList) == 0", in.GetUserId(), in.GetPeerType(), in.GetPeerId())
 		return nil, err
 	}
 

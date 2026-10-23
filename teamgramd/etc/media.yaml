@@ -9,7 +9,8 @@ Log:
   ServiceName: service.media
   Mode: file
   Path: ../logs/media
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 ##监控
 #Prometheus:
 #  Host: 0.0.0.0
@@ -23,13 +24,14 @@ Log:
 #  Batcher: jaeger
   
 Mysql:
-  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
   Active: 64
   Idle: 64
   IdleTimeout: 4h
 
 Cache:
   - Host: 127.0.0.1:6379
+    Pass: "${REDIS_PASSWORD}"
 
 Dfs:
   Etcd:

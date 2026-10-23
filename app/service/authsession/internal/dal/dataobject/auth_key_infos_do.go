@@ -17,5 +17,6 @@ type AuthKeyInfosDO struct {
 	PermAuthKeyId      int64 `db:"perm_auth_key_id" json:"perm_auth_key_id"`
 	TempAuthKeyId      int64 `db:"temp_auth_key_id" json:"temp_auth_key_id"`
 	MediaTempAuthKeyId int64 `db:"media_temp_auth_key_id" json:"media_temp_auth_key_id"`
+	ExpiresAt          int64 `db:"expires_at" json:"expires_at"`
 	Deleted            bool  `db:"deleted" json:"deleted"`
 }

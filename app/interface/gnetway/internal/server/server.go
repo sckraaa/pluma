@@ -25,8 +25,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/grpc"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/svc"
+	"github.com/teamgram/teamgram-server/pkg/conf"
 
-	"github.com/zeromicro/go-zero/core/conf"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -44,10 +44,23 @@ func (s *Server) Initialize() error {
 	var c config.Config
 	conf.MustLoad(*configFile, &c)
 
-	logx.Infov(c)
+	// The config carries secrets from the environment (passwords, keys): never log it whole.
+	logx.Infof("loaded config %s", *configFile)
+
+	// Verify the server RSA keys before anything else starts: a missing,
+	// exposed or mismatching key must stop gnetway, not break handshakes.
+	keys, err := gnet.LoadRSAKeys(c.RSAKey)
+	if err != nil {
+		logx.Errorf("gnetway: %v", err)
+		return err
+	}
 
 	ctx := svc.NewServiceContext(c)
-	s.server = gnet.New(ctx, c)
+	s.server, err = gnet.New(ctx, c, keys)
+	if err != nil {
+		logx.Errorf("gnetway: %v", err)
+		return err
+	}
 	s.grpcSrv = grpc.New(ctx, c.RpcServerConf, s.server)
 
 	go func() {

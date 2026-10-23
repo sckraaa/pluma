@@ -81,38 +81,6 @@ const (
 	CodeStateDeleted     = -1
 )
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-// by params(phoneRegistered, allowFlashCall, currentNumber) ==> sentType and nextType
-
-// MakeCodeType
-// FIXME(@benqi): ignore it.
-func MakeCodeType(phoneRegistered, allowFlashCall, currentNumber bool) (int, int) {
-	//if phoneRegistered {
-	//	// TODO(@benqi): check other session online
-	//	authSentCodeType := &mtproto.TLAuthSentCodeTypeApp{Data2: &mtproto.Auth_SentCodeType_Data{
-	//		Length: code.GetPhoneCodeLength(),
-	//	}}
-	//	authSentCode.SetType(authSentCodeType.To_Auth_SentCodeType())
-	//} else {
-	//	// TODO(@benqi): sentCodeTypeFlashCall and sentCodeTypeCall, nextType
-	//	// telegramd, we only use sms
-	//	authSentCodeType := &mtproto.TLAuthSentCodeTypeSms{Data2: &mtproto.Auth_SentCodeType_Data{
-	//		Length: code.GetPhoneCodeLength(),
-	//	}}
-	//	authSentCode.SetType(authSentCodeType.To_Auth_SentCodeType())
-	//
-	//	// TODO(@benqi): nextType
-	//	// authSentCode.SetNextType()
-	//}
-	_ = phoneRegistered
-	_ = allowFlashCall
-	_ = currentNumber
-
-	sentCodeType := SentCodeTypeApp
-	nextCodeType := CodeTypeNone
-	return sentCodeType, nextCodeType
-}
-
 func makeAuthCodeType(codeType int) *mtproto.Auth_CodeType {
 	switch codeType {
 	case CodeTypeSms:

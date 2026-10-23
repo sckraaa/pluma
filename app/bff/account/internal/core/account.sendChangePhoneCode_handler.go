@@ -19,10 +19,7 @@
 package core
 
 import (
-	"context"
-
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 
@@ -61,8 +58,14 @@ func (c *AccountCore) AccountSendChangePhoneCode(in *mtproto.TLAccountSendChange
 	// client phone number format: "+86 111 1111 1111"
 	_, phoneNumber, err := phonenumber.CheckPhoneNumberInvalid(in.PhoneNumber)
 	if err != nil {
-		c.Logger.Errorf("check phone_number(%s) error - %v", in.PhoneNumber, err)
+		c.Logger.Errorf("check phone_number error - %v", err)
 		err = mtproto.ErrPhoneNumberInvalid
+		return nil, err
+	}
+
+	// The new number must be on the allowlist; same flood limits as auth.sendCode.
+	if err = c.svcCtx.AuthLogic.Codes.CheckSendCode(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
+		c.Logger.Errorf("account.sendChangePhoneCode - error: %v", err)
 		return nil, err
 	}
 
@@ -70,161 +73,44 @@ func (c *AccountCore) AccountSendChangePhoneCode(in *mtproto.TLAccountSendChange
 	if c.svcCtx.Plugin != nil {
 		banned, _ := c.svcCtx.Plugin.CheckPhoneNumberBanned(c.ctx, phoneNumber)
 		if banned {
-			c.Logger.Errorf("{phone_number: %s} banned: %v", phoneNumber, err)
+			c.Logger.Errorf("account.sendChangePhoneCode - phone banned")
 			return nil, mtproto.ErrPhoneNumberBanned
 		}
 	}
 
-	// logic
-	// Always crated new phoneCode
-	var (
-		user *mtproto.ImmutableUser
-	)
-
-	if user, err = c.svcCtx.Dao.UserClient.UserGetImmutableUserByPhone(c.ctx, &userpb.TLUserGetImmutableUserByPhone{
-		Phone: phoneNumber,
-	}); err != nil {
-		if nErr, ok := status.FromError(err); ok {
-			// TODO: check if the error is mtproto.ErrPhoneNumberUnoccupied
-			// mtproto.ErrPhoneNumberUnoccupied
-			c.Logger.Errorf("checkPhoneNumberExist error: %v", err)
-			_ = nErr
-			err = nil
-		} else {
-			c.Logger.Errorf("checkPhoneNumberExist error: %v", err)
-			return nil, err
-		}
-	} else {
-		c.Logger.Errorf("checkPhoneNumberExist - user: %s", user)
-		return nil, mtproto.ErrPhoneNumberOccupied
+	if err = c.checkPhoneNumberFree(phoneNumber); err != nil {
+		return nil, err
 	}
 
-	//sentCodeType, nextCodeType := code.MakeCodeType(
-	//	false,
-	//	in.GetSettings().GetAllowFlashcall(),
-	//	in.GetSettings().GetCurrentNumber())
-	//
-	//var (
-	//	codeData *code.PhoneCodeTransaction
-	//)
-	//
-	//codeData, err = c.svcCtx.Dao.CodeClient.CodeCreatePhoneCode(c.ctx, &code.TLCodeCreatePhoneCode{
-	//	AuthKeyId:             c.MD.PermAuthKeyId,
-	//	SessionId:             c.MD.SessionId,
-	//	Phone:                 phoneNumber,
-	//	PhoneNumberRegistered: false,
-	//	SentCodeType:          int32(sentCodeType),
-	//	NextCodeType:          int32(nextCodeType),
-	//	State:                 code.CodeStateReSent,
-	//})
-	//if err != nil {
-	//	c.Logger.Errorf("account.sendChangePhoneCode error: %v", err)
-	//	return nil, err
-	//}
-	//
-	//if codeData.State == model.CodeStateSent {
-	//	c.Logger.Debugf("codeSent")
-	//	// return nil
-	//}
-	//
-	//c.Logger.Debugf("send code by sms")
-	//if extraData, err := s.VerifyCodeInterface.SendSmsVerifyCode(
-	//	context.Background(),
-	//	phoneNumber,
-	//	codeData.PhoneCode,
-	//	codeData.PhoneCodeHash); err != nil {
-	//	return nil, err
-	//} else {
-	//	codeData.SentCodeType = model.CodeTypeSms
-	//	codeData.PhoneCodeExtraData = extraData
-	//}
-	//
-	//codeData.NextCodeType = model.CodeTypeSms
-	//codeData.State = model.CodeStateSent
-
-	codeData, err2 := c.svcCtx.AuthLogic.DoAuthSendCode(
+	// The code is issued by the administrator: pluma-admin login-code <new phone>.
+	codeData, err := c.svcCtx.AuthLogic.DoSendChangePhoneCode(
 		c.ctx,
 		c.MD.PermAuthKeyId,
 		c.MD.SessionId,
 		phoneNumber,
-		in.Settings.AllowFlashcall,
-		in.Settings.CurrentNumber,
-		func(codeData2 *model.PhoneCodeTransaction) error {
-			if codeData2.State == model.CodeStateSent {
-				c.Logger.Infof("codeSent")
-				return nil
-			}
-
-			c.Logger.Infof("send code by sms")
-			extraData, err2 := c.svcCtx.AuthLogic.VerifyCodeInterface.SendSmsVerifyCode(
-				context.Background(),
-				phoneNumber,
-				codeData2.PhoneCode,
-				codeData2.PhoneCodeHash)
-			if err2 != nil {
-				c.Logger.Errorf("send sms code error: %v", err2)
-				return err2
-			} else {
-				// codeData2.SentCodeType = model.CodeTypeSms
-				codeData2.SentCodeType = model.SentCodeTypeSms
-				codeData2.PhoneCodeExtraData = extraData
-			}
-
-			//if user.User.UserType == userpb.UserTypeTest {
-			//	c.Logger.Infof("test user: %s, %s", phoneNumber, user)
-			//	codeData2.SentCodeType = model.CodeTypeApp
-			//	codeData2.PhoneCode = "12345"
-			//	codeData2.PhoneCodeExtraData = "12345"
-			//	go func() {
-			//		// c.pushSignInMessage(context.Background(), user.Id, codeData2.PhoneCode)
-			//	}()
-			//} else {
-			//	var (
-			//		online = false
-			//	)
-			//
-			//	if phoneRegistered {
-			//		if status, _ := c.svcCtx.StatusClient.StatusGetUserOnlineSessions(c.ctx, &status.TLStatusGetUserOnlineSessions{
-			//			UserId: user.User.Id,
-			//		}); len(status.GetUserSessions()) > 0 {
-			//			c.Logger.Infof("user online")
-			//			online = true
-			//
-			//			codeData2.SentCodeType = model.CodeTypeApp
-			//			codeData2.PhoneCodeExtraData = codeData2.PhoneCode
-			//			go func() {
-			//				// s.pushSignInMessage(context.Background(), user.Id, codeData2.PhoneCode)
-			//			}()
-			//		}
-			//		// &&
-			//	}
-			//
-			//	if !phoneRegistered || !online {
-			//		c.Logger.Infof("send code by sms")
-			//		if extraData, err := c.svcCtx.AuthLogic.VerifyCodeInterface.SendSmsVerifyCode(
-			//			context.Background(),
-			//			phoneNumber,
-			//			codeData2.PhoneCode,
-			//			codeData2.PhoneCodeHash); err != nil {
-			//			return err
-			//		} else {
-			//			codeData2.SentCodeType = model.CodeTypeSms
-			//			codeData2.PhoneCodeExtraData = extraData
-			//		}
-			//	}
-			//}
-
-			codeData2.NextCodeType = model.CodeTypeSms
-			codeData2.State = model.CodeStateSent
-			// codeData2.PhoneNumberRegistered = phoneRegistered
-
-			return nil
-		})
-
-	if err2 != nil {
-		c.Logger.Errorf("auth.sendCode - error: %v", err2)
-		return nil, err2
+		c.MD.ClientAddr)
+	if err != nil {
+		c.Logger.Errorf("account.sendChangePhoneCode - error: %v", err)
+		return nil, err
 	}
 
 	return codeData.ToAuthSentCode(), nil
+}
+
+// checkPhoneNumberFree returns PHONE_NUMBER_OCCUPIED if phoneNumber belongs
+// to an account.
+func (c *AccountCore) checkPhoneNumberFree(phoneNumber string) error {
+	user, err := c.svcCtx.Dao.UserClient.UserGetImmutableUserByPhone(c.ctx, &userpb.TLUserGetImmutableUserByPhone{
+		Phone: phoneNumber,
+	})
+	if err != nil {
+		if _, ok := status.FromError(err); ok {
+			// TODO: check if the error is mtproto.ErrPhoneNumberUnoccupied
+			return nil
+		}
+		c.Logger.Errorf("checkPhoneNumberExist error: %v", err)
+		return err
+	}
+	c.Logger.Errorf("checkPhoneNumberExist - occupied by user %d", user.Id())
+	return mtproto.ErrPhoneNumberOccupied
 }

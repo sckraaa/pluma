@@ -135,7 +135,7 @@ func (c *MessagesCore) MessagesGetSearchCounters(in *mtproto.TLMessagesGetSearch
 			Count:   sz.GetV(),
 		}).To_Messages_SearchCounter()
 		counters.Datas = append(counters.Datas, counter)
-		c.Logger.Infof("messages.getSearchCounters - result: %s", counter)
+		c.Logger.Debugf("messages.getSearchCounters - result: {filter: %s, count: %d}", counter.GetFilter().GetPredicateName(), counter.GetCount())
 	}
 
 	return counters, nil

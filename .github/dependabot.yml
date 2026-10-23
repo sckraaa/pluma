@@ -1,0 +1,71 @@
+# Weekly update pull requests for everything pinned in the repository
+# (docs/ops/testing.md, "Обновления зависимостей"): GitHub Actions (pinned by
+# commit SHA), Go modules of both modules, the base images of Dockerfile and
+# the images of the compose files (pinned by tag and digest). Every pull
+# request runs the whole CI, integration and end-to-end tests included; the
+# integration tests read their images from docker-compose-env.yaml, so an
+# image update is tested on the version it brings.
+#
+# Not covered here: the check tools pinned in the Makefile (golangci-lint,
+# govulncheck, actionlint, shellcheck), the testcontainers reaper digest
+# (pkg/testinfra.RyukImage; TestRyukImagePinned fails when a testcontainers-go
+# update needs a new one) and the vendored teamgram/proto code itself
+# (ADR 0009).
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      # The vendored copy under third_party (replace in go.mod); a new layer
+      # is a deliberate update (ADR 0008, ADR 0009).
+      - dependency-name: github.com/teamgram/proto
+    groups:
+      go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gomod
+    directory: /third_party/teamgram-proto
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      # ADR 0009: changes of the vendored module are commits of their own.
+      prefix: third_party(proto)
+    groups:
+      proto-go-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      # Same release line; a new Ubuntu release is a deliberate update. New
+      # digests of the pinned tag (security fixes) still come.
+      - dependency-name: ubuntu
+        update-types: [version-update:semver-major, version-update:semver-minor]
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      # Major versions of MySQL, Redis, Kafka, etcd and the rest change data
+      # formats or behaviour: deliberate updates, not weekly ones.
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]

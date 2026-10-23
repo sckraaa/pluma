@@ -1,0 +1,13 @@
+# Keep secrets and runtime data out of the build context and the image
+# (docs/ops/security-setup.md). The server RSA key reaches the container as a
+# compose secret at runtime, never through the image.
+.env
+.env.*
+secrets/
+.e2e/
+.tools/
+**/server_pkcs1.key
+data/
+teamgramd/logs/
+# Not needed to build (build.sh does not read git metadata); ~100 MB of context.
+.git/

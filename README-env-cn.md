@@ -35,17 +35,7 @@ cp .env.example .env
 # 编辑 .env 修改 MYSQL_*、MINIO_*、GRAFANA_* 等
 ```
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| MYSQL_ROOT_PASSWORD | root | MySQL root 密码 |
-| MYSQL_DATABASE | teamgram | 默认数据库名 |
-| MYSQL_USER | teamgram | 应用用数据库用户 |
-| MYSQL_PASSWORD | teamgram | 应用用数据库密码 |
-| MINIO_ROOT_USER | minio | MinIO 用户名 |
-| MINIO_ROOT_PASSWORD | miniostorage | MinIO 密码 |
-| GRAFANA_ADMIN_USER | admin | Grafana 管理员用户名 |
-| GRAFANA_ADMIN_PASSWORD | admin | Grafana 管理员密码 |
-| GRAFANA_ROOT_URL | http://localhost:3000 | Grafana 访问根 URL |
+没有默认密码。所有密钥（`MYSQL_ROOT_PASSWORD`、`MYSQL_PASSWORD`、`REDIS_PASSWORD`、`MINIO_ROOT_USER`、`MINIO_ROOT_PASSWORD`、`GRAFANA_ADMIN_PASSWORD`、`SERVER_RSA_KEY_FINGERPRINT`）必须在 `.env` 中设置，缺少任何一个 compose 都会拒绝启动。服务以 MySQL 用户 `teamgram` 连接数据库 `teamgram`。配置步骤与服务器 RSA 密钥见 `docs/ops/security-setup.md`。
 
 ## 启动与停止
 
@@ -63,7 +53,7 @@ docker compose -f docker-compose-env2.yaml down
 docker compose -f docker-compose-env2.yaml down
 ```
 
-Compose 会自动读取当前目录下的 `.env`；若未配置 `.env`，将使用上述默认值。
+Compose 会自动读取当前目录下的 `.env`；若未配置 `.env`（或密钥为空），将拒绝启动。
 
 ## 服务端口与访问地址
 

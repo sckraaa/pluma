@@ -22,16 +22,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const (
-	phoneCodeTimeout int64 = 90 // salt timeout
-	cachePhonePrefix       = "phone_codes"
+	cachePhonePrefix = "phone_codes"
 )
 
 func genCachePhoneCodeKey(authKeyId int64, phoneNumber string) string {
@@ -58,7 +59,9 @@ func (d *Dao) PutCachePhoneCode(ctx context.Context, authKeyId int64, phoneNumbe
 	cacheKey := genCachePhoneCodeKey(authKeyId, phoneNumber)
 	b, _ := json.Marshal(codeData)
 
-	if err = d.kv.SetexCtx(ctx, cacheKey, string(b), int(phoneCodeTimeout)); err != nil {
+	// The request lives as long as its code (pkg/logincode): the user may wait
+	// for the administrator to issue one.
+	if err = d.kv.SetexCtx(ctx, cacheKey, string(b), int(logincode.TransactionTTL/time.Second)); err != nil {
 		logx.WithContext(ctx).Errorf("conn.SETEX(%s) error(%v)", cacheKey, err)
 	}
 	return

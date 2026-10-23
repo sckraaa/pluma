@@ -8,7 +8,8 @@ Log:
   ServiceName: messenger.sync
   Mode: file
   Path: ../logs/sync
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 ##监控
 #Prometheus:
 #  Host: 0.0.0.0
@@ -33,15 +34,17 @@ Routine:
   Size: 100
 
 Mysql:
-  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
   Active: 64
   Idle: 64
   IdleTimeout: 4h
 
 Cache:
   - Host: 127.0.0.1:6379
+    Pass: "${REDIS_PASSWORD}"
 KV:
   - Host: 127.0.0.1:6379
+    Pass: "${REDIS_PASSWORD}"
 
 IdgenClient:
   Etcd:

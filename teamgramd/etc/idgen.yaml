@@ -8,7 +8,8 @@ Log:
   ServiceName: service.idgen
   Mode: file
   Path: ../logs/idgen
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 ##监控
 #Prometheus:
 #  Host: 0.0.0.0
@@ -25,3 +26,4 @@ NodeId: 1
 
 SeqIDGen:
   - Host: 127.0.0.1:6379
+    Pass: "${REDIS_PASSWORD}"

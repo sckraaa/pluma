@@ -18,6 +18,28 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// Limits on what a WebSocket connection may make the gateway buffer.
+const (
+	// MaxMessageSize bounds a WebSocket message (all its frames): one
+	// MTProto transport packet (at most 16 MiB) and the 64-byte
+	// obfuscation header in front of the first one.
+	MaxMessageSize = 16<<20 + 1024
+	// maxUpgradeRequestSize bounds the HTTP upgrade request.
+	maxUpgradeRequestSize = 64 << 10
+	// maxControlPayload is the RFC 6455 limit for control frames.
+	maxControlPayload = 125
+	// maxBuffered bounds the raw bytes read from the socket and not yet
+	// framed: one frame being received and what arrives behind it.
+	maxBuffered = 2*MaxMessageSize + 2*ws.MaxHeaderSize
+)
+
+var (
+	ErrUpgradeRequestTooLarge = errors.New("ws: upgrade request too large")
+	ErrMessageTooLarge        = errors.New("ws: message too large")
+	ErrControlFrame           = errors.New("ws: invalid control frame")
+	ErrBufferFull             = errors.New("ws: too much data buffered")
+)
+
 type WsCodec struct {
 	upgraded bool         // 链接是否升级
 	Buf      bytes.Buffer // 从实际socket中读取到的数据缓存
@@ -43,7 +65,7 @@ func (w *WsCodec) Upgrade(c gnet.Conn) (ok bool, action gnet.Action) {
 	buf := &w.Buf
 	tmpReader := bytes.NewReader(buf.Bytes())
 	oldLen := tmpReader.Len()
-	logx.Infof("do Upgrade")
+	logx.Debugf("do Upgrade")
 
 	upgrader := ws.Upgrader{
 		Protocol: func(i []byte) bool {
@@ -84,15 +106,20 @@ func (w *WsCodec) Upgrade(c gnet.Conn) (ok bool, action gnet.Action) {
 	skipN := oldLen - tmpReader.Len()
 	if err != nil {
 		if err == io.EOF || errors.Is(err, io.ErrUnexpectedEOF) { //数据不完整，不跳过 buf 中的 skipN 字节（此时 buf 中存放的仅是部分 "handshake data" bytes），下次再尝试读取
+			if buf.Len() > maxUpgradeRequestSize {
+				logx.Errorf("conn[%v] upgrade request: %v", c.RemoteAddr().String(), ErrUpgradeRequestTooLarge)
+				action = gnet.Close
+			}
 			return
 		}
 		buf.Next(skipN)
-		logx.Errorf("conn[%v] req[%s][err=%v]", c.RemoteAddr().String(), buf.String(), err.Error())
+		// Not the request itself: its headers may carry cookies or tokens.
+		logx.Errorf("conn[%v] websocket upgrade request of %d bytes: %v", c.RemoteAddr().String(), skipN, err)
 		action = gnet.Close
 		return
 	}
 	buf.Next(skipN)
-	logx.Infof("conn[%v] upgrade websocket protocol! Handshake: %v", c.RemoteAddr().String(), hs)
+	logx.Debugf("conn[%v] upgrade websocket protocol, subprotocol: %q", c.RemoteAddr().String(), hs.Protocol)
 
 	ok = true
 	w.upgraded = true
@@ -100,18 +127,16 @@ func (w *WsCodec) Upgrade(c gnet.Conn) (ok bool, action gnet.Action) {
 }
 
 func (w *WsCodec) ReadBufferBytes(c gnet.Conn) gnet.Action {
-	size := c.InboundBuffered()
-	buf := make([]byte, size)
-	read, err := c.Read(buf)
+	data, err := c.Next(-1)
 	if err != nil {
 		logx.Errorf("read err! %v", err)
 		return gnet.Close
 	}
-	if read < size {
-		logx.Errorf("read bytes len err! size: %d read: %d", size, read)
+	if w.Buf.Len()+len(data) > maxBuffered {
+		logx.Errorf("conn(%d) %v", c.ConnId(), ErrBufferFull)
 		return gnet.Close
 	}
-	w.Buf.Write(buf)
+	w.Buf.Write(data)
 	return gnet.None
 }
 
@@ -168,6 +193,15 @@ func (w *WsCodec) readWsMessages() (messages []wsutil.Message, err error) {
 					return nil, err
 				}
 				in.Next(skipN)
+			}
+
+			// Refuse what cannot be valid before buffering its payload.
+			if head.OpCode.IsControl() {
+				if head.Length > maxControlPayload || !head.Fin {
+					return nil, ErrControlFrame
+				}
+			} else if head.Length > MaxMessageSize || int64(msgBuf.cachedBuf.Len())+head.Length > MaxMessageSize+ws.MaxHeaderSize*16 {
+				return nil, ErrMessageTooLarge
 			}
 
 			msgBuf.curHeader = &head

@@ -28,6 +28,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/syncx"
 	"github.com/zeromicro/go-zero/core/threading"
+	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
 var (
@@ -114,9 +115,32 @@ type MainAuthWrapper struct {
 	nextPushId           int64
 	cb                   *MainAuthWrapperManager
 	tmpRpcApiMessageList []*rpcApiMessage
+
+	// unboundTempKey: this wrapper serves a temporary key that
+	// auth.bindTempAuthKey has not bound yet; authKeyId is that temporary
+	// key. It has no user and no permanent key, persists nothing about the
+	// client, and only the methods allowed for unbound keys are executed
+	// (checkRpcWithUnboundTempKey). Once the binding is verified, the gateway
+	// routes the key's traffic to the permanent key's wrapper.
+	unboundTempKey bool
 }
 
 func NewMainAuthWrapper(mainAuthKeyId int64, authUserId int64, state int, client *authsession.ClientSession, androidPushId int64, cb *MainAuthWrapperManager) *MainAuthWrapper {
+	mainAuth := newMainAuthWrapper(mainAuthKeyId, authUserId, state, client, androidPushId, cb)
+	mainAuth.Start()
+	return mainAuth
+}
+
+// NewUnboundTempAuthWrapper returns the wrapper for a temporary key that is not
+// bound to a permanent key yet (see MainAuthWrapper.unboundTempKey).
+func NewUnboundTempAuthWrapper(tempAuthKeyId int64, cb *MainAuthWrapperManager) *MainAuthWrapper {
+	mainAuth := newMainAuthWrapper(tempAuthKeyId, 0, mtproto.AuthStateNew, nil, 0, cb)
+	mainAuth.unboundTempKey = true
+	mainAuth.Start()
+	return mainAuth
+}
+
+func newMainAuthWrapper(mainAuthKeyId int64, authUserId int64, state int, client *authsession.ClientSession, androidPushId int64, cb *MainAuthWrapperManager) *MainAuthWrapper {
 	mainAuth := &MainAuthWrapper{
 		authKeyId:            mainAuthKeyId,
 		state:                state,
@@ -144,8 +168,16 @@ func NewMainAuthWrapper(mainAuthKeyId int64, authUserId int64, state int, client
 	mainAuth.mediaTempAuth = newSessionList(mtproto.AuthKeyTypeMediaTemp, mainAuth)
 	mainAuth.mainAuth = newSessionList(mtproto.AuthKeyTypePerm, mainAuth)
 
-	mainAuth.Start()
 	return mainAuth
+}
+
+// permAuthKeyId is the permanent auth key the wrapper acts for; 0 while the
+// wrapper serves an unbound temporary key.
+func (m *MainAuthWrapper) permAuthKeyId() int64 {
+	if m.unboundTempKey {
+		return 0
+	}
+	return m.authKeyId
 }
 
 func (m *MainAuthWrapper) changeAuthState(ctx context.Context, state int, stateData interface{}) {
@@ -207,7 +239,7 @@ func (m *MainAuthWrapper) applyAuthStateData(ctx context.Context, kData *authses
 }
 
 func (m *MainAuthWrapper) refreshAuthStateIfNeeded(ctx context.Context) {
-	if m.authKeyId == 0 || !shouldRefreshAuthState(m.state) {
+	if m.authKeyId == 0 || m.unboundTempKey || !shouldRefreshAuthState(m.state) {
 		return
 	}
 
@@ -349,6 +381,12 @@ func (m *MainAuthWrapper) onUpdateLayer(ctx context.Context, layer int32) {
 		m.client.Layer = layer
 	}
 
+	if m.unboundTempKey {
+		// No permanent key to store it for; the client repeats
+		// initConnection after the binding.
+		return
+	}
+
 	_, _ = m.cb.Dao.AuthsessionClient.AuthsessionSetLayer(ctx, &authsession.TLAuthsessionSetLayer{
 		AuthKeyId: m.authKeyId,
 		Ip:        "",
@@ -430,6 +468,12 @@ func (m *MainAuthWrapper) onUpdateInitConnection(ctx context.Context, clientIp s
 		}
 	}
 
+	if m.unboundTempKey {
+		// No permanent key to store it for; the client repeats
+		// initConnection after the binding (https://core.telegram.org/api/pfs).
+		return
+	}
+
 	if clientNeedUpdate {
 		m.cb.Dao.AuthsessionClient.AuthsessionSetInitConnection(ctx, &authsession.TLAuthsessionSetInitConnection{
 			AuthKeyId:      m.authKeyId,
@@ -450,6 +494,10 @@ func (m *MainAuthWrapper) onUpdateInitConnection(ctx context.Context, clientIp s
 }
 
 func (m *MainAuthWrapper) onBindPushSessionId(ctx context.Context, sList *SessionList, sessionId int64) {
+	if m.unboundTempKey {
+		return
+	}
+
 	if m.pushSessionId == 0 {
 		m.pushSessionId = sessionId
 
@@ -694,7 +742,7 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 							Layer:         m.Layer(),
 							Client:        m.ClientName(),
 							Langpack:      m.LangPack(),
-							PermAuthKeyId: m.authKeyId,
+							PermAuthKeyId: m.permAuthKeyId(),
 							LangCode:      m.LangCode(),
 							Takeout:       request.takeout,
 						},
@@ -1061,7 +1109,7 @@ func (m *MainAuthWrapper) onSyncData(ctx context.Context, syncMsg *syncData) {
 		if upds.PredicateName == mtproto.Predicate_updateAccountResetAuthorization {
 			logx.WithContext(ctx).Info("recv updateAccountResetAuthorization - ", reflect.TypeOf(syncMsg.data.obj))
 			if m.AuthUserId != upds.GetUserId() {
-				logx.WithContext(ctx).Error("upds -- ", upds)
+				logx.WithContext(ctx).Errorf("updateAccountResetAuthorization for user %d, not %d", upds.GetUserId(), m.AuthUserId)
 			}
 			// m.cb.Dao.PutCacheUserId(context.Background(), m.authKeyId, 0)
 			// m.cb.DeleteByAuthKeyId(m.authKeyId)
@@ -1090,8 +1138,12 @@ func doRpcRequest(ctx context.Context, dao *dao.Dao, md *metadata.RpcMetadata, r
 	switch request.reqMsg.(type) {
 	case *mtproto.TLAuthBindTempAuthKey:
 		r := request.reqMsg.(*mtproto.TLAuthBindTempAuthKey)
+		// authsession checks the binding message against the connection the
+		// request arrived on, which md describes: AuthId is the key the
+		// request was encrypted with, SessionId and ClientMsgId are its
+		// session and msg_id.
 		rpcResult, err = dao.AuthsessionClient.AuthsessionBindTempAuthKey(
-			ctx,
+			withRpcMetadata(ctx, md),
 			&authsession.TLAuthsessionBindTempAuthKey{
 				PermAuthKeyId:    r.PermAuthKeyId,
 				Nonce:            r.Nonce,
@@ -1116,4 +1168,16 @@ func doRpcRequest(ctx context.Context, dao *dao.Dao, md *metadata.RpcMetadata, r
 	}
 
 	request.rpcResult = reply
+}
+
+// withRpcMetadata returns ctx carrying md the way service clients expect it:
+// they forward the incoming rpc metadata of ctx to the outgoing call.
+func withRpcMetadata(ctx context.Context, md *metadata.RpcMetadata) context.Context {
+	outCtx, err := metadata.RpcMetadataToOutgoing(ctx, md)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("withRpcMetadata - error: %v", err)
+		return ctx
+	}
+	outMD, _ := grpcmetadata.FromOutgoingContext(outCtx)
+	return grpcmetadata.NewIncomingContext(ctx, outMD)
 }

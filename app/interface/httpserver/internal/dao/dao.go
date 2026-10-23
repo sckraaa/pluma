@@ -16,6 +16,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/interface/httpserver/internal/config"
 	sessionpb "github.com/teamgram/teamgram-server/app/interface/session/session"
+	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/zeromicro/go-zero/core/collection"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -31,18 +32,22 @@ type Dao struct {
 
 // New new a dao and return.
 func New(c config.Config) (dao *Dao) {
+	// Verify the server RSA key before anything else starts: a missing,
+	// exposed or mismatching key must stop the process.
+	key, err := serverkey.Load(c.KeyFile, c.KeyFingerprint)
+	if err != nil {
+		logx.Errorf("httpserver: %v", err)
+		panic(err)
+	}
+
 	dao = new(Dao)
 	dao.session = NewSession(c)
 	dao.cache = cache.NewLRUCache(10 * 1024 * 1024) // cache capacity: 10MB
 	dao.handshakeStateCtxCache, _ = collection.NewCache(time.Minute)
 
-	keyFingerprint, err := strconv.ParseUint(c.KeyFingerprint, 10, 64)
+	dao.Handshake, err = newHandshake(key, dao.createAuthKey)
 	if err != nil {
-		panic(c.KeyFingerprint)
-	}
-	dao.Handshake, err = newHandshake(c.KeyFile, keyFingerprint, dao.createAuthKey)
-	if err != nil {
-		panic(c.KeyFingerprint)
+		panic(err)
 	}
 
 	return dao

@@ -23,20 +23,20 @@ func (c *ChatCore) ChatCheckChatInvite(in *chat.TLChatCheckChatInvite) (*chat.Ch
 		c.Logger.Errorf("chat.checkChatInvite - error: %v", err)
 		return nil, err
 	} else if chatInviteDO == nil {
-		c.Logger.Errorf("chat.checkChatInvite - error: not found hash %s", in.Hash)
+		c.Logger.Errorf("chat.checkChatInvite - error: invite hash not found")
 		err = mtproto.ErrInviteHashInvalid
 		return nil, err
 	}
 
 	// check expire
 	if chatInviteDO.Revoked {
-		c.Logger.Errorf("chat.checkChatInvite - error: invite hash %s expired", in.Hash)
+		c.Logger.Errorf("chat.checkChatInvite - error: invite of chat %d revoked", chatInviteDO.ChatId)
 		err = mtproto.ErrInviteHashExpired
 		return nil, err
 	}
 
 	if chatInviteDO.ExpireDate != 0 && time.Now().Unix() > chatInviteDO.ExpireDate {
-		c.Logger.Errorf("chat.checkChatInvite - error: invite hash %s expired", in.Hash)
+		c.Logger.Errorf("chat.checkChatInvite - error: invite of chat %d expired", chatInviteDO.ChatId)
 		err = mtproto.ErrInviteHashExpired
 		return nil, err
 	}

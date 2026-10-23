@@ -44,13 +44,14 @@ func (m *rpcApiMessage) TryGetRpcResultError() (*mtproto.TLRpcError, bool) {
 }
 
 func (m *rpcApiMessage) DebugString() string {
+	// Types only: the request and its result are user content.
 	if m.rpcResult == nil {
-		return fmt.Sprintf("{session_id: %d, req_msg_id: %d, req_msg: %s}",
+		return fmt.Sprintf("{session_id: %d, req_msg_id: %d, req_msg: %T}",
 			m.sessionId,
 			m.reqMsgId,
 			m.reqMsg)
 	} else {
-		return fmt.Sprintf("{session_id: %d, req_msg_id: %d, req_msg: %s, rpc_result: %s}",
+		return fmt.Sprintf("{session_id: %d, req_msg_id: %d, req_msg: %T, rpc_result: %T}",
 			m.sessionId,
 			m.reqMsgId,
 			m.reqMsg,

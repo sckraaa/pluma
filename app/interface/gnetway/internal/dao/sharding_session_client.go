@@ -54,7 +54,7 @@ func NewShardingSessionClient(c config.Config) *ShardingSessionClient {
 func (sess *ShardingSessionClient) watch(c zrpc.RpcClientConf) {
 	sub, err := discov.NewSubscriber(c.Etcd.Hosts, c.Etcd.Key)
 	if err != nil {
-		logx.Errorf("watchSession NewSubscriber(%+v) error: %v", c.Etcd, err)
+		logx.Errorf("watchSession NewSubscriber(hosts: %v, key: %s) error: %v", c.Etcd.Hosts, c.Etcd.Key, err)
 		return
 	}
 	update := func() {

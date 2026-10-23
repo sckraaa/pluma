@@ -9,7 +9,8 @@ Log:
   ServiceName: bff.bff
   #Mode: file
   #Path: ../logs/bff
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 #监控
 Prometheus:
   Host: 0.0.0.0
@@ -24,14 +25,21 @@ Telemetry:
   
 KV:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
 
-Code:
-  Name: "none"
-  SendCodeUrl: ""
-  VerifyCodeUrl: ""
-  Key: ""
-  Secret: ""
-  RegionId: ""
+# Phone allowlist (closed registration): table phone_allowlist,
+# managed with tools/pluma-admin. See docs/ops/security-setup.md.
+Mysql:
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(mysql:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  Active: 8
+  Idle: 4
+  IdleTimeout: 4h
+
+# Login codes: random, stored in Redis only as HMAC-SHA256 under this key;
+# delivered in the app or issued by `pluma-admin login-code`. There is no SMS
+# provider and no fixed code.
+LoginCode:
+  HmacKey: "${LOGIN_CODE_HMAC_KEY}"
 
 BizServiceClient:
   Etcd:

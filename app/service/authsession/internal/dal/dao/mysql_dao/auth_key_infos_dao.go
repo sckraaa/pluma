@@ -34,69 +34,69 @@ func NewAuthKeyInfosDAO(db *sqlx.DB) *AuthKeyInfosDAO {
 }
 
 // Insert
-// insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id)
+// insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id, expires_at) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id, :expires_at)
 func (dao *AuthKeyInfosDAO) Insert(ctx context.Context, do *dataobject.AuthKeyInfosDO) (lastInsertId, rowsAffected int64, err error) {
 	var (
 		query string
 		r     sql.Result
 	)
-	query = "insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id)"
+	query = "insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id, expires_at) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id, :expires_at)"
 
 	r, err = dao.db.NamedExec(ctx, query, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in Insert(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("namedExec in Insert(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in Insert(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in Insert(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in Insert(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in Insert(_), error: %v", err)
 	}
 
 	return
 }
 
 // InsertTx
-// insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id)
+// insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id, expires_at) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id, :expires_at)
 func (dao *AuthKeyInfosDAO) InsertTx(tx *sqlx.Tx, do *dataobject.AuthKeyInfosDO) (lastInsertId, rowsAffected int64, err error) {
 	var (
 		query string
 		r     sql.Result
 	)
-	query = "insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id)"
+	query = "insert into auth_key_infos(auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id, expires_at) values (:auth_key_id, :auth_key_type, :perm_auth_key_id, :temp_auth_key_id, :media_temp_auth_key_id, :expires_at)"
 
 	r, err = tx.NamedExec(query, do)
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("namedExec in Insert(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("namedExec in Insert(_), error: %v", err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("lastInsertId in Insert(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("lastInsertId in Insert(_), error: %v", err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(tx.Context()).Errorf("rowsAffected in Insert(%v), error: %v", do, err)
+		logx.WithContext(tx.Context()).Errorf("rowsAffected in Insert(_), error: %v", err)
 	}
 
 	return
 }
 
 // SelectByAuthKeyId
-// select auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id from auth_key_infos where auth_key_id = :auth_key_id limit 1
+// select auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id, expires_at from auth_key_infos where auth_key_id = :auth_key_id limit 1
 func (dao *AuthKeyInfosDAO) SelectByAuthKeyId(ctx context.Context, authKeyId int64) (rValue *dataobject.AuthKeyInfosDO, err error) {
 	var (
 		query string
 		do    = &dataobject.AuthKeyInfosDO{}
 	)
-	query = "select auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id from auth_key_infos where auth_key_id = ? limit 1"
+	query = "select auth_key_id, auth_key_type, perm_auth_key_id, temp_auth_key_id, media_temp_auth_key_id, expires_at from auth_key_infos where auth_key_id = ? limit 1"
 
 	err = dao.db.QueryRowPartial(ctx, do, query, authKeyId)
 

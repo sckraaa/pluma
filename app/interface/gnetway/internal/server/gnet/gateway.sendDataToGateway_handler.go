@@ -53,15 +53,15 @@ func (s *Server) GatewaySendDataToGateway(ctx context.Context, in *gateway.TLGat
 
 	_ = s.pool.Submit(func() {
 		for _, connId := range connIdList {
-			s.eng.Trigger(connId, func(c gnet.Conn) {
+			s.trigger(connId, func(c gnet.Conn) {
 				connCtx, _ := c.Context().(*connContext)
 				if connCtx == nil {
 					logx.WithContext(ctx).Errorf("invalid state - conn(%s) Context() is nil", c)
 					return
 				}
 
-				if in.AuthKeyId != connCtx.getAuthKey().AuthKeyId() {
-					logx.WithContext(ctx).Errorf("invalid state - conn(%s) c.keyId(%d) != in.keyId(%d) is nil", authKey.AuthKeyId(), in.AuthKeyId)
+				if connKey := connCtx.getAuthKey(); connKey == nil || in.AuthKeyId != connKey.AuthKeyId() {
+					logx.WithContext(ctx).Errorf("invalid state - conn(%s) has no auth key or another than keyId(%d)", c, in.AuthKeyId)
 					return
 				}
 

@@ -219,7 +219,11 @@ func (t *Transcoder) Run(progress bool) <-chan error {
 	if !progress {
 		command = append([]string{"-nostats", "-loglevel", "0"}, command...)
 	} else {
-		command = append([]string{"-loglevel", "error"}, command...)
+		// Output() parses the "frame=... time=... bitrate=..." stats lines.
+		// Without an explicit -stats ffmpeg logs them at the info level, which
+		// -loglevel error suppresses, and the progress stream stays empty (the
+		// GIF duration that dfs derives from it came out as 0).
+		command = append([]string{"-loglevel", "error", "-stats"}, command...)
 	}
 
 	proc := exec.Command(t.configuration.FfmpegBin, command...)

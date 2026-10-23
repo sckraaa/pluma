@@ -16,7 +16,6 @@
 package gnet
 
 import (
-	"encoding/binary"
 	"errors"
 
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
@@ -68,7 +67,7 @@ func (s *Server) onTcpData(ctx *connContext, c gnet.Conn) (action gnet.Action) {
 		//}
 		// logx.Infof("conn(%s) recv frame: %s", c, msg2.String())
 
-		action = s.onMTPRawMessage(ctx, c, int64(binary.LittleEndian.Uint64(frame)), needAck, frame)
+		action = s.onMTPRawMessage(ctx, c, needAck, frame)
 		if action == gnet.Close {
 			logx.Errorf("conn(%s) onMTPRawMessage - error: action == gnet.Close", c)
 			return

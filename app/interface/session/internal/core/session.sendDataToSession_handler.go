@@ -36,7 +36,7 @@ func (c *SessionCore) SessionSendDataToSession(in *session.TLSessionSendDataToSe
 		return nil, err
 	}
 
-	mainAuth, err := c.getOrFetchMainAuthWrapper(data.PermAuthKeyId)
+	mainAuth, err := c.getOrFetchClientMainAuthWrapper(data.AuthKeyId, data.KeyType, data.PermAuthKeyId)
 	if err != nil {
 		c.Logger.Errorf("session.sendDataToSession - error: %v", err)
 		return nil, err

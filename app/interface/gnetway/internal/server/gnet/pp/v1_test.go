@@ -90,7 +90,7 @@ func TestParseV1Header(t *testing.T) {
 		{
 			name:   "Garbage Header",
 			header: "ASDFASDGSAG@#!@#$!WDFGASDGASDFG#TAGASDFASDG@",
-			err:    "expected proxy protocol; found '00000000  41 53 44 46 41 53 44 47  53 41 47 40 23 00        |ASDFASDGSAG@#.|\n' instead",
+			err:    "expected proxy protocol; found other data instead",
 		},
 		{
 			name:   "TCP4 Incomplete",

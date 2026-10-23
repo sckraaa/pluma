@@ -8,7 +8,6 @@ package codec
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -198,14 +197,14 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 		firstByte = rData[0]
 
 		if firstByte == ABRIDGED_FLAG {
-			logx.Debugf("conn(%s) mtproto abridged version, data: %s", conn, hex.EncodeToString(rData))
+			logx.Debugf("conn(%s) mtproto abridged version", conn)
 			_, _ = conn.Discard(1)
 			return newMTProtoAbridgedCodec(nil), nil
 		}
 	}
 
 	if len(rData) < 4 {
-		logx.Errorf("conn(%s) peek bytes length < 4, data: %s", conn, hex.EncodeToString(rData))
+		logx.Debugf("conn(%s) peek bytes length %d < 4", conn, len(rData))
 		return nil, ErrUnexpectedEOF
 	}
 
@@ -224,38 +223,38 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 		// conn2 := NewMTProtoHttpProxyConn(conn)
 		// c.conn = conn2
 		// c.codecType = TRANSPORT_HTTP
-		logx.Errorf("conn(%s) mtproto http. data: %s", conn, hex.EncodeToString(rData))
+		logx.Debugf("conn(%s) mtproto http", conn)
 		return nil, ErrHttpTransport
 	}
 
 	// check intermediate version
 	if firstInt == INTERMEDIATE_FLAG {
-		logx.Debugf("conn(%s) intermediate version. data: %s", conn, hex.EncodeToString(rData))
+		logx.Debugf("conn(%s) intermediate version", conn)
 		_, _ = conn.Discard(4)
 		return newMTProtoIntermediateCodec(nil), nil
 	}
 
 	// check intermediate version
 	if firstInt == PADDED_INTERMEDIATE_FLAG {
-		logx.Debugf("conn(%s) padded intermediate version. data: %s", conn, hex.EncodeToString(rData))
+		logx.Debugf("conn(%s) padded intermediate version", conn)
 		_, _ = conn.Discard(4)
 		return newMTProtoPaddedIntermediateCodec(nil), nil
 	}
 
 	// check PVrG (non‑standard transport, explicitly marked as unsupported)
 	if firstInt == PVRG_FLAG {
-		logx.Errorf("conn(%s) PVrG version. data: %s", conn, hex.EncodeToString(rData))
+		logx.Errorf("conn(%s) PVrG version", conn)
 		return nil, fmt.Errorf("%w: PVrG version", ErrTransportNotSupported)
 	}
 
 	// check 0x02010316
 	if firstInt == UNKNOWN_FLAG {
-		logx.Errorf("conn(%s) firstInt is 0x02010316. data: %s", conn, hex.EncodeToString(rData))
+		logx.Errorf("conn(%s) firstInt is 0x02010316", conn)
 		return nil, fmt.Errorf("%w: 0x02010316 version", ErrTransportNotSupported)
 	}
 
 	if len(rData) < 12 {
-		logx.Errorf("conn(%s) peek bytes length < 12, data: %s", conn, hex.EncodeToString(rData))
+		logx.Debugf("conn(%s) peek bytes length %d < 12", conn, len(rData))
 		return nil, ErrUnexpectedEOF
 	}
 
@@ -263,7 +262,7 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 
 	secondInt := binary.BigEndian.Uint32(checkFullBuf[4:])
 	if secondInt == FULL_FLAG {
-		logx.Infof("conn(%s) mtproto full version. data: %s", conn, hex.EncodeToString(rData))
+		logx.Debugf("conn(%s) mtproto full version", conn)
 		// conn.Discard(12)
 		return newMTProtoFullCodec(), nil
 	}
@@ -285,7 +284,7 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 	//
 
 	if len(rData) < 64 {
-		logx.Errorf("conn(%s) peek bytes length < 64, data: %s", conn, hex.EncodeToString(rData))
+		logx.Debugf("conn(%s) peek bytes length %d < 64", conn, len(rData))
 		return nil, ErrUnexpectedEOF
 	}
 
@@ -316,10 +315,12 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 	if protocolType != ABRIDGED_INT32_FLAG &&
 		protocolType != INTERMEDIATE_FLAG &&
 		protocolType != PADDED_INTERMEDIATE_FLAG {
-		return nil, fmt.Errorf("%w: conn(%s) mtproto buf[56:60] invalid, received: %s",
+		// Only the decrypted tag: the rest of the buffer holds the obfuscation
+		// keys and the client's first message.
+		return nil, fmt.Errorf("%w: conn(%s) mtproto buf[56:60] invalid, received: %08x",
 			ErrProtoBadMagic,
 			conn,
-			hex.EncodeToString(rData))
+			protocolType)
 	}
 
 	dcId := int16(binary.BigEndian.Uint16(obfuscatedBuf[60:]))
@@ -396,10 +397,10 @@ func CreateMyProtoCodec(conn CodecReader) (Codec, error) {
 	if protocolType != ABRIDGED_INT32_FLAG &&
 		protocolType != INTERMEDIATE_FLAG &&
 		protocolType != PADDED_INTERMEDIATE_FLAG {
-		return nil, fmt.Errorf("%w: conn(%s) mtproto buf[8:12] invalid, received: %s",
+		return nil, fmt.Errorf("%w: conn(%s) mtproto buf[8:12] invalid, received: %08x",
 			ErrProtoBadMagic,
 			conn,
-			hex.EncodeToString(obfuscatedBuf[8:12]))
+			protocolType)
 	}
 
 	// dcId := int16(binary.BigEndian.Uint16(obfuscatedBuf[60:]))

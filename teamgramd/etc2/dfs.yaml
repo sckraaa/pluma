@@ -9,7 +9,8 @@ Log:
   ServiceName: service.dfs
   #Mode: file
   #Path: ../logs/dfs
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 #监控
 Prometheus:
   Host: 0.0.0.0
@@ -22,17 +23,20 @@ Telemetry:
   Sampler: 1.0
   Batcher: otlpgrpc
   
+# Serves uploaded files to dfs's own ffmpeg (http://127.0.0.1:11701), without
+# authentication: loopback only. No timeout: ffmpeg reads while it transcodes.
 MiniHttp:
   Name: service.dfs.minihttp
-  Host: 0.0.0.0
+  Host: 127.0.0.1
   Port: 11701
   Timeout: 0
 Cache:
   - Host: redis:6379
+    Pass: "${REDIS_PASSWORD}"
 Minio:
   Endpoint: minio:9000
-  AccessKeyID: minio
-  SecretAccessKey: miniostorage
+  AccessKeyID: "${MINIO_ROOT_USER}"
+  SecretAccessKey: "${MINIO_ROOT_PASSWORD}"
   UseSSL: false
   Bucket:
     Documents: documents
@@ -46,3 +50,4 @@ IdGen:
     Key: service.idgen
 SSDB:
   - Host: redis:6379 # if use pika, change to 9221
+    Pass: "${REDIS_PASSWORD}"

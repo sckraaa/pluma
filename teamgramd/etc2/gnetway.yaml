@@ -8,7 +8,8 @@ Log:
   ServiceName: interface.gateway
   #Mode: file
   #Path: ../logs/gnetway
-  Level: debug
+  # debug is for troubleshooting; no level logs keys, login codes or message content.
+  Level: info
 #监控
 Prometheus:
   Host: 0.0.0.0
@@ -21,11 +22,13 @@ Telemetry:
   Sampler: 1.0
   Batcher: otlpgrpc
   
+# MTProto server RSA keys (docs/ops/security-setup.md). Generate with
+# tools/genserverkey; the file must not be accessible by other users and must
+# match KeyFingerprint, otherwise gnetway refuses to start. List a second key
+# here to rotate without breaking clients that still embed the old one.
 RSAKey:
-  - KeyFile: "./server_pkcs1.key"
-    KeyFingerprint: "12240908862933197005"
-KeyFile: "./server_pkcs1.key"
-KeyFingerprint: "12240908862933197005"
+  - KeyFile: "/run/secrets/server_pkcs1.key" # compose secret, see docker-compose.yaml
+    KeyFingerprint: "${SERVER_RSA_KEY_FINGERPRINT}"
 MaxProc: 4
 
 Gnetway:

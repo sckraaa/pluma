@@ -1,6 +1,12 @@
-# Teamgram Server
+# Pluma（Teamgram Server 的分支）
 
 **中文** | [English](README.md)
+
+> **本仓库是 [teamgram/teamgram-server](https://github.com/teamgram/teamgram-server) 的分支（fork）**，为配合官方 Telegram 客户端使用的小型封闭私有化部署而修改，与 Teamgram 作者及 Telegram 均无关联。上游代码保留其许可证 Apache License 2.0（[LICENSE](LICENSE)）及版权声明；我们的修改从上游提交 `708fb953` 之后开始，详见 [NOTICE](NOTICE)、[docs/project/STATUS.md](docs/project/STATUS.md)（俄文）和 git 历史。
+>
+> 主要修改：仅允许白名单中的手机号登录或注册，验证码由管理员签发（`tools/pluma-admin`）并有频率限制；安全加固（可轮换的服务器 RSA 密钥、经校验的 PFS、握手前的 DoS 限制、TL 与 gzip 解码限制、日志不含密钥/验证码/消息内容、密钥仅来自 `.env`）；测试与 CI（单元测试、race、lint、govulncheck、基于真实 MySQL/Redis/Kafka 的集成测试和整个 `docker compose` 栈的端到端测试）。
+>
+> 以下为上游 README，尚未完全反映上述修改；部署本分支时请同时参阅 [docs/ops/security-setup.md](docs/ops/security-setup.md)（俄文）。
 
 ---
 
@@ -59,7 +65,7 @@
 - **[手动安装（Linux）](docs/install-manual-linux-zh.md)** — CentOS、Fedora、Ubuntu/Debian
 - **[手动安装（macOS）](docs/install-manual-macos-zh.md)** — Intel 与 Apple Silicon
 
-需要 Go 1.21+。需自行安装并配置依赖（MySQL、Redis、etcd、Kafka、MinIO、FFmpeg），初始化数据库与 MinIO，再编译并运行。
+需要 Go 1.27（`go.mod` 固定 `toolchain go1.27.3`；Go 1.21+ 在 `GOTOOLCHAIN=auto` 时会自动下载）。需自行安装并配置依赖（MySQL、Redis、etcd、Kafka、MinIO、FFmpeg），初始化数据库与 MinIO，再编译并运行。
 
 ---
 

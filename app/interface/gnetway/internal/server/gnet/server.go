@@ -22,9 +22,11 @@ import (
 	"time"
 
 	"github.com/teamgram/marmota/pkg/cache"
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/svc"
+	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/panjf2000/gnet/v2"
 	"github.com/panjf2000/gnet/v2/pkg/logging"
@@ -49,6 +51,17 @@ type Server struct {
 	tickNumber     int64
 	cachedNow      atomic.Int64 // cached unix timestamp, updated every OnTick
 	timeoutWheel   *timeoutWheel
+
+	// httpHandshakes keeps handshakes over the HTTP transport, apart from
+	// the auth key cache so that unauthenticated requests cannot evict keys.
+	httpHandshakes *handshakeStore
+	// saveAuthKey stores a key created by a handshake (saveAuthKeyInfo).
+	saveAuthKey func(st *HandshakeStateCtx, key *mtproto.AuthKeyInfo) bool
+	// queryKey reads an auth key from authsession (fetchAuthKey); known is
+	// the copy the gateway had, if any.
+	queryKey func(authKeyId int64, known *authKeyUtil) (*authKeyUtil, error)
+	// triggerFn, when set (tests), replaces eng.Trigger.
+	triggerFn func(connId int64, cb func(c gnet.Conn))
 }
 
 // CachedNow returns the cached unix timestamp (updated every OnTick interval).
@@ -60,15 +73,24 @@ func (s *Server) CachedNow() int64 {
 	return time.Now().Unix()
 }
 
-func New(svcCtx *svc.ServiceContext, c config.Config) *Server {
+// New starts the MTProto listeners. keys are the server RSA keys loaded and
+// verified by LoadRSAKeys.
+func New(svcCtx *svc.ServiceContext, c config.Config, keys []*serverkey.Key) (*Server, error) {
 	var (
-		s = new(Server)
+		s   = new(Server)
+		err error
 	)
+
+	s.handshake, err = newHandshake(keys)
+	if err != nil {
+		return nil, err
+	}
 
 	s.authSessionMgr = NewAuthSessionManager()
 	s.timeoutWheel = newTimeoutWheel()
-
-	s.handshake = mustNewHandshake(c.RSAKey)
+	s.httpHandshakes = newHandshakeStore(maxHttpHandshakes, httpHandshakeTTL)
+	s.saveAuthKey = s.saveAuthKeyInfo
+	s.queryKey = s.fetchAuthKey
 
 	cacheSizeMB := c.Gnetway.AuthKeyCacheM
 	if cacheSizeMB <= 0 {
@@ -84,7 +106,7 @@ func New(svcCtx *svc.ServiceContext, c config.Config) *Server {
 	go func() {
 		s.Serve()
 	}()
-	return s
+	return s, nil
 }
 
 // classifyCodecError maps codec errors to a stable reason label for metrics.

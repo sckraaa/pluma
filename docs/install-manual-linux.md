@@ -264,7 +264,7 @@ dnf install go -y
 apt install golang-go -y
 ```
 
-Or install Go 1.21+ from [go.dev/dl](https://go.dev/dl/).
+Distribution packages are usually older than the toolchain pinned in `go.mod` (`toolchain go1.27.3`). Go 1.21+ downloads it automatically when `GOTOOLCHAIN=auto` (the upstream default; some distributions set `GOTOOLCHAIN=local`). Otherwise install Go 1.27.3 from [go.dev/dl](https://go.dev/dl/).
 
 ### 4.2 Build
 

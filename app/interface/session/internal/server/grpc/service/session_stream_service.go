@@ -100,7 +100,7 @@ func (s *Service) makeAckResp(reqId string) *session.SessionStreamResponse {
 }
 
 func (s *Service) handleSendData(ctx context.Context, reqId string, in *session.TLSessionSendDataToSession) *session.SessionStreamResponse {
-	if err := s.checkShardingV(ctx, in.GetData().GetPermAuthKeyId()); err != nil {
+	if err := s.checkShardingV(ctx, clientRouteKey(in.GetData().GetAuthKeyId(), in.GetData().GetKeyType(), in.GetData().GetPermAuthKeyId())); err != nil {
 		return s.makeShardingErrorResp(reqId, err)
 	}
 
@@ -121,7 +121,7 @@ func (s *Service) handleSendData(ctx context.Context, reqId string, in *session.
 }
 
 func (s *Service) handleCreateSession(ctx context.Context, reqId string, in *session.TLSessionCreateSession) *session.SessionStreamResponse {
-	if err := s.checkShardingV(ctx, in.GetClient().GetPermAuthKeyId()); err != nil {
+	if err := s.checkShardingV(ctx, clientRouteKey(in.GetClient().GetAuthKeyId(), in.GetClient().GetKeyType(), in.GetClient().GetPermAuthKeyId())); err != nil {
 		return s.makeShardingErrorResp(reqId, err)
 	}
 
@@ -142,7 +142,7 @@ func (s *Service) handleCreateSession(ctx context.Context, reqId string, in *ses
 }
 
 func (s *Service) handleCloseSession(ctx context.Context, reqId string, in *session.TLSessionCloseSession) *session.SessionStreamResponse {
-	if err := s.checkShardingV(ctx, in.GetClient().GetPermAuthKeyId()); err != nil {
+	if err := s.checkShardingV(ctx, clientRouteKey(in.GetClient().GetAuthKeyId(), in.GetClient().GetKeyType(), in.GetClient().GetPermAuthKeyId())); err != nil {
 		return s.makeShardingErrorResp(reqId, err)
 	}
 

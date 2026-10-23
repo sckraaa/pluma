@@ -47,16 +47,16 @@ func (c *session) checkContainer(ctx context.Context, msgId int64, seqno int32, 
 	for _, v := range container.Messages {
 		// container.Seqno >= v.Seqno
 		if v.Seqno > seqno {
-			logx.WithContext(ctx).Errorf("checkContainer - v.seqno(%s) > seqno({msg_id: %d, seqno: %d})", v, msgId, seqno)
+			logx.WithContext(ctx).Errorf("checkContainer - v.seqno(%d) > seqno({msg_id: %d, seqno: %d})", v.Seqno, msgId, seqno)
 			return kInvalidContainer
 		}
 		if v.MsgId >= msgId {
-			logx.WithContext(ctx).Errorf("checkContainer - v.MsgId(%s) > msgId({msg_id: %d, seqno: %d})", v, msgId, seqno)
+			logx.WithContext(ctx).Errorf("checkContainer - v.MsgId(%d) > msgId({msg_id: %d, seqno: %d})", v.MsgId, msgId, seqno)
 			return kInvalidContainer
 		}
 
 		if _, ok := v.Object.(*mtproto.TLMsgContainer); ok {
-			logx.WithContext(ctx).Errorf("checkContainer - is container: %v", v)
+			logx.WithContext(ctx).Errorf("checkContainer - is container: {msg_id: %d, seqno: %d}", v.MsgId, v.Seqno)
 			return kInvalidContainer
 		}
 	}
@@ -74,13 +74,20 @@ func (c *session) onNewSessionCreated(ctx context.Context, gatewayId string, msg
 		ServerSalt: c.sessList.cacheSalt.GetSalt(),
 	})
 
-	logx.WithContext(ctx).Infof("onNewSessionCreated - reply: {%v}", newSessionCreated)
+	logx.WithContext(ctx).Infof("onNewSessionCreated - reply: {first_msg_id: %d}", msgId)
 
-	_, _ = c.sendDirectToGateway(ctx, gatewayId, true, newSessionCreated, func(sentRaw *mtproto.TLMessageRawData) {
-		id2 := c.sessList.cb.getNextNotifyId()
-		sentMsg := c.outQueue.AddNotifyMsg(id2, true, sentRaw)
-		sentMsg.sent = 0
+	// It goes out at once and stays in the outgoing queue until the client
+	// acknowledges it. Once on the wire it counts as sent, so the queue
+	// re-sends it only after waitMsgAcksTimeout without an ack; it used to be
+	// queued as unsent and went out a second time, with the same msg_id, with
+	// the replies to the client's first message.
+	var queued *outboxMsg
+	sent, err := c.sendDirectToGateway(ctx, gatewayId, true, newSessionCreated, func(sentRaw *mtproto.TLMessageRawData) {
+		queued = c.outQueue.AddNotifyMsg(c.sessList.cb.getNextNotifyId(), true, sentRaw)
 	})
+	if queued != nil && sent && err == nil {
+		queued.sent = time.Now().Unix()
+	}
 }
 
 /*
@@ -114,12 +121,11 @@ destroy_auth_key_none#0a9f2259 = DestroyAuthKeyRes;
 destroy_auth_key_fail#ea109b13 = DestroyAuthKeyRes;
 */
 func (c *session) onDestroyAuthKey(ctx context.Context, gatewayId string, msgId *inboxMsg, destroyAuthKey *mtproto.TLDestroyAuthKey) {
-	logx.WithContext(ctx).Infof("onDestroyAuthKey - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Infof("onDestroyAuthKey - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
-		msgId.seqNo,
-		destroyAuthKey)
+		msgId.seqNo)
 
 	//// TODO(@benqi): FIXME
 	// destroy_auth_key_ok#f660e1d4 = DestroyAuthKeyRes;
@@ -131,12 +137,12 @@ func (c *session) onDestroyAuthKey(ctx context.Context, gatewayId string, msgId 
 }
 
 func (c *session) onPing(ctx context.Context, gatewayId string, msgId *inboxMsg, ping *mtproto.TLPing) {
-	logx.WithContext(ctx).Infof("onPing - request data: {sess: %s, gatewayId: %s, msg_id: %s, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Debugf("onPing - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, ping_id: %d}",
 		c,
 		gatewayId,
-		msgId,
-		msgId,
-		ping)
+		msgId.msgId,
+		msgId.seqNo,
+		ping.GetPingId())
 
 	pong := &mtproto.TLPong{Data2: &mtproto.Pong{
 		MsgId:  msgId.msgId,
@@ -150,11 +156,12 @@ func (c *session) onPing(ctx context.Context, gatewayId string, msgId *inboxMsg,
 }
 
 func (c *session) onPingDelayDisconnect(ctx context.Context, gatewayId string, msgId *inboxMsg, pingDelayDisconnect *mtproto.TLPingDelayDisconnect) {
-	logx.WithContext(ctx).Infof("onPingDelayDisconnect - request data: {sess: %s, gatewayId: %s, msg_id: %s, request: {%s}}",
+	logx.WithContext(ctx).Debugf("onPingDelayDisconnect - request data: {sess: %s, gatewayId: %s, msg_id: %d, ping_id: %d, disconnect_delay: %d}",
 		c,
 		gatewayId,
-		msgId,
-		pingDelayDisconnect)
+		msgId.msgId,
+		pingDelayDisconnect.GetPingId(),
+		pingDelayDisconnect.GetDisconnectDelay())
 
 	pong := &mtproto.TLPong{Data2: &mtproto.Pong{
 		MsgId:  msgId.msgId,
@@ -215,12 +222,12 @@ If the client’s ping of the server takes a long time,
 it may make sense to set max_delay to a value that is comparable in magnitude to ping time.
 */
 func (c *session) onHttpWait(ctx context.Context, gatewayId string, msgId int64, seqNo int32, request *mtproto.TLHttpWait) {
-	logx.WithContext(ctx).Infof("onHttpWait - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Infof("onHttpWait - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, max_wait: %d}",
 		c,
 		gatewayId,
 		msgId,
 		seqNo,
-		request)
+		request.GetMaxWait())
 
 	_ = request.GetMaxDelay()
 	_ = request.GetWaitAfter()
@@ -235,12 +242,12 @@ func (c *session) onHttpWait(ctx context.Context, gatewayId string, msgId int64,
 }
 
 func (c *session) onDestroySession(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLDestroySession) {
-	logx.WithContext(ctx).Infof("onDestroySession - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Infof("onDestroySession - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, session_id: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		request.GetSessionId())
 
 	// Request to Destroy Session
 	//
@@ -280,12 +287,12 @@ func (c *session) onDestroySession(ctx context.Context, gatewayId string, msgId 
 }
 
 func (c *session) onGetFutureSalts(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLGetFutureSalts) {
-	logx.WithContext(ctx).Infof("onGetFutureSalts - request data: {sess: %s, gateway_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Infof("onGetFutureSalts - request data: {sess: %s, gateway_id: %s, msg_id: %d, seq_no: %d, num: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		request.GetNum())
 
 	salts, err := c.sessList.cb.cb.Dao.GetFutureSalts(context.Background(), c.sessList.authId, request.Num)
 	if err != nil {
@@ -299,7 +306,7 @@ func (c *session) onGetFutureSalts(ctx context.Context, gatewayId string, msgId 
 		Salts:    salts,
 	}).To_FutureSalts()
 
-	logx.WithContext(ctx).Infof("onGetFutureSalts - reply data: %s", futureSalts)
+	logx.WithContext(ctx).Infof("onGetFutureSalts - reply data: %d salts", len(salts))
 	c.sendRawToQueue(ctx, gatewayId, msgId.msgId, false, futureSalts)
 	msgId.state = RECEIVED | NEED_NO_ACK
 }
@@ -312,12 +319,12 @@ func (c *session) onGetFutureSalts(ctx context.Context, gatewayId string, msgId 
 //
 // and both of these responses require an acknowledgment from the client.
 func (c *session) onRpcDropAnswer(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLRpcDropAnswer) {
-	logx.WithContext(ctx).Infof("onRpcDropAnswer - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, request: {%v}}",
+	logx.WithContext(ctx).Infof("onRpcDropAnswer - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, req_msg_id: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		request.GetReqMsgId())
 
 	rpcAnswer := &mtproto.RpcDropAnswer{}
 

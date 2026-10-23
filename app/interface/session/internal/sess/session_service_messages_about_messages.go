@@ -32,12 +32,12 @@ import (
 const detailedInfoThreshold = 4096
 
 func (c *session) onMsgsAck(ctx context.Context, gatewayId string, msgId int64, seqno int32, request *mtproto.TLMsgsAck) {
-	logx.WithContext(ctx).Infof("onMsgsAck - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Debugf("onMsgsAck - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, msg_ids: %d}",
 		c,
 		gatewayId,
 		msgId,
 		seqno,
-		request)
+		len(request.GetMsgIds()))
 
 	c.outQueue.OnMsgsAck(request.GetMsgIds(), func(inMsgId int64) {
 		// Notes: ignore notifyId
@@ -91,7 +91,8 @@ func (c *session) checkBadServerSalt(ctx context.Context, gatewayId string, salt
 			BadMsgSeqno:   msg.Seqno,
 			NewServerSalt: c.sessList.cacheSalt.GetSalt(),
 		}).To_BadMsgNotification()
-		logx.WithContext(ctx).Errorf("invalid salt: %d, send badServerSalt: {%v}, cacheSalt: %v", salt, badServerSalt, c.sessList.cacheLastSalt)
+		logx.WithContext(ctx).Errorf("invalid salt: %d, send bad_server_salt: {bad_msg_id: %d, new_server_salt: %d}",
+			salt, badServerSalt.GetBadMsgId(), badServerSalt.GetNewServerSalt())
 
 		c.sendDirectToGateway(ctx, gatewayId, false, badServerSalt, func(sentRaw *mtproto.TLMessageRawData) {
 			// nothing do
@@ -434,12 +435,12 @@ func (c *session) checkBadMsgNotification(ctx context.Context, gatewayId string,
 		} return HandleResult::Success;
 */
 func (c *session) onMsgsStateReq(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgsStateReq) {
-	logx.WithContext(ctx).Debugf("onMsgsStateReq - request data: {sess: %s, gatewayId: %s, md: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Debugf("onMsgsStateReq - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, msg_ids: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		len(request.GetMsgIds()))
 
 	// Request for Message Status Information
 	//
@@ -559,12 +560,12 @@ func (c *session) onMsgsStateReq(ctx context.Context, gatewayId string, msgId *i
 	}
 */
 func (c *session) onMsgsStateInfo(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgsStateInfo) {
-	logx.WithContext(ctx).Infof("onMsgsStateInfo - request data: {sess: %s, gatewayId: %s, md: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Infof("onMsgsStateInfo - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, req_msg_id: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		request.GetReqMsgId())
 
 	// 1. handle other
 	// 1) hand request.
@@ -639,12 +640,12 @@ func (c *session) onMsgsStateInfo(ctx context.Context, gatewayId string, msgId *
 }
 
 func (c *session) onMsgsAllInfo(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgsAllInfo) {
-	logx.WithContext(ctx).Infof("onMsgsAllInfo - request data: {sess: %s, conn_id: %s, md: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Infof("onMsgsAllInfo - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, msg_ids: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		len(request.GetMsgIds()))
 
 	// Voluntary Communication of Status of Messages
 	//
@@ -705,12 +706,12 @@ func (c *session) onMsgsAllInfo(ctx context.Context, gatewayId string, msgId *in
 }
 
 func (c *session) onMsgResendReq(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgResendReq) {
-	logx.WithContext(ctx).Errorf("onMsgResendReq - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Errorf("onMsgResendReq - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, msg_ids: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		len(request.GetMsgIds()))
 
 	// Explicit Request to Re-Send Messages
 	//
@@ -793,23 +794,23 @@ func (c *session) onMsgResendReq(ctx context.Context, gatewayId string, msgId *i
 }
 
 func (c *session) onMsgDetailInfo(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgDetailedInfo) {
-	logx.WithContext(ctx).Errorf("onMsgDetailInfo - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+	logx.WithContext(ctx).Errorf("onMsgDetailInfo - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, answer_msg_id: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		request.GetAnswerMsgId())
 
 	// NOTE(@benqi): not received by server
 }
 
-func (c *session) onMsgNewDetailInfo(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgDetailedInfo) {
-	logx.WithContext(ctx).Errorf("onMsgNewDetailInfo - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, request: {%s}}",
+func (c *session) onMsgNewDetailInfo(ctx context.Context, gatewayId string, msgId *inboxMsg, request *mtproto.TLMsgNewDetailedInfo) {
+	logx.WithContext(ctx).Errorf("onMsgNewDetailInfo - request data: {sess: %s, conn_id: %s, msg_id: %d, seq_no: %d, answer_msg_id: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
 		msgId.seqNo,
-		request)
+		request.GetAnswerMsgId())
 
 	// NOTE(@benqi): not received by server
 }

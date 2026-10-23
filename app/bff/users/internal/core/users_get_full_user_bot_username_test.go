@@ -26,9 +26,10 @@ func TestPatchBotUsernameFromImmutableAddsUsername(t *testing.T) {
 	}).To_ImmutableUser()
 
 	unsafeBot := bot.ToUnsafeUser(me)
-	if unsafeBot.GetUsername() != nil {
-		t.Fatalf("expected bot username to be missing before patch, got %q", unsafeBot.GetUsername().GetValue())
-	}
+	// Since proto v0.228.0 ToUnsafeUser already fills the bot username; drop
+	// it so the test checks that the helper restores it by itself (it guards
+	// against conversions that leave the field empty).
+	unsafeBot.Username = nil
 
 	patchBotUsernameFromImmutable(unsafeBot, bot)
 

@@ -16,6 +16,7 @@ import (
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/interface/session/internal/sess"
 	"github.com/teamgram/teamgram-server/app/interface/session/internal/svc"
+	"github.com/teamgram/teamgram-server/app/interface/session/session"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -37,34 +38,44 @@ func New(ctx context.Context, svcCtx *svc.ServiceContext) *SessionCore {
 	}
 }
 
+// getOrFetchClientMainAuthWrapper returns the wrapper that serves traffic of
+// the auth key authKeyId, routed as session.RouteKey describes. A temporary
+// key that is not bound yet gets its own restricted wrapper; it is never
+// attributed to a permanent key here: permAuthKeyId comes from authsession
+// through the gateway and is set only after a verified auth.bindTempAuthKey.
+func (c *SessionCore) getOrFetchClientMainAuthWrapper(authKeyId int64, keyType int32, permAuthKeyId int64) (*sess.MainAuthWrapper, error) {
+	routeKey, unboundTemp := session.RouteKey(authKeyId, keyType, permAuthKeyId)
+	if routeKey == 0 {
+		return nil, mtproto.ErrInputRequestInvalid
+	}
+
+	if unboundTemp {
+		return c.svcCtx.MainAuthMgr.AllocMainAuthWrapper(
+			routeKey,
+			func(authKeyId int64) *sess.MainAuthWrapper {
+				return sess.NewUnboundTempAuthWrapper(authKeyId, c.svcCtx.MainAuthMgr)
+			}), nil
+	}
+
+	return c.getOrFetchMainAuthWrapper(routeKey)
+}
+
 func (c *SessionCore) getOrFetchMainAuthWrapper(mainAuthId int64) (*sess.MainAuthWrapper, error) {
+	if mainAuthId == 0 {
+		return nil, mtproto.ErrInputRequestInvalid
+	}
+
 	mainAuth := c.svcCtx.MainAuthMgr.GetMainAuthWrapper(mainAuthId)
 	if mainAuth != nil {
 		return mainAuth, nil
 	}
 
-	var (
-		kData *authsession.AuthKeyStateData
-		err   error
-	)
-
-	if mainAuthId == 0 {
-		kData = authsession.MakeTLAuthKeyStateData(&authsession.AuthKeyStateData{
-			AuthKeyId:            0,
-			KeyState:             mtproto.AuthStateNew,
-			UserId:               0,
-			AccessHash:           0,
-			Client:               nil,
-			AndroidPushSessionId: nil,
-		}).To_AuthKeyStateData()
-	} else {
-		kData, err = c.svcCtx.Dao.AuthsessionClient.AuthsessionGetAuthStateData(c.ctx, &authsession.TLAuthsessionGetAuthStateData{
-			AuthKeyId: mainAuthId,
-		})
-		if err != nil {
-			c.Logger.Errorf("getOrFetchMainAuthWrapper - error: %v", err)
-			return nil, err
-		}
+	kData, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionGetAuthStateData(c.ctx, &authsession.TLAuthsessionGetAuthStateData{
+		AuthKeyId: mainAuthId,
+	})
+	if err != nil {
+		c.Logger.Errorf("getOrFetchMainAuthWrapper - error: %v", err)
+		return nil, err
 	}
 
 	mainAuth = c.svcCtx.MainAuthMgr.AllocMainAuthWrapper(

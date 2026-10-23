@@ -16,6 +16,10 @@ import (
 
 const (
 	maxContentLength = 1 * 1024 * 1024 // 1MB max body
+	maxHeaderLength  = 8192
+	// maxBuffered bounds what a connection may have buffered: one request
+	// being answered and one more arriving behind it.
+	maxBuffered = 2 * (maxHeaderLength + maxContentLength)
 )
 
 type parseState int
@@ -23,6 +27,9 @@ type parseState int
 const (
 	stateReadingHeaders parseState = iota
 	stateReadingBody
+	// stateBusy: a request was parsed and is being answered; the next one
+	// is parsed after Reset (one request at a time per connection).
+	stateBusy
 )
 
 type HttpCodec struct {
@@ -43,6 +50,9 @@ func (h *HttpCodec) ReadBufferBytes(c gnet.Conn) gnet.Action {
 	if len(data) == 0 {
 		return gnet.None
 	}
+	if h.buf.Len()+len(data) > maxBuffered {
+		return gnet.Close
+	}
 	h.buf.Write(data)
 	_, _ = c.Discard(len(data))
 	return gnet.None
@@ -51,11 +61,19 @@ func (h *HttpCodec) ReadBufferBytes(c gnet.Conn) gnet.Action {
 // ParseRequest attempts to parse a complete HTTP request from the buffer.
 // Returns (body, done, err). If done is false, more data is needed.
 func (h *HttpCodec) ParseRequest() (body []byte, done bool, err error) {
+	if h.state == stateBusy {
+		// The previous request is still being answered: parsing again
+		// would process it twice.
+		return nil, false, nil
+	}
 	if h.state == stateReadingHeaders {
 		data := h.buf.Bytes()
 		idx := bytes.Index(data, []byte("\r\n\r\n"))
+		if idx > maxHeaderLength {
+			return nil, false, fmt.Errorf("headers too large")
+		}
 		if idx < 0 {
-			if len(data) > 8192 {
+			if len(data) > maxHeaderLength {
 				return nil, false, fmt.Errorf("headers too large")
 			}
 			return nil, false, nil
@@ -95,7 +113,7 @@ func (h *HttpCodec) ParseRequest() (body []byte, done bool, err error) {
 				if bytes.HasPrefix(lower, []byte("content-length:")) {
 					valStr := bytes.TrimSpace(line[15:])
 					cl, e := strconv.Atoi(string(valStr))
-					if e != nil {
+					if e != nil || cl < 0 {
 						return nil, false, fmt.Errorf("invalid Content-Length")
 					}
 					h.contentLen = cl
@@ -120,6 +138,7 @@ func (h *HttpCodec) ParseRequest() (body []byte, done bool, err error) {
 	all := h.buf.Bytes()
 	body = make([]byte, h.contentLen)
 	copy(body, all[h.headerLen:totalNeeded])
+	h.state = stateBusy
 	return body, true, nil
 }
 

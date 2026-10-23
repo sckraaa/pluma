@@ -50,7 +50,7 @@ func generatePadding(size int) []byte {
 func (c *PaddedIntermediateCodec) Encode(conn CodecWriter, msg interface{}) ([]byte, error) {
 	rawMsg, ok := msg.(*mtproto.MTPRawMessage)
 	if !ok {
-		err := fmt.Errorf("msg type error, only MTPRawMessage, msg: {%v}", msg)
+		err := fmt.Errorf("msg type error, only MTPRawMessage, msg: %T", msg)
 		return nil, err
 	}
 

@@ -20,14 +20,13 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"math/rand"
 	"net"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	httpcodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/http"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/pp"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/ws"
@@ -38,49 +37,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/timex"
 	"go.opentelemetry.io/otel"
-	"google.golang.org/protobuf/proto"
 )
-
-func (s *Server) asyncRunIfError(connId int64, msgId int64, execb func() error, retcb func(c gnet.Conn, msgId int64, err error)) {
-	if err := s.pool.Submit(func() {
-		if err := execb(); err != nil {
-			s.eng.Trigger(connId, func(c gnet.Conn) {
-				retcb(c, msgId, err)
-			})
-		}
-	}); err != nil {
-		logx.Errorf("asyncRunIfError - pool.Submit error: %v, connId: %d", err, connId)
-	}
-}
-
-func (s *Server) asyncRun(connId int64, execb func() error, retcb func(c gnet.Conn)) {
-	if err := s.pool.Submit(func() {
-		if err := execb(); err == nil {
-			s.eng.Trigger(connId, func(c gnet.Conn) {
-				retcb(c)
-			})
-		}
-	}); err != nil {
-		logx.Errorf("asyncRun - pool.Submit error: %v, connId: %d", err, connId)
-	}
-}
-
-func (s *Server) asyncRun2(
-	connId int64,
-	kId int64,
-	needAck bool,
-	mmsg []byte,
-	execb func(kId int64, mmsg []byte) (interface{}, error),
-	retcb func(c gnet.Conn, needAck bool, mmsg []byte, in interface{}, err error)) {
-	if err := s.pool.Submit(func() {
-		r, err := execb(kId, mmsg)
-		s.eng.Trigger(connId, func(c gnet.Conn) {
-			retcb(c, needAck, mmsg, r, err)
-		})
-	}); err != nil {
-		logx.Errorf("asyncRun2 - pool.Submit error: %v, connId: %d, keyId: %d", err, connId, kId)
-	}
-}
 
 // OnBoot fires when the engine is ready for accepting connections.
 // The parameter engine has information and various utilities.
@@ -117,10 +74,10 @@ func (s *Server) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 	}
 	if ctx.http {
 		ctx.httpCodec = new(httpcodec.HttpCodec)
-		ctx.closeDate = s.CachedNow() + 60
-	} else {
-		ctx.closeDate = s.CachedNow() + 30
 	}
+	// Until a message decrypts with a known key, the connection must not
+	// outlive this deadline, whatever it sends (see markAuthenticated).
+	ctx.closeDate = s.CachedNow() + unauthenticatedConnTimeout
 	s.timeoutWheel.Add(c.ConnId(), ctx.closeDate)
 	c.SetContext(ctx)
 
@@ -138,6 +95,12 @@ func (s *Server) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 // OnClose fires when a connection has been closed.
 // The parameter err is the last known connection error.
 func (s *Server) OnClose(c gnet.Conn, err error) (action gnet.Action) {
+	defer func() {
+		// The connection is going away anyway: only keep the gateway up.
+		if r := recover(); r != nil {
+			logRecoveredPanic(c.ConnId(), "close", r)
+		}
+	}()
 	logx.Debugf("onConnClosed - conn(%s), err: %v", c, err)
 
 	ctx, _ := c.Context().(*connContext)
@@ -168,49 +131,90 @@ func (s *Server) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 		return
 	}
 
-	if ctx.authKey == nil || ctx.authKey.PermAuthKeyId() == 0 {
+	if ctx.authKey == nil {
 		return
 	}
 
-	// kId, sessId, connId, clientIp := ctx.authKey.AuthKeyId(), ctx.sessionId, c.ConnId(), ctx.clientIp
-	bDeleted := s.authSessionMgr.RemoveSession(ctx.authKey.AuthKeyId(), ctx.sessionId, c.ConnId())
+	var (
+		authKey   = ctx.authKey
+		sessionId = ctx.sessionId
+		clientIp  = ctx.clientIp
+	)
+	bDeleted := s.authSessionMgr.RemoveSession(authKey.AuthKeyId(), sessionId, c.ConnId())
 	if !bDeleted {
 		return
 	}
 
+	// Same routing as the data of this key (an unbound temporary key has its
+	// own session wrapper).
+	routeKey, permAuthKeyId := authKey.sessionRoute()
 	if err := s.pool.Submit(func() {
 		closeCtx, span := otel.Tracer("gnetway").Start(context.Background(), "SessionCloseSession")
 		defer span.End()
-		err := s.svcCtx.Dao.SessionDispatcher.CloseSession(closeCtx, ctx.authKey.PermAuthKeyId(), &session.TLSessionCloseSession{
+		err := s.svcCtx.Dao.SessionDispatcher.CloseSession(closeCtx, routeKey, &session.TLSessionCloseSession{
 			Client: session.MakeTLSessionClientEvent(&session.SessionClientEvent{
 				ServerId:      s.svcCtx.GatewayId,
-				AuthKeyId:     ctx.authKey.AuthKeyId(),
-				KeyType:       int32(ctx.authKey.AuthKeyType()),
-				PermAuthKeyId: ctx.authKey.PermAuthKeyId(),
-				SessionId:     ctx.sessionId,
-				ClientIp:      ctx.clientIp,
+				AuthKeyId:     authKey.AuthKeyId(),
+				KeyType:       int32(authKey.AuthKeyType()),
+				PermAuthKeyId: permAuthKeyId,
+				SessionId:     sessionId,
+				ClientIp:      clientIp,
 			}).To_SessionClientEvent(),
 		})
 		if err != nil {
 			logx.Errorf("client.SessionCloseSession - error: %v", err)
 		}
 	}); err != nil {
-		logx.Errorf("OnClose - pool.Submit error: %v, authKeyId: %d", err, ctx.authKey.AuthKeyId())
+		logx.Errorf("OnClose - pool.Submit error: %v, authKeyId: %d", err, authKey.AuthKeyId())
 	}
 
 	return
 }
 
-// OnTraffic fires when a local socket receives data from the peer.
-func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
-	ctx := c.Context().(*connContext)
+// Connection timeouts (seconds).
+const (
+	// unauthenticatedConnTimeout: a connection must complete the handshake
+	// and send a message under a known auth key within this time after it
+	// opened; traffic before that (handshake messages, WebSocket pings, a
+	// slowly sent request) does not extend it.
+	unauthenticatedConnTimeout = 60
+	// idle timeouts of an authenticated connection, extended by any traffic.
+	tcpIdleTimeout  = 300
+	httpIdleTimeout = 60
+)
+
+// extendDeadline moves the idle deadline of an authenticated connection.
+func (s *Server) extendDeadline(c gnet.Conn, ctx *connContext) {
 	oldCloseDate := ctx.closeDate
 	if ctx.http {
-		ctx.closeDate = s.CachedNow() + 60 + rand.Int63()%10
+		ctx.closeDate = s.CachedNow() + httpIdleTimeout + rand.Int63()%10 //nolint:gosec // deadline jitter, not a secret
 	} else {
-		ctx.closeDate = s.CachedNow() + 300 + rand.Int63()%10
+		ctx.closeDate = s.CachedNow() + tcpIdleTimeout + rand.Int63()%10 //nolint:gosec // deadline jitter, not a secret
 	}
 	s.timeoutWheel.Move(c.ConnId(), oldCloseDate, ctx.closeDate)
+}
+
+// markAuthenticated records that a message on c decrypted with a known auth
+// key: from now on any traffic keeps the connection open.
+func (s *Server) markAuthenticated(c gnet.Conn, ctx *connContext) {
+	if ctx.authenticated {
+		return
+	}
+	ctx.authenticated = true
+	s.extendDeadline(c, ctx)
+}
+
+// OnTraffic fires when a local socket receives data from the peer.
+func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
+	defer recoverConn(c, "traffic", &action)
+
+	ctx, ok := c.Context().(*connContext)
+	if !ok || ctx == nil {
+		return gnet.Close
+	}
+	if ctx.authenticated {
+		s.extendDeadline(c, ctx)
+	}
 	if ctx.ppv1 {
 		ppv1, err := c.Peek(-1)
 		if err != nil {
@@ -218,12 +222,13 @@ func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 			return
 		}
 		if len(ppv1) < len(pp.V1Identifier) {
-			logx.Errorf("conn(%s) ppv1 < len(pp.V1Identifier), data: %s", c, hex.EncodeToString(ppv1))
+			// Never the bytes: past the PROXY header they are the client's traffic.
+			logx.Debugf("conn(%s) ppv1: %d bytes, waiting for the PROXY header", c, len(ppv1))
 			return
 		}
 
 		if bytes.HasPrefix(ppv1, pp.V1Identifier) {
-			logx.Errorf("conn(%s) ppv1 data: %s", c, hex.EncodeToString(ppv1))
+			logx.Debugf("conn(%s) ppv1: %d bytes buffered", c, len(ppv1))
 
 			r := bytes.NewReader(ppv1)
 			h, err := pp.ReadHeader(r)
@@ -275,7 +280,7 @@ func (s *Server) OnTick() (delay time.Duration, action gnet.Action) {
 	// instead of iterating all connections.
 	expiredConnIds := s.timeoutWheel.ExpireSlot(now)
 	for _, connId := range expiredConnIds {
-		s.eng.Trigger(connId, func(c gnet.Conn) {
+		s.trigger(connId, func(c gnet.Conn) {
 			ctx, _ := c.Context().(*connContext)
 			if ctx == nil {
 				return
@@ -293,15 +298,36 @@ func (s *Server) OnTick() (delay time.Duration, action gnet.Action) {
 	return
 }
 
-// computeQuickAckToken computes the Quick ACK token per MTProto spec:
-// first 32 bits of SHA256(authKey[88:88+32] + encrypted_data) | 0x80000000
-func computeQuickAckToken(authKey []byte, encryptedData []byte) uint32 {
+// computeQuickAckToken computes the Quick ACK token of a client message: the
+// first 32 bits of msg_key_large = SHA256(auth_key[88:88+32] + plaintext),
+// the plaintext with its padding (MTProto 2.0, x = 0), with the most
+// significant bit set. Clients compute the same value when they send the
+// message (Android Datacenter::createRequestsData, tdlib Transport) and match
+// the acknowledgement by it, so it must not be computed over the ciphertext.
+func computeQuickAckToken(authKey []byte, plaintext []byte) uint32 {
 	h := sha256.New()
 	h.Write(authKey[88 : 88+32])
-	h.Write(encryptedData)
+	h.Write(plaintext)
 	var sum [32]byte
 	h.Sum(sum[:0])
 	return binary.LittleEndian.Uint32(sum[:4]) | 0x80000000
+}
+
+// encryptedFrameMinSize is auth_key_id, msg_key and the smallest encrypted
+// data: a 32-byte header and 12 bytes of padding, in 16-byte blocks.
+const encryptedFrameMinSize = 8 + 16 + 48
+
+var errEncryptedFrame = errors.New("encrypted message too short")
+
+// splitEncryptedFrame returns msg_key and encrypted_data of an encrypted
+// message. Bytes after the last whole 16-byte block (the padding of the
+// padded intermediate transport) are not part of encrypted_data.
+func splitEncryptedFrame(frame []byte) (msgKey, data []byte, err error) {
+	if len(frame) < encryptedFrameMinSize {
+		return nil, nil, errEncryptedFrame
+	}
+	data = frame[24:]
+	return frame[8:24], data[:len(data)-len(data)%16], nil
 }
 
 func (s *Server) onEncryptedMessage(c gnet.Conn, ctx *connContext, authKey *authKeyUtil, needAck bool, mmsg []byte) error {
@@ -310,11 +336,20 @@ func (s *Server) onEncryptedMessage(c gnet.Conn, ctx *connContext, authKey *auth
 		metricMsgProcess.ObserveFloat(timex.Since(since).Seconds()*1000, "encrypted")
 	}()
 
-	mtpRwaData, err := authKey.AesIgeDecrypt(mmsg[8:8+16], mmsg[24:])
+	msgKey, encryptedData, err := splitEncryptedFrame(mmsg)
 	if err != nil {
-		logx.Errorf("conn(%s) decrypt data(%d) error: {%v}, payload: %s", c, len(mmsg)-24, err, hex.EncodeToString(mmsg))
+		logx.Errorf("conn(%s) encrypted message(%d bytes): %v", c, len(mmsg), err)
 		return err
 	}
+	mtpRwaData, err := authKey.AesIgeDecrypt(msgKey, encryptedData)
+	if err != nil {
+		// Only ids and lengths: the message is ciphertext under someone's key
+		// and anyone can send garbage with a known auth_key_id (audit #9).
+		logx.Errorf("conn(%d) auth_key_id %d: encrypted message of %d bytes does not decrypt: %v",
+			c.ConnId(), authKey.AuthKeyId(), len(mmsg), err)
+		return err
+	}
+	s.markAuthenticated(c, ctx)
 
 	// Send Quick ACK if requested by client.
 	// The token MUST go through ctx.codec.EncodeQuickAck so that the CTR cipher
@@ -322,7 +357,7 @@ func (s *Server) onEncryptedMessage(c gnet.Conn, ctx *connContext, authKey *auth
 	// here would desynchronise the client's CTR counter and corrupt all subsequent
 	// messages (causing decryptServerResponse failures on the Android client).
 	if needAck {
-		ackToken := computeQuickAckToken(authKey.AuthKey(), mmsg[24:])
+		ackToken := computeQuickAckToken(authKey.AuthKey(), mtpRwaData)
 		if ackData := ctx.codec.EncodeQuickAck(ackToken); len(ackData) > 0 {
 			if ctx.websocket {
 				_ = wsutil.WriteServerBinary(c, ackData)
@@ -334,58 +369,9 @@ func (s *Server) onEncryptedMessage(c gnet.Conn, ctx *connContext, authKey *auth
 	}
 
 	var (
-		permAuthKeyId     = authKey.PermAuthKeyId()
-		salt              = int64(binary.LittleEndian.Uint64(mtpRwaData))
-		sessionId         = int64(binary.LittleEndian.Uint64(mtpRwaData[8:]))
-		msgId             = int64(binary.LittleEndian.Uint64(mtpRwaData[16:24]))
-		isBindTempAuthKey = false
+		salt      = int64(binary.LittleEndian.Uint64(mtpRwaData))
+		sessionId = int64(binary.LittleEndian.Uint64(mtpRwaData[8:]))
 	)
-
-	if permAuthKeyId == 0 {
-		// hack
-		for _, unknown := range tryGetUnknownTLObject(mtpRwaData[16:]) {
-			switch unknownMsg := unknown.(type) {
-			case *mtproto.TLAuthBindTempAuthKey:
-				permAuthKeyId = unknownMsg.PermAuthKeyId
-
-				clone := proto.Clone(authKey.keyData).(*mtproto.AuthKeyInfo)
-				clone.PermAuthKeyId = permAuthKeyId
-				authKey.keyData = clone
-				s.PutAuthKey(clone)
-				isBindTempAuthKey = true
-			case *mtproto.TLPing:
-				payload := serializeToBuffer2(salt, sessionId, &mtproto.TLMessage2{
-					MsgId: nextMessageId(false),
-					Seqno: 0,
-					Bytes: 0,
-					Object: mtproto.MakeTLPong(&mtproto.Pong{
-						MsgId:  int64(binary.LittleEndian.Uint64(mtpRwaData[16:])),
-						PingId: unknownMsg.PingId,
-					}).To_Pong(),
-				})
-
-				msgKey, mtpRawData, _ := authKey.AesIgeEncrypt(payload)
-				buf := func() []byte {
-					x2 := mtproto.GetEncodeBuf()
-					defer mtproto.PutEncodeBuf(x2)
-					x2.Long(authKey.AuthKeyId())
-					x2.Bytes(msgKey)
-					x2.Bytes(mtpRawData)
-					return append([]byte(nil), x2.GetBuf()...)
-				}()
-				_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: buf})
-
-				return nil
-			default:
-				if permAuthKeyId == 0 {
-					logx.Errorf("recv unknown msg: %v, ignore it", unknownMsg)
-					return fmt.Errorf("unknown msg")
-				} else {
-					// ignore it
-				}
-			}
-		}
-	}
 
 	var (
 		isNew    = ctx.sessionId != sessionId
@@ -403,158 +389,272 @@ func (s *Server) onEncryptedMessage(c gnet.Conn, ctx *connContext, authKey *auth
 		connType = 1 // signal session side to create session
 	}
 
-	s.asyncRunIfError(
-		c.ConnId(),
-		msgId,
-		func() error {
-			defer func() {
-				logx.WithDuration(timex.Since(since)).Infof("onEncryptedMessage: %s", c)
-			}()
+	// The session wrapper is chosen from the key data authsession returned,
+	// never from the message: until authsession has verified
+	// auth.bindTempAuthKey, a temporary key's messages go to its own
+	// restricted wrapper, whatever perm_auth_key_id they name.
+	routeKey, data := newSessionClientData(s.svcCtx.GatewayId, authKey, connType, clientIp, sessionId, salt, mtpRwaData[16:])
 
-			ctx2, span := otel.Tracer("gnetway").Start(context.Background(), "SessionSendDataToSession")
-			defer span.End()
-			err := s.svcCtx.Dao.SessionDispatcher.SendData(ctx2, permAuthKeyId, &session.TLSessionSendDataToSession{
-				Data: &session.SessionClientData{
-					ServerId:      s.svcCtx.GatewayId,
-					ConnType:      connType,
-					AuthKeyId:     authKey.AuthKeyId(),
-					KeyType:       int32(authKey.AuthKeyType()),
-					PermAuthKeyId: permAuthKeyId,
-					SessionId:     sessionId,
-					Salt:          salt,
-					Payload:       mtpRwaData[16:],
-					ClientIp:      clientIp,
-				},
-			})
-			if err != nil {
-				logx.Errorf("session.sendDataToSession - error: %v", err)
-			}
-			return err
-		},
-		func(c gnet.Conn, msgId int64, err error) {
-			if isBindTempAuthKey && errors.Is(err, mtproto.ErrAuthKeyUnregistered) {
-				payload := serializeToBuffer2(salt, sessionId, &mtproto.TLMessage2{
-					MsgId: nextMessageId(false),
-					Seqno: 0,
-					Bytes: 0,
-					Object: &mtproto.TLRpcResult{
-						ReqMsgId: msgId,
-						Result: mtproto.MakeTLRpcError(&mtproto.RpcError{
-							ErrorCode:    400,
-							ErrorMessage: "ENCRYPTED_MESSAGE_INVALID",
-						}).To_RpcError(),
-					}})
+	if err := s.submit(connId, func() {
+		defer func() {
+			logx.WithDuration(timex.Since(since)).Infof("onEncryptedMessage: %s", c)
+		}()
 
-				msgKey, mtpRawData, _ := authKey.AesIgeEncrypt(payload)
-				buf := func() []byte {
-					x2 := mtproto.GetEncodeBuf()
-					defer mtproto.PutEncodeBuf(x2)
-					x2.Long(authKey.AuthKeyId())
-					x2.Bytes(msgKey)
-					x2.Bytes(mtpRawData)
-					return append([]byte(nil), x2.GetBuf()...)
-				}()
-				_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: buf})
-			}
+		ctx2, span := otel.Tracer("gnetway").Start(context.Background(), "SessionSendDataToSession")
+		defer span.End()
+		err := s.svcCtx.Dao.SessionDispatcher.SendData(ctx2, routeKey, &session.TLSessionSendDataToSession{
+			Data: data,
 		})
+		if err != nil {
+			logx.Errorf("session.sendDataToSession - error: %v", err)
+		}
+	}); err != nil {
+		logx.Errorf("onEncryptedMessage - pool.Submit error: %v, connId: %d", err, connId)
+	}
 
 	return nil
+}
+
+// newSessionClientData builds session.sendDataToSession data for a decrypted
+// message and returns the key to dispatch it by (authKeyUtil.sessionRoute).
+func newSessionClientData(gatewayId string, authKey *authKeyUtil, connType int32, clientIp string, sessionId, salt int64, payload []byte) (int64, *session.SessionClientData) {
+	routeKey, permAuthKeyId := authKey.sessionRoute()
+	return routeKey, &session.SessionClientData{
+		ServerId:      gatewayId,
+		ConnType:      connType,
+		AuthKeyId:     authKey.AuthKeyId(),
+		KeyType:       int32(authKey.AuthKeyType()),
+		PermAuthKeyId: permAuthKeyId,
+		SessionId:     sessionId,
+		Salt:          salt,
+		Payload:       payload,
+		ClientIp:      clientIp,
+	}
+}
+
+// writeAuthKeyNotFound sends transport error -404: the server does not know
+// the auth key (or a temporary key expired). Clients drop the key and create
+// a new one.
+func writeAuthKeyNotFound(c gnet.Conn) {
+	out := &mtproto.MTPRawMessage{
+		Payload: make([]byte, 4),
+	}
+	code := int32(-404)
+	binary.LittleEndian.PutUint32(out.Payload, uint32(code))
+	_ = UnThreadSafeWrite(c, out)
 }
 
 func (s *Server) GetConnCounts() int {
 	return s.eng.CountConnections()
 }
 
-func (s *Server) onMTPRawMessage(ctx *connContext, c gnet.Conn, authKeyId int64, needAck bool, msg2 []byte) (action gnet.Action) {
+// connHandshakeIO returns how handshake messages of connection c are kept
+// and answered.
+func (s *Server) connHandshakeIO(c gnet.Conn, ctx *connContext) *handshakeIO {
+	if ctx.handshakes == nil {
+		ctx.handshakes = &handshakeIO{
+			connId: c.ConnId(),
+			states: newHandshakeStore(maxConnHandshakes, 0),
+			reply: func(c gnet.Conn, answer mtproto.TLObject) {
+				metricHandshake.Inc("ok")
+				_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshakePayload(answer)})
+			},
+			fail: func(c gnet.Conn, err error) {
+				metricHandshake.Inc("error")
+				logx.Errorf("conn(%d) handshake: %v", c.ConnId(), err)
+				_ = c.Close()
+			},
+		}
+	}
+	return ctx.handshakes
+}
+
+// mtprotoFrameMinSize: every message starts with auth_key_id.
+const mtprotoFrameMinSize = 8
+
+func (s *Server) onMTPRawMessage(ctx *connContext, c gnet.Conn, needAck bool, msg2 []byte) gnet.Action {
+	if len(msg2) < mtprotoFrameMinSize {
+		logx.Errorf("conn(%d) frame of %d bytes", c.ConnId(), len(msg2))
+		return gnet.Close
+	}
+	authKeyId := int64(binary.LittleEndian.Uint64(msg2))
+
 	if authKeyId == 0 {
-		out, err := s.onHandshake(c, msg2)
+		out, _, err := s.onHandshakeMessage(s.connHandshakeIO(c, ctx), msg2)
 		if err != nil {
-			logx.Errorf("conn(%s) onHandshake - error: %v", c, err)
+			logx.Errorf("conn(%d) handshake: %v", c.ConnId(), err)
 			metricHandshake.Inc("error")
-			action = gnet.Close
+			return gnet.Close
 		} else if out != nil {
 			metricHandshake.Inc("ok")
-			_ = UnThreadSafeWrite(c, out)
+			_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshakePayload(out)})
 		}
 	} else {
+		if ctx.keyQuery != nil {
+			// Messages wait, in order, behind the key read in progress.
+			return s.queryAuthKey(c, ctx, authKeyId, nil, needAck, msg2)
+		}
+
+		now := s.CachedNow()
 		authKey := ctx.getAuthKey()
 		if authKey == nil {
-			key := s.GetAuthKey(authKeyId)
-			if key != nil {
-				authKey = newAuthKeyUtil(key)
+			authKey = s.GetAuthKey(authKeyId)
+			if authKey != nil {
 				ctx.putAuthKey(authKey)
 			}
 		} else if authKey.AuthKeyId() != authKeyId {
-			//
 			logx.Errorf("conn(%s) getAuthKey - error: invalid key id %d ", c, authKeyId)
-			action = gnet.Close
-			return
+			return gnet.Close
 		}
 
-		if authKey != nil {
+		if authKey != nil && authKey.expired(now) {
+			logx.Infof("conn(%s) temp auth key %d expired", c, authKeyId)
+			s.RemoveAuthKey(authKeyId)
+			writeAuthKeyNotFound(c)
+			return gnet.Close
+		}
+
+		if authKey != nil && !authKey.needsRecheck(now) {
 			err := s.onEncryptedMessage(c, ctx, authKey, needAck, msg2)
 			if err != nil {
 				logx.Errorf("conn(%s) onEncryptedMessage - error: %v ", c, err)
-				action = gnet.Close
+				return gnet.Close
 			}
-		} else {
-			if len(msg2) > 32 {
-				logx.Debugf("conn(%s) data: %s", c, hex.EncodeToString(msg2[:32]))
-			}
-
-			msg2Clone := make([]byte, len(msg2))
-			copy(msg2Clone, msg2)
-
-			s.asyncRun2(
-				c.ConnId(),
-				authKeyId,
-				needAck,
-				msg2Clone,
-				func(authKeyId2 int64, mmsg []byte) (interface{}, error) {
-					queryCtx, span := otel.Tracer("gnetway").Start(context.Background(), "SessionQueryAuthKey")
-					defer span.End()
-					key3, err2 := s.svcCtx.Dao.SessionDispatcher.QueryAuthKey(queryCtx, authKeyId2, &session.TLSessionQueryAuthKey{
-						AuthKeyId: authKeyId2,
-					})
-					if err2 != nil {
-						logx.Errorf("conn(%s) sessionQueryAuthKey - error: %v", c, err2)
-						return nil, err2
-					} else {
-						s.PutAuthKey(key3)
-					}
-
-					return newAuthKeyUtil(key3), nil
-				},
-				func(c2 gnet.Conn, needAck2 bool, mmsg []byte, in interface{}, err error) {
-					if err != nil {
-						if errors.Is(err, mtproto.ErrAuthKeyUnregistered) {
-							out2 := &mtproto.MTPRawMessage{
-								Payload: make([]byte, 4),
-							}
-							var (
-								code = int32(-404)
-							)
-							binary.LittleEndian.PutUint32(out2.Payload, uint32(code))
-							_ = UnThreadSafeWrite(c2, out2)
-						}
-
-						logx.Errorf("conn(%s) sessionQueryAuthKey - error: %v", c2, err)
-						_ = c2.Close()
-					} else {
-						authKey2 := in.(*authKeyUtil)
-						ctx2 := c2.Context().(*connContext)
-						ctx2.putAuthKey(authKey2)
-						err = s.onEncryptedMessage(c2, ctx2, authKey2, needAck2, mmsg)
-						if err != nil {
-							logx.Errorf("conn(%s) onEncryptedMessage - error: %v ", c2, err)
-							_ = c2.Close()
-						}
-					}
-				})
+			return gnet.None
 		}
+
+		known := s.knownAuthKey(authKeyId, authKey)
+		if known != nil && known.unboundReadsExhausted() {
+			logx.Errorf("conn(%d) temp auth key %d still unbound after %d reads", c.ConnId(), authKeyId, maxUnboundTempKeyReads)
+			writeAuthKeyNotFound(c)
+			return gnet.Close
+		}
+
+		// Read the key (again) from authsession: it is not cached, it is a
+		// temporary key due for a recheck, or an unbound temporary key whose
+		// binding only authsession can confirm.
+		return s.queryAuthKey(c, ctx, authKeyId, known, needAck, msg2)
 	}
 
 	return gnet.None
+}
+
+// Messages that wait on a connection while its auth key is read from
+// authsession; beyond these limits the connection is closed.
+const (
+	maxPendingFrames     = 32
+	maxPendingFrameBytes = codec.MAX_MTPRORO_FRAME_SIZE
+)
+
+// pendingKeyQuery is a read of the auth key of a connection from authsession
+// in progress, with the messages waiting for it (in order). There is at most
+// one per connection, so a stream of messages under unknown key ids costs one
+// query at a time, not one per message.
+type pendingKeyQuery struct {
+	authKeyId int64
+	frames    []pendingFrame
+	bytes     int
+}
+
+type pendingFrame struct {
+	needAck bool
+	frame   []byte
+}
+
+func (s *Server) queryAuthKey(c gnet.Conn, ctx *connContext, authKeyId int64, known *authKeyUtil, needAck bool, frame []byte) gnet.Action {
+	if len(frame) < encryptedFrameMinSize {
+		logx.Errorf("conn(%d) encrypted message of %d bytes", c.ConnId(), len(frame))
+		return gnet.Close
+	}
+	frame = append([]byte(nil), frame...)
+
+	if q := ctx.keyQuery; q != nil {
+		if q.authKeyId != authKeyId || len(q.frames) >= maxPendingFrames || q.bytes+len(frame) > maxPendingFrameBytes {
+			logx.Errorf("conn(%d) too many messages while its auth key is read", c.ConnId())
+			return gnet.Close
+		}
+		q.frames = append(q.frames, pendingFrame{needAck: needAck, frame: frame})
+		q.bytes += len(frame)
+		return gnet.None
+	}
+
+	q := &pendingKeyQuery{
+		authKeyId: authKeyId,
+		frames:    []pendingFrame{{needAck: needAck, frame: frame}},
+		bytes:     len(frame),
+	}
+	ctx.keyQuery = q
+
+	connId := c.ConnId()
+	err := s.submit(connId, func() {
+		key, err := s.queryKey(authKeyId, known)
+		s.trigger(connId, func(c gnet.Conn) {
+			ctx, _ := c.Context().(*connContext)
+			if ctx == nil || ctx.keyQuery != q {
+				return
+			}
+			ctx.keyQuery = nil
+			if err != nil {
+				if errors.Is(err, mtproto.ErrAuthKeyUnregistered) {
+					s.RemoveAuthKey(authKeyId)
+					writeAuthKeyNotFound(c)
+				}
+				logx.Errorf("conn(%d) sessionQueryAuthKey - error: %v", c.ConnId(), err)
+				_ = c.Close()
+				return
+			}
+			if key.unboundReadsExhausted() {
+				// Kept in the cache: later messages get -404 without a read.
+				logx.Errorf("conn(%d) temp auth key %d still unbound after %d reads", c.ConnId(), authKeyId, maxUnboundTempKeyReads)
+				writeAuthKeyNotFound(c)
+				_ = c.Close()
+				return
+			}
+			ctx.putAuthKey(key)
+			for _, f := range q.frames {
+				if err := s.onEncryptedMessage(c, ctx, key, f.needAck, f.frame); err != nil {
+					logx.Errorf("conn(%s) onEncryptedMessage - error: %v ", c, err)
+					_ = c.Close()
+					return
+				}
+			}
+		})
+	})
+	if err != nil {
+		ctx.keyQuery = nil
+		logx.Errorf("conn(%d) queryAuthKey - pool.Submit error: %v", connId, err)
+		return gnet.Close
+	}
+	return gnet.None
+}
+
+// knownAuthKey returns the gateway's latest copy of a key: the cached one,
+// else the one the connection holds (connKey, may be nil).
+func (s *Server) knownAuthKey(authKeyId int64, connKey *authKeyUtil) *authKeyUtil {
+	if k := s.GetAuthKey(authKeyId); k != nil {
+		return k
+	}
+	return connKey
+}
+
+// fetchAuthKey reads an auth key from authsession and caches it. known is the
+// copy the gateway had, if any (checkQueriedAuthKey).
+func (s *Server) fetchAuthKey(authKeyId int64, known *authKeyUtil) (*authKeyUtil, error) {
+	queryCtx, span := otel.Tracer("gnetway").Start(context.Background(), "SessionQueryAuthKey")
+	defer span.End()
+	keyInfo, err := s.svcCtx.Dao.SessionDispatcher.QueryAuthKey(queryCtx, authKeyId, &session.TLSessionQueryAuthKey{
+		AuthKeyId: authKeyId,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := checkQueriedAuthKey(authKeyId, keyInfo, s.CachedNow(), known)
+	if err != nil {
+		return nil, err
+	}
+	s.PutAuthKey(key)
+	return key, nil
 }
 
 func UnThreadSafeWrite(c gnet.Conn, msg interface{}) error {

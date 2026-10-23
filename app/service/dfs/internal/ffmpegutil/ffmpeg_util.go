@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"sync"
 
@@ -34,14 +33,13 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type FFmpegUtil struct {
-	*transcoder.Transcoder
-}
+// FFmpegUtil runs the ffmpeg conversions dfs needs. It holds no state: every
+// call drives its own transcoder, so the single instance kept in the service
+// context is safe to use from concurrent requests.
+type FFmpegUtil struct{}
 
 func NewFFmpegUtil() *FFmpegUtil {
-	return &FFmpegUtil{
-		Transcoder: new(transcoder.Transcoder),
-	}
+	return &FFmpegUtil{}
 }
 
 /*
@@ -66,9 +64,40 @@ func NewFFmpegUtil() *FFmpegUtil {
 	).CombinedOutput()
 */
 
-func (trans *FFmpegUtil) ConvertToMp4(gifPath string) (err error) {
-	// Create new instance of transcoder
-	// trans := new(transcoder.Transcoder)
+// newPipeTranscoder returns a fresh transcoder with an empty media file, to be
+// fed through pipes.
+func newPipeTranscoder() (*transcoder.Transcoder, error) {
+	trans := new(transcoder.Transcoder)
+	if err := trans.InitializeEmptyTranscoder(); err != nil {
+		logx.Errorf("InitializeEmptyTranscoder - error: %v", err)
+		return nil, err
+	}
+	return trans, nil
+}
+
+// readAllAsync reads r to the end in its own goroutine (ffmpeg blocks on a
+// full output pipe, so it must be drained while the process runs). wait
+// returns what was read.
+func readAllAsync(r io.ReadCloser) (wait func() ([]byte, error)) {
+	var (
+		wg   sync.WaitGroup
+		data []byte
+		err  error
+	)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer r.Close()
+		data, err = io.ReadAll(r)
+	}()
+	return func() ([]byte, error) {
+		wg.Wait()
+		return data, err
+	}
+}
+
+func (u *FFmpegUtil) ConvertToMp4(gifPath string) (err error) {
+	trans := new(transcoder.Transcoder)
 	videoPath := gifPath + ".mp4"
 
 	// Initialize transcoder passing the input file path and output file path
@@ -77,7 +106,6 @@ func (trans *FFmpegUtil) ConvertToMp4(gifPath string) (err error) {
 		logx.Errorf("convertGifToMp4 - error: %v", err)
 		return
 	}
-	// Handle error...
 
 	// "-f gif"
 	trans.MediaFile().SetOutputFormat("mp4")
@@ -95,15 +123,9 @@ func (trans *FFmpegUtil) ConvertToMp4(gifPath string) (err error) {
 	trans.MediaFile().SetVideoBitRate("218k")
 	trans.MediaFile().SetBufferSize(218)
 
-	// Start transcoder process without checking progress
 	done := trans.Run(true)
-
-	// Returns a channel to get the transcoding progress
-	progress := trans.Output()
-
-	// Example of printing transcoding progress
-	for msg := range progress {
-		fmt.Println(msg)
+	// Drain the progress stream so that ffmpeg never blocks on stderr.
+	for range trans.Output() {
 	}
 
 	// This channel is used to wait for the process to end
@@ -111,248 +133,154 @@ func (trans *FFmpegUtil) ConvertToMp4(gifPath string) (err error) {
 	if err != nil {
 		logx.Errorf("convertGifToMp4 - error: %v", err)
 	}
-
-	//data, err = os.ReadFile(videoPath)
-	//if err != nil {
-	//	log.Errorf("convertGifToMp4 - error: %v", err)
-	//}
 	return
 }
 
-func (trans *FFmpegUtil) ConvertToMp4ByPipe(gifPath string, dstW, dstH int) (bytes []byte, duration int32, err error) {
-	// Create new instance of transcoder
-	// trans := new(transcoder.Transcoder)
-
-	// Initialize transcoder passing the input file path and output file path
-	err = trans.InitializeEmptyTranscoder()
+// convertToMp4ByPipe transcodes the file at path to an mp4 returned in
+// memory; setup sets the encoding options. The duration (seconds) is taken
+// from ffmpeg's progress reports.
+func convertToMp4ByPipe(path string, setup func(mf *models.Mediafile)) ([]byte, int32, error) {
+	trans, err := newPipeTranscoder()
 	if err != nil {
-		logx.Errorf("InitializeEmptyTranscoder - error: %v")
-		return
+		return nil, 0, err
 	}
 
-	// ffmpeg -i safe_image.gif -f mp4 -movflags +faststart -pix_fmt yuv420p -vf scale=320:-1 -c:v libx264 -strict experimental -b:v 218k -bufsize 218k safe_image.gif.mp4
-	trans.MediaFile().SetInputPath(gifPath)
-
+	trans.MediaFile().SetInputPath(path)
 	trans.MediaFile().SetOutputFormat("mp4")
-	// trans.MediaFile().SetMovFlags("+faststart")
-	trans.MediaFile().SetPixFmt("yuv420p")
-	trans.MediaFile().SetVideoFilter(fmt.Sprintf("scale=%d:%d", dstW, dstH))
-	trans.MediaFile().SetVideoCodec("libx264")
-	trans.MediaFile().SetStrict(-2)
-	// trans.MediaFile().SetVideoBitRate("218k")
-	// trans.MediaFile().SetBufferSize(218)
-	// trans.MediaFile().SetFrameRate(30)
+	setup(trans.MediaFile())
 
 	r, err := trans.CreateOutputPipe("mp4")
+	if err != nil {
+		logx.Errorf("createOutputPipe error: %v", err)
+		return nil, 0, err
+	}
+	output := readAllAsync(r)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer r.Close()
-		defer wg.Done()
-
-		// Read data from output pipe
-		bytes, err = ioutil.ReadAll(r)
-		// Handle error and data...
-		if err != nil {
-			logx.Errorf("readPipe error: %v", err)
-			return
-		}
-	}()
-
-	// Start transcoder process without checking progress
 	done := trans.Run(true)
 
-	// Returns a channel to get the transcoding progress
-	progress := trans.Output()
-	// Example of printing transcoding progress
-	for msg := range progress {
+	var duration int32
+	for msg := range trans.Output() {
 		duration = int32(math.Round(utils.DurToSec(msg.CurrentTime)))
-		fmt.Println(msg)
 	}
 
 	// This channel is used to wait for the transcoding process to end
-	err = <-done
-	// Handle error...
-	if err != nil {
+	if err = <-done; err != nil {
 		logx.Errorf("transcoding error: %v", err)
-		return
+		// The pipe is not closed when ffmpeg failed to start: unblock the reader.
+		_ = r.Close()
+		_, _ = output()
+		return nil, 0, err
 	}
 
-	wg.Wait()
-
-	return
+	data, err := output()
+	if err != nil {
+		logx.Errorf("readPipe error: %v", err)
+		return nil, 0, err
+	}
+	return data, duration, nil
 }
 
-// GetFirstFrame
-// cmd := exec.Command("ffmpeg", "-i", filename, "-vframes", "1", "-s", fmt.Sprintf("%dx%d", width, height), "-f", "singlejpeg", "-")
-func (trans *FFmpegUtil) GetFirstFrame(iFilePath string) (bytes []byte, err error) {
-	// Create new instance of transcoder
-	// trans := new(transcoder.Transcoder)
+func (u *FFmpegUtil) ConvertToMp4ByPipe(gifPath string, dstW, dstH int) (bytes []byte, duration int32, err error) {
+	// ffmpeg -i safe_image.gif -f mp4 -movflags +faststart -pix_fmt yuv420p -vf scale=320:-1 -c:v libx264 -strict experimental -b:v 218k -bufsize 218k safe_image.gif.mp4
+	return convertToMp4ByPipe(gifPath, func(mf *models.Mediafile) {
+		// mf.SetMovFlags("+faststart")
+		mf.SetPixFmt("yuv420p")
+		mf.SetVideoFilter(fmt.Sprintf("scale=%d:%d", dstW, dstH))
+		mf.SetVideoCodec("libx264")
+		mf.SetStrict(-2)
+		// mf.SetVideoBitRate("218k")
+		// mf.SetBufferSize(218)
+		// mf.SetFrameRate(30)
+	})
+}
 
-	// Initialize transcoder passing the input file path and output file path
-	err = trans.InitializeEmptyTranscoder()
-	if err != nil {
-		logx.Errorf("InitializeEmptyTranscoder - error: %v", err)
-		return
-	}
-
-	trans.MediaFile().SetInputPath(iFilePath)
-
+// getFirstFrame runs a prepared transcoder that outputs the first video frame
+// as a JPEG image through a pipe; feed, when set, writes the input.
+func getFirstFrame(trans *transcoder.Transcoder, feed func()) ([]byte, error) {
 	trans.MediaFile().SetOutputFormat("image2")
 	trans.MediaFile().SetVframes(1)
 
 	r, err := trans.CreateOutputPipe("image2")
 	if err != nil {
 		logx.Errorf("createOutputPipe error: %v", err)
-		return
+		return nil, err
+	}
+	output := readAllAsync(r)
+	if feed != nil {
+		feed()
 	}
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer r.Close()
-		defer wg.Done()
-
-		// Read data from output pipe
-		bytes, err = ioutil.ReadAll(r)
-		// log.Debugf("data: %d", data)
-		// Handle error and data...
-		if err != nil {
-			if errors.Is(err, io.ErrClosedPipe) {
-				//
-			} else {
-				logx.Errorf("readPipe error: %v", err)
-			}
-		}
-	}()
-
-	// Start transcoder process without checking progress
-	done := trans.Run(true)
+	// No progress is consumed: run without a stderr pipe.
+	done := trans.Run(false)
 
 	// This channel is used to wait for the transcoding process to end
-	err = <-done
-	// Handle error...
-	if err != nil {
-		if errors.Is(err, io.ErrClosedPipe) {
-			//
-		} else {
-			logx.Errorf("getFirstFrameByPipe error: %v", err)
-			return
-		}
+	if err = <-done; err != nil {
+		logx.Errorf("getFirstFrame error: %v", err)
+		_ = r.Close()
+		_, _ = output()
+		return nil, err
 	}
 
-	wg.Wait()
-
-	err = nil
-	return
+	data, err := output()
+	if err != nil && !errors.Is(err, io.ErrClosedPipe) {
+		logx.Errorf("readPipe error: %v", err)
+		return nil, err
+	}
+	return data, nil
 }
 
-func (trans *FFmpegUtil) GetFirstFrameByPipe(iPipeData []byte) (bytes []byte, err error) {
-	// Create new instance of transcoder
-	// trans := new(transcoder.Transcoder)
-
-	// Initialize transcoder passing the input file path and output file path
-	err = trans.InitializeEmptyTranscoder()
+// GetFirstFrame
+// cmd := exec.Command("ffmpeg", "-i", filename, "-vframes", "1", "-s", fmt.Sprintf("%dx%d", width, height), "-f", "singlejpeg", "-")
+func (u *FFmpegUtil) GetFirstFrame(iFilePath string) (bytes []byte, err error) {
+	trans, err := newPipeTranscoder()
 	if err != nil {
-		logx.Errorf("InitializeEmptyTranscoder - error: %v")
-		return
+		return nil, err
 	}
+	trans.MediaFile().SetInputPath(iFilePath)
 
-	trans.MediaFile().SetOutputFormat("image2")
-	trans.MediaFile().SetVframes(1)
+	return getFirstFrame(trans, nil)
+}
+
+// GetFirstFrameByPipe
+// cmd := exec.Command("ffmpeg", "-i", filename, "-vframes", "1", "-s", fmt.Sprintf("%dx%d", width, height), "-f", "singlejpeg", "-")
+func (u *FFmpegUtil) GetFirstFrameByPipe(iPipeData []byte) (bytes []byte, err error) {
+	trans, err := newPipeTranscoder()
+	if err != nil {
+		return nil, err
+	}
 
 	// Create an input pipe to write to, which will return *io.PipeWriter
 	w, err := trans.CreateInputPipe()
 	if err != nil {
 		logx.Errorf("createInputPipe error: %v", err)
-		return
-	}
-	// log.Println(err)
-
-	r, err := trans.CreateOutputPipe("image2")
-	if err != nil {
-		logx.Errorf("createOutputPipe error: %v", err)
-		return
-	}
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer r.Close()
-		defer wg.Done()
-
-		// Read data from output pipe
-		bytes, err = ioutil.ReadAll(r)
-		// log.Debugf("data: %d", data)
-		// Handle error and data...
-		if err != nil {
-			if errors.Is(err, io.ErrClosedPipe) {
-				//
-			} else {
-				logx.Errorf("readPipe error: %v", err)
-			}
-		}
-	}()
-
-	go func() {
-		var (
-			n int
-		)
-
-		defer w.Close()
-		n, err = w.Write(iPipeData)
-		_ = n
-		// log.Debugf("data: %d", data)
-		if err != nil {
-			if errors.Is(err, io.ErrClosedPipe) {
-				//
-			} else {
-				logx.Errorf("writePipe error: %v", err)
-				return
-			}
-		}
-
-	}()
-
-	// Start transcoder process without checking progress
-	done := trans.Run(true)
-
-	// This channel is used to wait for the transcoding process to end
-	err = <-done
-	// Handle error...
-	if err != nil {
-		if errors.Is(err, io.ErrClosedPipe) {
-			//
-		} else {
-			logx.Errorf("getFirstFrameByPipe error: %v", err)
-			return
-		}
-	}
-
-	wg.Wait()
-
-	err = nil
-	return
-}
-
-func (trans *FFmpegUtil) GetMetadataByPipe(iPipeData []byte) (*models.Metadata, error) {
-	// Create new instance of transcoder
-	// trans := new(transcoder.Transcoder)
-	if err := trans.Transcoder.GetMetadataByPipe(bytes.NewBuffer(iPipeData)); err != nil {
 		return nil, err
 	}
-	// fmt.Println(trans.MediaFile().Metadata())
+
+	return getFirstFrame(trans, func() {
+		go func() {
+			defer w.Close()
+			// ffmpeg stops reading once it has the first frame and the
+			// transcoder then closes the pipe: ErrClosedPipe is expected.
+			if _, err := w.Write(iPipeData); err != nil && !errors.Is(err, io.ErrClosedPipe) {
+				logx.Errorf("writePipe error: %v", err)
+			}
+		}()
+	})
+}
+
+func (u *FFmpegUtil) GetMetadataByPipe(iPipeData []byte) (*models.Metadata, error) {
+	trans := new(transcoder.Transcoder)
+	if err := trans.GetMetadataByPipe(bytes.NewReader(iPipeData)); err != nil {
+		return nil, err
+	}
 	return trans.MediaFile().GetMetadata(), nil
 }
 
-func (trans *FFmpegUtil) GetMetadata(iFilePath string) (*models.Metadata, error) {
-	// Create new instance of transcoder
-	// trans := new(transcoder.Transcoder)
-	if err := trans.Transcoder.GetMetadata(iFilePath); err != nil {
+func (u *FFmpegUtil) GetMetadata(iFilePath string) (*models.Metadata, error) {
+	trans := new(transcoder.Transcoder)
+	if err := trans.GetMetadata(iFilePath); err != nil {
 		return nil, err
 	}
-	// fmt.Println(trans.MediaFile().Metadata())
 	return trans.MediaFile().GetMetadata(), nil
 }
 
@@ -371,91 +299,15 @@ func GetWidthHeight(md *models.Metadata) (w, h int) {
 	return
 }
 
-func (trans *FFmpegUtil) GetDuration() int {
-	return int(math.Round(utils.DurToSec(trans.MediaFile().Metadata().Format.Duration)))
-}
-
-func (trans *FFmpegUtil) GetWidth() int {
-	streams := trans.MediaFile().Metadata().Streams
-	for i := 0; i < len(streams); i++ {
-		if streams[i].CodecType == "video" {
-			return streams[i].Width
-		}
-	}
-	return 0
-}
-
-func (trans *FFmpegUtil) GetHeight() int {
-	streams := trans.MediaFile().Metadata().Streams
-	for i := 0; i < len(streams); i++ {
-		if streams[i].CodecType == "video" {
-			return streams[i].Height
-		}
-	}
-	return 0
-}
-
-func (trans *FFmpegUtil) ConvertPngToMp4ByPipe(filePath string, dstW, dstH int) (bytes []byte, duration int32, err error) {
-	// Create new instance of transcoder
-	// trans := new(transcoder.Transcoder)
-
-	// Initialize transcoder passing the input file path and output file path
-	err = trans.InitializeEmptyTranscoder()
-	if err != nil {
-		logx.Errorf("InitializeEmptyTranscoder - error: %v")
-		return
-	}
-
-	// ffmpeg -i safe_image.gif -f mp4 -movflags +faststart -pix_fmt yuv420p -vf scale=320:-1 -c:v libx264 -strict experimental -b:v 218k -bufsize 218k safe_image.gif.mp4
-	trans.MediaFile().SetInputPath(filePath)
-
-	trans.MediaFile().SetOutputFormat("mp4")
-	// trans.MediaFile().SetMovFlags("+faststart")
-	trans.MediaFile().SetPixFmt("yuva420p")
-	// trans.MediaFile().SetVideoFilter(fmt.Sprintf("scale=%d:%d", dstW, dstH))
-	trans.MediaFile().SetVideoCodec("libx264")
-	// trans.MediaFile().SetStrict(-2)
-	// trans.MediaFile().SetVideoBitRate("218k")
-	// trans.MediaFile().SetBufferSize(218)
-	trans.MediaFile().SetFrameRate(30)
-
-	r, err := trans.CreateOutputPipe("mp4")
-
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer r.Close()
-		defer wg.Done()
-
-		// Read data from output pipe
-		bytes, err = ioutil.ReadAll(r)
-		// Handle error and data...
-		if err != nil {
-			logx.Errorf("readPipe error: %v", err)
-			return
-		}
-	}()
-
-	// Start transcoder process without checking progress
-	done := trans.Run(true)
-
-	// Returns a channel to get the transcoding progress
-	progress := trans.Output()
-	// Example of printing transcoding progress
-	for msg := range progress {
-		duration = int32(math.Round(utils.DurToSec(msg.CurrentTime)))
-		fmt.Println(msg)
-	}
-
-	// This channel is used to wait for the transcoding process to end
-	err = <-done
-	// Handle error...
-	if err != nil {
-		logx.Errorf("transcoding error: %v", err)
-		return
-	}
-
-	wg.Wait()
-
-	return
+func (u *FFmpegUtil) ConvertPngToMp4ByPipe(filePath string, dstW, dstH int) (bytes []byte, duration int32, err error) {
+	return convertToMp4ByPipe(filePath, func(mf *models.Mediafile) {
+		// mf.SetMovFlags("+faststart")
+		mf.SetPixFmt("yuva420p")
+		// mf.SetVideoFilter(fmt.Sprintf("scale=%d:%d", dstW, dstH))
+		mf.SetVideoCodec("libx264")
+		// mf.SetStrict(-2)
+		// mf.SetVideoBitRate("218k")
+		// mf.SetBufferSize(218)
+		mf.SetFrameRate(30)
+	})
 }

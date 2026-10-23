@@ -1,0 +1,103 @@
+# golangci-lint v2 configuration. The version is pinned in the Makefile
+# (GOLANGCI_LINT_VERSION) and used by both `make lint` and CI; see
+# docs/ops/testing.md.
+#
+# The upstream code base (before 708fb953) was never linted: reporting it all
+# would bury real findings, so only code changed since the upstream base is
+# checked (issues.new-from-rev); new files are checked in full. The vendored
+# third_party/teamgram-proto module is linted from its own base (the
+# unmodified vendored copy), see `make lint`.
+version: "2"
+
+run:
+  timeout: 15m
+  tests: true
+  # The integration (testcontainers) and end-to-end tests are linted too.
+  build-tags:
+    - integration
+    - e2e
+
+linters:
+  default: none
+  enable:
+    # Correctness.
+    - govet         # go vet analyzers (printf, lostcancel, copylocks, ...)
+    - staticcheck   # includes the former gosimple and stylecheck
+    - errcheck      # unchecked errors (see the std-error-handling preset below)
+    - ineffassign
+    - unused
+    - nilerr        # returning nil while an error is in scope
+    - durationcheck # time.Duration multiplied by time.Duration
+    # Resources.
+    - bodyclose     # unclosed HTTP response bodies
+    - rowserrcheck  # sql.Rows.Err not checked
+    - sqlclosecheck # sql.Rows/Stmt not closed
+    # Security: the server talks to untrusted clients.
+    - gosec
+    - bidichk       # invisible bidirectional Unicode in the source
+    # Hygiene.
+    - misspell      # no locale: only real typos, British and American both fine
+    - nolintlint    # every //nolint names its linter and says why
+
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # struct layout: noise for this code base
+        - shadow         # `err` shadowing is idiomatic here
+    staticcheck:
+      checks:
+        - all
+        # Defaults of golangci-lint: doc-comment and naming style.
+        - -ST1000
+        - -ST1003
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+        # c.Logger.Debugf(...) through the embedded logx.Logger is the house
+        # style of every handler (mtprotoc templates).
+        - -QF1008
+    gosec:
+      excludes:
+        # G104 duplicates errcheck.
+        - G104
+        # MTProto fields are int32/uint32 everywhere: integer conversions are
+        # checked where values come from clients, flagging every one is noise.
+        - G115
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+  exclusions:
+    # Generated code (protobuf, mtprotoc codecs) is not ours to fix.
+    generated: lax
+    presets:
+      # Unchecked Close/Flush/Print* and similar (errcheck), the usual
+      # false positives of gosec on files/commands.
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # Tests may use fixed paths and weak randomness and ignore errors of
+      # helpers.
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+    paths:
+      # mtprotoc output (codec_schema.tl.pb.go, schema.tl.*.pb.go) does not
+      # always carry the standard "Code generated" header.
+      - \.tl\.pb\.go$
+      - \.tl\..*\.pb\.go$
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+
+issues:
+  # The upstream base (teamgram-server before our changes).
+  new-from-rev: 708fb953
+  max-issues-per-linter: 0
+  max-same-issues: 0
