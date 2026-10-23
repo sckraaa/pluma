@@ -18,8 +18,9 @@
 #   E2E_PROJECT  compose project name (default pluma-e2e)
 #   E2E_KEEP=1   `all` leaves the stack running after the tests
 #   E2E_GOTEST_FLAGS  extra flags for go test (e.g. -run TestX)
-#   E2E_GATEWAY_PORT  the host port of the gateway on 127.0.0.1 (default: an
-#                ephemeral one)
+#   E2E_GATEWAY_PORT  the host port of the gateway's TCP transport on
+#                127.0.0.1 (default: an ephemeral one)
+#   E2E_GATEWAY_WS_PORT  the same for its WebSocket transport
 #   E2E_SERVER_KEY    a server private key to use instead of a new one, e.g.
 #                the development key of the client repositories: their
 #                development builds can then sign in to the stand
