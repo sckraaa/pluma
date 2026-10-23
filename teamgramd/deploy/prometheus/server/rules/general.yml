@@ -1,0 +1,78 @@
+# Host and service alerts (ADR 0013). Delivery alerts are in delivery.yml.
+groups:
+  - name: general
+    rules:
+      # Always firing: Alertmanager pings the external dead man's switch with
+      # it every minute. When the pings stop (host, Prometheus or
+      # Alertmanager down), healthchecks.io pushes to the phone itself.
+      - alert: Watchdog
+        expr: vector(1)
+        labels: {severity: none}
+        annotations:
+          summary: "Heartbeat of the alerting pipeline"
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.job }} does not answer"
+          description: "docker compose ps; docker compose logs --tail=200 <service>. docs/ops/monitoring.md"
+
+      - alert: ServiceRestarting
+        expr: changes(process_start_time_seconds[15m]) > 2
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.job }} restarted {{ $value }} times in 15 minutes"
+          description: "A restart loop: the reason is in its log."
+
+      - alert: RPCServerErrors
+        expr: |
+          sum by (job) (rate(rpc_server_requests_code_total{code=~"2|4|13|14|500"}[10m]))
+            / sum by (job) (rate(rpc_server_requests_code_total[10m])) > 0.05
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.job }}: {{ $value | humanizePercentage }} of RPCs fail with server errors"
+
+      - alert: DiskSpaceLow
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|iso9660|virtiofs|nfs.*|fuse.*"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|iso9660|virtiofs|nfs.*|fuse.*"} < 0.15
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.mountpoint }}: {{ $value | humanizePercentage }} free"
+
+      - alert: DiskSpaceCritical
+        expr: |
+          node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs|iso9660|virtiofs|nfs.*|fuse.*"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs|iso9660|virtiofs|nfs.*|fuse.*"} < 0.05
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.mountpoint }}: {{ $value | humanizePercentage }} free"
+          description: "MySQL and Kafka stop when the disk is full. docs/ops/monitoring.md"
+
+      - alert: MemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of memory available"
+
+      - alert: BackupMissing
+        expr: time() - backup_last_success_timestamp_seconds > 26 * 3600 or absent(backup_last_success_timestamp_seconds)
+        for: 30m
+        labels: {severity: critical}
+        annotations:
+          summary: "No successful backup for over 26 hours"
+          description: "docker compose logs backup. docs/ops/backup.md"
+
+      - alert: RestoreCheckFailed
+        expr: time() - backup_last_restore_check_timestamp_seconds > 8 * 24 * 3600 or absent(backup_last_restore_check_timestamp_seconds)
+        for: 30m
+        labels: {severity: critical}
+        annotations:
+          summary: "The weekly restore check has not passed for over 8 days"
+          description: "A backup that does not restore is not a backup. docs/ops/backup.md"

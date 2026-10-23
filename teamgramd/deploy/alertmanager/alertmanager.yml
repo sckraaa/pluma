@@ -1,13 +1,42 @@
-# 最小 Alertmanager 配置，用于 docker-compose-env2
+# Alert delivery (ADR 0013). Alerts become pushes on the operator's phone
+# through ntfy (alertpush bridge); the always-firing Watchdog alert pings an
+# external dead man's switch (healthchecks.io), which pushes on its own when
+# the pings stop: a dead server cannot report itself.
 global:
   resolve_timeout: 5m
 
 route:
-  group_by: ['alertname']
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 12h
-  receiver: 'null'
+  receiver: phone
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - receiver: dead-mans-switch
+      matchers: [alertname = Watchdog]
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+    - receiver: phone
+      matchers: [severity = critical]
+      repeat_interval: 1h
+
+# A critical alert of a component hides the warnings it causes.
+inhibit_rules:
+  - source_matchers: [alertname = DeliveryKafkaDown]
+    target_matchers: [alertname =~ "DeliveryLag|DeliveryOutboxBacklog|DeliveryConsumerSlow|DeliveryTopicNotReady"]
+  - source_matchers: [alertname = ServiceDown]
+    target_matchers: [alertname =~ "Delivery.*"]
 
 receivers:
-  - name: 'null'
+  - name: phone
+    webhook_configs:
+      - url: http://alertpush:9097/alertmanager
+        send_resolved: true
+        max_alerts: 20
+  - name: dead-mans-switch
+    webhook_configs:
+      # The ping URL of the healthchecks.io check (HEALTHCHECKS_PING_URL in
+      # .env, mounted as a compose secret).
+      - url_file: /run/secrets/healthchecks_ping_url
+        send_resolved: false

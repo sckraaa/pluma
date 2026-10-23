@@ -34,22 +34,20 @@ services:
   mysql:
     container_name: !reset null
     ports: !reset []
-    # The schema is applied from teamgramd/deploy/sql on the first start, as in
-    # production; the data lives in memory.
-    volumes: !override
-      - ./teamgramd/deploy/sql:/docker-entrypoint-initdb.d/:ro
+    # The schema is applied by the migrate service, as in production; the
+    # data lives in memory.
+    volumes: !reset []
     tmpfs:
       - /var/lib/mysql
     restart: "no"
 
-  minio:
+  garage:
     container_name: !reset null
     ports: !reset []
-    volumes: !reset []
-    restart: "no"
-
-  minio-mc:
-    container_name: !reset null
+    # A volume of the test project, shared with the backup service.
+    volumes: !override
+      - ./teamgramd/deploy/garage/garage.toml:/etc/garage.toml:ro
+      - garage_e2e:/var/lib/garage
     restart: "no"
 
   jaeger:
@@ -76,8 +74,6 @@ services:
         condition: service_completed_successfully
       etcd:
         condition: service_healthy
-      minio-mc:
-        condition: service_completed_successfully
       jaeger:
         condition: service_started
   status: *needs-infra
@@ -88,6 +84,20 @@ services:
     # An ephemeral port on the loopback interface; run.sh asks Docker for it.
     ports: !override
       - "127.0.0.1::10443"
+
+  backup:
+    container_name: !reset null
+    volumes: !override
+      - garage_e2e:/data/files:ro
+      - ${SERVER_RSA_KEY_FILE}:/data/secrets/server_pkcs1.key:ro
+      - node_textfile:/textfile
+      # The restic repository is a local volume in the tests.
+      - restic_e2e:/repo
+    restart: "no"
+
+volumes:
+  garage_e2e:
+  restic_e2e:
 
 networks:
   teamgram_net:

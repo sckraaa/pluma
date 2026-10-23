@@ -35,7 +35,7 @@ LOG_DIR=$E2E_DIR/logs
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync bff session gnetway)
-SERVICES=(mysql redis kafka kafka-init etcd minio minio-mc jaeger "${TEAMGRAM_SERVICES[@]}")
+SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick).
@@ -87,10 +87,19 @@ gen_secrets() {
 MYSQL_ROOT_PASSWORD=$(secret 24)
 MYSQL_PASSWORD=$(secret 24)
 REDIS_PASSWORD=$(secret 24)
-MINIO_ROOT_USER=e2e$(secret 4)
-MINIO_ROOT_PASSWORD=$(secret 24)
+S3_ACCESS_KEY_ID=GK$(secret 12)
+S3_SECRET_ACCESS_KEY=$(secret 32)
+GARAGE_RPC_SECRET=$(secret 32)
+GARAGE_ADMIN_TOKEN=$(secret 32)
 GRAFANA_ADMIN_PASSWORD=$(secret 24)
 LOGIN_CODE_HMAC_KEY=$(secret 32)
+NTFY_TOPIC=$(secret 16)
+NTFY_URL=http://127.0.0.1:9
+HEALTHCHECKS_PING_URL=http://127.0.0.1:9/ping
+RESTIC_REPOSITORY=/repo
+RESTIC_PASSWORD=$(secret 24)
+BACKUP_S3_ACCESS_KEY_ID=unused
+BACKUP_S3_SECRET_ACCESS_KEY=unused
 SERVER_RSA_KEY_FILE=$KEY_FILE
 SERVER_RSA_KEY_FINGERPRINT=$fp
 EOF
@@ -184,7 +193,7 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" pluma-backup:local >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs

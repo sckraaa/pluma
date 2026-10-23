@@ -128,6 +128,10 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] outbox list [-state pending|published|dead|parked] [-user <id>] [-limit <n>]
   pluma-admin [-f bff.yaml] outbox replay -user <id>
   pluma-admin [-f bff.yaml] outbox discard -id <event id>
+  pluma-admin [-f bff.yaml] migrate up [-dir <sql dir>] [-wait <duration>]
+  pluma-admin [-f bff.yaml] migrate status [-dir <sql dir>]
+  pluma-admin [-f bff.yaml] migrate baseline -through <file> [-dir <sql dir>]
+  pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
 
 Phones are international numbers, e.g. +79991234567.
 state-raise and state-export-legacy run only while msg and biz are stopped.
@@ -172,6 +176,10 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return boxCommand(args, configFile, stdout)
 	case "outbox":
 		return outboxCommand(args, configFile, stdout)
+	case "migrate":
+		return migrateCommand(args, configFile, stdout)
+	case "storage":
+		return storageCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

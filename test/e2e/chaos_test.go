@@ -44,12 +44,21 @@ func stack(t *testing.T, args ...string) {
 	}
 }
 
-// restore starts what a test stopped and waits until the stack serves.
+// restore starts what a test stopped and waits until the stack serves. A
+// gateway that was stopped gets a new ephemeral host port: new clients use
+// the current one.
 func restore(t *testing.T) {
 	t.Helper()
 	out, err := exec.Command(runScript, "wait").CombinedOutput()
 	if err != nil {
 		t.Fatalf("restoring the stack: %v\n%s", err, out)
+	}
+	out, err = exec.Command(runScript, "compose", "port", "gnetway", "10443").Output()
+	if err != nil {
+		t.Fatalf("gateway port: %v", err)
+	}
+	if addr := strings.TrimSpace(string(out)); addr != "" {
+		gatewayAddr = addr
 	}
 }
 

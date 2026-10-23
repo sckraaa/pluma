@@ -46,6 +46,9 @@ type MinioConfig struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	UseSSL          bool
+	// Region of the S3 store; set, it saves a GetBucketLocation call per
+	// bucket (Garage: its s3_region).
+	Region string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 
 	Bucket BucketConfig
 }
@@ -61,6 +64,7 @@ func MustNewMinioClient(c *MinioConfig) *MinioUtil {
 		&minio.Options{
 			Creds:  credentials.NewStaticV4(c.AccessKeyID, c.SecretAccessKey, ""),
 			Secure: c.UseSSL,
+			Region: c.Region,
 		})
 	if err != nil {
 		logx.Must(err)

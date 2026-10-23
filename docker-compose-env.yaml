@@ -1,7 +1,7 @@
-# docker-compose-env2: 高性能组件栈（独立方案，不依赖 docker-compose-env.yaml）
-# 组件: jaeger, prometheus, grafana, elasticsearch, kibana,
-#       go-stash, filebeat, kafka, mysql, redis, etcd, minio, minio-mc, node-exporter
-# 启动: docker compose -f docker-compose-env2.yaml up -d
+# Infrastructure of Pluma: Kafka, MySQL, Redis, etcd, object storage, and the
+# observability stack (Prometheus, Alertmanager with phone pushes, Grafana,
+# Loki logs, Jaeger traces) plus scheduled backups. The services themselves
+# are in docker-compose.yaml; both files are one compose project.
 #
 # Security (docs/ops/security-setup.md): nothing here is published on public
 # interfaces. Services talk over teamgram_net; ports that are useful for local
@@ -103,7 +103,12 @@ services:
     environment:
       # Lets redis-cli (healthcheck, docker exec) authenticate.
       REDISCLI_AUTH: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
+    # Redis holds caches, sessions, login codes and their rate limits (MySQL
+    # is the source of truth, ADR 0005). With a memory limit and noeviction a
+    # full Redis refuses writes instead of silently dropping rate-limit
+    # counters; AOF keeps sessions over a restart.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "1gb", "--maxmemory-policy", "noeviction",
+              "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}"]
     volumes:
       - ./data/redis:/data
     restart: always
@@ -129,12 +134,15 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
+      # The schema is applied by the migrate service of docker-compose.yaml
+      # (pluma-admin migrate up), not by the image's init directory.
       - ./data/mysql:/var/lib/mysql
-      - ./teamgramd/deploy/sql:/docker-entrypoint-initdb.d/
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --default-authentication-plugin=mysql_native_password
+      # Above the sum of the services' pools (TestMySQLConnectionBudget).
+      - --max-connections=1000
     restart: always
     healthcheck:
       # Over TCP: on the first start the image runs the init scripts on a
@@ -153,45 +161,21 @@ services:
   # since 2026). pgsty/minio and pgsty/mc are community builds of the MinIO
   # community edition from source (https://github.com/pgsty/minio), drop-in
   # compatible with the old images. Pinned by tag and digest.
-  minio:
-    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z@sha256:b6bfe7239bfc83fb90d31612d9704d86039dd714f7904b3f1ad68f211e602372
-    container_name: minio
+  # Object store of dfs (ADR 0014). storage-init of docker-compose.yaml
+  # prepares it (node layout, the dfs key, buckets). The image has no shell:
+  # no health check here; storage-init waits for its admin API.
+  garage:
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
+    container_name: garage
+    environment:
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:?set GARAGE_RPC_SECRET in .env (openssl rand -hex 32)}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:?set GARAGE_ADMIN_TOKEN in .env (openssl rand -hex 32)}
     ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"  # console
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-    command: server /data --console-address ":9001"
+      - "127.0.0.1:3900:3900"  # S3 API for local administration
     volumes:
-      - ./data/minio:/data
-    restart: always
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - teamgram_net
-
-  # Creates the buckets dfs uses, once MinIO is up; exits when done.
-  minio-mc:
-    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z@sha256:cfc83108c3abb371f8fb84d99c1fdc88f8c237e022409b0081fb7c0a3be634dd
-    container_name: minio-mc
-    entrypoint: ["/bin/sh", "-ec"]
-    command:
-      - |
-        mc alias set myminio http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
-        mc mb myminio/documents --ignore-existing
-        mc mb myminio/encryptedfiles --ignore-existing
-        mc mb myminio/photos --ignore-existing
-        mc mb myminio/videos --ignore-existing
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
-    depends_on:
-      minio:
-        condition: service_healthy
+      - ./teamgramd/deploy/garage/garage.toml:/etc/garage.toml:ro
+      - ./data/garage:/var/lib/garage
+    restart: unless-stopped
     networks:
       - teamgram_net
 
@@ -200,155 +184,181 @@ services:
   jaeger:
     image: jaegertracing/all-in-one:1.63.0@sha256:fd5697c37ba041a91cfca1d62621d32cdeb2041c0febc2f1579e5bac6f21e34b
     container_name: jaeger
-    restart: always
+    restart: unless-stopped
     # Services send traces over teamgram_net (jaeger:4317); agent ports are not published.
     ports:
       - "127.0.0.1:16686:16686"  # UI
       - "127.0.0.1:14268:14268"  # collector for services run on the host (teamgramd/etc)
+    # Traces are a debugging aid: kept in memory, the newest 50000.
     environment:
-      - SPAN_STORAGE_TYPE=elasticsearch
-      - ES_SERVER_URLS=http://elasticsearch:9200
-      - LOG_LEVEL=debug
-    depends_on:
-      - elasticsearch
+      - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=50000
     networks:
       - teamgram_net
 
-  # --- 可观测：指标 ---
+  # --- Observability (ADR 0013) ---
   node-exporter:
-    image: prom/node-exporter:v1.7.0
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
     container_name: node-exporter
-    # Scraped by prometheus over teamgram_net; not published.
+    # Scraped by prometheus over teamgram_net; not published. The textfile
+    # collector exports the backup metrics written by the backup service.
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - node_textfile:/textfile:ro
     command:
       - --path.procfs=/host/proc
       - --path.sysfs=/host/sys
       - --path.rootfs=/rootfs
       - --collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)
-    restart: always
+      - --collector.textfile.directory=/textfile
+    restart: unless-stopped
     networks:
       - teamgram_net
 
-  #prometheus监控 — Prometheus for monitoring
   prometheus:
-    image: prom/prometheus:v2.28.1
+    image: prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
     container_name: prometheus
-    environment:
-      # 时区上海 - Time zone Shanghai (Change if needed)
-      TZ: Asia/Shanghai
     volumes:
       - ./teamgramd/deploy/prometheus/server/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./teamgramd/deploy/prometheus/server/rules:/etc/prometheus/rules:ro
-      - ./data/prometheus/data:/prometheus
+      - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    restart: always
-    user: root
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+    restart: unless-stopped
     ports:
       - "127.0.0.1:9090:9090"
     networks:
       - teamgram_net
 
-  #查看prometheus监控数据 - Grafana to view Prometheus monitoring data
-  grafana:
-    image: grafana/grafana:8.0.6
-    container_name: grafana
-    hostname: grafana
-    user: root
+  alertmanager:
+    image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
+    container_name: alertmanager
+    volumes:
+      - ./teamgramd/deploy/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    secrets:
+      - healthchecks_ping_url
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks:
+      - teamgram_net
+
+  # Alertmanager -> ntfy pushes on the operator's phone (app/ops/alertpush).
+  alertpush:
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/alertpush/Dockerfile
+    image: pluma-alertpush:local
+    container_name: alertpush
     environment:
-      TZ: Asia/Shanghai
-      # 首次启动时生效；若已有数据卷则需在容器内用 grafana-cli 重置 - Only used on first run; reset via grafana-cli if volume exists
+      NTFY_TOPIC: ${NTFY_TOPIC:?set NTFY_TOPIC in .env (openssl rand -hex 16)}
+      NTFY_URL: ${NTFY_URL:-https://ntfy.sh}
+      NTFY_TOKEN: ${NTFY_TOKEN:-}
+    restart: unless-stopped
+    networks:
+      - teamgram_net
+
+  grafana:
+    image: grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f
+    container_name: grafana
+    environment:
+      # Applied on the first start; afterwards change it in Grafana.
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
-    restart: always
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
     volumes:
-      - ./data/grafana/data:/var/lib/grafana
+      - ./teamgramd/deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./teamgramd/deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
     ports:
       - "127.0.0.1:3001:3000"
     networks:
       - teamgram_net
 
-  # --- 日志与搜索 ---
-  elasticsearch:
-    container_name: elasticsearch
-    image: elasticsearch:8.12.2
-    restart: always
+  # Daily encrypted backups to S3 outside the server and a weekly restore
+  # check (teamgramd/deploy/backup/backup.sh, docs/ops/backup.md).
+  backup:
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/backup/Dockerfile
+    image: pluma-backup:local
+    container_name: backup
     environment:
-      - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
-      - "TZ=Asia/Shanghai"
-      - "discovery.type=single-node"
-      - "xpack.security.enabled=false"
-    # xpack security is off (no authentication): local access only.
-    ports:
-      - "127.0.0.1:9200:9200"
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:?set RESTIC_REPOSITORY in .env (s3:https://<endpoint>/<bucket>)}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?set RESTIC_PASSWORD in .env and keep a copy off the server}
+      AWS_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:?set BACKUP_S3_ACCESS_KEY_ID in .env}
+      AWS_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:?set BACKUP_S3_SECRET_ACCESS_KEY in .env}
+      AWS_DEFAULT_REGION: ${BACKUP_S3_REGION:-auto}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      BACKUP_AT: ${BACKUP_AT:-03:30}
+      # Garage's live metadata database is not copied: its hourly snapshot is.
+      FILES_EXCLUDE: /data/files/meta/db.*
     volumes:
-      # Named volumes avoid bind-mount permission errors (node.lock AccessDeniedException
-      # when ./data/es/* is root-owned from sudo compose).
-      - elasticsearch_data:/usr/share/elasticsearch/data
-      - elasticsearch_plugins:/usr/share/elasticsearch/plugins
+      - ./data/garage:/data/files:ro
+      - ${SERVER_RSA_KEY_FILE:-./secrets/server_pkcs1.key}:/data/secrets/server_pkcs1.key:ro
+      # The whole .env: after losing the server, Garage's restored metadata
+      # needs the same S3 key and the services the same secrets.
+      - ./.env:/data/secrets/env:ro
+      - node_textfile:/textfile
+    depends_on:
+      - mysql
+    restart: unless-stopped
     networks:
       - teamgram_net
 
-  kibana:
-    container_name: kibana
-    image: kibana:8.12.2
-    restart: always
-    environment:
-      - "TZ=Asia/Shanghai"
-      - "I18N_LOCALE=zh-CN"
-      - "ELASTICSEARCH_HOSTS=http://elasticsearch:9200"
-      - "XPACK_SECURITY_ENABLED=false"
-    ports:
-      - "127.0.0.1:5601:5601"
-    networks:
-      - teamgram_net
-    depends_on:
-      - elasticsearch
-
-  filebeat:
-    image: elastic/filebeat:8.12.2
-    container_name: filebeat
-    environment:
-      # 时区上海 - Time zone Shanghai (Change if needed)
-      TZ: Asia/Shanghai
-    user: root
-    restart: always
-    entrypoint: "filebeat -e -strict.perms=false"  #解决配置文件权限问题 - Solving the configuration file permissions
+  # Logs: Alloy reads the containers' stdout through the Docker API and
+  # sends it to Loki (14 days). The services log JSON without keys, codes or
+  # message text (tools/logaudit).
+  loki:
+    image: grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
+    container_name: loki
+    command: ["-config.file=/etc/loki/loki.yaml"]
     volumes:
-      - ./teamgramd/deploy/filebeat/conf/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      # 此处需指定docker的containers目录，取决于你docker的配置 - The containers directory of docker needs to be specified here, depending on your docker configuration
-      # 如snap安装的docker，则为/var/snap/docker/common/var-lib-docker/containers - Example if docker is installed by Snap /var/snap/docker/common/var-lib-docker/containers
-      # - /var/snap/docker/common/var-lib-docker/containers:/var/lib/docker/containers
-      - /var/lib/docker/containers:/var/lib/docker/containers
+      - ./teamgramd/deploy/loki/loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+    restart: unless-stopped
     networks:
       - teamgram_net
-    depends_on:
-      - kafka
 
-  #消费kafka中filebeat收集的数据输出到es - The data output collected by FileBeat in Kafka is output to ES
-  go-stash:
-    image: kevinwan/go-stash:1.1.1
-    container_name: go-stash
-    environment:
-      # 时区上海 - Time zone Shanghai (Change if needed)
-      TZ: Asia/Shanghai
-    restart: always
+  alloy:
+    image: grafana/alloy:v1.21.2@sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18
+    container_name: alloy
+    command: ["run", "--storage.path=/var/lib/alloy", "/etc/alloy/config.alloy"]
     volumes:
-      - ./teamgramd/deploy/go-stash/etc:/app/etc
+      - ./teamgramd/deploy/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # Read-only Docker API access to list containers and read their logs.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy
+    restart: unless-stopped
+    depends_on:
+      - loki
     networks:
       - teamgram_net
-    depends_on:
-      - elasticsearch
-      - kafka
 
 volumes:
   kafka_data:
-  elasticsearch_data:
-  elasticsearch_plugins:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
+  loki_data:
+  alloy_data:
+  node_textfile:
+
+secrets:
+  # The ping URL of the dead man's switch (healthchecks.io), used by
+  # Alertmanager's Watchdog route.
+  healthchecks_ping_url:
+    environment: HEALTHCHECKS_PING_URL
 
 networks:
   teamgram_net:
