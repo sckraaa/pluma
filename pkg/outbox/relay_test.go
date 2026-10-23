@@ -471,3 +471,22 @@ func TestRelayAutoReplay(t *testing.T) {
 		t.Errorf("replays %d", row.replays)
 	}
 }
+
+// TestTimersAfterTheBrokerIsGone: the topic check drops the connection when
+// the broker is gone; the redelivery and lag checks due in the same pass
+// must not use it (they did: a nil dereference crashed msg).
+func TestTimersAfterTheBrokerIsGone(t *testing.T) {
+	k := newFakeKafka()
+	r := testRelay(newFakeStore(), k)
+	if wait := r.connect(); wait != 0 || r.kafka == nil {
+		t.Fatalf("connect: wait %v, connected %v", wait, r.kafka != nil)
+	}
+	k.mu.Lock()
+	k.metaErr = errFake
+	k.mu.Unlock()
+	r.due = map[string]time.Time{} // every timer due
+	r.timers(context.Background(), true)
+	if r.kafka != nil {
+		t.Fatal("connection kept after the topic check failed")
+	}
+}
