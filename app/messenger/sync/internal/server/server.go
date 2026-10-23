@@ -25,7 +25,8 @@ var configFile = flag.String("f", "etc/sync.yaml", "the config file")
 
 type Server struct {
 	// grpcSrv *zrpc.RpcServer
-	mq *mqconsumer.Consumer
+	mq     *mqconsumer.Consumer
+	svcCtx *svc.ServiceContext
 }
 
 func New() *Server {
@@ -43,6 +44,7 @@ func (s *Server) Initialize() error {
 	}
 
 	ctx := svc.NewServiceContext(c)
+	s.svcCtx = ctx
 	// s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
 	s.mq = mq.New(ctx, c.SyncConsumer)
 
@@ -58,4 +60,5 @@ func (s *Server) RunLoop() {
 func (s *Server) Destroy() {
 	// s.grpcSrv.Stop()
 	s.mq.Stop()
+	s.svcCtx.Dao.Close()
 }

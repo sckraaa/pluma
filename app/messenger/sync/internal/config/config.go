@@ -27,21 +27,13 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 )
 
-// Routine routine.
-type Routine struct {
-	Size uint64
-	Chan uint64
-}
-
 type Config struct {
 	zrpc.RpcServerConf
-	Mysql            sqlx.Config
-	Cache            cache.CacheConf
-	KV               kv.KvConf
-	Routine          Routine
-	SyncConsumer     mqconsumer.Conf
-	SessionClient    zrpc.RpcClientConf
-	StatusClient     zrpc.RpcClientConf
-	ChatClient       zrpc.RpcClientConf
-	UseStreamSession bool `json:",default=false"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	Mysql         sqlx.Config
+	Cache         cache.CacheConf
+	KV            kv.KvConf
+	SyncConsumer  mqconsumer.Conf
+	SessionClient zrpc.RpcClientConf
+	StatusClient  zrpc.RpcClientConf
+	ChatClient    zrpc.RpcClientConf
 }

@@ -11,9 +11,6 @@ SyncConsumer:
   Topic: "Sync-T"
   Group: "Sync-MainCommunity-S"
 
-Routine:
-  Chan: 16
-  Size: 100
 
 Mysql:
   Addr: 127.0.0.1:3306

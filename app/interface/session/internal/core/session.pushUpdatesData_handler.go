@@ -29,9 +29,11 @@ func (c *SessionCore) SessionPushUpdatesData(in *session.TLSessionPushUpdatesDat
 	mainAuth, err := c.getOrFetchMainAuthWrapper(in.PermAuthKeyId)
 	if err != nil {
 		c.Logger.Errorf("session.pushUpdatesData - %v", err)
-		return nil, err
+		return nil, pushFetchError(err)
 	}
-	_ = mainAuth.SyncDataArrived(c.ctx, in.Notification, in.Updates)
+	if err := mainAuth.SyncDataArrived(c.ctx, in.Notification, in.Updates); err != nil {
+		return nil, pushArriveError(err)
+	}
 
 	return mtproto.BoolTrue, nil
 }

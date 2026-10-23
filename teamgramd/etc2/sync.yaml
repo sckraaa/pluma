@@ -28,9 +28,6 @@ SyncConsumer:
   Topic: "Sync-T"
   Group: "Sync-MainCommunity-S"
 
-Routine:
-  Chan: 16
-  Size: 100
 
 Mysql:
   DSN: "teamgram:${MYSQL_PASSWORD}@tcp(mysql:3306)/teamgram?charset=utf8mb4&parseTime=true"

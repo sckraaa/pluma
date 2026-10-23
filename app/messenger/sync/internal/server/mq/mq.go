@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/core"
+	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/svc"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/mqconsumer"
@@ -22,9 +23,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// The consumer of pushes (Sync-T): best effort. A push is done once it was
-// handed to the sessions of the user's devices; a push that is not
-// understood is skipped. A push that does not reach a device is caught up
+// The consumer of pushes (Sync-T): best effort. A push is done once every
+// target device got it, dropped it for good or was marked for resync; a push
+// that is not understood is skipped. A device that misses a push catches up
 // with updates.getDifference (ADR 0012, p. 7).
 
 const outcomePushed mqconsumer.Outcome = "pushed"
@@ -84,9 +85,15 @@ func (c *Consumer) Handle(ctx context.Context, m *mqconsumer.Message) (mqconsume
 		log.Errorf("sync: push %d/%d: decode %s: %v; skipped", m.Partition, m.Offset, method, err)
 		return mqconsumer.OutcomeSkipped, nil
 	}
+	// The offset is marked only when every device of this push is done
+	// (delivered, dropped for good or marked for resync): after a crash of
+	// sync unfinished pushes come again, and clients drop what they already
+	// applied by pts.
+	ctx, batch := dao.WithBatch(ctx, m.Timestamp)
 	if err := h.handle(core.New(ctx, c.svcCtx), in); err != nil {
 		log.Errorf("sync: push %d/%d %s: %v", m.Partition, m.Offset, method, err)
 	}
+	batch.Wait()
 	return outcomePushed, nil
 }
 
