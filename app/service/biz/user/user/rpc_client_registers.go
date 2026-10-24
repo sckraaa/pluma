@@ -67,8 +67,6 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLUserGetContact":                    RPCContextTuple{"/mtproto.RPCUser/user_getContact", func() interface{} { return new(mtproto.ContactData) }},
 	"TLUserAddContact":                    RPCContextTuple{"/mtproto.RPCUser/user_addContact", func() interface{} { return new(mtproto.Bool) }},
 	"TLUserCheckContact":                  RPCContextTuple{"/mtproto.RPCUser/user_checkContact", func() interface{} { return new(mtproto.Bool) }},
-	"TLUserGetImportersByPhone":           RPCContextTuple{"/mtproto.RPCUser/user_getImportersByPhone", func() interface{} { return new(Vector_InputContact) }},
-	"TLUserDeleteImportersByPhone":        RPCContextTuple{"/mtproto.RPCUser/user_deleteImportersByPhone", func() interface{} { return new(mtproto.Bool) }},
 	"TLUserImportContacts":                RPCContextTuple{"/mtproto.RPCUser/user_importContacts", func() interface{} { return new(UserImportedContacts) }},
 	"TLUserGetCountryCode":                RPCContextTuple{"/mtproto.RPCUser/user_getCountryCode", func() interface{} { return new(mtproto.String) }},
 	"TLUserUpdateAbout":                   RPCContextTuple{"/mtproto.RPCUser/user_updateAbout", func() interface{} { return new(mtproto.Bool) }},
@@ -124,6 +122,11 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLUserToggleUsername":                RPCContextTuple{"/mtproto.RPCUser/user_toggleUsername", func() interface{} { return new(mtproto.Bool) }},
 	"TLUserReorderUsernames":              RPCContextTuple{"/mtproto.RPCUser/user_reorderUsernames", func() interface{} { return new(mtproto.Bool) }},
 	"TLUserDeactivateAllChannelUsernames": RPCContextTuple{"/mtproto.RPCUser/user_deactivateAllChannelUsernames", func() interface{} { return new(mtproto.Bool) }},
+	"TLUserGetSavedContacts":              RPCContextTuple{"/mtproto.RPCUser/user_getSavedContacts", func() interface{} { return new(Vector_SavedContact) }},
+	"TLUserResetSavedContacts":            RPCContextTuple{"/mtproto.RPCUser/user_resetSavedContacts", func() interface{} { return new(mtproto.Bool) }},
+	"TLUserGetTopPeers":                   RPCContextTuple{"/mtproto.RPCUser/user_getTopPeers", func() interface{} { return new(mtproto.Contacts_TopPeers) }},
+	"TLUserToggleTopPeers":                RPCContextTuple{"/mtproto.RPCUser/user_toggleTopPeers", func() interface{} { return new(mtproto.Bool) }},
+	"TLUserResetTopPeerRating":            RPCContextTuple{"/mtproto.RPCUser/user_resetTopPeerRating", func() interface{} { return new(mtproto.Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

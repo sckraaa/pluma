@@ -42,14 +42,6 @@ var (
 	GenContactCacheKey = genContactCacheKey
 )
 
-type ContactItem struct {
-	C               *mtproto.InputContact
-	Unregistered    bool  // 未注册
-	UserId          int64 // 已经注册的用户ID
-	ContactId       int64 // 已经注册是我的联系人
-	ImportContactId int64 // 已经注册的反向联系人
-}
-
 func genContactCacheKey(selfId, contactId int64) string {
 	return fmt.Sprintf("%s%d_%d", contactKeyPrefix, selfId, contactId)
 }
@@ -163,14 +155,6 @@ func (d *Dao) PutUserContact(ctx context.Context, changeMutual bool, do *dataobj
 						}
 					}
 					_, _, result.Err = d.UserContactsDAO.InsertOrUpdateTx(tx, do)
-					if result.Err != nil {
-						return
-					}
-
-					// // TODO(@benqi): set addPhonePrivacyException
-					// if mtproto.FromBool(in.AddPhonePrivacyException) {
-					// 	//
-					// }
 				})
 
 			return 0, 0, tR.Err
@@ -178,6 +162,18 @@ func (d *Dao) PutUserContact(ctx context.Context, changeMutual bool, do *dataobj
 		keys...)
 
 	return err
+}
+
+// ContactCacheKeys are the cache entries a change of the contact rows of
+// the pair ownerId, contactId makes stale: the data of both users (their
+// contact lists) and both rows.
+func ContactCacheKeys(ownerId, contactId int64) []string {
+	return []string{
+		genCacheUserDataCacheKey(ownerId),
+		genCacheUserDataCacheKey(contactId),
+		genContactCacheKey(ownerId, contactId),
+		genContactCacheKey(contactId, ownerId),
+	}
 }
 
 func (d *Dao) ClearContactCaches(ctx context.Context, userId int64, contactId ...int64) {

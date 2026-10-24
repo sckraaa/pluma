@@ -36,6 +36,9 @@ func TestSchemaLoads(t *testing.T) {
 		{"users", "main_tab"}, // the last upstream migration of users
 		{"user_state", "pts"}, // migrate-20261022.sql
 		{"user_state", "last_message_box_id"},
+		{"contact_import_quota", "imported"}, // migrate-20261024-contacts.sql
+		{"contact_signups", "phone"},
+		{"user_top_peer_resets", "reset_at"},
 	} {
 		var n int
 		err = db.QueryRow("select count(*) from information_schema.columns where table_schema = ? and table_name = ? and column_name = ?",

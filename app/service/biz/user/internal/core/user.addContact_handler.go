@@ -60,6 +60,12 @@ func (c *UserCore) UserAddContact(in *user.TLUserAddContact) (*mtproto.Bool, err
 		c.Logger.Errorf(" - error: %v", err)
 		return nil, err
 	}
+	if mtproto.FromBool(in.AddPhonePrivacyException) {
+		if err = c.svcCtx.Dao.AddPhonePrivacyException(c.ctx, in.UserId, in.Id); err != nil {
+			c.Logger.Errorf("user.addContact - user %d: %v", in.UserId, err)
+			return nil, err
+		}
+	}
 
 	return mtproto.ToBool(changeMutual), nil
 }

@@ -17,6 +17,15 @@ import (
 type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
+	// SignUps is told about every new account: the sign-up of an imported
+	// number is delivered to its importers (core.SignUpWorker). Without
+	// it the account's sign-up waits in contact_signups for a worker.
+	SignUps Notifier
+}
+
+// Notifier is woken by an event.
+type Notifier interface {
+	Notify()
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {

@@ -16,20 +16,16 @@ import (
 
 // UserGetContactSignUpNotification
 // user.getContactSignUpNotification user_id:long = Bool;
+//
+// Whether the user is notified when a contact signs up: true unless the
+// user turned it off. (account.getContactSignUpNotification answers the
+// opposite: whether they are silent.)
 func (c *UserCore) UserGetContactSignUpNotification(in *user.TLUserGetContactSignUpNotification) (*mtproto.Bool, error) {
-	var (
-		rV = false
-	)
-
-	if do, err := c.svcCtx.Dao.UserSettingsDAO.SelectByKey(c.ctx, in.UserId, "contactSignUpNotification"); do != nil {
-		if do.Value == "true" {
-			rV = true
-		}
-	} else if err == nil {
-		rV = true
-	} else {
+	silenced, err := c.svcCtx.Dao.SignUpNotificationsSilenced(c.ctx, []int64{in.UserId})
+	if err != nil {
 		c.Logger.Errorf("user.getContactSignUpNotification - error: %v", err)
+		return nil, err
 	}
 
-	return mtproto.ToBool(rV), nil
+	return mtproto.ToBool(!silenced[in.UserId]), nil
 }

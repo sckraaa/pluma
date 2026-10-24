@@ -16,6 +16,10 @@ import (
 
 // UserCreateNewUser
 // user.createNewUser secret_key_id:long phone:string country_code:string first_name:string last_name:string = ImmutableUser;
+//
+// The account's sign-up is queued with it; the worker delivers it to the
+// users who imported the number, after the answer (the sign-up does not
+// wait for them).
 func (c *UserCore) UserCreateNewUser(in *user.TLUserCreateNewUser) (*mtproto.ImmutableUser, error) {
 	user, err := c.svcCtx.Dao.CreateNewUserV2(
 		c.ctx,
@@ -27,6 +31,9 @@ func (c *UserCore) UserCreateNewUser(in *user.TLUserCreateNewUser) (*mtproto.Imm
 	if err != nil {
 		c.Logger.Errorf("user.createNewUser - error: %v", err)
 		return nil, err
+	}
+	if c.svcCtx.SignUps != nil {
+		c.svcCtx.SignUps.Notify()
 	}
 
 	return user, nil

@@ -1,4 +1,4 @@
-// Copyright 2022 Teamgram Authors
+// Copyright 2026 The Pluma Authors
 //  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,21 +12,24 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// Author: teamgramio (teamgram.io@gmail.com)
-//
 
 package core
 
 import (
-	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
-// UserDeleteImportersByPhone
-// user.deleteImportersByPhone phone:string = Bool;
-func (c *UserCore) UserDeleteImportersByPhone(in *user.TLUserDeleteImportersByPhone) (*mtproto.Bool, error) {
-	c.svcCtx.Dao.UnregisteredContactsDAO.DeleteImportersByPhone(c.ctx, in.Phone)
-
-	return mtproto.BoolTrue, nil
+// UserGetSavedContacts
+// user.getSavedContacts user_id:long = Vector<SavedContact>;
+//
+// The phone book of the user on the server (contacts.getSaved): the
+// contacts imported or added with a phone number and the imported numbers
+// without an account the user may find.
+func (c *UserCore) UserGetSavedContacts(in *user.TLUserGetSavedContacts) (*user.Vector_SavedContact, error) {
+	list, err := c.svcCtx.Dao.SavedContacts(c.ctx, in.UserId)
+	if err != nil {
+		c.Logger.Errorf("user.getSavedContacts - user %d: %v", in.UserId, err)
+		return nil, err
+	}
+	return &user.Vector_SavedContact{Datas: list}, nil
 }
