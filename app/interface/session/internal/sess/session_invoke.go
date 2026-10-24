@@ -23,7 +23,6 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/teamgram/proto/mtproto"
 	rpcmetadata "github.com/teamgram/proto/mtproto/rpc/metadata"
@@ -425,7 +424,7 @@ func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, 
 	case mtproto.AuthStateNormal:
 		// state is ok
 	case mtproto.AuthStateNeedPassword:
-		if !checkRpcWithoutLogin(query) {
+		if !checkRpcWhilePasswordNeeded(query) {
 			c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, mtproto.NewRpcError(mtproto.ErrSessionPasswordNeeded))
 			msgId.state = RECEIVED | RESPONSE_GENERATED
 			return false
@@ -455,14 +454,38 @@ func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, 
 	return true
 }
 
-// onlySetNeedPasswordFromError avoids overwriting Normal/Logout/Deleted with NeedPassword
-// when RPC results arrive out of order (e.g. delayed auth error after successful checkPassword).
-func (c *session) onlySetNeedPasswordFromError(ctx context.Context, hackId int64) {
+// onLoginError moves the key to AuthStateNeedPassword when a login
+// (auth.signIn, auth.sendCode with a future auth token, auth.exportLoginToken)
+// answers SESSION_PASSWORD_NEEDED: bff did not bind the key, its login waits
+// for auth.checkPassword (pkg/twofa). The state carries no user, so the
+// methods allowed meanwhile run as a key that is not logged in. It never
+// overwrites Normal/Logout/Deleted, should results arrive out of order
+// (e.g. a delayed error after a successful auth.checkPassword).
+func (c *session) onLoginError(ctx context.Context, rpcErr *mtproto.TLRpcError) {
+	if !isSessionPasswordNeeded(rpcErr) {
+		return
+	}
 	switch c.sessList.cb.state {
 	case mtproto.AuthStateNormal, mtproto.AuthStateLogout, mtproto.AuthStateDeleted, mtproto.AuthStateUnknown:
 		return
 	}
-	c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateNeedPassword, hackId)
+	c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateNeedPassword, int64(0))
+}
+
+func isSessionPasswordNeeded(rpcErr *mtproto.TLRpcError) bool {
+	return rpcErr != nil && rpcErr.GetErrorCode() == int32(mtproto.ErrUnauthorized) && rpcErr.Message() == "SESSION_PASSWORD_NEEDED"
+}
+
+// onLoggedIn moves the key to AuthStateNormal for the user of a successful
+// login result (auth.authorization).
+func (c *session) onLoggedIn(ctx context.Context, rpcResult *rpcApiMessage) {
+	if rpcResult.rpcResult == nil || rpcResult.rpcResult.Result == nil {
+		return
+	}
+	authAuthorization, _ := rpcResult.rpcResult.Result.(*mtproto.Auth_Authorization)
+	if authAuthorization != nil && authAuthorization.GetPredicateName() == mtproto.Predicate_auth_authorization && authAuthorization.GetUser() != nil {
+		c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateNormal, authAuthorization.GetUser().GetId())
+	}
 }
 
 func (c *session) onRpcResult(ctx context.Context, rpcResult *rpcApiMessage) {
@@ -493,14 +516,8 @@ func (c *session) onRpcResult(ctx context.Context, rpcResult *rpcApiMessage) {
 					c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateNormal, auth.GetUser().GetId())
 				}
 			}
-		} else if rpcErr != nil {
-			errMsg := rpcErr.Message()
-			if strings.HasPrefix(errMsg, "SESSION_PASSWORD_NEEDED_") {
-				vId := errMsg[len("SESSION_PASSWORD_NEEDED_"):]
-				hackId, _ := strconv.ParseInt(vId, 10, 64)
-				rpcErr.SetErrorMessage("SESSION_PASSWORD_NEEDED")
-				c.onlySetNeedPasswordFromError(ctx, hackId)
-			}
+		} else {
+			c.onLoginError(ctx, rpcErr)
 		}
 	case *mtproto.TLAuthExportLoginToken:
 		if rpcErr == nil && rpcResult.rpcResult != nil && rpcResult.rpcResult.Result != nil {
@@ -510,29 +527,14 @@ func (c *session) onRpcResult(ctx context.Context, rpcResult *rpcApiMessage) {
 					c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateNormal, auth.GetUser().GetId())
 				}
 			}
-		} else if rpcErr != nil {
-			errMsg := rpcErr.Message()
-			if strings.HasPrefix(errMsg, "SESSION_PASSWORD_NEEDED_") {
-				vId := errMsg[len("SESSION_PASSWORD_NEEDED_"):]
-				hackId, _ := strconv.ParseInt(vId, 10, 64)
-				rpcErr.SetErrorMessage("SESSION_PASSWORD_NEEDED")
-				c.onlySetNeedPasswordFromError(ctx, hackId)
-			}
+		} else {
+			c.onLoginError(ctx, rpcErr)
 		}
 	case *mtproto.TLAuthSignIn:
-		if rpcErr == nil && rpcResult.rpcResult != nil && rpcResult.rpcResult.Result != nil {
-			authAuthorization, _ := rpcResult.rpcResult.Result.(*mtproto.Auth_Authorization)
-			if authAuthorization != nil && authAuthorization.GetPredicateName() == mtproto.Predicate_auth_authorization && authAuthorization.GetUser() != nil {
-				c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateNormal, authAuthorization.GetUser().GetId())
-			}
-		} else if rpcErr != nil {
-			errMsg := rpcErr.Message()
-			if strings.HasPrefix(errMsg, "SESSION_PASSWORD_NEEDED_") {
-				vId := errMsg[len("SESSION_PASSWORD_NEEDED_"):]
-				hackId, _ := strconv.ParseInt(vId, 10, 64)
-				rpcErr.SetErrorMessage("SESSION_PASSWORD_NEEDED")
-				c.onlySetNeedPasswordFromError(ctx, hackId)
-			}
+		if rpcErr == nil {
+			c.onLoggedIn(ctx, rpcResult)
+		} else {
+			c.onLoginError(ctx, rpcErr)
 		}
 	case *mtproto.TLAuthSignUp:
 		if rpcErr == nil && rpcResult.rpcResult != nil && rpcResult.rpcResult.Result != nil {
@@ -556,11 +558,14 @@ func (c *session) onRpcResult(ctx context.Context, rpcResult *rpcApiMessage) {
 			}
 		}
 	case *mtproto.TLAuthCheckPassword:
-		if rpcErr == nil && c.sessList.cb.state == mtproto.AuthStateNeedPassword && rpcResult.rpcResult != nil && rpcResult.rpcResult.Result != nil {
-			authAuthorization, _ := rpcResult.rpcResult.Result.(*mtproto.Auth_Authorization)
-			if authAuthorization != nil && authAuthorization.GetPredicateName() == mtproto.Predicate_auth_authorization && authAuthorization.GetUser() != nil {
-				c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateNormal, authAuthorization.GetUser().GetId())
-			}
+		// bff binds the key before it answers auth.authorization, also when
+		// this wrapper missed SESSION_PASSWORD_NEEDED (a restart of session).
+		// A login that waited too long (AUTH_KEY_UNREGISTERED) starts over.
+		switch {
+		case rpcErr == nil:
+			c.onLoggedIn(ctx, rpcResult)
+		case c.sessList.cb.state == mtproto.AuthStateNeedPassword && rpcErr.Message() == "AUTH_KEY_UNREGISTERED":
+			c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateUnauthorized, int64(0))
 		}
 	case *mtproto.TLAuthRecoverPassword:
 		if rpcErr == nil && c.sessList.cb.state == mtproto.AuthStateNeedPassword && rpcResult.rpcResult != nil && rpcResult.rpcResult.Result != nil {

@@ -200,7 +200,9 @@ func (m *MainAuthWrapper) changeAuthState(ctx context.Context, state int, stateD
 		m.cb.DeleteByAuthKeyId(m.authKeyId)
 		m.Stop()
 	case mtproto.AuthStateNeedPassword:
-		m.AuthUserId = stateData.(int64)
+		// The login waits for the 2FA password: the key is not bound and has
+		// no user until auth.checkPassword (pkg/twofa).
+		m.AuthUserId = 0
 	case mtproto.AuthStateNormal:
 		newUserId := stateData.(int64)
 		if m.AuthUserId != 0 && m.AuthUserId != newUserId {

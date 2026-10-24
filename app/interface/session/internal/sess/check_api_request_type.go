@@ -141,6 +141,43 @@ func checkRpcWithoutLogin(tl mtproto.TLObject) bool {
 	}
 }
 
+// checkRpcWhilePasswordNeeded reports whether a request may run on a key
+// whose login waits for the 2FA password (AuthStateNeedPassword, task 008):
+// the methods before login, those of the password step (account.getPassword,
+// auth.checkPassword, the recovery methods) and account.deleteAccount, the
+// reset of an account whose password is forgotten. The methods of a
+// logged-in account that checkRpcWithoutLogin lets run without a user are
+// refused (SESSION_PASSWORD_NEEDED): the password settings, accepting a QR
+// login, exporting the authorization and passkeys. The key has no user
+// meanwhile; bff finds the waiting login by the key (pkg/twofa).
+func checkRpcWhilePasswordNeeded(tl mtproto.TLObject) bool {
+	switch tl.(type) {
+	case *mtproto.TLAccountGetPassword,
+		*mtproto.TLAccountDeleteAccount,
+		*mtproto.TLAuthCheckPassword,
+		*mtproto.TLAuthRequestPasswordRecovery,
+		*mtproto.TLAuthRecoverPassword,
+		*mtproto.TLAuthCheckRecoveryPassword:
+		return true
+	case *mtproto.TLAccountConfirmPasswordEmail,
+		*mtproto.TLAccountResendPasswordEmail,
+		*mtproto.TLAccountCancelPasswordEmail,
+		*mtproto.TLAccountGetPasswordSettings,
+		*mtproto.TLAccountUpdatePasswordSettings,
+		*mtproto.TLAccountDeclinePasswordReset,
+		*mtproto.TLAuthAcceptLoginToken,
+		*mtproto.TLAuthExportAuthorization,
+		*mtproto.TLAuthExportedAuthorization,
+		*mtproto.TLAccountRegisterPasskey,
+		*mtproto.TLAccountInitPasskeyRegistration,
+		*mtproto.TLAccountGetPasskeys,
+		*mtproto.TLAccountDeletePasskey:
+		return false
+	default:
+		return checkRpcWithoutLogin(tl)
+	}
+}
+
 // checkRpcWithUnboundTempKey reports whether a request may run over a
 // temporary key that is not bound to a permanent key yet. Per
 // https://core.telegram.org/api/pfs an unbound temp_auth_key_id may only be
