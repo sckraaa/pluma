@@ -25,9 +25,13 @@ import (
 
 // DialogToggleDialogFilterTags
 // dialog.toggleDialogFilterTags user_id:long enabled:Bool = Bool;
+//
+// Turns the folder tags of the user on or off; whether the user may (a
+// Premium feature) is the caller's to check.
 func (c *DialogCore) DialogToggleDialogFilterTags(in *dialog.TLDialogToggleDialogFilterTags) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("dialog.toggleDialogFilterTags blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if err := c.svcCtx.Dao.SetDialogFilterTags(c.ctx, in.UserId, mtproto.FromBool(in.GetEnabled())); err != nil {
+		c.Logger.Errorf("dialog.toggleDialogFilterTags - user %d: %v", in.UserId, err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }
