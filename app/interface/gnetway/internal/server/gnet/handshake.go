@@ -22,6 +22,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha1"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -205,6 +207,7 @@ const (
 	// unencrypted message: auth_key_id:long msg_id:long message_data_length:int message_data
 	unencryptedHeaderSize = 20
 	rsaEncryptedDataSize  = 256
+	rsaPadDataSize        = 192 // data_with_padding of RSA_PAD
 	newNonceSize          = 32
 	dhSecretSize          = 256
 )
@@ -213,6 +216,7 @@ var (
 	errHandshakeMessage = errors.New("handshake: malformed message")
 	errHandshakeData    = errors.New("handshake: invalid encrypted data")
 	errHandshakePQ      = errors.New("handshake: req_DH_params: p and q are not the factors of pq")
+	errRSAPadHash       = errors.New("handshake: req_DH_params: RSA_PAD hash mismatch")
 	errTempKeyExpiresIn = errors.New("handshake: temporary key without a positive expires_in")
 )
 
@@ -479,6 +483,9 @@ func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq
 		- temp_key_xor := temp_key XOR SHA256(aes_encrypted); — 32 bytes.
 		- key_aes_encrypted := temp_key_xor + aes_encrypted; — 256 bytes.
 		- encrypted_data := RSA(key_aes_encrypted, server_pubkey); — exactly 256 bytes.
+
+		The server undoes these steps and checks the hash, which an altered or
+		forged encrypted_data fails.
 	*/
 	encryptedData := req.GetEncryptedData()
 	if len(encryptedData) != rsaEncryptedDataSize {
@@ -498,11 +505,17 @@ func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq
 		tempKey[i] ^= hash[i]
 	}
 	dataWithHash, err := crypto.NewAES256IGECryptor(tempKey, zeroIV).Decrypt(keyAesEncrypted[32:])
-	if err != nil || len(dataWithHash) != 224 {
+	if err != nil || len(dataWithHash) != rsaPadDataSize+sha256.Size {
 		return nil, errHandshakeData
 	}
-	dataWithPadding := dataWithHash[:192]
+	dataWithPadding := dataWithHash[:rsaPadDataSize]
 	slices.Reverse(dataWithPadding)
+	h256 := sha256.New()
+	h256.Write(tempKey)
+	h256.Write(dataWithPadding)
+	if subtle.ConstantTimeCompare(h256.Sum(nil), dataWithHash[rsaPadDataSize:]) != 1 {
+		return nil, errRSAPadHash
+	}
 
 	o, err := decodeObjectOf(dataWithPadding, pqInnerDataConstructors)
 	if err != nil {
