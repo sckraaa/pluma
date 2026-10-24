@@ -14279,6 +14279,9 @@ message UserData {
   Document saved_music = 33;
   ProfileTab main_tab = 34;
   repeated Username usernames = 35;
+  // pluma: globalPrivacySettings.new_noncontact_peers_require_premium of the
+  // user: only contacts, chats there already and Premium users may write.
+  bool new_noncontact_peers_require_premium = 36;
 }
 
 // TL_userData
