@@ -30,7 +30,7 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	KV                kv.KvConf
-	Mysql             sqlx.Config // phone allowlist
+	Mysql             sqlx.Config // phone allowlist, 2FA passwords
 	LoginCode         logincode.Config
 	UserClient        zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf

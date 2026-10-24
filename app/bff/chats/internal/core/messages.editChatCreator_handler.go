@@ -18,14 +18,32 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 // MessagesEditChatCreator
 // messages.editChatCreator#f743b857 peer:InputPeer user_id:InputUser password:InputCheckPasswordSRP = Updates;
+//
+// The transfer of a chat's ownership is not served (an upstream enterprise
+// feature, ERR_ENTERPRISE_IS_BLOCKED). The 2FA password it takes is checked
+// first with the shared code, as Telegram does, so clients go through their
+// usual steps: PASSWORD_MISSING without a password (the user is asked to set
+// one), PASSWORD_HASH_INVALID for inputCheckPasswordEmpty or a wrong one
+// (the user is asked for it), FLOOD_WAIT_X past the limits.
 func (c *ChatsCore) MessagesEditChatCreator(in *mtproto.TLMessagesEditChatCreator) (*mtproto.Updates, error) {
-	// TODO: not impl
-	c.Logger.Errorf("messages.editChatCreator blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	if c.MD.UserId == 0 {
+		return nil, mtproto.ErrAuthKeyUnregistered
+	}
+	if err := c.svcCtx.Twofa.Check(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, in.GetPassword()); err != nil {
+		if errors.Is(err, twofa.ErrNoPassword) {
+			err = mtproto.ErrPasswordMissing
+		}
+		c.Logger.Errorf("messages.editChatCreator - user %d: %v", c.MD.UserId, err)
+		return nil, err
+	}
 
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }

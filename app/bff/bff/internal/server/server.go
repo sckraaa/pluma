@@ -169,6 +169,8 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			chats_helper.New(chats_helper.Config{
 				RpcServerConf:     c.RpcServerConf,
+				KV:                c.KV,
+				Mysql:             c.Mysql,
 				UserClient:        c.BizServiceClient,
 				ChatClient:        c.BizServiceClient,
 				MsgClient:         c.MsgClient,

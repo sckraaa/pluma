@@ -123,3 +123,18 @@ func (m *AuthLogic) DoChangePhone(ctx context.Context,
 	}
 	return nil
 }
+
+// AllowSignUp lets the login request of authKeyId for phoneNumber, whose
+// code auth.signIn accepted, go on to auth.signUp: its account was deleted
+// since (the reset of an account whose 2FA password is forgotten), and
+// official clients sign up again with the same phone_code_hash. A request in
+// another state is left as it is.
+func (m *AuthLogic) AllowSignUp(ctx context.Context, authKeyId int64, phoneNumber string) error {
+	codeData, err := m.store.GetCachePhoneCode(ctx, authKeyId, phoneNumber)
+	if err != nil || codeData == nil || codeData.State != model.CodeStateOk {
+		return err
+	}
+	codeData.State = model.CodeStateSignIn
+	codeData.PhoneNumberRegistered = false
+	return m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData)
+}

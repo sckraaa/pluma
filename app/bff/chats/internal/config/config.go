@@ -19,12 +19,17 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+
+	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
+	KV                kv.KvConf   // 2FA: SRP sessions and limits
+	Mysql             sqlx.Config // 2FA passwords
 	UserClient        zrpc.RpcClientConf
 	ChatClient        zrpc.RpcClientConf
 	MsgClient         zrpc.RpcClientConf
