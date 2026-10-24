@@ -102,7 +102,7 @@ func (h *handshake) run() (*AuthKey, error) {
 	if len(pqBytes) == 0 || len(pqBytes) > 8 {
 		return nil, fmt.Errorf("mtclient: resPQ: pq is %d bytes", len(pqBytes))
 	}
-	p, q, err := factorizePQ(new(big.Int).SetBytes(pqBytes).Uint64())
+	p, q, err := FactorizePQ(new(big.Int).SetBytes(pqBytes).Uint64())
 	if err != nil {
 		return nil, err
 	}

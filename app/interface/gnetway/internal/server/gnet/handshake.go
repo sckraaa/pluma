@@ -47,18 +47,6 @@ const (
 )
 
 var (
-	// TODO(@benqi): 预先计算出fingerprint
-	// 这里直接使用了0xc3b42b026ce86b21
-	// fingerprint uint64 = 12240908862933197005
-
-	// TODO(@benqi): 使用算法生成PQ
-	// 这里直接指定了PQ值: {0x17, 0xED, 0x48, 0x94, 0x1A, 0x08, 0xF9, 0x81}
-	pq = string([]byte{0x17, 0xED, 0x48, 0x94, 0x1A, 0x08, 0xF9, 0x81})
-
-	// TODO(@benqi): 直接指定了p和q
-	p = []byte{0x49, 0x4C, 0x55, 0x3B}
-	q = []byte{0x53, 0x91, 0x10, 0x73}
-
 	// TODO(@benqi): 直接指定了dh2048_p和dh2048_g!!!
 	// andriod client 指定的good prime
 	//
@@ -224,6 +212,7 @@ const (
 var (
 	errHandshakeMessage = errors.New("handshake: malformed message")
 	errHandshakeData    = errors.New("handshake: invalid encrypted data")
+	errHandshakePQ      = errors.New("handshake: req_DH_params: p and q are not the factors of pq")
 	errTempKeyExpiresIn = errors.New("handshake: temporary key without a positive expires_in")
 )
 
@@ -328,17 +317,18 @@ func (s *Server) onHandshakeMessage(io *handshakeIO, frame []byte) (answer mtpro
 	}
 }
 
-// startHandshake answers req_pq / req_pq_multi:
+// startHandshake answers req_pq / req_pq_multi with a new pq (pq.go):
 // resPQ#05162463 nonce:int128 server_nonce:int128 pq:string server_public_key_fingerprints:Vector<long> = ResPQ;
 func (s *Server) startHandshake(states *handshakeStore, nonce []byte, now int64) (mtproto.TLObject, error) {
 	if len(nonce) != 16 {
 		return nil, errHandshakeMessage
 	}
 
+	pq, p, q := newPQ()
 	resPQ := mtproto.MakeTLResPQ(&mtproto.ResPQ{
 		Nonce:                       nonce,
 		ServerNonce:                 crypto.GenerateNonce(16),
-		Pq:                          pq,
+		Pq:                          putPQ(pq),
 		ServerPublicKeyFingerprints: s.handshake.keyFingerprints,
 	}).To_ResPQ()
 
@@ -346,6 +336,9 @@ func (s *Server) startHandshake(states *handshakeStore, nonce []byte, now int64)
 		State:       STATE_pq_res,
 		Nonce:       resPQ.GetNonce(),
 		ServerNonce: resPQ.GetServerNonce(),
+		Pq:          pq,
+		P:           p,
+		Q:           q,
 	}, now)
 
 	return resPQ, nil
@@ -360,6 +353,12 @@ func (s *Server) onReqDHParams(io *handshakeIO, req *mtproto.TLReq_DHParams, now
 	}
 
 	nonce := req.GetNonce()
+	// The proof of work, before anything costly: p and q must be the factors
+	// of the pq this handshake got.
+	if !st.hasFactors(req.GetP(), req.GetQ()) {
+		io.states.drop(nonce)
+		return errHandshakePQ
+	}
 	err = s.submit(io.connId, func() {
 		res, err := s.handshake.processReqDHParams(&st, req, time.Now().Unix())
 		if err != nil {
@@ -371,7 +370,6 @@ func (s *Server) onReqDHParams(io *handshakeIO, req *mtproto.TLReq_DHParams, now
 		if !io.states.finish(nonce, STATE_DH_params, s.CachedNow(), func(st *HandshakeStateCtx) bool {
 			st.NewNonce = res.newNonce
 			st.A = res.a
-			st.P = s.handshake.dh2048p
 			st.HandshakeType = res.handshakeType
 			st.ExpiresIn = res.expiresIn
 			st.State = STATE_DH_params_res
@@ -459,15 +457,12 @@ type reqDHParamsResult struct {
 }
 
 // processReqDHParams checks req_DH_params against the handshake state st and
-// computes server_DH_params_ok.
+// computes server_DH_params_ok. onReqDHParams has checked p and q.
 //
 // req_DH_params#d712e4be nonce:int128 server_nonce:int128 p:string q:string public_key_fingerprint:long encrypted_data:string = Server_DH_Params;
 func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq_DHParams, now int64) (*reqDHParamsResult, error) {
 	if !bytes.Equal(req.GetNonce(), st.Nonce) || !bytes.Equal(req.GetServerNonce(), st.ServerNonce) {
 		return nil, errHandshakeState
-	}
-	if req.GetP() != string(p) || req.GetQ() != string(q) {
-		return nil, fmt.Errorf("handshake: req_DH_params: invalid p or q")
 	}
 	rsa := h.getKey(req.GetPublicKeyFingerprint())
 	if rsa == nil {
@@ -548,9 +543,8 @@ func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq
 	}
 
 	// p_q_inner_data repeats pq, p, q, nonce and server_nonce.
-	if pqInnerData.GetPq() != pq ||
-		pqInnerData.GetP() != string(p) ||
-		pqInnerData.GetQ() != string(q) ||
+	if !st.hasPQ(pqInnerData.GetPq()) ||
+		!st.hasFactors(pqInnerData.GetP(), pqInnerData.GetQ()) ||
 		!bytes.Equal(pqInnerData.GetNonce(), st.Nonce) ||
 		!bytes.Equal(pqInnerData.GetServerNonce(), st.ServerNonce) {
 		return nil, fmt.Errorf("handshake: p_q_inner_data does not match req_DH_params")

@@ -23,9 +23,13 @@ type HandshakeStateCtx struct {
 	ServerNonce   []byte `json:"server_nonce,omitempty"`
 	NewNonce      []byte `json:"new_nonce,omitempty"`
 	A             []byte `json:"a,omitempty"`
-	P             []byte `json:"p,omitempty"`
 	HandshakeType int    `json:"handshake_type"`
 	ExpiresIn     int32  `json:"expires_in,omitempty"`
+
+	// Pq of resPQ and its factors P < Q, which req_DH_params must repeat.
+	Pq uint64 `json:"pq,omitempty"`
+	P  uint64 `json:"p,omitempty"`
+	Q  uint64 `json:"q,omitempty"`
 }
 
 // Format prints the state without NewNonce and A: with them anyone reading

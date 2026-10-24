@@ -204,8 +204,8 @@ func TestHandshakeBadDHStepsFailInWorker(t *testing.T) {
 			Constructor:          mtproto.CRC32_req_DH_params,
 			Nonce:                tc.nonce,
 			ServerNonce:          tc.serverNonce,
-			P:                    string(p),
-			Q:                    string(q),
+			P:                    tc.p,
+			Q:                    tc.q,
 			PublicKeyFingerprint: tc.fingerprint,
 			EncryptedData:        "short",
 		})

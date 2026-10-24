@@ -98,10 +98,11 @@ func newNonceHash(newNonce, authKey []byte, n byte) []byte {
 	return h.Sum(nil)[4:20]
 }
 
-// factorizePQ splits pq of resPQ into its two prime factors p < q (Pollard's
-// rho; pq is below 2^63).
-func factorizePQ(pq uint64) (p, q uint64, err error) {
-	if pq < 4 {
+// FactorizePQ splits pq of resPQ into its two prime factors p < q, the proof
+// of work of the key exchange (Pollard's rho; the server keeps pq below 2^63,
+// as the protocol says it normally is).
+func FactorizePQ(pq uint64) (p, q uint64, err error) {
+	if pq < 4 || pq >= 1<<63 {
 		return 0, 0, fmt.Errorf("mtclient: pq %d is not a product of two primes", pq)
 	}
 	if pq%2 == 0 {

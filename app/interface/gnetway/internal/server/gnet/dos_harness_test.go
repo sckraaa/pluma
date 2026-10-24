@@ -262,6 +262,9 @@ type testClient struct {
 	b           *big.Int
 	authKey     []byte
 	expiresIn   int32 // of a temporary key
+
+	// pq of resPQ and its factors, 4 bytes big-endian as Android sends them.
+	pq, p, q string
 }
 
 func newTestClient(t testing.TB, pub *rsa.PublicKey) *testClient {
@@ -292,6 +295,18 @@ func (tc *testClient) onResPQ(o mtproto.TLObject) {
 		tc.t.Fatal("resPQ does not list the key")
 	}
 	tc.serverNonce = res.GetServerNonce()
+
+	pq := []byte(res.GetPq())
+	if len(pq) != 8 {
+		tc.t.Fatalf("pq is %d bytes", len(pq))
+	}
+	p, q, err := mtclient.FactorizePQ(binary.BigEndian.Uint64(pq))
+	if err != nil {
+		tc.t.Fatal(err)
+	}
+	tc.pq = string(pq)
+	tc.p = string(binary.BigEndian.AppendUint32(nil, uint32(p)))
+	tc.q = string(binary.BigEndian.AppendUint32(nil, uint32(q)))
 }
 
 // rsaPad implements RSA_PAD(data, server_public_key) with the client of
@@ -306,15 +321,31 @@ func (tc *testClient) rsaPad(data []byte) []byte {
 }
 
 func (tc *testClient) reqDHParams(temp bool) []byte {
+	return tc.reqDHParamsWith(temp, reqDHParamsEdits{})
+}
+
+// reqDHParamsEdits change req_DH_params from what a client sends, for tests
+// of the checks of the server.
+type reqDHParamsEdits struct {
+	inner func(inner *mtproto.P_QInnerData)
+	// rsaPad encrypts the serialized p_q_inner_data instead of tc.rsaPad.
+	rsaPad func(data []byte) []byte
+	outer  func(req *mtproto.TLReq_DHParams)
+}
+
+func (tc *testClient) reqDHParamsWith(temp bool, edits reqDHParamsEdits) []byte {
 	inner := &mtproto.P_QInnerData{
-		Pq:          pq,
-		P:           string(p),
-		Q:           string(q),
+		Pq:          tc.pq,
+		P:           tc.p,
+		Q:           tc.q,
 		Nonce:       tc.nonce,
 		ServerNonce: tc.serverNonce,
 		NewNonce:    tc.newNonce,
 		Dc:          2,
 		ExpiresIn:   tc.expiresIn,
+	}
+	if edits.inner != nil {
+		edits.inner(inner)
 	}
 	x := mtproto.NewEncodeBuf(256)
 	if temp {
@@ -322,15 +353,23 @@ func (tc *testClient) reqDHParams(temp bool) []byte {
 	} else {
 		_ = mtproto.MakeTLPQInnerDataDc(inner).Encode(x, 0)
 	}
-	return unencrypted(&mtproto.TLReq_DHParams{
+	pad := tc.rsaPad
+	if edits.rsaPad != nil {
+		pad = edits.rsaPad
+	}
+	req := &mtproto.TLReq_DHParams{
 		Constructor:          mtproto.CRC32_req_DH_params,
 		Nonce:                tc.nonce,
 		ServerNonce:          tc.serverNonce,
-		P:                    string(p),
-		Q:                    string(q),
+		P:                    tc.p,
+		Q:                    tc.q,
 		PublicKeyFingerprint: tc.fingerprint,
-		EncryptedData:        string(tc.rsaPad(x.GetBuf())),
-	})
+		EncryptedData:        string(pad(x.GetBuf())),
+	}
+	if edits.outer != nil {
+		edits.outer(req)
+	}
+	return unencrypted(req)
 }
 
 func (tc *testClient) tmpAes() (key, iv []byte) {
