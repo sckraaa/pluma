@@ -63,8 +63,6 @@ const (
 	Predicate_user_getContact                    = "user_getContact"
 	Predicate_user_addContact                    = "user_addContact"
 	Predicate_user_checkContact                  = "user_checkContact"
-	Predicate_user_getImportersByPhone           = "user_getImportersByPhone"
-	Predicate_user_deleteImportersByPhone        = "user_deleteImportersByPhone"
 	Predicate_user_importContacts                = "user_importContacts"
 	Predicate_user_getCountryCode                = "user_getCountryCode"
 	Predicate_user_updateAbout                   = "user_updateAbout"
@@ -120,6 +118,11 @@ const (
 	Predicate_user_toggleUsername                = "user_toggleUsername"
 	Predicate_user_reorderUsernames              = "user_reorderUsernames"
 	Predicate_user_deactivateAllChannelUsernames = "user_deactivateAllChannelUsernames"
+	Predicate_user_getSavedContacts              = "user_getSavedContacts"
+	Predicate_user_resetSavedContacts            = "user_resetSavedContacts"
+	Predicate_user_getTopPeers                   = "user_getTopPeers"
+	Predicate_user_toggleTopPeers                = "user_toggleTopPeers"
+	Predicate_user_resetTopPeerRating            = "user_resetTopPeerRating"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -329,14 +332,6 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	},
 	Predicate_user_checkContact: {
 		0: -2102962012, // 0x82a758a4
-
-	},
-	Predicate_user_getImportersByPhone: {
-		0: 1202356754, // 0x47aa8212
-
-	},
-	Predicate_user_deleteImportersByPhone: {
-		0: 390978644, // 0x174ddc54
 
 	},
 	Predicate_user_importContacts: {
@@ -559,6 +554,26 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1704991428, // 0x9a5fe53c
 
 	},
+	Predicate_user_getSavedContacts: {
+		0: -1128508031, // 0xbcbc5581
+
+	},
+	Predicate_user_resetSavedContacts: {
+		0: 211485174, // 0xc9b01f6
+
+	},
+	Predicate_user_getTopPeers: {
+		0: 731720709, // 0x2b9d2c05
+
+	},
+	Predicate_user_toggleTopPeers: {
+		0: 1925363135, // 0x72c2b5bf
+
+	},
+	Predicate_user_resetTopPeerRating: {
+		0: -476871816, // 0xe3938378
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -614,8 +629,6 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-613250077:  Predicate_user_getContact,                    // 0xdb728be3
 	2042936590:  Predicate_user_addContact,                    // 0x79c4bd0e
 	-2102962012: Predicate_user_checkContact,                  // 0x82a758a4
-	1202356754:  Predicate_user_getImportersByPhone,           // 0x47aa8212
-	390978644:   Predicate_user_deleteImportersByPhone,        // 0x174ddc54
 	-1711212654: Predicate_user_importContacts,                // 0x9a00f792
 	302016562:   Predicate_user_getCountryCode,                // 0x12006832
 	-620695161:  Predicate_user_updateAbout,                   // 0xdb00f187
@@ -671,6 +684,11 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-583312876:  Predicate_user_toggleUsername,                // 0xdd3b5a14
 	979484096:   Predicate_user_reorderUsernames,              // 0x3a61bdc0
 	-1704991428: Predicate_user_deactivateAllChannelUsernames, // 0x9a5fe53c
+	-1128508031: Predicate_user_getSavedContacts,              // 0xbcbc5581
+	211485174:   Predicate_user_resetSavedContacts,            // 0xc9b01f6
+	731720709:   Predicate_user_getTopPeers,                   // 0x2b9d2c05
+	1925363135:  Predicate_user_toggleTopPeers,                // 0x72c2b5bf
+	-476871816:  Predicate_user_resetTopPeerRating,            // 0xe3938378
 
 }
 

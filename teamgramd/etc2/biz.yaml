@@ -4,8 +4,8 @@ Etcd:
   Hosts:
     - etcd:2379
   Key: service.biz_service
-# dialog runs box transactions (pkg/userbox): the deadline outlives them
-# (dialog.MaxBoxOpTime, checked at start; docs/ops/user-state.md).
+# dialog and user run box transactions (pkg/userbox): the deadline outlives
+# them (dialog.MaxBoxOpTime, checked at start; docs/ops/user-state.md).
 Timeout: 30000
 Log:
   ServiceName: service.biz_service
@@ -43,3 +43,17 @@ MediaClient:
     Hosts:
       - etcd:2379
     Key: service.media
+
+# user delivers the sign-up of an imported number to the users who imported
+# it: messages into their boxes, events of box transactions (rows of
+# mq_outbox, published by the relay of msg; ADR 0012, 0015). Ids of the
+# messages come from idgen.
+IdgenClient:
+  Timeout: 2000
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: service.idgen
+Topics:
+  Inbox: "Inbox-T"
+  Sync: "Sync-T"

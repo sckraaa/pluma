@@ -6,7 +6,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 121, partial 27, blocked 122, notimpl 8, missing 591 (ok = 13.9%)
+    layer 228: 869 methods — ok 133, partial 25, blocked 113, notimpl 7, missing 591 (ok = 15.3%)
 
 | namespace | total | ok | partial | blocked | notimpl | missing |
 |---|---|---|---|---|---|---|
@@ -18,7 +18,7 @@
 | channels | 74 | 1 | 0 | 15 | 0 | 58 |
 | chatlists | 11 | 0 | 0 | 0 | 0 | 11 |
 | communities | 9 | 0 | 0 | 0 | 0 | 9 |
-| contacts | 29 | 13 | 2 | 9 | 1 | 4 |
+| contacts | 29 | 23 | 0 | 2 | 0 | 4 |
 | ephemeral | 4 | 0 | 0 | 0 | 0 | 4 |
 | folders | 2 | 0 | 0 | 0 | 0 | 2 |
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 |
@@ -36,7 +36,7 @@
 | stories | 44 | 0 | 0 | 0 | 0 | 44 |
 | updates | 3 | 2 | 0 | 1 | 0 | 0 |
 | upload | 8 | 2 | 1 | 5 | 0 | 0 |
-| users | 10 | 5 | 0 | 4 | 0 | 1 |
+| users | 10 | 7 | 0 | 2 | 0 | 1 |
 
 ## Methods
 
@@ -79,7 +79,7 @@
 | `account.getChatThemes` | missing |  |
 | `account.getCollectibleEmojiStatuses` | missing |  |
 | `account.getConnectedBots` | missing |  |
-| `account.getContactSignUpNotification` | ok | app/bff/contacts/internal/core/account.getContactSignUpNotification_handler.go:28 |
+| `account.getContactSignUpNotification` | ok | app/bff/contacts/internal/core/account.getContactSignUpNotification_handler.go:34 |
 | `account.getContentSettings` | ok | app/bff/nsfw/internal/core/account.getContentSettings_handler.go:28 |
 | `account.getDefaultBackgroundEmojis` | missing |  |
 | `account.getDefaultEmojiStatuses` | missing |  |
@@ -138,7 +138,7 @@
 | `account.sendVerifyPhoneCode` | blocked | app/bff/passport/internal/core/account.sendVerifyPhoneCode_handler.go:27 |
 | `account.setAccountTTL` | ok | app/bff/account/internal/core/account.setAccountTTL_handler.go:28 |
 | `account.setAuthorizationTTL` | ok | app/bff/authorization/internal/core/account.setAuthorizationTTL_handler.go:28 |
-| `account.setContactSignUpNotification` | ok | app/bff/contacts/internal/core/account.setContactSignUpNotification_handler.go:28 |
+| `account.setContactSignUpNotification` | ok | app/bff/contacts/internal/core/account.setContactSignUpNotification_handler.go:32 |
 | `account.setContentSettings` | ok | app/bff/nsfw/internal/core/account.setContentSettings_handler.go:28 |
 | `account.setGlobalPrivacySettings` | ok | app/bff/privacysettings/internal/core/account.setGlobalPrivacySettings_handler.go:28 |
 | `account.setMainProfileTab` | ok | app/bff/userchannelprofiles/internal/core/account.setMainProfileTab_handler.go:28 |
@@ -218,7 +218,7 @@
 | `auth.resetLoginEmail` | blocked | app/bff/authorization/internal/core/auth.resetLoginEmail_handler.go:27 |
 | `auth.sendCode` | ok | app/bff/authorization/internal/core/auth.sendCode_handler.go:113 |
 | `auth.signIn` | ok | app/bff/authorization/internal/core/auth.signIn_handler.go:56 |
-| `auth.signUp` | ok | app/bff/authorization/internal/core/auth.signUp_handler.go:55 |
+| `auth.signUp` | ok | app/bff/authorization/internal/core/auth.signUp_handler.go:53 |
 | `auth.toggleBan` | blocked | app/bff/authorization/internal/core/auth.toggleBan_handler.go:27 |
 
 ### biz
@@ -384,7 +384,7 @@
 
 | method | status | handler |
 |---|---|---|
-| `contacts.acceptContact` | blocked | app/bff/contacts/internal/core/contacts.acceptContact_handler.go:27 |
+| `contacts.acceptContact` | ok | app/bff/contacts/internal/core/contacts.acceptContact_handler.go:37 |
 | `contacts.addContact` | ok | app/bff/contacts/internal/core/contacts.addContact_handler.go:34 |
 | `contacts.block` | ok | app/bff/contacts/internal/core/contacts.block_handler.go:29 |
 | `contacts.blockFromReplies` | missing |  |
@@ -397,20 +397,20 @@
 | `contacts.getContactIDs` | ok | app/bff/contacts/internal/core/contacts.getContactIDs_handler.go:27 |
 | `contacts.getContacts` | ok | app/bff/contacts/internal/core/contacts.getContacts_handler.go:53 |
 | `contacts.getLocated` | blocked | app/bff/contacts/internal/core/contacts.getLocated_handler.go:27 |
-| `contacts.getSaved` | notimpl | app/bff/contacts/internal/core/contacts.getSaved_handler.go:27 |
+| `contacts.getSaved` | ok | app/bff/contacts/internal/core/contacts.getSaved_handler.go:38 |
 | `contacts.getSponsoredPeers` | ok | app/bff/sponsoredmessages/internal/core/contacts.getSponsoredPeers_handler.go:27 |
 | `contacts.getStatuses` | ok | app/bff/contacts/internal/core/contacts.getStatuses_handler.go:28 |
-| `contacts.getTopPeers` | blocked | app/bff/contacts/internal/core/contacts.getTopPeers_handler.go:27 |
+| `contacts.getTopPeers` | ok | app/bff/contacts/internal/core/contacts.getTopPeers_handler.go:41 |
 | `contacts.importContactToken` | missing |  |
-| `contacts.importContacts` | blocked | app/bff/contacts/internal/core/contacts.importContacts_handler.go:27 |
-| `contacts.resetSaved` | blocked | app/bff/contacts/internal/core/contacts.resetSaved_handler.go:27 |
-| `contacts.resetTopPeerRating` | blocked | app/bff/contacts/internal/core/contacts.resetTopPeerRating_handler.go:27 |
+| `contacts.importContacts` | ok | app/bff/contacts/internal/core/contacts.importContacts_handler.go:37 |
+| `contacts.resetSaved` | ok | app/bff/contacts/internal/core/contacts.resetSaved_handler.go:33 |
+| `contacts.resetTopPeerRating` | ok | app/bff/contacts/internal/core/contacts.resetTopPeerRating_handler.go:31 |
 | `contacts.resolvePhone` | ok | app/bff/users/internal/core/contacts.resolvePhone_handler.go:28 |
-| `contacts.resolveUsername` | partial | app/bff/usernames/internal/core/contacts.resolveUsername_handler.go:29 |
-| `contacts.search` | partial | app/bff/contacts/internal/core/contacts.search_handler.go:28 |
-| `contacts.setBlocked` | blocked | app/bff/contacts/internal/core/contacts.setBlocked_handler.go:27 |
+| `contacts.resolveUsername` | ok | app/bff/usernames/internal/core/contacts.resolveUsername_handler.go:35 |
+| `contacts.search` | ok | app/bff/contacts/internal/core/contacts.search_handler.go:52 |
+| `contacts.setBlocked` | ok | app/bff/contacts/internal/core/contacts.setBlocked_handler.go:44 |
 | `contacts.toggleStoriesHidden` | missing |  |
-| `contacts.toggleTopPeers` | blocked | app/bff/contacts/internal/core/contacts.toggleTopPeers_handler.go:27 |
+| `contacts.toggleTopPeers` | ok | app/bff/contacts/internal/core/contacts.toggleTopPeers_handler.go:32 |
 | `contacts.unblock` | ok | app/bff/contacts/internal/core/contacts.unblock_handler.go:29 |
 | `contacts.updateContactNote` | blocked | app/bff/contacts/internal/core/contacts.updateContactNote_handler.go:27 |
 
@@ -1034,9 +1034,9 @@
 | method | status | handler |
 |---|---|---|
 | `users.getFullUser` | ok | app/bff/users/internal/core/users.getFullUser_handler.go:34 |
-| `users.getIsPremiumRequiredToContact` | blocked | app/bff/privacysettings/internal/core/users.getIsPremiumRequiredToContact_handler.go:27 |
+| `users.getIsPremiumRequiredToContact` | ok | app/bff/privacysettings/internal/core/users.getIsPremiumRequiredToContact_handler.go:30 |
 | `users.getMe` | ok | app/bff/users/internal/core/users.getMe_handler.go:28 |
-| `users.getRequirementsToContact` | blocked | app/bff/privacysettings/internal/core/users.getRequirementsToContact_handler.go:27 |
+| `users.getRequirementsToContact` | ok | app/bff/privacysettings/internal/core/users.getRequirementsToContact_handler.go:32 |
 | `users.getSavedMusic` | ok | app/bff/userchannelprofiles/internal/core/users.getSavedMusic_handler.go:29 |
 | `users.getSavedMusicByID` | ok | app/bff/userchannelprofiles/internal/core/users.getSavedMusicByID_handler.go:28 |
 | `users.getStoriesMaxIDs` | missing |  |

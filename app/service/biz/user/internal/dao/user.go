@@ -79,10 +79,6 @@ func (d *Dao) CreateNewUserV2(
 		cacheUserData = NewCacheUserData()
 	)
 
-	//
-	//tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-	// var err error
-	// user
 	userDO = &dataobject.UsersDO{
 		UserType:       user.UserTypeRegular,
 		AccessHash:     rand.Int63(),
@@ -93,15 +89,23 @@ func (d *Dao) CreateNewUserV2(
 		CountryCode:    countryCode,
 		AccountDaysTtl: 548,
 	}
-	if lastInsertId, _, err2 := d.UsersDAO.Insert(ctx, userDO); err2 != nil {
-		if sqlx.IsDuplicate(err2) {
-			err2 = mtproto.ErrPhoneNumberOccupied
+	// The account and its sign-up, which the users who imported the number
+	// are told about (contact_signup.go), are written together: a failure
+	// or a restart after the commit does not lose the sign-up.
+	tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
+		id, _, err := d.UsersDAO.InsertTx(tx, userDO)
+		if err != nil {
+			result.Err = err
+			return
 		}
-		return nil, err2
-		//result.Err = err2
-		//return
-	} else {
-		userDO.Id = lastInsertId
+		userDO.Id = id
+		_, result.Err = tx.Exec("INSERT INTO contact_signups (user_id, phone, created_at) VALUES (?, ?, ?)", id, phone, now)
+	})
+	if tR.Err != nil {
+		if sqlx.IsDuplicate(tR.Err) {
+			return nil, mtproto.ErrPhoneNumberOccupied
+		}
+		return nil, tR.Err
 	}
 
 	cacheUserData.UserData = d.MakeUserDataByDO(userDO)

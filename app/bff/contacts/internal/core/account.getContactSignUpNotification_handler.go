@@ -25,14 +25,20 @@ import (
 
 // AccountGetContactSignUpNotification
 // account.getContactSignUpNotification#9f07c728 = Bool;
+//
+// Whether the notifications of contacts' sign-ups are silent: true when
+// the user turned them off, as setContactSignUpNotification's silent.
+// Android takes boolFalse for "on" (MessagesController.
+// loadSignUpNotificationsSettings), tdesktop the result for "silent"
+// (ApiWrap::reloadContactSignupSilent).
 func (c *ContactsCore) AccountGetContactSignUpNotification(in *mtproto.TLAccountGetContactSignUpNotification) (*mtproto.Bool, error) {
-	rValue, err := c.svcCtx.Dao.UserClient.UserGetContactSignUpNotification(c.ctx, &userpb.TLUserGetContactSignUpNotification{
+	enabled, err := c.svcCtx.Dao.UserClient.UserGetContactSignUpNotification(c.ctx, &userpb.TLUserGetContactSignUpNotification{
 		UserId: c.MD.UserId,
 	})
 	if err != nil {
 		c.Logger.Errorf("account.getContactSignUpNotification - error: %v", err)
-		return mtproto.BoolFalse, nil
+		return nil, err
 	}
 
-	return rValue, nil
+	return mtproto.ToBool(!mtproto.FromBool(enabled)), nil
 }

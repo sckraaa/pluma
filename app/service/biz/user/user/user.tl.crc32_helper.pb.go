@@ -64,8 +64,6 @@ const (
 	CRC32_user_getContact                    TLConstructor = -613250077  // 0xdb728be3
 	CRC32_user_addContact                    TLConstructor = 2042936590  // 0x79c4bd0e
 	CRC32_user_checkContact                  TLConstructor = -2102962012 // 0x82a758a4
-	CRC32_user_getImportersByPhone           TLConstructor = 1202356754  // 0x47aa8212
-	CRC32_user_deleteImportersByPhone        TLConstructor = 390978644   // 0x174ddc54
 	CRC32_user_importContacts                TLConstructor = -1711212654 // 0x9a00f792
 	CRC32_user_getCountryCode                TLConstructor = 302016562   // 0x12006832
 	CRC32_user_updateAbout                   TLConstructor = -620695161  // 0xdb00f187
@@ -121,4 +119,9 @@ const (
 	CRC32_user_toggleUsername                TLConstructor = -583312876  // 0xdd3b5a14
 	CRC32_user_reorderUsernames              TLConstructor = 979484096   // 0x3a61bdc0
 	CRC32_user_deactivateAllChannelUsernames TLConstructor = -1704991428 // 0x9a5fe53c
+	CRC32_user_getSavedContacts              TLConstructor = -1128508031 // 0xbcbc5581
+	CRC32_user_resetSavedContacts            TLConstructor = 211485174   // 0xc9b01f6
+	CRC32_user_getTopPeers                   TLConstructor = 731720709   // 0x2b9d2c05
+	CRC32_user_toggleTopPeers                TLConstructor = 1925363135  // 0x72c2b5bf
+	CRC32_user_resetTopPeerRating            TLConstructor = -476871816  // 0xe3938378
 )

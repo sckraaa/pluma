@@ -6,7 +6,7 @@ Etcd:
   Key: service.biz_service.user
 Mysql:
   Addr: 127.0.0.1:3306
-  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
+  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai&innodb_lock_wait_timeout=2
   Active: 64
   Idle: 64
   IdleTimeout: 4h
@@ -23,3 +23,15 @@ MediaClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.media
+
+# The sign-up of an imported number goes to the users who imported it:
+# messages into their boxes, events of box transactions (ADR 0012, 0015).
+IdgenClient:
+  Timeout: 2000
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.idgen
+Topics:
+  Inbox: "Inbox-T"
+  Sync: "Sync-T"

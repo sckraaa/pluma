@@ -12,6 +12,7 @@ package user_helper
 
 import (
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/config"
+	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/core"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/server/grpc/service"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/svc"
@@ -27,14 +28,28 @@ var (
 )
 
 type (
-	Config  = config.Config
-	Service = service.Service
+	Config       = config.Config
+	Topics       = config.Topics
+	Service      = service.Service
+	SignUpWorker = core.SignUpWorker
 )
 
 var (
 	NewServiceContext = svc.NewServiceContext
 )
 
-func New(c Config) *service.Service {
-	return service.New(svc.NewServiceContext(c))
+const (
+	// MaxBoxOpTime is the longest a box operation of the service takes:
+	// the deadline of the server must cover it.
+	MaxBoxOpTime = dao.MaxBoxOpTime
+	// SignUpStopWait is how long stopping the sign-up worker may take.
+	SignUpStopWait = core.SignUpStopWait
+)
+
+// New returns the user service and the worker that delivers the sign-ups
+// of imported numbers to their importers: the server starts the worker and
+// stops it when it stops.
+func New(c Config) (*service.Service, *core.SignUpWorker) {
+	ctx := svc.NewServiceContext(c)
+	return service.New(ctx), core.NewSignUpWorker(ctx)
 }

@@ -36,7 +36,7 @@
 | [008](008-security-p1.md) | Безопасность P1: 2FA, PFS, проверки протокола | todo |
 | [009](009-push.md) | Push: APNs (включая VoIP) и FCM | todo |
 | [010](010-updates-seq-difference.md) | seq, getDifference и полнота апдейтов | todo |
-| [011](011-contacts.md) | Контакты: импорт по номеру и поиск людей | todo |
+| [011](011-contacts.md) | Контакты: импорт по номеру и поиск людей | done |
 | [012](012-web-client.md) | Web-клиент (Web K) в облаке | done |
 | [013](013-dialog-filters.md) | Папки чатов | todo |
 

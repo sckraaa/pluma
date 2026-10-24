@@ -20,13 +20,38 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // ContactsResetTopPeerRating
 // contacts.resetTopPeerRating#1ae373ac category:TopPeerCategory peer:InputPeer = Bool;
+//
+// The user removes a peer from the suggestions of a category: its rating
+// there starts again from zero (user.resetTopPeerRating).
 func (c *ContactsCore) ContactsResetTopPeerRating(in *mtproto.TLContactsResetTopPeerRating) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("contacts.resetTopPeerRating blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
+	switch {
+	case in.GetCategory() == nil:
+		err := mtproto.ErrInputConstructorInvalid
+		c.Logger.Errorf("contacts.resetTopPeerRating - error: %v", err)
+		return nil, err
+	case peer.PeerType == mtproto.PEER_SELF:
+		peer.PeerType = mtproto.PEER_USER
+	case peer.PeerType != mtproto.PEER_USER && peer.PeerType != mtproto.PEER_CHAT && peer.PeerType != mtproto.PEER_CHANNEL:
+		err := mtproto.ErrPeerIdInvalid
+		c.Logger.Errorf("contacts.resetTopPeerRating - error: %v", err)
+		return nil, err
+	}
+
+	if _, err := c.svcCtx.Dao.UserClient.UserResetTopPeerRating(c.ctx, &userpb.TLUserResetTopPeerRating{
+		UserId:   c.MD.UserId,
+		Category: in.GetCategory(),
+		PeerType: peer.PeerType,
+		PeerId:   peer.PeerId,
+	}); err != nil {
+		c.Logger.Errorf("contacts.resetTopPeerRating - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }

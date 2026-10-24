@@ -20,14 +20,12 @@ package core
 
 import (
 	"context"
-	"math/rand"
 
 	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
-	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -171,6 +169,9 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 		return nil, err
 	}
 
+	// The users who imported the number get the new contact and the
+	// service message of the sign-up from the user service, which queued
+	// the sign-up with the account (task 011).
 	return threading2.WrapperGoFunc(
 		c.ctx,
 		mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
@@ -183,45 +184,6 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 		func(ctx context.Context) {
 			// on event
 			_ = c.svcCtx.AuthLogic.DeletePhoneCode(ctx, c.MD.PermAuthKeyId, phoneNumber)
-			c.onContactSignUp(ctx, c.MD.PermAuthKeyId, user.Id(), phoneNumber)
 		},
 	).(*mtproto.Auth_Authorization), nil
-}
-
-func (c *AuthorizationCore) onContactSignUp(ctx context.Context, authKeyId, userId int64, phone string) {
-	importers, _ := c.svcCtx.Dao.UserClient.UserGetImportersByPhone(ctx, &userpb.TLUserGetImportersByPhone{
-		Phone: phone,
-	})
-
-	for _, c2 := range importers.GetDatas() {
-		c.Logger.Infof("importer: user %d", c2.GetClientId())
-		v, _ := c.svcCtx.Dao.UserClient.UserGetContactSignUpNotification(ctx, &userpb.TLUserGetContactSignUpNotification{
-			UserId: c2.ClientId,
-		})
-
-		_ = authKeyId
-		if mtproto.FromBool(v) {
-			c.svcCtx.Dao.MsgClient.MsgPushUserMessage(
-				context.Background(),
-				&msgpb.TLMsgPushUserMessage{
-					UserId:    userId,
-					AuthKeyId: 0,
-					PeerType:  mtproto.PEER_USER,
-					PeerId:    c2.ClientId,
-					PushType:  1,
-					Message: msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
-						NoWebpage:    false,
-						Background:   false,
-						RandomId:     rand.Int63(),
-						Message:      mtproto.MakeContactSignUpMessage(userId, c2.ClientId),
-						ScheduleDate: nil,
-					}).To_OutboxMessage(),
-				})
-		} else {
-			c.Logger.Infof("not setting contactSignUpNotification")
-		}
-	}
-	c.svcCtx.Dao.UserClient.UserDeleteImportersByPhone(ctx, &userpb.TLUserDeleteImportersByPhone{
-		Phone: phone,
-	})
 }

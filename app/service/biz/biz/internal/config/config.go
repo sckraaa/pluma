@@ -20,6 +20,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	user_helper "github.com/teamgram/teamgram-server/app/service/biz/user"
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -32,4 +33,8 @@ type Config struct {
 	KV              kv.KvConf
 	MediaClient     zrpc.RpcClientConf
 	MessageSharding int `json:",default=1"`
+	// IdgenClient and Topics serve user: the sign-ups of imported numbers
+	// are messages to the importers, events of box transactions.
+	IdgenClient zrpc.RpcClientConf
+	Topics      user_helper.Topics
 }

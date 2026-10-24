@@ -95,6 +95,28 @@ func CheckAndGetPhoneNumber(number string) (phoneNumber string, err error) {
 	return pNumber.GetNormalizeDigits(), nil
 }
 
+// NormalizeContact returns a phone of an imported contact in the form
+// users.phone keeps (E.164 digits without '+'), the same form the login
+// gives a number (CheckPhoneNumberInvalid): "+7 (999) 000-00-01" and
+// "79990000001" are one number. A phone book also holds national numbers
+// ("8 999 000-00-01" in Russia, "(201) 555-0100" in the US), and the
+// clients send them as they are: a number without '+' is first read as a
+// national number of region, the importer's country (users.country_code),
+// as a phone dials it, and otherwise as an international one, as at login.
+func NormalizeContact(raw, region string) (string, error) {
+	phone := strings.TrimSpace(raw)
+	if phone == "" {
+		return "", mtproto.ErrPhoneNumberInvalid
+	}
+	if region != "" && !strings.HasPrefix(phone, "+") {
+		if n, err := phonenumbers.Parse(phone, region); err == nil && phonenumbers.IsValidNumber(n) {
+			return phonenumbers.NormalizeDigitsOnly(phonenumbers.Format(n, phonenumbers.E164)), nil
+		}
+	}
+	_, digits, err := CheckPhoneNumberInvalid(phone)
+	return digits, err
+}
+
 func CheckPhoneNumberInvalid(phone string) (string, string, error) {
 	// 3. check number
 	// 3.1. empty

@@ -592,34 +592,6 @@ func (s *Service) UserCheckContact(ctx context.Context, request *user.TLUserChec
 	return r, err
 }
 
-// UserGetImportersByPhone
-// user.getImportersByPhone phone:string = Vector<InputContact>;
-func (s *Service) UserGetImportersByPhone(ctx context.Context, request *user.TLUserGetImportersByPhone) (*user.Vector_InputContact, error) {
-	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("user.getImportersByPhone - metadata: {%s}", c.MD)
-
-	r, err := c.UserGetImportersByPhone(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, err
-}
-
-// UserDeleteImportersByPhone
-// user.deleteImportersByPhone phone:string = Bool;
-func (s *Service) UserDeleteImportersByPhone(ctx context.Context, request *user.TLUserDeleteImportersByPhone) (*mtproto.Bool, error) {
-	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("user.deleteImportersByPhone - metadata: {%s}", c.MD)
-
-	r, err := c.UserDeleteImportersByPhone(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, err
-}
-
 // UserImportContacts
 // user.importContacts user_id:long contacts:Vector<InputContact> = UserImportedContacts;
 func (s *Service) UserImportContacts(ctx context.Context, request *user.TLUserImportContacts) (*user.UserImportedContacts, error) {
@@ -1383,6 +1355,76 @@ func (s *Service) UserDeactivateAllChannelUsernames(ctx context.Context, request
 	c.Logger.Debugf("user.deactivateAllChannelUsernames - metadata: {%s}", c.MD)
 
 	r, err := c.UserDeactivateAllChannelUsernames(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserGetSavedContacts
+// user.getSavedContacts user_id:long = Vector<SavedContact>;
+func (s *Service) UserGetSavedContacts(ctx context.Context, request *user.TLUserGetSavedContacts) (*user.Vector_SavedContact, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.getSavedContacts - metadata: {%s}", c.MD)
+
+	r, err := c.UserGetSavedContacts(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserResetSavedContacts
+// user.resetSavedContacts user_id:long = Bool;
+func (s *Service) UserResetSavedContacts(ctx context.Context, request *user.TLUserResetSavedContacts) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.resetSavedContacts - metadata: {%s}", c.MD)
+
+	r, err := c.UserResetSavedContacts(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserGetTopPeers
+// user.getTopPeers user_id:long categories:Vector<TopPeerCategory> = contacts.TopPeers;
+func (s *Service) UserGetTopPeers(ctx context.Context, request *user.TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.getTopPeers - metadata: {%s}", c.MD)
+
+	r, err := c.UserGetTopPeers(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserToggleTopPeers
+// user.toggleTopPeers user_id:long enabled:Bool = Bool;
+func (s *Service) UserToggleTopPeers(ctx context.Context, request *user.TLUserToggleTopPeers) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.toggleTopPeers - metadata: {%s}", c.MD)
+
+	r, err := c.UserToggleTopPeers(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserResetTopPeerRating
+// user.resetTopPeerRating user_id:long category:TopPeerCategory peer_type:int peer_id:long = Bool;
+func (s *Service) UserResetTopPeerRating(ctx context.Context, request *user.TLUserResetTopPeerRating) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.resetTopPeerRating - metadata: {%s}", c.MD)
+
+	r, err := c.UserResetTopPeerRating(request)
 	if err != nil {
 		return nil, err
 	}

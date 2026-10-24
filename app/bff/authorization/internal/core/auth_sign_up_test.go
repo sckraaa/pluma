@@ -49,14 +49,6 @@ func (f *fakeUsers) UserCreateNewUser(_ context.Context, in *userpb.TLUserCreate
 	}).To_ImmutableUser(), nil
 }
 
-func (f *fakeUsers) UserGetImportersByPhone(context.Context, *userpb.TLUserGetImportersByPhone) (*userpb.Vector_InputContact, error) {
-	return &userpb.Vector_InputContact{}, nil
-}
-
-func (f *fakeUsers) UserDeleteImportersByPhone(context.Context, *userpb.TLUserDeleteImportersByPhone) (*mtproto.Bool, error) {
-	return mtproto.BoolTrue, nil
-}
-
 func (f *fakeUsers) createdPhones() []string {
 	f.mu.Lock()
 	defer f.mu.Unlock()

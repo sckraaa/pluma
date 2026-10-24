@@ -20,13 +20,23 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // ContactsResetSaved
 // contacts.resetSaved#879537f1 = Bool;
+//
+// "Removes all contacts without an associated Telegram account": the
+// imported numbers that are not contacts; the contacts stay. The clients
+// call it when the user turns contact sync off (Android
+// ContactsController.resetImportedContacts, iOS resetSavedContacts).
 func (c *ContactsCore) ContactsResetSaved(in *mtproto.TLContactsResetSaved) (*mtproto.Bool, error) {
-	// TODO: not impl
-	// c.Logger.Errorf("contacts.resetSaved blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	if _, err := c.svcCtx.Dao.UserClient.UserResetSavedContacts(c.ctx, &userpb.TLUserResetSavedContacts{
+		UserId: c.MD.UserId,
+	}); err != nil {
+		c.Logger.Errorf("contacts.resetSaved - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }

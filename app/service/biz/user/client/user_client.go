@@ -64,8 +64,6 @@ type UserClient interface {
 	UserGetContact(ctx context.Context, in *user.TLUserGetContact) (*mtproto.ContactData, error)
 	UserAddContact(ctx context.Context, in *user.TLUserAddContact) (*mtproto.Bool, error)
 	UserCheckContact(ctx context.Context, in *user.TLUserCheckContact) (*mtproto.Bool, error)
-	UserGetImportersByPhone(ctx context.Context, in *user.TLUserGetImportersByPhone) (*user.Vector_InputContact, error)
-	UserDeleteImportersByPhone(ctx context.Context, in *user.TLUserDeleteImportersByPhone) (*mtproto.Bool, error)
 	UserImportContacts(ctx context.Context, in *user.TLUserImportContacts) (*user.UserImportedContacts, error)
 	UserGetCountryCode(ctx context.Context, in *user.TLUserGetCountryCode) (*mtproto.String, error)
 	UserUpdateAbout(ctx context.Context, in *user.TLUserUpdateAbout) (*mtproto.Bool, error)
@@ -121,6 +119,11 @@ type UserClient interface {
 	UserToggleUsername(ctx context.Context, in *user.TLUserToggleUsername) (*mtproto.Bool, error)
 	UserReorderUsernames(ctx context.Context, in *user.TLUserReorderUsernames) (*mtproto.Bool, error)
 	UserDeactivateAllChannelUsernames(ctx context.Context, in *user.TLUserDeactivateAllChannelUsernames) (*mtproto.Bool, error)
+	UserGetSavedContacts(ctx context.Context, in *user.TLUserGetSavedContacts) (*user.Vector_SavedContact, error)
+	UserResetSavedContacts(ctx context.Context, in *user.TLUserResetSavedContacts) (*mtproto.Bool, error)
+	UserGetTopPeers(ctx context.Context, in *user.TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error)
+	UserToggleTopPeers(ctx context.Context, in *user.TLUserToggleTopPeers) (*mtproto.Bool, error)
+	UserResetTopPeerRating(ctx context.Context, in *user.TLUserResetTopPeerRating) (*mtproto.Bool, error)
 }
 
 type defaultUserClient struct {
@@ -582,28 +585,6 @@ func (m *defaultUserClient) UserCheckContact(ctx context.Context, in *user.TLUse
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserCheckContact(ctx, in)
-}
-
-// UserGetImportersByPhone
-// user.getImportersByPhone phone:string = Vector<InputContact>;
-func (m *defaultUserClient) UserGetImportersByPhone(ctx context.Context, in *user.TLUserGetImportersByPhone) (*user.Vector_InputContact, error) {
-	md := metadata.RpcMetadataFromIncoming(ctx)
-	if md != nil {
-		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
-	}
-	client := user.NewRPCUserClient(m.cli.Conn())
-	return client.UserGetImportersByPhone(ctx, in)
-}
-
-// UserDeleteImportersByPhone
-// user.deleteImportersByPhone phone:string = Bool;
-func (m *defaultUserClient) UserDeleteImportersByPhone(ctx context.Context, in *user.TLUserDeleteImportersByPhone) (*mtproto.Bool, error) {
-	md := metadata.RpcMetadataFromIncoming(ctx)
-	if md != nil {
-		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
-	}
-	client := user.NewRPCUserClient(m.cli.Conn())
-	return client.UserDeleteImportersByPhone(ctx, in)
 }
 
 // UserImportContacts
@@ -1209,4 +1190,59 @@ func (m *defaultUserClient) UserDeactivateAllChannelUsernames(ctx context.Contex
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserDeactivateAllChannelUsernames(ctx, in)
+}
+
+// UserGetSavedContacts
+// user.getSavedContacts user_id:long = Vector<SavedContact>;
+func (m *defaultUserClient) UserGetSavedContacts(ctx context.Context, in *user.TLUserGetSavedContacts) (*user.Vector_SavedContact, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserGetSavedContacts(ctx, in)
+}
+
+// UserResetSavedContacts
+// user.resetSavedContacts user_id:long = Bool;
+func (m *defaultUserClient) UserResetSavedContacts(ctx context.Context, in *user.TLUserResetSavedContacts) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserResetSavedContacts(ctx, in)
+}
+
+// UserGetTopPeers
+// user.getTopPeers user_id:long categories:Vector<TopPeerCategory> = contacts.TopPeers;
+func (m *defaultUserClient) UserGetTopPeers(ctx context.Context, in *user.TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserGetTopPeers(ctx, in)
+}
+
+// UserToggleTopPeers
+// user.toggleTopPeers user_id:long enabled:Bool = Bool;
+func (m *defaultUserClient) UserToggleTopPeers(ctx context.Context, in *user.TLUserToggleTopPeers) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserToggleTopPeers(ctx, in)
+}
+
+// UserResetTopPeerRating
+// user.resetTopPeerRating user_id:long category:TopPeerCategory peer_type:int peer_id:long = Bool;
+func (m *defaultUserClient) UserResetTopPeerRating(ctx context.Context, in *user.TLUserResetTopPeerRating) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserResetTopPeerRating(ctx, in)
 }

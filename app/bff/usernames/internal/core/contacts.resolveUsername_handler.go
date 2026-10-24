@@ -26,13 +26,13 @@ import (
 
 // ContactsResolveUsername
 // contacts.resolveUsername#f93ccba3 username:string = contacts.ResolvedPeer;
+//
+// The peer of a public username, with the user or chat as the user sees
+// it: USERNAME_INVALID for what cannot be a username, USERNAME_NOT_OCCUPIED
+// when nobody has it. Pluma serves no channels: a channel username, left
+// from data of another installation, resolves to nothing. referer (the
+// referral program) has no meaning here.
 func (c *UsernamesCore) ContactsResolveUsername(in *mtproto.TLContactsResolveUsername) (*mtproto.Contacts_ResolvedPeer, error) {
-	// TODO(@benqi):
-	// 401	AUTH_KEY_PERM_EMPTY	The temporary auth key must be binded to the permanent auth key to use these methods.
-	// 401	SESSION_PASSWORD_NEEDED	2FA is enabled, use a password to login
-	// 400	USERNAME_INVALID	The provided username is not valid
-	// 400	USERNAME_NOT_OCCUPIED	The provided username is not occupied
-	//
 	var (
 		peer *mtproto.PeerUtil
 	)
@@ -60,27 +60,41 @@ func (c *UsernamesCore) ContactsResolveUsername(in *mtproto.TLContactsResolveUse
 
 	switch peer.PeerType {
 	case mtproto.PEER_USER:
-		mUsers, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
+		mUsers, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
 			Id: []int64{c.MD.UserId, peer.PeerId},
+			To: []int64{c.MD.UserId},
 		})
-		// .UserFacade.GetUserById(ctx, md.UserId, peer.PeerId)
-		if mUsers != nil {
-			resolvedPeer.Users = mUsers.GetUserListByIdList(c.MD.UserId, peer.PeerId)
+		if err != nil {
+			c.Logger.Errorf("contacts.resolveUsername - error: %v", err)
+			return nil, err
 		}
+		if it, ok := mUsers.GetImmutableUser(peer.PeerId); !ok || it.Deleted() {
+			err = mtproto.ErrUsernameNotOccupied
+			c.Logger.Errorf("contacts.resolveUsername - error: %v", err)
+			return nil, err
+		}
+		resolvedPeer.Users = mUsers.GetUserListByIdList(c.MD.UserId, peer.PeerId)
 	case mtproto.PEER_CHAT:
-		chat, _ := c.svcCtx.Dao.ChatClient.ChatGetChatBySelfId(c.ctx, &chat.TLChatGetChatBySelfId{
+		chat, err := c.svcCtx.Dao.ChatClient.ChatGetChatBySelfId(c.ctx, &chat.TLChatGetChatBySelfId{
 			SelfId: c.MD.UserId,
 			ChatId: peer.PeerId,
 		})
-		if chat != nil {
-			resolvedPeer.Chats = []*mtproto.Chat{chat.ToUnsafeChat(c.MD.UserId)}
+		if err != nil {
+			c.Logger.Errorf("contacts.resolveUsername - error: %v", err)
+			return nil, err
 		}
+		resolvedPeer.Chats = []*mtproto.Chat{chat.ToUnsafeChat(c.MD.UserId)}
 	case mtproto.PEER_CHANNEL:
-		if c.svcCtx.Plugin != nil {
-			resolvedPeer.Chats = c.svcCtx.Plugin.GetChannelListByIdList(c.ctx, c.MD.UserId, peer.PeerId)
-		} else {
-			c.Logger.Errorf("contacts.resolveUsername blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		if c.svcCtx.Plugin == nil {
+			err := mtproto.ErrUsernameNotOccupied
+			c.Logger.Errorf("contacts.resolveUsername - a channel username, channels are not served: %v", err)
+			return nil, err
 		}
+		resolvedPeer.Chats = c.svcCtx.Plugin.GetChannelListByIdList(c.ctx, c.MD.UserId, peer.PeerId)
+	default:
+		err := mtproto.ErrUsernameNotOccupied
+		c.Logger.Errorf("contacts.resolveUsername - error: %v", err)
+		return nil, err
 	}
 
 	return resolvedPeer, nil

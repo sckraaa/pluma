@@ -291,16 +291,6 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -2102962012,
 		}
 	},
-	1202356754: func() mtproto.TLObject { // 0x47aa8212
-		return &TLUserGetImportersByPhone{
-			Constructor: 1202356754,
-		}
-	},
-	390978644: func() mtproto.TLObject { // 0x174ddc54
-		return &TLUserDeleteImportersByPhone{
-			Constructor: 390978644,
-		}
-	},
 	-1711212654: func() mtproto.TLObject { // 0x9a00f792
 		return &TLUserImportContacts{
 			Constructor: -1711212654,
@@ -574,6 +564,31 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 	-1704991428: func() mtproto.TLObject { // 0x9a5fe53c
 		return &TLUserDeactivateAllChannelUsernames{
 			Constructor: -1704991428,
+		}
+	},
+	-1128508031: func() mtproto.TLObject { // 0xbcbc5581
+		return &TLUserGetSavedContacts{
+			Constructor: -1128508031,
+		}
+	},
+	211485174: func() mtproto.TLObject { // 0xc9b01f6
+		return &TLUserResetSavedContacts{
+			Constructor: 211485174,
+		}
+	},
+	731720709: func() mtproto.TLObject { // 0x2b9d2c05
+		return &TLUserGetTopPeers{
+			Constructor: 731720709,
+		}
+	},
+	1925363135: func() mtproto.TLObject { // 0x72c2b5bf
+		return &TLUserToggleTopPeers{
+			Constructor: 1925363135,
+		}
+	},
+	-476871816: func() mtproto.TLObject { // 0xe3938378
+		return &TLUserResetTopPeerRating{
+			Constructor: -476871816,
 		}
 	},
 }
@@ -3690,82 +3705,6 @@ func (m *TLUserCheckContact) Decode(dBuf *mtproto.DecodeBuf) error {
 	return dBuf.GetError()
 }
 
-// TLUserGetImportersByPhone
-///////////////////////////////////////////////////////////////////////////////
-
-func (m *TLUserGetImportersByPhone) Encode(x *mtproto.EncodeBuf, layer int32) error {
-	switch uint32(m.Constructor) {
-	case 0x47aa8212:
-		x.UInt(0x47aa8212)
-
-		// no flags
-
-		x.String(m.GetPhone())
-
-	default:
-		// log.Errorf("")
-	}
-
-	return nil
-}
-
-func (m *TLUserGetImportersByPhone) CalcByteSize(layer int32) int {
-	return 0
-}
-
-func (m *TLUserGetImportersByPhone) Decode(dBuf *mtproto.DecodeBuf) error {
-	switch uint32(m.Constructor) {
-	case 0x47aa8212:
-
-		// not has flags
-
-		m.Phone = dBuf.String()
-		return dBuf.GetError()
-
-	default:
-		// log.Errorf("")
-	}
-	return dBuf.GetError()
-}
-
-// TLUserDeleteImportersByPhone
-///////////////////////////////////////////////////////////////////////////////
-
-func (m *TLUserDeleteImportersByPhone) Encode(x *mtproto.EncodeBuf, layer int32) error {
-	switch uint32(m.Constructor) {
-	case 0x174ddc54:
-		x.UInt(0x174ddc54)
-
-		// no flags
-
-		x.String(m.GetPhone())
-
-	default:
-		// log.Errorf("")
-	}
-
-	return nil
-}
-
-func (m *TLUserDeleteImportersByPhone) CalcByteSize(layer int32) int {
-	return 0
-}
-
-func (m *TLUserDeleteImportersByPhone) Decode(dBuf *mtproto.DecodeBuf) error {
-	switch uint32(m.Constructor) {
-	case 0x174ddc54:
-
-		// not has flags
-
-		m.Phone = dBuf.String()
-		return dBuf.GetError()
-
-	default:
-		// log.Errorf("")
-	}
-	return dBuf.GetError()
-}
-
 // TLUserImportContacts
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -6227,6 +6166,230 @@ func (m *TLUserDeactivateAllChannelUsernames) Decode(dBuf *mtproto.DecodeBuf) er
 	return dBuf.GetError()
 }
 
+// TLUserGetSavedContacts
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserGetSavedContacts) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xbcbc5581:
+		x.UInt(0xbcbc5581)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserGetSavedContacts) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserGetSavedContacts) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xbcbc5581:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserResetSavedContacts
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserResetSavedContacts) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc9b01f6:
+		x.UInt(0xc9b01f6)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserResetSavedContacts) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserResetSavedContacts) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc9b01f6:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserGetTopPeers
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserGetTopPeers) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x2b9d2c05:
+		x.UInt(0x2b9d2c05)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetCategories())))
+		for _, v := range m.GetCategories() {
+			v.Encode(x, layer)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserGetTopPeers) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserGetTopPeers) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x2b9d2c05:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		c2 := dBuf.Int()
+		if c2 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 2, c2)
+		}
+		l2 := dBuf.Int()
+		v2 := make([]*mtproto.TopPeerCategory, l2)
+		for i := int32(0); i < l2; i++ {
+			v2[i] = &mtproto.TopPeerCategory{}
+			v2[i].Decode(dBuf)
+		}
+		m.Categories = v2
+
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserToggleTopPeers
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserToggleTopPeers) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x72c2b5bf:
+		x.UInt(0x72c2b5bf)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		m.GetEnabled().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserToggleTopPeers) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserToggleTopPeers) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x72c2b5bf:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+
+		m2 := &mtproto.Bool{}
+		m2.Decode(dBuf)
+		m.Enabled = m2
+
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserResetTopPeerRating
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserResetTopPeerRating) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xe3938378:
+		x.UInt(0xe3938378)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		m.GetCategory().Encode(x, layer)
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserResetTopPeerRating) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserResetTopPeerRating) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xe3938378:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+
+		m2 := &mtproto.TopPeerCategory{}
+		m2.Decode(dBuf)
+		m.Category = m2
+
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
 // Vector_LastSeenData
 // /////////////////////////////////////////////////////////////////////////////
 func (m *Vector_LastSeenData) Encode(x *mtproto.EncodeBuf, layer int32) error {
@@ -6522,5 +6685,35 @@ func (m *Vector_UsernameData) Decode(dBuf *mtproto.DecodeBuf) error {
 }
 
 func (m *Vector_UsernameData) CalcByteSize(layer int32) int {
+	return 0
+}
+
+// Vector_SavedContact
+// /////////////////////////////////////////////////////////////////////////////
+func (m *Vector_SavedContact) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.Datas)))
+	for _, v := range m.Datas {
+		v.Encode(x, layer)
+	}
+
+	return nil
+}
+
+func (m *Vector_SavedContact) Decode(dBuf *mtproto.DecodeBuf) error {
+	if c := dBuf.Int(); c != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid mtproto.CRC32_vector: %d", c)
+	}
+	l1 := dBuf.Int()
+	m.Datas = make([]*mtproto.SavedContact, l1)
+	for i := int32(0); i < l1; i++ {
+		m.Datas[i] = new(mtproto.SavedContact)
+		(*m.Datas[i]).Decode(dBuf)
+	}
+
+	return dBuf.GetError()
+}
+
+func (m *Vector_SavedContact) CalcByteSize(layer int32) int {
 	return 0
 }

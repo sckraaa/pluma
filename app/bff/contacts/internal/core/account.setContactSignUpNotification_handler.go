@@ -25,6 +25,10 @@ import (
 
 // AccountSetContactSignUpNotification
 // account.setContactSignUpNotification#cff43f61 silent:Bool = Bool;
+//
+// silent turns the notifications of contacts' sign-ups off: the service
+// message of a sign-up still comes, marked silent, as Telegram does (ADR
+// 0015).
 func (c *ContactsCore) AccountSetContactSignUpNotification(in *mtproto.TLAccountSetContactSignUpNotification) (*mtproto.Bool, error) {
 	rValue, err := c.svcCtx.Dao.UserClient.UserSetContactSignUpNotification(c.ctx, &userpb.TLUserSetContactSignUpNotification{
 		UserId: c.MD.UserId,
@@ -32,7 +36,7 @@ func (c *ContactsCore) AccountSetContactSignUpNotification(in *mtproto.TLAccount
 	})
 	if err != nil {
 		c.Logger.Errorf("account.setContactSignUpNotification - error: %v", err)
-		return mtproto.BoolFalse, nil
+		return nil, err
 	}
 
 	return rValue, nil

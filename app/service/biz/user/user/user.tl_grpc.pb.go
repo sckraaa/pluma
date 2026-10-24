@@ -70,8 +70,6 @@ const (
 	RPCUser_UserGetContact_FullMethodName                    = "/user.RPCUser/user_getContact"
 	RPCUser_UserAddContact_FullMethodName                    = "/user.RPCUser/user_addContact"
 	RPCUser_UserCheckContact_FullMethodName                  = "/user.RPCUser/user_checkContact"
-	RPCUser_UserGetImportersByPhone_FullMethodName           = "/user.RPCUser/user_getImportersByPhone"
-	RPCUser_UserDeleteImportersByPhone_FullMethodName        = "/user.RPCUser/user_deleteImportersByPhone"
 	RPCUser_UserImportContacts_FullMethodName                = "/user.RPCUser/user_importContacts"
 	RPCUser_UserGetCountryCode_FullMethodName                = "/user.RPCUser/user_getCountryCode"
 	RPCUser_UserUpdateAbout_FullMethodName                   = "/user.RPCUser/user_updateAbout"
@@ -127,6 +125,11 @@ const (
 	RPCUser_UserToggleUsername_FullMethodName                = "/user.RPCUser/user_toggleUsername"
 	RPCUser_UserReorderUsernames_FullMethodName              = "/user.RPCUser/user_reorderUsernames"
 	RPCUser_UserDeactivateAllChannelUsernames_FullMethodName = "/user.RPCUser/user_deactivateAllChannelUsernames"
+	RPCUser_UserGetSavedContacts_FullMethodName              = "/user.RPCUser/user_getSavedContacts"
+	RPCUser_UserResetSavedContacts_FullMethodName            = "/user.RPCUser/user_resetSavedContacts"
+	RPCUser_UserGetTopPeers_FullMethodName                   = "/user.RPCUser/user_getTopPeers"
+	RPCUser_UserToggleTopPeers_FullMethodName                = "/user.RPCUser/user_toggleTopPeers"
+	RPCUser_UserResetTopPeerRating_FullMethodName            = "/user.RPCUser/user_resetTopPeerRating"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -174,8 +177,6 @@ type RPCUserClient interface {
 	UserGetContact(ctx context.Context, in *TLUserGetContact, opts ...grpc.CallOption) (*mtproto.ContactData, error)
 	UserAddContact(ctx context.Context, in *TLUserAddContact, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	UserCheckContact(ctx context.Context, in *TLUserCheckContact, opts ...grpc.CallOption) (*mtproto.Bool, error)
-	UserGetImportersByPhone(ctx context.Context, in *TLUserGetImportersByPhone, opts ...grpc.CallOption) (*Vector_InputContact, error)
-	UserDeleteImportersByPhone(ctx context.Context, in *TLUserDeleteImportersByPhone, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	UserImportContacts(ctx context.Context, in *TLUserImportContacts, opts ...grpc.CallOption) (*UserImportedContacts, error)
 	UserGetCountryCode(ctx context.Context, in *TLUserGetCountryCode, opts ...grpc.CallOption) (*mtproto.String, error)
 	UserUpdateAbout(ctx context.Context, in *TLUserUpdateAbout, opts ...grpc.CallOption) (*mtproto.Bool, error)
@@ -231,6 +232,11 @@ type RPCUserClient interface {
 	UserToggleUsername(ctx context.Context, in *TLUserToggleUsername, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	UserReorderUsernames(ctx context.Context, in *TLUserReorderUsernames, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	UserDeactivateAllChannelUsernames(ctx context.Context, in *TLUserDeactivateAllChannelUsernames, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	UserGetSavedContacts(ctx context.Context, in *TLUserGetSavedContacts, opts ...grpc.CallOption) (*Vector_SavedContact, error)
+	UserResetSavedContacts(ctx context.Context, in *TLUserResetSavedContacts, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	UserGetTopPeers(ctx context.Context, in *TLUserGetTopPeers, opts ...grpc.CallOption) (*mtproto.Contacts_TopPeers, error)
+	UserToggleTopPeers(ctx context.Context, in *TLUserToggleTopPeers, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	UserResetTopPeerRating(ctx context.Context, in *TLUserResetTopPeerRating, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCUserClient struct {
@@ -645,26 +651,6 @@ func (c *rPCUserClient) UserCheckContact(ctx context.Context, in *TLUserCheckCon
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Bool)
 	err := c.cc.Invoke(ctx, RPCUser_UserCheckContact_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *rPCUserClient) UserGetImportersByPhone(ctx context.Context, in *TLUserGetImportersByPhone, opts ...grpc.CallOption) (*Vector_InputContact, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Vector_InputContact)
-	err := c.cc.Invoke(ctx, RPCUser_UserGetImportersByPhone_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *rPCUserClient) UserDeleteImportersByPhone(ctx context.Context, in *TLUserDeleteImportersByPhone, opts ...grpc.CallOption) (*mtproto.Bool, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(mtproto.Bool)
-	err := c.cc.Invoke(ctx, RPCUser_UserDeleteImportersByPhone_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1221,6 +1207,56 @@ func (c *rPCUserClient) UserDeactivateAllChannelUsernames(ctx context.Context, i
 	return out, nil
 }
 
+func (c *rPCUserClient) UserGetSavedContacts(ctx context.Context, in *TLUserGetSavedContacts, opts ...grpc.CallOption) (*Vector_SavedContact, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_SavedContact)
+	err := c.cc.Invoke(ctx, RPCUser_UserGetSavedContacts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserResetSavedContacts(ctx context.Context, in *TLUserResetSavedContacts, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserResetSavedContacts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserGetTopPeers(ctx context.Context, in *TLUserGetTopPeers, opts ...grpc.CallOption) (*mtproto.Contacts_TopPeers, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Contacts_TopPeers)
+	err := c.cc.Invoke(ctx, RPCUser_UserGetTopPeers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserToggleTopPeers(ctx context.Context, in *TLUserToggleTopPeers, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserToggleTopPeers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserResetTopPeerRating(ctx context.Context, in *TLUserResetTopPeerRating, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserResetTopPeerRating_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1266,8 +1302,6 @@ type RPCUserServer interface {
 	UserGetContact(context.Context, *TLUserGetContact) (*mtproto.ContactData, error)
 	UserAddContact(context.Context, *TLUserAddContact) (*mtproto.Bool, error)
 	UserCheckContact(context.Context, *TLUserCheckContact) (*mtproto.Bool, error)
-	UserGetImportersByPhone(context.Context, *TLUserGetImportersByPhone) (*Vector_InputContact, error)
-	UserDeleteImportersByPhone(context.Context, *TLUserDeleteImportersByPhone) (*mtproto.Bool, error)
 	UserImportContacts(context.Context, *TLUserImportContacts) (*UserImportedContacts, error)
 	UserGetCountryCode(context.Context, *TLUserGetCountryCode) (*mtproto.String, error)
 	UserUpdateAbout(context.Context, *TLUserUpdateAbout) (*mtproto.Bool, error)
@@ -1323,6 +1357,11 @@ type RPCUserServer interface {
 	UserToggleUsername(context.Context, *TLUserToggleUsername) (*mtproto.Bool, error)
 	UserReorderUsernames(context.Context, *TLUserReorderUsernames) (*mtproto.Bool, error)
 	UserDeactivateAllChannelUsernames(context.Context, *TLUserDeactivateAllChannelUsernames) (*mtproto.Bool, error)
+	UserGetSavedContacts(context.Context, *TLUserGetSavedContacts) (*Vector_SavedContact, error)
+	UserResetSavedContacts(context.Context, *TLUserResetSavedContacts) (*mtproto.Bool, error)
+	UserGetTopPeers(context.Context, *TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error)
+	UserToggleTopPeers(context.Context, *TLUserToggleTopPeers) (*mtproto.Bool, error)
+	UserResetTopPeerRating(context.Context, *TLUserResetTopPeerRating) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1454,12 +1493,6 @@ func (UnimplementedRPCUserServer) UserAddContact(context.Context, *TLUserAddCont
 }
 func (UnimplementedRPCUserServer) UserCheckContact(context.Context, *TLUserCheckContact) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserCheckContact not implemented")
-}
-func (UnimplementedRPCUserServer) UserGetImportersByPhone(context.Context, *TLUserGetImportersByPhone) (*Vector_InputContact, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UserGetImportersByPhone not implemented")
-}
-func (UnimplementedRPCUserServer) UserDeleteImportersByPhone(context.Context, *TLUserDeleteImportersByPhone) (*mtproto.Bool, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method UserDeleteImportersByPhone not implemented")
 }
 func (UnimplementedRPCUserServer) UserImportContacts(context.Context, *TLUserImportContacts) (*UserImportedContacts, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserImportContacts not implemented")
@@ -1625,6 +1658,21 @@ func (UnimplementedRPCUserServer) UserReorderUsernames(context.Context, *TLUserR
 }
 func (UnimplementedRPCUserServer) UserDeactivateAllChannelUsernames(context.Context, *TLUserDeactivateAllChannelUsernames) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserDeactivateAllChannelUsernames not implemented")
+}
+func (UnimplementedRPCUserServer) UserGetSavedContacts(context.Context, *TLUserGetSavedContacts) (*Vector_SavedContact, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGetSavedContacts not implemented")
+}
+func (UnimplementedRPCUserServer) UserResetSavedContacts(context.Context, *TLUserResetSavedContacts) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserResetSavedContacts not implemented")
+}
+func (UnimplementedRPCUserServer) UserGetTopPeers(context.Context, *TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGetTopPeers not implemented")
+}
+func (UnimplementedRPCUserServer) UserToggleTopPeers(context.Context, *TLUserToggleTopPeers) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserToggleTopPeers not implemented")
+}
+func (UnimplementedRPCUserServer) UserResetTopPeerRating(context.Context, *TLUserResetTopPeerRating) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserResetTopPeerRating not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -2380,42 +2428,6 @@ func _RPCUser_UserCheckContact_Handler(srv interface{}, ctx context.Context, dec
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCUserServer).UserCheckContact(ctx, req.(*TLUserCheckContact))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RPCUser_UserGetImportersByPhone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TLUserGetImportersByPhone)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RPCUserServer).UserGetImportersByPhone(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RPCUser_UserGetImportersByPhone_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RPCUserServer).UserGetImportersByPhone(ctx, req.(*TLUserGetImportersByPhone))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RPCUser_UserDeleteImportersByPhone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TLUserDeleteImportersByPhone)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RPCUserServer).UserDeleteImportersByPhone(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RPCUser_UserDeleteImportersByPhone_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RPCUserServer).UserDeleteImportersByPhone(ctx, req.(*TLUserDeleteImportersByPhone))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3410,6 +3422,96 @@ func _RPCUser_UserDeactivateAllChannelUsernames_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserGetSavedContacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserGetSavedContacts)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserGetSavedContacts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserGetSavedContacts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserGetSavedContacts(ctx, req.(*TLUserGetSavedContacts))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserResetSavedContacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserResetSavedContacts)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserResetSavedContacts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserResetSavedContacts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserResetSavedContacts(ctx, req.(*TLUserResetSavedContacts))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserGetTopPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserGetTopPeers)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserGetTopPeers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserGetTopPeers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserGetTopPeers(ctx, req.(*TLUserGetTopPeers))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserToggleTopPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserToggleTopPeers)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserToggleTopPeers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserToggleTopPeers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserToggleTopPeers(ctx, req.(*TLUserToggleTopPeers))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserResetTopPeerRating_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserResetTopPeerRating)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserResetTopPeerRating(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserResetTopPeerRating_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserResetTopPeerRating(ctx, req.(*TLUserResetTopPeerRating))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3580,14 +3682,6 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_checkContact",
 			Handler:    _RPCUser_UserCheckContact_Handler,
-		},
-		{
-			MethodName: "user_getImportersByPhone",
-			Handler:    _RPCUser_UserGetImportersByPhone_Handler,
-		},
-		{
-			MethodName: "user_deleteImportersByPhone",
-			Handler:    _RPCUser_UserDeleteImportersByPhone_Handler,
 		},
 		{
 			MethodName: "user_importContacts",
@@ -3808,6 +3902,26 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_deactivateAllChannelUsernames",
 			Handler:    _RPCUser_UserDeactivateAllChannelUsernames_Handler,
+		},
+		{
+			MethodName: "user_getSavedContacts",
+			Handler:    _RPCUser_UserGetSavedContacts_Handler,
+		},
+		{
+			MethodName: "user_resetSavedContacts",
+			Handler:    _RPCUser_UserResetSavedContacts_Handler,
+		},
+		{
+			MethodName: "user_getTopPeers",
+			Handler:    _RPCUser_UserGetTopPeers_Handler,
+		},
+		{
+			MethodName: "user_toggleTopPeers",
+			Handler:    _RPCUser_UserToggleTopPeers_Handler,
+		},
+		{
+			MethodName: "user_resetTopPeerRating",
+			Handler:    _RPCUser_UserResetTopPeerRating_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

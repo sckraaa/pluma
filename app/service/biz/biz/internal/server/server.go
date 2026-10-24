@@ -47,6 +47,7 @@ var configFile = flag.String("f", "etc/biz.yaml", "the config file")
 
 type Server struct {
 	grpcSrv *zrpc.RpcServer
+	signUps *user_helper.SignUpWorker
 }
 
 func New() *Server {
@@ -66,11 +67,23 @@ func (s *Server) Initialize() error {
 	if err := checkBoxSettings(c.Mysql.DSN); err != nil {
 		return err
 	}
-	// A request of dialog waiting for a busy user's box must end with the
-	// box operation's own result, not the server's deadline.
-	if err := userbox.CheckRPCTimeout("Timeout", c.Timeout, dialog.MaxBoxOpTime); err != nil {
+	// A request of dialog or user waiting for a busy user's box must end
+	// with the box operation's own result, not the server's deadline.
+	if err := userbox.CheckRPCTimeout("Timeout", c.Timeout, max(dialog.MaxBoxOpTime, user_helper.MaxBoxOpTime)); err != nil {
 		return err
 	}
+
+	// user writes the sign-ups of imported numbers into the importers'
+	// boxes as events (ADR 0012, 0015); its worker delivers them.
+	userService, signUps := user_helper.New(user_helper.Config{
+		RpcServerConf: c.RpcServerConf,
+		Mysql:         c.Mysql,
+		Cache:         c.Cache,
+		MediaClient:   c.MediaClient,
+		IdgenClient:   c.IdgenClient,
+		Topics:        c.Topics,
+	})
+	s.signUps = signUps
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		// chat_helper
@@ -125,28 +138,32 @@ func (s *Server) Initialize() error {
 			}))
 
 		// user_helper
-		user.RegisterRPCUserServer(
-			grpcServer,
-			user_helper.New(user_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				Mysql:         c.Mysql,
-				Cache:         c.Cache,
-				MediaClient:   c.MediaClient,
-			}))
+		user.RegisterRPCUserServer(grpcServer, userService)
 	})
 
 	// logx.Must(err)
 	go func() {
 		s.grpcSrv.Start()
 	}()
+	s.signUps.Start()
 	return nil
 }
 
 func (s *Server) RunLoop() {
 }
 
+// Destroy stops the sign-up worker, which finishes the delivery in
+// progress (user_helper.SignUpStopWait), while the server stops.
 func (s *Server) Destroy() {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if s.signUps != nil {
+			s.signUps.Stop()
+		}
+	}()
 	s.grpcSrv.Stop()
+	<-done
 }
 
 // checkBoxSettings verifies the MySQL settings box transactions rely on

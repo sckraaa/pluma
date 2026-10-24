@@ -24,9 +24,18 @@ import (
 
 // UsersGetIsPremiumRequiredToContact
 // users.getIsPremiumRequiredToContact#a622aa10 id:Vector<InputUser> = Vector<Bool>;
+//
+// Whether writing to each user needs Telegram Premium, at the same offset
+// as the user: never — Pluma has no Premium, nobody can require it.
 func (c *PrivacySettingsCore) UsersGetIsPremiumRequiredToContact(in *mtproto.TLUsersGetIsPremiumRequiredToContact) (*mtproto.Vector_Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("users.getIsPremiumRequiredToContact blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	if err := c.checkUsers(in.GetId()); err != nil {
+		c.Logger.Errorf("users.getIsPremiumRequiredToContact - error: %v", err)
+		return nil, err
+	}
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	result := &mtproto.Vector_Bool{Datas: make([]*mtproto.Bool, 0, len(in.GetId()))}
+	for range in.GetId() {
+		result.Datas = append(result.Datas, mtproto.BoolFalse)
+	}
+	return result, nil
 }

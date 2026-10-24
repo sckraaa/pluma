@@ -73,8 +73,6 @@ enum TLConstructor {
   CRC32_user_getContact = -613250077;
   CRC32_user_addContact = 2042936590;
   CRC32_user_checkContact = -2102962012;
-  CRC32_user_getImportersByPhone = 1202356754;
-  CRC32_user_deleteImportersByPhone = 390978644;
   CRC32_user_importContacts = -1711212654;
   CRC32_user_getCountryCode = 302016562;
   CRC32_user_updateAbout = -620695161;
@@ -130,6 +128,11 @@ enum TLConstructor {
   CRC32_user_toggleUsername = -583312876;
   CRC32_user_reorderUsernames = 979484096;
   CRC32_user_deactivateAllChannelUsernames = -1704991428;
+  CRC32_user_getSavedContacts = -1128508031;
+  CRC32_user_resetSavedContacts = 211485174;
+  CRC32_user_getTopPeers = 731720709;
+  CRC32_user_toggleTopPeers = 1925363135;
+  CRC32_user_resetTopPeerRating = -476871816;
 }
 
 // BotInfoData <--
@@ -558,18 +561,6 @@ message TL_user_checkContact {
 }
 
 //--------------------------------------------------------------------------------------------
-message TL_user_getImportersByPhone {
-  TLConstructor constructor = 1;
-  string phone = 3;
-}
-
-//--------------------------------------------------------------------------------------------
-message TL_user_deleteImportersByPhone {
-  TLConstructor constructor = 1;
-  string phone = 3;
-}
-
-//--------------------------------------------------------------------------------------------
 message TL_user_importContacts {
   TLConstructor constructor = 1;
   int64 user_id = 3;
@@ -961,6 +952,41 @@ message TL_user_deactivateAllChannelUsernames {
 }
 
 //--------------------------------------------------------------------------------------------
+message TL_user_getSavedContacts {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
+message TL_user_resetSavedContacts {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
+message TL_user_getTopPeers {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  repeated mtproto.TopPeerCategory categories = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+message TL_user_toggleTopPeers {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  mtproto.Bool enabled = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+message TL_user_resetTopPeerRating {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  mtproto.TopPeerCategory category = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_LastSeenData {
   repeated LastSeenData datas = 1;
@@ -994,6 +1020,9 @@ message Vector_ContactBirthday {
 }
 message Vector_UsernameData {
   repeated UsernameData datas = 1;
+}
+message Vector_SavedContact {
+  repeated mtproto.SavedContact datas = 1;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1064,10 +1093,6 @@ service RPCUser {
   rpc user_getContact(TL_user_getContact) returns (mtproto.ContactData) {}
   rpc user_addContact(TL_user_addContact) returns (mtproto.Bool) {}
   rpc user_checkContact(TL_user_checkContact) returns (mtproto.Bool) {}
-  rpc user_getImportersByPhone(TL_user_getImportersByPhone)
-      returns (Vector_InputContact) {}
-  rpc user_deleteImportersByPhone(TL_user_deleteImportersByPhone)
-      returns (mtproto.Bool) {}
   rpc user_importContacts(TL_user_importContacts)
       returns (UserImportedContacts) {}
   rpc user_getCountryCode(TL_user_getCountryCode) returns (mtproto.String) {}
@@ -1151,5 +1176,14 @@ service RPCUser {
   rpc user_toggleUsername(TL_user_toggleUsername) returns (mtproto.Bool) {}
   rpc user_reorderUsernames(TL_user_reorderUsernames) returns (mtproto.Bool) {}
   rpc user_deactivateAllChannelUsernames(TL_user_deactivateAllChannelUsernames)
+      returns (mtproto.Bool) {}
+  rpc user_getSavedContacts(TL_user_getSavedContacts)
+      returns (Vector_SavedContact) {}
+  rpc user_resetSavedContacts(TL_user_resetSavedContacts)
+      returns (mtproto.Bool) {}
+  rpc user_getTopPeers(TL_user_getTopPeers)
+      returns (mtproto.contacts_TopPeers) {}
+  rpc user_toggleTopPeers(TL_user_toggleTopPeers) returns (mtproto.Bool) {}
+  rpc user_resetTopPeerRating(TL_user_resetTopPeerRating)
       returns (mtproto.Bool) {}
 }
