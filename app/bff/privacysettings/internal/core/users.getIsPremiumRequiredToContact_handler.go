@@ -25,17 +25,17 @@ import (
 // UsersGetIsPremiumRequiredToContact
 // users.getIsPremiumRequiredToContact#a622aa10 id:Vector<InputUser> = Vector<Bool>;
 //
-// Whether writing to each user needs Telegram Premium, at the same offset
-// as the user: never — Pluma has no Premium, nobody can require it.
+// Whether writing to each user needs Premium, at the same offset as the
+// user (pkg/premium).
 func (c *PrivacySettingsCore) UsersGetIsPremiumRequiredToContact(in *mtproto.TLUsersGetIsPremiumRequiredToContact) (*mtproto.Vector_Bool, error) {
-	if err := c.checkUsers(in.GetId()); err != nil {
+	required, err := c.premiumRequired(in.GetId())
+	if err != nil {
 		c.Logger.Errorf("users.getIsPremiumRequiredToContact - error: %v", err)
 		return nil, err
 	}
-
-	result := &mtproto.Vector_Bool{Datas: make([]*mtproto.Bool, 0, len(in.GetId()))}
-	for range in.GetId() {
-		result.Datas = append(result.Datas, mtproto.BoolFalse)
+	result := &mtproto.Vector_Bool{Datas: make([]*mtproto.Bool, 0, len(required))}
+	for _, r := range required {
+		result.Datas = append(result.Datas, mtproto.ToBool(r))
 	}
 	return result, nil
 }

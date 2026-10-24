@@ -28,14 +28,19 @@ func (c *UserCore) UserSetGlobalPrivacySettings(in *user.TLUserSetGlobalPrivacyS
 		archiveAndMuteNewNoncontactPeers = in.GetSettings().GetArchiveAndMuteNewNoncontactPeers_FLAGBOOLEAN()
 	}
 
-	c.svcCtx.Dao.UserGlobalPrivacySettingsDAO.InsertOrUpdate(c.ctx, &dataobject.UserGlobalPrivacySettingsDO{
+	// Whether the user may turn new_noncontact_peers_require_premium on
+	// (a Premium feature) is the caller's to check.
+	if err := c.svcCtx.Dao.SetGlobalPrivacySettings(c.ctx, &dataobject.UserGlobalPrivacySettingsDO{
 		UserId:                           in.UserId,
 		ArchiveAndMuteNewNoncontactPeers: archiveAndMuteNewNoncontactPeers,
 		KeepArchivedUnmuted:              in.GetSettings().GetKeepArchivedUnmuted(),
 		KeepArchivedFolders:              in.GetSettings().GetKeepArchivedFolders(),
 		HideReadMarks:                    in.GetSettings().GetHideReadMarks(),
 		NewNoncontactPeersRequirePremium: in.GetSettings().GetNewNoncontactPeersRequirePremium(),
-	})
+	}); err != nil {
+		c.Logger.Errorf("user.setGlobalPrivacySettings - user %d: %v", in.UserId, err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }

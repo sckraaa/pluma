@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -148,5 +149,53 @@ func TestPremiumExpiry(t *testing.T) {
 	}
 	if !premiumOf(t, running) {
 		t.Fatal("a running grant was taken away")
+	}
+}
+
+// The setting that only contacts, chats there already and Premium users may
+// write travels with the user at once, and shows to others while its owner
+// has Premium.
+func TestPremiumOnlySettingTravelsWithUser(t *testing.T) {
+	ctx := context.Background()
+	u, _ := newUser(t, "Olga")
+	other, _ := newUser(t, "Victor")
+	view := func() (*mtproto.ImmutableUser, *mtproto.User) {
+		t.Helper()
+		users, err := New(ctx, itSvc).UserGetMutableUsers(&user.TLUserGetMutableUsers{Id: []int64{u, other}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		me, _ := users.GetImmutableUser(u)
+		viewer, _ := users.GetImmutableUser(other)
+		return me, me.ToUnsafeUser(viewer)
+	}
+	if me, _ := view(); me.GetUser().GetNewNoncontactPeersRequirePremium() {
+		t.Fatal("a new user has the setting")
+	}
+
+	set := func(on bool) {
+		t.Helper()
+		if _, err := New(ctx, itSvc).UserSetGlobalPrivacySettings(&user.TLUserSetGlobalPrivacySettings{
+			UserId: u,
+			Settings: mtproto.MakeTLGlobalPrivacySettings(&mtproto.GlobalPrivacySettings{
+				NewNoncontactPeersRequirePremium: on,
+			}).To_GlobalPrivacySettings(),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set(true)
+	if me, seen := view(); !me.GetUser().GetNewNoncontactPeersRequirePremium() || seen.GetContactRequirePremium() {
+		t.Fatalf("without Premium: stored %v, others see %v", me.GetUser().GetNewNoncontactPeersRequirePremium(), seen.GetContactRequirePremium())
+	}
+	if _, err := ChangePremium(ctx, itSvc, u, dao.PremiumChange{Grant: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, seen := view(); !seen.GetContactRequirePremium() {
+		t.Fatal("with Premium others do not see contact_require_premium")
+	}
+	set(false)
+	if _, seen := view(); seen.GetContactRequirePremium() {
+		t.Fatal("turned off, still seen: a stale cache")
 	}
 }

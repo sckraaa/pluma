@@ -22,8 +22,10 @@ import (
 	"github.com/teamgram/marmota/pkg/utils"
 	"github.com/teamgram/proto/mtproto"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	dialogclient "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 
 	"github.com/zeromicro/go-zero/core/mr"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -66,7 +68,7 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 	me, _ = mutableUsers.GetImmutableUser(c.MD.UserId)
 	user, _ = mutableUsers.GetImmutableUser(peerId)
 
-	if user == nil {
+	if me == nil || user == nil {
 		err = mtproto.ErrInternalServerError
 		c.Logger.Errorf("users.getFullUser - error: %v", err)
 		return nil, err
@@ -125,33 +127,18 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		Note:                     nil,
 	}).To_UserFull()
 
-	// PremiumGifts
-	if user.Premium() {
-		// TODO: config able
-		userFull.PremiumGifts = []*mtproto.PremiumGiftOption{
-			mtproto.MakeTLPremiumGiftOption(&mtproto.PremiumGiftOption{
-				Months:       12,
-				Currency:     "CNY",
-				Amount:       20900,
-				BotUrl:       "https://t.me/$premgift448603711_12_5248da16f536f717a2",
-				StoreProduct: mtproto.MakeFlagsString("org.telegram.telegramPremium.twelveMonths"),
-			}).To_PremiumGiftOption(),
-			mtproto.MakeTLPremiumGiftOption(&mtproto.PremiumGiftOption{
-				Months:       6,
-				Currency:     "CNY",
-				Amount:       10900,
-				BotUrl:       "https://t.me/$premgift448603711_6_c7aae8edbdae927b72",
-				StoreProduct: mtproto.MakeFlagsString("org.telegram.telegramPremium.sixMonths"),
-			}).To_PremiumGiftOption(),
-			mtproto.MakeTLPremiumGiftOption(&mtproto.PremiumGiftOption{
-				Months:       3,
-				Currency:     "CNY",
-				Amount:       8499,
-				BotUrl:       "https://t.me/$premgift448603711_3_051b80db4901b91dd5",
-				StoreProduct: mtproto.MakeFlagsString("org.telegram.telegramPremium.threeMonths"),
-			}).To_PremiumGiftOption(),
-		}
+	// Pluma sells no Premium and nobody gifts it, the admin grants it
+	// (ADR 0016): no premium_gifts.
+
+	// Whether this user lets me write only with Premium (task 014): the
+	// client shows it in place of the message field.
+	if userFull.ContactRequirePremium, err = premium.RequiredToContact(me, user, func() (bool, error) {
+		return dialogclient.HasPrivateChat(c.ctx, c.svcCtx.Dao.DialogClient, peerId, c.MD.UserId)
+	}); err != nil {
+		c.Logger.Errorf("users.getFullUser - error: %v", err)
+		return nil, err
 	}
+
 	mr.FinishVoid(
 		func() {
 			// blocked

@@ -351,6 +351,7 @@ func (s *Server) Initialize() error {
 				UserClient:        c.BizServiceClient,
 				AuthsessionClient: c.AuthSessionClient,
 				ChatClient:        c.BizServiceClient,
+				DialogClient:      c.BizServiceClient,
 				SyncClient:        syncClient,
 			}))
 

@@ -28,5 +28,6 @@ type Config struct {
 	UserClient        zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
 	ChatClient        zrpc.RpcClientConf
+	DialogClient      zrpc.RpcClientConf
 	SyncClient        sync_client.OutboxConf
 }
