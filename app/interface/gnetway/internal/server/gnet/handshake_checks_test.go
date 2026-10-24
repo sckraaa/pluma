@@ -457,3 +457,91 @@ func TestSetAuthKeyResult(t *testing.T) {
 		t.Errorf("no answer: %v", err)
 	}
 }
+
+// FuzzProcessReqDHParams feeds arbitrary data_with_padding, correctly
+// RSA_PAD-ed, to req_DH_params: nothing may panic, and only a
+// p_q_inner_data that matches the handshake is accepted.
+func FuzzProcessReqDHParams(f *testing.F) {
+	h := newTestHarness(f)
+	pq, p, q := newPQ()
+	tc := newTestClient(f, &h.key.PublicKey)
+	tc.serverNonce = crypto.GenerateNonce(16)
+	tc.pq = putPQ(pq)
+	tc.p = string(binary.BigEndian.AppendUint32(nil, uint32(p)))
+	tc.q = string(binary.BigEndian.AppendUint32(nil, uint32(q)))
+	st := HandshakeStateCtx{State: STATE_DH_params, Nonce: tc.nonce, ServerNonce: tc.serverNonce, Pq: pq, P: p, Q: q}
+
+	var valid []byte
+	for _, temp := range []bool{false, true} {
+		tc.reqDHParamsWith(temp, reqDHParamsEdits{rsaPad: func(data []byte) []byte {
+			valid = data
+			f.Add(data)
+			return make([]byte, 256)
+		}})
+	}
+	f.Add(valid[:4])
+	f.Add([]byte{})
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		if len(data) > 192 {
+			data = data[:192]
+		}
+		req := &mtproto.TLReq_DHParams{
+			Nonce:                st.Nonce,
+			ServerNonce:          st.ServerNonce,
+			P:                    tc.p,
+			Q:                    tc.q,
+			PublicKeyFingerprint: tc.fingerprint,
+			EncryptedData:        string(rsaPadWith(t, &h.key.PublicKey, data, nil)),
+		}
+		res, err := h.s.handshake.processReqDHParams(&st, req, testNow)
+		if err == nil && (res.answer == nil || len(res.newNonce) != 32 || len(res.a) != dhSecretSize) {
+			t.Fatal("accepted without a full answer")
+		}
+	})
+}
+
+// FuzzProcessSetClientDHParams feeds arbitrary plaintext (encrypted with the
+// right tmp_aes_key) to set_client_DH_params: nothing may panic, and only a
+// hashed client_DH_inner_data with a good g_b is accepted.
+func FuzzProcessSetClientDHParams(f *testing.F) {
+	tc := newTestClient(f, &newTestHarness(f).key.PublicKey)
+	tc.serverNonce = crypto.GenerateNonce(16)
+	tc.g, tc.dhPrime, tc.gA = 3, gBigIntDH2048P, new(big.Int).Exp(gBigIntDH2048G, big.NewInt(1<<40+1), gBigIntDH2048P)
+	st := HandshakeStateCtx{
+		State:       STATE_dh_gen,
+		Nonce:       tc.nonce,
+		ServerNonce: tc.serverNonce,
+		NewNonce:    tc.newNonce,
+		A:           crypto.GenerateNonce(dhSecretSize),
+	}
+	key, iv := tc.tmpAes()
+
+	tc.setClientDHParamsWith(setClientDHParamsEdits{plain: func(plain []byte) []byte {
+		f.Add(slices.Clone(plain))
+		f.Add(slices.Clone(plain[:32]))
+		return plain
+	}})
+	f.Add(make([]byte, 16))
+
+	f.Fuzz(func(t *testing.T, plain []byte) {
+		if len(plain)%16 != 0 {
+			plain = append(plain, make([]byte, 16-len(plain)%16)...)
+		}
+		enc, err := crypto.NewAES256IGECryptor(key, iv).Encrypt(plain)
+		if err != nil {
+			return
+		}
+		res, err := processSetClientDHParams(&st, &mtproto.TLSetClient_DHParams{
+			Nonce:         st.Nonce,
+			ServerNonce:   st.ServerNonce,
+			EncryptedData: string(enc),
+		})
+		if err != nil {
+			return
+		}
+		if len(res.authKey) != 256 {
+			t.Fatal("accepted without a key")
+		}
+	})
+}
