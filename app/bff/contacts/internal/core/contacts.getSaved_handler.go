@@ -20,14 +20,36 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+
+	"google.golang.org/grpc/status"
 )
+
+// errTakeoutRequired: contacts.getSaved is a method of the takeout API, it
+// is called wrapped in invokeWithTakeout (403, as Telegram answers).
+var errTakeoutRequired = status.Error(mtproto.ErrForbidden, "TAKEOUT_REQUIRED")
 
 // ContactsGetSaved
 // contacts.getSaved#82f1e39f = Vector<SavedContact>;
+//
+// "Get all contacts, requires a takeout session": the phone book the user
+// synced, the numbers that are contacts and those that are not
+// (user.getSavedContacts). Telegram Desktop calls it in a data export.
 func (c *ContactsCore) ContactsGetSaved(in *mtproto.TLContactsGetSaved) (*mtproto.Vector_SavedContact, error) {
-	// TODO: not impl
+	if c.MD.GetTakeout().GetId() == 0 {
+		c.Logger.Errorf("contacts.getSaved - error: %v", errTakeoutRequired)
+		return nil, errTakeoutRequired
+	}
+
+	saved, err := c.svcCtx.Dao.UserClient.UserGetSavedContacts(c.ctx, &userpb.TLUserGetSavedContacts{
+		UserId: c.MD.UserId,
+	})
+	if err != nil {
+		c.Logger.Errorf("contacts.getSaved - error: %v", err)
+		return nil, err
+	}
 
 	return &mtproto.Vector_SavedContact{
-		Datas: []*mtproto.SavedContact{},
+		Datas: saved.GetDatas(),
 	}, nil
 }

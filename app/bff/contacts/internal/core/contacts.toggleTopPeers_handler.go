@@ -20,13 +20,23 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // ContactsToggleTopPeers
 // contacts.toggleTopPeers#8514bdda enabled:Bool = Bool;
+//
+// "Suggest frequent contacts": off, contacts.getTopPeers answers
+// contacts.topPeersDisabled and the data is dropped; back on, the ratings
+// count the messages from then on (user.toggleTopPeers).
 func (c *ContactsCore) ContactsToggleTopPeers(in *mtproto.TLContactsToggleTopPeers) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("contacts.toggleTopPeers blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	if _, err := c.svcCtx.Dao.UserClient.UserToggleTopPeers(c.ctx, &userpb.TLUserToggleTopPeers{
+		UserId:  c.MD.UserId,
+		Enabled: in.GetEnabled(),
+	}); err != nil {
+		c.Logger.Errorf("contacts.toggleTopPeers - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }
