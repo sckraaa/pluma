@@ -32,6 +32,7 @@ type (
 	Topics       = config.Topics
 	Service      = service.Service
 	SignUpWorker = core.SignUpWorker
+	Workers      = core.Workers
 )
 
 var (
@@ -44,12 +45,18 @@ const (
 	MaxBoxOpTime = dao.MaxBoxOpTime
 	// SignUpStopWait is how long stopping the sign-up worker may take.
 	SignUpStopWait = core.SignUpStopWait
+	// PremiumStopWait is how long stopping the Premium expiry may take.
+	PremiumStopWait = core.PremiumStopWait
 )
 
-// New returns the user service and the worker that delivers the sign-ups
-// of imported numbers to their importers: the server starts the worker and
-// stops it when it stops.
-func New(c Config) (*service.Service, *core.SignUpWorker) {
+// New returns the user service and its workers: the delivery of the
+// sign-ups of imported numbers to their importers and the expiry of
+// Premium grants. The server starts the workers and stops them when it
+// stops.
+func New(c Config) (*service.Service, *core.Workers) {
 	ctx := svc.NewServiceContext(c)
-	return service.New(ctx), core.NewSignUpWorker(ctx)
+	return service.New(ctx), &core.Workers{
+		SignUps: core.NewSignUpWorker(ctx),
+		Premium: core.NewPremiumWorker(ctx),
+	}
 }
