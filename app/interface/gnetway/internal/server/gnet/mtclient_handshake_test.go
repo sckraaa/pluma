@@ -3,7 +3,9 @@ package gnet
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,5 +83,32 @@ func TestMTClientKeyExchange(t *testing.T) {
 				t.Errorf("temporary key expires at %d", key.ExpiresAt)
 			}
 		})
+	}
+}
+
+// TestMTClientKeyExchangeRetry: pkg/mtclient answers dh_gen_retry (a
+// collision) with a new b and the right retry_id, and reports dh_gen_fail.
+func TestMTClientKeyExchangeRetry(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	h := newTestHarness(t)
+	h.refuseFirst(errAuthKeyIdTaken)
+	c := h.newConn(1, nil)
+	key, err := mtclient.CreateAuthKey(ctx, &harnessTransport{h: h, c: c}, &h.key.PublicKey, mtclient.KeyOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.do(func() {
+		if len(h.saved) != 1 || h.saved[0].AuthKeyId != key.ID || !bytes.Equal(h.saved[0].AuthKey, key.Key) {
+			t.Fatal("the server saved another key than the client computed")
+		}
+	})
+
+	h = newTestHarness(t)
+	h.refuseFirst(errors.New("storage unavailable"))
+	c = h.newConn(1, nil)
+	if _, err = mtclient.CreateAuthKey(ctx, &harnessTransport{h: h, c: c}, &h.key.PublicKey, mtclient.KeyOptions{}); err == nil || !strings.Contains(err.Error(), "dh_gen_fail") {
+		t.Fatalf("err = %v, want dh_gen_fail", err)
 	}
 }

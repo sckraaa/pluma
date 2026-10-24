@@ -87,6 +87,13 @@ func AuthKeyID(authKey []byte) int64 {
 	return int64(binary.LittleEndian.Uint64(h[12:20]))
 }
 
+// AuthKeyAuxHash returns auth_key_aux_hash: the high 64 bits of
+// SHA1(auth_key), the retry_id after dh_gen_retry.
+func AuthKeyAuxHash(authKey []byte) int64 {
+	h := sha1.Sum(authKey) //nolint:gosec // defined by the protocol
+	return int64(binary.LittleEndian.Uint64(h[:8]))
+}
+
 // newNonceHash returns new_nonce_hash1/2/3 of dh_gen_ok/retry/fail: the low
 // 128 bits of SHA1(new_nonce + n + auth_key_aux_hash).
 func newNonceHash(newNonce, authKey []byte, n byte) []byte {
