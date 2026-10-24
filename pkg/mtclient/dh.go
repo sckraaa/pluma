@@ -189,11 +189,12 @@ func checkDHPrime(g int64, p *big.Int) error {
 }
 
 // checkDHValue checks g_a or g_b: 1 < v < dh_prime - 1 and, as the protocol
-// recommends, 2^(2048-64) <= v <= dh_prime - 2^(2048-64).
+// recommends, 2^(2048-64) < v < dh_prime - 2^(2048-64), the bounds the
+// gateway checks g_b against.
 func checkDHValue(v, p *big.Int) error {
 	low := new(big.Int).Lsh(big.NewInt(1), 2048-64)
 	high := new(big.Int).Sub(p, low)
-	if v.Cmp(low) < 0 || v.Cmp(high) > 0 {
+	if v.Cmp(low) <= 0 || v.Cmp(high) >= 0 {
 		return errors.New("mtclient: DH value out of the safe range")
 	}
 	return nil

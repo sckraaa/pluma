@@ -111,11 +111,25 @@ var (
 var (
 	gBigIntDH2048P *big.Int
 	gBigIntDH2048G *big.Int
+	// dhValueLow and dhValueHigh bound g_a and g_b (isGoodDHValue).
+	dhValueLow  *big.Int
+	dhValueHigh *big.Int
 )
 
 func init() {
 	gBigIntDH2048P = new(big.Int).SetBytes(dh2048P)
 	gBigIntDH2048G = new(big.Int).SetBytes(dh2048G)
+	dhValueLow = new(big.Int).Lsh(big.NewInt(1), 2048-64)
+	dhValueHigh = new(big.Int).Sub(gBigIntDH2048P, dhValueLow)
+}
+
+// isGoodDHValue checks g_a or g_b as both sides of the key exchange must:
+// 1 < v < dh_prime - 1 and, as the protocol recommends,
+// 2^(2048-64) < v < dh_prime - 2^(2048-64). Values outside give a weak or
+// predictable key: whatever a is, g_b = 1 makes it 1, and g_b = dh_prime - 1
+// makes it 1 or dh_prime - 1.
+func isGoodDHValue(v *big.Int) bool {
+	return v.Cmp(dhValueLow) > 0 && v.Cmp(dhValueHigh) < 0
 }
 
 type rsaKeyHelper struct {
@@ -214,6 +228,7 @@ var (
 	errHandshakePQ           = errors.New("handshake: req_DH_params: p and q are not the factors of pq")
 	errRSAPadHash            = errors.New("handshake: req_DH_params: RSA_PAD hash mismatch")
 	errClientDHInnerDataHash = errors.New("handshake: set_client_DH_params: SHA1 of client_DH_inner_data mismatch")
+	errDHValue               = errors.New("handshake: set_client_DH_params: g_b out of range")
 	errTempKeyExpiresIn      = errors.New("handshake: temporary key without a positive expires_in")
 )
 
@@ -565,8 +580,16 @@ func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq
 		return nil, errHandshakeData
 	}
 
-	a := crypto.GenerateNonce(dhSecretSize)
-	gA := new(big.Int).Exp(gBigIntDH2048G, new(big.Int).SetBytes(a), gBigIntDH2048P)
+	// The server checks its own g_a too; one out of range comes up with
+	// probability about 2^-63.
+	var a []byte
+	gA := new(big.Int)
+	for {
+		a = crypto.GenerateNonce(dhSecretSize)
+		if gA.Exp(gBigIntDH2048G, new(big.Int).SetBytes(a), gBigIntDH2048P); isGoodDHValue(gA) {
+			break
+		}
+	}
 
 	// server_DH_inner_data#b5890dba nonce:int128 server_nonce:int128 g:int dh_prime:string g_a:string server_time:int = Server_DH_inner_data;
 	serverDHInnerData := &mtproto.TLServer_DHInnerData{Data2: &mtproto.Server_DHInnerData{
@@ -688,9 +711,13 @@ func processSetClientDHParams(st *HandshakeStateCtx, req *mtproto.TLSetClient_DH
 	if len(gB) == 0 || len(gB) > dhSecretSize {
 		return nil, errHandshakeData
 	}
+	gBNum := new(big.Int).SetBytes(gB)
+	if !isGoodDHValue(gBNum) {
+		return nil, errDHValue
+	}
 
 	// auth_key := g_b^a mod dh_prime, 256 bytes big-endian.
-	authKeyNum := new(big.Int).Exp(new(big.Int).SetBytes(gB), new(big.Int).SetBytes(st.A), gBigIntDH2048P)
+	authKeyNum := new(big.Int).Exp(gBNum, new(big.Int).SetBytes(st.A), gBigIntDH2048P)
 	authKey := make([]byte, 256)
 	authKeyNum.FillBytes(authKey)
 

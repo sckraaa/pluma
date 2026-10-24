@@ -262,3 +262,76 @@ func TestSetClientDHParamsChecksHash(t *testing.T) {
 		})
 	}
 }
+
+func TestIsGoodDHValue(t *testing.T) {
+	one := big.NewInt(1)
+	p := gBigIntDH2048P
+	low := new(big.Int).Lsh(one, 2048-64)
+	high := new(big.Int).Sub(p, low)
+	add := func(a, b *big.Int) *big.Int { return new(big.Int).Add(a, b) }
+	sub := func(a, b *big.Int) *big.Int { return new(big.Int).Sub(a, b) }
+	gB := new(big.Int).Exp(gBigIntDH2048G, new(big.Int).SetBytes(crypto.GenerateNonce(256)), p)
+
+	for _, c := range []struct {
+		name string
+		v    *big.Int
+		ok   bool
+	}{
+		{"0", big.NewInt(0), false},
+		{"1", one, false},
+		{"2", big.NewInt(2), false},
+		{"2^(2048-64) - 1", sub(low, one), false},
+		{"2^(2048-64)", low, false},
+		{"2^(2048-64) + 1", add(low, one), true},
+		{"g^b", gB, true},
+		{"dh_prime - 2^(2048-64) - 1", sub(high, one), true},
+		{"dh_prime - 2^(2048-64)", high, false},
+		{"dh_prime - 2^(2048-64) + 1", add(high, one), false},
+		{"dh_prime - 1", sub(p, one), false},
+		{"dh_prime", p, false},
+		{"dh_prime + 1", add(p, one), false},
+	} {
+		if isGoodDHValue(c.v) != c.ok {
+			t.Errorf("%s: isGoodDHValue = %v", c.name, !c.ok)
+		}
+	}
+}
+
+// TestSetClientDHParamsChecksGB: g_b must be in 2^(2048-64) < g_b <
+// dh_prime - 2^(2048-64), which also excludes 1 and dh_prime - 1.
+func TestSetClientDHParamsChecksGB(t *testing.T) {
+	one := big.NewInt(1)
+	p := gBigIntDH2048P
+	low := new(big.Int).Lsh(one, 2048-64)
+	high := new(big.Int).Sub(p, low)
+	for _, c := range []struct {
+		name string
+		gB   *big.Int
+		ok   bool
+	}{
+		{"1", one, false},
+		{"dh_prime - 1", new(big.Int).Sub(p, one), false},
+		{"dh_prime", p, false},
+		{"2^(2048-64)", low, false},
+		{"dh_prime - 2^(2048-64)", high, false},
+		{"2^(2048-64) + 1", new(big.Int).Add(low, one), true},
+		{"dh_prime - 2^(2048-64) - 1", new(big.Int).Sub(high, one), true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			h := newTestHarness(t)
+			conn, tc := h.startSetDH(1)
+			frame := tc.setClientDHParamsWith(setClientDHParamsEdits{gB: c.gB})
+			if !c.ok {
+				h.expectRejected(conn, frame)
+				return
+			}
+			if a := h.sendFrame(conn, frame); a != gnet.None {
+				t.Fatalf("action %v", a)
+			}
+			h.waitWrites(conn, 3)
+			if o, ok := h.lastUnencrypted(conn).(*mtproto.TLDhGenOk); !ok {
+				t.Fatalf("got %T, want dh_gen_ok", o)
+			}
+		})
+	}
+}
