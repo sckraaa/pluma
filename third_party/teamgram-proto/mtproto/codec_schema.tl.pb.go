@@ -253944,6 +253944,14 @@ func (m *TLUserData) GetMainTab() *ProfileTab  { return m.Data2.MainTab }
 func (m *TLUserData) SetUsernames(v []*Username) { m.Data2.Usernames = v }
 func (m *TLUserData) GetUsernames() []*Username  { return m.Data2.Usernames }
 
+// pluma: new_noncontact_peers_require_premium
+func (m *TLUserData) SetNewNoncontactPeersRequirePremium(v bool) {
+	m.Data2.NewNoncontactPeersRequirePremium = v
+}
+func (m *TLUserData) GetNewNoncontactPeersRequirePremium() bool {
+	return m.Data2.NewNoncontactPeersRequirePremium
+}
+
 func (m *TLUserData) GetPredicateName() string {
 	return Predicate_userData
 }
@@ -254017,6 +254025,9 @@ func (m *TLUserData) Encode(x *EncodeBuf, layer int32) error {
 			}
 			if m.GetUsernames() != nil {
 				flags |= 1 << 19
+			}
+			if m.GetNewNoncontactPeersRequirePremium() == true { // pluma: new_noncontact_peers_require_premium
+				flags |= 1 << 20
 			}
 
 			return flags
@@ -254242,6 +254253,9 @@ func (m *TLUserData) Decode(dBuf *DecodeBuf) error {
 				v33[i].Decode(dBuf)
 			}
 			m.SetUsernames(v33)
+		}
+		if (flags & (1 << 20)) != 0 { // pluma: new_noncontact_peers_require_premium
+			m.SetNewNoncontactPeersRequirePremium(true)
 		}
 		return dBuf.GetError()
 

@@ -24,7 +24,7 @@ import (
 //
 // The constructor of older clients: the same folders as a vector.
 func (c *FoldersCore) MessagesGetDialogFiltersF19ED96D(in *mtproto.TLMessagesGetDialogFiltersF19ED96D) (*mtproto.Vector_DialogFilter, error) {
-	filters, err := c.dialogFilters()
+	filters, _, err := c.dialogFilters()
 	if err != nil {
 		c.Logger.Errorf("messages.getDialogFilters - error: %v", err)
 		return nil, err

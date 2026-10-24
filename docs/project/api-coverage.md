@@ -85,7 +85,7 @@
 | `account.getDefaultEmojiStatuses` | missing |  |
 | `account.getDefaultGroupPhotoEmojis` | missing |  |
 | `account.getDefaultProfilePhotoEmojis` | missing |  |
-| `account.getGlobalPrivacySettings` | ok | app/bff/privacysettings/internal/core/account.getGlobalPrivacySettings_handler.go:28 |
+| `account.getGlobalPrivacySettings` | ok | app/bff/privacysettings/internal/core/account.getGlobalPrivacySettings_handler.go:31 |
 | `account.getMultiWallPapers` | missing |  |
 | `account.getNotifyExceptions` | partial | app/bff/notification/internal/core/account.getNotifyExceptions_handler.go:29 |
 | `account.getNotifySettings` | ok | app/bff/notification/internal/core/account.getNotifySettings_handler.go:28 |
@@ -140,7 +140,7 @@
 | `account.setAuthorizationTTL` | ok | app/bff/authorization/internal/core/account.setAuthorizationTTL_handler.go:28 |
 | `account.setContactSignUpNotification` | ok | app/bff/contacts/internal/core/account.setContactSignUpNotification_handler.go:32 |
 | `account.setContentSettings` | ok | app/bff/nsfw/internal/core/account.setContentSettings_handler.go:28 |
-| `account.setGlobalPrivacySettings` | ok | app/bff/privacysettings/internal/core/account.setGlobalPrivacySettings_handler.go:28 |
+| `account.setGlobalPrivacySettings` | ok | app/bff/privacysettings/internal/core/account.setGlobalPrivacySettings_handler.go:33 |
 | `account.setMainProfileTab` | ok | app/bff/userchannelprofiles/internal/core/account.setMainProfileTab_handler.go:28 |
 | `account.setPrivacy` | ok | app/bff/privacysettings/internal/core/account.setPrivacy_handler.go:30 |
 | `account.setReactionsNotifySettings` | missing |  |
@@ -733,7 +733,7 @@
 | `messages.startHistoryImport` | missing |  |
 | `messages.summarizeText` | notimpl | app/bff/messages/internal/core/messages.summarizeText_handler.go:27 |
 | `messages.toggleBotInAttachMenu` | missing |  |
-| `messages.toggleDialogFilterTags` | ok | app/bff/folders/internal/core/messages.toggleDialogFilterTags_handler.go:28 |
+| `messages.toggleDialogFilterTags` | ok | app/bff/folders/internal/core/messages.toggleDialogFilterTags_handler.go:31 |
 | `messages.toggleDialogPin` | ok | app/bff/dialogs/internal/core/messages.toggleDialogPin_handler.go:31 |
 | `messages.toggleNoForwards` | ok | app/bff/messages/internal/core/messages.toggleNoForwards_handler.go:28 |
 | `messages.togglePaidReactionPrivacy` | missing |  |
@@ -1033,10 +1033,10 @@
 
 | method | status | handler |
 |---|---|---|
-| `users.getFullUser` | ok | app/bff/users/internal/core/users.getFullUser_handler.go:34 |
+| `users.getFullUser` | ok | app/bff/users/internal/core/users.getFullUser_handler.go:36 |
 | `users.getIsPremiumRequiredToContact` | ok | app/bff/privacysettings/internal/core/users.getIsPremiumRequiredToContact_handler.go:30 |
 | `users.getMe` | ok | app/bff/users/internal/core/users.getMe_handler.go:28 |
-| `users.getRequirementsToContact` | ok | app/bff/privacysettings/internal/core/users.getRequirementsToContact_handler.go:32 |
+| `users.getRequirementsToContact` | ok | app/bff/privacysettings/internal/core/users.getRequirementsToContact_handler.go:35 |
 | `users.getSavedMusic` | ok | app/bff/userchannelprofiles/internal/core/users.getSavedMusic_handler.go:29 |
 | `users.getSavedMusicByID` | ok | app/bff/userchannelprofiles/internal/core/users.getSavedMusicByID_handler.go:28 |
 | `users.getStoriesMaxIDs` | missing |  |

@@ -26,7 +26,9 @@ import (
 )
 
 const (
-	cacheUserDataKeyPrefix = "user_data.2"
+	// The version goes up when the cached user data changes: .3 carries
+	// new_noncontact_peers_require_premium (task 014).
+	cacheUserDataKeyPrefix = "user_data.3"
 	cachePhoneUserPrefix   = "phone_user.1"
 )
 
@@ -261,6 +263,16 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 		}
 
 		return cacheData, nil
+	}
+
+	// Who may write to the user travels with the user (task 014): a wrong
+	// value must not stay in the cache, so a failed read fails the load.
+	settings, err := d.UserGlobalPrivacySettingsDAO.Select(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if settings != nil {
+		userData.NewNoncontactPeersRequirePremium = settings.NewNoncontactPeersRequirePremium
 	}
 
 	mr.FinishVoid(

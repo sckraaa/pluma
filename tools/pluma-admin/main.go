@@ -131,6 +131,9 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] migrate up [-dir <sql dir>] [-wait <duration>]
   pluma-admin [-f bff.yaml] migrate status [-dir <sql dir>]
   pluma-admin [-f bff.yaml] migrate baseline -through <file> [-dir <sql dir>]
+  pluma-admin [-f bff.yaml] premium grant <phone> [-months N]   (without -months: for good)
+  pluma-admin [-f bff.yaml] premium revoke <phone>
+  pluma-admin [-f bff.yaml] premium list
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
 
 Phones are international numbers, e.g. +79991234567.
@@ -180,6 +183,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return migrateCommand(args, configFile, stdout)
 	case "storage":
 		return storageCommand(args, configFile, stdout)
+	case "premium":
+		return premiumCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

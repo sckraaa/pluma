@@ -25,8 +25,25 @@ import (
 
 // AccountSetGlobalPrivacySettings
 // account.setGlobalPrivacySettings#1edaaac2 settings:GlobalPrivacySettings = GlobalPrivacySettings;
+//
+// new_noncontact_peers_require_premium (only contacts, chats there already
+// and Premium users may write) is a Premium feature: turning it on without
+// Premium answers PREMIUM_ACCOUNT_REQUIRED, as Telegram does
+// (new_noncontact_peers_require_premium_without_ownpremium is off).
 func (c *PrivacySettingsCore) AccountSetGlobalPrivacySettings(in *mtproto.TLAccountSetGlobalPrivacySettings) (*mtproto.GlobalPrivacySettings, error) {
 	rSettings := in.GetSettings()
+	if rSettings.GetNewNoncontactPeersRequirePremium() {
+		me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: c.MD.UserId})
+		if err != nil {
+			c.Logger.Errorf("account.setGlobalPrivacySettings - error: %v", err)
+			return nil, err
+		}
+		if !me.Premium() {
+			err = mtproto.ErrPremiumAccountRequired
+			c.Logger.Errorf("account.setGlobalPrivacySettings - user %d: %v", c.MD.UserId, err)
+			return nil, err
+		}
+	}
 
 	_, err := c.svcCtx.Dao.UserClient.UserSetGlobalPrivacySettings(c.ctx, &userpb.TLUserSetGlobalPrivacySettings{
 		UserId:   c.MD.UserId,

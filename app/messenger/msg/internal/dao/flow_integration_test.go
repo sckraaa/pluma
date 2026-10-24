@@ -115,11 +115,26 @@ func (s snowflake) NextIds(ctx context.Context, n int) ([]int64, error) {
 	return ids, nil
 }
 
-// fakeUsers serves the users msg asks biz for; blocked[{a, b}]: a blocked b.
+// fakeUsers serves the users msg asks biz for; blocked[{a, b}]: a blocked b;
+// premium: users with Premium; premiumOnly: users who let only contacts,
+// chats there already and Premium users write.
 type fakeUsers struct {
 	user_client.UserClient
-	mu      sync.Mutex
-	blocked map[[2]int64]bool
+	mu          sync.Mutex
+	blocked     map[[2]int64]bool
+	premium     map[int64]bool
+	premiumOnly map[int64]bool
+}
+
+// mark gives users their Premium and settings.
+func (f *fakeUsers) mark(users []*mtproto.ImmutableUser) []*mtproto.ImmutableUser {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, u := range users {
+		u.User.Premium = f.premium[u.Id()]
+		u.User.NewNoncontactPeersRequirePremium = f.premiumOnly[u.Id()]
+	}
+	return users
 }
 
 func immutableUser(id int64) *mtproto.ImmutableUser {
@@ -149,11 +164,11 @@ func immutableUsers(ids ...[]int64) []*mtproto.ImmutableUser {
 }
 
 func (f *fakeUsers) UserGetMutableUsers(_ context.Context, in *userpb.TLUserGetMutableUsers) (*userpb.Vector_ImmutableUser, error) {
-	return &userpb.Vector_ImmutableUser{Datas: immutableUsers(in.Id, in.To)}, nil
+	return &userpb.Vector_ImmutableUser{Datas: f.mark(immutableUsers(in.Id, in.To))}, nil
 }
 
 func (f *fakeUsers) UserGetMutableUsersV2(_ context.Context, in *userpb.TLUserGetMutableUsersV2) (*mtproto.MutableUsers, error) {
-	return mtproto.MakeTLMutableUsers(&mtproto.MutableUsers{Users: immutableUsers(in.Id, in.To)}).To_MutableUsers(), nil
+	return mtproto.MakeTLMutableUsers(&mtproto.MutableUsers{Users: f.mark(immutableUsers(in.Id, in.To))}).To_MutableUsers(), nil
 }
 
 func (f *fakeUsers) UserBlockedByUser(_ context.Context, in *userpb.TLUserBlockedByUser) (*mtproto.Bool, error) {
@@ -232,7 +247,7 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 	w := &world{
 		t:     t,
 		check: itCheck,
-		users: &fakeUsers{blocked: map[[2]int64]bool{}},
+		users: &fakeUsers{blocked: map[[2]int64]bool{}, premium: map[int64]bool{}, premiumOnly: map[int64]bool{}},
 		chats: &fakeChats{members: map[int64][]int64{}},
 		pub:   &worldDelivery{delivery: itDelivery, t: t},
 	}

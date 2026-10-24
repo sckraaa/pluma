@@ -18,6 +18,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/mr"
@@ -122,11 +123,24 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 	if err != nil {
 		return nil, err
 	}
-	if sender, _ := users.GetImmutableUser(fromUserId); sender == nil || sender.Deleted() {
+	sender, _ := users.GetImmutableUser(fromUserId)
+	if sender == nil || sender.Deleted() {
 		return nil, mtproto.ErrInputUserDeactivated
 	}
-	if peerUser, _ := users.GetImmutableUser(toUserId); peerUser == nil || peerUser.Deleted() {
+	peerUser, _ := users.GetImmutableUser(toUserId)
+	if peerUser == nil || peerUser.Deleted() {
 		return nil, mtproto.ErrInputUserDeactivated
+	}
+	// The recipient may let only its contacts, chats there already and
+	// Premium users write (task 014).
+	required, err := premium.RequiredToContact(sender, peerUser, func() (bool, error) {
+		return c.svcCtx.Dao.HasPrivateChat(c.ctx, toUserId, fromUserId)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if required {
+		return nil, premium.ErrPrivacyPremiumRequired
 	}
 	blocked, err := c.isBlockedBy(fromUserId, toUserId)
 	if err != nil {

@@ -18,10 +18,12 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -57,7 +59,7 @@ func TestCheckFilterRejects(t *testing.T) {
 	empty := folder(3, "Work")
 	empty.Contacts = false
 	tooMany := folder(3, "Work")
-	for range filterChatsLimit + 1 {
+	for range filterChatsMax + 1 {
 		tooMany.IncludePeers = append(tooMany.IncludePeers, self())
 	}
 	channel := folder(3, "Work")
@@ -115,5 +117,42 @@ func TestCutTitle(t *testing.T) {
 	short := title("Work")
 	if cutTitle(short, filterTitleMax) != short {
 		t.Fatal("a short title is copied")
+	}
+}
+
+func TestWithAllChats(t *testing.T) {
+	ext := func(id int32) *dialog.DialogFilterExt {
+		f := folder(id, "Folder")
+		if id == 0 {
+			f = mtproto.MakeTLDialogFilterDefault(nil).To_DialogFilter()
+		}
+		return &dialog.DialogFilterExt{Id: id, DialogFilter: f}
+	}
+	ids := func(filters []*mtproto.DialogFilter) []int32 {
+		out := make([]int32, 0, len(filters))
+		for _, f := range filters {
+			out = append(out, f.GetId())
+		}
+		return out
+	}
+	moved := []*dialog.DialogFilterExt{ext(3), ext(0), ext(2)}
+	for _, tc := range []struct {
+		name    string
+		stored  []*dialog.DialogFilterExt
+		premium bool
+		want    []int32
+	}{
+		{"none", nil, false, []int32{0}},
+		{"without a row of All chats", []*dialog.DialogFilterExt{ext(2), ext(3)}, true, []int32{0, 2, 3}},
+		{"moved, with Premium", moved, true, []int32{3, 0, 2}},
+		{"moved, Premium ended", moved, false, []int32{0, 3, 2}},
+	} {
+		got := withAllChats(tc.stored, tc.premium)
+		if !slices.Equal(ids(got), tc.want) {
+			t.Errorf("%s: %v, want %v", tc.name, ids(got), tc.want)
+		}
+		if got[slices.Index(ids(got), 0)].GetPredicateName() != mtproto.Predicate_dialogFilterDefault {
+			t.Errorf("%s: All chats is not dialogFilterDefault", tc.name)
+		}
 	}
 }
