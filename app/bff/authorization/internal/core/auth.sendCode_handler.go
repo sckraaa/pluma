@@ -19,12 +19,10 @@
 package core
 
 import (
-	"fmt"
-
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
-	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 
 	"google.golang.org/grpc/status"
 )
@@ -271,34 +269,29 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 		for _, v := range request.Settings.GetLogoutTokens() {
 			id, _ := c.svcCtx.Dao.GetFutureAuthToken(c.ctx, v)
 			if id == user.Id() {
-				// Bind authKeyId and userId
-				_, _ = c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
-					AuthKeyId: c.MD.PermAuthKeyId,
-					UserId:    user.User.Id,
-				})
-
-				// Del
+				// A future auth token logs in once.
 				_ = c.svcCtx.Dao.DelFutureAuthToken(c.ctx, v)
 
-				// Check SESSION_PASSWORD_NEEDED
-				if c.svcCtx.Plugin != nil {
-					if c.svcCtx.Plugin.CheckSessionPasswordNeeded(c.ctx, user.User.Id) {
-						// hack
-						// err = mtproto.ErrSessionPasswordNeeded
-						err = status.Error(mtproto.ErrUnauthorized, fmt.Sprintf("SESSION_PASSWORD_NEEDED_%d", user.Id()))
-						c.Logger.Infof("auth.sendCode - future-auth-tokens, next step auth.checkPassword: %v", err)
+				// With a 2FA password the login waits for auth.checkPassword,
+				// as after auth.signIn (https://core.telegram.org/api/auth#future-auth-tokens).
+				hasPassword, err2 := c.svcCtx.Twofa.HasPassword(c.ctx, user.Id())
+				if err2 != nil {
+					return nil, err2
+				}
+				if hasPassword {
+					if err = c.svcCtx.Twofa.StartLogin(c.ctx, c.MD.PermAuthKeyId, twofa.Login{UserId: user.Id()}); err != nil {
 						return nil, err
 					}
+					c.Logger.Infof("auth.sendCode - future auth token of user %d, next step auth.checkPassword", user.Id())
+					return nil, mtproto.ErrSessionPasswordNeeded
 				}
 
+				authorization, err2 := c.logIn(user, "")
+				if err2 != nil {
+					return nil, err2
+				}
 				return mtproto.MakeTLAuthSentCodeSuccess(&mtproto.Auth_SentCode{
-					Authorization: mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
-						SetupPasswordRequired: false,
-						OtherwiseReloginDays:  nil,
-						TmpSessions:           nil,
-						FutureAuthToken:       nil,
-						User:                  user.ToSelfUser(),
-					}).To_Auth_Authorization(),
+					Authorization: authorization,
 				}).To_Auth_SentCode(), nil
 			}
 		}

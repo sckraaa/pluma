@@ -24,9 +24,13 @@ import (
 
 // AuthRequestPasswordRecovery
 // auth.requestPasswordRecovery#d897bc66 = auth.PasswordRecovery;
+//
+// There is no mail on the server, so no recovery email (account.password
+// has has_recovery = false): PASSWORD_RECOVERY_NA, as Telegram answers an
+// account without one. Clients then offer the reset of the account
+// (account.deleteAccount); a logged-in user resets the password with
+// account.resetPassword, others ask the administrator
+// (pluma-admin password reset).
 func (c *AuthorizationCore) AuthRequestPasswordRecovery(in *mtproto.TLAuthRequestPasswordRecovery) (*mtproto.Auth_PasswordRecovery, error) {
-	// TODO: not impl
-	c.Logger.Errorf("auth.requestPasswordRecovery blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrPasswordRecoveryNa
 }

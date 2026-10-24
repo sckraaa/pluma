@@ -27,6 +27,9 @@ import (
 // AuthLogOut
 // auth.logOut#3e72ba19 = auth.LoggedOut;
 func (c *AuthorizationCore) AuthLogOut(in *mtproto.TLAuthLogOut) (*mtproto.Auth_LoggedOut, error) {
+	// A login waiting for the password on the key ends too.
+	c.svcCtx.Twofa.EndLogin(c.ctx, c.MD.PermAuthKeyId)
+
 	// unbind auth_key and user_id
 	_, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionUnbindAuthKeyUser(c.ctx, &authsession.TLAuthsessionUnbindAuthKeyUser{
 		AuthKeyId: c.MD.PermAuthKeyId,

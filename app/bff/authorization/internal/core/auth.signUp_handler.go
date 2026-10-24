@@ -168,6 +168,8 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 		err = mtproto.ErrInternalServerError
 		return nil, err
 	}
+	// The key may have waited for the password of the account it reset.
+	c.svcCtx.Twofa.EndLogin(c.ctx, c.MD.PermAuthKeyId)
 
 	// The users who imported the number get the new contact and the
 	// service message of the sign-up from the user service, which queued

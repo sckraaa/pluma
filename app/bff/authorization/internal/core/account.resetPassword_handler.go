@@ -19,18 +19,26 @@
 package core
 
 import (
-	"time"
-
 	"github.com/teamgram/proto/mtproto"
 )
 
 // AccountResetPassword
 // account.resetPassword#9308ce1b = account.ResetPasswordResult;
+//
+// The reset of a forgotten password from a logged-in session, as Telegram
+// does without a recovery email: the first request answers
+// account.resetPasswordRequestedWait until a week later, a request after
+// that date removes the password (account.resetPasswordOk), one before it
+// the same wait; account.declinePasswordReset cancels it (pkg/twofa,
+// Service.Reset).
 func (c *AuthorizationCore) AccountResetPassword(in *mtproto.TLAccountResetPassword) (*mtproto.Account_ResetPasswordResult, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.resetPassword blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return mtproto.MakeTLAccountResetPasswordFailedWait(&mtproto.Account_ResetPasswordResult{
-		RetryDate: int32(time.Now().Unix() + 30*24*60*60),
-	}).To_Account_ResetPasswordResult(), nil
+	if c.MD.UserId == 0 {
+		return nil, mtproto.ErrAuthKeyUnregistered
+	}
+	r, err := c.svcCtx.Twofa.Reset(c.ctx, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("account.resetPassword - user %d: %v", c.MD.UserId, err)
+		return nil, err
+	}
+	return r, nil
 }

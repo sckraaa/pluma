@@ -19,29 +19,74 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 // AuthCheckPassword
 // auth.checkPassword#d18b4d16 password:InputCheckPasswordSRP = auth.Authorization;
+//
+// The second step of the login of a user with a 2FA password: auth.signIn,
+// a future auth token or a QR login answered SESSION_PASSWORD_NEEDED and
+// left the key waiting (pkg/twofa). The SRP proof is checked (M1 in
+// constant time, under the limits of wrong passwords); only then is the key
+// bound to the user. Errors as Telegram's:
+//
+//   - PASSWORD_HASH_INVALID, SRP_ID_INVALID, SRP_PASSWORD_CHANGED, FLOOD_WAIT_X;
+//   - PASSWORD_EMPTY: the password was removed meanwhile, the login starts over;
+//   - AUTH_KEY_UNREGISTERED: no login waits on the key (it never did, or it
+//     waited longer than twofa.LoginTTL).
+//
+// A logged-in key checks its own user's password.
 func (c *AuthorizationCore) AuthCheckPassword(in *mtproto.TLAuthCheckPassword) (*mtproto.Auth_Authorization, error) {
-	// TODO: check password
-	c.Logger.Errorf("auth.checkPassword blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	if c.MD.UserId != 0 {
+		return c.checkOwnPassword(in)
+	}
 
+	login, err := c.svcCtx.Twofa.WaitingLogin(c.ctx, c.MD.PermAuthKeyId)
+	if err != nil {
+		return nil, err
+	}
+	if login == nil {
+		c.Logger.Errorf("auth.checkPassword - no login waits for the password")
+		return nil, mtproto.ErrAuthKeyUnregistered
+	}
+
+	if err = c.svcCtx.Twofa.Check(c.ctx, login.UserId, c.MD.PermAuthKeyId, in.GetPassword()); err != nil {
+		c.Logger.Errorf("auth.checkPassword - user %d: %v", login.UserId, err)
+		if errors.Is(err, twofa.ErrNoPassword) {
+			c.svcCtx.Twofa.EndLogin(c.ctx, c.MD.PermAuthKeyId)
+		}
+		return nil, err
+	}
+
+	user, err := c.svcCtx.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{
+		Id: login.UserId,
+	})
+	if err != nil {
+		c.Logger.Errorf("auth.checkPassword - user %d: %v", login.UserId, err)
+		return nil, err
+	}
+	c.Logger.Infof("auth.checkPassword - user %d logged in", login.UserId)
+	return c.logIn(user, login.Phone)
+}
+
+func (c *AuthorizationCore) checkOwnPassword(in *mtproto.TLAuthCheckPassword) (*mtproto.Auth_Authorization, error) {
+	if err := c.svcCtx.Twofa.Check(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, in.GetPassword()); err != nil {
+		c.Logger.Errorf("auth.checkPassword - user %d: %v", c.MD.UserId, err)
+		return nil, err
+	}
 	user, err := c.svcCtx.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{
 		Id: c.MD.UserId,
 	})
 	if err != nil {
-		c.Logger.Errorf("auth.checkPassword - error: %v", err)
+		c.Logger.Errorf("auth.checkPassword - user %d: %v", c.MD.UserId, err)
 		return nil, err
 	}
-
 	return mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
-		SetupPasswordRequired: false,
-		OtherwiseReloginDays:  nil,
-		TmpSessions:           nil,
-		FutureAuthToken:       nil,
-		User:                  user.ToSelfUser(),
+		User: user.ToSelfUser(),
 	}).To_Auth_Authorization(), nil
 }

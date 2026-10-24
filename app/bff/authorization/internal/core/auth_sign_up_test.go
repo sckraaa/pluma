@@ -19,6 +19,7 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -98,6 +99,16 @@ func (s *memPhoneCodes) DeleteCachePhoneCode(_ context.Context, authKeyId int64,
 	return nil
 }
 
+// testKV is the kv store of bff on mr. miniredis does not implement CLIENT
+// SETINFO; DisableIdentity keeps the failing connect-time command from
+// tripping the go-zero redis breaker.
+func testKV(mr *miniredis.Miniredis) kv.Store {
+	return kv.NewStore(kv.KvConf{cache.NodeConf{
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
+		Weight:    100,
+	}})
+}
+
 type allowedPhones map[string]bool
 
 func (a allowedPhones) Contains(_ context.Context, phone string) (bool, error) { return a[phone], nil }
@@ -113,13 +124,8 @@ func rpcErrorMessage(err error) string {
 // auth.signUp created an account for any phone_code_hash, without the code
 // having been accepted by auth.signIn.
 func TestAuthSignUpHandlerRequiresAcceptedCode(t *testing.T) {
-	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
-	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
-	codes, err := logincode.NewService(logincode.Config{HmacKey: strings.Repeat("k", 32)}, allowedPhones{signUpPhone: true}, kv.NewStore(kv.KvConf{cache.NodeConf{
-		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
-		Weight:    100,
-	}}))
+	codes, err := logincode.NewService(logincode.Config{HmacKey: strings.Repeat("k", 32)}, allowedPhones{signUpPhone: true}, testKV(mr))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,6 +139,7 @@ func TestAuthSignUpHandlerRequiresAcceptedCode(t *testing.T) {
 			svcCtx: &svc.ServiceContext{
 				Dao:       &dao.Dao{UserClient: users, AuthsessionClient: sessions},
 				AuthLogic: auth,
+				Twofa:     twofa.NewService(twofa.NewMemStore(), testKV(mr)),
 			},
 			Logger: logx.WithContext(ctx),
 			MD:     &metadata.RpcMetadata{PermAuthKeyId: signUpAuthKeyId, ClientAddr: "203.0.113.1", Layer: 228},

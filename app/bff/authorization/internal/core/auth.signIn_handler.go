@@ -28,8 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/code/conf"
-
-	"google.golang.org/grpc/status"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 /*
@@ -140,24 +139,45 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 		return nil, err
 	}
 
-	// Bind authKeyId and userId
-	c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
-		AuthKeyId: c.MD.PermAuthKeyId,
-		UserId:    user.User.Id,
-	})
-
-	// Check SESSION_PASSWORD_NEEDED
-	if c.svcCtx.Plugin != nil {
-		if c.svcCtx.Plugin.CheckSessionPasswordNeeded(c.ctx, user.User.Id) {
-			// hack
-			// err = mtproto.ErrSessionPasswordNeeded
-			err = status.Error(mtproto.ErrUnauthorized, fmt.Sprintf("SESSION_PASSWORD_NEEDED_%d", user.Id()))
-			c.Logger.Infof("auth.signIn - registered, next step auth.checkPassword: %v", err)
+	// A user with a 2FA password logs in only with it: the key stays
+	// unbound, the login waits for auth.checkPassword (the code request is
+	// kept for the reset of the account, which signs up again with it).
+	hasPassword, err := c.svcCtx.Twofa.HasPassword(c.ctx, user.Id())
+	if err != nil {
+		c.Logger.Errorf("auth.signIn - user %d: %v", user.Id(), err)
+		return nil, err
+	}
+	if hasPassword {
+		if err = c.svcCtx.Twofa.StartLogin(c.ctx, c.MD.PermAuthKeyId, twofa.Login{UserId: user.Id(), Phone: phoneNumber}); err != nil {
 			return nil, err
 		}
+		c.Logger.Infof("auth.signIn - user %d, next step auth.checkPassword", user.Id())
+		return nil, mtproto.ErrSessionPasswordNeeded
 	}
 
+	return c.logIn(user, phoneNumber)
+}
+
+// logIn binds the key to user and returns its auth.authorization: the end of
+// auth.signIn, or of auth.checkPassword after it. phoneNumber is the phone of
+// the code request to drop, empty for the other logins; the user's other
+// devices are told of the login.
+func (c *AuthorizationCore) logIn(user *mtproto.ImmutableUser, phoneNumber string) (*mtproto.Auth_Authorization, error) {
+	if _, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
+		AuthKeyId: c.MD.PermAuthKeyId,
+		UserId:    user.Id(),
+	}); err != nil {
+		c.Logger.Errorf("bind the key to user %d - error: %v", user.Id(), err)
+		return nil, err
+	}
+	c.svcCtx.Twofa.EndLogin(c.ctx, c.MD.PermAuthKeyId)
+
 	selfUser := user.ToSelfUser()
+	if phoneNumber == "" {
+		return mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
+			User: selfUser,
+		}).To_Auth_Authorization(), nil
+	}
 
 	_ = c.svcCtx.AuthLogic.DeletePhoneCode(c.ctx, c.MD.PermAuthKeyId, phoneNumber)
 

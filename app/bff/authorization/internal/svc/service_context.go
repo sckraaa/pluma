@@ -24,12 +24,14 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/plugin"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
 	*logic.AuthLogic
+	Twofa  *twofa.Service
 	Plugin plugin.AuthorizationPlugin
 }
 
@@ -39,6 +41,7 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 		Config:    c,
 		Dao:       d,
 		AuthLogic: logic.NewAuthSignLogic(d, logincode.MustNewService(c.LoginCode, c.Mysql, c.KV)),
+		Twofa:     twofa.MustNewService(c.Mysql, c.KV),
 		Plugin:    plugin,
 	}
 }
