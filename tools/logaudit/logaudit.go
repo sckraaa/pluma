@@ -9,8 +9,9 @@
 //
 //   - secret: an argument whose value is named like a secret: new_nonce, the
 //     DH exponent a, g_b, auth_key bytes, AES keys and IVs, decrypted
-//     handshake data, login codes and their hashes, passwords, tokens, or a
-//     config section with credentials (Etcd, Mysql, Redis...);
+//     handshake data, login codes and their hashes, passwords and their SRP
+//     values, tokens, or a config section with credentials (Etcd, Mysql,
+//     Redis...);
 //   - object: a TL object or data object printed whole: a parameter or local
 //     of a type from the mtproto package or from app/ (requests, updates,
 //     messages, rows), with any verb other than %T, or its String() or
@@ -82,6 +83,10 @@ var secretNames = set(
 	"phonecodehash", "getphonecodehash", "codehash", "getcodehash",
 	"logincode", "code", "hmackey",
 	"password", "getpassword", "newpassword", "getnewpassword",
+	// SRP of the 2FA password (pkg/twofa): the verifier, the client's A and
+	// M1, the server's b and srp_B
+	"passwordhash", "newpasswordhash", "getnewpasswordhash", "verifier", "getverifier",
+	"geta", "m1", "getm1", "srpb", "getsrpb",
 	"secret", "getsecret", "apnssecret",
 	"token", "gettoken",
 	"pass", "dsn",
