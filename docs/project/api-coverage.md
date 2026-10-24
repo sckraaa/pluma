@@ -6,7 +6,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 139, partial 25, blocked 113, notimpl 7, missing 585 (ok = 16.0%)
+    layer 228: 869 methods — ok 141, partial 25, blocked 111, notimpl 7, missing 585 (ok = 16.2%)
 
 | namespace | total | ok | partial | blocked | notimpl | missing |
 |---|---|---|---|---|---|---|
@@ -22,7 +22,7 @@
 | ephemeral | 4 | 0 | 0 | 0 | 0 | 4 |
 | folders | 2 | 0 | 0 | 0 | 0 | 2 |
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 |
-| help | 28 | 3 | 0 | 15 | 0 | 10 |
+| help | 28 | 5 | 0 | 13 | 0 | 10 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 5 |
 | messages | 273 | 59 | 21 | 22 | 5 | 166 |
 | payments | 70 | 0 | 0 | 4 | 0 | 66 |
@@ -444,8 +444,8 @@
 | `help.dismissSuggestion` | blocked | app/bff/configuration/internal/core/help.dismissSuggestion_handler.go:27 |
 | `help.editUserInfo` | missing |  |
 | `help.getAppChangelog` | blocked | app/bff/configuration/internal/core/help.getAppChangelog_handler.go:29 |
-| `help.getAppConfig61E3F854` | blocked | app/bff/configuration/internal/core/help.getAppConfig61E3F854_handler.go:27 |
-| `help.getAppConfig98914110` | blocked | app/bff/configuration/internal/core/help.getAppConfig98914110_handler.go:27 |
+| `help.getAppConfig61E3F854` | ok | app/bff/configuration/internal/core/help.getAppConfig61E3F854_handler.go:27 |
+| `help.getAppConfig98914110` | ok | app/bff/configuration/internal/core/help.getAppConfig98914110_handler.go:28 |
 | `help.getAppUpdate` | blocked | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:27 |
 | `help.getCdnConfig` | blocked | app/bff/files/internal/core/help.getCdnConfig_handler.go:27 |
 | `help.getConfig` | ok | app/bff/configuration/internal/core/help.getConfig_handler.go:57 |

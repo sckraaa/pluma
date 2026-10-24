@@ -19,15 +19,26 @@
 package svc
 
 import (
+	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/appconfig"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// appConfigFile is the client configuration of help.getAppConfig, next to
+// config.json of help.getConfig.
+const appConfigFile = "./app_config.json"
+
 type ServiceContext struct {
-	Config config.Config
+	Config    config.Config
+	AppConfig *appconfig.AppConfig
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	appConfig, err := appconfig.Load(appConfigFile)
+	logx.Must(err)
 	return &ServiceContext{
-		Config: c,
+		Config:    c,
+		AppConfig: appConfig,
 	}
 }
