@@ -47,6 +47,7 @@ data/*
 
 teamgramd/bin/*
 !teamgramd/bin/config.json
+!teamgramd/bin/app_config.json
 !teamgramd/bin/killall.sh
 !teamgramd/bin/runall2.sh
 
