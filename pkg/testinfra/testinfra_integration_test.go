@@ -40,6 +40,8 @@ func TestSchemaLoads(t *testing.T) {
 		{"contact_signups", "phone"},
 		{"user_top_peer_resets", "reset_at"},
 		{"dialog_filters", "from_suggested"}, // migrate-20261024-dialog-filters.sql
+		{"user_passwords", "verifier"},       // migrate-20261024-passwords.sql
+		{"user_passwords", "pending_delete_date"},
 	} {
 		var n int
 		err = db.QueryRow("select count(*) from information_schema.columns where table_schema = ? and table_name = ? and column_name = ?",
