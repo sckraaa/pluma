@@ -1,10 +1,12 @@
 package gnet
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/binary"
+	"errors"
 	"math/big"
 	"slices"
 	"testing"
@@ -333,5 +335,125 @@ func TestSetClientDHParamsChecksGB(t *testing.T) {
 				t.Fatalf("got %T, want dh_gen_ok", o)
 			}
 		})
+	}
+}
+
+// refuseFirst makes the harness refuse the first key it is asked to save
+// with err.
+func (h *testHarness) refuseFirst(err error) {
+	refused := false
+	h.do(func() {
+		h.refuse = func(*mtproto.AuthKeyInfo) error {
+			if refused {
+				return nil
+			}
+			refused = true
+			return err
+		}
+	})
+}
+
+// TestDHGenRetryOnCollision: a key whose auth_key_id is taken is answered
+// with dh_gen_retry; the client tries a new b with retry_id =
+// auth_key_aux_hash of that key and gets dh_gen_ok.
+func TestDHGenRetryOnCollision(t *testing.T) {
+	h := newTestHarness(t)
+	h.refuseFirst(errAuthKeyIdTaken)
+	c, tc := h.startSetDH(1)
+
+	if a := h.sendFrame(c, tc.setClientDHParams()); a != gnet.None {
+		t.Fatalf("action %v", a)
+	}
+	h.waitWrites(c, 3)
+	retryId := tc.onDHGenRetry(h.lastUnencrypted(c))
+	h.do(func() {
+		st, ok := c.ctx.(*connContext).handshakes.states.get(tc.nonce, testNow)
+		if !ok || st.State != STATE_DH_params_res || st.RetryId != retryId || len(h.saved) != 0 {
+			t.Fatalf("after dh_gen_retry: state %v, retry_id %d (want %d), %d keys", ok, st.RetryId, retryId, len(h.saved))
+		}
+	})
+
+	if a := h.sendFrame(c, tc.setClientDHParamsWith(setClientDHParamsEdits{retryId: retryId})); a != gnet.None {
+		t.Fatalf("action %v", a)
+	}
+	h.waitWrites(c, 4)
+	id := tc.onDHGen(h.lastUnencrypted(c))
+	h.do(func() {
+		if len(h.saved) != 1 || h.saved[0].AuthKeyId != id || !bytes.Equal(h.saved[0].AuthKey, tc.authKey) {
+			t.Fatal("the key of the second attempt was not saved")
+		}
+		if n := c.ctx.(*connContext).handshakes.states.len(); n != 0 {
+			t.Fatalf("%d handshakes left", n)
+		}
+	})
+}
+
+// TestSetClientDHParamsChecksRetryId: retry_id is 0 at the first attempt
+// and auth_key_aux_hash of the colliding key after dh_gen_retry.
+func TestSetClientDHParamsChecksRetryId(t *testing.T) {
+	t.Run("first attempt with a retry_id", func(t *testing.T) {
+		h := newTestHarness(t)
+		c, tc := h.startSetDH(1)
+		h.expectRejected(c, tc.setClientDHParamsWith(setClientDHParamsEdits{retryId: 1}))
+	})
+
+	for _, tcase := range []struct {
+		name    string
+		retryId func(auxHash int64) int64
+	}{
+		{"retry with retry_id 0", func(int64) int64 { return 0 }},
+		{"retry with another retry_id", func(aux int64) int64 { return aux ^ 1 }},
+		{"retry with the attempt counter", func(int64) int64 { return 1 }},
+	} {
+		t.Run(tcase.name, func(t *testing.T) {
+			h := newTestHarness(t)
+			h.refuseFirst(errAuthKeyIdTaken)
+			c, tc := h.startSetDH(1)
+			h.sendFrame(c, tc.setClientDHParams())
+			h.waitWrites(c, 3)
+			aux := tc.onDHGenRetry(h.lastUnencrypted(c))
+			h.expectRejected(c, tc.setClientDHParamsWith(setClientDHParamsEdits{retryId: tcase.retryId(aux)}))
+		})
+	}
+}
+
+// TestDHGenFailOnStorageError: a key that cannot be stored for another
+// reason than a collision is answered with dh_gen_fail, which ends the
+// handshake.
+func TestDHGenFailOnStorageError(t *testing.T) {
+	h := newTestHarness(t)
+	h.refuseFirst(errors.New("storage unavailable"))
+	c, tc := h.startSetDH(1)
+
+	if a := h.sendFrame(c, tc.setClientDHParams()); a != gnet.None {
+		t.Fatalf("action %v", a)
+	}
+	h.waitWrites(c, 3)
+	tc.onDHGenFail(h.lastUnencrypted(c))
+	h.do(func() {
+		if n := c.ctx.(*connContext).handshakes.states.len(); n != 0 || len(h.saved) != 0 {
+			t.Fatalf("after dh_gen_fail: %d handshakes, %d keys", n, len(h.saved))
+		}
+	})
+	// The client starts over; set_client_DH_params of the failed handshake
+	// is out of order.
+	h.expectRejected(c, tc.setClientDHParams())
+}
+
+// TestSetAuthKeyResult: boolFalse of session.setAuthKey is a collision, an
+// error or an empty answer a failure to store the key.
+func TestSetAuthKeyResult(t *testing.T) {
+	failed := errors.New("unavailable")
+	if err := setAuthKeyResult(mtproto.BoolTrue, nil); err != nil {
+		t.Errorf("boolTrue: %v", err)
+	}
+	if err := setAuthKeyResult(mtproto.BoolFalse, nil); !errors.Is(err, errAuthKeyIdTaken) {
+		t.Errorf("boolFalse: %v", err)
+	}
+	if err := setAuthKeyResult(nil, failed); !errors.Is(err, failed) {
+		t.Errorf("error: %v", err)
+	}
+	if err := setAuthKeyResult(nil, nil); err == nil || errors.Is(err, errAuthKeyIdTaken) {
+		t.Errorf("no answer: %v", err)
 	}
 }

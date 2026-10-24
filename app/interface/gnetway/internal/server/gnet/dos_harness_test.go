@@ -118,6 +118,9 @@ type testHarness struct {
 	mu    sync.Mutex
 	conns map[int64]*fakeConn
 	saved []*mtproto.AuthKeyInfo
+	// refuse, when set, decides (under mu) whether a key is saved: an error
+	// is what saveAuthKey returns instead.
+	refuse func(k *mtproto.AuthKeyInfo) error
 }
 
 var (
@@ -154,12 +157,17 @@ func newTestHarness(t testing.TB) *testHarness {
 		httpHandshakes: newHandshakeStore(maxHttpHandshakes, httpHandshakeTTL),
 	}
 	s.cachedNow.Store(testNow)
-	s.saveAuthKey = func(st *HandshakeStateCtx, k *mtproto.AuthKeyInfo) bool {
+	s.saveAuthKey = func(st *HandshakeStateCtx, k *mtproto.AuthKeyInfo) error {
 		h.mu.Lock() // called from the pool
+		defer h.mu.Unlock()
+		if h.refuse != nil {
+			if err := h.refuse(k); err != nil {
+				return err
+			}
+		}
 		h.saved = append(h.saved, k)
-		h.mu.Unlock()
 		s.PutAuthKey(newCheckedAuthKeyUtil(k, testNow, 0))
-		return true
+		return nil
 	}
 	s.queryKey = func(int64, *authKeyUtil) (*authKeyUtil, error) {
 		return nil, mtproto.ErrAuthKeyUnregistered
@@ -470,4 +478,37 @@ func (tc *testClient) onDHGen(o mtproto.TLObject) int64 {
 		tc.t.Fatal("new_nonce_hash1 mismatch")
 	}
 	return int64(binary.LittleEndian.Uint64(keyHash[12:20]))
+}
+
+// onDHGenRetry checks dh_gen_retry (new_nonce_hash2) and returns the
+// retry_id of the next attempt: auth_key_aux_hash of the key that collided.
+func (tc *testClient) onDHGenRetry(o mtproto.TLObject) int64 {
+	tc.t.Helper()
+	res, ok := o.(*mtproto.TLDhGenRetry)
+	if !ok {
+		tc.t.Fatalf("got %T, want dh_gen_retry", o)
+	}
+	if !bytes.Equal(res.GetNonce(), tc.nonce) || !bytes.Equal(res.GetServerNonce(), tc.serverNonce) {
+		tc.t.Fatal("dh_gen_retry nonces")
+	}
+	keyHash := sha1.Sum(tc.authKey)
+	h := sha1.Sum(append(append(append([]byte(nil), tc.newNonce...), 2), keyHash[:8]...))
+	if !bytes.Equal(res.GetNewNonceHash2(), h[4:20]) {
+		tc.t.Fatal("new_nonce_hash2 mismatch")
+	}
+	return int64(binary.LittleEndian.Uint64(keyHash[:8]))
+}
+
+// onDHGenFail checks dh_gen_fail (new_nonce_hash3).
+func (tc *testClient) onDHGenFail(o mtproto.TLObject) {
+	tc.t.Helper()
+	res, ok := o.(*mtproto.TLDhGenFail)
+	if !ok {
+		tc.t.Fatalf("got %T, want dh_gen_fail", o)
+	}
+	keyHash := sha1.Sum(tc.authKey)
+	h := sha1.Sum(append(append(append([]byte(nil), tc.newNonce...), 3), keyHash[:8]...))
+	if !bytes.Equal(res.GetNewNonceHash3(), h[4:20]) {
+		tc.t.Fatal("new_nonce_hash3 mismatch")
+	}
 }

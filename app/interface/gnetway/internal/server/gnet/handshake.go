@@ -229,8 +229,12 @@ var (
 	errRSAPadHash            = errors.New("handshake: req_DH_params: RSA_PAD hash mismatch")
 	errClientDHInnerDataHash = errors.New("handshake: set_client_DH_params: SHA1 of client_DH_inner_data mismatch")
 	errDHValue               = errors.New("handshake: set_client_DH_params: g_b out of range")
+	errRetryId               = errors.New("handshake: set_client_DH_params: wrong retry_id")
 	errTempKeyExpiresIn      = errors.New("handshake: temporary key without a positive expires_in")
 )
+
+// errAuthKeyIdTaken: another key has the auth_key_id of a new key.
+var errAuthKeyIdTaken = errors.New("handshake: auth_key_id is taken")
 
 // handshakeConstructors are the only objects a client may send unencrypted.
 var handshakeConstructors = []mtproto.TLConstructor{
@@ -407,8 +411,12 @@ func (s *Server) onReqDHParams(io *handshakeIO, req *mtproto.TLReq_DHParams, now
 	return nil
 }
 
-// onSetClientDHParams starts set_client_DH_params; it is answered by
-// dh_gen_ok (the key is saved) or dh_gen_retry, computed in the worker pool.
+// onSetClientDHParams starts set_client_DH_params, computed in the worker
+// pool. It is answered (https://core.telegram.org/mtproto/auth_key, step 9)
+// by dh_gen_ok when the key is saved, dh_gen_retry when its auth_key_id is
+// taken (auth_key_hash collides) and the client may try a new b, or
+// dh_gen_fail when the key could not be stored; ok and fail end the
+// handshake.
 func (s *Server) onSetClientDHParams(io *handshakeIO, req *mtproto.TLSetClient_DHParams, now int64) error {
 	st, err := io.states.begin(req.GetNonce(), req.GetServerNonce(), STATE_DH_params_res, STATE_dh_gen, now)
 	if err != nil {
@@ -424,33 +432,44 @@ func (s *Server) onSetClientDHParams(io *handshakeIO, req *mtproto.TLSetClient_D
 			return
 		}
 
-		var answer *mtproto.SetClient_DHParamsAnswer
-		saved := s.saveAuthKey(&st, mtproto.NewAuthKeyInfo(key.authKeyId, key.authKey, st.HandshakeType))
-		if saved {
+		var (
+			answer *mtproto.SetClient_DHParamsAnswer
+			retry  bool
+		)
+		saveErr := s.saveAuthKey(&st, mtproto.NewAuthKeyInfo(key.authKeyId, key.authKey, st.HandshakeType))
+		switch {
+		case saveErr == nil:
 			answer = mtproto.MakeTLDhGenOk(&mtproto.SetClient_DHParamsAnswer{
 				Nonce:         st.Nonce,
 				ServerNonce:   st.ServerNonce,
 				NewNonceHash1: calcNewNonceHash(st.NewNonce, key.authKey, 0x01),
 			}).To_SetClient_DHParamsAnswer()
-		} else {
-			// The key could not be stored: the client may retry with a new g_b.
+		case errors.Is(saveErr, errAuthKeyIdTaken):
+			retry = true
 			answer = mtproto.MakeTLDhGenRetry(&mtproto.SetClient_DHParamsAnswer{
 				Nonce:         st.Nonce,
 				ServerNonce:   st.ServerNonce,
 				NewNonceHash2: calcNewNonceHash(st.NewNonce, key.authKey, 0x02),
 			}).To_SetClient_DHParamsAnswer()
+		default:
+			answer = mtproto.MakeTLDhGenFail(&mtproto.SetClient_DHParamsAnswer{
+				Nonce:         st.Nonce,
+				ServerNonce:   st.ServerNonce,
+				NewNonceHash3: calcNewNonceHash(st.NewNonce, key.authKey, 0x03),
+			}).To_SetClient_DHParamsAnswer()
 		}
 
-		// dh_gen_ok ends the handshake; after dh_gen_retry the client may send
-		// set_client_DH_params again.
+		// After dh_gen_retry the client may send set_client_DH_params again,
+		// with a new g_b and retry_id = auth_key_aux_hash of this key.
 		pending := io.states.finish(nonce, STATE_dh_gen, s.CachedNow(), func(st *HandshakeStateCtx) bool {
-			if saved {
+			if !retry {
 				return false
 			}
 			st.State = STATE_DH_params_res
+			st.RetryId = key.auxHash
 			return true
 		})
-		if !pending && !saved {
+		if retry && !pending {
 			// Restarted by a new req_pq with this nonce, or evicted, meanwhile:
 			// answer anyway (see onReqDHParams).
 			s.trigger(io.connId, func(c gnet.Conn) { io.fail(c, errHandshakeState) })
@@ -661,6 +680,9 @@ func tmpAesKeyAndIV(newNonce, serverNonce []byte) (key, iv []byte) {
 type dhGenKey struct {
 	authKeyId int64
 	authKey   []byte
+	// auxHash is auth_key_aux_hash: the 64 higher-order bits of
+	// SHA1(auth_key), as retry_id carries it.
+	auxHash int64
 }
 
 // processSetClientDHParams checks set_client_DH_params against the handshake
@@ -707,6 +729,9 @@ func processSetClientDHParams(st *HandshakeStateCtx, req *mtproto.TLSetClient_DH
 	if !bytes.Equal(inner.GetNonce(), st.Nonce) || !bytes.Equal(inner.GetServerNonce(), st.ServerNonce) {
 		return nil, fmt.Errorf("handshake: client_DH_inner_data does not match set_client_DH_params")
 	}
+	if inner.GetRetryId() != st.RetryId {
+		return nil, errRetryId
+	}
 	gB := []byte(inner.GetGB())
 	if len(gB) == 0 || len(gB) > dhSecretSize {
 		return nil, errHandshakeData
@@ -721,17 +746,20 @@ func processSetClientDHParams(st *HandshakeStateCtx, req *mtproto.TLSetClient_DH
 	authKey := make([]byte, 256)
 	authKeyNum.FillBytes(authKey)
 
-	// auth_key_id: the 64 lower-order bits of SHA1(auth_key).
+	// auth_key_id: the 64 lower-order bits of SHA1(auth_key);
+	// auth_key_aux_hash: the 64 higher-order bits.
 	sha1Key := sha1.Sum(authKey) //nolint:gosec // MTProto: auth_key_id = low 64 bits of SHA1(auth_key)
 	return &dhGenKey{
 		authKeyId: int64(binary.LittleEndian.Uint64(sha1Key[12:20])),
 		authKey:   authKey,
+		auxHash:   int64(binary.LittleEndian.Uint64(sha1Key[0:8])),
 	}, nil
 }
 
 // saveAuthKeyInfo stores a key created by a handshake (with its first server
-// salt) through the session service and caches it.
-func (s *Server) saveAuthKeyInfo(ctx *HandshakeStateCtx, key *mtproto.AuthKeyInfo) bool {
+// salt) through the session service and caches it. authsession answers
+// boolFalse when the auth_key_id is taken (errAuthKeyIdTaken).
+func (s *Server) saveAuthKeyInfo(ctx *HandshakeStateCtx, key *mtproto.AuthKeyInfo) error {
 	var (
 		salt = int64(0)
 		now  = int32(time.Now().Unix())
@@ -771,12 +799,12 @@ func (s *Server) saveAuthKeyInfo(ctx *HandshakeStateCtx, key *mtproto.AuthKeyInf
 			})
 			return err
 		})
-	if err != nil {
+	if err = setAuthKeyResult(rB, err); errors.Is(err, errAuthKeyIdTaken) {
+		logx.Infof("saveAuthKeyInfo - auth_key_id:%d is taken: dh_gen_retry", key.AuthKeyId)
+		return err
+	} else if err != nil {
 		logx.Errorf("saveAuthKeyInfo not successful - auth_key_id:%d, err:%v", key.AuthKeyId, err)
-		return false
-	} else if !mtproto.FromBool(rB) {
-		logx.Errorf("saveAuthKeyInfo not successful - auth_key_id:%d, err:%v", key.AuthKeyId, err)
-		return false
+		return err
 	} else {
 		// A temporary key expires expires_in seconds after the handshake
 		// (authsession stores the same deadline).
@@ -795,7 +823,22 @@ func (s *Server) saveAuthKeyInfo(ctx *HandshakeStateCtx, key *mtproto.AuthKeyInf
 			int64(now),
 			expiresAt))
 	}
-	return true
+	return nil
+}
+
+// setAuthKeyResult reads the answer of session.setAuthKey: boolTrue means
+// the key is stored, boolFalse that its auth_key_id is taken (authsession
+// checks it); anything else is a failure to store the key.
+func setAuthKeyResult(rB *mtproto.Bool, err error) error {
+	switch {
+	case err != nil:
+		return err
+	case rB == nil:
+		return errors.New("session.setAuthKey: empty answer")
+	case !mtproto.FromBool(rB):
+		return errAuthKeyIdTaken
+	}
+	return nil
 }
 
 func calcNewNonceHash(newNonce, authKey []byte, b byte) []byte {

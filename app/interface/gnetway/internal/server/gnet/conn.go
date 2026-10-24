@@ -30,6 +30,10 @@ type HandshakeStateCtx struct {
 	Pq uint64 `json:"pq,omitempty"`
 	P  uint64 `json:"p,omitempty"`
 	Q  uint64 `json:"q,omitempty"`
+	// RetryId is the retry_id client_DH_inner_data must carry: 0 at the
+	// first attempt, after dh_gen_retry the auth_key_aux_hash of the key
+	// that collided.
+	RetryId int64 `json:"retry_id,omitempty"`
 }
 
 // Format prints the state without NewNonce and A: with them anyone reading
