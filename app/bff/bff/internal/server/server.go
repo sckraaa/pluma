@@ -33,6 +33,7 @@ import (
 	dialogs_helper "github.com/teamgram/teamgram-server/app/bff/dialogs"
 	drafts_helper "github.com/teamgram/teamgram-server/app/bff/drafts"
 	files_helper "github.com/teamgram/teamgram-server/app/bff/files"
+	folders_helper "github.com/teamgram/teamgram-server/app/bff/folders"
 	messages_helper "github.com/teamgram/teamgram-server/app/bff/messages"
 	miscellaneous_helper "github.com/teamgram/teamgram-server/app/bff/miscellaneous"
 	notification_helper "github.com/teamgram/teamgram-server/app/bff/notification"
@@ -232,6 +233,17 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 				MessageClient: c.BizServiceClient,
 			}, nil))
+
+		// folders_helper: the folders of chats and their tags.
+		folders := folders_helper.New(folders_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			DialogClient:  c.BizServiceClient,
+			UserClient:    c.BizServiceClient,
+			ChatClient:    c.BizServiceClient,
+			SyncClient:    syncClient,
+		})
+		mtproto.RegisterRPCFoldersServer(grpcServer, folders)
+		mtproto.RegisterRPCFolderTagsServer(grpcServer, folders)
 
 		// drafts_helper
 		mtproto.RegisterRPCDraftsServer(

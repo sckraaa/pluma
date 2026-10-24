@@ -228,12 +228,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Reactions: []*mtproto.AvailableReaction{},
 		}).To_Messages_AvailableReactions(), nil
 
-	// folders
-	case "TLMessagesGetDialogFilters":
-		return &mtproto.Vector_DialogFilter{
-			Datas: []*mtproto.DialogFilter{},
-		}, nil
-
 	// gifs
 	case "TLMessagesGetSavedGifs":
 		return mtproto.MakeTLMessagesSavedGifs(&mtproto.Messages_SavedGifs{
