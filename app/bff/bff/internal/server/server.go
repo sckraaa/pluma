@@ -113,11 +113,11 @@ func (s *Server) Initialize() error {
 				qrcode_helper.Config{
 					RpcServerConf:     c.RpcServerConf,
 					KV:                c.KV,
+					Mysql:             c.Mysql,
 					UserClient:        c.BizServiceClient,
 					AuthSessionClient: c.AuthSessionClient,
 					SyncClient:        syncClient,
-				},
-				nil))
+				}))
 
 		// miscellaneous_helper
 		mtproto.RegisterRPCMiscellaneousServer(

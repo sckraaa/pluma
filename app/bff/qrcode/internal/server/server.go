@@ -46,7 +46,7 @@ func (s *Server) Initialize() error {
 
 	// The config carries secrets (passwords, keys): never log it whole.
 	logx.Infof("loaded config %s", *configFile)
-	ctx := svc.NewServiceContext(c, nil)
+	ctx := svc.NewServiceContext(c)
 	s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
 
 	go func() {

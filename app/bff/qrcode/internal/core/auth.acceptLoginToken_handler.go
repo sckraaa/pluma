@@ -34,7 +34,15 @@ import (
 
 // AuthAcceptLoginToken
 // auth.acceptLoginToken#e894ad4d token:bytes = Authorization;
+//
+// A logged-in device accepts the login of the device that shows the QR code.
+// If the user has a 2FA password, that key is not bound: its login waits for
+// auth.checkPassword (auth.exportLoginToken answers it SESSION_PASSWORD_NEEDED),
+// and the returned authorization has password_pending, as Telegram's.
 func (c *QrCodeCore) AuthAcceptLoginToken(in *mtproto.TLAuthAcceptLoginToken) (*mtproto.Authorization, error) {
+	if c.MD.UserId == 0 {
+		return nil, mtproto.ErrAuthKeyUnregistered
+	}
 	// 8 + 16
 	if len(in.Token) != 24 {
 		err := mtproto.ErrAuthTokenInvalid
@@ -94,14 +102,26 @@ func (c *QrCodeCore) AuthAcceptLoginToken(in *mtproto.TLAuthAcceptLoginToken) (*
 		return nil, err
 	}
 
-	// Bind authKeyId and userId
-	hash, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
-		AuthKeyId: qrCode.AuthKeyId,
-		UserId:    user.Id(),
-	})
+	hasPassword, err := c.svcCtx.Twofa.HasPassword(c.ctx, user.Id())
 	if err != nil {
-		c.Logger.Errorf("auth.acceptLoginToken - error: %v", err)
 		return nil, err
+	}
+	var hash int64
+	if hasPassword {
+		if err = c.waitForPassword(qrCode.PermAuthKeyId, user.Id()); err != nil {
+			return nil, err
+		}
+	} else {
+		// Bind authKeyId and userId
+		h, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
+			AuthKeyId: qrCode.AuthKeyId,
+			UserId:    user.Id(),
+		})
+		if err != nil {
+			c.Logger.Errorf("auth.acceptLoginToken - error: %v", err)
+			return nil, err
+		}
+		hash = h.V
 	}
 	authorization, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionGetAuthorization(c.ctx, &authsession.TLAuthsessionGetAuthorization{
 		AuthKeyId: qrCode.AuthKeyId,
@@ -113,7 +133,8 @@ func (c *QrCodeCore) AuthAcceptLoginToken(in *mtproto.TLAuthAcceptLoginToken) (*
 
 	authorization.DateCreated = int32(time.Now().Unix())
 	authorization.DateActive = authorization.DateCreated
-	authorization.Hash = hash.V
+	authorization.Hash = hash
+	authorization.PasswordPending = hasPassword
 
 	c.svcCtx.Dao.SyncClient.SyncUpdatesMe(
 		c.ctx,

@@ -19,15 +19,13 @@
 package core
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
 	"github.com/teamgram/teamgram-server/app/bff/qrcode/internal/model"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
-
-	"google.golang.org/grpc/status"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 const (
@@ -74,15 +72,6 @@ func (c *QrCodeCore) AuthExportLoginToken(in *mtproto.TLAuthExportLoginToken) (*
 
 	switch qrCode.State {
 	case model.QRCodeStateAccepted, model.QRCodeStateSuccess:
-		//// Check SESSION_PASSWORD_NEEDED
-		//if sessionPasswordNeeded, _ := c.svcCtx.Dao.TwofaClient.TwofaCheckSessionPasswordNeeded(c.ctx, &twofa.TLTwofaCheckSessionPasswordNeeded{
-		//	UserId: qrCode.UserId,
-		//}); mtproto.FromBool(sessionPasswordNeeded) {
-		//	err = mtproto.ErrSessionPasswordNeeded
-		//	c.Logger.Infof("auth.exportLoginToken - registered, next step auth.checkPassword: %v", err)
-		//	return nil, err
-		//}
-
 		user, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{
 			Id: qrCode.UserId,
 		})
@@ -90,13 +79,21 @@ func (c *QrCodeCore) AuthExportLoginToken(in *mtproto.TLAuthExportLoginToken) (*
 			c.Logger.Errorf("auth.exportLoginToken - error: %v", err)
 			return nil, err
 		}
-		if c.svcCtx.Plugin != nil {
-			if c.svcCtx.Plugin.CheckSessionPasswordNeeded(c.ctx, user.User.Id) {
-				// hack
-				// err = mtproto.ErrSessionPasswordNeeded
-				err = status.Error(mtproto.ErrUnauthorized, fmt.Sprintf("SESSION_PASSWORD_NEEDED_%d", user.Id()))
-				c.Logger.Infof("auth.exportLoginToken - registered, next step auth.checkPassword: %v", err)
+		// A user with a 2FA password: auth.acceptLoginToken left the key
+		// unbound and waiting for auth.checkPassword, as Telegram does
+		// (https://core.telegram.org/api/qr-login). A key that gave the
+		// password meanwhile is logged in.
+		if c.MD.UserId != user.Id() {
+			hasPassword, err := c.svcCtx.Twofa.HasPassword(c.ctx, user.Id())
+			if err != nil {
 				return nil, err
+			}
+			if hasPassword {
+				if err = c.waitForPassword(qrCode.PermAuthKeyId, user.Id()); err != nil {
+					return nil, err
+				}
+				c.Logger.Infof("auth.exportLoginToken - user %d, next step auth.checkPassword", user.Id())
+				return nil, mtproto.ErrSessionPasswordNeeded
 			}
 		}
 
@@ -117,4 +114,17 @@ func (c *QrCodeCore) AuthExportLoginToken(in *mtproto.TLAuthExportLoginToken) (*
 	}
 
 	return rQRLoginToken, nil
+}
+
+// waitForPassword makes the QR login of userId on the permanent key
+// authKeyId wait for the 2FA password, unless it already does.
+func (c *QrCodeCore) waitForPassword(authKeyId, userId int64) error {
+	l, err := c.svcCtx.Twofa.WaitingLogin(c.ctx, authKeyId)
+	if err != nil {
+		return err
+	}
+	if l != nil && l.UserId == userId {
+		return nil
+	}
+	return c.svcCtx.Twofa.StartLogin(c.ctx, authKeyId, twofa.Login{UserId: userId})
 }
