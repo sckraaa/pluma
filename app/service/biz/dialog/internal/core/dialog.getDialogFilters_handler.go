@@ -25,7 +25,7 @@ func (c *DialogCore) DialogGetDialogFilters(in *dialog.TLDialogGetDialogFilters)
 		dialogFilterExtList []*dialog.DialogFilterExt
 	)
 
-	c.svcCtx.Dao.CachedConn.QueryRow(
+	err := c.svcCtx.Dao.CachedConn.QueryRow(
 		c.ctx,
 		&dialogFilterExtList,
 		dialog.GetDialogFilterCacheKey(in.UserId),
@@ -62,6 +62,10 @@ func (c *DialogCore) DialogGetDialogFilters(in *dialog.TLDialogGetDialogFilters)
 			return err
 		},
 	)
+	if err != nil {
+		c.Logger.Errorf("dialog.getDialogFilters - user %d: %v", in.UserId, err)
+		return nil, err
+	}
 
 	return &dialog.Vector_DialogFilterExt{
 		Datas: dialogFilterExtList,

@@ -10,46 +10,20 @@
 package core
 
 import (
-	"context"
-	"time"
-
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
-	"github.com/teamgram/teamgram-server/app/service/biz/dialog/internal/dal/dataobject"
-
-	"github.com/zeromicro/go-zero/core/jsonx"
 )
 
 // DialogInsertOrUpdateDialogFilter
 // dialog.insertOrUpdateDialogFilter user_id:long id:int dialog_filter:DialogFilter = Bool;
+//
+// Creates folder id or changes it (dao.SaveDialogFilter): a changed folder
+// keeps its place, a new one goes last; DIALOG_FILTERS_TOO_MUCH over the
+// limit.
 func (c *DialogCore) DialogInsertOrUpdateDialogFilter(in *dialog.TLDialogInsertOrUpdateDialogFilter) (*mtproto.Bool, error) {
-	dialogFilterData, err := jsonx.Marshal(in.GetDialogFilter())
-	isChatlist := in.GetDialogFilter().GetPredicateName() == mtproto.Predicate_dialogFilterChatlist
-
-	if err != nil {
-		c.Logger.Errorf("dialog.insertOrUpdateDialogFilter - error: %v", err)
+	if err := c.svcCtx.Dao.SaveDialogFilter(c.ctx, in.UserId, in.Id, in.GetDialogFilter()); err != nil {
+		c.Logger.Errorf("dialog.insertOrUpdateDialogFilter - user %d, folder %d: %v", in.UserId, in.Id, err)
 		return nil, err
 	}
-
-	c.svcCtx.Dao.CachedConn.Exec(
-		c.ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			_, _, err2 := c.svcCtx.Dao.DialogFiltersDAO.InsertOrUpdate(
-				ctx,
-				&dataobject.DialogFiltersDO{
-					UserId:         in.UserId,
-					DialogFilterId: in.Id,
-					IsChatlist:     isChatlist,
-					DialogFilter:   string(dialogFilterData),
-					OrderValue:     time.Now().Unix() << 32,
-					FromSuggested:  -1,
-					Deleted:        false,
-				})
-
-			return 0, 0, err2
-		},
-		dialog.GetDialogFilterCacheKey(in.UserId))
-
 	return mtproto.BoolTrue, nil
 }
