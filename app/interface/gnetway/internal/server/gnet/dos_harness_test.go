@@ -407,13 +407,32 @@ func (tc *testClient) onServerDHParams(o mtproto.TLObject) {
 }
 
 func (tc *testClient) setClientDHParams() []byte {
+	return tc.setClientDHParamsWith(setClientDHParamsEdits{})
+}
+
+// setClientDHParamsEdits change set_client_DH_params from what a client
+// sends, for tests of the checks of the server.
+type setClientDHParamsEdits struct {
+	retryId int64
+	// gB is sent instead of g^b (the client then does not know the key).
+	gB *big.Int
+	// plain edits SHA1(client_DH_inner_data) + client_DH_inner_data +
+	// padding before it is encrypted.
+	plain func(plain []byte) []byte
+}
+
+func (tc *testClient) setClientDHParamsWith(edits setClientDHParamsEdits) []byte {
 	tc.b = new(big.Int).SetBytes(crypto.GenerateNonce(256))
 	gB := new(big.Int).Exp(big.NewInt(tc.g), tc.b, tc.dhPrime)
+	tc.authKey = new(big.Int).Exp(tc.gA, tc.b, tc.dhPrime).FillBytes(make([]byte, 256))
+	if edits.gB != nil {
+		gB, tc.authKey = edits.gB, nil
+	}
 	x := mtproto.NewEncodeBuf(512)
 	_ = mtproto.MakeTLClient_DHInnerData(&mtproto.Client_DH_Inner_Data{
 		Nonce:       tc.nonce,
 		ServerNonce: tc.serverNonce,
-		RetryId:     0,
+		RetryId:     edits.retryId,
 		GB:          string(gB.Bytes()),
 	}).Encode(x, 0)
 	data := x.GetBuf()
@@ -422,12 +441,14 @@ func (tc *testClient) setClientDHParams() []byte {
 	if len(plain)%16 != 0 {
 		plain = append(plain, crypto.GenerateNonce(16-len(plain)%16)...)
 	}
+	if edits.plain != nil {
+		plain = edits.plain(plain)
+	}
 	key, iv := tc.tmpAes()
 	enc, err := crypto.NewAES256IGECryptor(key, iv).Encrypt(plain)
 	if err != nil {
 		tc.t.Fatal(err)
 	}
-	tc.authKey = new(big.Int).Exp(tc.gA, tc.b, tc.dhPrime).FillBytes(make([]byte, 256))
 	return unencrypted(&mtproto.TLSetClient_DHParams{
 		Constructor:   mtproto.CRC32_set_client_DH_params,
 		Nonce:         tc.nonce,

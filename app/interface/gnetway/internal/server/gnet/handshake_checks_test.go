@@ -2,6 +2,7 @@ package gnet
 
 import (
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/binary"
 	"math/big"
@@ -222,6 +223,42 @@ func TestReqDHParamsChecksRSAPadHash(t *testing.T) {
 			}
 			h.waitWrites(c, 2)
 			tc.onServerDHParams(h.lastUnencrypted(c))
+		})
+	}
+}
+
+// TestSetClientDHParamsChecksHash: encrypted_data must decrypt to
+// SHA1(client_DH_inner_data) + client_DH_inner_data + 0-15 bytes of padding.
+func TestSetClientDHParamsChecksHash(t *testing.T) {
+	cases := []struct {
+		name  string
+		plain func(plain []byte) []byte
+		ok    bool
+	}{
+		{"valid", nil, true},
+		{"a bit of the hash flipped", func(p []byte) []byte { p[3] ^= 0x40; return p }, false},
+		{"a bit of g_b flipped", func(p []byte) []byte { p[100] ^= 0x01; return p }, false},
+		{"the hash over the padding too", func(p []byte) []byte {
+			h := sha1.Sum(p[20:])
+			copy(p, h[:])
+			return p
+		}, false},
+		{"16 more bytes of padding", func(p []byte) []byte { return append(p, crypto.GenerateNonce(16)...) }, false},
+	}
+	for _, tcase := range cases {
+		t.Run(tcase.name, func(t *testing.T) {
+			h := newTestHarness(t)
+			c, tc := h.startSetDH(1)
+			frame := tc.setClientDHParamsWith(setClientDHParamsEdits{plain: tcase.plain})
+			if !tcase.ok {
+				h.expectRejected(c, frame)
+				return
+			}
+			if a := h.sendFrame(c, frame); a != gnet.None {
+				t.Fatalf("action %v", a)
+			}
+			h.waitWrites(c, 3)
+			tc.onDHGen(h.lastUnencrypted(c))
 		})
 	}
 }

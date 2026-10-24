@@ -44,10 +44,6 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-const (
-	SHA_DIGEST_LENGTH = 20
-)
-
 var (
 	// TODO(@benqi): 直接指定了dh2048_p和dh2048_g!!!
 	// andriod client 指定的good prime
@@ -213,11 +209,12 @@ const (
 )
 
 var (
-	errHandshakeMessage = errors.New("handshake: malformed message")
-	errHandshakeData    = errors.New("handshake: invalid encrypted data")
-	errHandshakePQ      = errors.New("handshake: req_DH_params: p and q are not the factors of pq")
-	errRSAPadHash       = errors.New("handshake: req_DH_params: RSA_PAD hash mismatch")
-	errTempKeyExpiresIn = errors.New("handshake: temporary key without a positive expires_in")
+	errHandshakeMessage      = errors.New("handshake: malformed message")
+	errHandshakeData         = errors.New("handshake: invalid encrypted data")
+	errHandshakePQ           = errors.New("handshake: req_DH_params: p and q are not the factors of pq")
+	errRSAPadHash            = errors.New("handshake: req_DH_params: RSA_PAD hash mismatch")
+	errClientDHInnerDataHash = errors.New("handshake: set_client_DH_params: SHA1 of client_DH_inner_data mismatch")
+	errTempKeyExpiresIn      = errors.New("handshake: temporary key without a positive expires_in")
 )
 
 // handshakeConstructors are the only objects a client may send unencrypted.
@@ -240,22 +237,22 @@ var clientDHInnerDataConstructors = []mtproto.TLConstructor{
 	mtproto.CRC32_client_DH_inner_data,
 }
 
-// decodeObjectOf decodes b as one of the allowed objects; nothing else is
-// decoded at all.
-func decodeObjectOf(b []byte, allowed []mtproto.TLConstructor) (mtproto.TLObject, error) {
+// decodeObjectOf decodes the start of b as one of the allowed objects and
+// returns it with its length; nothing else is decoded at all.
+func decodeObjectOf(b []byte, allowed []mtproto.TLConstructor) (mtproto.TLObject, int, error) {
 	if len(b) < 4 {
-		return nil, errHandshakeMessage
+		return nil, 0, errHandshakeMessage
 	}
 	if !slices.Contains(allowed, mtproto.TLConstructor(binary.LittleEndian.Uint32(b))) {
-		return nil, errHandshakeMessage
+		return nil, 0, errHandshakeMessage
 	}
 	dBuf := mtproto.GetDecodeBuf(b)
 	defer mtproto.PutDecodeBuf(dBuf)
 	obj := dBuf.Object()
 	if err := dBuf.GetError(); err != nil || obj == nil {
-		return nil, errHandshakeMessage
+		return nil, 0, errHandshakeMessage
 	}
-	return obj, nil
+	return obj, dBuf.GetOffset(), nil
 }
 
 // parseHandshakeMessage parses an unencrypted transport frame (auth_key_id
@@ -269,7 +266,8 @@ func parseHandshakeMessage(frame []byte) (mtproto.TLObject, error) {
 	if n < 4 || uint64(n) > uint64(len(frame)-unencryptedHeaderSize) {
 		return nil, errHandshakeMessage
 	}
-	return decodeObjectOf(frame[unencryptedHeaderSize:unencryptedHeaderSize+int(n)], handshakeConstructors)
+	obj, _, err := decodeObjectOf(frame[unencryptedHeaderSize:unencryptedHeaderSize+int(n)], handshakeConstructors)
+	return obj, err
 }
 
 // handshakePayload serializes an answer as an unencrypted message.
@@ -517,7 +515,7 @@ func (h *handshake) processReqDHParams(st *HandshakeStateCtx, req *mtproto.TLReq
 		return nil, errRSAPadHash
 	}
 
-	o, err := decodeObjectOf(dataWithPadding, pqInnerDataConstructors)
+	o, _, err := decodeObjectOf(dataWithPadding, pqInnerDataConstructors)
 	if err != nil {
 		return nil, errHandshakeData
 	}
@@ -662,13 +660,21 @@ func processSetClientDHParams(st *HandshakeStateCtx, req *mtproto.TLSetClient_DH
 	}
 	tmpAesKey, tmpAesIV := tmpAesKeyAndIV(st.NewNonce, st.ServerNonce)
 	decrypted, err := crypto.NewAES256IGECryptor(tmpAesKey, tmpAesIV).Decrypt(encryptedData)
-	if err != nil || len(decrypted) <= 20 {
+	if err != nil || len(decrypted) <= sha1.Size {
 		return nil, errHandshakeData
 	}
 
-	o, err := decodeObjectOf(decrypted[20:], clientDHInnerDataConstructors)
+	o, n, err := decodeObjectOf(decrypted[sha1.Size:], clientDHInnerDataConstructors)
 	if err != nil {
 		return nil, errHandshakeData
+	}
+	// The hash covers exactly the object; at most 15 bytes of padding follow.
+	innerData := decrypted[sha1.Size : sha1.Size+n]
+	if len(decrypted)-sha1.Size-n > 15 {
+		return nil, errHandshakeData
+	}
+	if sum := sha1.Sum(innerData); subtle.ConstantTimeCompare(sum[:], decrypted[:sha1.Size]) != 1 { //nolint:gosec // MTProto: SHA1(client_DH_inner_data)
+		return nil, errClientDHInnerDataHash
 	}
 	inner, ok := o.(*mtproto.TLClient_DHInnerData)
 	if !ok {
@@ -777,19 +783,4 @@ func calcNewNonceHash(newNonce, authKey []byte, b byte) []byte {
 	result := make([]byte, 16)
 	copy(result, buf[73-16:])
 	return result
-}
-
-func checkSha1(data []byte, maxPaddingLen int) bool {
-	var (
-		dataLen  = len(data)
-		sha1Data = data[:SHA_DIGEST_LENGTH]
-	)
-
-	for paddingLen := 0; paddingLen < maxPaddingLen; paddingLen++ {
-		sha1Check := sha1.Sum(data[SHA_DIGEST_LENGTH : dataLen-paddingLen])
-		if bytes.Equal(sha1Check[:], sha1Data) {
-			return true
-		}
-	}
-	return false
 }
