@@ -60,10 +60,6 @@ gnetway:
 	@echo "build gnetway..."
 	@go build -ldflags ${ldflags} -o ${INSTALL}/bin/gnetway -tags=jsoniter app/interface/gnetway/cmd/gnetway/*.go
 
-httpserver:
-	@echo "build httpserver..."
-	@go build -ldflags ${ldflags} -o ${INSTALL}/bin/httpserver -tags=jsoniter app/interface/httpserver/cmd/httpserver/*.go
-
 clean:
 	@rm -rf ${INSTALL}/bin/idgen
 	@rm -rf ${INSTALL}/bin/status
@@ -76,4 +72,3 @@ clean:
 	@rm -rf ${INSTALL}/bin/bff
 	@rm -rf ${INSTALL}/bin/session
 	@rm -rf ${INSTALL}/bin/gnetway
-	@rm -rf ${INSTALL}/bin/httpserver

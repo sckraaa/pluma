@@ -23,7 +23,6 @@
 | **media** | 20650 | — | 媒体：图片/文档/视频元数据与处理 |
 | **idgen** | 20660 | — | 分布式 ID 生成 |
 | **status** | 20670 | — | 用户在线状态 |
-| **httpserver** | 8801 | 8801 (HTTP) | 可选：HTTP API 或 Web 回调 |
 
 发现与配置通过 **etcd**；配置文件在 `teamgramd/etc/`（Docker 可用 `teamgramd/etc2/`）。启动顺序见 `teamgramd/bin/runall2.sh`（裸机）或 `docker-compose.yaml` 中的 `depends_on`。
 

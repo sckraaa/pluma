@@ -33,9 +33,6 @@ func TestRPCTimeouts(t *testing.T) {
 			files, _ := filepath.Glob(filepath.Join(repoRoot, dir, "*.yaml"))
 			zero := regexp.MustCompile(`(?m)^\s*Timeout:\s*0\s*$`)
 			for _, f := range files {
-				if filepath.Base(f) == "httpserver.yaml" { // legacy transport, not deployed (task 008)
-					continue
-				}
 				data, err := os.ReadFile(f)
 				if err != nil {
 					t.Fatal(err)
