@@ -46,6 +46,7 @@ import (
 	savedmessagedialogshelper "github.com/teamgram/teamgram-server/app/bff/savedmessagedialogs"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
+	twofa_helper "github.com/teamgram/teamgram-server/app/bff/twofa"
 	updates_helper "github.com/teamgram/teamgram-server/app/bff/updates"
 	userchannelprofileshelper "github.com/teamgram/teamgram-server/app/bff/userchannelprofiles"
 	usernames_helper "github.com/teamgram/teamgram-server/app/bff/usernames"
@@ -333,6 +334,16 @@ func (s *Server) Initialize() error {
 					SyncClient:        syncClient,
 				},
 				nil))
+
+		// twofa_helper: the 2FA password and its settings (task 008).
+		mtproto.RegisterRPCTwoFaServer(
+			grpcServer,
+			twofa_helper.New(twofa_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				KV:            c.KV,
+				Mysql:         c.Mysql,
+			}))
+
 		// usernames_helper
 		mtproto.RegisterRPCUsernamesServer(
 			grpcServer,
