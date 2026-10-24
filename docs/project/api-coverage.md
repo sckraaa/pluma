@@ -6,7 +6,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 133, partial 25, blocked 113, notimpl 7, missing 591 (ok = 15.3%)
+    layer 228: 869 methods — ok 139, partial 25, blocked 113, notimpl 7, missing 585 (ok = 16.0%)
 
 | namespace | total | ok | partial | blocked | notimpl | missing |
 |---|---|---|---|---|---|---|
@@ -24,7 +24,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 |
 | help | 28 | 3 | 0 | 15 | 0 | 10 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 5 |
-| messages | 273 | 53 | 21 | 22 | 5 | 172 |
+| messages | 273 | 59 | 21 | 22 | 5 | 166 |
 | payments | 70 | 0 | 0 | 4 | 0 | 66 |
 | phone | 45 | 0 | 0 | 0 | 0 | 45 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 |
@@ -557,8 +557,8 @@
 | `messages.getDefaultHistoryTTL` | ok | app/bff/privacysettings/internal/core/messages.getDefaultHistoryTTL_handler.go:28 |
 | `messages.getDefaultTagReactions` | missing |  |
 | `messages.getDhConfig` | missing |  |
-| `messages.getDialogFiltersEFD48C89` | missing |  |
-| `messages.getDialogFiltersF19ED96D` | missing |  |
+| `messages.getDialogFiltersEFD48C89` | ok | app/bff/folders/internal/core/messages.getDialogFiltersEFD48C89_handler.go:27 |
+| `messages.getDialogFiltersF19ED96D` | ok | app/bff/folders/internal/core/messages.getDialogFiltersF19ED96D_handler.go:26 |
 | `messages.getDialogUnreadMarks` | ok | app/bff/dialogs/internal/core/messages.getDialogUnreadMarks_handler.go:28 |
 | `messages.getDialogs` | partial | app/bff/dialogs/internal/core/messages.getDialogs_handler.go:36 |
 | `messages.getDiscussionMessage` | missing |  |
@@ -630,7 +630,7 @@
 | `messages.getSponsoredMessages` | ok | app/bff/sponsoredmessages/internal/core/messages.getSponsoredMessages_handler.go:27 |
 | `messages.getStickerSet` | missing |  |
 | `messages.getStickers` | missing |  |
-| `messages.getSuggestedDialogFilters` | missing |  |
+| `messages.getSuggestedDialogFilters` | ok | app/bff/folders/internal/core/messages.getSuggestedDialogFilters_handler.go:29 |
 | `messages.getTopReactions` | missing |  |
 | `messages.getUnreadMentions` | partial | app/bff/messages/internal/core/messages.getUnreadMentions_handler.go:30 |
 | `messages.getUnreadPollVotes` | missing |  |
@@ -733,7 +733,7 @@
 | `messages.startHistoryImport` | missing |  |
 | `messages.summarizeText` | notimpl | app/bff/messages/internal/core/messages.summarizeText_handler.go:27 |
 | `messages.toggleBotInAttachMenu` | missing |  |
-| `messages.toggleDialogFilterTags` | missing |  |
+| `messages.toggleDialogFilterTags` | ok | app/bff/folders/internal/core/messages.toggleDialogFilterTags_handler.go:28 |
 | `messages.toggleDialogPin` | ok | app/bff/dialogs/internal/core/messages.toggleDialogPin_handler.go:31 |
 | `messages.toggleNoForwards` | ok | app/bff/messages/internal/core/messages.toggleNoForwards_handler.go:28 |
 | `messages.togglePaidReactionPrivacy` | missing |  |
@@ -747,8 +747,8 @@
 | `messages.translateText` | missing |  |
 | `messages.uninstallStickerSet` | missing |  |
 | `messages.unpinAllMessages` | ok | app/bff/messages/internal/core/messages.unpinAllMessages_handler.go:28 |
-| `messages.updateDialogFilter` | missing |  |
-| `messages.updateDialogFiltersOrder` | missing |  |
+| `messages.updateDialogFilter` | ok | app/bff/folders/internal/core/messages.updateDialogFilter_handler.go:28 |
+| `messages.updateDialogFiltersOrder` | ok | app/bff/folders/internal/core/messages.updateDialogFiltersOrder_handler.go:30 |
 | `messages.updatePinnedForumTopic` | missing |  |
 | `messages.updatePinnedMessage` | ok | app/bff/messages/internal/core/messages.updatePinnedMessage_handler.go:28 |
 | `messages.updateSavedReactionTag` | missing |  |

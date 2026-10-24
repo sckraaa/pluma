@@ -10,42 +10,20 @@
 package core
 
 import (
-	"context"
-	"time"
-
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
 // DialogUpdateDialogFiltersOrder
-// dialog.updateDialogFiltersOrder user_id:long order:Vector<long> = Bool;
+// dialog.updateDialogFiltersOrder user_id:long order:Vector<int> = Bool;
+//
+// Puts the folders in the order given; unknown ids are ignored and folders
+// left out keep their relative order after the others
+// (dao.OrderDialogFilters).
 func (c *DialogCore) DialogUpdateDialogFiltersOrder(in *dialog.TLDialogUpdateDialogFiltersOrder) (*mtproto.Bool, error) {
-	var (
-		err    error
-		orderV = time.Now().Unix() << 32
-	)
-
-	c.svcCtx.Dao.CachedConn.Exec(
-		c.ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			tR := sqlx.TxWrapper(
-				ctx,
-				conn,
-				func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-					for _, id := range in.Order {
-						_, err = c.svcCtx.DialogFiltersDAO.UpdateOrder(ctx, orderV, in.UserId, id)
-						if err != nil {
-							result.Err = err
-							return
-						}
-						orderV--
-					}
-				})
-
-			return 0, 0, tR.Err
-		},
-		dialog.GetDialogFilterCacheKey(in.UserId))
-
+	if _, err := c.svcCtx.Dao.OrderDialogFilters(c.ctx, in.UserId, in.Order); err != nil {
+		c.Logger.Errorf("dialog.updateDialogFiltersOrder - user %d: %v", in.UserId, err)
+		return nil, err
+	}
 	return mtproto.BoolTrue, nil
 }

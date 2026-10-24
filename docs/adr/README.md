@@ -21,3 +21,4 @@
 | [0013](0013-observability-alerts-backups.md) | Наблюдаемость, алерты на телефон (ntfy + healthchecks.io), бэкапы restic в S3 | accepted |
 | [0014](0014-object-storage-garage.md) | Объектное хранилище: Garage вместо MinIO | accepted |
 | [0015](0015-contacts-by-phone.md) | Контакты по номеру: телефонная книга на сервере, лимит, уведомления о регистрации | accepted |
+| [0016](0016-no-premium.md) | Premium в Pluma: по умолчанию ни у кого, выдаёт администратор | accepted |

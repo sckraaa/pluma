@@ -10,9 +10,6 @@
 package core
 
 import (
-	"context"
-
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
@@ -20,13 +17,9 @@ import (
 // DialogDeleteDialogFilter
 // dialog.deleteDialogFilter user_id:long id:int = Bool;
 func (c *DialogCore) DialogDeleteDialogFilter(in *dialog.TLDialogDeleteDialogFilter) (*mtproto.Bool, error) {
-	c.svcCtx.Dao.CachedConn.Exec(
-		c.ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			_, err := c.svcCtx.Dao.DialogFiltersDAO.Clear(ctx, in.UserId, in.Id)
-			return 0, 0, err
-		},
-		dialog.GetDialogFilterCacheKey(in.UserId))
-
+	if err := c.svcCtx.Dao.DeleteDialogFilter(c.ctx, in.UserId, in.Id); err != nil {
+		c.Logger.Errorf("dialog.deleteDialogFilter - user %d, folder %d: %v", in.UserId, in.Id, err)
+		return nil, err
+	}
 	return mtproto.BoolTrue, nil
 }
