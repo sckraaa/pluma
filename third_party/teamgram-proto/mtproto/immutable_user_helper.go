@@ -148,6 +148,13 @@ func (m *ImmutableUser) Premium() bool {
 	}
 }
 
+// ContactRequirePremium tells whether only contacts, chats there already and
+// Premium users may write to the user: the user's setting, which works
+// while the user has Premium (pluma: task 014).
+func (m *ImmutableUser) ContactRequirePremium() bool {
+	return m.User.GetNewNoncontactPeersRequirePremium() && m.Premium()
+}
+
 func (m *ImmutableUser) AttachMenuEnabled() bool {
 	return m.User.Bot.GetBotAttachMenu()
 }
@@ -313,7 +320,7 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 		CloseFriend:                  false,
 		StoriesHidden:                false,
 		StoriesUnavailable:           m.StoriesUnavailable(),
-		ContactRequirePremium:        false,
+		ContactRequirePremium:        m.ContactRequirePremium(), // pluma: new_noncontact_peers_require_premium
 		BotBusiness:                  m.BotBusiness(),
 		BotHasMainApp:                m.BotHasMainApp(),
 		Id:                           m.Id(),
@@ -557,7 +564,7 @@ func (m *ImmutableUser) ToUser(selfUserId int64) *User {
 		StoriesHidden:                false,
 		StoriesUnavailable:           m.StoriesUnavailable(),
 		Id:                           m.Id(),
-		ContactRequirePremium:        false,
+		ContactRequirePremium:        m.ContactRequirePremium(), // pluma: new_noncontact_peers_require_premium
 		BotBusiness:                  m.BotBusiness(),
 		BotHasMainApp:                m.BotHasMainApp(),
 		AccessHash:                   MakeFlagsInt64(m.AccessHash()),
