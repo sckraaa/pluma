@@ -15,6 +15,7 @@
 //	pluma-admin [-f bff.yaml] outbox list [-state <state>] [-user <id>] [-limit <n>]
 //	pluma-admin [-f bff.yaml] outbox replay -user <id>
 //	pluma-admin [-f bff.yaml] outbox discard -id <event id>
+//	pluma-admin [-f bff.yaml] password reset <phone>
 //
 // login-code generates a fresh code for a pending code request of the phone
 // (auth.sendCode or account.sendChangePhoneCode that answered "code sent by
@@ -40,6 +41,10 @@
 // events to pending, to be applied in order (after the cause is fixed);
 // discard deletes one event for good. replay and discard print who did
 // what on stderr.
+//
+// password reset removes the 2FA password of an account (task 008) whose
+// owner forgot it and is logged in nowhere to reset it with a week's wait
+// (account.resetPassword). Establish who asks outside the server first.
 //
 // From the repo root (services run with teamgramd/etc, secrets in .env):
 //
@@ -134,6 +139,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] premium grant <phone> [-months N]   (without -months: for good)
   pluma-admin [-f bff.yaml] premium revoke <phone>
   pluma-admin [-f bff.yaml] premium list
+  pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
 
 Phones are international numbers, e.g. +79991234567.
@@ -185,6 +191,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return storageCommand(args, configFile, stdout)
 	case "premium":
 		return premiumCommand(args, configFile, stdout)
+	case "password":
+		return passwordCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

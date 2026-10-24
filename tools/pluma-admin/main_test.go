@@ -243,6 +243,10 @@ func TestUsage(t *testing.T) {
 		{"outbox", "discard"},
 		{"outbox", "discard", "-id", "0"},
 		{"outbox", "list", "extra"},
+		{"password"},
+		{"password", "reset"},
+		{"password", "remove", "+12015550101"},
+		{"password", "reset", "+12015550101", "extra"},
 	} {
 		if code, _, _ := h.run(args...); code != 2 {
 			t.Errorf("%q: exit %d, want 2", args, code)
@@ -252,6 +256,7 @@ func TestUsage(t *testing.T) {
 		{"allowlist", "add", "12"},
 		{"login-code", "not-a-phone"},
 		{"login-unblock", "not-a-phone"},
+		{"password", "reset", "not-a-phone"},
 	} {
 		if code, _, errOut := h.run(args...); code != 1 || !strings.Contains(errOut, "invalid phone number") {
 			t.Errorf("%q: exit %d %q", args, code, errOut)
@@ -277,6 +282,22 @@ func TestLoadsOutboxConfig(t *testing.T) {
 		}
 		if c.SyncClient.Topic != "Sync-T" {
 			t.Errorf("%s: push topic %q", f, c.SyncClient.Topic)
+		}
+	}
+}
+
+// TestLoadsPasswordConfig: password reset finds MySQL and Redis of bff.
+func TestLoadsPasswordConfig(t *testing.T) {
+	t.Setenv("MYSQL_PASSWORD", "pw")
+	t.Setenv("REDIS_PASSWORD", "rpw")
+	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
+	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
+		var c passwordConfig
+		if err := conf.Load(f, &c); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		if !strings.Contains(c.Mysql.DSN, ":pw@") || len(c.KV) == 0 || c.KV[0].Pass != "rpw" {
+			t.Fatalf("%s: unexpected config", f)
 		}
 	}
 }
