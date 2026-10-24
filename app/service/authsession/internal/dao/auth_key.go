@@ -156,9 +156,15 @@ func authKeyDataFromRows(authKeyId int64, info *dataobject.AuthKeyInfosDO, key *
 // errTempKeyWithoutExpiry: a temporary key must expire.
 var errTempKeyWithoutExpiry = errors.New("temporary auth key without a positive expires_in")
 
+// ErrAuthKeyIdTaken: a key with this auth_key_id exists already, the
+// collision the key exchange answers with dh_gen_retry
+// (https://core.telegram.org/mtproto/auth_key, step 9).
+var ErrAuthKeyIdTaken = errors.New("auth_key_id is taken")
+
 // SetAuthKeyV2 stores a key created by a handshake. expiresIn is the
 // expires_in of p_q_inner_data_temp(_dc); a temporary key stops working
-// expiresIn seconds from now.
+// expiresIn seconds from now. A key whose auth_key_id is taken is not stored
+// (ErrAuthKeyIdTaken): the unique index on auth_key_id decides.
 func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, expiresIn int32) (err error) {
 	var expiresAt int64
 	if IsTempAuthKeyType(authKey.AuthKeyType) {
@@ -193,6 +199,9 @@ func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, ex
 		}
 	})
 
+	if sqlx.IsDuplicate(tR.Err) {
+		return ErrAuthKeyIdTaken
+	}
 	return tR.Err
 }
 
