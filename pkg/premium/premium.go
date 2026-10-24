@@ -31,16 +31,21 @@ var ErrPrivacyPremiumRequired = status.Error(mtproto.ErrForbidden, "PRIVACY_PREM
 // in a private chat, as Telegram decides it: target turned on
 // globalPrivacySettings.new_noncontact_peers_require_premium and has Premium
 // (ImmutableUser.ContactRequirePremium), and sender has no Premium, is not
-// a contact of target and target has no private chat with sender. target
-// must be loaded with sender in the scope of its contacts
-// (user.getMutableUsers with sender among id or to). hasChat tells whether
-// target has a private chat with sender; it is asked only when the rest
-// does not decide.
+// a contact of target and target has no private chat with sender.
+//
+// Whether sender is a contact of target is read from either shape the user
+// service loads: target's contacts (user.getMutableUsers with sender among
+// id or to) or sender's reverse contacts (user.getMutableUsersV2 with
+// has_to and target among to). hasChat tells whether target has a private
+// chat with sender; it is asked only when the rest does not decide.
 func RequiredToContact(sender, target *mtproto.ImmutableUser, hasChat func() (bool, error)) (bool, error) {
 	if sender.Id() == target.Id() || !target.ContactRequirePremium() || sender.Premium() {
 		return false, nil
 	}
 	if contact, _ := target.CheckContact(sender.Id()); contact {
+		return false, nil
+	}
+	if contact, _ := sender.CheckReverseContact(target.Id()); contact {
 		return false, nil
 	}
 	chat, err := hasChat()

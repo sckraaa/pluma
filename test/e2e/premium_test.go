@@ -213,7 +213,7 @@ func waitSelfPremium(ctx context.Context, t *testing.T, u *user, premium bool) {
 func TestPremium(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
-	phones := testPhones(t, 2)
+	phones := testPhones(t, 3)
 	alice := login(ctx, t, phones[0], "Alice")
 	laptop := login(ctx, t, phones[0], "Alice")
 	getState(ctx, t, laptop)
@@ -300,6 +300,29 @@ func TestPremium(t *testing.T) {
 	}
 	if err := sendText(ctx, bob, aliceForBob, "Hi Alice"); err != nil {
 		t.Fatalf("Bob answers Alice: %v", err)
+	}
+
+	// A contact of Alice may write without a chat, and sees no requirement
+	// in userFull either.
+	carol := login(ctx, t, phones[2], "Carol")
+	aliceForCarol := resolve(ctx, t, carol, alice)
+	inputAlice := &mtproto.InputUser{
+		Constructor: carol.c.Constructor(mtproto.Predicate_inputUser),
+		UserId:      aliceForCarol.GetId(),
+		AccessHash:  aliceForCarol.GetAccessHash().GetValue(),
+	}
+	if full, _ := fullUser(ctx, t, carol, inputAlice); !full.GetContactRequirePremium() {
+		t.Error("users.getFullUser of Alice for Carol, a stranger: no contact_require_premium")
+	}
+	importContacts(ctx, t, alice, phoneContact(alice.c, 1, carol.phone, "Carol", ""))
+	if full, _ := fullUser(ctx, t, carol, inputAlice); full.GetContactRequirePremium() {
+		t.Error("users.getFullUser of Alice for Carol, her contact: contact_require_premium")
+	}
+	if r := requirementsToContact(ctx, t, carol, aliceForCarol); !slices.Equal(r, []string{mtproto.Predicate_requirementToContactEmpty}) {
+		t.Errorf("users.getRequirementsToContact of Alice for Carol, her contact: %v", r)
+	}
+	if err := sendText(ctx, carol, aliceForCarol, "Hi from a contact"); err != nil {
+		t.Fatalf("Carol, a contact, writes to Alice: %v", err)
 	}
 
 	// The admin takes Premium away: the folders stay, nothing more is made,

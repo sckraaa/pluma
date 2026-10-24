@@ -34,6 +34,13 @@ func user(id int64, premium, requires bool, contacts ...int64) *mtproto.Immutabl
 	return u
 }
 
+// reverseContactOf marks u as a contact of owner the way
+// user.getMutableUsersV2 loads it: in u's reverse contacts.
+func reverseContactOf(u *mtproto.ImmutableUser, owner int64) *mtproto.ImmutableUser {
+	u.ReverseContacts = append(u.ReverseContacts, &mtproto.ContactData{UserId: owner, ContactUserId: u.Id()})
+	return u
+}
+
 func TestRequiredToContact(t *testing.T) {
 	const sender, target = 1, 2
 	chat := func(has bool) func() (bool, error) { return func() (bool, error) { return has, nil } }
@@ -48,6 +55,7 @@ func TestRequiredToContact(t *testing.T) {
 		{"setting without Premium", user(sender, false, false), user(target, false, true), unasked, false},
 		{"Premium sender", user(sender, true, false), user(target, true, true), unasked, false},
 		{"contact of target", user(sender, false, false), user(target, true, true, sender), unasked, false},
+		{"contact of target, loaded as reverse contacts", reverseContactOf(user(sender, false, false), target), user(target, true, true), unasked, false},
 		{"target is a contact of sender only", user(sender, false, false, target), user(target, true, true), chat(false), true},
 		{"chat there already", user(sender, false, false), user(target, true, true), chat(true), false},
 		{"stranger", user(sender, false, false), user(target, true, true), chat(false), true},
