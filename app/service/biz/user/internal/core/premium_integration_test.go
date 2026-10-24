@@ -47,6 +47,9 @@ func premiumPushes(t *testing.T, userId int64) []string {
 		}
 		out = append(out, p)
 	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 	return out
 }
 
