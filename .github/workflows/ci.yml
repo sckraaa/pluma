@@ -49,24 +49,51 @@ jobs:
             go.sum
             third_party/teamgram-proto/go.sum
 
+      # dfs and pkg/goffmpeg tests run the ffmpeg/ffprobe binaries (with
+      # libx264, as in the production image); without them they would skip.
+      # The packages Ubuntu's mirror sent are kept per runner image: the
+      # mirror once hung for the whole job timeout and once crawled at a few
+      # dozen KB/s, so only a new image downloads them again.
+      - name: Runner image
+        id: image
+        run: echo "version=${ImageOS:?}-${ImageVersion:?}" >>"$GITHUB_OUTPUT"
+
+      - name: Restore ffmpeg packages
+        id: ffmpeg-debs
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/ffmpeg-debs
+          key: ffmpeg-debs-${{ runner.arch }}-${{ steps.image.outputs.version }}
+
       - name: Install ffmpeg
-        # dfs and pkg/goffmpeg tests run the ffmpeg/ffprobe binaries (with
-        # libx264, as in the production image); without them they would skip.
-        # A hung Ubuntu mirror once held this step for the whole job timeout:
-        # each attempt is bounded and retried, and the step has its own limit.
-        timeout-minutes: 15
+        timeout-minutes: 25
         run: |
-          apt_opts=(-q -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
-          for attempt in 1 2 3; do
-            if timeout 240 sudo apt-get "${apt_opts[@]}" update &&
-              timeout 240 sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends ffmpeg; then
-              break
-            fi
-            if [ "$attempt" = 3 ]; then exit 1; fi
-            echo "apt attempt $attempt failed, retrying"
-            sleep 10
-          done
+          if compgen -G ~/ffmpeg-debs/'*.deb' >/dev/null && sudo dpkg -i ~/ffmpeg-debs/*.deb >/dev/null; then
+            echo "installed from the cached packages"
+          else
+            # Packages fetched by a timed-out attempt stay in apt's cache, so
+            # every attempt continues where the previous one stopped.
+            apt_opts=(-q -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30)
+            for attempt in 1 2 3; do
+              if timeout 240 sudo apt-get "${apt_opts[@]}" update &&
+                timeout 420 sudo apt-get "${apt_opts[@]}" install -y --no-install-recommends ffmpeg; then
+                break
+              fi
+              if [ "$attempt" = 3 ]; then exit 1; fi
+              echo "apt attempt $attempt failed, retrying"
+              sleep 10
+            done
+            mkdir -p ~/ffmpeg-debs
+            cp /var/cache/apt/archives/*.deb ~/ffmpeg-debs/
+          fi
           ffmpeg -hide_banner -version | head -n 1
+
+      - name: Save ffmpeg packages
+        if: steps.ffmpeg-debs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/ffmpeg-debs
+          key: ffmpeg-debs-${{ runner.arch }}-${{ steps.image.outputs.version }}
 
       - name: Tool versions
         id: tools
