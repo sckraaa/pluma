@@ -6,13 +6,13 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 141, partial 25, blocked 111, notimpl 7, missing 585 (ok = 16.2%)
+    layer 228: 869 methods — ok 150, partial 25, blocked 106, notimpl 7, missing 581 (ok = 17.3%)
 
 | namespace | total | ok | partial | blocked | notimpl | missing |
 |---|---|---|---|---|---|---|
-| account | 132 | 28 | 2 | 32 | 0 | 70 |
+| account | 132 | 33 | 2 | 31 | 0 | 66 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 7 |
-| auth | 27 | 10 | 1 | 15 | 1 | 0 |
+| auth | 27 | 14 | 0 | 12 | 1 | 0 |
 | biz | 1 | 0 | 0 | 0 | 0 | 1 |
 | bots | 39 | 0 | 0 | 0 | 0 | 39 |
 | channels | 74 | 1 | 0 | 15 | 0 | 58 |
@@ -24,7 +24,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 |
 | help | 28 | 5 | 0 | 13 | 0 | 10 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 5 |
-| messages | 273 | 59 | 21 | 22 | 5 | 166 |
+| messages | 273 | 59 | 22 | 21 | 5 | 166 |
 | payments | 70 | 0 | 0 | 4 | 0 | 66 |
 | phone | 45 | 0 | 0 | 0 | 0 | 45 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 |
@@ -56,8 +56,8 @@
 | `account.confirmPhone` | blocked | app/bff/account/internal/core/account.confirmPhone_handler.go:27 |
 | `account.createBusinessChatLink` | missing |  |
 | `account.createTheme` | missing |  |
-| `account.declinePasswordReset` | missing |  |
-| `account.deleteAccount` | ok | app/bff/account/internal/core/account.deleteAccount_handler.go:30 |
+| `account.declinePasswordReset` | ok | app/bff/twofa/internal/core/account.declinePasswordReset_handler.go:27 |
+| `account.deleteAccount` | ok | app/bff/account/internal/core/account.deleteAccount_handler.go:42 |
 | `account.deleteAutoSaveExceptions` | missing |  |
 | `account.deleteBusinessChatLink` | missing |  |
 | `account.deletePasskey` | blocked | app/bff/passkey/internal/core/account.deletePasskey_handler.go:27 |
@@ -91,8 +91,8 @@
 | `account.getNotifySettings` | ok | app/bff/notification/internal/core/account.getNotifySettings_handler.go:28 |
 | `account.getPaidMessagesRevenue` | missing |  |
 | `account.getPasskeys` | blocked | app/bff/passkey/internal/core/account.getPasskeys_handler.go:27 |
-| `account.getPassword` | missing |  |
-| `account.getPasswordSettings` | missing |  |
+| `account.getPassword` | ok | app/bff/twofa/internal/core/account.getPassword_handler.go:29 |
+| `account.getPasswordSettings` | ok | app/bff/twofa/internal/core/account.getPasswordSettings_handler.go:28 |
 | `account.getPrivacy` | ok | app/bff/privacysettings/internal/core/account.getPrivacy_handler.go:29 |
 | `account.getReactionsNotifySettings` | missing |  |
 | `account.getRecentEmojiStatuses` | missing |  |
@@ -120,7 +120,7 @@
 | `account.resendPasswordEmail` | missing |  |
 | `account.resetAuthorization` | ok | app/bff/account/internal/core/account.resetAuthorization_handler.go:29 |
 | `account.resetNotifySettings` | ok | app/bff/notification/internal/core/account.resetNotifySettings_handler.go:31 |
-| `account.resetPassword` | blocked | app/bff/authorization/internal/core/account.resetPassword_handler.go:29 |
+| `account.resetPassword` | ok | app/bff/authorization/internal/core/account.resetPassword_handler.go:34 |
 | `account.resetWallPapers` | missing |  |
 | `account.resetWebAuthorization` | missing |  |
 | `account.resetWebAuthorizations` | missing |  |
@@ -162,7 +162,7 @@
 | `account.updateDeviceLocked` | blocked | app/bff/notification/internal/core/account.updateDeviceLocked_handler.go:27 |
 | `account.updateEmojiStatus` | missing |  |
 | `account.updateNotifySettings` | partial | app/bff/notification/internal/core/account.updateNotifySettings_handler.go:48 |
-| `account.updatePasswordSettings` | missing |  |
+| `account.updatePasswordSettings` | ok | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:29 |
 | `account.updatePersonalChannel` | ok | app/bff/userchannelprofiles/internal/core/account.updatePersonalChannel_handler.go:28 |
 | `account.updateProfile` | ok | app/bff/userchannelprofiles/internal/core/account.updateProfile_handler.go:29 |
 | `account.updateStatus` | ok | app/bff/userchannelprofiles/internal/core/account.updateStatus_handler.go:32 |
@@ -193,15 +193,15 @@
 
 | method | status | handler |
 |---|---|---|
-| `auth.acceptLoginToken` | ok | app/bff/qrcode/internal/core/auth.acceptLoginToken_handler.go:37 |
+| `auth.acceptLoginToken` | ok | app/bff/qrcode/internal/core/auth.acceptLoginToken_handler.go:42 |
 | `auth.bindTempAuthKey` | blocked | app/bff/authorization/internal/core/auth.bindTempAuthKey_handler.go:27 |
 | `auth.cancelCode` | ok | app/bff/authorization/internal/core/auth.cancelCode_handler.go:27 |
 | `auth.checkPaidAuth` | blocked | app/bff/authorization/internal/core/auth.checkPaidAuth_handler.go:27 |
-| `auth.checkPassword` | partial | app/bff/authorization/internal/core/auth.checkPassword_handler.go:28 |
-| `auth.checkRecoveryPassword` | blocked | app/bff/authorization/internal/core/auth.checkRecoveryPassword_handler.go:27 |
+| `auth.checkPassword` | ok | app/bff/authorization/internal/core/auth.checkPassword_handler.go:44 |
+| `auth.checkRecoveryPassword` | ok | app/bff/authorization/internal/core/auth.checkRecoveryPassword_handler.go:30 |
 | `auth.dropTempAuthKeys` | blocked | app/bff/authorization/internal/core/auth.dropTempAuthKeys_handler.go:27 |
 | `auth.exportAuthorization` | ok | app/bff/authorization/internal/core/auth.exportAuthorization_handler.go:30 |
-| `auth.exportLoginToken` | ok | app/bff/qrcode/internal/core/auth.exportLoginToken_handler.go:39 |
+| `auth.exportLoginToken` | ok | app/bff/qrcode/internal/core/auth.exportLoginToken_handler.go:37 |
 | `auth.finishPasskeyLogin` | blocked | app/bff/passkey/internal/core/auth.finishPasskeyLogin_handler.go:27 |
 | `auth.importAuthorization` | ok | app/bff/authorization/internal/core/auth.importAuthorization_handler.go:29 |
 | `auth.importBotAuthorization` | blocked | app/bff/authorization/internal/core/auth.importBotAuthorization_handler.go:27 |
@@ -209,15 +209,15 @@
 | `auth.importWebTokenAuthorization` | blocked | app/bff/authorization/internal/core/auth.importWebTokenAuthorization_handler.go:27 |
 | `auth.initPasskeyLogin` | blocked | app/bff/passkey/internal/core/auth.initPasskeyLogin_handler.go:27 |
 | `auth.logOut` | ok | app/bff/authorization/internal/core/auth.logOut_handler.go:29 |
-| `auth.recoverPassword` | blocked | app/bff/authorization/internal/core/auth.recoverPassword_handler.go:27 |
+| `auth.recoverPassword` | ok | app/bff/authorization/internal/core/auth.recoverPassword_handler.go:30 |
 | `auth.reportMissingCode` | blocked | app/bff/authorization/internal/core/auth.reportMissingCode_handler.go:27 |
 | `auth.requestFirebaseSms` | blocked | app/bff/authorization/internal/core/auth.requestFirebaseSms_handler.go:27 |
-| `auth.requestPasswordRecovery` | blocked | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:27 |
+| `auth.requestPasswordRecovery` | ok | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:34 |
 | `auth.resendCode` | ok | app/bff/authorization/internal/core/auth.resendCode_handler.go:47 |
 | `auth.resetAuthorizations` | blocked | app/bff/authorization/internal/core/auth.resetAuthorizations_handler.go:27 |
 | `auth.resetLoginEmail` | blocked | app/bff/authorization/internal/core/auth.resetLoginEmail_handler.go:27 |
-| `auth.sendCode` | ok | app/bff/authorization/internal/core/auth.sendCode_handler.go:113 |
-| `auth.signIn` | ok | app/bff/authorization/internal/core/auth.signIn_handler.go:56 |
+| `auth.sendCode` | ok | app/bff/authorization/internal/core/auth.sendCode_handler.go:111 |
+| `auth.signIn` | ok | app/bff/authorization/internal/core/auth.signIn_handler.go:55 |
 | `auth.signUp` | ok | app/bff/authorization/internal/core/auth.signUp_handler.go:53 |
 | `auth.toggleBan` | blocked | app/bff/authorization/internal/core/auth.toggleBan_handler.go:27 |
 
@@ -524,7 +524,7 @@
 | `messages.discardEncryption` | missing |  |
 | `messages.editChatAbout` | partial | app/bff/chats/internal/core/messages.editChatAbout_handler.go:28 |
 | `messages.editChatAdmin` | ok | app/bff/chats/internal/core/messages.editChatAdmin_handler.go:30 |
-| `messages.editChatCreator` | blocked | app/bff/chats/internal/core/messages.editChatCreator_handler.go:26 |
+| `messages.editChatCreator` | partial | app/bff/chats/internal/core/messages.editChatCreator_handler.go:36 |
 | `messages.editChatDefaultBannedRights` | partial | app/bff/chats/internal/core/messages.editChatDefaultBannedRights_handler.go:30 |
 | `messages.editChatParticipantRank` | ok | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:29 |
 | `messages.editChatPhoto` | ok | app/bff/chats/internal/core/messages.editChatPhoto_handler.go:32 |
