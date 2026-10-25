@@ -4,7 +4,7 @@
 //
 // The private key never lives in the repository. It is generated once with
 // tools/genserverkey, kept in a 0600 file outside git and referenced from the
-// gnetway/httpserver config together with its fingerprint; Load refuses to
+// gnetway config together with its fingerprint; Load refuses to
 // return a key that does not match that fingerprint.
 package serverkey
 

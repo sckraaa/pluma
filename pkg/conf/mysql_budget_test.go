@@ -35,9 +35,6 @@ func TestMySQLConnectionBudget(t *testing.T) {
 	files, _ := filepath.Glob(filepath.Join(repoRoot, "teamgramd/etc2/*.yaml"))
 	need := admin
 	for _, f := range files {
-		if filepath.Base(f) == "httpserver.yaml" {
-			continue
-		}
 		data, err := os.ReadFile(f)
 		if err != nil {
 			t.Fatal(err)

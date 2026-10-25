@@ -22,21 +22,30 @@ import (
 )
 
 func TestFactorizePQ(t *testing.T) {
-	// The pq of the gateway and of the protocol documentation.
-	p, q, err := factorizePQ(0x17ED48941A08F981)
+	// The pq of the protocol documentation.
+	p, q, err := FactorizePQ(0x17ED48941A08F981)
 	if err != nil || p != 0x494C553B || q != 0x53911073 {
-		t.Fatalf("factorizePQ = %#x, %#x, %v", p, q, err)
+		t.Fatalf("FactorizePQ = %#x, %#x, %v", p, q, err)
 	}
-	for i := 0; i < 20; i++ {
-		a, _ := rand.Prime(rand.Reader, 31)
-		b, _ := rand.Prime(rand.Reader, 31)
-		if a.Cmp(b) == 0 {
+	// Random pq as the gateway makes them (31-bit factors), and with 32-bit
+	// factors up to 2^63.
+	for i := 0; i < 40; i++ {
+		bits := 31 + i%2
+		a, _ := rand.Prime(rand.Reader, bits)
+		b, _ := rand.Prime(rand.Reader, bits)
+		pqBig := new(big.Int).Mul(a, b)
+		if a.Cmp(b) == 0 || pqBig.BitLen() > 63 {
 			continue
 		}
-		pq := new(big.Int).Mul(a, b).Uint64()
-		p, q, err = factorizePQ(pq)
+		pq := pqBig.Uint64()
+		p, q, err = FactorizePQ(pq)
 		if err != nil || p*q != pq || p > q || (p != a.Uint64() && p != b.Uint64()) {
-			t.Fatalf("factorizePQ(%d) = %d, %d, %v", pq, p, q, err)
+			t.Fatalf("FactorizePQ(%d) = %d, %d, %v", pq, p, q, err)
+		}
+	}
+	for _, pq := range []uint64{0, 1, 3, 1 << 63, 1<<64 - 1} {
+		if _, _, err = FactorizePQ(pq); err == nil {
+			t.Fatalf("FactorizePQ(%d) succeeded", pq)
 		}
 	}
 }

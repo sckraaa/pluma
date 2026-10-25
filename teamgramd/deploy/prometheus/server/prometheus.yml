@@ -69,14 +69,6 @@ scrape_configs:
           job: interface.gateway
           app: interface.gateway
           env: dev
-  # - job_name: interface.httpserver
-  #   metrics_path: /metrics
-  #   static_configs:
-  #     - targets: ["bff:20011"]
-  #       labels:
-  #         job: interface.httpserver
-  #         app: interface.httpserver
-  #         env: dev
   - job_name: service.idgen
     metrics_path: /metrics
     static_configs:

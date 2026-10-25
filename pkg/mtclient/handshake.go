@@ -102,7 +102,7 @@ func (h *handshake) run() (*AuthKey, error) {
 	if len(pqBytes) == 0 || len(pqBytes) > 8 {
 		return nil, fmt.Errorf("mtclient: resPQ: pq is %d bytes", len(pqBytes))
 	}
-	p, q, err := factorizePQ(new(big.Int).SetBytes(pqBytes).Uint64())
+	p, q, err := FactorizePQ(new(big.Int).SetBytes(pqBytes).Uint64())
 	if err != nil {
 		return nil, err
 	}
@@ -182,59 +182,9 @@ func (h *handshake) run() (*AuthKey, error) {
 	timeOffset := time.Duration(int64(dhInner.GetServerTime())-time.Now().Unix()) * time.Second
 
 	// 3. set_client_DH_params -> dh_gen_ok
-	var b, gB *big.Int
-	for {
-		b = new(big.Int).SetBytes(crypto.GenerateNonce(256))
-		gB = new(big.Int).Exp(big.NewInt(g), b, dhPrime)
-		if checkDHValue(gB, dhPrime) == nil {
-			break
-		}
-	}
-	x = mtproto.NewEncodeBuf(512)
-	if err = mtproto.MakeTLClient_DHInnerData(&mtproto.Client_DH_Inner_Data{
-		Nonce:       nonce,
-		ServerNonce: serverNonce,
-		RetryId:     0,
-		GB:          string(gB.Bytes()),
-	}).Encode(x, 0); err != nil {
-		return nil, err
-	}
-	data := x.GetBuf()
-	sum := sha1.Sum(data) //nolint:gosec // defined by the protocol
-	plain := append(append(make([]byte, 0, 20+len(data)+16), sum[:]...), data...)
-	if pad := len(plain) % 16; pad != 0 {
-		plain = append(plain, crypto.GenerateNonce(16-pad)...)
-	}
-	encrypted, err := crypto.NewAES256IGECryptor(tmpKey, tmpIV).Encrypt(plain)
+	authKey, err := h.setClientDHParams(nonce, serverNonce, newNonce, &dhGroup{g: g, gA: gA, prime: dhPrime}, tmpKey, tmpIV)
 	if err != nil {
 		return nil, err
-	}
-	authKey := new(big.Int).Exp(gA, b, dhPrime).FillBytes(make([]byte, 256))
-
-	o, err = h.call(&mtproto.TLSetClient_DHParams{
-		Constructor:   mtproto.CRC32_set_client_DH_params,
-		Nonce:         nonce,
-		ServerNonce:   serverNonce,
-		EncryptedData: string(encrypted),
-	})
-	if err != nil {
-		return nil, err
-	}
-	switch r := o.(type) {
-	case *mtproto.TLDhGenOk:
-		if !bytes.Equal(r.GetNonce(), nonce) || !bytes.Equal(r.GetServerNonce(), serverNonce) {
-			return nil, errors.New("mtclient: dh_gen_ok: nonce mismatch")
-		}
-		if !bytes.Equal(r.GetNewNonceHash1(), newNonceHash(newNonce, authKey, 1)) {
-			return nil, errors.New("mtclient: dh_gen_ok: new_nonce_hash1 mismatch")
-		}
-	case *mtproto.TLDhGenRetry:
-		// Only after an auth_key_id collision on the server; not retried.
-		return nil, errors.New("mtclient: set_client_DH_params: dh_gen_retry")
-	case *mtproto.TLDhGenFail:
-		return nil, errors.New("mtclient: set_client_DH_params: dh_gen_fail")
-	default:
-		return nil, fmt.Errorf("mtclient: set_client_DH_params: got %T", o)
 	}
 
 	key := &AuthKey{
@@ -248,6 +198,103 @@ func (h *handshake) run() (*AuthKey, error) {
 		key.ExpiresAt = time.Now().Unix() + int64(h.opts.ExpiresIn)
 	}
 	return key, nil
+}
+
+// maxDHGenRetries bounds the attempts after dh_gen_retry.
+const maxDHGenRetries = 5
+
+// newDHKey picks b and returns auth_key = g_a^b and g_b = g^b, with g_b in
+// the range the server checks.
+func newDHKey(g int64, gA, dhPrime *big.Int) (authKey []byte, gB *big.Int) {
+	for {
+		b := new(big.Int).SetBytes(crypto.GenerateNonce(256))
+		gB = new(big.Int).Exp(big.NewInt(g), b, dhPrime)
+		if checkDHValue(gB, dhPrime) == nil {
+			return new(big.Int).Exp(gA, b, dhPrime).FillBytes(make([]byte, 256)), gB
+		}
+	}
+}
+
+// encryptClientDHInnerData returns encrypted_data of set_client_DH_params:
+// SHA1(client_DH_inner_data) + client_DH_inner_data + padding to 16 bytes,
+// encrypted with tmp_aes_key and tmp_aes_iv.
+func encryptClientDHInnerData(inner *mtproto.Client_DH_Inner_Data, tmpKey, tmpIV []byte) ([]byte, error) {
+	x := mtproto.NewEncodeBuf(512)
+	if err := mtproto.MakeTLClient_DHInnerData(inner).Encode(x, 0); err != nil {
+		return nil, err
+	}
+	data := x.GetBuf()
+	sum := sha1.Sum(data) //nolint:gosec // defined by the protocol
+	plain := append(append(make([]byte, 0, 20+len(data)+16), sum[:]...), data...)
+	if pad := len(plain) % 16; pad != 0 {
+		plain = append(plain, crypto.GenerateNonce(16-pad)...)
+	}
+	return crypto.NewAES256IGECryptor(tmpKey, tmpIV).Encrypt(plain)
+}
+
+// dhGroup is what server_DH_inner_data gave: g, g_a and dh_prime.
+type dhGroup struct {
+	g     int64
+	gA    *big.Int
+	prime *big.Int
+}
+
+// setClientDHParams sends set_client_DH_params until dh_gen_ok and returns
+// the auth key. dh_gen_retry means the key's auth_key_id collides on the
+// server: the client tries a new b with retry_id = auth_key_aux_hash of
+// that key, at most maxDHGenRetries times (as Telegram Desktop does).
+func (h *handshake) setClientDHParams(nonce, serverNonce, newNonce []byte, dh *dhGroup, tmpKey, tmpIV []byte) ([]byte, error) {
+	var retryID int64
+	for attempt := 0; ; attempt++ {
+		authKey, gB := newDHKey(dh.g, dh.gA, dh.prime)
+		encrypted, err := encryptClientDHInnerData(&mtproto.Client_DH_Inner_Data{
+			Nonce:       nonce,
+			ServerNonce: serverNonce,
+			RetryId:     retryID,
+			GB:          string(gB.Bytes()),
+		}, tmpKey, tmpIV)
+		if err != nil {
+			return nil, err
+		}
+		o, err := h.call(&mtproto.TLSetClient_DHParams{
+			Constructor:   mtproto.CRC32_set_client_DH_params,
+			Nonce:         nonce,
+			ServerNonce:   serverNonce,
+			EncryptedData: string(encrypted),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if a, ok := o.(interface {
+			GetNonce() []byte
+			GetServerNonce() []byte
+		}); ok && (!bytes.Equal(a.GetNonce(), nonce) || !bytes.Equal(a.GetServerNonce(), serverNonce)) {
+			return nil, fmt.Errorf("mtclient: set_client_DH_params: %T with a nonce mismatch", o)
+		}
+
+		switch r := o.(type) {
+		case *mtproto.TLDhGenOk:
+			if !bytes.Equal(r.GetNewNonceHash1(), newNonceHash(newNonce, authKey, 1)) {
+				return nil, errors.New("mtclient: dh_gen_ok: new_nonce_hash1 mismatch")
+			}
+			return authKey, nil
+		case *mtproto.TLDhGenRetry:
+			if !bytes.Equal(r.GetNewNonceHash2(), newNonceHash(newNonce, authKey, 2)) {
+				return nil, errors.New("mtclient: dh_gen_retry: new_nonce_hash2 mismatch")
+			}
+			if attempt == maxDHGenRetries {
+				return nil, errors.New("mtclient: set_client_DH_params: too many dh_gen_retry")
+			}
+			retryID = AuthKeyAuxHash(authKey)
+		case *mtproto.TLDhGenFail:
+			if !bytes.Equal(r.GetNewNonceHash3(), newNonceHash(newNonce, authKey, 3)) {
+				return nil, errors.New("mtclient: dh_gen_fail: new_nonce_hash3 mismatch")
+			}
+			return nil, errors.New("mtclient: set_client_DH_params: dh_gen_fail")
+		default:
+			return nil, fmt.Errorf("mtclient: set_client_DH_params: got %T", o)
+		}
+	}
 }
 
 // call sends obj as an unencrypted message and returns the answer.

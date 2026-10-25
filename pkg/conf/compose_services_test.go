@@ -61,11 +61,7 @@ func TestComposeServices(t *testing.T) {
 	configs, _ := filepath.Glob(filepath.Join(repoRoot, "teamgramd/etc2/*.yaml"))
 	want := map[string]bool{}
 	for _, f := range configs {
-		name := strings.TrimSuffix(filepath.Base(f), ".yaml")
-		if name == "httpserver" { // legacy transport, not deployed (task 008)
-			continue
-		}
-		want[name] = true
+		want[strings.TrimSuffix(filepath.Base(f), ".yaml")] = true
 	}
 	for name := range want {
 		if _, ok := compose.Services[name]; !ok {

@@ -23,7 +23,6 @@ High-level diagram in the project README:
 | **media** | 20650 | — | Media: image/document/video metadata and processing |
 | **idgen** | 20660 | — | Distributed ID generation |
 | **status** | 20670 | — | User online status |
-| **httpserver** | 8801 | 8801 (HTTP) | Optional: HTTP API or web callbacks |
 
 Discovery is via **etcd**; config files live under `teamgramd/etc/` (or `teamgramd/etc2/` for Docker). Startup order: see `teamgramd/bin/runall2.sh` (bare metal) or the `depends_on` chain in `docker-compose.yaml`.
 

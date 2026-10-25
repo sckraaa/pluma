@@ -118,6 +118,9 @@ type testHarness struct {
 	mu    sync.Mutex
 	conns map[int64]*fakeConn
 	saved []*mtproto.AuthKeyInfo
+	// refuse, when set, decides (under mu) whether a key is saved: an error
+	// is what saveAuthKey returns instead.
+	refuse func(k *mtproto.AuthKeyInfo) error
 }
 
 var (
@@ -154,12 +157,17 @@ func newTestHarness(t testing.TB) *testHarness {
 		httpHandshakes: newHandshakeStore(maxHttpHandshakes, httpHandshakeTTL),
 	}
 	s.cachedNow.Store(testNow)
-	s.saveAuthKey = func(st *HandshakeStateCtx, k *mtproto.AuthKeyInfo) bool {
+	s.saveAuthKey = func(st *HandshakeStateCtx, k *mtproto.AuthKeyInfo) error {
 		h.mu.Lock() // called from the pool
+		defer h.mu.Unlock()
+		if h.refuse != nil {
+			if err := h.refuse(k); err != nil {
+				return err
+			}
+		}
 		h.saved = append(h.saved, k)
-		h.mu.Unlock()
 		s.PutAuthKey(newCheckedAuthKeyUtil(k, testNow, 0))
-		return true
+		return nil
 	}
 	s.queryKey = func(int64, *authKeyUtil) (*authKeyUtil, error) {
 		return nil, mtproto.ErrAuthKeyUnregistered
@@ -262,6 +270,9 @@ type testClient struct {
 	b           *big.Int
 	authKey     []byte
 	expiresIn   int32 // of a temporary key
+
+	// pq of resPQ and its factors, 4 bytes big-endian as Android sends them.
+	pq, p, q string
 }
 
 func newTestClient(t testing.TB, pub *rsa.PublicKey) *testClient {
@@ -292,6 +303,18 @@ func (tc *testClient) onResPQ(o mtproto.TLObject) {
 		tc.t.Fatal("resPQ does not list the key")
 	}
 	tc.serverNonce = res.GetServerNonce()
+
+	pq := []byte(res.GetPq())
+	if len(pq) != 8 {
+		tc.t.Fatalf("pq is %d bytes", len(pq))
+	}
+	p, q, err := mtclient.FactorizePQ(binary.BigEndian.Uint64(pq))
+	if err != nil {
+		tc.t.Fatal(err)
+	}
+	tc.pq = string(pq)
+	tc.p = string(binary.BigEndian.AppendUint32(nil, uint32(p)))
+	tc.q = string(binary.BigEndian.AppendUint32(nil, uint32(q)))
 }
 
 // rsaPad implements RSA_PAD(data, server_public_key) with the client of
@@ -306,15 +329,31 @@ func (tc *testClient) rsaPad(data []byte) []byte {
 }
 
 func (tc *testClient) reqDHParams(temp bool) []byte {
+	return tc.reqDHParamsWith(temp, reqDHParamsEdits{})
+}
+
+// reqDHParamsEdits change req_DH_params from what a client sends, for tests
+// of the checks of the server.
+type reqDHParamsEdits struct {
+	inner func(inner *mtproto.P_QInnerData)
+	// rsaPad encrypts the serialized p_q_inner_data instead of tc.rsaPad.
+	rsaPad func(data []byte) []byte
+	outer  func(req *mtproto.TLReq_DHParams)
+}
+
+func (tc *testClient) reqDHParamsWith(temp bool, edits reqDHParamsEdits) []byte {
 	inner := &mtproto.P_QInnerData{
-		Pq:          pq,
-		P:           string(p),
-		Q:           string(q),
+		Pq:          tc.pq,
+		P:           tc.p,
+		Q:           tc.q,
 		Nonce:       tc.nonce,
 		ServerNonce: tc.serverNonce,
 		NewNonce:    tc.newNonce,
 		Dc:          2,
 		ExpiresIn:   tc.expiresIn,
+	}
+	if edits.inner != nil {
+		edits.inner(inner)
 	}
 	x := mtproto.NewEncodeBuf(256)
 	if temp {
@@ -322,15 +361,23 @@ func (tc *testClient) reqDHParams(temp bool) []byte {
 	} else {
 		_ = mtproto.MakeTLPQInnerDataDc(inner).Encode(x, 0)
 	}
-	return unencrypted(&mtproto.TLReq_DHParams{
+	pad := tc.rsaPad
+	if edits.rsaPad != nil {
+		pad = edits.rsaPad
+	}
+	req := &mtproto.TLReq_DHParams{
 		Constructor:          mtproto.CRC32_req_DH_params,
 		Nonce:                tc.nonce,
 		ServerNonce:          tc.serverNonce,
-		P:                    string(p),
-		Q:                    string(q),
+		P:                    tc.p,
+		Q:                    tc.q,
 		PublicKeyFingerprint: tc.fingerprint,
-		EncryptedData:        string(tc.rsaPad(x.GetBuf())),
-	})
+		EncryptedData:        string(pad(x.GetBuf())),
+	}
+	if edits.outer != nil {
+		edits.outer(req)
+	}
+	return unencrypted(req)
 }
 
 func (tc *testClient) tmpAes() (key, iv []byte) {
@@ -368,13 +415,32 @@ func (tc *testClient) onServerDHParams(o mtproto.TLObject) {
 }
 
 func (tc *testClient) setClientDHParams() []byte {
+	return tc.setClientDHParamsWith(setClientDHParamsEdits{})
+}
+
+// setClientDHParamsEdits change set_client_DH_params from what a client
+// sends, for tests of the checks of the server.
+type setClientDHParamsEdits struct {
+	retryId int64
+	// gB is sent instead of g^b (the client then does not know the key).
+	gB *big.Int
+	// plain edits SHA1(client_DH_inner_data) + client_DH_inner_data +
+	// padding before it is encrypted.
+	plain func(plain []byte) []byte
+}
+
+func (tc *testClient) setClientDHParamsWith(edits setClientDHParamsEdits) []byte {
 	tc.b = new(big.Int).SetBytes(crypto.GenerateNonce(256))
 	gB := new(big.Int).Exp(big.NewInt(tc.g), tc.b, tc.dhPrime)
+	tc.authKey = new(big.Int).Exp(tc.gA, tc.b, tc.dhPrime).FillBytes(make([]byte, 256))
+	if edits.gB != nil {
+		gB, tc.authKey = edits.gB, nil
+	}
 	x := mtproto.NewEncodeBuf(512)
 	_ = mtproto.MakeTLClient_DHInnerData(&mtproto.Client_DH_Inner_Data{
 		Nonce:       tc.nonce,
 		ServerNonce: tc.serverNonce,
-		RetryId:     0,
+		RetryId:     edits.retryId,
 		GB:          string(gB.Bytes()),
 	}).Encode(x, 0)
 	data := x.GetBuf()
@@ -383,12 +449,14 @@ func (tc *testClient) setClientDHParams() []byte {
 	if len(plain)%16 != 0 {
 		plain = append(plain, crypto.GenerateNonce(16-len(plain)%16)...)
 	}
+	if edits.plain != nil {
+		plain = edits.plain(plain)
+	}
 	key, iv := tc.tmpAes()
 	enc, err := crypto.NewAES256IGECryptor(key, iv).Encrypt(plain)
 	if err != nil {
 		tc.t.Fatal(err)
 	}
-	tc.authKey = new(big.Int).Exp(tc.gA, tc.b, tc.dhPrime).FillBytes(make([]byte, 256))
 	return unencrypted(&mtproto.TLSetClient_DHParams{
 		Constructor:   mtproto.CRC32_set_client_DH_params,
 		Nonce:         tc.nonce,
@@ -410,4 +478,37 @@ func (tc *testClient) onDHGen(o mtproto.TLObject) int64 {
 		tc.t.Fatal("new_nonce_hash1 mismatch")
 	}
 	return int64(binary.LittleEndian.Uint64(keyHash[12:20]))
+}
+
+// onDHGenRetry checks dh_gen_retry (new_nonce_hash2) and returns the
+// retry_id of the next attempt: auth_key_aux_hash of the key that collided.
+func (tc *testClient) onDHGenRetry(o mtproto.TLObject) int64 {
+	tc.t.Helper()
+	res, ok := o.(*mtproto.TLDhGenRetry)
+	if !ok {
+		tc.t.Fatalf("got %T, want dh_gen_retry", o)
+	}
+	if !bytes.Equal(res.GetNonce(), tc.nonce) || !bytes.Equal(res.GetServerNonce(), tc.serverNonce) {
+		tc.t.Fatal("dh_gen_retry nonces")
+	}
+	keyHash := sha1.Sum(tc.authKey)
+	h := sha1.Sum(append(append(append([]byte(nil), tc.newNonce...), 2), keyHash[:8]...))
+	if !bytes.Equal(res.GetNewNonceHash2(), h[4:20]) {
+		tc.t.Fatal("new_nonce_hash2 mismatch")
+	}
+	return int64(binary.LittleEndian.Uint64(keyHash[:8]))
+}
+
+// onDHGenFail checks dh_gen_fail (new_nonce_hash3).
+func (tc *testClient) onDHGenFail(o mtproto.TLObject) {
+	tc.t.Helper()
+	res, ok := o.(*mtproto.TLDhGenFail)
+	if !ok {
+		tc.t.Fatalf("got %T, want dh_gen_fail", o)
+	}
+	keyHash := sha1.Sum(tc.authKey)
+	h := sha1.Sum(append(append(append([]byte(nil), tc.newNonce...), 3), keyHash[:8]...))
+	if !bytes.Equal(res.GetNewNonceHash3(), h[4:20]) {
+		tc.t.Fatal("new_nonce_hash3 mismatch")
+	}
 }

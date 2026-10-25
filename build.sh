@@ -60,7 +60,3 @@ go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/gnetway
 echo "build pluma-admin ..."
 cd ${TEAMGRAMAPP}/../tools/pluma-admin
 go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/pluma-admin
-
-#echo "build httpserver ..."
-#cd ${TEAMGRAMAPP}/interface/httpserver/cmd/httpserver
-#go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/httpserver

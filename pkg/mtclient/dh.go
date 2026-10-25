@@ -87,6 +87,13 @@ func AuthKeyID(authKey []byte) int64 {
 	return int64(binary.LittleEndian.Uint64(h[12:20]))
 }
 
+// AuthKeyAuxHash returns auth_key_aux_hash: the high 64 bits of
+// SHA1(auth_key), the retry_id after dh_gen_retry.
+func AuthKeyAuxHash(authKey []byte) int64 {
+	h := sha1.Sum(authKey) //nolint:gosec // defined by the protocol
+	return int64(binary.LittleEndian.Uint64(h[:8]))
+}
+
 // newNonceHash returns new_nonce_hash1/2/3 of dh_gen_ok/retry/fail: the low
 // 128 bits of SHA1(new_nonce + n + auth_key_aux_hash).
 func newNonceHash(newNonce, authKey []byte, n byte) []byte {
@@ -98,10 +105,11 @@ func newNonceHash(newNonce, authKey []byte, n byte) []byte {
 	return h.Sum(nil)[4:20]
 }
 
-// factorizePQ splits pq of resPQ into its two prime factors p < q (Pollard's
-// rho; pq is below 2^63).
-func factorizePQ(pq uint64) (p, q uint64, err error) {
-	if pq < 4 {
+// FactorizePQ splits pq of resPQ into its two prime factors p < q, the proof
+// of work of the key exchange (Pollard's rho; the server keeps pq below 2^63,
+// as the protocol says it normally is).
+func FactorizePQ(pq uint64) (p, q uint64, err error) {
+	if pq < 4 || pq >= 1<<63 {
 		return 0, 0, fmt.Errorf("mtclient: pq %d is not a product of two primes", pq)
 	}
 	if pq%2 == 0 {
@@ -188,11 +196,12 @@ func checkDHPrime(g int64, p *big.Int) error {
 }
 
 // checkDHValue checks g_a or g_b: 1 < v < dh_prime - 1 and, as the protocol
-// recommends, 2^(2048-64) <= v <= dh_prime - 2^(2048-64).
+// recommends, 2^(2048-64) < v < dh_prime - 2^(2048-64), the bounds the
+// gateway checks g_b against.
 func checkDHValue(v, p *big.Int) error {
 	low := new(big.Int).Lsh(big.NewInt(1), 2048-64)
 	high := new(big.Int).Sub(p, low)
-	if v.Cmp(low) < 0 || v.Cmp(high) > 0 {
+	if v.Cmp(low) <= 0 || v.Cmp(high) >= 0 {
 		return errors.New("mtclient: DH value out of the safe range")
 	}
 	return nil

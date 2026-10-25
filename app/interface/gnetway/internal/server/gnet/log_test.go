@@ -119,7 +119,6 @@ func TestHandshakeStateFormat(t *testing.T) {
 		Nonce:    crypto.GenerateNonce(16),
 		NewNonce: crypto.GenerateNonce(32),
 		A:        crypto.GenerateNonce(256),
-		P:        crypto.GenerateNonce(256),
 	}
 	for _, verb := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x", "%X"} {
 		for _, v := range []any{st, &st} {

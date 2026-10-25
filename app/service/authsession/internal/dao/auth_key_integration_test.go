@@ -3,6 +3,7 @@
 package dao
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
@@ -186,6 +187,35 @@ func TestBindTempAuthKeyStoresBinding(t *testing.T) {
 	}
 	if err = d.BindTempAuthKey(ctx, perm, other, shorter); !errors.Is(err, mtproto.ErrTempAuthKeyEmpty) {
 		t.Fatalf("a permanent key as the temp key: %v, want TEMP_AUTH_KEY_EMPTY", err)
+	}
+}
+
+// TestSetAuthKeyIdTaken: a second key with a taken auth_key_id is refused
+// with ErrAuthKeyIdTaken (the handshake answers dh_gen_retry), whatever its
+// type, and the first key stays as it was.
+func TestSetAuthKeyIdTaken(t *testing.T) {
+	ctx := context.Background()
+	d := newIntegrationDao(t, itFullDB)
+	db := openSQL(t, itFullDB)
+
+	id := storeKey(t, d, mtproto.AuthKeyTypePerm, 0)
+	first, err := d.QueryAuthKeyV2(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, keyType := range []int{mtproto.AuthKeyTypePerm, mtproto.AuthKeyTypeTemp} {
+		other := make([]byte, 256)
+		_, _ = rand.Read(other)
+		err = d.SetAuthKeyV2(ctx, mtproto.NewAuthKeyInfo(id, other, keyType), 3600)
+		if !errors.Is(err, ErrAuthKeyIdTaken) {
+			t.Fatalf("type %d: SetAuthKeyV2 = %v, want ErrAuthKeyIdTaken", keyType, err)
+		}
+	}
+	if k, err := d.QueryAuthKeyV2(ctx, id); err != nil || !bytes.Equal(k.GetAuthKey(), first.GetAuthKey()) {
+		t.Fatalf("the first key changed: %v", err)
+	}
+	if r := readKeyRow(t, db, id); r.keyType != mtproto.AuthKeyTypePerm || r.expiresAt != 0 {
+		t.Fatalf("the first key's row changed: %+v", r)
 	}
 }
 

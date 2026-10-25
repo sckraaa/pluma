@@ -55,8 +55,9 @@ type Server struct {
 	// httpHandshakes keeps handshakes over the HTTP transport, apart from
 	// the auth key cache so that unauthenticated requests cannot evict keys.
 	httpHandshakes *handshakeStore
-	// saveAuthKey stores a key created by a handshake (saveAuthKeyInfo).
-	saveAuthKey func(st *HandshakeStateCtx, key *mtproto.AuthKeyInfo) bool
+	// saveAuthKey stores a key created by a handshake (saveAuthKeyInfo);
+	// errAuthKeyIdTaken when another key has its auth_key_id.
+	saveAuthKey func(st *HandshakeStateCtx, key *mtproto.AuthKeyInfo) error
 	// queryKey reads an auth key from authsession (fetchAuthKey); known is
 	// the copy the gateway had, if any.
 	queryKey func(authKeyId int64, known *authKeyUtil) (*authKeyUtil, error)

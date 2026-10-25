@@ -82,10 +82,6 @@ gnetway:
 	@echo "build gnetway..."
 	@go build -ldflags ${ldflags} -o teamgramd/bin/gnetway -tags=jsoniter app/interface/gnetway/cmd/gnetway/*.go
 
-httpserver:
-	@echo "build httpserver..."
-	@go build -ldflags ${ldflags} -o teamgramd/bin/httpserver -tags=jsoniter app/interface/httpserver/cmd/httpserver/*.go
-
 clean:
 	@rm -rf teamgramd/bin/idgen
 	@rm -rf teamgramd/bin/status
@@ -99,7 +95,6 @@ clean:
 	@rm -rf teamgramd/bin/bff
 	@rm -rf teamgramd/bin/session
 	@rm -rf teamgramd/bin/gnetway
-	@rm -rf teamgramd/bin/httpserver
 
 # ----------------------------------------------------------------------------
 # Checks: the same sequence runs in CI (.github/workflows/ci.yml, `make ci`).

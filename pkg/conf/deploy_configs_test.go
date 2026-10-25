@@ -135,7 +135,7 @@ func TestDeployListeners(t *testing.T) {
 		}
 	}
 
-	clientFacing := map[string]bool{"gnetway.yaml": true, "httpserver.yaml": true}
+	clientFacing := map[string]bool{"gnetway.yaml": true}
 	files, _ := filepath.Glob(filepath.Join(repoRoot, "teamgramd/etc/*.yaml"))
 	for _, f := range files {
 		data, err := os.ReadFile(f)
