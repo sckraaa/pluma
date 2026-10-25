@@ -62,8 +62,15 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 		phoneCode = in.GetPhoneCode_FLAGSTRING().GetValue()
 	}
 
-	if phoneCode == "" || phoneCodeHash == "" {
+	// pluma: as Telegram answers (test/conformance, auth_signIn_wrong_code):
+	// no hash of the request is PHONE_CODE_EMPTY, no code PHONE_CODE_INVALID.
+	switch {
+	case phoneCodeHash == "":
 		err := mtproto.ErrPhoneCodeEmpty
+		c.Logger.Errorf("auth.signIn - error: %v", err)
+		return nil, err
+	case phoneCode == "":
+		err := mtproto.ErrPhoneCodeInvalid
 		c.Logger.Errorf("auth.signIn - error: %v", err)
 		return nil, err
 	}
