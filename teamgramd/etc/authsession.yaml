@@ -34,3 +34,9 @@ Cache:
 KV:
   - Host: 127.0.0.1:6379
     Pass: "${REDIS_PASSWORD}"
+
+# Seals the auth keys at rest (task 008, pkg/authkeys): the hex of 32 random
+# bytes, kept outside the database. Without it authsession does not start;
+# with another one it cannot read the stored keys. See
+# docs/ops/security-setup.md.
+AuthKeyEncryptionKey: "${AUTH_KEY_ENCRYPTION_KEY}"

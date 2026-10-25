@@ -71,6 +71,7 @@ func newIntegrationDao(t *testing.T, db *testinfra.MySQL) *Dao {
 	return &Dao{
 		Mysql:      newMysqlDao(conn),
 		CachedConn: sqlc.NewConn(conn, itRedis.CacheConf()),
+		keys:       testKeyCipher(t),
 	}
 }
 

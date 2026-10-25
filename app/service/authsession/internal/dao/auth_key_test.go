@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/authkeys"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
@@ -60,14 +61,22 @@ func TestQueryAuthKeyWithExpiryFromCache(t *testing.T) {
 	// miniredis does not implement CLIENT SETINFO; DisableIdentity keeps the failing
 	// connect-time command from tripping the go-zero redis breaker.
 	mr := miniredis.RunT(t)
-	d := &Dao{CachedConn: sqlc.NewNodeConn(nil, redis.MustNewRedis(redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true}))}
+	d := &Dao{CachedConn: sqlc.NewNodeConn(nil, redis.MustNewRedis(redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true})), keys: testKeyCipher(t)}
 	ctx := context.Background()
 	now := time.Now().Unix()
+	seal := func(id int64, key byte) string {
+		body, err := d.keys.Seal(id, []byte{key})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return body
+	}
 
 	keys := []*authKeyData{
-		{AuthKeyId: 1, AuthKey: []byte{1}, AuthKeyType: mtproto.AuthKeyTypePerm, PermAuthKeyId: 1},
-		{AuthKeyId: 2, AuthKey: []byte{2}, AuthKeyType: mtproto.AuthKeyTypeTemp, PermAuthKeyId: 1, TempAuthKeyId: 2, ExpiresAt: now + 3600},
-		{AuthKeyId: 3, AuthKey: []byte{3}, AuthKeyType: mtproto.AuthKeyTypeTemp, PermAuthKeyId: 1, TempAuthKeyId: 3, ExpiresAt: now - 1},
+		{AuthKeyId: 1, Body: seal(1, 1), AuthKeyType: mtproto.AuthKeyTypePerm, PermAuthKeyId: 1},
+		{AuthKeyId: 2, Body: seal(2, 2), AuthKeyType: mtproto.AuthKeyTypeTemp, PermAuthKeyId: 1, TempAuthKeyId: 2, ExpiresAt: now + 3600},
+		{AuthKeyId: 3, Body: seal(3, 3), AuthKeyType: mtproto.AuthKeyTypeTemp, PermAuthKeyId: 1, TempAuthKeyId: 3, ExpiresAt: now - 1},
+		{AuthKeyId: 4, Body: seal(5, 4), AuthKeyType: mtproto.AuthKeyTypePerm}, // sealed for another id
 	}
 	for _, k := range keys {
 		if err := d.CachedConn.SetCache(ctx, genCacheAuthKeyV2Key(k.AuthKeyId), k); err != nil {
@@ -91,6 +100,21 @@ func TestQueryAuthKeyWithExpiryFromCache(t *testing.T) {
 	if _, err = d.QueryAuthKeyV2(ctx, 3); !errors.Is(err, mtproto.ErrAuthKeyUnregistered) {
 		t.Fatalf("expired temp key via QueryAuthKeyV2: err = %v, want AUTH_KEY_UNREGISTERED", err)
 	}
+	// A body that does not open is an internal error, not an unknown key
+	// (which would make the client drop its authorization).
+	if _, err = d.QueryAuthKeyV2(ctx, 4); !errors.Is(err, mtproto.ErrInternalServerError) {
+		t.Fatalf("key sealed for another id: err = %v, want INTERNAL_SERVER_ERROR", err)
+	}
+}
+
+// testKeyCipher seals keys under a fixed test encryption key.
+func testKeyCipher(t testing.TB) *authkeys.KeyCipher {
+	t.Helper()
+	c, err := authkeys.NewKeyCipher("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c
 }
 
 // TestAuthKeyDataFromRows: a key comes only from its MySQL rows. The Redis
@@ -102,7 +126,7 @@ func TestAuthKeyDataFromRows(t *testing.T) {
 	key := &dataobject.AuthKeysDO{AuthKeyId: 5, Body: base64.RawStdEncoding.EncodeToString([]byte{1, 2, 3})}
 
 	k, err := authKeyDataFromRows(5, info, key)
-	if err != nil || k.PermAuthKeyId != 9 || k.ExpiresAt != 1_800_000_000 || string(k.AuthKey) != "\x01\x02\x03" {
+	if err != nil || k.PermAuthKeyId != 9 || k.ExpiresAt != 1_800_000_000 || k.Body != key.Body {
 		t.Fatalf("rows: %+v %v", k, err)
 	}
 	for _, c := range []struct {

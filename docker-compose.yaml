@@ -96,7 +96,9 @@ services:
     healthcheck:
       <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20450"]
-    environment: *db-env
+    environment:
+      <<: *db-env
+      AUTH_KEY_ENCRYPTION_KEY: ${AUTH_KEY_ENCRYPTION_KEY:?set AUTH_KEY_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
     stop_grace_period: 15s
     depends_on:
       migrate:

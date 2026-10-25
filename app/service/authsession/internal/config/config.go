@@ -22,4 +22,7 @@ type Config struct {
 	Mysql sqlx.Config
 	Cache cache.CacheConf
 	KV    kv.KvConf
+	// AuthKeyEncryptionKey seals the auth keys at rest: the hex of 32 random
+	// bytes, ${AUTH_KEY_ENCRYPTION_KEY} (task 008, pkg/authkeys).
+	AuthKeyEncryptionKey string
 }

@@ -18,13 +18,19 @@
 package dao
 
 import (
+	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+
+	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 // hasKey reports whether authsession still knows the key, with the cache.
@@ -154,5 +160,74 @@ func TestExpiredTempAuthKeys(t *testing.T) {
 	}
 	if !hasKey(t, d, running) || !hasKey(t, d, perm) {
 		t.Fatal("the removal took a running key")
+	}
+}
+
+// Keys are sealed at rest: in auth_keys and in the cache. A plain key of
+// before task 008 is still read and is sealed on its first read or by
+// SealPlainAuthKeys.
+func TestAuthKeysSealedAtRest(t *testing.T) {
+	ctx := context.Background()
+	d := newIntegrationDao(t, itFullDB)
+	db := openSQL(t, itFullDB)
+	body := func(id int64) string {
+		t.Helper()
+		var b string
+		if err := db.QueryRow("SELECT body FROM auth_keys WHERE auth_key_id = ?", id).Scan(&b); err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+
+	id := storeKey(t, d, mtproto.AuthKeyTypePerm, 0)
+	key, err := d.QueryAuthKeyV2(ctx, id)
+	if err != nil || len(key.GetAuthKey()) != 256 {
+		t.Fatalf("read: %v", err)
+	}
+	stored := body(id)
+	plain := base64.RawStdEncoding.EncodeToString(key.GetAuthKey())
+	if !strings.HasPrefix(stored, "v1:") || strings.Contains(stored, plain[:32]) {
+		t.Fatalf("stored body is not sealed: %.16q", stored)
+	}
+	raw, err := redis.MustNewRedis(itRedis.RedisConf()).GetCtx(ctx, genCacheAuthKeyV2Key(id))
+	if err != nil || raw == "" {
+		t.Fatalf("cache: %q, %v", raw, err)
+	}
+	if strings.Contains(raw, plain[:32]) || !strings.Contains(raw, "v1:") {
+		t.Fatal("the cache holds the plain key")
+	}
+
+	// Plain keys of before task 008.
+	legacy := []int64{newKeyID(t), newKeyID(t)}
+	legacyKeys := map[int64][]byte{}
+	for _, lid := range legacy {
+		k := make([]byte, 256)
+		_, _ = rand.Read(k)
+		legacyKeys[lid] = k
+		if _, err = db.Exec("INSERT INTO auth_keys (id, auth_key_id, body) VALUES (?, ?, ?)", lid, lid, base64.RawStdEncoding.EncodeToString(k)); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = db.Exec("INSERT INTO auth_key_infos (id, auth_key_id, auth_key_type) VALUES (?, ?, ?)", lid, lid, mtproto.AuthKeyTypePerm); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := d.QueryAuthKeyV2(ctx, legacy[0])
+	if err != nil || !bytes.Equal(got.GetAuthKey(), legacyKeys[legacy[0]]) {
+		t.Fatalf("plain key: %v", err)
+	}
+	if !strings.HasPrefix(body(legacy[0]), "v1:") {
+		t.Fatal("a plain key read is not sealed")
+	}
+	if strings.HasPrefix(body(legacy[1]), "v1:") {
+		t.Fatal("an unread plain key sealed already")
+	}
+	if _, err = d.SealPlainAuthKeys(ctx, 1000); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(body(legacy[1]), "v1:") {
+		t.Fatal("SealPlainAuthKeys left a plain key")
+	}
+	if got, err = d.QueryAuthKeyV2(ctx, legacy[1]); err != nil || !bytes.Equal(got.GetAuthKey(), legacyKeys[legacy[1]]) {
+		t.Fatalf("sealed plain key: %v", err)
 	}
 }

@@ -20,7 +20,6 @@ package dao
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -34,10 +33,11 @@ import (
 )
 
 const (
-	// auth_keys3 holds authKeyData (with expires_at); auth_keys2 entries,
-	// which held AuthKeyInfo, are no longer read, nor are the auth_keys_<id>
-	// hashes of old teamgram versions (see authKeyDataFromRows).
-	cacheAuthKeyV2Prefix = "auth_keys3"
+	// auth_keys4 holds authKeyData with the key sealed (task 008); auth_keys3
+	// entries held the plain key and are no longer read, nor are auth_keys2
+	// (AuthKeyInfo) or the auth_keys_<id> hashes of old teamgram versions
+	// (see authKeyDataFromRows).
+	cacheAuthKeyV2Prefix = "auth_keys4"
 )
 
 func genCacheAuthKeyV2Key(id int64) string {
@@ -45,10 +45,12 @@ func genCacheAuthKeyV2Key(id int64) string {
 }
 
 // authKeyData is how an auth key is cached: AuthKeyInfo plus the expiry of a
-// temporary key, for which AuthKeyInfo has no field.
+// temporary key, for which AuthKeyInfo has no field. Body is the key as
+// auth_keys stores it, sealed under AUTH_KEY_ENCRYPTION_KEY (pkg/authkeys):
+// the cache holds no plain key either.
 type authKeyData struct {
 	AuthKeyId          int64  `json:"auth_key_id"`
-	AuthKey            []byte `json:"auth_key"`
+	Body               string `json:"body"`
 	AuthKeyType        int32  `json:"auth_key_type"`
 	PermAuthKeyId      int64  `json:"perm_auth_key_id"`
 	TempAuthKeyId      int64  `json:"temp_auth_key_id"`
@@ -56,10 +58,11 @@ type authKeyData struct {
 	ExpiresAt          int64  `json:"expires_at"`
 }
 
-func (k *authKeyData) toAuthKeyInfo() *mtproto.AuthKeyInfo {
+// toAuthKeyInfo returns the key with its plain bytes key.
+func (k *authKeyData) toAuthKeyInfo(key []byte) *mtproto.AuthKeyInfo {
 	return mtproto.MakeTLAuthKeyInfo(&mtproto.AuthKeyInfo{
 		AuthKeyId:          k.AuthKeyId,
-		AuthKey:            k.AuthKey,
+		AuthKey:            key,
 		AuthKeyType:        k.AuthKeyType,
 		PermAuthKeyId:      k.PermAuthKeyId,
 		TempAuthKeyId:      k.TempAuthKeyId,
@@ -118,7 +121,15 @@ func (d *Dao) QueryAuthKeyWithExpiry(ctx context.Context, authKeyId int64) (*mtp
 		return nil, 0, mtproto.ErrAuthKeyUnregistered
 	}
 
-	return kData.toAuthKeyInfo(), kData.ExpiresAt, nil
+	plain, _, err := d.keys.Open(authKeyId, kData.Body)
+	if err != nil {
+		// Another AUTH_KEY_ENCRYPTION_KEY than the one the key was sealed
+		// with, or a damaged row: not an unknown key, which would make the
+		// client drop its authorization.
+		logx.WithContext(ctx).Errorf("queryAuthKey(%d) - open the sealed key: %v", authKeyId, err)
+		return nil, 0, mtproto.ErrInternalServerError
+	}
+	return kData.toAuthKeyInfo(plain), kData.ExpiresAt, nil
 }
 
 func (d *Dao) loadAuthKeyData(ctx context.Context, authKeyId int64) (*authKeyData, error) {
@@ -130,7 +141,19 @@ func (d *Dao) loadAuthKeyData(ctx context.Context, authKeyId int64) (*authKeyDat
 	if err != nil {
 		return nil, mtproto.ErrInternalServerError
 	}
-	return authKeyDataFromRows(authKeyId, do1, do2)
+	kData, err := authKeyDataFromRows(authKeyId, do1, do2)
+	if err != nil {
+		return nil, err
+	}
+	if !authkeys.IsSealed(kData.Body) {
+		// A plain key of before task 008: sealed on its first read.
+		if sealed, err := d.sealPlainKey(ctx, authKeyId, kData.Body); err != nil {
+			logx.WithContext(ctx).Errorf("loadAuthKeyData(%d) - seal the plain key: %v", authKeyId, err)
+		} else {
+			kData.Body = sealed
+		}
+	}
+	return kData, nil
 }
 
 // authKeyDataFromRows builds a key from its MySQL rows; a key without both
@@ -149,8 +172,8 @@ func authKeyDataFromRows(authKeyId int64, info *dataobject.AuthKeyInfosDO, key *
 		TempAuthKeyId:      info.TempAuthKeyId,
 		MediaTempAuthKeyId: info.MediaTempAuthKeyId,
 		ExpiresAt:          info.ExpiresAt,
+		Body:               key.Body,
 	}
-	kData.AuthKey, _ = base64.RawStdEncoding.DecodeString(key.Body)
 	return kData, nil
 }
 
@@ -177,10 +200,14 @@ func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, ex
 		expiresAt = time.Now().Unix() + int64(authkeys.TempExpiresIn(expiresIn))
 	}
 
+	body, err := d.keys.Seal(authKey.AuthKeyId, authKey.AuthKey)
+	if err != nil {
+		return err
+	}
 	tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
 		_, _, err = d.AuthKeysDAO.InsertTx(tx, &dataobject.AuthKeysDO{
 			AuthKeyId: authKey.AuthKeyId,
-			Body:      base64.RawStdEncoding.EncodeToString(authKey.AuthKey),
+			Body:      body,
 		})
 		if err != nil {
 			result.Err = err

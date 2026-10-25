@@ -38,13 +38,15 @@ const (
 
 var metricKeyCleanerErrors = metric.NewCounterVec(&metric.CounterVecOpts{
 	Namespace: "authsession",
-	Name:      "expired_key_removal_errors_total",
-	Help:      "Failed removals of expired temporary auth keys; the next sweep retries them.",
+	Name:      "key_cleaner_errors_total",
+	Help:      "Failed removals of expired temporary auth keys and sealings of plain ones; the next sweep retries them.",
 	Labels:    []string{},
 })
 
 // KeyCleaner removes temporary keys whose lifetime is over (task 008): an
-// expired key already gets AUTH_KEY_UNREGISTERED, its rows only linger.
+// expired key already gets AUTH_KEY_UNREGISTERED, its rows only linger. It
+// also seals, in rounds, the plain keys stored before task 008 that no
+// client has used since (a used one is sealed on its first read).
 // Several authsession processes may run one each: a removal is one
 // transaction, and a key removed twice is removed once.
 type KeyCleaner struct {
@@ -90,8 +92,14 @@ func (w *KeyCleaner) run() {
 	}
 }
 
-// sweep removes the temporary keys expired at its start.
+// sweep removes the temporary keys expired at its start, then seals plain
+// keys.
 func (w *KeyCleaner) sweep(ctx context.Context) {
+	w.removeExpired(ctx)
+	w.sealPlain(ctx)
+}
+
+func (w *KeyCleaner) removeExpired(ctx context.Context) {
 	now := time.Now().Unix()
 	for {
 		select {
@@ -115,6 +123,28 @@ func (w *KeyCleaner) sweep(ctx context.Context) {
 		}
 		logx.WithContext(ctx).Infof("authsession: removed %d expired temporary keys", len(ids))
 		if len(ids) < keyCleanerBatch {
+			return
+		}
+	}
+}
+
+func (w *KeyCleaner) sealPlain(ctx context.Context) {
+	for {
+		select {
+		case <-w.stop:
+			return
+		default:
+		}
+		n, err := w.svcCtx.Dao.SealPlainAuthKeys(ctx, keyCleanerBatch)
+		if err != nil {
+			metricKeyCleanerErrors.Inc()
+			logx.WithContext(ctx).Errorf("authsession: seal plain keys: %v", err)
+			return
+		}
+		if n > 0 {
+			logx.WithContext(ctx).Infof("authsession: sealed %d plain keys", n)
+		}
+		if n < keyCleanerBatch {
 			return
 		}
 	}
