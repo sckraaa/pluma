@@ -3,7 +3,7 @@
 #
 #   test/e2e/run.sh all        up, test, logs on failure, down (what `make e2e` runs)
 #   test/e2e/run.sh up         generate throwaway secrets, build the image, start the stack
-#   test/e2e/run.sh test       run the Go e2e tests against the running stack
+#   test/e2e/run.sh test       run the Go e2e and conformance tests against the running stack
 #   test/e2e/run.sh wait       start stopped services, wait until the stack serves
 #   test/e2e/run.sh logs       save service logs to $E2E_DIR/logs
 #   test/e2e/run.sh down       stop the stack, delete its volumes and the secrets
@@ -237,7 +237,7 @@ cmd_test() {
 			PLUMA_E2E_FAKEPUSH=$(compose port fakepush 8080) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
-			go test -tags e2e -count=1 -timeout 10m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/...
+			go test -tags e2e -count=1 -timeout 10m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
 	) || return
 	check_running
 }

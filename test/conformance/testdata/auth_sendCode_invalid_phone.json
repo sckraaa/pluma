@@ -1,0 +1,13 @@
+{
+  "scenario": "auth_sendCode_invalid_phone",
+  "source": "telegram test DC 2, layer 228, 2026-10-25",
+  "steps": [
+    {
+      "call": "auth.sendCode",
+      "error": {
+        "code": 400,
+        "message": "PHONE_NUMBER_INVALID"
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "scenario": "auth_signIn_wrong_code",
+  "source": "telegram test DC 2, layer 228, 2026-10-25",
+  "steps": [
+    {
+      "call": "auth.sendCode",
+      "result": {
+        "_": "auth_sentCode",
+        "next_type": {
+          "_": "auth_codeTypeCall"
+        },
+        "phone_code_hash": "$opaque",
+        "timeout": "$time",
+        "type": {
+          "_": "auth_sentCodeTypeSms",
+          "length": 5
+        }
+      }
+    },
+    {
+      "call": "auth.signIn",
+      "error": {
+        "code": 400,
+        "message": "PHONE_CODE_INVALID"
+      }
+    },
+    {
+      "call": "auth.signIn",
+      "error": {
+        "code": 400,
+        "message": "PHONE_CODE_INVALID"
+      }
+    },
+    {
+      "call": "auth.signIn",
+      "error": {
+        "code": 400,
+        "message": "PHONE_CODE_EMPTY"
+      }
+    }
+  ]
+}

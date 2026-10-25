@@ -1,0 +1,15 @@
+{
+  "scenario": "help_getNearestDc",
+  "source": "telegram test DC 2, layer 228, 2026-10-25",
+  "steps": [
+    {
+      "call": "help.getNearestDc",
+      "result": {
+        "_": "nearestDc",
+        "country": "$opaque",
+        "nearest_dc": 2,
+        "this_dc": 2
+      }
+    }
+  ]
+}
