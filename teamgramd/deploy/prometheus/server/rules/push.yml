@@ -1,0 +1,38 @@
+# Push notification alerts (task 009, ADR 0017, docs/ops/push.md). Pushes
+# are best effort: devices catch up when they open. These fire when the
+# phones stop getting notifications for a reason that needs the owner.
+groups:
+  - name: push
+    rules:
+      - alert: PushServiceDown
+        expr: up{job="messenger.push"} == 0 or absent(up{job="messenger.push"})
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "The push service is down"
+          description: "Phones get no notifications while the app is closed. docs/ops/push.md"
+
+      - alert: PushProviderAuthFailed
+        expr: sum by (provider) (increase(push_sent_total{result="auth_failed"}[10m])) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.provider }} refuses the push key"
+          description: "The APNs key or the FCM service account key is revoked or wrong: no pushes. Run pluma-admin push check. docs/ops/push.md"
+
+      - alert: PushProviderDisabled
+        expr: sum by (provider) (increase(push_sent_total{result="disabled"}[10m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.provider }} is off: no key configured"
+          description: "Devices of that platform are registered but get no pushes. docs/ops/push.md"
+
+      - alert: PushErrors
+        expr: |
+          sum by (provider) (increase(push_sent_total{result=~"unavailable|rejected"}[15m]))
+            / clamp_min(sum by (provider) (increase(push_sent_total[15m])), 1) > 0.2
+          and sum by (provider) (increase(push_sent_total[15m])) > 10
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "More than 20% of the pushes to {{ $labels.provider }} fail"
+          description: "The provider is unavailable or rejects the requests. docs/ops/push.md"

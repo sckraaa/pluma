@@ -1,0 +1,56 @@
+# Push notifications to APNs and FCM (task 009, ADR 0017, docs/ops/push.md).
+Name: messenger.push
+# No gRPC server runs; the address is required by the config type.
+ListenOn: 127.0.0.1:20460
+Log:
+  ServiceName: messenger.push
+  # debug is for troubleshooting; no level logs keys, tokens or message content.
+  Level: info
+Prometheus:
+  Host: 127.0.0.1
+  Port: 20461
+  Path: /metrics
+
+PushConsumer:
+  Brokers:
+    - 127.0.0.1:9092
+  Topic: "Sync-T"
+  Group: "Push-MainCommunity-S"
+
+Mysql:
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  Active: 8
+  Idle: 8
+  IdleTimeout: 4h
+
+# Opens the secrets of the devices (pkg/pushdevices); the same key as bff's.
+PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
+
+# Paths of the key files on this host; an empty path or file turns the
+# provider off.
+APNs:
+  KeyFile: "${APNS_KEY_FILE}"
+  KeyId: "${APNS_KEY_ID}"
+  TeamId: "${APNS_TEAM_ID}"
+  Topic: chat.pluma.app
+FCM:
+  CredentialsFile: "${FCM_CREDENTIALS_FILE}"
+
+StatusClient:
+  Timeout: 2000
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.status
+AuthsessionClient:
+  Timeout: 2000
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.authsession
+BizServiceClient:
+  Timeout: 5000
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.biz_service

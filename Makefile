@@ -32,7 +32,7 @@ SHELLCHECK_SHA256_darwin.x86_64  := c2c15e08df0e8fbc374c335b230a7ee958c313fa5714
 SHELLCHECK_SHA256_linux.aarch64  := 68a8133197a50beb8803f8d42f9908d1af1c5540d4bb05fdfca8c1fa47decefc
 SHELLCHECK_SHA256_linux.x86_64   := b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6
 
-all: idgen status dfs media authsession biz msg sync bff session gnetway
+all: idgen status dfs media authsession biz msg sync push bff session gnetway
 
 idgen:
 	@echo "build idgen..."
@@ -70,6 +70,10 @@ sync:
 	@echo "build sync..."
 	@go build -ldflags ${ldflags} -o teamgramd/bin/sync -tags=jsoniter app/messenger/sync/cmd/sync/*.go
 
+push:
+	@echo "build push..."
+	@go build -ldflags ${ldflags} -o teamgramd/bin/push -tags=jsoniter app/messenger/push/cmd/push/*.go
+
 bff:
 	@echo "build bff..."
 	@go build -ldflags ${ldflags} -o teamgramd/bin/bff -tags=jsoniter app/bff/bff/cmd/bff/*.go
@@ -92,6 +96,7 @@ clean:
 	@rm -rf teamgramd/bin/msgtransfer
 	@rm -rf teamgramd/bin/msg
 	@rm -rf teamgramd/bin/sync
+	@rm -rf teamgramd/bin/push
 	@rm -rf teamgramd/bin/bff
 	@rm -rf teamgramd/bin/session
 	@rm -rf teamgramd/bin/gnetway

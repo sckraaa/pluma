@@ -45,6 +45,10 @@ echo "build sync ..."
 cd ${TEAMGRAMAPP}/messenger/sync/cmd/sync
 go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/sync
 
+echo "build push ..."
+cd ${TEAMGRAMAPP}/messenger/push/cmd/push
+go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/push
+
 echo "build bff ..."
 cd ${TEAMGRAMAPP}/bff/bff/cmd/bff
 go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/bff

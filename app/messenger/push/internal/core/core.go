@@ -342,7 +342,7 @@ func (c *Core) deliver(ctx context.Context, n *notify.Notification, d *pushdevic
 			log.Errorf("push: forget device %d: %v", d.Id, err)
 		}
 	default:
-		log.Errorf("push: %s device %d of user %d: %s: %v", name, d.Id, d.UserId, outcome, err)
+		log.Errorf("push: %s device %d of user %d: %s: %v", name, d.Id, d.UserId, string(outcome), err)
 	}
 }
 

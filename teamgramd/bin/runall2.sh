@@ -41,6 +41,10 @@ echo "run sync ..."
 nohup ./sync -f=../etc/sync.yaml >> ../logs/sync.log  2>&1 &
 sleep 1
 
+echo "run push ..."
+nohup ./push -f=../etc/push.yaml >> ../logs/push.log  2>&1 &
+sleep 1
+
 echo "run bff ..."
 nohup ./bff -f=../etc/bff.yaml >> ../logs/bff.log  2>&1 &
 sleep 5

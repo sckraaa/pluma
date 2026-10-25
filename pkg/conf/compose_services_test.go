@@ -16,6 +16,7 @@
 package conf
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -134,14 +135,35 @@ func TestComposeServices(t *testing.T) {
 			}
 		}
 
-		if name == "gnetway" {
+		switch {
+		case name == "gnetway":
 			if len(s.Ports) == 0 || len(s.Secrets) == 0 {
 				t.Errorf("gnetway must publish the client ports and get the RSA key")
 			}
-		} else if len(s.Ports) > 0 || len(s.Secrets) > 0 {
-			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway may", name, s.Ports, s.Secrets)
+		case name == "push":
+			// The provider keys, and nothing else (ADR 0017).
+			if len(s.Ports) > 0 || fmt.Sprint(secretSources(s.Secrets)) != "[apns_key fcm_credentials]" {
+				t.Errorf("push publishes ports %v or gets secrets %v; want only apns_key and fcm_credentials", s.Ports, s.Secrets)
+			}
+		case len(s.Ports) > 0 || len(s.Secrets) > 0:
+			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway and push may", name, s.Ports, s.Secrets)
 		}
 	}
+}
+
+// secretSources returns the sorted sources of a service's secrets.
+func secretSources(secrets []any) []string {
+	var out []string
+	for _, v := range secrets {
+		switch v := v.(type) {
+		case string:
+			out = append(out, v)
+		case map[string]any:
+			out = append(out, fmt.Sprint(v["source"]))
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // listenPort returns the port a service's health check connects to.
@@ -163,7 +185,7 @@ func listenPort(t *testing.T, name string) string {
 	switch {
 	case name == "gnetway":
 		return "10443"
-	case name == "sync": // its gRPC server is not started (Sync-T consumer only)
+	case name == "sync" || name == "push": // no gRPC server is started (Sync-T consumers only)
 		return strconv.Itoa(c.Prometheus.Port)
 	case c.ListenOn != "":
 		return c.ListenOn[strings.LastIndex(c.ListenOn, ":")+1:]

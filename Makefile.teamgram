@@ -14,7 +14,7 @@ gitTreeState=$(shell if git status|grep -q 'clean';then echo clean; else echo di
 
 ldflags="-s -w -X ${versionDir}.gitTag=${gitTag} -X ${versionDir}.buildDate=${buildDate} -X ${versionDir}.gitCommit=${gitCommit} -X ${versionDir}.gitTreeState=${gitTreeState} -X ${versionDir}.version=${VERSION} -X ${versionDir}.gitBranch=${gitBranch}"
 
-all: idgen status dfs media authsession biz msg sync bff session gnetway
+all: idgen status dfs media authsession biz msg sync push bff session gnetway
 
 idgen:
 	@echo "build idgen..."
@@ -48,6 +48,10 @@ sync:
 	@echo "build sync..."
 	@go build -ldflags ${ldflags} -o ${INSTALL}/bin/sync -tags=jsoniter app/messenger/sync/cmd/sync/*.go
 
+push:
+	@echo "build push..."
+	@go build -ldflags ${ldflags} -o ${INSTALL}/bin/push -tags=jsoniter app/messenger/push/cmd/push/*.go
+
 bff:
 	@echo "build bff..."
 	@go build -ldflags ${ldflags} -o ${INSTALL}/bin/bff -tags=jsoniter app/bff/bff/cmd/bff/*.go
@@ -69,6 +73,7 @@ clean:
 	@rm -rf ${INSTALL}/bin/biz
 	@rm -rf ${INSTALL}/bin/msg
 	@rm -rf ${INSTALL}/bin/sync
+	@rm -rf ${INSTALL}/bin/push
 	@rm -rf ${INSTALL}/bin/bff
 	@rm -rf ${INSTALL}/bin/session
 	@rm -rf ${INSTALL}/bin/gnetway

@@ -249,15 +249,15 @@ func (f *FCM) try(ctx context.Context, body []byte, renew bool) attempt {
 	}
 	var e fcmError
 	_ = json.Unmarshal(data, &e)
-	code := e.code()
-	err = fmt.Errorf("fcm: %d %s", resp.StatusCode, code)
+	errCode := e.code()
+	err = fmt.Errorf("fcm: %d %s", resp.StatusCode, errCode)
 	switch {
-	case code == "UNREGISTERED" || code == "SENDER_ID_MISMATCH" || resp.StatusCode == http.StatusNotFound,
-		code == "INVALID_ARGUMENT" && strings.Contains(e.Error.Message, "registration token"):
+	case errCode == "UNREGISTERED" || errCode == "SENDER_ID_MISMATCH" || resp.StatusCode == http.StatusNotFound,
+		errCode == "INVALID_ARGUMENT" && strings.Contains(e.Error.Message, "registration token"):
 		return attempt{outcome: OutcomeTokenInvalid, err: err}
 	case resp.StatusCode == http.StatusUnauthorized:
 		return attempt{outcome: OutcomeAuthFailed, err: fmt.Errorf("%w: %v", errFCMAuth, err)}
-	case resp.StatusCode == http.StatusForbidden || code == "THIRD_PARTY_AUTH_ERROR":
+	case resp.StatusCode == http.StatusForbidden || errCode == "THIRD_PARTY_AUTH_ERROR":
 		return attempt{outcome: OutcomeAuthFailed, err: err}
 	case resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500:
 		return attempt{outcome: OutcomeUnavailable, retry: true, retryAfter: retryAfter(resp.Header), err: err}

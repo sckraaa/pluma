@@ -117,3 +117,11 @@ scrape_configs:
           job: messenger.sync
           app: messenger.sync
           env: dev
+  - job_name: messenger.push
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["push:20461"]
+        labels:
+          job: messenger.push
+          app: messenger.push
+          env: dev
