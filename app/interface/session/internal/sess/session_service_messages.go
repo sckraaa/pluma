@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -120,20 +121,45 @@ destroy_auth_key_ok#f660e1d4 = DestroyAuthKeyRes;
 destroy_auth_key_none#0a9f2259 = DestroyAuthKeyRes;
 destroy_auth_key_fail#ea109b13 = DestroyAuthKeyRes;
 */
+// destroyAuthKeyTimeout bounds the removal of a key in authsession for
+// destroy_auth_key; past it the client gets destroy_auth_key_fail.
+const destroyAuthKeyTimeout = 3 * time.Second
+
 func (c *session) onDestroyAuthKey(ctx context.Context, gatewayId string, msgId *inboxMsg, destroyAuthKey *mtproto.TLDestroyAuthKey) {
-	logx.WithContext(ctx).Infof("onDestroyAuthKey - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d}",
+	authKeyId := c.sessList.authId
+	logx.WithContext(ctx).Infof("onDestroyAuthKey - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, auth_key_id: %d}",
 		c,
 		gatewayId,
 		msgId.msgId,
-		msgId.seqNo)
+		msgId.seqNo,
+		authKeyId)
 
-	//// TODO(@benqi): FIXME
-	// destroy_auth_key_ok#f660e1d4 = DestroyAuthKeyRes;
-	// destroy_auth_key_none#0a9f2259 = DestroyAuthKeyRes;
-	// destroy_auth_key_fail#ea109b13 = DestroyAuthKeyRes;
-	res := mtproto.MakeTLDestroyAuthKeyOk(nil).To_DestroyAuthKeyRes()
+	// authsession removes the key the message came with: a permanent key
+	// with its temporary keys and its authorization (task 008). The gateway
+	// reads its keys again within a minute and then answers -404 for it.
+	rctx, cancel := context.WithTimeout(context.Background(), destroyAuthKeyTimeout)
+	removed, err := c.sessList.cb.cb.Dao.AuthsessionClient.AuthsessionDestroyAuthKey(rctx, &authsession.TLAuthsessionDestroyAuthKey{
+		AuthKeyId: authKeyId,
+	})
+	cancel()
+	var res *mtproto.DestroyAuthKeyRes
+	switch {
+	case err != nil:
+		logx.WithContext(ctx).Errorf("onDestroyAuthKey - auth_key_id %d: %v", authKeyId, err)
+		res = mtproto.MakeTLDestroyAuthKeyFail(nil).To_DestroyAuthKeyRes()
+	case len(removed.GetDatas()) == 0:
+		res = mtproto.MakeTLDestroyAuthKeyNone(nil).To_DestroyAuthKeyRes()
+	default:
+		res = mtproto.MakeTLDestroyAuthKeyOk(nil).To_DestroyAuthKeyRes()
+	}
 	c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, res)
 	msgId.state = RECEIVED | ACKNOWLEDGED
+
+	// The wrapper of the destroyed key ends, as after auth.logOut; a bound
+	// temporary key leaves its permanent key's wrapper running.
+	if err == nil && len(removed.GetDatas()) > 0 && authKeyId == c.sessList.cb.authKeyId {
+		c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateDeleted, 0)
+	}
 }
 
 func (c *session) onPing(ctx context.Context, gatewayId string, msgId *inboxMsg, ping *mtproto.TLPing) {
