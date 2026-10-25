@@ -20,13 +20,27 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 )
 
 // AuthDropTempAuthKeys
 // auth.dropTempAuthKeys#8e48a188 except_auth_keys:Vector<long> = Bool;
+//
+// Removes the temporary keys bound to the permanent key of the session but
+// those in except_auth_keys (task 008); the gateway stops serving them
+// within a minute.
 func (c *AuthorizationCore) AuthDropTempAuthKeys(in *mtproto.TLAuthDropTempAuthKeys) (*mtproto.Bool, error) {
-	// TODO: not impl
-	// c.Logger.Errorf("auth.dropTempAuthKeys blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
+	if c.MD.PermAuthKeyId == 0 {
+		err := mtproto.ErrAuthKeyPermEmpty
+		c.Logger.Errorf("auth.dropTempAuthKeys - error: %v", err)
+		return nil, err
+	}
+	if _, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionDropTempAuthKeys(c.ctx, &authsession.TLAuthsessionDropTempAuthKeys{
+		PermAuthKeyId:  c.MD.PermAuthKeyId,
+		ExceptAuthKeys: in.GetExceptAuthKeys(),
+	}); err != nil {
+		c.Logger.Errorf("auth.dropTempAuthKeys - perm key %d: %v", c.MD.PermAuthKeyId, err)
+		return nil, err
+	}
 	return mtproto.BoolTrue, nil
 }

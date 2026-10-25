@@ -19,17 +19,27 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
+	authsessionclient "github.com/teamgram/teamgram-server/app/service/authsession/client"
 )
 
 // AccountResetAuthorization
 // account.resetAuthorization#df77f3bc hash:long = Bool;
 func (c *AccountCore) AccountResetAuthorization(in *mtproto.TLAccountResetAuthorization) (*mtproto.Bool, error) {
 	if in.Hash == 0 {
-		c.Logger.Errorf("account.resetAuthorization#df77f3bc - hash is 0")
-		return mtproto.BoolFalse, nil
+		err := mtproto.ErrHashInvalid
+		c.Logger.Errorf("account.resetAuthorization#df77f3bc - hash is 0: %v", err)
+		return nil, err
+	}
+	// A session younger than a day may not terminate others, as in Telegram
+	// (task 008).
+	if err := authsessionclient.CheckResetAllowed(c.ctx, c.svcCtx.Dao.AuthsessionClient, c.MD.UserId, c.MD.PermAuthKeyId, time.Now().Unix()); err != nil {
+		c.Logger.Errorf("account.resetAuthorization#df77f3bc - user %d: %v", c.MD.UserId, err)
+		return nil, err
 	}
 
 	tKeyIdList, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionResetAuthorization(c.ctx, &authsession.TLAuthsessionResetAuthorization{
