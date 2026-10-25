@@ -13,6 +13,7 @@ import (
 	"flag"
 
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/config"
+	"github.com/teamgram/teamgram-server/app/service/authsession/internal/core"
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/server/grpc"
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/svc"
 	"github.com/teamgram/teamgram-server/pkg/conf"
@@ -25,6 +26,7 @@ var configFile = flag.String("f", "etc/authsession.yaml", "the config file")
 
 type Server struct {
 	grpcSrv *zrpc.RpcServer
+	cleaner *core.KeyCleaner
 }
 
 func New() *Server {
@@ -39,6 +41,8 @@ func (s *Server) Initialize() error {
 	logx.Infof("loaded config %s", *configFile)
 	ctx := svc.NewServiceContext(c)
 	s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
+	s.cleaner = core.NewKeyCleaner(ctx)
+	s.cleaner.Start()
 
 	go func() {
 		go s.grpcSrv.Start()
@@ -51,4 +55,7 @@ func (s *Server) RunLoop() {
 
 func (s *Server) Destroy() {
 	s.grpcSrv.Stop()
+	if s.cleaner != nil {
+		s.cleaner.Stop()
+	}
 }
