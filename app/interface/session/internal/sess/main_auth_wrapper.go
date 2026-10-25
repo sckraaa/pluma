@@ -695,7 +695,9 @@ func (m *MainAuthWrapper) runLoop() {
 					}
 				})
 			default:
-				panic("receive invalid type msg")
+				// Nothing else is sent here; a stray value must not take the
+				// session process down (task 008).
+				logx.Errorf("runLoop - unexpected session data %T", ctxData)
 			}
 		case rpcMessages, _ := <-m.rpcDataChan:
 			threading.RunSafe(func() {

@@ -98,9 +98,10 @@ package dao
 
 import (
 	"context"
+	cryptorand "crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -203,7 +204,7 @@ func (d *Dao) getOrNotInsertSaltList(ctx context.Context, keyId int64, size int3
 			salt := mtproto.MakeTLFutureSalt(&mtproto.FutureSalt{
 				ValidSince: lastValidUntil,
 				ValidUntil: lastValidUntil + saltTimeout,
-				Salt:       rand.Int63(),
+				Salt:       randomSalt(),
 			})
 			saltsData = append(saltsData, salt)
 			lastValidUntil += saltTimeout
@@ -251,4 +252,12 @@ func (d *Dao) GetFutureSalts(ctx context.Context, authKeyId int64, num int32) (*
 		Salts:    pSalts,
 	}}
 	return salts, nil
+}
+
+// randomSalt returns a server salt from crypto/rand (task 008): a salt is
+// not secret, but the protocol expects it unpredictable.
+func randomSalt() int64 {
+	var b [8]byte
+	_, _ = cryptorand.Read(b[:]) // never fails
+	return int64(binary.LittleEndian.Uint64(b[:]))
 }

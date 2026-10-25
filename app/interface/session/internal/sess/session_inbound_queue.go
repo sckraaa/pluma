@@ -21,6 +21,7 @@ package sess
 import (
 	"container/list"
 	"fmt"
+	"time"
 )
 
 /*
@@ -199,7 +200,11 @@ enum {
 */
 
 const (
-	maxQueueSize = 400
+	// maxQueueSize bounds the msg_ids a session remembers. Below it every
+	// msg_id of the last msgIdMaxAge seconds is kept, so a message replayed
+	// within its window is recognized (task 008; it used to be the last 400
+	// whatever their age).
+	maxQueueSize = 8192
 )
 
 type inboxMsg struct {
@@ -253,6 +258,13 @@ func (q *sessionInboundQueue) AddMsgId(msgId int64) (r *inboxMsg) {
 		q.maxMsgId = msgId
 	}
 
+	// A client's msg_ids grow: a new one goes last, without a walk through
+	// the up to maxQueueSize kept.
+	if back := q.msgIds.Back(); back == nil || back.Value.(*inboxMsg).msgId < msgId {
+		r = newInboxMsg(msgId)
+		q.index[msgId] = q.msgIds.PushBack(r)
+		return r
+	}
 	for e := q.msgIds.Front(); e != nil; e = e.Next() {
 		if e.Value.(*inboxMsg).msgId > msgId {
 			r = newInboxMsg(msgId)
@@ -291,12 +303,24 @@ func (q *sessionInboundQueue) Lookup(msgId int64) (iMsg *inboxMsg) {
 	return nil
 }
 
+// Shrink forgets the msg_ids older than msgIdMaxAge seconds, and the oldest
+// beyond maxQueueSize. A forgotten msg_id and every lower one are refused
+// from then on (minMsgId; checkBadMsgNotification answers code 20).
 func (q *sessionInboundQueue) Shrink() {
-	for q.msgIds.Len() > maxQueueSize {
+	q.shrink(time.Now().Unix())
+}
+
+func (q *sessionInboundQueue) shrink(now int64) {
+	cutoff := (now - msgIdMaxAge) << 32
+	for q.msgIds.Len() > 0 {
 		front := q.msgIds.Front()
-		iMsg := q.msgIds.Remove(front)
-		delete(q.index, iMsg.(*inboxMsg).msgId)
-		q.minMsgId = iMsg.(*inboxMsg).msgId
+		iMsg := front.Value.(*inboxMsg)
+		if q.msgIds.Len() <= maxQueueSize && iMsg.msgId >= cutoff {
+			return
+		}
+		q.msgIds.Remove(front)
+		delete(q.index, iMsg.msgId)
+		q.minMsgId = iMsg.msgId + 1
 	}
 }
 

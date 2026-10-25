@@ -51,6 +51,13 @@ const (
 	kServerSaltIncorrect = int32(48)
 )
 
+// msgIdMaxAge and msgIdMaxAhead bound the time in a client's msg_id against
+// the server's clock, in seconds (task 008).
+const (
+	msgIdMaxAge   = 300
+	msgIdMaxAhead = 30
+)
+
 const (
 	kMsgIdTooLow    = int32(16)
 	kMsgIdTooHigh   = int32(17)

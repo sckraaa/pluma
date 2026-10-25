@@ -276,20 +276,21 @@ func (c *session) checkBadMsgNotification(ctx context.Context, gatewayId string,
 					badTime = true;
 				}
 			*/
-			if clientTime+60 < serverTime {
+			// A message is rejected over msgIdMaxAge seconds after it is
+			// created or msgIdMaxAhead seconds before (description of
+			// msg_id; it was 60 s and 300 s the other way round).
+			if clientTime+msgIdMaxAge < serverTime {
 				errorCode = kMsgIdTooLow
 				logx.WithContext(ctx).Errorf("bad server time - {msg_id: %d, clientTime: %d, serverTime: %d}", msg.MsgId, clientTime, serverTime)
 
 				break
 			}
-			if clientTime > serverTime+300 {
+			if clientTime > serverTime+msgIdMaxAhead {
 				errorCode = kMsgIdTooHigh
 				logx.WithContext(ctx).Errorf("bad server time - {msg_id: %d, clientTime: %d, serverTime: %d}", msg.MsgId, clientTime, serverTime)
 				break
 			}
 		}
-
-		// TODO(@benqi): 检查低32位
 
 		//=================================================================================================
 		// Check Message Identifier (msg_id)
@@ -317,13 +318,20 @@ func (c *session) checkBadMsgNotification(ctx context.Context, gatewayId string,
 			errorCode = kMsgIdMod4
 			break
 		}
+		// The lower 32 bits are the fraction of the second: never zero in a
+		// client's msg_id (counters replays of forged identifiers).
+		if uint32(msg.MsgId) == 0 {
+			errorCode = kMsgIdMod4
+			break
+		}
 
+		// Below the messages the session remembers, whether this one was
+		// received cannot be told: code 20, the client sends it again with a
+		// new msg_id (the queue keeps every msg_id of the last msgIdMaxAge
+		// seconds, sessionInboundQueue.Shrink).
 		if msg.MsgId < c.inQueue.GetMinMsgId() {
-			// Use upper 32 bits (time) to check if the message is too old (>300s).
-			if clientTime+300 < serverTime {
-				errorCode = kMsgIdTooOld
-				break
-			}
+			errorCode = kMsgIdTooOld
+			break
 		}
 
 		//// TODO(@benqi): check kSeqNoTooHigh and kSeqNoTooLow
