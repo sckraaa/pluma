@@ -6,13 +6,31 @@ _Обновлено: 2026-10-25. Держать коротким._
 Этап 0 — фундамент. Аудит завершён, вердикт: ядро teamgram оставляем и глубоко чиним (`docs/audit/00-summary.md`). План этапа 0 — задачи 001–010 (`docs/tasks/README.md`), две параллельные линии: сервер и клиенты.
 
 ## Цифры
-- API layer 228: 869 методов; реализовано 152 (17,5%), частично 25, заглушки 111, нет обработчика 581 (заглушки апстрима с «License key» и пустым ответом теперь считаются заглушками). Источник: `docs/project/api-coverage.md` (`go run ./tools/apicoverage`).
+- API layer 228: 869 методов; реализовано 156 (18,0%), частично 25, заглушки 101, нет обработчика 580 (заглушки апстрима с «License key» и пустым ответом теперь считаются заглушками). Источник: `docs/project/api-coverage.md` (`go run ./tools/apicoverage`).
 - Сравнительных тестов: 0. Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
 - **Задача 006 (клиенты в облаке):** Android и Web готовы, дальше iOS → Desktop.
 
 ## Последнее сделано
+- **Push-уведомления** (задача 009, ADR 0017, ветка `task/009-push`; `docs/ops/push.md`).
+  - **Сервис `push`.**
+    - Читает `Sync-T` своей группой и шлёт в APNs (HTTP/2, JWT) и FCM HTTP v1. Ключи провайдеров есть только у него.
+    - Содержимое зашифровано ключом устройства, как ждут клиенты Telegram. Для iOS текст рисует сервер (ru/en).
+  - **Кому.**
+    - Устройствам получателя, кроме авторизации-инициатора и онлайн-авторизаций.
+    - Учитываются mute, превью, беззвучность и блокировка iOS.
+    - Недействительные токены забываются; при удалённом завершении сеанса уходит `SESSION_REVOKE`.
+  - **Методы.** `account.registerDevice`, `unregisterDevice`, `updateDeviceLocked`, `messages.reportMessagesDelivery`. Устройства — в `push_devices`, ключи запечатаны `PUSH_SECRET_ENCRYPTION_KEY`.
+  - **Проверено.**
+    - e2e через поддельные APNs/FCM (`test/e2e/fakepush`).
+    - `pluma-admin push check` с ключами владельца: Apple и Google принимают.
+    - Android на эмуляторе с настоящим FCM: уведомление в фоне и при выгруженном приложении за ~1 с.
+    - iOS — после сборки iOS.
+  - **При развёртывании.**
+    - В `.env`: `PUSH_SECRET_ENCRYPTION_KEY`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_KEY_FILE`, `FCM_CREDENTIALS_FILE`.
+    - Миграцию `migrate-20261025-push-devices.sql` применит `migrate`.
+    - В `pluma-android` задана переменная `PLUMA_GOOGLE_SERVICES_JSON`.
 - **Безопасность P1** (задача 008, ветка `task/008-security-p1`).
   - **2FA по SRP**, как в Telegram: установка, вход (`SESSION_PASSWORD_NEEDED`, ключ не привязан до пароля), смена, снятие, лимит подбора. Почты нет: сброс из вошедшей сессии — через 7 дней, остальным — `pluma-admin password reset` (`docs/ops/security-setup.md`).
   - **Handshake.** Случайный `pq` (proof-of-work), проверки RSA_PAD, SHA1, `g_b`, коллизии и `retry_id`; старый `httpserver` удалён.
@@ -66,7 +84,7 @@ _Обновлено: 2026-10-25. Держать коротким._
 - При развёртывании обязательно: `teamgramd/deploy/sql/migrate-20261021.sql` и `migrate-20261021-pfs.sql`, переменные из `.env.example` (в т.ч. `LOGIN_CODE_HMAC_KEY`, `SERVER_RSA_KEY_FINGERPRINT`) — см. `docs/ops/security-setup.md`.
 
 ## Следующий шаг
-На сервере дальше нужны данные владельца: 007 (сравнительные тесты) — `api_id` Telegram; после неё 010 (seq и полнота getDifference). 009 (push) — ключи APNs и FCM.
+На сервере дальше 007 (сравнительные тесты; `api_id` и `api_hash` владельца лежат в `~/pluma-secrets/telegram-api.env`), после неё 010 (seq и полнота getDifference).
 Задача 006 дальше: Android на телефоне владельца (dev-сборка с LAN-адресом Mac и стенд, слушающий LAN), затем Web → iOS → Desktop. Для выпуска Android на настоящий сервер владельцу нужно создать ключ подписи, age-ключ и environment `release` (README `pluma-android`). До выкатки пользователям: замер задержки на Linux (ADR 0011, п. 12) — на том же VPS.
 
 ## Принятые решения вне ADR
@@ -77,6 +95,11 @@ _Обновлено: 2026-10-25. Держать коротким._
 - География пользователей неизвестна — звонки проектируются универсально (ADR 0004).
 
 ## Известные проблемы и риски
+- **Push.**
+  - iOS не проверен: нет сборки, App Group и Notification Service Extension для `chat.pluma.app`.
+  - Web push (Web K) и VoIP push не отправляются: нет TLS-раздачи Web K и нет звонков.
+  - Push нет на правки, реакции и удаления (`MESSAGE_DELETED`).
+  - Связь оборвалась, а сессия ещё считается живой (до 60 с) — push в это время не уходит.
 - **Остаточные риски безопасности.**
   - Кто знает номер из allowlist, может держать владельца в `FLOOD_WAIT` (снимается `pluma-admin login-unblock`).
   - etcd и Kafka без аутентификации, TLS между сервисами нет (порты закрыты снаружи).

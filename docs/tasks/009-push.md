@@ -1,6 +1,6 @@
 # 009. Push: APNs (включая VoIP) и FCM
 
-- Статус: in-progress
+- Статус: done
 - Зависит от: 003, 006
 - ADR: 0003, 0012, 0017
 
@@ -107,4 +107,41 @@
 - iOS и Android в фоне получают уведомление ≤3 с после отправки; текст расшифровывается Notification Service Extension.
 
 ## Результат
-—
+Готово в ветке `task/009-push` (поверх 008). Решения — ADR 0017, эксплуатация — `docs/ops/push.md`.
+
+- **Шаг 1, устройства.**
+  - `pkg/pushdevices`: таблица `push_devices`, `secret` запечатан AES-256-GCM на `PUSH_SECRET_ENCRYPTION_KEY`; строка, которая не открывается, пропускается, но не удаляется.
+  - В bff: `account.registerDevice`, `unregisterDevice`, `updateDeviceLocked`, `messages.reportMessagesDelivery` (отдельный gRPC-сервис, маршрут в `session.yaml`).
+  - `auth.logOut` удаляет устройства авторизации.
+- **Шаг 2, сервис `push`** (`app/messenger/push`, группа `Push-MainCommunity-S` на `Sync-T`).
+  - `pkg/pushcrypt` шифрует как сервер Telegram. Расшифровка, написанная по Telegram-iOS, совпадает с ним.
+  - `notify` разбирает апдейты:
+    - сообщения по видам медиа, альбомы, пересылки;
+    - события групп, закрепления (текст закреплённого — из ящика получателя);
+    - прочтение.
+  - Кодирование: `loc_key`/`loc_args`/`custom` для Android; готовый текст ru/en, id строками, `loc-key` у служебных — для iOS.
+  - Правила:
+    - не слать инициатору, онлайн-авторизациям и чужим ключам (их устройства удаляются);
+    - mute: `MESSAGE_MUTED` не чаще раза в 15 с, упоминание проходит;
+    - превью, беззвучность, блокировка iOS;
+    - `SESSION_REVOKE` на `updateAccountResetAuthorization`.
+- **Шаг 3, отправка** (`pkg/pushprovider`).
+  - APNs: HTTP/2, ES256-токен на 50 минут. FCM: OAuth по ключу сервисного аккаунта, `android.priority=HIGH`.
+  - Повторы внутри дедлайна 10 с; пять отказов подряд — провайдер пропускается 30 с.
+  - Недействительный токен: FCM — устройство удаляется; APNs — помечается, и следующая регистрация получает `TOKEN_WAS_INVALIDATED`.
+  - Метрики `push_sent_total`, `push_dropped_total` и алерты `rules/push.yml`.
+  - `pluma-admin push check` проверяет ключи без доставки.
+- **Шаг 4, клиент Android.** Конвейер `pluma-android` уже умел подставлять `google-services.json`. Переменная `PLUMA_GOOGLE_SERVICES_JSON` задана с разрешения владельца, dev-сборка собрана.
+- **Проверки.**
+  - Unit: шифрование, разбор и кодирование, правила ядра, отправители на поддельных серверах (APNs — HTTP/2 по TLS), обработчики bff, `pluma-admin`.
+  - Интеграционный тест хранилища.
+  - e2e `TestPush` через `test/e2e/fakepush`; полный e2e зелёный.
+  - Ключи владельца: `push check` — Apple (production и sandbox) и Google принимают.
+  - Android 12.9.1 на эмуляторе с Google APIs и настоящим FCM: уведомление «отправитель — текст» за ~1 с при свёрнутом приложении и при выгруженном процессе. FCM поднимает приложение, Android подтверждает доставку `reportMessagesDelivery`.
+- **Попутно.**
+  - `migrate` не стартовал: он читает весь `bff.yaml`, а нового ключа в нём не было. Тест compose теперь сверяет одноразовые сервисы с их конфигами.
+  - `TestManualSend` пишет настоящему клиенту на стенде (`docs/ops/clients.md`).
+- **Не сделано и не проверено.**
+  - iOS: нет сборки; App Group и Notification Service Extension — со сборкой iOS (задача 006). Критерий для iOS открыт.
+  - Web push и VoIP push не отправляются (нужны TLS-раздача Web K и звонки).
+  - Push на правки, реакции и `MESSAGE_DELETED` не отправляются.
