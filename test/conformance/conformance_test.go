@@ -116,3 +116,25 @@ func TestCompare(t *testing.T) {
 		t.Fatal("the number of FLOOD_WAIT is kept")
 	}
 }
+
+func TestLocaleTag(t *testing.T) {
+	for in, want := range map[string]string{
+		"ru_RU.UTF-8":     "ru-RU",
+		"en_US@rg=dezzzz": "en-US",
+		"de_DE":           "de-DE",
+		"C":               "",
+		"POSIX":           "",
+		"":                "",
+	} {
+		if got := localeTag(in); got != want {
+			t.Errorf("localeTag(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestHostDevice(t *testing.T) {
+	d := hostDevice()
+	if d.model == "" || d.system == "" || d.langCode == "" || !strings.HasPrefix(d.systemLangCode, d.langCode) {
+		t.Fatalf("hostDevice() = %+v", d)
+	}
+}

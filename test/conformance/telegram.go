@@ -107,9 +107,12 @@ func (tg *Telegram) Config(dc int32, addr string, logf func(string, ...any)) (mt
 			return mtclient.Config{}, fmt.Errorf("no address of DC %d", dc)
 		}
 	}
+	// No lang_pack: the official language packs belong to the official apps.
+	d := hostDevice()
 	return mtclient.Config{
 		Addr: addr, PublicKey: key, DC: exchangeDC, APIID: tg.APIID,
-		DeviceModel: "Pluma conformance", SystemVersion: "go", AppVersion: "1.0", Logf: logf,
+		DeviceModel: d.model, SystemVersion: d.system, AppVersion: "1.0",
+		SystemLangCode: d.systemLangCode, LangCode: d.langCode, Logf: logf,
 	}, nil
 }
 

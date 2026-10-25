@@ -109,26 +109,42 @@ func run(name string, test bool) error {
 		return errors.New("сервер переадресовал слишком много раз")
 	}
 	defer c.Close()
+	signedIn := false
+	defer func() {
+		if !signedIn {
+			cancelCode(c, phone, sent.GetPhoneCodeHash())
+		}
+	}()
 
-	switch sent.GetType().GetPredicateName() {
-	case mtproto.Predicate_auth_sentCodeTypeApp:
-		fmt.Println("Код отправлен в приложение Telegram, где этот аккаунт уже открыт.")
-	case mtproto.Predicate_auth_sentCodeTypeSms:
-		fmt.Println("Код отправлен по SMS.")
-	default:
-		fmt.Printf("Код отправлен (%s).\n", sent.GetType().GetPredicateName())
+	var o mtproto.TLObject
+	for {
+		describe(sent)
+		code := secret("Код (не отображается; пустая строка — другой способ): ")
+		if code == "" {
+			next, err := resendCode(ctx, c, phone, sent)
+			if err != nil {
+				return err
+			}
+			sent = next
+			continue
+		}
+		o, err = c.Invoke(ctx, &mtproto.TLAuthSignIn{
+			Constructor: c.Constructor(mtproto.Predicate_auth_signIn), PhoneNumber: phone, PhoneCodeHash: sent.GetPhoneCodeHash(),
+			PhoneCode_FLAGSTRING: mtproto.MakeFlagsString(code),
+		})
+		if mtclient.IsRPCError(err, "PHONE_CODE_INVALID") {
+			fmt.Println("Неверный код.")
+			continue
+		}
+		break
 	}
-	code := secret("Код (не отображается): ")
-	o, err := c.Invoke(ctx, &mtproto.TLAuthSignIn{
-		Constructor: c.Constructor(mtproto.Predicate_auth_signIn), PhoneNumber: phone, PhoneCodeHash: sent.GetPhoneCodeHash(),
-		PhoneCode_FLAGSTRING: mtproto.MakeFlagsString(code),
-	})
 	if mtclient.IsRPCError(err, "SESSION_PASSWORD_NEEDED") {
 		o, err = checkPassword(ctx, c)
 	}
 	if err != nil {
 		return fmt.Errorf("вход: %w", err)
 	}
+	signedIn = true
 	if _, ok := o.(*mtproto.TLAuthAuthorizationSignUpRequired); ok {
 		return errors.New("аккаунта с этим номером нет: создайте его в официальном приложении Telegram и запустите программу снова")
 	}
@@ -137,6 +153,75 @@ func run(name string, test bool) error {
 		return fmt.Errorf("вход: ответ %T", o)
 	}
 	return save(name, test, dc, c, auth.To_Auth_Authorization())
+}
+
+// describe says where Telegram sent the code and what else it offers.
+func describe(sent *mtproto.TLAuthSentCode) {
+	t := sent.GetType()
+	switch t.GetPredicateName() {
+	case mtproto.Predicate_auth_sentCodeTypeApp:
+		fmt.Printf("Код из %d цифр отправлен сообщением от «Telegram» во все приложения, где открыт этот аккаунт.\n", t.GetLength())
+		fmt.Println("Если за минуту он не пришёл, Telegram его не доставил: так бывает со сторонними приложениями с января 2026.")
+		fmt.Println("Тогда войдите по QR (-qr) и не запрашивайте код снова много раз подряд.")
+	case mtproto.Predicate_auth_sentCodeTypeSms:
+		fmt.Printf("Код из %d цифр отправлен по SMS.\n", t.GetLength())
+	case mtproto.Predicate_auth_sentCodeTypeCall:
+		fmt.Printf("Код из %d цифр продиктуют в звонке.\n", t.GetLength())
+	case mtproto.Predicate_auth_sentCodeTypeEmailCode:
+		fmt.Printf("Код из %d цифр отправлен на почту %s.\n", t.GetLength(), t.GetEmailPattern())
+	case mtproto.Predicate_auth_sentCodeTypeFragmentSms:
+		fmt.Printf("Код из %d цифр отправлен SMS через Fragment: %s\n", t.GetLength(), t.GetUrl())
+	default:
+		fmt.Printf("Код отправлен (%s).\n", t.GetPredicateName())
+	}
+	next := sent.GetNextType()
+	if next == nil {
+		fmt.Println("Другого способа Telegram не предлагает.")
+		return
+	}
+	how := map[string]string{
+		mtproto.Predicate_auth_codeTypeSms:         "SMS",
+		mtproto.Predicate_auth_codeTypeCall:        "звонок",
+		mtproto.Predicate_auth_codeTypeFlashCall:   "сброшенный звонок",
+		mtproto.Predicate_auth_codeTypeMissedCall:  "пропущенный звонок",
+		mtproto.Predicate_auth_codeTypeFragmentSms: "SMS через Fragment",
+	}[next.GetPredicateName()]
+	if how == "" {
+		how = next.GetPredicateName()
+	}
+	if timeout := sent.GetTimeout(); timeout != nil {
+		fmt.Printf("Другой способ — %s, не раньше чем через %d с.\n", how, timeout.GetValue())
+	} else {
+		fmt.Printf("Другой способ — %s.\n", how)
+	}
+}
+
+// resendCode asks Telegram for the code in the other way it offers.
+func resendCode(ctx context.Context, c *mtclient.Client, phone string, sent *mtproto.TLAuthSentCode) (*mtproto.TLAuthSentCode, error) {
+	if sent.GetNextType() == nil {
+		return nil, errors.New("другого способа получить код нет: войдите по QR (-qr)")
+	}
+	o, err := c.Invoke(ctx, &mtproto.TLAuthResendCode{
+		Constructor: c.Constructor(mtproto.Predicate_auth_resendCode), PhoneNumber: phone, PhoneCodeHash: sent.GetPhoneCodeHash(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("повторная отправка кода: %w", err)
+	}
+	next, ok := o.(*mtproto.TLAuthSentCode)
+	if !ok {
+		return nil, fmt.Errorf("повторная отправка кода: ответ %T", o)
+	}
+	return next, nil
+}
+
+// cancelCode tells Telegram the code will not be used, as an official app
+// does when the user goes back.
+func cancelCode(c *mtclient.Client, phone, hash string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _ = c.Invoke(ctx, &mtproto.TLAuthCancelCode{
+		Constructor: c.Constructor(mtproto.Predicate_auth_cancelCode), PhoneNumber: phone, PhoneCodeHash: hash,
+	})
 }
 
 // save keeps the session of c, signed in as auth says.
