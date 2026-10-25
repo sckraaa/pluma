@@ -186,3 +186,11 @@ func (f *fakeAuthsessionClient) AuthsessionSetInitConnection(context.Context, *a
 func (f *fakeAuthsessionClient) AuthsessionSetAndroidPushSessionId(context.Context, *authsession.TLAuthsessionSetAndroidPushSessionId) (*mtproto.Bool, error) {
 	return nil, nil
 }
+
+func (f *fakeAuthsessionClient) AuthsessionDestroyAuthKey(context.Context, *authsession.TLAuthsessionDestroyAuthKey) (*authsession.Vector_Long, error) {
+	return nil, nil
+}
+
+func (f *fakeAuthsessionClient) AuthsessionDropTempAuthKeys(context.Context, *authsession.TLAuthsessionDropTempAuthKeys) (*authsession.Vector_Long, error) {
+	return nil, nil
+}

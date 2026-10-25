@@ -146,6 +146,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1834474692,
 		}
 	},
+	-1469997976: func() mtproto.TLObject { // 0xa8619c68 pluma: task 008
+		return &TLAuthsessionDestroyAuthKey{
+			Constructor: -1469997976,
+		}
+	},
+	2010870522: func() mtproto.TLObject { // 0x77db72fa pluma: task 008
+		return &TLAuthsessionDropTempAuthKeys{
+			Constructor: 2010870522,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1366,6 +1376,84 @@ func (m *TLAuthsessionSetAndroidPushSessionId) Decode(dBuf *mtproto.DecodeBuf) e
 		m.UserId = dBuf.Long()
 		m.AuthKeyId = dBuf.Long()
 		m.SessionId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLAuthsessionDestroyAuthKey (pluma: task 008)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLAuthsessionDestroyAuthKey) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xa8619c68:
+		x.UInt(0xa8619c68)
+
+		// no flags
+
+		x.Long(m.GetAuthKeyId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLAuthsessionDestroyAuthKey) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLAuthsessionDestroyAuthKey) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xa8619c68:
+
+		// not has flags
+
+		m.AuthKeyId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLAuthsessionDropTempAuthKeys (pluma: task 008)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLAuthsessionDropTempAuthKeys) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x77db72fa:
+		x.UInt(0x77db72fa)
+
+		// no flags
+
+		x.Long(m.GetPermAuthKeyId())
+		x.VectorLong(m.GetExceptAuthKeys())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLAuthsessionDropTempAuthKeys) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLAuthsessionDropTempAuthKeys) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x77db72fa:
+
+		// not has flags
+
+		m.PermAuthKeyId = dBuf.Long()
+		m.ExceptAuthKeys = dBuf.VectorLong()
 		return dBuf.GetError()
 
 	default:

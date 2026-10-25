@@ -35,4 +35,8 @@ const (
 	CRC32_authsession_setLayer                TLConstructor = 1147475077  // 0x44651485
 	CRC32_authsession_setInitConnection       TLConstructor = 2095024780  // 0x7cdf8a8c
 	CRC32_authsession_setAndroidPushSessionId TLConstructor = -1834474692 // 0x92a8233c
+
+	// pluma: task 008
+	CRC32_authsession_destroyAuthKey   TLConstructor = -1469997976 // 0xa8619c68
+	CRC32_authsession_dropTempAuthKeys TLConstructor = 2010870522  // 0x77db72fa
 )

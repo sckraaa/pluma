@@ -44,6 +44,8 @@ type AuthsessionClient interface {
 	AuthsessionSetLayer(ctx context.Context, in *authsession.TLAuthsessionSetLayer) (*mtproto.Bool, error)
 	AuthsessionSetInitConnection(ctx context.Context, in *authsession.TLAuthsessionSetInitConnection) (*mtproto.Bool, error)
 	AuthsessionSetAndroidPushSessionId(ctx context.Context, in *authsession.TLAuthsessionSetAndroidPushSessionId) (*mtproto.Bool, error)
+	AuthsessionDestroyAuthKey(ctx context.Context, in *authsession.TLAuthsessionDestroyAuthKey) (*authsession.Vector_Long, error)
+	AuthsessionDropTempAuthKeys(ctx context.Context, in *authsession.TLAuthsessionDropTempAuthKeys) (*authsession.Vector_Long, error)
 }
 
 type defaultAuthsessionClient struct {
@@ -285,4 +287,26 @@ func (m *defaultAuthsessionClient) AuthsessionSetAndroidPushSessionId(ctx contex
 	}
 	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
 	return client.AuthsessionSetAndroidPushSessionId(ctx, in)
+}
+
+// AuthsessionDestroyAuthKey
+// authsession.destroyAuthKey auth_key_id:long = Vector<long>;
+func (m *defaultAuthsessionClient) AuthsessionDestroyAuthKey(ctx context.Context, in *authsession.TLAuthsessionDestroyAuthKey) (*authsession.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
+	return client.AuthsessionDestroyAuthKey(ctx, in)
+}
+
+// AuthsessionDropTempAuthKeys
+// authsession.dropTempAuthKeys perm_auth_key_id:long except_auth_keys:Vector<long> = Vector<long>;
+func (m *defaultAuthsessionClient) AuthsessionDropTempAuthKeys(ctx context.Context, in *authsession.TLAuthsessionDropTempAuthKeys) (*authsession.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
+	return client.AuthsessionDropTempAuthKeys(ctx, in)
 }

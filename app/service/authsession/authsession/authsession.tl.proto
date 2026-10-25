@@ -44,6 +44,9 @@ enum TLConstructor {
   CRC32_authsession_setLayer = 1147475077;
   CRC32_authsession_setInitConnection = 2095024780;
   CRC32_authsession_setAndroidPushSessionId = -1834474692;
+  // pluma: task 008
+  CRC32_authsession_destroyAuthKey = -1469997976;
+  CRC32_authsession_dropTempAuthKeys = 2010870522;
 }
 
 // AuthKeyStateData <--
@@ -241,6 +244,24 @@ message TL_authsession_setAndroidPushSessionId {
   int64 session_id = 5;
 }
 
+// pluma: authsession.destroyAuthKey auth_key_id:long = Vector<long>;
+// The key and, for a permanent key, its temporary keys and its user are
+// removed for good; the ids of the removed keys come back (none: the key
+// was not there).
+message TL_authsession_destroyAuthKey {
+  TLConstructor constructor = 1;
+  int64 auth_key_id = 3;
+}
+
+// pluma: authsession.dropTempAuthKeys perm_auth_key_id:long except_auth_keys:Vector<long> = Vector<long>;
+// The temporary keys bound to the permanent key are removed, but those in
+// except_auth_keys; the ids of the removed keys come back.
+message TL_authsession_dropTempAuthKeys {
+  TLConstructor constructor = 1;
+  int64 perm_auth_key_id = 3;
+  repeated int64 except_auth_keys = 4;
+}
+
 //--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_Long {
@@ -289,4 +310,9 @@ service RPCAuthsession {
       returns (mtproto.Bool) {}
   rpc authsession_setAndroidPushSessionId(
       TL_authsession_setAndroidPushSessionId) returns (mtproto.Bool) {}
+  // pluma: task 008
+  rpc authsession_destroyAuthKey(TL_authsession_destroyAuthKey)
+      returns (Vector_Long) {}
+  rpc authsession_dropTempAuthKeys(TL_authsession_dropTempAuthKeys)
+      returns (Vector_Long) {}
 }

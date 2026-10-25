@@ -34,6 +34,10 @@ const (
 	Predicate_authsession_setLayer                = "authsession_setLayer"
 	Predicate_authsession_setInitConnection       = "authsession_setInitConnection"
 	Predicate_authsession_setAndroidPushSessionId = "authsession_setAndroidPushSessionId"
+
+	// pluma: task 008
+	Predicate_authsession_destroyAuthKey   = "authsession_destroyAuthKey"
+	Predicate_authsession_dropTempAuthKeys = "authsession_dropTempAuthKeys"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -129,6 +133,14 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1834474692, // 0x92a8233c
 
 	},
+	Predicate_authsession_destroyAuthKey: { // pluma: task 008
+		0: -1469997976, // 0xa8619c68
+
+	},
+	Predicate_authsession_dropTempAuthKeys: { // pluma: task 008
+		0: 2010870522, // 0x77db72fa
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -155,6 +167,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1147475077:  Predicate_authsession_setLayer,                // 0x44651485
 	2095024780:  Predicate_authsession_setInitConnection,       // 0x7cdf8a8c
 	-1834474692: Predicate_authsession_setAndroidPushSessionId, // 0x92a8233c
+	-1469997976: Predicate_authsession_destroyAuthKey,          // 0xa8619c68 pluma: task 008
+	2010870522:  Predicate_authsession_dropTempAuthKeys,        // 0x77db72fa pluma: task 008
 
 }
 

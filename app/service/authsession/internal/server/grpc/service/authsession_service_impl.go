@@ -311,3 +311,31 @@ func (s *Service) AuthsessionSetAndroidPushSessionId(ctx context.Context, reques
 
 	return r, err
 }
+
+// AuthsessionDestroyAuthKey
+// authsession.destroyAuthKey auth_key_id:long = Vector<long>;
+func (s *Service) AuthsessionDestroyAuthKey(ctx context.Context, request *authsession.TLAuthsessionDestroyAuthKey) (*authsession.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("authsession.destroyAuthKey - metadata: {%s}", c.MD)
+
+	r, err := c.AuthsessionDestroyAuthKey(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// AuthsessionDropTempAuthKeys
+// authsession.dropTempAuthKeys perm_auth_key_id:long except_auth_keys:Vector<long> = Vector<long>;
+func (s *Service) AuthsessionDropTempAuthKeys(ctx context.Context, request *authsession.TLAuthsessionDropTempAuthKeys) (*authsession.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("authsession.dropTempAuthKeys - metadata: {%s}", c.MD)
+
+	r, err := c.AuthsessionDropTempAuthKeys(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
