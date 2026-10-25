@@ -203,8 +203,9 @@ func (s *Service) Settings(ctx context.Context, userId, authKeyId int64, in *mtp
 
 // Update applies account.updatePasswordSettings of userId: the current
 // password in (if one is set) and the new settings. A new_algo with
-// new_password_hash sets or changes the password, passwordKdfAlgoUnknown
-// with an empty hash removes it.
+// new_password_hash sets or changes the password. An empty hash removes
+// it, with passwordKdfAlgoUnknown (Android, tdesktop) or with the new_algo
+// of account.getPassword (Web K); Telegram accepts both.
 //
 // A recovery email cannot be set: there is no mail on the server. An empty
 // one (what clients send when the user skips it) is ignored, any other is
@@ -234,10 +235,10 @@ func (s *Service) Update(ctx context.Context, userId, authKeyId int64, in *mtpro
 		if p == nil {
 			return mtproto.ErrNewSettingsEmpty
 		}
-	case algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoUnknown:
-		if len(settings.GetNewPasswordHash()) != 0 {
-			return mtproto.ErrNewSettingsInvalid
-		}
+	case algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoUnknown && len(settings.GetNewPasswordHash()) != 0:
+		return mtproto.ErrNewSettingsInvalid
+	case algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoUnknown,
+		algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoModPow && len(settings.GetNewPasswordHash()) == 0:
 		if p == nil {
 			return mtproto.ErrNewSettingsEmpty
 		}

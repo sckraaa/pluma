@@ -125,6 +125,15 @@ func removeSettings() *mtproto.Account_PasswordInputSettings {
 	}).To_Account_PasswordInputSettings()
 }
 
+// removeWithNewAlgo is how Web K removes the password: the new_algo of
+// account.getPassword with an empty hash.
+func removeWithNewAlgo(t *testing.T, pw *mtproto.Account_Password) *mtproto.Account_PasswordInputSettings {
+	t.Helper()
+	s := newSettings(t, pw, "unused", "")
+	s.NewPasswordHash = []byte{}
+	return s
+}
+
 func (e *testEnv) password(t *testing.T, userId int64) *mtproto.Account_Password {
 	t.Helper()
 	pw, err := e.s.Password(context.Background(), userId)
@@ -266,6 +275,22 @@ func TestSetCheckChangeRemove(t *testing.T) {
 		t.Fatal("the password is still set")
 	}
 	mustError(t, e.s.Update(ctx, alice, keyOne, mtclient.NoPassword(), removeSettings()), "NEW_SETTINGS_EMPTY")
+	mustError(t, e.s.Update(ctx, alice, keyOne, mtclient.NoPassword(), removeWithNewAlgo(t, e.password(t, alice))), "NEW_SETTINGS_EMPTY")
+
+	// Remove as Web K does.
+	e.setPassword(t, alice, "web k", "")
+	pw = e.password(t, alice)
+	current, err = mtclient.CheckPassword(pw, "web k")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustError(t, e.s.Update(ctx, alice, keyOne, e.wrongProof(t, alice), removeWithNewAlgo(t, pw)), "PASSWORD_HASH_INVALID")
+	if err = e.s.Update(ctx, alice, keyOne, current, removeWithNewAlgo(t, pw)); err != nil {
+		t.Fatalf("remove with new_algo: %v", err)
+	}
+	if e.password(t, alice).GetHasPassword() {
+		t.Fatal("the password is still set after a removal with new_algo")
+	}
 }
 
 func TestSRPIdIsOneUse(t *testing.T) {
@@ -413,11 +438,10 @@ func TestNewAlgoMustBeIssued(t *testing.T) {
 		}
 	}
 	for name, f := range map[string]func(s *mtproto.Account_PasswordInputSettings){
-		"g":          func(s *mtproto.Account_PasswordInputSettings) { s.NewAlgo.G = 2 },
-		"p":          func(s *mtproto.Account_PasswordInputSettings) { s.NewAlgo.P = s.NewAlgo.P[1:] },
-		"hash empty": func(s *mtproto.Account_PasswordInputSettings) { s.NewPasswordHash = nil },
-		"hash 1":     func(s *mtproto.Account_PasswordInputSettings) { s.NewPasswordHash = []byte{1} },
-		"hash long":  func(s *mtproto.Account_PasswordInputSettings) { s.NewPasswordHash = make([]byte, 257) },
+		"g":         func(s *mtproto.Account_PasswordInputSettings) { s.NewAlgo.G = 2 },
+		"p":         func(s *mtproto.Account_PasswordInputSettings) { s.NewAlgo.P = s.NewAlgo.P[1:] },
+		"hash 1":    func(s *mtproto.Account_PasswordInputSettings) { s.NewPasswordHash = []byte{1} },
+		"hash long": func(s *mtproto.Account_PasswordInputSettings) { s.NewPasswordHash = make([]byte, 257) },
 		"hint": func(s *mtproto.Account_PasswordInputSettings) {
 			s.Hint = wrapperspb.String(strings.Repeat("ж", MaxHintLength+1))
 		},
