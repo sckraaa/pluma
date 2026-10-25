@@ -19,11 +19,13 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/plugin"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/pushdevices"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -33,15 +35,19 @@ type ServiceContext struct {
 	*logic.AuthLogic
 	Twofa  *twofa.Service
 	Plugin plugin.AuthorizationPlugin
+	// PushDevices: auth.logOut removes the devices of the authorization
+	// (task 009); no secrets are read here.
+	PushDevices pushdevices.Store
 }
 
 func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *ServiceContext {
 	d := dao.New(c)
 	return &ServiceContext{
-		Config:    c,
-		Dao:       d,
-		AuthLogic: logic.NewAuthSignLogic(d, logincode.MustNewService(c.LoginCode, c.Mysql, c.KV)),
-		Twofa:     twofa.MustNewService(c.Mysql, c.KV),
-		Plugin:    plugin,
+		Config:      c,
+		Dao:         d,
+		AuthLogic:   logic.NewAuthSignLogic(d, logincode.MustNewService(c.LoginCode, c.Mysql, c.KV)),
+		Twofa:       twofa.MustNewService(c.Mysql, c.KV),
+		Plugin:      plugin,
+		PushDevices: pushdevices.NewMySQLStore(sqlx.NewMySQL(&c.Mysql), nil),
 	}
 }

@@ -58,6 +58,7 @@ openssl rand -hex 24   # по одному значению на каждый п
 | `SERVER_RSA_KEY_FILE` | путь к ключу на хосте, по умолчанию `./secrets/server_pkcs1.key` |
 | `SERVER_RSA_KEY_FINGERPRINT` | fingerprint из `genserverkey` |
 | `LOGIN_CODE_HMAC_KEY` | ключ HMAC для хранения кодов входа (`openssl rand -hex 32`, не короче 32 символов), см. раздел 7 |
+| `PUSH_SECRET_ENCRYPTION_KEY` | ключ AES-256-GCM, которым bff и push хранят ключи шифрования push-устройств (`push_devices.secret`; `openssl rand -hex 32`); отдельный от `AUTH_KEY_ENCRYPTION_KEY`, чтобы bff не мог открыть ключи MTProto; без него bff не стартует |
 | `AUTH_KEY_ENCRYPTION_KEY` | ключ AES-256-GCM, которым authsession шифрует ключи MTProto в `auth_keys` и в Redis (`openssl rand -hex 32`, ровно 64 hex-символа); без него authsession не стартует, см. раздел 4 |
 
 Конфиги сервисов (`teamgramd/etc2`, `teamgramd/etc`) берут секреты из окружения через `${ИМЯ}`. Если переменная не задана, сервис не стартует и называет её. В ошибках фигурируют только имена переменных, без значений. Конфиг целиком в лог при старте больше не пишется.
@@ -97,6 +98,7 @@ docker compose up -d --build                      # сервисы teamgram
   - Уже сохранённые открытые ключи authsession шифрует сам: ключ клиента — при первом чтении, остальные — фоновым воркером в течение нескольких минут.
   - **Ключ шифрования не менять.** С другим ключом authsession не прочитает ни один сохранённый ключ, и всем клиентам придётся входить заново.
   - Ключ лежит в `.env`. Бэкап restic содержит его вместе с базой, зашифрованным паролем restic.
+- **Push-устройства (задача 009):** до запуска новой версии задайте `PUSH_SECRET_ENCRYPTION_KEY` в `.env`, иначе bff не стартует. Таблицу `push_devices` создаст сервис `migrate`. Смена ключа не ломает вход: устройства просто перестанут получать push, пока клиенты не зарегистрируются заново (в течение суток).
   - Утёкший дамп MySQL или копия Redis без ключа трафик не раскрывают.
 - **Если старая установка была доступна из интернета** (MySQL и Redis без паролей были опубликованы до задачи 001), в базу и Redis мог писать кто угодно: подделать привязки, ключи, коды. После обновления завершите все сессии: при остановленных сервисах `DELETE FROM auth_users; DELETE FROM auths; DELETE FROM auth_key_infos; DELETE FROM auth_keys;` и удалите их кэш в Redis (`redis-cli -a "$REDIS_PASSWORD" --scan --pattern 'auth_*' | xargs -r redis-cli -a "$REDIS_PASSWORD" del`; не `FLUSHALL`: в Redis лежат pts и счётчики id). Всем пользователям придётся войти заново, зато не останется ключей, которые мог создать посторонний. Проверьте и `phone_allowlist`.
 

@@ -29,7 +29,8 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 	KV                        kv.KvConf
-	Mysql                     sqlx.Config // phone allowlist (pkg/phoneallowlist), 2FA passwords (pkg/twofa), mq_outbox
+	Mysql                     sqlx.Config // phone allowlist (pkg/phoneallowlist), 2FA passwords (pkg/twofa), push devices (pkg/pushdevices), mq_outbox
+	PushSecretEncryptionKey   string      // seals the secrets of push devices (task 009)
 	LoginCode                 logincode.Config
 	BizServiceClient          zrpc.RpcClientConf
 	AuthSessionClient         zrpc.RpcClientConf

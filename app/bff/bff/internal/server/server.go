@@ -282,15 +282,18 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 			}, nil))
 
-		// notification_helper
-		mtproto.RegisterRPCNotificationServer(
-			grpcServer,
-			notification_helper.New(notification_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				UserClient:    c.BizServiceClient,
-				ChatClient:    c.BizServiceClient,
-				SyncClient:    syncClient,
-			}, nil))
+		// notification_helper; it answers messages.reportMessagesDelivery of
+		// the pushes too (task 009).
+		notificationService := notification_helper.New(notification_helper.Config{
+			RpcServerConf:           c.RpcServerConf,
+			UserClient:              c.BizServiceClient,
+			ChatClient:              c.BizServiceClient,
+			SyncClient:              syncClient,
+			Mysql:                   c.Mysql,
+			PushSecretEncryptionKey: c.PushSecretEncryptionKey,
+		}, nil)
+		mtproto.RegisterRPCNotificationServer(grpcServer, notificationService)
+		mtproto.RegisterRPCGatewayVerificationMessagesServer(grpcServer, notificationService)
 
 		// users_helper
 		mtproto.RegisterRPCUsersServer(

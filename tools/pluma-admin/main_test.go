@@ -275,6 +275,7 @@ func TestLoadsOutboxConfig(t *testing.T) {
 	t.Setenv("MYSQL_PASSWORD", "pw")
 	t.Setenv("REDIS_PASSWORD", "rpw")
 	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
+	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c outboxConfig
 		if err := conf.Load(f, &c); err != nil {
@@ -291,6 +292,7 @@ func TestLoadsPasswordConfig(t *testing.T) {
 	t.Setenv("MYSQL_PASSWORD", "pw")
 	t.Setenv("REDIS_PASSWORD", "rpw")
 	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
+	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c passwordConfig
 		if err := conf.Load(f, &c); err != nil {
@@ -307,6 +309,7 @@ func TestLoadsBffConfig(t *testing.T) {
 	t.Setenv("MYSQL_PASSWORD", "pw")
 	t.Setenv("REDIS_PASSWORD", "rpw")
 	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
+	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c config
 		if err := conf.Load(f, &c); err != nil {

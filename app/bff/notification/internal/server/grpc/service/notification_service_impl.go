@@ -114,3 +114,12 @@ func (s *Service) AccountGetNotifyExceptions(ctx context.Context, request *mtpro
 
 	return r, err
 }
+
+// MessagesReportMessagesDelivery
+// messages.reportMessagesDelivery#5a6d7395 flags:# push:flags.0?true peer:InputPeer id:Vector<int> = Bool;
+// pluma: task 009, RPCGatewayVerificationMessages is served here.
+func (s *Service) MessagesReportMessagesDelivery(ctx context.Context, request *mtproto.TLMessagesReportMessagesDelivery) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.reportMessagesDelivery - metadata: {%s}", c.MD)
+	return c.MessagesReportMessagesDelivery(request)
+}

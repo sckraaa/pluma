@@ -24,9 +24,21 @@ import (
 
 // AccountUpdateDeviceLocked
 // account.updateDeviceLocked#38df3532 period:int = Bool;
+//
+// Keeps the inactivity period after which the pushes of this
+// authorization's devices hide message texts (task 009); iOS reports it,
+// -1 or 0 when the device has no lock.
 func (c *NotificationCore) AccountUpdateDeviceLocked(in *mtproto.TLAccountUpdateDeviceLocked) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.updateDeviceLocked blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
+	if c.MD.UserId == 0 || c.MD.PermAuthKeyId == 0 {
+		return nil, mtproto.ErrAuthKeyUnregistered
+	}
+	period := in.GetPeriod()
+	if period < 0 {
+		period = 0
+	}
+	if err := c.svcCtx.PushDevices.SetLockedPeriod(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, period); err != nil {
+		c.Logger.Errorf("account.updateDeviceLocked - user %d: %v", c.MD.UserId, err)
+		return nil, mtproto.ErrInternalServerError
+	}
 	return mtproto.BoolTrue, nil
 }

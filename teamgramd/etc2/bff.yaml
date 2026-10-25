@@ -41,6 +41,9 @@ Mysql:
 LoginCode:
   HmacKey: "${LOGIN_CODE_HMAC_KEY}"
 
+# Seals the secrets of push devices (pkg/pushdevices, task 009).
+PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
+
 BizServiceClient:
   Etcd:
     Hosts:

@@ -74,6 +74,7 @@ BFFProxyClients:
     #"/mtproto.RPCReactions": "bff.bff"
     "/mtproto.RPCMessages": "bff.bff"
     "/mtproto.RPCNotification": "bff.bff"
+    "/mtproto.RPCGatewayVerificationMessages": "bff.bff"
     "/mtproto.RPCUsers": "bff.bff"
     #"/mtproto.RPCPayments": "bff.bff"
     #"/mtproto.RPCPolls": "bff.bff"

@@ -43,6 +43,12 @@ func (c *AuthorizationCore) AuthLogOut(in *mtproto.TLAuthLogOut) (*mtproto.Auth_
 			c.svcCtx.Plugin.OnAuthLogout(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId)
 		}
 	}
+	// No pushes to the devices of this authorization any more (task 009):
+	// the clients do not unregister them themselves. A failure here leaves
+	// rows the push service drops when it finds the key unbound.
+	if _, err = c.svcCtx.PushDevices.DeleteAuthorizations(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId); err != nil {
+		c.Logger.Errorf("auth.logOut - push devices of user %d: %v", c.MD.UserId, err)
+	}
 
 	futureAuthToken := crypto.RandomBytes(64)
 	c.svcCtx.Dao.PutFutureAuthToken(c.ctx, futureAuthToken, c.MD.UserId)

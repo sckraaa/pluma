@@ -181,6 +181,7 @@ services:
     environment:
       <<: *db-env
       LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env (openssl rand -hex 32)}
+      PUSH_SECRET_ENCRYPTION_KEY: ${PUSH_SECRET_ENCRYPTION_KEY:?set PUSH_SECRET_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
     stop_grace_period: 30s
     depends_on:
       sync:

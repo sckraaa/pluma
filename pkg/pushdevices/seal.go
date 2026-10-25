@@ -65,12 +65,14 @@ func (s *Sealer) Seal(d *Device) ([]byte, error) {
 	if len(d.Secret) == 0 {
 		return nil, nil
 	}
-	out := make([]byte, 1+s.aead.NonceSize(), 1+s.aead.NonceSize()+len(d.Secret)+s.aead.Overhead())
-	out[0] = sealedV1
-	if _, err := rand.Read(out[1:]); err != nil {
+	nonce := make([]byte, s.aead.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
 		return nil, err
 	}
-	return s.aead.Seal(out, out[1:], d.Secret, additionalData(d)), nil
+	out := make([]byte, 0, 1+len(nonce)+len(d.Secret)+s.aead.Overhead())
+	out = append(out, sealedV1)
+	out = append(out, nonce...)
+	return s.aead.Seal(out, nonce, d.Secret, additionalData(d)), nil
 }
 
 // Open returns the secret of d sealed as sealed.

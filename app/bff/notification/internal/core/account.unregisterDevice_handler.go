@@ -24,9 +24,19 @@ import (
 
 // AccountUnregisterDevice
 // account.unregisterDevice#6a0d3206 token_type:int token:string other_uids:Vector<long> = Bool;
+//
+// Stops the pushes to the token for this user (task 009). Another account
+// of the same app (other_uids) keeps its own registration.
 func (c *NotificationCore) AccountUnregisterDevice(in *mtproto.TLAccountUnregisterDevice) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.unregisterDevice blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
+	if c.MD.UserId == 0 {
+		return nil, mtproto.ErrAuthKeyUnregistered
+	}
+	if in.GetToken() == "" {
+		return nil, mtproto.ErrTokenEmpty
+	}
+	if _, err := c.svcCtx.PushDevices.Unregister(c.ctx, c.MD.UserId, in.GetTokenType(), in.GetToken()); err != nil {
+		c.Logger.Errorf("account.unregisterDevice - user %d: %v", c.MD.UserId, err)
+		return nil, mtproto.ErrInternalServerError
+	}
 	return mtproto.BoolTrue, nil
 }

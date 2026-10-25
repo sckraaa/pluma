@@ -19,6 +19,7 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -28,4 +29,8 @@ type Config struct {
 	UserClient zrpc.RpcClientConf
 	ChatClient zrpc.RpcClientConf
 	SyncClient sync_client.OutboxConf
+	// pluma: task 009. Mysql keeps the push devices (pkg/pushdevices), whose
+	// secrets PushSecretEncryptionKey seals.
+	Mysql                   sqlx.Config
+	PushSecretEncryptionKey string
 }
