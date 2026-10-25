@@ -143,8 +143,24 @@ func (q *sessionOutgoingQueue) Remove(msgId int64) (oMsg *outboxMsg) {
 	return
 }
 
+// maxOutgoingQueueSize bounds the messages a session keeps until the client
+// acknowledges them.
+const maxOutgoingQueueSize = 400
+
+// RemoveSent drops the messages sent already: nothing acknowledges them here
+// any more (see session.updatePendingStates).
+func (q *sessionOutgoingQueue) RemoveSent() {
+	var next *list.Element
+	for e := q.oMsgs.Front(); e != nil; e = next {
+		next = e.Next()
+		if e.Value.(*outboxMsg).sent != 0 {
+			q.oMsgs.Remove(e)
+		}
+	}
+}
+
 func (q *sessionOutgoingQueue) Shrink() {
-	for q.oMsgs.Len() > maxQueueSize {
+	for q.oMsgs.Len() > maxOutgoingQueueSize {
 		iMsg := q.oMsgs.Remove(q.oMsgs.Front())
 		q.minMsgId = iMsg.(*outboxMsg).msgId
 	}

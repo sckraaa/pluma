@@ -754,8 +754,13 @@ func (c *session) sendPendingBatch(ctx context.Context, gatewayId string, batch 
 }
 
 func (c *session) updatePendingStates(ctx context.Context, pendings []*outboxMsg, sentTime int64) {
+	// Once auth.bindTempAuthKey succeeded, the key's traffic, the client's
+	// acknowledgements included, goes to the wrapper of its permanent key:
+	// what the wrapper of the unbound key sends is never acknowledged here
+	// and must not be sent again (it was, every waitMsgAcksTimeout).
+	bound := c.sessList.cb.unboundTempKey && c.sessList.state == mtproto.AuthStatePermBound
 	for _, m := range pendings {
-		if m.state == NEED_NO_ACK {
+		if m.state == NEED_NO_ACK || bound {
 			logx.WithContext(ctx).Infof("sess: %s >>> need_no_ack: %d", c, m.msgId)
 			c.outQueue.Remove(m.msgId)
 			continue

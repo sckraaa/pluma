@@ -514,6 +514,15 @@ func (c *session) onRpcResult(ctx context.Context, rpcResult *rpcApiMessage) {
 		_ = request
 		if rpcErr == nil {
 			c.sessList.changeAuthState(mtproto.AuthStatePermBound)
+			// In the wrapper of the key while it was unbound: what it sent
+			// before is acknowledged to the permanent key's wrapper now;
+			// the binding's answer, still to be sent, goes once
+			// (updatePendingStates).
+			if c.sessList.cb.unboundTempKey {
+				for _, sess := range c.sessList.sessions {
+					sess.outQueue.RemoveSent()
+				}
+			}
 		}
 	case *mtproto.TLAuthLogOut:
 		c.sessList.cb.changeAuthState(ctx, mtproto.AuthStateLogout, 0)

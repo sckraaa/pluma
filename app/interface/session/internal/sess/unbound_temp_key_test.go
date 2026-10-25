@@ -248,3 +248,55 @@ func TestFailedBindTempAuthKeyKeepsWrapper(t *testing.T) {
 			w.state, w.AuthUserId, w.running.True())
 	}
 }
+
+// After auth.bindTempAuthKey succeeds, the client acknowledges to the
+// permanent key's wrapper: the wrapper of the unbound key drops what it sent
+// and sends the binding's answer once (task 008; it sent them again every
+// waitMsgAcksTimeout). A permanent key's wrapper keeps waiting for acks.
+func TestBoundTempKeyWrapperDoesNotResend(t *testing.T) {
+	w, sess := newTestUnboundWrapper(t, &fakeAuthsessionClient{})
+	sent := sess.outQueue.AddNotifyMsg(1, true, &mtproto.TLMessageRawData{MsgId: 4001, Seqno: 1})
+	sent.sent = 1_800_000_000
+	sess.inQueue.AddMsgId(testBindMsgId)
+
+	request := &rpcApiMessage{
+		ctx:       context.Background(),
+		sessList:  w.tempAuth,
+		sessionId: testSessionId,
+		reqMsgId:  testBindMsgId,
+		reqMsg:    &mtproto.TLAuthBindTempAuthKey{PermAuthKeyId: testVictimPerm},
+	}
+	doRpcRequest(context.Background(), w.cb.Dao, &metadata.RpcMetadata{AuthId: testTempKeyId}, request)
+	if _, failed := request.TryGetRpcResultError(); failed {
+		t.Fatalf("binding failed: %v", request.rpcResult)
+	}
+	sess.onRpcResult(context.Background(), request)
+
+	if sess.outQueue.Lookup(sent.msgId) != nil {
+		t.Fatal("a message sent before the binding is still waiting for an ack")
+	}
+	if sess.outQueue.oMsgs.Len() != 1 {
+		t.Fatalf("%d messages queued, want the binding's answer", sess.outQueue.oMsgs.Len())
+	}
+	var pendings []*outboxMsg
+	for e := sess.outQueue.oMsgs.Front(); e != nil; e = e.Next() {
+		pendings = append(pendings, e.Value.(*outboxMsg))
+	}
+	sess.updatePendingStates(context.Background(), pendings, 1_800_000_001)
+	if sess.outQueue.oMsgs.Len() != 0 {
+		t.Fatal("the binding's answer waits for an ack that will not come here")
+	}
+
+	// A permanent key's wrapper: the same states keep its messages.
+	manager := NewMainAuthWrapperManager(&dao.Dao{AuthsessionClient: &fakeAuthsessionClient{}})
+	perm := newMainAuthWrapper(testVictimPerm, 42, mtproto.AuthStateNormal, nil, 0, manager)
+	perm.resetAuth(mtproto.AuthKeyTypeTemp, testTempKeyId)
+	permSess := newSession(testSessionId, perm.tempAuth)
+	perm.tempAuth.sessions[testSessionId] = permSess
+	perm.tempAuth.changeAuthState(mtproto.AuthStatePermBound)
+	m := permSess.outQueue.AddNotifyMsg(2, true, &mtproto.TLMessageRawData{MsgId: 4005, Seqno: 1})
+	permSess.updatePendingStates(context.Background(), []*outboxMsg{m}, 1_800_000_001)
+	if permSess.outQueue.Lookup(m.msgId) == nil {
+		t.Fatal("a permanent key's wrapper dropped a message waiting for its ack")
+	}
+}

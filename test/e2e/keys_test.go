@@ -27,9 +27,10 @@ import (
 )
 
 // Removal of auth keys (task 008): destroy_auth_key, auth.dropTempAuthKeys,
-// and who may terminate the other sessions. A removed key stops working at
-// once: session reports it unknown and the gateway answers -404 (and reads
-// every key again within a minute anyway).
+// and who may terminate the other sessions. A destroyed permanent key stops
+// at once: session reports it unknown and the gateway answers -404. A
+// dropped temporary key stops when the gateway reads it again, within a
+// minute; a client that dropped it does not use it meanwhile.
 
 // keyGoneWithin is how long a removed key may keep working at most: the
 // gateway's recheck interval and some slack.
@@ -90,6 +91,11 @@ func TestDropTempAuthKeys(t *testing.T) {
 	if _, err = temp.InitConnection(ctx); err != nil {
 		t.Fatalf("initConnection over the bound key: %v", err)
 	}
+	// The acknowledgements of what the server sent go with the ping: a
+	// client drops keys it is done with, not ones with messages in flight.
+	if err = temp.Ping(ctx); err != nil {
+		t.Fatalf("ping over the bound key: %v", err)
+	}
 
 	o, err := u.c.Invoke(ctx, &mtproto.TLAuthDropTempAuthKeys{
 		Constructor: u.c.Constructor(mtproto.Predicate_auth_dropTempAuthKeys),
@@ -97,7 +103,19 @@ func TestDropTempAuthKeys(t *testing.T) {
 	if _, ok := o.(*mtproto.TLBoolTrue); err != nil || !ok {
 		t.Fatalf("auth.dropTempAuthKeys: %T, %v; want boolTrue", o, err)
 	}
-	waitKeyGone(ctx, t, "dropped temporary key", temp)
+	// As a client that dropped the key: silent until the gateway has read
+	// its keys again, then the key is refused.
+	select {
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	case <-time.After(keyGoneWithin - 25*time.Second):
+	}
+	rctx, rcancel := context.WithTimeout(ctx, 10*time.Second)
+	_, err = temp.Invoke(rctx, &mtproto.TLHelpGetConfig{Constructor: temp.Constructor(mtproto.Predicate_help_getConfig)})
+	rcancel()
+	if err == nil || temp.Err() == nil {
+		t.Fatalf("the dropped temporary key still works after a minute: %v", err)
+	}
 	if _, err = u.c.Invoke(ctx, &mtproto.TLHelpGetConfig{Constructor: u.c.Constructor(mtproto.Predicate_help_getConfig)}); err != nil {
 		t.Fatalf("the permanent key stopped working with its temporary keys: %v", err)
 	}
