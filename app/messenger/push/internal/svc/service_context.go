@@ -21,12 +21,12 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/push/internal/config"
 	"github.com/teamgram/teamgram-server/app/messenger/push/internal/core"
 	"github.com/teamgram/teamgram-server/app/messenger/push/internal/dao"
-	"github.com/teamgram/teamgram-server/app/messenger/push/internal/provider"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
+	"github.com/teamgram/teamgram-server/pkg/pushprovider"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -43,9 +43,9 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	sealer, err := pushdevices.NewSealer(c.PushSecretEncryptionKey)
 	logx.Must(err)
-	apns, err := provider.NewAPNs(c.APNs, nil)
+	apns, err := pushprovider.NewAPNs(c.APNs, nil)
 	logx.Must(err)
-	fcm, err := provider.NewFCM(c.FCM, nil)
+	fcm, err := pushprovider.NewFCM(c.FCM, nil)
 	logx.Must(err)
 	deps := core.Deps{
 		Devices:        pushdevices.NewMySQLStore(sqlx.NewMySQL(&c.Mysql), sealer),

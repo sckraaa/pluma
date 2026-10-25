@@ -17,8 +17,8 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
-	"github.com/teamgram/teamgram-server/app/messenger/push/internal/provider"
 	"github.com/teamgram/teamgram-server/pkg/mqconsumer"
+	"github.com/teamgram/teamgram-server/pkg/pushprovider"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -36,6 +36,6 @@ type Config struct {
 	StatusClient      zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
 	BizServiceClient  zrpc.RpcClientConf // notify settings, messages
-	APNs              provider.APNsConfig
-	FCM               provider.FCMConfig
+	APNs              pushprovider.APNsConfig
+	FCM               pushprovider.FCMConfig
 }

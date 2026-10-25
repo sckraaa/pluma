@@ -20,7 +20,7 @@ import (
 )
 
 // metricSent counts the sends by provider (apns, fcm) and result
-// (provider.Outcome). auth_failed means the provider refused our key: the
+// (pushprovider.Outcome). auth_failed means the provider refused our key: the
 // alert PushProviderAuthFailed.
 var metricSent = metric.NewCounterVec(&metric.CounterVecOpts{
 	Namespace: "push",

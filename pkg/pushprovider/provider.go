@@ -13,11 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package provider sends pushes to Apple (APNs) and Google (FCM HTTP v1)
+// Package pushprovider sends pushes to Apple (APNs) and Google (FCM HTTP v1)
 // (task 009, ADR 0017). A send is retried while the provider is temporarily
 // unable, within the caller's deadline; a provider that keeps failing is
 // skipped for a while instead of holding every push (breaker).
-package provider
+package pushprovider
 
 import (
 	"context"

@@ -25,9 +25,9 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/push/internal/notify"
-	"github.com/teamgram/teamgram-server/app/messenger/push/internal/provider"
 	"github.com/teamgram/teamgram-server/pkg/pushcrypt"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
+	"github.com/teamgram/teamgram-server/pkg/pushprovider"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -57,13 +57,13 @@ type Messages interface {
 	UserMessage(ctx context.Context, userId int64, id int32) (*mtproto.Message, error)
 }
 
-// APNs and FCM send pushes (provider.APNs, provider.FCM).
+// APNs and FCM send pushes (pushprovider.APNs, pushprovider.FCM).
 type APNs interface {
-	Send(ctx context.Context, p *provider.APNsPush) (provider.Outcome, error)
+	Send(ctx context.Context, p *pushprovider.APNsPush) (pushprovider.Outcome, error)
 }
 
 type FCM interface {
-	Send(ctx context.Context, token string, data map[string]string, validateOnly bool) (provider.Outcome, error)
+	Send(ctx context.Context, token string, data map[string]string, validateOnly bool) (pushprovider.Outcome, error)
 }
 
 // Deps are what the core works with.
@@ -311,7 +311,7 @@ func (c *Core) deliver(ctx context.Context, n *notify.Notification, d *pushdevic
 	log := logx.WithContext(ctx)
 	var (
 		name    string
-		outcome provider.Outcome
+		outcome pushprovider.Outcome
 		err     error
 	)
 	switch d.TokenType {
@@ -329,8 +329,8 @@ func (c *Core) deliver(ctx context.Context, n *notify.Notification, d *pushdevic
 	}
 	metricSent.Inc(name, string(outcome))
 	switch outcome {
-	case provider.OutcomeSent, provider.OutcomeDisabled:
-	case provider.OutcomeTokenInvalid:
+	case pushprovider.OutcomeSent, pushprovider.OutcomeDisabled:
+	case pushprovider.OutcomeTokenInvalid:
 		log.Infof("push: %s device %d of user %d: the token is invalid (%v)", name, d.Id, d.UserId, err)
 		if d.TokenType == pushdevices.TokenAPNs {
 			// The next registration of the token gets TOKEN_WAS_INVALIDATED.
@@ -346,19 +346,19 @@ func (c *Core) deliver(ctx context.Context, n *notify.Notification, d *pushdevic
 	}
 }
 
-func (c *Core) sendFCM(ctx context.Context, n *notify.Notification, d *pushdevices.Device, hideText bool) (provider.Outcome, error) {
+func (c *Core) sendFCM(ctx context.Context, n *notify.Notification, d *pushdevices.Device, hideText bool) (pushprovider.Outcome, error) {
 	payload, err := notify.Android(n, hideText)
 	if err != nil {
-		return provider.OutcomeRejected, err
+		return pushprovider.OutcomeRejected, err
 	}
 	p, err := pushcrypt.EncodeP(d.Secret, payload)
 	if err != nil {
-		return provider.OutcomeRejected, err
+		return pushprovider.OutcomeRejected, err
 	}
 	return c.FCM.Send(ctx, d.Token, map[string]string{"p": p}, false)
 }
 
-func (c *Core) sendAPNs(ctx context.Context, n *notify.Notification, d *pushdevices.Device, hideText bool) (provider.Outcome, error) {
+func (c *Core) sendAPNs(ctx context.Context, n *notify.Notification, d *pushdevices.Device, hideText bool) (pushprovider.Outcome, error) {
 	hide := notify.HideNone
 	if hideText {
 		hide = notify.HideText
@@ -368,20 +368,20 @@ func (c *Core) sendAPNs(ctx context.Context, n *notify.Notification, d *pushdevi
 	}
 	push, err := notify.IOS(n, d.LangCode, hide)
 	if err != nil {
-		return provider.OutcomeRejected, err
+		return pushprovider.OutcomeRejected, err
 	}
 	if push == nil {
 		return "", nil
 	}
 	p, err := pushcrypt.EncodeP(d.Secret, push.Payload)
 	if err != nil {
-		return provider.OutcomeRejected, err
+		return pushprovider.OutcomeRejected, err
 	}
-	body, req := apnsBody(push, p), &provider.APNsPush{Token: d.Token, Sandbox: d.AppSandbox}
+	body, req := apnsBody(push, p), &pushprovider.APNsPush{Token: d.Token, Sandbox: d.AppSandbox}
 	if push.Alert {
-		req.Type, req.Expiration = provider.APNsAlert, c.now().Add(alertExpiration)
+		req.Type, req.Expiration = pushprovider.APNsAlert, c.now().Add(alertExpiration)
 	} else {
-		req.Type, req.Expiration = provider.APNsBackground, c.now().Add(backgroundExpiration)
+		req.Type, req.Expiration = pushprovider.APNsBackground, c.now().Add(backgroundExpiration)
 	}
 	req.Body = body
 	return c.APNs.Send(ctx, req)

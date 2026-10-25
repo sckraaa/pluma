@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/push/internal/provider"
 	"github.com/teamgram/teamgram-server/pkg/pushcrypt"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
+	"github.com/teamgram/teamgram-server/pkg/pushprovider"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -81,26 +81,26 @@ type sent struct {
 	provider string
 	token    string
 	p        string // encrypted
-	apns     *provider.APNsPush
+	apns     *pushprovider.APNsPush
 }
 
 type fakeProviders struct {
 	mu       sync.Mutex
 	sent     []sent
-	lastAPNs *provider.APNsPush
-	outcome  map[string]provider.Outcome // by token; sent by default
+	lastAPNs *pushprovider.APNsPush
+	outcome  map[string]pushprovider.Outcome // by token; sent by default
 }
 
-func (f *fakeProviders) result(token string) provider.Outcome {
+func (f *fakeProviders) result(token string) pushprovider.Outcome {
 	if o, ok := f.outcome[token]; ok {
 		return o
 	}
-	return provider.OutcomeSent
+	return pushprovider.OutcomeSent
 }
 
 type fakeAPNs struct{ *fakeProviders }
 
-func (f fakeAPNs) Send(_ context.Context, p *provider.APNsPush) (provider.Outcome, error) {
+func (f fakeAPNs) Send(_ context.Context, p *pushprovider.APNsPush) (pushprovider.Outcome, error) {
 	var body struct {
 		P string `json:"p"`
 	}
@@ -114,7 +114,7 @@ func (f fakeAPNs) Send(_ context.Context, p *provider.APNsPush) (provider.Outcom
 
 type fakeFCM struct{ *fakeProviders }
 
-func (f fakeFCM) Send(_ context.Context, token string, data map[string]string, _ bool) (provider.Outcome, error) {
+func (f fakeFCM) Send(_ context.Context, token string, data map[string]string, _ bool) (pushprovider.Outcome, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.sent = append(f.sent, sent{provider: "fcm", token: token, p: data["p"]})
@@ -141,7 +141,7 @@ func newEnv(t *testing.T) *env {
 		settings: fakeSettings{},
 		online:   fakeOnline{},
 		messages: fakeMessages{},
-		pushes:   &fakeProviders{outcome: map[string]provider.Outcome{}},
+		pushes:   &fakeProviders{outcome: map[string]pushprovider.Outcome{}},
 		secrets:  map[string][]byte{},
 		ids:      map[string]int64{},
 	}
@@ -188,7 +188,7 @@ func (e *env) take(t *testing.T) map[string]map[string]any {
 	return out
 }
 
-func (e *env) lastAPNs() *provider.APNsPush {
+func (e *env) lastAPNs() *pushprovider.APNsPush {
 	e.pushes.mu.Lock()
 	defer e.pushes.mu.Unlock()
 	return e.pushes.lastAPNs
@@ -238,7 +238,7 @@ func TestMessageToEveryDevice(t *testing.T) {
 	var outer map[string]any
 	_ = json.Unmarshal(p.Body, &outer)
 	aps := outer["aps"].(map[string]any)
-	if p.Type != provider.APNsAlert || aps["mutable-content"] != float64(1) || aps["alert"].(map[string]any)["body"] != "Новое сообщение" ||
+	if p.Type != pushprovider.APNsAlert || aps["mutable-content"] != float64(1) || aps["alert"].(map[string]any)["body"] != "Новое сообщение" ||
 		bytes.Contains(p.Body, []byte("привет")) || p.Expiration.IsZero() {
 		t.Fatalf("APNs request: %+v %s", p, p.Body)
 	}
@@ -346,8 +346,8 @@ func TestPreviewsSilentAndLock(t *testing.T) {
 func TestInvalidTokens(t *testing.T) {
 	e := newEnv(t)
 	ctx := context.Background()
-	e.pushes.outcome["fcm-token"] = provider.OutcomeTokenInvalid
-	e.pushes.outcome["apns-token"] = provider.OutcomeTokenInvalid
+	e.pushes.outcome["fcm-token"] = pushprovider.OutcomeTokenInvalid
+	e.pushes.outcome["apns-token"] = pushprovider.OutcomeTokenInvalid
 	e.core.Handle(ctx, &Event{UserId: me, Updates: newMessage(5, mtproto.MakePeerUser(anna), "x")})
 	_ = e.take(t)
 	if ds, _ := e.devices.List(ctx, me); len(ds) != 0 {
@@ -404,7 +404,7 @@ func TestPinnedAndReadHistory(t *testing.T) {
 	if len(got) != 1 || got["apns-token"]["loc-key"] != "READ_HISTORY" || got["apns-token"]["max_id"] != "12" {
 		t.Fatalf("read history: %v", got)
 	}
-	if p := e.lastAPNs(); p.Type != provider.APNsBackground || bytes.Contains(p.Body, []byte(`"alert"`)) {
+	if p := e.lastAPNs(); p.Type != pushprovider.APNsBackground || bytes.Contains(p.Body, []byte(`"alert"`)) {
 		t.Fatalf("read history APNs request: %+v %s", p, p.Body)
 	}
 }

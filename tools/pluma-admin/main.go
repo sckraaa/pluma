@@ -141,6 +141,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] premium list
   pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
+  pluma-admin -f push.yaml push check   (asks APNs and FCM whether they take the keys; nothing is delivered)
 
 Phones are international numbers, e.g. +79991234567.
 state-raise and state-export-legacy run only while msg and biz are stopped.
@@ -193,6 +194,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return premiumCommand(args, configFile, stdout)
 	case "password":
 		return passwordCommand(args, configFile, stdout)
+	case "push":
+		return pushCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {
