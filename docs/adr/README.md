@@ -23,3 +23,4 @@
 | [0015](0015-contacts-by-phone.md) | Контакты по номеру: телефонная книга на сервере, лимит, уведомления о регистрации | accepted |
 | [0016](0016-no-premium.md) | Premium в Pluma: по умолчанию ни у кого, выдаёт администратор | accepted |
 | [0017](0017-push-notifications.md) | Push-уведомления: отдельный сервис на потоке Sync-T, только зашифрованные push | accepted |
+| [0018](0018-conformance-harness.md) | Сравнительные тесты: свой клиент mtclient, сценарии на Go, эталоны в JSON | accepted |
