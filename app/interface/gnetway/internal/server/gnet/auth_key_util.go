@@ -23,10 +23,12 @@ import (
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
 )
 
-// tempAuthKeyRecheckInterval bounds how long the gateway uses a cached
-// temporary key before it asks authsession again whether the key is still
-// valid (it may have expired) and what it is bound to.
-const tempAuthKeyRecheckInterval = 60 // seconds
+// authKeyRecheckInterval bounds how long the gateway uses a cached key
+// before it asks authsession again whether the key is still valid: a
+// temporary key may have expired or been bound, any key may have been
+// destroyed (destroy_auth_key, auth.dropTempAuthKeys, the removal of expired
+// keys).
+const authKeyRecheckInterval = 60 // seconds
 
 // maxUnboundTempKeyReads bounds how many times the gateway reads a temporary
 // key from authsession while it stays unbound. Every message of an unbound
@@ -53,8 +55,9 @@ type authKeyUtil struct {
 	// gateway knows it (the key was created by its own handshake); 0 when
 	// unknown or the key does not expire.
 	expiresAt int64
-	// recheckAt: unix time after which a temporary key must be read again
-	// from authsession; 0 means never (permanent keys).
+	// recheckAt: unix time after which the key must be read again from
+	// authsession; 0 means never (a key that did not come from authsession
+	// or a handshake).
 	recheckAt int64
 	// unboundReads counts the reads of an unbound temporary key from
 	// authsession (see maxUnboundTempKeyReads). It is shared by every
@@ -70,14 +73,15 @@ func newAuthKeyUtil(k *mtproto.AuthKeyInfo) *authKeyUtil {
 }
 
 // newCheckedAuthKeyUtil wraps key data just read from authsession (or created
-// by a handshake) at unix time now. A temporary key is re-read after
-// tempAuthKeyRecheckInterval; an unbound one on every message (needsRecheck).
+// by a handshake) at unix time now. The key is re-read after
+// authKeyRecheckInterval; an unbound temporary key on every message
+// (needsRecheck).
 func newCheckedAuthKeyUtil(k *mtproto.AuthKeyInfo, now, expiresAt int64) *authKeyUtil {
 	u := newAuthKeyUtil(k)
 	if u.isTemp() {
 		u.expiresAt = expiresAt
-		u.recheckAt = now + tempAuthKeyRecheckInterval
 	}
+	u.recheckAt = now + authKeyRecheckInterval
 	u.unboundReads = new(atomic.Int32)
 	return u
 }

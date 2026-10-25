@@ -159,9 +159,11 @@ func TestAuthKeyUtilRecheckAndExpiry(t *testing.T) {
 		wantRecheck bool
 		wantExpired bool
 	}{
-		{"perm key is never rechecked", perm, testNow + 365*86400, false, false},
-		{"bound temp key within the recheck interval", bound, testNow + tempAuthKeyRecheckInterval - 1, false, false},
-		{"bound temp key after the recheck interval", bound, testNow + tempAuthKeyRecheckInterval, true, false},
+		{"perm key within the recheck interval", perm, testNow + authKeyRecheckInterval - 1, false, false},
+		{"perm key after the recheck interval (it may be destroyed)", perm, testNow + authKeyRecheckInterval, true, false},
+		{"perm key never expires", perm, testNow + 365*86400, true, false},
+		{"bound temp key within the recheck interval", bound, testNow + authKeyRecheckInterval - 1, false, false},
+		{"bound temp key after the recheck interval", bound, testNow + authKeyRecheckInterval, true, false},
 		{"bound temp key at its expiry", bound, testNow + 3600, true, true},
 		{"unbound temp key is always rechecked", unbound, testNow, true, false},
 	}
@@ -183,7 +185,7 @@ func TestCheckQueriedAuthKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("checkQueriedAuthKey: %v", err)
 	}
-	if key.PermAuthKeyId() != testPermKeyId || key.expiresAt != testNow+3600 || key.recheckAt != testNow+tempAuthKeyRecheckInterval {
+	if key.PermAuthKeyId() != testPermKeyId || key.expiresAt != testNow+3600 || key.recheckAt != testNow+authKeyRecheckInterval {
 		t.Fatalf("unexpected key: perm %d expiresAt %d recheckAt %d", key.PermAuthKeyId(), key.expiresAt, key.recheckAt)
 	}
 
@@ -204,7 +206,7 @@ func TestCheckQueriedAuthKey(t *testing.T) {
 
 	perm := testKeyInfo(t, testPermKeyId, mtproto.AuthKeyTypePerm, 0)
 	key, err = checkQueriedAuthKey(testPermKeyId, perm, testNow, nil)
-	if err != nil || key.recheckAt != 0 || key.expiresAt != 0 {
+	if err != nil || key.recheckAt != testNow+authKeyRecheckInterval || key.expiresAt != 0 {
 		t.Fatalf("perm key: %v, recheckAt %d, expiresAt %d", err, key.recheckAt, key.expiresAt)
 	}
 }
