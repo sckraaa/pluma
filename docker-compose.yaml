@@ -53,6 +53,7 @@ services:
     environment:
       <<: *db-env
       LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env (openssl rand -hex 32)}
+      PUSH_SECRET_ENCRYPTION_KEY: ${PUSH_SECRET_ENCRYPTION_KEY:?set PUSH_SECRET_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.

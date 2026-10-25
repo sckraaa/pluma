@@ -80,14 +80,33 @@ func TestComposeServices(t *testing.T) {
 	} else if mig.Restart != "no" || len(mig.Command) < 4 || mig.Command[0] != "./pluma-admin" || mig.Command[2] != "migrate" || mig.Command[3] != "up" {
 		t.Errorf("migrate: command %q, restart %q", mig.Command, mig.Restart)
 	}
-	delete(compose.Services, "migrate")
 	// storage-init prepares Garage with the dfs config before dfs starts.
 	if si, ok := compose.Services["storage-init"]; !ok {
 		t.Error("no storage-init service")
 	} else if si.Restart != "no" || len(si.Command) < 5 || si.Command[0] != "./pluma-admin" || si.Command[1] != "-f=../etc2/dfs.yaml" || si.Command[2] != "storage" || si.Command[3] != "init" {
 		t.Errorf("storage-init: command %q, restart %q", si.Command, si.Restart)
 	}
-	delete(compose.Services, "storage-init")
+	// The one-shot services load a whole service config: it must find
+	// every variable of it.
+	for _, name := range []string{"migrate", "storage-init"} {
+		s := compose.Services[name]
+		for _, arg := range s.Command {
+			cfgName, ok := strings.CutPrefix(arg, "-f=../etc2/")
+			if !ok {
+				continue
+			}
+			cfg, err := os.ReadFile(filepath.Join(repoRoot, "teamgramd/etc2", cfgName))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, m := range varRe.FindAllStringSubmatch(string(cfg), -1) {
+				if val, ok := s.Environment[m[1]]; !ok || !strings.HasPrefix(val, "${"+m[1]+":?") {
+					t.Errorf("%s loads %s, which uses ${%s}, but does not get it as a required variable", name, cfgName, m[1])
+				}
+			}
+		}
+		delete(compose.Services, name)
+	}
 
 	for name, s := range compose.Services {
 		if !want[name] {
