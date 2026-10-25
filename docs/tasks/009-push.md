@@ -12,6 +12,17 @@
 - Сервис push: APNs (HTTP/2, token-based auth), FCM HTTP v1; зашифрованные push по схеме Telegram; VoIP push для звонков.
 - Учёт настроек уведомлений (mute, исключения), отсутствие push при активной сессии.
 
+## Данные владельца
+Получены 2026-10-25. Секреты лежат на Mac владельца в `~/pluma-secrets` (каталог 700, файлы 600), в git и в чат не попадают.
+- **APNs.**
+  - Team ID — в `.env` (`APNS_TEAM_ID`).
+  - Ключ «Pluma APNs», Key ID — в `.env` (`APNS_KEY_ID`), P-256, файл `~/pluma-secrets/apns/AuthKey_<Key ID>.p8`. Один ключ на sandbox и production, для обычных и VoIP push.
+  - Bundle ID `chat.pluma.app` с Push Notifications.
+- **FCM.**
+  - Проект Firebase Pluma (ID и номер — в `google-services.json`).
+  - Android-приложение `chat.pluma.app`, `~/pluma-secrets/firebase/google-services.json`. Файл не секретный, он вшивается в APK вместо файла Telegram.
+  - Ключ сервисного аккаунта для сервера ещё не создан. Нужен отдельный аккаунт с ролью Firebase Cloud Messaging API Admin, а не ключ Admin SDK.
+
 ## Критерии приёмки
 - iOS и Android в фоне получают уведомление ≤3 с после отправки; текст расшифровывается Notification Service Extension.
 
