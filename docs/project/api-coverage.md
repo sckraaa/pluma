@@ -6,11 +6,11 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 152, partial 25, blocked 104, notimpl 7, missing 581 (ok = 17.5%)
+    layer 228: 869 methods — ok 156, partial 25, blocked 101, notimpl 7, missing 580 (ok = 18.0%)
 
 | namespace | total | ok | partial | blocked | notimpl | missing |
 |---|---|---|---|---|---|---|
-| account | 132 | 33 | 2 | 31 | 0 | 66 |
+| account | 132 | 36 | 2 | 28 | 0 | 66 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 7 |
 | auth | 27 | 16 | 0 | 10 | 1 | 0 |
 | biz | 1 | 0 | 0 | 0 | 0 | 1 |
@@ -24,7 +24,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 |
 | help | 28 | 5 | 0 | 13 | 0 | 10 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 5 |
-| messages | 273 | 59 | 22 | 21 | 5 | 166 |
+| messages | 273 | 60 | 22 | 21 | 5 | 165 |
 | payments | 70 | 0 | 0 | 4 | 0 | 66 |
 | phone | 45 | 0 | 0 | 0 | 0 | 45 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 |
@@ -112,7 +112,7 @@
 | `account.installTheme` | missing |  |
 | `account.installWallPaper` | missing |  |
 | `account.invalidateSignInCodes` | blocked | app/bff/authorization/internal/core/account.invalidateSignInCodes_handler.go:27 |
-| `account.registerDevice` | blocked | app/bff/notification/internal/core/account.registerDevice_handler.go:27 |
+| `account.registerDevice` | ok | app/bff/notification/internal/core/account.registerDevice_handler.go:43 |
 | `account.registerPasskey` | blocked | app/bff/passkey/internal/core/account.registerPasskey_handler.go:27 |
 | `account.reorderUsernames` | missing |  |
 | `account.reportPeer` | missing |  |
@@ -150,7 +150,7 @@
 | `account.toggleUsername` | missing |  |
 | `account.toggleWebBrowserSettingsException2D0A0571` | blocked | app/bff/webbrowser/internal/core/account.toggleWebBrowserSettingsException2D0A0571_handler.go:26 |
 | `account.toggleWebBrowserSettingsException60ED4229` | blocked | app/bff/webbrowser/internal/core/account.toggleWebBrowserSettingsException60ED4229_handler.go:26 |
-| `account.unregisterDevice` | blocked | app/bff/notification/internal/core/account.unregisterDevice_handler.go:27 |
+| `account.unregisterDevice` | ok | app/bff/notification/internal/core/account.unregisterDevice_handler.go:30 |
 | `account.updateBirthday` | ok | app/bff/userchannelprofiles/internal/core/account.updateBirthday_handler.go:28 |
 | `account.updateBusinessAwayMessage` | missing |  |
 | `account.updateBusinessGreetingMessage` | missing |  |
@@ -159,7 +159,7 @@
 | `account.updateBusinessWorkHours` | missing |  |
 | `account.updateColor` | missing |  |
 | `account.updateConnectedBot` | missing |  |
-| `account.updateDeviceLocked` | blocked | app/bff/notification/internal/core/account.updateDeviceLocked_handler.go:27 |
+| `account.updateDeviceLocked` | ok | app/bff/notification/internal/core/account.updateDeviceLocked_handler.go:31 |
 | `account.updateEmojiStatus` | missing |  |
 | `account.updateNotifySettings` | partial | app/bff/notification/internal/core/account.updateNotifySettings_handler.go:48 |
 | `account.updatePasswordSettings` | ok | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:29 |
@@ -669,7 +669,7 @@
 | `messages.report8953AB4E` | missing |  |
 | `messages.reportEncryptedSpam` | missing |  |
 | `messages.reportFC78AF9B` | missing |  |
-| `messages.reportMessagesDelivery` | missing |  |
+| `messages.reportMessagesDelivery` | ok | app/bff/notification/internal/core/messages.reportMessagesDelivery_handler.go:27 |
 | `messages.reportMusicListen` | missing |  |
 | `messages.reportReaction` | missing |  |
 | `messages.reportReadMetrics` | missing |  |

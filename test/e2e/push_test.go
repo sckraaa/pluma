@@ -28,6 +28,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -204,6 +205,8 @@ func TestPush(t *testing.T) {
 	iphone := signedIn(ctx, t, phones[0], "Anna")
 	iosDev := registerDevice(ctx, t, iphone.c, 1)
 	bob := login(ctx, t, phones[1], "Bob")
+	// The name the account has: the phone may have signed up in another test.
+	bobName := strings.TrimSpace(bob.self.GetFirstName().GetValue() + " " + bob.self.GetLastName().GetValue())
 	toAnna := peerOf(ctx, t, bob, phone)
 	offline(t, phone.c)
 	offline(t, iphone.c)
@@ -216,7 +219,7 @@ func TestPush(t *testing.T) {
 		custom, _ := p["custom"].(map[string]any)
 		args, _ := p["loc_args"].([]any)
 		if p["user_id"] != float64(phone.self.GetId()) || custom["from_id"] != float64(bob.self.GetId()) || custom["msg_id"] == nil ||
-			args[0] != "Bob E2E" {
+			args[0] != bobName {
 			t.Fatalf("android payload: %v", p)
 		}
 		if string(r.Body) == "" || r.Provider != "fcm" {
@@ -227,7 +230,7 @@ func TestPush(t *testing.T) {
 	t.Run("ios", func(t *testing.T) {
 		p, r := waitPush(ctx, t, iosDev, "the message on iOS", iosText(text))
 		alert := p["aps"].(map[string]any)["alert"].(map[string]any)
-		if alert["title"] != "Bob E2E" || p["from_id"] != strconv.FormatInt(bob.self.GetId(), 10) || p["loc-key"] != nil {
+		if alert["title"] != bobName || p["from_id"] != strconv.FormatInt(bob.self.GetId(), 10) || p["loc-key"] != nil {
 			t.Fatalf("ios payload: %v", p)
 		}
 		var outer map[string]any
