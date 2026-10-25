@@ -21,7 +21,7 @@
 - **FCM.**
   - Проект Firebase Pluma (ID и номер — в `google-services.json`).
   - Android-приложение `chat.pluma.app`, `~/pluma-secrets/firebase/google-services.json`. Файл не секретный, он вшивается в APK вместо файла Telegram.
-  - Ключ сервисного аккаунта для сервера ещё не создан. Нужен отдельный аккаунт с ролью Firebase Cloud Messaging API Admin, а не ключ Admin SDK.
+  - Ключ сервера: отдельный сервисный аккаунт `pluma-push@<проект>.iam.gserviceaccount.com` с ролью Firebase Cloud Messaging API Admin (не Admin SDK), файл `~/pluma-secrets/firebase/<проект>-<id ключа>.json`.
 
 ## Критерии приёмки
 - iOS и Android в фоне получают уведомление ≤3 с после отправки; текст расшифровывается Notification Service Extension.
