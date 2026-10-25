@@ -19,16 +19,22 @@
 // them is printed or kept, only the session (DC and auth key).
 //
 //	set -a; . ~/pluma-secrets/telegram-api.env; set +a
-//	go run ./test/conformance/cmd/tglogin [-name main] [-test]
+//	go run ./test/conformance/cmd/tglogin [-name main] [-test] [-qr]
+//
+// With -qr there is no code: the program shows a QR code, which is scanned
+// in a Telegram app where the account is open (Settings, Devices, Link
+// Desktop Device), as Telegram Desktop signs in.
 package main
 
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -37,13 +43,19 @@ import (
 	"github.com/teamgram/teamgram-server/test/conformance"
 
 	"golang.org/x/term"
+	"rsc.io/qr"
 )
 
 func main() {
 	name := flag.String("name", "main", "name of the saved session")
 	test := flag.Bool("test", false, "the Telegram test environment instead of production")
+	byQR := flag.Bool("qr", false, "sign in by scanning a QR code in an app where the account is open")
 	flag.Parse()
-	if err := run(*name, *test); err != nil {
+	login := run
+	if *byQR {
+		login = runQR
+	}
+	if err := login(*name, *test); err != nil {
 		fmt.Fprintln(os.Stderr, "Ошибка:", err)
 		os.Exit(1)
 	}
@@ -124,16 +136,138 @@ func run(name string, test bool) error {
 	if !ok {
 		return fmt.Errorf("вход: ответ %T", o)
 	}
+	return save(name, test, dc, c, auth.To_Auth_Authorization())
+}
+
+// save keeps the session of c, signed in as auth says.
+func save(name string, test bool, dc int32, c *mtclient.Client, auth *mtproto.Auth_Authorization) error {
+	u := auth.GetUser()
 	path, err := conformance.SaveSession(name, &conformance.Session{
-		Test: test, DC: dc, UserID: auth.GetUser().GetId(), AuthKey: c.AuthKey(), SavedAt: time.Now().UTC(),
+		Test: test, DC: dc, UserID: u.GetId(), AuthKey: c.AuthKey(), SavedAt: time.Now().UTC(),
 	})
 	if err != nil {
 		return fmt.Errorf("сохранение сеанса: %w", err)
 	}
 	fmt.Printf("Готово: вошли как %s, сеанс сохранён в %s (DC %d).\n",
-		strings.TrimSpace(auth.GetUser().GetFirstName().GetValue()+" "+auth.GetUser().GetLastName().GetValue()), path, dc)
+		strings.TrimSpace(u.GetFirstName().GetValue()+" "+u.GetLastName().GetValue()), path, dc)
 	return nil
 }
+
+// runQR signs in by a login token (https://core.telegram.org/api/qr-login):
+// the QR code of tg://login?token=..., renewed when it expires, until an
+// app of the account accepts it.
+func runQR(name string, test bool) error {
+	tg, err := conformance.TelegramFromEnv(test)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	dc := int32(2)
+	c, err := dial(ctx, tg, dc)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = c.Close() }()
+	fmt.Println("Откройте Telegram там, где открыт аккаунт запасного номера: Настройки → Устройства → «Подключить устройство» (Link Desktop Device), и отсканируйте код.")
+	export := func() (mtproto.TLObject, error) {
+		return c.Invoke(ctx, &mtproto.TLAuthExportLoginToken{
+			Constructor: c.Constructor(mtproto.Predicate_auth_exportLoginToken),
+			ApiId:       tg.APIID, ApiHash: tg.APIHash, ExceptIds: []int64{},
+		})
+	}
+	o, err := export()
+	for {
+		if mtclient.IsRPCError(err, "SESSION_PASSWORD_NEEDED") {
+			if o, err = checkPassword(ctx, c); err == nil {
+				if auth, ok := o.(*mtproto.TLAuthAuthorization); ok {
+					return save(name, test, dc, c, auth.To_Auth_Authorization())
+				}
+				return fmt.Errorf("вход: ответ %T", o)
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("вход по QR: %w", err)
+		}
+		switch t := o.(type) {
+		case *mtproto.TLAuthLoginToken:
+			if err = showQR(t.GetToken()); err != nil {
+				return err
+			}
+			// Until the app accepts the token, or it expires.
+			wait := time.Until(time.Unix(int64(t.GetExpires()), 0))
+			if wait < 5*time.Second || wait > time.Minute {
+				wait = 30 * time.Second
+			}
+			wctx, wcancel := context.WithTimeout(ctx, wait)
+			_, _ = c.WaitUpdate(wctx, func(u *mtproto.Updates) bool {
+				return u.GetPredicateName() == mtproto.Predicate_updateShort &&
+					u.GetUpdate().GetPredicateName() == mtproto.Predicate_updateLoginToken
+			})
+			wcancel()
+			if ctx.Err() != nil {
+				return errors.New("код не отсканирован за 10 минут")
+			}
+			o, err = export()
+		case *mtproto.TLAuthLoginTokenMigrateTo:
+			_ = c.Close()
+			dc = t.GetDcId()
+			if c, err = dial(ctx, tg, dc); err != nil {
+				return err
+			}
+			o, err = c.Invoke(ctx, &mtproto.TLAuthImportLoginToken{
+				Constructor: c.Constructor(mtproto.Predicate_auth_importLoginToken), Token: t.GetToken(),
+			})
+		case *mtproto.TLAuthLoginTokenSuccess:
+			removeQR()
+			return save(name, test, dc, c, t.GetAuthorization())
+		default:
+			return fmt.Errorf("вход по QR: ответ %T", o)
+		}
+	}
+}
+
+func qrFile() string { return filepath.Join(conformance.SessionDir(), "login-qr.png") }
+
+// showQR prints the QR code of a login token in the terminal (light
+// modules as blocks, so dark-on-light on a dark terminal) and writes it as
+// a PNG beside the sessions, for a terminal that draws it badly.
+func showQR(token []byte) error {
+	code, err := qr.Encode("tg://login?token="+base64.RawURLEncoding.EncodeToString(token), qr.M)
+	if err != nil {
+		return err
+	}
+	const quiet = 2
+	dark := func(x, y int) bool {
+		return x >= 0 && y >= 0 && x < code.Size && y < code.Size && code.Black(x, y)
+	}
+	var b strings.Builder
+	for y := -quiet; y < code.Size+quiet; y += 2 {
+		for x := -quiet; x < code.Size+quiet; x++ {
+			top, bottom := !dark(x, y), !dark(x, y+1)
+			switch {
+			case top && bottom:
+				b.WriteString("█")
+			case top:
+				b.WriteString("▀")
+			case bottom:
+				b.WriteString("▄")
+			default:
+				b.WriteString(" ")
+			}
+		}
+		b.WriteString("\n")
+	}
+	fmt.Print("\n" + b.String())
+	if err = os.MkdirAll(conformance.SessionDir(), 0o700); err == nil {
+		if err = os.WriteFile(qrFile(), code.PNG(), 0o600); err == nil {
+			fmt.Printf("Тот же код картинкой: open %s\nКод обновляется примерно раз в 30 секунд.\n", qrFile())
+		}
+	}
+	return nil
+}
+
+func removeQR() { _ = os.Remove(qrFile()) }
 
 func dial(ctx context.Context, tg *conformance.Telegram, dc int32) (*mtclient.Client, error) {
 	cfg, err := tg.Config(dc, "", nil)

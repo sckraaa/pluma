@@ -36,6 +36,7 @@ require (
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 	gopkg.in/yaml.v3 v3.0.1
 	mvdan.cc/xurls/v2 v2.5.0
+	rsc.io/qr v0.2.0
 )
 
 require (
