@@ -23,6 +23,7 @@ import (
 	"errors"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	rpcmetadata "github.com/teamgram/proto/mtproto/rpc/metadata"
@@ -435,6 +436,14 @@ func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, 
 			msgId.state = RECEIVED | RESPONSE_GENERATED
 			return false
 		}
+	}
+
+	// A key's requests are limited (task 008): a runaway or hostile client
+	// waits instead of loading the services.
+	if wait := c.sessList.cb.rpcFloodWait(time.Now()); wait > 0 {
+		c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, mtproto.NewRpcError(mtproto.NewErrFloodWaitX(wait)))
+		msgId.state = RECEIVED | RESPONSE_GENERATED
+		return false
 	}
 
 	msgId.state = RECEIVED | RPC_PROCESSING

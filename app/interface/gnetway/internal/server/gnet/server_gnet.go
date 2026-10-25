@@ -66,6 +66,11 @@ func (s *Server) OnOpen(c gnet.Conn) (out []byte, action gnet.Action) {
 		ctx.setClientIp(c.RemoteAddr().String())
 	}
 	ctx.ppv1 = s.c.Gnetway.IsProxyProtocolV1(c.LocalAddr().String())
+	// Behind PROXY protocol the real address comes with the header.
+	if !ctx.ppv1 && !s.countConn(c, ctx) {
+		c.SetContext(ctx)
+		return nil, gnet.Close
+	}
 	ctx.tcp = s.c.Gnetway.IsTcp(c.LocalAddr().String())
 	ctx.websocket = s.c.Gnetway.IsWebsocket(c.LocalAddr().String())
 	ctx.http = s.c.Gnetway.IsHttp(c.LocalAddr().String())
@@ -106,6 +111,10 @@ func (s *Server) OnClose(c gnet.Conn, err error) (action gnet.Action) {
 	ctx, _ := c.Context().(*connContext)
 	if ctx == nil {
 		return
+	}
+	if ctx.limitSubject != "" {
+		s.limits.closeConn(ctx.limitSubject)
+		ctx.limitSubject = ""
 	}
 
 	defer func() {
@@ -244,6 +253,9 @@ func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 				ctx.setClientIp(host)
 			} else {
 				ctx.setClientIp(h.Source.String())
+			}
+			if !s.countConn(c, ctx) {
+				return gnet.Close
 			}
 			_, _ = c.Discard(len(ppv1) - r.Len())
 			ctx.ppv1 = false
@@ -453,8 +465,9 @@ func (s *Server) GetConnCounts() int {
 func (s *Server) connHandshakeIO(c gnet.Conn, ctx *connContext) *handshakeIO {
 	if ctx.handshakes == nil {
 		ctx.handshakes = &handshakeIO{
-			connId: c.ConnId(),
-			states: newHandshakeStore(maxConnHandshakes, 0),
+			connId:   c.ConnId(),
+			clientIp: ctx.clientIp,
+			states:   newHandshakeStore(maxConnHandshakes, 0),
 			reply: func(c gnet.Conn, answer mtproto.TLObject) {
 				metricHandshake.Inc("ok")
 				_ = UnThreadSafeWrite(c, &mtproto.MTPRawMessage{Payload: handshakePayload(answer)})

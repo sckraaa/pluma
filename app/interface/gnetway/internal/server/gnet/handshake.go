@@ -232,6 +232,7 @@ var (
 	errDHValue               = errors.New("handshake: set_client_DH_params: g_b out of range")
 	errRetryId               = errors.New("handshake: set_client_DH_params: wrong retry_id")
 	errTempKeyExpiresIn      = errors.New("handshake: temporary key without a positive expires_in")
+	errKeyExchangeLimit      = errors.New("handshake: too many key exchanges from the address")
 )
 
 // errAuthKeyIdTaken: another key has the auth_key_id of a new key.
@@ -303,9 +304,11 @@ func handshakePayload(obj mtproto.TLObject) []byte {
 // step computed in the worker pool fails.
 type handshakeIO struct {
 	connId int64
-	states *handshakeStore
-	reply  func(c gnet.Conn, answer mtproto.TLObject)
-	fail   func(c gnet.Conn, err error)
+	// clientIp is the address the key exchanges count against (ipLimits).
+	clientIp string
+	states   *handshakeStore
+	reply    func(c gnet.Conn, answer mtproto.TLObject)
+	fail     func(c gnet.Conn, err error)
 }
 
 // onHandshakeMessage processes an unencrypted message. req_pq is answered at
@@ -380,6 +383,12 @@ func (s *Server) onReqDHParams(io *handshakeIO, req *mtproto.TLReq_DHParams, now
 	if !st.hasFactors(req.GetP(), req.GetQ()) {
 		io.states.drop(nonce)
 		return errHandshakePQ
+	}
+	// Then the budget of the address, before the RSA and DH work.
+	if !s.limits.allowKeyExchange(ipSubject(io.clientIp), time.Now()) {
+		io.states.drop(nonce)
+		metricLimitRefused.Inc("key_exchange")
+		return errKeyExchangeLimit
 	}
 	err = s.submit(io.connId, func() {
 		res, err := s.handshake.processReqDHParams(&st, req, time.Now().Unix())

@@ -16,19 +16,51 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/status/status"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"golang.org/x/time/rate"
 )
 
 type MainAuthWrapperManager struct {
 	mu      sync.Mutex
 	authMgr map[int64]*MainAuthWrapper
 	*dao.Dao
+	// rpcPerSecond and rpcBurst: the token bucket of RPCs each key gets.
+	// limitMu guards them apart from mu: wrappers are created under mu.
+	limitMu      sync.Mutex
+	rpcPerSecond rate.Limit
+	rpcBurst     int
 }
+
+const (
+	defaultRpcPerSecond = 100
+	defaultRpcBurst     = 500
+)
 
 func NewMainAuthWrapperManager(d *dao.Dao) *MainAuthWrapperManager {
 	return &MainAuthWrapperManager{
-		authMgr: make(map[int64]*MainAuthWrapper),
-		Dao:     d,
+		authMgr:      make(map[int64]*MainAuthWrapper),
+		Dao:          d,
+		rpcPerSecond: defaultRpcPerSecond,
+		rpcBurst:     defaultRpcBurst,
 	}
+}
+
+// SetRpcLimit sets the RPCs a key may make: perSecond on average, burst at
+// once (task 008). It applies to keys seen afterwards.
+func (m *MainAuthWrapperManager) SetRpcLimit(perSecond, burst int) {
+	m.limitMu.Lock()
+	defer m.limitMu.Unlock()
+	if perSecond > 0 {
+		m.rpcPerSecond = rate.Limit(perSecond)
+	}
+	if burst > 0 {
+		m.rpcBurst = burst
+	}
+}
+
+func (m *MainAuthWrapperManager) newRpcLimiter() *rate.Limiter {
+	m.limitMu.Lock()
+	defer m.limitMu.Unlock()
+	return rate.NewLimiter(m.rpcPerSecond, m.rpcBurst)
 }
 
 func (m *MainAuthWrapperManager) GetMainAuthWrapper(mainAuthKeyId int64) *MainAuthWrapper {

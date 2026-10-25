@@ -28,6 +28,7 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/syncx"
 	"github.com/zeromicro/go-zero/core/threading"
+	"golang.org/x/time/rate"
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
@@ -93,9 +94,11 @@ func (s *SessionList) changeAuthState(state int) {
 }
 
 type MainAuthWrapper struct {
-	authKeyId            int64
-	state                int
-	AuthUserId           int64 // 不为0，则signIn
+	authKeyId  int64
+	state      int
+	AuthUserId int64 // 不为0，则signIn
+	// rpcLimiter is the token bucket of the key's RPCs (task 008).
+	rpcLimiter           *rate.Limiter
 	client               *authsession.ClientSession
 	pushSessionId        int64
 	mainAuth             *SessionList
@@ -163,6 +166,7 @@ func newMainAuthWrapper(mainAuthKeyId int64, authUserId int64, state int, client
 		running:              syncx.NewAtomicBool(),
 		cb:                   cb,
 		tmpRpcApiMessageList: make([]*rpcApiMessage, 0),
+		rpcLimiter:           cb.newRpcLimiter(),
 	}
 	mainAuth.tempAuth = newSessionList(mtproto.AuthKeyTypeTemp, mainAuth)
 	mainAuth.mediaTempAuth = newSessionList(mtproto.AuthKeyTypeMediaTemp, mainAuth)
@@ -1184,4 +1188,23 @@ func withRpcMetadata(ctx context.Context, md *metadata.RpcMetadata) context.Cont
 	}
 	outMD, _ := grpcmetadata.FromOutgoingContext(outCtx)
 	return grpcmetadata.NewIncomingContext(ctx, outMD)
+}
+
+// rpcFloodWait takes one request of the key from its token bucket at now and
+// returns 0, or, when the key is over its limit, the seconds the client must
+// wait (FLOOD_WAIT_X); the request is then not counted.
+func (m *MainAuthWrapper) rpcFloodWait(now time.Time) int32 {
+	if m.rpcLimiter == nil {
+		return 0
+	}
+	r := m.rpcLimiter.ReserveN(now, 1)
+	if !r.OK() {
+		return 1
+	}
+	delay := r.DelayFrom(now)
+	if delay <= 0 {
+		return 0
+	}
+	r.CancelAt(now)
+	return int32(math.Ceil(delay.Seconds()))
 }

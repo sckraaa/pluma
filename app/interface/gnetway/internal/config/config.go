@@ -39,6 +39,11 @@ type GnetwayConfig struct {
 	SendBuf       int
 	ReceiveBuf    int
 	AuthKeyCacheM int `json:",default=10"`
+	// MaxConnsPerIP and KeyExchangesPerIPMinute bound one client address
+	// (IPv6: its /64): the connections it holds and the req_DH_params it
+	// sends a minute (task 008). 0 takes the defaults, 512 and 300.
+	MaxConnsPerIP           int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	KeyExchangesPerIPMinute int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 func (c GnetwayConfig) IsWebsocket(addr string) bool {

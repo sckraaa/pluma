@@ -63,6 +63,8 @@ type Server struct {
 	queryKey func(authKeyId int64, known *authKeyUtil) (*authKeyUtil, error)
 	// triggerFn, when set (tests), replaces eng.Trigger.
 	triggerFn func(connId int64, cb func(c gnet.Conn))
+	// limits bounds the connections and key exchanges of one address.
+	limits *ipLimits
 }
 
 // CachedNow returns the cached unix timestamp (updated every OnTick interval).
@@ -92,6 +94,7 @@ func New(svcCtx *svc.ServiceContext, c config.Config, keys []*serverkey.Key) (*S
 	s.httpHandshakes = newHandshakeStore(maxHttpHandshakes, httpHandshakeTTL)
 	s.saveAuthKey = s.saveAuthKeyInfo
 	s.queryKey = s.fetchAuthKey
+	s.limits = newIPLimits(c.Gnetway.MaxConnsPerIP, c.Gnetway.KeyExchangesPerIPMinute)
 
 	cacheSizeMB := c.Gnetway.AuthKeyCacheM
 	if cacheSizeMB <= 0 {

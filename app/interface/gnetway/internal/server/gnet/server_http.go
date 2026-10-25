@@ -85,9 +85,14 @@ func (s *Server) onHttpData(ctx *connContext, c gnet.Conn) gnet.Action {
 // by all connections (a client may send each request on a new one) and kept
 // apart from the auth key cache.
 func (s *Server) httpHandshakeIO(c gnet.Conn) *handshakeIO {
+	var clientIp string
+	if ctx, _ := c.Context().(*connContext); ctx != nil {
+		clientIp = ctx.clientIp
+	}
 	return &handshakeIO{
-		connId: c.ConnId(),
-		states: s.httpHandshakes,
+		connId:   c.ConnId(),
+		clientIp: clientIp,
+		states:   s.httpHandshakes,
 		reply: func(c gnet.Conn, answer mtproto.TLObject) {
 			metricHandshake.Inc("ok")
 			s.writeHttpResponse(c, httpcodec.FormatResponse(handshakePayload(answer)))

@@ -33,6 +33,7 @@ type ServiceContext struct {
 func NewServiceContext(c config.Config) *ServiceContext {
 	d := dao.New(c)
 	mainAuthMgr := sess.NewMainAuthWrapperManager(d)
+	mainAuthMgr.SetRpcLimit(c.RpcLimit.PerSecond, c.RpcLimit.Burst)
 	d.RpcShardingManager.RegisterCB(mainAuthMgr.OnShardingCB)
 	d.RpcShardingManager.Start()
 

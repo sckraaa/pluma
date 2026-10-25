@@ -51,11 +51,14 @@ type connContext struct {
 	// handshakes in progress on this connection; see handshakeIO.
 	handshakes *handshakeIO
 	clientIp   string
-	tcp        bool
-	websocket  bool
-	http       bool
-	wsCodec    *ws.WsCodec
-	httpCodec  *httpcodec.HttpCodec
+	// limitSubject is the address the connection counts against
+	// (ipLimits.openConn), once its real address is known.
+	limitSubject string
+	tcp          bool
+	websocket    bool
+	http         bool
+	wsCodec      *ws.WsCodec
+	httpCodec    *httpcodec.HttpCodec
 	logx.Logger
 	newSession bool
 	nextSeqNo  int32

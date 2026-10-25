@@ -76,6 +76,14 @@ var (
 		Labels:    []string{"where"}, // traffic, trigger, worker, close
 	})
 
+	metricLimitRefused = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: namespace,
+		Subsystem: "limit",
+		Name:      "refused_total",
+		Help:      "Connections and key exchanges refused by the limits of one address (task 008).",
+		Labels:    []string{"what"}, // conn, key_exchange
+	})
+
 	metricCodecDecodeError = metric.NewCounterVec(&metric.CounterVecOpts{
 		Namespace: namespace,
 		Subsystem: "codec",
