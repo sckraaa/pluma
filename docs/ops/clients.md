@@ -40,6 +40,20 @@
    ```
 6. После проверки снести стенд, его тома и секреты: `test/e2e/run.sh down`.
 
+### Push на эмуляторе (задача 009)
+
+1. **Сборка клиента с нашим Firebase.** В репозитории `pluma-android` переменная `PLUMA_GOOGLE_SERVICES_JSON` содержит `google-services.json` проекта Firebase (`docs/ops/push.md`). Без неё у клиента нет FCM-токена, и push не придут.
+2. **Эмулятор с Google Play services** — образ `google_apis` или `google_apis_playstore`.
+3. **Стенд с настоящим ключом FCM.** Ключ копируется в каталог стенда и удаляется при `down`:
+   ```bash
+   E2E_SERVER_KEY=~/pluma-dev-secrets/server_pkcs1.key E2E_GATEWAY_PORT=10443 E2E_FCM_CREDENTIALS=<JSON-ключ сервисного аккаунта> test/e2e/run.sh up
+   ```
+4. **Отправка.** Войти в клиенте, свернуть или закрыть приложение и написать ему с тестового пользователя:
+   ```bash
+   PLUMA_E2E_SEND_TO=+79990000081 E2E_GOTEST_FLAGS='-run TestManualSend' test/e2e/run.sh test
+   ```
+   Уведомление должно появиться в течение пары секунд. Что ушло в FCM, видно в логе сервиса push (`test/e2e/run.sh compose logs push`).
+
 ## Веб-клиент
 
 Официальный Telegram Web K ([morethanwords/tweb](https://github.com/morethanwords/tweb)) на последнем коммите с layer 228 (`346844bf`, 2026-09-22) с патчем под Pluma. Его собирает workflow `web` репозитория `sckraaa/pluma-web`. Результат — статический сайт и его архив `.tar.gz` с SHA-256 в артефакте запуска. Архив не шифруется: эту статику и так публично раздаёт сайт сервера.

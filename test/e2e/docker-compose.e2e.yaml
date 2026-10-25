@@ -90,6 +90,27 @@ services:
       - "127.0.0.1:${E2E_GATEWAY_PORT:-}:10443"
       - "127.0.0.1:${E2E_GATEWAY_WS_PORT:-}:11443"
 
+  # APNs and FCM of the tests (test/e2e/fakepush): the push service sends
+  # there, the tests read what came on an ephemeral loopback port.
+  fakepush:
+    build:
+      context: .
+      dockerfile: test/e2e/fakepush/Dockerfile
+    image: pluma-e2e-fakepush:local
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
+  push:
+    # The config with the endpoints of fakepush, written by run.sh.
+    volumes:
+      - ${E2E_PUSH_CONFIG:?run test/e2e/run.sh up}:/app/etc2/push.yaml:ro
+    depends_on:
+      fakepush:
+        condition: service_started
+
   backup:
     container_name: !reset null
     volumes: !override

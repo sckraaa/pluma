@@ -20,7 +20,6 @@ package pushdevices
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"sync/atomic"
@@ -73,8 +72,8 @@ func TestMySQLStore(t *testing.T) {
 	testStore(t, func() Store { return itStore(t) }, itUser)
 }
 
-// The secret is sealed in the row, and a row that does not open fails the
-// listing instead of sending pushes with a wrong key.
+// The secret is sealed in the row; a row that does not open is left out of
+// the listing (no pushes with a wrong key) but kept.
 func TestMySQLStoreSealsSecrets(t *testing.T) {
 	ctx := context.Background()
 	s, user := itStore(t), itUser()
@@ -94,8 +93,12 @@ func TestMySQLStoreSealsSecrets(t *testing.T) {
 	if _, err := itDB().Exec(ctx, "update push_devices set auth_key_id = ? where id = ?", user*100+82, d.Id); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.List(ctx, user); !errors.Is(err, ErrSealedSecretInvalid) {
-		t.Fatalf("List of a moved row: %v, want ErrSealedSecretInvalid", err)
+	other := &Device{UserId: user, AuthKeyId: user*100 + 83, TokenType: TokenFCM, Token: "t2", Secret: testSecret(0x78)}
+	if err := s.Register(ctx, other); err != nil {
+		t.Fatal(err)
+	}
+	if ds, err := s.List(ctx, user); err != nil || len(ds) != 1 || ds[0].Token != "t2" {
+		t.Fatalf("List with a row that does not open: %+v %v, want the other device only", ds, err)
 	}
 	// Removing needs no sealer.
 	if n, err := NewMySQLStore(itDB(), nil).DeleteAuthorizations(ctx, user, user*100+82); err != nil || n != 1 {

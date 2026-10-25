@@ -23,6 +23,8 @@ import (
 	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // MySQLStore is the Store on the table push_devices
@@ -140,7 +142,11 @@ func (s *MySQLStore) List(ctx context.Context, userId int64) ([]*Device, error) 
 	for i := range rows {
 		d := rows[i].device()
 		if d.Secret, err = s.sealer.Open(d, rows[i].Secret); err != nil {
-			return nil, err
+			// Another key, or a damaged row: skipped, not removed, so that a
+			// wrong key in the config loses nothing. The client's next
+			// registration replaces it.
+			logx.WithContext(ctx).Errorf("pushdevices: the secret of device %d (user %d) does not open: skipped", d.Id, d.UserId)
+			continue
 		}
 		devices = append(devices, d)
 	}

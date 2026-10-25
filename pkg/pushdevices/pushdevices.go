@@ -87,7 +87,8 @@ type Store interface {
 	// SetLockedPeriod sets the locked period of the devices of an
 	// authorization.
 	SetLockedPeriod(ctx context.Context, userId, authKeyId int64, period int32) error
-	// List returns the usable devices of userId, secrets opened.
+	// List returns the usable devices of userId, secrets opened; a device
+	// whose secret does not open is left out.
 	List(ctx context.Context, userId int64) ([]*Device, error)
 	// DeleteAuthorizations removes the devices of the given authorizations
 	// of userId.

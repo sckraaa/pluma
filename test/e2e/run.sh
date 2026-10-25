@@ -25,6 +25,10 @@
 #                the development key of the client repositories: their
 #                development builds can then sign in to the stand
 #                (docs/ops/clients.md)
+#   E2E_FCM_CREDENTIALS  a real FCM service account key: the stand pushes to
+#                Google instead of test/e2e/fakepush (a phone or an emulator
+#                with Google Play services gets the notifications)
+#   E2E_APNS_KEY, E2E_APNS_KEY_ID, E2E_APNS_TEAM_ID  the same for APNs
 #
 # The secrets (passwords, the server RSA key) are generated for one run and
 # deleted by `down`; they are never written anywhere git tracks.
@@ -37,12 +41,18 @@ E2E_PROJECT=${E2E_PROJECT:-pluma-e2e}
 ENV_FILE=$E2E_DIR/env
 KEY_FILE=$E2E_DIR/server_pkcs1.key
 LOG_DIR=$E2E_DIR/logs
+# Push providers of the stand (task 009): throwaway keys and the config of
+# the push service pointing at test/e2e/fakepush, or the real keys.
+APNS_KEY_FILE=$E2E_DIR/apns_key.p8
+FCM_CREDENTIALS_FILE=$E2E_DIR/fcm_credentials.json
+PUSH_CONFIG=$E2E_DIR/push.yaml
+FAKEPUSH_URL=http://fakepush:8080
 
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
-TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync bff session gnetway)
-SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init "${TEAMGRAM_SERVICES[@]}")
+TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway)
+SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick).
@@ -50,10 +60,10 @@ export TEAMGRAM_IMAGE=${TEAMGRAM_IMAGE:-pluma-e2e-teamgram:local}
 # A crash must fail the test, not be hidden by a restart.
 export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
 
-# Kafka consumer groups of msg and sync and the topic each reads, as
+# Kafka consumer groups of msg, sync and push and the topic each reads, as
 # group:topic (InboxConsumer in teamgramd/etc2/msg.yaml, SyncConsumer in
-# teamgramd/etc2/sync.yaml).
-CONSUMER_GROUPS=(Inbox-MainCommunity-S:Inbox-T Sync-MainCommunity-S:Sync-T)
+# teamgramd/etc2/sync.yaml, PushConsumer in teamgramd/etc2/push.yaml).
+CONSUMER_GROUPS=(Inbox-MainCommunity-S:Inbox-T Sync-MainCommunity-S:Sync-T Push-MainCommunity-S:Sync-T)
 CONSUMERS_TIMEOUT=120
 
 compose() {
@@ -118,13 +128,49 @@ RESTIC_PASSWORD=$(secret 24)
 BACKUP_S3_ACCESS_KEY_ID=unused
 BACKUP_S3_SECRET_ACCESS_KEY=unused
 SERVER_RSA_KEY_FILE=$KEY_FILE
+APNS_KEY_ID=${E2E_APNS_KEY_ID:-E2EKEY0001}
+APNS_TEAM_ID=${E2E_APNS_TEAM_ID:-E2ETEAM001}
+APNS_KEY_FILE=$APNS_KEY_FILE
+FCM_CREDENTIALS_FILE=$FCM_CREDENTIALS_FILE
+E2E_PUSH_CONFIG=$PUSH_CONFIG
 SERVER_RSA_KEY_FINGERPRINT=$fp
 EOF
 	)
 }
 
+# gen_push writes the provider keys and the config of the push service:
+# throwaway keys and test/e2e/fakepush, or the real keys of E2E_FCM_CREDENTIALS
+# and E2E_APNS_KEY with the real providers.
+gen_push() {
+	local real_fcm=0 real_apns=0 tmp
+	if [[ -n ${E2E_FCM_CREDENTIALS:-} ]]; then
+		install -m 600 "$E2E_FCM_CREDENTIALS" "$FCM_CREDENTIALS_FILE" || return
+		real_fcm=1
+	fi
+	if [[ -n ${E2E_APNS_KEY:-} ]]; then
+		install -m 600 "$E2E_APNS_KEY" "$APNS_KEY_FILE" || return
+		real_apns=1
+	fi
+	if ((real_fcm == 0 || real_apns == 0)); then
+		tmp=$(mktemp -d "$E2E_DIR/keys.XXXXXX") || return
+		if ! (cd "$ROOT" && go run ./test/e2e/fakepush -keys "$tmp" -url "$FAKEPUSH_URL"); then
+			rm -rf "$tmp"
+			return 1
+		fi
+		if ((real_apns == 0)); then mv "$tmp/apns_key.p8" "$APNS_KEY_FILE" || return; fi
+		if ((real_fcm == 0)); then mv "$tmp/fcm_credentials.json" "$FCM_CREDENTIALS_FILE" || return; fi
+		rm -rf "$tmp"
+	fi
+	awk -v url="$FAKEPUSH_URL" -v apns="$real_apns" -v fcm="$real_fcm" '
+		{ print }
+		/^APNs:$/ && apns == 0 { print "  ProductionURL: " url; print "  SandboxURL: " url "/sandbox" }
+		/^FCM:$/ && fcm == 0 { print "  Endpoint: " url; print "  TokenURL: " url "/token" }
+	' "$ROOT/teamgramd/etc2/push.yaml" >"$PUSH_CONFIG"
+}
+
 cmd_up() {
 	gen_secrets || return
+	gen_push || return
 	log "building the teamgram image"
 	compose build idgen || return
 	log "starting ${SERVICES[*]}"
@@ -188,6 +234,7 @@ cmd_test() {
 		cd "$ROOT"
 		# shellcheck disable=SC2086 # E2E_GOTEST_FLAGS is a list of flags
 		PLUMA_E2E_ADDR=$addr \
+			PLUMA_E2E_FAKEPUSH=$(compose port fakepush 8080) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 10m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/...
@@ -210,9 +257,9 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" pluma-backup:local >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" pluma-backup:local pluma-e2e-fakepush:local >/dev/null 2>&1 || true
 	fi
-	rm -f "$ENV_FILE" "$KEY_FILE"
+	rm -f "$ENV_FILE" "$KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
 }
 
