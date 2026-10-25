@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/authkeys"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -163,7 +164,7 @@ var ErrAuthKeyIdTaken = errors.New("auth_key_id is taken")
 
 // SetAuthKeyV2 stores a key created by a handshake. expiresIn is the
 // expires_in of p_q_inner_data_temp(_dc); a temporary key stops working
-// expiresIn seconds from now. A key whose auth_key_id is taken is not stored
+// expiresIn seconds from now, at most authkeys.MaxTempExpiresIn. A key whose auth_key_id is taken is not stored
 // (ErrAuthKeyIdTaken): the unique index on auth_key_id decides.
 func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, expiresIn int32) (err error) {
 	var expiresAt int64
@@ -173,7 +174,7 @@ func (d *Dao) SetAuthKeyV2(ctx context.Context, authKey *mtproto.AuthKeyInfo, ex
 		if expiresIn <= 0 {
 			return errTempKeyWithoutExpiry
 		}
-		expiresAt = time.Now().Unix() + int64(expiresIn)
+		expiresAt = time.Now().Unix() + int64(authkeys.TempExpiresIn(expiresIn))
 	}
 
 	tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {

@@ -38,6 +38,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
 	sessionclient "github.com/teamgram/teamgram-server/app/interface/session/client"
 	"github.com/teamgram/teamgram-server/app/interface/session/session"
+	"github.com/teamgram/teamgram-server/pkg/authkeys"
 	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/panjf2000/gnet/v2"
@@ -806,11 +807,12 @@ func (s *Server) saveAuthKeyInfo(ctx *HandshakeStateCtx, key *mtproto.AuthKeyInf
 		logx.Errorf("saveAuthKeyInfo not successful - auth_key_id:%d, err:%v", key.AuthKeyId, err)
 		return err
 	} else {
-		// A temporary key expires expires_in seconds after the handshake
-		// (authsession stores the same deadline).
+		// A temporary key expires expires_in seconds after the handshake, at
+		// most authkeys.MaxTempExpiresIn (authsession stores the same
+		// deadline).
 		var expiresAt int64
 		if ctx.ExpiresIn > 0 {
-			expiresAt = int64(now) + int64(ctx.ExpiresIn)
+			expiresAt = int64(now) + int64(authkeys.TempExpiresIn(ctx.ExpiresIn))
 		}
 		s.PutAuthKey(newCheckedAuthKeyUtil(
 			&mtproto.AuthKeyInfo{

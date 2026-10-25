@@ -18,6 +18,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/authkeys"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 )
 
@@ -216,6 +217,23 @@ func TestSetAuthKeyIdTaken(t *testing.T) {
 	}
 	if r := readKeyRow(t, db, id); r.keyType != mtproto.AuthKeyTypePerm || r.expiresAt != 0 {
 		t.Fatalf("the first key's row changed: %+v", r)
+	}
+}
+
+// A temporary key works at most authkeys.MaxTempExpiresIn, whatever
+// expires_in the client asked for.
+func TestTempKeyLifetimeCapped(t *testing.T) {
+	db := openSQL(t, itFullDB)
+	d := newIntegrationDao(t, itFullDB)
+	before := time.Now().Unix()
+	day := readKeyRow(t, db, storeKey(t, d, mtproto.AuthKeyTypeTemp, 86400))
+	forever := readKeyRow(t, db, storeKey(t, d, mtproto.AuthKeyTypeTemp, 1<<31-1))
+	after := time.Now().Unix()
+	if day.expiresAt < before+86400 || day.expiresAt > after+86400 {
+		t.Fatalf("a day: expires_at %d, want about %d", day.expiresAt, before+86400)
+	}
+	if forever.expiresAt < before+authkeys.MaxTempExpiresIn || forever.expiresAt > after+authkeys.MaxTempExpiresIn {
+		t.Fatalf("2^31-1 s: expires_at %d, want %d", forever.expiresAt, before+authkeys.MaxTempExpiresIn)
 	}
 }
 
