@@ -28,11 +28,11 @@ import (
 
 // Removal of auth keys (task 008): destroy_auth_key, auth.dropTempAuthKeys,
 // and who may terminate the other sessions. A removed key stops working at
-// once in authsession and within the gateway's recheck interval (a minute)
-// at the gateway, which then answers -404.
+// once: session reports it unknown and the gateway answers -404 (and reads
+// every key again within a minute anyway).
 
-// keyGoneWithin is how long a removed key may keep working: the gateway's
-// recheck interval and some slack.
+// keyGoneWithin is how long a removed key may keep working at most: the
+// gateway's recheck interval and some slack.
 const keyGoneWithin = 90 * time.Second
 
 // waitKeyGone waits until requests over c fail: the server forgot its key.

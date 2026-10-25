@@ -420,6 +420,17 @@ func (s *Server) onEncryptedMessage(c gnet.Conn, ctx *connContext, authKey *auth
 		if err != nil {
 			logx.Errorf("session.sendDataToSession - error: %v", err)
 		}
+		// authsession no longer knows the key (destroy_auth_key,
+		// auth.dropTempAuthKeys, the removal of an expired key, task 008):
+		// it goes at once, not at the next recheck, and the client gets
+		// -404 and creates a new key.
+		if errors.Is(err, mtproto.ErrAuthKeyUnregistered) {
+			s.RemoveAuthKey(authKey.AuthKeyId())
+			s.trigger(connId, func(c gnet.Conn) {
+				writeAuthKeyNotFound(c)
+				_ = c.Close()
+			})
+		}
 	}); err != nil {
 		logx.Errorf("onEncryptedMessage - pool.Submit error: %v, connId: %d", err, connId)
 	}

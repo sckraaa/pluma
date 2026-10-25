@@ -6,13 +6,13 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 150, partial 25, blocked 106, notimpl 7, missing 581 (ok = 17.3%)
+    layer 228: 869 methods — ok 152, partial 25, blocked 104, notimpl 7, missing 581 (ok = 17.5%)
 
 | namespace | total | ok | partial | blocked | notimpl | missing |
 |---|---|---|---|---|---|---|
 | account | 132 | 33 | 2 | 31 | 0 | 66 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 7 |
-| auth | 27 | 14 | 0 | 12 | 1 | 0 |
+| auth | 27 | 16 | 0 | 10 | 1 | 0 |
 | biz | 1 | 0 | 0 | 0 | 0 | 1 |
 | bots | 39 | 0 | 0 | 0 | 0 | 39 |
 | channels | 74 | 1 | 0 | 15 | 0 | 58 |
@@ -118,7 +118,7 @@
 | `account.reportPeer` | missing |  |
 | `account.reportProfilePhoto` | missing |  |
 | `account.resendPasswordEmail` | missing |  |
-| `account.resetAuthorization` | ok | app/bff/account/internal/core/account.resetAuthorization_handler.go:29 |
+| `account.resetAuthorization` | ok | app/bff/account/internal/core/account.resetAuthorization_handler.go:32 |
 | `account.resetNotifySettings` | ok | app/bff/notification/internal/core/account.resetNotifySettings_handler.go:31 |
 | `account.resetPassword` | ok | app/bff/authorization/internal/core/account.resetPassword_handler.go:34 |
 | `account.resetWallPapers` | missing |  |
@@ -199,7 +199,7 @@
 | `auth.checkPaidAuth` | blocked | app/bff/authorization/internal/core/auth.checkPaidAuth_handler.go:27 |
 | `auth.checkPassword` | ok | app/bff/authorization/internal/core/auth.checkPassword_handler.go:44 |
 | `auth.checkRecoveryPassword` | ok | app/bff/authorization/internal/core/auth.checkRecoveryPassword_handler.go:30 |
-| `auth.dropTempAuthKeys` | blocked | app/bff/authorization/internal/core/auth.dropTempAuthKeys_handler.go:27 |
+| `auth.dropTempAuthKeys` | ok | app/bff/authorization/internal/core/auth.dropTempAuthKeys_handler.go:32 |
 | `auth.exportAuthorization` | ok | app/bff/authorization/internal/core/auth.exportAuthorization_handler.go:30 |
 | `auth.exportLoginToken` | ok | app/bff/qrcode/internal/core/auth.exportLoginToken_handler.go:37 |
 | `auth.finishPasskeyLogin` | blocked | app/bff/passkey/internal/core/auth.finishPasskeyLogin_handler.go:27 |
@@ -214,7 +214,7 @@
 | `auth.requestFirebaseSms` | blocked | app/bff/authorization/internal/core/auth.requestFirebaseSms_handler.go:27 |
 | `auth.requestPasswordRecovery` | ok | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:34 |
 | `auth.resendCode` | ok | app/bff/authorization/internal/core/auth.resendCode_handler.go:47 |
-| `auth.resetAuthorizations` | blocked | app/bff/authorization/internal/core/auth.resetAuthorizations_handler.go:27 |
+| `auth.resetAuthorizations` | ok | app/bff/authorization/internal/core/auth.resetAuthorizations_handler.go:37 |
 | `auth.resetLoginEmail` | blocked | app/bff/authorization/internal/core/auth.resetLoginEmail_handler.go:27 |
 | `auth.sendCode` | ok | app/bff/authorization/internal/core/auth.sendCode_handler.go:111 |
 | `auth.signIn` | ok | app/bff/authorization/internal/core/auth.signIn_handler.go:55 |
