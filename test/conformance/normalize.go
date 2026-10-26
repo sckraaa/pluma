@@ -222,3 +222,140 @@ func (l *Labeler) label(key string, t any) any {
 	}
 	return t
 }
+
+// ownScope keeps of answers (trees before labels) what concerns the chat
+// of account self with itself, Saved Messages: a real account lives on
+// while a scenario runs. It keeps messages of that chat, these updates of
+// it: updateNewMessage, updateEditMessage, updateReadHistoryInbox/Outbox,
+// updateMessageID and updateDeleteMessages of messages of the chat seen so
+// far, and the user self; everything else is dropped (an allowlist, so
+// nothing new slips through) and noted by its path and type.
+type ownScope struct {
+	self    int64
+	ids     map[int64]bool // ids of the messages of the chat seen so far
+	dropped []string
+}
+
+func newOwnScope(self int64) *ownScope { return &ownScope{self: self, ids: map[int64]bool{}} }
+
+// apply returns t without what is not the account's own.
+func (s *ownScope) apply(t any) any {
+	s.collect(t)
+	return s.filter("", t)
+}
+
+// collect notes the ids of the messages of the chat in t.
+func (s *ownScope) collect(t any) {
+	switch v := t.(type) {
+	case map[string]any:
+		if id, ok := v["id"].(int64); ok && isMessage(v) && ownPeer(v["peer_id"], s.self) {
+			s.ids[id] = true
+		}
+		for _, x := range v {
+			s.collect(x)
+		}
+	case []any:
+		for _, x := range v {
+			s.collect(x)
+		}
+	}
+}
+
+func isMessage(m map[string]any) bool {
+	return m["_"] == "message" || m["_"] == "messageService"
+}
+
+func (s *ownScope) filter(at string, t any) any {
+	switch v := t.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(v))
+		for _, k := range keys(v, nil) {
+			sub := k
+			if at != "" {
+				sub = at + "." + k
+			}
+			list, isList := v[k].([]any)
+			var keep func(map[string]any) (map[string]any, bool)
+			switch k {
+			case "chats":
+				keep = func(map[string]any) (map[string]any, bool) { return nil, false }
+			case "users":
+				keep = func(u map[string]any) (map[string]any, bool) { return u, u["id"] == s.self }
+			case "messages", "new_messages":
+				keep = func(m map[string]any) (map[string]any, bool) { return m, ownPeer(m["peer_id"], s.self) }
+			case "updates", "other_updates":
+				keep = s.ownUpdate
+			}
+			if keep == nil || !isList {
+				out[k] = s.filter(sub, v[k])
+				continue
+			}
+			var kept []any
+			for i, item := range list {
+				m, isMap := item.(map[string]any)
+				if !isMap {
+					kept = append(kept, item)
+					continue
+				}
+				if m, ok := keep(m); ok {
+					kept = append(kept, s.filter(fmt.Sprintf("%s[%d]", sub, i), m))
+					continue
+				}
+				what := fmt.Sprintf("%s[%d]", sub, i)
+				if p, ok := m["_"].(string); ok {
+					what += "(" + p + ")"
+				}
+				s.dropped = append(s.dropped, what)
+			}
+			if len(kept) > 0 {
+				out[k] = kept
+			}
+		}
+		return out
+	case []any:
+		out := make([]any, len(v))
+		for i, x := range v {
+			out[i] = s.filter(fmt.Sprintf("%s[%d]", at, i), x)
+		}
+		return out
+	}
+	return t
+}
+
+// ownUpdate returns update u if it is about the chat, with the ids of
+// other chats' messages taken out of updateDeleteMessages.
+func (s *ownScope) ownUpdate(u map[string]any) (map[string]any, bool) {
+	switch u["_"] {
+	case "updateNewMessage", "updateEditMessage":
+		m, _ := u["message"].(map[string]any)
+		return u, ownPeer(m["peer_id"], s.self)
+	case "updateReadHistoryInbox", "updateReadHistoryOutbox":
+		return u, ownPeer(u["peer"], s.self)
+	case "updateMessageID":
+		id, _ := u["id"].(int64)
+		return u, s.ids[id]
+	case "updateDeleteMessages":
+		ids, _ := u["messages"].([]any)
+		var own []any
+		for _, x := range ids {
+			if id, _ := x.(int64); s.ids[id] {
+				own = append(own, x)
+			}
+		}
+		if len(own) == 0 {
+			return nil, false
+		}
+		out := make(map[string]any, len(u))
+		for k, x := range u {
+			out[k] = x
+		}
+		out["messages"] = own
+		return out, true
+	}
+	return nil, false
+}
+
+func ownPeer(p any, self int64) bool {
+	m, _ := p.(map[string]any)
+	return m["_"] == "peerUser" && m["user_id"] == self
+}

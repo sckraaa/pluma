@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
@@ -30,11 +31,25 @@ type Recorder struct {
 	scenario string
 	labels   *Labeler
 	steps    []Step
+	own      *ownScope // see Scope
 }
 
 // NewRecorder starts the record of a scenario.
 func NewRecorder(scenario string) *Recorder {
 	return &Recorder{scenario: scenario, labels: NewLabeler()}
+}
+
+// Scope keeps of every answer only what concerns account self in its own
+// chat, Saved Messages (ownScope): a real account lives on while a scenario
+// runs, and its other chats are not the scenario's.
+func (r *Recorder) Scope(self int64) { r.own = newOwnScope(self) }
+
+// Dropped returns what Scope took out of the answers: paths and types.
+func (r *Recorder) Dropped() []string {
+	if r.own == nil {
+		return nil
+	}
+	return r.own.dropped
 }
 
 // Call invokes req over c and records the step as call (the TL method
@@ -51,7 +66,15 @@ func (r *Recorder) Call(ctx context.Context, c *mtclient.Client, call string, re
 		return o, err // not an answer of the server: the scenario fails
 	default:
 		if m, ok := o.(proto.Message); ok {
-			step.Result = r.labels.Label(Tree(m))
+			t := Tree(m)
+			if r.own != nil {
+				before := len(r.own.dropped)
+				t = r.own.apply(t)
+				for i := before; i < len(r.own.dropped); i++ {
+					r.own.dropped[i] = fmt.Sprintf("step %d.%s", len(r.steps), r.own.dropped[i])
+				}
+			}
+			step.Result = r.labels.Label(t)
 		}
 	}
 	r.steps = append(r.steps, step)

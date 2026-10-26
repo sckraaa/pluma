@@ -133,6 +133,55 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+func TestOwnScope(t *testing.T) {
+	self, other := int64(7), int64(9)
+	peer := func(id int64) map[string]any { return map[string]any{"_": "peerUser", "user_id": id} }
+	msg := func(id int64, p map[string]any) map[string]any {
+		return map[string]any{"_": "message", "id": id, "peer_id": p, "message": "x"}
+	}
+	s := newOwnScope(self)
+	// The scenario's message 5 appears in an earlier answer.
+	s.apply(map[string]any{"_": "updates", "updates": []any{map[string]any{"_": "updateNewMessage", "message": msg(5, peer(self))}}})
+	got := s.apply(map[string]any{
+		"_":            "updates_difference",
+		"new_messages": []any{msg(6, peer(self)), msg(8, peer(other))},
+		"other_updates": []any{
+			map[string]any{"_": "updateMessageID", "id": int64(6)},
+			map[string]any{"_": "updateMessageID", "id": int64(8)},
+			map[string]any{"_": "updateEditMessage", "message": msg(5, peer(self))},
+			map[string]any{"_": "updateEditMessage", "message": msg(8, peer(other))},
+			map[string]any{"_": "updateNewChannelMessage", "message": msg(3, map[string]any{"_": "peerChannel", "channel_id": int64(3)})},
+			map[string]any{"_": "updateWebPage", "webpage": map[string]any{"_": "webPage", "title": "a page"}},
+			map[string]any{"_": "updateReadHistoryInbox", "peer": peer(self)},
+			map[string]any{"_": "updateReadHistoryInbox", "peer": peer(other)},
+			map[string]any{"_": "updateDeleteMessages", "messages": []any{int64(5), int64(8)}},
+		},
+		"users": []any{map[string]any{"_": "user", "id": self}, map[string]any{"_": "user", "id": other}},
+		"chats": []any{map[string]any{"_": "channel", "id": int64(3)}},
+		"state": map[string]any{"_": "updates_state", "pts": int64(10)},
+	}).(map[string]any)
+	var kept []string
+	for _, u := range got["other_updates"].([]any) {
+		kept = append(kept, u.(map[string]any)["_"].(string))
+	}
+	want := []string{"updateMessageID", "updateEditMessage", "updateReadHistoryInbox", "updateDeleteMessages"}
+	if !reflect.DeepEqual(kept, want) || len(got["new_messages"].([]any)) != 1 || len(got["users"].([]any)) != 1 || got["chats"] != nil || got["state"] == nil {
+		t.Fatalf("kept %v of %v", kept, got)
+	}
+	if ids := got["other_updates"].([]any)[3].(map[string]any)["messages"].([]any); len(ids) != 1 || ids[0] != int64(5) {
+		t.Fatalf("deleted ids %v, want the scenario's 5", ids)
+	}
+	dropped := strings.Join(s.dropped, "\n")
+	for _, d := range []string{"chats[0](channel)", "new_messages[1](message)", "other_updates[5](updateWebPage)", "users[1](user)"} {
+		if !strings.Contains(dropped, d) {
+			t.Errorf("%s is not noted as dropped:\n%s", d, dropped)
+		}
+	}
+	if strings.Contains(dropped, "a page") {
+		t.Errorf("a value is noted: %s", dropped)
+	}
+}
+
 func TestForeign(t *testing.T) {
 	self := map[string]any{"_": "user", "self": true, "id": "$id1"}
 	own := fixture(t, Step{Call: "updates.getDifference", Result: map[string]any{
@@ -151,7 +200,7 @@ func TestForeign(t *testing.T) {
 		"chats":        []any{map[string]any{"_": "chat", "title": "family"}},
 	}})
 	got := strings.Join(Foreign(other, "conformance: "), "\n")
-	for _, s := range []string{"step 0.chats[0]: a chat", "step 0.new_messages[0].message: a text not of the scenario", "step 0.users[1]: a user other than self"} {
+	for _, s := range []string{"step 0.chats[0](chat): a chat", "step 0.new_messages[0](message).message: a text not of the scenario", "step 0.users[1](user): a user other than self"} {
 		if !strings.Contains(got, s) {
 			t.Errorf("no %q in\n%s", s, got)
 		}

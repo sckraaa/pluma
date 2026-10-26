@@ -310,7 +310,11 @@ func foreign(out *[]string, at, key string, t any, prefix string) {
 	case []any:
 		for i, x := range v {
 			sub := fmt.Sprintf("%s[%d]", at, i)
-			switch m, _ := x.(map[string]any); {
+			m, _ := x.(map[string]any)
+			if p, ok := m["_"].(string); ok {
+				sub += "(" + p + ")" // the type only, not a value
+			}
+			switch {
 			case key == "users" && m["self"] != true:
 				*out = append(*out, sub+": a user other than self")
 			case key == "chats":

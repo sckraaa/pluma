@@ -1,0 +1,241 @@
+{
+  "scenario": "saved_messages",
+  "source": "telegram production DC 2, layer 228, 2026-10-26",
+  "steps": [
+    {
+      "call": "updates.getState",
+      "result": {
+        "_": "updates_state",
+        "date": "$time",
+        "pts": "$pts+0",
+        "seq": "$seq+0",
+        "unread_count": 484
+      }
+    },
+    {
+      "call": "messages.sendMessage",
+      "result": {
+        "_": "updates",
+        "date": "$time",
+        "updates": [
+          {
+            "_": "updateMessageID",
+            "id": "$id1",
+            "random_id": "$id2"
+          },
+          {
+            "_": "updateNewMessage",
+            "message": {
+              "_": "message",
+              "date": "$time",
+              "id": "$id1",
+              "message": "conformance: saved message",
+              "peer_id": {
+                "_": "peerUser",
+                "user_id": "$id3"
+              },
+              "saved_peer_id": {
+                "_": "peerUser",
+                "user_id": "$id3"
+              }
+            },
+            "pts": "$pts+1",
+            "pts_count": 1
+          },
+          {
+            "_": "updateReadHistoryInbox",
+            "max_id": "$id1",
+            "peer": {
+              "_": "peerUser",
+              "user_id": "$id3"
+            },
+            "pts": "$pts+2",
+            "pts_count": 1
+          }
+        ],
+        "users": [
+          {
+            "_": "user",
+            "access_hash": "$id4",
+            "apply_min_photo": true,
+            "first_name": "$first_name1",
+            "id": "$id3",
+            "phone": "$phone1",
+            "self": true,
+            "status": {
+              "_": "userStatusOffline",
+              "was_online": "$time"
+            },
+            "stories_unavailable": true,
+            "username": "$username1"
+          }
+        ]
+      }
+    },
+    {
+      "call": "messages.editMessage",
+      "result": {
+        "_": "updates",
+        "date": "$time",
+        "updates": [
+          {
+            "_": "updateEditMessage",
+            "message": {
+              "_": "message",
+              "date": "$time",
+              "edit_date": "$time",
+              "id": "$id1",
+              "message": "conformance: edited message",
+              "peer_id": {
+                "_": "peerUser",
+                "user_id": "$id3"
+              },
+              "saved_peer_id": {
+                "_": "peerUser",
+                "user_id": "$id3"
+              }
+            },
+            "pts": "$pts+3",
+            "pts_count": 1
+          }
+        ],
+        "users": [
+          {
+            "_": "user",
+            "access_hash": "$id4",
+            "apply_min_photo": true,
+            "first_name": "$first_name1",
+            "id": "$id3",
+            "phone": "$phone1",
+            "self": true,
+            "status": {
+              "_": "userStatusOnline",
+              "expires": "$time"
+            },
+            "stories_unavailable": true,
+            "username": "$username1"
+          }
+        ]
+      }
+    },
+    {
+      "call": "updates.getDifference",
+      "result": {
+        "_": "updates_difference",
+        "new_messages": [
+          {
+            "_": "message",
+            "date": "$time",
+            "edit_date": "$time",
+            "id": "$id1",
+            "message": "conformance: edited message",
+            "peer_id": {
+              "_": "peerUser",
+              "user_id": "$id3"
+            },
+            "saved_peer_id": {
+              "_": "peerUser",
+              "user_id": "$id3"
+            }
+          }
+        ],
+        "other_updates": [
+          {
+            "_": "updateMessageID",
+            "id": "$id1",
+            "random_id": "$id2"
+          },
+          {
+            "_": "updateReadHistoryInbox",
+            "max_id": "$id1",
+            "peer": {
+              "_": "peerUser",
+              "user_id": "$id3"
+            },
+            "pts": "$pts+3"
+          }
+        ],
+        "state": {
+          "_": "updates_state",
+          "date": "$time",
+          "pts": "$pts+3",
+          "seq": "$seq+0",
+          "unread_count": 484
+        },
+        "users": [
+          {
+            "_": "user",
+            "access_hash": "$id4",
+            "apply_min_photo": true,
+            "first_name": "$first_name1",
+            "id": "$id3",
+            "phone": "$phone1",
+            "self": true,
+            "status": {
+              "_": "userStatusOnline",
+              "expires": "$time"
+            },
+            "stories_unavailable": true,
+            "username": "$username1"
+          }
+        ]
+      }
+    },
+    {
+      "call": "messages.deleteMessages",
+      "result": {
+        "_": "messages_affectedMessages",
+        "pts": "$pts+4",
+        "pts_count": 1
+      }
+    },
+    {
+      "call": "updates.getDifference",
+      "result": {
+        "_": "updates_difference",
+        "other_updates": [
+          {
+            "_": "updateDeleteMessages",
+            "messages": [
+              "$id1"
+            ],
+            "pts": "$pts+4"
+          },
+          {
+            "_": "updateReadHistoryInbox",
+            "max_id": "$id1",
+            "peer": {
+              "_": "peerUser",
+              "user_id": "$id3"
+            },
+            "pts": "$pts+4"
+          }
+        ],
+        "state": {
+          "_": "updates_state",
+          "date": "$time",
+          "pts": "$pts+4",
+          "seq": "$seq+0",
+          "unread_count": 484
+        },
+        "users": [
+          {
+            "_": "user",
+            "access_hash": "$id4",
+            "apply_min_photo": true,
+            "first_name": "$first_name1",
+            "id": "$id3",
+            "phone": "$phone1",
+            "self": true,
+            "status": {
+              "_": "userStatusOnline",
+              "expires": "$time"
+            },
+            "stories_unavailable": true,
+            "username": "$username1"
+          }
+        ]
+      }
+    }
+  ]
+}

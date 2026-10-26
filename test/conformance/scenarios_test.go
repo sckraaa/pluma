@@ -68,6 +68,7 @@ type target struct {
 // once (AUTH_KEY_DUPLICATED, https://core.telegram.org/api/errors).
 type account struct {
 	source string // where it runs, for the fixture
+	self   int64  // the user id of the account
 	cfg    mtclient.Config
 	key    *mtclient.AuthKey
 }
@@ -165,7 +166,7 @@ func telegramTarget(t *testing.T) *target {
 			if err != nil {
 				t.Fatal(err)
 			}
-			return &account{source: fmt.Sprintf("telegram %s DC %d", env, s.DC), cfg: cfg, key: s.AuthKey}
+			return &account{source: fmt.Sprintf("telegram %s DC %d", env, s.DC), self: s.UserID, cfg: cfg, key: s.AuthKey}
 		},
 	}
 }
@@ -234,12 +235,13 @@ func standLogin(ctx context.Context, t *testing.T, tg *target, run string) *acco
 			Constructor: c.Constructor(mtproto.Predicate_auth_signUp), PhoneNumber: phone, PhoneCodeHash: hash, FirstName: "Conformance",
 		})
 	}
-	if _, ok := o.(*mtproto.TLAuthAuthorization); err != nil || !ok {
+	auth, ok := o.(*mtproto.TLAuthAuthorization)
+	if err != nil || !ok {
 		t.Fatalf("stand: sign in: %T %v", o, err)
 	}
 	// One connection at a time, as with Telegram.
 	_ = c.Close()
-	return &account{source: tg.name, cfg: tg.cfg, key: c.AuthKey()}
+	return &account{source: tg.name, self: auth.GetUser().GetId(), cfg: tg.cfg, key: c.AuthKey()}
 }
 
 func randomInt(t *testing.T, n int64) int64 {
@@ -397,10 +399,21 @@ var scenarios = []scenario{
 		// after the edit and after the deletion.
 		name:    "saved_messages",
 		account: true,
-		pending: "no account to record with yet: Telegram revoked the production session, the test environment needs an account of the owner (brief 007)",
-		// What the account holds besides the scenario: its unread messages
-		// and secret chats.
-		rules: Rules{Loose: []string{"unread_count", "state.unread_count", "qts", "state.qts"}},
+		// What the account holds besides the scenario (its unread messages
+		// and secret chats, its username) and its presence, which its other
+		// sessions decide.
+		rules: Rules{
+			Loose: []string{"unread_count", "state.unread_count", "qts", "state.qts",
+				"users.[].username", "users.[].status"},
+			Deviations: []Deviation{
+				{Step: 3, Path: "new_messages", Reason: "task 010: getDifference gives a message as it was sent; Telegram gives its current state (edited text, edit_date)"},
+				{Step: 3, Path: "other_updates", Reason: "task 010: Telegram folds the edit of a message new to the difference into new_messages and adds updateMessageID of the sender's message"},
+				{Step: 3, Path: "state.seq", Reason: "task 010: the state of getDifference has no seq"},
+				{Step: 5, Path: "new_messages", Reason: "task 010: getDifference still gives a deleted message; Telegram drops it"},
+				{Step: 5, Path: "other_updates", Reason: "task 010: getDifference gives updateEditMessage of a deleted message; Telegram drops it"},
+				{Step: 5, Path: "state.seq", Reason: "task 010: the state of getDifference has no seq"},
+			},
+		},
 		run: func(ctx context.Context, t *testing.T, _ *target, a *account, r *Recorder) {
 			// A failed run does not leave the message in the account. The
 			// cleanup is registered first, so it runs after the connections
@@ -487,7 +500,23 @@ func TestConformance(t *testing.T) {
 				source = a.source
 			}
 			r := NewRecorder(sc.name)
+			if a != nil {
+				if a.self == 0 {
+					t.Fatal("the account has no user id: sign in again")
+				}
+				r.Scope(a.self)
+			}
 			sc.run(ctx, t, tg, a, r)
+			// What a real account did meanwhile is not the scenario's; on the
+			// stand the account has nothing else, so anything dropped is an
+			// answer our server should not have given.
+			if dropped := r.Dropped(); len(dropped) > 0 {
+				if !tg.record {
+					t.Errorf("answers hold what is not the account's own:\n  %s", strings.Join(dropped, "\n  "))
+				} else {
+					t.Logf("not the account's own, left out: %s", strings.Join(dropped, ", "))
+				}
+			}
 			got, err := r.Fixture(fmt.Sprintf("%s, layer %d, %s", source, mtclient.DefaultLayer, time.Now().UTC().Format("2006-01-02")))
 			if err != nil {
 				t.Fatal(err)
