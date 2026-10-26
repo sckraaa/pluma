@@ -19,10 +19,7 @@
 package core
 
 import (
-	"time"
-
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -31,17 +28,11 @@ import (
 // UpdatesGetDifference
 // updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
 func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (*mtproto.Updates_Difference, error) {
-	keyId, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionGetPermAuthKeyId(c.ctx, &authsession.TLAuthsessionGetPermAuthKeyId{
-		AuthKeyId: c.MD.PermAuthKeyId,
-	})
-	if err != nil {
-		c.Logger.Errorf("updates.getDifference - error: %v", err)
-		return nil, err
-	}
-	c.Logger.Infof("updates.getDifference - keyId: %v", keyId)
-
+	// The difference is of the account's box: it does not depend on the
+	// key (the seq journal by auth key, auth_seq_updates, was never
+	// written).
 	updatesDiff, err := c.svcCtx.Dao.UpdatesClient.UpdatesGetDifferenceV2(c.ctx, &updates.TLUpdatesGetDifferenceV2{
-		AuthKeyId:     keyId.GetV(),
+		AuthKeyId:     c.MD.PermAuthKeyId,
 		UserId:        c.MD.UserId,
 		Pts:           in.Pts,
 		PtsTotalLimit: in.PtsTotalLimit,
@@ -64,9 +55,6 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 			Seq:  updatesDiff.GetState().GetSeq(),
 		}).To_Updates_Difference(), nil
 	case updates.Predicate_difference:
-		// TODO: fix date
-		updatesDiff.State.Date = int32(time.Now().Unix())
-
 		rDifference = mtproto.MakeTLUpdatesDifference(&mtproto.Updates_Difference{
 			NewMessages:          updatesDiff.NewMessages,
 			NewEncryptedMessages: []*mtproto.EncryptedMessage{},
@@ -85,13 +73,14 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 			IntermediateState:    updatesDiff.IntermediateState,
 		}).To_Updates_Difference()
 
-		// TODO: fix IntermediateState
 	case updates.Predicate_differenceTooLong:
 		// TODO: iOS
 		rDifference = mtproto.MakeTLUpdatesDifferenceTooLong(&mtproto.Updates_Difference{
 			Pts: updatesDiff.Pts,
 		}).To_Updates_Difference()
 	default:
+		c.Logger.Errorf("updates.getDifference - difference %s", updatesDiff.GetPredicateName())
+		return nil, mtproto.ErrInternalServerError
 	}
 
 	idHelper.PickByMessages(rDifference.NewMessages...)

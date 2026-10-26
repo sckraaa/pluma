@@ -58,6 +58,10 @@ func (d *Dao) editRow(b *userbox.Box, row *dataobject.MessagesDO, edit *mtproto.
 // editRowWith writes the message change makes of a row's stored message:
 // the messages row, its hashtags and the journal row updateEditMessage. It
 // returns the box with its pts and the update.
+//
+// The journal row holds the whole message after the change: getDifference
+// gives a message new in the difference in the state of its last edit
+// there (ADR 0019), so an edit journaled in part would spoil it.
 func (d *Dao) editRowWith(b *userbox.Box, row *dataobject.MessagesDO, change func(stored *mtproto.Message) *mtproto.Message) (*mtproto.MessageBox, *mtproto.Update, error) {
 	stored, err := storedMessage(row)
 	if err != nil {

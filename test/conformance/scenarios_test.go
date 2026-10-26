@@ -405,14 +405,6 @@ var scenarios = []scenario{
 		rules: Rules{
 			Loose: []string{"unread_count", "state.unread_count", "qts", "state.qts",
 				"users.[].username", "users.[].status"},
-			Deviations: []Deviation{
-				{Step: 3, Path: "new_messages", Reason: "task 010: getDifference gives a message as it was sent; Telegram gives its current state (edited text, edit_date)"},
-				{Step: 3, Path: "other_updates", Reason: "task 010: Telegram folds the edit of a message new to the difference into new_messages and adds updateMessageID of the sender's message"},
-				{Step: 3, Path: "state.seq", Reason: "task 010: the state of getDifference has no seq"},
-				{Step: 5, Path: "new_messages", Reason: "task 010: getDifference still gives a deleted message; Telegram drops it"},
-				{Step: 5, Path: "other_updates", Reason: "task 010: getDifference gives updateEditMessage of a deleted message; Telegram drops it"},
-				{Step: 5, Path: "state.seq", Reason: "task 010: the state of getDifference has no seq"},
-			},
 		},
 		run: func(ctx context.Context, t *testing.T, _ *target, a *account, r *Recorder) {
 			// A failed run does not leave the message in the account. The

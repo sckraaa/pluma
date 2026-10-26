@@ -28,15 +28,19 @@ func (c *UpdatesCore) UpdatesGetStateV2(in *updates.TLUpdatesGetStateV2) (*mtpro
 		c.Logger.Errorf("updates.getStateV2 - error: %v", err)
 		return nil, mtproto.ErrInternalServerError
 	}
-	seq := st.Seq
-	if seq == 0 {
-		seq = -1
-	}
 	return mtproto.MakeTLUpdatesState(&mtproto.Updates_State{
 		Pts:         st.Pts,
 		Qts:         st.Qts,
-		Seq:         seq,
+		Seq:         stateSeq(st),
 		Date:        int32(time.Now().Unix()),
 		UnreadCount: 0,
 	}).To_Updates_State(), nil
+}
+
+// stateSeq is the seq of the state that updates.getState and every
+// difference give: one value, or a client that takes the seq of a
+// difference would see a gap in the next update with seq (ADR 0019). No
+// update carries seq yet, so it is userbox.BaseSeq.
+func stateSeq(st userbox.State) int32 {
+	return st.Seq
 }

@@ -78,6 +78,48 @@ func fixture(t *testing.T, userId int64, statePts int32, journalPts ...int32) {
 	}
 }
 
+// journal writes rows of updates with their own pts, and the state at
+// statePts (0: no state row).
+func journal(t *testing.T, userId int64, statePts int32, rows ...*mtproto.Update) {
+	t.Helper()
+	if statePts > 0 {
+		if _, err := itRaw.Exec("INSERT INTO user_state (user_id, pts) VALUES (?, ?) ON DUPLICATE KEY UPDATE pts = VALUES(pts)", userId, statePts); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, u := range rows {
+		data, err := jsonx.Marshal(u)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = itRaw.Exec("INSERT INTO user_pts_updates (user_id, pts, pts_count, update_type, update_data, date2) VALUES (?, ?, ?, ?, ?, 0)",
+			userId, u.GetPts_INT32(), u.GetPtsCount(), mtproto.GetUpdateType(u), string(data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// messageRow writes the box copy boxId of userId, sent by senderId with
+// randomId.
+func messageRow(t *testing.T, userId int64, boxId int32, senderId, randomId int64) {
+	t.Helper()
+	if _, err := itRaw.Exec("INSERT INTO messages (id, user_id, user_message_box_id, dialog_id1, dialog_id2, dialog_message_id, sender_user_id, peer_type, peer_id, random_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		userId*1000+int64(boxId), userId, boxId, userId, userId, userId*1000+int64(boxId), senderId, mtproto.PEER_USER, userId, randomId); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// incomingRow writes userId's copy boxId of a private message from fromId,
+// added at pts.
+func incomingRow(t *testing.T, userId int64, boxId int32, fromId int64, pts int32, deleted bool) {
+	t.Helper()
+	did := mtproto.MakeDialogId(userId, mtproto.PEER_USER, fromId)
+	if _, err := itRaw.Exec("INSERT INTO messages (id, user_id, user_message_box_id, dialog_id1, dialog_id2, dialog_message_id, sender_user_id, peer_type, peer_id, pts, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		userId*1000+int64(boxId), userId, boxId, did.A, did.B, userId*1000+int64(boxId), fromId, mtproto.PEER_USER, userId, pts, deleted); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func difference(t *testing.T, userId int64, pts, limit int32) *updates.Difference {
 	t.Helper()
 	in := &updates.TLUpdatesGetDifferenceV2{UserId: userId, Pts: pts}
@@ -106,7 +148,7 @@ func TestGetState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.GetPts() != userbox.BasePts || st.GetSeq() != -1 {
+	if st.GetPts() != userbox.BasePts || st.GetSeq() != userbox.BaseSeq {
 		t.Errorf("state of a new user %+v", st)
 	}
 
@@ -160,6 +202,121 @@ func TestGetDifference(t *testing.T) {
 	})
 }
 
+// otherUpdates writes other_updates as predicate(details).
+func otherUpdates(d *updates.Difference) string {
+	var out []string
+	for _, u := range d.GetOtherUpdates() {
+		s := strings.TrimPrefix(u.GetPredicateName(), "update")
+		switch u.GetPredicateName() {
+		case mtproto.Predicate_updateMessageID:
+			s += fmt.Sprintf("(%d,%d)", u.GetId_INT32(), u.GetRandomId())
+		case mtproto.Predicate_updateDeleteMessages:
+			s += fmt.Sprint(u.GetMessages())
+		}
+		out = append(out, s)
+	}
+	return strings.Join(out, " ")
+}
+
+// The journal of the Telegram fixture saved_messages: a message sent to
+// Saved Messages and read at once, edited, deleted.
+func TestGetDifferenceFolds(t *testing.T) {
+	u := newUser()
+	self := mtproto.MakePeerUser(u)
+	sent := mtproto.MakeTLMessage(&mtproto.Message{Id: 1, Message: "sent", PeerId: self}).To_Message()
+	edited := mtproto.MakeTLMessage(&mtproto.Message{Id: 1, Message: "edited", PeerId: self, EditDate: wrapperspb.Int32(1700000000)}).To_Message()
+	messageRow(t, u, 1, u, 555)
+	journal(t, u, 4,
+		mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: sent, Pts_INT32: 2, PtsCount: 1}).To_Update(),
+		mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{Peer_PEER: self, MaxId: 1, Pts_INT32: 3, PtsCount: 1}).To_Update(),
+		mtproto.MakeTLUpdateEditMessage(&mtproto.Update{Message_MESSAGE: edited, Pts_INT32: 4, PtsCount: 1}).To_Update(),
+	)
+	c := New(context.Background(), itSvc)
+	st, err := c.UpdatesGetStateV2(&updates.TLUpdatesGetStateV2{UserId: u})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	d := difference(t, u, userbox.BasePts, 0)
+	if ms := d.GetNewMessages(); len(ms) != 1 || ms[0].GetMessage() != "edited" || ms[0].GetEditDate() == nil {
+		t.Errorf("after the edit, new messages %v", ms)
+	}
+	if got := otherUpdates(d); got != "MessageID(1,555) ReadHistoryInbox" {
+		t.Errorf("after the edit, other updates %s", got)
+	}
+	if d.GetState().GetSeq() != st.GetSeq() || st.GetSeq() != userbox.BaseSeq {
+		t.Errorf("seq of the difference %d, of the state %d; want both %d", d.GetState().GetSeq(), st.GetSeq(), userbox.BaseSeq)
+	}
+
+	journal(t, u, 5, mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{Messages: []int32{1}, Pts_INT32: 5, PtsCount: 1}).To_Update())
+	d = difference(t, u, userbox.BasePts, 0)
+	if len(d.GetNewMessages()) != 0 || otherUpdates(d) != "DeleteMessages[1] ReadHistoryInbox" {
+		t.Errorf("after the deletion, new messages %v, other updates %s", d.GetNewMessages(), otherUpdates(d))
+	}
+	if d = difference(t, u, 5, 0); d.GetPredicateName() != updates.Predicate_differenceEmpty || d.GetState().GetSeq() != st.GetSeq() {
+		t.Errorf("up to date: %s, seq %d", d.GetPredicateName(), d.GetState().GetSeq())
+	}
+	if d = difference(t, u, userbox.BasePts, 2); d.GetPredicateName() != updates.Predicate_differenceSlice || d.GetIntermediateState().GetSeq() != st.GetSeq() {
+		t.Errorf("slice: %s, seq %d", d.GetPredicateName(), d.GetIntermediateState().GetSeq())
+	}
+
+	// A copy received from another sender keeps the sender's random_id, but
+	// it is not the account's own message.
+	r := newUser()
+	messageRow(t, r, 1, u, 777)
+	journal(t, r, 2, mtproto.MakeTLUpdateNewMessage(&mtproto.Update{
+		Message_MESSAGE: mtproto.MakeTLMessage(&mtproto.Message{Id: 1, Message: "hi", PeerId: mtproto.MakePeerUser(u)}).To_Message(), Pts_INT32: 2, PtsCount: 1,
+	}).To_Update())
+	if d = difference(t, r, userbox.BasePts, 0); len(d.GetNewMessages()) != 1 || otherUpdates(d) != "" {
+		t.Errorf("incoming: new messages %v, other updates %s", d.GetNewMessages(), otherUpdates(d))
+	}
+}
+
+// The read history of a dialog comes last in the difference, so its
+// still_unread_count is the dialog's at the end: messages after the read
+// count, deleted ones do not.
+func TestGetDifferenceUnreadCount(t *testing.T) {
+	u, alice := newUser(), newUser()
+	peer := mtproto.MakePeerUser(alice)
+	incoming := func(id, pts int32) *mtproto.Update {
+		return mtproto.MakeTLUpdateNewMessage(&mtproto.Update{
+			Message_MESSAGE: mtproto.MakeTLMessage(&mtproto.Message{Id: id, PeerId: peer}).To_Message(), Pts_INT32: pts, PtsCount: 1,
+		}).To_Update()
+	}
+	// 1 and 2 arrive, the phone reads up to 1 (1 unread), 3 arrives, 2 is
+	// deleted: 3 is unread at the end.
+	incomingRow(t, u, 1, alice, 2, false)
+	incomingRow(t, u, 2, alice, 3, true)
+	incomingRow(t, u, 3, alice, 5, false)
+	journal(t, u, 6,
+		incoming(1, 2), incoming(2, 3),
+		mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{Peer_PEER: peer, MaxId: 1, StillUnreadCount: 1, Pts_INT32: 4, PtsCount: 1}).To_Update(),
+		incoming(3, 5),
+		mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{Messages: []int32{2}, Pts_INT32: 6, PtsCount: 1}).To_Update(),
+	)
+	d := difference(t, u, userbox.BasePts, 0)
+	var read *mtproto.Update
+	for _, up := range d.GetOtherUpdates() {
+		if up.GetPredicateName() == mtproto.Predicate_updateReadHistoryInbox {
+			read = up
+		}
+	}
+	if read == nil || read.GetMaxId() != 1 || read.GetStillUnreadCount() != 1 {
+		t.Fatalf("read %v, want max_id 1 with 1 unread (message 3)", read)
+	}
+	// A slice up to the read: 3 comes after it and does not count. 2 is
+	// deleted only after the slice, but the messages table keeps that it is
+	// deleted, not when, so it no longer counts; the next slice deletes it.
+	if d = difference(t, u, userbox.BasePts, 3); d.GetPredicateName() != updates.Predicate_differenceSlice {
+		t.Fatalf("%s", d.GetPredicateName())
+	}
+	for _, up := range d.GetOtherUpdates() {
+		if up.GetPredicateName() == mtproto.Predicate_updateReadHistoryInbox && up.GetStillUnreadCount() != 0 {
+			t.Errorf("slice read %v, want 0 unread", up)
+		}
+	}
+}
+
 // TestGetDifferenceWithReadReplica: with a read replica configured
 // (ReadDSN) the journal still comes from where the state does. The replica
 // here is an empty copy of the tables: it lags behind everything.
@@ -172,7 +329,7 @@ func TestGetDifferenceWithReadReplica(t *testing.T) {
 	for _, q := range []string{
 		"CREATE DATABASE IF NOT EXISTS lagging",
 		"CREATE TABLE IF NOT EXISTS lagging.user_pts_updates LIKE teamgram.user_pts_updates",
-		"CREATE TABLE IF NOT EXISTS lagging.auth_seq_updates LIKE teamgram.auth_seq_updates",
+		"CREATE TABLE IF NOT EXISTS lagging.messages LIKE teamgram.messages",
 		"GRANT SELECT ON lagging.* TO '" + testinfra.MySQLUser + "'@'%'",
 	} {
 		if _, err = root.Exec(q); err != nil {
@@ -185,11 +342,13 @@ func TestGetDifferenceWithReadReplica(t *testing.T) {
 
 	u := newUser()
 	fixture(t, u, 4, 2, 3, 4)
+	// The random_id of an own message comes from there too.
+	messageRow(t, u, 3, u, 333)
 	d, err := New(context.Background(), withReplica).UpdatesGetDifferenceV2(&updates.TLUpdatesGetDifferenceV2{UserId: u, Pts: userbox.BasePts})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if d.GetState().GetPts() != 4 || fmt.Sprint(messageIds(d)) != "[2 3 4]" {
-		t.Errorf("%s, state %v, messages %v", d.GetPredicateName(), d.GetState(), messageIds(d))
+	if d.GetState().GetPts() != 4 || fmt.Sprint(messageIds(d)) != "[2 3 4]" || otherUpdates(d) != "MessageID(3,333)" {
+		t.Errorf("%s, state %v, messages %v, other updates %s", d.GetPredicateName(), d.GetState(), messageIds(d), otherUpdates(d))
 	}
 }
