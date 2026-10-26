@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -86,20 +87,33 @@ func admin(t *testing.T, args ...string) string {
 
 var loginCodeRe = regexp.MustCompile(`Login code for \+\d+: (\d+)`)
 
-// testPhones returns n distinct phones of 201-555-0100..0199, numbers reserved
-// for fiction in the North American plan: never someone's real number.
+// phonesTaken are the numbers the tests of this run have: a number belongs
+// to one test, so that its login limits (pkg/logincode: 5 codes an hour from
+// one address) are that test's own.
+var (
+	phonesMu    sync.Mutex
+	phonesTaken = map[string]bool{}
+)
+
+// testPhones returns n phones of 201-555-0100..0199, numbers reserved for
+// fiction in the North American plan: never someone's real number. No other
+// test of the run gets them.
 func testPhones(t *testing.T, n int) []string {
 	t.Helper()
-	seen := map[string]bool{}
+	phonesMu.Lock()
+	defer phonesMu.Unlock()
 	var phones []string
+	if len(phonesTaken)+n > 100 {
+		t.Fatalf("%d more test phones needed, %d of 100 are taken", n, len(phonesTaken))
+	}
 	for len(phones) < n {
 		v, err := rand.Int(rand.Reader, big.NewInt(100))
 		if err != nil {
 			t.Fatal(err)
 		}
 		p := fmt.Sprintf("+1201555%04d", 100+v.Int64())
-		if !seen[p] {
-			seen[p] = true
+		if !phonesTaken[p] {
+			phonesTaken[p] = true
 			phones = append(phones, p)
 		}
 	}
