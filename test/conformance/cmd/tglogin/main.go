@@ -14,9 +14,10 @@
 // limitations under the License.
 
 // tglogin signs the account for the conformance fixtures into Telegram and
-// saves the session in ~/pluma-secrets/telegram-prod (task 007). The owner
-// runs it and types the number, the code and the 2FA password; nothing of
-// them is printed or kept, only the session (DC and auth key).
+// saves the session in ~/pluma-secrets/telegram-prod, or telegram-test for
+// the test environment (task 007). The owner runs it and types the number,
+// the code and the 2FA password; nothing of them is printed or kept, only
+// the session (DC and auth key).
 //
 //	set -a; . ~/pluma-secrets/telegram-api.env; set +a
 //	go run ./test/conformance/cmd/tglogin [-name main] [-test] [-qr]
@@ -24,6 +25,12 @@
 // With -qr there is no code: the program shows a QR code, which is scanned
 // in a Telegram app where the account is open (Settings, Devices, Link
 // Desktop Device), as Telegram Desktop signs in.
+//
+// After the login it stays online for a minute, as an official app does,
+// prints what Telegram tells the account meanwhile and checks that the
+// session still works. The types of the messages it sent and received (no
+// content) go to <name>.log beside the session: if Telegram ends the
+// session, the log says when.
 package main
 
 import (
@@ -36,6 +43,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -55,13 +63,41 @@ func main() {
 	if *byQR {
 		login = runQR
 	}
-	if err := login(*name, *test); err != nil {
+	err := withLog(*name, *test, func(logf func(string, ...any)) error { return login(*name, *test, logf) })
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "Ошибка:", err)
 		os.Exit(1)
 	}
 }
 
-func run(name string, test bool) error {
+// withLog runs login with a log of the connections in <name>.log beside
+// the session: TL types and message ids with the time, never content.
+func withLog(name string, test bool, login func(logf func(string, ...any)) error) error {
+	path, err := conformance.SessionLog(test, name)
+	if err != nil {
+		return err
+	}
+	if err = os.MkdirAll(conformance.SessionDir(test), 0o700); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	var mu sync.Mutex
+	logf := func(format string, args ...any) {
+		mu.Lock()
+		defer mu.Unlock()
+		_, _ = fmt.Fprintf(f, "%s %s\n", time.Now().UTC().Format(time.RFC3339Nano), fmt.Sprintf(format, args...))
+	}
+	logf("tglogin start")
+	err = login(logf)
+	logf("tglogin end: %v", err)
+	return err
+}
+
+func run(name string, test bool, logf func(string, ...any)) error {
 	tg, err := conformance.TelegramFromEnv(test)
 	if err != nil {
 		return err
@@ -80,7 +116,7 @@ func run(name string, test bool) error {
 		sent *mtproto.TLAuthSentCode
 	)
 	for attempt := 0; attempt < 3; attempt++ {
-		if c, err = dial(ctx, tg, dc); err != nil {
+		if c, err = dial(ctx, tg, dc, logf); err != nil {
 			return err
 		}
 		o, err := c.Invoke(ctx, &mtproto.TLAuthSendCode{
@@ -118,7 +154,7 @@ func run(name string, test bool) error {
 
 	var o mtproto.TLObject
 	for {
-		describe(sent)
+		describe(sent, test)
 		code := secret("Код (не отображается; пустая строка — другой способ): ")
 		if code == "" {
 			next, err := resendCode(ctx, c, phone, sent)
@@ -152,17 +188,22 @@ func run(name string, test bool) error {
 	if !ok {
 		return fmt.Errorf("вход: ответ %T", o)
 	}
-	return save(name, test, dc, c, auth.To_Auth_Authorization())
+	if err = save(name, test, dc, c, auth.To_Auth_Authorization()); err != nil {
+		return err
+	}
+	return stayOnline(tg, dc, c, logf)
 }
 
 // describe says where Telegram sent the code and what else it offers.
-func describe(sent *mtproto.TLAuthSentCode) {
+func describe(sent *mtproto.TLAuthSentCode, test bool) {
 	t := sent.GetType()
 	switch t.GetPredicateName() {
 	case mtproto.Predicate_auth_sentCodeTypeApp:
 		fmt.Printf("Код из %d цифр отправлен сообщением от «Telegram» во все приложения, где открыт этот аккаунт.\n", t.GetLength())
-		fmt.Println("Если за минуту он не пришёл, Telegram его не доставил: так бывает со сторонними приложениями с января 2026.")
-		fmt.Println("Тогда войдите по QR (-qr) и не запрашивайте код снова много раз подряд.")
+		if !test {
+			fmt.Println("Если за минуту он не пришёл, Telegram его не доставил: так бывает со сторонними приложениями с января 2026.")
+			fmt.Println("Тогда войдите по QR (-qr) и не запрашивайте код снова много раз подряд.")
+		}
 	case mtproto.Predicate_auth_sentCodeTypeSms:
 		fmt.Printf("Код из %d цифр отправлен по SMS.\n", t.GetLength())
 	case mtproto.Predicate_auth_sentCodeTypeCall:
@@ -241,7 +282,7 @@ func save(name string, test bool, dc int32, c *mtclient.Client, auth *mtproto.Au
 // runQR signs in by a login token (https://core.telegram.org/api/qr-login):
 // the QR code of tg://login?token=..., renewed when it expires, until an
 // app of the account accepts it.
-func runQR(name string, test bool) error {
+func runQR(name string, test bool, logf func(string, ...any)) error {
 	tg, err := conformance.TelegramFromEnv(test)
 	if err != nil {
 		return err
@@ -249,12 +290,16 @@ func runQR(name string, test bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 	dc := int32(2)
-	c, err := dial(ctx, tg, dc)
+	c, err := dial(ctx, tg, dc, logf)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = c.Close() }()
-	fmt.Println("Откройте Telegram там, где открыт аккаунт запасного номера: Настройки → Устройства → «Подключить устройство» (Link Desktop Device), и отсканируйте код.")
+	where := "аккаунт запасного номера"
+	if test {
+		where = "аккаунт тестовой среды"
+	}
+	fmt.Printf("Откройте Telegram там, где открыт %s: Настройки → Устройства → «Подключить устройство» (Link Desktop Device), и отсканируйте код.\n", where)
 	export := func() (mtproto.TLObject, error) {
 		return c.Invoke(ctx, &mtproto.TLAuthExportLoginToken{
 			Constructor: c.Constructor(mtproto.Predicate_auth_exportLoginToken),
@@ -266,7 +311,10 @@ func runQR(name string, test bool) error {
 		if mtclient.IsRPCError(err, "SESSION_PASSWORD_NEEDED") {
 			if o, err = checkPassword(ctx, c); err == nil {
 				if auth, ok := o.(*mtproto.TLAuthAuthorization); ok {
-					return save(name, test, dc, c, auth.To_Auth_Authorization())
+					if err = save(name, test, dc, c, auth.To_Auth_Authorization()); err != nil {
+						return err
+					}
+					return stayOnline(tg, dc, c, logf)
 				}
 				return fmt.Errorf("вход: ответ %T", o)
 			}
@@ -276,7 +324,7 @@ func runQR(name string, test bool) error {
 		}
 		switch t := o.(type) {
 		case *mtproto.TLAuthLoginToken:
-			if err = showQR(t.GetToken()); err != nil {
+			if err = showQR(t.GetToken(), test); err != nil {
 				return err
 			}
 			// Until the app accepts the token, or it expires.
@@ -286,8 +334,7 @@ func runQR(name string, test bool) error {
 			}
 			wctx, wcancel := context.WithTimeout(ctx, wait)
 			_, _ = c.WaitUpdate(wctx, func(u *mtproto.Updates) bool {
-				return u.GetPredicateName() == mtproto.Predicate_updateShort &&
-					u.GetUpdate().GetPredicateName() == mtproto.Predicate_updateLoginToken
+				return len(updatesOf(u, mtproto.Predicate_updateLoginToken)) > 0
 			})
 			wcancel()
 			if ctx.Err() != nil {
@@ -297,27 +344,30 @@ func runQR(name string, test bool) error {
 		case *mtproto.TLAuthLoginTokenMigrateTo:
 			_ = c.Close()
 			dc = t.GetDcId()
-			if c, err = dial(ctx, tg, dc); err != nil {
+			if c, err = dial(ctx, tg, dc, logf); err != nil {
 				return err
 			}
 			o, err = c.Invoke(ctx, &mtproto.TLAuthImportLoginToken{
 				Constructor: c.Constructor(mtproto.Predicate_auth_importLoginToken), Token: t.GetToken(),
 			})
 		case *mtproto.TLAuthLoginTokenSuccess:
-			removeQR()
-			return save(name, test, dc, c, t.GetAuthorization())
+			removeQR(test)
+			if err = save(name, test, dc, c, t.GetAuthorization()); err != nil {
+				return err
+			}
+			return stayOnline(tg, dc, c, logf)
 		default:
 			return fmt.Errorf("вход по QR: ответ %T", o)
 		}
 	}
 }
 
-func qrFile() string { return filepath.Join(conformance.SessionDir(), "login-qr.png") }
+func qrFile(test bool) string { return filepath.Join(conformance.SessionDir(test), "login-qr.png") }
 
 // showQR prints the QR code of a login token in the terminal (light
 // modules as blocks, so dark-on-light on a dark terminal) and writes it as
 // a PNG beside the sessions, for a terminal that draws it badly.
-func showQR(token []byte) error {
+func showQR(token []byte, test bool) error {
 	code, err := qr.Encode("tg://login?token="+base64.RawURLEncoding.EncodeToString(token), qr.M)
 	if err != nil {
 		return err
@@ -344,18 +394,20 @@ func showQR(token []byte) error {
 		b.WriteString("\n")
 	}
 	fmt.Print("\n" + b.String())
-	if err = os.MkdirAll(conformance.SessionDir(), 0o700); err == nil {
-		if err = os.WriteFile(qrFile(), code.PNG(), 0o600); err == nil {
-			fmt.Printf("Тот же код картинкой: open %s\nКод обновляется примерно раз в 30 секунд.\n", qrFile())
+	if err = os.MkdirAll(conformance.SessionDir(test), 0o700); err == nil {
+		if err = os.WriteFile(qrFile(test), code.PNG(), 0o600); err == nil {
+			fmt.Printf("Тот же код картинкой: open %s\nКод обновляется примерно раз в 30 секунд.\n", qrFile(test))
 		}
 	}
 	return nil
 }
 
-func removeQR() { _ = os.Remove(qrFile()) }
+func removeQR(test bool) { _ = os.Remove(qrFile(test)) }
 
-func dial(ctx context.Context, tg *conformance.Telegram, dc int32) (*mtclient.Client, error) {
-	cfg, err := tg.Config(dc, "", nil)
+// dial connects to DC dc with a new key; mtclient.Dial sends initConnection
+// once.
+func dial(ctx context.Context, tg *conformance.Telegram, dc int32, logf func(string, ...any)) (*mtclient.Client, error) {
+	cfg, err := tg.Config(dc, "", logf)
 	if err != nil {
 		return nil, err
 	}
@@ -363,11 +415,117 @@ func dial(ctx context.Context, tg *conformance.Telegram, dc int32) (*mtclient.Cl
 	if err != nil {
 		return nil, fmt.Errorf("подключение к DC %d: %w", dc, err)
 	}
-	if _, err = c.InitConnection(ctx); err != nil {
-		_ = c.Close()
-		return nil, fmt.Errorf("подключение к DC %d: %w", dc, err)
-	}
 	return c, nil
+}
+
+// online is how long the program stays connected after the login.
+const online = time.Minute
+
+// stayOnline keeps the new session connected for a while, as an official
+// app does after a login: it asks for the state of updates (so that the
+// session gets them), prints what Telegram tells the account and checks at
+// the end that the session still works, over a new connection if this one
+// was lost. It has its own deadline: the login may have taken its time.
+func stayOnline(tg *conformance.Telegram, dc int32, c *mtclient.Client, logf func(string, ...any)) error {
+	ctx, cancel := context.WithTimeout(context.Background(), online+time.Minute)
+	defer cancel()
+	state := func(c *mtclient.Client) error {
+		sctx, scancel := context.WithTimeout(ctx, 20*time.Second)
+		defer scancel()
+		_, err := c.Invoke(sctx, &mtproto.TLUpdatesGetState{Constructor: c.Constructor(mtproto.Predicate_updates_getState)})
+		return err
+	}
+	if err := state(c); err != nil {
+		return sessionEnded(err, logf)
+	}
+	fmt.Printf("Остаёмся на связи %v, как официальное приложение после входа. Прервать можно Ctrl+C: сеанс уже сохранён.\n", online)
+	wctx, wcancel := context.WithTimeout(ctx, online)
+	defer wcancel()
+	for {
+		u, err := c.WaitUpdate(wctx, func(*mtproto.Updates) bool { return true })
+		if err != nil {
+			break
+		}
+		report(u, logf)
+	}
+	if err := c.Err(); err != nil {
+		// The connection was lost: check the session over a new one, as an
+		// app reconnects (one connection at a time).
+		logf("the connection stopped: %v", err)
+		_ = c.Close()
+		cfg, err := tg.Config(dc, "", logf)
+		if err != nil {
+			return err
+		}
+		if c, err = mtclient.DialKey(ctx, cfg, c.AuthKey()); err != nil {
+			return sessionEnded(err, logf)
+		}
+		defer func() { _ = c.Close() }()
+		if _, err = c.InitConnection(ctx); err != nil {
+			return sessionEnded(err, logf)
+		}
+	}
+	if err := state(c); err != nil {
+		return sessionEnded(err, logf)
+	}
+	logf("the session works after %v", online)
+	fmt.Println("Сеанс работает.")
+	return nil
+}
+
+// telegramUserID is the account Telegram sends its service messages from.
+const telegramUserID = 777000
+
+// report prints what Telegram tells the account in u: service
+// notifications, messages of its service account, a new login.
+func report(u *mtproto.Updates, logf func(string, ...any)) {
+	for _, n := range updatesOf(u, mtproto.Predicate_updateServiceNotification) {
+		logf("updateServiceNotification type=%s popup=%v", n.GetType(), n.GetPopup())
+		fmt.Printf("Уведомление Telegram для аккаунта (%s): %s\n", n.GetType(), n.GetMessage_STRING())
+	}
+	if u.GetPredicateName() == mtproto.Predicate_updateShortMessage && u.GetUserId() == telegramUserID {
+		logf("updateShortMessage from %d", telegramUserID)
+		fmt.Printf("Сообщение от «Telegram»: %s\n", u.GetMessage())
+	}
+	for _, m := range updatesOf(u, mtproto.Predicate_updateNewMessage) {
+		if msg := m.GetMessage_MESSAGE(); msg.GetPeerId().GetUserId() == telegramUserID {
+			logf("updateNewMessage from %d", telegramUserID)
+			fmt.Printf("Сообщение от «Telegram»: %s\n", msg.GetMessage())
+		}
+	}
+	if len(updatesOf(u, mtproto.Predicate_updateNewAuthorization)) > 0 {
+		logf("updateNewAuthorization")
+		fmt.Println("Telegram сообщил аккаунту о новом входе.")
+	}
+}
+
+// sessionEnded explains an error of the new session: Telegram no longer
+// knows the key (transport error -404, or 401), or the check failed.
+func sessionEnded(err error, logf func(string, ...any)) error {
+	logf("the session failed: %v", err)
+	var rpc *mtclient.RPCError
+	if mtclient.IsTransportError(err, -404) || (errors.As(err, &rpc) && rpc.Code == 401) {
+		return fmt.Errorf("сеанс завершён Telegram (%w); время — в журнале рядом с сеансом", err)
+	}
+	return fmt.Errorf("сеанс сохранён, но проверить его не удалось: %w", err)
+}
+
+// updatesOf returns the updates of u with the predicate, in a short update
+// or in a list.
+func updatesOf(u *mtproto.Updates, predicate string) []*mtproto.Update {
+	var list []*mtproto.Update
+	if u.GetPredicateName() == mtproto.Predicate_updateShort {
+		list = []*mtproto.Update{u.GetUpdate()}
+	} else {
+		list = u.GetUpdates()
+	}
+	var out []*mtproto.Update
+	for _, x := range list {
+		if x.GetPredicateName() == predicate {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 // checkPassword asks for the 2FA password and checks it by SRP.
