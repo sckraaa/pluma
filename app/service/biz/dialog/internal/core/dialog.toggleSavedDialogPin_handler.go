@@ -19,34 +19,26 @@
 package core
 
 import (
-	"time"
-
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
 // DialogToggleSavedDialogPin
-// dialog.toggleSavedDialogPin user_id:long peer:PeerUtil pinned:Bool = Bool;
+// dialog.toggleSavedDialogPin user_id:long peer:PeerUtil pinned:Bool users:Vector<User> chats:Vector<Chat> = Bool;
+//
+// The pin and updateSavedDialogPinned with seq for every device of the
+// account are one box transaction (ADR 0020); users and chats are the peer
+// for the push.
 func (c *DialogCore) DialogToggleSavedDialogPin(in *dialog.TLDialogToggleSavedDialogPin) (*mtproto.Bool, error) {
-	var (
-		peer   = in.Peer
-		pinned int64
-	)
-
-	if mtproto.FromBool(in.Pinned) {
-		pinned = time.Now().Unix() << 32
-	} else {
-		pinned = 0
-	}
-
-	_, err := c.svcCtx.Dao.SavedDialogsDAO.UpdateUserPeerPinned(
+	err := c.svcCtx.Dao.ToggleSavedDialogPin(
 		c.ctx,
-		pinned,
 		in.GetUserId(),
-		peer.PeerType,
-		peer.PeerId)
+		in.GetPeer(),
+		mtproto.FromBool(in.GetPinned()),
+		in.GetUsers(),
+		in.GetChats())
 	if err != nil {
-		c.Logger.Error("toggleSavedDialogPin - query saved_dialogs error:", err)
+		c.Logger.Errorf("dialog.toggleSavedDialogPin - error: %v", err)
 		return nil, err
 	}
 

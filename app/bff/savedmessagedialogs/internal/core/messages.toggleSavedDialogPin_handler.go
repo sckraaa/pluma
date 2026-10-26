@@ -19,8 +19,9 @@
 package core
 
 import (
+	"slices"
+
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -45,51 +46,62 @@ func (c *SavedMessageDialogsCore) MessagesToggleSavedDialogPin(in *mtproto.TLMes
 		c.Logger.Errorf("messages.toggleSavedDialogPin - error: %v", err)
 		return nil, err
 	}
+	// The owner's own notes are the dialog with the user, as msg keeps it.
+	if peer.PeerType == mtproto.PEER_SELF {
+		peer.PeerType = mtproto.PEER_USER
+	}
 
-	_, err := c.svcCtx.Dao.DialogClient.DialogToggleSavedDialogPin(c.ctx, &dialog.TLDialogToggleSavedDialogPin{
+	// biz pushes updateSavedDialogPinned with seq to every device of the
+	// account, this one included, in the transaction of the pin (ADR 0020);
+	// the peer goes with it.
+	h := mtproto.NewIDListHelper()
+	h.PickByPeerUtil(peer.PeerType, peer.PeerId)
+	users, chats, err := c.pinPeers(h)
+	if err != nil {
+		c.Logger.Errorf("messages.toggleSavedDialogPin - error: %v", err)
+		return nil, err
+	}
+
+	_, err = c.svcCtx.Dao.DialogClient.DialogToggleSavedDialogPin(c.ctx, &dialog.TLDialogToggleSavedDialogPin{
 		UserId: c.MD.UserId,
 		Peer:   peer,
 		Pinned: mtproto.ToBool(in.Pinned),
+		Users:  users,
+		Chats:  chats,
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.toggleSavedDialogPin - error: %v", err)
 		return mtproto.BoolFalse, nil
 	}
 
-	var (
-		idHelper    = mtproto.NewIDListHelper(c.MD.UserId)
-		syncUpdates = mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateSavedDialogPinned(&mtproto.Update{
-			Pinned: in.GetPinned(),
-			Peer_DIALOGPEER: mtproto.MakeTLDialogPeer(&mtproto.DialogPeer{
-				Peer: peer.ToPeer(),
-			}).To_DialogPeer(),
-		}).To_Update())
-	)
+	return mtproto.BoolTrue, nil
+}
 
-	idHelper.PickByPeerUtil(peer.PeerType, peer.PeerId)
-	idHelper.Visit(
+// pinPeers returns the users and chats of h as the account sees them: the
+// peers an update of pins names, for its push with seq (ADR 0020).
+// Channels are not served.
+func (c *SavedMessageDialogsCore) pinPeers(h *mtproto.IDListHelper) (users []*mtproto.User, chats []*mtproto.Chat, err error) {
+	h.Visit(
 		func(userIdList []int64) {
-			users, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx,
-				&userpb.TLUserGetMutableUsers{
-					Id: userIdList,
-				})
-			syncUpdates.PushUser(users.GetUserListByIdList(c.MD.UserId, userIdList...)...)
+			// The account is in the request: the others are seen as it sees them.
+			id := userIdList
+			if !slices.Contains(id, c.MD.UserId) {
+				id = append([]int64{c.MD.UserId}, id...)
+			}
+			var r *userpb.Vector_ImmutableUser
+			if r, err = c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: id}); err == nil {
+				users = r.GetUserListByIdList(c.MD.UserId, userIdList...)
+			}
 		},
 		func(chatIdList []int64) {
-			chats, _ := c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx,
-				&chatpb.TLChatGetChatListByIdList{
-					IdList: chatIdList,
-				})
-			syncUpdates.PushChat(chats.GetChatListByIdList(c.MD.UserId, chatIdList...)...)
+			if err != nil {
+				return
+			}
+			var r *chatpb.Vector_MutableChat
+			if r, err = c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx, &chatpb.TLChatGetChatListByIdList{IdList: chatIdList}); err == nil {
+				chats = r.GetChatListByIdList(c.MD.UserId, chatIdList...)
+			}
 		},
-		func(channelIdList []int64) {
-			// TODO
-		})
-	c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        c.MD.UserId,
-		PermAuthKeyId: c.MD.PermAuthKeyId,
-		Updates:       syncUpdates,
-	})
-
-	return mtproto.BoolTrue, nil
+		nil)
+	return users, chats, err
 }

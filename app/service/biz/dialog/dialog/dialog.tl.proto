@@ -207,6 +207,10 @@ message TL_dialog_toggleDialogPin {
   int32 peer_type = 4;
   int64 peer_id = 5;
   mtproto.Bool pinned = 6;
+  // pluma: the peers the update with seq names, as the account sees them,
+  // for its push (ADR 0020).
+  repeated mtproto.User users = 7;
+  repeated mtproto.Chat chats = 8;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -261,6 +265,10 @@ message TL_dialog_reorderPinnedDialogs {
   mtproto.Bool force = 4;
   int32 folder_id = 5;
   repeated int64 id_list = 6;
+  // pluma: the peers the update with seq names, as the account sees them,
+  // for its push (ADR 0020).
+  repeated mtproto.User users = 7;
+  repeated mtproto.Chat chats = 8;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -405,6 +413,10 @@ message TL_dialog_toggleSavedDialogPin {
   int64 user_id = 3;
   mtproto.PeerUtil peer = 4;
   mtproto.Bool pinned = 5;
+  // pluma: the peers the update with seq names, as the account sees them,
+  // for its push (ADR 0020).
+  repeated mtproto.User users = 6;
+  repeated mtproto.Chat chats = 7;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -413,6 +425,10 @@ message TL_dialog_reorderPinnedSavedDialogs {
   int64 user_id = 3;
   mtproto.Bool force = 4;
   repeated mtproto.PeerUtil order = 5;
+  // pluma: the peers the update with seq names, as the account sees them,
+  // for its push (ADR 0020).
+  repeated mtproto.User users = 6;
+  repeated mtproto.Chat chats = 7;
 }
 
 //--------------------------------------------------------------------------------------------

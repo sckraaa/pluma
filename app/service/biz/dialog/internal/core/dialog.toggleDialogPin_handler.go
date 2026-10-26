@@ -10,54 +10,28 @@
 package core
 
 import (
-	"context"
-	"time"
-
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
 // DialogToggleDialogPin
-// dialog.toggleDialogPin user_id:long peer_type:int peer_id:long pinned:Bool = Int32;
+// dialog.toggleDialogPin user_id:long peer_type:int peer_id:long pinned:Bool users:Vector<User> chats:Vector<Chat> = Int32;
+//
+// The pin and updateDialogPinned with seq for every device of the account
+// are one box transaction (ADR 0020); users and chats are the peer for the
+// push. It returns the folder of the dialog.
 func (c *DialogCore) DialogToggleDialogPin(in *dialog.TLDialogToggleDialogPin) (*mtproto.Int32, error) {
-	var (
-		peerDialogId = mtproto.MakePeerDialogId(in.PeerType, in.PeerId)
-		pinned       int64
-	)
-
-	dlgExt, err := c.svcCtx.Dao.GetDialogByPeerDialogId(c.ctx, in.GetUserId(), peerDialogId)
+	folderId, err := c.svcCtx.Dao.ToggleDialogPin(
+		c.ctx,
+		in.GetUserId(),
+		in.GetPeerType(),
+		in.GetPeerId(),
+		mtproto.FromBool(in.GetPinned()),
+		in.GetUsers(),
+		in.GetChats())
 	if err != nil {
 		c.Logger.Errorf("dialog.toggleDialogPin - error: %v", err)
 		return nil, err
-	}
-
-	folderId := dlgExt.GetDialog().GetFolderId().GetValue()
-
-	if mtproto.FromBool(in.Pinned) {
-		pinned = time.Now().Unix() << 32
-	} else {
-		pinned = 0
-	}
-
-	if folderId == 0 {
-		c.svcCtx.Dao.CachedConn.Exec(
-			c.ctx,
-			func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-				c.svcCtx.Dao.DialogsDAO.UpdatePeerDialogListPinned(c.ctx, pinned, in.UserId, []int64{peerDialogId})
-				return 0, 0, nil
-			},
-			dialog.GetDialogCacheKey(in.GetUserId(), peerDialogId),
-			dialog.GetPinnedDialogIdListCacheKey(in.GetUserId()))
-	} else {
-		c.svcCtx.Dao.CachedConn.Exec(
-			c.ctx,
-			func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-				c.svcCtx.Dao.DialogsDAO.UpdateFolderPeerDialogListPinned(c.ctx, pinned, in.UserId, []int64{peerDialogId})
-				return 0, 0, nil
-			},
-			dialog.GetDialogCacheKey(in.GetUserId(), peerDialogId),
-			dialog.GetFolderPinnedDialogIdListCacheKey(in.GetUserId()))
 	}
 
 	return &mtproto.Int32{

@@ -33,6 +33,7 @@ func (c *SavedMessageDialogsCore) MessagesReorderPinnedSavedDialogs(in *mtproto.
 
 	var (
 		order []*mtproto.PeerUtil
+		h     = mtproto.NewIDListHelper()
 	)
 	for _, peer := range in.GetOrder() {
 		switch peer.PredicateName {
@@ -43,7 +44,13 @@ func (c *SavedMessageDialogsCore) MessagesReorderPinnedSavedDialogs(in *mtproto.
 				mtproto.PEER_USER,
 				mtproto.PEER_CHAT,
 				mtproto.PEER_CHANNEL:
+				// The owner's own notes are the dialog with the user, as
+				// msg keeps it.
+				if p.PeerType == mtproto.PEER_SELF {
+					p.PeerType = mtproto.PEER_USER
+				}
 				order = append(order, p)
+				h.PickByPeerUtil(p.PeerType, p.PeerId)
 			default:
 				err := mtproto.ErrPeerIdInvalid
 				c.Logger.Errorf("messages.reorderPinnedSavedDialogs - error: %v", err)
@@ -56,10 +63,21 @@ func (c *SavedMessageDialogsCore) MessagesReorderPinnedSavedDialogs(in *mtproto.
 		}
 	}
 
-	_, err := c.svcCtx.Dao.DialogClient.DialogReorderPinnedSavedDialogs(c.ctx, &dialog.TLDialogReorderPinnedSavedDialogs{
+	// biz pushes updatePinnedSavedDialogs with seq, with the order as stored,
+	// to every device of the account, this one included, in the transaction
+	// of the order (ADR 0020); the peers of the order go with it.
+	users, chats, err := c.pinPeers(h)
+	if err != nil {
+		c.Logger.Errorf("messages.reorderPinnedSavedDialogs - error: %v", err)
+		return nil, err
+	}
+
+	_, err = c.svcCtx.Dao.DialogClient.DialogReorderPinnedSavedDialogs(c.ctx, &dialog.TLDialogReorderPinnedSavedDialogs{
 		UserId: c.MD.UserId,
 		Force:  mtproto.ToBool(in.Force),
 		Order:  order,
+		Users:  users,
+		Chats:  chats,
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.reorderPinnedSavedDialogs - error: %v", err)
