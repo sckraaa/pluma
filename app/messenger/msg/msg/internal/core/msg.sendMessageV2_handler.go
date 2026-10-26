@@ -187,9 +187,22 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 				return err
 			}
 			reply(boxes)
+			updates := newMessageUpdates(boxes)
+			// Saved Messages hold nothing unread: Telegram reads them up to
+			// the new message at once.
+			if toUserId == fromUserId && len(boxes) > 0 {
+				read, err := c.svcCtx.Dao.ReadSaved(b, boxes[len(boxes)-1].MessageId)
+				if err != nil {
+					return err
+				}
+				if read != nil {
+					rUpdates.Updates = append(rUpdates.Updates, read)
+					updates = append(updates, read)
+				}
+			}
 
 			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
-				mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, newMessageUpdates(boxes)...)); err != nil {
+				mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, updates...)); err != nil {
 				return err
 			}
 			if toUserId == fromUserId || blocked {

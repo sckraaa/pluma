@@ -191,7 +191,12 @@ func TestNoNotification(t *testing.T) {
 		"own":            updates(message(2, inGroup, from(me), text("я"))),
 		"private action": updates(service(3, mtproto.MakeTLMessageActionChatEditPhoto(nil).To_MessageAction(), func(m *mtproto.Message) { m.PeerId = mtproto.MakePeerUser(anna) })),
 		"channel":        updates(message(4, func(m *mtproto.Message) { m.PeerId = mtproto.MakePeerChannel(5) })),
-		"other update":   mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{mtproto.MakeTLUpdateUserTyping(nil).To_Update()}}).To_Updates(),
+		// Saved Messages are not marked out (as in Telegram) and are the owner's own.
+		"saved messages": updates(message(5, func(m *mtproto.Message) { m.PeerId = mtproto.MakePeerUser(me) }, text("заметка"))),
+		"saved read": mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{
+			mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{Peer_PEER: mtproto.MakePeerUser(me), MaxId: 5}).To_Update(),
+		}}).To_Updates(),
+		"other update": mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{mtproto.MakeTLUpdateUserTyping(nil).To_Update()}}).To_Updates(),
 	} {
 		if ns := FromUpdates(me, ups); len(ns) != 0 {
 			t.Errorf("%s: %+v", name, ns)

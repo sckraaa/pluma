@@ -156,6 +156,9 @@ func FromUpdates(userId int64, ups *mtproto.Updates) []*Notification {
 			n := &Notification{Kind: KindReadHistory, UserId: userId, MaxId: u.GetMaxId()}
 			switch peer.GetPredicateName() {
 			case mtproto.Predicate_peerUser:
+				if peer.GetUserId() == userId {
+					continue // Saved Messages: no push to clear
+				}
 				n.PeerId = peer.GetUserId()
 			case mtproto.Predicate_peerChat:
 				n.Chat, n.PeerId = true, peer.GetChatId()
@@ -201,9 +204,13 @@ func unpack(ups *mtproto.Updates) ([]*mtproto.Update, []*mtproto.User, []*mtprot
 }
 
 // fromMessage returns the notification of an incoming message, nil for an
-// outgoing one or one the recipient need not be told about.
+// outgoing one, one in Saved Messages (the owner's own, not marked out) or
+// one the recipient need not be told about.
 func fromMessage(userId int64, m *mtproto.Message, names, titles map[int64]string) *Notification {
 	if m == nil || m.GetOut() {
+		return nil
+	}
+	if p := m.GetPeerId(); p.GetPredicateName() == mtproto.Predicate_peerUser && p.GetUserId() == userId {
 		return nil
 	}
 	n := &Notification{

@@ -25,17 +25,25 @@ type Outgoing struct {
 // hashtags and the journal row updateNewMessage; then the dialog, and the
 // saved dialog when the owner sends to itself. It returns the boxes, with
 // their pts.
+//
+// A message to the owner itself (Saved Messages) is neither outgoing nor
+// from anyone, as Telegram has it: the chat is the sender (conformance
+// fixture saved_messages).
 func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []Outgoing) ([]*mtproto.MessageBox, error) {
 	var (
 		userId = b.UserId()
 		peer   = boxPeer{PeerType: peerType, PeerId: peerId}
 		did    = peer.dialogId(userId)
 		boxes  = make([]*mtproto.MessageBox, 0, len(msgs))
+		self   = peerType == mtproto.PEER_USER && peerId == userId
 	)
 	for _, m := range msgs {
 		id := b.NextMessageId()
 		message := m.Message
-		message.Out = true
+		message.Out = !self
+		if self {
+			message.FromId = nil
+		}
 		message.Id = id
 		message.MediaUnread = mtproto.CheckHasMediaUnread(message)
 		data, err := jsonx.Marshal(message)
@@ -107,6 +115,14 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 		return nil, err
 	}
 	return boxes, nil
+}
+
+// ReadSaved marks Saved Messages of b's owner read up to maxId, as Telegram
+// does as soon as a message is sent there: updateReadHistoryInbox with its
+// pts, after the updateNewMessage. It returns nil when the chat is read that
+// far already.
+func (d *Dao) ReadSaved(b *userbox.Box, maxId int32) (*mtproto.Update, error) {
+	return readInbox(b, boxPeer{PeerType: mtproto.PEER_USER, PeerId: b.UserId()}, maxId)
 }
 
 // Incoming is the result of receiving messages into a box.
