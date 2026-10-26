@@ -120,12 +120,19 @@ func incomingRow(t *testing.T, userId int64, boxId int32, fromId int64, pts int3
 	}
 }
 
-func difference(t *testing.T, userId int64, pts, limit int32) *updates.Difference {
+// difference returns userId's difference from pts in slices of rows
+// journal rows (0: sliceRows).
+func difference(t *testing.T, userId int64, pts, rows int32) *updates.Difference {
 	t.Helper()
-	in := &updates.TLUpdatesGetDifferenceV2{UserId: userId, Pts: pts}
-	if limit > 0 {
-		in.PtsTotalLimit = &wrapperspb.Int32Value{Value: limit}
+	if rows > 0 {
+		defer func(n int32) { sliceRows = n }(sliceRows)
+		sliceRows = rows
 	}
+	return differenceWith(t, &updates.TLUpdatesGetDifferenceV2{UserId: userId, Pts: pts})
+}
+
+func differenceWith(t *testing.T, in *updates.TLUpdatesGetDifferenceV2) *updates.Difference {
+	t.Helper()
 	d, err := New(context.Background(), itSvc).UpdatesGetDifferenceV2(in)
 	if err != nil {
 		t.Fatal(err)
@@ -190,6 +197,27 @@ func TestGetDifference(t *testing.T) {
 		fixture(t, u, 1_000_003, 2, 3)
 		d := difference(t, u, 3, 0)
 		if d.GetPredicateName() != updates.Predicate_difference || d.GetState().GetPts() != 1_000_003 || len(d.GetNewMessages()) != 0 {
+			t.Fatalf("%s, state %v", d.GetPredicateName(), d.GetState())
+		}
+	})
+	t.Run("pts_total_limit asks for differenceTooLong", func(t *testing.T) {
+		u := newUser()
+		fixture(t, u, 6, 2, 3, 4, 5, 6)
+		limit := func(n int32) *wrapperspb.Int32Value { return &wrapperspb.Int32Value{Value: n} }
+		d := differenceWith(t, &updates.TLUpdatesGetDifferenceV2{UserId: u, Pts: 2, PtsTotalLimit: limit(3)})
+		if d.GetPredicateName() != updates.Predicate_differenceTooLong || d.GetPts() != 6 {
+			t.Fatalf("4 behind with a limit of 3: %s, pts %d", d.GetPredicateName(), d.GetPts())
+		}
+		d = differenceWith(t, &updates.TLUpdatesGetDifferenceV2{UserId: u, Pts: 2, PtsTotalLimit: limit(4)})
+		if d.GetPredicateName() != updates.Predicate_difference || fmt.Sprint(messageIds(d)) != "[3 4 5 6]" {
+			t.Fatalf("4 behind with a limit of 4: %s, messages %v", d.GetPredicateName(), messageIds(d))
+		}
+	})
+	t.Run("a client ahead takes the state of the box", func(t *testing.T) {
+		u := newUser()
+		fixture(t, u, 3, 2, 3)
+		d := difference(t, u, 10, 0)
+		if d.GetPredicateName() != updates.Predicate_difference || d.GetState().GetPts() != 3 || len(d.GetNewMessages()) != 0 {
 			t.Fatalf("%s, state %v", d.GetPredicateName(), d.GetState())
 		}
 	})

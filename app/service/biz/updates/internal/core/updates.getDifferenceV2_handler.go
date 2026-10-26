@@ -20,28 +20,25 @@ import (
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
 
+// sliceRows is the most journal rows one answer folds: a longer range is
+// answered in differenceSlice pages (Telegram recommends 1000 to 10000).
+var sliceRows int32 = 1000
+
 // UpdatesGetDifferenceV2
 // updates.getDifferenceV2 flags:# auth_key_id:long user_id:long pts:int pts_total_limit:flags.0?int date:long = Difference;
 //
 // It reads the committed state S of the box first and then the journal rows
 // in (pts, S.pts]: every row up to S.pts committed before S became visible,
 // so the rows are complete; rows committed after are left for the next push
-// or getDifference. With fewer than the limit, the reply is a difference up
+// or getDifference. With fewer than sliceRows, the reply is a difference up
 // to S.pts, even with no rows (a jump of the state, e.g. by the migration of
 // user_state). The rows are folded as Telegram answers (differenceBuilder);
 // the seq of the state is the one updates.getState gives.
+//
+// pts_total_limit is the client's (ADR 0019): with it, a range longer than
+// it is differenceTooLong. A client ahead of the box gets the box's state.
 func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV2) (*updates.Difference, error) {
-	limit := in.GetPtsTotalLimit().GetValue()
-	if limit <= 0 || limit > 5000 {
-		limit = 5000
-	}
-
 	st, err := userbox.Read(c.ctx, c.svcCtx.Dao.BoxDB, in.UserId)
-	if err != nil {
-		c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)
-		return nil, mtproto.ErrInternalServerError
-	}
-	rows, err := c.svcCtx.Dao.UserPtsUpdatesDAO.SelectByPtsRange(c.ctx, in.UserId, in.Pts, st.Pts, limit)
 	if err != nil {
 		c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)
 		return nil, mtproto.ErrInternalServerError
@@ -53,12 +50,31 @@ func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV
 			Seq:  stateSeq(st),
 		}).To_Updates_State()
 	}
-	if len(rows) == 0 && in.Pts >= st.Pts {
+	// The client asks for differenceTooLong over pts_total_limit (Android on
+	// its first getDifference, Web K) and then reloads its dialogs. Without
+	// the limit there is none: Telegram Desktop does not support it, and the
+	// notification extension of iOS crashes on it.
+	if limit := in.GetPtsTotalLimit().GetValue(); limit > 0 && int64(in.Pts)+int64(limit) < int64(st.Pts) {
+		return updates.MakeTLDifferenceTooLong(&updates.Difference{Pts: st.Pts}).To_Difference(), nil
+	}
+	// A client ahead of the box (it was given a pts the box no longer has,
+	// e.g. after a restore from a backup) takes the box's lower pts from a
+	// difference; differenceEmpty would leave it ahead, dropping every push
+	// with a pts it believes it has.
+	if in.Pts > st.Pts {
+		return updates.MakeTLDifference(&updates.Difference{State: state(st.Pts)}).To_Difference(), nil
+	}
+	rows, err := c.svcCtx.Dao.UserPtsUpdatesDAO.SelectByPtsRange(c.ctx, in.UserId, in.Pts, st.Pts, sliceRows)
+	if err != nil {
+		c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	if len(rows) == 0 && in.Pts == st.Pts {
 		return updates.MakeTLDifferenceEmpty(&updates.Difference{State: state(st.Pts)}).To_Difference(), nil
 	}
 
 	end := st.Pts
-	full := len(rows) >= int(limit)
+	full := len(rows) >= int(sliceRows)
 	if full {
 		end = rows[len(rows)-1].Pts
 	}

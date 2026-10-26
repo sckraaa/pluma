@@ -74,7 +74,7 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 		}).To_Updates_Difference()
 
 	case updates.Predicate_differenceTooLong:
-		// TODO: iOS
+		// Only when the client set pts_total_limit (biz, ADR 0019).
 		rDifference = mtproto.MakeTLUpdatesDifferenceTooLong(&mtproto.Updates_Difference{
 			Pts: updatesDiff.Pts,
 		}).To_Updates_Difference()
