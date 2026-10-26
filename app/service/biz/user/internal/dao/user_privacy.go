@@ -314,10 +314,15 @@ func withAllowedUser(rules []*mtproto.PrivacyRule, peerId int64) ([]*mtproto.Pri
 	return out, changed
 }
 
-func (d *Dao) SetUserPrivacyRules(ctx context.Context, id int64, key int32, rules []*mtproto.PrivacyRule) bool {
+// SetUserPrivacyRules stores id's rules of a privacy key in one box
+// transaction of id, with updatePrivacy for every device of the account
+// (ADR 0020). users and chats are the ones the rules name, as id sees them,
+// for the push. Rules equal to the ones in force (stored, or the default
+// of the key) change nothing and push nothing.
+func (d *Dao) SetUserPrivacyRules(ctx context.Context, id int64, key int32, rules []*mtproto.PrivacyRule, users []*mtproto.User, chats []*mtproto.Chat) error {
 	cacheKey := genUserPrivacyKeyPrefix(id, key)
 	if cacheKey == "" {
-		return false
+		return mtproto.ErrPrivacyKeyInvalid
 	}
 
 	cacheKeys := []string{cacheKey}
@@ -328,17 +333,46 @@ func (d *Dao) SetUserPrivacyRules(ctx context.Context, id int64, key int32, rule
 		cacheKeys = append(cacheKeys, genCacheUserDataCacheKey(id))
 	}
 
-	d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			rulesData, _ := jsonx.Marshal(rules)
-			return d.UserPrivaciesDAO.InsertOrUpdate(ctx, &dataobject.UserPrivaciesDO{
-				UserId:  id,
-				KeyType: key,
-				Rules:   hack.String(rulesData),
-			})
-		},
-		cacheKeys...)
+	rulesData, err := jsonx.Marshal(rules)
+	if err != nil {
+		return err
+	}
+	_, err = d.RunBox(ctx, id, cacheKeys, func(b *userbox.Box) error {
+		var list []string
+		if err := b.Tx().QueryRowsPartial(&list, "SELECT rules FROM user_privacies WHERE user_id = ? AND key_type = ? FOR UPDATE", id, key); err != nil {
+			return err
+		}
+		var current []*mtproto.PrivacyRule
+		if len(list) > 0 {
+			if err := jsonx.UnmarshalFromString(list[0], &current); err != nil {
+				return err
+			}
+		}
+		if len(current) == 0 {
+			current = makeDefaultPrivacyRules(key)
+		}
+		if equalPrivacyRules(current, rules) {
+			return nil
+		}
+		if _, _, err := d.UserPrivaciesDAO.InsertOrUpdateTx(b.Tx(), &dataobject.UserPrivaciesDO{
+			UserId:  id,
+			KeyType: key,
+			Rules:   hack.String(rulesData),
+		}); err != nil {
+			return err
+		}
+		return d.EmitSeqUpdate(b, mtproto.MakeTLUpdatePrivacy(&mtproto.Update{
+			Key:   mtproto.ToPrivacyKey(int(key)),
+			Rules: rules,
+		}).To_Update(), users, chats)
+	})
+	return err
+}
 
-	return true
+// equalPrivacyRules tells whether two lists of rules are the same, rule by
+// rule.
+func equalPrivacyRules(a, b []*mtproto.PrivacyRule) bool {
+	return slices.EqualFunc(a, b, func(x, y *mtproto.PrivacyRule) bool {
+		return proto.Equal(x, y)
+	})
 }

@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 
 	"google.golang.org/grpc/status"
@@ -38,8 +37,8 @@ var errStoriesUnavailable = status.Error(mtproto.ErrBadRequest, "STORIES_UNAVAIL
 //
 // Replaces the whole main blocklist with the first limit peers of id
 // (core.telegram.org/api/block: limit is the length of id): the peers not
-// in it are unblocked, the new ones blocked, and the user's other devices
-// get updatePeerBlocked for each, as from contacts.block and
+// in it are unblocked, the new ones blocked, and every device of the user
+// gets updatePeerBlocked with seq for each, as from contacts.block and
 // contacts.unblock. Only users can be blocked, as with contacts.block.
 func (c *ContactsCore) ContactsSetBlocked(in *mtproto.TLContactsSetBlocked) (*mtproto.Bool, error) {
 	if in.GetMyStoriesFrom() {
@@ -125,32 +124,27 @@ func (c *ContactsCore) ContactsSetBlocked(in *mtproto.TLContactsSetBlocked) (*mt
 		}
 	}
 
-	updates := mtproto.MakeUpdatesByUpdatesUsers(nil)
+	// Each block and unblock is a box transaction of biz that pushes its
+	// updatePeerBlocked with seq to every device of the account, this one
+	// included (ADR 0020); the peer goes with it.
 	change := func(id int64, block bool) error {
+		var peers []*mtproto.User
+		if u, err := users.GetUnsafeUser(c.MD.UserId, id); err == nil {
+			peers = []*mtproto.User{u}
+		}
 		var (
 			ok  *mtproto.Bool
 			err error
 		)
 		if block {
-			ok, err = c.svcCtx.Dao.UserClient.UserBlockPeer(c.ctx, &userpb.TLUserBlockPeer{UserId: c.MD.UserId, PeerType: mtproto.PEER_USER, PeerId: id})
+			ok, err = c.svcCtx.Dao.UserClient.UserBlockPeer(c.ctx, &userpb.TLUserBlockPeer{UserId: c.MD.UserId, PeerType: mtproto.PEER_USER, PeerId: id, Users: peers})
 		} else {
-			ok, err = c.svcCtx.Dao.UserClient.UserUnBlockPeer(c.ctx, &userpb.TLUserUnBlockPeer{UserId: c.MD.UserId, PeerType: mtproto.PEER_USER, PeerId: id})
+			ok, err = c.svcCtx.Dao.UserClient.UserUnBlockPeer(c.ctx, &userpb.TLUserUnBlockPeer{UserId: c.MD.UserId, PeerType: mtproto.PEER_USER, PeerId: id, Users: peers})
 		}
 		if err == nil && !mtproto.FromBool(ok) {
 			err = mtproto.ErrInternalServerError
 		}
-		if err != nil {
-			return err
-		}
-		updates.PushBackUpdate(mtproto.MakeTLUpdatePeerBlocked(&mtproto.Update{
-			Blocked_BOOL:        mtproto.ToBool(block),
-			Blocked_FLAGBOOLEAN: block,
-			PeerId:              mtproto.MakePeerUser(id),
-		}).To_Update())
-		if u, err := users.GetUnsafeUser(c.MD.UserId, id); err == nil {
-			updates.PushUser(u)
-		}
-		return nil
+		return err
 	}
 	for _, id := range unblock {
 		if err = change(id, false); err != nil {
@@ -163,17 +157,9 @@ func (c *ContactsCore) ContactsSetBlocked(in *mtproto.TLContactsSetBlocked) (*mt
 		}
 		err = change(id, true)
 	}
-	if len(updates.GetUpdates()) > 0 {
-		if _, err2 := c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-			UserId:        c.MD.UserId,
-			PermAuthKeyId: c.MD.PermAuthKeyId,
-			Updates:       updates,
-		}); err2 != nil {
-			c.Logger.Errorf("contacts.setBlocked - push to the other devices of user %d: %v", c.MD.UserId, err2)
-		}
-	}
 	if err != nil {
-		// What changed is pushed; repeating the request finishes the rest.
+		// What changed is committed and pushed; repeating the request
+		// finishes the rest.
 		c.Logger.Errorf("contacts.setBlocked - error: %v", err)
 		return nil, err
 	}

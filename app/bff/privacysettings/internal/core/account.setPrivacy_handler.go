@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -40,25 +39,11 @@ func (c *PrivacySettingsCore) AccountSetPrivacy(in *mtproto.TLAccountSetPrivacy)
 	}
 
 	ruleList := mtproto.ToPrivacyRuleListByInput(c.MD.UserId, in.Rules)
-
-	if _, err := c.svcCtx.Dao.UserClient.UserSetPrivacy(c.ctx, &userpb.TLUserSetPrivacy{
-		UserId:  c.MD.UserId,
-		KeyType: int32(key),
-		Rules:   ruleList,
-	}); err != nil {
-		c.Logger.Errorf("account.setPrivacy - error: %v", err)
-		return nil, err
-	}
-
 	rValue := mtproto.MakeTLAccountPrivacyRules(&mtproto.Account_PrivacyRules{
 		Rules: ruleList,
-		Users: []*mtproto.User{}, // TODO
-		Chats: []*mtproto.Chat{}, // TODO
+		Users: []*mtproto.User{},
+		Chats: []*mtproto.Chat{},
 	}).To_Account_PrivacyRules()
-	syncUpdates := mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdatePrivacy(&mtproto.Update{
-		Key:   mtproto.ToPrivacyKey(key),
-		Rules: ruleList,
-	}).To_Update())
 
 	idHelper := mtproto.NewIDListHelper(c.MD.UserId)
 	idHelper.PickByRules(ruleList)
@@ -69,7 +54,6 @@ func (c *PrivacySettingsCore) AccountSetPrivacy(in *mtproto.TLAccountSetPrivacy)
 					Id: userIdList,
 				})
 			rValue.Users = users.GetUserListByIdList(c.MD.UserId, userIdList...)
-			syncUpdates.PushUser(rValue.Users...)
 		},
 		func(chatIdList []int64) {
 			chats, _ := c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx,
@@ -77,17 +61,24 @@ func (c *PrivacySettingsCore) AccountSetPrivacy(in *mtproto.TLAccountSetPrivacy)
 					IdList: chatIdList,
 				})
 			rValue.Chats = chats.GetChatListByIdList(c.MD.UserId, chatIdList...)
-			syncUpdates.PushChat(rValue.Chats...)
 		},
 		func(channelIdList []int64) {
 			// TODO
 		})
 
-	c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        c.MD.UserId,
-		PermAuthKeyId: c.MD.PermAuthKeyId,
-		Updates:       syncUpdates,
-	})
+	// biz pushes updatePrivacy with seq to every device of the account,
+	// this one included, in the transaction of the change (ADR 0020); the
+	// users and chats the rules name go with it.
+	if _, err := c.svcCtx.Dao.UserClient.UserSetPrivacy(c.ctx, &userpb.TLUserSetPrivacy{
+		UserId:  c.MD.UserId,
+		KeyType: int32(key),
+		Rules:   ruleList,
+		Users:   rValue.Users,
+		Chats:   rValue.Chats,
+	}); err != nil {
+		c.Logger.Errorf("account.setPrivacy - error: %v", err)
+		return nil, err
+	}
 
 	return rValue, nil
 }

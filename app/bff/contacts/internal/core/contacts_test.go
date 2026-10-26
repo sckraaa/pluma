@@ -92,13 +92,23 @@ func (f *fakeUsers) UserGetBlockedList(context.Context, *userpb.TLUserGetBlocked
 }
 
 func (f *fakeUsers) UserBlockPeer(_ context.Context, in *userpb.TLUserBlockPeer) (*mtproto.Bool, error) {
-	f.blockCalls = append(f.blockCalls, "block "+itoa(in.PeerId))
+	f.blockCalls = append(f.blockCalls, blockCall("block", in.PeerId, in.Users))
 	return mtproto.BoolTrue, nil
 }
 
 func (f *fakeUsers) UserUnBlockPeer(_ context.Context, in *userpb.TLUserUnBlockPeer) (*mtproto.Bool, error) {
-	f.blockCalls = append(f.blockCalls, "unblock "+itoa(in.PeerId))
+	f.blockCalls = append(f.blockCalls, blockCall("unblock", in.PeerId, in.Users))
 	return mtproto.BoolTrue, nil
+}
+
+// blockCall describes a call of user.blockPeer or user.unBlockPeer: the
+// peer and the users that go with its push.
+func blockCall(verb string, peerId int64, users []*mtproto.User) string {
+	s := verb + " " + itoa(peerId)
+	for _, u := range users {
+		s += " u" + itoa(u.GetId())
+	}
+	return s
 }
 
 func (f *fakeUsers) UserGetTopPeers(context.Context, *userpb.TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error) {
@@ -315,15 +325,13 @@ func TestSetBlockedReplacesTheList(t *testing.T) {
 	if err != nil || !mtproto.FromBool(r) {
 		t.Fatalf("%v, %v", r, err)
 	}
-	if want := []string{"unblock " + itoa(3), "block " + itoa(5)}; !reflect.DeepEqual(users.blockCalls, want) {
+	// Each change goes with its peer; biz pushes it with seq to every
+	// device (ADR 0020), bff pushes nothing.
+	if want := []string{"unblock 3 u3", "block 5 u5"}; !reflect.DeepEqual(users.blockCalls, want) {
 		t.Errorf("calls %v, want %v", users.blockCalls, want)
 	}
-	if len(push.pushed) != 1 || len(push.pushed[0].GetUpdates().GetUpdates()) != 2 {
-		t.Fatalf("pushes %v", push.pushed)
-	}
-	ups := push.pushed[0].GetUpdates().GetUpdates()
-	if ups[0].GetPeerId().GetUserId() != 3 || ups[0].GetBlocked_FLAGBOOLEAN() || ups[1].GetPeerId().GetUserId() != 5 || !ups[1].GetBlocked_FLAGBOOLEAN() {
-		t.Errorf("updates %v", ups)
+	if len(push.pushed) != 0 {
+		t.Errorf("pushes %v", push.pushed)
 	}
 
 	// The same list again: nothing to do.

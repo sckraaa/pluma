@@ -15,13 +15,22 @@ import (
 )
 
 // UserSetPrivacy
-// user.setPrivacy user_id:int key_type:int rules:Vector<PrivacyRule> = Bool;
+// user.setPrivacy user_id:int key_type:int rules:Vector<PrivacyRule> users:Vector<User> chats:Vector<Chat> = Bool;
+//
+// The rules and updatePrivacy with seq for every device of the account are
+// one box transaction (ADR 0020); users and chats are the ones the rules
+// name, for the push.
 func (c *UserCore) UserSetPrivacy(in *user.TLUserSetPrivacy) (*mtproto.Bool, error) {
-	c.svcCtx.Dao.SetUserPrivacyRules(
+	if err := c.svcCtx.Dao.SetUserPrivacyRules(
 		c.ctx,
 		in.GetUserId(),
 		in.GetKeyType(),
-		in.GetRules())
+		in.GetRules(),
+		in.GetUsers(),
+		in.GetChats()); err != nil {
+		c.Logger.Errorf("user.setPrivacy - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }

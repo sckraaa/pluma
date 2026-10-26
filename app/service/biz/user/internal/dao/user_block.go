@@ -21,12 +21,12 @@ package dao
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 var (
@@ -78,34 +78,66 @@ func (d *Dao) CheckBlocked(ctx context.Context, id, blockedId int64) bool {
 	return !blocked.IsEmpty()
 }
 
-func (d *Dao) BlockUser(ctx context.Context, id, blockId int64) bool {
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			return d.UserPeerBlocksDAO.InsertOrUpdate(ctx, &dataobject.UserPeerBlocksDO{
-				UserId:   id,
-				PeerType: mtproto.PEER_USER,
-				PeerId:   blockId,
-				Date:     time.Now().Unix(),
-			})
-		},
-		genContactsBlockPeerCacheKey(id, blockId))
-
-	return err == nil
+// BlockUser blocks the user blockId for id in one box transaction of id,
+// with updatePeerBlocked for every device of the account (ADR 0020). users
+// are blockId as id sees it, for the push. A user already blocked is a
+// no-op: nothing is written or pushed.
+func (d *Dao) BlockUser(ctx context.Context, id, blockId int64, users []*mtproto.User) error {
+	_, err := d.RunBox(ctx, id, []string{genContactsBlockPeerCacheKey(id, blockId)}, func(b *userbox.Box) error {
+		blocked, err := isBlockedTx(b, id, blockId)
+		if err != nil || blocked {
+			return err
+		}
+		if _, _, err = d.UserPeerBlocksDAO.InsertOrUpdateTx(b.Tx(), &dataobject.UserPeerBlocksDO{
+			UserId:   id,
+			PeerType: mtproto.PEER_USER,
+			PeerId:   blockId,
+			Date:     b.Date(),
+		}); err != nil {
+			return err
+		}
+		return d.EmitSeqUpdate(b, peerBlockedUpdate(blockId, true), users, nil)
+	})
+	return err
 }
 
-func (d *Dao) UnBlockUser(ctx context.Context, id, unblockId int64) bool {
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			affected, err := d.UserPeerBlocksDAO.Delete(
-				ctx,
-				id,
-				mtproto.PEER_USER,
-				unblockId)
-			return 0, affected, err
-		},
-		genContactsBlockPeerCacheKey(id, unblockId))
+// UnBlockUser unblocks the user unblockId for id in one box transaction of
+// id, with updatePeerBlocked for every device of the account (ADR 0020).
+// users are unblockId as id sees it, for the push. A user not blocked is a
+// no-op: nothing is written or pushed.
+func (d *Dao) UnBlockUser(ctx context.Context, id, unblockId int64, users []*mtproto.User) error {
+	_, err := d.RunBox(ctx, id, []string{genContactsBlockPeerCacheKey(id, unblockId)}, func(b *userbox.Box) error {
+		blocked, err := isBlockedTx(b, id, unblockId)
+		if err != nil || !blocked {
+			return err
+		}
+		if _, err = d.UserPeerBlocksDAO.DeleteTx(b.Tx(), id, mtproto.PEER_USER, unblockId); err != nil {
+			return err
+		}
+		return d.EmitSeqUpdate(b, peerBlockedUpdate(unblockId, false), users, nil)
+	})
+	return err
+}
 
-	return err == nil
+// isBlockedTx tells whether id blocks the user peerId, under the lock of
+// the row in b's transaction.
+func isBlockedTx(b *userbox.Box, id, peerId int64) (bool, error) {
+	var list []int64
+	if err := b.Tx().QueryRowsPartial(&list,
+		"SELECT peer_id FROM user_peer_blocks WHERE user_id = ? AND peer_type = ? AND peer_id = ? AND deleted = 0 FOR UPDATE",
+		id, mtproto.PEER_USER, peerId); err != nil {
+		return false, err
+	}
+	return len(list) > 0, nil
+}
+
+// peerBlockedUpdate is updatePeerBlocked of the user peerId. The story
+// blocklist does not exist (users are stories_unavailable), so
+// blocked_my_stories_from is never set.
+func peerBlockedUpdate(peerId int64, blocked bool) *mtproto.Update {
+	return mtproto.MakeTLUpdatePeerBlocked(&mtproto.Update{
+		Blocked_BOOL:        mtproto.ToBool(blocked),
+		Blocked_FLAGBOOLEAN: blocked,
+		PeerId:              mtproto.MakePeerUser(peerId),
+	}).To_Update()
 }

@@ -15,9 +15,22 @@ import (
 )
 
 // UserBlockPeer
-// user.blockPeer user_id:long peer_type:int peer_id:long = Bool;
+// user.blockPeer user_id:long peer_type:int peer_id:long users:Vector<User> = Bool;
+//
+// The block and updatePeerBlocked with seq for every device of the account
+// are one box transaction (ADR 0020); users are the peer, for the push.
+// Only another user is blocked; blocking one already blocked changes
+// nothing.
 func (c *UserCore) UserBlockPeer(in *user.TLUserBlockPeer) (*mtproto.Bool, error) {
-	blocked := c.svcCtx.Dao.BlockUser(c.ctx, in.GetUserId(), in.GetPeerId())
+	if in.GetPeerType() != mtproto.PEER_USER || in.GetPeerId() <= 0 || in.GetPeerId() == in.GetUserId() {
+		err := mtproto.ErrPeerIdInvalid
+		c.Logger.Errorf("user.blockPeer - error: %v", err)
+		return nil, err
+	}
+	if err := c.svcCtx.Dao.BlockUser(c.ctx, in.GetUserId(), in.GetPeerId(), in.GetUsers()); err != nil {
+		c.Logger.Errorf("user.blockPeer - error: %v", err)
+		return nil, err
+	}
 
-	return mtproto.ToBool(blocked), nil
+	return mtproto.BoolTrue, nil
 }

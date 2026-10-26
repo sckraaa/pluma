@@ -389,6 +389,10 @@ message TL_user_setPrivacy {
   int64 user_id = 3;
   int32 key_type = 4;
   repeated mtproto.PrivacyRule rules = 5;
+  // pluma: the users and chats the rules name, as the account sees them,
+  // for the push of the update with seq (ADR 0020).
+  repeated mtproto.User users = 6;
+  repeated mtproto.Chat chats = 7;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -455,6 +459,9 @@ message TL_user_blockPeer {
   int64 user_id = 3;
   int32 peer_type = 4;
   int64 peer_id = 5;
+  // pluma: the peer as the account sees it, for the push of the update
+  // with seq (ADR 0020).
+  repeated mtproto.User users = 6;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -463,6 +470,9 @@ message TL_user_unBlockPeer {
   int64 user_id = 3;
   int32 peer_type = 4;
   int64 peer_id = 5;
+  // pluma: the peer as the account sees it, for the push of the update
+  // with seq (ADR 0020).
+  repeated mtproto.User users = 6;
 }
 
 //--------------------------------------------------------------------------------------------

@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -31,8 +30,7 @@ func (c *ContactsCore) ContactsBlock(in *mtproto.TLContactsBlock) (*mtproto.Bool
 		err    error
 		mUsers *userpb.Vector_ImmutableUser
 
-		blockId  = mtproto.FromInputPeer2(c.MD.UserId, in.GetId())
-		idHelper = mtproto.NewIDListHelper(c.MD.UserId)
+		blockId = mtproto.FromInputPeer2(c.MD.UserId, in.GetId())
 	)
 
 	if !blockId.IsUser() || blockId.IsSelf() {
@@ -79,36 +77,18 @@ func (c *ContactsCore) ContactsBlock(in *mtproto.TLContactsBlock) (*mtproto.Bool
 		c.Logger.Errorf("contacts.block - error: %v", err)
 		return nil, err
 	}
-	c.svcCtx.Dao.UserClient.UserBlockPeer(c.ctx, &userpb.TLUserBlockPeer{
+	// biz pushes updatePeerBlocked with seq to every device of the
+	// account, this one included, in the transaction of the change
+	// (ADR 0020); the peer goes with it.
+	if _, err = c.svcCtx.Dao.UserClient.UserBlockPeer(c.ctx, &userpb.TLUserBlockPeer{
 		UserId:   c.MD.UserId,
 		PeerType: blockId.PeerType,
 		PeerId:   blockId.PeerId,
-	})
-	idHelper.AppendUsers(blockId.PeerId)
-
-	syncUpdates := mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdatePeerBlocked(&mtproto.Update{
-		Blocked_BOOL:         mtproto.BoolTrue,
-		Blocked_FLAGBOOLEAN:  true,
-		BlockedMyStoriesFrom: false,
-		PeerId:               blockId.ToPeer(),
-	}).To_Update())
-
-	idHelper.Visit(
-		func(userIdList []int64) {
-			syncUpdates.PushUser(mUsers.GetUserListByIdList(c.MD.UserId, userIdList...)...)
-		},
-		func(chatIdList []int64) {
-			//
-		},
-		func(channelIdList []int64) {
-			//
-		})
-
-	c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        c.MD.UserId,
-		PermAuthKeyId: c.MD.PermAuthKeyId,
-		Updates:       syncUpdates,
-	})
+		Users:    mUsers.GetUserListByIdList(c.MD.UserId, blockId.PeerId),
+	}); err != nil {
+		c.Logger.Errorf("contacts.block - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }

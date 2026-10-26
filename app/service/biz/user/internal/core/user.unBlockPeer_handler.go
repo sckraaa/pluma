@@ -15,9 +15,21 @@ import (
 )
 
 // UserUnBlockPeer
-// user.unBlockPeer user_id:long peer_type:int peer_id:long = Bool;
+// user.unBlockPeer user_id:long peer_type:int peer_id:long users:Vector<User> = Bool;
+//
+// The unblock and updatePeerBlocked with seq for every device of the
+// account are one box transaction (ADR 0020); users are the peer, for the
+// push. Unblocking a user not blocked changes nothing.
 func (c *UserCore) UserUnBlockPeer(in *user.TLUserUnBlockPeer) (*mtproto.Bool, error) {
-	unblocked := c.svcCtx.Dao.UnBlockUser(c.ctx, in.GetUserId(), in.GetPeerId())
+	if in.GetPeerType() != mtproto.PEER_USER || in.GetPeerId() <= 0 || in.GetPeerId() == in.GetUserId() {
+		err := mtproto.ErrPeerIdInvalid
+		c.Logger.Errorf("user.unBlockPeer - error: %v", err)
+		return nil, err
+	}
+	if err := c.svcCtx.Dao.UnBlockUser(c.ctx, in.GetUserId(), in.GetPeerId(), in.GetUsers()); err != nil {
+		c.Logger.Errorf("user.unBlockPeer - error: %v", err)
+		return nil, err
+	}
 
-	return mtproto.ToBool(unblocked), nil
+	return mtproto.BoolTrue, nil
 }
