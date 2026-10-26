@@ -361,7 +361,7 @@ func (c *fakeConn) run(query string, args []driver.NamedValue, rows *fakeRows) (
 	case "lock":
 		u := args[0].Value.(int64)
 		if _, ok := c.current(u); !ok {
-			c.states[u] = State{Pts: BasePts, Date: args[1].Value.(int64)}
+			c.states[u] = State{Pts: BasePts, Seq: BaseSeq, Date: args[1].Value.(int64)} // the defaults of user_state
 			affected = 1
 		}
 	case "select_locked", "read":

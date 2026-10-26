@@ -224,7 +224,7 @@ func seq(from, to int32) []int32 {
 func TestSequentialOperations(t *testing.T) {
 	pools(t, func(t *testing.T, db *sql.DB) {
 		u := itUser()
-		if st := mustRead(t, db, u); st != (State{Pts: BasePts}) {
+		if st := mustRead(t, db, u); st != (State{Pts: BasePts, Seq: BaseSeq}) {
 			t.Fatalf("state of a new user: %+v", st)
 		}
 		for range 10 {

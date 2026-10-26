@@ -46,7 +46,7 @@ func TestRunAllocatesInOneTransaction(t *testing.T) {
 	ctx := context.Background()
 
 	res, err := Run(ctx, db, 7, func(b *Box) error {
-		if got := b.State(); got != (State{Pts: BasePts, Date: b.Date()}) {
+		if got := b.State(); got != (State{Pts: BasePts, Seq: BaseSeq, Date: b.Date()}) {
 			t.Errorf("state of a new box: %+v", got)
 		}
 		id1 := b.NextMessageId()
@@ -527,7 +527,7 @@ func TestRead(t *testing.T) {
 	s := newFakeServer()
 	db := s.open(t)
 	st, err := Read(context.Background(), db, 7)
-	if err != nil || st != (State{Pts: BasePts}) {
+	if err != nil || st != (State{Pts: BasePts, Seq: BaseSeq}) {
 		t.Fatalf("state of a new user: %+v, %v", st, err)
 	}
 	s.states[7] = State{Pts: 42, LastMessageBoxId: 9, Date: 100}

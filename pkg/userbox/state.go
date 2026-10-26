@@ -13,18 +13,24 @@ import (
 // its first update gets pts BasePts+1, and updates.getState never returns 0.
 const BasePts = 1
 
+// BaseSeq is the seq of an account no update with seq was sent to yet: the
+// first such update gets seq BaseSeq+1, which a client holding BaseSeq
+// applies without a gap. 0 is not used: an update with seq 0 is one
+// without order (ADR 0019).
+const BaseSeq = 1
+
 // State is the committed state of a user's common message box: a row of
 // user_state.
 type State struct {
 	Pts              int32 // last committed pts
 	Qts              int32 // reserved: does not change yet
-	Seq              int32 // reserved: does not change yet
+	Seq              int32 // of the last update with seq; none is sent yet, so BaseSeq
 	LastMessageBoxId int32 // last issued user_message_box_id
 	Date             int64 // unix time of the last change (date2)
 }
 
 // baseState is the state of a user without a user_state row.
-func baseState() State { return State{Pts: BasePts} }
+func baseState() State { return State{Pts: BasePts, Seq: BaseSeq} }
 
 // stateRow is a user_state row as go-zero scans it.
 type stateRow struct {
