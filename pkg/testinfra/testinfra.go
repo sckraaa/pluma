@@ -6,7 +6,10 @@
 // from that file, and the server settings match it (TestComposeServices keeps
 // them in sync). MySQL gets its schema the way production does: every
 // teamgramd/deploy/sql/*.sql applied by the image's docker-entrypoint-initdb.d
-// in file name order.
+// in file name order. That runs once per set of schema files: the initialized
+// datadir is kept in a local image (pluma-testinfra-mysql, labelled
+// pluma.testinfra=mysql-schema; the last used ones stay), and each server
+// starts from a copy of it in seconds.
 //
 // Integration tests carry the build tag "integration", so plain `go test ./...`
 // never needs Docker. A test package usually starts what it needs once in

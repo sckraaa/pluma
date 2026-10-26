@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -34,8 +35,10 @@ const (
 	MySQLUser     = "teamgram"
 
 	mysqlInitDir = "/docker-entrypoint-initdb.d/"
-	// Applying the schema to an empty database takes a few seconds; pulling
-	// the image on a cold cache takes longer.
+	// mysqlUsersFile is the --init-file that sets the passwords of a server.
+	mysqlUsersFile = "/testinfra-users.sql"
+	// Applying the schema to an empty database (a new schema image) takes a
+	// few seconds; pulling the image on a cold cache takes longer.
 	mysqlStartupTimeout = 3 * time.Minute
 )
 
@@ -64,10 +67,13 @@ func WithSchemaFiles(files []string) MySQLOption {
 	}
 }
 
-// StartMySQL starts the production MySQL image and loads the schema (all of
-// SchemaFiles unless WithSchemaFiles says otherwise) the way production does.
-// The data lives in memory. Like conf.Load in the services, it applies the
-// production log policy: no SQL statements or Redis commands in the logs.
+// StartMySQL starts the production MySQL image with the schema (all of
+// SchemaFiles unless WithSchemaFiles says otherwise) loaded the way
+// production does. The schema is applied once per set of files, into a local
+// schema image (mysqlimage.go); each server starts from a copy of its
+// datadir. The data lives in memory. Like conf.Load in the services, it
+// applies the production log policy: no SQL statements or Redis commands in
+// the logs.
 func StartMySQL(ctx context.Context, opts ...MySQLOption) (*MySQL, error) {
 	logpolicy.Apply()
 	o := &mysqlOptions{}
@@ -82,30 +88,30 @@ func StartMySQL(ctx context.Context, opts ...MySQLOption) (*MySQL, error) {
 			return nil, err
 		}
 	}
-
-	// The init directory is applied in name order, so the files keep their
-	// names; a name may appear once.
-	files := make([]testcontainers.ContainerFile, 0, len(o.schema))
-	seen := map[string]bool{}
-	for _, f := range o.schema {
-		name := filepath.Base(f)
-		if seen[name] {
-			return nil, fmt.Errorf("testinfra: schema file %s given twice", name)
-		}
-		seen[name] = true
-		files = append(files, testcontainers.ContainerFile{
-			HostFilePath:      f,
-			ContainerFilePath: mysqlInitDir + name,
-			FileMode:          0o644,
-		})
+	schema, err := readSchemaFiles(o.schema)
+	if err != nil {
+		return nil, err
+	}
+	image, err := mysqlSchemaImage(ctx, schema)
+	if err != nil {
+		return nil, err
 	}
 
 	m := &MySQL{rootPassword: randomSecret()}
-	for _, f := range files {
-		m.schema = append(m.schema, filepath.Base(f.ContainerFilePath))
+	for _, f := range schema {
+		m.schema = append(m.schema, f.name)
 	}
 	password := randomSecret()
-	ctr, err := runService(ctx, "mysql",
+	// The users of a schema image keep the random passwords of its build,
+	// which are thrown away: no password is fixed in an image. Each server
+	// gets its own random ones, as before the schema images, from the
+	// --init-file, which MySQL runs before it accepts connections; the option
+	// changes no server setting (MySQLServerArgs). The environment is what a
+	// server initialized with these passwords has; the image's entrypoint
+	// does not read it, since the datadir is there.
+	users := fmt.Sprintf("ALTER USER 'root'@'localhost' IDENTIFIED BY '%[1]s', 'root'@'%%' IDENTIFIED BY '%[1]s', '%[2]s'@'%%' IDENTIFIED BY '%[3]s';\n",
+		m.rootPassword, MySQLUser, password)
+	ctr, err := runImage(ctx, image,
 		testcontainers.WithExposedPorts("3306/tcp"),
 		testcontainers.WithEnv(map[string]string{
 			"MYSQL_ROOT_PASSWORD": m.rootPassword,
@@ -113,11 +119,13 @@ func StartMySQL(ctx context.Context, opts ...MySQLOption) (*MySQL, error) {
 			"MYSQL_USER":          MySQLUser,
 			"MYSQL_PASSWORD":      password,
 		}),
-		testcontainers.WithCmd(MySQLServerArgs...),
+		testcontainers.WithCmd(append(slices.Clone(MySQLServerArgs), "--init-file="+mysqlUsersFile)...),
 		testcontainers.WithTmpfs(map[string]string{"/var/lib/mysql": "rw"}),
-		testcontainers.WithFiles(files...),
-		// The init scripts run on a temporary server without networking; the
-		// final server logs its port once they are done.
+		testcontainers.WithFiles(testcontainers.ContainerFile{
+			Reader:            strings.NewReader(users),
+			ContainerFilePath: mysqlUsersFile,
+			FileMode:          0o644,
+		}),
 		testcontainers.WithWaitStrategyAndDeadline(mysqlStartupTimeout,
 			wait.ForLog("port: 3306  MySQL Community Server"),
 			wait.ForListeningPort("3306/tcp"),

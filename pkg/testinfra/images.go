@@ -116,19 +116,25 @@ func tagReaper(ctx context.Context) error {
 	}
 	defer cli.Close()
 
-	if _, err = cli.ImageInspect(ctx, byDigest); cerrdefs.IsNotFound(err) {
-		var pull client.ImagePullResponse
-		if pull, err = cli.ImagePull(ctx, byDigest, client.ImagePullOptions{}); err != nil {
-			return err
-		}
-		err = pull.Wait(ctx)
-		_ = pull.Close()
-	}
-	if err != nil {
+	if err = pullMissing(ctx, cli, byDigest); err != nil {
 		return err
 	}
 	_, err = cli.ImageTag(ctx, client.ImageTagOptions{Source: byDigest, Target: tag})
 	return err
+}
+
+// pullMissing pulls ref unless the Docker host has it.
+func pullMissing(ctx context.Context, cli *testcontainers.DockerClient, ref string) error {
+	_, err := cli.ImageInspect(ctx, ref)
+	if !cerrdefs.IsNotFound(err) {
+		return err
+	}
+	pull, err := cli.ImagePull(ctx, ref, client.ImagePullOptions{})
+	if err != nil {
+		return err
+	}
+	defer pull.Close()
+	return pull.Wait(ctx)
 }
 
 // runService starts the image of the compose service with opts.
@@ -137,7 +143,12 @@ func runService(ctx context.Context, service string, opts ...testcontainers.Cont
 	if err != nil {
 		return nil, err
 	}
-	if err = pinReaper(ctx); err != nil {
+	return runImage(ctx, image, opts...)
+}
+
+// runImage starts image with opts, watched by the pinned reaper.
+func runImage(ctx context.Context, image string, opts ...testcontainers.ContainerCustomizer) (*testcontainers.DockerContainer, error) {
+	if err := pinReaper(ctx); err != nil {
 		return nil, err
 	}
 	return testcontainers.Run(ctx, image, opts...)
