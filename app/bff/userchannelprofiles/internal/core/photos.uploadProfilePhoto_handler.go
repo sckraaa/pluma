@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 )
@@ -40,6 +39,9 @@ func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosU
 		return nil, err
 	}
 
+	// biz pushes updateUser with seq and the account as it sees itself to
+	// every device of the account, this one included, in the transaction
+	// of the change (ADR 0020).
 	// TODO: ALBUM_PHOTOS_TOO_MANY
 	_, err = c.svcCtx.Dao.UserClient.UserUpdateProfilePhoto(c.ctx, &userpb.TLUserUpdateProfilePhoto{
 		UserId: c.MD.UserId,
@@ -49,27 +51,6 @@ func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosU
 		c.Logger.Errorf("photos.uploadProfilePhoto - error: %v", err)
 		return nil, err
 	}
-
-	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(
-		c.ctx,
-		&userpb.TLUserGetImmutableUser{
-			Id:       c.MD.UserId,
-			Privacy:  false,
-			Contacts: nil,
-		})
-	if err != nil {
-		c.Logger.Errorf("photos.uploadProfilePhoto - error: %v", err)
-		return nil, err
-	}
-
-	_, _ = c.svcCtx.Dao.SyncClient.SyncPushUpdates(c.ctx, &sync.TLSyncPushUpdates{
-		UserId: c.MD.UserId,
-		Updates: mtproto.MakeUpdatesByUpdatesUsers(
-			[]*mtproto.User{me.ToSelfUser()},
-			mtproto.MakeTLUpdateUser(&mtproto.Update{
-				UserId: c.MD.UserId,
-			}).To_Update()),
-	})
 
 	return mtproto.MakeTLPhotosPhoto(&mtproto.Photos_Photo{
 		Photo: photo,

@@ -72,49 +72,24 @@ func (c PremiumChange) apply(cur PremiumState, now int64) PremiumState {
 	return PremiumState{Premium: true, Until: start.AddDate(0, int(c.Months), 0).Unix()}
 }
 
-type premiumRow struct {
-	Premium bool  `db:"premium"`
-	Until   int64 `db:"premium_expire_date"`
-}
-
 // ChangePremium changes userId's Premium in one box transaction of the
-// user. When the state changes, the user's devices get the updates
-// pushed(state) builds (the user as they see themselves), as an event of
-// the transaction. It returns the state now stored and whether it changed.
-func (d *Dao) ChangePremium(ctx context.Context, userId int64, change PremiumChange, pushed func(PremiumState) (*mtproto.Updates, error)) (PremiumState, bool, error) {
-	var (
-		state   PremiumState
-		changed bool
-	)
-	_, err := d.RunBox(ctx, userId, []string{GenCacheUserDataCacheKey(userId)}, func(b *userbox.Box) error {
-		var rows []premiumRow
-		if err := b.Tx().QueryRowsPartial(&rows,
-			"SELECT premium, premium_expire_date FROM users WHERE id = ? AND deleted = 0 FOR UPDATE", userId); err != nil {
-			return err
-		}
-		if len(rows) == 0 {
-			return mtproto.ErrUserIdInvalid
-		}
-		cur := PremiumState{Premium: rows[0].Premium, Until: rows[0].Until}
+// user. When the state changes, the user's devices get updateUser with seq
+// and the user as they see themselves (ADR 0020). It returns the state now
+// stored and whether it changed.
+func (d *Dao) ChangePremium(ctx context.Context, userId int64, change PremiumChange) (PremiumState, bool, error) {
+	var state PremiumState
+	_, changed, err := d.changeSelf(ctx, userId, mtproto.Predicate_updateUser, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
+		cur := PremiumState{Premium: row.Premium, Until: row.Until}
 		state = change.apply(cur, b.Date())
-		changed = state != cur
-		if !changed {
-			return nil
+		if state == cur {
+			return false, nil
 		}
 		if _, err := b.Tx().Exec("UPDATE users SET premium = ?, premium_expire_date = ? WHERE id = ?",
 			state.Premium, state.Until, userId); err != nil {
-			return err
+			return false, err
 		}
-		updates, err := pushed(state)
-		if err != nil {
-			return err
-		}
-		ev, err := d.PushUpdates(userId, updates)
-		if err != nil {
-			return err
-		}
-		b.Emit(ev)
-		return nil
+		row.Premium, row.Until = state.Premium, state.Until
+		return true, nil
 	})
 	return state, changed, err
 }

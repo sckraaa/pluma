@@ -16,12 +16,13 @@ import (
 
 // UserUpdateFirstAndLastName
 // user.updateFirstAndLastName user_id:long first_name:string last_name:string = Bool;
+//
+// The name and updateUserName with seq for every device of the account are
+// one box transaction (ADR 0020); the same name changes nothing.
 func (c *UserCore) UserUpdateFirstAndLastName(in *user.TLUserUpdateFirstAndLastName) (*mtproto.Bool, error) {
-	rB := c.svcCtx.Dao.UpdateUserFirstAndLastName(
-		c.ctx,
-		in.GetUserId(),
-		in.GetFirstName(),
-		in.GetLastName())
-
-	return mtproto.ToBool(rB), nil
+	if err := c.svcCtx.Dao.UpdateFirstAndLastName(c.ctx, in.GetUserId(), in.GetFirstName(), in.GetLastName()); err != nil {
+		c.Logger.Errorf("user.updateFirstAndLastName - user %d: %v", in.GetUserId(), err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }

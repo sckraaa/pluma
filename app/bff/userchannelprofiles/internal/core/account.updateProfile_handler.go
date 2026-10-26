@@ -19,8 +19,9 @@
 package core
 
 import (
+	"strings"
+
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -33,6 +34,21 @@ func (c *UserChannelProfilesCore) AccountUpdateProfile(in *mtproto.TLAccountUpda
 	if err != nil {
 		c.Logger.Errorf("account.updateProfile - error: %v", err)
 		return nil, mtproto.ErrUserInvalid
+	}
+
+	// A name not passed stays: a client changing only about passes only
+	// about.
+	firstName, lastName := me.FirstName(), me.LastName()
+	if in.GetFirstName() != nil {
+		firstName = in.GetFirstName().GetValue()
+		if strings.TrimSpace(firstName) == "" {
+			err = mtproto.ErrFirstnameInvalid
+			c.Logger.Errorf("account.updateProfile - error: %v", err)
+			return nil, err
+		}
+	}
+	if in.GetLastName() != nil {
+		lastName = in.GetLastName().GetValue()
 	}
 
 	if in.GetAbout() != nil {
@@ -55,29 +71,20 @@ func (c *UserChannelProfilesCore) AccountUpdateProfile(in *mtproto.TLAccountUpda
 		}
 	}
 
-	if in.GetFirstName().GetValue() != me.FirstName() ||
-		in.GetLastName().GetValue() != me.LastName() {
+	if firstName != me.FirstName() || lastName != me.LastName() {
+		// biz pushes updateUserName with seq to every device of the
+		// account, this one included, in the transaction of the change
+		// (ADR 0020).
 		if _, err = c.svcCtx.Dao.UserClient.UserUpdateFirstAndLastName(c.ctx, &userpb.TLUserUpdateFirstAndLastName{
 			UserId:    c.MD.UserId,
-			FirstName: in.GetFirstName().GetValue(),
-			LastName:  in.GetLastName().GetValue(),
+			FirstName: firstName,
+			LastName:  lastName,
 		}); err != nil {
 			c.Logger.Errorf("account.updateProfile - error: %v", err)
-		} else {
-			me.SetFirstName(in.GetFirstName().GetValue())
-			me.SetLastName(in.GetLastName().GetValue())
+			return nil, err
 		}
-
-		c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-			UserId:        c.MD.UserId,
-			PermAuthKeyId: c.MD.PermAuthKeyId,
-			Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateUserName(&mtproto.Update{
-				UserId:    c.MD.UserId,
-				FirstName: in.GetFirstName().GetValue(),
-				LastName:  in.GetLastName().GetValue(),
-				Username:  me.Username(),
-			}).To_Update()),
-		})
+		me.SetFirstName(firstName)
+		me.SetLastName(lastName)
 	}
 
 	return me.ToSelfUser(), nil

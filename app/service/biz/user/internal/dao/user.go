@@ -138,30 +138,6 @@ func (d *Dao) CreateNewUserV2(
 	}).To_ImmutableUser(), nil
 }
 
-func (d *Dao) UpdateUserFirstAndLastName(ctx context.Context, id int64, firstName, lastName string) bool {
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			rowsAffected, err := d.UsersDAO.UpdateUser(ctx, map[string]interface{}{
-				"first_name": firstName,
-				"last_name":  lastName,
-			}, id)
-
-			if err != nil {
-				return 0, 0, err
-			}
-
-			return 0, rowsAffected, nil
-		},
-		genCacheUserDataCacheKey(id))
-	if err != nil {
-		logx.WithContext(ctx).Errorf("updateUserFirstAndLastName - error: %v", err)
-		return false
-	}
-
-	return true
-}
-
 func (d *Dao) UpdateUserAbout(ctx context.Context, id int64, about string) bool {
 	_, _, err := d.CachedConn.Exec(
 		ctx,
@@ -183,87 +159,6 @@ func (d *Dao) UpdateUserAbout(ctx context.Context, id int64, about string) bool 
 	}
 
 	return true
-}
-
-func (d *Dao) UpdateUserUsername(ctx context.Context, id int64, username string) bool {
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			rowsAffected, err := d.UsersDAO.UpdateUser(ctx, map[string]interface{}{
-				"username": username,
-			}, id)
-
-			if err != nil {
-				return 0, 0, err
-			}
-
-			return 0, rowsAffected, nil
-		},
-		genCacheUserDataCacheKey(id))
-	if err != nil {
-		logx.WithContext(ctx).Errorf("updateUserUsername - error: %v", err)
-		return false
-	}
-
-	return true
-}
-
-//func (d *Dao) DeleteProfilePhoto(ctx context.Context, userId, photoId int64) int64 {
-//}
-//
-//func (d *Dao) DeleteMainProfilePhoto(ctx context.Context, userId int64) int64 {
-//}
-
-func (d *Dao) UpdateProfilePhoto(ctx context.Context, userId, photoId int64) int64 {
-	var (
-		mainPhotoId = photoId
-	)
-
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			var err error
-			if photoId == 0 {
-				mainPhotoId, _ = d.UsersDAO.SelectProfilePhoto(ctx, userId)
-				if mainPhotoId > 0 {
-					nextPhotoId, _ := d.UserProfilePhotosDAO.SelectNext(ctx, userId, []int64{mainPhotoId})
-					tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-						_, result.Err = d.UserProfilePhotosDAO.DeleteTx(tx, userId, []int64{mainPhotoId})
-						if result.Err != nil {
-							return
-						}
-						_, result.Err = d.UsersDAO.UpdateProfilePhotoTx(tx, nextPhotoId, userId)
-					})
-					mainPhotoId = nextPhotoId
-					err = tR.Err
-				} else {
-					_, err = d.UsersDAO.UpdateProfilePhoto(ctx, 0, userId)
-					mainPhotoId = 0
-				}
-			} else {
-				tR := sqlx.TxWrapper(ctx, d.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-					_, _, result.Err = d.UserProfilePhotosDAO.InsertOrUpdateTx(tx, &dataobject.UserProfilePhotosDO{
-						UserId:  userId,
-						PhotoId: mainPhotoId,
-						Date2:   time.Now().Unix(),
-					})
-					if result.Err != nil {
-						return
-					}
-					_, result.Err = d.UsersDAO.UpdateProfilePhotoTx(tx, mainPhotoId, userId)
-				})
-				err = tR.Err
-			}
-
-			return 0, 0, err
-		},
-		genCacheUserDataCacheKey(userId))
-	if err != nil {
-		logx.WithContext(ctx).Errorf("updateProfilePhoto - error: %v", err)
-		return 0
-	}
-
-	return mainPhotoId
 }
 
 func (d *Dao) GetImmutableUser(ctx context.Context, id int64, privacy bool, contacts ...int64) (*mtproto.ImmutableUser, error) {

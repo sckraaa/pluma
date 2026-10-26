@@ -20,21 +20,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/svc"
-	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/metric"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // Premium granted by the admin (task 014, ADR 0016). The user's devices
-// learn of a change from their own user in pushed updates
-// (updates{updateUser, users: [the user]}): the clients take Premium from
-// the premium flag of their user (Android UserConfig ->
+// learn of a change from their own user in the update with seq
+// (updates{updateUser, users: [the user]}, ADR 0020): the clients take
+// Premium from the premium flag of their user (Android UserConfig ->
 // MessagesController.updatePremium).
 
 const (
@@ -62,29 +58,8 @@ var metricPremiumErrors = metric.NewCounterVec(&metric.CounterVecOpts{
 func ChangePremium(ctx context.Context, svcCtx *svc.ServiceContext, userId int64, change dao.PremiumChange) (dao.PremiumState, error) {
 	ctx, cancel := context.WithTimeout(ctx, premiumTimeout)
 	defer cancel()
-	users, err := New(ctx, svcCtx).UserGetMutableUsers(&user.TLUserGetMutableUsers{Id: []int64{userId}})
-	if err != nil {
-		return dao.PremiumState{}, err
-	}
-	me, ok := users.GetImmutableUser(userId)
-	if !ok {
-		return dao.PremiumState{}, mtproto.ErrUserIdInvalid
-	}
-	state, _, err := svcCtx.Dao.ChangePremium(ctx, userId, change, func(s dao.PremiumState) (*mtproto.Updates, error) {
-		return premiumUpdates(me, s), nil
-	})
+	state, _, err := svcCtx.Dao.ChangePremium(ctx, userId, change)
 	return state, err
-}
-
-// premiumUpdates is what the user's devices get when their Premium became
-// s: their own user with it.
-func premiumUpdates(me *mtproto.ImmutableUser, s dao.PremiumState) *mtproto.Updates {
-	view := proto.Clone(me).(*mtproto.ImmutableUser)
-	view.User.Premium = s.Premium
-	view.User.PremiumExpireDate = wrapperspb.Int64(s.Until)
-	return mtproto.MakeUpdatesByUpdatesUsers(
-		[]*mtproto.User{view.ToSelfUser()},
-		mtproto.MakeTLUpdateUser(&mtproto.Update{UserId: me.Id()}).To_Update())
 }
 
 // PremiumWorker takes Premium away from the users whose months are over and
