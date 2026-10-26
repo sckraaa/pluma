@@ -56,6 +56,9 @@ type Config struct {
 	SystemLangCode string
 	LangPack       string
 	LangCode       string
+	// Params are the params of initConnection, if any: the official
+	// clients send a JSON object such as {"tz_offset": 10800}.
+	Params *mtproto.JSONValue
 
 	// Logf, if set, receives a line for every message sent and received:
 	// TL types and message ids only, never content.
@@ -268,6 +271,7 @@ func (c *Client) WrapInit(query []byte) mtproto.TLObject {
 		SystemLangCode: c.cfg.SystemLangCode,
 		LangPack:       c.cfg.LangPack,
 		LangCode:       c.cfg.LangCode,
+		Params:         c.cfg.Params,
 		Query:          query,
 	}
 	b, err := encodeObject(init, c.cfg.Layer)

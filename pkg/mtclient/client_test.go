@@ -183,12 +183,34 @@ func TestIntermediateTransport(t *testing.T) {
 // fakeServer is the server side of a session over a pipe: it decrypts what
 // the client sends and encrypts replies with the server half of the key.
 type fakeServer struct {
-	t       *testing.T
-	conn    net.Conn
+	t    *testing.T
+	conn net.Conn
+	// packets are what the client sent, read from conn all the time: a
+	// net.Pipe write waits for the read, and the client writes its acks
+	// holding its lock, so a server that read only when a test asks for a
+	// message would stop the client (as TCP, with its buffers, does not).
+	packets chan []byte
 	ak      *crypto.AuthKey
 	session int64
 	lastID  int64
 	salt    int64
+}
+
+// readPackets reads the client's packets into s.packets until the
+// connection closes.
+func (s *fakeServer) readPackets() {
+	defer close(s.packets)
+	for {
+		var n uint32
+		if err := binary.Read(s.conn, binary.LittleEndian, &n); err != nil {
+			return
+		}
+		p := make([]byte, n)
+		if _, err := io.ReadFull(s.conn, p); err != nil {
+			return
+		}
+		s.packets <- p
+	}
 }
 
 type clientMsg struct {
@@ -218,20 +240,24 @@ func newSessionPair(t *testing.T) (*Client, *fakeServer) {
 	}
 	c := New(<-tr, key, Config{})
 	t.Cleanup(func() { _ = c.Close(); _ = b.Close() })
-	return c, &fakeServer{t: t, conn: b, ak: crypto.NewAuthKey(key.ID, key.Key), salt: 222}
+	s := &fakeServer{t: t, conn: b, packets: make(chan []byte, 64), ak: crypto.NewAuthKey(key.ID, key.Key), salt: 222}
+	go s.readPackets()
+	return c, s
 }
 
 // read returns the next message from the client; a container is returned as
 // its elements.
 func (s *fakeServer) read() []clientMsg {
 	s.t.Helper()
-	var n uint32
-	if err := binary.Read(s.conn, binary.LittleEndian, &n); err != nil {
-		s.t.Fatal(err)
-	}
-	p := make([]byte, n)
-	if _, err := io.ReadFull(s.conn, p); err != nil {
-		s.t.Fatal(err)
+	var p []byte
+	select {
+	case got, ok := <-s.packets:
+		if !ok {
+			s.t.Fatal("the client connection is closed")
+		}
+		p = got
+	case <-time.After(10 * time.Second):
+		s.t.Fatal("no message from the client in 10 s")
 	}
 	plain, err := s.ak.AesIgeDecrypt(p[8:24], p[24:])
 	if err != nil {
@@ -560,6 +586,9 @@ func TestRepeatedMessagesIgnored(t *testing.T) {
 	id := s.write(1, tl(crcUpdatesTooLong))
 	s.writeID(id, 1, tl(crcUpdatesTooLong))
 	inner := nextMsgID(id, 0) | 1
+	// The container gets a msg_id after inner: computed from id again, it
+	// could be inner itself when the clock has not moved.
+	s.lastID = inner
 	s.write(0, containerIDs([]int64{id, inner}, tl(crcUpdatesTooLong), updateShort(1)))
 	// Handled in order: once updateShort is queued, the repeats were seen.
 	if _, err := c.WaitUpdate(ctx, isUpdateShort); err != nil {
@@ -648,6 +677,43 @@ func TestWaitUpdateWakesEveryWaiter(t *testing.T) {
 	for range 2 {
 		if r := <-results; !IsTransportError(r.err, -404) {
 			t.Fatalf("%s after the transport error: %v", r.name, r.err)
+		}
+	}
+}
+
+// The params of initConnection go out as set, and without them flags.1 stays
+// clear.
+func TestWrapInitParams(t *testing.T) {
+	params := mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: []*mtproto.JSONObjectValue{
+		mtproto.MakeTLJsonObjectValue(&mtproto.JSONObjectValue{
+			Key: "tz_offset", Value: mtproto.MakeTLJsonNumber(&mtproto.JSONValue{Value_FLOAT64: 10800}).To_JSONValue(),
+		}).To_JSONObjectValue(),
+	}}).To_JSONValue()
+	for _, p := range []*mtproto.JSONValue{params, nil} {
+		c := &Client{cfg: Config{Params: p}}
+		c.cfg.setDefaults()
+		query, err := encodeObject(&mtproto.TLHelpGetConfig{Constructor: mtproto.CRC32_help_getConfig}, c.cfg.Layer)
+		if err != nil {
+			t.Fatal(err)
+		}
+		inv, ok := c.WrapInit(query).(*mtproto.TLInvokeWithLayer)
+		if !ok {
+			t.Fatal("WrapInit is not invokeWithLayer")
+		}
+		init, ok := mtproto.NewDecodeBuf(inv.Query).Object().(*mtproto.TLInitConnection)
+		if !ok {
+			t.Fatal("the query of invokeWithLayer is not initConnection")
+		}
+		got := init.GetParams()
+		if p == nil {
+			if got != nil {
+				t.Errorf("params %v without Config.Params", got)
+			}
+			continue
+		}
+		kv := got.GetValue_VECTORJSONOBJECTVALUE()
+		if len(kv) != 1 || kv[0].GetKey() != "tz_offset" || kv[0].GetValue().GetValue_FLOAT64() != 10800 {
+			t.Errorf("params %v", got)
 		}
 	}
 }
