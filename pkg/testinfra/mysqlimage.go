@@ -196,12 +196,12 @@ func mysqlSchemaImage(ctx context.Context, schema []schemaFile) (string, error) 
 func mysqlImageStateDir() string {
 	if dir, err := os.UserCacheDir(); err == nil {
 		dir = filepath.Join(dir, "pluma-testinfra")
-		if err = os.MkdirAll(dir, 0o755); err == nil {
+		if err = os.MkdirAll(dir, 0o750); err == nil {
 			return dir
 		}
 	}
 	dir := filepath.Join(os.TempDir(), "pluma-testinfra")
-	_ = os.MkdirAll(dir, 0o755)
+	_ = os.MkdirAll(dir, 0o750)
 	return dir
 }
 
@@ -212,7 +212,7 @@ func mysqlImageStateDir() string {
 // machine) two binaries may build the same image: the later commit takes the
 // tag, and pruneMySQLImages removes the untagged copy.
 func lockMySQLImage(ctx context.Context, path string) (unlock func(), err error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
 		return nil, err
 	}
