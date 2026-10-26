@@ -1014,7 +1014,7 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `updates.getChannelDifference` | blocked |  | app/bff/updates/internal/core/updates.getChannelDifference_handler.go:27 |
-| `updates.getDifference` | ok | yes | app/bff/updates/internal/core/updates.getDifference_handler.go:33 |
+| `updates.getDifference` | ok | yes | app/bff/updates/internal/core/updates.getDifference_handler.go:30 |
 | `updates.getState` | ok | yes | app/bff/updates/internal/core/updates.getState_handler.go:28 |
 
 ### upload

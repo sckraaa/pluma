@@ -24,3 +24,4 @@
 | [0016](0016-no-premium.md) | Premium в Pluma: по умолчанию ни у кого, выдаёт администратор | accepted |
 | [0017](0017-push-notifications.md) | Push-уведомления: отдельный сервис на потоке Sync-T, только зашифрованные push | accepted |
 | [0018](0018-conformance-harness.md) | Сравнительные тесты: свой клиент mtclient, сценарии на Go, эталоны в JSON | accepted |
+| [0019](0019-difference-composition-and-seq.md) | Состав updates.getDifference и seq состояния | accepted |

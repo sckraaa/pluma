@@ -35,7 +35,7 @@
 | [007](007-conformance-harness.md) | Каркас сравнительных тестов | done |
 | [008](008-security-p1.md) | Безопасность P1: 2FA, PFS, проверки протокола | done |
 | [009](009-push.md) | Push: APNs (включая VoIP) и FCM | done |
-| [010](010-updates-seq-difference.md) | seq, getDifference и полнота апдейтов | todo |
+| [010](010-updates-seq-difference.md) | seq, getDifference и полнота апдейтов | in-progress |
 | [011](011-contacts.md) | Контакты: импорт по номеру и поиск людей | done |
 | [012](012-web-client.md) | Web-клиент (Web K) в облаке | done |
 | [013](013-dialog-filters.md) | Папки чатов | done |
