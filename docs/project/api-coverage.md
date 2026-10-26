@@ -120,7 +120,7 @@
 | `account.reportProfilePhoto` | missing |  |  |
 | `account.resendPasswordEmail` | missing |  |  |
 | `account.resetAuthorization` | ok |  | app/bff/account/internal/core/account.resetAuthorization_handler.go:32 |
-| `account.resetNotifySettings` | ok |  | app/bff/notification/internal/core/account.resetNotifySettings_handler.go:31 |
+| `account.resetNotifySettings` | ok |  | app/bff/notification/internal/core/account.resetNotifySettings_handler.go:28 |
 | `account.resetPassword` | ok |  | app/bff/authorization/internal/core/account.resetPassword_handler.go:34 |
 | `account.resetWallPapers` | missing |  |  |
 | `account.resetWebAuthorization` | missing |  |  |
@@ -143,7 +143,7 @@
 | `account.setContentSettings` | ok |  | app/bff/nsfw/internal/core/account.setContentSettings_handler.go:28 |
 | `account.setGlobalPrivacySettings` | ok |  | app/bff/privacysettings/internal/core/account.setGlobalPrivacySettings_handler.go:33 |
 | `account.setMainProfileTab` | ok |  | app/bff/userchannelprofiles/internal/core/account.setMainProfileTab_handler.go:28 |
-| `account.setPrivacy` | ok |  | app/bff/privacysettings/internal/core/account.setPrivacy_handler.go:30 |
+| `account.setPrivacy` | ok |  | app/bff/privacysettings/internal/core/account.setPrivacy_handler.go:29 |
 | `account.setReactionsNotifySettings` | missing |  |  |
 | `account.toggleConnectedBotPaused` | missing |  |  |
 | `account.toggleNoPaidMessagesException` | missing |  |  |
@@ -162,13 +162,13 @@
 | `account.updateConnectedBot` | missing |  |  |
 | `account.updateDeviceLocked` | ok |  | app/bff/notification/internal/core/account.updateDeviceLocked_handler.go:31 |
 | `account.updateEmojiStatus` | missing |  |  |
-| `account.updateNotifySettings` | partial |  | app/bff/notification/internal/core/account.updateNotifySettings_handler.go:48 |
+| `account.updateNotifySettings` | partial |  | app/bff/notification/internal/core/account.updateNotifySettings_handler.go:47 |
 | `account.updatePasswordSettings` | ok |  | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:29 |
 | `account.updatePersonalChannel` | ok |  | app/bff/userchannelprofiles/internal/core/account.updatePersonalChannel_handler.go:28 |
-| `account.updateProfile` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateProfile_handler.go:29 |
+| `account.updateProfile` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateProfile_handler.go:30 |
 | `account.updateStatus` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateStatus_handler.go:32 |
 | `account.updateTheme` | missing |  |  |
-| `account.updateUsername` | ok |  | app/bff/usernames/internal/core/account.updateUsername_handler.go:31 |
+| `account.updateUsername` | ok |  | app/bff/usernames/internal/core/account.updateUsername_handler.go:30 |
 | `account.updateVerified` | blocked |  | app/bff/userchannelprofiles/internal/core/account.updateVerified_handler.go:27 |
 | `account.updateWebBrowserSettings` | blocked |  | app/bff/webbrowser/internal/core/account.updateWebBrowserSettings_handler.go:26 |
 | `account.uploadRingtone` | missing |  |  |
@@ -385,12 +385,12 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `contacts.acceptContact` | ok |  | app/bff/contacts/internal/core/contacts.acceptContact_handler.go:37 |
+| `contacts.acceptContact` | ok |  | app/bff/contacts/internal/core/contacts.acceptContact_handler.go:36 |
 | `contacts.addContact` | ok |  | app/bff/contacts/internal/core/contacts.addContact_handler.go:34 |
-| `contacts.block` | ok |  | app/bff/contacts/internal/core/contacts.block_handler.go:29 |
+| `contacts.block` | ok |  | app/bff/contacts/internal/core/contacts.block_handler.go:28 |
 | `contacts.blockFromReplies` | missing |  |  |
 | `contacts.deleteByPhones` | ok |  | app/bff/contacts/internal/core/contacts.deleteByPhones_handler.go:27 |
-| `contacts.deleteContacts` | ok |  | app/bff/contacts/internal/core/contacts.deleteContacts_handler.go:29 |
+| `contacts.deleteContacts` | ok |  | app/bff/contacts/internal/core/contacts.deleteContacts_handler.go:28 |
 | `contacts.editCloseFriends` | ok |  | app/bff/contacts/internal/core/contacts.editCloseFriends_handler.go:28 |
 | `contacts.exportContactToken` | missing |  |  |
 | `contacts.getBirthdays` | ok |  | app/bff/userchannelprofiles/internal/core/contacts.getBirthdays_handler.go:28 |
@@ -409,10 +409,10 @@
 | `contacts.resolvePhone` | ok |  | app/bff/users/internal/core/contacts.resolvePhone_handler.go:28 |
 | `contacts.resolveUsername` | ok |  | app/bff/usernames/internal/core/contacts.resolveUsername_handler.go:35 |
 | `contacts.search` | ok |  | app/bff/contacts/internal/core/contacts.search_handler.go:52 |
-| `contacts.setBlocked` | ok |  | app/bff/contacts/internal/core/contacts.setBlocked_handler.go:44 |
+| `contacts.setBlocked` | ok |  | app/bff/contacts/internal/core/contacts.setBlocked_handler.go:43 |
 | `contacts.toggleStoriesHidden` | missing |  |  |
 | `contacts.toggleTopPeers` | ok |  | app/bff/contacts/internal/core/contacts.toggleTopPeers_handler.go:32 |
-| `contacts.unblock` | ok |  | app/bff/contacts/internal/core/contacts.unblock_handler.go:29 |
+| `contacts.unblock` | ok |  | app/bff/contacts/internal/core/contacts.unblock_handler.go:28 |
 | `contacts.updateContactNote` | blocked |  | app/bff/contacts/internal/core/contacts.updateContactNote_handler.go:27 |
 
 ### ephemeral
@@ -642,12 +642,12 @@
 | `messages.getWebPagePreview8B68B0CC` | missing |  |  |
 | `messages.hideAllChatJoinRequests` | blocked |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:27 |
 | `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:32 |
-| `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:28 |
+| `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
 | `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:32 |
 | `messages.importChatInviteDE91436E` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInviteDE91436E_handler.go:32 |
 | `messages.initHistoryImport` | missing |  |  |
 | `messages.installStickerSet` | missing |  |  |
-| `messages.markDialogUnread` | ok |  | app/bff/dialogs/internal/core/messages.markDialogUnread_handler.go:28 |
+| `messages.markDialogUnread` | ok |  | app/bff/dialogs/internal/core/messages.markDialogUnread_handler.go:37 |
 | `messages.migrateChat` | blocked |  | app/bff/chats/internal/core/messages.migrateChat_handler.go:27 |
 | `messages.prolongWebView` | missing |  |  |
 | `messages.rateTranscribedAudio` | missing |  |  |
@@ -662,7 +662,7 @@
 | `messages.readSavedHistory` | blocked |  | app/bff/savedmessagedialogs/internal/core/messages.readSavedHistory_handler.go:27 |
 | `messages.receivedMessages` | notimpl |  | app/bff/messages/internal/core/messages.receivedMessages_handler.go:27 |
 | `messages.receivedQueue` | missing |  |  |
-| `messages.reorderPinnedDialogs` | ok |  | app/bff/dialogs/internal/core/messages.reorderPinnedDialogs_handler.go:34 |
+| `messages.reorderPinnedDialogs` | ok |  | app/bff/dialogs/internal/core/messages.reorderPinnedDialogs_handler.go:28 |
 | `messages.reorderPinnedForumTopics` | missing |  |  |
 | `messages.reorderPinnedSavedDialogs` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.reorderPinnedSavedDialogs_handler.go:28 |
 | `messages.reorderQuickReplies` | missing |  |  |
@@ -734,12 +734,12 @@
 | `messages.startHistoryImport` | missing |  |  |
 | `messages.summarizeText` | notimpl |  | app/bff/messages/internal/core/messages.summarizeText_handler.go:27 |
 | `messages.toggleBotInAttachMenu` | missing |  |  |
-| `messages.toggleDialogFilterTags` | ok |  | app/bff/folders/internal/core/messages.toggleDialogFilterTags_handler.go:31 |
-| `messages.toggleDialogPin` | ok |  | app/bff/dialogs/internal/core/messages.toggleDialogPin_handler.go:31 |
+| `messages.toggleDialogFilterTags` | ok |  | app/bff/folders/internal/core/messages.toggleDialogFilterTags_handler.go:33 |
+| `messages.toggleDialogPin` | ok |  | app/bff/dialogs/internal/core/messages.toggleDialogPin_handler.go:32 |
 | `messages.toggleNoForwards` | ok |  | app/bff/messages/internal/core/messages.toggleNoForwards_handler.go:28 |
 | `messages.togglePaidReactionPrivacy` | missing |  |  |
 | `messages.togglePeerTranslations` | missing |  |  |
-| `messages.toggleSavedDialogPin` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.toggleSavedDialogPin_handler.go:31 |
+| `messages.toggleSavedDialogPin` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.toggleSavedDialogPin_handler.go:32 |
 | `messages.toggleStickerSets` | missing |  |  |
 | `messages.toggleSuggestedPostApproval` | missing |  |  |
 | `messages.toggleTodoCompleted` | missing |  |  |
@@ -748,8 +748,8 @@
 | `messages.translateText` | missing |  |  |
 | `messages.uninstallStickerSet` | missing |  |  |
 | `messages.unpinAllMessages` | ok |  | app/bff/messages/internal/core/messages.unpinAllMessages_handler.go:28 |
-| `messages.updateDialogFilter` | ok |  | app/bff/folders/internal/core/messages.updateDialogFilter_handler.go:28 |
-| `messages.updateDialogFiltersOrder` | ok |  | app/bff/folders/internal/core/messages.updateDialogFiltersOrder_handler.go:30 |
+| `messages.updateDialogFilter` | ok |  | app/bff/folders/internal/core/messages.updateDialogFilter_handler.go:30 |
+| `messages.updateDialogFiltersOrder` | ok |  | app/bff/folders/internal/core/messages.updateDialogFiltersOrder_handler.go:32 |
 | `messages.updatePinnedForumTopic` | missing |  |  |
 | `messages.updatePinnedMessage` | ok |  | app/bff/messages/internal/core/messages.updatePinnedMessage_handler.go:28 |
 | `messages.updateSavedReactionTag` | missing |  |  |
@@ -887,11 +887,11 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `photos.deletePhotos` | ok |  | app/bff/userchannelprofiles/internal/core/photos.deletePhotos_handler.go:30 |
+| `photos.deletePhotos` | ok |  | app/bff/userchannelprofiles/internal/core/photos.deletePhotos_handler.go:28 |
 | `photos.getUserPhotos` | ok |  | app/bff/userchannelprofiles/internal/core/photos.getUserPhotos_handler.go:29 |
-| `photos.updateProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.updateProfilePhoto_handler.go:30 |
+| `photos.updateProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.updateProfilePhoto_handler.go:29 |
 | `photos.uploadContactProfilePhoto` | notimpl |  | app/bff/userchannelprofiles/internal/core/photos.uploadContactProfilePhoto_handler.go:27 |
-| `photos.uploadProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.uploadProfilePhoto_handler.go:30 |
+| `photos.uploadProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.uploadProfilePhoto_handler.go:29 |
 
 ### predefined
 

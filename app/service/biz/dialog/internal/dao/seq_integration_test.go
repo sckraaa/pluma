@@ -104,7 +104,3 @@ func stateSeq(t *testing.T, userId int64) int32 {
 	}
 	return st.Seq
 }
-
-// seqHelpersUsed keeps the helpers compiled until a test of the package
-// uses them.
-var _ = []any{seqPushes, stateSeq}
