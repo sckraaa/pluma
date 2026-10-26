@@ -25,3 +25,4 @@
 | [0017](0017-push-notifications.md) | Push-уведомления: отдельный сервис на потоке Sync-T, только зашифрованные push | accepted |
 | [0018](0018-conformance-harness.md) | Сравнительные тесты: свой клиент mtclient, сценарии на Go, эталоны в JSON | accepted |
 | [0019](0019-difference-composition-and-seq.md) | Состав updates.getDifference и seq состояния | accepted |
+| [0020](0020-seq-journal.md) | Журнал seq: обновления состояния аккаунта, которые восстанавливает getDifference | accepted |

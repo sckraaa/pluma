@@ -143,6 +143,14 @@ func ptsUpdates() *mtproto.Updates {
 	}).To_Updates()
 }
 
+// seqUpdates is an update with seq, in a container of its own (ADR 0020).
+func seqUpdates() *mtproto.Updates {
+	return mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{mtproto.MakeTLUpdateDialogPinned(nil).To_Update()},
+		Seq:     2,
+	}).To_Updates()
+}
+
 func push(ctx context.Context, d *Dao, node string, key int64, u *mtproto.Updates) {
 	d.PushUpdates(ctx, node, &session.TLSessionPushUpdatesData{PermAuthKeyId: key, Updates: u})
 }
@@ -283,6 +291,7 @@ func TestStalePush(t *testing.T) {
 	push(ctx, d, "s1", 2, mtproto.MakeTLUpdateShort(&mtproto.Updates{
 		Update: mtproto.MakeTLUpdateUserTyping(nil).To_Update(),
 	}).To_Updates())
+	push(ctx, d, "s1", 3, seqUpdates())
 	b.Wait()
 
 	eq(t, n.calls())
@@ -291,6 +300,9 @@ func TestStalePush(t *testing.T) {
 	}
 	if p.marked(device{"s1", 2}) {
 		t.Fatal("stale push without pts marked the device")
+	}
+	if !p.marked(device{"s1", 3}) {
+		t.Fatal("stale push with seq did not mark the device")
 	}
 }
 
@@ -383,18 +395,21 @@ func TestPushOrderPerDeviceAcrossRecords(t *testing.T) {
 	}
 }
 
-func TestHasPts(t *testing.T) {
-	if !hasPts(ptsUpdates()) {
+func TestRecoverable(t *testing.T) {
+	if !recoverable(ptsUpdates()) {
 		t.Fatal("updateShort with pts")
 	}
-	if hasPts(mtproto.MakeTLUpdatesTooLong(nil).To_Updates()) || hasPts(nil) {
+	if recoverable(mtproto.MakeTLUpdatesTooLong(nil).To_Updates()) || recoverable(nil) {
 		t.Fatal("no pts")
+	}
+	if !recoverable(seqUpdates()) {
+		t.Fatal("updates with seq")
 	}
 	many := mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{
 		mtproto.MakeTLUpdateUserTyping(nil).To_Update(),
 		mtproto.MakeTLUpdateReadHistoryInbox(&mtproto.Update{Pts_INT32: 3, PtsCount: 1}).To_Update(),
 	}}).To_Updates()
-	if !hasPts(many) {
+	if !recoverable(many) {
 		t.Fatal("updates with one pts update")
 	}
 }

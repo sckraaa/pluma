@@ -24,7 +24,7 @@ const BaseSeq = 1
 type State struct {
 	Pts              int32 // last committed pts
 	Qts              int32 // reserved: does not change yet
-	Seq              int32 // of the last update with seq; none is sent yet, so BaseSeq
+	Seq              int32 // of the last update with seq (Box.AddSeqUpdate)
 	LastMessageBoxId int32 // last issued user_message_box_id
 	Date             int64 // unix time of the last change (date2)
 }

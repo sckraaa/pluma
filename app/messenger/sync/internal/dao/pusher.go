@@ -118,9 +118,11 @@ type resyncMark struct {
 
 // pushCall is one push to one device.
 type pushCall struct {
-	keyId  int64
-	hasPts bool
-	call   func(ctx context.Context, n sessionNode) error
+	keyId int64
+	// recoverable: a lost push is found by getDifference, so a device
+	// that missed it is marked for updatesTooLong.
+	recoverable bool
+	call        func(ctx context.Context, n sessionNode) error
 }
 
 type nodeState struct {
@@ -274,7 +276,7 @@ func (p *Pusher) deliverNow(ctx context.Context, node string, pc pushCall, recor
 	dev := device{node: node, keyId: pc.keyId}
 	if !recorded.IsZero() && p.now().Sub(recorded) > PushMaxAge {
 		metricPushTotal.Inc(pushStale)
-		if pc.hasPts {
+		if pc.recoverable {
 			p.mark(dev)
 		}
 		return
@@ -474,13 +476,14 @@ func (p *Pusher) sweep() {
 	wg.Wait()
 }
 
-// hasPts reports whether updates carry a pts: such a push can be recovered
-// with getDifference, others (typing, calls) are best effort.
-func hasPts(u *mtproto.Updates) bool {
+// recoverable reports whether updates carry a pts or a seq: such a push can
+// be recovered with getDifference (an update with seq from the seq journal,
+// ADR 0020), others (typing, calls) are best effort.
+func recoverable(u *mtproto.Updates) bool {
 	if u == nil {
 		return false
 	}
-	if u.GetPts() > 0 {
+	if u.GetPts() > 0 || u.GetSeq() > 0 {
 		return true
 	}
 	if up := u.GetUpdate(); up != nil && up.GetPts_INT32() > 0 {
@@ -497,8 +500,8 @@ func hasPts(u *mtproto.Updates) bool {
 // PushUpdates pushes updates to a device (all its sessions).
 func (d *Dao) PushUpdates(ctx context.Context, node string, in *session.TLSessionPushUpdatesData) {
 	d.pusher.deliver(ctx, node, pushCall{
-		keyId:  in.PermAuthKeyId,
-		hasPts: hasPts(in.Updates),
+		keyId:       in.PermAuthKeyId,
+		recoverable: recoverable(in.Updates),
 		call: func(ctx context.Context, n sessionNode) error {
 			return n.pushUpdates(ctx, in)
 		},
@@ -508,8 +511,8 @@ func (d *Dao) PushUpdates(ctx context.Context, node string, in *session.TLSessio
 // PushSessionUpdates pushes updates to one session of a device.
 func (d *Dao) PushSessionUpdates(ctx context.Context, node string, in *session.TLSessionPushSessionUpdatesData) {
 	d.pusher.deliver(ctx, node, pushCall{
-		keyId:  in.PermAuthKeyId,
-		hasPts: hasPts(in.Updates),
+		keyId:       in.PermAuthKeyId,
+		recoverable: recoverable(in.Updates),
 		call: func(ctx context.Context, n sessionNode) error {
 			return n.pushSessionUpdates(ctx, in)
 		},

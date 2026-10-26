@@ -14,21 +14,23 @@ import (
 )
 
 // tableWrite matches SQL that writes a table of the box: the box state,
-// the journal or the events. Only pkg/userbox writes the state and the
-// journal: a journal row written outside a box transaction is either above
-// the committed pts (getDifference does not return it) or collides with the
-// next transaction's row (UNIQUE (user_id, pts)), and a counter moved
-// outside one breaks the conditional UPDATE of the next. The events
+// the journals (pts and seq) or the events. Only pkg/userbox writes the
+// state and the journals: a journal row written outside a box transaction
+// is either above the committed pts or seq (getDifference does not return
+// it) or collides with the next transaction's row (UNIQUE (user_id, pts),
+// PRIMARY KEY (user_id, seq)), and a counter moved outside one breaks the
+// conditional UPDATE of the next. The events
 // (mq_outbox, ADR 0012) are written by pkg/userbox in box transactions and
 // by pkg/outbox (the relay, Insert, the operator's commands): a row written
 // elsewhere could be published before the change it describes commits, or
 // a decision of the consumer could be overwritten.
-var tableWrite = regexp.MustCompile("(?is)\\b(insert\\s+(ignore\\s+)?into|replace\\s+into|update|delete\\s+from)\\s+`?(user_state|user_pts_updates|mq_outbox)`?\\b")
+var tableWrite = regexp.MustCompile("(?is)\\b(insert\\s+(ignore\\s+)?into|replace\\s+into|update|delete\\s+from)\\s+`?(user_state|user_pts_updates|user_seq_updates|mq_outbox)`?\\b")
 
 // writers are the packages that may write each table, relative to the root.
 var writers = map[string][]string{
 	"user_state":       {"pkg/userbox"},
 	"user_pts_updates": {"pkg/userbox"},
+	"user_seq_updates": {"pkg/userbox"},
 	"mq_outbox":        {"pkg/userbox", "pkg/outbox"},
 }
 
@@ -43,7 +45,7 @@ func allowed(rel string, match []string) bool {
 	return false
 }
 
-// Writers finds SQL that writes user_state, user_pts_updates or mq_outbox
+// Writers finds SQL that writes user_state, a journal or mq_outbox
 // outside the packages allowed to, in the Go string literals and the DAO
 // table definitions (*.xml) under dir. Tests, test data and third_party are
 // not looked at: tests set up states on purpose, migrations are SQL files.

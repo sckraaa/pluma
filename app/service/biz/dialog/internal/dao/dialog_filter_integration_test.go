@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	if err := errors.Join(errs...); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		itDao = New(config.Config{Mysql: mysql.Config(), Cache: redis.CacheConf()})
+		itDao = New(config.Config{Mysql: mysql.Config(), Cache: redis.CacheConf(), Topics: config.Topics{Sync: "Sync-T"}})
 		itUser.Store(time.Now().UnixNano() % 1_000_000_000 * 1000)
 		code = m.Run()
 	}

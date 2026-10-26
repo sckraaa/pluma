@@ -47,7 +47,7 @@ func TestWriters(t *testing.T) {
 	for _, f := range findings {
 		got = append(got, f.Rule+"@"+f.Pos.Filename+":"+strconv.Itoa(f.Pos.Line))
 	}
-	want := []string{"writer@pkg/outbox/outbox.go:5", "writer@tables.xml:4", "writer@writers.go:6", "writer@writers.go:7", "writer@writers.go:13", "writer@writers.go:17"}
+	want := []string{"writer@pkg/outbox/outbox.go:5", "writer@tables.xml:4", "writer@writers.go:6", "writer@writers.go:7", "writer@writers.go:13", "writer@writers.go:17", "writer@writers.go:20"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("findings\n%v\nwant\n%v\n%v", got, want, findings)
 	}

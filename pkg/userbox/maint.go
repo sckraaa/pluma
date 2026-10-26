@@ -12,29 +12,35 @@ import (
 // are the only writers of user_state besides Run.
 
 // raiseExistingQuery lifts the existing rows above everything written:
-// pts above the journal, box ids above the messages, both by the margin.
+// pts above the journal, seq above the seq journal, box ids above the
+// messages, all by the margin.
 const raiseExistingQuery = "UPDATE user_state s" +
 	" LEFT JOIN (SELECT user_id, MAX(pts) AS max_pts FROM user_pts_updates GROUP BY user_id) p ON p.user_id = s.user_id" +
+	" LEFT JOIN (SELECT user_id, MAX(seq) AS max_seq FROM user_seq_updates GROUP BY user_id) q ON q.user_id = s.user_id" +
 	" LEFT JOIN (SELECT user_id, MAX(user_message_box_id) AS max_box_id FROM messages GROUP BY user_id) m ON m.user_id = s.user_id" +
 	" SET s.pts = GREATEST(s.pts, COALESCE(p.max_pts, 0)) + ?," +
+	" s.seq = GREATEST(s.seq, COALESCE(q.max_seq, 0)) + ?," +
 	" s.last_message_box_id = GREATEST(s.last_message_box_id, COALESCE(m.max_box_id, 0)) + ?," +
 	" s.date2 = UNIX_TIMESTAMP()"
 
 // insertMissingQuery adds the rows of users that have none, as the
 // migration does (migrate-20261022.sql).
-const insertMissingQuery = "INSERT INTO user_state (user_id, pts, last_message_box_id, date2)" +
-	" SELECT u.id, GREATEST(1, COALESCE(p.max_pts, 0)) + ?, COALESCE(m.max_box_id, 0) + ?, UNIX_TIMESTAMP()" +
-	" FROM (SELECT id FROM users UNION SELECT user_id FROM user_pts_updates UNION SELECT user_id FROM messages) u" +
+const insertMissingQuery = "INSERT INTO user_state (user_id, pts, seq, last_message_box_id, date2)" +
+	" SELECT u.id, GREATEST(1, COALESCE(p.max_pts, 0)) + ?, GREATEST(1, COALESCE(q.max_seq, 0)) + ?, COALESCE(m.max_box_id, 0) + ?, UNIX_TIMESTAMP()" +
+	" FROM (SELECT id FROM users UNION SELECT user_id FROM user_pts_updates UNION SELECT user_id FROM user_seq_updates UNION SELECT user_id FROM messages) u" +
 	" LEFT JOIN (SELECT user_id, MAX(pts) AS max_pts FROM user_pts_updates GROUP BY user_id) p ON p.user_id = u.id" +
+	" LEFT JOIN (SELECT user_id, MAX(seq) AS max_seq FROM user_seq_updates GROUP BY user_id) q ON q.user_id = u.id" +
 	" LEFT JOIN (SELECT user_id, MAX(user_message_box_id) AS max_box_id FROM messages GROUP BY user_id) m ON m.user_id = u.id" +
 	" LEFT JOIN user_state s ON s.user_id = u.id" +
 	" WHERE s.user_id IS NULL"
 
 // Raise lifts the state of every user (userId 0) or of one user by margin
-// above the highest pts and box id written, and adds the missing rows the
-// same way: after a rollback to a version that kept the counters in Redis,
-// or a restore of MySQL from a backup, clients may have seen values above
-// the rows. It returns the rows changed and added.
+// above the highest pts, seq and box id written, and adds the missing rows
+// the same way: after a rollback to a version that kept the counters in
+// Redis, or a restore of MySQL from a backup, clients may have seen values
+// above the rows. A client ahead in seq would take every next update with
+// seq for one it has and drop it without asking for a difference. It
+// returns the rows changed and added.
 func Raise(ctx context.Context, db *sql.DB, margin int32, userId int64) (raised, added int64, err error) {
 	if margin < 0 {
 		return 0, 0, fmt.Errorf("userbox: negative margin %d", margin)
@@ -45,7 +51,7 @@ func Raise(ctx context.Context, db *sql.DB, margin int32, userId int64) (raised,
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	raise, insert, args := raiseExistingQuery, insertMissingQuery, []any{margin, margin}
+	raise, insert, args := raiseExistingQuery, insertMissingQuery, []any{margin, margin, margin}
 	if userId != 0 {
 		raise += " WHERE s.user_id = ?"
 		insert += " AND u.id = ?"

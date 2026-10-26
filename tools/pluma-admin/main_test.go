@@ -237,6 +237,8 @@ func TestUsage(t *testing.T) {
 		{"state-export-legacy"},
 		{"verify-pts"},
 		{"verify-pts", "-after"},
+		{"verify-seq"},
+		{"verify-seq", "-after"},
 		{"outbox"},
 		{"outbox", "purge"},
 		{"outbox", "replay"},
@@ -262,8 +264,10 @@ func TestUsage(t *testing.T) {
 			t.Errorf("%q: exit %d %q", args, code, errOut)
 		}
 	}
-	if code, _, errOut := h.run("verify-pts", "alice"); code != 1 || !strings.Contains(errOut, "invalid user id") {
-		t.Errorf("verify-pts alice: exit %d %q", code, errOut)
+	for _, cmd := range []string{"verify-pts", "verify-seq"} {
+		if code, _, errOut := h.run(cmd, "alice"); code != 1 || !strings.Contains(errOut, "invalid user id") {
+			t.Errorf("%s alice: exit %d %q", cmd, code, errOut)
+		}
 	}
 	if code, _, errOut := h.run("outbox", "list", "-state", "lost"); code != 1 || !strings.Contains(errOut, "unknown event state") {
 		t.Errorf("outbox list -state lost: exit %d %q", code, errOut)

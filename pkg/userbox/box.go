@@ -36,6 +36,14 @@ type journalRow struct {
 	data       string
 }
 
+// seqRow is a user_seq_updates row written by the transaction.
+type seqRow struct {
+	seq        int32
+	pts        int32 // of the box when the update was added
+	updateType string
+	data       string
+}
+
 // Box is one attempt of a box transaction, given to the function of Run.
 // It is valid only inside that function.
 type Box struct {
@@ -47,13 +55,15 @@ type Box struct {
 
 	state State // locked at the start of the transaction
 	pts   int32 // last allocated pts
+	seq   int32 // last allocated seq
 	boxId int32 // last issued message box id
 
-	journal []journalRow
-	updates []*mtproto.Update
-	events  []outboxRow
-	keys    []string
-	taken   *takenEvent
+	journal    []journalRow
+	seqJournal []seqRow
+	updates    []*mtproto.Update
+	events     []outboxRow
+	keys       []string
+	taken      *takenEvent
 
 	// err is a misuse of the Box (bad pts_count, an update that is not of
 	// the common box, ids out of range, an invalid event): the transaction
@@ -132,6 +142,39 @@ func (b *Box) AddPtsUpdate(u *mtproto.Update, ptsCount int32) {
 	b.updates = append(b.updates, u)
 }
 
+// AddSeqUpdate allocates the next seq of the account for u and adds its
+// row to the seq journal (user_seq_updates), with the pts of the box at this
+// point: updates.getDifference returns u among the pts updates where it
+// happened. The caller pushes u alone in an updates container with the seq
+// returned, to every device of the account (ADR 0020). u is written to the
+// journal as it is now: it must be complete and must not change afterwards.
+// Only the updates of seqUpdate may be added; another one rolls the
+// transaction back, and 0 is returned.
+func (b *Box) AddSeqUpdate(u *mtproto.Update) int32 {
+	if b.err != nil {
+		return 0
+	}
+	switch {
+	case u == nil:
+		b.err = misuse("nil update")
+		return 0
+	case !seqUpdate(u.PredicateName):
+		b.err = misuse("%s is not an update with seq", u.PredicateName)
+		return 0
+	case b.seq == math.MaxInt32:
+		b.err = misuse("user %d: seq exhausted", b.userId)
+		return 0
+	}
+	data, err := jsonx.Marshal(u)
+	if err != nil {
+		b.err = misuse("encode %s: %v", u.PredicateName, err)
+		return 0
+	}
+	b.seq++
+	b.seqJournal = append(b.seqJournal, seqRow{seq: b.seq, pts: b.pts, updateType: u.PredicateName, data: string(data)})
+	return b.seq
+}
+
 // InvalidateCache adds cache keys to delete after commit.
 func (b *Box) InvalidateCache(keys ...string) {
 	b.keys = append(b.keys, keys...)
@@ -139,12 +182,24 @@ func (b *Box) InvalidateCache(keys ...string) {
 
 // allocated tells whether the transaction changes the counters.
 func (b *Box) allocated() bool {
-	return b.pts != b.state.Pts || b.boxId != b.state.LastMessageBoxId
+	return b.pts != b.state.Pts || b.seq != b.state.Seq || b.boxId != b.state.LastMessageBoxId
 }
 
 // checkJournal checks that the journal rows cover (state.pts, pts] once,
-// in order: the sum of pts_count is the pts allocated.
+// in order: the sum of pts_count is the pts allocated; and that the seq
+// rows are (state.seq, seq], one by one.
 func (b *Box) checkJournal() error {
+	nextSeq := b.state.Seq
+	for _, r := range b.seqJournal {
+		if r.seq != nextSeq+1 {
+			return misuse("user %d: seq row %d does not follow seq %d", b.userId, r.seq, nextSeq)
+		}
+		nextSeq = r.seq
+	}
+	if nextSeq != b.seq {
+		return misuse("user %d: seq rows end at %d, allocated up to %d", b.userId, nextSeq, b.seq)
+	}
+
 	next := b.state.Pts
 	for _, r := range b.journal {
 		if r.ptsCount < 1 || r.pts-r.ptsCount != next {
@@ -163,6 +218,7 @@ func (b *Box) result() *Result {
 	st := b.state
 	if b.allocated() {
 		st.Pts = b.pts
+		st.Seq = b.seq
 		st.LastMessageBoxId = b.boxId
 		st.Date = b.now
 	}
@@ -174,6 +230,32 @@ func (b *Box) result() *Result {
 		Taken:     b.takenOutcome(),
 		CacheKeys: b.keys,
 	}
+}
+
+// seqUpdate tells whether an update goes with seq (ADR 0020): a state of
+// the account that another device must get when it missed the push and
+// that is safe to apply twice. Updates of the common box have pts instead;
+// drafts (an echo could overwrite what is being typed), service
+// notifications (not idempotent), typing and statuses go without either.
+func seqUpdate(predicate string) bool {
+	switch predicate {
+	case mtproto.Predicate_updateNotifySettings,
+		mtproto.Predicate_updateDialogPinned,
+		mtproto.Predicate_updatePinnedDialogs,
+		mtproto.Predicate_updateDialogFilter,
+		mtproto.Predicate_updateDialogFilterOrder,
+		mtproto.Predicate_updateDialogFilters,
+		mtproto.Predicate_updateSavedDialogPinned,
+		mtproto.Predicate_updatePinnedSavedDialogs,
+		mtproto.Predicate_updateDialogUnreadMark,
+		mtproto.Predicate_updateUserName,
+		mtproto.Predicate_updateUser,
+		mtproto.Predicate_updatePrivacy,
+		mtproto.Predicate_updatePeerBlocked,
+		mtproto.Predicate_updatePeerSettings:
+		return true
+	}
+	return false
 }
 
 // commonBoxUpdate tells whether an update type belongs to the common message

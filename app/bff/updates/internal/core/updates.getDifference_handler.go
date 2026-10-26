@@ -28,9 +28,8 @@ import (
 // UpdatesGetDifference
 // updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
 func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (*mtproto.Updates_Difference, error) {
-	// The difference is of the account's box: it does not depend on the
-	// key (the seq journal by auth key, auth_seq_updates, was never
-	// written).
+	// The difference is of the account's box; the authorization tells
+	// which updates with seq it may have missed (its seq cursor, ADR 0020).
 	updatesDiff, err := c.svcCtx.Dao.UpdatesClient.UpdatesGetDifferenceV2(c.ctx, &updates.TLUpdatesGetDifferenceV2{
 		AuthKeyId:     c.MD.PermAuthKeyId,
 		UserId:        c.MD.UserId,
@@ -85,6 +84,7 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 
 	idHelper.PickByMessages(rDifference.NewMessages...)
 	idHelper.PickByUpdates(rDifference.OtherUpdates...)
+	pickSeqPeers(idHelper, c.MD.UserId, rDifference.OtherUpdates)
 
 	idHelper.Visit(
 		func(userIdList []int64) {

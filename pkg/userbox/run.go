@@ -76,9 +76,12 @@ const (
 	lockedStateQuery = selectStateQuery + " FOR UPDATE"
 	// updateStateQuery checks in the database that the counters are what
 	// the transaction locked; it must change exactly one row.
-	updateStateQuery = "UPDATE user_state SET pts = ?, last_message_box_id = ?, date2 = ? WHERE user_id = ? AND pts = ? AND last_message_box_id = ?"
+	updateStateQuery = "UPDATE user_state SET pts = ?, seq = ?, last_message_box_id = ?, date2 = ?" +
+		" WHERE user_id = ? AND pts = ? AND seq = ? AND last_message_box_id = ?"
 	insertJournalRow = "(?, ?, ?, ?, ?, ?)"
 	insertJournal    = "INSERT INTO user_pts_updates (user_id, pts, pts_count, update_type, update_data, date2) VALUES "
+	insertSeqRow     = "(?, ?, ?, ?, ?, ?)"
+	insertSeqJournal = "INSERT INTO user_seq_updates (user_id, seq, pts, update_type, update_data, date2) VALUES "
 )
 
 // boxKey marks the context of a Box.
@@ -180,6 +183,7 @@ func runAttempt(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) e
 	metricLockWaitSeconds.ObserveFloat(time.Since(lockStart).Seconds())
 	b.state = row.state()
 	b.pts = b.state.Pts
+	b.seq = b.state.Seq
 	b.boxId = b.state.LastMessageBoxId
 
 	fnErr := fn(b)
@@ -221,16 +225,17 @@ func runAttempt(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) e
 		return nil, false, err
 	}
 	// The outcome of COMMIT is unknown.
-	if len(b.journal) == 0 {
+	if len(b.journal) == 0 && len(b.seqJournal) == 0 {
 		metricCommitUnknown.Inc("unknown")
 		logx.WithContext(ctx).Errorf("userbox: user %d: commit outcome unknown, no journal to check", userId)
 		return nil, false, ErrCommitUnknown
 	}
-	applied, verr := verifyCommit(ctx, db, userId, b.pts, b.journal)
+	applied, verr := verifyCommit(ctx, db, b)
 	switch {
 	case verr != nil:
 		metricCommitUnknown.Inc("unknown")
-		logx.WithContext(ctx).Errorf("userbox: user %d: commit outcome unknown, pts (%d, %d]", userId, b.state.Pts, b.pts)
+		logx.WithContext(ctx).Errorf("userbox: user %d: commit outcome unknown, pts (%d, %d], seq (%d, %d]",
+			userId, b.state.Pts, b.pts, b.state.Seq, b.seq)
 		return nil, false, ErrCommitUnknown
 	case applied:
 		metricCommitUnknown.Inc("applied")
@@ -241,7 +246,8 @@ func runAttempt(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) e
 	}
 }
 
-// writeState writes the journal rows and the new counters of the box.
+// writeState writes the journal rows, the seq rows and the new counters of
+// the box.
 func writeState(ctx context.Context, b *Box) error {
 	if len(b.journal) > 0 {
 		args := make([]any, 0, len(b.journal)*6)
@@ -253,7 +259,18 @@ func writeState(ctx context.Context, b *Box) error {
 			return err
 		}
 	}
-	res, err := b.rec.ExecCtx(ctx, updateStateQuery, b.pts, b.boxId, b.now, b.userId, b.state.Pts, b.state.LastMessageBoxId)
+	if len(b.seqJournal) > 0 {
+		args := make([]any, 0, len(b.seqJournal)*6)
+		for _, r := range b.seqJournal {
+			args = append(args, b.userId, r.seq, r.pts, r.updateType, r.data, b.now)
+		}
+		query := insertSeqJournal + strings.Repeat(insertSeqRow+", ", len(b.seqJournal)-1) + insertSeqRow
+		if _, err := b.rec.ExecCtx(ctx, query, args...); err != nil {
+			return err
+		}
+	}
+	res, err := b.rec.ExecCtx(ctx, updateStateQuery, b.pts, b.seq, b.boxId, b.now,
+		b.userId, b.state.Pts, b.state.Seq, b.state.LastMessageBoxId)
 	if err != nil {
 		return err
 	}
@@ -298,13 +315,13 @@ func commit(ctx context.Context, tx *sql.Tx) (sent bool, err error) {
 	return true, nil
 }
 
-// verifyCommit finds out whether a COMMIT that failed was applied. It locks
-// the user's row on another connection: while the old transaction is still
-// finishing on the server, it holds that lock, and the read waits for its
-// outcome. pts below the transaction's means not applied (pts never goes
-// down); otherwise its journal rows must all be there as written, compared
-// as JSON by the server.
-func verifyCommit(ctx context.Context, db *sql.DB, userId int64, pts int32, journal []journalRow) (applied bool, err error) {
+// verifyCommit finds out whether a COMMIT of b that failed was applied. It
+// locks the user's row on another connection: while the old transaction is
+// still finishing on the server, it holds that lock, and the read waits for
+// its outcome. pts or seq below the transaction's means not applied (they
+// never go down); otherwise its journal and seq rows must all be there as
+// written, compared as JSON by the server.
+func verifyCommit(ctx context.Context, db *sql.DB, b *Box) (applied bool, err error) {
 	vctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), VerifyTimeout)
 	defer cancel()
 	tx, err := db.BeginTx(vctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
@@ -313,22 +330,34 @@ func verifyCommit(ctx context.Context, db *sql.DB, userId int64, pts int32, jour
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	var committed int32
-	err = tx.QueryRowContext(vctx, "SELECT pts FROM user_state WHERE user_id = ? FOR UPDATE", userId).Scan(&committed)
+	var pts, seq int32
+	err = tx.QueryRowContext(vctx, "SELECT pts, seq FROM user_state WHERE user_id = ? FOR UPDATE", b.userId).Scan(&pts, &seq)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil // the row was to be created by that transaction
 	}
 	if err != nil {
 		return false, err
 	}
-	if committed < pts {
+	if pts < b.pts || seq < b.seq {
 		return false, nil
 	}
-	for _, r := range journal {
+	for _, r := range b.journal {
 		var n int
 		err = tx.QueryRowContext(vctx,
 			"SELECT COUNT(*) FROM user_pts_updates WHERE user_id = ? AND pts = ? AND pts_count = ? AND update_type = ? AND update_data = CAST(? AS JSON)",
-			userId, r.pts, r.ptsCount, r.updateType, r.data).Scan(&n)
+			b.userId, r.pts, r.ptsCount, r.updateType, r.data).Scan(&n)
+		if err != nil {
+			return false, err
+		}
+		if n != 1 {
+			return false, nil
+		}
+	}
+	for _, r := range b.seqJournal {
+		var n int
+		err = tx.QueryRowContext(vctx,
+			"SELECT COUNT(*) FROM user_seq_updates WHERE user_id = ? AND seq = ? AND pts = ? AND update_type = ? AND update_data = CAST(? AS JSON)",
+			b.userId, r.seq, r.pts, r.updateType, r.data).Scan(&n)
 		if err != nil {
 			return false, err
 		}

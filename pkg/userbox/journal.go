@@ -71,3 +71,53 @@ func CheckJournal(ctx context.Context, db *sql.DB, userId int64, after int32) (J
 	}
 	return rep, nil
 }
+
+// SeqJournalReport is what CheckSeqJournal found in a user's seq journal.
+type SeqJournalReport struct {
+	State State   // the committed state, read first
+	Rows  int     // seq rows in (after, State.Seq]
+	Gaps  []Range // seq no row has
+}
+
+// OK tells whether every seq of the range has its row.
+func (r SeqJournalReport) OK() bool { return len(r.Gaps) == 0 }
+
+// CheckSeqJournal checks that userId's seq journal has a row for every seq
+// in (after, state.seq]: it reads the committed state first and then the
+// rows up to its seq. A seq has one row at most (the primary key).
+func CheckSeqJournal(ctx context.Context, db *sql.DB, userId int64, after int32) (SeqJournalReport, error) {
+	st, err := Read(ctx, db, userId)
+	if err != nil {
+		return SeqJournalReport{}, err
+	}
+	rep := SeqJournalReport{State: st}
+	if st.Seq <= after {
+		return rep, nil
+	}
+	rows, err := db.QueryContext(ctx,
+		"SELECT seq FROM user_seq_updates WHERE user_id = ? AND seq > ? AND seq <= ? ORDER BY seq",
+		userId, after, st.Seq)
+	if err != nil {
+		return SeqJournalReport{}, fmt.Errorf("userbox: read the seq journal of user %d: %w", userId, err)
+	}
+	defer rows.Close()
+	next := after // has rows up to here
+	for rows.Next() {
+		var seq int32
+		if err = rows.Scan(&seq); err != nil {
+			return SeqJournalReport{}, err
+		}
+		rep.Rows++
+		if seq > next+1 {
+			rep.Gaps = append(rep.Gaps, Range{From: next, To: seq - 1})
+		}
+		next = seq
+	}
+	if err = rows.Err(); err != nil {
+		return SeqJournalReport{}, err
+	}
+	if next < st.Seq {
+		rep.Gaps = append(rep.Gaps, Range{From: next, To: st.Seq})
+	}
+	return rep, nil
+}

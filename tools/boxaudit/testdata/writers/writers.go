@@ -15,3 +15,6 @@ var raw = `DELETE
 
 // The events: only pkg/userbox and pkg/outbox.
 var events = "DELETE FROM mq_outbox WHERE id = ?"
+
+// The seq journal: only pkg/userbox.
+var seqJournal = "INSERT INTO `user_seq_updates` (user_id, seq) VALUES (?, ?)"

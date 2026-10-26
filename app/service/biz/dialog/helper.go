@@ -21,6 +21,7 @@ import (
 
 type (
 	Config  = config.Config
+	Topics  = config.Topics
 	Service = service.Service
 )
 

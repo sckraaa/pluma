@@ -12,6 +12,7 @@
 //	pluma-admin [-f bff.yaml] state-raise -by <margin> [-user <id>]
 //	pluma-admin [-f bff.yaml] state-export-legacy -margin <margin>
 //	pluma-admin [-f bff.yaml] verify-pts [-after <pts>] <user id>
+//	pluma-admin [-f bff.yaml] verify-seq [-after <seq>] <user id>
 //	pluma-admin [-f bff.yaml] outbox list [-state <state>] [-user <id>] [-limit <n>]
 //	pluma-admin [-f bff.yaml] outbox replay -user <id>
 //	pluma-admin [-f bff.yaml] outbox discard -id <event id>
@@ -27,13 +28,14 @@
 // login-unblock clears the login flood counters of a phone (code requests and
 // wrong codes; FLOOD_WAIT on every login attempt) or of a client address.
 //
-// state-raise, state-export-legacy and verify-pts maintain the state of
-// users' boxes (user_state, ADR 0011, pp. 10-11; docs/ops/user-state.md).
-// The first two run only while msg and biz are stopped: state-raise lifts
-// every user's (or one user's) pts and box ids above everything written,
-// after a rollback or a restore from a backup; state-export-legacy writes
-// the counters to Redis for a rollback to a version before task 002.
-// verify-pts checks that a user's journal has no gaps or overlaps.
+// state-raise, state-export-legacy, verify-pts and verify-seq maintain the
+// state of users' boxes (user_state, ADR 0011, pp. 10-11, ADR 0020;
+// docs/ops/user-state.md). The first two run only while msg and biz are
+// stopped: state-raise lifts every user's (or one user's) pts, seq and box
+// ids above everything written, after a rollback or a restore from a
+// backup; state-export-legacy writes the counters to Redis for a rollback
+// to a version before task 002. verify-pts checks that a user's journal has
+// no gaps or overlaps, verify-seq that the seq journal has every seq.
 //
 // outbox shows and repairs the delivery of events (mq_outbox, ADR 0012,
 // p. 5): list prints the rows without their content (state pending,
@@ -130,6 +132,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] state-raise -by <margin> [-user <id>]
   pluma-admin [-f bff.yaml] state-export-legacy -margin <margin>
   pluma-admin [-f bff.yaml] verify-pts [-after <pts>] <user id>
+  pluma-admin [-f bff.yaml] verify-seq [-after <seq>] <user id>
   pluma-admin [-f bff.yaml] outbox list [-state pending|published|dead|parked] [-user <id>] [-limit <n>]
   pluma-admin [-f bff.yaml] outbox replay -user <id>
   pluma-admin [-f bff.yaml] outbox discard -id <event id>
@@ -182,7 +185,7 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return errUsage
 	}
 	switch args[0] {
-	case "state-raise", "state-export-legacy", "verify-pts":
+	case "state-raise", "state-export-legacy", "verify-pts", "verify-seq":
 		return boxCommand(args, configFile, stdout)
 	case "outbox":
 		return outboxCommand(args, configFile, stdout)

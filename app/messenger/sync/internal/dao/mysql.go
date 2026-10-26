@@ -20,19 +20,16 @@ package dao
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/dal/dao/mysql_dao"
 )
 
 type Mysql struct {
 	*sqlx.DB
-	*mysql_dao.AuthSeqUpdatesDAO
 	*sqlx.CommonDAO
 }
 
 func newMysqlDao(db *sqlx.DB) *Mysql {
 	return &Mysql{
-		DB:                db,
-		AuthSeqUpdatesDAO: mysql_dao.NewAuthSeqUpdatesDAO(db),
-		CommonDAO:         sqlx.NewCommonDAO(db),
+		DB:        db,
+		CommonDAO: sqlx.NewCommonDAO(db),
 	}
 }

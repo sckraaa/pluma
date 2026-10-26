@@ -71,6 +71,7 @@ type differenceBuilder struct {
 	reads       []*mtproto.Update
 	phoneCall   *list.Element
 	messageIds  []*mtproto.Update
+	seq         seqFold // updates with seq, among the others (addSeq)
 }
 
 func newDifferenceBuilder(pts int32) *differenceBuilder {
@@ -79,6 +80,7 @@ func newDifferenceBuilder(pts int32) *differenceBuilder {
 		newMessages: map[int32]*mtproto.Message{},
 		edits:       map[int32]*list.Element{},
 		updates:     list.New(),
+		seq:         newSeqFold(),
 	}
 }
 

@@ -115,6 +115,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				Mysql:         c.Mysql,
 				Cache:         c.Cache,
+				Topics:        dialog_helper.Topics{Sync: c.Topics.Sync},
 			}))
 
 		// message_helper

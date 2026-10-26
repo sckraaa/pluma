@@ -24,6 +24,7 @@ type fakeServer struct {
 	mu      sync.Mutex
 	states  map[int64]State
 	journal map[int64][]journalRow
+	seqs    map[int64][]seqRow
 	outbox  map[int64]fakeEvent // mq_outbox by id
 	eventId int64               // last id given (AUTO_INCREMENT: not rolled back)
 	inserts [][]int64           // ids of each committed INSERT of events
@@ -62,6 +63,7 @@ func newFakeServer() *fakeServer {
 	return &fakeServer{
 		states:   map[int64]State{},
 		journal:  map[int64][]journalRow{},
+		seqs:     map[int64][]seqRow{},
 		outbox:   map[int64]fakeEvent{},
 		inject:   map[string][]injection{},
 		settings: []driver.Value{int64(2), int64(1), int64(1), "ROW", int64(1), int64(64 << 20)},
@@ -110,6 +112,12 @@ func (s *fakeServer) rows(userId int64) []journalRow {
 	return append([]journalRow(nil), s.journal[userId]...)
 }
 
+func (s *fakeServer) seqRows(userId int64) []seqRow {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]seqRow(nil), s.seqs[userId]...)
+}
+
 // events returns the committed mq_outbox rows by id.
 func (s *fakeServer) events() []fakeEvent {
 	s.mu.Lock()
@@ -151,12 +159,16 @@ func kind(query string) string {
 		return "read"
 	case strings.HasPrefix(query, insertJournal):
 		return "journal"
+	case strings.HasPrefix(query, insertSeqJournal):
+		return "seq_journal"
 	case strings.HasPrefix(query, "UPDATE user_state"):
 		return "update_state"
-	case strings.HasPrefix(query, "SELECT pts FROM user_state"):
+	case strings.HasPrefix(query, "SELECT pts, seq FROM user_state"):
 		return "verify_lock"
 	case strings.HasPrefix(query, "SELECT COUNT(*) FROM user_pts_updates"):
 		return "verify_row"
+	case strings.HasPrefix(query, "SELECT COUNT(*) FROM user_seq_updates"):
+		return "verify_seq_row"
 	case strings.HasPrefix(query, "SELECT @@SESSION"):
 		return "settings"
 	case strings.HasPrefix(query, insertEvents):
@@ -199,6 +211,7 @@ type fakeConn struct {
 	inTx    bool
 	states  map[int64]State
 	rows    map[int64][]journalRow
+	seqs    map[int64][]seqRow
 	outbox  map[int64]*fakeEvent // changed rows; nil: deleted
 	inserts [][]int64
 	others  []string
@@ -233,6 +246,7 @@ func (c *fakeConn) BeginTx(_ context.Context, opts driver.TxOptions) (driver.Tx,
 func (c *fakeConn) reset() {
 	c.states = map[int64]State{}
 	c.rows = map[int64][]journalRow{}
+	c.seqs = map[int64][]seqRow{}
 	c.outbox = map[int64]*fakeEvent{}
 	c.inserts = nil
 	c.others = nil
@@ -245,6 +259,9 @@ func (c *fakeConn) applyLocked() {
 	}
 	for u, rows := range c.rows {
 		c.s.journal[u] = append(c.s.journal[u], rows...)
+	}
+	for u, rows := range c.seqs {
+		c.s.seqs[u] = append(c.s.seqs[u], rows...)
 	}
 	for id, e := range c.outbox {
 		if e == nil {
@@ -260,7 +277,7 @@ func (c *fakeConn) applyLocked() {
 
 func (c *fakeConn) discardLocked() {
 	c.inTx = false
-	c.states, c.rows, c.outbox, c.inserts, c.others = nil, nil, nil, nil, nil
+	c.states, c.rows, c.seqs, c.outbox, c.inserts, c.others = nil, nil, nil, nil, nil, nil
 }
 
 // event is the mq_outbox row as this connection sees it. c.s.mu is held.
@@ -380,21 +397,44 @@ func (c *fakeConn) run(query string, args []driver.NamedValue, rows *fakeRows) (
 				data:       args[i+4].Value.(string),
 			})
 		}
+	case "seq_journal":
+		for i := 0; i < len(args); i += 6 {
+			u := args[i].Value.(int64)
+			c.seqs[u] = append(c.seqs[u], seqRow{
+				seq:        int32(args[i+1].Value.(int64)),
+				pts:        int32(args[i+2].Value.(int64)),
+				updateType: args[i+3].Value.(string),
+				data:       args[i+4].Value.(string),
+			})
+		}
 	case "update_state":
-		u := args[3].Value.(int64)
+		u := args[4].Value.(int64)
 		st, ok := c.current(u)
-		if ok && int64(st.Pts) == args[4].Value.(int64) && int64(st.LastMessageBoxId) == args[5].Value.(int64) {
+		if ok && int64(st.Pts) == args[5].Value.(int64) && int64(st.Seq) == args[6].Value.(int64) &&
+			int64(st.LastMessageBoxId) == args[7].Value.(int64) {
 			st.Pts = int32(args[0].Value.(int64))
-			st.LastMessageBoxId = int32(args[1].Value.(int64))
-			st.Date = args[2].Value.(int64)
+			st.Seq = int32(args[1].Value.(int64))
+			st.LastMessageBoxId = int32(args[2].Value.(int64))
+			st.Date = args[3].Value.(int64)
 			c.states[u] = st
 			affected = 1
 		}
 	case "verify_lock":
-		rows.cols = []string{"pts"}
+		rows.cols = []string{"pts", "seq"}
 		if st, ok := c.current(args[0].Value.(int64)); ok {
-			rows.data = [][]driver.Value{{int64(st.Pts)}}
+			rows.data = [][]driver.Value{{int64(st.Pts), int64(st.Seq)}}
 		}
+	case "verify_seq_row":
+		u := args[0].Value.(int64)
+		var n int64
+		for _, r := range s.seqs[u] {
+			if int64(r.seq) == args[1].Value.(int64) && int64(r.pts) == args[2].Value.(int64) &&
+				r.updateType == args[3].Value.(string) && r.data == args[4].Value.(string) {
+				n++
+			}
+		}
+		rows.cols = []string{"count"}
+		rows.data = [][]driver.Value{{n}}
 	case "verify_row":
 		u := args[0].Value.(int64)
 		var n int64

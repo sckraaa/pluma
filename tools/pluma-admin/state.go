@@ -38,7 +38,8 @@ var connectBoxes = func(configFile string) (*boxStores, error) {
 	return &boxStores{db: db, kv: kv.NewStore(c.KV)}, nil
 }
 
-// boxCommand runs state-raise, state-export-legacy or verify-pts.
+// boxCommand runs state-raise, state-export-legacy, verify-pts or
+// verify-seq.
 func boxCommand(args []string, configFile string, stdout io.Writer) error {
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -46,7 +47,7 @@ func boxCommand(args []string, configFile string, stdout io.Writer) error {
 		by     = flags.Int("by", 0, "")
 		user   = flags.Int64("user", 0, "")
 		margin = flags.Int("margin", 0, "")
-		after  = flags.Int("after", userbox.BasePts, "")
+		after  = flags.Int("after", 0, "")
 	)
 	if err := flags.Parse(args[1:]); err != nil {
 		return errUsage
@@ -62,7 +63,7 @@ func boxCommand(args []string, configFile string, stdout io.Writer) error {
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(stdout, "user_state: %d row(s) raised by %d above the journal and the messages, %d added.\n", raised, *by, added)
+			fmt.Fprintf(stdout, "user_state: %d row(s) raised by %d above the journals and the messages, %d added.\n", raised, *by, added)
 			if *user != 0 {
 				return nil
 			}
@@ -88,7 +89,7 @@ func boxCommand(args []string, configFile string, stdout io.Writer) error {
 				n, userbox.LegacyPtsKeyPrefix, userbox.LegacyMessageBoxKeyPrefix, *margin)
 			return nil
 		}
-	case "verify-pts":
+	case "verify-pts", "verify-seq":
 		if flags.NArg() != 1 {
 			return errUsage
 		}
@@ -96,8 +97,18 @@ func boxCommand(args []string, configFile string, stdout io.Writer) error {
 		if err != nil || userId <= 0 {
 			return fmt.Errorf("invalid user id %q", flags.Arg(0))
 		}
+		// Without -after, from the base: the journal starts above it.
+		from, verify := int32(userbox.BasePts), verifyPts
+		if args[0] == "verify-seq" {
+			from, verify = userbox.BaseSeq, verifySeq
+		}
+		flags.Visit(func(f *flag.Flag) {
+			if f.Name == "after" {
+				from = int32(*after)
+			}
+		})
 		cmd = func(ctx context.Context, st *boxStores) error {
-			return verifyPts(ctx, stdout, st.db, userId, int32(*after))
+			return verify(ctx, stdout, st.db, userId, from)
 		}
 	}
 
@@ -131,5 +142,26 @@ func verifyPts(ctx context.Context, stdout io.Writer, db *sql.DB, userId int64, 
 		return errJournal
 	}
 	fmt.Fprintln(stdout, "OK: every pts is in exactly one row.")
+	return nil
+}
+
+var errSeqJournal = errors.New("the seq journal lacks rows of the state")
+
+// verifySeq reports the seq without a row in userId's seq journal after the
+// seq after up to the committed state.
+func verifySeq(ctx context.Context, stdout io.Writer, db *sql.DB, userId int64, after int32) error {
+	rep, err := userbox.CheckSeqJournal(ctx, db, userId, after)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "User %d: state seq %d, %d seq row(s) in (%d, %d].\n", userId, rep.State.Seq, rep.Rows, after, rep.State.Seq)
+	for _, g := range rep.Gaps {
+		fmt.Fprintf(stdout, "  gap: seq (%d, %d] have no row\n", g.From, g.To)
+	}
+	if !rep.OK() {
+		fmt.Fprintln(stdout, "A gap of the margin of state-raise at the time it ran is that jump, not a loss.")
+		return errSeqJournal
+	}
+	fmt.Fprintln(stdout, "OK: every seq has its row.")
 	return nil
 }

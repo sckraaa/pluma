@@ -985,8 +985,9 @@ func TestPinnedDialogsWithDeletes(t *testing.T) {
 	w := newWorld(t, boxDSN(""), 0)
 	ctx := context.Background()
 	dialogs := dialog_helper.New(dialog_helper.Config{
-		Mysql: sqlx.Config{DSN: boxDSN("")},
-		Cache: itRedis.CacheConf(),
+		Mysql:  sqlx.Config{DSN: boxDSN("")},
+		Cache:  itRedis.CacheConf(),
+		Topics: dialog_helper.Topics{Sync: "Sync-T"},
 	})
 	u := newUser()
 	peers := []int64{newUser(), newUser(), newUser(), newUser()}

@@ -15,3 +15,5 @@ Mysql:
   TranTimeout: 5s
 Cache:
   - Host: 127.0.0.1:6379
+Topics:
+  Sync: "Sync-T"

@@ -538,7 +538,7 @@ ALTER TABLE `messages` ADD UNIQUE KEY `user_out_random` (`user_id`, `out_random_
 
 ## Вне рамок 003
 
-- Пуши без `pts` (bff, `seq`, `pushRpcResult`) не журналируются, `getDifference` их не восстанавливает — задача 010.
+- Пуши без `pts` (bff, `seq`, `pushRpcResult`) не журналируются, `getDifference` их не восстанавливает — задача 010 (журнал `seq`: ADR 0020).
 - Проверки здоровья по сервисам, Alertmanager (условие выкатки 002+003), Loki — задача 004.
 - Уведомления на выключенные устройства (APNs, FCM) — задача 009.
 - Потребитель `BotSync` (шлюз ботов) в репозитории отсутствует.

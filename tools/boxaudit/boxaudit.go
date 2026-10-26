@@ -21,8 +21,9 @@
 //
 // Writers adds a rule for the whole repository, box code or not:
 //
-//   - writer: no SQL that writes user_state or user_pts_updates outside
-//     pkg/userbox, in Go strings or in DAO table definitions.
+//   - writer: no SQL that writes user_state, user_pts_updates or
+//     user_seq_updates outside pkg/userbox, or mq_outbox outside pkg/userbox
+//     and pkg/outbox, in Go strings or in DAO table definitions.
 //
 // A finding that is not a violation is marked on its line, or on the line
 // above it, with a comment
