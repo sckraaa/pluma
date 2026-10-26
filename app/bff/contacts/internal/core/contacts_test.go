@@ -54,6 +54,8 @@ type fakeUsers struct {
 	phones     map[string]int64
 	signUpOn   bool
 	added      []*userpb.TLUserAddContact
+	mutual     bool
+	deleted    []*userpb.TLUserDeleteContact
 	blockCalls []string
 }
 
@@ -65,6 +67,16 @@ func (f *fakeUsers) UserGetMutableUsers(_ context.Context, in *userpb.TLUserGetM
 		}
 	}
 	return out, nil
+}
+
+func (f *fakeUsers) UserGetMutableUsersV2(ctx context.Context, in *userpb.TLUserGetMutableUsersV2) (*mtproto.MutableUsers, error) {
+	users, _ := f.UserGetMutableUsers(ctx, &userpb.TLUserGetMutableUsers{Id: in.Id})
+	return mtproto.MakeTLMutableUsers(&mtproto.MutableUsers{Users: users.GetDatas()}).To_MutableUsers(), nil
+}
+
+func (f *fakeUsers) UserDeleteContact(_ context.Context, in *userpb.TLUserDeleteContact) (*mtproto.Bool, error) {
+	f.deleted = append(f.deleted, in)
+	return mtproto.BoolTrue, nil
 }
 
 func (f *fakeUsers) UserGetImmutableUser(_ context.Context, in *userpb.TLUserGetImmutableUser) (*mtproto.ImmutableUser, error) {
@@ -141,7 +153,7 @@ func (f *fakeUsers) UserAddContact(_ context.Context, in *userpb.TLUserAddContac
 	f.added = append(f.added, in)
 	owner := f.users[in.UserId]
 	owner.Contacts = append(owner.Contacts, contactData(in.UserId, in.Id, in.FirstName, in.LastName))
-	return mtproto.BoolFalse, nil
+	return mtproto.ToBool(f.mutual), nil
 }
 
 type fakeSync struct {
@@ -228,7 +240,9 @@ func rpcError(err error) (int, string) {
 	return int(st.Code()), st.Message()
 }
 
-func TestImportContactsAnswersAndTellsTheOtherDevices(t *testing.T) {
+// The devices learn about the contacts from biz, in the transaction of
+// the import (ADR 0020): bff pushes nothing.
+func TestImportContactsAnswers(t *testing.T) {
 	bob := immutableUser(2, "Bob", "", "", "", nil)
 	bobUser := bob.ToUnsafeUser(immutableUser(me, "Me", "", "", "", nil))
 	users := &fakeUsers{imported: userpb.MakeTLUserImportedContacts(&userpb.UserImportedContacts{
@@ -251,23 +265,8 @@ func TestImportContactsAnswersAndTellsTheOtherDevices(t *testing.T) {
 		!reflect.DeepEqual(r.GetRetryContacts(), []int64{9}) || len(r.GetUsers()) != 1 {
 		t.Errorf("answer %v", r)
 	}
-	if len(push.pushed) != 1 {
-		t.Fatalf("%d pushes", len(push.pushed))
-	}
-	p := push.pushed[0]
-	ups := p.GetUpdates().GetUpdates()
-	if p.GetPermAuthKeyId() != 77 || len(ups) != 1 || ups[0].GetPredicateName() != mtproto.Predicate_updatePeerSettings ||
-		ups[0].GetPeer_PEER().GetUserId() != 2 || len(p.GetUpdates().GetUsers()) != 1 {
-		t.Errorf("push %v", p)
-	}
-
-	// Nothing changed: nothing to tell.
-	users.imported.UpdateIdList = nil
-	push.pushed = nil
-	if _, err = c.ContactsImportContacts(&mtproto.TLContactsImportContacts{Contacts: []*mtproto.InputContact{
-		mtproto.MakeTLInputPhoneContact(&mtproto.InputContact{ClientId: 7, Phone: "+12015550102"}).To_InputContact(),
-	}}); err != nil || len(push.pushed) != 0 {
-		t.Errorf("repeated import: %v, %d pushes", err, len(push.pushed))
+	if len(push.pushed) != 0 {
+		t.Errorf("%d pushes from bff", len(push.pushed))
 	}
 
 	// An empty phone book does not reach the user service (the fake would
@@ -524,16 +523,83 @@ func TestAcceptContact(t *testing.T) {
 	if len(users.added) != 1 || !mtproto.FromBool(users.added[0].AddPhonePrivacyException) || users.added[0].FirstName != "Bob" || users.added[0].LastName != "B" {
 		t.Errorf("added %v: the user becomes a contact under their name and sees our number", users.added)
 	}
+	if u := users.added[0].GetUsers(); len(u) != 1 || u[0].GetId() != 2 {
+		t.Errorf("users for the pushes of biz %v: the peer", u)
+	}
 	ups := r.GetUpdates()
 	if len(ups) != 1 || ups[0].GetPredicateName() != mtproto.Predicate_updatePeerSettings || len(r.GetUsers()) != 1 || !r.GetUsers()[0].GetContact() {
 		t.Errorf("updates %v", r)
 	}
-	if len(push.pushed) != 1 {
-		t.Errorf("%d pushes to the other devices", len(push.pushed))
+	if len(push.pushed) != 0 {
+		t.Errorf("%d pushes from bff: biz pushes in the transaction of the contact", len(push.pushed))
 	}
 
 	_, err = c.ContactsAcceptContact(&mtproto.TLContactsAcceptContact{Id: mtproto.MakeTLInputUserSelf(nil).To_InputUser()})
 	if _, msg := rpcError(err); msg != "CONTACT_ID_INVALID" {
 		t.Errorf("oneself: %v", err)
+	}
+}
+
+// contacts.addContact gives biz the contact for its pushes with seq (ADR
+// 0020), and answers with the mutuality biz wrote.
+func TestAddContact(t *testing.T) {
+	users := &fakeUsers{users: map[int64]*mtproto.ImmutableUser{
+		me: immutableUser(me, "Me", "", "", "", nil),
+		2:  immutableUser(2, "Bob", "", "", "", nil),
+	}, mutual: true}
+	push := &fakeSync{}
+	c := newCore(users, push, nil, nil)
+	r, err := c.ContactsAddContact(&mtproto.TLContactsAddContact{Id: inputUser(2), FirstName: "Bobby", LastName: "B", AddPhonePrivacyException: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users.added) != 1 || !mtproto.FromBool(users.added[0].AddPhonePrivacyException) {
+		t.Fatalf("added %v", users.added)
+	}
+	if u := users.added[0].GetUsers(); len(u) != 1 || u[0].GetId() != 2 || !u[0].GetContact() || u[0].GetFirstName().GetValue() != "Bobby" {
+		t.Errorf("users for the pushes of biz %v: Bob as our contact", u)
+	}
+	ups := r.GetUpdates()
+	if len(ups) != 1 || ups[0].GetPredicateName() != mtproto.Predicate_updatePeerSettings || ups[0].GetPeer_PEER().GetUserId() != 2 {
+		t.Errorf("updates %v", ups)
+	}
+	var bob *mtproto.User
+	for _, u := range r.GetUsers() {
+		if u.GetId() == 2 {
+			bob = u
+		}
+	}
+	if bob == nil || !bob.GetContact() || !bob.GetMutualContact() {
+		t.Errorf("users of the answer %v: Bob as a mutual contact", r.GetUsers())
+	}
+	if len(push.pushed) != 0 {
+		t.Errorf("%d pushes from bff", len(push.pushed))
+	}
+}
+
+// contacts.deleteContacts gives biz the user for its push with seq, under
+// the user's own name, and pushes nothing itself.
+func TestDeleteContacts(t *testing.T) {
+	self := immutableUser(me, "Me", "", "", "", nil)
+	self.Contacts = []*mtproto.ContactData{contactData(me, 2, "Bobby", "")}
+	users := &fakeUsers{users: map[int64]*mtproto.ImmutableUser{me: self, 2: immutableUser(2, "Bob", "", "", "", nil)}}
+	push := &fakeSync{}
+	c := newCore(users, push, nil, nil)
+	r, err := c.ContactsDeleteContacts(&mtproto.TLContactsDeleteContacts{Id: []*mtproto.InputUser{inputUser(2)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(users.deleted) != 1 || users.deleted[0].GetId() != 2 {
+		t.Fatalf("deleted %v", users.deleted)
+	}
+	u := users.deleted[0].GetUsers()
+	if len(u) != 1 || u[0].GetId() != 2 || u[0].GetContact() || u[0].GetFirstName().GetValue() != "Bob" {
+		t.Errorf("users for the push of biz %v: Bob, no contact, under his name", u)
+	}
+	if len(r.GetUpdates()) != 1 || len(r.GetUsers()) != 1 || r.GetUsers()[0].GetContact() {
+		t.Errorf("answer %v", r)
+	}
+	if len(push.pushed) != 0 {
+		t.Errorf("%d pushes from bff", len(push.pushed))
 	}
 }

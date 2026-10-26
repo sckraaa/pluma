@@ -224,48 +224,51 @@ func (d *Dao) GetUserPrivacyRules(ctx context.Context, id int64, key int32) (*mt
 	return rules, nil
 }
 
-// AddPhonePrivacyException lets peerId see the phone number of id: the
-// add_phone_privacy_exception of contacts.addContact, and
-// contacts.acceptContact. Telegram adds the user to the exceptions of the
-// phone number privacy ("Always share with"), where the user sees it.
+// AddPhonePrivacyException lets peerId see the phone number of the box
+// owner, in b's transaction: the add_phone_privacy_exception of
+// contacts.addContact, and contacts.acceptContact. Telegram adds the user
+// to the exceptions of the phone number privacy ("Always share with"),
+// where the user sees it. It returns the rules as stored when they
+// changed, for updatePrivacy (ADR 0020), and nil when peerId saw the
+// number already.
 //
 // The rules are read and written under the lock of their row, which the
 // first statement creates with the default rules or locks, as userbox
 // locks user_state: rules account.setPrivacy committed meanwhile are not
-// overwritten with older ones, and the box of id serializes the exceptions
-// added at once.
-func (d *Dao) AddPhonePrivacyException(ctx context.Context, id, peerId int64) error {
-	keys := []string{genUserPrivacyKeyPrefix(id, mtproto.PHONE_NUMBER), genCacheUserDataCacheKey(id)}
-	_, err := d.RunBox(ctx, id, keys, func(b *userbox.Box) error {
-		if _, err := b.Tx().Exec("INSERT INTO user_privacies (user_id, key_type, rules) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id",
-			id, mtproto.PHONE_NUMBER, phoneNumberRulesData); err != nil {
-			return err
+// overwritten with older ones, and the box of the owner serializes the
+// exceptions added at once.
+func AddPhonePrivacyException(b *userbox.Box, peerId int64) ([]*mtproto.PrivacyRule, error) {
+	id := b.UserId()
+	b.InvalidateCache(genUserPrivacyKeyPrefix(id, mtproto.PHONE_NUMBER), genCacheUserDataCacheKey(id))
+	if _, err := b.Tx().Exec("INSERT INTO user_privacies (user_id, key_type, rules) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE user_id = user_id",
+		id, mtproto.PHONE_NUMBER, phoneNumberRulesData); err != nil {
+		return nil, err
+	}
+	var list []string
+	if err := b.Tx().QueryRowsPartial(&list, "SELECT rules FROM user_privacies WHERE user_id = ? AND key_type = ?", id, mtproto.PHONE_NUMBER); err != nil {
+		return nil, err
+	}
+	var current []*mtproto.PrivacyRule
+	if len(list) > 0 {
+		if err := jsonx.UnmarshalFromString(list[0], &current); err != nil {
+			return nil, err
 		}
-		var list []string
-		if err := b.Tx().QueryRowsPartial(&list, "SELECT rules FROM user_privacies WHERE user_id = ? AND key_type = ?", id, mtproto.PHONE_NUMBER); err != nil {
-			return err
-		}
-		var current []*mtproto.PrivacyRule
-		if len(list) > 0 {
-			if err := jsonx.UnmarshalFromString(list[0], &current); err != nil {
-				return err
-			}
-		}
-		if len(current) == 0 {
-			current = makeDefaultPrivacyRules(mtproto.PHONE_NUMBER)
-		}
-		updated, changed := withAllowedUser(current, peerId)
-		if !changed {
-			return nil
-		}
-		data, err := jsonx.Marshal(updated)
-		if err != nil {
-			return err
-		}
-		_, err = b.Tx().Exec("UPDATE user_privacies SET rules = ? WHERE user_id = ? AND key_type = ?", hack.String(data), id, mtproto.PHONE_NUMBER)
-		return err
-	})
-	return err
+	}
+	if len(current) == 0 {
+		current = makeDefaultPrivacyRules(mtproto.PHONE_NUMBER)
+	}
+	updated, changed := withAllowedUser(current, peerId)
+	if !changed {
+		return nil, nil
+	}
+	data, err := jsonx.Marshal(updated)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE user_privacies SET rules = ? WHERE user_id = ? AND key_type = ?", hack.String(data), id, mtproto.PHONE_NUMBER); err != nil {
+		return nil, err
+	}
+	return updated, nil
 }
 
 // withAllowedUser returns rules with peerId allowed explicitly: out of the

@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -51,54 +50,64 @@ func (c *ContactsCore) ContactsDeleteContacts(in *mtproto.TLContactsDeleteContac
 		return nil, err
 	}
 
+	// biz pushes updatePeerSettings with seq of each removed contact to
+	// every device of the account, this one included, in the transaction
+	// of the removal (ADR 0020); the user goes with it.
 	deleteUsers.VisitByMe(c.MD.UserId, func(me, it *mtproto.ImmutableUser) {
-		if me.Id() != it.Id() {
-			// TODO: mutual
-			c.svcCtx.Dao.UserClient.UserDeleteContact(c.ctx, &userpb.TLUserDeleteContact{
-				UserId: c.MD.UserId,
-				Id:     it.Id(),
-			})
-
-			rUpdates.PushBackUpdate(
-				mtproto.MakeTLUpdatePeerSettings(&mtproto.Update{
-					Peer_PEER: mtproto.MakePeerUser(it.Id()),
-					Settings: mtproto.MakeTLPeerSettings(&mtproto.PeerSettings{
-						ReportSpam:             false,
-						AddContact:             false,
-						BlockContact:           false,
-						ShareContact:           false,
-						NeedContactsException:  false,
-						ReportGeo:              false,
-						Autoarchived:           false,
-						InviteMembers:          false,
-						RequestChatBroadcast:   false,
-						BusinessBotPaused:      false,
-						BusinessBotCanReply:    false,
-						GeoDistance:            nil,
-						RequestChatTitle:       nil,
-						RequestChatDate:        nil,
-						BusinessBotId:          nil,
-						BusinessBotManageUrl:   nil,
-						ChargePaidMessageStars: nil,
-						RegistrationMonth:      nil,
-						PhoneCountry:           nil,
-						NameChangeDate:         nil,
-						PhotoChangeDate:        nil,
-					}).To_PeerSettings(),
-				}).To_Update())
-
-			cUser := it.ToUnsafeUser(me)
-			cUser.Contact = false
-			cUser.MutualContact = false
-			rUpdates.PushUser(cUser)
+		if err != nil || me.Id() == it.Id() {
+			return
 		}
-	})
+		// TODO: mutual
+		cUser := it.ToUnsafeUser(me)
+		cUser.Contact = false
+		cUser.MutualContact = false
+		cUser.CloseFriend = false
+		cUser.StoriesHidden = false
+		// No longer a contact: the user's own name.
+		cUser.FirstName = mtproto.MakeFlagsString(it.FirstName())
+		cUser.LastName = mtproto.MakeFlagsString(it.LastName())
+		if _, err = c.svcCtx.Dao.UserClient.UserDeleteContact(c.ctx, &userpb.TLUserDeleteContact{
+			UserId: c.MD.UserId,
+			Id:     it.Id(),
+			Users:  []*mtproto.User{cUser},
+		}); err != nil {
+			return
+		}
 
-	c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        c.MD.UserId,
-		PermAuthKeyId: c.MD.PermAuthKeyId,
-		Updates:       rUpdates,
+		rUpdates.PushBackUpdate(
+			mtproto.MakeTLUpdatePeerSettings(&mtproto.Update{
+				Peer_PEER: mtproto.MakePeerUser(it.Id()),
+				Settings: mtproto.MakeTLPeerSettings(&mtproto.PeerSettings{
+					ReportSpam:             false,
+					AddContact:             false,
+					BlockContact:           false,
+					ShareContact:           false,
+					NeedContactsException:  false,
+					ReportGeo:              false,
+					Autoarchived:           false,
+					InviteMembers:          false,
+					RequestChatBroadcast:   false,
+					BusinessBotPaused:      false,
+					BusinessBotCanReply:    false,
+					GeoDistance:            nil,
+					RequestChatTitle:       nil,
+					RequestChatDate:        nil,
+					BusinessBotId:          nil,
+					BusinessBotManageUrl:   nil,
+					ChargePaidMessageStars: nil,
+					RegistrationMonth:      nil,
+					PhoneCountry:           nil,
+					NameChangeDate:         nil,
+					PhotoChangeDate:        nil,
+				}).To_PeerSettings(),
+			}).To_Update())
+		rUpdates.PushUser(cUser)
 	})
+	if err != nil {
+		// The contacts removed before are pushed to every device.
+		c.Logger.Errorf("contacts.deleteContacts - error: %v", err)
+		return nil, err
+	}
 
 	return rUpdates, nil
 }

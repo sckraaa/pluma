@@ -66,26 +66,31 @@ func (c *ContactsCore) ContactsAddContact(in *mtproto.TLContactsAddContact) (*mt
 		return nil, err
 	}
 
-	changeMutual, err := c.svcCtx.Dao.UserClient.UserAddContact(c.ctx, &userpb.TLUserAddContact{
+	cUser, _ := users.GetUnsafeUser(c.MD.UserId, id.PeerId)
+	cUser.Contact = true
+	cUser.FirstName = mtproto.MakeFlagsString(in.FirstName)
+	cUser.LastName = mtproto.MakeFlagsString(in.LastName)
+	cUser.Phone = mtproto.MakeFlagsString(in.Phone)
+
+	// biz pushes updatePeerSettings with seq (and updatePrivacy, when the
+	// exception changed the phone number rules) to every device of the
+	// account, this one included, in the transaction of the contact (ADR
+	// 0020); the contact goes with them.
+	mutual, err := c.svcCtx.Dao.UserClient.UserAddContact(c.ctx, &userpb.TLUserAddContact{
 		UserId:                   c.MD.UserId,
 		AddPhonePrivacyException: mtproto.ToBool(in.AddPhonePrivacyException),
 		Id:                       id.PeerId,
 		FirstName:                in.FirstName,
 		LastName:                 in.LastName,
 		Phone:                    in.Phone,
+		Users:                    []*mtproto.User{cUser},
 	})
 	if err != nil {
 		c.Logger.Errorf("contacts.addContact - error: %v", err)
 		err = mtproto.ErrContactIdInvalid
 		return nil, err
 	}
-
-	cUser, _ := users.GetUnsafeUser(c.MD.UserId, id.PeerId)
-	cUser.Contact = true
-	cUser.MutualContact = mtproto.FromBool(changeMutual)
-	cUser.FirstName = mtproto.MakeFlagsString(in.FirstName)
-	cUser.LastName = mtproto.MakeFlagsString(in.LastName)
-	cUser.Phone = mtproto.MakeFlagsString(in.Phone)
+	cUser.MutualContact = mtproto.FromBool(mutual)
 
 	me, _ := users.GetUnsafeUserSelf(c.MD.UserId)
 

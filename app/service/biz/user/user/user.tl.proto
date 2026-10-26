@@ -410,6 +410,10 @@ message TL_user_addPeerSettings {
   int32 peer_type = 4;
   int64 peer_id = 5;
   mtproto.PeerSettings settings = 6;
+  // pluma: the peer as the account sees it, for the push of the update
+  // with seq (ADR 0020).
+  repeated mtproto.User users = 7;
+  repeated mtproto.Chat chats = 8;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -426,6 +430,10 @@ message TL_user_deletePeerSettings {
   int64 user_id = 3;
   int32 peer_type = 4;
   int64 peer_id = 5;
+  // pluma: the peer as the account sees it, for the push of the update
+  // with seq (ADR 0020).
+  repeated mtproto.User users = 6;
+  repeated mtproto.Chat chats = 7;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -535,6 +543,9 @@ message TL_user_deleteContact {
   TLConstructor constructor = 1;
   int64 user_id = 3;
   int64 id = 4;
+  // pluma: the contact as the account sees it, for the push of the update
+  // with seq (ADR 0020).
+  repeated mtproto.User users = 5;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -565,6 +576,9 @@ message TL_user_addContact {
   string first_name = 6;
   string last_name = 7;
   string phone = 8;
+  // pluma: the contact as the account sees it, for the pushes of the
+  // updates with seq (ADR 0020).
+  repeated mtproto.User users = 9;
 }
 
 //--------------------------------------------------------------------------------------------

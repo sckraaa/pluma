@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -71,6 +70,9 @@ func (c *ContactsCore) ContactsAcceptContact(in *mtproto.TLContactsAcceptContact
 		lastName = contact.GetLastName().GetValue()
 		phone = contact.GetPhone().GetValue()
 	}
+	// biz pushes updatePeerSettings and updatePrivacy of the phone number
+	// with seq to every device of the account, this one included, in the
+	// transaction of the contact (ADR 0020); the contact goes with them.
 	if _, err = c.svcCtx.Dao.UserClient.UserAddContact(c.ctx, &userpb.TLUserAddContact{
 		UserId:                   c.MD.UserId,
 		AddPhonePrivacyException: mtproto.BoolTrue,
@@ -78,6 +80,7 @@ func (c *ContactsCore) ContactsAcceptContact(in *mtproto.TLContactsAcceptContact
 		FirstName:                firstName,
 		LastName:                 lastName,
 		Phone:                    phone,
+		Users:                    []*mtproto.User{peer.ToUnsafeUser(me)},
 	}); err != nil {
 		c.Logger.Errorf("contacts.acceptContact - error: %v", err)
 		return nil, err
@@ -104,15 +107,6 @@ func (c *ContactsCore) ContactsAcceptContact(in *mtproto.TLContactsAcceptContact
 			Peer_PEER: id.ToPeer(),
 			Settings:  mtproto.MakeTLPeerSettings(&mtproto.PeerSettings{}).To_PeerSettings(),
 		}).To_Update())
-	if _, err = c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        c.MD.UserId,
-		PermAuthKeyId: c.MD.PermAuthKeyId,
-		Updates:       rUpdates,
-	}); err != nil {
-		// Committed: the other devices get the contact with their next
-		// contacts.getContacts.
-		c.Logger.Errorf("contacts.acceptContact - push to the other devices of user %d: %v", c.MD.UserId, err)
-	}
 
 	return rUpdates, nil
 }

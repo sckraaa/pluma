@@ -37,8 +37,9 @@ const importAttempts = 3
 // kept in the importer's phone book on the server, and counts as an invite:
 // Telegram does not tell whether a number it does not let you find is
 // taken. A repeated import renames and adds nothing twice. update_id_list
-// holds the contacts the import added or changed, for the importer's other
-// devices.
+// holds the contacts the import added or changed; the transaction of the
+// import pushes updatePeerSettings with seq of each of them, with the
+// contact, to every device of the importer (ADR 0015, ADR 0020).
 func (c *UserCore) UserImportContacts(in *user.TLUserImportContacts) (*user.UserImportedContacts, error) {
 	me := c.svcCtx.Dao.GetCacheUserData(c.ctx, in.UserId)
 	if me.GetUserData() == nil {
@@ -180,14 +181,46 @@ func (c *UserCore) importTargets(userId int64, entries []*importEntry) (map[stri
 	return targets, nil
 }
 
+// importPeers returns the accounts an import may make contacts of, as the
+// importer sees them before the import, by id: the users of the pushes.
+func (c *UserCore) importPeers(userId int64, targets map[string]importTarget) (map[int64]*mtproto.User, error) {
+	var ids []int64
+	for _, t := range targets {
+		if t.userId != 0 {
+			ids = append(ids, t.userId)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	users, err := c.UserGetMutableUsers(&user.TLUserGetMutableUsers{
+		Id: append([]int64{userId}, ids...),
+		To: []int64{userId},
+	})
+	if err != nil {
+		return nil, err
+	}
+	peers := make(map[int64]*mtproto.User, len(ids))
+	for _, u := range users.GetUserListByIdList(userId, ids...) {
+		peers[u.GetId()] = u
+	}
+	return peers, nil
+}
+
 // runImport writes an import in the importer's box transaction: the
-// window of the limit, the contacts and the phone book. It returns the
-// plan and, in the order of plan.contacts, what happened to each contact.
+// window of the limit, the contacts and the phone book, and
+// updatePeerSettings with seq of each contact added or changed, with the
+// user as the importer's contact. It returns the plan and, in the order of
+// plan.contacts, what happened to each contact.
 func (c *UserCore) runImport(userId int64, entries []*importEntry, targets map[string]importTarget) (importPlan, []dao.ContactChange, error) {
 	var (
 		plan    importPlan
 		changes []dao.ContactChange
 	)
+	peers, err := c.importPeers(userId, targets)
+	if err != nil {
+		return plan, nil, err
+	}
 	contactIds := make([]int64, 0, len(entries))
 	phones := make([]string, 0, len(entries))
 	for _, e := range entries {
@@ -197,7 +230,7 @@ func (c *UserCore) runImport(userId int64, entries []*importEntry, targets map[s
 		}
 	}
 
-	_, err := c.svcCtx.Dao.RunBox(c.ctx, userId, []string{dao.GenCacheUserDataCacheKey(userId)}, func(b *userbox.Box) error {
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, userId, []string{dao.GenCacheUserDataCacheKey(userId)}, func(b *userbox.Box) error {
 		// A retried attempt starts over.
 		plan, changes = importPlan{}, nil
 
@@ -270,10 +303,21 @@ func (c *UserCore) runImport(userId int64, entries []*importEntry, targets map[s
 				return err
 			}
 		}
-		for _, ch := range changes {
+		var (
+			changed []int64
+			users   = make(map[int64][]*mtproto.User)
+		)
+		for i, ch := range changes {
 			b.InvalidateCache(dao.ContactCacheKeys(userId, ch.UserId)...)
+			if !ch.Changed {
+				continue
+			}
+			changed = append(changed, ch.UserId)
+			if u, ok := peers[ch.UserId]; ok {
+				users[ch.UserId] = dao.AsContact([]*mtproto.User{u}, ch.UserId, &contacts[i], ch.Mutual)
+			}
 		}
-		return nil
+		return c.svcCtx.Dao.EmitContactSettings(b, changed, func(id int64) []*mtproto.User { return users[id] })
 	})
 	return plan, changes, err
 }

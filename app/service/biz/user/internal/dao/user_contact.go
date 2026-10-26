@@ -29,9 +29,11 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/mr"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -103,65 +105,49 @@ func (d *Dao) GetUserContactListByIdList(ctx context.Context, id int64, contactI
 	return d.getContactListByIdList(ctx, id, idList2)
 }
 
-func (d *Dao) DeleteUserContact(ctx context.Context, id int64, contactId int64) {
-	_, affected, _ := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			tR := sqlx.TxWrapper(
-				ctx,
-				d.DB,
-				func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-					_, err := d.UserContactsDAO.DeleteContactsTx(tx, id, []int64{contactId})
-					if err != nil {
-						result.Err = err
-						return
-					}
-
-					affected, err := d.UserContactsDAO.UpdateMutualTx(tx, false, contactId, id)
-					result.Data = affected
-					result.Err = err
-				})
-			return 0, tR.Data.(int64), tR.Err
-		},
-		genCacheUserDataCacheKey(id),
-		genContactCacheKey(id, contactId))
-
-	if affected != 0 {
-		d.CachedConn.DelCache(ctx, genContactCacheKey(contactId, id), genCacheUserDataCacheKey(contactId))
+// DeleteContact removes contactId from the box owner's contacts, in b's
+// transaction, with the mutuality of the contact's row pointing back. It
+// tells whether there was a contact to remove; without one it writes
+// nothing. The cache entries are ContactCacheKeys.
+func (d *Dao) DeleteContact(b *userbox.Box, contactId int64) (bool, error) {
+	rows, err := ContactRows(b, []int64{contactId})
+	if err != nil {
+		return false, err
 	}
+	if r, ok := rows[contactId]; !ok || r.IsDeleted {
+		return false, nil
+	}
+	if _, err = d.UserContactsDAO.DeleteContactsTx(b.Tx(), b.UserId(), []int64{contactId}); err != nil {
+		return false, err
+	}
+	if _, err = d.UserContactsDAO.UpdateMutualTx(b.Tx(), false, contactId, b.UserId()); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
-func (d *Dao) PutUserContact(ctx context.Context, changeMutual bool, do *dataobject.UserContactsDO) error {
-	keys := []string{
-		genCacheUserDataCacheKey(do.OwnerUserId),
-		genCacheUserDataCacheKey(do.ContactUserId),
-		genContactCacheKey(do.OwnerUserId, do.ContactUserId),
+// AsContact returns users with the user contactId among them as the box
+// owner's contact after a change of its row: a contact with the mutuality
+// and the name of the row, or no contact. users are what the caller saw
+// before the change; they are not modified.
+func AsContact(users []*mtproto.User, contactId int64, contact *ImportedContact, mutual bool) []*mtproto.User {
+	out := make([]*mtproto.User, 0, len(users))
+	for _, u := range users {
+		if u.GetId() == contactId {
+			u = proto.Clone(u).(*mtproto.User)
+			u.Contact = contact != nil
+			u.MutualContact = contact != nil && mutual
+			if contact != nil {
+				u.FirstName = mtproto.MakeFlagsString(contact.FirstName)
+				u.LastName = mtproto.MakeFlagsString(contact.LastName)
+			} else {
+				u.CloseFriend = false
+				u.StoriesHidden = false
+			}
+		}
+		out = append(out, u)
 	}
-	if changeMutual {
-		keys = append(keys, genContactCacheKey(do.ContactUserId, do.OwnerUserId))
-	}
-
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			tR := sqlx.TxWrapper(
-				ctx,
-				conn,
-				func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-					if changeMutual {
-						_, result.Err = d.UserContactsDAO.UpdateMutualTx(tx, true, do.ContactUserId, do.OwnerUserId)
-						if result.Err != nil {
-							return
-						}
-					}
-					_, _, result.Err = d.UserContactsDAO.InsertOrUpdateTx(tx, do)
-				})
-
-			return 0, 0, tR.Err
-		},
-		keys...)
-
-	return err
+	return out
 }
 
 // ContactCacheKeys are the cache entries a change of the contact rows of

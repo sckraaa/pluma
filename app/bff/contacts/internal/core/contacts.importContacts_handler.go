@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -30,10 +29,11 @@ import (
 // The phone book sync (user.importContacts, task 011): imported holds the
 // contacts the numbers found, with the client_id of each number;
 // popular_invites the numbers to invite, with how many users imported each;
-// retry_contacts what to send again later (the limits). The importer's
-// other devices learn about added and renamed contacts as from
-// contacts.addContact: updatePeerSettings of the peer and the user with its
-// contact flags (Android ContactsController applies contacts from these).
+// retry_contacts what to send again later (the limits). Every device of
+// the importer learns about added and renamed contacts as from
+// contacts.addContact: biz pushes updatePeerSettings with seq of the peer
+// and the user with its contact flags in the transaction of the import
+// (ADR 0020; Android ContactsController applies contacts from these).
 func (c *ContactsCore) ContactsImportContacts(in *mtproto.TLContactsImportContacts) (*mtproto.Contacts_ImportedContacts, error) {
 	result := mtproto.MakeTLContactsImportedContacts(&mtproto.Contacts_ImportedContacts{
 		Imported:       []*mtproto.ImportedContact{},
@@ -58,46 +58,5 @@ func (c *ContactsCore) ContactsImportContacts(in *mtproto.TLContactsImportContac
 	result.RetryContacts = append(result.RetryContacts, imported.GetRetryContacts()...)
 	result.Users = append(result.Users, imported.GetUsers()...)
 
-	if updates := contactUpdates(imported.GetUpdateIdList(), imported.GetUsers()); updates != nil {
-		// The import is committed: a push that fails is not a failure of
-		// the request (a repeated import changes nothing to push); the
-		// devices get the contacts with their next contacts.getContacts.
-		if _, err = c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-			UserId:        c.MD.UserId,
-			PermAuthKeyId: c.MD.PermAuthKeyId,
-			Updates:       updates,
-		}); err != nil {
-			c.Logger.Errorf("contacts.importContacts - push to the other devices of user %d: %v", c.MD.UserId, err)
-		}
-	}
 	return result, nil
-}
-
-// contactUpdates tells the importer's other devices about the contacts of
-// ids: updatePeerSettings of each, with the users as the importer sees
-// them. nil without contacts.
-func contactUpdates(ids []int64, users []*mtproto.User) *mtproto.Updates {
-	if len(ids) == 0 {
-		return nil
-	}
-	byId := make(map[int64]*mtproto.User, len(users))
-	for _, u := range users {
-		byId[u.GetId()] = u
-	}
-	updates := mtproto.MakeUpdatesByUpdatesUsers(nil)
-	for _, id := range ids {
-		u, ok := byId[id]
-		if !ok {
-			continue
-		}
-		updates.PushBackUpdate(mtproto.MakeTLUpdatePeerSettings(&mtproto.Update{
-			Peer_PEER: mtproto.MakePeerUser(id),
-			Settings:  mtproto.MakeTLPeerSettings(&mtproto.PeerSettings{}).To_PeerSettings(),
-		}).To_Update())
-		updates.PushUser(u)
-	}
-	if len(updates.GetUpdates()) == 0 {
-		return nil
-	}
-	return updates
 }
