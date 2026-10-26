@@ -413,9 +413,11 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 
 func (m *ImmutableUser) ToSelfUser() *User {
 	user := MakeTLUser(&User{
-		Self:                         true,
-		Contact:                      true,
-		MutualContact:                true,
+		Self: true,
+		// pluma: Telegram does not mark the account a contact of itself
+		// and sets apply_min_photo (conformance fixture saved_messages).
+		Contact:                      false,
+		MutualContact:                false,
 		Deleted:                      false,
 		Bot:                          m.IsBot(),
 		BotChatHistory:               m.BotChatHistory(),
@@ -426,7 +428,7 @@ func (m *ImmutableUser) ToSelfUser() *User {
 		BotInlineGeo:                 m.BotInlineGeo(),
 		Support:                      m.Support(),
 		Scam:                         m.Scam(),
-		ApplyMinPhoto:                false,
+		ApplyMinPhoto:                true, // pluma: see Contact
 		Fake:                         m.Fake(),
 		BotAttachMenu:                m.BotAttachMenu(),
 		Premium:                      m.Premium(),
