@@ -138,7 +138,7 @@ func stored(t *testing.T, userId int64) ([]int32, map[int32]string) {
 
 func save(t *testing.T, userId int64, id int32, name string) {
 	t.Helper()
-	if err := itDao.SaveDialogFilter(context.Background(), userId, id, folder(id, name)); err != nil {
+	if err := itDao.SaveDialogFilter(context.Background(), userId, id, folder(id, name), nil, nil); err != nil {
 		t.Fatalf("save folder %d: %v", id, err)
 	}
 }
@@ -181,7 +181,7 @@ func TestDialogFiltersLimit(t *testing.T) {
 	for id := int32(2); id < 2+DialogFiltersLimit; id++ {
 		save(t, u, id, fmt.Sprint("Folder ", id))
 	}
-	err := itDao.SaveDialogFilter(context.Background(), u, 2+DialogFiltersLimit, folder(2+DialogFiltersLimit, "One more"))
+	err := itDao.SaveDialogFilter(context.Background(), u, 2+DialogFiltersLimit, folder(2+DialogFiltersLimit, "One more"), nil, nil)
 	if !errors.Is(err, ErrDialogFiltersTooMuch) {
 		t.Fatalf("folder %d: %v, want DIALOG_FILTERS_TOO_MUCH", DialogFiltersLimit+1, err)
 	}
@@ -204,7 +204,7 @@ func TestDialogFiltersConcurrent(t *testing.T) {
 		wg.Add(1)
 		go func(id int32) {
 			defer wg.Done()
-			err := itDao.SaveDialogFilter(context.Background(), u, id, folder(id, fmt.Sprint("Folder ", id)))
+			err := itDao.SaveDialogFilter(context.Background(), u, id, folder(id, fmt.Sprint("Folder ", id)), nil, nil)
 			mu.Lock()
 			defer mu.Unlock()
 			switch {
@@ -268,7 +268,7 @@ func TestDialogFiltersLimitPremium(t *testing.T) {
 		save(t, u, id, fmt.Sprint("Folder ", id))
 	}
 	last := int32(2 + DialogFiltersLimitPremium)
-	if err := itDao.SaveDialogFilter(ctx, u, last, folder(last, "One more")); !errors.Is(err, ErrDialogFiltersTooMuch) {
+	if err := itDao.SaveDialogFilter(ctx, u, last, folder(last, "One more"), nil, nil); !errors.Is(err, ErrDialogFiltersTooMuch) {
 		t.Fatalf("folder %d with Premium: %v, want DIALOG_FILTERS_TOO_MUCH", DialogFiltersLimitPremium+1, err)
 	}
 
@@ -280,7 +280,7 @@ func TestDialogFiltersLimitPremium(t *testing.T) {
 	if err := itDao.DeleteDialogFilter(ctx, u, 2); err != nil {
 		t.Fatal(err)
 	}
-	if err := itDao.SaveDialogFilter(ctx, u, 2, folder(2, "Back")); !errors.Is(err, ErrDialogFiltersTooMuch) {
+	if err := itDao.SaveDialogFilter(ctx, u, 2, folder(2, "Back"), nil, nil); !errors.Is(err, ErrDialogFiltersTooMuch) {
 		t.Fatalf("a new folder over the limit without Premium: %v, want DIALOG_FILTERS_TOO_MUCH", err)
 	}
 }
@@ -301,7 +301,7 @@ func TestFilterChatsLimit(t *testing.T) {
 		{"Premium, included at the limit", premium, FilterChatsLimitPremium, FilterChatsLimitPremium, false},
 		{"Premium, one more included", premium, FilterChatsLimitPremium + 1, 0, true},
 	} {
-		err := itDao.SaveDialogFilter(ctx, tc.user, 2, withChats(2, tc.in, tc.out))
+		err := itDao.SaveDialogFilter(ctx, tc.user, 2, withChats(2, tc.in, tc.out), nil, nil)
 		if tc.tooMuch != errors.Is(err, ErrFilterChatsTooMuch) || (!tc.tooMuch && err != nil) {
 			t.Errorf("%s: %v", tc.name, err)
 		}

@@ -16,11 +16,11 @@
 package core
 
 import (
+	"slices"
 	"strings"
 	"unicode/utf16"
 
 	"github.com/teamgram/proto/mtproto"
-	sync "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -116,41 +116,49 @@ func withAllChats(stored []*dialog.DialogFilterExt, premium bool) []*mtproto.Dia
 	return filters
 }
 
+// filterPeers are the users and chats of a folder's peers as the user sees
+// them: what its updateDialogFilter refers to.
+type filterPeers struct {
+	users []*mtproto.User
+	chats []*mtproto.Chat
+}
+
 // checkFilter returns filter as it is stored for folder id: a copy with the
 // id set and the title cut to filterTitleMax, or the error Telegram
-// answers.
-func (c *FoldersCore) checkFilter(id int32, filter *mtproto.DialogFilter) (*mtproto.DialogFilter, error) {
+// answers; and its peers.
+func (c *FoldersCore) checkFilter(id int32, filter *mtproto.DialogFilter) (*mtproto.DialogFilter, filterPeers, error) {
 	switch filter.GetPredicateName() {
 	case mtproto.Predicate_dialogFilter:
 	case mtproto.Predicate_dialogFilterChatlist:
 		// Shared folders (chatlists.*) are not served.
-		return nil, mtproto.ErrFilterNotSupported
+		return nil, filterPeers{}, mtproto.ErrFilterNotSupported
 	default:
-		return nil, mtproto.ErrFilterIdInvalid
+		return nil, filterPeers{}, mtproto.ErrFilterIdInvalid
 	}
 	if filter.GetId() != id {
-		return nil, mtproto.ErrFilterIdInvalid
+		return nil, filterPeers{}, mtproto.ErrFilterIdInvalid
 	}
 	f := proto.Clone(filter).(*mtproto.DialogFilter)
 	f.HasMyInvites = false
 
 	title := f.GetTitle_TEXTWITHENTITIES()
 	if title == nil || strings.TrimSpace(title.GetText()) == "" {
-		return nil, mtproto.ErrFilterTitleEmpty
+		return nil, filterPeers{}, mtproto.ErrFilterTitleEmpty
 	}
 	f.Title_TEXTWITHENTITIES = cutTitle(title, filterTitleMax)
 
 	if !f.Contacts && !f.NonContacts && !f.Groups && !f.Broadcasts && !f.Bots &&
 		len(f.GetIncludePeers()) == 0 && len(f.GetPinnedPeers()) == 0 {
-		return nil, mtproto.ErrFilterIncludeEmpty
+		return nil, filterPeers{}, mtproto.ErrFilterIncludeEmpty
 	}
 	if len(f.GetIncludePeers())+len(f.GetPinnedPeers()) > filterChatsMax || len(f.GetExcludePeers()) > filterChatsMax {
-		return nil, errFilterChatsTooMuch
+		return nil, filterPeers{}, errFilterChatsTooMuch
 	}
-	if err := c.checkPeers(f.GetPinnedPeers(), f.GetIncludePeers(), f.GetExcludePeers()); err != nil {
-		return nil, err
+	peers, err := c.checkPeers(f.GetPinnedPeers(), f.GetIncludePeers(), f.GetExcludePeers())
+	if err != nil {
+		return nil, filterPeers{}, err
 	}
-	return f, nil
+	return f, peers, nil
 }
 
 // cutTitle returns title cut to max characters, without the entities that
@@ -174,8 +182,10 @@ func cutTitle(title *mtproto.TextWithEntities, max int) *mtproto.TextWithEntitie
 // checkPeers answers PEER_ID_INVALID for a peer of a folder the user cannot
 // have a chat with: not a user, a basic group or Saved Messages (Pluma has
 // no channels), a user that does not exist or a group the user never was
-// in.
-func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) error {
+// in. It returns the users and groups of the peers as the user sees them;
+// Saved Messages adds none, a client always has its own user.
+func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) (filterPeers, error) {
+	var peers filterPeers
 	var users, chats []int64
 	seenUser, seenChat := map[int64]bool{}, map[int64]bool{}
 	for _, list := range lists {
@@ -194,20 +204,24 @@ func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) error {
 					chats = append(chats, p.PeerId)
 				}
 			default:
-				return mtproto.ErrPeerIdInvalid
+				return filterPeers{}, mtproto.ErrPeerIdInvalid
 			}
 		}
 	}
 	if len(users) > 0 {
-		found, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: users})
+		// The user's own row too: the others are seen through it.
+		found, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
+			Id: append(slices.Clone(users), c.MD.UserId),
+		})
 		if err != nil {
-			return err
+			return filterPeers{}, err
 		}
 		for _, id := range users {
 			if _, ok := found.GetImmutableUser(id); !ok {
-				return mtproto.ErrPeerIdInvalid
+				return filterPeers{}, mtproto.ErrPeerIdInvalid
 			}
 		}
+		peers.users = found.GetUserListByIdList(c.MD.UserId, users...)
 	}
 	if len(chats) > 0 {
 		found, err := c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx, &chatpb.TLChatGetChatListByIdList{
@@ -215,7 +229,7 @@ func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) error {
 			IdList: chats,
 		})
 		if err != nil {
-			return err
+			return filterPeers{}, err
 		}
 		member := make(map[int64]bool, len(chats))
 		found.Walk(func(_ int, chat *mtproto.MutableChat) {
@@ -225,23 +239,10 @@ func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) error {
 		})
 		for _, id := range chats {
 			if !member[id] {
-				return mtproto.ErrPeerIdInvalid
+				return filterPeers{}, mtproto.ErrPeerIdInvalid
 			}
 		}
+		peers.chats = found.GetChatListByIdList(c.MD.UserId, chats...)
 	}
-	return nil
-}
-
-// pushToOtherDevices tells the user's other devices about a change of the
-// folders, as Telegram does. The change is stored: a push that fails does
-// not fail the request, the devices see the folders on their next
-// messages.getDialogFilters.
-func (c *FoldersCore) pushToOtherDevices(update *mtproto.Update) {
-	if _, err := c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        c.MD.UserId,
-		PermAuthKeyId: c.MD.PermAuthKeyId,
-		Updates:       mtproto.MakeUpdatesByUpdates(update),
-	}); err != nil {
-		c.Logger.Errorf("folders: push to the other devices of user %d: %v", c.MD.UserId, err)
-	}
+	return peers, nil
 }

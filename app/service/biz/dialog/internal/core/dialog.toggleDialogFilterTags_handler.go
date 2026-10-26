@@ -27,7 +27,9 @@ import (
 // dialog.toggleDialogFilterTags user_id:long enabled:Bool = Bool;
 //
 // Turns the folder tags of the user on or off; whether the user may (a
-// Premium feature) is the caller's to check.
+// Premium feature) is the caller's to check. The change and
+// updateDialogFilters with seq for every device of the account are one box
+// transaction (ADR 0020).
 func (c *DialogCore) DialogToggleDialogFilterTags(in *dialog.TLDialogToggleDialogFilterTags) (*mtproto.Bool, error) {
 	if err := c.svcCtx.Dao.SetDialogFilterTags(c.ctx, in.UserId, mtproto.FromBool(in.GetEnabled())); err != nil {
 		c.Logger.Errorf("dialog.toggleDialogFilterTags - user %d: %v", in.UserId, err)

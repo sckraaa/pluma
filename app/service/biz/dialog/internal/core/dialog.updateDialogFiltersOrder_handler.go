@@ -19,7 +19,8 @@ import (
 //
 // Puts the folders in the order given; unknown ids are ignored and folders
 // left out keep their relative order after the others
-// (dao.OrderDialogFilters).
+// (dao.OrderDialogFilters). The order and updateDialogFilterOrder with seq
+// for every device of the account are one box transaction (ADR 0020).
 func (c *DialogCore) DialogUpdateDialogFiltersOrder(in *dialog.TLDialogUpdateDialogFiltersOrder) (*mtproto.Bool, error) {
 	if _, err := c.svcCtx.Dao.OrderDialogFilters(c.ctx, in.UserId, in.Order); err != nil {
 		c.Logger.Errorf("dialog.updateDialogFiltersOrder - user %d: %v", in.UserId, err)

@@ -79,7 +79,7 @@ func TestCheckFilterRejects(t *testing.T) {
 		{"a channel", channel, mtproto.ErrPeerIdInvalid},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := testCore().checkFilter(3, tc.filter); !errors.Is(err, tc.want) {
+			if _, _, err := testCore().checkFilter(3, tc.filter); !errors.Is(err, tc.want) {
 				t.Fatalf("error %v, want %v", err, tc.want)
 			}
 		})
@@ -90,9 +90,12 @@ func TestCheckFilterKeeps(t *testing.T) {
 	in := folder(3, "Work")
 	in.PinnedPeers = []*mtproto.InputPeer{self()}
 	in.HasMyInvites = true
-	out, err := testCore().checkFilter(3, in)
+	out, peers, err := testCore().checkFilter(3, in)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(peers.users) != 0 || len(peers.chats) != 0 {
+		t.Fatalf("Saved Messages as peers %v", peers)
 	}
 	if out == in {
 		t.Fatal("the request's folder is stored itself, not a copy")

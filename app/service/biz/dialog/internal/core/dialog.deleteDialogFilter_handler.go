@@ -16,6 +16,10 @@ import (
 
 // DialogDeleteDialogFilter
 // dialog.deleteDialogFilter user_id:long id:int = Bool;
+//
+// Removes folder id (dao.DeleteDialogFilter); the removal and
+// updateDialogFilter with seq for every device of the account are one box
+// transaction (ADR 0020).
 func (c *DialogCore) DialogDeleteDialogFilter(in *dialog.TLDialogDeleteDialogFilter) (*mtproto.Bool, error) {
 	if err := c.svcCtx.Dao.DeleteDialogFilter(c.ctx, in.UserId, in.Id); err != nil {
 		c.Logger.Errorf("dialog.deleteDialogFilter - user %d, folder %d: %v", in.UserId, in.Id, err)

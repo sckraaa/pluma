@@ -23,8 +23,10 @@ import (
 // MessagesUpdateDialogFilter
 // messages.updateDialogFilter#1ad4a04a flags:# id:int filter:flags.0?DialogFilter = Bool;
 //
-// Creates folder id or changes it; without filter, deletes it. The user's
-// other devices get updateDialogFilter, with the folder or without it.
+// Creates folder id or changes it; without filter, deletes it. Every device
+// of the account, this one included, gets updateDialogFilter with seq, with
+// the folder or without it: the dialog service pushes it in the transaction
+// of the change (ADR 0020), with the folder's peers resolved here.
 func (c *FoldersCore) MessagesUpdateDialogFilter(in *mtproto.TLMessagesUpdateDialogFilter) (*mtproto.Bool, error) {
 	id := in.GetId()
 	if id < filterIdMin || id > filterIdMax {
@@ -41,11 +43,10 @@ func (c *FoldersCore) MessagesUpdateDialogFilter(in *mtproto.TLMessagesUpdateDia
 			c.Logger.Errorf("messages.updateDialogFilter - delete folder %d: %v", id, err)
 			return nil, err
 		}
-		c.pushToOtherDevices(mtproto.MakeTLUpdateDialogFilter(&mtproto.Update{Id_INT32: id}).To_Update())
 		return mtproto.BoolTrue, nil
 	}
 
-	filter, err := c.checkFilter(id, in.GetFilter())
+	filter, peers, err := c.checkFilter(id, in.GetFilter())
 	if err != nil {
 		c.Logger.Errorf("messages.updateDialogFilter - folder %d: %v", id, err)
 		return nil, err
@@ -54,13 +55,11 @@ func (c *FoldersCore) MessagesUpdateDialogFilter(in *mtproto.TLMessagesUpdateDia
 		UserId:       c.MD.UserId,
 		Id:           id,
 		DialogFilter: filter,
+		Users:        peers.users,
+		Chats:        peers.chats,
 	}); err != nil {
 		c.Logger.Errorf("messages.updateDialogFilter - save folder %d: %v", id, err)
 		return nil, err
 	}
-	c.pushToOtherDevices(mtproto.MakeTLUpdateDialogFilter(&mtproto.Update{
-		Id_INT32: id,
-		Filter:   filter,
-	}).To_Update())
 	return mtproto.BoolTrue, nil
 }

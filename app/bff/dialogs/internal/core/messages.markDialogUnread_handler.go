@@ -20,11 +20,20 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // MessagesMarkDialogUnread
-// messages.markDialogUnread#c286d98f flags:# unread:flags.0?true peer:InputDialogPeer = Bool;
+// messages.markDialogUnread#8c5006f8 flags:# unread:flags.0?true parent_peer:flags.1?InputPeer peer:InputDialogPeer = Bool;
+//
+// Sets the unread mark of a dialog. Every device of the account, this one
+// included, gets updateDialogUnreadMark with seq: the dialog service pushes
+// it in the transaction of the change (ADR 0020), with the peer resolved
+// here. parent_peer names a monoforum (a channel's direct messages), and
+// Pluma has no channels; saved_peer_id of the update, the topic of a
+// monoforum, is never set.
 func (c *DialogsCore) MessagesMarkDialogUnread(in *mtproto.TLMessagesMarkDialogUnread) (*mtproto.Bool, error) {
 	var (
 		peer *mtproto.PeerUtil
@@ -33,6 +42,11 @@ func (c *DialogsCore) MessagesMarkDialogUnread(in *mtproto.TLMessagesMarkDialogU
 	if c.MD.IsBot {
 		err := mtproto.ErrBotMethodInvalid
 		c.Logger.Errorf("messages.markDialogUnread - error: %v", err)
+		return nil, err
+	}
+	if in.GetParentPeer() != nil {
+		err := mtproto.ErrPeerIdInvalid
+		c.Logger.Errorf("messages.markDialogUnread - parent peer %s: %v", in.GetParentPeer().GetPredicateName(), err)
 		return nil, err
 	}
 
@@ -49,18 +63,49 @@ func (c *DialogsCore) MessagesMarkDialogUnread(in *mtproto.TLMessagesMarkDialogU
 		return nil, err
 	}
 
+	users, chats, err := c.unreadMarkPeer(peer)
+	if err != nil {
+		c.Logger.Errorf("messages.markDialogUnread - peer (%d, %d): %v", peer.PeerType, peer.PeerId, err)
+		return nil, err
+	}
 	rValue, err := c.svcCtx.Dao.DialogClient.DialogMarkDialogUnread(c.ctx, &dialog.TLDialogMarkDialogUnread{
 		UserId:     c.MD.UserId,
 		PeerType:   peer.PeerType,
 		PeerId:     peer.PeerId,
 		UnreadMark: mtproto.ToBool(in.Unread),
+		Users:      users,
+		Chats:      chats,
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.markDialogUnread - error: %v", err)
 		return nil, err
 	}
 
-	// TODO: updates ...
-
 	return rValue, nil
+}
+
+// unreadMarkPeer returns the peer of a dialog as the user sees it, for the
+// update of its unread mark: the user (itself for Saved Messages) or the
+// basic group. Pluma has no channels: another peer has no dialog.
+func (c *DialogsCore) unreadMarkPeer(peer *mtproto.PeerUtil) ([]*mtproto.User, []*mtproto.Chat, error) {
+	switch peer.PeerType {
+	case mtproto.PEER_SELF, mtproto.PEER_USER:
+		users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
+			Id: []int64{c.MD.UserId, peer.PeerId},
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return users.GetUserListByIdList(c.MD.UserId, peer.PeerId), nil, nil
+	case mtproto.PEER_CHAT:
+		chats, err := c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx, &chatpb.TLChatGetChatListByIdList{
+			SelfId: c.MD.UserId,
+			IdList: []int64{peer.PeerId},
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return nil, chats.GetChatListByIdList(c.MD.UserId, peer.PeerId), nil
+	}
+	return nil, nil, mtproto.ErrPeerIdInvalid
 }

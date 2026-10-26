@@ -25,8 +25,10 @@ import (
 //
 // Puts the folders in the order given. "All chats" (id 0) takes its place
 // for a user with Premium; without Premium it stays first and its place
-// in order is ignored, as are ids of folders the user does not have. The
-// other devices get updateDialogFilterOrder with the order now stored.
+// in order is ignored, as are ids of folders the user does not have. Every
+// device of the account, this one included, gets updateDialogFilterOrder
+// with seq and the order now stored: the dialog service pushes it in the
+// transaction of the change (ADR 0020).
 func (c *FoldersCore) MessagesUpdateDialogFiltersOrder(in *mtproto.TLMessagesUpdateDialogFiltersOrder) (*mtproto.Bool, error) {
 	if _, err := c.svcCtx.Dao.DialogClient.DialogUpdateDialogFiltersOrder(c.ctx, &dialog.TLDialogUpdateDialogFiltersOrder{
 		UserId: c.MD.UserId,
@@ -35,20 +37,5 @@ func (c *FoldersCore) MessagesUpdateDialogFiltersOrder(in *mtproto.TLMessagesUpd
 		c.Logger.Errorf("messages.updateDialogFiltersOrder - error: %v", err)
 		return nil, err
 	}
-
-	filters, _, err := c.dialogFilters()
-	if err != nil {
-		// The order is stored; the other devices reload it on their next
-		// messages.getDialogFilters.
-		c.Logger.Errorf("messages.updateDialogFiltersOrder - read the folders: %v", err)
-		return mtproto.BoolTrue, nil
-	}
-	order := make([]int32, 0, len(filters))
-	for _, f := range filters {
-		order = append(order, f.GetId())
-	}
-	c.pushToOtherDevices(mtproto.MakeTLUpdateDialogFilterOrder(&mtproto.Update{
-		Order_VECTORINT32: order,
-	}).To_Update())
 	return mtproto.BoolTrue, nil
 }
