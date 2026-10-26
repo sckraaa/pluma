@@ -1,19 +1,20 @@
 # STATUS
 
-_Обновлено: 2026-10-25. Держать коротким._
+_Обновлено: 2026-10-26. Держать коротким._
 
 ## Где мы
 Этап 0 — фундамент. Аудит завершён, вердикт: ядро teamgram оставляем и глубоко чиним (`docs/audit/00-summary.md`). План этапа 0 — задачи 001–010 (`docs/tasks/README.md`), две параллельные линии: сервер и клиенты.
 
 ## Цифры
 - API layer 228: 869 методов; реализовано 156 (18,0%), частично 25, заглушки 101, нет обработчика 580 (заглушки апстрима с «License key» и пустым ответом теперь считаются заглушками). Источник: `docs/project/api-coverage.md` (`go run ./tools/apicoverage`).
-- Сравнительных тестов: 0. Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
+- Сравнительных тестов: 5 сценариев с эталонами Telegram, ещё 1 ждёт эталона (`test/conformance`). Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
 - **Задача 006 (клиенты в облаке):** Android и Web готовы, дальше iOS → Desktop.
 - **Задача 007 (сравнительные тесты):**
   - Каркас готов (`test/conformance`, ADR 0018). Пять сценариев до входа записаны с тестовой среды Telegram и идут в CI.
-  - Сценарии после входа ждут способа войти: вход в тестовую среду по документированному коду не работает.
+  - Сценарий «Избранного» (`saved_messages`: отправка, правка, удаление, `getDifference` вторым сеансом) готов. На стенде он выполняется, но без эталона не сравнивается.
+  - Эталон пишется с запасного аккаунта в настоящем Telegram (решение владельца). Вход по QR прошёл, но авторизацию отозвали за минуты (`AUTH_KEY_UNREGISTERED`). Кто отозвал, проверяет владелец.
 
 ## Последнее сделано
 - **Сравнение с Telegram нашло** неверный ответ `auth.signIn` без кода — исправлено (задача 007).
@@ -88,7 +89,7 @@ _Обновлено: 2026-10-25. Держать коротким._
 - При развёртывании обязательно: `teamgramd/deploy/sql/migrate-20261021.sql` и `migrate-20261021-pfs.sql`, переменные из `.env.example` (в т.ч. `LOGIN_CODE_HMAC_KEY`, `SERVER_RSA_KEY_FINGERPRINT`) — см. `docs/ops/security-setup.md`.
 
 ## Следующий шаг
-На сервере дальше: источник эталонов после входа для 007 (решение владельца), затем 010 (seq и полнота getDifference).
+На сервере дальше: эталон `saved_messages` для 007 (владелец выясняет, почему отозван сеанс, и входит снова), затем 010 (seq и полнота getDifference): стенд уже показывает подозрительное в `getDifference`: у правки нет `pts_count`, её `pts` меняется между вызовами, удалённое сообщение остаётся в `new_messages` (сверить с эталоном).
 Задача 006 дальше: Android на телефоне владельца (dev-сборка с LAN-адресом Mac и стенд, слушающий LAN), затем Web → iOS → Desktop. Для выпуска Android на настоящий сервер владельцу нужно создать ключ подписи, age-ключ и environment `release` (README `pluma-android`). До выкатки пользователям: замер задержки на Linux (ADR 0011, п. 12) — на том же VPS.
 
 ## Принятые решения вне ADR
