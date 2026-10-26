@@ -16,17 +16,13 @@ import (
 
 // UserResetNotifySettings
 // user.resetNotifySettings user_id:int = Bool;
+//
+// The reset and updateNotifySettings with seq for each peer and class are
+// one box transaction (ADR 0020).
 func (c *UserCore) UserResetNotifySettings(in *user.TLUserResetNotifySettings) (*mtproto.Bool, error) {
-	var (
-		rValue *mtproto.Bool
-	)
-
-	if _, err := c.svcCtx.Dao.UserNotifySettingsDAO.DeleteAll(c.ctx, in.UserId); err != nil {
+	if err := c.svcCtx.Dao.ResetNotifySettings(c.ctx, in.UserId); err != nil {
 		c.Logger.Errorf("user.resetNotifySettings - error: %v", err)
-		rValue = mtproto.BoolFalse
-	} else {
-		rValue = mtproto.BoolTrue
+		return nil, err
 	}
-
-	return rValue, nil
+	return mtproto.BoolTrue, nil
 }

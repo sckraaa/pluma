@@ -87,7 +87,7 @@ func (dao *UserNotifySettingsDAO) InsertOrUpdateExtTx(tx *sqlx.Tx, userId int64,
 	for k, _ := range cMap {
 		s1 = append(s1, k)
 		s2 = append(s2, ":"+k)
-		s3 = append(s3, fmt.Sprintf("%s = (%s)", k, k))
+		s3 = append(s3, fmt.Sprintf("%s = :%s", k, k))
 	}
 
 	cMap["user_id"] = userId

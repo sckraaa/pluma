@@ -345,6 +345,10 @@ message TL_user_setNotifySettings {
   int32 peer_type = 4;
   int64 peer_id = 5;
   mtproto.PeerNotifySettings settings = 6;
+  // pluma: the peer as the account sees it, for the push of the update
+  // with seq (ADR 0020).
+  repeated mtproto.User users = 7;
+  repeated mtproto.Chat chats = 8;
 }
 
 //--------------------------------------------------------------------------------------------

@@ -16,6 +16,8 @@ import (
 
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/proto/mtproto"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/internal/config"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
@@ -77,6 +79,13 @@ func (d *Dao) RunBox(ctx context.Context, userId int64, rowKeys []string, fn fun
 	}
 	d.deleteCache(ctx, append(rowKeys, res.CacheKeys...))
 	return nil
+}
+
+// EmitSeqUpdate journals u with the next seq of b's account and pushes it to
+// every device of the account (sync_client.EmitSeqUpdate, ADR 0020). users
+// and chats are what u refers to, as the account sees them.
+func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
+	return sync_client.EmitSeqUpdate(b, d.Topics.Sync, u, users, chats)
 }
 
 func (d *Dao) deleteCache(ctx context.Context, keys []string) {

@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -115,38 +114,39 @@ func (c *NotificationCore) AccountUpdateNotifySettings(in *mtproto.TLAccountUpda
 		return nil, err
 	}
 
+	// biz pushes updateNotifySettings with seq to every device of the
+	// account, this one included, in the transaction of the change
+	// (ADR 0020); the peer goes with it.
+	var (
+		users []*mtproto.User
+		chats []*mtproto.Chat
+	)
+	switch peer.PeerType {
+	case mtproto.PEER_USER:
+		if peerUser != nil {
+			users = append(users, peerUser)
+		}
+	case mtproto.PEER_CHAT:
+		if peerChat != nil {
+			chats = append(chats, peerChat)
+		}
+	case mtproto.PEER_CHANNEL:
+		if peerChannel != nil {
+			chats = append(chats, peerChannel)
+		}
+	}
 	_, err = c.svcCtx.Dao.UserClient.UserSetNotifySettings(c.ctx, &userpb.TLUserSetNotifySettings{
 		UserId:   c.MD.UserId,
 		PeerType: peer.PeerType,
 		PeerId:   peer.PeerId,
 		Settings: settings,
+		Users:    users,
+		Chats:    chats,
 	})
 	if err != nil {
 		c.Logger.Errorf("account.updateNotifySettings - error: %v", err)
 		return nil, err
 	}
 
-	// syncNotMe
-	syncNotMeUpdates := mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateNotifySettings(&mtproto.Update{
-		Peer_NOTIFYPEER: peer.ToNotifyPeer(),
-		NotifySettings:  settings,
-	}).To_Update())
-
-	switch peer.PeerType {
-	case mtproto.PEER_USER:
-		syncNotMeUpdates.AddSafeUser(peerUser)
-	case mtproto.PEER_CHAT:
-		syncNotMeUpdates.AddSafeChat(peerChat)
-	case mtproto.PEER_CHANNEL:
-		syncNotMeUpdates.AddSafeChat(peerChannel)
-	}
-
-	c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        c.MD.UserId,
-		PermAuthKeyId: c.MD.PermAuthKeyId,
-		Updates:       syncNotMeUpdates,
-	})
-
-	// return
 	return mtproto.BoolTrue, nil
 }

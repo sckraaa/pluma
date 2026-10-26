@@ -21,10 +21,12 @@ package dao
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -132,14 +134,76 @@ func makeDOByPeerNotifySettings(settings *mtproto.PeerNotifySettings) (doMap map
 	return
 }
 
-func (d *Dao) SetUserPeerNotifySettings(ctx context.Context, id int64, peerType int32, peerId int64, settings *mtproto.PeerNotifySettings) error {
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			cMap := makeDOByPeerNotifySettings(settings)
-			return d.UserNotifySettingsDAO.InsertOrUpdateExt(ctx, id, peerType, peerId, cMap)
-		},
-		genUserNotifySettingsCacheKey(id, peerType, peerId))
-
+// SetUserPeerNotifySettings stores id's notify settings of a peer (or of a
+// class: PEER_USERS, PEER_CHATS, PEER_BROADCASTS) in one box transaction of
+// id, with updateNotifySettings for every device of the account (ADR 0020).
+// users and chats are the peer as id sees it, for the push.
+func (d *Dao) SetUserPeerNotifySettings(ctx context.Context, id int64, peerType int32, peerId int64, settings *mtproto.PeerNotifySettings, users []*mtproto.User, chats []*mtproto.Chat) error {
+	_, err := d.RunBox(ctx, id, []string{genUserNotifySettingsCacheKey(id, peerType, peerId)}, func(b *userbox.Box) error {
+		if _, _, err := d.UserNotifySettingsDAO.InsertOrUpdateExtTx(b.Tx(), id, peerType, peerId, makeDOByPeerNotifySettings(settings)); err != nil {
+			return err
+		}
+		return d.EmitSeqUpdate(b, notifySettingsUpdate(peerType, peerId, settings), users, chats)
+	})
 	return err
+}
+
+// ResetNotifySettings removes all of id's notify settings in one box
+// transaction of id. Each device gets updateNotifySettings with the default
+// for every peer that had settings and for the three classes: a device that
+// missed the push finds them in the difference, peer by peer, where the
+// settings of each peer are folded to the last.
+func (d *Dao) ResetNotifySettings(ctx context.Context, id int64) error {
+	classes := []int32{mtproto.PEER_USERS, mtproto.PEER_CHATS, mtproto.PEER_BROADCASTS}
+	keys := make([]string, 0, len(classes))
+	for _, t := range classes {
+		keys = append(keys, genUserNotifySettingsCacheKey(id, t, 0))
+	}
+	_, err := d.RunBox(ctx, id, keys, func(b *userbox.Box) error {
+		var rows []dataobject.UserNotifySettingsDO
+		if err := b.Tx().QueryRowsPartial(&rows,
+			"SELECT peer_type, peer_id FROM user_notify_settings WHERE user_id = ? AND deleted = 0 FOR UPDATE", id); err != nil {
+			return err
+		}
+		if _, err := d.UserNotifySettingsDAO.DeleteAllTx(b.Tx(), id); err != nil {
+			return err
+		}
+		for _, r := range rows {
+			if slices.Contains(classes, r.PeerType) {
+				continue
+			}
+			b.InvalidateCache(genUserNotifySettingsCacheKey(id, r.PeerType, r.PeerId))
+			// No settings: the peer follows its class.
+			u := notifySettingsUpdate(r.PeerType, r.PeerId, mtproto.MakeTLPeerNotifySettings(nil).To_PeerNotifySettings())
+			if err := d.EmitSeqUpdate(b, u, nil, nil); err != nil {
+				return err
+			}
+		}
+		for _, t := range classes {
+			if err := d.EmitSeqUpdate(b, notifySettingsUpdate(t, 0, defaultNotifySettings()), nil, nil); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return err
+}
+
+// defaultNotifySettings are the settings of a class nobody set: what
+// GetUserNotifySettings gives for it.
+func defaultNotifySettings() *mtproto.PeerNotifySettings {
+	return mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{
+		ShowPreviews: mtproto.BoolTrue,
+		Silent:       mtproto.BoolFalse,
+		MuteUntil:    &wrapperspb.Int32Value{Value: 0},
+		Sound:        &wrapperspb.StringValue{Value: "default"},
+	}).To_PeerNotifySettings()
+}
+
+func notifySettingsUpdate(peerType int32, peerId int64, settings *mtproto.PeerNotifySettings) *mtproto.Update {
+	peer := &mtproto.PeerUtil{PeerType: peerType, PeerId: peerId}
+	return mtproto.MakeTLUpdateNotifySettings(&mtproto.Update{
+		Peer_NOTIFYPEER: peer.ToNotifyPeer(),
+		NotifySettings:  settings,
+	}).To_Update()
 }
