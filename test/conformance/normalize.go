@@ -121,25 +121,31 @@ func tlName(name string) string {
 // labels: the same value gets the same label within one scenario, so a
 // fixture still says "the message of this update is the one sent".
 type Labeler struct {
-	ids     map[string]string
-	pts     map[string]int64 // first value of each counter
-	nextIds int
+	ids      map[string]string
+	pts      map[string]int64 // first value of each counter
+	nextIds  int
+	personal map[string]map[string]string // field -> value -> label
 }
 
 // NewLabeler returns an empty Labeler.
 func NewLabeler() *Labeler {
-	return &Labeler{ids: map[string]string{}, pts: map[string]int64{}}
+	return &Labeler{ids: map[string]string{}, pts: map[string]int64{}, personal: map[string]map[string]string{}}
 }
 
 // Field classes.
 var (
 	idFields = set("id", "user_id", "chat_id", "channel_id", "msg_id", "max_id", "access_hash", "random_id",
-		"reply_to_msg_id", "top_msg_id", "self_id", "inviter_id", "admin_id", "photo_id", "dc_id_hint")
+		"reply_to_msg_id", "top_msg_id", "self_id", "inviter_id", "admin_id", "photo_id", "dc_id_hint",
+		"messages", // the ids of updateDeleteMessages; a list of messages is objects and is not labeled
+		"document_id", "background_emoji_id")
 	timeFields   = set("date", "expires", "edit_date", "was_online", "until_date", "timeout", "expires_at")
 	opaqueFields = set("phone_code_hash", "file_reference", "hash", "bytes", "secret", "nonce", "salt",
 		"stripped_thumb", "future_auth_token", "token",
 		"country") // where the recording ran: not kept
 	counterFields = set("pts", "qts", "seq")
+	// personalFields say who the account is: a fixture recorded with a real
+	// account keeps none of them.
+	personalFields = set("first_name", "last_name", "username", "phone")
 )
 
 func set(names ...string) map[string]bool {
@@ -190,6 +196,19 @@ func (l *Labeler) label(key string, t any) any {
 		return "$time"
 	case opaqueFields[key]:
 		return "$opaque"
+	case personalFields[key] && t != "":
+		labels := l.personal[key]
+		if labels == nil {
+			labels = map[string]string{}
+			l.personal[key] = labels
+		}
+		raw := fmt.Sprint(t)
+		lab, ok := labels[raw]
+		if !ok {
+			lab = fmt.Sprintf("$%s%d", key, len(labels)+1)
+			labels[raw] = lab
+		}
+		return lab
 	case counterFields[key]:
 		n, ok := t.(int64)
 		if !ok {

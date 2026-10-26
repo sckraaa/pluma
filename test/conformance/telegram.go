@@ -16,7 +16,6 @@
 package conformance
 
 import (
-	"context"
 	"crypto/rsa"
 	"encoding/json"
 	"errors"
@@ -148,22 +147,40 @@ func SessionDir() string {
 	return filepath.Join(os.Getenv("HOME"), "pluma-secrets", "telegram-prod")
 }
 
+var sessionName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
+
+// sessionPath is the file of the session name: a name is lowercase letters,
+// digits and dashes, so it stays in SessionDir.
+func sessionPath(name string) (string, error) {
+	if !sessionName.MatchString(name) {
+		return "", fmt.Errorf("session name %q: only lowercase letters, digits and dashes", name)
+	}
+	return filepath.Join(SessionDir(), name+".json"), nil
+}
+
 // SaveSession writes s as name, readable by the owner only.
 func SaveSession(name string, s *Session) (string, error) {
-	if err := os.MkdirAll(SessionDir(), 0o700); err != nil {
+	path, err := sessionPath(name)
+	if err != nil {
+		return "", err
+	}
+	if err = os.MkdirAll(SessionDir(), 0o700); err != nil {
 		return "", err
 	}
 	b, err := json.Marshal(s)
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(SessionDir(), name+".json")
 	return path, os.WriteFile(path, b, 0o600)
 }
 
 // LoadSession reads the session name.
 func LoadSession(name string) (*Session, error) {
-	b, err := os.ReadFile(filepath.Join(SessionDir(), name+".json"))
+	path, err := sessionPath(name)
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -172,21 +189,4 @@ func LoadSession(name string) (*Session, error) {
 		return nil, err
 	}
 	return &s, nil
-}
-
-// DialSession connects with a saved session, its key and DC.
-func (tg *Telegram) DialSession(ctx context.Context, s *Session, logf func(string, ...any)) (*mtclient.Client, error) {
-	cfg, err := tg.Config(s.DC, s.Addr, logf)
-	if err != nil {
-		return nil, err
-	}
-	c, err := mtclient.DialKey(ctx, cfg, s.AuthKey)
-	if err != nil {
-		return nil, err
-	}
-	if _, err = c.InitConnection(ctx); err != nil {
-		_ = c.Close()
-		return nil, err
-	}
-	return c, nil
 }

@@ -72,17 +72,18 @@ func ReadFixture(scenario string) (*Fixture, error) {
 	return &f, nil
 }
 
-// WriteFixture writes f, indented and with sorted keys, so that a new
-// recording shows as a readable diff.
-func WriteFixture(f *Fixture) error {
+// WriteFixture writes f to path, indented and with sorted keys, so that a
+// new recording shows as a readable diff. The path is testdata or the
+// directory the tester gives in PLUMA_CONFORMANCE_OUT.
+func WriteFixture(path string, f *Fixture) error {
 	b, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return err
 	}
-	if err = os.MkdirAll(filepath.Dir(FixturePath(f.Scenario)), 0o750); err != nil {
+	if err = os.MkdirAll(filepath.Dir(path), 0o750); err != nil { //nolint:gosec // G703: the tester's own directory
 		return err
 	}
-	return os.WriteFile(FixturePath(f.Scenario), append(b, '\n'), 0o600)
+	return os.WriteFile(path, append(b, '\n'), 0o600) //nolint:gosec // G703: the tester's own directory
 }
 
 // Rules say how a scenario compares.
@@ -285,4 +286,42 @@ func short(v any) string {
 		s = s[:77] + "..."
 	}
 	return s
+}
+
+// Foreign returns where f holds something that is not the account's own:
+// a user other than self, a chat, a message text without prefix. A fixture
+// recorded from a real account must have none of it, because other
+// activity of the account may get into the recording. The values are not
+// in the result.
+func Foreign(f *Fixture, prefix string) []string {
+	var out []string
+	for i, s := range f.Steps {
+		foreign(&out, fmt.Sprintf("step %d", i), "", s.Result, prefix)
+	}
+	return out
+}
+
+func foreign(out *[]string, at, key string, t any, prefix string) {
+	switch v := t.(type) {
+	case map[string]any:
+		for _, k := range keys(v, nil) {
+			foreign(out, at+"."+k, k, v[k], prefix)
+		}
+	case []any:
+		for i, x := range v {
+			sub := fmt.Sprintf("%s[%d]", at, i)
+			switch m, _ := x.(map[string]any); {
+			case key == "users" && m["self"] != true:
+				*out = append(*out, sub+": a user other than self")
+			case key == "chats":
+				*out = append(*out, sub+": a chat")
+			default:
+				foreign(out, sub, key, x, prefix)
+			}
+		}
+	case string:
+		if key == "message" && !strings.HasPrefix(v, prefix) {
+			*out = append(*out, at+": a text not of the scenario")
+		}
+	}
 }

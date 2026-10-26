@@ -65,6 +65,21 @@ func TestLabeler(t *testing.T) {
 	if am["date"] != "$time" || am["pts"] != "$pts+0" || bm["pts"] != "$pts+2" || am["message"] != "hi" {
 		t.Fatalf("labels: %v %v", a, b)
 	}
+	// The ids of deleted messages are the ids of the messages.
+	d := l.Label(map[string]any{"_": "updateDeleteMessages", "messages": []any{int64(500), int64(501)}}).(map[string]any)
+	if ids := d["messages"].([]any); ids[0] != "$id1" || ids[1] != "$id3" {
+		t.Fatalf("deleted ids: %v", d)
+	}
+
+	// Who the account is stays out; an empty last name stays empty.
+	u := l.Label(map[string]any{"_": "user", "first_name": "Ann", "last_name": "", "phone": "79990001122",
+		"usernames": []any{map[string]any{"_": "username", "username": "ann"}, map[string]any{"_": "username", "username": "ann2"}}}).(map[string]any)
+	again := l.Label(map[string]any{"_": "user", "first_name": "Ann"}).(map[string]any)
+	names := u["usernames"].([]any)
+	if u["first_name"] != "$first_name1" || again["first_name"] != "$first_name1" || u["last_name"] != "" || u["phone"] != "$phone1" ||
+		names[0].(map[string]any)["username"] != "$username1" || names[1].(map[string]any)["username"] != "$username2" {
+		t.Fatalf("personal labels: %v %v", u, again)
+	}
 }
 
 func fixture(t *testing.T, steps ...Step) *Fixture {
@@ -114,6 +129,47 @@ func TestCompare(t *testing.T) {
 	}
 	if NewError(420, "FLOOD_WAIT_37").Message != "FLOOD_WAIT_X" {
 		t.Fatal("the number of FLOOD_WAIT is kept")
+	}
+}
+
+func TestForeign(t *testing.T) {
+	self := map[string]any{"_": "user", "self": true, "id": "$id1"}
+	own := fixture(t, Step{Call: "updates.getDifference", Result: map[string]any{
+		"_":            "updates_difference",
+		"new_messages": []any{map[string]any{"_": "message", "message": "conformance: hi"}},
+		"users":        []any{self},
+		"chats":        []any{},
+	}})
+	if f := Foreign(own, "conformance: "); len(f) != 0 {
+		t.Fatalf("own data is foreign: %v", f)
+	}
+	other := fixture(t, Step{Call: "updates.getDifference", Result: map[string]any{
+		"_":            "updates_difference",
+		"new_messages": []any{map[string]any{"_": "message", "message": "Login code: 12345"}},
+		"users":        []any{self, map[string]any{"_": "user", "id": "$id2"}},
+		"chats":        []any{map[string]any{"_": "chat", "title": "family"}},
+	}})
+	got := strings.Join(Foreign(other, "conformance: "), "\n")
+	for _, s := range []string{"step 0.chats[0]: a chat", "step 0.new_messages[0].message: a text not of the scenario", "step 0.users[1]: a user other than self"} {
+		if !strings.Contains(got, s) {
+			t.Errorf("no %q in\n%s", s, got)
+		}
+	}
+	if strings.Contains(got, "12345") || strings.Contains(got, "family") {
+		t.Errorf("values are in the result: %s", got)
+	}
+}
+
+func TestSessionPath(t *testing.T) {
+	for _, name := range []string{"main", "spare-2"} {
+		if _, err := sessionPath(name); err != nil {
+			t.Errorf("sessionPath(%q): %v", name, err)
+		}
+	}
+	for _, name := range []string{"", "../main", "a/b", "Main", "-x", strings.Repeat("a", 33)} {
+		if _, err := sessionPath(name); err == nil {
+			t.Errorf("sessionPath(%q) is accepted", name)
+		}
 	}
 }
 
