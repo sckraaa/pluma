@@ -15,6 +15,20 @@
 
 ## Критерии приёмки
 - Сравнительные сценарии: устройство офлайн, N событий разных типов, возврат → совпадение с эталоном Telegram.
+- Сняты известные отличия сценария `saved_messages` (`test/conformance/scenarios_test.go`, эталон Telegram от 2026-10-26).
+
+## Что уже показал эталон Telegram (`saved_messages`, 2026-10-26)
+Другой сеанс того же аккаунта запрашивает `getDifference` от состояния до отправки.
+- **После правки** Telegram отдаёт:
+  - в `new_messages` — сообщение в текущем виде: правленый текст и `edit_date`;
+  - в `other_updates` — `updateMessageID` (id и `random_id` сообщения отправителя) и `updateReadHistoryInbox`, без `updateEditMessage`.
+  У нас — сообщение в исходном виде и отдельный `updateEditMessage`.
+- **После удаления** Telegram отдаёт:
+  - `new_messages` нет;
+  - в `other_updates` — `updateDeleteMessages` и `updateReadHistoryInbox`.
+  У нас — удалённое сообщение в `new_messages` и `updateEditMessage`.
+- **`state` разницы** у Telegram содержит `seq` (как `updates.getState`), у нас `seq` нет.
+- **Совпадает уже сейчас:** у обновлений в `other_updates` нет `pts_count`, а `pts` равен итоговому `pts` разницы — так делает и Telegram.
 
 ## Результат
 —

@@ -32,7 +32,7 @@
 | [004](004-deployment.md) | Развёртывание, наблюдаемость, бэкапы | done |
 | [005](005-tests-and-ci.md) | Зелёная база тестов и CI | done |
 | [006](006-client-build-pipeline.md) | Конвейер сборки клиентов | in-progress (Android готов) |
-| [007](007-conformance-harness.md) | Каркас сравнительных тестов | in-progress |
+| [007](007-conformance-harness.md) | Каркас сравнительных тестов | done |
 | [008](008-security-p1.md) | Безопасность P1: 2FA, PFS, проверки протокола | done |
 | [009](009-push.md) | Push: APNs (включая VoIP) и FCM | done |
 | [010](010-updates-seq-difference.md) | seq, getDifference и полнота апдейтов | todo |

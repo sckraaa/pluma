@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 156, partial 25, blocked 101, notimpl 7, missing 580 (ok = 18.0%); with a conformance scenario 4
+    layer 228: 869 methods — ok 156, partial 25, blocked 101, notimpl 7, missing 580 (ok = 18.0%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | missing | scenario |
 |---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 5 | 0 | 13 | 0 | 10 | 2 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 5 | 0 |
-| messages | 273 | 60 | 22 | 21 | 5 | 165 | 0 |
+| messages | 273 | 60 | 22 | 21 | 5 | 165 | 3 |
 | payments | 70 | 0 | 0 | 4 | 0 | 66 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 45 | 0 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 |
@@ -35,7 +35,7 @@
 | stats | 12 | 0 | 0 | 0 | 0 | 12 | 0 |
 | stickers | 11 | 0 | 0 | 0 | 0 | 11 | 0 |
 | stories | 44 | 0 | 0 | 0 | 0 | 44 | 0 |
-| updates | 3 | 2 | 0 | 1 | 0 | 0 | 0 |
+| updates | 3 | 2 | 0 | 1 | 0 | 0 | 2 |
 | upload | 8 | 2 | 1 | 5 | 0 | 0 | 0 |
 | users | 10 | 7 | 0 | 2 | 0 | 1 | 0 |
 
@@ -511,7 +511,7 @@
 | `messages.deleteExportedChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.deleteExportedChatInvite_handler.go:28 |
 | `messages.deleteFactCheck` | missing |  |  |
 | `messages.deleteHistory` | partial |  | app/bff/messages/internal/core/messages.deleteHistory_handler.go:29 |
-| `messages.deleteMessages` | ok |  | app/bff/messages/internal/core/messages.deleteMessages_handler.go:28 |
+| `messages.deleteMessages` | ok | yes | app/bff/messages/internal/core/messages.deleteMessages_handler.go:28 |
 | `messages.deleteParticipantReaction` | missing |  |  |
 | `messages.deleteParticipantReactions` | missing |  |  |
 | `messages.deletePhoneCallHistory` | missing |  |  |
@@ -534,7 +534,7 @@
 | `messages.editFactCheck` | missing |  |  |
 | `messages.editForumTopic` | missing |  |  |
 | `messages.editInlineBotMessage` | missing |  |  |
-| `messages.editMessage` | partial |  | app/bff/messages/internal/core/messages.editMessage_handler.go:34 |
+| `messages.editMessage` | partial | yes | app/bff/messages/internal/core/messages.editMessage_handler.go:34 |
 | `messages.editQuickReplyShortcut` | missing |  |  |
 | `messages.exportChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.exportChatInvite_handler.go:28 |
 | `messages.faveSticker` | missing |  |  |
@@ -705,7 +705,7 @@
 | `messages.sendEncryptedService` | missing |  |  |
 | `messages.sendInlineBotResult` | missing |  |  |
 | `messages.sendMedia` | ok |  | app/bff/messages/internal/core/messages.sendMedia_handler.go:33 |
-| `messages.sendMessage` | partial |  | app/bff/messages/internal/core/messages.sendMessage_handler.go:33 |
+| `messages.sendMessage` | partial | yes | app/bff/messages/internal/core/messages.sendMessage_handler.go:33 |
 | `messages.sendMultiMedia` | ok |  | app/bff/messages/internal/core/messages.sendMultiMedia_handler.go:33 |
 | `messages.sendPaidReaction` | missing |  |  |
 | `messages.sendQuickReplyMessages` | missing |  |  |
@@ -1014,8 +1014,8 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `updates.getChannelDifference` | blocked |  | app/bff/updates/internal/core/updates.getChannelDifference_handler.go:27 |
-| `updates.getDifference` | ok |  | app/bff/updates/internal/core/updates.getDifference_handler.go:33 |
-| `updates.getState` | ok |  | app/bff/updates/internal/core/updates.getState_handler.go:28 |
+| `updates.getDifference` | ok | yes | app/bff/updates/internal/core/updates.getDifference_handler.go:33 |
+| `updates.getState` | ok | yes | app/bff/updates/internal/core/updates.getState_handler.go:28 |
 
 ### upload
 
