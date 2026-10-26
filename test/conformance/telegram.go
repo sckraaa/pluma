@@ -20,12 +20,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 	"github.com/teamgram/teamgram-server/pkg/serverkey"
 )
@@ -111,8 +114,26 @@ func (tg *Telegram) Config(dc int32, addr string, logf func(string, ...any)) (mt
 	return mtclient.Config{
 		Addr: addr, PublicKey: key, DC: exchangeDC, APIID: tg.APIID,
 		DeviceModel: d.model, SystemVersion: d.system, AppVersion: "1.0",
-		SystemLangCode: d.systemLangCode, LangCode: d.langCode, Logf: logf,
+		SystemLangCode: d.systemLangCode, LangCode: d.langCode,
+		Params: initParams(time.Now()), Logf: logf,
 	}, nil
+}
+
+// initParams are the params of initConnection the official clients send
+// (Telegram Desktop prepareInitParams, Telegram-Android, TDLib): the time
+// zone as seconds from UTC, rounded to 15 minutes.
+func initParams(now time.Time) *mtproto.JSONValue {
+	_, offset := now.Zone()
+	sign := 1.0
+	if offset < 0 {
+		sign = -1
+	}
+	rounded := math.Round(math.Abs(float64(offset))/900) * 900 * sign
+	return mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: []*mtproto.JSONObjectValue{
+		mtproto.MakeTLJsonObjectValue(&mtproto.JSONObjectValue{
+			Key: "tz_offset", Value: mtproto.MakeTLJsonNumber(&mtproto.JSONValue{Value_FLOAT64: rounded}).To_JSONValue(),
+		}).To_JSONObjectValue(),
+	}}).To_JSONValue()
 }
 
 var migrateError = regexp.MustCompile(`^(PHONE|USER|NETWORK)_MIGRATE_(\d+)$`)
@@ -142,29 +163,44 @@ type Session struct {
 	SavedAt time.Time         `json:"saved_at"`
 }
 
-// SessionDir is where the sessions are kept, outside the repository.
-func SessionDir() string {
-	return filepath.Join(os.Getenv("HOME"), "pluma-secrets", "telegram-prod")
+// SessionDir is where the sessions of the test environment or of
+// production are kept, outside the repository.
+func SessionDir(test bool) string {
+	env := "telegram-prod"
+	if test {
+		env = "telegram-test"
+	}
+	return filepath.Join(os.Getenv("HOME"), "pluma-secrets", env)
 }
 
 var sessionName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
 
 // sessionPath is the file of the session name: a name is lowercase letters,
 // digits and dashes, so it stays in SessionDir.
-func sessionPath(name string) (string, error) {
+func sessionPath(test bool, name string) (string, error) {
 	if !sessionName.MatchString(name) {
 		return "", fmt.Errorf("session name %q: only lowercase letters, digits and dashes", name)
 	}
-	return filepath.Join(SessionDir(), name+".json"), nil
+	return filepath.Join(SessionDir(test), name+".json"), nil
 }
 
-// SaveSession writes s as name, readable by the owner only.
-func SaveSession(name string, s *Session) (string, error) {
-	path, err := sessionPath(name)
+// SessionLog is the log of the logins of session name, beside it.
+func SessionLog(test bool, name string) (string, error) {
+	path, err := sessionPath(test, name)
 	if err != nil {
 		return "", err
 	}
-	if err = os.MkdirAll(SessionDir(), 0o700); err != nil {
+	return strings.TrimSuffix(path, ".json") + ".log", nil
+}
+
+// SaveSession writes s as name in the directory of its environment,
+// readable by the owner only.
+func SaveSession(name string, s *Session) (string, error) {
+	path, err := sessionPath(s.Test, name)
+	if err != nil {
+		return "", err
+	}
+	if err = os.MkdirAll(SessionDir(s.Test), 0o700); err != nil {
 		return "", err
 	}
 	b, err := json.Marshal(s)
@@ -174,9 +210,10 @@ func SaveSession(name string, s *Session) (string, error) {
 	return path, os.WriteFile(path, b, 0o600)
 }
 
-// LoadSession reads the session name.
-func LoadSession(name string) (*Session, error) {
-	path, err := sessionPath(name)
+// LoadSession reads the session name of the test environment or of
+// production.
+func LoadSession(test bool, name string) (*Session, error) {
+	path, err := sessionPath(test, name)
 	if err != nil {
 		return nil, err
 	}

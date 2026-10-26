@@ -44,7 +44,8 @@ import (
 // and compare with the fixtures. With PLUMA_CONFORMANCE_RECORD=telegram and
 // TELEGRAM_API_ID/TELEGRAM_API_HASH they run against Telegram and write the
 // fixtures: the scenarios without an account in the test environment, the
-// ones with an account in production, with the session the owner saved by
+// ones with an account in the environment PLUMA_CONFORMANCE_ACCOUNT names
+// (test or production), with the session the owner saved there by
 // cmd/tglogin (PLUMA_CONFORMANCE_SESSION, default main). See
 // docs/tasks/007-conformance-harness.md.
 
@@ -61,39 +62,55 @@ type target struct {
 	login func(ctx context.Context, t *testing.T) *account
 }
 
-// account is a signed-in authorization. Each connect is a new connection
-// and MTProto session of it.
+// account is a signed-in authorization. Each connection is a new MTProto
+// session of it. A scenario keeps one connection at a time: Telegram
+// invalidates an authorization that sends requests over two connections at
+// once (AUTH_KEY_DUPLICATED, https://core.telegram.org/api/errors).
 type account struct {
-	source  string // where it runs, for the fixture
-	connect func(ctx context.Context, t *testing.T) *mtclient.Client
+	source string // where it runs, for the fixture
+	cfg    mtclient.Config
+	key    *mtclient.AuthKey
 }
 
-func (tg *target) dial(ctx context.Context, t *testing.T) *mtclient.Client {
-	t.Helper()
-	return connect(ctx, t, tg.name, tg.cfg, nil)
-}
-
-// connect opens a connection with cfg and key, or a new key if key is nil.
-func connect(ctx context.Context, t *testing.T, name string, cfg mtclient.Config, key *mtclient.AuthKey) *mtclient.Client {
-	t.Helper()
+// open opens a connection of a; the caller closes it.
+func (a *account) open(ctx context.Context, t *testing.T) (*mtclient.Client, error) {
+	cfg := a.cfg
 	cfg.Logf = t.Logf
-	var (
-		c   *mtclient.Client
-		err error
-	)
-	if key == nil {
-		c, err = mtclient.Dial(ctx, cfg)
-	} else {
-		c, err = mtclient.DialKey(ctx, cfg, key)
-	}
+	return open(ctx, cfg, a.key)
+}
+
+// connect opens a connection of a that is closed when t ends.
+func (a *account) connect(ctx context.Context, t *testing.T) *mtclient.Client {
+	t.Helper()
+	c, err := a.open(ctx, t)
 	if err != nil {
-		t.Fatalf("%s: connect: %v", name, err)
+		t.Fatalf("%s: connect: %v", a.source, err)
 	}
 	t.Cleanup(func() { _ = c.Close() })
-	if _, err = c.InitConnection(ctx); err != nil {
-		t.Fatalf("%s: initConnection: %v", name, err)
-	}
 	return c
+}
+
+// dial opens a connection with a new key, closed when t ends.
+func (tg *target) dial(ctx context.Context, t *testing.T) *mtclient.Client {
+	t.Helper()
+	return (&account{source: tg.name, cfg: tg.cfg}).connect(ctx, t)
+}
+
+// open connects with cfg and key, or a new key if key is nil, and sends
+// initConnection once, as the official clients do.
+func open(ctx context.Context, cfg mtclient.Config, key *mtclient.AuthKey) (*mtclient.Client, error) {
+	if key == nil {
+		return mtclient.Dial(ctx, cfg)
+	}
+	c, err := mtclient.DialKey(ctx, cfg, key)
+	if err != nil {
+		return nil, err
+	}
+	if _, err = c.InitConnection(ctx); err != nil {
+		_ = c.Close()
+		return nil, err
+	}
+	return c, nil
 }
 
 func pickTarget(t *testing.T) *target {
@@ -119,13 +136,26 @@ func telegramTarget(t *testing.T) *target {
 		phone: func(t *testing.T) string { return fmt.Sprintf("999662%04d", randomInt(t, 10000)) },
 		login: func(ctx context.Context, t *testing.T) *account {
 			t.Helper()
+			env := os.Getenv("PLUMA_CONFORMANCE_ACCOUNT")
+			if env != "test" && env != "production" {
+				t.Skip("a scenario with an account records with a saved session: set PLUMA_CONFORMANCE_ACCOUNT=test or production (docs/ops/testing.md)")
+			}
 			name := os.Getenv("PLUMA_CONFORMANCE_SESSION")
 			if name == "" {
 				name = "main"
 			}
-			s, err := LoadSession(name)
+			s, err := LoadSession(env == "test", name)
 			if err != nil {
-				t.Fatalf("no saved session of Telegram, sign in with go run ./test/conformance/cmd/tglogin -qr: %v", err)
+				flag := ""
+				if env == "test" {
+					flag = " -test"
+				}
+				t.Fatalf("no saved session of the Telegram %s environment, sign in with go run ./test/conformance/cmd/tglogin -qr%s: %v", env, flag, err)
+			}
+			// A session saved before the environments had their own
+			// directories may be of the other one.
+			if s.Test != (env == "test") {
+				t.Fatalf("the session %q is not of the %s environment: sign in again with tglogin", name, env)
 			}
 			tg, err := TelegramFromEnv(s.Test)
 			if err != nil {
@@ -135,14 +165,7 @@ func telegramTarget(t *testing.T) *target {
 			if err != nil {
 				t.Fatal(err)
 			}
-			env := "production"
-			if s.Test {
-				env = "test"
-			}
-			source := fmt.Sprintf("telegram %s DC %d", env, s.DC)
-			return &account{source: source, connect: func(ctx context.Context, t *testing.T) *mtclient.Client {
-				return connect(ctx, t, source, cfg, s.AuthKey)
-			}}
+			return &account{source: fmt.Sprintf("telegram %s DC %d", env, s.DC), cfg: cfg, key: s.AuthKey}
 		},
 	}
 }
@@ -165,8 +188,11 @@ func standTarget(t *testing.T) *target {
 		name:    "stand",
 		cfg:     mtclient.Config{Addr: addr, PublicKey: key, DC: 2, APIID: 1, DeviceModel: "Pluma conformance", AppVersion: "1.0"},
 		apiHash: "conformance",
+		// Numbers reserved for fiction in the North American plan, as in
+		// test/e2e, in another area code than its numbers: the packages run
+		// at once, and each number has its own login limits.
 		phone: func(t *testing.T) string {
-			p := fmt.Sprintf("+1201556%04d", randomInt(t, 10000))
+			p := fmt.Sprintf("+1212555%04d", 100+randomInt(t, 100))
 			if out, err := exec.Command(run, "admin", "allowlist", "add", p, "conformance").CombinedOutput(); err != nil {
 				t.Fatalf("allowlist %s: %v\n%s", p, err, out)
 			}
@@ -211,10 +237,9 @@ func standLogin(ctx context.Context, t *testing.T, tg *target, run string) *acco
 	if _, ok := o.(*mtproto.TLAuthAuthorization); err != nil || !ok {
 		t.Fatalf("stand: sign in: %T %v", o, err)
 	}
-	key := c.AuthKey()
-	return &account{source: tg.name, connect: func(ctx context.Context, t *testing.T) *mtclient.Client {
-		return connect(ctx, t, tg.name, tg.cfg, key)
-	}}
+	// One connection at a time, as with Telegram.
+	_ = c.Close()
+	return &account{source: tg.name, cfg: tg.cfg, key: c.AuthKey()}
 }
 
 func randomInt(t *testing.T, n int64) int64 {
@@ -261,6 +286,13 @@ func sentMessageID(t *testing.T, o mtproto.TLObject) int32 {
 	}
 	t.Fatalf("messages.sendMessage: no message id in %s", u.To_Updates().GetPredicateName())
 	return 0
+}
+
+// deleteMessages deletes message id for everyone.
+func deleteMessages(c *mtclient.Client, id int32) *mtproto.TLMessagesDeleteMessages {
+	return &mtproto.TLMessagesDeleteMessages{
+		Constructor: c.Constructor(mtproto.Predicate_messages_deleteMessages), Revoke: true, Id: []int32{id},
+	}
 }
 
 // sendCode asks for a login code for phone.
@@ -365,11 +397,31 @@ var scenarios = []scenario{
 		// after the edit and after the deletion.
 		name:    "saved_messages",
 		account: true,
-		pending: "the production session of the owner was revoked before the recording (brief 007)",
+		pending: "no account to record with yet: Telegram revoked the production session, the test environment needs an account of the owner (brief 007)",
 		// What the account holds besides the scenario: its unread messages
 		// and secret chats.
 		rules: Rules{Loose: []string{"unread_count", "state.unread_count", "qts", "state.qts"}},
 		run: func(ctx context.Context, t *testing.T, _ *target, a *account, r *Recorder) {
+			// A failed run does not leave the message in the account. The
+			// cleanup is registered first, so it runs after the connections
+			// of the scenario are closed.
+			var undeleted int32
+			t.Cleanup(func() {
+				if undeleted == 0 {
+					return
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				c, err := a.open(ctx, t)
+				if err == nil {
+					_, err = c.Invoke(ctx, deleteMessages(c, undeleted))
+					_ = c.Close()
+				}
+				if err != nil {
+					t.Logf("the message of the scenario is not deleted: %v", err)
+				}
+			})
+
 			c := a.connect(ctx, t)
 			o, err := r.Call(ctx, c, "updates.getState", &mtproto.TLUpdatesGetState{Constructor: c.Constructor(mtproto.Predicate_updates_getState)})
 			if err != nil {
@@ -388,33 +440,21 @@ var scenarios = []scenario{
 				t.Fatalf("messages.sendMessage: %v", err)
 			}
 			id := sentMessageID(t, o)
-			deleteMessage := func(ctx context.Context) error {
-				_, err := c.Invoke(ctx, &mtproto.TLMessagesDeleteMessages{
-					Constructor: c.Constructor(mtproto.Predicate_messages_deleteMessages), Revoke: true, Id: []int32{id},
-				})
-				return err
-			}
-			deleted := false
-			// A failed run does not leave the message in the account.
-			t.Cleanup(func() {
-				if deleted {
-					return
-				}
-				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				defer cancel()
-				if err := deleteMessage(ctx); err != nil {
-					t.Logf("the message of the scenario is not deleted: %v", err)
-				}
-			})
+			undeleted = id
 			if _, err = r.Call(ctx, c, "messages.editMessage", &mtproto.TLMessagesEditMessage{
 				Constructor: c.Constructor(mtproto.Predicate_messages_editMessage),
 				Peer:        self, Id: id, Message: wrapperspb.String(textPrefix + "edited message"),
 			}); err != nil {
 				t.Fatalf("messages.editMessage: %v", err)
 			}
-			other := a.connect(ctx, t)
+			_ = c.Close()
+
+			// Another session of the account asks what it missed since the
+			// state: a new connection, as an app that was offline.
 			difference := func() {
 				t.Helper()
+				other := a.connect(ctx, t)
+				defer func() { _ = other.Close() }()
 				if _, err := r.Call(ctx, other, "updates.getDifference", &mtproto.TLUpdatesGetDifference{
 					Constructor: other.Constructor(mtproto.Predicate_updates_getDifference),
 					Pts:         state.GetPts(), Date: state.GetDate(), Qts: state.GetQts(),
@@ -423,12 +463,12 @@ var scenarios = []scenario{
 				}
 			}
 			difference()
-			if _, err = r.Call(ctx, c, "messages.deleteMessages", &mtproto.TLMessagesDeleteMessages{
-				Constructor: c.Constructor(mtproto.Predicate_messages_deleteMessages), Revoke: true, Id: []int32{id},
-			}); err != nil {
+			c = a.connect(ctx, t)
+			if _, err = r.Call(ctx, c, "messages.deleteMessages", deleteMessages(c, id)); err != nil {
 				t.Fatalf("messages.deleteMessages: %v", err)
 			}
-			deleted = true
+			undeleted = 0
+			_ = c.Close()
 			difference()
 		},
 	},

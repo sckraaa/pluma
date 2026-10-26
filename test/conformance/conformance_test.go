@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -162,13 +163,35 @@ func TestForeign(t *testing.T) {
 
 func TestSessionPath(t *testing.T) {
 	for _, name := range []string{"main", "spare-2"} {
-		if _, err := sessionPath(name); err != nil {
+		if _, err := sessionPath(false, name); err != nil {
 			t.Errorf("sessionPath(%q): %v", name, err)
 		}
 	}
 	for _, name := range []string{"", "../main", "a/b", "Main", "-x", strings.Repeat("a", 33)} {
-		if _, err := sessionPath(name); err == nil {
+		if _, err := sessionPath(false, name); err == nil {
 			t.Errorf("sessionPath(%q) is accepted", name)
+		}
+	}
+	// The environments do not share a file.
+	test, _ := sessionPath(true, "main")
+	prod, _ := sessionPath(false, "main")
+	if test == prod {
+		t.Errorf("one file for both environments: %s", test)
+	}
+}
+
+func TestInitParams(t *testing.T) {
+	for _, c := range []struct {
+		offset int
+		want   float64
+	}{
+		{0, 0}, {3 * 3600, 10800}, {-5 * 3600, -18000}, {5*3600 + 45*60, 20700}, {3600 + 7*60, 3600}, {-(3600 + 8*60), -4500},
+	} {
+		p := initParams(time.Date(2026, 10, 26, 12, 0, 0, 0, time.FixedZone("x", c.offset)))
+		kv := p.GetValue_VECTORJSONOBJECTVALUE()
+		if p.GetPredicateName() != mtproto.Predicate_jsonObject || len(kv) != 1 || kv[0].GetKey() != "tz_offset" ||
+			kv[0].GetValue().GetValue_FLOAT64() != c.want {
+			t.Errorf("initParams at offset %d = %v, want tz_offset %v", c.offset, p, c.want)
 		}
 	}
 }
