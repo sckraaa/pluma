@@ -12,9 +12,10 @@ import (
 // readInbox marks the dialog read up to maxId: read_inbox_max_id only
 // grows, unread_count becomes the number of incoming messages after maxId
 // (the range left unread, not the whole dialog), and the journal gets
-// updateReadHistoryInbox. It returns the update, or nil when the dialog is
-// read that far already or has no row.
-func readInbox(b *userbox.Box, peer boxPeer, maxId int32) (*mtproto.Update, error) {
+// updateReadHistoryInbox. An unread mark goes with the read, and the
+// account's devices are told (pushUnreadMarkReset). It returns the update,
+// or nil when the dialog is read that far already or has no row.
+func (d *Dao) readInbox(b *userbox.Box, peer boxPeer, maxId int32) (*mtproto.Update, error) {
 	dlg, err := dialogRow(b, peer)
 	if err != nil || dlg == nil || dlg.ReadInboxMaxId >= maxId {
 		return nil, err
@@ -32,6 +33,11 @@ func readInbox(b *userbox.Box, peer boxPeer, maxId int32) (*mtproto.Update, erro
 		StillUnreadCount: unread,
 	}).To_Update()
 	b.AddPtsUpdate(update, 1)
+	if dlg.UnreadMark {
+		if err = d.pushUnreadMarkReset(b, peer); err != nil {
+			return nil, err
+		}
+	}
 	return update, nil
 }
 
@@ -83,7 +89,7 @@ func (d *Dao) ReadHistory(b *userbox.Box, peerType int32, peerId int64, maxId in
 		return nil, err
 	}
 
-	update, err := readInbox(b, peer, maxId)
+	update, err := d.readInbox(b, peer, maxId)
 	if err != nil || update == nil {
 		return nil, err
 	}

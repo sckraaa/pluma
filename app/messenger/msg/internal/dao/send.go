@@ -22,9 +22,9 @@ type Outgoing struct {
 
 // SendOutgoing writes messages b's owner sends to peer (the user, or the
 // chat) into its box: for each, in order, a box id, the messages row, its
-// hashtags and the journal row updateNewMessage; then the dialog, and the
-// saved dialog when the owner sends to itself. It returns the boxes, with
-// their pts.
+// hashtags and the journal row updateNewMessage; then the dialog, with its
+// unread mark cleared (resetUnreadMark), and the saved dialog when the
+// owner sends to itself. It returns the boxes, with their pts.
 //
 // A message to the owner itself (Saved Messages) is neither outgoing nor
 // from anyone, as Telegram has it: the chat is the sender (conformance
@@ -114,6 +114,9 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 	if err := upsertOutgoingDialog(b, peer, last.MessageId, int64(last.Message.GetDate())); err != nil {
 		return nil, err
 	}
+	if err := d.resetUnreadMark(b, peer); err != nil {
+		return nil, err
+	}
 	return boxes, nil
 }
 
@@ -122,7 +125,7 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 // pts, after the updateNewMessage. It returns nil when the chat is read that
 // far already.
 func (d *Dao) ReadSaved(b *userbox.Box, maxId int32) (*mtproto.Update, error) {
-	return readInbox(b, boxPeer{PeerType: mtproto.PEER_USER, PeerId: b.UserId()}, maxId)
+	return d.readInbox(b, boxPeer{PeerType: mtproto.PEER_USER, PeerId: b.UserId()}, maxId)
 }
 
 // Incoming is the result of receiving messages into a box.
@@ -261,7 +264,7 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 	// A chat migrated to a supergroup: its history is read up to the
 	// migration message.
 	if migrated != 0 {
-		update, err := readInbox(b, dlgPeer, migrated)
+		update, err := d.readInbox(b, dlgPeer, migrated)
 		if err != nil {
 			return nil, err
 		}

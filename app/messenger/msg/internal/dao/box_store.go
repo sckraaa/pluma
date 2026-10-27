@@ -32,7 +32,7 @@ const (
 	// Upserts of the dialog row: the row may be new (rows affected 1) or
 	// changed (2). top_message only grows here.
 	upsertOutgoingDialogQuery = "INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, 'null', ?) AS new" +
-		" ON DUPLICATE KEY UPDATE top_message = GREATEST(dialogs.top_message, new.top_message), date2 = new.date2, deleted = 0, unread_mark = 0, draft_type = 0, draft_message_data = 'null'"
+		" ON DUPLICATE KEY UPDATE top_message = GREATEST(dialogs.top_message, new.top_message), date2 = new.date2, deleted = 0, draft_type = 0, draft_message_data = 'null'"
 	upsertIncomingDialogQuery = "INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, unread_count, unread_mentions_count, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, ?, ?, 'null', ?) AS new" +
 		" ON DUPLICATE KEY UPDATE top_message = GREATEST(dialogs.top_message, new.top_message), unread_count = dialogs.unread_count + new.unread_count," +
 		" unread_mentions_count = dialogs.unread_mentions_count + new.unread_mentions_count, date2 = new.date2, deleted = 0"
@@ -231,9 +231,45 @@ func upsertDialog(b *userbox.Box, peer boxPeer, query string, args ...any) error
 }
 
 // upsertOutgoingDialog records the sender's new top message of the dialog.
+// The unread mark is cleared apart (resetUnreadMark): its devices are told.
 func upsertOutgoingDialog(b *userbox.Box, peer boxPeer, topMessage int32, date int64) error {
 	return upsertDialog(b, peer, upsertOutgoingDialogQuery,
 		b.UserId(), peer.PeerType, peer.PeerId, mtproto.MakePeerDialogId(peer.PeerType, peer.PeerId), topMessage, date)
+}
+
+// resetUnreadMark clears the unread mark of the box's dialog with peer when
+// it is set, as a message sent there does, and tells every device of the
+// account (pushUnreadMarkReset). A mark that is not set writes nothing.
+func (d *Dao) resetUnreadMark(b *userbox.Box, peer boxPeer) error {
+	r, err := b.Tx().Exec("UPDATE dialogs SET unread_mark = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ? AND unread_mark = 1",
+		b.UserId(), peer.PeerType, peer.PeerId)
+	if err != nil {
+		return err
+	}
+	n, err := r.RowsAffected()
+	if err != nil || n == 0 {
+		return err
+	}
+	b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), peer.PeerType, peer.PeerId))
+	return d.pushUnreadMarkReset(b, peer)
+}
+
+// pushUnreadMarkReset journals updateDialogUnreadMark with unread false for
+// the box's dialog with peer, whose mark the transaction cleared, with the
+// next seq of the account and pushes it to every device of the account
+// (ADR 0020): a client clears the mark itself when it sends or reads there,
+// the other devices of the account learn it from the update.
+//
+// The push carries no users or chats, as the unpin of a deleted dialog
+// (UnpinDeleted): TDLib, tdesktop, Telegram-Android and Telegram-iOS find
+// the dialog by the peer's id alone and leave one they do not know.
+func (d *Dao) pushUnreadMarkReset(b *userbox.Box, peer boxPeer) error {
+	return d.EmitSeqUpdate(b, mtproto.MakeTLUpdateDialogUnreadMark(&mtproto.Update{
+		Unread: false,
+		Peer_DIALOGPEER: mtproto.MakeTLDialogPeer(&mtproto.DialogPeer{
+			Peer: peer.toPeer(),
+		}).To_DialogPeer(),
+	}).To_Update(), nil, nil)
 }
 
 // upsertIncomingDialog records received messages: the new top message and

@@ -218,7 +218,7 @@ func (d *Dao) ClearHistory(b *userbox.Box, peerType int32, peerId int64, justCle
 	if res.Deleted != nil {
 		res.Updates = append(res.Updates, res.Deleted.Update)
 	}
-	read, err := readInbox(b, peer, top)
+	read, err := d.readInbox(b, peer, top)
 	if err != nil {
 		return nil, err
 	}
