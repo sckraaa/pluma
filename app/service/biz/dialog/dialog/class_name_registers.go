@@ -32,7 +32,6 @@ const (
 	Predicate_dialog_reorderPinnedDialogs              = "dialog_reorderPinnedDialogs"
 	Predicate_dialog_getDialogById                     = "dialog_getDialogById"
 	Predicate_dialog_getTopMessage                     = "dialog_getTopMessage"
-	Predicate_dialog_deleteDialog                      = "dialog_deleteDialog"
 	Predicate_dialog_getUserPinnedMessage              = "dialog_getUserPinnedMessage"
 	Predicate_dialog_updateUserPinnedMessage           = "dialog_updateUserPinnedMessage"
 	Predicate_dialog_insertOrUpdateDialogFilter        = "dialog_insertOrUpdateDialogFilter"
@@ -140,10 +139,6 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	},
 	Predicate_dialog_getTopMessage: {
 		0: -92425614, // 0xfa7db272
-
-	},
-	Predicate_dialog_deleteDialog: {
-		0: 28515811, // 0x1b31de3
 
 	},
 	Predicate_dialog_getUserPinnedMessage: {
@@ -258,7 +253,6 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-18664089:   Predicate_dialog_reorderPinnedDialogs,              // 0xfee33567
 	-1587594251: Predicate_dialog_getDialogById,                     // 0xa15f3bf5
 	-92425614:   Predicate_dialog_getTopMessage,                     // 0xfa7db272
-	28515811:    Predicate_dialog_deleteDialog,                      // 0x1b31de3
 	-1885617487: Predicate_dialog_getUserPinnedMessage,              // 0x8f9bc2b1
 	371388970:   Predicate_dialog_updateUserPinnedMessage,           // 0x1622f22a
 	178824068:   Predicate_dialog_insertOrUpdateDialogFilter,        // 0xaa8a384

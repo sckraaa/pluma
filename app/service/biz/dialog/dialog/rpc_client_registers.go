@@ -41,7 +41,6 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLDialogReorderPinnedDialogs":              RPCContextTuple{"/mtproto.RPCDialog/dialog_reorderPinnedDialogs", func() interface{} { return new(mtproto.Bool) }},
 	"TLDialogGetDialogById":                     RPCContextTuple{"/mtproto.RPCDialog/dialog_getDialogById", func() interface{} { return new(DialogExt) }},
 	"TLDialogGetTopMessage":                     RPCContextTuple{"/mtproto.RPCDialog/dialog_getTopMessage", func() interface{} { return new(mtproto.Int32) }},
-	"TLDialogDeleteDialog":                      RPCContextTuple{"/mtproto.RPCDialog/dialog_deleteDialog", func() interface{} { return new(mtproto.Bool) }},
 	"TLDialogGetUserPinnedMessage":              RPCContextTuple{"/mtproto.RPCDialog/dialog_getUserPinnedMessage", func() interface{} { return new(mtproto.Int32) }},
 	"TLDialogUpdateUserPinnedMessage":           RPCContextTuple{"/mtproto.RPCDialog/dialog_updateUserPinnedMessage", func() interface{} { return new(mtproto.Bool) }},
 	"TLDialogInsertOrUpdateDialogFilter":        RPCContextTuple{"/mtproto.RPCDialog/dialog_insertOrUpdateDialogFilter", func() interface{} { return new(mtproto.Bool) }},

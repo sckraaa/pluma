@@ -42,7 +42,6 @@ enum TLConstructor {
   CRC32_dialog_reorderPinnedDialogs = -18664089;
   CRC32_dialog_getDialogById = -1587594251;
   CRC32_dialog_getTopMessage = -92425614;
-  CRC32_dialog_deleteDialog = 28515811;
   CRC32_dialog_getUserPinnedMessage = -1885617487;
   CRC32_dialog_updateUserPinnedMessage = 371388970;
   CRC32_dialog_insertOrUpdateDialogFilter = 178824068;
@@ -292,14 +291,6 @@ message TL_dialog_getTopMessage {
 }
 
 //--------------------------------------------------------------------------------------------
-message TL_dialog_deleteDialog {
-  TLConstructor constructor = 1;
-  int64 user_id = 3;
-  int32 peer_type = 4;
-  int64 peer_id = 5;
-}
-
-//--------------------------------------------------------------------------------------------
 message TL_dialog_getUserPinnedMessage {
   TLConstructor constructor = 1;
   int64 user_id = 3;
@@ -535,7 +526,6 @@ service RPCDialog {
       returns (mtproto.Bool) {}
   rpc dialog_getDialogById(TL_dialog_getDialogById) returns (DialogExt) {}
   rpc dialog_getTopMessage(TL_dialog_getTopMessage) returns (mtproto.Int32) {}
-  rpc dialog_deleteDialog(TL_dialog_deleteDialog) returns (mtproto.Bool) {}
   rpc dialog_getUserPinnedMessage(TL_dialog_getUserPinnedMessage)
       returns (mtproto.Int32) {}
   rpc dialog_updateUserPinnedMessage(TL_dialog_updateUserPinnedMessage)

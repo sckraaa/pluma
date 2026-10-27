@@ -136,11 +136,6 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -92425614,
 		}
 	},
-	28515811: func() mtproto.TLObject { // 0x1b31de3
-		return &TLDialogDeleteDialog{
-			Constructor: 28515811,
-		}
-	},
 	-1885617487: func() mtproto.TLObject { // 0x8f9bc2b1
 		return &TLDialogGetUserPinnedMessage{
 			Constructor: -1885617487,
@@ -1770,48 +1765,6 @@ func (m *TLDialogGetTopMessage) CalcByteSize(layer int32) int {
 func (m *TLDialogGetTopMessage) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
 	case 0xfa7db272:
-
-		// not has flags
-
-		m.UserId = dBuf.Long()
-		m.PeerType = dBuf.Int()
-		m.PeerId = dBuf.Long()
-		return dBuf.GetError()
-
-	default:
-		// log.Errorf("")
-	}
-	return dBuf.GetError()
-}
-
-// TLDialogDeleteDialog
-///////////////////////////////////////////////////////////////////////////////
-
-func (m *TLDialogDeleteDialog) Encode(x *mtproto.EncodeBuf, layer int32) error {
-	switch uint32(m.Constructor) {
-	case 0x1b31de3:
-		x.UInt(0x1b31de3)
-
-		// no flags
-
-		x.Long(m.GetUserId())
-		x.Int(m.GetPeerType())
-		x.Long(m.GetPeerId())
-
-	default:
-		// log.Errorf("")
-	}
-
-	return nil
-}
-
-func (m *TLDialogDeleteDialog) CalcByteSize(layer int32) int {
-	return 0
-}
-
-func (m *TLDialogDeleteDialog) Decode(dBuf *mtproto.DecodeBuf) error {
-	switch uint32(m.Constructor) {
-	case 0x1b31de3:
 
 		// not has flags
 

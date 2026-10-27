@@ -38,7 +38,6 @@ type DialogClient interface {
 	DialogReorderPinnedDialogs(ctx context.Context, in *dialog.TLDialogReorderPinnedDialogs) (*mtproto.Bool, error)
 	DialogGetDialogById(ctx context.Context, in *dialog.TLDialogGetDialogById) (*dialog.DialogExt, error)
 	DialogGetTopMessage(ctx context.Context, in *dialog.TLDialogGetTopMessage) (*mtproto.Int32, error)
-	DialogDeleteDialog(ctx context.Context, in *dialog.TLDialogDeleteDialog) (*mtproto.Bool, error)
 	DialogGetUserPinnedMessage(ctx context.Context, in *dialog.TLDialogGetUserPinnedMessage) (*mtproto.Int32, error)
 	DialogUpdateUserPinnedMessage(ctx context.Context, in *dialog.TLDialogUpdateUserPinnedMessage) (*mtproto.Bool, error)
 	DialogInsertOrUpdateDialogFilter(ctx context.Context, in *dialog.TLDialogInsertOrUpdateDialogFilter) (*mtproto.Bool, error)
@@ -236,17 +235,6 @@ func (m *defaultDialogClient) DialogGetTopMessage(ctx context.Context, in *dialo
 	}
 	client := dialog.NewRPCDialogClient(m.cli.Conn())
 	return client.DialogGetTopMessage(ctx, in)
-}
-
-// DialogDeleteDialog
-// dialog.deleteDialog user_id:long peer_type:int peer_id:long = Bool;
-func (m *defaultDialogClient) DialogDeleteDialog(ctx context.Context, in *dialog.TLDialogDeleteDialog) (*mtproto.Bool, error) {
-	md := metadata.RpcMetadataFromIncoming(ctx)
-	if md != nil {
-		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
-	}
-	client := dialog.NewRPCDialogClient(m.cli.Conn())
-	return client.DialogDeleteDialog(ctx, in)
 }
 
 // DialogGetUserPinnedMessage

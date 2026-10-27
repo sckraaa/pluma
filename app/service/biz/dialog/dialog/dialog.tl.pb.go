@@ -57,7 +57,6 @@ const (
 	TLConstructor_CRC32_dialog_reorderPinnedDialogs              TLConstructor = -18664089
 	TLConstructor_CRC32_dialog_getDialogById                     TLConstructor = -1587594251
 	TLConstructor_CRC32_dialog_getTopMessage                     TLConstructor = -92425614
-	TLConstructor_CRC32_dialog_deleteDialog                      TLConstructor = 28515811
 	TLConstructor_CRC32_dialog_getUserPinnedMessage              TLConstructor = -1885617487
 	TLConstructor_CRC32_dialog_updateUserPinnedMessage           TLConstructor = 371388970
 	TLConstructor_CRC32_dialog_insertOrUpdateDialogFilter        TLConstructor = 178824068
@@ -107,7 +106,6 @@ var (
 		-18664089:   "CRC32_dialog_reorderPinnedDialogs",
 		-1587594251: "CRC32_dialog_getDialogById",
 		-92425614:   "CRC32_dialog_getTopMessage",
-		28515811:    "CRC32_dialog_deleteDialog",
 		-1885617487: "CRC32_dialog_getUserPinnedMessage",
 		371388970:   "CRC32_dialog_updateUserPinnedMessage",
 		178824068:   "CRC32_dialog_insertOrUpdateDialogFilter",
@@ -154,7 +152,6 @@ var (
 		"CRC32_dialog_reorderPinnedDialogs":              -18664089,
 		"CRC32_dialog_getDialogById":                     -1587594251,
 		"CRC32_dialog_getTopMessage":                     -92425614,
-		"CRC32_dialog_deleteDialog":                      28515811,
 		"CRC32_dialog_getUserPinnedMessage":              -1885617487,
 		"CRC32_dialog_updateUserPinnedMessage":           371388970,
 		"CRC32_dialog_insertOrUpdateDialogFilter":        178824068,
@@ -2045,75 +2042,6 @@ func (x *TLDialogGetTopMessage) GetPeerId() int64 {
 }
 
 // --------------------------------------------------------------------------------------------
-type TLDialogDeleteDialog struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=dialog.TLConstructor" json:"constructor,omitempty"`
-	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	PeerType      int32                  `protobuf:"varint,4,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
-	PeerId        int64                  `protobuf:"varint,5,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *TLDialogDeleteDialog) Reset() {
-	*x = TLDialogDeleteDialog{}
-	mi := &file_dialog_tl_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *TLDialogDeleteDialog) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*TLDialogDeleteDialog) ProtoMessage() {}
-
-func (x *TLDialogDeleteDialog) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[27]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use TLDialogDeleteDialog.ProtoReflect.Descriptor instead.
-func (*TLDialogDeleteDialog) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{27}
-}
-
-func (x *TLDialogDeleteDialog) GetConstructor() TLConstructor {
-	if x != nil {
-		return x.Constructor
-	}
-	return TLConstructor_CRC32_UNKNOWN
-}
-
-func (x *TLDialogDeleteDialog) GetUserId() int64 {
-	if x != nil {
-		return x.UserId
-	}
-	return 0
-}
-
-func (x *TLDialogDeleteDialog) GetPeerType() int32 {
-	if x != nil {
-		return x.PeerType
-	}
-	return 0
-}
-
-func (x *TLDialogDeleteDialog) GetPeerId() int64 {
-	if x != nil {
-		return x.PeerId
-	}
-	return 0
-}
-
-// --------------------------------------------------------------------------------------------
 type TLDialogGetUserPinnedMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=dialog.TLConstructor" json:"constructor,omitempty"`
@@ -2126,7 +2054,7 @@ type TLDialogGetUserPinnedMessage struct {
 
 func (x *TLDialogGetUserPinnedMessage) Reset() {
 	*x = TLDialogGetUserPinnedMessage{}
-	mi := &file_dialog_tl_proto_msgTypes[28]
+	mi := &file_dialog_tl_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2138,7 +2066,7 @@ func (x *TLDialogGetUserPinnedMessage) String() string {
 func (*TLDialogGetUserPinnedMessage) ProtoMessage() {}
 
 func (x *TLDialogGetUserPinnedMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[28]
+	mi := &file_dialog_tl_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2151,7 +2079,7 @@ func (x *TLDialogGetUserPinnedMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetUserPinnedMessage.ProtoReflect.Descriptor instead.
 func (*TLDialogGetUserPinnedMessage) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{28}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *TLDialogGetUserPinnedMessage) GetConstructor() TLConstructor {
@@ -2196,7 +2124,7 @@ type TLDialogUpdateUserPinnedMessage struct {
 
 func (x *TLDialogUpdateUserPinnedMessage) Reset() {
 	*x = TLDialogUpdateUserPinnedMessage{}
-	mi := &file_dialog_tl_proto_msgTypes[29]
+	mi := &file_dialog_tl_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2208,7 +2136,7 @@ func (x *TLDialogUpdateUserPinnedMessage) String() string {
 func (*TLDialogUpdateUserPinnedMessage) ProtoMessage() {}
 
 func (x *TLDialogUpdateUserPinnedMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[29]
+	mi := &file_dialog_tl_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2221,7 +2149,7 @@ func (x *TLDialogUpdateUserPinnedMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogUpdateUserPinnedMessage.ProtoReflect.Descriptor instead.
 func (*TLDialogUpdateUserPinnedMessage) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{29}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *TLDialogUpdateUserPinnedMessage) GetConstructor() TLConstructor {
@@ -2276,7 +2204,7 @@ type TLDialogInsertOrUpdateDialogFilter struct {
 
 func (x *TLDialogInsertOrUpdateDialogFilter) Reset() {
 	*x = TLDialogInsertOrUpdateDialogFilter{}
-	mi := &file_dialog_tl_proto_msgTypes[30]
+	mi := &file_dialog_tl_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2288,7 +2216,7 @@ func (x *TLDialogInsertOrUpdateDialogFilter) String() string {
 func (*TLDialogInsertOrUpdateDialogFilter) ProtoMessage() {}
 
 func (x *TLDialogInsertOrUpdateDialogFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[30]
+	mi := &file_dialog_tl_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2301,7 +2229,7 @@ func (x *TLDialogInsertOrUpdateDialogFilter) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use TLDialogInsertOrUpdateDialogFilter.ProtoReflect.Descriptor instead.
 func (*TLDialogInsertOrUpdateDialogFilter) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{30}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *TLDialogInsertOrUpdateDialogFilter) GetConstructor() TLConstructor {
@@ -2358,7 +2286,7 @@ type TLDialogDeleteDialogFilter struct {
 
 func (x *TLDialogDeleteDialogFilter) Reset() {
 	*x = TLDialogDeleteDialogFilter{}
-	mi := &file_dialog_tl_proto_msgTypes[31]
+	mi := &file_dialog_tl_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2370,7 +2298,7 @@ func (x *TLDialogDeleteDialogFilter) String() string {
 func (*TLDialogDeleteDialogFilter) ProtoMessage() {}
 
 func (x *TLDialogDeleteDialogFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[31]
+	mi := &file_dialog_tl_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2383,7 +2311,7 @@ func (x *TLDialogDeleteDialogFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogDeleteDialogFilter.ProtoReflect.Descriptor instead.
 func (*TLDialogDeleteDialogFilter) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{31}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *TLDialogDeleteDialogFilter) GetConstructor() TLConstructor {
@@ -2419,7 +2347,7 @@ type TLDialogUpdateDialogFiltersOrder struct {
 
 func (x *TLDialogUpdateDialogFiltersOrder) Reset() {
 	*x = TLDialogUpdateDialogFiltersOrder{}
-	mi := &file_dialog_tl_proto_msgTypes[32]
+	mi := &file_dialog_tl_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2431,7 +2359,7 @@ func (x *TLDialogUpdateDialogFiltersOrder) String() string {
 func (*TLDialogUpdateDialogFiltersOrder) ProtoMessage() {}
 
 func (x *TLDialogUpdateDialogFiltersOrder) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[32]
+	mi := &file_dialog_tl_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2444,7 +2372,7 @@ func (x *TLDialogUpdateDialogFiltersOrder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogUpdateDialogFiltersOrder.ProtoReflect.Descriptor instead.
 func (*TLDialogUpdateDialogFiltersOrder) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{32}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *TLDialogUpdateDialogFiltersOrder) GetConstructor() TLConstructor {
@@ -2479,7 +2407,7 @@ type TLDialogGetDialogFilters struct {
 
 func (x *TLDialogGetDialogFilters) Reset() {
 	*x = TLDialogGetDialogFilters{}
-	mi := &file_dialog_tl_proto_msgTypes[33]
+	mi := &file_dialog_tl_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2491,7 +2419,7 @@ func (x *TLDialogGetDialogFilters) String() string {
 func (*TLDialogGetDialogFilters) ProtoMessage() {}
 
 func (x *TLDialogGetDialogFilters) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[33]
+	mi := &file_dialog_tl_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2504,7 +2432,7 @@ func (x *TLDialogGetDialogFilters) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetDialogFilters.ProtoReflect.Descriptor instead.
 func (*TLDialogGetDialogFilters) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{33}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *TLDialogGetDialogFilters) GetConstructor() TLConstructor {
@@ -2533,7 +2461,7 @@ type TLDialogGetDialogFolder struct {
 
 func (x *TLDialogGetDialogFolder) Reset() {
 	*x = TLDialogGetDialogFolder{}
-	mi := &file_dialog_tl_proto_msgTypes[34]
+	mi := &file_dialog_tl_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2545,7 +2473,7 @@ func (x *TLDialogGetDialogFolder) String() string {
 func (*TLDialogGetDialogFolder) ProtoMessage() {}
 
 func (x *TLDialogGetDialogFolder) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[34]
+	mi := &file_dialog_tl_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2558,7 +2486,7 @@ func (x *TLDialogGetDialogFolder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetDialogFolder.ProtoReflect.Descriptor instead.
 func (*TLDialogGetDialogFolder) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{34}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *TLDialogGetDialogFolder) GetConstructor() TLConstructor {
@@ -2595,7 +2523,7 @@ type TLDialogEditPeerFolders struct {
 
 func (x *TLDialogEditPeerFolders) Reset() {
 	*x = TLDialogEditPeerFolders{}
-	mi := &file_dialog_tl_proto_msgTypes[35]
+	mi := &file_dialog_tl_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2607,7 +2535,7 @@ func (x *TLDialogEditPeerFolders) String() string {
 func (*TLDialogEditPeerFolders) ProtoMessage() {}
 
 func (x *TLDialogEditPeerFolders) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[35]
+	mi := &file_dialog_tl_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2620,7 +2548,7 @@ func (x *TLDialogEditPeerFolders) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogEditPeerFolders.ProtoReflect.Descriptor instead.
 func (*TLDialogEditPeerFolders) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{35}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *TLDialogEditPeerFolders) GetConstructor() TLConstructor {
@@ -2664,7 +2592,7 @@ type TLDialogGetChannelMessageReadParticipants struct {
 
 func (x *TLDialogGetChannelMessageReadParticipants) Reset() {
 	*x = TLDialogGetChannelMessageReadParticipants{}
-	mi := &file_dialog_tl_proto_msgTypes[36]
+	mi := &file_dialog_tl_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2676,7 +2604,7 @@ func (x *TLDialogGetChannelMessageReadParticipants) String() string {
 func (*TLDialogGetChannelMessageReadParticipants) ProtoMessage() {}
 
 func (x *TLDialogGetChannelMessageReadParticipants) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[36]
+	mi := &file_dialog_tl_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2689,7 +2617,7 @@ func (x *TLDialogGetChannelMessageReadParticipants) ProtoReflect() protoreflect.
 
 // Deprecated: Use TLDialogGetChannelMessageReadParticipants.ProtoReflect.Descriptor instead.
 func (*TLDialogGetChannelMessageReadParticipants) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{36}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *TLDialogGetChannelMessageReadParticipants) GetConstructor() TLConstructor {
@@ -2734,7 +2662,7 @@ type TLDialogSetChatTheme struct {
 
 func (x *TLDialogSetChatTheme) Reset() {
 	*x = TLDialogSetChatTheme{}
-	mi := &file_dialog_tl_proto_msgTypes[37]
+	mi := &file_dialog_tl_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2746,7 +2674,7 @@ func (x *TLDialogSetChatTheme) String() string {
 func (*TLDialogSetChatTheme) ProtoMessage() {}
 
 func (x *TLDialogSetChatTheme) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[37]
+	mi := &file_dialog_tl_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2759,7 +2687,7 @@ func (x *TLDialogSetChatTheme) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogSetChatTheme.ProtoReflect.Descriptor instead.
 func (*TLDialogSetChatTheme) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{37}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *TLDialogSetChatTheme) GetConstructor() TLConstructor {
@@ -2811,7 +2739,7 @@ type TLDialogSetHistoryTTL struct {
 
 func (x *TLDialogSetHistoryTTL) Reset() {
 	*x = TLDialogSetHistoryTTL{}
-	mi := &file_dialog_tl_proto_msgTypes[38]
+	mi := &file_dialog_tl_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2823,7 +2751,7 @@ func (x *TLDialogSetHistoryTTL) String() string {
 func (*TLDialogSetHistoryTTL) ProtoMessage() {}
 
 func (x *TLDialogSetHistoryTTL) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[38]
+	mi := &file_dialog_tl_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2836,7 +2764,7 @@ func (x *TLDialogSetHistoryTTL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogSetHistoryTTL.ProtoReflect.Descriptor instead.
 func (*TLDialogSetHistoryTTL) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{38}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *TLDialogSetHistoryTTL) GetConstructor() TLConstructor {
@@ -2888,7 +2816,7 @@ type TLDialogGetMyDialogsData struct {
 
 func (x *TLDialogGetMyDialogsData) Reset() {
 	*x = TLDialogGetMyDialogsData{}
-	mi := &file_dialog_tl_proto_msgTypes[39]
+	mi := &file_dialog_tl_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2900,7 +2828,7 @@ func (x *TLDialogGetMyDialogsData) String() string {
 func (*TLDialogGetMyDialogsData) ProtoMessage() {}
 
 func (x *TLDialogGetMyDialogsData) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[39]
+	mi := &file_dialog_tl_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2913,7 +2841,7 @@ func (x *TLDialogGetMyDialogsData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetMyDialogsData.ProtoReflect.Descriptor instead.
 func (*TLDialogGetMyDialogsData) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{39}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *TLDialogGetMyDialogsData) GetConstructor() TLConstructor {
@@ -2967,7 +2895,7 @@ type TLDialogGetSavedDialogs struct {
 
 func (x *TLDialogGetSavedDialogs) Reset() {
 	*x = TLDialogGetSavedDialogs{}
-	mi := &file_dialog_tl_proto_msgTypes[40]
+	mi := &file_dialog_tl_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2979,7 +2907,7 @@ func (x *TLDialogGetSavedDialogs) String() string {
 func (*TLDialogGetSavedDialogs) ProtoMessage() {}
 
 func (x *TLDialogGetSavedDialogs) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[40]
+	mi := &file_dialog_tl_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2992,7 +2920,7 @@ func (x *TLDialogGetSavedDialogs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetSavedDialogs.ProtoReflect.Descriptor instead.
 func (*TLDialogGetSavedDialogs) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{40}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TLDialogGetSavedDialogs) GetConstructor() TLConstructor {
@@ -3055,7 +2983,7 @@ type TLDialogGetPinnedSavedDialogs struct {
 
 func (x *TLDialogGetPinnedSavedDialogs) Reset() {
 	*x = TLDialogGetPinnedSavedDialogs{}
-	mi := &file_dialog_tl_proto_msgTypes[41]
+	mi := &file_dialog_tl_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3067,7 +2995,7 @@ func (x *TLDialogGetPinnedSavedDialogs) String() string {
 func (*TLDialogGetPinnedSavedDialogs) ProtoMessage() {}
 
 func (x *TLDialogGetPinnedSavedDialogs) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[41]
+	mi := &file_dialog_tl_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3080,7 +3008,7 @@ func (x *TLDialogGetPinnedSavedDialogs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetPinnedSavedDialogs.ProtoReflect.Descriptor instead.
 func (*TLDialogGetPinnedSavedDialogs) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{41}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *TLDialogGetPinnedSavedDialogs) GetConstructor() TLConstructor {
@@ -3114,7 +3042,7 @@ type TLDialogToggleSavedDialogPin struct {
 
 func (x *TLDialogToggleSavedDialogPin) Reset() {
 	*x = TLDialogToggleSavedDialogPin{}
-	mi := &file_dialog_tl_proto_msgTypes[42]
+	mi := &file_dialog_tl_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3126,7 +3054,7 @@ func (x *TLDialogToggleSavedDialogPin) String() string {
 func (*TLDialogToggleSavedDialogPin) ProtoMessage() {}
 
 func (x *TLDialogToggleSavedDialogPin) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[42]
+	mi := &file_dialog_tl_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3139,7 +3067,7 @@ func (x *TLDialogToggleSavedDialogPin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogToggleSavedDialogPin.ProtoReflect.Descriptor instead.
 func (*TLDialogToggleSavedDialogPin) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{42}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TLDialogToggleSavedDialogPin) GetConstructor() TLConstructor {
@@ -3201,7 +3129,7 @@ type TLDialogReorderPinnedSavedDialogs struct {
 
 func (x *TLDialogReorderPinnedSavedDialogs) Reset() {
 	*x = TLDialogReorderPinnedSavedDialogs{}
-	mi := &file_dialog_tl_proto_msgTypes[43]
+	mi := &file_dialog_tl_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3213,7 +3141,7 @@ func (x *TLDialogReorderPinnedSavedDialogs) String() string {
 func (*TLDialogReorderPinnedSavedDialogs) ProtoMessage() {}
 
 func (x *TLDialogReorderPinnedSavedDialogs) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[43]
+	mi := &file_dialog_tl_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3226,7 +3154,7 @@ func (x *TLDialogReorderPinnedSavedDialogs) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use TLDialogReorderPinnedSavedDialogs.ProtoReflect.Descriptor instead.
 func (*TLDialogReorderPinnedSavedDialogs) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{43}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *TLDialogReorderPinnedSavedDialogs) GetConstructor() TLConstructor {
@@ -3283,7 +3211,7 @@ type TLDialogGetDialogFilter struct {
 
 func (x *TLDialogGetDialogFilter) Reset() {
 	*x = TLDialogGetDialogFilter{}
-	mi := &file_dialog_tl_proto_msgTypes[44]
+	mi := &file_dialog_tl_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3295,7 +3223,7 @@ func (x *TLDialogGetDialogFilter) String() string {
 func (*TLDialogGetDialogFilter) ProtoMessage() {}
 
 func (x *TLDialogGetDialogFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[44]
+	mi := &file_dialog_tl_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3308,7 +3236,7 @@ func (x *TLDialogGetDialogFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetDialogFilter.ProtoReflect.Descriptor instead.
 func (*TLDialogGetDialogFilter) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{44}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *TLDialogGetDialogFilter) GetConstructor() TLConstructor {
@@ -3344,7 +3272,7 @@ type TLDialogGetDialogFilterBySlug struct {
 
 func (x *TLDialogGetDialogFilterBySlug) Reset() {
 	*x = TLDialogGetDialogFilterBySlug{}
-	mi := &file_dialog_tl_proto_msgTypes[45]
+	mi := &file_dialog_tl_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3356,7 +3284,7 @@ func (x *TLDialogGetDialogFilterBySlug) String() string {
 func (*TLDialogGetDialogFilterBySlug) ProtoMessage() {}
 
 func (x *TLDialogGetDialogFilterBySlug) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[45]
+	mi := &file_dialog_tl_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3369,7 +3297,7 @@ func (x *TLDialogGetDialogFilterBySlug) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetDialogFilterBySlug.ProtoReflect.Descriptor instead.
 func (*TLDialogGetDialogFilterBySlug) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{45}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *TLDialogGetDialogFilterBySlug) GetConstructor() TLConstructor {
@@ -3405,7 +3333,7 @@ type TLDialogCreateDialogFilter struct {
 
 func (x *TLDialogCreateDialogFilter) Reset() {
 	*x = TLDialogCreateDialogFilter{}
-	mi := &file_dialog_tl_proto_msgTypes[46]
+	mi := &file_dialog_tl_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3417,7 +3345,7 @@ func (x *TLDialogCreateDialogFilter) String() string {
 func (*TLDialogCreateDialogFilter) ProtoMessage() {}
 
 func (x *TLDialogCreateDialogFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[46]
+	mi := &file_dialog_tl_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3430,7 +3358,7 @@ func (x *TLDialogCreateDialogFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogCreateDialogFilter.ProtoReflect.Descriptor instead.
 func (*TLDialogCreateDialogFilter) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{46}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *TLDialogCreateDialogFilter) GetConstructor() TLConstructor {
@@ -3466,7 +3394,7 @@ type TLDialogToggleDialogFilterTags struct {
 
 func (x *TLDialogToggleDialogFilterTags) Reset() {
 	*x = TLDialogToggleDialogFilterTags{}
-	mi := &file_dialog_tl_proto_msgTypes[47]
+	mi := &file_dialog_tl_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3478,7 +3406,7 @@ func (x *TLDialogToggleDialogFilterTags) String() string {
 func (*TLDialogToggleDialogFilterTags) ProtoMessage() {}
 
 func (x *TLDialogToggleDialogFilterTags) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[47]
+	mi := &file_dialog_tl_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3491,7 +3419,7 @@ func (x *TLDialogToggleDialogFilterTags) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogToggleDialogFilterTags.ProtoReflect.Descriptor instead.
 func (*TLDialogToggleDialogFilterTags) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{47}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *TLDialogToggleDialogFilterTags) GetConstructor() TLConstructor {
@@ -3526,7 +3454,7 @@ type TLDialogGetDialogFilterTags struct {
 
 func (x *TLDialogGetDialogFilterTags) Reset() {
 	*x = TLDialogGetDialogFilterTags{}
-	mi := &file_dialog_tl_proto_msgTypes[48]
+	mi := &file_dialog_tl_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3538,7 +3466,7 @@ func (x *TLDialogGetDialogFilterTags) String() string {
 func (*TLDialogGetDialogFilterTags) ProtoMessage() {}
 
 func (x *TLDialogGetDialogFilterTags) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[48]
+	mi := &file_dialog_tl_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3551,7 +3479,7 @@ func (x *TLDialogGetDialogFilterTags) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogGetDialogFilterTags.ProtoReflect.Descriptor instead.
 func (*TLDialogGetDialogFilterTags) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{48}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *TLDialogGetDialogFilterTags) GetConstructor() TLConstructor {
@@ -3583,7 +3511,7 @@ type TLDialogSetChatWallpaper struct {
 
 func (x *TLDialogSetChatWallpaper) Reset() {
 	*x = TLDialogSetChatWallpaper{}
-	mi := &file_dialog_tl_proto_msgTypes[49]
+	mi := &file_dialog_tl_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3595,7 +3523,7 @@ func (x *TLDialogSetChatWallpaper) String() string {
 func (*TLDialogSetChatWallpaper) ProtoMessage() {}
 
 func (x *TLDialogSetChatWallpaper) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[49]
+	mi := &file_dialog_tl_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3608,7 +3536,7 @@ func (x *TLDialogSetChatWallpaper) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLDialogSetChatWallpaper.ProtoReflect.Descriptor instead.
 func (*TLDialogSetChatWallpaper) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{49}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *TLDialogSetChatWallpaper) GetConstructor() TLConstructor {
@@ -3664,7 +3592,7 @@ type Vector_PeerWithDraftMessage struct {
 
 func (x *Vector_PeerWithDraftMessage) Reset() {
 	*x = Vector_PeerWithDraftMessage{}
-	mi := &file_dialog_tl_proto_msgTypes[50]
+	mi := &file_dialog_tl_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3676,7 +3604,7 @@ func (x *Vector_PeerWithDraftMessage) String() string {
 func (*Vector_PeerWithDraftMessage) ProtoMessage() {}
 
 func (x *Vector_PeerWithDraftMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[50]
+	mi := &file_dialog_tl_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3689,7 +3617,7 @@ func (x *Vector_PeerWithDraftMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_PeerWithDraftMessage.ProtoReflect.Descriptor instead.
 func (*Vector_PeerWithDraftMessage) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{50}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *Vector_PeerWithDraftMessage) GetDatas() []*PeerWithDraftMessage {
@@ -3708,7 +3636,7 @@ type Vector_DialogPeer struct {
 
 func (x *Vector_DialogPeer) Reset() {
 	*x = Vector_DialogPeer{}
-	mi := &file_dialog_tl_proto_msgTypes[51]
+	mi := &file_dialog_tl_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3720,7 +3648,7 @@ func (x *Vector_DialogPeer) String() string {
 func (*Vector_DialogPeer) ProtoMessage() {}
 
 func (x *Vector_DialogPeer) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[51]
+	mi := &file_dialog_tl_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3733,7 +3661,7 @@ func (x *Vector_DialogPeer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_DialogPeer.ProtoReflect.Descriptor instead.
 func (*Vector_DialogPeer) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{51}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *Vector_DialogPeer) GetDatas() []*mtproto.DialogPeer {
@@ -3752,7 +3680,7 @@ type Vector_DialogExt struct {
 
 func (x *Vector_DialogExt) Reset() {
 	*x = Vector_DialogExt{}
-	mi := &file_dialog_tl_proto_msgTypes[52]
+	mi := &file_dialog_tl_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3764,7 +3692,7 @@ func (x *Vector_DialogExt) String() string {
 func (*Vector_DialogExt) ProtoMessage() {}
 
 func (x *Vector_DialogExt) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[52]
+	mi := &file_dialog_tl_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3777,7 +3705,7 @@ func (x *Vector_DialogExt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_DialogExt.ProtoReflect.Descriptor instead.
 func (*Vector_DialogExt) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{52}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *Vector_DialogExt) GetDatas() []*DialogExt {
@@ -3796,7 +3724,7 @@ type Vector_DialogFilterExt struct {
 
 func (x *Vector_DialogFilterExt) Reset() {
 	*x = Vector_DialogFilterExt{}
-	mi := &file_dialog_tl_proto_msgTypes[53]
+	mi := &file_dialog_tl_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3808,7 +3736,7 @@ func (x *Vector_DialogFilterExt) String() string {
 func (*Vector_DialogFilterExt) ProtoMessage() {}
 
 func (x *Vector_DialogFilterExt) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[53]
+	mi := &file_dialog_tl_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3821,7 +3749,7 @@ func (x *Vector_DialogFilterExt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_DialogFilterExt.ProtoReflect.Descriptor instead.
 func (*Vector_DialogFilterExt) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{53}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *Vector_DialogFilterExt) GetDatas() []*DialogFilterExt {
@@ -3840,7 +3768,7 @@ type Vector_DialogPinnedExt struct {
 
 func (x *Vector_DialogPinnedExt) Reset() {
 	*x = Vector_DialogPinnedExt{}
-	mi := &file_dialog_tl_proto_msgTypes[54]
+	mi := &file_dialog_tl_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3852,7 +3780,7 @@ func (x *Vector_DialogPinnedExt) String() string {
 func (*Vector_DialogPinnedExt) ProtoMessage() {}
 
 func (x *Vector_DialogPinnedExt) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[54]
+	mi := &file_dialog_tl_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3865,7 +3793,7 @@ func (x *Vector_DialogPinnedExt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_DialogPinnedExt.ProtoReflect.Descriptor instead.
 func (*Vector_DialogPinnedExt) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{54}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *Vector_DialogPinnedExt) GetDatas() []*DialogPinnedExt {
@@ -3884,7 +3812,7 @@ type Vector_Long struct {
 
 func (x *Vector_Long) Reset() {
 	*x = Vector_Long{}
-	mi := &file_dialog_tl_proto_msgTypes[55]
+	mi := &file_dialog_tl_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3896,7 +3824,7 @@ func (x *Vector_Long) String() string {
 func (*Vector_Long) ProtoMessage() {}
 
 func (x *Vector_Long) ProtoReflect() protoreflect.Message {
-	mi := &file_dialog_tl_proto_msgTypes[55]
+	mi := &file_dialog_tl_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3909,7 +3837,7 @@ func (x *Vector_Long) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Long.ProtoReflect.Descriptor instead.
 func (*Vector_Long) Descriptor() ([]byte, []int) {
-	return file_dialog_tl_proto_rawDescGZIP(), []int{55}
+	return file_dialog_tl_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *Vector_Long) GetDatas() []int64 {
@@ -4058,11 +3986,6 @@ const file_dialog_tl_proto_rawDesc = "" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x15.dialog.TLConstructorR\vconstructor\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
-	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\"\xa0\x01\n" +
-	"\x16TL_dialog_deleteDialog\x127\n" +
-	"\vconstructor\x18\x01 \x01(\x0e2\x15.dialog.TLConstructorR\vconstructor\x12\x17\n" +
-	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
-	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
 	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\"\xa8\x01\n" +
 	"\x1eTL_dialog_getUserPinnedMessage\x127\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x15.dialog.TLConstructorR\vconstructor\x12\x17\n" +
@@ -4191,7 +4114,7 @@ const file_dialog_tl_proto_rawDesc = "" +
 	"\x16Vector_DialogPinnedExt\x12-\n" +
 	"\x05datas\x18\x01 \x03(\v2\x17.dialog.DialogPinnedExtR\x05datas\"#\n" +
 	"\vVector_Long\x12\x14\n" +
-	"\x05datas\x18\x01 \x03(\x03R\x05datas*\xd6\x0e\n" +
+	"\x05datas\x18\x01 \x03(\x03R\x05datas*\xb4\x0e\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12%\n" +
 	"\x18CRC32_updateDraftMessage\x10\xb2\x89\xf7\xb5\xff\xff\xff\xff\xff\x01\x12\x17\n" +
@@ -4214,8 +4137,7 @@ const file_dialog_tl_proto_rawDesc = "" +
 	"\x1dCRC32_dialog_getPinnedDialogs\x10\xb5\xb7\x88\xc6\xfa\xff\xff\xff\xff\x01\x12.\n" +
 	"!CRC32_dialog_reorderPinnedDialogs\x10\xe7\xea\x8c\xf7\xff\xff\xff\xff\xff\x01\x12'\n" +
 	"\x1aCRC32_dialog_getDialogById\x10\xf5\xf7\xfc\x8a\xfa\xff\xff\xff\xff\x01\x12'\n" +
-	"\x1aCRC32_dialog_getTopMessage\x10\xf2\xe4\xf6\xd3\xff\xff\xff\xff\xff\x01\x12 \n" +
-	"\x19CRC32_dialog_deleteDialog\x10\xe3\xbb\xcc\r\x12.\n" +
+	"\x1aCRC32_dialog_getTopMessage\x10\xf2\xe4\xf6\xd3\xff\xff\xff\xff\xff\x01\x12.\n" +
 	"!CRC32_dialog_getUserPinnedMessage\x10\xb1\x85\xef\xfc\xf8\xff\xff\xff\xff\x01\x12,\n" +
 	"$CRC32_dialog_updateUserPinnedMessage\x10\xaa䋱\x01\x12.\n" +
 	"'CRC32_dialog_insertOrUpdateDialogFilter\x10\x84ǢU\x12&\n" +
@@ -4237,7 +4159,7 @@ const file_dialog_tl_proto_rawDesc = "" +
 	"\x1fCRC32_dialog_createDialogFilter\x10\xefƭ\xb6\xfc\xff\xff\xff\xff\x01\x120\n" +
 	"#CRC32_dialog_toggleDialogFilterTags\x10\x89۵\x86\xfa\xff\xff\xff\xff\x01\x12-\n" +
 	" CRC32_dialog_getDialogFilterTags\x10\x97\xf5\xc3\xd7\xff\xff\xff\xff\xff\x01\x12*\n" +
-	"\x1dCRC32_dialog_setChatWallpaper\x10\x92\xb6Ǫ\xfb\xff\xff\xff\xff\x012\xc8\x1a\n" +
+	"\x1dCRC32_dialog_setChatWallpaper\x10\x92\xb6Ǫ\xfb\xff\xff\xff\xff\x012\x80\x1a\n" +
 	"\tRPCDialog\x12N\n" +
 	"\x17dialog_saveDraftMessage\x12\".dialog.TL_dialog_saveDraftMessage\x1a\r.mtproto.Bool\"\x00\x12P\n" +
 	"\x18dialog_clearDraftMessage\x12#.dialog.TL_dialog_clearDraftMessage\x1a\r.mtproto.Bool\"\x00\x12\\\n" +
@@ -4253,8 +4175,7 @@ const file_dialog_tl_proto_rawDesc = "" +
 	"\x17dialog_getPinnedDialogs\x12\".dialog.TL_dialog_getPinnedDialogs\x1a\x18.dialog.Vector_DialogExt\"\x00\x12V\n" +
 	"\x1bdialog_reorderPinnedDialogs\x12&.dialog.TL_dialog_reorderPinnedDialogs\x1a\r.mtproto.Bool\"\x00\x12L\n" +
 	"\x14dialog_getDialogById\x12\x1f.dialog.TL_dialog_getDialogById\x1a\x11.dialog.DialogExt\"\x00\x12I\n" +
-	"\x14dialog_getTopMessage\x12\x1f.dialog.TL_dialog_getTopMessage\x1a\x0e.mtproto.Int32\"\x00\x12F\n" +
-	"\x13dialog_deleteDialog\x12\x1e.dialog.TL_dialog_deleteDialog\x1a\r.mtproto.Bool\"\x00\x12W\n" +
+	"\x14dialog_getTopMessage\x12\x1f.dialog.TL_dialog_getTopMessage\x1a\x0e.mtproto.Int32\"\x00\x12W\n" +
 	"\x1bdialog_getUserPinnedMessage\x12&.dialog.TL_dialog_getUserPinnedMessage\x1a\x0e.mtproto.Int32\"\x00\x12\\\n" +
 	"\x1edialog_updateUserPinnedMessage\x12).dialog.TL_dialog_updateUserPinnedMessage\x1a\r.mtproto.Bool\"\x00\x12b\n" +
 	"!dialog_insertOrUpdateDialogFilter\x12,.dialog.TL_dialog_insertOrUpdateDialogFilter\x1a\r.mtproto.Bool\"\x00\x12R\n" +
@@ -4291,7 +4212,7 @@ func file_dialog_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_dialog_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_dialog_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
+var file_dialog_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
 var file_dialog_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                                // 0: dialog.TLConstructor
 	(*DialogExt)(nil),                                 // 1: dialog.DialogExt
@@ -4321,217 +4242,213 @@ var file_dialog_tl_proto_goTypes = []any{
 	(*TLDialogReorderPinnedDialogs)(nil),              // 25: dialog.TL_dialog_reorderPinnedDialogs
 	(*TLDialogGetDialogById)(nil),                     // 26: dialog.TL_dialog_getDialogById
 	(*TLDialogGetTopMessage)(nil),                     // 27: dialog.TL_dialog_getTopMessage
-	(*TLDialogDeleteDialog)(nil),                      // 28: dialog.TL_dialog_deleteDialog
-	(*TLDialogGetUserPinnedMessage)(nil),              // 29: dialog.TL_dialog_getUserPinnedMessage
-	(*TLDialogUpdateUserPinnedMessage)(nil),           // 30: dialog.TL_dialog_updateUserPinnedMessage
-	(*TLDialogInsertOrUpdateDialogFilter)(nil),        // 31: dialog.TL_dialog_insertOrUpdateDialogFilter
-	(*TLDialogDeleteDialogFilter)(nil),                // 32: dialog.TL_dialog_deleteDialogFilter
-	(*TLDialogUpdateDialogFiltersOrder)(nil),          // 33: dialog.TL_dialog_updateDialogFiltersOrder
-	(*TLDialogGetDialogFilters)(nil),                  // 34: dialog.TL_dialog_getDialogFilters
-	(*TLDialogGetDialogFolder)(nil),                   // 35: dialog.TL_dialog_getDialogFolder
-	(*TLDialogEditPeerFolders)(nil),                   // 36: dialog.TL_dialog_editPeerFolders
-	(*TLDialogGetChannelMessageReadParticipants)(nil), // 37: dialog.TL_dialog_getChannelMessageReadParticipants
-	(*TLDialogSetChatTheme)(nil),                      // 38: dialog.TL_dialog_setChatTheme
-	(*TLDialogSetHistoryTTL)(nil),                     // 39: dialog.TL_dialog_setHistoryTTL
-	(*TLDialogGetMyDialogsData)(nil),                  // 40: dialog.TL_dialog_getMyDialogsData
-	(*TLDialogGetSavedDialogs)(nil),                   // 41: dialog.TL_dialog_getSavedDialogs
-	(*TLDialogGetPinnedSavedDialogs)(nil),             // 42: dialog.TL_dialog_getPinnedSavedDialogs
-	(*TLDialogToggleSavedDialogPin)(nil),              // 43: dialog.TL_dialog_toggleSavedDialogPin
-	(*TLDialogReorderPinnedSavedDialogs)(nil),         // 44: dialog.TL_dialog_reorderPinnedSavedDialogs
-	(*TLDialogGetDialogFilter)(nil),                   // 45: dialog.TL_dialog_getDialogFilter
-	(*TLDialogGetDialogFilterBySlug)(nil),             // 46: dialog.TL_dialog_getDialogFilterBySlug
-	(*TLDialogCreateDialogFilter)(nil),                // 47: dialog.TL_dialog_createDialogFilter
-	(*TLDialogToggleDialogFilterTags)(nil),            // 48: dialog.TL_dialog_toggleDialogFilterTags
-	(*TLDialogGetDialogFilterTags)(nil),               // 49: dialog.TL_dialog_getDialogFilterTags
-	(*TLDialogSetChatWallpaper)(nil),                  // 50: dialog.TL_dialog_setChatWallpaper
-	(*Vector_PeerWithDraftMessage)(nil),               // 51: dialog.Vector_PeerWithDraftMessage
-	(*Vector_DialogPeer)(nil),                         // 52: dialog.Vector_DialogPeer
-	(*Vector_DialogExt)(nil),                          // 53: dialog.Vector_DialogExt
-	(*Vector_DialogFilterExt)(nil),                    // 54: dialog.Vector_DialogFilterExt
-	(*Vector_DialogPinnedExt)(nil),                    // 55: dialog.Vector_DialogPinnedExt
-	(*Vector_Long)(nil),                               // 56: dialog.Vector_Long
-	(*mtproto.Dialog)(nil),                            // 57: mtproto.Dialog
-	(*mtproto.DialogFilter)(nil),                      // 58: mtproto.DialogFilter
-	(*mtproto.Peer)(nil),                              // 59: mtproto.Peer
-	(*mtproto.DraftMessage)(nil),                      // 60: mtproto.DraftMessage
-	(*mtproto.SavedDialog)(nil),                       // 61: mtproto.SavedDialog
-	(*mtproto.Bool)(nil),                              // 62: mtproto.Bool
-	(*mtproto.User)(nil),                              // 63: mtproto.User
-	(*mtproto.Chat)(nil),                              // 64: mtproto.Chat
-	(*mtproto.PeerUtil)(nil),                          // 65: mtproto.PeerUtil
-	(*mtproto.DialogPeer)(nil),                        // 66: mtproto.DialogPeer
-	(*mtproto.Int32)(nil),                             // 67: mtproto.Int32
+	(*TLDialogGetUserPinnedMessage)(nil),              // 28: dialog.TL_dialog_getUserPinnedMessage
+	(*TLDialogUpdateUserPinnedMessage)(nil),           // 29: dialog.TL_dialog_updateUserPinnedMessage
+	(*TLDialogInsertOrUpdateDialogFilter)(nil),        // 30: dialog.TL_dialog_insertOrUpdateDialogFilter
+	(*TLDialogDeleteDialogFilter)(nil),                // 31: dialog.TL_dialog_deleteDialogFilter
+	(*TLDialogUpdateDialogFiltersOrder)(nil),          // 32: dialog.TL_dialog_updateDialogFiltersOrder
+	(*TLDialogGetDialogFilters)(nil),                  // 33: dialog.TL_dialog_getDialogFilters
+	(*TLDialogGetDialogFolder)(nil),                   // 34: dialog.TL_dialog_getDialogFolder
+	(*TLDialogEditPeerFolders)(nil),                   // 35: dialog.TL_dialog_editPeerFolders
+	(*TLDialogGetChannelMessageReadParticipants)(nil), // 36: dialog.TL_dialog_getChannelMessageReadParticipants
+	(*TLDialogSetChatTheme)(nil),                      // 37: dialog.TL_dialog_setChatTheme
+	(*TLDialogSetHistoryTTL)(nil),                     // 38: dialog.TL_dialog_setHistoryTTL
+	(*TLDialogGetMyDialogsData)(nil),                  // 39: dialog.TL_dialog_getMyDialogsData
+	(*TLDialogGetSavedDialogs)(nil),                   // 40: dialog.TL_dialog_getSavedDialogs
+	(*TLDialogGetPinnedSavedDialogs)(nil),             // 41: dialog.TL_dialog_getPinnedSavedDialogs
+	(*TLDialogToggleSavedDialogPin)(nil),              // 42: dialog.TL_dialog_toggleSavedDialogPin
+	(*TLDialogReorderPinnedSavedDialogs)(nil),         // 43: dialog.TL_dialog_reorderPinnedSavedDialogs
+	(*TLDialogGetDialogFilter)(nil),                   // 44: dialog.TL_dialog_getDialogFilter
+	(*TLDialogGetDialogFilterBySlug)(nil),             // 45: dialog.TL_dialog_getDialogFilterBySlug
+	(*TLDialogCreateDialogFilter)(nil),                // 46: dialog.TL_dialog_createDialogFilter
+	(*TLDialogToggleDialogFilterTags)(nil),            // 47: dialog.TL_dialog_toggleDialogFilterTags
+	(*TLDialogGetDialogFilterTags)(nil),               // 48: dialog.TL_dialog_getDialogFilterTags
+	(*TLDialogSetChatWallpaper)(nil),                  // 49: dialog.TL_dialog_setChatWallpaper
+	(*Vector_PeerWithDraftMessage)(nil),               // 50: dialog.Vector_PeerWithDraftMessage
+	(*Vector_DialogPeer)(nil),                         // 51: dialog.Vector_DialogPeer
+	(*Vector_DialogExt)(nil),                          // 52: dialog.Vector_DialogExt
+	(*Vector_DialogFilterExt)(nil),                    // 53: dialog.Vector_DialogFilterExt
+	(*Vector_DialogPinnedExt)(nil),                    // 54: dialog.Vector_DialogPinnedExt
+	(*Vector_Long)(nil),                               // 55: dialog.Vector_Long
+	(*mtproto.Dialog)(nil),                            // 56: mtproto.Dialog
+	(*mtproto.DialogFilter)(nil),                      // 57: mtproto.DialogFilter
+	(*mtproto.Peer)(nil),                              // 58: mtproto.Peer
+	(*mtproto.DraftMessage)(nil),                      // 59: mtproto.DraftMessage
+	(*mtproto.SavedDialog)(nil),                       // 60: mtproto.SavedDialog
+	(*mtproto.Bool)(nil),                              // 61: mtproto.Bool
+	(*mtproto.User)(nil),                              // 62: mtproto.User
+	(*mtproto.Chat)(nil),                              // 63: mtproto.Chat
+	(*mtproto.PeerUtil)(nil),                          // 64: mtproto.PeerUtil
+	(*mtproto.DialogPeer)(nil),                        // 65: mtproto.DialogPeer
+	(*mtproto.Int32)(nil),                             // 66: mtproto.Int32
 }
 var file_dialog_tl_proto_depIdxs = []int32{
 	0,   // 0: dialog.DialogExt.constructor:type_name -> dialog.TLConstructor
-	57,  // 1: dialog.DialogExt.dialog:type_name -> mtproto.Dialog
+	56,  // 1: dialog.DialogExt.dialog:type_name -> mtproto.Dialog
 	1,   // 2: dialog.TL_dialogExt.data2:type_name -> dialog.DialogExt
 	0,   // 3: dialog.DialogFilterExt.constructor:type_name -> dialog.TLConstructor
-	58,  // 4: dialog.DialogFilterExt.dialog_filter:type_name -> mtproto.DialogFilter
+	57,  // 4: dialog.DialogFilterExt.dialog_filter:type_name -> mtproto.DialogFilter
 	3,   // 5: dialog.TL_dialogFilterExt.data2:type_name -> dialog.DialogFilterExt
 	0,   // 6: dialog.DialogPinnedExt.constructor:type_name -> dialog.TLConstructor
 	5,   // 7: dialog.TL_dialogPinnedExt.data2:type_name -> dialog.DialogPinnedExt
 	0,   // 8: dialog.DialogsData.constructor:type_name -> dialog.TLConstructor
 	7,   // 9: dialog.TL_simpleDialogsData.data2:type_name -> dialog.DialogsData
 	0,   // 10: dialog.PeerWithDraftMessage.constructor:type_name -> dialog.TLConstructor
-	59,  // 11: dialog.PeerWithDraftMessage.peer:type_name -> mtproto.Peer
-	60,  // 12: dialog.PeerWithDraftMessage.draft:type_name -> mtproto.DraftMessage
+	58,  // 11: dialog.PeerWithDraftMessage.peer:type_name -> mtproto.Peer
+	59,  // 12: dialog.PeerWithDraftMessage.draft:type_name -> mtproto.DraftMessage
 	9,   // 13: dialog.TL_updateDraftMessage.data2:type_name -> dialog.PeerWithDraftMessage
 	0,   // 14: dialog.SavedDialogList.constructor:type_name -> dialog.TLConstructor
-	61,  // 15: dialog.SavedDialogList.dialogs:type_name -> mtproto.SavedDialog
+	60,  // 15: dialog.SavedDialogList.dialogs:type_name -> mtproto.SavedDialog
 	11,  // 16: dialog.TL_savedDialogList.data2:type_name -> dialog.SavedDialogList
 	0,   // 17: dialog.TL_dialog_saveDraftMessage.constructor:type_name -> dialog.TLConstructor
-	60,  // 18: dialog.TL_dialog_saveDraftMessage.message:type_name -> mtproto.DraftMessage
+	59,  // 18: dialog.TL_dialog_saveDraftMessage.message:type_name -> mtproto.DraftMessage
 	0,   // 19: dialog.TL_dialog_clearDraftMessage.constructor:type_name -> dialog.TLConstructor
 	0,   // 20: dialog.TL_dialog_getAllDrafts.constructor:type_name -> dialog.TLConstructor
 	0,   // 21: dialog.TL_dialog_clearAllDrafts.constructor:type_name -> dialog.TLConstructor
 	0,   // 22: dialog.TL_dialog_markDialogUnread.constructor:type_name -> dialog.TLConstructor
-	62,  // 23: dialog.TL_dialog_markDialogUnread.unread_mark:type_name -> mtproto.Bool
-	63,  // 24: dialog.TL_dialog_markDialogUnread.users:type_name -> mtproto.User
-	64,  // 25: dialog.TL_dialog_markDialogUnread.chats:type_name -> mtproto.Chat
+	61,  // 23: dialog.TL_dialog_markDialogUnread.unread_mark:type_name -> mtproto.Bool
+	62,  // 24: dialog.TL_dialog_markDialogUnread.users:type_name -> mtproto.User
+	63,  // 25: dialog.TL_dialog_markDialogUnread.chats:type_name -> mtproto.Chat
 	0,   // 26: dialog.TL_dialog_toggleDialogPin.constructor:type_name -> dialog.TLConstructor
-	62,  // 27: dialog.TL_dialog_toggleDialogPin.pinned:type_name -> mtproto.Bool
-	63,  // 28: dialog.TL_dialog_toggleDialogPin.users:type_name -> mtproto.User
-	64,  // 29: dialog.TL_dialog_toggleDialogPin.chats:type_name -> mtproto.Chat
+	61,  // 27: dialog.TL_dialog_toggleDialogPin.pinned:type_name -> mtproto.Bool
+	62,  // 28: dialog.TL_dialog_toggleDialogPin.users:type_name -> mtproto.User
+	63,  // 29: dialog.TL_dialog_toggleDialogPin.chats:type_name -> mtproto.Chat
 	0,   // 30: dialog.TL_dialog_getDialogUnreadMarkList.constructor:type_name -> dialog.TLConstructor
 	0,   // 31: dialog.TL_dialog_getDialogsByOffsetDate.constructor:type_name -> dialog.TLConstructor
-	62,  // 32: dialog.TL_dialog_getDialogsByOffsetDate.exclude_pinned:type_name -> mtproto.Bool
+	61,  // 32: dialog.TL_dialog_getDialogsByOffsetDate.exclude_pinned:type_name -> mtproto.Bool
 	0,   // 33: dialog.TL_dialog_getDialogs.constructor:type_name -> dialog.TLConstructor
-	62,  // 34: dialog.TL_dialog_getDialogs.exclude_pinned:type_name -> mtproto.Bool
+	61,  // 34: dialog.TL_dialog_getDialogs.exclude_pinned:type_name -> mtproto.Bool
 	0,   // 35: dialog.TL_dialog_getDialogsByIdList.constructor:type_name -> dialog.TLConstructor
 	0,   // 36: dialog.TL_dialog_getDialogsCount.constructor:type_name -> dialog.TLConstructor
-	62,  // 37: dialog.TL_dialog_getDialogsCount.exclude_pinned:type_name -> mtproto.Bool
+	61,  // 37: dialog.TL_dialog_getDialogsCount.exclude_pinned:type_name -> mtproto.Bool
 	0,   // 38: dialog.TL_dialog_getPinnedDialogs.constructor:type_name -> dialog.TLConstructor
 	0,   // 39: dialog.TL_dialog_reorderPinnedDialogs.constructor:type_name -> dialog.TLConstructor
-	62,  // 40: dialog.TL_dialog_reorderPinnedDialogs.force:type_name -> mtproto.Bool
-	63,  // 41: dialog.TL_dialog_reorderPinnedDialogs.users:type_name -> mtproto.User
-	64,  // 42: dialog.TL_dialog_reorderPinnedDialogs.chats:type_name -> mtproto.Chat
+	61,  // 40: dialog.TL_dialog_reorderPinnedDialogs.force:type_name -> mtproto.Bool
+	62,  // 41: dialog.TL_dialog_reorderPinnedDialogs.users:type_name -> mtproto.User
+	63,  // 42: dialog.TL_dialog_reorderPinnedDialogs.chats:type_name -> mtproto.Chat
 	0,   // 43: dialog.TL_dialog_getDialogById.constructor:type_name -> dialog.TLConstructor
 	0,   // 44: dialog.TL_dialog_getTopMessage.constructor:type_name -> dialog.TLConstructor
-	0,   // 45: dialog.TL_dialog_deleteDialog.constructor:type_name -> dialog.TLConstructor
-	0,   // 46: dialog.TL_dialog_getUserPinnedMessage.constructor:type_name -> dialog.TLConstructor
-	0,   // 47: dialog.TL_dialog_updateUserPinnedMessage.constructor:type_name -> dialog.TLConstructor
-	0,   // 48: dialog.TL_dialog_insertOrUpdateDialogFilter.constructor:type_name -> dialog.TLConstructor
-	58,  // 49: dialog.TL_dialog_insertOrUpdateDialogFilter.dialog_filter:type_name -> mtproto.DialogFilter
-	63,  // 50: dialog.TL_dialog_insertOrUpdateDialogFilter.users:type_name -> mtproto.User
-	64,  // 51: dialog.TL_dialog_insertOrUpdateDialogFilter.chats:type_name -> mtproto.Chat
-	0,   // 52: dialog.TL_dialog_deleteDialogFilter.constructor:type_name -> dialog.TLConstructor
-	0,   // 53: dialog.TL_dialog_updateDialogFiltersOrder.constructor:type_name -> dialog.TLConstructor
-	0,   // 54: dialog.TL_dialog_getDialogFilters.constructor:type_name -> dialog.TLConstructor
-	0,   // 55: dialog.TL_dialog_getDialogFolder.constructor:type_name -> dialog.TLConstructor
-	0,   // 56: dialog.TL_dialog_editPeerFolders.constructor:type_name -> dialog.TLConstructor
-	0,   // 57: dialog.TL_dialog_getChannelMessageReadParticipants.constructor:type_name -> dialog.TLConstructor
-	0,   // 58: dialog.TL_dialog_setChatTheme.constructor:type_name -> dialog.TLConstructor
-	0,   // 59: dialog.TL_dialog_setHistoryTTL.constructor:type_name -> dialog.TLConstructor
-	0,   // 60: dialog.TL_dialog_getMyDialogsData.constructor:type_name -> dialog.TLConstructor
-	0,   // 61: dialog.TL_dialog_getSavedDialogs.constructor:type_name -> dialog.TLConstructor
-	62,  // 62: dialog.TL_dialog_getSavedDialogs.exclude_pinned:type_name -> mtproto.Bool
-	65,  // 63: dialog.TL_dialog_getSavedDialogs.offset_peer:type_name -> mtproto.PeerUtil
-	0,   // 64: dialog.TL_dialog_getPinnedSavedDialogs.constructor:type_name -> dialog.TLConstructor
-	0,   // 65: dialog.TL_dialog_toggleSavedDialogPin.constructor:type_name -> dialog.TLConstructor
-	65,  // 66: dialog.TL_dialog_toggleSavedDialogPin.peer:type_name -> mtproto.PeerUtil
-	62,  // 67: dialog.TL_dialog_toggleSavedDialogPin.pinned:type_name -> mtproto.Bool
-	63,  // 68: dialog.TL_dialog_toggleSavedDialogPin.users:type_name -> mtproto.User
-	64,  // 69: dialog.TL_dialog_toggleSavedDialogPin.chats:type_name -> mtproto.Chat
-	0,   // 70: dialog.TL_dialog_reorderPinnedSavedDialogs.constructor:type_name -> dialog.TLConstructor
-	62,  // 71: dialog.TL_dialog_reorderPinnedSavedDialogs.force:type_name -> mtproto.Bool
-	65,  // 72: dialog.TL_dialog_reorderPinnedSavedDialogs.order:type_name -> mtproto.PeerUtil
-	63,  // 73: dialog.TL_dialog_reorderPinnedSavedDialogs.users:type_name -> mtproto.User
-	64,  // 74: dialog.TL_dialog_reorderPinnedSavedDialogs.chats:type_name -> mtproto.Chat
-	0,   // 75: dialog.TL_dialog_getDialogFilter.constructor:type_name -> dialog.TLConstructor
-	0,   // 76: dialog.TL_dialog_getDialogFilterBySlug.constructor:type_name -> dialog.TLConstructor
-	0,   // 77: dialog.TL_dialog_createDialogFilter.constructor:type_name -> dialog.TLConstructor
-	3,   // 78: dialog.TL_dialog_createDialogFilter.dialog_filter:type_name -> dialog.DialogFilterExt
-	0,   // 79: dialog.TL_dialog_toggleDialogFilterTags.constructor:type_name -> dialog.TLConstructor
-	62,  // 80: dialog.TL_dialog_toggleDialogFilterTags.enabled:type_name -> mtproto.Bool
-	0,   // 81: dialog.TL_dialog_getDialogFilterTags.constructor:type_name -> dialog.TLConstructor
-	0,   // 82: dialog.TL_dialog_setChatWallpaper.constructor:type_name -> dialog.TLConstructor
-	9,   // 83: dialog.Vector_PeerWithDraftMessage.datas:type_name -> dialog.PeerWithDraftMessage
-	66,  // 84: dialog.Vector_DialogPeer.datas:type_name -> mtproto.DialogPeer
-	1,   // 85: dialog.Vector_DialogExt.datas:type_name -> dialog.DialogExt
-	3,   // 86: dialog.Vector_DialogFilterExt.datas:type_name -> dialog.DialogFilterExt
-	5,   // 87: dialog.Vector_DialogPinnedExt.datas:type_name -> dialog.DialogPinnedExt
-	13,  // 88: dialog.RPCDialog.dialog_saveDraftMessage:input_type -> dialog.TL_dialog_saveDraftMessage
-	14,  // 89: dialog.RPCDialog.dialog_clearDraftMessage:input_type -> dialog.TL_dialog_clearDraftMessage
-	15,  // 90: dialog.RPCDialog.dialog_getAllDrafts:input_type -> dialog.TL_dialog_getAllDrafts
-	16,  // 91: dialog.RPCDialog.dialog_clearAllDrafts:input_type -> dialog.TL_dialog_clearAllDrafts
-	17,  // 92: dialog.RPCDialog.dialog_markDialogUnread:input_type -> dialog.TL_dialog_markDialogUnread
-	18,  // 93: dialog.RPCDialog.dialog_toggleDialogPin:input_type -> dialog.TL_dialog_toggleDialogPin
-	19,  // 94: dialog.RPCDialog.dialog_getDialogUnreadMarkList:input_type -> dialog.TL_dialog_getDialogUnreadMarkList
-	20,  // 95: dialog.RPCDialog.dialog_getDialogsByOffsetDate:input_type -> dialog.TL_dialog_getDialogsByOffsetDate
-	21,  // 96: dialog.RPCDialog.dialog_getDialogs:input_type -> dialog.TL_dialog_getDialogs
-	22,  // 97: dialog.RPCDialog.dialog_getDialogsByIdList:input_type -> dialog.TL_dialog_getDialogsByIdList
-	23,  // 98: dialog.RPCDialog.dialog_getDialogsCount:input_type -> dialog.TL_dialog_getDialogsCount
-	24,  // 99: dialog.RPCDialog.dialog_getPinnedDialogs:input_type -> dialog.TL_dialog_getPinnedDialogs
-	25,  // 100: dialog.RPCDialog.dialog_reorderPinnedDialogs:input_type -> dialog.TL_dialog_reorderPinnedDialogs
-	26,  // 101: dialog.RPCDialog.dialog_getDialogById:input_type -> dialog.TL_dialog_getDialogById
-	27,  // 102: dialog.RPCDialog.dialog_getTopMessage:input_type -> dialog.TL_dialog_getTopMessage
-	28,  // 103: dialog.RPCDialog.dialog_deleteDialog:input_type -> dialog.TL_dialog_deleteDialog
-	29,  // 104: dialog.RPCDialog.dialog_getUserPinnedMessage:input_type -> dialog.TL_dialog_getUserPinnedMessage
-	30,  // 105: dialog.RPCDialog.dialog_updateUserPinnedMessage:input_type -> dialog.TL_dialog_updateUserPinnedMessage
-	31,  // 106: dialog.RPCDialog.dialog_insertOrUpdateDialogFilter:input_type -> dialog.TL_dialog_insertOrUpdateDialogFilter
-	32,  // 107: dialog.RPCDialog.dialog_deleteDialogFilter:input_type -> dialog.TL_dialog_deleteDialogFilter
-	33,  // 108: dialog.RPCDialog.dialog_updateDialogFiltersOrder:input_type -> dialog.TL_dialog_updateDialogFiltersOrder
-	34,  // 109: dialog.RPCDialog.dialog_getDialogFilters:input_type -> dialog.TL_dialog_getDialogFilters
-	35,  // 110: dialog.RPCDialog.dialog_getDialogFolder:input_type -> dialog.TL_dialog_getDialogFolder
-	36,  // 111: dialog.RPCDialog.dialog_editPeerFolders:input_type -> dialog.TL_dialog_editPeerFolders
-	37,  // 112: dialog.RPCDialog.dialog_getChannelMessageReadParticipants:input_type -> dialog.TL_dialog_getChannelMessageReadParticipants
-	38,  // 113: dialog.RPCDialog.dialog_setChatTheme:input_type -> dialog.TL_dialog_setChatTheme
-	39,  // 114: dialog.RPCDialog.dialog_setHistoryTTL:input_type -> dialog.TL_dialog_setHistoryTTL
-	40,  // 115: dialog.RPCDialog.dialog_getMyDialogsData:input_type -> dialog.TL_dialog_getMyDialogsData
-	41,  // 116: dialog.RPCDialog.dialog_getSavedDialogs:input_type -> dialog.TL_dialog_getSavedDialogs
-	42,  // 117: dialog.RPCDialog.dialog_getPinnedSavedDialogs:input_type -> dialog.TL_dialog_getPinnedSavedDialogs
-	43,  // 118: dialog.RPCDialog.dialog_toggleSavedDialogPin:input_type -> dialog.TL_dialog_toggleSavedDialogPin
-	44,  // 119: dialog.RPCDialog.dialog_reorderPinnedSavedDialogs:input_type -> dialog.TL_dialog_reorderPinnedSavedDialogs
-	45,  // 120: dialog.RPCDialog.dialog_getDialogFilter:input_type -> dialog.TL_dialog_getDialogFilter
-	46,  // 121: dialog.RPCDialog.dialog_getDialogFilterBySlug:input_type -> dialog.TL_dialog_getDialogFilterBySlug
-	47,  // 122: dialog.RPCDialog.dialog_createDialogFilter:input_type -> dialog.TL_dialog_createDialogFilter
-	48,  // 123: dialog.RPCDialog.dialog_toggleDialogFilterTags:input_type -> dialog.TL_dialog_toggleDialogFilterTags
-	49,  // 124: dialog.RPCDialog.dialog_getDialogFilterTags:input_type -> dialog.TL_dialog_getDialogFilterTags
-	50,  // 125: dialog.RPCDialog.dialog_setChatWallpaper:input_type -> dialog.TL_dialog_setChatWallpaper
-	62,  // 126: dialog.RPCDialog.dialog_saveDraftMessage:output_type -> mtproto.Bool
-	62,  // 127: dialog.RPCDialog.dialog_clearDraftMessage:output_type -> mtproto.Bool
-	51,  // 128: dialog.RPCDialog.dialog_getAllDrafts:output_type -> dialog.Vector_PeerWithDraftMessage
-	51,  // 129: dialog.RPCDialog.dialog_clearAllDrafts:output_type -> dialog.Vector_PeerWithDraftMessage
-	62,  // 130: dialog.RPCDialog.dialog_markDialogUnread:output_type -> mtproto.Bool
-	67,  // 131: dialog.RPCDialog.dialog_toggleDialogPin:output_type -> mtproto.Int32
-	52,  // 132: dialog.RPCDialog.dialog_getDialogUnreadMarkList:output_type -> dialog.Vector_DialogPeer
-	53,  // 133: dialog.RPCDialog.dialog_getDialogsByOffsetDate:output_type -> dialog.Vector_DialogExt
-	53,  // 134: dialog.RPCDialog.dialog_getDialogs:output_type -> dialog.Vector_DialogExt
-	53,  // 135: dialog.RPCDialog.dialog_getDialogsByIdList:output_type -> dialog.Vector_DialogExt
-	67,  // 136: dialog.RPCDialog.dialog_getDialogsCount:output_type -> mtproto.Int32
-	53,  // 137: dialog.RPCDialog.dialog_getPinnedDialogs:output_type -> dialog.Vector_DialogExt
-	62,  // 138: dialog.RPCDialog.dialog_reorderPinnedDialogs:output_type -> mtproto.Bool
-	1,   // 139: dialog.RPCDialog.dialog_getDialogById:output_type -> dialog.DialogExt
-	67,  // 140: dialog.RPCDialog.dialog_getTopMessage:output_type -> mtproto.Int32
-	62,  // 141: dialog.RPCDialog.dialog_deleteDialog:output_type -> mtproto.Bool
-	67,  // 142: dialog.RPCDialog.dialog_getUserPinnedMessage:output_type -> mtproto.Int32
-	62,  // 143: dialog.RPCDialog.dialog_updateUserPinnedMessage:output_type -> mtproto.Bool
-	62,  // 144: dialog.RPCDialog.dialog_insertOrUpdateDialogFilter:output_type -> mtproto.Bool
-	62,  // 145: dialog.RPCDialog.dialog_deleteDialogFilter:output_type -> mtproto.Bool
-	62,  // 146: dialog.RPCDialog.dialog_updateDialogFiltersOrder:output_type -> mtproto.Bool
-	54,  // 147: dialog.RPCDialog.dialog_getDialogFilters:output_type -> dialog.Vector_DialogFilterExt
-	53,  // 148: dialog.RPCDialog.dialog_getDialogFolder:output_type -> dialog.Vector_DialogExt
-	55,  // 149: dialog.RPCDialog.dialog_editPeerFolders:output_type -> dialog.Vector_DialogPinnedExt
-	56,  // 150: dialog.RPCDialog.dialog_getChannelMessageReadParticipants:output_type -> dialog.Vector_Long
-	62,  // 151: dialog.RPCDialog.dialog_setChatTheme:output_type -> mtproto.Bool
-	62,  // 152: dialog.RPCDialog.dialog_setHistoryTTL:output_type -> mtproto.Bool
-	7,   // 153: dialog.RPCDialog.dialog_getMyDialogsData:output_type -> dialog.DialogsData
-	11,  // 154: dialog.RPCDialog.dialog_getSavedDialogs:output_type -> dialog.SavedDialogList
-	11,  // 155: dialog.RPCDialog.dialog_getPinnedSavedDialogs:output_type -> dialog.SavedDialogList
-	62,  // 156: dialog.RPCDialog.dialog_toggleSavedDialogPin:output_type -> mtproto.Bool
-	62,  // 157: dialog.RPCDialog.dialog_reorderPinnedSavedDialogs:output_type -> mtproto.Bool
-	3,   // 158: dialog.RPCDialog.dialog_getDialogFilter:output_type -> dialog.DialogFilterExt
-	3,   // 159: dialog.RPCDialog.dialog_getDialogFilterBySlug:output_type -> dialog.DialogFilterExt
-	3,   // 160: dialog.RPCDialog.dialog_createDialogFilter:output_type -> dialog.DialogFilterExt
-	62,  // 161: dialog.RPCDialog.dialog_toggleDialogFilterTags:output_type -> mtproto.Bool
-	62,  // 162: dialog.RPCDialog.dialog_getDialogFilterTags:output_type -> mtproto.Bool
-	62,  // 163: dialog.RPCDialog.dialog_setChatWallpaper:output_type -> mtproto.Bool
-	126, // [126:164] is the sub-list for method output_type
-	88,  // [88:126] is the sub-list for method input_type
-	88,  // [88:88] is the sub-list for extension type_name
-	88,  // [88:88] is the sub-list for extension extendee
-	0,   // [0:88] is the sub-list for field type_name
+	0,   // 45: dialog.TL_dialog_getUserPinnedMessage.constructor:type_name -> dialog.TLConstructor
+	0,   // 46: dialog.TL_dialog_updateUserPinnedMessage.constructor:type_name -> dialog.TLConstructor
+	0,   // 47: dialog.TL_dialog_insertOrUpdateDialogFilter.constructor:type_name -> dialog.TLConstructor
+	57,  // 48: dialog.TL_dialog_insertOrUpdateDialogFilter.dialog_filter:type_name -> mtproto.DialogFilter
+	62,  // 49: dialog.TL_dialog_insertOrUpdateDialogFilter.users:type_name -> mtproto.User
+	63,  // 50: dialog.TL_dialog_insertOrUpdateDialogFilter.chats:type_name -> mtproto.Chat
+	0,   // 51: dialog.TL_dialog_deleteDialogFilter.constructor:type_name -> dialog.TLConstructor
+	0,   // 52: dialog.TL_dialog_updateDialogFiltersOrder.constructor:type_name -> dialog.TLConstructor
+	0,   // 53: dialog.TL_dialog_getDialogFilters.constructor:type_name -> dialog.TLConstructor
+	0,   // 54: dialog.TL_dialog_getDialogFolder.constructor:type_name -> dialog.TLConstructor
+	0,   // 55: dialog.TL_dialog_editPeerFolders.constructor:type_name -> dialog.TLConstructor
+	0,   // 56: dialog.TL_dialog_getChannelMessageReadParticipants.constructor:type_name -> dialog.TLConstructor
+	0,   // 57: dialog.TL_dialog_setChatTheme.constructor:type_name -> dialog.TLConstructor
+	0,   // 58: dialog.TL_dialog_setHistoryTTL.constructor:type_name -> dialog.TLConstructor
+	0,   // 59: dialog.TL_dialog_getMyDialogsData.constructor:type_name -> dialog.TLConstructor
+	0,   // 60: dialog.TL_dialog_getSavedDialogs.constructor:type_name -> dialog.TLConstructor
+	61,  // 61: dialog.TL_dialog_getSavedDialogs.exclude_pinned:type_name -> mtproto.Bool
+	64,  // 62: dialog.TL_dialog_getSavedDialogs.offset_peer:type_name -> mtproto.PeerUtil
+	0,   // 63: dialog.TL_dialog_getPinnedSavedDialogs.constructor:type_name -> dialog.TLConstructor
+	0,   // 64: dialog.TL_dialog_toggleSavedDialogPin.constructor:type_name -> dialog.TLConstructor
+	64,  // 65: dialog.TL_dialog_toggleSavedDialogPin.peer:type_name -> mtproto.PeerUtil
+	61,  // 66: dialog.TL_dialog_toggleSavedDialogPin.pinned:type_name -> mtproto.Bool
+	62,  // 67: dialog.TL_dialog_toggleSavedDialogPin.users:type_name -> mtproto.User
+	63,  // 68: dialog.TL_dialog_toggleSavedDialogPin.chats:type_name -> mtproto.Chat
+	0,   // 69: dialog.TL_dialog_reorderPinnedSavedDialogs.constructor:type_name -> dialog.TLConstructor
+	61,  // 70: dialog.TL_dialog_reorderPinnedSavedDialogs.force:type_name -> mtproto.Bool
+	64,  // 71: dialog.TL_dialog_reorderPinnedSavedDialogs.order:type_name -> mtproto.PeerUtil
+	62,  // 72: dialog.TL_dialog_reorderPinnedSavedDialogs.users:type_name -> mtproto.User
+	63,  // 73: dialog.TL_dialog_reorderPinnedSavedDialogs.chats:type_name -> mtproto.Chat
+	0,   // 74: dialog.TL_dialog_getDialogFilter.constructor:type_name -> dialog.TLConstructor
+	0,   // 75: dialog.TL_dialog_getDialogFilterBySlug.constructor:type_name -> dialog.TLConstructor
+	0,   // 76: dialog.TL_dialog_createDialogFilter.constructor:type_name -> dialog.TLConstructor
+	3,   // 77: dialog.TL_dialog_createDialogFilter.dialog_filter:type_name -> dialog.DialogFilterExt
+	0,   // 78: dialog.TL_dialog_toggleDialogFilterTags.constructor:type_name -> dialog.TLConstructor
+	61,  // 79: dialog.TL_dialog_toggleDialogFilterTags.enabled:type_name -> mtproto.Bool
+	0,   // 80: dialog.TL_dialog_getDialogFilterTags.constructor:type_name -> dialog.TLConstructor
+	0,   // 81: dialog.TL_dialog_setChatWallpaper.constructor:type_name -> dialog.TLConstructor
+	9,   // 82: dialog.Vector_PeerWithDraftMessage.datas:type_name -> dialog.PeerWithDraftMessage
+	65,  // 83: dialog.Vector_DialogPeer.datas:type_name -> mtproto.DialogPeer
+	1,   // 84: dialog.Vector_DialogExt.datas:type_name -> dialog.DialogExt
+	3,   // 85: dialog.Vector_DialogFilterExt.datas:type_name -> dialog.DialogFilterExt
+	5,   // 86: dialog.Vector_DialogPinnedExt.datas:type_name -> dialog.DialogPinnedExt
+	13,  // 87: dialog.RPCDialog.dialog_saveDraftMessage:input_type -> dialog.TL_dialog_saveDraftMessage
+	14,  // 88: dialog.RPCDialog.dialog_clearDraftMessage:input_type -> dialog.TL_dialog_clearDraftMessage
+	15,  // 89: dialog.RPCDialog.dialog_getAllDrafts:input_type -> dialog.TL_dialog_getAllDrafts
+	16,  // 90: dialog.RPCDialog.dialog_clearAllDrafts:input_type -> dialog.TL_dialog_clearAllDrafts
+	17,  // 91: dialog.RPCDialog.dialog_markDialogUnread:input_type -> dialog.TL_dialog_markDialogUnread
+	18,  // 92: dialog.RPCDialog.dialog_toggleDialogPin:input_type -> dialog.TL_dialog_toggleDialogPin
+	19,  // 93: dialog.RPCDialog.dialog_getDialogUnreadMarkList:input_type -> dialog.TL_dialog_getDialogUnreadMarkList
+	20,  // 94: dialog.RPCDialog.dialog_getDialogsByOffsetDate:input_type -> dialog.TL_dialog_getDialogsByOffsetDate
+	21,  // 95: dialog.RPCDialog.dialog_getDialogs:input_type -> dialog.TL_dialog_getDialogs
+	22,  // 96: dialog.RPCDialog.dialog_getDialogsByIdList:input_type -> dialog.TL_dialog_getDialogsByIdList
+	23,  // 97: dialog.RPCDialog.dialog_getDialogsCount:input_type -> dialog.TL_dialog_getDialogsCount
+	24,  // 98: dialog.RPCDialog.dialog_getPinnedDialogs:input_type -> dialog.TL_dialog_getPinnedDialogs
+	25,  // 99: dialog.RPCDialog.dialog_reorderPinnedDialogs:input_type -> dialog.TL_dialog_reorderPinnedDialogs
+	26,  // 100: dialog.RPCDialog.dialog_getDialogById:input_type -> dialog.TL_dialog_getDialogById
+	27,  // 101: dialog.RPCDialog.dialog_getTopMessage:input_type -> dialog.TL_dialog_getTopMessage
+	28,  // 102: dialog.RPCDialog.dialog_getUserPinnedMessage:input_type -> dialog.TL_dialog_getUserPinnedMessage
+	29,  // 103: dialog.RPCDialog.dialog_updateUserPinnedMessage:input_type -> dialog.TL_dialog_updateUserPinnedMessage
+	30,  // 104: dialog.RPCDialog.dialog_insertOrUpdateDialogFilter:input_type -> dialog.TL_dialog_insertOrUpdateDialogFilter
+	31,  // 105: dialog.RPCDialog.dialog_deleteDialogFilter:input_type -> dialog.TL_dialog_deleteDialogFilter
+	32,  // 106: dialog.RPCDialog.dialog_updateDialogFiltersOrder:input_type -> dialog.TL_dialog_updateDialogFiltersOrder
+	33,  // 107: dialog.RPCDialog.dialog_getDialogFilters:input_type -> dialog.TL_dialog_getDialogFilters
+	34,  // 108: dialog.RPCDialog.dialog_getDialogFolder:input_type -> dialog.TL_dialog_getDialogFolder
+	35,  // 109: dialog.RPCDialog.dialog_editPeerFolders:input_type -> dialog.TL_dialog_editPeerFolders
+	36,  // 110: dialog.RPCDialog.dialog_getChannelMessageReadParticipants:input_type -> dialog.TL_dialog_getChannelMessageReadParticipants
+	37,  // 111: dialog.RPCDialog.dialog_setChatTheme:input_type -> dialog.TL_dialog_setChatTheme
+	38,  // 112: dialog.RPCDialog.dialog_setHistoryTTL:input_type -> dialog.TL_dialog_setHistoryTTL
+	39,  // 113: dialog.RPCDialog.dialog_getMyDialogsData:input_type -> dialog.TL_dialog_getMyDialogsData
+	40,  // 114: dialog.RPCDialog.dialog_getSavedDialogs:input_type -> dialog.TL_dialog_getSavedDialogs
+	41,  // 115: dialog.RPCDialog.dialog_getPinnedSavedDialogs:input_type -> dialog.TL_dialog_getPinnedSavedDialogs
+	42,  // 116: dialog.RPCDialog.dialog_toggleSavedDialogPin:input_type -> dialog.TL_dialog_toggleSavedDialogPin
+	43,  // 117: dialog.RPCDialog.dialog_reorderPinnedSavedDialogs:input_type -> dialog.TL_dialog_reorderPinnedSavedDialogs
+	44,  // 118: dialog.RPCDialog.dialog_getDialogFilter:input_type -> dialog.TL_dialog_getDialogFilter
+	45,  // 119: dialog.RPCDialog.dialog_getDialogFilterBySlug:input_type -> dialog.TL_dialog_getDialogFilterBySlug
+	46,  // 120: dialog.RPCDialog.dialog_createDialogFilter:input_type -> dialog.TL_dialog_createDialogFilter
+	47,  // 121: dialog.RPCDialog.dialog_toggleDialogFilterTags:input_type -> dialog.TL_dialog_toggleDialogFilterTags
+	48,  // 122: dialog.RPCDialog.dialog_getDialogFilterTags:input_type -> dialog.TL_dialog_getDialogFilterTags
+	49,  // 123: dialog.RPCDialog.dialog_setChatWallpaper:input_type -> dialog.TL_dialog_setChatWallpaper
+	61,  // 124: dialog.RPCDialog.dialog_saveDraftMessage:output_type -> mtproto.Bool
+	61,  // 125: dialog.RPCDialog.dialog_clearDraftMessage:output_type -> mtproto.Bool
+	50,  // 126: dialog.RPCDialog.dialog_getAllDrafts:output_type -> dialog.Vector_PeerWithDraftMessage
+	50,  // 127: dialog.RPCDialog.dialog_clearAllDrafts:output_type -> dialog.Vector_PeerWithDraftMessage
+	61,  // 128: dialog.RPCDialog.dialog_markDialogUnread:output_type -> mtproto.Bool
+	66,  // 129: dialog.RPCDialog.dialog_toggleDialogPin:output_type -> mtproto.Int32
+	51,  // 130: dialog.RPCDialog.dialog_getDialogUnreadMarkList:output_type -> dialog.Vector_DialogPeer
+	52,  // 131: dialog.RPCDialog.dialog_getDialogsByOffsetDate:output_type -> dialog.Vector_DialogExt
+	52,  // 132: dialog.RPCDialog.dialog_getDialogs:output_type -> dialog.Vector_DialogExt
+	52,  // 133: dialog.RPCDialog.dialog_getDialogsByIdList:output_type -> dialog.Vector_DialogExt
+	66,  // 134: dialog.RPCDialog.dialog_getDialogsCount:output_type -> mtproto.Int32
+	52,  // 135: dialog.RPCDialog.dialog_getPinnedDialogs:output_type -> dialog.Vector_DialogExt
+	61,  // 136: dialog.RPCDialog.dialog_reorderPinnedDialogs:output_type -> mtproto.Bool
+	1,   // 137: dialog.RPCDialog.dialog_getDialogById:output_type -> dialog.DialogExt
+	66,  // 138: dialog.RPCDialog.dialog_getTopMessage:output_type -> mtproto.Int32
+	66,  // 139: dialog.RPCDialog.dialog_getUserPinnedMessage:output_type -> mtproto.Int32
+	61,  // 140: dialog.RPCDialog.dialog_updateUserPinnedMessage:output_type -> mtproto.Bool
+	61,  // 141: dialog.RPCDialog.dialog_insertOrUpdateDialogFilter:output_type -> mtproto.Bool
+	61,  // 142: dialog.RPCDialog.dialog_deleteDialogFilter:output_type -> mtproto.Bool
+	61,  // 143: dialog.RPCDialog.dialog_updateDialogFiltersOrder:output_type -> mtproto.Bool
+	53,  // 144: dialog.RPCDialog.dialog_getDialogFilters:output_type -> dialog.Vector_DialogFilterExt
+	52,  // 145: dialog.RPCDialog.dialog_getDialogFolder:output_type -> dialog.Vector_DialogExt
+	54,  // 146: dialog.RPCDialog.dialog_editPeerFolders:output_type -> dialog.Vector_DialogPinnedExt
+	55,  // 147: dialog.RPCDialog.dialog_getChannelMessageReadParticipants:output_type -> dialog.Vector_Long
+	61,  // 148: dialog.RPCDialog.dialog_setChatTheme:output_type -> mtproto.Bool
+	61,  // 149: dialog.RPCDialog.dialog_setHistoryTTL:output_type -> mtproto.Bool
+	7,   // 150: dialog.RPCDialog.dialog_getMyDialogsData:output_type -> dialog.DialogsData
+	11,  // 151: dialog.RPCDialog.dialog_getSavedDialogs:output_type -> dialog.SavedDialogList
+	11,  // 152: dialog.RPCDialog.dialog_getPinnedSavedDialogs:output_type -> dialog.SavedDialogList
+	61,  // 153: dialog.RPCDialog.dialog_toggleSavedDialogPin:output_type -> mtproto.Bool
+	61,  // 154: dialog.RPCDialog.dialog_reorderPinnedSavedDialogs:output_type -> mtproto.Bool
+	3,   // 155: dialog.RPCDialog.dialog_getDialogFilter:output_type -> dialog.DialogFilterExt
+	3,   // 156: dialog.RPCDialog.dialog_getDialogFilterBySlug:output_type -> dialog.DialogFilterExt
+	3,   // 157: dialog.RPCDialog.dialog_createDialogFilter:output_type -> dialog.DialogFilterExt
+	61,  // 158: dialog.RPCDialog.dialog_toggleDialogFilterTags:output_type -> mtproto.Bool
+	61,  // 159: dialog.RPCDialog.dialog_getDialogFilterTags:output_type -> mtproto.Bool
+	61,  // 160: dialog.RPCDialog.dialog_setChatWallpaper:output_type -> mtproto.Bool
+	124, // [124:161] is the sub-list for method output_type
+	87,  // [87:124] is the sub-list for method input_type
+	87,  // [87:87] is the sub-list for extension type_name
+	87,  // [87:87] is the sub-list for extension extendee
+	0,   // [0:87] is the sub-list for field type_name
 }
 
 func init() { file_dialog_tl_proto_init() }
@@ -4545,7 +4462,7 @@ func file_dialog_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_dialog_tl_proto_rawDesc), len(file_dialog_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   56,
+			NumMessages:   55,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -228,20 +228,6 @@ func (s *Service) DialogGetTopMessage(ctx context.Context, request *dialog.TLDia
 	return r, err
 }
 
-// DialogDeleteDialog
-// dialog.deleteDialog user_id:long peer_type:int peer_id:long = Bool;
-func (s *Service) DialogDeleteDialog(ctx context.Context, request *dialog.TLDialogDeleteDialog) (*mtproto.Bool, error) {
-	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("dialog.deleteDialog - metadata: {%s}", c.MD)
-
-	r, err := c.DialogDeleteDialog(request)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, err
-}
-
 // DialogGetUserPinnedMessage
 // dialog.getUserPinnedMessage user_id:long peer_type:int peer_id:long = Int32;
 func (s *Service) DialogGetUserPinnedMessage(ctx context.Context, request *dialog.TLDialogGetUserPinnedMessage) (*mtproto.Int32, error) {

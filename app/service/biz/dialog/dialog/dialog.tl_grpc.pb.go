@@ -44,7 +44,6 @@ const (
 	RPCDialog_DialogReorderPinnedDialogs_FullMethodName              = "/dialog.RPCDialog/dialog_reorderPinnedDialogs"
 	RPCDialog_DialogGetDialogById_FullMethodName                     = "/dialog.RPCDialog/dialog_getDialogById"
 	RPCDialog_DialogGetTopMessage_FullMethodName                     = "/dialog.RPCDialog/dialog_getTopMessage"
-	RPCDialog_DialogDeleteDialog_FullMethodName                      = "/dialog.RPCDialog/dialog_deleteDialog"
 	RPCDialog_DialogGetUserPinnedMessage_FullMethodName              = "/dialog.RPCDialog/dialog_getUserPinnedMessage"
 	RPCDialog_DialogUpdateUserPinnedMessage_FullMethodName           = "/dialog.RPCDialog/dialog_updateUserPinnedMessage"
 	RPCDialog_DialogInsertOrUpdateDialogFilter_FullMethodName        = "/dialog.RPCDialog/dialog_insertOrUpdateDialogFilter"
@@ -88,7 +87,6 @@ type RPCDialogClient interface {
 	DialogReorderPinnedDialogs(ctx context.Context, in *TLDialogReorderPinnedDialogs, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogGetDialogById(ctx context.Context, in *TLDialogGetDialogById, opts ...grpc.CallOption) (*DialogExt, error)
 	DialogGetTopMessage(ctx context.Context, in *TLDialogGetTopMessage, opts ...grpc.CallOption) (*mtproto.Int32, error)
-	DialogDeleteDialog(ctx context.Context, in *TLDialogDeleteDialog, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogGetUserPinnedMessage(ctx context.Context, in *TLDialogGetUserPinnedMessage, opts ...grpc.CallOption) (*mtproto.Int32, error)
 	DialogUpdateUserPinnedMessage(ctx context.Context, in *TLDialogUpdateUserPinnedMessage, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogInsertOrUpdateDialogFilter(ctx context.Context, in *TLDialogInsertOrUpdateDialogFilter, opts ...grpc.CallOption) (*mtproto.Bool, error)
@@ -265,16 +263,6 @@ func (c *rPCDialogClient) DialogGetTopMessage(ctx context.Context, in *TLDialogG
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Int32)
 	err := c.cc.Invoke(ctx, RPCDialog_DialogGetTopMessage_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *rPCDialogClient) DialogDeleteDialog(ctx context.Context, in *TLDialogDeleteDialog, opts ...grpc.CallOption) (*mtproto.Bool, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(mtproto.Bool)
-	err := c.cc.Invoke(ctx, RPCDialog_DialogDeleteDialog_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -520,7 +508,6 @@ type RPCDialogServer interface {
 	DialogReorderPinnedDialogs(context.Context, *TLDialogReorderPinnedDialogs) (*mtproto.Bool, error)
 	DialogGetDialogById(context.Context, *TLDialogGetDialogById) (*DialogExt, error)
 	DialogGetTopMessage(context.Context, *TLDialogGetTopMessage) (*mtproto.Int32, error)
-	DialogDeleteDialog(context.Context, *TLDialogDeleteDialog) (*mtproto.Bool, error)
 	DialogGetUserPinnedMessage(context.Context, *TLDialogGetUserPinnedMessage) (*mtproto.Int32, error)
 	DialogUpdateUserPinnedMessage(context.Context, *TLDialogUpdateUserPinnedMessage) (*mtproto.Bool, error)
 	DialogInsertOrUpdateDialogFilter(context.Context, *TLDialogInsertOrUpdateDialogFilter) (*mtproto.Bool, error)
@@ -596,9 +583,6 @@ func (UnimplementedRPCDialogServer) DialogGetDialogById(context.Context, *TLDial
 }
 func (UnimplementedRPCDialogServer) DialogGetTopMessage(context.Context, *TLDialogGetTopMessage) (*mtproto.Int32, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogGetTopMessage not implemented")
-}
-func (UnimplementedRPCDialogServer) DialogDeleteDialog(context.Context, *TLDialogDeleteDialog) (*mtproto.Bool, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DialogDeleteDialog not implemented")
 }
 func (UnimplementedRPCDialogServer) DialogGetUserPinnedMessage(context.Context, *TLDialogGetUserPinnedMessage) (*mtproto.Int32, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogGetUserPinnedMessage not implemented")
@@ -952,24 +936,6 @@ func _RPCDialog_DialogGetTopMessage_Handler(srv interface{}, ctx context.Context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCDialogServer).DialogGetTopMessage(ctx, req.(*TLDialogGetTopMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RPCDialog_DialogDeleteDialog_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TLDialogDeleteDialog)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RPCDialogServer).DialogDeleteDialog(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: RPCDialog_DialogDeleteDialog_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RPCDialogServer).DialogDeleteDialog(ctx, req.(*TLDialogDeleteDialog))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1436,10 +1402,6 @@ var RPCDialog_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "dialog_getTopMessage",
 			Handler:    _RPCDialog_DialogGetTopMessage_Handler,
-		},
-		{
-			MethodName: "dialog_deleteDialog",
-			Handler:    _RPCDialog_DialogDeleteDialog_Handler,
 		},
 		{
 			MethodName: "dialog_getUserPinnedMessage",
