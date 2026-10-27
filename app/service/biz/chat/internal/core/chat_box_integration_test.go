@@ -116,7 +116,9 @@ func setUp() error {
 		MediaClient: zrpc.RpcClientConf{Endpoints: []string{"127.0.0.1:1"}, NonBlock: true},
 		Topics:      config.Topics{Inbox: "Inbox-T", Sync: "Sync-T"},
 	}, nil, itUsers)
-	itUser.Store(time.Now().UnixNano() % 1_000_000_000 * 1000)
+	// User ids of 13 digits whatever the clock: the size of the events
+	// TestFanOutOf200 counts grows with them.
+	itUser.Store(1_000_000_000_000 + time.Now().UnixNano()%1_000_000_000*1000)
 	var err error
 	itRaw, err = sql.Open("mysql", itDB.DSN())
 	return err
