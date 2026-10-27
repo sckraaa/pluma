@@ -127,8 +127,11 @@ func TestNameAndPhotoToWatchers(t *testing.T) {
 	name("Mia", "Moss")
 	name("Mia", "Moss") // changes nothing
 	username := fmt.Sprintf("mia%d", me)
-	if _, err := c.UserUpdateUsername(&user.TLUserUpdateUsername{UserId: me, Username: username}); err != nil {
-		t.Fatal(err)
+	for i, want := range []bool{true, false} { // the second changes nothing, and says so
+		r, err := c.UserUpdateUsername(&user.TLUserUpdateUsername{UserId: me, Username: username})
+		if err != nil || mtproto.FromBool(r) != want {
+			t.Fatalf("username, call %d: %v, %v; want %v", i, r, err, want)
+		}
 	}
 	if _, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: me, Id: p1}); err != nil {
 		t.Fatal(err)

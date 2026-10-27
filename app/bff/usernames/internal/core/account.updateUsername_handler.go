@@ -36,27 +36,32 @@ func (c *UsernamesCore) AccountUpdateUsername(in *mtproto.TLAccountUpdateUsernam
 		return nil, err
 	}
 
-	var (
-		username2 = in.GetUsername()
-	)
-
-	if username2 != me.Username() {
-		if err = checkAccountUsername(username2); err != nil {
-			c.Logger.Errorf("account.updateUsername - error: %v", err)
-			return nil, err
-		}
-		// biz replaces the username in users and in the username table and
-		// pushes updateUserName with seq to every device of the account,
-		// this one included, in one transaction (ADR 0020).
-		if _, err = c.svcCtx.Dao.UserClient.UserUpdateUsername(c.ctx, &userpb.TLUserUpdateUsername{
-			UserId:   c.MD.UserId,
-			Username: username2,
-		}); err != nil {
-			c.Logger.Errorf("account.updateUsername - error: %v", err)
-			return nil, err
-		}
-		me.SetUsername(username2)
+	// The username the account has already is USERNAME_NOT_MODIFIED, as in
+	// Telegram; the case of the letters is a change. The cached username may
+	// be stale: biz compares again under the box lock and answers false.
+	username2 := in.GetUsername()
+	if username2 == me.Username() {
+		return nil, mtproto.ErrUsernameNotModified
 	}
+	if err = checkAccountUsername(username2); err != nil {
+		c.Logger.Errorf("account.updateUsername - error: %v", err)
+		return nil, err
+	}
+	// biz replaces the username in users and in the username table and
+	// pushes updateUserName with seq to every device of the account, this
+	// one included, in one transaction (ADR 0020).
+	changed, err := c.svcCtx.Dao.UserClient.UserUpdateUsername(c.ctx, &userpb.TLUserUpdateUsername{
+		UserId:   c.MD.UserId,
+		Username: username2,
+	})
+	if err != nil {
+		c.Logger.Errorf("account.updateUsername - error: %v", err)
+		return nil, err
+	}
+	if !mtproto.FromBool(changed) {
+		return nil, mtproto.ErrUsernameNotModified
+	}
+	me.SetUsername(username2)
 
 	return me.ToSelfUser(), nil
 }

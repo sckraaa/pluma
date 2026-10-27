@@ -216,10 +216,10 @@ func (d *Dao) UpdateFirstAndLastName(ctx context.Context, id int64, firstName, l
 // UpdateUsername sets the username of the account id, "" removes it: the
 // editable row of the account in the username table and users.username
 // change together, and its devices get updateUserName with seq (ADR 0020).
-// The same username changes nothing; one taken by another peer is
-// USERNAME_OCCUPIED. The format is checked by the caller.
-func (d *Dao) UpdateUsername(ctx context.Context, id int64, username string) error {
-	_, _, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUserName, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
+// The same username changes nothing, which it tells by false; one taken by
+// another peer is USERNAME_OCCUPIED. The format is checked by the caller.
+func (d *Dao) UpdateUsername(ctx context.Context, id int64, username string) (bool, error) {
+	_, changed, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUserName, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
 		if row.Username == username {
 			return false, nil
 		}
@@ -259,9 +259,9 @@ func (d *Dao) UpdateUsername(ctx context.Context, id int64, username string) err
 	})
 	if sqlx.IsDuplicate(err) {
 		// Taken by another peer since the check.
-		return mtproto.ErrUsernameOccupied
+		return false, mtproto.ErrUsernameOccupied
 	}
-	return err
+	return changed, err
 }
 
 // UpdateProfilePhoto makes photoId the main photo of the account id, or with
