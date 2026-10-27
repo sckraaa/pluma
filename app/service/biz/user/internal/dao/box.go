@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	inboxpb "github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -76,6 +77,14 @@ func (d *Dao) deleteCache(ctx context.Context, keys []string) {
 // and chats are what u refers to, as the account sees them.
 func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
 	return sync_client.EmitSeqUpdate(b, d.Topics.Sync, u, users, chats)
+}
+
+// EmitSeqInbox journals updates with seq in the account of to and pushes
+// them to its devices, as the transaction's inbox event to to
+// (inbox.EmitSeqInbox, ADR 0021): the users and chats they refer to are
+// built when msg applies it, as to sees them then.
+func (d *Dao) EmitSeqInbox(b *userbox.Box, to int64, updates ...*mtproto.Update) error {
+	return inboxpb.EmitSeqInbox(b, d.Topics.Inbox, to, updates...)
 }
 
 // userEvent is an event request addressed to one user, user_id.

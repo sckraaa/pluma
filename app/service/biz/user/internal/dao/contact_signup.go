@@ -21,7 +21,6 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	inboxpb "github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -30,9 +29,10 @@ import (
 // stays until the sign-up is delivered to everyone who imported the number:
 // one box transaction of the new user turns the importers' phone book rows
 // into contacts of the new user and writes, as its events, the service
-// message messageActionContactSignUp into each importer's box and the push
-// of the new contact. The worker of the service (core.SignUpWorker) runs it
-// right after the sign-up and again after a failure or a restart.
+// message messageActionContactSignUp into each importer's box and the peer
+// settings of the new contact, with seq, into each importer's account. The
+// worker of the service (core.SignUpWorker) runs it right after the sign-up
+// and again after a failure or a restart.
 
 // ContactSignUp is a sign-up waiting for its delivery.
 type ContactSignUp struct {
@@ -214,13 +214,5 @@ func (d *Dao) SignUpMessage(b *userbox.Box, to, dialogMessageId int64, silent bo
 			Message:           message,
 		}},
 		Users: users,
-	})
-}
-
-// PushUpdates is the push of updates to all the devices of to.
-func (d *Dao) PushUpdates(to int64, updates *mtproto.Updates) (userbox.Event, error) {
-	return newEvent(d.Topics.Sync, &sync.TLSyncPushUpdates{
-		UserId:  to,
-		Updates: updates,
 	})
 }

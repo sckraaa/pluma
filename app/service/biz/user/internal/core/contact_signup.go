@@ -41,7 +41,8 @@ import (
 // (Android NotificationsController, tdlib disable_contact_registered_
 // notifications). The sign-up is queued with the account (contact_signups)
 // and delivered by one box transaction of the new user, whose events write
-// the messages into the importers' boxes and push the new contact.
+// the messages into the importers' boxes and then, with seq, the peer
+// settings of the new contact into their accounts.
 
 const (
 	// signUpSweep is how often the worker looks for sign-ups a failure or
@@ -303,16 +304,15 @@ func deliverSignUp(ctx context.Context, svcCtx *svc.ServiceContext, s dao.Contac
 				return err
 			}
 			b.Emit(message)
-			push, err := d.PushUpdates(c.OwnerId, mtproto.MakeUpdatesByUpdatesUsers(
-				[]*mtproto.User{seen},
-				mtproto.MakeTLUpdatePeerSettings(&mtproto.Update{
-					Peer_PEER: mtproto.MakePeerUser(newUser.Id()),
-					Settings:  mtproto.MakeTLPeerSettings(&mtproto.PeerSettings{}).To_PeerSettings(),
-				}).To_Update()))
-			if err != nil {
+			// The bar of the chat goes: the new user is a contact. It is a
+			// state of the importer's account, journaled with seq in the
+			// importer's lane after the message (ADR 0021).
+			if err = d.EmitSeqInbox(b, c.OwnerId, mtproto.MakeTLUpdatePeerSettings(&mtproto.Update{
+				Peer_PEER: mtproto.MakePeerUser(newUser.Id()),
+				Settings:  mtproto.MakeTLPeerSettings(&mtproto.PeerSettings{}).To_PeerSettings(),
+			}).To_Update()); err != nil {
 				return err
 			}
-			b.Emit(push)
 			b.InvalidateCache(dao.ContactCacheKeys(c.OwnerId, newUser.Id())...)
 		}
 		if later {

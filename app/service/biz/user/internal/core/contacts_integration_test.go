@@ -30,12 +30,12 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	inboxpb "github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	syncpb "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/config"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/svc"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -540,10 +540,14 @@ func TestContactSignUpDelivered(t *testing.T) {
 
 	events := eventsOf(t, carl)
 	silent := map[int64]bool{}
-	pushes := map[int64]bool{}
+	settings := map[int64]bool{}
 	for _, e := range events {
-		switch e.topic {
-		case "Inbox-T":
+		if e.topic != "Inbox-T" {
+			t.Errorf("event %s to %d on %s", e.method, e.recipient, e.topic)
+			continue
+		}
+		switch e.method {
+		case "inbox.TL_inbox_sendUserMessageToInboxV2":
 			var in inboxpb.TLInboxSendUserMessageToInboxV2
 			if err := jsonx.Unmarshal(e.payload, &in); err != nil {
 				t.Fatal(err)
@@ -557,23 +561,35 @@ func TestContactSignUpDelivered(t *testing.T) {
 				t.Errorf("the new user as %d sees them: %v", e.recipient, in.GetUsers())
 			}
 			silent[e.recipient] = box.GetMessage().GetSilent()
-		case "Sync-T":
-			var in syncpb.TLSyncPushUpdates
+		case "inbox.TL_inbox_seqUpdatesToInbox":
+			// The bar of the chat, with seq in the importer's account,
+			// after the message in the importer's lane (ADR 0021).
+			var in inboxpb.TLInboxSeqUpdatesToInbox
 			if err := jsonx.Unmarshal(e.payload, &in); err != nil {
 				t.Fatal(err)
 			}
-			ups := in.GetUpdates().GetUpdates()
-			if len(ups) != 1 || ups[0].GetPredicateName() != mtproto.Predicate_updatePeerSettings || ups[0].GetPeer_PEER().GetUserId() != carl {
-				t.Errorf("push to %d: %v", e.recipient, ups)
+			ups := in.GetUpdates()
+			if in.GetFromId() != carl || in.GetUserId() != e.recipient || len(ups) != 1 ||
+				ups[0].GetPredicateName() != mtproto.Predicate_updatePeerSettings || ups[0].GetPeer_PEER().GetUserId() != carl {
+				t.Errorf("peer settings to %d: %v", e.recipient, &in)
 			}
-			pushes[e.recipient] = true
+			if _, ok := silent[e.recipient]; !ok {
+				t.Errorf("peer settings to %d before the message", e.recipient)
+			}
+			settings[e.recipient] = true
+		default:
+			t.Errorf("event %s to %d", e.method, e.recipient)
 		}
 	}
 	if len(silent) != 2 || silent[ann] || !silent[dan] {
 		t.Errorf("messages %v: one to Ann, one silent to Dan, who turned the notifications off", silent)
 	}
-	if len(pushes) != 2 || !pushes[ann] || !pushes[dan] {
-		t.Errorf("pushes %v", pushes)
+	if len(settings) != 2 || !settings[ann] || !settings[dan] {
+		t.Errorf("peer settings %v", settings)
+	}
+	// The new user's own account gets nothing with seq.
+	if s := stateSeq(t, carl); s != userbox.BaseSeq {
+		t.Errorf("the new user's seq %d", s)
 	}
 
 	// Once: a second delivery finds nothing to do.
