@@ -397,3 +397,78 @@ func TestRemovedUserSeesTheChat(t *testing.T) {
 		}
 	}
 }
+
+// A full chat (maxChatMembers): no one more gets in, and a change of the
+// participants writes the whole list to each of the 199 other members and
+// the echo in one transaction, its INSERTs split by userbox.
+func TestFanOutOf200(t *testing.T) {
+	u := newUsers(maxChatMembers + 1)
+	a, members, extra := u[0], u[1:maxChatMembers], u[maxChatMembers]
+	id := newChat(t, a, members...)
+	if r := rowOf(t, id); r.count != maxChatMembers {
+		t.Fatalf("chat of %d", r.count)
+	}
+	cc := chatCore()
+	mark := lastEvent(t)
+	_, err := cc.ChatAddChatUser(&chat.TLChatAddChatUser{ChatId: id, InviterId: a, UserId: extra})
+	wantErr(t, "a member over the limit", err, mtproto.ErrUsersTooMuch)
+	expect(t, &mark, "refused")
+
+	rank := strings.Repeat("𝄞", 16)
+	if _, err = cc.ChatEditChatParticipantRank(&chat.TLChatEditChatParticipantRank{SelfId: a, ChatId: id, Participant: members[0], Rank: rank}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := itRaw.Query("SELECT recipient_id, method, LENGTH(payload) FROM mq_outbox WHERE id > ? ORDER BY id", mark)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var (
+		to    []int64
+		total int
+	)
+	for rows.Next() {
+		var (
+			recipient int64
+			method    string
+			size      int
+		)
+		if err = rows.Scan(&recipient, &method, &size); err != nil {
+			t.Fatal(err)
+		}
+		if size > userbox.MaxEventBytes {
+			t.Errorf("event %s to %d of %d bytes", method, recipient, size)
+		}
+		to = append(to, recipient)
+		total += size
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(to, u[:maxChatMembers]) {
+		t.Errorf("%d events, want one to each of the %d members in order", len(to), maxChatMembers)
+	}
+	// More than the 4 MiB of payloads of one INSERT: the transaction wrote
+	// them in two.
+	if total <= 4<<20 {
+		t.Errorf("events of %d bytes fit one INSERT: the test does not split them", total)
+	}
+	t.Logf("%d events, %d bytes", len(to), total)
+	got := seqSince(t, mark)
+	members2 := fmt.Sprintf("members v2 %v", u[:maxChatMembers])
+	if len(got) != maxChatMembers || got[0] != fmt.Sprintf("%d echo %s %d users [chat]", a, members2, maxChatMembers) ||
+		got[maxChatMembers-1] != fmt.Sprintf("%d %s", u[maxChatMembers-1], members2) {
+		t.Errorf("events %d, first %.80s, last %.80s", len(got), got[0], got[len(got)-1])
+	}
+
+	// One out, one in: the chat is full again.
+	if _, err = cc.ChatDeleteChatUser(&chat.TLChatDeleteChatUser{ChatId: id, OperatorId: members[1], DeleteUserId: members[1]}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = cc.ChatAddChatUser(&chat.TLChatAddChatUser{ChatId: id, InviterId: a, UserId: extra}); err != nil {
+		t.Fatal(err)
+	}
+	if r := rowOf(t, id); r.count != maxChatMembers {
+		t.Errorf("chat of %d", r.count)
+	}
+}
