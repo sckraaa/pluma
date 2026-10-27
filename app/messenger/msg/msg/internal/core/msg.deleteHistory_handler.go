@@ -31,7 +31,8 @@ import (
 //
 // It deletes a portion of the newest messages of the dialog, as Telegram
 // does: offset above 0 asks the client to repeat the call. Without
-// just_clear the last portion deletes the dialog row too. With revoke (and
+// just_clear the last portion deletes the dialog row too, and unpins it
+// with seq when it was pinned. With revoke (and
 // not just_clear) each portion also deletes the dialog's history of every
 // other member.
 func (c *MsgCore) MsgDeleteHistory(in *msg.TLMsgDeleteHistory) (*mtproto.Messages_AffectedHistory, error) {
@@ -65,6 +66,11 @@ func (c *MsgCore) MsgDeleteHistory(in *msg.TLMsgDeleteHistory) (*mtproto.Message
 				if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, in.UserId, in.AuthKeyId, mtproto.MakeUpdatesByUpdates(cleared.Updates...)); err != nil {
 					return err
 				}
+			}
+			// A pinned dialog that went is unpinned on every device of the
+			// account, this one included (ADR 0020).
+			if err = c.svcCtx.Dao.UnpinDeleted(b, cleared.Unpin); err != nil {
+				return err
 			}
 			if cleared.Deleted == nil {
 				return nil

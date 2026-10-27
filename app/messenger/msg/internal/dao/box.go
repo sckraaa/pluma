@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -145,6 +146,13 @@ func (d *Dao) EmitUpdatesNotMe(b *userbox.Box, userId, permAuthKeyId int64, upda
 	}
 	b.Emit(ev)
 	return nil
+}
+
+// EmitSeqUpdate journals u with the next seq of b's account and pushes it to
+// every device of the account (sync_client.EmitSeqUpdate, ADR 0020). users
+// and chats are what u refers to, as the account sees them.
+func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
+	return sync_client.EmitSeqUpdate(b, d.Topics.Sync, u, users, chats)
 }
 
 // EmitPushUpdates adds a push of updates to all of userId's devices, or to

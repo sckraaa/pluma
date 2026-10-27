@@ -12,29 +12,16 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
-	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // DialogDeleteDialog
 // dialog.deleteDialog user_id:long peer_type:int peer_id:long = Bool;
 //
-// The dialog row holds columns of the user's box (top_message,
-// read_inbox_max_id, the unread counters): it is deleted in a box
-// transaction (ADR 0011, p. 2), ordered with the box's other writes.
+// The dialog row goes in a box transaction of the user (ADR 0011, p. 2),
+// with updateDialogPinned with seq for the account's devices when the
+// dialog was pinned (ADR 0020).
 func (c *DialogCore) DialogDeleteDialog(in *dialog.TLDialogDeleteDialog) (*mtproto.Bool, error) {
-	err := c.svcCtx.Dao.RunBox(c.ctx, in.UserId,
-		[]string{dialog.GetDialogCacheKeyByPeer(in.UserId, in.PeerType, in.PeerId)},
-		func(b *userbox.Box) error {
-			n, err := c.svcCtx.Dao.DialogsDAO.DeleteTx(b.Tx(), in.UserId, in.PeerType, in.PeerId)
-			if err != nil {
-				return err
-			}
-			if n > 0 {
-				b.InvalidateCache(dialog.DeleteCacheKeys(in.UserId, in.PeerType, in.PeerId)...)
-			}
-			return nil
-		})
-	if err != nil {
+	if err := c.svcCtx.Dao.DeleteDialog(c.ctx, in.UserId, in.PeerType, in.PeerId); err != nil {
 		c.Logger.Errorf("dialog.deleteDialog - error: %v", err)
 		return nil, err
 	}

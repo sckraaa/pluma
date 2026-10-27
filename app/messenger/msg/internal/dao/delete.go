@@ -157,13 +157,18 @@ type ClearHistoryResult struct {
 	Left int32
 	// DialogDeleted: the dialog row went with the last portion.
 	DialogDeleted bool
+	// Unpin unpins the deleted dialog when it was pinned, nil otherwise:
+	// the caller journals and pushes it after the push of Updates
+	// (UnpinDeleted).
+	Unpin *mtproto.Update
 }
 
 // ClearHistory deletes a portion of b's owner's dialog with peer, newest
 // first. With justClear, the top message stays and becomes the "history
 // cleared" service message; without it every message goes, and with the
-// last portion the dialog row too, in the same transaction. The dialog is
-// read up to its top message. It returns nil when there is nothing to do.
+// last portion the dialog row too, in the same transaction, with the
+// update that unpins it when it was pinned (Unpin). The dialog is read up
+// to its top message. It returns nil when there is nothing to do.
 func (d *Dao) ClearHistory(b *userbox.Box, peerType int32, peerId int64, justClear bool) (*ClearHistoryResult, error) {
 	peer := boxPeer{PeerType: peerType, PeerId: peerId}
 	ids, err := dialogMessageIds(b, peer, maxPortion+2)
@@ -176,11 +181,11 @@ func (d *Dao) ClearHistory(b *userbox.Box, peerType int32, peerId int64, justCle
 		}
 		// No messages left, e.g. the last portion went in an earlier call
 		// that failed after commit: the row alone.
-		deleted, err := deleteDialogRow(b, peer)
+		deleted, unpin, err := deleteDialogRow(b, peer)
 		if err != nil || !deleted {
 			return nil, err
 		}
-		return &ClearHistoryResult{DialogDeleted: true}, nil
+		return &ClearHistoryResult{DialogDeleted: true, Unpin: unpin}, nil
 	}
 	top := ids[0]
 	var topRow *dataobject.MessagesDO
@@ -240,7 +245,7 @@ func (d *Dao) ClearHistory(b *userbox.Box, peerType int32, peerId int64, justCle
 		res.Updates = append(res.Updates, edited)
 	}
 	if !justClear && !more {
-		if res.DialogDeleted, err = deleteDialogRow(b, peer); err != nil {
+		if res.DialogDeleted, res.Unpin, err = deleteDialogRow(b, peer); err != nil {
 			return nil, err
 		}
 	}

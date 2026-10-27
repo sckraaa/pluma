@@ -37,7 +37,9 @@ func (c *InboxCore) InboxDeleteChatHistoryToInbox(in *inbox.TLInboxDeleteChatHis
 // deleteDialog deletes userId's history of the dialog with peer in portions,
 // one transaction each, each pushed. With dropRow the last portion deletes
 // the dialog row too, in its transaction: a message that arrives later
-// creates a new row.
+// creates a new row. A pinned dialog is unpinned on the recipient's devices
+// with seq in that transaction (DeleteDialogRow), after the push of the
+// deleted messages.
 func (c *InboxCore) deleteDialog(userId int64, peer *mtproto.PeerUtil, dropRow bool) error {
 	return c.apply(userId, peer, func(b *userbox.Box) (bool, error) {
 		deleted, err := c.svcCtx.Dao.DeleteDialogPortion(b, peer.PeerType, peer.PeerId)

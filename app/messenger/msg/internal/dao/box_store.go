@@ -258,23 +258,55 @@ func updateDialog(b *userbox.Box, peer boxPeer, set string, args ...any) error {
 // the box (top_message, read_inbox_max_id, the unread counters): it goes in
 // the transaction that empties the dialog, so a message that arrives later
 // creates a new row instead of being left without one.
-func deleteDialogRow(b *userbox.Box, peer boxPeer) (bool, error) {
+//
+// unpin is updateDialogPinned with pinned false when the row was a pinned
+// dialog (dialog.PinOfDeleted), nil otherwise: the caller journals and
+// pushes it in the same transaction (UnpinDeleted), after the push of the
+// deleted messages, the order of their pts and of its seq row.
+func deleteDialogRow(b *userbox.Box, peer boxPeer) (deleted bool, unpin *mtproto.Update, err error) {
+	var pins []dialog.PinOfDeleted
+	if err = b.Tx().QueryRowsPartial(&pins, dialog.PinOfDeletedQuery, b.UserId(), peer.PeerType, peer.PeerId); err != nil || len(pins) == 0 {
+		return false, nil, err
+	}
 	r, err := b.Tx().Exec("DELETE FROM dialogs WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
 		b.UserId(), peer.PeerType, peer.PeerId)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
 	n, err := r.RowsAffected()
 	if err != nil || n == 0 {
-		return false, err
+		return false, nil, err
 	}
 	b.InvalidateCache(dialog.DeleteCacheKeys(b.UserId(), peer.PeerType, peer.PeerId)...)
-	return true, nil
+	return true, pins[0].Unpin(peer.PeerType, peer.PeerId), nil
 }
 
-// DeleteDialogRow deletes b's owner's dialog row with peer, if there is one.
+// UnpinDeleted journals unpin, the unpin of a deleted dialog (nil: none),
+// with the next seq of b's account and pushes it to every device of the
+// account (ADR 0020). A client keeps a pinned dialog after its messages go,
+// so without it the dialog would stay pinned on the other devices.
+//
+// The push carries no users or chats: msg has no view of the peer in a box
+// transaction, which calls no service, and no client needs one for the
+// update. TDLib, tdesktop, Telegram-Android and Telegram-iOS find the
+// dialog by the peer's id alone (TDLib and Android reload the pinned
+// dialogs when they do not know it); updates.getDifference adds the peer.
+func (d *Dao) UnpinDeleted(b *userbox.Box, unpin *mtproto.Update) error {
+	if unpin == nil {
+		return nil
+	}
+	return d.EmitSeqUpdate(b, unpin, nil, nil)
+}
+
+// DeleteDialogRow deletes b's owner's dialog row with peer, if there is
+// one, and unpins it on the account's devices when it was pinned
+// (UnpinDeleted): the caller pushes the deleted messages before.
 func (d *Dao) DeleteDialogRow(b *userbox.Box, peerType int32, peerId int64) (bool, error) {
-	return deleteDialogRow(b, boxPeer{PeerType: peerType, PeerId: peerId})
+	deleted, unpin, err := deleteDialogRow(b, boxPeer{PeerType: peerType, PeerId: peerId})
+	if err != nil {
+		return false, err
+	}
+	return deleted, d.UnpinDeleted(b, unpin)
 }
 
 // The counters of a dialog are kept without reading the whole dialog, which
