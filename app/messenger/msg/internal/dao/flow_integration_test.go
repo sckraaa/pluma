@@ -117,13 +117,14 @@ func (s snowflake) NextIds(ctx context.Context, n int) ([]int64, error) {
 
 // fakeUsers serves the users msg asks biz for; blocked[{a, b}]: a blocked b;
 // premium: users with Premium; premiumOnly: users who let only contacts,
-// chats there already and Premium users write.
+// chats there already and Premium users write; bots: bot accounts.
 type fakeUsers struct {
 	user_client.UserClient
 	mu          sync.Mutex
 	blocked     map[[2]int64]bool
 	premium     map[int64]bool
 	premiumOnly map[int64]bool
+	bots        map[int64]bool
 }
 
 // mark gives users their Premium and settings.
@@ -133,6 +134,9 @@ func (f *fakeUsers) mark(users []*mtproto.ImmutableUser) []*mtproto.ImmutableUse
 	for _, u := range users {
 		u.User.Premium = f.premium[u.Id()]
 		u.User.NewNoncontactPeersRequirePremium = f.premiumOnly[u.Id()]
+		if f.bots[u.Id()] {
+			u.User.Bot = mtproto.MakeTLBotData(&mtproto.BotData{}).To_BotData()
+		}
 	}
 	return users
 }
@@ -187,21 +191,40 @@ type fakeChats struct {
 func (f *fakeChats) ChatGetMutableChat(_ context.Context, in *chatpb.TLChatGetMutableChat) (*mtproto.MutableChat, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	members, ok := f.members[in.ChatId]
+	return f.chat(in.ChatId)
+}
+
+// ChatGetChatListByIdList returns the chats of the list that exist, as
+// biz chat does.
+func (f *fakeChats) ChatGetChatListByIdList(_ context.Context, in *chatpb.TLChatGetChatListByIdList) (*chatpb.Vector_MutableChat, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := &chatpb.Vector_MutableChat{}
+	for _, id := range in.IdList {
+		if c, err := f.chat(id); err == nil {
+			out.Datas = append(out.Datas, c)
+		}
+	}
+	return out, nil
+}
+
+// chat is the basic group chatId with its members; f.mu is held.
+func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
+	members, ok := f.members[chatId]
 	if !ok {
 		return nil, mtproto.ErrChatIdInvalid
 	}
 	var ps []*mtproto.ImmutableChatParticipant
 	for _, u := range members {
 		ps = append(ps, mtproto.MakeTLImmutableChatParticipant(&mtproto.ImmutableChatParticipant{
-			ChatId: in.ChatId,
+			ChatId: chatId,
 			UserId: u,
 			State:  mtproto.ChatMemberStateNormal,
 		}).To_ImmutableChatParticipant())
 	}
 	return mtproto.MakeTLMutableChat(&mtproto.MutableChat{
 		Chat: mtproto.MakeTLImmutableChat(&mtproto.ImmutableChat{
-			Id:                in.ChatId,
+			Id:                chatId,
 			Creator:           members[0],
 			Title:             "chat",
 			ParticipantsCount: int32(len(members)),
@@ -247,7 +270,7 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 	w := &world{
 		t:     t,
 		check: itCheck,
-		users: &fakeUsers{blocked: map[[2]int64]bool{}, premium: map[int64]bool{}, premiumOnly: map[int64]bool{}},
+		users: &fakeUsers{blocked: map[[2]int64]bool{}, premium: map[int64]bool{}, premiumOnly: map[int64]bool{}, bots: map[int64]bool{}},
 		chats: &fakeChats{members: map[int64][]int64{}},
 		pub:   &worldDelivery{delivery: itDelivery, t: t},
 	}

@@ -101,6 +101,9 @@ var handlers = map[protoreflect.FullName]handler{
 	proto.MessageName((*inbox.TLInboxUnpinAllMessages)(nil)): on(
 		func() *inbox.TLInboxUnpinAllMessages { return new(inbox.TLInboxUnpinAllMessages) },
 		(*core.InboxCore).InboxUnpinAllMessages),
+	proto.MessageName((*inbox.TLInboxSeqUpdatesToInbox)(nil)): on(
+		func() *inbox.TLInboxSeqUpdatesToInbox { return new(inbox.TLInboxSeqUpdatesToInbox) },
+		(*core.InboxCore).InboxSeqUpdatesToInbox),
 }
 
 // errUndecodable marks an event whose row cannot be applied by any version

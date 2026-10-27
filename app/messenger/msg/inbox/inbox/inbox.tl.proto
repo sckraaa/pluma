@@ -27,6 +27,7 @@ enum TLConstructor {
   CRC32_inbox_editMessageToInboxV2 = 483635893;
   CRC32_inbox_readOutboxHistory = 1648518477;
   CRC32_inbox_readMediaUnreadToInboxV2 = 561453834;
+  CRC32_inbox_seqUpdatesToInbox = -61692106;
 }
 
 // Every event is addressed to one user, user_id: it changes that user's box
@@ -134,4 +135,17 @@ message TL_inbox_readMediaUnreadToInboxV2 {
   int32 peer_type = 5;
   int64 peer_id = 6;
   repeated int64 id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// inbox.seqUpdatesToInbox user_id:long from_id:long updates:Vector<Update> = Void;
+// updates: states of user_id's account that from_id changed, updates with
+// seq (ADR 0020, 0021), each journaled with the next seq of user_id and
+// pushed to all its devices. The users and chats they refer to are not
+// carried: they are built when the event is applied, as user_id sees them.
+message TL_inbox_seqUpdatesToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  repeated mtproto.Update updates = 5;
 }
