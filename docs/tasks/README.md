@@ -31,11 +31,11 @@
 | [003](003-reliable-delivery.md) | Надёжная доставка через Kafka и push в сессии | done |
 | [004](004-deployment.md) | Развёртывание, наблюдаемость, бэкапы | done |
 | [005](005-tests-and-ci.md) | Зелёная база тестов и CI | done |
-| [006](006-client-build-pipeline.md) | Конвейер сборки клиентов | in-progress (Android готов) |
+| [006](006-client-build-pipeline.md) | Конвейер сборки клиентов | in-progress (Android, Web, iOS готовы; Desktop — первая сборка) |
 | [007](007-conformance-harness.md) | Каркас сравнительных тестов | done |
 | [008](008-security-p1.md) | Безопасность P1: 2FA, PFS, проверки протокола | done |
 | [009](009-push.md) | Push: APNs (включая VoIP) и FCM | done |
-| [010](010-updates-seq-difference.md) | seq, getDifference и полнота апдейтов | in-progress |
+| [010](010-updates-seq-difference.md) | seq, getDifference и полнота апдейтов | done (код) |
 | [011](011-contacts.md) | Контакты: импорт по номеру и поиск людей | done |
 | [012](012-web-client.md) | Web-клиент (Web K) в облаке | done |
 | [013](013-dialog-filters.md) | Папки чатов | done |

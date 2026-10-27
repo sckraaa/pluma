@@ -3,7 +3,8 @@
 Решение — ADR 0010, задачи 006 и 012. Клиенты — официальные приложения Telegram, собранные в облаке из закреплённого релиза или коммита upstream с патчем под сервер Pluma. Репозитории (публичные):
 - Android — [`sckraaa/pluma-android`](https://github.com/sckraaa/pluma-android): инструкции по переменным, подписи и выпуску — в его README.
 - Web — [`sckraaa/pluma-web`](https://github.com/sckraaa/pluma-web) (Telegram Web K): переменные, артефакт и проверка на стенде — в его README.
-- iOS, Desktop — `pluma-ios`, `pluma-desktop` (ещё не созданы).
+- iOS — [`sckraaa/pluma-ios`](https://github.com/sckraaa/pluma-ios) (Telegram-iOS): подпись, переменные и чек-лист Apple Developer — в его README.
+- Desktop — [`sckraaa/pluma-desktop`](https://github.com/sckraaa/pluma-desktop) (Telegram Desktop для Linux, Windows и macOS): переменные и сборки — в его README.
 
 ## Что вшивается в клиент
 
@@ -53,6 +54,20 @@
    PLUMA_E2E_SEND_TO=+79990000081 E2E_GOTEST_FLAGS='-run TestManualSend' test/e2e/run.sh test
    ```
    Уведомление должно появиться в течение пары секунд. Что ушло в FCM, видно в логе сервиса push (`test/e2e/run.sh compose logs push`).
+
+## Проверка iOS-клиента на симуляторе
+
+Сборка для симулятора идёт на `127.0.0.1:10443` с тем же dev-ключом (симулятор видит сеть Mac). Нужен Xcode с рантаймом iOS.
+
+1. Поднять стенд и добавить номер в allowlist — шаги 1–2 раздела про Android.
+2. Взять приложение: артефакт `simulator` запуска workflow `ios` (`gh run download <run> -R sckraaa/pluma-ios -n simulator`), распаковать `Pluma.app`.
+3. Создать и запустить симулятор, поставить приложение:
+   ```bash
+   xcrun simctl create "Pluma" com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro com.apple.CoreSimulator.SimRuntime.iOS-26-4
+   ```
+   затем `xcrun simctl boot <udid>`, `xcrun simctl install <udid> Pluma.app`, `xcrun simctl launch <udid> chat.pluma.app`.
+4. Войти по номеру; код — `test/e2e/run.sh admin login-code <номер>`.
+5. После проверки: `xcrun simctl delete <udid>` и `test/e2e/run.sh down`.
 
 ## Веб-клиент
 
