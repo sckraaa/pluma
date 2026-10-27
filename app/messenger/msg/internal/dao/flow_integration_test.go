@@ -186,11 +186,13 @@ func (f *fakeUsers) UserBlockedByUser(_ context.Context, in *userpb.TLUserBlocke
 	return mtproto.ToBool(f.blocked[[2]int64{in.UserId, in.PeerUserId}]), nil
 }
 
-// fakeChats serves basic groups: their members.
+// fakeChats serves basic groups: their members; states[{chat, user}]: a
+// participant no longer in the chat (kicked or left), normal otherwise.
 type fakeChats struct {
 	chat_client.ChatClient
 	mu      sync.Mutex
 	members map[int64][]int64
+	states  map[[2]int64]int32
 }
 
 func (f *fakeChats) ChatGetMutableChat(_ context.Context, in *chatpb.TLChatGetMutableChat) (*mtproto.MutableChat, error) {
@@ -224,7 +226,7 @@ func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 		ps = append(ps, mtproto.MakeTLImmutableChatParticipant(&mtproto.ImmutableChatParticipant{
 			ChatId: chatId,
 			UserId: u,
-			State:  mtproto.ChatMemberStateNormal,
+			State:  f.states[[2]int64{chatId, u}],
 		}).To_ImmutableChatParticipant())
 	}
 	return mtproto.MakeTLMutableChat(&mtproto.MutableChat{
@@ -276,7 +278,7 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 		t:     t,
 		check: itCheck,
 		users: &fakeUsers{blocked: map[[2]int64]bool{}, premium: map[int64]bool{}, premiumOnly: map[int64]bool{}, bots: map[int64]bool{}, missing: map[int64]bool{}},
-		chats: &fakeChats{members: map[int64][]int64{}},
+		chats: &fakeChats{members: map[int64][]int64{}, states: map[[2]int64]int32{}},
 		pub:   &worldDelivery{delivery: itDelivery, t: t},
 	}
 	w.d = &dao.Dao{

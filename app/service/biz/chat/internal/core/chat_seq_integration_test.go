@@ -369,3 +369,31 @@ func TestJoinRequestsWithSeq(t *testing.T) {
 	hide(a, g, false)
 	expect(t, &mark, "decline", fmt.Sprintf("%d echo requests 0 [] 0 users [chat]", a), fmt.Sprintf("%d requests 0 []", b))
 }
+
+// The chat a removed user and one who left keep in the dialogs: forbidden
+// and left, as getDialogs builds it from chat.getChatListByIdList.
+func TestRemovedUserSeesTheChat(t *testing.T) {
+	u := newUsers(3)
+	a, b, c := u[0], u[1], u[2]
+	id := newChat(t, a, b, c)
+	cc := chatCore()
+	if _, err := cc.ChatDeleteChatUser(&chat.TLChatDeleteChatUser{ChatId: id, OperatorId: a, DeleteUserId: b}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := cc.ChatDeleteChatUser(&chat.TLChatDeleteChatUser{ChatId: id, OperatorId: c, DeleteUserId: c}); err != nil {
+		t.Fatal(err)
+	}
+	list, err := cc.ChatGetChatListByIdList(&chat.TLChatGetChatListByIdList{IdList: []int64{id}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []struct {
+		viewer int64
+		chat   string
+	}{{a, "chat"}, {b, mtproto.Predicate_chatForbidden}, {c, "left"}} {
+		chats := list.GetChatListByIdList(want.viewer, id)
+		if len(chats) != 1 || chatOf(chats[0]) != want.chat || chats[0].GetId() != id {
+			t.Errorf("user %d sees %v, want %s", want.viewer, chats, want.chat)
+		}
+	}
+}

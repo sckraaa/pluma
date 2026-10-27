@@ -306,7 +306,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 	if err != nil {
 		return nil, err
 	}
-	recipients := chatRecipients(chat, fromUserId, true)
+	recipients := withRemoved(chatRecipients(chat, fromUserId, true), chat, fromUserId, outBoxList)
 
 	var rUpdates *mtproto.Updates
 	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId,

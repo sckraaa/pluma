@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/internal/svc"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -70,6 +71,25 @@ func chatRecipients(chat *mtproto.MutableChat, except int64, migrated bool) []in
 	})
 	slices.Sort(ids)
 	return ids
+}
+
+// withRemoved adds to recipients the users the messages tell of their
+// removal from chat (messageActionChatDeleteUser), other than the sender:
+// a removed user keeps the chat, forbidden, and gets the message that says
+// so, as in Telegram. Who left sends that message themselves.
+func withRemoved(recipients []int64, chat *mtproto.MutableChat, fromUserId int64, msgs []*msg.OutboxMessage) []int64 {
+	for _, m := range msgs {
+		action := m.GetMessage().GetAction()
+		if action.GetPredicateName() != mtproto.Predicate_messageActionChatDeleteUser {
+			continue
+		}
+		id := action.GetUserId()
+		if _, ok := chat.GetImmutableChatParticipant(id); ok && id != fromUserId && !slices.Contains(recipients, id) {
+			recipients = append(recipients, id)
+		}
+	}
+	slices.Sort(recipients)
+	return recipients
 }
 
 // isBlockedBy tells whether peerId blocked userId: then userId's messages

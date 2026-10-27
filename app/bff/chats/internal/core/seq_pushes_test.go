@@ -17,6 +17,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -24,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/svc"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
@@ -169,5 +171,78 @@ func TestChatChangesPushNothing(t *testing.T) {
 
 	if chats.calls != 4 || push.n != 0 {
 		t.Errorf("%d changes, %d pushes of bff; want 4 and none", chats.calls, push.n)
+	}
+}
+
+// removals answers chat.deleteChatUser with the chat after the removal.
+type removals struct {
+	chat_client.ChatClient
+	removed int64
+}
+
+func (r *removals) ChatDeleteChatUser(_ context.Context, in *chatpb.TLChatDeleteChatUser) (*mtproto.MutableChat, error) {
+	c := testChat()
+	for _, p := range c.ChatParticipants {
+		if p.UserId == in.DeleteUserId {
+			p.State = mtproto.ChatMemberStateKicked
+			if in.OperatorId == in.DeleteUserId {
+				p.State = mtproto.ChatMemberStateLeft
+			}
+		}
+	}
+	r.removed = in.DeleteUserId
+	return c, nil
+}
+
+// sends records the messages sent.
+type sends struct {
+	msg_client.MsgClient
+	sent []*msgpb.TLMsgSendMessageV2
+}
+
+func (s *sends) MsgSendMessageV2(_ context.Context, in *msgpb.TLMsgSendMessageV2) (*mtproto.Updates, error) {
+	s.sent = append(s.sent, in)
+	return mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{
+		mtproto.MakeTLUpdateNewMessage(&mtproto.Update{Message_MESSAGE: in.Message[0].Message}).To_Update(),
+	}}).To_Updates(), nil
+}
+
+// messages.deleteChatUser behaves the same for every client: the service
+// message is sent, the removed user's dialog stays (no dialog client: a
+// call would panic), the reply carries the members, or the forbidden list
+// for one who left.
+func TestDeleteChatUserAsTelegram(t *testing.T) {
+	for _, client := range []string{"ios", "android", "tdesktop"} {
+		for _, leave := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s leave %v", client, leave), func(t *testing.T) {
+				chats, m := &removals{}, &sends{}
+				self := me
+				if leave {
+					self = member
+				}
+				c := seqCore(&fakeChats{}, &pushes{}, m)
+				c.svcCtx.Dao.ChatClient = chat_client.NewChatClientHelperOf(chats)
+				c.MD = &metadata.RpcMetadata{UserId: self, PermAuthKeyId: 55, Client: client}
+				r, err := c.MessagesDeleteChatUser(&mtproto.TLMessagesDeleteChatUser{
+					ChatId: group, UserId: mtproto.MakeTLInputUser(&mtproto.InputUser{UserId: member}).To_InputUser(),
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(m.sent) != 1 || m.sent[0].UserId != self ||
+					m.sent[0].Message[0].Message.GetAction().GetPredicateName() != mtproto.Predicate_messageActionChatDeleteUser ||
+					m.sent[0].Message[0].Message.GetAction().GetUserId() != member {
+					t.Fatalf("messages sent %v", m.sent)
+				}
+				want := mtproto.Predicate_chatParticipants
+				if leave {
+					want = mtproto.Predicate_chatParticipantsForbidden
+				}
+				if n := len(r.GetUpdates()); n != 2 || r.GetUpdates()[0].GetPredicateName() != mtproto.Predicate_updateNewMessage ||
+					r.GetUpdates()[1].GetParticipants_CHATPARTICIPANTS().GetPredicateName() != want {
+					t.Errorf("reply %v; want the message and %s", r.GetUpdates(), want)
+				}
+			})
+		}
 	}
 }

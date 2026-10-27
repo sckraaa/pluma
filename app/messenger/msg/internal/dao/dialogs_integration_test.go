@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
@@ -322,4 +323,56 @@ func TestDialogCountersWithoutScan(t *testing.T) {
 	if d := w.dialog(b, mtproto.PEER_USER, a); d.TopMessage != top-1 || d.UnreadCount != 3 {
 		t.Errorf("dialog %+v, want top %d and 3 unread", d, top-1)
 	}
+}
+
+// A member removed from a basic group gets the service message of the
+// removal and keeps the dialog, as in Telegram; "Delete and leave" on a
+// client deletes it with deleteHistory, which works for a former member.
+func TestRemovedMemberKeepsTheChat(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	a, b, c := newUser(), newUser(), newUser()
+	group := newChat()
+	w.chats.mu.Lock()
+	w.chats.members[group] = []int64{a, b, c}
+	w.chats.mu.Unlock()
+	w.send(a, mtproto.PEER_CHAT, group, "hello")
+	w.pub.drain()
+
+	// biz chat removed c; a's service message says so.
+	w.chats.mu.Lock()
+	w.chats.states[[2]int64{group, c}] = mtproto.ChatMemberStateKicked
+	w.chats.mu.Unlock()
+	removal := mtproto.MakeTLMessageService(&mtproto.Message{
+		Out:    true,
+		FromId: mtproto.MakePeerUser(a),
+		PeerId: mtproto.MakePeerChat(group),
+		Date:   int32(time.Now().Unix()),
+		Action: mtproto.MakeMessageActionChatDeleteUser(c),
+	}).To_Message()
+	if _, err := w.rpc.MsgSendMessageV2(ctx, &msg.TLMsgSendMessageV2{
+		UserId: a, AuthKeyId: a * 10, PeerType: mtproto.PEER_CHAT, PeerId: group, Message: []*msg.OutboxMessage{outbox(removal)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	w.pub.drain()
+	for _, u := range []int64{b, c} {
+		rows := w.messages(u)
+		if len(rows) != 2 || !strings.Contains(rows[1].Data, mtproto.Predicate_messageActionChatDeleteUser) {
+			t.Fatalf("messages of %d: %+v", u, rows)
+		}
+		if d := w.dialog(u, mtproto.PEER_CHAT, group); d.TopMessage != rows[1].Id {
+			t.Errorf("dialog of %d: top message %d, want %d", u, d.TopMessage, rows[1].Id)
+		}
+	}
+	// Still removed, c deletes the chat.
+	w.deleteHistory(c, mtproto.PEER_CHAT, group, false)
+	w.pub.drain()
+	if w.hasDialog(c, mtproto.PEER_CHAT, group) || len(alive(w.messages(c))) != 0 {
+		t.Errorf("c's dialog %v, messages %+v after deleteHistory", w.hasDialog(c, mtproto.PEER_CHAT, group), alive(w.messages(c)))
+	}
+	if !w.hasDialog(b, mtproto.PEER_CHAT, group) || len(alive(w.messages(b))) != 2 {
+		t.Errorf("b's chat changed")
+	}
+	w.checkBox(c)
 }
