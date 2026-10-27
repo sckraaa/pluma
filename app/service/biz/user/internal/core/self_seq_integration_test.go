@@ -280,14 +280,16 @@ func TestOwnPhotoWithSeq(t *testing.T) {
 	const p1, p2, p3 = 7001, 7002, 7003
 	c := mediaCore(t, newFakeMedia(p1, p2, p3))
 	u, _ := newUser(t, "Pia")
-	set := func(id int64) int64 {
+	update := func(id int64, uploaded bool) int64 {
 		t.Helper()
-		r, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: u, Id: id})
+		r, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: u, Id: id, Uploaded: uploaded})
 		if err != nil {
 			t.Fatal(err)
 		}
 		return r.GetV()
 	}
+	set := func(id int64) int64 { return update(id, false) }
+	upload := func(id int64) int64 { return update(id, true) }
 	del := func(ids ...int64) int64 {
 		t.Helper()
 		r, err := c.UserDeleteProfilePhotos(&user.TLUserDeleteProfilePhotos{UserId: u, Id: ids})
@@ -327,9 +329,9 @@ func TestOwnPhotoWithSeq(t *testing.T) {
 		main   int64
 		stored string
 	}{
-		{"set p1", func() int64 { return set(p1) }, p1, fmt.Sprintf("%d [%d]", p1, p1)},
+		{"upload p1", func() int64 { return upload(p1) }, p1, fmt.Sprintf("%d [%d]", p1, p1)},
 		{"set p1 again", func() int64 { return set(p1) }, p1, fmt.Sprintf("%d [%d]", p1, p1)},
-		{"set p2", func() int64 { return set(p2) }, p2, fmt.Sprintf("%d [%d %d]", p2, p1, p2)},
+		{"upload p2", func() int64 { return upload(p2) }, p2, fmt.Sprintf("%d [%d %d]", p2, p1, p2)},
 		// The main photo goes: the other becomes main.
 		{"delete p2", func() int64 { return del(p2) }, p1, fmt.Sprintf("%d [%d]", p1, p1)},
 		{"delete p2 again", func() int64 { return del(p2) }, p1, fmt.Sprintf("%d [%d]", p1, p1)},
@@ -348,7 +350,7 @@ func TestOwnPhotoWithSeq(t *testing.T) {
 
 	// A photo set where the cache does not see it yet: the push carries
 	// the one under the lock.
-	set(p1)
+	upload(p1)
 	if _, err := c.svcCtx.Dao.GetImmutableUser(c.ctx, u, false); err != nil {
 		t.Fatal(err)
 	}
@@ -379,6 +381,54 @@ func TestOwnPhotoWithSeq(t *testing.T) {
 		u, p1, p2, p3)
 	if fmt.Sprint(desc) != want {
 		t.Errorf("pushes %v, want %s", desc, want)
+	}
+}
+
+// Only one of the account's photos, or one uploaded for it, becomes main:
+// another user's photo, a photo of nobody's and one the account deleted
+// are PHOTO_ID_INVALID and change nothing.
+func TestProfilePhotoOwnership(t *testing.T) {
+	const p1, p2, p3, p4 = 7101, 7102, 7103, 7104
+	c := mediaCore(t, newFakeMedia(p1, p2, p3, p4))
+	u, _ := newUser(t, "Ola")
+	v, _ := newUser(t, "Vic")
+	update := func(userId, id int64, uploaded bool) (int64, error) {
+		r, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: userId, Id: id, Uploaded: uploaded})
+		return r.GetV(), err
+	}
+	ok := func(what string, userId, id int64, uploaded bool, main int64) {
+		t.Helper()
+		if got, err := update(userId, id, uploaded); err != nil || got != main {
+			t.Fatalf("%s: main %d, %v; want %d", what, got, err, main)
+		}
+	}
+	refused := func(what string, id int64) {
+		t.Helper()
+		pushes := len(eventsOf(t, u))
+		if _, err := update(u, id, false); !errors.Is(err, mtproto.ErrPhotoIdInvalid) {
+			t.Errorf("%s: %v, want PHOTO_ID_INVALID", what, err)
+		}
+		var main int64
+		if err := itRaw.QueryRow("SELECT photo_id FROM users WHERE id = ?", u).Scan(&main); err != nil {
+			t.Fatal(err)
+		}
+		if main != p1 || len(eventsOf(t, u)) != pushes {
+			t.Errorf("%s: main %d, %d events, want %d and %d", what, main, len(eventsOf(t, u)), p1, pushes)
+		}
+	}
+
+	ok("v uploads p3", v, p3, true, p3)
+	ok("u uploads p1", u, p1, true, p1)
+	ok("u uploads p2", u, p2, true, p2)
+	ok("u sets p1, one of its photos", u, p1, false, p1)
+	refused("u sets v's photo", p3)
+	refused("u sets a photo of nobody's", p4)
+	if _, err := c.UserDeleteProfilePhotos(&user.TLUserDeleteProfilePhotos{UserId: u, Id: []int64{p2}}); err != nil {
+		t.Fatal(err)
+	}
+	refused("u sets the photo it deleted", p2)
+	if n := count(t, "SELECT COUNT(*) FROM user_profile_photos WHERE photo_id = ? AND deleted = 0", p3); n != 1 {
+		t.Errorf("v's photo is in %d galleries", n)
 	}
 }
 

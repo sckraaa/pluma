@@ -264,12 +264,17 @@ func (d *Dao) UpdateUsername(ctx context.Context, id int64, username string) (bo
 	return changed, err
 }
 
+// ownPhotoQuery tells whether a photo is one of the account's photos.
+const ownPhotoQuery = "SELECT COUNT(*) FROM user_profile_photos WHERE user_id = ? AND photo_id = ? AND deleted = 0"
+
 // UpdateProfilePhoto makes photoId the main photo of the account id, or with
 // photoId 0 removes the main photo and makes the latest of the others main.
-// Its devices get updateUser with seq (ADR 0020); the main photo already
-// set, or no photo to remove, changes nothing. A photo media does not have
-// is PHOTO_ID_INVALID. It returns the main photo now.
-func (d *Dao) UpdateProfilePhoto(ctx context.Context, id int64, photoId int64) (int64, error) {
+// photoId is one of the account's photos, or uploaded for it just now,
+// which makes it one. Its devices get updateUser with seq (ADR 0020); the
+// main photo already set, or no photo to remove, changes nothing. A photo
+// media does not have, or that is not the account's, is PHOTO_ID_INVALID.
+// It returns the main photo now.
+func (d *Dao) UpdateProfilePhoto(ctx context.Context, id int64, photoId int64, uploaded bool) (int64, error) {
 	var photos map[int64]*mtproto.Photo
 	if photoId != 0 {
 		p, err := d.MediaClient.MediaGetPhoto(ctx, &media.TLMediaGetPhoto{PhotoId: photoId})
@@ -285,6 +290,19 @@ func (d *Dao) UpdateProfilePhoto(ctx context.Context, id int64, photoId int64) (
 		if photoId != 0 {
 			if row.PhotoId == photoId {
 				return false, nil
+			}
+			if !uploaded {
+				// The access hash bff checked tells only that the caller
+				// sees the photo: another user's photo is not the
+				// account's to make main. The box lock keeps the
+				// account's photos as read until the commit.
+				var n int
+				if err := b.Tx().QueryRow(&n, ownPhotoQuery, id, photoId); err != nil {
+					return false, err
+				}
+				if n == 0 {
+					return false, mtproto.ErrPhotoIdInvalid
+				}
 			}
 			if _, _, err := d.UserProfilePhotosDAO.InsertOrUpdateTx(b.Tx(), &dataobject.UserProfilePhotosDO{
 				UserId:  id,

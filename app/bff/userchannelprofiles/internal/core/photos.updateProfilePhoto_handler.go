@@ -28,8 +28,8 @@ import (
 // photos.updateProfilePhoto#9e82039 flags:# fallback:flags.0?true bot:flags.1?InputUser id:InputPhoto = photos.Photo;
 func (c *UserChannelProfilesCore) PhotosUpdateProfilePhoto(in *mtproto.TLPhotosUpdateProfilePhoto) (*mtproto.Photos_Photo, error) {
 	// inputPhoto makes a photo main: the photo with its access_hash, as in
-	// Telegram, otherwise PHOTO_ID_INVALID. inputPhotoEmpty removes the
-	// main photo.
+	// Telegram, otherwise PHOTO_ID_INVALID; biz checks that it is one of
+	// the account's photos. inputPhotoEmpty removes the main photo.
 	var (
 		photo   *mtproto.Photo
 		photoId int64

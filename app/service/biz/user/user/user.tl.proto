@@ -635,6 +635,9 @@ message TL_user_updateProfilePhoto {
   TLConstructor constructor = 1;
   int64 user_id = 3;
   int64 id = 4;
+  // pluma: id was just uploaded for the account (photos.uploadProfilePhoto)
+  // and becomes one of its photos; otherwise id must be one of them.
+  bool uploaded = 5;
 }
 
 //--------------------------------------------------------------------------------------------

@@ -47,16 +47,23 @@ func (f *fakeMedia) MediaGetPhoto(_ context.Context, in *mediapb.TLMediaGetPhoto
 	return mtproto.MakeTLPhoto(&mtproto.Photo{Id: in.PhotoId, AccessHash: in.PhotoId * 10}).To_Photo(), nil
 }
 
-// fakeUsers records the main photos biz is asked for; the removal of the
-// main photo makes next main.
+// MediaUploadProfilePhotoFile uploads photo 8.
+func (f *fakeMedia) MediaUploadProfilePhotoFile(_ context.Context, _ *mediapb.TLMediaUploadProfilePhotoFile) (*mtproto.Photo, error) {
+	return mtproto.MakeTLPhoto(&mtproto.Photo{Id: 8, AccessHash: 80}).To_Photo(), nil
+}
+
+// fakeUsers records the main photos biz is asked for and whether each was
+// just uploaded; the removal of the main photo makes next main.
 type fakeUsers struct {
 	user_client.UserClient
-	asked []int64
-	next  int64
+	asked    []int64
+	uploaded []bool
+	next     int64
 }
 
 func (f *fakeUsers) UserUpdateProfilePhoto(_ context.Context, in *userpb.TLUserUpdateProfilePhoto) (*mtproto.Int64, error) {
 	f.asked = append(f.asked, in.Id)
+	f.uploaded = append(f.uploaded, in.Uploaded)
 	if in.Id == 0 {
 		return &mtproto.Int64{V: f.next}, nil
 	}
@@ -101,5 +108,31 @@ func TestUpdateProfilePhotoAccessHash(t *testing.T) {
 	}
 	if want := []int64{5, 0, 0}; !slices.Equal(users.asked, want) {
 		t.Errorf("biz asked for %v, want %v", users.asked, want)
+	}
+	// biz checks that each is one of the account's photos.
+	if want := []bool{false, false, false}; !slices.Equal(users.uploaded, want) {
+		t.Errorf("uploaded %v, want %v", users.uploaded, want)
+	}
+}
+
+// photos.uploadProfilePhoto makes the photo just uploaded main: one of the
+// account's photos from now on.
+func TestUploadProfilePhotoIsTheAccounts(t *testing.T) {
+	users := &fakeUsers{}
+	ctx := context.Background()
+	c := &UserChannelProfilesCore{
+		ctx:    ctx,
+		svcCtx: &svc.ServiceContext{Dao: &dao.Dao{UserClient: users, MediaClient: &fakeMedia{}}},
+		Logger: logx.WithContext(ctx),
+		MD:     &metadata.RpcMetadata{UserId: 1},
+	}
+	r, err := c.PhotosUploadProfilePhoto(&mtproto.TLPhotosUploadProfilePhoto{
+		File: mtproto.MakeTLInputFile(&mtproto.InputFile{Id_INT64: 1, Parts: 1, Name: "a.jpg"}).To_InputFile(),
+	})
+	if err != nil || r.GetPhoto().GetId() != 8 {
+		t.Fatalf("upload: %v, %v", r, err)
+	}
+	if !slices.Equal(users.asked, []int64{8}) || !slices.Equal(users.uploaded, []bool{true}) {
+		t.Errorf("biz asked for %v, uploaded %v; want [8] [true]", users.asked, users.uploaded)
 	}
 }

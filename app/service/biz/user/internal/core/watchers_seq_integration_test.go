@@ -133,7 +133,7 @@ func TestNameAndPhotoToWatchers(t *testing.T) {
 			t.Fatalf("username, call %d: %v, %v; want %v", i, r, err, want)
 		}
 	}
-	if _, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: me, Id: p1}); err != nil {
+	if _, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: me, Id: p1, Uploaded: true}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: me, Id: p1}); err != nil { // changes nothing
