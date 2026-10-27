@@ -506,8 +506,8 @@
 | `messages.createChat9CB126E` | ok |  | app/bff/chats/internal/core/messages.createChat9CB126E_handler.go:27 |
 | `messages.createForumTopic` | missing |  |  |
 | `messages.declineUrlAuth` | missing |  |  |
-| `messages.deleteChat` | ok |  | app/bff/chats/internal/core/messages.deleteChat_handler.go:30 |
-| `messages.deleteChatUser` | ok |  | app/bff/chats/internal/core/messages.deleteChatUser_handler.go:32 |
+| `messages.deleteChat` | ok |  | app/bff/chats/internal/core/messages.deleteChat_handler.go:32 |
+| `messages.deleteChatUser` | ok |  | app/bff/chats/internal/core/messages.deleteChatUser_handler.go:39 |
 | `messages.deleteExportedChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.deleteExportedChatInvite_handler.go:28 |
 | `messages.deleteFactCheck` | missing |  |  |
 | `messages.deleteHistory` | partial |  | app/bff/messages/internal/core/messages.deleteHistory_handler.go:29 |
@@ -524,10 +524,10 @@
 | `messages.deleteTopicHistory` | missing |  |  |
 | `messages.discardEncryption` | missing |  |  |
 | `messages.editChatAbout` | partial |  | app/bff/chats/internal/core/messages.editChatAbout_handler.go:28 |
-| `messages.editChatAdmin` | ok |  | app/bff/chats/internal/core/messages.editChatAdmin_handler.go:30 |
+| `messages.editChatAdmin` | ok |  | app/bff/chats/internal/core/messages.editChatAdmin_handler.go:31 |
 | `messages.editChatCreator` | partial |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:36 |
-| `messages.editChatDefaultBannedRights` | partial |  | app/bff/chats/internal/core/messages.editChatDefaultBannedRights_handler.go:30 |
-| `messages.editChatParticipantRank` | ok |  | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:29 |
+| `messages.editChatDefaultBannedRights` | partial |  | app/bff/chats/internal/core/messages.editChatDefaultBannedRights_handler.go:34 |
+| `messages.editChatParticipantRank` | ok |  | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:32 |
 | `messages.editChatPhoto` | ok |  | app/bff/chats/internal/core/messages.editChatPhoto_handler.go:32 |
 | `messages.editChatTitle` | ok |  | app/bff/chats/internal/core/messages.editChatTitle_handler.go:31 |
 | `messages.editExportedChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.editExportedChatInvite_handler.go:29 |
@@ -641,10 +641,10 @@
 | `messages.getWebPagePreview570D6F6F` | missing |  |  |
 | `messages.getWebPagePreview8B68B0CC` | missing |  |  |
 | `messages.hideAllChatJoinRequests` | blocked |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:27 |
-| `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:32 |
+| `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:39 |
 | `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
-| `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:32 |
-| `messages.importChatInviteDE91436E` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInviteDE91436E_handler.go:32 |
+| `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:30 |
+| `messages.importChatInviteDE91436E` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInviteDE91436E_handler.go:30 |
 | `messages.initHistoryImport` | missing |  |  |
 | `messages.installStickerSet` | missing |  |  |
 | `messages.markDialogUnread` | ok |  | app/bff/dialogs/internal/core/messages.markDialogUnread_handler.go:37 |
