@@ -28,7 +28,8 @@ import (
 // chat.toggleNoForwards chat_id:long operator_id:long enabled:Bool = MutableChat;
 //
 // Only the creator turns the protection of the content on or off, in its
-// box transaction with the chat locked (ADR 0021).
+// box transaction with the chat locked (ADR 0021). Every member gets
+// updateChat with seq and reads the chat again.
 func (c *ChatCore) ChatToggleNoForwards(in *chat.TLChatToggleNoForwards) (*mtproto.MutableChat, error) {
 	enabled := mtproto.FromBool(in.Enabled)
 	chat2, err := c.changeChat(in.OperatorId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
@@ -46,7 +47,7 @@ func (c *ChatCore) ChatToggleNoForwards(in *chat.TLChatToggleNoForwards) (*mtpro
 		}
 		t.Chat.Noforwards = enabled
 		t.Chat.Version++
-		return nil
+		return t.tellMembers(b, t.chatUpdate())
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.toggleNoForwards - error: %v", err)

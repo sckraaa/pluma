@@ -19,8 +19,11 @@ import (
 	"slices"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dao"
+	"github.com/teamgram/teamgram-server/app/service/biz/updates/seqpeers"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
@@ -30,11 +33,15 @@ import (
 // and read it, which the change keeps up to date with what it writes. The
 // writes go through b.Tx(), the version of the chat grows with each change
 // of its participants or of what a client keeps of it, and the cache keys
-// of what changed go after the commit.
+// of what changed go after the commit. The updates with seq the change gives
+// the members are events of the same transaction (tell).
 type chatTx struct {
 	c *ChatCore
 	*dao.LockedChat
 	now int64
+	// users are the users of the operator's own updates, as the operator
+	// sees them, looked up before the transaction (changeMembers).
+	users *userpb.Vector_ImmutableUser
 }
 
 // changeChat runs fn in a box transaction of operatorId over chatId, locked
@@ -43,20 +50,59 @@ type chatTx struct {
 // changes nothing writes nothing. fn runs again if the transaction is
 // retried.
 func (c *ChatCore) changeChat(operatorId, chatId int64, fn func(b *userbox.Box, t *chatTx) error) (*mtproto.MutableChat, error) {
-	// The chat as the cache has it: whether it exists, and its photo,
-	// which the transaction cannot ask the media service for.
-	before, err := c.svcCtx.Dao.GetExcludeParticipantsMutableChat(c.ctx, chatId)
+	return c.change(operatorId, chatId, false, nil, fn)
+}
+
+// changeMembers is changeChat for a change whose updates to the operator
+// name users: the participants of the chat, who invited them and extra are
+// looked up as the operator sees them before the transaction, which calls
+// no service. A user who joins between the look-up and the lock goes
+// without a user in the operator's push; the push of the service message
+// and getDifference carry it.
+func (c *ChatCore) changeMembers(operatorId, chatId int64, extra []int64, fn func(b *userbox.Box, t *chatTx) error) (*mtproto.MutableChat, error) {
+	return c.change(operatorId, chatId, true, extra, fn)
+}
+
+func (c *ChatCore) change(operatorId, chatId int64, withUsers bool, extra []int64, fn func(b *userbox.Box, t *chatTx) error) (*mtproto.MutableChat, error) {
+	d := c.svcCtx.Dao
+	// The chat as the cache has it: whether it exists, its photo, which
+	// the transaction cannot ask the media service for, and with users
+	// its participants.
+	var (
+		before *mtproto.MutableChat
+		users  *userpb.Vector_ImmutableUser
+		err    error
+	)
+	if !withUsers {
+		before, err = d.GetExcludeParticipantsMutableChat(c.ctx, chatId)
+	} else if before, err = d.GetMutableChat(c.ctx, chatId); err == nil {
+		ids := []int64{operatorId}
+		add := func(id int64) {
+			if id != 0 && !slices.Contains(ids, id) {
+				ids = append(ids, id)
+			}
+		}
+		for _, p := range before.GetChatParticipants() {
+			add(p.UserId)
+			add(p.InviterUserId)
+		}
+		for _, id := range extra {
+			add(id)
+		}
+		users, err = d.Users.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: ids})
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	var t *chatTx
-	_, err = c.svcCtx.Dao.RunBox(c.ctx, operatorId, []string{c.svcCtx.Dao.GetChatCacheKey(chatId)}, func(b *userbox.Box) error {
+	_, err = d.RunBox(c.ctx, operatorId, []string{d.GetChatCacheKey(chatId)}, func(b *userbox.Box) error {
 		t = nil
-		locked, err := c.svcCtx.Dao.LockChat(b, chatId)
+		locked, err := d.LockChat(b, chatId)
 		if err != nil {
 			return err
 		}
-		t = &chatTx{c: c, LockedChat: locked, now: b.Date()}
+		t = &chatTx{c: c, LockedChat: locked, now: b.Date(), users: users}
 		t.Chat.Photo = before.Chat.GetPhoto()
 		return fn(b, t)
 	})
@@ -217,4 +263,88 @@ func (t *chatTx) addMember(b *userbox.Box, inviterId, userId int64, isBot, check
 	}
 	t.changed(b, userId)
 	return t.writeCount(b)
+}
+
+// admins returns the members who answer the requests to join: the
+// creator and the admins, by ascending id.
+func (t *chatTx) admins() []int64 {
+	var ids []int64
+	t.Walk(func(userId int64, p *mtproto.ImmutableChatParticipant) error {
+		if p.IsChatMemberStateNormal() && p.CanInviteUsers() {
+			ids = append(ids, userId)
+		}
+		return nil
+	})
+	slices.Sort(ids)
+	return ids
+}
+
+// tell gives updates with seq to the users of to: the operator's own
+// account journals each one in the transaction and pushes it to its devices
+// with the users and the chat it names, as the operator sees them
+// (EmitSeqUpdate); every other user gets one inbox event with all of them,
+// whose users and chats msg builds as that user sees them when it applies
+// it (EmitSeqInbox).
+func (t *chatTx) tell(b *userbox.Box, to []int64, updates ...*mtproto.Update) error {
+	d := t.c.svcCtx.Dao
+	for _, id := range to {
+		if id != b.UserId() {
+			if err := d.EmitSeqInbox(b, id, updates...); err != nil {
+				return err
+			}
+			continue
+		}
+		for _, u := range updates {
+			h := mtproto.NewIDListHelper()
+			seqpeers.Pick(h, id, u)
+			var chats []*mtproto.Chat
+			if slices.Contains(h.ChatIdList, t.Chat.Id) {
+				chats = []*mtproto.Chat{t.ToUnsafeChat(id)}
+			}
+			if err := d.EmitSeqUpdate(b, u, t.users.GetUserListByIdList(id, h.UserIdList...), chats); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// tellMembers gives updates with seq to every member of the chat now.
+func (t *chatTx) tellMembers(b *userbox.Box, updates ...*mtproto.Update) error {
+	return t.tell(b, t.members(), updates...)
+}
+
+// participantsUpdate is the whole list of the members with the version of
+// the chat. Each change of the participants sends the list, not a delta:
+// every client replaces its list from it and checks only that the version
+// grows, while the deltas (updateChatParticipantAdd and the others) need
+// the version to follow on by one, which a title or a photo breaks.
+func (t *chatTx) participantsUpdate() *mtproto.Update {
+	return mtproto.MakeTLUpdateChatParticipants(&mtproto.Update{
+		Participants_CHATPARTICIPANTS: t.ToChatParticipants(0),
+	}).To_Update()
+}
+
+// forbiddenUpdate tells a user removed from the chat, or who left it, that
+// the members are no longer theirs to see.
+func (t *chatTx) forbiddenUpdate() *mtproto.Update {
+	return mtproto.MakeTLUpdateChatParticipants(&mtproto.Update{
+		Participants_CHATPARTICIPANTS: mtproto.MakeTLChatParticipantsForbidden(&mtproto.ChatParticipants{
+			ChatId: t.Chat.Id,
+		}).To_ChatParticipants(),
+	}).To_Update()
+}
+
+// chatUpdate tells the members to read the chat again.
+func (t *chatTx) chatUpdate() *mtproto.Update {
+	return mtproto.MakeTLUpdateChat(&mtproto.Update{ChatId_INT64: t.Chat.Id}).To_Update()
+}
+
+// tellRequests gives the admins the requests to join pending now.
+func (t *chatTx) tellRequests(b *userbox.Box, r *chat.RecentChatInviteRequesters) error {
+	return t.tell(b, t.admins(), mtproto.MakeTLUpdatePendingJoinRequests(&mtproto.Update{
+		Peer_PEER:        mtproto.MakePeerChat(t.Chat.Id),
+		RequestsPending:  r.GetRequestsPending(),
+		RecentRequesters: r.GetRecentRequesters(),
+	}).To_Update())
 }

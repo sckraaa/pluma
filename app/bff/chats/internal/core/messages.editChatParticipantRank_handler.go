@@ -19,13 +19,16 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // MessagesEditChatParticipantRank
 // messages.editChatParticipantRank#a00f32b0 peer:InputPeer participant:InputPeer rank:string = Updates;
+//
+// biz chat gives every member, this account's devices included, the members
+// with seq in the transaction of the change (ADR 0021); the reply carries
+// them with seq 0.
 func (c *ChatsCore) MessagesEditChatParticipantRank(in *mtproto.TLMessagesEditChatParticipantRank) (*mtproto.Updates, error) {
 	var (
 		peer        = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
@@ -77,23 +80,6 @@ func (c *ChatsCore) MessagesEditChatParticipantRank(in *mtproto.TLMessagesEditCh
 		c.Logger.Errorf("messages.editChatParticipantRank - error: %v", err)
 		return nil, err
 	}
-
-	chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-		if !participant.IsChatMemberStateNormal() {
-			return nil
-		}
-
-		c.svcCtx.Dao.SyncClient.SyncPushUpdates(c.ctx,
-			&sync.TLSyncPushUpdates{
-				UserId: userId,
-				Updates: mtproto.MakeUpdatesByUpdatesUsersChats(
-					mUsers.GetUserListByIdList(userId, idList...),
-					[]*mtproto.Chat{chat.ToUnsafeChat(userId)},
-					updateChatParticipants),
-			})
-
-		return nil
-	})
 
 	return mtproto.MakeUpdatesByUpdatesUsersChats(
 		mUsers.GetUserListByIdList(c.MD.UserId, idList...),

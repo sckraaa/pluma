@@ -25,6 +25,11 @@ func NewChatClientHelper(cli zrpc.Client) *ChatClientHelper {
 	}
 }
 
+// NewChatClientHelperOf is the helper over cli as it is: a fake of a test.
+func NewChatClientHelperOf(cli ChatClient) *ChatClientHelper {
+	return &ChatClientHelper{cli: cli}
+}
+
 func (m *ChatClientHelper) Client() ChatClient {
 	return m.cli
 }

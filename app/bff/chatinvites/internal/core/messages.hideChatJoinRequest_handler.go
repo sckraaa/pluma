@@ -19,31 +19,36 @@
 package core
 
 import (
+	"math/rand"
+
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
-	"math/rand"
 )
 
 // MessagesHideChatJoinRequest
 // messages.hideChatJoinRequest#7fe7e815 flags:# approved:flags.0?true peer:InputPeer user_id:InputUser = Updates;
+//
+// biz chat approves or declines the request in the admin's transaction and
+// gives the members (approved) and the creator and the admins
+// (updatePendingJoinRequests) their updates with seq there, this account's
+// devices included (ADR 0021). The reply carries the requests left with
+// seq 0: after the service message of an approval, or with the latest
+// requesters.
 func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHideChatJoinRequest) (*mtproto.Updates, error) {
 	var (
-		peer           = mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
-		userId         = mtproto.FromInputUser(c.MD.UserId, in.GetUserId())
-		pushUserIdList = make([]int64, 0)
-		pushUsers      *user.Vector_ImmutableUser
+		peer   = mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
+		userId = mtproto.FromInputUser(c.MD.UserId, in.GetUserId())
 	)
 
 	if userId.IsSelf() {
-		c.Logger.Errorf("messages.hideChatJoinRequest - error: method MessagesHideChatJoinRequest not impl")
+		c.Logger.Errorf("messages.hideChatJoinRequest - error: the requester is the user itself")
 		return nil, mtproto.ErrUserIdInvalid
 	}
 
 	if !peer.IsChat() {
-		c.Logger.Errorf("messages.hideChatJoinRequest - error: method MessagesHideChatJoinRequest not impl")
+		c.Logger.Errorf("messages.hideChatJoinRequest - error: peer %v is not a basic group", peer)
 		return nil, mtproto.ErrPeerIdInvalid
 	}
 
@@ -57,12 +62,12 @@ func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHide
 
 	me, _ := mChat.GetImmutableChatParticipant(c.MD.UserId)
 	if me == nil || !me.CanInviteUsers() {
-		c.Logger.Errorf("messages.hideChatJoinRequest - error: %v", err)
+		c.Logger.Errorf("messages.hideChatJoinRequest - error: user %d may not answer the requests of chat %d", c.MD.UserId, peer.PeerId)
 		return nil, mtproto.ErrPeerIdInvalid
 	}
 	join, _ := mChat.GetImmutableChatParticipant(userId.PeerId)
 	if join != nil && join.IsChatMemberStateNormal() {
-		c.Logger.Errorf("messages.hideChatJoinRequest - error: %v", err)
+		c.Logger.Errorf("messages.hideChatJoinRequest - error: user %d is a member of chat %d", userId.PeerId, peer.PeerId)
 		return nil, mtproto.ErrUserIdInvalid
 	}
 
@@ -74,7 +79,8 @@ func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHide
 		UserId:   mtproto.MakeFlagsInt64(userId.PeerId),
 	})
 	if err != nil {
-		return mtproto.MakeEmptyUpdates(), nil
+		c.Logger.Errorf("messages.hideChatJoinRequest - error: %v", err)
+		return nil, err
 	}
 
 	updatePendingJoinRequests := mtproto.MakeTLUpdatePendingJoinRequests(&mtproto.Update{
@@ -82,19 +88,6 @@ func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHide
 		RequestsPending:  pendingJoinRequests.RequestsPending,
 		RecentRequesters: pendingJoinRequests.RecentRequesters,
 	}).To_Update()
-
-	pushUserIdList = append(pushUserIdList, pendingJoinRequests.GetRecentRequesters()...)
-	if len(pushUserIdList) > 0 {
-		mChat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-			if participant.CanInviteUsers() {
-				pushUserIdList = append(pushUserIdList, participant.UserId)
-			}
-			return nil
-		})
-		pushUsers, _ = c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &user.TLUserGetMutableUsers{
-			Id: pushUserIdList,
-		})
-	}
 
 	if in.GetApproved() {
 		// TODO: found link
@@ -116,56 +109,25 @@ func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHide
 				},
 			})
 		if err != nil {
-			c.Logger.Errorf("messages.importChatInvite - error: %v", err)
+			c.Logger.Errorf("messages.hideChatJoinRequest - error: %v", err)
 			return nil, err
 		}
 
 		rUpdates.Updates = append(rUpdates.Updates, updatePendingJoinRequests)
 		return rUpdates, nil
-	} else {
-		mChat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-			if c.MD.UserId == participant.UserId {
-				return nil
-			}
-
-			if participant.CanInviteUsers() {
-				if len(pushUserIdList) > 0 {
-					c.svcCtx.Dao.SyncClient.SyncPushUpdates(
-						c.ctx,
-						&sync.TLSyncPushUpdates{
-							UserId: participant.UserId,
-							Updates: mtproto.MakeUpdatesByUpdates(
-								updatePendingJoinRequests),
-						},
-					)
-				} else {
-					c.svcCtx.Dao.SyncClient.SyncPushUpdates(
-						c.ctx,
-						&sync.TLSyncPushUpdates{
-							UserId: participant.UserId,
-							Updates: mtproto.MakeUpdatesByUpdatesUsers(
-								pushUsers.GetUserListByIdList(participant.UserId, pendingJoinRequests.RecentRequesters...),
-								updatePendingJoinRequests),
-						},
-					)
-				}
-			}
-			return nil
-		})
-
-		var (
-			rUpdates *mtproto.Updates
-		)
-
-		if len(pushUserIdList) > 0 {
-			rUpdates = mtproto.MakeUpdatesByUpdatesUsers(
-				pushUsers.GetUserListByIdList(c.MD.UserId, pendingJoinRequests.RecentRequesters...),
-				updatePendingJoinRequests)
-		} else {
-			rUpdates = mtproto.MakeUpdatesByUpdates(
-				updatePendingJoinRequests)
-		}
-
-		return rUpdates, nil
 	}
+
+	if len(pendingJoinRequests.GetRecentRequesters()) == 0 {
+		return mtproto.MakeUpdatesByUpdates(updatePendingJoinRequests), nil
+	}
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &user.TLUserGetMutableUsers{
+		Id: append([]int64{c.MD.UserId}, pendingJoinRequests.GetRecentRequesters()...),
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.hideChatJoinRequest - error: %v", err)
+		return nil, err
+	}
+	return mtproto.MakeUpdatesByUpdatesUsers(
+		users.GetUserListByIdList(c.MD.UserId, pendingJoinRequests.GetRecentRequesters()...),
+		updatePendingJoinRequests), nil
 }

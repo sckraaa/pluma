@@ -31,8 +31,10 @@ import (
 // The user joins by the link, or asks to when the link needs an admin's
 // approval, in its box transaction with the chat locked (ADR 0021): the
 // link is checked again under the lock, and the membership or the request
-// is written with the use of the link. A request already pending changes
-// nothing. The requesters of the result tell that the user asked.
+// is written with the use of the link. Every member, the new one
+// included, gets the members with seq; a request gives the creator and the
+// admins the requests pending. A request already pending changes nothing.
+// The requesters of the result tell that the user asked.
 func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*chat.ChatInviteImported, error) {
 	invite, err := c.svcCtx.Dao.ChatInvitesDAO.SelectByLink(c.ctx, in.Hash)
 	if err != nil {
@@ -44,8 +46,16 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 		return nil, err
 	}
 
+	// The joiner gets the members, the users of which are looked up; a
+	// requester is no admin and gets nothing.
+	change := c.changeChat
+	if !invite.RequestNeeded {
+		change = func(operatorId, chatId int64, fn func(b *userbox.Box, t *chatTx) error) (*mtproto.MutableChat, error) {
+			return c.changeMembers(operatorId, chatId, []int64{in.SelfId, invite.AdminId}, fn)
+		}
+	}
 	var requesters *chat.RecentChatInviteRequesters
-	chat2, err := c.changeChat(in.SelfId, invite.ChatId, func(b *userbox.Box, t *chatTx) error {
+	chat2, err := change(in.SelfId, invite.ChatId, func(b *userbox.Box, t *chatTx) error {
 		requesters = nil
 		d := t.c.svcCtx.Dao
 		invite, err := d.InviteByLinkTx(b, in.Hash)
@@ -59,7 +69,10 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 			if err = t.addMember(b, invite.AdminId, in.SelfId, false, false); err != nil {
 				return err
 			}
-			return d.PutInviteeTx(b, t.Chat.Id, in.Hash, in.SelfId, false, t.now)
+			if err = d.PutInviteeTx(b, t.Chat.Id, in.Hash, in.SelfId, false, t.now); err != nil {
+				return err
+			}
+			return t.tellMembers(b, t.participantsUpdate())
 		}
 
 		if err = t.open(); err != nil {
@@ -75,13 +88,17 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 		if err != nil {
 			return err
 		}
-		if !pending {
-			if err = d.PutInviteeTx(b, t.Chat.Id, in.Hash, in.SelfId, true, t.now); err != nil {
-				return err
-			}
+		if pending {
+			requesters, err = d.RecentRequestersTx(b, t.Chat.Id)
+			return err
 		}
-		requesters, err = d.RecentRequestersTx(b, t.Chat.Id)
-		return err
+		if err = d.PutInviteeTx(b, t.Chat.Id, in.Hash, in.SelfId, true, t.now); err != nil {
+			return err
+		}
+		if requesters, err = d.RecentRequestersTx(b, t.Chat.Id); err != nil {
+			return err
+		}
+		return t.tellRequests(b, requesters)
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.importChatInvite - error: %v", err)

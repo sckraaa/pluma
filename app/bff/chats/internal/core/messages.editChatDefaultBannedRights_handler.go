@@ -19,14 +19,18 @@
 package core
 
 import (
-	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
-	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"time"
+
+	"github.com/teamgram/proto/mtproto"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 )
 
 // MessagesEditChatDefaultBannedRights
 // messages.editChatDefaultBannedRights#a5866b41 peer:InputPeer banned_rights:ChatBannedRights = Updates;
+//
+// biz chat gives every member, this account's devices included,
+// updateChatDefaultBannedRights with seq in the transaction of the change
+// (ADR 0021); the reply carries the chat.
 func (c *ChatsCore) MessagesEditChatDefaultBannedRights(in *mtproto.TLMessagesEditChatDefaultBannedRights) (*mtproto.Updates, error) {
 	var (
 		peer     = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
@@ -46,30 +50,6 @@ func (c *ChatsCore) MessagesEditChatDefaultBannedRights(in *mtproto.TLMessagesEd
 			return nil, err
 		}
 
-		defaultBannedUpdates := mtproto.MakeTLUpdateShort(&mtproto.Updates{
-			Update: mtproto.MakeTLUpdateChatDefaultBannedRights(&mtproto.Update{
-				Peer_PEER:           mtproto.MakePeerChat(peer.PeerId),
-				DefaultBannedRights: chat.Chat.DefaultBannedRights,
-				Version:             chat.Chat.Version,
-			}).To_Update(),
-			Date: int32(date),
-		}).To_Updates()
-
-		c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
-			UserId:        c.MD.UserId,
-			PermAuthKeyId: c.MD.PermAuthKeyId,
-			Updates:       defaultBannedUpdates,
-		})
-		chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-			if userId != c.MD.UserId {
-				c.svcCtx.Dao.SyncClient.SyncPushUpdates(c.ctx, &sync.TLSyncPushUpdates{
-					UserId:  userId,
-					Updates: defaultBannedUpdates,
-				})
-			}
-			return nil
-		})
-
 		rUpdates = mtproto.MakeTLUpdates(&mtproto.Updates{
 			Updates: []*mtproto.Update{},
 			Users:   []*mtproto.User{},
@@ -83,7 +63,7 @@ func (c *ChatsCore) MessagesEditChatDefaultBannedRights(in *mtproto.TLMessagesEd
 		return nil, mtproto.ErrEnterpriseIsBlocked
 	default:
 		err := mtproto.ErrPeerIdInvalid
-		c.Logger.Errorf("invalid peer type: {%v}")
+		c.Logger.Errorf("messages.editChatDefaultBannedRights - invalid peer type: %v", peer)
 		return nil, err
 	}
 

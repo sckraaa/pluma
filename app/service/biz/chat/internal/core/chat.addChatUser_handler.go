@@ -20,6 +20,7 @@ import (
 //
 // The inviter adds the user in its box transaction with the chat locked
 // (ADR 0021); inviter 0 is the server's admin, who acts as the creator.
+// Every member, the new one included, gets the members with seq.
 func (c *ChatCore) ChatAddChatUser(in *chat.TLChatAddChatUser) (*mtproto.MutableChat, error) {
 	inviterId, checkInviter := in.InviterId, true
 	if inviterId == 0 {
@@ -31,8 +32,11 @@ func (c *ChatCore) ChatAddChatUser(in *chat.TLChatAddChatUser) (*mtproto.Mutable
 		inviterId, checkInviter = creator, false
 	}
 
-	chat2, err := c.changeChat(inviterId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
-		return t.addMember(b, inviterId, in.UserId, in.GetIsBot(), checkInviter)
+	chat2, err := c.changeMembers(inviterId, in.ChatId, []int64{in.UserId}, func(b *userbox.Box, t *chatTx) error {
+		if err := t.addMember(b, inviterId, in.UserId, in.GetIsBot(), checkInviter); err != nil {
+			return err
+		}
+		return t.tellMembers(b, t.participantsUpdate())
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.addChatUser - error: %v", err)

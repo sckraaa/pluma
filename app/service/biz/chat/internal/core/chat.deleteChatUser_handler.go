@@ -21,7 +21,8 @@ import (
 // An admin removes a member, or a member leaves, in the operator's box
 // transaction with the chat locked (ADR 0021); operator 0 is the server's
 // admin, who acts as the creator. The removed user keeps the participant
-// row, kicked or left.
+// row, kicked or left. The members left get the members with seq, the
+// removed user the forbidden list.
 func (c *ChatCore) ChatDeleteChatUser(in *chat.TLChatDeleteChatUser) (*mtproto.MutableChat, error) {
 	operatorId := in.OperatorId
 	if operatorId == 0 {
@@ -34,7 +35,14 @@ func (c *ChatCore) ChatDeleteChatUser(in *chat.TLChatDeleteChatUser) (*mtproto.M
 	}
 	kicked := operatorId != in.DeleteUserId
 
-	chat2, err := c.changeChat(operatorId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+	change := c.changeChat
+	if kicked {
+		// The operator stays and gets the members.
+		change = func(operatorId, chatId int64, fn func(b *userbox.Box, t *chatTx) error) (*mtproto.MutableChat, error) {
+			return c.changeMembers(operatorId, chatId, nil, fn)
+		}
+	}
+	chat2, err := change(operatorId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
 		me := t.participant(operatorId)
 		switch {
 		case me == nil:
@@ -76,7 +84,13 @@ func (c *ChatCore) ChatDeleteChatUser(in *chat.TLChatDeleteChatUser) (*mtproto.M
 			return err
 		}
 		t.changed(b, in.DeleteUserId)
-		return t.writeCount(b)
+		if err := t.writeCount(b); err != nil {
+			return err
+		}
+		if err := t.tellMembers(b, t.participantsUpdate()); err != nil {
+			return err
+		}
+		return t.tell(b, []int64{in.DeleteUserId}, t.forbiddenUpdate())
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.deleteChatUser - error: %v", err)

@@ -22,9 +22,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
-	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // MessagesImportChatInviteDE91436E
@@ -64,42 +62,9 @@ func (c *ChatInvitesCore) MessagesImportChatInviteDE91436E(in *mtproto.TLMessage
 	mChat := chatInviteImported.GetChat()
 
 	if chatInviteImported.GetRequesters() != nil {
-		//c.Logger.Errorf("error: %v, chat: %s", err, mChat)
-		//if nErr, ok := status.FromError(err); ok {
-		//	if nErr.Message() == "INVITE_REQUEST_SENT" {
-		requesters := chatInviteImported.GetRequesters()
-
-		updatePendingJoinRequests := mtproto.MakeTLUpdatePendingJoinRequests(&mtproto.Update{
-			Peer_PEER:        mtproto.MakePeerChat(mChat.Id()),
-			RequestsPending:  requesters.GetRequestsPending(),
-			RecentRequesters: requesters.GetRecentRequesters(),
-		}).To_Update()
-
-		idList := make([]int64, 0)
-		mChat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-			idList = append(idList, participant.GetUserId())
-			return nil
-		})
-
-		pushUserList, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &user.TLUserGetMutableUsers{
-			Id: idList,
-		})
-
-		mChat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-			c.svcCtx.Dao.SyncClient.SyncPushUpdates(
-				c.ctx,
-				&sync.TLSyncPushUpdates{
-					UserId: participant.UserId,
-					Updates: mtproto.MakeUpdatesByUpdatesUsers(
-						pushUserList.GetUserListByIdList(participant.UserId, c.MD.UserId),
-						updatePendingJoinRequests),
-				},
-			)
-
-			return nil
-		})
-
-		c.Logger.Errorf("messages.importChatInvite - reply: %v", mtproto.ErrInviteRequestSent)
+		// The request is written: biz chat gives the creator and the admins
+		// updatePendingJoinRequests with seq in its transaction (ADR 0021).
+		c.Logger.Infof("messages.importChatInvite - reply: %v", mtproto.ErrInviteRequestSent)
 		return nil, mtproto.ErrInviteRequestSent
 	} else {
 		// TODO: found link

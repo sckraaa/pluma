@@ -21,11 +21,11 @@ import (
 //
 // A member who may add admins makes a member an admin or takes it back, in
 // its box transaction with the chat locked (ADR 0021). A new admin gets its
-// own permanent invite link. A member already in the asked role changes
-// nothing.
+// own permanent invite link. Every member gets the members with seq. A
+// member already in the asked role changes nothing.
 func (c *ChatCore) ChatEditChatAdmin(in *chat.TLChatEditChatAdmin) (*mtproto.MutableChat, error) {
 	isAdmin := mtproto.FromBool(in.IsAdmin)
-	chat2, err := c.changeChat(in.OperatorId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+	chat2, err := c.changeMembers(in.OperatorId, in.ChatId, nil, func(b *userbox.Box, t *chatTx) error {
 		me := t.member(in.OperatorId)
 		target := t.participant(in.EditChatAdminId)
 		switch {
@@ -72,7 +72,10 @@ func (c *ChatCore) ChatEditChatAdmin(in *chat.TLChatEditChatAdmin) (*mtproto.Mut
 			target.AdminRights = mtproto.MakeDefaultChatAdminRights()
 		}
 		t.changed(b, in.EditChatAdminId)
-		return t.bumpVersion(b)
+		if err := t.bumpVersion(b); err != nil {
+			return err
+		}
+		return t.tellMembers(b, t.participantsUpdate())
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.editChatAdmin - error: %v", err)

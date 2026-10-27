@@ -21,12 +21,14 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 )
 
 // MessagesDeleteChat
 // messages.deleteChat#5bd0ee50 chat_id:long = Bool;
+//
+// biz chat gives every member and this account updateChat with seq in the
+// transaction that deletes the chat (ADR 0021).
 func (c *ChatsCore) MessagesDeleteChat(in *mtproto.TLMessagesDeleteChat) (*mtproto.Bool, error) {
 	operatorId := c.MD.UserId
 	if c.MD.IsAdmin {
@@ -43,21 +45,10 @@ func (c *ChatsCore) MessagesDeleteChat(in *mtproto.TLMessagesDeleteChat) (*mtpro
 		return nil, err
 	}
 
-	pushUpdates := mtproto.MakeUpdatesByUpdatesChats(
-		[]*mtproto.Chat{chat.ToChatForbidden()},
-		mtproto.MakeUpdateChat(chat.Id()))
-
 	// 1. kicked all: each member's history of the chat goes, with the
 	// dialog row in the transaction of the last portion.
 	var firstErr error
 	chat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-		if userId == c.MD.UserId || participant.IsChatMemberStateNormal() {
-			c.svcCtx.Dao.SyncClient.SyncPushUpdates(c.ctx, &sync.TLSyncPushUpdates{
-				UserId:  userId,
-				Updates: pushUpdates,
-			})
-		}
-
 		if err := c.deleteChatHistory(userId, chat.Id()); err != nil {
 			c.Logger.Errorf("messages.deleteChat - delete the history of user %d in chat %d: %v", userId, chat.Id(), err)
 			if firstErr == nil {

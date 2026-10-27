@@ -334,3 +334,60 @@ func TestSeqUpdatesWaitForPeers(t *testing.T) {
 	}
 	missing(c, false)
 }
+
+// The members of a basic group as biz chat gives them to a member and to a
+// removed user (ADR 0021): journaled with seq in each account, pushed with
+// the users and the chat as each sees them, and in getDifference.
+func TestSeqChatParticipantsToMembers(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	a, b, c := newUser(), newUser(), newUser()
+	group := newChat()
+	w.chats.mu.Lock()
+	w.chats.members[group] = []int64{a, b, c}
+	w.chats.mu.Unlock()
+
+	member := func(userId int64, creator bool) *mtproto.ChatParticipant {
+		if creator {
+			return mtproto.MakeTLChatParticipantCreator(&mtproto.ChatParticipant{UserId: userId}).To_ChatParticipant()
+		}
+		return mtproto.MakeTLChatParticipant(&mtproto.ChatParticipant{UserId: userId, InviterId: a, Date: 1}).To_ChatParticipant()
+	}
+	members := mtproto.MakeTLUpdateChatParticipants(&mtproto.Update{
+		Participants_CHATPARTICIPANTS: mtproto.MakeTLChatParticipants(&mtproto.ChatParticipants{
+			ChatId:       group,
+			Participants: []*mtproto.ChatParticipant{member(a, true), member(b, false), member(c, false)},
+			Version:      2,
+		}).To_ChatParticipants(),
+	}).To_Update()
+	forbidden := mtproto.MakeTLUpdateChatParticipants(&mtproto.Update{
+		Participants_CHATPARTICIPANTS: mtproto.MakeTLChatParticipantsForbidden(&mtproto.ChatParticipants{ChatId: group}).To_ChatParticipants(),
+	}).To_Update()
+	w.emitSeqInbox(a, b, members)
+	id, _ := w.emitSeqInbox(a, c, forbidden)
+	w.pub.drain()
+	waitState(t, id)
+
+	if got, want := seqPushes(w.pub.pushesTo(b)), []string{fmt.Sprintf("%d:[updateChatParticipants] [%d %d %d] [%d]", userbox.BaseSeq+1, a, b, c, group)}; !slices.Equal(got, want) {
+		t.Errorf("pushes to B %v, want %v", got, want)
+	}
+	if got, want := seqPushes(w.pub.pushesTo(c)), []string{fmt.Sprintf("%d:[updateChatParticipants] [] [%d]", userbox.BaseSeq+1, group)}; !slices.Equal(got, want) {
+		t.Errorf("pushes to C %v, want %v", got, want)
+	}
+
+	journal := w.seqJournal(b)
+	diff, err := updates_helper.New(updates_helper.Config{Mysql: sqlx.Config{DSN: boxDSN("")}}).UpdatesGetDifferenceV2(ctx, &updates.TLUpdatesGetDifferenceV2{
+		UserId: b, Pts: userbox.BasePts, Date: journal[0].date,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff.GetOtherUpdates()) != 1 || diff.GetState().GetSeq() != userbox.BaseSeq+1 {
+		t.Fatalf("difference %v, state %v", diff.GetOtherUpdates(), diff.GetState())
+	}
+	got := diff.GetOtherUpdates()[0].GetParticipants_CHATPARTICIPANTS()
+	if got.GetChatId() != group || got.GetVersion() != 2 || len(got.GetParticipants()) != 3 ||
+		got.GetParticipants()[0].GetPredicateName() != mtproto.Predicate_chatParticipantCreator {
+		t.Errorf("members in the difference %v", got)
+	}
+}

@@ -10,6 +10,8 @@
 package core
 
 import (
+	"slices"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -20,9 +22,10 @@ import (
 //
 // The creator deletes the chat in its box transaction with the chat locked
 // (ADR 0021): the chat is deactivated, every member removed. Operator 0 is
-// the server's admin, who acts as the creator. A chat deleted already
-// changes nothing and is returned again, so that bff can go on with the
-// histories of its participants.
+// the server's admin, who acts as the creator. Every member and the
+// creator get updateChat with seq: the chat is deactivated for them. A chat
+// deleted already changes nothing and is returned again, so that bff can go
+// on with the histories of its participants.
 func (c *ChatCore) ChatDeleteChat(in *chat.TLChatDeleteChat) (*mtproto.MutableChat, error) {
 	operatorId := in.OperatorId
 	if operatorId == 0 {
@@ -41,6 +44,10 @@ func (c *ChatCore) ChatDeleteChat(in *chat.TLChatDeleteChat) (*mtproto.MutableCh
 		case t.Chat.Deactivated:
 			return nil
 		}
+		to := t.members()
+		if !slices.Contains(to, operatorId) {
+			to = append(to, operatorId)
+		}
 		d := t.c.svcCtx.Dao
 		if _, err := d.ChatParticipantsDAO.UpdateStateByChatIdTx(b.Tx(), mtproto.ChatMemberStateKicked, in.ChatId); err != nil {
 			return err
@@ -57,7 +64,7 @@ func (c *ChatCore) ChatDeleteChat(in *chat.TLChatDeleteChat) (*mtproto.MutableCh
 		t.Chat.ParticipantsCount = 0
 		t.Chat.Deactivated = true
 		t.Chat.Version++
-		return nil
+		return t.tell(b, to, t.chatUpdate())
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.deleteChat - error: %v", err)

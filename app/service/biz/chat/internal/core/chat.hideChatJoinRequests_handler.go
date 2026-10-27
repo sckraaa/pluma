@@ -29,8 +29,9 @@ import (
 //
 // An admin approves or declines the request of user_id to join, in its box
 // transaction with the chat locked (ADR 0021): an approved user becomes a
-// member, invited by the admin. It returns the requests left. The requests
-// of a whole link (no user_id) are not served.
+// member, invited by the admin, and every member gets the members with
+// seq. The creator and the admins get the requests left, which it
+// returns. The requests of a whole link (no user_id) are not served.
 func (c *ChatCore) ChatHideChatJoinRequests(in *chat.TLChatHideChatJoinRequests) (*chat.RecentChatInviteRequesters, error) {
 	if in.GetUserId() == nil {
 		c.Logger.Errorf("chat.hideChatJoinRequests - error: the requests of a link are not served")
@@ -38,8 +39,14 @@ func (c *ChatCore) ChatHideChatJoinRequests(in *chat.TLChatHideChatJoinRequests)
 	}
 	joinId := in.GetUserId().GetValue()
 
+	// The requesters the admin's own update names.
+	before, err := c.svcCtx.Dao.RecentRequesters(c.ctx, in.ChatId)
+	if err != nil {
+		c.Logger.Errorf("chat.hideChatJoinRequests - error: %v", err)
+		return nil, err
+	}
 	var requesters *chat.RecentChatInviteRequesters
-	_, err := c.changeChat(in.SelfId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+	_, err = c.changeMembers(in.SelfId, in.ChatId, append(before.GetRecentRequesters(), joinId), func(b *userbox.Box, t *chatTx) error {
 		requesters = nil
 		me := t.member(in.SelfId)
 		if me == nil || !me.CanInviteUsers() {
@@ -57,15 +64,19 @@ func (c *ChatCore) ChatHideChatJoinRequests(in *chat.TLChatHideChatJoinRequests)
 			if err = t.addMember(b, in.SelfId, joinId, false, false); err != nil {
 				return err
 			}
-			_, err = d.ChatInviteParticipantsDAO.UpdateApprovedByTx(b.Tx(), in.SelfId, in.ChatId, joinId)
-		} else {
-			_, err = d.ChatInviteParticipantsDAO.DeleteTx(b.Tx(), in.ChatId, joinId)
-		}
-		if err != nil {
+			if _, err = d.ChatInviteParticipantsDAO.UpdateApprovedByTx(b.Tx(), in.SelfId, in.ChatId, joinId); err != nil {
+				return err
+			}
+			if err = t.tellMembers(b, t.participantsUpdate()); err != nil {
+				return err
+			}
+		} else if _, err = d.ChatInviteParticipantsDAO.DeleteTx(b.Tx(), in.ChatId, joinId); err != nil {
 			return err
 		}
-		requesters, err = d.RecentRequestersTx(b, in.ChatId)
-		return err
+		if requesters, err = d.RecentRequestersTx(b, in.ChatId); err != nil {
+			return err
+		}
+		return t.tellRequests(b, requesters)
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.hideChatJoinRequests - error: %v", err)

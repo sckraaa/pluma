@@ -403,9 +403,6 @@ func TestEditChatAdmin(t *testing.T) {
 	if _, err = admin(a, b, false); err != nil || rowOf(t, id).version != 3 {
 		t.Errorf("demotion that changes nothing: %v, version %d", err, rowOf(t, id).version)
 	}
-	if events(t, a) != 0 {
-		t.Errorf("events of changes")
-	}
 }
 
 func TestEditChatParticipantRank(t *testing.T) {

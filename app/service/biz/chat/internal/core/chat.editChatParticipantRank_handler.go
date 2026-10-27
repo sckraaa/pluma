@@ -27,9 +27,10 @@ import (
 // chat.editChatParticipantRank self_id:long chat_id:long participant:long rank:string = MutableChat;
 //
 // The rank changes in the editor's box transaction with the chat locked
-// (ADR 0021): a change of the participants, which bumps the version.
+// (ADR 0021): a change of the participants, which bumps the version and
+// gives every member the members with seq.
 func (c *ChatCore) ChatEditChatParticipantRank(in *chat.TLChatEditChatParticipantRank) (*mtproto.MutableChat, error) {
-	chat2, err := c.changeChat(in.SelfId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+	chat2, err := c.changeMembers(in.SelfId, in.ChatId, nil, func(b *userbox.Box, t *chatTx) error {
 		me := t.member(in.SelfId)
 		participant := t.member(in.Participant)
 		switch {
@@ -47,7 +48,10 @@ func (c *ChatCore) ChatEditChatParticipantRank(in *chat.TLChatEditChatParticipan
 		}
 		participant.Rank = in.Rank
 		t.changed(b, in.Participant)
-		return t.bumpVersion(b)
+		if err := t.bumpVersion(b); err != nil {
+			return err
+		}
+		return t.tellMembers(b, t.participantsUpdate())
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.editChatParticipantRank - error: %v", err)

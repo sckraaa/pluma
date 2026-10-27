@@ -20,6 +20,7 @@ import (
 //
 // An admin changes the rights of the members, in its box transaction with
 // the chat locked (ADR 0021). Rights without an end date are for good.
+// Every member gets the rights with seq.
 func (c *ChatCore) ChatEditChatDefaultBannedRights(in *chat.TLChatEditChatDefaultBannedRights) (*mtproto.MutableChat, error) {
 	rights := in.BannedRights.ToBannedRights()
 	chat2, err := c.changeChat(in.OperatorId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
@@ -37,7 +38,11 @@ func (c *ChatCore) ChatEditChatDefaultBannedRights(in *chat.TLChatEditChatDefaul
 		}
 		t.Chat.DefaultBannedRights = rights.ToChatBannedRights()
 		t.Chat.Version++
-		return nil
+		return t.tellMembers(b, mtproto.MakeTLUpdateChatDefaultBannedRights(&mtproto.Update{
+			Peer_PEER:           mtproto.MakePeerChat(in.ChatId),
+			DefaultBannedRights: t.Chat.DefaultBannedRights,
+			Version:             t.Chat.Version,
+		}).To_Update())
 	})
 	if err != nil {
 		c.Logger.Errorf("chat.editChatDefaultBannedRights - error: %v", err)
