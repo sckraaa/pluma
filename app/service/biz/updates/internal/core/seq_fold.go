@@ -26,9 +26,11 @@ import (
 // (ADR 0020). An update with seq is a state of the account, so only the
 // last one of each state stays, where it was:
 //
-//   - one notify peer's settings, one user's name, a privacy key, a peer's
-//     block or settings bar, a dialog's unread mark, the order of filters:
-//     the last update of each, at its place in the journal;
+//   - one notify peer's settings, one user's name or user, a privacy key,
+//     a peer's block or settings bar, a dialog's unread mark, the order of
+//     filters, a basic group's members, the group itself, its default
+//     rights, a peer's join requests: the last update of each, at its
+//     place in the journal (each a full state, ADR 0021);
 //   - a filter: its last state at the place of its first update, so that
 //     it exists before a later order of filters names it;
 //   - updateDialogFilters (reload them all) drops every filter update
@@ -124,6 +126,14 @@ func seqKey(u *mtproto.Update) string {
 		return "peer_settings:" + peerKey(u.GetPeer_PEER())
 	case mtproto.Predicate_updateDialogFilterOrder:
 		return "filter_order"
+	case mtproto.Predicate_updateChatParticipants:
+		return "chat_participants:" + strconv.FormatInt(u.GetParticipants_CHATPARTICIPANTS().GetChatId(), 10)
+	case mtproto.Predicate_updateChat:
+		return "chat:" + strconv.FormatInt(u.GetChatId_INT64(), 10)
+	case mtproto.Predicate_updateChatDefaultBannedRights:
+		return "chat_rights:" + peerKey(u.GetPeer_PEER())
+	case mtproto.Predicate_updatePendingJoinRequests:
+		return "join_requests:" + peerKey(u.GetPeer_PEER())
 	}
 	return ""
 }

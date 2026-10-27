@@ -20,9 +20,8 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/app/service/biz/updates/seqpeers"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // UpdatesGetDifference
@@ -84,25 +83,16 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 
 	idHelper.PickByMessages(rDifference.NewMessages...)
 	idHelper.PickByUpdates(rDifference.OtherUpdates...)
-	pickSeqPeers(idHelper, c.MD.UserId, rDifference.OtherUpdates)
+	seqpeers.Pick(idHelper, c.MD.UserId, rDifference.OtherUpdates...)
 
-	idHelper.Visit(
-		func(userIdList []int64) {
-			users, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx,
-				&userpb.TLUserGetMutableUsers{
-					Id: append(userIdList, c.MD.UserId),
-				})
-			rDifference.Users = users.GetUserListByIdList(c.MD.UserId, userIdList...)
-		},
-		func(chatIdList []int64) {
-			chats, _ := c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx,
-				&chatpb.TLChatGetChatListByIdList{
-					IdList: chatIdList,
-				})
-			rDifference.Chats = chats.GetChatListByIdList(c.MD.UserId, chatIdList...)
-		},
-		func(channelIdList []int64) {
-		})
+	// The difference goes with the peers found: a client asks again for
+	// one it cannot resolve.
+	peers, err := seqpeers.Resolve(c.ctx, c.svcCtx.Dao, c.MD.UserId, idHelper)
+	if err != nil {
+		c.Logger.Errorf("updates.getDifference - users and chats of user %d: %v", c.MD.UserId, err)
+	}
+	rDifference.Users = peers.Users
+	rDifference.Chats = peers.Chats
 
 	return rDifference, nil
 }

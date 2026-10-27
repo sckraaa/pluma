@@ -60,6 +60,32 @@ func filterOrder(ids ...int32) *mtproto.Update {
 	return mtproto.MakeTLUpdateDialogFilterOrder(&mtproto.Update{Order_VECTORINT32: ids}).To_Update()
 }
 
+func chatMembers(chatId int64, version int32) *mtproto.Update {
+	return mtproto.MakeTLUpdateChatParticipants(&mtproto.Update{
+		Participants_CHATPARTICIPANTS: mtproto.MakeTLChatParticipants(&mtproto.ChatParticipants{ChatId: chatId, Version: version}).To_ChatParticipants(),
+	}).To_Update()
+}
+
+func chatUpdate(chatId int64) *mtproto.Update {
+	return mtproto.MakeTLUpdateChat(&mtproto.Update{ChatId_INT64: chatId}).To_Update()
+}
+
+func chatRights(chatId int64, version int32) *mtproto.Update {
+	return mtproto.MakeTLUpdateChatDefaultBannedRights(&mtproto.Update{
+		Peer_PEER:           mtproto.MakePeerChat(chatId),
+		DefaultBannedRights: mtproto.MakeTLChatBannedRights(&mtproto.ChatBannedRights{}).To_ChatBannedRights(),
+		Version:             version,
+	}).To_Update()
+}
+
+func joinRequests(chatId int64, pending int32) *mtproto.Update {
+	return mtproto.MakeTLUpdatePendingJoinRequests(&mtproto.Update{Peer_PEER: mtproto.MakePeerChat(chatId), RequestsPending: pending}).To_Update()
+}
+
+func userName(userId int64, first string) *mtproto.Update {
+	return mtproto.MakeTLUpdateUserName(&mtproto.Update{UserId: userId, FirstName: first}).To_Update()
+}
+
 // describeSeq writes other_updates of updates with seq.
 func describeSeq(b *differenceBuilder) string {
 	var us []string
@@ -82,6 +108,16 @@ func describeSeq(b *differenceBuilder) string {
 			s += fmt.Sprint(u.GetOrder_VECTORINT32())
 		case mtproto.Predicate_updateDeleteMessages:
 			s += fmt.Sprint(u.GetMessages())
+		case mtproto.Predicate_updateChatParticipants:
+			s += fmt.Sprintf("(%d:v%d)", u.GetParticipants_CHATPARTICIPANTS().GetChatId(), u.GetParticipants_CHATPARTICIPANTS().GetVersion())
+		case mtproto.Predicate_updateChat:
+			s += fmt.Sprintf("(%d)", u.GetChatId_INT64())
+		case mtproto.Predicate_updateChatDefaultBannedRights:
+			s += fmt.Sprintf("(%d:v%d)", u.GetPeer_PEER().GetChatId(), u.GetVersion())
+		case mtproto.Predicate_updatePendingJoinRequests:
+			s += fmt.Sprintf("(%d:%d)", u.GetPeer_PEER().GetChatId(), u.GetRequestsPending())
+		case mtproto.Predicate_updateUserName:
+			s += fmt.Sprintf("(%d:%s)", u.GetUserId(), u.GetFirstName())
 		}
 		us = append(us, s)
 	}
@@ -120,6 +156,16 @@ func TestSeqFold(t *testing.T) {
 		{"reload of the filters drops the filter updates before it",
 			[]*mtproto.Update{filter(5, "work"), filterOrder(5), mtproto.MakeTLUpdateDialogFilters(nil).To_Update(), filter(6, "home")},
 			"DialogFilters DialogFilter(6:home)"},
+		{"members of a group: the last list, where it was",
+			[]*mtproto.Update{chatMembers(5, 1), chatMembers(6, 1), chatMembers(5, 2)},
+			"ChatParticipants(6:v1) ChatParticipants(5:v2)"},
+		{"a group, its rights and its join requests fold apart",
+			[]*mtproto.Update{chatUpdate(5), chatRights(5, 1), joinRequests(5, 1), chatMembers(5, 1),
+				chatUpdate(5), chatRights(5, 2), joinRequests(5, 2), chatUpdate(6)},
+			"ChatParticipants(5:v1) Chat(5) ChatDefaultBannedRights(5:v2) PendingJoinRequests(5:2) Chat(6)"},
+		{"names of other users: the last of each",
+			[]*mtproto.Update{userName(7, "Ann"), userName(8, "Bob"), userName(7, "Anna")},
+			"UserName(8:Bob) UserName(7:Anna)"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := describeSeq(foldSeq(c.updates...)); got != c.want {
