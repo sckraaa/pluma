@@ -187,6 +187,7 @@ func TestContactsSignUpOfImported(t *testing.T) {
 	if b, ok := o.(*mtproto.TLBoolFalse); !ok {
 		t.Errorf("account.getContactSignUpNotification %T %v, want boolFalse (not silent)", o, b)
 	}
+	st := getState(ctx, t, alice)
 
 	carol := login(ctx, t, carolPhone, "Carol")
 
@@ -216,16 +217,26 @@ func TestContactsSignUpOfImported(t *testing.T) {
 		t.Errorf("Carol with the message: %v, want a contact with the name of the phone book", seen)
 	}
 	// The contact comes as from contacts.addContact: updatePeerSettings
-	// with the user (Android ContactsController applies contacts from it).
-	if _, err = alice.c.WaitUpdate(ctx, func(u *mtproto.Updates) bool {
-		for _, up := range u.GetUpdates() {
-			if up.GetPredicateName() == mtproto.Predicate_updatePeerSettings && up.GetPeer_PEER().GetUserId() == carol.self.GetId() {
-				return true
-			}
+	// with the user (Android ContactsController applies contacts from it),
+	// with Alice's next seq (ADR 0021).
+	isCarol := func(up *mtproto.Update) bool { return up.GetPeer_PEER().GetUserId() == carol.self.GetId() }
+	settings := seqPush(ctx, t, alice, "Alice", st.GetSeq()+1, mtproto.Predicate_updatePeerSettings, isCarol)
+	if u := userIn(settings.GetUsers(), carol.self.GetId()); !u.GetContact() {
+		t.Errorf("Carol with updatePeerSettings: %v, want a contact", u)
+	}
+	// A device that missed the push finds it in its difference.
+	d := differenceOnce(ctx, t, alice, st)
+	var inDiff []*mtproto.Update
+	for _, up := range updatesOfType(d, mtproto.Predicate_updatePeerSettings) {
+		if isCarol(up) {
+			inDiff = append(inDiff, up)
 		}
-		return false
-	}); err != nil {
-		t.Errorf("Alice got no updatePeerSettings of Carol: %v", err)
+	}
+	if len(inDiff) != 1 || !userIn(d.GetUsers(), carol.self.GetId()).GetContact() {
+		t.Errorf("updatePeerSettings of Carol in the difference %v with Carol %v, want one with Carol as a contact", inDiff, userIn(d.GetUsers(), carol.self.GetId()))
+	}
+	if got, want := d.GetState().GetSeq(), st.GetSeq()+1; got != want {
+		t.Errorf("state seq of the difference %d, want %d", got, want)
 	}
 	if n := countOf(contactIds(ctx, t, alice), carol.self.GetId()); n != 1 {
 		t.Errorf("Carol %d times in Alice's contacts.getContacts", n)
