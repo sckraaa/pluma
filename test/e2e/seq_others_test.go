@@ -771,7 +771,7 @@ func TestSeqOthersJoinRequests(t *testing.T) {
 		}
 	}
 
-	o, err = alice.c.Invoke(ctx, &mtproto.TLMessagesHideChatJoinRequest{
+	_, err = alice.c.Invoke(ctx, &mtproto.TLMessagesHideChatJoinRequest{
 		Constructor: alice.c.Constructor(mtproto.Predicate_messages_hideChatJoinRequest),
 		Approved:    true,
 		Peer:        chatPeer(alice, chatId),
