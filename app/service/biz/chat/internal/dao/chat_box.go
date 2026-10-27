@@ -146,6 +146,16 @@ func (d *Dao) RecentRequesters(ctx context.Context, chatId int64) (*chat.RecentC
 	return recentRequesters(ids), nil
 }
 
+// LatestRequesters returns up to n of the requesters to join chatId not
+// answered yet, newest first.
+func (d *Dao) LatestRequesters(ctx context.Context, chatId int64, n int) ([]int64, error) {
+	var ids []int64
+	if err := d.Mysql.DB.QueryRowsPartial(ctx, &ids, requestersQuery+" LIMIT ?", chatId, n); err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 func recentRequesters(ids []int64) *chat.RecentChatInviteRequesters {
 	recent := ids[:min(len(ids), RecentRequestersMax)]
 	if recent == nil {

@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -39,14 +40,16 @@ func (c *ChatCore) ChatHideChatJoinRequests(in *chat.TLChatHideChatJoinRequests)
 	}
 	joinId := in.GetUserId().GetValue()
 
-	// The requesters the admin's own update names.
-	before, err := c.svcCtx.Dao.RecentRequesters(c.ctx, in.ChatId)
+	// The requesters the admin's own update names: the latest ones now and
+	// the one that moves up among them when this request goes. Requesters
+	// are no participants, whom changeMembers looks up anyway.
+	before, err := c.svcCtx.Dao.LatestRequesters(c.ctx, in.ChatId, dao.RecentRequestersMax+1)
 	if err != nil {
 		c.Logger.Errorf("chat.hideChatJoinRequests - error: %v", err)
 		return nil, err
 	}
 	var requesters *chat.RecentChatInviteRequesters
-	_, err = c.changeMembers(in.SelfId, in.ChatId, append(before.GetRecentRequesters(), joinId), func(b *userbox.Box, t *chatTx) error {
+	_, err = c.changeMembers(in.SelfId, in.ChatId, append(before, joinId), func(b *userbox.Box, t *chatTx) error {
 		requesters = nil
 		me := t.member(in.SelfId)
 		if me == nil || !me.CanInviteUsers() {

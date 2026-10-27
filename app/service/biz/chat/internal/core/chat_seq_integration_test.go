@@ -370,6 +370,79 @@ func TestJoinRequestsWithSeq(t *testing.T) {
 	expect(t, &mark, "decline", fmt.Sprintf("%d echo requests 0 [] 0 users [chat]", a), fmt.Sprintf("%d requests 0 []", b))
 }
 
+// echoOf is the push with seq of an update named predicate to userId's own
+// account written after mark, the last one if there are more.
+func echoOf(t *testing.T, mark, userId int64, predicate string) *mtproto.Updates {
+	t.Helper()
+	rows, err := itRaw.Query("SELECT payload FROM mq_outbox WHERE id > ? AND recipient_id = ? AND method = 'sync.TL_sync_pushUpdates' ORDER BY id", mark, userId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var echo *mtproto.Updates
+	for rows.Next() {
+		var payload []byte
+		if err = rows.Scan(&payload); err != nil {
+			t.Fatal(err)
+		}
+		var in syncpb.TLSyncPushUpdates
+		if err = jsonx.Unmarshal(payload, &in); err != nil {
+			t.Fatal(err)
+		}
+		if us := in.GetUpdates().GetUpdates(); len(us) == 1 && us[0].GetPredicateName() == predicate {
+			echo = in.GetUpdates()
+		}
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if echo == nil {
+		t.Fatalf("no echo of %s to %d", predicate, userId)
+	}
+	return echo
+}
+
+// The admin's echo of the requests left carries the user of every recent
+// requester, the one that moves up into the latest three when a request is
+// answered included: requesters are no participants, so the handler looks
+// them up itself.
+func TestRequestsEchoUsers(t *testing.T) {
+	u := newUsers(6)
+	a, r := u[0], u[1:]
+	id := newChat(t, a)
+	link := newLink(t, id, a, true, 0, false)
+	for _, user := range r {
+		if _, err := join(user, link); err != nil {
+			t.Fatal(err)
+		}
+	}
+	cc := chatCore()
+	for _, approved := range []bool{true, false} {
+		mark := lastEvent(t)
+		// Answer the newest of four or more requests: the fourth moves up.
+		newest := r[len(r)-1]
+		r = r[:len(r)-1]
+		left, err := cc.ChatHideChatJoinRequests(&chat.TLChatHideChatJoinRequests{SelfId: a, ChatId: id, Approved: approved, UserId: mtproto.MakeFlagsInt64(newest)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []int64{r[len(r)-1], r[len(r)-2], r[len(r)-3]}
+		if !slices.Equal(left.GetRecentRequesters(), want) {
+			t.Errorf("approved %v: recent requesters %v, want %v", approved, left.GetRecentRequesters(), want)
+		}
+		echo := echoOf(t, mark, a, mtproto.Predicate_updatePendingJoinRequests)
+		var users []int64
+		for _, user := range echo.GetUsers() {
+			users = append(users, user.GetId())
+		}
+		for _, requester := range echo.GetUpdates()[0].GetRecentRequesters() {
+			if !slices.Contains(users, requester) {
+				t.Errorf("approved %v: the echo names requester %d without its user (users %v)", approved, requester, users)
+			}
+		}
+	}
+}
+
 // The chat a removed user and one who left keep in the dialogs: forbidden
 // and left, as getDialogs builds it from chat.getChatListByIdList.
 func TestRemovedUserSeesTheChat(t *testing.T) {
