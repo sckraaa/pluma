@@ -78,6 +78,42 @@ func TestRunAllocatesSeq(t *testing.T) {
 	}
 }
 
+// The updates with seq: states of the account, those another user's
+// change sets included (ADR 0021); never an update with pts, a draft, a
+// service notification or typing.
+func TestSeqUpdate(t *testing.T) {
+	for _, p := range []string{
+		mtproto.Predicate_updateNotifySettings,
+		mtproto.Predicate_updatePeerSettings,
+		mtproto.Predicate_updateUserName,
+		mtproto.Predicate_updateUser,
+		mtproto.Predicate_updateDialogPinned,
+		mtproto.Predicate_updateChatParticipants,
+		mtproto.Predicate_updateChat,
+		mtproto.Predicate_updateChatDefaultBannedRights,
+		mtproto.Predicate_updatePendingJoinRequests,
+	} {
+		if !SeqUpdate(p) {
+			t.Errorf("%s goes without seq", p)
+		}
+	}
+	for _, p := range []string{
+		mtproto.Predicate_updateNewMessage,
+		mtproto.Predicate_updateDeleteMessages,
+		mtproto.Predicate_updateReadHistoryInbox,
+		mtproto.Predicate_updateDraftMessage,
+		mtproto.Predicate_updateServiceNotification,
+		mtproto.Predicate_updateUserTyping,
+		mtproto.Predicate_updateUserStatus,
+		mtproto.Predicate_updateNewChannelMessage,
+		"",
+	} {
+		if SeqUpdate(p) {
+			t.Errorf("%q goes with seq", p)
+		}
+	}
+}
+
 func TestAddSeqUpdateMisuse(t *testing.T) {
 	for _, c := range []struct {
 		name string

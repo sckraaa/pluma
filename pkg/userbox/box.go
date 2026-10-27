@@ -148,7 +148,7 @@ func (b *Box) AddPtsUpdate(u *mtproto.Update, ptsCount int32) {
 // happened. The caller pushes u alone in an updates container with the seq
 // returned, to every device of the account (ADR 0020). u is written to the
 // journal as it is now: it must be complete and must not change afterwards.
-// Only the updates of seqUpdate may be added; another one rolls the
+// Only the updates of SeqUpdate may be added; another one rolls the
 // transaction back, and 0 is returned.
 func (b *Box) AddSeqUpdate(u *mtproto.Update) int32 {
 	if b.err != nil {
@@ -158,7 +158,7 @@ func (b *Box) AddSeqUpdate(u *mtproto.Update) int32 {
 	case u == nil:
 		b.err = misuse("nil update")
 		return 0
-	case !seqUpdate(u.PredicateName):
+	case !SeqUpdate(u.PredicateName):
 		b.err = misuse("%s is not an update with seq", u.PredicateName)
 		return 0
 	case b.seq == math.MaxInt32:
@@ -232,12 +232,14 @@ func (b *Box) result() *Result {
 	}
 }
 
-// seqUpdate tells whether an update goes with seq (ADR 0020): a state of
+// SeqUpdate tells whether an update goes with seq (ADR 0020): a state of
 // the account that another device must get when it missed the push and
 // that is safe to apply twice. Updates of the common box have pts instead;
 // drafts (an echo could overwrite what is being typed), service
 // notifications (not idempotent), typing and statuses go without either.
-func seqUpdate(predicate string) bool {
+// The states of basic groups and of other users come from another user's
+// change, as an inbox event of the account (ADR 0021).
+func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateNotifySettings,
 		mtproto.Predicate_updateDialogPinned,
@@ -252,7 +254,11 @@ func seqUpdate(predicate string) bool {
 		mtproto.Predicate_updateUser,
 		mtproto.Predicate_updatePrivacy,
 		mtproto.Predicate_updatePeerBlocked,
-		mtproto.Predicate_updatePeerSettings:
+		mtproto.Predicate_updatePeerSettings,
+		mtproto.Predicate_updateChatParticipants,
+		mtproto.Predicate_updateChat,
+		mtproto.Predicate_updateChatDefaultBannedRights,
+		mtproto.Predicate_updatePendingJoinRequests:
 		return true
 	}
 	return false
