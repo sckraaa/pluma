@@ -10,54 +10,58 @@
 package core
 
 import (
-	"context"
-
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // ChatDeleteChat
 // chat.deleteChat chat_id:long operator_id:long = MutableChat;
+//
+// The creator deletes the chat in its box transaction with the chat locked
+// (ADR 0021): the chat is deactivated, every member removed. Operator 0 is
+// the server's admin, who acts as the creator. A chat deleted already
+// changes nothing and is returned again, so that bff can go on with the
+// histories of its participants.
 func (c *ChatCore) ChatDeleteChat(in *chat.TLChatDeleteChat) (*mtproto.MutableChat, error) {
-	mChat, err := c.svcCtx.Dao.GetMutableChat(c.ctx, in.ChatId)
-	if err != nil {
-		c.Logger.Errorf("chat.deleteChat - error: %v", err)
-		return nil, err
+	operatorId := in.OperatorId
+	if operatorId == 0 {
+		creator, err := c.creatorOf(in.ChatId)
+		if err != nil {
+			c.Logger.Errorf("chat.deleteChat - error: %v", err)
+			return nil, err
+		}
+		operatorId = creator
 	}
 
-	if in.OperatorId == 0 {
-		in.OperatorId = mChat.Creator()
-	}
-
-	if mChat.Creator() != in.OperatorId {
-		err = mtproto.ErrChatAdminRequired
-		c.Logger.Errorf("chat.deleteChat - error: %v", err)
-		return nil, err
-	}
-
-	keys := []string{c.svcCtx.Dao.GetChatCacheKey(in.ChatId)}
-	mChat.Walk(func(userId int64, participant *mtproto.ImmutableChatParticipant) error {
-		keys = append(keys, c.svcCtx.Dao.GetChatParticipantCacheKey(participant.ChatId, participant.UserId))
+	chat2, err := c.changeChat(operatorId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+		switch {
+		case t.Chat.Creator != operatorId:
+			return mtproto.ErrChatAdminRequired
+		case t.Chat.Deactivated:
+			return nil
+		}
+		d := t.c.svcCtx.Dao
+		if _, err := d.ChatParticipantsDAO.UpdateStateByChatIdTx(b.Tx(), mtproto.ChatMemberStateKicked, in.ChatId); err != nil {
+			return err
+		}
+		if err := d.DeleteChatTx(b, in.ChatId); err != nil {
+			return err
+		}
+		for _, p := range t.ChatParticipants {
+			if p.IsChatMemberStateNormal() {
+				p.State = mtproto.ChatMemberStateKicked
+			}
+			t.changed(b, p.UserId)
+		}
+		t.Chat.ParticipantsCount = 0
+		t.Chat.Deactivated = true
+		t.Chat.Version++
 		return nil
 	})
-
-	_, _, err = c.svcCtx.Dao.Exec(
-		c.ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			tR := sqlx.TxWrapper(c.ctx, c.svcCtx.Dao.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-				// kicked
-				_, _ = c.svcCtx.Dao.ChatParticipantsDAO.UpdateStateByChatIdTx(tx, mtproto.ChatMemberStateKicked, in.ChatId)
-				_, _ = c.svcCtx.Dao.ChatsDAO.UpdateParticipantCountTx(tx, 0, in.ChatId)
-				_, _ = c.svcCtx.Dao.ChatsDAO.UpdateDeactivatedTx(tx, true, in.ChatId)
-			})
-			return 0, 0, tR.Err
-		},
-		keys...)
 	if err != nil {
 		c.Logger.Errorf("chat.deleteChat - error: %v", err)
 		return nil, err
 	}
-
-	return mChat, nil
+	return chat2, nil
 }

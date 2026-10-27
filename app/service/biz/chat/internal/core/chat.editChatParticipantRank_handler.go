@@ -18,75 +18,41 @@
 package core
 
 import (
-	"context"
-	"time"
-
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // ChatEditChatParticipantRank
 // chat.editChatParticipantRank self_id:long chat_id:long participant:long rank:string = MutableChat;
+//
+// The rank changes in the editor's box transaction with the chat locked
+// (ADR 0021): a change of the participants, which bumps the version.
 func (c *ChatCore) ChatEditChatParticipantRank(in *chat.TLChatEditChatParticipantRank) (*mtproto.MutableChat, error) {
-	var (
-		now         = time.Now().Unix()
-		chat2       *mtproto.MutableChat
-		me          *mtproto.ImmutableChatParticipant
-		participant *mtproto.ImmutableChatParticipant
-		err         error
-	)
-
-	chat2, err = c.svcCtx.Dao.GetMutableChat(c.ctx, in.ChatId)
-	if err != nil {
-		c.Logger.Errorf("chat.editChatParticipantRank - error: %v", err)
-		return nil, mtproto.ErrChatIdInvalid
-	}
-
-	me, _ = chat2.GetImmutableChatParticipant(in.SelfId)
-	if me == nil || me.State != mtproto.ChatMemberStateNormal {
-		err = mtproto.ErrUserNotParticipant
-		c.Logger.Errorf("chat.editChatParticipantRank - error: %v", err)
-		return nil, err
-	}
-
-	participant, _ = chat2.GetImmutableChatParticipant(in.Participant)
-	if participant == nil || participant.State != mtproto.ChatMemberStateNormal {
-		err = mtproto.ErrPeerIdInvalid
-		c.Logger.Errorf("chat.editChatParticipantRank - error: %v", err)
-		return nil, err
-	}
-
-	if !canEditChatParticipantRank(me, in.Participant) {
-		err = mtproto.ErrChatAdminRequired
-		c.Logger.Errorf("chat.editChatParticipantRank - error: %v", err)
-		return nil, err
-	}
-
-	if participant.Rank == in.Rank {
-		err = mtproto.ErrChatNotModified
-		c.Logger.Errorf("chat.editChatParticipantRank - error: %v", err)
-		return nil, err
-	}
-
-	_, _, err = c.svcCtx.Dao.CachedConn.Exec(
-		c.ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			rowsAffected, err2 := c.svcCtx.Dao.ChatParticipantsDAO.UpdateRank(ctx, in.Rank, participant.Id)
-			return 0, rowsAffected, err2
-		},
-		c.svcCtx.Dao.GetChatCacheKey(in.ChatId),
-		c.svcCtx.Dao.GetChatParticipantCacheKey(in.ChatId, in.Participant))
-
+	chat2, err := c.changeChat(in.SelfId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+		me := t.member(in.SelfId)
+		participant := t.member(in.Participant)
+		switch {
+		case me == nil:
+			return mtproto.ErrUserNotParticipant
+		case participant == nil:
+			return mtproto.ErrPeerIdInvalid
+		case !canEditChatParticipantRank(me, in.Participant):
+			return mtproto.ErrChatAdminRequired
+		case participant.Rank == in.Rank:
+			return mtproto.ErrChatNotModified
+		}
+		if _, err := t.c.svcCtx.Dao.ChatParticipantsDAO.UpdateRankTx(b.Tx(), in.Rank, participant.Id); err != nil {
+			return err
+		}
+		participant.Rank = in.Rank
+		t.changed(b, in.Participant)
+		return t.bumpVersion(b)
+	})
 	if err != nil {
 		c.Logger.Errorf("chat.editChatParticipantRank - error: %v", err)
 		return nil, err
 	}
-
-	participant.Rank = in.Rank
-	chat2.Chat.Version += 1
-	chat2.Chat.Date = now
-
 	return chat2, nil
 }
 

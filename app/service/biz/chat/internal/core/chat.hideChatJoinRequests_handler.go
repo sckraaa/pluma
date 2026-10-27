@@ -21,51 +21,55 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
-	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // ChatHideChatJoinRequests
 // chat.hideChatJoinRequests flags:# self_id:long chat_id:long approved:flags.0?true link:flags.1?string user_id:flags.2?long = RecentChatInviteRequesters;
+//
+// An admin approves or declines the request of user_id to join, in its box
+// transaction with the chat locked (ADR 0021): an approved user becomes a
+// member, invited by the admin. It returns the requests left. The requests
+// of a whole link (no user_id) are not served.
 func (c *ChatCore) ChatHideChatJoinRequests(in *chat.TLChatHideChatJoinRequests) (*chat.RecentChatInviteRequesters, error) {
 	if in.GetUserId() == nil {
-		// TODO: not impl
-		c.Logger.Errorf("chat.hideChatJoinRequests - error: method ChatHideChatJoinRequests not impl")
+		c.Logger.Errorf("chat.hideChatJoinRequests - error: the requests of a link are not served")
 		return nil, mtproto.ErrMethodNotImpl
 	}
+	joinId := in.GetUserId().GetValue()
 
-	var (
-		joinId = in.GetUserId().GetValue()
-	)
-
-	requesters := chat.MakeTLRecentChatInviteRequesters(&chat.RecentChatInviteRequesters{
-		RequestsPending:  0,
-		RecentRequesters: []int64{},
-	}).To_RecentChatInviteRequesters()
-
-	if in.GetApproved() {
-		_, err := c.ChatAddChatUser(&chat.TLChatAddChatUser{
-			ChatId:    in.ChatId,
-			InviterId: in.SelfId,
-			UserId:    joinId,
-		})
-		if err != nil {
-			c.Logger.Errorf("chat.importChatInvite - error: %v", err)
-			return nil, err
+	var requesters *chat.RecentChatInviteRequesters
+	_, err := c.changeChat(in.SelfId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+		requesters = nil
+		me := t.member(in.SelfId)
+		if me == nil || !me.CanInviteUsers() {
+			return mtproto.ErrChatAdminRequired
 		}
-		c.svcCtx.Dao.ChatInviteParticipantsDAO.UpdateApprovedBy(c.ctx, in.SelfId, in.ChatId, joinId)
-	} else {
-		c.svcCtx.Dao.ChatInviteParticipantsDAO.Delete(c.ctx, in.ChatId, joinId)
-	}
-
-	c.svcCtx.Dao.ChatInviteParticipantsDAO.SelectRecentRequestedListWithCB(
-		c.ctx,
-		in.ChatId,
-		func(sz, i int, v *dataobject.ChatInviteParticipantsDO) {
-			if joinId != v.UserId {
-				requesters.RequestsPending += 1
-				requesters.RecentRequesters = append(requesters.RecentRequesters, v.UserId)
+		d := t.c.svcCtx.Dao
+		pending, err := d.PendingRequestTx(b, in.ChatId, joinId)
+		if err != nil {
+			return err
+		}
+		if !pending {
+			return mtproto.ErrHideRequesterMissing
+		}
+		if in.GetApproved() {
+			if err = t.addMember(b, in.SelfId, joinId, false, false); err != nil {
+				return err
 			}
-		})
-
+			_, err = d.ChatInviteParticipantsDAO.UpdateApprovedByTx(b.Tx(), in.SelfId, in.ChatId, joinId)
+		} else {
+			_, err = d.ChatInviteParticipantsDAO.DeleteTx(b.Tx(), in.ChatId, joinId)
+		}
+		if err != nil {
+			return err
+		}
+		requesters, err = d.RecentRequestersTx(b, in.ChatId)
+		return err
+	})
+	if err != nil {
+		c.Logger.Errorf("chat.hideChatJoinRequests - error: %v", err)
+		return nil, err
+	}
 	return requesters, nil
 }

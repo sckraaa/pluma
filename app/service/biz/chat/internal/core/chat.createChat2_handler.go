@@ -11,143 +11,117 @@ package core
 
 import (
 	"math/rand"
-	"time"
+	"slices"
 
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // ChatCreateChat2
 // chat.createChat2 flags:# creator_id:long user_id_list:Vector<long> title:string bots:flags.0?Vector<long> ttl_period:flags.1?int = MutableChat;
+//
+// The chat, its participants and the creator's permanent invite link are
+// written in the creator's box transaction (ADR 0021), which also serializes
+// the creator's chats for the flood limit. The service message that bff
+// sends tells the members.
 func (c *ChatCore) ChatCreateChat2(in *chat.TLChatCreateChat2) (*mtproto.MutableChat, error) {
-	var (
-		chatsDO    *dataobject.ChatsDO
-		err        error
-		date       = time.Now().Unix()
-		creatorId  = in.CreatorId
-		userIdList = in.UserIdList
-		title      = in.Title
-	)
-
-	// TODO:
-	if chatsDO, err = c.svcCtx.Dao.ChatsDAO.SelectLastCreator(c.ctx, creatorId); err != nil {
+	creatorId := in.CreatorId
+	var users, bots []int64
+	for _, id := range in.UserIdList {
+		if id != creatorId && !slices.Contains(users, id) {
+			users = append(users, id)
+		}
+	}
+	for _, id := range in.Bots {
+		if id != creatorId && !slices.Contains(users, id) && !slices.Contains(bots, id) {
+			bots = append(bots, id)
+		}
+	}
+	if 1+len(users)+len(bots) > maxChatMembers {
+		err := mtproto.ErrUsersTooMuch
 		c.Logger.Errorf("chat.createChat2 - error: %v", err)
 		return nil, err
-	} else if chatsDO != nil {
-		if date-chatsDO.Date < createChatFlood {
-			err = mtproto.NewErrFloodWaitX(int32(date - chatsDO.Date))
-			c.Logger.Errorf("createChat error: %v. lastCreate = ", err, chatsDO.Date)
-			return nil, err
+	}
+
+	var created *dao.LockedChat
+	d := c.svcCtx.Dao
+	_, err := d.RunBox(c.ctx, creatorId, nil, func(b *userbox.Box) error {
+		created = nil
+		now := b.Date()
+		last, err := d.LastChatOfTx(b, creatorId)
+		if err != nil {
+			return err
 		}
-	}
+		if last != nil && now-last.Date < createChatFlood {
+			return mtproto.NewErrFloodWaitX(int32(createChatFlood - (now - last.Date)))
+		}
 
-	chatsDO = &dataobject.ChatsDO{
-		Id:                     0,
-		CreatorUserId:          creatorId,
-		AccessHash:             rand.Int63(),
-		RandomId:               0,
-		ParticipantCount:       int32(1 + len(userIdList)),
-		Title:                  title,
-		About:                  "",
-		PhotoId:                0,
-		DefaultBannedRights:    int64(mtproto.MakeDefaultBannedRights().ToBannedRights()),
-		MigratedToId:           0,
-		MigratedToAccessHash:   0,
-		AvailableReactionsType: 0,
-		AvailableReactions:     "",
-		Deactivated:            false,
-		Noforwards:             false,
-		TtlPeriod:              in.GetTtlPeriod().GetValue(),
-		Version:                1,
-		Date:                   date,
-	}
+		chatsDO := &dataobject.ChatsDO{
+			CreatorUserId:       creatorId,
+			AccessHash:          rand.Int63(), //nolint:gosec // a basic group has no access hash in the API (inputPeerChat)
+			ParticipantCount:    int32(1 + len(users) + len(bots)),
+			Title:               in.Title,
+			DefaultBannedRights: int64(mtproto.MakeDefaultBannedRights().ToBannedRights()),
+			Date:                now,
+		}
+		if chatsDO.Id, _, err = d.ChatsDAO.InsertTx(b.Tx(), chatsDO); err != nil {
+			return err
+		}
+		if ttl := in.GetTtlPeriod().GetValue(); ttl != 0 {
+			if _, err = d.ChatsDAO.UpdateTTLPeriodTx(b.Tx(), ttl, chatsDO.Id); err != nil {
+				return err
+			}
+		}
 
-	participantDOList := make([]*dataobject.ChatParticipantsDO, 0)
-	for i := 0; i < len(userIdList)+1; i++ {
-		if i == 0 {
-			participantDOList = append(participantDOList, &dataobject.ChatParticipantsDO{
-				UserId:          creatorId,
-				ParticipantType: mtproto.ChatMemberCreator,
-				Link:            chat.GenChatInviteHash(),
-				InviterUserId:   0,
-				InvitedAt:       date,
-				Date2:           date,
-				IsBot:           false,
-			})
-		} else {
-			participantDOList = append(participantDOList, &dataobject.ChatParticipantsDO{
-				UserId:          userIdList[i-1],
+		link := chat.GenChatInviteHash()
+		participants := []*dataobject.ChatParticipantsDO{{
+			ChatId:          chatsDO.Id,
+			UserId:          creatorId,
+			ParticipantType: mtproto.ChatMemberCreator,
+			Link:            link,
+			InvitedAt:       now,
+			Date2:           now,
+		}}
+		member := func(id int64, bot bool) *dataobject.ChatParticipantsDO {
+			return &dataobject.ChatParticipantsDO{
+				ChatId:          chatsDO.Id,
+				UserId:          id,
 				ParticipantType: mtproto.ChatMemberNormal,
-				Link:            "",
 				InviterUserId:   creatorId,
-				InvitedAt:       date,
-				Date2:           date,
-				IsBot:           false,
-			})
+				InvitedAt:       now,
+				Date2:           now,
+				IsBot:           bot,
+			}
 		}
-	}
-
-	for _, id := range in.Bots {
-		participantDOList = append(participantDOList, &dataobject.ChatParticipantsDO{
-			UserId:          id,
-			ParticipantType: mtproto.ChatMemberNormal,
-			Link:            "",
-			InviterUserId:   creatorId,
-			InvitedAt:       date,
-			Date2:           date,
-			IsBot:           true,
-		})
-	}
-
-	tR := sqlx.TxWrapper(c.ctx, c.svcCtx.Dao.DB, func(tx *sqlx.Tx, result *sqlx.StoreResult) {
-		// 1. insert chat
-		chatsDO.Id, _, err = c.svcCtx.Dao.ChatsDAO.InsertTx(tx, chatsDO)
-		if err != nil {
-			result.Err = err
-			return
+		for _, id := range users {
+			participants = append(participants, member(id, false))
 		}
-		//chatsDO.Id = chatId
-		for i := 0; i < len(participantDOList); i++ {
-			participantDOList[i].ChatId = chatsDO.Id
+		for _, id := range bots {
+			participants = append(participants, member(id, true))
 		}
-
-		_, _, err = c.svcCtx.Dao.ChatParticipantsDAO.InsertBulkTx(tx, participantDOList)
-		if err != nil {
-			result.Err = err
-			return
+		if _, _, err = d.ChatParticipantsDAO.InsertBulkTx(b.Tx(), participants); err != nil {
+			return err
 		}
-
-		_, _, result.Err = c.svcCtx.Dao.ChatInvitesDAO.InsertTx(tx, &dataobject.ChatInvitesDO{
+		if _, _, err = d.ChatInvitesDAO.InsertTx(b.Tx(), &dataobject.ChatInvitesDO{
 			ChatId:    chatsDO.Id,
 			AdminId:   creatorId,
-			Link:      participantDOList[0].Link,
+			Link:      link,
 			Permanent: true,
-			Date2:     date,
-		})
-		return
+			Date2:     now,
+		}); err != nil {
+			return err
+		}
+		// The chat as written, its participants with their ids.
+		created, err = d.LockChat(b, chatsDO.Id)
+		return err
 	})
-
-	if tR.Err != nil {
-		err = tR.Err
-		c.Logger.Errorf("chat.createChat2 - error: %v", tR.Err)
-		return nil, tR.Err
+	if err != nil {
+		c.Logger.Errorf("chat.createChat2 - error: %v", err)
+		return nil, err
 	}
-
-	chat2 := mtproto.MakeTLMutableChat(&mtproto.MutableChat{
-		Chat:             c.svcCtx.Dao.MakeImmutableChatByDO(chatsDO),
-		ChatParticipants: make([]*mtproto.ImmutableChatParticipant, 0, len(participantDOList)),
-	}).To_MutableChat()
-
-	for i := 0; i < len(participantDOList); i++ {
-		chat2.ChatParticipants = append(chat2.ChatParticipants,
-			c.svcCtx.Dao.MakeImmutableChatParticipant(participantDOList[i]))
-	}
-
-	chat2.Chat.ParticipantsCount = int32(len(participantDOList))
-
-	// c.svcCtx.Dao.PutMutableChat(c.ctx, chat2)
-
-	return chat2, nil
+	created.Chat.Photo = mtproto.MakeTLPhotoEmpty(nil).To_Photo()
+	return created.MutableChat, nil
 }
