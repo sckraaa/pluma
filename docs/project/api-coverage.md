@@ -641,7 +641,7 @@
 | `messages.getWebPagePreview570D6F6F` | missing |  |  |
 | `messages.getWebPagePreview8B68B0CC` | missing |  |  |
 | `messages.hideAllChatJoinRequests` | blocked |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:27 |
-| `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:39 |
+| `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:42 |
 | `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
 | `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:30 |
 | `messages.importChatInviteDE91436E` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInviteDE91436E_handler.go:30 |
