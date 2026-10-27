@@ -34,7 +34,8 @@ import (
 // and the update with seq that tells every device of the account are one
 // box transaction of the account. The update goes with the account as it
 // sees itself after the change: TDLib takes the data from users, not from
-// the update.
+// the update. The same transaction writes the inbox events that give the
+// update to the users who see the account (ADR 0021).
 
 // selfRow is what the box transactions of an account change in its users
 // row. Each of them reads all of it under the box lock and its push
@@ -71,8 +72,10 @@ func (e *needPhotoError) Error() string {
 // updateUser) with seq, and the account as it sees itself: the row as
 // written, the photo of its photo_id from photos (loaded before the
 // transaction, with the cached photo of the account added), the usernames
-// read in the transaction and the rest from the cache. It returns the row
-// as committed, or as found by a no-op, and whether it changed.
+// read in the transaction and the rest from the cache. The users who see
+// the account in their lists get the same update about another user
+// (tellWatchers). It returns the row as committed, or as found by a no-op,
+// and whether it changed.
 func (d *Dao) changeSelf(ctx context.Context, id int64, update string, photos map[int64]*mtproto.Photo,
 	change func(b *userbox.Box, row *selfRow) (bool, error)) (selfRow, bool, error) {
 	me, err := d.GetImmutableUser(ctx, id, false)
@@ -130,7 +133,10 @@ func (d *Dao) changeSelf(ctx context.Context, id int64, update string, photos ma
 				return fmt.Errorf("user: %s is not an update of the account itself", update)
 			}
 			changed = true
-			return d.EmitSeqUpdate(b, u, []*mtproto.User{selfUser(me, row, usernames, photo)}, nil)
+			if err = d.EmitSeqUpdate(b, u, []*mtproto.User{selfUser(me, row, usernames, photo)}, nil); err != nil {
+				return err
+			}
+			return d.tellWatchers(b, id, u)
 		})
 		var np *needPhotoError
 		switch {

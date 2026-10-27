@@ -45,19 +45,22 @@ const MaxBoxOpTime = cacheTimeout + userbox.MaxRunTime + cacheTimeout
 
 // RunBox runs fn as a box transaction of userId (userbox.Run). rowKeys are
 // deleted from the cache before the transaction, and again with the keys
-// fn added after the commit; the relays of the process are woken when the
-// transaction wrote events. A failed deletion is logged: the change is
-// committed, the cache entries expire.
+// fn added after the commit; then the relays of the process are woken when
+// the transaction wrote events. The cache goes first: msg builds the users
+// of an inbox event with seq from biz user when it applies it (ADR 0021),
+// and right after the commit it would get a changed account as the cache
+// still had it. A failed deletion is logged: the change is committed, the
+// cache entries expire.
 func (d *Dao) RunBox(ctx context.Context, userId int64, rowKeys []string, fn func(b *userbox.Box) error) (*userbox.Result, error) {
 	d.deleteCache(ctx, rowKeys)
 	res, err := userbox.Run(ctx, d.BoxDB, userId, fn)
 	if err != nil {
 		return nil, err
 	}
+	d.deleteCache(ctx, append(rowKeys, res.CacheKeys...))
 	if res.Emitted > 0 {
 		outbox.Notify()
 	}
-	d.deleteCache(ctx, append(rowKeys, res.CacheKeys...))
 	return res, nil
 }
 

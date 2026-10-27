@@ -231,3 +231,57 @@ func TestSeqUpdatesToInboxWithoutSeq(t *testing.T) {
 	}
 	discard(t, id)
 }
+
+// Another user's name and photo (biz user tells the users who see them,
+// ADR 0021): each change is journaled in the recipient's account and pushed
+// with that user as the recipient sees them; a difference keeps the last
+// name.
+func TestSeqUserUpdatesToAnotherUser(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	a, b := newUser(), newUser()
+	name := func(first string) *mtproto.Update {
+		return mtproto.MakeTLUpdateUserName(&mtproto.Update{
+			UserId:    a,
+			FirstName: first,
+			Usernames: []*mtproto.Username{mtproto.MakeTLUsername(&mtproto.Username{Editable: true, Active: true, Username: "ann"}).To_Username()},
+		}).To_Update()
+	}
+	w.emitSeqInbox(a, b, name("Ann"))
+	w.emitSeqInbox(a, b, mtproto.MakeTLUpdateUser(&mtproto.Update{UserId: a}).To_Update())
+	id, _ := w.emitSeqInbox(a, b, name("Anna"))
+	w.pub.drain()
+	waitState(t, id)
+
+	want := []string{
+		fmt.Sprintf("%d:[updateUserName] [%d] []", userbox.BaseSeq+1, a),
+		fmt.Sprintf("%d:[updateUser] [%d] []", userbox.BaseSeq+2, a),
+		fmt.Sprintf("%d:[updateUserName] [%d] []", userbox.BaseSeq+3, a),
+	}
+	if got := seqPushes(w.pub.pushesTo(b)); !slices.Equal(got, want) {
+		t.Errorf("pushes to B %v, want %v", got, want)
+	}
+	for _, p := range w.pub.pushesTo(b) {
+		if u := p.updates.GetUsers(); len(u) != 1 || u[0].GetFirstName().GetValue() != fmt.Sprint("U", a) || u[0].GetSelf() {
+			t.Errorf("push of seq %d: users %v, want A as B sees them", p.updates.GetSeq(), u)
+		}
+	}
+	journal := w.seqJournal(b)
+	if len(journal) != 3 || w.state(b).Seq != userbox.BaseSeq+3 || w.state(a).Seq != userbox.BaseSeq {
+		t.Fatalf("B's seq journal %+v, seq of B %d, of A %d", journal, w.state(b).Seq, w.state(a).Seq)
+	}
+
+	diff, err := updates_helper.New(updates_helper.Config{Mysql: sqlx.Config{DSN: boxDSN("")}}).UpdatesGetDifferenceV2(ctx, &updates.TLUpdatesGetDifferenceV2{
+		UserId: b, Pts: userbox.BasePts, Date: journal[0].date,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, u := range diff.GetOtherUpdates() {
+		got = append(got, u.GetPredicateName()+" "+u.GetFirstName())
+	}
+	if want := []string{"updateUser ", "updateUserName Anna"}; !slices.Equal(got, want) || diff.GetState().GetSeq() != userbox.BaseSeq+3 {
+		t.Errorf("difference %v, state %v; want %v", got, diff.GetState(), want)
+	}
+}

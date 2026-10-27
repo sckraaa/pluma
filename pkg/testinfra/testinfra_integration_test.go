@@ -62,6 +62,20 @@ func TestSchemaLoads(t *testing.T) {
 		t.Errorf("user_pts_updates index user_id: non_unique %d, %v", nonUnique, err)
 	}
 
+	// The reads by the other user in the transaction of a change of a name
+	// or a photo (migrate-20261027-profile-watchers.sql).
+	for _, ix := range []struct{ table, index, columns string }{
+		{"user_contacts", "contact_user_id", "contact_user_id"},
+		{"dialogs", "peer", "peer_type,peer_id"},
+	} {
+		var columns sql.NullString
+		err = db.QueryRow("select group_concat(column_name order by seq_in_index) from information_schema.statistics where table_schema = ? and table_name = ? and index_name = ?",
+			MySQLDatabase, ix.table, ix.index).Scan(&columns)
+		if err != nil || columns.String != ix.columns {
+			t.Errorf("%s index %s: columns %q, want %q, %v", ix.table, ix.index, columns.String, ix.columns, err)
+		}
+	}
+
 	// z_init.sql, the last file, ran: the service account exists.
 	var name string
 	if err = db.QueryRow("select first_name from users where id = 777000").Scan(&name); err != nil {
