@@ -19,30 +19,70 @@
 package dao
 
 import (
-	"github.com/teamgram/marmota/pkg/net/rpcx"
-	"github.com/teamgram/teamgram-server/app/service/biz/chat/plugin"
+	"context"
+	"database/sql"
+	"fmt"
 
+	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/config"
+	"github.com/teamgram/teamgram-server/app/service/biz/chat/plugin"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
-// Dao dao.
 type Dao struct {
 	*Mysql
 	sqlc.CachedConn
 	media_client.MediaClient
 	Plugin plugin.ChatPlugin
+
+	// BoxDB is the pool of box transactions (pkg/userbox): the *sql.DB of
+	// Mysql. A change of a basic group runs in the box transaction of the
+	// user who makes it, with the chat's row locked, and writes the updates
+	// with seq of the members as the transaction's events (ADR 0011, 0021).
+	BoxDB *sql.DB
+	// Users looks up the users of the operator's own updates with seq, as
+	// the operator sees them: biz user.
+	Users UserSource
+	// Topics of the events.
+	Topics config.Topics
 }
 
-// New new a dao and return.
-func New(c config.Config, plugin plugin.ChatPlugin) (dao *Dao) {
+// UserSource looks users up as one of them sees them: biz user.
+type UserSource interface {
+	UserGetMutableUsers(ctx context.Context, in *userpb.TLUserGetMutableUsers) (*userpb.Vector_ImmutableUser, error)
+}
+
+func New(c config.Config, plugin plugin.ChatPlugin, users UserSource) (dao *Dao) {
+	if err := registerTopics(c.Topics); err != nil {
+		panic(err)
+	}
+	if users == nil {
+		panic("chat: no user source")
+	}
 	db := sqlx.NewMySQL(&c.Mysql)
+	boxDB, err := userbox.Open(c.Mysql.DSN)
+	if err != nil {
+		panic(err)
+	}
 	return &Dao{
 		Mysql:       newMysqlDao(db),
 		CachedConn:  sqlc.NewConn(db, c.Cache),
 		MediaClient: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 		Plugin:      plugin,
+		BoxDB:       boxDB,
+		Users:       users,
+		Topics:      c.Topics,
 	}
+}
+
+func registerTopics(t config.Topics) error {
+	if t.Inbox == "" || t.Sync == "" {
+		return fmt.Errorf("chat: Topics.Inbox and Topics.Sync are required")
+	}
+	return outbox.Register(outbox.Topics{Inbox: []string{t.Inbox}, Push: []string{t.Sync}})
 }

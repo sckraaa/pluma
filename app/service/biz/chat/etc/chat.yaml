@@ -20,3 +20,11 @@ MediaClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.media
+UserClient:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.biz_service.user
+Topics:
+  Inbox: "Inbox-T"
+  Sync: "Sync-T"

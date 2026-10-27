@@ -33,8 +33,9 @@ type Config struct {
 	KV              kv.KvConf
 	MediaClient     zrpc.RpcClientConf
 	MessageSharding int `json:",default=1"`
-	// IdgenClient and Topics serve user: the sign-ups of imported numbers
-	// are messages to the importers, events of box transactions.
+	// IdgenClient serves user: the sign-ups of imported numbers are
+	// messages to the importers, events of box transactions. Topics serve
+	// user, dialog and chat (the updates with seq of basic groups).
 	IdgenClient zrpc.RpcClientConf
 	Topics      user_helper.Topics
 }

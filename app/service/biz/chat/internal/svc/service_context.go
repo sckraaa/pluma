@@ -20,9 +20,11 @@ type ServiceContext struct {
 	*dao.Dao
 }
 
-func NewServiceContext(c config.Config, plugin plugin.ChatPlugin) *ServiceContext {
+// NewServiceContext builds the service on c; users looks up the users of
+// the operator's own updates with seq.
+func NewServiceContext(c config.Config, plugin plugin.ChatPlugin, users dao.UserSource) *ServiceContext {
 	return &ServiceContext{
 		Config: c,
-		Dao:    dao.New(c, plugin),
+		Dao:    dao.New(c, plugin, users),
 	}
 }

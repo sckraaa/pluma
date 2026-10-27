@@ -67,9 +67,9 @@ func (s *Server) Initialize() error {
 	if err := checkBoxSettings(c.Mysql.DSN); err != nil {
 		return err
 	}
-	// A request of dialog or user waiting for a busy user's box must end
+	// A request of dialog, user or chat waiting for a busy user's box must end
 	// with the box operation's own result, not the server's deadline.
-	if err := userbox.CheckRPCTimeout("Timeout", c.Timeout, max(dialog.MaxBoxOpTime, user_helper.MaxBoxOpTime)); err != nil {
+	if err := userbox.CheckRPCTimeout("Timeout", c.Timeout, max(dialog.MaxBoxOpTime, user_helper.MaxBoxOpTime, chat_helper.MaxBoxOpTime)); err != nil {
 		return err
 	}
 
@@ -86,7 +86,9 @@ func (s *Server) Initialize() error {
 	s.workers = workers
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
-		// chat_helper
+		// chat_helper: a change of a basic group writes the updates with seq
+		// of its members as events of the operator's box transaction
+		// (ADR 0021); the users of the operator's own come from user.
 		chat.RegisterRPCChatServer(
 			grpcServer,
 			chat_helper.New(
@@ -95,8 +97,10 @@ func (s *Server) Initialize() error {
 					Mysql:         c.Mysql,
 					Cache:         c.Cache,
 					MediaClient:   c.MediaClient,
+					Topics:        chat_helper.Topics{Inbox: c.Topics.Inbox, Sync: c.Topics.Sync},
 				},
-				nil))
+				nil,
+				userService))
 
 		// code_helper
 		code.RegisterRPCCodeServer(
