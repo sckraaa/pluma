@@ -14,7 +14,8 @@ import (
 )
 
 // Updates with seq that msg journals in the box transactions of the
-// account (ADR 0020): the unpin of a deleted dialog.
+// account (ADR 0020): the unpin of a deleted dialog and the reset of the
+// unread mark.
 
 // pin pins userId's dialog with a peer in a folder (0 the main list, 1 the
 // archive), as biz dialog stores it.
