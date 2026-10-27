@@ -20,6 +20,7 @@ package core
 
 import (
 	"context"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/internal/svc"
@@ -40,16 +41,21 @@ type InboxCore struct {
 	ctx     context.Context
 	svcCtx  *svc.ServiceContext
 	eventId int64
-	outcome userbox.TakeOutcome
+	// createdAt is when the initiator's transaction wrote the event.
+	createdAt time.Time
+	outcome   userbox.TakeOutcome
 	logx.Logger
 }
 
-func New(ctx context.Context, svcCtx *svc.ServiceContext, eventId int64) *InboxCore {
+// New is the core of the event eventId, written at createdAt (unix ms, the
+// created_at of its row).
+func New(ctx context.Context, svcCtx *svc.ServiceContext, eventId, createdAt int64) *InboxCore {
 	return &InboxCore{
-		ctx:     ctx,
-		svcCtx:  svcCtx,
-		eventId: eventId,
-		Logger:  logx.WithContext(ctx),
+		ctx:       ctx,
+		svcCtx:    svcCtx,
+		eventId:   eventId,
+		createdAt: time.UnixMilli(createdAt),
+		Logger:    logx.WithContext(ctx),
 	}
 }
 

@@ -117,7 +117,8 @@ func (s snowflake) NextIds(ctx context.Context, n int) ([]int64, error) {
 
 // fakeUsers serves the users msg asks biz for; blocked[{a, b}]: a blocked b;
 // premium: users with Premium; premiumOnly: users who let only contacts,
-// chats there already and Premium users write; bots: bot accounts.
+// chats there already and Premium users write; bots: bot accounts;
+// missing: users biz leaves out of a look-up, as after a failed load.
 type fakeUsers struct {
 	user_client.UserClient
 	mu          sync.Mutex
@@ -125,6 +126,7 @@ type fakeUsers struct {
 	premium     map[int64]bool
 	premiumOnly map[int64]bool
 	bots        map[int64]bool
+	missing     map[int64]bool
 }
 
 // mark gives users their Premium and settings.
@@ -168,7 +170,10 @@ func immutableUsers(ids ...[]int64) []*mtproto.ImmutableUser {
 }
 
 func (f *fakeUsers) UserGetMutableUsers(_ context.Context, in *userpb.TLUserGetMutableUsers) (*userpb.Vector_ImmutableUser, error) {
-	return &userpb.Vector_ImmutableUser{Datas: f.mark(immutableUsers(in.Id, in.To))}, nil
+	users := f.mark(immutableUsers(in.Id, in.To))
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return &userpb.Vector_ImmutableUser{Datas: slices.DeleteFunc(users, func(u *mtproto.ImmutableUser) bool { return f.missing[u.Id()] })}, nil
 }
 
 func (f *fakeUsers) UserGetMutableUsersV2(_ context.Context, in *userpb.TLUserGetMutableUsersV2) (*mtproto.MutableUsers, error) {
@@ -270,7 +275,7 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 	w := &world{
 		t:     t,
 		check: itCheck,
-		users: &fakeUsers{blocked: map[[2]int64]bool{}, premium: map[int64]bool{}, premiumOnly: map[int64]bool{}, bots: map[int64]bool{}},
+		users: &fakeUsers{blocked: map[[2]int64]bool{}, premium: map[int64]bool{}, premiumOnly: map[int64]bool{}, bots: map[int64]bool{}, missing: map[int64]bool{}},
 		chats: &fakeChats{members: map[int64][]int64{}},
 		pub:   &worldDelivery{delivery: itDelivery, t: t},
 	}

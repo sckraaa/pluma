@@ -17,6 +17,7 @@ package core
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
@@ -24,6 +25,15 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/seqpeers"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
+
+// seqPeersWait is how long the users and chats of an event that biz did
+// not return are waited for, from the event's creation. biz user and biz
+// chat leave out an id whose load failed and report no error, and the cache
+// keeps such a miss as not found for a minute (the placeholder of sqlc): a
+// look-up retried for longer than that reads the database again. An event
+// older than this goes with the peers found, so that an id that never
+// resolves does not hold the recipient's partition for good.
+const seqPeersWait = 3 * time.Minute
 
 // InboxSeqUpdatesToInbox
 // inbox.seqUpdatesToInbox user_id:long from_id:long updates:Vector<Update> = Void;
@@ -53,6 +63,17 @@ func (c *InboxCore) InboxSeqUpdatesToInbox(in *inbox.TLInboxSeqUpdatesToInbox) e
 		// biz user answers an account it cannot read with nothing: the
 		// look-up is tried again, as any failed one.
 		return fmt.Errorf("inbox: user %d, the recipient of updates with seq, not loaded", in.UserId)
+	}
+	if users, chats := peers.Missing(h); len(users) > 0 || len(chats) > 0 {
+		// A peer left out is a failed load as often as an id that does
+		// not exist: a client drops an update about a peer it cannot
+		// resolve (iOS), so the look-up is tried again while it can still
+		// succeed.
+		if age := time.Since(c.createdAt); age < seqPeersWait {
+			return fmt.Errorf("inbox: event %d to user %d: users %v and chats %v not loaded yet", c.eventId, in.UserId, users, chats)
+		}
+		c.Logger.Errorf("inbox: event %d to user %d goes without users %v and chats %v, not loaded %v after it was written",
+			c.eventId, in.UserId, users, chats, time.Since(c.createdAt).Round(time.Second))
 	}
 	bot := peers.Viewer.IsBot()
 

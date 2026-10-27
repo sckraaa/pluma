@@ -223,6 +223,20 @@ func TestResolve(t *testing.T) {
 		}
 	}
 
+	// What was asked for and not found: user 99 here, a chat below.
+	if users, chats := p.Missing(h); !slices.Equal(users, []int64{99}) || len(chats) != 0 {
+		t.Errorf("missing users %v, chats %v; want [99] []", users, chats)
+	}
+	noChat := mtproto.NewIDListHelper()
+	Pick(noChat, self, mtproto.MakeTLUpdateChat(&mtproto.Update{ChatId_INT64: 6}).To_Update(), updates[0])
+	pc, err := Resolve(ctx, src, self, noChat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if users, chats := pc.Missing(noChat); len(users) != 0 || !slices.Equal(chats, []int64{6}) {
+		t.Errorf("missing users %v, chats %v; want [] [6]", users, chats)
+	}
+
 	// The viewer is looked up without peers too, and found a bot.
 	src.users[self] = immutableUser(self, true)
 	if p, err = Resolve(ctx, src, self, mtproto.NewIDListHelper()); err != nil || !p.Viewer.IsBot() || len(p.Users) != 0 {

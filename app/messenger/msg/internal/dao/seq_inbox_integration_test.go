@@ -285,3 +285,52 @@ func TestSeqUserUpdatesToAnotherUser(t *testing.T) {
 		t.Errorf("difference %v, state %v; want %v", got, diff.GetState(), want)
 	}
 }
+
+// A peer biz leaves out of a look-up (a failed load) is waited for while
+// the event is young: the event stays until the peer is found and goes
+// with it. An event older than the wait goes with the peers found.
+func TestSeqUpdatesWaitForPeers(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	a, b, c := newUser(), newUser(), newUser()
+	missing := func(id int64, gone bool) {
+		w.users.mu.Lock()
+		defer w.users.mu.Unlock()
+		w.users.missing[id] = gone
+	}
+	missing(c, true)
+	id, _ := w.emitSeqInbox(a, b, peerSettingsOf(a), peerSettingsOf(c))
+	time.Sleep(1500 * time.Millisecond)
+	var n int
+	if err := w.check.QueryRow("SELECT COUNT(*) FROM mq_outbox WHERE id = ?", id).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("young event with a peer not found: %d rows (%v), want it kept", n, err)
+	}
+	if st := w.state(b); st.Seq != userbox.BaseSeq {
+		t.Fatalf("B's seq %d while a peer is not found", st.Seq)
+	}
+	missing(c, false)
+	w.pub.drain()
+	waitState(t, id)
+	want := []string{
+		fmt.Sprintf("%d:[updatePeerSettings] [%d] []", userbox.BaseSeq+1, a),
+		fmt.Sprintf("%d:[updatePeerSettings] [%d] []", userbox.BaseSeq+2, c),
+	}
+	if got := seqPushes(w.pub.pushesTo(b)); !slices.Equal(got, want) {
+		t.Errorf("pushes to B %v, want %v", got, want)
+	}
+
+	// Written before the wait: it goes now, without the peer.
+	missing(c, true)
+	data, err := json.Marshal(&inbox.TLInboxSeqUpdatesToInbox{UserId: b, FromId: a, Updates: []*mtproto.Update{peerSettingsOf(c)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id = insertEventAt(t, userbox.Event{Topic: itTopics.Inbox, Recipient: b, Method: "inbox.TL_inbox_seqUpdatesToInbox", Data: data},
+		userbox.EventPending, time.Now().Add(-4*time.Minute).UnixMilli())
+	w.pub.drain()
+	waitState(t, id)
+	want = append(want, fmt.Sprintf("%d:[updatePeerSettings] [] []", userbox.BaseSeq+3))
+	if got := seqPushes(w.pub.pushesTo(b)); !slices.Equal(got, want) {
+		t.Errorf("pushes to B %v, want %v", got, want)
+	}
+	missing(c, false)
+}

@@ -419,6 +419,12 @@ func newDialogMessageId() int64 { return 1_000_000 + itIdSeq.Add(1) }
 func insertEvent(t testing.TB, ev userbox.Event, state userbox.EventState) (id, createdAt int64) {
 	t.Helper()
 	createdAt = time.Now().UnixMilli()
+	return insertEventAt(t, ev, state, createdAt), createdAt
+}
+
+// insertEventAt writes ev as a row created at createdAt (unix ms).
+func insertEventAt(t testing.TB, ev userbox.Event, state userbox.EventState, createdAt int64) (id int64) {
+	t.Helper()
 	res, err := itCheck.Exec("INSERT INTO mq_outbox (initiator_id, topic, recipient_id, method, payload, created_at, state) VALUES (0, ?, ?, ?, ?, ?, ?)",
 		ev.Topic, ev.Recipient, ev.Method, ev.Data, createdAt, state)
 	if err != nil {
@@ -428,7 +434,7 @@ func insertEvent(t testing.TB, ev userbox.Event, state userbox.EventState) (id, 
 		t.Fatal(err)
 	}
 	mqoutbox.Notify()
-	return id, createdAt
+	return id
 }
 
 // copyEvent writes a copy of an inbox event to Inbox-T, as the relay does.

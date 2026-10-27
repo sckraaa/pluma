@@ -24,6 +24,7 @@ package seqpeers
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/teamgram/proto/mtproto"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
@@ -190,6 +191,23 @@ func (p *Peers) Of(u *mtproto.Update) ([]*mtproto.User, []*mtproto.Chat) {
 				chats = append(chats, it)
 				break
 			}
+		}
+	}
+	return users, chats
+}
+
+// Missing returns the users and chats of h that p lacks: biz user and biz
+// chat leave out an id whose look-up failed and report no error, so a
+// missing peer may be a failure as well as an id that does not exist.
+func (p *Peers) Missing(h *mtproto.IDListHelper) (users, chats []int64) {
+	for _, id := range h.UserIdList {
+		if !slices.ContainsFunc(p.Users, func(u *mtproto.User) bool { return u.GetId() == id }) {
+			users = append(users, id)
+		}
+	}
+	for _, id := range h.ChatIdList {
+		if !slices.ContainsFunc(p.Chats, func(c *mtproto.Chat) bool { return c.GetId() == id }) {
+			chats = append(chats, id)
 		}
 	}
 	return users, chats

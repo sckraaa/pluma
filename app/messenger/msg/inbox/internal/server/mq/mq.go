@@ -186,7 +186,7 @@ func (c *Consumer) Handle(ctx context.Context, m *mqconsumer.Message) (mqconsume
 		}
 		return mqconsumer.OutcomeDead, nil
 	}
-	ic := core.New(ctx, c.svcCtx, id)
+	ic := core.New(ctx, c.svcCtx, id, ev.CreatedAt)
 	if err = h.apply(ic, in); err != nil {
 		return "", err
 	}
