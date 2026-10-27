@@ -102,14 +102,16 @@ func (users) UserGetMutableUsers(_ context.Context, in *userpb.TLUserGetMutableU
 	return out, nil
 }
 
-// sent answers the service message of an approval.
+// sent answers the service message of an approval and keeps the last one.
 type sent struct {
 	msg_client.MsgClient
-	n int
+	n    int
+	last *msgpb.TLMsgSendMessageV2
 }
 
-func (s *sent) MsgSendMessageV2(context.Context, *msgpb.TLMsgSendMessageV2) (*mtproto.Updates, error) {
+func (s *sent) MsgSendMessageV2(_ context.Context, in *msgpb.TLMsgSendMessageV2) (*mtproto.Updates, error) {
 	s.n++
+	s.last = in
 	return mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{}}).To_Updates(), nil
 }
 
@@ -171,8 +173,18 @@ func TestHideChatJoinRequestPushesNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	if m.n != 1 || len(r.GetUpdates()) != 1 || r.GetUpdates()[0].GetPredicateName() != mtproto.Predicate_updatePendingJoinRequests ||
-		!slices.Equal(r.GetUpdates()[0].GetRecentRequesters(), []int64{other}) {
+		!slices.Equal(r.GetUpdates()[0].GetRecentRequesters(), []int64{other}) || r.GetSeq() != 0 {
 		t.Errorf("approved: %d messages, reply %v", m.n, r)
+	}
+	// The message is the new member's, from none of its devices, as in
+	// Telegram: its sender is the one the clients say was accepted.
+	if m.n == 1 {
+		out := m.last.GetMessage()
+		if m.last.GetUserId() != requester || m.last.GetAuthKeyId() != 0 || m.last.GetPeerType() != mtproto.PEER_CHAT || m.last.GetPeerId() != group ||
+			len(out) != 1 || out[0].GetMessage().GetFromId().GetUserId() != requester ||
+			out[0].GetMessage().GetAction().GetPredicateName() != mtproto.Predicate_messageActionChatJoinedByRequest {
+			t.Errorf("approved: the service message %v, want messageActionChatJoinedByRequest from %d", m.last, requester)
+		}
 	}
 	if push.n != 0 {
 		t.Errorf("%d pushes of bff", push.n)

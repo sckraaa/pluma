@@ -33,9 +33,12 @@ import (
 // biz chat approves or declines the request in the admin's transaction and
 // gives the members (approved) and the creator and the admins
 // (updatePendingJoinRequests) their updates with seq there, this account's
-// devices included (ADR 0021). The reply carries the requests left with
-// seq 0: after the service message of an approval, or with the latest
-// requesters.
+// devices included (ADR 0021). The service message of an approval is the
+// new member's, as in Telegram: the clients show "Your request to join the
+// group was approved" to its sender and "X was accepted into the group" to
+// the others, so it goes from the new member's box to the members, the
+// admin's devices included, with pts. The reply carries the requests left
+// with the latest requesters, seq 0.
 func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHideChatJoinRequest) (*mtproto.Updates, error) {
 	var (
 		peer   = mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
@@ -90,31 +93,27 @@ func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHide
 	}).To_Update()
 
 	if in.GetApproved() {
-		// TODO: found link
-		rUpdates, err := c.svcCtx.Dao.MsgClient.MsgSendMessageV2(
+		// From none of the new member's devices: all of them get it.
+		if _, err = c.svcCtx.Dao.MsgClient.MsgSendMessageV2(
 			c.ctx,
 			&msgpb.TLMsgSendMessageV2{
-				UserId:    c.MD.UserId,
-				AuthKeyId: c.MD.PermAuthKeyId,
+				UserId:    userId.PeerId,
+				AuthKeyId: 0,
 				PeerType:  mtproto.PEER_CHAT,
 				PeerId:    mChat.Id(),
 				Message: []*msgpb.OutboxMessage{
 					msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
 						NoWebpage:    true,
 						Background:   false,
-						RandomId:     rand.Int63(),
-						Message:      mChat.MakeMessageService(c.MD.UserId, mtproto.MakeMessageActionChatJoinedByRequest()),
+						RandomId:     rand.Int63(), //nolint:gosec // random_id of a service message, not a secret
+						Message:      mChat.MakeMessageService(userId.PeerId, mtproto.MakeMessageActionChatJoinedByRequest()),
 						ScheduleDate: nil,
 					}).To_OutboxMessage(),
 				},
-			})
-		if err != nil {
+			}); err != nil {
 			c.Logger.Errorf("messages.hideChatJoinRequest - error: %v", err)
 			return nil, err
 		}
-
-		rUpdates.Updates = append(rUpdates.Updates, updatePendingJoinRequests)
-		return rUpdates, nil
 	}
 
 	if len(pendingJoinRequests.GetRecentRequesters()) == 0 {
