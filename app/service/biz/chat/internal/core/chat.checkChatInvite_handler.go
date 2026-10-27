@@ -68,8 +68,9 @@ func (c *ChatCore) ChatCheckChatInvite(in *chat.TLChatCheckChatInvite) (*chat.Ch
 		}
 	}
 
-	admin, _ := mChat.GetImmutableChatParticipant(chatInviteDO.AdminId)
-	if admin == nil || !admin.CanInviteUsers() {
+	// The link of an admin who may no longer invite is dead, as when it
+	// is used (usable).
+	if mayInvite(mChat, chatInviteDO.AdminId, time.Now().Unix()) != nil {
 		err = mtproto.ErrInviteHashExpired
 		c.Logger.Errorf("chat.importChatInvite - error: %v", err)
 		return nil, err

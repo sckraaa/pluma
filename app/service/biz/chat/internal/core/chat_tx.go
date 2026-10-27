@@ -211,13 +211,8 @@ func (t *chatTx) addMember(b *userbox.Box, inviterId, userId int64, isBot, check
 		return err
 	}
 	if checkInviter {
-		me := t.participant(inviterId)
-		if me == nil || !me.IsChatMemberStateNormal() && !me.IsChatMemberCreator() {
-			return mtproto.ErrInputUserDeactivated
-		}
-		// 400	CHAT_ADMIN_REQUIRED	You must be an admin in this chat to do this
-		if !me.CanInviteUsers() && !t.Chat.DefaultBannedRights.CanInviteUsers(int32(t.now)) {
-			return mtproto.ErrChatAdminRequired
+		if err := mayInvite(t.MutableChat, inviterId, t.now); err != nil {
+			return err
 		}
 	}
 	switch {
@@ -263,6 +258,22 @@ func (t *chatTx) addMember(b *userbox.Box, inviterId, userId int64, isBot, check
 	}
 	t.changed(b, userId)
 	return t.writeCount(b)
+}
+
+// mayInvite tells whether userId may let users into c at now: the creator,
+// who may come back after leaving, or a member who is an admin or whom the
+// default rights let invite. The same rule keeps an invite link alive: the
+// link of a user who may not invite lets no one in (usable).
+func mayInvite(c *mtproto.MutableChat, userId, now int64) error {
+	p, _ := c.GetImmutableChatParticipant(userId)
+	switch {
+	case p == nil, !p.IsChatMemberStateNormal() && !p.IsChatMemberCreator():
+		return mtproto.ErrInputUserDeactivated
+	case !p.CanInviteUsers() && !c.Chat.DefaultBannedRights.CanInviteUsers(int32(now)):
+		// 400	CHAT_ADMIN_REQUIRED	You must be an admin in this chat to do this
+		return mtproto.ErrChatAdminRequired
+	}
+	return nil
 }
 
 // admins returns the members who answer the requests to join: the

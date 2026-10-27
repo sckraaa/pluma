@@ -31,7 +31,8 @@ import (
 // The user joins by the link, or asks to when the link needs an admin's
 // approval, in its box transaction with the chat locked (ADR 0021): the
 // link is checked again under the lock, and the membership or the request
-// is written with the use of the link. Every member, the new one
+// is written with the use of the link; the link of an admin who may no
+// longer invite is dead (usable). Every member, the new one
 // included, gets the members with seq; a request gives the creator and the
 // admins the requests pending. A request already pending changes nothing.
 // The requesters of the result tell that the user asked.
@@ -112,7 +113,9 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 }
 
 // usable checks an invite link of the chat as the transaction reads it:
-// not revoked, not expired, not used up.
+// not revoked, not expired, its admin still one who may invite (mayInvite:
+// not removed, not gone, not demoted where the members may not invite),
+// not used up. A dead link is INVITE_HASH_EXPIRED, as Telegram answers.
 func (t *chatTx) usable(b *userbox.Box, invite *dataobject.ChatInvitesDO) error {
 	switch {
 	case invite == nil, invite.ChatId != t.Chat.Id:
@@ -120,6 +123,8 @@ func (t *chatTx) usable(b *userbox.Box, invite *dataobject.ChatInvitesDO) error 
 	case invite.Revoked:
 		return mtproto.ErrInviteHashExpired
 	case invite.ExpireDate != 0 && t.now > invite.ExpireDate:
+		return mtproto.ErrInviteHashExpired
+	case mayInvite(t.MutableChat, invite.AdminId, t.now) != nil:
 		return mtproto.ErrInviteHashExpired
 	case invite.UsageLimit <= 0:
 		return nil

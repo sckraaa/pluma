@@ -657,3 +657,82 @@ func TestJoinRequests(t *testing.T) {
 		t.Errorf("recent requesters %v, %v", recent, err)
 	}
 }
+
+// The link of an admin who was removed, who left or who was demoted where
+// the members may not invite is dead: it lets no one in, asks nothing and
+// shows no chat. The links of the creator and of a demoted admin whom the
+// members' rights let invite work.
+func TestLinksOfAdmins(t *testing.T) {
+	u := newUsers(7)
+	a, kicked, gone, demoted, j1, j2, j3 := u[0], u[1], u[2], u[3], u[4], u[5], u[6]
+	id := newChat(t, a, kicked, gone, demoted)
+	cc := chatCore()
+	step := func(what string, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+	}
+	for _, admin := range []int64{kicked, gone, demoted} {
+		_, err := cc.ChatEditChatAdmin(&chat.TLChatEditChatAdmin{ChatId: id, OperatorId: a, EditChatAdminId: admin, IsAdmin: mtproto.BoolTrue})
+		step("promote", err)
+	}
+	var (
+		kickedJoin  = newLink(t, id, kicked, false, 0, false)
+		kickedAsk   = newLink(t, id, kicked, true, 0, false)
+		goneJoin    = newLink(t, id, gone, false, 0, false)
+		demotedJoin = newLink(t, id, demoted, false, 0, false)
+		creatorJoin = newLink(t, id, a, false, 0, false)
+	)
+	check := func(userId int64, link string) error {
+		_, err := cc.ChatCheckChatInvite(&chat.TLChatCheckChatInvite{SelfId: userId, Hash: link})
+		return err
+	}
+	for _, link := range []string{kickedJoin, kickedAsk, goneJoin, demotedJoin, creatorJoin} {
+		step("the link of an admin", check(j1, link))
+	}
+
+	_, err := cc.ChatDeleteChatUser(&chat.TLChatDeleteChatUser{ChatId: id, OperatorId: a, DeleteUserId: kicked})
+	step("remove", err)
+	_, err = cc.ChatDeleteChatUser(&chat.TLChatDeleteChatUser{ChatId: id, OperatorId: gone, DeleteUserId: gone})
+	step("leave", err)
+	_, err = cc.ChatEditChatAdmin(&chat.TLChatEditChatAdmin{ChatId: id, OperatorId: a, EditChatAdminId: demoted, IsAdmin: mtproto.BoolFalse})
+	step("demote", err)
+
+	// The members may invite: the demoted admin's link works.
+	step("check the demoted admin's link", check(j2, demotedJoin))
+	_, err = join(j2, demotedJoin)
+	step("join by the demoted admin's link", err)
+
+	_, err = cc.ChatEditChatDefaultBannedRights(&chat.TLChatEditChatDefaultBannedRights{ChatId: id, OperatorId: a,
+		BannedRights: mtproto.MakeTLChatBannedRights(&mtproto.ChatBannedRights{InviteUsers: true}).To_ChatBannedRights()})
+	step("ban inviting", err)
+	version := rowOf(t, id).version
+	for _, dead := range []struct{ what, link string }{
+		{"the link of a removed admin", kickedJoin},
+		{"the request link of a removed admin", kickedAsk},
+		{"the link of an admin who left", goneJoin},
+		{"the link of a demoted admin, the members may not invite", demotedJoin},
+	} {
+		_, err = join(j1, dead.link)
+		wantErr(t, dead.what+": join", err, mtproto.ErrInviteHashExpired)
+		wantErr(t, dead.what+": check", check(j1, dead.link), mtproto.ErrInviteHashExpired)
+	}
+	if p := participantOf(t, id, j1); p != nil {
+		t.Errorf("joined by a dead link: %+v", p)
+	}
+	if n := count(t, "SELECT COUNT(*) FROM chat_invite_participants WHERE chat_id = ? AND user_id = ?", id, j1); n != 0 {
+		t.Errorf("%d uses or requests by dead links", n)
+	}
+	if r := rowOf(t, id); r.version != version {
+		t.Errorf("version %d after the dead links, want %d", r.version, version)
+	}
+
+	// The creator's link works whatever the members may.
+	step("check the creator's link", check(j3, creatorJoin))
+	_, err = join(j3, creatorJoin)
+	step("join by the creator's link", err)
+	if p := participantOf(t, id, j3); p == nil || p.inviter != a || p.state != mtproto.ChatMemberStateNormal {
+		t.Errorf("joined by the creator's link: %+v", p)
+	}
+}
