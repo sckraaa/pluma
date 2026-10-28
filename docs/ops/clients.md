@@ -69,6 +69,26 @@
 4. Войти по номеру; код — `test/e2e/run.sh admin login-code <номер>`.
 5. После проверки: `xcrun simctl delete <udid>` и `test/e2e/run.sh down`.
 
+## Проверка Desktop-клиента на стенде
+
+Dev-сборки Desktop идут на `127.0.0.1:10443` с тем же dev-ключом. Их артефакты в запуске workflow `desktop` — `pluma-desktop-linux-dev`, `pluma-desktop-windows-dev` и `pluma-desktop-macos-dev`:
+```bash
+gh run download <run> -R sckraaa/pluma-desktop -n pluma-desktop-macos-dev
+```
+
+1. Поднять стенд и добавить номер в allowlist — шаги 1–2 раздела про Android.
+2. Запустить клиент с отдельным каталогом данных, чтобы не задеть установленный Pluma:
+   - macOS: `open -n Pluma.app --args -workdir <каталог>/`;
+   - Linux: `Pluma/Pluma -workdir <каталог>/`;
+   - Windows: `Pluma\Pluma.exe -workdir <каталог>\`.
+3. Если клиент на другой машине, стенд пробрасывается к ней обратным SSH-туннелем, и адрес `127.0.0.1:10443` остаётся верным:
+   ```bash
+   ssh -N -R 127.0.0.1:10443:127.0.0.1:10443 <пользователь>@<машина>
+   ```
+   Сборку для Windows можно проверить и под Wine (11.x).
+4. «Start Messaging» → «Log in using phone number», ввести номер. Код — `test/e2e/run.sh admin login-code <номер>`.
+5. После проверки удалить каталог данных и снести стенд: `test/e2e/run.sh down`.
+
 ## Веб-клиент
 
 Официальный Telegram Web K ([morethanwords/tweb](https://github.com/morethanwords/tweb)) на последнем коммите с layer 228 (`346844bf`, 2026-09-22) с патчем под Pluma. Его собирает workflow `web` репозитория `sckraaa/pluma-web`. Результат — статический сайт и его архив `.tar.gz` с SHA-256 в артефакте запуска. Архив не шифруется: эту статику и так публично раздаёт сайт сервера.
