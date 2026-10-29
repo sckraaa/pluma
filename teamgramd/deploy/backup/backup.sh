@@ -85,16 +85,31 @@ backup_now() {
 	log "done in $(($(date +%s) - start))s"
 }
 
+# The throwaway mysqld of the restore check and its data directory: globals,
+# as the exit trap runs after check_restore's locals are gone.
+restore_pid=
+restore_dir=/var/tmp/restore-check
+
+stop_restore_mysqld() {
+	if [[ -n $restore_pid ]]; then
+		kill "$restore_pid" 2>/dev/null || true
+		wait "$restore_pid" 2>/dev/null || true
+		restore_pid=
+	fi
+	rm -rf "$restore_dir"
+}
+
 # check_restore loads the latest dump into a throwaway mysqld and checks it,
-# then verifies part of the repository data.
+# then verifies part of the repository data. The mysqld is stopped when it
+# returns or, when set -e stops the process, on exit.
 check_restore() {
-	local dir=/var/tmp/restore-check sock=/var/tmp/restore-check.sock pid users history
+	local dir=$restore_dir sock=/var/tmp/restore-check.sock users history
 	rm -rf "$dir" && mkdir -p "$dir" && chown mysql:mysql "$dir"
 	mysqld --initialize-insecure --user=mysql --datadir="$dir" >/dev/null 2>&1
 	mysqld --user=mysql --datadir="$dir" --socket="$sock" --skip-networking \
 		--mysqlx=OFF --pid-file="$dir/mysqld.pid" >/var/tmp/restore-check.log 2>&1 &
-	pid=$!
-	trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$dir"' RETURN EXIT
+	restore_pid=$!
+	trap stop_restore_mysqld RETURN EXIT
 	for _ in $(seq 60); do
 		mysqladmin --socket="$sock" -uroot ping >/dev/null 2>&1 && break
 		sleep 1
