@@ -275,6 +275,7 @@ func cancelCode(c *mtclient.Client, phone, hash string) {
 // save keeps the session of c, signed in as auth says.
 func save(name string, test bool, dc int32, c *mtclient.Client, auth *mtproto.Auth_Authorization) error {
 	u := auth.GetUser()
+	serviceTextsSelf = u
 	path, err := conformance.SaveSession(name, &conformance.Session{
 		Test: test, DC: dc, UserID: u.GetId(), AuthKey: c.AuthKey(), SavedAt: time.Now().UTC(),
 	})
@@ -428,8 +429,33 @@ func dial(ctx context.Context, tg *conformance.Telegram, dc int32, logf func(str
 // online is how long the program stays connected after the login.
 const online = time.Minute
 
-// serviceTextsOut is the file of -service-texts.
-var serviceTextsOut string
+// serviceTextsOut is the file of -service-texts. It holds the history of
+// the service account (serviceTextsDoc) and what comes while the session
+// lives (serviceTextsLive): a new login, a code, as Telegram sends them to
+// this session, in its language.
+var (
+	serviceTextsOut  string
+	serviceTextsSelf *mtproto.User
+	serviceTextsDoc  string
+	serviceTextsLive []string
+)
+
+func flushServiceTexts() error {
+	return os.WriteFile(serviceTextsOut, []byte(serviceTextsDoc+strings.Join(serviceTextsLive, "")), 0o644)
+}
+
+// liveServiceText adds a text that came to the session to serviceTextsOut.
+func liveServiceText(kind, text string, entities []*mtproto.MessageEntity, logf func(string, ...any)) {
+	if serviceTextsOut == "" || serviceTextsSelf == nil {
+		return
+	}
+	t := conformance.ScrubServiceText(serviceTextsSelf, text, entities)
+	serviceTextsLive = append(serviceTextsLive, fmt.Sprintf("\n## Came to this session: %s, %s\n\n```\n%s\n```\n",
+		kind, time.Now().UTC().Format("2006-01-02 15:04 UTC"), t))
+	if err := flushServiceTexts(); err != nil {
+		logf("service texts: %v", err)
+	}
+}
 
 // writeServiceTexts writes the templates of the service account's messages
 // to serviceTextsOut; it tells how it went and never stops the login.
@@ -438,7 +464,8 @@ func writeServiceTexts(ctx context.Context, c *mtclient.Client, logf func(string
 	defer cancel()
 	doc, messages, texts, err := conformance.ServiceTexts(tctx, c, 200)
 	if err == nil {
-		err = os.WriteFile(serviceTextsOut, []byte(doc), 0o644)
+		serviceTextsDoc = doc
+		err = flushServiceTexts()
 	}
 	if err != nil {
 		logf("service texts: %v", err)
@@ -528,15 +555,18 @@ func report(u *mtproto.Updates, logf func(string, ...any)) {
 	for _, n := range updatesOf(u, mtproto.Predicate_updateServiceNotification) {
 		logf("updateServiceNotification type=%s popup=%v", n.GetType(), n.GetPopup())
 		fmt.Printf("Уведомление Telegram для аккаунта (%s): %s\n", n.GetType(), n.GetMessage_STRING())
+		liveServiceText("updateServiceNotification "+n.GetType(), n.GetMessage_STRING(), n.GetEntities(), logf)
 	}
 	if u.GetPredicateName() == mtproto.Predicate_updateShortMessage && u.GetUserId() == telegramUserID {
 		logf("updateShortMessage from %d", telegramUserID)
 		fmt.Printf("Сообщение от «Telegram»: %s\n", u.GetMessage())
+		liveServiceText("updateShortMessage", u.GetMessage(), u.GetEntities(), logf)
 	}
 	for _, m := range updatesOf(u, mtproto.Predicate_updateNewMessage) {
 		if msg := m.GetMessage_MESSAGE(); msg.GetPeerId().GetUserId() == telegramUserID {
 			logf("updateNewMessage from %d", telegramUserID)
 			fmt.Printf("Сообщение от «Telegram»: %s\n", msg.GetMessage())
+			liveServiceText("updateNewMessage", msg.GetMessage(), msg.GetEntities(), logf)
 		}
 	}
 	if len(updatesOf(u, mtproto.Predicate_updateNewAuthorization)) > 0 {

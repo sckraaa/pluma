@@ -88,6 +88,13 @@ func ServiceTexts(ctx context.Context, c *mtclient.Client, limit int) (doc strin
 	return b.String(), len(list), len(order), nil
 }
 
+// ScrubServiceText is the template of one text of the service account to
+// the account of self, as ServiceTexts writes it: the entities as markup,
+// nothing of the account left.
+func ScrubServiceText(self *mtproto.User, text string, entities []*mtproto.MessageEntity) string {
+	return newScrubber(self).text(markup(text, entities))
+}
+
 // telegramServiceUserId is the account Telegram sends its service messages
 // from.
 const telegramServiceUserId = 777000
