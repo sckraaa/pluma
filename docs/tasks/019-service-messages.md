@@ -1,6 +1,6 @@
 # 019. Служебные сообщения как у Telegram
 
-- Статус: todo (тексты собраны; новый вход у Telegram проверен по документации, коду клиентов и входу владельца официальным клиентом 2026-10-29)
+- Статус: in-progress (код готов и проверен тестами 2026-10-29; ждут e2e в CI и проверка владельцем на официальном Android)
 - Зависит от: 017
 - ADR: 0020 (журнал `seq`, доставка обновлений)
 
@@ -19,7 +19,7 @@
 
 Где ещё завершается вход: `auth.checkPassword` (вход с облачным паролем) и QR (`auth.importLoginToken`, `auth.acceptLoginToken`). Шлёт ли там «Новый вход» наш сервер — проверить; шлёт ли Telegram — [не проверено].
 
-Неподтверждённой сессии у нас нет [проверено по коду 2026-10-29]: `updateNewAuthorization` сервер не шлёт; `account.changeAuthorizationSettings` — заглушка `ErrEnterpriseIsBlocked`; `authorization_autoconfirm_period` в конфиге нет; `account.getAuthorizations` не ставит `unconfirmed` и `password_pending`; проверка «сессия моложе суток» есть в `auth.resetAuthorizations`, но не в `account.resetAuthorization`.
+Неподтверждённой сессии у нас нет [проверено по коду 2026-10-29]: `updateNewAuthorization` сервер не шлёт; `account.changeAuthorizationSettings` — заглушка `ErrEnterpriseIsBlocked`; `authorization_autoconfirm_period` в конфиге нет; `account.getAuthorizations` не ставит `unconfirmed` и `password_pending`. Проверка «сессия моложе суток» уже есть и в `auth.resetAuthorizations`, и в `account.resetAuthorization` (`CheckResetAllowed`, задача 008); прежняя запись здесь, что во втором её нет, была ошибкой поиска.
 
 Telegram шлёт и то, чего у нас нет: «Незавершенная попытка входа» (код введён, пароль нет), «Изменены настройки двухэтапной аутентификации», «Отключена двухэтапная аутентификация».
 
@@ -112,7 +112,7 @@ Telegram шлёт и то, чего у нас нет: «Незавершенна
 2. Таблица шаблонов в коде: язык → текст и сущности (en, ru).
 3. authsession: метод, который отдаёт сессии пользователя с `lang_code` и временем активности (`authorization.hash` — случайное число, не ключ). Код сервиса генерируется из `authsession.tl.proto`, как в `000a122e`.
 4. sync: доставка служебного уведомления всем сессиям, кроме новой, и офлайн-сессиям тоже. Сейчас `sync.updatesNotMe` шлёт только онлайн-сессиям, а `sync.pushUpdatesIfNot` не реализован.
-5. Неподтверждённая сессия: флаг `unconfirmed` в `account.getAuthorizations`; `updateNewAuthorization` другим сессиям (с флагом при входе, без флага при подтверждении); `account.changeAuthorizationSettings` с `confirmed`; `authorization_autoconfirm_period` в `help.getAppConfig` и автоподтверждение; `FRESH_RESET_AUTHORISATION_FORBIDDEN` и в `account.resetAuthorization`.
+5. Неподтверждённая сессия: флаг `unconfirmed` в `account.getAuthorizations`; `updateNewAuthorization` другим сессиям (с флагом при входе, без флага при подтверждении); `account.changeAuthorizationSettings` с `confirmed`; `authorization_autoconfirm_period` в `help.getAppConfig` и автоподтверждение. (`FRESH_RESET_AUTHORISATION_FORBIDDEN` в `account.resetAuthorization` уже был.)
 6. Код входа и «Новый вход» по шаблонам — везде, где вход завершается: `auth.signIn`, `auth.checkPassword`, вход по QR. «Новый вход» и `updateNewAuthorization` — всем сессиям, кроме новой.
 7. Тесты: шаблоны и сущности (смещения в UTF-16), выбор языка, доставка (интеграционные), e2e: вход по QR, подтверждённый сессией на русском, — все остальные сессии, в том числе на английском, получают русский «Новый вход»; баннер: вход → `updateNewAuthorization` с `unconfirmed` → подтверждение → то же без флага.
 8. Позже, отдельно: «Незавершенная попытка входа» и сообщения о 2FA.
@@ -148,4 +148,18 @@ Telegram шлёт и то, чего у нас нет: «Незавершенна
 - Официальные клиенты показывают баннер нового входа, «Да» и «Нет» работают, баннер снимается на всех устройствах после подтверждения.
 
 ## Результат
-_—_
+Новый вход работает как у Telegram. После каждого завершённого входа остальные сессии аккаунта получают `updateNewAuthorization` с `unconfirmed`, на котором официальные клиенты показывают баннер «Это вы?». Входы — `auth.signIn` без пароля, `auth.checkPassword` после кода и после QR, QR без пароля, будущий токен. Сессии, которые в сети, получают ещё и сообщение «Новый вход» по шаблону Telegram (en/ru). Новая сессия не получает ни того, ни другого. Вход остаётся неподтверждённым в `account.getAuthorizations`, пока другая сессия не подтвердит его (`account.changeAuthorizationSettings` с `confirmed` — вместо заглушки) или не пройдёт `authorization_autoconfirm_period`; после подтверждения или завершения входа все сессии получают то же обновление без флага и снимают баннер. Баннер доходит и до сессии, которая была не в сети: через журнал seq и `getDifference` (ADR 0022). Код входа — тоже en/ru.
+
+Подробно:
+- Хранение — колонки `auth_users.unconfirmed`, `encrypted_requests_disabled`, `call_requests_disabled` (`migrate-20261029-auth-confirm.sql`); первая сессия пользователя подтверждена сразу. Срок — `authsession.AuthorizationAutoconfirmPeriod` = 604800 с, он же в `teamgramd/bin/app_config.json` (тест сверяет).
+- authsession: `authsession.changeAuthorizationSettings`, `authsession.getRecentLangCode`; `app_name` в списке сессий — «Pluma Android/iOS/Desktop/macOS/Web» по `lang_pack`; место — «Город, Страна» или страна.
+- biz user: `user.newAuthorization` пишет обновление в журнал seq с `user_seq_updates.except_auth_key_id` (`migrate-20261029-seq-except.sql`), `getDifference` пропускает строку для исключённого ключа (ADR 0022).
+- bff: пакеты `app/bff/authorization/servicetext` (шаблоны) и `newlogin` (рассылка); ключи конфига `SignInServiceNotification` и `SignInMessage` удалены.
+- Проверка: юнит-тесты `servicetext`, `newlogin`, входа с паролем, `userbox`; интеграционные на MySQL/Redis/Kafka — хранение настроек и язык (authsession), `user.newAuthorization`, `getDifference` с исключённым ключом; e2e `TestNewLogin` написан (вход по коду, баннер, сообщение, разница, `HASH_INVALID`, 406, подтверждение), локально не запускался — в ВМ colima не хватило памяти рядом с работающими стендами, прогонится в CI. `make lint`, `go vet`, `go test ./...`, `-race` затронутых пакетов, `tools/logaudit` — зелёные.
+
+Отклонения и открытое:
+- «Новый вход» офлайн-сессиям не доставляется: служебные уведомления вне журнала (ADR 0020, дубли на Android). Офлайн-устройство получает только баннер. Как у Telegram — не проверено.
+- `encrypted_requests_disabled` и `call_requests_disabled` хранятся и отдаются, но соблюдать их негде: звонков и секретных чатов на сервере нет.
+- `password_pending` в `account.getAuthorizations` не сделан: вход, ждущий пароля, у нас не авторизация, а запись в `pkg/twofa`; «Незавершённые попытки входа» — отдельно, вместе с сообщением о них (шаг 8).
+- Строка устройства Android у нас «…, SDK 36», у Telegram — «…, Android, 16 (36)» (по одному образцу); правило Telegram не проверено.
+- Приёмка владельцем на официальном Android (баннер, «Да», «Нет») — после выкатки.

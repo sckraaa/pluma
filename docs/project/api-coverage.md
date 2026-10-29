@@ -7,11 +7,11 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 156, partial 25, blocked 101, notimpl 7, missing 580 (ok = 18.0%); with a conformance scenario 9
+    layer 228: 869 methods — ok 157, partial 25, blocked 100, notimpl 7, missing 580 (ok = 18.1%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | missing | scenario |
 |---|---|---|---|---|---|---|---|
-| account | 132 | 36 | 2 | 28 | 0 | 66 | 0 |
+| account | 132 | 37 | 2 | 27 | 0 | 66 | 0 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 7 | 0 |
 | auth | 27 | 16 | 0 | 10 | 1 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
@@ -48,7 +48,7 @@
 | `account.acceptAuthorization` | blocked |  | app/bff/passport/internal/core/account.acceptAuthorization_handler.go:27 |
 | `account.addNoPaidMessagesException` | missing |  |  |
 | `account.cancelPasswordEmail` | missing |  |  |
-| `account.changeAuthorizationSettings` | blocked |  | app/bff/authorization/internal/core/account.changeAuthorizationSettings_handler.go:27 |
+| `account.changeAuthorizationSettings` | ok |  | app/bff/authorization/internal/core/account.changeAuthorizationSettings_handler.go:37 |
 | `account.changePhone` | ok |  | app/bff/account/internal/core/account.changePhone_handler.go:29 |
 | `account.checkUsername` | ok |  | app/bff/usernames/internal/core/account.checkUsername_handler.go:30 |
 | `account.clearRecentEmojiStatuses` | missing |  |  |
@@ -194,7 +194,7 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `auth.acceptLoginToken` | ok |  | app/bff/qrcode/internal/core/auth.acceptLoginToken_handler.go:42 |
+| `auth.acceptLoginToken` | ok |  | app/bff/qrcode/internal/core/auth.acceptLoginToken_handler.go:43 |
 | `auth.bindTempAuthKey` | blocked |  | app/bff/authorization/internal/core/auth.bindTempAuthKey_handler.go:27 |
 | `auth.cancelCode` | ok |  | app/bff/authorization/internal/core/auth.cancelCode_handler.go:27 |
 | `auth.checkPaidAuth` | blocked |  | app/bff/authorization/internal/core/auth.checkPaidAuth_handler.go:27 |
@@ -218,7 +218,7 @@
 | `auth.resetAuthorizations` | ok |  | app/bff/authorization/internal/core/auth.resetAuthorizations_handler.go:37 |
 | `auth.resetLoginEmail` | blocked |  | app/bff/authorization/internal/core/auth.resetLoginEmail_handler.go:27 |
 | `auth.sendCode` | ok | yes | app/bff/authorization/internal/core/auth.sendCode_handler.go:111 |
-| `auth.signIn` | ok | yes | app/bff/authorization/internal/core/auth.signIn_handler.go:55 |
+| `auth.signIn` | ok | yes | app/bff/authorization/internal/core/auth.signIn_handler.go:53 |
 | `auth.signUp` | ok |  | app/bff/authorization/internal/core/auth.signUp_handler.go:53 |
 | `auth.toggleBan` | blocked |  | app/bff/authorization/internal/core/auth.toggleBan_handler.go:27 |
 
