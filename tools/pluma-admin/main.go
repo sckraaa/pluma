@@ -17,6 +17,7 @@
 //	pluma-admin [-f bff.yaml] outbox replay -user <id>
 //	pluma-admin [-f bff.yaml] outbox discard -id <event id>
 //	pluma-admin [-f bff.yaml] password reset <phone>
+//	pluma-admin [-f bff.yaml] service-photo [image]
 //
 // login-code generates a fresh code for a pending code request of the phone
 // (auth.sendCode or account.sendChangePhoneCode that answered "code sent by
@@ -47,6 +48,11 @@
 // password reset removes the 2FA password of an account (task 008) whose
 // owner forgot it and is logged in nowhere to reset it with a week's wait
 // (account.resetPassword). Establish who asks outside the server first.
+//
+// service-photo sets the profile photo of the service notifications
+// account (777000, "Pluma"), Pluma's by default, the way a client sets its
+// own: the account's chats get updateUser. It talks to dfs, media and biz,
+// so it runs in the bff container.
 //
 // From the repo root (services run with teamgramd/etc, secrets in .env):
 //
@@ -143,6 +149,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] premium revoke <phone>
   pluma-admin [-f bff.yaml] premium list
   pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password)
+  pluma-admin [-f bff.yaml] service-photo [image]   (the service account's photo; Pluma's by default)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
   pluma-admin -f push.yaml push check   (asks APNs and FCM whether they take the keys; nothing is delivered)
 
@@ -199,6 +206,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return passwordCommand(args, configFile, stdout)
 	case "push":
 		return pushCommand(args, configFile, stdout)
+	case "service-photo":
+		return servicePhotoCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

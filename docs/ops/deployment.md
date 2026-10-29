@@ -63,7 +63,11 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
    ```
    Образ сервисов скачивается `docker pull`, а не `compose pull`: у него `pull_policy: never`, потому что на машине разработки его собирает сервис `idgen`.
    Схему чистой базы создаёт сервис `migrate`. Ручные миграции из STATUS нужны только при обновлении уже существующей базы.
-6. Проверить:
+6. Поставить фото служебному аккаунту «Pluma» (777000). Команда загружает встроенное фото Pluma так же, как клиент ставит своё: файл уходит в dfs, media делает из него фото, biz рассылает `updateUser` тем, у кого есть чат с аккаунтом. Достаточно одного раза: повторный запуск добавит фото в альбом аккаунта.
+   ```bash
+   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml exec bff ./pluma-admin -f ../etc2/bff.yaml service-photo
+   ```
+7. Проверить:
    - `docker compose … ps`: все сервисы healthy;
    - `ss -tlnp | grep -E ':(10443|5222|11443) '`: порты слушает только адрес Pluma;
    - `iptables -t nat -S POSTROUTING | grep 172.20`: стоит `SNAT --to-source <адрес>`, а не `MASQUERADE`;
