@@ -61,13 +61,30 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
    docker pull "$(sed -n 's/^TEAMGRAM_IMAGE=//p' .env)"
    docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml up -d --no-build
    ```
-   Образ сервисов скачивается `docker pull`, а не `compose pull`: его собирает сервис `idgen` (`build: .`), и compose не скачивает такой образ ни для одного сервиса.
+   Образ сервисов скачивается `docker pull`, а не `compose pull`: у него `pull_policy: never`, потому что на машине разработки его собирает сервис `idgen`.
    Схему чистой базы создаёт сервис `migrate`. Ручные миграции из STATUS нужны только при обновлении уже существующей базы.
 6. Проверить:
    - `docker compose … ps`: все сервисы healthy;
    - `ss -tlnp | grep -E ':(10443|5222|11443) '`: порты слушает только адрес Pluma;
    - `iptables -t nat -S POSTROUTING | grep 172.20`: стоит `SNAT --to-source <адрес>`, а не `MASQUERADE`;
    - push, алерты и бэкап — проверками из `push.md`, `monitoring.md`, `backup.md`.
+
+## Веб-клиент
+
+Web K раздаёт с адреса Pluma контейнер `web` (`docker-compose.web.yaml`): Caddy с сайтом из образа `pluma-web`.
+- **TLS.** Сертификаты Let's Encrypt Caddy получает и продлевает сам. Нужны A-записи всех имён на адрес Pluma и свободные порты 80 и 443 на этом адресе.
+- **WebSocket.** `/apiws` Caddy передаёт на отдельный слушатель шлюза `11444` с PROXY protocol v1. Так шлюз видит настоящий адрес каждого веб-клиента, и лимиты входа считаются по нему. Соединение без заголовка PROXY этот слушатель закрывает. Порт `11444` не публикуется. Собственный WebSocket-порт шлюза `11443` при этом файле тоже не публикуется.
+- **Имена.** `PLUMA_WEB_DOMAIN` — имя веб-клиента. Остальные имена сайта из `PLUMA_SITE_DOMAINS` перенаправляют на него.
+
+Порядок:
+1. В `pluma-web` задать переменные `PLUMA_SERVER_URL=wss://<PLUMA_WEB_DOMAIN>/apiws` и `PLUMA_RSA_PUBLIC_KEY`. Сборка `main` под сервер публикует образ `ghcr.io/sckraaa/pluma-web:<коммит pluma-web>`.
+2. В `.env` указать `PLUMA_WEB_IMAGE`, `PLUMA_WEB_DOMAIN` и `PLUMA_SITE_DOMAINS`.
+3. Команда сервисов получает третий файл:
+   ```bash
+   docker pull "$(sed -n 's/^PLUMA_WEB_IMAGE=//p' .env)"
+   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml up -d --no-build
+   ```
+4. Проверить: `https://<PLUMA_WEB_DOMAIN>/` открывается с сертификатом Let's Encrypt, вход проходит, `ss -tlnp | grep 11443` пуст.
 
 ## Обновление
 

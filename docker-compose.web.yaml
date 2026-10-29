@@ -1,0 +1,46 @@
+# The web client on a server (docs/ops/deployment.md): Caddy, with TLS from
+# Let's Encrypt, serves the site of the pluma-web image and proxies its
+# WebSocket /apiws to the gateway's PROXY protocol listener (11444, on
+# teamgram_net only, teamgramd/deploy/web/Caddyfile). The gateway's own
+# WebSocket port 11443 is then not published: web clients come through the
+# proxy only, with their real addresses. Added to the services command after
+# docker-compose.public-ip.yaml:
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml ...
+services:
+  gnetway:
+    ports: !override
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:10443:10443" # MTProto TCP
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:5222:5222"   # MTProto TCP, alternative port
+
+  web:
+    image: ${PLUMA_WEB_IMAGE:?set PLUMA_WEB_IMAGE in .env, the pluma-web image of the site}
+    restart: unless-stopped
+    environment:
+      PLUMA_WEB_DOMAIN: ${PLUMA_WEB_DOMAIN:?set PLUMA_WEB_DOMAIN in .env, the name of the web client}
+      PLUMA_SITE_DOMAINS: ${PLUMA_SITE_DOMAINS:?set PLUMA_SITE_DOMAINS in .env, the other names of the site}
+    volumes:
+      - ./teamgramd/deploy/web/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The ACME account and the certificates: kept over restarts, so that
+      # Let's Encrypt's rate limits are never in the way.
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:80:80"
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:443:443"
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:443:443/udp" # HTTP/3
+    networks:
+      - teamgram_net
+    depends_on:
+      gnetway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    stop_grace_period: 15s
+
+volumes:
+  caddy_data:
+  caddy_config:

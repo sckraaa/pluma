@@ -1,0 +1,30 @@
+# The web client on a server (docker-compose.web.yaml, docs/ops/deployment.md):
+# TLS certificates from Let's Encrypt, the site of the pluma-web image in /srv,
+# and its MTProto WebSocket /apiws to the gateway's PROXY protocol listener,
+# so that the gateway counts every web client by its own address. The other
+# names of the site lead to the web client.
+
+{$PLUMA_WEB_DOMAIN} {
+	handle /apiws {
+		reverse_proxy gnetway:11444 {
+			transport http {
+				proxy_protocol v1
+			}
+		}
+	}
+	handle {
+		root * /srv
+		encode zstd gzip
+		file_server
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+}
+
+{$PLUMA_SITE_DOMAINS} {
+	redir https://{$PLUMA_WEB_DOMAIN}{uri}
+}
