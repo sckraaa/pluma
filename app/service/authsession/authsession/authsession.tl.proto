@@ -47,6 +47,9 @@ enum TLConstructor {
   // pluma: task 008
   CRC32_authsession_destroyAuthKey = -1469997976;
   CRC32_authsession_dropTempAuthKeys = 2010870522;
+  // pluma: task 019
+  CRC32_authsession_changeAuthorizationSettings = -951003082;
+  CRC32_authsession_getRecentLangCode = 299421713;
 }
 
 // AuthKeyStateData <--
@@ -262,6 +265,30 @@ message TL_authsession_dropTempAuthKeys {
   repeated int64 except_auth_keys = 4;
 }
 
+// pluma: authsession.changeAuthorizationSettings flags:# user_id:long hash:long confirmed:flags.3?true encrypted_requests_disabled:flags.0?Bool call_requests_disabled:flags.1?Bool = Int64;
+// The settings of the user's authorization hash change as in
+// account.changeAuthorizationSettings (task 019); an absent field stays as
+// it is. The permanent key of the authorization comes back, 0 when the user
+// has no authorization hash.
+message TL_authsession_changeAuthorizationSettings {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 hash = 4;
+  bool confirmed = 5;
+  mtproto.Bool encrypted_requests_disabled = 6;
+  mtproto.Bool call_requests_disabled = 7;
+}
+
+// pluma: authsession.getRecentLangCode user_id:long except_auth_key_id:long = String;
+// The lang_code of initConnection of the user's session that connected
+// last, apart from the permanent key except_auth_key_id; empty when there is
+// no other session (task 019).
+message TL_authsession_getRecentLangCode {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 except_auth_key_id = 4;
+}
+
 //--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_Long {
@@ -315,4 +342,9 @@ service RPCAuthsession {
       returns (Vector_Long) {}
   rpc authsession_dropTempAuthKeys(TL_authsession_dropTempAuthKeys)
       returns (Vector_Long) {}
+  // pluma: task 019
+  rpc authsession_changeAuthorizationSettings(
+      TL_authsession_changeAuthorizationSettings) returns (mtproto.Int64) {}
+  rpc authsession_getRecentLangCode(TL_authsession_getRecentLangCode)
+      returns (mtproto.String) {}
 }

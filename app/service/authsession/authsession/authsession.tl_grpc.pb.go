@@ -38,29 +38,31 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	RPCAuthsession_AuthsessionGetAuthorizations_FullMethodName       = "/authsession.RPCAuthsession/authsession_getAuthorizations"
-	RPCAuthsession_AuthsessionResetAuthorization_FullMethodName      = "/authsession.RPCAuthsession/authsession_resetAuthorization"
-	RPCAuthsession_AuthsessionGetLayer_FullMethodName                = "/authsession.RPCAuthsession/authsession_getLayer"
-	RPCAuthsession_AuthsessionGetLangPack_FullMethodName             = "/authsession.RPCAuthsession/authsession_getLangPack"
-	RPCAuthsession_AuthsessionGetClient_FullMethodName               = "/authsession.RPCAuthsession/authsession_getClient"
-	RPCAuthsession_AuthsessionGetLangCode_FullMethodName             = "/authsession.RPCAuthsession/authsession_getLangCode"
-	RPCAuthsession_AuthsessionGetUserId_FullMethodName               = "/authsession.RPCAuthsession/authsession_getUserId"
-	RPCAuthsession_AuthsessionGetPushSessionId_FullMethodName        = "/authsession.RPCAuthsession/authsession_getPushSessionId"
-	RPCAuthsession_AuthsessionGetFutureSalts_FullMethodName          = "/authsession.RPCAuthsession/authsession_getFutureSalts"
-	RPCAuthsession_AuthsessionQueryAuthKey_FullMethodName            = "/authsession.RPCAuthsession/authsession_queryAuthKey"
-	RPCAuthsession_AuthsessionSetAuthKey_FullMethodName              = "/authsession.RPCAuthsession/authsession_setAuthKey"
-	RPCAuthsession_AuthsessionBindAuthKeyUser_FullMethodName         = "/authsession.RPCAuthsession/authsession_bindAuthKeyUser"
-	RPCAuthsession_AuthsessionUnbindAuthKeyUser_FullMethodName       = "/authsession.RPCAuthsession/authsession_unbindAuthKeyUser"
-	RPCAuthsession_AuthsessionGetPermAuthKeyId_FullMethodName        = "/authsession.RPCAuthsession/authsession_getPermAuthKeyId"
-	RPCAuthsession_AuthsessionBindTempAuthKey_FullMethodName         = "/authsession.RPCAuthsession/authsession_bindTempAuthKey"
-	RPCAuthsession_AuthsessionSetClientSessionInfo_FullMethodName    = "/authsession.RPCAuthsession/authsession_setClientSessionInfo"
-	RPCAuthsession_AuthsessionGetAuthorization_FullMethodName        = "/authsession.RPCAuthsession/authsession_getAuthorization"
-	RPCAuthsession_AuthsessionGetAuthStateData_FullMethodName        = "/authsession.RPCAuthsession/authsession_getAuthStateData"
-	RPCAuthsession_AuthsessionSetLayer_FullMethodName                = "/authsession.RPCAuthsession/authsession_setLayer"
-	RPCAuthsession_AuthsessionSetInitConnection_FullMethodName       = "/authsession.RPCAuthsession/authsession_setInitConnection"
-	RPCAuthsession_AuthsessionSetAndroidPushSessionId_FullMethodName = "/authsession.RPCAuthsession/authsession_setAndroidPushSessionId"
-	RPCAuthsession_AuthsessionDestroyAuthKey_FullMethodName          = "/authsession.RPCAuthsession/authsession_destroyAuthKey"
-	RPCAuthsession_AuthsessionDropTempAuthKeys_FullMethodName        = "/authsession.RPCAuthsession/authsession_dropTempAuthKeys"
+	RPCAuthsession_AuthsessionGetAuthorizations_FullMethodName           = "/authsession.RPCAuthsession/authsession_getAuthorizations"
+	RPCAuthsession_AuthsessionResetAuthorization_FullMethodName          = "/authsession.RPCAuthsession/authsession_resetAuthorization"
+	RPCAuthsession_AuthsessionGetLayer_FullMethodName                    = "/authsession.RPCAuthsession/authsession_getLayer"
+	RPCAuthsession_AuthsessionGetLangPack_FullMethodName                 = "/authsession.RPCAuthsession/authsession_getLangPack"
+	RPCAuthsession_AuthsessionGetClient_FullMethodName                   = "/authsession.RPCAuthsession/authsession_getClient"
+	RPCAuthsession_AuthsessionGetLangCode_FullMethodName                 = "/authsession.RPCAuthsession/authsession_getLangCode"
+	RPCAuthsession_AuthsessionGetUserId_FullMethodName                   = "/authsession.RPCAuthsession/authsession_getUserId"
+	RPCAuthsession_AuthsessionGetPushSessionId_FullMethodName            = "/authsession.RPCAuthsession/authsession_getPushSessionId"
+	RPCAuthsession_AuthsessionGetFutureSalts_FullMethodName              = "/authsession.RPCAuthsession/authsession_getFutureSalts"
+	RPCAuthsession_AuthsessionQueryAuthKey_FullMethodName                = "/authsession.RPCAuthsession/authsession_queryAuthKey"
+	RPCAuthsession_AuthsessionSetAuthKey_FullMethodName                  = "/authsession.RPCAuthsession/authsession_setAuthKey"
+	RPCAuthsession_AuthsessionBindAuthKeyUser_FullMethodName             = "/authsession.RPCAuthsession/authsession_bindAuthKeyUser"
+	RPCAuthsession_AuthsessionUnbindAuthKeyUser_FullMethodName           = "/authsession.RPCAuthsession/authsession_unbindAuthKeyUser"
+	RPCAuthsession_AuthsessionGetPermAuthKeyId_FullMethodName            = "/authsession.RPCAuthsession/authsession_getPermAuthKeyId"
+	RPCAuthsession_AuthsessionBindTempAuthKey_FullMethodName             = "/authsession.RPCAuthsession/authsession_bindTempAuthKey"
+	RPCAuthsession_AuthsessionSetClientSessionInfo_FullMethodName        = "/authsession.RPCAuthsession/authsession_setClientSessionInfo"
+	RPCAuthsession_AuthsessionGetAuthorization_FullMethodName            = "/authsession.RPCAuthsession/authsession_getAuthorization"
+	RPCAuthsession_AuthsessionGetAuthStateData_FullMethodName            = "/authsession.RPCAuthsession/authsession_getAuthStateData"
+	RPCAuthsession_AuthsessionSetLayer_FullMethodName                    = "/authsession.RPCAuthsession/authsession_setLayer"
+	RPCAuthsession_AuthsessionSetInitConnection_FullMethodName           = "/authsession.RPCAuthsession/authsession_setInitConnection"
+	RPCAuthsession_AuthsessionSetAndroidPushSessionId_FullMethodName     = "/authsession.RPCAuthsession/authsession_setAndroidPushSessionId"
+	RPCAuthsession_AuthsessionDestroyAuthKey_FullMethodName              = "/authsession.RPCAuthsession/authsession_destroyAuthKey"
+	RPCAuthsession_AuthsessionDropTempAuthKeys_FullMethodName            = "/authsession.RPCAuthsession/authsession_dropTempAuthKeys"
+	RPCAuthsession_AuthsessionChangeAuthorizationSettings_FullMethodName = "/authsession.RPCAuthsession/authsession_changeAuthorizationSettings"
+	RPCAuthsession_AuthsessionGetRecentLangCode_FullMethodName           = "/authsession.RPCAuthsession/authsession_getRecentLangCode"
 )
 
 // RPCAuthsessionClient is the client API for RPCAuthsession service.
@@ -91,6 +93,9 @@ type RPCAuthsessionClient interface {
 	// pluma: task 008
 	AuthsessionDestroyAuthKey(ctx context.Context, in *TLAuthsessionDestroyAuthKey, opts ...grpc.CallOption) (*Vector_Long, error)
 	AuthsessionDropTempAuthKeys(ctx context.Context, in *TLAuthsessionDropTempAuthKeys, opts ...grpc.CallOption) (*Vector_Long, error)
+	// pluma: task 019
+	AuthsessionChangeAuthorizationSettings(ctx context.Context, in *TLAuthsessionChangeAuthorizationSettings, opts ...grpc.CallOption) (*mtproto.Int64, error)
+	AuthsessionGetRecentLangCode(ctx context.Context, in *TLAuthsessionGetRecentLangCode, opts ...grpc.CallOption) (*mtproto.String, error)
 }
 
 type rPCAuthsessionClient struct {
@@ -308,6 +313,24 @@ func (c *rPCAuthsessionClient) AuthsessionDropTempAuthKeys(ctx context.Context, 
 	return out, nil
 }
 
+func (c *rPCAuthsessionClient) AuthsessionChangeAuthorizationSettings(ctx context.Context, in *TLAuthsessionChangeAuthorizationSettings, opts ...grpc.CallOption) (*mtproto.Int64, error) {
+	out := new(mtproto.Int64)
+	err := c.cc.Invoke(ctx, RPCAuthsession_AuthsessionChangeAuthorizationSettings_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCAuthsessionClient) AuthsessionGetRecentLangCode(ctx context.Context, in *TLAuthsessionGetRecentLangCode, opts ...grpc.CallOption) (*mtproto.String, error) {
+	out := new(mtproto.String)
+	err := c.cc.Invoke(ctx, RPCAuthsession_AuthsessionGetRecentLangCode_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCAuthsessionServer is the server API for RPCAuthsession service.
 // All implementations should embed UnimplementedRPCAuthsessionServer
 // for forward compatibility
@@ -336,6 +359,9 @@ type RPCAuthsessionServer interface {
 	// pluma: task 008
 	AuthsessionDestroyAuthKey(context.Context, *TLAuthsessionDestroyAuthKey) (*Vector_Long, error)
 	AuthsessionDropTempAuthKeys(context.Context, *TLAuthsessionDropTempAuthKeys) (*Vector_Long, error)
+	// pluma: task 019
+	AuthsessionChangeAuthorizationSettings(context.Context, *TLAuthsessionChangeAuthorizationSettings) (*mtproto.Int64, error)
+	AuthsessionGetRecentLangCode(context.Context, *TLAuthsessionGetRecentLangCode) (*mtproto.String, error)
 }
 
 // UnimplementedRPCAuthsessionServer should be embedded to have forward compatible implementations.
@@ -410,6 +436,12 @@ func (UnimplementedRPCAuthsessionServer) AuthsessionDestroyAuthKey(context.Conte
 }
 func (UnimplementedRPCAuthsessionServer) AuthsessionDropTempAuthKeys(context.Context, *TLAuthsessionDropTempAuthKeys) (*Vector_Long, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AuthsessionDropTempAuthKeys not implemented")
+}
+func (UnimplementedRPCAuthsessionServer) AuthsessionChangeAuthorizationSettings(context.Context, *TLAuthsessionChangeAuthorizationSettings) (*mtproto.Int64, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AuthsessionChangeAuthorizationSettings not implemented")
+}
+func (UnimplementedRPCAuthsessionServer) AuthsessionGetRecentLangCode(context.Context, *TLAuthsessionGetRecentLangCode) (*mtproto.String, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AuthsessionGetRecentLangCode not implemented")
 }
 
 // UnsafeRPCAuthsessionServer may be embedded to opt out of forward compatibility for this service.
@@ -837,6 +869,42 @@ func _RPCAuthsession_AuthsessionDropTempAuthKeys_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCAuthsession_AuthsessionChangeAuthorizationSettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLAuthsessionChangeAuthorizationSettings)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCAuthsessionServer).AuthsessionChangeAuthorizationSettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCAuthsession_AuthsessionChangeAuthorizationSettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCAuthsessionServer).AuthsessionChangeAuthorizationSettings(ctx, req.(*TLAuthsessionChangeAuthorizationSettings))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCAuthsession_AuthsessionGetRecentLangCode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLAuthsessionGetRecentLangCode)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCAuthsessionServer).AuthsessionGetRecentLangCode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCAuthsession_AuthsessionGetRecentLangCode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCAuthsessionServer).AuthsessionGetRecentLangCode(ctx, req.(*TLAuthsessionGetRecentLangCode))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCAuthsession_ServiceDesc is the grpc.ServiceDesc for RPCAuthsession service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -935,6 +1003,14 @@ var RPCAuthsession_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "authsession_dropTempAuthKeys",
 			Handler:    _RPCAuthsession_AuthsessionDropTempAuthKeys_Handler,
+		},
+		{
+			MethodName: "authsession_changeAuthorizationSettings",
+			Handler:    _RPCAuthsession_AuthsessionChangeAuthorizationSettings_Handler,
+		},
+		{
+			MethodName: "authsession_getRecentLangCode",
+			Handler:    _RPCAuthsession_AuthsessionGetRecentLangCode_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

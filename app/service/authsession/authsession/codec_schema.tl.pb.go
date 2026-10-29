@@ -156,6 +156,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 2010870522,
 		}
 	},
+	-951003082: func() mtproto.TLObject { // 0xc750d836 pluma: task 019
+		return &TLAuthsessionChangeAuthorizationSettings{
+			Constructor: -951003082,
+		}
+	},
+	299421713: func() mtproto.TLObject { // 0x11d8d011 pluma: task 019
+		return &TLAuthsessionGetRecentLangCode{
+			Constructor: 299421713,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1454,6 +1464,118 @@ func (m *TLAuthsessionDropTempAuthKeys) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.PermAuthKeyId = dBuf.Long()
 		m.ExceptAuthKeys = dBuf.VectorLong()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLAuthsessionChangeAuthorizationSettings (pluma: task 019)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLAuthsessionChangeAuthorizationSettings) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc750d836:
+		x.UInt(0xc750d836)
+
+		// set flags
+		var flags uint32 = 0
+
+		if m.GetConfirmed() == true {
+			flags |= 1 << 3
+		}
+		if m.GetEncryptedRequestsDisabled() != nil {
+			flags |= 1 << 0
+		}
+		if m.GetCallRequestsDisabled() != nil {
+			flags |= 1 << 1
+		}
+
+		x.UInt(flags)
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetHash())
+		if m.GetEncryptedRequestsDisabled() != nil {
+			m.GetEncryptedRequestsDisabled().Encode(x, layer)
+		}
+		if m.GetCallRequestsDisabled() != nil {
+			m.GetCallRequestsDisabled().Encode(x, layer)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLAuthsessionChangeAuthorizationSettings) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLAuthsessionChangeAuthorizationSettings) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc750d836:
+
+		flags := dBuf.UInt()
+
+		if (flags & (1 << 3)) != 0 {
+			m.Confirmed = true
+		}
+		m.UserId = dBuf.Long()
+		m.Hash = dBuf.Long()
+		if (flags & (1 << 0)) != 0 {
+			m6 := &mtproto.Bool{}
+			m6.Decode(dBuf)
+			m.EncryptedRequestsDisabled = m6
+		}
+		if (flags & (1 << 1)) != 0 {
+			m7 := &mtproto.Bool{}
+			m7.Decode(dBuf)
+			m.CallRequestsDisabled = m7
+		}
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLAuthsessionGetRecentLangCode (pluma: task 019)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLAuthsessionGetRecentLangCode) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x11d8d011:
+		x.UInt(0x11d8d011)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetExceptAuthKeyId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLAuthsessionGetRecentLangCode) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLAuthsessionGetRecentLangCode) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x11d8d011:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ExceptAuthKeyId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

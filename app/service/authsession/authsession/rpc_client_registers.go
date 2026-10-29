@@ -51,6 +51,10 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	// pluma: task 008
 	"TLAuthsessionDestroyAuthKey":   {"/mtproto.RPCAuthsession/authsession_destroyAuthKey", func() interface{} { return new(Vector_Long) }},
 	"TLAuthsessionDropTempAuthKeys": {"/mtproto.RPCAuthsession/authsession_dropTempAuthKeys", func() interface{} { return new(Vector_Long) }},
+
+	// pluma: task 019
+	"TLAuthsessionChangeAuthorizationSettings": {"/mtproto.RPCAuthsession/authsession_changeAuthorizationSettings", func() interface{} { return new(mtproto.Int64) }},
+	"TLAuthsessionGetRecentLangCode":           {"/mtproto.RPCAuthsession/authsession_getRecentLangCode", func() interface{} { return new(mtproto.String) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

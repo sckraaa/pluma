@@ -39,4 +39,8 @@ const (
 	// pluma: task 008
 	CRC32_authsession_destroyAuthKey   TLConstructor = -1469997976 // 0xa8619c68
 	CRC32_authsession_dropTempAuthKeys TLConstructor = 2010870522  // 0x77db72fa
+
+	// pluma: task 019
+	CRC32_authsession_changeAuthorizationSettings TLConstructor = -951003082 // 0xc750d836
+	CRC32_authsession_getRecentLangCode           TLConstructor = 299421713  // 0x11d8d011
 )

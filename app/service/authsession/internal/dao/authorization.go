@@ -21,6 +21,7 @@ package dao
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
@@ -40,7 +41,16 @@ func (d *Dao) getCountryAndRegionByIp(ip string) (string, string) {
 			return "UNKNOWN", ""
 		}
 
-		return r.City.Names["en"] + ", " + r.Country.Names["en"], r.Country.IsoCode
+		// "City, Country", or the country alone, as Telegram writes the
+		// place of a login (task 019).
+		city, country := r.City.Names["en"], r.Country.Names["en"]
+		switch {
+		case city != "" && country != "":
+			return city + ", " + country, r.Country.IsoCode
+		case country != "":
+			return country, r.Country.IsoCode
+		}
+		return "UNKNOWN", r.Country.IsoCode
 	}
 }
 
@@ -66,7 +76,7 @@ func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.A
 		Platform:        "",
 		SystemVersion:   cData.SystemVersion(),
 		ApiId:           cData.ApiId(),
-		AppName:         cData.LangPack(),
+		AppName:         appName(cData.LangPack(), cData.AppVersion()),
 		AppVersion:      cData.AppVersion(),
 		DateCreated:     0,
 		DateActive:      0,
@@ -82,6 +92,7 @@ type idxId struct {
 }
 
 func (d *Dao) GetAuthorizations(ctx context.Context, userId int64, excludeAuthKeyId int64) (authorizations []*mtproto.Authorization) {
+	now := time.Now().Unix()
 	doList, _ := d.AuthUsersDAO.SelectListByUserId(ctx, userId)
 	if len(doList) == 0 {
 		return
@@ -110,13 +121,17 @@ func (d *Dao) GetAuthorizations(ctx context.Context, userId int64, excludeAuthKe
 					Platform:        "",
 					SystemVersion:   cData.SystemVersion(),
 					ApiId:           cData.ApiId(),
-					AppName:         cData.LangPack(),
+					AppName:         appName(cData.LangPack(), cData.AppVersion()),
 					AppVersion:      cData.AppVersion(),
 					DateCreated:     int32(cData.DateCreated()),
 					DateActive:      int32(cData.DateActivated()),
 					Ip:              cData.ClientIp(),
 					Country:         country,
 					Region:          region,
+					// pluma: task 019
+					Unconfirmed:               cData.Unconfirmed(now),
+					EncryptedRequestsDisabled: cData.EncryptedRequestsDisabled(),
+					CallRequestsDisabled:      cData.CallRequestsDisabled(),
 				}).To_Authorization()
 
 				if idx.id == excludeAuthKeyId {

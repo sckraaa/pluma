@@ -46,6 +46,8 @@ type AuthsessionClient interface {
 	AuthsessionSetAndroidPushSessionId(ctx context.Context, in *authsession.TLAuthsessionSetAndroidPushSessionId) (*mtproto.Bool, error)
 	AuthsessionDestroyAuthKey(ctx context.Context, in *authsession.TLAuthsessionDestroyAuthKey) (*authsession.Vector_Long, error)
 	AuthsessionDropTempAuthKeys(ctx context.Context, in *authsession.TLAuthsessionDropTempAuthKeys) (*authsession.Vector_Long, error)
+	AuthsessionChangeAuthorizationSettings(ctx context.Context, in *authsession.TLAuthsessionChangeAuthorizationSettings) (*mtproto.Int64, error)
+	AuthsessionGetRecentLangCode(ctx context.Context, in *authsession.TLAuthsessionGetRecentLangCode) (*mtproto.String, error)
 }
 
 type defaultAuthsessionClient struct {
@@ -309,4 +311,26 @@ func (m *defaultAuthsessionClient) AuthsessionDropTempAuthKeys(ctx context.Conte
 	}
 	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
 	return client.AuthsessionDropTempAuthKeys(ctx, in)
+}
+
+// AuthsessionChangeAuthorizationSettings
+// authsession.changeAuthorizationSettings flags:# user_id:long hash:long confirmed:flags.3?true encrypted_requests_disabled:flags.0?Bool call_requests_disabled:flags.1?Bool = Int64;
+func (m *defaultAuthsessionClient) AuthsessionChangeAuthorizationSettings(ctx context.Context, in *authsession.TLAuthsessionChangeAuthorizationSettings) (*mtproto.Int64, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
+	return client.AuthsessionChangeAuthorizationSettings(ctx, in)
+}
+
+// AuthsessionGetRecentLangCode
+// authsession.getRecentLangCode user_id:long except_auth_key_id:long = String;
+func (m *defaultAuthsessionClient) AuthsessionGetRecentLangCode(ctx context.Context, in *authsession.TLAuthsessionGetRecentLangCode) (*mtproto.String, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := authsession.NewRPCAuthsessionClient(m.cli.Conn())
+	return client.AuthsessionGetRecentLangCode(ctx, in)
 }

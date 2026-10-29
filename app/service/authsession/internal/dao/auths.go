@@ -54,6 +54,10 @@ type BindUser struct {
 	DateCreated          int64 `json:"date_created"`
 	DateActivated        int64 `json:"date_activated"`
 	AndroidPushSessionId int64 `json:"android_push_sessionId"`
+	// pluma: task 019, the settings of the authorization
+	Unconfirmed               bool `json:"unconfirmed,omitempty"`
+	EncryptedRequestsDisabled bool `json:"encrypted_requests_disabled,omitempty"`
+	CallRequestsDisabled      bool `json:"call_requests_disabled,omitempty"`
 }
 
 type CacheAuthData struct {
@@ -239,7 +243,16 @@ func (d *Dao) GetAuthKeyUserId(ctx context.Context, authKeyId int64) int64 {
 	return cData.UserId()
 }
 
+// BindAuthKeyUser binds the permanent key authKeyId to userId as a new
+// authorization and returns its hash, 0 on an error. The authorization is
+// unconfirmed when the user has other sessions, which are asked to confirm
+// it (task 019); the first session of a user has nobody to ask.
 func (d *Dao) BindAuthKeyUser(ctx context.Context, authKeyId int64, userId int64) int64 {
+	others, err := d.otherAuthorizations(ctx, userId, authKeyId)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("bindAuthKeyUser(%d, %d) - error: %v", authKeyId, userId, err)
+		return 0
+	}
 	now := time.Now().Unix()
 	authUsersDO := &dataobject.AuthUsersDO{
 		AuthKeyId:   authKeyId,
@@ -247,9 +260,10 @@ func (d *Dao) BindAuthKeyUser(ctx context.Context, authKeyId int64, userId int64
 		Hash:        rand.Int63(),
 		DateCreated: now,
 		DateActive:  now,
+		Unconfirmed: others > 0,
 	}
 
-	_, _, err := d.CachedConn.Exec(
+	_, _, err = d.CachedConn.Exec(
 		ctx,
 		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
 			return d.AuthUsersDAO.InsertOrUpdates(ctx, authUsersDO)
@@ -436,11 +450,14 @@ func (d *Dao) GetCacheAuthData(ctx context.Context, authKeyId int64) (*CacheAuth
 					do, _ := d.AuthUsersDAO.Select(ctx, authKeyId)
 					if do != nil {
 						cacheAuthData.BindUser = &BindUser{
-							UserId:               do.UserId,
-							Hash:                 do.Hash,
-							DateCreated:          do.DateCreated,
-							DateActivated:        do.DateActive,
-							AndroidPushSessionId: do.AndroidPushSessionId,
+							UserId:                    do.UserId,
+							Hash:                      do.Hash,
+							DateCreated:               do.DateCreated,
+							DateActivated:             do.DateActive,
+							AndroidPushSessionId:      do.AndroidPushSessionId,
+							Unconfirmed:               do.Unconfirmed,
+							EncryptedRequestsDisabled: do.EncryptedRequestsDisabled,
+							CallRequestsDisabled:      do.CallRequestsDisabled,
 						}
 					}
 					return nil

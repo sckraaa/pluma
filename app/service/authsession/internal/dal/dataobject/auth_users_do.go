@@ -19,5 +19,9 @@ type AuthUsersDO struct {
 	DateActive           int64 `db:"date_active" json:"date_active"`
 	State                int32 `db:"state" json:"state"`
 	AndroidPushSessionId int64 `db:"android_push_session_id" json:"android_push_session_id"`
-	Deleted              bool  `db:"deleted" json:"deleted"`
+	// pluma: task 019, the settings of the authorization
+	Unconfirmed               bool `db:"unconfirmed" json:"unconfirmed"`
+	EncryptedRequestsDisabled bool `db:"encrypted_requests_disabled" json:"encrypted_requests_disabled"`
+	CallRequestsDisabled      bool `db:"call_requests_disabled" json:"call_requests_disabled"`
+	Deleted                   bool `db:"deleted" json:"deleted"`
 }

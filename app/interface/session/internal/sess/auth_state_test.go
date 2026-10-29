@@ -194,3 +194,11 @@ func (f *fakeAuthsessionClient) AuthsessionDestroyAuthKey(context.Context, *auth
 func (f *fakeAuthsessionClient) AuthsessionDropTempAuthKeys(context.Context, *authsession.TLAuthsessionDropTempAuthKeys) (*authsession.Vector_Long, error) {
 	return nil, nil
 }
+
+func (f *fakeAuthsessionClient) AuthsessionChangeAuthorizationSettings(context.Context, *authsession.TLAuthsessionChangeAuthorizationSettings) (*mtproto.Int64, error) {
+	return nil, nil
+}
+
+func (f *fakeAuthsessionClient) AuthsessionGetRecentLangCode(context.Context, *authsession.TLAuthsessionGetRecentLangCode) (*mtproto.String, error) {
+	return nil, nil
+}

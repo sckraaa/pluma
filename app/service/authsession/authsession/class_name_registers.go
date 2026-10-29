@@ -38,6 +38,10 @@ const (
 	// pluma: task 008
 	Predicate_authsession_destroyAuthKey   = "authsession_destroyAuthKey"
 	Predicate_authsession_dropTempAuthKeys = "authsession_dropTempAuthKeys"
+
+	// pluma: task 019
+	Predicate_authsession_changeAuthorizationSettings = "authsession_changeAuthorizationSettings"
+	Predicate_authsession_getRecentLangCode           = "authsession_getRecentLangCode"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -141,34 +145,44 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 2010870522, // 0x77db72fa
 
 	},
+	Predicate_authsession_changeAuthorizationSettings: { // pluma: task 019
+		0: -951003082, // 0xc750d836
+
+	},
+	Predicate_authsession_getRecentLangCode: { // pluma: task 019
+		0: 299421713, // 0x11d8d011
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
-	-1701940816: Predicate_clientSession,                       // 0x9a8e71b0
-	-532639977:  Predicate_authKeyStateData,                    // 0xe0408f17
-	820122180:   Predicate_authsession_getAuthorizations,       // 0x30e21244
-	-1923126106: Predicate_authsession_resetAuthorization,      // 0x8d5f6ca6
-	-1473309015: Predicate_authsession_getLayer,                // 0xa82f16a9
-	700170598:   Predicate_authsession_getLangPack,             // 0x29bbc166
-	1616401854:  Predicate_authsession_getClient,               // 0x605855be
-	1486468441:  Predicate_authsession_getLangCode,             // 0x5899b559
-	1464409260:  Predicate_authsession_getUserId,               // 0x57491cac
-	-1279119039: Predicate_authsession_getPushSessionId,        // 0xb3c23141
-	-1194371051: Predicate_authsession_getFutureSalts,          // 0xb8cf5815
-	1421293608:  Predicate_authsession_queryAuthKey,            // 0x54b73828
-	1049889937:  Predicate_authsession_setAuthKey,              // 0x3e940c91
-	198050851:   Predicate_authsession_bindAuthKeyUser,         // 0xbce0423
-	123258440:   Predicate_authsession_unbindAuthKeyUser,       // 0x758c648
-	-1871420202: Predicate_authsession_getPermAuthKeyId,        // 0x907464d6
-	1620004742:  Predicate_authsession_bindTempAuthKey,         // 0x608f4f86
-	47841172:    Predicate_authsession_setClientSessionInfo,    // 0x2d9ff94
-	1851660579:  Predicate_authsession_getAuthorization,        // 0x6e5e1923
-	1331573041:  Predicate_authsession_getAuthStateData,        // 0x4f5e3131
-	1147475077:  Predicate_authsession_setLayer,                // 0x44651485
-	2095024780:  Predicate_authsession_setInitConnection,       // 0x7cdf8a8c
-	-1834474692: Predicate_authsession_setAndroidPushSessionId, // 0x92a8233c
-	-1469997976: Predicate_authsession_destroyAuthKey,          // 0xa8619c68 pluma: task 008
-	2010870522:  Predicate_authsession_dropTempAuthKeys,        // 0x77db72fa pluma: task 008
+	-1701940816: Predicate_clientSession,                           // 0x9a8e71b0
+	-532639977:  Predicate_authKeyStateData,                        // 0xe0408f17
+	820122180:   Predicate_authsession_getAuthorizations,           // 0x30e21244
+	-1923126106: Predicate_authsession_resetAuthorization,          // 0x8d5f6ca6
+	-1473309015: Predicate_authsession_getLayer,                    // 0xa82f16a9
+	700170598:   Predicate_authsession_getLangPack,                 // 0x29bbc166
+	1616401854:  Predicate_authsession_getClient,                   // 0x605855be
+	1486468441:  Predicate_authsession_getLangCode,                 // 0x5899b559
+	1464409260:  Predicate_authsession_getUserId,                   // 0x57491cac
+	-1279119039: Predicate_authsession_getPushSessionId,            // 0xb3c23141
+	-1194371051: Predicate_authsession_getFutureSalts,              // 0xb8cf5815
+	1421293608:  Predicate_authsession_queryAuthKey,                // 0x54b73828
+	1049889937:  Predicate_authsession_setAuthKey,                  // 0x3e940c91
+	198050851:   Predicate_authsession_bindAuthKeyUser,             // 0xbce0423
+	123258440:   Predicate_authsession_unbindAuthKeyUser,           // 0x758c648
+	-1871420202: Predicate_authsession_getPermAuthKeyId,            // 0x907464d6
+	1620004742:  Predicate_authsession_bindTempAuthKey,             // 0x608f4f86
+	47841172:    Predicate_authsession_setClientSessionInfo,        // 0x2d9ff94
+	1851660579:  Predicate_authsession_getAuthorization,            // 0x6e5e1923
+	1331573041:  Predicate_authsession_getAuthStateData,            // 0x4f5e3131
+	1147475077:  Predicate_authsession_setLayer,                    // 0x44651485
+	2095024780:  Predicate_authsession_setInitConnection,           // 0x7cdf8a8c
+	-1834474692: Predicate_authsession_setAndroidPushSessionId,     // 0x92a8233c
+	-1469997976: Predicate_authsession_destroyAuthKey,              // 0xa8619c68 pluma: task 008
+	2010870522:  Predicate_authsession_dropTempAuthKeys,            // 0x77db72fa pluma: task 008
+	-951003082:  Predicate_authsession_changeAuthorizationSettings, // 0xc750d836 pluma: task 019
+	299421713:   Predicate_authsession_getRecentLangCode,           // 0x11d8d011 pluma: task 019
 
 }
 

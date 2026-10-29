@@ -339,3 +339,31 @@ func (s *Service) AuthsessionDropTempAuthKeys(ctx context.Context, request *auth
 
 	return r, err
 }
+
+// AuthsessionChangeAuthorizationSettings
+// authsession.changeAuthorizationSettings flags:# user_id:long hash:long confirmed:flags.3?true encrypted_requests_disabled:flags.0?Bool call_requests_disabled:flags.1?Bool = Int64;
+func (s *Service) AuthsessionChangeAuthorizationSettings(ctx context.Context, request *authsession.TLAuthsessionChangeAuthorizationSettings) (*mtproto.Int64, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("authsession.changeAuthorizationSettings - metadata: {%s}", c.MD)
+
+	r, err := c.AuthsessionChangeAuthorizationSettings(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// AuthsessionGetRecentLangCode
+// authsession.getRecentLangCode user_id:long except_auth_key_id:long = String;
+func (s *Service) AuthsessionGetRecentLangCode(ctx context.Context, request *authsession.TLAuthsessionGetRecentLangCode) (*mtproto.String, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("authsession.getRecentLangCode - metadata: {%s}", c.MD)
+
+	r, err := c.AuthsessionGetRecentLangCode(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
