@@ -1,6 +1,6 @@
 # 019. Служебные сообщения как у Telegram
 
-- Статус: in-progress (код готов и проверен тестами 2026-10-29; ждут e2e в CI и проверка владельцем на официальном Android)
+- Статус: in-progress (код готов, все тесты зелёные, e2e в CI прошёл 2026-10-29; ждёт выкатки и проверки владельцем на официальном Android)
 - Зависит от: 017
 - ADR: 0020 (журнал `seq`, доставка обновлений)
 
@@ -155,7 +155,7 @@ Telegram шлёт и то, чего у нас нет: «Незавершенна
 - authsession: `authsession.changeAuthorizationSettings`, `authsession.getRecentLangCode`; `app_name` в списке сессий — «Pluma Android/iOS/Desktop/macOS/Web» по `lang_pack`; место — «Город, Страна» или страна.
 - biz user: `user.newAuthorization` пишет обновление в журнал seq с `user_seq_updates.except_auth_key_id` (`migrate-20261029-seq-except.sql`), `getDifference` пропускает строку для исключённого ключа (ADR 0022).
 - bff: пакеты `app/bff/authorization/servicetext` (шаблоны) и `newlogin` (рассылка); ключи конфига `SignInServiceNotification` и `SignInMessage` удалены.
-- Проверка: юнит-тесты `servicetext`, `newlogin`, входа с паролем, `userbox`; интеграционные на MySQL/Redis/Kafka — хранение настроек и язык (authsession), `user.newAuthorization`, `getDifference` с исключённым ключом; e2e `TestNewLogin` написан (вход по коду, баннер, сообщение, разница, `HASH_INVALID`, 406, подтверждение), локально не запускался — в ВМ colima не хватило памяти рядом с работающими стендами, прогонится в CI. `make lint`, `go vet`, `go test ./...`, `-race` затронутых пакетов, `tools/logaudit` — зелёные.
+- Проверка: юнит-тесты `servicetext`, `newlogin`, входа с паролем, `userbox`; интеграционные на MySQL/Redis/Kafka — хранение настроек и язык (authsession), `user.newAuthorization`, `getDifference` с исключённым ключом; e2e `TestNewLogin` (вход по коду, баннер, сообщение, разница, `HASH_INVALID`, 406, подтверждение) прошёл в CI (запуск 40951388656); локально не запускался — в ВМ colima не хватило памяти рядом с работающими стендами. `make lint`, `go vet`, `go test ./...`, `-race` затронутых пакетов, `tools/logaudit` — зелёные.
 
 Отклонения и открытое:
 - «Новый вход» офлайн-сессиям не доставляется: служебные уведомления вне журнала (ADR 0020, дубли на Android). Офлайн-устройство получает только баннер. Как у Telegram — не проверено.
