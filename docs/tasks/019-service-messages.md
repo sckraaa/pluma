@@ -117,10 +117,34 @@ Telegram шлёт и то, чего у нас нет: «Незавершенна
 7. Тесты: шаблоны и сущности (смещения в UTF-16), выбор языка, доставка (интеграционные), e2e: вход по QR, подтверждённый сессией на русском, — все остальные сессии, в том числе на английском, получают русский «Новый вход»; баннер: вход → `updateNewAuthorization` с `unconfirmed` → подтверждение → то же без флага.
 8. Позже, отдельно: «Незавершенная попытка входа» и сообщения о 2FA.
 
+## Реализация (для исполнителя)
+Где сейчас (master `9ec6746c`):
+- Вход завершается в `logIn` (`app/bff/authorization/internal/core/auth.signIn_handler.go`): его зовут `auth.signIn` и `auth.checkPassword`. «Новый вход» уходит только при `phoneNumber != ""`, то есть после кода; после входа по QR с паролем — нет. Отправка — `SyncUpdatesNotMe` (только онлайн-сессиям); текст — `mtproto.MakeSignInServiceNotification` или шаблон из `Config.SignInServiceNotification`.
+- QR: `app/bff/qrcode/internal/core/auth.acceptLoginToken_handler.go` привязывает ключ (без пароля) или ждёт пароля (`waitForPassword`) и шлёт новой сессии только `updateLoginToken`; `auth.importLoginToken_handler.go` — сторона новой сессии.
+- Код входа: `signInMessageTpl` в `app/bff/authorization/internal/core/core.go`.
+- Сессии: сервис `authsession` (`authsession_getAuthorizations`, `authsession_getAuthorization`, `authsession_getLangCode`, `authsession_resetAuthorization`, `authsession_setInitConnection`); `account.getAuthorizations`, `account.resetAuthorization`, `account.changeAuthorizationSettings` (заглушка), `auth.resetAuthorizations` (уже проверяет «моложе суток»).
+- Доставка: `sync` (`sync_updatesMe` с `server_id` — одной сессии, `sync_updatesNotMe`, `sync_pushUpdatesIfNot` — не реализован); журнал обновлений и `getDifference` — ADR 0020.
+- Конфиг клиента: `help.getAppConfig` в `app/bff/configuration`.
+
+Что сделать:
+1. **Неподтверждённая сессия.** Хранить у авторизации момент входа и признак подтверждения (миграция `teamgramd/deploy/sql/migrate-*.sql`). Неподтверждена каждая новая авторизация пользователя, кроме первой (регистрация), пока не подтверждена или не прошло `authorization_autoconfirm_period` (604800 с, отдавать в `help.getAppConfig`); срок проверяется при чтении, без фоновых задач.
+   - `account.getAuthorizations`: флаги `unconfirmed` и `password_pending`.
+   - Всем другим сессиям пользователя при завершении входа — `updateNewAuthorization` с `unconfirmed`, `hash`, `date`, `device` (модель устройства, как «Safari 26») и `location` («Город, Страна» по GeoIP, без IP).
+   - `account.changeAuthorizationSettings`: настоящая реализация вместо заглушки. `confirmed` подтверждает чужую неподтверждённую авторизацию и рассылает всем сессиям `updateNewAuthorization` без `unconfirmed` (так клиенты снимают баннер); `encrypted_requests_disabled` и `call_requests_disabled` — хранить, отдавать в `account.getAuthorizations` и соблюдать там, где у нас есть доставка звонков и секретных чатов (если её нет — в отчёт). Ошибки — по документации (`HASH_INVALID`).
+   - `account.resetAuthorization`: `FRESH_RESET_AUTHORISATION_FORBIDDEN`, если вызывающая сессия моложе суток, как уже сделано в `auth.resetAuthorizations`.
+2. **«Новый вход».** После **каждого** завершённого входа — `auth.signIn` без пароля, `auth.checkPassword` (после кода и после QR), QR без пароля — всем сессиям пользователя, кроме новой, `updateServiceNotification` с `inbox_date` и текстом из шаблона. Язык — `lang_code` сессии, подтвердившей вход по QR; при входе по коду — самой недавно активной из других сессий; ru → русский, иначе английский.
+3. **Шаблоны** en и ru из раздела «Тексты» (в нашем коде, не в `third_party`), «Telegram» → «Pluma»; дата `ДД/ММ/ГГГГ`, время `ЧЧ:ММ:СС` UTC; место без IP; устройство — «приложение, версия, модель, система» через запятую, пустые части пропускаются. Абзац про Two-Step Verification — только у аккаунтов без облачного пароля. Код входа — тоже en и ru, с `❗️`, язык как в п. 2 для входа по коду. `Config.SignInServiceNotification` и `MakeSignInServiceNotification` больше не используются для «Нового входа»; убрать их, если не нужны другим.
+4. **Доставка офлайн-сессиям.** И `updateServiceNotification`, и `updateNewAuthorization` должны дойти до сессии, которая была не в сети, — через журнал обновлений и `getDifference` (ADR 0020). У Telegram это [не проверено]; решение — наше, потому что иначе баннер и сообщение теряются. Официальные клиенты обрабатывают эти обновления и из `getDifference` (Android `MessagesController.processUpdateArray`, iOS `AccountStateManagementUtils.swift`).
+
+Решения, которые исполнитель вправе принять сам и записать в отчёт: может ли сессия подтвердить саму себя (у Telegram [не проверено]; клиенты показывают баннер только чужим входам); какое имя в «Dear {name}» (у владельца имя «.», и текст был «Dear ., »); точный состав строки устройства для веба.
+
 ## Критерии приёмки
 - Сравнение с текстами Telegram: тексты и сущности совпадают побайтно, кроме «Telegram» → «Pluma» и подставленных значений.
 - Вход по QR, подтверждённый сессией с `lang_code=ru`, даёт всем остальным сессиям русский «Новый вход»; с `en` и с языком без текста — английский.
-- Офлайн-сессия получает «Новый вход» после подключения.
+- Офлайн-сессия получает «Новый вход» и баннер после подключения.
+- Вход по QR с паролем и без, вход по коду с паролем и без — каждый даёт другим сессиям «Новый вход» и `updateNewAuthorization` с `unconfirmed`; новая сессия не получает ни того, ни другого.
+- `account.changeAuthorizationSettings(confirmed)` снимает флаг, и все сессии получают `updateNewAuthorization` без `unconfirmed`; через `authorization_autoconfirm_period` флаг снимается сам; `account.resetAuthorization` из сессии моложе суток — 406.
+- Проверка владельцем на официальном Android: баннер, «Да» и «Нет» на нашем сервере.
 - Официальные клиенты показывают баннер нового входа, «Да» и «Нет» работают, баннер снимается на всех устройствах после подтверждения.
 
 ## Результат
