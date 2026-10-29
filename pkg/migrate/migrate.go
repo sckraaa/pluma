@@ -19,7 +19,9 @@
 // (ADR 0013).
 //
 // Files run in lexical order of their names, the order MySQL's init
-// directory used before: 1_teamgram.sql, migrate-YYYYMMDD*.sql, z_init.sql.
+// directory used before: 1_teamgram.sql, migrate-YYYYMMDD*.sql, z_init.sql,
+// then z_*.sql files that change the rows z_init.sql seeds (an applied file
+// cannot be edited).
 // A file runs as one multi-statement request: MySQL commits DDL statement by
 // statement, so a file that fails halfway is reported and not recorded, and
 // the operator finishes or reverts it by hand (docs/ops/user-state.md).

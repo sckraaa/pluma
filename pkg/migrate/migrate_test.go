@@ -27,8 +27,24 @@ func TestLoadOrderMatchesTheInitDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if files[0].Name != "1_teamgram.sql" || files[len(files)-1].Name != "z_init.sql" {
-		t.Fatalf("order %s … %s, want 1_teamgram.sql … z_init.sql", files[0].Name, files[len(files)-1].Name)
+	if files[0].Name != "1_teamgram.sql" {
+		t.Fatalf("first %s, want 1_teamgram.sql", files[0].Name)
+	}
+	// The seed z_init.sql runs after every schema file; only z_* files that
+	// change its rows come after it.
+	seed := -1
+	for i, f := range files {
+		if f.Name == "z_init.sql" {
+			seed = i
+		}
+	}
+	if seed < 0 {
+		t.Fatal("no z_init.sql")
+	}
+	for i, f := range files {
+		if z := strings.HasPrefix(f.Name, "z_"); z != (i >= seed) {
+			t.Fatalf("%s is on the wrong side of z_init.sql", f.Name)
+		}
 	}
 	for i := 1; i < len(files); i++ {
 		if files[i-1].Name >= files[i].Name {
