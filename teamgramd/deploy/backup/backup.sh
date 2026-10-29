@@ -94,7 +94,7 @@ check_restore() {
 	mysqld --user=mysql --datadir="$dir" --socket="$sock" --skip-networking \
 		--mysqlx=OFF --pid-file="$dir/mysqld.pid" >/var/tmp/restore-check.log 2>&1 &
 	pid=$!
-	trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$dir"' RETURN
+	trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; rm -rf "$dir"' RETURN EXIT
 	for _ in $(seq 60); do
 		mysqladmin --socket="$sock" -uroot ping >/dev/null 2>&1 && break
 		sleep 1
@@ -126,20 +126,24 @@ seconds_until() {
 	echo $((target - now))
 }
 
+# Each step runs as a process of its own, where set -e stops it at the first
+# failure. Bash ignores set -e inside a function called from a || or &&
+# list: a backup whose restic failed would go on and record its success, and
+# BackupMissing would never fire.
 run_loop() {
 	log "daily at $BACKUP_AT UTC, restore check on weekday $RESTORE_CHECK_DAY"
 	if [[ ! -f $TEXTFILE_DIR/backup_last_success_timestamp_seconds.prom ]]; then
-		backup_now || log "first backup failed"
+		"$0" now || log "first backup failed"
 	fi
 	while :; do
 		sleep "$(seconds_until "$BACKUP_AT")"
-		backup_now || {
+		"$0" now || {
 			log "backup failed"
 			continue
 		}
 		if [[ $(date -u +%u) == "$RESTORE_CHECK_DAY" ]]; then
-			check_restore || log "restore check failed"
-			prune || log "prune failed"
+			"$0" check-restore || log "restore check failed"
+			"$0" prune || log "prune failed"
 		fi
 	done
 }
@@ -147,7 +151,11 @@ run_loop() {
 case ${1:-run} in
 run) run_loop ;;
 now) backup_now ;;
-check-restore) ensure_repo && check_restore ;;
+check-restore)
+	ensure_repo
+	check_restore
+	;;
+prune) prune ;;
 snapshots) restic snapshots ;;
 restore-mysql)
 	log "loading snapshot ${2:-latest} into $MYSQL_HOST"
@@ -163,7 +171,7 @@ restore-secrets)
 	restic restore --host "$HOST_TAG" --tag secrets "${3:-latest}:$SECRETS_DIR" --target "$2"
 	;;
 *)
-	echo "usage: backup.sh run|now|check-restore|snapshots|restore-mysql [ID]|restore-files DIR [ID]|restore-secrets DIR [ID]" >&2
+	echo "usage: backup.sh run|now|check-restore|prune|snapshots|restore-mysql [ID]|restore-files DIR [ID]|restore-secrets DIR [ID]" >&2
 	exit 2
 	;;
 esac
