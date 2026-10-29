@@ -76,7 +76,7 @@ func run(name, out string, limit int) error {
 		_, err = os.Stdout.WriteString(doc)
 		return err
 	}
-	if err = os.WriteFile(out, []byte(doc), 0o644); err != nil {
+	if err = os.WriteFile(out, []byte(doc), 0o600); err != nil {
 		return err
 	}
 	fmt.Fprintf(os.Stderr, "tgservicetexts: %d messages, %d different texts, in %s\n", messages, texts, out)

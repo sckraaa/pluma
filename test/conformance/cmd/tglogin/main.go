@@ -441,7 +441,7 @@ var (
 )
 
 func flushServiceTexts() error {
-	return os.WriteFile(serviceTextsOut, []byte(serviceTextsDoc+strings.Join(serviceTextsLive, "")), 0o644)
+	return os.WriteFile(serviceTextsOut, []byte(serviceTextsDoc+strings.Join(serviceTextsLive, "")), 0o600)
 }
 
 // liveServiceText adds a text that came to the session to serviceTextsOut.
