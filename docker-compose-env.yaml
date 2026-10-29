@@ -256,7 +256,8 @@ services:
     build:
       context: .
       dockerfile: teamgramd/deploy/alertpush/Dockerfile
-    image: pluma-alertpush:local
+    # On a server the image CI built (docs/ops/deployment.md).
+    image: ${PLUMA_ALERTPUSH_IMAGE:-pluma-alertpush:local}
     container_name: alertpush
     environment:
       NTFY_TOPIC: ${NTFY_TOPIC:?set NTFY_TOPIC in .env (openssl rand -hex 16)}
@@ -291,7 +292,8 @@ services:
     build:
       context: .
       dockerfile: teamgramd/deploy/backup/Dockerfile
-    image: pluma-backup:local
+    # On a server the image CI built (docs/ops/deployment.md).
+    image: ${PLUMA_BACKUP_IMAGE:-pluma-backup:local}
     container_name: backup
     environment:
       RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:?set RESTIC_REPOSITORY in .env (s3:https://<endpoint>/<bucket>)}

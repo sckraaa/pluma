@@ -9,8 +9,10 @@
 # pause. Stopping in the middle of work is safe by construction: box
 # transactions and their outbox rows commit together or not at all.
 #
-# TEAMGRAM_IMAGE and TEAMGRAM_RESTART exist for the end-to-end tests
-# (test/e2e/run.sh); production keeps the defaults.
+# TEAMGRAM_IMAGE names the image: on a server the one CI built for a commit
+# (docs/ops/deployment.md), in the end-to-end tests their own build.
+# TEAMGRAM_RESTART exists for the tests (test/e2e/run.sh); production keeps
+# the default.
 
 x-teamgram: &teamgram
   image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
@@ -242,10 +244,12 @@ services:
     # bridge address, which breaks per-address login limits and the IPs shown
     # to users and pluma-admin. For IPv6, enable it on teamgram_net (or run
     # gnetway with host networking) first; see docs/ops/security-setup.md §3.
+    # PLUMA_PUBLIC_IPV4: on a server with an address of Pluma's own, the ports
+    # are published there only (docs/ops/deployment.md).
     ports:
-      - "0.0.0.0:10443:10443" # MTProto TCP
-      - "0.0.0.0:5222:5222"   # MTProto TCP, alternative port
-      - "0.0.0.0:11443:11443" # MTProto over WebSocket (Web clients)
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:10443:10443" # MTProto TCP
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:5222:5222"   # MTProto TCP, alternative port
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:11443:11443" # MTProto over WebSocket (Web clients)
     healthcheck:
       <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/10443"]

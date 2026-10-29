@@ -1,0 +1,13 @@
+# A server where Pluma has an IPv4 address of its own, next to the server's
+# primary one (docs/ops/deployment.md): the outgoing traffic of every
+# container leaves from PLUMA_PUBLIC_IPV4 (the bridge's SNAT address instead
+# of masquerading), and the gateway publishes its ports there only
+# (docker-compose.yaml). Added to both compose commands, as the network is
+# created by whichever starts first:
+#
+#   docker compose -f docker-compose-env.yaml -f docker-compose.public-ip.yaml ...
+#   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml ...
+networks:
+  teamgram_net:
+    driver_opts:
+      com.docker.network.host_ipv4: ${PLUMA_PUBLIC_IPV4:?set PLUMA_PUBLIC_IPV4 in .env, the address of Pluma}
