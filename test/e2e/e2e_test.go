@@ -137,9 +137,20 @@ type user struct {
 // and, for a new phone, auth.signUp.
 func login(ctx context.Context, t *testing.T, phone, firstName string) *user {
 	t.Helper()
+	return loginIn(ctx, t, phone, firstName, "")
+}
+
+// loginIn is login from a device whose app is in langCode (initConnection),
+// "" for the default.
+func loginIn(ctx context.Context, t *testing.T, phone, firstName, langCode string) *user {
+	t.Helper()
 	admin(t, "allowlist", "add", phone, "e2e test")
 
-	c, err := mtclient.Dial(ctx, config(t, "e2e "+firstName))
+	cfg := config(t, "e2e "+firstName)
+	if langCode != "" {
+		cfg.LangCode = langCode
+	}
+	c, err := mtclient.Dial(ctx, cfg)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
