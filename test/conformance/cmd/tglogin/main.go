@@ -31,6 +31,12 @@
 // session still works. The types of the messages it sent and received (no
 // content) go to <name>.log beside the session: if Telegram ends the
 // session, the log says when.
+//
+// With -service-texts FILE it writes, right after the login, the messages of
+// Telegram's service account to the account as templates without what
+// belongs to it (conformance.ServiceTexts, task 017), and again 25 seconds
+// later, when the message about this login has come: Telegram ends a
+// third-party session within a minute.
 package main
 
 import (
@@ -58,6 +64,7 @@ func main() {
 	name := flag.String("name", "main", "name of the saved session")
 	test := flag.Bool("test", false, "the Telegram test environment instead of production")
 	byQR := flag.Bool("qr", false, "sign in by scanning a QR code in an app where the account is open")
+	flag.StringVar(&serviceTextsOut, "service-texts", "", "after the login, write the messages of the service account as templates to this file")
 	flag.Parse()
 	login := run
 	if *byQR {
@@ -421,6 +428,27 @@ func dial(ctx context.Context, tg *conformance.Telegram, dc int32, logf func(str
 // online is how long the program stays connected after the login.
 const online = time.Minute
 
+// serviceTextsOut is the file of -service-texts.
+var serviceTextsOut string
+
+// writeServiceTexts writes the templates of the service account's messages
+// to serviceTextsOut; it tells how it went and never stops the login.
+func writeServiceTexts(ctx context.Context, c *mtclient.Client, logf func(string, ...any)) {
+	tctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	doc, messages, texts, err := conformance.ServiceTexts(tctx, c, 200)
+	if err == nil {
+		err = os.WriteFile(serviceTextsOut, []byte(doc), 0o644)
+	}
+	if err != nil {
+		logf("service texts: %v", err)
+		fmt.Println("Тексты служебных сообщений не записаны:", err)
+		return
+	}
+	logf("service texts: %d messages, %d texts", messages, texts)
+	fmt.Printf("Тексты служебных сообщений: %d сообщений, %d разных, в %s\n", messages, texts, serviceTextsOut)
+}
+
 // stayOnline keeps the new session connected for a while, as an official
 // app does after a login: it asks for the state of updates (so that the
 // session gets them), prints what Telegram tells the account and checks at
@@ -435,15 +463,33 @@ func stayOnline(tg *conformance.Telegram, dc int32, c *mtclient.Client, logf fun
 		_, err := c.Invoke(sctx, &mtproto.TLUpdatesGetState{Constructor: c.Constructor(mtproto.Predicate_updates_getState)})
 		return err
 	}
+	if serviceTextsOut != "" {
+		writeServiceTexts(ctx, c, logf)
+	}
 	if err := state(c); err != nil {
 		return sessionEnded(err, logf)
 	}
 	fmt.Printf("Остаёмся на связи %v, как официальное приложение после входа. Прервать можно Ctrl+C: сеанс уже сохранён.\n", online)
 	wctx, wcancel := context.WithTimeout(ctx, online)
 	defer wcancel()
+	// The second reading of the service texts, once the message about
+	// this login has come.
+	again, read := time.Now().Add(25*time.Second), serviceTextsOut == ""
 	for {
-		u, err := c.WaitUpdate(wctx, func(*mtproto.Updates) bool { return true })
+		uctx, ucancel := wctx, context.CancelFunc(func() {})
+		if !read {
+			uctx, ucancel = context.WithDeadline(wctx, again)
+		}
+		u, err := c.WaitUpdate(uctx, func(*mtproto.Updates) bool { return true })
+		ucancel()
+		if !read && wctx.Err() == nil && !time.Now().Before(again) {
+			writeServiceTexts(ctx, c, logf)
+			read = true
+		}
 		if err != nil {
+			if wctx.Err() == nil && c.Err() == nil {
+				continue
+			}
 			break
 		}
 		report(u, logf)
