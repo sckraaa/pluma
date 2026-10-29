@@ -173,8 +173,16 @@ func TestSchemaFilesOrder(t *testing.T) {
 	for i, f := range files {
 		names[i] = filepath.Base(f)
 	}
-	if names[0] != "1_teamgram.sql" || names[len(names)-1] != "z_init.sql" {
-		t.Fatalf("schema files must start with 1_teamgram.sql and end with z_init.sql: %v", names)
+	// z_init.sql seeds data after the schema; the z_ files after it change
+	// that data (the service account of task 017).
+	initAt := slices.Index(names, "z_init.sql")
+	if names[0] != "1_teamgram.sql" || initAt < 0 {
+		t.Fatalf("schema files must start with 1_teamgram.sql and have z_init.sql: %v", names)
+	}
+	for i, n := range names {
+		if (i > initAt) != strings.HasPrefix(n, "z_") && n != "z_init.sql" {
+			t.Fatalf("schema files must end with z_init.sql and the z_ files after it: %v", names)
+		}
 	}
 	pfs := slices.Index(names, "migrate-20261021-pfs.sql")
 	allowlist := slices.Index(names, "migrate-20261021.sql")

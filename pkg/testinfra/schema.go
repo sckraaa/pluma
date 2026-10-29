@@ -15,7 +15,8 @@ const SchemaDir = "teamgramd/deploy/sql"
 
 // SchemaFiles returns the paths of the schema files in the order the MySQL
 // image applies them on the first start: every *.sql file of SchemaDir sorted
-// by name in byte order (1_teamgram.sql, the migrate-*.sql files, z_init.sql).
+// by name in byte order (1_teamgram.sql, the migrate-*.sql files, z_init.sql
+// and the z_ files that change its data).
 // Note that migrate-20261021-pfs.sql sorts before migrate-20261021.sql.
 func SchemaFiles() ([]string, error) {
 	root, err := RepoRoot()

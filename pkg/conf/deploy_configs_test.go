@@ -107,11 +107,12 @@ func TestDeployConfigsHaveNoDefaultCredentials(t *testing.T) {
 
 // TestDeployListeners: in Docker, published ports name an IPv4 address
 // (without one Docker also publishes them on IPv6 through docker-proxy, and
-// the gateway sees every IPv6 client as one bridge address); on a bare-metal
-// host only the client transports listen on all interfaces.
+// the gateway sees every IPv6 client as one bridge address); Pluma's own
+// address on a server, PLUMA_PUBLIC_IPV4 (0.0.0.0 without it), is one. On a
+// bare-metal host only the client transports listen on all interfaces.
 func TestDeployListeners(t *testing.T) {
 	port := regexp.MustCompile(`(?m)^\s+- "([^"]+)"`)
-	for _, f := range []string{"docker-compose.yaml", "docker-compose-env.yaml"} {
+	for _, f := range []string{"docker-compose.yaml", "docker-compose-env.yaml", "docker-compose.web.yaml"} {
 		data, err := os.ReadFile(filepath.Join(repoRoot, f))
 		if err != nil {
 			t.Fatal(err)
@@ -129,7 +130,8 @@ func TestDeployListeners(t *testing.T) {
 			if !inPorts {
 				continue
 			}
-			if m := port.FindStringSubmatch(line); m != nil && !strings.HasPrefix(m[1], "0.0.0.0:") && !strings.HasPrefix(m[1], "127.0.0.1:") {
+			if m := port.FindStringSubmatch(line); m != nil && !strings.HasPrefix(m[1], "0.0.0.0:") &&
+				!strings.HasPrefix(m[1], "127.0.0.1:") && !strings.HasPrefix(m[1], "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:") {
 				t.Errorf("%s publishes %q without an IPv4 address", f, m[1])
 			}
 		}
