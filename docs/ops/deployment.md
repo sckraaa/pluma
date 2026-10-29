@@ -58,9 +58,10 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
    docker compose -f docker-compose-env.yaml -f docker-compose.public-ip.yaml pull
    docker compose -f docker-compose-env.yaml -f docker-compose.public-ip.yaml up -d --no-build
    docker compose -f docker-compose-env.yaml -f docker-compose.public-ip.yaml ps    # healthy: mysql, redis, kafka, etcd
-   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml pull
+   docker pull "$(sed -n 's/^TEAMGRAM_IMAGE=//p' .env)"
    docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml up -d --no-build
    ```
+   Образ сервисов скачивается `docker pull`, а не `compose pull`: его собирает сервис `idgen` (`build: .`), и compose не скачивает такой образ ни для одного сервиса.
    Схему чистой базы создаёт сервис `migrate`. Ручные миграции из STATUS нужны только при обновлении уже существующей базы.
 6. Проверить:
    - `docker compose … ps`: все сервисы healthy;
@@ -76,6 +77,6 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
    cd /opt/pluma && git fetch && git checkout <коммит>
    ```
 3. Заменить в `.env` тег трёх образов на этот коммит.
-4. Выполнить `pull` и `up -d --no-build` обеих команд, как при первом запуске. Миграции применяет `migrate`.
+4. Скачать образы и выполнить `up -d --no-build` обеих команд, как при первом запуске (шаг 5). Миграции применяет `migrate`.
 
 Откат — то же самое с прежним коммитом и тегом. Схема базы назад не откатывается, поэтому откат возможен только к версии, совместимой с уже применёнными миграциями.
