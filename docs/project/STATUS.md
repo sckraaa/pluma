@@ -10,6 +10,7 @@ _Обновлено: 2026-10-29. Держать коротким._
 - Сравнительных тестов: 6 сценариев с эталонами Telegram, все проходят в CI (`test/conformance`, 9 методов API). Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
+- **017, ребрендинг клиентов** (`docs/tasks/017-rebranding.md`): сначала веб-клиент, затем Android, Desktop, iOS. После веба — **018**: обращение в Apple о снятии пометки «мошеннический сайт» с `pluma.chat`.
 - **016, первый запуск на сервере** (`docs/tasks/016-first-deployment.md`, runbook `docs/ops/deployment.md`). Стек работает на Hetzner CX33 по адресу `195.201.252.126`, весь его трафик идёт через этот адрес. Алерты, бэкапы в R2 и push работают. Владелец вошёл с Android-телефона. Веб-клиент — `https://web.pluma.chat`: TLS от Let's Encrypt, `/apiws` к шлюзу по PROXY protocol. Остался замер задержки.
 
 ## Последнее сделано
