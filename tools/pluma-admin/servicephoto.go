@@ -17,7 +17,7 @@ package main
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // MTProto's md5_checksum of an uploaded file, a check of the upload, not security
 	"crypto/rand"
 	_ "embed"
 	"encoding/binary"
@@ -164,7 +164,7 @@ func setServicePhoto(ctx context.Context, s photoServices, image []byte, name st
 		}
 		parts++
 	}
-	sum := md5.Sum(image)
+	sum := md5.Sum(image) //nolint:gosec // inputFile.md5_checksum, which dfs checks the parts against
 	photo, err := s.UploadProfilePhoto(ctx, owner, mtproto.MakeTLInputFile(&mtproto.InputFile{
 		Id_INT64:    fileId,
 		Parts:       parts,
