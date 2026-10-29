@@ -40,6 +40,13 @@ Gnetway:
     - Proto: websocket
       Addresses:
         - 0.0.0.0:11443
+    # Behind the TLS proxy of the web client (docker-compose.web.yaml): every
+    # connection starts with a PROXY protocol v1 header carrying the client's
+    # address, and one without it is closed. Never publish this port.
+    - Proto: websocket
+      PPV1: true
+      Addresses:
+        - 0.0.0.0:11444
   Multicore: false
   SendBuf: 65536
   ReceiveBuf: 65536

@@ -264,7 +264,11 @@ func (s *Server) OnTraffic(c gnet.Conn) (action gnet.Action) {
 				return
 			}
 		} else {
-			ctx.ppv1 = false
+			// A PROXY protocol listener serves the TLS proxy alone. A client
+			// that reaches it without the header would skip the limits of
+			// its address (counted with the header), so it is closed.
+			logx.Errorf("conn(%s) ppv1: no PROXY header", c)
+			return gnet.Close
 		}
 	}
 
