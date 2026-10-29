@@ -8,6 +8,9 @@
 #   test/e2e/run.sh logs       save service logs to $E2E_DIR/logs
 #   test/e2e/run.sh down       stop the stack, delete its volumes and the secrets
 #   test/e2e/run.sh admin ...  run tools/pluma-admin inside the bff container
+#   test/e2e/run.sh lan [ADDR] make the gateway reachable at ADDR:10443 (default:
+#                              this machine's address on its default route) for a
+#                              phone on the same network, until Ctrl-C
 #   test/e2e/run.sh compose .. any docker compose command on the test project
 #
 # Environment:
@@ -295,6 +298,31 @@ all) cmd_all ;;
 admin)
 	shift
 	compose exec -T bff ./pluma-admin -f ../etc2/bff.yaml "$@"
+	;;
+lan)
+	# A phone on the same network as this machine: its development build
+	# dials ADDR:10443 (the dev_address input of the client's workflow,
+	# docs/ops/clients.md), and test/e2e/lanforward relays that to the
+	# gateway's loopback port. The stand is open to the network meanwhile.
+	gateway=$(compose port gnetway 10443)
+	if [ -z "$gateway" ]; then
+		echo "run.sh: the stand is not running (test/e2e/run.sh up)" >&2
+		exit 1
+	fi
+	addr=${2:-}
+	if [ -z "$addr" ]; then
+		if command -v ipconfig >/dev/null; then
+			addr=$(ipconfig getifaddr "$(route -n get default | awk '/interface:/ {print $2}')")
+		else
+			addr=$(ip -4 route get 1.1.1.1 | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')
+		fi
+	fi
+	if [ -z "$addr" ]; then
+		echo "run.sh: no address of this machine found; pass one: test/e2e/run.sh lan ADDR" >&2
+		exit 1
+	fi
+	echo "run.sh: a development build for $addr reaches the stand while this runs (dev_address=$addr)"
+	cd "$ROOT" && exec go run ./test/e2e/lanforward -listen "$addr:10443" -to "$gateway"
 	;;
 compose)
 	shift
