@@ -80,6 +80,13 @@ func (c *AccountCore) AccountResetAuthorization(in *mtproto.TLAccountResetAuthor
 				}).To_Updates(),
 			})
 	}
+	if len(tKeyIdList.Datas) > 0 {
+		// The other devices drop the review banner of a login that is gone
+		// (task 019).
+		if err = c.svcCtx.NewLogin.Reviewed(c.ctx, c.MD.UserId, in.Hash); err != nil {
+			c.Logger.Errorf("account.resetAuthorization#df77f3bc - user %d, end of the review not told: %v", c.MD.UserId, err)
+		}
+	}
 
 	return mtproto.BoolTrue, nil
 }

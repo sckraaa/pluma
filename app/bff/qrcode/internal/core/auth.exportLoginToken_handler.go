@@ -89,7 +89,7 @@ func (c *QrCodeCore) AuthExportLoginToken(in *mtproto.TLAuthExportLoginToken) (*
 				return nil, err
 			}
 			if hasPassword {
-				if err = c.waitForPassword(qrCode.PermAuthKeyId, user.Id()); err != nil {
+				if err = c.waitForPassword(qrCode.PermAuthKeyId, user.Id(), ""); err != nil {
 					return nil, err
 				}
 				c.Logger.Infof("auth.exportLoginToken - user %d, next step auth.checkPassword", user.Id())
@@ -117,14 +117,16 @@ func (c *QrCodeCore) AuthExportLoginToken(in *mtproto.TLAuthExportLoginToken) (*
 }
 
 // waitForPassword makes the QR login of userId on the permanent key
-// authKeyId wait for the 2FA password, unless it already does.
-func (c *QrCodeCore) waitForPassword(authKeyId, userId int64) error {
+// authKeyId wait for the 2FA password, unless it already does. langCode is
+// the language of the session that accepted the code, for the New login
+// message of the login (task 019); empty keeps the one already saved.
+func (c *QrCodeCore) waitForPassword(authKeyId, userId int64, langCode string) error {
 	l, err := c.svcCtx.Twofa.WaitingLogin(c.ctx, authKeyId)
 	if err != nil {
 		return err
 	}
-	if l != nil && l.UserId == userId {
+	if l != nil && l.UserId == userId && (langCode == "" || l.LangCode == langCode) {
 		return nil
 	}
-	return c.svcCtx.Twofa.StartLogin(c.ctx, authKeyId, twofa.Login{UserId: userId})
+	return c.svcCtx.Twofa.StartLogin(c.ctx, authKeyId, twofa.Login{UserId: userId, LangCode: langCode})
 }

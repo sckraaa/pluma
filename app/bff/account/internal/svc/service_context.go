@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/account/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/account/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/account/plugin"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
@@ -33,6 +34,8 @@ type ServiceContext struct {
 	*logic.AuthLogic
 	Twofa  *twofa.Service
 	Plugin plugin.AuthorizationPlugin
+	// NewLogin: a terminated login needs no review (task 019).
+	NewLogin newlogin.Notifier
 }
 
 func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *ServiceContext {
@@ -43,5 +46,10 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 		AuthLogic: logic.NewAuthSignLogic(d, logincode.MustNewService(c.LoginCode, c.Mysql, c.KV)),
 		Twofa:     twofa.MustNewService(c.Mysql, c.KV),
 		Plugin:    plugin,
+		NewLogin: newlogin.Notifier{
+			Authsession: d.AuthsessionClient,
+			User:        d.UserClient,
+			Sync:        d.SyncClient,
+		},
 	}
 }

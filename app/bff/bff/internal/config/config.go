@@ -20,7 +20,6 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
-	"github.com/teamgram/teamgram-server/pkg/code/conf"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -28,20 +27,18 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	KV                        kv.KvConf
-	Mysql                     sqlx.Config // phone allowlist (pkg/phoneallowlist), 2FA passwords (pkg/twofa), push devices (pkg/pushdevices), mq_outbox
-	PushSecretEncryptionKey   string      // seals the secrets of push devices (task 009)
-	LoginCode                 logincode.Config
-	BizServiceClient          zrpc.RpcClientConf
-	AuthSessionClient         zrpc.RpcClientConf
-	MediaClient               zrpc.RpcClientConf
-	IdgenClient               zrpc.RpcClientConf
-	MsgClient                 zrpc.RpcClientConf
-	SyncClient                SyncClientConf
-	DfsClient                 zrpc.RpcClientConf
-	StatusClient              zrpc.RpcClientConf
-	SignInServiceNotification []conf.MessageEntityConfig `json:",optional"`
-	SignInMessage             []conf.MessageEntityConfig `json:",optional"`
+	KV                      kv.KvConf
+	Mysql                   sqlx.Config // phone allowlist (pkg/phoneallowlist), 2FA passwords (pkg/twofa), push devices (pkg/pushdevices), mq_outbox
+	PushSecretEncryptionKey string      // seals the secrets of push devices (task 009)
+	LoginCode               logincode.Config
+	BizServiceClient        zrpc.RpcClientConf
+	AuthSessionClient       zrpc.RpcClientConf
+	MediaClient             zrpc.RpcClientConf
+	IdgenClient             zrpc.RpcClientConf
+	MsgClient               zrpc.RpcClientConf
+	SyncClient              SyncClientConf
+	DfsClient               zrpc.RpcClientConf
+	StatusClient            zrpc.RpcClientConf
 }
 
 // SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in

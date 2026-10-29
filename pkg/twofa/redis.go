@@ -72,11 +72,11 @@ end
 redis.call('EXPIRE', KEYS[1], ARGV[2])
 return v`
 
-	// KEYS[1] login; ARGV user_id, phone, ttl seconds.
+	// KEYS[1] login; ARGV user_id, phone, lang_code, ttl seconds.
 	putLoginScript = `
 redis.call('DEL', KEYS[1])
-redis.call('HSET', KEYS[1], 'user_id', ARGV[1], 'phone', ARGV[2])
-redis.call('EXPIRE', KEYS[1], ARGV[3])
+redis.call('HSET', KEYS[1], 'user_id', ARGV[1], 'phone', ARGV[2], 'lang_code', ARGV[3])
+redis.call('EXPIRE', KEYS[1], ARGV[4])
 return 1`
 )
 
@@ -181,7 +181,7 @@ func (r *redisState) dropNewAlgo(ctx context.Context, userId int64) error {
 }
 
 func (r *redisState) putLogin(ctx context.Context, authKeyId int64, l Login, ttl time.Duration) error {
-	_, err := r.kv.EvalCtx(ctx, putLoginScript, loginKey(authKeyId), l.UserId, l.Phone, int64(ttl/time.Second))
+	_, err := r.kv.EvalCtx(ctx, putLoginScript, loginKey(authKeyId), l.UserId, l.Phone, l.LangCode, int64(ttl/time.Second))
 	return err
 }
 
@@ -194,7 +194,7 @@ func (r *redisState) login(ctx context.Context, authKeyId int64) (*Login, error)
 	if err != nil || userId == 0 {
 		return nil, fmt.Errorf("twofa: login of key %d without a user", authKeyId)
 	}
-	return &Login{UserId: userId, Phone: m["phone"]}, nil
+	return &Login{UserId: userId, Phone: m["phone"], LangCode: m["lang_code"]}, nil
 }
 
 func (r *redisState) dropLogin(ctx context.Context, authKeyId int64) error {

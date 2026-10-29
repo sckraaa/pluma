@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -175,6 +176,12 @@ func TestShippedConfig(t *testing.T) {
 	}
 	if v := field(t, c, "new_noncontact_peers_require_premium_without_ownpremium"); v.GetPredicateName() != mtproto.Predicate_jsonBool || mtproto.FromBool(v.GetValue_BOOL()) {
 		t.Errorf("new_noncontact_peers_require_premium_without_ownpremium %v, want false", v)
+	}
+	// Clients drop the review banner of a new login when the server
+	// confirms it (task 019).
+	if v := field(t, c, "authorization_autoconfirm_period"); v.GetPredicateName() != mtproto.Predicate_jsonNumber ||
+		v.GetValue_FLOAT64() != authsession.AuthorizationAutoconfirmPeriod {
+		t.Errorf("authorization_autoconfirm_period %v, want %d", v, authsession.AuthorizationAutoconfirmPeriod)
 	}
 }
 

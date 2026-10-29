@@ -13,6 +13,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/svc"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	syncpb "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
@@ -69,18 +70,43 @@ func (passwordUsers) UserGetImmutableUser(_ context.Context, in *userpb.TLUserGe
 	return nil, mtproto.ErrUserIdInvalid
 }
 
-// bindings records auth keys bound to users.
+// bindings records auth keys bound to users. Every user has one more
+// session, in Russian: a login is told to it (task 019).
 type bindings struct {
 	authsession_client.AuthsessionClient
 	mu    sync.Mutex
 	bound map[int64]int64
 }
 
+// pwHash is the hash of every new authorization.
+const pwHash = int64(1)
+
 func (b *bindings) AuthsessionBindAuthKeyUser(_ context.Context, in *authsession.TLAuthsessionBindAuthKeyUser) (*mtproto.Int64, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.bound[in.AuthKeyId] = in.UserId
-	return &mtproto.Int64{V: 1}, nil
+	return &mtproto.Int64{V: pwHash}, nil
+}
+
+func (b *bindings) AuthsessionGetAuthorizations(_ context.Context, in *authsession.TLAuthsessionGetAuthorizations) (*mtproto.Account_Authorizations, error) {
+	return mtproto.MakeTLAccountAuthorizations(&mtproto.Account_Authorizations{
+		Authorizations: []*mtproto.Authorization{
+			mtproto.MakeTLAuthorization(&mtproto.Authorization{
+				Current:       true,
+				Unconfirmed:   true,
+				AppName:       "Pluma Web",
+				AppVersion:    "12.0.48 A",
+				DeviceModel:   "Safari 26",
+				SystemVersion: "macOS",
+				Country:       "Prague, Czechia",
+			}).To_Authorization(),
+			mtproto.MakeTLAuthorization(&mtproto.Authorization{Hash: 99, DeviceModel: "OnePlus 12"}).To_Authorization(),
+		},
+	}).To_Account_Authorizations(), nil
+}
+
+func (b *bindings) AuthsessionGetRecentLangCode(context.Context, *authsession.TLAuthsessionGetRecentLangCode) (*mtproto.String, error) {
+	return &mtproto.String{V: "ru"}, nil
 }
 
 func (b *bindings) of(key int64) int64 {
@@ -93,13 +119,30 @@ type pushes struct {
 	sync_client.SyncClient
 	mu    sync.Mutex
 	users []int64
+	texts []string
 }
 
 func (p *pushes) SyncUpdatesNotMe(_ context.Context, in *syncpb.TLSyncUpdatesNotMe) (*mtproto.Void, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.users = append(p.users, in.UserId)
+	for _, u := range in.GetUpdates().GetUpdates() {
+		p.texts = append(p.texts, u.GetMessage_STRING())
+	}
 	return &mtproto.Void{}, nil
+}
+
+// reviews records the updateNewAuthorization of logins (user.newAuthorization).
+type reviews struct {
+	mu   sync.Mutex
+	list []*userpb.TLUserNewAuthorization
+}
+
+func (r *reviews) UserNewAuthorization(_ context.Context, in *userpb.TLUserNewAuthorization) (*mtproto.Bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.list = append(r.list, in)
+	return mtproto.BoolTrue, nil
 }
 
 type passwordEnv struct {
@@ -109,6 +152,7 @@ type passwordEnv struct {
 	twofa    *twofa.Service
 	bound    *bindings
 	pushes   *pushes
+	reviews  *reviews
 	svcCtx   *svc.ServiceContext
 	phoneLog *memPhoneCodes
 }
@@ -127,6 +171,7 @@ func newPasswordEnv(t *testing.T) *passwordEnv {
 		twofa:    twofa.NewService(twofa.NewMemStore(), store),
 		bound:    &bindings{bound: map[int64]int64{}},
 		pushes:   &pushes{},
+		reviews:  &reviews{},
 		phoneLog: &memPhoneCodes{m: map[string]model.PhoneCodeTransaction{}},
 	}
 	e.auth = logic.NewAuthSignLogic(e.phoneLog, codes)
@@ -134,6 +179,7 @@ func newPasswordEnv(t *testing.T) *passwordEnv {
 		Dao:       &dao.Dao{UserClient: passwordUsers{}, AuthsessionClient: e.bound, SyncClient: e.pushes},
 		AuthLogic: e.auth,
 		Twofa:     e.twofa,
+		NewLogin:  newlogin.Notifier{Authsession: e.bound, User: e.reviews, Sync: e.pushes},
 	}
 	return e
 }
@@ -246,8 +292,24 @@ func TestSignInWaitsForPassword(t *testing.T) {
 	if v, _ := e.phoneLog.GetCachePhoneCode(e.ctx, pwKey, pwPhone); v != nil {
 		t.Fatal("the code request is left")
 	}
-	if len(e.pushes.users) != 1 || e.pushes.users[0] != pwUserId {
+	// The other session gets the New login message, in its language, and
+	// the review banner; the account has a password, so the message has no
+	// paragraph about one.
+	if len(e.pushes.users) != 1 || e.pushes.users[0] != pwUserId || len(e.pushes.texts) != 1 {
 		t.Fatalf("the other devices were told of %v", e.pushes.users)
+	}
+	if text := e.pushes.texts[0]; !strings.HasPrefix(text, "Вход с нового устройства. U, ") ||
+		!strings.Contains(text, "Устройство: Pluma Web, 12.0.48 A, Safari 26, macOS\nМесто входа: Prague, Czechia") ||
+		strings.Contains(text, "Two-Step") {
+		t.Fatalf("New login message %q", text)
+	}
+	if len(e.reviews.list) != 1 {
+		t.Fatalf("%d review updates", len(e.reviews.list))
+	}
+	r := e.reviews.list[0]
+	if u := r.GetUpdate(); r.GetUserId() != pwUserId || r.GetExceptAuthKeyId() != pwKey ||
+		!u.GetUnconfirmed() || u.GetHash() != pwHash || u.GetDevice().GetValue() != "Safari 26" || u.GetLocation().GetValue() != "Prague, Czechia" {
+		t.Fatalf("review update %v", r)
 	}
 
 	// The login is done: the same proof again finds no login.

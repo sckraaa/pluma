@@ -16,6 +16,8 @@
     "new_noncontact_peers_require_premium_without_ownpremium": false,
     "autoarchive_setting_available": false,
 
+    "authorization_autoconfirm_period": 604800,
+
     "dialog_filters_enabled": true,
     "dialog_filters_limit_default": 10,
     "dialog_filters_limit_premium": 30,

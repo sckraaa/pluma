@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/plugin"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
@@ -38,6 +39,8 @@ type ServiceContext struct {
 	// PushDevices: auth.logOut removes the devices of the authorization
 	// (task 009); no secrets are read here.
 	PushDevices pushdevices.Store
+	// NewLogin tells the other sessions about a login (task 019).
+	NewLogin newlogin.Notifier
 }
 
 func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *ServiceContext {
@@ -49,5 +52,10 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 		Twofa:       twofa.MustNewService(c.Mysql, c.KV),
 		Plugin:      plugin,
 		PushDevices: pushdevices.NewMySQLStore(sqlx.NewMySQL(&c.Mysql), nil),
+		NewLogin: newlogin.Notifier{
+			Authsession: d.AuthsessionClient,
+			User:        d.UserClient,
+			Sync:        d.SyncClient,
+		},
 	}
 }

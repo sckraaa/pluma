@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/app/bff/qrcode/internal/model"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
@@ -108,7 +109,7 @@ func (c *QrCodeCore) AuthAcceptLoginToken(in *mtproto.TLAuthAcceptLoginToken) (*
 	}
 	var hash int64
 	if hasPassword {
-		if err = c.waitForPassword(qrCode.PermAuthKeyId, user.Id()); err != nil {
+		if err = c.waitForPassword(qrCode.PermAuthKeyId, user.Id(), c.MD.LangCode); err != nil {
 			return nil, err
 		}
 	} else {
@@ -122,6 +123,18 @@ func (c *QrCodeCore) AuthAcceptLoginToken(in *mtproto.TLAuthAcceptLoginToken) (*
 			return nil, err
 		}
 		hash = h.V
+
+		// The QR code was accepted here: the other sessions are told in the
+		// language of this one (task 019).
+		if err = c.svcCtx.NewLogin.Notify(c.ctx, newlogin.Login{
+			User:          user,
+			PermAuthKeyId: qrCode.PermAuthKeyId,
+			Hash:          hash,
+			LangCode:      c.MD.LangCode,
+			Date:          time.Now(),
+		}); err != nil {
+			c.Logger.Errorf("auth.acceptLoginToken - new login of user %d not told: %v", user.Id(), err)
+		}
 	}
 	authorization, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionGetAuthorization(c.ctx, &authsession.TLAuthsessionGetAuthorization{
 		AuthKeyId: qrCode.AuthKeyId,

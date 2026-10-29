@@ -94,10 +94,13 @@ var ErrNoPassword = mtproto.ErrPasswordEmpty
 
 // Login is a login waiting for the password of UserId on a permanent auth
 // key. Phone is the phone of auth.signIn, empty for the other logins (a
-// future auth token, a QR code).
+// future auth token, a QR code). LangCode is the lang_code of the session
+// that accepted a QR code, the language of the New login message (task
+// 019), empty for the other logins.
 type Login struct {
-	UserId int64
-	Phone  string
+	UserId   int64
+	Phone    string
+	LangCode string
 }
 
 // Service applies the 2FA password. It is safe for concurrent use.

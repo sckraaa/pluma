@@ -131,18 +131,16 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			authorization_helper.New(
 				authorization_helper.Config{
-					RpcServerConf:             c.RpcServerConf,
-					KV:                        c.KV,
-					Mysql:                     c.Mysql,
-					LoginCode:                 c.LoginCode,
-					UserClient:                c.BizServiceClient,
-					AuthsessionClient:         c.AuthSessionClient,
-					ChatClient:                c.BizServiceClient,
-					StatusClient:              c.StatusClient,
-					SyncClient:                syncClient,
-					MsgClient:                 c.MsgClient,
-					SignInMessage:             c.SignInMessage,
-					SignInServiceNotification: c.SignInServiceNotification,
+					RpcServerConf:     c.RpcServerConf,
+					KV:                c.KV,
+					Mysql:             c.Mysql,
+					LoginCode:         c.LoginCode,
+					UserClient:        c.BizServiceClient,
+					AuthsessionClient: c.AuthSessionClient,
+					ChatClient:        c.BizServiceClient,
+					StatusClient:      c.StatusClient,
+					SyncClient:        syncClient,
+					MsgClient:         c.MsgClient,
 				},
 				nil))
 

@@ -19,6 +19,7 @@
 package svc
 
 import (
+	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/app/bff/qrcode/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/qrcode/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
@@ -28,12 +29,20 @@ type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
 	Twofa *twofa.Service
+	// NewLogin tells the other sessions about a login (task 019).
+	NewLogin newlogin.Notifier
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	d := dao.New(c)
 	return &ServiceContext{
 		Config: c,
-		Dao:    dao.New(c),
+		Dao:    d,
 		Twofa:  twofa.MustNewService(c.Mysql, c.KV),
+		NewLogin: newlogin.Notifier{
+			Authsession: d.AuthsessionClient,
+			User:        d.UserClient,
+			Sync:        d.SyncClient,
+		},
 	}
 }

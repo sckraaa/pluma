@@ -144,6 +144,12 @@
 | `chat_read_mark_expire_period` | `604800` | A W | Кто прочитал в группе (`messages.getMessageReadParticipants`). |
 | `chat_read_mark_size_threshold` | `100` | A W | То же, для групп до 100 участников. |
 
+## Новые входы
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `authorization_autoconfirm_period` | `604800` | A D | Через сколько секунд после входа неподтверждённая сессия подтверждается сама (задача 019): клиенты снимают баннер «Это вы?», сервер перестаёт отдавать `unconfirmed` в `account.getAuthorizations`. Должно совпадать с `authsession.AuthorizationAutoconfirmPeriod` (это проверяет тест). Читает и iOS; у Telegram в примере и по умолчанию у клиентов то же значение. |
+
 ## Фоновое соединение (Android)
 
 | Ключ | Значение | Читают | Почему |

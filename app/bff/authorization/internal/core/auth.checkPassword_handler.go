@@ -71,7 +71,7 @@ func (c *AuthorizationCore) AuthCheckPassword(in *mtproto.TLAuthCheckPassword) (
 		return nil, err
 	}
 	c.Logger.Infof("auth.checkPassword - user %d logged in", login.UserId)
-	return c.logIn(user, login.Phone)
+	return c.logIn(user, login.Phone, login.LangCode, true)
 }
 
 func (c *AuthorizationCore) checkOwnPassword(in *mtproto.TLAuthCheckPassword) (*mtproto.Auth_Authorization, error) {

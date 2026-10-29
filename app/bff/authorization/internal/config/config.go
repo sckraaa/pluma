@@ -21,7 +21,6 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
-	"github.com/teamgram/teamgram-server/pkg/code/conf"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -29,15 +28,13 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	KV                        kv.KvConf
-	Mysql                     sqlx.Config // phone allowlist, 2FA passwords
-	LoginCode                 logincode.Config
-	UserClient                zrpc.RpcClientConf
-	AuthsessionClient         zrpc.RpcClientConf
-	ChatClient                zrpc.RpcClientConf
-	StatusClient              zrpc.RpcClientConf
-	MsgClient                 zrpc.RpcClientConf
-	SyncClient                sync_client.OutboxConf
-	SignInServiceNotification []conf.MessageEntityConfig `json:",optional"`
-	SignInMessage             []conf.MessageEntityConfig `json:",optional"`
+	KV                kv.KvConf
+	Mysql             sqlx.Config // phone allowlist, 2FA passwords
+	LoginCode         logincode.Config
+	UserClient        zrpc.RpcClientConf
+	AuthsessionClient zrpc.RpcClientConf
+	ChatClient        zrpc.RpcClientConf
+	StatusClient      zrpc.RpcClientConf
+	MsgClient         zrpc.RpcClientConf
+	SyncClient        sync_client.OutboxConf
 }

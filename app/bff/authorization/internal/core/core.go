@@ -20,7 +20,6 @@ package core
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -29,10 +28,9 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/svc"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/servicetext"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
-	"github.com/teamgram/teamgram-server/pkg/code/conf"
-	"github.com/teamgram/teamgram-server/pkg/env2"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -100,14 +98,6 @@ func checkPhoneNumberInvalid(phone string) (string, string, error) {
 	return pNumber.GetRegionCode(), pNumber.GetNormalizeDigits(), nil
 }
 
-const (
-	signInMessageTpl = `Login code: %s. Do not give this code to anyone, even if they say they are from %s!
-
-This code can be used to log in to your %s account. We never ask it for anything else.
-
-If you didn't request this code by trying to log in on another device, simply ignore this message.`
-)
-
 // codeDelivery delivers login codes to the user's other sessions
 // (logic.CodeDelivery).
 type codeDelivery struct {
@@ -138,10 +128,23 @@ func (d codeDelivery) DeliverToApp(ctx context.Context, userId int64, code strin
 
 // pushSignInMessage sends the login code to the user's chat with the service
 // notifications account (777000), the way Telegram delivers
-// auth.sentCodeTypeApp codes.
+// auth.sentCodeTypeApp codes. One message is stored for the account, in the
+// language of the session that connected last, the requesting one aside
+// (task 019).
 func (c *AuthorizationCore) pushSignInMessage(ctx context.Context, signInUserId int64, code string) {
+	requestingKey := c.MD.PermAuthKeyId
 	time.AfterFunc(2*time.Second, func() {
-		text, entities := signInMessageText(code)
+		lang := servicetext.English
+		recent, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionGetRecentLangCode(ctx, &authsession.TLAuthsessionGetRecentLangCode{
+			UserId:          signInUserId,
+			ExceptAuthKeyId: requestingKey,
+		})
+		if err != nil {
+			logx.WithContext(ctx).Errorf("auth.sendCode - language of user %d: %v; the login code goes in English", signInUserId, err)
+		} else {
+			lang = servicetext.LangOf(recent.GetV())
+		}
+		text, entities := servicetext.LoginCode(lang, code)
 		message := mtproto.MakeTLMessage(&mtproto.Message{
 			Out:      true,
 			Date:     int32(time.Now().Unix()),
@@ -151,17 +154,7 @@ func (c *AuthorizationCore) pushSignInMessage(ctx context.Context, signInUserId 
 			Entities: entities,
 		}).To_Message()
 
-		if len(c.svcCtx.Config.SignInMessage) > 0 {
-			builder := conf.ToMessageBuildHelper(
-				c.svcCtx.Config.SignInMessage,
-				map[string]interface{}{
-					"code":     code,
-					"app_name": env2.MyAppName,
-				})
-			message.Message, message.Entities = mtproto.MakeTextAndMessageEntities(builder)
-		}
-
-		_, err := c.svcCtx.Dao.MsgClient.MsgPushUserMessage(
+		_, err = c.svcCtx.Dao.MsgClient.MsgPushUserMessage(
 			ctx,
 			&msgpb.TLMsgPushUserMessage{
 				UserId:    777000,
@@ -184,24 +177,4 @@ func (c *AuthorizationCore) pushSignInMessage(ctx context.Context, signInUserId 
 			logx.WithContext(ctx).Errorf("auth.sendCode - login code to the app of user %d not delivered: %v", signInUserId, err)
 		}
 	})
-}
-
-// signInMessageText returns the default login code message and its bold
-// entities ("Login code:" and "not"), with offsets that follow the code length.
-func signInMessageText(code string) (string, []*mtproto.MessageEntity) {
-	const (
-		label = "Login code: "
-		not   = ". Do "
-	)
-	text := fmt.Sprintf(signInMessageTpl, code, env2.MyAppName, env2.MyAppName)
-	return text, []*mtproto.MessageEntity{
-		mtproto.MakeTLMessageEntityBold(&mtproto.MessageEntity{
-			Offset: 0,
-			Length: int32(len(label)) - 1,
-		}).To_MessageEntity(),
-		mtproto.MakeTLMessageEntityBold(&mtproto.MessageEntity{
-			Offset: int32(len(label) + len(code) + len(not)),
-			Length: 3,
-		}).To_MessageEntity(),
-	}
 }

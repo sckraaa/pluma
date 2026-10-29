@@ -203,18 +203,3 @@ func TestAuthSignUpHandlerRequiresAcceptedCode(t *testing.T) {
 		t.Fatalf("created %v", got)
 	}
 }
-
-func TestSignInMessageEntities(t *testing.T) {
-	for _, code := range []string{"12345", "123456", "1234567"} {
-		text, entities := signInMessageText(code)
-		if !strings.Contains(text, code) || len(entities) != 2 {
-			t.Fatalf("%q: %q %v", code, text, entities)
-		}
-		for i, want := range []string{"Login code:", "not"} {
-			e := entities[i]
-			if got := text[e.Offset : e.Offset+e.Length]; got != want {
-				t.Errorf("code %q entity %d covers %q, want %q", code, i, got, want)
-			}
-		}
-	}
-}

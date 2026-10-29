@@ -19,15 +19,13 @@
 package core
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
-	"github.com/teamgram/teamgram-server/pkg/code/conf"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -162,76 +160,42 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 		return nil, mtproto.ErrSessionPasswordNeeded
 	}
 
-	return c.logIn(user, phoneNumber)
+	return c.logIn(user, phoneNumber, "", false)
 }
 
 // logIn binds the key to user and returns its auth.authorization: the end of
-// auth.signIn, or of auth.checkPassword after it. phoneNumber is the phone of
-// the code request to drop, empty for the other logins; the user's other
-// devices are told of the login.
-func (c *AuthorizationCore) logIn(user *mtproto.ImmutableUser, phoneNumber string) (*mtproto.Auth_Authorization, error) {
-	if _, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
+// auth.signIn, of auth.checkPassword after it or after a QR code, and of a
+// future auth token. phoneNumber is the phone of the code request to drop,
+// empty for the other logins; langCode is the language of the session that
+// accepted a QR code, empty for the other logins. The user's other sessions
+// are told of the login (task 019); a failure there is logged, the login
+// stands.
+func (c *AuthorizationCore) logIn(user *mtproto.ImmutableUser, phoneNumber, langCode string, hasPassword bool) (*mtproto.Auth_Authorization, error) {
+	hash, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
 		AuthKeyId: c.MD.PermAuthKeyId,
 		UserId:    user.Id(),
-	}); err != nil {
+	})
+	if err != nil {
 		c.Logger.Errorf("bind the key to user %d - error: %v", user.Id(), err)
 		return nil, err
 	}
 	c.svcCtx.Twofa.EndLogin(c.ctx, c.MD.PermAuthKeyId)
-
-	selfUser := user.ToSelfUser()
-	if phoneNumber == "" {
-		return mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
-			User: selfUser,
-		}).To_Auth_Authorization(), nil
+	if phoneNumber != "" {
+		_ = c.svcCtx.AuthLogic.DeletePhoneCode(c.ctx, c.MD.PermAuthKeyId, phoneNumber)
 	}
 
-	_ = c.svcCtx.AuthLogic.DeletePhoneCode(c.ctx, c.MD.PermAuthKeyId, phoneNumber)
-
-	region, _ := c.svcCtx.Dao.GetCountryAndRegionByIp(c.MD.ClientAddr)
-
-	var (
-		now     = time.Now()
-		signInN *mtproto.Update
-	)
-
-	if len(c.svcCtx.Config.SignInServiceNotification) == 0 {
-		signInN = mtproto.MakeSignInServiceNotification(selfUser, c.MD.PermAuthKeyId, c.MD.Client, region, c.MD.ClientAddr)
-	} else {
-		signInN = mtproto.MakeTLUpdateServiceNotification(&mtproto.Update{
-			Popup:          false,
-			InboxDate:      mtproto.MakeFlagsInt32(int32(now.Unix())),
-			Type:           fmt.Sprintf("auth%d_%d", c.MD.PermAuthKeyId, now.Unix()),
-			Message_STRING: "",
-			Media:          mtproto.MakeTLMessageMediaEmpty(nil).To_MessageMedia(),
-			Entities:       nil,
-		}).To_Update()
-
-		builder := conf.ToMessageBuildHelper(
-			c.svcCtx.Config.SignInServiceNotification,
-			map[string]interface{}{
-				"name":     mtproto.GetUserName(selfUser),
-				"now":      now.UTC(),
-				"client":   c.MD.Client,
-				"region":   region,
-				"clientIp": c.MD.ClientAddr,
-			})
-		signInN.Message_STRING, signInN.Entities = mtproto.MakeTextAndMessageEntities(builder)
+	if err = c.svcCtx.NewLogin.Notify(c.ctx, newlogin.Login{
+		User:          user,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		Hash:          hash.GetV(),
+		LangCode:      langCode,
+		HasPassword:   hasPassword,
+		Date:          time.Now(),
+	}); err != nil {
+		c.Logger.Errorf("new login of user %d not told: %v", user.Id(), err)
 	}
-
-	_, _ = c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(
-		c.ctx,
-		&sync.TLSyncUpdatesNotMe{
-			UserId:        user.Id(),
-			PermAuthKeyId: c.MD.PermAuthKeyId,
-			Updates:       mtproto.MakeUpdatesByUpdates(signInN),
-		})
 
 	return mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
-		SetupPasswordRequired: false,
-		OtherwiseReloginDays:  nil,
-		TmpSessions:           nil,
-		FutureAuthToken:       nil,
-		User:                  selfUser,
+		User: user.ToSelfUser(),
 	}).To_Auth_Authorization(), nil
 }

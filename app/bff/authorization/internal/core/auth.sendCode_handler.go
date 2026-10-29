@@ -286,7 +286,7 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 					return nil, mtproto.ErrSessionPasswordNeeded
 				}
 
-				authorization, err2 := c.logIn(user, "")
+				authorization, err2 := c.logIn(user, "", "", false)
 				if err2 != nil {
 					return nil, err2
 				}
