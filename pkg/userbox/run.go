@@ -80,8 +80,8 @@ const (
 		" WHERE user_id = ? AND pts = ? AND seq = ? AND last_message_box_id = ?"
 	insertJournalRow = "(?, ?, ?, ?, ?, ?)"
 	insertJournal    = "INSERT INTO user_pts_updates (user_id, pts, pts_count, update_type, update_data, date2) VALUES "
-	insertSeqRow     = "(?, ?, ?, ?, ?, ?)"
-	insertSeqJournal = "INSERT INTO user_seq_updates (user_id, seq, pts, update_type, update_data, date2) VALUES "
+	insertSeqRow     = "(?, ?, ?, ?, ?, ?, ?)"
+	insertSeqJournal = "INSERT INTO user_seq_updates (user_id, seq, pts, update_type, update_data, except_auth_key_id, date2) VALUES "
 )
 
 // boxKey marks the context of a Box.
@@ -260,9 +260,9 @@ func writeState(ctx context.Context, b *Box) error {
 		}
 	}
 	if len(b.seqJournal) > 0 {
-		args := make([]any, 0, len(b.seqJournal)*6)
+		args := make([]any, 0, len(b.seqJournal)*7)
 		for _, r := range b.seqJournal {
-			args = append(args, b.userId, r.seq, r.pts, r.updateType, r.data, b.now)
+			args = append(args, b.userId, r.seq, r.pts, r.updateType, r.data, r.except, b.now)
 		}
 		query := insertSeqJournal + strings.Repeat(insertSeqRow+", ", len(b.seqJournal)-1) + insertSeqRow
 		if _, err := b.rec.ExecCtx(ctx, query, args...); err != nil {

@@ -134,6 +134,8 @@ func seqKey(u *mtproto.Update) string {
 		return "chat_rights:" + peerKey(u.GetPeer_PEER())
 	case mtproto.Predicate_updatePendingJoinRequests:
 		return "join_requests:" + peerKey(u.GetPeer_PEER())
+	case mtproto.Predicate_updateNewAuthorization:
+		return "new_authorization:" + strconv.FormatInt(u.GetHash(), 10)
 	}
 	return ""
 }

@@ -82,6 +82,12 @@ func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.
 	return sync_client.EmitSeqUpdate(b, d.Topics.Sync, u, users, chats)
 }
 
+// EmitSeqUpdateExcept is EmitSeqUpdate for every device of the account but
+// the authorization on the permanent key exceptAuthKeyId (ADR 0022).
+func (d *Dao) EmitSeqUpdateExcept(b *userbox.Box, u *mtproto.Update, exceptAuthKeyId int64) error {
+	return sync_client.EmitSeqUpdateExcept(b, d.Topics.Sync, u, nil, nil, exceptAuthKeyId)
+}
+
 // EmitSeqInbox journals updates with seq in the account of to and pushes
 // them to its devices, as the transaction's inbox event to to
 // (inbox.EmitSeqInbox, ADR 0021): the users and chats they refer to are

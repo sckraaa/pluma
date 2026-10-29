@@ -124,4 +124,7 @@ const (
 	CRC32_user_getTopPeers                   TLConstructor = 731720709   // 0x2b9d2c05
 	CRC32_user_toggleTopPeers                TLConstructor = 1925363135  // 0x72c2b5bf
 	CRC32_user_resetTopPeerRating            TLConstructor = -476871816  // 0xe3938378
+
+	// pluma: task 019
+	CRC32_user_newAuthorization TLConstructor = 1324746836 // 0x4ef60854
 )

@@ -30,13 +30,15 @@ type SeqRow struct {
 }
 
 // SeqUpdates returns the rows of userId's seq journal up to maxSeq that
-// are after cursor or were written at since or later, in seq order. It
-// reads the master (BoxDB), where the state maxSeq is from: every row up to
-// it is committed there.
-func (d *Dao) SeqUpdates(ctx context.Context, userId int64, maxSeq, cursor int32, since int64) ([]SeqRow, error) {
+// are after cursor or were written at since or later, in seq order, but
+// those the authorization on the permanent key authKeyId must not get (ADR
+// 0022; 0 is no authorization). It reads the master (BoxDB), where the state
+// maxSeq is from: every row up to it is committed there.
+func (d *Dao) SeqUpdates(ctx context.Context, userId, authKeyId int64, maxSeq, cursor int32, since int64) ([]SeqRow, error) {
 	rows, err := d.BoxDB.QueryContext(ctx,
-		"SELECT seq, pts, update_type, update_data FROM user_seq_updates WHERE user_id = ? AND seq <= ? AND (seq > ? OR date2 >= ?) ORDER BY seq",
-		userId, maxSeq, cursor, since)
+		"SELECT seq, pts, update_type, update_data FROM user_seq_updates WHERE user_id = ? AND seq <= ? AND (seq > ? OR date2 >= ?)"+
+			" AND (except_auth_key_id = 0 OR except_auth_key_id <> ?) ORDER BY seq",
+		userId, maxSeq, cursor, since, authKeyId)
 	if err != nil {
 		return nil, err
 	}

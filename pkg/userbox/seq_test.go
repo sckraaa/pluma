@@ -78,6 +78,30 @@ func TestRunAllocatesSeq(t *testing.T) {
 	}
 }
 
+// An update that one authorization must not get (ADR 0022): its row keeps
+// the key, and the other rows keep 0.
+func TestRunSeqExcept(t *testing.T) {
+	s := newFakeServer()
+	db := s.open(t)
+	login := mtproto.MakeTLUpdateNewAuthorization(&mtproto.Update{Unconfirmed: true, Hash: 5}).To_Update()
+	if _, err := Run(context.Background(), db, 7, func(b *Box) error {
+		b.AddSeqUpdate(notifySettings(1))
+		if seq := b.AddSeqUpdateExcept(login, 7001); seq != BaseSeq+2 {
+			t.Errorf("seq %d, want %d", seq, BaseSeq+2)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var got [][2]int64
+	for _, r := range s.seqRows(7) {
+		got = append(got, [2]int64{int64(r.seq), r.except})
+	}
+	if want := [][2]int64{{BaseSeq + 1, 0}, {BaseSeq + 2, 7001}}; !slices.Equal(got, want) {
+		t.Errorf("seq rows (seq, except) %v, want %v", got, want)
+	}
+}
+
 // The updates with seq: states of the account, those another user's
 // change sets included (ADR 0021); never an update with pts, a draft, a
 // service notification or typing.
@@ -92,6 +116,7 @@ func TestSeqUpdate(t *testing.T) {
 		mtproto.Predicate_updateChat,
 		mtproto.Predicate_updateChatDefaultBannedRights,
 		mtproto.Predicate_updatePendingJoinRequests,
+		mtproto.Predicate_updateNewAuthorization,
 	} {
 		if !SeqUpdate(p) {
 			t.Errorf("%s goes without seq", p)

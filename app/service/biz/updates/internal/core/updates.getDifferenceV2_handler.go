@@ -187,7 +187,7 @@ func (c *UpdatesCore) seqRange(in *updates.TLUpdatesGetDifferenceV2, st userbox.
 		}
 	}
 	since := in.Date - int64(userbox.MaxRunTime/time.Second)
-	rows, err := c.svcCtx.Dao.SeqUpdates(c.ctx, in.UserId, st.Seq, after, since)
+	rows, err := c.svcCtx.Dao.SeqUpdates(c.ctx, in.UserId, in.AuthKeyId, st.Seq, after, since)
 	if err != nil {
 		return seqRange{}, err
 	}

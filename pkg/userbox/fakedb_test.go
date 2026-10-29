@@ -398,13 +398,14 @@ func (c *fakeConn) run(query string, args []driver.NamedValue, rows *fakeRows) (
 			})
 		}
 	case "seq_journal":
-		for i := 0; i < len(args); i += 6 {
+		for i := 0; i < len(args); i += 7 {
 			u := args[i].Value.(int64)
 			c.seqs[u] = append(c.seqs[u], seqRow{
 				seq:        int32(args[i+1].Value.(int64)),
 				pts:        int32(args[i+2].Value.(int64)),
 				updateType: args[i+3].Value.(string),
 				data:       args[i+4].Value.(string),
+				except:     args[i+5].Value.(int64),
 			})
 		}
 	case "update_state":

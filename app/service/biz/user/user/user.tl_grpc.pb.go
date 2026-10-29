@@ -130,6 +130,7 @@ const (
 	RPCUser_UserGetTopPeers_FullMethodName                   = "/user.RPCUser/user_getTopPeers"
 	RPCUser_UserToggleTopPeers_FullMethodName                = "/user.RPCUser/user_toggleTopPeers"
 	RPCUser_UserResetTopPeerRating_FullMethodName            = "/user.RPCUser/user_resetTopPeerRating"
+	RPCUser_UserNewAuthorization_FullMethodName              = "/user.RPCUser/user_newAuthorization"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -237,6 +238,8 @@ type RPCUserClient interface {
 	UserGetTopPeers(ctx context.Context, in *TLUserGetTopPeers, opts ...grpc.CallOption) (*mtproto.Contacts_TopPeers, error)
 	UserToggleTopPeers(ctx context.Context, in *TLUserToggleTopPeers, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	UserResetTopPeerRating(ctx context.Context, in *TLUserResetTopPeerRating, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 019
+	UserNewAuthorization(ctx context.Context, in *TLUserNewAuthorization, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCUserClient struct {
@@ -1257,6 +1260,16 @@ func (c *rPCUserClient) UserResetTopPeerRating(ctx context.Context, in *TLUserRe
 	return out, nil
 }
 
+func (c *rPCUserClient) UserNewAuthorization(ctx context.Context, in *TLUserNewAuthorization, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserNewAuthorization_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1362,6 +1375,8 @@ type RPCUserServer interface {
 	UserGetTopPeers(context.Context, *TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error)
 	UserToggleTopPeers(context.Context, *TLUserToggleTopPeers) (*mtproto.Bool, error)
 	UserResetTopPeerRating(context.Context, *TLUserResetTopPeerRating) (*mtproto.Bool, error)
+	// pluma: task 019
+	UserNewAuthorization(context.Context, *TLUserNewAuthorization) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1673,6 +1688,9 @@ func (UnimplementedRPCUserServer) UserToggleTopPeers(context.Context, *TLUserTog
 }
 func (UnimplementedRPCUserServer) UserResetTopPeerRating(context.Context, *TLUserResetTopPeerRating) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserResetTopPeerRating not implemented")
+}
+func (UnimplementedRPCUserServer) UserNewAuthorization(context.Context, *TLUserNewAuthorization) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserNewAuthorization not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -3512,6 +3530,24 @@ func _RPCUser_UserResetTopPeerRating_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserNewAuthorization_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserNewAuthorization)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserNewAuthorization(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserNewAuthorization_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserNewAuthorization(ctx, req.(*TLUserNewAuthorization))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3922,6 +3958,10 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_resetTopPeerRating",
 			Handler:    _RPCUser_UserResetTopPeerRating_Handler,
+		},
+		{
+			MethodName: "user_newAuthorization",
+			Handler:    _RPCUser_UserNewAuthorization_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

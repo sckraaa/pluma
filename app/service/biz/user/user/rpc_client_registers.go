@@ -127,6 +127,9 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLUserGetTopPeers":                   RPCContextTuple{"/mtproto.RPCUser/user_getTopPeers", func() interface{} { return new(mtproto.Contacts_TopPeers) }},
 	"TLUserToggleTopPeers":                RPCContextTuple{"/mtproto.RPCUser/user_toggleTopPeers", func() interface{} { return new(mtproto.Bool) }},
 	"TLUserResetTopPeerRating":            RPCContextTuple{"/mtproto.RPCUser/user_resetTopPeerRating", func() interface{} { return new(mtproto.Bool) }},
+
+	// pluma: task 019
+	"TLUserNewAuthorization": {"/mtproto.RPCUser/user_newAuthorization", func() interface{} { return new(mtproto.Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

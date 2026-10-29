@@ -42,6 +42,7 @@ type seqRow struct {
 	pts        int32 // of the box when the update was added
 	updateType string
 	data       string
+	except     int64 // the authorization that must not get it, 0 for none
 }
 
 // Box is one attempt of a box transaction, given to the function of Run.
@@ -151,6 +152,14 @@ func (b *Box) AddPtsUpdate(u *mtproto.Update, ptsCount int32) {
 // Only the updates of SeqUpdate may be added; another one rolls the
 // transaction back, and 0 is returned.
 func (b *Box) AddSeqUpdate(u *mtproto.Update) int32 {
+	return b.AddSeqUpdateExcept(u, 0)
+}
+
+// AddSeqUpdateExcept is AddSeqUpdate for an update that the authorization
+// on the permanent key exceptAuthKeyId must not get (ADR 0022): neither its
+// push nor its getDifference returns it. The caller pushes it to the other
+// devices only.
+func (b *Box) AddSeqUpdateExcept(u *mtproto.Update, exceptAuthKeyId int64) int32 {
 	if b.err != nil {
 		return 0
 	}
@@ -171,7 +180,7 @@ func (b *Box) AddSeqUpdate(u *mtproto.Update) int32 {
 		return 0
 	}
 	b.seq++
-	b.seqJournal = append(b.seqJournal, seqRow{seq: b.seq, pts: b.pts, updateType: u.PredicateName, data: string(data)})
+	b.seqJournal = append(b.seqJournal, seqRow{seq: b.seq, pts: b.pts, updateType: u.PredicateName, data: string(data), except: exceptAuthKeyId})
 	return b.seq
 }
 
@@ -238,7 +247,8 @@ func (b *Box) result() *Result {
 // drafts (an echo could overwrite what is being typed), service
 // notifications (not idempotent), typing and statuses go without either.
 // The states of basic groups and of other users come from another user's
-// change, as an inbox event of the account (ADR 0021).
+// change, as an inbox event of the account (ADR 0021). A new login is a
+// state of the authorization hash, which clients replace (ADR 0022).
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateNotifySettings,
@@ -258,7 +268,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateChatParticipants,
 		mtproto.Predicate_updateChat,
 		mtproto.Predicate_updateChatDefaultBannedRights,
-		mtproto.Predicate_updatePendingJoinRequests:
+		mtproto.Predicate_updatePendingJoinRequests,
+		mtproto.Predicate_updateNewAuthorization:
 		return true
 	}
 	return false

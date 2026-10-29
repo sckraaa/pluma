@@ -123,6 +123,9 @@ const (
 	Predicate_user_getTopPeers                   = "user_getTopPeers"
 	Predicate_user_toggleTopPeers                = "user_toggleTopPeers"
 	Predicate_user_resetTopPeerRating            = "user_resetTopPeerRating"
+
+	// pluma: task 019
+	Predicate_user_newAuthorization = "user_newAuthorization"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -574,6 +577,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -476871816, // 0xe3938378
 
 	},
+	Predicate_user_newAuthorization: { // pluma: task 019
+		0: 1324746836, // 0x4ef60854
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -689,6 +696,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	731720709:   Predicate_user_getTopPeers,                   // 0x2b9d2c05
 	1925363135:  Predicate_user_toggleTopPeers,                // 0x72c2b5bf
 	-476871816:  Predicate_user_resetTopPeerRating,            // 0xe3938378
+	1324746836:  Predicate_user_newAuthorization,              // 0x4ef60854 pluma: task 019
 
 }
 

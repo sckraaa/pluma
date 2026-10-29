@@ -133,6 +133,8 @@ enum TLConstructor {
   CRC32_user_getTopPeers = 731720709;
   CRC32_user_toggleTopPeers = 1925363135;
   CRC32_user_resetTopPeerRating = -476871816;
+  // pluma: task 019
+  CRC32_user_newAuthorization = 1324746836;
 }
 
 // BotInfoData <--
@@ -1017,6 +1019,18 @@ message TL_user_resetTopPeerRating {
   int64 peer_id = 6;
 }
 
+// pluma: user.newAuthorization user_id:long except_auth_key_id:long update:Update = Bool;
+// Journals and pushes update, an updateNewAuthorization, with seq to every
+// authorization of the user but the one on the permanent key
+// except_auth_key_id (task 019, ADR 0022): a new login, or 0 for the end of
+// its review.
+message TL_user_newAuthorization {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 except_auth_key_id = 4;
+  mtproto.Update update = 5;
+}
+
 //--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_LastSeenData {
@@ -1216,5 +1230,8 @@ service RPCUser {
       returns (mtproto.contacts_TopPeers) {}
   rpc user_toggleTopPeers(TL_user_toggleTopPeers) returns (mtproto.Bool) {}
   rpc user_resetTopPeerRating(TL_user_resetTopPeerRating)
+      returns (mtproto.Bool) {}
+  // pluma: task 019
+  rpc user_newAuthorization(TL_user_newAuthorization)
       returns (mtproto.Bool) {}
 }

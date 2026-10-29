@@ -1431,3 +1431,17 @@ func (s *Service) UserResetTopPeerRating(ctx context.Context, request *user.TLUs
 
 	return r, err
 }
+
+// UserNewAuthorization
+// user.newAuthorization user_id:long except_auth_key_id:long update:Update = Bool;
+func (s *Service) UserNewAuthorization(ctx context.Context, request *user.TLUserNewAuthorization) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.newAuthorization - metadata: {%s}", c.MD)
+
+	r, err := c.UserNewAuthorization(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

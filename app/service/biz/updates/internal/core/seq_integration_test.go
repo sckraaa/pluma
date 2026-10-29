@@ -30,6 +30,13 @@ func seqState(t *testing.T, userId int64, pts, seq int32) {
 // (the seq as mute_until, to tell them apart) at pts, written at date.
 func seqRow(t *testing.T, userId int64, seq, pts int32, date int64) {
 	t.Helper()
+	seqRowExcept(t, userId, seq, pts, date, 0)
+}
+
+// seqRowExcept is seqRow for a row that the authorization on the permanent
+// key except must not get (ADR 0022).
+func seqRowExcept(t *testing.T, userId int64, seq, pts int32, date, except int64) {
+	t.Helper()
 	u := mtproto.MakeTLUpdateNotifySettings(&mtproto.Update{
 		Peer_NOTIFYPEER: mtproto.MakeTLNotifyPeer(&mtproto.NotifyPeer{Peer: mtproto.MakePeerUser(int64(100 + seq))}).To_NotifyPeer(),
 		NotifySettings:  mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{MuteUntil: mtproto.MakeFlagsInt32(seq)}).To_PeerNotifySettings(),
@@ -38,8 +45,8 @@ func seqRow(t *testing.T, userId int64, seq, pts int32, date int64) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = itRaw.Exec("INSERT INTO user_seq_updates (user_id, seq, pts, update_type, update_data, date2) VALUES (?, ?, ?, ?, ?, ?)",
-		userId, seq, pts, u.PredicateName, string(data), date); err != nil {
+	if _, err = itRaw.Exec("INSERT INTO user_seq_updates (user_id, seq, pts, update_type, update_data, except_auth_key_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		userId, seq, pts, u.PredicateName, string(data), except, date); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -129,6 +136,22 @@ func TestDifferenceSeq(t *testing.T) {
 		other := &updates.TLUpdatesGetDifferenceV2{AuthKeyId: key + 1, UserId: u, Pts: userbox.BasePts, Date: 990}
 		if d := differenceWith(t, other); seqOf(d) != "s3" {
 			t.Errorf("another key: %q", seqOf(d))
+		}
+	})
+	t.Run("an update one authorization must not get", func(t *testing.T) {
+		// A login on key, told to the other sessions (task 019, ADR 0022):
+		// the new session skips it but still reaches the state's seq.
+		u := newUser()
+		seqState(t, u, userbox.BasePts, 3)
+		seqRow(t, u, 2, userbox.BasePts, 1000)
+		seqRowExcept(t, u, 3, userbox.BasePts, 1000, key)
+		d := differenceWith(t, &updates.TLUpdatesGetDifferenceV2{AuthKeyId: key, UserId: u, Pts: userbox.BasePts, Date: 990})
+		if d.GetPredicateName() != updates.Predicate_difference || seqOf(d) != "s2" || d.GetState().GetSeq() != 3 {
+			t.Fatalf("the new session: %s %q, state %v", d.GetPredicateName(), seqOf(d), d.GetState())
+		}
+		d = differenceWith(t, &updates.TLUpdatesGetDifferenceV2{AuthKeyId: key + 1, UserId: u, Pts: userbox.BasePts, Date: 990})
+		if seqOf(d) != "s2 s3" || d.GetState().GetSeq() != 3 {
+			t.Fatalf("another session: %q, state %v", seqOf(d), d.GetState())
 		}
 	})
 	t.Run("date INT32_MAX asks for pts only", func(t *testing.T) {

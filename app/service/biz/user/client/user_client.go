@@ -124,6 +124,7 @@ type UserClient interface {
 	UserGetTopPeers(ctx context.Context, in *user.TLUserGetTopPeers) (*mtproto.Contacts_TopPeers, error)
 	UserToggleTopPeers(ctx context.Context, in *user.TLUserToggleTopPeers) (*mtproto.Bool, error)
 	UserResetTopPeerRating(ctx context.Context, in *user.TLUserResetTopPeerRating) (*mtproto.Bool, error)
+	UserNewAuthorization(ctx context.Context, in *user.TLUserNewAuthorization) (*mtproto.Bool, error)
 }
 
 type defaultUserClient struct {
@@ -1245,4 +1246,15 @@ func (m *defaultUserClient) UserResetTopPeerRating(ctx context.Context, in *user
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserResetTopPeerRating(ctx, in)
+}
+
+// UserNewAuthorization
+// user.newAuthorization user_id:long except_auth_key_id:long update:Update = Bool;
+func (m *defaultUserClient) UserNewAuthorization(ctx context.Context, in *user.TLUserNewAuthorization) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserNewAuthorization(ctx, in)
 }

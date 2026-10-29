@@ -591,6 +591,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -476871816,
 		}
 	},
+	1324746836: func() mtproto.TLObject { // 0x4ef60854 pluma: task 019
+		return &TLUserNewAuthorization{
+			Constructor: 1324746836,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -6382,6 +6387,52 @@ func (m *TLUserResetTopPeerRating) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.PeerType = dBuf.Int()
 		m.PeerId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserNewAuthorization (pluma: task 019)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserNewAuthorization) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x4ef60854:
+		x.UInt(0x4ef60854)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetExceptAuthKeyId())
+		m.GetUpdate().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserNewAuthorization) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserNewAuthorization) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x4ef60854:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ExceptAuthKeyId = dBuf.Long()
+
+		m3 := &mtproto.Update{}
+		m3.Decode(dBuf)
+		m.Update = m3
+
 		return dBuf.GetError()
 
 	default:

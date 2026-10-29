@@ -35,19 +35,35 @@ import (
 // u must be an update with seq (userbox.Box.AddSeqUpdate); another one
 // rolls the transaction back.
 func EmitSeqUpdate(b *userbox.Box, topic string, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
-	seq := b.AddSeqUpdate(u)
+	return EmitSeqUpdateExcept(b, topic, u, users, chats, 0)
+}
+
+// EmitSeqUpdateExcept is EmitSeqUpdate for an update that the authorization
+// on the permanent key exceptAuthKeyId must not get (ADR 0022): it is
+// journaled for the other authorizations only and pushed to the other
+// devices; 0 is EmitSeqUpdate.
+func EmitSeqUpdateExcept(b *userbox.Box, topic string, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat, exceptAuthKeyId int64) error {
+	seq := b.AddSeqUpdateExcept(u, exceptAuthKeyId)
 	if seq == 0 {
 		return nil // the misuse rolls the transaction back
 	}
-	in := &sync.TLSyncPushUpdates{
-		UserId: b.UserId(),
-		Updates: mtproto.MakeTLUpdates(&mtproto.Updates{
-			Updates: []*mtproto.Update{u},
-			Users:   users,
-			Chats:   chats,
-			Date:    int32(b.Date()),
-			Seq:     seq,
-		}).To_Updates(),
+	updates := mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{u},
+		Users:   users,
+		Chats:   chats,
+		Date:    int32(b.Date()),
+		Seq:     seq,
+	}).To_Updates()
+	var in proto.Message = &sync.TLSyncPushUpdates{
+		UserId:  b.UserId(),
+		Updates: updates,
+	}
+	if exceptAuthKeyId != 0 {
+		in = &sync.TLSyncUpdatesNotMe{
+			UserId:        b.UserId(),
+			PermAuthKeyId: exceptAuthKeyId,
+			Updates:       updates,
+		}
 	}
 	data, err := jsonx.Marshal(in)
 	if err != nil {
