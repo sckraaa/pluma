@@ -202,7 +202,7 @@
 | `auth.checkRecoveryPassword` | ok |  | app/bff/authorization/internal/core/auth.checkRecoveryPassword_handler.go:30 |
 | `auth.dropTempAuthKeys` | ok |  | app/bff/authorization/internal/core/auth.dropTempAuthKeys_handler.go:32 |
 | `auth.exportAuthorization` | ok |  | app/bff/authorization/internal/core/auth.exportAuthorization_handler.go:30 |
-| `auth.exportLoginToken` | ok |  | app/bff/qrcode/internal/core/auth.exportLoginToken_handler.go:37 |
+| `auth.exportLoginToken` | ok |  | app/bff/qrcode/internal/core/auth.exportLoginToken_handler.go:36 |
 | `auth.finishPasskeyLogin` | blocked |  | app/bff/passkey/internal/core/auth.finishPasskeyLogin_handler.go:27 |
 | `auth.importAuthorization` | ok |  | app/bff/authorization/internal/core/auth.importAuthorization_handler.go:29 |
 | `auth.importBotAuthorization` | blocked |  | app/bff/authorization/internal/core/auth.importBotAuthorization_handler.go:27 |
