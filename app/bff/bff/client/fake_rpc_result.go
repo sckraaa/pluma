@@ -49,16 +49,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Datas: []*mtproto.LangPackString{},
 		}, nil
 
-	// webpage
-	case "TLMessagesGetWebPage":
-		return mtproto.MakeTLWebPageEmpty(&mtproto.WebPage{
-			Id: 0,
-		}).To_WebPage(), nil
-	case "TLMessagesGetWebPageView":
-		return mtproto.MakeTLMessageMediaEmpty(&mtproto.MessageMedia{
-			//
-		}).To_MessageMedia(), nil
-
 	// wallpaper
 	case "TLAccountGetWallPapers":
 		return mtproto.MakeTLAccountWallPapers(&mtproto.Account_WallPapers{
@@ -194,8 +184,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 	case "TLAccountReportProfilePhoto":
 		return mtproto.BoolTrue, nil
 	case "TLChannelsReportSpam":
-		return mtproto.BoolTrue, nil
-	case "TLMessagesReport":
 		return mtproto.BoolTrue, nil
 	case "TLMessagesReportSpam":
 		return mtproto.BoolTrue, nil
