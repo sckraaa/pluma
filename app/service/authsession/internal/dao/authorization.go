@@ -23,6 +23,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/oschwald/geoip2-golang"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/dal/dataobject"
@@ -31,30 +32,48 @@ import (
 	"github.com/zeromicro/go-zero/core/mr"
 )
 
-func (d *Dao) getCountryAndRegionByIp(ip string) (string, string) {
+// placeByIp is the place of a session: authorization.country in
+// account.getAuthorizations, and from there the location of
+// updateNewAuthorization and of the New login message.
+//
+// authorization.region stays empty. Web K and Web A show a session's place
+// as region and country joined by ", " (tweb 346844bf
+// src/components/sidebarLeft/tabs/session.tsx:28 and
+// src/lib/appManagers/appAccountManager.ts:240; telegram-tt 6002824b
+// src/components/left/settings/SettingsActiveSession.tsx:152-154), and the
+// country here already names the city: with the country's ISO code as the
+// region they showed a session in Prague as "CZ, Prague, Czechia". Android,
+// iOS and Desktop read the country alone (DrKLO/Telegram aac1efcb
+// ui/Cells/SessionCell.java:239-240 and ui/SessionBottomSheet.java:124-126;
+// Telegram-iOS 6ad963e5 ItemListRecentSessionItem.swift:171-175; tdesktop
+// a1e89e1f api/api_authorizations.cpp:62, 81). What Telegram sends as region
+// is not verified.
+func (d *Dao) placeByIp(ip string) string {
 	// Without a database (openGeoIP said why at start), or for a session
 	// whose address is not known, there is no place.
 	addr := net.ParseIP(ip)
 	if d.MMDB == nil || addr == nil {
-		return "UNKNOWN", ""
-	} else {
-		r, err := d.MMDB.City(addr)
-		if err != nil {
-			logx.Errorf("getCountryAndRegionByIp - error: %v", err)
-			return "UNKNOWN", ""
-		}
-
-		// "City, Country", or the country alone, as Telegram writes the
-		// place of a login (task 019).
-		city, country := r.City.Names["en"], r.Country.Names["en"]
-		switch {
-		case city != "" && country != "":
-			return city + ", " + country, r.Country.IsoCode
-		case country != "":
-			return country, r.Country.IsoCode
-		}
-		return "UNKNOWN", r.Country.IsoCode
+		return "UNKNOWN"
 	}
+	r, err := d.MMDB.City(addr)
+	if err != nil {
+		logx.Errorf("placeByIp - error: %v", err)
+		return "UNKNOWN"
+	}
+	return placeOf(r)
+}
+
+// placeOf is "City, Country", or the country alone, as Telegram writes the
+// place of a login (task 019).
+func placeOf(r *geoip2.City) string {
+	city, country := r.City.Names["en"], r.Country.Names["en"]
+	switch {
+	case city != "" && country != "":
+		return city + ", " + country
+	case country != "":
+		return country
+	}
+	return "UNKNOWN"
 }
 
 //func getAppNameByAppId(appId int32) string {
@@ -67,7 +86,7 @@ func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.A
 		return nil, err
 	}
 
-	country, region := d.getCountryAndRegionByIp(cData.ClientIp())
+	country := d.placeByIp(cData.ClientIp())
 
 	return mtproto.MakeTLAuthorization(&mtproto.Authorization{
 		Current:         false,
@@ -84,7 +103,6 @@ func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.A
 		DateActive:      0,
 		Ip:              cData.ClientIp(),
 		Country:         country,
-		Region:          region,
 	}).To_Authorization(), nil
 }
 
@@ -112,7 +130,7 @@ func (d *Dao) GetAuthorizations(ctx context.Context, userId int64, excludeAuthKe
 			//kId := item.(int64)
 			cData, _ := d.GetCacheAuthData(ctx, idx.id)
 			if cData != nil {
-				country, region := d.getCountryAndRegionByIp(cData.ClientIp())
+				country := d.placeByIp(cData.ClientIp())
 				authorization := mtproto.MakeTLAuthorization(&mtproto.Authorization{
 					Current:         false,
 					OfficialApp:     true,
@@ -128,7 +146,6 @@ func (d *Dao) GetAuthorizations(ctx context.Context, userId int64, excludeAuthKe
 					DateActive:      int32(cData.DateActivated()),
 					Ip:              cData.ClientIp(),
 					Country:         country,
-					Region:          region,
 					// pluma: task 019
 					Unconfirmed:               cData.Unconfirmed(now),
 					EncryptedRequestsDisabled: cData.EncryptedRequestsDisabled(),
