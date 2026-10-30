@@ -84,11 +84,6 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 	outMessage.EditDate = &wrapperspb.Int32Value{Value: int32(time.Now().Unix())}
 	outMessage.EditHide = false
 
-	// entities
-	if in.Entities != nil {
-		outMessage.Entities = in.Entities
-	}
-
 	// reply_markup
 	if in.ReplyMarkup != nil {
 		outMessage.ReplyMarkup = in.ReplyMarkup
@@ -111,7 +106,6 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 			return nil, err
 		}
 		outMessage.Message = in.Message.Value
-		outMessage.Entities = nil
 		//outMessage, _ = c.fixMessageEntities(c.MD.UserId, peer, in.NoWebpage, outMessage, func() bool {
 		//	hasBot := c.MD.IsBot
 		//	if !hasBot {
@@ -124,6 +118,8 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 		//	return hasBot
 		//})
 	}
+
+	outMessage.Entities = editedEntities(outMessage.Entities, in)
 
 	rUpdates, err := c.svcCtx.Dao.MsgClient.MsgEditMessageV2(c.ctx, &msgpb.TLMsgEditMessageV2{
 		UserId:    c.MD.UserId,
@@ -146,4 +142,30 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 	}
 
 	return rUpdates, nil
+}
+
+// editedEntities is what the entities of an edited message start from;
+// msg then adds the automatic ones, links, @usernames, #hashtags and bot
+// commands (plugin.RemakeMessage), as for a new message.
+//   - A new text comes with the client's own entities for it, as Android
+//     sends them (DrKLO/Telegram aac1efcb messenger/SendMessagesHelper.java:
+//     3371-3386). No entities mean plain text. Dropping them lost every
+//     bold, italic, spoiler and text link of an edited message.
+//   - Entities alone restyle the text the message has.
+//   - An edit that keeps the text, such as a new photo, keeps its entities
+//     without the automatic ones, which msg makes again.
+func editedEntities(old []*mtproto.MessageEntity, in *mtproto.TLMessagesEditMessage) []*mtproto.MessageEntity {
+	if in.Message != nil || in.Entities != nil {
+		return in.Entities
+	}
+	kept := make([]*mtproto.MessageEntity, 0, len(old))
+	for _, e := range old {
+		switch e.GetPredicateName() {
+		case mtproto.Predicate_messageEntityUrl, mtproto.Predicate_messageEntityMention,
+			mtproto.Predicate_messageEntityHashtag, mtproto.Predicate_messageEntityBotCommand:
+			continue
+		}
+		kept = append(kept, e)
+	}
+	return kept
 }
