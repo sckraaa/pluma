@@ -80,6 +80,17 @@ func placeOf(r *geoip2.City) string {
 //	return "tdesktop"
 //}
 
+// The address of a session stays out of its authorization: authorization.ip
+// is empty, as Telegram sends it. Its official clients showed no address in
+// any session (owner's check, 2026-10-30). iOS never shows one
+// (Telegram-iOS 6ad963e5
+// submodules/SettingsUI/Sources/Privacy and Security/RecentSessionScreen.swift:438),
+// Android, Desktop and Web K show it only when it is not empty
+// (DrKLO/Telegram aac1efcb ui/SessionBottomSheet.java:154; tdesktop
+// a1e89e1f settings/sections/settings_active_sessions.cpp:1328; tweb
+// 346844bf src/components/sidebarLeft/tabs/activeSessions.tsx:322). The
+// place is still found by the address (placeByIp).
+
 func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.Authorization, error) {
 	cData, err := d.GetCacheAuthData(ctx, authKeyId)
 	if err != nil {
@@ -101,7 +112,6 @@ func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.A
 		AppVersion:      cData.AppVersion(),
 		DateCreated:     0,
 		DateActive:      0,
-		Ip:              cData.ClientIp(),
 		Country:         country,
 	}).To_Authorization(), nil
 }
@@ -144,7 +154,6 @@ func (d *Dao) GetAuthorizations(ctx context.Context, userId int64, excludeAuthKe
 					AppVersion:      cData.AppVersion(),
 					DateCreated:     int32(cData.DateCreated()),
 					DateActive:      int32(cData.DateActivated()),
-					Ip:              cData.ClientIp(),
 					Country:         country,
 					// pluma: task 019
 					Unconfirmed:               cData.Unconfirmed(now),

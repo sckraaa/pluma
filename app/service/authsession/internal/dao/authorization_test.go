@@ -60,6 +60,10 @@ func TestGetAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The place is found by the address, which is not shown.
+	if a.GetIp() != "" {
+		t.Errorf("ip %q, want none", a.GetIp())
+	}
 	// The place names the city; no region repeats it, Web K shows the two
 	// joined.
 	if a.GetCountry() != "Prague, Czechia" || a.GetRegion() != "" {
