@@ -318,6 +318,26 @@ services:
     networks:
       - teamgram_net
 
+  # The GeoIP database of authsession: MaxMind GeoLite City, which MaxMind
+  # releases on Tuesdays and Fridays. geoipupdate checks every 12 hours and
+  # renames a new release into ./geoip, where authsession takes it up within
+  # 10 minutes without a restart (docs/ops/deployment.md, "GeoIP"). The GeoLite
+  # EULA wants a release replaced within 30 days of a new one. A check that
+  # finds nothing new does not count against the 30 downloads a day.
+  geoipupdate:
+    image: ghcr.io/maxmind/geoipupdate:v8.0.0@sha256:51e70dd6f16cd3e4d845ac02d09940b10772a75b9d741427d235a78570923c1d
+    container_name: geoipupdate
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${MAXMIND_ACCOUNT_ID:?set MAXMIND_ACCOUNT_ID in .env (MaxMind account, GeoLite)}
+      GEOIPUPDATE_LICENSE_KEY: ${MAXMIND_LICENSE_KEY:?set MAXMIND_LICENSE_KEY in .env (MaxMind license key)}
+      GEOIPUPDATE_EDITION_IDS: GeoLite2-City
+      GEOIPUPDATE_FREQUENCY: "12"
+    volumes:
+      - ./geoip:/usr/share/GeoIP
+    restart: unless-stopped
+    networks:
+      - teamgram_net
+
   # Logs: Alloy reads the containers' stdout through the Docker API and
   # sends it to Loki (14 days). The services log JSON without keys, codes or
   # message text (tools/logaudit).

@@ -24,7 +24,7 @@ KV:
 # docs/ops/security-setup.md.
 AuthKeyEncryptionKey: "${AUTH_KEY_ENCRYPTION_KEY}"
 
-# The GeoIP database (DB-IP Lite City, MMDB): geoip/ at the root of the
+# The GeoIP database (MaxMind GeoLite City, MMDB): geoip/ at the root of the
 # repository. Without the file every place is UNKNOWN. See
-# docs/ops/deployment.md, "GeoIP (DB-IP Lite)".
-GeoIPDatabase: ../../../geoip/dbip-city-lite.mmdb
+# docs/ops/deployment.md, "GeoIP".
+GeoIPDatabase: ../../../geoip/GeoLite2-City.mmdb

@@ -61,6 +61,18 @@ groups:
         annotations:
           summary: "{{ $value | humanizePercentage }} of memory available"
 
+      # MaxMind releases GeoLite City twice a week, and the GeoLite EULA
+      # wants a release replaced within 30 days of a new one: an older
+      # database means geoipupdate cannot download (key, network) or
+      # authsession does not take the file up. Absent: no database at all.
+      - alert: GeoIPStale
+        expr: time() - geoip_database_build_timestamp_seconds > 10 * 24 * 3600 or absent(geoip_database_build_timestamp_seconds)
+        for: 1h
+        labels: {severity: warning}
+        annotations:
+          summary: "The GeoIP database is over 10 days old or missing"
+          description: "Places of sessions go stale or read UNKNOWN. docker logs geoipupdate; authsession log, geoip lines. docs/ops/deployment.md, GeoIP"
+
       - alert: BackupMissing
         expr: time() - backup_last_success_timestamp_seconds > 26 * 3600 or absent(backup_last_success_timestamp_seconds)
         for: 30m

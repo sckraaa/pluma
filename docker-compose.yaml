@@ -104,9 +104,10 @@ services:
       AUTH_KEY_ENCRYPTION_KEY: ${AUTH_KEY_ENCRYPTION_KEY:?set AUTH_KEY_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
     volumes:
       # The GeoIP database (teamgramd/etc2/authsession.yaml), never in git.
-      # The directory, not the file: an update renames a new file into it
-      # and restarts authsession (docs/ops/deployment.md, "GeoIP (DB-IP
-      # Lite)"). Without it every place is UNKNOWN.
+      # The directory, not the file: geoipupdate (docker-compose-env.yaml)
+      # renames each new release into it, and authsession takes it up
+      # without a restart (docs/ops/deployment.md, "GeoIP"). Without it
+      # every place is UNKNOWN.
       - ./geoip:/app/geoip:ro
     stop_grace_period: 15s
     depends_on:

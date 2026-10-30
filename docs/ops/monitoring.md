@@ -37,6 +37,7 @@
 | `DiskSpaceLow`, `DiskSpaceCritical` | `docker system df`, `du -sh /var/lib/docker/volumes/*`; при полном диске MySQL и Kafka останавливаются |
 | `MemoryLow` | `docker stats`; самые большие — MySQL и Kafka |
 | `BackupMissing`, `RestoreCheckFailed` | `docs/ops/backup.md` |
+| `GeoIPStale` | база GeoIP старше 10 дней или её нет: `docker logs geoipupdate` (ключ MaxMind, сеть), строки `geoip` в логе authsession; `docs/ops/deployment.md`, раздел «GeoIP». При ошибке авторизации MaxMind исправить ключ или `docker stop geoipupdate`: иначе он перезапускается и обращается к MaxMind раз в минуту. Если GeoIP выключен намеренно (пустой `GeoIPDatabase`), алерт горит всегда — поставить Silence |
 | пуш от healthchecks.io «Pluma is down» | сервер, Prometheus или Alertmanager не работают: зайти на сервер; если он недоступен — у хостера |
 
 Алерты без срочности (warning) повторяются раз в 4 часа, critical — раз в час, пока не починено. На время плановых работ — Silence в Alertmanager.

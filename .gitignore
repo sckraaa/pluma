@@ -16,8 +16,8 @@ target/
 /.e2e/
 # check tools downloaded by make (shellcheck)
 /.tools/
-# the GeoIP database (DB-IP Lite City), downloaded on the server
-# (docs/ops/deployment.md, "GeoIP (DB-IP Lite)")
+# the GeoIP database (MaxMind GeoLite City), downloaded on the server
+# (docs/ops/deployment.md, "GeoIP")
 /geoip/
 
 #fixed file

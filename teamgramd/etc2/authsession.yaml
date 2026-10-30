@@ -41,9 +41,10 @@ KV:
 # docs/ops/security-setup.md.
 AuthKeyEncryptionKey: "${AUTH_KEY_ENCRYPTION_KEY}"
 
-# The GeoIP database (DB-IP Lite City, MMDB) that gives the place of a
+# The GeoIP database (MaxMind GeoLite City, MMDB) that gives the place of a
 # session in Devices and in the New login message. docker-compose.yaml mounts
-# the host's geoip directory here read-only. Without the file authsession
-# runs on, logs an error at start, and every place is UNKNOWN. See
-# docs/ops/deployment.md, "GeoIP (DB-IP Lite)".
-GeoIPDatabase: /app/geoip/dbip-city-lite.mmdb
+# the host's geoip directory here read-only; the geoipupdate service puts
+# each release there, and authsession takes it up without a restart. Without
+# the file authsession runs on, logs an error, and every place is UNKNOWN
+# until the file comes. See docs/ops/deployment.md, "GeoIP".
+GeoIPDatabase: /app/geoip/GeoLite2-City.mmdb
