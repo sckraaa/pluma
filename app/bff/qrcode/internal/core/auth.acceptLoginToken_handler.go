@@ -44,8 +44,7 @@ func (c *QrCodeCore) AuthAcceptLoginToken(in *mtproto.TLAuthAcceptLoginToken) (*
 	if c.MD.UserId == 0 {
 		return nil, mtproto.ErrAuthKeyUnregistered
 	}
-	// 8 + 16
-	if len(in.Token) != 24 {
+	if len(in.Token) != model.LoginTokenSize {
 		err := mtproto.ErrAuthTokenInvalid
 		c.Logger.Errorf("auth.acceptLoginToken - error: %v", err)
 		return nil, err

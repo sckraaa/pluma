@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/proto/mtproto/crypto"
 	"github.com/teamgram/teamgram-server/app/bff/qrcode/internal/model"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
@@ -51,7 +50,7 @@ func (c *QrCodeCore) AuthExportLoginToken(in *mtproto.TLAuthExportLoginToken) (*
 			ServerId:      c.MD.ServerId,
 			ApiId:         in.ApiId,
 			ApiHash:       in.ApiHash,
-			CodeHash:      crypto.GenerateStringNonce(16),
+			CodeHash:      model.NewCodeHash(),
 			ExpireAt:      time.Now().Unix() + qrCodeTimeout,
 			UserId:        0,
 			State:         model.QRCodeStateNew,
