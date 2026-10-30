@@ -33,8 +33,8 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
-// A photo sent to a chat is in its "Photos and videos": the recipient's
-// search counters and search find it. Android shows the media tab of a
+// Photos sent to a chat are in its "Photos and videos": the recipient's
+// search counters and search find them. Android shows the media tab of a
 // profile only when the photo and video counter is above 0
 // (DrKLO/Telegram ui/Components/SharedMediaLayout.java:6884), task 020.
 func TestSharedPhotos(t *testing.T) {
@@ -47,6 +47,52 @@ func TestSharedPhotos(t *testing.T) {
 	toBob := peerOf(ctx, t, alice, bob)
 	toAlice := peerOf(ctx, t, bob, alice)
 
+	sendPhoto(ctx, t, alice, toBob)
+	sendPhoto(ctx, t, alice, toBob)
+
+	// Bob's copy arrives with an inbox event after Alice's reply.
+	want := map[string]int32{
+		mtproto.Predicate_inputMessagesFilterPhotoVideo: 2,
+		mtproto.Predicate_inputMessagesFilterPhotos:     2,
+		mtproto.Predicate_inputMessagesFilterVideo:      0,
+	}
+	got := searchCounters(ctx, t, bob, toAlice)
+	for deadline := time.Now().Add(30 * time.Second); got[mtproto.Predicate_inputMessagesFilterPhotoVideo] < 2 && time.Now().Before(deadline); got = searchCounters(ctx, t, bob, toAlice) {
+		time.Sleep(200 * time.Millisecond)
+	}
+	if !maps.Equal(got, want) {
+		t.Errorf("messages.getSearchCounters %v, want %v", got, want)
+	}
+
+	o, err := bob.c.Invoke(ctx, &mtproto.TLMessagesSearch{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_search),
+		Peer:        toAlice,
+		Filter:      mtproto.MakeTLInputMessagesFilterPhotoVideo(nil).To_MessagesFilter(),
+		Limit:       1,
+	})
+	if err != nil {
+		t.Fatalf("messages.search: %v", err)
+	}
+	r, ok := o.(interface {
+		To_Messages_Messages() *mtproto.Messages_Messages
+	})
+	if !ok {
+		t.Fatalf("messages.search returned %T", o)
+	}
+	// A page of one of the two photos: a slice with the count of all, by
+	// which the media viewer pages.
+	page := r.To_Messages_Messages()
+	if page.GetPredicateName() != mtproto.Predicate_messages_messagesSlice || page.GetCount() != 2 || len(page.GetMessages()) != 1 {
+		t.Fatalf("messages.search for photos and videos: %s, count %d, %d messages", page.GetPredicateName(), page.GetCount(), len(page.GetMessages()))
+	}
+	if p := page.GetMessages()[0].GetMedia().GetPredicateName(); p != mtproto.Predicate_messageMediaPhoto {
+		t.Errorf("messages.search for photos and videos: media %s", p)
+	}
+}
+
+// sendPhoto uploads a small photo and sends it from u to peer.
+func sendPhoto(ctx context.Context, t *testing.T, u *user, peer *mtproto.InputPeer) {
+	t.Helper()
 	pic := image.NewRGBA(image.Rect(0, 0, 64, 48))
 	for x := range 64 {
 		for y := range 48 {
@@ -58,8 +104,8 @@ func TestSharedPhotos(t *testing.T) {
 		t.Fatal(err)
 	}
 	fileId := randomID()
-	if _, err := alice.c.Invoke(ctx, &mtproto.TLUploadSaveFilePart{
-		Constructor: alice.c.Constructor(mtproto.Predicate_upload_saveFilePart),
+	if _, err := u.c.Invoke(ctx, &mtproto.TLUploadSaveFilePart{
+		Constructor: u.c.Constructor(mtproto.Predicate_upload_saveFilePart),
 		FileId:      fileId,
 		FilePart:    0,
 		Bytes:       jpg.Bytes(),
@@ -67,52 +113,15 @@ func TestSharedPhotos(t *testing.T) {
 		t.Fatalf("upload.saveFilePart: %v", err)
 	}
 	sum := md5.Sum(jpg.Bytes())
-	if _, err := alice.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
-		Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendMedia),
-		Peer:        toBob,
+	if _, err := u.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
+		Constructor: u.c.Constructor(mtproto.Predicate_messages_sendMedia),
+		Peer:        peer,
 		Media: mtproto.MakeTLInputMediaUploadedPhoto(&mtproto.InputMedia{
 			File: mtproto.MakeTLInputFile(&mtproto.InputFile{Id_INT64: fileId, Parts: 1, Name: "photo.jpg", Md5Checksum: hex.EncodeToString(sum[:])}).To_InputFile(),
 		}).To_InputMedia(),
 		RandomId: randomID(),
 	}); err != nil {
 		t.Fatalf("messages.sendMedia: %v", err)
-	}
-
-	// Bob's copy arrives with an inbox event after Alice's reply.
-	want := map[string]int32{
-		mtproto.Predicate_inputMessagesFilterPhotoVideo: 1,
-		mtproto.Predicate_inputMessagesFilterPhotos:     1,
-		mtproto.Predicate_inputMessagesFilterVideo:      0,
-	}
-	got := searchCounters(ctx, t, bob, toAlice)
-	for deadline := time.Now().Add(30 * time.Second); got[mtproto.Predicate_inputMessagesFilterPhotoVideo] == 0 && time.Now().Before(deadline); got = searchCounters(ctx, t, bob, toAlice) {
-		time.Sleep(200 * time.Millisecond)
-	}
-	if !maps.Equal(got, want) {
-		t.Errorf("messages.getSearchCounters %v, want %v", got, want)
-	}
-
-	o, err := bob.c.Invoke(ctx, &mtproto.TLMessagesSearch{
-		Constructor: bob.c.Constructor(mtproto.Predicate_messages_search),
-		Peer:        toAlice,
-		Filter:      mtproto.MakeTLInputMessagesFilterPhotoVideo(nil).To_MessagesFilter(),
-		Limit:       10,
-	})
-	if err != nil {
-		t.Fatalf("messages.search: %v", err)
-	}
-	r, ok := o.(interface {
-		To_Messages_Messages() *mtproto.Messages_Messages
-	})
-	if !ok {
-		t.Fatalf("messages.search returned %T", o)
-	}
-	msgs := r.To_Messages_Messages().GetMessages()
-	if len(msgs) != 1 {
-		t.Fatalf("messages.search for photos and videos: %d messages, want 1", len(msgs))
-	}
-	if p := msgs[0].GetMedia().GetPredicateName(); p != mtproto.Predicate_messageMediaPhoto {
-		t.Errorf("messages.search for photos and videos: media %s", p)
 	}
 }
 

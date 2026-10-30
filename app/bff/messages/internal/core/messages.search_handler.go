@@ -312,6 +312,24 @@ func (c *MessagesCore) MessagesSearch(in *mtproto.TLMessagesSearch) (*mtproto.Me
 		return nil, err
 	}
 
+	// A page of a media list that is not all of it is messages.messagesSlice
+	// with the count of all: Android's media viewer shows "N of M" and
+	// pages by it (MediaDataController.processLoadedMedia, res.count).
+	if mType, ok := searchMediaType(filterType); ok {
+		n, err := c.svcCtx.Dao.MessageClient.MessageGetSearchCounter(c.ctx, &message.TLMessageGetSearchCounter{
+			UserId:    c.MD.UserId,
+			PeerType:  peer.PeerType,
+			PeerId:    peer.PeerId,
+			MediaType: mType,
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.search - error: %v", err)
+		} else if int(n.GetV()) > len(boxList.GetBoxList()) {
+			rValues.Count = n.GetV()
+			rValues.PredicateName = mtproto.Predicate_messages_messagesSlice
+		}
+	}
+
 	boxList.Visit(c.MD.UserId,
 		func(messageList []*mtproto.Message) {
 			rValues.Messages = messageList
@@ -335,4 +353,30 @@ func (c *MessagesCore) MessagesSearch(in *mtproto.TLMessagesSearch) (*mtproto.Me
 		})
 
 	return rValues, nil
+}
+
+// searchMediaType is the media type message.getSearchCounter counts for a
+// filter of the dialog's media lists.
+func searchMediaType(filter mtproto.MessagesFilterType) (int32, bool) {
+	switch filter {
+	case mtproto.FilterPhotos:
+		return mtproto.MEDIA_PHOTOS_ONLY, true
+	case mtproto.FilterVideo:
+		return mtproto.MEDIA_VIDEOS_ONLY, true
+	case mtproto.FilterPhotoVideo:
+		return mtproto.MEDIA_PHOTOVIDEO, true
+	case mtproto.FilterDocument:
+		return mtproto.MEDIA_FILE, true
+	case mtproto.FilterUrl:
+		return mtproto.MEDIA_URL, true
+	case mtproto.FilterGif:
+		return mtproto.MEDIA_GIF, true
+	case mtproto.FilterMusic:
+		return mtproto.MEDIA_MUSIC, true
+	case mtproto.FilterChatPhotos:
+		return mtproto.MEDIA_CHAT_PHOTO, true
+	case mtproto.FilterRoundVoice:
+		return mtproto.MEDIA_AUDIO, true
+	}
+	return 0, false
 }
