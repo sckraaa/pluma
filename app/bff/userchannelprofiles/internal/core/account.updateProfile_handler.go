@@ -52,22 +52,26 @@ func (c *UserChannelProfilesCore) AccountUpdateProfile(in *mtproto.TLAccountUpda
 	}
 
 	if in.GetAbout() != nil {
-		//// About长度 < 128 并且可以为 empty
-		if len(in.GetAbout().GetValue()) > 128 {
+		if aboutTooLong(in.GetAbout().GetValue(), me.Premium()) {
 			err = mtproto.ErrAboutTooLong
 			c.Logger.Errorf("account.updateProfile - error: %v", err)
 			return nil, err
 		}
 
 		if in.GetAbout().GetValue() != me.About() {
-			if _, err = c.svcCtx.Dao.UserClient.UserUpdateAbout(c.ctx, &userpb.TLUserUpdateAbout{
+			// biz answers false when the write failed.
+			saved, err := c.svcCtx.Dao.UserClient.UserUpdateAbout(c.ctx, &userpb.TLUserUpdateAbout{
 				UserId: c.MD.UserId,
 				About:  in.GetAbout().GetValue(),
-			}); err != nil {
-				c.Logger.Errorf("account.updateProfile - error: %v", err)
-			} else {
-				me.SetAbout(in.GetAbout().GetValue())
+			})
+			if err == nil && !mtproto.FromBool(saved) {
+				err = mtproto.ErrInternalServerError
 			}
+			if err != nil {
+				c.Logger.Errorf("account.updateProfile - error: %v", err)
+				return nil, err
+			}
+			me.SetAbout(in.GetAbout().GetValue())
 		}
 	}
 
