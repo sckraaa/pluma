@@ -140,4 +140,4 @@
     - `promtool check rules` прошёл в контейнере Prometheus;
     - `go build`, `go vet`, `go test` и `-race` authsession, `make lint`, `go test ./tools/...`, `pkg/conf`, `pkg/testinfra` — зелёные.
   - Независимое ревью кода и эксплуатации; его замечания учтены (повтор открытия, сброс состояния ошибки, тесты, порядок шагов перехода, бесполезный healthcheck образа, коммит geoipupdate).
-  - Не сделано: выкатка ждёт ключа в `.env` на сервере. Порядок: ключ → `geoipupdate` → образы → «Проверка» → удаление `dbip-city-lite.mmdb`.
+  - Выкачено 2026-10-30 (`78c643da`): ключ владельца в `.env`, `geoipupdate` скачал GeoLite City 2026-10-27 и спит до следующей проверки, authsession читает её, правило `GeoIPStale` загружено, `dbip-city-lite.mmdb` удалён с разрешения владельца. Места в клиентах владелец ещё не смотрел.
