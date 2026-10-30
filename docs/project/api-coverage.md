@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 157, partial 25, blocked 100, notimpl 7, missing 580 (ok = 18.1%); with a conformance scenario 9
+    layer 228: 869 methods — ok 159, partial 26, blocked 99, notimpl 7, missing 578 (ok = 18.3%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | missing | scenario |
 |---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 5 | 0 | 13 | 0 | 10 | 2 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 5 | 0 |
-| messages | 273 | 60 | 22 | 21 | 5 | 165 | 3 |
+| messages | 273 | 62 | 23 | 20 | 5 | 163 | 3 |
 | payments | 70 | 0 | 0 | 4 | 0 | 66 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 45 | 0 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 |
@@ -619,7 +619,7 @@
 | `messages.getRichMessage` | blocked |  | app/bff/messages/internal/core/messages.getRichMessage_handler.go:26 |
 | `messages.getSavedDialogs` | partial |  | app/bff/dialogs/internal/core/messages.getSavedDialogs_handler.go:32 |
 | `messages.getSavedDialogsByID` | blocked |  | app/bff/savedmessagedialogs/internal/core/messages.getSavedDialogsByID_handler.go:27 |
-| `messages.getSavedGifs` | missing |  |  |
+| `messages.getSavedGifs` | ok |  | app/bff/gifs/internal/core/messages.getSavedGifs_handler.go:29 |
 | `messages.getSavedHistory` | ok |  | app/bff/dialogs/internal/core/messages.getSavedHistory_handler.go:30 |
 | `messages.getSavedReactionTags` | missing |  |  |
 | `messages.getScheduledHistory` | missing |  |  |
@@ -655,7 +655,7 @@
 | `messages.readEncryptedHistory` | missing |  |  |
 | `messages.readFeaturedStickers` | missing |  |  |
 | `messages.readHistory` | ok |  | app/bff/messages/internal/core/messages.readHistory_handler.go:28 |
-| `messages.readMentions` | blocked |  | app/bff/messages/internal/core/messages.readMentions_handler.go:27 |
+| `messages.readMentions` | partial |  | app/bff/messages/internal/core/messages.readMentions_handler.go:33 |
 | `messages.readMessageContents` | ok |  | app/bff/messages/internal/core/messages.readMessageContents_handler.go:31 |
 | `messages.readPollVotes` | missing |  |  |
 | `messages.readReactions` | missing |  |  |
@@ -689,7 +689,7 @@
 | `messages.requestWebView` | missing |  |  |
 | `messages.saveDefaultSendAs` | blocked |  | app/bff/messages/internal/core/messages.saveDefaultSendAs_handler.go:27 |
 | `messages.saveDraft` | partial |  | app/bff/drafts/internal/core/messages.saveDraft_handler.go:33 |
-| `messages.saveGif` | missing |  |  |
+| `messages.saveGif` | ok |  | app/bff/gifs/internal/core/messages.saveGif_handler.go:31 |
 | `messages.savePreparedInlineMessage` | missing |  |  |
 | `messages.saveRecentSticker` | missing |  |  |
 | `messages.search` | partial |  | app/bff/messages/internal/core/messages.search_handler.go:32 |
