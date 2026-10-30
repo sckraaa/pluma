@@ -50,6 +50,7 @@ const (
 	TLConstructor_CRC32_msg_readHistoryV2          TLConstructor = 263827974
 	TLConstructor_CRC32_msg_updatePinnedMessage    TLConstructor = -441560663
 	TLConstructor_CRC32_msg_unpinAllMessages       TLConstructor = -1199153371
+	TLConstructor_CRC32_msg_readMentions           TLConstructor = -2049897703
 )
 
 // Enum value maps for TLConstructor.
@@ -70,6 +71,7 @@ var (
 		263827974:   "CRC32_msg_readHistoryV2",
 		-441560663:  "CRC32_msg_updatePinnedMessage",
 		-1199153371: "CRC32_msg_unpinAllMessages",
+		-2049897703: "CRC32_msg_readMentions",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                    0,
@@ -87,6 +89,7 @@ var (
 		"CRC32_msg_readHistoryV2":          263827974,
 		"CRC32_msg_updatePinnedMessage":    -441560663,
 		"CRC32_msg_unpinAllMessages":       -1199153371,
+		"CRC32_msg_readMentions":           -2049897703,
 	}
 )
 
@@ -1482,6 +1485,83 @@ func (x *TLMsgUnpinAllMessages) GetPeerId() int64 {
 	return 0
 }
 
+// --------------------------------------------------------------------------------------------
+type TLMsgReadMentions struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgReadMentions) Reset() {
+	*x = TLMsgReadMentions{}
+	mi := &file_msg_tl_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgReadMentions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgReadMentions) ProtoMessage() {}
+
+func (x *TLMsgReadMentions) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgReadMentions.ProtoReflect.Descriptor instead.
+func (*TLMsgReadMentions) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *TLMsgReadMentions) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgReadMentions) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgReadMentions) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgReadMentions) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgReadMentions) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
 var File_msg_tl_proto protoreflect.FileDescriptor
 
 const file_msg_tl_proto_rawDesc = "" +
@@ -1604,7 +1684,13 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
 	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
 	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
-	"\apeer_id\x18\x06 \x01(\x03R\x06peerId*\x95\x04\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\"\xba\x01\n" +
+	"\x13TL_msg_readMentions\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId*\xba\x04\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12\x14\n" +
 	"\fCRC32_sender\x10\xba\xc9\xe1\xd1\x05\x12\x1b\n" +
@@ -1620,7 +1706,8 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x1bCRC32_msg_deleteChatHistory\x10\xdb\xc5\xfd\xf8\xfe\xff\xff\xff\xff\x01\x12\x1e\n" +
 	"\x17CRC32_msg_readHistoryV2\x10\x86\xe4\xe6}\x12*\n" +
 	"\x1dCRC32_msg_updatePinnedMessage\x10\xa9\xa3\xb9\xad\xfe\xff\xff\xff\xff\x01\x12'\n" +
-	"\x1aCRC32_msg_unpinAllMessages\x10\xa5\xbe\x99\xc4\xfb\xff\xff\xff\xff\x012\x9b\a\n" +
+	"\x1aCRC32_msg_unpinAllMessages\x10\xa5\xbe\x99\xc4\xfb\xff\xff\xff\xff\x01\x12#\n" +
+	"\x16CRC32_msg_readMentions\x10\x99\x96Į\xf8\xff\xff\xff\xff\x012\xee\a\n" +
 	"\x06RPCMsg\x12C\n" +
 	"\x13msg_pushUserMessage\x12\x1b.msg.TL_msg_pushUserMessage\x1a\r.mtproto.Bool\"\x00\x12`\n" +
 	"\x17msg_readMessageContents\x12\x1f.msg.TL_msg_readMessageContents\x1a\".mtproto.messages_AffectedMessages\"\x00\x12B\n" +
@@ -1632,7 +1719,8 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x15msg_deleteChatHistory\x12\x1d.msg.TL_msg_deleteChatHistory\x1a\r.mtproto.Bool\"\x00\x12T\n" +
 	"\x11msg_readHistoryV2\x12\x19.msg.TL_msg_readHistoryV2\x1a\".mtproto.messages_AffectedMessages\"\x00\x12N\n" +
 	"\x17msg_updatePinnedMessage\x12\x1f.msg.TL_msg_updatePinnedMessage\x1a\x10.mtproto.Updates\"\x00\x12Y\n" +
-	"\x14msg_unpinAllMessages\x12\x1c.msg.TL_msg_unpinAllMessages\x1a!.mtproto.messages_AffectedHistory\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
+	"\x14msg_unpinAllMessages\x12\x1c.msg.TL_msg_unpinAllMessages\x1a!.mtproto.messages_AffectedHistory\"\x00\x12Q\n" +
+	"\x10msg_readMentions\x12\x18.msg.TL_msg_readMentions\x1a!.mtproto.messages_AffectedHistory\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
 
 var (
 	file_msg_tl_proto_rawDescOnce sync.Once
@@ -1647,7 +1735,7 @@ func file_msg_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_msg_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_msg_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                             // 0: msg.TLConstructor
 	(*ContentMessage)(nil),                         // 1: msg.ContentMessage
@@ -1667,21 +1755,22 @@ var file_msg_tl_proto_goTypes = []any{
 	(*TLMsgReadHistoryV2)(nil),                     // 15: msg.TL_msg_readHistoryV2
 	(*TLMsgUpdatePinnedMessage)(nil),               // 16: msg.TL_msg_updatePinnedMessage
 	(*TLMsgUnpinAllMessages)(nil),                  // 17: msg.TL_msg_unpinAllMessages
-	(*mtproto.Message)(nil),                        // 18: mtproto.Message
-	(*wrapperspb.Int32Value)(nil),                  // 19: google.protobuf.Int32Value
-	(*mtproto.MessageBox)(nil),                     // 20: mtproto.MessageBox
-	(*mtproto.Bool)(nil),                           // 21: mtproto.Bool
-	(*mtproto.Messages_AffectedMessages)(nil),      // 22: mtproto.messages_AffectedMessages
-	(*mtproto.Updates)(nil),                        // 23: mtproto.Updates
-	(*mtproto.Messages_AffectedHistory)(nil),       // 24: mtproto.messages_AffectedHistory
-	(*mtproto.Messages_AffectedFoundMessages)(nil), // 25: mtproto.messages_AffectedFoundMessages
+	(*TLMsgReadMentions)(nil),                      // 18: msg.TL_msg_readMentions
+	(*mtproto.Message)(nil),                        // 19: mtproto.Message
+	(*wrapperspb.Int32Value)(nil),                  // 20: google.protobuf.Int32Value
+	(*mtproto.MessageBox)(nil),                     // 21: mtproto.MessageBox
+	(*mtproto.Bool)(nil),                           // 22: mtproto.Bool
+	(*mtproto.Messages_AffectedMessages)(nil),      // 23: mtproto.messages_AffectedMessages
+	(*mtproto.Updates)(nil),                        // 24: mtproto.Updates
+	(*mtproto.Messages_AffectedHistory)(nil),       // 25: mtproto.messages_AffectedHistory
+	(*mtproto.Messages_AffectedFoundMessages)(nil), // 26: mtproto.messages_AffectedFoundMessages
 }
 var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 0: msg.ContentMessage.constructor:type_name -> msg.TLConstructor
 	1,  // 1: msg.TL_contentMessage.data2:type_name -> msg.ContentMessage
 	0,  // 2: msg.OutboxMessage.constructor:type_name -> msg.TLConstructor
-	18, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
-	19, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
+	19, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
+	20, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
 	3,  // 5: msg.TL_outboxMessage.data2:type_name -> msg.OutboxMessage
 	0,  // 6: msg.Sender.constructor:type_name -> msg.TLConstructor
 	5,  // 7: msg.TL_sender.data2:type_name -> msg.Sender
@@ -1693,7 +1782,7 @@ var file_msg_tl_proto_depIdxs = []int32{
 	3,  // 13: msg.TL_msg_sendMessageV2.message:type_name -> msg.OutboxMessage
 	0,  // 14: msg.TL_msg_editMessageV2.constructor:type_name -> msg.TLConstructor
 	3,  // 15: msg.TL_msg_editMessageV2.new_message:type_name -> msg.OutboxMessage
-	20, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
+	21, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
 	0,  // 17: msg.TL_msg_deleteMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 18: msg.TL_msg_deleteHistory.constructor:type_name -> msg.TLConstructor
 	0,  // 19: msg.TL_msg_deletePhoneCallHistory.constructor:type_name -> msg.TLConstructor
@@ -1701,33 +1790,36 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 21: msg.TL_msg_readHistoryV2.constructor:type_name -> msg.TLConstructor
 	0,  // 22: msg.TL_msg_updatePinnedMessage.constructor:type_name -> msg.TLConstructor
 	0,  // 23: msg.TL_msg_unpinAllMessages.constructor:type_name -> msg.TLConstructor
-	7,  // 24: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
-	8,  // 25: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
-	9,  // 26: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
-	10, // 27: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
-	11, // 28: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
-	12, // 29: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
-	13, // 30: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
-	14, // 31: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
-	15, // 32: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
-	16, // 33: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
-	17, // 34: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
-	21, // 35: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
-	22, // 36: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
-	23, // 37: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
-	23, // 38: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
-	22, // 39: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	24, // 40: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
-	25, // 41: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
-	21, // 42: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
-	22, // 43: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
-	23, // 44: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
-	24, // 45: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
-	35, // [35:46] is the sub-list for method output_type
-	24, // [24:35] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	0,  // 24: msg.TL_msg_readMentions.constructor:type_name -> msg.TLConstructor
+	7,  // 25: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
+	8,  // 26: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
+	9,  // 27: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
+	10, // 28: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
+	11, // 29: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
+	12, // 30: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
+	13, // 31: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
+	14, // 32: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
+	15, // 33: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
+	16, // 34: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
+	17, // 35: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
+	18, // 36: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
+	22, // 37: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
+	23, // 38: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
+	24, // 39: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
+	24, // 40: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
+	23, // 41: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	25, // 42: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
+	26, // 43: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
+	22, // 44: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
+	23, // 45: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
+	24, // 46: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
+	25, // 47: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
+	25, // 48: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
+	37, // [37:49] is the sub-list for method output_type
+	25, // [25:37] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_msg_tl_proto_init() }
@@ -1741,7 +1833,7 @@ func file_msg_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_msg_tl_proto_rawDesc), len(file_msg_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

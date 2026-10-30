@@ -197,7 +197,9 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		if !message.MediaUnread {
 			message.MediaUnread = mtproto.CheckHasMediaUnread(message)
 		}
-		if message.Mentioned {
+		// The pin of the recipient's message mentions them without unread
+		// media; clients do not count it as an unread mention.
+		if message.Mentioned && message.MediaUnread {
 			mentions++
 		}
 		data, err := jsonx.Marshal(message)

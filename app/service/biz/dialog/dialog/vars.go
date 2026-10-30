@@ -15,7 +15,9 @@ import (
 )
 
 var (
-	dialogKeyPrefix = "dialog.1"
+	// The version goes up when the cached dialog rows change: .2 after the
+	// unread mention counters were recounted (task 020).
+	dialogKeyPrefix = "dialog.2"
 
 	cachePinnedDialogIdListPrefix       = "pinned_dialog_id_list.1"
 	cacheFolderPinnedDialogIdListPrefix = "folder_pinned_dialog_id_list.1"

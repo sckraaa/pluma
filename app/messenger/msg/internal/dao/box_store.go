@@ -413,7 +413,7 @@ func recountDialog(b *userbox.Box, c changedRows, deleted bool) error {
 	mentions, reactions := dlg.UnreadMentionsCount, dlg.UnreadReactionsCount
 	for _, r := range c.rows {
 		incoming := r.SenderUserId != b.UserId()
-		if incoming && r.Mentioned {
+		if incoming && r.Mentioned && r.MediaUnread {
 			mentions--
 		}
 		if r.ReactionUnread {

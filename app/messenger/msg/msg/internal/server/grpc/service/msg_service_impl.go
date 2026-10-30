@@ -171,3 +171,17 @@ func (s *Service) MsgUnpinAllMessages(ctx context.Context, request *msg.TLMsgUnp
 
 	return r, err
 }
+
+// MsgReadMentions
+// msg.readMentions user_id:long auth_key_id:long peer_type:int peer_id:long = messages.AffectedHistory;
+func (s *Service) MsgReadMentions(ctx context.Context, request *msg.TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.readMentions - metadata: {%s}", c.MD)
+
+	r, err := c.MsgReadMentions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

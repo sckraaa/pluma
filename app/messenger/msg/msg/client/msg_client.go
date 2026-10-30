@@ -34,6 +34,7 @@ type MsgClient interface {
 	MsgReadHistoryV2(ctx context.Context, in *msg.TLMsgReadHistoryV2) (*mtproto.Messages_AffectedMessages, error)
 	MsgUpdatePinnedMessage(ctx context.Context, in *msg.TLMsgUpdatePinnedMessage) (*mtproto.Updates, error)
 	MsgUnpinAllMessages(ctx context.Context, in *msg.TLMsgUnpinAllMessages) (*mtproto.Messages_AffectedHistory, error)
+	MsgReadMentions(ctx context.Context, in *msg.TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error)
 }
 
 type defaultMsgClient struct {
@@ -165,4 +166,15 @@ func (m *defaultMsgClient) MsgUnpinAllMessages(ctx context.Context, in *msg.TLMs
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgUnpinAllMessages(ctx, in)
+}
+
+// MsgReadMentions
+// msg.readMentions user_id:long auth_key_id:long peer_type:int peer_id:long = messages.AffectedHistory;
+func (m *defaultMsgClient) MsgReadMentions(ctx context.Context, in *msg.TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgReadMentions(ctx, in)
 }

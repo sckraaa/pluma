@@ -35,6 +35,7 @@ enum TLConstructor {
   CRC32_msg_readHistoryV2 = 263827974;
   CRC32_msg_updatePinnedMessage = -441560663;
   CRC32_msg_unpinAllMessages = -1199153371;
+  CRC32_msg_readMentions = -2049897703;
 }
 
 // ContentMessage <--
@@ -201,6 +202,15 @@ message TL_msg_unpinAllMessages {
 }
 
 //--------------------------------------------------------------------------------------------
+message TL_msg_readMentions {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -224,5 +234,7 @@ service RPCMsg {
   rpc msg_updatePinnedMessage(TL_msg_updatePinnedMessage)
       returns (mtproto.Updates) {}
   rpc msg_unpinAllMessages(TL_msg_unpinAllMessages)
+      returns (mtproto.messages_AffectedHistory) {}
+  rpc msg_readMentions(TL_msg_readMentions)
       returns (mtproto.messages_AffectedHistory) {}
 }

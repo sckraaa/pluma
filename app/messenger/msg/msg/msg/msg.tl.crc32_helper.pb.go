@@ -26,4 +26,5 @@ const (
 	CRC32_msg_readHistoryV2          TLConstructor = 263827974   // 0xfb9b206
 	CRC32_msg_updatePinnedMessage    TLConstructor = -441560663  // 0xe5ae51a9
 	CRC32_msg_unpinAllMessages       TLConstructor = -1199153371 // 0xb8865f25
+	CRC32_msg_readMentions           TLConstructor = -2049897703 // 0x85d10b19
 )

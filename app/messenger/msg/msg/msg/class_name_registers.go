@@ -25,6 +25,7 @@ const (
 	Predicate_msg_readHistoryV2          = "msg_readHistoryV2"
 	Predicate_msg_updatePinnedMessage    = "msg_updatePinnedMessage"
 	Predicate_msg_unpinAllMessages       = "msg_unpinAllMessages"
+	Predicate_msg_readMentions           = "msg_readMentions"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -84,6 +85,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1199153371, // 0xb8865f25
 
 	},
+	Predicate_msg_readMentions: {
+		0: -2049897703, // 0x85d10b19
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -101,6 +106,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	263827974:   Predicate_msg_readHistoryV2,          // 0xfb9b206
 	-441560663:  Predicate_msg_updatePinnedMessage,    // 0xe5ae51a9
 	-1199153371: Predicate_msg_unpinAllMessages,       // 0xb8865f25
+	-2049897703: Predicate_msg_readMentions,           // 0x85d10b19
 
 }
 

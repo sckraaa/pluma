@@ -20,13 +20,37 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 )
 
 // MessagesReadMentions
-// messages.readMentions#f0189d3 peer:InputPeer = messages.AffectedHistory;
+// messages.readMentions#36e5bf4d flags:# peer:InputPeer top_msg_id:flags.0?int = messages.AffectedHistory;
+//
+// msg reads a portion of the dialog's unread mentions; offset above 0 asks
+// the client to repeat the call (tdesktop menu_send.cpp
+// SetupUnreadMentionsMenu, tweb appMessagesManager.readMentions). top_msg_id
+// names a forum topic, and forums are supergroups.
 func (c *MessagesCore) MessagesReadMentions(in *mtproto.TLMessagesReadMentions) (*mtproto.Messages_AffectedHistory, error) {
-	// TODO: not impl
-	c.Logger.Errorf("messages.readMentions blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
+	switch peer.PeerType {
+	case mtproto.PEER_SELF, mtproto.PEER_USER, mtproto.PEER_CHAT:
+	case mtproto.PEER_CHANNEL:
+		c.Logger.Errorf("messages.readMentions blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		return nil, mtproto.ErrEnterpriseIsBlocked
+	default:
+		c.Logger.Errorf("messages.readMentions - error: invalid peer %v", in.Peer)
+		return nil, mtproto.ErrPeerIdInvalid
+	}
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	affected, err := c.svcCtx.Dao.MsgClient.MsgReadMentions(c.ctx, &msgpb.TLMsgReadMentions{
+		UserId:    c.MD.UserId,
+		AuthKeyId: c.MD.PermAuthKeyId,
+		PeerType:  peer.PeerType,
+		PeerId:    peer.PeerId,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.readMentions - error: %v", err)
+		return nil, err
+	}
+	return affected, nil
 }

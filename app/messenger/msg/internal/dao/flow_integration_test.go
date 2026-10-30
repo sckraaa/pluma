@@ -927,6 +927,103 @@ func TestReadInGroup(t *testing.T) {
 	}
 }
 
+// TestReadMentions: reading all mentions of a basic group goes in portions
+// of 1000, each journaled as one updateReadMessagesContents, and leaves no
+// unread mention and the counter at 0. The pin of the user's own message
+// mentions them without counting as unread, and a counter that went astray
+// is corrected.
+func TestReadMentions(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	a, b, c := newUser(), newUser(), newUser()
+	chat := newChat()
+	w.chats.members[chat] = []int64{a, b, c}
+
+	w.send(b, mtproto.PEER_CHAT, chat, "mine")
+	mine := alive(w.messages(a))[0]
+	if _, err := w.rpc.MsgUpdatePinnedMessage(ctx, &msg.TLMsgUpdatePinnedMessage{UserId: a, AuthKeyId: a * 10, PeerType: mtproto.PEER_CHAT, PeerId: chat, Id: mine.Id}); err != nil {
+		t.Fatal(err)
+	}
+	peer := mtproto.MakePeerChat(chat)
+	for range 21 {
+		list := make([]*msg.OutboxMessage, 50)
+		for i := range list {
+			m := textMessage(c, peer, "hey B")
+			m.Entities = []*mtproto.MessageEntity{mtproto.MakeTLMessageEntityMentionName(&mtproto.MessageEntity{Offset: 4, Length: 1, UserId_INT64: b}).To_MessageEntity()}
+			list[i] = outbox(m)
+		}
+		if _, err := w.rpc.MsgSendMessageV2(ctx, &msg.TLMsgSendMessageV2{UserId: c, AuthKeyId: c * 10, PeerType: mtproto.PEER_CHAT, PeerId: chat, Message: list}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w.pub.drain()
+
+	pin := alive(w.messages(b))[1]
+	if !pin.Mentioned || pin.MediaUnread {
+		t.Errorf("B's copy of the pin %+v", pin)
+	}
+	if n := w.dialog(b, mtproto.PEER_CHAT, chat).UnreadMentions; n != 1050 {
+		t.Errorf("B has %d unread mentions, want 1050", n)
+	}
+
+	var offsets, counts []int32
+	for {
+		r, err := w.rpc.MsgReadMentions(ctx, &msg.TLMsgReadMentions{UserId: b, AuthKeyId: b * 10, PeerType: mtproto.PEER_CHAT, PeerId: chat})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.GetPts() != w.state(b).Pts {
+			t.Errorf("call %d: pts %d, state %d", len(offsets), r.GetPts(), w.state(b).Pts)
+		}
+		offsets, counts = append(offsets, r.GetOffset()), append(counts, r.GetPtsCount())
+		if r.GetOffset() == 0 || len(offsets) > 5 {
+			break
+		}
+	}
+	if !slices.Equal(offsets, []int32{50, 0}) || !slices.Equal(counts, []int32{1000, 50}) {
+		t.Errorf("offsets %v, pts counts %v; want [50 0], [1000 50]", offsets, counts)
+	}
+	for _, m := range alive(w.messages(b)) {
+		if m.Sender == c && (m.Mentioned || m.MediaUnread) {
+			t.Fatalf("B's mention after reading %+v", m)
+		}
+	}
+	if n := w.dialog(b, mtproto.PEER_CHAT, chat).UnreadMentions; n != 0 {
+		t.Errorf("B has %d unread mentions after reading", n)
+	}
+	read := 0
+	for _, r := range w.journal(b) {
+		if r.Type != mtproto.PTS_UPDATE_READ_MESSAGE_CONENTS {
+			continue
+		}
+		if n := len(r.update(t).GetMessages()); int32(n) != r.PtsCount || n > 1000 {
+			t.Errorf("updateReadMessagesContents of %d messages with pts_count %d", n, r.PtsCount)
+		}
+		read += int(r.PtsCount)
+	}
+	if read != 1050 {
+		t.Errorf("%d messages journaled as read", read)
+	}
+
+	// Nothing left to read; a counter that went astray goes back to 0.
+	if _, err := w.check.Exec("UPDATE dialogs SET unread_mentions_count = 7 WHERE user_id = ? AND peer_type = ? AND peer_id = ?", b, mtproto.PEER_CHAT, chat); err != nil {
+		t.Fatal(err)
+	}
+	r, err := w.rpc.MsgReadMentions(ctx, &msg.TLMsgReadMentions{UserId: b, AuthKeyId: b * 10, PeerType: mtproto.PEER_CHAT, PeerId: chat})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.GetPtsCount() != 0 || r.GetOffset() != 0 || r.GetPts() != w.state(b).Pts {
+		t.Errorf("read with nothing left: %d/%d/%d", r.GetPts(), r.GetPtsCount(), r.GetOffset())
+	}
+	if n := w.dialog(b, mtproto.PEER_CHAT, chat).UnreadMentions; n != 0 {
+		t.Errorf("the counter that went astray is %d", n)
+	}
+	for _, u := range []int64{a, b, c} {
+		w.checkBox(u)
+	}
+}
+
 // TestFirstMessageInvalidatesDialogLists: a dialog created by a message
 // drops the cached dialog lists biz dialog serves.
 func TestFirstMessageInvalidatesDialogLists(t *testing.T) {

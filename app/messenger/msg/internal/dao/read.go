@@ -228,6 +228,53 @@ func (d *Dao) ReadMediaOutgoing(b *userbox.Box, dialogMessageIds []int64) (*mtpr
 	return update, nil
 }
 
+// unreadMention selects the incoming messages that are unread mentions of
+// the box owner (the argument): a mention with the unread media flag, as
+// clients count them (tdesktop HistoryItem::isUnreadMention).
+const unreadMention = "mentioned = 1 AND media_unread = 1 AND sender_user_id <> ?"
+
+// MentionsRead is a portion of reading all unread mentions of a dialog.
+type MentionsRead struct {
+	Contents *ReadContentsResult // nil when there was nothing to read
+	Left     int32               // unread mentions left
+}
+
+// ReadMentionsPortion reads up to a portion of the oldest unread mentions of
+// b's owner's dialog with peer (as the owner sees it), as ReadContents does,
+// and sets the dialog's unread mention counter to the mentions left, which
+// also corrects a counter that went astray.
+func (d *Dao) ReadMentionsPortion(b *userbox.Box, peerType int32, peerId int64) (*MentionsRead, error) {
+	peer := boxPeer{PeerType: peerType, PeerId: peerId}
+	did := peer.dialogId(b.UserId())
+	var ids []int32
+	if err := b.Tx().QueryRowsPartial(&ids,
+		"SELECT user_message_box_id FROM messages WHERE user_id = ? AND dialog_id1 = ? AND dialog_id2 = ? AND "+unreadMention+" AND deleted = 0 ORDER BY user_message_box_id LIMIT ?",
+		b.UserId(), did.A, did.B, b.UserId(), maxPortion+1); err != nil {
+		return nil, err
+	}
+	more := len(ids) > maxPortion
+	if more {
+		ids = ids[:maxPortion]
+	}
+	res := &MentionsRead{}
+	var err error
+	if len(ids) > 0 {
+		if res.Contents, err = d.ReadContents(b, ids); err != nil {
+			return nil, err
+		}
+	}
+	if more {
+		if res.Left, err = countMessages(b, "dialog_id1 = ? AND dialog_id2 = ? AND "+unreadMention, did.A, did.B, b.UserId()); err != nil {
+			return nil, err
+		}
+	}
+	dlg, err := dialogRow(b, peer)
+	if err != nil || dlg == nil || dlg.UnreadMentionsCount == res.Left {
+		return res, err
+	}
+	return res, updateDialog(b, peer, "unread_mentions_count = ?", res.Left)
+}
+
 func clearUnreadFlags(b *userbox.Box, ids []int32, set string) error {
 	args := make([]any, 0, len(ids)+1)
 	args = append(args, b.UserId())
