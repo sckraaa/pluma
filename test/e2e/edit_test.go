@@ -55,33 +55,36 @@ func TestEditKeepsFormatting(t *testing.T) {
 		t.Fatalf("messages.editMessage: %v", err)
 	}
 
-	o, err := bob.c.Invoke(ctx, &mtproto.TLMessagesGetHistory{
-		Constructor: bob.c.Constructor(mtproto.Predicate_messages_getHistory),
-		Peer:        toAlice,
-		Limit:       10,
-	})
-	if err != nil {
-		t.Fatalf("messages.getHistory: %v", err)
-	}
-	h, ok := o.(interface {
-		To_Messages_Messages() *mtproto.Messages_Messages
-	})
-	if !ok {
-		t.Fatalf("messages.getHistory returned %T", o)
-	}
-	for _, m := range h.To_Messages_Messages().GetMessages() {
-		if m.GetMessage() != text {
-			continue
+	// The recipient's copy is edited by an inbox event after the reply.
+	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
+		o, err := bob.c.Invoke(ctx, &mtproto.TLMessagesGetHistory{
+			Constructor: bob.c.Constructor(mtproto.Predicate_messages_getHistory),
+			Peer:        toAlice,
+			Limit:       10,
+		})
+		if err != nil {
+			t.Fatalf("messages.getHistory: %v", err)
 		}
-		count := map[string]int{}
-		for _, e := range m.GetEntities() {
-			count[e.GetPredicateName()]++
+		h, ok := o.(interface {
+			To_Messages_Messages() *mtproto.Messages_Messages
+		})
+		if !ok {
+			t.Fatalf("messages.getHistory returned %T", o)
 		}
-		if count[mtproto.Predicate_messageEntityBold] != 1 || count[mtproto.Predicate_messageEntityTextUrl] != 1 ||
-			count[mtproto.Predicate_messageEntityUrl] != 1 || len(m.GetEntities()) != 3 {
-			t.Fatalf("entities of the edited message: %v", count)
+		for _, m := range h.To_Messages_Messages().GetMessages() {
+			if m.GetMessage() != text {
+				continue
+			}
+			count := map[string]int{}
+			for _, e := range m.GetEntities() {
+				count[e.GetPredicateName()]++
+			}
+			if count[mtproto.Predicate_messageEntityBold] != 1 || count[mtproto.Predicate_messageEntityTextUrl] != 1 ||
+				count[mtproto.Predicate_messageEntityUrl] != 1 || len(m.GetEntities()) != 3 {
+				t.Fatalf("entities of the edited message: %v", count)
+			}
+			return
 		}
-		return
 	}
 	t.Fatal("the edited message is not in the recipient's history")
 }
