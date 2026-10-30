@@ -16,10 +16,21 @@ import (
 
 // MessageGetSearchCounter
 // message.getSearchCounter user_id:long peer_type:int peer_id:long media_type:int = Int32;
+//
+// Photos and videos are stored as types of their own; MEDIA_PHOTOVIDEO
+// counts the messages searchByMediaType lists for it.
 func (c *MessageCore) MessageGetSearchCounter(in *message.TLMessageGetSearchCounter) (*mtproto.Int32, error) {
 	var (
 		dialogId = mtproto.MakeDialogId(in.UserId, in.PeerType, in.PeerId)
 	)
+
+	if in.MediaType == mtproto.MEDIA_PHOTOVIDEO {
+		n, err := c.svcCtx.Dao.MessagesDAO.CountByPhotoVideoMediaType(c.ctx, in.UserId, dialogId.A, dialogId.B)
+		if err != nil {
+			return nil, err
+		}
+		return &mtproto.Int32{V: n}, nil
+	}
 
 	sz := c.svcCtx.Dao.CommonDAO.CalcSize(
 		c.ctx,

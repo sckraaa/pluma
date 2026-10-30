@@ -86,6 +86,10 @@ func (c *MessagesCore) MessagesGetSearchCounters(in *mtproto.TLMessagesGetSearch
 		switch fType {
 		case mtproto.FilterPhotoVideo:
 			mType = mtproto.MEDIA_PHOTOVIDEO
+		case mtproto.FilterPhotos:
+			mType = mtproto.MEDIA_PHOTOS_ONLY
+		case mtproto.FilterVideo:
+			mType = mtproto.MEDIA_VIDEOS_ONLY
 		case mtproto.FilterDocument:
 			mType = mtproto.MEDIA_FILE
 		case mtproto.FilterUrl:
@@ -99,18 +103,6 @@ func (c *MessagesCore) MessagesGetSearchCounters(in *mtproto.TLMessagesGetSearch
 		case mtproto.FilterChatPhotos:
 			mType = mtproto.MEDIA_CHAT_PHOTO
 		default:
-			/*
-				[
-				    {
-				        "predicate_name": "inputMessagesFilterPhotos",
-				        "constructor": "CRC32_inputMessagesFilterPhotos"
-				    },
-				    {
-				        "predicate_name": "inputMessagesFilterVideo",
-				        "constructor": "CRC32_inputMessagesFilterVideo"
-				    }
-				]
-			*/
 			counter := mtproto.MakeTLMessagesSearchCounter(&mtproto.Messages_SearchCounter{
 				Inexact: false,
 				Filter:  filter,

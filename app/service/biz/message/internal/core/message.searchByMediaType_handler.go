@@ -26,7 +26,7 @@ func (c *MessageCore) MessageSearchByMediaType(in *message.TLMessageSearchByMedi
 	case mtproto.MEDIA_PHONE_CALL:
 		boxList = c.searchByPhoneCall(in.UserId, in.Offset, in.Limit)
 	case mtproto.MEDIA_PHOTOVIDEO:
-		boxList = c.searchByPhotoVideoMediaType(in.UserId, in.PeerType, in.PeerId, in.MediaType, in.Offset, in.Limit)
+		boxList = c.searchByPhotoVideoMediaType(in.UserId, in.PeerType, in.PeerId, in.Offset, in.Limit)
 	default:
 		boxList = c.searchByMediaType(in.UserId, in.PeerType, in.PeerId, in.MediaType, in.Offset, in.Limit)
 	}
@@ -40,7 +40,6 @@ func (c *MessageCore) searchByPhotoVideoMediaType(
 	userId int64,
 	peerType int32,
 	peerId int64,
-	mediaType int32,
 	offset, limit int32) (boxList []*mtproto.MessageBox) {
 
 	var (
@@ -52,7 +51,6 @@ func (c *MessageCore) searchByPhotoVideoMediaType(
 		userId,
 		dialogId.A,
 		dialogId.B,
-		mediaType,
 		offset,
 		limit,
 		func(sz, i int, v *dataobject.MessagesDO) {
