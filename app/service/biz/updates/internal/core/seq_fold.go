@@ -29,8 +29,9 @@ import (
 //   - one notify peer's settings, one user's name or user, a privacy key,
 //     a peer's block or settings bar, a dialog's unread mark, the order of
 //     filters, a basic group's members, the group itself, its default
-//     rights, a peer's join requests: the last update of each, at its
-//     place in the journal (each a full state, ADR 0021);
+//     rights, a peer's join requests, the saved GIFs (reload them): the
+//     last update of each, at its place in the journal (each a full state,
+//     ADR 0021);
 //   - a filter: its last state at the place of its first update, so that
 //     it exists before a later order of filters names it;
 //   - updateDialogFilters (reload them all) drops every filter update
@@ -136,6 +137,8 @@ func seqKey(u *mtproto.Update) string {
 		return "join_requests:" + peerKey(u.GetPeer_PEER())
 	case mtproto.Predicate_updateNewAuthorization:
 		return "new_authorization:" + strconv.FormatInt(u.GetHash(), 10)
+	case mtproto.Predicate_updateSavedGifs:
+		return "saved_gifs"
 	}
 	return ""
 }

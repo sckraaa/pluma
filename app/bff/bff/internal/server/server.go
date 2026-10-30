@@ -34,6 +34,7 @@ import (
 	drafts_helper "github.com/teamgram/teamgram-server/app/bff/drafts"
 	files_helper "github.com/teamgram/teamgram-server/app/bff/files"
 	folders_helper "github.com/teamgram/teamgram-server/app/bff/folders"
+	gifs_helper "github.com/teamgram/teamgram-server/app/bff/gifs"
 	messages_helper "github.com/teamgram/teamgram-server/app/bff/messages"
 	miscellaneous_helper "github.com/teamgram/teamgram-server/app/bff/miscellaneous"
 	notification_helper "github.com/teamgram/teamgram-server/app/bff/notification"
@@ -245,6 +246,15 @@ func (s *Server) Initialize() error {
 		})
 		mtproto.RegisterRPCFoldersServer(grpcServer, folders)
 		mtproto.RegisterRPCFolderTagsServer(grpcServer, folders)
+
+		// gifs_helper: the saved GIFs.
+		mtproto.RegisterRPCGifsServer(
+			grpcServer,
+			gifs_helper.New(gifs_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				UserClient:    c.BizServiceClient,
+				MediaClient:   c.MediaClient,
+			}))
 
 		// drafts_helper
 		mtproto.RegisterRPCDraftsServer(

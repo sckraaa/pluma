@@ -135,6 +135,9 @@ enum TLConstructor {
   CRC32_user_resetTopPeerRating = -476871816;
   // pluma: task 019
   CRC32_user_newAuthorization = 1324746836;
+  // pluma: task 020
+  CRC32_user_getSavedGifIdList = -926163308;
+  CRC32_user_saveGif = 1026682920;
 }
 
 // BotInfoData <--
@@ -1031,6 +1034,24 @@ message TL_user_newAuthorization {
   mtproto.Update update = 5;
 }
 
+// pluma: user.getSavedGifIdList user_id:long = Vector<long>;
+// The ids of the saved GIFs of the user, the newest first (task 020).
+message TL_user_getSavedGifIdList {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+}
+
+// pluma: user.saveGif user_id:long id:long unsave:Bool = Bool;
+// Puts the GIF id at the top of the user's saved GIFs, or takes it off with
+// unsave, and pushes updateSavedGifs with seq to every authorization of the
+// user (task 020, ADR 0020).
+message TL_user_saveGif {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 id = 4;
+  mtproto.Bool unsave = 5;
+}
+
 //--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_LastSeenData {
@@ -1234,4 +1255,8 @@ service RPCUser {
   // pluma: task 019
   rpc user_newAuthorization(TL_user_newAuthorization)
       returns (mtproto.Bool) {}
+  // pluma: task 020
+  rpc user_getSavedGifIdList(TL_user_getSavedGifIdList)
+      returns (Vector_Long) {}
+  rpc user_saveGif(TL_user_saveGif) returns (mtproto.Bool) {}
 }

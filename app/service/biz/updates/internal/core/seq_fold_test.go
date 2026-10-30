@@ -166,6 +166,9 @@ func TestSeqFold(t *testing.T) {
 		{"names of other users: the last of each",
 			[]*mtproto.Update{userName(7, "Ann"), userName(8, "Bob"), userName(7, "Anna")},
 			"UserName(8:Bob) UserName(7:Anna)"},
+		{"saved GIFs: one reload, at the place of the last",
+			[]*mtproto.Update{mtproto.MakeTLUpdateSavedGifs(nil).To_Update(), userName(7, "Ann"), mtproto.MakeTLUpdateSavedGifs(nil).To_Update()},
+			"UserName(7:Ann) SavedGifs"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := describeSeq(foldSeq(c.updates...)); got != c.want {

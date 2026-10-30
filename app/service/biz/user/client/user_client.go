@@ -125,6 +125,8 @@ type UserClient interface {
 	UserToggleTopPeers(ctx context.Context, in *user.TLUserToggleTopPeers) (*mtproto.Bool, error)
 	UserResetTopPeerRating(ctx context.Context, in *user.TLUserResetTopPeerRating) (*mtproto.Bool, error)
 	UserNewAuthorization(ctx context.Context, in *user.TLUserNewAuthorization) (*mtproto.Bool, error)
+	UserGetSavedGifIdList(ctx context.Context, in *user.TLUserGetSavedGifIdList) (*user.Vector_Long, error)
+	UserSaveGif(ctx context.Context, in *user.TLUserSaveGif) (*mtproto.Bool, error)
 }
 
 type defaultUserClient struct {
@@ -1257,4 +1259,26 @@ func (m *defaultUserClient) UserNewAuthorization(ctx context.Context, in *user.T
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserNewAuthorization(ctx, in)
+}
+
+// UserGetSavedGifIdList
+// user.getSavedGifIdList user_id:long = Vector<long>;
+func (m *defaultUserClient) UserGetSavedGifIdList(ctx context.Context, in *user.TLUserGetSavedGifIdList) (*user.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserGetSavedGifIdList(ctx, in)
+}
+
+// UserSaveGif
+// user.saveGif user_id:long id:long unsave:Bool = Bool;
+func (m *defaultUserClient) UserSaveGif(ctx context.Context, in *user.TLUserSaveGif) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserSaveGif(ctx, in)
 }

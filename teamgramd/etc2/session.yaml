@@ -59,7 +59,7 @@ BFFProxyClients:
     "/mtproto.RPCMiscellaneous": "bff.bff"
     "/mtproto.RPCAuthorization": "bff.bff"
     #"/mtproto.RPCGdpr": "bff.bff"
-    #"/mtproto.RPCGifs": "bff.bff"
+    "/mtproto.RPCGifs": "bff.bff"
     #"/mtproto.RPCPromoData": "bff.bff"
     #"/mtproto.RPCTsf": "bff.bff"
     "/mtproto.RPCTwoFa": "bff.bff"

@@ -126,6 +126,10 @@ const (
 
 	// pluma: task 019
 	Predicate_user_newAuthorization = "user_newAuthorization"
+
+	// pluma: task 020
+	Predicate_user_getSavedGifIdList = "user_getSavedGifIdList"
+	Predicate_user_saveGif           = "user_saveGif"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -581,6 +585,14 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 1324746836, // 0x4ef60854
 
 	},
+	Predicate_user_getSavedGifIdList: { // pluma: task 020
+		0: -926163308, // 0xc8cbde94
+
+	},
+	Predicate_user_saveGif: { // pluma: task 020
+		0: 1026682920, // 0x3d31f028
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -697,6 +709,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1925363135:  Predicate_user_toggleTopPeers,                // 0x72c2b5bf
 	-476871816:  Predicate_user_resetTopPeerRating,            // 0xe3938378
 	1324746836:  Predicate_user_newAuthorization,              // 0x4ef60854 pluma: task 019
+	-926163308:  Predicate_user_getSavedGifIdList,             // 0xc8cbde94 pluma: task 020
+	1026682920:  Predicate_user_saveGif,                       // 0x3d31f028 pluma: task 020
 
 }
 

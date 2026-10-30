@@ -1445,3 +1445,31 @@ func (s *Service) UserNewAuthorization(ctx context.Context, request *user.TLUser
 
 	return r, err
 }
+
+// UserGetSavedGifIdList
+// user.getSavedGifIdList user_id:long = Vector<long>;
+func (s *Service) UserGetSavedGifIdList(ctx context.Context, request *user.TLUserGetSavedGifIdList) (*user.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.getSavedGifIdList - metadata: {%s}", c.MD)
+
+	r, err := c.UserGetSavedGifIdList(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserSaveGif
+// user.saveGif user_id:long id:long unsave:Bool = Bool;
+func (s *Service) UserSaveGif(ctx context.Context, request *user.TLUserSaveGif) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.saveGif - metadata: {%s}", c.MD)
+
+	r, err := c.UserSaveGif(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

@@ -131,6 +131,8 @@ const (
 	RPCUser_UserToggleTopPeers_FullMethodName                = "/user.RPCUser/user_toggleTopPeers"
 	RPCUser_UserResetTopPeerRating_FullMethodName            = "/user.RPCUser/user_resetTopPeerRating"
 	RPCUser_UserNewAuthorization_FullMethodName              = "/user.RPCUser/user_newAuthorization"
+	RPCUser_UserGetSavedGifIdList_FullMethodName             = "/user.RPCUser/user_getSavedGifIdList"
+	RPCUser_UserSaveGif_FullMethodName                       = "/user.RPCUser/user_saveGif"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -240,6 +242,9 @@ type RPCUserClient interface {
 	UserResetTopPeerRating(ctx context.Context, in *TLUserResetTopPeerRating, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 019
 	UserNewAuthorization(ctx context.Context, in *TLUserNewAuthorization, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 020
+	UserGetSavedGifIdList(ctx context.Context, in *TLUserGetSavedGifIdList, opts ...grpc.CallOption) (*Vector_Long, error)
+	UserSaveGif(ctx context.Context, in *TLUserSaveGif, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCUserClient struct {
@@ -1270,6 +1275,26 @@ func (c *rPCUserClient) UserNewAuthorization(ctx context.Context, in *TLUserNewA
 	return out, nil
 }
 
+func (c *rPCUserClient) UserGetSavedGifIdList(ctx context.Context, in *TLUserGetSavedGifIdList, opts ...grpc.CallOption) (*Vector_Long, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Long)
+	err := c.cc.Invoke(ctx, RPCUser_UserGetSavedGifIdList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserSaveGif(ctx context.Context, in *TLUserSaveGif, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserSaveGif_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1377,6 +1402,9 @@ type RPCUserServer interface {
 	UserResetTopPeerRating(context.Context, *TLUserResetTopPeerRating) (*mtproto.Bool, error)
 	// pluma: task 019
 	UserNewAuthorization(context.Context, *TLUserNewAuthorization) (*mtproto.Bool, error)
+	// pluma: task 020
+	UserGetSavedGifIdList(context.Context, *TLUserGetSavedGifIdList) (*Vector_Long, error)
+	UserSaveGif(context.Context, *TLUserSaveGif) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1691,6 +1719,12 @@ func (UnimplementedRPCUserServer) UserResetTopPeerRating(context.Context, *TLUse
 }
 func (UnimplementedRPCUserServer) UserNewAuthorization(context.Context, *TLUserNewAuthorization) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserNewAuthorization not implemented")
+}
+func (UnimplementedRPCUserServer) UserGetSavedGifIdList(context.Context, *TLUserGetSavedGifIdList) (*Vector_Long, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGetSavedGifIdList not implemented")
+}
+func (UnimplementedRPCUserServer) UserSaveGif(context.Context, *TLUserSaveGif) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserSaveGif not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -3548,6 +3582,42 @@ func _RPCUser_UserNewAuthorization_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserGetSavedGifIdList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserGetSavedGifIdList)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserGetSavedGifIdList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserGetSavedGifIdList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserGetSavedGifIdList(ctx, req.(*TLUserGetSavedGifIdList))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserSaveGif_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserSaveGif)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserSaveGif(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserSaveGif_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserSaveGif(ctx, req.(*TLUserSaveGif))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3962,6 +4032,14 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_newAuthorization",
 			Handler:    _RPCUser_UserNewAuthorization_Handler,
+		},
+		{
+			MethodName: "user_getSavedGifIdList",
+			Handler:    _RPCUser_UserGetSavedGifIdList_Handler,
+		},
+		{
+			MethodName: "user_saveGif",
+			Handler:    _RPCUser_UserSaveGif_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

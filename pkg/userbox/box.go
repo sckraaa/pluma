@@ -269,7 +269,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateChat,
 		mtproto.Predicate_updateChatDefaultBannedRights,
 		mtproto.Predicate_updatePendingJoinRequests,
-		mtproto.Predicate_updateNewAuthorization:
+		mtproto.Predicate_updateNewAuthorization,
+		mtproto.Predicate_updateSavedGifs:
 		return true
 	}
 	return false

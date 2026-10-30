@@ -158,15 +158,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Reactions: []*mtproto.AvailableReaction{},
 		}).To_Messages_AvailableReactions(), nil
 
-	// gifs
-	case "TLMessagesGetSavedGifs":
-		return mtproto.MakeTLMessagesSavedGifs(&mtproto.Messages_SavedGifs{
-			Hash: 0,
-			Gifs: []*mtproto.Document{},
-		}).To_Messages_SavedGifs(), nil
-	case "TLMessagesSaveGif":
-		return mtproto.BoolTrue, nil
-
 	// promodata
 	case "TLHelpGetPromoData":
 		return mtproto.MakeTLHelpPromoDataEmpty(&mtproto.Help_PromoData{

@@ -596,6 +596,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 1324746836,
 		}
 	},
+	-926163308: func() mtproto.TLObject { // 0xc8cbde94 pluma: task 020
+		return &TLUserGetSavedGifIdList{
+			Constructor: -926163308,
+		}
+	},
+	1026682920: func() mtproto.TLObject { // 0x3d31f028 pluma: task 020
+		return &TLUserSaveGif{
+			Constructor: 1026682920,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -6432,6 +6442,90 @@ func (m *TLUserNewAuthorization) Decode(dBuf *mtproto.DecodeBuf) error {
 		m3 := &mtproto.Update{}
 		m3.Decode(dBuf)
 		m.Update = m3
+
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserGetSavedGifIdList (pluma: task 020)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserGetSavedGifIdList) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc8cbde94:
+		x.UInt(0xc8cbde94)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserGetSavedGifIdList) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserGetSavedGifIdList) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc8cbde94:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserSaveGif (pluma: task 020)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserSaveGif) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x3d31f028:
+		x.UInt(0x3d31f028)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetId())
+		m.GetUnsave().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserSaveGif) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserSaveGif) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x3d31f028:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.Id = dBuf.Long()
+
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Unsave = m3
 
 		return dBuf.GetError()
 
