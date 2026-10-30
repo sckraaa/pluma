@@ -53,7 +53,7 @@ func (f *fake) AuthsessionGetAuthorizations(_ context.Context, in *authsession.T
 			AppVersion:    "12.9.1",
 			DeviceModel:   "OnePlus 12",
 			Platform:      "Android",
-			SystemVersion: "SDK 36",
+			SystemVersion: "16 (36)",
 			Country:       "Prague, Czechia",
 		}).To_Authorization(),
 	}
@@ -126,7 +126,7 @@ func TestNotify(t *testing.T) {
 	// one that connected last; the account has a password.
 	text := f.message(t)
 	want := "Вход с нового устройства. Anna, мы обнаружили вход в Ваш аккаунт с нового устройства 29/10/2026 в 16:46:06 UTC.\n\n" +
-		"Устройство: Pluma Android, 12.9.1, OnePlus 12, Android, SDK 36\nМесто входа: Prague, Czechia\n\n"
+		"Устройство: Pluma Android, 12.9.1, OnePlus 12, Android, 16 (36)\nМесто входа: Prague, Czechia\n\n"
 	if !strings.HasPrefix(text, want) || strings.Contains(text, "Two-Step") {
 		t.Fatalf("message %q", text)
 	}
@@ -220,7 +220,7 @@ func TestDevice(t *testing.T) {
 		{&mtproto.Authorization{AppName: "Pluma Web", AppVersion: "12.0.48 A", DeviceModel: " Safari 26 "}, "Pluma Web, 12.0.48 A, Safari 26"},
 		// The platform goes between the model and the system, as in
 		// "Telegram Android, 12.1.1, Samsung Galaxy Note8, Android, 13 (33)".
-		{&mtproto.Authorization{AppName: "Pluma Android", AppVersion: "12.9.1", DeviceModel: "Samsung Galaxy Note8", Platform: "Android", SystemVersion: "SDK 33"}, "Pluma Android, 12.9.1, Samsung Galaxy Note8, Android, SDK 33"},
+		{&mtproto.Authorization{AppName: "Pluma Android", AppVersion: "12.9.1", DeviceModel: "Samsung Galaxy Note8", Platform: "Android", SystemVersion: "13 (33)"}, "Pluma Android, 12.9.1, Samsung Galaxy Note8, Android, 13 (33)"},
 		{&mtproto.Authorization{AppName: "Pluma Android", AppVersion: "12.9.1", DeviceModel: "OnePlus 12", Platform: "Android"}, "Pluma Android, 12.9.1, OnePlus 12, Android"},
 		// Telegram Desktop names its system only in system_version, and
 		// authsession derives its platform from it: the system stands for

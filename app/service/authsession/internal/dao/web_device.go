@@ -15,7 +15,10 @@
 
 package dao
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // The device of a web app's session (task 019).
 //
@@ -54,11 +57,37 @@ func deviceModel(langPack, model string) string {
 
 // systemVersion is the system_version of a session as
 // account.getAuthorizations shows it: Web K's navigator.platform named by
-// webSystem; anything else as initConnection said it. Web A names its
-// system itself.
+// webSystem, Android's API level by androidSystem; anything else as
+// initConnection said it. Web A names its system itself.
 func systemVersion(langPack, system, model string) string {
-	if langPack == "webk" {
+	switch langPack {
+	case "webk":
 		return webSystem(system, model)
+	case "android":
+		return androidSystem(system)
+	}
+	return system
+}
+
+// androidVersions are the versions of Android by API level, as the table
+// "API level" of developer.android.com lists them (uses-sdk element, read
+// 2026-10-30).
+var androidVersions = map[int]string{
+	21: "5.0", 22: "5.1", 23: "6.0", 24: "7.0", 25: "7.1", 26: "8.0", 27: "8.1",
+	28: "9", 29: "10", 30: "11", 31: "12", 32: "12", 33: "13", 34: "14", 35: "15", 36: "16",
+}
+
+// androidSystem names the API level Android sends ("SDK 35", tgnet
+// ConnectionsManager.java:229) the way Telegram shows it, "15 (35)": seen
+// for Android 15 and 16 in Telegram's New login message (task 020). A
+// level not in androidVersions stays as it came.
+func androidSystem(system string) string {
+	level, err := strconv.Atoi(strings.TrimPrefix(system, "SDK "))
+	if !strings.HasPrefix(system, "SDK ") || err != nil {
+		return system
+	}
+	if v, ok := androidVersions[level]; ok {
+		return v + " (" + strconv.Itoa(level) + ")"
 	}
 	return system
 }

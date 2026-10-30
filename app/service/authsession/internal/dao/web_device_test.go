@@ -110,7 +110,13 @@ func TestSystemVersion(t *testing.T) {
 		{"weba", "macOS", safariMac, "macOS"},
 		{"weba", "MacIntel", safariMac, "MacIntel"},
 		{"tdesktop", "Windows 11 x64", "Desktop", "Windows 11 x64"},
-		{"android", "SDK 36", "Samsung SM-G950F", "SDK 36"},
+		// Android's API level as Telegram shows it.
+		{"android", "SDK 36", "Samsung SM-G950F", "16 (36)"},
+		{"android", "SDK 35", "Google Pixel 8", "15 (35)"},
+		{"android", "SDK 32", "Google Pixel 6", "12 (32)"},
+		{"android", "SDK 99", "Google Pixel 20", "SDK 99"},
+		{"android", "SDK x", "Google Pixel 8", "SDK x"},
+		{"android", "15", "Google Pixel 8", "15"},
 	}
 	for _, c := range cases {
 		if got := systemVersion(c.langPack, c.system, c.model); got != c.want {
