@@ -59,10 +59,11 @@ func newAuthorization(ctx context.Context, t *testing.T, u *user, name string, h
 // does it (docs/tasks/019-service-messages.md): the other sessions get the
 // New login message and updateNewAuthorization with unconfirmed, on which
 // official clients ask "Is it you?"; the new session gets neither. The login
-// stays unconfirmed in account.getAuthorizations until another session
-// confirms it; then every session gets updateNewAuthorization without
-// unconfirmed and drops the banner. A session that missed the push finds the
-// update in getDifference.
+// stays unconfirmed in the other sessions' account.getAuthorizations until
+// one of them confirms it; then every session gets updateNewAuthorization
+// without unconfirmed and drops the banner. The new session never sees
+// itself unconfirmed. A session that missed the push finds the update in
+// getDifference.
 func TestNewLogin(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
@@ -84,8 +85,16 @@ func TestNewLogin(t *testing.T) {
 		t.Fatalf("the new login as the first session sees it: %v", others)
 	}
 	hash := others[0].GetHash()
-	if current, _ := authorizations(ctx, t, web); current == nil || !current.GetUnconfirmed() {
+	// The banner asks about the login of another session, and Web K shows
+	// one for every authorization in this list with unconfirmed: the new
+	// session does not see itself unconfirmed. It sees the first session
+	// confirmed.
+	current, firstSession := authorizations(ctx, t, web)
+	if current == nil || current.GetUnconfirmed() || current.GetHash() != 0 {
 		t.Fatalf("the new login as it sees itself: %v", current)
+	}
+	if len(firstSession) != 1 || firstSession[0].GetUnconfirmed() {
+		t.Fatalf("the first session as the new login sees it: %v", firstSession)
 	}
 
 	banner := newAuthorization(ctx, t, phoneApp, "the first session", hash, true)
@@ -164,8 +173,5 @@ func TestNewLogin(t *testing.T) {
 	newAuthorization(ctx, t, web, "the new session", hash, false)
 	if _, others = authorizations(ctx, t, phoneApp); len(others) != 1 || others[0].GetUnconfirmed() {
 		t.Fatalf("after the confirmation: %v", others)
-	}
-	if current, _ := authorizations(ctx, t, web); current.GetUnconfirmed() {
-		t.Fatal("the new login is still unconfirmed for itself")
 	}
 }

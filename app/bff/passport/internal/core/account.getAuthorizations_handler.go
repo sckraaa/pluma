@@ -37,6 +37,26 @@ func (c *PassportCore) AccountGetAuthorizations(in *mtproto.TLAccountGetAuthoriz
 		c.Logger.Errorf("account.getAuthorizations - error: %v", err)
 		return nil, err
 	}
+	// The session that asks is never unconfirmed to itself (task 019).
+	// authsession keeps the flag on its authorization, where newlogin reads
+	// it for the banner of the other sessions. The banner asks about the
+	// login of another session, which the user confirms or terminates by its
+	// hash (https://core.telegram.org/api/auth#confirming-login), and the
+	// session itself is listed with hash 0, which
+	// account.changeAuthorizationSettings and account.resetAuthorization
+	// refuse with HASH_INVALID. Web K fetches this list at login and shows
+	// the banner for every authorization in it with unconfirmed, its own too
+	// (tweb 346844bf src/lib/appManagers/appAccountManager.ts:102-106,
+	// 232-243): it asked the user about their own login. Web A shows no
+	// banner in a session younger than a day (telegram-tt 6002824b
+	// src/components/left/main/panes/ChatListPanes.tsx:74-80,
+	// src/config.ts:417). Whether Telegram flags the current session is not
+	// verified.
+	for _, a := range authorizations.GetAuthorizations() {
+		if a.GetCurrent() {
+			a.Unconfirmed = false
+		}
+	}
 
 	ttl, err := c.svcCtx.Dao.UserClient.UserGetAuthorizationTTL(c.ctx, &userpb.TLUserGetAuthorizationTTL{
 		UserId: c.MD.UserId,
