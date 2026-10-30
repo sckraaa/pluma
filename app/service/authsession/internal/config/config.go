@@ -26,9 +26,10 @@ type Config struct {
 	// bytes, ${AUTH_KEY_ENCRYPTION_KEY} (task 008, pkg/authkeys).
 	AuthKeyEncryptionKey string
 	// GeoIPDatabase is the path of the GeoIP database, an MMDB City database
-	// such as DB-IP Lite City, that gives the place of a session. Empty, or
-	// a file that cannot be used, leaves every place "UNKNOWN", and
-	// authsession says so in its log at start (docs/ops/deployment.md,
-	// "GeoIP (DB-IP Lite)").
+	// such as MaxMind GeoLite City, that gives the place of a session.
+	// authsession takes up a new file put there by a rename within 10
+	// minutes; a file that cannot be used leaves the database read before
+	// in use. Empty, or no usable file yet, leaves every place "UNKNOWN",
+	// and authsession says so in its log (docs/ops/deployment.md, "GeoIP").
 	GeoIPDatabase string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

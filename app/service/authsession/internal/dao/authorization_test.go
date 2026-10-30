@@ -34,12 +34,12 @@ func TestGetAuthorization(t *testing.T) {
 	mr := miniredis.RunT(t)
 	d := &Dao{
 		CachedConn: sqlc.NewNodeConn(nil, redis.MustNewRedis(redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true})),
-		MMDB:       openGeoIP(geoIPDatabase(t, "Prague", "Czechia", "CZ")),
+		geoIP:      newGeoIP(geoIPDatabase(t, "Prague", "Czechia", "CZ")),
 	}
-	if d.MMDB == nil {
+	if d.geoIP.r == nil {
 		t.Fatal("the test database does not open")
 	}
-	t.Cleanup(func() { _ = d.MMDB.Close() })
+	t.Cleanup(func() { _ = d.geoIP.r.Close() })
 	ctx := context.Background()
 	const key = 1001
 	if err := d.CachedConn.SetCache(ctx, genAuthDataCacheKey(key), &CacheAuthData{

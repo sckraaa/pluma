@@ -17,15 +17,14 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/authsession/internal/config"
 	"github.com/teamgram/teamgram-server/pkg/authkeys"
 
-	"github.com/oschwald/geoip2-golang"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 )
 
 type Dao struct {
 	*Mysql
 	sqlc.CachedConn
-	kv   kv.Store
-	MMDB *geoip2.Reader
+	kv    kv.Store
+	geoIP *geoIP
 	// keys seals the auth keys at rest (task 008).
 	keys *authkeys.KeyCipher
 }
@@ -36,12 +35,16 @@ func New(c config.Config) *Dao {
 	// key: it does not start.
 	keys, err := authkeys.NewKeyCipher(c.AuthKeyEncryptionKey)
 	logx.Must(err)
+	geo := newGeoIP(c.GeoIPDatabase)
+	if geo != nil {
+		go geo.watch()
+	}
 
 	return &Dao{
 		Mysql:      newMysqlDao(db),
 		CachedConn: sqlc.NewConn(db, c.Cache),
 		kv:         kv.NewStore(c.KV),
-		MMDB:       openGeoIP(c.GeoIPDatabase),
+		geoIP:      geo,
 		keys:       keys,
 	}
 }

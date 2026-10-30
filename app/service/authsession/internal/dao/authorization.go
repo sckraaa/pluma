@@ -20,6 +20,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"net"
 	"time"
 
@@ -49,13 +50,16 @@ import (
 // a1e89e1f api/api_authorizations.cpp:62, 81). What Telegram sends as region
 // is not verified.
 func (d *Dao) placeByIp(ip string) string {
-	// Without a database (openGeoIP said why at start), or for a session
-	// whose address is not known, there is no place.
+	// Without a database (geoIP logged why), or for a session whose address
+	// is not known, there is no place.
 	addr := net.ParseIP(ip)
-	if d.MMDB == nil || addr == nil {
+	if addr == nil {
 		return "UNKNOWN"
 	}
-	r, err := d.MMDB.City(addr)
+	r, err := d.geoIP.city(addr)
+	if errors.Is(err, errNoGeoIP) {
+		return "UNKNOWN"
+	}
 	if err != nil {
 		logx.Errorf("placeByIp - error: %v", err)
 		return "UNKNOWN"
@@ -63,10 +67,27 @@ func (d *Dao) placeByIp(ip string) string {
 	return placeOf(r)
 }
 
+// maxCityRadius is the largest location.accuracy_radius, in kilometres, at
+// which placeOf names the city. MaxMind defines it as "the radius in
+// kilometers around the specified location where the IP address is likely to
+// be" (dev.maxmind.com/geoip/docs/databases/city-and-country, read
+// 2026-10-30). A wider circle reaches other cities and regions, and the city
+// would be a guess: MaxMind's own comparison for Czechia places only 28% of
+// GeoLite's mobile addresses within 50 km of the true place
+// (docs/tasks/017-rebranding.md, "Выбор базы GeoIP" in "Ход работы"). The
+// country is shown then. The value is Pluma's choice; what Telegram does is
+// not known.
+const maxCityRadius = 100
+
 // placeOf is "City, Country", or the country alone, as Telegram writes the
-// place of a login (task 019).
+// place of a login (task 019): the country alone also when the database
+// gives the city only within a radius over maxCityRadius. A database without
+// accuracy_radius, such as DB-IP Lite, always names the city.
 func placeOf(r *geoip2.City) string {
 	city, country := r.City.Names["en"], r.Country.Names["en"]
+	if r.Location.AccuracyRadius > maxCityRadius {
+		city = ""
+	}
 	switch {
 	case city != "" && country != "":
 		return city + ", " + country
