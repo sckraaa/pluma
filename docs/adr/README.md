@@ -29,3 +29,4 @@
 | [0021](0021-seq-to-other-users.md) | Обновления с seq другому пользователю: inbox-событие получателя | accepted |
 | [0022](0022-seq-except-authorization.md) | Обновление с seq всем сессиям аккаунта, кроме одной (новый вход) | accepted |
 | [0023](0023-geoip-geolite.md) | GeoIP: MaxMind GeoLite City, обновление без перезапуска, город только при малом радиусе | accepted |
+| [0024](0024-android-push-session.md) | Пуш-сессия Android (token_type 7): приём регистрации и разбор id без знака | accepted |

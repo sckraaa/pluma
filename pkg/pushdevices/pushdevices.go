@@ -24,6 +24,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"strconv"
 )
 
 // Token types of account.registerDevice that the server keeps
@@ -34,6 +35,28 @@ const (
 	TokenVoIP    int32 = 9  // iOS PushKit, for incoming calls only
 	TokenWebPush int32 = 10 // Web K, token is the JSON of a PushSubscription
 )
+
+// TokenMTProto is the token type of Android's MTProto push session
+// ("MTProto separate session", https://core.telegram.org/api/push-updates):
+// tgnet keeps a second connection with a session of its own and registers
+// that session's id as the token (DrKLO/Telegram aac1efcb
+// TMessagesProj/jni/tgnet/ConnectionsManager.cpp:2398-2419). It is not
+// stored here: the session service binds the push session when the
+// registration passes through it and wakes the client in it (ADR 0024).
+const TokenMTProto int32 = 7
+
+// PushSessionId is the session id a TokenMTProto token names. tgnet writes
+// the 64-bit session id as an unsigned decimal (Defines.h:190-194,
+// ConnectionsManager.cpp:2406), so about half of the ids are over the
+// int64 range as text; the id is the same 64 bits. ok is false for anything
+// else, and for 0.
+func PushSessionId(token string) (id int64, ok bool) {
+	u, err := strconv.ParseUint(token, 10, 64)
+	if err != nil || u == 0 {
+		return 0, false
+	}
+	return int64(u), true
+}
 
 // Limits of a registration.
 const (

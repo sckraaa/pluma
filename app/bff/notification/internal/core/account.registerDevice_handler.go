@@ -44,6 +44,20 @@ func (c *NotificationCore) AccountRegisterDevice(in *mtproto.TLAccountRegisterDe
 	if c.MD.UserId == 0 || c.MD.PermAuthKeyId == 0 {
 		return nil, mtproto.ErrAuthKeyUnregistered
 	}
+	// Android's MTProto push session: the session service has bound it
+	// on the way here and wakes the client in it (ADR 0024); nothing is
+	// stored. tgnet keeps the registration only on success and repeats it on
+	// every pong of the push connection until then (DrKLO/Telegram aac1efcb
+	// TMessagesProj/jni/tgnet/ConnectionsManager.cpp:1167-1170, 2408-2418).
+	if in.GetTokenType() == pushdevices.TokenMTProto {
+		switch _, ok := pushdevices.PushSessionId(in.GetToken()); {
+		case in.GetToken() == "":
+			return nil, mtproto.ErrTokenEmpty
+		case !ok:
+			return nil, mtproto.ErrTokenInvalid
+		}
+		return mtproto.BoolTrue, nil
+	}
 	d := &pushdevices.Device{
 		UserId:     c.MD.UserId,
 		AuthKeyId:  c.MD.PermAuthKeyId,

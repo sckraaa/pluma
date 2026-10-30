@@ -302,3 +302,59 @@ func TestPush(t *testing.T) {
 		}
 	})
 }
+
+// Android's network layer keeps a second session for pushes on the key of
+// the authorization and registers its id with token_type 7 (ADR 0024).
+// While the main session is gone, as when the phone sleeps, a new message
+// wakes the client with updatesTooLong in that session. The id is the
+// session id as an unsigned decimal; the test takes one with the high bit
+// set, which the session service used to bind as session 0.
+func TestAndroidPushSession(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	anna := signedIn(ctx, t, phones[0], "Anna")
+	bob := login(ctx, t, phones[1], "Bob")
+	toAnna := peerOf(ctx, t, bob, anna)
+
+	var push *mtclient.Client
+	for range 32 {
+		c, err := mtclient.DialKey(ctx, config(t, "android push"), anna.c.AuthKey())
+		if err != nil {
+			t.Fatalf("push session: %v", err)
+		}
+		if c.SessionID() < 0 {
+			push = c
+			break
+		}
+		_ = c.Close()
+	}
+	if push == nil {
+		t.Fatal("no session id with the high bit set in 32 sessions")
+	}
+	defer closeChecked(t, "push session", push)
+
+	r, err := push.Invoke(ctx, &mtproto.TLAccountRegisterDevice{
+		Constructor: push.Constructor(mtproto.Predicate_account_registerDevice),
+		TokenType:   7,
+		Token:       strconv.FormatUint(uint64(push.SessionID()), 10),
+		AppSandbox:  mtproto.BoolFalse,
+		Secret:      []byte{},
+		OtherUids:   []int64{},
+	})
+	if err != nil {
+		t.Fatalf("account.registerDevice for the push session: %v", err)
+	}
+	if b, ok := r.(interface{ To_Bool() *mtproto.Bool }); !ok || !mtproto.FromBool(b.To_Bool()) {
+		t.Fatalf("account.registerDevice for the push session: %v", r)
+	}
+
+	offline(t, anna.c)
+	sendTo(ctx, t, bob, toAnna, fmt.Sprintf("wake up %d", randomID()))
+	if _, err := push.WaitUpdate(ctx, func(u *mtproto.Updates) bool {
+		return u.GetPredicateName() == mtproto.Predicate_updatesTooLong
+	}); err != nil {
+		t.Fatalf("no updatesTooLong in the push session: %v", err)
+	}
+}

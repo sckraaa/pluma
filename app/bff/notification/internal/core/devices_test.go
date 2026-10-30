@@ -100,18 +100,32 @@ func TestRegisterDevice(t *testing.T) {
 		t.Fatalf("web push without a secret: %v", err)
 	}
 
+	// Android's MTProto push session is accepted without a secret and not
+	// stored: the session service binds it. The id may have the high bit set.
+	for _, token := range []string{"42", "18446744073709551615"} {
+		if r, err := c.AccountRegisterDevice(registerReq(pushdevices.TokenMTProto, token, nil)); err != nil || !mtproto.FromBool(r) {
+			t.Fatalf("push session %s: %v %v", token, r, err)
+		}
+	}
+	if ds, _ = store.List(context.Background(), devUser); len(ds) != 2 {
+		t.Fatalf("after the push session: %+v", ds)
+	}
+
 	for name, tc := range map[string]struct {
 		req  *mtproto.TLAccountRegisterDevice
 		want string
 	}{
-		"type 4":           {registerReq(4, "x", secret), "TOKEN_TYPE_INVALID"},
-		"type 13":          {registerReq(13, "x", secret), "TOKEN_TYPE_INVALID"},
-		"empty token":      {registerReq(pushdevices.TokenAPNs, "", secret), "TOKEN_EMPTY"},
-		"long token":       {registerReq(pushdevices.TokenAPNs, strings.Repeat("a", pushdevices.MaxTokenLength+1), secret), "TOKEN_INVALID"},
-		"no secret":        {registerReq(pushdevices.TokenAPNs, "ab", nil), "TOKEN_INVALID"},
-		"short secret":     {registerReq(pushdevices.TokenVoIP, "ab", secret[:255]), "TOKEN_INVALID"},
-		"web short secret": {registerReq(pushdevices.TokenWebPush, "{}", secret[:32]), "TOKEN_INVALID"},
-		"invalid utf-8":    {registerReq(pushdevices.TokenFCM, "a\xffb", secret), "TOKEN_INVALID"},
+		"type 4":            {registerReq(4, "x", secret), "TOKEN_TYPE_INVALID"},
+		"type 13":           {registerReq(13, "x", secret), "TOKEN_TYPE_INVALID"},
+		"empty token":       {registerReq(pushdevices.TokenAPNs, "", secret), "TOKEN_EMPTY"},
+		"long token":        {registerReq(pushdevices.TokenAPNs, strings.Repeat("a", pushdevices.MaxTokenLength+1), secret), "TOKEN_INVALID"},
+		"no secret":         {registerReq(pushdevices.TokenAPNs, "ab", nil), "TOKEN_INVALID"},
+		"short secret":      {registerReq(pushdevices.TokenVoIP, "ab", secret[:255]), "TOKEN_INVALID"},
+		"web short secret":  {registerReq(pushdevices.TokenWebPush, "{}", secret[:32]), "TOKEN_INVALID"},
+		"invalid utf-8":     {registerReq(pushdevices.TokenFCM, "a\xffb", secret), "TOKEN_INVALID"},
+		"push session text": {registerReq(pushdevices.TokenMTProto, "abc", nil), "TOKEN_INVALID"},
+		"push session 0":    {registerReq(pushdevices.TokenMTProto, "0", nil), "TOKEN_INVALID"},
+		"push session none": {registerReq(pushdevices.TokenMTProto, "", nil), "TOKEN_EMPTY"},
 	} {
 		_, err := c.AccountRegisterDevice(tc.req)
 		wantRpcError(t, name, err, tc.want)

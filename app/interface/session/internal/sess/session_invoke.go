@@ -22,11 +22,11 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	rpcmetadata "github.com/teamgram/proto/mtproto/rpc/metadata"
+	"github.com/teamgram/teamgram-server/pkg/pushdevices"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -372,9 +372,13 @@ func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, 
 	switch query.(type) {
 	case *mtproto.TLAccountRegisterDevice:
 		registerDevice, _ := query.(*mtproto.TLAccountRegisterDevice)
-		if registerDevice.TokenType == 7 {
-			pushSessionId, _ := strconv.ParseInt(registerDevice.GetToken(), 10, 64)
-			c.sessList.cb.onBindPushSessionId(ctx, c.sessList, pushSessionId)
+		// Android's MTProto push session (ADR 0024). The token is the
+		// session id as an unsigned decimal: ParseInt rejected every id
+		// with the high bit set and bound session 0 instead.
+		if registerDevice.TokenType == pushdevices.TokenMTProto {
+			if pushSessionId, ok := pushdevices.PushSessionId(registerDevice.GetToken()); ok {
+				c.sessList.cb.onBindPushSessionId(ctx, c.sessList, pushSessionId)
+			}
 		}
 	case *mtproto.TLUpdatesGetState:
 		c.sessList.cb.onSetMainUpdatesSession(ctx, c)
