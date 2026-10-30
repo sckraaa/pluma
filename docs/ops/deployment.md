@@ -137,7 +137,7 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
 ### Лицензия и атрибуция
 
 - **Условия.** Владелец принял GeoLite EULA при регистрации 2026-10-30. Показывать данные GeoLite людям вне организации можно с атрибуцией MaxMind (support.maxmind.com, «Sell or display data from GeoLite databases and web services»). Пример текста оттуда: «This product includes GeoLite Data created by MaxMind, available from https://www.maxmind.com». Его ставят «in all advertising and documentation mentioning features of or use of GeoLite data».
-- **Где атрибуция сейчас:** в `NOTICE` и в этом разделе. Нужна ли она ещё в клиентах или на pluma.chat, решает владелец. Если нужна, то ключом строки во всех встроенных языках.
+- **Где атрибуция:** в `NOTICE` и в этом разделе — документации, где упомянуто использование GeoLite. Решение владельца (2026-10-30): в клиентах и на pluma.chat её нет, GeoLite там не упоминается.
 - **Свежесть.** EULA требует удалить выпуск в течение 30 дней после выхода нового (dev.maxmind.com/geoip/geolite2-free-geolocation-data). geoipupdate заменяет файл, authsession переходит на новый за 10 минут, в бэкапах базы нет.
 - **Нельзя:** раздавать файл и определять по адресу конкретное домохозяйство, человека или улицу. Pluma показывает только город и страну, и только их владельцу аккаунта.
 
