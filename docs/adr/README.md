@@ -28,3 +28,4 @@
 | [0020](0020-seq-journal.md) | Журнал seq: обновления состояния аккаунта, которые восстанавливает getDifference | accepted |
 | [0021](0021-seq-to-other-users.md) | Обновления с seq другому пользователю: inbox-событие получателя | accepted |
 | [0022](0022-seq-except-authorization.md) | Обновление с seq всем сессиям аккаунта, кроме одной (новый вход) | accepted |
+| [0023](0023-geoip-geolite.md) | GeoIP: MaxMind GeoLite City, обновление без перезапуска, город только при малом радиусе | accepted |
