@@ -23,3 +23,8 @@ KV:
 # with another one it cannot read the stored keys. See
 # docs/ops/security-setup.md.
 AuthKeyEncryptionKey: "${AUTH_KEY_ENCRYPTION_KEY}"
+
+# The GeoIP database (DB-IP Lite City, MMDB): geoip/ at the root of the
+# repository. Without the file every place is UNKNOWN. See
+# docs/ops/deployment.md, "GeoIP (DB-IP Lite)".
+GeoIPDatabase: ../../../geoip/dbip-city-lite.mmdb

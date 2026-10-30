@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,6 +38,7 @@ type composeService struct {
 	Environment     map[string]string `yaml:"environment"`
 	Ports           []string          `yaml:"ports"`
 	Secrets         []any             `yaml:"secrets"`
+	Volumes         []string          `yaml:"volumes"`
 	StopGracePeriod string            `yaml:"stop_grace_period"`
 	Healthcheck     struct {
 		Test []string `yaml:"test"`
@@ -167,6 +169,58 @@ func TestComposeServices(t *testing.T) {
 		case len(s.Ports) > 0 || len(s.Secrets) > 0:
 			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway and push may", name, s.Ports, s.Secrets)
 		}
+	}
+}
+
+// TestComposeGeoIP: authsession finds its GeoIP database where the
+// deployment puts it, geoip/ at the root of the repository (/opt/pluma/geoip
+// on a server, docs/ops/deployment.md). In Docker the directory is mounted
+// read-only at the directory of GeoIPDatabase, and no other service gets it;
+// on a bare-metal host the services run in teamgramd/bin.
+func TestComposeGeoIP(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join(repoRoot, "docker-compose.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var compose struct {
+		Services map[string]composeService `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(data, &compose); err != nil {
+		t.Fatal(err)
+	}
+	geoIPDatabase := func(config string) string {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(repoRoot, config))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var c struct {
+			GeoIPDatabase string `yaml:"GeoIPDatabase"`
+		}
+		if err := yaml.Unmarshal(data, &c); err != nil {
+			t.Fatal(err)
+		}
+		if c.GeoIPDatabase == "" {
+			t.Fatalf("%s has no GeoIPDatabase", config)
+		}
+		return c.GeoIPDatabase
+	}
+
+	inContainer := geoIPDatabase("teamgramd/etc2/authsession.yaml")
+	want := "./geoip:" + filepath.Dir(inContainer) + ":ro"
+	for name, s := range compose.Services {
+		for _, v := range s.Volumes {
+			if strings.HasPrefix(v, "./geoip:") && (name != "authsession" || v != want) {
+				t.Errorf("%s mounts %q; only authsession mounts %q", name, v, want)
+			}
+		}
+	}
+	if !slices.Contains(compose.Services["authsession"].Volumes, want) {
+		t.Errorf("authsession volumes %q, want %q for GeoIPDatabase %s", compose.Services["authsession"].Volumes, want, inContainer)
+	}
+
+	if got := filepath.Join("teamgramd/bin", geoIPDatabase("teamgramd/etc/authsession.yaml")); filepath.Dir(got) != "geoip" {
+		t.Errorf("teamgramd/etc/authsession.yaml: GeoIPDatabase is %s from teamgramd/bin, want a file in geoip/", got)
 	}
 }
 

@@ -40,3 +40,10 @@ KV:
 # with another one it cannot read the stored keys. See
 # docs/ops/security-setup.md.
 AuthKeyEncryptionKey: "${AUTH_KEY_ENCRYPTION_KEY}"
+
+# The GeoIP database (DB-IP Lite City, MMDB) that gives the place of a
+# session in Devices and in the New login message. docker-compose.yaml mounts
+# the host's geoip directory here read-only. Without the file authsession
+# runs on, logs an error at start, and every place is UNKNOWN. See
+# docs/ops/deployment.md, "GeoIP (DB-IP Lite)".
+GeoIPDatabase: /app/geoip/dbip-city-lite.mmdb

@@ -32,10 +32,13 @@ import (
 )
 
 func (d *Dao) getCountryAndRegionByIp(ip string) (string, string) {
-	if d.MMDB == nil {
+	// Without a database (openGeoIP said why at start), or for a session
+	// whose address is not known, there is no place.
+	addr := net.ParseIP(ip)
+	if d.MMDB == nil || addr == nil {
 		return "UNKNOWN", ""
 	} else {
-		r, err := d.MMDB.City(net.ParseIP(ip))
+		r, err := d.MMDB.City(addr)
 		if err != nil {
 			logx.Errorf("getCountryAndRegionByIp - error: %v", err)
 			return "UNKNOWN", ""

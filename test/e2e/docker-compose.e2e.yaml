@@ -77,7 +77,11 @@ services:
       jaeger:
         condition: service_started
   status: *needs-infra
-  authsession: *needs-infra
+  authsession:
+    <<: *needs-infra
+    # No GeoIP database in the tests, and nothing mounted from the working
+    # tree: every place is UNKNOWN.
+    volumes: !reset []
   dfs: *needs-infra
 
   gnetway:

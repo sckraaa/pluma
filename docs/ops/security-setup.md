@@ -104,7 +104,7 @@ docker compose up -d --build                      # сервисы teamgram
 
 ## 5. Запуск без Docker (`teamgramd/etc`)
 
-`teamgramd/bin/runall2.sh` подхватывает переменные из `.env` в корне репозитория. Ключ берётся из `secrets/server_pkcs1.key` (в конфиге путь `../../secrets/server_pkcs1.key` относительно `teamgramd/bin`).
+`teamgramd/bin/runall2.sh` подхватывает переменные из `.env` в корне репозитория. Ключ берётся из `secrets/server_pkcs1.key` (в конфиге путь `../../secrets/server_pkcs1.key` относительно `teamgramd/bin`). База GeoIP — `geoip/dbip-city-lite.mmdb` в корне репозитория (`../../geoip/dbip-city-lite.mmdb`), как в Docker; см. `deployment.md`, раздел «GeoIP (DB-IP Lite)».
 
 Сервисы подключаются к MySQL пользователем `teamgram`, а не `root`, и передают Redis пароль `REDIS_PASSWORD`. На хосте их нужно завести один раз:
 

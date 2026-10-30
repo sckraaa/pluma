@@ -9,5 +9,7 @@ secrets/
 **/server_pkcs1.key
 data/
 teamgramd/logs/
+# The GeoIP database: mounted into authsession at runtime, ~130 MB.
+geoip/
 # Not needed to build (build.sh does not read git metadata); ~100 MB of context.
 .git/

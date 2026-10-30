@@ -112,7 +112,7 @@ ACTIONLINT    := go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_
 SHELLCHECK_PLATFORM := $(shell uname -s | tr A-Z a-z).$(shell uname -m | sed 's/^arm64$$/aarch64/')
 SHELLCHECK          := $(CURDIR)/.tools/shellcheck-$(SHELLCHECK_VERSION)/shellcheck
 # Our shell scripts (the upstream ones in teamgramd/bin are not checked).
-SHELL_SCRIPTS := test/e2e/run.sh teamgramd/deploy/kafka/topics.sh teamgramd/deploy/backup/backup.sh
+SHELL_SCRIPTS := test/e2e/run.sh teamgramd/deploy/kafka/topics.sh teamgramd/deploy/backup/backup.sh teamgramd/deploy/geoip/update-dbip.sh
 
 # The vendored proto module is a Go module of its own: `./...` at the root
 # does not reach it, so every check runs there as well.
