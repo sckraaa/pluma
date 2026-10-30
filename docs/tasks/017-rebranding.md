@@ -148,3 +148,8 @@
     - список цветов клиент берёт из `help.getPeerColors` (`MessagesController.java:24065`), а у сервера этого метода нет, как и `help.getPeerProfileColors` и `account.updateColor` (`api-coverage.md`);
     - без Premium кнопка применения заблокирована (`PeerColorActivity.java:738, 1791`).
   - Серые карточки «Color theme» в «Настройках чатов» — заглушка загрузки (`DefaultThemesPreviewCell.java:142-155`). Список ждёт `account.getChatThemes` (`ChatThemeController.requestAllChatThemes`), которого у сервера нет.
+  - Решение владельца (2026-10-30): вместо синего — шалфей. pluma-android `7a9ccbb`:
+    - во всех пяти темах аватар `#7FA082`→`#5B7A5E`;
+    - имя `#4F6E52`, в тёмных темах `#9DBB9F`;
+    - проверка синего видит эти ключи, хотя движок акцента их пропускает;
+    - остальные шесть цветов людей — как у Telegram, бирюзовый тоже.
