@@ -21,6 +21,7 @@ package core
 import (
 	"context"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -208,7 +209,20 @@ func (c *MessagesCore) makeForwardMessages(
 				groupedIds[groupedId] = rand.Int63()
 			}
 		}
-		if mtproto.IsMusicMessage(m) {
+		if request.DropAuthor {
+			// "Hide sender name": a copy, as the user's own message
+			// (drop_author; Android SendMessagesHelper.java:2535-2536). Its
+			// media go without captions with drop_media_captions.
+			m.FwdFrom = nil
+			m.SavedPeerId = nil
+			if saved {
+				// As messages.sendMessage to Saved Messages.
+				m.SavedPeerId = toPeer.ToPeer()
+			}
+			if request.DropMediaCaptions && hasCaption(m) {
+				m.Message, m.Entities = "", nil
+			}
+		} else if mtproto.IsMusicMessage(m) {
 			m.FwdFrom = nil
 		} else {
 			if m.FwdFrom == nil {
@@ -245,10 +259,15 @@ func (c *MessagesCore) makeForwardMessages(
 					if c.checkForwardPrivacy(c.ctx, fromId, c.MD.UserId) {
 						fwdFrom.FromId = mtproto.MakePeerUser(fromId)
 					} else {
-						uname, _ := c.svcCtx.Dao.UserClient.UserGetAccountUsername(c.ctx, &userpb.TLUserGetAccountUsername{
-							UserId: fromId,
-						})
-						fwdFrom.FromName = &wrapperspb.StringValue{Value: uname.GetUsername()}
+						// from_name is "The name of the user that originally
+						// sent the message" (core.telegram.org/constructor/
+						// messageFwdHeader), not the username.
+						name, err := c.senderName(fromId)
+						if err != nil {
+							c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+							return nil, err
+						}
+						fwdFrom.FromName = &wrapperspb.StringValue{Value: name}
 					}
 					m.Post = false
 					m.PostAuthor = nil
@@ -313,4 +332,24 @@ func (c *MessagesCore) makeForwardMessages(
 	}
 
 	return fwdOutboxList, nil
+}
+
+// senderName is the name of a user as the header of a forward from them
+// shows it when their privacy hides the account: first and last name.
+func (c *MessagesCore) senderName(userId int64) (string, error) {
+	u, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: userId})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(u.FirstName() + " " + u.LastName()), nil
+}
+
+// hasCaption tells whether the text of m is the caption of its photo or
+// file, which drop_media_captions strips.
+func hasCaption(m *mtproto.Message) bool {
+	switch m.GetMedia().GetPredicateName() {
+	case mtproto.Predicate_messageMediaPhoto, mtproto.Predicate_messageMediaDocument:
+		return true
+	}
+	return false
 }
