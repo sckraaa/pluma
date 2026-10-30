@@ -45,6 +45,15 @@
 | [017](017-rebranding.md) | Ребрендинг клиентов | in-progress |
 | [018](018-apple-site-warning.md) | Снять пометку Apple с домена | in-progress (владелец отправляет обращение) |
 | [019](019-service-messages.md) | Служебные сообщения как у Telegram | in-progress (выкачено, ждёт проверки владельцем на Android) |
+| [020](020-parity-quick-fixes.md) | Быстрые правки по сверке с Telegram | todo |
+| [021](021-language-packs.md) | Языковые пакеты | todo |
+| [022](022-service-chat-history.md) | Служебный чат 777000 с историей на сервере | todo |
+| [023](023-link-previews.md) | Превью ссылок | todo |
+| [024](024-telegram-data-import.md) | Импорт данных Telegram | todo |
+| [025](025-moderation-and-premium-panel.md) | Панель модерации: жалобы и Premium | todo |
+| [026](026-pluma-links.md) | Ссылки pluma.chat вместо t.me | todo |
+| [027](027-external-services.md) | Внешние сервисы: карты, GIF, места, перевод, распознавание речи | todo |
+| [028](028-pluma-texts.md) | Тексты Pluma: FAQ, политика, советы, условия | todo |
 
 Порядок этапа 0. Параллельно можно вести две линии — они не пересекаются по файлам:
 - **сервер:** 001 → 005 → 002 → 003 → 004 → 011, 013 → 014 → 015 → 010 → 008 → 009 → 007;
