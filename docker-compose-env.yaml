@@ -122,7 +122,7 @@ services:
 
   # --- 关系数据库 ---
   mysql:
-    image: mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    image: mysql:8.4.11@sha256:0f51e63e537a1f176423fa03ef559aabe6fa4372a53160a44bc7e75da7d15364
     container_name: mysql
     environment:
       # Applied only when ./data/mysql is empty (first start).
