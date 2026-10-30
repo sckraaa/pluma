@@ -39,12 +39,13 @@ func (c *MessagesCore) MessagesGetMessages(in *mtproto.TLMessagesGetMessages) (*
 		}).To_Messages_Messages()
 	)
 
+	var replyTo []int32
 	for _, id := range in.GetId_VECTORINPUTMESSAGE() {
 		switch id.PredicateName {
 		case mtproto.Predicate_inputMessageID:
 			idList = append(idList, id.Id)
 		case mtproto.Predicate_inputMessageReplyTo:
-			idList = append(idList, id.Id)
+			replyTo = append(replyTo, id.Id)
 		case mtproto.Predicate_inputMessagePinned:
 			// TODO: not impl
 		case mtproto.Predicate_inputMessageCallbackQuery:
@@ -58,6 +59,14 @@ func (c *MessagesCore) MessagesGetMessages(in *mtproto.TLMessagesGetMessages) (*
 	}
 	if len(in.GetId_VECTORINT32()) > 0 {
 		idList = append(idList, in.Id_VECTORINT32...)
+	}
+	if len(replyTo) > 0 {
+		replied, err := c.repliedIds(replyTo)
+		if err != nil {
+			c.Logger.Errorf("messages.getMessages - error: %v", err)
+			return nil, err
+		}
+		idList = append(idList, replied...)
 	}
 
 	if len(idList) == 0 {
@@ -116,4 +125,26 @@ func (c *MessagesCore) MessagesGetMessages(in *mtproto.TLMessagesGetMessages) (*
 		})
 
 	return rValues, nil
+}
+
+// repliedIds returns the ids of the messages that the messages ids reply
+// to: inputMessageReplyTo is "Message to which the specified message
+// replies to" (core.telegram.org/constructor/inputMessageReplyTo). iOS asks
+// so for the replied messages out of the loaded history (TelegramCore
+// Holes.swift:251). A message that replies to nothing adds nothing.
+func (c *MessagesCore) repliedIds(ids []int32) ([]int32, error) {
+	boxList, err := c.svcCtx.Dao.MessageClient.MessageGetUserMessageList(c.ctx, &message.TLMessageGetUserMessageList{
+		UserId: c.MD.UserId,
+		IdList: ids,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var replied []int32
+	for _, box := range boxList.GetDatas() {
+		if id := box.GetMessage().GetReplyTo().GetFixedReplyToMsgId(); id != 0 {
+			replied = append(replied, id)
+		}
+	}
+	return replied, nil
 }
