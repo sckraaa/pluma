@@ -20,6 +20,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -89,8 +90,9 @@ func TestForwardAuthor(t *testing.T) {
 		}
 		return msgs[0]
 	}
-	if h := forward(false).GetFwdFrom(); h == nil || h.GetFromId() != nil || h.GetFromName().GetValue() != "Alice" {
-		t.Errorf("the forward of a hidden author: from %v, name %q", h.GetFromId(), h.GetFromName().GetValue())
+	name := strings.TrimSpace(alice.self.GetFirstName().GetValue() + " " + alice.self.GetLastName().GetValue())
+	if h := forward(false).GetFwdFrom(); h == nil || h.GetFromId() != nil || h.GetFromName().GetValue() != name {
+		t.Errorf("the forward of a hidden author: from %v, name %q, want %q", h.GetFromId(), h.GetFromName().GetValue(), name)
 	}
 	if h := forward(true).GetFwdFrom(); h != nil {
 		t.Errorf("a forward without the sender name has the header %v", h)
