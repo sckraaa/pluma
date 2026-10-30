@@ -56,10 +56,10 @@ func (c *UserChannelProfilesCore) ContactsGetBirthdays(in *mtproto.TLContactsGet
 	})
 	if err != nil {
 		c.Logger.Errorf("contacts.getBirthdays - error: %v", err)
-	} else {
-		rV.Contacts = cBirthdays.GetDatas()
-		rV.Users = cUsers.GetUserListByIdList(c.MD.UserId, idList...)
+		return nil, err
 	}
+	rV.Contacts = cBirthdays.GetDatas()
+	rV.Users = cUsers.GetUserListByIdList(c.MD.UserId, idList...)
 
 	return rV, nil
 }

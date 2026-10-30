@@ -19,19 +19,21 @@
 package core
 
 import (
-	"github.com/teamgram/proto/mtproto"
+	"time"
+
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // UserGetBirthdays
 // user.getBirthdays user_id:long = Vector<ContactBirthday>;
+//
+// The contacts of the user with a birthday within one day of today whose
+// birthday privacy shows it to the user (contacts.getBirthdays).
 func (c *UserCore) UserGetBirthdays(in *user.TLUserGetBirthdays) (*user.Vector_ContactBirthday, error) {
-	// TODO: not impl
-	// c.Logger.Errorf("user.getBirthdays - method not impl")
-
-	rV := &user.Vector_ContactBirthday{
-		Datas: make([]*mtproto.ContactBirthday, 0),
+	birthdays, err := c.svcCtx.Dao.ContactBirthdays(c.ctx, in.GetUserId(), time.Now())
+	if err != nil {
+		c.Logger.Errorf("user.getBirthdays - user %d: %v", in.GetUserId(), err)
+		return nil, err
 	}
-
-	return rV, nil
+	return &user.Vector_ContactBirthday{Datas: birthdays}, nil
 }

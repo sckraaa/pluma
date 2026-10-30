@@ -46,7 +46,7 @@ var (
 	userPrivacyKeyAddedByPhonePrefix      = "user_privacy_added_by_phone"
 	userPrivacyKeyVoiceMessagesPrefix     = "user_privacy_voice_messages"
 	userPrivacyKeyAboutPrefix             = "user_privacy_about"
-	userPrivacyKeyBirthdayPrefix          = "user_privacy_birthday"
+	userPrivacyKeyBirthdayPrefix          = "user_privacy_birthday.2" // .2: contacts only by default (task 020)
 	userPrivacyKeyStarGiftsAutoSavePrefix = "user_privacy_star_gifts_auto_save"
 	userPrivacyKeyNoPaidMessagesPrefix    = "user_privacy_no_paid_messages"
 	userPrivacyKeySavedMusicPrefix        = "user_privacy_saved_music"

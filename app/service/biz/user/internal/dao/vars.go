@@ -34,6 +34,12 @@ var (
 	phoneNumberRules = []*mtproto.PrivacyRule{
 		mtproto.MakeTLPrivacyValueDisallowAll(nil).To_PrivacyRule(),
 	}
+	// birthdayRules are the rules of the birthday until the user sets
+	// them: contacts only. With no rules set Android tells the user "Only
+	// your contacts can see your birthday" (UserInfoActivity.java:374-381).
+	birthdayRules = []*mtproto.PrivacyRule{
+		mtproto.MakeTLPrivacyValueAllowContacts(nil).To_PrivacyRule(),
+	}
 
 	defaultRulesData     string
 	phoneNumberRulesData string
@@ -68,9 +74,11 @@ func removeAllNil(contacts []*mtproto.ContactData) []*mtproto.ContactData {
 }
 
 func makeDefaultPrivacyRules(key int32) []*mtproto.PrivacyRule {
-	if key == mtproto.PHONE_NUMBER {
+	switch key {
+	case mtproto.PHONE_NUMBER:
 		return phoneNumberRules
-	} else {
-		return defaultRules
+	case mtproto.BIRTHDAY:
+		return birthdayRules
 	}
+	return defaultRules
 }
