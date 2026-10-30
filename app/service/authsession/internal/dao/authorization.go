@@ -66,14 +66,13 @@ func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.A
 
 	country, region := d.getCountryAndRegionByIp(cData.ClientIp())
 
-	// TODO(@benqi): fill plat_form, app_name, (country, region)
 	return mtproto.MakeTLAuthorization(&mtproto.Authorization{
 		Current:         false,
 		OfficialApp:     true,
 		Hash:            0,
 		PasswordPending: false,
 		DeviceModel:     cData.DeviceModel(),
-		Platform:        "",
+		Platform:        platform(cData.LangPack(), cData.SystemVersion()),
 		SystemVersion:   cData.SystemVersion(),
 		ApiId:           cData.ApiId(),
 		AppName:         appName(cData.LangPack(), cData.AppVersion()),
@@ -111,14 +110,13 @@ func (d *Dao) GetAuthorizations(ctx context.Context, userId int64, excludeAuthKe
 			cData, _ := d.GetCacheAuthData(ctx, idx.id)
 			if cData != nil {
 				country, region := d.getCountryAndRegionByIp(cData.ClientIp())
-				// TODO(@benqi): fill plat_form, app_name, (country, region)
 				authorization := mtproto.MakeTLAuthorization(&mtproto.Authorization{
 					Current:         false,
 					OfficialApp:     true,
 					PasswordPending: false,
 					Hash:            cData.Hash(),
 					DeviceModel:     cData.DeviceModel(),
-					Platform:        "",
+					Platform:        platform(cData.LangPack(), cData.SystemVersion()),
 					SystemVersion:   cData.SystemVersion(),
 					ApiId:           cData.ApiId(),
 					AppName:         appName(cData.LangPack(), cData.AppVersion()),

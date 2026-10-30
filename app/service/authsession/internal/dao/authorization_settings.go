@@ -159,3 +159,64 @@ func appName(langPack, appVersion string) string {
 	}
 	return langPack
 }
+
+// platform is the platform of a session's device in account.getAuthorizations
+// (authorization.platform). initConnection has no such field
+// (mtproto.TLInitConnection), so the server derives it from the app
+// (lang_pack) and, for Telegram Desktop, from system_version. Official
+// clients choose the icon of a session by it, and by system_version when it
+// is empty, where the Android app's "SDK 36" (DrKLO/Telegram aac1efcb
+// tgnet/ConnectionsManager.java:229) matches nothing: Android drew the pink
+// globe of an unknown browser for it. The values are the words the clients
+// look for, after a browser named in device_model:
+//   - Android: platform, or system_version when platform is empty, with
+//     "ios", "windows", "macos" or "android", else an app_name with
+//     "desktop" (DrKLO/Telegram aac1efcb ui/Cells/SessionCell.java:319-403);
+//   - iOS: platform with "android", "ios" or "macos", platform or
+//     system_version with "macos", "ubuntu", "linux" or "windows"
+//     (Telegram-iOS 6ad963e5 submodules/SettingsUI/Sources/Privacy and
+//     Security/Recent Sessions/ItemListRecentSessionItem.swift:118-169);
+//   - Desktop (tdesktop v7.0.9 a1e89e1f
+//     settings/sections/settings_active_sessions.cpp:167-235): by api_id
+//     first, before the browser (172-177, 209-216): those of Telegram's own
+//     Android, macOS and web apps give their icons, those of Telegram
+//     Desktop platform or system_version with "windows", "macos", "ubuntu"
+//     or "unity", or "linux" (193-207), else Linux; other api_ids, after a
+//     browser or an iPhone or iPad in device_model (219-224), the same words
+//     (227-228), then "android" or "ios" (229-232), else Other (234).
+//
+// It leaves out the Desktop branches that do not depend on it: a
+// "chromebook" in device_model is Other (217-218) and the api_ids of
+// Telegram's iOS apps are an iPhone (176, 225-226), both before the platform
+// is looked at; and it never says "ubuntu" or "unity" (198-202), which
+// Telegram Desktop on Linux puts in system_version itself, as part of
+// XDG_CURRENT_DESKTOP, where the clients find it.
+//
+// Telegram Desktop tells its system only in system_version, as
+// Platform::SystemVersionPretty (main/main_account.cpp:422): "Windows 11
+// x64", "macOS 15.1", "OS X 10.11" (before macOS 10.12), "OS X", "Linux
+// ubuntu GNOME Wayland glibc 2.39" (lib_base 82d182a2
+// base_info_win.cpp:188-235, base_info_mac.mm:169-180,
+// base_info_linux.cpp:36-43 and 139-184). A web app is told by the browser
+// in its device_model and has no platform.
+func platform(langPack, systemVersion string) string {
+	switch langPack {
+	case "android":
+		return "Android"
+	case "ios":
+		return "iOS"
+	case "macos":
+		return "macOS"
+	case "tdesktop":
+		system := strings.ToLower(systemVersion)
+		switch {
+		case strings.Contains(system, "windows"):
+			return "Windows"
+		case strings.Contains(system, "macos"), strings.HasPrefix(system, "os x"):
+			return "macOS"
+		case strings.Contains(system, "linux"):
+			return "Linux"
+		}
+	}
+	return ""
+}
