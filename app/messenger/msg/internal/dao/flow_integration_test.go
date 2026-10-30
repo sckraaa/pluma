@@ -940,6 +940,7 @@ func TestReadMentions(t *testing.T) {
 	w.chats.members[chat] = []int64{a, b, c}
 
 	w.send(b, mtproto.PEER_CHAT, chat, "mine")
+	w.pub.drain()
 	mine := alive(w.messages(a))[0]
 	if _, err := w.rpc.MsgUpdatePinnedMessage(ctx, &msg.TLMsgUpdatePinnedMessage{UserId: a, AuthKeyId: a * 10, PeerType: mtproto.PEER_CHAT, PeerId: chat, Id: mine.Id}); err != nil {
 		t.Fatal(err)
