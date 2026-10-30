@@ -179,14 +179,39 @@ func (n Notifier) Reviewed(ctx context.Context, userId, hash int64) error {
 }
 
 // Device is the device of a session in the New login message: app,
-// version, model and system, as Telegram writes "Telegram Web, 12.0.48 A,
-// Safari 26, macOS".
+// version, model, platform and system, those that are known, as Telegram
+// writes "Telegram Web, 12.0.48 A, Safari 26, macOS" and "Telegram Android,
+// 12.1.1, Samsung Galaxy Note8, Android, 13 (33)" (docs/tasks/019).
+//
+// A platform that the system already names is left out. initConnection has
+// no platform: for Telegram Desktop authsession derives it from the system
+// version itself (platform() in authsession's dao), and that system version
+// is the only place where Telegram Desktop names its system: "Windows 11
+// x64", "macOS 15.1", "OS X 10.11", "Linux KDE Wayland glibc 2.40" (lib_base
+// 82d182a2 base_info_win.cpp:188-235, base_info_mac.mm:169-180,
+// base_info_linux.cpp:139-184). Repeated, it would add nothing: "Windows,
+// Windows 11 x64".
 func Device(a *mtproto.Authorization) string {
+	platform, system := strings.TrimSpace(a.GetPlatform()), a.GetSystemVersion()
+	if namesPlatform(system, platform) {
+		platform = ""
+	}
 	var parts []string
-	for _, p := range []string{a.GetAppName(), a.GetAppVersion(), a.GetDeviceModel(), a.GetSystemVersion()} {
+	for _, p := range []string{a.GetAppName(), a.GetAppVersion(), a.GetDeviceModel(), platform, system} {
 		if p = strings.TrimSpace(p); p != "" {
 			parts = append(parts, p)
 		}
 	}
 	return strings.Join(parts, ", ")
+}
+
+// namesPlatform reports whether the system version names the platform,
+// whatever the case, by the rule authsession derives a Telegram Desktop
+// platform with: the platform's own name, or "OS X" for macOS, as Telegram
+// Desktop calls macOS before 10.12 (lib_base 82d182a2
+// base_info_mac.mm:174-177).
+func namesPlatform(system, platform string) bool {
+	system, platform = strings.ToLower(system), strings.ToLower(platform)
+	return strings.Contains(system, platform) ||
+		platform == "macos" && strings.HasPrefix(system, "os x")
 }
