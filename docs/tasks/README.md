@@ -45,7 +45,7 @@
 | [017](017-rebranding.md) | Ребрендинг клиентов | in-progress |
 | [018](018-apple-site-warning.md) | Снять пометку Apple с домена | in-progress (владелец отправляет обращение) |
 | [019](019-service-messages.md) | Служебные сообщения как у Telegram | in-progress (выкачено, ждёт проверки владельцем на Android) |
-| [020](020-parity-quick-fixes.md) | Быстрые правки по сверке с Telegram | todo |
+| [020](020-parity-quick-fixes.md) | Быстрые правки по сверке с Telegram | in progress |
 | [021](021-language-packs.md) | Языковые пакеты | todo |
 | [022](022-service-chat-history.md) | Служебный чат 777000 с историей на сервере | todo |
 | [023](023-link-previews.md) | Превью ссылок | todo |
