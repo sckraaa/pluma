@@ -538,7 +538,7 @@
 | `messages.editQuickReplyShortcut` | missing |  |  |
 | `messages.exportChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.exportChatInvite_handler.go:28 |
 | `messages.faveSticker` | missing |  |  |
-| `messages.forwardMessages` | ok |  | app/bff/messages/internal/core/messages.forwardMessages_handler.go:37 |
+| `messages.forwardMessages` | ok |  | app/bff/messages/internal/core/messages.forwardMessages_handler.go:38 |
 | `messages.getAdminsWithInvites` | ok |  | app/bff/chatinvites/internal/core/messages.getAdminsWithInvites_handler.go:29 |
 | `messages.getAllChats` | ok |  | app/bff/chats/internal/core/messages.getAllChats_handler.go:29 |
 | `messages.getAllDrafts` | partial |  | app/bff/drafts/internal/core/messages.getAllDrafts_handler.go:30 |
