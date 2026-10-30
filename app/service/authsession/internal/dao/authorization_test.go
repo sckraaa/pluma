@@ -65,4 +65,9 @@ func TestGetAuthorization(t *testing.T) {
 	if a.GetCountry() != "Prague, Czechia" || a.GetRegion() != "" {
 		t.Errorf("place %q, region %q, want Prague, Czechia and no region", a.GetCountry(), a.GetRegion())
 	}
+	// The browser and the system, as Telegram named a session of Web A.
+	if a.GetDeviceModel() != "Safari 26" || a.GetSystemVersion() != "macOS" || a.GetPlatform() != "" {
+		t.Errorf("device %q, system %q, platform %q, want Safari 26, macOS and no platform",
+			a.GetDeviceModel(), a.GetSystemVersion(), a.GetPlatform())
+	}
 }
