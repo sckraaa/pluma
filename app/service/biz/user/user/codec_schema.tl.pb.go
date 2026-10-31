@@ -606,6 +606,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 1026682920,
 		}
 	},
+	-1804716295: func() mtproto.TLObject { // 0x946e36f9 pluma: task 020
+		return &TLUserGetReactionsNotifySettings{
+			Constructor: -1804716295,
+		}
+	},
+	-1356164288: func() mtproto.TLObject { // 0xaf2a9340 pluma: task 020
+		return &TLUserSetReactionsNotifySettings{
+			Constructor: -1356164288,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -6526,6 +6536,93 @@ func (m *TLUserSaveGif) Decode(dBuf *mtproto.DecodeBuf) error {
 		m3 := &mtproto.Bool{}
 		m3.Decode(dBuf)
 		m.Unsave = m3
+
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserGetReactionsNotifySettings (pluma: task 020)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserGetReactionsNotifySettings) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x946e36f9:
+		x.UInt(0x946e36f9)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserGetReactionsNotifySettings) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserGetReactionsNotifySettings) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x946e36f9:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserSetReactionsNotifySettings (pluma: task 020)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserSetReactionsNotifySettings) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xaf2a9340:
+		x.UInt(0xaf2a9340)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		m.GetSettings().Encode(x, layer)
+		m.GetKeepPollVotes().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserSetReactionsNotifySettings) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserSetReactionsNotifySettings) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xaf2a9340:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+
+		m2 := &mtproto.ReactionsNotifySettings{}
+		m2.Decode(dBuf)
+		m.Settings = m2
+
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.KeepPollVotes = m3
 
 		return dBuf.GetError()
 

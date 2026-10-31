@@ -133,6 +133,8 @@ const (
 	RPCUser_UserNewAuthorization_FullMethodName              = "/user.RPCUser/user_newAuthorization"
 	RPCUser_UserGetSavedGifIdList_FullMethodName             = "/user.RPCUser/user_getSavedGifIdList"
 	RPCUser_UserSaveGif_FullMethodName                       = "/user.RPCUser/user_saveGif"
+	RPCUser_UserGetReactionsNotifySettings_FullMethodName    = "/user.RPCUser/user_getReactionsNotifySettings"
+	RPCUser_UserSetReactionsNotifySettings_FullMethodName    = "/user.RPCUser/user_setReactionsNotifySettings"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -245,6 +247,8 @@ type RPCUserClient interface {
 	// pluma: task 020
 	UserGetSavedGifIdList(ctx context.Context, in *TLUserGetSavedGifIdList, opts ...grpc.CallOption) (*Vector_Long, error)
 	UserSaveGif(ctx context.Context, in *TLUserSaveGif, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	UserGetReactionsNotifySettings(ctx context.Context, in *TLUserGetReactionsNotifySettings, opts ...grpc.CallOption) (*mtproto.ReactionsNotifySettings, error)
+	UserSetReactionsNotifySettings(ctx context.Context, in *TLUserSetReactionsNotifySettings, opts ...grpc.CallOption) (*mtproto.ReactionsNotifySettings, error)
 }
 
 type rPCUserClient struct {
@@ -1295,6 +1299,26 @@ func (c *rPCUserClient) UserSaveGif(ctx context.Context, in *TLUserSaveGif, opts
 	return out, nil
 }
 
+func (c *rPCUserClient) UserGetReactionsNotifySettings(ctx context.Context, in *TLUserGetReactionsNotifySettings, opts ...grpc.CallOption) (*mtproto.ReactionsNotifySettings, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.ReactionsNotifySettings)
+	err := c.cc.Invoke(ctx, RPCUser_UserGetReactionsNotifySettings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserSetReactionsNotifySettings(ctx context.Context, in *TLUserSetReactionsNotifySettings, opts ...grpc.CallOption) (*mtproto.ReactionsNotifySettings, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.ReactionsNotifySettings)
+	err := c.cc.Invoke(ctx, RPCUser_UserSetReactionsNotifySettings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1405,6 +1429,8 @@ type RPCUserServer interface {
 	// pluma: task 020
 	UserGetSavedGifIdList(context.Context, *TLUserGetSavedGifIdList) (*Vector_Long, error)
 	UserSaveGif(context.Context, *TLUserSaveGif) (*mtproto.Bool, error)
+	UserGetReactionsNotifySettings(context.Context, *TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
+	UserSetReactionsNotifySettings(context.Context, *TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1725,6 +1751,12 @@ func (UnimplementedRPCUserServer) UserGetSavedGifIdList(context.Context, *TLUser
 }
 func (UnimplementedRPCUserServer) UserSaveGif(context.Context, *TLUserSaveGif) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserSaveGif not implemented")
+}
+func (UnimplementedRPCUserServer) UserGetReactionsNotifySettings(context.Context, *TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGetReactionsNotifySettings not implemented")
+}
+func (UnimplementedRPCUserServer) UserSetReactionsNotifySettings(context.Context, *TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserSetReactionsNotifySettings not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -3618,6 +3650,42 @@ func _RPCUser_UserSaveGif_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserGetReactionsNotifySettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserGetReactionsNotifySettings)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserGetReactionsNotifySettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserGetReactionsNotifySettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserGetReactionsNotifySettings(ctx, req.(*TLUserGetReactionsNotifySettings))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserSetReactionsNotifySettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserSetReactionsNotifySettings)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserSetReactionsNotifySettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserSetReactionsNotifySettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserSetReactionsNotifySettings(ctx, req.(*TLUserSetReactionsNotifySettings))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4040,6 +4108,14 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_saveGif",
 			Handler:    _RPCUser_UserSaveGif_Handler,
+		},
+		{
+			MethodName: "user_getReactionsNotifySettings",
+			Handler:    _RPCUser_UserGetReactionsNotifySettings_Handler,
+		},
+		{
+			MethodName: "user_setReactionsNotifySettings",
+			Handler:    _RPCUser_UserSetReactionsNotifySettings_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

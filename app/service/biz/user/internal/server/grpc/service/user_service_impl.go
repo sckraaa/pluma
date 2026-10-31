@@ -1473,3 +1473,31 @@ func (s *Service) UserSaveGif(ctx context.Context, request *user.TLUserSaveGif) 
 
 	return r, err
 }
+
+// UserGetReactionsNotifySettings
+// user.getReactionsNotifySettings user_id:long = ReactionsNotifySettings;
+func (s *Service) UserGetReactionsNotifySettings(ctx context.Context, request *user.TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.getReactionsNotifySettings - metadata: {%s}", c.MD)
+
+	r, err := c.UserGetReactionsNotifySettings(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserSetReactionsNotifySettings
+// user.setReactionsNotifySettings user_id:long settings:ReactionsNotifySettings keep_poll_votes:Bool = ReactionsNotifySettings;
+func (s *Service) UserSetReactionsNotifySettings(ctx context.Context, request *user.TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.setReactionsNotifySettings - metadata: {%s}", c.MD)
+
+	r, err := c.UserSetReactionsNotifySettings(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

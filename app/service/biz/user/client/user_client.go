@@ -127,6 +127,8 @@ type UserClient interface {
 	UserNewAuthorization(ctx context.Context, in *user.TLUserNewAuthorization) (*mtproto.Bool, error)
 	UserGetSavedGifIdList(ctx context.Context, in *user.TLUserGetSavedGifIdList) (*user.Vector_Long, error)
 	UserSaveGif(ctx context.Context, in *user.TLUserSaveGif) (*mtproto.Bool, error)
+	UserGetReactionsNotifySettings(ctx context.Context, in *user.TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
+	UserSetReactionsNotifySettings(ctx context.Context, in *user.TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
 }
 
 type defaultUserClient struct {
@@ -1281,4 +1283,26 @@ func (m *defaultUserClient) UserSaveGif(ctx context.Context, in *user.TLUserSave
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserSaveGif(ctx, in)
+}
+
+// UserGetReactionsNotifySettings
+// user.getReactionsNotifySettings user_id:long = ReactionsNotifySettings;
+func (m *defaultUserClient) UserGetReactionsNotifySettings(ctx context.Context, in *user.TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserGetReactionsNotifySettings(ctx, in)
+}
+
+// UserSetReactionsNotifySettings
+// user.setReactionsNotifySettings user_id:long settings:ReactionsNotifySettings keep_poll_votes:Bool = ReactionsNotifySettings;
+func (m *defaultUserClient) UserSetReactionsNotifySettings(ctx context.Context, in *user.TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserSetReactionsNotifySettings(ctx, in)
 }

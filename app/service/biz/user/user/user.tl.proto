@@ -138,6 +138,8 @@ enum TLConstructor {
   // pluma: task 020
   CRC32_user_getSavedGifIdList = -926163308;
   CRC32_user_saveGif = 1026682920;
+  CRC32_user_getReactionsNotifySettings = -1804716295;
+  CRC32_user_setReactionsNotifySettings = -1356164288;
 }
 
 // BotInfoData <--
@@ -1052,6 +1054,28 @@ message TL_user_saveGif {
   mtproto.Bool unsave = 5;
 }
 
+// pluma: user.getReactionsNotifySettings user_id:long = ReactionsNotifySettings;
+// The reaction notification settings of the user
+// (account.getReactionsNotifySettings), the defaults while the user has set
+// none (task 020).
+message TL_user_getReactionsNotifySettings {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+}
+
+// pluma: user.setReactionsNotifySettings user_id:long settings:ReactionsNotifySettings keep_poll_votes:Bool = ReactionsNotifySettings;
+// Replaces the reaction notification settings of the user with settings,
+// an absent field meaning nobody, and answers them as stored
+// (account.setReactionsNotifySettings, task 020). With keep_poll_votes the
+// stored poll votes setting stays: a client of the layers 178-223 has no
+// such field.
+message TL_user_setReactionsNotifySettings {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  mtproto.ReactionsNotifySettings settings = 4;
+  mtproto.Bool keep_poll_votes = 5;
+}
+
 //--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_LastSeenData {
@@ -1259,4 +1283,8 @@ service RPCUser {
   rpc user_getSavedGifIdList(TL_user_getSavedGifIdList)
       returns (Vector_Long) {}
   rpc user_saveGif(TL_user_saveGif) returns (mtproto.Bool) {}
+  rpc user_getReactionsNotifySettings(TL_user_getReactionsNotifySettings)
+      returns (mtproto.ReactionsNotifySettings) {}
+  rpc user_setReactionsNotifySettings(TL_user_setReactionsNotifySettings)
+      returns (mtproto.ReactionsNotifySettings) {}
 }

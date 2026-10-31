@@ -128,8 +128,10 @@ const (
 	Predicate_user_newAuthorization = "user_newAuthorization"
 
 	// pluma: task 020
-	Predicate_user_getSavedGifIdList = "user_getSavedGifIdList"
-	Predicate_user_saveGif           = "user_saveGif"
+	Predicate_user_getSavedGifIdList          = "user_getSavedGifIdList"
+	Predicate_user_saveGif                    = "user_saveGif"
+	Predicate_user_getReactionsNotifySettings = "user_getReactionsNotifySettings"
+	Predicate_user_setReactionsNotifySettings = "user_setReactionsNotifySettings"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -593,6 +595,14 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 1026682920, // 0x3d31f028
 
 	},
+	Predicate_user_getReactionsNotifySettings: { // pluma: task 020
+		0: -1804716295, // 0x946e36f9
+
+	},
+	Predicate_user_setReactionsNotifySettings: { // pluma: task 020
+		0: -1356164288, // 0xaf2a9340
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -711,6 +721,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1324746836:  Predicate_user_newAuthorization,              // 0x4ef60854 pluma: task 019
 	-926163308:  Predicate_user_getSavedGifIdList,             // 0xc8cbde94 pluma: task 020
 	1026682920:  Predicate_user_saveGif,                       // 0x3d31f028 pluma: task 020
+	-1804716295: Predicate_user_getReactionsNotifySettings,    // 0x946e36f9 pluma: task 020
+	-1356164288: Predicate_user_setReactionsNotifySettings,    // 0xaf2a9340 pluma: task 020
 
 }
 

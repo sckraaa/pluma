@@ -129,6 +129,8 @@ const (
 	CRC32_user_newAuthorization TLConstructor = 1324746836 // 0x4ef60854
 
 	// pluma: task 020
-	CRC32_user_getSavedGifIdList TLConstructor = -926163308 // 0xc8cbde94
-	CRC32_user_saveGif           TLConstructor = 1026682920 // 0x3d31f028
+	CRC32_user_getSavedGifIdList          TLConstructor = -926163308  // 0xc8cbde94
+	CRC32_user_saveGif                    TLConstructor = 1026682920  // 0x3d31f028
+	CRC32_user_getReactionsNotifySettings TLConstructor = -1804716295 // 0x946e36f9
+	CRC32_user_setReactionsNotifySettings TLConstructor = -1356164288 // 0xaf2a9340
 )
