@@ -600,7 +600,7 @@
 | `messages.getMyStickers` | missing |  |  |
 | `messages.getOldFeaturedStickers` | fake |  | app/bff/bff/client/fake_rpc_result.go:103 |
 | `messages.getOnlines` | notimpl |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:27 |
-| `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:38 |
+| `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:40 |
 | `messages.getPaidReactionPrivacy` | missing |  |  |
 | `messages.getPeerDialogs` | partial |  | app/bff/dialogs/internal/core/messages.getPeerDialogs_handler.go:78 |
 | `messages.getPeerSettings` | ok |  | app/bff/dialogs/internal/core/messages.getPeerSettings_handler.go:28 |
