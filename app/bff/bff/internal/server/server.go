@@ -304,7 +304,8 @@ func (s *Server) Initialize() error {
 			}, nil))
 
 		// notification_helper; it answers messages.reportMessagesDelivery of
-		// the pushes too (task 009).
+		// the pushes too (task 009), and the reaction notification settings
+		// (task 020).
 		notificationService := notification_helper.New(notification_helper.Config{
 			RpcServerConf:           c.RpcServerConf,
 			UserClient:              c.BizServiceClient,
@@ -315,6 +316,7 @@ func (s *Server) Initialize() error {
 		}, nil)
 		mtproto.RegisterRPCNotificationServer(grpcServer, notificationService)
 		mtproto.RegisterRPCGatewayVerificationMessagesServer(grpcServer, notificationService)
+		mtproto.RegisterRPCReactionNotificationServer(grpcServer, notificationService)
 
 		// users_helper
 		mtproto.RegisterRPCUsersServer(

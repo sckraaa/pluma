@@ -123,3 +123,19 @@ func (s *Service) MessagesReportMessagesDelivery(ctx context.Context, request *m
 	c.Logger.Debugf("messages.reportMessagesDelivery - metadata: {%s}", c.MD)
 	return c.MessagesReportMessagesDelivery(request)
 }
+
+// account.getReactionsNotifySettings#6dd654c = ReactionsNotifySettings;
+// pluma: task 020, RPCReactionNotification is served here.
+func (s *Service) AccountGetReactionsNotifySettings(ctx context.Context, request *mtproto.TLAccountGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.getReactionsNotifySettings - metadata: {%s}", c.MD)
+	return c.AccountGetReactionsNotifySettings(request)
+}
+
+// account.setReactionsNotifySettings#316ce548 settings:ReactionsNotifySettings = ReactionsNotifySettings;
+// pluma: task 020, RPCReactionNotification is served here.
+func (s *Service) AccountSetReactionsNotifySettings(ctx context.Context, request *mtproto.TLAccountSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.setReactionsNotifySettings - metadata: {%s}", c.MD)
+	return c.AccountSetReactionsNotifySettings(request)
+}
