@@ -10,6 +10,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
 	sessionclient "github.com/teamgram/teamgram-server/app/interface/session/client"
@@ -26,6 +27,11 @@ import (
 
 const (
 	maxNodeFailures = 3 // consecutive failures before removing node from ring
+	// nodeRetryAfter is how long a node out of the ring after failures stays
+	// out before it is tried again, while etcd still lists it (pluma: it was
+	// out for good, and with a single session node the gateway answered
+	// every connection "not found session" until restarted).
+	nodeRetryAfter = 10 * time.Second
 )
 
 var (
@@ -36,15 +42,19 @@ type ShardingSessionClient struct {
 	mu           sync.RWMutex
 	gatewayId    string
 	dispatcher   *hash.ConsistentHash
-	sessions     map[string]sessionclient.SessionClient
+	sessions     map[string]sessionclient.SessionClient // the nodes etcd lists
+	inRing       map[string]bool                        // those the ring routes to
 	failCounters map[string]int
+	retryAfter   time.Duration
 }
 
 func NewShardingSessionClient(c config.Config) *ShardingSessionClient {
 	sess := &ShardingSessionClient{
 		dispatcher:   hash.NewConsistentHash(),
 		sessions:     make(map[string]sessionclient.SessionClient),
+		inRing:       make(map[string]bool),
 		failCounters: make(map[string]int),
+		retryAfter:   nodeRetryAfter,
 	}
 	sess.watch(c.Session)
 
@@ -59,7 +69,6 @@ func (sess *ShardingSessionClient) watch(c zrpc.RpcClientConf) {
 	}
 	update := func() {
 		var (
-			addClis    []string
 			removeClis []string
 		)
 
@@ -85,8 +94,6 @@ func (sess *ShardingSessionClient) watch(c zrpc.RpcClientConf) {
 			}
 			sessionCli := sessionclient.NewSessionClient(cli)
 			sessions[v] = sessionCli
-
-			addClis = append(addClis, v)
 		}
 
 		for key, _ := range sess.sessions {
@@ -95,16 +102,19 @@ func (sess *ShardingSessionClient) watch(c zrpc.RpcClientConf) {
 			}
 		}
 
-		for _, n := range addClis {
-			sess.dispatcher.Add(n)
-		}
-
 		for _, n := range removeClis {
 			sess.dispatcher.Remove(n)
+			delete(sess.inRing, n)
 			delete(sess.failCounters, n)
 		}
 
 		sess.sessions = sessions
+
+		// Every node etcd lists is in the ring, a node taken out after
+		// failures too.
+		for n := range sessions {
+			sess.addToRing(n)
+		}
 	}
 
 	sub.AddListener(update)
@@ -160,14 +170,20 @@ func (sess *ShardingSessionClient) InvokeByKey(key string, cb func(client sessio
 	}
 
 	// 连接错误：增加失败计数，达到阈值才从哈希环移除
+	// pluma: not the last node of the ring, which has no other to take its
+	// keys, and only for a while: the node keeps its client and comes back
+	// after retryAfter if etcd still lists it.
 	sess.mu.Lock()
 	sess.failCounters[node]++
 	failCount := sess.failCounters[node]
-	if failCount >= maxNodeFailures {
-		logx.Errorf("session node %s unreachable (%d consecutive failures), removing from ring", node, failCount)
+	if failCount >= maxNodeFailures && len(sess.inRing) > 1 {
+		logx.Errorf("session node %s unreachable (%d consecutive failures), out of the ring for %s", node, failCount, sess.retryAfter)
 		sess.dispatcher.Remove(node)
-		delete(sess.sessions, node)
+		delete(sess.inRing, node)
 		delete(sess.failCounters, node)
+		time.AfterFunc(sess.retryAfter, func() {
+			sess.restore(node)
+		})
 	} else {
 		logx.Errorf("session node %s connection error (%d/%d), retrying on another node", node, failCount, maxNodeFailures)
 	}
@@ -188,6 +204,26 @@ func (sess *ShardingSessionClient) InvokeByKey(key string, cb func(client sessio
 	}
 
 	return cb(newCli)
+}
+
+// addToRing puts a listed node in the ring unless it is there; the caller
+// holds mu.
+func (sess *ShardingSessionClient) addToRing(node string) {
+	if !sess.inRing[node] {
+		sess.dispatcher.Add(node)
+		sess.inRing[node] = true
+	}
+}
+
+// restore puts a node taken out after failures back in the ring, if etcd
+// still lists it.
+func (sess *ShardingSessionClient) restore(node string) {
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
+	if _, ok := sess.sessions[node]; ok && !sess.inRing[node] {
+		logx.Infof("session node %s back in the ring", node)
+		sess.addToRing(node)
+	}
 }
 
 // parseRedirectError 解析 session 返回的 redirect 错误，提取目标节点地址
@@ -212,14 +248,12 @@ func parseRedirectError(err error) (string, bool) {
 }
 
 // isConnError 判断是否为连接级错误（节点不可达）
+// pluma: a deadline exceeded is a slow answer, not a node out of reach: under
+// load three of them took the only session node out of the ring.
 func isConnError(err error) bool {
 	s, ok := status.FromError(err)
 	if !ok {
 		return false
 	}
-	switch s.Code() {
-	case codes.Unavailable, codes.DeadlineExceeded:
-		return true
-	}
-	return false
+	return s.Code() == codes.Unavailable
 }
