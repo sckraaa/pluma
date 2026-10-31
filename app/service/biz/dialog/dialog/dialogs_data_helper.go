@@ -17,12 +17,16 @@ type DialogsDataHelper struct {
 	Users    []*mtproto.User    `json:"users"`
 }
 
+// fix drops the dialogs whose top message or peer did not load. The users
+// and chats stay as loaded: besides the peers they hold the account itself
+// and the senders of the top messages of groups, which a client needs to name
+// them (pluma, task 020: they were cut down to the peers of private chats,
+// and Android showed a group's last message from "DELETED" after a fresh
+// login).
 func (m *DialogsDataHelper) fix() {
 	var (
 		dialogs  = make([]*mtproto.Dialog, 0, len(m.Dialogs))
 		messages = make([]*mtproto.Message, 0, len(m.Messages))
-		chats    = make([]*mtproto.Chat, 0, len(m.Chats))
-		users    = make([]*mtproto.User, 0, len(m.Users))
 	)
 
 	for _, dlg := range m.Dialogs {
@@ -43,53 +47,7 @@ func (m *DialogsDataHelper) fix() {
 			}
 		}
 
-		if topMessage != nil {
-			found := false
-			switch p.PeerType {
-			case mtproto.PEER_USER:
-				for _, v := range m.Users {
-					if v.Id == p.PeerId {
-						//if v.Deleted {
-						//	topMessage = nil
-						//} else {
-						users = append(users, v)
-						//}
-						found = true
-						break
-					}
-				}
-			case mtproto.PEER_CHAT:
-				for _, v := range m.Chats {
-					if v.Id == p.PeerId {
-						// TODO: check chatEmpty/chatForbidden
-						//if v.Deactivated || v.Left {
-						//	topMessage = nil
-						//} else {
-						chats = append(chats, v)
-						//}
-						found = true
-						break
-					}
-				}
-			case mtproto.PEER_CHANNEL:
-				for _, v := range m.Chats {
-					if v.Id == p.PeerId {
-						// TODO: check channelForbidden
-						//if v.Left {
-						//	topMessage = nil
-						//} else {
-						chats = append(chats, v)
-						//}
-						found = true
-						break
-					}
-				}
-			}
-			if !found {
-				topMessage = nil
-			}
-		}
-		if topMessage != nil {
+		if topMessage != nil && m.hasPeer(p) {
 			dialogs = append(dialogs, dlg)
 			messages = append(messages, topMessage)
 		}
@@ -97,8 +55,26 @@ func (m *DialogsDataHelper) fix() {
 
 	m.Dialogs = dialogs
 	m.Messages = messages
-	m.Users = users
-	m.Chats = chats
+}
+
+// hasPeer tells whether the user or chat of a dialog's peer loaded.
+func (m *DialogsDataHelper) hasPeer(p *mtproto.PeerUtil) bool {
+	switch p.PeerType {
+	case mtproto.PEER_USER:
+		for _, v := range m.Users {
+			if v.Id == p.PeerId {
+				return true
+			}
+		}
+	case mtproto.PEER_CHAT, mtproto.PEER_CHANNEL:
+		// chatForbidden and channelForbidden count as loaded, as before.
+		for _, v := range m.Chats {
+			if v.Id == p.PeerId {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (m *DialogsDataHelper) ToMessagesDialogs(count int32) *mtproto.Messages_Dialogs {
