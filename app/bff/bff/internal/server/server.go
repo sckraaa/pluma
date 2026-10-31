@@ -46,6 +46,7 @@ import (
 	qrcode_helper "github.com/teamgram/teamgram-server/app/bff/qrcode"
 	savedmessagedialogshelper "github.com/teamgram/teamgram-server/app/bff/savedmessagedialogs"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
+	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
 	twofa_helper "github.com/teamgram/teamgram-server/app/bff/twofa"
 	updates_helper "github.com/teamgram/teamgram-server/app/bff/updates"
@@ -257,6 +258,14 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				UserClient:    c.BizServiceClient,
 				MediaClient:   c.MediaClient,
+			}))
+
+		// stargifts_helper: the star gifts (none without payments).
+		mtproto.RegisterRPCGiftsServer(
+			grpcServer,
+			stargifts_helper.New(stargifts_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				UserClient:    c.BizServiceClient,
 			}))
 
 		// drafts_helper

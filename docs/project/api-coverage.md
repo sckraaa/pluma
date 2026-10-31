@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 161, partial 28, blocked 97, notimpl 7, fake 28, missing 548 (ok = 18.5%); with a conformance scenario 9
+    layer 228: 869 methods — ok 161, partial 29, blocked 97, notimpl 7, fake 28, missing 547 (ok = 18.5%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -26,7 +26,7 @@
 | help | 28 | 7 | 1 | 12 | 0 | 0 | 8 | 2 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 4 | 1 | 0 |
 | messages | 273 | 62 | 24 | 19 | 5 | 16 | 147 | 3 |
-| payments | 70 | 0 | 0 | 4 | 0 | 0 | 66 | 0 |
+| payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 | 0 |
 | predefined | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
@@ -791,7 +791,7 @@
 | `payments.getResaleStarGifts` | missing |  |  |
 | `payments.getSavedInfo` | missing |  |  |
 | `payments.getSavedStarGift` | missing |  |  |
-| `payments.getSavedStarGifts` | missing |  |  |
+| `payments.getSavedStarGifts` | partial |  | app/bff/stargifts/internal/core/payments.getSavedStarGifts_handler.go:42 |
 | `payments.getStarGiftActiveAuctions` | missing |  |  |
 | `payments.getStarGiftAuctionAcquiredGifts` | missing |  |  |
 | `payments.getStarGiftAuctionState` | missing |  |  |
