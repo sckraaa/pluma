@@ -7,11 +7,11 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 163, partial 27, blocked 97, notimpl 7, fake 28, missing 547 (ok = 18.8%); with a conformance scenario 9
+    layer 228: 869 methods — ok 165, partial 27, blocked 97, notimpl 7, fake 28, missing 545 (ok = 19.0%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
-| account | 132 | 37 | 2 | 27 | 0 | 6 | 60 | 0 |
+| account | 132 | 39 | 2 | 27 | 0 | 6 | 58 | 0 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | auth | 27 | 16 | 0 | 10 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
@@ -95,7 +95,7 @@
 | `account.getPassword` | ok |  | app/bff/twofa/internal/core/account.getPassword_handler.go:29 |
 | `account.getPasswordSettings` | ok |  | app/bff/twofa/internal/core/account.getPasswordSettings_handler.go:28 |
 | `account.getPrivacy` | ok |  | app/bff/privacysettings/internal/core/account.getPrivacy_handler.go:29 |
-| `account.getReactionsNotifySettings` | missing |  |  |
+| `account.getReactionsNotifySettings` | ok |  | app/bff/notification/internal/core/account.getReactionsNotifySettings_handler.go:33 |
 | `account.getRecentEmojiStatuses` | missing |  |  |
 | `account.getSavedMusicIds` | ok |  | app/bff/userchannelprofiles/internal/core/account.getSavedMusicIds_handler.go:28 |
 | `account.getSavedRingtones` | missing |  |  |
@@ -144,7 +144,7 @@
 | `account.setGlobalPrivacySettings` | ok |  | app/bff/privacysettings/internal/core/account.setGlobalPrivacySettings_handler.go:33 |
 | `account.setMainProfileTab` | ok |  | app/bff/userchannelprofiles/internal/core/account.setMainProfileTab_handler.go:28 |
 | `account.setPrivacy` | ok |  | app/bff/privacysettings/internal/core/account.setPrivacy_handler.go:29 |
-| `account.setReactionsNotifySettings` | missing |  |  |
+| `account.setReactionsNotifySettings` | ok |  | app/bff/notification/internal/core/account.setReactionsNotifySettings_handler.go:35 |
 | `account.toggleConnectedBotPaused` | missing |  |  |
 | `account.toggleNoPaidMessagesException` | missing |  |  |
 | `account.toggleSponsoredMessages` | blocked |  | app/bff/sponsoredmessages/internal/core/account.toggleSponsoredMessages_handler.go:27 |
