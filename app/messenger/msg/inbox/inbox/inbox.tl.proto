@@ -114,8 +114,10 @@ message TL_inbox_editMessageToInboxV2 {
 }
 
 //--------------------------------------------------------------------------------------------
-// inbox.readOutboxHistory user_id:long from_id:long peer_type:int peer_id:long max_dialog_message_id:long = Void;
-// from_id read the dialog up to user_id's message max_dialog_message_id.
+// inbox.readOutboxHistory user_id:long from_id:long peer_type:int peer_id:long max_dialog_message_id:long min_dialog_message_id:long = Void;
+// from_id read the dialog up to user_id's message max_dialog_message_id;
+// user_id's oldest message read with it is min_dialog_message_id (0 in
+// events written before it was sent).
 message TL_inbox_readOutboxHistory {
   TLConstructor constructor = 1;
   int64 user_id = 3;
@@ -123,6 +125,7 @@ message TL_inbox_readOutboxHistory {
   int32 peer_type = 5;
   int64 peer_id = 6;
   int64 max_dialog_message_id = 7;
+  int64 min_dialog_message_id = 8;
 }
 
 //--------------------------------------------------------------------------------------------

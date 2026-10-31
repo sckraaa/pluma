@@ -32,7 +32,8 @@ import (
 // own messages of the last readmarks.ChatExpirePeriod in groups of up to
 // readmarks.ChatSizeThreshold members (core.telegram.org/api/config), the
 // limits by which the clients offer the list (Android ChatActivity,
-// showMessageSeen); members who left are not listed.
+// showMessageSeen); a member who read it before the dates were kept has
+// the date 0, as every reader had before. Members who left are not listed.
 func (c *ChatsCore) readParticipants(inPeer *mtproto.InputPeer, msgId int32) ([]*mtproto.ReadParticipantDate, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, inPeer)
 	switch peer.PeerType {

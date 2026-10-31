@@ -700,8 +700,10 @@ func (x *TLInboxEditMessageToInboxV2) GetChats() []*mtproto.Chat {
 }
 
 // --------------------------------------------------------------------------------------------
-// inbox.readOutboxHistory user_id:long from_id:long peer_type:int peer_id:long max_dialog_message_id:long = Void;
-// from_id read the dialog up to user_id's message max_dialog_message_id.
+// inbox.readOutboxHistory user_id:long from_id:long peer_type:int peer_id:long max_dialog_message_id:long min_dialog_message_id:long = Void;
+// from_id read the dialog up to user_id's message max_dialog_message_id;
+// user_id's oldest message read with it is min_dialog_message_id (0 in
+// events written before it was sent).
 type TLInboxReadOutboxHistory struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Constructor        TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=inbox.TLConstructor" json:"constructor,omitempty"`
@@ -710,6 +712,7 @@ type TLInboxReadOutboxHistory struct {
 	PeerType           int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
 	PeerId             int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
 	MaxDialogMessageId int64                  `protobuf:"varint,7,opt,name=max_dialog_message_id,json=maxDialogMessageId,proto3" json:"max_dialog_message_id,omitempty"`
+	MinDialogMessageId int64                  `protobuf:"varint,8,opt,name=min_dialog_message_id,json=minDialogMessageId,proto3" json:"min_dialog_message_id,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -782,6 +785,13 @@ func (x *TLInboxReadOutboxHistory) GetPeerId() int64 {
 func (x *TLInboxReadOutboxHistory) GetMaxDialogMessageId() int64 {
 	if x != nil {
 		return x.MaxDialogMessageId
+	}
+	return 0
+}
+
+func (x *TLInboxReadOutboxHistory) GetMinDialogMessageId() int64 {
+	if x != nil {
+		return x.MinDialogMessageId
 	}
 	return 0
 }
@@ -1001,14 +1011,15 @@ const file_inbox_tl_proto_rawDesc = "" +
 	"\vnew_message\x18\a \x01(\v2\x13.mtproto.MessageBoxR\n" +
 	"newMessage\x12#\n" +
 	"\x05users\x18\b \x03(\v2\r.mtproto.UserR\x05users\x12#\n" +
-	"\x05chats\x18\t \x03(\v2\r.mtproto.ChatR\x05chats\"\xef\x01\n" +
+	"\x05chats\x18\t \x03(\v2\r.mtproto.ChatR\x05chats\"\xa2\x02\n" +
 	"\x1aTL_inbox_readOutboxHistory\x126\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x14.inbox.TLConstructorR\vconstructor\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x17\n" +
 	"\afrom_id\x18\x04 \x01(\x03R\x06fromId\x12\x1b\n" +
 	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
 	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x121\n" +
-	"\x15max_dialog_message_id\x18\a \x01(\x03R\x12maxDialogMessageId\"\xd3\x01\n" +
+	"\x15max_dialog_message_id\x18\a \x01(\x03R\x12maxDialogMessageId\x121\n" +
+	"\x15min_dialog_message_id\x18\b \x01(\x03R\x12minDialogMessageId\"\xd3\x01\n" +
 	"!TL_inbox_readMediaUnreadToInboxV2\x126\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x14.inbox.TLConstructorR\vconstructor\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x17\n" +

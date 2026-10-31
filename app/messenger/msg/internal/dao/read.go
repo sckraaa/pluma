@@ -45,14 +45,16 @@ func (d *Dao) readInbox(b *userbox.Box, peer boxPeer, maxId int32) (*mtproto.Upd
 type ReadHistoryResult struct {
 	Update *mtproto.Update
 	// Senders of the messages read, each with the dialog_message_id of its
-	// newest message read: they learn their messages were read.
+	// oldest and newest message read: they learn their messages were read.
 	Senders []ReadSender
 }
 
-// ReadSender is a sender whose messages a reader read up to DialogMessageId.
+// ReadSender is a sender whose messages a reader read, from
+// MinDialogMessageId to DialogMessageId.
 type ReadSender struct {
-	UserId          int64
-	DialogMessageId int64
+	UserId             int64
+	MinDialogMessageId int64
+	DialogMessageId    int64
 }
 
 // ReadHistory marks b's owner's dialog with peer read up to maxId (0: up to
@@ -74,18 +76,22 @@ func (d *Dao) ReadHistory(b *userbox.Box, peerType int32, peerId int64, maxId in
 		return nil, nil
 	}
 
-	// The newest message of each sender among the incoming ones read now.
+	// The oldest and the newest message of each sender among the incoming
+	// ones read now.
 	var senders []struct {
-		SenderUserId    int64 `db:"sender_user_id"`
-		DialogMessageId int64 `db:"dialog_message_id"`
+		SenderUserId       int64 `db:"sender_user_id"`
+		MinDialogMessageId int64 `db:"min_dialog_message_id"`
+		DialogMessageId    int64 `db:"dialog_message_id"`
 	}
 	did := peer.dialogId(b.UserId())
 	if err = b.Tx().QueryRowsPartial(&senders,
-		"SELECT m.sender_user_id, m.dialog_message_id FROM messages m JOIN"+
-			" (SELECT sender_user_id, MAX(user_message_box_id) AS id FROM messages"+
+		"SELECT s.sender_user_id, oldest.dialog_message_id AS min_dialog_message_id, newest.dialog_message_id FROM"+
+			" (SELECT sender_user_id, MIN(user_message_box_id) AS min_id, MAX(user_message_box_id) AS max_id FROM messages"+
 			" WHERE user_id = ? AND dialog_id1 = ? AND dialog_id2 = ? AND user_message_box_id > ? AND user_message_box_id <= ? AND sender_user_id <> ? AND deleted = 0"+
-			" GROUP BY sender_user_id) s ON m.user_id = ? AND m.user_message_box_id = s.id ORDER BY m.sender_user_id",
-		b.UserId(), did.A, did.B, dlg.ReadInboxMaxId, maxId, b.UserId(), b.UserId()); err != nil {
+			" GROUP BY sender_user_id) s"+
+			" JOIN messages oldest ON oldest.user_id = ? AND oldest.user_message_box_id = s.min_id"+
+			" JOIN messages newest ON newest.user_id = ? AND newest.user_message_box_id = s.max_id ORDER BY s.sender_user_id",
+		b.UserId(), did.A, did.B, dlg.ReadInboxMaxId, maxId, b.UserId(), b.UserId(), b.UserId()); err != nil {
 		return nil, err
 	}
 
@@ -95,18 +101,19 @@ func (d *Dao) ReadHistory(b *userbox.Box, peerType int32, peerId int64, maxId in
 	}
 	res := &ReadHistoryResult{Update: update}
 	for _, s := range senders {
-		res.Senders = append(res.Senders, ReadSender{UserId: s.SenderUserId, DialogMessageId: s.DialogMessageId})
+		res.Senders = append(res.Senders, ReadSender{UserId: s.SenderUserId, MinDialogMessageId: s.MinDialogMessageId, DialogMessageId: s.DialogMessageId})
 	}
 	return res, nil
 }
 
 // ReadOutbox records that readerId read b's owner's messages in the dialog
-// with peer (as the owner sees it) up to the owner's copy of
-// dialogMessageId at readAt (unix seconds): the date is kept for every
-// reader (recordReadDate), read_outbox_max_id only grows, and the journal
-// gets updateReadHistoryOutbox. It returns the update, or nil when there
-// is nothing new.
-func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId, dialogMessageId, readAt int64) (*mtproto.Update, error) {
+// with peer (as the owner sees it) from the owner's copy of
+// minDialogMessageId (0: unknown) up to the one of dialogMessageId at
+// readAt (unix seconds): the date is kept for every reader
+// (recordReadDate), read_outbox_max_id only grows, and the journal gets
+// updateReadHistoryOutbox. It returns the update, or nil when there is
+// nothing new.
+func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId, minDialogMessageId, dialogMessageId, readAt int64) (*mtproto.Update, error) {
 	peer := boxPeer{PeerType: peerType, PeerId: peerId}
 	copies, err := messagesByDialogMessageIds(b, []int64{dialogMessageId})
 	if err != nil || len(copies) == 0 {
@@ -117,9 +124,23 @@ func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId,
 	if err != nil || dlg == nil {
 		return nil, err
 	}
+	// The oldest message read, deleted since or not; without it the read
+	// is known to reach the newest one only.
+	minId := maxId
+	if minDialogMessageId != 0 && minDialogMessageId != dialogMessageId {
+		var ids []int32
+		if err = b.Tx().QueryRowsPartial(&ids,
+			"SELECT user_message_box_id FROM messages WHERE user_id = ? AND dialog_message_id = ?",
+			b.UserId(), minDialogMessageId); err != nil {
+			return nil, err
+		}
+		if len(ids) == 1 && ids[0] < maxId {
+			minId = ids[0]
+		}
+	}
 	// In a group the first reader moves read_outbox_max_id; the date of
 	// each one is kept all the same.
-	if err = recordReadDate(b, peer, readerId, maxId, readAt); err != nil {
+	if err = recordReadDate(b, peer, readerId, minId, maxId, readAt); err != nil {
 		return nil, err
 	}
 	if dlg.ReadOutboxMaxId >= maxId {
@@ -137,12 +158,12 @@ func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId,
 }
 
 // recordReadDate keeps the date readerId read b's owner's messages in a
-// private chat or a basic group up to maxId, the owner's message id, for
-// messages.getOutboxReadDate and messages.getMessageReadParticipants: a
-// row per read, of which the first one at or above a message is the date
-// it was read. The reader's dates in the dialog older than
+// private chat or a basic group from minId to maxId, the owner's message
+// ids, for messages.getOutboxReadDate and
+// messages.getMessageReadParticipants: a row per read, whose range holds
+// the messages read with it. The reader's dates in the dialog older than
 // readmarks.KeepPeriod go, and a read recorded twice keeps its first date.
-func recordReadDate(b *userbox.Box, peer boxPeer, readerId int64, maxId int32, readAt int64) error {
+func recordReadDate(b *userbox.Box, peer boxPeer, readerId int64, minId, maxId int32, readAt int64) error {
 	if peer.PeerType != mtproto.PEER_USER && peer.PeerType != mtproto.PEER_CHAT {
 		return nil
 	}
@@ -153,9 +174,9 @@ func recordReadDate(b *userbox.Box, peer boxPeer, readerId int64, maxId int32, r
 		return err
 	}
 	_, err := b.Tx().Exec("INSERT INTO message_read_outbox"+
-		" (user_id, peer_dialog_id, read_user_id, read_outbox_max_id, read_outbox_max_date) VALUES (?, ?, ?, ?, ?)"+
+		" (user_id, peer_dialog_id, read_user_id, read_outbox_min_id, read_outbox_max_id, read_outbox_max_date) VALUES (?, ?, ?, ?, ?, ?)"+
 		" ON DUPLICATE KEY UPDATE read_outbox_max_date = LEAST(read_outbox_max_date, VALUES(read_outbox_max_date))",
-		b.UserId(), peerDialogId, readerId, maxId, readAt)
+		b.UserId(), peerDialogId, readerId, minId, maxId, readAt)
 	return err
 }
 

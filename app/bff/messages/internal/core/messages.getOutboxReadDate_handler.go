@@ -29,8 +29,10 @@ import (
 )
 
 // errMessageTooOld: the message was sent more than pm_read_date_expire_period
-// ago, and its read date is gone (core.telegram.org/method/messages.getOutboxReadDate;
-// tdesktop shows it as such, api_who_reacted.cpp).
+// ago, and its read date is gone, or it was read before the dates were
+// kept: "the requested information is not available"
+// (core.telegram.org/method/messages.getOutboxReadDate; tdesktop shows it
+// as such, api_who_reacted.cpp).
 var errMessageTooOld = status.Error(mtproto.ErrBadRequest, "MESSAGE_TOO_OLD")
 
 // MessagesGetOutboxReadDate
@@ -88,8 +90,12 @@ func (c *MessagesCore) MessagesGetOutboxReadDate(in *mtproto.TLMessagesGetOutbox
 	if len(rList.GetDatas()) == 0 {
 		return nil, mtproto.ErrMessageNotReadYet
 	}
+	date := rList.GetDatas()[0].GetDate()
+	if date == 0 {
+		return nil, errMessageTooOld
+	}
 
 	return mtproto.MakeTLOutboxReadDate(&mtproto.OutboxReadDate{
-		Date: rList.GetDatas()[0].GetDate(),
+		Date: date,
 	}).To_OutboxReadDate(), nil
 }

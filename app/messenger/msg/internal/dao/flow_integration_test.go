@@ -929,10 +929,11 @@ func TestReadInGroup(t *testing.T) {
 	}
 }
 
-// TestReadDates: every reader of a group's message leaves its sender the
-// date they read it, the first reader and the next ones alike, and so does
-// the peer of a private chat; a reader's dates older than
-// readmarks.KeepPeriod go with their next read.
+// TestReadDates: every reader of a group's messages leaves their sender the
+// date they read them with the range of the sender's messages read, the
+// first reader and the next ones alike, and so does the peer of a private
+// chat; a reader's dates older than readmarks.KeepPeriod go with their next
+// read.
 func TestReadDates(t *testing.T) {
 	w := newWorld(t, boxDSN(""), 0)
 	ctx := context.Background()
@@ -942,7 +943,7 @@ func TestReadDates(t *testing.T) {
 	chatDialog := mtproto.MakePeerDialogId(mtproto.PEER_CHAT, chat)
 	privateDialog := mtproto.MakePeerDialogId(mtproto.PEER_USER, b)
 
-	groupId := sentIds(w.send(a, mtproto.PEER_CHAT, chat, "to the group"))[0]
+	groupIds := sentIds(w.send(a, mtproto.PEER_CHAT, chat, "one", "two"))
 	privateId := sentIds(w.send(a, mtproto.PEER_USER, b, "to B"))[0]
 	w.pub.drain()
 	if _, err := w.check.Exec("INSERT INTO message_read_outbox"+
@@ -968,9 +969,9 @@ func TestReadDates(t *testing.T) {
 
 	type readDate struct {
 		dialog, reader int64
-		maxId          int32
+		minId, maxId   int32
 	}
-	rows, err := w.check.Query("SELECT peer_dialog_id, read_user_id, read_outbox_max_id, read_outbox_max_date"+
+	rows, err := w.check.Query("SELECT peer_dialog_id, read_user_id, read_outbox_min_id, read_outbox_max_id, read_outbox_max_date"+
 		" FROM message_read_outbox WHERE user_id = ?", a)
 	if err != nil {
 		t.Fatal(err)
@@ -982,7 +983,7 @@ func TestReadDates(t *testing.T) {
 			r    readDate
 			date int64
 		)
-		if err = rows.Scan(&r.dialog, &r.reader, &r.maxId, &date); err != nil {
+		if err = rows.Scan(&r.dialog, &r.reader, &r.minId, &r.maxId, &date); err != nil {
 			t.Fatal(err)
 		}
 		if date < before || date > after {
@@ -994,15 +995,15 @@ func TestReadDates(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[readDate]bool{
-		{chatDialog, b, groupId}:      true,
-		{chatDialog, c, groupId}:      true,
-		{privateDialog, b, privateId}: true,
+		{chatDialog, b, groupIds[0], groupIds[1]}: true,
+		{chatDialog, c, groupIds[0], groupIds[1]}: true,
+		{privateDialog, b, privateId, privateId}:  true,
 	}
 	if !maps.Equal(got, want) {
 		t.Errorf("A's read dates %v, want %v", got, want)
 	}
-	if d := w.dialog(a, mtproto.PEER_CHAT, chat); d.ReadOutboxMaxId != groupId {
-		t.Errorf("A's group read_outbox_max_id %d, want %d", d.ReadOutboxMaxId, groupId)
+	if d := w.dialog(a, mtproto.PEER_CHAT, chat); d.ReadOutboxMaxId != groupIds[1] {
+		t.Errorf("A's group read_outbox_max_id %d, want %d", d.ReadOutboxMaxId, groupIds[1])
 	}
 	for _, u := range []int64{a, b, c} {
 		w.checkBox(u)

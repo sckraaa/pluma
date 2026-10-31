@@ -61,6 +61,7 @@ func (c *MsgCore) MsgReadHistoryV2(in *msg.TLMsgReadHistoryV2) (*mtproto.Message
 					PeerType:           peerType,
 					PeerId:             peerId,
 					MaxDialogMessageId: s.DialogMessageId,
+					MinDialogMessageId: s.MinDialogMessageId,
 				}); err != nil {
 					return err
 				}
