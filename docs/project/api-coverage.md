@@ -458,7 +458,7 @@
 | `help.getPeerColors` | missing |  |  |
 | `help.getPeerProfileColors` | missing |  |  |
 | `help.getPremiumPromo` | blocked |  | app/bff/premium/internal/core/help.getPremiumPromo_handler.go:27 |
-| `help.getPromoData` | ok |  | app/bff/configuration/internal/core/help.getPromoData_handler.go:37 |
+| `help.getPromoData` | ok |  | app/bff/configuration/internal/core/help.getPromoData_handler.go:38 |
 | `help.getRecentMeUrls` | missing |  |  |
 | `help.getSupport` | blocked |  | app/bff/configuration/internal/core/help.getSupport_handler.go:27 |
 | `help.getSupportName` | blocked |  | app/bff/configuration/internal/core/help.getSupportName_handler.go:27 |
