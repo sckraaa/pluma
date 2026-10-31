@@ -46,35 +46,47 @@ func TestMain(m *testing.M) {
 }
 
 // A dismissed suggestion stays dismissed, the birthday banner of contacts
-// for a day; dismissing it again starts the day again.
+// for the rest of the day of the client that asks; dismissing it again
+// starts a new day.
 func TestDismissedSuggestions(t *testing.T) {
 	ctx := context.Background()
 	const user = int64(4001)
-	now := time.Date(2026, time.October, 31, 10, 0, 0, 0, time.UTC)
+	moscow := time.FixedZone("", 3*3600)
+	newYork := time.FixedZone("", -5*3600)
+	// 20:00 in Moscow, 13:00 in New York, 17:00 UTC.
+	at := time.Date(2026, time.October, 31, 20, 0, 0, 0, moscow)
 	for _, s := range []string{SuggestionBirthdaySetup, SuggestionBirthdayContactsToday} {
-		if err := itDao.DismissSuggestion(ctx, user, s, now); err != nil {
+		if err := itDao.DismissSuggestion(ctx, user, s, at); err != nil {
 			t.Fatal(err)
 		}
 	}
-	check := func(at time.Time, want ...string) {
+	check := func(now time.Time, zone *time.Location, want ...string) {
 		t.Helper()
-		got, err := itDao.DismissedSuggestions(ctx, user, at)
+		got, err := itDao.DismissedSuggestions(ctx, user, now, zone)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if !slices.Equal(got, want) {
-			t.Errorf("at %s: dismissed %v, want %v", at.Format(time.RFC3339), got, want)
+			t.Errorf("at %s: dismissed %v, want %v", now.In(zone).Format(time.RFC3339), got, want)
 		}
 	}
-	check(now.Add(DayLong-time.Second), SuggestionBirthdayContactsToday, SuggestionBirthdaySetup)
-	check(now.Add(DayLong), SuggestionBirthdaySetup)
-	if err := itDao.DismissSuggestion(ctx, user, SuggestionBirthdayContactsToday, now.Add(DayLong)); err != nil {
+	both := []string{SuggestionBirthdayContactsToday, SuggestionBirthdaySetup}
+	// Until the midnight of the client that asks.
+	check(time.Date(2026, time.October, 31, 23, 59, 59, 0, moscow), moscow, both...)
+	check(time.Date(2026, time.November, 1, 0, 0, 0, 0, moscow), moscow, SuggestionBirthdaySetup)
+	check(time.Date(2026, time.October, 31, 23, 59, 59, 0, newYork), newYork, both...)
+	check(time.Date(2026, time.November, 1, 0, 0, 0, 0, newYork), newYork, SuggestionBirthdaySetup)
+	check(time.Date(2026, time.October, 31, 23, 59, 59, 0, time.UTC), time.UTC, both...)
+	check(time.Date(2026, time.November, 1, 0, 0, 0, 0, time.UTC), time.UTC, SuggestionBirthdaySetup)
+	// A dismissal the next day lasts for that day.
+	next := time.Date(2026, time.November, 1, 9, 0, 0, 0, moscow)
+	if err := itDao.DismissSuggestion(ctx, user, SuggestionBirthdayContactsToday, next); err != nil {
 		t.Fatal(err)
 	}
-	check(now.Add(DayLong+time.Hour), SuggestionBirthdayContactsToday, SuggestionBirthdaySetup)
-	check(now.Add(DayLong), SuggestionBirthdayContactsToday, SuggestionBirthdaySetup)
+	check(next.Add(time.Hour), moscow, both...)
+	check(time.Date(2026, time.November, 2, 0, 0, 0, 0, moscow), moscow, SuggestionBirthdaySetup)
 	// Another account dismissed nothing.
-	got, err := itDao.DismissedSuggestions(ctx, user+1, now)
+	got, err := itDao.DismissedSuggestions(ctx, user+1, at, time.UTC)
 	if err != nil || got == nil || len(got) != 0 {
 		t.Errorf("another account: %v %v", got, err)
 	}

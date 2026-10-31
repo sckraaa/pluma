@@ -104,9 +104,10 @@ func (s *Server) Initialize() error {
 		// configuration_helper: also the promo data, the suggestions of the
 		// account.
 		configuration := configuration_helper.New(configuration_helper.Config{
-			RpcServerConf: c.RpcServerConf,
-			Mysql:         c.Mysql,
-			UserClient:    c.BizServiceClient,
+			RpcServerConf:     c.RpcServerConf,
+			Mysql:             c.Mysql,
+			UserClient:        c.BizServiceClient,
+			AuthsessionClient: c.AuthSessionClient,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

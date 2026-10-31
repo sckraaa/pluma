@@ -25,6 +25,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	Mysql      sqlx.Config // dismissed suggestions
-	UserClient zrpc.RpcClientConf
+	Mysql             sqlx.Config // dismissed suggestions
+	UserClient        zrpc.RpcClientConf
+	AuthsessionClient zrpc.RpcClientConf // the client's time zone
 }

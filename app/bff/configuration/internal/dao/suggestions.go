@@ -17,9 +17,13 @@ package dao
 
 import (
 	"context"
+	"math"
 	"regexp"
 	"slices"
 	"time"
+
+	"github.com/teamgram/proto/mtproto"
+	"github.com/zeromicro/go-zero/core/jsonx"
 )
 
 // Suggestions are the tooltips a client shows by help.getPromoData
@@ -32,12 +36,58 @@ const (
 	SuggestionBirthdayContactsToday = "BIRTHDAY_CONTACTS_TODAY"
 )
 
-// DayLong is how long a dismissal of BIRTHDAY_CONTACTS_TODAY lasts: the
-// banner is about the birthdays of the day before, the day and the day after
-// (contacts.getBirthdays), and comes back for the next ones. Telegram drops
-// the banner when the user sent a gift to a contact whose birthday is
-// "within the next/previous 24 hours" (core.telegram.org/api/config).
-const DayLong = 24 * time.Hour
+// A dismissal of BIRTHDAY_CONTACTS_TODAY lasts for the rest of the user's
+// day: the banner is about today's birthdays and comes back for the next
+// day's. The iOS and desktop apps show it on every launch unless the server
+// lists it as dismissed (Telegram-iOS GlobalControlPanelsContext.swift:390,
+// tdesktop PromoSuggestions::current), so the server has to end the
+// dismissal at the user's midnight; Android and Web K also remember a close
+// for the day themselves (BirthdayController.hide, appPromoManager). The day
+// is the one of the client that asks: its initConnection params carry its
+// offset from UTC (ClientZone).
+
+// minZoneOffset and maxZoneOffset bound the tz_offset taken from a client, in
+// seconds: the time zones in use run from UTC-12 to UTC+14, as tdesktop
+// slices the offset it sends (SessionPrivate::prepareInitParams).
+const (
+	minZoneOffset = -12 * 3600
+	maxZoneOffset = 14 * 3600
+)
+
+// ClientZone is the time zone of a client by the tz_offset of its
+// initConnection params, as the session stores them (a JSONValue), in
+// seconds east of UTC: Android sends the default zone's offset with daylight
+// saving (ConnectionsManager.java:253, ConnectionsManager.cpp:3192), iOS
+// secondsFromGMT (BuildConfig.m:154-155), tdesktop the local offset rounded
+// to 15 minutes (session_private.cpp:550-570). A client that sends none, as
+// Web K, or one out of range, is taken to be on UTC.
+func ClientZone(params string) *time.Location {
+	if params == "" || params == "null" {
+		return time.UTC
+	}
+	var v mtproto.JSONValue
+	if err := jsonx.UnmarshalFromString(params, &v); err != nil {
+		return time.UTC
+	}
+	for _, kv := range v.GetValue_VECTORJSONOBJECTVALUE() {
+		if kv.GetKey() != "tz_offset" || kv.GetValue().GetPredicateName() != mtproto.Predicate_jsonNumber {
+			continue
+		}
+		offset := kv.GetValue().GetValue_FLOAT64()
+		if math.IsNaN(offset) || offset < minZoneOffset || offset > maxZoneOffset {
+			return time.UTC
+		}
+		return time.FixedZone("", int(offset))
+	}
+	return time.UTC
+}
+
+// sameDay tells whether a and b fall on the same date in zone.
+func sameDay(a, b time.Time, zone *time.Location) bool {
+	ya, ma, da := a.In(zone).Date()
+	yb, mb, db := b.In(zone).Date()
+	return ya == yb && ma == mb && da == db
+}
 
 // DismissSuggestion records that userId dismissed suggestion at now.
 func (d *Dao) DismissSuggestion(ctx context.Context, userId int64, suggestion string, now time.Time) error {
@@ -48,8 +98,9 @@ func (d *Dao) DismissSuggestion(ctx context.Context, userId int64, suggestion st
 }
 
 // DismissedSuggestions returns the suggestions userId has dismissed, by
-// name: BIRTHDAY_CONTACTS_TODAY only for DayLong after its dismissal.
-func (d *Dao) DismissedSuggestions(ctx context.Context, userId int64, now time.Time) ([]string, error) {
+// name: BIRTHDAY_CONTACTS_TODAY only on the day of its dismissal in zone, the
+// time zone of the client that asks.
+func (d *Dao) DismissedSuggestions(ctx context.Context, userId int64, now time.Time, zone *time.Location) ([]string, error) {
 	var rows []struct {
 		Suggestion string `db:"suggestion"`
 		Date       int64  `db:"date2"`
@@ -59,7 +110,7 @@ func (d *Dao) DismissedSuggestions(ctx context.Context, userId int64, now time.T
 	}
 	dismissed := []string{}
 	for _, r := range rows {
-		if r.Suggestion == SuggestionBirthdayContactsToday && now.Sub(time.Unix(r.Date, 0)) >= DayLong {
+		if r.Suggestion == SuggestionBirthdayContactsToday && !sameDay(time.Unix(r.Date, 0), now, zone) {
 			continue
 		}
 		dismissed = append(dismissed, r.Suggestion)

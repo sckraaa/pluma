@@ -22,17 +22,20 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
+	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 )
 
 type Dao struct {
 	db *sqlx.DB
 	user_client.UserClient
+	authsession_client.AuthsessionClient
 }
 
 func New(c config.Config) *Dao {
 	return &Dao{
-		db:         sqlx.NewMySQL(&c.Mysql),
-		UserClient: user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		db:                sqlx.NewMySQL(&c.Mysql),
+		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 	}
 }
