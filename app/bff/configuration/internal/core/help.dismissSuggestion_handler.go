@@ -19,14 +19,37 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
 )
 
 // HelpDismissSuggestion
 // help.dismissSuggestion#f50dbaa1 peer:InputPeer suggestion:string = Bool;
+//
+// A suggestion of the account goes with inputPeerEmpty and is listed in
+// dismissed_suggestions of help.getPromoData from then on; the suggestions
+// of a channel go with the channel, and channels are not served yet.
 func (c *ConfigurationCore) HelpDismissSuggestion(in *mtproto.TLHelpDismissSuggestion) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("help.dismissSuggestion blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
+	switch in.GetPeer().GetPredicateName() {
+	case mtproto.Predicate_inputPeerEmpty:
+	case mtproto.Predicate_inputPeerChannel, mtproto.Predicate_inputPeerChannelFromMessage:
+		c.Logger.Errorf("help.dismissSuggestion blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		return nil, mtproto.ErrEnterpriseIsBlocked
+	default:
+		err := mtproto.ErrPeerIdInvalid
+		c.Logger.Errorf("help.dismissSuggestion - error: %v", err)
+		return nil, err
+	}
+	if !dao.ValidSuggestion(in.GetSuggestion()) {
+		err := mtproto.ErrInputRequestInvalid
+		c.Logger.Errorf("help.dismissSuggestion - error: %v", err)
+		return nil, err
+	}
+	if err := c.svcCtx.Dao.DismissSuggestion(c.ctx, c.MD.UserId, in.GetSuggestion(), time.Now()); err != nil {
+		c.Logger.Errorf("help.dismissSuggestion - error: %v", err)
+		return nil, err
+	}
 	return mtproto.BoolTrue, nil
 }

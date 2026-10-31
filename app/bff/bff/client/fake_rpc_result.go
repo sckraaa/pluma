@@ -148,14 +148,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Reactions: []*mtproto.AvailableReaction{},
 		}).To_Messages_AvailableReactions(), nil
 
-	// promodata
-	case "TLHelpGetPromoData":
-		return mtproto.MakeTLHelpPromoDataEmpty(&mtproto.Help_PromoData{
-			Expires: int32(time.Now().Unix() + 60*60),
-		}).To_Help_PromoData(), nil
-	case "TLHelpHidePromoData":
-		return mtproto.BoolTrue, nil
-
 	// emoji
 	case "TLMessagesGetEmojiKeywords":
 		in := object.(*mtproto.TLMessagesGetEmojiKeywords)

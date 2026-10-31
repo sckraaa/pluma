@@ -21,6 +21,7 @@ package svc
 import (
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/appconfig"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
+	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -32,6 +33,7 @@ const appConfigFile = "./app_config.json"
 type ServiceContext struct {
 	Config    config.Config
 	AppConfig *appconfig.AppConfig
+	*dao.Dao
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -40,5 +42,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:    c,
 		AppConfig: appConfig,
+		Dao:       dao.New(c),
 	}
 }

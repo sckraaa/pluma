@@ -18,9 +18,21 @@
 
 package dao
 
+import (
+	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+)
+
 type Dao struct {
+	db *sqlx.DB
+	user_client.UserClient
 }
 
-func New() *Dao {
-	return new(Dao)
+func New(c config.Config) *Dao {
+	return &Dao{
+		db:         sqlx.NewMySQL(&c.Mysql),
+		UserClient: user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+	}
 }
