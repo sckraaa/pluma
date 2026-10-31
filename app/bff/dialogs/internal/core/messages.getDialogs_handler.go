@@ -71,12 +71,12 @@ func (c *DialogsCore) MessagesGetDialogs(in *mtproto.TLMessagesGetDialogs) (*mtp
 		})
 
 	if len(dialogExtList) == 0 {
-		return mtproto.MakeTLMessagesDialogsSlice(&mtproto.Messages_Dialogs{
+		// pluma: the whole list, empty (dialog.DialogsDataHelper.ToMessagesDialogsAll).
+		return mtproto.MakeTLMessagesDialogs(&mtproto.Messages_Dialogs{
 			Dialogs:  []*mtproto.Dialog{},
 			Messages: []*mtproto.Message{},
 			Chats:    []*mtproto.Chat{},
 			Users:    []*mtproto.User{},
-			Count:    0,
 		}).To_Messages_Dialogs(), nil
 	}
 
@@ -153,5 +153,9 @@ func (c *DialogsCore) MessagesGetDialogs(in *mtproto.TLMessagesGetDialogs) (*mtp
 			return []*mtproto.Chat{}
 		})
 
+	// pluma: a page that holds every dialog is the whole list.
+	if dialogExtList.Len() == int(dialogCount) {
+		return messageDialogs.ToMessagesDialogsAll(), nil
+	}
 	return messageDialogs.ToMessagesDialogs(dialogCount), nil
 }

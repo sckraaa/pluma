@@ -77,3 +77,42 @@ func TestDialogsUsers(t *testing.T) {
 		t.Errorf("users %v: want Carol, the sender, and Bob himself", users)
 	}
 }
+
+// A page that holds every dialog is messages.dialogs, the full list; a part
+// of the list is messages.dialogsSlice with the total count (task 020).
+// tdesktop shows the suggestions above the chat list, such as the birthday
+// banner, only once it holds the full list.
+func TestDialogsComplete(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	phones := testPhones(t, 3)
+	alice := login(ctx, t, phones[0], "Alice")
+	for i, name := range []string{"Bob", "Carol"} {
+		u := login(ctx, t, phones[1+i], name)
+		sendMessageID(ctx, t, alice, peerOf(ctx, t, alice, u), fmt.Sprintf("hi %d", randomID()), randomID())
+	}
+	page := func(limit int32) *mtproto.Messages_Dialogs {
+		t.Helper()
+		o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetDialogs{
+			Constructor:   alice.c.Constructor(mtproto.Predicate_messages_getDialogs),
+			ExcludePinned: true,
+			OffsetPeer:    &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerEmpty)},
+			Limit:         limit,
+		})
+		if err != nil {
+			t.Fatalf("messages.getDialogs: %v", err)
+		}
+		return o.(interface {
+			To_Messages_Dialogs() *mtproto.Messages_Dialogs
+		}).To_Messages_Dialogs()
+	}
+	// Alice has the chats with Bob and Carol at least.
+	part := page(1)
+	if part.GetPredicateName() != mtproto.Predicate_messages_dialogsSlice || len(part.GetDialogs()) != 1 || part.GetCount() < 2 {
+		t.Fatalf("one dialog of all: %s with %d dialogs, count %d", part.GetPredicateName(), len(part.GetDialogs()), part.GetCount())
+	}
+	if d := page(100); d.GetPredicateName() != mtproto.Predicate_messages_dialogs || int32(len(d.GetDialogs())) != part.GetCount() {
+		t.Errorf("the whole list: %s with %d dialogs, want %d", d.GetPredicateName(), len(d.GetDialogs()), part.GetCount())
+	}
+}

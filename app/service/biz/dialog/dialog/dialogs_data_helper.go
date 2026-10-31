@@ -88,6 +88,22 @@ func (m *DialogsDataHelper) ToMessagesDialogs(count int32) *mtproto.Messages_Dia
 	}).To_Messages_Dialogs()
 }
 
+// ToMessagesDialogsAll is the answer that holds the whole list of dialogs:
+// messages.dialogs, the "full list of chats", while messages.dialogsSlice is
+// an incomplete one (core.telegram.org/constructor/messages.dialogs). On a
+// slice tdesktop keeps paging and treats the list as loaded only after an
+// empty page it may not ask for (ApiWrap::requestMoreDialogs), and it shows
+// the suggestions above the chat list only once the list is loaded.
+func (m *DialogsDataHelper) ToMessagesDialogsAll() *mtproto.Messages_Dialogs {
+	m.fix()
+	return mtproto.MakeTLMessagesDialogs(&mtproto.Messages_Dialogs{
+		Dialogs:  m.Dialogs,
+		Messages: m.Messages,
+		Chats:    m.Chats,
+		Users:    m.Users,
+	}).To_Messages_Dialogs()
+}
+
 func (m *DialogsDataHelper) ToMessagesPeerDialogs(state *mtproto.Updates_State) *mtproto.Messages_PeerDialogs {
 	// m.fix()
 	return mtproto.MakeTLMessagesPeerDialogs(&mtproto.Messages_PeerDialogs{

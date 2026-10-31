@@ -76,3 +76,21 @@ func TestMessagesDialogsUsers(t *testing.T) {
 		t.Errorf("dialogs %v, %d messages, %d chats", tops, len(r.GetMessages()), len(r.GetChats()))
 	}
 }
+
+// The whole list is messages.dialogs, a part of it messages.dialogsSlice
+// with the total count.
+func TestMessagesDialogsAll(t *testing.T) {
+	data := func() *DialogsDataHelper {
+		return &DialogsDataHelper{
+			Dialogs:  []*mtproto.Dialog{mtproto.MakeTLDialog(&mtproto.Dialog{Peer: userPeer(2), TopMessage: 1}).To_Dialog()},
+			Messages: []*mtproto.Message{mtproto.MakeTLMessage(&mtproto.Message{Id: 1, PeerId: userPeer(2)}).To_Message()},
+			Users:    []*mtproto.User{mtproto.MakeTLUser(&mtproto.User{Id: 2}).To_User()},
+		}
+	}
+	if r := data().ToMessagesDialogsAll(); r.GetPredicateName() != mtproto.Predicate_messages_dialogs || len(r.GetDialogs()) != 1 {
+		t.Errorf("the whole list: %s with %d dialogs", r.GetPredicateName(), len(r.GetDialogs()))
+	}
+	if r := data().ToMessagesDialogs(5); r.GetPredicateName() != mtproto.Predicate_messages_dialogsSlice || r.GetCount() != 5 {
+		t.Errorf("a part: %s, count %d", r.GetPredicateName(), r.GetCount())
+	}
+}
