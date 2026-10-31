@@ -19,6 +19,7 @@ package core
 
 import (
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -75,5 +76,28 @@ func TestMutableUsersContacts(t *testing.T) {
 	}
 	if ok, mutual := b.CheckContact(ann); !ok || !mutual {
 		t.Errorf("Bob's contact Ann: %v, mutual %v", ok, mutual)
+	}
+}
+
+// A user asked for twice (users.getFullUser of self asks for the caller and
+// the peer) comes once, with its last seen time: the copy GetImmutableUser
+// finds had none, and the client showed "last seen 1970" in place of
+// "online" for itself.
+func TestMutableUsersSameIdTwice(t *testing.T) {
+	c := userCore(t)
+	ann, _ := newUser(t, "Ann")
+	now := time.Now().Unix()
+	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now, Expires: 300}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := c.UserGetMutableUsersV2(&user.TLUserGetMutableUsersV2{Id: []int64{ann, ann}, Privacy: true, HasTo: true, To: []int64{ann, ann}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := len(r.GetUsers()); n != 1 {
+		t.Errorf("%d users for one id", n)
+	}
+	if a, _ := r.GetImmutableUser(ann); a.GetLastSeenAt() != now {
+		t.Errorf("last seen %d, want %d", a.GetLastSeenAt(), now)
 	}
 }

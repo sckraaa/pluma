@@ -699,6 +699,11 @@ func (d *Dao) GetImmutableUserV2(ctx context.Context, id int64, privacy bool, ha
 }
 
 func (d *Dao) GetMutableUsersV2(ctx context.Context, idList2 []int64, privacy bool, hasTo bool, to []int64) []*mtproto.ImmutableUser {
+	// One user per id: a caller asking for itself and a peer passes the
+	// same id twice when the peer is itself (users.getFullUser of self), and
+	// a second copy would keep its last seen and contact rows apart from the
+	// first, the one GetImmutableUser finds.
+	idList2 = uniqueIds(idList2)
 	if len(idList2) == 0 {
 		return []*mtproto.ImmutableUser{}
 	}
@@ -841,6 +846,17 @@ func (d *Dao) GetMutableUsersV2(ctx context.Context, idList2 []int64, privacy bo
 		keyList...)
 
 	return cUserList
+}
+
+// uniqueIds returns the ids without repeats, in their first order.
+func uniqueIds(ids []int64) []int64 {
+	unique := make([]int64, 0, len(ids))
+	for _, id := range ids {
+		if !container2.ContainsInt64(unique, id) {
+			unique = append(unique, id)
+		}
+	}
+	return unique
 }
 
 // addContactRow adds the contact row "owner has contact in the contacts" to
