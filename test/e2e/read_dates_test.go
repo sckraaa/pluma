@@ -58,9 +58,13 @@ func TestReadDates(t *testing.T) {
 		}
 	}
 
-	// The senders learn of the reads with inbox events after the answer.
+	// Who read it is known at once; the dates reach the sender's box with
+	// inbox events after the answer.
 	var readers []*mtproto.ReadParticipantDate
-	for deadline := time.Now().Add(30 * time.Second); len(readers) < 2 && time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
+	dated := func() bool {
+		return len(readers) == 2 && readers[0].GetDate() != 0 && readers[1].GetDate() != 0
+	}
+	for deadline := time.Now().Add(30 * time.Second); !dated() && time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
 		raw, err := alice.c.InvokeRaw(ctx, &mtproto.TLMessagesGetMessageReadParticipants31C1C44F{
 			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getMessageReadParticipants31C1C44F),
 			Peer:        chatPeer(alice, group),
