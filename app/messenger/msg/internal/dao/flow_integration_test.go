@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strconv"
@@ -30,6 +31,7 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mqoutbox "github.com/teamgram/teamgram-server/pkg/outbox"
+	"github.com/teamgram/teamgram-server/pkg/readmarks"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -923,6 +925,86 @@ func TestReadInGroup(t *testing.T) {
 		t.Errorf("B's mention after reading %+v", m)
 	}
 	for _, u := range []int64{a, b, c, d} {
+		w.checkBox(u)
+	}
+}
+
+// TestReadDates: every reader of a group's message leaves its sender the
+// date they read it, the first reader and the next ones alike, and so does
+// the peer of a private chat; a reader's dates older than
+// readmarks.KeepPeriod go with their next read.
+func TestReadDates(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	a, b, c := newUser(), newUser(), newUser()
+	chat := newChat()
+	w.chats.members[chat] = []int64{a, b, c}
+	chatDialog := mtproto.MakePeerDialogId(mtproto.PEER_CHAT, chat)
+	privateDialog := mtproto.MakePeerDialogId(mtproto.PEER_USER, b)
+
+	groupId := sentIds(w.send(a, mtproto.PEER_CHAT, chat, "to the group"))[0]
+	privateId := sentIds(w.send(a, mtproto.PEER_USER, b, "to B"))[0]
+	w.pub.drain()
+	if _, err := w.check.Exec("INSERT INTO message_read_outbox"+
+		" (user_id, peer_dialog_id, read_user_id, read_outbox_max_id, read_outbox_max_date) VALUES (?, ?, ?, 0, ?)",
+		a, chatDialog, b, time.Now().Unix()-readmarks.KeepPeriod-60); err != nil {
+		t.Fatal(err)
+	}
+
+	before := time.Now().Unix()
+	for _, r := range []struct {
+		reader   int64
+		peerType int32
+		peerId   int64
+	}{{b, mtproto.PEER_CHAT, chat}, {c, mtproto.PEER_CHAT, chat}, {b, mtproto.PEER_USER, a}} {
+		if _, err := w.rpc.MsgReadHistoryV2(ctx, &msg.TLMsgReadHistoryV2{
+			UserId: r.reader, AuthKeyId: r.reader * 10, PeerType: r.peerType, PeerId: r.peerId,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		w.pub.drain()
+	}
+	after := time.Now().Unix()
+
+	type readDate struct {
+		dialog, reader int64
+		maxId          int32
+	}
+	rows, err := w.check.Query("SELECT peer_dialog_id, read_user_id, read_outbox_max_id, read_outbox_max_date"+
+		" FROM message_read_outbox WHERE user_id = ?", a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	got := map[readDate]bool{}
+	for rows.Next() {
+		var (
+			r    readDate
+			date int64
+		)
+		if err = rows.Scan(&r.dialog, &r.reader, &r.maxId, &date); err != nil {
+			t.Fatal(err)
+		}
+		if date < before || date > after {
+			t.Errorf("%+v read at %d, not within [%d, %d]", r, date, before, after)
+		}
+		got[r] = true
+	}
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := map[readDate]bool{
+		{chatDialog, b, groupId}:      true,
+		{chatDialog, c, groupId}:      true,
+		{privateDialog, b, privateId}: true,
+	}
+	if !maps.Equal(got, want) {
+		t.Errorf("A's read dates %v, want %v", got, want)
+	}
+	if d := w.dialog(a, mtproto.PEER_CHAT, chat); d.ReadOutboxMaxId != groupId {
+		t.Errorf("A's group read_outbox_max_id %d, want %d", d.ReadOutboxMaxId, groupId)
+	}
+	for _, u := range []int64{a, b, c} {
 		w.checkBox(u)
 	}
 }

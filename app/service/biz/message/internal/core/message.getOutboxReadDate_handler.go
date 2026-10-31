@@ -20,37 +20,28 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/service/biz/message/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 )
 
 // MessageGetOutboxReadDate
 // message.getOutboxReadDate user_id:long peer_type:int peer_id:long msg_id:int = Vector<ReadParticipantDate>;
+//
+// The dates the readers of user_id's message msg_id in the dialog with the
+// peer read it, the latest first: the peer of a private chat, the members
+// who read it in a basic group.
 func (c *MessageCore) MessageGetOutboxReadDate(in *message.TLMessageGetOutboxReadDate) (*message.Vector_ReadParticipantDate, error) {
-	var (
-		dateList []*mtproto.ReadParticipantDate
-	)
-
-	_, err := c.svcCtx.Dao.MessageReadOutboxDAO.SelectListWithCB(
-		c.ctx,
-		in.UserId,
-		in.PeerId,
-		in.MsgId,
-		func(sz, i int, v *dataobject.MessageReadOutboxDO) {
-			if i == 0 {
-				dateList = []*mtproto.ReadParticipantDate{
-					mtproto.MakeTLReadParticipantDate(&mtproto.ReadParticipantDate{
-						UserId: v.ReadUserId,
-						Date:   int32(v.ReadOutboxMaxDate),
-					}).To_ReadParticipantDate(),
-				}
-			}
-		})
+	dates, err := c.svcCtx.Dao.ReadDates(c.ctx, in.UserId, mtproto.MakePeerDialogId(in.PeerType, in.PeerId), in.MsgId)
 	if err != nil {
 		c.Logger.Errorf("message.getOutboxReadDate - error: %v", err)
 		return nil, err
-	} else if dateList == nil {
-		dateList = []*mtproto.ReadParticipantDate{}
+	}
+
+	dateList := make([]*mtproto.ReadParticipantDate, 0, len(dates))
+	for _, v := range dates {
+		dateList = append(dateList, mtproto.MakeTLReadParticipantDate(&mtproto.ReadParticipantDate{
+			UserId: v.ReadUserId,
+			Date:   int32(v.Date),
+		}).To_ReadParticipantDate())
 	}
 
 	return &message.Vector_ReadParticipantDate{

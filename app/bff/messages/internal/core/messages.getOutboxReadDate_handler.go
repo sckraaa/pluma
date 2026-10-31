@@ -19,10 +19,19 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
-	"github.com/zeromicro/go-zero/core/mr"
+	"github.com/teamgram/teamgram-server/pkg/readmarks"
+
+	"google.golang.org/grpc/status"
 )
+
+// errMessageTooOld: the message was sent more than pm_read_date_expire_period
+// ago, and its read date is gone (core.telegram.org/method/messages.getOutboxReadDate;
+// tdesktop shows it as such, api_who_reacted.cpp).
+var errMessageTooOld = status.Error(mtproto.ErrBadRequest, "MESSAGE_TOO_OLD")
 
 // MessagesGetOutboxReadDate
 // messages.getOutboxReadDate#8c4bfe5d peer:InputPeer msg_id:int = OutboxReadDate;
@@ -36,11 +45,7 @@ func (c *MessagesCore) MessagesGetOutboxReadDate(in *mtproto.TLMessagesGetOutbox
 	// 403	USER_PRIVACY_RESTRICTED	The user's privacy settings do not allow you to do this.
 	// 403	YOUR_PRIVACY_RESTRICTED	You cannot fetch the read date of this message because you have disallowed other users to do so for your messages; to fix, allow other users to see your exact last online date OR purchase a Telegram Premium subscription.
 
-	var (
-		peer = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
-		rV   *mtproto.OutboxReadDate
-	)
-
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	if !peer.IsUser() {
 		c.Logger.Errorf("messages.getOutboxReadDate - only user peer is supported")
 		return nil, mtproto.ErrPeerIdInvalid
@@ -49,56 +54,42 @@ func (c *MessagesCore) MessagesGetOutboxReadDate(in *mtproto.TLMessagesGetOutbox
 	// TODO: 1. Check USER_PRIVACY_RESTRICTED
 	//		 2. Check YOUR_PRIVACY_RESTRICTED
 
-	err := mr.Finish(
-		func() error {
-			msgBox, err := c.svcCtx.Dao.MessageClient.MessageGetUserMessage(c.ctx, &message.TLMessageGetUserMessage{
-				UserId: c.MD.UserId,
-				Id:     in.MsgId,
-			})
-			if err != nil {
-				c.Logger.Errorf("messages.getOutboxReadDate - error: %v", err)
-				return mtproto.ErrMessageIdInvalid
-			}
-
-			if msgBox.PeerType != mtproto.PEER_USER {
-				c.Logger.Errorf("messages.getOutboxReadDate - only user peer is supported")
-				return mtproto.ErrPeerIdInvalid
-			} else if msgBox.GetPeerId() != peer.PeerId {
-				c.Logger.Errorf("messages.getOutboxReadDate - only user peer is supported")
-				return mtproto.ErrPeerIdInvalid
-			}
-
-			// TODO: Check MESSAGE_TOO_OLD
-			return nil
-		},
-		func() error {
-			rList, err := c.svcCtx.Dao.MessageClient.MessageGetOutboxReadDate(c.ctx, &message.TLMessageGetOutboxReadDate{
-				UserId:   c.MD.UserId,
-				PeerType: peer.PeerType,
-				PeerId:   peer.PeerId,
-				MsgId:    in.MsgId,
-			})
-
-			if err != nil {
-				c.Logger.Errorf("messages.getOutboxReadDate - error: %v", err)
-				return err
-			}
-
-			// rList = rV.GetDatas()
-			if len(rList.GetDatas()) != 1 {
-				c.Logger.Errorf("messages.getOutboxReadDate - len(rList) == 0")
-				return mtproto.ErrMessageNotReadYet
-			} else {
-				rV = mtproto.MakeTLOutboxReadDate(&mtproto.OutboxReadDate{
-					Date: rList.GetDatas()[0].GetDate(),
-				}).To_OutboxReadDate()
-			}
-
-			return nil
-		})
+	msgBox, err := c.svcCtx.Dao.MessageClient.MessageGetUserMessage(c.ctx, &message.TLMessageGetUserMessage{
+		UserId: c.MD.UserId,
+		Id:     in.MsgId,
+	})
 	if err != nil {
-		return nil, err
+		c.Logger.Errorf("messages.getOutboxReadDate - error: %v", err)
+		return nil, mtproto.ErrMessageIdInvalid
+	}
+	// Only the user's own messages are read by the peer; the dates kept
+	// are of those.
+	if msgBox.SenderUserId != c.MD.UserId {
+		return nil, mtproto.ErrMessageIdInvalid
+	}
+	if msgBox.PeerType != mtproto.PEER_USER || msgBox.GetPeerId() != peer.PeerId {
+		c.Logger.Errorf("messages.getOutboxReadDate - only user peer is supported")
+		return nil, mtproto.ErrPeerIdInvalid
+	}
+	if readmarks.TooOld(int64(msgBox.GetMessage().GetDate()), time.Now().Unix(), readmarks.PrivateExpirePeriod) {
+		return nil, errMessageTooOld
 	}
 
-	return rV, nil
+	rList, err := c.svcCtx.Dao.MessageClient.MessageGetOutboxReadDate(c.ctx, &message.TLMessageGetOutboxReadDate{
+		UserId:   c.MD.UserId,
+		PeerType: peer.PeerType,
+		PeerId:   peer.PeerId,
+		MsgId:    in.MsgId,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.getOutboxReadDate - error: %v", err)
+		return nil, err
+	}
+	if len(rList.GetDatas()) == 0 {
+		return nil, mtproto.ErrMessageNotReadYet
+	}
+
+	return mtproto.MakeTLOutboxReadDate(&mtproto.OutboxReadDate{
+		Date: rList.GetDatas()[0].GetDate(),
+	}).To_OutboxReadDate(), nil
 }

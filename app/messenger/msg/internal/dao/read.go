@@ -2,10 +2,10 @@ package dao
 
 import (
 	"slices"
-	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/readmarks"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -102,10 +102,11 @@ func (d *Dao) ReadHistory(b *userbox.Box, peerType int32, peerId int64, maxId in
 
 // ReadOutbox records that readerId read b's owner's messages in the dialog
 // with peer (as the owner sees it) up to the owner's copy of
-// dialogMessageId: read_outbox_max_id only grows, and the journal gets
-// updateReadHistoryOutbox. It returns the update, or nil when there is
-// nothing new.
-func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId, dialogMessageId int64) (*mtproto.Update, error) {
+// dialogMessageId at readAt (unix seconds): the date is kept for every
+// reader (recordReadDate), read_outbox_max_id only grows, and the journal
+// gets updateReadHistoryOutbox. It returns the update, or nil when there
+// is nothing new.
+func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId, dialogMessageId, readAt int64) (*mtproto.Update, error) {
 	peer := boxPeer{PeerType: peerType, PeerId: peerId}
 	copies, err := messagesByDialogMessageIds(b, []int64{dialogMessageId})
 	if err != nil || len(copies) == 0 {
@@ -113,22 +114,19 @@ func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId,
 	}
 	maxId := copies[0].UserMessageBoxId
 	dlg, err := dialogRow(b, peer)
-	if err != nil || dlg == nil || dlg.ReadOutboxMaxId >= maxId {
+	if err != nil || dlg == nil {
 		return nil, err
+	}
+	// In a group the first reader moves read_outbox_max_id; the date of
+	// each one is kept all the same.
+	if err = recordReadDate(b, peer, readerId, maxId, readAt); err != nil {
+		return nil, err
+	}
+	if dlg.ReadOutboxMaxId >= maxId {
+		return nil, nil
 	}
 	if err = updateDialog(b, peer, "read_outbox_max_id = ?", maxId); err != nil {
 		return nil, err
-	}
-	if peerType == mtproto.PEER_USER {
-		if _, _, err = d.MessageReadOutboxDAO.InsertOrUpdateTx(b.Tx(), &dataobject.MessageReadOutboxDO{
-			UserId:            b.UserId(),
-			PeerDialogId:      mtproto.MakePeerDialogId(peerType, peerId),
-			ReadUserId:        readerId,
-			ReadOutboxMaxId:   maxId,
-			ReadOutboxMaxDate: time.Now().Unix(),
-		}); err != nil {
-			return nil, err
-		}
 	}
 	update := mtproto.MakeTLUpdateReadHistoryOutbox(&mtproto.Update{
 		Peer_PEER: peer.toPeer(),
@@ -136,6 +134,29 @@ func (d *Dao) ReadOutbox(b *userbox.Box, peerType int32, peerId int64, readerId,
 	}).To_Update()
 	b.AddPtsUpdate(update, 1)
 	return update, nil
+}
+
+// recordReadDate keeps the date readerId read b's owner's messages in a
+// private chat or a basic group up to maxId, the owner's message id, for
+// messages.getOutboxReadDate and messages.getMessageReadParticipants: a
+// row per read, of which the first one at or above a message is the date
+// it was read. The reader's dates in the dialog older than
+// readmarks.KeepPeriod go, and a read recorded twice keeps its first date.
+func recordReadDate(b *userbox.Box, peer boxPeer, readerId int64, maxId int32, readAt int64) error {
+	if peer.PeerType != mtproto.PEER_USER && peer.PeerType != mtproto.PEER_CHAT {
+		return nil
+	}
+	peerDialogId := mtproto.MakePeerDialogId(peer.PeerType, peer.PeerId)
+	if _, err := b.Tx().Exec("DELETE FROM message_read_outbox"+
+		" WHERE user_id = ? AND peer_dialog_id = ? AND read_user_id = ? AND read_outbox_max_date < ?",
+		b.UserId(), peerDialogId, readerId, readAt-readmarks.KeepPeriod); err != nil {
+		return err
+	}
+	_, err := b.Tx().Exec("INSERT INTO message_read_outbox"+
+		" (user_id, peer_dialog_id, read_user_id, read_outbox_max_id, read_outbox_max_date) VALUES (?, ?, ?, ?, ?)"+
+		" ON DUPLICATE KEY UPDATE read_outbox_max_date = LEAST(read_outbox_max_date, VALUES(read_outbox_max_date))",
+		b.UserId(), peerDialogId, readerId, maxId, readAt)
+	return err
 }
 
 // ReadContentsResult is what reading message contents changed.

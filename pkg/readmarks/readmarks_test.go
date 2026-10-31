@@ -1,0 +1,61 @@
+// Copyright 2026 The Pluma Authors
+//  All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package readmarks
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+// The clients offer read dates by help.getAppConfig: the app config must
+// give the limits the server applies.
+func TestLimitsAreTheAppConfigs(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "teamgramd", "bin", "app_config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config map[string]any
+	if err = json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	for key, limit := range map[string]int{
+		"chat_read_mark_expire_period":  ChatExpirePeriod,
+		"chat_read_mark_size_threshold": ChatSizeThreshold,
+		"pm_read_date_expire_period":    PrivateExpirePeriod,
+	} {
+		if v, ok := config[key].(float64); !ok || v != float64(limit) {
+			t.Errorf("%s of app_config.json %v, the server's limit %d", key, config[key], limit)
+		}
+	}
+}
+
+func TestTooOld(t *testing.T) {
+	const now = 1_800_000_000
+	for _, c := range []struct {
+		date int64
+		want bool
+	}{
+		{now, false},
+		{now - ChatExpirePeriod, false},
+		{now - ChatExpirePeriod - 1, true},
+	} {
+		if got := TooOld(c.date, now, ChatExpirePeriod); got != c.want {
+			t.Errorf("sent %d s ago: too old %v, want %v", now-c.date, got, c.want)
+		}
+	}
+}

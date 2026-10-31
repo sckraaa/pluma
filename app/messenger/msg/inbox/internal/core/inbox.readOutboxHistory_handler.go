@@ -26,12 +26,13 @@ import (
 // InboxReadOutboxHistory
 // inbox.readOutboxHistory user_id:long from_id:long peer_type:int peer_id:long max_dialog_message_id:long = Void;
 //
-// from_id read the recipient's messages up to max_dialog_message_id:
+// from_id read the recipient's messages up to max_dialog_message_id when
+// the event was written: the recipient keeps the date, and
 // read_outbox_max_id of the recipient's dialog only grows.
 func (c *InboxCore) InboxReadOutboxHistory(in *inbox.TLInboxReadOutboxHistory) error {
 	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
 	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
-		update, err := c.svcCtx.Dao.ReadOutbox(b, peer.PeerType, peer.PeerId, in.FromId, in.MaxDialogMessageId)
+		update, err := c.svcCtx.Dao.ReadOutbox(b, peer.PeerType, peer.PeerId, in.FromId, in.MaxDialogMessageId, c.createdAt.Unix())
 		if err != nil || update == nil {
 			return true, err
 		}
