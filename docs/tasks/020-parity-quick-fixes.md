@@ -106,7 +106,10 @@
 - 7 `help.getSupport`: нужен аккаунт поддержки. У Telegram это отдельный пользователь, не служебный 777000; кто им будет в Pluma — вопрос владельцу.
 - 8 удаление под-чата «Избранного» и истории за выбранные дни.
 - 9 «Ответить в другом чате»: заголовок ответа с `reply_to_peer_id` и `reply_from` для тех, у кого нет исходного сообщения.
-- 12: `account.getReactionsNotifySettings` для iOS (время в «Кто прочитал» сделано, см. «В процессе»).
+- 12: `account.getReactionsNotifySettings` для iOS (время в «Кто прочитал» сделано, см. «В процессе»). Подготовлено к работе:
+  - эталон Telegram (запасной аккаунт, 2026-10-31, одно наблюдение): `reactionsNotifySettings` с `messages_notify_from`, `stories_notify_from` и `poll_votes_notify_from` = `reactionNotificationsFromContacts`, `sound` = `notificationSoundLocal{title:"default", data:"default"}`, `show_previews` = true;
+  - в слое 228 два конструктора: `#71e4ea58` (с `poll_votes_notify_from`) и `#56e34970`; события об изменении в схеме нет — другие устройства перечитывают настройки сами;
+  - план: таблица настроек пользователя в сервисе user (RPC get/set, как `user.saveGif`: proto, кодеки, регистры, клиент), обработчики `account.getReactionsNotifySettings` и `account.setReactionsNotifySettings` в bff account; e2e — значения по умолчанию и сохранение.
 
 **Решения, требующие подтверждения.**
 - «О себе» считается в кодовых точках. Android и Web K считают единицы UTF-16, iOS — графемы (`PeerInfoScreen.swift`, `bio.count`): у iOS расхождение возможно только на эмодзи из нескольких кодовых точек у самой границы.
