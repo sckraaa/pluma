@@ -41,6 +41,7 @@ const (
 	RPCMsg_MsgUpdatePinnedMessage_FullMethodName    = "/msg.RPCMsg/msg_updatePinnedMessage"
 	RPCMsg_MsgUnpinAllMessages_FullMethodName       = "/msg.RPCMsg/msg_unpinAllMessages"
 	RPCMsg_MsgReadMentions_FullMethodName           = "/msg.RPCMsg/msg_readMentions"
+	RPCMsg_MsgDeleteHistoryRange_FullMethodName     = "/msg.RPCMsg/msg_deleteHistoryRange"
 )
 
 // RPCMsgClient is the client API for RPCMsg service.
@@ -59,6 +60,7 @@ type RPCMsgClient interface {
 	MsgUpdatePinnedMessage(ctx context.Context, in *TLMsgUpdatePinnedMessage, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	MsgUnpinAllMessages(ctx context.Context, in *TLMsgUnpinAllMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	MsgReadMentions(ctx context.Context, in *TLMsgReadMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
+	MsgDeleteHistoryRange(ctx context.Context, in *TLMsgDeleteHistoryRange, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 }
 
 type rPCMsgClient struct {
@@ -189,6 +191,16 @@ func (c *rPCMsgClient) MsgReadMentions(ctx context.Context, in *TLMsgReadMention
 	return out, nil
 }
 
+func (c *rPCMsgClient) MsgDeleteHistoryRange(ctx context.Context, in *TLMsgDeleteHistoryRange, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgDeleteHistoryRange_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCMsgServer is the server API for RPCMsg service.
 // All implementations should embed UnimplementedRPCMsgServer
 // for forward compatibility.
@@ -205,6 +217,7 @@ type RPCMsgServer interface {
 	MsgUpdatePinnedMessage(context.Context, *TLMsgUpdatePinnedMessage) (*mtproto.Updates, error)
 	MsgUnpinAllMessages(context.Context, *TLMsgUnpinAllMessages) (*mtproto.Messages_AffectedHistory, error)
 	MsgReadMentions(context.Context, *TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error)
+	MsgDeleteHistoryRange(context.Context, *TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error)
 }
 
 // UnimplementedRPCMsgServer should be embedded to have
@@ -249,6 +262,9 @@ func (UnimplementedRPCMsgServer) MsgUnpinAllMessages(context.Context, *TLMsgUnpi
 }
 func (UnimplementedRPCMsgServer) MsgReadMentions(context.Context, *TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgReadMentions not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgDeleteHistoryRange(context.Context, *TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgDeleteHistoryRange not implemented")
 }
 func (UnimplementedRPCMsgServer) testEmbeddedByValue() {}
 
@@ -486,6 +502,24 @@ func _RPCMsg_MsgReadMentions_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCMsg_MsgDeleteHistoryRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgDeleteHistoryRange)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgDeleteHistoryRange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgDeleteHistoryRange_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgDeleteHistoryRange(ctx, req.(*TLMsgDeleteHistoryRange))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCMsg_ServiceDesc is the grpc.ServiceDesc for RPCMsg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -540,6 +574,10 @@ var RPCMsg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "msg_readMentions",
 			Handler:    _RPCMsg_MsgReadMentions_Handler,
+		},
+		{
+			MethodName: "msg_deleteHistoryRange",
+			Handler:    _RPCMsg_MsgDeleteHistoryRange_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

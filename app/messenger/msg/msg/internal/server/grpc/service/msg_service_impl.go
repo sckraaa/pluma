@@ -185,3 +185,17 @@ func (s *Service) MsgReadMentions(ctx context.Context, request *msg.TLMsgReadMen
 
 	return r, err
 }
+
+// MsgDeleteHistoryRange
+// msg.deleteHistoryRange user_id:long auth_key_id:long peer_type:int peer_id:long saved_peer_type:int saved_peer_id:long max_id:int min_date:int max_date:int revoke:Bool = messages.AffectedHistory;
+func (s *Service) MsgDeleteHistoryRange(ctx context.Context, request *msg.TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.deleteHistoryRange - metadata: {%s}", c.MD)
+
+	r, err := c.MsgDeleteHistoryRange(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

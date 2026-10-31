@@ -38,6 +38,7 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMsgUpdatePinnedMessage":    RPCContextTuple{"/mtproto.RPCMsg/msg_updatePinnedMessage", func() interface{} { return new(mtproto.Updates) }},
 	"TLMsgUnpinAllMessages":       RPCContextTuple{"/mtproto.RPCMsg/msg_unpinAllMessages", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
 	"TLMsgReadMentions":           RPCContextTuple{"/mtproto.RPCMsg/msg_readMentions", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	"TLMsgDeleteHistoryRange":     RPCContextTuple{"/mtproto.RPCMsg/msg_deleteHistoryRange", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

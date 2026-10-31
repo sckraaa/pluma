@@ -31,5 +31,6 @@ type Config struct {
 	UpdatesClient zrpc.RpcClientConf
 	SyncClient    sync_client.OutboxConf
 	MessageClient zrpc.RpcClientConf
+	MsgClient     zrpc.RpcClientConf
 	// ChannelClient zrpc.RpcClientConf
 }

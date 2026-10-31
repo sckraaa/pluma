@@ -70,9 +70,49 @@ func (d *Dao) deleteRows(b *userbox.Box, rows []dataobject.MessagesDO) (*Deleted
 			return nil, err
 		}
 	}
+	if err := recountSavedDialogs(b, rows); err != nil {
+		return nil, err
+	}
 	res.Update = mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{Messages: ids}).To_Update()
 	b.AddPtsUpdate(res.Update, int32(len(ids)))
 	return res, nil
+}
+
+// recountSavedDialogs brings the Saved Messages dialogs of deleted rows up
+// to date (saved_dialogs, which messages.getSavedDialogs lists): the top
+// message is the newest one left, and a dialog with none left goes; a new
+// message brings it back (insert on duplicate key).
+func recountSavedDialogs(b *userbox.Box, rows []dataobject.MessagesDO) error {
+	self := mtproto.MakeDialogId(b.UserId(), mtproto.PEER_USER, b.UserId())
+	var peers []boxPeer
+	for _, r := range rows {
+		p := boxPeer{PeerType: r.SavedPeerType, PeerId: r.SavedPeerId}
+		if r.DialogId1 == self.A && r.DialogId2 == self.B && p.PeerType != mtproto.PEER_EMPTY && !slices.Contains(peers, p) {
+			peers = append(peers, p)
+		}
+	}
+	// By key, as the rows change (ADR 0011, p. 3).
+	slices.SortFunc(peers, comparePeers)
+	for _, p := range peers {
+		var top int32
+		if err := b.Tx().QueryRow(&top,
+			"SELECT COALESCE(MAX(user_message_box_id), 0) FROM messages WHERE user_id = ? AND dialog_id1 = ? AND dialog_id2 = ? AND saved_peer_type = ? AND saved_peer_id = ? AND deleted = 0",
+			b.UserId(), self.A, self.B, p.PeerType, p.PeerId); err != nil {
+			return err
+		}
+		var err error
+		if top == 0 {
+			_, err = b.Tx().Exec("UPDATE saved_dialogs SET deleted = 1 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+				b.UserId(), p.PeerType, p.PeerId)
+		} else {
+			_, err = b.Tx().Exec("UPDATE saved_dialogs SET top_message = ? WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+				top, b.UserId(), p.PeerType, p.PeerId)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DeleteMessages deletes b's owner's messages ids that are not deleted yet
@@ -121,6 +161,65 @@ func (d *Dao) DeleteDialogPortion(b *userbox.Box, peerType int32, peerId int64) 
 		return res, err
 	}
 	res.Left, err = countDialogMessages(b, peer)
+	return res, err
+}
+
+// Range is a part of a dialog of b's owner to delete: messages.deleteHistory
+// with min_date and max_date, and messages.deleteSavedHistory.
+type Range struct {
+	PeerType int32 // the dialog, as the owner sees it
+	PeerId   int64
+	// SavedPeerType and SavedPeerId name a sub-chat of Saved Messages when
+	// the dialog is the owner's own; PEER_EMPTY is the whole dialog.
+	SavedPeerType int32
+	SavedPeerId   int64
+	MaxId         int32 // the newest message deleted; 0 is any
+	// MinDate and MaxDate bound the dates of the messages, both included as
+	// Android deletes them on its side (MessagesStorage
+	// getCachedMessagesInRange); 0 is no bound.
+	MinDate, MaxDate int32
+}
+
+// DeleteRangePortion deletes up to a portion of the newest messages of r.
+// It returns nil when there are none.
+func (d *Dao) DeleteRangePortion(b *userbox.Box, r Range) (*Deleted, error) {
+	did := boxPeer{PeerType: r.PeerType, PeerId: r.PeerId}.dialogId(b.UserId())
+	where := "dialog_id1 = ? AND dialog_id2 = ?"
+	args := []any{did.A, did.B}
+	if r.SavedPeerType != mtproto.PEER_EMPTY {
+		where += " AND saved_peer_type = ? AND saved_peer_id = ?"
+		args = append(args, r.SavedPeerType, r.SavedPeerId)
+	}
+	if r.MaxId > 0 {
+		where += " AND user_message_box_id <= ?"
+		args = append(args, r.MaxId)
+	}
+	if r.MinDate > 0 {
+		where += " AND date2 >= ?"
+		args = append(args, r.MinDate)
+	}
+	if r.MaxDate > 0 {
+		where += " AND date2 <= ?"
+		args = append(args, r.MaxDate)
+	}
+	var rows []dataobject.MessagesDO
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT "+messageColumns+" FROM messages WHERE user_id = ? AND deleted = 0 AND "+where+" ORDER BY user_message_box_id DESC LIMIT ?",
+		append(append([]any{b.UserId()}, args...), maxPortion+1)...); err != nil {
+		return nil, err
+	}
+	more := len(rows) > maxPortion
+	if more {
+		rows = rows[:maxPortion]
+	}
+	slices.SortFunc(rows, func(a, b dataobject.MessagesDO) int {
+		return int(a.UserMessageBoxId - b.UserMessageBoxId)
+	})
+	res, err := d.deleteRows(b, rows)
+	if err != nil || res == nil || !more {
+		return res, err
+	}
+	res.Left, err = countMessages(b, where, args...)
 	return res, err
 }
 

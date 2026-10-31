@@ -35,6 +35,7 @@ type MsgClient interface {
 	MsgUpdatePinnedMessage(ctx context.Context, in *msg.TLMsgUpdatePinnedMessage) (*mtproto.Updates, error)
 	MsgUnpinAllMessages(ctx context.Context, in *msg.TLMsgUnpinAllMessages) (*mtproto.Messages_AffectedHistory, error)
 	MsgReadMentions(ctx context.Context, in *msg.TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error)
+	MsgDeleteHistoryRange(ctx context.Context, in *msg.TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error)
 }
 
 type defaultMsgClient struct {
@@ -177,4 +178,15 @@ func (m *defaultMsgClient) MsgReadMentions(ctx context.Context, in *msg.TLMsgRea
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgReadMentions(ctx, in)
+}
+
+// MsgDeleteHistoryRange
+// msg.deleteHistoryRange user_id:long auth_key_id:long peer_type:int peer_id:long saved_peer_type:int saved_peer_id:long max_id:int min_date:int max_date:int revoke:Bool = messages.AffectedHistory;
+func (m *defaultMsgClient) MsgDeleteHistoryRange(ctx context.Context, in *msg.TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgDeleteHistoryRange(ctx, in)
 }

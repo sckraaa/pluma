@@ -106,6 +106,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -2049897703,
 		}
 	},
+	-2133492186: func() mtproto.TLObject { // 0x80d57e26
+		return &TLMsgDeleteHistoryRange{
+			Constructor: -2133492186,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1241,6 +1246,66 @@ func (m *TLMsgReadMentions) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.AuthKeyId = dBuf.Long()
 		m.PeerType = dBuf.Int()
 		m.PeerId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgDeleteHistoryRange
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgDeleteHistoryRange) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x80d57e26:
+		x.UInt(0x80d57e26)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetSavedPeerType())
+		x.Long(m.GetSavedPeerId())
+		x.Int(m.GetMaxId())
+		x.Int(m.GetMinDate())
+		x.Int(m.GetMaxDate())
+		m.GetRevoke().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgDeleteHistoryRange) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgDeleteHistoryRange) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x80d57e26:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.SavedPeerType = dBuf.Int()
+		m.SavedPeerId = dBuf.Long()
+		m.MaxId = dBuf.Int()
+		m.MinDate = dBuf.Int()
+		m.MaxDate = dBuf.Int()
+
+		m10 := &mtproto.Bool{}
+		m10.Decode(dBuf)
+		m.Revoke = m10
+
 		return dBuf.GetError()
 
 	default:

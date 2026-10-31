@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 161, partial 27, blocked 98, notimpl 7, fake 28, missing 548 (ok = 18.5%); with a conformance scenario 9
+    layer 228: 869 methods — ok 161, partial 28, blocked 97, notimpl 7, fake 28, missing 548 (ok = 18.5%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 7 | 1 | 12 | 0 | 0 | 8 | 2 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 4 | 1 | 0 |
-| messages | 273 | 62 | 23 | 20 | 5 | 16 | 147 | 3 |
+| messages | 273 | 62 | 24 | 19 | 5 | 16 | 147 | 3 |
 | payments | 70 | 0 | 0 | 4 | 0 | 0 | 66 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -510,7 +510,7 @@
 | `messages.deleteChatUser` | ok |  | app/bff/chats/internal/core/messages.deleteChatUser_handler.go:39 |
 | `messages.deleteExportedChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.deleteExportedChatInvite_handler.go:28 |
 | `messages.deleteFactCheck` | missing |  |  |
-| `messages.deleteHistory` | partial |  | app/bff/messages/internal/core/messages.deleteHistory_handler.go:29 |
+| `messages.deleteHistory` | partial |  | app/bff/messages/internal/core/messages.deleteHistory_handler.go:28 |
 | `messages.deleteMessages` | ok | yes | app/bff/messages/internal/core/messages.deleteMessages_handler.go:28 |
 | `messages.deleteParticipantReaction` | missing |  |  |
 | `messages.deleteParticipantReactions` | missing |  |  |
@@ -519,7 +519,7 @@
 | `messages.deleteQuickReplyMessages` | missing |  |  |
 | `messages.deleteQuickReplyShortcut` | missing |  |  |
 | `messages.deleteRevokedExportedChatInvites` | ok |  | app/bff/chatinvites/internal/core/messages.deleteRevokedExportedChatInvites_handler.go:28 |
-| `messages.deleteSavedHistory` | blocked |  | app/bff/savedmessagedialogs/internal/core/messages.deleteSavedHistory_handler.go:27 |
+| `messages.deleteSavedHistory` | partial |  | app/bff/savedmessagedialogs/internal/core/messages.deleteSavedHistory_handler.go:34 |
 | `messages.deleteScheduledMessages` | missing |  |  |
 | `messages.deleteTopicHistory` | missing |  |  |
 | `messages.discardEncryption` | missing |  |  |

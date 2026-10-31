@@ -36,6 +36,7 @@ enum TLConstructor {
   CRC32_msg_updatePinnedMessage = -441560663;
   CRC32_msg_unpinAllMessages = -1199153371;
   CRC32_msg_readMentions = -2049897703;
+  CRC32_msg_deleteHistoryRange = -2133492186;
 }
 
 // ContentMessage <--
@@ -211,6 +212,21 @@ message TL_msg_readMentions {
 }
 
 //--------------------------------------------------------------------------------------------
+message TL_msg_deleteHistoryRange {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 saved_peer_type = 7;
+  int64 saved_peer_id = 8;
+  int32 max_id = 9;
+  int32 min_date = 10;
+  int32 max_date = 11;
+  mtproto.Bool revoke = 12;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -236,5 +252,7 @@ service RPCMsg {
   rpc msg_unpinAllMessages(TL_msg_unpinAllMessages)
       returns (mtproto.messages_AffectedHistory) {}
   rpc msg_readMentions(TL_msg_readMentions)
+      returns (mtproto.messages_AffectedHistory) {}
+  rpc msg_deleteHistoryRange(TL_msg_deleteHistoryRange)
       returns (mtproto.messages_AffectedHistory) {}
 }

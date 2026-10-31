@@ -21,7 +21,6 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
-	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
 )
 
 // MessagesDeleteHistory
@@ -42,21 +41,26 @@ func (c *MessagesCore) MessagesDeleteHistory(in *mtproto.TLMessagesDeleteHistory
 		return nil, err
 	}
 
+	// The messages of some days (Android: the days chosen in the calendar of
+	// the chat, ChatActivity.java:1351): a portion at a time, the client
+	// repeats the call while offset is above 0.
 	if in.GetMinDate() != nil || in.GetMaxDate() != nil {
-		// TODO: not impl
-		state, err := c.svcCtx.Dao.UpdatesClient.UpdatesGetStateV2(c.ctx, &updates.TLUpdatesGetStateV2{
-			AuthKeyId: c.MD.PermAuthKeyId,
-			UserId:    c.MD.UserId,
+		affectedHistory, err := c.svcCtx.Dao.MsgClient.MsgDeleteHistoryRange(c.ctx, &msgpb.TLMsgDeleteHistoryRange{
+			UserId:        c.MD.UserId,
+			AuthKeyId:     c.MD.PermAuthKeyId,
+			PeerType:      peer.PeerType,
+			PeerId:        peer.PeerId,
+			SavedPeerType: mtproto.PEER_EMPTY,
+			MaxId:         in.MaxId,
+			MinDate:       in.GetMinDate().GetValue(),
+			MaxDate:       in.GetMaxDate().GetValue(),
+			Revoke:        mtproto.ToBool(in.Revoke),
 		})
 		if err != nil {
 			c.Logger.Errorf("messages.deleteHistory - error: %v", err)
 			return nil, err
 		}
-		return mtproto.MakeTLMessagesAffectedHistory(&mtproto.Messages_AffectedHistory{
-			Pts:      state.GetPts(),
-			PtsCount: 0,
-			Offset:   0,
-		}).To_Messages_AffectedHistory(), nil
+		return affectedHistory, nil
 	}
 
 	affectedHistory, err := c.svcCtx.Dao.MsgClient.MsgDeleteHistory(c.ctx, &msgpb.TLMsgDeleteHistory{
