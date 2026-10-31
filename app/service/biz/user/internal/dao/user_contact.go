@@ -252,7 +252,7 @@ func (d *Dao) getReverseContactListByIdList(ctx context.Context, id int64, idLis
 
 func (d *Dao) getContactListByKeyList(ctx context.Context, cKeys ...string) []*mtproto.ContactData {
 	var (
-		contactList = make([]*mtproto.ContactData, len(cKeys))
+		contactList = make([]*mtproto.ContactData, 0, len(cKeys))
 	)
 
 	if len(cKeys) == 0 {

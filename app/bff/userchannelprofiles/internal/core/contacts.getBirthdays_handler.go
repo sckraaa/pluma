@@ -51,13 +51,15 @@ func (c *UserChannelProfilesCore) ContactsGetBirthdays(in *mtproto.TLContactsGet
 		return rV, nil
 	}
 
-	// The contacts as the caller sees them: the caller's own data goes in
-	// too, as in users.getFullUser.
+	// The contacts as the caller sees them, as users.getFullUser asks: the
+	// caller's own data and the contact rows between the caller and them,
+	// which their privacy rules "my contacts" need.
+	ids := append([]int64{c.MD.UserId}, idList...)
 	cUsers, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &user.TLUserGetMutableUsersV2{
-		Id:      append([]int64{c.MD.UserId}, idList...),
+		Id:      ids,
 		Privacy: true,
 		HasTo:   true,
-		To:      []int64{c.MD.UserId},
+		To:      ids,
 	})
 	if err != nil {
 		c.Logger.Errorf("contacts.getBirthdays - error: %v", err)

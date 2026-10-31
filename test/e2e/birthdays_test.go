@@ -27,15 +27,16 @@ import (
 
 // The birthday of a contact today is in contacts.getBirthdays with the
 // contact's user, which the clients show as the birthday banner (task 020).
-// By default the birthday is for contacts only, so Alice and Bob have each
-// other in their contacts.
+// By default the birthday is for contacts only: Alice and Bob have each
+// other in their contacts and see it, Carol does not.
 func TestContactBirthdays(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	phones := testPhones(t, 2)
+	phones := testPhones(t, 3)
 	alice := login(ctx, t, phones[0], "Alice")
 	bob := login(ctx, t, phones[1], "Bob")
+	carol := login(ctx, t, phones[2], "Carol")
 	importContacts(ctx, t, alice, phoneContact(alice.c, 1, formattedPhone(bob.phone), "Bob", ""))
 	importContacts(ctx, t, bob, phoneContact(bob.c, 1, formattedPhone(alice.phone), "Alice", ""))
 
@@ -65,5 +66,13 @@ func TestContactBirthdays(t *testing.T) {
 	}
 	if d := b.GetContacts()[0].GetBirthday(); d.GetMonth() != int32(today.Month()) || d.GetDay() != int32(today.Day()) || d.GetYear() != nil {
 		t.Errorf("Bob's birthday %v", d)
+	}
+
+	// His profile shows it to his contact and not to anybody else.
+	if full, _ := fullUser(ctx, t, alice, inputUserOf(ctx, t, alice, bob)); full.GetBirthday().GetDay() != int32(today.Day()) {
+		t.Errorf("Bob's profile shows Alice the birthday %v", full.GetBirthday())
+	}
+	if full, _ := fullUser(ctx, t, carol, inputUserOf(ctx, t, carol, bob)); full.GetBirthday() != nil {
+		t.Errorf("Bob's profile shows Carol, not a contact, the birthday %v", full.GetBirthday())
 	}
 }

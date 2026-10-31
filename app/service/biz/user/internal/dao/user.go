@@ -801,17 +801,7 @@ func (d *Dao) GetMutableUsersV2(ctx context.Context, idList2 []int64, privacy bo
 						continue
 					}
 					noCaches[key] = contact
-					if cUser, ok := mUsers[contact.ContactUserId]; ok {
-						cUser.ReverseContacts = append(cUser.ReverseContacts, mtproto.MakeTLContactData(&mtproto.ContactData{
-							UserId:        contact.OwnerUserId,
-							ContactUserId: contact.ContactUserId,
-							FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
-							LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
-							MutualContact: contact.Mutual,
-							Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
-							CloseFriend:   contact.CloseFriend,
-						}).To_ContactData())
-					}
+					addContactRow(mUsers, contact)
 				}
 			}
 
@@ -843,17 +833,7 @@ func (d *Dao) GetMutableUsersV2(ctx context.Context, idList2 []int64, privacy bo
 					return nil, err
 				}
 
-				if cUser, ok := mUsers[contact.ContactUserId]; ok {
-					cUser.ReverseContacts = append(cUser.ReverseContacts, mtproto.MakeTLContactData(&mtproto.ContactData{
-						UserId:        contact.OwnerUserId,
-						ContactUserId: contact.ContactUserId,
-						FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
-						LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
-						MutualContact: contact.Mutual,
-						Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
-						CloseFriend:   contact.CloseFriend,
-					}).To_ContactData())
-				}
+				addContactRow(mUsers, contact)
 
 				return contact, nil
 			}
@@ -861,6 +841,29 @@ func (d *Dao) GetMutableUsersV2(ctx context.Context, idList2 []int64, privacy bo
 		keyList...)
 
 	return cUserList
+}
+
+// addContactRow adds the contact row "owner has contact in the contacts" to
+// the users loaded: to the contact's ReverseContacts and to the owner's
+// Contacts. The privacy rules "my contacts" of a user ask the owner's side
+// (ImmutableUser.CheckContact, CheckPrivacy): without it no contact passed
+// them.
+func addContactRow(users map[int64]*mtproto.ImmutableUser, contact *dataobject.UserContactsDO) {
+	row := mtproto.MakeTLContactData(&mtproto.ContactData{
+		UserId:        contact.OwnerUserId,
+		ContactUserId: contact.ContactUserId,
+		FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
+		LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
+		MutualContact: contact.Mutual,
+		Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
+		CloseFriend:   contact.CloseFriend,
+	}).To_ContactData()
+	if u, ok := users[contact.ContactUserId]; ok {
+		u.ReverseContacts = append(u.ReverseContacts, row)
+	}
+	if u, ok := users[contact.OwnerUserId]; ok {
+		u.Contacts = append(u.Contacts, row)
+	}
 }
 
 func (d *Dao) UpdatePersonalChannel(ctx context.Context, id int64, personalChanelId int64) bool {
