@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 161, partial 29, blocked 97, notimpl 7, fake 28, missing 547 (ok = 18.5%); with a conformance scenario 9
+    layer 228: 869 methods — ok 163, partial 27, blocked 97, notimpl 7, fake 28, missing 547 (ok = 18.8%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 7 | 1 | 12 | 0 | 0 | 8 | 2 |
 | langpack | 5 | 0 | 0 | 0 | 0 | 4 | 1 | 0 |
-| messages | 273 | 62 | 24 | 19 | 5 | 16 | 147 | 3 |
+| messages | 273 | 64 | 22 | 19 | 5 | 16 | 147 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -592,15 +592,15 @@
 | `messages.getMaskStickers` | fake |  | app/bff/bff/client/fake_rpc_result.go:96 |
 | `messages.getMessageEditData` | partial |  | app/bff/messages/internal/core/messages.getMessageEditData_handler.go:63 |
 | `messages.getMessageReactionsList` | missing |  |  |
-| `messages.getMessageReadParticipants2C6F97B7` | partial |  | app/bff/chats/internal/core/messages.getMessageReadParticipants2C6F97B7_handler.go:30 |
-| `messages.getMessageReadParticipants31C1C44F` | partial |  | app/bff/chats/internal/core/messages.getMessageReadParticipants31C1C44F_handler.go:30 |
+| `messages.getMessageReadParticipants2C6F97B7` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants2C6F97B7_handler.go:29 |
+| `messages.getMessageReadParticipants31C1C44F` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants31C1C44F_handler.go:27 |
 | `messages.getMessages` | partial |  | app/bff/messages/internal/core/messages.getMessages_handler.go:31 |
 | `messages.getMessagesReactions` | missing |  |  |
 | `messages.getMessagesViews` | partial |  | app/bff/messages/internal/core/messages.getMessagesViews_handler.go:57 |
 | `messages.getMyStickers` | missing |  |  |
 | `messages.getOldFeaturedStickers` | fake |  | app/bff/bff/client/fake_rpc_result.go:103 |
 | `messages.getOnlines` | notimpl |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:27 |
-| `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:29 |
+| `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:38 |
 | `messages.getPaidReactionPrivacy` | missing |  |  |
 | `messages.getPeerDialogs` | partial |  | app/bff/dialogs/internal/core/messages.getPeerDialogs_handler.go:78 |
 | `messages.getPeerSettings` | ok |  | app/bff/dialogs/internal/core/messages.getPeerSettings_handler.go:28 |
