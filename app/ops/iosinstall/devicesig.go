@@ -111,7 +111,11 @@ func verifyDeviceSignature(der []byte) ([]byte, error) {
 	return verifySignedData(der, root)
 }
 
-func verifySignedData(der []byte, root *x509.Certificate) ([]byte, error) {
+func verifySignedData(ber []byte, root *x509.Certificate) ([]byte, error) {
+	der, err := berToDER(ber)
+	if err != nil {
+		return nil, fmt.Errorf("signed data: not a CMS ContentInfo: %w", err)
+	}
 	var ci contentInfo
 	if rest, err := asn1.Unmarshal(der, &ci); err != nil || len(rest) != 0 {
 		return nil, fmt.Errorf("signed data: not a CMS ContentInfo")
