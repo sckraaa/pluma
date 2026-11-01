@@ -37,9 +37,12 @@ Mysql:
 
 # Login codes: random, stored in Redis only as HMAC-SHA256 under this key;
 # delivered in the app or issued by `pluma-admin login-code`. There is no SMS
-# provider and no fixed code.
+# provider. One account may have a fixed code, for the App Store reviewers
+# (LOGIN_REVIEW_PHONE, LOGIN_REVIEW_CODE; both empty: none).
 LoginCode:
   HmacKey: "${LOGIN_CODE_HMAC_KEY}"
+  ReviewPhone: "${LOGIN_REVIEW_PHONE}"
+  ReviewCode: "${LOGIN_REVIEW_CODE}"
 
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"

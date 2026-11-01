@@ -58,6 +58,7 @@ openssl rand -hex 24   # по одному значению на каждый п
 | `SERVER_RSA_KEY_FILE` | путь к ключу на хосте, по умолчанию `./secrets/server_pkcs1.key` |
 | `SERVER_RSA_KEY_FINGERPRINT` | fingerprint из `genserverkey` |
 | `LOGIN_CODE_HMAC_KEY` | ключ HMAC для хранения кодов входа (`openssl rand -hex 32`, не короче 32 символов), см. раздел 7 |
+| `LOGIN_REVIEW_PHONE`, `LOGIN_REVIEW_CODE` | необязательный аккаунт с постоянным кодом для ревьюеров App Store: номер цифрами без `+` и код из 6 цифр (`openssl rand -hex 3` не годится — только цифры); оба пустые — такого аккаунта нет. См. раздел 7 |
 | `PUSH_SECRET_ENCRYPTION_KEY` | ключ AES-256-GCM, которым bff и push хранят ключи шифрования push-устройств (`push_devices.secret`; `openssl rand -hex 32`); отдельный от `AUTH_KEY_ENCRYPTION_KEY`, чтобы bff не мог открыть ключи MTProto; без него bff не стартует |
 | `AUTH_KEY_ENCRYPTION_KEY` | ключ AES-256-GCM, которым authsession шифрует ключи MTProto в `auth_keys` и в Redis (`openssl rand -hex 32`, ровно 64 hex-символа); без него authsession не стартует, см. раздел 4 |
 
@@ -134,6 +135,8 @@ FLUSH PRIVILEGES;
 - Других сессий нет (первое устройство, новый аккаунт, смена номера). Клиент видит «код отправлен по SMS» (`auth.sentCodeTypeSms`), но ничего не отправляется: администратор выдаёт код вручную. До этого никакой код не подходит.
 
 Код хранится в Redis только как HMAC-SHA256 на ключе `LOGIN_CODE_HMAC_KEY`. Открытого кода нет ни в Redis, ни в логах. Код живёт 10 минут после выдачи, запрос (`phone_code_hash`) — 1 час.
+
+**Аккаунт ревьюера App Store** (задача 029). Ревьюер Apple не видит ни приложения, ни `pluma-admin`, поэтому для бета-проверки TestFlight и App Store нужен один номер с постоянным кодом: `LOGIN_REVIEW_PHONE` и `LOGIN_REVIEW_CODE` в `.env`. Номер тоже должен быть в allowlist (`allowlist add`). Каждый запрос кода на этот номер получает постоянный код без администратора; лимиты попыток и `FLOOD_WAIT` те же, что у всех. Номер и код сообщаются Apple в «Beta App Review Information» TestFlight. Код — секрет: смените его и запрос в Apple, если он стал известен посторонним; без проверки Apple оба поля оставляйте пустыми.
 
 **Лимиты** (ответ `FLOOD_WAIT_X`, счётчики в Redis). Лимиты «с IP» рассчитаны на то, что вся группа может входить с одного адреса (офис, семья, NAT): они считают только промахи или заведомо выше нужного группе.
 

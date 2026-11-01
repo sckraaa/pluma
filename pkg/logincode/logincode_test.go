@@ -183,6 +183,67 @@ func TestNewServiceRequiresKey(t *testing.T) {
 	}
 }
 
+func TestNewServiceChecksReviewAccount(t *testing.T) {
+	_, store := newTestKV(t)
+	for _, c := range []struct {
+		phone, code string
+		ok          bool
+	}{
+		{"", "", true},
+		{"12025550199", "123456", true},
+		{"12025550199", "", false},
+		{"", "123456", false},
+		{"+12025550199", "123456", false},
+		{"12025550199", "12345", false},
+		{"12025550199", "12345a", false},
+	} {
+		_, err := NewService(Config{HmacKey: testKey, ReviewPhone: c.phone, ReviewCode: c.code}, fakeAllowlist{}, store)
+		if (err == nil) != c.ok {
+			t.Errorf("phone %q code %q: error %v, want ok %v", c.phone, c.code, err, c.ok)
+		}
+	}
+}
+
+// The review phone logs in with its fixed code without the administrator,
+// and the fixed code is nobody else's.
+func TestReviewAccount(t *testing.T) {
+	ctx := context.Background()
+	const reviewer, other, code = "12025550199", "79990000001", "246810"
+	mr, store := newTestKV(t)
+	s, err := NewService(Config{HmacKey: testKey, ReviewPhone: reviewer, ReviewCode: code},
+		fakeAllowlist{reviewer: true, other: true}, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got, _ := s.Issue(ctx, reviewer, "h1", "", false); got != "" {
+		t.Fatalf("a request not delivered in the app returned code %q", got)
+	}
+	if got := rpcMessage(s.Verify(ctx, reviewer, "h1", wrongCode(code), "")); got != "PHONE_CODE_INVALID" {
+		t.Fatalf("wrong code: %s", got)
+	}
+	if err := s.Verify(ctx, reviewer, "h1", code, ""); err != nil {
+		t.Fatalf("fixed code: %v", err)
+	}
+
+	if got, _ := s.Issue(ctx, reviewer, "h2", "", true); got != code {
+		t.Fatalf("delivered code %q, want the fixed one", got)
+	}
+	for _, k := range mr.Keys() {
+		if v, _ := mr.Get(k); strings.Contains(v, code) {
+			t.Fatalf("plaintext fixed code stored in %s", k)
+		}
+	}
+
+	clearFlood(mr)
+	if _, err := s.Issue(ctx, other, "h3", "", false); err != nil {
+		t.Fatal(err)
+	}
+	if got := rpcMessage(s.Verify(ctx, other, "h3", code, "")); got != "PHONE_CODE_INVALID" {
+		t.Fatalf("the fixed code for another phone: %s", got)
+	}
+}
+
 func TestIssueStoresOnlyHmac(t *testing.T) {
 	s, mr, _ := testService(t, "79990000001")
 	ctx := context.Background()

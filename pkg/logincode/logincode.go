@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"io"
 	"net/netip"
 	"sort"
@@ -49,6 +50,13 @@ type Config struct {
 	// HmacKey keys the HMAC under which codes are stored: ${LOGIN_CODE_HMAC_KEY},
 	// at least MinHmacKeyLength bytes. Changing it invalidates pending codes only.
 	HmacKey string
+	// ReviewPhone and ReviewCode give one account a fixed code, for the App
+	// Store reviewers, who can read neither the app nor pluma-admin:
+	// ${LOGIN_REVIEW_PHONE} (normalized digits, as users.phone) and
+	// ${LOGIN_REVIEW_CODE} (Length digits). Both empty: no such account. The
+	// phone must still be on the allowlist, and every limit applies to it.
+	ReviewPhone string
+	ReviewCode  string
 }
 
 // Allowlist tells which phones may log in or sign up.
@@ -86,6 +94,8 @@ type Service struct {
 	store     *Store
 	limiter   *Limiter
 	hasher    *Hasher
+	// review is the phone with a fixed code and the code, or empty.
+	reviewPhone, reviewCode string
 
 	now    func() time.Time
 	random io.Reader
@@ -101,14 +111,34 @@ func NewService(c Config, allowlist Allowlist, kv kv.Store) (*Service, error) {
 	if allowlist == nil {
 		return nil, errors.New("logincode: allowlist is required")
 	}
+	if err := checkReview(c.ReviewPhone, c.ReviewCode); err != nil {
+		return nil, err
+	}
 	return &Service{
-		allowlist: allowlist,
-		store:     NewStore(kv),
-		limiter:   NewLimiter(kv),
-		hasher:    hasher,
-		now:       time.Now,
-		random:    rand.Reader,
+		allowlist:   allowlist,
+		store:       NewStore(kv),
+		limiter:     NewLimiter(kv),
+		hasher:      hasher,
+		reviewPhone: c.ReviewPhone,
+		reviewCode:  c.ReviewCode,
+		now:         time.Now,
+		random:      rand.Reader,
 	}, nil
+}
+
+// checkReview tells whether the review account settings are both empty or
+// both usable: a phone of digits and a well-formed code.
+func checkReview(phone, code string) error {
+	if phone == "" && code == "" {
+		return nil
+	}
+	if phone == "" || strings.Trim(phone, "0123456789") != "" {
+		return errors.New("logincode: LOGIN_REVIEW_PHONE must be the digits of a phone, without '+' (docs/ops/security-setup.md)")
+	}
+	if !wellFormed(code) {
+		return fmt.Errorf("logincode: LOGIN_REVIEW_CODE must be %d digits (docs/ops/security-setup.md)", Length)
+	}
+	return nil
 }
 
 // CheckAllowed returns PHONE_NUMBER_INVALID if phone is not on the allowlist.
@@ -178,14 +208,22 @@ func (s *Service) checkAllowedFrom(ctx context.Context, phone, ip string) error 
 // With withCode it also generates a code and returns it, for delivery to the
 // user's other sessions; the plaintext is not kept. Without it the request
 // has no code until the administrator issues one (Reissue), and no check
-// can succeed before that.
+// can succeed before that. The review phone always gets its fixed code
+// (Config.ReviewCode), returned only with withCode, like any other code.
 func (s *Service) Issue(ctx context.Context, phone, phoneCodeHash, clientIp string, withCode bool) (string, error) {
 	var (
 		now  = s.now()
 		code string
 		v    = secret{Phone: phone, CreatedAt: now.Unix(), ClientIp: clientIp}
 	)
-	if withCode {
+	switch {
+	case s.reviewPhone != "" && phone == s.reviewPhone:
+		v.Hmac = s.hasher.Sum(phoneCodeHash, phone, s.reviewCode)
+		v.ExpiresAt = now.Add(CodeTTL).Unix()
+		if withCode {
+			code = s.reviewCode
+		}
+	case withCode:
 		var err error
 		if code, err = generate(s.random); err != nil {
 			logx.WithContext(ctx).Errorf("login code: %v", err)
