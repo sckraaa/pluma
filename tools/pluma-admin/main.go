@@ -18,6 +18,9 @@
 //	pluma-admin [-f bff.yaml] outbox discard -id <event id>
 //	pluma-admin [-f bff.yaml] password reset <phone>
 //	pluma-admin [-f bff.yaml] service-photo [image]
+//	pluma-admin langpack fetch -out <dir> [-pack <packs>] [-lang <langs>] [-api-id <id>]
+//	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
+//	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
 //
 // login-code generates a fresh code for a pending code request of the phone
 // (auth.sendCode or account.sendChangePhoneCode that answered "code sent by
@@ -53,6 +56,15 @@
 // account (777000, "Pluma"), Pluma's by default, the way a client sets its
 // own: the account's chats get updateUser. It talks to dfs, media and biz,
 // so it runs in the bff container.
+//
+// langpack maintains the language packs of the clients (task 021, ADR 0025;
+// docs/ops/langpacks.md): fetch reads every language of the platform packs
+// from Telegram's langpack.* methods, without logging in, into snapshot
+// files (<dir>/<pack>/<lang>.json), with the api_id of the owner's
+// application from -api-id or $TELEGRAM_API_ID; import puts the files into
+// the database with "Telegram" replaced by "Pluma", one new version per
+// language that changed, and lists what still names Telegram; list prints
+// the stored languages and their versions.
 //
 // From the repo root (services run with teamgramd/etc, secrets in .env):
 //
@@ -150,6 +162,9 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] premium list
   pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password)
   pluma-admin [-f bff.yaml] service-photo [image]   (the service account's photo; Pluma's by default)
+  pluma-admin langpack fetch -out <dir> [-pack android,ios,...] [-lang ru,...] [-api-id <id>]   (from Telegram; $TELEGRAM_API_ID)
+  pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
+  pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
   pluma-admin -f push.yaml push check   (asks APNs and FCM whether they take the keys; nothing is delivered)
 
@@ -208,6 +223,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return pushCommand(args, configFile, stdout)
 	case "service-photo":
 		return servicePhotoCommand(args, configFile, stdout)
+	case "langpack":
+		return langpackCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

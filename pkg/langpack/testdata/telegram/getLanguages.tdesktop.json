@@ -1,0 +1,85 @@
+{
+ "method": "langpack.getLanguages",
+ "capturedAt": "2026-04-10T16:16:11.019Z",
+ "request": {
+  "className": "langpack.GetLanguages",
+  "langPack": "tdesktop"
+ },
+ "response": [
+  {
+   "className": "LangPackLanguage",
+   "flags": 1,
+   "official": true,
+   "rtl": false,
+   "beta": false,
+   "name": "English",
+   "nativeName": "English",
+   "langCode": "en",
+   "baseLangCode": null,
+   "pluralCode": "en",
+   "stringsCount": 7496,
+   "translatedCount": 7496,
+   "translationsUrl": "https://translations.telegram.org/en/"
+  },
+  {
+   "className": "LangPackLanguage",
+   "flags": 1,
+   "official": true,
+   "rtl": false,
+   "beta": false,
+   "name": "Dutch",
+   "nativeName": "Nederlands",
+   "langCode": "nl",
+   "baseLangCode": null,
+   "pluralCode": "nl",
+   "stringsCount": 7496,
+   "translatedCount": 7496,
+   "translationsUrl": "https://translations.telegram.org/nl/"
+  },
+  {
+   "className": "LangPackLanguage",
+   "flags": 1,
+   "official": true,
+   "rtl": false,
+   "beta": false,
+   "name": "Korean",
+   "nativeName": "한국어",
+   "langCode": "ko",
+   "baseLangCode": null,
+   "pluralCode": "ko",
+   "stringsCount": 7496,
+   "translatedCount": 4717,
+   "translationsUrl": "https://translations.telegram.org/ko/"
+  },
+  {
+   "className": "LangPackLanguage",
+   "flags": 1,
+   "official": true,
+   "rtl": false,
+   "beta": false,
+   "name": "Portuguese (Brazil)",
+   "nativeName": "Português (Brasil)",
+   "langCode": "pt-br",
+   "baseLangCode": null,
+   "pluralCode": "pt",
+   "stringsCount": 7496,
+   "translatedCount": 7496,
+   "translationsUrl": "https://translations.telegram.org/pt-br/"
+  },
+  {
+   "className": "LangPackLanguage",
+   "flags": 1,
+   "official": true,
+   "rtl": false,
+   "beta": false,
+   "name": "Russian",
+   "nativeName": "Русский",
+   "langCode": "ru",
+   "baseLangCode": null,
+   "pluralCode": "ru",
+   "stringsCount": 7496,
+   "translatedCount": 7494,
+   "translationsUrl": "https://translations.telegram.org/ru/"
+  }
+ ]
+}
