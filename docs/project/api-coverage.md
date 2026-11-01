@@ -706,7 +706,7 @@
 | `messages.sendInlineBotResult` | missing |  |  |
 | `messages.sendMedia` | ok |  | app/bff/messages/internal/core/messages.sendMedia_handler.go:33 |
 | `messages.sendMessage` | partial | yes | app/bff/messages/internal/core/messages.sendMessage_handler.go:33 |
-| `messages.sendMultiMedia` | ok |  | app/bff/messages/internal/core/messages.sendMultiMedia_handler.go:33 |
+| `messages.sendMultiMedia` | ok |  | app/bff/messages/internal/core/messages.sendMultiMedia_handler.go:34 |
 | `messages.sendPaidReaction` | missing |  |  |
 | `messages.sendQuickReplyMessages` | missing |  |  |
 | `messages.sendReaction` | missing |  |  |
