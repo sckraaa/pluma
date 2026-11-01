@@ -19,17 +19,16 @@
 package core
 
 import (
-	"os"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/langpack"
 
-	"github.com/zeromicro/go-zero/core/jsonx"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const (
-	configFile = "./config.json"
 	// date = 1509066502,    2017/10/27 09:08:22
 	// expires = 1509070295, 2017/10/27 10:11:35
 	expiresTimeout = 3600 // 超时时间设置为3600秒
@@ -38,29 +37,47 @@ const (
 	// SUPPORT_USER_ID = 2
 )
 
-var config mtproto.TLConfig
-
-func init() {
-	configData, err := os.ReadFile(configFile)
-	if err != nil {
-		panic(err)
-	}
-
-	err = jsonx.Unmarshal(configData, &config)
-	if err != nil {
-		panic(err)
-	}
-}
-
 // HelpGetConfig
 // help.getConfig#c4f9186b = Config;
 func (c *ConfigurationCore) HelpGetConfig(in *mtproto.TLHelpGetConfig) (*mtproto.Config, error) {
 	_ = in
 
-	rValue, _ := proto.Clone(&config).(*mtproto.TLConfig)
+	rValue, _ := proto.Clone(c.svcCtx.ClientConfig).(*mtproto.TLConfig)
 	now := int32(time.Now().Unix())
 	rValue.SetDate(now)
 	rValue.SetExpires(now + expiresTimeout)
+	c.setLangPack(rValue)
 
 	return rValue.To_Config(), nil
+}
+
+// setLangPack fills flags.2 of config for the session's pack and language:
+// suggested_lang_code, lang_pack_version and base_lang_pack_version, the
+// versions langpack.getDifference answers with. The clients ask for a
+// difference when their version is behind (Android
+// checkUpdateForCurrentRemoteLocale, LocaleController.java:847-874; iOS
+// ManagedConfigurationUpdates.swift:98-111; tdesktop
+// lang_cloud_manager.cpp:271-279). Without a stored pack the flag is left
+// out and the clients keep their bundled strings. The three fields share
+// the flag and are written only together.
+func (c *ConfigurationCore) setLangPack(cfg *mtproto.TLConfig) {
+	cfg.SetSuggestedLangCode(nil)
+	cfg.SetLangPackVersion(nil)
+	cfg.SetBaseLangPackVersion(nil)
+
+	pack := langpack.CanonicalPack(c.MD.GetLangpack())
+	lang := langpack.CanonicalLangCode(c.MD.GetLangCode())
+	v, err := c.svcCtx.Dao.Langpacks.ConfigVersions(c.ctx, pack, lang)
+	if err != nil {
+		// The rest of config still serves the client; its language pack
+		// waits for the next help.getConfig.
+		c.Logger.Errorf("help.getConfig: language pack versions of %s/%s: %v", pack, lang, err)
+		return
+	}
+	if v == nil {
+		return
+	}
+	cfg.SetSuggestedLangCode(wrapperspb.String(v.SuggestedLangCode))
+	cfg.SetLangPackVersion(wrapperspb.Int32(v.LangPackVersion))
+	cfg.SetBaseLangPackVersion(wrapperspb.Int32(v.BaseLangPackVersion))
 }

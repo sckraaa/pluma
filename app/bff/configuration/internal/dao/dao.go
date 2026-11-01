@@ -19,22 +19,34 @@
 package dao
 
 import (
+	"context"
+
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	"github.com/teamgram/teamgram-server/pkg/langpack"
 )
 
+// LangpackVersions is what help.getConfig reads of the language packs
+// (*langpack.Store).
+type LangpackVersions interface {
+	ConfigVersions(ctx context.Context, pack, lang string) (*langpack.ConfigVersions, error)
+}
+
 type Dao struct {
-	db *sqlx.DB
+	db        *sqlx.DB
+	Langpacks LangpackVersions // the language packs of help.getConfig (task 021)
 	user_client.UserClient
 	authsession_client.AuthsessionClient
 }
 
 func New(c config.Config) *Dao {
+	db := sqlx.NewMySQL(&c.Mysql)
 	return &Dao{
-		db:                sqlx.NewMySQL(&c.Mysql),
+		db:                db,
+		Langpacks:         langpack.NewStore(db),
 		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 	}
