@@ -163,7 +163,7 @@
 | `account.updateDeviceLocked` | ok |  | app/bff/notification/internal/core/account.updateDeviceLocked_handler.go:31 |
 | `account.updateEmojiStatus` | missing |  |  |
 | `account.updateNotifySettings` | partial |  | app/bff/notification/internal/core/account.updateNotifySettings_handler.go:47 |
-| `account.updatePasswordSettings` | ok |  | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:29 |
+| `account.updatePasswordSettings` | ok |  | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:37 |
 | `account.updatePersonalChannel` | ok |  | app/bff/userchannelprofiles/internal/core/account.updatePersonalChannel_handler.go:28 |
 | `account.updateProfile` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateProfile_handler.go:30 |
 | `account.updateStatus` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateStatus_handler.go:32 |
