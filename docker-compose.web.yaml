@@ -21,6 +21,9 @@ services:
       PLUMA_SITE_DOMAINS: ${PLUMA_SITE_DOMAINS:?set PLUMA_SITE_DOMAINS in .env, the other names of the site}
     volumes:
       - ./teamgramd/deploy/web/Caddyfile:/etc/caddy/Caddyfile:ro
+      # The landing page of PLUMA_SITE_DOMAINS: the dist/ of pluma-site,
+      # copied to the host (docs/ops/deployment.md).
+      - ${PLUMA_SITE_DIR:-/srv/pluma-site}:/pluma-site:ro
       # The ACME account and the certificates: kept over restarts, so that
       # Let's Encrypt's rate limits are never in the way.
       - caddy_data:/data

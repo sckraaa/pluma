@@ -79,7 +79,15 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
 Web K раздаёт с адреса Pluma контейнер `web` (`docker-compose.web.yaml`): Caddy с сайтом из образа `pluma-web`.
 - **TLS.** Сертификаты Let's Encrypt Caddy получает и продлевает сам. Нужны A-записи всех имён на адрес Pluma и свободные порты 80 и 443 на этом адресе.
 - **WebSocket.** `/apiws` Caddy передаёт на отдельный слушатель шлюза `11444` с PROXY protocol v1. Так шлюз видит настоящий адрес каждого веб-клиента, и лимиты входа считаются по нему. Соединение без заголовка PROXY этот слушатель закрывает. Порт `11444` не публикуется. Собственный WebSocket-порт шлюза `11443` при этом файле тоже не публикуется.
-- **Имена.** `PLUMA_WEB_DOMAIN` — имя веб-клиента. Остальные имена сайта из `PLUMA_SITE_DOMAINS` перенаправляют на него.
+- **Имена.** `PLUMA_WEB_DOMAIN` — имя веб-клиента. Остальные имена сайта из `PLUMA_SITE_DOMAINS` (pluma.chat и www.pluma.chat) отдают лендинг.
+- **Лендинг.** Статические файлы из `dist/` репозитория `pluma-site` (`npm ci && npm test && npm run build`). На хосте — `/srv/pluma-site` (другое место — `PLUMA_SITE_DIR` в `.env`), смонтирован в контейнер только для чтения: выпуски в `releases/<дата-время>/`, живой — за относительной ссылкой `current`. Заголовки, постоянные адреса устройств, `/pero`, `/app`, английская версия под `/en/` с теми же адресами и страница 404 — в `teamgramd/deploy/web/Caddyfile`. Журнала обращений у сайта нет: подвал страницы обещает, что она никого не считает.
+- **Выложить новую версию лендинга** — контейнер не трогается, ссылка меняется одним `rename`, страница никогда не видна наполовину старой:
+  ```bash
+  R=$(date -u +%Y%m%d-%H%M%S)
+  rsync -a dist/ "neo_old:/srv/pluma-site/releases/$R/"
+  ssh neo_old "cd /srv/pluma-site && ln -sfn releases/$R current.new && mv -T current.new current"
+  ```
+  Откат — то же `ln -sfn … && mv -T` на прежний выпуск. Старые выпуски удаляются руками, кроме двух последних.
 
 Порядок:
 1. В `pluma-web` задать переменные `PLUMA_SERVER_URL=wss://<PLUMA_WEB_DOMAIN>/apiws` и `PLUMA_RSA_PUBLIC_KEY`. Сборка `main` под сервер публикует образ `ghcr.io/sckraaa/pluma-web:<коммит pluma-web>`.
