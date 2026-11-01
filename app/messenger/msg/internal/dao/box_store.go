@@ -137,15 +137,16 @@ func messagesByDialogMessageIds(b *userbox.Box, dialogMessageIds []int64) ([]dat
 	return rows, err
 }
 
-// replyCopy returns the box's copy of fromId's message
-// fromMessageId, or nil. It reads one committed row of fromId's box without
+// replyCopy returns the box's copy of fromId's message fromMessageId in
+// the dialog did, or nil: a copy in another dialog is not the message a
+// reply in did can name. It reads one committed row of fromId's box without
 // locking it.
-func replyCopy(b *userbox.Box, fromId int64, fromMessageId int32) (*dataobject.MessagesDO, error) {
+func replyCopy(b *userbox.Box, fromId int64, did mtproto.DialogID, fromMessageId int32) (*dataobject.MessagesDO, error) {
 	var rows []dataobject.MessagesDO
 	err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT "+messageColumns+" FROM messages WHERE user_id = ? AND deleted = 0 AND dialog_message_id ="+
+		"SELECT "+messageColumns+" FROM messages WHERE user_id = ? AND dialog_id1 = ? AND dialog_id2 = ? AND deleted = 0 AND dialog_message_id ="+
 			" (SELECT dialog_message_id FROM messages WHERE user_id = ? AND user_message_box_id = ? AND deleted = 0 LIMIT 1) LIMIT 1",
-		b.UserId(), fromId, fromMessageId)
+		b.UserId(), did.A, did.B, fromId, fromMessageId)
 	if err != nil || len(rows) == 0 {
 		return nil, err
 	}

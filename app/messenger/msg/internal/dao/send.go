@@ -160,7 +160,13 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 
 		switch message.GetReplyTo().GetPredicateName() {
 		case mtproto.Predicate_messageReplyHeader:
-			replied, err := replyCopy(b, fromId, message.GetReplyTo().GetFixedReplyToMsgId())
+			// A reply to a message of another chat names no message: it
+			// shows the origin of the message (reply_from), the same for
+			// every reader, and mentions no one.
+			if message.GetReplyTo().GetReplyFrom() != nil {
+				break
+			}
+			replied, err := replyCopy(b, fromId, did, message.GetReplyTo().GetFixedReplyToMsgId())
 			if err != nil {
 				return nil, err
 			}
