@@ -425,7 +425,7 @@ func (m *MainAuthWrapper) onUpdateInitConnection(ctx context.Context, clientIp s
 			AppVersion:     initConnection.AppVersion,
 			SystemLangCode: initConnection.SystemLangCode,
 			LangPack:       initConnection.LangPack,
-			LangCode:       initConnection.LangPack,
+			LangCode:       initConnection.LangCode,
 			Proxy:          proxy,
 			Params:         params,
 		}).To_ClientSession()

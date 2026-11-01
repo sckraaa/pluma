@@ -1,0 +1,79 @@
+{
+ "method": "langpack.getLangPack",
+ "capturedAt": "2026-04-10T16:16:11.618Z",
+ "request": {
+  "className": "langpack.GetLangPack",
+  "langPack": "tdesktop",
+  "langCode": "en"
+ },
+ "response": {
+  "className": "LangPackDifference",
+  "langCode": "en",
+  "fromVersion": 0,
+  "version": 5313812,
+  "strings": [
+   {
+    "className": "LangPackString",
+    "key": "cloud_lng_about_psa_psa",
+    "value": "This is an official message from the CEO of Telegram regarding the ongoing conflict."
+   },
+   {
+    "className": "LangPackString",
+    "key": "lng_about_dice",
+    "value": "Send a 🎲 emoji to any chat to get a random number from Telegram."
+   },
+   {
+    "className": "LangPackString",
+    "key": "lng_about_text1_api",
+    "value": "Telegram API"
+   },
+   {
+    "className": "LangPackString",
+    "key": "lng_about_text3_faq",
+    "value": "Telegram FAQ"
+   },
+   {
+    "className": "LangPackString",
+    "key": "lng_about_text_1",
+    "value": "Official free messaging app based on [a href=\"https://core.telegram.org/api\"]Telegram API[/a]\nfor speed and security."
+   },
+   {
+    "className": "LangPackString",
+    "key": "lng_accounts_limit2",
+    "value": "You can free one place by subscribing to **Telegram Premium** with one of these connected accounts:"
+   },
+   {
+    "className": "LangPackString",
+    "key": "lng_cancel",
+    "value": "Cancel"
+   },
+   {
+    "className": "LangPackString",
+    "key": "lng_settings_save",
+    "value": "Save"
+   },
+   {
+    "className": "LangPackStringPluralized",
+    "flags": 2,
+    "key": "cloud_lng_age_verify_about_gb",
+    "zeroValue": null,
+    "oneValue": "To access such content, you must confirm that you are at least **18** years old as required by UK law.",
+    "twoValue": null,
+    "fewValue": null,
+    "manyValue": null,
+    "otherValue": "To access such content, you must confirm that you are at least **18** years old as required by UK law."
+   },
+   {
+    "className": "LangPackStringPluralized",
+    "flags": 2,
+    "key": "lng_accounts_limit1",
+    "zeroValue": null,
+    "oneValue": "You have reached the limit of **{count}** connected account.",
+    "twoValue": null,
+    "fewValue": null,
+    "manyValue": null,
+    "otherValue": "You have reached the limit of **{count}** connected accounts."
+   }
+  ]
+ }
+}

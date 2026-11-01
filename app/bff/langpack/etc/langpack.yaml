@@ -1,0 +1,9 @@
+Name: bff.langpack
+ListenOn: 0.0.0.0:27970
+# The language packs (pkg/langpack, tables langpack_*); in production the
+# service runs inside bff.bff with bff's Mysql.
+Mysql:
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  Active: 8
+  Idle: 4
+  IdleTimeout: 4h

@@ -4,13 +4,17 @@ package e2e
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
 // The durable box of a user (task 002, ADR 0011): every pts a client sees is
@@ -111,12 +115,25 @@ func checkDifference(t *testing.T, st *mtproto.TLUpdatesState, msgs []*mtproto.M
 // sendTo sends text from u to peer and returns the pts of the reply.
 func sendTo(ctx context.Context, t *testing.T, u *user, peer *mtproto.InputPeer, text string) int32 {
 	t.Helper()
-	o, err := u.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
+	req := &mtproto.TLMessagesSendMessage{
 		Constructor: u.c.Constructor(mtproto.Predicate_messages_sendMessage),
 		Peer:        peer,
 		Message:     text,
 		RandomId:    randomID(),
-	})
+	}
+	o, err := u.c.Invoke(ctx, req)
+	// A test that sends hundreds of messages meets the sending limit on a
+	// fast machine: wait as long as the server asks, as clients do, and
+	// send the same message again.
+	for tries := 0; err != nil && tries < 5; tries++ {
+		var e *mtclient.RPCError
+		if !errors.As(err, &e) || !strings.HasPrefix(e.Message, "FLOOD_WAIT_") {
+			break
+		}
+		secs, _ := strconv.Atoi(strings.TrimPrefix(e.Message, "FLOOD_WAIT_"))
+		time.Sleep(time.Duration(secs+1) * time.Second)
+		o, err = u.c.Invoke(ctx, req)
+	}
 	if err != nil {
 		t.Fatalf("messages.sendMessage: %v", err)
 	}
