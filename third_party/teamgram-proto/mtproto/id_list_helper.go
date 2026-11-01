@@ -109,6 +109,13 @@ func (m *IDListHelper) PickByFwdFrom(fwd *MessageFwdHeader) {
 //	reply_to_top_id:flags.1?int = MessageReplyHeader;
 func (m *IDListHelper) PickByReplyTo(replyTo *MessageReplyHeader) {
 	m.PickByPeer(replyTo.GetReplyToPeerId())
+	// pluma: a reply to a message of another chat names its origin
+	// (reply_from) and carries its media (reply_media); the clients read the
+	// users of both (iOS StoreMessage_Telegram.swift:398-417).
+	if replyTo.GetReplyFrom() != nil {
+		m.PickByFwdFrom(replyTo.GetReplyFrom())
+	}
+	m.PickByMessageMedia(replyTo.GetReplyMedia())
 }
 
 // PickByReplies
