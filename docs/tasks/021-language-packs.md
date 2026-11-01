@@ -1,6 +1,6 @@
 # 021. Языковые пакеты
 
-- Статус: todo
+- Статус: in progress (2026-11-01)
 - Зависит от: —
 - ADR: новый (хранение и обновление пакетов)
 
@@ -27,5 +27,15 @@
 - Ответы `langpack.*` по форме совпадают с эталоном: сравнение методов из приложения отчёта, число языков и строк.
 - Android, iOS, Desktop и Web K на русском без английских остатков: проверено на эмуляторе, симуляторе и в браузере.
 - В строках нет слова «Telegram», кроме исключений, описанных в брифе.
+
+## Проект (2026-11-01; отчёты исследования — scratchpad сессии `1f4ab8ad…/lang`)
+- **Источник** — методы `langpack.*` самого Telegram без входа (`initConnection` с `api_id` владельца, `api_hash` не нужен): точная форма строк (`langPackStringPluralized`), имена языков, `plural_code`, версии, все языки. Экспорт translations.telegram.org (старый скрипт `~/aaaaaaa/self_hosted_version/scripts/fetch-all-langpacks.cjs`) не годится как единственный источник: формы множественного числа расплющены по ключам, нет метаданных и версий.
+- **Пакеты:** android, ios, tdesktop, macos, webk (Web K шлёт `web` для `getLanguages`/`getLangPack` и `webk` для остального — один пакет под двумя именами). Пустой `lang_pack` в запросе (Android, iOS) — пакет из `initConnection` сессии.
+- **Хранение:** миграция `langpack_languages` (PK `lang_pack, lang_code`; метаданные, `version`) и `langpack_strings` (PK `lang_pack, lang_code, str_key`; простая или множественная, текст после замены и исходный текст Telegram, `deleted`, `version` последнего изменения). Импорт в одной транзакции на пакет и язык: изменённые строки получают новую версию, исчезнувшие — `deleted`; без изменений версия не растёт.
+- **Ответы:** `getLangPack` — весь пакет, `from_version = 0`; `getDifference(from)` — строки с `version > from` и удалённые как `langPackStringDeleted`, `from_version = from` (iOS и Web K требуют точного совпадения); `from >= version` — пусто; `getStrings` — найденные, остальные `langPackStringDeleted`; `getLanguages`, `getLanguage`. Неизвестный пакет: `LANG_PACK_INVALID` для `getLangPack`/`getDifference`, пустой вектор для `getLanguages`/`getStrings` (iOS повторяет их без конца при ошибке) — вывод, у Telegram не проверено. Все методы без входа (сессия уже пропускает).
+- **`help.getConfig`:** `lang_pack_version` (и `base_lang_pack_version`) — версия пакета сессии и её языка, как вернёт `getDifference`; `suggested_lang_code` — язык клиента, если пакет есть; иначе поля не ставятся. Исправить в сессии `LangCode: initConnection.LangPack` (`main_auth_wrapper.go:428`).
+- **Замена Telegram → Pluma** при импорте, правило Android-патча (слово целиком, только значения, не ключи и не адреса), «Telegram Desktop» → «Pluma», таблицы ar/fa/ko/nl, ссылки входа по QR на pluma.chat; импорт печатает отчёт об оставшихся «Telegram» (падежные формы чешского и других языков — «Telegramu» и т. п. — пока остаются, решение владельца ниже).
+- **Обновление:** `pluma-admin langpack fetch` (из Telegram в файлы-снимки) и `pluma-admin langpack import` (в базу); по расписанию — таймер на хосте, `docs/ops`. Рассылка `updateLangPack` онлайн-сессиям — следующим шагом.
+- **Решения на подтверждение:** источник — API Telegram с `api_id` владельца; падежные формы «Telegram» в чешском, польском и др.
 
 ## Результат
