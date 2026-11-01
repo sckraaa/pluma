@@ -102,7 +102,7 @@ func TestComposeServices(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, m := range varRe.FindAllStringSubmatch(string(cfg), -1) {
-				if val, ok := s.Environment[m[1]]; !ok || !strings.HasPrefix(val, "${"+m[1]+":?") {
+				if val, ok := s.Environment[m[1]]; !ok || !passed(m[1], val) {
 					t.Errorf("%s loads %s, which uses ${%s}, but does not get it as a required variable", name, cfgName, m[1])
 				}
 			}
@@ -151,7 +151,7 @@ func TestComposeServices(t *testing.T) {
 		sort.Strings(got)
 		for v := range needed {
 			val, ok := s.Environment[v]
-			if !ok || !strings.HasPrefix(val, "${"+v+":?") {
+			if !ok || !passed(v, val) {
 				t.Errorf("%s: its config uses ${%s}, but the service does not get it as a required variable (has %v)", name, v, got)
 			}
 		}
@@ -265,4 +265,19 @@ func listenPort(t *testing.T, name string) string {
 	}
 	t.Fatalf("%s: no port to check", name)
 	return ""
+}
+
+// optionalVars are the variables a service may get empty: settings that are
+// off when empty, not secrets. Each of them is passed as ${NAME:-}.
+var optionalVars = map[string]bool{
+	// The App Store review account (pkg/logincode, task 029).
+	"LOGIN_REVIEW_PHONE": true,
+	"LOGIN_REVIEW_CODE":  true,
+}
+
+// passed tells whether val, the compose value of the variable name, gives it
+// to the service as it must: ${NAME:?...}, which stops compose when the
+// variable is unset or empty, or ${NAME:-} for an optional variable.
+func passed(name, val string) bool {
+	return strings.HasPrefix(val, "${"+name+":?") || optionalVars[name] && val == "${"+name+":-}"
 }

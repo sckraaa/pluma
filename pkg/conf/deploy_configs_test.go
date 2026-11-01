@@ -75,7 +75,8 @@ func TestDeployConfigVariablesAreProvided(t *testing.T) {
 	}
 	for name, files := range configVars(t, "teamgramd/etc2/*.yaml") {
 		required := regexp.MustCompile(`(?m)^\s+` + name + `: \$\{` + name + `:\?`)
-		if !required.Match(compose) {
+		optional := regexp.MustCompile(`(?m)^\s+` + name + `: \$\{` + name + `:-\}$`)
+		if !required.Match(compose) && !(optionalVars[name] && optional.Match(compose)) {
 			t.Errorf("teamgramd/etc2 (%s) uses ${%s}, but docker-compose.yaml does not pass it as a required variable", strings.Join(files, ", "), name)
 		}
 	}
