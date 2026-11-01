@@ -173,6 +173,36 @@ func (n NewLogin) Text(lang Lang) (string, []*mtproto.MessageEntity) {
 	})
 }
 
+// The message on a change of the cloud password or its recovery email, as
+// Telegram sent it in English on 2026-05-11 (docs/tasks/019, the export);
+// its Russian text is not known.
+var twoStepChanged = map[Lang]string{
+	English: "**Two-Step Verification settings changed.** {name}, your Two-Step Verification password and/or email were changed on {date} at {time} UTC.\n\n" +
+		"Device: {device}\nLocation: {location}\n\n" +
+		"If you didn’t request this, review your Active Sessions: **Settings > Devices** (or **Privacy & Security > Active Sessions**).",
+}
+
+// TwoStepChanged is a change of the account's cloud password or its
+// recovery email, made from a session.
+type TwoStepChanged struct {
+	Name     string    // of the account
+	Date     time.Time // of the change
+	Device   string    // of the session that made it, as in NewLogin
+	Location string
+}
+
+// Text is the message in lang.
+func (c TwoStepChanged) Text(lang Lang) (string, []*mtproto.MessageEntity) {
+	date := c.Date.UTC()
+	return Render(textOf(twoStepChanged, lang), map[string]string{
+		"name":     c.Name,
+		"date":     date.Format("02/01/2006"),
+		"time":     date.Format("15:04:05"),
+		"device":   c.Device,
+		"location": c.Location,
+	})
+}
+
 func textOf(texts map[Lang]string, lang Lang) string {
 	if t, ok := texts[lang]; ok {
 		return t

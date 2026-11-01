@@ -20,7 +20,6 @@ package core
 
 import (
 	"context"
-	"math/rand"
 	"strings"
 	"time"
 
@@ -28,8 +27,8 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/svc"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/servicemsg"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/servicetext"
-	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 
@@ -145,31 +144,7 @@ func (c *AuthorizationCore) pushSignInMessage(ctx context.Context, signInUserId 
 			lang = servicetext.LangOf(recent.GetV())
 		}
 		text, entities := servicetext.LoginCode(lang, code)
-		message := mtproto.MakeTLMessage(&mtproto.Message{
-			Out:      true,
-			Date:     int32(time.Now().Unix()),
-			FromId:   mtproto.MakePeerUser(777000),
-			PeerId:   mtproto.MakeTLPeerUser(&mtproto.Peer{UserId: signInUserId}).To_Peer(),
-			Message:  text,
-			Entities: entities,
-		}).To_Message()
-
-		_, err = c.svcCtx.Dao.MsgClient.MsgPushUserMessage(
-			ctx,
-			&msgpb.TLMsgPushUserMessage{
-				UserId:    777000,
-				AuthKeyId: 0,
-				PeerType:  mtproto.PEER_USER,
-				PeerId:    signInUserId,
-				PushType:  1,
-				Message: msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
-					NoWebpage:    false,
-					Background:   false,
-					RandomId:     rand.Int63(),
-					Message:      message,
-					ScheduleDate: nil,
-				}).To_OutboxMessage(),
-			})
+		err = servicemsg.Send(ctx, c.svcCtx.Dao.MsgClient, signInUserId, time.Now(), text, entities)
 		if err != nil {
 			// The client already shows "code sent to your Telegram app": without
 			// this line nobody can tell why no message arrived. The user can

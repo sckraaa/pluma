@@ -139,3 +139,26 @@ func TestNewLoginWithoutPassword(t *testing.T) {
 		}
 	}
 }
+
+// Telegram's text of 2026-05-11, word for word (the export, docs/tasks/019);
+// without a Russian text of Telegram, every language gets it.
+func TestTwoStepChanged(t *testing.T) {
+	c := TwoStepChanged{
+		Name:     "Anna",
+		Date:     time.Date(2026, 5, 11, 20, 48, 28, 0, time.FixedZone("CEST", 7200)),
+		Device:   "Pluma Android, 12.9.1, OnePlus 12, Android, 16 (36)",
+		Location: "Prague, Czechia",
+	}
+	want := "Two-Step Verification settings changed. Anna, your Two-Step Verification password and/or email were changed on 11/05/2026 at 18:48:28 UTC.\n\n" +
+		"Device: Pluma Android, 12.9.1, OnePlus 12, Android, 16 (36)\nLocation: Prague, Czechia\n\n" +
+		"If you didn’t request this, review your Active Sessions: Settings > Devices (or Privacy & Security > Active Sessions)."
+	for _, lang := range []Lang{English, Russian} {
+		text, entities := c.Text(lang)
+		if text != want {
+			t.Fatalf("%s: text %q", lang, text)
+		}
+		if got := bold(t, text, entities); !equal(got, []string{"Two-Step Verification settings changed.", "Settings > Devices", "Privacy & Security > Active Sessions"}) {
+			t.Fatalf("%s: bold %q", lang, got)
+		}
+	}
+}

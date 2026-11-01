@@ -132,6 +132,7 @@ func (s *Server) Initialize() error {
 					UserClient:        c.BizServiceClient,
 					AuthSessionClient: c.AuthSessionClient,
 					SyncClient:        syncClient,
+					MsgClient:         c.MsgClient,
 				}))
 
 		// miscellaneous_helper
@@ -376,9 +377,12 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCTwoFaServer(
 			grpcServer,
 			twofa_helper.New(twofa_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				KV:            c.KV,
-				Mysql:         c.Mysql,
+				RpcServerConf:     c.RpcServerConf,
+				KV:                c.KV,
+				Mysql:             c.Mysql,
+				UserClient:        c.BizServiceClient,
+				AuthsessionClient: c.AuthSessionClient,
+				MsgClient:         c.MsgClient,
 			}))
 
 		// usernames_helper

@@ -42,7 +42,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		NewLogin: newlogin.Notifier{
 			Authsession: d.AuthsessionClient,
 			User:        d.UserClient,
-			Sync:        d.SyncClient,
+			Msg:         d.MsgClient,
 		},
 	}
 }

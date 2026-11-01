@@ -55,7 +55,7 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 		NewLogin: newlogin.Notifier{
 			Authsession: d.AuthsessionClient,
 			User:        d.UserClient,
-			Sync:        d.SyncClient,
+			Msg:         d.MsgClient,
 		},
 	}
 }

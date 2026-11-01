@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -40,7 +40,7 @@ type fake struct {
 	recentLang string
 	recentAsks int
 	pushFails  bool // the push of the message fails
-	pushes     []*sync.TLSyncUpdatesNotMe
+	pushes     []*msgpb.TLMsgPushUserMessage
 	reviews    []*user.TLUserNewAuthorization
 }
 
@@ -76,16 +76,16 @@ func (f *fake) UserNewAuthorization(_ context.Context, in *user.TLUserNewAuthori
 	return mtproto.BoolTrue, nil
 }
 
-func (f *fake) SyncUpdatesNotMe(_ context.Context, in *sync.TLSyncUpdatesNotMe) (*mtproto.Void, error) {
+func (f *fake) MsgPushUserMessage(_ context.Context, in *msgpb.TLMsgPushUserMessage) (*mtproto.Bool, error) {
 	if f.pushFails {
-		return nil, errors.New("sync is down")
+		return nil, errors.New("msg is down")
 	}
 	f.pushes = append(f.pushes, in)
-	return &mtproto.Void{}, nil
+	return mtproto.BoolTrue, nil
 }
 
 func (f *fake) notifier() Notifier {
-	return Notifier{Authsession: f, User: f, Sync: f}
+	return Notifier{Authsession: f, User: f, Msg: f}
 }
 
 func login(langCode string, hasPassword bool) Login {
@@ -101,20 +101,22 @@ func login(langCode string, hasPassword bool) Login {
 	}
 }
 
-// message is the text of the only New login message, and that it went to
-// the account without the new key.
+// message is the text of the only New login message, and that it is a
+// message of the service notifications account to the account, of the
+// login's date (ADR 0026).
 func (f *fake) message(t *testing.T) string {
 	t.Helper()
 	if len(f.pushes) != 1 {
 		t.Fatalf("%d pushes, want 1", len(f.pushes))
 	}
 	p := f.pushes[0]
-	u := p.GetUpdates().GetUpdates()
-	if p.GetUserId() != userId || p.GetPermAuthKeyId() != newKey || len(u) != 1 ||
-		u[0].GetPredicateName() != mtproto.Predicate_updateServiceNotification || u[0].GetInboxDate().GetValue() != int32(login("", false).Date.Unix()) {
+	m := p.GetMessage().GetMessage()
+	if p.GetUserId() != 777000 || p.GetPeerType() != mtproto.PEER_USER || p.GetPeerId() != userId || p.GetPushType() == 0 ||
+		m.GetFromId().GetUserId() != 777000 || m.GetPeerId().GetUserId() != userId || m.GetDate() != int32(login("", false).Date.Unix()) ||
+		len(m.GetEntities()) == 0 {
 		t.Fatalf("push %v", p)
 	}
-	return u[0].GetMessage_STRING()
+	return m.GetMessage()
 }
 
 func TestNotify(t *testing.T) {

@@ -13,12 +13,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package newlogin tells the other sessions of an account about a login
-// that has just completed (task 019), as Telegram does: they get
+// Package newlogin tells an account about a login that has just completed
+// (task 019), as Telegram does: its other sessions get
 // updateNewAuthorization, which official clients show as a banner asking
-// whether the login is the user's (https://core.telegram.org/api/auth#confirming-login),
-// and the New login message of the service notifications account. The new
-// session gets neither.
+// whether the login is the user's (https://core.telegram.org/api/auth#confirming-login);
+// the new session does not. The New login message of the service
+// notifications account is a message of the account's history (ADR 0026,
+// task 022): every session has it, the new one too, as Telegram's web
+// client opened later shows its earlier New login messages.
 package newlogin
 
 import (
@@ -29,8 +31,8 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/bff/authorization/servicemsg"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/servicetext"
-	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 
@@ -48,16 +50,12 @@ type User interface {
 	UserNewAuthorization(ctx context.Context, in *user.TLUserNewAuthorization) (*mtproto.Bool, error)
 }
 
-// Sync is what newlogin needs of sync.
-type Sync interface {
-	SyncUpdatesNotMe(ctx context.Context, in *sync.TLSyncUpdatesNotMe) (*mtproto.Void, error)
-}
-
-// Notifier tells the other sessions of an account about its new logins.
+// Notifier tells an account about its new logins. Msg is needed by Notify
+// only.
 type Notifier struct {
 	Authsession Authsession
 	User        User
-	Sync        Sync
+	Msg         servicemsg.Msg
 }
 
 // Login is a login that has just completed: the key is bound to the user.
@@ -73,9 +71,9 @@ type Login struct {
 }
 
 // Notify sends l's other sessions updateNewAuthorization, with seq so that
-// sessions offline now get it later (ADR 0022), and the New login message,
-// to the sessions online now: a service notification is not journaled
-// (ADR 0020). An account without other sessions is told nothing.
+// sessions offline now get it later (ADR 0022), and the account the New
+// login message (ADR 0026). An account without other sessions is told
+// nothing.
 //
 // The message is in one language for all of them: the language of the
 // session that confirmed the login, or for a login with a code of the
@@ -146,17 +144,7 @@ func (n Notifier) Notify(ctx context.Context, l Login) error {
 		Location:    current.GetCountry(),
 		HasPassword: l.HasPassword,
 	}.Text(servicetext.LangOf(langCode))
-	if _, err = n.Sync.SyncUpdatesNotMe(ctx, &sync.TLSyncUpdatesNotMe{
-		UserId:        l.User.Id(),
-		PermAuthKeyId: l.PermAuthKeyId,
-		Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateServiceNotification(&mtproto.Update{
-			InboxDate:      mtproto.MakeFlagsInt32(date),
-			Type:           fmt.Sprintf("auth%d_%d", l.PermAuthKeyId, date),
-			Message_STRING: text,
-			Media:          mtproto.MakeTLMessageMediaEmpty(nil).To_MessageMedia(),
-			Entities:       entities,
-		}).To_Update()),
-	}); err != nil {
+	if err = servicemsg.Send(ctx, n.Msg, l.User.Id(), l.Date, text, entities); err != nil {
 		errs = append(errs, fmt.Errorf("new login message of user %d: %w", l.User.Id(), err))
 	}
 	return errors.Join(errs...)

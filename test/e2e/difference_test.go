@@ -109,6 +109,11 @@ func TestDifferenceFoldsEditsAndDeletes(t *testing.T) {
 	}
 	var texts []string
 	for _, m := range d.GetNewMessages() {
+		// Bob's login on a phone with other sessions brings a New login
+		// message of the service account (ADR 0026): not Alice's.
+		if m.GetFromId().GetUserId() == serviceUserId {
+			continue
+		}
 		texts = append(texts, m.GetMessage())
 		if m.GetMessage() == tag+" 2 edited" && m.GetEditDate() == nil {
 			t.Error("the edited message has no edit_date")

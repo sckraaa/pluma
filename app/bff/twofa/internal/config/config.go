@@ -26,4 +26,10 @@ type Config struct {
 	zrpc.RpcServerConf
 	KV    kv.KvConf   // SRP sessions, new_algo salts, logins waiting for the password, limits
 	Mysql sqlx.Config // user_passwords
+	// The message of the service notifications account on a change of the
+	// password (task 022): the account's name, the session's device and
+	// place, the message itself.
+	UserClient        zrpc.RpcClientConf
+	AuthsessionClient zrpc.RpcClientConf
+	MsgClient         zrpc.RpcClientConf
 }

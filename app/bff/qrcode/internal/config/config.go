@@ -32,4 +32,5 @@ type Config struct {
 	UserClient        zrpc.RpcClientConf
 	AuthSessionClient zrpc.RpcClientConf
 	SyncClient        sync_client.OutboxConf
+	MsgClient         zrpc.RpcClientConf // the New login message (ADR 0026)
 }

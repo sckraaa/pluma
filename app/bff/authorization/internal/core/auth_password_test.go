@@ -14,6 +14,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/svc"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	syncpb "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
@@ -132,6 +133,16 @@ func (p *pushes) SyncUpdatesNotMe(_ context.Context, in *syncpb.TLSyncUpdatesNot
 	return &mtproto.Void{}, nil
 }
 
+// MsgPushUserMessage records a message of the service notifications
+// account: the New login message (ADR 0026).
+func (p *pushes) MsgPushUserMessage(_ context.Context, in *msgpb.TLMsgPushUserMessage) (*mtproto.Bool, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.users = append(p.users, in.GetPeerId())
+	p.texts = append(p.texts, in.GetMessage().GetMessage().GetMessage())
+	return mtproto.BoolTrue, nil
+}
+
 // reviews records the updateNewAuthorization of logins (user.newAuthorization).
 type reviews struct {
 	mu   sync.Mutex
@@ -179,7 +190,7 @@ func newPasswordEnv(t *testing.T) *passwordEnv {
 		Dao:       &dao.Dao{UserClient: passwordUsers{}, AuthsessionClient: e.bound, SyncClient: e.pushes},
 		AuthLogic: e.auth,
 		Twofa:     e.twofa,
-		NewLogin:  newlogin.Notifier{Authsession: e.bound, User: e.reviews, Sync: e.pushes},
+		NewLogin:  newlogin.Notifier{Authsession: e.bound, User: e.reviews, Msg: e.pushes},
 	}
 	return e
 }

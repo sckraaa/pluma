@@ -57,8 +57,9 @@ func newAuthorization(ctx context.Context, t *testing.T, u *user, name string, h
 
 // A new login of an account that has other sessions (task 019), as Telegram
 // does it (docs/tasks/019-service-messages.md): the other sessions get the
-// New login message and updateNewAuthorization with unconfirmed, on which
-// official clients ask "Is it you?"; the new session gets neither. The login
+// updateNewAuthorization with unconfirmed, on which official clients ask
+// "Is it you?", and the account the New login message (ADR 0026); the new
+// session gets no banner. The login
 // stays unconfirmed in the other sessions' account.getAuthorizations until
 // one of them confirms it; then every session gets updateNewAuthorization
 // without unconfirmed and drops the banner. The new session never sees
@@ -103,26 +104,17 @@ func TestNewLogin(t *testing.T) {
 	}
 	// The New login message, in the language of the session that connected
 	// last: Russian. The account has no password, and no Russian text of
-	// Telegram has the paragraph about one: the English message, whole.
-	wctx, wcancel := context.WithTimeout(ctx, 30*time.Second)
-	var message *mtproto.Update
-	_, err := phoneApp.c.WaitUpdate(wctx, func(us *mtproto.Updates) bool {
-		for _, x := range pushedUpdates(us) {
-			if x.GetPredicateName() == mtproto.Predicate_updateServiceNotification {
-				message = x
-				return true
-			}
+	// Telegram has the paragraph about one: the English message, whole. It
+	// is a message of the chat with the service account (ADR 0026).
+	var message string
+	for _, s := range serviceTexts(ctx, t, phoneApp, "New login.") {
+		if strings.HasPrefix(s, "New login.") {
+			message = s
 		}
-		return false
-	})
-	wcancel()
-	if err != nil {
-		t.Fatalf("no New login message: %v", err)
 	}
-	if text := message.GetMessage_STRING(); message.GetInboxDate() == nil || len(message.GetEntities()) != 4 ||
-		!strings.HasPrefix(text, "New login. Dear Lena E2E, we detected a login into your account from a new device on ") ||
-		!strings.HasSuffix(text, "you can enable Two-Step Verification in Privacy and Security settings.") {
-		t.Fatalf("New login message %q, %d entities", text, len(message.GetEntities()))
+	if !strings.HasPrefix(message, "New login. Dear Lena E2E, we detected a login into your account from a new device on ") ||
+		!strings.HasSuffix(message, "you can enable Two-Step Verification in Privacy and Security settings.") {
+		t.Fatalf("New login message %q", message)
 	}
 
 	// The session that missed the push finds the banner in its difference.
@@ -142,15 +134,17 @@ func TestNewLogin(t *testing.T) {
 		t.Fatalf("no banner in the difference: %v", d.GetOtherUpdates())
 	}
 
-	// The new session is told nothing about its own login.
+	// The new session gets no banner about its own login; the message is
+	// in the history it shares with the others.
 	noPushOf(ctx, t, web, "the new session", 2*time.Second, mtproto.Predicate_updateNewAuthorization, func(*mtproto.Update) bool { return true })
 	noPushOf(ctx, t, web, "the new session", time.Second, mtproto.Predicate_updateServiceNotification, func(*mtproto.Update) bool { return true })
 
 	// A session younger than a day may not terminate another one.
-	if _, err = web.c.Invoke(ctx, &mtproto.TLAccountResetAuthorization{
+	_, err := web.c.Invoke(ctx, &mtproto.TLAccountResetAuthorization{
 		Constructor: web.c.Constructor(mtproto.Predicate_account_resetAuthorization),
 		Hash:        1,
-	}); !rpcErrorIs(err, "FRESH_RESET_AUTHORISATION_FORBIDDEN") {
+	})
+	if !rpcErrorIs(err, "FRESH_RESET_AUTHORISATION_FORBIDDEN") {
 		t.Fatalf("a fresh session terminates another: %v", err)
 	}
 
