@@ -18,7 +18,8 @@ for f in "$key" "$p12" "$pw"; do [ -s "$f" ] || { echo "$f: missing or empty" >&
 
 # The remote commands are built here, with $DIR expanded on this side.
 # shellcheck disable=SC2029
-ssh "$host" "install -d -m 0700 -o 65532 -g 65532 '$DIR'"
+# The service's uid has no name on the host: chown takes the number.
+ssh "$host" "install -d -m 0700 '$DIR' && chown 65532:65532 '$DIR'"
 put() { # put <local file> <name>: through stdin, never in arguments
 	# shellcheck disable=SC2029
 	ssh "$host" "umask 077 && cat > '$DIR/$2.tmp' && chown 65532:65532 '$DIR/$2.tmp' && chmod 0400 '$DIR/$2.tmp' && mv -f '$DIR/$2.tmp' '$DIR/$2'" <"$1"
