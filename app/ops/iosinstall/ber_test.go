@@ -79,11 +79,13 @@ func TestBERToDER(t *testing.T) {
 	der := signedDataDER(t, []byte(devicePlist), ch.device, all, nil)
 	// Certificates and the signed attributes stay DER, as devices send them.
 	keep := func(v []byte) bool {
-		return v[0] == 0xa0 && bytes.Contains(v, oidMessageDigestDER) || isCertificate(v)
+		_, content, err := splitDER(v)
+		return isCertificate(v) || v[0] == 0xa0 && err == nil && len(content) > 13 && bytes.Equal(content[2:13], oidContentTypeDER) ||
+			v[0] == 0xa0 && err == nil && len(content) > 14 && content[1]&0x80 != 0 && bytes.Contains(content[:16], oidContentTypeDER)
 	}
 	ber := toBER(t, der, keep)
-	if bytes.Equal(ber, der) {
-		t.Fatal("the BER form is the DER one")
+	if bytes.Equal(ber, der) || !bytes.HasPrefix(ber, []byte{0x30, 0x80}) || bytes.Count(ber, []byte{0x24, 0x80}) == 0 {
+		t.Fatal("the BER form is not indefinite with a constructed OCTET STRING")
 	}
 	got, err := berToDER(ber)
 	if err != nil {
@@ -108,7 +110,8 @@ func TestBERToDER(t *testing.T) {
 	}
 }
 
-var oidMessageDigestDER = []byte{0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x04}
+// The OID of the content-type attribute, the first signed attribute.
+var oidContentTypeDER = []byte{0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x09, 0x03}
 
 func isCertificate(v []byte) bool {
 	_, err := x509.ParseCertificate(v)

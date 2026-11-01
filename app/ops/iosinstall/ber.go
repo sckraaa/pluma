@@ -90,7 +90,8 @@ func berValue(b []byte, depth int) (der, rest []byte, err error) {
 			children = append(children, child)
 			b = r
 		}
-		return assemble(tag, children)
+		der, err = assembleBytes(tag, children)
+		return der, b, err
 	case l < 0x80:
 		if int(l) > len(b)-1 {
 			return nil, nil, fmt.Errorf("%w: truncated value", errBER)
@@ -124,11 +125,6 @@ func berValue(b []byte, depth int) (der, rest []byte, err error) {
 	}
 	der, err = assembleBytes(tag, children)
 	return der, rest, err
-}
-
-func assemble(tag []byte, children [][]byte) ([]byte, []byte, error) {
-	der, err := assembleBytes(tag, children)
-	return der, nil, err
 }
 
 // assembleBytes encodes a constructed value of children; a constructed
