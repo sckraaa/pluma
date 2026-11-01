@@ -126,14 +126,14 @@ func TestImportVersions(t *testing.T) {
 	v1 := snapshotOf("ios", "cs", 100,
 		String{Key: "AppName", Value: "Telegram"},
 		String{Key: "Chats", Pluralized: true, Value: "%d Telegram chatů", Few: &few},
-		String{Key: "Welcome", Value: "Vítejte v Telegramu"},
+		String{Key: "Welcome", Value: "Vítejte v Telegramovi"}, // an ending Czech does not list
 		String{Key: "Gone", Value: "Old"},
 	)
 	r := mustImport(t, v1)
 	if r.OldVersion != 0 || r.Version != 100 || r.Added != 4 || r.Changes() != 4 {
 		t.Fatalf("first import: %+v", r)
 	}
-	if fmt.Sprint(r.Leftovers) != "map[Welcome:[Telegramu]]" {
+	if fmt.Sprint(r.Leftovers) != "map[Welcome:[Telegramovi]]" {
 		t.Fatalf("leftovers %v", r.Leftovers)
 	}
 

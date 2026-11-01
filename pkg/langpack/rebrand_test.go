@@ -44,8 +44,11 @@ func TestRebrandValue(t *testing.T) {
 		{"en", "k", "Telegram Desktop.", "Pluma."},
 		{"en", "lng_about_text_1", `based on [a href="https://core.telegram.org/api"]Telegram API[/a]`,
 			`based on [a href="https://core.telegram.org/api"]Pluma API[/a]`},
-		// Inflected forms stay (and are reported).
-		{"cs", "k", "Vítejte v Telegramu", "Vítejte v Telegramu"},
+		// Inflected forms take the same form of Pluma (inflect_test.go); an
+		// ending the language does not list stays (and is reported).
+		{"cs", "k", "Vítejte v Telegramu", "Vítejte v Plumě"},
+		{"cs", "k", "Telegramovi", "Telegramovi"},
+		{"en", "k", "Telegramu", "Telegramu"},
 		// The keep-list.
 		{"en", "lng_about_text1_api", "Telegram API", "Telegram API"},
 		// Local names, longest first; only in their language.

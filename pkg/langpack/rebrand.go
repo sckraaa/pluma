@@ -43,8 +43,9 @@ import (
 //   - Keys whose text names Telegram's API itself keep it (Desktop
 //     LANG_KEEP: lng_about_text1_api).
 //
-// Inflected forms ("Telegramu" in Czech) are not words of the rule and stay;
-// Leftovers reports them.
+//   - Inflected forms ("Telegramu" in Czech) take the same form of Pluma
+//     (inflect.go); an ending a language does not list stays, and Leftovers
+//     reports it.
 
 const brandName = "Pluma"
 
@@ -104,6 +105,17 @@ var localNames = map[string]*strings.Replacer{
 	"nl": strings.NewReplacer(
 		"Telegramberichten", "Pluma-berichten",
 	),
+	// The name in Cyrillic, rare in these packs, inflected as in inflect.go.
+	"sr": strings.NewReplacer(
+		"Телеграмом", "Plumom",
+		"Телеграма", "Plume",
+		"Телеграму", "Plumi",
+		"Телеграм", "Pluma",
+	),
+	"kk": strings.NewReplacer(
+		"Телеграмды", "Pluma-ны",
+		"Телеграм", "Pluma",
+	),
 }
 
 // Rebrand returns s with "Telegram" replaced in its texts for language
@@ -133,7 +145,7 @@ func RebrandValue(lang, key, value string) string {
 	if r := localNames[primaryLang(lang)]; r != nil {
 		value = r.Replace(value)
 	}
-	return replaceWord(value)
+	return replaceWord(inflect(lang, value))
 }
 
 // primaryLang returns the language of a code without its region or variant
