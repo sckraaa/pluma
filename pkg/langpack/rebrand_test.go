@@ -47,8 +47,12 @@ func TestRebrandValue(t *testing.T) {
 		// Inflected forms take the same form of Pluma (inflect_test.go); an
 		// ending the language does not list stays (and is reported).
 		{"cs", "k", "Vítejte v Telegramu", "Vítejte v Plumě"},
-		{"cs", "k", "Telegramovi", "Telegramovi"},
+		{"cs", "k", "Telegramech", "Telegramech"},
 		{"en", "k", "Telegramu", "Telegramu"},
+		{"sk", "k", "v Telegramách", "v Telegramách"},
+		{"ru", "k", "Telegramом", "Telegramом"},
+		{"zh-hans", "k", "Telegram上的任何人", "Pluma上的任何人"},
+		{"he", "k", "לTelegram", "לPluma"},
 		// The keep-list.
 		{"en", "lng_about_text1_api", "Telegram API", "Telegram API"},
 		// Local names, longest first; only in their language.

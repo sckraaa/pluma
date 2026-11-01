@@ -116,6 +116,14 @@ var localNames = map[string]*strings.Replacer{
 		"Телеграмды", "Pluma-ны",
 		"Телеграм", "Pluma",
 	),
+	// Search keywords of settings ("Телеграм не Фейсбук", "Значок
+	// телеграму"), where the Ukrainian packs leave the Latin name
+	// uninflected.
+	"uk": strings.NewReplacer(
+		"Телеграму", "Pluma",
+		"телеграму", "Pluma",
+		"Телеграм", "Pluma",
+	),
 }
 
 // Rebrand returns s with "Telegram" replaced in its texts for language
@@ -204,23 +212,33 @@ func nextName(value string, i int) int {
 	}
 }
 
-// wordBoundaryBefore: (?<![A-Za-z0-9@/.]) at i.
+// wordBoundaryBefore: (?<![A-Za-z0-9@/.]) at i, or a format argument
+// right before it ("%3$sTelegram Premium" in the Norwegian pack).
 func wordBoundaryBefore(value string, i int) bool {
-	if i == 0 {
+	if i == 0 || formatArgument.MatchString(value[:i]) {
 		return true
 	}
 	c := value[i-1]
 	return !isASCIIAlnum(c) && c != '@' && c != '/' && c != '.'
 }
 
+var formatArgument = regexp.MustCompile(`%(?:\d+\$)?[sd@]$`)
+
 // wordBoundaryAfter: (?![A-Za-z0-9]|\.\w) at i, \w being a Unicode word
-// character as in Python's re.
+// character as in Python's re. A Latin or Cyrillic letter continues the
+// word too: the Android patch knows English only, the packs have endings
+// such as Slovak "Telegramách", which would turn into "Plumaách" (the
+// endings of inflect.go are replaced before). Letters of other scripts end
+// it (Chinese "Telegram上的").
 func wordBoundaryAfter(value string, i int) bool {
 	if i >= len(value) {
 		return true
 	}
 	c := value[i]
 	if isASCIIAlnum(c) {
+		return false
+	}
+	if r, _ := utf8.DecodeRuneInString(value[i:]); unicode.In(r, unicode.Latin, unicode.Cyrillic) {
 		return false
 	}
 	if c == '.' && i+1 < len(value) {

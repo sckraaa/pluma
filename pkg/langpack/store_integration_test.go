@@ -93,9 +93,9 @@ func keysOf(strs []String) string {
 func TestImportKeptKey(t *testing.T) {
 	r := mustImport(t, snapshotOf("android", "sk", 3,
 		String{Key: "lng_about_text1_api", Value: "Telegram API"},
-		String{Key: "lng_intro", Value: "Vitajte v Telegrame"},
+		String{Key: "lng_intro", Value: "Vitajte v Telegramách"}, // an ending Slovak does not list
 	))
-	if fmt.Sprint(r.Leftovers) != "map[lng_intro:[Telegrame]]" {
+	if fmt.Sprint(r.Leftovers) != "map[lng_intro:[Telegramách]]" {
 		t.Fatalf("leftovers %v", r.Leftovers)
 	}
 	got, err := itStore.StringsByKey(context.Background(), "android", "sk", []string{"lng_about_text1_api"})
@@ -126,14 +126,14 @@ func TestImportVersions(t *testing.T) {
 	v1 := snapshotOf("ios", "cs", 100,
 		String{Key: "AppName", Value: "Telegram"},
 		String{Key: "Chats", Pluralized: true, Value: "%d Telegram chatů", Few: &few},
-		String{Key: "Welcome", Value: "Vítejte v Telegramovi"}, // an ending Czech does not list
+		String{Key: "Welcome", Value: "Vítejte v Telegramech"}, // an ending Czech does not list
 		String{Key: "Gone", Value: "Old"},
 	)
 	r := mustImport(t, v1)
 	if r.OldVersion != 0 || r.Version != 100 || r.Added != 4 || r.Changes() != 4 {
 		t.Fatalf("first import: %+v", r)
 	}
-	if fmt.Sprint(r.Leftovers) != "map[Welcome:[Telegramovi]]" {
+	if fmt.Sprint(r.Leftovers) != "map[Welcome:[Telegramech]]" {
 		t.Fatalf("leftovers %v", r.Leftovers)
 	}
 

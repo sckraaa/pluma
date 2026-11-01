@@ -69,6 +69,8 @@ var inflections = map[string]inflector{
 	"nb": compounds(false, setOf("met", "mer", "mene", "mets")),
 	"de": compounds(true, setOf("m", "me", "men", "ms", "mes")),
 	"ms": endings(map[string]string{"nya": "Plumanya"}),
+	// A slip of the Italian pack: "Termini e Condizioni di Telegrams".
+	"it": endings(map[string]string{"s": "Pluma"}),
 }
 
 // endings replaces the endings of a table.
@@ -90,6 +92,11 @@ func czech(ending, prev string) (string, bool) {
 		return "Plumy", true
 	case "em":
 		return "Plumou", true
+	case "ovi":
+		return "Plumě", true // the other dative
+	}
+	if strings.HasPrefix(ending, "ov") {
+		return "Plum" + ending, true // the adjective: telegramová volání
 	}
 	return "", false
 }
@@ -277,10 +284,10 @@ func isLower(s string) bool {
 	return s != ""
 }
 
-// lowerCompounds are the languages that also write the name in lower case
-// in compounds (Swedish telegramkonto, Slovak telegramový účet); the result
-// is capitalized, as the name is elsewhere.
-var lowerCompounds = setOf("sv", "nb", "sk")
+// lowerNames are the languages that also write the name in lower case
+// (Swedish telegramkonto, Slovak telegramový účet, Czech data telegramu);
+// the result is capitalized, as the name is elsewhere.
+var lowerNames = setOf("sv", "nb", "sk", "cs", "hr")
 
 // inflect replaces the inflected forms of "Telegram" in value for language
 // lang, "TELEGRAM" in capitals too; the bare name is left to the word rule.
@@ -314,7 +321,7 @@ func inflect(lang, value string) string {
 		var word string
 		ok := false
 		switch {
-		case name == "Telegram", name == "telegram" && lowerCompounds[lang]:
+		case name == "Telegram", name == "telegram" && lowerNames[lang]:
 			word, ok = in(ending, previousWord(value, j))
 		case name == "TELEGRAM" && strings.ToUpperSpecial(caser, ending) == ending:
 			if word, ok = in(strings.ToLowerSpecial(caser, ending), previousWord(value, j)); ok {

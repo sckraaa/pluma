@@ -61,12 +61,18 @@ func TestInflect(t *testing.T) {
 		{"fi", "TELEGRAMISSA", "PLUMASSA"},
 		{"sv", "ditt telegramkonto, telegrammoln, telegrammet", "ditt Pluma-konto, Pluma-moln, telegrammet"},
 		{"sk", "telegramový účet", "Plumový účet"},
-		{"cs", "telegramu", "telegramu"},
+		{"cs", "data v telegramu, Exportovat data telegramu, telegramová volání",
+			"data v Plumě, Exportovat data Plumy, Plumová volání"},
+		{"hr", "na vašoj verziji telegrama", "na vašoj verziji Plume"},
+		{"pl", "telegrama", "telegrama"},
+		{"it", "Termini e Condizioni di Telegrams", "Termini e Condizioni di Pluma"},
+		{"uk", "Телеграм не Фейсбук, Значок телеграму", "Pluma не Фейсбук, Значок Pluma"},
+		{"nb", "%3$sTelegram Premium, %sTelegram, %dTelegram", "%3$sPluma Premium, %sPluma, %dPluma"},
 		{"pl", "TELEGRAMa", "TELEGRAMa"},
 		// Not inflections: handles, addresses, unknown endings, other
 		// languages.
 		{"pl", "t.me/TelegramTipsPL @TelegramTips", "t.me/TelegramTipsPL @TelegramTips"},
-		{"cs", "Telegramovi", "Telegramovi"},
+		{"cs", "Telegramovi, Telegramech", "Plumě, Telegramech"},
 		{"en", "Telegramu", "Telegramu"},
 		{"pt-br", "Telegrams", "Telegrams"},
 	} {
