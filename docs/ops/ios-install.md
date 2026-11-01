@@ -45,7 +45,7 @@
    ```
    Он создаёт на сервере токен загрузки и записывает его секретом `IOSINSTALL_UPLOAD_TOKEN` окружения `release` в pluma-ios (нужен `gh` с правом на этот репозиторий).
 2. **`.env` сервера:** `PLUMA_IOSINSTALL_IMAGE=ghcr.io/sckraaa/pluma-iosinstall:<коммит>`, `PLUMA_IOSINSTALL_URL=https://pluma.chat`, `PLUMA_ASC_KEY_ID`, `PLUMA_ASC_ISSUER`, `PLUMA_SIGN_CERTIFICATE_ID` (id сертификата Apple Distribution у Apple: `GET /v1/certificates?filter[certificateType]=DISTRIBUTION`).
-3. **Запуск** — в команду сервисов добавляется `-f docker-compose.iosinstall.yaml` после `docker-compose.web.yaml`. Caddy перезапускать не нужно, если его Caddyfile уже с маршрутом `/ios/adhoc/*`; иначе `docker compose … up -d web`.
+3. **Запуск** — в команду сервисов добавляется `-f docker-compose.iosinstall.yaml` после `docker-compose.web.yaml`. Если в выкатке изменился Caddyfile (в нём маршрут `/ios/adhoc/*`), контейнер `web` пересоздаётся: `docker compose … up -d --no-build --force-recreate --no-deps web`. Файл смонтирован в контейнер по одному; `git checkout` заменяет его новым файлом, и `caddy reload` читает прежний. Пересоздание — несколько секунд простоя сайта и веб-клиента.
 4. **Первая сборка** — запуск workflow pluma-ios с `ipa`. CI отправляет IPA сервису, через минуту `docker compose … logs iosinstall` пишет `build … uploaded` и `signed for N devices`.
 
 ## Проверка
