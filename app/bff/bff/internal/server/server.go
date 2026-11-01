@@ -35,6 +35,7 @@ import (
 	files_helper "github.com/teamgram/teamgram-server/app/bff/files"
 	folders_helper "github.com/teamgram/teamgram-server/app/bff/folders"
 	gifs_helper "github.com/teamgram/teamgram-server/app/bff/gifs"
+	langpackhelper "github.com/teamgram/teamgram-server/app/bff/langpack"
 	messages_helper "github.com/teamgram/teamgram-server/app/bff/messages"
 	miscellaneous_helper "github.com/teamgram/teamgram-server/app/bff/miscellaneous"
 	notification_helper "github.com/teamgram/teamgram-server/app/bff/notification"
@@ -111,6 +112,14 @@ func (s *Server) Initialize() error {
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)
+
+		// langpackhelper: the language packs of the clients (task 021).
+		mtproto.RegisterRPCLangpackServer(
+			grpcServer,
+			langpackhelper.New(langpackhelper.Config{
+				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+			}))
 
 		// qrcode_helper
 		mtproto.RegisterRPCQrCodeServer(

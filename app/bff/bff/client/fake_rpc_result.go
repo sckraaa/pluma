@@ -23,32 +23,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 	}
 
 	switch rt.Name() {
-	// langpack
-	case "TLLangpackGetDifference":
-		in := object.(*mtproto.TLLangpackGetDifference)
-		return mtproto.MakeTLLangPackDifference(&mtproto.LangPackDifference{
-			LangCode:    in.GetLangCode(),
-			FromVersion: in.GetFromVersion(),
-			Version:     in.GetFromVersion(),
-			Strings:     []*mtproto.LangPackString{},
-		}).To_LangPackDifference(), nil
-	case "TLLangpackGetLangPack":
-		in := object.(*mtproto.TLLangpackGetLangPack)
-		return mtproto.MakeTLLangPackDifference(&mtproto.LangPackDifference{
-			LangCode:    in.GetLangCode(),
-			FromVersion: 0,
-			Version:     0,
-			Strings:     []*mtproto.LangPackString{},
-		}).To_LangPackDifference(), nil
-	case "TLLangpackGetLanguages":
-		return &mtproto.Vector_LangPackLanguage{
-			Datas: []*mtproto.LangPackLanguage{},
-		}, nil
-	case "TLLangpackGetStrings":
-		return &mtproto.Vector_LangPackString{
-			Datas: []*mtproto.LangPackString{},
-		}, nil
-
 	// wallpaper
 	case "TLAccountGetWallPapers":
 		return mtproto.MakeTLAccountWallPapers(&mtproto.Account_WallPapers{
