@@ -2,7 +2,9 @@
 # TLS certificates from Let's Encrypt, the site of the pluma-web image in /srv,
 # and its MTProto WebSocket /apiws to the gateway's PROXY protocol listener,
 # so that the gateway counts every web client by its own address. The other
-# names of the site lead to the web client.
+# names of the site serve the landing page: the static files of pluma-site,
+# releases under /pluma-site (PLUMA_SITE_DIR on the host), the live one behind the
+# relative symlink /pluma-site/current.
 
 {$PLUMA_WEB_DOMAIN} {
 	handle /apiws {
@@ -26,5 +28,44 @@
 }
 
 {$PLUMA_SITE_DOMAINS} {
-	redir https://{$PLUMA_WEB_DOMAIN}{uri}
+	root * /pluma-site/current
+	encode zstd gzip
+
+	# The device addresses open the same page; its script picks the card by the
+	# address. /pero and /app answer without a redirect to the address with a slash.
+	@devices path /iphone /ipad /android /mac /windows /linux /web
+	rewrite @devices /index.html
+	rewrite /pero /pero/index.html
+	rewrite /app /app/index.html
+	# The English version: the same addresses under /en.
+	@devicesEn path /en/iphone /en/ipad /en/android /en/mac /en/windows /en/linux /en/web
+	rewrite @devicesEn /en/index.html
+	rewrite /en/pero /en/pero/index.html
+
+	# Files with a hash in their names never change; the pages are checked on
+	# every visit.
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	@pages path / /index.html /pero/index.html /app/index.html /app/app.js /404.html /en/ /en/index.html /en/pero/index.html
+	header @pages Cache-Control "no-cache"
+
+	# No inline scripts or styles on the site: styles a script sets go through
+	# the CSSOM, which the policy does not cover. No access log: the footer says
+	# the page counts nobody.
+	header {
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+		Permissions-Policy "interest-cohort=(), camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	file_server
+	handle_errors {
+		rewrite * /404.html
+		file_server {
+			status {err.status_code}
+		}
+	}
 }
