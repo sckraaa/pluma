@@ -41,6 +41,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -49,6 +50,10 @@ import (
 )
 
 func main() {
+	// The container's health check: the image has no shell or wget.
+	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheck(or(os.Getenv("LISTEN"), ":9098")))
+	}
 	cfg, err := configFromEnv(os.Getenv)
 	if err != nil {
 		log.Fatalf("iosinstall: %v", err)
@@ -93,4 +98,21 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("iosinstall: %v", err)
 	}
+}
+
+func healthcheck(listen string) int {
+	_, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		return 1
+	}
+	c := &http.Client{Timeout: 3 * time.Second}
+	resp, err := c.Get("http://127.0.0.1:" + port + "/healthz") //nolint:gosec // G704: our own port on loopback
+	if err != nil {
+		return 1
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		return 1
+	}
+	return 0
 }

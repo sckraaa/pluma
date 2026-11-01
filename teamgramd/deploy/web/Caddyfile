@@ -28,6 +28,13 @@
 }
 
 {$PLUMA_SITE_DOMAINS} {
+	# The iPhone app from the site (docker-compose.iosinstall.yaml): the
+	# profile, the device's answer, the install link and the IPA, and CI's
+	# uploads of builds. Without that service these answer 502.
+	handle /ios/adhoc/* {
+		reverse_proxy iosinstall:9098
+	}
+
 	root * /pluma-site/current
 	encode zstd gzip
 

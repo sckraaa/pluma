@@ -113,7 +113,7 @@ func TestDeployConfigsHaveNoDefaultCredentials(t *testing.T) {
 // bare-metal host only the client transports listen on all interfaces.
 func TestDeployListeners(t *testing.T) {
 	port := regexp.MustCompile(`(?m)^\s+- "([^"]+)"`)
-	for _, f := range []string{"docker-compose.yaml", "docker-compose-env.yaml", "docker-compose.web.yaml"} {
+	for _, f := range []string{"docker-compose.yaml", "docker-compose-env.yaml", "docker-compose.web.yaml", "docker-compose.iosinstall.yaml"} {
 		data, err := os.ReadFile(filepath.Join(repoRoot, f))
 		if err != nil {
 			t.Fatal(err)

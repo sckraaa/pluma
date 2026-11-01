@@ -1,0 +1,34 @@
+# The iPhone app from the site (task 029, docs/ops/ios-install.md): the
+# install service, behind Caddy at /ios/adhoc/ of the site's names. It holds
+# the team's signing certificate and App Store Connect key, mounted from
+# their own directory on the host and given to no other service. Added to
+# the services command after docker-compose.web.yaml:
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.iosinstall.yaml ...
+services:
+  iosinstall:
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/iosinstall/Dockerfile
+    # On a server the image CI built (docs/ops/deployment.md).
+    image: ${PLUMA_IOSINSTALL_IMAGE:-pluma-iosinstall:local}
+    restart: unless-stopped
+    environment:
+      PUBLIC_URL: ${PLUMA_IOSINSTALL_URL:?set PLUMA_IOSINSTALL_URL in .env, the site, https://pluma.chat}
+      ASC_KEY_ID: ${PLUMA_ASC_KEY_ID:?set PLUMA_ASC_KEY_ID in .env, the App Store Connect key (Admin)}
+      ASC_ISSUER: ${PLUMA_ASC_ISSUER:?set PLUMA_ASC_ISSUER in .env, the issuer of that key}
+      SIGN_CERTIFICATE_ID: ${PLUMA_SIGN_CERTIFICATE_ID:?set PLUMA_SIGN_CERTIFICATE_ID in .env, the Apple Distribution certificate at Apple}
+      ASC_KEY_FILE: /run/secrets/iosinstall/asc-key.p8
+      SIGN_P12_FILE: /run/secrets/iosinstall/distribution.p12
+      SIGN_P12_PASSWORD_FILE: /run/secrets/iosinstall/distribution.p12.password
+      UPLOAD_TOKEN_FILE: /run/secrets/iosinstall/upload-token
+    volumes:
+      # Files of uid 65532 (the image's nonroot), mode 0400.
+      - ${PLUMA_IOSINSTALL_SECRETS:-/opt/pluma/iosinstall}:/run/secrets/iosinstall:ro
+      - iosinstall_data:/data
+    networks:
+      - teamgram_net
+    stop_grace_period: 30s
+
+volumes:
+  iosinstall_data:
