@@ -107,39 +107,9 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 	}
 
 	// Fix ReplyToMsgId
-	if in.GetReplyToMsgId() != nil {
-		outMessage.ReplyTo = mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{
-			ReplyToMsgId:           in.GetReplyToMsgId().GetValue(),
-			ReplyToMsgId_INT32:     in.GetReplyToMsgId().GetValue(),
-			ReplyToMsgId_FLAGINT32: in.GetReplyToMsgId(),
-			ReplyToPeerId:          nil,
-			ReplyToTopId:           nil,
-		}).To_MessageReplyHeader()
-	} else if in.GetReplyTo() != nil {
-		switch in.ReplyTo.PredicateName {
-		case mtproto.Predicate_inputReplyToMessage:
-			outMessage.ReplyTo = mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{
-				ReplyToMsgId:           in.GetReplyTo().GetReplyToMsgId(),
-				ReplyToMsgId_INT32:     in.GetReplyTo().GetReplyToMsgId(),
-				ReplyToMsgId_FLAGINT32: mtproto.MakeFlagsInt32(in.GetReplyTo().GetReplyToMsgId()),
-				ReplyToPeerId:          nil,
-				ReplyToTopId:           nil,
-			}).To_MessageReplyHeader()
-			if in.GetReplyTo().GetQuoteText() != nil {
-				outMessage.ReplyTo.Quote = true
-				outMessage.ReplyTo.QuoteText = in.GetReplyTo().GetQuoteText()
-				outMessage.ReplyTo.QuoteEntities = in.GetReplyTo().GetQuoteEntities()
-				outMessage.ReplyTo.QuoteOffset = in.GetReplyTo().GetQuoteOffset()
-			}
-			// A reply to a message of another chat is not served yet: it goes
-			// without the reply, as from messages.sendMessage, not as a reply
-			// to the message with the same id in this chat.
-			if in.GetReplyTo().GetReplyToPeerId() != nil {
-				outMessage.ReplyTo = nil
-			}
-		case mtproto.Predicate_inputReplyToStory:
-			// TODO:
-		}
+	if outMessage.ReplyTo, err = c.makeReplyHeader(peer, in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
+		c.Logger.Errorf("messages.sendMedia - error: %v", err)
+		return nil, err
 	}
 
 	if linkChatId > 0 {

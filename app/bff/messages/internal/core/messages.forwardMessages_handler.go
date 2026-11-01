@@ -226,48 +226,22 @@ func (c *MessagesCore) makeForwardMessages(
 			m.FwdFrom = nil
 		} else {
 			if m.FwdFrom == nil {
-				fwdFrom := mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
-					Imported:       false,
-					SavedOut:       false,
-					FromId:         nil,
-					FromName:       nil,
-					Date:           m.GetDate(),
-					ChannelPost:    nil,
-					PostAuthor:     nil,
-					SavedFromPeer:  nil,
-					SavedFromMsgId: nil,
-					SavedFromId:    nil,
-					SavedFromName:  nil,
-					SavedDate:      nil,
-					PsaType:        nil,
-				}).To_MessageFwdHeader()
-
-				//fwdFrom := mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
-				//	// FromId: m.GetFromId(),
-				//	Date: m.GetDate(),
-				//}).To_MessageFwdHeader()
-
+				var fwdFrom *mtproto.MessageFwdHeader
 				if m.Views != nil {
 					// Broadcast
+					fwdFrom = mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
+						Date: m.GetDate(),
+					}).To_MessageFwdHeader()
 					// fwdFrom.ChannelId = &wrapperspb.Int32Value{Value: fromPeer.PeerId}
 					fwdFrom.ChannelPost = &wrapperspb.Int32Value{Value: m.Id}
 					fwdFrom.PostAuthor = m.PostAuthor
 					fwdFrom.FromId = mtproto.MakePeerChannel(fromPeer.PeerId)
 					// TODO(@benqi): saved_from_peer and saved_from_msg_id??
 				} else {
-					fromId := box.SenderUserId
-					if c.checkForwardPrivacy(c.ctx, fromId, c.MD.UserId) {
-						fwdFrom.FromId = mtproto.MakePeerUser(fromId)
-					} else {
-						// from_name is "The name of the user that originally
-						// sent the message" (core.telegram.org/constructor/
-						// messageFwdHeader), not the username.
-						name, err := c.senderName(fromId)
-						if err != nil {
-							c.Logger.Errorf("messages.forwardMessages - error: %v", err)
-							return nil, err
-						}
-						fwdFrom.FromName = &wrapperspb.StringValue{Value: name}
+					var err error
+					if fwdFrom, err = c.forwardOrigin(box); err != nil {
+						c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+						return nil, err
 					}
 					m.Post = false
 					m.PostAuthor = nil
@@ -332,6 +306,31 @@ func (c *MessagesCore) makeForwardMessages(
 	}
 
 	return fwdOutboxList, nil
+}
+
+// forwardOrigin is the header of a forward by c's user of the message in
+// box, which is not a forward itself: its author, or the author's name when
+// their forward privacy hides the account from c's user, and the date it
+// was sent. A reply to a message of another chat shows the same origin
+// (reply_from).
+func (c *MessagesCore) forwardOrigin(box *mtproto.MessageBox) (*mtproto.MessageFwdHeader, error) {
+	fwdFrom := mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
+		Date: box.GetMessage().GetDate(),
+	}).To_MessageFwdHeader()
+	fromId := box.SenderUserId
+	if c.checkForwardPrivacy(c.ctx, fromId, c.MD.UserId) {
+		fwdFrom.FromId = mtproto.MakePeerUser(fromId)
+	} else {
+		// from_name is "The name of the user that originally sent the
+		// message" (core.telegram.org/constructor/messageFwdHeader), not the
+		// username.
+		name, err := c.senderName(fromId)
+		if err != nil {
+			return nil, err
+		}
+		fwdFrom.FromName = &wrapperspb.StringValue{Value: name}
+	}
+	return fwdFrom, nil
 }
 
 // senderName is the name of a user as the header of a forward from them

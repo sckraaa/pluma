@@ -93,6 +93,20 @@ func TestSharedPhotos(t *testing.T) {
 // sendPhoto uploads a small photo and sends it from u to peer.
 func sendPhoto(ctx context.Context, t *testing.T, u *user, peer *mtproto.InputPeer) {
 	t.Helper()
+	if _, err := u.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
+		Constructor: u.c.Constructor(mtproto.Predicate_messages_sendMedia),
+		Peer:        peer,
+		Media:       uploadPhoto(ctx, t, u),
+		RandomId:    randomID(),
+	}); err != nil {
+		t.Fatalf("messages.sendMedia: %v", err)
+	}
+}
+
+// uploadPhoto uploads a small photo of u and returns it as the media to
+// send.
+func uploadPhoto(ctx context.Context, t *testing.T, u *user) *mtproto.InputMedia {
+	t.Helper()
 	pic := image.NewRGBA(image.Rect(0, 0, 64, 48))
 	for x := range 64 {
 		for y := range 48 {
@@ -113,16 +127,9 @@ func sendPhoto(ctx context.Context, t *testing.T, u *user, peer *mtproto.InputPe
 		t.Fatalf("upload.saveFilePart: %v", err)
 	}
 	sum := md5.Sum(jpg.Bytes())
-	if _, err := u.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
-		Constructor: u.c.Constructor(mtproto.Predicate_messages_sendMedia),
-		Peer:        peer,
-		Media: mtproto.MakeTLInputMediaUploadedPhoto(&mtproto.InputMedia{
-			File: mtproto.MakeTLInputFile(&mtproto.InputFile{Id_INT64: fileId, Parts: 1, Name: "photo.jpg", Md5Checksum: hex.EncodeToString(sum[:])}).To_InputFile(),
-		}).To_InputMedia(),
-		RandomId: randomID(),
-	}); err != nil {
-		t.Fatalf("messages.sendMedia: %v", err)
-	}
+	return mtproto.MakeTLInputMediaUploadedPhoto(&mtproto.InputMedia{
+		File: mtproto.MakeTLInputFile(&mtproto.InputFile{Id_INT64: fileId, Parts: 1, Name: "photo.jpg", Md5Checksum: hex.EncodeToString(sum[:])}).To_InputFile(),
+	}).To_InputMedia()
 }
 
 // searchCounters are u's counters of the photo, video and photo and video

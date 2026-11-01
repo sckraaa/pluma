@@ -119,54 +119,14 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	}
 
 	// Fix ReplyToMsgId
-	if in.GetReplyToMsgId() != nil {
-		outMessage.ReplyTo = mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{
-			ReplyToScheduled:       false,
-			ForumTopic:             false,
-			Quote:                  false,
-			ReplyToMsgId:           in.GetReplyToMsgId().GetValue(),
-			ReplyToMsgId_INT32:     in.GetReplyToMsgId().GetValue(),
-			ReplyToMsgId_FLAGINT32: in.GetReplyToMsgId(),
-			ReplyToPeerId:          nil,
-			ReplyFrom:              nil,
-			ReplyMedia:             nil,
-			ReplyToTopId:           nil,
-			QuoteText:              nil,
-			QuoteEntities:          nil,
-			QuoteOffset:            nil,
-		}).To_MessageReplyHeader()
-	} else if in.GetReplyTo() != nil {
+	var err error
+	if outMessage.ReplyTo, err = c.makeReplyHeader(peer, in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
+		c.Logger.Errorf("messages.sendMessage - error: %v", err)
+		return nil, err
+	}
+	if in.GetReplyToMsgId() == nil && in.GetReplyTo() != nil {
 		replyTo := in.GetReplyTo()
 		switch in.ReplyTo.PredicateName {
-		case mtproto.Predicate_inputReplyToMessage:
-			outMessage.ReplyTo = mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{
-				ReplyToScheduled:       false,
-				ForumTopic:             false,
-				Quote:                  false,
-				ReplyToMsgId:           replyTo.GetReplyToMsgId(),
-				ReplyToMsgId_INT32:     replyTo.GetReplyToMsgId(),
-				ReplyToMsgId_FLAGINT32: mtproto.MakeFlagsInt32(replyTo.GetReplyToMsgId()),
-				ReplyToPeerId:          nil,
-				ReplyFrom:              nil,
-				ReplyMedia:             nil,
-				ReplyToTopId:           nil,
-				QuoteText:              nil,
-				QuoteEntities:          nil,
-				QuoteOffset:            nil,
-			}).To_MessageReplyHeader()
-			if replyTo.GetQuoteText() != nil {
-				outMessage.ReplyTo.Quote = true
-				outMessage.ReplyTo.QuoteText = replyTo.GetQuoteText()
-				outMessage.ReplyTo.QuoteEntities = replyTo.GetQuoteEntities()
-				outMessage.ReplyTo.QuoteOffset = replyTo.GetQuoteOffset()
-			}
-
-			// disable replyToPeerId
-			// TODO enable replyToPeerId
-			if replyTo.ReplyToPeerId != nil {
-				outMessage.ReplyTo = nil
-			}
-
 		case mtproto.Predicate_inputReplyToStory:
 			// TODO:
 			var (
