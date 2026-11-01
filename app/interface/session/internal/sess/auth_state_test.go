@@ -106,6 +106,7 @@ type fakeAuthsessionClient struct {
 
 	setLayerCalls          int
 	setInitConnectionCalls int
+	setInitConnectionIn    *authsession.TLAuthsessionSetInitConnection
 
 	bindTempAuthKeyCalls int
 	bindTempAuthKeyMD    *metadata.RpcMetadata
@@ -179,8 +180,9 @@ func (f *fakeAuthsessionClient) AuthsessionSetLayer(context.Context, *authsessio
 	f.setLayerCalls++
 	return nil, nil
 }
-func (f *fakeAuthsessionClient) AuthsessionSetInitConnection(context.Context, *authsession.TLAuthsessionSetInitConnection) (*mtproto.Bool, error) {
+func (f *fakeAuthsessionClient) AuthsessionSetInitConnection(_ context.Context, in *authsession.TLAuthsessionSetInitConnection) (*mtproto.Bool, error) {
 	f.setInitConnectionCalls++
+	f.setInitConnectionIn = in
 	return nil, nil
 }
 func (f *fakeAuthsessionClient) AuthsessionSetAndroidPushSessionId(context.Context, *authsession.TLAuthsessionSetAndroidPushSessionId) (*mtproto.Bool, error) {

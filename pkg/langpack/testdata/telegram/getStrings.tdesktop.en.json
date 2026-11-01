@@ -1,0 +1,30 @@
+{
+ "method": "langpack.getStrings__sample",
+ "capturedAt": "2026-04-10T16:16:11.915Z",
+ "request": {
+  "className": "langpack.GetStrings",
+  "langPack": "tdesktop",
+  "langCode": "en",
+  "keys": [
+   "lng_settings_save",
+   "lng_cancel",
+   "lng_ok"
+  ]
+ },
+ "response": [
+  {
+   "className": "LangPackString",
+   "key": "lng_settings_save",
+   "value": "Save"
+  },
+  {
+   "className": "LangPackString",
+   "key": "lng_cancel",
+   "value": "Cancel"
+  },
+  {
+   "className": "LangPackStringDeleted",
+   "key": "lng_ok"
+  }
+ ]
+}
