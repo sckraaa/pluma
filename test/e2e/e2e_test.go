@@ -95,23 +95,25 @@ var (
 	phonesTaken = map[string]bool{}
 )
 
-// testPhones returns n phones of 201-555-0100..0199, numbers reserved for
-// fiction in the North American plan: never someone's real number. No other
-// test of the run gets them.
+// testPhones returns n phones of 201-555-0100..0199 and 202-555-0100..0199,
+// numbers kept for fiction in the North American plan (NANPA keeps
+// 555-0100..0199 so in every area code; its page was not read when the
+// second area code was added). They never leave the stand: codes come from
+// pluma-admin, not by SMS. No other test of the run gets them.
 func testPhones(t *testing.T, n int) []string {
 	t.Helper()
 	phonesMu.Lock()
 	defer phonesMu.Unlock()
 	var phones []string
-	if len(phonesTaken)+n > 100 {
-		t.Fatalf("%d more test phones needed, %d of 100 are taken", n, len(phonesTaken))
+	if len(phonesTaken)+n > 200 {
+		t.Fatalf("%d more test phones needed, %d of 200 are taken", n, len(phonesTaken))
 	}
 	for len(phones) < n {
-		v, err := rand.Int(rand.Reader, big.NewInt(100))
+		v, err := rand.Int(rand.Reader, big.NewInt(200))
 		if err != nil {
 			t.Fatal(err)
 		}
-		p := fmt.Sprintf("+1201555%04d", 100+v.Int64())
+		p := fmt.Sprintf("+1%d555%04d", 201+v.Int64()/100, 100+v.Int64()%100)
 		if !phonesTaken[p] {
 			phonesTaken[p] = true
 			phones = append(phones, p)
