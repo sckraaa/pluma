@@ -152,6 +152,7 @@ func (s *server) profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c := s.newChallenge()
+	s.signer.logf("iosinstall: a profile for %s", clientAddress(r))
 	enroll := s.cfg.publicURL + "/ios/adhoc/enroll?c=" + url.QueryEscape(c)
 	ru := strings.HasPrefix(strings.ToLower(r.Header.Get("Accept-Language")), "ru")
 	w.Header().Set("Content-Type", "application/x-apple-aspen-config")
@@ -215,9 +216,13 @@ func (s *server) enroll(w http.ResponseWriter, r *http.Request) {
 	addr := clientAddress(r)
 	body, err := io.ReadAll(io.LimitReader(r.Body, maxEnrollBody+1))
 	if err != nil || len(body) > maxEnrollBody {
+		s.signer.logf("iosinstall: an enrolment from %s: the body is unreadable or over %d bytes", addr, maxEnrollBody)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
+	// Every outcome is logged, with the address and the model but never
+	// the UDID: the first answers of real devices are what tells a wrong
+	// expectation about their format.
 	content, err := s.verify(body)
 	if err != nil {
 		s.signer.logf("iosinstall: an enrolment from %s refused: %v", addr, err)
@@ -226,18 +231,22 @@ func (s *server) enroll(w http.ResponseWriter, r *http.Request) {
 	}
 	attrs, err := plistStrings(content)
 	if err != nil {
+		s.signer.logf("iosinstall: an enrolment from %s: the attributes (%d bytes) do not parse: %v", addr, len(content), err)
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 	// The challenge is used up by any answer, a wrong one too.
 	challenge := r.URL.Query().Get("c")
-	if !s.takeChallenge(challenge) || attrs["CHALLENGE"] != challenge {
+	if known := s.takeChallenge(challenge); !known || attrs["CHALLENGE"] != challenge {
+		s.signer.logf("iosinstall: an enrolment from %s: challenge known %v, the signed one matches %v",
+			addr, known, attrs["CHALLENGE"] == challenge && challenge != "")
 		http.Error(w, "the profile has expired: download it again", http.StatusForbidden)
 		return
 	}
 	udid, product := attrs["UDID"], attrs["PRODUCT"]
 	if !udidPattern.MatchString(udid) || !productPattern.MatchString(product) {
 		// iPads and Macs are not served: the profiles are for iPhones.
+		s.signer.logf("iosinstall: an enrolment from %s refused: product %q, a UDID of %d characters", addr, truncate(product, 40), len(udid))
 		http.Error(w, "only an iPhone can install Pluma this way", http.StatusForbidden)
 		return
 	}
@@ -265,6 +274,7 @@ func (s *server) enroll(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	s.signer.logf("iosinstall: an enrolment from %s: %s, iOS %s", addr, product, truncate(attrs["VERSION"], 20))
 	s.signer.kick()
 	// Apple: answer phase 2 with a redirect; Safari opens it.
 	http.Redirect(w, r, s.cfg.pageURL+"#t="+token, http.StatusMovedPermanently)
