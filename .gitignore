@@ -41,6 +41,8 @@ Thumbs.db
 *.swp
 *.swo
 *.tl
+# The TL schema the catalog import serializes by (task 024).
+!pkg/catalog/tl/api.tl
 .vscode
 
 #deploy data
