@@ -86,7 +86,7 @@ func (s *Server) Initialize() error {
 	proc.SetTimeToForceQuit(drainTimeout + 10*time.Second)
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
-		msg.RegisterRPCMsgServer(grpcServer, msg_helper.New(d, nil))
+		msg.RegisterRPCMsgServer(grpcServer, msg_helper.New(d, newMsgPlugin(c)))
 	})
 	s.grpcSrv.AddUnaryInterceptors(s.track)
 	go s.grpcSrv.Start()
