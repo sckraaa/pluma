@@ -272,10 +272,11 @@ func (b *Bot) connTo(ctx context.Context, dc int32) (Conn, error) {
 	return c, nil
 }
 
-// invoke sends req to dc, waits out a short FLOOD_WAIT, and drops a
-// connection that failed so that the next request dials again.
+// invoke sends req to dc, waits out a short FLOOD_WAIT, sends it again
+// after a server error, and drops a connection that failed so that the next
+// request dials again.
 func (b *Bot) invoke(ctx context.Context, dc int32, req mtproto.TLObject) ([]byte, error) {
-	for {
+	for failures := 0; ; {
 		// The connections are the lock's; requests on one run at once.
 		b.mu.Lock()
 		c, err := b.connTo(ctx, dc)
@@ -290,6 +291,19 @@ func (b *Bot) invoke(ctx context.Context, dc int32, req mtproto.TLObject) ([]byt
 			}
 			select {
 			case <-time.After(wait):
+				continue
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		if serverError(err) && failures < maxServerFailures {
+			// Telegram Android sends a request again after a 500 or a
+			// negative code (-503 Timeout), a second later for each failure
+			// up to ten (tgnet ConnectionsManager.cpp, error_code == 500 ||
+			// error_code < 0).
+			failures++
+			select {
+			case <-time.After(time.Duration(failures) * time.Second):
 				continue
 			case <-ctx.Done():
 				return nil, ctx.Err()
@@ -425,6 +439,16 @@ func migrateTo(err error, prefix string) (int32, bool) {
 		return 0, false
 	}
 	return int32(n), true
+}
+
+// maxServerFailures bounds the sends of a request again after server errors.
+const maxServerFailures = 5
+
+// serverError tells an error of Telegram's side that may pass: 500 or a
+// negative code such as -503 Timeout.
+func serverError(err error) bool {
+	var rpc *mtclient.RPCError
+	return errors.As(err, &rpc) && (rpc.Code == 500 || rpc.Code < 0)
 }
 
 // floodWait reads the wait of a FLOOD_WAIT_X error.

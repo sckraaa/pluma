@@ -22,7 +22,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
@@ -32,6 +35,7 @@ import (
 
 // memCatalog is the store of a test.
 type memCatalog struct {
+	mu         sync.Mutex // documents are stored in parallel
 	stored     *catalog.Catalog
 	docs       map[[32]byte]int64
 	ids        map[[2]string][2]int64
@@ -40,6 +44,8 @@ type memCatalog struct {
 }
 
 func (m *memCatalog) IDFor(_ context.Context, kind, name string, newID func() (int64, int64, error)) (int64, int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.ids == nil {
 		m.ids = map[[2]string][2]int64{}
 	}
@@ -55,10 +61,14 @@ func (m *memCatalog) IDFor(_ context.Context, kind, name string, newID func() (i
 }
 
 func (m *memCatalog) DocumentID(_ context.Context, key [32]byte) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	return m.docs[key], nil
 }
 
 func (m *memCatalog) PutDocument(_ context.Context, key [32]byte, id int64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.docs[key] = id
 	return nil
 }
@@ -81,12 +91,24 @@ func (m *memCatalog) Replace(_ context.Context, c *catalog.Catalog) error {
 
 // memDocuments stores documents in memory, with ids from 1000 on.
 type memDocuments struct {
+	mu    sync.Mutex
+	meet  chan struct{} // if set, an import waits for another one at once
 	byID  map[int64]*mtproto.Document
 	files map[int64][]byte
 	next  int64
 }
 
 func (m *memDocuments) Import(_ context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte, keep int64) (*mtproto.Document, error) {
+	if m.meet != nil {
+		select {
+		case m.meet <- struct{}{}:
+		case <-m.meet:
+		case <-time.After(2 * time.Second):
+			return nil, errors.New("documents stored one at a time")
+		}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.next++
 	d := proto.Clone(doc).(*mtproto.Document)
 	d.Id, d.AccessHash, d.FileReference, d.DcId = 1000+m.next, 7, []byte{}, 1
@@ -104,6 +126,8 @@ func (m *memDocuments) Import(_ context.Context, doc *mtproto.Document, file []b
 }
 
 func (m *memDocuments) Get(_ context.Context, ids []int64) ([]*mtproto.Document, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	var out []*mtproto.Document
 	for _, id := range ids {
 		if d := m.byID[id]; d != nil {
@@ -509,9 +533,9 @@ func TestCheck(t *testing.T) {
 	}
 }
 
-// A set fetched on demand: its documents with ids of this server, their
-// files from the source, the set stored beside the catalog; again, nothing
-// is fetched or stored twice.
+// A set fetched on demand: its documents with ids of this server, stored
+// at once, their files from the source, the set stored beside the catalog;
+// again, nothing is fetched or stored twice.
 func TestImportSet(t *testing.T) {
 	sticker := func(id int64) *mtproto.Document {
 		return mtproto.MakeTLDocument(&mtproto.Document{
@@ -529,23 +553,23 @@ func TestImportSet(t *testing.T) {
 			Documents: []*mtproto.Document{sticker(8001), sticker(8002)},
 		}).To_Messages_StickerSet()
 	}
-	fetched := 0
+	var fetched atomic.Int32
 	fetch := func(_ context.Context, doc *mtproto.Document, thumb string) ([]byte, error) {
-		fetched++
+		fetched.Add(1)
 		if thumb != "" {
 			return []byte("mm"), nil
 		}
 		return []byte(fmt.Sprintf("%04d", doc.GetId()%10000)), nil
 	}
 	cat := &memCatalog{docs: map[[32]byte]int64{}}
-	docs := &memDocuments{byID: map[int64]*mtproto.Document{}, files: map[int64][]byte{}}
+	docs := &memDocuments{byID: map[int64]*mtproto.Document{}, files: map[int64][]byte{}, meet: make(chan struct{})}
 	im := &Importer{Catalog: cat, Documents: docs}
 	stored, err := im.ImportSet(context.Background(), newSet(), fetch)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fetched != 4 || len(docs.byID) != 2 || cat.demand["Free420"] != stored || stored.ID == 55 {
-		t.Fatalf("fetched %d, stored %d documents, set %+v", fetched, len(docs.byID), stored)
+	if fetched.Load() != 4 || len(docs.byID) != 2 || cat.demand["Free420"] != stored || stored.ID == 55 {
+		t.Fatalf("fetched %d, stored %d documents, set %+v", fetched.Load(), len(docs.byID), stored)
 	}
 	set := &mtproto.Messages_StickerSet{}
 	if err := proto.Unmarshal(stored.Data, set); err != nil {
@@ -559,7 +583,8 @@ func TestImportSet(t *testing.T) {
 	if set.GetPacks()[0].GetDocuments()[0] < 1001 || set.GetSet().GetHash() != stored.Hash {
 		t.Fatalf("set %v", set)
 	}
-	fetched = 0
+	fetched.Store(0)
+	docs.meet = nil
 	again, err := im.ImportSet(context.Background(), newSet(), fetch)
 	if err != nil || again.ID != stored.ID || len(docs.byID) != 2 {
 		t.Fatalf("again: %+v, %v, %d documents", again, err, len(docs.byID))

@@ -29,10 +29,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
 	"github.com/teamgram/teamgram-server/pkg/catalog/tl"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -456,72 +458,99 @@ func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int
 	}
 	sort.Slice(tgIDs, func(i, j int) bool { return tgIDs[i] < tgIDs[j] })
 
-	stored := 0
-	known := map[int64]int64{} // Telegram's id → this server's, stored earlier
+	var (
+		mu     sync.Mutex // ids, known and stored
+		stored int
+		known  = map[int64]int64{} // Telegram's id → this server's, stored earlier
+		keys   sync.Map            // documentKey → *sync.Mutex: one document at a time
+	)
+	// Documents are stored a few at a time: each is a dfs and a media call,
+	// and a set fetched on demand waits for all of its own.
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(importParallel)
 	for _, tgID := range tgIDs {
-		doc := docs[tgID]
-		var (
-			file   []byte
-			thumbs map[string][]byte
-			err    error
-		)
-		if c.fetch != nil {
-			file, thumbs, err = fetchFiles(ctx, c.fetch, doc)
-		} else {
-			f, ok := files[tgID]
-			if !ok {
-				return 0, fmt.Errorf("importer: document %d has no files", tgID)
-			}
-			file, thumbs, err = c.files(doc, f)
-		}
-		if err != nil {
-			return 0, err
-		}
-		key := documentKey(file, doc, setNames[setOf(doc)])
-		id, err := im.Catalog.DocumentID(ctx, key)
-		if err != nil {
-			return 0, err
-		}
-		if id != 0 {
-			known[tgID] = id
-			continue
-		}
-		// Its attributes refer to its set by this server's id.
-		meta := proto.Clone(doc).(*mtproto.Document)
-		for _, a := range meta.GetAttributes() {
-			if err := ids.Rewrite(a); err != nil {
-				return 0, err
-			}
-		}
-		keep := int64(0)
-		if KeptIDs[tgID] {
-			keep = tgID
-			// Stored under its id by a run that stopped before recording
-			// it: that one, never its files written again.
-			got, err := im.Documents.Get(ctx, []int64{tgID})
-			if err != nil {
-				return 0, err
-			}
-			if len(got) > 0 && got[0].GetPredicateName() == mtproto.Predicate_document {
-				if err := im.Catalog.PutDocument(ctx, key, tgID); err != nil {
-					return 0, err
+		g.Go(func() error {
+			doc := docs[tgID]
+			var (
+				file   []byte
+				thumbs map[string][]byte
+				err    error
+			)
+			if c.fetch != nil {
+				file, thumbs, err = fetchFiles(gctx, c.fetch, doc)
+			} else {
+				f, ok := files[tgID]
+				if !ok {
+					return fmt.Errorf("importer: document %d has no files", tgID)
 				}
-				known[tgID] = tgID
-				continue
+				file, thumbs, err = c.files(doc, f)
 			}
-		}
-		d, err := im.Documents.Import(ctx, meta, file, thumbs, keep)
-		if err != nil {
-			return 0, fmt.Errorf("importer: document %d: %w", tgID, err)
-		}
-		if err := im.Catalog.PutDocument(ctx, key, d.GetId()); err != nil {
-			return 0, err
-		}
-		ids.Documents[tgID] = d
-		stored++
-		if im.Logf != nil && stored%500 == 0 {
-			im.Logf("importer: %d documents stored", stored)
-		}
+			if err != nil {
+				return err
+			}
+			key := documentKey(file, doc, setNames[setOf(doc)])
+			// Two documents of one key are one: the second finds the first.
+			l, _ := keys.LoadOrStore(key, &sync.Mutex{})
+			l.(*sync.Mutex).Lock()
+			defer l.(*sync.Mutex).Unlock()
+			id, err := im.Catalog.DocumentID(gctx, key)
+			if err != nil {
+				return err
+			}
+			if id != 0 {
+				mu.Lock()
+				known[tgID] = id
+				mu.Unlock()
+				return nil
+			}
+			// Its attributes refer to its set by this server's id.
+			meta := proto.Clone(doc).(*mtproto.Document)
+			mu.Lock()
+			for _, a := range meta.GetAttributes() {
+				if err := ids.Rewrite(a); err != nil {
+					mu.Unlock()
+					return err
+				}
+			}
+			mu.Unlock()
+			keep := int64(0)
+			if KeptIDs[tgID] {
+				keep = tgID
+				// Stored under its id by a run that stopped before recording
+				// it: that one, never its files written again.
+				got, err := im.Documents.Get(gctx, []int64{tgID})
+				if err != nil {
+					return err
+				}
+				if len(got) > 0 && got[0].GetPredicateName() == mtproto.Predicate_document {
+					if err := im.Catalog.PutDocument(gctx, key, tgID); err != nil {
+						return err
+					}
+					mu.Lock()
+					known[tgID] = tgID
+					mu.Unlock()
+					return nil
+				}
+			}
+			d, err := im.Documents.Import(gctx, meta, file, thumbs, keep)
+			if err != nil {
+				return fmt.Errorf("importer: document %d: %w", tgID, err)
+			}
+			if err := im.Catalog.PutDocument(gctx, key, d.GetId()); err != nil {
+				return err
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			ids.Documents[tgID] = d
+			stored++
+			if im.Logf != nil && stored%500 == 0 {
+				im.Logf("importer: %d documents stored", stored)
+			}
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return 0, err
 	}
 	if len(known) > 0 {
 		list := make([]int64, 0, len(known))
@@ -547,6 +576,9 @@ func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int
 	}
 	return stored, nil
 }
+
+// importParallel is how many documents are stored at once.
+const importParallel = 8
 
 // KeptIDs are the documents that keep Telegram's id, because clients name
 // them by it in their code (owner's decision, ADR 0028;

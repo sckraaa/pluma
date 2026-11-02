@@ -34,6 +34,7 @@ type fakeTelegram struct {
 	dials    []int32
 	imported map[int32]bool // DCs the authorization was carried to
 	flood    int            // FLOOD_WAIT_1 answers left for getStickerSet
+	timeouts int            // -503 Timeout answers left for upload.getFile
 	file     []byte
 }
 
@@ -96,6 +97,10 @@ func (c *fakeConn) InvokeRaw(_ context.Context, req mtproto.TLObject) ([]byte, e
 		if !c.t.imported[c.dc] {
 			return nil, &mtclient.RPCError{Code: 401, Message: "AUTH_KEY_UNREGISTERED"}
 		}
+		if c.t.timeouts > 0 {
+			c.t.timeouts--
+			return nil, &mtclient.RPCError{Code: -503, Message: "Timeout"}
+		}
 		end := min(int(r.Offset_INT64)+partSize, len(c.t.file))
 		return encode(testT, mtproto.MakeTLUploadFile(&mtproto.Upload_File{
 			Type:  mtproto.MakeTLStorageFilePartial(nil).To_Storage_FileType(),
@@ -124,7 +129,7 @@ func newTestBot(t *testing.T, ft *fakeTelegram) *Bot {
 }
 
 func TestStickerSetAndFile(t *testing.T) {
-	ft := &fakeTelegram{imported: map[int32]bool{}, flood: 1, file: bytes.Repeat([]byte("s"), partSize+10)}
+	ft := &fakeTelegram{imported: map[int32]bool{}, flood: 1, timeouts: 1, file: bytes.Repeat([]byte("s"), partSize+10)}
 	b := newTestBot(t, ft)
 	ctx := context.Background()
 
@@ -149,6 +154,21 @@ func TestStickerSetAndFile(t *testing.T) {
 	}
 	if _, err := b.File(ctx, doc, "", partSize); err == nil {
 		t.Fatal("a file over the limit")
+	}
+}
+
+// Server errors are sent again a few times, then given up.
+func TestServerErrors(t *testing.T) {
+	ft := &fakeTelegram{imported: map[int32]bool{5: true}, timeouts: maxServerFailures + 1, file: []byte("s")}
+	b := newTestBot(t, ft)
+	ctx, cancel := context.WithTimeout(context.Background(), 2500*time.Millisecond)
+	defer cancel()
+	doc := mtproto.MakeTLDocument(&mtproto.Document{Id: 1, AccessHash: 2, DcId: 5}).To_Document()
+	if _, err := b.File(ctx, doc, "", partSize); err == nil || ctx.Err() == nil {
+		t.Fatalf("timeouts past the deadline: %v", err)
+	}
+	if ft.timeouts != maxServerFailures-1 {
+		t.Fatalf("%d timeouts left, want %d", ft.timeouts, maxServerFailures-1)
 	}
 }
 
