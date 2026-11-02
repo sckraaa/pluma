@@ -26,6 +26,7 @@ import (
 	authorization_helper "github.com/teamgram/teamgram-server/app/bff/authorization"
 	autodownload_helper "github.com/teamgram/teamgram-server/app/bff/autodownload"
 	"github.com/teamgram/teamgram-server/app/bff/bff/internal/config"
+	catalog_helper "github.com/teamgram/teamgram-server/app/bff/catalog"
 	chatinvites_helper "github.com/teamgram/teamgram-server/app/bff/chatinvites"
 	chats_helper "github.com/teamgram/teamgram-server/app/bff/chats"
 	configuration_helper "github.com/teamgram/teamgram-server/app/bff/configuration"
@@ -272,6 +273,26 @@ func (s *Server) Initialize() error {
 				DfsClient:     c.DfsClient,
 				MediaClient:   c.MediaClient,
 			}))
+
+		// catalog_helper: the catalog imported from Telegram (task 024):
+		// reactions, stickers, emoji, colors, themes, wallpapers.
+		catalog := catalog_helper.New(catalog_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			MediaClient:   c.MediaClient,
+		})
+		mtproto.RegisterRPCReactionsServer(grpcServer, catalog)
+		mtproto.RegisterRPCStickersServer(grpcServer, catalog)
+		mtproto.RegisterRPCCustomEmojisServer(grpcServer, catalog)
+		mtproto.RegisterRPCEmojiServer(grpcServer, catalog)
+		mtproto.RegisterRPCEmojiCategoriesServer(grpcServer, catalog)
+		mtproto.RegisterRPCEmojiStatusServer(grpcServer, catalog)
+		mtproto.RegisterRPCAccentColorsServer(grpcServer, catalog)
+		mtproto.RegisterRPCThemesServer(grpcServer, catalog)
+		mtproto.RegisterRPCWallpapersServer(grpcServer, catalog)
+		mtproto.RegisterRPCTimezonesServer(grpcServer, catalog)
+		mtproto.RegisterRPCMessageEffectsServer(grpcServer, catalog)
+		mtproto.RegisterRPCSavedMessageTagsServer(grpcServer, catalog)
 
 		// gifs_helper: the saved GIFs.
 		mtproto.RegisterRPCGifsServer(

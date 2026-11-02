@@ -23,13 +23,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 	}
 
 	switch rt.Name() {
-	// wallpaper
-	case "TLAccountGetWallPapers":
-		return mtproto.MakeTLAccountWallPapers(&mtproto.Account_WallPapers{
-			Hash:       0,
-			Wallpapers: []*mtproto.WallPaper{},
-		}).To_Account_WallPapers(), nil
-
 	// tos
 	case "TLHelpAcceptTermsOfService":
 		return mtproto.BoolTrue, nil
@@ -38,75 +31,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Expires: int32(time.Now().Unix() + 3600),
 		}).To_Help_TermsOfServiceUpdate(), nil
 
-	// themes
-	case "TLAccountGetThemes":
-		return mtproto.MakeTLAccountThemes(&mtproto.Account_Themes{
-			Hash:   0,
-			Themes: []*mtproto.Theme{},
-		}).To_Account_Themes(), nil
-	case "TLAccountGetChatThemes":
-		return mtproto.MakeTLAccountThemes(&mtproto.Account_Themes{
-			Hash:   0,
-			Themes: []*mtproto.Theme{},
-		}).To_Account_Themes(), nil
-
-	// stickers
-	case "TLMessagesGetAllStickers":
-		return mtproto.MakeTLMessagesAllStickers(&mtproto.Messages_AllStickers{
-			Hash: 0,
-			Sets: []*mtproto.StickerSet{},
-		}).To_Messages_AllStickers(), nil
-	case "TLMessagesGetArchivedStickers":
-		return mtproto.MakeTLMessagesArchivedStickers(&mtproto.Messages_ArchivedStickers{
-			Count: 0,
-			Sets:  []*mtproto.StickerSetCovered{},
-		}).To_Messages_ArchivedStickers(), nil
-	case "TLMessagesGetFavedStickers":
-		return mtproto.MakeTLMessagesFavedStickers(&mtproto.Messages_FavedStickers{
-			Hash:     0,
-			Packs:    []*mtproto.StickerPack{},
-			Stickers: []*mtproto.Document{},
-		}).To_Messages_FavedStickers(), nil
-	case "TLMessagesGetMaskStickers":
-		fallthrough
-	case "TLMessagesGetEmojiStickers":
-		return mtproto.MakeTLMessagesAllStickers(&mtproto.Messages_AllStickers{
-			Hash: 0,
-			Sets: []*mtproto.StickerSet{},
-		}).To_Messages_AllStickers(), nil
-	case "TLMessagesGetOldFeaturedStickers":
-		return mtproto.MakeTLMessagesFeaturedStickers(&mtproto.Messages_FeaturedStickers{
-			Count:  0,
-			Hash:   0,
-			Sets:   []*mtproto.StickerSetCovered{},
-			Unread: []int64{},
-		}).To_Messages_FeaturedStickers(), nil
-	case "TLMessagesGetRecentStickers":
-		return mtproto.MakeTLMessagesRecentStickers(&mtproto.Messages_RecentStickers{
-			Hash:     0,
-			Packs:    []*mtproto.StickerPack{},
-			Stickers: []*mtproto.Document{},
-			Dates:    []int32{},
-		}).To_Messages_RecentStickers(), nil
-	case "TLMessagesGetStickers":
-		return mtproto.MakeTLMessagesStickers(&mtproto.Messages_Stickers{
-			Hash:     0,
-			Stickers: []*mtproto.Document{},
-		}).To_Messages_Stickers(), nil
-	case "TLMessagesGetFeaturedStickers":
-		fallthrough
-	case "TLMessagesGetFeaturedEmojiStickers":
-		return mtproto.MakeTLMessagesFeaturedStickers(&mtproto.Messages_FeaturedStickers{
-			Count:  0,
-			Hash:   0,
-			Sets:   []*mtproto.StickerSetCovered{},
-			Unread: []int64{},
-		}).To_Messages_FeaturedStickers(), nil
-	//case "TLMessagesGetStickerSet":
-	//	// logx.WithContext(ct)
-	//	return nil, mtproto.ErrMethodNotImpl
-	//	// return mtproto.MakeTLMessagesStickerSetNotModified(&mtproto.Messages_StickerSet{}).To_Messages_StickerSet(), nil
-
 	// 	scheduledmessages
 	case "TLMessagesGetScheduledMessages":
 		return mtproto.MakeTLMessagesMessages(&mtproto.Messages_Messages{
@@ -114,35 +38,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Chats:    []*mtproto.Chat{},
 			Users:    []*mtproto.User{},
 		}).To_Messages_Messages(), nil
-
-	// reactions
-	case "TLMessagesGetAvailableReactions":
-		return mtproto.MakeTLMessagesAvailableReactions(&mtproto.Messages_AvailableReactions{
-			Hash:      0,
-			Reactions: []*mtproto.AvailableReaction{},
-		}).To_Messages_AvailableReactions(), nil
-
-	// emoji
-	case "TLMessagesGetEmojiKeywords":
-		in := object.(*mtproto.TLMessagesGetEmojiKeywords)
-		return mtproto.MakeTLEmojiKeywordsDifference(&mtproto.EmojiKeywordsDifference{
-			LangCode:    in.LangCode,
-			FromVersion: 0,
-			Version:     0,
-			Keywords:    []*mtproto.EmojiKeyword{},
-		}).To_EmojiKeywordsDifference(), nil
-	case "TLMessagesGetEmojiKeywordsDifference":
-		in := object.(*mtproto.TLMessagesGetEmojiKeywordsDifference)
-		return mtproto.MakeTLEmojiKeywordsDifference(&mtproto.EmojiKeywordsDifference{
-			LangCode:    in.LangCode,
-			FromVersion: in.FromVersion,
-			Version:     in.FromVersion,
-			Keywords:    []*mtproto.EmojiKeyword{},
-		}).To_EmojiKeywordsDifference(), nil
-	case "TLMessagesGetEmojiKeywordsLanguages":
-		return &mtproto.Vector_EmojiLanguage{
-			Datas: []*mtproto.EmojiLanguage{},
-		}, nil
 
 	// reports
 	case "TLAccountReportPeer":
