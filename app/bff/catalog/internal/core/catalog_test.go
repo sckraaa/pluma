@@ -90,7 +90,9 @@ func (f *fakeMedia) MediaGetDocumentList(_ context.Context, in *media.TLMediaGet
 
 func newCore(t *testing.T, m *memCatalog, fm *fakeMedia) *CatalogCore {
 	t.Helper()
-	return New(context.Background(), &svc.ServiceContext{Catalog: m, Media: fm})
+	c := New(context.Background(), &svc.ServiceContext{Catalog: m, Media: fm, Installed: &memInstalled{}})
+	c.MD = &metadata.RpcMetadata{UserId: 1}
+	return c
 }
 
 func put(t *testing.T, m *memCatalog, method, arg string, hash int64, msg proto.Message) {
@@ -287,7 +289,8 @@ func TestStickerSetOnDemand(t *testing.T) {
 	}).To_Messages_StickerSet()
 	b, _ := proto.Marshal(set)
 	d := &fakeDemand{set: &catalog.Set{ID: 70, ShortName: "Free420", Hash: 3, Data: b}}
-	c := New(context.Background(), &svc.ServiceContext{Catalog: &memCatalog{}, Media: &fakeMedia{}, Demand: d})
+	c := New(context.Background(), &svc.ServiceContext{Catalog: &memCatalog{}, Media: &fakeMedia{}, Demand: d, Installed: &memInstalled{}})
+	c.MD = &metadata.RpcMetadata{UserId: 1}
 	byName := mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: "Free420"}).To_InputStickerSet()
 	r, err := c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{Stickerset: byName})
 	if err != nil || r.GetSet().GetId() != 70 || len(d.asked) != 1 {
@@ -337,6 +340,15 @@ func (m *memInstalled) Archived(_ context.Context, user int64, kind installed.Ki
 	return out, nil
 }
 
+func (m *memInstalled) Entry(_ context.Context, user, set int64) (*installed.Entry, error) {
+	for _, e := range m.rows[user] {
+		if e.SetID == set {
+			return &e, nil
+		}
+	}
+	return nil, nil
+}
+
 func (m *memInstalled) Install(_ context.Context, user, _ int64, kind installed.Kind, set int64, archived bool, newSet func(int64) *mtproto.Update) error {
 	if m.rows == nil {
 		m.rows = map[int64][]installed.Entry{}
@@ -374,7 +386,7 @@ func setOf(t *testing.T, id int64, name string, hash int32, emojis bool) *catalo
 // other devices get it whole; the list's hash is the one clients count.
 func TestInstallAndList(t *testing.T) {
 	ins := &memInstalled{}
-	cat := &memCatalog{sets: []*catalog.Set{setOf(t, 10, "Cats", 7, false), setOf(t, 20, "Dogs", -3, false), setOf(t, 30, "Emo", 5, true)}}
+	cat := &memCatalog{sets: []*catalog.Set{setOf(t, 10, "Cats", 7, false), setOf(t, 20, "Dogs", -3, false), setOf(t, 30, "Emo", 5, true), setOf(t, 40, "Owls", 1, false)}}
 	c := New(context.Background(), &svc.ServiceContext{Catalog: cat, Media: &fakeMedia{}, Installed: ins})
 	c.MD = &metadata.RpcMetadata{UserId: 42, PermAuthKeyId: 9}
 	for _, name := range []string{"Cats", "Dogs", "Emo"} {
@@ -411,6 +423,24 @@ func TestInstallAndList(t *testing.T) {
 		t.Fatalf("emoji sets %v", emo)
 	}
 
+	// A set by itself says whether the account installed it.
+	getSet := func(name string) *mtproto.StickerSet {
+		t.Helper()
+		ms, err := c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{
+			Stickerset: mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: name}).To_InputStickerSet(),
+		})
+		if err != nil {
+			t.Fatalf("getStickerSet %s: %v", name, err)
+		}
+		return ms.GetSet()
+	}
+	if s := getSet("Dogs"); s.GetInstalledDate().GetValue() != 1700000000 || s.GetArchived() {
+		t.Fatalf("an installed set by itself: %v", s)
+	}
+	if s := getSet("Owls"); s.GetInstalledDate() != nil || s.GetArchived() {
+		t.Fatalf("a set not installed by itself: %v", s)
+	}
+
 	// Archived, a page at a time; emoji sets with all their documents.
 	ins.rows[42] = append(ins.rows[42], installed.Entry{SetID: 10, Kind: installed.Stickers, InstalledAt: 1, ArchivedAt: 5}, installed.Entry{SetID: 20, Kind: installed.Stickers, InstalledAt: 1, ArchivedAt: 4})
 	arch, err := c.MessagesGetArchivedStickers(&mtproto.TLMessagesGetArchivedStickers{Limit: 1})
@@ -419,6 +449,13 @@ func TestInstallAndList(t *testing.T) {
 	}
 	if next, _ := c.MessagesGetArchivedStickers(&mtproto.TLMessagesGetArchivedStickers{OffsetId: 10, Limit: 5}); len(next.GetSets()) != 1 || next.GetSets()[0].GetSet().GetId() != 20 {
 		t.Fatalf("the next page %v", next)
+	}
+	if n, _ := c.MessagesGetArchivedStickers(&mtproto.TLMessagesGetArchivedStickers{}); n.GetCount() != 2 || len(n.GetSets()) != 0 {
+		t.Fatalf("limit 0, the count alone: %v", n)
+	}
+	ins.rows[42] = []installed.Entry{{SetID: 40, Kind: installed.Stickers, InstalledAt: 3, ArchivedAt: 6}}
+	if s := getSet("Owls"); s.GetInstalledDate().GetValue() != 3 || !s.GetArchived() {
+		t.Fatalf("an archived set by itself: %v", s)
 	}
 
 	// Exactly one action; the sets' kinds go with them.

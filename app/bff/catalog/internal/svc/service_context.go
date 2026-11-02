@@ -53,6 +53,7 @@ type Demand interface {
 type Installed interface {
 	Installed(ctx context.Context, userID int64, kind installed.Kind) ([]installed.Entry, error)
 	Archived(ctx context.Context, userID int64, kind installed.Kind) ([]installed.Entry, error)
+	Entry(ctx context.Context, userID, setID int64) (*installed.Entry, error)
 	Install(ctx context.Context, userID, authKeyID int64, kind installed.Kind, setID int64, archived bool, newSet func(installedAt int64) *mtproto.Update) error
 	Toggle(ctx context.Context, userID, authKeyID int64, action installed.Action, sets []installed.Ref) error
 	Reorder(ctx context.Context, userID, authKeyID int64, kind installed.Kind, order []int64) ([]int64, error)

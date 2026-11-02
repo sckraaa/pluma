@@ -25,7 +25,10 @@ import (
 // A sticker or emoji set of the catalog, asked for by id and access hash,
 // by short name or by kind (inputStickerSetAnimatedEmoji…). A set by name
 // it lacks is fetched from Telegram if a bot is configured; a set Telegram
-// has not either is STICKERSET_INVALID.
+// has not either is STICKERSET_INVALID. A set the account installed comes
+// with its installed_date, an archived one also archived: Web K and
+// Telegram Desktop tell an installed set by them (popups/stickers.tsx,
+// data_stickers_set.cpp; docs/tasks/030-research/hash.md).
 func (c *CatalogCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet) (*mtproto.Messages_StickerSet, error) {
 	set, err := c.findSet("messages.getStickerSet", in.GetStickerset())
 	if err != nil {
@@ -34,5 +37,23 @@ func (c *CatalogCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet)
 	if notModified(int64(in.GetHash()), int64(set.Hash)) {
 		return mtproto.MakeTLMessagesStickerSetNotModified(nil).To_Messages_StickerSet(), nil
 	}
-	return c.decodeSet("messages.getStickerSet", set)
+	ms, err := c.decodeSet("messages.getStickerSet", set)
+	if err != nil {
+		return nil, err
+	}
+	e, err := c.svcCtx.Installed.Entry(c.ctx, c.MD.UserId, set.ID)
+	if err != nil {
+		c.Logger.Errorf("messages.getStickerSet - the account's sets: %v", err)
+		return nil, err
+	}
+	switch {
+	case e == nil:
+		return ms, nil
+	case e.ArchivedAt > 0:
+		out := asInstalled(ms, e.InstalledAt)
+		out.Set.Archived = true
+		return out, nil
+	default:
+		return asInstalled(ms, e.InstalledAt), nil
+	}
 }

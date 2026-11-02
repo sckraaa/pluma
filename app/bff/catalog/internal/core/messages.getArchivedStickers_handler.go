@@ -26,7 +26,9 @@ import (
 // The archived sets of a kind, the last archived first: limit of them
 // after offset_id (none: from the first), each with its cover (a custom
 // emoji set with all its documents, stickerSetFullCovered, as Telegram
-// gives emoji sets), and count, the number of all of them.
+// gives emoji sets), and count, the number of all of them. Limit 0 is the
+// count alone: Android asks so for it (MediaDataController, req.limit = 0,
+// docs/tasks/030-research/methods.md).
 func (c *CatalogCore) MessagesGetArchivedStickers(in *mtproto.TLMessagesGetArchivedStickers) (*mtproto.Messages_ArchivedStickers, error) {
 	kind := installed.Stickers
 	switch {
@@ -51,7 +53,7 @@ func (c *CatalogCore) MessagesGetArchivedStickers(in *mtproto.TLMessagesGetArchi
 		}
 	}
 	limit := int(in.GetLimit())
-	if limit <= 0 || limit > maxArchived {
+	if limit < 0 || limit > maxArchived {
 		limit = maxArchived
 	}
 	sets := []*mtproto.StickerSetCovered{}

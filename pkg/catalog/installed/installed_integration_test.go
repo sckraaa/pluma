@@ -154,11 +154,11 @@ func TestStore(t *testing.T) {
 	if err := s.Toggle(ctx, user, key, Archive, []Ref{{SetID: 3, Kind: Stickers}, {SetID: 10, Kind: Emojis}, {SetID: 99, Kind: Masks}}); err != nil {
 		t.Fatal(err)
 	}
-	expect("archive", "updateStickerSets", "updateStickerSets", "updateStickerSets")
+	expect("archive", "updateStickerSets", "updateStickerSets") // not 99, never installed
 	if got := installedOf(Stickers); !slices.Equal(got, []int64{1, 2}) {
 		t.Fatalf("stickers after archive %v", got)
 	}
-	if got := archivedOf(Masks); !slices.Equal(got, []int64{99}) {
+	if got := archivedOf(Masks); len(got) != 0 {
 		t.Fatalf("archived masks %v", got)
 	}
 	if err := s.Toggle(ctx, user, key, Archive, []Ref{{SetID: 3, Kind: Stickers}}); err != nil {

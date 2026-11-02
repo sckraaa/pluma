@@ -95,6 +95,18 @@ func (s *Store) Archived(ctx context.Context, userID int64, kind Kind) ([]Entry,
 	return rows, err
 }
 
+// Entry returns the account's entry of a set, nil if it has none.
+func (s *Store) Entry(ctx context.Context, userID, setID int64) (*Entry, error) {
+	var rows []Entry
+	if err := s.db.QueryRowsPartial(ctx, &rows, "SELECT "+columns+" FROM user_sticker_sets WHERE user_id = ? AND set_id = ?", userID, setID); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	return &rows[0], nil
+}
+
 // run is a change in the account's box; the pushes it emits go out after.
 func (s *Store) run(ctx context.Context, userID int64, fn func(b *userbox.Box) error) error {
 	res, err := userbox.Run(ctx, s.boxDB, userID, fn)
@@ -190,8 +202,9 @@ type Ref struct {
 	Kind  Kind
 }
 
-// Toggle uninstalls, archives or unarchives sets (an unarchived set goes to
-// the top of its kind). The other devices load each kind it changed again
+// Toggle uninstalls, archives or unarchives sets of the account (an
+// unarchived set goes to the top of its kind); a set the account has not
+// is left alone, as installStickerSet with archived adds one. The other devices load each kind it changed again
 // (updateStickerSets); a set it does not change is left alone.
 func (s *Store) Toggle(ctx context.Context, userID, authKeyID int64, action Action, sets []Ref) error {
 	return s.run(ctx, userID, func(b *userbox.Box) error {
@@ -209,9 +222,6 @@ func (s *Store) Toggle(ctx context.Context, userID, authKeyID int64, action Acti
 				res, err = b.Tx().Exec("DELETE FROM user_sticker_sets WHERE user_id = ? AND set_id = ?", userID, ref.SetID)
 			case action == Archive && at >= 0 && rows[at].ArchivedAt == 0:
 				res, err = b.Tx().Exec("UPDATE user_sticker_sets SET archived_at = ? WHERE user_id = ? AND set_id = ?", now, userID, ref.SetID)
-			case action == Archive && at < 0:
-				res, err = b.Tx().Exec("INSERT INTO user_sticker_sets (user_id, set_id, kind, order2, installed_at, archived_at) VALUES (?, ?, ?, ?, ?, ?)",
-					userID, ref.SetID, ref.Kind, topOrder(rows), now, now)
 			case action == Unarchive && at >= 0 && rows[at].ArchivedAt > 0:
 				res, err = b.Tx().Exec("UPDATE user_sticker_sets SET archived_at = 0, order2 = ?, installed_at = ? WHERE user_id = ? AND set_id = ?",
 					topOrder(rows), now, userID, ref.SetID)
