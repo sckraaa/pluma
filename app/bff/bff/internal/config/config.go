@@ -21,6 +21,7 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -39,6 +40,9 @@ type Config struct {
 	SyncClient              SyncClientConf
 	DfsClient               zrpc.RpcClientConf
 	StatusClient            zrpc.RpcClientConf
+	// The bot that fetches sticker sets from Telegram on demand (task 030);
+	// none if empty.
+	TelegramBot tgbot.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
 }
 
 // SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in

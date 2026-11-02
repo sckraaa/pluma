@@ -629,7 +629,7 @@
 | `messages.getSearchResultsPositions` | notimpl |  | app/bff/messages/internal/core/messages.getSearchResultsPositions_handler.go:27 |
 | `messages.getSplitRanges` | missing |  |  |
 | `messages.getSponsoredMessages` | ok |  | app/bff/sponsoredmessages/internal/core/messages.getSponsoredMessages_handler.go:27 |
-| `messages.getStickerSet` | ok |  | app/bff/catalog/internal/core/messages.getStickerSet_handler.go:30 |
+| `messages.getStickerSet` | ok |  | app/bff/catalog/internal/core/messages.getStickerSet_handler.go:34 |
 | `messages.getStickers` | ok |  | app/bff/catalog/internal/core/messages.getStickers_handler.go:26 |
 | `messages.getSuggestedDialogFilters` | ok |  | app/bff/folders/internal/core/messages.getSuggestedDialogFilters_handler.go:29 |
 | `messages.getTopReactions` | ok |  | app/bff/catalog/internal/core/messages.getTopReactions_handler.go:28 |

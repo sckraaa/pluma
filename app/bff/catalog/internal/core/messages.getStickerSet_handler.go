@@ -16,8 +16,11 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
+	"github.com/teamgram/teamgram-server/pkg/catalog/demand"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -25,8 +28,9 @@ import (
 // messages.getStickerSet#c8a0ec74 stickerset:InputStickerSet hash:int = messages.StickerSet;
 //
 // A sticker or emoji set of the catalog, asked for by id and access hash,
-// by short name or by kind (inputStickerSetAnimatedEmoji…); a set it does
-// not have is STICKERSET_INVALID.
+// by short name or by kind (inputStickerSetAnimatedEmoji…). A set by name
+// it lacks is fetched from Telegram if a bot is configured; a set Telegram
+// has not either is STICKERSET_INVALID.
 func (c *CatalogCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet) (*mtproto.Messages_StickerSet, error) {
 	var (
 		set *catalog.Set
@@ -47,6 +51,19 @@ func (c *CatalogCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet)
 	if err != nil {
 		c.Logger.Errorf("messages.getStickerSet - the catalog: %v", err)
 		return nil, err
+	}
+	// A set by name the server lacks is fetched from Telegram (task 030),
+	// as a link t.me/addstickers/<name> or t.me/addemoji/<name> asks.
+	if set == nil && ask.GetPredicateName() == mtproto.Predicate_inputStickerSetShortName && c.svcCtx.Demand != nil {
+		set, err = c.svcCtx.Demand.ByShortName(c.ctx, ask.GetShortName())
+		if errors.Is(err, demand.ErrNoSet) {
+			return nil, mtproto.ErrStickersetInvalid
+		}
+		if err != nil {
+			// Not fetched now: the client asks again, the fetch goes on.
+			c.Logger.Errorf("messages.getStickerSet - from Telegram: %v", err)
+			return nil, err
+		}
 	}
 	if set == nil {
 		return nil, mtproto.ErrStickersetInvalid

@@ -273,6 +273,11 @@ var optionalVars = map[string]bool{
 	// The App Store review account (pkg/logincode, task 029).
 	"LOGIN_REVIEW_PHONE": true,
 	"LOGIN_REVIEW_CODE":  true,
+	// The bot that fetches sticker sets from Telegram (pkg/tgbot, task
+	// 030): no bot when empty.
+	"TELEGRAM_API_ID":    true,
+	"TELEGRAM_API_HASH":  true,
+	"TELEGRAM_BOT_TOKEN": true,
 }
 
 // passed tells whether val, the compose value of the variable name, gives it

@@ -144,6 +144,9 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
 	t.Setenv("LOGIN_REVIEW_PHONE", "")
 	t.Setenv("LOGIN_REVIEW_CODE", "")
+	t.Setenv("TELEGRAM_API_ID", "")
+	t.Setenv("TELEGRAM_API_HASH", "")
+	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c photoConfig

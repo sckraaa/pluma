@@ -280,6 +280,8 @@ func (s *Server) Initialize() error {
 			RpcServerConf: c.RpcServerConf,
 			Mysql:         c.Mysql,
 			MediaClient:   c.MediaClient,
+			DfsClient:     c.DfsClient,
+			TelegramBot:   c.TelegramBot,
 		})
 		mtproto.RegisterRPCReactionsServer(grpcServer, catalog)
 		mtproto.RegisterRPCStickersServer(grpcServer, catalog)

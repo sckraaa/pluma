@@ -25,6 +25,7 @@ import (
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
+	"github.com/teamgram/teamgram-server/pkg/catalog/demand"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -262,5 +263,45 @@ func TestWallPaper(t *testing.T) {
 		if _, err := c.AccountGetWallPaper(&mtproto.TLAccountGetWallPaper{Wallpaper: in}); !errors.Is(err, mtproto.ErrWallpaperInvalid) {
 			t.Errorf("%s: %v", in.GetPredicateName(), err)
 		}
+	}
+}
+
+type fakeDemand struct {
+	asked []string
+	set   *catalog.Set
+	err   error
+}
+
+func (f *fakeDemand) ByShortName(_ context.Context, name string) (*catalog.Set, error) {
+	f.asked = append(f.asked, name)
+	return f.set, f.err
+}
+
+// A set by name the catalog lacks comes from Telegram; one Telegram has not
+// either is STICKERSET_INVALID; a set by id or kind is never fetched.
+func TestStickerSetOnDemand(t *testing.T) {
+	set := mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
+		Set: mtproto.MakeTLStickerSet(&mtproto.StickerSet{Id: 70, ShortName: "Free420", Hash: 3}).To_StickerSet(),
+	}).To_Messages_StickerSet()
+	b, _ := proto.Marshal(set)
+	d := &fakeDemand{set: &catalog.Set{ID: 70, ShortName: "Free420", Hash: 3, Data: b}}
+	c := New(context.Background(), &svc.ServiceContext{Catalog: &memCatalog{}, Media: &fakeMedia{}, Demand: d})
+	byName := mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: "Free420"}).To_InputStickerSet()
+	r, err := c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{Stickerset: byName})
+	if err != nil || r.GetSet().GetId() != 70 || len(d.asked) != 1 {
+		t.Fatalf("by name: %v, %v, asked %v", r, err, d.asked)
+	}
+	d.set, d.err = nil, demand.ErrNoSet
+	if _, err := c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{Stickerset: byName}); !errors.Is(err, mtproto.ErrStickersetInvalid) {
+		t.Fatalf("a set Telegram has not: %v", err)
+	}
+	for _, in := range []*mtproto.InputStickerSet{
+		mtproto.MakeTLInputStickerSetID(&mtproto.InputStickerSet{Id: 1, AccessHash: 2}).To_InputStickerSet(),
+		mtproto.MakeTLInputStickerSetAnimatedEmoji(nil).To_InputStickerSet(),
+	} {
+		c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{Stickerset: in})
+	}
+	if len(d.asked) != 2 {
+		t.Fatalf("asked %v", d.asked)
 	}
 }

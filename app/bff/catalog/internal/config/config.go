@@ -17,6 +17,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -24,4 +25,6 @@ type Config struct {
 	zrpc.RpcServerConf
 	Mysql       sqlx.Config // the catalog (catalog_* tables)
 	MediaClient zrpc.RpcClientConf
+	DfsClient   zrpc.RpcClientConf
+	TelegramBot tgbot.Settings // fetches sets on demand (task 030); empty: none
 }
