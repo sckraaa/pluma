@@ -33,3 +33,4 @@
 | [0025](0025-language-packs.md) | Языковые пакеты: снимки из `langpack.*` Telegram, версии в MySQL, замена «Telegram» на «Pluma» при импорте | accepted |
 | [0026](0026-service-chat-history.md) | Сообщения служебного аккаунта 777000 — настоящие сообщения истории; заменяет п. 4 ADR 0022 | accepted |
 | [0027](0027-link-previews.md) | Превью ссылок: сборщик только в публичный интернет, кэш в MySQL, без webPagePending | accepted |
+| [0028](0028-telegram-catalog-import.md) | Каталог из Telegram: выгрузка через открытую сессию Web K, перенумерация, хранение как ответы методов | proposed |
