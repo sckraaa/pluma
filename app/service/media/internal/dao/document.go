@@ -76,17 +76,14 @@ func (m *Dao) MakeDocumentByDO(
 	do *dataobject.DocumentsDO,
 	thumbs []*mtproto.PhotoSize,
 	videoThumbs []*mtproto.VideoSize) {
-	document.Id = do.DocumentId
-
 	if do == nil {
 		document.Id = id
-		mtproto.MakeTLDocumentEmpty(&mtproto.Document{
-			Id: id,
-		})
+		mtproto.MakeTLDocumentEmpty(document)
 		return
 	}
 
 	mtproto.MakeTLDocument(document)
+	document.Id = do.DocumentId
 	document.AccessHash = do.AccessHash
 	document.FileReference = []byte{}
 	document.Date = int32(do.Date2)

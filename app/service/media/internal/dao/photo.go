@@ -197,7 +197,7 @@ func getPhotoSize(szDO *dataobject.PhotoSizesDO) *mtproto.PhotoSize {
 			var (
 				sizes []int32
 			)
-			err := jsonx.UnmarshalFromString(szDO.CachedBytes, sizes)
+			err := jsonx.UnmarshalFromString(szDO.CachedBytes, &sizes)
 			if err != nil {
 				return nil
 			}
