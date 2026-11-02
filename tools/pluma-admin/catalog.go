@@ -68,6 +68,15 @@ func catalogCommand(args []string, configFile string, stdout io.Writer) error {
 	if len(args) >= 2 && args[1] == "receive" {
 		return catalogReceive(args[2:], stdout)
 	}
+	if len(args) == 3 && args[1] == "check" {
+		r, err := importer.Check(args[2])
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "catalog check: %d answers, %d sets, %d documents' files; %d references to sets Telegram does not give out.\n",
+			r.Answers, r.Sets, r.Documents, r.UnsharedSets)
+		return nil
+	}
 	if len(args) != 3 || args[1] != "import" {
 		return errUsage
 	}
@@ -84,7 +93,8 @@ func catalogCommand(args []string, configFile string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "catalog: %d answers, %d sets, %d documents (%d stored now).\n", r.Answers, r.Sets, r.Documents, r.NewDocuments)
+	fmt.Fprintf(stdout, "catalog: %d answers, %d sets, %d documents (%d stored now); %d references to sets Telegram does not give out left empty.\n",
+		r.Answers, r.Sets, r.Documents, r.NewDocuments, r.UnsharedSets)
 	return nil
 }
 

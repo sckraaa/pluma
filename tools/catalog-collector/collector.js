@@ -26,10 +26,10 @@
 // or session error, or a FLOOD_WAIT over two minutes. Metadata is asked
 // one call at a time with a pause; files at most four at once.
 //
-//   await collectCatalog({put: async (path, body) => {…}, log: console.log})
+//   await collectCatalog({put: async (path, body) => {…}, have: async (path) => false, log: console.log})
 
 /* eslint-disable no-await-in-loop */
-async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [300, 800]}) {
+async function collectCatalog({put, have = async () => false, log = () => {}, maxParallel = 4, pauseMs = [300, 800]}) {
   const LAYER = 228;
   const api = rootScope.managers.apiManager;
 
@@ -133,6 +133,7 @@ async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [
     if (o._ === 'emojiList') o.document_id.forEach((x) => named.add(id(x)));
     if (o._ === 'emojiStatus' || o._ === 'reactionCustomEmoji') named.add(id(o.document_id));
     if (/^emojiGroup/.test(o._)) { if (o.icon_emoji_id) named.add(id(o.icon_emoji_id)); (o.document_id || []).forEach((x) => named.add(id(x))); }
+    if (o._ === 'stickerSet' && o.thumb_document_id) named.add(id(o.thumb_document_id));
   });
   const known = new Set();
   walk(objects, (o) => { if (o._ === 'document') known.add(id(o.id)); });
@@ -257,7 +258,14 @@ async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [
     await refreshed.get(key);
     return true;
   }
+  let skipped = 0;
   async function download(job) {
+    // A collection that stopped goes on: a file the receiver has is not
+    // asked for again.
+    if (await have(job.path)) {
+      if (++skipped % 5000 === 0) log(`collector: ${skipped} files there already`);
+      return;
+    }
     try {
       await fetchFile(job);
     } catch (e) {

@@ -39,9 +39,12 @@ const T = '<токен>';
 await collectCatalog({
   put: (path, body) => fetch('https://pluma.chat/collect/' + path, {method: 'PUT', headers: {'x-run-token': T, 'content-type': 'application/octet-stream'}, body})
     .then((r) => { if (!r.ok) throw new Error(path + ': ' + r.status); }),
+  have: (path) => fetch('https://pluma.chat/collect/' + path, {method: 'HEAD', headers: {'x-run-token': T}}).then((r) => r.status === 204),
   log: console.log,
 });
 ```
+
+Если выгрузка прервалась (закрылась вкладка, остановился скрипт), её запускают снова в тот же каталог запуска (`PLUMA_CATALOG_RUN`). Скрипт заново соберёт ответы и наборы, свежие ссылки на файлы придут вместе с ними. Файлы, которые уже есть у приёмника (`have`), повторно не скачиваются.
 
 Когда пришёл `manifest.json` (в логе приёмника: «receiver: N files»), приёмник останавливается, а каталог импортируется:
 

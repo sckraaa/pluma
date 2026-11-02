@@ -16,7 +16,7 @@
 // Package receiver takes a collection of the catalog from the collector in
 // a tab of Telegram Web K (task 024, ADR 0028; docs/ops/catalog.md): files
 // PUT under /collect/ with a token of the run, from that page's origin
-// only, written into one directory. It runs only while a collection goes.
+// only, written into one directory; HEAD tells whether a file is there. It runs only while a collection goes.
 package receiver
 
 import (
@@ -73,12 +73,12 @@ func (r *Receiver) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	h.Set("Vary", "Origin")
 	switch req.Method {
 	case http.MethodOptions:
-		h.Set("Access-Control-Allow-Methods", "PUT")
+		h.Set("Access-Control-Allow-Methods", "PUT, HEAD")
 		h.Set("Access-Control-Allow-Headers", "content-type, x-run-token")
 		h.Set("Access-Control-Max-Age", "600")
 		w.WriteHeader(http.StatusNoContent)
 		return
-	case http.MethodPut:
+	case http.MethodPut, http.MethodHead:
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -89,6 +89,16 @@ func (r *Receiver) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	if !validPath.MatchString(name) || path.Clean(name) != name {
 		http.Error(w, "bad path", http.StatusBadRequest)
+		return
+	}
+	if req.Method == http.MethodHead {
+		// Whether a file is here: a collection that stopped goes on from
+		// where it was (the collector asks before downloading a file).
+		if fi, err := r.Root.Stat(name); err == nil && fi.Mode().IsRegular() {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
 		return
 	}
 	if err := r.write(name, http.MaxBytesReader(w, req.Body, MaxFile)); err != nil {

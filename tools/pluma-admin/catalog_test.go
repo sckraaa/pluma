@@ -42,7 +42,7 @@ func TestCatalogCommand(t *testing.T) {
 	if err := catalogCommand([]string{"catalog", "import", "/srv/catalog/run1"}, "bff.yaml", &out); err != nil {
 		t.Fatal(err)
 	}
-	if fake.dir != "/srv/catalog/run1" || !strings.Contains(out.String(), "21 answers, 330 sets, 20000 documents (12 stored now)") {
+	if fake.dir != "/srv/catalog/run1" || !strings.Contains(out.String(), "21 answers, 330 sets, 20000 documents (12 stored now); 0 references") {
 		t.Fatalf("dir %q, output %q", fake.dir, out.String())
 	}
 	for _, args := range [][]string{{"catalog"}, {"catalog", "import"}, {"catalog", "export", "x"}, {"catalog", "import", "a", "b"}} {

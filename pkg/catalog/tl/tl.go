@@ -331,7 +331,10 @@ func (s *Schema) value(b *bytes.Buffer, typ string, v any, path string) error {
 			}
 			return nil
 		}
-		if typ == "" || typ[0] < 'A' || typ[0] > 'Z' {
+		// A boxed type: its name, after any namespace, is capitalized
+		// (Document, help.PeerColorOption).
+		name := typ[strings.LastIndexByte(typ, '.')+1:]
+		if name == "" || name[0] < 'A' || name[0] > 'Z' {
 			return fmt.Errorf("tl: %s: type %q not supported", path, typ)
 		}
 		return s.object(b, v, path)
