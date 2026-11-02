@@ -84,7 +84,8 @@ func catalogCommand(args []string, configFile string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "catalog: %d answers, %d sets, %d documents (%d stored now).\n", r.Answers, r.Sets, r.Documents, r.NewDocuments)
+	fmt.Fprintf(stdout, "catalog: %d answers, %d sets, %d documents (%d stored now); %d references to sets Telegram does not give out left empty.\n",
+		r.Answers, r.Sets, r.Documents, r.NewDocuments, r.UnsharedSets)
 	return nil
 }
 

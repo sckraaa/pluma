@@ -66,6 +66,9 @@ type Importer struct {
 // Result counts what an import did.
 type Result struct {
 	Answers, Sets, Documents, NewDocuments int
+	// UnsharedSets counts the references to sets Telegram does not give
+	// out, made inputStickerSetEmpty (unshared).
+	UnsharedSets int
 }
 
 // collection is a collection read and decoded.
@@ -89,6 +92,7 @@ func (im *Importer) Run(ctx context.Context, dir string) (*Result, error) {
 	}
 	defer c.root.Close()
 
+	unshared := c.unshared()
 	ids := NewIDs()
 	if err := im.setIDs(ctx, c, ids); err != nil {
 		return nil, err
@@ -112,7 +116,7 @@ func (im *Importer) Run(ctx context.Context, dir string) (*Result, error) {
 	if err := im.Catalog.Replace(ctx, out); err != nil {
 		return nil, err
 	}
-	return &Result{Answers: len(out.Answers), Sets: len(out.Sets), Documents: len(ids.Documents), NewDocuments: stored}, nil
+	return &Result{Answers: len(out.Answers), Sets: len(out.Sets), Documents: len(ids.Documents), NewDocuments: stored, UnsharedSets: unshared}, nil
 }
 
 func read(dir string) (*collection, error) {
@@ -213,6 +217,39 @@ func classOf(o mtproto.TLObject) (proto.Message, error) {
 		return nil, fmt.Errorf("importer: %T has no class", o)
 	}
 	return m, nil
+}
+
+// unshared turns the references of documents to sets the collection does
+// not hold into inputStickerSetEmpty, and counts them. Telegram names such
+// sets in documents it gives out, then answers messages.getStickerSet for
+// them with STICKERSET_INVALID (the custom emoji of
+// account.getDefaultProfilePhotoEmojis, 2026-11-02); the collector asked
+// for each, so a set it lacks is one Telegram does not give. The document
+// stays, without a set to open; no id of Telegram is kept for the set.
+func (c *collection) unshared() int {
+	held := map[int64]bool{}
+	for _, s := range c.sets {
+		held[s.GetSet().GetId()] = true
+	}
+	n := 0
+	for _, m := range c.all() {
+		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
+			a, ok := x.Interface().(*mtproto.DocumentAttribute)
+			if !ok {
+				return
+			}
+			switch a.GetPredicateName() {
+			case mtproto.Predicate_documentAttributeSticker, mtproto.Predicate_documentAttributeCustomEmoji:
+			default:
+				return
+			}
+			if ref := a.GetStickerset(); ref.GetPredicateName() == mtproto.Predicate_inputStickerSetID && !held[ref.GetId()] {
+				a.Stickerset = mtproto.MakeTLInputStickerSetEmpty(nil).To_InputStickerSet()
+				n++
+			}
+		})
+	}
+	return n
 }
 
 // all is every object of the collection.

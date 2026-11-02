@@ -315,8 +315,22 @@ func TestImportRefusesBrokenCollections(t *testing.T) {
 		"a file outside": func(dir string) {
 			rewriteManifest(t, dir, func(m *Manifest) { m.Answers[0].File = "../x.json" })
 		},
-		"a set it names left out": func(dir string) {
-			rewriteManifest(t, dir, func(m *Manifest) { m.Sets = nil })
+		"a set it names left out, by its stickers' pack": func(dir string) {
+			// The set's packs and stickers name it as a stickerSet of the
+			// answers it is missing from: no document refers to it then,
+			// but the featured answer does.
+			rewriteManifest(t, dir, func(m *Manifest) {
+				m.Sets = nil
+				m.Answers = append(m.Answers, AnswerFile{Method: "messages.getFeaturedStickers", File: "answers/featured.json"})
+			})
+			b, _ := json.Marshal(map[string]any{"_": "messages.featuredStickers", "pFlags": map[string]any{}, "hash": 1, "count": 1,
+				"sets": []any{map[string]any{"_": "stickerSetCovered",
+					"set":   map[string]any{"_": "stickerSet", "pFlags": map[string]any{}, "id": "777", "access_hash": "8", "title": "A", "short_name": "AnimatedEmojies", "count": 2, "hash": 1},
+					"cover": map[string]any{"_": "documentEmpty", "id": "1"}}},
+				"unread": []any{}})
+			if err := os.WriteFile(filepath.Join(dir, "answers/featured.json"), b, 0o600); err != nil {
+				t.Fatal(err)
+			}
 		},
 	} {
 		dir := writeCollection(t)
@@ -439,5 +453,25 @@ func TestImportDropsAccountState(t *testing.T) {
 	set := f.GetSets()[0].GetSet()
 	if len(f.GetUnread()) != 0 || set.GetArchived() || set.GetInstalledDate() != nil {
 		t.Fatalf("the collector's state: unread %v, set %v", f.GetUnread(), set)
+	}
+}
+
+// A sticker of a set Telegram does not give out is kept, without its set.
+func TestImportUnsharedSet(t *testing.T) {
+	dir := writeCollection(t)
+	rewriteManifest(t, dir, func(m *Manifest) { m.Sets = nil })
+	cat := &memCatalog{docs: map[[32]byte]int64{}}
+	docs := &memDocuments{byID: map[int64]*mtproto.Document{}, files: map[int64][]byte{}}
+	res, err := (&Importer{Catalog: cat, Documents: docs}).Run(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.UnsharedSets == 0 || res.Sets != 0 || len(docs.byID) != 2 {
+		t.Fatalf("result %+v, %d documents", res, len(docs.byID))
+	}
+	for _, d := range docs.byID {
+		if p := d.GetAttributes()[0].GetStickerset().GetPredicateName(); p != mtproto.Predicate_inputStickerSetEmpty {
+			t.Fatalf("a sticker of an unshared set refers to %s", p)
+		}
 	}
 }
