@@ -235,7 +235,10 @@ var ErrEmptyCatalog = errors.New("catalog: nothing to store")
 
 // Replace stores c in one transaction in place of the stored catalog:
 // clients get either the old catalog or the new one, whole. Answers and
-// sets c no longer has are removed; a set keeps its id by short name.
+// sets c no longer has are removed, but for a set an account installed
+// (user_sticker_sets, task 030): it stays as one fetched on demand, without
+// a kind, so the account keeps it as Telegram keeps a set that left its
+// lists. A set keeps its id by short name.
 func (s *Store) Replace(ctx context.Context, c *Catalog) error {
 	if len(c.Answers) == 0 {
 		return ErrEmptyCatalog
@@ -246,6 +249,10 @@ func (s *Store) Replace(ctx context.Context, c *Catalog) error {
 		}
 		// Sets fetched on demand (task 030) stay; one the catalog now has
 		// becomes the catalog's below.
+		if _, result.Err = tx.Exec("UPDATE catalog_sticker_sets SET source = 'demand', kind = NULL WHERE source = 'catalog'" +
+			" AND set_id IN (SELECT set_id FROM user_sticker_sets)"); result.Err != nil {
+			return
+		}
 		if _, result.Err = tx.Exec("DELETE FROM catalog_sticker_sets WHERE source = 'catalog'"); result.Err != nil {
 			return
 		}

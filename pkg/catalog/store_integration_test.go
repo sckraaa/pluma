@@ -155,6 +155,10 @@ func TestStore(t *testing.T) {
 	if err := s.PutSet(ctx, &Set{ID: 72, AccessHash: 73, ShortName: "roflmoji", Data: []byte("demand")}, 300); err != nil {
 		t.Fatal(err)
 	}
+	// An account installed one die: it stays without its kind.
+	if _, err := s.db.Exec(ctx, "INSERT INTO user_sticker_sets (user_id, set_id, kind, order2, installed_at) VALUES (5, 41, 0, 1, 300)"); err != nil {
+		t.Fatal(err)
+	}
 	again := &Catalog{
 		Answers: map[[2]string]Answer{{"help.getTimezonesList", ""}: {Data: []byte("tz")}},
 		Sets:    []*Set{{ID: 72, AccessHash: 73, ShortName: "roflmoji", Data: []byte("catalog")}},
@@ -170,5 +174,11 @@ func TestStore(t *testing.T) {
 	}
 	if set, _ := s.SetByKind(ctx, "inputStickerSetDice:🏀"); set != nil {
 		t.Fatal("a set of the old catalog stayed")
+	}
+	if set, err := s.SetByID(ctx, 41); err != nil || set == nil || set.Kind != "" || string(set.Data) != "🎯" {
+		t.Fatalf("an installed set of the old catalog: %+v, %v", set, err)
+	}
+	if set, _ := s.SetByKind(ctx, "inputStickerSetDice:🎯"); set != nil {
+		t.Fatal("an installed set of the old catalog kept its kind")
 	}
 }
