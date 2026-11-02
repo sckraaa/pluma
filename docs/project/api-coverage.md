@@ -566,9 +566,9 @@
 | `messages.getDocumentByHash` | blocked |  | app/bff/files/internal/core/messages.getDocumentByHash_handler.go:27 |
 | `messages.getEmojiGameInfo` | missing |  |  |
 | `messages.getEmojiGroups` | ok |  | app/bff/catalog/internal/core/messages.getEmojiGroups_handler.go:26 |
-| `messages.getEmojiKeywords` | ok |  | app/bff/catalog/internal/core/messages.getEmojiKeywords_handler.go:28 |
+| `messages.getEmojiKeywords` | ok |  | app/bff/catalog/internal/core/messages.getEmojiKeywords_handler.go:30 |
 | `messages.getEmojiKeywordsDifference` | ok |  | app/bff/catalog/internal/core/messages.getEmojiKeywordsDifference_handler.go:29 |
-| `messages.getEmojiKeywordsLanguages` | ok |  | app/bff/catalog/internal/core/messages.getEmojiKeywordsLanguages_handler.go:26 |
+| `messages.getEmojiKeywordsLanguages` | ok |  | app/bff/catalog/internal/core/messages.getEmojiKeywordsLanguages_handler.go:27 |
 | `messages.getEmojiProfilePhotoGroups` | ok |  | app/bff/catalog/internal/core/messages.getEmojiProfilePhotoGroups_handler.go:26 |
 | `messages.getEmojiStatusGroups` | ok |  | app/bff/catalog/internal/core/messages.getEmojiStatusGroups_handler.go:26 |
 | `messages.getEmojiStickerGroups` | ok |  | app/bff/catalog/internal/core/messages.getEmojiStickerGroups_handler.go:26 |
