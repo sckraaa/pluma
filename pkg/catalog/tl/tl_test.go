@@ -113,6 +113,21 @@ func TestEncodeForms(t *testing.T) {
 	}
 }
 
+// A field of a boxed type with a namespace (help.PeerColorOption).
+func TestEncodeNamespacedType(t *testing.T) {
+	o, err := Default.Decode(map[string]any{
+		"_": "help.peerColors", "hash": json.Number("5"),
+		"colors": []any{map[string]any{"_": "help.peerColorOption", "pFlags": map[string]any{}, "color_id": json.Number("7")}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := o.(interface{ To_Help_PeerColors() *mtproto.Help_PeerColors }).To_Help_PeerColors()
+	if c.GetHash() != 5 || len(c.GetColors()) != 1 || c.GetColors()[0].GetColorId() != 7 {
+		t.Fatalf("peer colors %v", c)
+	}
+}
+
 func TestSchema(t *testing.T) {
 	for name, id := range map[string]uint32{
 		"document": 0x8fd4c4d8, "stickerSet": 0x2dd14edc, "availableReaction": 0xc077ec01,

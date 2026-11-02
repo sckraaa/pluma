@@ -82,6 +82,52 @@ type collection struct {
 	wallpapers []*mtproto.WallPaper
 }
 
+// Check reads, decodes and renumbers the collection at dir as Run does,
+// with ids made up in memory, and stores nothing: a reference to anything
+// the collection lacks, or an object it cannot read, is the error an
+// import would stop on. It does not read the documents' files.
+func Check(dir string) (*Result, error) {
+	c, err := read(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer c.root.Close()
+	unshared := c.unshared()
+	ctx := context.Background()
+	im := &Importer{Catalog: &dryCatalog{}}
+	ids := NewIDs()
+	if err := im.setIDs(ctx, c, ids); err != nil {
+		return nil, err
+	}
+	if err := im.otherIDs(ctx, c, ids); err != nil {
+		return nil, err
+	}
+	next := int64(0)
+	for _, m := range c.all() {
+		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
+			if d, ok := x.Interface().(*mtproto.Document); ok && d.GetPredicateName() == mtproto.Predicate_document && ids.Documents[d.GetId()] == nil {
+				next++
+				stored := proto.Clone(d).(*mtproto.Document)
+				stored.Id = next
+				ids.Documents[d.GetId()] = stored
+			}
+		})
+	}
+	for _, m := range c.all() {
+		if err := ids.Rewrite(m); err != nil {
+			return nil, err
+		}
+	}
+	return &Result{Answers: len(c.answers), Sets: len(c.sets), Documents: len(ids.Documents), UnsharedSets: unshared}, nil
+}
+
+// dryCatalog gives ids in memory for Check.
+type dryCatalog struct{ Catalog }
+
+func (dryCatalog) IDFor(_ context.Context, _, _ string, newID func() (int64, int64, error)) (int64, int64, error) {
+	return newID()
+}
+
 // Run imports the collection at dir: everything it holds replaces the
 // catalog, or, on any error, the catalog stays as it was (documents
 // stored on the way are kept for the next run).
@@ -220,7 +266,8 @@ func classOf(o mtproto.TLObject) (proto.Message, error) {
 }
 
 // unshared turns the references of documents to sets the collection does
-// not hold into inputStickerSetEmpty, and counts them. Telegram names such
+// not hold into inputStickerSetEmpty, and counts them; it drops the covers
+// of sets named by a document the collection lacks. Telegram names such
 // sets in documents it gives out, then answers messages.getStickerSet for
 // them with STICKERSET_INVALID (the custom emoji of
 // account.getDefaultProfilePhotoEmojis, 2026-11-02); the collector asked
@@ -230,6 +277,24 @@ func (c *collection) unshared() int {
 	held := map[int64]bool{}
 	for _, s := range c.sets {
 		held[s.GetSet().GetId()] = true
+	}
+	// A set's cover named by id is a document the collection may lack (a
+	// custom emoji of another set): without it, clients cover the set with
+	// its first sticker.
+	docs := map[int64]bool{}
+	for _, m := range c.all() {
+		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
+			if d, ok := x.Interface().(*mtproto.Document); ok && d.GetPredicateName() == mtproto.Predicate_document {
+				docs[d.GetId()] = true
+			}
+		})
+	}
+	for _, m := range c.all() {
+		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
+			if set, ok := x.Interface().(*mtproto.StickerSet); ok && set.GetThumbDocumentId() != nil && !docs[set.GetThumbDocumentId().GetValue()] {
+				set.ThumbDocumentId = nil
+			}
+		})
 	}
 	n := 0
 	for _, m := range c.all() {

@@ -133,6 +133,7 @@ async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [
     if (o._ === 'emojiList') o.document_id.forEach((x) => named.add(id(x)));
     if (o._ === 'emojiStatus' || o._ === 'reactionCustomEmoji') named.add(id(o.document_id));
     if (/^emojiGroup/.test(o._)) { if (o.icon_emoji_id) named.add(id(o.icon_emoji_id)); (o.document_id || []).forEach((x) => named.add(id(x))); }
+    if (o._ === 'stickerSet' && o.thumb_document_id) named.add(id(o.thumb_document_id));
   });
   const known = new Set();
   walk(objects, (o) => { if (o._ === 'document') known.add(id(o.id)); });

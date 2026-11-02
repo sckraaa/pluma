@@ -22,6 +22,7 @@
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
 //	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
 //	pluma-admin [-f bff.yaml] catalog import <dir>
+//	pluma-admin catalog check <dir>
 //	pluma-admin catalog receive -dir <dir> [-listen :9099]
 //
 // login-code generates a fresh code for a pending code request of the phone
@@ -168,6 +169,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
   pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
   pluma-admin [-f bff.yaml] catalog import <dir>   (a collection of the catalog from Telegram, task 024)
+  pluma-admin catalog check <dir>   (decodes a collection, stores nothing)
   pluma-admin catalog receive -dir <dir> [-listen :9099]   (takes a collection; $CATALOG_UPLOAD_TOKEN)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
   pluma-admin -f push.yaml push check   (asks APNs and FCM whether they take the keys; nothing is delivered)
