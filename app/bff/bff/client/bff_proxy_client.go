@@ -142,6 +142,11 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 		*mtproto.TLMessagesUploadMedia,
 		*mtproto.TLMessagesEditMessage:
 		timeout = 60 * time.Second
+	case *mtproto.TLMessagesGetStickerSet,
+		*mtproto.TLMessagesInstallStickerSet:
+		// A set by name may be fetched from Telegram first (task 030,
+		// pkg/catalog/demand).
+		timeout = 60 * time.Second
 	}
 	// Cancel on return: otherwise every call keeps its timer (and context)
 	// alive until the timeout fires.
