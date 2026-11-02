@@ -91,9 +91,9 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1549129612,
 		}
 	},
-	-807280213: func() mtproto.TLObject { // 0xcfe1e1ab pluma: task 024
+	-912818358: func() mtproto.TLObject { // 0xc9977f4a pluma: task 024
 		return &TLDfsImportDocument{
-			Constructor: -807280213,
+			Constructor: -912818358,
 		}
 	},
 }
@@ -749,12 +749,13 @@ func (m *TLDfsUploadedProfilePhoto) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *TLDfsImportDocument) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	switch uint32(m.Constructor) {
-	case 0xcfe1e1ab:
-		x.UInt(0xcfe1e1ab)
+	case 0xc9977f4a:
+		x.UInt(0xc9977f4a)
 
 		// no flags
 
 		x.Long(m.GetCreator())
+		x.Long(m.GetId())
 		x.Int(m.GetDate())
 		x.String(m.GetMimeType())
 		m.GetFile().Encode(x, layer)
@@ -796,11 +797,12 @@ func (m *TLDfsImportDocument) CalcByteSize(layer int32) int {
 
 func (m *TLDfsImportDocument) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
-	case 0xcfe1e1ab:
+	case 0xc9977f4a:
 
 		// not has flags
 
 		m.Creator = dBuf.Long()
+		m.Id = dBuf.Long()
 		m.Date = dBuf.Int()
 		m.MimeType = dBuf.String()
 

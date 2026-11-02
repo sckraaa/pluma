@@ -38,8 +38,9 @@ import (
 // media.importDocument, RPCDocuments) and reads stored ones.
 type Documents interface {
 	// Import stores a document as it is: its file, its downloadable
-	// thumbnails by type, and the metadata of doc (ids aside).
-	Import(ctx context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte) (*mtproto.Document, error)
+	// thumbnails by type, and the metadata of doc (ids aside), under id if
+	// not 0, else under a new id.
+	Import(ctx context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte, id int64) (*mtproto.Document, error)
 	// Get returns the stored documents of ids.
 	Get(ctx context.Context, ids []int64) ([]*mtproto.Document, error)
 }
@@ -379,7 +380,11 @@ func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int
 				return 0, err
 			}
 		}
-		d, err := im.Documents.Import(ctx, meta, file, thumbs)
+		keep := int64(0)
+		if KeptIDs[tgID] {
+			keep = tgID
+		}
+		d, err := im.Documents.Import(ctx, meta, file, thumbs, keep)
 		if err != nil {
 			return 0, fmt.Errorf("importer: document %d: %w", tgID, err)
 		}
@@ -415,6 +420,25 @@ func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int
 		}
 	}
 	return stored, nil
+}
+
+// KeptIDs are the documents that keep Telegram's id, because clients name
+// them by it in their code (owner's decision, ADR 0028;
+// docs/tasks/024-research/semantics.md):
+//   - tweb: the icon of the premium emoji group (appEmojiManager.ts) and
+//     the icon of a General topic (messageActionTextNewUnsafe.ts);
+//   - Android: DIAMOND_EMOJI (ChannelMonetizationLayout.java), the custom
+//     emoji of the theme preview (ThemePreviewMessagesCell.java) and of
+//     TranslateButton.
+//
+// The collector asks for them by id (tools/catalog-collector).
+var KeptIDs = map[int64]bool{
+	5269590556232664327: true,
+	5390854796011906616: true,
+	5471952986970267163: true,
+	5386654653003864312: true,
+	5373141891321699086: true,
+	5197252827247841976: true,
 }
 
 // files reads the file of doc and of its downloadable thumbnails; a

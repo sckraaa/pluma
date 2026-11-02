@@ -34,7 +34,7 @@ enum TLConstructor {
   CRC32_dfs_uploadRingtoneFile = 45335985;
   CRC32_dfs_uploadedProfilePhoto = -1549129612;
   // pluma: task 024
-  CRC32_dfs_importDocument = -807280213;
+  CRC32_dfs_importDocument = -912818358;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -137,14 +137,16 @@ message TL_dfs_uploadedProfilePhoto {
 }
 
 //--------------------------------------------------------------------------------------------
-// pluma: dfs.importDocument creator:long date:int mime_type:string file:InputFile thumbs:Vector<PhotoSize> thumb_files:Vector<InputFile> video_thumbs:Vector<VideoSize> attributes:Vector<DocumentAttribute> = Document;
+// pluma: dfs.importDocument creator:long id:long date:int mime_type:string file:InputFile thumbs:Vector<PhotoSize> thumb_files:Vector<InputFile> video_thumbs:Vector<VideoSize> attributes:Vector<DocumentAttribute> = Document;
 //
 // A document made elsewhere (the catalog from Telegram, task 024) stored as
 // it is: the file and its thumbnails are uploaded parts (dfs.writeFilePartData);
 // thumb_files are the downloadable thumbnails, each named by its type.
+// id is the document's id if it must keep one (0: a new one).
 message TL_dfs_importDocument {
   TLConstructor constructor = 1;
   int64 creator = 3;
+  int64 id = 11;
   int32 date = 4;
   string mime_type = 5;
   mtproto.InputFile file = 6;

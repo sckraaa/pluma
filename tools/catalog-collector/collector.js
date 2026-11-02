@@ -121,7 +121,10 @@ async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [
 
   // 2. Documents named only by id: custom emoji of lists, statuses, groups,
   // tag reactions.
-  const named = new Set();
+  // The documents clients name by id in their code, which keep their id
+  // (pkg/catalog/importer KeptIDs).
+  const named = new Set(['5269590556232664327', '5390854796011906616', '5471952986970267163', '5386654653003864312',
+    '5373141891321699086', '5197252827247841976']);
   const walk = (v, f) => {
     if (Array.isArray(v)) { v.forEach((x) => walk(x, f)); return; }
     if (v && typeof v === 'object' && !(v instanceof Uint8Array)) { f(v); Object.values(v).forEach((x) => walk(x, f)); }

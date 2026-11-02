@@ -20,6 +20,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -328,6 +329,15 @@ func (m *Dao) SaveDocumentV2(ctx context.Context, fileName string, document *mtp
 // its thumbnails first, the document last, so that a document is never
 // found without them. Unlike SaveDocumentV2 every error is returned.
 func (m *Dao) ImportDocument(ctx context.Context, fileName string, document *mtproto.Document) error {
+	// An id kept from elsewhere (dfs.importDocument) may not be one a
+	// document already has.
+	old, err := m.DocumentsDAO.SelectByDocumentId(ctx, document.GetId())
+	if err != nil {
+		return err
+	}
+	if old != nil {
+		return ErrDocumentExists
+	}
 	attributes := "[]"
 	if len(document.GetAttributes()) > 0 {
 		b, err := jsonx.Marshal(document.GetAttributes())
@@ -360,6 +370,9 @@ func (m *Dao) ImportDocument(ctx context.Context, fileName string, document *mtp
 		}
 		do.VideoThumbId = document.GetId()
 	}
-	_, _, err := m.DocumentsDAO.Insert(ctx, do)
+	_, _, err = m.DocumentsDAO.Insert(ctx, do)
 	return err
 }
+
+// ErrDocumentExists is a document to import whose id a stored one has.
+var ErrDocumentExists = errors.New("media: a document with this id exists")

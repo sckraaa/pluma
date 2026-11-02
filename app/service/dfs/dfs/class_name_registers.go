@@ -76,7 +76,7 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 
 	},
 	Predicate_dfs_importDocument: { // pluma: task 024
-		0: -807280213, // 0xcfe1e1ab
+		0: -912818358, // 0xc9977f4a
 
 	},
 }
@@ -94,7 +94,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-559525993:  Predicate_dfs_uploadThemeFile,          // 0xdea64f97
 	45335985:    Predicate_dfs_uploadRingtoneFile,       // 0x2b3c5b1
 	-1549129612: Predicate_dfs_uploadedProfilePhoto,     // 0xa3aa2874
-	-807280213:  Predicate_dfs_importDocument,           // 0xcfe1e1ab pluma: task 024
+	-912818358:  Predicate_dfs_importDocument,           // 0xc9977f4a pluma: task 024
 
 }
 

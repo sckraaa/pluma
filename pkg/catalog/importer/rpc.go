@@ -40,7 +40,7 @@ type RPCDocuments struct {
 const partSize = 512 << 10
 
 // Import implements Documents.
-func (r RPCDocuments) Import(ctx context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte) (*mtproto.Document, error) {
+func (r RPCDocuments) Import(ctx context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte, id int64) (*mtproto.Document, error) {
 	owner, err := newIDHash()
 	if err != nil {
 		return nil, err
@@ -65,6 +65,7 @@ func (r RPCDocuments) Import(ctx context.Context, doc *mtproto.Document, file []
 	}
 	stored, err := r.Dfs.DfsImportDocument(ctx, &dfs.TLDfsImportDocument{
 		Creator:     owner.ID,
+		Id:          id,
 		Date:        doc.GetDate(),
 		MimeType:    doc.GetMimeType(),
 		File:        main,

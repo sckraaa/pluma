@@ -27,13 +27,13 @@ import (
 )
 
 // DfsImportDocument
-// dfs.importDocument creator:long date:int mime_type:string file:InputFile thumbs:Vector<PhotoSize> thumb_files:Vector<InputFile> video_thumbs:Vector<VideoSize> attributes:Vector<DocumentAttribute> = Document;
+// dfs.importDocument creator:long id:long date:int mime_type:string file:InputFile thumbs:Vector<PhotoSize> thumb_files:Vector<InputFile> video_thumbs:Vector<VideoSize> attributes:Vector<DocumentAttribute> = Document;
 //
 // pluma: a document made elsewhere (the catalog from Telegram, task 024,
 // ADR 0028) stored as it is, unlike an upload: its thumbnails are the ones
 // given, inline ('i', 'j') or files (thumb_files, named by type), and its
-// attributes stay. It gets an id of this server and an access hash that
-// carries its storage type, as dfs.uploadDocumentFileV2 makes it, and every
+// attributes stay. It gets an id of this server (or keeps the one given)
+// and an access hash that carries its storage type, as dfs.uploadDocumentFileV2 makes it, and every
 // file is in storage before the answer: a failure is an error, nothing is
 // left half stored for a client to fetch.
 func (c *DfsCore) DfsImportDocument(in *dfs.TLDfsImportDocument) (*mtproto.Document, error) {
@@ -47,9 +47,13 @@ func (c *DfsCore) DfsImportDocument(in *dfs.TLDfsImportDocument) (*mtproto.Docum
 		return nil, mtproto.ErrMediaInvalid
 	}
 
-	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
-	if err != nil {
-		return nil, err
+	// A document clients name by its id in their code keeps it (ADR 0028);
+	// media.importDocument refuses an id that is taken.
+	documentId := in.GetId()
+	if documentId == 0 {
+		if documentId, err = c.svcCtx.Dao.IDGenClient2.NextId(c.ctx); err != nil {
+			return nil, err
+		}
 	}
 	ext := model.GetFileExtName(file.GetName())
 	var secret [4]byte

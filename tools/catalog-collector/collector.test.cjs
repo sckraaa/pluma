@@ -50,6 +50,8 @@ function fakeTelegram({failOn} = {}) {
       }
       case 'account.getWallPaper':
         throw {code: 400, type: 'WALLPAPER_INVALID'};
+      case 'messages.getCustomEmojiDocuments':
+        return params.document_id.includes('5269590556232664327') ? [doc(5269590556232664327n.toString(), 2)] : [];
       case 'upload.getFile':
         return {_: 'upload.file', bytes: params.location.thumb_size ? new Uint8Array([4, 4]) : new Uint8Array([1, 2, 3])};
       default:
@@ -76,10 +78,11 @@ test('collects answers, every named set and the files, the manifest last', async
   assert.equal(m.layer, 228);
   assert.deepEqual(m.sets.map((s) => s.kind).sort(), ['', 'inputStickerSetAnimatedEmoji']);
   assert.ok(out.has('sets/2.json'), 'the set named only by a sticker');
-  assert.deepEqual(m.files.map((f) => f.id).sort(), ['11', '22']);
+  assert.deepEqual(m.files.map((f) => f.id).sort(), ['11', '22', '5269590556232664327']);
+  assert.deepEqual(m.extra_documents, ['documents/5269590556232664327.json']);
   assert.deepEqual(m.files[0].thumbs, {m: `files/${m.files[0].id}.m`});
   assert.deepEqual([...out.get(`files/${m.files[0].id}`)], [1, 2, 3]);
-  assert.equal(r.files, 4);
+  assert.equal(r.files, 6);
   // Bytes go as $b64, ids as they are.
   assert.match(out.get('sets/1.json'), /"bytes":\{"\$b64":"CQ=="\}/);
 });

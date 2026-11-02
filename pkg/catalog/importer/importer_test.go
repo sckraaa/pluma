@@ -78,10 +78,13 @@ type memDocuments struct {
 	next  int64
 }
 
-func (m *memDocuments) Import(_ context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte) (*mtproto.Document, error) {
+func (m *memDocuments) Import(_ context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte, keep int64) (*mtproto.Document, error) {
 	m.next++
 	d := proto.Clone(doc).(*mtproto.Document)
 	d.Id, d.AccessHash, d.FileReference, d.DcId = 1000+m.next, 7, []byte{}, 1
+	if keep != 0 {
+		d.Id = keep
+	}
 	for _, t := range d.GetThumbs() {
 		if t.GetPredicateName() == mtproto.Predicate_photoSize && thumbs[t.GetType()] == nil {
 			return nil, fmt.Errorf("thumbnail %s without its file", t.GetType())
@@ -339,5 +342,28 @@ func rewriteManifest(t *testing.T, dir string, f func(*Manifest)) {
 	b, _ = json.Marshal(m)
 	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), b, 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A document clients name by id keeps Telegram's id; the others do not.
+func TestImportKeepsNamedIDs(t *testing.T) {
+	const kept = int64(5368324170671202287)
+	KeptIDs[kept] = true
+	defer delete(KeptIDs, kept)
+	dir := writeCollection(t)
+	cat := &memCatalog{docs: map[[32]byte]int64{}}
+	docs := &memDocuments{byID: map[int64]*mtproto.Document{}, files: map[int64][]byte{}}
+	if _, err := (&Importer{Catalog: cat, Documents: docs}).Run(context.Background(), dir); err != nil {
+		t.Fatal(err)
+	}
+	if docs.byID[kept] == nil || docs.byID[5368324170671202286] != nil || len(docs.byID) != 2 {
+		t.Fatalf("stored %v", docs.byID)
+	}
+	list := &mtproto.EmojiList{}
+	if err := proto.Unmarshal(cat.stored.Answers[[2]string{"account.getDefaultProfilePhotoEmojis", ""}].Data, list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list.GetDocumentId()) != 1 || list.GetDocumentId()[0] != kept {
+		t.Fatalf("emoji list %v", list.GetDocumentId())
 	}
 }
