@@ -80,8 +80,15 @@ func MustNewMinioClient(c *MinioConfig) *MinioUtil {
 //
 //}
 
+// putPartSize is the part of a multipart upload. Most puts here stream a
+// reader of unknown size (-1), for which minio-go would take the largest
+// object, 5 TiB over 10000 parts, and hold a buffer of about 525 MiB per
+// upload (OptimalPartInfo, putObjectMultipartStreamNoLength): a few at
+// once ran dfs out of memory. 16 MiB parts still allow 160 GB.
+const putPartSize = 16 << 20
+
 func s3PutOptions(encrypted bool, contentType string) minio.PutObjectOptions {
-	options := minio.PutObjectOptions{}
+	options := minio.PutObjectOptions{PartSize: putPartSize}
 	if encrypted {
 		options.ServerSideEncryption = encrypt.NewSSE()
 	}
