@@ -28,19 +28,34 @@ import (
 // entities as a client cuts them.
 func bold(t *testing.T, text string, entities []*mtproto.MessageEntity) []string {
 	t.Helper()
+	return parts(t, text, entities, mtproto.Predicate_messageEntityBold)
+}
+
+// parts returns the parts of text under entities of kind; any other kind
+// than bold and spoiler fails the test, and so do entities out of order.
+func parts(t *testing.T, text string, entities []*mtproto.MessageEntity, kind string) []string {
+	t.Helper()
 	units := utf16.Encode([]rune(text))
-	var parts []string
+	var out []string
+	last := int32(-1)
 	for _, e := range entities {
-		if e.GetPredicateName() != mtproto.Predicate_messageEntityBold {
-			t.Fatalf("entity %s, want bold", e.GetPredicateName())
+		p := e.GetPredicateName()
+		if p != mtproto.Predicate_messageEntityBold && p != mtproto.Predicate_messageEntitySpoiler {
+			t.Fatalf("entity %s", p)
 		}
+		if e.GetOffset() < last {
+			t.Fatalf("entity at %d after one at %d", e.GetOffset(), last)
+		}
+		last = e.GetOffset()
 		end := int(e.GetOffset() + e.GetLength())
 		if e.GetOffset() < 0 || end > len(units) {
 			t.Fatalf("entity %d+%d outside %d units", e.GetOffset(), e.GetLength(), len(units))
 		}
-		parts = append(parts, string(utf16.Decode(units[e.GetOffset():end])))
+		if p == kind {
+			out = append(out, string(utf16.Decode(units[e.GetOffset():end])))
+		}
 	}
-	return parts
+	return out
 }
 
 func equal(a, b []string) bool {
@@ -68,6 +83,25 @@ func TestRenderKeepsValues(t *testing.T) {
 	}
 }
 
+func TestRenderSpoiler(t *testing.T) {
+	text, entities := Render("**Код:** ||{c}||, ещё **жирный** и ||тайна||", map[string]string{"c": "😀42"})
+	if text != "Код: 😀42, ещё жирный и тайна" {
+		t.Fatalf("text %q", text)
+	}
+	if got := parts(t, text, entities, mtproto.Predicate_messageEntitySpoiler); !equal(got, []string{"😀42", "тайна"}) {
+		t.Fatalf("spoilers %q", got)
+	}
+	if got := bold(t, text, entities); !equal(got, []string{"Код:", "жирный"}) {
+		t.Fatalf("bold %q", got)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("an unclosed spoiler did not panic")
+		}
+	}()
+	Render("||open", nil)
+}
+
 func TestLoginCode(t *testing.T) {
 	text, entities := LoginCode(English, "12345")
 	want := "Login code: 12345. Do not give this code to anyone, even if they say they are from Pluma!\n\n" +
@@ -79,6 +113,9 @@ func TestLoginCode(t *testing.T) {
 	if got := bold(t, text, entities); !equal(got, []string{"Login code:", "not"}) {
 		t.Fatalf("English bold %q", got)
 	}
+	if got := parts(t, text, entities, mtproto.Predicate_messageEntitySpoiler); !equal(got, []string{"12345"}) {
+		t.Fatalf("English spoiler %q", got)
+	}
 
 	text, entities = LoginCode(Russian, "12345")
 	want = "Код для входа в Pluma: 12345. Не давайте код никому, даже если его требуют от имени Pluma!\n\n" +
@@ -89,6 +126,9 @@ func TestLoginCode(t *testing.T) {
 	}
 	if got := bold(t, text, entities); !equal(got, []string{"Код для входа в Pluma:", "никому"}) {
 		t.Fatalf("Russian bold %q", got)
+	}
+	if got := parts(t, text, entities, mtproto.Predicate_messageEntitySpoiler); !equal(got, []string{"12345"}) {
+		t.Fatalf("Russian spoiler %q", got)
 	}
 }
 
