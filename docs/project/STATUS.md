@@ -10,6 +10,15 @@ _Обновлено: 2026-11-02. Держать коротким._
 - Сравнительных тестов: 6 сценариев с эталонами Telegram, все проходят в CI (`test/conformance`, 9 методов API). Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
+- **024, каталог из Telegram** (ADR 0028, ветка `task/024-telegram-catalog`, бриф — «Ход работы»).
+  - **Готово в коде:**
+    - хранилище и модуль `app/bff/catalog`: 12 служб, 39 методов;
+    - путь импорта документов в dfs/media;
+    - перенумерация и хэши (формула реакций совпала с хэшами Telegram);
+    - `pluma-admin catalog import` и `receive`;
+    - скрипт выгрузки для Web K и приёмник `pluma.chat/collect`.
+  - **Решения владельца:** приёмник на сервере; шесть id, прописанных в клиентах, сохраняются.
+  - **Осталось:** слить и выкатить; выгрузить через вкладку Telegram, импортировать, проверить в клиентах.
 - **023, превью ссылок — выкачено 2026-11-02 ~01:53 UTC** (ADR 0027, прод на `12b56076`, миграция `webpages` применена, сервисы здоровы): `getWebPagePreview`, `getWebPage`, выбранная карточка в `sendMedia`, карточка сообщения со ссылкой; сборщик ходит только в публичный интернет, кэш в MySQL (`migrate-20261102-webpages.sql`). Без `webPagePending`: сообщение ждёт карточку до 4 с. Проверено на проде через Web K (2026-11-02): карточки telegram.org, github.com, Википедии, YouTube, example.com и локального адреса по форме совпадают с эталоном Telegram; отличие — маленькая миниатюра `s` вместо встроенной `i`. Осталось: осмотр карточки в пузыре на Android и iOS.
 - **021, языковые пакеты** (ADR 0025, `docs/ops/langpacks.md`). **Выкачено 2026-11-01 ~19:00 UTC:** прод на `6837bb3b`, миграция применена, загружены 145 пакетов (android, ios, tdesktop, macos, webk; 19–29 языков каждый, 140 МБ снимков в `/opt/pluma/langpacks`). Web K на web.pluma.chat получает с прода 29 языков, русский «Войти в Pluma». Падежи: «Telegram» в падеже становится тем же падежом «Pluma» (cs, sk, pl, hr, sr, fi, hu, uz, kk, tr, sv, nb, de; `pkg/langpack/inflect.go`, выкачено `e8a48453`, 58 языков переимпортированы; «Přihlásit se do Plumy», «Kirjaudu Plumaan», «Pluma'da oturum açın»). Осталось: таймер ежедневного обновления (`pluma-langpacks.timer`, ставит владелец), осмотр в клиентах на других языках, рассылка `updateLangPack`, `translations_url` ведёт на translations.telegram.org.
 - **Код входа под спойлером** (выкачено `f73e876c`, 2026-11-02 14:04 UTC): у Telegram в сообщении спойлера нет, код скрывают клиенты, но Web K и iOS только в списке чатов; теперь сервер сам ставит спойлер на код. Проверка на новом входе — за владельцем.
