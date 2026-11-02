@@ -15,12 +15,11 @@
 
 // Package installed keeps the sticker, mask and custom emoji sets an
 // account installed (task 030; migrate-20261103-user-sticker-sets.sql),
-// each kind in its own order, and tells the account's other devices of a
-// change as Telegram does (docs/tasks/030-research/updates.md): an
-// installed set whole (updateNewStickerSet), a new order
-// (updateStickerSetsOrder), anything else as "load the kind again"
-// (updateStickerSets). The updates go with seq (ADR 0020) to every device
-// of the account but the one that made the change (ADR 0022).
+// each kind in its own order, and tells the account's devices of a change
+// as Telegram does (docs/tasks/030-research/updates.md): an installed set
+// whole (updateNewStickerSet), a new order (updateStickerSetsOrder),
+// anything else as "load the kind again" (updateStickerSets). The updates
+// go with seq (ADR 0020) to every device of the account (emit).
 package installed
 
 import (
@@ -138,7 +137,7 @@ func topOrder(rows []Entry) int64 {
 // again. update is what the other devices get for an install: the set
 // whole (updateNewStickerSet), with its installed_date; for an archive they
 // get updateStickerSets. A change that changes nothing pushes nothing.
-func (s *Store) Install(ctx context.Context, userID, authKeyID int64, kind Kind, setID int64, archived bool, newSet func(installedAt int64) *mtproto.Update) error {
+func (s *Store) Install(ctx context.Context, userID int64, kind Kind, setID int64, archived bool, newSet func(installedAt int64) *mtproto.Update) error {
 	return s.run(ctx, userID, func(b *userbox.Box) error {
 		rows, err := entries(b, userID, kind)
 		if err != nil {
@@ -158,7 +157,7 @@ func (s *Store) Install(ctx context.Context, userID, authKeyID int64, kind Kind,
 				" AS new ON DUPLICATE KEY UPDATE archived_at = new.archived_at", userID, setID, kind, topOrder(rows), installedAt, now); err != nil {
 				return err
 			}
-			return s.emit(b, setsChanged(kind), authKeyID)
+			return s.emit(b, setsChanged(kind))
 		}
 		installed := installedOf(rows)
 		if len(installed) > 0 && installed[0].SetID == setID {
@@ -173,7 +172,7 @@ func (s *Store) Install(ctx context.Context, userID, authKeyID int64, kind Kind,
 			userID, setID, kind, topOrder(rows), installedAt); err != nil {
 			return err
 		}
-		return s.emit(b, newSet(installedAt), authKeyID)
+		return s.emit(b, newSet(installedAt))
 	})
 }
 
@@ -206,7 +205,7 @@ type Ref struct {
 // unarchived set goes to the top of its kind); a set the account has not
 // is left alone, as installStickerSet with archived adds one. The other devices load each kind it changed again
 // (updateStickerSets); a set it does not change is left alone.
-func (s *Store) Toggle(ctx context.Context, userID, authKeyID int64, action Action, sets []Ref) error {
+func (s *Store) Toggle(ctx context.Context, userID int64, action Action, sets []Ref) error {
 	return s.run(ctx, userID, func(b *userbox.Box) error {
 		changed := map[Kind]bool{}
 		for _, ref := range sets {
@@ -237,7 +236,7 @@ func (s *Store) Toggle(ctx context.Context, userID, authKeyID int64, action Acti
 		}
 		for _, k := range []Kind{Stickers, Masks, Emojis} {
 			if changed[k] {
-				if err := s.emit(b, setsChanged(k), authKeyID); err != nil {
+				if err := s.emit(b, setsChanged(k)); err != nil {
 					return err
 				}
 			}
@@ -251,7 +250,7 @@ func (s *Store) Toggle(ctx context.Context, userID, authKeyID int64, action Acti
 // those it left out in their old order. The other devices get the whole
 // order (updateStickerSetsOrder): iOS and Telegram Desktop load the kind
 // again when it differs from what they have.
-func (s *Store) Reorder(ctx context.Context, userID, authKeyID int64, kind Kind, order []int64) ([]int64, error) {
+func (s *Store) Reorder(ctx context.Context, userID int64, kind Kind, order []int64) ([]int64, error) {
 	var stored []int64
 	err := s.run(ctx, userID, func(b *userbox.Box) error {
 		rows, err := entries(b, userID, kind)
@@ -290,7 +289,7 @@ func (s *Store) Reorder(ctx context.Context, userID, authKeyID int64, kind Kind,
 		}
 		return s.emit(b, mtproto.MakeTLUpdateStickerSetsOrder(&mtproto.Update{
 			Masks: kind == Masks, Emojis: kind == Emojis, Order_VECTORINT64: slices.Clone(stored),
-		}).To_Update(), authKeyID)
+		}).To_Update())
 	})
 	return stored, err
 }
@@ -300,6 +299,15 @@ func setsChanged(kind Kind) *mtproto.Update {
 	return mtproto.MakeTLUpdateStickerSets(&mtproto.Update{Masks: kind == Masks, Emojis: kind == Emojis}).To_Update()
 }
 
-func (s *Store) emit(b *userbox.Box, u *mtproto.Update, authKeyID int64) error {
-	return sync_client.EmitSeqUpdateExcept(b, s.topic, u, nil, nil, authKeyID)
+// emit journals u for every device of the account, the one that made the
+// change too. A difference replays the journal's tail from a date, and may
+// give a device an update it already applied: had a device's own later
+// change been kept from it (EmitSeqUpdateExcept, ADR 0022), another
+// device's earlier install replayed after its own uninstall would install
+// the set again there. With every change in its journal, the tail replayed
+// in order ends where the account is. The echo to the device that made the
+// change does nothing new: a reload, a move to the top it is at, the order
+// it has.
+func (s *Store) emit(b *userbox.Box, u *mtproto.Update) error {
+	return sync_client.EmitSeqUpdate(b, s.topic, u, nil, nil)
 }

@@ -103,7 +103,7 @@ func (c *CatalogCore) toggle(method string, action installed.Action, asks []*mtp
 		}
 		refs = append(refs, installed.Ref{SetID: set.ID, Kind: installed.KindOf(ms.GetSet())})
 	}
-	if err := c.svcCtx.Installed.Toggle(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, action, refs); err != nil {
+	if err := c.svcCtx.Installed.Toggle(c.ctx, c.MD.UserId, action, refs); err != nil {
 		c.Logger.Errorf("%s - error: %v", method, err)
 		return err
 	}
