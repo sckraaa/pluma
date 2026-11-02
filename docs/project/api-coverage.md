@@ -638,8 +638,8 @@
 | `messages.getUnreadReactions` | missing |  |  |
 | `messages.getWebPage32CA8F91` | blocked |  | app/bff/webpage/internal/core/messages.getWebPage_handler.go:59 |
 | `messages.getWebPage8D9692A3` | ok |  | app/bff/webpage/internal/core/messages.getWebPage_handler.go:32 |
-| `messages.getWebPagePreview570D6F6F` | ok |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:36 |
-| `messages.getWebPagePreview8B68B0CC` | blocked |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:64 |
+| `messages.getWebPagePreview570D6F6F` | ok |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:37 |
+| `messages.getWebPagePreview8B68B0CC` | blocked |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:65 |
 | `messages.hideAllChatJoinRequests` | blocked |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:27 |
 | `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:42 |
 | `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
