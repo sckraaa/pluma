@@ -223,7 +223,11 @@ func standLogin(ctx context.Context, t *testing.T, tg *target, run string) *acco
 	hash := o.(*mtproto.TLAuthSentCode).GetPhoneCodeHash()
 	out, err := exec.Command(run, "admin", "login-code", phone).CombinedOutput()
 	m := loginCodeRe.FindSubmatch(out)
-	if err != nil || m == nil {
+	if m == nil {
+		// No code in it: what pluma-admin said is safe to show.
+		t.Fatalf("stand: pluma-admin login-code: %v\n%s", err, out)
+	}
+	if err != nil {
 		t.Fatalf("stand: pluma-admin login-code: %v", err)
 	}
 	o, err = c.Invoke(ctx, &mtproto.TLAuthSignIn{
