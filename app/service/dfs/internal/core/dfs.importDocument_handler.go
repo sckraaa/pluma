@@ -99,6 +99,15 @@ func (c *DfsCore) DfsImportDocument(in *dfs.TLDfsImportDocument) (*mtproto.Docum
 		sizes[typ] = int32(len(data))
 	}
 
+	// The parts are stored for good now. A catalog brings tens of thousands
+	// of documents at once; left for their expiry, the parts filled Redis.
+	// One that is not dropped still expires.
+	for _, f := range append([]*mtproto.InputFile{file}, in.GetThumbFiles()...) {
+		if err := c.svcCtx.Dao.DropFile(c.ctx, in.GetCreator(), f.GetId_INT64()); err != nil {
+			c.Logger.Errorf("dfs.importDocument - drop the parts of %d: %v", f.GetId_INT64(), err)
+		}
+	}
+
 	thumbs := make([]*mtproto.PhotoSize, 0, len(in.GetThumbs()))
 	for _, t := range in.GetThumbs() {
 		if n, ok := sizes[t.GetType()]; ok && t.GetPredicateName() == mtproto.Predicate_photoSize {
