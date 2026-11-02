@@ -61,6 +61,13 @@ func (d *Dao) WriteFilePartData(ctx context.Context, ownerId, fileId int64, file
 	return
 }
 
+// DropFile removes the parts of an uploaded file and its info, once the
+// file is stored for good: otherwise they stay for ssdbExpire.
+func (d *Dao) DropFile(ctx context.Context, ownerId, fileId int64) error {
+	_, err := d.ssdb.DelCtx(ctx, getFileKey(ownerId, fileId), getFileInfoKey(ownerId, fileId))
+	return err
+}
+
 func (d *Dao) ReadFile(ctx context.Context, ownerId, fileId int64, parts int32) (partLength int32, bytes []byte, err error) {
 	var (
 		k = getFileKey(ownerId, fileId)
