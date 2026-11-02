@@ -38,7 +38,10 @@ func TestCatalog(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	u := login(ctx, t, testPhones(t, 1)[0], "Alice")
+	phone := testPhones(t, 1)[0]
+	u := login(ctx, t, phone, "Alice")
+	laptop := login(ctx, t, phone, "Alice")
+	getState(ctx, t, laptop)
 
 	call := func(name string, req mtproto.TLObject) mtproto.TLObject {
 		t.Helper()
@@ -88,4 +91,89 @@ func TestCatalog(t *testing.T) {
 	}
 
 	catalogImport(ctx, t, u)
+	catalogInstall(ctx, t, u, laptop)
+}
+
+// catalogInstall installs the imported set on one device of the account
+// (task 030): the other device gets it whole with its installed_date, the
+// list carries it with a hash that answers NotModified, and an archive and
+// an uninstall reach the other device as "load the sets again".
+func catalogInstall(ctx context.Context, t *testing.T, u, laptop *user) {
+	t.Helper()
+	input := func() *mtproto.InputStickerSet {
+		return mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: "AnimatedEmojies"}).To_InputStickerSet()
+	}
+	all := func(hash int64) *mtproto.Messages_AllStickers {
+		t.Helper()
+		o, err := u.c.Invoke(ctx, &mtproto.TLMessagesGetAllStickers{
+			Constructor: u.c.Constructor(mtproto.Predicate_messages_getAllStickers),
+			Hash:        hash,
+		})
+		if err != nil {
+			t.Fatalf("messages.getAllStickers: %v", err)
+		}
+		return o.(interface {
+			To_Messages_AllStickers() *mtproto.Messages_AllStickers
+		}).To_Messages_AllStickers()
+	}
+	archived := func() int32 {
+		t.Helper()
+		o, err := u.c.Invoke(ctx, &mtproto.TLMessagesGetArchivedStickers{
+			Constructor: u.c.Constructor(mtproto.Predicate_messages_getArchivedStickers),
+			Limit:       100,
+		})
+		if err != nil {
+			t.Fatalf("messages.getArchivedStickers: %v", err)
+		}
+		return o.(interface {
+			To_Messages_ArchivedStickers() *mtproto.Messages_ArchivedStickers
+		}).To_Messages_ArchivedStickers().GetCount()
+	}
+	toggle := func(archive, uninstall bool) {
+		t.Helper()
+		if _, err := u.c.Invoke(ctx, &mtproto.TLMessagesToggleStickerSets{
+			Constructor: u.c.Constructor(mtproto.Predicate_messages_toggleStickerSets),
+			Archive:     archive,
+			Uninstall:   uninstall,
+			Stickersets: []*mtproto.InputStickerSet{input()},
+		}); err != nil {
+			t.Fatalf("messages.toggleStickerSets: %v", err)
+		}
+		waitUpdate(ctx, t, laptop, mtproto.Predicate_updateStickerSets, func(*mtproto.Update) bool { return true })
+	}
+
+	o, err := u.c.Invoke(ctx, &mtproto.TLMessagesInstallStickerSet{
+		Constructor: u.c.Constructor(mtproto.Predicate_messages_installStickerSet),
+		Stickerset:  input(),
+		Archived:    mtproto.BoolFalse,
+	})
+	if err != nil {
+		t.Fatalf("messages.installStickerSet: %v", err)
+	}
+	if res := o.(interface {
+		To_Messages_StickerSetInstallResult() *mtproto.Messages_StickerSetInstallResult
+	}).To_Messages_StickerSetInstallResult(); res.GetPredicateName() != mtproto.Predicate_messages_stickerSetInstallResultSuccess {
+		t.Fatalf("messages.installStickerSet: %v", res)
+	}
+	waitUpdate(ctx, t, laptop, mtproto.Predicate_updateNewStickerSet, func(x *mtproto.Update) bool {
+		set := x.GetStickerset_MESSAGES_STICKERSET()
+		return set.GetSet().GetShortName() == "AnimatedEmojies" && set.GetSet().GetInstalledDate().GetValue() != 0 && len(set.GetDocuments()) == 1
+	})
+
+	list := all(0)
+	if len(list.GetSets()) != 1 || list.GetSets()[0].GetShortName() != "AnimatedEmojies" || list.GetSets()[0].GetInstalledDate() == nil || list.GetHash() == 0 {
+		t.Fatalf("installed sets: %v", list)
+	}
+	if again := all(list.GetHash()); again.GetPredicateName() != mtproto.Predicate_messages_allStickersNotModified {
+		t.Fatalf("installed sets with their hash: %v", again)
+	}
+
+	toggle(true, false)
+	if list := all(0); len(list.GetSets()) != 0 || list.GetHash() != 0 || archived() != 1 {
+		t.Fatalf("after the archive: %v, %d archived", list, archived())
+	}
+	toggle(false, true)
+	if n := archived(); n != 0 {
+		t.Fatalf("after the uninstall: %d archived", n)
+	}
 }
