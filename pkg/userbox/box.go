@@ -249,6 +249,10 @@ func (b *Box) result() *Result {
 // The states of basic groups and of other users come from another user's
 // change, as an inbox event of the account (ADR 0021). A new login is a
 // state of the authorization hash, which clients replace (ADR 0022).
+// Installed sticker sets (task 030) go with seq too: a set installed moves
+// it to the top, an order is the whole order, and the rest is "load the
+// kind again", so a replay of the journal's tail in order ends in the same
+// sets.
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateNotifySettings,
@@ -270,7 +274,10 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateChatDefaultBannedRights,
 		mtproto.Predicate_updatePendingJoinRequests,
 		mtproto.Predicate_updateNewAuthorization,
-		mtproto.Predicate_updateSavedGifs:
+		mtproto.Predicate_updateSavedGifs,
+		mtproto.Predicate_updateNewStickerSet,
+		mtproto.Predicate_updateStickerSets,
+		mtproto.Predicate_updateStickerSetsOrder:
 		return true
 	}
 	return false

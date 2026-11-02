@@ -44,6 +44,14 @@ LoginCode:
   ReviewPhone: "${LOGIN_REVIEW_PHONE}"
   ReviewCode: "${LOGIN_REVIEW_CODE}"
 
+# The bot that fetches sticker and emoji sets from Telegram when a user asks
+# for one the server lacks (task 030, docs/ops/catalog.md); all three
+# empty: no bot, and such a set is STICKERSET_INVALID.
+TelegramBot:
+  ApiId: "${TELEGRAM_API_ID}"
+  ApiHash: "${TELEGRAM_API_HASH}"
+  BotToken: "${TELEGRAM_BOT_TOKEN}"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 

@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 211, partial 27, blocked 99, notimpl 7, fake 7, missing 518 (ok = 24.3%); with a conformance scenario 9
+    layer 228: 869 methods — ok 215, partial 27, blocked 99, notimpl 7, fake 7, missing 514 (ok = 24.7%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 10 | 1 | 12 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 273 | 90 | 22 | 21 | 5 | 2 | 133 | 3 |
+| messages | 273 | 94 | 22 | 21 | 5 | 2 | 129 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -542,8 +542,8 @@
 | `messages.getAdminsWithInvites` | ok |  | app/bff/chatinvites/internal/core/messages.getAdminsWithInvites_handler.go:29 |
 | `messages.getAllChats` | ok |  | app/bff/chats/internal/core/messages.getAllChats_handler.go:29 |
 | `messages.getAllDrafts` | partial |  | app/bff/drafts/internal/core/messages.getAllDrafts_handler.go:30 |
-| `messages.getAllStickers` | ok |  | app/bff/catalog/internal/core/messages.getAllStickers_handler.go:26 |
-| `messages.getArchivedStickers` | ok |  | app/bff/catalog/internal/core/messages.getArchivedStickers_handler.go:26 |
+| `messages.getAllStickers` | ok |  | app/bff/catalog/internal/core/messages.getAllStickers_handler.go:27 |
+| `messages.getArchivedStickers` | ok |  | app/bff/catalog/internal/core/messages.getArchivedStickers_handler.go:32 |
 | `messages.getAttachMenuBot` | missing |  |  |
 | `messages.getAttachMenuBots` | missing |  |  |
 | `messages.getAttachedStickers` | missing |  |  |
@@ -572,7 +572,7 @@
 | `messages.getEmojiProfilePhotoGroups` | ok |  | app/bff/catalog/internal/core/messages.getEmojiProfilePhotoGroups_handler.go:26 |
 | `messages.getEmojiStatusGroups` | ok |  | app/bff/catalog/internal/core/messages.getEmojiStatusGroups_handler.go:26 |
 | `messages.getEmojiStickerGroups` | ok |  | app/bff/catalog/internal/core/messages.getEmojiStickerGroups_handler.go:26 |
-| `messages.getEmojiStickers` | ok |  | app/bff/catalog/internal/core/messages.getEmojiStickers_handler.go:26 |
+| `messages.getEmojiStickers` | ok |  | app/bff/catalog/internal/core/messages.getEmojiStickers_handler.go:27 |
 | `messages.getEmojiURL` | missing |  |  |
 | `messages.getExportedChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.getExportedChatInvite_handler.go:29 |
 | `messages.getExportedChatInvites` | ok |  | app/bff/chatinvites/internal/core/messages.getExportedChatInvites_handler.go:29 |
@@ -589,7 +589,7 @@
 | `messages.getHistory` | ok |  | app/bff/messages/internal/core/messages.getHistory_handler.go:31 |
 | `messages.getInlineBotResults` | missing |  |  |
 | `messages.getInlineGameHighScores` | missing |  |  |
-| `messages.getMaskStickers` | ok |  | app/bff/catalog/internal/core/messages.getMaskStickers_handler.go:26 |
+| `messages.getMaskStickers` | ok |  | app/bff/catalog/internal/core/messages.getMaskStickers_handler.go:27 |
 | `messages.getMessageEditData` | partial |  | app/bff/messages/internal/core/messages.getMessageEditData_handler.go:63 |
 | `messages.getMessageReactionsList` | missing |  |  |
 | `messages.getMessageReadParticipants2C6F97B7` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants2C6F97B7_handler.go:29 |
@@ -629,7 +629,7 @@
 | `messages.getSearchResultsPositions` | notimpl |  | app/bff/messages/internal/core/messages.getSearchResultsPositions_handler.go:27 |
 | `messages.getSplitRanges` | missing |  |  |
 | `messages.getSponsoredMessages` | ok |  | app/bff/sponsoredmessages/internal/core/messages.getSponsoredMessages_handler.go:27 |
-| `messages.getStickerSet` | ok |  | app/bff/catalog/internal/core/messages.getStickerSet_handler.go:30 |
+| `messages.getStickerSet` | ok |  | app/bff/catalog/internal/core/messages.getStickerSet_handler.go:32 |
 | `messages.getStickers` | ok |  | app/bff/catalog/internal/core/messages.getStickers_handler.go:26 |
 | `messages.getSuggestedDialogFilters` | ok |  | app/bff/folders/internal/core/messages.getSuggestedDialogFilters_handler.go:29 |
 | `messages.getTopReactions` | ok |  | app/bff/catalog/internal/core/messages.getTopReactions_handler.go:28 |
@@ -646,7 +646,7 @@
 | `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:30 |
 | `messages.importChatInviteDE91436E` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInviteDE91436E_handler.go:30 |
 | `messages.initHistoryImport` | missing |  |  |
-| `messages.installStickerSet` | missing |  |  |
+| `messages.installStickerSet` | ok |  | app/bff/catalog/internal/core/messages.installStickerSet_handler.go:30 |
 | `messages.markDialogUnread` | ok |  | app/bff/dialogs/internal/core/messages.markDialogUnread_handler.go:37 |
 | `messages.migrateChat` | blocked |  | app/bff/chats/internal/core/messages.migrateChat_handler.go:27 |
 | `messages.prolongWebView` | missing |  |  |
@@ -666,7 +666,7 @@
 | `messages.reorderPinnedForumTopics` | missing |  |  |
 | `messages.reorderPinnedSavedDialogs` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.reorderPinnedSavedDialogs_handler.go:28 |
 | `messages.reorderQuickReplies` | missing |  |  |
-| `messages.reorderStickerSets` | missing |  |  |
+| `messages.reorderStickerSets` | ok |  | app/bff/catalog/internal/core/messages.reorderStickerSets_handler.go:27 |
 | `messages.report8953AB4E` | missing |  |  |
 | `messages.reportEncryptedSpam` | missing |  |  |
 | `messages.reportFC78AF9B` | missing |  |  |
@@ -740,13 +740,13 @@
 | `messages.togglePaidReactionPrivacy` | missing |  |  |
 | `messages.togglePeerTranslations` | missing |  |  |
 | `messages.toggleSavedDialogPin` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.toggleSavedDialogPin_handler.go:32 |
-| `messages.toggleStickerSets` | missing |  |  |
+| `messages.toggleStickerSets` | ok |  | app/bff/catalog/internal/core/messages.toggleStickerSets_handler.go:28 |
 | `messages.toggleSuggestedPostApproval` | missing |  |  |
 | `messages.toggleTodoCompleted` | missing |  |  |
 | `messages.transcribeAudio` | missing |  |  |
 | `messages.translateRichMessage` | blocked |  | app/bff/messages/internal/core/messages.translateRichMessage_handler.go:26 |
 | `messages.translateText` | missing |  |  |
-| `messages.uninstallStickerSet` | missing |  |  |
+| `messages.uninstallStickerSet` | ok |  | app/bff/catalog/internal/core/messages.uninstallStickerSet_handler.go:27 |
 | `messages.unpinAllMessages` | ok |  | app/bff/messages/internal/core/messages.unpinAllMessages_handler.go:28 |
 | `messages.updateDialogFilter` | ok |  | app/bff/folders/internal/core/messages.updateDialogFilter_handler.go:30 |
 | `messages.updateDialogFiltersOrder` | ok |  | app/bff/folders/internal/core/messages.updateDialogFiltersOrder_handler.go:32 |

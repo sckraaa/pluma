@@ -213,6 +213,15 @@ func (s *Store) IDFor(ctx context.Context, kind, name string, newID func() (int6
 	return id, hash, err
 }
 
+// PutSet stores a set fetched on demand (task 030) beside the catalog's:
+// a new import of the catalog keeps it. A set stored again is replaced.
+func (s *Store) PutSet(ctx context.Context, set *Set, now int64) error {
+	_, err := s.db.Exec(ctx, "INSERT INTO catalog_sticker_sets (set_id, access_hash, short_name, source, hash, data, imported_at) VALUES (?, ?, ?, 'demand', ?, ?, ?)"+
+		" ON DUPLICATE KEY UPDATE access_hash = VALUES(access_hash), hash = VALUES(hash), data = VALUES(data), imported_at = VALUES(imported_at)",
+		set.ID, set.AccessHash, set.ShortName, set.Hash, set.Data, now)
+	return err
+}
+
 // Catalog is a whole catalog to store at once.
 type Catalog struct {
 	Answers map[[2]string]Answer // by method and argument
@@ -226,7 +235,10 @@ var ErrEmptyCatalog = errors.New("catalog: nothing to store")
 
 // Replace stores c in one transaction in place of the stored catalog:
 // clients get either the old catalog or the new one, whole. Answers and
-// sets c no longer has are removed; a set keeps its id by short name.
+// sets c no longer has are removed, but for a set an account installed
+// (user_sticker_sets, task 030): it stays as one fetched on demand, without
+// a kind, so the account keeps it as Telegram keeps a set that left its
+// lists. A set keeps its id by short name.
 func (s *Store) Replace(ctx context.Context, c *Catalog) error {
 	if len(c.Answers) == 0 {
 		return ErrEmptyCatalog
@@ -235,7 +247,13 @@ func (s *Store) Replace(ctx context.Context, c *Catalog) error {
 		if _, result.Err = tx.Exec("DELETE FROM catalog_answers"); result.Err != nil {
 			return
 		}
-		if _, result.Err = tx.Exec("DELETE FROM catalog_sticker_sets"); result.Err != nil {
+		// Sets fetched on demand (task 030) stay; one the catalog now has
+		// becomes the catalog's below.
+		if _, result.Err = tx.Exec("UPDATE catalog_sticker_sets SET source = 'demand', kind = NULL WHERE source = 'catalog'" +
+			" AND set_id IN (SELECT set_id FROM user_sticker_sets)"); result.Err != nil {
+			return
+		}
+		if _, result.Err = tx.Exec("DELETE FROM catalog_sticker_sets WHERE source = 'catalog'"); result.Err != nil {
 			return
 		}
 		for key, a := range c.Answers {
@@ -249,7 +267,8 @@ func (s *Store) Replace(ctx context.Context, c *Catalog) error {
 			if set.Kind != "" {
 				kind = set.Kind
 			}
-			if _, result.Err = tx.Exec("INSERT INTO catalog_sticker_sets (set_id, access_hash, short_name, kind, hash, data, imported_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+			if _, result.Err = tx.Exec("INSERT INTO catalog_sticker_sets (set_id, access_hash, short_name, kind, source, hash, data, imported_at) VALUES (?, ?, ?, ?, 'catalog', ?, ?, ?)"+
+				" ON DUPLICATE KEY UPDATE access_hash = VALUES(access_hash), kind = VALUES(kind), source = 'catalog', hash = VALUES(hash), data = VALUES(data), imported_at = VALUES(imported_at)",
 				set.ID, set.AccessHash, set.ShortName, kind, set.Hash, set.Data, c.Now); result.Err != nil {
 				return
 			}

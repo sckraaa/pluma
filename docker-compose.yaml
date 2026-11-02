@@ -58,6 +58,9 @@ services:
       LOGIN_REVIEW_PHONE: ${LOGIN_REVIEW_PHONE:-}
       LOGIN_REVIEW_CODE: ${LOGIN_REVIEW_CODE:-}
       PUSH_SECRET_ENCRYPTION_KEY: ${PUSH_SECRET_ENCRYPTION_KEY:?set PUSH_SECRET_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -220,6 +223,10 @@ services:
       LOGIN_REVIEW_PHONE: ${LOGIN_REVIEW_PHONE:-}
       LOGIN_REVIEW_CODE: ${LOGIN_REVIEW_CODE:-}
       PUSH_SECRET_ENCRYPTION_KEY: ${PUSH_SECRET_ENCRYPTION_KEY:?set PUSH_SECRET_ENCRYPTION_KEY in .env (openssl rand -hex 32)}
+      # The bot of task 030 (sets from Telegram on demand); empty: none.
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     stop_grace_period: 30s
     depends_on:
       sync:

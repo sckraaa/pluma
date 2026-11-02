@@ -17,12 +17,13 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/catalog/installed"
 )
 
 // MessagesGetAllStickers
 // messages.getAllStickers#b8a0a1a8 hash:long = messages.AllStickers;
 //
-// The sticker sets the account installed: none until stage 2 keeps them.
+// The sticker sets the account installed, in its order (allStickers).
 func (c *CatalogCore) MessagesGetAllStickers(in *mtproto.TLMessagesGetAllStickers) (*mtproto.Messages_AllStickers, error) {
-	return emptyAllStickers(), nil
+	return c.allStickers("messages.getAllStickers", installed.Stickers, in.GetHash())
 }
