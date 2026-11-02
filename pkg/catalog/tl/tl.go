@@ -18,7 +18,8 @@
 // 024, ADR 0028). tweb returns API objects as JavaScript values: the
 // predicate in "_", fields by their TL names, true flags in "pFlags", long
 // as a number or a decimal string, bytes as Uint8Array, which the collector
-// writes as {"$b64": …}. Mapping such values onto the server's Go types by
+// writes as {"$b64": …} (a file_reference tweb keeps as an array of
+// numbers). Mapping such values onto the server's Go types by
 // field names would have to guess between fields of one name; serializing
 // them by the schema they came from and decoding the bytes leaves nothing
 // to guess.
@@ -365,11 +366,23 @@ func number(v any) (float64, error) {
 	return x.Float64()
 }
 
-// byteValue reads bytes written as {"$b64": …}.
+// byteValue reads bytes written as {"$b64": …}, or as the array of
+// numbers tweb keeps a file_reference as.
 func byteValue(v any) ([]byte, error) {
+	if list, ok := v.([]any); ok {
+		out := make([]byte, len(list))
+		for i, e := range list {
+			n, err := integer(e, 16)
+			if err != nil || n < 0 || n > 255 {
+				return nil, fmt.Errorf("byte %d of an array: %v", i, e)
+			}
+			out[i] = byte(n)
+		}
+		return out, nil
+	}
 	m, ok := v.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf(`{"$b64": …} expected, %T found`, v)
+		return nil, fmt.Errorf(`{"$b64": …} or an array of bytes expected, %T found`, v)
 	}
 	s, ok := m["$b64"].(string)
 	if !ok || len(m) != 1 {

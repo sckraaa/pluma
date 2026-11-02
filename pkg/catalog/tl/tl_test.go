@@ -16,6 +16,7 @@
 package tl
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -23,19 +24,21 @@ import (
 )
 
 // A sticker as tweb returns it from messages.getStickerSet: a long id over
-// 2^53 as a string, bytes as $b64, an inline path thumbnail, a set
-// reference in its attribute and a true flag in pFlags.
+// 2^53 as a string, bytes as $b64 or as an array of numbers (as tweb
+// keeps file_reference and thumbnail bytes, seen 2026-11-02 in
+// messages.getAvailableReactions), an inline path thumbnail, a set
+// reference in its attribute, an empty one, and a true flag in pFlags.
 const sticker = `{
   "_": "document",
   "pFlags": {},
   "id": "5368324170671202286",
   "access_hash": 1234567,
-  "file_reference": {"$b64": "AQID"},
+  "file_reference": [1, 2, 3],
   "date": 1700000000,
   "mime_type": "application/x-tgsticker",
   "size": 31337,
   "thumbs": [
-    {"_": "photoPathSize", "type": "j", "bytes": {"$b64": "BAUG"}},
+    {"_": "photoPathSize", "type": "j", "bytes": [4, 5, 6]},
     {"_": "photoSize", "type": "m", "w": 128, "h": 128, "size": 4096}
   ],
   "video_thumbs": [{"_": "videoSize", "pFlags": {}, "type": "f", "w": 100, "h": 100, "size": 999}],
@@ -44,7 +47,8 @@ const sticker = `{
     {"_": "documentAttributeImageSize", "w": 512, "h": 512},
     {"_": "documentAttributeSticker", "pFlags": {"mask": true}, "alt": "😀",
      "stickerset": {"_": "inputStickerSetID", "id": "-9000000000000000001", "access_hash": 42}},
-    {"_": "documentAttributeFilename", "file_name": "AnimatedSticker.tgs"}
+    {"_": "documentAttributeFilename", "file_name": "AnimatedSticker.tgs"},
+    {"_": "documentAttributeSticker", "pFlags": {}, "alt": "", "stickerset": {"_": "inputStickerSetEmpty"}}
   ]
 }`
 
@@ -72,7 +76,7 @@ func TestDecodeDocument(t *testing.T) {
 		t.Fatalf("video thumbs %v", doc.GetVideoThumbs())
 	}
 	attrs := doc.GetAttributes()
-	if len(attrs) != 3 || attrs[1].GetPredicateName() != mtproto.Predicate_documentAttributeSticker || !attrs[1].GetMask() ||
+	if len(attrs) != 4 || attrs[3].GetStickerset().GetPredicateName() != mtproto.Predicate_inputStickerSetEmpty || attrs[1].GetPredicateName() != mtproto.Predicate_documentAttributeSticker || !attrs[1].GetMask() ||
 		attrs[1].GetAlt() != "😀" || attrs[1].GetStickerset().GetId() != -9000000000000000001 || attrs[1].GetStickerset().GetAccessHash() != 42 ||
 		attrs[2].GetFileName() != "AnimatedSticker.tgs" {
 		t.Fatalf("attributes %v", attrs)
@@ -101,6 +105,7 @@ func TestEncodeForms(t *testing.T) {
 		"wrong type":    map[string]any{"_": "emojiKeyword", "keyword": 5, "emoticons": []any{}},
 		"not an object": []any{1},
 		"bad bytes":     map[string]any{"_": "photoStrippedSize", "type": "i", "bytes": "AQID"},
+		"a byte of 256": map[string]any{"_": "photoStrippedSize", "type": "i", "bytes": []any{json.Number("256")}},
 	} {
 		if _, err := Default.Decode(v); err == nil {
 			t.Errorf("%s: accepted", name)
