@@ -140,7 +140,9 @@ func writeCollection(t *testing.T) string {
 	set := map[string]any{
 		"_": "messages.stickerSet",
 		"set": map[string]any{"_": "stickerSet", "pFlags": map[string]any{"emojis": true}, "id": "777", "access_hash": "8", "title": "Animated",
-			"short_name": "AnimatedEmojies", "count": 2, "hash": 123},
+			"short_name": "AnimatedEmojies", "count": 2, "hash": 123,
+			"thumbs":      []any{map[string]any{"_": "photoSize", "type": "s", "w": 100, "h": 100, "size": 10}},
+			"thumb_dc_id": 2, "thumb_version": 5},
 		"packs": []any{
 			map[string]any{"_": "stickerPack", "emoticon": "😀", "documents": []any{fmt.Sprint(tgA)}},
 			map[string]any{"_": "stickerPack", "emoticon": "😃", "documents": []any{fmt.Sprint(tgB)}},
@@ -255,6 +257,9 @@ func TestImport(t *testing.T) {
 	set := &mtproto.Messages_StickerSet{}
 	if err := proto.Unmarshal(cat.stored.Sets[0].Data, set); err != nil {
 		t.Fatal(err)
+	}
+	if len(set.GetSet().GetThumbs()) != 0 || set.GetSet().GetThumbVersion() != nil || set.GetSet().GetThumbDcId() != nil {
+		t.Fatalf("the set's own thumbnail stayed: %v", set.GetSet())
 	}
 	if set.GetSet().GetId() == 777 || set.GetSet().GetHash() == 123 || set.GetSet().GetHash() != cat.stored.Sets[0].Hash ||
 		cat.stored.Sets[0].Kind != catalog.KindAnimatedEmoji {

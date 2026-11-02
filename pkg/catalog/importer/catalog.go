@@ -52,6 +52,18 @@ func (im *Importer) catalog(c *collection) (*catalog.Catalog, error) {
 		out.Now = im.Now()
 	}
 
+	// A set's own thumbnail (inputStickerSetThumb) is not served: the
+	// server has no plugin for it (app/bff/files, Plugin1), and a client
+	// shown one it cannot fetch draws an empty cover. Without one, clients
+	// cover a set with its thumb_document_id or its first sticker.
+	for _, m := range c.all() {
+		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
+			if set, ok := x.Interface().(*mtproto.StickerSet); ok {
+				set.Thumbs, set.ThumbDcId, set.ThumbVersion = nil, nil, nil
+			}
+		})
+	}
+
 	setHash := map[int64]int32{}
 	for i, s := range c.sets {
 		s.Set.Hash = 0
