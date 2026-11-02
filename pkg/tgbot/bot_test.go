@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -35,6 +36,7 @@ type fakeTelegram struct {
 	imported map[int32]bool // DCs the authorization was carried to
 	flood    int            // FLOOD_WAIT_1 answers left for getStickerSet
 	timeouts int            // -503 Timeout answers left for upload.getFile
+	broken   int            // closed connections left for getStickerSet
 	file     []byte
 }
 
@@ -74,6 +76,10 @@ func (c *fakeConn) InvokeRaw(_ context.Context, req mtproto.TLObject) ([]byte, e
 	case *mtproto.TLMessagesGetStickerSet:
 		if c.dc != 4 {
 			return nil, errors.New("not logged in")
+		}
+		if c.t.broken > 0 {
+			c.t.broken--
+			return nil, io.EOF
 		}
 		if c.t.flood > 0 {
 			c.t.flood--
@@ -154,6 +160,21 @@ func TestStickerSetAndFile(t *testing.T) {
 	}
 	if _, err := b.File(ctx, doc, "", partSize); err == nil {
 		t.Fatal("a file over the limit")
+	}
+}
+
+// A connection Telegram closed is dialed again and the request sent once
+// more; one that breaks again is an error.
+func TestClosedConnection(t *testing.T) {
+	ft := &fakeTelegram{imported: map[int32]bool{}, broken: 1}
+	b := newTestBot(t, ft)
+	in := mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: "Free420"}).To_InputStickerSet()
+	if set, err := b.StickerSet(context.Background(), in); err != nil || set.GetSet().GetShortName() != "Free420" {
+		t.Fatalf("after a closed connection: %v, %v", set, err)
+	}
+	ft.broken = 2
+	if _, err := b.StickerSet(context.Background(), in); !errors.Is(err, io.EOF) {
+		t.Fatalf("closed twice: %v", err)
 	}
 }
 
