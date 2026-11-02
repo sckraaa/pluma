@@ -42,7 +42,16 @@
   - `pkg/tgbot` (`cb08c9af`) — клиент бота. Вход ботом, переход на его DC, адреса DC из `help.getConfig`, перенос авторизации на DC файла, `FILE_MIGRATE`, `FLOOD_WAIT`, параллельное скачивание. Тесты на поддельном Telegram.
   - `pkg/catalog/demand` и `importer.ImportSet` (`1cfc2bad`). Одна загрузка на имя, «нет такого» запоминается на час, лимиты. Хранение рядом с каталогом: `source = 'demand'`, `migrate-20261103-catalog-demand.sql`, импорт каталога такие наборы не удаляет.
   - `getStickerSet` по имени берёт недостающий набор у Telegram (`5983276d`). Переменные бота передаются в `bff` и `migrate`, пустые — бот выключен. Описание — `docs/ops/catalog.md`.
-- **Не проверено на настоящем Telegram:** нужна выкатка.
-- **Дальше:** установленные наборы пользователя: `installStickerSet`, `uninstallStickerSet`, `toggleStickerSets`, `reorderStickerSets`, `getAllStickers`, `getEmojiStickers`, `getMaskStickers`, `getArchivedStickers`. По образцу сохранённых GIF (`f5293da1`): сервис user, таблица, обновления с `seq` на другие устройства (`updateNewStickerSet`, `updateStickerSets`, `updateStickerSetsOrder`), хэш `getAllStickers` по формуле клиентов (`CountStickersOrderHash`, `docs/tasks/024-research/semantics.md`).
+  - Установленные наборы аккаунта (`d9f20be6`, `1c7665f4`). Таблица `user_sticker_sets` (`migrate-20261103-user-sticker-sets.sql`), пакет `pkg/catalog/installed`. Методы `installStickerSet`, `uninstallStickerSet`, `toggleStickerSets`, `reorderStickerSets`, `getAllStickers`, `getMaskStickers`, `getEmojiStickers`, `getArchivedStickers`. Другие устройства аккаунта получают обновления с `seq` (кроме устройства, сделавшего изменение, ADR 0022): `updateNewStickerSet` при установке, `updateStickerSets` при удалении и архивации, `updateStickerSetsOrder` с полным порядком. Исследование клиентов — `docs/tasks/030-research/`.
+- **Решения (подтвердить):**
+  - Автоархивации нет: `installStickerSet` всегда отвечает `stickerSetInstallResultSuccess`.
+  - Все операции идемпотентны. Установка уже установленного набора поднимает его наверх; удаление или архивация отсутствующего — без ошибки и без обновления.
+  - `toggleStickerSets` требует ровно один флаг и не больше 200 наборов, иначе `INPUT_REQUEST_INVALID`.
+  - Порядок нормализуется: неизвестные и повторные id отбрасываются, пропущенные дописываются в старом порядке.
+  - Три обновления наборов пишутся в журнал `seq` (`userbox.SeqUpdate`). Хвост журнала, применённый заново по порядку, приводит к тому же итогу: установка поднимает набор наверх, порядок задаётся целиком, остальное — «перезагрузить».
+  - `STICKERSET_INVALID` остаётся 400, как в `getStickerSet`. В документации Telegram — 406; вживую не проверено.
+- **Проверка:** юнит-тесты обработчиков; интеграционный тест `pkg/catalog/installed` на MySQL (порядок, архив, нормализация, строки журнала `seq` с `except_auth_key_id`). Без исправлений тест падал: эти обновления не были в списке `seq`, тема не регистрировалась.
+- **Не проверено на настоящем Telegram и в клиентах:** нужны слияние и выкатка.
+- **Дальше:** e2e (установка и список через стенд), слияние, выкатка, проверка ссылки `t.me/addstickers` в четырёх клиентах, ADR 0029.
 
 ## Результат
