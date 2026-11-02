@@ -62,7 +62,3 @@ func emptyEmojiStatuses() *mtproto.Account_EmojiStatuses {
 func emptyEmojiList() *mtproto.EmojiList {
 	return mtproto.MakeTLEmojiList(&mtproto.EmojiList{DocumentId: []int64{}}).To_EmojiList()
 }
-
-func emptyAllStickers() *mtproto.Messages_AllStickers {
-	return mtproto.MakeTLMessagesAllStickers(&mtproto.Messages_AllStickers{Sets: []*mtproto.StickerSet{}}).To_Messages_AllStickers()
-}

@@ -17,12 +17,13 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/catalog/installed"
 )
 
 // MessagesGetEmojiStickers
 // messages.getEmojiStickers#fbfca18f hash:long = messages.AllStickers;
 //
-// The custom emoji sets the account installed: none until stage 2 keeps them.
+// The custom emoji sets the account installed, in its order (allStickers).
 func (c *CatalogCore) MessagesGetEmojiStickers(in *mtproto.TLMessagesGetEmojiStickers) (*mtproto.Messages_AllStickers, error) {
-	return emptyAllStickers(), nil
+	return c.allStickers("messages.getEmojiStickers", installed.Emojis, in.GetHash())
 }

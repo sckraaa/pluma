@@ -21,11 +21,13 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/catalog/internal/svc"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
 	"github.com/teamgram/teamgram-server/pkg/catalog/demand"
+	"github.com/teamgram/teamgram-server/pkg/catalog/installed"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -303,5 +305,129 @@ func TestStickerSetOnDemand(t *testing.T) {
 	}
 	if len(d.asked) != 2 {
 		t.Fatalf("asked %v", d.asked)
+	}
+}
+
+// memInstalled is the installed sets of a test, with the updates it would
+// push.
+type memInstalled struct {
+	rows    map[int64][]installed.Entry // by user, installed first in order
+	updates []*mtproto.Update
+	toggled []installed.Ref
+	action  installed.Action
+}
+
+func (m *memInstalled) Installed(_ context.Context, user int64, kind installed.Kind) ([]installed.Entry, error) {
+	var out []installed.Entry
+	for _, e := range m.rows[user] {
+		if e.Kind == kind && e.ArchivedAt == 0 {
+			out = append(out, e)
+		}
+	}
+	return out, nil
+}
+
+func (m *memInstalled) Archived(_ context.Context, user int64, kind installed.Kind) ([]installed.Entry, error) {
+	var out []installed.Entry
+	for _, e := range m.rows[user] {
+		if e.Kind == kind && e.ArchivedAt > 0 {
+			out = append(out, e)
+		}
+	}
+	return out, nil
+}
+
+func (m *memInstalled) Install(_ context.Context, user, _ int64, kind installed.Kind, set int64, archived bool, newSet func(int64) *mtproto.Update) error {
+	if m.rows == nil {
+		m.rows = map[int64][]installed.Entry{}
+	}
+	m.rows[user] = append([]installed.Entry{{SetID: set, Kind: kind, InstalledAt: 1700000000}}, m.rows[user]...)
+	if !archived {
+		m.updates = append(m.updates, newSet(1700000000))
+	}
+	return nil
+}
+
+func (m *memInstalled) Toggle(_ context.Context, _, _ int64, action installed.Action, sets []installed.Ref) error {
+	m.action, m.toggled = action, sets
+	return nil
+}
+
+func (m *memInstalled) Reorder(_ context.Context, _, _ int64, _ installed.Kind, order []int64) ([]int64, error) {
+	return order, nil
+}
+
+func setOf(t *testing.T, id int64, name string, hash int32, emojis bool) *catalog.Set {
+	t.Helper()
+	ms := mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
+		Set:       mtproto.MakeTLStickerSet(&mtproto.StickerSet{Id: id, AccessHash: id + 1, ShortName: name, Hash: hash, Emojis: emojis}).To_StickerSet(),
+		Documents: []*mtproto.Document{mtproto.MakeTLDocument(&mtproto.Document{Id: id * 10}).To_Document()},
+	}).To_Messages_StickerSet()
+	b, err := proto.Marshal(ms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return &catalog.Set{ID: id, AccessHash: id + 1, ShortName: name, Hash: hash, Data: b}
+}
+
+// A set installed goes to the account's list with its installed_date; the
+// other devices get it whole; the list's hash is the one clients count.
+func TestInstallAndList(t *testing.T) {
+	ins := &memInstalled{}
+	cat := &memCatalog{sets: []*catalog.Set{setOf(t, 10, "Cats", 7, false), setOf(t, 20, "Dogs", -3, false), setOf(t, 30, "Emo", 5, true)}}
+	c := New(context.Background(), &svc.ServiceContext{Catalog: cat, Media: &fakeMedia{}, Installed: ins})
+	c.MD = &metadata.RpcMetadata{UserId: 42, PermAuthKeyId: 9}
+	for _, name := range []string{"Cats", "Dogs", "Emo"} {
+		r, err := c.MessagesInstallStickerSet(&mtproto.TLMessagesInstallStickerSet{
+			Stickerset: mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: name}).To_InputStickerSet(),
+			Archived:   mtproto.BoolFalse,
+		})
+		if err != nil || r.GetPredicateName() != mtproto.Predicate_messages_stickerSetInstallResultSuccess {
+			t.Fatalf("install %s: %v, %v", name, r, err)
+		}
+	}
+	u := ins.updates[0].GetStickerset_MESSAGES_STICKERSET()
+	if ins.updates[0].GetPredicateName() != mtproto.Predicate_updateNewStickerSet || u.GetSet().GetInstalledDate().GetValue() != 1700000000 || len(u.GetDocuments()) != 1 {
+		t.Fatalf("update %v", ins.updates[0])
+	}
+	all, err := c.MessagesGetAllStickers(&mtproto.TLMessagesGetAllStickers{})
+	if err != nil || len(all.GetSets()) != 2 || all.GetSets()[0].GetShortName() != "Dogs" || all.GetSets()[0].GetInstalledDate() == nil {
+		t.Fatalf("all stickers %v, %v", all, err)
+	}
+	want := uint64(0)
+	for _, h := range []int64{-3, 7} {
+		want ^= want >> 21
+		want ^= want << 35
+		want ^= want >> 4
+		want += uint64(h)
+	}
+	if all.GetHash() != int64(want) {
+		t.Fatalf("hash %d, want %d", all.GetHash(), int64(want))
+	}
+	if nm, _ := c.MessagesGetAllStickers(&mtproto.TLMessagesGetAllStickers{Hash: all.GetHash()}); nm.GetPredicateName() != mtproto.Predicate_messages_allStickersNotModified {
+		t.Fatalf("with its hash: %v", nm)
+	}
+	if emo, _ := c.MessagesGetEmojiStickers(&mtproto.TLMessagesGetEmojiStickers{}); len(emo.GetSets()) != 1 || emo.GetSets()[0].GetShortName() != "Emo" {
+		t.Fatalf("emoji sets %v", emo)
+	}
+
+	// Archived, a page at a time; emoji sets with all their documents.
+	ins.rows[42] = append(ins.rows[42], installed.Entry{SetID: 10, Kind: installed.Stickers, InstalledAt: 1, ArchivedAt: 5}, installed.Entry{SetID: 20, Kind: installed.Stickers, InstalledAt: 1, ArchivedAt: 4})
+	arch, err := c.MessagesGetArchivedStickers(&mtproto.TLMessagesGetArchivedStickers{Limit: 1})
+	if err != nil || arch.GetCount() != 2 || len(arch.GetSets()) != 1 || !arch.GetSets()[0].GetSet().GetArchived() || arch.GetSets()[0].GetCover().GetId() != 100 {
+		t.Fatalf("archived %v, %v", arch, err)
+	}
+	if next, _ := c.MessagesGetArchivedStickers(&mtproto.TLMessagesGetArchivedStickers{OffsetId: 10, Limit: 5}); len(next.GetSets()) != 1 || next.GetSets()[0].GetSet().GetId() != 20 {
+		t.Fatalf("the next page %v", next)
+	}
+
+	// Exactly one action; the sets' kinds go with them.
+	if _, err := c.MessagesToggleStickerSets(&mtproto.TLMessagesToggleStickerSets{Archive: true, Uninstall: true}); !errors.Is(err, mtproto.ErrInputRequestInvalid) {
+		t.Fatalf("two actions: %v", err)
+	}
+	if _, err := c.MessagesToggleStickerSets(&mtproto.TLMessagesToggleStickerSets{Archive: true, Stickersets: []*mtproto.InputStickerSet{
+		mtproto.MakeTLInputStickerSetID(&mtproto.InputStickerSet{Id: 30, AccessHash: 31}).To_InputStickerSet(),
+	}}); err != nil || ins.action != installed.Archive || len(ins.toggled) != 1 || ins.toggled[0].Kind != installed.Emojis {
+		t.Fatalf("archive: %v, %v %v", err, ins.action, ins.toggled)
 	}
 }

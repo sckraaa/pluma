@@ -282,6 +282,7 @@ func (s *Server) Initialize() error {
 			MediaClient:   c.MediaClient,
 			DfsClient:     c.DfsClient,
 			TelegramBot:   c.TelegramBot,
+			SyncTopic:     c.SyncClient.Topic,
 		})
 		mtproto.RegisterRPCReactionsServer(grpcServer, catalog)
 		mtproto.RegisterRPCStickersServer(grpcServer, catalog)

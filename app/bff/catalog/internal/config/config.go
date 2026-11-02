@@ -27,4 +27,5 @@ type Config struct {
 	MediaClient zrpc.RpcClientConf
 	DfsClient   zrpc.RpcClientConf
 	TelegramBot tgbot.Settings // fetches sets on demand (task 030); empty: none
+	SyncTopic   string         // the pushes of the account's sets to its devices (mq_outbox topic of bff)
 }

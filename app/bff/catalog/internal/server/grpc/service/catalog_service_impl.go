@@ -144,19 +144,28 @@ func (s *Service) MessagesGetStickerSet(ctx context.Context, request *mtproto.TL
 	return c.MessagesGetStickerSet(request)
 }
 
-// MessagesInstallStickerSet is not served: messages.installStickerSet#c78fe460 stickerset:InputStickerSet archived:Bool = messages.StickerSetInstallResult;
+// MessagesInstallStickerSet
+// messages.installStickerSet#c78fe460 stickerset:InputStickerSet archived:Bool = messages.StickerSetInstallResult;
 func (s *Service) MessagesInstallStickerSet(ctx context.Context, request *mtproto.TLMessagesInstallStickerSet) (*mtproto.Messages_StickerSetInstallResult, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.installStickerSet - metadata: {%s}", c.MD)
+	return c.MessagesInstallStickerSet(request)
 }
 
-// MessagesUninstallStickerSet is not served: messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
+// MessagesUninstallStickerSet
+// messages.uninstallStickerSet#f96e55de stickerset:InputStickerSet = Bool;
 func (s *Service) MessagesUninstallStickerSet(ctx context.Context, request *mtproto.TLMessagesUninstallStickerSet) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.uninstallStickerSet - metadata: {%s}", c.MD)
+	return c.MessagesUninstallStickerSet(request)
 }
 
-// MessagesReorderStickerSets is not served: messages.reorderStickerSets#78337739 flags:# masks:flags.0?true emojis:flags.1?true order:Vector<long> = Bool;
+// MessagesReorderStickerSets
+// messages.reorderStickerSets#78337739 flags:# masks:flags.0?true emojis:flags.1?true order:Vector<long> = Bool;
 func (s *Service) MessagesReorderStickerSets(ctx context.Context, request *mtproto.TLMessagesReorderStickerSets) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.reorderStickerSets - metadata: {%s}", c.MD)
+	return c.MessagesReorderStickerSets(request)
 }
 
 // MessagesGetFeaturedStickers
@@ -229,9 +238,12 @@ func (s *Service) MessagesSearchStickerSets(ctx context.Context, request *mtprot
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesToggleStickerSets is not served: messages.toggleStickerSets#b5052fea flags:# uninstall:flags.0?true archive:flags.1?true unarchive:flags.2?true stickersets:Vector<InputStickerSet> = Bool;
+// MessagesToggleStickerSets
+// messages.toggleStickerSets#b5052fea flags:# uninstall:flags.0?true archive:flags.1?true unarchive:flags.2?true stickersets:Vector<InputStickerSet> = Bool;
 func (s *Service) MessagesToggleStickerSets(ctx context.Context, request *mtproto.TLMessagesToggleStickerSets) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.toggleStickerSets - metadata: {%s}", c.MD)
+	return c.MessagesToggleStickerSets(request)
 }
 
 // MessagesGetOldFeaturedStickers
