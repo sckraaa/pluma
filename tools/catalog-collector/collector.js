@@ -273,11 +273,34 @@ async function collectCatalog({put, have = async () => false, log = () => {}, ma
       await fetchFile(job);
     }
   }
+  // A file kept on another DC than its document's (seen for the video of
+  // a message effect) is answered 303 FILE_MIGRATE_X. tweb parses a 303 only
+  // for PHONE_, NETWORK_, USER_ and STATS_MIGRATE_ and fails on this one with
+  // a TypeError, not an RPC error (src/lib/appManagers/apiManager.ts, the
+  // error.code === 303 branch), so the DC is not known: the file is asked of
+  // the other DCs in turn.
   async function fetchFile({d, type, path}) {
     const location = {_: 'inputDocumentFileLocation', id: d.id, access_hash: d.access_hash, file_reference: d.file_reference, thumb_size: type};
+    let dcId = d.dc_id;
+    const get = (offset) => call('upload.getFile', {location, offset, limit: 1 << 20}, {dcId, fileDownload: true});
     const parts = [];
     for (let offset = 0; ; offset += 1 << 20) {
-      const r = await call('upload.getFile', {location, offset, limit: 1 << 20}, {dcId: d.dc_id, fileDownload: true});
+      let r;
+      try {
+        r = await get(offset);
+      } catch (e) {
+        if (stopped || offset || !e || e.type) throw e;
+        for (const dc of [1, 2, 3, 4, 5].filter((x) => x !== d.dc_id)) {
+          dcId = dc;
+          try {
+            r = await get(offset);
+            break;
+          } catch (e2) {
+            if (stopped || !e2 || e2.type) throw e2;
+          }
+        }
+        if (!r) throw e;
+      }
       if (r._ !== 'upload.file') throw new Error(`collector: ${r._} for ${d.id}`);
       parts.push(r.bytes);
       if (r.bytes.length < (1 << 20)) break;
