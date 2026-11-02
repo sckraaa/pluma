@@ -10,7 +10,9 @@
 -- catalog_documents: the document each imported one became, by a key of
 -- what makes it that document (SHA-256 of its file and of the set it
 -- belongs to), so that importing again gives the same ids; a set keeps its
--- id by short_name.
+-- id by short_name. By document_id it tells the documents of the catalog,
+-- which anyone may fetch by id (messages.getCustomEmojiDocuments), from
+-- the documents of users, which nobody may.
 --
 -- An import writes all of a catalog in one transaction. Safe on an empty
 -- and on a populated database, and safe to run again.
@@ -40,5 +42,6 @@ CREATE TABLE IF NOT EXISTS `catalog_sticker_sets` (
 CREATE TABLE IF NOT EXISTS `catalog_documents` (
   `doc_key` binary(32) NOT NULL,
   `document_id` bigint(20) NOT NULL,
-  PRIMARY KEY (`doc_key`)
+  PRIMARY KEY (`doc_key`),
+  KEY `document_id` (`document_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

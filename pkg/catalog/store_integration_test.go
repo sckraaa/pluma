@@ -114,4 +114,7 @@ func TestStore(t *testing.T) {
 	if id, err := s.DocumentID(ctx, key); err != nil || id != 99 {
 		t.Fatalf("a document: %d, %v", id, err)
 	}
+	if ids, err := s.CatalogDocuments(ctx, []int64{5, 99, 7, 99}); err != nil || len(ids) != 1 || ids[0] != 99 {
+		t.Fatalf("documents of the catalog: %v, %v", ids, err)
+	}
 }

@@ -24,6 +24,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 )
@@ -137,6 +138,36 @@ func (s *Store) DocumentID(ctx context.Context, key [32]byte) (int64, error) {
 		return 0, nil
 	}
 	return rows[0].DocumentID, nil
+}
+
+// CatalogDocuments returns those of ids that are documents of the
+// catalog, in the order of ids, each once.
+func (s *Store) CatalogDocuments(ctx context.Context, ids []int64) ([]int64, error) {
+	if len(ids) == 0 {
+		return []int64{}, nil
+	}
+	query, args := "SELECT document_id FROM catalog_documents WHERE document_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")", make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	var rows []struct {
+		DocumentID int64 `db:"document_id"`
+	}
+	if err := s.db.QueryRowsPartial(ctx, &rows, query, args...); err != nil {
+		return nil, err
+	}
+	known := make(map[int64]bool, len(rows))
+	for _, r := range rows {
+		known[r.DocumentID] = true
+	}
+	out := make([]int64, 0, len(rows))
+	for _, id := range ids {
+		if known[id] {
+			out = append(out, id)
+			delete(known, id)
+		}
+	}
+	return out, nil
 }
 
 // PutDocument records the document a document of the catalog became. It
