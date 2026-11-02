@@ -32,7 +32,7 @@ function fakeTelegram({failOn} = {}) {
     2: {_: 'messages.stickerSet', set: {_: 'stickerSet', id: 2, access_hash: 7, short_name: 'Two'}, packs: [], keywords: [], documents: [doc(22, 2)]},
   };
   const calls = [];
-  const invokeApi = async (method, params) => {
+  const invokeApi = async (method, params, options = {}) => {
     calls.push(method);
     if (failOn && method === failOn) throw {code: 401, type: 'AUTH_KEY_UNREGISTERED'};
     switch (method) {
@@ -53,6 +53,10 @@ function fakeTelegram({failOn} = {}) {
       case 'messages.getCustomEmojiDocuments':
         return params.document_id.includes('5269590556232664327') ? [doc(5269590556232664327n.toString(), 2)] : [];
       case 'upload.getFile':
+        // The thumbnail of 22 is on DC 4: tweb fails on its 303.
+        if (String(params.location.id) === '22' && params.location.thumb_size && options.dcId !== 4) {
+          throw new TypeError("Cannot read properties of null (reading '2')");
+        }
         return {_: 'upload.file', bytes: params.location.thumb_size ? new Uint8Array([4, 4]) : new Uint8Array([1, 2, 3])};
       default:
         return {_: 'emojiList', hash: 0, document_id: []};
@@ -83,6 +87,7 @@ test('collects answers, every named set and the files, the manifest last', async
   assert.deepEqual(m.files[0].thumbs, {m: `files/${m.files[0].id}.m`});
   assert.deepEqual([...out.get(`files/${m.files[0].id}`)], [1, 2, 3]);
   assert.equal(r.files, 6);
+  assert.deepEqual([...out.get('files/22.m')], [4, 4], 'a file of another DC');
   // Bytes go as $b64, ids as they are.
   assert.match(out.get('sets/1.json'), /"bytes":\{"\$b64":"CQ=="\}/);
 });
@@ -101,5 +106,6 @@ test('goes on from where it stopped: files there already are not downloaded', as
   const there = new Set(['files/11', 'files/11.m']);
   await load(tg)({put: async (p, b) => out.set(p, b), have: async (p) => there.has(p), pauseMs: [0, 0]});
   assert.ok(!out.has('files/11') && out.has('files/22') && out.has('manifest.json'));
-  assert.equal(tg.calls.filter((m) => m === 'upload.getFile').length, 4);
+  // 22, 22.m (on DC 4: asked of DCs 2, 1, 3, 4) and the custom emoji's two.
+  assert.equal(tg.calls.filter((m) => m === 'upload.getFile').length, 7);
 });
