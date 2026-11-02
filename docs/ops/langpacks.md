@@ -8,17 +8,17 @@
 3. **Клиенты** узнают новую версию из `help.getConfig` (`lang_pack_version`) и сами запрашивают разницу. Перезапуск сервисов не нужен.
 
 ## Команды
-Запускать там, где виден MySQL стека, — в контейнере bff. Снимки удобно держать на хосте, например в `/opt/pluma/langpacks/<дата>`.
+Запускать там, где виден MySQL стека, — в контейнере bff. На сервере со своим адресом (`PLUMA_PUBLIC_IPV4`) compose всегда вызывается с обоими файлами, как ниже. Без `docker-compose.public-ip.yaml` compose считает сеть `teamgram_net` изменённой и пересоздаёт её. Тогда все контейнеры на ходу получают новые адреса, а исходящий трафик уходит с основного адреса сервера. Так 2026-11-02 в 04:42 UTC таймер обновления положил доставку сообщений до перезапуска Kafka (`docs/ops/deployment.md`, «Схема»). На машине разработки этого файла нет: там второй `-f` не нужен. Снимки удобно держать на хосте, например в `/opt/pluma/langpacks/<дата>`.
 
 ```bash
 cd /opt/pluma
 set -a; . ./.env; set +a      # TELEGRAM_API_ID и пароли; значения не выводить
 D=$(date +%F)
-docker compose -f docker-compose.yaml run --rm --no-deps -e TELEGRAM_API_ID \
+docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml run --rm --no-deps -e TELEGRAM_API_ID \
   -v /opt/pluma/langpacks:/langpacks bff ./pluma-admin langpack fetch -out /langpacks/$D
-docker compose -f docker-compose.yaml run --rm --no-deps \
+docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml run --rm --no-deps \
   -v /opt/pluma/langpacks:/langpacks bff ./pluma-admin -f ../etc2/bff.yaml langpack import /langpacks/$D
-docker compose -f docker-compose.yaml exec bff ./pluma-admin -f ../etc2/bff.yaml langpack list
+docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml exec bff ./pluma-admin -f ../etc2/bff.yaml langpack list
 ```
 
 - **`fetch`**
@@ -46,8 +46,8 @@ Type=oneshot
 WorkingDirectory=/opt/pluma
 EnvironmentFile=/opt/pluma/.env
 ExecStart=/bin/sh -c 'D=$(date +%%F) && \
-  docker compose -f docker-compose.yaml run --rm --no-deps -e TELEGRAM_API_ID -v /opt/pluma/langpacks:/langpacks bff ./pluma-admin langpack fetch -out /langpacks/$D && \
-  docker compose -f docker-compose.yaml run --rm --no-deps -v /opt/pluma/langpacks:/langpacks bff ./pluma-admin -f ../etc2/bff.yaml langpack import /langpacks/$D && \
+  docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml run --rm --no-deps -e TELEGRAM_API_ID -v /opt/pluma/langpacks:/langpacks bff ./pluma-admin langpack fetch -out /langpacks/$D && \
+  docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml run --rm --no-deps -v /opt/pluma/langpacks:/langpacks bff ./pluma-admin -f ../etc2/bff.yaml langpack import /langpacks/$D && \
   find /opt/pluma/langpacks -mindepth 1 -maxdepth 1 -type d -mtime +14 -exec rm -rf {} +'
 ```
 

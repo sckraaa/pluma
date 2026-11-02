@@ -26,7 +26,11 @@ services:
       # a topic made on first use would have the wrong partitions.
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       # 外部访问监听端口为 9092，容器内部使用不同的端口 9094
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094,CONTROLLER://localhost:9093,PLAINTEXT_CONTAINER://kafka:9092
+      # The container listener binds every address, not the one "kafka"
+      # resolves to at start: Docker gives the container a new address when
+      # the network is recreated, and a listener on the old one refused every
+      # service until Kafka restarted (2026-11-02).
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094,CONTROLLER://localhost:9093,PLAINTEXT_CONTAINER://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9094,PLAINTEXT_CONTAINER://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_CONTAINER:PLAINTEXT
