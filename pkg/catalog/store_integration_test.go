@@ -22,6 +22,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -95,11 +96,13 @@ func TestStore(t *testing.T) {
 
 	// A catalog that cannot be stored leaves the stored one.
 	bad := &Catalog{
-		Answers: map[[2]string]Answer{{"help.getTimezonesList", ""}: {Data: []byte("tz")}},
-		Sets:    []*Set{{ID: 30, ShortName: "A"}, {ID: 31, ShortName: "a"}},
+		Answers: map[[2]string]Answer{
+			{"help.getTimezonesList", ""}:                           {Data: []byte("tz")},
+			{"messages.getEmojiKeywords", strings.Repeat("x", 200)}: {Data: []byte("too long an argument")},
+		},
 	}
 	if err := s.Replace(ctx, bad); err == nil {
-		t.Fatal("two sets of one short name stored")
+		t.Fatal("an answer that does not fit stored")
 	}
 	if a, _ := s.Answer(ctx, "messages.getAvailableReactions", ""); a == nil || a.Hash != 8 {
 		t.Fatalf("after a failed replacement: %+v", a)
@@ -142,5 +145,30 @@ func TestStore(t *testing.T) {
 	}
 	if set, err := s.SetByKind(ctx, "inputStickerSetDice:🏀"); err != nil || set == nil || string(set.Data) != "🏀" {
 		t.Fatalf("a die: %+v, %v", set, err)
+	}
+
+	// A set fetched on demand stays through a new catalog; one the catalog
+	// then has becomes the catalog's.
+	if err := s.PutSet(ctx, &Set{ID: 70, AccessHash: 71, ShortName: "Free420", Hash: 3, Data: []byte("demand")}, 300); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.PutSet(ctx, &Set{ID: 72, AccessHash: 73, ShortName: "roflmoji", Data: []byte("demand")}, 300); err != nil {
+		t.Fatal(err)
+	}
+	again := &Catalog{
+		Answers: map[[2]string]Answer{{"help.getTimezonesList", ""}: {Data: []byte("tz")}},
+		Sets:    []*Set{{ID: 72, AccessHash: 73, ShortName: "roflmoji", Data: []byte("catalog")}},
+	}
+	if err := s.Replace(ctx, again); err != nil {
+		t.Fatal(err)
+	}
+	if set, err := s.SetByShortName(ctx, "free420"); err != nil || set == nil || string(set.Data) != "demand" {
+		t.Fatalf("a set on demand after a new catalog: %+v, %v", set, err)
+	}
+	if set, err := s.SetByShortName(ctx, "roflmoji"); err != nil || set == nil || string(set.Data) != "catalog" {
+		t.Fatalf("a set the catalog took over: %+v, %v", set, err)
+	}
+	if set, _ := s.SetByKind(ctx, "inputStickerSetDice:🏀"); set != nil {
+		t.Fatal("a set of the old catalog stayed")
 	}
 }

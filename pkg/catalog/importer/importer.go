@@ -22,6 +22,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -53,6 +54,7 @@ type Catalog interface {
 	DocumentID(ctx context.Context, key [32]byte) (int64, error)
 	PutDocument(ctx context.Context, key [32]byte, documentID int64) error
 	Replace(ctx context.Context, c *catalog.Catalog) error
+	PutSet(ctx context.Context, set *catalog.Set, now int64) error
 }
 
 // Importer puts collections into the server.
@@ -73,8 +75,11 @@ type Result struct {
 
 // collection is a collection read and decoded.
 type collection struct {
-	root       *os.Root
-	manifest   *Manifest
+	root     *os.Root
+	manifest *Manifest
+	// fetch gives the files of a document when the collection is not on
+	// disk (a set fetched on demand, ImportSet).
+	fetch      FileSource
 	answers    map[[2]string]proto.Message
 	sets       []*mtproto.Messages_StickerSet
 	setKinds   []string
@@ -425,7 +430,7 @@ func newIDPair() (int64, int64, error) {
 // by an earlier import, and returns how many it stored.
 func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int, error) {
 	files := map[int64]DocumentFiles{}
-	for _, f := range c.manifest.Files {
+	for _, f := range c.manifestFiles() {
 		id, err := strconv.ParseInt(f.ID, 10, 64)
 		if err != nil {
 			return 0, fmt.Errorf("importer: files of %q: %w", f.ID, err)
@@ -455,11 +460,20 @@ func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int
 	known := map[int64]int64{} // Telegram's id → this server's, stored earlier
 	for _, tgID := range tgIDs {
 		doc := docs[tgID]
-		f, ok := files[tgID]
-		if !ok {
-			return 0, fmt.Errorf("importer: document %d has no files", tgID)
+		var (
+			file   []byte
+			thumbs map[string][]byte
+			err    error
+		)
+		if c.fetch != nil {
+			file, thumbs, err = fetchFiles(ctx, c.fetch, doc)
+		} else {
+			f, ok := files[tgID]
+			if !ok {
+				return 0, fmt.Errorf("importer: document %d has no files", tgID)
+			}
+			file, thumbs, err = c.files(doc, f)
 		}
-		file, thumbs, err := c.files(doc, f)
 		if err != nil {
 			return 0, err
 		}
@@ -551,6 +565,84 @@ var KeptIDs = map[int64]bool{
 	5386654653003864312: true,
 	5373141891321699086: true,
 	5197252827247841976: true,
+}
+
+// manifestFiles are the files the manifest lists, none without one.
+func (c *collection) manifestFiles() []DocumentFiles {
+	if c.manifest == nil {
+		return nil
+	}
+	return c.manifest.Files
+}
+
+// FileSource gives the file of a document, or of its thumbnail of a type.
+type FileSource = func(ctx context.Context, doc *mtproto.Document, thumb string) ([]byte, error)
+
+// fetchFiles gets the file of doc and of each downloadable thumbnail.
+func fetchFiles(ctx context.Context, fetch FileSource, doc *mtproto.Document) ([]byte, map[string][]byte, error) {
+	file, err := fetch(ctx, doc, "")
+	if err != nil {
+		return nil, nil, err
+	}
+	thumbs := map[string][]byte{}
+	for _, t := range downloadableThumbs(doc) {
+		b, err := fetch(ctx, doc, t)
+		if err != nil {
+			return nil, nil, err
+		}
+		thumbs[t] = b
+	}
+	return file, thumbs, nil
+}
+
+// downloadableThumbs are the types of a document's thumbnails that are
+// files, not inline.
+func downloadableThumbs(doc *mtproto.Document) []string {
+	var out []string
+	for _, t := range doc.GetThumbs() {
+		switch t.GetPredicateName() {
+		case mtproto.Predicate_photoSize, mtproto.Predicate_photoSizeProgressive:
+			out = append(out, t.GetType())
+		}
+	}
+	for _, v := range doc.GetVideoThumbs() {
+		if v.GetPredicateName() == mtproto.Predicate_videoSize {
+			out = append(out, v.GetType())
+		}
+	}
+	return out
+}
+
+// ImportSet puts one set fetched from Telegram on demand (task 030) into
+// the server as Run does a collection: its documents with ids of this
+// server, their files from fetch, and the set stored beside the catalog
+// (Catalog.PutSet), which a new import of the catalog keeps. A sticker of
+// it that names another set Telegram has keeps no set to open.
+func (im *Importer) ImportSet(ctx context.Context, set *mtproto.Messages_StickerSet, fetch FileSource) (*catalog.Set, error) {
+	if set.GetPredicateName() != mtproto.Predicate_messages_stickerSet || set.GetSet().GetShortName() == "" {
+		return nil, errors.New("importer: not a set")
+	}
+	c := &collection{sets: []*mtproto.Messages_StickerSet{set}, setKinds: []string{""}, answers: map[[2]string]proto.Message{}, fetch: fetch}
+	c.unshared()
+	ids := NewIDs()
+	if err := im.setIDs(ctx, c, ids); err != nil {
+		return nil, err
+	}
+	if _, err := im.documents(ctx, c, ids); err != nil {
+		return nil, err
+	}
+	if err := ids.Rewrite(set); err != nil {
+		return nil, err
+	}
+	out, err := im.catalog(c)
+	if err != nil {
+		return nil, err
+	}
+	stored := out.Sets[0]
+	if err := im.Catalog.PutSet(ctx, stored, out.Now); err != nil {
+		return nil, err
+	}
+	return stored, nil
 }
 
 // files reads the file of doc and of its downloadable thumbnails; a

@@ -36,6 +36,7 @@ type memCatalog struct {
 	docs       map[[32]byte]int64
 	ids        map[[2]string][2]int64
 	failUpdate bool
+	demand     map[string]*catalog.Set
 }
 
 func (m *memCatalog) IDFor(_ context.Context, kind, name string, newID func() (int64, int64, error)) (int64, int64, error) {
@@ -59,6 +60,14 @@ func (m *memCatalog) DocumentID(_ context.Context, key [32]byte) (int64, error) 
 
 func (m *memCatalog) PutDocument(_ context.Context, key [32]byte, id int64) error {
 	m.docs[key] = id
+	return nil
+}
+
+func (m *memCatalog) PutSet(_ context.Context, set *catalog.Set, _ int64) error {
+	if m.demand == nil {
+		m.demand = map[string]*catalog.Set{}
+	}
+	m.demand[set.ShortName] = set
 	return nil
 }
 
@@ -497,5 +506,62 @@ func TestCheck(t *testing.T) {
 	}
 	if _, err := Check(dir); err == nil {
 		t.Fatal("a set the collection lacks passed the check")
+	}
+}
+
+// A set fetched on demand: its documents with ids of this server, their
+// files from the source, the set stored beside the catalog; again, nothing
+// is fetched or stored twice.
+func TestImportSet(t *testing.T) {
+	sticker := func(id int64) *mtproto.Document {
+		return mtproto.MakeTLDocument(&mtproto.Document{
+			Id: id, AccessHash: 3, MimeType: "image/webp", DcId: 4, Size2_INT64: 4,
+			Thumbs: []*mtproto.PhotoSize{mtproto.MakeTLPhotoSize(&mtproto.PhotoSize{Type: "m", W: 128, H: 128, Size2: 2}).To_PhotoSize()},
+			Attributes: []*mtproto.DocumentAttribute{mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{
+				Alt: "😀", Stickerset: mtproto.MakeTLInputStickerSetID(&mtproto.InputStickerSet{Id: 55, AccessHash: 1}).To_InputStickerSet(),
+			}).To_DocumentAttribute()},
+		}).To_Document()
+	}
+	newSet := func() *mtproto.Messages_StickerSet {
+		return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
+			Set:       mtproto.MakeTLStickerSet(&mtproto.StickerSet{Id: 55, AccessHash: 1, ShortName: "Free420", Title: "Free", Count: 2}).To_StickerSet(),
+			Packs:     []*mtproto.StickerPack{mtproto.MakeTLStickerPack(&mtproto.StickerPack{Emoticon: "😀", Documents: []int64{8001, 8002}}).To_StickerPack()},
+			Documents: []*mtproto.Document{sticker(8001), sticker(8002)},
+		}).To_Messages_StickerSet()
+	}
+	fetched := 0
+	fetch := func(_ context.Context, doc *mtproto.Document, thumb string) ([]byte, error) {
+		fetched++
+		if thumb != "" {
+			return []byte("mm"), nil
+		}
+		return []byte(fmt.Sprintf("%04d", doc.GetId()%10000)), nil
+	}
+	cat := &memCatalog{docs: map[[32]byte]int64{}}
+	docs := &memDocuments{byID: map[int64]*mtproto.Document{}, files: map[int64][]byte{}}
+	im := &Importer{Catalog: cat, Documents: docs}
+	stored, err := im.ImportSet(context.Background(), newSet(), fetch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fetched != 4 || len(docs.byID) != 2 || cat.demand["Free420"] != stored || stored.ID == 55 {
+		t.Fatalf("fetched %d, stored %d documents, set %+v", fetched, len(docs.byID), stored)
+	}
+	set := &mtproto.Messages_StickerSet{}
+	if err := proto.Unmarshal(stored.Data, set); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range set.GetDocuments() {
+		if d.GetId() < 1001 || d.GetAttributes()[0].GetStickerset().GetId() != stored.ID {
+			t.Fatalf("document %v", d)
+		}
+	}
+	if set.GetPacks()[0].GetDocuments()[0] < 1001 || set.GetSet().GetHash() != stored.Hash {
+		t.Fatalf("set %v", set)
+	}
+	fetched = 0
+	again, err := im.ImportSet(context.Background(), newSet(), fetch)
+	if err != nil || again.ID != stored.ID || len(docs.byID) != 2 {
+		t.Fatalf("again: %+v, %v, %d documents", again, err, len(docs.byID))
 	}
 }
