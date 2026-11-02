@@ -35,6 +35,14 @@
 		reverse_proxy iosinstall:9098
 	}
 
+	# A collection of the catalog from Telegram, from the collector in a tab
+	# of Telegram Web K (docker-compose.catalog.yaml, docs/ops/catalog.md).
+	# Without that service, which runs only during a collection, it answers
+	# 502.
+	handle /collect/* {
+		reverse_proxy catalog-receiver:9099
+	}
+
 	root * /pluma-site/current
 	encode zstd gzip
 

@@ -51,3 +51,12 @@ func TestCatalogCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestCatalogReceiveUsage(t *testing.T) {
+	var out bytes.Buffer
+	for _, args := range [][]string{{"catalog", "receive"}, {"catalog", "receive", "-listen", ":1"}, {"catalog", "receive", "-dir", "x", "extra"}} {
+		if err := catalogCommand(args, "", &out); !errors.Is(err, errUsage) {
+			t.Errorf("%v: %v", args, err)
+		}
+	}
+}

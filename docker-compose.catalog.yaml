@@ -1,0 +1,18 @@
+# The receiver of a collection of the catalog from Telegram (task 024, ADR
+# 0028, docs/ops/catalog.md), behind Caddy at /collect/ of the site's names.
+# It runs only while a collection goes, and is stopped and removed after:
+#
+#   CATALOG_UPLOAD_TOKEN=$(openssl rand -hex 24) docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.catalog.yaml up -d catalog-receiver
+#   docker compose ... -f docker-compose.catalog.yaml rm -sf catalog-receiver
+services:
+  catalog-receiver:
+    image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
+    working_dir: /app/bin
+    command: ["./pluma-admin", "catalog", "receive", "-dir", "/catalog/${PLUMA_CATALOG_RUN:?set PLUMA_CATALOG_RUN, the name of the run}", "-listen", ":9099"]
+    environment:
+      CATALOG_UPLOAD_TOKEN: ${CATALOG_UPLOAD_TOKEN:?set CATALOG_UPLOAD_TOKEN for the run}
+    volumes:
+      - ${PLUMA_CATALOG_DIR:-/opt/pluma/catalog}:/catalog
+    networks:
+      - teamgram_net
+    restart: "no"

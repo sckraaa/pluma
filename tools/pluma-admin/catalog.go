@@ -17,8 +17,11 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/teamgram/marmota/pkg/net/rpcx"
@@ -27,6 +30,7 @@ import (
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
 	"github.com/teamgram/teamgram-server/pkg/catalog/importer"
+	"github.com/teamgram/teamgram-server/pkg/catalog/receiver"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -56,10 +60,14 @@ type catalogImporter interface {
 	Run(ctx context.Context, dir string) (*importer.Result, error)
 }
 
-// catalogCommand runs catalog import: a collection of the catalog from
-// Telegram (task 024, ADR 0028; docs/ops/catalog.md) replaces the catalog
-// the server answers with.
+// catalogCommand runs catalog receive and import (task 024, ADR 0028;
+// docs/ops/catalog.md): receive takes a collection from the collector in a
+// tab of Telegram Web K, import puts it in place of the catalog the server
+// answers with.
 func catalogCommand(args []string, configFile string, stdout io.Writer) error {
+	if len(args) >= 2 && args[1] == "receive" {
+		return catalogReceive(args[2:], stdout)
+	}
 	if len(args) != 3 || args[1] != "import" {
 		return errUsage
 	}
@@ -78,4 +86,39 @@ func catalogCommand(args []string, configFile string, stdout io.Writer) error {
 	}
 	fmt.Fprintf(stdout, "catalog: %d answers, %d sets, %d documents (%d stored now).\n", r.Answers, r.Sets, r.Documents, r.NewDocuments)
 	return nil
+}
+
+// catalogReceive serves the receiver until stopped; the token of the run is
+// $CATALOG_UPLOAD_TOKEN (at least receiver.MinToken characters).
+func catalogReceive(args []string, stdout io.Writer) error {
+	flags := flag.NewFlagSet("catalog receive", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	dir := flags.String("dir", "", "the directory of the collection")
+	listen := flags.String("listen", ":9099", "the address to listen on")
+	if err := flags.Parse(args); err != nil || *dir == "" || flags.NArg() != 0 {
+		return errUsage
+	}
+	if err := os.MkdirAll(*dir, 0o750); err != nil {
+		return err
+	}
+	root, err := os.OpenRoot(*dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	logf := func(format string, a ...any) { fmt.Fprintf(stdout, format+"\n", a...) }
+	r, err := receiver.New(root, os.Getenv("CATALOG_UPLOAD_TOKEN"), logf)
+	if err != nil {
+		return err
+	}
+	srv := &http.Server{
+		Addr:              *listen,
+		Handler:           r,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      time.Minute,
+		IdleTimeout:       2 * time.Minute,
+	}
+	logf("receiver: listening on %s", *listen)
+	return srv.ListenAndServe()
 }
