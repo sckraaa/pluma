@@ -19,6 +19,7 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -35,4 +36,8 @@ type Config struct {
 	MediaClient   zrpc.RpcClientConf
 	UpdatesClient zrpc.RpcClientConf
 	SyncClient    sync_client.OutboxConf
+	// The cards of links (pkg/webpage, task 023): their cache and the
+	// storage of their pictures.
+	Mysql     sqlx.Config
+	DfsClient zrpc.RpcClientConf
 }

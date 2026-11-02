@@ -17,6 +17,7 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
+	"google.golang.org/grpc/status"
 )
 
 // draft
@@ -43,6 +44,13 @@ func (c *MessagesCore) doClearDraft(ctx context.Context, userId int64, authKeyId
 			})
 	}
 }
+
+// webPageWait is how long a message with a chosen card waits for it: the
+// client asked for it while the user typed, so it is usually stored.
+const webPageWait = 8 * time.Second
+
+// errWebpageNotFound is the answer to a chosen card that cannot be made.
+var errWebpageNotFound = status.Error(mtproto.ErrBadRequest, "WEBPAGE_NOT_FOUND")
 
 func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (messageMedia *mtproto.MessageMedia, err error) {
 	var (
@@ -251,8 +259,27 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
 	case mtproto.Predicate_inputMediaWebPage:
 		// inputMediaWebPage#c21b8849 flags:# force_large_media:flags.0?true force_small_media:flags.1?true optional:flags.2?true url:string = InputMedia;
-
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		//
+		// pluma: the card the user chose while typing, with the size of its
+		// picture (task 023): manual, so the message keeps it. A link
+		// without a card is WEBPAGE_NOT_FOUND, or plain text if optional
+		// (core.telegram.org/constructor/inputMediaWebPage).
+		ctx, cancel := context.WithTimeout(c.ctx, webPageWait)
+		page, perr := c.svcCtx.WebPages.Preview(ctx, media.GetUrl())
+		cancel()
+		switch {
+		case perr == nil && page.GetPredicateName() == mtproto.Predicate_webPage:
+			messageMedia = mtproto.MakeTLMessageMediaWebPage(&mtproto.MessageMedia{
+				ForceLargeMedia: media.GetForceLargeMedia(),
+				ForceSmallMedia: media.GetForceSmallMedia(),
+				Manual:          true,
+				Webpage:         page,
+			}).To_MessageMedia()
+		case media.GetOptional():
+			messageMedia = mtproto.MakeTLMessageMediaEmpty(nil).To_MessageMedia()
+		default:
+			err = errWebpageNotFound
+		}
 	case mtproto.Predicate_inputMediaPaidMedia:
 		// inputMediaPaidMedia#c4103386 flags:# stars_amount:long extended_media:Vector<InputMedia> payload:flags.0?string = InputMedia;
 

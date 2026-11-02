@@ -13,6 +13,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/mention"
+	"github.com/teamgram/teamgram-server/pkg/webpage"
 
 	"mvdan.cc/xurls/v2"
 )
@@ -45,16 +46,12 @@ func RemakeMessage(ctx context.Context, plugin MsgPlugin, message *mtproto.Messa
 		return idxList
 	}
 
-	var firstUrl string
 	rIndexes := xurls.Relaxed().FindAllStringIndex(message.Message, -1)
 	if len(rIndexes) > 0 {
 		if len(idxList) == 0 {
 			getIdxList()
 		}
-		for idx, v := range rIndexes {
-			if idx == 0 {
-				firstUrl = message.Message[v[0]:v[1]]
-			}
+		for _, v := range rIndexes {
 			entityUrl := mtproto.MakeTLMessageEntityUrl(&mtproto.MessageEntity{
 				Offset: int32(idxList[v[0]]),
 				Length: int32(idxList[v[1]] - idxList[v[0]]),
@@ -63,12 +60,22 @@ func RemakeMessage(ctx context.Context, plugin MsgPlugin, message *mtproto.Messa
 		}
 	}
 
-	if !noWebpage && firstUrl != "" && plugin != nil {
-		webpage, _ := plugin.GetWebpagePreview(ctx, firstUrl)
-		if webpage != nil {
-			message.Media = mtproto.MakeTLMessageMediaWebPage(&mtproto.MessageMedia{
-				Webpage: webpage,
-			}).To_MessageMedia()
+	// pluma: the card of the message's first link (task 023), hidden links
+	// (messageEntityTextUrl) included. A message with media of its own (a
+	// photo with a caption) keeps it, and so does one with the card the
+	// client chose (inputMediaWebPage: manual). A card of an earlier text
+	// (an edit) is made anew, or dropped with the link.
+	switch media := message.GetMedia(); {
+	case media.GetPredicateName() == mtproto.Predicate_messageMediaWebPage && !media.GetManual():
+		message.Media = nil
+		fallthrough
+	case media == nil || media.GetPredicateName() == mtproto.Predicate_messageMediaEmpty:
+		if link := webpage.FirstLink(message.Message, message.Entities); !noWebpage && link != "" && plugin != nil {
+			if page, _ := plugin.GetWebpagePreview(ctx, link); page != nil {
+				message.Media = mtproto.MakeTLMessageMediaWebPage(&mtproto.MessageMedia{
+					Webpage: page,
+				}).To_MessageMedia()
+			}
 		}
 	}
 

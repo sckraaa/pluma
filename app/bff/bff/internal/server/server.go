@@ -55,6 +55,7 @@ import (
 	usernames_helper "github.com/teamgram/teamgram-server/app/bff/usernames"
 	users_helper "github.com/teamgram/teamgram-server/app/bff/users"
 	webbrowserhelper "github.com/teamgram/teamgram-server/app/bff/webbrowser"
+	webpage_helper "github.com/teamgram/teamgram-server/app/bff/webpage"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/conf"
@@ -262,6 +263,16 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCFoldersServer(grpcServer, folders)
 		mtproto.RegisterRPCFolderTagsServer(grpcServer, folders)
 
+		// webpage_helper: the cards of links (task 023).
+		mtproto.RegisterRPCWebPageServer(
+			grpcServer,
+			webpage_helper.New(webpage_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				DfsClient:     c.DfsClient,
+				MediaClient:   c.MediaClient,
+			}))
+
 		// gifs_helper: the saved GIFs.
 		mtproto.RegisterRPCGifsServer(
 			grpcServer,
@@ -311,6 +322,8 @@ func (s *Server) Initialize() error {
 				MediaClient:   c.MediaClient,
 				UpdatesClient: c.BizServiceClient,
 				SyncClient:    syncClient,
+				Mysql:         c.Mysql,
+				DfsClient:     c.DfsClient,
 			}, nil))
 
 		// notification_helper; it answers messages.reportMessagesDelivery of

@@ -19,21 +19,32 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/messages/plugin"
+	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/webpage"
 )
 
 type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
 	Plugin plugin.MessagesPlugin
+	// WebPages builds the cards of links (task 023).
+	WebPages *webpage.Service
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
+	d := dao.New(c)
 	return &ServiceContext{
 		Config: c,
-		Dao:    dao.New(c),
+		Dao:    d,
 		Plugin: plugin,
+		WebPages: webpage.NewService(sqlx.NewMySQL(&c.Mysql), webpage.RPCPhotos{
+			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
+			Media: d.MediaClient,
+		}),
 	}
 }

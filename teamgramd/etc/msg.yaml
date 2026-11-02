@@ -66,3 +66,19 @@ BizServiceClient:
     Hosts:
       - 127.0.0.1:2379
     Key: service.biz_service
+
+# The cards of links in sent messages (pkg/webpage, task 023): their
+# pictures go to dfs and media as photos.
+DfsClient:
+  Timeout: 60000
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.dfs
+
+MediaClient:
+  Timeout: 60000
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.media

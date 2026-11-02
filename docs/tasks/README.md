@@ -48,7 +48,7 @@
 | [020](020-parity-quick-fixes.md) | Быстрые правки по сверке с Telegram | in progress |
 | [021](021-language-packs.md) | Языковые пакеты | todo |
 | [022](022-service-chat-history.md) | Служебный чат 777000 с историей на сервере | todo |
-| [023](023-link-previews.md) | Превью ссылок | todo |
+| [023](023-link-previews.md) | Превью ссылок | done |
 | [024](024-telegram-data-import.md) | Импорт данных Telegram | todo |
 | [025](025-moderation-and-premium-panel.md) | Панель модерации: жалобы и Premium | todo |
 | [026](026-pluma-links.md) | Ссылки pluma.chat вместо t.me | todo |

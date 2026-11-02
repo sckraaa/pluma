@@ -32,6 +32,9 @@ type Config struct {
 	Cache            cache.CacheConf
 	IdgenClient      zrpc.RpcClientConf
 	BizServiceClient zrpc.RpcClientConf
+	// The cards of links in sent messages (pkg/webpage, task 023).
+	DfsClient   zrpc.RpcClientConf
+	MediaClient zrpc.RpcClientConf
 	// Topics of the events msg writes; the relay of msg publishes them.
 	Topics Topics
 	// Relay publishes mq_outbox to Kafka (pkg/outbox).

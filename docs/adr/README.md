@@ -32,3 +32,4 @@
 | [0024](0024-android-push-session.md) | Пуш-сессия Android (token_type 7): приём регистрации и разбор id без знака | accepted |
 | [0025](0025-language-packs.md) | Языковые пакеты: снимки из `langpack.*` Telegram, версии в MySQL, замена «Telegram» на «Pluma» при импорте | accepted |
 | [0026](0026-service-chat-history.md) | Сообщения служебного аккаунта 777000 — настоящие сообщения истории; заменяет п. 4 ADR 0022 | accepted |
+| [0027](0027-link-previews.md) | Превью ссылок: сборщик только в публичный интернет, кэш в MySQL, без webPagePending | accepted |

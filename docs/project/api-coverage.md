@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 170, partial 27, blocked 97, notimpl 7, fake 24, missing 544 (ok = 19.6%); with a conformance scenario 9
+    layer 228: 869 methods — ok 172, partial 27, blocked 99, notimpl 7, fake 24, missing 540 (ok = 19.8%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 7 | 1 | 12 | 0 | 0 | 8 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 273 | 64 | 22 | 19 | 5 | 16 | 147 | 3 |
+| messages | 273 | 66 | 22 | 21 | 5 | 16 | 143 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 | 0 |
@@ -636,10 +636,10 @@
 | `messages.getUnreadMentions` | partial |  | app/bff/messages/internal/core/messages.getUnreadMentions_handler.go:30 |
 | `messages.getUnreadPollVotes` | missing |  |  |
 | `messages.getUnreadReactions` | missing |  |  |
-| `messages.getWebPage32CA8F91` | missing |  |  |
-| `messages.getWebPage8D9692A3` | missing |  |  |
-| `messages.getWebPagePreview570D6F6F` | missing |  |  |
-| `messages.getWebPagePreview8B68B0CC` | missing |  |  |
+| `messages.getWebPage32CA8F91` | blocked |  | app/bff/webpage/internal/core/messages.getWebPage_handler.go:59 |
+| `messages.getWebPage8D9692A3` | ok |  | app/bff/webpage/internal/core/messages.getWebPage_handler.go:32 |
+| `messages.getWebPagePreview570D6F6F` | ok |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:37 |
+| `messages.getWebPagePreview8B68B0CC` | blocked |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:65 |
 | `messages.hideAllChatJoinRequests` | blocked |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:27 |
 | `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:42 |
 | `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
