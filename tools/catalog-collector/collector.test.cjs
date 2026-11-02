@@ -94,3 +94,12 @@ test('stops on an error that could hurt the session, and writes no manifest', as
   assert.ok(!out.has('manifest.json'));
   assert.ok(!tg.calls.includes('upload.getFile'));
 });
+
+test('goes on from where it stopped: files there already are not downloaded', async () => {
+  const tg = fakeTelegram();
+  const out = new Map();
+  const there = new Set(['files/11', 'files/11.m']);
+  await load(tg)({put: async (p, b) => out.set(p, b), have: async (p) => there.has(p), pauseMs: [0, 0]});
+  assert.ok(!out.has('files/11') && out.has('files/22') && out.has('manifest.json'));
+  assert.equal(tg.calls.filter((m) => m === 'upload.getFile').length, 4);
+});

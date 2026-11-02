@@ -26,10 +26,10 @@
 // or session error, or a FLOOD_WAIT over two minutes. Metadata is asked
 // one call at a time with a pause; files at most four at once.
 //
-//   await collectCatalog({put: async (path, body) => {…}, log: console.log})
+//   await collectCatalog({put: async (path, body) => {…}, have: async (path) => false, log: console.log})
 
 /* eslint-disable no-await-in-loop */
-async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [300, 800]}) {
+async function collectCatalog({put, have = async () => false, log = () => {}, maxParallel = 4, pauseMs = [300, 800]}) {
   const LAYER = 228;
   const api = rootScope.managers.apiManager;
 
@@ -258,7 +258,14 @@ async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [
     await refreshed.get(key);
     return true;
   }
+  let skipped = 0;
   async function download(job) {
+    // A collection that stopped goes on: a file the receiver has is not
+    // asked for again.
+    if (await have(job.path)) {
+      if (++skipped % 5000 === 0) log(`collector: ${skipped} files there already`);
+      return;
+    }
     try {
       await fetchFile(job);
     } catch (e) {

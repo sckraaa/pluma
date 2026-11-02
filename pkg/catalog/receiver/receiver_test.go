@@ -69,6 +69,17 @@ func TestReceiver(t *testing.T) {
 	if b, err := os.ReadFile(filepath.Join(dir, "files", "123.m")); err != nil || string(b) != "thumb" {
 		t.Fatalf("written %q, %v", b, err)
 	}
+	if w := do(r, http.MethodHead, "/collect/files/123.m", Origin, token, nil); w.Code != http.StatusNoContent {
+		t.Fatalf("head of a file there: %d", w.Code)
+	}
+	for _, p := range []string{"/collect/files/124.m", "/collect/files"} {
+		if w := do(r, http.MethodHead, p, Origin, token, nil); w.Code == http.StatusNoContent {
+			t.Fatalf("head of %s: %d", p, w.Code)
+		}
+	}
+	if w := do(r, http.MethodHead, "/collect/files/123.m", Origin, "", nil); w.Code != http.StatusForbidden {
+		t.Fatalf("head without the token: %d", w.Code)
+	}
 	if w := do(r, http.MethodPut, "/collect/manifest.json", Origin, token, []byte("{}")); w.Code != http.StatusNoContent {
 		t.Fatalf("manifest %d", w.Code)
 	}
