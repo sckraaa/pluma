@@ -41,6 +41,7 @@ const (
 	RPCDfs_DfsUploadThemeFile_FullMethodName          = "/dfs.RPCDfs/dfs_uploadThemeFile"
 	RPCDfs_DfsUploadRingtoneFile_FullMethodName       = "/dfs.RPCDfs/dfs_uploadRingtoneFile"
 	RPCDfs_DfsUploadedProfilePhoto_FullMethodName     = "/dfs.RPCDfs/dfs_uploadedProfilePhoto"
+	RPCDfs_DfsImportDocument_FullMethodName           = "/dfs.RPCDfs/dfs_importDocument"
 )
 
 // RPCDfsClient is the client API for RPCDfs service.
@@ -59,6 +60,7 @@ type RPCDfsClient interface {
 	DfsUploadThemeFile(ctx context.Context, in *TLDfsUploadThemeFile, opts ...grpc.CallOption) (*mtproto.Document, error)
 	DfsUploadRingtoneFile(ctx context.Context, in *TLDfsUploadRingtoneFile, opts ...grpc.CallOption) (*mtproto.Document, error)
 	DfsUploadedProfilePhoto(ctx context.Context, in *TLDfsUploadedProfilePhoto, opts ...grpc.CallOption) (*mtproto.Photo, error)
+	DfsImportDocument(ctx context.Context, in *TLDfsImportDocument, opts ...grpc.CallOption) (*mtproto.Document, error)
 }
 
 type rPCDfsClient struct {
@@ -189,6 +191,16 @@ func (c *rPCDfsClient) DfsUploadedProfilePhoto(ctx context.Context, in *TLDfsUpl
 	return out, nil
 }
 
+func (c *rPCDfsClient) DfsImportDocument(ctx context.Context, in *TLDfsImportDocument, opts ...grpc.CallOption) (*mtproto.Document, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Document)
+	err := c.cc.Invoke(ctx, RPCDfs_DfsImportDocument_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCDfsServer is the server API for RPCDfs service.
 // All implementations should embed UnimplementedRPCDfsServer
 // for forward compatibility.
@@ -205,6 +217,7 @@ type RPCDfsServer interface {
 	DfsUploadThemeFile(context.Context, *TLDfsUploadThemeFile) (*mtproto.Document, error)
 	DfsUploadRingtoneFile(context.Context, *TLDfsUploadRingtoneFile) (*mtproto.Document, error)
 	DfsUploadedProfilePhoto(context.Context, *TLDfsUploadedProfilePhoto) (*mtproto.Photo, error)
+	DfsImportDocument(context.Context, *TLDfsImportDocument) (*mtproto.Document, error)
 }
 
 // UnimplementedRPCDfsServer should be embedded to have
@@ -249,6 +262,9 @@ func (UnimplementedRPCDfsServer) DfsUploadRingtoneFile(context.Context, *TLDfsUp
 }
 func (UnimplementedRPCDfsServer) DfsUploadedProfilePhoto(context.Context, *TLDfsUploadedProfilePhoto) (*mtproto.Photo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DfsUploadedProfilePhoto not implemented")
+}
+func (UnimplementedRPCDfsServer) DfsImportDocument(context.Context, *TLDfsImportDocument) (*mtproto.Document, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DfsImportDocument not implemented")
 }
 func (UnimplementedRPCDfsServer) testEmbeddedByValue() {}
 
@@ -486,6 +502,24 @@ func _RPCDfs_DfsUploadedProfilePhoto_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCDfs_DfsImportDocument_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDfsImportDocument)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDfsServer).DfsImportDocument(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDfs_DfsImportDocument_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDfsServer).DfsImportDocument(ctx, req.(*TLDfsImportDocument))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCDfs_ServiceDesc is the grpc.ServiceDesc for RPCDfs service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -540,6 +574,10 @@ var RPCDfs_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "dfs_uploadedProfilePhoto",
 			Handler:    _RPCDfs_DfsUploadedProfilePhoto_Handler,
+		},
+		{
+			MethodName: "dfs_importDocument",
+			Handler:    _RPCDfs_DfsImportDocument_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

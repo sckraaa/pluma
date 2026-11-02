@@ -42,6 +42,7 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMediaUploadStickerFile":      RPCContextTuple{"/mtproto.RPCMedia/media_uploadStickerFile", func() interface{} { return new(mtproto.Document) }},
 	"TLMediaUploadRingtoneFile":     RPCContextTuple{"/mtproto.RPCMedia/media_uploadRingtoneFile", func() interface{} { return new(mtproto.Document) }},
 	"TLMediaUploadedProfilePhoto":   RPCContextTuple{"/mtproto.RPCMedia/media_uploadedProfilePhoto", func() interface{} { return new(mtproto.Photo) }},
+	"TLMediaImportDocument":         RPCContextTuple{"/mtproto.RPCMedia/media_importDocument", func() interface{} { return new(mtproto.Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

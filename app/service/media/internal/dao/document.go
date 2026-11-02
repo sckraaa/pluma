@@ -20,6 +20,7 @@ package dao
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -76,17 +77,14 @@ func (m *Dao) MakeDocumentByDO(
 	do *dataobject.DocumentsDO,
 	thumbs []*mtproto.PhotoSize,
 	videoThumbs []*mtproto.VideoSize) {
-	document.Id = do.DocumentId
-
 	if do == nil {
 		document.Id = id
-		mtproto.MakeTLDocumentEmpty(&mtproto.Document{
-			Id: id,
-		})
+		mtproto.MakeTLDocumentEmpty(document)
 		return
 	}
 
 	mtproto.MakeTLDocument(document)
+	document.Id = do.DocumentId
 	document.AccessHash = do.AccessHash
 	document.FileReference = []byte{}
 	document.Date = int32(do.Date2)
@@ -326,3 +324,55 @@ func (m *Dao) SaveDocumentV2(ctx context.Context, fileName string, document *mtp
 	data.Id, _, _ = m.DocumentsDAO.Insert(ctx, data)
 	return
 }
+
+// ImportDocument stores a document made by dfs.importDocument (task 024):
+// its thumbnails first, the document last, so that a document is never
+// found without them. Unlike SaveDocumentV2 every error is returned.
+func (m *Dao) ImportDocument(ctx context.Context, fileName string, document *mtproto.Document) error {
+	// An id kept from elsewhere (dfs.importDocument) may not be one a
+	// document already has.
+	old, err := m.DocumentsDAO.SelectByDocumentId(ctx, document.GetId())
+	if err != nil {
+		return err
+	}
+	if old != nil {
+		return ErrDocumentExists
+	}
+	attributes := "[]"
+	if len(document.GetAttributes()) > 0 {
+		b, err := jsonx.Marshal(document.GetAttributes())
+		if err != nil {
+			return err
+		}
+		attributes = hack.String(b)
+	}
+	do := &dataobject.DocumentsDO{
+		DocumentId:       document.GetId(),
+		AccessHash:       document.GetAccessHash(),
+		DcId:             document.GetDcId(),
+		FilePath:         fmt.Sprintf("%d.dat", document.GetId()),
+		FileSize:         document.GetSize2_INT64(),
+		UploadedFileName: fileName,
+		Ext:              getFileExtName(fileName),
+		MimeType:         document.GetMimeType(),
+		Attributes:       attributes,
+		Date2:            int64(document.GetDate()),
+	}
+	if len(document.GetThumbs()) > 0 {
+		if err := m.SavePhotoSizeV2(ctx, document.GetId(), document.GetThumbs()); err != nil {
+			return err
+		}
+		do.ThumbId = document.GetId()
+	}
+	if len(document.GetVideoThumbs()) > 0 {
+		if err := m.SaveVideoSizeV2(ctx, document.GetId(), document.GetVideoThumbs()); err != nil {
+			return err
+		}
+		do.VideoThumbId = document.GetId()
+	}
+	_, _, err = m.DocumentsDAO.Insert(ctx, do)
+	return err
+}
+
+// ErrDocumentExists is a document to import whose id a stored one has.
+var ErrDocumentExists = errors.New("media: a document with this id exists")

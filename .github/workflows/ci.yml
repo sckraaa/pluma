@@ -148,6 +148,9 @@ jobs:
       - name: shellcheck
         run: make shellcheck
 
+      - name: Collector tests (node)
+        run: make test-js
+
       - name: Working tree unchanged
         # No step may modify tracked files or leave new ones behind (e.g. a
         # regenerated docs/project/api-coverage.md, go.mod/go.sum changes,

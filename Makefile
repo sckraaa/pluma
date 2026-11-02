@@ -148,7 +148,7 @@ INTEGRATION_PKGS = $(shell grep -rl --include='*_test.go' -e '^//go:build integr
 # more at once run a Docker VM of 6 GB out of memory.
 INTEGRATION_PARALLEL ?= 4
 
-.PHONY: build vet test test-race test-integration e2e lint vuln coverage apicoverage apicoverage-summary apicoverage-check actionlint shellcheck ci print-tool-versions
+.PHONY: build vet test test-race test-integration e2e lint vuln coverage apicoverage apicoverage-summary apicoverage-check actionlint shellcheck test-js ci print-tool-versions
 
 build:
 	go build ./...
@@ -250,6 +250,11 @@ $(SHELLCHECK):
 	mv "$$tmp/shellcheck-$(SHELLCHECK_VERSION)/shellcheck" $@
 
 # Everything CI runs, in the same order.
+# The collector of the catalog runs in a browser tab (task 024); its tests
+# run in node.
+test-js:
+	node --test tools/catalog-collector/collector.test.cjs
+
 ci:
 	$(MAKE) build
 	$(MAKE) vet
@@ -261,6 +266,7 @@ ci:
 	$(MAKE) apicoverage-check
 	$(MAKE) actionlint
 	$(MAKE) shellcheck
+	$(MAKE) test-js
 
 # key=value lines for $GITHUB_OUTPUT (CI reads the pinned versions from here).
 print-tool-versions:

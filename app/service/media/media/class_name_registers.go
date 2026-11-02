@@ -29,6 +29,7 @@ const (
 	Predicate_media_uploadStickerFile      = "media_uploadStickerFile"
 	Predicate_media_uploadRingtoneFile     = "media_uploadRingtoneFile"
 	Predicate_media_uploadedProfilePhoto   = "media_uploadedProfilePhoto"
+	Predicate_media_importDocument         = "media_importDocument"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -104,6 +105,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1982768686, // 0x89d159d2
 
 	},
+	Predicate_media_importDocument: { // pluma: task 024
+		0: -2038423925, // 0x86801e8b
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -125,6 +130,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1397349139: Predicate_media_uploadStickerFile,      // 0xacb624ed
 	1035645449:  Predicate_media_uploadRingtoneFile,     // 0x3dbab209
 	-1982768686: Predicate_media_uploadedProfilePhoto,   // 0x89d159d2
+	-2038423925: Predicate_media_importDocument,         // 0x86801e8b pluma: task 024
 
 }
 

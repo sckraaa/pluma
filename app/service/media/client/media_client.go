@@ -39,6 +39,7 @@ type MediaClient interface {
 	MediaUploadStickerFile(ctx context.Context, in *media.TLMediaUploadStickerFile) (*mtproto.Document, error)
 	MediaUploadRingtoneFile(ctx context.Context, in *media.TLMediaUploadRingtoneFile) (*mtproto.Document, error)
 	MediaUploadedProfilePhoto(ctx context.Context, in *media.TLMediaUploadedProfilePhoto) (*mtproto.Photo, error)
+	MediaImportDocument(ctx context.Context, in *media.TLMediaImportDocument) (*mtproto.Bool, error)
 }
 
 type defaultMediaClient struct {
@@ -225,4 +226,15 @@ func (m *defaultMediaClient) MediaUploadedProfilePhoto(ctx context.Context, in *
 	}
 	client := media.NewRPCMediaClient(m.cli.Conn())
 	return client.MediaUploadedProfilePhoto(ctx, in)
+}
+
+// MediaImportDocument
+// pluma: media.importDocument file_name:string document:Document = Bool;
+func (m *defaultMediaClient) MediaImportDocument(ctx context.Context, in *media.TLMediaImportDocument) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := media.NewRPCMediaClient(m.cli.Conn())
+	return client.MediaImportDocument(ctx, in)
 }

@@ -121,6 +121,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1982768686,
 		}
 	},
+	-2038423925: func() mtproto.TLObject { // 0x86801e8b pluma: task 024
+		return &TLMediaImportDocument{
+			Constructor: -2038423925,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1239,6 +1244,50 @@ func (m *TLMediaUploadedProfilePhoto) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.OwnerId = dBuf.Long()
 		m.PhotoId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMediaImportDocument (pluma: task 024)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMediaImportDocument) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x86801e8b:
+		x.UInt(0x86801e8b)
+
+		// no flags
+
+		x.String(m.GetFileName())
+		m.GetDocument().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMediaImportDocument) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMediaImportDocument) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x86801e8b:
+
+		// not has flags
+
+		m.FileName = dBuf.String()
+
+		m4 := &mtproto.Document{}
+		m4.Decode(dBuf)
+		m.Document = m4
+
 		return dBuf.GetError()
 
 	default:
