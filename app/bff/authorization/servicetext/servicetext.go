@@ -23,6 +23,7 @@ package servicetext
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -49,35 +50,43 @@ func LangOf(langCode string) Lang {
 	return English
 }
 
-// Render builds the text of tpl and its bold entities: "**" starts and
-// ends bold text, and {key} is params[key]. The values are put in as they
-// are, never read as markup. Offsets and lengths are in UTF-16 code units,
-// as the API counts them.
+// Render builds the text of tpl and its entities: "**" starts and ends
+// bold text, "||" a spoiler, and {key} is params[key]. The values are put
+// in as they are, never read as markup. Offsets and lengths are in UTF-16
+// code units, as the API counts them; the entities are in the order of
+// their offsets.
 func Render(tpl string, params map[string]string) (string, []*mtproto.MessageEntity) {
 	var (
 		text     strings.Builder
 		entities []*mtproto.MessageEntity
 		at       int // UTF-16 length of text
-		boldAt   = -1
+		open     = map[string]int{}
 	)
 	write := func(s string) {
 		text.WriteString(s)
 		at += len(utf16.Encode([]rune(s)))
 	}
+	toggle := func(marker string) {
+		start, ok := open[marker]
+		if !ok {
+			open[marker] = at
+			return
+		}
+		delete(open, marker)
+		if at == start {
+			return
+		}
+		e := &mtproto.MessageEntity{Offset: int32(start), Length: int32(at - start)}
+		if marker == "**" {
+			entities = append(entities, mtproto.MakeTLMessageEntityBold(e).To_MessageEntity())
+		} else {
+			entities = append(entities, mtproto.MakeTLMessageEntitySpoiler(e).To_MessageEntity())
+		}
+	}
 	for len(tpl) > 0 {
 		switch {
-		case strings.HasPrefix(tpl, "**"):
-			if boldAt < 0 {
-				boldAt = at
-			} else {
-				if at > boldAt {
-					entities = append(entities, mtproto.MakeTLMessageEntityBold(&mtproto.MessageEntity{
-						Offset: int32(boldAt),
-						Length: int32(at - boldAt),
-					}).To_MessageEntity())
-				}
-				boldAt = -1
-			}
+		case strings.HasPrefix(tpl, "**"), strings.HasPrefix(tpl, "||"):
+			toggle(tpl[:2])
 			tpl = tpl[2:]
 		case tpl[0] == '{':
 			end := strings.IndexByte(tpl, '}')
@@ -93,30 +102,35 @@ func Render(tpl string, params map[string]string) (string, []*mtproto.MessageEnt
 			tpl = tpl[end+1:]
 		default:
 			next := len(tpl)
-			if i := strings.Index(tpl, "**"); i >= 0 && i < next {
-				next = i
-			}
-			if i := strings.IndexByte(tpl, '{'); i >= 0 && i < next {
-				next = i
+			for _, m := range []string{"**", "||", "{"} {
+				if i := strings.Index(tpl, m); i >= 0 && i < next {
+					next = i
+				}
 			}
 			write(tpl[:next])
 			tpl = tpl[next:]
 		}
 	}
-	if boldAt >= 0 {
-		panic("servicetext: unclosed ** in a template")
+	if len(open) > 0 {
+		panic(fmt.Sprintf("servicetext: unclosed markup in a template: %v", open))
 	}
+	sort.SliceStable(entities, func(i, j int) bool { return entities[i].GetOffset() < entities[j].GetOffset() })
 	return text.String(), entities
 }
 
 // The login code ("app" is the name of the app), as Telegram sent it in
-// April (Russian) and October (English) 2026.
+// April (Russian) and October (English) 2026, with one addition: the code
+// is under a spoiler. Telegram's message has none; its clients hide the
+// code themselves where they show it, Android everywhere
+// (MessageObject.spoilLoginCode), iOS and Web K only in the chat list
+// (ChatListItem.swift, messageForReply.ts), so in Web K the open chat showed
+// it to anyone looking at the screen.
 var loginCode = map[Lang]string{
-	English: "**Login code:** {code}. Do **not** give this code to anyone, even if they say they are from {app}!\n\n" +
+	English: "**Login code:** ||{code}||. Do **not** give this code to anyone, even if they say they are from {app}!\n\n" +
 		"❗️This code can be used to log in to your {app} account. We never ask it for anything else.\n\n" +
 		"If you didn't request this code by trying to log in on another device, simply ignore this message.",
 	// The space after "ещё." is Telegram's.
-	Russian: "**Код для входа в {app}:** {code}. Не давайте код **никому**, даже если его требуют от имени {app}!\n\n" +
+	Russian: "**Код для входа в {app}:** ||{code}||. Не давайте код **никому**, даже если его требуют от имени {app}!\n\n" +
 		"❗️Этот код используется для входа в Ваш аккаунт в {app}. Он не может быть использован для чего-либо ещё. \n\n" +
 		"Если Вы не запрашивали код для входа, проигнорируйте это сообщение.",
 }
