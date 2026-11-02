@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
 // Telegram's ids in the collection; none may come back.
@@ -99,14 +100,18 @@ func catalogImport(ctx context.Context, t *testing.T, u *user) {
 	}
 
 	// The emoji list names it, and it is given by id.
-	o, err = u.c.Invoke(ctx, &mtproto.TLMessagesGetCustomEmojiDocuments{
+	raw, err := u.c.InvokeRaw(ctx, &mtproto.TLMessagesGetCustomEmojiDocuments{
 		Constructor: u.c.Constructor(mtproto.Predicate_messages_getCustomEmojiDocuments),
 		DocumentId:  []int64{doc.GetId()},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if docs := o.(*mtproto.Vector_Document).GetDatas(); len(docs) != 1 || docs[0].GetId() != doc.GetId() {
+	docs, err := mtclient.DecodeVector(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(docs) != 1 || docs[0].(interface{ To_Document() *mtproto.Document }).To_Document().GetId() != doc.GetId() {
 		t.Fatalf("messages.getCustomEmojiDocuments: %v", docs)
 	}
 
