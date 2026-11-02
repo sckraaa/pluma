@@ -129,6 +129,10 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		c.Logger.Errorf("messages.sendMedia - error: %v", err)
 		return nil, err
 	}
+	// An optional card that could not be made leaves the text alone.
+	if outMessage.Media.GetPredicateName() == mtproto.Predicate_messageMediaEmpty && in.Message == "" {
+		return nil, mtproto.ErrMessageEmpty
+	}
 
 	//outMessage, _ = c.fixMessageEntities(c.MD.UserId, peer, true, outMessage, func() bool {
 	//	hasBot := c.MD.IsBot
