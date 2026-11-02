@@ -27,18 +27,17 @@ import (
 // all of them, which it adds over what it has (emojiKeyword replaces a
 // word's emoji).
 func (c *CatalogCore) MessagesGetEmojiKeywordsDifference(in *mtproto.TLMessagesGetEmojiKeywordsDifference) (*mtproto.EmojiKeywordsDifference, error) {
-	answer := &mtproto.EmojiKeywordsDifference{}
-	_, found, err := c.stored("messages.getEmojiKeywords", in.GetLangCode(), answer)
+	answer, lang, err := c.keywords(in.GetLangCode())
 	if err != nil {
 		return nil, err
 	}
-	if !found {
+	if answer == nil {
 		return noKeywords(in.GetLangCode(), in.GetFromVersion()), nil
 	}
 	if answer.GetVersion() == in.GetFromVersion() {
-		return noKeywords(in.GetLangCode(), answer.GetVersion()), nil
+		return noKeywords(lang, answer.GetVersion()), nil
 	}
-	answer.LangCode = in.GetLangCode()
+	answer.LangCode = lang
 	answer.FromVersion = in.GetFromVersion()
 	return answer, nil
 }

@@ -178,6 +178,41 @@ func (s *Store) PutDocument(ctx context.Context, key [32]byte, documentID int64)
 	return err
 }
 
+// IDFor returns the id and access hash of this server for the thing of
+// kind ("set", "theme", "wallpaper") named name: the ones it was given
+// before, or the new ones, which are written at once and stay (catalog_ids).
+func (s *Store) IDFor(ctx context.Context, kind, name string, newID func() (int64, int64, error)) (int64, int64, error) {
+	read := func() (int64, int64, bool, error) {
+		var rows []struct {
+			ID         int64 `db:"id"`
+			AccessHash int64 `db:"access_hash"`
+		}
+		if err := s.db.QueryRowsPartial(ctx, &rows, "SELECT id, access_hash FROM catalog_ids WHERE kind = ? AND name = ?", kind, name); err != nil {
+			return 0, 0, false, err
+		}
+		if len(rows) == 0 {
+			return 0, 0, false, nil
+		}
+		return rows[0].ID, rows[0].AccessHash, true, nil
+	}
+	id, hash, ok, err := read()
+	if err != nil || ok {
+		return id, hash, err
+	}
+	if id, hash, err = newID(); err != nil {
+		return 0, 0, err
+	}
+	// Two imports at once give one name one id: the first insert stays.
+	if _, err := s.db.Exec(ctx, "INSERT IGNORE INTO catalog_ids (kind, name, id, access_hash) VALUES (?, ?, ?, ?)", kind, name, id, hash); err != nil {
+		return 0, 0, err
+	}
+	id, hash, ok, err = read()
+	if err == nil && !ok {
+		err = errors.New("catalog: an id not kept")
+	}
+	return id, hash, err
+}
+
 // Catalog is a whole catalog to store at once.
 type Catalog struct {
 	Answers map[[2]string]Answer // by method and argument

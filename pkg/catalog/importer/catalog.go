@@ -52,14 +52,24 @@ func (im *Importer) catalog(c *collection) (*catalog.Catalog, error) {
 		out.Now = im.Now()
 	}
 
-	// A set's own thumbnail (inputStickerSetThumb) is not served: the
-	// server has no plugin for it (app/bff/files, Plugin1), and a client
-	// shown one it cannot fetch draws an empty cover. Without one, clients
-	// cover a set with its thumb_document_id or its first sticker.
+	// What only the collecting account had goes: its unread trending sets,
+	// when it installed or archived a set, the wallpapers it made. Every
+	// account gets the catalog as one that did none of it.
+	//
+	// A set's own thumbnail (inputStickerSetThumb) goes too: the server has
+	// no plugin for it (app/bff/files, Plugin1), and a client shown one it
+	// cannot fetch draws an empty cover. Without one, clients cover a set
+	// with its thumb_document_id or its first sticker.
 	for _, m := range c.all() {
 		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
-			if set, ok := x.Interface().(*mtproto.StickerSet); ok {
-				set.Thumbs, set.ThumbDcId, set.ThumbVersion = nil, nil, nil
+			switch v := x.Interface().(type) {
+			case *mtproto.StickerSet:
+				v.Thumbs, v.ThumbDcId, v.ThumbVersion = nil, nil, nil
+				v.InstalledDate, v.Archived = nil, false
+			case *mtproto.Messages_FeaturedStickers:
+				v.Unread = []int64{}
+			case *mtproto.WallPaper:
+				v.Creator = false
 			}
 		})
 	}
@@ -102,9 +112,16 @@ func (im *Importer) catalog(c *collection) (*catalog.Catalog, error) {
 		out.Answers[key] = catalog.Answer{Hash: h, Data: data}
 	}
 
-	wallpapers := append([]*mtproto.WallPaper{}, c.wallpapers...)
-	if g, ok := c.answers[[2]string{"account.getWallPapers", ""}].(*mtproto.Account_WallPapers); ok {
-		wallpapers = append(wallpapers, g.GetWallpapers()...)
+	// Every wallpaper of the collection by id and slug: those fetched by
+	// slug, the gallery's and the themes' (Android fetches a cloud theme's
+	// wallpaper by its slug, Theme.java).
+	var wallpapers []*mtproto.WallPaper
+	for _, m := range c.all() {
+		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
+			if w, ok := x.Interface().(*mtproto.WallPaper); ok {
+				wallpapers = append(wallpapers, w)
+			}
+		})
 	}
 	for _, w := range wallpapers {
 		data, err := proto.Marshal(w)

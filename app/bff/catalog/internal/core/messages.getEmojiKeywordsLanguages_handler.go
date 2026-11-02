@@ -22,19 +22,22 @@ import (
 // MessagesGetEmojiKeywordsLanguages
 // messages.getEmojiKeywordsLanguages#4e9963b2 lang_codes:Vector<string> = Vector<EmojiLanguage>;
 //
-// The languages of lang_codes the catalog has words for.
+// The languages of lang_codes the catalog has words for, by the codes
+// they are stored under ("en" for "en-US").
 func (c *CatalogCore) MessagesGetEmojiKeywordsLanguages(in *mtproto.TLMessagesGetEmojiKeywordsLanguages) (*mtproto.Vector_EmojiLanguage, error) {
 	langs := []*mtproto.EmojiLanguage{}
-	for _, code := range in.GetLangCodes() {
-		if len(langs) >= maxLanguages {
+	seen := map[string]bool{}
+	for i, code := range in.GetLangCodes() {
+		if i >= maxLanguages {
 			break
 		}
-		a, err := c.svcCtx.Catalog.Answer(c.ctx, "messages.getEmojiKeywords", code)
+		answer, lang, err := c.keywords(code)
 		if err != nil {
 			return nil, err
 		}
-		if a != nil {
-			langs = append(langs, mtproto.MakeTLEmojiLanguage(&mtproto.EmojiLanguage{LangCode: code}).To_EmojiLanguage())
+		if answer != nil && !seen[lang] {
+			seen[lang] = true
+			langs = append(langs, mtproto.MakeTLEmojiLanguage(&mtproto.EmojiLanguage{LangCode: lang}).To_EmojiLanguage())
 		}
 	}
 	return &mtproto.Vector_EmojiLanguage{Datas: langs}, nil

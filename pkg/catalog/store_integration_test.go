@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -116,5 +117,30 @@ func TestStore(t *testing.T) {
 	}
 	if ids, err := s.CatalogDocuments(ctx, []int64{5, 99, 7, 99}); err != nil || len(ids) != 1 || ids[0] != 99 {
 		t.Fatalf("documents of the catalog: %v, %v", ids, err)
+	}
+
+	// An id given once stays, whatever a later call would give.
+	next := int64(500)
+	newID := func() (int64, int64, error) { next++; return next, -next, nil }
+	id1, h1, err := s.IDFor(ctx, "set", "hotcherry", newID)
+	if err != nil || id1 != 501 || h1 != -501 {
+		t.Fatalf("a new id: %d %d %v", id1, h1, err)
+	}
+	if id, h, err := s.IDFor(ctx, "set", "hotcherry", newID); err != nil || id != id1 || h != h1 {
+		t.Fatalf("again: %d %d %v", id, h, err)
+	}
+	if id, _, err := s.IDFor(ctx, "theme", "hotcherry", newID); err != nil || id == id1 {
+		t.Fatalf("another kind: %d %v", id, err)
+	}
+	// Kinds and arguments compare byte by byte: the dice are six kinds.
+	dice := &Catalog{Answers: map[[2]string]Answer{{"account.getWallPaper", "slug:Ab"}: {Data: []byte("a")}, {"account.getWallPaper", "slug:ab"}: {Data: []byte("b")}}}
+	for i, e := range []string{"🎲", "🎯", "🏀", "⚽", "🎳", "🎰"} {
+		dice.Sets = append(dice.Sets, &Set{ID: int64(40 + i), ShortName: fmt.Sprintf("Dice%d", i), Kind: "inputStickerSetDice:" + e, Data: []byte(e)})
+	}
+	if err := s.Replace(ctx, dice); err != nil {
+		t.Fatalf("six dice and two slugs by case: %v", err)
+	}
+	if set, err := s.SetByKind(ctx, "inputStickerSetDice:🏀"); err != nil || set == nil || string(set.Data) != "🏀" {
+		t.Fatalf("a die: %+v, %v", set, err)
 	}
 }

@@ -20,12 +20,14 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
@@ -47,8 +49,7 @@ type Documents interface {
 
 // Catalog is the store of the catalog (catalog.Store).
 type Catalog interface {
-	Answer(ctx context.Context, method, arg string) (*catalog.Answer, error)
-	SetByShortName(ctx context.Context, name string) (*catalog.Set, error)
+	IDFor(ctx context.Context, kind, name string, newID func() (int64, int64, error)) (int64, int64, error)
 	DocumentID(ctx context.Context, key [32]byte) (int64, error)
 	PutDocument(ctx context.Context, key [32]byte, documentID int64) error
 	Replace(ctx context.Context, c *catalog.Catalog) error
@@ -246,80 +247,76 @@ func (c *collection) answerKeys() [][2]string {
 	return keys
 }
 
-// setIDs gives every set of the collection an id of this server: the one
-// it has by short name, or a new one.
+// setIDs gives every set of the collection the id of this server it has
+// by its short name (catalog_ids), or a new one kept from now on.
 func (im *Importer) setIDs(ctx context.Context, c *collection, ids *IDs) error {
 	names := map[string]bool{}
 	for _, s := range c.sets {
 		set := s.GetSet()
-		if names[set.GetShortName()] {
-			return fmt.Errorf("importer: set %q twice", set.GetShortName())
+		name := strings.ToLower(set.GetShortName())
+		if name == "" || names[name] {
+			return fmt.Errorf("importer: set %q without a name or twice", set.GetShortName())
 		}
-		names[set.GetShortName()] = true
-		old, err := im.Catalog.SetByShortName(ctx, set.GetShortName())
+		names[name] = true
+		id, hash, err := im.Catalog.IDFor(ctx, "set", name, newIDPair)
 		if err != nil {
 			return err
 		}
-		if old != nil {
-			ids.Sets[set.GetId()] = idHash{ID: old.ID, AccessHash: old.AccessHash}
-			continue
-		}
-		n, err := newIDHash()
-		if err != nil {
-			return err
-		}
-		ids.Sets[set.GetId()] = n
+		ids.Sets[set.GetId()] = idHash{ID: id, AccessHash: hash}
 	}
 	return nil
 }
 
-// otherIDs gives wallpapers and themes ids of this server: a wallpaper the
-// one it has by slug, anything else a new one.
+// otherIDs gives wallpapers and themes the ids of this server they have by
+// their slug, or, without one, by what they are (catalog_ids).
 func (im *Importer) otherIDs(ctx context.Context, c *collection, ids *IDs) error {
 	var err error
+	give := func(kind, name string, to map[int64]idHash, tgID int64) {
+		if _, ok := to[tgID]; ok || err != nil {
+			return
+		}
+		var id, hash int64
+		if id, hash, err = im.Catalog.IDFor(ctx, kind, name, newIDPair); err == nil {
+			to[tgID] = idHash{ID: id, AccessHash: hash}
+		}
+	}
 	for _, m := range c.all() {
 		walkMessages(m.ProtoReflect(), func(x protoreflect.Message) {
-			if err != nil {
-				return
-			}
 			switch v := x.Interface().(type) {
 			case *mtproto.WallPaper:
-				if _, ok := ids.WallPapers[v.GetId()]; ok {
-					return
-				}
-				var n idHash
-				if n, err = im.wallPaperID(ctx, v); err == nil {
-					ids.WallPapers[v.GetId()] = n
-				}
+				give("wallpaper", nameOf(v.GetSlug(), v), ids.WallPapers, v.GetId())
 			case *mtproto.Theme:
-				if _, ok := ids.Themes[v.GetId()]; ok {
-					return
-				}
-				var n idHash
-				if n, err = newIDHash(); err == nil {
-					ids.Themes[v.GetId()] = n
-				}
+				give("theme", nameOf(v.GetSlug(), v), ids.Themes, v.GetId())
 			}
 		})
 	}
 	return err
 }
 
-func (im *Importer) wallPaperID(ctx context.Context, w *mtproto.WallPaper) (idHash, error) {
-	if w.GetSlug() != "" {
-		a, err := im.Catalog.Answer(ctx, "account.getWallPaper", "slug:"+w.GetSlug())
-		if err != nil {
-			return idHash{}, err
-		}
-		if a != nil {
-			old := &mtproto.WallPaper{}
-			if err := proto.Unmarshal(a.Data, old); err != nil {
-				return idHash{}, err
-			}
-			return idHash{ID: old.GetId(), AccessHash: old.GetAccessHash()}, nil
+// nameOf is what names a wallpaper or a theme: its slug, or a digest of it
+// with its ids left out (a wallPaperNoFile has no slug).
+func nameOf(slug string, m proto.Message) string {
+	if slug != "" {
+		return "slug:" + slug
+	}
+	c := proto.Clone(m)
+	r := c.ProtoReflect()
+	for _, f := range []protoreflect.Name{"id", "access_hash"} {
+		if fd := r.Descriptor().Fields().ByName(f); fd != nil {
+			r.Clear(fd)
 		}
 	}
-	return newIDHash()
+	b, err := proto.MarshalOptions{Deterministic: true}.Marshal(c)
+	if err != nil {
+		panic(err) // a message that was just decoded always encodes
+	}
+	sum := sha256.Sum256(b)
+	return "digest:" + hex.EncodeToString(sum[:16])
+}
+
+func newIDPair() (int64, int64, error) {
+	n, err := newIDHash()
+	return n.ID, n.AccessHash, err
 }
 
 // documents stores the documents of the collection, or finds those stored
@@ -364,7 +361,7 @@ func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int
 		if err != nil {
 			return 0, err
 		}
-		key := documentKey(file, setNames[setOf(doc)])
+		key := documentKey(file, doc, setNames[setOf(doc)])
 		id, err := im.Catalog.DocumentID(ctx, key)
 		if err != nil {
 			return 0, err
@@ -383,6 +380,19 @@ func (im *Importer) documents(ctx context.Context, c *collection, ids *IDs) (int
 		keep := int64(0)
 		if KeptIDs[tgID] {
 			keep = tgID
+			// Stored under its id by a run that stopped before recording
+			// it: that one, never its files written again.
+			got, err := im.Documents.Get(ctx, []int64{tgID})
+			if err != nil {
+				return 0, err
+			}
+			if len(got) > 0 && got[0].GetPredicateName() == mtproto.Predicate_document {
+				if err := im.Catalog.PutDocument(ctx, key, tgID); err != nil {
+					return 0, err
+				}
+				known[tgID] = tgID
+				continue
+			}
 		}
 		d, err := im.Documents.Import(ctx, meta, file, thumbs, keep)
 		if err != nil {
@@ -495,17 +505,39 @@ func setOf(doc *mtproto.Document) int64 {
 	return 0
 }
 
-// documentKey is what makes a document that document: its file and the
-// set it belongs to (one file can be in two sets).
-func documentKey(file []byte, set string) [32]byte {
+// documentKey is what makes a document that document: its file, what it
+// is (type, emoji, file name) and the set it belongs to; one file can be
+// in two sets, or twice in one as two stickers.
+func documentKey(file []byte, doc *mtproto.Document, set string) [32]byte {
 	h := sha256.New()
 	sum := sha256.Sum256(file)
 	h.Write(sum[:])
-	h.Write([]byte{0})
-	h.Write([]byte(set))
+	for _, part := range []string{doc.GetMimeType(), set, altOf(doc), fileNameOf(doc)} {
+		h.Write([]byte{0})
+		h.Write([]byte(part))
+	}
 	var key [32]byte
 	copy(key[:], h.Sum(nil))
 	return key
+}
+
+func altOf(doc *mtproto.Document) string {
+	for _, a := range doc.GetAttributes() {
+		switch a.GetPredicateName() {
+		case mtproto.Predicate_documentAttributeSticker, mtproto.Predicate_documentAttributeCustomEmoji:
+			return a.GetAlt()
+		}
+	}
+	return ""
+}
+
+func fileNameOf(doc *mtproto.Document) string {
+	for _, a := range doc.GetAttributes() {
+		if a.GetPredicateName() == mtproto.Predicate_documentAttributeFilename {
+			return a.GetFileName()
+		}
+	}
+	return ""
 }
 
 // newIDHash is a new positive id and access hash.

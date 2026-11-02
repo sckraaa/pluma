@@ -184,9 +184,16 @@ func TestKeywordsDifference(t *testing.T) {
 	if d, _ := c.MessagesGetEmojiKeywordsDifference(&mtproto.TLMessagesGetEmojiKeywordsDifference{LangCode: "ru", FromVersion: 3}); d.GetFromVersion() != 3 || d.GetVersion() != 12 || len(d.GetKeywords()) != 1 {
 		t.Fatalf("from an old version: %v", d)
 	}
-	langs, _ := c.MessagesGetEmojiKeywordsLanguages(&mtproto.TLMessagesGetEmojiKeywordsLanguages{LangCodes: []string{"en", "ru"}})
+	langs, _ := c.MessagesGetEmojiKeywordsLanguages(&mtproto.TLMessagesGetEmojiKeywordsLanguages{LangCodes: []string{"en", "ru", "ru-RU"}})
 	if len(langs.GetDatas()) != 1 || langs.GetDatas()[0].GetLangCode() != "ru" {
 		t.Fatalf("languages %v", langs)
+	}
+	// A keyboard's regional code finds its language's words.
+	if d, _ := c.MessagesGetEmojiKeywords(&mtproto.TLMessagesGetEmojiKeywords{LangCode: "ru-RU"}); d.GetLangCode() != "ru" || len(d.GetKeywords()) != 1 {
+		t.Fatalf("ru-RU: %v", d)
+	}
+	if d, _ := c.MessagesGetEmojiKeywordsDifference(&mtproto.TLMessagesGetEmojiKeywordsDifference{LangCode: "ru_RU", FromVersion: 12}); d.GetLangCode() != "ru" || d.GetVersion() != 12 {
+		t.Fatalf("ru_RU at the version: %v", d)
 	}
 }
 

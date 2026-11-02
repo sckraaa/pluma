@@ -195,8 +195,17 @@ async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [
   manifest.sets = manifest.sets.map(({file, kind}) => ({file, kind}));
   log(`collector: ${[...sets.values()].filter(Boolean).length} sets`);
 
-  // 4. Wallpapers named in code by clients (docs/tasks/024-research).
-  for (const slug of ['fqv01SQemVIBAAAApND8LDRUhRU']) {
+  // 4. Wallpapers named in code by clients: the patterns of Android's
+  // built-in theme accents, which it asks for all at once with
+  // account.getMultiWallPapers (Theme.java at DrKLO/Telegram aac1efcb,
+  // release 12.9.1: lines 4628, 4652, 4676, 4724, 10421).
+  for (const slug of ['-Xc-np9y2VMCAAAARKr0yNNPYW0', '3rX-PaKbSFACAAAAEiHNvcEm6X4', '9GcNVISdSVADAAAAUcw5BYjELW4',
+    '9LW_RcoOSVACAAAAFTk3DTyXN-M', '9ShF73d1MFIIAAAAjWnm8_ZMe8Q', '9iklpvIPQVABAAAAORQXKur_Eyc', 'CJNyxPMgSVAEAAAAvW9sMwc51cw',
+    'CJz3BZ6YGEYBAAAABboWp6SAv04', 'F5oWoCs7QFACAAAAgf2bD_mg8Bw', 'JqSUrO0-mFIBAAAAWwTvLzoWGQI', 'MIo6r0qGSFAFAAAAtL8TsDzNX60',
+    'Nl8Pg2rBQVACAAAA25Lxtb8SDp0', 'O-wmAfBPSFADAAAA4zINVfD_bro', 'PllZ-bf_SFAEAAAA8crRfwZiDNg', 'RepJ5uE_SVABAAAAr4d0YhgB850',
+    'Ujx2TFcJSVACAAAARJ4vLa50MkM', 'YIxYGEALQVADAAAAA3QbEH0AowY', 'dhf9pceaQVACAAAAbzdVo4SCiZA', 'dk_wwlghOFACAAAAfz9xrxi6euw',
+    'fqv01SQemVIBAAAApND8LDRUhRU', 'heptcj-hSVACAAAAC9RrMzOa-cs', 'kO4jyq55SFABAAAA0WEpcLfahXk', 'lp0prF8ISFAEAAAA_p385_CvG0w',
+    'p-pXcflrmFIBAAAAvXYQk-mCwZU', 'pgJfpFNRSFABAAAACDT8s5sEjfc', 'ptuUd96JSFACAAAATobI23sPpz0', 'qeZWES8rGVIEAAAARfWlK1lnfiI']) {
     try {
       const w = await call('account.getWallPaper', {wallpaper: {_: 'inputWallPaperSlug', slug}});
       const file = `wallpapers/${slug}.json`;
@@ -228,15 +237,24 @@ async function collectCatalog({put, log = () => {}, maxParallel = 4, pauseMs = [
   }
   log(`collector: ${docs.size} documents, ${jobs.length} files`);
   let done = 0;
-  // A file reference expires (FILE_REFERENCE_EXPIRED); a document's fresh
-  // one comes with its set again.
+  // A file reference expires (FILE_REFERENCE_EXPIRED); fresh ones come with
+  // the document's set again, once per set and for all its documents.
+  const refreshed = new Map(); // set id → its asking
   async function refresh(d) {
     const ref = (d.attributes || []).map((a) => a.stickerset).find((s) => s && s._ === 'inputStickerSetID');
     if (!ref) return false;
-    const r = await call('messages.getStickerSet', {stickerset: ref, hash: 0});
-    const fresh = r.documents.find((x) => id(x.id) === id(d.id));
-    if (!fresh) return false;
-    d.file_reference = fresh.file_reference;
+    const key = id(ref.id);
+    if (!refreshed.has(key)) {
+      refreshed.set(key, (async () => {
+        const r = await call('messages.getStickerSet', {stickerset: ref, hash: 0});
+        for (const x of r.documents) {
+          const known = docs.get(id(x.id));
+          if (known) known.file_reference = x.file_reference;
+        }
+        await pause();
+      })());
+    }
+    await refreshed.get(key);
     return true;
   }
   async function download(job) {

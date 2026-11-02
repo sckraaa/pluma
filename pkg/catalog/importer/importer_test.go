@@ -18,6 +18,7 @@ package importer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,30 +32,25 @@ import (
 
 // memCatalog is the store of a test.
 type memCatalog struct {
-	stored *catalog.Catalog
-	docs   map[[32]byte]int64
+	stored     *catalog.Catalog
+	docs       map[[32]byte]int64
+	ids        map[[2]string][2]int64
+	failUpdate bool
 }
 
-func (m *memCatalog) Answer(_ context.Context, method, arg string) (*catalog.Answer, error) {
-	if m.stored == nil {
-		return nil, nil
+func (m *memCatalog) IDFor(_ context.Context, kind, name string, newID func() (int64, int64, error)) (int64, int64, error) {
+	if m.ids == nil {
+		m.ids = map[[2]string][2]int64{}
 	}
-	if a, ok := m.stored.Answers[[2]string{method, arg}]; ok {
-		return &a, nil
+	if v, ok := m.ids[[2]string{kind, name}]; ok {
+		return v[0], v[1], nil
 	}
-	return nil, nil
-}
-
-func (m *memCatalog) SetByShortName(_ context.Context, name string) (*catalog.Set, error) {
-	if m.stored == nil {
-		return nil, nil
+	id, hash, err := newID()
+	if err != nil {
+		return 0, 0, err
 	}
-	for _, s := range m.stored.Sets {
-		if s.ShortName == name {
-			return s, nil
-		}
-	}
-	return nil, nil
+	m.ids[[2]string{kind, name}] = [2]int64{id, hash}
+	return id, hash, nil
 }
 
 func (m *memCatalog) DocumentID(_ context.Context, key [32]byte) (int64, error) {
@@ -67,6 +63,9 @@ func (m *memCatalog) PutDocument(_ context.Context, key [32]byte, id int64) erro
 }
 
 func (m *memCatalog) Replace(_ context.Context, c *catalog.Catalog) error {
+	if m.failUpdate {
+		return errors.New("the store is down")
+	}
 	m.stored = c
 	return nil
 }
@@ -370,5 +369,75 @@ func TestImportKeepsNamedIDs(t *testing.T) {
 	}
 	if len(list.GetDocumentId()) != 1 || list.GetDocumentId()[0] != kept {
 		t.Fatalf("emoji list %v", list.GetDocumentId())
+	}
+}
+
+// A run that stored the documents and then failed leaves them referring to
+// the ids the sets get in the next run (catalog_ids); and a document kept
+// under Telegram's id that is stored already is not stored again.
+func TestImportAfterAFailedRun(t *testing.T) {
+	const kept = int64(5368324170671202287)
+	KeptIDs[kept] = true
+	defer delete(KeptIDs, kept)
+	dir := writeCollection(t)
+	cat := &memCatalog{docs: map[[32]byte]int64{}, failUpdate: true}
+	docs := &memDocuments{byID: map[int64]*mtproto.Document{}, files: map[int64][]byte{}}
+	im := &Importer{Catalog: cat, Documents: docs}
+	if _, err := im.Run(context.Background(), dir); err == nil {
+		t.Fatal("a failed store went unnoticed")
+	}
+	stored := len(docs.byID)
+	// The kept document's record is lost, as by a crash before PutDocument.
+	for k, v := range cat.docs {
+		if v == kept {
+			delete(cat.docs, k)
+		}
+	}
+	cat.failUpdate = false
+	res, err := im.Run(context.Background(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.NewDocuments != 0 || len(docs.byID) != stored {
+		t.Fatalf("stored again: %+v, %d documents then %d", res, stored, len(docs.byID))
+	}
+	set := &mtproto.Messages_StickerSet{}
+	if err := proto.Unmarshal(cat.stored.Sets[0].Data, set); err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range set.GetDocuments() {
+		if got := d.GetAttributes()[0].GetStickerset().GetId(); got != set.GetSet().GetId() {
+			t.Fatalf("a sticker refers to set %d, the set is %d", got, set.GetSet().GetId())
+		}
+	}
+}
+
+// What only the collecting account had is not given to everyone.
+func TestImportDropsAccountState(t *testing.T) {
+	dir := writeCollection(t)
+	rewriteManifest(t, dir, func(m *Manifest) {
+		m.Answers = append(m.Answers, AnswerFile{Method: "messages.getFeaturedStickers", File: "answers/featured.json"})
+	})
+	b, _ := json.Marshal(map[string]any{
+		"_": "messages.featuredStickers", "pFlags": map[string]any{}, "hash": 1, "count": 1,
+		"sets": []any{map[string]any{"_": "stickerSetCovered",
+			"set":   map[string]any{"_": "stickerSet", "pFlags": map[string]any{"archived": true}, "id": "777", "access_hash": "8", "title": "A", "short_name": "AnimatedEmojies", "count": 2, "hash": 1, "installed_date": 1700000000},
+			"cover": map[string]any{"_": "documentEmpty", "id": "1"}}},
+		"unread": []any{"777"},
+	})
+	if err := os.WriteFile(filepath.Join(dir, "answers/featured.json"), b, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cat := &memCatalog{docs: map[[32]byte]int64{}}
+	if _, err := (&Importer{Catalog: cat, Documents: &memDocuments{byID: map[int64]*mtproto.Document{}, files: map[int64][]byte{}}}).Run(context.Background(), dir); err != nil {
+		t.Fatal(err)
+	}
+	f := &mtproto.Messages_FeaturedStickers{}
+	if err := proto.Unmarshal(cat.stored.Answers[[2]string{"messages.getFeaturedStickers", ""}].Data, f); err != nil {
+		t.Fatal(err)
+	}
+	set := f.GetSets()[0].GetSet()
+	if len(f.GetUnread()) != 0 || set.GetArchived() || set.GetInstalledDate() != nil {
+		t.Fatalf("the collector's state: unread %v, set %v", f.GetUnread(), set)
 	}
 }
