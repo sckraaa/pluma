@@ -1,6 +1,6 @@
 # 030. Наборы стикеров и эмодзи из Telegram по запросу
 
-- Статус: todo
+- Статус: in-progress (2026-11-02)
 - Зависит от: 024 (каталог, импорт документов)
 - ADR: новый (бот Telegram на сервере, хранение наборов по запросу)
 
@@ -35,5 +35,14 @@
 - Повторный запрос того же набора не обращается к Telegram.
 - Новый импорт каталога не удаляет наборы, полученные по запросу.
 - e2e: набор по имени через поддельный Telegram в стенде. Настоящий Telegram в CI не используется.
+
+## Ход работы
+- 2026-11-02: владелец создал бота и положил `TELEGRAM_BOT_TOKEN` и `TELEGRAM_API_HASH` в `/opt/pluma/.env` (значения не читались).
+- **Готово в ветке `task/030-sticker-sets-on-demand`:**
+  - `pkg/tgbot` (`cb08c9af`) — клиент бота. Вход ботом, переход на его DC, адреса DC из `help.getConfig`, перенос авторизации на DC файла, `FILE_MIGRATE`, `FLOOD_WAIT`, параллельное скачивание. Тесты на поддельном Telegram.
+  - `pkg/catalog/demand` и `importer.ImportSet` (`1cfc2bad`). Одна загрузка на имя, «нет такого» запоминается на час, лимиты. Хранение рядом с каталогом: `source = 'demand'`, `migrate-20261103-catalog-demand.sql`, импорт каталога такие наборы не удаляет.
+  - `getStickerSet` по имени берёт недостающий набор у Telegram (`5983276d`). Переменные бота передаются в `bff` и `migrate`, пустые — бот выключен. Описание — `docs/ops/catalog.md`.
+- **Не проверено на настоящем Telegram:** нужна выкатка.
+- **Дальше:** установленные наборы пользователя: `installStickerSet`, `uninstallStickerSet`, `toggleStickerSets`, `reorderStickerSets`, `getAllStickers`, `getEmojiStickers`, `getMaskStickers`, `getArchivedStickers`. По образцу сохранённых GIF (`f5293da1`): сервис user, таблица, обновления с `seq` на другие устройства (`updateNewStickerSet`, `updateStickerSets`, `updateStickerSetsOrder`), хэш `getAllStickers` по формуле клиентов (`CountStickersOrderHash`, `docs/tasks/024-research/semantics.md`).
 
 ## Результат
