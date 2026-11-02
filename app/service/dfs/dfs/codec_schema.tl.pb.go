@@ -91,6 +91,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1549129612,
 		}
 	},
+	-807280213: func() mtproto.TLObject { // 0xcfe1e1ab pluma: task 024
+		return &TLDfsImportDocument{
+			Constructor: -807280213,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -731,6 +736,126 @@ func (m *TLDfsUploadedProfilePhoto) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.Creator = dBuf.Long()
 		m.PhotoId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDfsImportDocument (pluma: task 024)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDfsImportDocument) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xcfe1e1ab:
+		x.UInt(0xcfe1e1ab)
+
+		// no flags
+
+		x.Long(m.GetCreator())
+		x.Int(m.GetDate())
+		x.String(m.GetMimeType())
+		m.GetFile().Encode(x, layer)
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetThumbs())))
+		for _, v := range m.GetThumbs() {
+			v.Encode(x, layer)
+		}
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetThumbFiles())))
+		for _, v := range m.GetThumbFiles() {
+			v.Encode(x, layer)
+		}
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetVideoThumbs())))
+		for _, v := range m.GetVideoThumbs() {
+			v.Encode(x, layer)
+		}
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetAttributes())))
+		for _, v := range m.GetAttributes() {
+			v.Encode(x, layer)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDfsImportDocument) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDfsImportDocument) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xcfe1e1ab:
+
+		// not has flags
+
+		m.Creator = dBuf.Long()
+		m.Date = dBuf.Int()
+		m.MimeType = dBuf.String()
+
+		m4 := &mtproto.InputFile{}
+		m4.Decode(dBuf)
+		m.File = m4
+
+		c5 := dBuf.Int()
+		if c5 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 5, c5)
+		}
+		l5 := dBuf.Int()
+		v5 := make([]*mtproto.PhotoSize, l5)
+		for i := int32(0); i < l5; i++ {
+			v5[i] = &mtproto.PhotoSize{}
+			v5[i].Decode(dBuf)
+		}
+		m.Thumbs = v5
+
+		c6 := dBuf.Int()
+		if c6 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 6, c6)
+		}
+		l6 := dBuf.Int()
+		v6 := make([]*mtproto.InputFile, l6)
+		for i := int32(0); i < l6; i++ {
+			v6[i] = &mtproto.InputFile{}
+			v6[i].Decode(dBuf)
+		}
+		m.ThumbFiles = v6
+
+		c7 := dBuf.Int()
+		if c7 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 7, c7)
+		}
+		l7 := dBuf.Int()
+		v7 := make([]*mtproto.VideoSize, l7)
+		for i := int32(0); i < l7; i++ {
+			v7[i] = &mtproto.VideoSize{}
+			v7[i].Decode(dBuf)
+		}
+		m.VideoThumbs = v7
+
+		c8 := dBuf.Int()
+		if c8 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 8, c8)
+		}
+		l8 := dBuf.Int()
+		v8 := make([]*mtproto.DocumentAttribute, l8)
+		for i := int32(0); i < l8; i++ {
+			v8[i] = &mtproto.DocumentAttribute{}
+			v8[i].Decode(dBuf)
+		}
+		m.Attributes = v8
+
 		return dBuf.GetError()
 
 	default:

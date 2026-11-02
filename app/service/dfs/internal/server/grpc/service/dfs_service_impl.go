@@ -195,3 +195,13 @@ func (s *Service) DfsUploadedProfilePhoto(ctx context.Context, request *dfs.TLDf
 
 	return r, err
 }
+
+// DfsImportDocument
+// dfs.importDocument creator:long date:int mime_type:string file:InputFile thumbs:Vector<PhotoSize> thumb_files:Vector<InputFile> video_thumbs:Vector<VideoSize> attributes:Vector<DocumentAttribute> = Document;
+func (s *Service) DfsImportDocument(ctx context.Context, request *dfs.TLDfsImportDocument) (*mtproto.Document, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dfs.importDocument - request: {creator: %d, mime_type: %s, thumbs: %d, video_thumbs: %d}",
+		request.Creator, request.MimeType, len(request.Thumbs), len(request.VideoThumbs))
+
+	return c.DfsImportDocument(request)
+}

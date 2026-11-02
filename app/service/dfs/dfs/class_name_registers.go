@@ -23,6 +23,7 @@ const (
 	Predicate_dfs_uploadThemeFile          = "dfs_uploadThemeFile"
 	Predicate_dfs_uploadRingtoneFile       = "dfs_uploadRingtoneFile"
 	Predicate_dfs_uploadedProfilePhoto     = "dfs_uploadedProfilePhoto"
+	Predicate_dfs_importDocument           = "dfs_importDocument"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -74,6 +75,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1549129612, // 0xa3aa2874
 
 	},
+	Predicate_dfs_importDocument: { // pluma: task 024
+		0: -807280213, // 0xcfe1e1ab
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -89,6 +94,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-559525993:  Predicate_dfs_uploadThemeFile,          // 0xdea64f97
 	45335985:    Predicate_dfs_uploadRingtoneFile,       // 0x2b3c5b1
 	-1549129612: Predicate_dfs_uploadedProfilePhoto,     // 0xa3aa2874
+	-807280213:  Predicate_dfs_importDocument,           // 0xcfe1e1ab pluma: task 024
 
 }
 

@@ -35,6 +35,7 @@ type DfsClient interface {
 	DfsUploadThemeFile(ctx context.Context, in *dfs.TLDfsUploadThemeFile) (*mtproto.Document, error)
 	DfsUploadRingtoneFile(ctx context.Context, in *dfs.TLDfsUploadRingtoneFile) (*mtproto.Document, error)
 	DfsUploadedProfilePhoto(ctx context.Context, in *dfs.TLDfsUploadedProfilePhoto) (*mtproto.Photo, error)
+	DfsImportDocument(ctx context.Context, in *dfs.TLDfsImportDocument) (*mtproto.Document, error)
 }
 
 type defaultDfsClient struct {
@@ -177,4 +178,15 @@ func (m *defaultDfsClient) DfsUploadedProfilePhoto(ctx context.Context, in *dfs.
 	}
 	client := dfs.NewRPCDfsClient(m.cli.Conn())
 	return client.DfsUploadedProfilePhoto(ctx, in)
+}
+
+// DfsImportDocument
+// pluma: dfs.importDocument creator:long date:int mime_type:string file:InputFile thumbs:Vector<PhotoSize> thumb_files:Vector<InputFile> video_thumbs:Vector<VideoSize> attributes:Vector<DocumentAttribute> = Document;
+func (m *defaultDfsClient) DfsImportDocument(ctx context.Context, in *dfs.TLDfsImportDocument) (*mtproto.Document, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dfs.NewRPCDfsClient(m.cli.Conn())
+	return client.DfsImportDocument(ctx, in)
 }

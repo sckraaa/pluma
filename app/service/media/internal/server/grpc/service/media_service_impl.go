@@ -241,3 +241,12 @@ func (s *Service) MediaUploadedProfilePhoto(ctx context.Context, request *media.
 
 	return r, err
 }
+
+// MediaImportDocument
+// media.importDocument file_name:string document:Document = Bool;
+func (s *Service) MediaImportDocument(ctx context.Context, request *media.TLMediaImportDocument) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("media.importDocument - document: %d", request.GetDocument().GetId())
+
+	return c.MediaImportDocument(request)
+}

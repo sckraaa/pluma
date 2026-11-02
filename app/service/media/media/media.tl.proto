@@ -39,6 +39,8 @@ enum TLConstructor {
   CRC32_media_uploadStickerFile = -1397349139;
   CRC32_media_uploadRingtoneFile = 1035645449;
   CRC32_media_uploadedProfilePhoto = -1982768686;
+  // pluma: task 024
+  CRC32_media_importDocument = -2038423925;
 }
 
 // PhotoSizeList <--
@@ -194,6 +196,16 @@ message TL_media_uploadedProfilePhoto {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: media.importDocument file_name:string document:Document = Bool;
+//
+// Stores a document made by dfs.importDocument (task 024).
+message TL_media_importDocument {
+  TLConstructor constructor = 1;
+  string file_name = 3;
+  mtproto.Document document = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_PhotoSizeList {
   repeated PhotoSizeList datas = 1;
@@ -235,4 +247,5 @@ service RPCMedia {
       returns (mtproto.Document) {}
   rpc media_uploadedProfilePhoto(TL_media_uploadedProfilePhoto)
       returns (mtproto.Photo) {}
+  rpc media_importDocument(TL_media_importDocument) returns (mtproto.Bool) {}
 }
