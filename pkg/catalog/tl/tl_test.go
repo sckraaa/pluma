@@ -122,7 +122,9 @@ func TestEncodeNamespacedType(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := o.(interface{ To_Help_PeerColors() *mtproto.Help_PeerColors }).To_Help_PeerColors()
+	c := o.(interface {
+		To_Help_PeerColors() *mtproto.Help_PeerColors
+	}).To_Help_PeerColors()
 	if c.GetHash() != 5 || len(c.GetColors()) != 1 || c.GetColors()[0].GetColorId() != 7 {
 		t.Fatalf("peer colors %v", c)
 	}
