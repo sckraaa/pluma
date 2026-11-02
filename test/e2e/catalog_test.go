@@ -26,12 +26,15 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
-// The services of the catalog (task 024) are routed to bff: with no
-// catalog imported, as on this stand, its methods answer empty lists with
-// hash 0, never ERR_ENTERPRISE_IS_BLOCKED, which Android asks again for
-// every second; a set it does not have is STICKERSET_INVALID; a method of
-// those services it does not serve stays blocked.
-func TestCatalogRoutes(t *testing.T) {
+// The services of the catalog (task 024) are routed to bff: before an
+// import its methods answer empty lists with hash 0, never
+// ERR_ENTERPRISE_IS_BLOCKED, which Android asks again for every second; a
+// set it does not have is STICKERSET_INVALID; a method of those services it
+// does not serve stays blocked. Then a collection is imported with
+// pluma-admin catalog import, and the reaction, its set and its files come
+// back with ids of this server (catalogImport). A stand used again holds
+// the catalog of the run before: the checks of emptiness are skipped then.
+func TestCatalog(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -50,9 +53,10 @@ func TestCatalogRoutes(t *testing.T) {
 	}).(interface {
 		To_Messages_AvailableReactions() *mtproto.Messages_AvailableReactions
 	}).To_Messages_AvailableReactions()
-	if r.GetPredicateName() != mtproto.Predicate_messages_availableReactions || len(r.GetReactions()) != 0 {
+	if r.GetPredicateName() != mtproto.Predicate_messages_availableReactions {
 		t.Errorf("messages.getAvailableReactions: %v", r)
 	}
+	fresh := len(r.GetReactions()) == 0
 	all := call("messages.getAllStickers", &mtproto.TLMessagesGetAllStickers{
 		Constructor: u.c.Constructor(mtproto.Predicate_messages_getAllStickers),
 	}).(interface {
@@ -73,7 +77,7 @@ func TestCatalogRoutes(t *testing.T) {
 	if _, err := u.c.Invoke(ctx, &mtproto.TLMessagesGetStickerSet{
 		Constructor: u.c.Constructor(mtproto.Predicate_messages_getStickerSet),
 		Stickerset:  &mtproto.InputStickerSet{Constructor: u.c.Constructor(mtproto.Predicate_inputStickerSetAnimatedEmoji)},
-	}); !mtclient.IsRPCError(err, "STICKERSET_INVALID") {
+	}); fresh && !mtclient.IsRPCError(err, "STICKERSET_INVALID") {
 		t.Errorf("messages.getStickerSet of an empty catalog: %v", err)
 	}
 	if _, err := u.c.Invoke(ctx, &mtproto.TLStickersCheckShortName{
@@ -82,4 +86,6 @@ func TestCatalogRoutes(t *testing.T) {
 	}); !mtclient.IsRPCError(err, "ERR_ENTERPRISE_IS_BLOCKED") {
 		t.Errorf("stickers.checkShortName: %v", err)
 	}
+
+	catalogImport(ctx, t, u)
 }

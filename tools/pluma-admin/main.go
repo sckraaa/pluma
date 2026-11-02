@@ -21,6 +21,7 @@
 //	pluma-admin langpack fetch -out <dir> [-pack <packs>] [-lang <langs>] [-api-id <id>]
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
 //	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
+//	pluma-admin [-f bff.yaml] catalog import <dir>
 //
 // login-code generates a fresh code for a pending code request of the phone
 // (auth.sendCode or account.sendChangePhoneCode that answered "code sent by
@@ -165,6 +166,7 @@ const usage = `Usage:
   pluma-admin langpack fetch -out <dir> [-pack android,ios,...] [-lang ru,...] [-api-id <id>]   (from Telegram; $TELEGRAM_API_ID)
   pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
   pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
+  pluma-admin [-f bff.yaml] catalog import <dir>   (a collection of the catalog from Telegram, task 024)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
   pluma-admin -f push.yaml push check   (asks APNs and FCM whether they take the keys; nothing is delivered)
 
@@ -225,6 +227,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return servicePhotoCommand(args, configFile, stdout)
 	case "langpack":
 		return langpackCommand(args, configFile, stdout)
+	case "catalog":
+		return catalogCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {
