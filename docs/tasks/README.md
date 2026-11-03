@@ -58,7 +58,7 @@
 | [030](030-sticker-sets-on-demand.md) | Наборы стикеров и эмодзи из Telegram по запросу | todo |
 | [031](031-external-security-audit.md) | Внешний аудит безопасности | todo |
 | [032](032-online-status-push.md) | Статус «в сети» доходит до собеседников сразу | done |
-| [033](033-read-date-ios.md) | Время прочтения в iOS | in progress |
+| [033](033-read-date-ios.md) | Время прочтения в iOS | done |
 | [034](034-privacy.md) | Все настройки приватности работают как в Telegram | in progress |
 
 Порядок этапа 0. Параллельно можно вести две линии — они не пересекаются по файлам:
