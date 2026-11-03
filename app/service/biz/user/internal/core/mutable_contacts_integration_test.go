@@ -97,7 +97,39 @@ func TestMutableUsersSameIdTwice(t *testing.T) {
 	if n := len(r.GetUsers()); n != 1 {
 		t.Errorf("%d users for one id", n)
 	}
-	if a, _ := r.GetImmutableUser(ann); a.GetLastSeenAt() != now {
-		t.Errorf("last seen %d, want %d", a.GetLastSeenAt(), now)
+	if a, _ := r.GetImmutableUser(ann); a.GetLastSeenAt() != now+300 {
+		t.Errorf("seen until %d, want %d", a.GetLastSeenAt(), now+300)
+	}
+}
+
+// The status follows the stored online window: online until its end while
+// it lasts, offline at once after account.updateStatus(offline), whatever
+// the time of the last request.
+func TestLastSeenWindow(t *testing.T) {
+	c := userCore(t)
+	ann, _ := newUser(t, "Ann")
+	now := time.Now().Unix()
+	status := func() *mtproto.UserStatus {
+		t.Helper()
+		r, err := c.UserGetMutableUsersV2(&user.TLUserGetMutableUsersV2{Id: []int64{ann}, Privacy: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		a, _ := r.GetImmutableUser(ann)
+		return mtproto.MakeUserStatus(a.GetLastSeenAt(), true)
+	}
+
+	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now - 100, Expires: 300}); err != nil {
+		t.Fatal(err)
+	}
+	if s := status(); s.GetPredicateName() != mtproto.Predicate_userStatusOnline || s.GetExpires() != int32(now+200) {
+		t.Errorf("100 s into a 300 s window: %s expires %d, want online until %d", s.GetPredicateName(), s.GetExpires(), now+200)
+	}
+
+	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now, Expires: 0}); err != nil {
+		t.Fatal(err)
+	}
+	if s := status(); s.GetPredicateName() != mtproto.Predicate_userStatusOffline || s.GetWasOnline() != int32(now) {
+		t.Errorf("after offline: %s was_online %d, want offline at %d", s.GetPredicateName(), s.GetWasOnline(), now)
 	}
 }

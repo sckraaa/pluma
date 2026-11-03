@@ -35,3 +35,4 @@
 | [0027](0027-link-previews.md) | Превью ссылок: сборщик только в публичный интернет, кэш в MySQL, без webPagePending | accepted |
 | [0028](0028-telegram-catalog-import.md) | Каталог из Telegram: выгрузка через открытую сессию Web K, перенумерация, хранение как ответы методов | proposed |
 | [0029](0029-sticker-sets-on-demand.md) | Наборы стикеров из Telegram по запросу через бота; установленные наборы аккаунта в журнале seq | proposed |
+| [0030](0030-online-status-push.md) | Статус «в сети»: состояние каждой авторизации в Redis, рассылка `updateUserStatus` без seq контактам | proposed |

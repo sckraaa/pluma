@@ -166,7 +166,7 @@
 | `account.updatePasswordSettings` | ok |  | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:37 |
 | `account.updatePersonalChannel` | ok |  | app/bff/userchannelprofiles/internal/core/account.updatePersonalChannel_handler.go:28 |
 | `account.updateProfile` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateProfile_handler.go:30 |
-| `account.updateStatus` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateStatus_handler.go:32 |
+| `account.updateStatus` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateStatus_handler.go:39 |
 | `account.updateTheme` | missing |  |  |
 | `account.updateUsername` | ok |  | app/bff/usernames/internal/core/account.updateUsername_handler.go:30 |
 | `account.updateVerified` | blocked |  | app/bff/userchannelprofiles/internal/core/account.updateVerified_handler.go:27 |

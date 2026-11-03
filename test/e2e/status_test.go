@@ -50,3 +50,92 @@ func TestFullUserSelfOnline(t *testing.T) {
 	}
 	t.Errorf("users.getFullUser of self: status %v, want userStatusOnline", status)
 }
+
+func updateStatus(ctx context.Context, t *testing.T, u *user, offline bool) {
+	t.Helper()
+	if _, err := u.c.Invoke(ctx, &mtproto.TLAccountUpdateStatus{
+		Constructor: u.c.Constructor(mtproto.Predicate_account_updateStatus),
+		Offline:     mtproto.ToBool(offline),
+	}); err != nil {
+		t.Fatalf("account.updateStatus: %v", err)
+	}
+}
+
+// statusUpdate waits on u for updateUserStatus of userId and returns its
+// status, or nil if none comes within wait.
+func statusUpdate(ctx context.Context, u *user, userId int64, wait time.Duration) *mtproto.UserStatus {
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+	var status *mtproto.UserStatus
+	_, _ = u.c.WaitUpdate(ctx, func(us *mtproto.Updates) bool {
+		for _, x := range append(us.GetUpdates(), us.GetUpdate()) {
+			if x.GetPredicateName() == mtproto.Predicate_updateUserStatus && x.GetUserId() == userId {
+				status = x.GetStatus_USERSTATUS()
+				return true
+			}
+		}
+		return false
+	})
+	return status
+}
+
+// account.updateStatus reaches the user's contacts and other devices at once
+// as updateUserStatus (task 032): before it, a friend who opened a chat was
+// shown online only when the client asked for the user again. Nobody else is
+// told, a repeated request inside the online window tells nobody again, and
+// the users the status is hidden from are not told.
+func TestStatusPush(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 3)
+	alice := login(ctx, t, phones[0], "Alice")
+	laptop := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	carol := login(ctx, t, phones[2], "Carol")
+	importContacts(ctx, t, bob, phoneContact(bob.c, 1, phones[0], "Alice", ""))
+	for _, u := range []*user{laptop, bob, carol} {
+		getState(ctx, t, u)
+	}
+	id := alice.self.GetId()
+
+	before := time.Now().Unix()
+	updateStatus(ctx, t, alice, false)
+	s := statusUpdate(ctx, bob, id, 10*time.Second)
+	if s.GetPredicateName() != mtproto.Predicate_userStatusOnline || int64(s.GetExpires()) < before+290 {
+		t.Fatalf("the contact got %v, want userStatusOnline about 300 s ahead", s)
+	}
+	if s := statusUpdate(ctx, laptop, id, 10*time.Second); s.GetPredicateName() != mtproto.Predicate_userStatusOnline {
+		t.Errorf("the other device got %v, want userStatusOnline", s)
+	}
+	if s := statusUpdate(ctx, carol, id, 3*time.Second); s != nil {
+		t.Errorf("a user without Alice in the contacts got %v", s)
+	}
+
+	updateStatus(ctx, t, alice, false)
+	if s := statusUpdate(ctx, bob, id, 3*time.Second); s != nil {
+		t.Errorf("a repeated request told the contact again: %v", s)
+	}
+
+	updateStatus(ctx, t, alice, true)
+	s = statusUpdate(ctx, bob, id, 10*time.Second)
+	if s.GetPredicateName() != mtproto.Predicate_userStatusOffline || int64(s.GetWasOnline()) < before {
+		t.Fatalf("after offline the contact got %v, want userStatusOffline", s)
+	}
+	if _, u := fullUser(ctx, t, bob, inputUserOf(ctx, t, bob, alice)); u.GetStatus().GetPredicateName() != mtproto.Predicate_userStatusOffline {
+		t.Errorf("users.getFullUser after offline: %v, want userStatusOffline", u.GetStatus())
+	}
+
+	// Last seen hidden from everybody: coming online tells the contact nothing.
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLAccountSetPrivacy{
+		Constructor: alice.c.Constructor(mtproto.Predicate_account_setPrivacy),
+		Key:         &mtproto.InputPrivacyKey{Constructor: alice.c.Constructor(mtproto.Predicate_inputPrivacyKeyStatusTimestamp)},
+		Rules:       []*mtproto.InputPrivacyRule{{Constructor: alice.c.Constructor(mtproto.Predicate_inputPrivacyValueDisallowAll)}},
+	}); err != nil {
+		t.Fatalf("account.setPrivacy: %v", err)
+	}
+	updateStatus(ctx, t, alice, false)
+	if s := statusUpdate(ctx, bob, id, 3*time.Second); s != nil {
+		t.Errorf("a contact Alice hides her last seen from got %v", s)
+	}
+}

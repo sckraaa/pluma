@@ -86,13 +86,18 @@ func MakeUserStatusOffline(lastSeenAt int64) *mtproto.UserStatus {
 	// 60*60*24*7   week
 	// 60*60*24*30  month
 */
+// lastSeenAt is the moment the user is seen until: the end of the online
+// window while it lasts, and the moment they went offline once it is over
+// (account.updateStatus, task 032). The user is online while it is ahead;
+// upstream counted a fixed 60 s from the last request, so an offline user
+// still read as online and an online one dropped out between requests.
 func MakeUserStatus(lastSeenAt int64, allowTimestamp bool) *mtproto.UserStatus {
 	now := time.Now().Unix()
 
 	if allowTimestamp {
-		if now <= lastSeenAt+60 {
+		if now < lastSeenAt {
 			status := mtproto.MakeTLUserStatusOnline(&mtproto.UserStatus{
-				Expires: int32(lastSeenAt + 60),
+				Expires: int32(lastSeenAt),
 			}).To_UserStatus()
 			return status
 		} else {

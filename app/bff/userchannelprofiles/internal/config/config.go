@@ -20,6 +20,7 @@ package config
 
 import (
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -28,4 +29,5 @@ type Config struct {
 	MediaClient zrpc.RpcClientConf
 	UserClient  zrpc.RpcClientConf
 	SyncClient  sync_client.OutboxConf
+	KV          kv.KvConf // online status of every authorization (pkg/presence)
 }
