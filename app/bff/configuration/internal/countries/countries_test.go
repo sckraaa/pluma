@@ -16,6 +16,7 @@
 package countries
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -138,5 +139,22 @@ func TestPattern(t *testing.T) {
 		if got := pattern(tc.in, tc.code); got != tc.want {
 			t.Errorf("pattern(%q, %s) = %q, expected %q", tc.in, tc.code, got, tc.want)
 		}
+	}
+}
+
+// Regions sharing a calling code are told apart by Telegram's prefixes:
+// a +7 7 number is Kazakhstan's, any other +7 number Russia's.
+func TestPrefixes(t *testing.T) {
+	codes := map[string]*mtproto.Help_CountryCode{}
+	for _, c := range Get("en").Countries {
+		codes[c.GetIso2()] = c.GetCountryCodes()[0]
+	}
+	for iso2, want := range map[string]string{"KZ": "6,7", "CW": "9", "RU": "", "US": ""} {
+		if got := strings.Join(codes[iso2].GetPrefixes(), ","); got != want {
+			t.Errorf("%s prefixes %q, want %q", iso2, got, want)
+		}
+	}
+	if n := len(codes["CA"].GetPrefixes()); n != 40 {
+		t.Errorf("CA has %d prefixes, want 40", n)
 	}
 }
