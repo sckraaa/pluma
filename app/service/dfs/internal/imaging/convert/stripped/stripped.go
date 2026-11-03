@@ -44,7 +44,7 @@ func main() {
 	fmt.Println(dst.Bounds())
 
 	sw := bytes2.NewBuffer(make([]byte, 0, 4096))
-	err = imaging.EncodeStripped(sw, dst, 30)
+	err = imaging.EncodeStripped(sw, dst)
 	if err != nil {
 		fmt.Println(err)
 		return

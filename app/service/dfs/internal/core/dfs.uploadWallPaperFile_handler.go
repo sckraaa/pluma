@@ -96,9 +96,9 @@ func (c *DfsCore) DfsUploadWallPaperFile(in *dfs.TLDfsUploadWallPaperFile) (*mtp
 	}
 	stripped := bytes2.NewBuffer(make([]byte, 0, 4096))
 	if thumb.Bounds().Dx() >= thumb.Bounds().Dy() {
-		err = imaging.EncodeStripped(stripped, imaging.Resize(thumb, 40, 0), 30)
+		err = imaging.EncodeStripped(stripped, imaging.Resize(thumb, 40, 0))
 	} else {
-		err = imaging.EncodeStripped(stripped, imaging.Resize(thumb, 0, 40), 30)
+		err = imaging.EncodeStripped(stripped, imaging.Resize(thumb, 0, 40))
 	}
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadWallPaperFile - error: %v", err)
