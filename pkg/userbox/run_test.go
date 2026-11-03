@@ -355,8 +355,8 @@ func TestRunStateChanged(t *testing.T) {
 		s.mu.Unlock()
 		return sendMessage(b)
 	})
-	if !errors.Is(err, errStateChanged) {
-		t.Fatalf("error %v, want %v", err, errStateChanged)
+	if !errors.Is(err, ErrStateChanged) {
+		t.Fatalf("error %v, want %v", err, ErrStateChanged)
 	}
 	if rows := s.rows(7); len(rows) != 1 {
 		t.Errorf("journal %+v: the second transaction's row was committed", rows)
@@ -463,7 +463,7 @@ func TestClassify(t *testing.T) {
 		{errNotApplied, "commit", true},
 		{mysqlErr(1062), "1062", false},
 		{ErrCommitUnknown, "commit_unknown", false},
-		{errStateChanged, "state_changed", false},
+		{ErrStateChanged, "state_changed", false},
 		{context.DeadlineExceeded, "context", false},
 		{driver.ErrBadConn, "other", false},
 	} {

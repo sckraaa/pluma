@@ -17,13 +17,18 @@
 //     (IdGenerator): side effects go to Box.Emit and Box.InvalidateCache and
 //     happen after commit;
 //   - nested: no userbox.Run, userbox.Read, RunBox or ReadState: one box
-//     transaction at a time, and its state is Box.State.
+//     transaction at a time, and its state is Box.State; no channelbox.Read
+//     or channelbox.CheckJournal either: a channel's state is that of
+//     channelbox.Open.
 //
 // Writers adds a rule for the whole repository, box code or not:
 //
 //   - writer: no SQL that writes user_state, user_pts_updates or
 //     user_seq_updates outside pkg/userbox, or mq_outbox outside pkg/userbox
-//     and pkg/outbox, in Go strings or in DAO table definitions.
+//     and pkg/outbox, in Go strings or in DAO table definitions; and none
+//     that writes channel_pts_updates, inserts into channels or sets
+//     channels.pts or channels.last_message_id outside pkg/channelbox
+//     (ADR 0034, p. 2).
 //
 // A finding that is not a violation is marked on its line, or on the line
 // above it, with a comment
@@ -57,6 +62,11 @@ import (
 
 // UserboxPath is the import path of the box transaction package.
 const UserboxPath = "github.com/teamgram/teamgram-server/pkg/userbox"
+
+// ChannelboxPath is the import path of the channel box package, whose
+// functions run inside a user's box transaction (Open, Create) or outside
+// any (Read, CheckJournal).
+const ChannelboxPath = "github.com/teamgram/teamgram-server/pkg/channelbox"
 
 // Finding is a call in box code that breaks a rule.
 type Finding struct {
@@ -357,6 +367,13 @@ func (c *checker) call(call *ast.CallExpr) {
 		switch fn.Name() {
 		case "Run", "Read", "Check", "CheckJournal", "Publish":
 			c.report(call, "nested", "userbox."+fn.Name()+" inside a box transaction")
+		}
+		return
+	}
+	if fn.Pkg() != nil && fn.Pkg().Path() == ChannelboxPath && !isMethod(fn) {
+		switch fn.Name() {
+		case "Read", "CheckJournal":
+			c.report(call, "nested", "channelbox."+fn.Name()+" inside a box transaction")
 		}
 		return
 	}

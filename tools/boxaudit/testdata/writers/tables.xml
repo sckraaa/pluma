@@ -5,3 +5,20 @@
         </sql>
     </operation>
 </table>
+<table sqlname="channels">
+    <operation name="UpdateTitle">
+        <sql>
+            UPDATE channels SET title = :title WHERE id = :id
+        </sql>
+    </operation>
+    <operation name="SelectPts">
+        <sql>
+            SELECT id FROM channels WHERE pts = :pts
+        </sql>
+    </operation>
+    <operation name="UpdateTop">
+        <sql>
+            UPDATE channels SET top_message = :top, last_message_id = :id WHERE id = :channel_id
+        </sql>
+    </operation>
+</table>

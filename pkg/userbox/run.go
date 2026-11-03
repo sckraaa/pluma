@@ -61,9 +61,10 @@ var (
 	// written, the transaction is tried again.
 	errNotApplied = errors.New("userbox: commit not applied")
 
-	// errStateChanged: the counters changed under the transaction's lock,
-	// which only a writer bypassing Run can do.
-	errStateChanged = errors.New("userbox: user_state changed during the transaction")
+	// ErrStateChanged: the counters of a box changed under the
+	// transaction's lock, which only a writer bypassing the box package can
+	// do. Not retried.
+	ErrStateChanged = errors.New("userbox: box state changed during the transaction")
 )
 
 const (
@@ -209,6 +210,9 @@ func runAttempt(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) e
 			return nil, false, err
 		}
 	}
+	if err = flushParts(ctx, b); err != nil {
+		return nil, false, err
+	}
 	// The events go last: the ids they take are held for the shortest
 	// time before commit, which keeps a recipient's consumer from seeing a
 	// later row before this one commits (ADR 0012, p. 2).
@@ -225,7 +229,7 @@ func runAttempt(ctx context.Context, db *sql.DB, userId int64, fn func(b *Box) e
 		return nil, false, err
 	}
 	// The outcome of COMMIT is unknown.
-	if len(b.journal) == 0 && len(b.seqJournal) == 0 {
+	if len(b.journal) == 0 && len(b.seqJournal) == 0 && !b.partsJournaled() {
 		metricCommitUnknown.Inc("unknown")
 		logx.WithContext(ctx).Errorf("userbox: user %d: commit outcome unknown, no journal to check", userId)
 		return nil, false, ErrCommitUnknown
@@ -279,7 +283,7 @@ func writeState(ctx context.Context, b *Box) error {
 		return err
 	}
 	if n != 1 {
-		return errStateChanged
+		return ErrStateChanged
 	}
 	return nil
 }
@@ -320,7 +324,8 @@ func commit(ctx context.Context, tx *sql.Tx) (sent bool, err error) {
 // still finishing on the server, it holds that lock, and the read waits for
 // its outcome. pts or seq below the transaction's means not applied (they
 // never go down); otherwise its journal and seq rows must all be there as
-// written, compared as JSON by the server.
+// written, compared as JSON by the server, and so must the rows of each
+// part that wrote a journal (Part.Applied).
 func verifyCommit(ctx context.Context, db *sql.DB, b *Box) (applied bool, err error) {
 	vctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), VerifyTimeout)
 	defer cancel()
@@ -365,6 +370,15 @@ func verifyCommit(ctx context.Context, db *sql.DB, b *Box) (applied bool, err er
 			return false, nil
 		}
 	}
+	for _, p := range b.parts {
+		if !p.Journaled() {
+			continue
+		}
+		ok, err := p.Applied(vctx, tx)
+		if err != nil || !ok {
+			return false, err
+		}
+	}
 	return true, nil
 }
 
@@ -379,7 +393,7 @@ func classify(err error) (code string, retry bool) {
 		return "commit", true
 	case errors.Is(err, ErrCommitUnknown):
 		return "commit_unknown", false
-	case errors.Is(err, errStateChanged):
+	case errors.Is(err, ErrStateChanged):
 		return "state_changed", false
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
 		return "context", false

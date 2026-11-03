@@ -26,6 +26,9 @@ type Result struct {
 	Taken TakeOutcome
 	// CacheKeys to delete after commit.
 	CacheKeys []string
+	// Parts are the other boxes the transaction changed (Box.Attach), in
+	// the order of Attach, as committed.
+	Parts []Part
 }
 
 // journalRow is a user_pts_updates row written by the transaction.
@@ -65,6 +68,7 @@ type Box struct {
 	events     []outboxRow
 	keys       []string
 	taken      *takenEvent
+	parts      []Part
 
 	// err is a misuse of the Box (bad pts_count, an update that is not of
 	// the common box, ids out of range, an invalid event): the transaction
@@ -238,6 +242,7 @@ func (b *Box) result() *Result {
 		Emitted:   len(b.events),
 		Taken:     b.takenOutcome(),
 		CacheKeys: b.keys,
+		Parts:     b.parts,
 	}
 }
 

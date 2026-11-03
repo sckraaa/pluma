@@ -35,7 +35,7 @@ func Deterministic(err error) bool {
 	if err == nil {
 		return false
 	}
-	if errors.Is(err, ErrMisuse) || errors.Is(err, ErrInsideRun) || errors.Is(err, ErrInvalidEvent) || errors.Is(err, errStateChanged) {
+	if errors.Is(err, ErrMisuse) || errors.Is(err, ErrInsideRun) || errors.Is(err, ErrInvalidEvent) || errors.Is(err, ErrStateChanged) {
 		return true
 	}
 	if n, ok := mysqlErrorNumber(err); ok {
