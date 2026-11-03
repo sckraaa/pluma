@@ -19,7 +19,7 @@
 package core
 
 import (
-	"context"
+	"google.golang.org/grpc/status"
 	"math/rand"
 	"strings"
 	"time"
@@ -106,36 +106,43 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		})
 	if err != nil {
 		c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+		// The same refusal is 403 when forwarding
+		// (core.telegram.org/method/messages.forwardMessages).
+		if status.Convert(err).Message() == "VOICE_MESSAGES_FORBIDDEN" {
+			return nil, errForwardVoiceForbidden
+		}
 		return nil, err
 	}
 
 	return rUpdates, err
 }
 
-func (c *MessagesCore) checkForwardPrivacy(ctx context.Context, selfUserId, checkId int64) bool {
-	rules, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
-		UserId:  selfUserId,
-		KeyType: mtproto.FORWARDS,
-	})
+var errForwardVoiceForbidden = status.Error(mtproto.ErrForbidden, "VOICE_MESSAGES_FORBIDDEN")
 
-	if len(rules.Datas) == 0 {
-		return true
+// checkForwardPrivacy answers whether "who can add a link to my account
+// when forwarding my messages" of the author lets the forwarder link it
+// (task 034): the forwarder's Premium counts for "Premium users".
+func (c *MessagesCore) checkForwardPrivacy(authorId, forwarderId int64) (bool, error) {
+	if authorId == forwarderId {
+		return true, nil
 	}
-	return mtproto.CheckPrivacyIsAllow(
-		selfUserId,
-		rules.Datas,
-		checkId,
-		func(id, checkId int64) bool {
-			contact, _ := c.svcCtx.Dao.UserClient.UserCheckContact(c.ctx, &userpb.TLUserCheckContact{
-				UserId: id,
-				Id:     checkId,
-			})
-			return mtproto.FromBool(contact)
-		},
-		func(checkId int64, idList []int64) bool {
-			chatIdList, _ := mtproto.SplitChatAndChannelIdList(idList)
-			return c.svcCtx.Dao.ChatClient.CheckParticipantIsExist(c.ctx, checkId, chatIdList)
-		})
+	ids := []int64{authorId, forwarderId}
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
+		Id:      ids,
+		Privacy: true,
+		HasTo:   true,
+		To:      ids,
+	})
+	if err != nil {
+		return false, err
+	}
+	author, ok := users.GetImmutableUser(authorId)
+	forwarder, ok2 := users.GetImmutableUser(forwarderId)
+	if !ok || !ok2 {
+		// A deleted author keeps no link (fromName below).
+		return false, nil
+	}
+	return author.CheckPrivacyFor(mtproto.FORWARDS, forwarder), nil
 }
 
 func (c *MessagesCore) makeForwardMessages(
@@ -318,7 +325,11 @@ func (c *MessagesCore) forwardOrigin(box *mtproto.MessageBox) (*mtproto.MessageF
 		Date: box.GetMessage().GetDate(),
 	}).To_MessageFwdHeader()
 	fromId := box.SenderUserId
-	if c.checkForwardPrivacy(c.ctx, fromId, c.MD.UserId) {
+	linked, err := c.checkForwardPrivacy(fromId, c.MD.UserId)
+	if err != nil {
+		return nil, err
+	}
+	if linked {
 		fwdFrom.FromId = mtproto.MakePeerUser(fromId)
 	} else {
 		// from_name is "The name of the user that originally sent the

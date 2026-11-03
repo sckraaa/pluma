@@ -50,9 +50,13 @@ func (c *ChatsCore) addChatUser(chatId int64, userId *mtproto.InputUser, fwdLimi
 		// 400	USER_ID_INVALID	The provided user ID is invalid
 		// 403	USER_NOT_MUTUAL_CONTACT	The provided user is not a mutual contact
 		// 403	USER_PRIVACY_RESTRICTED	The user's privacy settings do not allow you to do this
-		users, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
+		users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
 			Id: []int64{inviterId, addUser.PeerId},
 		})
+		if err != nil {
+			c.Logger.Errorf("messages.addChatUser - error: %v", err)
+			return nil, err
+		}
 
 		me, _ := users.GetImmutableUser(inviterId)
 		added, _ := users.GetImmutableUser(addUser.PeerId)
@@ -68,32 +72,13 @@ func (c *ChatsCore) addChatUser(chatId int64, userId *mtproto.InputUser, fwdLimi
 			return nil, err
 		}
 
-		rules, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
-			UserId:  addUser.PeerId,
-			KeyType: mtproto.CHAT_INVITE,
-		})
-		if len(rules.Datas) > 0 {
-			// return true
-			allowAddChat := mtproto.CheckPrivacyIsAllow(
-				addUser.PeerId,
-				rules.Datas,
-				inviterId,
-				func(id, checkId int64) bool {
-					contact, _ := c.svcCtx.Dao.UserClient.UserCheckContact(c.ctx, &userpb.TLUserCheckContact{
-						UserId: id,
-						Id:     checkId,
-					})
-					return mtproto.FromBool(contact)
-				},
-				func(checkId int64, idList []int64) bool {
-					chatIdList, _ := mtproto.SplitChatAndChannelIdList(idList)
-					return c.svcCtx.Dao.ChatClient.CheckParticipantIsExist(c.ctx, checkId, chatIdList)
-				})
-			if !allowAddChat {
-				err = mtproto.ErrUserPrivacyRestricted
-				c.Logger.Errorf("not allow addChat: %v", err)
-				return nil, err
-			}
+		// "Who can add me to groups" of the user (task 034):
+		// core.telegram.org/method/messages.addChatUser lists 403
+		// USER_PRIVACY_RESTRICTED, which Android turns into the invite link
+		// offer (MessagesController.java:15528).
+		if !added.IsBot() && !added.CheckPrivacyFor(mtproto.CHAT_INVITE, me) {
+			err = mtproto.ErrUserPrivacyRestricted
+			return nil, err
 		}
 
 		isBot = added.IsBot()

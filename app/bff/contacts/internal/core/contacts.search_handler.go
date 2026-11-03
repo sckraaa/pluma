@@ -179,8 +179,11 @@ func (c *ContactsCore) ContactsSearch(in *mtproto.TLContactsSearch) (*mtproto.Co
 		pick(id, false)
 	}
 	if byPhone != 0 && byPhone != c.MD.UserId && !picked[byPhone] {
-		// Only a number the searcher may see finds its user.
-		if u, err := users.GetUnsafeUser(c.MD.UserId, byPhone); err == nil && u.GetPhone().GetValue() != "" {
+		// A number finds its user only when "who can find me by my number"
+		// lets the searcher (task 034), as contacts.resolvePhone.
+		me, ok := users.GetImmutableUser(c.MD.UserId)
+		owner, ok2 := users.GetImmutableUser(byPhone)
+		if ok && ok2 && owner.CheckPrivacyFor(mtproto.ADDED_BY_PHONE, me) {
 			pick(byPhone, isContact[byPhone])
 		}
 	}

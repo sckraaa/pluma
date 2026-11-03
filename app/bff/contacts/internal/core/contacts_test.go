@@ -196,19 +196,24 @@ func newCore(users *fakeUsers, push *fakeSync, chats *fakeChats, md *metadata.Rp
 	}
 }
 
-var everybody = []*mtproto.PrivacyKeyRules{
-	mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
-		Key:   mtproto.PHONE_NUMBER,
-		Rules: []*mtproto.PrivacyRule{mtproto.MakeTLPrivacyValueAllowAll(nil).To_PrivacyRule()},
-	}).To_PrivacyKeyRules(),
+func keyRules(key int32, rule *mtproto.PrivacyRule) *mtproto.PrivacyKeyRules {
+	return mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
+		Key:   key,
+		Rules: []*mtproto.PrivacyRule{rule},
+	}).To_PrivacyKeyRules()
 }
 
-var nobody = []*mtproto.PrivacyKeyRules{
-	mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
-		Key:   mtproto.PHONE_NUMBER,
-		Rules: []*mtproto.PrivacyRule{mtproto.MakeTLPrivacyValueDisallowAll(nil).To_PrivacyRule()},
-	}).To_PrivacyKeyRules(),
-}
+var (
+	allowAll    = mtproto.MakeTLPrivacyValueAllowAll(nil).To_PrivacyRule()
+	disallowAll = mtproto.MakeTLPrivacyValueDisallowAll(nil).To_PrivacyRule()
+
+	// everybody sees the number and finds the user by it.
+	everybody = []*mtproto.PrivacyKeyRules{keyRules(mtproto.PHONE_NUMBER, allowAll), keyRules(mtproto.ADDED_BY_PHONE, allowAll)}
+	// nobody sees the number or finds the user by it.
+	nobody = []*mtproto.PrivacyKeyRules{keyRules(mtproto.PHONE_NUMBER, disallowAll), keyRules(mtproto.ADDED_BY_PHONE, disallowAll)}
+	// findable: the number is hidden, but everybody finds the user by it.
+	findable = []*mtproto.PrivacyKeyRules{keyRules(mtproto.PHONE_NUMBER, disallowAll), keyRules(mtproto.ADDED_BY_PHONE, allowAll)}
+)
 
 func immutableUser(id int64, first, last, username, phone string, rules []*mtproto.PrivacyKeyRules) *mtproto.ImmutableUser {
 	return mtproto.MakeTLImmutableUser(&mtproto.ImmutableUser{
@@ -449,13 +454,14 @@ func TestSearch(t *testing.T) {
 	carol := immutableUser(5, "Carol", "", "carolina", "", nil)
 	visible := immutableUser(6, "Dan", "", "", "12015550106", everybody)
 	hidden := immutableUser(7, "Eve", "", "", "12015550107", nobody)
+	found := immutableUser(8, "Fay", "", "", "12015550108", findable)
 	self := immutableUser(me, "Me", "", "", "12015550101", nil)
 	self.Contacts = []*mtproto.ContactData{contactData(me, 2, "Ally", ""), contactData(me, 3, "Bob", "")}
 	users := &fakeUsers{
-		users:     map[int64]*mtproto.ImmutableUser{me: self, 2: alice, 3: bob, 5: carol, 6: visible, 7: hidden},
+		users:     map[int64]*mtproto.ImmutableUser{me: self, 2: alice, 3: bob, 5: carol, 6: visible, 7: hidden, 8: found},
 		contacts:  []int64{2, 3},
 		usernames: map[string]int64{"bobby": 3, "carolina": 5},
-		phones:    map[string]int64{"12015550106": 6, "12015550107": 7},
+		phones:    map[string]int64{"12015550106": 6, "12015550107": 7, "12015550108": 8},
 	}
 	c := newCore(users, nil, nil, nil)
 	search := func(q string) (mine, others []int64) {
@@ -484,8 +490,9 @@ func TestSearch(t *testing.T) {
 		{"bob", []int64{3}, nil},             // saved name and username
 		{"@rob", nil, nil},                   // "@": usernames only
 		{"car", nil, []int64{5}},             // by username, not a contact
-		{"+1 201 555 0106", nil, []int64{6}}, // a visible number
-		{"+1 201 555 0107", nil, nil},        // a hidden one
+		{"+1 201 555 0106", nil, []int64{6}}, // a number that finds its user
+		{"+1 201 555 0107", nil, nil},        // one that does not
+		{"+1 201 555 0108", nil, []int64{8}}, // finds the user, keeps the number hidden
 		{"Carol", nil, nil},                  // no global search by name
 	} {
 		mine, others := search(c.q)

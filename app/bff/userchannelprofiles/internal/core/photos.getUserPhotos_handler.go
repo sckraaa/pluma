@@ -36,6 +36,20 @@ func (c *UserChannelProfilesCore) PhotosGetUserPhotos(in *mtproto.TLPhotosGetUse
 		return nil, err
 	}
 
+	// The photos of a user whose privacy hides the profile photo from the
+	// caller are not shown either (task 034).
+	visible, err := c.canSee(userId.PeerId, mtproto.PROFILE_PHOTO)
+	if err != nil {
+		c.Logger.Errorf("photos.getUserPhotos - error: %v", err)
+		return nil, err
+	}
+	if !visible {
+		return mtproto.MakeTLPhotosPhotos(&mtproto.Photos_Photos{
+			Photos: []*mtproto.Photo{},
+			Users:  []*mtproto.User{},
+		}).To_Photos_Photos(), nil
+	}
+
 	cachePhotos, err := c.svcCtx.Dao.UserClient.UserGetProfilePhotos(c.ctx, &userpb.TLUserGetProfilePhotos{
 		UserId: userId.PeerId,
 	})

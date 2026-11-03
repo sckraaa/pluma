@@ -39,10 +39,16 @@ func (c *PrivacySettingsCore) AccountGetPrivacy(in *mtproto.TLAccountGetPrivacy)
 		return nil, err
 	}
 
-	ruleList, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
+	ruleList, err := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
 		UserId:  c.MD.UserId,
 		KeyType: int32(key),
 	})
+	if err != nil {
+		// Never a default in place of what the user set: they might save it
+		// (task 034).
+		c.Logger.Errorf("account.getPrivacy - error: %v", err)
+		return nil, err
+	}
 
 	if len(ruleList.GetDatas()) == 0 {
 		if key == mtproto.PHONE_NUMBER {

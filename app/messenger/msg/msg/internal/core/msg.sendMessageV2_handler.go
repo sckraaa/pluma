@@ -20,8 +20,6 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
-
-	"github.com/zeromicro/go-zero/core/mr"
 )
 
 // MsgSendMessageV2
@@ -142,6 +140,15 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 	if required {
 		return nil, premium.ErrPrivacyPremiumRequired
 	}
+	// "Who can send me voice and video messages" of the recipient (task
+	// 034): the server refuses them, not only the client's greyed button.
+	if !peerUser.CheckPrivacyFor(mtproto.VOICE_MESSAGES, sender) {
+		for _, outBox := range outBoxList {
+			if isVoiceOrRound(outBox.GetMessage()) {
+				return nil, mtproto.ErrVoiceMessagesForbidden
+			}
+		}
+	}
 	blocked, err := c.isBlockedBy(fromUserId, toUserId)
 	if err != nil {
 		return nil, err
@@ -236,26 +243,25 @@ func newMessageUpdates(boxes []*mtproto.MessageBox) []*mtproto.Update {
 	return updates
 }
 
-// chatAndUsers loads the chat and the users the messages mention.
+// chatAndUsers loads the chat and the users the messages mention, prepared
+// for the members who will see them: the privacy of each user is decided
+// per member, "my contacts" and "members of a chat" rules included
+// (task 034).
 func (c *MsgCore) chatAndUsers(chatId int64, idHelper *mtproto.IDListHelper) (*mtproto.MutableChat, *mtproto.MutableUsers, error) {
-	var (
-		chat  *mtproto.MutableChat
-		users *mtproto.MutableUsers
-	)
-	err := mr.Finish(
-		func() (err error) {
-			chat, err = c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
-			return err
-		},
-		func() (err error) {
-			users, err = c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
-				Id:      idHelper.UserIdList,
-				Privacy: true,
-				HasTo:   true,
-			})
-			return err
-		})
-	return chat, users, err
+	chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
+	if err != nil {
+		return nil, nil, err
+	}
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
+		Id:      idHelper.UserIdList,
+		Privacy: true,
+		HasTo:   true,
+		To:      chat.ParticipantIdList(),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return chat, users, nil
 }
 
 // usersFor returns users as seen by userId.
@@ -351,4 +357,23 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		return nil, err
 	}
 	return rUpdates, nil
+}
+
+// isVoiceOrRound tells a voice message or a round video message: the media
+// the voice messages privacy guards (core.telegram.org/constructor/
+// inputPrivacyKeyVoiceMessages).
+func isVoiceOrRound(m *mtproto.Message) bool {
+	for _, a := range m.GetMedia().GetDocument().GetAttributes() {
+		switch a.GetPredicateName() {
+		case mtproto.Predicate_documentAttributeAudio:
+			if a.GetVoice() {
+				return true
+			}
+		case mtproto.Predicate_documentAttributeVideo:
+			if a.GetRoundMessage() {
+				return true
+			}
+		}
+	}
+	return false
 }

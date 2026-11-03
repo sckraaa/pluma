@@ -54,5 +54,15 @@ func (c *PrivacySettingsCore) AccountSetGlobalPrivacySettings(in *mtproto.TLAcco
 		return nil, err
 	}
 
-	return rSettings, nil
+	// The answer is what is stored, never the request echoed: settings of
+	// features Pluma does not have (paid messages, gifts) are not kept, and
+	// the client must not show them as saved (task 034).
+	stored, err := c.svcCtx.Dao.UserClient.UserGetGlobalPrivacySettings(c.ctx, &userpb.TLUserGetGlobalPrivacySettings{
+		UserId: c.MD.UserId,
+	})
+	if err != nil {
+		c.Logger.Errorf("account.setGlobalPrivacySettings - error: %v", err)
+		return nil, err
+	}
+	return stored, nil
 }
