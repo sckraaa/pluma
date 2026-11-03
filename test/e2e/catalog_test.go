@@ -100,6 +100,7 @@ func TestCatalog(t *testing.T) {
 // an uninstall reach the other device as "load the sets again".
 func catalogInstall(ctx context.Context, t *testing.T, u, laptop *user) {
 	t.Helper()
+	before := getState(ctx, t, laptop)
 	input := func() *mtproto.InputStickerSet {
 		return mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: "AnimatedEmojies"}).To_InputStickerSet()
 	}
@@ -176,4 +177,63 @@ func catalogInstall(ctx context.Context, t *testing.T, u, laptop *user) {
 	if n := archived(); n != 0 {
 		t.Fatalf("after the uninstall: %d archived", n)
 	}
+
+	// Installed on one device, uninstalled on the other: the other's
+	// difference from before ends with its own uninstall, not with the
+	// install, which would put the set back there.
+	if _, err := u.c.Invoke(ctx, &mtproto.TLMessagesInstallStickerSet{
+		Constructor: u.c.Constructor(mtproto.Predicate_messages_installStickerSet),
+		Stickerset:  input(),
+		Archived:    mtproto.BoolFalse,
+	}); err != nil {
+		t.Fatalf("messages.installStickerSet: %v", err)
+	}
+	waitUpdate(ctx, t, laptop, mtproto.Predicate_updateNewStickerSet, func(*mtproto.Update) bool { return true })
+	if _, err := laptop.c.Invoke(ctx, &mtproto.TLMessagesUninstallStickerSet{
+		Constructor: laptop.c.Constructor(mtproto.Predicate_messages_uninstallStickerSet),
+		Stickerset:  input(),
+	}); err != nil {
+		t.Fatalf("messages.uninstallStickerSet: %v", err)
+	}
+	var last string
+	for _, x := range otherUpdatesFrom(ctx, t, laptop, before) {
+		switch x.GetPredicateName() {
+		case mtproto.Predicate_updateNewStickerSet, mtproto.Predicate_updateStickerSets, mtproto.Predicate_updateStickerSetsOrder:
+			last = x.GetPredicateName()
+		}
+	}
+	if last != mtproto.Predicate_updateStickerSets {
+		t.Fatalf("the other device's difference ends with %q, not its own uninstall", last)
+	}
+}
+
+// otherUpdatesFrom returns the updates without pts of u's
+// updates.getDifference from st, following slices.
+func otherUpdatesFrom(ctx context.Context, t *testing.T, u *user, st *mtproto.TLUpdatesState) []*mtproto.Update {
+	t.Helper()
+	var (
+		out       []*mtproto.Update
+		pts, date = st.GetPts(), st.GetDate()
+	)
+	for range 100 {
+		o, err := u.c.Invoke(ctx, &mtproto.TLUpdatesGetDifference{
+			Constructor: u.c.Constructor(mtproto.Predicate_updates_getDifference),
+			Pts:         pts,
+			Date:        date,
+			Qts:         st.GetQts(),
+		})
+		if err != nil {
+			t.Fatalf("updates.getDifference: %v", err)
+		}
+		d := o.(interface {
+			To_Updates_Difference() *mtproto.Updates_Difference
+		}).To_Updates_Difference()
+		out = append(out, d.GetOtherUpdates()...)
+		if d.GetPredicateName() != mtproto.Predicate_updates_differenceSlice {
+			return out
+		}
+		pts, date = d.GetIntermediateState().GetPts(), d.GetIntermediateState().GetDate()
+	}
+	t.Fatal("updates.getDifference: too many slices")
+	return nil
 }
