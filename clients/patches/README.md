@@ -4,8 +4,8 @@
 
 | Клиент | Репозиторий | Апстрим (закреплён) | Реестр | Правок |
 |---|---|---|---|---|
-| Android | `sckraaa/pluma-android` (локально `~/pluma-android`) | DrKLO/Telegram 12.9.1, `aac1efcb` | [android.md](android.md) | A-001…A-078 |
-| iOS | `sckraaa/pluma-ios` | Telegram-iOS 12.9.2, `6ad963e5` | [ios.md](ios.md) | I-001…I-089 |
+| Android | `sckraaa/pluma-android` (локально `~/pluma-android`) | DrKLO/Telegram 12.9.1, `aac1efcb` | [android.md](android.md) | A-001…A-085 |
+| iOS | `sckraaa/pluma-ios` | Telegram-iOS 12.9.2, `6ad963e5` | [ios.md](ios.md) | I-001…I-095 |
 | Desktop | `sckraaa/pluma-desktop` | tdesktop v7.0.9, `a1e89e1f` | [desktop.md](desktop.md) | D-001…D-072 |
 | Web | `sckraaa/pluma-web` (локально `~/pluma-web`) | tweb, `346844bf` | [web.md](web.md) | W-001…W-064 |
 
