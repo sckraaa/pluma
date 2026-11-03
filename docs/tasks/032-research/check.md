@@ -88,4 +88,4 @@ I spot-checked 12 claims: iOS at `6ad963e5b62d354da79040f388ae2b9132fb17b8` and 
     - `hide_read_marks`, `read_dates_private` and `getOutboxReadDate` privacy;
     - the `privacyIsAllow` leak, which also affects photo and phone.
 
-I wrote the fetched tdesktop and iOS files to the scratchpad: `/private/tmp/claude-503/-Users-sckr-a-teamgram-server/76bbed60-70da-4b26-9bff-19b96e18ecba/scratchpad/au.cpp` and `/private/tmp/claude-503/-Users-sckr-a-teamgram-server/76bbed60-70da-4b26-9bff-19b96e18ecba/scratchpad/asmu.swift`.
+I wrote the fetched tdesktop and iOS files to the scratchpad: a temporary copy and a temporary copy.

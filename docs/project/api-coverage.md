@@ -600,7 +600,7 @@
 | `messages.getMyStickers` | missing |  |  |
 | `messages.getOldFeaturedStickers` | ok |  | app/bff/catalog/internal/core/messages.getOldFeaturedStickers_handler.go:27 |
 | `messages.getOnlines` | notimpl |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:27 |
-| `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:40 |
+| `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:45 |
 | `messages.getPaidReactionPrivacy` | missing |  |  |
 | `messages.getPeerDialogs` | partial |  | app/bff/dialogs/internal/core/messages.getPeerDialogs_handler.go:78 |
 | `messages.getPeerSettings` | ok |  | app/bff/dialogs/internal/core/messages.getPeerSettings_handler.go:28 |
@@ -1039,7 +1039,7 @@
 | `users.getMe` | ok |  | app/bff/users/internal/core/users.getMe_handler.go:28 |
 | `users.getRequirementsToContact` | ok |  | app/bff/privacysettings/internal/core/users.getRequirementsToContact_handler.go:35 |
 | `users.getSavedMusic` | ok |  | app/bff/userchannelprofiles/internal/core/users.getSavedMusic_handler.go:29 |
-| `users.getSavedMusicByID` | ok |  | app/bff/userchannelprofiles/internal/core/users.getSavedMusicByID_handler.go:28 |
+| `users.getSavedMusicByID` | ok |  | app/bff/userchannelprofiles/internal/core/users.getSavedMusicByID_handler.go:29 |
 | `users.getStoriesMaxIDs` | missing |  |  |
 | `users.getUsers` | ok |  | app/bff/users/internal/core/users.getUsers_handler.go:28 |
 | `users.setSecureValueErrors` | blocked |  | app/bff/passport/internal/core/users.setSecureValueErrors_handler.go:27 |

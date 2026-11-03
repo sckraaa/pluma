@@ -29,6 +29,19 @@ import (
 func (c *UserChannelProfilesCore) UsersGetSavedMusic(in *mtproto.TLUsersGetSavedMusic) (*mtproto.Users_SavedMusic, error) {
 	peer := mtproto.FromInputUser(c.MD.UserId, in.GetId())
 
+	// Saved music hidden by the user's privacy is no music at all (task 034).
+	visible, err := c.canSee(peer.PeerId, mtproto.SAVED_MUSIC)
+	if err != nil {
+		c.Logger.Errorf("users.getSavedMusic - error: %v", err)
+		return nil, err
+	}
+	if !visible {
+		return mtproto.MakeTLUsersSavedMusic(&mtproto.Users_SavedMusic{
+			Count:     0,
+			Documents: []*mtproto.Document{},
+		}).To_Users_SavedMusic(), nil
+	}
+
 	idList, err := c.svcCtx.Dao.UserClient.UserGetSavedMusicIdList(c.ctx, &user.TLUserGetSavedMusicIdList{
 		UserId: peer.PeerId,
 	})

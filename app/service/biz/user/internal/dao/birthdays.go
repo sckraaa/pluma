@@ -74,9 +74,16 @@ func (d *Dao) ContactBirthdays(ctx context.Context, userId int64, now time.Time)
 		if rules == nil {
 			rules = mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{Key: mtproto.BIRTHDAY, Rules: birthdayRules}).To_PrivacyKeyRules()
 		}
-		if mtproto.CheckPrivacyIsAllow(c.ContactId, rules.GetRules(), userId,
-			func(_, _ int64) bool { return slices.Contains(mutual, c.ContactId) },
-			func(_ int64, _ []int64) bool { return false }) {
+		// Members of chats count too (task 034): "contacts except chat X"
+		// hides the birthday from X's members.
+		resolved, err := d.resolveForViewer(ctx, rules.GetRules(), userId)
+		if err != nil {
+			return nil, err
+		}
+		if mtproto.EvaluatePrivacy(resolved, mtproto.PrivacyViewer{
+			Id:      userId,
+			Contact: slices.Contains(mutual, c.ContactId),
+		}) {
 			out = append(out, c)
 		}
 	}

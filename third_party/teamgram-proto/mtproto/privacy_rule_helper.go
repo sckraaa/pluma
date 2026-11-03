@@ -253,85 +253,190 @@ func PickAllIdListByRules(rules []*PrivacyRule) (userIdList, chatIdList, channel
 	return
 }
 
+// pluma: CheckPrivacyIsAllow answers whether the account selfId lets checkId
+// see what rules guard; cbContact says whether selfId has checkId in its
+// contacts and cbChat whether checkId is a member of any of the chats. It
+// is EvaluatePrivacy for a viewer of whom nothing else is known (task 034).
 func CheckPrivacyIsAllow(selfId int64,
 	rules []*PrivacyRule,
 	checkId int64,
 	cbContact func(id, checkId int64) bool,
 	cbChat func(checkId int64, idList []int64) bool) bool {
-	ruleType := RULE_TYPE_INVALID
-
-	for _, r := range rules {
-		switch r.PredicateName {
-		case Predicate_privacyValueAllowAll:
-			ruleType = ALLOW_ALL
-		case Predicate_privacyValueAllowContacts:
-			ruleType = ALLOW_CONTACTS
-		case Predicate_privacyValueDisallowAll:
-			ruleType = DISALLOW_ALL
-		}
-	}
-
-	switch ruleType {
-	case ALLOW_ALL:
-		for _, r := range rules {
-			switch r.PredicateName {
-			case Predicate_privacyValueDisallowUsers:
-				for _, id := range r.Users {
-					if id == checkId {
-						return false
-					}
-				}
-			case Predicate_privacyValueDisallowChatParticipants:
-				if len(r.Chats) > 0 && cbChat(checkId, r.Chats) {
-					return false
-				}
-			}
-		}
+	if selfId == checkId {
 		return true
-	case ALLOW_CONTACTS:
-		for _, r := range rules {
-			switch r.PredicateName {
-			case Predicate_privacyValueAllowUsers:
-				for _, id := range r.Users {
-					if id == checkId {
-						return true
-					}
-				}
-			case Predicate_privacyValueAllowChatParticipants:
-				if len(r.Chats) > 0 && cbChat(checkId, r.Chats) {
-					return true
-				}
-			case Predicate_privacyValueDisallowUsers:
-				for _, id := range r.Users {
-					if id == checkId {
-						return false
-					}
-				}
-			case Predicate_privacyValueDisallowChatParticipants:
-				if len(r.Chats) > 0 && cbChat(checkId, r.Chats) {
-					return false
-				}
+	}
+	v := PrivacyViewer{Id: checkId, Contact: cbContact(selfId, checkId)}
+	if cbChat != nil {
+		v.InChats = func(chats []int64) bool { return cbChat(checkId, chats) }
+	}
+	return EvaluatePrivacy(rules, v)
+}
+
+// pluma: PrivacyViewer is what the privacy rules of an account need to know
+// of the user who looks at it (task 034, ADR 0031).
+type PrivacyViewer struct {
+	Id int64
+	// Contact says the owner of the rules has the viewer in its contacts.
+	Contact bool
+	Premium bool
+	Bot     bool
+	// InChats answers whether the viewer is a member of any of the chats.
+	// When it is nil and a chat rule is not resolved (ResolvePrivacyChats),
+	// membership is unknown: an allowing chat rule does not match and a
+	// disallowing one does.
+	InChats func(chats []int64) bool
+}
+
+// pluma: the chat rules ResolvePrivacyChats has resolved for the viewers a
+// request asked about: Users holds those of them who are members. They live
+// only in the ImmutableUser views of the user service and never reach a
+// client or the storage.
+const (
+	PredicatePrivacyAllowChatMembers    = "pluma_privacyValueAllowChatMembers"
+	PredicatePrivacyDisallowChatMembers = "pluma_privacyValueDisallowChatMembers"
+)
+
+// pluma: ResolvePrivacyChats returns rules with every chat rule replaced by
+// its resolved form: members(chats) gives the viewers asked about who are
+// members of any of the chats. rules itself is not changed; without chat
+// rules it is returned as is.
+func ResolvePrivacyChats(rules []*PrivacyRule, members func(chats []int64) []int64) []*PrivacyRule {
+	var out []*PrivacyRule
+	for i, r := range rules {
+		var predicate string
+		switch r.GetPredicateName() {
+		case Predicate_privacyValueAllowChatParticipants:
+			predicate = PredicatePrivacyAllowChatMembers
+		case Predicate_privacyValueDisallowChatParticipants:
+			predicate = PredicatePrivacyDisallowChatMembers
+		default:
+			if out != nil {
+				out = append(out, r)
 			}
+			continue
 		}
-		return cbContact(selfId, checkId)
-	case DISALLOW_ALL:
-		for _, r := range rules {
-			switch r.PredicateName {
-			case Predicate_privacyValueAllowUsers:
-				for _, id := range r.Users {
-					if id == checkId {
-						return true
-					}
-				}
-			case Predicate_privacyValueAllowChatParticipants:
-				if len(r.Chats) > 0 && cbChat(checkId, r.Chats) {
-					return true
-				}
-			}
+		if out == nil {
+			out = append(make([]*PrivacyRule, 0, len(rules)), rules[:i]...)
+		}
+		var users []int64
+		if len(r.GetChats()) > 0 {
+			users = members(r.GetChats())
+		}
+		out = append(out, &PrivacyRule{
+			PredicateName: predicate,
+			Constructor:   r.GetConstructor(),
+			Users:         users,
+			Chats:         r.GetChats(),
+		})
+	}
+	if out == nil {
+		return rules
+	}
+	return out
+}
+
+// pluma: EvaluatePrivacy answers whether rules let v see what they guard
+// (task 034, ADR 0031). The result does not depend on the order of the
+// rules, which the clients send differently (Android, iOS and tdesktop the
+// exceptions first, Web K the base rule first). The more specific rule
+// wins:
+//  1. v is in a DisallowUsers rule: no; in an AllowUsers rule: yes;
+//  2. v is a member of a chat of a DisallowChatParticipants rule: no; of an
+//     AllowChatParticipants rule: yes (empty lists are ignored);
+//  3. bots: DisallowBots no, AllowBots yes;
+//  4. AllowPremium and v has Premium: yes;
+//  5. DisallowContacts and v is a contact: no;
+//  6. the base rule: AllowAll yes, AllowContacts yes for a contact, else no.
+//
+// With several base rules the most open one counts, as Android
+// (PrivacyControlActivity) and iOS (PrivacySettings.swift) read them;
+// account.setPrivacy stores one. No base rule means nobody. AllowCloseFriends
+// only applies to stories and is ignored here.
+func EvaluatePrivacy(rules []*PrivacyRule, v PrivacyViewer) bool {
+	var (
+		base                          = DISALLOW_ALL
+		allowUser, disallowUser       bool
+		allowChat, disallowChat       bool
+		allowBots, disallowBots       bool
+		allowPremium, disallowContact bool
+	)
+	member := func(r *PrivacyRule, resolved bool) bool {
+		if len(r.GetChats()) == 0 {
+			return false
+		}
+		if resolved {
+			return containsId(r.GetUsers(), v.Id)
+		}
+		if v.InChats != nil {
+			return v.InChats(r.GetChats())
 		}
 		return false
 	}
+	for _, r := range rules {
+		switch r.GetPredicateName() {
+		case Predicate_privacyValueAllowAll:
+			base = ALLOW_ALL
+		case Predicate_privacyValueAllowContacts:
+			if base != ALLOW_ALL {
+				base = ALLOW_CONTACTS
+			}
+		case Predicate_privacyValueDisallowAll:
+		case Predicate_privacyValueAllowUsers:
+			allowUser = allowUser || containsId(r.GetUsers(), v.Id)
+		case Predicate_privacyValueDisallowUsers:
+			disallowUser = disallowUser || containsId(r.GetUsers(), v.Id)
+		case Predicate_privacyValueAllowChatParticipants:
+			allowChat = allowChat || member(r, false)
+		case PredicatePrivacyAllowChatMembers:
+			allowChat = allowChat || member(r, true)
+		case Predicate_privacyValueDisallowChatParticipants:
+			// Unknown membership hides rather than shows.
+			disallowChat = disallowChat || (len(r.GetChats()) > 0 && v.InChats == nil) || member(r, false)
+		case PredicatePrivacyDisallowChatMembers:
+			disallowChat = disallowChat || member(r, true)
+		case Predicate_privacyValueAllowBots:
+			allowBots = true
+		case Predicate_privacyValueDisallowBots:
+			disallowBots = true
+		case Predicate_privacyValueAllowPremium:
+			allowPremium = true
+		case Predicate_privacyValueDisallowContacts:
+			disallowContact = true
+		}
+	}
+	switch {
+	case disallowUser:
+		return false
+	case allowUser:
+		return true
+	case disallowChat:
+		return false
+	case allowChat:
+		return true
+	case v.Bot && disallowBots:
+		return false
+	case v.Bot && allowBots:
+		return true
+	case v.Premium && allowPremium:
+		return true
+	case v.Contact && disallowContact:
+		return false
+	}
+	switch base {
+	case ALLOW_ALL:
+		return true
+	case ALLOW_CONTACTS:
+		return v.Contact
+	}
+	return false
+}
 
+func containsId(ids []int64, id int64) bool {
+	for _, v := range ids {
+		if v == id {
+			return true
+		}
+	}
 	return false
 }
 
@@ -345,72 +450,8 @@ privacyValueDisallowUsers#c7f49b7 users:Vector<int> = PrivacyRule;
 privacyValueAllowChatParticipants#18be796b chats:Vector<int> = PrivacyRule;
 privacyValueDisallowChatParticipants#acae0690 chats:Vector<int> = PrivacyRule;
 */
+// pluma: privacyIsAllow is EvaluatePrivacy for a viewer known by its id and
+// whether the owner has it as a contact (task 034).
 func privacyIsAllow(rules []*PrivacyRule, userId int64, isContact bool) bool {
-	ruleType := RULE_TYPE_INVALID
-
-	for _, r := range rules {
-		switch r.PredicateName {
-		case Predicate_privacyValueAllowAll:
-			ruleType = ALLOW_ALL
-		case Predicate_privacyValueAllowContacts:
-			ruleType = ALLOW_CONTACTS
-		case Predicate_privacyValueDisallowAll:
-			ruleType = DISALLOW_ALL
-		}
-	}
-
-	switch ruleType {
-	case ALLOW_ALL:
-		for _, r := range rules {
-			switch r.PredicateName {
-			case Predicate_privacyValueDisallowUsers:
-				for _, id := range r.Users {
-					if id == userId {
-						return false
-					}
-				}
-			case Predicate_privacyValueDisallowChatParticipants:
-				return true
-			}
-		}
-		return true
-	case ALLOW_CONTACTS:
-		for _, r := range rules {
-			switch r.PredicateName {
-			case Predicate_privacyValueAllowUsers:
-				for _, id := range r.Users {
-					if id == userId {
-						return true
-					}
-				}
-			case Predicate_privacyValueAllowChatParticipants:
-				return true
-			case Predicate_privacyValueDisallowUsers:
-				for _, id := range r.Users {
-					if id == userId {
-						return false
-					}
-				}
-			case Predicate_privacyValueDisallowChatParticipants:
-				return true
-			}
-		}
-		return isContact
-	case DISALLOW_ALL:
-		for _, r := range rules {
-			switch r.PredicateName {
-			case Predicate_privacyValueAllowUsers:
-				for _, id := range r.Users {
-					if id == userId {
-						return true
-					}
-				}
-			case Predicate_privacyValueAllowChatParticipants:
-				return true
-			}
-		}
-		return false
-	}
-
-	return false
+	return EvaluatePrivacy(rules, PrivacyViewer{Id: userId, Contact: isContact})
 }

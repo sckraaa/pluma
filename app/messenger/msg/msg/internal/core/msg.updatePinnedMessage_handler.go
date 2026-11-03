@@ -88,7 +88,7 @@ func (c *MsgCore) pinTarget(in *msg.TLMsgUpdatePinnedMessage, peerType int32, pe
 		if _, ok := chat.GetImmutableChatParticipant(in.UserId); !ok {
 			return nil, mtproto.ErrChatWriteForbidden
 		}
-		t.users = func(userId int64) []*mtproto.User { return usersFor(users, userId) }
+		t.users = func(userId int64) []*mtproto.User { return users.For(userId) }
 		t.chats = func(userId int64) []*mtproto.Chat { return []*mtproto.Chat{chat.ToUnsafeChat(userId)} }
 		if !in.PmOneside {
 			t.recipients = chatRecipients(chat, in.UserId, false)

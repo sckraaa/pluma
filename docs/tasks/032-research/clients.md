@@ -6,7 +6,7 @@ Sources I read:
 - tdesktop: `v7.0.9`.
 - Web K: `~/pluma-web/upstream` at `346844bf8c002bc1af4de20e78ae1d0df0265019`.
 
-Fetched copies are in `/private/tmp/claude-503/-Users-sckr-a-teamgram-server/76bbed60-70da-4b26-9bff-19b96e18ecba/scratchpad/os/`. Line numbers below refer to those copies, or to the Web K tree.
+Fetched copies are in a temporary copy. Line numbers below refer to those copies, or to the Web K tree.
 
 ---
 

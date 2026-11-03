@@ -34,49 +34,30 @@ func (c *UsersCore) ContactsResolvePhone(in *mtproto.TLContactsResolvePhone) (*m
 		return nil, err
 	}
 
-	var (
-		allow = false
-	)
-
+	ids := []int64{id.GetV(), c.MD.UserId}
 	contactList, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
-		Id:      []int64{id.GetV(), c.MD.UserId},
+		Id:      ids,
 		Privacy: true,
 		HasTo:   true,
-		To:      []int64{c.MD.UserId},
+		To:      ids,
 	})
 	if err != nil {
 		c.Logger.Errorf("contacts.resolvePhone - error: %v", err)
-		return nil, mtproto.ErrPhoneNotOccupied
+		return nil, err
 	}
 
 	me, _ := contactList.GetImmutableUser(c.MD.UserId)
 	resolved, _ := contactList.GetImmutableUser(id.GetV())
-
 	if me == nil || resolved == nil {
 		err = mtproto.ErrInternalServerError
-		c.Logger.Errorf("users.getFullUser - error: %v", err)
+		c.Logger.Errorf("contacts.resolvePhone - error: %v", err)
 		return nil, err
 	}
 
-	rules, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
-		UserId:  id.GetV(),
-		KeyType: mtproto.ADDED_BY_PHONE,
-	})
-	if rules != nil && len(rules.Datas) > 0 {
-		allow = mtproto.CheckPrivacyIsAllow(
-			c.MD.UserId,
-			rules.Datas,
-			id.GetV(),
-			func(id, checkId int64) bool {
-				contact, _ := resolved.CheckContact(checkId)
-				return contact
-			},
-			func(checkId int64, idList []int64) bool {
-				return false
-			})
-	}
-	if !allow {
-		c.Logger.Errorf("contacts.resolvePhone - error: %v", err)
+	// "Who can find me by my number" of the owner of the number, for the
+	// caller (task 034): a number its owner keeps from the caller is, to the
+	// caller, a number without an account.
+	if !resolved.CheckPrivacyFor(mtproto.ADDED_BY_PHONE, me) {
 		return nil, mtproto.ErrPhoneNotOccupied
 	}
 

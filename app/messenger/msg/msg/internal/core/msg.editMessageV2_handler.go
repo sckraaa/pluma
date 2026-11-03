@@ -144,7 +144,7 @@ func (c *MsgCore) editChatMessage(fromUserId, fromAuthKeyId, peerChatId int64, e
 		}
 		update = edited
 		if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
-			mtproto.MakeUpdatesByUpdatesUsersChats(usersFor(users, fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, update)); err != nil {
+			mtproto.MakeUpdatesByUpdatesUsersChats(users.For(fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, update)); err != nil {
 			return err
 		}
 		for _, userId := range recipients {
@@ -154,7 +154,7 @@ func (c *MsgCore) editChatMessage(fromUserId, fromAuthKeyId, peerChatId int64, e
 				PeerType:   mtproto.PEER_CHAT,
 				PeerId:     peerChatId,
 				NewMessage: box,
-				Users:      usersFor(users, userId),
+				Users:      users.For(userId),
 				Chats:      []*mtproto.Chat{chat.ToUnsafeChat(userId)},
 			}); err != nil {
 				return err
@@ -166,7 +166,7 @@ func (c *MsgCore) editChatMessage(fromUserId, fromAuthKeyId, peerChatId int64, e
 		return nil, err
 	}
 	return mtproto.MakeReplyUpdates(
-		func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
+		func(idList []int64) []*mtproto.User { return users.users.GetUserListByIdList(fromUserId, idList...) },
 		func([]int64) []*mtproto.Chat { return []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)} },
 		func([]int64) []*mtproto.Chat { return nil },
 		update), nil

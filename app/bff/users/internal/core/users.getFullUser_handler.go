@@ -87,10 +87,10 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		BlockedMyStoriesFrom:     false,
 		WallpaperOverridden:      false,
 		Id:                       peerId,
-		About:                    user.GetUser().GetAbout(),
+		About:                    nil,
 		Settings:                 nil,
 		PersonalPhoto:            nil,
-		ProfilePhoto:             user.GetUser().GetProfilePhoto(),
+		ProfilePhoto:             nil,
 		FallbackPhoto:            nil,
 		NotifySettings:           nil,
 		BotInfo:                  nil,
@@ -129,6 +129,37 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 
 	// Pluma sells no Premium and nobody gifts it, the admin grants it
 	// (ADR 0016): no premium_gifts.
+
+	// What the privacy of the user lets me see (task 034, ADR 0031): the
+	// rules of every key come with the user, chat rules resolved for me.
+	if user.CheckPrivacyFor(mtproto.ABOUT, me) {
+		userFull.About = user.GetUser().GetAbout()
+	}
+	if user.CheckPrivacyFor(mtproto.PROFILE_PHOTO, me) {
+		userFull.ProfilePhoto = user.GetUser().GetProfilePhoto()
+	}
+	if user.CheckPrivacyFor(mtproto.BIRTHDAY, me) {
+		userFull.Birthday = user.Birthday()
+	}
+	if user.CheckPrivacyFor(mtproto.SAVED_MUSIC, me) {
+		userFull.SavedMusic = user.GetUser().GetSavedMusic()
+	}
+	if peerId != c.MD.UserId {
+		userFull.VoiceMessagesForbidden = !user.CheckPrivacyFor(mtproto.VOICE_MESSAGES, me)
+		userFull.PhoneCallsPrivate = !user.CheckPrivacyFor(mtproto.PHONE_CALL, me)
+
+		// The user hides read dates from those who cannot see their last
+		// seen (globalPrivacySettings.hide_read_marks): Android then shows no
+		// read date (ChatActivity, read_dates_private).
+		settings, err := c.svcCtx.Dao.UserClient.UserGetGlobalPrivacySettings(c.ctx, &userpb.TLUserGetGlobalPrivacySettings{
+			UserId: peerId,
+		})
+		if err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
+		userFull.ReadDatesPrivate = settings.GetHideReadMarks() && !user.CheckPrivacyFor(mtproto.STATUS_TIMESTAMP, me)
+	}
 
 	// Whether this user lets me write only with Premium (task 014): the
 	// client shows it in place of the message field.
@@ -169,7 +200,6 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		func() {
 			if user.GetUser().GetBot() != nil {
 				userFull.PhoneCallsAvailable = false
-				userFull.PhoneCallsPrivate = false
 				userFull.VideoCallsAvailable = false
 				userFull.BotInfo, _ = c.svcCtx.Dao.UserClient.UserGetBotInfo(c.ctx, &userpb.TLUserGetBotInfo{
 					BotId: peerId,
@@ -208,58 +238,6 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 					}
 				}
 			}
-		},
-		func() {
-			rules, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
-				UserId:  peerId,
-				KeyType: mtproto.VOICE_MESSAGES,
-			})
-			if rules != nil && len(rules.Datas) > 0 {
-				allow := mtproto.CheckPrivacyIsAllow(
-					peerId,
-					rules.Datas,
-					c.MD.UserId,
-					func(id, checkId int64) bool {
-						contact, _ := user.CheckContact(checkId)
-						return contact
-					},
-					func(checkId int64, idList []int64) bool {
-						// TODO
-						chatIdList, _ := mtproto.SplitChatAndChannelIdList(idList)
-						_ = chatIdList
-						// return c.svcCtx.Dao.ChatClient.CheckParticipantIsExist(c.ctx, checkId, chatIdList)
-						return false
-					})
-				userFull.VoiceMessagesForbidden = !allow
-			}
-		},
-		func() {
-			if user.GetUser().GetSavedMusic() != nil {
-				rules, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
-					UserId:  peerId,
-					KeyType: mtproto.SAVED_MUSIC,
-				})
-				if rules != nil && len(rules.Datas) > 0 {
-					allow := mtproto.CheckPrivacyIsAllow(
-						peerId,
-						rules.Datas,
-						c.MD.UserId,
-						func(id, checkId int64) bool {
-							contact, _ := user.CheckContact(checkId)
-							return contact
-						},
-						func(checkId int64, idList []int64) bool {
-							// TODO
-							chatIdList, _ := mtproto.SplitChatAndChannelIdList(idList)
-							_ = chatIdList
-							// return c.svcCtx.Dao.ChatClient.CheckParticipantIsExist(c.ctx, checkId, chatIdList)
-							return false
-						})
-					if allow {
-						userFull.SavedMusic = user.GetUser().GetSavedMusic()
-					}
-				}
-			}
 		})
 
 	// TODO: FolderId:    0,
@@ -292,40 +270,6 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 				chats = append(chats, pChannel)
 			}
 		}
-	}
-
-	if c.MD.UserId != peerId {
-		// userFull.Birthday = user.Birthday()
-		if user.Birthday() != nil {
-			//if user.GetUser().GetSavedMusic() != nil {
-			rules, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
-				UserId:  peerId,
-				KeyType: mtproto.BIRTHDAY,
-			})
-			if rules != nil && len(rules.Datas) > 0 {
-				allow := mtproto.CheckPrivacyIsAllow(
-					peerId,
-					rules.Datas,
-					c.MD.UserId,
-					func(id, checkId int64) bool {
-						contact, _ := user.CheckContact(checkId)
-						return contact
-					},
-					func(checkId int64, idList []int64) bool {
-						// TODO
-						chatIdList, _ := mtproto.SplitChatAndChannelIdList(idList)
-						_ = chatIdList
-						// return c.svcCtx.Dao.ChatClient.CheckParticipantIsExist(c.ctx, checkId, chatIdList)
-						return false
-					})
-				if allow {
-					userFull.Birthday = user.Birthday()
-				}
-			}
-			//}
-		}
-	} else {
-		userFull.Birthday = user.Birthday()
 	}
 
 	if c.MD.UserId == 777000 {

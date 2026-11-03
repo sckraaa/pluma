@@ -150,8 +150,7 @@ func addedByPhoneAllows(owner int64, rules []*mtproto.PrivacyRule, userId int64,
 	if len(rules) == 0 {
 		return true
 	}
-	return mtproto.CheckPrivacyIsAllow(owner, rules, userId,
-		func(_, _ int64) bool { return ownerHasUser },
-		// Exceptions for chat members are not offered for this key.
-		func(_ int64, _ []int64) bool { return false })
+	// No client offers chat exceptions for this key; should one come, an
+	// unresolved chat rule hides (EvaluatePrivacy).
+	return mtproto.EvaluatePrivacy(rules, mtproto.PrivacyViewer{Id: userId, Contact: ownerHasUser})
 }

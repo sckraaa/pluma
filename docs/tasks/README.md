@@ -57,8 +57,26 @@
 | [029](029-ios-install-from-site.md) | Установка iOS-клиента с сайта (Ad Hoc) | blocked |
 | [030](030-sticker-sets-on-demand.md) | Наборы стикеров и эмодзи из Telegram по запросу | todo |
 | [031](031-external-security-audit.md) | Внешний аудит безопасности | todo |
-| [032](032-online-status-push.md) | Статус «в сети» доходит до собеседников сразу | todo |
-| [033](033-read-date-ios.md) | Время прочтения в iOS | blocked |
+| [032](032-online-status-push.md) | Статус «в сети» доходит до собеседников сразу | done |
+| [033](033-read-date-ios.md) | Время прочтения в iOS | done |
+| [034](034-privacy.md) | Все настройки приватности работают как в Telegram | in progress |
+| [035](035-channel-box-research.md) | Каналы: сверка с Telegram и ADR «Ящик канала» | todo |
+| [036](036-channel-schema-and-box.md) | Каналы: схема и `pkg/channelbox` | todo |
+| [037](037-channels-service-skeleton.md) | Каналы: сервис biz `channel`, модуль bff `channels`, маршрутизация | todo |
+| [038](038-channel-create-and-dialogs.md) | Каналы: создание, `getChannels`, `getFullChannel`, диалоги | todo |
+| [039](039-channel-send-and-history.md) | Каналы: отправка, история, `channels.getMessages` | todo |
+| [040](040-channel-difference.md) | Каналы: `updates.getChannelDifference` и `updateChannelTooLong` | todo |
+| [041](041-channel-membership-and-invites.md) | Каналы: участники и приглашения | todo |
+| [042](042-channel-rights.md) | Каналы: права админов, баны, права по умолчанию | todo |
+| [043](043-channel-edit-delete-pin-read.md) | Каналы: правка, удаление, закрепление, прочтение | todo |
+| [044](044-channel-metadata-and-usernames.md) | Каналы: название, фото, настройки, реакции, публичные имена | todo |
+| [045](045-channel-slow-mode.md) | Супергруппы: медленный режим | todo |
+| [046](046-broadcast-channel-specifics.md) | Каналы-трансляции: просмотры, подписи, ссылки на посты | todo |
+| [047](047-group-to-supergroup-migration.md) | Переход базовой группы в супергруппу | todo |
+| [048](048-channel-discussion-and-threads.md) | Каналы: группа обсуждения и комментарии | todo |
+| [049](049-channels-conformance-and-client-pass.md) | Каналы: сравнительные тесты и проход по клиентам | todo |
+| [050](050-chat-archive.md) | Архив чатов: перенос, автоархив, возврат из архива | todo |
+| [051](051-public-photo.md) | Фото «для всех» и личное фото контакта | todo |
 
 Порядок этапа 0. Параллельно можно вести две линии — они не пересекаются по файлам:
 - **сервер:** 001 → 005 → 002 → 003 → 004 → 011, 013 → 014 → 015 → 010 → 008 → 009 → 007;

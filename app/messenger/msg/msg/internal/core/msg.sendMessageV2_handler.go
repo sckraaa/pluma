@@ -20,8 +20,6 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
-
-	"github.com/zeromicro/go-zero/core/mr"
 )
 
 // MsgSendMessageV2
@@ -142,6 +140,15 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 	if required {
 		return nil, premium.ErrPrivacyPremiumRequired
 	}
+	// "Who can send me voice and video messages" of the recipient (task
+	// 034): the server refuses them, not only the client's greyed button.
+	if !peerUser.CheckPrivacyFor(mtproto.VOICE_MESSAGES, sender) {
+		for _, outBox := range outBoxList {
+			if isVoiceOrRound(outBox.GetMessage()) {
+				return nil, mtproto.ErrVoiceMessagesForbidden
+			}
+		}
+	}
 	blocked, err := c.isBlockedBy(fromUserId, toUserId)
 	if err != nil {
 		return nil, err
@@ -236,35 +243,51 @@ func newMessageUpdates(boxes []*mtproto.MessageBox) []*mtproto.Update {
 	return updates
 }
 
-// chatAndUsers loads the chat and the users the messages mention.
-func (c *MsgCore) chatAndUsers(chatId int64, idHelper *mtproto.IDListHelper) (*mtproto.MutableChat, *mtproto.MutableUsers, error) {
-	var (
-		chat  *mtproto.MutableChat
-		users *mtproto.MutableUsers
-	)
-	err := mr.Finish(
-		func() (err error) {
-			chat, err = c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
-			return err
-		},
-		func() (err error) {
-			users, err = c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
-				Id:      idHelper.UserIdList,
-				Privacy: true,
-				HasTo:   true,
-			})
-			return err
-		})
-	return chat, users, err
+// chatUsers are the users the messages of a basic group mention, loaded
+// with the members who will see them: the privacy of each user is decided
+// per member, the member's Premium and own last seen rule included
+// (task 034).
+type chatUsers struct {
+	users *mtproto.MutableUsers
+	shown []int64
 }
 
-// usersFor returns users as seen by userId.
-func usersFor(users *mtproto.MutableUsers, userId int64) []*mtproto.User {
-	out := make([]*mtproto.User, 0, users.Length())
-	users.Visit(func(it *mtproto.ImmutableUser) {
-		out = append(out, it.ToUser(userId))
-	})
+// For returns the users the messages mention as viewerId sees them.
+func (u chatUsers) For(viewerId int64) []*mtproto.User {
+	viewer, known := u.users.GetImmutableUser(viewerId)
+	out := make([]*mtproto.User, 0, len(u.shown))
+	for _, id := range u.shown {
+		it, ok := u.users.GetImmutableUser(id)
+		if !ok {
+			continue
+		}
+		if known {
+			out = append(out, it.ToUserFor(viewer))
+		} else {
+			out = append(out, it.ToUser(viewerId))
+		}
+	}
 	return out
+}
+
+// chatAndUsers loads the chat and the users the messages mention, with
+// every member (chatUsers).
+func (c *MsgCore) chatAndUsers(chatId int64, idHelper *mtproto.IDListHelper) (*mtproto.MutableChat, chatUsers, error) {
+	chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
+	if err != nil {
+		return nil, chatUsers{}, err
+	}
+	members := chat.ParticipantIdList()
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
+		Id:      append(append([]int64{}, idHelper.UserIdList...), members...),
+		Privacy: true,
+		HasTo:   true,
+		To:      members,
+	})
+	if err != nil {
+		return nil, chatUsers{}, err
+	}
+	return chat, chatUsers{users: users, shown: idHelper.UserIdList}, nil
 }
 
 // sendChatMessages sends messages from fromUserId to the basic group
@@ -314,7 +337,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		func(b *userbox.Box) error {
 			reply := func(boxes []*mtproto.MessageBox) {
 				rUpdates = sendReply(boxes,
-					func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
+					func(idList []int64) []*mtproto.User { return users.users.GetUserListByIdList(fromUserId, idList...) },
 					func([]int64) []*mtproto.Chat { return []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)} })
 			}
 			sent, err := c.svcCtx.Dao.SentBefore(b, mtproto.PEER_CHAT, peerChatId, repeat)
@@ -329,7 +352,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 			reply(boxes)
 
 			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
-				mtproto.MakeUpdatesByUpdatesUsersChats(usersFor(users, fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {
+				mtproto.MakeUpdatesByUpdatesUsersChats(users.For(fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {
 				return err
 			}
 			for _, userId := range recipients {
@@ -339,7 +362,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 					PeerType: mtproto.PEER_CHAT,
 					PeerId:   peerChatId,
 					BoxList:  boxes,
-					Users:    usersFor(users, userId),
+					Users:    users.For(userId),
 					Chats:    []*mtproto.Chat{chat.ToUnsafeChat(userId)},
 				}); err != nil {
 					return err
@@ -351,4 +374,23 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		return nil, err
 	}
 	return rUpdates, nil
+}
+
+// isVoiceOrRound tells a voice message or a round video message: the media
+// the voice messages privacy guards (core.telegram.org/constructor/
+// inputPrivacyKeyVoiceMessages).
+func isVoiceOrRound(m *mtproto.Message) bool {
+	for _, a := range m.GetMedia().GetDocument().GetAttributes() {
+		switch a.GetPredicateName() {
+		case mtproto.Predicate_documentAttributeAudio:
+			if a.GetVoice() {
+				return true
+			}
+		case mtproto.Predicate_documentAttributeVideo:
+			if a.GetRoundMessage() {
+				return true
+			}
+		}
+	}
+	return false
 }

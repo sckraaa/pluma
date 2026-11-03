@@ -70,11 +70,21 @@ func (c *ChatsCore) createChat(iUsers []*mtproto.InputUser, chatTitle string, tt
 		}
 	}
 
-	users, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
 		Id: chatUserIdList,
 	})
+	if err != nil {
+		c.Logger.Errorf("messages.createChat - error: %v", err)
+		return nil, err
+	}
 
-	if me, _ := users.GetImmutableUser(c.MD.UserId); me.Restricted() {
+	me, ok := users.GetImmutableUser(c.MD.UserId)
+	if !ok {
+		err := mtproto.ErrInternalServerError
+		c.Logger.Errorf("messages.createChat - error: %v", err)
+		return nil, err
+	}
+	if me.Restricted() {
 		err := mtproto.ErrUserRestricted
 		c.Logger.Errorf("messages.createChat - error: %v", err)
 		return nil, err
@@ -94,36 +104,14 @@ func (c *ChatsCore) createChat(iUsers []*mtproto.InputUser, chatTitle string, tt
 					botAddList = append(botAddList, addUser.Id())
 				}
 			} else {
-				rules, _ := c.svcCtx.Dao.UserClient.UserGetPrivacy(c.ctx, &userpb.TLUserGetPrivacy{
-					UserId:  addUser.Id(),
-					KeyType: mtproto.CHAT_INVITE,
-				})
-				if len(rules.Datas) == 0 {
-					missingInvitees = append(missingInvitees, mtproto.MakeTLMissingInvitee(&mtproto.MissingInvitee{
-						PremiumWouldAllowInvite: false,
-						PremiumRequiredForPm:    false,
-						UserId:                  u.UserId,
-					}).To_MissingInvitee())
-				} else {
-					allowAddChat := mtproto.CheckPrivacyIsAllow(
-						addUser.Id(),
-						rules.Datas,
-						c.MD.UserId,
-						func(id, checkId int64) bool {
-							contact, _ := c.svcCtx.Dao.UserClient.UserCheckContact(c.ctx, &userpb.TLUserCheckContact{
-								UserId: id,
-								Id:     checkId,
-							})
-							return mtproto.FromBool(contact)
-						},
-						func(checkId int64, idList []int64) bool {
-							chatIdList, _ := mtproto.SplitChatAndChannelIdList(idList)
-							return c.svcCtx.Dao.ChatClient.CheckParticipantIsExist(c.ctx, checkId, chatIdList)
-						})
-					if !allowAddChat {
-						c.Logger.Errorf("chatInvite privacy, ignore %d", u.UserId)
-						continue
-					}
+				// "Who can add me to groups" of the invitee (task 034): one who
+				// keeps the creator out is not added, and the answer lists them
+				// so the client offers an invite link (missingInvitee,
+				// core.telegram.org/api/invites; Android
+				// AlertsCreator.checkRestrictedInviteUsers).
+				if missing := missingInvitee(me, addUser); missing != nil {
+					missingInvitees = append(missingInvitees, missing)
+					continue
 				}
 				userAddList = append(userAddList, addUser.Id())
 			}
@@ -225,4 +213,32 @@ func (c *ChatsCore) createChat(iUsers []*mtproto.InputUser, chatTitle string, tt
 		Updates:         rValue,
 		MissingInvitees: missingInvitees,
 	}).To_Messages_InvitedUsers(), nil
+}
+
+// missingInvitee returns the missingInvitee of a user whose privacy keeps
+// inviter from adding them to a group, or nil when it lets them.
+// premium_would_allow_invite says the same rules would let the inviter
+// with Premium (EvaluatePrivacy as for a Premium inviter).
+func missingInvitee(inviter, invitee *mtproto.ImmutableUser) *mtproto.MissingInvitee {
+	if invitee.CheckPrivacyFor(mtproto.CHAT_INVITE, inviter) {
+		return nil
+	}
+	wouldAllow := false
+	if !inviter.Premium() {
+		contact, _ := invitee.CheckContact(inviter.Id())
+		for _, k := range invitee.GetKeysPrivacyRules() {
+			if k.GetKey() == mtproto.CHAT_INVITE {
+				wouldAllow = mtproto.EvaluatePrivacy(k.GetRules(), mtproto.PrivacyViewer{
+					Id:      inviter.Id(),
+					Contact: contact,
+					Premium: true,
+					Bot:     inviter.IsBot(),
+				})
+			}
+		}
+	}
+	return mtproto.MakeTLMissingInvitee(&mtproto.MissingInvitee{
+		PremiumWouldAllowInvite: wouldAllow,
+		UserId:                  invitee.Id(),
+	}).To_MissingInvitee()
 }

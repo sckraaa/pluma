@@ -113,9 +113,9 @@ func (c *UserChannelProfilesCore) pushStatus(change presence.Change, now int64) 
 
 // statusRecipients returns the users who see the caller (user.getStatusWatchers:
 // contacts, private dialogs, basic groups) and may see the caller's exact
-// last seen: the privacy rule of the status
-// timestamp holds both ways, as for users.getUsers (ImmutableUser.ToUnsafeUser),
-// and neither user has blocked the other. The others would only be told a
+// last seen: the privacy rule of the status timestamp holds both ways
+// unless the viewer has Premium, as for users.getUsers
+// (ImmutableUser.StatusFor), and neither user has blocked the other. The others would only be told a
 // rounded status ("recently"), which coming online or going offline does not
 // change.
 func (c *UserChannelProfilesCore) statusRecipients() ([]int64, error) {
@@ -162,9 +162,11 @@ func (c *UserChannelProfilesCore) statusRecipients() ([]int64, error) {
 	)
 	for _, id := range ids {
 		viewer, ok := mUsers.GetImmutableUser(id)
+		// Only who sees the exact time (ImmutableUser.StatusFor): the others'
+		// rounded status does not change when the user comes or goes.
 		if !ok || skip[id] || viewer.Deleted() ||
-			!self.CheckPrivacy(mtproto.STATUS_TIMESTAMP, id) ||
-			!viewer.CheckPrivacy(mtproto.STATUS_TIMESTAMP, c.MD.UserId) {
+			!self.CheckPrivacyFor(mtproto.STATUS_TIMESTAMP, viewer) ||
+			(!viewer.Premium() && !viewer.CheckPrivacy(mtproto.STATUS_TIMESTAMP, c.MD.UserId)) {
 			continue
 		}
 		wg.Add(1)
