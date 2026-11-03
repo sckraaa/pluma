@@ -199,3 +199,17 @@ func (s *Service) MsgDeleteHistoryRange(ctx context.Context, request *msg.TLMsgD
 
 	return r, err
 }
+
+// MsgEditPeerFolders
+// msg.editPeerFolders user_id:long auth_key_id:long peers:Vector<long> folder_id:int = Updates;
+func (s *Service) MsgEditPeerFolders(ctx context.Context, request *msg.TLMsgEditPeerFolders) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.editPeerFolders - metadata: {%s}", c.MD)
+
+	r, err := c.MsgEditPeerFolders(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

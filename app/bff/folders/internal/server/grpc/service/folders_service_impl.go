@@ -69,3 +69,11 @@ func (s *Service) MessagesToggleDialogFilterTags(ctx context.Context, request *m
 	c.Logger.Debugf("messages.toggleDialogFilterTags - metadata: {%s}", c.MD)
 	return c.MessagesToggleDialogFilterTags(request)
 }
+
+// FoldersEditPeerFolders
+// folders.editPeerFolders#6847d0ab folder_peers:Vector<InputFolderPeer> = Updates;
+func (s *Service) FoldersEditPeerFolders(ctx context.Context, request *mtproto.TLFoldersEditPeerFolders) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("folders.editPeerFolders - metadata: {%s}", c.MD)
+	return c.FoldersEditPeerFolders(request)
+}

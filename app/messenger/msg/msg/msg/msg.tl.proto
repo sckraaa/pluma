@@ -37,6 +37,8 @@ enum TLConstructor {
   CRC32_msg_unpinAllMessages = -1199153371;
   CRC32_msg_readMentions = -2049897703;
   CRC32_msg_deleteHistoryRange = -2133492186;
+  // pluma: task 050
+  CRC32_msg_editPeerFolders = -2047878569;
 }
 
 // ContentMessage <--
@@ -227,6 +229,18 @@ message TL_msg_deleteHistoryRange {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: msg.editPeerFolders user_id:long auth_key_id:long peers:Vector<long> folder_id:int = Updates;
+// Moves the dialogs peers (peer dialog ids) of the user to the peer folder
+// folder_id, the archive (1) or the main list (0), task 050.
+message TL_msg_editPeerFolders {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  repeated int64 peers = 5;
+  int32 folder_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -255,4 +269,6 @@ service RPCMsg {
       returns (mtproto.messages_AffectedHistory) {}
   rpc msg_deleteHistoryRange(TL_msg_deleteHistoryRange)
       returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 050
+  rpc msg_editPeerFolders(TL_msg_editPeerFolders) returns (mtproto.Updates) {}
 }

@@ -36,6 +36,7 @@ type MsgClient interface {
 	MsgUnpinAllMessages(ctx context.Context, in *msg.TLMsgUnpinAllMessages) (*mtproto.Messages_AffectedHistory, error)
 	MsgReadMentions(ctx context.Context, in *msg.TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error)
 	MsgDeleteHistoryRange(ctx context.Context, in *msg.TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error)
+	MsgEditPeerFolders(ctx context.Context, in *msg.TLMsgEditPeerFolders) (*mtproto.Updates, error)
 }
 
 type defaultMsgClient struct {
@@ -189,4 +190,15 @@ func (m *defaultMsgClient) MsgDeleteHistoryRange(ctx context.Context, in *msg.TL
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgDeleteHistoryRange(ctx, in)
+}
+
+// MsgEditPeerFolders
+// msg.editPeerFolders user_id:long auth_key_id:long peers:Vector<long> folder_id:int = Updates;
+func (m *defaultMsgClient) MsgEditPeerFolders(ctx context.Context, in *msg.TLMsgEditPeerFolders) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgEditPeerFolders(ctx, in)
 }
