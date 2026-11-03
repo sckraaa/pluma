@@ -2508,6 +2508,10 @@ message ContactData {
   google.protobuf.StringValue phone = 8;
   bool close_friend = 9;
   bool stories_hidden = 10;
+  // pluma: the personal photo the owner of the row set for the contact
+  // (photos.uploadContactProfilePhoto with save), seen by the owner alone.
+  int64 personal_photo_id = 11;
+  bool personal_photo_has_video = 12;
 }
 
 // TL_contactData
@@ -14282,6 +14286,9 @@ message UserData {
   // pluma: globalPrivacySettings.new_noncontact_peers_require_premium of the
   // user: only contacts, chats there already and Premium users may write.
   bool new_noncontact_peers_require_premium = 36;
+  // pluma: the public photo (photos.uploadProfilePhoto with fallback), shown
+  // to the users the privacy of the profile photo hides the main photo from.
+  Photo fallback_photo = 37;
 }
 
 // TL_userData
