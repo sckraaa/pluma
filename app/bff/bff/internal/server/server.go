@@ -27,6 +27,7 @@ import (
 	autodownload_helper "github.com/teamgram/teamgram-server/app/bff/autodownload"
 	"github.com/teamgram/teamgram-server/app/bff/bff/internal/config"
 	catalog_helper "github.com/teamgram/teamgram-server/app/bff/catalog"
+	channels_helper "github.com/teamgram/teamgram-server/app/bff/channels"
 	chatinvites_helper "github.com/teamgram/teamgram-server/app/bff/chatinvites"
 	chats_helper "github.com/teamgram/teamgram-server/app/bff/chats"
 	configuration_helper "github.com/teamgram/teamgram-server/app/bff/configuration"
@@ -226,6 +227,7 @@ func (s *Server) Initialize() error {
 				UpdatesClient:     c.BizServiceClient,
 				UserClient:        c.BizServiceClient,
 				ChatClient:        c.BizServiceClient,
+				ChannelClient:     c.BizServiceClient,
 				AuthsessionClient: c.AuthSessionClient,
 			}))
 
@@ -298,6 +300,14 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCTimezonesServer(grpcServer, catalog)
 		mtproto.RegisterRPCMessageEffectsServer(grpcServer, catalog)
 		mtproto.RegisterRPCSavedMessageTagsServer(grpcServer, catalog)
+
+		// channels_helper: channels and supergroups (ADR 0034); the methods
+		// not served yet answer ERR_ENTERPRISE_IS_BLOCKED.
+		mtproto.RegisterRPCChannelsServer(
+			grpcServer,
+			channels_helper.New(channels_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+			}))
 
 		// stories_helper: the stories (none yet, the list answers so).
 		mtproto.RegisterRPCStoriesServer(
