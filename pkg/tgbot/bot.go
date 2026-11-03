@@ -273,10 +273,12 @@ func (b *Bot) connTo(ctx context.Context, dc int32) (Conn, error) {
 }
 
 // invoke sends req to dc, waits out a short FLOOD_WAIT, sends it again
-// after a server error, and drops a connection that failed so that the next
-// request dials again.
+// after a server error, and drops a connection that failed and sends req
+// once more on a new one: Telegram closes a connection that was idle, so
+// the first request after a quiet spell meets a closed one. The requests
+// of the bot only read, so sending one again is safe.
 func (b *Bot) invoke(ctx context.Context, dc int32, req mtproto.TLObject) ([]byte, error) {
-	for failures := 0; ; {
+	for failures, redialed := 0, false; ; {
 		// The connections are the lock's; requests on one run at once.
 		b.mu.Lock()
 		c, err := b.connTo(ctx, dc)
@@ -323,6 +325,10 @@ func (b *Bot) invoke(ctx context.Context, dc int32, req mtproto.TLObject) ([]byt
 				}
 			}
 			b.mu.Unlock()
+			if !redialed {
+				redialed = true
+				continue
+			}
 		}
 		return raw, err
 	}

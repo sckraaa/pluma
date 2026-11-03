@@ -37,7 +37,7 @@ func (c *CatalogCore) MessagesInstallStickerSet(in *mtproto.TLMessagesInstallSti
 		return nil, err
 	}
 	kind := installed.KindOf(ms.GetSet())
-	err = c.svcCtx.Installed.Install(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, kind, set.ID, mtproto.FromBool(in.GetArchived()),
+	err = c.svcCtx.Installed.Install(c.ctx, c.MD.UserId, kind, set.ID, mtproto.FromBool(in.GetArchived()),
 		func(installedAt int64) *mtproto.Update {
 			return mtproto.MakeTLUpdateNewStickerSet(&mtproto.Update{
 				Stickerset_MESSAGES_STICKERSET: asInstalled(ms, installedAt),

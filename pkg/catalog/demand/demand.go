@@ -32,6 +32,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
+	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
 )
@@ -116,6 +117,7 @@ func (f *Fetcher) ByShortName(ctx context.Context, name string) (*catalog.Set, e
 }
 
 func (f *Fetcher) fetch(ctx context.Context, name string) (*catalog.Set, error) {
+	start := f.now()
 	set, err := f.src.StickerSet(ctx, mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: name}).To_InputStickerSet())
 	if errors.Is(err, mtproto.ErrStickersetInvalid) {
 		return nil, ErrNoSet
@@ -132,13 +134,21 @@ func (f *Fetcher) fetch(ctx context.Context, name string) (*catalog.Set, error) 
 	if err != nil {
 		return nil, err
 	}
-	return f.im.ImportSet(ctx, set, func(_ context.Context, doc *mtproto.Document, thumb string) ([]byte, error) {
+	fetched := f.now()
+	stored, err := f.im.ImportSet(ctx, set, func(_ context.Context, doc *mtproto.Document, thumb string) ([]byte, error) {
 		b, ok := files[fileKey{doc.GetId(), thumb}]
 		if !ok {
 			return nil, fmt.Errorf("demand: no file %d/%q", doc.GetId(), thumb)
 		}
 		return b, nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	// The user waits for both: how long each took tells where to look.
+	logx.WithContext(ctx).Infof("demand: set %q, %d documents and %d files: from Telegram in %s, stored in %s",
+		name, len(docs), len(files), fetched.Sub(start).Round(time.Millisecond), f.now().Sub(fetched).Round(time.Millisecond))
+	return stored, nil
 }
 
 type fileKey struct {

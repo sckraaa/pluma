@@ -37,8 +37,9 @@ type journaled struct {
 
 // Sets of an account (migrate-20261103-user-sticker-sets.sql): each kind in
 // its own order, the last installed first; archived sets apart, the last
-// archived first; each change one update with seq for the other devices, and
-// a change that changes nothing no update at all.
+// archived first; each change one update with seq for every device, the one
+// that made it too (emit), and a change that changes nothing no update at
+// all.
 func TestStore(t *testing.T) {
 	ctx := context.Background()
 	db, err := testinfra.StartMySQL(ctx)
@@ -57,10 +58,7 @@ func TestStore(t *testing.T) {
 	}
 	s := NewStore(sqlx.NewMySQL(&conf), boxDB, "Sync-T")
 
-	const (
-		user = int64(7)
-		key  = int64(70)
-	)
+	const user = int64(7)
 	newSet := func(id int64) func(int64) *mtproto.Update {
 		return func(installedAt int64) *mtproto.Update {
 			if installedAt == 0 {
@@ -75,7 +73,7 @@ func TestStore(t *testing.T) {
 	}
 	install := func(kind Kind, id int64, archived bool) {
 		t.Helper()
-		if err := s.Install(ctx, user, key, kind, id, archived, newSet(id)); err != nil {
+		if err := s.Install(ctx, user, kind, id, archived, newSet(id)); err != nil {
 			t.Fatalf("install %d: %v", id, err)
 		}
 	}
@@ -121,8 +119,8 @@ func TestStore(t *testing.T) {
 		var names []string
 		for _, j := range got {
 			names = append(names, j.kind)
-			if j.except != key {
-				t.Errorf("%s: %s sent to the device that made it (except %d)", step, j.kind, j.except)
+			if j.except != 0 {
+				t.Errorf("%s: %s kept from the device that made it (except %d)", step, j.kind, j.except)
 			}
 		}
 		if !slices.Equal(names, kinds) {
@@ -151,7 +149,7 @@ func TestStore(t *testing.T) {
 	}
 
 	// Archived: off the list; archived again, nothing; unarchived, on top.
-	if err := s.Toggle(ctx, user, key, Archive, []Ref{{SetID: 3, Kind: Stickers}, {SetID: 10, Kind: Emojis}, {SetID: 99, Kind: Masks}}); err != nil {
+	if err := s.Toggle(ctx, user, Archive, []Ref{{SetID: 3, Kind: Stickers}, {SetID: 10, Kind: Emojis}, {SetID: 99, Kind: Masks}}); err != nil {
 		t.Fatal(err)
 	}
 	expect("archive", "updateStickerSets", "updateStickerSets") // not 99, never installed
@@ -161,7 +159,7 @@ func TestStore(t *testing.T) {
 	if got := archivedOf(Masks); len(got) != 0 {
 		t.Fatalf("archived masks %v", got)
 	}
-	if err := s.Toggle(ctx, user, key, Archive, []Ref{{SetID: 3, Kind: Stickers}}); err != nil {
+	if err := s.Toggle(ctx, user, Archive, []Ref{{SetID: 3, Kind: Stickers}}); err != nil {
 		t.Fatal(err)
 	}
 	expect("archive again")
@@ -170,7 +168,7 @@ func TestStore(t *testing.T) {
 	if got := archivedOf(Stickers); !slices.Equal(got, []int64{2, 3}) && !slices.Equal(got, []int64{3, 2}) {
 		t.Fatalf("archived stickers %v", got)
 	}
-	if err := s.Toggle(ctx, user, key, Unarchive, []Ref{{SetID: 3, Kind: Stickers}}); err != nil {
+	if err := s.Toggle(ctx, user, Unarchive, []Ref{{SetID: 3, Kind: Stickers}}); err != nil {
 		t.Fatal(err)
 	}
 	expect("unarchive", "updateStickerSets")
@@ -181,7 +179,7 @@ func TestStore(t *testing.T) {
 	// Reorder: unknown and repeated ids dropped, the left out appended.
 	install(Stickers, 4, false)
 	expect("one more", "updateNewStickerSet")
-	stored, err := s.Reorder(ctx, user, key, Stickers, []int64{1, 1, 77, 4})
+	stored, err := s.Reorder(ctx, user, Stickers, []int64{1, 1, 77, 4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,20 +187,20 @@ func TestStore(t *testing.T) {
 		t.Fatalf("reorder stored %v, installed %v, want %v", stored, installedOf(Stickers), want)
 	}
 	expect("reorder", "updateStickerSetsOrder")
-	if _, err := s.Reorder(ctx, user, key, Stickers, []int64{1, 4, 3}); err != nil {
+	if _, err := s.Reorder(ctx, user, Stickers, []int64{1, 4, 3}); err != nil {
 		t.Fatal(err)
 	}
 	expect("the same order")
 
 	// Uninstalled, installed or archived: gone; gone already, nothing.
-	if err := s.Toggle(ctx, user, key, Uninstall, []Ref{{SetID: 4, Kind: Stickers}, {SetID: 2, Kind: Stickers}, {SetID: 5, Kind: Stickers}}); err != nil {
+	if err := s.Toggle(ctx, user, Uninstall, []Ref{{SetID: 4, Kind: Stickers}, {SetID: 2, Kind: Stickers}, {SetID: 5, Kind: Stickers}}); err != nil {
 		t.Fatal(err)
 	}
 	expect("uninstall", "updateStickerSets")
 	if got, arch := installedOf(Stickers), archivedOf(Stickers); !slices.Equal(got, []int64{1, 3}) || len(arch) != 0 {
 		t.Fatalf("after uninstall: installed %v, archived %v", got, arch)
 	}
-	if err := s.Toggle(ctx, user, key, Uninstall, []Ref{{SetID: 4, Kind: Stickers}}); err != nil {
+	if err := s.Toggle(ctx, user, Uninstall, []Ref{{SetID: 4, Kind: Stickers}}); err != nil {
 		t.Fatal(err)
 	}
 	expect("uninstall again")

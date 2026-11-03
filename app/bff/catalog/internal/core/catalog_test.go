@@ -349,7 +349,7 @@ func (m *memInstalled) Entry(_ context.Context, user, set int64) (*installed.Ent
 	return nil, nil
 }
 
-func (m *memInstalled) Install(_ context.Context, user, _ int64, kind installed.Kind, set int64, archived bool, newSet func(int64) *mtproto.Update) error {
+func (m *memInstalled) Install(_ context.Context, user int64, kind installed.Kind, set int64, archived bool, newSet func(int64) *mtproto.Update) error {
 	if m.rows == nil {
 		m.rows = map[int64][]installed.Entry{}
 	}
@@ -360,12 +360,12 @@ func (m *memInstalled) Install(_ context.Context, user, _ int64, kind installed.
 	return nil
 }
 
-func (m *memInstalled) Toggle(_ context.Context, _, _ int64, action installed.Action, sets []installed.Ref) error {
+func (m *memInstalled) Toggle(_ context.Context, _ int64, action installed.Action, sets []installed.Ref) error {
 	m.action, m.toggled = action, sets
 	return nil
 }
 
-func (m *memInstalled) Reorder(_ context.Context, _, _ int64, _ installed.Kind, order []int64) ([]int64, error) {
+func (m *memInstalled) Reorder(_ context.Context, _ int64, _ installed.Kind, order []int64) ([]int64, error) {
 	return order, nil
 }
 

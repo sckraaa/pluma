@@ -35,7 +35,7 @@ func (c *CatalogCore) MessagesReorderStickerSets(in *mtproto.TLMessagesReorderSt
 	if len(in.GetOrder()) > maxToggle*5 {
 		return nil, mtproto.ErrInputRequestInvalid
 	}
-	if _, err := c.svcCtx.Installed.Reorder(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, kind, in.GetOrder()); err != nil {
+	if _, err := c.svcCtx.Installed.Reorder(c.ctx, c.MD.UserId, kind, in.GetOrder()); err != nil {
 		c.Logger.Errorf("messages.reorderStickerSets - error: %v", err)
 		return nil, err
 	}
