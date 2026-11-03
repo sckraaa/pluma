@@ -16,20 +16,24 @@
 package dao
 
 import (
+	"context"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
-// profileWatchersQuery reads, by the user's id, the users who see the user
+// profileWatchersSelect reads, by the user's id, the users who see the user
 // in their lists: whose contact the user is and who have a private dialog
 // with the user, without the user and without deleted accounts. The
 // indexes user_contacts (contact_user_id) and dialogs (peer_type, peer_id)
 // serve it (migrate-20261027-profile-watchers.sql).
-const profileWatchersQuery = "SELECT c.owner_user_id FROM user_contacts c JOIN users u ON u.id = c.owner_user_id" +
+const profileWatchersSelect = "SELECT c.owner_user_id FROM user_contacts c JOIN users u ON u.id = c.owner_user_id" +
 	" WHERE c.contact_user_id = ? AND c.is_deleted = 0 AND c.owner_user_id <> ? AND u.deleted = 0" +
 	" UNION SELECT d.user_id FROM dialogs d JOIN users u ON u.id = d.user_id" +
-	" WHERE d.peer_type = ? AND d.peer_id = ? AND d.deleted = 0 AND d.user_id <> ? AND u.deleted = 0" +
-	" ORDER BY 1"
+	" WHERE d.peer_type = ? AND d.peer_id = ? AND d.deleted = 0 AND d.user_id <> ? AND u.deleted = 0"
+
+// profileWatchersQuery is profileWatchersSelect in the order of the ids.
+const profileWatchersQuery = profileWatchersSelect + " ORDER BY 1"
 
 // profileWatchers returns, by id, the users who see the account id in their
 // lists (profileWatchersQuery), as b reads them. The read takes no locks: a
@@ -61,4 +65,26 @@ func (d *Dao) tellWatchers(b *userbox.Box, id int64, u *mtproto.Update) error {
 		}
 	}
 	return nil
+}
+
+// statusWatchersQuery adds to the profile watchers the members of the basic
+// groups the user is a member of: their clients count and show who of the
+// members is online (task 032).
+const statusWatchersQuery = profileWatchersSelect +
+	" UNION SELECT p2.user_id FROM chat_participants p1" +
+	" JOIN chats c ON c.id = p1.chat_id AND c.deactivated = 0 AND c.migrated_to_id = 0" +
+	" JOIN chat_participants p2 ON p2.chat_id = p1.chat_id AND p2.state = ?" +
+	" JOIN users u ON u.id = p2.user_id" +
+	" WHERE p1.user_id = ? AND p1.state = ? AND p2.user_id <> ? AND u.deleted = 0" +
+	" ORDER BY 1"
+
+// StatusWatchers returns the users who see the online status of the user
+// id, if its privacy lets them: the users who have it as a contact, those
+// with a private dialog with it and the members of its basic groups.
+func (d *Dao) StatusWatchers(ctx context.Context, id int64) ([]int64, error) {
+	var ids []int64
+	err := d.DB.QueryRowsPartial(ctx, &ids, statusWatchersQuery,
+		id, id, mtproto.PEER_USER, id, id,
+		mtproto.ChatMemberStateNormal, id, mtproto.ChatMemberStateNormal, id)
+	return ids, err
 }

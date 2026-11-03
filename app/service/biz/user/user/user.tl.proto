@@ -140,6 +140,8 @@ enum TLConstructor {
   CRC32_user_saveGif = 1026682920;
   CRC32_user_getReactionsNotifySettings = -1804716295;
   CRC32_user_setReactionsNotifySettings = -1356164288;
+  // pluma: task 032
+  CRC32_user_getStatusWatchers = -1683643787;
 }
 
 // BotInfoData <--
@@ -1043,6 +1045,13 @@ message TL_user_getSavedGifIdList {
   int64 user_id = 3;
 }
 
+// pluma: user.getStatusWatchers user_id:long = Vector<long>;
+// The users who see the user's online status: account.updateStatus (task 032).
+message TL_user_getStatusWatchers {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+}
+
 // pluma: user.saveGif user_id:long id:long unsave:Bool = Bool;
 // Puts the GIF id at the top of the user's saved GIFs, or takes it off with
 // unsave, and pushes updateSavedGifs with seq to every authorization of the
@@ -1287,4 +1296,7 @@ service RPCUser {
       returns (mtproto.ReactionsNotifySettings) {}
   rpc user_setReactionsNotifySettings(TL_user_setReactionsNotifySettings)
       returns (mtproto.ReactionsNotifySettings) {}
+  // pluma: task 032
+  rpc user_getStatusWatchers(TL_user_getStatusWatchers)
+      returns (Vector_Long) {}
 }

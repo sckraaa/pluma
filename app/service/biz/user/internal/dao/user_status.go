@@ -34,7 +34,7 @@ const (
 
 	// signUpOnline is the online window of a user who has just signed up,
 	// the one account.updateStatus opens (app/bff/userchannelprofiles).
-	signUpOnline = 300
+	signUpOnline = 60
 )
 
 func genUserPresencesKey(userId int64) string {

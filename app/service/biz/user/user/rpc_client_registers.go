@@ -136,6 +136,9 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLUserSaveGif":                    {"/mtproto.RPCUser/user_saveGif", func() interface{} { return new(mtproto.Bool) }},
 	"TLUserGetReactionsNotifySettings": {"/mtproto.RPCUser/user_getReactionsNotifySettings", func() interface{} { return new(mtproto.ReactionsNotifySettings) }},
 	"TLUserSetReactionsNotifySettings": {"/mtproto.RPCUser/user_setReactionsNotifySettings", func() interface{} { return new(mtproto.ReactionsNotifySettings) }},
+
+	// pluma: task 032
+	"TLUserGetStatusWatchers": {"/mtproto.RPCUser/user_getStatusWatchers", func() interface{} { return new(Vector_Long) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

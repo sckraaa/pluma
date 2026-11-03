@@ -132,6 +132,9 @@ const (
 	Predicate_user_saveGif                    = "user_saveGif"
 	Predicate_user_getReactionsNotifySettings = "user_getReactionsNotifySettings"
 	Predicate_user_setReactionsNotifySettings = "user_setReactionsNotifySettings"
+
+	// pluma: task 032
+	Predicate_user_getStatusWatchers = "user_getStatusWatchers"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -603,6 +606,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1356164288, // 0xaf2a9340
 
 	},
+	Predicate_user_getStatusWatchers: { // pluma: task 032
+		0: -1683643787, // 0x9ba5a275
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -723,6 +730,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1026682920:  Predicate_user_saveGif,                       // 0x3d31f028 pluma: task 020
 	-1804716295: Predicate_user_getReactionsNotifySettings,    // 0x946e36f9 pluma: task 020
 	-1356164288: Predicate_user_setReactionsNotifySettings,    // 0xaf2a9340 pluma: task 020
+	-1683643787: Predicate_user_getStatusWatchers,             // 0x9ba5a275 pluma: task 032
 
 }
 

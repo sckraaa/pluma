@@ -616,6 +616,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1356164288,
 		}
 	},
+	-1683643787: func() mtproto.TLObject { // 0x9ba5a275 pluma: task 032
+		return &TLUserGetStatusWatchers{
+			Constructor: -1683643787,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -6958,4 +6963,42 @@ func (m *Vector_SavedContact) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *Vector_SavedContact) CalcByteSize(layer int32) int {
 	return 0
+}
+
+// TLUserGetStatusWatchers (pluma: task 032)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserGetStatusWatchers) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x9ba5a275:
+		x.UInt(0x9ba5a275)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserGetStatusWatchers) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserGetStatusWatchers) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x9ba5a275:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
 }

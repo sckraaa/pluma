@@ -34,8 +34,8 @@ import (
 // The status of every authorization is kept apart (pkg/presence): the user
 // is online while any of them is. A change, or an online window running out,
 // is pushed as updateUserStatus without seq (ADR 0020, p. 2) to the user's
-// other authorizations and to the users who have them as a contact and may
-// see their last seen (ADR 0030).
+// other authorizations and to the users who see the user and may see their
+// last seen (ADR 0030).
 func (c *UserChannelProfilesCore) AccountUpdateStatus(in *mtproto.TLAccountUpdateStatus) (*mtproto.Bool, error) {
 	var (
 		offline = mtproto.FromBool(in.GetOffline())
@@ -111,26 +111,21 @@ func (c *UserChannelProfilesCore) pushStatus(change presence.Change, now int64) 
 	}
 }
 
-// statusRecipients returns the users who have the caller as a contact and
-// may see the caller's exact last seen: the privacy rule of the status
+// statusRecipients returns the users who see the caller (user.getStatusWatchers:
+// contacts, private dialogs, basic groups) and may see the caller's exact
+// last seen: the privacy rule of the status
 // timestamp holds both ways, as for users.getUsers (ImmutableUser.ToUnsafeUser),
 // and neither user has blocked the other. The others would only be told a
 // rounded status ("recently"), which coming online or going offline does not
 // change.
 func (c *UserChannelProfilesCore) statusRecipients() ([]int64, error) {
-	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUserV2(c.ctx, &userpb.TLUserGetImmutableUserV2{
-		Id:    c.MD.UserId,
-		HasTo: true,
+	watchers, err := c.svcCtx.Dao.UserClient.UserGetStatusWatchers(c.ctx, &userpb.TLUserGetStatusWatchers{
+		UserId: c.MD.UserId,
 	})
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]int64, 0, len(me.GetReverseContacts()))
-	for _, rc := range me.GetReverseContacts() {
-		if rc.GetUserId() != c.MD.UserId {
-			ids = append(ids, rc.GetUserId())
-		}
-	}
+	ids := watchers.GetDatas()
 	if len(ids) == 0 {
 		return nil, nil
 	}

@@ -135,6 +135,7 @@ const (
 	RPCUser_UserSaveGif_FullMethodName                       = "/user.RPCUser/user_saveGif"
 	RPCUser_UserGetReactionsNotifySettings_FullMethodName    = "/user.RPCUser/user_getReactionsNotifySettings"
 	RPCUser_UserSetReactionsNotifySettings_FullMethodName    = "/user.RPCUser/user_setReactionsNotifySettings"
+	RPCUser_UserGetStatusWatchers_FullMethodName             = "/user.RPCUser/user_getStatusWatchers"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -249,6 +250,8 @@ type RPCUserClient interface {
 	UserSaveGif(ctx context.Context, in *TLUserSaveGif, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	UserGetReactionsNotifySettings(ctx context.Context, in *TLUserGetReactionsNotifySettings, opts ...grpc.CallOption) (*mtproto.ReactionsNotifySettings, error)
 	UserSetReactionsNotifySettings(ctx context.Context, in *TLUserSetReactionsNotifySettings, opts ...grpc.CallOption) (*mtproto.ReactionsNotifySettings, error)
+	// pluma: task 032
+	UserGetStatusWatchers(ctx context.Context, in *TLUserGetStatusWatchers, opts ...grpc.CallOption) (*Vector_Long, error)
 }
 
 type rPCUserClient struct {
@@ -1319,6 +1322,16 @@ func (c *rPCUserClient) UserSetReactionsNotifySettings(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *rPCUserClient) UserGetStatusWatchers(ctx context.Context, in *TLUserGetStatusWatchers, opts ...grpc.CallOption) (*Vector_Long, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Long)
+	err := c.cc.Invoke(ctx, RPCUser_UserGetStatusWatchers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1431,6 +1444,8 @@ type RPCUserServer interface {
 	UserSaveGif(context.Context, *TLUserSaveGif) (*mtproto.Bool, error)
 	UserGetReactionsNotifySettings(context.Context, *TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
 	UserSetReactionsNotifySettings(context.Context, *TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
+	// pluma: task 032
+	UserGetStatusWatchers(context.Context, *TLUserGetStatusWatchers) (*Vector_Long, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1757,6 +1772,9 @@ func (UnimplementedRPCUserServer) UserGetReactionsNotifySettings(context.Context
 }
 func (UnimplementedRPCUserServer) UserSetReactionsNotifySettings(context.Context, *TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserSetReactionsNotifySettings not implemented")
+}
+func (UnimplementedRPCUserServer) UserGetStatusWatchers(context.Context, *TLUserGetStatusWatchers) (*Vector_Long, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGetStatusWatchers not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -3686,6 +3704,24 @@ func _RPCUser_UserSetReactionsNotifySettings_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserGetStatusWatchers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserGetStatusWatchers)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserGetStatusWatchers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserGetStatusWatchers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserGetStatusWatchers(ctx, req.(*TLUserGetStatusWatchers))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4116,6 +4152,10 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_setReactionsNotifySettings",
 			Handler:    _RPCUser_UserSetReactionsNotifySettings_Handler,
+		},
+		{
+			MethodName: "user_getStatusWatchers",
+			Handler:    _RPCUser_UserGetStatusWatchers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

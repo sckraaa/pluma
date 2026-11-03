@@ -12,11 +12,15 @@
 // (Telegram-iOS PeerPresenceStatusManager.swift, tdesktop
 // api_updates.cpp). So a push is due when the user comes online, when they go
 // offline before the told window is over, and, while they stay online,
-// before that window runs out. Clients repeat account.updateStatus every
-// 30 s (iOS) to 210 s (tdesktop with the server's online_update_period_ms),
-// so an online user is told again once less than Refresh of the told window
-// is left: every request of a client with a period over Refresh pushes, and
-// one with a shorter period is sure to come again before the window ends.
+// before that window runs out. The window is a minute (the owner's choice,
+// ADR 0030): a user whose app died without saying offline reads as gone
+// within it. Clients repeat account.updateStatus every 30 s (iOS
+// ManagedAccountPresence.swift, tdesktop with online_update_period_ms of
+// teamgramd/bin/config.json), 50 s (Web K) or about 55 s (Android), all
+// inside the window; a request comes with less than Refresh of the told
+// window left, so each of them tells the viewers the new end, and requests
+// of several devices closer than Window-Refresh to each other tell nothing
+// new.
 package presence
 
 import (
@@ -29,13 +33,14 @@ import (
 
 const (
 	// Window is how long one account.updateStatus(offline=false) keeps the
-	// user online. It is longer than the longest request period of the
-	// clients (tdesktop, 210 s with teamgramd/bin/config.json).
-	Window = 300
+	// user online.
+	Window = 60
 
 	// Refresh is the part of the told window under which an online user is
-	// told again.
-	Refresh = Window / 2
+	// told again: it is more than Window minus the shortest request period of
+	// the clients (30 s), so every request of one device extends the window
+	// the viewers know.
+	Refresh = 45
 
 	// keyTTL keeps the state of a user who stopped using Pluma from staying
 	// in Redis for ever. A user back after it is told to everyone again.

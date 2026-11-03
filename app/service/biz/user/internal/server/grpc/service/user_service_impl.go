@@ -1501,3 +1501,17 @@ func (s *Service) UserSetReactionsNotifySettings(ctx context.Context, request *u
 
 	return r, err
 }
+
+// UserGetStatusWatchers
+// user.getStatusWatchers user_id:long = Vector<long>;
+func (s *Service) UserGetStatusWatchers(ctx context.Context, request *user.TLUserGetStatusWatchers) (*user.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.getStatusWatchers - metadata: {%s}", c.MD)
+
+	r, err := c.UserGetStatusWatchers(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

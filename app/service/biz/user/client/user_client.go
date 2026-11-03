@@ -129,6 +129,7 @@ type UserClient interface {
 	UserSaveGif(ctx context.Context, in *user.TLUserSaveGif) (*mtproto.Bool, error)
 	UserGetReactionsNotifySettings(ctx context.Context, in *user.TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
 	UserSetReactionsNotifySettings(ctx context.Context, in *user.TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
+	UserGetStatusWatchers(ctx context.Context, in *user.TLUserGetStatusWatchers) (*user.Vector_Long, error)
 }
 
 type defaultUserClient struct {
@@ -1305,4 +1306,15 @@ func (m *defaultUserClient) UserSetReactionsNotifySettings(ctx context.Context, 
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserSetReactionsNotifySettings(ctx, in)
+}
+
+// UserGetStatusWatchers
+// user.getStatusWatchers user_id:long = Vector<long>;
+func (m *defaultUserClient) UserGetStatusWatchers(ctx context.Context, in *user.TLUserGetStatusWatchers) (*user.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserGetStatusWatchers(ctx, in)
 }
