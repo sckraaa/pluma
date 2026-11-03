@@ -43,6 +43,15 @@
 		reverse_proxy catalog-receiver:9099
 	}
 
+	# The public progress of the site (its "how much of Telegram" block): the
+	# api-coverage.json of the deployed version, so every update shows at once.
+	handle /progress.json {
+		rewrite * /api-coverage.json
+		root * /pluma-progress
+		header Cache-Control "no-cache"
+		file_server
+	}
+
 	root * /pluma-site/current
 	encode zstd gzip
 

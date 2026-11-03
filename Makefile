@@ -215,9 +215,9 @@ apicoverage-summary:
 # output goes to a temporary file, so the check works on a dirty working tree
 # and changes nothing.
 apicoverage-check:
-	@tmp=$$(mktemp) && trap 'rm -f "$$tmp"' EXIT && \
-	go run ./tools/apicoverage -out "$$tmp" >/dev/null && \
-	if ! diff -u $(API_COVERAGE_DOC) "$$tmp"; then \
+	@tmp=$$(mktemp) && tmpj=$$(mktemp) && trap 'rm -f "$$tmp" "$$tmpj"' EXIT && \
+	go run ./tools/apicoverage -out "$$tmp" -json "$$tmpj" >/dev/null && \
+	if ! diff -u $(API_COVERAGE_DOC) "$$tmp" || ! diff -u $(API_COVERAGE_DOC:.md=.json) "$$tmpj"; then \
 		echo "$(API_COVERAGE_DOC) is out of date: run 'make apicoverage' and commit it" >&2; exit 1; \
 	fi
 
