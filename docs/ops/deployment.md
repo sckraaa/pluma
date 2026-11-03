@@ -88,6 +88,7 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
   ssh neo_old "cd /srv/pluma-site && ln -sfn releases/$R current.new && mv -T current.new current"
   ```
   Откат — то же `ln -sfn … && mv -T` на прежний выпуск. Старые выпуски удаляются руками, кроме двух последних.
+- **Другие сайты на том же адресе.** Сайты оператора вне Pluma (например, свой сервис на отдельном домене) не дописываются в `teamgramd/deploy/web/Caddyfile`: локальная правка остановит `git checkout` при выкатке. Каждый — отдельный файл `<имя>.caddy` в `/srv/pluma-caddy-sites` на хосте (другое место — `PLUMA_CADDY_SITES_DIR` в `.env`); Caddyfile подключает их последней строкой `import`. Каталог может быть пустым. После изменения файла: `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml exec web caddy reload --config /etc/caddy/Caddyfile`. Пароли (`basic_auth`) хранятся только в этих файлах, в репозиторий не попадают.
 
 Порядок:
 1. В `pluma-web` задать переменные `PLUMA_SERVER_URL=wss://<PLUMA_WEB_DOMAIN>/apiws` и `PLUMA_RSA_PUBLIC_KEY`. Сборка `main` под сервер публикует образ `ghcr.io/sckraaa/pluma-web:<коммит pluma-web>`.

@@ -29,6 +29,9 @@ services:
       # not the file, so a new checkout is seen without a restart; only the
       # one file is served.
       - ./docs/project:/pluma-progress:ro
+      # Other sites of the operator on the same address (the end of the
+      # Caddyfile): server-local, never in the repository.
+      - ${PLUMA_CADDY_SITES_DIR:-/srv/pluma-caddy-sites}:/etc/caddy/sites.d:ro
       # The ACME account and the certificates: kept over restarts, so that
       # Let's Encrypt's rate limits are never in the way.
       - caddy_data:/data

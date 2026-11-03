@@ -96,3 +96,9 @@
 		}
 	}
 }
+
+# Other sites the operator serves from the same address, outside Pluma: one
+# file per site, *.caddy in PLUMA_CADDY_SITES_DIR on the host
+# (docs/ops/deployment.md). Kept out of the repository, so that a deploy never
+# meets local changes here; none at all is fine.
+import /etc/caddy/sites.d/*.caddy
