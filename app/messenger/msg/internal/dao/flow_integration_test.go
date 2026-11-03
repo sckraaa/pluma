@@ -182,6 +182,12 @@ func (f *fakeUsers) UserGetMutableUsersV2(_ context.Context, in *userpb.TLUserGe
 	return mtproto.MakeTLMutableUsers(&mtproto.MutableUsers{Users: f.mark(immutableUsers(in.Id, in.To))}).To_MutableUsers(), nil
 }
 
+// UserGetGlobalPrivacySettings answers what an account that set nothing
+// has: no archive settings (task 050).
+func (f *fakeUsers) UserGetGlobalPrivacySettings(_ context.Context, _ *userpb.TLUserGetGlobalPrivacySettings) (*mtproto.GlobalPrivacySettings, error) {
+	return mtproto.MakeTLGlobalPrivacySettings(nil).To_GlobalPrivacySettings(), nil
+}
+
 func (f *fakeUsers) UserBlockedByUser(_ context.Context, in *userpb.TLUserBlockedByUser) (*mtproto.Bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
