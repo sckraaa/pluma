@@ -556,7 +556,26 @@ func (m *ImmutableUser) ToDeletedUser() *User {
 	}).To_User()
 }
 
+// ToUser is m as the user selfUserId sees it when nothing else is known of
+// that user: its Premium and its own last seen rule do not count (ToUserFor).
 func (m *ImmutableUser) ToUser(selfUserId int64) *User {
+	return m.toUser(selfUserId, nil)
+}
+
+// pluma: ToUserFor is ToUser for a viewer whose Premium and own last seen
+// rule count, as in ToUnsafeUser (task 034).
+func (m *ImmutableUser) ToUserFor(viewer *ImmutableUser) *User {
+	return m.toUser(viewer.Id(), viewer)
+}
+
+func (m *ImmutableUser) checkPrivacyOf(keyType int, selfUserId int64, viewer *ImmutableUser) bool {
+	if viewer != nil {
+		return m.CheckPrivacyFor(keyType, viewer)
+	}
+	return m.CheckPrivacy(keyType, selfUserId)
+}
+
+func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 	if m.Deleted() {
 		return m.ToDeletedUser()
 	}
@@ -644,19 +663,21 @@ func (m *ImmutableUser) ToUser(selfUserId int64) *User {
 	}
 
 	// phone
-	if m.CheckPrivacy(PHONE_NUMBER, selfUserId) {
+	if m.checkPrivacyOf(PHONE_NUMBER, selfUserId, viewer) {
 		user.Phone = MakeFlagsString(m.Phone())
 	}
 
 	// photo
-	if m.CheckPrivacy(PROFILE_PHOTO, selfUserId) {
+	if m.checkPrivacyOf(PROFILE_PHOTO, selfUserId, viewer) {
 		user.Photo = m.ProfilePhoto()
 	}
 
-	// TODO: check if we need to check privacy for status
 	// status
-	allowTimestamp := m.CheckPrivacy(STATUS_TIMESTAMP, selfUserId)
-	user.Status = MakeUserStatus(m.LastSeenAt, allowTimestamp)
+	if viewer != nil {
+		user.Status = m.StatusFor(viewer)
+	} else {
+		user.Status = MakeUserStatus(m.LastSeenAt, m.CheckPrivacy(STATUS_TIMESTAMP, selfUserId))
+	}
 
 	// TODO: check stories_unavailable
 	// user.StoriesUnavailable = false

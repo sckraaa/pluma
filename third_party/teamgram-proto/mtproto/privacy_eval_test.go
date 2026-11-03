@@ -242,3 +242,27 @@ func TestStatusFor(t *testing.T) {
 		}
 	}
 }
+
+// The users of group message updates (ToUserFor) carry the status as
+// StatusFor decides it: the viewer's own rule and Premium count.
+func TestToUserForStatus(t *testing.T) {
+	mk := func(id int64, premium bool, status *PrivacyRule) *ImmutableUser {
+		return MakeTLImmutableUser(&ImmutableUser{
+			User:       MakeTLUserData(&UserData{Id: id, Premium: premium}).To_UserData(),
+			LastSeenAt: 1 << 40,
+			KeysPrivacyRules: []*PrivacyKeyRules{
+				MakeTLPrivacyKeyRules(&PrivacyKeyRules{Key: STATUS_TIMESTAMP, Rules: []*PrivacyRule{status}}).To_PrivacyKeyRules(),
+			},
+		}).To_ImmutableUser()
+	}
+	sender := mk(1, false, allowAll())
+	if s := sender.ToUserFor(mk(2, false, disallowAll())).GetStatus(); s.GetPredicateName() != Predicate_userStatusRecently || !s.GetByMe() {
+		t.Errorf("a viewer who hides its own last seen: %s by_me %v", s.GetPredicateName(), s.GetByMe())
+	}
+	if s := sender.ToUserFor(mk(2, true, disallowAll())).GetStatus(); s.GetPredicateName() != Predicate_userStatusOnline {
+		t.Errorf("the same viewer with Premium: %s", s.GetPredicateName())
+	}
+	if s := sender.ToUser(2).GetStatus(); s.GetPredicateName() != Predicate_userStatusOnline {
+		t.Errorf("ToUser without the viewer: %s", s.GetPredicateName())
+	}
+}
