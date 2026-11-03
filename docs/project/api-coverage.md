@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 217, partial 27, blocked 99, notimpl 7, fake 7, missing 512 (ok = 25.0%); with a conformance scenario 9
+    layer 228: 869 methods — ok 218, partial 27, blocked 99, notimpl 6, fake 7, missing 512 (ok = 25.1%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -28,7 +28,7 @@
 | messages | 273 | 94 | 22 | 21 | 5 | 2 | 129 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
-| photos | 5 | 4 | 0 | 0 | 1 | 0 | 0 | 0 |
+| photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
 | predefined | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | premium | 5 | 0 | 0 | 0 | 0 | 0 | 5 | 0 |
 | smsjobs | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
@@ -71,7 +71,7 @@
 | `account.getAllSecureValues` | blocked |  | app/bff/passport/internal/core/account.getAllSecureValues_handler.go:27 |
 | `account.getAuthorizationForm` | blocked |  | app/bff/passport/internal/core/account.getAuthorizationForm_handler.go:27 |
 | `account.getAuthorizations` | ok |  | app/bff/passport/internal/core/account.getAuthorizations_handler.go:29 |
-| `account.getAutoDownloadSettings` | ok |  | app/bff/autodownload/internal/core/account.getAutoDownloadSettings_handler.go:40 |
+| `account.getAutoDownloadSettings` | ok |  | app/bff/autodownload/internal/core/account.getAutoDownloadSettings_handler.go:45 |
 | `account.getAutoSaveSettings` | missing |  |  |
 | `account.getBotBusinessConnection` | missing |  |  |
 | `account.getBusinessChatLinks` | missing |  |  |
@@ -890,8 +890,8 @@
 | `photos.deletePhotos` | ok |  | app/bff/userchannelprofiles/internal/core/photos.deletePhotos_handler.go:28 |
 | `photos.getUserPhotos` | ok |  | app/bff/userchannelprofiles/internal/core/photos.getUserPhotos_handler.go:29 |
 | `photos.updateProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.updateProfilePhoto_handler.go:29 |
-| `photos.uploadContactProfilePhoto` | notimpl |  | app/bff/userchannelprofiles/internal/core/photos.uploadContactProfilePhoto_handler.go:27 |
-| `photos.uploadProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.uploadProfilePhoto_handler.go:29 |
+| `photos.uploadContactProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.uploadContactProfilePhoto_handler.go:44 |
+| `photos.uploadProfilePhoto` | ok |  | app/bff/userchannelprofiles/internal/core/photos.uploadProfilePhoto_handler.go:35 |
 
 ### predefined
 
@@ -1034,7 +1034,7 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `users.getFullUser` | ok |  | app/bff/users/internal/core/users.getFullUser_handler.go:36 |
+| `users.getFullUser` | ok |  | app/bff/users/internal/core/users.getFullUser_handler.go:37 |
 | `users.getIsPremiumRequiredToContact` | ok |  | app/bff/privacysettings/internal/core/users.getIsPremiumRequiredToContact_handler.go:30 |
 | `users.getMe` | ok |  | app/bff/users/internal/core/users.getMe_handler.go:28 |
 | `users.getRequirementsToContact` | ok |  | app/bff/privacysettings/internal/core/users.getRequirementsToContact_handler.go:35 |
