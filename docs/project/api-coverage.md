@@ -71,7 +71,7 @@
 | `account.getAllSecureValues` | blocked |  | app/bff/passport/internal/core/account.getAllSecureValues_handler.go:27 |
 | `account.getAuthorizationForm` | blocked |  | app/bff/passport/internal/core/account.getAuthorizationForm_handler.go:27 |
 | `account.getAuthorizations` | ok |  | app/bff/passport/internal/core/account.getAuthorizations_handler.go:29 |
-| `account.getAutoDownloadSettings` | ok |  | app/bff/autodownload/internal/core/account.getAutoDownloadSettings_handler.go:27 |
+| `account.getAutoDownloadSettings` | ok |  | app/bff/autodownload/internal/core/account.getAutoDownloadSettings_handler.go:40 |
 | `account.getAutoSaveSettings` | missing |  |  |
 | `account.getBotBusinessConnection` | missing |  |  |
 | `account.getBusinessChatLinks` | missing |  |  |
