@@ -20,6 +20,7 @@ import (
 	"github.com/teamgram/marmota/pkg/bytes2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/ffmpegutil"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/imaging"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
 )
@@ -207,23 +208,29 @@ func (c *DfsCore) uploadHasThumbGifMp4Media(creatorId int64, media *mtproto.Inpu
 		return nil, err
 	}
 
-	dstW := (szList[1].W * 2) / 2
-	if dstW%2 != 0 {
-		dstW += 1
-	}
-	dstH := (szList[1].H * 2) / 2
-	if dstH%2 != 0 {
-		dstH += 1
-	}
-	gifMp4Data, duration, err := c.svcCtx.FFmpegUtil.ConvertToMp4ByPipe(
+	gifMp4Data, duration, err := c.svcCtx.FFmpegUtil.ConvertGifToMp4ByPipe(
 		fmt.Sprintf("http://127.0.0.1:11701/dfs/file/%d_%d.gif",
 			creatorId,
-			media.GetFile().GetId_INT64()),
-		int(dstW), int(dstH))
+			media.GetFile().GetId_INT64()))
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadGifDocumentMedia - %v", err)
 		return nil, err
 	}
+
+	// The mp4 keeps the GIF's size (see ConvertGifToMp4ByPipe): take it from
+	// the result, the client's thumbnail is smaller.
+	md, err := c.svcCtx.FFmpegUtil.GetMetadataByPipe(gifMp4Data)
+	if err != nil {
+		c.Logger.Errorf("dfs.uploadGifDocumentMedia - %v", err)
+		return nil, err
+	}
+	w, h := ffmpegutil.GetWidthHeight(md)
+	if w <= 0 || h <= 0 {
+		c.Logger.Errorf("dfs.uploadGifDocumentMedia - no video stream in the converted gif")
+		return nil, mtproto.ErrMediaInvalid
+	}
+	dstW, dstH := int32(w), int32(h)
+
 	// build file
 	path := fmt.Sprintf("%d.dat", documentId)
 	gifFileSize, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, path, bytes.NewReader(gifMp4Data))
@@ -288,37 +295,12 @@ func (c *DfsCore) uploadGifMp4Media(creatorId int64, media *mtproto.InputMedia) 
 		return nil, mtproto.ErrMediaInvalid
 	}
 
-	var (
-		dstW int
-		dstH int
-		isW  = imgSize.GetW() >= imgSize.GetH()
-		sz   = mtproto.GetMaxResizeInfo(false, int(imgSize.GetW()), int(imgSize.GetH()))
-	)
-
-	if isW {
-		if int(imgSize.GetW()) >= mtproto.PhotoSZMediumSize {
-			dstW = mtproto.PhotoSZMediumSize
-			dstH = -2
-		} else {
-			dstW = sz.Size
-			dstH = -2
-		}
-	} else {
-		if int(imgSize.GetH()) >= mtproto.PhotoSZMediumSize {
-			dstH = mtproto.PhotoSZMediumSize
-			dstW = -2
-		} else {
-			dstH = sz.Size
-			dstW = -2
-		}
-	}
-
-	gifMp4Data, duration, err := c.svcCtx.FFmpegUtil.ConvertToMp4ByPipe(
+	// The mp4 keeps the GIF's size (see ConvertGifToMp4ByPipe); the document's
+	// size is taken from its first frame below.
+	gifMp4Data, duration, err := c.svcCtx.FFmpegUtil.ConvertGifToMp4ByPipe(
 		fmt.Sprintf("http://127.0.0.1:11701/dfs/file/%d_%d.gif",
 			creatorId,
-			media.GetFile().GetId_INT64()),
-		dstW,
-		dstH)
+			media.GetFile().GetId_INT64()))
 
 	if err != nil {
 		c.Logger.Errorf("convertGifToMp4Pipe - error: %v", err)
@@ -402,9 +384,9 @@ func (c *DfsCore) uploadGifThumb(id int64, gifThumb image.Image) ([]*mtproto.Pho
 	// 1. stripped
 	stripped := bytes2.NewBuffer(make([]byte, 0, 4096))
 	if isW {
-		err = imaging.EncodeStripped(stripped, imaging.Resize(gifThumb, 40, 0), 30)
+		err = imaging.EncodeStripped(stripped, imaging.Resize(gifThumb, 40, 0))
 	} else {
-		err = imaging.EncodeStripped(stripped, imaging.Resize(gifThumb, 0, 40), 30)
+		err = imaging.EncodeStripped(stripped, imaging.Resize(gifThumb, 0, 40))
 	}
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadGifDocumentMedia - error: %v", err)

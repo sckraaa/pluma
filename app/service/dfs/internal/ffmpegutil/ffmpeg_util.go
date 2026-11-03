@@ -180,17 +180,71 @@ func convertToMp4ByPipe(path string, setup func(mf *models.Mediafile)) ([]byte, 
 	return data, duration, nil
 }
 
-func (u *FFmpegUtil) ConvertToMp4ByPipe(gifPath string, dstW, dstH int) (bytes []byte, duration int32, err error) {
-	// ffmpeg -i safe_image.gif -f mp4 -movflags +faststart -pix_fmt yuv420p -vf scale=320:-1 -c:v libx264 -strict experimental -b:v 218k -bufsize 218k safe_image.gif.mp4
-	return convertToMp4ByPipe(gifPath, func(mf *models.Mediafile) {
-		// mf.SetMovFlags("+faststart")
-		mf.SetPixFmt("yuv420p")
+// Settings of the H.264 videos dfs encodes itself: profile videos and GIFs
+// converted to mp4.
+//
+// Quality is set by CRF instead of a bitrate: 18 is visually lossless for
+// x264, where the conversions used the encoder default 23 before. The VBV cap
+// bounds the size of noisy sources: 4 Mbit/s is about 1.5 times the highest
+// bitrate an official client encodes a profile video with (Android 2.6 Mbit/s,
+// iOS 2.4 Mbit/s), so ordinary sources stay well below it. The "slow" preset
+// spends more time per frame for fewer bits at the same quality; the inputs are
+// short (profile videos are at most 10 s) and small.
+//
+// A GIF keeps its own size up to gifMaxSide on its longer side (it was scaled
+// to 320 before). Both outputs are silent, as Telegram's profile videos and
+// GIFs are.
+const (
+	x264Preset   = "slow"
+	x264CRF      = 18
+	x264Profile  = "high"
+	x264MaxRateK = 4000
+	x264BufSizeK = 2 * x264MaxRateK
+	x264PixFmt   = "yuv420p"
+
+	gifMaxSide = 720
+
+	// firstFrameQScale is the mjpeg quality scale of extracted first frames
+	// (2 is the best useful value; ffmpeg's rate-controlled default is
+	// visibly blocky). The frame is the source of the photo sizes of a profile
+	// video and of the thumbnails of a GIF or a video, which are resized and
+	// encoded again from it.
+	firstFrameQScale = 2
+)
+
+// setupX264 sets the encoder options shared by the mp4 conversions.
+func setupX264(mf *models.Mediafile) {
+	mf.SetPixFmt(x264PixFmt)
+	mf.SetVideoCodec("libx264")
+	mf.SetPreset(x264Preset)
+	mf.SetCRF(x264CRF)
+	mf.SetVideoProfile(x264Profile)
+	mf.SetVideoMaxBitrate(x264MaxRateK)
+	mf.SetBufferSize(x264BufSizeK)
+	mf.SetSkipAudio(true)
+}
+
+// gifScaleFilter keeps the size of a GIF, shrinking it only when its longer
+// side exceeds gifMaxSide; both sides are made even, as yuv420p requires.
+func gifScaleFilter() string {
+	return fmt.Sprintf("scale='if(gte(iw,ih),trunc(min(iw,%[1]d)/2)*2,-2)':'if(gte(iw,ih),-2,trunc(min(ih,%[1]d)/2)*2)'", gifMaxSide)
+}
+
+// ConvertToMp4ByPipe transcodes the video at path to a silent H.264 mp4 of
+// dstW x dstH (a negative side keeps the aspect ratio, as in ffmpeg's scale).
+func (u *FFmpegUtil) ConvertToMp4ByPipe(path string, dstW, dstH int) (bytes []byte, duration int32, err error) {
+	return convertToMp4ByPipe(path, func(mf *models.Mediafile) {
+		setupX264(mf)
 		mf.SetVideoFilter(fmt.Sprintf("scale=%d:%d", dstW, dstH))
-		mf.SetVideoCodec("libx264")
-		mf.SetStrict(-2)
-		// mf.SetVideoBitRate("218k")
-		// mf.SetBufferSize(218)
-		// mf.SetFrameRate(30)
+	})
+}
+
+// ConvertGifToMp4ByPipe transcodes the GIF at path to a silent H.264 mp4 of
+// the GIF's own size, its longer side limited to gifMaxSide.
+func (u *FFmpegUtil) ConvertGifToMp4ByPipe(path string) (bytes []byte, duration int32, err error) {
+	return convertToMp4ByPipe(path, func(mf *models.Mediafile) {
+		setupX264(mf)
+		mf.SetVideoFilter(gifScaleFilter())
 	})
 }
 
@@ -199,6 +253,7 @@ func (u *FFmpegUtil) ConvertToMp4ByPipe(gifPath string, dstW, dstH int) (bytes [
 func getFirstFrame(trans *transcoder.Transcoder, feed func()) ([]byte, error) {
 	trans.MediaFile().SetOutputFormat("image2")
 	trans.MediaFile().SetVframes(1)
+	trans.MediaFile().SetQScale(firstFrameQScale)
 
 	r, err := trans.CreateOutputPipe("image2")
 	if err != nil {
