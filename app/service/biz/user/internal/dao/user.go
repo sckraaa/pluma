@@ -230,6 +230,7 @@ func (d *Dao) GetImmutableUser(ctx context.Context, id int64, privacy bool, cont
 	//})
 	if privacy {
 		immutableUser.KeysPrivacyRules = cacheUserData.CachesPrivacyKeyRules
+		d.resolvePrivacyChats(ctx, []*mtproto.ImmutableUser{immutableUser}, contacts)
 	}
 
 	return immutableUser, nil
@@ -623,6 +624,12 @@ func (d *Dao) GetCacheImmutableUserListV2(ctx context.Context, idList2 []int64, 
 
 	logger.Infof("getCacheImmutableUserList - cUserList: %d", len(cUserList))
 
+	if len(contacts) > 0 {
+		d.resolvePrivacyChats(ctx, cUserList, contacts)
+	} else {
+		d.resolvePrivacyChats(ctx, cUserList, idList2)
+	}
+
 	return cUserList
 }
 
@@ -695,6 +702,21 @@ func (d *Dao) GetImmutableUserV2(ctx context.Context, id int64, privacy bool, ha
 
 	if privacy {
 		immutableUser.KeysPrivacyRules = cacheUserData.CachesPrivacyKeyRules
+	}
+
+	// The viewers asked about: the user's own contact rows of them and its
+	// chat rules resolved for them (task 034).
+	if privacy && hasReverseContacts && len(reverseContacts) > 0 {
+		var mine []int64
+		for _, v := range reverseContacts {
+			if v != id && container2.ContainsInt64(cacheUserData.ContactIdList, v) {
+				mine = append(mine, v)
+			}
+		}
+		if len(mine) > 0 {
+			immutableUser.Contacts = d.getContactListByIdList(ctx, id, mine)
+		}
+		d.resolvePrivacyChats(ctx, []*mtproto.ImmutableUser{immutableUser}, reverseContacts)
 	}
 
 	return immutableUser, nil
@@ -780,6 +802,16 @@ func (d *Dao) GetMutableUsersV2(ctx context.Context, idList2 []int64, privacy bo
 		for _, v := range rContacts {
 			keyList = append(keyList, genContactCacheKey(v, id))
 		}
+
+		// The rules "my contacts" of the user ask its own rows about the
+		// viewers (task 034): load the user's rows of the viewers it has.
+		if privacy {
+			for _, v := range viewersOf(idList2, hasTo, to) {
+				if v != id && container2.ContainsInt64(cData.ContactIdList, v) {
+					keyList = append(keyList, genContactCacheKey(id, v))
+				}
+			}
+		}
 	}
 
 	_ = d.CachedConn.QueryRows(
@@ -847,10 +879,23 @@ func (d *Dao) GetMutableUsersV2(ctx context.Context, idList2 []int64, privacy bo
 		},
 		keyList...)
 
+	if privacy {
+		d.resolvePrivacyChats(ctx, cUserList, viewersOf(idList2, hasTo, to))
+	}
+
 	return cUserList
 }
 
 // uniqueIds returns the ids without repeats, in their first order.
+// viewersOf returns the users a GetMutableUsersV2 request shows its users
+// to: to, or with none given, the users themselves.
+func viewersOf(ids []int64, hasTo bool, to []int64) []int64 {
+	if hasTo && len(to) > 0 {
+		return to
+	}
+	return ids
+}
+
 func uniqueIds(ids []int64) []int64 {
 	unique := make([]int64, 0, len(ids))
 	for _, id := range ids {

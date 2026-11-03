@@ -27,8 +27,9 @@ import (
 
 const (
 	// The version goes up when the cached user data changes: .3 carries
-	// new_noncontact_peers_require_premium (task 014).
-	cacheUserDataKeyPrefix = "user_data.3"
+	// new_noncontact_peers_require_premium (task 014), .4 the rules of every
+	// privacy key (task 034).
+	cacheUserDataKeyPrefix = "user_data.4"
 	cachePhoneUserPrefix   = "phone_user.1"
 )
 
@@ -231,8 +232,7 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 	}
 
 	var (
-		rules0, rules1, rules2 *mtproto.PrivacyKeyRules
-		cacheData              = NewCacheUserData()
+		cacheData = NewCacheUserData()
 	)
 
 	userData := d.MakeUserDataByDO(do)
@@ -298,15 +298,6 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 			}
 		},
 		func() {
-			rules0, _ = d.GetUserPrivacyRules(ctx, id, mtproto.STATUS_TIMESTAMP)
-		},
-		func() {
-			rules1, _ = d.GetUserPrivacyRules(ctx, id, mtproto.PROFILE_PHOTO)
-		},
-		func() {
-			rules2, _ = d.GetUserPrivacyRules(ctx, id, mtproto.PHONE_NUMBER)
-		},
-		func() {
 			if do.Username != "" {
 				_, _ = d.UsernameDAO.SelectListByUserIdWithCB(ctx, id, func(sz, i int, v *dataobject.UsernameDO) {
 					cacheData.UserData.Usernames = append(cacheData.UserData.Usernames, mtproto.MakeTLUsername(&mtproto.Username{
@@ -318,14 +309,11 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 			}
 		})
 
-	if rules0 != nil {
-		cacheData.CachesPrivacyKeyRules = append(cacheData.CachesPrivacyKeyRules, rules0)
-	}
-	if rules1 != nil {
-		cacheData.CachesPrivacyKeyRules = append(cacheData.CachesPrivacyKeyRules, rules1)
-	}
-	if rules2 != nil {
-		cacheData.CachesPrivacyKeyRules = append(cacheData.CachesPrivacyKeyRules, rules2)
+	// The rules of every privacy key travel with the user (task 034): each
+	// service that shows the user decides with them, and a failed read fails
+	// the load rather than show what the rules hide.
+	if cacheData.CachesPrivacyKeyRules, err = d.getAllPrivacyRules(ctx, id); err != nil {
+		return nil, err
 	}
 
 	// TODO

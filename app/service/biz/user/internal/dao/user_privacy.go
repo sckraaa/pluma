@@ -182,6 +182,37 @@ func (d *Dao) GetUserPrivacyRulesListByKeys(ctx context.Context, id int64, keys 
 	return cacheRules
 }
 
+// privacyKeys are the privacy keys of layer 228 (inputPrivacyKey*).
+var privacyKeys = []int32{
+	mtproto.STATUS_TIMESTAMP, mtproto.CHAT_INVITE, mtproto.PHONE_CALL, mtproto.PHONE_P2P,
+	mtproto.FORWARDS, mtproto.PROFILE_PHOTO, mtproto.PHONE_NUMBER, mtproto.ADDED_BY_PHONE,
+	mtproto.VOICE_MESSAGES, mtproto.ABOUT, mtproto.BIRTHDAY, mtproto.STAR_GIFTS_AUTO_SAVE,
+	mtproto.NO_PAID_MESSAGES, mtproto.SAVED_MUSIC,
+}
+
+// getAllPrivacyRules reads the rules of every privacy key of the user, the
+// defaults for those it never set.
+func (d *Dao) getAllPrivacyRules(ctx context.Context, id int64) ([]*mtproto.PrivacyKeyRules, error) {
+	out := make([]*mtproto.PrivacyKeyRules, len(privacyKeys))
+	errs := make([]error, len(privacyKeys))
+	fns := make([]func(), len(privacyKeys))
+	for i, key := range privacyKeys {
+		fns[i] = func() {
+			out[i], errs[i] = d.GetUserPrivacyRules(ctx, id, key)
+			if errs[i] == nil && out[i] == nil {
+				errs[i] = fmt.Errorf("privacy rules %d of user %d: not found", key, id)
+			}
+		}
+	}
+	mr.FinishVoid(fns...)
+	for _, err := range errs {
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
 func (d *Dao) GetUserPrivacyRules(ctx context.Context, id int64, key int32) (*mtproto.PrivacyKeyRules, error) {
 	cacheKey := genUserPrivacyKeyPrefix(id, key)
 	if cacheKey == "" {
@@ -204,7 +235,9 @@ func (d *Dao) GetUserPrivacyRules(ctx context.Context, id int64, key int32) (*mt
 			rv := v.(*mtproto.PrivacyKeyRules)
 
 			if do != nil {
-				jsonx.UnmarshalFromString(do.Rules, &rv.Rules)
+				if err := jsonx.UnmarshalFromString(do.Rules, &rv.Rules); err != nil {
+					return fmt.Errorf("privacy rules %d of user %d: %w", key, id, err)
+				}
 			}
 			if rv.Rules == nil {
 				rv.Rules = makeDefaultPrivacyRules(key)
@@ -328,13 +361,8 @@ func (d *Dao) SetUserPrivacyRules(ctx context.Context, id int64, key int32, rule
 		return mtproto.ErrPrivacyKeyInvalid
 	}
 
-	cacheKeys := []string{cacheKey}
-	switch key {
-	case mtproto.STATUS_TIMESTAMP,
-		mtproto.PROFILE_PHOTO,
-		mtproto.PHONE_NUMBER:
-		cacheKeys = append(cacheKeys, genCacheUserDataCacheKey(id))
-	}
+	// The user data carries the rules of every key (getAllPrivacyRules).
+	cacheKeys := []string{cacheKey, genCacheUserDataCacheKey(id)}
 
 	rulesData, err := jsonx.Marshal(rules)
 	if err != nil {
