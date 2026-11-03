@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 216, partial 27, blocked 99, notimpl 7, fake 7, missing 513 (ok = 24.9%); with a conformance scenario 9
+    layer 228: 869 methods — ok 217, partial 27, blocked 99, notimpl 7, fake 7, missing 512 (ok = 25.0%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -34,7 +34,7 @@
 | smsjobs | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | stats | 12 | 0 | 0 | 0 | 0 | 0 | 12 | 0 |
 | stickers | 11 | 0 | 0 | 0 | 0 | 0 | 11 | 0 |
-| stories | 44 | 0 | 0 | 0 | 0 | 0 | 44 | 0 |
+| stories | 44 | 1 | 0 | 0 | 0 | 0 | 43 | 0 |
 | updates | 3 | 2 | 0 | 1 | 0 | 0 | 0 | 2 |
 | upload | 8 | 2 | 1 | 5 | 0 | 0 | 0 | 0 |
 | users | 10 | 7 | 0 | 2 | 0 | 0 | 1 | 0 |
@@ -979,7 +979,7 @@
 | `stories.getAlbums` | missing |  |  |
 | `stories.getAllReadPeerStories` | missing |  |  |
 | `stories.getAllReadUserStories` | missing |  |  |
-| `stories.getAllStories` | missing |  |  |
+| `stories.getAllStories` | ok |  | app/bff/stories/internal/core/stories.getAllStories_handler.go:30 |
 | `stories.getBoostersList` | missing |  |  |
 | `stories.getBoostsStatus` | missing |  |  |
 | `stories.getChatsToSend` | missing |  |  |

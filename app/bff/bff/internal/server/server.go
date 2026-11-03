@@ -49,6 +49,7 @@ import (
 	savedmessagedialogshelper "github.com/teamgram/teamgram-server/app/bff/savedmessagedialogs"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
+	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
 	twofa_helper "github.com/teamgram/teamgram-server/app/bff/twofa"
 	updates_helper "github.com/teamgram/teamgram-server/app/bff/updates"
@@ -297,6 +298,13 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCTimezonesServer(grpcServer, catalog)
 		mtproto.RegisterRPCMessageEffectsServer(grpcServer, catalog)
 		mtproto.RegisterRPCSavedMessageTagsServer(grpcServer, catalog)
+
+		// stories_helper: the stories (none yet, the list answers so).
+		mtproto.RegisterRPCStoriesServer(
+			grpcServer,
+			stories_helper.New(stories_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+			}))
 
 		// gifs_helper: the saved GIFs.
 		mtproto.RegisterRPCGifsServer(
