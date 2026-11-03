@@ -39,4 +39,18 @@
 - Интеграционные тесты транзакций ящика.
 - Проверка в Android, iOS, Desktop и Web K.
 
+## План реализации (2026-11-03, по коду)
+- **Где.** Папка диалога меняется в транзакции ящика владельца с pts, как закреп сообщения (`app/messenger/msg/internal/dao/pin.go`: `b.AddPtsUpdate(update, n)`, ответ `Updates` вызывающему, пуш на другие устройства). Поэтому перенос — новый метод сервиса msg `msg.editPeerFolders user_id auth_key_id peers folder_id = Updates`. Метод добавляется по прецеденту внутренних RPC (`user.getStatusWatchers`, задача 032): `msg.tl.proto` и protoc с теми же версиями (protoc 34.1, protoc-gen-go v1.36.5, protoc-gen-go-grpc v1.5.1); файлы mtprotoc правятся руками. Старый `dialog.editPeerFolders` (без транзакции и без обновлений) удаляется.
+- **bff `folders.editPeerFolders`**: из `not_served.go` в отдельный обработчик. Проверки: `folder_id` 0 или 1, диалоги существуют. Вызывает msg.
+- **Транзакция:**
+  - `UPDATE dialogs SET folder_id`, снятие закрепа покинутой папки (`pinned` или `folder_pinned`);
+  - сброс ключей кэша диалогов (`dialog.GetDialogCacheKeyByPeer`);
+  - одно `updateFolderPeers` с pts на все пиры (`AddPtsUpdate(u, len(peers))`).
+  - При переносе в 0 — сброс `autoarchived`, `report_spam`, `block_contact` в `user_peer_settings` с `updatePeerSettings` (seq, ADR 0020). Это действие сервиса user: решить в ADR, отдельным вызовом после commit или событием.
+- **`getDifference`** уже отдаёт `updateFolderPeers` как есть (`merge_updates_helper.go:168`). Проверить e2e.
+- **Автоархив и возврат** — в транзакции ящика получателя: `ReceiveIncoming` (`app/messenger/msg/internal/dao/send.go:145`), `upsertIncomingDialog` (`box_store.go`; новая строка — rows affected = 1).
+  - Нужны данные получателя: глобальные настройки (`user_global_privacy_settings`), контакт ли отправитель (`user_contacts`), отключён ли звук чата (`user_notify_settings`), папки-фильтры (`dialog_filters`). Читаются в той же транзакции через `b.Tx()`.
+  - Отключение звука и `updateNotifySettings` (seq) пишутся в той же транзакции; `user_notify_settings` — в той же базе.
+- **Тесты:** интеграционные для транзакций msg (как `pin`), e2e — по критериям ниже.
+
 ## Результат
