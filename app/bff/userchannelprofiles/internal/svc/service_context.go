@@ -21,16 +21,20 @@ package svc
 import (
 	"github.com/teamgram/teamgram-server/app/bff/userchannelprofiles/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/userchannelprofiles/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/presence"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 )
 
 type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
+	Presence *presence.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
-		Config: c,
-		Dao:    dao.New(c),
+		Config:   c,
+		Dao:      dao.New(c),
+		Presence: presence.NewStore(kv.NewStore(c.KV)),
 	}
 }

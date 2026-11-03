@@ -26,12 +26,19 @@ import (
 // ContactsGetStatuses
 // contacts.getStatuses#c4a353ee = Vector<ContactStatus>;
 func (c *ContactsCore) ContactsGetStatuses(in *mtproto.TLContactsGetStatuses) (*mtproto.Vector_ContactStatus, error) {
-	cList, _ := c.svcCtx.Dao.UserClient.UserGetContactList(c.ctx, &userpb.TLUserGetContactList{
+	cList, err := c.svcCtx.Dao.UserClient.UserGetContactList(c.ctx, &userpb.TLUserGetContactList{
 		UserId: c.MD.UserId,
 	})
+	if err != nil {
+		c.Logger.Errorf("contacts.getStatuses - error: %v", err)
+		return nil, err
+	}
 
 	rList := &mtproto.Vector_ContactStatus{
 		Datas: make([]*mtproto.ContactStatus, 0, len(cList.GetDatas())),
+	}
+	if len(cList.GetDatas()) == 0 {
+		return rList, nil
 	}
 
 	idList := make([]int64, 0, len(cList.GetDatas()))
@@ -39,14 +46,26 @@ func (c *ContactsCore) ContactsGetStatuses(in *mtproto.TLContactsGetStatuses) (*
 		idList = append(idList, id.ContactUserId)
 	}
 
-	lastSeenList, _ := c.svcCtx.Dao.UserGetLastSeens(c.ctx, &userpb.TLUserGetLastSeens{
-		Id: idList,
+	// The statuses go through the same privacy check as users.getUsers, in
+	// both directions: each contact's rule for us and ours for the contact,
+	// so both users' contact rows are loaded.
+	all := append([]int64{c.MD.UserId}, idList...)
+	mUsers, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
+		Id: all,
+		To: all,
 	})
+	if err != nil {
+		c.Logger.Errorf("contacts.getStatuses - error: %v", err)
+		return nil, err
+	}
 
-	for _, v := range lastSeenList.GetDatas() {
+	for _, u := range mUsers.GetUserListByIdList(c.MD.UserId, idList...) {
+		if u.GetStatus() == nil {
+			continue
+		}
 		rList.Datas = append(rList.Datas, mtproto.MakeTLContactStatus(&mtproto.ContactStatus{
-			UserId: v.UserId,
-			Status: userpb.MakeUserStatus(v.LastSeenAt, true),
+			UserId: u.GetId(),
+			Status: u.GetStatus(),
 		}).To_ContactStatus())
 	}
 

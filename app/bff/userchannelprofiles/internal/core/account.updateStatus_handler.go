@@ -19,85 +19,178 @@
 package core
 
 import (
+	"sync"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	syncpb "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
-	"github.com/zeromicro/go-zero/core/contextx"
-	"github.com/zeromicro/go-zero/core/threading"
+	"github.com/teamgram/teamgram-server/pkg/presence"
 )
 
 // AccountUpdateStatus
 // account.updateStatus#6628562c offline:Bool = Bool;
+//
+// The status of every authorization is kept apart (pkg/presence): the user
+// is online while any of them is. A change, or an online window running out,
+// is pushed as updateUserStatus without seq (ADR 0020, p. 2) to the user's
+// other authorizations and to the users who have them as a contact and may
+// see their last seen (ADR 0030).
 func (c *UserChannelProfilesCore) AccountUpdateStatus(in *mtproto.TLAccountUpdateStatus) (*mtproto.Bool, error) {
 	var (
-		offline     = mtproto.FromBool(in.GetOffline())
-		now         = time.Now().Unix()
-		expires     = int32(0)
-		pushUpdates = mtproto.MakeTLUpdateShort(&mtproto.Updates{
-			Update: mtproto.MakeTLUpdateUserStatus(&mtproto.Update{
-				UserId:            c.MD.UserId,
-				Status_USERSTATUS: nil,
-			}).To_Update(),
-			Date: int32(now) - 1,
-		}).To_Updates()
+		offline = mtproto.FromBool(in.GetOffline())
+		now     = time.Now().Unix()
 	)
 
-	if !offline {
-		expires = 300
-		pushUpdates.Update.Status_USERSTATUS = mtproto.MakeTLUserStatusOnline(&mtproto.UserStatus{
-			Expires: int32(now) + expires,
-		}).To_UserStatus()
-
-		// online
-		// s.UserFacade.UpdateUserStatus(ctx, md.UserId, now)
-		// c.svcCtx.Dao.UserClient.UserUpdateLastSeen()
-	} else {
-		pushUpdates.Update.Status_USERSTATUS = mtproto.MakeTLUserStatusOffline(&mtproto.UserStatus{
-			WasOnline: int32(now),
-		}).To_UserStatus()
+	change, err := c.svcCtx.Presence.Update(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, !offline, now)
+	if err != nil {
+		c.Logger.Errorf("account.updateStatus - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
 	}
 
-	// threading.GoSafe()
-	threading.GoSafe(func() {
-		c.svcCtx.Dao.UserClient.UserUpdateLastSeen(
-			contextx.ValueOnlyFrom(c.ctx),
-			&userpb.TLUserUpdateLastSeen{
-				Id:         c.MD.UserId,
-				LastSeenAt: now,
-				Expires:    expires,
-			})
-	})
+	// Viewers learn of the change first; the stored value is what the users
+	// who ask later read (users.getUsers, contacts.getStatuses).
+	if change.Push {
+		c.pushStatus(change, now)
+	}
 
-	// TODO: push
-	//// log.Debugf("account.updateStatus - reply: {true}")
-	//return model.WrapperGoFunc(mtproto.BoolTrue, func() {
-	//	// log.Debugf("ready push to other contacts...")
-	//	// push to other contacts.
-	//	contactIdList := s.UserFacade.GetContactUserIdList(context.Background(), md.UserId)
-	//	blockedIdList := s.UserFacade.CheckBlockUserList(context.Background(), md.UserId, contactIdList)
-	//
-	//	// TODO(@benqi): push updateUserStatus规则
-	//	for _, id := range contactIdList {
-	//		if md.UserId == id {
-	//			// why??
-	//			continue
-	//		}
-	//
-	//		if blocked, _ := container2.Contains(id, blockedIdList); blocked {
-	//			continue
-	//		}
-	//
-	//		// log.Debugf("check blocked...")
-	//		blocked := s.UserFacade.IsBlockedByUser(context.Background(), md.UserId, id)
-	//		if blocked {
-	//			continue
-	//		}
-	//
-	//		sync_client.PushUpdates(context.Background(), id, pushUpdates)
-	//	}
-	//
-	//}).(*mtproto.Bool), nil
+	if _, err = c.svcCtx.Dao.UserClient.UserUpdateLastSeen(c.ctx, &userpb.TLUserUpdateLastSeen{
+		Id:         c.MD.UserId,
+		LastSeenAt: now,
+		Expires:    int32(change.SeenUntil - now),
+	}); err != nil {
+		c.Logger.Errorf("account.updateStatus - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
 
 	return mtproto.BoolTrue, nil
+}
+
+func (c *UserChannelProfilesCore) pushStatus(change presence.Change, now int64) {
+	status := mtproto.MakeTLUserStatusOffline(&mtproto.UserStatus{
+		WasOnline: int32(change.SeenUntil),
+	}).To_UserStatus()
+	if change.Online {
+		status = mtproto.MakeTLUserStatusOnline(&mtproto.UserStatus{
+			Expires: int32(change.SeenUntil),
+		}).To_UserStatus()
+	}
+	updates := mtproto.MakeTLUpdateShort(&mtproto.Updates{
+		Update: mtproto.MakeTLUpdateUserStatus(&mtproto.Update{
+			UserId:            c.MD.UserId,
+			Status_USERSTATUS: status,
+		}).To_Update(),
+		Date: int32(now),
+	}).To_Updates()
+
+	// The other authorizations of the user: Telegram-iOS holds its
+	// notifications while another device is online
+	// (AccountStateManagementUtils.swift, delayNotificatonsUntil), tdesktop
+	// says online again when told it is offline while active
+	// (api_updates.cpp, mtpc_updateUserStatus).
+	if _, err := c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &syncpb.TLSyncUpdatesNotMe{
+		UserId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		Updates:       updates,
+	}); err != nil {
+		c.Logger.Errorf("account.updateStatus - push to the other authorizations: %v", err)
+	}
+
+	recipients, err := c.statusRecipients()
+	if err != nil {
+		c.Logger.Errorf("account.updateStatus - recipients: %v", err)
+		return
+	}
+	for _, id := range recipients {
+		if _, err = c.svcCtx.Dao.SyncClient.SyncPushUpdates(c.ctx, &syncpb.TLSyncPushUpdates{
+			UserId:  id,
+			Updates: updates,
+		}); err != nil {
+			c.Logger.Errorf("account.updateStatus - push to user %d: %v", id, err)
+		}
+	}
+}
+
+// statusRecipients returns the users who have the caller as a contact and
+// may see the caller's exact last seen: the privacy rule of the status
+// timestamp holds both ways, as for users.getUsers (ImmutableUser.ToUnsafeUser),
+// and neither user has blocked the other. The others would only be told a
+// rounded status ("recently"), which coming online or going offline does not
+// change.
+func (c *UserChannelProfilesCore) statusRecipients() ([]int64, error) {
+	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUserV2(c.ctx, &userpb.TLUserGetImmutableUserV2{
+		Id:    c.MD.UserId,
+		HasTo: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, 0, len(me.GetReverseContacts()))
+	for _, rc := range me.GetReverseContacts() {
+		if rc.GetUserId() != c.MD.UserId {
+			ids = append(ids, rc.GetUserId())
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	all := append([]int64{c.MD.UserId}, ids...)
+	mUsers, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
+		Id: all,
+		To: all,
+	})
+	if err != nil {
+		return nil, err
+	}
+	self, ok := mUsers.GetImmutableUser(c.MD.UserId)
+	if !ok {
+		return nil, mtproto.ErrUserIdInvalid
+	}
+
+	blockedByMe, err := c.svcCtx.Dao.UserClient.UserCheckBlockUserList(c.ctx, &userpb.TLUserCheckBlockUserList{
+		UserId: c.MD.UserId,
+		Id:     ids,
+	})
+	if err != nil {
+		return nil, err
+	}
+	skip := make(map[int64]bool, len(blockedByMe.GetDatas()))
+	for _, id := range blockedByMe.GetDatas() {
+		skip[id] = true
+	}
+
+	var (
+		mu  sync.Mutex
+		wg  sync.WaitGroup
+		out = make([]int64, 0, len(ids))
+	)
+	for _, id := range ids {
+		viewer, ok := mUsers.GetImmutableUser(id)
+		if !ok || skip[id] || viewer.Deleted() ||
+			!self.CheckPrivacy(mtproto.STATUS_TIMESTAMP, id) ||
+			!viewer.CheckPrivacy(mtproto.STATUS_TIMESTAMP, c.MD.UserId) {
+			continue
+		}
+		wg.Add(1)
+		go func(id int64) {
+			defer wg.Done()
+			blocked, err := c.svcCtx.Dao.UserClient.UserBlockedByUser(c.ctx, &userpb.TLUserBlockedByUser{
+				UserId:     id,
+				PeerUserId: c.MD.UserId,
+			})
+			if err != nil {
+				c.Logger.Errorf("account.updateStatus - block of user %d: %v", id, err)
+				return
+			}
+			if !mtproto.FromBool(blocked) {
+				mu.Lock()
+				out = append(out, id)
+				mu.Unlock()
+			}
+		}(id)
+	}
+	wg.Wait()
+
+	return out, nil
 }

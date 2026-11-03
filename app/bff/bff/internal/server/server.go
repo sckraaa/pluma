@@ -466,6 +466,7 @@ func (s *Server) Initialize() error {
 				MediaClient:   c.MediaClient,
 				UserClient:    c.BizServiceClient,
 				SyncClient:    syncClient,
+				KV:            c.KV,
 			}))
 
 		mtproto.RegisterRPCPasskeyServer(

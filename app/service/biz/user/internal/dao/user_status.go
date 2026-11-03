@@ -26,12 +26,15 @@ import (
 
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
 )
 
 const (
 	userPresencesKeyPrefix = "user_presences"
+
+	// signUpOnline is the online window of a user who has just signed up,
+	// the one account.updateStatus opens (app/bff/userchannelprofiles).
+	signUpOnline = 300
 )
 
 func genUserPresencesKey(userId int64) string {
@@ -79,15 +82,24 @@ func (d *Dao) GetLastSeenAt(ctx context.Context, id int64) (*dataobject.UserPres
 	return do, nil
 }
 
-func (d *Dao) PutLastSeenAt(ctx context.Context, userId int64, lastSeenAt int64, expires int32) {
+// PutLastSeenAt stores the time of the user's last account.updateStatus and
+// the online window it opened (zero after offline). MySQL is written first,
+// so the cache never holds a value the table lost.
+func (d *Dao) PutLastSeenAt(ctx context.Context, userId int64, lastSeenAt int64, expires int32) error {
 	do := &dataobject.UserPresencesDO{
 		UserId:     userId,
 		LastSeenAt: lastSeenAt,
 		Expires:    expires,
 	}
 
-	d.CachedConn.SetCache(ctx, genUserPresencesKey(userId), do)
-	threading2.WrapperGoFunc(ctx, nil, func(ctx context.Context) {
-		d.UserPresencesDAO.InsertOrUpdate(ctx, do)
-	})
+	if _, _, err := d.UserPresencesDAO.InsertOrUpdate(ctx, do); err != nil {
+		return err
+	}
+	return d.CachedConn.SetCache(ctx, genUserPresencesKey(userId), do)
+}
+
+// seenUntil is the moment the user is seen until, the value
+// ImmutableUser.LastSeenAt carries (mtproto.MakeUserStatus).
+func seenUntil(do *dataobject.UserPresencesDO) int64 {
+	return do.LastSeenAt + int64(do.Expires)
 }
