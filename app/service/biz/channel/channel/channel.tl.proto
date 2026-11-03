@@ -1,0 +1,151 @@
+/*
+ * Copyright (c) 2026 The Pluma Authors.
+ *  All rights reserved.
+ *
+ * The TL schema of the service, in the layout mtprotoc gives the other
+ * services (the constructor ids are the CRC32 of these lines):
+ *
+ * immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long = ImmutableChannel;
+ * immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long = ImmutableChannelParticipant;
+ * mutableChannel channel:ImmutableChannel participants:Vector<ImmutableChannelParticipant> = MutableChannel;
+ *
+ * ---functions---
+ *
+ * channel.getMutableChannel channel_id:long id:Vector<long> = MutableChannel;
+ * channel.getChannelListByIdList self_id:long id_list:Vector<long> = Vector<MutableChannel>;
+ */
+
+syntax = "proto3";
+
+package channel;
+
+import "schema.tl.sync.proto";
+
+option go_package = "github.com/teamgram/teamgram-server/app/service/biz/channel/channel";
+
+enum TLConstructor {
+    CRC32_UNKNOWN = 0;
+    CRC32_immutableChannel = -684293246;
+    CRC32_immutableChannelParticipant = 675582471;
+    CRC32_mutableChannel = -662027966;
+    CRC32_channel_getMutableChannel = -437245607;
+    CRC32_channel_getChannelListByIdList = -1986537988;
+}
+
+
+// ImmutableChannel <--
+//  + TL_immutableChannel
+//
+message ImmutableChannel {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    bool broadcast = 3;
+    bool megagroup = 4;
+    bool forum = 5;
+    bool signatures = 6;
+    bool noforwards = 7;
+    bool join_to_send = 8;
+    bool join_request = 9;
+    bool participants_hidden = 10;
+    bool hidden_prehistory = 11;
+    bool deleted = 12;
+    int64 id = 13;
+    int64 access_hash = 14;
+    int64 creator_user_id = 15;
+    string title = 16;
+    string about = 17;
+    mtproto.Photo photo = 18;
+    string username = 19;
+    int32 participants_count = 20;
+    int32 admins_count = 21;
+    int32 kicked_count = 22;
+    int32 banned_count = 23;
+    int32 default_banned_rights = 24;
+    int32 slowmode_seconds = 25;
+    int64 linked_chat_id = 26;
+    int64 migrated_from_chat_id = 27;
+    int32 migrated_from_max_id = 28;
+    int32 pts = 29;
+    int32 top_message = 30;
+    int32 version = 31;
+    int64 date = 32;
+}
+
+message TL_immutableChannel {
+    ImmutableChannel data2 = 1;
+}
+
+
+// ImmutableChannelParticipant <--
+//  + TL_immutableChannelParticipant
+//
+message ImmutableChannelParticipant {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    int64 channel_id = 3;
+    int64 user_id = 4;
+    int32 role = 5;
+    int32 state = 6;
+    int32 admin_rights = 7;
+    string rank = 8;
+    int32 banned_rights = 9;
+    int32 until_date = 10;
+    int64 inviter_user_id = 11;
+    int64 promoted_by = 12;
+    int64 kicked_by = 13;
+    int32 available_min_id = 14;
+    int64 date = 15;
+}
+
+message TL_immutableChannelParticipant {
+    ImmutableChannelParticipant data2 = 1;
+}
+
+
+// MutableChannel <--
+//  + TL_mutableChannel
+//
+message MutableChannel {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    ImmutableChannel channel = 3;
+    repeated ImmutableChannelParticipant participants = 4;
+}
+
+message TL_mutableChannel {
+    MutableChannel data2 = 1;
+}
+
+
+
+
+
+//--------------------------------------------------------------------------------------------
+message TL_channel_getMutableChannel {
+    TLConstructor  constructor = 1;
+    int64 channel_id = 3;
+    repeated int64 id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+message TL_channel_getChannelListByIdList {
+    TLConstructor  constructor = 1;
+    int64 self_id = 3;
+    repeated int64 id_list = 4;
+}
+
+
+//--------------------------------------------------------------------------------------------
+// Vector api result type
+message Vector_MutableChannel {
+    repeated MutableChannel datas = 1;
+}
+
+
+//--------------------------------------------------------------------------------------------
+// rpc
+
+service RPCChannel {
+ rpc channel_getMutableChannel(TL_channel_getMutableChannel) returns (MutableChannel) {}
+ rpc channel_getChannelListByIdList(TL_channel_getChannelListByIdList) returns (Vector_MutableChannel) {}
+}

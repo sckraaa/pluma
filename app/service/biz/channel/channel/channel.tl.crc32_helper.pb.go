@@ -1,0 +1,15 @@
+/*
+ * Copyright (c) 2026 The Pluma Authors.
+ *  All rights reserved.
+ */
+
+package channel
+
+const (
+	CRC32_UNKNOWN                        TLConstructor = 0
+	CRC32_immutableChannel               TLConstructor = -684293246  // 0xd7368382
+	CRC32_immutableChannelParticipant    TLConstructor = 675582471   // 0x28449207
+	CRC32_mutableChannel                 TLConstructor = -662027966  // 0xd88a4142
+	CRC32_channel_getMutableChannel      TLConstructor = -437245607  // 0xe5f02959
+	CRC32_channel_getChannelListByIdList TLConstructor = -1986537988 // 0x8997d5fc
+)

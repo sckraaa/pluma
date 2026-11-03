@@ -22,6 +22,8 @@ import (
 	"context"
 	"flag"
 	"github.com/teamgram/teamgram-server/app/service/biz/biz/internal/config"
+	channel_helper "github.com/teamgram/teamgram-server/app/service/biz/channel"
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chat_helper "github.com/teamgram/teamgram-server/app/service/biz/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	code_helper "github.com/teamgram/teamgram-server/app/service/biz/code"
@@ -101,6 +103,16 @@ func (s *Server) Initialize() error {
 				},
 				nil,
 				userService))
+
+		// channel_helper: reads of channels and their participants (ADR
+		// 0034).
+		channel.RegisterRPCChannelServer(
+			grpcServer,
+			channel_helper.New(channel_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				MediaClient:   c.MediaClient,
+			}))
 
 		// code_helper
 		code.RegisterRPCCodeServer(
