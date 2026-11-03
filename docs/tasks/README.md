@@ -60,7 +60,7 @@
 | [032](032-online-status-push.md) | Статус «в сети» доходит до собеседников сразу | done |
 | [033](033-read-date-ios.md) | Время прочтения в iOS | done |
 | [034](034-privacy.md) | Все настройки приватности работают как в Telegram | done |
-| [035](035-channel-box-research.md) | Каналы: сверка с Telegram и ADR «Ящик канала» | todo |
+| [035](035-channel-box-research.md) | Каналы: сверка с Telegram и ADR «Ящик канала» | in-progress |
 | [036](036-channel-schema-and-box.md) | Каналы: схема и `pkg/channelbox` | todo |
 | [037](037-channels-service-skeleton.md) | Каналы: сервис biz `channel`, модуль bff `channels`, маршрутизация | todo |
 | [038](038-channel-create-and-dialogs.md) | Каналы: создание, `getChannels`, `getFullChannel`, диалоги | todo |

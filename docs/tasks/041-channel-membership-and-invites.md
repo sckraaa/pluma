@@ -2,7 +2,7 @@
 
 - Статус: todo
 - Зависит от: 040
-- ADR: 0020, 0021, «Ящик канала» (из 035). Исследование: `docs/tasks/035-research/` (`server.md` §1.1, §1.5, §2.5–2.6, задача T6; `clients.md` §1 «Send and receive», §2, §4 п. 3–4; `plan.md` §2 C2, U1, §3, задача «040» плана).
+- ADR: 0020, 0021, 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.1, §1.5, §2.5–2.6, задача T6; `clients.md` §1 «Send and receive», §2, §4 п. 3–4; `plan.md` §2 C2, U1, §3, задача «040» плана).
 
 ## Цель
 В канал и супергруппу можно вступить по ссылке или по имени, пригласить, выйти; список участников работает со всеми фильтрами; заявки на вступление работают; счётчики участников верны при одновременных действиях.
@@ -12,10 +12,10 @@
 - **`toggleJoinRequest`, `toggleJoinToSend`** — `blocked` (`api-coverage.md:339-340`); утверждение `clients.md` «уже обслуживаются» неверно (C2).
 - **Ответы, которые ждут клиенты:**
   - `messages.checkChatInvite`, `importChatInvite`/`channels.joinChannel` → `messages.ChatInviteJoinResult` (Web K `appChatsManager.ts:681-688`, `appChatInvitesManager.ts:93-99`);
-  - после `joinChannel` или `importChatInvite` iOS вызывает `channels.getParticipant(self)`; при ошибке показывает `.generic`, хотя вступление прошло (`JoinChannel.swift:70-80`, UNVERIFIED, U10);
-  - ошибки `INVITE_REQUEST_SENT`, `USERS_TOO_MUCH`, `CHANNELS_TOO_MUCH`, `CHANNEL_PRIVATE` (iOS `JoinChannel.swift:36-41`, tdesktop `apiwrap.cpp:1901-1930`); Android на `CHANNEL_PRIVATE`/`CHANNEL_PUBLIC_GROUP_NA`/`USER_BANNED_IN_CHANNEL` показывает «закрыт / забанен» и не повторяет (`MessagesController.java:16067-16092`, UNVERIFIED, U10; `ui/ChatActivity.java:22186-22225`);
-  - `updateChannel` (api.tl:345): Android при вступлении без диалога зовёт `getChannelDifference(pts=1, limit=1)` (`MessagesController.java:19320-19327`, `:15820-15830`), при выходе или исключении удаляет диалог (`:19327-19332`) (UNVERIFIED, U10); Web K перечитывает чат и диалог через `getPeerDialogs` или убирает его (`appMessagesManager.ts:10810-10847`, UNVERIFIED, U10).
-- **Своим устройствам:** идут ли вступление и выход через общий ящик (`pts`/`seq`) — UNVERIFIED (U1), закрывается в 035; путь доставки `seq` другим пользователям — ADR 0021.
+  - после `joinChannel` или `importChatInvite` iOS вызывает `channels.getParticipant(self)`; при ошибке показывает `.generic`, хотя вступление прошло (`JoinChannel.swift:70-81`, проверено в 035; путь по ссылке `JoinLink.swift:123-171` ждёт пир из ответа 5 с);
+  - ошибки `INVITE_REQUEST_SENT`, `USERS_TOO_MUCH`, `CHANNELS_TOO_MUCH`, `CHANNEL_PRIVATE` (iOS `JoinChannel.swift:36-41`, tdesktop `apiwrap.cpp:1901-1930`); Android на `CHANNEL_PRIVATE`/`CHANNEL_PUBLIC_GROUP_NA`/`USER_BANNED_IN_CHANNEL` показывает «закрыт / забанен» и не повторяет (`MessagesController.java:16798-16806`, 035);
+  - `updateChannel` (api.tl:345): Android при вступлении без диалога зовёт `getChannelDifference(pts=1, limit=1)` (`MessagesController.java:20151-20152`, `:16540-16541`), при выходе или исключении удаляет диалог (`:20153-20154`), всегда `loadFullChat` (`:20173`) (035); Web K перечитывает чат и диалог через `getPeerDialogs` или убирает его (`appMessagesManager.ts:10810-10847`, 035); tdesktop для участника перечитывает диалог и себя (`api_updates.cpp:2455-2478`).
+- **Своим устройствам** (U1, ADR 0034, п. 3): `updateChannel` тому, кого касается, идёт с `seq` его аккаунта — своё действие через `EmitSeqUpdate`, чужое (приглашение, исключение) через inbox-событие ADR 0021; `updateChannel` добавляется в `userbox.SeqUpdate`. Как у Telegram — не проверено. `updateChannelParticipant` не шлётся (наши клиенты, кроме Web K, его не разбирают).
 - **`getParticipants`** — все фильтры `channelParticipantsFilter` (api.tl:784-791): recent, admins, kicked, banned, search и остальные; в broadcast не-админам список не отдаётся (`server.md` §2.6).
 - **`hidden_prehistory`**: при вступлении `available_min_id = last_message_id` (`server.md` §2.6).
 - Служебные сообщения `messageActionChatAddUser`/`messageActionChatJoinedByLink`; их тексты рисуют клиенты.
