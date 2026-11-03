@@ -34,51 +34,28 @@ func (c *DfsCore) DfsUploadProfilePhotoFileV2(in *dfs.TLDfsUploadProfilePhotoFil
 	}
 
 	var (
-		file    *mtproto.InputFile
-		err     error
 		photoV2 *mtproto.Photo
+		err     error
 	)
-
-	// TODO: file and video not nil
-	if in.GetFile() != nil {
-		file = in.GetVideo()
-		if file != nil {
-			if err = model.CheckFileParts(file.Parts); err != nil {
-				c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
-				return nil, err
-			}
-
-			photoV2, err = c.uploadVideoSizeListV2(in.GetCreator(), file, in.GetVideoStartTs().GetValue())
-		} else {
-			file = in.GetFile()
-			if err = model.CheckFileParts(file.Parts); err != nil {
-				c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
-				return nil, err
-			}
-
-			photoV2, err = c.uploadPhotoSizeListV2(in.GetCreator(), in.GetFile(), true)
-		}
-		if err != nil {
-			c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
+	// A profile video comes with or without a still (photos.uploadProfilePhoto:
+	// file and video are both optional); its sizes are made from the video.
+	// Telegram Android sends the video alone (seen on a test stand).
+	if video := in.GetVideo(); video != nil {
+		if err = model.CheckFileParts(video.Parts); err != nil {
+			c.Logger.Errorf("dfs.uploadProfilePhotoFileV2 - %v", err)
 			return nil, err
 		}
+		photoV2, err = c.uploadVideoSizeListV2(in.GetCreator(), video, in.GetVideoStartTs().GetValue())
 	} else {
-		file = in.GetFile()
-		//if file == nil {
-		//	c.Logger.Errorf("dfs.uploadPhotoFile - ErrInputRequestInvalid")
-		//	return nil, mtproto.ErrInputRequestInvalid
-		//}
-
-		if err = model.CheckFileParts(file.Parts); err != nil {
-			c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
+		if err = model.CheckFileParts(in.GetFile().Parts); err != nil {
+			c.Logger.Errorf("dfs.uploadProfilePhotoFileV2 - %v", err)
 			return nil, err
 		}
-
 		photoV2, err = c.uploadPhotoSizeListV2(in.GetCreator(), in.GetFile(), true)
-		if err != nil {
-			c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
-			return nil, err
-		}
+	}
+	if err != nil {
+		c.Logger.Errorf("dfs.uploadProfilePhotoFileV2 - %v", err)
+		return nil, err
 	}
 
 	return photoV2, nil
