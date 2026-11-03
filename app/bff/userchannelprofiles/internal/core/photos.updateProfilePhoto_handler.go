@@ -27,9 +27,17 @@ import (
 // PhotosUpdateProfilePhoto
 // photos.updateProfilePhoto#9e82039 flags:# fallback:flags.0?true bot:flags.1?InputUser id:InputPhoto = photos.Photo;
 func (c *UserChannelProfilesCore) PhotosUpdateProfilePhoto(in *mtproto.TLPhotosUpdateProfilePhoto) (*mtproto.Photos_Photo, error) {
+	if err := checkBot(in.GetBot(), in.GetFallback()); err != nil {
+		c.Logger.Errorf("photos.updateProfilePhoto - error: %v", err)
+		return nil, err
+	}
+
 	// inputPhoto makes a photo main: the photo with its access_hash, as in
 	// Telegram, otherwise PHOTO_ID_INVALID; biz checks that it is one of
-	// the account's photos. inputPhotoEmpty removes the main photo.
+	// the account's photos or one suggested to it. inputPhotoEmpty removes
+	// the main photo. With fallback both act on the public photo instead
+	// (task 051): tdesktop and iOS remove it with inputPhotoEmpty
+	// (api_peer_photo.cpp:361-366, PeerPhotoUpdater.swift:431-434).
 	var (
 		photo   *mtproto.Photo
 		photoId int64
@@ -53,15 +61,17 @@ func (c *UserChannelProfilesCore) PhotosUpdateProfilePhoto(in *mtproto.TLPhotosU
 	// see the account, in the transaction of the change (ADR 0020, 0021).
 	// TODO: ALBUM_PHOTOS_TOO_MANY
 	updatedPhotoId, err := c.svcCtx.Dao.UserClient.UserUpdateProfilePhoto(c.ctx, &userpb.TLUserUpdateProfilePhoto{
-		UserId: c.MD.UserId,
-		Id:     photoId,
+		UserId:   c.MD.UserId,
+		Id:       photoId,
+		Fallback: in.GetFallback(),
 	})
 	if err != nil {
 		c.Logger.Errorf("photos.updateProfilePhoto - error: %v", err)
 		return nil, err
 	}
 
-	// The removal of the main photo makes the latest of the others main.
+	// The removal of the main photo makes the latest of the others main;
+	// the removal of the public photo leaves none.
 	if updatedPhotoId.V != photo.GetId() {
 		photo = nil
 		if updatedPhotoId.V != 0 {
@@ -79,8 +89,14 @@ func (c *UserChannelProfilesCore) PhotosUpdateProfilePhoto(in *mtproto.TLPhotosU
 		photo = mtproto.MakeTLPhotoEmpty(nil).To_Photo()
 	}
 
+	users, err := c.selfUsers()
+	if err != nil {
+		c.Logger.Errorf("photos.updateProfilePhoto - error: %v", err)
+		return nil, err
+	}
+
 	return mtproto.MakeTLPhotosPhoto(&mtproto.Photos_Photo{
 		Photo: photo,
-		Users: []*mtproto.User{},
+		Users: users,
 	}).To_Photos_Photo(), nil
 }

@@ -44,6 +44,19 @@ type country struct {
 }
 
 // List is the countries list in one language.
+// prefixes are the national prefixes Telegram gives the regions of a calling
+// code shared with another region (help.getCountriesList of Telegram,
+// 2026-11-03): the clients take a number of the code for the region whose
+// prefix it starts with, and for the region without prefixes otherwise.
+// Without them +7 7xx numbers of Kazakhstan read as Russian.
+var prefixes = map[string][]string{
+	"CA": {"403", "587", "780", "825", "236", "250", "604", "672", "778", "204", "431", "506", "709", "902", "782",
+		"226", "249", "289", "343", "365", "416", "437", "519", "548", "613", "647", "705", "807", "905", "418",
+		"438", "450", "514", "579", "581", "819", "873", "306", "639", "867"},
+	"CW": {"9"},
+	"KZ": {"6", "7"},
+}
+
 type List struct {
 	Countries []*mtproto.Help_Country
 	Hash      int32
@@ -148,6 +161,7 @@ func build(lang string) *List {
 		if c.pattern != "" {
 			cc.Patterns = []string{c.pattern}
 		}
+		cc.Prefixes = prefixes[c.iso2]
 		hc := mtproto.MakeTLHelpCountry(&mtproto.Help_Country{
 			Iso2:         c.iso2,
 			DefaultName:  defaultName,
@@ -160,7 +174,7 @@ func build(lang string) *List {
 		if name != "" {
 			hc.Name = wrapperspb.String(name)
 		}
-		fmt.Fprintf(h, "%s;%s;%s;%s;%s\n", c.iso2, c.code, c.pattern, defaultName, name)
+		fmt.Fprintf(h, "%s;%s;%s;%s;%s;%s\n", c.iso2, c.code, c.pattern, defaultName, name, strings.Join(cc.Prefixes, ","))
 		l.Countries = append(l.Countries, hc)
 	}
 	// 0 means "no cached list" to the clients.

@@ -621,6 +621,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1683643787,
 		}
 	},
+	342634673: func() mtproto.TLObject { // 0x146c30b1 pluma: task 051
+		return &TLUserSetContactPersonalPhoto{
+			Constructor: 342634673,
+		}
+	},
+	649527691: func() mtproto.TLObject { // 0x26b7018b pluma: task 051
+		return &TLUserAddSuggestedPhoto{
+			Constructor: 649527691,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -6995,6 +7005,96 @@ func (m *TLUserGetStatusWatchers) Decode(dBuf *mtproto.DecodeBuf) error {
 		// not has flags
 
 		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserSetContactPersonalPhoto (pluma: task 051)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserSetContactPersonalPhoto) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x146c30b1:
+		x.UInt(0x146c30b1)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetContactId())
+		x.Long(m.GetPhotoId())
+		m.GetHasVideo().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserSetContactPersonalPhoto) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserSetContactPersonalPhoto) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x146c30b1:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ContactId = dBuf.Long()
+		m.PhotoId = dBuf.Long()
+
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.HasVideo = m4
+
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserAddSuggestedPhoto (pluma: task 051)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserAddSuggestedPhoto) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x26b7018b:
+		x.UInt(0x26b7018b)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetFromUserId())
+		x.Long(m.GetPhotoId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserAddSuggestedPhoto) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserAddSuggestedPhoto) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x26b7018b:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.FromUserId = dBuf.Long()
+		m.PhotoId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

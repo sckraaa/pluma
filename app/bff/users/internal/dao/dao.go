@@ -25,12 +25,14 @@ import (
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 )
 
 type Dao struct {
 	user_client.UserClient
 	chat_client.ChatClient
 	dialog_client.DialogClient
+	media_client.MediaClient
 	plugin.StoryPlugin
 	plugin.PersonalChannelPlugin
 	plugin.WallpaperPlugin
@@ -41,6 +43,7 @@ func New(c config.Config, plugin1 plugin.StoryPlugin, plugin2 plugin.PersonalCha
 		UserClient:            user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		ChatClient:            chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		DialogClient:          dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
+		MediaClient:           media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 		StoryPlugin:           plugin1,
 		PersonalChannelPlugin: plugin2,
 		WallpaperPlugin:       plugin3,

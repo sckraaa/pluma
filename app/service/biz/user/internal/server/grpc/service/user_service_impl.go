@@ -1515,3 +1515,31 @@ func (s *Service) UserGetStatusWatchers(ctx context.Context, request *user.TLUse
 
 	return r, err
 }
+
+// UserSetContactPersonalPhoto
+// user.setContactPersonalPhoto user_id:long contact_id:long photo_id:long has_video:Bool = User;
+func (s *Service) UserSetContactPersonalPhoto(ctx context.Context, request *user.TLUserSetContactPersonalPhoto) (*mtproto.User, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.setContactPersonalPhoto - metadata: {%s}", c.MD)
+
+	r, err := c.UserSetContactPersonalPhoto(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserAddSuggestedPhoto
+// user.addSuggestedPhoto user_id:long from_user_id:long photo_id:long = Bool;
+func (s *Service) UserAddSuggestedPhoto(ctx context.Context, request *user.TLUserAddSuggestedPhoto) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.addSuggestedPhoto - metadata: {%s}", c.MD)
+
+	r, err := c.UserAddSuggestedPhoto(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

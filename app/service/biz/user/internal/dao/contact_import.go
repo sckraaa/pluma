@@ -105,7 +105,7 @@ func ContactRows(b *userbox.Box, ids []int64) (map[int64]dataobject.UserContacts
 	}
 	var list []dataobject.UserContactsDO
 	err := b.Tx().QueryRowsPartial(&list,
-		"SELECT id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted"+
+		"SELECT id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted"+
 			" FROM user_contacts WHERE owner_user_id = ? AND contact_user_id IN ("+inList(len(ids))+")",
 		append([]any{b.UserId()}, int64Args(ids)...)...)
 	for _, r := range list {

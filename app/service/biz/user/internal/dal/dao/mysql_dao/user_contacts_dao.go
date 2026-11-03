@@ -89,13 +89,13 @@ func (dao *UserContactsDAO) InsertOrUpdateTx(tx *sqlx.Tx, do *dataobject.UserCon
 }
 
 // SelectContact
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where is_deleted = 0 and owner_user_id = :owner_user_id and contact_user_id = :contact_user_id
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where is_deleted = 0 and owner_user_id = :owner_user_id and contact_user_id = :contact_user_id
 func (dao *UserContactsDAO) SelectContact(ctx context.Context, ownerUserId int64, contactUserId int64) (rValue *dataobject.UserContactsDO, err error) {
 	var (
 		query string
 		do    = &dataobject.UserContactsDO{}
 	)
-	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where is_deleted = 0 and owner_user_id = ? and contact_user_id = ?"
+	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where is_deleted = 0 and owner_user_id = ? and contact_user_id = ?"
 
 	err = dao.db.QueryRowPartial(ctx, do, query, ownerUserId, contactUserId)
 
@@ -115,13 +115,13 @@ func (dao *UserContactsDAO) SelectContact(ctx context.Context, ownerUserId int64
 }
 
 // SelectByContactId
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_user_id = :contact_user_id and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_user_id = :contact_user_id and is_deleted = 0
 func (dao *UserContactsDAO) SelectByContactId(ctx context.Context, ownerUserId int64, contactUserId int64) (rValue *dataobject.UserContactsDO, err error) {
 	var (
 		query string
 		do    = &dataobject.UserContactsDO{}
 	)
-	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and contact_user_id = ? and is_deleted = 0"
+	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and contact_user_id = ? and is_deleted = 0"
 
 	err = dao.db.QueryRowPartial(ctx, do, query, ownerUserId, contactUserId)
 
@@ -141,7 +141,7 @@ func (dao *UserContactsDAO) SelectByContactId(ctx context.Context, ownerUserId i
 }
 
 // SelectListByPhoneList
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_phone in (:phoneList) and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_phone in (:phoneList) and is_deleted = 0
 func (dao *UserContactsDAO) SelectListByPhoneList(ctx context.Context, ownerUserId int64, phoneList []string) (rList []dataobject.UserContactsDO, err error) {
 
 	if len(phoneList) == 0 {
@@ -153,7 +153,7 @@ func (dao *UserContactsDAO) SelectListByPhoneList(ctx context.Context, ownerUser
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and contact_phone in (%s) and is_deleted = 0", sqlx.InStringList(phoneList))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and contact_phone in (%s) and is_deleted = 0", sqlx.InStringList(phoneList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -168,7 +168,7 @@ func (dao *UserContactsDAO) SelectListByPhoneList(ctx context.Context, ownerUser
 }
 
 // SelectListByPhoneListWithCB
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_phone in (:phoneList) and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_phone in (:phoneList) and is_deleted = 0
 func (dao *UserContactsDAO) SelectListByPhoneListWithCB(ctx context.Context, ownerUserId int64, phoneList []string, cb func(sz, i int, v *dataobject.UserContactsDO)) (rList []dataobject.UserContactsDO, err error) {
 
 	if len(phoneList) == 0 {
@@ -180,7 +180,7 @@ func (dao *UserContactsDAO) SelectListByPhoneListWithCB(ctx context.Context, own
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and contact_phone in (%s) and is_deleted = 0", sqlx.InStringList(phoneList))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and contact_phone in (%s) and is_deleted = 0", sqlx.InStringList(phoneList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -202,13 +202,13 @@ func (dao *UserContactsDAO) SelectListByPhoneListWithCB(ctx context.Context, own
 }
 
 // SelectAllUserContacts
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0
 func (dao *UserContactsDAO) SelectAllUserContacts(ctx context.Context, ownerUserId int64) (rList []dataobject.UserContactsDO, err error) {
 	var (
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0"
+	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -223,13 +223,13 @@ func (dao *UserContactsDAO) SelectAllUserContacts(ctx context.Context, ownerUser
 }
 
 // SelectAllUserContactsWithCB
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0
 func (dao *UserContactsDAO) SelectAllUserContactsWithCB(ctx context.Context, ownerUserId int64, cb func(sz, i int, v *dataobject.UserContactsDO)) (rList []dataobject.UserContactsDO, err error) {
 	var (
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0"
+	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -251,13 +251,13 @@ func (dao *UserContactsDAO) SelectAllUserContactsWithCB(ctx context.Context, own
 }
 
 // SelectUserContacts
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0 order by contact_user_id asc
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0 order by contact_user_id asc
 func (dao *UserContactsDAO) SelectUserContacts(ctx context.Context, ownerUserId int64) (rList []dataobject.UserContactsDO, err error) {
 	var (
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0 order by contact_user_id asc"
+	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0 order by contact_user_id asc"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -272,13 +272,13 @@ func (dao *UserContactsDAO) SelectUserContacts(ctx context.Context, ownerUserId 
 }
 
 // SelectUserContactsWithCB
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0 order by contact_user_id asc
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and is_deleted = 0 order by contact_user_id asc
 func (dao *UserContactsDAO) SelectUserContactsWithCB(ctx context.Context, ownerUserId int64, cb func(sz, i int, v *dataobject.UserContactsDO)) (rList []dataobject.UserContactsDO, err error) {
 	var (
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0 order by contact_user_id asc"
+	query = "select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and is_deleted = 0 order by contact_user_id asc"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -337,7 +337,7 @@ func (dao *UserContactsDAO) SelectUserContactIdListWithCB(ctx context.Context, o
 }
 
 // SelectListByIdList
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_user_id in (:id_list) and is_deleted = 0 order by contact_user_id asc
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_user_id in (:id_list) and is_deleted = 0 order by contact_user_id asc
 func (dao *UserContactsDAO) SelectListByIdList(ctx context.Context, ownerUserId int64, idList []int64) (rList []dataobject.UserContactsDO, err error) {
 
 	if len(idList) == 0 {
@@ -349,7 +349,7 @@ func (dao *UserContactsDAO) SelectListByIdList(ctx context.Context, ownerUserId 
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and contact_user_id in (%s) and is_deleted = 0 order by contact_user_id asc", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and contact_user_id in (%s) and is_deleted = 0 order by contact_user_id asc", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -364,7 +364,7 @@ func (dao *UserContactsDAO) SelectListByIdList(ctx context.Context, ownerUserId 
 }
 
 // SelectListByIdListWithCB
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_user_id in (:id_list) and is_deleted = 0 order by contact_user_id asc
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = :owner_user_id and contact_user_id in (:id_list) and is_deleted = 0 order by contact_user_id asc
 func (dao *UserContactsDAO) SelectListByIdListWithCB(ctx context.Context, ownerUserId int64, idList []int64, cb func(sz, i int, v *dataobject.UserContactsDO)) (rList []dataobject.UserContactsDO, err error) {
 
 	if len(idList) == 0 {
@@ -376,7 +376,7 @@ func (dao *UserContactsDAO) SelectListByIdListWithCB(ctx context.Context, ownerU
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id = ? and contact_user_id in (%s) and is_deleted = 0 order by contact_user_id asc", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id = ? and contact_user_id in (%s) and is_deleted = 0 order by contact_user_id asc", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, ownerUserId)
 
@@ -398,7 +398,7 @@ func (dao *UserContactsDAO) SelectListByIdListWithCB(ctx context.Context, ownerU
 }
 
 // SelectListByOwnerListAndContactList
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id in (:idList1) and contact_user_id in (:idList2) and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id in (:idList1) and contact_user_id in (:idList2) and is_deleted = 0
 func (dao *UserContactsDAO) SelectListByOwnerListAndContactList(ctx context.Context, idList1 []int64, idList2 []int64) (rList []dataobject.UserContactsDO, err error) {
 	if len(idList1) == 0 {
 		rList = []dataobject.UserContactsDO{}
@@ -414,7 +414,7 @@ func (dao *UserContactsDAO) SelectListByOwnerListAndContactList(ctx context.Cont
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id in (%s) and contact_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList1), sqlx.InInt64List(idList2))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id in (%s) and contact_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList1), sqlx.InInt64List(idList2))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query)
 
@@ -429,7 +429,7 @@ func (dao *UserContactsDAO) SelectListByOwnerListAndContactList(ctx context.Cont
 }
 
 // SelectListByOwnerListAndContactListWithCB
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id in (:idList1) and contact_user_id in (:idList2) and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id in (:idList1) and contact_user_id in (:idList2) and is_deleted = 0
 func (dao *UserContactsDAO) SelectListByOwnerListAndContactListWithCB(ctx context.Context, idList1 []int64, idList2 []int64, cb func(sz, i int, v *dataobject.UserContactsDO)) (rList []dataobject.UserContactsDO, err error) {
 	if len(idList1) == 0 {
 		rList = []dataobject.UserContactsDO{}
@@ -445,7 +445,7 @@ func (dao *UserContactsDAO) SelectListByOwnerListAndContactListWithCB(ctx contex
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where owner_user_id in (%s) and contact_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList1), sqlx.InInt64List(idList2))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where owner_user_id in (%s) and contact_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList1), sqlx.InInt64List(idList2))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query)
 
@@ -611,7 +611,7 @@ func (dao *UserContactsDAO) UpdateMutualTx(tx *sqlx.Tx, mutual bool, ownerUserId
 }
 
 // DeleteContacts
-// update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0 where contact_user_id != 0 and (owner_user_id = :owner_user_id and contact_user_id in (:id_list))
+// update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0, personal_photo_id = 0, personal_photo_has_video = 0 where contact_user_id != 0 and (owner_user_id = :owner_user_id and contact_user_id in (:id_list))
 func (dao *UserContactsDAO) DeleteContacts(ctx context.Context, ownerUserId int64, idList []int64) (rowsAffected int64, err error) {
 
 	if len(idList) == 0 {
@@ -622,7 +622,7 @@ func (dao *UserContactsDAO) DeleteContacts(ctx context.Context, ownerUserId int6
 		query   string
 		rResult sql.Result
 	)
-	query = fmt.Sprintf("update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0 where contact_user_id != 0 and (owner_user_id = ? and contact_user_id in (%s))", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0, personal_photo_id = 0, personal_photo_has_video = 0 where contact_user_id != 0 and (owner_user_id = ? and contact_user_id in (%s))", sqlx.InInt64List(idList))
 
 	rResult, err = dao.db.Exec(ctx, query, ownerUserId)
 
@@ -640,7 +640,7 @@ func (dao *UserContactsDAO) DeleteContacts(ctx context.Context, ownerUserId int6
 }
 
 // DeleteContactsTx
-// update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0 where contact_user_id != 0 and (owner_user_id = :owner_user_id and contact_user_id in (:id_list))
+// update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0, personal_photo_id = 0, personal_photo_has_video = 0 where contact_user_id != 0 and (owner_user_id = :owner_user_id and contact_user_id in (:id_list))
 func (dao *UserContactsDAO) DeleteContactsTx(tx *sqlx.Tx, ownerUserId int64, idList []int64) (rowsAffected int64, err error) {
 
 	if len(idList) == 0 {
@@ -650,7 +650,7 @@ func (dao *UserContactsDAO) DeleteContactsTx(tx *sqlx.Tx, ownerUserId int64, idL
 		query   string
 		rResult sql.Result
 	)
-	query = fmt.Sprintf("update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0 where contact_user_id != 0 and (owner_user_id = ? and contact_user_id in (%s))", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("update user_contacts set is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0, personal_photo_id = 0, personal_photo_has_video = 0 where contact_user_id != 0 and (owner_user_id = ? and contact_user_id in (%s))", sqlx.InInt64List(idList))
 
 	rResult, err = tx.Exec(query, ownerUserId)
 
@@ -753,7 +753,7 @@ func (dao *UserContactsDAO) SelectUserReverseContactIdListWithCB(ctx context.Con
 }
 
 // SelectReverseListByIdList
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where contact_user_id = :contact_user_id and owner_user_id in (:id_list) and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where contact_user_id = :contact_user_id and owner_user_id in (:id_list) and is_deleted = 0
 func (dao *UserContactsDAO) SelectReverseListByIdList(ctx context.Context, contactUserId int64, idList []int64) (rList []dataobject.UserContactsDO, err error) {
 
 	if len(idList) == 0 {
@@ -765,7 +765,7 @@ func (dao *UserContactsDAO) SelectReverseListByIdList(ctx context.Context, conta
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where contact_user_id = ? and owner_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where contact_user_id = ? and owner_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, contactUserId)
 
@@ -780,7 +780,7 @@ func (dao *UserContactsDAO) SelectReverseListByIdList(ctx context.Context, conta
 }
 
 // SelectReverseListByIdListWithCB
-// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where contact_user_id = :contact_user_id and owner_user_id in (:id_list) and is_deleted = 0
+// select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where contact_user_id = :contact_user_id and owner_user_id in (:id_list) and is_deleted = 0
 func (dao *UserContactsDAO) SelectReverseListByIdListWithCB(ctx context.Context, contactUserId int64, idList []int64, cb func(sz, i int, v *dataobject.UserContactsDO)) (rList []dataobject.UserContactsDO, err error) {
 
 	if len(idList) == 0 {
@@ -792,7 +792,7 @@ func (dao *UserContactsDAO) SelectReverseListByIdListWithCB(ctx context.Context,
 		query  string
 		values []dataobject.UserContactsDO
 	)
-	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted from user_contacts where contact_user_id = ? and owner_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted from user_contacts where contact_user_id = ? and owner_user_id in (%s) and is_deleted = 0", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, contactUserId)
 

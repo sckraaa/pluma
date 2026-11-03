@@ -2,7 +2,7 @@
 
 - Статус: todo
 - Зависит от: 040
-- ADR: «Ящик канала» (из 035). Исследование: `docs/tasks/035-research/` (`server.md` §1.1, §2.3, §2.5, задача T8; `clients.md` §1 «Read history», «Send and receive»; `plan.md` §2 U1, U5, §3, задача «042» плана).
+- ADR: 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.1, §2.3, §2.5, задача T8; `clients.md` §1 «Read history», «Send and receive»; `plan.md` §2 U1, U5, §3, задача «042» плана).
 
 ## Цель
 Правки и удаления в канале видят все участники; закрепление работает; галочки прочтения и счётчики непрочитанного согласованы между устройствами.
@@ -10,10 +10,10 @@
 ## Что известно
 - **Заблокировано сейчас** (`server.md` §1.1): `msg.editMessageV2` для `PEER_CHANNEL` — `ErrEnterpriseIsBlocked` (`app/messenger/msg/msg/internal/core/msg.editMessageV2_handler.go:41-43`); `msg.deleteMessages` — `ErrPeerIdInvalid` (`msg.deleteMessages_handler.go:32`). Остальные `channels.*` здесь — `missing` в `api-coverage.md`.
 - **Обновления с `pts` канала:** `updateEditChannelMessage`, `updateDeleteChannelMessages`; `updatePinnedChannelMessages`; `updateReadChannelInbox` (api.tl:347, свой `pts`), `updateReadChannelOutbox` (`server.md` §2.1, §2.5).
-- **`messages.affectedMessages`** из `channels.deleteMessages` и похожих Android пропускает через `processNewChannelDifferenceParams` (`MessagesController.java:8054-8095`, UNVERIFIED, U10): `pts` там должен принадлежать последовательности канала.
+- **`messages.affectedMessages`** из `channels.deleteMessages` и похожих Android пропускает через `processNewChannelDifferenceParams` (`MessagesController.java:8171-8213`, 035): `pts` там должен принадлежать последовательности канала.
 - **Прочтение:** `channels.readHistory` и `channels.readMessageContents` (Android — оба; iOS `AccountViewTracker` — `readMessageContents`). Для 100 пользователей состояние прочтения остаётся в `dialogs` (`server.md` §2.3); исследование рекомендует писать только строку читателя.
-- **Своим устройствам:** идёт ли `updateReadChannelInbox` через общий ящик пользователя — UNVERIFIED (U1), закрывается в 035.
-- **`read_outbox_max_id` в супергруппе** — по исследованию «максимум, прочитанный другими по всему каналу», как его определяет Telegram — UNVERIFIED (U5), закрывается в 035.
+- **Своим устройствам** (U1, ADR 0034, п. 3): `updateReadChannelInbox` идёт с `seq` своего аккаунта, свёртка — последнее по каналу; его `pts` — текущий `channels.pts`: Web K проводит его через проверку `pts` канала с `pts_count = 0` (`apiUpdatesManager.ts:639-641`, `:696-724`), tdesktop и iOS верят `still_unread_count` только при равном `pts` (`history/history.cpp:2183`, `AccountStateManagementUtils.swift:4725-4764`). Так же своим устройствам — `updateChannelReadMessagesContents`, `updateChannelAvailableMessages`. Как у Telegram — не проверено.
+- **`read_outbox_max_id` в супергруппе** (U5, ADR 0034, пп. 1, 3): для зрителя — наибольший `read_inbox_max_id` других участников, вычисляется при чтении; `updateReadChannelOutbox` — пушем без `seq` авторам сообщений в прочитанном диапазоне, только в супергруппах. Определение Telegram не проверено.
 - Упоминания: `readMentions`, `getUnreadMentions` — `partial`; таблица упоминаний каналов — по образцу `migrate-20261030-unread-mentions.sql` (`server.md` §2.3). `dialog.getChannelMessageReadParticipants` уже отвечает из `dialogs.read_inbox_max_id`.
 - Проверки прав (правка чужого, удаление чужого, закрепление) — по роли, если 042 ещё нет; иначе через `channelperm.Can` (кто из 042 и 043 позже, тот подключает).
 

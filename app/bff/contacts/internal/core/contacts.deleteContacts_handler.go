@@ -63,9 +63,11 @@ func (c *ContactsCore) ContactsDeleteContacts(in *mtproto.TLContactsDeleteContac
 		cUser.MutualContact = false
 		cUser.CloseFriend = false
 		cUser.StoriesHidden = false
-		// No longer a contact: the user's own name.
+		// No longer a contact: the user's own name, and no personal photo
+		// (biz removes it with the row, task 051).
 		cUser.FirstName = mtproto.MakeFlagsString(it.FirstName())
 		cUser.LastName = mtproto.MakeFlagsString(it.LastName())
+		cUser.Photo = it.PhotoFor(me, nil)
 		if _, err = c.svcCtx.Dao.UserClient.UserDeleteContact(c.ctx, &userpb.TLUserDeleteContact{
 			UserId: c.MD.UserId,
 			Id:     it.Id(),

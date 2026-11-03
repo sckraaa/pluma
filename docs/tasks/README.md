@@ -60,7 +60,7 @@
 | [032](032-online-status-push.md) | Статус «в сети» доходит до собеседников сразу | done |
 | [033](033-read-date-ios.md) | Время прочтения в iOS | done |
 | [034](034-privacy.md) | Все настройки приватности работают как в Telegram | done |
-| [035](035-channel-box-research.md) | Каналы: сверка с Telegram и ADR «Ящик канала» | todo |
+| [035](035-channel-box-research.md) | Каналы: сверка с Telegram и ADR «Ящик канала» | in-progress |
 | [036](036-channel-schema-and-box.md) | Каналы: схема и `pkg/channelbox` | todo |
 | [037](037-channels-service-skeleton.md) | Каналы: сервис biz `channel`, модуль bff `channels`, маршрутизация | todo |
 | [038](038-channel-create-and-dialogs.md) | Каналы: создание, `getChannels`, `getFullChannel`, диалоги | todo |
@@ -77,6 +77,7 @@
 | [049](049-channels-conformance-and-client-pass.md) | Каналы: сравнительные тесты и проход по клиентам | todo |
 | [050](050-chat-archive.md) | Архив чатов: перенос, автоархив, возврат из архива | done |
 | [051](051-public-photo.md) | Фото «для всех» и личное фото контакта | todo |
+| [052](052-media-quality.md) | Качество медиа: сжимаем меньше, чем Telegram | in progress |
 
 Порядок этапа 0. Параллельно можно вести две линии — они не пересекаются по файлам:
 - **сервер:** 001 → 005 → 002 → 003 → 004 → 011, 013 → 014 → 015 → 010 → 008 → 009 → 007;

@@ -25,8 +25,19 @@ import (
 )
 
 // PhotosUploadProfilePhoto
-// photos.uploadProfilePhoto#89f30f69 flags:# file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double = photos.Photo;
+// photos.uploadProfilePhoto#388a3b5 flags:# fallback:flags.3?true bot:flags.5?InputUser file:flags.0?InputFile video:flags.1?InputFile video_start_ts:flags.2?double video_emoji_markup:flags.4?VideoSize = photos.Photo;
+//
+// With fallback the photo becomes the public photo: shown to the users the
+// privacy of the profile photo hides the main photo from, and not one of
+// the account's photos (task 051). tdesktop, Android, iOS and Web K set it
+// so from the privacy settings (api_peer_photo.cpp:474-481,
+// PrivacyControlActivity.java:257-258, PeerPhotoUpdater.swift:195-201).
 func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosUploadProfilePhoto) (*mtproto.Photos_Photo, error) {
+	if err := checkBot(in.GetBot(), in.GetFallback()); err != nil {
+		c.Logger.Errorf("photos.uploadProfilePhoto - error: %v", err)
+		return nil, err
+	}
+
 	photo, err := c.svcCtx.Dao.MediaClient.MediaUploadProfilePhotoFile(c.ctx, &mediapb.TLMediaUploadProfilePhotoFile{
 		OwnerId:          c.MD.PermAuthKeyId,
 		File:             in.GetFile(),
@@ -47,7 +58,14 @@ func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosU
 		UserId:   c.MD.UserId,
 		Id:       photo.GetId(),
 		Uploaded: true,
+		Fallback: in.GetFallback(),
 	})
+	if err != nil {
+		c.Logger.Errorf("photos.uploadProfilePhoto - error: %v", err)
+		return nil, err
+	}
+
+	users, err := c.selfUsers()
 	if err != nil {
 		c.Logger.Errorf("photos.uploadProfilePhoto - error: %v", err)
 		return nil, err
@@ -55,6 +73,6 @@ func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosU
 
 	return mtproto.MakeTLPhotosPhoto(&mtproto.Photos_Photo{
 		Photo: photo,
-		Users: []*mtproto.User{},
+		Users: users,
 	}).To_Photos_Photo(), nil
 }

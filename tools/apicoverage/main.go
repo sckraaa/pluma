@@ -7,6 +7,9 @@
 //	go run ./tools/apicoverage            # writes docs/project/api-coverage.md
 //	go run ./tools/apicoverage -summary   # prints the summary only
 //
+// It also writes docs/project/api-coverage.json, the public progress the site
+// shows (pluma.chat/progress): counts by area, nothing else.
+//
 // Statuses:
 //
 //	ok       handler exists and is not a stub
@@ -55,6 +58,7 @@ type method struct {
 func main() {
 	out := flag.String("out", "docs/project/api-coverage.md", "output markdown file")
 	summaryOnly := flag.Bool("summary", false, "print summary to stdout, write nothing")
+	jsonOut := flag.String("json", "docs/project/api-coverage.json", "output JSON file of the public progress")
 	flag.Parse()
 
 	dir, version, err := protoModuleInfo()
@@ -89,8 +93,11 @@ func main() {
 	// permissions of checked-in files.
 	check(os.MkdirAll(filepath.Dir(*out), 0o755))                    //nolint:gosec // G301: a repository directory
 	check(os.WriteFile(*out, []byte(render(methods, layer)), 0o644)) //nolint:gosec // G306: a checked-in document
+	progress, err := renderProgress(methods, layer)
+	check(err)
+	check(os.WriteFile(*jsonOut, progress, 0o644)) //nolint:gosec // G306: a checked-in document, served publicly
 	fmt.Print(renderSummary(methods, layer))
-	fmt.Printf("written %s\n", *out)
+	fmt.Printf("written %s, %s\n", *out, *jsonOut)
 }
 
 // protoModuleInfo returns the source directory of the proto module (the
@@ -407,6 +414,87 @@ func render(ms []*method, layer string) string {
 		}
 	}
 	return b.String()
+}
+
+// areas group the namespaces of the API into the parts of the messenger the
+// public progress names; a namespace not listed counts under "other".
+var areas = []struct {
+	key string
+	ns  []string
+}{
+	{"messages", []string{"messages"}},
+	{"channels", []string{"channels"}},
+	{"contacts", []string{"contacts", "users"}},
+	{"account", []string{"account", "auth"}},
+	{"media", []string{"photos", "upload"}},
+	{"stickers", []string{"stickers"}},
+	{"calls", []string{"phone"}},
+	{"stories", []string{"stories"}},
+	{"folders", []string{"folders", "chatlists", "communities"}},
+	{"bots", []string{"bots"}},
+	{"payments", []string{"payments", "premium", "fragment"}},
+}
+
+type progressCounts struct {
+	Total   int `json:"total"`
+	Ok      int `json:"ok"`
+	Partial int `json:"partial"`
+}
+
+type progressArea struct {
+	Key string `json:"key"`
+	progressCounts
+}
+
+// renderProgress is the public progress: the methods of the layer, how many
+// are implemented and partly implemented, overall and by area.
+func renderProgress(ms []*method, layer string) ([]byte, error) {
+	area := map[string]string{}
+	for _, a := range areas {
+		for _, ns := range a.ns {
+			area[ns] = a.key
+		}
+	}
+	add := func(c *progressCounts, m *method) {
+		c.Total++
+		switch m.Status {
+		case "ok":
+			c.Ok++
+		case "partial":
+			c.Partial++
+		}
+	}
+	var all progressCounts
+	byArea := map[string]*progressCounts{}
+	for _, m := range ms {
+		key, ok := area[m.NS]
+		if !ok {
+			key = "other"
+		}
+		if byArea[key] == nil {
+			byArea[key] = &progressCounts{}
+		}
+		add(byArea[key], m)
+		add(&all, m)
+	}
+	out := struct {
+		Layer string `json:"layer"`
+		progressCounts
+		Areas []progressArea `json:"areas"`
+	}{Layer: layer, progressCounts: all}
+	for _, a := range areas {
+		if c := byArea[a.key]; c != nil {
+			out.Areas = append(out.Areas, progressArea{Key: a.key, progressCounts: *c})
+		}
+	}
+	if c := byArea["other"]; c != nil {
+		out.Areas = append(out.Areas, progressArea{Key: "other", progressCounts: *c})
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(b, '\n'), nil
 }
 
 func check(err error) {

@@ -76,6 +76,69 @@ func (m *ImmutableUser) Photo() *Photo {
 	return m.User.ProfilePhoto
 }
 
+// pluma: FallbackPhoto is the public photo of the user, the one shown to the
+// users the privacy of the profile photo hides the main photo from
+// (photos.uploadProfilePhoto with fallback, task 051).
+func (m *ImmutableUser) FallbackPhoto() *Photo {
+	return m.User.GetFallbackPhoto()
+}
+
+// pluma: PersonalProfilePhoto is the personal photo of the contact row c, the
+// photo its owner set for the contact (photos.uploadContactProfilePhoto with
+// save), as the contact's user.photo: with personal, which clients show
+// instead of the contact's own (userProfilePhoto.personal). nil without one.
+func PersonalProfilePhoto(c *ContactData) *UserProfilePhoto {
+	if c.GetPersonalPhotoId() == 0 {
+		return nil
+	}
+	return MakeTLUserProfilePhoto(&UserProfilePhoto{
+		HasVideo: c.GetPersonalPhotoHasVideo(),
+		Personal: true,
+		PhotoId:  c.GetPersonalPhotoId(),
+		DcId:     1,
+	}).To_UserProfilePhoto()
+}
+
+// pluma: ContactRowOf is the contact row the viewer has of m, from whichever
+// side the loader filled: the viewer's Contacts or m's ReverseContacts. nil
+// when m is not the viewer's contact or the row is not loaded.
+func (m *ImmutableUser) ContactRowOf(viewer *ImmutableUser) *ContactData {
+	if c := viewer.GetContactData(m.Id()); c != nil {
+		return c
+	}
+	return m.GetReverseContactData(viewer.Id())
+}
+
+// pluma: PhotoFor is user.photo of m as viewer sees it when the viewer's
+// contact row of m is c, nil for none (task 051): the account and bots
+// show their main photo; otherwise photoFor with the privacy of the profile
+// photo for viewer; a deleted account none. It tells what a change of the
+// row shows before the loaded users carry it.
+func (m *ImmutableUser) PhotoFor(viewer *ImmutableUser, c *ContactData) *UserProfilePhoto {
+	if m.Deleted() {
+		return nil
+	}
+	if m.Id() == viewer.Id() || m.IsBot() {
+		return m.ProfilePhoto()
+	}
+	return m.photoFor(c, m.CheckPrivacyFor(PROFILE_PHOTO, viewer))
+}
+
+// pluma: photoFor is user.photo of m for a viewer with the contact row c of
+// m, when the privacy of the profile photo lets the viewer see it (allowed)
+// or not (task 051): the viewer's personal photo of m first, whatever the
+// privacy says; then the main photo when allowed; otherwise the public
+// photo, which carries no flag (clients tell it by userFull.fallback_photo).
+func (m *ImmutableUser) photoFor(c *ContactData, allowed bool) *UserProfilePhoto {
+	if p := PersonalProfilePhoto(c); p != nil {
+		return p
+	}
+	if allowed {
+		return m.ProfilePhoto()
+	}
+	return MakeUserProfilePhotoByPhoto(m.FallbackPhoto())
+}
+
 func (m *ImmutableUser) About() string {
 	return m.User.About.GetValue()
 }
@@ -391,6 +454,7 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 
 	// contact
 	contact := selfUser.GetContactData(m.Id())
+	row := contact
 	if contact != nil {
 		user.Contact = true
 		user.MutualContact = contact.MutualContact
@@ -404,6 +468,7 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 	} else {
 		// reverse contact
 		reverseContact := m.GetReverseContactData(selfUser.Id())
+		row = reverseContact
 		if reverseContact != nil {
 			user.Contact = true
 			user.MutualContact = reverseContact.MutualContact
@@ -420,10 +485,8 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 		user.Phone = MakeFlagsString(m.Phone())
 	}
 
-	// photo
-	if m.CheckPrivacyFor(PROFILE_PHOTO, selfUser) {
-		user.Photo = m.ProfilePhoto()
-	}
+	// photo: personal, main or public (pluma: task 051)
+	user.Photo = m.photoFor(row, m.CheckPrivacyFor(PROFILE_PHOTO, selfUser))
 
 	// status
 	user.Status = m.StatusFor(selfUser)
@@ -667,10 +730,8 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 		user.Phone = MakeFlagsString(m.Phone())
 	}
 
-	// photo
-	if m.checkPrivacyOf(PROFILE_PHOTO, selfUserId, viewer) {
-		user.Photo = m.ProfilePhoto()
-	}
+	// photo: personal, main or public (pluma: task 051)
+	user.Photo = m.photoFor(reverseContact, m.checkPrivacyOf(PROFILE_PHOTO, selfUserId, viewer))
 
 	// status
 	if viewer != nil {

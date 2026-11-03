@@ -31,6 +31,7 @@ type UsersDO struct {
 	IsBot                            bool   `db:"is_bot" json:"is_bot"`
 	AccountDaysTtl                   int32  `db:"account_days_ttl" json:"account_days_ttl"`
 	PhotoId                          int64  `db:"photo_id" json:"photo_id"`
+	FallbackPhotoId                  int64  `db:"fallback_photo_id" json:"fallback_photo_id"`
 	Restricted                       bool   `db:"restricted" json:"restricted"`
 	RestrictionReason                string `db:"restriction_reason" json:"restriction_reason"`
 	ArchiveAndMuteNewNoncontactPeers bool   `db:"archive_and_mute_new_noncontact_peers" json:"archive_and_mute_new_noncontact_peers"`

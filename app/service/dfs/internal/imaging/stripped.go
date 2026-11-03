@@ -25,7 +25,19 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/imaging/jpeg"
 )
 
-func EncodeStripped(w io.Writer, img image.Image, quality int) error {
+// StrippedQuality is the JPEG quality of stripped thumbnails (photoStrippedSize).
+// A stripped thumbnail carries only the scan data: the clients decode it with
+// the fixed JPEG header of Telegram's format (JpegHeader here; Android
+// Bitmaps.header, ImageLoader.getStrippedPhotoBitmap), whose quantization
+// tables are the standard ones at quality 20. The scan must be quantized with
+// the same tables, or the clients decode the coefficients with the wrong
+// scale and the thumbnail comes out with exaggerated contrast.
+const StrippedQuality = 20
+
+// EncodeStripped encodes img (at most 255x255, normally fitted to 40x40) as
+// the bytes of a photoStrippedSize.
+func EncodeStripped(w io.Writer, img image.Image) error {
+	quality := StrippedQuality
 	var (
 		rgba *image.RGBA
 		err  error

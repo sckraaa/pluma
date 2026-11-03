@@ -28,6 +28,7 @@ type Config struct {
 	zrpc.RpcServerConf
 	MediaClient zrpc.RpcClientConf
 	UserClient  zrpc.RpcClientConf
+	MsgClient   zrpc.RpcClientConf // suggested photos (task 051)
 	SyncClient  sync_client.OutboxConf
 	KV          kv.KvConf // online status of every authorization (pkg/presence)
 }

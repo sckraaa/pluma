@@ -136,6 +136,8 @@ const (
 	RPCUser_UserGetReactionsNotifySettings_FullMethodName    = "/user.RPCUser/user_getReactionsNotifySettings"
 	RPCUser_UserSetReactionsNotifySettings_FullMethodName    = "/user.RPCUser/user_setReactionsNotifySettings"
 	RPCUser_UserGetStatusWatchers_FullMethodName             = "/user.RPCUser/user_getStatusWatchers"
+	RPCUser_UserSetContactPersonalPhoto_FullMethodName       = "/user.RPCUser/user_setContactPersonalPhoto"
+	RPCUser_UserAddSuggestedPhoto_FullMethodName             = "/user.RPCUser/user_addSuggestedPhoto"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -252,6 +254,9 @@ type RPCUserClient interface {
 	UserSetReactionsNotifySettings(ctx context.Context, in *TLUserSetReactionsNotifySettings, opts ...grpc.CallOption) (*mtproto.ReactionsNotifySettings, error)
 	// pluma: task 032
 	UserGetStatusWatchers(ctx context.Context, in *TLUserGetStatusWatchers, opts ...grpc.CallOption) (*Vector_Long, error)
+	// pluma: task 051
+	UserSetContactPersonalPhoto(ctx context.Context, in *TLUserSetContactPersonalPhoto, opts ...grpc.CallOption) (*mtproto.User, error)
+	UserAddSuggestedPhoto(ctx context.Context, in *TLUserAddSuggestedPhoto, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCUserClient struct {
@@ -1332,6 +1337,26 @@ func (c *rPCUserClient) UserGetStatusWatchers(ctx context.Context, in *TLUserGet
 	return out, nil
 }
 
+func (c *rPCUserClient) UserSetContactPersonalPhoto(ctx context.Context, in *TLUserSetContactPersonalPhoto, opts ...grpc.CallOption) (*mtproto.User, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.User)
+	err := c.cc.Invoke(ctx, RPCUser_UserSetContactPersonalPhoto_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserAddSuggestedPhoto(ctx context.Context, in *TLUserAddSuggestedPhoto, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserAddSuggestedPhoto_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1446,6 +1471,9 @@ type RPCUserServer interface {
 	UserSetReactionsNotifySettings(context.Context, *TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
 	// pluma: task 032
 	UserGetStatusWatchers(context.Context, *TLUserGetStatusWatchers) (*Vector_Long, error)
+	// pluma: task 051
+	UserSetContactPersonalPhoto(context.Context, *TLUserSetContactPersonalPhoto) (*mtproto.User, error)
+	UserAddSuggestedPhoto(context.Context, *TLUserAddSuggestedPhoto) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1775,6 +1803,12 @@ func (UnimplementedRPCUserServer) UserSetReactionsNotifySettings(context.Context
 }
 func (UnimplementedRPCUserServer) UserGetStatusWatchers(context.Context, *TLUserGetStatusWatchers) (*Vector_Long, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserGetStatusWatchers not implemented")
+}
+func (UnimplementedRPCUserServer) UserSetContactPersonalPhoto(context.Context, *TLUserSetContactPersonalPhoto) (*mtproto.User, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserSetContactPersonalPhoto not implemented")
+}
+func (UnimplementedRPCUserServer) UserAddSuggestedPhoto(context.Context, *TLUserAddSuggestedPhoto) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserAddSuggestedPhoto not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -3722,6 +3756,42 @@ func _RPCUser_UserGetStatusWatchers_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserSetContactPersonalPhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserSetContactPersonalPhoto)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserSetContactPersonalPhoto(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserSetContactPersonalPhoto_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserSetContactPersonalPhoto(ctx, req.(*TLUserSetContactPersonalPhoto))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserAddSuggestedPhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserAddSuggestedPhoto)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserAddSuggestedPhoto(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserAddSuggestedPhoto_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserAddSuggestedPhoto(ctx, req.(*TLUserAddSuggestedPhoto))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4156,6 +4226,14 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_getStatusWatchers",
 			Handler:    _RPCUser_UserGetStatusWatchers_Handler,
+		},
+		{
+			MethodName: "user_setContactPersonalPhoto",
+			Handler:    _RPCUser_UserSetContactPersonalPhoto_Handler,
+		},
+		{
+			MethodName: "user_addSuggestedPhoto",
+			Handler:    _RPCUser_UserAddSuggestedPhoto_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -169,6 +169,10 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
 
 Карточки ссылок (ADR 0027) строят сервисы `bff` и `msg`. Им нужен исходящий доступ в интернет по HTTP и HTTPS: на сервере с `PLUMA_PUBLIC_IPV4` сайты видят этот адрес и User-Agent `PlumaBot`. Во внутренние сети сборщик не ходит. Карточки хранятся в таблице `webpages`, её создаёт миграция `migrate-20261102-webpages.sql` при запуске сервиса `migrate`. Настраивать ничего не нужно. Таблицу можно очистить в любой момент (`TRUNCATE webpages`): карточки соберутся заново при следующем запросе.
 
+## Прогресс на сайте
+Блок «Насколько Pluma уже Telegram» на pluma.chat берёт данные из `/progress.json`. Caddy отдаёт по этому адресу `docs/project/api-coverage.json` выкатанной версии: каталог `docs/project` смонтирован в контейнер `web` (`docker-compose.web.yaml`). Файл генерирует `go run ./tools/apicoverage` вместе с `api-coverage.md`, CI проверяет, что он актуален. После каждой выкатки цифры на сайте обновляются сами.
+- Один раз, когда монтирование только появилось, контейнер `web` пересоздаётся: `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml up -d --no-deps web`.
+
 ## Обновление
 
 1. Дождаться зелёного запуска `images` для нужного коммита `master`.

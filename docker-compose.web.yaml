@@ -24,6 +24,11 @@ services:
       # The landing page of PLUMA_SITE_DOMAINS: the dist/ of pluma-site,
       # copied to the host (docs/ops/deployment.md).
       - ${PLUMA_SITE_DIR:-/srv/pluma-site}:/pluma-site:ro
+      # The progress the site shows (/progress.json): generated with the code
+      # (tools/apicoverage), so it is the deployed version's. The directory,
+      # not the file, so a new checkout is seen without a restart; only the
+      # one file is served.
+      - ./docs/project:/pluma-progress:ro
       # The ACME account and the certificates: kept over restarts, so that
       # Let's Encrypt's rate limits are never in the way.
       - caddy_data:/data

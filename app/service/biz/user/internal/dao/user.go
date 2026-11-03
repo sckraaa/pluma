@@ -559,15 +559,7 @@ func (d *Dao) GetCacheImmutableUserListV2(ctx context.Context, idList2 []int64, 
 					}
 					noCaches[key] = contact
 					if cUser, ok := mUsers[contact.OwnerUserId]; ok {
-						cUser.Contacts = append(cUser.Contacts, mtproto.MakeTLContactData(&mtproto.ContactData{
-							UserId:        contact.OwnerUserId,
-							ContactUserId: contact.ContactUserId,
-							FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
-							LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
-							MutualContact: contact.Mutual,
-							Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
-							CloseFriend:   contact.CloseFriend,
-						}).To_ContactData())
+						cUser.Contacts = append(cUser.Contacts, contactData(contact))
 					}
 				}
 			}
@@ -602,15 +594,7 @@ func (d *Dao) GetCacheImmutableUserListV2(ctx context.Context, idList2 []int64, 
 				}
 
 				if cUser, ok := mUsers[contact.OwnerUserId]; ok {
-					cUser.Contacts = append(cUser.Contacts, mtproto.MakeTLContactData(&mtproto.ContactData{
-						UserId:        contact.OwnerUserId,
-						ContactUserId: contact.ContactUserId,
-						FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
-						LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
-						MutualContact: contact.Mutual,
-						Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
-						CloseFriend:   contact.CloseFriend,
-					}).To_ContactData())
+					cUser.Contacts = append(cUser.Contacts, contactData(contact))
 				}
 
 				return contact, nil
@@ -908,15 +892,7 @@ func uniqueIds(ids []int64) []int64 {
 // (ImmutableUser.CheckContact, CheckPrivacy): without it no contact passed
 // them.
 func addContactRow(users map[int64]*mtproto.ImmutableUser, contact *dataobject.UserContactsDO) {
-	row := mtproto.MakeTLContactData(&mtproto.ContactData{
-		UserId:        contact.OwnerUserId,
-		ContactUserId: contact.ContactUserId,
-		FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
-		LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
-		MutualContact: contact.Mutual,
-		Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
-		CloseFriend:   contact.CloseFriend,
-	}).To_ContactData()
+	row := contactData(contact)
 	if u, ok := users[contact.ContactUserId]; ok {
 		u.ReverseContacts = append(u.ReverseContacts, row)
 	}

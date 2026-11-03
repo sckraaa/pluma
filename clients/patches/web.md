@@ -1,0 +1,593 @@
+# Реестр правок веб-клиента (Web K)
+
+Полный перечень того, чем сборка Pluma отличается от официального Telegram Web K: правки исходников апстрима, заменённые ресурсы, добавленные файлы и всё в репозитории клиента, что влияет на сборку. Назначение — при обновлении апстрима быстро найти, какие места сдвинулись и почему они правились.
+
+Составлено 2026-11-03 по репозиторию `~/pluma-web`: прочитаны `ci/patch.py`, `ci/patch_test.py`, `ci/check_bundle.py`, все скрипты `ci/`, `brand/`, `e2e/`, workflow, README и вся история git (все ветки), а также брифы 012, 017, 020, 030 сервера.
+
+## Общие сведения
+
+- **Репозиторий:** `github.com/sckraaa/pluma-web` (локально `~/pluma-web`). Копии кода приложения в нём нет: CI скачивает апстрим и применяет патч.
+- **Апстрим** (`upstream.env`): `UPSTREAM_REPO=https://github.com/morethanwords/tweb.git`, `UPSTREAM_REF=346844bf8c002bc1af4de20e78ae1d0df0265019` (коммит 2026-09-22), `UPSTREAM_VERSION=2.2`, `UPSTREAM_BUILD=676` (`public/version` = `2.2 (676)`), `UPSTREAM_LAYER=228`, `NODE_VERSION=24.22.1`, `PNPM_VERSION=11.16.0`. Почему этот коммит: последний с layer 228. Следующий, `8197da75` «Layer 229», переделывает `keyboardButton…` и меняет id десяти конструкторов (README, бриф 012, ADR 0008).
+- **Как применяется патч:** `ci/fetch-upstream.sh` (чистый checkout закреплённого коммита в `./upstream`) → `ci/configure.sh` (выбирает цель `server`/`dev` и вызывает `python3 -I ci/patch.py --source upstream --upstream upstream.env --app config/app.env --server-url … --rsa-public-key … --target …`) → `ci/build.sh <target>` (typecheck, `vite build`, сборка сайта, `ci/check_bundle.py`, архив). Точка входа патча — `main()` → `patch(tree, c)` → `verify(tree, c)` → запись `.pluma-patch.json`.
+- **Виды правок** (методы класса `Tree` в `ci/patch.py`). Любая правка, у которой не совпало число вхождений, роняет весь прогон с `PatchError`, где названы файл и ожидаемый текст:
+  - `replace(rel, old, new, count=1)` — точная замена текста, `old` должен встретиться ровно `count` раз;
+  - `sub(...)` — регулярное выражение с точным числом совпадений;
+  - `replace_body(rel, head, tail, body, must_contain)` — замена тела между `head` и первым `tail` после него; `must_contain` — строки, которые обязаны быть в заменяемом блоке;
+  - `replace_block(...)` — то же, но вместе с `head` и `tail`;
+  - `replace_within(rel, head, tail, edits)` — точные замены только внутри блока;
+  - `expect(rel, text, count)` — правки нет, только проверка, что текст, на который опирается патч, на месте;
+  - `replace_file(rel, sha256, data)` — замена бинарного файла, только если у апстримного файла ожидаемый SHA-256; `data=None` удаляет файл;
+  - `tree.write` — новый файл.
+- **Тесты:**
+  - `ci/fetch-upstream.sh && python3 -I ci/patch_test.py -v`. Без checkout закреплённого коммита в `./upstream` класс `UpstreamTest` пропускается, кроме CI (`CI=1`): там он не пропускается никогда.
+  - `UpstreamTest.test_patch` применяет патч к закреплённому коммиту и проверяет результат.
+  - `UpstreamTest.test_damage` портит по одному месту из списка `DAMAGE` и ждёт `PatchError` с именем файла: 84 случая на `main`, 118 на `task/020-parity-fixes`.
+  - Остальное: `test_icon_changed`, `test_identity_colors`, `test_dev_server`, `test_env_file_of_upstream`, `KeyTest`, `ServerUrlTest`, `NodeEnginesTest`, `ConfigTest`, `TraceTest`, `TreeTest`, `BundleTest`.
+  - На 2026-11-03 на `task/020-parity-fixes` проходят 32 теста за 48 с.
+- **Проверки результата** — в двух местах, независимо от того, как делались правки:
+  - `verify()` в `ci/patch.py` — по исходникам (W-057);
+  - `ci/check_bundle.py` — по собранному сайту (W-056).
+
+### Ветки: что где лежит (важно)
+
+| Ветка | Голова | Что содержит |
+|---|---|---|
+| `main` (с неё собирается образ для прода) | `fe68fd5` 2026-11-02 | всё до `d6475fe` + W-048 (стикеры). **Нет** W-039…W-046 (цвета-идентичности, баннер дня рождения, строка профиля); синий аватар — в варианте W-034. |
+| `task/020-parity-fixes` | `e9a6865` 2026-10-31 | всё до `d6475fe` + `cb01766` (W-043…W-046) + `e9a6865` (W-039…W-042, заменяет W-034). **Нет** W-048. |
+| `fix/sticker-set-link-add` | `fe68fd5` | то же, что `main`. |
+
+Ветки разошлись от `d6475fe`. По STATUS сервера ветка 020 ждёт слияния. При слиянии будут пересекаться конец `patch()` (вызовы `birthday_banner`/`birthday_row` и `sticker_set_toggle`) и начало `DAMAGE` в `ci/patch_test.py`: это вывод по диффам, слияние не пробовалось. Образ `ghcr.io/sckraaa/pluma-web:fe68fd56…` стоит на проде с 2026-11-02 22:59 UTC (бриф 030), значит, на web.pluma.chat правок 020 сейчас нет.
+
+**2026-11-03: ветки сведены.** `task/020-parity-fixes` слита в `main` коммитом `ffda01d` без конфликтов, 32 теста патча проходят. Теперь в `main` есть и W-039…W-046, и W-048. Образ `ffda01d` на прод выкатывается вместе с ближайшей выкаткой сервера.
+
+### Что проверять при обновлении апстрима
+
+1. Новый коммит обязан иметь layer, который понимает сервер: `"layer":N` в `src/lib/mtproto/schema.ts` = `UPSTREAM_LAYER`. Иначе меняется сервер, а не только патч (ADR 0008).
+2. Обновить вместе все поля `upstream.env`: `UPSTREAM_REF`, `UPSTREAM_VERSION`, `UPSTREAM_BUILD` (как в `public/version`), `PNPM_VERSION` (= `packageManager` в `package.json`), `NODE_VERSION` (должен проходить `engines.node`). Патч сверяет всё это сам (W-008).
+3. `ci/fetch-upstream.sh && python3 -I ci/patch_test.py -v`. Каждое упавшее место искать в этом реестре по имени файла.
+4. Флаги `import.meta.env.VITE_MTPROTO_*`: новый флаг или исчезнувший роняет патч (W-008). Решить, каким он должен быть при транспорте «только WebSocket».
+5. Не появился ли у апстрима свой `.env.production.local` (W-002).
+6. Новые следы Telegram — адреса DC, `*.web.telegram.org`, ключи, учётные данные (W-057, W-056). Отдельно смотреть новые места, куда клиент сам ходит к Telegram, вроде `telegramMeWebManager` (W-007); `verify` их ловит только по списку известных следов.
+7. Строки. Счётчики «Telegram» в `src/lang.ts` (210 заменяемых / 30 оставляемых) и `src/langSign.ts` (7 / 0) сломаются на любой новой строке. Каждую новую строку прочитать и решить вручную (W-020).
+8. Иконки: если апстрим заменил любой файл из `ICONS` (SHA-256), проверить, что `brand/render.sh` рендерит файл того же назначения и размера, и обновить хэш (W-015).
+9. Новые ссылки `tg:` в коде (`verify` падает на любой `'tg:`, `"tg:`, `` `tg: ``, `^tg:` вне комментариев) — сделать их `plm:` (W-025, W-026).
+10. Цвета:
+    - новые места с `color: #fff` на `var(--primary-color)` — добавить в `ON_PRIMARY` (W-036), иначе в тёмной теме белое окажется на светлом шалфее;
+    - новые цвета тем в `themeController.ts`;
+    - синий или бирюзовый Telegram в новых местах (на ветке 020 `verify` их ловит).
+11. Баннер дня рождения и строка профиля: поменялась ли логика гейта Premium и подарков (W-043…W-046).
+12. Стикеры: исправил ли апстрим `toggleStickerSet` сам. Живой web.telegram.org/k на 2026-11-02 уже исправил. Если исправил, правку W-048 убрать.
+13. После сборки: `ci/check_bundle.py` (CI делает сам) и `PLUMA_SERVER_DIR=~/teamgram-server e2e/run.sh` на стенде (W-062). Затем глазами в браузере: вход, QR (`plm://login`), светлая и тёмная темы.
+
+---
+
+## Сервер и ключ
+
+### W-001. Один URL WebSocket для всех DC
+- **Что и зачем:** каждый DC, тип соединения (client, download, upload) и режим (test, premium) идут на один сервер Pluma по `wss://<host>/apiws` (dev: `ws://localhost:11443/apiws`). URL проверяется в `parse_server_url`: `ws://` допускается только для `localhost`, `127.0.0.1` и `[::1]`.
+- **Где:** `src/lib/mtproto/dcConfigurator.ts`.
+  - `replace_body`: тело функции от `export function constructTelegramWebSocketUrl(_dcId: DcId, connectionType: ConnectionType, premium?: boolean) {\n` до `\n}\n`, `must_contain` `.web.telegram.org/${path}`. Новое тело — проверка `VITE_MTPROTO_HAS_WS`, `assertValidDcId(_dcId)`, `return '<url>'`.
+  - `replace` комментария над проверкой dcId: блок `// A dcId can arrive from the service worker's \`stream/\` route… interpolated unchecked…` заменён текстом без примера `wss://kws1.evil.com/…`. Иначе в исходнике остался бы след `.web.telegram.org`. Проверка dcId остаётся: от неё зависит ключ хранилища.
+- **Проверка:** `verify` — в `dcConfigurator.ts` ровно один литерал `wss?://`, и это URL сервера. `check_bundle` — в JS бандла множество `wss?://…` равно `{server_url}`. Тесты: `test_patch`, `test_dev_server`, `ServerUrlTest`, `DAMAGE` (сигнатура с `dcId`, `${route}` вместо `${path}`, «interpolated as is», второй `wss://`). Если апстрим изменит сигнатуру или формат URL, патч упадёт на `replace_body`.
+- **Апстрим до правки:** `wss://${s}ws${dcId}${suffix}.web.telegram.org/apiws…` — свой хост на DC и тип соединения (kws1, pluto и т. п.). Официальный web.telegram.org/k делает так же, то есть ходит к Telegram.
+- **Коммиты:** `facdd16` (2026-10-24), задача 012.
+
+### W-002. HTTP-транспорт выключен
+- **Что и зачем:** шлюз Pluma принимает MTProto только по WebSocket. По README и брифу 012, сборка апстрима по умолчанию стартует на HTTP.
+- **Где:**
+  - **Добавленный файл** `.env.production.local` (Vite читает его после `.env`): `VITE_MTPROTO_HAS_WS=1`, а `VITE_MTPROTO_HAS_HTTP`, `VITE_MTPROTO_HTTP`, `VITE_MTPROTO_HTTP_UPLOAD`, `VITE_MTPROTO_AUTO` пустые (`TRANSPORT_FLAGS`). `VITE_MTPROTO_WORKER` и `VITE_MTPROTO_SW` остаются как у апстрима (`UPSTREAM_FLAGS`). Если апстрим сам поставляет `.env.production.local`, патч падает.
+  - `dcConfigurator.ts`, `replace_body` от `export class DcConfigurator {\n` до `  public chosenServers: Servers`, `must_contain` `sslSubdomains`, `private dcOptions`, `149.154.175.50`: удаляются списки адресов DC Telegram для HTTP.
+  - `dcConfigurator.ts`, `replace_block` от `  private transportHTTP = (` до `\n  };\n`, `must_contain` `this.sslSubdomains`, `this.dcOptions`, `.web.telegram.org/`, `new HTTP(`: функция возвращает `undefined`.
+  - `ci/build.sh` снимает все `VITE_*` из окружения, иначе Vite предпочтёт их файлам `.env`.
+- **Проверка:** `verify` — `.env.production.local` равен `TRANSPORT_FLAGS`. `check_bundle` — в коде нет переключателей `noMultipleTransports=1` и `http=1` (`HTTP_TRANSPORT_SWITCHES`). Тесты: `test_env_file_of_upstream`, `DAMAGE` (адрес `149.154.175.51`, `transportHttp`, `new Http(`, `VITE_MTPROTO_HTTP_UPLOADS` в `apiManager.ts`).
+- **Апстрим до правки:** HTTP по `https://<sub>.web.telegram.org/apiw1` или `http://149.154.x.x/apiw1` как основной или запасной транспорт. Значения флагов в `.env` апстрима здесь не приводятся: файлы `.env` не читались.
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-003. Ключ сервера вместо ключей Telegram
+- **Что и зачем:** клиент знает только RSA-ключ сервера Pluma. Режим `?test=1` ходит на тот же сервер с тем же ключом.
+- **Где:** `src/lib/mtproto/rsaKeysManager.ts`.
+  - `replace_body` от `export class RSAKeysManager {\n` до `  private publicKeysParsed: {`, `must_contain` `e8bb3305c0b52c6cf2afdf7637313489`, `private testPublicKeysHex`, `private publisKeysHex` (опечатка `publis` — апстримная). Новое тело: `publisKeysHex` с одним `{modulus, exponent}` и комментарием с отпечатком.
+  - `replace`: удалён конструктор `if(Modes.test) { this.publisKeysHex = this.testPublicKeysHex; }`.
+  - `replace`: удалён `import Modes from '@config/modes';`.
+  - PEM (PKCS#1) переводится в hex в `parse_pkcs1_public_key`. Требуется 2048 бит. Отпечаток считается в `key_fingerprint` так же, как у tweb.
+- **Проверка:** `verify` — ровно один `modulus: '` и это ключ сервера. `check_bundle` — modulus есть в коде. Тесты: `KeyTest` (отпечатки Telegram `0xD09D1D85DE64FD85`/`0xB25898DF208D2603`, hex совпадает с тем, что несёт tweb, dev-ключ `14037083214707814241`), `DAMAGE` (имя класса, модуль, `testKeysHex`, импорт `@/config/modes`).
+- **Апстрим до правки:** прод- и тест-ключи Telegram, в тест-режиме тестовые. Официальный клиент — так же.
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-004. Идентичность приложения и отказ от режима web.telegram.org
+- **Что и зачем:** свои `api_id`/`api_hash` (из `config/app.env`, W-052). Ни один хост не считается доменом Telegram, поэтому не включаются учётные данные Webogram, push-ключ Telegram и переход на Web A.
+- **Где:** `src/config/app.ts`.
+  - `replace` `export const MAIN_DOMAINS = ['web.telegram.org', 'webk.telegram.org'];` → `export const MAIN_DOMAINS: string[] = [];`;
+  - `replace` `  id: +import.meta.env.VITE_API_ID,` → `  id: 10004,`;
+  - `replace` `  hash: import.meta.env.VITE_API_HASH,` → строковый литерал;
+  - `sub` (регэксп) `if\(App\.isMainDomain\) \{ // use Webogram credentials then\n(?:  App\.\w+ = '?[\w-]+'?;\n){3}\}\n\n` → пусто: блок с `App.id = 2496` и т. д.
+- **Проверка:** `verify` — в `app.ts` есть `id`, `hash`, `baseDcId: 1`. Во всех исходниках нет `import.meta.env.VITE_API_ID|VITE_API_HASH|VITE_PUSH_SERVER_KEY`. `check_bundle` — `api_hash` есть в коде. Тесты: `ConfigTest`, `DAMAGE` (добавленный `webz.telegram.org`, `Number(...)`, `String(...)`, `App.suffix = 'W'` в блоке).
+- **Апстрим до правки:** `api_id`/`api_hash` из переменных сборки. На `web.telegram.org`/`webk.telegram.org` — учётные данные Webogram (2496), а посетителей из поисковиков он случайно отправляет на Web A (README).
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-005. Базовый DC — 1
+- **Где:** `src/config/app.ts`, `replace` `  baseDcId: 2 as TrueDcId,` → `  baseDcId: 1 as TrueDcId,`.
+- **Зачем:** сервер Pluma — DC 1.
+- **Проверка:** `verify`, `DAMAGE` (`baseDcId: 4`).
+- **Апстрим до правки:** DC 2.
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-006. Без «прогрева» DC 2–5 на экране входа
+- **Где:** `src/pages/cards/SignInCard.tsx`, `replace` `      const dcs = new Set([1, 2, 3, 4, 5]);` → `      const dcs = new Set<number>();`.
+- **Зачем:** у Pluma один DC. Апстрим заранее делает рукопожатия с DC 1–5.
+- **Проверка:** `DAMAGE` (`new Set([1, 2, 3, 4, 5, 6])`).
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-007. Без синхронизации сессии с t.me и telegram.me
+- **Где:** `src/lib/telegramMeWebManager.ts`, `replace_body` от `  public setAuthorized(canRedirect: boolean) {\n` до `\n  }\n}\n`, `must_contain` `_websync_`, `'//t.me/' + path`, `loadScript(url)`. Тело заменено на `return;`.
+- **Зачем:** после входа апстрим грузит скрипты `//t.me/_websync_…` и `//telegram.me/_websync_…` с сайтов Telegram.
+- **Проверка:** `verify` — нет следа `_websync_`. `test_patch` — нет `loadScript(`. `DAMAGE` (сигнатура с `force?`, `_sync_`).
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-008. Сверка апстрима с `upstream.env` и флагов транспорта (правки нет, только проверки)
+- **Где:** начало `patch()`.
+  - `"layer":(\d+)` в `src/lib/mtproto/schema.ts` = `UPSTREAM_LAYER`;
+  - `public/version` = `"2.2 (676)"`;
+  - `package.json`: `packageManager` = `pnpm@11.16.0`, `engines.node` принимает `NODE_VERSION` (`node_satisfies`);
+  - множество `import.meta.env.VITE_MTPROTO_*` во всех исходниках (`Tree.sources()`) равно `TRANSPORT_FLAGS ∪ UPSTREAM_FLAGS`: новый флаг или исчезнувший — ошибка.
+- **Проверка:** `NodeEnginesTest`, `DAMAGE` (layer 229, версия 2.3 (700), pnpm 11.17.0, engines `>=26.0.0`, `VITE_MTPROTO_HTTP_UPLOADS`).
+- **Коммиты:** `facdd16`.
+
+## Уведомления и пуши
+
+### W-009. Web push без ключа Telegram
+- **Что и зачем:** апстрим подписывается на web push с VAPID-ключом своей сборки или с GCM sender id манифеста. У сервера Pluma своего ключа web push пока нет. Уведомления при открытой странице работают.
+- **Где:**
+  - `src/config/app.ts`, `replace` `  pushServerKey: import.meta.env.VITE_PUSH_SERVER_KEY,` → `  pushServerKey: '',`;
+  - `src/lib/webPushApiManager.ts`, `replace` в `public subscribe = (): Promise<PushSubscriptionNotify | void> => {\n    if(!this.isAvailable) {` → `if(!this.isAvailable || !App.pushServerKey) {`;
+  - GCM sender id удаляется из манифестов (W-010).
+- **Проверка:** `verify` (нет `VITE_PUSH_SERVER_KEY`, нет ключа и sender id Telegram из `TELEGRAM_TRACES["credential"]`), `DAMAGE` (`VITE_PUSH_KEY`, `async()`).
+- **Открыто:** когда сервер начнёт слать web push (бриф 009: «Web push … не отправляются»), ключ придётся передавать в сборку. Сейчас пустой ключ зашит.
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-010. Тексты push в service worker
+- **Где:** `src/lib/serviceWorker/push.ts`, четыре `replace`:
+  - `    push_message_error: 'Telegram is syncing in the background...',` → `Pluma is syncing…`;
+  - `ctx.registration.showNotification('Telegram Web', {` → `'Pluma'`;
+  - `  let title = obj.title || 'Telegram';` → `'Pluma'`;
+  - `    title = 'Telegram';\n    body = lang.push_message_nopreview;` → `'Pluma'`.
+- **Зачем:** имя приложения в уведомлениях.
+- **Проверка:** `DAMAGE` есть для `showNotification('Telegram Web K'` и `title = 'Telegram Web'`. Для двух других замен отдельного случая нет, но точная замена с `count=1` всё равно упадёт при сдвиге. Пока web push выключен (W-009), эти тексты почти не видны.
+- **Коммиты:** `bb3c634` (2026-10-29), задача 017.
+
+## Брендинг и тексты
+
+### W-011. Манифесты PWA
+- **Где:** `public/site.webmanifest`, `public/site_apple.webmanifest`, функция `patch_manifest`. Файл разбирается как JSON и записывается заново с отступом 4.
+  - Ожидается: `name` и `short_name` = `"Telegram Web"`, есть `description`; `scope_extensions` = `https://t.me`, `https://telegram.me`; есть `gcm_sender_id`; `screenshots` = `[assets/img/screenshot.jpg]`.
+  - Результат: `name`, `short_name`, `description` = `Pluma`; `scope_extensions`, `gcm_sender_id`, `screenshots` удалены.
+- **Зачем:** имя установленного приложения. Не перехватывать ссылки t.me. Без sender id push Telegram. Без скриншота интерфейса Telegram.
+- **Проверка:** `verify` (имя, нет `t.me`), `check_bundle` (`name`/`short_name`), `DAMAGE` (`"name": "Telegram"`, `telegram.dog`, `gcm_sender`, `screenshot2.jpg`).
+- **Коммиты:** `facdd16` (имя, scope, gcm), `8cd3f81` (2026-10-29, screenshots), задачи 012, 017.
+
+### W-012. Заголовок страницы и описание (vite)
+- **Где:** `vite.config.ts`, `replace_body` от `const handlebarsPlugin = handlebars({\n  context: {\n` до `\n  }\n});\n`, `must_contain` `title: 'Telegram Web'`, `url: 'https://web.telegram.org/k/'`, `origin: 'https://web.telegram.org/'`. Контекст стал `title: 'Pluma', description: 'Pluma'`: `url` и `origin` удалены.
+- **Проверка:** `check_bundle` — `<title>Pluma</title>` в `index.html`. `DAMAGE` (`'Telegram Web K'`).
+- **Коммиты:** `facdd16`, задача 012.
+
+### W-013. Без канонического адреса в `index.html`
+- **Где:** `index.html`, три `replace` на пустую строку: `    <meta property="og:url" content="{{url}}">`, `    <meta property="twitter:url" content="{{url}}">`, `    <link rel="canonical" href="{{origin}}">`.
+- **Зачем:** адрес, с которого сервер раздаёт сайт, на этапе сборки неизвестен. У апстрима здесь адрес web.telegram.org.
+- **Проверка:** `verify` — нет `{{url}}`/`{{origin}}`. `DAMAGE` (canonical с `{{url}}`).
+- **Коммиты:** `facdd16`.
+
+### W-014. Иконки и логотипы (ресурсы)
+- **Что и зачем:** все иконки Web K заменены на иконки Pluma, имена файлов сохранены.
+- **Где:** `ICONS` в `ci/patch.py` — 33 файла в `public/assets/img/`, `replace_file` по SHA-256 апстримного файла. Источник — `brand/web/assets/img/…` (W-061).
+  - `android-chrome-{36,48,72,96,144,192,256,384,512}`, `apple-touch-icon(-precomposed).png`;
+  - `favicon-16x16`, `favicon-32x32`, `favicon-194x194`, `favicon.ico`, `favicon_unread.ico`;
+  - `icon_square_{192,384,512}.png`;
+  - `logo.svg`, `logo_512.png`, `logo_filled.svg`, `logo_filled_rounded.png`, `logo_padded.svg`, `logo_plain.svg`;
+  - `masked.svg`, `masked copy.svg`, `safari-pinned-tab.svg`;
+  - `mstile-{70x70,144x144,150x150,310x150,310x310}.png`.
+  - Хэши — в коде. У `masked.svg` и `safari-pinned-tab.svg` апстримный хэш одинаковый.
+  - `SCREENSHOT`: `public/assets/img/screenshot.jpg` (SHA-256 `af2c7c54…`) удаляется.
+- **Проверка:** `verify` — каждый файл побайтно равен `brand/web`, скриншота нет. `check_bundle` — то же в сайте. Тесты: `test_icon_changed` (изменённый `favicon.ico` роняет патч), `BundleTest`.
+- **Если апстрим поменяет иконку:** SHA-256 не совпадёт, и патч упадёт. Нужно убедиться, что рендер Pluma подходит по назначению и размеру, и обновить хэш.
+- **Коммиты:** `19c2741` (рендер), `8cd3f81` (замена), 2026-10-29, задача 017.
+
+### W-015. Логотип на экране входа
+- **Где:**
+  - `index.html`, `replace_block` от `        <path id="logo" fill-rule="evenodd" d="M80,0 ` до `"/>\n`, `must_contain` `M114.262551,46.4516129`. Путь Telegram заменён на `<g id="logo" … style="stroke: var(--primary-text-color)" transform="translate(80 80) scale(.3878) translate(-260 -248)">` с кольцом и тремя перьями.
+  - Знак строит `mark_logo()` из `brand/src/pluma-mark.svg`: требуется `viewBox="64 80 392 336"` и штрихи `#111111`, `#4A4A4A`, `#8A8A8A`, `#BDBDBD`. Серые переведены в `stroke-opacity`, чтобы знак читался и в тёмной теме.
+  - `expect` в `src/pages/cards/SignInCard.tsx`: `<svg class={styles.logo} … viewBox="0 0 160 160">` и `<use href="#logo"/>`.
+- **Проверка:** `verify` — `<g id="logo"` есть. `test_patch` — конкретный путь с `stroke-opacity="0.76"`. `DAMAGE` (без `fill-rule`, координаты, `#logo-round`).
+- **Апстрим до правки:** самолётик Telegram, залитый одним цветом.
+- **Коммиты:** `8cd3f81`, задача 017.
+
+### W-016. Логотип в центре QR-кода (правки нет, только проверка)
+- **Где:** `expect` в `src/helpers/qrCode/paintQrCode.ts`: ``text.replace(/(fill:).+?(;)/, `$1${logoColor}$2`)``.
+- **Зачем:** код красит первый CSS `fill:` в `logo_padded.svg`. У файла Pluma (`brand/src/pluma-qr-logo.svg`, белый диск со знаком) CSS-заливки нет, поэтому он остаётся в своих цветах.
+- **Проверка:** `DAMAGE` (флаг `/g`).
+- **Связано:** нечитаемость QR из-за короткого токена исправлена на сервере, а не в клиенте (бриф 017, токен 34 байта).
+- **Коммиты:** `8cd3f81`.
+
+### W-017. Цвет плитки Windows
+- **Где:**
+  - `index.html`, `replace` `    <meta name="msapplication-TileColor" content="#2d89ef">` → `#5b7a5e`;
+  - `public/browserconfig.xml`, `replace` `<TileColor>#2d89ef</TileColor>` → `#5b7a5e`.
+- **Проверка:** `test_patch`, `DAMAGE` (`#2b5797` в обоих).
+- **Коммиты:** `8cd3f81`.
+
+### W-018. Счётчик непрочитанных на favicon
+- **Где:** `src/lib/uiNotificationsManager.ts`, `replace` `    ctx.fillStyle = '#3390ec';` → `'#5b7a5e'` (акцент).
+- **Проверка:** `DAMAGE` (`#3390EC`).
+- **Коммиты:** `8cd3f81`.
+
+### W-019. Имя «Pluma» во встроенных английских строках
+- **Что и зачем:** каждое «Telegram» в **значениях** строк становится `PLUMA_APP_NAME` («Sign in to Pluma», «Pluma Premium», «Pluma Stars»). Ключи, комментарии и URL (`https://t.me/TelegramTips`) остаются.
+- **Где:** `rename_strings()` для `STRINGS`. Строка вида `'key': value` (регэксп `_STRING_ENTRY`); слово — регэксп `_TELEGRAM_WORD`: не после `[\w./@-]`, но допускается после `\n`.
+  - `src/lang.ts`: ожидается ровно 210 замен и 30 оставшихся «Telegram»;
+  - `src/langSign.ts`: 7 замен, 0 оставшихся.
+- **Проверка:** `verify` — ни одно значение не содержит слово. `check_bundle` — есть «Sign in to Pluma», нет «Sign in to Telegram» и «Scan with Telegram». `test_patch` проверяет `AppName`, `BoostingStars`, `Premium.Boarding.Peer.Title`. `DAMAGE` (новая строка `AppNameFull`, «Sign in» без Telegram, `t.me/Tips`).
+- **При обновлении:** любая новая или удалённая строка с Telegram меняет счётчик, и патч падает, пока строку не прочтут.
+- **Не здесь:** языковые пакеты с сервера (задача 021, ADR 0025) — замена в них делается на сервере.
+- **Коммиты:** `bb3c634`, задача 017.
+
+### W-020. Подвал меню: ссылка на исходники и версия
+- **Где:** `src/components/sidebarLeft/index.ts`.
+  - `replace` `  btnMenuFooter.href = 'https://github.com/morethanwords/tweb/blob/master/CHANGELOG.md';` → `'https://github.com/sckraaa/pluma-web'` (`SOURCE_URL`; исходники сборки по GPL);
+  - `replace` ``  t.textContent = `Telegram Web${App.suffix} ${App.version} (${App.build})`;`` → ``  t.textContent = `Pluma Web ${App.version} (${App.build})`;``.
+- **Проверка:** `test_patch`, `DAMAGE` (`github.com/tweb`, пробел перед `${App.suffix}`).
+- **Коммиты:** `bb3c634`.
+
+### W-021. Уведомление об обновлении
+- **Где:** `src/lib/appManagers/apiUpdatesManager.ts`, `replace` ``const pre = `**Telegram Web${App.suffix} ${langStr} ${newVersion}**\n\n`;`` → `**Pluma Web …**`.
+- **Проверка:** `DAMAGE`.
+- **Коммиты:** `bb3c634`.
+
+### W-022. Служебный аккаунт 777000 до ответа сервера
+- **Где:** `src/lib/appManagers/appMessagesManager.ts`, `replace` `        first_name: 'Telegram',\n        phone: '42777'` → `first_name: 'Pluma'`.
+- **Зачем:** заглушка пользователя 777000, пока не пришёл настоящий от сервера. На сервере он тоже «Pluma» (бриф 017, `c5751d23`).
+- **Проверка:** `DAMAGE` (`Telegram Notifications`).
+- **Коммиты:** `bb3c634`.
+
+### W-023. Пункты меню «Telegram Features» и «Report Bug» убраны
+- **Где:** `src/components/sidebarLeft/index.ts`, одна точная замена всего фрагмента от `    }, {\n      icon: 'help',\n      text: 'TelegramFeatures',` до `a.href = 'https://bugs.telegram.org/?tag_ids=40&sort=time';` и конца второго пункта. Пункты заменены комментарием.
+- **Зачем:** пункты ведут на сервисы Telegram (t.me/TelegramTips, bugs.telegram.org).
+- **Проверка:** `test_patch` — нет `'ReportBug'`. `DAMAGE` (`bugs.telegram.org/`).
+- **При обновлении:** фрагмент длинный (21 строка), поэтому любое изменение в соседних пунктах меню роняет замену.
+- **Коммиты:** `bb3c634`.
+
+### W-024. Ссылки `plm://`, которые создаёт клиент
+- **Что и зачем:** приложения Pluma работают с `plm://`, а `tg://` остаётся за Telegram, установленным рядом. QR входа Pluma не откроет Telegram, и наоборот (бриф 017). Веб-страница не может зарегистрировать `plm://` в системе (браузеры принимают только `web+`).
+- **Где:** `PLM_LINKS`, точные замены `tg:` → `plm:`:
+  - `src/pages/cards/SignQRCard.tsx` `'tg://login?token='` (1);
+  - `src/components/instantView.tsx` `'tg://iv?url='` (2);
+  - `src/lib/richTextProcessor/wrapTelegramRichText.ts` `'tg://iv?url='` (1);
+  - `src/components/wrappers/joinVoiceChatAnchor.ts` `` `tg://voicechat? `` (1);
+  - `src/lib/richTextProcessor/wrapRichText.ts` `'tg://bot_command?` (1);
+  - `src/lib/richTextProcessor/index.ts` `'tg://search_hashtag?` (1);
+  - `src/lib/settingsSearch/link.ts` `'tg://settings'` (1).
+- **Проверка:** `verify` — нигде в коде (без комментариев) нет `'tg:`, `"tg:`, `` `tg: `` и `^tg:`; есть `'plm://login?token='`. `check_bundle` — есть `plm://login?token=`, нет `tg://login`. `DAMAGE` (`login/`, `iv/`, `settings/`, новая константа `'tg://resolve'`).
+- **Коммиты:** `abb939c` (2026-10-29), задача 017.
+
+### W-025. Клиент открывает `plm:`-ссылки вместо `tg:`
+- **Где:** `src/lib/richTextProcessor/wrapUrl.ts`, `replace` `  } else if((tgMatch = url.match(/^tg:(?:\/\/)?(.+?)(?:\?|$)/))) {` → `/^plm:…/`. Дальше ссылки идут в те же обработчики `tg_*`.
+- **Следствие:** ссылки `tg://` в сообщениях клиент больше не разбирает как внутренние.
+- **Проверка:** `test_patch`, `DAMAGE` (регэксп без `?`).
+- **Коммиты:** `abb939c`.
+
+### Цвета: тема «графит и шалфей»
+
+Палитра выбрана владельцем 2026-10-29 (бриф 017). Пресеты *Day*, *Dark Blue* и акценты, которые пользователь выбирает сам, остаются как у апстрима, кроме цветов-идентичностей (W-039). Исходящие пузыри сплошные: Web K не рисует градиентные пузыри, владелец согласился (бриф 017).
+
+### W-026. Цвета светлой и тёмной тем по умолчанию
+- **Где:** `src/helpers/themeController.ts`, `replace_within` в блоках `  day: {\n` … `\n  },\n` и `  night: {\n` … `\n  },\n`, по одной точной замене `'<ключ>': '<цвет>'` (`THEME_COLORS`).
+  - day: `primary-color` `#3390ec`→`#5b7a5e`, `message-out-primary-color` `#5CA853`→`#5b7a5e`, `message-background-color` `#ffffff`→`#f1f2f0`, `primary-text-color` `#000000`→`#111111`, `secondary-text-color` `#707579`→`#6b6f6b`, `saved-color` `#359AD4`→`#5b7a5e`, `background-color` `#f4f4f5`→`#f4f5f4`, `border-color` `#dfe1e5`→`#dfe2df`, `secondary-color` `#c4c9cc`→`#c4c9c4`, `link-color` `#00488f`→`#4f6e52`.
+  - night: `primary-color` `#8774E1`→`#9dbb9f`, `message-out-primary-color` `#8774E1`→`#b2ceb4`, `message-background-color` `#212121`→`#232623`, `surface-color` `#212121`→`#131513`, `primary-text-color` `#ffffff`→`#e8ece8`, `secondary-text-color` `#aaaaaa`→`#9aa29a`, `saved-color` `#8774E1`→`#9dbb9f`, `background-color` и `body-background-color` `#181818`→`#0c0e0c`, `border-color` `#0f0f0f`→`#070807`, `secondary-color` `#707579`→`#6e756e`, `link-color` `#8774E1`→`#b2ceb4`, `input-search-background-color` `#181818`→`#0c0e0c`.
+  - Отдельный `replace` комментария `'link-color': '#b2ceb4', // SCSS resolves to var(--primary-color)` → `// pluma: lighter than the accent`.
+- **Проверка:** `test_patch`, `DAMAGE` (`#3390EC`, комментарий link-color).
+- **Коммиты:** `3460637` (2026-10-29), задача 017.
+
+### W-027. `--on-primary-color`: текст и значки на заливке акцентом
+- **Что и зачем:** акцент тёмной темы — светлый шалфей, белое на нём не читается. Тема ставит `--on-primary-color`: тёмный `#131513`, если яркость акцента больше 0,65, иначе белый.
+- **Где:**
+  - `themeController.ts`, `replace` строки импорта из `@helpers/color` — добавлен `computePerceivedBrightness`. Импорт заменяется целиком, поэтому любое изменение списка у апстрима роняет патч.
+  - `themeController.ts`, `replace` после `applyAppColor({ name: 'primary-color', hex: newAccentHex, darkenAlpha: 0.04 });` добавлен `element.style.setProperty('--on-primary-color', …)`.
+  - `src/scss/base.scss`: после `  --badge-text-color: #fff;\n  --original-ripple-color: …` добавлено `  --on-primary-color: #fff;`.
+  - Потребители — W-035, W-036.
+- **Проверка:** `test_patch`, `DAMAGE` (порядок импорта, `darkenAlpha: 0.05`, `--badge-text-color: white`).
+- **Коммиты:** `3460637`.
+
+### W-028. Исходящий пузырь светлой темы без пересыщения
+- **Где:** `themeController.ts`, `replace` фрагмента `    let newMessageOutBackgroundColor = mixColors(myMessagesAccent, surfaceForMessage, messageLightenAlpha);\n\n    if(!isNight/*  || true */) {`.
+  - Добавлен `isBubbleColor` (не ночь, L ≥ 85, S ≤ 30): такой цвет берётся как есть, без смешивания и насыщения.
+  - Условие стало `if(!isNight && !isBubbleColor)`.
+- **Зачем:** апстрим смешивает цвет сообщения с фоном и поднимает насыщенность на 63 пункта, и `#E3EAE2` становится ярко-зелёным.
+- **Проверка:** `DAMAGE` (`if(!isNight) {`).
+- **Коммиты:** `3460637`.
+
+### W-029. Время и галочки исходящих в тёмной теме — цвет outbox accent
+- **Где:** `themeController.ts`, `replace` `      hex: isNight ? '#ffffff' : rgbaToHexa(accentColor2 ? hsvToRgb(...accentColor2) : myMessagesAccent),` → `hex: accentColor2 ? rgbaToHexa(hsvToRgb(...accentColor2)) : (isNight ? '#ffffff' : rgbaToHexa(myMessagesAccent))`.
+- **Апстрим до правки:** ночью всегда белый.
+- **Проверка:** `DAMAGE` (`'#fff'`).
+- **Коммиты:** `3460637`.
+
+### W-030. Настройки тем по умолчанию: акцент, пузырь, обои, highlightingColor
+- **Где:** `src/config/state.ts`, точные замены `THEME_SETTINGS`.
+  - day: `accent_color: 0x3390ec, message_colors: [0x5CA853]` → `0x5B7A5E`, `[0xE3EAE2]`, добавлено `outbox_accent_color: 0x5B7A5E`; обои `0xdbddbb/0x6ba587/0xd5d88d/0x88b884` → `0xd5ddd3/0x8fa992/0xc9d4c5/0xa3b8a4`.
+  - night: `0x8774E1, [0x8774E1]` → `0x9DBB9F`, `[0x2C3A2D]`, `outbox_accent_color: 0xB2CEB4`; обои `0xfec496/0xdd6cb9/0x962fbf/0x4f5bd5` → `0x9dbb9f/0x4f6e52/0x7fa082/0x5b7a5e`.
+  - `baseThemeClassic`/`baseThemeNight` (hsla для служебных сообщений и строки заголовка установленного приложения) → значения среднего по новым обоям.
+- **Проверка:** `test_patch`, `DAMAGE` (`0x3390EC`, `0x4f5bd6`, `299.14`).
+- **Коммиты:** `3460637`.
+
+### W-031. Перевод тем, сохранённых ранней сборкой
+- **Где:** `src/lib/appManagers/utils/state/loadState.ts`.
+  - `replace` импорта из `@config/state` — добавлен `SETTINGS_INIT`;
+  - `replace` после блока `theme.settings = [theme.settings as any]; migrated = true; } });` — цикл: если у сохранённой темы акцент, единственный цвет сообщения или обои равны умолчаниям Telegram, они меняются на умолчания Pluma, `migrated = true`.
+- **Зачем:** тема в браузере, сохранённая до перекраски, сама не сбрасывается.
+- **Проверка:** `DAMAGE` (`type AppTheme`, `theme.settings = [theme.settings];`).
+- **Коммиты:** `3460637`.
+
+### W-032. Синий значков строк настроек — акцент
+- **Где:** `src/helpers/rowIconBackground.ts`, `replace` `  blue: '#2196F3',` → `'#5b7a5e'`.
+- **Следствие:** значки сессий в «Устройствах» тоже получают акцент (README).
+- **Проверка:** `DAMAGE`.
+- **Коммиты:** `3460637`.
+
+### W-033. Переменные `base.scss`: кольцо историй, галочка выбора, ссылки и время исходящих
+- **Где:** `src/scss/base.scss`, точные замены.
+  - `--avatar-color-story-unread-from: #34c76f; …-to: #3da1fd;` → `#9DBB9F`, `#5B7A5E`;
+  - `--message-checkbox-color: #61c642;` → `var(--primary-color)`;
+  - `--message-out-link-color: #fff; --message-out-status-color: #fff; --message-out-time-color: rgba(255, 255, 255, .6);` → `var(--message-out-primary-color)`, `var(--message-out-primary-color)`, `var(--message-out-status-color)`.
+- **Проверка:** `DAMAGE` (`#3DA1FD`, `#61C642`, `.5`).
+- **Коммиты:** `3460637`.
+
+### W-034. Синий аватар — вариант ветки `main` (заменён W-039 на ветке 020)
+- **Где:** `src/scss/base.scss`, `replace` `  @include avatar-color("blue", #5CAFFA, #408ACF);` → `#7FA082, #6F8F72` (`// pluma: sage, not blue`).
+- **Статус:** есть на `main` (`3460637`). На `task/020-parity-fixes` правку удалил `e9a6865`, вместо неё W-039 (`#7FA082`→`#5B7A5E`).
+- **Проверка:** `DAMAGE` (`#408ACE`).
+
+### W-035. Значки-счётчики на акценте
+- **Где:** точные замены с добавлением `color: …` (комментарий `// pluma`):
+  - `src/scss/partials/_badge.scss`, в `&-primary { background-color: var(--primary-color); }` — `var(--on-primary-color)`;
+  - `src/scss/partials/_slider.scss`, в `.badge { background-color: var(--primary-color); }` — `var(--on-primary-color)`;
+  - `src/scss/partials/_chatlist.scss`, `.is-muted.backwards .dialog-subtitle-badge-pollvote` — `var(--on-primary-color)`;
+  - `src/scss/partials/_chatlist.scss`, `.no-unmuted-topic .dialog-subtitle-badge-pollvote` — `var(--badge-text-color)`.
+- **Проверка:** `DAMAGE` (`background:` вместо `background-color:`).
+- **Коммиты:** `3460637`.
+
+### W-036. Белый на акцентной заливке → `--on-primary-color` (25 правил)
+- **Где:** `ON_PRIMARY` — пары (файл, точный многострочный фрагмент правила). Внутри фрагмента регэксп `_WHITE_ON_PRIMARY` должен найти ровно одно `color:`/`stroke:` со значением `#fff`, `white`, `var(--white)` или `var(--badge-text-color)`; оно меняется на `var(--on-primary-color)`. Затем точная замена фрагмента в файле.
+  - `_button.scss` ×3, `_row.scss`, `_chat.scss` ×3 (`.btn-send`, команды, ещё одна кнопка);
+  - `_chatInlineHelper.scss`, `_chatMarkupTooltip.scss`, `_chatPinned.scss`, `_checkbox.scss` (`stroke`), `_poll.scss`, `_replyKeyboard.scss`, `_searchSuper.scss`, `_topbarSearch.scss`, `_voiceRecordingPanel.scss`, `_leftSidebar.scss`;
+  - `popups/_datePicker.scss` ×2, `popups/_giftPremium.scss`;
+  - `components/call/callLogo.module.scss`, `featureDetailsIconSticker.module.scss`, `popups/sendGift.module.scss`, `popups/starGiftValue.module.scss`, `popups/webAppLocationAccess.module.scss`.
+  - Точные тексты — в `ci/patch.py`.
+- **Проверка:** `test_patch` (`.btn-color-primary`), `DAMAGE` (порядок свойств в `_chat.scss`, `white` в `_button.scss`, `_checkbox.scss`, `#fff` в `webAppLocationAccess`).
+- **При обновлении:** новые места «белое на `--primary-color`» патч сам не найдёт: их надо искать вручную (`grep -n "primary-color" -A3 | grep "#fff"`).
+- **Коммиты:** `3460637`.
+
+### W-037. Выбранный чат в списке
+- **Где:** `src/scss/partials/_chatlist.scss`, `replace_within` от `      &.active {\n        --background: var(--primary-color) !important;\n` до `\n      }\n`:
+  - `#fff` → `var(--on-primary-color)` (ровно 9);
+  - `color: white;` (1);
+  - `rgba(255, 255, 255, .7)` и `.2` → `color-mix(in srgb, var(--on-primary-color) 70%|20%, transparent)`.
+- **Проверка:** `test_patch` (в блоке не осталось `#fff`), `DAMAGE` (`.6`, `--color: white`).
+- **Коммиты:** `3460637`.
+
+### W-038. Пресеты тем и прочие цвета — без правки
+Записано, чтобы не искать: кроме перечисленного, цвета апстрима не меняются. Пресеты тем (`src/config/themePresets.ts`) патч не трогает. На ветке 020 `verify` проверяет только, что там не осталось синего и бирюзового Telegram, заменённых в W-039.
+
+### W-039. Цвета-идентичности: аватары синего и бирюзового (только ветка 020)
+- **Что и зачем:** из семи цветов, которые Telegram даёт пользователю или чату по id (`getPeerColorIndexByPeer`: `peer.color`, иначе `id % 7`), синий становится шалфеем, а бирюзовый — teal без синевы, во всех темах. Остальные пять и id ≥ 7 остаются как есть. Решение владельца — выровнять с Android (бриф 020, «Равномерность платформ»).
+- **Где:** `identity_colors()`.
+  - `expect` в `src/lib/appManagers/utils/peers/getPeerColorById.ts` списка `  DialogColors = ['red', 'orange', 'violet', 'green', 'cyan', 'blue', 'pink'] as const;`;
+  - `src/scss/base.scss`, `replace`:
+    - `  @include avatar-color("cyan", #53edd6, #28c9b7);` → `#5BCBC4, #2C9C98`;
+    - `  @include avatar-color("blue", #5CAFFA, #408ACF);` → `#7FA082, #5B7A5E`.
+  - Таблица `IDENTITY_COLORS`: одна строка на цвет, сверяется с апстримным значением.
+- **Проверка:** `verify` — заменённые цвета Telegram (`53edd6`, `28c9b7`, `309EBA`, `5CAFFA`, `408ACF`, `368AD1`) не встречаются нигде в исходниках, ни как CSS, ни как число. `IdentityColorsTest`, `test_identity_colors`, `DAMAGE` (порядок `DialogColors`, регистр cyan, `_avatar.scss` с `#5cafFA`, `themePresets.ts` с `0x368ad1`/`0x28C9B7`).
+- **Апстрим до правки:** синий `#5CAFFA→#408ACF`, бирюзовый `#53edd6→#28c9b7`. Официальный Telegram — те же цвета.
+- **Коммиты:** `e9a6865` (2026-10-31), задача 020.
+
+### W-040. Цвета имён идентичностей, своя палитра для тёмных тем (только ветка 020)
+- **Где:** `getPeerColorById.ts`.
+  - Регэксп `_NAME_COLORS` ищет ровно одну строку `const DialogColorsFg: Array<string[]> = [[...] ×7],`. Цвета cyan (`#309EBA`→`#1F8A80`) и blue (`#368AD1`→`#4F6E52`) сверяются и заменяются точной заменой всей строки.
+  - `replace` `const _DialogColorsFg = DialogColorsFg;` → `const DialogColorsFgNight = {4: ['#53CCC6'], 5: ['#9DBB9F']}` и `const _DialogColorsFg = DialogColorsFg.slice();`. Копия нужна потому, что `setPeerColors` пишет цвета темы прямо в `DialogColorsFg`.
+  - `replace` `  let newColors = replaceColors(_DialogColorsFg.slice(), peerColorOptions);\n  if(themeController.isNight()) {` → ночью берутся `DialogColorsFgNight`, поверх — цвета сервера (`help.getPeerColors`).
+- **Зачем:** у Web K один цвет имени на все темы. Тёмные имена бирюзового `#53CCC6` (значение ночной темы Android) — решение на подтверждение (бриф 020).
+- **Известное:** Web K применяет цвета имён только после ответа `help.getPeerColors`. Сервер его пока не отдаёт, поэтому имена в группах не окрашены вовсе (бриф 020, задача 024).
+- **Проверка:** `test_patch`, `test_identity_colors`, `DAMAGE` (`#3E88F7`, восьмой цвет, `[...DialogColorsFg]`, `peerColorOptions || []`).
+- **Коммиты:** `e9a6865`, задача 020.
+
+### W-041. Синий градиент как просто синий — архив и иконка его окна (только ветка 020)
+- **Где:** `IDENTITY_AS_PLAIN`, `replace` `background: linear-gradient(#5CAFFA, #408ACF);` → `linear-gradient(var(--peer-avatar-blue-top), var(--peer-avatar-blue-bottom))` в `src/components/archiveDialog.module.scss` и `src/components/featureDetailsIconSticker.module.scss`.
+- **Проверка:** `test_patch`, `DAMAGE` (`10%`, `90%`).
+- **Коммиты:** `e9a6865`.
+
+### W-042. Белый значок на градиентах иконки возможностей (только ветка 020)
+- **Где:** `featureDetailsIconSticker.module.scss`.
+  - `expect` — ровно 3 вхождения `  &:global(.background-gradient-`;
+  - `replace` для `avatar`, `archive`, `stories` — добавлено `color: white;`.
+- **Зачем:** W-036 перевёл значок этой иконки на `--on-primary-color`, а на градиентах он должен остаться белым, как у апстрима.
+- **Проверка:** `test_patch`, `DAMAGE` (четвёртый градиент `premium`, `background-gradient-peer`).
+- **Коммиты:** `e9a6865`.
+
+## Premium и платные функции
+
+Контекст: Pluma не продаёт Premium и подарки. Сервер ставит `premium_purchase_blocked` в `help.getAppConfig` (задачи 014, 015). Решение владельца по баннеру — вариант А (бриф 020, пункт про баннер дня рождения). Всё в этом разделе есть **только на ветке `task/020-parity-fixes`** (`cb01766`, 2026-10-31).
+
+### W-043. Баннер дней рождения: нажатие открывает чат, а не подарок
+- **Где:** `src/components/sidebarLeft/birthdaySuggestions.tsx`, функция `birthday_banner()`.
+  - Сначала `expect` опор: в `src/lang.ts` строки `'SendMessageTitle': 'Send message'` и `'Suggestion.BirthdayContacts.Today': 'Birthday today'`; в `src/components/popups/pickUser.tsx` `export default function showPickUserPopup(options: PopupPickUserOptions) {`; в `src/lib/appImManager.ts` `public async setPeer(options: Partial<ChatSetInnerPeerOptions> = {}, animate?: boolean): Promise<boolean> {`.
+  - Импорты: `showSendGiftPicker` и `showSendGiftPopup` → `showPickUserPopup`; удалены `toastNew` и `useAppState`; добавлен `appImManager`; поправлен комментарий «Preview-only».
+  - Большая точная замена от `  const nearbyContacts = createMemo(() => [` до конца `onClick` (`showSendGiftPicker({…});\n  };\n`):
+    - один именинник — `appImManager.setPeer({peerId})`, как нажатие в списке чатов (`appDialogsManager`, без `openInner`);
+    - несколько — `showPickUserPopup` с `titleLangKey: 'SendMessageTitle'`, `peerType: ['custom']`, списком сегодняшних, взятым в момент нажатия, подписью «Birthday today», без поиска; выбор открывает чат.
+- **Апстрим до правки:** нажатие открывает окно подарка или выбор получателя подарка; в список попадают и вчерашние/завтрашние.
+- **Проверка:** `verify` — в файле нет `premium_purchase_blocked`, `showSendGift`, `popups/sendGift`, `appGiftsManager`, `Suggestion.BirthdayContacts.Subtitle`, `…Dismissed`. `test_patch` — набор строк есть, а `Gift`, `appConfig`, `toastNew`, `nearbyContacts`, `createEffect`, `setInnerPeer` отсутствуют. `DAMAGE` — 17 случаев по этому файлу и опорам.
+- **Коммиты:** `cb01766`, задача 020.
+
+### W-044. Баннер: подпись «Send message» и закрытие без тоста о подарках
+- **Где:** тот же файл.
+  - `replace` `<PendingSuggestion.Subtitle>{i18n('Suggestion.BirthdayContacts.Subtitle')}</PendingSuggestion.Subtitle>` → `{i18n('SendMessageTitle')}`;
+  - `replace` `    toastNew({langPackKey: 'Suggestion.BirthdayContacts.Dismissed'});` → комментарий.
+- **Остаётся как у апстрима:** закрытие прячет баннер на день, `help.dismissSuggestion` с `BIRTHDAY_CONTACTS_TODAY` (`test_patch` проверяет `closable={props.onDismiss}` и `appPromoManager.dismissSuggestion`).
+- **Апстрим до правки:** подпись «Send them a Gift.»; после закрытия тост, что подарок можно отправить позже в Настройках.
+- **Коммиты:** `cb01766`.
+
+### W-045. Баннер показывается без продажи Premium
+- **Где:** тот же файл.
+  - Импорт `solid-js` без `createEffect`;
+  - удалено `const [{appConfig}] = useAppState();`;
+  - из `canShowBirthdayContacts` убрано `canLoadBirthdayContacts()` (там было `!appConfig.premium_purchase_blocked`);
+  - `createEffect`, который следил за гейтом, заменён на `onMount(() => { void loadContactBirthdays(); })`;
+  - удалён эффект, который заранее загружал `appGiftsManager.getStarGiftOptions()`.
+- **Апстрим до правки:** при `premium_purchase_blocked` баннер скрыт. Официальный Telegram ведёт себя так же: Android и Web K прячут его по этому флагу (бриф 020). Здесь Pluma сознательно отличается от Telegram.
+- **Остаётся:** показ после ответа `help.getPromoData` и если `dismissed_suggestions` не содержит ключа. Список именинников — из `contacts.getBirthdays`.
+- **Коммиты:** `cb01766`.
+
+### W-046. Строка «День рождения» в профиле: подарок только при продаже Premium
+- **Где:** `src/components/peerProfile.tsx`, `birthday_row()`.
+  - `replace` `PeerProfile.Birthday = () => {\n  const context = useContext(PeerProfileContext);` — добавлено `const appConfig = useAppConfig();`;
+  - `replace` `    if(isToday()) {\n      return () => showSendGiftPopup({` → `if(isToday() && !appConfig.premium_purchase_blocked)`.
+- **Зачем:** без этого в день рождения строка открывала окно подарка. Так ведут себя вход подарка в чате Web K (`Chat.canGiftPremium`) и профиль Android (`ProfileActivity` `containsGift`), по брифу 020. Без подарка строка копирует дату, как в любой другой день.
+- **Апстрим до правки:** подарок без проверки флага. Здесь Pluma повторяет поведение Telegram Android.
+- **Проверка:** `test_patch`, `DAMAGE` (`usePeerProfile()`, `canGift()`).
+- **Замечание:** `useAppConfig` используется без добавления импорта, значит, апстримный файл уже импортирует его. `expect` на этот импорт нет: если апстрим уберёт импорт, сломается `pnpm run typecheck`, а не патч.
+- **Коммиты:** `cb01766`.
+
+### W-047. Что из Premium не трогается
+Записано, чтобы не искать. Остальные экраны Premium, Stars и подарков патч не меняет. Их видимость задаёт сервер (`premium_purchase_blocked` и т. п.). Тексты «Telegram Premium» превращаются в «Pluma Premium» только через W-019.
+
+## Медиа
+
+### W-048. «Добавить» в наборе стикеров, открытом по ссылке (только `main`)
+- **Что и зачем:** в закреплённом tweb «Add» в окне набора, открытого по `t.me/addstickers/<имя>` или `t.me/addemoji/<имя>`, ничего не делает. Окно кэширует набор под коротким именем, а `toggleStickerSet` ищет его по id, ничего не находит и падает до запроса к серверу.
+- **Где:** `src/lib/appManagers/appStickersManager.ts`, `sticker_set_toggle()`, точная замена:
+  - было: `    const cacheKey = this.getCacheKey(input);\n    const stickerSet = this.storage.getFromCache(cacheKey);\n    set = stickerSet.set;`;
+  - стало: `… this.storage.getFromCache(cacheKey) ?? await this.getStickerSet(input);`.
+- **Официальный Telegram:** живой web.telegram.org/k уже переписал функцию (читает переданный набор, `getCachedStickerSets`). Это наблюдение 2026-11-02 по его worker-скрипту, бриф 030.
+- **Проверка:** `DAMAGE` (`getFromCache(cacheKey)!`). В `verify` и `test_patch` отдельной проверки нет. Проверено на проде 2026-11-02 (`t.me/addstickers/UtyaDuck`).
+- **При обновлении:** если новый апстрим это уже исправил, якорь пропадёт, и патч упадёт. Тогда правку нужно удалить.
+- **Коммиты:** `fe68fd5` (2026-11-02), задача 030. Только в `main` и `fix/sticker-set-link-add`.
+
+## Сборка, CI и подпись
+
+Подписи у веб-клиента нет: сайт — статика. Секретов сборка не использует. `PLUMA_SERVER_URL` и `PLUMA_RSA_PUBLIC_KEY` — переменные (`vars`), не секреты. `GITHUB_TOKEN` нужен только для публикации образа в ghcr.
+
+### W-049. Закрепление апстрима — `upstream.env`
+- Поля перечислены в «Общих сведениях». Обновляются вручную и все вместе. Dependabot их не трогает.
+- Коммиты: `facdd16`.
+
+### W-050. `ci/fetch-upstream.sh`
+- `git init` + `fetch --depth 1 origin $UPSTREAM_REF`, три попытки с таймаутом 10 мин, проверка `rev-parse HEAD`.
+- Сабмодули (`src/solid`, `src/opus-recorder`) остаются пустыми: Solid берётся из `src/vendor`, воркеры Opus — из `public/`.
+- Коммиты: `facdd16`.
+
+### W-051. `ci/configure.sh`
+- Задан хотя бы один из `SERVER_URL`/`RSA_PUBLIC_KEY` — цель `server`, и тогда обязательны оба; иначе цель `dev` из `config/dev`.
+- Патчит только чистый checkout (`git status --porcelain` пуст).
+- Пишет `target=` в `$GITHUB_OUTPUT`.
+- Коммиты: `facdd16`.
+
+### W-052. `config/app.env`
+- `PLUMA_APP_NAME=Pluma`, `PLUMA_API_ID=10004` (10001 Android, 10002 iOS, 10003 Desktop, 10004 Web), `PLUMA_API_HASH` — 32 hex. Это не секрет: значение несёт любой клиент. В реестр значение не переносится.
+- `Config` проверяет формат (имя — буквы, цифры, пробел, точка, дефис; hash — строчные hex).
+- Коммиты: `facdd16`.
+
+### W-053. `config/dev/`
+- `server.env`: `PLUMA_SERVER_URL=ws://localhost:11443/apiws`.
+- `server_public.pem`: публичный dev-ключ сервера, отпечаток `14037083214707814241` (`KeyTest.test_dev_key_fingerprint`).
+- Коммиты: `facdd16`.
+
+### W-054. `ci/setup.sh`
+- Проверяет, что `node --version` = `v$NODE_VERSION`, ставит `pnpm@$PNPM_VERSION` через npm (три попытки) и сверяет версию.
+- Коммиты: `facdd16`.
+
+### W-055. `ci/build.sh`
+- Требует `.pluma-patch.json` с той же целью.
+- Снимает все `VITE_*` из окружения.
+- `pnpm install --frozen-lockfile`, `pnpm run typecheck` (как в сборке апстрима), `pnpm exec vite build`.
+- Сайт собирается так же, как `build.js` апстрима: каталоги и файлы `public/`, которые оставляет `keepAsset.js` апстрима, затем поверх `dist/`.
+- Затем `check_bundle.py`, архив `pluma-web-2.2-676-<target>.tar.gz` и `.sha256`.
+- **При обновлении:** если апстрим поменяет устройство `build.js` или `keepAsset.js`, сборку сайта надо сверить заново.
+- Коммиты: `facdd16`.
+
+### W-056. `ci/check_bundle.py` — проверка готового сайта
+- Читает каждый файл сайта, включая source maps и бинарные (как latin-1).
+- Ищет: адреса из сетей Telegram (`TELEGRAM_NETWORKS`), IPv6-префиксы, ключи и отпечатки, `.web.telegram.org`, `_websync_`, учётные данные (api_hash Telegram, VAPID-ключ, GCM sender id `122867383838`).
+- Требует:
+  - WebSocket только на URL сервера, нет переключателей HTTP;
+  - есть modulus, api_hash и `layer:228`;
+  - `<title>Pluma</title>` и имя в манифестах;
+  - иконки из `brand/web`, нет скриншота;
+  - «Sign in to Pluma», `plm://login?token=` и нет `tg://login`.
+- Тесты: `BundleTest`.
+- Коммиты: `facdd16`, `8cd3f81`, `bb3c634`, `abb939c`.
+
+### W-057. `verify()` в `ci/patch.py` — проверка исходников после правок
+- Во всех исходниках (`src/**/*.{ts,tsx,js,mjs,scss}` без тестов, моков, фикстур и `src/scripts`), а также в `index.html`, `vite.config.ts` и манифестах нет следов Telegram (`telegram_traces`) и чтения `VITE_API_ID`/`VITE_API_HASH`/`VITE_PUSH_SERVER_KEY`.
+- Дальше проверки из W-001, W-002, W-003, W-004, W-011, W-013, W-014, W-015, W-019, W-024. На ветке 020 ещё W-039 и W-043.
+- Тесты: `TraceTest`, `DAMAGE` (адрес, URL и модуль в комментарии `networker.ts`).
+- Коммиты: `facdd16` и далее по каждой области.
+
+### W-058. Workflow `.github/workflows/web.yml`
+- Триггеры: push в `main`, pull request, еженедельно (`41 4 * * 1`, «канарейка»), вручную.
+- Задачи:
+  - `check`: `fetch-upstream`, `python3 -I ci/patch_test.py -v`, `shellcheck -x ci/*.sh e2e/*.sh brand/*.sh`;
+  - `build`: Node из `upstream.env` через `actions/setup-node`, `ci/setup.sh`, fetch, `configure` с `vars.PLUMA_SERVER_URL`/`vars.PLUMA_RSA_PUBLIC_KEY`, кэш pnpm store по `upstream/pnpm-lock.yaml`, `ci/build.sh`, артефакт на 30 дней (push и ручной запуск);
+  - `image`: только цель `server` на `main` — `docker/build-push-action` с `ci/site.Dockerfile`, `ghcr.io/<owner>/pluma-web:<sha>`, `linux/amd64`, `provenance: false`.
+- Все actions закреплены по SHA.
+- Коммиты: `06895df` (2026-10-24), `214779d` (образ, 2026-10-29), `19c2741` (shellcheck для `brand/`).
+
+### W-059. `.github/dependabot.yml`
+- Еженедельные PR только для github-actions.
+- Апстрим, Node, pnpm и Playwright обновляются вручную.
+- Коммиты: `06895df`.
+
+### W-060. `ci/site.Dockerfile`
+- `FROM caddy:2.11.6-alpine@sha256:d44355d3…`, `COPY . /srv/`.
+- Caddyfile (TLS, `/apiws` на шлюз) приносит репозиторий сервера (`docker-compose.web.yaml`, `docs/ops/deployment.md`).
+- Коммиты: `214779d`.
+
+### W-061. Бренд-кит и рендер — `brand/`
+- `brand/src`:
+  - `pluma-icon.svg`, `pluma-icon-square.svg`, `pluma-mark.svg`, `pluma-mark-mono.svg` — из кита владельца как есть;
+  - `pluma-favicon.svg` (знак на плотной подложке для 16 px) и `pluma-qr-logo.svg` (знак на белом диске для QR) — производные.
+- `brand/render.sh` (rsvg-convert, ImageMagick 7) рендерит `brand/web/assets/img/*` по путям `public/` апстрима, без меток времени, так что рендер воспроизводим.
+  - Размеры и раскладка плиток Windows повторяют апстрим.
+  - `favicon_unread.ico` — PNG 32 px под этим именем, как у апстрима. По комментарию скрипта, на файл никто не ссылается.
+  - Скрипт печатает SHA-256 каждого файла.
+- После изменения SVG — перерендерить и закоммитить.
+- Коммиты: `19c2741` (2026-10-29), задача 017.
+
+## Прочее
+
+### W-062. Проверка на стенде — `e2e/`
+- `e2e/run.sh` поднимает e2e-стенд из `PLUMA_SERVER_DIR` (его `test/e2e/run.sh`, `E2E_PROJECT` по умолчанию `pluma-web-e2e`), собирает клиент под одноразовый ключ стенда (`go run ./tools/genserverkey -show`) и раздаёт его на `127.0.0.1`.
+- Номер — фиктивный `+120155501xx`, добавляется в allowlist.
+- Playwright 1.64.1, Chromium, `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost`. Любой запрос не на localhost роняет прогон.
+- Сценарий: вход с кодом из `pluma-admin`, регистрация, сообщение в «Избранное», создание папки чатов (Web K берёт лимиты из `help.getAppConfig`); второй браузер должен увидеть сообщение и папку.
+- Стенд и файлы браузера удаляются в конце.
+- Коммиты: `5f1ffda` (2026-10-24), `93ebb14` (папка, `actionTimeout` 30 с).
+
+### W-063. Остальные файлы репозитория
+- `LICENSE` — GPL-3.0, как у апстрима.
+- `README.md` — описание всего перечисленного. Коммиты: `c77afd2`, `d6475fe`, дополнения в `214779d`, `cb01766`, `e9a6865`, `fe68fd5`.
+- `.gitignore` — `/upstream/`, `/out/`, `/.e2e/`, `/.pnpm-store/`, `/e2e/node_modules/`, `__pycache__/`.
+- `.shellcheckrc` — `source-path=SCRIPTDIR/..`.
+- Коммиты: `b7fef84`, `facdd16`.
+
+### W-064. `.pluma-patch.json` в checkout (добавленный файл)
+- Пишется после успешных `patch` и `verify`.
+- Содержит цель, имя, `api_id`, `api_hash`, layer, URL сервера, modulus, exponent и отпечаток.
+- Читают `ci/build.sh` (сверка цели) и `check_bundle.py`. В сайт файл не попадает: он лежит в корне checkout, а не в `public/` или `dist/`.
+- Коммиты: `facdd16`.
+
+---
+
+## Пробелы и замечания
+
+- Номера записей стабильны: новая правка получает следующий свободный номер, удалённая оставляет свой номер пустым с пометкой.
+- W-038 и W-047 — не правки, а пометки «здесь патч ничего не меняет».
+- Значения флагов `VITE_MTPROTO_*` в апстримном `.env` здесь не приведены: файлы `.env` по правилам проекта не читаются. Что апстрим по умолчанию стартует на HTTP, известно из README и брифа 012.
+- `useAppConfig` в W-046 не охранён `expect` (см. замечание в записи).
+- Решение на подтверждение (бриф 020): тёмный цвет имён бирюзового `#53CCC6` на всех платформах.

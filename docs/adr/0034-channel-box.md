@@ -1,0 +1,183 @@
+# 0034. Ящик канала: одна копия сообщений и свой `pts` на канал, журнал канала, рассылка без журнала на участника
+
+- Статус: proposed (2026-11-03).
+- Задача: 035. Исследование: `docs/tasks/035-research/` (`server.md`, `clients.md`, `plan.md`). Ответы на U1–U10, C1–C5 с источниками — в брифе 035, «Результат».
+- Дополняет ADR 0011 (п. 6 и «Пересмотреть, если»: счётчики каналов — строка MySQL тем же примитивом), 0012 (новый топик), 0019 (свёртка разницы), 0020 и 0021 (какие события каналов идут через ящик пользователя). Не заменяет их.
+
+## Контекст
+- **Telegram.** У канала и супергруппы свой ящик и своя последовательность событий; общую последовательность id и `pts` делят только личные чаты и базовые группы (core.telegram.org/api/updates; core.telegram.org/api/channel: «all basic groups and all private chats share the same, single message ID and PTS sequence»).
+  - Обновления с `pts` и `pts_count` канала (схема слоя 228, `api.tl:346-403`): `updateNewChannelMessage`, `updateEditChannelMessage`, `updateDeleteChannelMessages`, `updateChannelWebPage`, `updatePinnedChannelMessages`.
+  - Ящик хранит около 100000 `pts`; запрос с `pts < latestPts − 100000` получает `channelDifferenceTooLong` (core.telegram.org/api/updates, /constructor/updates.channelDifferenceTooLong). У tooLong `final` всегда стоит, `dialog` несёт `pts` для сброса состояния, `messages` — последние сообщения.
+  - При запуске клиент зовёт только `updates.getDifference`; каналы, которые надо догнать, помечает `updateChannelTooLong` (/api/updates). Без сохранённого `pts` клиент начинает с `pts` из этого обновления; оно «не обязательно» значит, что окно переполнено (/constructor/updateChannelTooLong).
+  - `timeout` в разнице канала: «после `timeout` секунд, если флаг есть, иначе через 1 с» (/api/updates).
+- **Клиенты** (закреплённые деревья: iOS `6ad963e5`, Android `aac1efcb`, tdesktop `a1e89e1f`, Web K `346844bf`; строки — в брифе 035):
+  - `timeout`: iOS без флага ждёт 30 с, с `0` опрашивает без паузы (`AccountStateManagementUtils.swift:3158-3163`, `:3220-3224`); tdesktop без флага или с 0 — 1 с и только для открытого чата (`api_updates.cpp:438-443`); Android ставит таймер только при флаге (`MessagesController.java:16762-16763`); Web K поле не читает.
+  - Не финальный ответ: Android, tdesktop и Web K спрашивают снова сразу; iOS `final` не читает и берёт одну страницу за опрос (`AccountStateManagementUtils.swift:3466`).
+  - iOS повторяет `getChannelDifference` бесконечно на любую ошибку, кроме `CHANNEL_PRIVATE`/`CHANNEL_INVALID` (`:3448-3458`, `Network.swift:1240-1243`).
+  - tooLong: iOS без `dialog.pts` — `assertionFailure` (`:3636-3640`, `:3699-3700`); Android перезаписывает канал из `dialog` (`MessagesStorage.java:11278-11352`).
+  - `updateChannelTooLong` с `pts`: Android, tdesktop и iOS пропускают канал, если локальный `pts` не меньше (`MessagesController.java:19231-19233`, `api_updates.cpp:2484-2485`, `AccountStateManagementUtils.swift:952-957`). После `getDifference` iOS сбрасывает такие каналы через `messages.getPeerDialogs` (`:2055-2070`, `resetChannels` `:3226-3431`), а не через `getChannelDifference`.
+  - `updateReadChannelInbox`: Web K проводит его через проверку `pts` канала с `pts_count = 0` (`apiUpdatesManager.ts:639-641`, `:696-724`); tdesktop и iOS верят `still_unread_count`, только если `pts` совпал с локальным (`history.cpp:2183`, `AccountStateManagementUtils.swift:4725-4764`). Внутри контейнера с `seq` его принимают все четыре клиента по правилам `seq`.
+  - `updateChannelParticipant` не обрабатывают Android, iOS и tdesktop; Web K только сбрасывает кэш участников (`appChatsManager.ts:1419-1422`).
+- **Сервер сегодня.** Каналов нет: таблиц нет, маршруты закомментированы, `getDifference` отбрасывает канальные обновления (`merge_updates_helper.go:148-153`), счётчики каналов в idgen удалены (ADR 0011, п. 6).
+- **Масштаб.** До 100 пользователей (ADR 0005), значит в канале до 100 участников. Решения рассчитаны на это и называют, где пересматривать при росте.
+
+## Решение
+
+### 1. Хранение: одна копия на канал
+- **`channels`** — строка канала и его счётчики, аналог `user_state`: `pts` (база 1, как `userbox.BasePts`), `last_message_id`, `top_message`, `date2` (время последнего изменения `pts`), количества участников, админов, исключённых и забаненных, а также метаданные (название, фото, тип, флаги, права по умолчанию, медленный режим, связи `linked_chat_id`, `migrated_from_chat_id`, `migrated_from_max_id`, `version`, `deleted`). Состав колонок — задача 036.
+- **id сообщений** идут подряд внутри канала: `last_message_id + 1`, первое сообщение (`messageActionChannelCreate` или `messageActionChannelMigrateFrom`) — id 1. Не snowflake и не id ящика пользователя.
+- **`channel_messages`** — одна общая копия: `PRIMARY KEY (channel_id, id)`, сообщение целиком (как в журнале), `pts` строки журнала, которая его добавила, мягкое удаление.
+  - Постоянная дедупликация `random_id`: генерируемая колонка `out_random_id = IF(random_id <> 0, random_id, NULL)` и `UNIQUE (channel_id, sender_user_id, out_random_id)`, как `messages.out_random_id` в ADR 0012, п. 6 (у служебных сообщений `random_id = 0`).
+- **`channel_pts_updates`** — журнал канала, `UNIQUE (channel_id, pts)`: `pts`, `pts_count`, тип, обновление целиком (правка — полное сообщение после правки, ADR 0019), `date2`.
+  - В журнал идут только пять обновлений с `pts` канала (выше). Всё остальное в журнал канала не пишется.
+- **`channel_participants`** — `(channel_id, user_id)`: роль, `admin_rights`, `rank`, `banned_rights` с `until_date`, кто пригласил, повысил или исключил, дата, `available_min_id` (скрытая история для новых, «удалить историю у себя»), время последней отправки (медленный режим).
+- **Состояние пользователя в канале** — строка `dialogs` с `peer_type = PEER_CHANNEL`, её пишет только транзакция этого пользователя: `read_inbox_max_id`, отметка «непрочитано», закреп, папка, уведомления, черновик.
+  - **Копий нет.** `top_message`, `unread_count`, `read_outbox_max_id` и `dialog.pts` вычисляются при чтении из `channels`, `channel_messages` и строк `dialogs` других участников. У каждого получателя ничего не пишется на каждое сообщение.
+  - `unread_count` — входящие неудалённые сообщения с `id > read_inbox_max_id` и `id ≥ available_min_id` (индекс `(channel_id, id)`).
+  - `read_outbox_max_id` для зрителя V — наибольший `read_inbox_max_id` среди строк `dialogs` других участников этого канала (индекс `(peer_type, peer_id)` уже есть, `migrate-20261027-profile-watchers.sql`). Определение Telegram не проверено (U5).
+- **Упоминания** — `channel_message_mentions (channel_id, message_id, user_id, read)`, строки пишет транзакция канала при отправке, `read` — прочтение упоминаний. Образец — `migrate-20261030-unread-mentions.sql`.
+- **Просмотры** (`channel_message_views`) и журнал действий админов — в своих задачах (046 и отложенная).
+
+### 2. Транзакция канала: `pkg/channelbox`
+- **Одно изменение канала — одна транзакция MySQL** под блокировкой строки `channels` (`SELECT … FOR UPDATE`). Инварианты ADR 0011 И1–И4 действуют для канала:
+  - **К1.** Каждый `pts` канала, который видит клиент, закоммичен вместе со строкой `channel_pts_updates` и изменением, которое она описывает.
+  - **К2.** Журнал канала без дыр и пересечений: отрезки `(pts − pts_count, pts]` покрывают `(1, channels.pts]` по одному разу (кроме обрезанного хвоста, п. 4).
+  - **К3.** Порядок commit совпадает с порядком `pts`.
+  - **К4.** `pts` и `last_message_id` не уменьшаются.
+- Выделение `pts` и id — в памяти под блокировкой, проверка суммы `pts_count`, условный `UPDATE channels … WHERE pts = :old AND last_message_id = :old`, проверка неопределённого `COMMIT` — как в `pkg/userbox` (ADR 0011, п. 2). Писать `channels.pts`, `last_message_id` и `channel_pts_updates` вне `pkg/channelbox` запрещает правило `tools/boxaudit`.
+- **Действие пользователя** (отправка, вступление, выход, правка, права, создание) — одна транзакция `userbox.Run(действующий)`, внутри которой берётся блокировка канала: так изменения его диалога, строки `seq` и строки канала коммитятся вместе. Действие системы без ящика пользователя — отдельный `channelbox.Run`. API (`Open` внутри `userbox.Box` и самостоятельный `Run`) выбирает 036.
+- **Порядок блокировок** (дополняет ADR 0011, п. 3): `user_state` действующего → строка `chats` (только переход группы) → строки `channels` по возрастанию id → остальные строки. Блокировку `user_state` после `channels` не берёт никто. Транзакция, которая трогает строку `dialogs` вместе с каналом, берёт блокировку канала раньше.
+- **Побочные эффекты** — строки `mq_outbox` в той же транзакции (`Emit`, ADR 0012, п. 2).
+
+### 3. Что идёт через ящик пользователя, а что — через канал
+| Событие | Путь |
+|---|---|
+| сообщение, правка, удаление, закреп, превью ссылки в канале | журнал канала (`pts` канала) и рассылка (п. 5); в ящик пользователя не пишется |
+| вступление, выход, исключение, бан, снятие бана, свои права, удаление канала — `updateChannel` тому, кого касается | `seq` его аккаунта: своё действие — `EmitSeqUpdate` (ADR 0020), чужое — inbox-событие получателя (ADR 0021). `updateChannel` добавляется в `userbox.SeqUpdate`, свёртка — по каналу |
+| прочтение входящих (`updateReadChannelInbox`) своим устройствам | `seq` своего аккаунта, свёртка — последнее по каналу. Его `pts` — `channels.pts`, прочитанный в транзакции прочтения: Web K сверяет его с локальным `pts` канала (`pts_count = 0`), tdesktop и iOS по нему решают, верить ли `still_unread_count` |
+| своё прочтение содержимого (`updateChannelReadMessagesContents`) и `updateChannelAvailableMessages` своим устройствам | `seq` своего аккаунта |
+| прочтение исходящих (`updateReadChannelOutbox`) авторам | пуш без `seq` авторам сообщений в прочитанном диапазоне (только супергруппы). Не журналируется: восстановление — `read_outbox_max_id` в `dialog` (`getPeerDialogs`, tooLong); iOS его там и берёт (`AccountStateManagementUtils.swift:3281-3294`) |
+| название, фото, подписи и прочие метаданные — всем участникам | служебное сообщение в журнале канала, если оно есть у Telegram; плюс `updateChannel` без `seq` онлайн-участникам рассылкой п. 5. Офлайн-устройство получает новый `channel` в `chats` разницы и ответов |
+| закреп диалога, папка, уведомления, отметка «непрочитано» | как у остальных peer (ADR 0020, 0032) |
+| `updateChannelParticipant` | не шлётся: из наших клиентов его разбирает только Web K, и только для сброса кэша |
+
+`pts` общего ящика пользователя события каналов не трогают никогда.
+
+### 4. Журнал канала и `updates.getChannelDifference`
+- **Окно журнала** — 100000 `pts`, как у Telegram. Строки старше `channels.pts − 100000` удаляет фоновая обрезка. Нижняя граница журнала — наименьший `pts`, начиная с которого все строки есть (`floor`). Срок хранения сверх окна — вопрос владельцу (бриф 035, вопрос 2).
+- **Доступ.** Участник; не участник — только у публичного канала, если не забанен с `view_messages`. Иначе `CHANNEL_PRIVATE` (406, как на странице метода). Неверный `access_hash` — `CHANNEL_INVALID` (400). Других ошибок метод не отдаёт (iOS повторяет их бесконечно).
+- **Чтение** — только мастер, как ADR 0011, п. 7: сначала `channels.pts` (S), затем строки журнала `(pts, S]`.
+- **`limit`** — от 1 до 1000 (Web K шлёт 1000, `apiUpdatesManager.ts:435-440`; остальные 100). `force` принимается и ничего не меняет.
+- **Ответы:**
+  - `pts ≥ S` — `channelDifferenceEmpty{final, pts: S, timeout}`. Клиент впереди сервера (после восстановления из копии) получает `pts` сервера: его принимают все четыре клиента.
+  - `pts < floor` — `channelDifferenceTooLong{final, timeout, dialog, messages, chats, users}`: `dialog` зрителя целиком (`pts = S`, `top_message`, `read_inbox_max_id`, `read_outbox_max_id`, `unread_count`, `unread_mentions_count`, уведомления, папка), `messages` — последние видимые зрителю, не больше `min(limit, 100)`.
+  - иначе — `channelDifference`: свёртка строк по ADR 0019. `new_messages` — добавленные в диапазоне и не удалённые до его конца, в последней правке, по возрастанию id. В `other_updates` — сначала `updateMessageID` своих новых сообщений (`random_id` из `channel_messages`; Android их извлекает, `MessagesController.java:16630-16667`), затем правки старых, удаления, закрепы, превью — по порядку журнала. У обновлений `pts` итоговый, без `pts_count`.
+  - Строк больше `limit` — срез без `final`, `pts` — последней отданной строки. Срез всегда двигает `pts` вперёд: не финальный ответ без роста `pts` у Android, tdesktop и Web K — тугой цикл.
+  - Каждый ответ, кроме среза, несёт явный `timeout`: 30 с участнику, 10 с не участнику. Участник получает новое пушем, опрос — запасной путь; 30 с — то, что iOS ждёт и без флага. Ноль не отдаётся никогда (iOS опрашивал бы без паузы). Значение Telegram не проверено (C1).
+- **Фильтр зрителя:** сообщения с `id < available_min_id` зрителя и их правки и удаления не отдаются. Вид сообщения (`out`, `mentioned`, `media_unread`) — для зрителя.
+- `channelMessagesFilter` с диапазонами принимается так же, как пустой: диапазоны клиенты шлют только из tdesktop после tooLong (`api_updates.cpp:791-884`), и полный ответ его не ломает.
+
+### 5. Рассылка: топик `Channel-T` с ключом по каналу
+- Транзакция канала пишет **одну** строку `mq_outbox` на событие: топик `Channel-T`, ключ (`recipient_id`) — id канала, метод `sync.pushChannelUpdates`: id канала, обновления в общем виде (без полей зрителя), отправитель и ключ его авторизации, id упомянутых пользователей.
+- **Почему не ключ по получателю (ADR 0012).** Тогда транзакция канала писала бы N строк и строила вид для каждого получателя до транзакции — ADR 0021 отверг это для групп. Пушу канала «ровно один раз» не нужен: клиент отбрасывает `pts` не выше своего, а потерянный пуш находит по дыре.
+- **Порядок.** id строк outbox выделяются под блокировкой канала, значит в порядке `pts`. Relay публикует по порядку ключа (ADR 0012, п. 3–4), партиция одна на канал. Пуши разных каналов и ящика пользователя — разные последовательности, их взаимный порядок клиентам не нужен.
+- **Топик** `Channel-T`: 16 партиций, RF 1, хранение 24 ч, `max.message.bytes` 8 МиБ, как `Sync-T`; создаёт `teamgramd/deploy/kafka/topics.sh`. Ключи по получателю в `Inbox-T` и `Sync-T` не меняются.
+- **Консьюмер** — в sync, группа `sync-channel`, `pkg/mqconsumer` с политикой best-effort, как у `Sync-T` (ADR 0012, п. 7):
+  - получатели — участники в момент доставки, которые видят канал (не вышли, не исключены, нет бана `view_messages`) и для которых `id ≥ available_min_id`;
+  - вид для каждого получателя: `out` — устройствам отправителя, `mentioned` и `media_unread` — по списку упоминаний, `channel` — по строке участника, пользователи — для зрителей (`To`, ADR 0031). Чтения — пакетом на событие: строка канала и участников, пользователи для всех получателей одним запросом;
+  - пуш — всем онлайн-сессиям получателей, кроме ключа отправителя (он получил ответ RPC), через те же очереди устройств, что и `Sync-T`;
+  - устаревший (старше `PushMaxAge`) или отброшенный пуш помечает устройство на resync (`updatesTooLong`), как в ADR 0012, п. 7: `getDifference` даст `updateChannelTooLong` по правилу п. 6.
+- Уведомления на телефон для каналов (сервис ADR 0017 читает `Sync-T`) — расширение в задаче отправки (039) или отдельной: сервис уведомлений тоже читает `Channel-T`.
+
+### 6. `updateChannelTooLong` в `updates.getDifference`
+- На последней странице разницы (как строки `seq`, ADR 0020, п. 5) — по одному `updateChannelTooLong{channel_id, pts: channels.pts}` на каждый канал, где пользователь участник, и у которого `channels.date2 ≥ min(date запроса, дата курсора ключа) − channelbox.MaxRunTime`.
+  - Курсор ключа (`user_seq_cursors`) дополняется датой состояния, отданного этому ключу. Он находит канальное событие, которое `date` запроса tdesktop пропустил бы (tdesktop двигает `date` любым контейнером, ADR 0020).
+  - `pts` отдаётся всегда: Android, tdesktop и iOS пропускают канал, который уже догнали; иначе iOS после каждой разницы перечитывал бы все каналы через `getPeerDialogs`.
+  - Каналы попадают в `chats` разницы в виде для зрителя (источник каналов резолвера ADR 0021 — задача 037).
+  - Есть только такие обновления — ответ `difference`, а не `differenceEmpty`.
+- Признак Telegram не проверен (U2). Цена ошибки — лишний `getChannelDifference` или `getPeerDialogs`, а не потеря событий.
+
+### 7. Лимиты
+- Каналов на пользователя — `channels_limit_default` 500, публичных — `channels_public_limit_default` 10. Уже отдаются в `teamgramd/bin/app_config.json` (задача 015; core.telegram.org/api/config); премиальные равны бесплатным (ADR 0016). Сервер проверяет те же числа: `CHANNELS_TOO_MUCH` (400) при создании, вступлении, приглашении и переходе группы; `CHANNELS_ADMIN_PUBLIC_TOO_MUCH` при публичном имени.
+- Участников супергруппы — `megagroup_size_max` из `help.getConfig`; сверх — `USERS_TOO_MUCH`.
+- Окно журнала — 100000 `pts`; `limit` разницы — до 1000.
+
+### 8. Ошибки (U3)
+| Ошибка | Код | Когда | Источник |
+|---|---|---|---|
+| `SLOWMODE_WAIT_%d` | 420 | медленный режим | core.telegram.org/method/messages.sendMessage |
+| `USER_BANNED_IN_CHANNEL` | 400 | бан на отправку | там же; sendMedia |
+| `CHAT_SEND_PLAIN_FORBIDDEN`, `CHAT_SEND_MEDIA_FORBIDDEN`, `CHAT_SEND_{PHOTOS,VIDEOS,ROUNDVIDEOS,DOCS,VOICES,AUDIOS,STICKERS,GIFS,POLL}_FORBIDDEN` | 403 | права по типу | /method/messages.sendMedia |
+| `CHAT_WRITE_FORBIDDEN` | 403 | подписчик пишет в трансляцию; отправка в перенесённую базовую группу | /method/messages.sendMessage; для перенесённой группы имя Telegram не проверено |
+| `CHAT_ADMIN_REQUIRED` | 403 | действие админа без прав | /method/messages.migrateChat, channels.toggleSlowMode |
+| `RANDOM_ID_DUPLICATE` | 500 | частичный повтор `random_id` (полный — исходный ответ) | /method/messages.sendMessage; ADR 0012, п. 6 |
+| `CHANNEL_PRIVATE` | 406 | нет доступа | /method/updates.getChannelDifference |
+| `CHANNEL_INVALID` | 400 | неверный канал или `access_hash` | там же |
+| `CHANNELS_TOO_MUCH` | 400 | лимит каналов | /method/channels.createChannel, messages.migrateChat |
+| `CHAT_NOT_MODIFIED` | 400 | пустышка в настройках | /method/channels.toggleSlowMode |
+
+Клиенты сверяют имена текстом (строки в брифе 035), поэтому имя важнее кода; коды — как в документации.
+
+### 9. Права и медленный режим
+- Одна функция прав `channelperm.Can(channel, participant, action)` для всех обработчиков записи (задача 042).
+- Создатель и любой админ медленным режимом не ограничены: так считают все четыре клиента (iOS `TelegramChannel.swift:302-312`, tdesktop `data_peer.cpp:1831-1837`, Android `ChatObject.java:2119-2120`, Web K `appMessagesManager.ts:9222-9233`). Сервер Telegram не проверен.
+
+### 10. Переход базовой группы в супергруппу
+- **Одна транзакция:** `userbox.Run(создатель)` → `chats` старой группы `FOR UPDATE` → новая строка `channels`. В ней:
+  - проверки: вызывающий — создатель (иначе `CHAT_ADMIN_REQUIRED`), группа не деактивирована, лимит каналов создателя;
+  - канал-мегагруппа с названием, фото, описанием, правами по умолчанию, `migrated_from_chat_id`, `migrated_from_max_id` (последнее сообщение группы);
+  - участники: создатель → создатель, админы группы → админы с правами админа базовой группы `{other, change_info, delete_messages, ban_users, invite_users, pin_messages, manage_call, manage_ranks}` (tdesktop `data_chat.cpp:52-63`; Android `ChatRightsEditActivity.java:1089-1091`, там же `manage_ranks`), остальные — участники; `available_min_id = 0`;
+  - сообщение 1 канала `messageActionChannelMigrateFrom`;
+  - группа: `migrated_to`, `deactivated`, участники в состоянии `Migrated` (с проверкой ошибки `UpdateStateByChatIdTx`, сейчас проглоченной);
+  - в ящике создателя — `messageActionChatMigrateTo` в старой группе (`pts` его ящика);
+  - события outbox: каждому другому участнику — inbox-событие с его `messageActionChatMigrateTo` и `updateChat` (`seq`, ADR 0021); рассылка канала (п. 5).
+- **Ответ** — `updates` с `updateNewMessage(chatMigrateTo)`, `updateChannel(channel_id)`, `updateNewChannelMessage(channelMigrateFrom)`; в `chats` — старая группа с `migrated_to` и новый `channel`. Это нужно всем четырём: iOS берёт канал из первого сообщения не из старой группы и ждёт его 5 с (`ConvertGroupToSupergroup.swift:13-29`); Android ищет в `chats` старую группу с `migrated_to` и сам канал (`MessagesController.java:15103-15122`); tdesktop берёт `migrated_to` из `chats` (`apiwrap.cpp:1387-1391`, `data_session.cpp:889-896`); Web K ищет `updateChannel` в `updates` (`appChatsManager.ts:784-786`).
+- **Идемпотентность по `chat_id`:** у группы уже есть `migrated_to` — тот же ответ из существующих данных, второго канала нет.
+- **Переход по действию.** Клиенты сами зовут `migrateChat` перед действием, которого у базовой группы нет, и затем зовут метод канала (U6, список в брифе 035): публичное имя, видимость истории для новых, права админа не по умолчанию или звание, ограничение участника, медленный режим, привязка обсуждения, форум, передача владения, вступление по заявке. Серверу своего «автоперехода» не нужно.
+- Старая история остаётся в ящиках участников; клиенты склеивают её по `migrated_from_chat_id` и `migrated_from_max_id` (core.telegram.org/api/channel). Ссылки-приглашения переносятся.
+
+### 11. Идемпотентность и сбои
+- Отправка: полный повтор `random_id` — исходный ответ по строке журнала, частичный — `RANDOM_ID_DUPLICATE` (ADR 0012, п. 6, для канала).
+- Повторное вступление, выход, та же настройка — пустышка без `pts` и `seq`.
+- Сбои — как ADR 0011, п. 9: до commit ничего не записано и ничего не потрачено; после commit ошибки побочных эффектов логируются, ответ строится из закоммиченного результата.
+
+### 12. Как на этом строятся задачи 036–049
+| Задача | Что берёт из ADR |
+|---|---|
+| 036 | таблицы п. 1, `pkg/channelbox` п. 2, правило `boxaudit` |
+| 037 | вид `channel`/`channelForbidden` для зрителя, источник каналов резолвера (п. 6), ошибки п. 8 |
+| 038 | создание (сообщение 1, `pts` 2 при базе 1), `dialog.pts` и вычисляемые поля диалога (п. 1), `getPeerDialogs` для сброса iOS (п. 6) |
+| 039 | отправка в транзакции канала, `Channel-T` и консьюмер (п. 5), `random_id` (п. 11) |
+| 040 | `getChannelDifference` (п. 4), обрезка журнала, `updateChannelTooLong` и курсор (п. 6) |
+| 041 | `updateChannel` через `seq` (п. 3), лимиты (п. 7) |
+| 042 | `channelperm`, `channelForbidden`, ошибки прав (пп. 8–9) |
+| 043 | правка, удаление и закреп в журнале; прочтение (п. 3, `read_outbox_max_id` п. 1) |
+| 044 | метаданные — служебное сообщение и `updateChannel` (п. 3), публичные имена и лимит (п. 7) |
+| 045 | `SLOWMODE_WAIT_%d`, исключение админов (пп. 8–9) |
+| 046 | просмотры — без журнала (`updateChannelMessageViews` без `pts`), рассылка п. 5 |
+| 047 | переход (п. 10) |
+| 048 | две строки `channels` в одной транзакции — по возрастанию id (п. 2) |
+| 049 | эталоны и проверка открытых вопросов ниже |
+
+## Последствия
+- Отправка в канал пишет одну копию, одну строку журнала и одну строку outbox — независимо от числа участников. Работу на получателя делает консьюмер `Channel-T`: пакетное чтение вида и пуш онлайн-сессиям.
+- Счётчики непрочитанного и `top_message` считаются при каждом чтении диалогов: запрос по индексу на канал. При 100 пользователях это миллисекунды. **Пересмотреть**, если `getDialogs` с каналами станет заметно дольше или в каналах появятся тысячи участников: тогда хранить счётчики у получателя.
+- Новый топик и консьюмер в sync; sync начинает читать biz channel и biz user.
+- `userbox.SeqUpdate` пополняется `updateChannel`, `updateReadChannelInbox`, `updateChannelReadMessagesContents`, `updateChannelAvailableMessages`; `user_seq_cursors` — датой. Это изменения ADR 0020/0021 в рамках их механизма, не новый механизм.
+- Пока нет 040, каналы не выкатываются пользователям: iOS бесконечно повторяет заглушку `getChannelDifference` (C5).
+
+## Открытые вопросы (сверка с Telegram не проведена)
+Сверка через Web K `invokeApi` с настоящим Telegram в этой задаче была недоступна. Проверить до 049 (эталоны ADR 0018):
+- `timeout` в `channelDifference*` у Telegram (C1) и когда он отдаёт срез, а когда tooLong при большом разрыве;
+- признак `updateChannelTooLong` в `getDifference` (U2);
+- идут ли `updateChannel` и `updateReadChannelInbox` своим устройствам с `seq` (U1);
+- `pts` первого сообщения нового канала; состав ответа `createChannel` и `migrateChat`;
+- права админов после перехода (U4), ошибка отправки в перенесённую группу (U3), освобождение админов от медленного режима на сервере;
+- `read_outbox_max_id` в супергруппе (U5).
+
+## Рассмотренные альтернативы
+- **Копия сообщения в ящик каждого участника, как у базовых групп.** Отвергнуто: N копий и N `pts` общего ящика на сообщение, а клиенты ждут у канального обновления `pts` канала (`local + pts_count == pts`); общий `pts` превратил бы каждое обновление в дыру.
+- **Ключ по получателю и N строк outbox на сообщение.** Оставляет ADR 0012 без изменений, но строит вид каждого получателя в пути отправителя и пишет N строк в транзакции канала (см. ADR 0021, «Рассмотренные альтернативы»).
+- **Отметка в ящике каждого участника для `updateChannelTooLong`.** Точнее, но это запись у каждого участника на каждое событие — то, от чего уходит п. 1.
+- **`updateChannelTooLong` на каждый канал пользователя в каждой разнице.** Проще, но iOS перечитывал бы все каналы через `getPeerDialogs` после каждой разницы, где локальный `pts` неизвестен.
+- **Не слать `timeout`.** iOS ждал бы 30 с, tdesktop опрашивал бы открытый канал каждую секунду: поведение разное, и оно не наше.

@@ -27,4 +27,5 @@ type Config struct {
 	UserClient   zrpc.RpcClientConf
 	ChatClient   zrpc.RpcClientConf
 	DialogClient zrpc.RpcClientConf
+	MediaClient  zrpc.RpcClientConf // personal photos of contacts (task 051)
 }
