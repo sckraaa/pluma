@@ -109,20 +109,16 @@ func (d *Dao) CreateNewUserV2(
 	}
 
 	cacheUserData.UserData = d.MakeUserDataByDO(userDO)
-	cacheUserData.CachesPrivacyKeyRules = append(
-		cacheUserData.CachesPrivacyKeyRules,
-		mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
-			Key:   mtproto.STATUS_TIMESTAMP,
-			Rules: defaultRules,
-		}).To_PrivacyKeyRules(),
-		mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
-			Key:   mtproto.PHONE_NUMBER,
-			Rules: phoneNumberRules,
-		}).To_PrivacyKeyRules(),
-		mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
-			Key:   mtproto.PROFILE_PHOTO,
-			Rules: defaultRules,
-		}).To_PrivacyKeyRules())
+	// The rules of every privacy key, the defaults of a new account
+	// (task 034): the services that show a user decide with all of them,
+	// and a key without rules hides what it guards.
+	for _, key := range privacyKeys {
+		cacheUserData.CachesPrivacyKeyRules = append(cacheUserData.CachesPrivacyKeyRules,
+			mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
+				Key:   key,
+				Rules: makeDefaultPrivacyRules(key),
+			}).To_PrivacyKeyRules())
+	}
 
 	// 1. cacheUserData
 	d.CachedConn.SetCache(ctx, genCacheUserDataCacheKey(userDO.Id), cacheUserData)
