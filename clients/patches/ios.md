@@ -535,14 +535,14 @@ ci/lint.sh                                        # shellcheck и actionlint
 См. I-036 (`StoreDownloadedMedia.swift`).
 
 ### I-090. Битрейт видео в пресетах качества
-- **Что и зачем.** Приложение перекодирует видео перед отправкой (H.264, AVFoundation) с фиксированным битрейтом пресета, независимо от битрейта исходника. Решение владельца (задача 052): выбор качества как в Telegram, но битрейт на каждом разрешении выше. 240p 400 → 800, 360p 700 → 1500, 480p 1600 → 2500, 720p 3000 → 5000, 1080p 6600 → 12000, кружок (`VideoMessage`) 1000 → 2000 кбит/с. Размеры пресетов не меняются. Таблиц две, правятся вместе: старая — видео без правок, оценка размера на ползунке, старый запис кружков (`TGVideoCameraPipeline.m:683-689`); новая — отредактированное видео и обрезанный кружок (`MediaEditorVideoExport`, `recommendedVideoExportConfiguration` 1929-2050).
+- **Что и зачем.** Приложение перекодирует видео перед отправкой (H.264, AVFoundation) с фиксированным битрейтом пресета, независимо от битрейта исходника. Решение владельца (задача 052): выбор качества как в Telegram, но битрейт на каждом разрешении выше. 240p 400 → 800, 360p 700 → 1500, 480p 1600 → 2500, 720p 3000 → 5000, 1080p 6600 → 12000, кружок (`VideoMessage`) 1000 → 2000 кбит/с. Размеры пресетов не меняются. Таблиц две, правятся вместе: старая — видео без правок, оценка размера на ползунке, старая запись кружков (`TGVideoCameraPipeline.m:683-689`); новая — отредактированное видео и обрезанный кружок (`MediaEditorVideoExport`, `recommendedVideoExportConfiguration` 1929-2050).
 - **Где.**
   - `submodules/LegacyComponents/Sources/TGMediaVideoConverter.m`, `_videoBitrateKbpsForPreset` (1408-1445): для каждого пресета `        case TGMediaVideoConversionPreset<Preset>:\n            return <N>;\n` → новое значение с комментарием `// pluma: <N> in Telegram (task 052)`. Таблица `LEGACY_VIDEO_KBPS`.
   - `submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorValues.swift`, `MediaQualityPreset.videoBitrateKbps` (180-207): `        case .<case>:\n            return <N>\n` → новое значение. Таблица `VIDEO_KBPS`. `return 1000` у `.sticker` не трогается (якорь включает `case .videoMessage:`).
   - `replace` (функция `video_quality_edits()`).
 - **Проверка.** `verify_video_quality` (каждая новая строка ровно один раз, старой нет), `test_patch`, `test_damage` (`VIDEO_PRESETS_LEGACY` 1080p, `VIDEO_PRESETS` 720p).
 - **Апстрим / официальный.** Числа апстрима — в комментарии каждой строки; так же сжимает официальный Telegram 12.9.2.
-- **История.** Ветка `video-quality` pluma-ios, ещё не влита; 2026-11-03, задача 052.
+- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
 ### I-091. Звук видео в пресетах качества
 - **Что и зачем.** 240p и 360p: 32 кбит/с моно → 64 кбит/с стерео; 480p, 720p, 1080p: 64 → 128 кбит/с стерео; кружок: 64 → 96 кбит/с (каналы апстрима: моно в старой таблице, стерео в новой). Таблица Pluma из `docs/tasks/052-research/clients.md` («Proposed Pluma tables»).
@@ -551,35 +551,35 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `MediaEditorValues.swift`, `audioBitrateKbps` (209-218): блок из трёх веток (`case .compressedVeryLow, .compressedLow: return 32` / `case .compressedMedium, .compressedHigh, .compressedVeryHigh, .videoMessage: return 64` / `default: return 0`, отступ 8) заменён целиком, `.videoMessage` вынесен в свою ветку. `audioChannelsCount` (220-227): ветка `case .compressedVeryLow, .compressedLow: return 1` убрана, остаётся `default: return 2`. `replace` блоков `src(" " * 8, …)`.
 - **Проверка.** `verify_video_quality`, `test_patch` (в новой таблице нет `return 1`), `test_damage` (`VIDEO_PRESETS_LEGACY` 360p, `VIDEO_PRESETS` звук и каналы).
 - **Апстрим / официальный.** 32 моно для 240p и 360p, 64 для остальных.
-- **История.** Ветка `video-quality` pluma-ios, ещё не влита; 2026-11-03, задача 052.
+- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
 ### I-092. Видео, отправленное как GIF (пресет Animation)
 - **Что и зачем.** 900 → 1800 кбит/с. У апстрима Animation попадает в `default`, поэтому правка добавляет отдельную ветку перед `default`, а сам `default` (900) остаётся для прочих пресетов.
 - **Где.** `TGMediaVideoConverter.m`: перед `        default:\n            return 900;\n` (1442-1443) вставлено `case TGMediaVideoConversionPresetAnimation: return 1800;`. `MediaEditorValues.swift`: перед `        default:\n            return 900\n` (205-206) — `case .animation: return 1800`. `ANIMATION_KBPS`, `replace`.
 - **Проверка.** `verify_video_quality`, `test_patch`, `test_damage` (`VIDEO_PRESETS_LEGACY` `default`).
 - **Апстрим / официальный.** 900 кбит/с, 848 px (`TGMediaVideoConverter.m:133`).
-- **История.** Ветка `video-quality` pluma-ios, ещё не влита; 2026-11-03, задача 052.
+- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
 ### I-093. Запись кружка: 2 Мбит/с
 - **Что и зачем.** Кружок без обрезки отправляется таким, каким его записала камера (`VideoMessageCameraScreen.swift:2000`), с битрейтом записи. 1000 → 2000 кбит/с, 400×400 H.264 High, как в таблице Pluma.
 - **Где.** `submodules/Camera/Sources/CameraOutput.swift:374`: `                AVVideoAverageBitRateKey: 1000 * 1000,\n` (единственное вхождение, ветка `.roundVideo`) → `2000 * 1000`. `replace`.
 - **Проверка.** `verify_video_quality`, `test_patch`, `test_damage` (`ROUND_VIDEO_RECORDER`).
 - **Апстрим / официальный.** 1 Мбит/с.
-- **История.** Ветка `video-quality` pluma-ios, ещё не влита; 2026-11-03, задача 052.
+- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
 ### I-094. GIF-файл → mp4: 1 Мбит/с
 - **Что и зачем.** GIF-файл перед отправкой превращается в mp4. 500000 → 1000000 бит/с.
 - **Где.** `submodules/LegacyComponents/Sources/TGGifConverter.m:103`: `              AVVideoAverageBitRateKey: @(500000),\n` → `@(1000000)`. `replace`.
 - **Проверка.** `verify_video_quality`, `test_patch`, `test_damage` (`GIF_CONVERTER`).
 - **Апстрим / официальный.** 0,5 Мбит/с.
-- **История.** Ветка `video-quality` pluma-ios, ещё не влита; 2026-11-03, задача 052.
+- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
 ### I-095. Качество по умолчанию у отредактированного видео не больше исходника
 - **Что и зачем.** Видео без правок идёт через старый конвертер, который ограничивает пресет размером исходника (`TGMediaVideoConverter.m:134-139`, `bestAvailablePresetForDimensions` 930-943). Отредактированное видео (например, обрезанное) без выбранного качества берёт пресет по умолчанию как есть (`FetchVideoMediaResource.swift:1022-1025`), а экспорт вписывает исходник в размер пресета и в большую сторону тоже (`MediaEditorValues.swift:1967-1973`, `aspectFitted` в `Display/Source/UIKitUtils.swift:517-520`). С пресетом по умолчанию 1080p (Wi-Fi, `video_upload_maxbitrate` 100) обрезанное 720p-видео уходило растянутым до 1080p — теперь ещё и с 12 Мбит/с. Правка ограничивает пресет по умолчанию так же, как старый конвертер: `TGMediaVideoConverter.bestAvailablePreset(forDimensions: legacyAdjustments.originalSize)`, только для пресетов 240p–1080p и ненулевого размера. Выбранное пользователем качество не трогается (ползунок уже ограничен, `TGPhotoQualityController.m:136`).
 - **Где.** `submodules/TelegramUI/Components/Resources/FetchVideoMediaResource/Sources/FetchVideoMediaResource.swift`, `MediaEditorValues.init(legacyAdjustments:defaultPreset:)`: блок `VIDEO_DEFAULT_PRESET_OLD` (`var qualityPreset = MediaQualityPreset(preset: legacyAdjustments.preset)` / `if qualityPreset == .compressedDefault {` / `qualityPreset = defaultPreset` / `}`, отступ 8) → `VIDEO_DEFAULT_PRESET`. `replace`. Файл добавлен в `UPSTREAM_PATHS` (`VIDEO_FETCH`).
 - **Проверка.** `verify_video_quality`, `test_patch`, `test_damage` (`VIDEO_FETCH`). Имя метода в Swift (`bestAvailablePreset(forDimensions:)`) проверено `swiftc -typecheck` на заголовке с тем же объявлением; приложение с правкой не собиралось.
 - **Апстрим / официальный.** Апстрим растягивает такое видео до пресета по умолчанию; так же ведёт себя официальный Telegram, если его сервер даёт пресет больше исходника (по коду, на устройстве не проверялось). Обрезка кадра (crop) по-прежнему может растянуть вырезанную часть до размера выбранного пресета: ограничение считает размер исходника, как старый конвертер.
-- **История.** Ветка `video-quality` pluma-ios, ещё не влита; 2026-11-03, задача 052.
+- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
 Не меняется: пресет по умолчанию берётся из `video_upload_maxbitrate` сервера (`LegacyMediaPickerUI/Sources/LegacyAttachmentMenu.swift:14-53`, `v*5/100`): 85 на мобильной сети → 720p, 100 на Wi-Fi → 1080p.
 

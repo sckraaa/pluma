@@ -40,7 +40,7 @@
 
 Файлы: `app/service/dfs/internal/ffmpegutil/ffmpeg_util.go`, `app/service/dfs/internal/core/dfs.uploadGifDocumentMedia_handler.go`, `app/service/dfs/internal/imaging/stripped.go` и пять вызовов `EncodeStripped` (`dfs.upload{Mp4DocumentMedia,DocumentFileV2,WallPaperFile,ThemeFile,GifDocumentMedia}_handler.go`, `imaging/convert/stripped`), `app/bff/autodownload/internal/core/account.getAutoDownloadSettings_handler.go`.
 
-Тесты: `ffmpeg_util_test.go` (GIF сохраняет размер 704×590; ограничение 720 в обеих ориентациях; аватар 800×800 H.264 High без звука из ролика со звуком; набор аргументов x264 без `-b:v`; PSNR первого кадра ≥ 46 дБ — падает без `-qscale 2`: 43,7 дБ), `imaging/stripped_test.go` (сборка JPEG как у Android, ошибка ≤ 6 уровней — падает при качестве 30: 20,1), `account.getAutoDownloadSettings_handler_test.go` (50/100/100 и TL-кодирование слоя 228).
+Тесты: `ffmpeg_util_test.go` (GIF сохраняет размер 704×590; ограничение 720 в обеих ориентациях; аватар 800×800 H.264 High без звука из ролика со звуком; набор аргументов x264 без `-b:v`; PSNR первого кадра ≥ 46 дБ — падает без `-qscale 2`: 43,7 дБ), `imaging/stripped_test.go` (сборка JPEG как у Android, ошибка ≤ 6 уровней — падает при качестве 30: 20,1), `account.getAutoDownloadSettings_handler_test.go` (50/85/100 и TL-кодирование слоя 228).
 
 Проверка (2026-11-03): `go build ./...`, `go vet` (dfs, media, autodownload), `go test` и `-race` затронутых пакетов, `go test ./tools/...` (включая logaudit), `make lint` (0 замечаний) — зелёные; e2e на CachyOS (`pluma-e2e-052`, стенд снят): `TestProfileVideo` и `TestSavedGifs` проходят. Путь GIF → mp4 (`documentAttributeAnimated` + `image/gif`) e2e не покрыт: проверен модульными тестами ffmpegutil.
 
@@ -53,11 +53,11 @@
 6. После патчей: отправить одно и то же видео с Android и iOS в Pluma и в Telegram, сравнить разрешение/битрейт (ffprobe) и картинку.
 
 ## Решения на подтверждение
-- `video_upload_maxbitrate` = 50/100/100, как встроенные значения Android: iOS по умолчанию отправляет 1080p (Wi-Fi и мобильная сеть одинаково). Если на мобильной сети нужен 720p — medium = 80.
+- `video_upload_maxbitrate` = 50/85/100, как встроенные значения Android: iOS по умолчанию отправляет 1080p (Wi-Fi и мобильная сеть одинаково). Если на мобильной сети нужен 720p — medium = 80.
 - GIF: длинная сторона до 720 px (было 320) ради тайм-аута RPC на CX33; можно 1280, если замер на сервере покажет запас.
 - Видео-аватар и GIF всегда без звука, как у Telegram.
 - Android: делать ли 1080p ступенью по умолчанию (`maxCompression`), или только запоминать выбор пользователя.
 - Таблица Pluma ≈ 1,8–2× Telegram (720p — 5 Мбит/с, 1080p — 12): размер минуты 1080p ≈ 90 МБ.
 
 ## Результат
-Серверная часть: сервер больше не ухудшает то, что прислал клиент, — видео-аватар и GIF перекодируются в «визуально без потерь» (crf 18, slow, High), GIF больше не уменьшаются до 320 px, первый кадр берётся в лучшем JPEG-качестве, исправлены stripped-превью (таблицы квантования не совпадали с заголовком клиентов), клиенты получают `video_upload_maxbitrate` 50/100/100 вместо 0 (iOS отправлял все видео в 480p). Клиентские патчи — следующий шаг по плану выше.
+Серверная часть: сервер больше не ухудшает то, что прислал клиент, — видео-аватар и GIF перекодируются в «визуально без потерь» (crf 18, slow, High), GIF больше не уменьшаются до 320 px, первый кадр берётся в лучшем JPEG-качестве, исправлены stripped-превью (таблицы квантования не совпадали с заголовком клиентов), клиенты получают `video_upload_maxbitrate` 50/85/100 вместо 0 (iOS отправлял все видео в 480p). Клиентские патчи — следующий шаг по плану выше.
