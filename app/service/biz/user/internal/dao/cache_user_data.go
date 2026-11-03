@@ -28,8 +28,9 @@ import (
 const (
 	// The version goes up when the cached user data changes: .3 carries
 	// new_noncontact_peers_require_premium (task 014), .4 the rules of every
-	// privacy key (task 034).
-	cacheUserDataKeyPrefix = "user_data.4"
+	// privacy key (task 034), .5 the same for accounts that signed up while
+	// .4 cached only three keys for them.
+	cacheUserDataKeyPrefix = "user_data.5"
 	cachePhoneUserPrefix   = "phone_user.1"
 )
 
