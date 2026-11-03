@@ -243,34 +243,51 @@ func newMessageUpdates(boxes []*mtproto.MessageBox) []*mtproto.Update {
 	return updates
 }
 
-// chatAndUsers loads the chat and the users the messages mention, prepared
-// for the members who will see them: the privacy of each user is decided
-// per member, "my contacts" and "members of a chat" rules included
+// chatUsers are the users the messages of a basic group mention, loaded
+// with the members who will see them: the privacy of each user is decided
+// per member, the member's Premium and own last seen rule included
 // (task 034).
-func (c *MsgCore) chatAndUsers(chatId int64, idHelper *mtproto.IDListHelper) (*mtproto.MutableChat, *mtproto.MutableUsers, error) {
-	chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
-	if err != nil {
-		return nil, nil, err
-	}
-	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
-		Id:      idHelper.UserIdList,
-		Privacy: true,
-		HasTo:   true,
-		To:      chat.ParticipantIdList(),
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	return chat, users, nil
+type chatUsers struct {
+	users *mtproto.MutableUsers
+	shown []int64
 }
 
-// usersFor returns users as seen by userId.
-func usersFor(users *mtproto.MutableUsers, userId int64) []*mtproto.User {
-	out := make([]*mtproto.User, 0, users.Length())
-	users.Visit(func(it *mtproto.ImmutableUser) {
-		out = append(out, it.ToUser(userId))
-	})
+// For returns the users the messages mention as viewerId sees them.
+func (u chatUsers) For(viewerId int64) []*mtproto.User {
+	viewer, known := u.users.GetImmutableUser(viewerId)
+	out := make([]*mtproto.User, 0, len(u.shown))
+	for _, id := range u.shown {
+		it, ok := u.users.GetImmutableUser(id)
+		if !ok {
+			continue
+		}
+		if known {
+			out = append(out, it.ToUserFor(viewer))
+		} else {
+			out = append(out, it.ToUser(viewerId))
+		}
+	}
 	return out
+}
+
+// chatAndUsers loads the chat and the users the messages mention, with
+// every member (chatUsers).
+func (c *MsgCore) chatAndUsers(chatId int64, idHelper *mtproto.IDListHelper) (*mtproto.MutableChat, chatUsers, error) {
+	chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
+	if err != nil {
+		return nil, chatUsers{}, err
+	}
+	members := chat.ParticipantIdList()
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
+		Id:      append(append([]int64{}, idHelper.UserIdList...), members...),
+		Privacy: true,
+		HasTo:   true,
+		To:      members,
+	})
+	if err != nil {
+		return nil, chatUsers{}, err
+	}
+	return chat, chatUsers{users: users, shown: idHelper.UserIdList}, nil
 }
 
 // sendChatMessages sends messages from fromUserId to the basic group
@@ -320,7 +337,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		func(b *userbox.Box) error {
 			reply := func(boxes []*mtproto.MessageBox) {
 				rUpdates = sendReply(boxes,
-					func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
+					func(idList []int64) []*mtproto.User { return users.users.GetUserListByIdList(fromUserId, idList...) },
 					func([]int64) []*mtproto.Chat { return []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)} })
 			}
 			sent, err := c.svcCtx.Dao.SentBefore(b, mtproto.PEER_CHAT, peerChatId, repeat)
@@ -335,7 +352,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 			reply(boxes)
 
 			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
-				mtproto.MakeUpdatesByUpdatesUsersChats(usersFor(users, fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {
+				mtproto.MakeUpdatesByUpdatesUsersChats(users.For(fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {
 				return err
 			}
 			for _, userId := range recipients {
@@ -345,7 +362,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 					PeerType: mtproto.PEER_CHAT,
 					PeerId:   peerChatId,
 					BoxList:  boxes,
-					Users:    usersFor(users, userId),
+					Users:    users.For(userId),
 					Chats:    []*mtproto.Chat{chat.ToUnsafeChat(userId)},
 				}); err != nil {
 					return err

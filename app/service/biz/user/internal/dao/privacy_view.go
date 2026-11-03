@@ -26,8 +26,8 @@ import (
 
 // resolvePrivacyChats prepares users for the viewers who asked for them
 // (task 034, ADR 0031): every "members of these chats" rule of their
-// privacy becomes the list of the viewers who are members of a live basic
-// group among the chats (mtproto.ResolvePrivacyChats), so the evaluator in
+// privacy becomes the list of the viewers, and of the users themselves,
+// who are members of a live basic group among the chats (mtproto.ResolvePrivacyChats), so the evaluator in
 // the services that show the users needs no membership of its own. The
 // rules of the cache are not changed: users get copies.
 //
@@ -52,6 +52,11 @@ func (d *Dao) resolvePrivacyChats(ctx context.Context, users []*mtproto.Immutabl
 		return
 	}
 	chats = uniqueIds(chats)
+	// The users shown are subjects too: a viewer's own rules decide whether
+	// the viewer sees their exact last seen (ImmutableUser.StatusFor).
+	for _, u := range users {
+		viewers = append(viewers, u.Id())
+	}
 	viewers = uniqueIds(viewers)
 
 	type membership struct {
