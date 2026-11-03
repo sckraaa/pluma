@@ -27,6 +27,9 @@ const (
 	Predicate_msg_unpinAllMessages       = "msg_unpinAllMessages"
 	Predicate_msg_readMentions           = "msg_readMentions"
 	Predicate_msg_deleteHistoryRange     = "msg_deleteHistoryRange"
+
+	// pluma: task 050
+	Predicate_msg_editPeerFolders = "msg_editPeerFolders"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -94,6 +97,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -2133492186, // 0x80d57e26
 
 	},
+	Predicate_msg_editPeerFolders: { // pluma: task 050
+		0: -2047878569, // 0x85efda57
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -113,6 +120,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1199153371: Predicate_msg_unpinAllMessages,       // 0xb8865f25
 	-2049897703: Predicate_msg_readMentions,           // 0x85d10b19
 	-2133492186: Predicate_msg_deleteHistoryRange,     // 0x80d57e26
+	-2047878569: Predicate_msg_editPeerFolders,        // 0x85efda57 pluma: task 050
 
 }
 

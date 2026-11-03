@@ -111,6 +111,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -2133492186,
 		}
 	},
+	-2047878569: func() mtproto.TLObject { // 0x85efda57 pluma: task 050
+		return &TLMsgEditPeerFolders{
+			Constructor: -2047878569,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1306,6 +1311,50 @@ func (m *TLMsgDeleteHistoryRange) Decode(dBuf *mtproto.DecodeBuf) error {
 		m10.Decode(dBuf)
 		m.Revoke = m10
 
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgEditPeerFolders (pluma: task 050)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgEditPeerFolders) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x85efda57:
+		x.UInt(0x85efda57)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.VectorLong(m.GetPeers())
+		x.Int(m.GetFolderId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgEditPeerFolders) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgEditPeerFolders) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x85efda57:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.Peers = dBuf.VectorLong()
+		m.FolderId = dBuf.Int()
 		return dBuf.GetError()
 
 	default:
