@@ -14,7 +14,7 @@
     "starref_connect_allowed": false,
 
     "new_noncontact_peers_require_premium_without_ownpremium": false,
-    "autoarchive_setting_available": false,
+    "autoarchive_setting_available": true,
 
     "authorization_autoconfirm_period": 604800,
 

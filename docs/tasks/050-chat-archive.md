@@ -21,8 +21,9 @@
 - `userFull.folder_id`. Запись `dialogFolder` в `messages.getDialogs`, когда архив не пуст.
 - Панель действий для первого сообщения от неконтакта (`report_spam`, `add_contact`, `block_contact`) — проверить, нужна ли отдельной задачей.
 
-## Вопросы владельцу
-- Включить ли `autoarchive_setting_available` в `app_config.json`. Сейчас переключатель видят только аккаунты с Premium.
+## Решение владельца (2026-11-03)
+- Переключатель «Архивировать и отключать звук новых чатов от неконтактов» открыт всем, не только Premium: `autoarchive_setting_available: true` в `teamgramd/bin/app_config.json`. Изменение уходит вместе с функцией этой задачи, не раньше: без неё переключатель ничего бы не делал.
+- По умолчанию у всех выключено: колонка `archive_and_mute_new_noncontact_peers` в базе — `DEFAULT 0`, сервер сам её не включает. Подсказку Telegram `AUTOARCHIVE_POPULAR` (предложение включить) сервер не отдаёт.
 
 ## Открытые вопросы (UNVERIFIED, сверка с Telegram)
 - Касаются ли автоархив и возврат базовых групп.
