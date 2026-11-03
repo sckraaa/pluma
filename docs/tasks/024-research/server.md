@@ -32,7 +32,7 @@ Registering a whole service also takes over its sibling methods. Those currently
 - In RPCReactions that includes sendReaction and getMessagesReactions (stage 2).
 - In RPCAccentColors it includes updateColor.
 
-Per CLAUDE.md, the siblings must keep answering `ErrEnterpriseIsBlocked`. Each fake case must also be deleted from fake_rpc_result.go once its service is routed.
+Per the project rules, the siblings must keep answering `ErrEnterpriseIsBlocked`. Each fake case must also be deleted from fake_rpc_result.go once its service is routed.
 
 ### 2. How documents are stored and served
 

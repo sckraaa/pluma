@@ -7,7 +7,7 @@ Research only. Nothing was edited, committed, deployed or run in Docker. No secr
 - Clients: the pinned trees under `/Users/sckr.a/pluma-work/reference-src/{android,ios,tdesktop,tweb}`.
 - Docs:
   - I fetched two pages live with WebFetch: core.telegram.org/constructor/globalPrivacySettings and core.telegram.org/method/messages.createChat.
-  - All other doc claims were checked against the schema report's raw-markdown copies in `/private/tmp/claude-503/-Users-sckr-a-teamgram-server/76bbed60-70da-4b26-9bff-19b96e18ecba/scratchpad/docs/`.
+  - All other doc claims were checked against the schema report's raw-markdown copies in a temporary copy.
   - The two live pages matched those copies.
 
 ## 1. Spot-checks (38 claims)

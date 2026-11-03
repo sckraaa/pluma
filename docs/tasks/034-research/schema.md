@@ -3,7 +3,7 @@
 ## Sources and method
 
 - **Schema.** I checked the server's vendored proto (`third_party/teamgram-proto/mtproto`, module v0.228.0; it has all 14 keys, all 12 rule constructors and the `userFull`/`globalPrivacySettings` fields). The TL text I quote is from tdesktop's `Telegram/SourceFiles/mtproto/scheme/api.tl` (`// LAYER 228`, line 3087).
-- **Docs.** I downloaded the raw markdown of core.telegram.org (`https://core.telegram.org/<path>.md`) on 2026-11-03. The copies are in `/private/tmp/claude-503/-Users-sckr-a-teamgram-server/76bbed60-70da-4b26-9bff-19b96e18ecba/scratchpad/docs/`. Pages read:
+- **Docs.** I downloaded the raw markdown of core.telegram.org (`https://core.telegram.org/<path>.md`) on 2026-11-03. The copies are in a temporary copy. Pages read:
   - `api/privacy`, `api/paid-messages`, `api/calls`, `api/invites`, `api/contacts`, `api/action-bar`, `api/profile`, `api/gifts`, `api/stories`, `api/min`, `api/config`, `api/scheduled-messages`;
   - all `(input)privacyKey*` constructors, `type/InputPrivacyRule`, `type/PrivacyRule`, `type/InputPrivacyKey`;
   - `globalPrivacySettings`, `user`, `userFull`, `userStatus*`, `messageFwdHeader`, `peerSettings`, `missingInvitee`, `requirementToContact*`, `phoneCall`, `updatePrivacy`;
