@@ -18,7 +18,7 @@
     <operation name="SelectContact">
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE
@@ -28,7 +28,7 @@
     <operation name="SelectByContactId">
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE
@@ -41,7 +41,7 @@
         </params>
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE
@@ -51,7 +51,7 @@
     <operation name="SelectAllUserContacts" result_set="list">
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE
@@ -61,7 +61,7 @@
     <operation name="SelectUserContacts" result_set="list">
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE
@@ -84,7 +84,7 @@
         </params>
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE
@@ -98,7 +98,7 @@
         </params>
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE
@@ -148,7 +148,7 @@
             UPDATE
                 user_contacts
             SET
-                is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0
+                is_deleted = 1, mutual = 0, close_friend = 0, stories_hidden = 0, personal_photo_id = 0, personal_photo_has_video = 0
             WHERE
                 contact_user_id <> 0 AND (owner_user_id = :owner_user_id AND contact_user_id in (:id_list))
             ]]>
@@ -180,7 +180,7 @@
         </params>
         <sql>
             SELECT
-                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, date2, is_deleted
+                id, owner_user_id, contact_user_id, contact_phone, contact_first_name, contact_last_name, mutual, close_friend, stories_hidden, personal_photo_id, personal_photo_has_video, date2, is_deleted
             FROM
                 user_contacts
             WHERE

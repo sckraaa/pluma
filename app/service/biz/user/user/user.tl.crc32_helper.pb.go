@@ -136,4 +136,8 @@ const (
 
 	// pluma: task 032
 	CRC32_user_getStatusWatchers TLConstructor = -1683643787 // 0x9ba5a275
+
+	// pluma: task 051
+	CRC32_user_setContactPersonalPhoto TLConstructor = 342634673 // 0x146c30b1
+	CRC32_user_addSuggestedPhoto       TLConstructor = 649527691 // 0x26b7018b
 )

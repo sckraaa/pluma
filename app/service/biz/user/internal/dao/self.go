@@ -48,9 +48,12 @@ type selfRow struct {
 	PhotoId   int64  `db:"photo_id"`
 	Premium   bool   `db:"premium"`
 	Until     int64  `db:"premium_expire_date"`
+	// FallbackPhotoId is the public photo (task 051): not in the account's
+	// own user, so the push does not carry it.
+	FallbackPhotoId int64 `db:"fallback_photo_id"`
 }
 
-const selfRowQuery = "SELECT first_name, last_name, username, photo_id, premium, premium_expire_date FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
+const selfRowQuery = "SELECT first_name, last_name, username, photo_id, premium, premium_expire_date, fallback_photo_id FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
 
 // selfAttempts bounds the box transactions of one change of the account:
 // one more is run for each photo the transaction found main and the
@@ -267,14 +270,26 @@ func (d *Dao) UpdateUsername(ctx context.Context, id int64, username string) (bo
 // ownPhotoQuery tells whether a photo is one of the account's photos.
 const ownPhotoQuery = "SELECT COUNT(*) FROM user_profile_photos WHERE user_id = ? AND photo_id = ? AND deleted = 0"
 
+// suggestedPhotoQuery tells whether another user suggested the photo to the
+// account (photos.uploadContactProfilePhoto with suggest, task 051).
+const suggestedPhotoQuery = "SELECT COUNT(*) FROM user_suggested_photos WHERE user_id = ? AND photo_id = ?"
+
 // UpdateProfilePhoto makes photoId the main photo of the account id, or with
 // photoId 0 removes the main photo and makes the latest of the others main.
-// photoId is one of the account's photos, or uploaded for it just now,
-// which makes it one. Its devices get updateUser with seq (ADR 0020); the
-// main photo already set, or no photo to remove, changes nothing. A photo
-// media does not have, or that is not the account's, is PHOTO_ID_INVALID.
-// It returns the main photo now.
-func (d *Dao) UpdateProfilePhoto(ctx context.Context, id int64, photoId int64, uploaded bool) (int64, error) {
+// photoId is one of the account's photos, its public photo or one suggested
+// to it, or uploaded for it just now; the main photo becomes one of its
+// photos. Its devices get updateUser with seq (ADR 0020); the main photo
+// already set, or no photo to remove, changes nothing. A photo media does
+// not have, or that is none of those, is PHOTO_ID_INVALID. It returns the
+// main photo now.
+//
+// With fallback it sets the public photo instead (task 051): photoId, one
+// of the account's photos or uploaded just now, or none with photoId 0.
+// The main photo and the album stay. The account's devices and the users
+// who see it get updateUser with seq as for the main photo: what those the
+// privacy hides the main photo from see changes. It returns the public
+// photo now.
+func (d *Dao) UpdateProfilePhoto(ctx context.Context, id int64, photoId int64, uploaded, fallback bool) (int64, error) {
 	var photos map[int64]*mtproto.Photo
 	if photoId != 0 {
 		p, err := d.MediaClient.MediaGetPhoto(ctx, &media.TLMediaGetPhoto{PhotoId: photoId})
@@ -286,21 +301,25 @@ func (d *Dao) UpdateProfilePhoto(ctx context.Context, id int64, photoId int64, u
 		}
 		photos = map[int64]*mtproto.Photo{photoId: p}
 	}
+	if fallback {
+		return d.updateFallbackPhoto(ctx, id, photoId, uploaded)
+	}
 	row, _, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUser, photos, func(b *userbox.Box, row *selfRow) (bool, error) {
 		if photoId != 0 {
 			if row.PhotoId == photoId {
 				return false, nil
 			}
-			if !uploaded {
+			if !uploaded && photoId != row.FallbackPhotoId {
 				// The access hash bff checked tells only that the caller
 				// sees the photo: another user's photo is not the
-				// account's to make main. The box lock keeps the
-				// account's photos as read until the commit.
-				var n int
-				if err := b.Tx().QueryRow(&n, ownPhotoQuery, id, photoId); err != nil {
+				// account's to make main, unless that user suggested
+				// it. The box lock keeps the account's photos as read
+				// until the commit.
+				ok, err := isOwnPhoto(b, id, photoId, true)
+				if err != nil {
 					return false, err
 				}
-				if n == 0 {
+				if !ok {
 					return false, mtproto.ErrPhotoIdInvalid
 				}
 			}
@@ -320,26 +339,71 @@ func (d *Dao) UpdateProfilePhoto(ctx context.Context, id int64, photoId int64, u
 		if row.PhotoId == 0 {
 			return false, nil
 		}
-		return d.deleteProfilePhotos(b, id, row, []int64{row.PhotoId})
+		return d.deleteProfilePhotos(b, id, row, []int64{row.PhotoId}, false)
 	})
 	return row.PhotoId, err
 }
 
+// isOwnPhoto tells, in b, whether photoId is one of the account id's photos
+// or, with suggested, one another user suggested to it.
+func isOwnPhoto(b *userbox.Box, id, photoId int64, suggested bool) (bool, error) {
+	var n int
+	if err := b.Tx().QueryRow(&n, ownPhotoQuery, id, photoId); err != nil || n > 0 {
+		return n > 0, err
+	}
+	if !suggested {
+		return false, nil
+	}
+	if err := b.Tx().QueryRow(&n, suggestedPhotoQuery, id, photoId); err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
+// updateFallbackPhoto sets the public photo of the account id to photoId,
+// or removes it with photoId 0 (UpdateProfilePhoto with fallback). A photo
+// not uploaded just now must be one of the account's photos: not one
+// suggested to it, since the clients set the public photo from a new upload.
+func (d *Dao) updateFallbackPhoto(ctx context.Context, id, photoId int64, uploaded bool) (int64, error) {
+	row, _, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUser, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
+		if row.FallbackPhotoId == photoId {
+			return false, nil
+		}
+		if photoId != 0 && !uploaded && photoId != row.PhotoId {
+			ok, err := isOwnPhoto(b, id, photoId, false)
+			if err != nil {
+				return false, err
+			}
+			if !ok {
+				return false, mtproto.ErrPhotoIdInvalid
+			}
+		}
+		if _, err := b.Tx().Exec("UPDATE users SET fallback_photo_id = ? WHERE id = ?", photoId, id); err != nil {
+			return false, err
+		}
+		row.FallbackPhotoId = photoId
+		return true, nil
+	})
+	return row.FallbackPhotoId, err
+}
+
 // DeleteProfilePhotos deletes the photos ids of the account id. When the
-// main photo is among them, the latest of the others becomes main. Its
+// main photo is among them, the latest of the others becomes main; the
+// public photo among them is removed (Android removes it so, task 051). Its
 // devices get updateUser with seq (ADR 0020); none of the account's photos
 // among ids changes nothing. It returns the main photo now.
 func (d *Dao) DeleteProfilePhotos(ctx context.Context, id int64, ids []int64) (int64, error) {
 	row, _, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUser, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
-		return d.deleteProfilePhotos(b, id, row, ids)
+		return d.deleteProfilePhotos(b, id, row, ids, true)
 	})
 	return row.PhotoId, err
 }
 
 // deleteProfilePhotos deletes the photos ids of the account id in b and
 // moves its main photo, row.PhotoId, to the latest one left when it is
-// among them.
-func (d *Dao) deleteProfilePhotos(b *userbox.Box, id int64, row *selfRow, ids []int64) (bool, error) {
+// among them. With fallback the public photo, row.FallbackPhotoId, is
+// removed too when it is among them.
+func (d *Dao) deleteProfilePhotos(b *userbox.Box, id int64, row *selfRow, ids []int64, fallback bool) (bool, error) {
 	var live []int64
 	if err := b.Tx().QueryRowsPartial(&live,
 		"SELECT photo_id FROM user_profile_photos WHERE user_id = ? AND deleted = 0 ORDER BY date2 DESC, id DESC FOR UPDATE", id); err != nil {
@@ -357,8 +421,15 @@ func (d *Dao) deleteProfilePhotos(b *userbox.Box, id int64, row *selfRow, ids []
 		}
 	}
 	mainGone := row.PhotoId != 0 && slices.Contains(ids, row.PhotoId)
-	if len(gone) == 0 && !mainGone {
+	fallbackGone := fallback && row.FallbackPhotoId != 0 && slices.Contains(ids, row.FallbackPhotoId)
+	if len(gone) == 0 && !mainGone && !fallbackGone {
 		return false, nil
+	}
+	if fallbackGone {
+		if _, err := b.Tx().Exec("UPDATE users SET fallback_photo_id = 0 WHERE id = ?", id); err != nil {
+			return false, err
+		}
+		row.FallbackPhotoId = 0
 	}
 	if len(gone) > 0 {
 		if _, err := d.UserProfilePhotosDAO.DeleteTx(b.Tx(), id, gone); err != nil {

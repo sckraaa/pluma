@@ -25,6 +25,7 @@ import (
 	dialogclient "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 
 	"github.com/zeromicro/go-zero/core/mr"
@@ -135,8 +136,26 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 	if user.CheckPrivacyFor(mtproto.ABOUT, me) {
 		userFull.About = user.GetUser().GetAbout()
 	}
-	if user.CheckPrivacyFor(mtproto.PROFILE_PHOTO, me) {
+	// The photos (task 051): the personal photo I set for the user, its
+	// main photo if its privacy lets me see it, otherwise its public photo,
+	// which clients recognise in user.photo by its id
+	// (ProfileActivity.java:6829-6836) and the account sees as its own.
+	// Whether Telegram also sends fallback_photo to those who see the main
+	// photo is not documented; it is not sent to them.
+	photoVisible := user.CheckPrivacyFor(mtproto.PROFILE_PHOTO, me)
+	if photoVisible {
 		userFull.ProfilePhoto = user.GetUser().GetProfilePhoto()
+	}
+	if (peerId == c.MD.UserId || !photoVisible) && !user.IsBot() {
+		userFull.FallbackPhoto = user.FallbackPhoto()
+	}
+	if personalId := user.ContactRowOf(me).GetPersonalPhotoId(); personalId != 0 && peerId != c.MD.UserId {
+		if userFull.PersonalPhoto, err = c.svcCtx.Dao.MediaClient.MediaGetPhoto(c.ctx, &mediapb.TLMediaGetPhoto{
+			PhotoId: personalId,
+		}); err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
 	}
 	if user.CheckPrivacyFor(mtproto.BIRTHDAY, me) {
 		userFull.Birthday = user.Birthday()

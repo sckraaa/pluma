@@ -130,6 +130,8 @@ type UserClient interface {
 	UserGetReactionsNotifySettings(ctx context.Context, in *user.TLUserGetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
 	UserSetReactionsNotifySettings(ctx context.Context, in *user.TLUserSetReactionsNotifySettings) (*mtproto.ReactionsNotifySettings, error)
 	UserGetStatusWatchers(ctx context.Context, in *user.TLUserGetStatusWatchers) (*user.Vector_Long, error)
+	UserSetContactPersonalPhoto(ctx context.Context, in *user.TLUserSetContactPersonalPhoto) (*mtproto.User, error)
+	UserAddSuggestedPhoto(ctx context.Context, in *user.TLUserAddSuggestedPhoto) (*mtproto.Bool, error)
 }
 
 type defaultUserClient struct {
@@ -1317,4 +1319,26 @@ func (m *defaultUserClient) UserGetStatusWatchers(ctx context.Context, in *user.
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserGetStatusWatchers(ctx, in)
+}
+
+// UserSetContactPersonalPhoto
+// user.setContactPersonalPhoto user_id:long contact_id:long photo_id:long has_video:Bool = User;
+func (m *defaultUserClient) UserSetContactPersonalPhoto(ctx context.Context, in *user.TLUserSetContactPersonalPhoto) (*mtproto.User, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserSetContactPersonalPhoto(ctx, in)
+}
+
+// UserAddSuggestedPhoto
+// user.addSuggestedPhoto user_id:long from_user_id:long photo_id:long = Bool;
+func (m *defaultUserClient) UserAddSuggestedPhoto(ctx context.Context, in *user.TLUserAddSuggestedPhoto) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserAddSuggestedPhoto(ctx, in)
 }

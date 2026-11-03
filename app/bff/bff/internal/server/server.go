@@ -383,6 +383,7 @@ func (s *Server) Initialize() error {
 					UserClient:    c.BizServiceClient,
 					ChatClient:    c.BizServiceClient,
 					DialogClient:  c.BizServiceClient,
+					MediaClient:   c.MediaClient,
 				},
 				nil,
 				nil,
@@ -474,6 +475,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				MediaClient:   c.MediaClient,
 				UserClient:    c.BizServiceClient,
+				MsgClient:     c.MsgClient,
 				SyncClient:    syncClient,
 				KV:            c.KV,
 			}))

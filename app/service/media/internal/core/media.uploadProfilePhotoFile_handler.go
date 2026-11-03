@@ -40,16 +40,24 @@ func (c *MediaCore) MediaUploadProfilePhotoFile(in *media.TLMediaUploadProfilePh
 		c.Logger.Error("media.uploadProfilePhotoFile - error: %v", err.Error())
 		return nil, err
 	}
+	// A photo not saved whole cannot be shown: media would answer it
+	// without its video or as photoEmpty (task 051).
 	if hasVideo {
-		_ = c.svcCtx.Dao.SaveVideoSizeV2(c.ctx, photo.GetId(), photo.GetVideoSizes())
+		if err = c.svcCtx.Dao.SaveVideoSizeV2(c.ctx, photo.GetId(), photo.GetVideoSizes()); err != nil {
+			c.Logger.Errorf("media.uploadProfilePhotoFile - error: %v", err)
+			return nil, err
+		}
 	}
 
-	_ = c.svcCtx.SavePhotoV2(c.ctx,
+	if err = c.svcCtx.SavePhotoV2(c.ctx,
 		photo.GetId(),
 		photo.GetAccessHash(),
 		photo.GetHasStickers(),
 		hasVideo,
-		in.GetFile().GetName())
+		in.GetFile().GetName()); err != nil {
+		c.Logger.Errorf("media.uploadProfilePhotoFile - error: %v", err)
+		return nil, err
+	}
 
 	return photo, nil
 }

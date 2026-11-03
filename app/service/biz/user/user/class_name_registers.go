@@ -135,6 +135,10 @@ const (
 
 	// pluma: task 032
 	Predicate_user_getStatusWatchers = "user_getStatusWatchers"
+
+	// pluma: task 051
+	Predicate_user_setContactPersonalPhoto = "user_setContactPersonalPhoto"
+	Predicate_user_addSuggestedPhoto       = "user_addSuggestedPhoto"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -610,6 +614,14 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1683643787, // 0x9ba5a275
 
 	},
+	Predicate_user_setContactPersonalPhoto: { // pluma: task 051
+		0: 342634673, // 0x146c30b1
+
+	},
+	Predicate_user_addSuggestedPhoto: { // pluma: task 051
+		0: 649527691, // 0x26b7018b
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -731,6 +743,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1804716295: Predicate_user_getReactionsNotifySettings,    // 0x946e36f9 pluma: task 020
 	-1356164288: Predicate_user_setReactionsNotifySettings,    // 0xaf2a9340 pluma: task 020
 	-1683643787: Predicate_user_getStatusWatchers,             // 0x9ba5a275 pluma: task 032
+	342634673:   Predicate_user_setContactPersonalPhoto,       // 0x146c30b1 pluma: task 051
+	649527691:   Predicate_user_addSuggestedPhoto,             // 0x26b7018b pluma: task 051
 
 }
 

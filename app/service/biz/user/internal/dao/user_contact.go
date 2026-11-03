@@ -67,6 +67,22 @@ func parseContactCacheKey(k string) (int64, int64) {
 	return 0, 0
 }
 
+// contactData is the contact row do as the users loaded carry it, with the
+// personal photo its owner set for the contact (task 051).
+func contactData(do *dataobject.UserContactsDO) *mtproto.ContactData {
+	return mtproto.MakeTLContactData(&mtproto.ContactData{
+		UserId:                do.OwnerUserId,
+		ContactUserId:         do.ContactUserId,
+		FirstName:             mtproto.MakeFlagsString(do.ContactFirstName),
+		LastName:              mtproto.MakeFlagsString(do.ContactLastName),
+		MutualContact:         do.Mutual,
+		Phone:                 mtproto.MakeFlagsString(do.ContactPhone),
+		CloseFriend:           do.CloseFriend,
+		PersonalPhotoId:       do.PersonalPhotoId,
+		PersonalPhotoHasVideo: do.PersonalPhotoHasVideo,
+	}).To_ContactData()
+}
+
 func (d *Dao) GetUserContactList(ctx context.Context, id int64) []*mtproto.ContactData {
 	cacheUserData := d.GetCacheUserData(ctx, id)
 	if len(cacheUserData.GetContactIdList()) == 0 {
@@ -271,15 +287,7 @@ func (d *Dao) getContactListByKeyList(ctx context.Context, cKeys ...string) []*m
 					continue
 				}
 				noCaches[key] = contact
-				contactList = append(contactList, mtproto.MakeTLContactData(&mtproto.ContactData{
-					UserId:        contact.OwnerUserId,
-					ContactUserId: contact.ContactUserId,
-					FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
-					LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
-					MutualContact: contact.Mutual,
-					Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
-					CloseFriend:   contact.CloseFriend,
-				}).To_ContactData())
+				contactList = append(contactList, contactData(contact))
 			}
 			return noCaches, nil
 		},
@@ -293,15 +301,7 @@ func (d *Dao) getContactListByKeyList(ctx context.Context, cKeys ...string) []*m
 				return nil, err
 			}
 
-			contactList = append(contactList, mtproto.MakeTLContactData(&mtproto.ContactData{
-				UserId:        contact.OwnerUserId,
-				ContactUserId: contact.ContactUserId,
-				FirstName:     mtproto.MakeFlagsString(contact.ContactFirstName),
-				LastName:      mtproto.MakeFlagsString(contact.ContactLastName),
-				MutualContact: contact.Mutual,
-				Phone:         mtproto.MakeFlagsString(contact.ContactPhone),
-				CloseFriend:   contact.CloseFriend,
-			}).To_ContactData())
+			contactList = append(contactList, contactData(contact))
 
 			return contact, nil
 		},

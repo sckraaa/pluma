@@ -142,6 +142,9 @@ enum TLConstructor {
   CRC32_user_setReactionsNotifySettings = -1356164288;
   // pluma: task 032
   CRC32_user_getStatusWatchers = -1683643787;
+  // pluma: task 051
+  CRC32_user_setContactPersonalPhoto = 342634673;
+  CRC32_user_addSuggestedPhoto = 649527691;
 }
 
 // BotInfoData <--
@@ -647,6 +650,9 @@ message TL_user_updateProfilePhoto {
   // pluma: id was just uploaded for the account (photos.uploadProfilePhoto)
   // and becomes one of its photos; otherwise id must be one of them.
   bool uploaded = 5;
+  // pluma: id becomes the public photo of the account, or with id 0 the
+  // public photo is removed; the main photo and the album stay (task 051).
+  bool fallback = 6;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1045,6 +1051,30 @@ message TL_user_getSavedGifIdList {
   int64 user_id = 3;
 }
 
+// pluma: user.setContactPersonalPhoto user_id:long contact_id:long photo_id:long has_video:Bool = User;
+// Sets the personal photo the user sees for its contact contact_id, or with
+// photo_id 0 removes it, and pushes updateUser with seq to every device of
+// the user; CONTACT_MISSING when contact_id is not its contact. It answers
+// the contact as the user sees it now (task 051).
+message TL_user_setContactPersonalPhoto {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 contact_id = 4;
+  int64 photo_id = 5;
+  mtproto.Bool has_video = 6;
+}
+
+// pluma: user.addSuggestedPhoto user_id:long from_user_id:long photo_id:long = Bool;
+// Records that from_user_id suggested the photo photo_id to the user, which
+// lets the user make it its main photo (photos.uploadContactProfilePhoto
+// with suggest, task 051).
+message TL_user_addSuggestedPhoto {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_user_id = 4;
+  int64 photo_id = 5;
+}
+
 // pluma: user.getStatusWatchers user_id:long = Vector<long>;
 // The users who see the user's online status: account.updateStatus (task 032).
 message TL_user_getStatusWatchers {
@@ -1299,4 +1329,9 @@ service RPCUser {
   // pluma: task 032
   rpc user_getStatusWatchers(TL_user_getStatusWatchers)
       returns (Vector_Long) {}
+  // pluma: task 051
+  rpc user_setContactPersonalPhoto(TL_user_setContactPersonalPhoto)
+      returns (mtproto.User) {}
+  rpc user_addSuggestedPhoto(TL_user_addSuggestedPhoto)
+      returns (mtproto.Bool) {}
 }

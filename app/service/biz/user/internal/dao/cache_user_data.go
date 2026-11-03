@@ -29,7 +29,8 @@ const (
 	// The version goes up when the cached user data changes: .3 carries
 	// new_noncontact_peers_require_premium (task 014), .4 the rules of every
 	// privacy key (task 034), .5 the same for accounts that signed up while
-	// .4 cached only three keys for them.
+	// .4 cached only three keys for them. The public photo (task 051) needs
+	// none: an entry cached before it has none, as no account had one.
 	cacheUserDataKeyPrefix = "user_data.5"
 	cachePhoneUserPrefix   = "phone_user.1"
 )
@@ -249,18 +250,16 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 	}
 
 	if do.UserType == user.UserTypeBot {
-		if do.PhotoId != 0 {
-			mr.FinishVoid(
-				func() {
-					userData.Bot = d.getBotData(ctx, do.Id)
-				},
-				func() {
-					userData.ProfilePhoto, _ = d.MediaClient.MediaGetPhoto(ctx, &media.TLMediaGetPhoto{
-						PhotoId: do.PhotoId,
-					})
-				})
-		} else {
-			userData.Bot = d.getBotData(ctx, do.Id)
+		var photosErr error
+		mr.FinishVoid(
+			func() {
+				userData.Bot = d.getBotData(ctx, do.Id)
+			},
+			func() {
+				photosErr = d.loadUserPhotos(ctx, userData, do)
+			})
+		if photosErr != nil {
+			return nil, photosErr
 		}
 
 		return cacheData, nil
@@ -276,13 +275,10 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 		userData.NewNoncontactPeersRequirePremium = settings.NewNoncontactPeersRequirePremium
 	}
 
+	var photosErr error
 	mr.FinishVoid(
 		func() {
-			if do.PhotoId != 0 {
-				userData.ProfilePhoto, _ = d.MediaClient.MediaGetPhoto(ctx, &media.TLMediaGetPhoto{
-					PhotoId: do.PhotoId,
-				})
-			}
+			photosErr = d.loadUserPhotos(ctx, userData, do)
 			if do.SavedMusicId != 0 {
 				userData.SavedMusic, _ = d.MediaGetDocument(ctx, &media.TLMediaGetDocument{
 					Id: do.SavedMusicId,
@@ -310,6 +306,10 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 			}
 		})
 
+	if photosErr != nil {
+		return nil, photosErr
+	}
+
 	// The rules of every privacy key travel with the user (task 034): each
 	// service that shows the user decides with them, and a failed read fails
 	// the load rather than show what the rules hide.
@@ -323,6 +323,29 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 	// stories_hiddens:Vector<long>
 
 	return cacheData, nil
+}
+
+// loadUserPhotos loads the main and the public photo of the user do into
+// userData. The photos decide what each viewer is shown (task 051): a failed
+// read fails the load rather than cache the user without them.
+func (d *Dao) loadUserPhotos(ctx context.Context, userData *mtproto.UserData, do *dataobject.UsersDO) error {
+	return mr.Finish(
+		func() (err error) {
+			if do.PhotoId != 0 {
+				userData.ProfilePhoto, err = d.MediaClient.MediaGetPhoto(ctx, &media.TLMediaGetPhoto{
+					PhotoId: do.PhotoId,
+				})
+			}
+			return err
+		},
+		func() (err error) {
+			if do.FallbackPhotoId != 0 {
+				userData.FallbackPhoto, err = d.MediaClient.MediaGetPhoto(ctx, &media.TLMediaGetPhoto{
+					PhotoId: do.FallbackPhotoId,
+				})
+			}
+			return err
+		})
 }
 
 func (d *Dao) GetCacheUserDataListByIdList(ctx context.Context, idList []int64) []*CacheUserData {
