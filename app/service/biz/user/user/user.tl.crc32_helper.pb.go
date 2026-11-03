@@ -133,4 +133,7 @@ const (
 	CRC32_user_saveGif                    TLConstructor = 1026682920  // 0x3d31f028
 	CRC32_user_getReactionsNotifySettings TLConstructor = -1804716295 // 0x946e36f9
 	CRC32_user_setReactionsNotifySettings TLConstructor = -1356164288 // 0xaf2a9340
+
+	// pluma: task 032
+	CRC32_user_getStatusWatchers TLConstructor = -1683643787 // 0x9ba5a275
 )

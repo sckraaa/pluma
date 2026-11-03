@@ -33,18 +33,18 @@ type step struct {
 // devices is the life of one user with a phone (key 1) and a Desktop (key 2).
 var devices = []step{
 	{"phone comes online", 0, 1, true, Change{Window, true, true}},
-	{"phone repeats soon", 30, 1, true, Change{30 + Window, true, false}},
-	{"phone repeats with little of the told window left", 160, 1, true, Change{160 + Window, true, true}},
-	{"desktop comes online, the user already is", 170, 2, true, Change{170 + Window, true, false}},
-	{"phone goes offline, desktop keeps the user online", 180, 1, false, Change{170 + Window, true, false}},
-	{"desktop goes offline", 190, 2, false, Change{190, false, true}},
-	{"desktop offline again", 200, 2, false, Change{200, false, false}},
+	{"phone repeats soon", 10, 1, true, Change{10 + Window, true, false}},
+	{"phone repeats with little of the told window left", 30, 1, true, Change{30 + Window, true, true}},
+	{"desktop comes online, the user already is", 35, 2, true, Change{35 + Window, true, false}},
+	{"phone goes offline, desktop keeps the user online", 40, 1, false, Change{35 + Window, true, false}},
+	{"desktop goes offline", 50, 2, false, Change{50, false, true}},
+	{"desktop offline again", 55, 2, false, Change{55, false, false}},
 	{"phone back after a while", 1000, 1, true, Change{1000 + Window, true, true}},
 	{"desktop offline while the phone is online", 1010, 2, false, Change{1000 + Window, true, false}},
 	// The phone's window passed without offline (killed app): viewers have
 	// turned it into "last seen" themselves; desktop's offline still tells
 	// them the later moment.
-	{"desktop offline after the phone's window passed", 1400, 2, false, Change{1400, false, true}},
+	{"desktop offline after the phone's window passed", 1100, 2, false, Change{1100, false, true}},
 }
 
 func runSteps(t *testing.T, s *Store, userId int64, t0 int64, steps []step) {
@@ -59,6 +59,30 @@ func runSteps(t *testing.T, s *Store, userId int64, t0 int64, steps []step) {
 		want.SeenUntil += t0
 		if got != want {
 			t.Errorf("%s: got %+v, want %+v", st.name, got, want)
+		}
+	}
+}
+
+// Every request of a client inside its period extends the window the viewers
+// know, whatever the period of the clients (30 s to 55 s).
+func TestClientPeriods(t *testing.T) {
+	for _, period := range []int64{30, 50, 55} {
+		s, _ := newTestStore(t)
+		ctx := context.Background()
+		const t0 = 1_800_000_000
+		var told int64
+		for at := int64(0); at <= 600; at += period {
+			c, err := s.Update(ctx, 9, 1, true, t0+at)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if told != 0 && t0+at >= told {
+				t.Fatalf("period %d s: request at %d s after the told window ended at %d", period, at, told-t0)
+			}
+			if !c.Push {
+				t.Fatalf("period %d s: request at %d s told nobody", period, at)
+			}
+			told = c.SeenUntil
 		}
 	}
 }

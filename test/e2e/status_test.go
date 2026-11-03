@@ -79,31 +79,43 @@ func statusUpdate(ctx context.Context, u *user, userId int64, wait time.Duration
 	return status
 }
 
-// account.updateStatus reaches the user's contacts and other devices at once
-// as updateUserStatus (task 032): before it, a friend who opened a chat was
-// shown online only when the client asked for the user again. Nobody else is
-// told, a repeated request inside the online window tells nobody again, and
-// the users the status is hidden from are not told.
+// account.updateStatus reaches at once, as updateUserStatus, everyone who
+// sees the user (task 032): contacts, the partners of private dialogs, the
+// members of shared basic groups, and the user's other devices. Before it, a
+// friend who opened a chat was shown online only when the client asked for
+// the user again. Nobody else is told, a repeated request soon after tells
+// nobody again, and the users the status is hidden from are not told.
 func TestStatusPush(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	phones := testPhones(t, 3)
+	phones := testPhones(t, 5)
 	alice := login(ctx, t, phones[0], "Alice")
 	laptop := login(ctx, t, phones[0], "Alice")
-	bob := login(ctx, t, phones[1], "Bob")
-	carol := login(ctx, t, phones[2], "Carol")
+	bob := login(ctx, t, phones[1], "Bob")     // has Alice as a contact
+	carol := login(ctx, t, phones[2], "Carol") // nothing to do with Alice
+	dave := login(ctx, t, phones[3], "Dave")   // wrote to Alice, no contact
+	erin := login(ctx, t, phones[4], "Erin")   // in a group with Alice
 	importContacts(ctx, t, bob, phoneContact(bob.c, 1, phones[0], "Alice", ""))
-	for _, u := range []*user{laptop, bob, carol} {
+	toAlice := inputUserOf(ctx, t, dave, alice)
+	sendTo(ctx, t, dave, &mtproto.InputPeer{
+		Constructor: dave.c.Constructor(mtproto.Predicate_inputPeerUser),
+		UserId:      toAlice.GetUserId(),
+		AccessHash:  toAlice.GetAccessHash(),
+	}, "hi")
+	createChat(ctx, t, erin, "Group", alice)
+	for _, u := range []*user{laptop, bob, carol, dave, erin} {
 		getState(ctx, t, u)
 	}
 	id := alice.self.GetId()
 
 	before := time.Now().Unix()
 	updateStatus(ctx, t, alice, false)
-	s := statusUpdate(ctx, bob, id, 10*time.Second)
-	if s.GetPredicateName() != mtproto.Predicate_userStatusOnline || int64(s.GetExpires()) < before+290 {
-		t.Fatalf("the contact got %v, want userStatusOnline about 300 s ahead", s)
+	for name, u := range map[string]*user{"the contact": bob, "the dialog partner": dave, "the group member": erin} {
+		s := statusUpdate(ctx, u, id, 10*time.Second)
+		if s.GetPredicateName() != mtproto.Predicate_userStatusOnline || int64(s.GetExpires()) < before+55 || int64(s.GetExpires()) > time.Now().Unix()+60 {
+			t.Fatalf("%s got %v, want userStatusOnline a minute ahead", name, s)
+		}
 	}
 	if s := statusUpdate(ctx, laptop, id, 10*time.Second); s.GetPredicateName() != mtproto.Predicate_userStatusOnline {
 		t.Errorf("the other device got %v, want userStatusOnline", s)
@@ -118,7 +130,7 @@ func TestStatusPush(t *testing.T) {
 	}
 
 	updateStatus(ctx, t, alice, true)
-	s = statusUpdate(ctx, bob, id, 10*time.Second)
+	s := statusUpdate(ctx, bob, id, 10*time.Second)
 	if s.GetPredicateName() != mtproto.Predicate_userStatusOffline || int64(s.GetWasOnline()) < before {
 		t.Fatalf("after offline the contact got %v, want userStatusOffline", s)
 	}

@@ -87,7 +87,7 @@ func TestMutableUsersSameIdTwice(t *testing.T) {
 	c := userCore(t)
 	ann, _ := newUser(t, "Ann")
 	now := time.Now().Unix()
-	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now, Expires: 300}); err != nil {
+	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now, Expires: 60}); err != nil {
 		t.Fatal(err)
 	}
 	r, err := c.UserGetMutableUsersV2(&user.TLUserGetMutableUsersV2{Id: []int64{ann, ann}, Privacy: true, HasTo: true, To: []int64{ann, ann}})
@@ -97,8 +97,8 @@ func TestMutableUsersSameIdTwice(t *testing.T) {
 	if n := len(r.GetUsers()); n != 1 {
 		t.Errorf("%d users for one id", n)
 	}
-	if a, _ := r.GetImmutableUser(ann); a.GetLastSeenAt() != now+300 {
-		t.Errorf("seen until %d, want %d", a.GetLastSeenAt(), now+300)
+	if a, _ := r.GetImmutableUser(ann); a.GetLastSeenAt() != now+60 {
+		t.Errorf("seen until %d, want %d", a.GetLastSeenAt(), now+60)
 	}
 }
 
@@ -119,11 +119,11 @@ func TestLastSeenWindow(t *testing.T) {
 		return mtproto.MakeUserStatus(a.GetLastSeenAt(), true)
 	}
 
-	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now - 100, Expires: 300}); err != nil {
+	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now - 20, Expires: 60}); err != nil {
 		t.Fatal(err)
 	}
-	if s := status(); s.GetPredicateName() != mtproto.Predicate_userStatusOnline || s.GetExpires() != int32(now+200) {
-		t.Errorf("100 s into a 300 s window: %s expires %d, want online until %d", s.GetPredicateName(), s.GetExpires(), now+200)
+	if s := status(); s.GetPredicateName() != mtproto.Predicate_userStatusOnline || s.GetExpires() != int32(now+40) {
+		t.Errorf("20 s into a 60 s window: %s expires %d, want online until %d", s.GetPredicateName(), s.GetExpires(), now+40)
 	}
 
 	if _, err := c.UserUpdateLastSeen(&user.TLUserUpdateLastSeen{Id: ann, LastSeenAt: now, Expires: 0}); err != nil {

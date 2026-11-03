@@ -19,7 +19,7 @@
     "chat_size_max": 200,
     "megagroup_size_max": 100000,
     "forwarded_count_max": 100,
-    "online_update_period_ms": 210000,
+    "online_update_period_ms": 30000,
     "offline_blur_timeout_ms": 5000,
     "offline_idle_timeout_ms": 30000,
     "online_cloud_timeout_ms": 300000,
