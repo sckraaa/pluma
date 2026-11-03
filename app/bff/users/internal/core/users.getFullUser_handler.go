@@ -230,6 +230,11 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 					PeerId:   peerId,
 				})
 				if dialogExt != nil {
+					// The archived chat says so (userFull.folder_id, task 050);
+					// Android moves the dialog by it.
+					if f := dialogExt.GetDialog().GetFolderId(); f.GetValue() != 0 {
+						userFull.FolderId = f
+					}
 					userFull.ThemeEmoticon = mtproto.MakeFlagsString(dialogExt.ThemeEmoticon)
 					userFull.TtlPeriod = mtproto.MakeFlagsInt32(dialogExt.TtlPeriod)
 					if dialogExt.WallpaperId != 0 && c.svcCtx.Dao.WallpaperPlugin != nil {

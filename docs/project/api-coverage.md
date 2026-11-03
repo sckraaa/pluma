@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 215, partial 27, blocked 99, notimpl 7, fake 7, missing 514 (ok = 24.7%); with a conformance scenario 9
+    layer 228: 869 methods — ok 216, partial 27, blocked 99, notimpl 7, fake 7, missing 513 (ok = 24.9%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -21,7 +21,7 @@
 | communities | 9 | 0 | 0 | 0 | 0 | 0 | 9 | 0 |
 | contacts | 29 | 23 | 0 | 2 | 0 | 0 | 4 | 0 |
 | ephemeral | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
-| folders | 2 | 0 | 0 | 0 | 0 | 0 | 2 | 0 |
+| folders | 2 | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 10 | 1 | 12 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -429,7 +429,7 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `folders.deleteFolder` | missing |  |  |
-| `folders.editPeerFolders` | missing |  |  |
+| `folders.editPeerFolders` | ok |  | app/bff/folders/internal/core/folders.editPeerFolders_handler.go:31 |
 
 ### fragment
 

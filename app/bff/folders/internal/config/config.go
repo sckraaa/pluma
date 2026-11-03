@@ -26,4 +26,5 @@ type Config struct {
 	UserClient   zrpc.RpcClientConf
 	ChatClient   zrpc.RpcClientConf
 	SyncClient   sync_client.OutboxConf
+	MsgClient    zrpc.RpcClientConf // the archive (task 050)
 }

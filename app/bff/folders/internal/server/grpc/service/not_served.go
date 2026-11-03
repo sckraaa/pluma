@@ -21,15 +21,10 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-// The methods of mtproto.RPCFolders the server does not serve: the archive
-// (folders.*) and shared folders (chatlists.*), upstream enterprise
-// features. They answer ERR_ENTERPRISE_IS_BLOCKED (400), as before the
+// The methods of mtproto.RPCFolders the server does not serve: shared
+// folders (chatlists.*), an upstream enterprise feature. They answer ERR_ENTERPRISE_IS_BLOCKED (400), as before the
 // folders were served here: a client gives up on a 400, while it retries
 // an internal error.
-
-func (s *Service) FoldersEditPeerFolders(ctx context.Context, request *mtproto.TLFoldersEditPeerFolders) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
 
 func (s *Service) ChatlistsExportChatlistInvite(ctx context.Context, request *mtproto.TLChatlistsExportChatlistInvite) (*mtproto.Chatlists_ExportedChatlistInvite, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

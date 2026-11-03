@@ -260,6 +260,7 @@ func (s *Server) Initialize() error {
 			UserClient:    c.BizServiceClient,
 			ChatClient:    c.BizServiceClient,
 			SyncClient:    syncClient,
+			MsgClient:     c.MsgClient,
 		})
 		mtproto.RegisterRPCFoldersServer(grpcServer, folders)
 		mtproto.RegisterRPCFolderTagsServer(grpcServer, folders)

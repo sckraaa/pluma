@@ -18,6 +18,7 @@ package dao
 import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/folders/internal/config"
+	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
@@ -29,6 +30,7 @@ type Dao struct {
 	user_client.UserClient
 	chat_client.ChatClient
 	sync_client.SyncClient
+	msg_client.MsgClient
 }
 
 func New(c config.Config) *Dao {
@@ -37,5 +39,6 @@ func New(c config.Config) *Dao {
 		UserClient:   user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		ChatClient:   chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		SyncClient:   sync_client.MustNewSyncOutboxClient(c.SyncClient),
+		MsgClient:    msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 	}
 }
