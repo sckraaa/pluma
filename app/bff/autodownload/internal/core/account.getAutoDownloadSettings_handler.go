@@ -23,15 +23,20 @@ import (
 )
 
 // video_upload_maxbitrate of the presets, in percent of the best quality a
-// client offers for a video it compresses before sending. The values are the
-// built-in defaults of the official Android client (DownloadController:
-// defaultLow/defaultMedium/defaultHigh, field 13: 50, 100, 100). 0, sent
-// before, is not "no limit": iOS maps it to its 480p preset
-// (LegacyAttachmentMenu.defaultVideoPresetForContext), and Android picks its
-// lowest compression step for a preset that carries it.
+// client offers for a video it compresses before sending. 0, sent before, is
+// not "no limit": iOS maps it to its 480p preset
+// (LegacyAttachmentMenu.defaultVideoPresetForContext).
+//
+// The owner's choice (task 052): 720p by default on mobile data, 1080p on
+// Wi-Fi. iOS takes the high preset on Wi-Fi and the medium one otherwise and
+// picks preset v*5/100 (4 is 720p, 5 is 1080p); Android picks the step
+// round(v / (100 / steps)) - 1 of the steps the source allows
+// (PhotoViewer.selectCompression). 85 gives 720p on both, and the best step
+// for a source below 720p; 100 gives 1080p. The low preset keeps Android's
+// built-in 50 (DownloadController.defaultLow).
 const (
 	videoUploadMaxBitrateLow    = 50
-	videoUploadMaxBitrateMedium = 100
+	videoUploadMaxBitrateMedium = 85
 	videoUploadMaxBitrateHigh   = 100
 )
 
