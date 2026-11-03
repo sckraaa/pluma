@@ -104,11 +104,13 @@ func TestArchive(t *testing.T) {
 	alice := login(ctx, t, phones[0], "Alice")
 	laptop := login(ctx, t, phones[0], "Alice")
 	bob := login(ctx, t, phones[1], "Bob")
-	toAlice := inputPeerOf(ctx, t, bob, alice)
-	sendTo(ctx, t, bob, toAlice, "hi")
-	toBob := inputPeerOf(ctx, t, alice, bob)
 	getState(ctx, t, laptop)
 	getState(ctx, t, alice)
+	toAlice := inputPeerOf(ctx, t, bob, alice)
+	// The dialog exists once the message reached Alice's box.
+	sendTo(ctx, t, bob, toAlice, "hi")
+	waitMessageId(ctx, t, alice, "hi")
+	toBob := inputPeerOf(ctx, t, alice, bob)
 	bobId := bob.self.GetId()
 
 	r := editPeerFolder(ctx, t, alice, toBob, 1)
