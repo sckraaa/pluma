@@ -275,3 +275,24 @@ func TestCodecRoundTrip(t *testing.T) {
 		t.Error("an impossible vector length was accepted")
 	}
 }
+
+// TestMember: only a row in the channel, or restricted without
+// view_messages, is a member; no row (never joined) is none, though the
+// zero state is StateIn.
+func TestMember(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		p    *ImmutableChannelParticipant
+		want bool
+	}{
+		{"no row", nil, false},
+		{"in", participant(RoleMember, StateIn, 0, 0, 0), true},
+		{"left", participant(RoleMember, StateLeft, 0, 0, 0), false},
+		{"restricted", participant(RoleMember, StateBanned, 0, mtproto.BANNED_SEND_MESSAGES, 0), true},
+		{"kicked", participant(RoleMember, StateBanned, 0, mtproto.BANNED_VIEW_MESSAGES, 0), false},
+	} {
+		if got := c.p.Member(); got != c.want {
+			t.Errorf("%s: member %v, want %v", c.name, got, c.want)
+		}
+	}
+}

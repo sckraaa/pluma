@@ -63,6 +63,10 @@ func (p *ImmutableChannelParticipant) kicked(now int32) bool {
 // user out of the channel until they join again; a restriction that ran out
 // leaves them a plain member.
 func (p *ImmutableChannelParticipant) Member() bool {
+	if p == nil {
+		// No row: never joined. The zero state is StateIn.
+		return false
+	}
 	switch p.GetState() {
 	case StateIn:
 		return true
