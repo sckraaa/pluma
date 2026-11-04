@@ -328,7 +328,7 @@
 | `channels.reportSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.reportSponsoredMessage_handler.go:27 |
 | `channels.restrictSponsoredMessages` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.restrictSponsoredMessages_handler.go:27 |
 | `channels.searchPosts` | blocked |  | app/bff/messages/internal/core/channels.searchPosts_handler.go:27 |
-| `channels.setBoostsToUnblockRestrictions` | blocked |  | app/bff/channels/internal/core/boosts.go:77 |
+| `channels.setBoostsToUnblockRestrictions` | blocked |  | app/bff/channels/internal/core/boosts.go:86 |
 | `channels.setDiscussionGroup` | blocked |  | app/bff/channels/internal/core/not_served.go:94 |
 | `channels.setEmojiStickers` | blocked |  | app/bff/chats/internal/core/channels.setEmojiStickers_handler.go:27 |
 | `channels.setMainProfileTab` | blocked |  | app/bff/userchannelprofiles/internal/core/channels.setMainProfileTab_handler.go:27 |
@@ -909,11 +909,11 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `premium.applyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:87 |
-| `premium.getBoostsList` | blocked |  | app/bff/channels/internal/core/boosts.go:82 |
-| `premium.getBoostsStatus` | ok |  | app/bff/channels/internal/core/boosts.go:40 |
-| `premium.getMyBoosts` | ok |  | app/bff/channels/internal/core/boosts.go:68 |
-| `premium.getUserBoosts` | blocked |  | app/bff/channels/internal/core/boosts.go:92 |
+| `premium.applyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:96 |
+| `premium.getBoostsList` | blocked |  | app/bff/channels/internal/core/boosts.go:91 |
+| `premium.getBoostsStatus` | ok |  | app/bff/channels/internal/core/boosts.go:48 |
+| `premium.getMyBoosts` | ok |  | app/bff/channels/internal/core/boosts.go:77 |
+| `premium.getUserBoosts` | blocked |  | app/bff/channels/internal/core/boosts.go:101 |
 
 ### smsjobs
 
@@ -965,8 +965,8 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `stories.activateStealthMode` | missing |  |  |
-| `stories.applyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:112 |
-| `stories.canApplyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:107 |
+| `stories.applyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:121 |
+| `stories.canApplyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:116 |
 | `stories.canSendStory30EB63F0` | missing |  |  |
 | `stories.canSendStoryB100D45D` | missing |  |  |
 | `stories.canSendStoryC7DFDFDD` | missing |  |  |
@@ -980,8 +980,8 @@
 | `stories.getAllReadPeerStories` | missing |  |  |
 | `stories.getAllReadUserStories` | missing |  |  |
 | `stories.getAllStories` | ok |  | app/bff/stories/internal/core/stories.getAllStories_handler.go:30 |
-| `stories.getBoostersList` | blocked |  | app/bff/channels/internal/core/boosts.go:102 |
-| `stories.getBoostsStatus` | blocked |  | app/bff/channels/internal/core/boosts.go:97 |
+| `stories.getBoostersList` | blocked |  | app/bff/channels/internal/core/boosts.go:111 |
+| `stories.getBoostsStatus` | blocked |  | app/bff/channels/internal/core/boosts.go:106 |
 | `stories.getChatsToSend` | missing |  |  |
 | `stories.getPeerMaxIDs535983C3` | missing |  |  |
 | `stories.getPeerMaxIDs78499170` | missing |  |  |
