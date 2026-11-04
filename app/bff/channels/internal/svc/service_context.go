@@ -16,13 +16,25 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/channels/internal/config"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
+	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 )
 
 type ServiceContext struct {
-	Config config.Config
+	Config  config.Config
+	Channel channel_client.ChannelClient
+	User    user_client.UserClient
+	Chat    chat_client.ChatClient
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
-	return &ServiceContext{Config: c}
+	return &ServiceContext{
+		Config:  c,
+		Channel: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
+		User:    user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		Chat:    chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+	}
 }

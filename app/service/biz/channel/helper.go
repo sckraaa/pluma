@@ -23,6 +23,7 @@ import (
 
 type (
 	Config = config.Config
+	Topics = config.Topics
 )
 
 // New returns the channel service: reads of channels and their

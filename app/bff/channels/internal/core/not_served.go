@@ -50,26 +50,6 @@ func (c *ChannelsCore) ChannelsGetParticipants(in *mtproto.TLChannelsGetParticip
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsGetParticipant is not served yet: channels.getParticipant#a0ab6cc6.
-func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipant) (*mtproto.Channels_ChannelParticipant, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsGetChannels is not served yet: channels.getChannels#a7f6bbb.
-func (c *ChannelsCore) ChannelsGetChannels(in *mtproto.TLChannelsGetChannels) (*mtproto.Messages_Chats, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsGetFullChannel is not served yet: channels.getFullChannel#8736a09.
-func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChannel) (*mtproto.Messages_ChatFull, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsCreateChannel is not served yet: channels.createChannel#91006707 (also #3d5fb10f).
-func (c *ChannelsCore) ChannelsCreateChannel(in *mtproto.TLChannelsCreateChannel) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsEditAdmin is not served yet: channels.editAdmin#9a98ad68 (also #d33c8902).
 func (c *ChannelsCore) ChannelsEditAdmin(in *mtproto.TLChannelsEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

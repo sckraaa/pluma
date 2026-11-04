@@ -19,6 +19,7 @@ syntax = "proto3";
 
 package channel;
 
+import "schema.tl.core_types.proto";
 import "schema.tl.sync.proto";
 
 option go_package = "github.com/teamgram/teamgram-server/app/service/biz/channel/channel";
@@ -30,6 +31,12 @@ enum TLConstructor {
     CRC32_mutableChannel = -662027966;
     CRC32_channel_getMutableChannel = -437245607;
     CRC32_channel_getChannelListByIdList = -1986537988;
+  // pluma: task 038
+  CRC32_channel_createChannel = -641600475;
+  // pluma: task 038
+  CRC32_channel_getChannelDialogs = -1725659745;
+  // pluma: task 038
+  CRC32_channel_getTopMessages = 687937944;
 }
 
 
@@ -136,7 +143,51 @@ message TL_channel_getChannelListByIdList {
 
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+// Creates a channel (broadcast) or a supergroup (megagroup) of creator_id in
+// its box transaction: the channel, its creator, its first message, the
+// creator's dialog and invite link; the answer of channels.createChannel.
+message TL_channel_createChannel {
+  TLConstructor constructor = 1;
+  int64 creator_id = 3;
+  string title = 4;
+  string about = 5;
+  mtproto.Bool broadcast = 6;
+  mtproto.Bool megagroup = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getChannelDialogs self_id:long id_list:Vector<long> = Vector<Dialog>;
+// The dialogs of self_id with the channels id_list, as it sees them: pts,
+// top_message, read marks and unread counts computed from the channel
+// (ADR 0034, p. 1); a channel without its dialog is left out.
+message TL_channel_getChannelDialogs {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  repeated int64 id_list = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getTopMessages self_id:long id_list:Vector<long> = Vector<Message>;
+// The last message of each channel id_list, as self_id sees it.
+message TL_channel_getTopMessages {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  repeated int64 id_list = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
+// pluma: task 038
+message Vector_Dialog {
+    repeated mtproto.Dialog datas = 1;
+}
+
+// pluma: task 038
+message Vector_Message {
+    repeated mtproto.Message datas = 1;
+}
+
 message Vector_MutableChannel {
     repeated MutableChannel datas = 1;
 }
@@ -148,4 +199,10 @@ message Vector_MutableChannel {
 service RPCChannel {
  rpc channel_getMutableChannel(TL_channel_getMutableChannel) returns (MutableChannel) {}
  rpc channel_getChannelListByIdList(TL_channel_getChannelListByIdList) returns (Vector_MutableChannel) {}
+  // pluma: task 038
+  rpc channel_createChannel(TL_channel_createChannel) returns (mtproto.Updates) {}
+  // pluma: task 038
+  rpc channel_getChannelDialogs(TL_channel_getChannelDialogs) returns (Vector_Dialog) {}
+  // pluma: task 038
+  rpc channel_getTopMessages(TL_channel_getTopMessages) returns (Vector_Message) {}
 }

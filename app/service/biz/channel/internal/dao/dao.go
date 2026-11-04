@@ -17,13 +17,17 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/config"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // Dao reads channels and their participants (the tables of ADR 0034, which
@@ -34,21 +38,56 @@ type Dao struct {
 	*Mysql
 	// Photos loads the photos of channels: biz media.
 	Photos PhotoSource
+	// BoxDB is the pool of box transactions (pkg/userbox): the *sql.DB of
+	// the service's MySQL, with the lock wait timeout of its DSN.
+	BoxDB  *sql.DB
+	Topics config.Topics
 }
 
-// PhotoSource loads a photo by its id: biz media.
 type PhotoSource interface {
 	MediaGetPhoto(ctx context.Context, in *media.TLMediaGetPhoto) (*mtproto.Photo, error)
 }
 
 func New(c config.Config) *Dao {
-	return NewDao(sqlx.NewMySQL(&c.Mysql), media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)))
+	if c.Topics.Sync == "" {
+		panic("channel: Topics.Sync is required")
+	}
+	if err := outbox.Register(outbox.Topics{Push: []string{c.Topics.Sync}}); err != nil {
+		panic(err)
+	}
+	boxDB, err := userbox.Open(c.Mysql.DSN)
+	if err != nil {
+		panic(err)
+	}
+	d := NewDao(sqlx.NewMySQL(&c.Mysql), media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)))
+	d.BoxDB = boxDB
+	d.Topics = c.Topics
+	return d
 }
 
-// NewDao is the Dao on db and photos.
 func NewDao(db *sqlx.DB, photos PhotoSource) *Dao {
 	return &Dao{
 		Mysql:  newMysqlDao(db),
 		Photos: photos,
 	}
+}
+
+// RunBox runs fn as a box transaction of userId (userbox.Run) and wakes the
+// relays of the process when it wrote events.
+func (d *Dao) RunBox(ctx context.Context, userId int64, fn func(b *userbox.Box) error) (*userbox.Result, error) {
+	res, err := userbox.Run(ctx, d.BoxDB, userId, fn)
+	if err != nil {
+		return nil, err
+	}
+	if res.Emitted > 0 {
+		outbox.Notify()
+	}
+	return res, nil
+}
+
+// EmitSeqUpdate journals u with the next seq of b's account and pushes it to
+// every device of the account (sync_client.EmitSeqUpdate, ADR 0020). users
+// and chats are what u refers to, as the account sees them.
+func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
+	return sync_client.EmitSeqUpdate(b, d.Topics.Sync, u, users, chats)
 }

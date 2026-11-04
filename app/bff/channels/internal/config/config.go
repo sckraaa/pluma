@@ -21,4 +21,9 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
+	// The channels themselves (biz channel), their users (biz user) and
+	// their invite links, kept with those of basic groups (biz chat).
+	ChannelClient zrpc.RpcClientConf
+	UserClient    zrpc.RpcClientConf
+	ChatClient    zrpc.RpcClientConf
 }

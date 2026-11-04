@@ -235,6 +235,18 @@ func (noChannels) ChannelGetChannelListByIdList(context.Context, *channelpb.TLCh
 	return &channelpb.Vector_MutableChannel{}, nil
 }
 
+func (noChannels) ChannelCreateChannel(context.Context, *channelpb.TLChannelCreateChannel) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetChannelDialogs(context.Context, *channelpb.TLChannelGetChannelDialogs) (*channelpb.Vector_Dialog, error) {
+	return &channelpb.Vector_Dialog{}, nil
+}
+
+func (noChannels) ChannelGetTopMessages(context.Context, *channelpb.TLChannelGetTopMessages) (*channelpb.Vector_Message, error) {
+	return &channelpb.Vector_Message{}, nil
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]

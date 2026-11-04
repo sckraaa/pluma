@@ -24,6 +24,7 @@ package channel
 
 import (
 	context "context"
+	mtproto "github.com/teamgram/proto/mtproto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -37,6 +38,9 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	RPCChannel_ChannelGetMutableChannel_FullMethodName      = "/channel.RPCChannel/channel_getMutableChannel"
 	RPCChannel_ChannelGetChannelListByIdList_FullMethodName = "/channel.RPCChannel/channel_getChannelListByIdList"
+	RPCChannel_ChannelCreateChannel_FullMethodName          = "/channel.RPCChannel/channel_createChannel"
+	RPCChannel_ChannelGetChannelDialogs_FullMethodName      = "/channel.RPCChannel/channel_getChannelDialogs"
+	RPCChannel_ChannelGetTopMessages_FullMethodName         = "/channel.RPCChannel/channel_getTopMessages"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -45,6 +49,12 @@ const (
 type RPCChannelClient interface {
 	ChannelGetMutableChannel(ctx context.Context, in *TLChannelGetMutableChannel, opts ...grpc.CallOption) (*MutableChannel, error)
 	ChannelGetChannelListByIdList(ctx context.Context, in *TLChannelGetChannelListByIdList, opts ...grpc.CallOption) (*Vector_MutableChannel, error)
+	// pluma: task 038
+	ChannelCreateChannel(ctx context.Context, in *TLChannelCreateChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 038
+	ChannelGetChannelDialogs(ctx context.Context, in *TLChannelGetChannelDialogs, opts ...grpc.CallOption) (*Vector_Dialog, error)
+	// pluma: task 038
+	ChannelGetTopMessages(ctx context.Context, in *TLChannelGetTopMessages, opts ...grpc.CallOption) (*Vector_Message, error)
 }
 
 type rPCChannelClient struct {
@@ -75,12 +85,48 @@ func (c *rPCChannelClient) ChannelGetChannelListByIdList(ctx context.Context, in
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelCreateChannel(ctx context.Context, in *TLChannelCreateChannel, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelCreateChannel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetChannelDialogs(ctx context.Context, in *TLChannelGetChannelDialogs, opts ...grpc.CallOption) (*Vector_Dialog, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Dialog)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetChannelDialogs_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetTopMessages(ctx context.Context, in *TLChannelGetTopMessages, opts ...grpc.CallOption) (*Vector_Message, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Message)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetTopMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
 type RPCChannelServer interface {
 	ChannelGetMutableChannel(context.Context, *TLChannelGetMutableChannel) (*MutableChannel, error)
 	ChannelGetChannelListByIdList(context.Context, *TLChannelGetChannelListByIdList) (*Vector_MutableChannel, error)
+	// pluma: task 038
+	ChannelCreateChannel(context.Context, *TLChannelCreateChannel) (*mtproto.Updates, error)
+	// pluma: task 038
+	ChannelGetChannelDialogs(context.Context, *TLChannelGetChannelDialogs) (*Vector_Dialog, error)
+	// pluma: task 038
+	ChannelGetTopMessages(context.Context, *TLChannelGetTopMessages) (*Vector_Message, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -95,6 +141,15 @@ func (UnimplementedRPCChannelServer) ChannelGetMutableChannel(context.Context, *
 }
 func (UnimplementedRPCChannelServer) ChannelGetChannelListByIdList(context.Context, *TLChannelGetChannelListByIdList) (*Vector_MutableChannel, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetChannelListByIdList not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelCreateChannel(context.Context, *TLChannelCreateChannel) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelCreateChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetChannelDialogs(context.Context, *TLChannelGetChannelDialogs) (*Vector_Dialog, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetChannelDialogs not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetTopMessages(context.Context, *TLChannelGetTopMessages) (*Vector_Message, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetTopMessages not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -152,6 +207,60 @@ func _RPCChannel_ChannelGetChannelListByIdList_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelCreateChannel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelCreateChannel)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelCreateChannel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelCreateChannel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelCreateChannel(ctx, req.(*TLChannelCreateChannel))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetChannelDialogs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetChannelDialogs)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetChannelDialogs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetChannelDialogs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetChannelDialogs(ctx, req.(*TLChannelGetChannelDialogs))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetTopMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetTopMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetTopMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetTopMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetTopMessages(ctx, req.(*TLChannelGetTopMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -166,6 +275,18 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_getChannelListByIdList",
 			Handler:    _RPCChannel_ChannelGetChannelListByIdList_Handler,
+		},
+		{
+			MethodName: "channel_createChannel",
+			Handler:    _RPCChannel_ChannelCreateChannel_Handler,
+		},
+		{
+			MethodName: "channel_getChannelDialogs",
+			Handler:    _RPCChannel_ChannelGetChannelDialogs_Handler,
+		},
+		{
+			MethodName: "channel_getTopMessages",
+			Handler:    _RPCChannel_ChannelGetTopMessages_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

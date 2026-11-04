@@ -25,15 +25,26 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/channels/internal/svc"
 )
 
-// Every method of the service answers: those not served yet with
-// ERR_ENTERPRISE_IS_BLOCKED (400), never an internal error, which Android's
-// and Web K's transports retry without end.
+// served are the methods of the service that are served (task 038 on).
+var served = map[string]bool{
+	"ChannelsCreateChannel":  true,
+	"ChannelsGetChannels":    true,
+	"ChannelsGetFullChannel": true,
+	"ChannelsGetParticipant": true,
+}
+
+// Every method of the service not served yet answers ERR_ENTERPRISE_IS_BLOCKED
+// (400), never an internal error, which Android's and Web K's transports
+// retry without end.
 func TestNotServed(t *testing.T) {
 	s := New(&svc.ServiceContext{})
 	iface := reflect.TypeOf((*mtproto.RPCChannelsServer)(nil)).Elem()
 	v := reflect.ValueOf(s)
 	for i := range iface.NumMethod() {
 		m := iface.Method(i)
+		if served[m.Name] {
+			continue
+		}
 		req := reflect.New(m.Type.In(1).Elem())
 		out := v.MethodByName(m.Name).Call([]reflect.Value{reflect.ValueOf(context.Background()), req})
 		err, _ := out[1].Interface().(error)

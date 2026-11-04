@@ -18,6 +18,7 @@ package channel_client
 import (
 	"context"
 
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 
@@ -27,6 +28,9 @@ import (
 type ChannelClient interface {
 	ChannelGetMutableChannel(ctx context.Context, in *channel.TLChannelGetMutableChannel) (*channel.MutableChannel, error)
 	ChannelGetChannelListByIdList(ctx context.Context, in *channel.TLChannelGetChannelListByIdList) (*channel.Vector_MutableChannel, error)
+	ChannelCreateChannel(ctx context.Context, in *channel.TLChannelCreateChannel) (*mtproto.Updates, error)
+	ChannelGetChannelDialogs(ctx context.Context, in *channel.TLChannelGetChannelDialogs) (*channel.Vector_Dialog, error)
+	ChannelGetTopMessages(ctx context.Context, in *channel.TLChannelGetTopMessages) (*channel.Vector_Message, error)
 }
 
 type defaultChannelClient struct {
@@ -59,4 +63,37 @@ func (m *defaultChannelClient) ChannelGetChannelListByIdList(ctx context.Context
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetChannelListByIdList(ctx, in)
+}
+
+// ChannelCreateChannel
+// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+func (m *defaultChannelClient) ChannelCreateChannel(ctx context.Context, in *channel.TLChannelCreateChannel) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelCreateChannel(ctx, in)
+}
+
+// ChannelGetChannelDialogs
+// channel.getChannelDialogs self_id:long id_list:Vector<long> = Vector<Dialog>;
+func (m *defaultChannelClient) ChannelGetChannelDialogs(ctx context.Context, in *channel.TLChannelGetChannelDialogs) (*channel.Vector_Dialog, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetChannelDialogs(ctx, in)
+}
+
+// ChannelGetTopMessages
+// channel.getTopMessages self_id:long id_list:Vector<long> = Vector<Message>;
+func (m *defaultChannelClient) ChannelGetTopMessages(ctx context.Context, in *channel.TLChannelGetTopMessages) (*channel.Vector_Message, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetTopMessages(ctx, in)
 }

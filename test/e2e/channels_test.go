@@ -19,6 +19,7 @@ package e2e
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -42,14 +43,6 @@ func TestChannelsNotServed(t *testing.T) {
 		AccessHash:  1,
 	}
 	for name, req := range map[string]mtproto.TLObject{
-		"channels.getChannels": &mtproto.TLChannelsGetChannels{
-			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getChannels),
-			Id:          []*mtproto.InputChannel{channel},
-		},
-		"channels.getFullChannel": &mtproto.TLChannelsGetFullChannel{
-			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getFullChannel),
-			Channel:     channel,
-		},
 		"channels.leaveChannel": &mtproto.TLChannelsLeaveChannel{
 			Constructor: alice.c.Constructor(mtproto.Predicate_channels_leaveChannel),
 			Channel:     channel,
@@ -63,5 +56,150 @@ func TestChannelsNotServed(t *testing.T) {
 		if _, err := alice.c.Invoke(ctx, req); !mtclient.IsRPCError(err, "ERR_ENTERPRISE_IS_BLOCKED") {
 			t.Errorf("%s: %v, want ERR_ENTERPRISE_IS_BLOCKED", name, err)
 		}
+	}
+}
+
+func createChannel(ctx context.Context, t *testing.T, u *user, title string, megagroup bool) (*mtproto.Updates, *mtproto.Chat) {
+	t.Helper()
+	o, err := u.c.Invoke(ctx, &mtproto.TLChannelsCreateChannel{
+		Constructor: u.c.Constructor(mtproto.Predicate_channels_createChannel),
+		Broadcast:   !megagroup,
+		Megagroup:   megagroup,
+		Title:       title,
+		About:       "about " + title,
+	})
+	if err != nil {
+		t.Fatalf("channels.createChannel: %v", err)
+	}
+	r := o.(interface{ To_Updates() *mtproto.Updates }).To_Updates()
+	if len(r.GetChats()) == 0 || r.GetChats()[0].GetPredicateName() != mtproto.Predicate_channel {
+		t.Fatalf("channels.createChannel: chats %v", r.GetChats())
+	}
+	return r, r.GetChats()[0]
+}
+
+// A channel and a supergroup are made and opened (task 038): the answer
+// has the channel first in chats and its first message with the channel's
+// pts; the full channel, the dialogs and the dialog of the channel give a
+// pts above 0; the creator has the permanent link, which Android's creation
+// screen takes unchecked; the creator's other device learns the channel.
+func TestChannelCreate(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phone := testPhones(t, 1)[0]
+	alice := login(ctx, t, phone, "Alice")
+	laptop := login(ctx, t, phone, "Alice")
+	getState(ctx, t, laptop)
+
+	for _, megagroup := range []bool{false, true} {
+		r, ch := createChannel(ctx, t, alice, fmt.Sprintf("kind %v", megagroup), megagroup)
+		if ch.GetMegagroup() != megagroup || ch.GetBroadcast() == megagroup || !ch.GetCreator() || ch.GetAccessHash_FLAGINT64().GetValue() == 0 {
+			t.Errorf("the channel %v", ch)
+		}
+		var first *mtproto.Update
+		for _, u := range r.GetUpdates() {
+			if u.GetPredicateName() == mtproto.Predicate_updateNewChannelMessage {
+				first = u
+			}
+		}
+		if first == nil || first.GetMessage_MESSAGE().GetId() != 1 || first.GetPts_INT32() != 2 ||
+			first.GetMessage_MESSAGE().GetAction().GetPredicateName() != mtproto.Predicate_messageActionChannelCreate {
+			t.Fatalf("the first message: %v", r.GetUpdates())
+		}
+		input := &mtproto.InputChannel{Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}
+		inputPeer := &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}
+
+		o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsGetFullChannel{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getFullChannel),
+			Channel:     input,
+		})
+		if err != nil {
+			t.Fatalf("channels.getFullChannel: %v", err)
+		}
+		full := o.(interface {
+			To_Messages_ChatFull() *mtproto.Messages_ChatFull
+		}).To_Messages_ChatFull().GetFullChat()
+		if full.GetPts() < 2 || full.GetReadInboxMaxId() != 1 || full.GetParticipantsCount().GetValue() != 1 || full.GetExportedInvite() == nil {
+			t.Errorf("the full channel: pts %d, read %d, members %v, invite %v", full.GetPts(), full.GetReadInboxMaxId(), full.GetParticipantsCount(), full.GetExportedInvite())
+		}
+
+		d := peerDialogs(ctx, t, alice, inputPeer).GetDialogs()
+		if len(d) != 1 || d[0].GetPts().GetValue() < 2 || d[0].GetTopMessage() != 1 {
+			t.Errorf("the dialog of the channel: %v", d)
+		}
+
+		o, err = alice.c.Invoke(ctx, &mtproto.TLMessagesGetExportedChatInvites{
+			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getExportedChatInvites),
+			Peer:        inputPeer,
+			AdminId:     &mtproto.InputUser{Constructor: alice.c.Constructor(mtproto.Predicate_inputUserSelf)},
+			Limit:       1,
+		})
+		if err != nil {
+			t.Fatalf("messages.getExportedChatInvites: %v", err)
+		}
+		if n := len(o.(interface {
+			To_Messages_ExportedChatInvites() *mtproto.Messages_ExportedChatInvites
+		}).To_Messages_ExportedChatInvites().GetInvites()); n != 1 {
+			t.Errorf("%d invite links, want the permanent one", n)
+		}
+
+		o, err = alice.c.Invoke(ctx, &mtproto.TLChannelsGetChannels{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getChannels),
+			Id:          []*mtproto.InputChannel{input},
+		})
+		if err != nil || len(o.(interface {
+			To_Messages_Chats() *mtproto.Messages_Chats
+		}).To_Messages_Chats().GetChats()) != 1 {
+			t.Errorf("channels.getChannels: %v, %v", o, err)
+		}
+		bad := &mtproto.InputChannel{Constructor: input.Constructor, ChannelId: input.ChannelId, AccessHash: input.AccessHash + 1}
+		if _, err = alice.c.Invoke(ctx, &mtproto.TLChannelsGetChannels{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getChannels),
+			Id:          []*mtproto.InputChannel{bad},
+		}); !mtclient.IsRPCError(err, "CHANNEL_INVALID") {
+			t.Errorf("a wrong access_hash: %v, want CHANNEL_INVALID", err)
+		}
+
+		o, err = alice.c.Invoke(ctx, &mtproto.TLChannelsGetParticipant{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getParticipant),
+			Channel:     input,
+			Participant: &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerSelf)},
+		})
+		if err != nil {
+			t.Fatalf("channels.getParticipant: %v", err)
+		}
+		if p := o.(interface {
+			To_Channels_ChannelParticipant() *mtproto.Channels_ChannelParticipant
+		}).To_Channels_ChannelParticipant().GetParticipant(); p.GetPredicateName() != mtproto.Predicate_channelParticipantCreator {
+			t.Errorf("the creator's participant: %v", p)
+		}
+
+		waitUpdate(ctx, t, laptop, mtproto.Predicate_updateChannel, func(u *mtproto.Update) bool { return u.GetChannelId() == ch.GetId() })
+	}
+
+	// Both are in the list of dialogs, with their pts.
+	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetDialogs{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_getDialogs),
+		OffsetPeer:  &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerEmpty)},
+		Limit:       50,
+	})
+	if err != nil {
+		t.Fatalf("messages.getDialogs: %v", err)
+	}
+	ds := o.(interface {
+		To_Messages_Dialogs() *mtproto.Messages_Dialogs
+	}).To_Messages_Dialogs()
+	channels := 0
+	for _, d := range ds.GetDialogs() {
+		if d.GetPeer().GetPredicateName() == mtproto.Predicate_peerChannel {
+			channels++
+			if d.GetPts().GetValue() < 2 {
+				t.Errorf("a channel dialog with pts %v", d.GetPts())
+			}
+		}
+	}
+	if channels != 2 {
+		t.Errorf("%d channel dialogs, want 2", channels)
 	}
 }

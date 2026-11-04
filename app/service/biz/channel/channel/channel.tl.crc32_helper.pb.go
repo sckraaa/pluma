@@ -12,4 +12,10 @@ const (
 	CRC32_mutableChannel                 TLConstructor = -662027966  // 0xd88a4142
 	CRC32_channel_getMutableChannel      TLConstructor = -437245607  // 0xe5f02959
 	CRC32_channel_getChannelListByIdList TLConstructor = -1986537988 // 0x8997d5fc
+	// pluma: task 038
+	CRC32_channel_createChannel TLConstructor = -641600475 // 0xd9c1f425
+	// pluma: task 038
+	CRC32_channel_getChannelDialogs TLConstructor = -1725659745 // 0x9924859f
+	// pluma: task 038
+	CRC32_channel_getTopMessages TLConstructor = 687937944 // 0x29011998
 )

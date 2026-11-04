@@ -257,6 +257,8 @@ func (b *Box) result() *Result {
 // The reactions to a message of a private chat or a basic group (task 053)
 // are its whole state for the account, so the last one of a message is
 // enough; updateSavedReactionTags means "load the tags again".
+// updateChannel tells the account to load a channel again: its own
+// membership or rights changed (ADR 0034, p. 3).
 // Installed sticker sets (task 030) go with seq too: a set installed moves
 // it to the top, an order is the whole order, and the rest is "load the
 // kind again", so a replay of the journal's tail in order ends in the same
@@ -284,6 +286,7 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateNewAuthorization,
 		mtproto.Predicate_updateSavedGifs,
 		mtproto.Predicate_updateMessageReactions,
+		mtproto.Predicate_updateChannel,
 		mtproto.Predicate_updateSavedReactionTags,
 		mtproto.Predicate_updateNewStickerSet,
 		mtproto.Predicate_updateStickerSets,

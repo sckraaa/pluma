@@ -144,6 +144,8 @@ func seqKey(u *mtproto.Update) string {
 		return "reactions:" + peerKey(u.GetPeer_PEER()) + "/" + strconv.Itoa(int(u.GetMsgId_INT32()))
 	case mtproto.Predicate_updateSavedReactionTags:
 		return "saved_reaction_tags"
+	case mtproto.Predicate_updateChannel:
+		return "channel:" + strconv.FormatInt(u.GetChannelId(), 10)
 	}
 	return ""
 }

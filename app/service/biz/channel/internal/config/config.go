@@ -25,4 +25,12 @@ type Config struct {
 	Mysql sqlx.Config
 	// MediaClient loads the photos of channels.
 	MediaClient zrpc.RpcClientConf
+	// Topics of the events the box transactions of the service write
+	// (ADR 0012, 0034): the updates with seq of a user's own channels.
+	Topics Topics
+}
+
+// Topics are the Kafka topics of the service's events.
+type Topics struct {
+	Sync string // pushes to devices (Sync-T)
 }

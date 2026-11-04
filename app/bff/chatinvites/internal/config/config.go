@@ -29,4 +29,7 @@ type Config struct {
 	ChatClient zrpc.RpcClientConf
 	MsgClient  zrpc.RpcClientConf
 	SyncClient sync_client.OutboxConf
+	// ChannelClient checks the rights of a channel's admins to its links
+	// (task 038).
+	ChannelClient zrpc.RpcClientConf
 }

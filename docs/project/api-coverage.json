@@ -1,20 +1,20 @@
 {
   "layer": "228",
   "total": 869,
-  "ok": 228,
+  "ok": 232,
   "partial": 27,
   "areas": [
     {
       "key": "messages",
       "total": 273,
-      "ok": 104,
-      "partial": 22
+      "ok": 106,
+      "partial": 20
     },
     {
       "key": "channels",
       "total": 74,
-      "ok": 1,
-      "partial": 0
+      "ok": 3,
+      "partial": 2
     },
     {
       "key": "contacts",

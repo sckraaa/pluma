@@ -110,6 +110,10 @@ func Pick(h *mtproto.IDListHelper, selfId int64, updates ...*mtproto.Update) {
 			}
 		case mtproto.Predicate_updateChat:
 			chat(u.GetChatId_INT64())
+		case mtproto.Predicate_updateChannel:
+			if id := u.GetChannelId(); id != 0 {
+				h.AppendChannels(id)
+			}
 		case mtproto.Predicate_updateChatDefaultBannedRights:
 			h.PickByPeer(u.GetPeer_PEER())
 		case mtproto.Predicate_updatePendingJoinRequests:

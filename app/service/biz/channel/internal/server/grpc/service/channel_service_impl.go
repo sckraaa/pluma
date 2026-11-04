@@ -18,6 +18,8 @@ package service
 import (
 	"context"
 
+	"github.com/teamgram/proto/mtproto"
+
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/core"
 )
@@ -43,6 +45,48 @@ func (s *Service) ChannelGetChannelListByIdList(ctx context.Context, request *ch
 	c.Logger.Debugf("channel.getChannelListByIdList - metadata: {%s}", c.MD)
 
 	r, err := c.ChannelGetChannelListByIdList(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelCreateChannel
+// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+func (s *Service) ChannelCreateChannel(ctx context.Context, request *channel.TLChannelCreateChannel) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.createChannel - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelCreateChannel(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetChannelDialogs
+// channel.getChannelDialogs self_id:long id_list:Vector<long> = Vector<Dialog>;
+func (s *Service) ChannelGetChannelDialogs(ctx context.Context, request *channel.TLChannelGetChannelDialogs) (*channel.Vector_Dialog, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getChannelDialogs - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetChannelDialogs(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetTopMessages
+// channel.getTopMessages self_id:long id_list:Vector<long> = Vector<Message>;
+func (s *Service) ChannelGetTopMessages(ctx context.Context, request *channel.TLChannelGetTopMessages) (*channel.Vector_Message, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getTopMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetTopMessages(request)
 	if err != nil {
 		return nil, err
 	}

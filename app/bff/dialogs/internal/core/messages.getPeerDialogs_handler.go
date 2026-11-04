@@ -91,8 +91,6 @@ func (c *DialogsCore) MessagesGetPeerDialogs(in *mtproto.TLMessagesGetPeerDialog
 			case mtproto.PEER_USER:
 			case mtproto.PEER_CHAT:
 			case mtproto.PEER_CHANNEL:
-				c.Logger.Errorf("blocked, License key from https://teamgram.net required to unlock enterprise features.")
-				continue
 			default:
 				err := mtproto.ErrInputConstructorInvalid
 				c.Logger.Errorf("messages.getPeerDialogs - getPeerDialogs error: %v", err)
@@ -187,9 +185,13 @@ func (c *DialogsCore) MessagesGetPeerDialogs(in *mtproto.TLMessagesGetPeerDialog
 	for _, dialogEx := range dialogExtList {
 		peer2 := mtproto.FromPeer(dialogEx.GetDialog().GetPeer())
 		dialogEx.Dialog.NotifySettings = userpb.FindPeerPeerNotifySettings(notifySettingsList, peer2)
-		if peer2.IsChannel() {
-			c.Logger.Errorf("blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		}
+	}
+	// A full dialog for a channel: iOS resets its channels with
+	// getPeerDialogs after getDifference (AccountStateManagementUtils.swift:
+	// 2055-2070), Android loads an unknown one so (task 035, C4).
+	if err = c.fillChannelDialogs(dialogExtList); err != nil {
+		c.Logger.Errorf("messages.getPeerDialogs - error: %v", err)
+		return nil, err
 	}
 
 	messageDialogs := dialogExtList.DoGetMessagesDialogs(
@@ -200,13 +202,15 @@ func (c *DialogsCore) MessagesGetPeerDialogs(in *mtproto.TLMessagesGetPeerDialog
 				msgList   = make([]*mtproto.Message, 0, len(id))
 				msgIdList = make([]int32, 0, len(id))
 			)
+			var channels []int64
 			for _, id2 := range id {
 				if id2.Peer.IsChannel() {
-					c.Logger.Errorf("blocked, License key from https://teamgram.net required to unlock enterprise features.")
+					channels = append(channels, id2.Peer.PeerId)
 				} else {
 					msgIdList = append(msgIdList, id2.TopMessage)
 				}
 			}
+			msgList = append(msgList, c.channelTopMessages(channels)...)
 			if len(msgIdList) > 0 {
 				boxList, _ := c.svcCtx.Dao.MessageClient.MessageGetUserMessageList(c.ctx, &message.TLMessageGetUserMessageList{
 					UserId: c.MD.UserId,
@@ -236,8 +240,7 @@ func (c *DialogsCore) MessagesGetPeerDialogs(in *mtproto.TLMessagesGetPeerDialog
 			return chats.GetChatListByIdList(c.MD.UserId, id...)
 		},
 		func(ctx context.Context, selfUserId int64, id ...int64) []*mtproto.Chat {
-			c.Logger.Errorf("blocked, License key from https://teamgram.net required to unlock enterprise features.")
-			return []*mtproto.Chat{}
+			return c.channelChats(id)
 		})
 
 	return messageDialogs.ToMessagesPeerDialogs(state), nil

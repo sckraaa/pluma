@@ -180,6 +180,7 @@ func (s *Server) Initialize() error {
 				ChatClient:    c.BizServiceClient,
 				MsgClient:     c.MsgClient,
 				SyncClient:    syncClient,
+				ChannelClient: c.BizServiceClient,
 			}))
 
 		// chats_helper
@@ -254,6 +255,7 @@ func (s *Server) Initialize() error {
 				DialogClient:  c.BizServiceClient,
 				SyncClient:    syncClient,
 				MessageClient: c.BizServiceClient,
+				ChannelClient: c.BizServiceClient,
 			}, nil))
 
 		// folders_helper: the folders of chats and their tags.
@@ -311,6 +313,9 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			channels_helper.New(channels_helper.Config{
 				RpcServerConf: c.RpcServerConf,
+				ChannelClient: c.BizServiceClient,
+				UserClient:    c.BizServiceClient,
+				ChatClient:    c.BizServiceClient,
 			}))
 
 		// stories_helper: the stories (none yet, the list answers so).

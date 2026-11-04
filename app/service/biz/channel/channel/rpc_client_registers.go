@@ -7,6 +7,8 @@ package channel
 
 import (
 	"reflect"
+
+	"github.com/teamgram/proto/mtproto"
 )
 
 type newRPCReplyFunc func() interface{}
@@ -19,6 +21,12 @@ type RPCContextTuple struct {
 var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetMutableChannel":      {"/mtproto.RPCChannel/channel_getMutableChannel", func() interface{} { return new(MutableChannel) }},
 	"TLChannelGetChannelListByIdList": {"/mtproto.RPCChannel/channel_getChannelListByIdList", func() interface{} { return new(Vector_MutableChannel) }},
+	// pluma: task 038
+	"TLChannelCreateChannel": {"/mtproto.RPCChannel/channel_createChannel", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 038
+	"TLChannelGetChannelDialogs": {"/mtproto.RPCChannel/channel_getChannelDialogs", func() interface{} { return new(Vector_Dialog) }},
+	// pluma: task 038
+	"TLChannelGetTopMessages": {"/mtproto.RPCChannel/channel_getTopMessages", func() interface{} { return new(Vector_Message) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

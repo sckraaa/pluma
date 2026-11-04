@@ -112,6 +112,7 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 				Mysql:         c.Mysql,
 				MediaClient:   c.MediaClient,
+				Topics:        channel_helper.Topics{Sync: c.Topics.Sync},
 			}))
 
 		// code_helper

@@ -86,12 +86,11 @@ func (c *DialogsCore) MessagesGetDialogs(in *mtproto.TLMessagesGetDialogs) (*mtp
 
 	for _, dialogEx := range dialogExtList {
 		peer2 := mtproto.FromPeer(dialogEx.GetDialog().GetPeer())
-
-		if peer2.IsChannel() {
-			c.Logger.Errorf("messages.getDialogs blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		}
-
 		dialogEx.Dialog.NotifySettings = userpb.FindPeerPeerNotifySettings(notifySettingsList, peer2)
+	}
+	if err := c.fillChannelDialogs(dialogExtList); err != nil {
+		c.Logger.Errorf("messages.getDialogs - error: %v", err)
+		return nil, err
 	}
 
 	sort.Sort(sort.Reverse(dialogExtList))
@@ -110,13 +109,15 @@ func (c *DialogsCore) MessagesGetDialogs(in *mtproto.TLMessagesGetDialogs) (*mtp
 				msgList   = make([]*mtproto.Message, 0, len(id))
 				msgIdList = make([]int32, 0, len(id))
 			)
+			var channels []int64
 			for _, id2 := range id {
 				if !id2.Peer.IsChannel() {
 					msgIdList = append(msgIdList, id2.TopMessage)
 				} else {
-					c.Logger.Errorf("blocked, License key from https://teamgram.net required to unlock enterprise features.")
+					channels = append(channels, id2.Peer.PeerId)
 				}
 			}
+			msgList = append(msgList, c.channelTopMessages(channels)...)
 			if len(msgIdList) > 0 {
 				boxList, _ := c.svcCtx.Dao.MessageClient.MessageGetUserMessageList(c.ctx, &message.TLMessageGetUserMessageList{
 					UserId: c.MD.UserId,
@@ -149,8 +150,7 @@ func (c *DialogsCore) MessagesGetDialogs(in *mtproto.TLMessagesGetDialogs) (*mtp
 			return chats.GetChatListByIdList(c.MD.UserId, id...)
 		},
 		func(ctx context.Context, selfUserId int64, id ...int64) []*mtproto.Chat {
-			c.Logger.Errorf("blocked, License key from https://teamgram.net required to unlock enterprise features.")
-			return []*mtproto.Chat{}
+			return c.channelChats(id)
 		})
 
 	// pluma: a page that holds every dialog is the whole list.

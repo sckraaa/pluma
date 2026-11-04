@@ -53,7 +53,7 @@ func openPool(t *testing.T, maxConns int) *sql.DB {
 	return db
 }
 
-func create(t *testing.T, db *sql.DB, channelId, userId int64) {
+func createIt(t *testing.T, db *sql.DB, channelId, userId int64) {
 	t.Helper()
 	_, err := userbox.Run(context.Background(), db, userId, func(b *userbox.Box) error {
 		_, err := Create(b, NewChannel{Id: channelId, AccessHash: 1, CreatorUserId: userId, Title: "t", Megagroup: true, Date: b.Date()})
@@ -109,7 +109,7 @@ func TestMySQLParallel(t *testing.T) {
 	ctx := context.Background()
 	db := openPool(t, users)
 	channel := itId()
-	create(t, db, channel, itId())
+	createIt(t, db, channel, itId())
 
 	var (
 		wg     sync.WaitGroup
@@ -164,7 +164,7 @@ func TestMySQLRollback(t *testing.T) {
 	ctx := context.Background()
 	db := openPool(t, 4)
 	channel, user := itId(), itId()
-	create(t, db, channel, user)
+	createIt(t, db, channel, user)
 	fail := errors.New("business")
 	_, err := userbox.Run(ctx, db, user, func(b *userbox.Box) error {
 		if err := post(channel, 1)(b); err != nil {
@@ -202,7 +202,7 @@ func TestMySQLKeys(t *testing.T) {
 	ctx := context.Background()
 	db := openPool(t, 4)
 	channel, user := itId(), itId()
-	create(t, db, channel, user)
+	createIt(t, db, channel, user)
 	if _, err := userbox.Run(ctx, db, user, post(channel, 42)); err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func TestMySQLMigrationAgain(t *testing.T) {
 	ctx := context.Background()
 	db := openPool(t, 2)
 	channel, user := itId(), itId()
-	create(t, db, channel, user)
+	createIt(t, db, channel, user)
 	path, err := testinfra.SchemaFile(migration)
 	if err != nil {
 		t.Fatal(err)
@@ -287,7 +287,7 @@ func TestMySQLCommitOutcomeUnknown(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			ctx := context.Background()
 			channel, user := itId(), itId()
-			create(t, db, channel, user) // the user's row exists
+			createIt(t, db, channel, user) // the user's row exists
 			fired := proxy.Fired()
 			proxy.FailNextCommit(c.fault)
 			attempts := 0
@@ -318,5 +318,39 @@ func TestMySQLCommitOutcomeUnknown(t *testing.T) {
 				t.Errorf("messages %v", ids)
 			}
 		})
+	}
+}
+
+// TestMySQLAutoId: a channel created without an id gets the table's next
+// one, from 1000000000 (migrate-20261104-channel-ids.sql), and its box is
+// that channel's.
+func TestMySQLAutoId(t *testing.T) {
+	ctx := context.Background()
+	db := openPool(t, 2)
+	user := itId()
+	var ids []int64
+	for range 2 {
+		res, err := userbox.Run(ctx, db, user, func(b *userbox.Box) error {
+			c, err := Create(b, NewChannel{AccessHash: 1, CreatorUserId: user, Title: "auto", Megagroup: true, Date: b.Date()})
+			if err != nil {
+				return err
+			}
+			c.AddPtsUpdate(newMessage(c.Id(), c.NextMessageId()), 1)
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		r := Results(res)
+		if len(r) != 1 || r[0].ChannelId < 1_000_000_000 || r[0].State.Pts != BasePts+1 {
+			t.Fatalf("results %+v", r)
+		}
+		ids = append(ids, r[0].ChannelId)
+	}
+	if ids[1] <= ids[0] {
+		t.Errorf("ids %v do not grow", ids)
+	}
+	if rep, err := CheckJournal(ctx, db, ids[1], BasePts); err != nil || !rep.OK() || rep.Rows != 1 {
+		t.Errorf("journal of the new channel %+v, %v", rep, err)
 	}
 }

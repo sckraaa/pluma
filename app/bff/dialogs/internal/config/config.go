@@ -31,5 +31,7 @@ type Config struct {
 	UpdatesClient zrpc.RpcClientConf
 	SyncClient    sync_client.OutboxConf
 	MessageClient zrpc.RpcClientConf
-	// ChannelClient zrpc.RpcClientConf
+	// ChannelClient gives the dialogs with channels what their channels
+	// hold (task 038).
+	ChannelClient zrpc.RpcClientConf
 }

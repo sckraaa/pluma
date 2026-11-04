@@ -148,9 +148,17 @@ func Open(b *userbox.Box, channelId int64) (*Channel, error) {
 
 // Create inserts the row of a new channel in b's transaction, which locks
 // it, and returns its box in the base state: the first update gets pts
-// BasePts+1 and the first message id 1. An id in use fails the statement
-// (a duplicate key) and the transaction.
+// BasePts+1 and the first message id 1. Id 0 takes the next id of the table
+// (Channel.Id); an id in use fails the statement (a duplicate key) and the
+// transaction.
 func Create(b *userbox.Box, nc NewChannel) (*Channel, error) {
+	if nc.Id == 0 {
+		// A new id is above every channel locked already: no order to check.
+		if err := b.Err(); err != nil {
+			return nil, err
+		}
+		return create(b, nc)
+	}
 	c, err := attached(b, nc.Id)
 	if err != nil {
 		return nil, err
@@ -160,12 +168,26 @@ func Create(b *userbox.Box, nc NewChannel) (*Channel, error) {
 		b.Fail(err)
 		return nil, err
 	}
-	if _, err = b.Tx().Exec(createQuery, nc.Id, nc.AccessHash, nc.CreatorUserId, nc.Title, nc.About,
+	return create(b, nc)
+}
+
+// create inserts the row of nc and attaches its box to b.
+func create(b *userbox.Box, nc NewChannel) (*Channel, error) {
+	res, err := b.Tx().Exec(createQuery, nc.Id, nc.AccessHash, nc.CreatorUserId, nc.Title, nc.About,
 		nc.Broadcast, nc.Megagroup, nc.Forum, nc.MigratedFromChatId, nc.MigratedFromMaxId,
-		BasePts, nc.Date, b.Date()); err != nil {
+		BasePts, nc.Date, b.Date())
+	if err != nil {
 		return nil, err
 	}
-	c = &Channel{b: b, id: nc.Id, state: State{Pts: BasePts, Date: b.Date()}}
+	id := nc.Id
+	if id == 0 {
+		// The table gave it (AUTO_INCREMENT): above every channel the
+		// transaction may hold, which keeps the lock order.
+		if id, err = res.LastInsertId(); err != nil {
+			return nil, err
+		}
+	}
+	c := &Channel{b: b, id: id, state: State{Pts: BasePts, Date: b.Date()}}
 	c.pts = BasePts
 	b.Attach(c)
 	return c, nil

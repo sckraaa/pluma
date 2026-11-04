@@ -51,6 +51,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1986537988,
 		}
 	},
+	-641600475: func() mtproto.TLObject { // 0xd9c1f425 pluma: task 038
+		return &TLChannelCreateChannel{
+			Constructor: -641600475,
+		}
+	},
+	-1725659745: func() mtproto.TLObject { // 0x9924859f pluma: task 038
+		return &TLChannelGetChannelDialogs{
+			Constructor: -1725659745,
+		}
+	},
+	687937944: func() mtproto.TLObject { // 0x29011998 pluma: task 038
+		return &TLChannelGetTopMessages{
+			Constructor: 687937944,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -671,5 +686,245 @@ func (m *Vector_MutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 }
 
 func (m *Vector_MutableChannel) CalcByteSize(layer int32) int {
+	return 0
+}
+
+// TLChannelCreateChannel (pluma: task 038)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelCreateChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xd9c1f425:
+		x.UInt(0xd9c1f425)
+
+		// no flags
+
+		x.Long(m.GetCreatorId())
+		x.String(m.GetTitle())
+		x.String(m.GetAbout())
+		m.GetBroadcast().Encode(x, layer)
+		m.GetMegagroup().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelCreateChannel) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelCreateChannel) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xd9c1f425:
+
+		// not has flags
+
+		m.CreatorId = dBuf.Long()
+		m.Title = dBuf.String()
+		m.About = dBuf.String()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Broadcast = m3
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Megagroup = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetChannelDialogs (pluma: task 038)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetChannelDialogs) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x9924859f:
+		x.UInt(0x9924859f)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetIdList())))
+		for _, v := range m.GetIdList() {
+			x.Long(v)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetChannelDialogs) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetChannelDialogs) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x9924859f:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		c1 := dBuf.Int()
+		if c1 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 1, c1)
+		}
+		l1 := dBuf.Int()
+		if vectorTooLong(dBuf, l1) {
+			return fmt.Errorf("invalid vector length: %d", l1)
+		}
+		v1 := make([]int64, l1)
+		for i := int32(0); i < l1; i++ {
+			v1[i] = dBuf.Long()
+		}
+		m.IdList = v1
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetTopMessages (pluma: task 038)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetTopMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x29011998:
+		x.UInt(0x29011998)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetIdList())))
+		for _, v := range m.GetIdList() {
+			x.Long(v)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetTopMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetTopMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x29011998:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		c1 := dBuf.Int()
+		if c1 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 1, c1)
+		}
+		l1 := dBuf.Int()
+		if vectorTooLong(dBuf, l1) {
+			return fmt.Errorf("invalid vector length: %d", l1)
+		}
+		v1 := make([]int64, l1)
+		for i := int32(0); i < l1; i++ {
+			v1[i] = dBuf.Long()
+		}
+		m.IdList = v1
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// Vector_Dialog (pluma: task 038)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *Vector_Dialog) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.Datas)))
+	for _, v := range m.Datas {
+		if err := v.Encode(x, layer); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Vector_Dialog) Decode(dBuf *mtproto.DecodeBuf) error {
+	if c := dBuf.Int(); c != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid CRC32_vector: %d", c)
+	}
+	l1 := dBuf.Int()
+	if vectorTooLong(dBuf, l1) {
+		return fmt.Errorf("invalid vector length: %d", l1)
+	}
+	m.Datas = make([]*mtproto.Dialog, l1)
+	for i := int32(0); i < l1; i++ {
+		m.Datas[i] = new(mtproto.Dialog)
+		if err := m.Datas[i].Decode(dBuf); err != nil {
+			return err
+		}
+	}
+
+	return dBuf.GetError()
+}
+
+func (m *Vector_Dialog) CalcByteSize(layer int32) int {
+	return 0
+}
+
+// Vector_Message (pluma: task 038)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *Vector_Message) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.Datas)))
+	for _, v := range m.Datas {
+		if err := v.Encode(x, layer); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Vector_Message) Decode(dBuf *mtproto.DecodeBuf) error {
+	if c := dBuf.Int(); c != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid CRC32_vector: %d", c)
+	}
+	l1 := dBuf.Int()
+	if vectorTooLong(dBuf, l1) {
+		return fmt.Errorf("invalid vector length: %d", l1)
+	}
+	m.Datas = make([]*mtproto.Message, l1)
+	for i := int32(0); i < l1; i++ {
+		m.Datas[i] = new(mtproto.Message)
+		if err := m.Datas[i].Decode(dBuf); err != nil {
+			return err
+		}
+	}
+
+	return dBuf.GetError()
+}
+
+func (m *Vector_Message) CalcByteSize(layer int32) int {
 	return 0
 }

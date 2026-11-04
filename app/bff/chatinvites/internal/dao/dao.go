@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/chatinvites/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 )
@@ -32,6 +33,7 @@ type Dao struct {
 	chat_client.ChatClient
 	msg_client.MsgClient
 	sync_client.SyncClient
+	Channel channel_client.ChannelClient
 }
 
 func New(c config.Config) *Dao {
@@ -40,5 +42,6 @@ func New(c config.Config) *Dao {
 		ChatClient: chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		MsgClient:  msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 		SyncClient: sync_client.MustNewSyncOutboxClient(c.SyncClient),
+		Channel:    channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 	}
 }
