@@ -29,4 +29,6 @@
 - `go run ./tools/apicoverage` перезапущен; обычные проверки: `go build ./...`, `go vet -unreachable=false`, `go test` и `-race` затронутых пакетов, `make lint`, `go test ./tools/...`.
 - В клиентах, со скриншотами: экраны админов, забаненных и прав по умолчанию работают в iOS, Android, Desktop (CachyOS) и Web K; исключённый видит, что доступа нет.
 
+- **Из ревью ветки каналов (2026-11-04):** с появлением банов закрыть для не-админов фильтры `channelParticipantsKicked`/`channelParticipantsBanned` в `channels.getParticipants` и строку `channelParticipantBanned` другого пользователя в `channels.getParticipant` (сейчас они видны любому читателю супергруппы, но пусты: `state = 2` пока никто не пишет). Что именно отдаёт Telegram не-админу — сверить по источнику.
+
 ## Результат
