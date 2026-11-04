@@ -788,7 +788,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### I-102. Выпуск: `ci/release-upload.sh`, `ios.yml`
 
 - После `install-upload.sh` в job `build-ipa`: `POST <PLUMA_RELEASES_URL>/dl/upload` с `platform=ios`, версией `UPSTREAM_VERSION`, номером `BUILD_NUMBER` и заметками `release/notes.*.txt`, без файлов. 409 — уже записано.
-- Проверка `preflight-sign` перенесена в начало `build-ipa`: одно одобрение `release` вместо двух (решение владельца 1). Там же проверяется секрет `RELEASES_UPLOAD_TOKEN`.
+- Проверка `preflight-sign` перенесена в начало `build-ipa`: одно одобрение `release` вместо двух (решение владельца 1). Там же проверяются оба секрета, `RELEASES_UPLOAD_TOKEN` и `IOSINSTALL_UPLOAD_TOKEN`: без второго приложения получили бы предложение сборки, которой нет на странице установки (`69cf6ea`).
 
 ---
 

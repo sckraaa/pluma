@@ -667,7 +667,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ## Обновления (задача 054)
 
-- **Статус.** Локальная ветка `task/054-updates` репозитория `pluma-desktop` (`4ba0ba8`, `9b3a688`, `b8b64ad`, 2026-11-04), не запушена: проверка CI требует `config/update_public.pem` (владелец: `ci/update-key.sh`), коммит с workflow — права `workflow` у токена `gh`. Патч проверен применением на апстриме `a1e89e1f` и тестами (69 тестов патча, 6 упаковщика); сборка на трёх системах и обновление на устройстве не проверены.
+- **Статус.** Локальная ветка `task/054-updates` репозитория `pluma-desktop` (`4ba0ba8`…`1d8168b`, 2026-11-04, с исправлениями ревью), не запушена: проверка CI требует `config/update_public.pem` (владелец: `ci/update-key.sh`), коммит с workflow — права `workflow` у токена `gh`. Патч проверен применением на апстриме `a1e89e1f` и тестами (69 тестов патча, 6 упаковщика); сборка на трёх системах и обновление на устройстве не проверены.
 - **Источники.** tdesktop `a1e89e1f`: `core/update_checker.cpp` (HTTP-проверка 717-721, разбор 606-680 и 804-850, распаковка 327-560, Updater 1795-1875), `_other/packer.cpp` (формат 240-470), `_other/updater_win.cpp` (реестр 278-325), `_other/updater_osx.m:11`; `lib_base` `82d182a2` (`AutoUpdateKey`, `AutoUpdateVersion`).
 
 ### D-074. Апдейтер включён, отчёты о сбоях — нет
@@ -686,16 +686,19 @@ ci/lint.sh                                        # shellcheck и actionlint
 - `updater_win.cpp:283`: ключ удаления `{53F49750-…}_is1` (GUID Telegram) → GUID Pluma; `:310-322` имена и издатель → Pluma, ссылка → сайт; `:494` папка в APPDATA → Pluma. Иначе рядом с установленным Telegram Desktop Updater перезаписал бы его запись.
 - Бинарник в пакете — под именем апстрима (`Telegram.exe`, `Telegram`): Updater сам переименует его в установленный (`updater_win.cpp:207-210`, `updater_linux.cpp:272-276`).
 
-### D-077. `AppVersion` = апстрим + номер сборки
+### D-077. Апдейтер сравнивает `PlumaBuild`, `AppVersion` — апстрима
 
-- `core/version.h:25`: `7000009` → `7000009 + N` (`--build`, в CI `github.run_number`). Апдейтер берёт только версию выше своей (`update_checker.cpp:842-846`, `:491-494`).
-- Защита: патч падает на пороге миграции настроек (`oldVersion < NNN`) выше версии апстрима — его пропустила бы установка Pluma, уже ушедшая дальше. Сейчас порогов три, все ниже (`specific_win.cpp:668,671`, `specific_linux.cpp:832`).
+- `core/version.h`: после `AppVersion` (не меняется) — `constexpr auto PlumaBuild = N;` (`--build`, в CI `github.run_number`).
+- `core/update_checker.cpp`: `AppVersion` → `PlumaBuild` в трёх сравнениях апдейтера — версия пакета (490), версия из `/current4` (844), версия готового обновления (1791).
+- **Почему не сдвиг `AppVersion`** (первый вариант, отклонён ревью): tdesktop помечает локальные данные `AppVersion` и читает поля по порогам `streamAppVersion >= N`, мигрирует настройки по порогам старой версии; версия Pluma выше следующего апстрима заставила бы его неверно читать данные.
+- Выпуск — `7.0.9.NNNNN`, пакет — `t*upd<N>`, `released` в `/current4` — номер сборки.
 
 ### D-078. Пакеты, упаковщик, выпуск
 
 - `ci/package.sh`: Updater рядом с exe (Windows, Linux), проверка `Contents/Frameworks/Updater` (macOS).
 - `ci/pack_update.py`: формат Packer на Python (QDataStream Qt_5_1; xz на macOS/Linux, сырой LZMA с параметрами `LzmaCompress` на Windows; SHA-1; подпись `openssl dgst -sha1 -sign`), с обратным чтением как в `UnpackUpdate` и проверкой подписи. **Не проверено:** сырой LZMA от liblzma (с маркером конца) в `LzmaUncompress` клиента Windows — проверить первым обновлением на Windows.
-- `ci/publish.sh`: установщик + пакет (`tx64upd`, `tmacupd` универсальный, `tlinuxupd`) → `POST /dl/upload`; job `release` (бывший `sign-macos`, одно одобрение) публикует все три, `staple-macos` — macOS после нотаризации.
+- `ci/publish.sh`: установщик + пакет (`tx64upd`, `tmacupd` универсальный, `tlinuxupd`) → `POST /dl/upload`; job `release` (бывший `sign-macos`, одно одобрение) идёт, если собралась хотя бы одна система, и публикует каждую собравшуюся; `staple-macos` публикует macOS после нотаризации с коммита своего запуска.
+- Сборки передают `-D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF` (по умолчанию опция ON без особой цели, `cmake/variables.cmake:14-39`); MTP-проверка заменена пустой (`startImplementation(&_mtpImplementation, nullptr)`), чтобы ошибка HTTP-проверки обрабатывалась как в апстриме; dev-сборка — с ключом `config/dev/update_public.pem`, закрытой половины которого нет.
 - `ci/update-key.sh`: ключ один раз сразу в `~/pluma-secrets/desktop` и секрет `PLUMA_UPDATE_KEY`, публичный — в `config/update_public.pem`; ничего не печатает.
 
 ---

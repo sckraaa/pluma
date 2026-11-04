@@ -703,15 +703,16 @@
 - **Где.** `UpdateAppAlertDialog.java` (SHA-256 `4545e52e…`) и `UpdateLayout.java` (`e1050c8c…`) копируются из `TMessagesProj_AppStandalone/src/main/java/org/telegram/ui/Components/` в тот же путь `TMessagesProj_App`; изменённый апстримом файл — ошибка. Строки и ресурсы — библиотеки (`org.telegram.messenger.R`).
 - `TMessagesProj_App/build.gradle`: `implementation 'androidx.core:core:1.16.0'` (`FileProvider`, `NestedScrollView`): библиотека держит его как `implementation`, модуль standalone тоже объявляет его сам; версия сверяется с библиотекой.
 
-### A-097. Версия `12.9.1.N`
+### A-097. Версия `12.9.1.NNNNN`
 
-- **Где.** `gradle.properties`: `APP_VERSION_NAME=12.9.1` → `12.9.1.N`; `TMessagesProj_App/build.gradle:157`: `versionCode = APP_VERSION_CODE * 1000 + N` (итог `(6979000 + N) * 10 + 9`).
+- **Где.** `TMessagesProj_App/build.gradle:176`: `versionName APP_VERSION_NAME + ".NNNNN"` (5 цифр с нулями); `:157`: `versionCode = APP_VERSION_CODE * 1000 + N` (итог `(6979000 + N) * 10 + 9`). `gradle.properties` не меняется: `BUILD_VERSION_STRING` библиотеки остаётся `12.9.1`, её компиляция не выпадает из кэша Gradle; приложение сообщает и сравнивает версию пакета (`ConnectionsManager.java:223`, `SharedConfig.java:567`, `:791`).
+- **Почему 5 цифр.** После перезапуска клиент сохраняет предложение, только пока своя `versionName` меньше как строка (`SharedConfig.java:576`): `12.9.1.99` против `12.9.1.100` сбросило бы его.
 - **N** — `--build` у `ci/patch.py` (`PLUMA_BUILD` в `configure.sh`, в CI `github.run_number`; 0 для локальной сборки).
 - **Зачем.** Android сравнивает версии по общим частям (`SharedConfig.java:811-824`): без четвёртой части сборки одного апстрима неразличимы. Установки `12.9.1` (три части) обновления не увидят — один раз поставить с сайта.
 
 ### A-098. Выпуск на сайт (`ci/publish.sh`, `android.yml`)
 
-- После подписи в job `sign` ветки `main`: `ci/publish.sh signed/<apk> $GITHUB_RUN_NUMBER` → `POST <PLUMA_RELEASES_URL>/dl/upload` (токен — секрет `RELEASES_UPLOAD_TOKEN` окружения `release`, заголовок через файл), версия `12.9.1.N`, заметки `release/notes.en.txt`, `release/notes.ru.txt`. 409 (сборка уже выложена) — не ошибка. Нет токена или адреса — job падает.
+- После подписи в job `sign` ветки `main`: `ci/publish.sh signed/<apk> $GITHUB_RUN_NUMBER` → `POST <PLUMA_RELEASES_URL>/dl/upload` (токен — секрет `RELEASES_UPLOAD_TOKEN` окружения `release`, заголовок через файл), версия `12.9.1.NNNNN`, заметки `release/notes.en.txt`, `release/notes.ru.txt`. 409 (сборка уже выложена) — не ошибка. Нет токена или адреса — job падает. Сборка с входом `abis` не публикуется (только подписывается); недельный canary в своей группе concurrency и не вытесняет ожидающий push.
 
 ---
 
