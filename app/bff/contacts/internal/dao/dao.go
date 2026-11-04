@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/contacts/internal/config"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 )
@@ -30,6 +31,8 @@ type Dao struct {
 	user_client.UserClient
 	chat_client.ChatClient
 	sync_client.SyncClient
+	// Channel loads the public channels contacts.search finds (task 055).
+	Channel channel_client.ChannelClient
 }
 
 func New(c config.Config) *Dao {
@@ -37,5 +40,6 @@ func New(c config.Config) *Dao {
 		UserClient: user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		ChatClient: chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		SyncClient: sync_client.MustNewSyncOutboxClient(c.SyncClient),
+		Channel:    channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 	}
 }

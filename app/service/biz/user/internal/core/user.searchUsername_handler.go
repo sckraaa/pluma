@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -40,28 +39,26 @@ func (c *UserCore) UserSearchUsername(in *user.TLUserSearchUsername) (*user.Vect
 		in.Limit = 50
 	}
 
-	// 构造模糊查询字符串
-	q2 := in.Q + "%"
-	doList, _ := c.svcCtx.Dao.UsernameDAO.SearchByQueryNotIdListWithCB(
-		c.ctx,
-		q2,
-		in.ExcludedContacts,
-		in.Limit,
-		func(sz, i int, v *dataobject.UsernameDO) {
-			switch v.PeerType {
-			case mtproto.PEER_USER:
-				rValList.Datas = append(rValList.Datas, user.MakeTLUsernameData(&user.UsernameData{
-					Username: v.Username,
-					Peer:     mtproto.MakePeerUser(v.PeerId),
-				}).To_UsernameData())
-			case mtproto.PEER_CHANNEL:
-				rValList.Datas = append(rValList.Datas, user.MakeTLUsernameData(&user.UsernameData{
-					Username: v.Username,
-					Peer:     mtproto.MakePeerChannel(v.PeerId),
-				}).To_UsernameData())
-			}
-		})
+	matches, err := c.svcCtx.Dao.SearchUsernames(c.ctx, in.Q, in.ExcludedContacts, in.Limit)
+	if err != nil {
+		c.Logger.Errorf("user.searchUsername - error: %v", err)
+		return nil, err
+	}
+	for _, m := range matches {
+		var peer *mtproto.Peer
+		switch m.PeerType {
+		case mtproto.PEER_USER:
+			peer = mtproto.MakePeerUser(m.PeerId)
+		case mtproto.PEER_CHANNEL:
+			peer = mtproto.MakePeerChannel(m.PeerId)
+		default:
+			continue
+		}
+		rValList.Datas = append(rValList.Datas, user.MakeTLUsernameData(&user.UsernameData{
+			Username: m.Username,
+			Peer:     peer,
+		}).To_UsernameData())
+	}
 
-	c.Logger.Debugf("username.search - %d found", len(doList))
 	return rValList, nil
 }

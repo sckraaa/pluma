@@ -28,6 +28,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/contacts/internal/svc"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
@@ -44,19 +46,21 @@ const me = int64(1)
 // call them.
 type fakeUsers struct {
 	user_client.UserClient
-	users      map[int64]*mtproto.ImmutableUser
-	contacts   []int64
-	blocked    []int64
-	imported   *userpb.UserImportedContacts
-	topPeers   *mtproto.Contacts_TopPeers
-	saved      []*mtproto.SavedContact
-	usernames  map[string]int64
-	phones     map[string]int64
-	signUpOn   bool
-	added      []*userpb.TLUserAddContact
-	mutual     bool
-	deleted    []*userpb.TLUserDeleteContact
-	blockCalls []string
+	users     map[int64]*mtproto.ImmutableUser
+	contacts  []int64
+	blocked   []int64
+	imported  *userpb.UserImportedContacts
+	topPeers  *mtproto.Contacts_TopPeers
+	saved     []*mtproto.SavedContact
+	usernames map[string]int64
+	// channelNames: the public channels by username.
+	channelNames map[string]int64
+	phones       map[string]int64
+	signUpOn     bool
+	added        []*userpb.TLUserAddContact
+	mutual       bool
+	deleted      []*userpb.TLUserDeleteContact
+	blockCalls   []string
 }
 
 func (f *fakeUsers) UserGetMutableUsers(_ context.Context, in *userpb.TLUserGetMutableUsers) (*userpb.Vector_ImmutableUser, error) {
@@ -138,6 +142,28 @@ func (f *fakeUsers) UserSearchUsername(_ context.Context, in *userpb.TLUserSearc
 			out.Datas = append(out.Datas, userpb.MakeTLUsernameData(&userpb.UsernameData{Username: name, Peer: mtproto.MakePeerUser(id)}).To_UsernameData())
 		}
 	}
+	// Channels: the excluded contacts are users, a channel of the same id
+	// is still found.
+	for name, id := range f.channelNames {
+		if len(name) >= len(in.Q) && name[:len(in.Q)] == in.Q {
+			out.Datas = append(out.Datas, userpb.MakeTLUsernameData(&userpb.UsernameData{Username: name, Peer: mtproto.MakePeerChannel(id)}).To_UsernameData())
+		}
+	}
+	return out, nil
+}
+
+type fakeChannels struct {
+	channel_client.ChannelClient
+	channels map[int64]*channelpb.MutableChannel
+}
+
+func (f *fakeChannels) ChannelGetChannelListByIdList(_ context.Context, in *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error) {
+	out := &channelpb.Vector_MutableChannel{}
+	for _, id := range in.IdList {
+		if c, ok := f.channels[id]; ok {
+			out.Datas = append(out.Datas, c)
+		}
+	}
 	return out, nil
 }
 
@@ -180,6 +206,10 @@ func itoa(id int64) string {
 }
 
 func newCore(users *fakeUsers, push *fakeSync, chats *fakeChats, md *metadata.RpcMetadata) *ContactsCore {
+	return newCoreWithChannels(users, push, chats, nil, md)
+}
+
+func newCoreWithChannels(users *fakeUsers, push *fakeSync, chats *fakeChats, channels *fakeChannels, md *metadata.RpcMetadata) *ContactsCore {
 	ctx := context.Background()
 	if md == nil {
 		md = &metadata.RpcMetadata{UserId: me, PermAuthKeyId: 77}
@@ -190,6 +220,7 @@ func newCore(users *fakeUsers, push *fakeSync, chats *fakeChats, md *metadata.Rp
 			UserClient: users,
 			SyncClient: push,
 			ChatClient: chats,
+			Channel:    channels,
 		}},
 		Logger: logx.WithContext(ctx),
 		MD:     md,
@@ -503,6 +534,69 @@ func TestSearch(t *testing.T) {
 	_, err := c.ContactsSearch(&mtproto.TLContactsSearch{Q: " @ "})
 	if _, msg := rpcError(err); msg != "SEARCH_QUERY_EMPTY" {
 		t.Errorf("empty query: %v", err)
+	}
+}
+
+// TestSearchChannels: public channels are found by their username (task
+// 055): one the searcher is in in my_results, another in results, each with
+// its chat; a deleted one, one made private since, and with broadcasts a
+// megagroup, are not; bots finds no channel. A channel with the id of a
+// contact is still found: the excluded ids are users.
+func TestSearchChannels(t *testing.T) {
+	self := immutableUser(me, "Me", "", "", "", nil)
+	contact := immutableUser(40, "Cat", "", "", "", nil)
+	self.Contacts = []*mtproto.ContactData{contactData(me, 40, "Cat", "")}
+	users := &fakeUsers{
+		users:        map[int64]*mtproto.ImmutableUser{me: self, 40: contact},
+		contacts:     []int64{40},
+		usernames:    map[string]int64{},
+		channelNames: map[string]int64{"newsroom": 40, "newsgroup": 41, "newsold": 42, "newsgone": 43, "newsmine": 44},
+	}
+	ch := func(id int64, username string, broadcast, deleted bool, members ...int64) *channelpb.MutableChannel {
+		mc := &channelpb.MutableChannel{Channel: &channelpb.ImmutableChannel{
+			Id: id, AccessHash: id * 3, Title: "T" + itoa(id), Username: username, Broadcast: broadcast, Megagroup: !broadcast, Deleted: deleted,
+		}}
+		for _, m := range members {
+			mc.Participants = append(mc.Participants, &channelpb.ImmutableChannelParticipant{ChannelId: id, UserId: m, State: channelpb.StateIn})
+		}
+		return mc
+	}
+	channels := &fakeChannels{channels: map[int64]*channelpb.MutableChannel{
+		40: ch(40, "newsroom", true, false),
+		41: ch(41, "newsgroup", false, false),
+		42: ch(42, "", true, false), // made private since
+		43: ch(43, "newsgone", true, true),
+		44: ch(44, "newsmine", true, false, me),
+	}}
+	c := newCoreWithChannels(users, nil, nil, channels, nil)
+	search := func(in *mtproto.TLContactsSearch) (mine, others, chats []int64) {
+		t.Helper()
+		r, err := c.ContactsSearch(in)
+		if err != nil {
+			t.Fatalf("%q: %v", in.Q, err)
+		}
+		for _, p := range r.GetMyResults() {
+			mine = append(mine, p.GetChannelId())
+		}
+		for _, p := range r.GetResults() {
+			others = append(others, p.GetChannelId())
+		}
+		for _, ch := range r.GetChats() {
+			chats = append(chats, ch.GetId())
+		}
+		slices.Sort(others)
+		slices.Sort(chats)
+		return
+	}
+	mine, others, chats := search(&mtproto.TLContactsSearch{Q: "news", Limit: 20})
+	if !reflect.DeepEqual(mine, []int64{44}) || !reflect.DeepEqual(others, []int64{40, 41}) || !reflect.DeepEqual(chats, []int64{40, 41, 44}) {
+		t.Errorf("news: my_results %v, results %v, chats %v", mine, others, chats)
+	}
+	if mine, others, _ = search(&mtproto.TLContactsSearch{Q: "news", Limit: 20, Broadcasts: true}); !reflect.DeepEqual(mine, []int64{44}) || !reflect.DeepEqual(others, []int64{40}) {
+		t.Errorf("broadcasts: my_results %v, results %v", mine, others)
+	}
+	if mine, others, chats = search(&mtproto.TLContactsSearch{Q: "news", Limit: 20, Bots: true}); len(mine)+len(others)+len(chats) != 0 {
+		t.Errorf("bots: my_results %v, results %v, chats %v", mine, others, chats)
 	}
 }
 

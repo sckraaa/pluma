@@ -28,4 +28,6 @@ type Config struct {
 	UserClient zrpc.RpcClientConf
 	ChatClient zrpc.RpcClientConf
 	SyncClient sync_client.OutboxConf
+	// ChannelClient: the public channels of contacts.search.
+	ChannelClient zrpc.RpcClientConf
 }
