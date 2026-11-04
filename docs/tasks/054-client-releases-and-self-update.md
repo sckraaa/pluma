@@ -56,7 +56,11 @@
 - Сборки Android со старой схемой версии `12.9.1` (3 части) обновления не увидят: правило клиента сравнивает лишь общие части. Их надо один раз поставить с сайта заново.
 
 ## В процессе (2026-11-04)
-- Сервер готов в рабочем дереве: `pkg/appreleases`, `app/service/releases` (+ интеграционный тест), миграция `app_releases`, `help.getAppUpdate`, `autoupdate_url_prefix` в `help.getConfig`, `pluma-admin release`, Caddy `/dl/*`, `docker-compose.releases.yaml`, `teamgramd/deploy/releases/put-token.sh`, ADR 0035, `docs/ops/releases.md`.
-- Дальше: ветка и CI, выкатка (токен, `PLUMA_RELEASES_URL`, скрипт выкатки), эндпоинт `current` Desktop после чтения `lib_base`, патчи Android/iOS/Desktop, сайт.
+- **Сервер** — ветка `task/054-releases`: `pkg/appreleases`, `app/service/releases` (+ интеграционный тест), миграция `app_releases`, `help.getAppUpdate` (+ интеграционный тест), `autoupdate_url_prefix`, `/dl/desktop/current4` для апдейтера tdesktop (ключи систем из `lib_base` `82d182a2`), `pluma-admin release`, Caddy `/dl/*`, `docker-compose.releases.yaml`, `put-token.sh`, ADR 0035, `docs/ops/releases.md`. Каждый коммит собирается и проходит свои тесты отдельно. CI ждёт GitHub (сбой Actions).
+- **Найдено при реализации:** iOS шлёт `app_version` = `"<версия> (<сборка>) "` из MtProtoKit (`MTApiEnvironment.m:384-394`), а не только версию, как писало исследование §2.1: номер сборки патчить не нужно, только признак `adhoc`. Сервер обрезает пробел.
+- **Android** — PR sckraaa/pluma-android#2 (`e314edb`): `isSelfUpdatingBuild()` в 9 местах обновления вместо `isStandalone=true` (тот включил бы строку TON и прочее), лист и плашка из модуля standalone, `androidx.core` в модуле приложения, `12.9.1.N` и `versionCode = (6979·1000+N)·10+9`. Локально `0f3ff30`: `ci/publish.sh` и шаг в `sign`.
+- **iOS** — ветка `task/054-app-update` (`13f0ac4`): `AppUpdateInfo.url`, экран открывает его, `adhoc` по `ProvisionedDevices`. Локально `1ca1c32`: `ci/release-upload.sh`, preflight внутри `build-ipa` (одно одобрение).
+- **Блокеры:** коммиты с `.github/workflows` не пушатся — у токена `gh` нет права `workflow` (владелец: `gh auth refresh -h github.com -s workflow`). Токен загрузки и `PLUMA_RELEASES_URL` в `.env` сервера ставит владелец (`teamgramd/deploy/releases/put-token.sh neo_old`); скрипт выкатки запускает `releases` только когда они есть.
+- **Дальше:** выкатка сервера, Desktop (апдейтер, свои ключи, схема `AppVersion`, Packer в CI), сайт (`/dl/releases.json`).
 
 ## Результат
