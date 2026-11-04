@@ -86,6 +86,26 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 2140231388,
 		}
 	},
+	634004096: func() mtproto.TLObject { // 0x25ca2280 pluma: task 041
+		return &TLChannelJoinChannel{
+			Constructor: 634004096,
+		}
+	},
+	1331881771: func() mtproto.TLObject { // 0x4f62e72b pluma: task 041
+		return &TLChannelLeaveChannel{
+			Constructor: 1331881771,
+		}
+	},
+	-1311035397: func() mtproto.TLObject { // 0xb1db2ffb pluma: task 041
+		return &TLChannelCheckChatInvite{
+			Constructor: -1311035397,
+		}
+	},
+	-212979149: func() mtproto.TLObject { // 0xf34e3233 pluma: task 041
+		return &TLChannelGetParticipants{
+			Constructor: -212979149,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1166,6 +1186,180 @@ func (m *TLChannelGetChannelDifference) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.SelfId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		m.Pts = dBuf.Int()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelJoinChannel (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelJoinChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x25ca2280:
+		x.UInt(0x25ca2280)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetLink())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelJoinChannel) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelJoinChannel) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x25ca2280:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Link = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelLeaveChannel (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelLeaveChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x4f62e72b:
+		x.UInt(0x4f62e72b)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelLeaveChannel) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelLeaveChannel) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x4f62e72b:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelCheckChatInvite (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelCheckChatInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xb1db2ffb:
+		x.UInt(0xb1db2ffb)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.String(m.GetLink())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelCheckChatInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelCheckChatInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xb1db2ffb:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.Link = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetParticipants (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetParticipants) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xf34e3233:
+		x.UInt(0xf34e3233)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetFilter())
+		x.String(m.GetQ())
+		x.Int(m.GetOffset())
+		x.Int(m.GetLimit())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetParticipants) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetParticipants) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xf34e3233:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Filter = dBuf.String()
+		m.Q = dBuf.String()
+		m.Offset = dBuf.Int()
 		m.Limit = dBuf.Int()
 		return dBuf.GetError()
 

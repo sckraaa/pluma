@@ -35,6 +35,14 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetMessages": {"/mtproto.RPCChannel/channel_getMessages", func() interface{} { return new(Vector_Message) }},
 	// pluma: task 040
 	"TLChannelGetChannelDifference": {"/mtproto.RPCChannel/channel_getChannelDifference", func() interface{} { return new(mtproto.Updates_ChannelDifference) }},
+	// pluma: task 041
+	"TLChannelJoinChannel": {"/mtproto.RPCChannel/channel_joinChannel", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 041
+	"TLChannelLeaveChannel": {"/mtproto.RPCChannel/channel_leaveChannel", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 041
+	"TLChannelCheckChatInvite": {"/mtproto.RPCChannel/channel_checkChatInvite", func() interface{} { return new(mtproto.ChatInvite) }},
+	// pluma: task 041
+	"TLChannelGetParticipants": {"/mtproto.RPCChannel/channel_getParticipants", func() interface{} { return new(mtproto.Channels_ChannelParticipants) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

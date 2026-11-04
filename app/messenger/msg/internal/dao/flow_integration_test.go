@@ -263,6 +263,22 @@ func (noChannels) ChannelGetChannelDifference(context.Context, *channelpb.TLChan
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelJoinChannel(context.Context, *channelpb.TLChannelJoinChannel) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelLeaveChannel(context.Context, *channelpb.TLChannelLeaveChannel) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelCheckChatInvite(context.Context, *channelpb.TLChannelCheckChatInvite) (*mtproto.ChatInvite, error) {
+	return nil, mtproto.ErrInviteHashInvalid
+}
+
+func (noChannels) ChannelGetParticipants(context.Context, *channelpb.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]

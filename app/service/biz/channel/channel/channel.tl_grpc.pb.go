@@ -45,6 +45,10 @@ const (
 	RPCChannel_ChannelGetHistory_FullMethodName             = "/channel.RPCChannel/channel_getHistory"
 	RPCChannel_ChannelGetMessages_FullMethodName            = "/channel.RPCChannel/channel_getMessages"
 	RPCChannel_ChannelGetChannelDifference_FullMethodName   = "/channel.RPCChannel/channel_getChannelDifference"
+	RPCChannel_ChannelJoinChannel_FullMethodName            = "/channel.RPCChannel/channel_joinChannel"
+	RPCChannel_ChannelLeaveChannel_FullMethodName           = "/channel.RPCChannel/channel_leaveChannel"
+	RPCChannel_ChannelCheckChatInvite_FullMethodName        = "/channel.RPCChannel/channel_checkChatInvite"
+	RPCChannel_ChannelGetParticipants_FullMethodName        = "/channel.RPCChannel/channel_getParticipants"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -67,6 +71,14 @@ type RPCChannelClient interface {
 	ChannelGetMessages(ctx context.Context, in *TLChannelGetMessages, opts ...grpc.CallOption) (*Vector_Message, error)
 	// pluma: task 040
 	ChannelGetChannelDifference(ctx context.Context, in *TLChannelGetChannelDifference, opts ...grpc.CallOption) (*mtproto.Updates_ChannelDifference, error)
+	// pluma: task 041
+	ChannelJoinChannel(ctx context.Context, in *TLChannelJoinChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelLeaveChannel(ctx context.Context, in *TLChannelLeaveChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelCheckChatInvite(ctx context.Context, in *TLChannelCheckChatInvite, opts ...grpc.CallOption) (*mtproto.ChatInvite, error)
+	// pluma: task 041
+	ChannelGetParticipants(ctx context.Context, in *TLChannelGetParticipants, opts ...grpc.CallOption) (*mtproto.Channels_ChannelParticipants, error)
 }
 
 type rPCChannelClient struct {
@@ -167,6 +179,46 @@ func (c *rPCChannelClient) ChannelGetChannelDifference(ctx context.Context, in *
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelJoinChannel(ctx context.Context, in *TLChannelJoinChannel, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelJoinChannel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelLeaveChannel(ctx context.Context, in *TLChannelLeaveChannel, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelLeaveChannel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelCheckChatInvite(ctx context.Context, in *TLChannelCheckChatInvite, opts ...grpc.CallOption) (*mtproto.ChatInvite, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.ChatInvite)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelCheckChatInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetParticipants(ctx context.Context, in *TLChannelGetParticipants, opts ...grpc.CallOption) (*mtproto.Channels_ChannelParticipants, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Channels_ChannelParticipants)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetParticipants_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -187,6 +239,14 @@ type RPCChannelServer interface {
 	ChannelGetMessages(context.Context, *TLChannelGetMessages) (*Vector_Message, error)
 	// pluma: task 040
 	ChannelGetChannelDifference(context.Context, *TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error)
+	// pluma: task 041
+	ChannelJoinChannel(context.Context, *TLChannelJoinChannel) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelLeaveChannel(context.Context, *TLChannelLeaveChannel) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelCheckChatInvite(context.Context, *TLChannelCheckChatInvite) (*mtproto.ChatInvite, error)
+	// pluma: task 041
+	ChannelGetParticipants(context.Context, *TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -222,6 +282,18 @@ func (UnimplementedRPCChannelServer) ChannelGetMessages(context.Context, *TLChan
 }
 func (UnimplementedRPCChannelServer) ChannelGetChannelDifference(context.Context, *TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetChannelDifference not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelJoinChannel(context.Context, *TLChannelJoinChannel) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelJoinChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelLeaveChannel(context.Context, *TLChannelLeaveChannel) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelLeaveChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelCheckChatInvite(context.Context, *TLChannelCheckChatInvite) (*mtproto.ChatInvite, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelCheckChatInvite not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetParticipants(context.Context, *TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetParticipants not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -405,6 +477,78 @@ func _RPCChannel_ChannelGetChannelDifference_Handler(srv interface{}, ctx contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelJoinChannel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelJoinChannel)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelJoinChannel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelJoinChannel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelJoinChannel(ctx, req.(*TLChannelJoinChannel))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelLeaveChannel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelLeaveChannel)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelLeaveChannel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelLeaveChannel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelLeaveChannel(ctx, req.(*TLChannelLeaveChannel))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelCheckChatInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelCheckChatInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelCheckChatInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelCheckChatInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelCheckChatInvite(ctx, req.(*TLChannelCheckChatInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetParticipants_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetParticipants)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetParticipants(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetParticipants_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetParticipants(ctx, req.(*TLChannelGetParticipants))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -447,6 +591,22 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_getChannelDifference",
 			Handler:    _RPCChannel_ChannelGetChannelDifference_Handler,
+		},
+		{
+			MethodName: "channel_joinChannel",
+			Handler:    _RPCChannel_ChannelJoinChannel_Handler,
+		},
+		{
+			MethodName: "channel_leaveChannel",
+			Handler:    _RPCChannel_ChannelLeaveChannel_Handler,
+		},
+		{
+			MethodName: "channel_checkChatInvite",
+			Handler:    _RPCChannel_ChannelCheckChatInvite_Handler,
+		},
+		{
+			MethodName: "channel_getParticipants",
+			Handler:    _RPCChannel_ChannelGetParticipants_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

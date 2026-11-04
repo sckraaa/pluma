@@ -149,3 +149,59 @@ func (s *Service) ChannelGetChannelDifference(ctx context.Context, request *chan
 
 	return r, err
 }
+
+// ChannelJoinChannel
+// channel.joinChannel self_id:long perm_auth_key_id:long channel_id:long link:string = Updates;
+func (s *Service) ChannelJoinChannel(ctx context.Context, request *channel.TLChannelJoinChannel) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.joinChannel - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelJoinChannel(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelLeaveChannel
+// channel.leaveChannel self_id:long perm_auth_key_id:long channel_id:long = Updates;
+func (s *Service) ChannelLeaveChannel(ctx context.Context, request *channel.TLChannelLeaveChannel) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.leaveChannel - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelLeaveChannel(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelCheckChatInvite
+// channel.checkChatInvite self_id:long link:string = ChatInvite;
+func (s *Service) ChannelCheckChatInvite(ctx context.Context, request *channel.TLChannelCheckChatInvite) (*mtproto.ChatInvite, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.checkChatInvite - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelCheckChatInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetParticipants
+// channel.getParticipants self_id:long channel_id:long filter:string q:string offset:int limit:int = channels.ChannelParticipants;
+func (s *Service) ChannelGetParticipants(ctx context.Context, request *channel.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getParticipants - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetParticipants(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

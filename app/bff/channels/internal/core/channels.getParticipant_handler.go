@@ -26,56 +26,63 @@ import (
 // ChannelsGetParticipant
 // channels.getParticipant#a0ab6cc6 channel:InputChannel participant:InputPeer = channels.ChannelParticipant;
 //
-// The account's own participation (task 038), which iOS asks for with the
-// full channel (UpdateCachedPeerData.swift:657-680); other members are task
-// 041. A user who is not in the channel is USER_NOT_PARTICIPANT.
+// One member's row (tasks 038, 041): iOS asks for its own with the full
+// channel (UpdateCachedPeerData.swift:657-680) and after joining
+// (JoinChannel.swift:70-81). Anyone who may read a supergroup may ask
+// about any member; in a channel only its admins ask about others
+// (CHAT_ADMIN_REQUIRED). One not in the channel (never joined or left) is
+// USER_NOT_PARTICIPANT; a banned one is channelParticipantBanned.
 func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipant) (*mtproto.Channels_ChannelParticipant, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Participant)
 	if peer.PeerType == mtproto.PEER_SELF {
 		peer = mtproto.MakePeerUtil(mtproto.PEER_USER, c.MD.UserId)
 	}
-	if peer.PeerType != mtproto.PEER_USER || peer.PeerId != c.MD.UserId {
-		return nil, mtproto.ErrEnterpriseIsBlocked
+	if peer.PeerType != mtproto.PEER_USER {
+		return nil, mtproto.ErrPeerIdInvalid
 	}
 	mc, err := c.mutableChannel(in.Channel)
 	if err != nil {
 		return nil, err
 	}
-	me, ok := mc.GetParticipant(c.MD.UserId)
-	if !ok || !me.Member() {
+	target := peer.PeerId
+	if target != c.MD.UserId {
+		if err = readable(mc, c.MD.UserId); err != nil {
+			return nil, err
+		}
+		me, _ := mc.GetParticipant(c.MD.UserId)
+		if mc.GetChannel().GetBroadcast() && (!me.Member() || me.GetRole() == channelpb.RoleMember) {
+			return nil, mtproto.ErrChatAdminRequired
+		}
+		if mc, err = c.svcCtx.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{
+			ChannelId: mc.GetChannel().GetId(),
+			Id:        []int64{c.MD.UserId, target},
+		}); err != nil {
+			return nil, err
+		}
+	}
+	row, ok := mc.GetParticipant(target)
+	if !ok || row.GetState() == channelpb.StateLeft || (target == c.MD.UserId && !row.Member()) {
 		return nil, mtproto.ErrUserNotParticipant
 	}
-	var p *mtproto.ChannelParticipant
-	switch me.GetRole() {
-	case channelpb.RoleCreator:
-		p = mtproto.MakeTLChannelParticipantCreator(&mtproto.ChannelParticipant{
-			UserId:      c.MD.UserId,
-			AdminRights: mtproto.AdminRights(me.GetAdminRights()).ToChatAdminRights(),
-			Rank:        mtproto.MakeFlagsString(me.GetRank()),
-		}).To_ChannelParticipant()
-	case channelpb.RoleAdmin:
-		p = mtproto.MakeTLChannelParticipantAdmin(&mtproto.ChannelParticipant{
-			Self:        true,
-			UserId:      c.MD.UserId,
-			PromotedBy:  me.GetPromotedBy(),
-			Date:        int32(me.GetDate()),
-			AdminRights: mtproto.AdminRights(me.GetAdminRights()).ToChatAdminRights(),
-			Rank:        mtproto.MakeFlagsString(me.GetRank()),
-		}).To_ChannelParticipant()
-	default:
-		p = mtproto.MakeTLChannelParticipantSelf(&mtproto.ChannelParticipant{
-			UserId:          c.MD.UserId,
-			InviterId_INT64: me.GetInviterUserId(),
-			Date:            int32(me.GetDate()),
-		}).To_ChannelParticipant()
+	p := row.ToChannelParticipant(c.MD.UserId)
+	h := mtproto.NewIDListHelper(c.MD.UserId)
+	for _, id := range []int64{c.MD.UserId, target, row.GetInviterUserId(), row.GetPromotedBy(), row.GetKickedBy()} {
+		if id != 0 {
+			h.AppendUsers(id)
+		}
 	}
-	users, err := c.svcCtx.User.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: []int64{c.MD.UserId}, To: []int64{c.MD.UserId}})
+	users, err := c.svcCtx.User.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
+		Id:      h.UserIdList,
+		Privacy: true,
+		HasTo:   true,
+		To:      []int64{c.MD.UserId},
+	})
 	if err != nil {
 		return nil, err
 	}
 	return mtproto.MakeTLChannelsChannelParticipant(&mtproto.Channels_ChannelParticipant{
 		Participant: p,
 		Chats:       []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))},
-		Users:       users.GetUserListByIdList(c.MD.UserId, c.MD.UserId),
+		Users:       users.GetUserListByIdList(c.MD.UserId, h.UserIdList...),
 	}).To_Channels_ChannelParticipant(), nil
 }

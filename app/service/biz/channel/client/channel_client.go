@@ -35,6 +35,10 @@ type ChannelClient interface {
 	ChannelGetHistory(ctx context.Context, in *channel.TLChannelGetHistory) (*mtproto.Messages_Messages, error)
 	ChannelGetMessages(ctx context.Context, in *channel.TLChannelGetMessages) (*channel.Vector_Message, error)
 	ChannelGetChannelDifference(ctx context.Context, in *channel.TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error)
+	ChannelJoinChannel(ctx context.Context, in *channel.TLChannelJoinChannel) (*mtproto.Updates, error)
+	ChannelLeaveChannel(ctx context.Context, in *channel.TLChannelLeaveChannel) (*mtproto.Updates, error)
+	ChannelCheckChatInvite(ctx context.Context, in *channel.TLChannelCheckChatInvite) (*mtproto.ChatInvite, error)
+	ChannelGetParticipants(ctx context.Context, in *channel.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error)
 }
 
 type defaultChannelClient struct {
@@ -144,4 +148,48 @@ func (m *defaultChannelClient) ChannelGetChannelDifference(ctx context.Context, 
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetChannelDifference(ctx, in)
+}
+
+// ChannelJoinChannel
+// channel.joinChannel self_id:long perm_auth_key_id:long channel_id:long link:string = Updates;
+func (m *defaultChannelClient) ChannelJoinChannel(ctx context.Context, in *channel.TLChannelJoinChannel) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelJoinChannel(ctx, in)
+}
+
+// ChannelLeaveChannel
+// channel.leaveChannel self_id:long perm_auth_key_id:long channel_id:long = Updates;
+func (m *defaultChannelClient) ChannelLeaveChannel(ctx context.Context, in *channel.TLChannelLeaveChannel) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelLeaveChannel(ctx, in)
+}
+
+// ChannelCheckChatInvite
+// channel.checkChatInvite self_id:long link:string = ChatInvite;
+func (m *defaultChannelClient) ChannelCheckChatInvite(ctx context.Context, in *channel.TLChannelCheckChatInvite) (*mtproto.ChatInvite, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelCheckChatInvite(ctx, in)
+}
+
+// ChannelGetParticipants
+// channel.getParticipants self_id:long channel_id:long filter:string q:string offset:int limit:int = channels.ChannelParticipants;
+func (m *defaultChannelClient) ChannelGetParticipants(ctx context.Context, in *channel.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetParticipants(ctx, in)
 }

@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -41,6 +42,10 @@ func (c *ChatInvitesCore) MessagesCheckChatInvite(in *mtproto.TLMessagesCheckCha
 		err := mtproto.ErrInviteHashInvalid
 		c.Logger.Errorf("messages.checkChatInvite - error: %v", err)
 		return nil, err
+	}
+	if chatpb.IsChannelInviteHash(in.Hash) {
+		// A channel's link (task 041): biz channel tells what it shows.
+		return c.svcCtx.Dao.Channel.ChannelCheckChatInvite(c.ctx, &channelpb.TLChannelCheckChatInvite{SelfId: c.MD.UserId, Link: in.Hash})
 	}
 	if !chatpb.IsChatInviteHash(in.Hash) {
 		err := mtproto.ErrInviteHashInvalid

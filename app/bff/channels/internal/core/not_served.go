@@ -40,11 +40,6 @@ func (c *ChannelsCore) ChannelsDeleteMessages(in *mtproto.TLChannelsDeleteMessag
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsGetParticipants is not served yet: channels.getParticipants#77ced9d0.
-func (c *ChannelsCore) ChannelsGetParticipants(in *mtproto.TLChannelsGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsEditAdmin is not served yet: channels.editAdmin#9a98ad68 (also #d33c8902).
 func (c *ChannelsCore) ChannelsEditAdmin(in *mtproto.TLChannelsEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
@@ -57,16 +52,6 @@ func (c *ChannelsCore) ChannelsEditTitle(in *mtproto.TLChannelsEditTitle) (*mtpr
 
 // ChannelsEditPhoto is not served yet: channels.editPhoto#f12e57c9.
 func (c *ChannelsCore) ChannelsEditPhoto(in *mtproto.TLChannelsEditPhoto) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsJoinChannel7F6A1E22 is not served yet: channels.joinChannel7F6A1E22#7f6a1e22.
-func (c *ChannelsCore) ChannelsJoinChannel7F6A1E22(in *mtproto.TLChannelsJoinChannel7F6A1E22) (*mtproto.Messages_ChatInviteJoinResult, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsLeaveChannel is not served yet: channels.leaveChannel#f836aa95.
-func (c *ChannelsCore) ChannelsLeaveChannel(in *mtproto.TLChannelsLeaveChannel) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
@@ -157,11 +142,6 @@ func (c *ChannelsCore) ChannelsDeleteParticipantHistory(in *mtproto.TLChannelsDe
 
 // ChannelsToggleParticipantsHidden is not served yet: channels.toggleParticipantsHidden#6a6e7854.
 func (c *ChannelsCore) ChannelsToggleParticipantsHidden(in *mtproto.TLChannelsToggleParticipantsHidden) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsJoinChannel24B524C5 is not served yet: channels.joinChannel24B524C5#24b524c5.
-func (c *ChannelsCore) ChannelsJoinChannel24B524C5(in *mtproto.TLChannelsJoinChannel24B524C5) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 

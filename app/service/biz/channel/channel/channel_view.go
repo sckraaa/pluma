@@ -51,6 +51,11 @@ func (p *ImmutableChannelParticipant) banned(now int32) bool {
 	return u == 0 || now < u
 }
 
+// Kicked reports a ban with view_messages in effect at now (kicked).
+func (p *ImmutableChannelParticipant) Kicked(now int32) bool {
+	return p.kicked(now)
+}
+
 // kicked reports a ban with view_messages in effect at now: the user may not
 // see the channel at all (chatBannedRights.view_messages,
 // core.telegram.org/constructor/chatBannedRights).

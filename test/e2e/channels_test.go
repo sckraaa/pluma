@@ -43,8 +43,8 @@ func TestChannelsNotServed(t *testing.T) {
 		AccessHash:  1,
 	}
 	for name, req := range map[string]mtproto.TLObject{
-		"channels.leaveChannel": &mtproto.TLChannelsLeaveChannel{
-			Constructor: alice.c.Constructor(mtproto.Predicate_channels_leaveChannel),
+		"channels.deleteChannel": &mtproto.TLChannelsDeleteChannel{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_deleteChannel),
 			Channel:     channel,
 		},
 		"channels.toggleAntiSpam": &mtproto.TLChannelsToggleAntiSpam{

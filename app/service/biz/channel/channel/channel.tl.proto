@@ -45,6 +45,14 @@ enum TLConstructor {
   CRC32_channel_getMessages = -1395419135;
   // pluma: task 040
   CRC32_channel_getChannelDifference = 2140231388;
+  // pluma: task 041
+  CRC32_channel_joinChannel = 634004096;
+  // pluma: task 041
+  CRC32_channel_leaveChannel = 1331881771;
+  // pluma: task 041
+  CRC32_channel_checkChatInvite = -1311035397;
+  // pluma: task 041
+  CRC32_channel_getParticipants = -212979149;
 }
 
 
@@ -234,6 +242,54 @@ message TL_channel_getChannelDifference {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.joinChannel self_id:long perm_auth_key_id:long channel_id:long link:string = Updates;
+// self_id joins the channel: a public one by itself (link empty), any
+// one by its invite link (ADR 0034, p. 3). The users of the answer are
+// the caller's to add.
+message TL_channel_joinChannel {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  string link = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.leaveChannel self_id:long perm_auth_key_id:long channel_id:long = Updates;
+// self_id leaves the channel (ADR 0034, p. 3).
+message TL_channel_leaveChannel {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.checkChatInvite self_id:long link:string = ChatInvite;
+// What the invite link of a channel shows self_id: chatInviteAlready to a
+// member, chatInvite to anyone else.
+message TL_channel_checkChatInvite {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  string link = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getParticipants self_id:long channel_id:long filter:string q:string offset:int limit:int = channels.ChannelParticipants;
+// A page of the channel's participants as self_id may see them, by the
+// predicate of channelParticipantsFilter; the users are the caller's to
+// add.
+message TL_channel_getParticipants {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  string filter = 5;
+  string q = 6;
+  int32 offset = 7;
+  int32 limit = 8;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -275,4 +331,12 @@ service RPCChannel {
   rpc channel_getMessages(TL_channel_getMessages) returns (Vector_Message) {}
   // pluma: task 040
   rpc channel_getChannelDifference(TL_channel_getChannelDifference) returns (mtproto.updates_ChannelDifference) {}
+  // pluma: task 041
+  rpc channel_joinChannel(TL_channel_joinChannel) returns (mtproto.Updates) {}
+  // pluma: task 041
+  rpc channel_leaveChannel(TL_channel_leaveChannel) returns (mtproto.Updates) {}
+  // pluma: task 041
+  rpc channel_checkChatInvite(TL_channel_checkChatInvite) returns (mtproto.ChatInvite) {}
+  // pluma: task 041
+  rpc channel_getParticipants(TL_channel_getParticipants) returns (mtproto.channels_ChannelParticipants) {}
 }

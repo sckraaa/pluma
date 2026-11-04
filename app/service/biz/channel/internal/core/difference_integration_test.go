@@ -30,9 +30,11 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/config"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/svc"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -48,6 +50,10 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 	var err error
 	code := 1
+	if err = outbox.Register(outbox.Topics{Push: []string{itSyncTopic}}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 	if itDB, err = testinfra.StartMySQL(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
@@ -56,6 +62,9 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
+// itSyncTopic is the topic of the pushes the tests' transactions write.
+const itSyncTopic = "Sync-T"
 
 func itId() int64 { return 50_000_000 + itSeq.Add(1) }
 
@@ -77,6 +86,7 @@ func newDiffFixture(t *testing.T) *diffFixture {
 	conf := itDB.Config()
 	d := dao.NewDao(sqlx.NewMySQL(&conf), nil)
 	d.BoxDB = box
+	d.Topics = config.Topics{Sync: itSyncTopic}
 	return &diffFixture{t: t, box: box, c: New(context.Background(), &svc.ServiceContext{Dao: d})}
 }
 

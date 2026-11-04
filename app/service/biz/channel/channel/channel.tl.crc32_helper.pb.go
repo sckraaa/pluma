@@ -26,4 +26,12 @@ const (
 	CRC32_channel_getMessages TLConstructor = -1395419135 // 0xacd39801
 	// pluma: task 040
 	CRC32_channel_getChannelDifference TLConstructor = 2140231388 // 0x7f9156dc
+	// pluma: task 041
+	CRC32_channel_joinChannel TLConstructor = 634004096 // 0x25ca2280
+	// pluma: task 041
+	CRC32_channel_leaveChannel TLConstructor = 1331881771 // 0x4f62e72b
+	// pluma: task 041
+	CRC32_channel_checkChatInvite TLConstructor = -1311035397 // 0xb1db2ffb
+	// pluma: task 041
+	CRC32_channel_getParticipants TLConstructor = -212979149 // 0xf34e3233
 )
