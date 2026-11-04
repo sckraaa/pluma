@@ -26,6 +26,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -68,6 +69,9 @@ type Service struct {
 	group  singleflight.Group
 	now    func() time.Time
 	logger logx.Logger
+	// youtube and ytimg are where YouTube's oEmbed and pictures are, ""
+	// for YouTube's own (tests serve their own).
+	youtube, ytimg string
 }
 
 // NewService returns the service over db; photos stores the pictures.
@@ -137,6 +141,16 @@ func (s *Service) build(ctx context.Context, u *url.URL, id int64) (*mtproto.Web
 	}
 	now := s.now()
 	final, meta, err := s.fetch.page(ctx, u)
+	video, isYouTube := youtubeVideo(u)
+	if isYouTube && (err != nil || !strings.HasPrefix(meta.Type, "video")) {
+		// YouTube serves a datacenter's address an empty page: no video
+		// tags, "<title> - YouTube</title>" (seen from the server,
+		// 2026-11-04, task 055). Its oEmbed answers: the card is made of
+		// it.
+		if m, ok := s.youtubeMeta(ctx, video); ok {
+			final, meta, err = youtubeWatch, m, nil
+		}
+	}
 	if err != nil {
 		// No address is logged: the links are what users write.
 		s.logger.Infof("webpage: a page not fetched: %v", errKind(err))
@@ -144,8 +158,12 @@ func (s *Service) build(ctx context.Context, u *url.URL, id int64) (*mtproto.Web
 		return page, s.store.put(ctx, u.String(), page, now.Unix(), now.Add(failedTTL).Unix())
 	}
 	var photo *mtproto.Photo
-	if meta.Image != "" && s.photos != nil {
-		photo = s.picture(ctx, final, meta.Image)
+	if s.photos != nil {
+		for _, ref := range meta.images() {
+			if photo = s.picture(ctx, final, ref); photo != nil {
+				break
+			}
+		}
 	}
 	if photo == nil {
 		meta.Image = ""
@@ -155,7 +173,13 @@ func (s *Service) build(ctx context.Context, u *url.URL, id int64) (*mtproto.Web
 		return page, s.store.put(ctx, u.String(), page, now.Unix(), now.Add(emptyTTL).Unix())
 	}
 	page := buildPage(id, u, meta, photo)
-	return page, s.store.put(ctx, u.String(), page, now.Unix(), now.Add(pageTTL).Unix())
+	ttl := pageTTL
+	if !meta.Tagged {
+		// A card of the plain head may be a page served in place of the
+		// real one: it is asked again sooner.
+		ttl = emptyTTL
+	}
+	return page, s.store.put(ctx, u.String(), page, now.Unix(), now.Add(ttl).Unix())
 }
 
 // picture fetches and stores a page's picture; nil if it cannot.

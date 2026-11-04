@@ -52,7 +52,7 @@ func TestParseMetaOpenGraph(t *testing.T) {
 		Title: "OG title", Description: "OG description", SiteName: "Site", Type: "video.other",
 		Card: "summary_large_image", Image: "https://site.example/a.png", ImageWidth: 1200, ImageHeight: 630,
 		Video: "https://site.example/embed/1", VideoWidth: 1280, VideoHeight: 720, VideoType: "text/html",
-		Author: "Jane Doe", Canonical: "https://site.example/canonical",
+		Author: "Jane Doe", Canonical: "https://site.example/canonical", Tagged: true,
 	}
 	if m != want {
 		t.Fatalf("meta:\n got %+v\nwant %+v", m, want)

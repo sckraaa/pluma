@@ -41,6 +41,24 @@ type Meta struct {
 	VideoType   string // og:video:type
 	Author      string
 	Canonical   string // og:url
+	// Tagged: the page has Open Graph or Twitter Cards tags; without them
+	// its card is made of <title> and the meta description, as a page a
+	// site serves in place of the real one (a consent or a blocked page)
+	// would be.
+	Tagged bool
+	// fallbackImage is the picture to take when Image cannot be fetched.
+	fallbackImage string
+}
+
+// images are the pictures of the card, in the order to try them.
+func (m Meta) images() []string {
+	var out []string
+	for _, ref := range []string{m.Image, m.fallbackImage} {
+		if ref != "" {
+			out = append(out, ref)
+		}
+	}
+	return out
 }
 
 // parseMeta reads the head of an HTML document in the encoding its
@@ -94,6 +112,9 @@ func parseMeta(body io.Reader, contentType string) (Meta, error) {
 					if !more {
 						break
 					}
+				}
+				if strings.HasPrefix(key, "og:") || strings.HasPrefix(key, "twitter:") {
+					m.Tagged = true
 				}
 				switch key {
 				case "og:title":
