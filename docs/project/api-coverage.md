@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 234, partial 26, blocked 131, notimpl 6, fake 7, missing 465 (ok = 26.9%); with a conformance scenario 9
+    layer 228: 869 methods — ok 235, partial 26, blocked 130, notimpl 6, fake 7, missing 465 (ok = 27.0%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -35,7 +35,7 @@
 | stats | 12 | 0 | 0 | 0 | 0 | 0 | 12 | 0 |
 | stickers | 11 | 0 | 0 | 0 | 0 | 0 | 11 | 0 |
 | stories | 44 | 1 | 0 | 0 | 0 | 0 | 43 | 0 |
-| updates | 3 | 2 | 0 | 1 | 0 | 0 | 0 | 2 |
+| updates | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 2 |
 | upload | 8 | 2 | 1 | 5 | 0 | 0 | 0 | 0 |
 | users | 10 | 7 | 0 | 2 | 0 | 0 | 1 | 0 |
 
@@ -1013,7 +1013,7 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `updates.getChannelDifference` | blocked |  | app/bff/updates/internal/core/updates.getChannelDifference_handler.go:27 |
+| `updates.getChannelDifference` | ok |  | app/bff/updates/internal/core/updates.getChannelDifference_handler.go:41 |
 | `updates.getDifference` | ok | yes | app/bff/updates/internal/core/updates.getDifference_handler.go:29 |
 | `updates.getState` | ok | yes | app/bff/updates/internal/core/updates.getState_handler.go:28 |
 

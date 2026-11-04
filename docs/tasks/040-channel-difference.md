@@ -1,6 +1,6 @@
 # 040. Каналы: `updates.getChannelDifference` и `updateChannelTooLong`
 
-- Статус: todo
+- Статус: done (сервер; проверка в клиентах — после выката)
 - Зависит от: 039
 - ADR: 0019, 0021, 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §2.1–2.2, §2.5, задача T5; `clients.md` §1 «Catch up after being offline», §2; `plan.md` §2 C1, C4, C5, §3, задача «039» плана).
 
@@ -36,3 +36,21 @@
 - В клиентах, со скриншотами: после закрытия и повторного открытия приложения пропущенные посты появляются в iOS, Android, Desktop (CachyOS) и Web K; в сетевых логах нет тугих циклов `getChannelDifference` (C1, C5).
 
 ## Результат
+Сервер готов, ветка `task/038-channel-create`, вместе с 038 и 039; после этой задачи каналы можно выкатывать.
+
+- **`updates.getChannelDifference`** (bff updates → biz `channel.getChannelDifference`). Сначала `channels.pts` (S) с мастера, затем строки журнала `(pts, S]`, `limit` 1–1000:
+  - `pts ≥ S` — `channelDifferenceEmpty{final, pts: S, timeout}`;
+  - первая строка начинается позже `pts` (журнал обрезан) или строк нет — `channelDifferenceTooLong`: диалог зрителя (сначала он, `pts`, `top_message`, отметки прочтения, счётчики; bff добавляет закреп, метку, папку, черновик и уведомления из строки диалога) и последние `min(limit, 100)` видимых сообщений;
+  - строк больше `limit` — срез без `final` и без `timeout`, `pts` последней отданной строки;
+  - иначе свёртка (`channel_fold.go`): новые неудалённые сообщения в последней правке по возрастанию id; в `other_updates` — `updateMessageID` своих новых, затем правки старых (одна на сообщение), удаления одним обновлением, закрепы и превью; ничего ниже `available_min_id`; `pts` итоговый, без `pts_count`; вид сообщений — для зрителя.
+  - `timeout` — 30 с участнику, 10 с не участнику публичного канала. Ошибки только `CHANNEL_INVALID` (нет канала, неверный `access_hash`) и `CHANNEL_PRIVATE`.
+- **Обрезка журнала.** В `channelbox.Flush`: строки `pts ≤ pts − JournalWindow` (100000) удаляет та же транзакция, что пишет новые, под блокировкой канала. Журнал остаётся сплошным отрезком. Отступление от ADR (фоновая обрезка) — в ADR, «Уточнения при реализации».
+- **`updateChannelTooLong` в `updates.getDifference`.** На последней странице — по одному на каждый канал, где пользователь в канале и `channels.date2 ≥ min(date запроса, дата курсора) − MaxRunTime`, всегда с `pts`. Каналы разрешаются в `chats` разницы (`seqpeers.Pick`). Есть только такие обновления — ответ `difference`, а не `differenceEmpty`. Дата курсора — `user_seq_cursors.date2` (миграции нет): разница теперь обновляет её, если она старше минуты, даже при том же `seq`, иначе каждая разница отмечала бы все каналы с момента входа.
+- **Исправлено попутно:** `Member()` у отсутствующей строки участника отвечал «участник»; посторонний читал историю закрытого канала (ошибка 039, не выкачена). Тест `TestMember` падает без исправления.
+- **Проверка:**
+  - модульные тесты свёртки (`TestFold*`: правка и удаление после вставки, правки старых, слияние удалений, `available_min_id`, `updateMessageID`) и `seqpeers`;
+  - интеграционные на MySQL: срезы при `limit` 2 и 100 с ростом `pts` и `timeout > 0` в финальном ответе, пустой ответ для клиента впереди, tooLong после обрезки (`JournalWindow = 3`), граница окна, `CHANNEL_PRIVATE` и таймаут не участника публичного канала; `updateChannelTooLong` по дате, по дате курсора, на последней странице среза, без них при `date = INT32_MAX`;
+  - e2e `TestChannelDifference`: второе устройство пропускает 150 постов, `getDifference` даёт `updateChannelTooLong` с `pts` 152 и канал в `chats`, две страницы `getChannelDifference` доходят до `final`, затем `empty`; неверный хэш — `CHANNEL_INVALID`, чужой — `CHANNEL_PRIVATE`. На заглушке тест падает (`ERR_ENTERPRISE_IS_BLOCKED`).
+  - `go build ./...`, `go vet -unreachable=false`, `go test` и `-race`, `make lint` (0 issues), `go test ./tools/...`; `apicoverage`: `updates.getChannelDifference` — `ok`.
+- **Не сделано:** проверка в четырёх клиентах со скриншотами и сетевыми логами — после выката. `channelMessagesFilter` с диапазонами отвечается как пустой (ADR, п. 4). Значения Telegram (`timeout`, признак `updateChannelTooLong`) не сверены (C1, U2) — задача 049.
+

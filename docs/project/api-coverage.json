@@ -1,7 +1,7 @@
 {
   "layer": "228",
   "total": 869,
-  "ok": 234,
+  "ok": 235,
   "partial": 26,
   "areas": [
     {
@@ -73,7 +73,7 @@
     {
       "key": "other",
       "total": 74,
-      "ok": 17,
+      "ok": 18,
       "partial": 1
     }
   ]
