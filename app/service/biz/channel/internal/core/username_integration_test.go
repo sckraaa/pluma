@@ -41,7 +41,8 @@ func (f *diffFixture) setUsername(self, channelId int64, name string) error {
 // TestUsername: a channel takes a free username, not one a user or another
 // channel has; the same one again is not modified; "" makes it private;
 // a member who may not change the info may not set it; past the limit of
-// public channels the owner may make no other public.
+// public channels the owner may make no other public; only the creator
+// sets the link.
 func TestUsername(t *testing.T) {
 	f := newDiffFixture(t)
 	creator, bob := f.user("Creator"), f.user("Bob")
@@ -75,9 +76,16 @@ func TestUsername(t *testing.T) {
 	}
 
 	f.public(id) // a second row is ignored: the editable one is the channel's
+	// Only the creator sets the link: neither a member where members may
+	// change the info nor an admin who may.
 	f.exec("INSERT INTO channel_participants (channel_id, user_id, `date`) VALUES (?, ?, 0)", id, bob)
-	f.exec("UPDATE channels SET default_banned_rights = ? WHERE id = ?", mtproto.BANNED_CHANGE_INFO, id)
 	wantErr(t, "a member", f.setUsername(bob, id, "bobs_link"), mtproto.ErrChatAdminRequired)
+	admin := f.user("Admin")
+	f.exec("INSERT INTO channel_participants (channel_id, user_id, role, admin_rights, `date`) VALUES (?, ?, ?, ?, 0)",
+		id, admin, channel.RoleAdmin, mtproto.ADMIN_CHANGE_INFO)
+	wantErr(t, "an admin who may change the info", f.setUsername(admin, id, "admins_link"), mtproto.ErrChatAdminRequired)
+	_, err = f.checkUsername(admin, id, "admins_link")
+	wantErr(t, "an admin's check", err, mtproto.ErrChatAdminRequired)
 
 	if err = f.setUsername(creator, id, ""); err != nil {
 		t.Fatalf("make it private: %v", err)

@@ -34,6 +34,31 @@ import (
 // UserLimitsConfiguration.swift:42), the limit the owner kept (task 035).
 const PublicChannelsLimit = 10
 
+// usernameEditor checks that b's owner created the channel: only the
+// creator gives a channel its public link, as Android offers it only to the
+// creator, when channelFull.can_set_username is set
+// (ChatEditActivity.java:891 at aac1efcb; getFullChannel sets it for the
+// creator). Others are CHAT_ADMIN_REQUIRED
+// (core.telegram.org/method/channels.updateUsername). As the creator's box
+// transaction locks the creator, the limit of its public channels is
+// counted under that lock.
+func usernameEditor(b *userbox.Box, channelId int64) error {
+	if _, err := openChannel(b, channelId); err != nil {
+		return err
+	}
+	var creators []int64
+	if err := b.Tx().QueryRowsPartial(&creators, "SELECT creator_user_id FROM channels WHERE id = ? AND deleted = 0", channelId); err != nil {
+		return err
+	}
+	switch {
+	case len(creators) == 0:
+		return mtproto.ErrChannelInvalid
+	case creators[0] != b.UserId():
+		return mtproto.ErrChatAdminRequired
+	}
+	return nil
+}
+
 // ownedPublic counts the public channels userId created, but channelId.
 func ownedPublic(tx *sqlx.Tx, userId, channelId int64) (int, error) {
 	var n []int
@@ -65,13 +90,10 @@ func (d *Dao) AdminedPublicChannels(ctx context.Context, userId int64) ([]int64,
 // has PublicChannelsLimit public channels and this one is not one of them;
 // Android probes it with a channel not made yet (ChannelCreateActivity.java:
 // 170-173 at aac1efcb). For a channel, CHAT_ADMIN_REQUIRED unless the owner
-// may change its info. The format is the caller's to check.
+// created it (usernameEditor). The format is the caller's to check.
 func (d *Dao) CheckUsername(b *userbox.Box, channelId int64, username string) (bool, error) {
 	if channelId != 0 {
-		if _, err := openChannel(b, channelId); err != nil {
-			return false, err
-		}
-		if _, err := infoEditor(b, channelId); err != nil {
+		if err := usernameEditor(b, channelId); err != nil {
 			return false, err
 		}
 	}
@@ -123,17 +145,14 @@ func usernameFree(tx *sqlx.Tx, channelId int64, username string) (bool, error) {
 }
 
 // UpdateUsername gives the channel the username, "" makes it private, by b's
-// owner, who must be able to change its info (CHAT_ADMIN_REQUIRED). The
+// owner, who must be its creator (usernameEditor, CHAT_ADMIN_REQUIRED). The
 // same username is USERNAME_NOT_MODIFIED, the case of the letters being a
 // change; one another peer has is USERNAME_OCCUPIED; making a channel public
 // past PublicChannelsLimit is CHANNELS_ADMIN_PUBLIC_TOO_MUCH, as Telegram
 // answers (core.telegram.org/method/channels.updateUsername). The members
 // load the channel again.
 func (d *Dao) UpdateUsername(b *userbox.Box, channelId int64, username string) (*ChannelChange, error) {
-	if _, err := openChannel(b, channelId); err != nil {
-		return nil, err
-	}
-	if _, err := infoEditor(b, channelId); err != nil {
+	if err := usernameEditor(b, channelId); err != nil {
 		return nil, err
 	}
 	current, err := channelUsername(b.Tx(), channelId)

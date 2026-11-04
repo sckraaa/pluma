@@ -93,6 +93,13 @@ func TestChannelUsername(t *testing.T) {
 	}); err != nil {
 		t.Errorf("joining the public channel by its name: %v", err)
 	}
+	if _, err = bob.c.Invoke(ctx, &mtproto.TLChannelsUpdateUsername{
+		Constructor: bob.c.Constructor(mtproto.Predicate_channels_updateUsername),
+		Channel:     &mtproto.InputChannel{Constructor: bob.c.Constructor(mtproto.Predicate_inputChannel), ChannelId: ch.GetId(), AccessHash: bobHash},
+		Username:    "",
+	}); !mtclient.IsRPCError(err, "CHAT_ADMIN_REQUIRED") {
+		t.Errorf("a subscriber clears the link: %v, want CHAT_ADMIN_REQUIRED", err)
+	}
 	if free, err := check(bob, &mtproto.InputChannel{Constructor: bob.c.Constructor(mtproto.Predicate_inputChannelEmpty)}, name); err != nil || free {
 		t.Errorf("another's link: %v, %v (want false)", free, err)
 	}
@@ -106,8 +113,8 @@ func TestChannelUsername(t *testing.T) {
 	}
 	if s := o.(interface {
 		To_Premium_BoostsStatus() *mtproto.Premium_BoostsStatus
-	}).To_Premium_BoostsStatus(); s.GetBoosts() != 0 || s.GetBoostUrl() == "" {
-		t.Errorf("boosts %d, url %q", s.GetBoosts(), s.GetBoostUrl())
+	}).To_Premium_BoostsStatus(); s.GetBoosts() != 0 || s.GetBoostUrl() == "" || s.GetNextLevelBoosts().GetValue() <= s.GetCurrentLevelBoosts() {
+		t.Errorf("boosts %d, url %q, next level %v: Android takes no next level for the highest", s.GetBoosts(), s.GetBoostUrl(), s.GetNextLevelBoosts())
 	}
 	if _, err = bob.c.Invoke(ctx, &mtproto.TLPremiumGetMyBoosts{Constructor: bob.c.Constructor(mtproto.Predicate_premium_getMyBoosts)}); err != nil {
 		t.Errorf("premium.getMyBoosts: %v", err)

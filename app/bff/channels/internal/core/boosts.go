@@ -30,6 +30,14 @@ import (
 // listing boosts is not served (ERR_ENTERPRISE_IS_BLOCKED, 400, which the
 // clients do not retry).
 
+// nextLevelBoosts is the boosts of the next level a channel at level 0 is
+// shown: without it Android takes the channel for one at its highest level
+// and draws "Level -1" (ChannelBoostsController.java:73,
+// LimitReachedBottomSheet.java:2206, LimitPreviewView.java:631-634 at
+// aac1efcb). One boost for level 1 is the least that shows a level not yet
+// reached; Telegram's thresholds are not verified.
+const nextLevelBoosts = 1
+
 // PremiumGetBoostsStatus
 // premium.getBoostsStatus#42f1f61 peer:InputPeer = premium.BoostsStatus;
 //
@@ -57,6 +65,7 @@ func (c *ChannelsCore) PremiumGetBoostsStatus(in *mtproto.TLPremiumGetBoostsStat
 		Level:              0,
 		CurrentLevelBoosts: 0,
 		Boosts:             0,
+		NextLevelBoosts:    mtproto.MakeFlagsInt32(nextLevelBoosts),
 		BoostUrl:           url,
 	}).To_Premium_BoostsStatus(), nil
 }
