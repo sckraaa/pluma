@@ -104,7 +104,8 @@ func TestChannelCreate(t *testing.T) {
 			}
 		}
 		if first == nil || first.GetMessage_MESSAGE().GetId() != 1 || first.GetPts_INT32() != 2 ||
-			first.GetMessage_MESSAGE().GetAction().GetPredicateName() != mtproto.Predicate_messageActionChannelCreate {
+			first.GetMessage_MESSAGE().GetAction().GetPredicateName() != mtproto.Predicate_messageActionChannelCreate ||
+			first.GetMessage_MESSAGE().GetAction().GetTitle_STRING() != fmt.Sprintf("kind %v", megagroup) {
 			t.Fatalf("the first message: %v", r.GetUpdates())
 		}
 		input := &mtproto.InputChannel{Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}

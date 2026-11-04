@@ -114,7 +114,7 @@ func (c *ChannelCore) ChannelCreateChannel(in *channel.TLChannelCreateChannel) (
 			Post:   broadcast,
 			PeerId: mtproto.MakePeerChannel(channelId),
 			Date:   int32(b.Date()),
-			Action: mtproto.MakeTLMessageActionChannelCreate(&mtproto.MessageAction{Title: in.Title}).To_MessageAction(),
+			Action: mtproto.MakeTLMessageActionChannelCreate(&mtproto.MessageAction{Title_STRING: in.Title}).To_MessageAction(),
 		}).To_Message()
 		if megagroup {
 			first.FromId = mtproto.MakePeerUser(in.CreatorId)

@@ -72,7 +72,7 @@ func TestChannelInfo(t *testing.T) {
 			post = m
 		}
 	}
-	if post.GetAction().GetPredicateName() != mtproto.Predicate_messageActionChatEditTitle || post.GetAction().GetTitle() != "renamed" || !post.GetPost() {
+	if post.GetAction().GetPredicateName() != mtproto.Predicate_messageActionChatEditTitle || post.GetAction().GetTitle_STRING() != "renamed" || !post.GetPost() {
 		t.Errorf("the rename's message %v", post)
 	}
 	if len(r.GetChats()) != 1 || r.GetChats()[0].GetTitle() != "renamed" {

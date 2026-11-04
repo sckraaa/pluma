@@ -85,7 +85,7 @@ func (d *Dao) EditTitle(b *userbox.Box, channelId int64, title string) (*Channel
 		return nil, mtproto.ErrChatNotModified
 	}
 	change := &ChannelChange{ChannelId: channelId, Reload: true}
-	action := mtproto.MakeTLMessageActionChatEditTitle(&mtproto.MessageAction{Title: title}).To_MessageAction()
+	action := mtproto.MakeTLMessageActionChatEditTitle(&mtproto.MessageAction{Title_STRING: title}).To_MessageAction()
 	if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, r.Broadcast, action); err != nil {
 		return nil, err
 	}

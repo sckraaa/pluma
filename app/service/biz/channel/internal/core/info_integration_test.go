@@ -50,7 +50,7 @@ func TestEditInfo(t *testing.T) {
 		t.Fatal(err)
 	}
 	m := r.GetUpdates()[0].GetMessage_MESSAGE()
-	if m.GetAction().GetTitle() != "new" || m.GetFromId().GetUserId() != creator || r.GetChats()[0].GetTitle() != "new" {
+	if m.GetAction().GetTitle_STRING() != "new" || m.GetFromId().GetUserId() != creator || r.GetChats()[0].GetTitle() != "new" {
 		t.Errorf("rename: %v, chats %v", m, r.GetChats())
 	}
 	d := f.diff(bob, id, r.GetUpdates()[0].GetPts_INT32()-1, 10)
