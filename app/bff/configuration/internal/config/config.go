@@ -27,5 +27,11 @@ type Config struct {
 	zrpc.RpcServerConf
 	Mysql             sqlx.Config // dismissed suggestions
 	UserClient        zrpc.RpcClientConf
-	AuthsessionClient zrpc.RpcClientConf // the client's time zone
+	AuthsessionClient zrpc.RpcClientConf // the client's time zone, its app (help.getAppUpdate)
+	// MediaClient gives the APK of an Android release (help.getAppUpdate).
+	MediaClient zrpc.RpcClientConf
+	// ReleasesURL is where the releases are, the site's /dl/ (task 054):
+	// the update prefix of the desktop app (help.getConfig) and the install
+	// page of the iPhone app.
+	ReleasesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

@@ -129,3 +129,24 @@ func TestHelpGetConfigLangPack(t *testing.T) {
 		})
 	}
 }
+
+// TestHelpGetConfigAutoupdatePrefix: with the site of the releases set,
+// help.getConfig tells the desktop app where its updates are (task 054);
+// without it, nothing.
+func TestHelpGetConfigAutoupdatePrefix(t *testing.T) {
+	c := newGetConfigCore(t, &fakeLangpacks{}, "", "en")
+	got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.GetAutoupdateUrlPrefix() != nil {
+		t.Errorf("without a site: %v", got.GetAutoupdateUrlPrefix())
+	}
+	c.svcCtx.Config.ReleasesURL = "https://pluma.example"
+	if got, err = c.HelpGetConfig(&mtproto.TLHelpGetConfig{}); err != nil {
+		t.Fatal(err)
+	}
+	if v := got.GetAutoupdateUrlPrefix().GetValue(); v != "https://pluma.example/dl/desktop" {
+		t.Errorf("autoupdate_url_prefix %q", v)
+	}
+}

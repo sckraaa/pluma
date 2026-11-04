@@ -113,6 +113,8 @@ func (s *Server) Initialize() error {
 			Mysql:             c.Mysql,
 			UserClient:        c.BizServiceClient,
 			AuthsessionClient: c.AuthSessionClient,
+			MediaClient:       c.MediaClient,
+			ReleasesURL:       c.ReleasesURL,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

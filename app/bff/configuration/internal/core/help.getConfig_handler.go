@@ -49,6 +49,12 @@ func (c *ConfigurationCore) HelpGetConfig(in *mtproto.TLHelpGetConfig) (*mtproto
 	rValue.SetExpires(now + expiresTimeout)
 	c.setLangPack(rValue)
 	c.setDefaultReaction(rValue)
+	// Where the desktop app looks for its updates (task 054): tdesktop
+	// keeps it as its prefix and asks <prefix>/current
+	// (mtp_instance.cpp:935-937, update_checker.cpp:717-721 at a1e89e1f).
+	if url := c.svcCtx.Config.ReleasesURL; url != "" {
+		rValue.SetAutoupdateUrlPrefix(mtproto.MakeFlagsString(url + "/dl/desktop"))
+	}
 
 	return rValue.To_Config(), nil
 }

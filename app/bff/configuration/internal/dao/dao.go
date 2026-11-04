@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 )
 
@@ -40,6 +41,7 @@ type Dao struct {
 	Langpacks LangpackVersions // the language packs of help.getConfig (task 021)
 	user_client.UserClient
 	authsession_client.AuthsessionClient
+	Media media_client.MediaClient
 }
 
 func New(c config.Config) *Dao {
@@ -49,7 +51,14 @@ func New(c config.Config) *Dao {
 		Langpacks:         langpack.NewStore(db),
 		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
+		Media:             media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 	}
+}
+
+// NewWithDB is a Dao over the pool db, without its clients: the caller sets
+// those it uses.
+func NewWithDB(db *sqlx.DB) *Dao {
+	return &Dao{db: db, Langpacks: langpack.NewStore(db)}
 }
 
 // DB is the pool of the service's own tables and of the reaction settings

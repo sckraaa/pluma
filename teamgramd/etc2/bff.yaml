@@ -52,6 +52,11 @@ TelegramBot:
   ApiHash: "${TELEGRAM_API_HASH}"
   BotToken: "${TELEGRAM_BOT_TOKEN}"
 
+# The site the releases of the client apps are on (task 054, ADR 0035):
+# /dl/ of it serves them; help.getAppUpdate and help.getConfig name it.
+# Empty: no update is offered.
+ReleasesURL: "${PLUMA_RELEASES_URL}"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 
