@@ -1,6 +1,6 @@
 # 038. Каналы: создание, `getChannels`, `getFullChannel`, диалоги
 
-- Статус: todo
+- Статус: in progress (сервер сделан 2026-11-04, ветка `task/038-channel-create`; в прод — вместе с 040)
 - Зависит от: 037
 - ADR: 0011, 0021, 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §2.2–2.5, задача T3; `clients.md` §1 «Create», «Open a channel», §2, §4 п. 1; `plan.md` §3, задача «037» плана).
 
@@ -48,3 +48,31 @@
 - В клиентах, со скриншотами в этом брифе: канал и супергруппа создаются и открываются в iOS, Android, Desktop (CachyOS) и Web K; Android показывает ссылку-приглашение без падения; повторы `getChannelDifference` в iOS до 040 отмечены как ожидаемые.
 
 ## Результат
+Сервер готов, ветка `task/038-channel-create` (коммит `40b1801b`), не выкачено: каналы показываются людям только после 040 (решение владельца).
+
+- **Создание.** `channels.createChannel` → `channel.createChannel` в biz channel: одна транзакция ящика создателя пишет:
+  - строку `channels` (id из `AUTO_INCREMENT` с 1000000000, `migrate-20261104-channel-ids.sql`);
+  - создателя с правами;
+  - сообщение 1 `messageActionChannelCreate` с `pts` 2;
+  - диалог создателя (всё прочитано);
+  - постоянную ссылку в `chat_invites`: хэш с буквы — канал, как у апстрима.
+
+  `updateChannel` — обновление с `seq` (свёртка по каналу), другим устройствам создателя. Ответ: канал первым в `chats`, `updateNewChannelMessage`.
+- **Чтения.**
+  - `channels.getChannels` (неверный `access_hash` — `CHANNEL_INVALID`);
+  - `channels.getFullChannel` (`pts`, отметки прочтения, количества, права, постоянная ссылка админам);
+  - `channels.getParticipant` для себя;
+  - ветки каналов в `messages.getDialogs` и `getPeerDialogs` (`pts`, `top_message`, непрочитанное — из канала, RPC `channel.getChannelDialogs`, `channel.getTopMessages`);
+  - `messages.getExportedChatInvites` для админов канала.
+- **Проверка.**
+  - e2e `TestChannelCreate`: канал и супергруппа, `pts` ≥ 2 в полном канале и диалогах, ссылка не пуста, `getChannels`, `getParticipant`, `updateChannel` на втором устройстве;
+  - интеграционный `TestMySQLAutoId`;
+  - `make lint`, `go vet`, тесты затронутых пакетов.
+- **Не сделано.**
+  - `channels.checkUsername` (в 044 вместе с именами);
+  - проверка в клиентах — вместе с 039–040, когда каналы можно открыть и писать в них.
+- **Решения (технические):**
+  - права создателя — наборы по типу чата (у Telegram не проверено);
+  - лимит 500 каналов на пользователя;
+  - название обрезается до 128 символов;
+  - форумы, импорт и гео-группы пока отвечают 400.
