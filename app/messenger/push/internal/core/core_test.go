@@ -79,10 +79,14 @@ func (f fakeMessages) UserMessage(_ context.Context, _ int64, id int32) (*mtprot
 
 // fakeChannels answers the members of a channel's event: me and the
 // author, who gets nothing.
-type fakeChannels struct{ calls int }
+type fakeChannels struct {
+	calls int
+	delay time.Duration // how long the lookup takes
+}
 
 func (f *fakeChannels) Recipients(_ context.Context, ev *ChannelEvent) ([]*Event, error) {
 	f.calls++
+	time.Sleep(f.delay)
 	return []*Event{{UserId: me, Updates: ev.Updates}}, nil
 }
 
@@ -97,6 +101,7 @@ type fakeProviders struct {
 	mu       sync.Mutex
 	sent     []sent
 	lastAPNs *pushprovider.APNsPush
+	left     time.Duration                   // of the last APNs push's deadline
 	outcome  map[string]pushprovider.Outcome // by token; sent by default
 }
 
@@ -109,7 +114,8 @@ func (f *fakeProviders) result(token string) pushprovider.Outcome {
 
 type fakeAPNs struct{ *fakeProviders }
 
-func (f fakeAPNs) Send(_ context.Context, p *pushprovider.APNsPush) (pushprovider.Outcome, error) {
+func (f fakeAPNs) Send(ctx context.Context, p *pushprovider.APNsPush) (pushprovider.Outcome, error) {
+	deadline, _ := ctx.Deadline()
 	var body struct {
 		P string `json:"p"`
 	}
@@ -118,6 +124,7 @@ func (f fakeAPNs) Send(_ context.Context, p *pushprovider.APNsPush) (pushprovide
 	defer f.mu.Unlock()
 	f.sent = append(f.sent, sent{provider: "apns", token: p.Token, p: body.P, apns: p})
 	f.lastAPNs = p
+	f.left = time.Until(deadline)
 	return f.result(p.Token), nil
 }
 
@@ -458,5 +465,22 @@ func TestChannelPost(t *testing.T) {
 	}
 	if e.channels.calls != 3 {
 		t.Errorf("recipients asked %d times", e.channels.calls)
+	}
+}
+
+// TestChannelMemberDeadline: each member's pushes have a whole
+// EventDeadline, whatever the members before took.
+func TestChannelMemberDeadline(t *testing.T) {
+	e := newEnv(t)
+	e.channels.delay = 300 * time.Millisecond
+	const channel = int64(1000000005)
+	m := mtproto.MakeTLMessage(&mtproto.Message{Id: 11, PeerId: mtproto.MakePeerChannel(channel), Post: true, Message: "выпуск"}).To_Message()
+	e.core.HandleChannel(context.Background(), &ChannelEvent{ChannelId: channel, FromId: anna, Updates: mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update()},
+		Chats:   []*mtproto.Chat{mtproto.MakeTLChannel(&mtproto.Chat{Id: channel, Title: "Новости"}).To_Chat()},
+	}).To_Updates()})
+	e.take(t)
+	if left := e.pushes.left; left < EventDeadline-e.channels.delay/2 {
+		t.Errorf("the member's pushes had %v of %v", left, EventDeadline)
 	}
 }

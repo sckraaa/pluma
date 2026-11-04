@@ -135,11 +135,13 @@ type ChannelEvent struct {
 const channelFanout = 8
 
 // HandleChannel sends the pushes of a channel's event to its members (task
-// 055: a post reached only the live sessions, through sync).
+// 055: a post reached only the live sessions, through sync). Each member's
+// pushes have their own EventDeadline, as a user's event does: one deadline
+// over the whole fan-out would drop the last members of a large channel.
 func (c *Core) HandleChannel(ctx context.Context, ev *ChannelEvent) {
-	ctx, cancel := context.WithTimeout(ctx, EventDeadline)
-	defer cancel()
-	events, err := c.Channels.Recipients(ctx, ev)
+	rctx, cancel := context.WithTimeout(ctx, EventDeadline)
+	events, err := c.Channels.Recipients(rctx, ev)
+	cancel()
 	if err != nil {
 		logx.WithContext(ctx).Errorf("push: members of channel %d: %v", ev.ChannelId, err)
 		metricDropped.Inc("error")
