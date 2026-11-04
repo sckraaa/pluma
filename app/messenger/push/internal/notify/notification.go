@@ -82,9 +82,12 @@ const MaxTextLength = 512
 type Notification struct {
 	Kind   Kind
 	UserId int64 // the recipient
-	// Chat: the dialog is a basic group PeerId; else the private chat with
-	// the user PeerId.
+	// Chat: the dialog is a basic group PeerId; Channel: the channel or
+	// supergroup PeerId (Broadcast: a channel's post, by the channel);
+	// neither: the private chat with the user PeerId.
 	Chat      bool
+	Channel   bool
+	Broadcast bool
 	PeerId    int64
 	MsgId     int32
 	FromId    int64 // the author
@@ -114,6 +117,10 @@ type Notification struct {
 	groupedId int64 // the album being merged
 }
 
+// Group tells whether the dialog is a group: a basic group or a
+// supergroup, whose messages name their author and the group.
+func (n *Notification) Group() bool { return n.Chat || n.Channel && !n.Broadcast }
+
 // NeedsPinned tells whether the content of the pinned message is to be
 // looked up.
 func (n *Notification) NeedsPinned() bool { return n.Kind == KindPinned && n.PinnedId != 0 }
@@ -141,7 +148,7 @@ func FromUpdates(userId int64, ups *mtproto.Updates) []*Notification {
 	var out []*Notification
 	for _, u := range list {
 		switch u.GetPredicateName() {
-		case mtproto.Predicate_updateNewMessage:
+		case mtproto.Predicate_updateNewMessage, mtproto.Predicate_updateNewChannelMessage:
 			n := fromMessage(userId, u.GetMessage_MESSAGE(), names, titles)
 			if n == nil {
 				continue
@@ -166,6 +173,10 @@ func FromUpdates(userId int64, ups *mtproto.Updates) []*Notification {
 				continue
 			}
 			out = append(out, n)
+		case mtproto.Predicate_updateReadChannelInbox:
+			// Read on another device: Android clears it by READ_HISTORY with
+			// channel_id (PushListenerController.java:375-382 at aac1efcb).
+			out = append(out, &Notification{Kind: KindReadHistory, UserId: userId, Channel: true, PeerId: u.GetChannelId(), MaxId: u.GetMaxId()})
 		}
 	}
 	return out
@@ -181,7 +192,7 @@ func lastOf(ns []*Notification) *Notification {
 // merges tells whether message m, notification n, belongs to last: the
 // same album, or forwarded messages of the same author in the same dialog.
 func merges(last, n *Notification, m *mtproto.Message) bool {
-	if last.Kind != KindMessage || n.Kind != KindMessage || last.Chat != n.Chat || last.PeerId != n.PeerId || last.FromId != n.FromId {
+	if last.Kind != KindMessage || n.Kind != KindMessage || last.Chat != n.Chat || last.Channel != n.Channel || last.PeerId != n.PeerId || last.FromId != n.FromId {
 		return false
 	}
 	switch {
@@ -227,20 +238,36 @@ func fromMessage(userId int64, m *mtproto.Message, names, titles map[int64]strin
 	case mtproto.Predicate_peerChat:
 		n.Chat, n.PeerId = true, peer.GetChatId()
 		n.ChatTitle = titles[n.PeerId]
+	case mtproto.Predicate_peerChannel:
+		// A channel's post is by the channel, without an author (task
+		// 055); a supergroup's message has one.
+		n.Channel, n.PeerId = true, peer.GetChannelId()
+		n.ChatTitle = titles[n.PeerId]
+		n.Broadcast = m.GetPost()
 	default:
-		return nil // channels are not served yet
+		return nil
 	}
 	if from := m.GetFromId(); from.GetPredicateName() == mtproto.Predicate_peerUser {
 		n.FromId = from.GetUserId()
 	}
-	if n.FromId == 0 || n.FromId == userId {
+	switch {
+	case n.Broadcast:
+		if n.FromId == userId {
+			return nil
+		}
+		n.FromName = n.ChatTitle
+	case n.FromId == 0 || n.FromId == userId:
 		return nil
+	default:
+		n.FromName = names[n.FromId]
 	}
-	n.FromName = names[n.FromId]
 
 	if m.GetPredicateName() == mtproto.Predicate_messageService {
 		n = withAction(n, userId, m.GetAction(), names)
-		if n != nil && n.Kind == KindPinned {
+		if n != nil && n.Kind == KindPinned && !n.Channel {
+			// A channel's pinned message is in the channel's box, which
+			// the lookup of the user's box does not read: it is shown as
+			// "pinned a message".
 			n.PinnedId = m.GetReplyTo().GetReplyToMsgId()
 		}
 		return n
@@ -293,13 +320,16 @@ func withAction(n *Notification, userId int64, a *mtproto.MessageAction, names m
 	case mtproto.Predicate_messageActionChatEditPhoto:
 		n.Action = ActionPhotoEdited
 	case mtproto.Predicate_messageActionPinMessage:
+		if n.Broadcast {
+			return nil // a channel's pin tells no one
+		}
 		n.Kind, n.Action = KindPinned, ""
 		n.Content = ContentNoText
 		return n
 	default:
 		return nil
 	}
-	if !n.Chat {
+	if !n.Group() {
 		return nil // group actions only
 	}
 	return n

@@ -43,7 +43,13 @@ func Android(n *Notification, hideText bool) ([]byte, error) {
 func LocKey(n *Notification, hideText bool) (string, []string) {
 	base := []string{n.FromName}
 	msgPrefix := "MESSAGE_"
-	if n.Chat {
+	switch {
+	case n.Broadcast:
+		// A channel's post: CHANNEL_MESSAGE_*, the channel's title first
+		// (PushListenerController.java:509-524, :565-569, :811-824, :929-932
+		// at aac1efcb).
+		base, msgPrefix = []string{n.ChatTitle}, "CHANNEL_MESSAGE_"
+	case n.Group():
 		base = append(base, n.ChatTitle)
 		msgPrefix = "CHAT_MESSAGE_"
 	}
@@ -55,7 +61,10 @@ func LocKey(n *Notification, hideText bool) (string, []string) {
 	case KindMessage:
 		switch {
 		case n.Album:
-			if n.Chat {
+			switch {
+			case n.Broadcast:
+				return "CHANNEL_MESSAGES", base
+			case n.Group():
 				return "CHAT_MESSAGES", base
 			}
 			return "MESSAGES", base
@@ -76,7 +85,7 @@ func LocKey(n *Notification, hideText bool) (string, []string) {
 		switch {
 		case ok:
 			return "PINNED_" + string(c), append(base, arg)
-		case !n.Chat:
+		case !n.Group():
 			// The private form of PINNED_* reads a second argument.
 			return "PINNED_" + string(c), append(base, "")
 		}
@@ -106,12 +115,21 @@ func custom(n *Notification) map[string]any {
 	if n.Kind == KindSessionRevoke {
 		return c
 	}
-	if n.Chat {
+	switch {
+	case n.Channel:
+		// Never with from_id or chat_id, which Android reads after
+		// channel_id and would take for the dialog
+		// (PushListenerController.java:321-336 at aac1efcb).
+		c["channel_id"] = n.PeerId
+		if !n.Broadcast && n.FromId != 0 {
+			c["chat_from_id"] = n.FromId
+		}
+	case n.Chat:
 		c["chat_id"] = n.PeerId
 		if n.FromId != 0 {
 			c["chat_from_id"] = n.FromId
 		}
-	} else {
+	default:
 		c["from_id"] = n.PeerId
 	}
 	if n.MsgId != 0 {

@@ -77,6 +77,15 @@ func (f fakeMessages) UserMessage(_ context.Context, _ int64, id int32) (*mtprot
 	return f[id], nil
 }
 
+// fakeChannels answers the members of a channel's event: me and the
+// author, who gets nothing.
+type fakeChannels struct{ calls int }
+
+func (f *fakeChannels) Recipients(_ context.Context, ev *ChannelEvent) ([]*Event, error) {
+	f.calls++
+	return []*Event{{UserId: me, Updates: ev.Updates}}, nil
+}
+
 type sent struct {
 	provider string
 	token    string
@@ -128,6 +137,7 @@ type env struct {
 	settings fakeSettings
 	online   fakeOnline
 	messages fakeMessages
+	channels *fakeChannels
 	pushes   *fakeProviders
 	secrets  map[string][]byte // by token
 	ids      map[string]int64  // device ids by token
@@ -145,9 +155,10 @@ func newEnv(t *testing.T) *env {
 		secrets:  map[string][]byte{},
 		ids:      map[string]int64{},
 	}
+	e.channels = &fakeChannels{}
 	e.core = New(Deps{
 		Devices: e.devices, Online: e.online, Authorizations: e.auths, Settings: e.settings, Messages: e.messages,
-		APNs: fakeAPNs{e.pushes}, FCM: fakeFCM{e.pushes},
+		Channels: e.channels, APNs: fakeAPNs{e.pushes}, FCM: fakeFCM{e.pushes},
 	})
 	e.register(t, keyFCM, pushdevices.TokenFCM, "fcm-token", "ru", false)
 	e.register(t, keyIOS, pushdevices.TokenAPNs, "apns-token", "ru", true)
@@ -406,5 +417,46 @@ func TestPinnedAndReadHistory(t *testing.T) {
 	}
 	if p := e.lastAPNs(); p.Type != pushprovider.APNsBackground || bytes.Contains(p.Body, []byte(`"alert"`)) {
 		t.Fatalf("read history APNs request: %+v %s", p, p.Body)
+	}
+}
+
+// TestChannelPost: a channel's event reaches the members' devices (task
+// 055: posts reached only live sessions), muted by the channel's own
+// settings, else by the channels' class.
+func TestChannelPost(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	const channel = int64(1000000005)
+	post := func(id int32) *ChannelEvent {
+		m := mtproto.MakeTLMessage(&mtproto.Message{Id: id, PeerId: mtproto.MakePeerChannel(channel), Post: true, Message: "выпуск"}).To_Message()
+		return &ChannelEvent{ChannelId: channel, FromId: anna, Updates: mtproto.MakeTLUpdates(&mtproto.Updates{
+			Updates: []*mtproto.Update{mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update()},
+			Chats:   []*mtproto.Chat{mtproto.MakeTLChannel(&mtproto.Chat{Id: channel, Title: "Новости"}).To_Chat()},
+		}).To_Updates()}
+	}
+	e.core.HandleChannel(ctx, post(11))
+	got := e.take(t)
+	a := got["fcm-token"]
+	if a["loc_key"] != "CHANNEL_MESSAGE_TEXT" || a["custom"].(map[string]any)["channel_id"] != float64(channel) {
+		t.Fatalf("android: %v", a)
+	}
+	if title, body := iosAlert(got["apns-token"]); title != "Новости" || body != "выпуск" {
+		t.Fatalf("ios: %v", got["apns-token"])
+	}
+
+	// Muted for all channels: Android gets MESSAGE_MUTED, iOS nothing.
+	e.settings[settingsKey{mtproto.PEER_BROADCASTS, 0}] = mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{MuteUntil: wrapperspb.Int32(1<<31 - 1)}).To_PeerNotifySettings()
+	e.core.HandleChannel(ctx, post(12))
+	if got = e.take(t); len(got) != 1 || got["fcm-token"]["loc_key"] != "MESSAGE_MUTED" {
+		t.Fatalf("muted channels: %v", got)
+	}
+	// The channel's own setting wins over the class.
+	e.settings[settingsKey{mtproto.PEER_CHANNEL, channel}] = mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{MuteUntil: wrapperspb.Int32(0)}).To_PeerNotifySettings()
+	e.core.HandleChannel(ctx, post(13))
+	if got = e.take(t); len(got) != 2 {
+		t.Fatalf("the channel unmuted: %v", keys(got))
+	}
+	if e.channels.calls != 3 {
+		t.Errorf("recipients asked %d times", e.channels.calls)
 	}
 }

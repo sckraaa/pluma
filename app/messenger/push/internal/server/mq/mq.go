@@ -41,7 +41,12 @@ const (
 // Handler handles the events of Sync-T.
 type Handler interface {
 	Handle(ctx context.Context, ev *core.Event)
+	HandleChannel(ctx context.Context, ev *core.ChannelEvent)
 }
+
+// channelEvent is the method of a channel's event: one record for all the
+// members, keyed by the channel (ADR 0034, p. 5).
+var channelEvent = proto.MessageName((*sync.TLSyncPushChannelUpdates)(nil))
 
 // events turns the methods of Sync-T into events. Pushes of RPC results and
 // broadcasts carry no notification.
@@ -74,7 +79,26 @@ func (c *Consumer) Handle(ctx context.Context, m *mqconsumer.Message) (mqconsume
 	if tp := m.Header(outbox.HeaderTraceParent); tp != "" {
 		ctx = propagation.TraceContext{}.Extract(ctx, propagation.MapCarrier{outbox.HeaderTraceParent: tp})
 	}
-	decode, ok := events[protoreflect.FullName(m.Header(outbox.HeaderMethod))]
+	method := protoreflect.FullName(m.Header(outbox.HeaderMethod))
+	if method == channelEvent {
+		var in sync.TLSyncPushChannelUpdates
+		if err := json.Unmarshal(m.Value, &in); err != nil {
+			logx.WithContext(ctx).Errorf("push: record %d/%d: %v; skipped", m.Partition, m.Offset, err)
+			return mqconsumer.OutcomeSkipped, nil
+		}
+		if in.GetChannelId() == 0 || in.GetUpdates() == nil {
+			return outcomeIgnored, nil
+		}
+		c.handler.HandleChannel(ctx, &core.ChannelEvent{
+			ChannelId:     in.GetChannelId(),
+			FromId:        in.GetFromId(),
+			FromAuthKeyId: in.GetFromAuthKeyId(),
+			Mentioned:     in.GetMentioned(),
+			Updates:       in.GetUpdates(),
+		})
+		return outcomeHandled, nil
+	}
+	decode, ok := events[method]
 	if !ok {
 		return outcomeIgnored, nil
 	}

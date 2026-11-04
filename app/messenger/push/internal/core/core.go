@@ -57,6 +57,13 @@ type Messages interface {
 	UserMessage(ctx context.Context, userId int64, id int32) (*mtproto.Message, error)
 }
 
+// Channels makes the pushes of a channel's event for its members.
+type Channels interface {
+	// Recipients returns one event for each member of the channel but the
+	// author, with the updates as that member sees them.
+	Recipients(ctx context.Context, ev *ChannelEvent) ([]*Event, error)
+}
+
 // APNs and FCM send pushes (pushprovider.APNs, pushprovider.FCM).
 type APNs interface {
 	Send(ctx context.Context, p *pushprovider.APNsPush) (pushprovider.Outcome, error)
@@ -73,6 +80,7 @@ type Deps struct {
 	Authorizations Authorizations
 	Settings       Settings
 	Messages       Messages
+	Channels       Channels
 	APNs           APNs
 	FCM            FCM
 }
@@ -111,6 +119,43 @@ type Event struct {
 	// Only is the one authorization the updates are for (sync.updatesMe).
 	Only    int64
 	Updates *mtproto.Updates
+}
+
+// ChannelEvent is a channel's event of Sync-T (sync.pushChannelUpdates):
+// one record for all its members (ADR 0034, p. 5).
+type ChannelEvent struct {
+	ChannelId     int64
+	FromId        int64
+	FromAuthKeyId int64
+	Mentioned     []int64
+	Updates       *mtproto.Updates
+}
+
+// channelFanout bounds the members whose pushes are sent at once.
+const channelFanout = 8
+
+// HandleChannel sends the pushes of a channel's event to its members (task
+// 055: a post reached only the live sessions, through sync).
+func (c *Core) HandleChannel(ctx context.Context, ev *ChannelEvent) {
+	ctx, cancel := context.WithTimeout(ctx, EventDeadline)
+	defer cancel()
+	events, err := c.Channels.Recipients(ctx, ev)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("push: members of channel %d: %v", ev.ChannelId, err)
+		metricDropped.Inc("error")
+		return
+	}
+	sem := make(chan struct{}, channelFanout)
+	var wg sync.WaitGroup
+	for _, e := range events {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(e *Event) {
+			defer func() { <-sem; wg.Done() }()
+			c.Handle(ctx, e)
+		}(e)
+	}
+	wg.Wait()
 }
 
 // Handle sends the pushes of ev; failures are logged and counted: the
@@ -224,11 +269,11 @@ func (c *Core) notify(ctx context.Context, n *notify.Notification, d *pushdevice
 	}
 	s := c.settings(ctx, n)
 	if s.muted && !n.Mention {
-		if d.NoMuted || !c.muted.allow(d.Id, n.PeerId, n.Chat) {
+		if d.NoMuted || !c.muted.allow(d.Id, n.PeerId, peerKind(n)) {
 			metricDropped.Inc("muted")
 			return
 		}
-		c.deliver(ctx, &notify.Notification{Kind: notify.KindMuted, UserId: n.UserId, Chat: n.Chat, PeerId: n.PeerId, MsgId: n.MsgId}, d, false)
+		c.deliver(ctx, &notify.Notification{Kind: notify.KindMuted, UserId: n.UserId, Chat: n.Chat, Channel: n.Channel, Broadcast: n.Broadcast, PeerId: n.PeerId, MsgId: n.MsgId}, d, false)
 		return
 	}
 	if s.silent && !n.Silent {
@@ -243,11 +288,29 @@ type dialogSettings struct {
 	muted, silent, previews bool
 }
 
+// peerKind is the type of the dialog of n.
+func peerKind(n *notify.Notification) int32 {
+	switch {
+	case n.Channel:
+		return mtproto.PEER_CHANNEL
+	case n.Chat:
+		return mtproto.PEER_CHAT
+	}
+	return mtproto.PEER_USER
+}
+
 // settings of the dialog of n: the dialog's own, else those of its type
-// (private chats, groups), as Telegram combines them.
+// (private chats, groups, channels), as Telegram combines them: a
+// supergroup is a group (inputNotifyChats), a channel one of the channels
+// (inputNotifyBroadcasts; core.telegram.org/type/InputNotifyPeer).
 func (c *Core) settings(ctx context.Context, n *notify.Notification) dialogSettings {
 	peerType, typeOf := int32(mtproto.PEER_USER), int32(mtproto.PEER_USERS)
-	if n.Chat {
+	switch {
+	case n.Broadcast:
+		peerType, typeOf = mtproto.PEER_CHANNEL, mtproto.PEER_BROADCASTS
+	case n.Channel:
+		peerType, typeOf = mtproto.PEER_CHANNEL, mtproto.PEER_CHATS
+	case n.Chat:
 		peerType, typeOf = mtproto.PEER_CHAT, mtproto.PEER_CHATS
 	}
 	s := dialogSettings{previews: true}

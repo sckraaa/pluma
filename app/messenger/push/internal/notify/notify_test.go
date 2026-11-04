@@ -183,6 +183,85 @@ func TestGroupText(t *testing.T) {
 	}
 }
 
+const channel = int64(1000000005)
+
+func inChannel(m *mtproto.Message) { m.PeerId = mtproto.MakePeerChannel(channel) }
+
+// post makes m a channel's post: by the channel, with no author.
+func post(m *mtproto.Message) { m.Post, m.FromId = true, nil }
+
+func channelUpdates(ms ...*mtproto.Message) *mtproto.Updates {
+	var list []*mtproto.Update
+	for _, m := range ms {
+		list = append(list, mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update())
+	}
+	return mtproto.MakeTLUpdates(&mtproto.Updates{Updates: list, Users: users(), Chats: []*mtproto.Chat{
+		mtproto.MakeTLChannel(&mtproto.Chat{Id: channel, Title: "Новости"}).To_Chat(),
+	}}).To_Updates()
+}
+
+// TestChannelPost: a channel's post is CHANNEL_MESSAGE_* with the channel's
+// title and channel_id alone, which Android and iOS read as the channel
+// (task 055; PushListenerController.java:321-336, NotificationService.swift:
+// 1010-1020); muted by the channels' class.
+func TestChannelPost(t *testing.T) {
+	n := one(t, channelUpdates(message(11, inChannel, post, text("выпуск"))))
+	if !n.Channel || !n.Broadcast || n.Group() {
+		t.Fatalf("%+v", n)
+	}
+	a := androidOf(t, n, false)
+	if a.LocKey != "CHANNEL_MESSAGE_TEXT" || !reflect.DeepEqual(a.LocArgs, []string{"Новости", "выпуск"}) ||
+		!reflect.DeepEqual(a.Custom, map[string]int64{"channel_id": channel, "msg_id": 11}) {
+		t.Fatalf("android: %+v", a)
+	}
+	if a = androidOf(t, n, true); a.LocKey != "CHANNEL_MESSAGE_NOTEXT" || !reflect.DeepEqual(a.LocArgs, []string{"Новости"}) {
+		t.Fatalf("android, no previews: %+v", a)
+	}
+	_, m := iosOf(t, n, "ru", HideNone)
+	title, body := alertOf(m)
+	if title != "Новости" || body != "выпуск" || m["channel_id"] != "1000000005" || m["from_id"] != nil || m["chat_id"] != nil ||
+		m["aps"].(map[string]any)["thread-id"] != "-1001000000005" {
+		t.Fatalf("ios: %v", m)
+	}
+
+	alb := one(t, channelUpdates(message(12, inChannel, post, album(3)), message(13, inChannel, post, album(3))))
+	if a = androidOf(t, alb, false); a.LocKey != "CHANNEL_MESSAGES" || alb.Count != 2 {
+		t.Fatalf("album: %+v, count %d", a, alb.Count)
+	}
+	if ns := FromUpdates(me, channelUpdates(service(14, mtproto.MakeTLMessageActionPinMessage(nil).To_MessageAction(), inChannel, post))); len(ns) != 0 {
+		t.Errorf("a channel's pin: %+v", ns)
+	}
+}
+
+// TestSupergroupMessage: a supergroup's message is CHAT_MESSAGE_* with the
+// author and the title, channel_id and chat_from_id, never chat_id.
+func TestSupergroupMessage(t *testing.T) {
+	n := one(t, channelUpdates(message(21, inChannel, from(boris), text("всем привет"))))
+	if !n.Channel || n.Broadcast || !n.Group() {
+		t.Fatalf("%+v", n)
+	}
+	a := androidOf(t, n, false)
+	if a.LocKey != "CHAT_MESSAGE_TEXT" || !reflect.DeepEqual(a.LocArgs, []string{"Борис", "Новости", "всем привет"}) ||
+		!reflect.DeepEqual(a.Custom, map[string]int64{"channel_id": channel, "chat_from_id": boris, "msg_id": 21}) {
+		t.Fatalf("android: %+v", a)
+	}
+	_, m := iosOf(t, n, "en", HideNone)
+	if title, body := alertOf(m); title != "Новости" || body != "Борис: всем привет" || m["channel_id"] != "1000000005" || m["chat_id"] != nil {
+		t.Fatalf("ios: %v", m)
+	}
+	// A join to a supergroup is a group action.
+	if j := one(t, channelUpdates(service(22, mtproto.MakeTLMessageActionChatJoinedByLink(nil).To_MessageAction(), inChannel, from(boris)))); j.Kind != KindAction {
+		t.Errorf("join: %+v", j)
+	}
+	// Read on another device.
+	r := one(t, mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{
+		mtproto.MakeTLUpdateReadChannelInbox(&mtproto.Update{ChannelId: channel, MaxId: 21}).To_Update(),
+	}}).To_Updates())
+	if a = androidOf(t, r, false); a.LocKey != "READ_HISTORY" || !reflect.DeepEqual(a.Custom, map[string]int64{"channel_id": channel, "max_id": 21}) {
+		t.Fatalf("read: %+v", a)
+	}
+}
+
 func TestNoNotification(t *testing.T) {
 	out := message(1, text("я пишу"))
 	out.Out = true
@@ -190,7 +269,9 @@ func TestNoNotification(t *testing.T) {
 		"outgoing":       updates(out),
 		"own":            updates(message(2, inGroup, from(me), text("я"))),
 		"private action": updates(service(3, mtproto.MakeTLMessageActionChatEditPhoto(nil).To_MessageAction(), func(m *mtproto.Message) { m.PeerId = mtproto.MakePeerUser(anna) })),
-		"channel":        updates(message(4, func(m *mtproto.Message) { m.PeerId = mtproto.MakePeerChannel(5) })),
+		// A channel's own post on the author's other devices: the author is
+		// the channel, the recipient is the one who posted.
+		"own channel post": channelUpdates(message(4, inChannel, post, from(me), text("пост"))),
 		// Saved Messages are not marked out (as in Telegram) and are the owner's own.
 		"saved messages": updates(message(5, func(m *mtproto.Message) { m.PeerId = mtproto.MakePeerUser(me) }, text("заметка"))),
 		"saved read": mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{

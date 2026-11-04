@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/push/internal/core"
 	"github.com/teamgram/teamgram-server/app/messenger/push/internal/dao"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
@@ -53,8 +54,12 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Authorizations: &dao.Authorizations{Client: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient))},
 		Settings:       &dao.Settings{Client: user_client.NewUserClient(rpcx.GetCachedRpcClient(c.BizServiceClient))},
 		Messages:       &dao.Messages{Client: message_client.NewMessageClient(rpcx.GetCachedRpcClient(c.BizServiceClient))},
-		APNs:           apns,
-		FCM:            fcm,
+		Channels: &dao.Channels{
+			Channel: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
+			User:    user_client.NewUserClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
+		},
+		APNs: apns,
+		FCM:  fcm,
 	}
 	if apns == nil {
 		logx.Error("push: APNs is off (no key): iOS gets no pushes")

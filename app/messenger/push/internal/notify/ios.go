@@ -62,9 +62,14 @@ type iosAlert struct {
 func IOS(n *Notification, lang string, hide Hide) (*IOSPush, error) {
 	t := textsFor(lang)
 	ids := map[string]any{}
-	if n.Chat {
+	switch {
+	case n.Channel:
+		// Only without from_id and chat_id, which Telegram-iOS reads first
+		// (NotificationService.swift:1010-1020 at 6ad963e5).
+		ids["channel_id"] = strconv.FormatInt(n.PeerId, 10)
+	case n.Chat:
 		ids["chat_id"] = strconv.FormatInt(n.PeerId, 10)
-	} else {
+	default:
 		ids["from_id"] = strconv.FormatInt(n.PeerId, 10)
 	}
 	switch n.Kind {
@@ -113,9 +118,12 @@ func background(fields map[string]any) (*IOSPush, error) {
 }
 
 // threadId groups the notifications of a dialog: its id as the clients
-// write it, negative for a basic group.
+// write it, negative for a basic group, -100… for a channel.
 func threadId(n *Notification) string {
-	if n.Chat {
+	switch {
+	case n.Channel:
+		return strconv.FormatInt(-1000000000000-n.PeerId, 10)
+	case n.Chat:
 		return strconv.FormatInt(-n.PeerId, 10)
 	}
 	return strconv.FormatInt(n.PeerId, 10)
@@ -128,7 +136,7 @@ func iosText(n *Notification, t *texts, hide Hide) (string, string) {
 	case HideAll:
 		return "", t.newMessage
 	case HideText:
-		if n.Chat {
+		if n.Group() || n.Broadcast {
 			return n.ChatTitle, t.newMessage
 		}
 		return n.FromName, t.newMessage
@@ -153,7 +161,10 @@ func iosText(n *Notification, t *texts, hide Hide) (string, string) {
 			body = format(t.pinned, n.FromName, t.content(n.Content, n.Text))
 		}
 	}
-	if !n.Chat {
+	switch {
+	case n.Broadcast:
+		return n.ChatTitle, body
+	case !n.Group():
 		return n.FromName, body
 	}
 	if n.Kind == KindMessage {

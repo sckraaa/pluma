@@ -32,18 +32,18 @@ type limiter struct {
 type limiterKey struct {
 	device int64
 	peer   int64
-	chat   bool
+	kind   int32 // PEER_USER, PEER_CHAT, PEER_CHANNEL: ids of kinds may meet
 }
 
 func newLimiter(period time.Duration) *limiter {
 	return &limiter{period: period, last: map[limiterKey]time.Time{}, now: time.Now}
 }
 
-func (l *limiter) allow(device, peer int64, chat bool) bool {
+func (l *limiter) allow(device, peer int64, kind int32) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := l.now()
-	k := limiterKey{device, peer, chat}
+	k := limiterKey{device, peer, kind}
 	if t, ok := l.last[k]; ok && now.Sub(t) < l.period {
 		return false
 	}
