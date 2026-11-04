@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 253, partial 22, blocked 126, notimpl 6, fake 7, missing 455 (ok = 29.1%); with a conformance scenario 9
+    layer 228: 869 methods — ok 254, partial 22, blocked 125, notimpl 6, fake 7, missing 455 (ok = 29.2%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -23,7 +23,7 @@
 | ephemeral | 4 | 0 | 0 | 0 | 0 | 0 | 4 | 0 |
 | folders | 2 | 1 | 0 | 0 | 0 | 0 | 1 | 0 |
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
-| help | 28 | 10 | 1 | 12 | 0 | 0 | 5 | 2 |
+| help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
 | messages | 273 | 110 | 16 | 22 | 5 | 2 | 118 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
@@ -447,7 +447,7 @@
 | `help.getAppChangelog` | blocked |  | app/bff/configuration/internal/core/help.getAppChangelog_handler.go:29 |
 | `help.getAppConfig61E3F854` | ok |  | app/bff/configuration/internal/core/help.getAppConfig61E3F854_handler.go:27 |
 | `help.getAppConfig98914110` | ok |  | app/bff/configuration/internal/core/help.getAppConfig98914110_handler.go:28 |
-| `help.getAppUpdate` | blocked |  | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:27 |
+| `help.getAppUpdate` | ok |  | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:55 |
 | `help.getCdnConfig` | blocked |  | app/bff/files/internal/core/help.getCdnConfig_handler.go:27 |
 | `help.getConfig` | ok | yes | app/bff/configuration/internal/core/help.getConfig_handler.go:43 |
 | `help.getCountriesList` | ok |  | app/bff/configuration/internal/core/help.getCountriesList_handler.go:28 |
