@@ -766,6 +766,32 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ---
 
+## Обновление приложения (задача 054)
+
+- **Статус.** В ветке `task/054-app-update` репозитория `pluma-ios` (2026-11-04): правка клиента (`13f0ac4`) запушена; шаг CI (`1ca1c32`) ждёт права `workflow` у токена `gh`. Патч проверен на разреженной копии апстрима `release-12.9.2` (`ci/configure.sh dev`) и тестами `AppUpdateTest`; сборка и поведение на устройстве — после CI.
+- **Зачем.** Сборкам с сайта (ad hoc) сервер предлагает обновление ссылкой на страницу установки; TestFlight-сборки обновляет TestFlight (решение владельца 2, бриф 054; ADR 0035).
+
+### I-099. `AppUpdateInfo.url`
+
+- **Где.** `submodules/TelegramCore/Sources/State/AppUpdate.swift`: поле `public let url: String?`, параметр `url: String? = nil` у `init`, `self.url = appUpdateData.url` при разборе `help.appUpdate` (апстрим отбрасывал `url`, `AppUpdate.swift:8-35`).
+
+### I-100. Экран обновления открывает `url`
+
+- **Где.** `submodules/TelegramUpdateUI/Sources/UpdateInfoController.swift:117-119`: кнопка «Обновить» открывает `appUpdateInfo.url` через `applicationBindings.openUrl`, без `url` — как прежде, `openAppStorePage` (у Pluma `appstore_id = 0`, страницы нет).
+
+### I-101. Признак `adhoc` в `app_version`
+
+- **Где.** `submodules/MtProtoKit/Sources/MTApiEnvironment.m:384-394`: `app_version` собирается как `"<CFBundleShortVersionString> (<CFBundleVersion>) <suffix>"`, суффикс на iOS пустой. Патч ставит `suffix = @"adhoc"`, если в `embedded.mobileprovision` бандла есть `<key>ProvisionedDevices</key>` (ad hoc и development-профили перечисляют устройства, App Store — нет).
+- **Почему при запуске, а не при сборке.** IPA для App Store — тот же скомпилированный код, что ad hoc, только с другими профилями (`ci/build.sh appstore`).
+- **Исправление исследования.** `docs/tasks/054-research/clients.md` §2.1 называл источником `app_version` `AppDelegate.swift:528` (только версия): это строка `networkArguments.appVersion` для списка изменений; в `initConnection` уходит строка MtProtoKit с номером сборки.
+
+### I-102. Выпуск: `ci/release-upload.sh`, `ios.yml`
+
+- После `install-upload.sh` в job `build-ipa`: `POST <PLUMA_RELEASES_URL>/dl/upload` с `platform=ios`, версией `UPSTREAM_VERSION`, номером `BUILD_NUMBER` и заметками `release/notes.*.txt`, без файлов. 409 — уже записано.
+- Проверка `preflight-sign` перенесена в начало `build-ipa`: одно одобрение `release` вместо двух (решение владельца 1). Там же проверяется секрет `RELEASES_UPLOAD_TOKEN`.
+
+---
+
 ## Пробелы и открытые вопросы
 
 - **Счётчики и хэши.** Почти каждое обновление апстрима сломает `STRINGS_RENAMED`, хэши картинок и `AppIntentVocabulary.plist`, счётчики палитры. Это намеренно: каждое падение требует посмотреть, что изменилось.

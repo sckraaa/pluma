@@ -24,7 +24,7 @@
   - `replace_body(rel, head, tail, body, must_contain)` — замена всего между `head` (ровно одно вхождение) и первым `tail` после него; заменяемый блок обязан содержать каждую строку `must_contain`;
   - `replace_in_tree(subdir, suffixes, old, new, count)` — точная замена во всех файлах каталога, общее число вхождений обязано совпасть;
   - ресурсы: замена файла только при совпадении SHA-256 и размера в пикселях с ожидаемым (`BRAND_ASSETS`), добавление файла только под незанятым именем (`BRAND_ADDED`), замена слоя Lottie-анимации при совпадении SHA-256 анимации (`BRAND_LAYERS`).
-- **Порядок в `patch()`:** проверка версий → tgnet → идентичность → сборка → Firebase → `birthdays()` → `sticker_sets()` → `saved_tags()` (A-086…A-092; от порядка не зависит) → `brand()`. Перед `birthdays()` стоит `video_quality()` (A-079…A-085); от порядка не зависит. Внутри `brand()`: `brand_entry_points` → `brand_strings` → `brand_client_links` → `brand_scheme` → `brand_assets` → `brand_devices` → `brand_intro` → `brand_theme`. Порядок важен: счётчики `SCHEME_JAVA` взяты после удаления строк поиска настроек (A-021), счётчики `STRING_RENAMES` — после правки `AppName` (A-010).
+- **Порядок в `patch()`:** проверка версий → tgnet → идентичность → сборка → Firebase → `birthdays()` → `sticker_sets()` → `saved_tags()` (A-086…A-092; от порядка не зависит) → `self_update()` (A-093…A-097; после проверки `APP_VERSION_NAME` в начале) → `brand()`. Перед `birthdays()` стоит `video_quality()` (A-079…A-085); от порядка не зависит. Внутри `brand()`: `brand_entry_points` → `brand_strings` → `brand_client_links` → `brand_scheme` → `brand_assets` → `brand_devices` → `brand_intro` → `brand_theme`. Порядок важен: счётчики `SCHEME_JAVA` взяты после удаления строк поиска настроек (A-021), счётчики `STRING_RENAMES` — после правки `AppName` (A-010).
 - **Тесты:** `python3 -I ci/patch_test.py -v` (стандартная библиотека, без сети; 46 тестов, на 2026-11-04 проходят). CI запускает их в job `check` вместе с `shellcheck -x ci/*.sh`.
   - Тесты проверяют помощники (`Tree`, разбор ключа, `Config`), правки дней рождения, наборов стикеров, качества видео, тегов «Избранного», интро и тем на синтетических деревьях, собранных из ожидаемых текстов, и сами ресурсы бренда.
   - **Правки tgnet, идентичности, сборки, строк, схемы ссылок, разделов настроек и замены ресурсов тестами на дереве не покрыты.** Их проверяет только запуск `ci/patch.py` на настоящем апстриме (job `build` в CI или локально `ci/fetch-upstream.sh && ci/configure.sh`) и `verify()` после него.
@@ -671,6 +671,47 @@
 - **Где.** `messenger/MessageObject.java`, `selectReaction` (12341): `int maxReactionsCount = MessagesController.getInstance(currentAccount).getMaxUserReactionsCount();` → `areTags() ? …reactionsUserMaxPremium : …getMaxUserReactionsCount()` с комментарием `// pluma: tags in Saved Messages take the Premium limit.`
 - **Что и зачем.** Сообщение «Избранного» (`reactions_as_tags`, `areTags()` 13069-13073; у нового — 12302-12306) берёт столько тегов, сколько с Premium: `reactions_user_max_premium` сервера (3). При достижении лимита апстрим снимает самый старый выбор (12363-12389).
 - **Лимит обычных реакций не патчится.** `getMaxUserReactionsCount()` (`MessagesController.java:908-910`) для пользователя без Premium берёт `reactions_user_max_default` сервера (разбор 3706-3715, по умолчанию 1, 1662); сервер отдаёт 3, значит три реакции на сообщение работают без правки. `reactions_uniq_max` клиент не применяет (ошибка разбора, `MessagesController.java:4483-4492`) и берёт 11 по умолчанию (1775) — совпадает с сервером. `getChatReactionsCount()` (912-914) нигде не вызывается.
+
+---
+
+## Самообновление (задача 054)
+
+- **Статус.** В ветке `task/054-self-update` репозитория `pluma-android` (2026-11-04, PR #2): правка клиента (`e314edb`) запушена, шаг выпуска в CI (`0f3ff30`) ждёт права `workflow` у токена `gh`. Проверено применением на файлах апстрима `aac1efcb` и тестами `SelfUpdateTest`; компиляция Gradle — сборкой PR; поведение на устройстве — после подписанной сборки.
+- **Зачем.** APK с сайта обновляется сам, как APK Telegram с telegram.org: `help.getAppUpdate` → лист обновления и плашка бокового меню → APK по MTProto → системный установщик (исследование `docs/tasks/054-research/clients.md`, §1; ADR 0035).
+- **Почему не `isStandalone() = true`.** Он включил бы и прочее standalone-сборки: строку TON в настройках и профиле (`SettingsActivity.java:712`, `ProfileActivity.java:10628`), биллинг по счетам (`BuildVars.java:63`), подпись «direct». Поэтому новый признак — только в местах обновления.
+
+### A-093. `ApplicationLoader.isSelfUpdatingBuild()`
+
+- **Где.** `messenger/ApplicationLoader.java`, после `isStandaloneBuild()` (131-133): `public static boolean isSelfUpdatingBuild() { return true; }` с комментарием `// pluma: …`.
+
+### A-094. Места обновления спрашивают `isSelfUpdatingBuild()`
+
+- **Где.** `isStandaloneBuild()` → `isSelfUpdatingBuild()`:
+  - `ui/LaunchActivity.java:5958` — проверка обновлений `checkAppUpdate`, `:6011` — лист `showUpdateAppPopup`;
+  - `ui/ChatActivity.java:41304`, `ui/Stories/PeerStoriesView.java:4416` — кнопки «обновить приложение» у неподдерживаемых сообщений и историй (вместо Google Play);
+  - `ui/Components/BlockingUpdateView.java:142`, `:303` — блокирующий экран (`can_not_skip`);
+  - `messenger/SharedConfig.java:771` — плашка бокового меню (`isAppUpdateAvailable`);
+  - `ui/ProfileActivity.java:4653`, `ui/SettingsActivity.java:1430` — пункт отладочного меню «Check app update».
+- **Проверка.** `verify_self_update` считает вызовы в каждом файле (`SELF_UPDATE_USES`): лишнее место — ошибка.
+
+### A-095. `ApplicationLoaderImpl` приложения: установка, лист, плашка
+
+- **Где.** `TMessagesProj_App/src/main/java/org/telegram/messenger/ApplicationLoaderImpl.java` заменяется целиком (сверка с текстом апстрима): переопределения `checkApkInstallPermissions`, `openApkInstall`, `showUpdateAppPopup`, `takeUpdateLayout` из `TMessagesProj_AppStandalone/.../ApplicationLoaderImpl.java:63-114`, без SMS-заданий.
+
+### A-096. Файлы листа и плашки
+
+- **Где.** `UpdateAppAlertDialog.java` (SHA-256 `4545e52e…`) и `UpdateLayout.java` (`e1050c8c…`) копируются из `TMessagesProj_AppStandalone/src/main/java/org/telegram/ui/Components/` в тот же путь `TMessagesProj_App`; изменённый апстримом файл — ошибка. Строки и ресурсы — библиотеки (`org.telegram.messenger.R`).
+- `TMessagesProj_App/build.gradle`: `implementation 'androidx.core:core:1.16.0'` (`FileProvider`, `NestedScrollView`): библиотека держит его как `implementation`, модуль standalone тоже объявляет его сам; версия сверяется с библиотекой.
+
+### A-097. Версия `12.9.1.N`
+
+- **Где.** `gradle.properties`: `APP_VERSION_NAME=12.9.1` → `12.9.1.N`; `TMessagesProj_App/build.gradle:157`: `versionCode = APP_VERSION_CODE * 1000 + N` (итог `(6979000 + N) * 10 + 9`).
+- **N** — `--build` у `ci/patch.py` (`PLUMA_BUILD` в `configure.sh`, в CI `github.run_number`; 0 для локальной сборки).
+- **Зачем.** Android сравнивает версии по общим частям (`SharedConfig.java:811-824`): без четвёртой части сборки одного апстрима неразличимы. Установки `12.9.1` (три части) обновления не увидят — один раз поставить с сайта.
+
+### A-098. Выпуск на сайт (`ci/publish.sh`, `android.yml`)
+
+- После подписи в job `sign` ветки `main`: `ci/publish.sh signed/<apk> $GITHUB_RUN_NUMBER` → `POST <PLUMA_RELEASES_URL>/dl/upload` (токен — секрет `RELEASES_UPLOAD_TOKEN` окружения `release`, заголовок через файл), версия `12.9.1.N`, заметки `release/notes.en.txt`, `release/notes.ru.txt`. 409 (сборка уже выложена) — не ошибка. Нет токена или адреса — job падает.
 
 ---
 
