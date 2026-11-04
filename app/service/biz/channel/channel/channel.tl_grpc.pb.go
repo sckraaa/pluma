@@ -52,6 +52,8 @@ const (
 	RPCChannel_ChannelReadHistory_FullMethodName            = "/channel.RPCChannel/channel_readHistory"
 	RPCChannel_ChannelDeleteMessages_FullMethodName         = "/channel.RPCChannel/channel_deleteMessages"
 	RPCChannel_ChannelInviteToChannel_FullMethodName        = "/channel.RPCChannel/channel_inviteToChannel"
+	RPCChannel_ChannelEditTitle_FullMethodName              = "/channel.RPCChannel/channel_editTitle"
+	RPCChannel_ChannelEditAbout_FullMethodName              = "/channel.RPCChannel/channel_editAbout"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -88,6 +90,10 @@ type RPCChannelClient interface {
 	ChannelDeleteMessages(ctx context.Context, in *TLChannelDeleteMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedMessages, error)
 	// pluma: task 041
 	ChannelInviteToChannel(ctx context.Context, in *TLChannelInviteToChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelEditTitle(ctx context.Context, in *TLChannelEditTitle, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelEditAbout(ctx context.Context, in *TLChannelEditAbout, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCChannelClient struct {
@@ -258,6 +264,26 @@ func (c *rPCChannelClient) ChannelInviteToChannel(ctx context.Context, in *TLCha
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelEditTitle(ctx context.Context, in *TLChannelEditTitle, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelEditTitle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelEditAbout(ctx context.Context, in *TLChannelEditAbout, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelEditAbout_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -292,6 +318,10 @@ type RPCChannelServer interface {
 	ChannelDeleteMessages(context.Context, *TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error)
 	// pluma: task 041
 	ChannelInviteToChannel(context.Context, *TLChannelInviteToChannel) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelEditTitle(context.Context, *TLChannelEditTitle) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelEditAbout(context.Context, *TLChannelEditAbout) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -348,6 +378,12 @@ func (UnimplementedRPCChannelServer) ChannelDeleteMessages(context.Context, *TLC
 }
 func (UnimplementedRPCChannelServer) ChannelInviteToChannel(context.Context, *TLChannelInviteToChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelInviteToChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelEditTitle(context.Context, *TLChannelEditTitle) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditTitle not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelEditAbout(context.Context, *TLChannelEditAbout) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditAbout not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -657,6 +693,42 @@ func _RPCChannel_ChannelInviteToChannel_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelEditTitle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelEditTitle)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelEditTitle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelEditTitle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelEditTitle(ctx, req.(*TLChannelEditTitle))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelEditAbout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelEditAbout)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelEditAbout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelEditAbout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelEditAbout(ctx, req.(*TLChannelEditAbout))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -727,6 +799,14 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_inviteToChannel",
 			Handler:    _RPCChannel_ChannelInviteToChannel_Handler,
+		},
+		{
+			MethodName: "channel_editTitle",
+			Handler:    _RPCChannel_ChannelEditTitle_Handler,
+		},
+		{
+			MethodName: "channel_editAbout",
+			Handler:    _RPCChannel_ChannelEditAbout_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

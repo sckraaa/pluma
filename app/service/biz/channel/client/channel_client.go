@@ -42,6 +42,8 @@ type ChannelClient interface {
 	ChannelReadHistory(ctx context.Context, in *channel.TLChannelReadHistory) (*mtproto.Bool, error)
 	ChannelDeleteMessages(ctx context.Context, in *channel.TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error)
 	ChannelInviteToChannel(ctx context.Context, in *channel.TLChannelInviteToChannel) (*mtproto.Updates, error)
+	ChannelEditTitle(ctx context.Context, in *channel.TLChannelEditTitle) (*mtproto.Updates, error)
+	ChannelEditAbout(ctx context.Context, in *channel.TLChannelEditAbout) (*mtproto.Bool, error)
 }
 
 type defaultChannelClient struct {
@@ -228,4 +230,26 @@ func (m *defaultChannelClient) ChannelInviteToChannel(ctx context.Context, in *c
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelInviteToChannel(ctx, in)
+}
+
+// ChannelEditTitle
+// channel.editTitle self_id:long perm_auth_key_id:long channel_id:long title:string = Updates;
+func (m *defaultChannelClient) ChannelEditTitle(ctx context.Context, in *channel.TLChannelEditTitle) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditTitle(ctx, in)
+}
+
+// ChannelEditAbout
+// channel.editAbout self_id:long perm_auth_key_id:long channel_id:long about:string = Bool;
+func (m *defaultChannelClient) ChannelEditAbout(ctx context.Context, in *channel.TLChannelEditAbout) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditAbout(ctx, in)
 }

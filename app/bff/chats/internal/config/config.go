@@ -39,4 +39,7 @@ type Config struct {
 	AuthsessionClient zrpc.RpcClientConf
 	IdgenClient       zrpc.RpcClientConf
 	MessageClient     zrpc.RpcClientConf
+	// ChannelClient changes channels whose methods are those of chats,
+	// such as messages.editChatAbout (biz channel).
+	ChannelClient zrpc.RpcClientConf
 }

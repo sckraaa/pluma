@@ -59,6 +59,10 @@ enum TLConstructor {
   CRC32_channel_deleteMessages = 1972359002;
   // pluma: task 041
   CRC32_channel_inviteToChannel = 293053083;
+  // pluma: task 044
+  CRC32_channel_editTitle = 325646357;
+  // pluma: task 044
+  CRC32_channel_editAbout = -564196321;
 }
 
 
@@ -334,6 +338,30 @@ message TL_channel_inviteToChannel {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.editTitle self_id:long perm_auth_key_id:long channel_id:long title:string = Updates;
+// self_id renames the channel: a service message and updateChannel for
+// the members. The users of the answer are the caller's to add.
+message TL_channel_editTitle {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  string title = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.editAbout self_id:long perm_auth_key_id:long channel_id:long about:string = Bool;
+// self_id changes the description of the channel; the members load it
+// again.
+message TL_channel_editAbout {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  string about = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -389,4 +417,8 @@ service RPCChannel {
   rpc channel_deleteMessages(TL_channel_deleteMessages) returns (mtproto.messages_AffectedMessages) {}
   // pluma: task 041
   rpc channel_inviteToChannel(TL_channel_inviteToChannel) returns (mtproto.Updates) {}
+  // pluma: task 044
+  rpc channel_editTitle(TL_channel_editTitle) returns (mtproto.Updates) {}
+  // pluma: task 044
+  rpc channel_editAbout(TL_channel_editAbout) returns (mtproto.Bool) {}
 }

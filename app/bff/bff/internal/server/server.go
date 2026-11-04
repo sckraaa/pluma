@@ -199,6 +199,7 @@ func (s *Server) Initialize() error {
 				AuthsessionClient: c.AuthSessionClient,
 				IdgenClient:       c.IdgenClient,
 				MessageClient:     c.BizServiceClient,
+				ChannelClient:     c.BizServiceClient,
 			}))
 
 		// files_helper

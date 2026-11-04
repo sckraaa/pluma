@@ -40,4 +40,8 @@ const (
 	CRC32_channel_deleteMessages TLConstructor = 1972359002 // 0x758fcf5a
 	// pluma: task 041
 	CRC32_channel_inviteToChannel TLConstructor = 293053083 // 0x1177a29b
+	// pluma: task 044
+	CRC32_channel_editTitle TLConstructor = 325646357 // 0x1368f815
+	// pluma: task 044
+	CRC32_channel_editAbout TLConstructor = -564196321 // 0xde5f0c1f
 )

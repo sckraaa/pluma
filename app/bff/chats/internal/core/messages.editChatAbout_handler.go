@@ -19,9 +19,16 @@
 package core
 
 import (
+	"unicode/utf8"
+
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 )
+
+// channelAboutMax is the longest description of a channel, in characters,
+// as the clients enforce it (Android ChannelCreateActivity: 255).
+const channelAboutMax = 255
 
 // MessagesEditChatAbout
 // messages.editChatAbout#def60797 peer:InputPeer about:string = Bool;
@@ -40,9 +47,24 @@ func (c *ChatsCore) MessagesEditChatAbout(in *mtproto.TLMessagesEditChatAbout) (
 			return nil, err
 		}
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("messages.editChatAbout blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// A channel's description (task 044): biz channel checks the
+		// rights and tells the members.
+		if utf8.RuneCountInString(in.About) > channelAboutMax {
+			return nil, mtproto.ErrChatAboutTooLong
+		}
+		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
+		if err != nil {
+			return nil, err
+		}
+		if mc.GetChannel().GetAccessHash() != peer.AccessHash {
+			return nil, mtproto.ErrChannelInvalid
+		}
+		return c.svcCtx.Dao.Channel.ChannelEditAbout(c.ctx, &channelpb.TLChannelEditAbout{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     peer.PeerId,
+			About:         in.About,
+		})
 	default:
 		err := mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("invalid peer type: {%v}")

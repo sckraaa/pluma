@@ -287,6 +287,14 @@ func (noChannels) ChannelInviteToChannel(context.Context, *channelpb.TLChannelIn
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelEditTitle(context.Context, *channelpb.TLChannelEditTitle) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelEditAbout(context.Context, *channelpb.TLChannelEditAbout) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelGetParticipants(context.Context, *channelpb.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

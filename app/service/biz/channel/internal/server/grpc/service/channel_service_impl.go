@@ -247,3 +247,31 @@ func (s *Service) ChannelInviteToChannel(ctx context.Context, request *channel.T
 
 	return r, err
 }
+
+// ChannelEditTitle
+// channel.editTitle self_id:long perm_auth_key_id:long channel_id:long title:string = Updates;
+func (s *Service) ChannelEditTitle(ctx context.Context, request *channel.TLChannelEditTitle) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editTitle - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditTitle(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelEditAbout
+// channel.editAbout self_id:long perm_auth_key_id:long channel_id:long about:string = Bool;
+func (s *Service) ChannelEditAbout(ctx context.Context, request *channel.TLChannelEditAbout) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editAbout - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditAbout(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

@@ -35,11 +35,6 @@ func (c *ChannelsCore) ChannelsEditAdmin(in *mtproto.TLChannelsEditAdmin) (*mtpr
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsEditTitle is not served yet: channels.editTitle#566decd0.
-func (c *ChannelsCore) ChannelsEditTitle(in *mtproto.TLChannelsEditTitle) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsEditPhoto is not served yet: channels.editPhoto#f12e57c9.
 func (c *ChannelsCore) ChannelsEditPhoto(in *mtproto.TLChannelsEditPhoto) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
