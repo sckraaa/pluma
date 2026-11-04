@@ -184,13 +184,22 @@ func (d *Dao) UpdateUsername(b *userbox.Box, channelId int64, username string) (
 		return nil, err
 	}
 	if username != "" {
-		if _, err = b.Tx().Exec("INSERT INTO username (username, peer_type, peer_id, editable, active, order2) VALUES (?, ?, ?, 1, 1, ?)",
-			username, mtproto.PEER_CHANNEL, channelId, b.Date()<<32); err != nil {
-			if sqlx.IsDuplicate(err) {
-				// Taken since the check.
-				return nil, mtproto.ErrUsernameOccupied
-			}
+		// Taken since the check (a racing transaction inserted it: under
+		// READ COMMITTED the check locks no gap) is no row added. Not a
+		// duplicate key error: a failed statement fails the whole box
+		// transaction (userbox, runAttempt), whatever fn makes of it. Rows
+		// affected without clientFoundRows in the DSN: 1 added, 0 a no-op
+		// on the existing row; username is the only unique key besides id.
+		res, err := b.Tx().Exec("INSERT INTO username (username, peer_type, peer_id, editable, active, order2) VALUES (?, ?, ?, 1, 1, ?) "+
+			"ON DUPLICATE KEY UPDATE username = username",
+			username, mtproto.PEER_CHANNEL, channelId, b.Date()<<32)
+		if err != nil {
 			return nil, err
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return nil, err
+		} else if n == 0 {
+			return nil, mtproto.ErrUsernameOccupied
 		}
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
