@@ -206,7 +206,11 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		if _, err = b.Tx().Exec("UPDATE chat_invites SET usage2 = usage2 + 1 WHERE link = ?", link); err != nil {
 			return nil, err
 		}
-		if _, err = b.Tx().Exec("INSERT INTO chat_invite_participants (chat_id, link, user_id, requested, approved_by, date2) VALUES (?, ?, ?, 0, 0, ?)",
+		// The user may have joined by this link before and left: the row
+		// of the link and the user is there (UNIQUE link, user_id), and the
+		// join is new (an upsert, as basic groups write it, chat_box.go).
+		if _, err = b.Tx().Exec("INSERT INTO chat_invite_participants (chat_id, link, user_id, requested, approved_by, date2) VALUES (?, ?, ?, 0, 0, ?) AS new"+
+			" ON DUPLICATE KEY UPDATE chat_id = new.chat_id, requested = 0, approved_by = 0, date2 = new.date2",
 			channelId, link, b.UserId(), b.Date()); err != nil {
 			return nil, err
 		}

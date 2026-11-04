@@ -222,6 +222,52 @@ func TestJoinByLink(t *testing.T) {
 	wantErr(t, "one kicked", err, mtproto.ErrChannelPrivate)
 }
 
+// TestRejoinByLink: a member who joined by a link and left joins again by
+// the same link (the owner's report, task 055: it failed on the unique
+// row of the link and the user); one kicked and unbanned too.
+func TestRejoinByLink(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, bob := f.user("Creator"), f.user("Bob")
+	id := f.create(creator)
+	f.exec("UPDATE channels SET participants_count = 1 WHERE id = ?", id)
+	link := f.link(id, creator, 0, 0)
+
+	if _, err := f.join(bob, 0, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.leave(bob, id); err != nil {
+		t.Fatal(err)
+	}
+	inv, err := f.c.ChannelCheckChatInvite(&channel.TLChannelCheckChatInvite{SelfId: bob, Link: link})
+	if err != nil || inv.GetPredicateName() != mtproto.Predicate_chatInvite {
+		t.Fatalf("checkChatInvite after leaving: %v, %v", inv.GetPredicateName(), err)
+	}
+	if _, err = f.join(bob, 0, link); err != nil {
+		t.Fatalf("joining again by the same link: %v", err)
+	}
+	if n, _ := f.counts(id); n != 2 {
+		t.Errorf("participants_count %d after joining again, want 2", n)
+	}
+	var deleted int
+	if err = f.box.QueryRow("SELECT deleted FROM dialogs WHERE user_id = ? AND peer_type = ? AND peer_id = ?", bob, mtproto.PEER_CHANNEL, id).Scan(&deleted); err != nil || deleted != 0 {
+		t.Errorf("Bob's dialog: deleted %d, %v", deleted, err)
+	}
+	if inv, err = f.c.ChannelCheckChatInvite(&channel.TLChannelCheckChatInvite{SelfId: bob, Link: link}); err != nil || inv.GetPredicateName() != mtproto.Predicate_chatInviteAlready {
+		t.Errorf("checkChatInvite of a member again: %v, %v", inv.GetPredicateName(), err)
+	}
+
+	// Kicked, then unbanned: the same link again.
+	f.exec("UPDATE channel_participants SET state = ?, banned_rights = ?, kicked_by = ? WHERE channel_id = ? AND user_id = ?",
+		channel.StateBanned, mtproto.BANNED_VIEW_MESSAGES, creator, id, bob)
+	_, err = f.join(bob, 0, link)
+	wantErr(t, "one kicked", err, mtproto.ErrChannelPrivate)
+	f.exec("UPDATE channel_participants SET state = ?, banned_rights = 0, kicked_by = 0 WHERE channel_id = ? AND user_id = ?",
+		channel.StateLeft, id, bob)
+	if _, err = f.join(bob, 0, link); err != nil {
+		t.Errorf("joining by the link once unbanned: %v", err)
+	}
+}
+
 // TestJoinConcurrent: joins and leaves at once keep the count right.
 func TestJoinConcurrent(t *testing.T) {
 	f := newDiffFixture(t)
