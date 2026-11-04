@@ -57,6 +57,7 @@ const (
 	RPCChannel_ChannelCheckUsername_FullMethodName            = "/channel.RPCChannel/channel_checkUsername"
 	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
+	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -103,6 +104,8 @@ type RPCChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *TLChannelUpdateUsername, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 044
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
+	// pluma: task 055
+	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
 }
 
 type rPCChannelClient struct {
@@ -323,6 +326,16 @@ func (c *rPCChannelClient) ChannelGetAdminedPublicChannels(ctx context.Context, 
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteChannel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -367,6 +380,8 @@ type RPCChannelServer interface {
 	ChannelUpdateUsername(context.Context, *TLChannelUpdateUsername) (*mtproto.Bool, error)
 	// pluma: task 044
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
+	// pluma: task 055
+	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -438,6 +453,9 @@ func (UnimplementedRPCChannelServer) ChannelUpdateUsername(context.Context, *TLC
 }
 func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetAdminedPublicChannels not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -837,6 +855,24 @@ func _RPCChannel_ChannelGetAdminedPublicChannels_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteChannel)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteChannel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteChannel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteChannel(ctx, req.(*TLChannelDeleteChannel))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -927,6 +963,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_getAdminedPublicChannels",
 			Handler:    _RPCChannel_ChannelGetAdminedPublicChannels_Handler,
+		},
+		{
+			MethodName: "channel_deleteChannel",
+			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

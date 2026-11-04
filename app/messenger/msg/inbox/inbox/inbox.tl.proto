@@ -32,6 +32,8 @@ enum TLConstructor {
   CRC32_inbox_updateMessageReactionsToInbox = -881825213;
   // pluma: task 041
   CRC32_inbox_channelInvitedToInbox = -733323321;
+  // pluma: task 055
+  CRC32_inbox_channelDeletedToInbox = 723491564;
 }
 
 // Every event is addressed to one user, user_id: it changes that user's box
@@ -176,6 +178,18 @@ message TL_inbox_seqUpdatesToInbox {
 // p. 3): the participant row is written; the recipient's box gets the
 // dialog with the channel and updateChannel with seq.
 message TL_inbox_channelInvitedToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int64 channel_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: inbox.channelDeletedToInbox user_id:long from_id:long channel_id:long = Void;
+// from_id, the creator, deleted the channel channel_id, of which user_id
+// was a member (task 055): the recipient's box loses the dialog and gets
+// updateChannel with seq and the channel as channelForbidden.
+message TL_inbox_channelDeletedToInbox {
   TLConstructor constructor = 1;
   int64 user_id = 3;
   int64 from_id = 4;

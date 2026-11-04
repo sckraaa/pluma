@@ -47,6 +47,7 @@ type ChannelClient interface {
 	ChannelCheckUsername(ctx context.Context, in *channel.TLChannelCheckUsername) (*mtproto.Bool, error)
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
+	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
 }
 
 type defaultChannelClient struct {
@@ -288,4 +289,15 @@ func (m *defaultChannelClient) ChannelGetAdminedPublicChannels(ctx context.Conte
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetAdminedPublicChannels(ctx, in)
+}
+
+// ChannelDeleteChannel
+// channel.deleteChannel self_id:long perm_auth_key_id:long channel_id:long = Updates;
+func (m *defaultChannelClient) ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteChannel(ctx, in)
 }

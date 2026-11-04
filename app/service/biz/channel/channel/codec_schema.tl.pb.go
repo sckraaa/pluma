@@ -146,6 +146,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -2083237595,
 		}
 	},
+	-979916526: func() mtproto.TLObject { // 0xc597a912 pluma: task 055
+		return &TLChannelDeleteChannel{
+			Constructor: -979916526,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1779,6 +1784,48 @@ func (m *TLChannelGetAdminedPublicChannels) Decode(dBuf *mtproto.DecodeBuf) erro
 		// not has flags
 
 		m.SelfId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelDeleteChannel (pluma: task 055)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelDeleteChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc597a912:
+		x.UInt(0xc597a912)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelDeleteChannel) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelDeleteChannel) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc597a912:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

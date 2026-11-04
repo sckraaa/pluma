@@ -50,4 +50,6 @@ const (
 	CRC32_channel_updateUsername TLConstructor = 418987336 // 0x18f93d48
 	// pluma: task 044
 	CRC32_channel_getAdminedPublicChannels TLConstructor = -2083237595 // 0x83d45125
+	// pluma: task 055
+	CRC32_channel_deleteChannel TLConstructor = -979916526 // 0xc597a912
 )

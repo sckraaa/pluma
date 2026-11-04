@@ -38,6 +38,14 @@ func (c *ChannelsCore) mutableChannel(in *mtproto.InputChannel) (*channelpb.Muta
 	if mc.GetChannel().GetAccessHash() != hash {
 		return nil, mtproto.ErrChannelInvalid
 	}
+	// A deleted channel is no one's to read or change (task 055): its rows
+	// stay, every member left. CHANNEL_PRIVATE, on which the clients drop
+	// a channel they cannot reach (Android checkChannelError,
+	// MessagesController.java:16796-16800 at aac1efcb); which code
+	// Telegram gives after a deletion is not verified.
+	if mc.GetChannel().GetDeleted() {
+		return nil, mtproto.ErrChannelPrivate
+	}
 	return mc, nil
 }
 

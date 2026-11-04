@@ -81,6 +81,31 @@ func (c *ChannelsCore) ChannelsLeaveChannel(in *mtproto.TLChannelsLeaveChannel) 
 	return r, c.addUsers(r)
 }
 
+// ChannelsDeleteChannel
+// channels.deleteChannel#c0111fe3 channel:InputChannel = Updates;
+//
+// The creator deletes the channel for everyone (channel.deleteChannel,
+// task 055). Android removes the dialog before it asks and drops an error
+// unseen (MessagesController.java:15865-15869, :15917-15922 at aac1efcb),
+// iOS falls back to channels.leaveChannel on one
+// (ManagedCloudChatRemoveMessagesOperations.swift:262-266 at 6ad963e5): the
+// creator must not fail here.
+func (c *ChannelsCore) ChannelsDeleteChannel(in *mtproto.TLChannelsDeleteChannel) (*mtproto.Updates, error) {
+	mc, err := c.mutableChannel(in.Channel)
+	if err != nil {
+		return nil, err
+	}
+	r, err := c.svcCtx.Channel.ChannelDeleteChannel(c.ctx, &channelpb.TLChannelDeleteChannel{
+		SelfId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		ChannelId:     mc.GetChannel().GetId(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r, c.addUsers(r)
+}
+
 // addUsers puts the account and the users of r's messages in r's users.
 func (c *ChannelsCore) addUsers(r *mtproto.Updates) error {
 	h := mtproto.NewIDListHelper(c.MD.UserId)

@@ -69,6 +69,8 @@ enum TLConstructor {
   CRC32_channel_updateUsername = 418987336;
   // pluma: task 044
   CRC32_channel_getAdminedPublicChannels = -2083237595;
+  // pluma: task 055
+  CRC32_channel_deleteChannel = -979916526;
 }
 
 
@@ -398,6 +400,18 @@ message TL_channel_getAdminedPublicChannels {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.deleteChannel self_id:long perm_auth_key_id:long channel_id:long = Updates;
+// self_id, the creator, deletes the channel for everyone: it is marked
+// deleted, its members leave and lose the dialog, its username and links
+// go; each other member gets an inbox event (task 055).
+message TL_channel_deleteChannel {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -463,4 +477,6 @@ service RPCChannel {
   rpc channel_updateUsername(TL_channel_updateUsername) returns (mtproto.Bool) {}
   // pluma: task 044
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
+  // pluma: task 055
+  rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
 }

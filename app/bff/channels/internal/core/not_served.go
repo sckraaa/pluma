@@ -40,11 +40,6 @@ func (c *ChannelsCore) ChannelsEditPhoto(in *mtproto.TLChannelsEditPhoto) (*mtpr
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsDeleteChannel is not served yet: channels.deleteChannel#c0111fe3.
-func (c *ChannelsCore) ChannelsDeleteChannel(in *mtproto.TLChannelsDeleteChannel) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsExportMessageLink is not served yet: channels.exportMessageLink#e63fadeb.
 func (c *ChannelsCore) ChannelsExportMessageLink(in *mtproto.TLChannelsExportMessageLink) (*mtproto.ExportedMessageLink, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

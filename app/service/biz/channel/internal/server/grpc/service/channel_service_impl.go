@@ -317,3 +317,17 @@ func (s *Service) ChannelGetAdminedPublicChannels(ctx context.Context, request *
 
 	return r, err
 }
+
+// ChannelDeleteChannel
+// channel.deleteChannel self_id:long perm_auth_key_id:long channel_id:long = Updates;
+func (s *Service) ChannelDeleteChannel(ctx context.Context, request *channel.TLChannelDeleteChannel) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteChannel - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteChannel(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

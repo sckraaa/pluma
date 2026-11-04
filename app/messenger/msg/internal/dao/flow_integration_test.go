@@ -311,6 +311,10 @@ func (noChannels) ChannelGetParticipants(context.Context, *channelpb.TLChannelGe
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelDeleteChannel(context.Context, *channelpb.TLChannelDeleteChannel) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]
