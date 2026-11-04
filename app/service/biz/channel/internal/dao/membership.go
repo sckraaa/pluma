@@ -51,6 +51,11 @@ type ChannelChange struct {
 	Message   *mtproto.Message
 	Pts       int32
 	Reload    bool
+	// Self and Count are, for a join or a leave, the owner's participant
+	// row and the channel's participants_count as the transaction wrote
+	// them.
+	Self  *channel.ImmutableChannelParticipant
+	Count int32
 }
 
 type memberChannelRow struct {
@@ -253,6 +258,16 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + 1, top_message = ? WHERE id = ?", top, channelId); err != nil {
 		return nil, err
 	}
+	change.Self = channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
+		ChannelId:      channelId,
+		UserId:         b.UserId(),
+		Role:           role,
+		State:          channel.StateIn,
+		InviterUserId:  inviter,
+		AvailableMinId: availableMinId,
+		Date:           b.Date(),
+	}).To_ImmutableChannelParticipant()
+	change.Count = c.ParticipantsCount + 1
 	// The dialog starts read up to the last message.
 	if err = upsertDialog(b, channelId, top); err != nil {
 		return nil, err
@@ -302,6 +317,13 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 		admins, channelId); err != nil {
 		return nil, err
 	}
+	change.Self = channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
+		ChannelId: channelId,
+		UserId:    b.UserId(),
+		State:     channel.StateLeft,
+		Date:      b.Date(),
+	}).To_ImmutableChannelParticipant()
+	change.Count = max(c.ParticipantsCount-1, 0)
 	if _, err = b.Tx().Exec("UPDATE dialogs SET deleted = 1 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
 		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
 		return nil, err

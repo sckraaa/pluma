@@ -57,7 +57,7 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, COALESCE(p.available_min_id, 0) AS available_min_id"+
 			" FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
 			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state <> 1"+
-			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE",
+			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
 		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
 		return err
 	}

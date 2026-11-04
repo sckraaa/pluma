@@ -69,6 +69,18 @@ func (f *diffFixture) counts(channelId int64) (participants, admins int32) {
 	return
 }
 
+// seqChannelUpdates counts updateChannel of the channel in the user's seq
+// journal: each join and leave journals one in its own transaction.
+func (f *diffFixture) seqChannelUpdates(userId, channelId int64) int {
+	f.t.Helper()
+	var n int
+	if err := f.box.QueryRow("SELECT COUNT(*) FROM user_seq_updates WHERE user_id = ? AND update_type = ? AND JSON_EXTRACT(update_data, '$.channel_id') = ?",
+		userId, mtproto.Predicate_updateChannel, channelId).Scan(&n); err != nil {
+		f.t.Fatal(err)
+	}
+	return n
+}
+
 func wantErr(t *testing.T, what string, err, want error) {
 	t.Helper()
 	if !errors.Is(err, want) {
@@ -119,6 +131,9 @@ func TestJoinLeave(t *testing.T) {
 	}
 	_, err = f.join(bob, id, "")
 	wantErr(t, "again", err, mtproto.ErrUserAlreadyParticipant)
+	if n := f.seqChannelUpdates(bob, id); n != 1 {
+		t.Errorf("updateChannel journaled %d times for the join, want once", n)
+	}
 
 	_, err = f.leave(creator, id)
 	wantErr(t, "the creator leaves", err, mtproto.ErrUserCreator)
@@ -131,6 +146,9 @@ func TestJoinLeave(t *testing.T) {
 	}
 	if n, _ := f.counts(id); n != 1 {
 		t.Errorf("participants_count %d after leaving, want 1", n)
+	}
+	if n := f.seqChannelUpdates(bob, id); n != 2 {
+		t.Errorf("updateChannel journaled %d times after the leave, want 2", n)
 	}
 	_, err = f.leave(bob, id)
 	wantErr(t, "leave again", err, mtproto.ErrUserNotParticipant)

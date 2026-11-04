@@ -104,6 +104,9 @@ func TestChannelEdit(t *testing.T) {
 	waitUpdate(ctx, t, bob, mtproto.Predicate_updateDeleteChannelMessages, func(u *mtproto.Update) bool {
 		return u.GetChannelId() == ch.GetId() && len(u.GetMessages()) == 2 && u.GetPts_INT32() == r.GetPts()
 	})
+	if err = edit(alice, theirs, "gone"); !mtclient.IsRPCError(err, "MESSAGE_ID_INVALID") {
+		t.Errorf("editing a deleted message: %v, want MESSAGE_ID_INVALID", err)
+	}
 
 	o, err := bob.c.Invoke(ctx, &mtproto.TLMessagesGetHistory{
 		Constructor: bob.c.Constructor(mtproto.Predicate_messages_getHistory),

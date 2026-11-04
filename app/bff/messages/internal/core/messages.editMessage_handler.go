@@ -83,6 +83,11 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 		return nil, err
 	}
 
+	if peer.PeerType == mtproto.PEER_CHANNEL && len(editMessages.GetDatas()) == 0 {
+		// Deleted, or hidden from the account (available_min_id): as msg
+		// answers for a message gone in the meantime.
+		return nil, mtproto.ErrMessageIdInvalid
+	}
 	if len(editMessages.GetDatas()) != 1 {
 		err = mtproto.ErrMessageEmpty
 		c.Logger.Errorf("messages.editMessage - emptyMessage(%d)", in.Id)

@@ -54,18 +54,13 @@ func (c *ChannelCore) ChannelJoinChannel(in *channel.TLChannelJoinChannel) (*mtp
 	if channelId == 0 {
 		return nil, mtproto.ErrChannelInvalid
 	}
-	var change *dao.ChannelChange
-	_, err := c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
-		var err error
-		if change, err = c.svcCtx.Dao.Join(b, channelId, in.Link); err != nil {
-			return err
-		}
-		return c.svcCtx.Dao.EmitChannelPush(b, in.PermAuthKeyId, change)
-	})
+	change, view, err := c.membership(in.SelfId, channelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.Join(b, channelId, in.Link)
+	}, in.PermAuthKeyId)
 	if err != nil {
 		return nil, c.membershipError("channel.joinChannel", err)
 	}
-	return c.membershipAnswer(in.SelfId, change)
+	return membershipAnswer(change, view), nil
 }
 
 // ChannelLeaveChannel
@@ -76,18 +71,13 @@ func (c *ChannelCore) ChannelJoinChannel(in *channel.TLChannelJoinChannel) (*mtp
 // now to self_id (left, or channelForbidden for a private one): Android
 // drops the dialog on it (MessagesController.java:20153-20154).
 func (c *ChannelCore) ChannelLeaveChannel(in *channel.TLChannelLeaveChannel) (*mtproto.Updates, error) {
-	var change *dao.ChannelChange
-	_, err := c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
-		var err error
-		if change, err = c.svcCtx.Dao.Leave(b, in.ChannelId); err != nil {
-			return err
-		}
-		return c.svcCtx.Dao.EmitChannelPush(b, in.PermAuthKeyId, change)
-	})
+	change, view, err := c.membership(in.SelfId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.Leave(b, in.ChannelId)
+	}, in.PermAuthKeyId)
 	if err != nil {
 		return nil, c.membershipError("channel.leaveChannel", err)
 	}
-	return c.membershipAnswer(in.SelfId, change)
+	return membershipAnswer(change, view), nil
 }
 
 // membershipError logs an error other than an answer of the method.
@@ -99,25 +89,43 @@ func (c *ChannelCore) membershipError(method string, err error) error {
 	return err
 }
 
-// membershipAnswer reads the channel as selfId sees it once committed,
-// gives selfId's other devices updateChannel with seq and returns the
-// answer of a join or a leave.
-func (c *ChannelCore) membershipAnswer(selfId int64, change *dao.ChannelChange) (*mtproto.Updates, error) {
-	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, change.ChannelId, []int64{selfId})
+// membership runs a join or a leave of selfId (fn) in its box
+// transaction and, in the same transaction, journals updateChannel with seq
+// for its devices and pushes the service message to the members (ADR 0034,
+// p. 2-3: the dialog, the seq row and the channel's row commit together).
+// The channel as selfId sees it afterwards is the one read before the
+// transaction, which calls no service, with the participant row and the
+// count the transaction wrote; it goes with updateChannel and in the
+// answer.
+func (c *ChannelCore) membership(selfId, channelId int64, fn func(b *userbox.Box) (*dao.ChannelChange, error), permAuthKeyId int64) (*dao.ChannelChange, *mtproto.Chat, error) {
+	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, channelId, []int64{selfId})
 	if err != nil {
-		c.Logger.Errorf("channel %d after a change of user %d: %v", change.ChannelId, selfId, err)
-		return nil, err
+		return nil, nil, err
 	}
-	now := int32(time.Now().Unix())
-	view := mc.ToChat(selfId, now)
-	updateChannel := mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: change.ChannelId}).To_Update()
-	if _, err = c.svcCtx.Dao.RunBox(c.ctx, selfId, func(b *userbox.Box) error {
-		return c.svcCtx.Dao.EmitSeqUpdate(b, updateChannel, nil, []*mtproto.Chat{view})
-	}); err != nil {
-		// The change is committed; the other devices learn it from the
-		// dialogs and the channel's next update.
-		c.Logger.Errorf("updateChannel %d of user %d: %v", change.ChannelId, selfId, err)
-	}
+	var (
+		change *dao.ChannelChange
+		view   *mtproto.Chat
+	)
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, selfId, func(b *userbox.Box) error {
+		var err error
+		if change, err = fn(b); err != nil {
+			return err
+		}
+		after := proto.Clone(mc).(*channel.MutableChannel)
+		after.Channel.ParticipantsCount = change.Count
+		after.Participants = []*channel.ImmutableChannelParticipant{change.Self}
+		view = after.ToChat(selfId, int32(b.Date()))
+		if err = c.svcCtx.Dao.EmitSeqUpdate(b, mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: channelId}).To_Update(), nil, []*mtproto.Chat{view}); err != nil {
+			return err
+		}
+		return c.svcCtx.Dao.EmitChannelPush(b, permAuthKeyId, change)
+	})
+	return change, view, err
+}
+
+// membershipAnswer is the answer of a join or a leave: updateChannel, the
+// service message as its author sees it, and the channel.
+func membershipAnswer(change *dao.ChannelChange, view *mtproto.Chat) *mtproto.Updates {
 	updates := []*mtproto.Update{mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: change.ChannelId}).To_Update()}
 	if change.Message != nil {
 		shown := proto.Clone(change.Message).(*mtproto.Message)
@@ -128,8 +136,8 @@ func (c *ChannelCore) membershipAnswer(selfId int64, change *dao.ChannelChange) 
 		Updates: updates,
 		Users:   []*mtproto.User{},
 		Chats:   []*mtproto.Chat{view},
-		Date:    now,
-	}).To_Updates(), nil
+		Date:    int32(time.Now().Unix()),
+	}).To_Updates()
 }
 
 // ChannelCheckChatInvite

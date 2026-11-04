@@ -276,9 +276,10 @@ func (c *MessagesCore) makeForwardMessages(
 				m.FwdFrom = fwdFrom
 			} else {
 				if saved {
-					if m.Views != nil {
-						// fwdFrom
-						m.FwdFrom.SavedFromPeer = box.Message.GetFromId()
+					if m.Views != nil || box.PeerType == mtproto.PEER_CHANNEL {
+						// From a channel or a supergroup: the chat it
+						// was saved from.
+						m.FwdFrom.SavedFromPeer = box.Message.GetPeerId()
 					} else {
 						m.FwdFrom.SavedFromPeer = mtproto.MakePeerUser(box.SenderUserId)
 					}
