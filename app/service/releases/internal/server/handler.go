@@ -30,6 +30,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -79,6 +80,8 @@ type Handler struct {
 	DB        *sqlx.DB
 	Documents Documents
 	Now       func() time.Time
+
+	publishing sync.Mutex
 }
 
 var (
@@ -177,11 +180,11 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if old, err := appreleases.ByBuild(r.Context(), h.DB, rel.Platform, rel.Build); err != nil {
+	if status, msg, err := h.released(r.Context(), rel); err != nil {
 		h.internal(w, err)
 		return
-	} else if old != nil {
-		http.Error(w, "the build is released already", http.StatusConflict)
+	} else if status != 0 {
+		http.Error(w, msg, status)
 		return
 	}
 
@@ -191,18 +194,26 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// One release is published at a time: the check that its build and
+	// version are new, its files' directory and its row go together.
+	h.publishing.Lock()
+	defer h.publishing.Unlock()
+	if status, msg, err := h.released(r.Context(), rel); err != nil {
+		h.internal(w, err)
+		return
+	} else if status != 0 {
+		http.Error(w, msg, status)
+		return
+	}
 	dir, err := h.publishFiles(rel, work)
 	if err != nil {
+		h.removeDir(dir)
 		h.internal(w, err)
 		return
 	}
 	if err = appreleases.Insert(r.Context(), h.DB, rel); err != nil {
 		// Not released: its files go, so that CI may upload it again.
-		if dir != "" {
-			if rmErr := os.RemoveAll(dir); rmErr != nil {
-				logx.Errorf("releases: remove %s: %v", dir, rmErr)
-			}
-		}
+		h.removeDir(dir)
 		if errors.Is(err, appreleases.ErrExists) {
 			http.Error(w, "the build is released already", http.StatusConflict)
 			return
@@ -245,8 +256,8 @@ func checkFiles(rel *appreleases.Release) error {
 			return errors.New(rel.Platform + ": no installer")
 		}
 		for _, f := range rel.Files {
-			if _, ok := appreleases.UpdaterKeys(rel.Platform, rel.Version, f.Name); f.Kind == appreleases.KindUpdate && !ok {
-				return fmt.Errorf("%s: %s is not an update package of %s %s", rel.Platform, f.Name, rel.Platform, rel.Version)
+			if _, ok := appreleases.UpdaterKeys(rel.Platform, rel.Build, f.Name); f.Kind == appreleases.KindUpdate && !ok {
+				return fmt.Errorf("%s: %s is not an update package of %s build %d", rel.Platform, f.Name, rel.Platform, rel.Build)
 			}
 		}
 	}
@@ -296,9 +307,28 @@ func (h *Handler) importAPK(ctx context.Context, rel *appreleases.Release, path 
 	return stored.GetId(), nil
 }
 
-// publishFiles moves the files of a release to their directory, which must
-// not exist: a version is written once. It returns the directory, "" for a
-// release without files.
+// released tells whether the platform has the build or the version of rel
+// already: 409 with its reason, 0 when both are new.
+func (h *Handler) released(ctx context.Context, rel *appreleases.Release) (int, string, error) {
+	if old, err := appreleases.ByBuild(ctx, h.DB, rel.Platform, rel.Build); err != nil {
+		return 0, "", err
+	} else if old != nil {
+		return http.StatusConflict, "the build is released already", nil
+	}
+	if old, err := appreleases.ByVersion(ctx, h.DB, rel.Platform, rel.Version); err != nil {
+		return 0, "", err
+	} else if old != nil {
+		return http.StatusConflict, fmt.Sprintf("version %s is released already, as build %d", rel.Version, old.Build), nil
+	}
+	return 0, "", nil
+}
+
+// publishFiles moves the files of a release to their directory, named by
+// its version, and syncs the directories, so that the row inserted next
+// never outlives the files in a crash. The caller holds publishing and has
+// found the version unreleased: a directory there is what an upload
+// interrupted before its row left, and goes. It returns the directory, ""
+// for a release without files.
 func (h *Handler) publishFiles(rel *appreleases.Release, work string) (string, error) {
 	if len(rel.Files) == 0 {
 		return "", nil
@@ -309,13 +339,43 @@ func (h *Handler) publishFiles(rel *appreleases.Release, work string) (string, e
 	}
 	dir := filepath.Join(parent, rel.Version)
 	if _, err := os.Stat(dir); err == nil {
-		return "", fmt.Errorf("releases: %s exists", dir)
+		logx.Infof("releases: %s has no release row, an interrupted upload's; removed", dir)
+		if err = os.RemoveAll(dir); err != nil {
+			return "", err
+		}
+	}
+	if err := syncDir(work); err != nil {
+		return "", err
 	}
 	if err := os.Rename(work, dir); err != nil {
 		return "", err
 	}
+	if err := syncDir(parent); err != nil {
+		return dir, err
+	}
 	// The work directory is gone: recreate it for the deferred clean-up.
 	return dir, os.MkdirAll(work, 0o750)
+}
+
+// syncDir makes the entries of directory d durable.
+func syncDir(d string) error {
+	f, err := os.Open(d)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return f.Sync()
+}
+
+// removeDir removes the files of a release that was not released; "" is
+// none.
+func (h *Handler) removeDir(dir string) {
+	if dir == "" {
+		return
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		logx.Errorf("releases: remove %s: %v", dir, err)
+	}
 }
 
 func (h *Handler) internal(w http.ResponseWriter, err error) {
@@ -391,7 +451,9 @@ func (h *Handler) releasesJSON(w http.ResponseWriter, r *http.Request) {
 // systems, the version of the current package and its link, which the
 // updater adds to its prefix (HttpChecker::parseResponse and
 // ParseCommonMap, update_checker.cpp:606-680, :804-850 at a1e89e1f). It
-// takes a version above its own AppVersion. The suffix 4 is the updater
+// takes a version above its own: Pluma's patch makes that the build number
+// (PlumaBuild), the release's build, which also names the package. The
+// suffix 4 is the updater
 // of lib_base 82d182a2 on every system the app runs on (AutoUpdateVersion:
 // 2 only below macOS 10.13 or glibc 2.28, which Pluma does not build for);
 // another suffix is another updater and gets nothing.
@@ -414,7 +476,7 @@ func (h *Handler) desktopCurrent(w http.ResponseWriter, r *http.Request) {
 	out := map[string]map[string]channel{}
 	for key, l := range appreleases.UpdaterLinks(current) {
 		out[key] = map[string]channel{"stable": {
-			Released: l.Release.Version,
+			Released: strconv.Itoa(int(l.Release.Build)),
 			Link:     "/" + l.Release.Platform + "/" + l.Release.Version + "/" + l.Name,
 		}}
 	}
@@ -471,5 +533,23 @@ func (h *Handler) file(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(name, ".apk") {
 		w.Header().Set("Content-Type", androidMime)
 	}
-	http.ServeContent(w, r, name, st.ModTime(), f)
+	http.ServeContent(&progressWriter{ResponseWriter: w, rc: http.NewResponseController(w)}, r, name, st.ModTime(), f)
+}
+
+// downloadStall is how long a download may stop before its connection is
+// closed. A download has no deadline of its own: a slow one that moves goes
+// on (an installer of a few hundred MB on a slow line takes long).
+const downloadStall = 2 * time.Minute
+
+// progressWriter moves the write deadline on with every write.
+type progressWriter struct {
+	http.ResponseWriter
+	rc *http.ResponseController
+}
+
+func (p *progressWriter) Write(b []byte) (int, error) {
+	if err := p.rc.SetWriteDeadline(time.Now().Add(downloadStall)); err != nil {
+		return 0, err
+	}
+	return p.ResponseWriter.Write(b)
 }

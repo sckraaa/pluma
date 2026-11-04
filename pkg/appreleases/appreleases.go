@@ -185,6 +185,20 @@ func ByBuild(ctx context.Context, db *sqlx.DB, platform string, build int32) (*R
 	return rows[0].release()
 }
 
+// ByVersion is the platform's release of version, nil for none: a version
+// is released once (its files' directory is named by it).
+func ByVersion(ctx context.Context, db *sqlx.DB, platform, version string) (*Release, error) {
+	var rows []row
+	if err := db.QueryRowsPartial(ctx, &rows,
+		"SELECT "+columns+" FROM app_releases WHERE platform = ? AND version = ? LIMIT 1", platform, version); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	return rows[0].release()
+}
+
 // SetWithdrawn withdraws a release, or brings it back: the current release
 // goes back to the one before, or forward again. It tells whether the
 // platform had the build.
@@ -215,8 +229,16 @@ var androidVersion = regexp.MustCompile(`^\d{1,4}(\.\d{1,9}){3}$`)
 // Telegram it is built from; Pluma's build goes apart (Release.Build).
 var iosVersion = regexp.MustCompile(`^\d{1,4}(\.\d{1,4}){1,2}$`)
 
+// desktopVersion is the version of a release of the desktop app: the
+// version of tdesktop it is built from and Pluma's build number, as Pluma
+// shows it (7.0.9.00057). The app's AppVersion stays upstream's, which its
+// local data and migrations are keyed by; its updater compares Pluma's build
+// number (PlumaBuild of the client patch, task 054), the build of the
+// release.
+var desktopVersion = regexp.MustCompile(`^\d{1,4}(\.\d{1,9}){3}$`)
+
 // ValidVersion checks the version of a release of the platform: Android
-// 1.2.3.4; iOS 1.2.3; desktop the integer AppVersion of tdesktop.
+// 1.2.3.4; iOS 1.2.3; desktop 1.2.3.4.
 func ValidVersion(platform, version string) bool {
 	switch platform {
 	case Android:
@@ -224,8 +246,7 @@ func ValidVersion(platform, version string) bool {
 	case IOS:
 		return iosVersion.MatchString(version)
 	case MacOS, Windows, Linux:
-		n, err := strconv.ParseUint(version, 10, 32)
-		return err == nil && n > 0
+		return desktopVersion.MatchString(version)
 	}
 	return false
 }
@@ -292,8 +313,8 @@ func IOSInstalled(appVersion string) (build int32, adhoc, ok bool) {
 }
 
 // updatePackage is the name of a package of tdesktop's updater: the
-// prefix Packer gives it for its system and processor, then the version
-// (packer.cpp:498-502 at a1e89e1f). The updater finds a downloaded package
+// prefix Packer gives it for its system and processor, then the version the
+// updater compares, Pluma's build number (packer.cpp:498-502 at a1e89e1f). The updater finds a downloaded package
 // again only by these names (FindUpdateFile, update_checker.cpp:292-315).
 var updatePackage = regexp.MustCompile(`^(tupdate|tx64upd|tarm64upd|tmacupd|tarmacupd|tlinuxupd)(\d+)$`)
 
@@ -317,10 +338,10 @@ var updaterKeys = map[string]struct {
 
 // UpdaterKeys are the keys of the updater a desktop update package of the
 // release serves; false when name is not a package of the release's
-// platform and version.
-func UpdaterKeys(platform, version, name string) ([]string, bool) {
+// platform and build.
+func UpdaterKeys(platform string, build int32, name string) ([]string, bool) {
 	m := updatePackage.FindStringSubmatch(name)
-	if m == nil || m[2] != version {
+	if m == nil || m[2] != strconv.Itoa(int(build)) {
 		return nil, false
 	}
 	k := updaterKeys[m[1]]
@@ -347,7 +368,7 @@ func UpdaterLinks(releases []*Release) map[string]UpdaterLink {
 			if f.Kind != KindUpdate {
 				continue
 			}
-			keys, ok := UpdaterKeys(r.Platform, r.Version, f.Name)
+			keys, ok := UpdaterKeys(r.Platform, r.Build, f.Name)
 			if !ok {
 				continue
 			}

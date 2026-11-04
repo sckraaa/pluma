@@ -70,7 +70,8 @@ func TestValidVersion(t *testing.T) {
 		{Android, "12.9.1.5-x", false},
 		{IOS, "12.9.2", true},
 		{IOS, "12.9.2.1", false},
-		{MacOS, "7000010", true},
+		{MacOS, "7.0.9.00057", true},
+		{MacOS, "7000066", false},
 		{Windows, "0", false},
 		{Linux, "7.0.9", false},
 		{"web", "1", false},
@@ -112,41 +113,43 @@ func TestIOSInstalled(t *testing.T) {
 
 func TestUpdaterKeys(t *testing.T) {
 	for _, c := range []struct {
-		platform, version, name string
-		want                    string // keys joined, "" for not a package
+		platform string
+		build    int32
+		name     string
+		want     string // keys joined, "" for not a package
 	}{
-		{MacOS, "7000010", "tmacupd7000010", "mac armac"},
-		{MacOS, "7000010", "tarmacupd7000010", "armac"},
-		{Windows, "7000010", "tx64upd7000010", "win64"},
-		{Windows, "7000010", "tarm64upd7000010", "winarm"},
-		{Windows, "7000010", "tupdate7000010", "win"},
-		{Linux, "7000010", "tlinuxupd7000010", "linux"},
-		{Linux, "7000010", "tlinuxupd7000011", ""}, // another version
-		{Linux, "7000010", "tmacupd7000010", ""},   // another system
-		{MacOS, "7000010", "Pluma-7000010.zip", ""},
-		{MacOS, "7000010", "tmacupd7000010_x", ""},
+		{MacOS, 57, "tmacupd57", "mac armac"},
+		{MacOS, 57, "tarmacupd57", "armac"},
+		{Windows, 57, "tx64upd57", "win64"},
+		{Windows, 57, "tarm64upd57", "winarm"},
+		{Windows, 57, "tupdate57", "win"},
+		{Linux, 57, "tlinuxupd57", "linux"},
+		{Linux, 57, "tlinuxupd58", ""}, // another build
+		{Linux, 57, "tmacupd57", ""},   // another system
+		{MacOS, 57, "Pluma-7.0.9.00057.zip", ""},
+		{MacOS, 57, "tmacupd57_x", ""},
 	} {
-		keys, ok := UpdaterKeys(c.platform, c.version, c.name)
+		keys, ok := UpdaterKeys(c.platform, c.build, c.name)
 		if got := strings.Join(keys, " "); ok != (c.want != "") || got != c.want {
-			t.Errorf("%s %s %s: %q %v", c.platform, c.version, c.name, got, ok)
+			t.Errorf("%s %d %s: %q %v", c.platform, c.build, c.name, got, ok)
 		}
 	}
 }
 
 func TestUpdaterLinks(t *testing.T) {
-	mac := &Release{Platform: MacOS, Version: "7000010", Files: []File{
-		{Name: "tarmacupd7000010", Kind: KindUpdate},
-		{Name: "tmacupd7000010", Kind: KindUpdate},
+	mac := &Release{Platform: MacOS, Version: "7.0.9.00057", Build: 57, Files: []File{
+		{Name: "tarmacupd57", Kind: KindUpdate},
+		{Name: "tmacupd57", Kind: KindUpdate},
 		{Name: "Pluma.zip", Kind: KindInstaller},
 	}}
-	win := &Release{Platform: Windows, Version: "7000009", Files: []File{{Name: "tx64upd7000009", Kind: KindUpdate}}}
+	win := &Release{Platform: Windows, Version: "7.0.9.00056", Build: 56, Files: []File{{Name: "tx64upd56", Kind: KindUpdate}}}
 	got := UpdaterLinks([]*Release{mac, win})
-	if len(got) != 3 || got["mac"].Name != "tmacupd7000010" || got["armac"].Name != "tarmacupd7000010" ||
-		got["win64"].Release != win || got["win64"].Name != "tx64upd7000009" {
+	if len(got) != 3 || got["mac"].Name != "tmacupd57" || got["armac"].Name != "tarmacupd57" ||
+		got["win64"].Release != win || got["win64"].Name != "tx64upd56" {
 		t.Errorf("%+v", got)
 	}
-	universal := UpdaterLinks([]*Release{{Platform: MacOS, Version: "7000010", Files: []File{{Name: "tmacupd7000010", Kind: KindUpdate}}}})
-	if universal["armac"].Name != "tmacupd7000010" || universal["mac"].Name != "tmacupd7000010" {
+	universal := UpdaterLinks([]*Release{{Platform: MacOS, Version: "7.0.9.00057", Build: 57, Files: []File{{Name: "tmacupd57", Kind: KindUpdate}}}})
+	if universal["armac"].Name != "tmacupd57" || universal["mac"].Name != "tmacupd57" {
 		t.Errorf("universal %+v", universal)
 	}
 }

@@ -224,25 +224,25 @@ func TestRelease(t *testing.T) {
 // current4 and fetches them by its prefix and their links.
 func TestDesktopFiles(t *testing.T) {
 	_, _, srv := newHandler(t)
-	code, body := upload(t, srv, token, part{name: "platform", body: "macos"}, part{name: "version", body: "7000010"},
+	code, body := upload(t, srv, token, part{name: "platform", body: "macos"}, part{name: "version", body: "7.0.9.00007"},
 		part{name: "build", body: "7"},
-		part{name: "installer", file: "Pluma-7000010-mac.zip", body: "zip"},
-		part{name: "update", file: "tmacupd7000010", body: "pkg"})
+		part{name: "installer", file: "Pluma-7.0.9.00007-macos-universal.zip", body: "zip"},
+		part{name: "update", file: "tmacupd7", body: "pkg"})
 	if code != http.StatusOK {
 		t.Fatalf("upload: %d %s", code, body)
 	}
-	if code, _ = upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7000010"},
-		part{name: "build", body: "7"}, part{name: "update", file: "tlinuxupd7000010", body: "pkg"}); code != http.StatusBadRequest {
+	if code, _ = upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7.0.9.00007"},
+		part{name: "build", body: "7"}, part{name: "update", file: "tlinuxupd7", body: "pkg"}); code != http.StatusBadRequest {
 		t.Errorf("no installer: %d", code)
 	}
-	if code, _ = upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7000010"},
+	if code, _ = upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7.0.9.00007"},
 		part{name: "build", body: "7"}, part{name: "installer", file: "Pluma.tar.xz", body: "xz"},
-		part{name: "update", file: "tlinuxupd7000009", body: "pkg"}); code != http.StatusBadRequest {
+		part{name: "update", file: "tlinuxupd6", body: "pkg"}); code != http.StatusBadRequest {
 		t.Errorf("a package of another version: %d", code)
 	}
-	if code, body = upload(t, srv, token, part{name: "platform", body: "windows"}, part{name: "version", body: "7000009"},
+	if code, body = upload(t, srv, token, part{name: "platform", body: "windows"}, part{name: "version", body: "7.0.9.00006"},
 		part{name: "build", body: "6"}, part{name: "installer", file: "Pluma-x64.zip", body: "zip"},
-		part{name: "update", file: "tx64upd7000009", body: "win"}); code != http.StatusOK {
+		part{name: "update", file: "tx64upd6", body: "win"}); code != http.StatusOK {
 		t.Fatalf("windows: %d %s", code, body)
 	}
 
@@ -251,8 +251,8 @@ func TestDesktopFiles(t *testing.T) {
 	if err := json.Unmarshal([]byte(get(t, srv, "/dl/desktop/current4").body), &current); err != nil {
 		t.Fatal(err)
 	}
-	if len(current) != 3 || current["mac"]["stable"].Released != "7000010" || current["armac"]["stable"].Link != "/macos/7000010/tmacupd7000010" ||
-		current["win64"]["stable"].Link != "/windows/7000009/tx64upd7000009" {
+	if len(current) != 3 || current["mac"]["stable"].Released != "7" || current["armac"]["stable"].Link != "/macos/7.0.9.00007/tmacupd7" ||
+		current["win64"]["stable"].Link != "/windows/7.0.9.00006/tx64upd6" {
 		t.Errorf("current4: %+v", current)
 	}
 	if a := get(t, srv, "/dl/desktop"+current["win64"]["stable"].Link); a.code != http.StatusOK || a.body != "win" {
@@ -260,5 +260,40 @@ func TestDesktopFiles(t *testing.T) {
 	}
 	if a := get(t, srv, "/dl/desktop/current2"); a.code != http.StatusNotFound {
 		t.Errorf("another updater: %d", a.code)
+	}
+}
+
+// TestInterruptedUpload: the files of a version left without its row (an
+// upload cut off between them) give way to the next upload of the version;
+// a released version is not taken again under another build.
+func TestInterruptedUpload(t *testing.T) {
+	h, _, srv := newHandler(t)
+	left := filepath.Join(h.DataDir, "files", "linux", "7.0.9.00020")
+	if err := os.MkdirAll(left, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(left, "stale.tar.xz"), []byte("stale"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if code, body := upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7.0.9.00020"},
+		part{name: "build", body: "11"}, part{name: "installer", file: "Pluma.tar.xz", body: "xz"}); code != http.StatusOK {
+		t.Fatalf("upload over the leftover: %d %s", code, body)
+	}
+	if _, err := os.Stat(filepath.Join(left, "stale.tar.xz")); !os.IsNotExist(err) {
+		t.Errorf("the leftover file is still there: %v", err)
+	}
+	if a := get(t, srv, "/dl/linux/7.0.9.00020/Pluma.tar.xz"); a.code != http.StatusOK || a.body != "xz" {
+		t.Errorf("the file: %d %q", a.code, a.body)
+	}
+	if code, body := upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7.0.9.00020"},
+		part{name: "build", body: "12"}, part{name: "installer", file: "Pluma.tar.xz", body: "other"}); code != http.StatusConflict {
+		t.Errorf("the same version as another build: %d %s", code, body)
+	}
+	if a := get(t, srv, "/dl/linux/7.0.9.00020/Pluma.tar.xz"); a.body != "xz" {
+		t.Errorf("the released file changed: %q", a.body)
+	}
+	entries, err := os.ReadDir(filepath.Join(h.DataDir, "work"))
+	if err != nil || len(entries) != 0 {
+		t.Errorf("work directory: %v %v", entries, err)
 	}
 }

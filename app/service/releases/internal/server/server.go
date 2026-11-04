@@ -72,6 +72,10 @@ func (s *Server) Initialize() error {
 	if len(h.Token) < 32 {
 		return errors.New("releases: the upload token is shorter than 32 characters")
 	}
+	// Uploads cut off by a stop left their parts in work/; none runs now.
+	if err = os.RemoveAll(filepath.Join(c.DataDir, "work")); err != nil {
+		return fmt.Errorf("releases: clear the work directory: %w", err)
+	}
 	for _, d := range []string{filepath.Join(c.DataDir, "files"), filepath.Join(c.DataDir, "work")} {
 		if err = os.MkdirAll(d, 0o750); err != nil {
 			return err
@@ -81,9 +85,11 @@ func (s *Server) Initialize() error {
 		Addr:              c.ListenOn,
 		Handler:           h.Routes(),
 		ReadHeaderTimeout: 10 * time.Second,
-		// Uploads of a few hundred MB from CI; downloads of as much.
+		// Uploads of a few hundred MB from CI. Downloads have no deadline
+		// of their own: each write moves it on (progressWriter), and other
+		// answers are short.
 		ReadTimeout:  30 * time.Minute,
-		WriteTimeout: 30 * time.Minute,
+		WriteTimeout: 0,
 		IdleTimeout:  2 * time.Minute,
 	}
 	go func() {
