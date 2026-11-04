@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -135,6 +136,7 @@ func (c *ChannelCore) ChannelCreateChannel(in *channel.TLChannelCreateChannel) (
 			in.CreatorId, mtproto.PEER_CHANNEL, channelId, mtproto.MakePeerDialogId(mtproto.PEER_CHANNEL, channelId), id, id, id, b.Date()); err != nil {
 			return err
 		}
+		dao.InvalidateDialog(b, channelId)
 		// The permanent invite link: Android's creation screen takes the
 		// first of messages.getExportedChatInvites(limit=1) unchecked
 		// (ChannelCreateActivity.java:940-943).

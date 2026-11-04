@@ -17,12 +17,16 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
 	Mysql sqlx.Config
+	// Cache is biz dialog's cache of dialog rows: a box transaction that
+	// writes a user's dialog with a channel deletes its key after commit.
+	Cache cache.CacheConf
 	// MediaClient loads the photos of channels.
 	MediaClient zrpc.RpcClientConf
 	// Topics of the events the box transactions of the service write

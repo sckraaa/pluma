@@ -22,6 +22,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -212,6 +213,7 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 	if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", last, channelId); err != nil {
 		return nil, nil, err
 	}
+	b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), mtproto.PEER_CHANNEL, channelId))
 	res, err := b.Tx().Exec("UPDATE dialogs SET top_message = ?, read_inbox_max_id = ?, date2 = ?, deleted = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
 		last, last, b.Date(), b.UserId(), mtproto.PEER_CHANNEL, channelId)
 	if err != nil {

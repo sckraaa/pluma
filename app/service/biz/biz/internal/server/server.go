@@ -111,6 +111,7 @@ func (s *Server) Initialize() error {
 			channel_helper.New(channel_helper.Config{
 				RpcServerConf: c.RpcServerConf,
 				Mysql:         c.Mysql,
+				Cache:         c.Cache,
 				MediaClient:   c.MediaClient,
 				Topics:        channel_helper.Topics{Sync: c.Topics.Sync},
 			}))
