@@ -1,19 +1,19 @@
 {
   "layer": "228",
   "total": 869,
-  "ok": 247,
-  "partial": 23,
+  "ok": 253,
+  "partial": 22,
   "areas": [
     {
       "key": "messages",
       "total": 273,
-      "ok": 109,
-      "partial": 17
+      "ok": 110,
+      "partial": 16
     },
     {
       "key": "channels",
       "total": 74,
-      "ok": 14,
+      "ok": 17,
       "partial": 1
     },
     {
@@ -67,7 +67,7 @@
     {
       "key": "payments",
       "total": 76,
-      "ok": 0,
+      "ok": 2,
       "partial": 1
     },
     {

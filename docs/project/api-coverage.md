@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 247, partial 23, blocked 121, notimpl 6, fake 7, missing 465 (ok = 28.4%); with a conformance scenario 9
+    layer 228: 869 methods — ok 253, partial 22, blocked 126, notimpl 6, fake 7, missing 455 (ok = 29.1%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | auth | 27 | 16 | 0 | 10 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | bots | 39 | 0 | 0 | 0 | 0 | 0 | 39 | 0 |
-| channels | 74 | 14 | 1 | 37 | 0 | 1 | 21 | 0 |
+| channels | 74 | 17 | 1 | 35 | 0 | 1 | 20 | 0 |
 | chatlists | 11 | 0 | 0 | 0 | 0 | 0 | 11 | 0 |
 | communities | 9 | 0 | 0 | 0 | 0 | 0 | 9 | 0 |
 | contacts | 29 | 23 | 0 | 2 | 0 | 0 | 4 | 0 |
@@ -25,16 +25,16 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 10 | 1 | 12 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 273 | 109 | 17 | 22 | 5 | 2 | 118 | 3 |
+| messages | 273 | 110 | 16 | 22 | 5 | 2 | 118 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
 | predefined | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| premium | 5 | 0 | 0 | 0 | 0 | 0 | 5 | 0 |
+| premium | 5 | 2 | 0 | 3 | 0 | 0 | 0 | 0 |
 | smsjobs | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | stats | 12 | 0 | 0 | 0 | 0 | 0 | 12 | 0 |
 | stickers | 11 | 0 | 0 | 0 | 0 | 0 | 11 | 0 |
-| stories | 44 | 1 | 0 | 0 | 0 | 0 | 43 | 0 |
+| stories | 44 | 1 | 0 | 4 | 0 | 0 | 39 | 0 |
 | updates | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 2 |
 | upload | 8 | 2 | 1 | 5 | 0 | 0 | 0 | 0 |
 | users | 10 | 7 | 0 | 2 | 0 | 0 | 1 | 0 |
@@ -277,36 +277,36 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `channels.checkSearchPostsFlood` | blocked |  | app/bff/messages/internal/core/channels.checkSearchPostsFlood_handler.go:27 |
-| `channels.checkUsername` | blocked |  | app/bff/usernames/internal/core/channels.checkUsername_handler.go:27 |
+| `channels.checkUsername` | ok |  | app/bff/usernames/internal/core/channels.checkUsername_handler.go:36 |
 | `channels.clickSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.clickSponsoredMessage_handler.go:27 |
 | `channels.convertToGigagroup` | blocked |  | app/bff/chats/internal/core/channels.convertToGigagroup_handler.go:27 |
 | `channels.createChannel` | partial |  | app/bff/channels/internal/core/channels.createChannel_handler.go:40 |
 | `channels.createForumTopic` | missing |  |  |
 | `channels.deactivateAllUsernames` | missing |  |  |
 | `channels.deleteChannel` | blocked |  | app/bff/channels/internal/core/not_served.go:44 |
-| `channels.deleteHistory9BAA9647` | blocked |  | app/bff/channels/internal/core/not_served.go:84 |
-| `channels.deleteHistoryAF369D42` | blocked |  | app/bff/channels/internal/core/not_served.go:139 |
+| `channels.deleteHistory9BAA9647` | blocked |  | app/bff/channels/internal/core/not_served.go:79 |
+| `channels.deleteHistoryAF369D42` | blocked |  | app/bff/channels/internal/core/not_served.go:134 |
 | `channels.deleteMessages` | ok |  | app/bff/channels/internal/core/channels.deleteMessages_handler.go:28 |
-| `channels.deleteParticipantHistory` | blocked |  | app/bff/channels/internal/core/not_served.go:119 |
+| `channels.deleteParticipantHistory` | blocked |  | app/bff/channels/internal/core/not_served.go:114 |
 | `channels.deleteTopicHistory` | missing |  |  |
 | `channels.editAdmin` | blocked |  | app/bff/channels/internal/core/not_served.go:34 |
-| `channels.editBanned` | blocked |  | app/bff/channels/internal/core/not_served.go:64 |
-| `channels.editCreator` | blocked |  | app/bff/channels/internal/core/not_served.go:129 |
+| `channels.editBanned` | blocked |  | app/bff/channels/internal/core/not_served.go:59 |
+| `channels.editCreator` | blocked |  | app/bff/channels/internal/core/not_served.go:124 |
 | `channels.editForumTopic` | missing |  |  |
-| `channels.editLocation` | blocked |  | app/bff/channels/internal/core/not_served.go:104 |
+| `channels.editLocation` | blocked |  | app/bff/channels/internal/core/not_served.go:99 |
 | `channels.editPhoto` | blocked |  | app/bff/channels/internal/core/not_served.go:39 |
 | `channels.editTitle` | ok |  | app/bff/channels/internal/core/channels.editTitle_handler.go:30 |
 | `channels.exportMessageLink` | blocked |  | app/bff/channels/internal/core/not_served.go:49 |
-| `channels.getAdminLog` | blocked |  | app/bff/channels/internal/core/not_served.go:69 |
-| `channels.getAdminedPublicChannels` | blocked |  | app/bff/channels/internal/core/not_served.go:59 |
+| `channels.getAdminLog` | blocked |  | app/bff/channels/internal/core/not_served.go:64 |
+| `channels.getAdminedPublicChannels` | ok |  | app/bff/channels/internal/core/channels.getAdminedPublicChannels_handler.go:32 |
 | `channels.getChannelRecommendations` | missing |  |  |
 | `channels.getChannels` | ok |  | app/bff/channels/internal/core/channels.getChannels_handler.go:30 |
 | `channels.getForumTopics` | missing |  |  |
 | `channels.getForumTopicsByID` | missing |  |  |
 | `channels.getFullChannel` | ok |  | app/bff/channels/internal/core/channels.getFullChannel_handler.go:37 |
-| `channels.getFutureCreatorAfterLeave` | blocked |  | app/bff/channels/internal/core/not_served.go:134 |
-| `channels.getGroupsForDiscussion` | blocked |  | app/bff/channels/internal/core/not_served.go:94 |
-| `channels.getInactiveChannels` | blocked |  | app/bff/channels/internal/core/not_served.go:114 |
+| `channels.getFutureCreatorAfterLeave` | blocked |  | app/bff/channels/internal/core/not_served.go:129 |
+| `channels.getGroupsForDiscussion` | blocked |  | app/bff/channels/internal/core/not_served.go:89 |
+| `channels.getInactiveChannels` | blocked |  | app/bff/channels/internal/core/not_served.go:109 |
 | `channels.getLeftChannels` | missing |  |  |
 | `channels.getMessageAuthor` | blocked |  | app/bff/savedmessagedialogs/internal/core/channels.getMessageAuthor_handler.go:27 |
 | `channels.getMessages` | ok |  | app/bff/channels/internal/core/channels.getMessages_handler.go:37 |
@@ -320,7 +320,7 @@
 | `channels.joinChannel7F6A1E22` | ok |  | app/bff/channels/internal/core/channels.membership_handler.go:42 |
 | `channels.leaveChannel` | ok |  | app/bff/channels/internal/core/channels.membership_handler.go:68 |
 | `channels.readHistory` | ok |  | app/bff/channels/internal/core/channels.readHistory_handler.go:30 |
-| `channels.readMessageContents` | blocked |  | app/bff/channels/internal/core/not_served.go:79 |
+| `channels.readMessageContents` | blocked |  | app/bff/channels/internal/core/not_served.go:74 |
 | `channels.reorderPinnedForumTopics` | missing |  |  |
 | `channels.reorderUsernames` | missing |  |  |
 | `channels.reportAntiSpamFalsePositive` | missing |  |  |
@@ -328,27 +328,27 @@
 | `channels.reportSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.reportSponsoredMessage_handler.go:27 |
 | `channels.restrictSponsoredMessages` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.restrictSponsoredMessages_handler.go:27 |
 | `channels.searchPosts` | blocked |  | app/bff/messages/internal/core/channels.searchPosts_handler.go:27 |
-| `channels.setBoostsToUnblockRestrictions` | missing |  |  |
-| `channels.setDiscussionGroup` | blocked |  | app/bff/channels/internal/core/not_served.go:99 |
+| `channels.setBoostsToUnblockRestrictions` | blocked |  | app/bff/channels/internal/core/boosts.go:77 |
+| `channels.setDiscussionGroup` | blocked |  | app/bff/channels/internal/core/not_served.go:94 |
 | `channels.setEmojiStickers` | blocked |  | app/bff/chats/internal/core/channels.setEmojiStickers_handler.go:27 |
 | `channels.setMainProfileTab` | blocked |  | app/bff/userchannelprofiles/internal/core/channels.setMainProfileTab_handler.go:27 |
-| `channels.setStickers` | blocked |  | app/bff/channels/internal/core/not_served.go:74 |
+| `channels.setStickers` | blocked |  | app/bff/channels/internal/core/not_served.go:69 |
 | `channels.toggleAntiSpam` | missing |  |  |
 | `channels.toggleAutotranslation` | missing |  |  |
 | `channels.toggleForum` | missing |  |  |
 | `channels.toggleJoinRequest` | blocked |  | app/bff/chatinvites/internal/core/channels.toggleJoinRequest_handler.go:27 |
 | `channels.toggleJoinToSend` | blocked |  | app/bff/chatinvites/internal/core/channels.toggleJoinToSend_handler.go:27 |
-| `channels.toggleParticipantsHidden` | blocked |  | app/bff/channels/internal/core/not_served.go:124 |
-| `channels.togglePreHistoryHidden` | blocked |  | app/bff/channels/internal/core/not_served.go:89 |
+| `channels.toggleParticipantsHidden` | blocked |  | app/bff/channels/internal/core/not_served.go:119 |
+| `channels.togglePreHistoryHidden` | blocked |  | app/bff/channels/internal/core/not_served.go:84 |
 | `channels.toggleSignatures` | blocked |  | app/bff/channels/internal/core/not_served.go:54 |
-| `channels.toggleSlowMode` | blocked |  | app/bff/channels/internal/core/not_served.go:109 |
+| `channels.toggleSlowMode` | blocked |  | app/bff/channels/internal/core/not_served.go:104 |
 | `channels.toggleUsername` | missing |  |  |
 | `channels.toggleViewForumAsMessages` | missing |  |  |
 | `channels.updateColor` | missing |  |  |
 | `channels.updateEmojiStatus` | missing |  |  |
 | `channels.updatePaidMessagesPrice` | missing |  |  |
 | `channels.updatePinnedForumTopic` | missing |  |  |
-| `channels.updateUsername` | blocked |  | app/bff/usernames/internal/core/channels.updateUsername_handler.go:27 |
+| `channels.updateUsername` | ok |  | app/bff/usernames/internal/core/channels.updateUsername_handler.go:32 |
 | `channels.viewSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.viewSponsoredMessage_handler.go:27 |
 
 ### chatlists
@@ -407,7 +407,7 @@
 | `contacts.resetSaved` | ok |  | app/bff/contacts/internal/core/contacts.resetSaved_handler.go:33 |
 | `contacts.resetTopPeerRating` | ok |  | app/bff/contacts/internal/core/contacts.resetTopPeerRating_handler.go:31 |
 | `contacts.resolvePhone` | ok |  | app/bff/users/internal/core/contacts.resolvePhone_handler.go:28 |
-| `contacts.resolveUsername` | ok |  | app/bff/usernames/internal/core/contacts.resolveUsername_handler.go:35 |
+| `contacts.resolveUsername` | ok |  | app/bff/usernames/internal/core/contacts.resolveUsername_handler.go:36 |
 | `contacts.search` | ok |  | app/bff/contacts/internal/core/contacts.search_handler.go:52 |
 | `contacts.setBlocked` | ok |  | app/bff/contacts/internal/core/contacts.setBlocked_handler.go:43 |
 | `contacts.toggleStoriesHidden` | missing |  |  |
@@ -590,7 +590,7 @@
 | `messages.getInlineBotResults` | missing |  |  |
 | `messages.getInlineGameHighScores` | missing |  |  |
 | `messages.getMaskStickers` | ok |  | app/bff/catalog/internal/core/messages.getMaskStickers_handler.go:27 |
-| `messages.getMessageEditData` | partial |  | app/bff/messages/internal/core/messages.getMessageEditData_handler.go:63 |
+| `messages.getMessageEditData` | ok |  | app/bff/messages/internal/core/messages.getMessageEditData_handler.go:64 |
 | `messages.getMessageReactionsList` | ok |  | app/bff/catalog/internal/core/messages.getMessageReactionsList_handler.go:33 |
 | `messages.getMessageReadParticipants2C6F97B7` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants2C6F97B7_handler.go:29 |
 | `messages.getMessageReadParticipants31C1C44F` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants31C1C44F_handler.go:27 |
@@ -909,11 +909,11 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `premium.applyBoost` | missing |  |  |
-| `premium.getBoostsList` | missing |  |  |
-| `premium.getBoostsStatus` | missing |  |  |
-| `premium.getMyBoosts` | missing |  |  |
-| `premium.getUserBoosts` | missing |  |  |
+| `premium.applyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:87 |
+| `premium.getBoostsList` | blocked |  | app/bff/channels/internal/core/boosts.go:82 |
+| `premium.getBoostsStatus` | ok |  | app/bff/channels/internal/core/boosts.go:40 |
+| `premium.getMyBoosts` | ok |  | app/bff/channels/internal/core/boosts.go:68 |
+| `premium.getUserBoosts` | blocked |  | app/bff/channels/internal/core/boosts.go:92 |
 
 ### smsjobs
 
@@ -965,8 +965,8 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `stories.activateStealthMode` | missing |  |  |
-| `stories.applyBoost` | missing |  |  |
-| `stories.canApplyBoost` | missing |  |  |
+| `stories.applyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:112 |
+| `stories.canApplyBoost` | blocked |  | app/bff/channels/internal/core/boosts.go:107 |
 | `stories.canSendStory30EB63F0` | missing |  |  |
 | `stories.canSendStoryB100D45D` | missing |  |  |
 | `stories.canSendStoryC7DFDFDD` | missing |  |  |
@@ -980,8 +980,8 @@
 | `stories.getAllReadPeerStories` | missing |  |  |
 | `stories.getAllReadUserStories` | missing |  |  |
 | `stories.getAllStories` | ok |  | app/bff/stories/internal/core/stories.getAllStories_handler.go:30 |
-| `stories.getBoostersList` | missing |  |  |
-| `stories.getBoostsStatus` | missing |  |  |
+| `stories.getBoostersList` | blocked |  | app/bff/channels/internal/core/boosts.go:102 |
+| `stories.getBoostsStatus` | blocked |  | app/bff/channels/internal/core/boosts.go:97 |
 | `stories.getChatsToSend` | missing |  |  |
 | `stories.getPeerMaxIDs535983C3` | missing |  |  |
 | `stories.getPeerMaxIDs78499170` | missing |  |  |
