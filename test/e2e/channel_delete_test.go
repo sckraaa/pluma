@@ -62,6 +62,11 @@ func TestChannelRejoinAndDelete(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("channels.leaveChannel: %v", err)
 	}
+	// The leave tells Bob's devices too, with the channel forbidden to him
+	// now: taken off the queue, so that only the deletion's can match below.
+	if _, err := bob.c.WaitUpdate(ctx, forbiddenChannel(ch.GetId())); err != nil {
+		t.Fatalf("Bob's update of his leave: %v", err)
+	}
 	join() // the same link again
 	if inv := checkInvite(ctx, t, bob, link); inv.GetPredicateName() != mtproto.Predicate_chatInviteAlready {
 		t.Errorf("the link to a member again: %s", inv.GetPredicateName())
@@ -84,17 +89,26 @@ func TestChannelRejoinAndDelete(t *testing.T) {
 		t.Errorf("the creator's answer: %v", chats)
 	}
 
-	if _, err = bob.c.WaitUpdate(ctx, func(us *mtproto.Updates) bool {
-		var updated, forbidden bool
-		for _, u := range us.GetUpdates() {
-			updated = updated || u.GetPredicateName() == mtproto.Predicate_updateChannel && u.GetChannelId() == ch.GetId()
-		}
-		for _, c := range us.GetChats() {
-			forbidden = forbidden || c.GetPredicateName() == mtproto.Predicate_channelForbidden && c.GetId() == ch.GetId()
-		}
-		return updated && forbidden
-	}); err != nil {
+	if _, err = bob.c.WaitUpdate(ctx, forbiddenChannel(ch.GetId())); err != nil {
 		t.Fatalf("Bob's updateChannel with channelForbidden: %v", err)
+	}
+	// Gone from Bob's dialogs, as from Alice's.
+	for _, u := range []*user{bob, alice} {
+		o, err := u.c.Invoke(ctx, &mtproto.TLMessagesGetDialogs{
+			Constructor: u.c.Constructor(mtproto.Predicate_messages_getDialogs),
+			OffsetPeer:  &mtproto.InputPeer{Constructor: u.c.Constructor(mtproto.Predicate_inputPeerEmpty)},
+			Limit:       100,
+		})
+		if err != nil {
+			t.Fatalf("messages.getDialogs: %v", err)
+		}
+		for _, d := range o.(interface {
+			To_Messages_Dialogs() *mtproto.Messages_Dialogs
+		}).To_Messages_Dialogs().GetDialogs() {
+			if d.GetPeer().GetChannelId() == ch.GetId() {
+				t.Errorf("the deleted channel is in the dialogs of %d", u.self.GetId())
+			}
+		}
 	}
 	if _, err = channelDifference(ctx, bob, ch, hash, 1, 10); !mtclient.IsRPCError(err, "CHANNEL_PRIVATE") {
 		t.Errorf("Bob's difference of a deleted channel: %v, want CHANNEL_PRIVATE", err)
@@ -104,5 +118,20 @@ func TestChannelRejoinAndDelete(t *testing.T) {
 		Channel:     input(alice),
 	}); err == nil {
 		t.Error("a deleted channel deleted again")
+	}
+}
+
+// forbiddenChannel matches updateChannel for channel id with the channel as
+// channelForbidden.
+func forbiddenChannel(id int64) func(*mtproto.Updates) bool {
+	return func(us *mtproto.Updates) bool {
+		var updated, forbidden bool
+		for _, u := range us.GetUpdates() {
+			updated = updated || u.GetPredicateName() == mtproto.Predicate_updateChannel && u.GetChannelId() == id
+		}
+		for _, c := range us.GetChats() {
+			forbidden = forbidden || c.GetPredicateName() == mtproto.Predicate_channelForbidden && c.GetId() == id
+		}
+		return updated && forbidden
 	}
 }
