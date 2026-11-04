@@ -109,7 +109,7 @@ func (c *ChatsCore) createChat(iUsers []*mtproto.InputUser, chatTitle string, tt
 				// so the client offers an invite link (missingInvitee,
 				// core.telegram.org/api/invites; Android
 				// AlertsCreator.checkRestrictedInviteUsers).
-				if missing := missingInvitee(me, addUser); missing != nil {
+				if missing := userpb.MissingInvitee(me, addUser); missing != nil {
 					missingInvitees = append(missingInvitees, missing)
 					continue
 				}
@@ -213,32 +213,4 @@ func (c *ChatsCore) createChat(iUsers []*mtproto.InputUser, chatTitle string, tt
 		Updates:         rValue,
 		MissingInvitees: missingInvitees,
 	}).To_Messages_InvitedUsers(), nil
-}
-
-// missingInvitee returns the missingInvitee of a user whose privacy keeps
-// inviter from adding them to a group, or nil when it lets them.
-// premium_would_allow_invite says the same rules would let the inviter
-// with Premium (EvaluatePrivacy as for a Premium inviter).
-func missingInvitee(inviter, invitee *mtproto.ImmutableUser) *mtproto.MissingInvitee {
-	if invitee.CheckPrivacyFor(mtproto.CHAT_INVITE, inviter) {
-		return nil
-	}
-	wouldAllow := false
-	if !inviter.Premium() {
-		contact, _ := invitee.CheckContact(inviter.Id())
-		for _, k := range invitee.GetKeysPrivacyRules() {
-			if k.GetKey() == mtproto.CHAT_INVITE {
-				wouldAllow = mtproto.EvaluatePrivacy(k.GetRules(), mtproto.PrivacyViewer{
-					Id:      inviter.Id(),
-					Contact: contact,
-					Premium: true,
-					Bot:     inviter.IsBot(),
-				})
-			}
-		}
-	}
-	return mtproto.MakeTLMissingInvitee(&mtproto.MissingInvitee{
-		PremiumWouldAllowInvite: wouldAllow,
-		UserId:                  invitee.Id(),
-	}).To_MissingInvitee()
 }

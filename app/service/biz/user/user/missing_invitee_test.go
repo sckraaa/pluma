@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package user
 
 import (
 	"testing"
@@ -50,7 +50,7 @@ func TestMissingInvitee(t *testing.T) {
 		// The inviter is named in the exceptions: Premium would not help.
 		{"Premium users, but not the inviter", inviteUser(2, false, contacts, premium, notMe), true, false},
 	} {
-		m := missingInvitee(inviter, tc.invitee)
+		m := MissingInvitee(inviter, tc.invitee)
 		if (m != nil) != tc.missing || m.GetPremiumWouldAllowInvite() != tc.wouldAllow {
 			t.Errorf("%s: %v, want missing %v, premium_would_allow_invite %v", tc.name, m, tc.missing, tc.wouldAllow)
 		}
