@@ -92,31 +92,7 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 		}
 	}
 
-	// hack: layer > 177, android's createChat method use old messages.createChat#34A818
-	if rpcMetaData.Client == "android" && rpcMetaData.Layer >= 177 {
-		switch r := object.(type) {
-		case *mtproto.TLMessagesAddChatUserF24753E3:
-			object = &mtproto.TLMessagesAddChatUserCBC6D107{
-				Constructor: mtproto.CRC32_messages_addChatUserCBC6D107,
-				ChatId:      r.ChatId,
-				UserId:      r.UserId,
-				FwdLimit:    r.FwdLimit,
-			}
-		case *mtproto.TLMessagesCreateChat34A818:
-			object = &mtproto.TLMessagesCreateChat92CEDDD4{
-				Constructor: mtproto.CRC32_messages_createChat92CEDDD4,
-				Users:       r.Users,
-				Title:       r.Title,
-				TtlPeriod:   r.TtlPeriod,
-			}
-		case *mtproto.TLChannelsInviteToChannel199F3A6C:
-			object = &mtproto.TLChannelsInviteToChannelC9E33D54{
-				Constructor: mtproto.CRC32_channels_inviteToChannelC9E33D54,
-				Channel:     r.Channel,
-				Users:       r.Users,
-			}
-		}
-	}
+	object = rewriteLegacyAndroidRequest(rpcMetaData, object)
 
 	t := mtproto.FindRPCContextTuple(object)
 	if t == nil {
@@ -204,4 +180,62 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 			return reply, nil
 		}
 	}
+}
+
+// rewriteLegacyAndroidRequest gives Android's requests of old constructors
+// the constructor of the method Android actually means: it sends them with
+// the reply type of the newer one, and a reply of the old type it cannot
+// parse is dropped without a word. Old and new constructors of each method
+// are served by the same bff service, so the connection chosen for the old
+// one stays right.
+func rewriteLegacyAndroidRequest(md *metadata.RpcMetadata, object mtproto.TLObject) mtproto.TLObject {
+	if md == nil || md.Client != "android" {
+		return object
+	}
+	// hack: layer > 177, android's createChat method use old messages.createChat#34A818
+	if md.Layer >= 177 {
+		switch r := object.(type) {
+		case *mtproto.TLMessagesAddChatUserF24753E3:
+			return &mtproto.TLMessagesAddChatUserCBC6D107{
+				Constructor: mtproto.CRC32_messages_addChatUserCBC6D107,
+				ChatId:      r.ChatId,
+				UserId:      r.UserId,
+				FwdLimit:    r.FwdLimit,
+			}
+		case *mtproto.TLMessagesCreateChat34A818:
+			return &mtproto.TLMessagesCreateChat92CEDDD4{
+				Constructor: mtproto.CRC32_messages_createChat92CEDDD4,
+				Users:       r.Users,
+				Title:       r.Title,
+				TtlPeriod:   r.TtlPeriod,
+			}
+		case *mtproto.TLChannelsInviteToChannel199F3A6C:
+			return &mtproto.TLChannelsInviteToChannelC9E33D54{
+				Constructor: mtproto.CRC32_channels_inviteToChannelC9E33D54,
+				Channel:     r.Channel,
+				Users:       r.Users,
+			}
+		}
+	}
+	// Android of layer 228 sends messages.importChatInvite#6c50051c and
+	// channels.joinChannel#24b524c5 but reads the reply as
+	// messages.ChatInviteJoinResult (TLRPC.java:53439-53452, :56623-56630 at
+	// aac1efcb); an Updates reply fails to parse and ConnectionsManager drops
+	// it (:416-423), so the join happens but JoinGroupAlert never opens the
+	// chat (:338-376).
+	if md.Layer >= 228 {
+		switch r := object.(type) {
+		case *mtproto.TLMessagesImportChatInvite6C50051C:
+			return &mtproto.TLMessagesImportChatInviteDE91436E{
+				Constructor: mtproto.CRC32_messages_importChatInviteDE91436E,
+				Hash:        r.Hash,
+			}
+		case *mtproto.TLChannelsJoinChannel24B524C5:
+			return &mtproto.TLChannelsJoinChannel7F6A1E22{
+				Constructor: mtproto.CRC32_channels_joinChannel7F6A1E22,
+				Channel:     r.Channel,
+			}
+		}
+	}
+	return object
 }
