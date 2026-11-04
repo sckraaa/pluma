@@ -1,6 +1,6 @@
 # 041. Каналы: участники и приглашения
 
-- Статус: todo
+- Статус: in progress (часть 1 готова: вступление, выход, участники, ссылки на вход)
 - Зависит от: 040
 - ADR: 0020, 0021, 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.1, §1.5, §2.5–2.6, задача T6; `clients.md` §1 «Send and receive», §2, §4 п. 3–4; `plan.md` §2 C2, U1, §3, задача «040» плана).
 
@@ -36,3 +36,12 @@
 - В клиентах, со скриншотами: вступление по ссылке в iOS, Android, Desktop (CachyOS) и Web K (по публичному имени — после 044: публичные имена и `contacts.resolveUsername` для каналов там; `plan.md` ставит «по имени» в эту задачу, но без 044 его не проверить); после вступления iOS не показывает ошибку (`getParticipant(self)` работает); выход убирает диалог в Android; список участников открывается.
 
 ## Результат
+### Часть 1 (2026-11-04, ветка `task/038-channel-create`)
+- **Вступление.** `channels.joinChannel` (оба варианта схемы: `#24b524c5` → `Updates`, `#7f6a1e22` → `chatInviteJoinResultOk`) — в публичный канал; `messages.importChatInvite` (оба варианта) по ссылке канала (хэш с буквы) — в любой. biz `channel.joinChannel`: одна транзакция ящика вступающего под блокировкой канала пишет строку участника, счётчик, диалог (прочитан до последнего сообщения), в супергруппе — служебное сообщение `messageActionChatAddUser` или `messageActionChatJoinedByLink` с пушем участникам. Своим другим устройствам — `updateChannel` с `seq`. Ошибки по core.telegram.org/method/channels.joinChannel: `CHANNEL_PRIVATE` (закрытый без ссылки, исключённый), `USER_ALREADY_PARTICIPANT`, `CHANNELS_TOO_MUCH` (500), `USERS_TOO_MUCH` (200000), `INVITE_HASH_EXPIRED` (отозвана, истекла, исчерпана), `INVITE_HASH_INVALID`. Скрытая история: `available_min_id` — служебное сообщение вступления.
+- **Выход.** `channels.leaveChannel`: строка участника `left` (роль и права сброшены), счётчики, диалог удалён, в супергруппе — `messageActionChatDeleteUser`. Ответ — канал как его видит вышедший (`left` или `channelForbidden`). Создатель — `USER_CREATOR`, не участник — `USER_NOT_PARTICIPANT` (core.telegram.org/method/channels.leaveChannel).
+- **Ссылка.** `messages.checkChatInvite` для канала: участнику — `chatInviteAlready` (в любом состоянии ссылки), остальным — `chatInvite` (название, описание, фото, число участников, вид); `participants` не отдаётся (поле необязательное).
+- **Участники.** `channels.getParticipants` со всеми фильтрами (`recent`, `admins`, `kicked`, `banned`, `search`, `mentions`, `bots`, `contacts`): создатель и админы первыми, затем по дате; поиск — начало имени, фамилии, полного имени или username. В канале (broadcast) список только админам (`CHAT_ADMIN_REQUIRED`). `channels.getParticipant` — теперь и о других (в канале — только админы).
+- **Проверка:** интеграционные `TestJoinLeave`, `TestJoinByLink`, `TestJoinConcurrent` (12 параллельных вступлений и выходов — счётчик и строки сходятся), `TestParticipants`; e2e `TestChannelJoin` (супергруппа и канал: ссылка, вступление, `getParticipant(self)`, список, пуш поста новому участнику, подписчик канала не публикует — критерий 039, выход, `channelForbidden`, `USER_CREATOR`).
+- **Решения на подтверждение:** при вступлении диалог прочитан до последнего сообщения; у вышедшего диалог удаляется; ссылка с `request_needed` для канала пока невозможна (её создаёт `exportChatInvite`, у каналов его нет) и отвечается `INVITE_HASH_INVALID` — до заявок на вступление.
+- **Осталось (часть 2):** `channels.inviteToChannel` (диалог приглашённого пишется в его ящике inbox-событием, ADR 0021; приватность «кто может добавлять»), `getLeftChannels`, заявки на вступление, `toggleJoinRequest`/`toggleJoinToSend`, ветки каналов в `exportChatInvite`, `editExportedChatInvite`, `getChatInviteImporters`, `hideChatJoinRequest` и прочих методах ссылок; вступление по имени — после 044.
+
