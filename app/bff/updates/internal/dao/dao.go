@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/updates/internal/config"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	updates_client "github.com/teamgram/teamgram-server/app/service/biz/updates/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
@@ -31,6 +32,7 @@ type Dao struct {
 	updates_client.UpdatesClient
 	user_client.UserClient
 	chat_client.ChatClient
+	channel_client.ChannelClient
 	authsession_client.AuthsessionClient
 }
 
@@ -39,6 +41,7 @@ func New(c config.Config) *Dao {
 		UpdatesClient:     updates_client.NewUpdatesClient(rpcx.GetCachedRpcClient(c.UpdatesClient)),
 		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		ChatClient:        chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		ChannelClient:     channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 	}
 }

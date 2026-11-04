@@ -19,6 +19,7 @@
 package core
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/reactions"
 	"math"
 
 	"github.com/teamgram/proto/mtproto"
@@ -87,6 +88,14 @@ func (c *MessagesCore) MessagesSearch(in *mtproto.TLMessagesSearch) (*mtproto.Me
 		Users:    []*mtproto.User{},
 	}).To_Messages_Messages()
 
+	if len(in.SavedReaction) > 0 {
+		// The tags of Saved Messages (task 053).
+		if boxList, err = c.searchTagged(in, peer, offsetId, limit); err != nil {
+			c.Logger.Errorf("messages.search - error: %v", err)
+			return nil, err
+		}
+		return c.searchResult(rValues, boxList), nil
+	}
 	if in.SavedPeerId != nil {
 		// TODO: not impl
 		return rValues, nil
@@ -330,29 +339,7 @@ func (c *MessagesCore) MessagesSearch(in *mtproto.TLMessagesSearch) (*mtproto.Me
 		}
 	}
 
-	boxList.Visit(c.MD.UserId,
-		func(messageList []*mtproto.Message) {
-			rValues.Messages = messageList
-		},
-		func(userIdList []int64) {
-			mUsers, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx,
-				&userpb.TLUserGetMutableUsers{
-					Id: userIdList,
-				})
-			rValues.Users = append(rValues.Users, mUsers.GetUserListByIdList(c.MD.UserId, userIdList...)...)
-		},
-		func(chatIdList []int64) {
-			mChats, _ := c.svcCtx.Dao.ChatClient.Client().ChatGetChatListByIdList(c.ctx,
-				&chatpb.TLChatGetChatListByIdList{
-					IdList: chatIdList,
-				})
-			rValues.Chats = append(rValues.Chats, mChats.GetChatListByIdList(c.MD.UserId, chatIdList...)...)
-		},
-		func(channelIdList []int64) {
-			// ignore it
-		})
-
-	return rValues, nil
+	return c.searchResult(rValues, boxList), nil
 }
 
 // searchMediaType is the media type message.getSearchCounter counts for a
@@ -379,4 +366,63 @@ func searchMediaType(filter mtproto.MessagesFilterType) (int32, bool) {
 		return mtproto.MEDIA_AUDIO, true
 	}
 	return 0, false
+}
+
+// searchResult fills rValues with the messages of boxList as the account sees
+// them, and their users and chats.
+func (c *MessagesCore) searchResult(rValues *mtproto.Messages_Messages, boxList *mtproto.MessageBoxList) *mtproto.Messages_Messages {
+	boxList.Visit(c.MD.UserId,
+		func(messageList []*mtproto.Message) {
+			rValues.Messages = messageList
+		},
+		func(userIdList []int64) {
+			mUsers, _ := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx,
+				&userpb.TLUserGetMutableUsers{
+					Id: userIdList,
+				})
+			rValues.Users = append(rValues.Users, mUsers.GetUserListByIdList(c.MD.UserId, userIdList...)...)
+		},
+		func(chatIdList []int64) {
+			mChats, _ := c.svcCtx.Dao.ChatClient.Client().ChatGetChatListByIdList(c.ctx,
+				&chatpb.TLChatGetChatListByIdList{
+					IdList: chatIdList,
+				})
+			rValues.Chats = append(rValues.Chats, mChats.GetChatListByIdList(c.MD.UserId, chatIdList...)...)
+		},
+		func(channelIdList []int64) {
+			// ignore it
+		})
+
+	return rValues
+}
+
+// searchTagged is the search of Saved Messages by tags: the account's
+// messages there with all the tags of in.SavedReaction, of one saved dialog
+// with in.SavedPeerId when given, newest first below offsetId, with the
+// text q when given (task 053).
+func (c *MessagesCore) searchTagged(in *mtproto.TLMessagesSearch, peer *mtproto.PeerUtil, offsetId, limit int32) (*mtproto.MessageBoxList, error) {
+	empty := mtproto.MakeTLMessageBoxList(&mtproto.MessageBoxList{BoxList: []*mtproto.MessageBox{}}).To_MessageBoxList()
+	if peer.PeerType != mtproto.PEER_SELF && (peer.PeerType != mtproto.PEER_USER || peer.PeerId != c.MD.UserId) {
+		return empty, nil
+	}
+	keys, err := reactions.Keys(in.SavedReaction)
+	if err != nil {
+		return nil, err
+	}
+	var savedPeer *mtproto.PeerUtil
+	if in.SavedPeerId != nil {
+		savedPeer = mtproto.FromInputPeer2(c.MD.UserId, in.SavedPeerId)
+		if savedPeer.PeerType == mtproto.PEER_SELF {
+			savedPeer = mtproto.MakePeerUtil(mtproto.PEER_USER, c.MD.UserId)
+		}
+	}
+	ids, err := reactions.Tagged(c.ctx, c.svcCtx.Reactions, c.MD.UserId, keys, savedPeer, in.Q, offsetId, min(max(limit, 1), 100))
+	if err != nil || len(ids) == 0 {
+		return empty, err
+	}
+	boxes, err := c.svcCtx.Dao.MessageClient.MessageGetUserMessageList(c.ctx, &message.TLMessageGetUserMessageList{UserId: c.MD.UserId, IdList: ids})
+	if err != nil {
+		return nil, err
+	}
+	return mtproto.MakeTLMessageBoxList(&mtproto.MessageBoxList{BoxList: boxes.GetDatas()}).To_MessageBoxList(), nil
 }

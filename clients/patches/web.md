@@ -24,6 +24,7 @@
   - `UpstreamTest.test_damage` портит по одному месту из списка `DAMAGE` и ждёт `PatchError` с именем файла: 84 случая на `main`, 118 на `task/020-parity-fixes`.
   - Остальное: `test_icon_changed`, `test_identity_colors`, `test_dev_server`, `test_env_file_of_upstream`, `KeyTest`, `ServerUrlTest`, `NodeEnginesTest`, `ConfigTest`, `TraceTest`, `TreeTest`, `BundleTest`.
   - На 2026-11-03 на `task/020-parity-fixes` проходят 32 теста за 48 с.
+  - На 2026-11-04 на `task/053-saved-tags` (W-065) проходят 33 теста, в `DAMAGE` 134 случая.
 - **Проверки результата** — в двух местах, независимо от того, как делались правки:
   - `verify()` в `ci/patch.py` — по исходникам (W-057);
   - `ci/check_bundle.py` — по собранному сайту (W-056).
@@ -455,7 +456,31 @@
 - **Коммиты:** `cb01766`.
 
 ### W-047. Что из Premium не трогается
-Записано, чтобы не искать. Остальные экраны Premium, Stars и подарков патч не меняет. Их видимость задаёт сервер (`premium_purchase_blocked` и т. п.). Тексты «Telegram Premium» превращаются в «Pluma Premium» только через W-019.
+Записано, чтобы не искать. Кроме тегов «Избранного» (W-065), остальные экраны Premium, Stars и подарков патч не меняет. Их видимость задаёт сервер (`premium_purchase_blocked` и т. п.). Тексты «Telegram Premium» превращаются в «Pluma Premium» только через W-019.
+
+### W-065. Теги «Избранного» без Premium
+- **Что и зачем:** решение владельца 2026-11-03 (задача 053). Теги Saved Messages доступны каждому пользователю, как Premium-пользователю Telegram: поставить и снять тег, фильтр по тегу, переименование. Pluma не продаёт Premium, а сервер обслуживает теги для всех (`messages.getSavedReactionTags`, `updateSavedReactionTag`, `messages.search` с `saved_reaction`, `updateSavedReactionTags`). Серверного сигнала у Web K нет: все гейты смотрят на Premium своего пользователя (`rootScope.premium`, `usePremium()`).
+- **Где:** функция `saved_tags()` в `ci/patch.py`.
+  - Новый файл `src/lib/appManagers/utils/reactions/savedTagsAvailable.ts`: `export default function savedTagsAvailable() { return true; }`. Если апстрим принесёт файл с таким путём, патч падает.
+  - Импорт `savedTagsAvailable` добавляется после `import showPremiumPopup from '@components/popups/premium';` в четырёх файлах гейтов.
+  - Гейты (номера строк — закреплённый апстрим `346844bf`):
+    - `src/components/chat/contextMenu.ts:465-468` — правый клик по тегу: `this.isTag && !rootScope.premium` → `this.isTag && !savedTagsAvailable()`. Без правки вместо меню «Фильтр / Переименовать» (`:764-799`) открывается окно Premium.
+    - `src/components/chat/contextMenu.ts:1809-1812` — тег из полосы реакций контекстного меню: `!rootScope.premium && tags` → `!savedTagsAvailable() && tags`.
+    - `src/components/chat/bubbles.ts:3650-3654` — клик по тегу на сообщении (фильтр или меню): `!rootScope.premium` → `!savedTagsAvailable()`.
+    - `src/components/chat/topbarSearch.tsx:951-952` — теги над поиском: без `is-locked` и без псевдо-тега «Unlock» (`premium_lock`); `isPremium()` → `savedTagsAvailable()`.
+    - `src/components/chat/topbarSearch.tsx:1008-1011` — клик по тегу в поиске: `!isPremium()` → `!savedTagsAvailable()`. Других проверок Premium в файле нет, поэтому удалены ставшие ненужными `const isPremium = usePremium();` (`:387`) и импорт `usePremium` (`:45`).
+    - `src/components/chat/reactionsMenu.ts:117` — подсказка над тегами: `Reactions.Tag.Description` вместо промо `Reactions.Tag.PremiumHint`.
+  - Быстрая реакция при наведении (`bubbles.ts:3189-3197`) в «Избранном» не показывается (`bubbles.ts:3093`, `this.peerId !== rootScope.myId`), поэтому обходного пути без гейта нет.
+- **Лимит тегов на сообщение не правится.** Web K берёт его из appConfig сервера: `appReactionsManager.sendReaction` (`src/lib/appManagers/appReactionsManager.ts:694`) → `apiManager.getLimit('reactions')` (`src/lib/appManagers/apiManagerMethods.ts:368-395`): для не-Premium `reactions_user_max_default` (`:375`, `:390`). Лишние снимаются по `chosen_order` (`appReactionsManager.ts:767`). Теги и обычные реакции идут через этот же код. Сервер отдаёт `reactions_user_max_default=3`, значит, до трёх реакций и до трёх тегов на сообщение. Патч только сверяет (`expect`) обе строки.
+- **Что не меняется:** custom emoji в тегах и реакциях, остальные Premium-функции тех же файлов (например, `onAddTaskClick` в `contextMenu.ts` по-прежнему проверяет `rootScope.premium`). Новых строк интерфейса нет: промо-тексты становятся недостижимыми.
+- **Проверка:**
+  - `verify`: файл функции возвращает `true`; `savedTagsAvailable` встречается только в нём и в четырёх файлах гейтов; каждый `showPremiumPopup({feature: 'saved_tags'})` в этих файлах стоит под `if(…)`, где спрашивается `savedTagsAvailable()` и нет `premium` (в `reactionsMenu.ts` ещё один — ссылка «Learn more» в промо-подсказке); новый путь к этому окну, которого патч не знает, роняет прогон; подсказка тегов не зависит от Premium; в `topbarSearch.tsx` нет `isPremium`/`usePremium`.
+  - `test_patch`: результат каждого гейта, импорт ровно один раз, `onAddTaskClick` остался за Premium, `getLimit('reactions')` на месте, список файлов, где вызывается функция.
+  - `test_saved_tags_file_of_upstream`: апстрим с собственным `savedTagsAvailable.ts` роняет патч.
+  - `DAMAGE`: 15 случаев — каждый гейт, импорты, `getLimit`/ключи лимита, неизвестный гейт (в `bubbles.ts` и `contextMenu.ts`), вызов функции вне гейтов (`chat.ts`).
+  - 2026-11-04: `python3 -I ci/patch_test.py` — 33 теста, OK (UpstreamTest не пропущен, 134 случая `DAMAGE`). Без вызова `saved_tags()` `test_patch` падает. Сборка (`pnpm run typecheck`, `vite build`) и проверка в браузере не выполнялись.
+- **При обновлении:** если апстрим сам откроет теги или поменяет гейты, упадёт `replace` или проверка в `verify`; новый вызов окна Premium с `saved_tags` нужно прочитать и решить, гейт ли это тегов. Если `getLimit('reactions')` перестанет определять число тегов, упадёт `expect`: тогда проверить, не стал ли лимит жёстким для не-Premium.
+- **Коммиты:** не закоммичено, ветка `task/053-saved-tags`, задача 053.
 
 ## Медиа
 

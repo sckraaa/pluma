@@ -354,7 +354,7 @@ func TestDeterministic(t *testing.T) {
 		{mtproto.NewRpcError(mtproto.ErrUserIdInvalid), true},
 		{&mysql.MySQLError{Number: 1062}, true},
 		{&mysql.MySQLError{Number: 3140}, true},
-		{errStateChanged, true},
+		{ErrStateChanged, true},
 		{ErrEventNotFinished, true},
 		{ErrInsideRun, true},
 		{fmt.Errorf("%w: bad", ErrInvalidEvent), true},

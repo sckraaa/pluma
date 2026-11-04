@@ -18,6 +18,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/config"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	idgen_client "github.com/teamgram/teamgram-server/app/service/idgen/client"
@@ -39,6 +40,7 @@ type Dao struct {
 	IdGenerator
 	user_client.UserClient
 	chat_client.ChatClient
+	channel_client.ChannelClient
 
 	// BoxDB is the pool of the box transactions: the *sql.DB of Mysql.
 	BoxDB *sql.DB
@@ -94,8 +96,10 @@ func New(ctx context.Context, c config.Config) (*Dao, error) {
 		IdGenerator: idgenClient(c),
 		UserClient:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
 		ChatClient:  chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
-		BoxDB:       boxDB,
-		Topics:      c.Topics,
+		// biz channel is served by the biz server with user and chat.
+		ChannelClient: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
+		BoxDB:         boxDB,
+		Topics:        c.Topics,
 	}, nil
 }
 

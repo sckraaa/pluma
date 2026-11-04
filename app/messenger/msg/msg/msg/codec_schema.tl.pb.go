@@ -116,6 +116,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -2047878569,
 		}
 	},
+	1297458671: func() mtproto.TLObject { // 0x4d55a5ef pluma: task 053
+		return &TLMsgSendReaction{
+			Constructor: 1297458671,
+		}
+	},
+	-91564461: func() mtproto.TLObject { // 0xfa8ad653 pluma: task 053
+		return &TLMsgReadReactions{
+			Constructor: -91564461,
+		}
+	},
+	-1806534101: func() mtproto.TLObject { // 0x94527a2b pluma: task 053
+		return &TLMsgUpdateSavedReactionTag{
+			Constructor: -1806534101,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1355,6 +1370,170 @@ func (m *TLMsgEditPeerFolders) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.AuthKeyId = dBuf.Long()
 		m.Peers = dBuf.VectorLong()
 		m.FolderId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgSendReaction (pluma: task 053)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgSendReaction) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x4d55a5ef:
+		x.UInt(0x4d55a5ef)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+		m.GetBig().Encode(x, layer)
+		m.GetAddToRecent().Encode(x, layer)
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetReaction())))
+		for _, v := range m.GetReaction() {
+			v.Encode(x, layer)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgSendReaction) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgSendReaction) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x4d55a5ef:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		m5 := &mtproto.Bool{}
+		m5.Decode(dBuf)
+		m.Big = m5
+		m6 := &mtproto.Bool{}
+		m6.Decode(dBuf)
+		m.AddToRecent = m6
+		c7 := dBuf.Int()
+		if c7 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 7, c7)
+		}
+		l7 := dBuf.Int()
+		if l7 < 0 || l7 > 64 {
+			return fmt.Errorf("invalid length of a vector, c%d: %d", 7, l7)
+		}
+		v7 := make([]*mtproto.Reaction, l7)
+		for i := int32(0); i < l7; i++ {
+			v7[i] = &mtproto.Reaction{}
+			v7[i].Decode(dBuf)
+		}
+		m.Reaction = v7
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgReadReactions (pluma: task 053)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgReadReactions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xfa8ad653:
+		x.UInt(0xfa8ad653)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgReadReactions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgReadReactions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xfa8ad653:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgUpdateSavedReactionTag (pluma: task 053)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgUpdateSavedReactionTag) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x94527a2b:
+		x.UInt(0x94527a2b)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		m.GetReaction().Encode(x, layer)
+		x.String(m.GetTitle())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgUpdateSavedReactionTag) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgUpdateSavedReactionTag) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x94527a2b:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m2 := &mtproto.Reaction{}
+		m2.Decode(dBuf)
+		m.Reaction = m2
+		m.Title = dBuf.String()
 		return dBuf.GetError()
 
 	default:

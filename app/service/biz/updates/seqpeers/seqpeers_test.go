@@ -20,9 +20,11 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -54,6 +56,12 @@ func chatParticipants(chatId int64, members ...[2]int64) *mtproto.Update {
 	}).To_Update()
 }
 
+func pinnedChannel(channelId int64) *mtproto.Update {
+	return mtproto.MakeTLUpdateDialogPinned(&mtproto.Update{
+		Peer_DIALOGPEER: mtproto.MakeTLDialogPeer(&mtproto.DialogPeer{Peer: mtproto.MakePeerChannel(channelId)}).To_DialogPeer(),
+	}).To_Update()
+}
+
 func picked(updates ...*mtproto.Update) string {
 	h := mtproto.NewIDListHelper()
 	Pick(h, self, updates...)
@@ -72,6 +80,7 @@ func TestPick(t *testing.T) {
 		{"a pinned group", mtproto.MakeTLUpdateDialogPinned(&mtproto.Update{
 			Peer_DIALOGPEER: mtproto.MakeTLDialogPeer(&mtproto.DialogPeer{Peer: mtproto.MakePeerChat(4)}).To_DialogPeer(),
 		}).To_Update(), "users [] chats [4] channels []"},
+		{"a pinned channel", pinnedChannel(4), "users [] chats [] channels [4]"},
 		{"the members of a group and who invited them",
 			chatParticipants(5, [2]int64{2, 0}, [2]int64{3, 2}, [2]int64{self, 3}, [2]int64{6, 2}),
 			"users [2 3 1 6] chats [5] channels []"},
@@ -106,9 +115,36 @@ func TestPick(t *testing.T) {
 type source struct {
 	users    map[int64]*mtproto.ImmutableUser
 	chats    map[int64]bool
+	channels map[int64]*channelpb.MutableChannel
 	userErr  error
 	chatErr  error
+	chanErr  error
 	userAsks [][]int64
+	chanAsks []*channelpb.TLChannelGetChannelListByIdList
+}
+
+func (s *source) ChannelGetChannelListByIdList(_ context.Context, in *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error) {
+	s.chanAsks = append(s.chanAsks, in)
+	if s.chanErr != nil {
+		return nil, s.chanErr
+	}
+	out := &channelpb.Vector_MutableChannel{}
+	for _, id := range in.IdList {
+		if c, ok := s.channels[id]; ok {
+			out.Datas = append(out.Datas, c)
+		}
+	}
+	return out, nil
+}
+
+// mutableChannel is a private supergroup with the viewer's row in state.
+func mutableChannel(id int64, state int32) *channelpb.MutableChannel {
+	return channelpb.MakeTLMutableChannel(&channelpb.MutableChannel{
+		Channel: channelpb.MakeTLImmutableChannel(&channelpb.ImmutableChannel{Id: id, AccessHash: id * 3, Title: "channel", Megagroup: true}).To_ImmutableChannel(),
+		Participants: []*channelpb.ImmutableChannelParticipant{
+			channelpb.MakeTLImmutableChannelParticipant(&channelpb.ImmutableChannelParticipant{ChannelId: id, UserId: self, State: state}).To_ImmutableChannelParticipant(),
+		},
+	}).To_MutableChannel()
 }
 
 func (s *source) UserGetMutableUsers(_ context.Context, in *userpb.TLUserGetMutableUsers) (*userpb.Vector_ImmutableUser, error) {
@@ -172,6 +208,12 @@ func newSource() *source {
 			8: immutableUser(8, false),
 		},
 		chats: map[int64]bool{5: true},
+		// A channel with the id of the group: ids of groups and of
+		// channels are apart.
+		channels: map[int64]*channelpb.MutableChannel{
+			5:  mutableChannel(5, channelpb.StateIn),
+			50: mutableChannel(50, channelpb.StateLeft),
+		},
 	}
 }
 
@@ -224,7 +266,7 @@ func TestResolve(t *testing.T) {
 	}
 
 	// What was asked for and not found: user 99 here, a chat below.
-	if users, chats := p.Missing(h); !slices.Equal(users, []int64{99}) || len(chats) != 0 {
+	if users, chats, channels := p.Missing(h); !slices.Equal(users, []int64{99}) || len(chats) != 0 || len(channels) != 0 {
 		t.Errorf("missing users %v, chats %v; want [99] []", users, chats)
 	}
 	noChat := mtproto.NewIDListHelper()
@@ -233,7 +275,7 @@ func TestResolve(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if users, chats := pc.Missing(noChat); len(users) != 0 || !slices.Equal(chats, []int64{6}) {
+	if users, chats, channels := pc.Missing(noChat); len(users) != 0 || !slices.Equal(chats, []int64{6}) || len(channels) != 0 {
 		t.Errorf("missing users %v, chats %v; want [] [6]", users, chats)
 	}
 
@@ -249,9 +291,78 @@ func TestResolve(t *testing.T) {
 	if !errors.Is(err, src.chatErr) || len(p.Users) != 2 || len(p.Chats) != 0 || p.Viewer == nil {
 		t.Errorf("chats failed: %v, users %d, chats %d", err, len(p.Users), len(p.Chats))
 	}
+	if len(src.chanAsks) != 0 {
+		t.Errorf("channels asked for without channels: %v", src.chanAsks)
+	}
 	src.userErr = errors.New("user unavailable")
 	p, err = Resolve(ctx, src, self, h)
 	if !errors.Is(err, src.userErr) || !errors.Is(err, src.chatErr) || p.Viewer != nil || len(p.Users) != 0 {
 		t.Errorf("both failed: %v, %v", err, p)
+	}
+}
+
+func TestResolveChannels(t *testing.T) {
+	ctx := context.Background()
+	updates := []*mtproto.Update{
+		pinnedChannel(5),
+		mtproto.MakeTLUpdateChat(&mtproto.Update{ChatId_INT64: 5}).To_Update(),
+		pinnedChannel(50),
+		pinnedChannel(77), // no such channel
+	}
+	src := newSource()
+	h := mtproto.NewIDListHelper()
+	Pick(h, self, updates...)
+	p, err := Resolve(ctx, src, self, h)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One look-up of the channels, as the viewer sees them.
+	if len(src.chanAsks) != 1 || src.chanAsks[0].SelfId != self || !slices.Equal(src.chanAsks[0].IdList, []int64{5, 50, 77}) {
+		t.Fatalf("channels asked %v", src.chanAsks)
+	}
+	var got []string
+	for _, c := range p.Chats {
+		got = append(got, fmt.Sprintf("%d:%s", c.GetId(), c.GetPredicateName()))
+	}
+	// The group first, then the channels: the member's channel and the
+	// private channel the viewer left (channelForbidden).
+	if want := []string{"5:chat", "5:channel", "50:channelForbidden"}; !slices.Equal(got, want) {
+		t.Errorf("chats %v, want %v", got, want)
+	}
+
+	// Each update goes with its own peer, a group and a channel of one id
+	// kept apart.
+	for i, want := range []string{"5:channel", "5:chat", "50:channelForbidden", ""} {
+		_, chats := p.Of(updates[i])
+		var ids []string
+		for _, c := range chats {
+			ids = append(ids, fmt.Sprintf("%d:%s", c.GetId(), c.GetPredicateName()))
+		}
+		if g := fmt.Sprint(ids); g != fmt.Sprint(strings.Fields(want)) {
+			t.Errorf("peers of update %d: %s, want [%s]", i, g, want)
+		}
+	}
+	if users, chats, channels := p.Missing(h); len(users) != 0 || len(chats) != 0 || !slices.Equal(channels, []int64{77}) {
+		t.Errorf("missing users %v, chats %v, channels %v; want [] [] [77]", users, chats, channels)
+	}
+
+	// A failed look-up of the channels keeps the users and the chats, and
+	// every channel is missing.
+	src.chanErr = errors.New("channel unavailable")
+	p, err = Resolve(ctx, src, self, h)
+	if !errors.Is(err, src.chanErr) || p.Viewer == nil || len(p.Chats) != 1 || p.Chats[0].GetPredicateName() != mtproto.Predicate_chat {
+		t.Errorf("channels failed: %v, chats %v", err, p.Chats)
+	}
+	if _, _, channels := p.Missing(h); !slices.Equal(channels, []int64{5, 50, 77}) {
+		t.Errorf("missing channels %v after a failed look-up", channels)
+	}
+	// And a failed look-up of the chats keeps the channels.
+	src.chanErr, src.chatErr = nil, errors.New("chat unavailable")
+	p, err = Resolve(ctx, src, self, h)
+	if !errors.Is(err, src.chatErr) || len(p.Chats) != 2 {
+		t.Errorf("chats failed: %v, chats %v", err, p.Chats)
+	}
+	if _, chats, channels := p.Missing(h); !slices.Equal(chats, []int64{5}) || !slices.Equal(channels, []int64{77}) {
+		t.Errorf("missing chats %v, channels %v; want [5] [77]", chats, channels)
 	}
 }

@@ -43,6 +43,9 @@ const (
 	RPCMsg_MsgReadMentions_FullMethodName           = "/msg.RPCMsg/msg_readMentions"
 	RPCMsg_MsgDeleteHistoryRange_FullMethodName     = "/msg.RPCMsg/msg_deleteHistoryRange"
 	RPCMsg_MsgEditPeerFolders_FullMethodName        = "/msg.RPCMsg/msg_editPeerFolders"
+	RPCMsg_MsgSendReaction_FullMethodName           = "/msg.RPCMsg/msg_sendReaction"
+	RPCMsg_MsgReadReactions_FullMethodName          = "/msg.RPCMsg/msg_readReactions"
+	RPCMsg_MsgUpdateSavedReactionTag_FullMethodName = "/msg.RPCMsg/msg_updateSavedReactionTag"
 )
 
 // RPCMsgClient is the client API for RPCMsg service.
@@ -64,6 +67,12 @@ type RPCMsgClient interface {
 	MsgDeleteHistoryRange(ctx context.Context, in *TLMsgDeleteHistoryRange, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 050
 	MsgEditPeerFolders(ctx context.Context, in *TLMsgEditPeerFolders, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 053
+	MsgSendReaction(ctx context.Context, in *TLMsgSendReaction, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 053
+	MsgReadReactions(ctx context.Context, in *TLMsgReadReactions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 053
+	MsgUpdateSavedReactionTag(ctx context.Context, in *TLMsgUpdateSavedReactionTag, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCMsgClient struct {
@@ -214,6 +223,36 @@ func (c *rPCMsgClient) MsgEditPeerFolders(ctx context.Context, in *TLMsgEditPeer
 	return out, nil
 }
 
+func (c *rPCMsgClient) MsgSendReaction(ctx context.Context, in *TLMsgSendReaction, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgSendReaction_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgReadReactions(ctx context.Context, in *TLMsgReadReactions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgReadReactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgUpdateSavedReactionTag(ctx context.Context, in *TLMsgUpdateSavedReactionTag, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgUpdateSavedReactionTag_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCMsgServer is the server API for RPCMsg service.
 // All implementations should embed UnimplementedRPCMsgServer
 // for forward compatibility.
@@ -233,6 +272,12 @@ type RPCMsgServer interface {
 	MsgDeleteHistoryRange(context.Context, *TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 050
 	MsgEditPeerFolders(context.Context, *TLMsgEditPeerFolders) (*mtproto.Updates, error)
+	// pluma: task 053
+	MsgSendReaction(context.Context, *TLMsgSendReaction) (*mtproto.Updates, error)
+	// pluma: task 053
+	MsgReadReactions(context.Context, *TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 053
+	MsgUpdateSavedReactionTag(context.Context, *TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCMsgServer should be embedded to have
@@ -283,6 +328,15 @@ func (UnimplementedRPCMsgServer) MsgDeleteHistoryRange(context.Context, *TLMsgDe
 }
 func (UnimplementedRPCMsgServer) MsgEditPeerFolders(context.Context, *TLMsgEditPeerFolders) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgEditPeerFolders not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgSendReaction(context.Context, *TLMsgSendReaction) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgSendReaction not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgReadReactions(context.Context, *TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgReadReactions not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgUpdateSavedReactionTag(context.Context, *TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgUpdateSavedReactionTag not implemented")
 }
 func (UnimplementedRPCMsgServer) testEmbeddedByValue() {}
 
@@ -556,6 +610,60 @@ func _RPCMsg_MsgEditPeerFolders_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCMsg_MsgSendReaction_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgSendReaction)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgSendReaction(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgSendReaction_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgSendReaction(ctx, req.(*TLMsgSendReaction))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgReadReactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgReadReactions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgReadReactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgReadReactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgReadReactions(ctx, req.(*TLMsgReadReactions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgUpdateSavedReactionTag_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgUpdateSavedReactionTag)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgUpdateSavedReactionTag(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgUpdateSavedReactionTag_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgUpdateSavedReactionTag(ctx, req.(*TLMsgUpdateSavedReactionTag))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCMsg_ServiceDesc is the grpc.ServiceDesc for RPCMsg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -618,6 +726,18 @@ var RPCMsg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "msg_editPeerFolders",
 			Handler:    _RPCMsg_MsgEditPeerFolders_Handler,
+		},
+		{
+			MethodName: "msg_sendReaction",
+			Handler:    _RPCMsg_MsgSendReaction_Handler,
+		},
+		{
+			MethodName: "msg_readReactions",
+			Handler:    _RPCMsg_MsgReadReactions_Handler,
+		},
+		{
+			MethodName: "msg_updateSavedReactionTag",
+			Handler:    _RPCMsg_MsgUpdateSavedReactionTag_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

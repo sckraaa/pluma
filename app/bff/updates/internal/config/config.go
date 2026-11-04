@@ -24,8 +24,10 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	UpdatesClient     zrpc.RpcClientConf
-	UserClient        zrpc.RpcClientConf
-	ChatClient        zrpc.RpcClientConf
+	UpdatesClient zrpc.RpcClientConf
+	UserClient    zrpc.RpcClientConf
+	ChatClient    zrpc.RpcClientConf
+	// ChannelClient looks up the channels of the difference (biz channel).
+	ChannelClient     zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
 }

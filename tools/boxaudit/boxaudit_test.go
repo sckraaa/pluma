@@ -37,7 +37,8 @@ func TestWritersInRepository(t *testing.T) {
 
 // TestWriters runs the writer rule over a fixture (testdata/writers): SQL
 // in Go strings and in a table definition is found, reads, other tables,
-// comments, tests, pkg/userbox and the events in pkg/outbox are not.
+// comments, tests, pkg/userbox, the events in pkg/outbox, pkg/channelbox and
+// the columns of channels other than its counters are not.
 func TestWriters(t *testing.T) {
 	findings, err := Writers("testdata/writers")
 	if err != nil {
@@ -47,7 +48,10 @@ func TestWriters(t *testing.T) {
 	for _, f := range findings {
 		got = append(got, f.Rule+"@"+f.Pos.Filename+":"+strconv.Itoa(f.Pos.Line))
 	}
-	want := []string{"writer@pkg/outbox/outbox.go:5", "writer@tables.xml:4", "writer@writers.go:6", "writer@writers.go:7", "writer@writers.go:13", "writer@writers.go:17", "writer@writers.go:20"}
+	want := []string{"writer@pkg/outbox/outbox.go:5", "writer@tables.xml:4", "writer@tables.xml:21",
+		"writer@writers.go:6", "writer@writers.go:7", "writer@writers.go:13", "writer@writers.go:17", "writer@writers.go:20",
+		"writer@writers.go:25", "writer@writers.go:26", "writer@writers.go:27", "writer@writers.go:28",
+		"writer@writers.go:29", "writer@writers.go:30", "writer@writers.go:31"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("findings\n%v\nwant\n%v\n%v", got, want, findings)
 	}
@@ -79,6 +83,9 @@ func TestRules(t *testing.T) {
 		"discarded@fixture.go:67", "nested@fixture.go:67",
 		"discarded@fixture.go:85", "pool@fixture.go:85",
 		"discarded@fixture.go:86",
+		// channels.go: reads of a channel's committed state.
+		"nested@channels.go:14",
+		"nested@channels.go:20",
 	}
 	sort.Strings(want)
 	if !reflect.DeepEqual(got, want) {

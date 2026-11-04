@@ -41,6 +41,8 @@ enum TLConstructor {
   CRC32_message_getUnreadMentionsCount = -1254023095;
   CRC32_message_getSavedHistoryMessages = -60243377;
   CRC32_message_getOutboxReadDate = -1353708502;
+  // pluma: task 053
+  CRC32_message_getUnreadReactions = -1051109802;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -238,6 +240,22 @@ message TL_message_getOutboxReadDate {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: message.getUnreadReactions user_id:long peer_type:int peer_id:long offset_id:int add_offset:int limit:int min_id:int max_id:int = Vector<MessageBox>;
+// The user's messages of the dialog with reactions it has not seen, by the
+// paging of messages.getUnreadReactions (task 053).
+message TL_message_getUnreadReactions {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 peer_type = 4;
+  int64 peer_id = 5;
+  int32 offset_id = 6;
+  int32 add_offset = 7;
+  int32 limit = 8;
+  int32 min_id = 9;
+  int32 max_id = 10;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_MessageBox {
   repeated mtproto.MessageBox datas = 1;
@@ -292,4 +310,6 @@ service RPCMessage {
       returns (mtproto.MessageBoxList) {}
   rpc message_getOutboxReadDate(TL_message_getOutboxReadDate)
       returns (Vector_ReadParticipantDate) {}
+  // pluma: task 053
+  rpc message_getUnreadReactions(TL_message_getUnreadReactions) returns (Vector_MessageBox) {}
 }

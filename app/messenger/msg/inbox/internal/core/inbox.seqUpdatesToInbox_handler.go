@@ -64,16 +64,16 @@ func (c *InboxCore) InboxSeqUpdatesToInbox(in *inbox.TLInboxSeqUpdatesToInbox) e
 		// look-up is tried again, as any failed one.
 		return fmt.Errorf("inbox: user %d, the recipient of updates with seq, not loaded", in.UserId)
 	}
-	if users, chats := peers.Missing(h); len(users) > 0 || len(chats) > 0 {
+	if users, chats, channels := peers.Missing(h); len(users) > 0 || len(chats) > 0 || len(channels) > 0 {
 		// A peer left out is a failed load as often as an id that does
 		// not exist: a client drops an update about a peer it cannot
 		// resolve (iOS), so the look-up is tried again while it can still
 		// succeed.
 		if age := time.Since(c.createdAt); age < seqPeersWait {
-			return fmt.Errorf("inbox: event %d to user %d: users %v and chats %v not loaded yet", c.eventId, in.UserId, users, chats)
+			return fmt.Errorf("inbox: event %d to user %d: users %v, chats %v and channels %v not loaded yet", c.eventId, in.UserId, users, chats, channels)
 		}
-		c.Logger.Errorf("inbox: event %d to user %d goes without users %v and chats %v, not loaded %v after it was written",
-			c.eventId, in.UserId, users, chats, time.Since(c.createdAt).Round(time.Second))
+		c.Logger.Errorf("inbox: event %d to user %d goes without users %v, chats %v and channels %v, not loaded %v after it was written",
+			c.eventId, in.UserId, users, chats, channels, time.Since(c.createdAt).Round(time.Second))
 	}
 	bot := peers.Viewer.IsBot()
 

@@ -28,6 +28,8 @@ enum TLConstructor {
   CRC32_inbox_readOutboxHistory = 1648518477;
   CRC32_inbox_readMediaUnreadToInboxV2 = 561453834;
   CRC32_inbox_seqUpdatesToInbox = -61692106;
+  // pluma: task 053
+  CRC32_inbox_updateMessageReactionsToInbox = -881825213;
 }
 
 // Every event is addressed to one user, user_id: it changes that user's box
@@ -131,6 +133,19 @@ message TL_inbox_readOutboxHistory {
 //--------------------------------------------------------------------------------------------
 // inbox.readMediaUnreadToInboxV2 user_id:long from_id:long peer_type:int peer_id:long id:Vector<long> = Void;
 // id: dialog_message_id of user_id's messages whose media from_id opened
+// pluma: inbox.updateMessageReactionsToInbox user_id:long from_id:long peer_type:int peer_id:long dialog_message_id:long = Void;
+// The reactions to the message dialog_message_id changed (from_id set
+// its own, task 053): the recipient journals the reactions of its copy as it
+// sees them.
+message TL_inbox_updateMessageReactionsToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int64 dialog_message_id = 7;
+}
+
 message TL_inbox_readMediaUnreadToInboxV2 {
   TLConstructor constructor = 1;
   int64 user_id = 3;

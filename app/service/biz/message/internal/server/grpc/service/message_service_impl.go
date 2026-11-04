@@ -12,6 +12,7 @@ package service
 
 import (
 	"context"
+	"github.com/teamgram/teamgram-server/pkg/reactions"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/internal/core"
@@ -28,6 +29,9 @@ func (s *Service) MessageGetUserMessage(ctx context.Context, request *message.TL
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -40,6 +44,9 @@ func (s *Service) MessageGetUserMessageList(ctx context.Context, request *messag
 
 	r, err := c.MessageGetUserMessageList(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
 
@@ -56,6 +63,9 @@ func (s *Service) MessageGetUserMessageListByDataIdList(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -70,6 +80,9 @@ func (s *Service) MessageGetUserMessageListByDataIdUserIdList(ctx context.Contex
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -82,6 +95,9 @@ func (s *Service) MessageGetHistoryMessages(ctx context.Context, request *messag
 
 	r, err := c.MessageGetHistoryMessages(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
 
@@ -126,6 +142,9 @@ func (s *Service) MessageGetPeerUserMessage(ctx context.Context, request *messag
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -138,6 +157,9 @@ func (s *Service) MessageSearchByMediaType(ctx context.Context, request *message
 
 	r, err := c.MessageSearchByMediaType(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
 
@@ -154,6 +176,9 @@ func (s *Service) MessageSearch(ctx context.Context, request *message.TLMessageS
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -168,6 +193,9 @@ func (s *Service) MessageSearchGlobal(ctx context.Context, request *message.TLMe
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -180,6 +208,9 @@ func (s *Service) MessageSearchByPinned(ctx context.Context, request *message.TL
 
 	r, err := c.MessageSearchByPinned(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
 
@@ -208,6 +239,9 @@ func (s *Service) MessageSearchV2(ctx context.Context, request *message.TLMessag
 
 	r, err := c.MessageSearchV2(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
 
@@ -252,6 +286,9 @@ func (s *Service) MessageGetUnreadMentions(ctx context.Context, request *message
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -280,6 +317,9 @@ func (s *Service) MessageGetSavedHistoryMessages(ctx context.Context, request *m
 	if err != nil {
 		return nil, err
 	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -292,6 +332,23 @@ func (s *Service) MessageGetOutboxReadDate(ctx context.Context, request *message
 
 	r, err := c.MessageGetOutboxReadDate(request)
 	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessageGetUnreadReactions
+// message.getUnreadReactions user_id:long peer_type:int peer_id:long offset_id:int add_offset:int limit:int min_id:int max_id:int = Vector<MessageBox>;
+func (s *Service) MessageGetUnreadReactions(ctx context.Context, request *message.TLMessageGetUnreadReactions) (*message.Vector_MessageBox, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("message.getUnreadReactions - metadata: {%s}", c.MD)
+
+	r, err := c.MessageGetUnreadReactions(request)
+	if err != nil {
+		return nil, err
+	}
+	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
 

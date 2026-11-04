@@ -213,3 +213,45 @@ func (s *Service) MsgEditPeerFolders(ctx context.Context, request *msg.TLMsgEdit
 
 	return r, err
 }
+
+// MsgSendReaction
+// msg.sendReaction user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int big:Bool add_to_recent:Bool reaction:Vector<Reaction> = Updates;
+func (s *Service) MsgSendReaction(ctx context.Context, request *msg.TLMsgSendReaction) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.sendReaction - metadata: {%s}", c.MD)
+
+	r, err := c.MsgSendReaction(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgReadReactions
+// msg.readReactions user_id:long auth_key_id:long peer_type:int peer_id:long = messages.AffectedHistory;
+func (s *Service) MsgReadReactions(ctx context.Context, request *msg.TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.readReactions - metadata: {%s}", c.MD)
+
+	r, err := c.MsgReadReactions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgUpdateSavedReactionTag
+// msg.updateSavedReactionTag user_id:long auth_key_id:long reaction:Reaction title:string = Bool;
+func (s *Service) MsgUpdateSavedReactionTag(ctx context.Context, request *msg.TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.updateSavedReactionTag - metadata: {%s}", c.MD)
+
+	r, err := c.MsgUpdateSavedReactionTag(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

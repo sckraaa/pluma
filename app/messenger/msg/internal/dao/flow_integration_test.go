@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	msg_helper "github.com/teamgram/teamgram-server/app/messenger/msg/msg"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_helper "github.com/teamgram/teamgram-server/app/service/biz/dialog"
@@ -223,6 +224,17 @@ func (f *fakeChats) ChatGetChatListByIdList(_ context.Context, in *chatpb.TLChat
 	return out, nil
 }
 
+// noChannels is biz channel with no channels: the flows here have none.
+type noChannels struct{}
+
+func (noChannels) ChannelGetMutableChannel(context.Context, *channelpb.TLChannelGetMutableChannel) (*channelpb.MutableChannel, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetChannelListByIdList(context.Context, *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error) {
+	return &channelpb.Vector_MutableChannel{}, nil
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]
@@ -290,13 +302,14 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 		pub:   &worldDelivery{delivery: itDelivery, t: t},
 	}
 	w.d = &dao.Dao{
-		Mysql:       dao.NewMysqlDao(db, 1),
-		CachedConn:  sqlc.NewConn(db, itRedis.CacheConf()),
-		IdGenerator: snowflake{},
-		UserClient:  w.users,
-		ChatClient:  w.chats,
-		BoxDB:       boxDB,
-		Topics:      itTopics,
+		Mysql:         dao.NewMysqlDao(db, 1),
+		CachedConn:    sqlc.NewConn(db, itRedis.CacheConf()),
+		IdGenerator:   snowflake{},
+		UserClient:    w.users,
+		ChatClient:    w.chats,
+		ChannelClient: noChannels{},
+		BoxDB:         boxDB,
+		Topics:        itTopics,
 	}
 	w.rpc = msg_helper.New(w.d, nil)
 	itDelivery.use(w.d)

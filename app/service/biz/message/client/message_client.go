@@ -42,6 +42,7 @@ type MessageClient interface {
 	MessageGetUnreadMentionsCount(ctx context.Context, in *message.TLMessageGetUnreadMentionsCount) (*mtproto.Int32, error)
 	MessageGetSavedHistoryMessages(ctx context.Context, in *message.TLMessageGetSavedHistoryMessages) (*mtproto.MessageBoxList, error)
 	MessageGetOutboxReadDate(ctx context.Context, in *message.TLMessageGetOutboxReadDate) (*message.Vector_ReadParticipantDate, error)
+	MessageGetUnreadReactions(ctx context.Context, in *message.TLMessageGetUnreadReactions) (*message.Vector_MessageBox, error)
 }
 
 type defaultMessageClient struct {
@@ -192,4 +193,11 @@ func (m *defaultMessageClient) MessageGetSavedHistoryMessages(ctx context.Contex
 func (m *defaultMessageClient) MessageGetOutboxReadDate(ctx context.Context, in *message.TLMessageGetOutboxReadDate) (*message.Vector_ReadParticipantDate, error) {
 	client := message.NewRPCMessageClient(m.cli.Conn())
 	return client.MessageGetOutboxReadDate(ctx, in)
+}
+
+// MessageGetUnreadReactions
+// message.getUnreadReactions user_id:long peer_type:int peer_id:long offset_id:int add_offset:int limit:int min_id:int max_id:int = Vector<MessageBox>;
+func (m *defaultMessageClient) MessageGetUnreadReactions(ctx context.Context, in *message.TLMessageGetUnreadReactions) (*message.Vector_MessageBox, error) {
+	client := message.NewRPCMessageClient(m.cli.Conn())
+	return client.MessageGetUnreadReactions(ctx, in)
 }

@@ -46,6 +46,8 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMessageGetUnreadMentionsCount":               RPCContextTuple{"/mtproto.RPCMessage/message_getUnreadMentionsCount", func() interface{} { return new(mtproto.Int32) }},
 	"TLMessageGetSavedHistoryMessages":              RPCContextTuple{"/mtproto.RPCMessage/message_getSavedHistoryMessages", func() interface{} { return new(mtproto.MessageBoxList) }},
 	"TLMessageGetOutboxReadDate":                    RPCContextTuple{"/mtproto.RPCMessage/message_getOutboxReadDate", func() interface{} { return new(Vector_ReadParticipantDate) }},
+	// pluma: task 053
+	"TLMessageGetUnreadReactions": {"/mtproto.RPCMessage/message_getUnreadReactions", func() interface{} { return new(Vector_MessageBox) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

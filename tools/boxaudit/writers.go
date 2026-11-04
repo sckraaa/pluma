@@ -26,6 +26,51 @@ import (
 // a decision of the consumer could be overwritten.
 var tableWrite = regexp.MustCompile("(?is)\\b(insert\\s+(ignore\\s+)?into|replace\\s+into|update|delete\\s+from)\\s+`?(user_state|user_pts_updates|user_seq_updates|mq_outbox)`?\\b")
 
+// The counters and the journal of a channel box (ADR 0034, p. 2) are
+// written only by pkg/channelbox: the journal, a new row of channels (its
+// counters start there), and pts or last_message_id of channels. The other
+// columns of channels are written by the services, so an UPDATE of channels
+// is a finding only when its SET clause names a counter.
+var (
+	channelJournalWrite = regexp.MustCompile("(?is)\\b(?:insert\\s+(?:(?:low_priority|delayed|high_priority|ignore)\\s+)*(?:into\\s+)?" +
+		"|replace\\s+(?:(?:low_priority|delayed)\\s+)*(?:into\\s+)?" +
+		"|update\\s+(?:(?:low_priority|ignore)\\s+)*" +
+		"|delete\\s+(?:(?:low_priority|quick|ignore)\\s+)*(?:\\w+\\s+)?from\\s+)`?channel_pts_updates\\b`?")
+	channelsInsert = regexp.MustCompile("(?is)\\b(?:insert\\s+(?:(?:low_priority|delayed|high_priority|ignore)\\s+)*(?:into\\s+)?" +
+		"|replace\\s+(?:(?:low_priority|delayed)\\s+)*(?:into\\s+)?)`?channels\\b`?")
+	channelsUpdate = regexp.MustCompile("(?is)\\bupdate\\s+(?:(?:low_priority|ignore)\\s+)*`?channels\\b`?(?:\\s+(?:as\\s+)?\\w+)?\\s+set\\b")
+	// setClauseEnd ends the SET clause of an UPDATE.
+	setClauseEnd = regexp.MustCompile(`(?is)\bwhere\b|\border\s+by\b|\blimit\b|;|</`)
+	// counterSet is an assignment of a counter in a SET clause, the column
+	// bare, quoted or qualified by the table or its alias.
+	counterSet = regexp.MustCompile("(?is)(?:^|[\\s,])(?:`?\\w+`?\\.)?`?(?:pts|last_message_id)`?\\s*=")
+)
+
+// channelWrites returns the spans of text that write the counters or the
+// journal of a channel box.
+func channelWrites(text string) [][2]int {
+	var spans [][2]int
+	for _, re := range []*regexp.Regexp{channelJournalWrite, channelsInsert} {
+		for _, loc := range re.FindAllStringIndex(text, -1) {
+			spans = append(spans, [2]int{loc[0], loc[1]})
+		}
+	}
+	for _, loc := range channelsUpdate.FindAllStringIndex(text, -1) {
+		end := len(text)
+		if e := setClauseEnd.FindStringIndex(text[loc[1]:]); e != nil {
+			end = loc[1] + e[0]
+		}
+		if counterSet.MatchString(text[loc[1]:end]) {
+			spans = append(spans, [2]int{loc[0], end})
+		}
+	}
+	sort.Slice(spans, func(i, j int) bool { return spans[i][0] < spans[j][0] })
+	return spans
+}
+
+// channelWriters may write the counters and the journal of a channel box.
+var channelWriters = []string{"pkg/channelbox"}
+
 // writers are the packages that may write each table, relative to the root.
 var writers = map[string][]string{
 	"user_state":       {"pkg/userbox"},
@@ -36,8 +81,13 @@ var writers = map[string][]string{
 
 // allowed tells whether the file rel may write the table of a match.
 func allowed(rel string, match []string) bool {
+	return inDirs(rel, writers[strings.ToLower(match[3])])
+}
+
+// inDirs tells whether the file rel is in one of the directories.
+func inDirs(rel string, dirs []string) bool {
 	dir := filepath.ToSlash(filepath.Dir(rel))
-	for _, w := range writers[strings.ToLower(match[3])] {
+	for _, w := range dirs {
 		if dir == w {
 			return true
 		}
@@ -102,7 +152,7 @@ func writerFinding(file string, line int, sql string) Finding {
 	return Finding{
 		Pos:  token.Position{Filename: file, Line: line},
 		Rule: "writer",
-		Msg:  "the box state, the journal and the events are written only by their packages (pkg/userbox, pkg/outbox): " + strings.Join(strings.Fields(sql), " "),
+		Msg:  "the box state, the journal and the events are written only by their packages (pkg/userbox, pkg/channelbox, pkg/outbox): " + strings.Join(strings.Fields(sql), " "),
 	}
 }
 
@@ -124,6 +174,11 @@ func goWriters(fset *token.FileSet, path, rel string) ([]Finding, error) {
 		if m := tableWrite.FindStringSubmatch(s); m != nil && !allowed(rel, m) {
 			findings = append(findings, writerFinding(rel, fset.Position(lit.Pos()).Line, m[0]))
 		}
+		if !inDirs(rel, channelWriters) {
+			for _, sp := range channelWrites(s) {
+				findings = append(findings, writerFinding(rel, fset.Position(lit.Pos()).Line, s[sp[0]:sp[1]]))
+			}
+		}
 		return true
 	})
 	return findings, nil
@@ -142,6 +197,13 @@ func textWriters(path, rel string) ([]Finding, error) {
 		}
 		line := 1 + strings.Count(string(b[:loc[0]]), "\n")
 		findings = append(findings, writerFinding(rel, line, m[0]))
+	}
+	if !inDirs(rel, channelWriters) {
+		text := string(b)
+		for _, sp := range channelWrites(text) {
+			line := 1 + strings.Count(text[:sp[0]], "\n")
+			findings = append(findings, writerFinding(rel, line, text[sp[0]:sp[1]]))
+		}
 	}
 	return findings, nil
 }

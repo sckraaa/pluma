@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package seqpeers finds the users and chats updates with seq refer to
+// Package seqpeers finds the users, chats and channels updates with seq refer to
 // (ADR 0020, 0021), for the two places that send them with those peers:
 // updates.getDifference of bff, and the inbox consumer of msg, which
 // journals and pushes the updates another user's change gives an account.
@@ -27,6 +27,7 @@ import (
 	"slices"
 
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -114,30 +115,54 @@ func Pick(h *mtproto.IDListHelper, selfId int64, updates ...*mtproto.Update) {
 		case mtproto.Predicate_updatePendingJoinRequests:
 			h.PickByPeer(u.GetPeer_PEER())
 			users(u.GetRecentRequesters()...)
+		case mtproto.Predicate_updateMessageReactions:
+			// The chat and the users of the recent reactions, whose
+			// avatars the clients show under the message.
+			h.PickByPeer(u.GetPeer_PEER())
+			for _, r := range u.GetReactions_MESSAGEREACTIONS().GetRecentReactions() {
+				h.PickByPeer(r.GetPeerId())
+			}
 		}
 	}
 }
 
-// Source looks users and chats up: biz user and biz chat, whose clients
-// the Daos of bff updates and of msg embed.
+// Source looks users, chats and channels up: biz user, biz chat and biz
+// channel, whose clients the Daos of bff updates and of msg embed.
 type Source interface {
 	UserGetMutableUsers(ctx context.Context, in *userpb.TLUserGetMutableUsers) (*userpb.Vector_ImmutableUser, error)
 	ChatGetChatListByIdList(ctx context.Context, in *chatpb.TLChatGetChatListByIdList) (*chatpb.Vector_MutableChat, error)
+	ChannelGetChannelListByIdList(ctx context.Context, in *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error)
 }
 
-// Peers are users and chats as one account, the viewer, sees them.
+// Peers are users, chats and channels as one account, the viewer, sees
+// them.
 type Peers struct {
 	viewerId int64
 	// Viewer is the account itself; nil when biz user did not find it.
 	Viewer *mtproto.ImmutableUser
-	// Users and Chats are the ones asked for that were found.
+	// Users and Chats are the ones asked for that were found; Chats holds
+	// the basic groups and then the channels (channel, channelForbidden), as
+	// the chats of a container do.
 	Users []*mtproto.User
 	Chats []*mtproto.Chat
 }
 
-// Resolve looks up the users and chats of h as viewer sees them, the
-// viewer with the users; channels are not looked up. A failed look-up does
-// not stop the other one: what was found is returned with the errors.
+// isChannel reports a channel's object: the ids of basic groups and of
+// channels are matched apart.
+func isChannel(c *mtproto.Chat) bool {
+	switch c.GetPredicateName() {
+	case mtproto.Predicate_channel, mtproto.Predicate_channelForbidden:
+		return true
+	default:
+		return false
+	}
+}
+
+// Resolve looks up the users, chats and channels of h as viewer sees them,
+// the viewer with the users; a channel is in its form for the viewer
+// (channel or channelForbidden, by the viewer's participant row). A failed
+// look-up does not stop the others: what was found is returned with the
+// errors.
 func Resolve(ctx context.Context, src Source, viewer int64, h *mtproto.IDListHelper) (*Peers, error) {
 	p := &Peers{viewerId: viewer}
 	var errs []error
@@ -165,11 +190,19 @@ func Resolve(ctx context.Context, src Source, viewer int64, h *mtproto.IDListHel
 			p.Chats = chats.GetChatListByIdList(viewer, h.ChatIdList...)
 		}
 	}
+	if len(h.ChannelIdList) > 0 {
+		channels, err := src.ChannelGetChannelListByIdList(ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: viewer, IdList: h.ChannelIdList})
+		if err != nil {
+			errs = append(errs, err)
+		} else {
+			p.Chats = append(p.Chats, channels.GetChannelListByIdList(viewer)...)
+		}
+	}
 	return p, errors.Join(errs...)
 }
 
-// Of returns the users and chats of p that u refers to (Pick): the peers
-// of a container with u alone.
+// Of returns the users and chats (with channels) of p that u refers to
+// (Pick): the peers of a container with u alone.
 func (p *Peers) Of(u *mtproto.Update) ([]*mtproto.User, []*mtproto.Chat) {
 	h := mtproto.NewIDListHelper()
 	Pick(h, p.viewerId, u)
@@ -185,30 +218,51 @@ func (p *Peers) Of(u *mtproto.Update) ([]*mtproto.User, []*mtproto.Chat) {
 			}
 		}
 	}
-	for _, id := range h.ChatIdList {
-		for _, it := range p.Chats {
-			if it.GetId() == id {
-				chats = append(chats, it)
-				break
-			}
-		}
-	}
+	chats = append(chats, p.chats(h.ChatIdList, false)...)
+	chats = append(chats, p.chats(h.ChannelIdList, true)...)
 	return users, chats
 }
 
-// Missing returns the users and chats of h that p lacks: biz user and biz
-// chat leave out an id whose look-up failed and report no error, so a
-// missing peer may be a failure as well as an id that does not exist.
-func (p *Peers) Missing(h *mtproto.IDListHelper) (users, chats []int64) {
+// chats returns the chats of p with the ids of idList, of channels or of
+// basic groups, in the order of idList.
+func (p *Peers) chats(idList []int64, channels bool) []*mtproto.Chat {
+	var out []*mtproto.Chat
+	for _, id := range idList {
+		if c := p.chat(id, channels); c != nil {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func (p *Peers) chat(id int64, channel bool) *mtproto.Chat {
+	for _, c := range p.Chats {
+		if c.GetId() == id && isChannel(c) == channel {
+			return c
+		}
+	}
+	return nil
+}
+
+// Missing returns the users, chats and channels of h that p lacks: biz
+// user and biz chat leave out an id whose look-up failed and report no
+// error, so a missing peer may be a failure as well as an id that does not
+// exist; biz channel leaves out only a channel that does not exist.
+func (p *Peers) Missing(h *mtproto.IDListHelper) (users, chats, channels []int64) {
 	for _, id := range h.UserIdList {
 		if !slices.ContainsFunc(p.Users, func(u *mtproto.User) bool { return u.GetId() == id }) {
 			users = append(users, id)
 		}
 	}
 	for _, id := range h.ChatIdList {
-		if !slices.ContainsFunc(p.Chats, func(c *mtproto.Chat) bool { return c.GetId() == id }) {
+		if p.chat(id, false) == nil {
 			chats = append(chats, id)
 		}
 	}
-	return users, chats
+	for _, id := range h.ChannelIdList {
+		if p.chat(id, true) == nil {
+			channels = append(channels, id)
+		}
+	}
+	return users, chats, channels
 }

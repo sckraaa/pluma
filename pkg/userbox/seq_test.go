@@ -187,8 +187,8 @@ func TestRunSeqChanged(t *testing.T) {
 		s.mu.Unlock()
 		return setNotifySettings(2)(b)
 	})
-	if !errors.Is(err, errStateChanged) {
-		t.Fatalf("error %v, want %v", err, errStateChanged)
+	if !errors.Is(err, ErrStateChanged) {
+		t.Fatalf("error %v, want %v", err, ErrStateChanged)
 	}
 	if rows := s.seqRows(7); len(rows) != 1 {
 		t.Errorf("seq rows %+v: the second transaction's row was committed", rows)
