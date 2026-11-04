@@ -665,6 +665,41 @@ ci/lint.sh                                        # shellcheck и actionlint
 - Всё, что идёт через MTProto (наборы эмодзи, словари, языковой пакет, звонки), — к серверу Pluma.
 - Пресеты акцентов, темы Day и Night (кроме цветов-идентичности и ключей, которые они берут из Classic), фон чата, кольцо историй — цвета Telegram (сверка клиентов, задача 020).
 
+## Обновления (задача 054)
+
+- **Статус.** Локальная ветка `task/054-updates` репозитория `pluma-desktop` (`4ba0ba8`, `9b3a688`, `b8b64ad`, 2026-11-04), не запушена: проверка CI требует `config/update_public.pem` (владелец: `ci/update-key.sh`), коммит с workflow — права `workflow` у токена `gh`. Патч проверен применением на апстриме `a1e89e1f` и тестами (69 тестов патча, 6 упаковщика); сборка на трёх системах и обновление на устройстве не проверены.
+- **Источники.** tdesktop `a1e89e1f`: `core/update_checker.cpp` (HTTP-проверка 717-721, разбор 606-680 и 804-850, распаковка 327-560, Updater 1795-1875), `_other/packer.cpp` (формат 240-470), `_other/updater_win.cpp` (реестр 278-325), `_other/updater_osx.m:11`; `lib_base` `82d182a2` (`AutoUpdateKey`, `AutoUpdateVersion`).
+
+### D-074. Апдейтер включён, отчёты о сбоях — нет
+
+- `telegram_options.cmake`: сборка падает без `DESKTOP_APP_DISABLE_CRASH_REPORTS=ON` или с `DESKTOP_APP_DISABLE_AUTOUPDATE`; определяется только `TDESKTOP_DISABLE_CRASH_REPORTS`. Флаг автообновления убран из `ci/build-linux.sh`, `ci/macos.sh`, `ci/windows.sh`.
+
+### D-075. Ключ, префикс, без MTP-проверки
+
+- `config.h:45-58`: ключ Pluma (RSA-1024, PKCS#1 из `config/update_public.pem`) в оба слота `UpdatesPublicKey`/`UpdatesPublicBetaKey`; ключи Telegram остаются только в `packer.cpp`, который не собирается.
+- `storage/localstorage.cpp:557`: префикс по умолчанию `PLUMA_UPDATE_PREFIX` (`https://pluma.chat/dl/desktop`), у dev-сборки — `https://127.0.0.1/dl/desktop`.
+- `core/update_checker.cpp:1509-1511`: `MtpChecker` не запускается (канал `tdhbcfeed` Telegram).
+
+### D-076. Имена в Updater
+
+- `update_checker.cpp:1804`, `updater_osx.m:11`: `Telegram.app` → `Pluma.app`.
+- `updater_win.cpp:283`: ключ удаления `{53F49750-…}_is1` (GUID Telegram) → GUID Pluma; `:310-322` имена и издатель → Pluma, ссылка → сайт; `:494` папка в APPDATA → Pluma. Иначе рядом с установленным Telegram Desktop Updater перезаписал бы его запись.
+- Бинарник в пакете — под именем апстрима (`Telegram.exe`, `Telegram`): Updater сам переименует его в установленный (`updater_win.cpp:207-210`, `updater_linux.cpp:272-276`).
+
+### D-077. `AppVersion` = апстрим + номер сборки
+
+- `core/version.h:25`: `7000009` → `7000009 + N` (`--build`, в CI `github.run_number`). Апдейтер берёт только версию выше своей (`update_checker.cpp:842-846`, `:491-494`).
+- Защита: патч падает на пороге миграции настроек (`oldVersion < NNN`) выше версии апстрима — его пропустила бы установка Pluma, уже ушедшая дальше. Сейчас порогов три, все ниже (`specific_win.cpp:668,671`, `specific_linux.cpp:832`).
+
+### D-078. Пакеты, упаковщик, выпуск
+
+- `ci/package.sh`: Updater рядом с exe (Windows, Linux), проверка `Contents/Frameworks/Updater` (macOS).
+- `ci/pack_update.py`: формат Packer на Python (QDataStream Qt_5_1; xz на macOS/Linux, сырой LZMA с параметрами `LzmaCompress` на Windows; SHA-1; подпись `openssl dgst -sha1 -sign`), с обратным чтением как в `UnpackUpdate` и проверкой подписи. **Не проверено:** сырой LZMA от liblzma (с маркером конца) в `LzmaUncompress` клиента Windows — проверить первым обновлением на Windows.
+- `ci/publish.sh`: установщик + пакет (`tx64upd`, `tmacupd` универсальный, `tlinuxupd`) → `POST /dl/upload`; job `release` (бывший `sign-macos`, одно одобрение) публикует все три, `staple-macos` — macOS после нотаризации.
+- `ci/update-key.sh`: ключ один раз сразу в `~/pluma-secrets/desktop` и секрет `PLUMA_UPDATE_KEY`, публичный — в `config/update_public.pem`; ничего не печатает.
+
+---
+
 ## Пробелы и открытые вопросы
 
 - Баннер и подарки (D-048…D-050), исправление D-070 и теги «Избранного» (D-073) не проверяются `verify()`, только тестом на закреплённом апстриме.
