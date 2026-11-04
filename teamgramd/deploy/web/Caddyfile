@@ -35,6 +35,16 @@
 		reverse_proxy iosinstall:9098
 	}
 
+	# The releases of the client apps (docker-compose.releases.yaml, task
+	# 054): the files, the latest links, releases.json for the site, and
+	# CI's uploads of signed builds. Without that service these answer 502.
+	handle /dl/* {
+		request_body {
+			max_size 2GB
+		}
+		reverse_proxy releases:9097
+	}
+
 	# A collection of the catalog from Telegram, from the collector in a tab
 	# of Telegram Web K (docker-compose.catalog.yaml, docs/ops/catalog.md).
 	# Without that service, which runs only during a collection, it answers

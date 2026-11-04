@@ -1,0 +1,39 @@
+# The releases of the client apps (task 054, ADR 0035, docs/ops/releases.md):
+# the service CI hands signed builds to, which serves them behind Caddy at
+# /dl/ of the site and stores the APK of Android for help.getAppUpdate. It
+# runs from the image of the services; the upload token is mounted from its
+# own directory on the host. Added to the services command:
+#
+#   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.releases.yaml ...
+services:
+  releases:
+    image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
+    pull_policy: never
+    restart: unless-stopped
+    working_dir: /app/bin
+    command: ["./releases", "-f=../etc2/releases.yaml"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9097"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      start_interval: 2s
+      retries: 3
+    environment:
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:?set PLUMA_RELEASES_URL in .env, the site, https://pluma.chat}
+    volumes:
+      # upload-token: one line, at least 32 characters, mode 0400.
+      - ${PLUMA_RELEASES_SECRETS:-/opt/pluma/releases}:/run/secrets/releases:ro
+      - releases_data:/data
+    networks:
+      - teamgram_net
+    depends_on:
+      media:
+        condition: service_healthy
+      dfs:
+        condition: service_healthy
+    stop_grace_period: 30s
+
+volumes:
+  releases_data:

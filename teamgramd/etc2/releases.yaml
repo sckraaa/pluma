@@ -1,0 +1,28 @@
+# The releases of the client apps (task 054, docs/ops/releases.md).
+Name: service.releases
+ListenOn: 0.0.0.0:9097
+Log:
+  ServiceName: service.releases
+  # debug is for troubleshooting; no level logs keys or tokens.
+  Level: info
+# The site: the files are at PublicURL/dl/..., the iPhone install page at
+# PublicURL/iphone/install.
+PublicURL: "${PLUMA_RELEASES_URL}"
+DataDir: /data
+UploadTokenFile: /run/secrets/releases/upload-token
+Mysql:
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(mysql:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  Active: 4
+  Idle: 4
+  IdleTimeout: 4h
+DfsClient:
+  Timeout: 600000
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: service.dfs
+MediaClient:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: service.media

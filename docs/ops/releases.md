@@ -1,0 +1,68 @@
+# Выпуски клиентов на сайте (`/dl/`)
+
+Сервис `releases` (задача 054, ADR 0035) принимает от CI подписанные сборки клиентов, раздаёт их на сайте по адресам `/dl/…` и даёт `help.getAppUpdate` знать о текущем выпуске каждой платформы. Отдельной DNS-записи не нужно: адреса живут на именах сайта (`PLUMA_SITE_DOMAINS`), Caddy передаёт `/dl/*` в контейнер `releases:9097`.
+
+## Как устроено
+- **Адреса:**
+  - `POST /dl/upload` — CI выкладывает выпуск (`Authorization: Bearer <токен загрузки>`, `multipart/form-data`);
+  - `GET /dl/releases.json` — текущие выпуски всех платформ для сайта (версия, сборка, дата, заметки, ссылки, размеры, SHA-256);
+  - `GET /dl/<платформа>/latest[/<арх>]` — переход (302, без кэша) на установщик текущего выпуска;
+  - `GET /dl/<платформа>/<версия>/<файл>` — сам файл, неизменяемый (`Cache-Control: immutable`);
+  - `GET /dl/health` — проверка (`204`).
+- **Платформы:** `android`, `ios`, `macos`, `windows`, `linux`.
+- **Форма загрузки:**
+  - поля `platform`, `version`, `build`, `notes_en`, `notes_ru`, `can_not_skip=1` (по желанию);
+  - файлы — части `installer[.<арх>]` и `update[.<арх>]`.
+- **Требования к версиям и файлам:**
+  - Android: версия `12.9.1.N` (4 части, только цифры — так клиент сравнивает версии) и ровно один установщик `.apk`;
+  - iOS: версия `12.9.2`, файлов нет (IPA раздаёт `iosinstall`, запись нужна для `help.getAppUpdate`);
+  - Desktop: версия — целое `AppVersion` tdesktop, установщик обязателен.
+- **Хранение.**
+  - Файлы — в томе `releases_data`, каталог `files/<платформа>/<версия>`. Каталог выпуска не перезаписывается: повтор того же номера сборки или версии — `409`.
+  - Записи — в таблице `app_releases` (миграция `migrate-20261105-app-releases.sql`). Текущий выпуск платформы — последняя по номеру сборки запись, не отозванная.
+  - APK Android дополнительно кладётся в DFS документом: `help.getAppUpdate` отдаёт его клиенту, и тот качает его по MTProto.
+- **Что видят приложения** (`help.getAppUpdate`, платформа по `api_id` авторизации):
+  - Android — `help.appUpdate` с документом APK, если клиент по своему правилу сравнения считает версию новее;
+  - iOS — `help.appUpdate` со ссылкой `<сайт>/iphone/install`, только сборкам, поставленным с сайта (`app_version` оканчивается на ` adhoc`) и с меньшим номером сборки; сборки TestFlight обновляет TestFlight;
+  - Desktop — обновляется своим апдейтером, `help.getConfig` даёт ему `autoupdate_url_prefix = <сайт>/dl/desktop`;
+  - Web — `help.noAppUpdate`, он обновляется с сервера.
+- **Ошибки.** Если таблица или документ недоступны, `help.getAppUpdate` отвечает `help.noAppUpdate` и пишет ошибку в лог, а не 500.
+
+## Первое включение
+1. **Токен загрузки** — со своей машины, ничего не печатается:
+   ```bash
+   teamgramd/deploy/releases/put-token.sh neo_old
+   ```
+   Скрипт создаёт `/opt/pluma/releases/upload-token` (режим 0400), если его нет, и записывает его секретом `RELEASES_UPLOAD_TOKEN` окружения `release` в pluma-android, pluma-ios и pluma-desktop (нужен `gh` с правом на эти репозитории).
+2. **`.env` сервера:** `PLUMA_RELEASES_URL=https://pluma.chat` — адрес сайта без `/` на конце. Без неё `bff` не предлагает обновлений и не даёт префикс Desktop, а `releases` не запускается.
+3. **Запуск** — в команду сервисов добавляется `-f docker-compose.releases.yaml`:
+   ```bash
+   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.releases.yaml up -d --no-build releases
+   ```
+   Затем `bff` пересоздаётся с новой переменной (`up -d --no-build bff`). Если в выкатке изменился Caddyfile (маршрут `/dl/*`), контейнер `web` пересоздаётся (`--force-recreate --no-deps web`), как описано в `ios-install.md`.
+
+## Проверка
+- `curl -so /dev/null -w '%{http_code}\n' https://pluma.chat/dl/health` — `204`.
+- `curl -s https://pluma.chat/dl/releases.json` — `{"platforms":{…}}`; пока выпусков нет — `{"platforms":{}}`.
+- После первой загрузки из CI: `curl -sI https://pluma.chat/dl/android/latest` — `302` на `/dl/android/<версия>/Pluma-<версия>.apk`.
+
+## Отзыв и возврат выпуска
+Плохой выпуск отзывается — текущим снова становится предыдущий, сайт и приложения сразу видят его:
+```bash
+S="docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml"
+$S exec bff ./pluma-admin -f ../etc2/bff.yaml release list android
+$S exec bff ./pluma-admin -f ../etc2/bff.yaml release withdraw android <сборка>
+$S exec bff ./pluma-admin -f ../etc2/bff.yaml release restore android <сборка>
+```
+Файлы отозванного выпуска остаются на месте: уже выданные ссылки на конкретную версию продолжают работать. Android, успевший поставить отозванную сборку, обратно не откатывается (у старой версии меньше `versionCode`); исправление выпускается следующей сборкой.
+
+## Место на диске
+Каждый выпуск занимает свой каталог в томе `releases_data` (APK около 80 МБ, Desktop — несколько установщиков и пакетов по 100 МБ). Старые каталоги удаляются вручную, когда их выпуски отозваны или давно заменены; текущий и предыдущий выпуск каждой платформы оставлять для отката:
+```bash
+$S -f docker-compose.releases.yaml exec releases du -sh /data/files/android/*
+$S -f docker-compose.releases.yaml exec releases rm -rf /data/files/android/<старая версия>
+```
+Запись в `app_releases` остаётся; если удалённый выпуск потом вернуть (`restore`), ссылки на его файлы ответят 404.
+
+## Выключить
+Убрать `-f docker-compose.releases.yaml` из команды и `docker compose … rm -sf releases`. Маршрут `/dl/*` тогда отвечает 502, остальной сайт не затронут; `help.getAppUpdate` продолжает отвечать по таблице, а скачивание APK по MTProto работает (документ в DFS).
