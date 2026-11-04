@@ -146,10 +146,15 @@ func (s *Service) build(ctx context.Context, u *url.URL, id int64) (*mtproto.Web
 		// YouTube serves a datacenter's address an empty page: no video
 		// tags, "<title> - YouTube</title>" (seen from the server,
 		// 2026-11-04, task 055). Its oEmbed answers: the card is made of
-		// it.
-		if m, ok := s.youtubeMeta(ctx, video); ok {
-			final, meta, err = youtubeWatch, m, nil
+		// it. Without it the empty page is no card (it would be "-
+		// YouTube" with YouTube's own description): none for now, asked
+		// again soon.
+		m, ok := s.youtubeMeta(ctx, video)
+		if !ok {
+			page := emptyPage(id, u)
+			return page, s.store.put(ctx, u.String(), page, now.Unix(), now.Add(failedTTL).Unix())
 		}
+		final, meta, err = youtubeWatch, m, nil
 	}
 	if err != nil {
 		// No address is logged: the links are what users write.

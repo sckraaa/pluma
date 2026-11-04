@@ -94,6 +94,29 @@ func TestPreviewYoutube(t *testing.T) {
 	}
 }
 
+// TestPreviewYoutubeNoOEmbed: when oEmbed does not answer, YouTube's empty
+// page is no card: none, asked again soon.
+func TestPreviewYoutubeNoOEmbed(t *testing.T) {
+	env := newTestEnv(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/OBzWl3Bw1JY" {
+			serveHTML(w, `<head><title> - YouTube</title><meta name="description" content="Enjoy the videos and music you love."></head>`)
+			return
+		}
+		http.Error(w, "no", http.StatusUnauthorized)
+	}))
+	env.s.youtube, env.s.ytimg = "http://yt.example", "http://img.example"
+	p, err := env.s.Preview(context.Background(), "http://youtu.be/OBzWl3Bw1JY")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.GetPredicateName() != mtproto.Predicate_webPageEmpty {
+		t.Fatalf("card %v", p)
+	}
+	if c, _ := env.cache.get(context.Background(), "http://youtu.be/OBzWl3Bw1JY"); c == nil || time.Unix(c.expires, 0) != env.clock.Add(failedTTL) {
+		t.Errorf("cached %v", c)
+	}
+}
+
 // TestPreviewUntagged: a card of the plain head (no Open Graph, no Twitter
 // Cards) is asked again sooner: it may be a page served in place of the
 // real one.
