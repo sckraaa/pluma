@@ -23,6 +23,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 
 	"google.golang.org/protobuf/proto"
@@ -54,9 +55,28 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 			IdList: []int32{in.Id},
 		})
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("messages.editMessage blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// The one copy of a channel's message (task 043); who may edit it
+		// is msg's to check, as admins edit others' posts.
+		messages, err2 := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{
+			SelfId:    c.MD.UserId,
+			ChannelId: peer.PeerId,
+			Id:        []int32{in.Id},
+		})
+		if err2 != nil {
+			c.Logger.Errorf("messages.editMessage - error: %v", err2)
+			return nil, err2
+		}
+		editMessages = &message.Vector_MessageBox{}
+		for _, m := range messages.GetDatas() {
+			editMessages.Datas = append(editMessages.Datas, &mtproto.MessageBox{
+				UserId:       c.MD.UserId,
+				MessageId:    m.GetId(),
+				SenderUserId: m.GetFromId().GetUserId(),
+				PeerType:     mtproto.PEER_CHANNEL,
+				PeerId:       peer.PeerId,
+				Message:      m,
+			})
+		}
 	default:
 		c.Logger.Errorf("invalid peer: %v", in.Peer)
 		err = mtproto.ErrPeerIdInvalid
@@ -71,7 +91,7 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 
 	// TODO(@benqi): check
 	// editMessage := editMessages[0]
-	if editMessages.Datas[0].SenderUserId != c.MD.UserId {
+	if peer.PeerType != mtproto.PEER_CHANNEL && editMessages.Datas[0].SenderUserId != c.MD.UserId {
 		err = mtproto.ErrMessageAuthorRequired
 		c.Logger.Errorf("messages.editMessage - emptyMessage(%d)", in.Id)
 		return nil, err

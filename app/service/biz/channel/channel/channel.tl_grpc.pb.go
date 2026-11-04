@@ -50,6 +50,7 @@ const (
 	RPCChannel_ChannelCheckChatInvite_FullMethodName        = "/channel.RPCChannel/channel_checkChatInvite"
 	RPCChannel_ChannelGetParticipants_FullMethodName        = "/channel.RPCChannel/channel_getParticipants"
 	RPCChannel_ChannelReadHistory_FullMethodName            = "/channel.RPCChannel/channel_readHistory"
+	RPCChannel_ChannelDeleteMessages_FullMethodName         = "/channel.RPCChannel/channel_deleteMessages"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -82,6 +83,8 @@ type RPCChannelClient interface {
 	ChannelGetParticipants(ctx context.Context, in *TLChannelGetParticipants, opts ...grpc.CallOption) (*mtproto.Channels_ChannelParticipants, error)
 	// pluma: task 043
 	ChannelReadHistory(ctx context.Context, in *TLChannelReadHistory, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 043
+	ChannelDeleteMessages(ctx context.Context, in *TLChannelDeleteMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedMessages, error)
 }
 
 type rPCChannelClient struct {
@@ -232,6 +235,16 @@ func (c *rPCChannelClient) ChannelReadHistory(ctx context.Context, in *TLChannel
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelDeleteMessages(ctx context.Context, in *TLChannelDeleteMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedMessages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedMessages)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -262,6 +275,8 @@ type RPCChannelServer interface {
 	ChannelGetParticipants(context.Context, *TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error)
 	// pluma: task 043
 	ChannelReadHistory(context.Context, *TLChannelReadHistory) (*mtproto.Bool, error)
+	// pluma: task 043
+	ChannelDeleteMessages(context.Context, *TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -312,6 +327,9 @@ func (UnimplementedRPCChannelServer) ChannelGetParticipants(context.Context, *TL
 }
 func (UnimplementedRPCChannelServer) ChannelReadHistory(context.Context, *TLChannelReadHistory) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelReadHistory not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteMessages(context.Context, *TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteMessages not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -585,6 +603,24 @@ func _RPCChannel_ChannelReadHistory_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelDeleteMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteMessages(ctx, req.(*TLChannelDeleteMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -647,6 +683,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_readHistory",
 			Handler:    _RPCChannel_ChannelReadHistory_Handler,
+		},
+		{
+			MethodName: "channel_deleteMessages",
+			Handler:    _RPCChannel_ChannelDeleteMessages_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

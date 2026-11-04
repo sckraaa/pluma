@@ -30,11 +30,6 @@ func (c *ChannelsCore) MessagesGetPersonalChannelHistory(in *mtproto.TLMessagesG
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsDeleteMessages is not served yet: channels.deleteMessages#84c1fd4e.
-func (c *ChannelsCore) ChannelsDeleteMessages(in *mtproto.TLChannelsDeleteMessages) (*mtproto.Messages_AffectedMessages, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsEditAdmin is not served yet: channels.editAdmin#9a98ad68 (also #d33c8902).
 func (c *ChannelsCore) ChannelsEditAdmin(in *mtproto.TLChannelsEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

@@ -36,4 +36,6 @@ const (
 	CRC32_channel_getParticipants TLConstructor = -212979149 // 0xf34e3233
 	// pluma: task 043
 	CRC32_channel_readHistory TLConstructor = -585404897 // 0xdd1b6e1f
+	// pluma: task 043
+	CRC32_channel_deleteMessages TLConstructor = 1972359002 // 0x758fcf5a
 )

@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/plugin"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -81,6 +82,45 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	}
 	return mtproto.MakeTLUpdates(&mtproto.Updates{
 		Updates: updates,
+		Users:   users.GetUserListByIdList(fromUserId, h.UserIdList...),
+		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
+		Date:    int32(time.Now().Unix()),
+	}).To_Updates(), nil
+}
+
+// editChannelMessage applies fromUserId's edit to message id of a channel or
+// a supergroup (task 043, dao.EditChannel): in the editor's box transaction
+// with the channel locked, pushed to the members by one event. The answer
+// holds updateEditChannelMessage, the channel and the users.
+func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64, editBox *msg.OutboxMessage, id int32) (*mtproto.Updates, error) {
+	edit := plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, editBox.Message, fromUserId, editBox.NoWebpage, func() bool { return false })
+	var (
+		edited *mtproto.Message
+		pts    int32
+	)
+	_, err := c.svcCtx.Dao.RunBox(c.ctx, fromUserId, nil, func(b *userbox.Box) error {
+		var err error
+		if edited, pts, err = c.svcCtx.Dao.EditChannel(b, channelId, id, edit); err != nil {
+			return err
+		}
+		return c.svcCtx.Dao.EmitChannelEditPush(b, channelId, fromAuthKeyId, edited, pts)
+	})
+	if err != nil {
+		return nil, err
+	}
+	mc, err := c.svcCtx.Dao.ChannelClient.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: channelId, Id: []int64{fromUserId}})
+	if err != nil {
+		return nil, err
+	}
+	shown := channelpb.ViewMessage(edited, fromUserId)
+	h := mtproto.NewIDListHelper(fromUserId)
+	h.PickByMessage(shown)
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: h.UserIdList, To: []int64{fromUserId}})
+	if err != nil {
+		return nil, err
+	}
+	return mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: pts, PtsCount: 1}).To_Update()},
 		Users:   users.GetUserListByIdList(fromUserId, h.UserIdList...),
 		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
 		Date:    int32(time.Now().Unix()),

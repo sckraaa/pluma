@@ -21,11 +21,13 @@ package core
 import (
 	"google.golang.org/grpc/status"
 	"math/rand"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -174,10 +176,14 @@ func (c *MessagesCore) makeForwardMessages(
 
 	switch fromPeer.PeerType {
 	case mtproto.PEER_CHANNEL:
-		// TODO: not impl
-		c.Logger.Errorf("messages.forwardMessages blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// The one copy of the channel's messages, as the account sees them
+		// (task 043): biz channel answers CHANNEL_PRIVATE to one who may
+		// not read it.
+		var err error
+		if messageList, err = c.channelForwardSource(fromPeer.PeerId, idList); err != nil {
+			c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+			return nil, err
+		}
 	default:
 		messageList, _ = c.svcCtx.Dao.MessageClient.MessageGetUserMessageList(c.ctx, &message.TLMessageGetUserMessageList{
 			UserId: c.MD.UserId,
@@ -234,8 +240,8 @@ func (c *MessagesCore) makeForwardMessages(
 		} else {
 			if m.FwdFrom == nil {
 				var fwdFrom *mtproto.MessageFwdHeader
-				if m.Views != nil {
-					// Broadcast
+				if m.Views != nil || m.GetPost() {
+					// A post of a channel (broadcast): from the channel.
 					fwdFrom = mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
 						Date: m.GetDate(),
 					}).To_MessageFwdHeader()
@@ -255,8 +261,9 @@ func (c *MessagesCore) makeForwardMessages(
 				}
 
 				if saved {
-					if m.Views != nil {
-						// fwdFrom
+					if m.Views != nil || box.PeerType == mtproto.PEER_CHANNEL {
+						// From a channel or a supergroup: the chat it
+						// was saved from.
 						fwdFrom.SavedFromPeer = box.Message.GetPeerId()
 					} else {
 						fwdFrom.SavedFromPeer = mtproto.MakePeerUser(box.SenderUserId)
@@ -362,4 +369,40 @@ func hasCaption(m *mtproto.Message) bool {
 		return true
 	}
 	return false
+}
+
+// channelForwardSource loads the messages ids of a channel the account
+// forwards, as boxes of the forward: their author is the sender (none for a
+// post). A channel with forwards restricted is CHAT_FORWARDS_RESTRICTED.
+func (c *MessagesCore) channelForwardSource(channelId int64, ids []int32) (*message.Vector_MessageBox, error) {
+	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: channelId, Id: []int64{c.MD.UserId}})
+	if err != nil {
+		return nil, err
+	}
+	if mc.GetChannel().GetNoforwards() {
+		return nil, mtproto.ErrChatForwardsRestricted
+	}
+	messages, err := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: c.MD.UserId, ChannelId: channelId, Id: ids})
+	if err != nil {
+		return nil, err
+	}
+	out := &message.Vector_MessageBox{}
+	for _, m := range messages.GetDatas() {
+		if m.GetPredicateName() != mtproto.Predicate_message {
+			// Service messages are not forwarded.
+			continue
+		}
+		out.Datas = append(out.Datas, &mtproto.MessageBox{
+			UserId:       c.MD.UserId,
+			MessageId:    m.GetId(),
+			SenderUserId: m.GetFromId().GetUserId(),
+			PeerType:     mtproto.PEER_CHANNEL,
+			PeerId:       channelId,
+			Message:      m,
+		})
+	}
+	// Newest first, as biz message gives a user's messages: the forward
+	// walks them back to send the oldest first.
+	slices.SortFunc(out.Datas, func(a, b *mtproto.MessageBox) int { return int(b.MessageId) - int(a.MessageId) })
+	return out, nil
 }

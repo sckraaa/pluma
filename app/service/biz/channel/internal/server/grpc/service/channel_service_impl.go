@@ -219,3 +219,17 @@ func (s *Service) ChannelReadHistory(ctx context.Context, request *channel.TLCha
 
 	return r, err
 }
+
+// ChannelDeleteMessages
+// channel.deleteMessages self_id:long perm_auth_key_id:long channel_id:long id:Vector<int> = messages.AffectedMessages;
+func (s *Service) ChannelDeleteMessages(ctx context.Context, request *channel.TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

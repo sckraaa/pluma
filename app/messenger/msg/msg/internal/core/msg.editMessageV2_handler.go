@@ -39,8 +39,7 @@ func (c *MsgCore) MsgEditMessageV2(in *msg.TLMsgEditMessageV2) (*mtproto.Updates
 	case mtproto.PEER_CHAT:
 		rUpdates, err = c.editChatMessage(in.UserId, in.AuthKeyId, in.PeerId, in.NewMessage, in.DstMessage.MessageId)
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("msg.editMessageV2 blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		rUpdates, err = c.editChannelMessage(in.UserId, in.AuthKeyId, in.PeerId, in.NewMessage, in.DstMessage.MessageId)
 	default:
 		err = mtproto.ErrPeerIdInvalid
 	}

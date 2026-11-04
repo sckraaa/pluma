@@ -40,6 +40,7 @@ type ChannelClient interface {
 	ChannelCheckChatInvite(ctx context.Context, in *channel.TLChannelCheckChatInvite) (*mtproto.ChatInvite, error)
 	ChannelGetParticipants(ctx context.Context, in *channel.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error)
 	ChannelReadHistory(ctx context.Context, in *channel.TLChannelReadHistory) (*mtproto.Bool, error)
+	ChannelDeleteMessages(ctx context.Context, in *channel.TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error)
 }
 
 type defaultChannelClient struct {
@@ -204,4 +205,15 @@ func (m *defaultChannelClient) ChannelReadHistory(ctx context.Context, in *chann
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelReadHistory(ctx, in)
+}
+
+// ChannelDeleteMessages
+// channel.deleteMessages self_id:long perm_auth_key_id:long channel_id:long id:Vector<int> = messages.AffectedMessages;
+func (m *defaultChannelClient) ChannelDeleteMessages(ctx context.Context, in *channel.TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteMessages(ctx, in)
 }
