@@ -110,7 +110,7 @@ func Pick(h *mtproto.IDListHelper, selfId int64, updates ...*mtproto.Update) {
 			}
 		case mtproto.Predicate_updateChat:
 			chat(u.GetChatId_INT64())
-		case mtproto.Predicate_updateChannel, mtproto.Predicate_updateChannelTooLong:
+		case mtproto.Predicate_updateChannel, mtproto.Predicate_updateChannelTooLong, mtproto.Predicate_updateReadChannelInbox:
 			// updateChannelTooLong: the channels of a difference come in
 			// its chats (ADR 0034, p. 6).
 			if id := u.GetChannelId(); id != 0 {

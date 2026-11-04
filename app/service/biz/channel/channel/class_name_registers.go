@@ -33,6 +33,8 @@ const (
 	Predicate_channel_checkChatInvite = "channel_checkChatInvite"
 	// pluma: task 041
 	Predicate_channel_getParticipants = "channel_getParticipants"
+	// pluma: task 043
+	Predicate_channel_readHistory = "channel_readHistory"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -95,6 +97,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -212979149, // 0xf34e3233
 
 	},
+	Predicate_channel_readHistory: { // pluma: task 043
+		0: -585404897, // 0xdd1b6e1f
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -114,6 +120,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1331881771:  Predicate_channel_leaveChannel,           // 0x4f62e72b pluma: task 041
 	-1311035397: Predicate_channel_checkChatInvite,        // 0xb1db2ffb pluma: task 041
 	-212979149:  Predicate_channel_getParticipants,        // 0xf34e3233 pluma: task 041
+	-585404897:  Predicate_channel_readHistory,            // 0xdd1b6e1f pluma: task 043
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

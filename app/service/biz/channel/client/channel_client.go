@@ -39,6 +39,7 @@ type ChannelClient interface {
 	ChannelLeaveChannel(ctx context.Context, in *channel.TLChannelLeaveChannel) (*mtproto.Updates, error)
 	ChannelCheckChatInvite(ctx context.Context, in *channel.TLChannelCheckChatInvite) (*mtproto.ChatInvite, error)
 	ChannelGetParticipants(ctx context.Context, in *channel.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error)
+	ChannelReadHistory(ctx context.Context, in *channel.TLChannelReadHistory) (*mtproto.Bool, error)
 }
 
 type defaultChannelClient struct {
@@ -192,4 +193,15 @@ func (m *defaultChannelClient) ChannelGetParticipants(ctx context.Context, in *c
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetParticipants(ctx, in)
+}
+
+// ChannelReadHistory
+// channel.readHistory self_id:long perm_auth_key_id:long channel_id:long max_id:int = Bool;
+func (m *defaultChannelClient) ChannelReadHistory(ctx context.Context, in *channel.TLChannelReadHistory) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReadHistory(ctx, in)
 }

@@ -34,4 +34,6 @@ const (
 	CRC32_channel_checkChatInvite TLConstructor = -1311035397 // 0xb1db2ffb
 	// pluma: task 041
 	CRC32_channel_getParticipants TLConstructor = -212979149 // 0xf34e3233
+	// pluma: task 043
+	CRC32_channel_readHistory TLConstructor = -585404897 // 0xdd1b6e1f
 )

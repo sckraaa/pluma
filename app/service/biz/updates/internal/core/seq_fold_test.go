@@ -118,10 +118,22 @@ func describeSeq(b *differenceBuilder) string {
 			s += fmt.Sprintf("(%d:%d)", u.GetPeer_PEER().GetChatId(), u.GetRequestsPending())
 		case mtproto.Predicate_updateUserName:
 			s += fmt.Sprintf("(%d:%s)", u.GetUserId(), u.GetFirstName())
+		case mtproto.Predicate_updateChannel:
+			s += fmt.Sprintf("(%d)", u.GetChannelId())
+		case mtproto.Predicate_updateReadChannelInbox:
+			s += fmt.Sprintf("(%d:%d)", u.GetChannelId(), u.GetMaxId())
 		}
 		us = append(us, s)
 	}
 	return strings.Join(us, " ")
+}
+
+func channelUpdate(id int64) *mtproto.Update {
+	return mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: id}).To_Update()
+}
+
+func channelRead(id int64, maxId int32) *mtproto.Update {
+	return mtproto.MakeTLUpdateReadChannelInbox(&mtproto.Update{ChannelId: id, MaxId: maxId}).To_Update()
 }
 
 func foldSeq(updates ...*mtproto.Update) *differenceBuilder {
@@ -166,6 +178,9 @@ func TestSeqFold(t *testing.T) {
 		{"names of other users: the last of each",
 			[]*mtproto.Update{userName(7, "Ann"), userName(8, "Bob"), userName(7, "Anna")},
 			"UserName(8:Bob) UserName(7:Anna)"},
+		{"a channel and its read state fold apart, the last of each",
+			[]*mtproto.Update{channelRead(9, 3), channelUpdate(9), channelRead(9, 5), channelRead(8, 1), channelUpdate(9)},
+			"ReadChannelInbox(9:5) ReadChannelInbox(8:1) Channel(9)"},
 		{"saved GIFs: one reload, at the place of the last",
 			[]*mtproto.Update{mtproto.MakeTLUpdateSavedGifs(nil).To_Update(), userName(7, "Ann"), mtproto.MakeTLUpdateSavedGifs(nil).To_Update()},
 			"UserName(7:Ann) SavedGifs"},

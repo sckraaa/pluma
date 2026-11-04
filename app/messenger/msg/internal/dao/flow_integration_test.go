@@ -275,6 +275,10 @@ func (noChannels) ChannelCheckChatInvite(context.Context, *channelpb.TLChannelCh
 	return nil, mtproto.ErrInviteHashInvalid
 }
 
+func (noChannels) ChannelReadHistory(context.Context, *channelpb.TLChannelReadHistory) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelGetParticipants(context.Context, *channelpb.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

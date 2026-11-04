@@ -30,7 +30,8 @@ import (
 //     a peer's block or settings bar, a dialog's unread mark, the order of
 //     filters, a basic group's members, the group itself, its default
 //     rights, a peer's join requests, the saved GIFs (reload them), the
-//     reactions to one message, the tags of Saved Messages (reload them):
+//     reactions to one message, the tags of Saved Messages (reload them),
+//     one channel (reload it), the read state of one channel:
 //     the last update of each, at its place in the journal (each a full
 //     state, ADR 0021);
 //   - a filter: its last state at the place of its first update, so that
@@ -146,6 +147,8 @@ func seqKey(u *mtproto.Update) string {
 		return "saved_reaction_tags"
 	case mtproto.Predicate_updateChannel:
 		return "channel:" + strconv.FormatInt(u.GetChannelId(), 10)
+	case mtproto.Predicate_updateReadChannelInbox:
+		return "channel_read:" + strconv.FormatInt(u.GetChannelId(), 10)
 	}
 	return ""
 }

@@ -106,6 +106,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -212979149,
 		}
 	},
+	-585404897: func() mtproto.TLObject { // 0xdd1b6e1f pluma: task 043
+		return &TLChannelReadHistory{
+			Constructor: -585404897,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1361,6 +1366,50 @@ func (m *TLChannelGetParticipants) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.Q = dBuf.String()
 		m.Offset = dBuf.Int()
 		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelReadHistory (pluma: task 043)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelReadHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xdd1b6e1f:
+		x.UInt(0xdd1b6e1f)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetMaxId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelReadHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelReadHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xdd1b6e1f:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.MaxId = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

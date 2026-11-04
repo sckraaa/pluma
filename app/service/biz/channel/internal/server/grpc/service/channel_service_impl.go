@@ -205,3 +205,17 @@ func (s *Service) ChannelGetParticipants(ctx context.Context, request *channel.T
 
 	return r, err
 }
+
+// ChannelReadHistory
+// channel.readHistory self_id:long perm_auth_key_id:long channel_id:long max_id:int = Bool;
+func (s *Service) ChannelReadHistory(ctx context.Context, request *channel.TLChannelReadHistory) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.readHistory - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReadHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
