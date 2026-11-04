@@ -35,6 +35,25 @@
 - **Клиенты:** патчи тегов без Premium и лимита 3 тегов в четырёх клиентах, каждый — строкой в реестре `clients/patches/*.md`.
 - Не трогаем: каналы (044), платные реакции, реакции в историях.
 
+## Устройство (решения 2026-11-03)
+- **Хранение** — `message_reactions`: одна строка на (общий `dialog_message_id`, пользователь, реакция), `chosen_order`, `big`, `unread` (для автора), дата. `dialog_message_id` — snowflake, общий у всех копий сообщения в ящиках участников (`messages.dialog_message_id`), поэтому реакции личного чата и группы хранятся один раз. Старые колонки `messages.reaction*` (одна реакция на копию, апстрим) не используются. Счётчик `dialogs.unread_reactions_count` уже есть. Теги «Избранного» — реакции в чате с собой (`reactions_as_tags`); названия — `saved_reaction_tags (user_id, reaction, title)`. Реакция по умолчанию — настройка пользователя.
+- **Запись** — новый RPC `msg.sendReaction` в транзакции ящика того, кто ставит реакцию: строки `message_reactions`, свой `updateMessageReactions` через `seq` (`EmitSeqUpdate`), inbox-событие `inbox.updateMessageReactionsToInbox(user_id, from_id, dialog_message_id, …)` каждому другому участнику. Получатель в своей транзакции находит свою копию по `dialog_message_id`, строит вид реакций для себя и журналирует `updateMessageReactions` со своим `msg_id` через `seq`. Автор сообщения получает отметку непрочитанного и `unread_reactions_count` в той же транзакции.
+- **`seq` и свёртка** — `updateMessageReactions` добавляется в `userbox.SeqUpdate` (это полное состояние реакций сообщения, повтор безопасен), в `seqKey` — ключ «реакции: peer + msg_id» (последнее состояние, ADR 0020).
+- **Вид для зрителя** — одна чистая функция: результаты по числу, `chosen_order` и `my` зрителя, `recent_reactions` (в личных и маленьких группах), `unread` — только автору, `can_see_list` в группах, `reactions_as_tags` в «Избранном», `min = false`.
+- **Объекты сообщений** — реакции добавляются там, где сообщения из базы превращаются в объекты для клиента: `biz message` `MakeMessageBox` (история, `getMessages`, поиск) — пачкой на список; ответы на отправку и правку; `getDifference` получает текущее состояние через `updateMessageReactions` в `other_updates`.
+
+## Ход работы
+Шаги (отмечать по мере выполнения):
+- [x] Миграция `migrate-20261104-reactions.sql`; `pkg/reactions` (ключи, лимиты, вид для зрителя) с тестами.
+- [x] `seq`: `updateMessageReactions` и `updateSavedReactionTags` в `userbox.SeqUpdate`, ключи свёртки в `seq_fold.go`, `seqpeers.Pick`.
+- [x] RPC `msg.sendReaction`, `msg.readReactions`; `inbox.updateMessageReactionsToInbox` (proto, кодек, клиенты, обработчики).
+- [x] msg dao: строки реакций, счётчик автора, снятие `unread` в `readMessageContents` и `readReactions`.
+- [x] biz message: реакции в каждом сообщении (`MakeMessageBox`, пачкой), `message.getMessagesReactions`, `getMessageReactionsList`, сообщения с непрочитанными реакциями; ответы правки.
+- [x] bff (модуль `catalog`, он зарегистрирован за `RPCReactions` и `RPCSavedMessageTags`): `sendReaction`, `getMessagesReactions`, `getMessageReactionsList`, `getUnreadReactions`, `readReactions`, `setDefaultReaction`, `setChatAvailableReactions`, `clearRecentReactions`, `getSavedReactionTags`, `updateSavedReactionTag`, поиск по тегу.
+- [x] Настройки: `app_config.json` (лимиты), `reactions_default` в `help.getConfig`.
+- [x] e2e; проверки; клиентские патчи тегов (4 клиента, реестр).
+- [ ] Выкатка; проверка в клиентах со скриншотами; подписанные сборки клиентов.
+
 ## Критерии приёмки
 - Модульные тесты: вид `messageReactions` для зрителя (свои `chosen_order`, `my`, `unread` только автору, порядок результатов), лимиты, свёртка обновлений.
 - Интеграционные тесты хранения на MySQL через `pkg/testinfra`.
@@ -43,3 +62,36 @@
 - `go run ./tools/apicoverage` перезапущен; обычные проверки.
 
 ## Результат
+Реакции в личных чатах и базовых группах и теги «Избранного» работают на сервере. Лимиты как у Telegram Premium, для всех: 3 реакции и 3 тега на сообщение, 11 разных, 100 разрешённых в группе. Патчи тегов без Premium готовы во всех четырёх клиентах. Не выкачено, в клиентах ещё не проверено.
+
+- **Сервер.**
+  - Миграция `migrate-20261104-reactions.sql`: `message_reactions`, `saved_reaction_tags`, `user_reaction_settings`.
+  - `pkg/reactions` — ключи, лимиты, вид `messageReactions` для зрителя; чтения (теги, поиск по тегам, недавние, реакция по умолчанию).
+  - RPC `msg.sendReaction`, `msg.readReactions`, `msg.updateSavedReactionTag`, событие `inbox.updateMessageReactionsToInbox`, `message.getUnreadReactions`.
+  - `updateMessageReactions` и `updateSavedReactionTags` — обновления с `seq` (свёртка: последнее состояние сообщения).
+  - Реакции добавляются в каждое сообщение biz message и в обновления правки.
+  - Методы bff в модуле `catalog` (он зарегистрирован за `RPCReactions` и `RPCSavedMessageTags`): `sendReaction`, `getMessagesReactions`, `getMessageReactionsList`, `getUnreadReactions`, `readReactions`, `setDefaultReaction`, `setChatAvailableReactions`, `clearRecentReactions`, `getRecentReactions` (теперь настоящий), `getSavedReactionTags`, `updateSavedReactionTag`.
+  - Поиск по тегу в `messages.search`; `reactions_default` в `help.getConfig` (своя реакция или `❤`, как у Telegram); лимиты в `app_config.json` и `docs/ops/app-config.md`.
+- **Клиенты** (ветки `task/053-saved-tags`, реестр `clients/patches/*.md`).
+  - Android A-086…A-092: 14 гейтов, в том числе пропущенные исследованием. Лимит тегов — Premium-лимит. Лимит реакций клиент уже берёт с сервера.
+  - iOS I-096…I-098: гейты тегов. iOS игнорировал `reactions_user_max_default` и всем держал 1 — пропатчено. Тост «несколько реакций с Premium» скрыт.
+  - Desktop D-073: три гейта. Лимит 3 он уже берёт с сервера, исследование ошибалось.
+  - Web K W-065: шесть гейтов, лимит с сервера.
+  - Тесты патч-скриптов зелёные во всех форках.
+- **Проверка.**
+  - `go build ./...`, `go vet`, `make lint` (0 issues), `go test ./tools/...`, модульные тесты затронутых пакетов.
+  - Интеграционные `pkg/reactions` на MySQL.
+  - e2e на CachyOS: `TestReactionsPrivate` (вид у обеих сторон и второго устройства, пуш и `getDifference`, непрочитанные и `readMessageContents`, лимит 3, `getMessagesReactions`, снятие всех), `TestSavedReactionTags`.
+  - e2e поймал настоящую ошибку: `mtproto.MakeFlagsInt32(0)` возвращает `nil`, и первая своя реакция теряла `chosen_order`. Модульный тест её пропускал, потому что `GetValue()` у `nil` даёт 0; исправлен.
+  - Независимое ревью подтвердило четыре недочёта, все исправлены:
+    - `readMessageContents` по своему голосовому с реакцией снимал «не прослушано»;
+    - в живом пуше не было пользователей, вышедших из группы;
+    - отрицательный `add_offset` в `getUnreadReactions` не был ограничен;
+    - `getMessageReactionsList` прятал ошибки.
+- **Решения** (технические, приняты):
+  - `readReactions` ничего не журналирует (иначе голосовые автора помечались бы прослушанными);
+  - недавние реакции — собственные реакции вне «Избранного» после очистки;
+  - группа без настройки — «все стандартные»;
+  - название тега до 12 символов (как Web K);
+  - чтения тегов и поиска по тегам в bff читают `messages` вместе с `message_reactions`.
+- **Не сделано:** реакции в каналах — 044; платные реакции — не делаются; `updateChatParticipants` при смене разрешённых реакций группы другим участникам не шлётся (клиенты перечитывают `chatFull`; не проверено).

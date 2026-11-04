@@ -41,7 +41,7 @@ ci/configure.sh dev                               # патч на dev-серве
 ci/lint.sh                                        # shellcheck и actionlint
 ```
 
-Без `./upstream` 7 тестов класса `UpstreamTest` пропускаются (в CI не пропускаются никогда). Проверено 2026-11-03 на свежем клоне: 61 тест, все проходят, с апстримом и без пропусков.
+Без `./upstream` 7 тестов класса `UpstreamTest` пропускаются (в CI не пропускаются никогда). Проверено 2026-11-03 на свежем клоне: 61 тест, все проходят, с апстримом и без пропусков. 2026-11-04 с правками задачи 053 (I-096–I-098): 65 тестов, все проходят, апстрим — закреплённый коммит `6ad963e`.
 
 Основные тесты `ci/patch_test.py`:
 - `UpstreamTest.test_patch` — патч на закреплённом коммите и проверка каждого результата;
@@ -50,7 +50,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - `UpstreamTest.test_patched_tree_is_refused` — повторный патч того же дерева падает;
 - `UpstreamTest.test_intro_without_wordmark`, `test_intro_without_mark` — `verify()` ловит откат правок вступления;
 - `UpstreamTest.test_dev_server` — патч на dev-конфигурацию;
-- `KeyTest`, `ConfigTest`, `ScanTest`, `TreeTest`, `RenameTest`, `BrandTest`, `ClientLinksTest`, `BirthdayTest`, `IdentityTest` — по областям (ниже в записях).
+- `KeyTest`, `ConfigTest`, `ScanTest`, `TreeTest`, `RenameTest`, `BrandTest`, `ClientLinksTest`, `BirthdayTest`, `SavedTagsTest`, `IdentityTest` — по областям (ниже в записях).
 
 Тесты подписи — `ci/preflight_sign_test.py`, кэша — `ci/cache_gc_test.py`.
 
@@ -512,6 +512,34 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `self.textNode.attributedText = text\n    showReadBadge = true` (отступ 20) → `showReadBadge = !…isPremiumDisabled`. `replace`.
 - **Проверка.** `verify_read_date` (новые строки на месте, нет `showReadBadge = true`), `test_damage` (`CONTEXT_MENUS`).
 - **История.** `74bf939`, 2026-11-03, задача 033.
+
+### I-096. Теги «Избранного» без Premium
+- **Что и зачем.** В «Избранном» реакции сообщения — его теги (`messageReactions.reactions_as_tags`, `areReactionsTags` в `MessageUtils.swift:664-672`): пометить сообщение, отфильтровать чат по тегу (`messages.search` с `saved_reaction`), назвать тег (`messages.getSavedReactionTags`, `messages.updateSavedReactionTag`). Апстрим пускает к ним только Premium, Pluma Premium не продаёт. Решение владельца (задача 053, 2026-11-03): теги у всех. Ключа appConfiguration для тегов нет, все гейты смотрят на `isPremium` состояния чата (`ChatController.swift:6348-6355`), поэтому флаг `canUseSavedTags` (всегда `true`) встаёт вместо `isPremium` только в гейтах тегов; остальной Premium не меняется. Новых строк нет; тексты промо («Unlock tags» и т. п.) становятся недостижимыми.
+- **Где.** Флаг: `submodules/ChatPresentationInterfaceState/Sources/ChatPresentationInterfaceState.swift`, после `    public let isPremium: Bool\n` (560) — `public var canUseSavedTags: Bool { return true }`; `SAVED_TAGS_FLAG`, `replace`; заранее `expect`, что `canUseSavedTags` в файле нет. Гейты — таблица `SAVED_TAGS_GATES`, `replace_lines`, у каждой строки комментарий `// pluma: tags without Premium (task 053).`:
+  - a. `submodules/TelegramUI/Sources/ChatController.swift:1730-1733`, `updateMessageReaction`: нажатие на тег сообщения → paywall `presentTagPremiumPaywall()` (отступ 16).
+  - b. `submodules/TelegramUI/Sources/ChatControllerOpenMessageReactionContextMenu.swift:40-43`: долгое нажатие на тег (переименовать, фильтр, снять) → paywall (отступ 12).
+  - c. `submodules/TelegramUI/Sources/Chat/ChatControllerOpenMessageContextMenu.swift:135-136`: полоса тегов в меню сообщения заголовком `Chat_ContextMenuTagsTitle`, а не заблокированная с `Chat_MessageContextMenu_NonPremiumTagsTitle` и `reactionsLocked` (отступ 24).
+  - d. Там же, 530-533: тег вне верхнего списка (из развёрнутого списка) → paywall. Теперь paywall только для custom emoji без Premium (`if case .custom = chosenReaction, !…isPremium`), как у custom-реакции в других чатах (536-545); обычные реакции — любым тегом (отступ 32).
+  - e–h. `submodules/TelegramUI/Sources/ChatSearchTitleAccessoryPanelNode.swift`: промо «Unlock / Add tags» вместо тегов панели (583), нажатие — фильтр (639), долгое нажатие — переименование (669), замки на тегах (706, `isLocked: !params.interfaceState.isPremium,`).
+  - i. `submodules/TelegramUI/Sources/ChatInterfaceTitlePanelNodes.swift:25`: без Premium панель показывалась и без тегов (ради промо); теперь как у Premium — когда теги есть (`hasSearchTags || !canUseSavedTags`).
+  - j. Там же, 34: во встроенном режиме (`.standard(.embedded)`) панель без Premium скрыта.
+- **Проверка.** `verify_saved_tags`: флаг есть и `true`; у каждого гейта новый текст на месте, старого нет; `canUseSavedTags` только в гейтах (по числу в каждом файле); в `ChatSearchTitleAccessoryPanelNode.swift` и `ChatInterfaceTitlePanelNodes.swift` нет `isPremium`. `SavedTagsTest.test_gates`, `test_verify`, `test_upstream_changed`, `test_table`; `UpstreamTest.test_patch` (флаг, число использований, custom-реакция вне «Избранного» по-прежнему требует Premium); `test_damage` (порча каждого из файлов).
+- **Не тронуто.** Custom-emoji теги требуют Premium (гейт d; `submodules/ReactionSelectionNode/Sources/ReactionContextNode.swift:1695-1698,1719-1722` — замки на Premium-эмодзи; при `premium_purchase_blocked` custom emoji в развёрнутом списке и так выключены, `ChatControllerOpenMessageContextMenu.swift:187`). Экраны `PremiumDemoScreen`/`PremiumIntroScreen` с `.messageTags` остаются и открываются только из этих мест для custom emoji. `updateSavedReactionTags` iOS не обрабатывает (бриф 053, `docs/tasks/053-research/clients.md` 4.1).
+- **Апстрим / официальный.** Paywall `PremiumDemoScreen(subject: .messageTags)` (`ChatControllerOpenMessageReactionContextMenu.swift:25-36`). Что Telegram даёт тегам без Premium — по исследованию 053 только Premium (UNVERIFIED на живом Telegram).
+- **История.** Ветка `task/053-saved-tags`, 2026-11-04, задача 053 (не закоммичено).
+
+### I-097. Лимит реакций на сообщение — серверный, и без Premium
+- **Что и зачем.** `updateMessageReactionsInteractively` (`submodules/TelegramCore/Sources/State/MessageReactions.swift:64-72`) берёт `reactions_user_max_premium` только для Premium, а всем остальным жёстко 1, не читая `reactions_user_max_default` (ключ влияет только на тост, I-098). Новая реакция сверх лимита вытесняет самую старую (`chosenOrder`, 158-164). Решение владельца (задача 053): до 3 реакций на сообщение и до 3 тегов в «Избранном» у всех, как у Premium в Telegram. Теперь лимит — `UserLimitsConfiguration(appConfiguration:isPremium:)` для всех (`reactions_user_max_default` без Premium), а в «Избранном» (`chatPeerId == account.peerId`, там реакции — теги) — лимит Premium (`reactions_user_max_premium`). Сервер Pluma шлёт 3 для обоих. Без ключа в appConfiguration — 1, как в апстриме (`UserLimitsConfiguration.swift:173`).
+- **Где.** `MessageReactions.swift`, `REACTIONS_LIMIT_OLD` (`let maxCount: Int\n if isPremium { … } else { maxCount = 1 }`, отступ 8) → `let limitsConfiguration = UserLimitsConfiguration(appConfiguration: appConfiguration, isPremium: isPremium || chatPeerId == account.peerId)` и `let maxCount = Int(limitsConfiguration.maxReactionsPerMessage)`. `replace`.
+- **Проверка.** `verify_saved_tags` (новый блок на месте, `maxCount = 1` нет), `SavedTagsTest`, `test_patch`, `test_damage` (`MESSAGE_REACTIONS`).
+- **Апстрим / официальный.** Не-Premium — одна реакция на сообщение; Android и Desktop берут `reactions_user_max_default` (бриф 053, раздел 3).
+- **История.** Ветка `task/053-saved-tags`, 2026-11-04, задача 053 (не закоммичено).
+
+### I-098. Тост «несколько реакций — с Premium» только при продаже Premium
+- **Что и зачем.** Нажатие на реакцию в пузыре сверх `context.userLimits.maxReactionsPerMessage` у не-Premium показывает (один раз) тост `Chat_Reactions_MultiplePremiumTooltip` («You can set multiple reactions with Pluma Premium») с переходом в Premium (`ChatController.swift:2150-2174`). После I-097 лимит не-Premium тот же, что у Premium, и тост неверен; Premium не продаётся. Как в I-059: при `premium_purchase_blocked` тоста нет, лишняя реакция просто вытесняет старую, как у Premium.
+- **Где.** `ChatController.swift:2150`, строка `if !strongSelf.presentationInterfaceState.isPremium && mappedUpdatedReactions.count > strongSelf.context.userLimits.maxReactionsPerMessage {` (отступ 24) + `&& !PremiumConfiguration.with(…).isPremiumDisabled`. `REACTIONS_TOAST`, `replace`.
+- **Проверка.** `verify_saved_tags`, `SavedTagsTest`, `test_patch`, `test_damage` (`CHAT_CONTROLLER`).
+- **История.** Ветка `task/053-saved-tags`, 2026-11-04, задача 053 (не закоммичено).
 
 ### I-060. Что из Premium не тронуто
 - Рождественский баннер со своим `openPremiumGift([], nil)` и тостом `ChatList_PremiumGiftInSettingsInfo` оставлен как в апстриме (`test_patch` проверяет, что он на месте).

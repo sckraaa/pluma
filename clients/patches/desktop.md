@@ -2,7 +2,7 @@
 
 Всё, что Pluma меняет в Telegram Desktop: правки исходников апстрима, ресурсы, сборка, подпись, CI. Назначение: при обновлении апстрима сразу видеть, какие места апстрима мы трогаем, на что опирается каждая правка и что сломается, если апстрим их сдвинет.
 
-Состояние реестра: ветка `main` репозитория `sckraaa/pluma-desktop`, коммит `ff05bde` (2026-10-31); в истории 41 коммит, все от Alexandr Skraglenko. Ветка `origin/task/020-parity-fixes` указывает на тот же коммит. Тесты на этом коммите: 65, все проходят (`python3 -I -m unittest discover -s ci -p '*_test.py'` на разреженной выгрузке закреплённого апстрима, 2026-11-03).
+Состояние реестра: ветка `main` репозитория `sckraaa/pluma-desktop`, коммит `ff05bde` (2026-10-31); в истории 41 коммит, все от Alexandr Skraglenko. Ветка `origin/task/020-parity-fixes` указывает на тот же коммит. Тесты на этом коммите: 65, все проходят (`python3 -I -m unittest discover -s ci -p '*_test.py'` на разреженной выгрузке закреплённого апстрима, 2026-11-03). Ветка `task/053-saved-tags` (задача 053, ещё не в `main`): D-073, тестов 66, все проходят (2026-11-04).
 
 ## Общее
 
@@ -42,7 +42,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - `TreeTest` — механика `replace`/`replace_body`/`replace_block`, сохранение окончаний строк;
 - `BrandTest` — таблицы бренда (strings, палитры, IDENTITY_*), `recolor`, `identity`, `is_blue`, `resolve`, стабильность zip ночной темы, `code_telegram`;
 - `UpstreamTest` (на закреплённом апстриме): `test_patch`, `test_brand`, `test_people_colours`, `test_people_colours_are_verified`, `test_people_colours_kept`, `test_birthday_banner`, `test_changed_binary_files`, `test_build_edits_stay_in_their_platform`, `test_dev_server`, `test_patched_tree_is_refused`, `test_damage`.
-- `test_damage` — главный страж обновлений: таблица `DAMAGE` (82 порчи) ломает каждое правленое или проверяемое место апстрима и требует, чтобы патч остановился с ошибкой, называющей файл.
+- `test_damage` — главный страж обновлений: таблица `DAMAGE` (82 порчи; 90 с D-073) ломает каждое правленое или проверяемое место апстрима и требует, чтобы патч остановился с ошибкой, называющей файл.
 
 `ci/sign_test.py` (`SignTest`, 11 тестов) гоняет `ci/sign-macos.sh` против подделок macOS-утилит; `ci/budget_test.py` (`BudgetTest`, `AdmitTest`) — бюджет кэша Actions.
 
@@ -53,7 +53,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - в `mtproto_dc_options.cpp` нет `kBuiltInDcs`, ровно один (или два с IPv6) `applyOneGuarded(1, Flag::f_static…` с адресом сервера; `kDefaultMainDc = 1`; `tryCustomResolve` возвращает `false`; CMake компилирует без updater и crash reports;
 - в файлах идентичности не осталось следов Telegram Desktop (таблица в `verify()`); `prepare.py` без пакетов msvcrt, без `dump_syms.vcxproj`, без отладочных Qt/tg_owt на macOS;
 - `verify_brand()`: в `lang.strings` никто не называет Telegram, кроме ссылок и `LANG_KEEP`, и нет слова «Teamgram»; в строковых литералах кода «Telegram» остаётся только по таблице `CODE_TELEGRAM`; нигде нет `tg://`; регистрация и объявление только `plm://`; иконки — файлы `brand/tree`; в темах по умолчанию нет синего Telegram, кроме `KEPT_BLUE`; цвета-идентичности как в `IDENTITY_COLORS`; аватары экспорта.
-- Чего `verify()` не проверяет: баннер дня рождения и подарки (D-048…D-050, D-070) проверяются только тестом `test_birthday_banner` на закреплённом апстриме, отдельной итоговой проверки нет (это же отмечено сверкой клиентов в задаче 020, «Перекосы патчей клиентов»).
+- Чего `verify()` не проверяет: баннер дня рождения и подарки (D-048…D-050, D-070) проверяются только тестом `test_birthday_banner`, теги «Избранного» (D-073) — только `test_saved_tags` на закреплённом апстриме, отдельной итоговой проверки нет (это же отмечено сверкой клиентов в задаче 020, «Перекосы патчей клиентов»).
 
 **`check_upstream()`** перед правками: `api.tl` содержит ровно `// LAYER 228`; `AppVersionStr = "7.0.9"`; Qt в `qt_version.py` (2 раза); SDK и `-vcvars_ver` в `docs/building-win.md`; адрес ccache в `.github/workflows/linux.yml`; тексты `centos_env/build.sh` и `gen_dockerfile.py` (`DEBUG=…`, `LTO=…`), на которые опирается `ci/build-linux.sh` и `ci/linux-env.sh`; `optionsList = ['qt6', …` и `silent` в `prepare.py`; опции `DESKTOP_APP_DISABLE_AUTOUPDATE` и `DESKTOP_APP_DISABLE_CRASH_REPORTS` в `cmake/variables.cmake`; `Telegram/Telegram/Telegram.entitlements` побайтно равен `ci/macos.entitlements`; LF во всех правленых файлах.
 
@@ -71,7 +71,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 10. `Telegram.entitlements` изменился → решить, что приложению можно, и обновить `ci/macos.entitlements` (D-065).
 11. Каталог ассетов macOS: `ci/package.sh` остановит упаковку, если `Assets.car` апстрима держит что-то кроме иконки (D-020).
 12. `centos_env` изменился → `linux-env` соберёт новый образ (2–4 ч); проверить, что `gen_dockerfile.py` по-прежнему читает `DEBUG` и `LTO` (D-059).
-13. Поведение, которое правки обходят (D-048…D-050, D-070, D-029): прочитать новые версии `suggestion_birthday_contacts.cpp`, `dialogs_top_bar_suggestion.cpp`, `history_widget.cpp` (`refreshSendGiftToggle`), `info_profile_actions.cpp`, `data_peer.cpp` — исправил ли апстрим сам, не изменился ли смысл.
+13. Поведение, которое правки обходят (D-048…D-050, D-070, D-029, D-073): прочитать новые версии `suggestion_birthday_contacts.cpp`, `dialogs_top_bar_suggestion.cpp`, `history_widget.cpp` (`refreshSendGiftToggle`), `info_profile_actions.cpp`, `data_peer.cpp` — исправил ли апстрим сам, не изменился ли смысл. Для D-073 — найти новые проверки Premium у тегов (`grep -rn 'TagsForMessages\|reactionsAreTags'`) и решить, закрывают ли они теги.
 14. Пройти разделы «Сервер и ключ» и «Идентичность»: новые сетевые запасные пути (DNS-over-HTTPS, Firebase, новые классы), новые места с именами `Telegram.lnk`, `org.telegram.desktop`, GUID.
 15. Собрать dev-сборки трёх систем и проверить на стенде вход, QR (`plm://login?token=`), тёмную и светлую темы, баннер дня рождения.
 
@@ -465,6 +465,25 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Апстрим до правки.** При непродаваемом Premium строка открывала окно подарка (подарки за Stars) в любой день. Теперь как у кнопки подарка верхней панели профиля (`info_profile_top_bar.cpp`) и у Android/Web K.
 - **Коммит.** `2f6fbbe`, задача 020.
 
+### D-073. Теги «Избранного» без Premium
+- **Что и зачем.** Решение владельца 2026-11-03 (задача 053): теги сообщений в «Избранном» доступны всем, как в Telegram у Premium; Premium в Pluma нет. Сигнала с сервера для тегов клиент не читает: все гейты смотрят на `Session::premium()` (`main/main_session.cpp:345-347`), а `user.premium=true` открыло бы весь Premium. Поэтому одна функция `Main::Session::savedTagsAvailable()` (всегда `true`) подставлена вместо `premium()` только в местах тегов. Шесть точных замен (`SAVED_TAGS` в `ci/patch.py`):
+  1. `main/main_session.h:132` — объявление `savedTagsAvailable()` после `premiumCanBuy()`;
+  2. `main/main_session.cpp:372-374` — определение после `Session::premiumCanBuy()`, `return true;`;
+  3. `window/section_widget.cpp:621-626` (`Window::ShowReactPremiumError`, ветка `reactionsAreTags()`) — добавление и снятие тега через селектор, быструю реакцию и клик больше не показывают окно Premium `TagsForMessages`; вызовы: `history/history_inner_widget.cpp:559,2741`, `history/view/history_view_element.cpp:2738`, `history/view/history_view_list_widget.cpp:201`, `info/saved/info_saved_sublist_inline.cpp:566`;
+  4. `history/view/history_view_element.cpp:2714-2722` — клик по тегу на сообщении ищет по тегу (`HashtagClickHandler(Data::SearchTagToQuery(id))`), а не открывает окно Premium;
+  5. `history/view/reactions/history_view_reactions_selector.cpp:1535-1545` (`ItemReactionsAbout`) — подсказка над тегами селектора: `lng_add_tag_about` («Tag this message with an emoji for quick search.») вместо `lng_subscribe_tag_about` со ссылкой `internal:about_tags` на окно Premium;
+  6. `dialogs/dialogs_search_tags.cpp:92-99` — `Data::AmPremiumValue(&owner->session())` → `rpl::single(owner->session().savedTagsAvailable())`: теги над поиском «Избранного» (в списке чатов, `dialogs/dialogs_inner_widget.cpp:4148`, и в чате, `history/view/controls/history_view_compose_search.cpp:479`) — фильтр по тегу и правое меню с переименованием (`HistoryView::ShowTagInListMenu`, `history/view/history_view_context_menu.cpp`) вместо промо-чипа «Add tags»/«Unlock» (`:126-129`, `:163-174`).
+  Меню тега из сообщения (`ShowTagMenu`, `history_view_context_menu.cpp:2385`) своей проверки Premium не имеет. Промо `internal:about_tags` (`core/local_url_handlers.cpp:903-911`) и код промо-чипа остаются в апстриме, но после правки недостижимы. Новых строк нет.
+- **Что не открывается (сверено по коду, опоры — `tree.expect`, `SAVED_TAGS_KEPT`).**
+  - Число тегов (и реакций) на сообщение: `SentReactionsLimit` (`data/data_message_reactions.cpp:114-120`) у не-Premium берёт `reactions_user_max_default` из appConfig сервера (по умолчанию 1); сервер шлёт 3 — значит, до трёх тегов и трёх реакций, как у Premium в Telegram. Лимит не патчится. `MessageReactions::add` (`:1951-1975`) снимает самый старый свой тег/реакцию сверх лимита.
+  - Custom emoji в тегах: `LookupPossibleReactions` (`:234-246`) для тегов даёт `customAllowed = premiumPossible` и в полосе только теги из `Reactions::Type::Tags` (`messages.getDefaultTagReactions`) — при `premium_purchase_blocked=true` custom emoji недоступны, как и прочий Premium.
+- **Проверка.** `UpstreamTest.test_saved_tags`: тексты всех шести мест; `savedTagsAvailable` встречается только в этих файлах и по одному разу в каждом гейте; каждый файл отличается от апстрима ровно заменой; `SAVED_TAGS_KEPT` на месте; ключ `lng_add_tag_about` есть во встроенном английском. Без `SAVED_TAGS` тест падает (проверено). `DAMAGE` (8): `premiumCanBuy()` без `const`, тело `premiumCanBuy`, `premiumPossible()` в трёх гейтах, `AmPremiumValue(owner)`, лимит `: 1;`, `customAllowed = true`. В `verify()` нет.
+- **Если апстрим сдвинет.** Любое изменение шести фрагментов или опор `SAVED_TAGS_KEPT` → `PatchError`. Новый гейт тегов апстрима патч не заметит — см. п. 13 раздела «Что проверять при обновлении апстрима».
+- **Апстрим до правки / официальный клиент.** Не-Premium видит промо-чип, окно Premium `TagsForMessages` при попытке поставить тег или нажать на него и текст-предложение подписки в селекторе.
+- **Зависимости на сервере.** appConfig `reactions_user_max_default=3`, `reactions_user_max_premium=3`, `premium_purchase_blocked=true`; `messages.sendReaction`, `messages.getSavedReactionTags`, `messages.updateSavedReactionTag`, `messages.getDefaultTagReactions`, `messages.search` с `saved_reaction`, апдейт `updateSavedReactionTags` (задача 053).
+- **Не проверено.** Сборка клиента и поведение на стенде (полная сборка не запускалась; только применение патча к закреплённому апстриму в тестах).
+- **Коммит.** Не закоммичено (ветка `task/053-saved-tags`, 2026-11-04), задача 053.
+
 Прочие места Premium/Stars/подарков в Desktop не правятся: их скрывает `premium_purchase_blocked` сервера и поведение апстрима. Тексты «Telegram Premium»/«Telegram Stars» переименованы в D-012, D-013.
 
 ---
@@ -648,7 +667,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ## Пробелы и открытые вопросы
 
-- Баннер и подарки (D-048…D-050) и исправление D-070 не проверяются `verify()`, только тестом на закреплённом апстриме.
+- Баннер и подарки (D-048…D-050), исправление D-070 и теги «Избранного» (D-073) не проверяются `verify()`, только тестом на закреплённом апстриме.
 - D-025 (`keepContrast`) не имеет собственного утверждения в тестах — держится только точностью замены.
 - Иконка macOS 26 (D-020), упаковка, сборочные флаги (D-010, D-060…D-063) проверяются только самой сборкой в CI.
 - Windows-сборка не подписана; на Windows проверена под Wine (задача 006).

@@ -2,7 +2,7 @@
 
 Здесь записано всё, что Pluma меняет в официальном клиенте Telegram для Android: правки исходников, ресурсы, сборка, CI. По реестру при обновлении апстрима видно, что каждая правка затрагивает и где её искать.
 
-Состояние: `main` репозитория `pluma-android` на `e859d6b` (2026-11-03): в него слиты `sticker-set-kinds` (`339fd8c`, A-060) и `video-quality` (`b7accac`, A-079…A-085). Реестр составлен 2026-11-03 по `ci/patch.py`, `ci/patch_test.py`, README, скриптам CI и полной истории git (20 коммитов во всех ветках, включая непринятую ветку Dependabot `69205f7`).
+Состояние: `main` репозитория `pluma-android` на `e859d6b` (2026-11-03): в него слиты `sticker-set-kinds` (`339fd8c`, A-060) и `video-quality` (`b7accac`, A-079…A-085). Теги «Избранного» без Premium (A-086…A-092, задача 053) — в рабочем дереве ветки `task/053-saved-tags`, не закоммичены (2026-11-04). Реестр составлен 2026-11-03 по `ci/patch.py`, `ci/patch_test.py`, README, скриптам CI и полной истории git (20 коммитов во всех ветках, включая непринятую ветку Dependabot `69205f7`).
 
 ## Общее
 
@@ -24,9 +24,9 @@
   - `replace_body(rel, head, tail, body, must_contain)` — замена всего между `head` (ровно одно вхождение) и первым `tail` после него; заменяемый блок обязан содержать каждую строку `must_contain`;
   - `replace_in_tree(subdir, suffixes, old, new, count)` — точная замена во всех файлах каталога, общее число вхождений обязано совпасть;
   - ресурсы: замена файла только при совпадении SHA-256 и размера в пикселях с ожидаемым (`BRAND_ASSETS`), добавление файла только под незанятым именем (`BRAND_ADDED`), замена слоя Lottie-анимации при совпадении SHA-256 анимации (`BRAND_LAYERS`).
-- **Порядок в `patch()`:** проверка версий → tgnet → идентичность → сборка → Firebase → `birthdays()` → `sticker_sets()` → `brand()`. Перед `birthdays()` стоит `video_quality()` (A-079…A-085); от порядка не зависит. Внутри `brand()`: `brand_entry_points` → `brand_strings` → `brand_client_links` → `brand_scheme` → `brand_assets` → `brand_devices` → `brand_intro` → `brand_theme`. Порядок важен: счётчики `SCHEME_JAVA` взяты после удаления строк поиска настроек (A-021), счётчики `STRING_RENAMES` — после правки `AppName` (A-010).
-- **Тесты:** `python3 -I ci/patch_test.py -v` (стандартная библиотека, без сети; 40 тестов, на 2026-11-03 проходят). CI запускает их в job `check` вместе с `shellcheck -x ci/*.sh`.
-  - Тесты проверяют помощники (`Tree`, разбор ключа, `Config`), правки дней рождения, наборов стикеров, интро и тем на синтетических деревьях, собранных из ожидаемых текстов, и сами ресурсы бренда.
+- **Порядок в `patch()`:** проверка версий → tgnet → идентичность → сборка → Firebase → `birthdays()` → `sticker_sets()` → `saved_tags()` (A-086…A-092; от порядка не зависит) → `brand()`. Перед `birthdays()` стоит `video_quality()` (A-079…A-085); от порядка не зависит. Внутри `brand()`: `brand_entry_points` → `brand_strings` → `brand_client_links` → `brand_scheme` → `brand_assets` → `brand_devices` → `brand_intro` → `brand_theme`. Порядок важен: счётчики `SCHEME_JAVA` взяты после удаления строк поиска настроек (A-021), счётчики `STRING_RENAMES` — после правки `AppName` (A-010).
+- **Тесты:** `python3 -I ci/patch_test.py -v` (стандартная библиотека, без сети; 46 тестов, на 2026-11-04 проходят). CI запускает их в job `check` вместе с `shellcheck -x ci/*.sh`.
+  - Тесты проверяют помощники (`Tree`, разбор ключа, `Config`), правки дней рождения, наборов стикеров, качества видео, тегов «Избранного», интро и тем на синтетических деревьях, собранных из ожидаемых текстов, и сами ресурсы бренда.
   - **Правки tgnet, идентичности, сборки, строк, схемы ссылок, разделов настроек и замены ресурсов тестами на дереве не покрыты.** Их проверяет только запуск `ci/patch.py` на настоящем апстриме (job `build` в CI или локально `ci/fetch-upstream.sh && ci/configure.sh`) и `verify()` после него.
 - **Локальная проверка на настоящем апстриме:** `ci/fetch-upstream.sh && ci/configure.sh` (dev-цель, ключ `config/dev/server_public.pem`), затем `ci/build.sh dev`.
 
@@ -43,6 +43,7 @@
    - имена `pluma_devices` и `pluma_mark_write` в `res/raw` (A-034, A-035) не должны появиться у апстрима;
    - значения в таблицах `PALETTE_*` (A-042…A-046): каждая строка требует точного старого значения ключа в `.attheme`;
    - ячейки массивов акцентов `ACCENTS` и база `ACCENT_BASES` в `Theme.java` (A-037, A-038);
+   - правки тегов «Избранного» A-086…A-092: счётчики `SAVED_TAGS_USES` (сколько раз каждый файл спрашивает `savedTagsAvailable()`) меняются только вместе с `SAVED_TAGS_EDITS`; новое место апстрима, где теги закрыты `isPremium()`, правка не найдёт — искать по `PREMIUM_FEATURE_SAVED_TAGS`, `TYPE_TAGS`, `areTags()`, `getClientUserId() == getDialogId()` рядом с `isPremium()`;
    - правки качества видео A-080, A-081, A-083 и A-084 вместе дают умолчание 720p на мобильной сети и 1080p по Wi-Fi при `video_upload_maxbitrate` сервера 50/85/100; встроенное 85 в `defaultMedium` (A-083) меняется вместе с серверным;
    - модель цветов `verify_theme` (A-052): она читает `Theme.java` и `ThemeColors.java` регулярными выражениями; при новом способе задавать цвета или исключать ключи из движка акцента она остановит сборку («cannot read», «too few colours»).
 4. Проверить, не появились ли новые места, где клиент ведёт к Telegram: новые адреса DC и ключи (A-009 проверит `149.154.`, `95.161.76.100`, `2001:b28:`, `2001:67c:`), новые источники резервных адресов кроме `GoogleDnsLoadTask`/`FirebaseTask` (A-005), новые ссылки на telegram.org в строках, новые пункты, ведущие к Premium/подаркам в баннере дня рождения (A-053…A-059 проверяют только ветку баннера).
@@ -610,6 +611,67 @@
 - **Где.** `expect` в `res/values/strings.xml`: `<string name="BirthdayTodaySingleTitle">It’s %s’s **birthday** today! 🎂</string>`, `<string name="BirthdayTodayMultipleTitle_other">%d contacts have **birthdays** today! 🎂</string>`, `<string name="SendMessage">Send Message</string>`.
 - **Не патчится.** Чат и профиль именинника подарок не предлагают: апстрим там сам проверяет продажу Premium (`ChatActivityEnterView`, `ProfileActivity`, README).
 
+### Теги «Избранного» без Premium (A-086…A-092)
+
+- **Статус.** Задача 053, решение владельца 2026-11-03. Ветка `task/053-saved-tags` репозитория `pluma-android`, правки в рабочем дереве, не закоммичены (2026-11-04).
+- **Что и зачем.** Теги реакций в Saved Messages работают у всех, как у пользователя с Premium в Telegram; Pluma Premium не продаёт. Серверного признака для тегов клиент не читает: каждое место спрашивает `UserConfig.isPremium()`, а `premium_purchase_blocked`, который отдаёт сервер, вообще прячет селектор тегов в меню сообщения (`ChatActivity.java:31909`, `premiumFeaturesBlocked()`, `MessagesController.java:739-741`). `user.premium=true` открыл бы все функции Premium, поэтому в `MessagesController` добавлен `savedTagsAvailable()` (`return true`), и его спрашивают только места тегов. Остальные проверки Premium не тронуты. Исследование — `docs/tasks/053-research/clients.md`, разделы 4.2–4.3; места ниже перечитаны в дереве апстрима и дополнены теми, которых в исследовании не было (8851, 10271, 38579, 44934 в `ChatActivity`, `BulletinFactory`).
+- **Как сделано.** Точные замены `SAVED_TAGS_EDITS` в `ci/patch.py` (функция `saved_tags()`, вызывается в `patch()` после `sticker_sets()`), каждая по одному вхождению, перед каждой изменённой строкой комментарий `// pluma: saved message tags without Premium.` Номера строк — апстрима 12.9.1 (`aac1efcb`). Пути от `TMessagesProj/src/main/java/org/telegram/`.
+- **Как проверяется.** `verify_saved_tags` (из `verify()`): каждый новый текст есть ровно один раз, старого нет; число вызовов `savedTagsAvailable()` в каждом файле равно `SAVED_TAGS_USES` (MessagesController 1, ChatActivity 11, SearchTagsList 4, ReactionsContainerLayout 3, SharedMediaLayout 1, BulletinFactory 2), так что лишнее место, открывающее что-то ещё, остановит сборку; метод возвращает `true`. Тесты `SavedTagsTest.test_tags_without_premium` (правки применяются, в новых текстах нет `isPremium()`/`premiumFeaturesBlocked`, лимит тегов, соседние проверки Premium не тронуты, повторный запуск падает), `test_upstream_changed` (изменённый или задвоенный якорь — `PatchError` с числом вхождений), `test_check` (откат, удаление или задвоение любой правки, лишний вызов `savedTagsAvailable()`, метод, снова зависящий от Premium). Полный `ci/patch.py` на копии апстрима `aac1efcb` проходит (2026-11-04). Сборка APK и проверка на устройстве не делались.
+- **Если апстрим изменит.** Любое изменение якоря — падение с именем файла. Новое место апстрима, где теги закрыты Premium, патч не заметит (см. «Что проверять при обновлении апстрима»).
+- **Апстрим и Telegram.** Официальный Telegram Android 12.9.1 (это его код) даёт теги только с Premium; без Premium — шторка Premium, а при `premium_purchase_blocked` селектора тегов в меню сообщения нет.
+- **Тексты.** Новых строк нет. Тексты промо тегов (`SavedTagReactionsPremiumHint` и т. п.) после патча недостижимы.
+
+### A-086. `MessagesController.savedTagsAvailable()`
+
+- **Где.** `messenger/MessagesController.java`, после `premiumPurchaseBlocked()` (742-744): метод `public boolean savedTagsAvailable() { return true; }` с комментарием `// pluma: tags in Saved Messages are open to every user; Pluma sells no Premium.` Якорь — три строки `premiumPurchaseBlocked()`, они остаются.
+
+### A-087. `ChatActivity`: 11 мест тегов
+
+- **Где.** `ui/ChatActivity.java`, везде `getUserConfig().isPremium()` → `getMessagesController().savedTagsAvailable()`, кроме 31909:
+  - 8851 — подсказка «долгое нажатие на тег» (`savedMessagesTagHint`, текст `SavedTagLongpressHint`) создаётся;
+  - 10252 — действие «Тег» в режиме выделения (`tag_message`);
+  - 10271 — `showTagSelector()` открывает селектор тегов (без этого 10324 недостижимо);
+  - 10324 — нажатие в селекторе тегов выделенных сообщений (иначе шторка Premium);
+  - 19217 — пункт «Тег» в панели выделения (`tagItem`);
+  - 31899 — подсказка над селектором тегов в меню сообщения: `SavedTagReactionsHint2` вместо `SavedTagReactionsPremiumHint`;
+  - 31909 — селектор тегов в меню сообщения: `(!tags || !getMessagesController().premiumFeaturesBlocked())` → `(!tags || getMessagesController().savedTagsAvailable())`; у Premium в апстриме `premiumFeaturesBlocked()` ложно, то есть селектор показывается так же;
+  - 32654 — `selectReaction`: поставить или снять тег (иначе шторка Premium);
+  - 38579 — `isSupportedTags()`: поиск по тегам (значок, подсказка поля, открытие поиска с тегами; 3941, 4138, 4221, 4227, 8321, 38280, 38550);
+  - 44862 — нажатие на тег под сообщением (фильтр; иначе шторка Premium);
+  - 44934 — пункт «Назвать тег / Переименовать» в меню тега под сообщением.
+
+### A-088. `SearchTagsList`: фильтр, переименование, баннер
+
+- **Где.** `ui/Components/SearchTagsList.java`, `UserConfig.getInstance(currentAccount).isPremium()` → `MessagesController.getInstance(currentAccount).savedTagsAvailable()`:
+  - 272 — нажатие на тег над результатами поиска фильтрует (иначе шторка Premium);
+  - 303 и 305 — долгое нажатие открывает переименование;
+  - 655 — баннер «закрыто Premium» (`createPremiumLayout`) не показывается.
+
+### A-089. `ReactionsContainerLayout`: селектор тегов
+
+- **Где.** `ui/Components/ReactionsContainerLayout.java`:
+  - 1073 — `allReactionsAvailable` для `TYPE_TAGS` = `savedTagsAvailable()`: полный список (`fillRecentReactionsList`, ветка 1350-1409) и кнопка развёртывания (`showCustomEmojiReaction()`, 538-540), как у Premium;
+  - 1390 — в список тегов идут недавние реакции и все включённые стандартные (`getRecentReactions`, `getEnabledReactionsList`), как у Premium;
+  - 1964 — замок на каждом теге (`isLocked` для `TYPE_TAGS`) снят; для эффектов сообщений (`TYPE_MESSAGE_EFFECTS`) замок по Premium остаётся.
+- **Не патчится.** 1119-1122: для `TYPE_TAGS` без Premium `showExpandableReactions = false` — то же значение, что у Premium в апстриме (`allReactionsAvailable && !isPremium() && …` ложно), поэтому окно развёрнутого списка остаётся типа `TYPE_TAGS`. Custom emoji в развёрнутом окне по-прежнему требуют Premium (`ui/Components/Reactions/CustomEmojiReactionsWindow.java:209`, булетин `UnlockPremiumEmojiReaction`), как у обычных реакций.
+- **Замечание.** Недавние реакции (1390) могут содержать custom emoji, поставленный в канале; в полосе тегов его можно нажать без Premium — как и в полосе обычных реакций личного чата в апстриме (1391-1397, без фильтра). Отвергать ли такой тег, решает сервер.
+
+### A-090. `SharedMediaLayout`: значок поиска по тегам
+
+- **Где.** `ui/Components/SharedMediaLayout.java:3787`: значок `navbar_search_tag` у поиска Saved Messages в профиле — `profileActivity.getUserConfig().isPremium()` → `profileActivity.getMessagesController().savedTagsAvailable()`.
+
+### A-091. `BulletinFactory`: тег сразу после пересылки в «Избранное»
+
+- **Где.** `ui/Components/BulletinFactory.java`, `UserConfig.getInstance(UserConfig.selectedAccount).isPremium()` → `MessagesController.getInstance(UserConfig.selectedAccount).savedTagsAvailable()`:
+  - 1321 — `showForwardedBulletinWithTag` (вызовы `ChatActivity.java:34224`, `39112`);
+  - 1361 — `createForwardedBulletin`: при пересылке в Saved Messages булетин с селектором тегов (`Bulletin.LottieLayoutWithReactions`, `TYPE_TAGS`, `ui/Components/Bulletin.java:1739-1811`).
+
+### A-092. Лимит тегов на сообщение — как у Premium
+
+- **Где.** `messenger/MessageObject.java`, `selectReaction` (12341): `int maxReactionsCount = MessagesController.getInstance(currentAccount).getMaxUserReactionsCount();` → `areTags() ? …reactionsUserMaxPremium : …getMaxUserReactionsCount()` с комментарием `// pluma: tags in Saved Messages take the Premium limit.`
+- **Что и зачем.** Сообщение «Избранного» (`reactions_as_tags`, `areTags()` 13069-13073; у нового — 12302-12306) берёт столько тегов, сколько с Premium: `reactions_user_max_premium` сервера (3). При достижении лимита апстрим снимает самый старый выбор (12363-12389).
+- **Лимит обычных реакций не патчится.** `getMaxUserReactionsCount()` (`MessagesController.java:908-910`) для пользователя без Premium берёт `reactions_user_max_default` сервера (разбор 3706-3715, по умолчанию 1, 1662); сервер отдаёт 3, значит три реакции на сообщение работают без правки. `reactions_uniq_max` клиент не применяет (ошибка разбора, `MessagesController.java:4483-4492`) и берёт 11 по умолчанию (1775) — совпадает с сервером. `getChatReactionsCount()` (912-914) нигде не вызывается.
+
 ---
 
 ## Медиа
@@ -819,3 +881,4 @@
 - A-014 и A-021 не ловят новые места апстрима с «Telegram» в литералах Java и новые строки поиска «Помощи»; A-005 не ловит новый источник резервных адресов вне `onRequestNewServerIpAndPort`; A-019 удалит без предупреждения новый пункт апстрима внутри блока «Помощь».
 - Ветки: `origin/main` и `task/020-parity-fixes` на `d9ad7cf`; локальная `main` отстаёт (`7c78c00`). `sticker-set-kinds` = `origin/main` + `339fd8c`.
 - Не сделано и правок нет: распознавание `pluma.chat` как `t.me` (задача 026); возврат «Помощи» (задача 028); перевод «Send Message» баннера на другие встроенные языки (A-056).
+- A-086…A-092 проверены применением на копии апстрима и тестами скрипта; компиляция Java (Gradle) и поведение на устройстве не проверены.
