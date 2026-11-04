@@ -24,24 +24,36 @@ import (
 
 // mtproto.RPCReactions
 
-// MessagesSendReaction is not served: messages.sendReaction#d30d78d4 flags:# big:flags.1?true add_to_recent:flags.2?true peer:InputPeer msg_id:int reaction:flags.0?Vector<Reaction> = Updates;
+// MessagesSendReaction
+// messages.sendReaction#d30d78d4 flags:# big:flags.1?true add_to_recent:flags.2?true peer:InputPeer msg_id:int reaction:flags.0?Vector<Reaction> = Updates;
 func (s *Service) MessagesSendReaction(ctx context.Context, request *mtproto.TLMessagesSendReaction) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.sendReaction - metadata: {%s}", c.MD)
+	return c.MessagesSendReaction(request)
 }
 
-// MessagesGetMessagesReactions is not served: messages.getMessagesReactions#8bba90e6 peer:InputPeer id:Vector<int> = Updates;
+// MessagesGetMessagesReactions
+// messages.getMessagesReactions#8bba90e6 peer:InputPeer id:Vector<int> = Updates;
 func (s *Service) MessagesGetMessagesReactions(ctx context.Context, request *mtproto.TLMessagesGetMessagesReactions) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getMessagesReactions - metadata: {%s}", c.MD)
+	return c.MessagesGetMessagesReactions(request)
 }
 
-// MessagesGetMessageReactionsList is not served: messages.getMessageReactionsList#461b3f48 flags:# peer:InputPeer id:int reaction:flags.0?Reaction offset:flags.1?string limit:int = messages.MessageReactionsList;
+// MessagesGetMessageReactionsList
+// messages.getMessageReactionsList#461b3f48 flags:# peer:InputPeer id:int reaction:flags.0?Reaction offset:flags.1?string limit:int = messages.MessageReactionsList;
 func (s *Service) MessagesGetMessageReactionsList(ctx context.Context, request *mtproto.TLMessagesGetMessageReactionsList) (*mtproto.Messages_MessageReactionsList, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getMessageReactionsList - metadata: {%s}", c.MD)
+	return c.MessagesGetMessageReactionsList(request)
 }
 
-// MessagesSetChatAvailableReactions is not served: messages.setChatAvailableReactions#864b2581 flags:# peer:InputPeer available_reactions:ChatReactions reactions_limit:flags.0?int paid_enabled:flags.1?Bool = Updates;
+// MessagesSetChatAvailableReactions
+// messages.setChatAvailableReactions#864b2581 flags:# peer:InputPeer available_reactions:ChatReactions reactions_limit:flags.0?int paid_enabled:flags.1?Bool = Updates;
 func (s *Service) MessagesSetChatAvailableReactions(ctx context.Context, request *mtproto.TLMessagesSetChatAvailableReactions) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.setChatAvailableReactions - metadata: {%s}", c.MD)
+	return c.MessagesSetChatAvailableReactions(request)
 }
 
 // MessagesGetAvailableReactions
@@ -52,19 +64,28 @@ func (s *Service) MessagesGetAvailableReactions(ctx context.Context, request *mt
 	return c.MessagesGetAvailableReactions(request)
 }
 
-// MessagesSetDefaultReaction is not served: messages.setDefaultReaction#4f47a016 reaction:Reaction = Bool;
+// MessagesSetDefaultReaction
+// messages.setDefaultReaction#4f47a016 reaction:Reaction = Bool;
 func (s *Service) MessagesSetDefaultReaction(ctx context.Context, request *mtproto.TLMessagesSetDefaultReaction) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.setDefaultReaction - metadata: {%s}", c.MD)
+	return c.MessagesSetDefaultReaction(request)
 }
 
-// MessagesGetUnreadReactions is not served: messages.getUnreadReactions#bd7f90ac flags:# peer:InputPeer top_msg_id:flags.0?int saved_peer_id:flags.1?InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// MessagesGetUnreadReactions
+// messages.getUnreadReactions#bd7f90ac flags:# peer:InputPeer top_msg_id:flags.0?int saved_peer_id:flags.1?InputPeer offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
 func (s *Service) MessagesGetUnreadReactions(ctx context.Context, request *mtproto.TLMessagesGetUnreadReactions) (*mtproto.Messages_Messages, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getUnreadReactions - metadata: {%s}", c.MD)
+	return c.MessagesGetUnreadReactions(request)
 }
 
-// MessagesReadReactions is not served: messages.readReactions#9ec44f93 flags:# peer:InputPeer top_msg_id:flags.0?int saved_peer_id:flags.1?InputPeer = messages.AffectedHistory;
+// MessagesReadReactions
+// messages.readReactions#9ec44f93 flags:# peer:InputPeer top_msg_id:flags.0?int saved_peer_id:flags.1?InputPeer = messages.AffectedHistory;
 func (s *Service) MessagesReadReactions(ctx context.Context, request *mtproto.TLMessagesReadReactions) (*mtproto.Messages_AffectedHistory, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.readReactions - metadata: {%s}", c.MD)
+	return c.MessagesReadReactions(request)
 }
 
 // MessagesReportReaction is not served: messages.reportReaction#3f64c076 peer:InputPeer id:int reaction_peer:InputPeer = Bool;
@@ -88,9 +109,12 @@ func (s *Service) MessagesGetRecentReactions(ctx context.Context, request *mtpro
 	return c.MessagesGetRecentReactions(request)
 }
 
-// MessagesClearRecentReactions is not served: messages.clearRecentReactions#9dfeefb4 = Bool;
+// MessagesClearRecentReactions
+// messages.clearRecentReactions#9dfeefb4 = Bool;
 func (s *Service) MessagesClearRecentReactions(ctx context.Context, request *mtproto.TLMessagesClearRecentReactions) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.clearRecentReactions - metadata: {%s}", c.MD)
+	return c.MessagesClearRecentReactions(request)
 }
 
 // MessagesSendPaidReaction is not served: messages.sendPaidReaction#58bbcb50 flags:# peer:InputPeer msg_id:int count:int random_id:long private:flags.0?PaidReactionPrivacy = Updates;
@@ -667,14 +691,20 @@ func (s *Service) MessagesGetAvailableEffects(ctx context.Context, request *mtpr
 
 // mtproto.RPCSavedMessageTags
 
-// MessagesGetSavedReactionTags is not served: messages.getSavedReactionTags#3637e05b flags:# peer:flags.0?InputPeer hash:long = messages.SavedReactionTags;
+// MessagesGetSavedReactionTags
+// messages.getSavedReactionTags#3637e05b flags:# peer:flags.0?InputPeer hash:long = messages.SavedReactionTags;
 func (s *Service) MessagesGetSavedReactionTags(ctx context.Context, request *mtproto.TLMessagesGetSavedReactionTags) (*mtproto.Messages_SavedReactionTags, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getSavedReactionTags - metadata: {%s}", c.MD)
+	return c.MessagesGetSavedReactionTags(request)
 }
 
-// MessagesUpdateSavedReactionTag is not served: messages.updateSavedReactionTag#60297dec flags:# reaction:Reaction title:flags.0?string = Bool;
+// MessagesUpdateSavedReactionTag
+// messages.updateSavedReactionTag#60297dec flags:# reaction:Reaction title:flags.0?string = Bool;
 func (s *Service) MessagesUpdateSavedReactionTag(ctx context.Context, request *mtproto.TLMessagesUpdateSavedReactionTag) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.updateSavedReactionTag - metadata: {%s}", c.MD)
+	return c.MessagesUpdateSavedReactionTag(request)
 }
 
 // MessagesGetDefaultTagReactions

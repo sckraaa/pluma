@@ -19,6 +19,7 @@
 package core
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/reactions"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -47,8 +48,30 @@ func (c *ConfigurationCore) HelpGetConfig(in *mtproto.TLHelpGetConfig) (*mtproto
 	rValue.SetDate(now)
 	rValue.SetExpires(now + expiresTimeout)
 	c.setLangPack(rValue)
+	c.setDefaultReaction(rValue)
 
 	return rValue.To_Config(), nil
+}
+
+// defaultReaction is Telegram's reactions_default for an account that chose
+// none (help.getConfig, 2026-11-03).
+const defaultReaction = "e❤"
+
+// setDefaultReaction fills reactions_default, the quick reaction of the
+// clients, with the account's own (messages.setDefaultReaction, task 053).
+func (c *ConfigurationCore) setDefaultReaction(cfg *mtproto.TLConfig) {
+	key := defaultReaction
+	if c.MD.GetUserId() != 0 {
+		own, err := reactions.Default(c.ctx, c.svcCtx.Dao.DB(), c.MD.GetUserId())
+		switch {
+		case err != nil:
+			// The rest of config still serves the client.
+			c.Logger.Errorf("help.getConfig: the default reaction of user %d: %v", c.MD.GetUserId(), err)
+		case own != "":
+			key = own
+		}
+	}
+	cfg.SetReactionsDefault(reactions.FromKey(key))
 }
 
 // setLangPack fills flags.2 of config for the session's pack and language:

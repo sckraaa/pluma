@@ -23,6 +23,10 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/catalog/internal/config"
+	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
+	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
@@ -65,6 +69,13 @@ type ServiceContext struct {
 	Media     media_client.MediaClient
 	Demand    Demand // nil without a bot
 	Installed Installed
+
+	// The reactions to messages (task 053).
+	Msg       msg_client.MsgClient
+	Message   message_client.MessageClient
+	User      user_client.UserClient
+	Chat      chat_client.ChatClient
+	Reactions *sqlx.DB // message_reactions, saved_reaction_tags, user_reaction_settings: reads and the default reaction
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -77,7 +88,17 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err != nil {
 		logx.Must(err)
 	}
-	s := &ServiceContext{Config: c, Catalog: store, Media: media, Installed: installed.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic)}
+	s := &ServiceContext{
+		Config:    c,
+		Catalog:   store,
+		Media:     media,
+		Installed: installed.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
+		Msg:       msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
+		Message:   message_client.NewMessageClient(rpcx.GetCachedRpcClient(c.MessageClient)),
+		User:      user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		Chat:      chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		Reactions: sqlx.NewMySQL(&c.Mysql),
+	}
 	bot, err := tgbot.FromSettings(c.TelegramBot)
 	if err != nil {
 		logx.Must(err)

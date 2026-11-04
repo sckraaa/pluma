@@ -209,8 +209,19 @@ func (d *Dao) ReadContents(b *userbox.Box, ids []int32) (*ReadContentsResult, er
 		changed     []int32
 		changedRows []dataobject.MessagesDO
 		media       []ReadMedia
+		ownSeen     []dataobject.MessagesDO
 	)
 	for _, r := range rows {
+		if r.SenderUserId == b.UserId() {
+			// The owner's own message: only the reactions to it are read
+			// here (iOS and Desktop read them with readMessageContents,
+			// task 053). Its unread media flag is the recipients' not
+			// having listened yet, and no update says otherwise.
+			if r.ReactionUnread {
+				ownSeen = append(ownSeen, r)
+			}
+			continue
+		}
 		if !r.Mentioned && !r.MediaUnread && !r.ReactionUnread {
 			continue
 		}
@@ -226,10 +237,24 @@ func (d *Dao) ReadContents(b *userbox.Box, ids []int32) (*ReadContentsResult, er
 			media[i].DialogMessageIds = append(media[i].DialogMessageIds, r.DialogMessageId)
 		}
 	}
+	if err = d.readOwnReactions(b, ownSeen); err != nil {
+		return nil, err
+	}
 	if len(changed) == 0 {
 		return nil, nil
 	}
 	if err = clearUnreadFlags(b, changed, "mentioned = 0, media_unread = 0, reaction_unread = 0"); err != nil {
+		return nil, err
+	}
+	// iOS and Desktop mark the reactions to a message seen with
+	// readMessageContents only (task 053).
+	var seen []int64
+	for _, r := range changedRows {
+		if r.ReactionUnread {
+			seen = append(seen, r.DialogMessageId)
+		}
+	}
+	if err = seenReactions(b, seen); err != nil {
 		return nil, err
 	}
 	for _, c := range byDialog(b.UserId(), changedRows) {

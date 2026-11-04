@@ -54,6 +54,12 @@ const (
 	TLConstructor_CRC32_msg_deleteHistoryRange     TLConstructor = -2133492186
 	// pluma: task 050
 	TLConstructor_CRC32_msg_editPeerFolders TLConstructor = -2047878569
+	// pluma: task 053
+	TLConstructor_CRC32_msg_sendReaction TLConstructor = 1297458671
+	// pluma: task 053
+	TLConstructor_CRC32_msg_readReactions TLConstructor = -91564461
+	// pluma: task 053
+	TLConstructor_CRC32_msg_updateSavedReactionTag TLConstructor = -1806534101
 )
 
 // Enum value maps for TLConstructor.
@@ -77,6 +83,9 @@ var (
 		-2049897703: "CRC32_msg_readMentions",
 		-2133492186: "CRC32_msg_deleteHistoryRange",
 		-2047878569: "CRC32_msg_editPeerFolders",
+		1297458671:  "CRC32_msg_sendReaction",
+		-91564461:   "CRC32_msg_readReactions",
+		-1806534101: "CRC32_msg_updateSavedReactionTag",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                    0,
@@ -97,6 +106,9 @@ var (
 		"CRC32_msg_readMentions":           -2049897703,
 		"CRC32_msg_deleteHistoryRange":     -2133492186,
 		"CRC32_msg_editPeerFolders":        -2047878569,
+		"CRC32_msg_sendReaction":           1297458671,
+		"CRC32_msg_readReactions":          -91564461,
+		"CRC32_msg_updateSavedReactionTag": -1806534101,
 	}
 )
 
@@ -1774,6 +1786,278 @@ func (x *TLMsgEditPeerFolders) GetFolderId() int32 {
 	return 0
 }
 
+// --------------------------------------------------------------------------------------------
+// pluma: msg.sendReaction user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int big:Bool add_to_recent:Bool reaction:Vector<Reaction> = Updates;
+// Sets the reactions of the user to its copy msg_id of a message of a
+// private chat or a basic group: the whole list, in the user's order;
+// empty takes them back (task 053).
+type TLMsgSendReaction struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	Big           *mtproto.Bool          `protobuf:"bytes,8,opt,name=big,proto3" json:"big,omitempty"`
+	AddToRecent   *mtproto.Bool          `protobuf:"bytes,9,opt,name=add_to_recent,json=addToRecent,proto3" json:"add_to_recent,omitempty"`
+	Reaction      []*mtproto.Reaction    `protobuf:"bytes,10,rep,name=reaction,proto3" json:"reaction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgSendReaction) Reset() {
+	*x = TLMsgSendReaction{}
+	mi := &file_msg_tl_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgSendReaction) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgSendReaction) ProtoMessage() {}
+
+func (x *TLMsgSendReaction) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgSendReaction.ProtoReflect.Descriptor instead.
+func (*TLMsgSendReaction) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *TLMsgSendReaction) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgSendReaction) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgSendReaction) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgSendReaction) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgSendReaction) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgSendReaction) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *TLMsgSendReaction) GetBig() *mtproto.Bool {
+	if x != nil {
+		return x.Big
+	}
+	return nil
+}
+
+func (x *TLMsgSendReaction) GetAddToRecent() *mtproto.Bool {
+	if x != nil {
+		return x.AddToRecent
+	}
+	return nil
+}
+
+func (x *TLMsgSendReaction) GetReaction() []*mtproto.Reaction {
+	if x != nil {
+		return x.Reaction
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.readReactions user_id:long auth_key_id:long peer_type:int peer_id:long = messages.AffectedHistory;
+// Marks the reactions to the user's messages of the dialog seen (task 053).
+type TLMsgReadReactions struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgReadReactions) Reset() {
+	*x = TLMsgReadReactions{}
+	mi := &file_msg_tl_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgReadReactions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgReadReactions) ProtoMessage() {}
+
+func (x *TLMsgReadReactions) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgReadReactions.ProtoReflect.Descriptor instead.
+func (*TLMsgReadReactions) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *TLMsgReadReactions) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgReadReactions) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgReadReactions) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgReadReactions) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgReadReactions) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.updateSavedReactionTag user_id:long auth_key_id:long reaction:Reaction title:string = Bool;
+// Gives the tag reaction of the user's Saved Messages the title, empty for
+// none (task 053).
+type TLMsgUpdateSavedReactionTag struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	Reaction      *mtproto.Reaction      `protobuf:"bytes,5,opt,name=reaction,proto3" json:"reaction,omitempty"`
+	Title         string                 `protobuf:"bytes,6,opt,name=title,proto3" json:"title,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgUpdateSavedReactionTag) Reset() {
+	*x = TLMsgUpdateSavedReactionTag{}
+	mi := &file_msg_tl_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgUpdateSavedReactionTag) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgUpdateSavedReactionTag) ProtoMessage() {}
+
+func (x *TLMsgUpdateSavedReactionTag) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgUpdateSavedReactionTag.ProtoReflect.Descriptor instead.
+func (*TLMsgUpdateSavedReactionTag) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *TLMsgUpdateSavedReactionTag) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgUpdateSavedReactionTag) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgUpdateSavedReactionTag) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgUpdateSavedReactionTag) GetReaction() *mtproto.Reaction {
+	if x != nil {
+		return x.Reaction
+	}
+	return nil
+}
+
+func (x *TLMsgUpdateSavedReactionTag) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
 var File_msg_tl_proto protoreflect.FileDescriptor
 
 const file_msg_tl_proto_rawDesc = "" +
@@ -1921,7 +2205,30 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
 	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x14\n" +
 	"\x05peers\x18\x05 \x03(\x03R\x05peers\x12\x1b\n" +
-	"\tfolder_id\x18\x06 \x01(\x05R\bfolderId*\x8d\x05\n" +
+	"\tfolder_id\x18\x06 \x01(\x05R\bfolderId\"\xd4\x02\n" +
+	"\x13TL_msg_sendReaction\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\x12\x1f\n" +
+	"\x03big\x18\b \x01(\v2\r.mtproto.BoolR\x03big\x121\n" +
+	"\radd_to_recent\x18\t \x01(\v2\r.mtproto.BoolR\vaddToRecent\x12-\n" +
+	"\breaction\x18\n" +
+	" \x03(\v2\x11.mtproto.ReactionR\breaction\"\xbb\x01\n" +
+	"\x14TL_msg_readReactions\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\"\xd3\x01\n" +
+	"\x1dTL_msg_updateSavedReactionTag\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12-\n" +
+	"\breaction\x18\x05 \x01(\v2\x11.mtproto.ReactionR\breaction\x12\x14\n" +
+	"\x05title\x18\x06 \x01(\tR\x05title*\x82\x06\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12\x14\n" +
 	"\fCRC32_sender\x10\xba\xc9\xe1\xd1\x05\x12\x1b\n" +
@@ -1940,7 +2247,11 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x1aCRC32_msg_unpinAllMessages\x10\xa5\xbe\x99\xc4\xfb\xff\xff\xff\xff\x01\x12#\n" +
 	"\x16CRC32_msg_readMentions\x10\x99\x96Į\xf8\xff\xff\xff\xff\x01\x12)\n" +
 	"\x1cCRC32_msg_deleteHistoryRange\x10\xa6\xfcՆ\xf8\xff\xff\xff\xff\x01\x12&\n" +
-	"\x19CRC32_msg_editPeerFolders\x10״\xbf\xaf\xf8\xff\xff\xff\xff\x012\x95\t\n" +
+	"\x19CRC32_msg_editPeerFolders\x10״\xbf\xaf\xf8\xff\xff\xff\xff\x01\x12\x1e\n" +
+	"\x16CRC32_msg_sendReaction\x10\xef\xcb\xd6\xea\x04\x12$\n" +
+	"\x17CRC32_msg_readReactions\x10Ӭ\xab\xd4\xff\xff\xff\xff\xff\x01\x12-\n" +
+	" CRC32_msg_updateSavedReactionTag\x10\xab\xf4ɢ\xf9\xff\xff\xff\xff\x012\xff\n" +
+	"\n" +
 	"\x06RPCMsg\x12C\n" +
 	"\x13msg_pushUserMessage\x12\x1b.msg.TL_msg_pushUserMessage\x1a\r.mtproto.Bool\"\x00\x12`\n" +
 	"\x17msg_readMessageContents\x12\x1f.msg.TL_msg_readMessageContents\x1a\".mtproto.messages_AffectedMessages\"\x00\x12B\n" +
@@ -1955,7 +2266,10 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x14msg_unpinAllMessages\x12\x1c.msg.TL_msg_unpinAllMessages\x1a!.mtproto.messages_AffectedHistory\"\x00\x12Q\n" +
 	"\x10msg_readMentions\x12\x18.msg.TL_msg_readMentions\x1a!.mtproto.messages_AffectedHistory\"\x00\x12]\n" +
 	"\x16msg_deleteHistoryRange\x12\x1e.msg.TL_msg_deleteHistoryRange\x1a!.mtproto.messages_AffectedHistory\"\x00\x12F\n" +
-	"\x13msg_editPeerFolders\x12\x1b.msg.TL_msg_editPeerFolders\x1a\x10.mtproto.Updates\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
+	"\x13msg_editPeerFolders\x12\x1b.msg.TL_msg_editPeerFolders\x1a\x10.mtproto.Updates\"\x00\x12@\n" +
+	"\x10msg_sendReaction\x12\x18.msg.TL_msg_sendReaction\x1a\x10.mtproto.Updates\"\x00\x12S\n" +
+	"\x11msg_readReactions\x12\x19.msg.TL_msg_readReactions\x1a!.mtproto.messages_AffectedHistory\"\x00\x12Q\n" +
+	"\x1amsg_updateSavedReactionTag\x12\".msg.TL_msg_updateSavedReactionTag\x1a\r.mtproto.Bool\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
 
 var (
 	file_msg_tl_proto_rawDescOnce sync.Once
@@ -1970,7 +2284,7 @@ func file_msg_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_msg_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_msg_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                             // 0: msg.TLConstructor
 	(*ContentMessage)(nil),                         // 1: msg.ContentMessage
@@ -1993,21 +2307,25 @@ var file_msg_tl_proto_goTypes = []any{
 	(*TLMsgReadMentions)(nil),                      // 18: msg.TL_msg_readMentions
 	(*TLMsgDeleteHistoryRange)(nil),                // 19: msg.TL_msg_deleteHistoryRange
 	(*TLMsgEditPeerFolders)(nil),                   // 20: msg.TL_msg_editPeerFolders
-	(*mtproto.Message)(nil),                        // 21: mtproto.Message
-	(*wrapperspb.Int32Value)(nil),                  // 22: google.protobuf.Int32Value
-	(*mtproto.MessageBox)(nil),                     // 23: mtproto.MessageBox
-	(*mtproto.Bool)(nil),                           // 24: mtproto.Bool
-	(*mtproto.Messages_AffectedMessages)(nil),      // 25: mtproto.messages_AffectedMessages
-	(*mtproto.Updates)(nil),                        // 26: mtproto.Updates
-	(*mtproto.Messages_AffectedHistory)(nil),       // 27: mtproto.messages_AffectedHistory
-	(*mtproto.Messages_AffectedFoundMessages)(nil), // 28: mtproto.messages_AffectedFoundMessages
+	(*TLMsgSendReaction)(nil),                      // 21: msg.TL_msg_sendReaction
+	(*TLMsgReadReactions)(nil),                     // 22: msg.TL_msg_readReactions
+	(*TLMsgUpdateSavedReactionTag)(nil),            // 23: msg.TL_msg_updateSavedReactionTag
+	(*mtproto.Message)(nil),                        // 24: mtproto.Message
+	(*wrapperspb.Int32Value)(nil),                  // 25: google.protobuf.Int32Value
+	(*mtproto.MessageBox)(nil),                     // 26: mtproto.MessageBox
+	(*mtproto.Bool)(nil),                           // 27: mtproto.Bool
+	(*mtproto.Reaction)(nil),                       // 28: mtproto.Reaction
+	(*mtproto.Messages_AffectedMessages)(nil),      // 29: mtproto.messages_AffectedMessages
+	(*mtproto.Updates)(nil),                        // 30: mtproto.Updates
+	(*mtproto.Messages_AffectedHistory)(nil),       // 31: mtproto.messages_AffectedHistory
+	(*mtproto.Messages_AffectedFoundMessages)(nil), // 32: mtproto.messages_AffectedFoundMessages
 }
 var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 0: msg.ContentMessage.constructor:type_name -> msg.TLConstructor
 	1,  // 1: msg.TL_contentMessage.data2:type_name -> msg.ContentMessage
 	0,  // 2: msg.OutboxMessage.constructor:type_name -> msg.TLConstructor
-	21, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
-	22, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
+	24, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
+	25, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
 	3,  // 5: msg.TL_outboxMessage.data2:type_name -> msg.OutboxMessage
 	0,  // 6: msg.Sender.constructor:type_name -> msg.TLConstructor
 	5,  // 7: msg.TL_sender.data2:type_name -> msg.Sender
@@ -2019,7 +2337,7 @@ var file_msg_tl_proto_depIdxs = []int32{
 	3,  // 13: msg.TL_msg_sendMessageV2.message:type_name -> msg.OutboxMessage
 	0,  // 14: msg.TL_msg_editMessageV2.constructor:type_name -> msg.TLConstructor
 	3,  // 15: msg.TL_msg_editMessageV2.new_message:type_name -> msg.OutboxMessage
-	23, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
+	26, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
 	0,  // 17: msg.TL_msg_deleteMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 18: msg.TL_msg_deleteHistory.constructor:type_name -> msg.TLConstructor
 	0,  // 19: msg.TL_msg_deletePhoneCallHistory.constructor:type_name -> msg.TLConstructor
@@ -2029,41 +2347,54 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 23: msg.TL_msg_unpinAllMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 24: msg.TL_msg_readMentions.constructor:type_name -> msg.TLConstructor
 	0,  // 25: msg.TL_msg_deleteHistoryRange.constructor:type_name -> msg.TLConstructor
-	24, // 26: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
+	27, // 26: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
 	0,  // 27: msg.TL_msg_editPeerFolders.constructor:type_name -> msg.TLConstructor
-	7,  // 28: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
-	8,  // 29: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
-	9,  // 30: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
-	10, // 31: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
-	11, // 32: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
-	12, // 33: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
-	13, // 34: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
-	14, // 35: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
-	15, // 36: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
-	16, // 37: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
-	17, // 38: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
-	18, // 39: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
-	19, // 40: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
-	20, // 41: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
-	24, // 42: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
-	25, // 43: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
-	26, // 44: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
-	26, // 45: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
-	25, // 46: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	27, // 47: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
-	28, // 48: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
-	24, // 49: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
-	25, // 50: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
-	26, // 51: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
-	27, // 52: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
-	27, // 53: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
-	27, // 54: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
-	26, // 55: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
-	42, // [42:56] is the sub-list for method output_type
-	28, // [28:42] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	0,  // 28: msg.TL_msg_sendReaction.constructor:type_name -> msg.TLConstructor
+	27, // 29: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
+	27, // 30: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
+	28, // 31: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
+	0,  // 32: msg.TL_msg_readReactions.constructor:type_name -> msg.TLConstructor
+	0,  // 33: msg.TL_msg_updateSavedReactionTag.constructor:type_name -> msg.TLConstructor
+	28, // 34: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
+	7,  // 35: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
+	8,  // 36: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
+	9,  // 37: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
+	10, // 38: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
+	11, // 39: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
+	12, // 40: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
+	13, // 41: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
+	14, // 42: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
+	15, // 43: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
+	16, // 44: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
+	17, // 45: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
+	18, // 46: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
+	19, // 47: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
+	20, // 48: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
+	21, // 49: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
+	22, // 50: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
+	23, // 51: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
+	27, // 52: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
+	29, // 53: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
+	30, // 54: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
+	30, // 55: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
+	29, // 56: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	31, // 57: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
+	32, // 58: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
+	27, // 59: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
+	29, // 60: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
+	30, // 61: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
+	31, // 62: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
+	31, // 63: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
+	31, // 64: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
+	30, // 65: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
+	30, // 66: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
+	31, // 67: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
+	27, // 68: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
+	52, // [52:69] is the sub-list for method output_type
+	35, // [35:52] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_msg_tl_proto_init() }
@@ -2077,7 +2408,7 @@ func file_msg_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_msg_tl_proto_rawDesc), len(file_msg_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

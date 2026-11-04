@@ -30,6 +30,12 @@ const (
 
 	// pluma: task 050
 	Predicate_msg_editPeerFolders = "msg_editPeerFolders"
+	// pluma: task 053
+	Predicate_msg_sendReaction = "msg_sendReaction"
+	// pluma: task 053
+	Predicate_msg_readReactions = "msg_readReactions"
+	// pluma: task 053
+	Predicate_msg_updateSavedReactionTag = "msg_updateSavedReactionTag"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -101,6 +107,18 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -2047878569, // 0x85efda57
 
 	},
+	Predicate_msg_sendReaction: { // pluma: task 053
+		0: 1297458671, // 0x4d55a5ef
+
+	},
+	Predicate_msg_readReactions: { // pluma: task 053
+		0: -91564461, // 0xfa8ad653
+
+	},
+	Predicate_msg_updateSavedReactionTag: { // pluma: task 053
+		0: -1806534101, // 0x94527a2b
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -122,6 +140,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-2133492186: Predicate_msg_deleteHistoryRange,     // 0x80d57e26
 	-2047878569: Predicate_msg_editPeerFolders,        // 0x85efda57 pluma: task 050
 
+	1297458671:  Predicate_msg_sendReaction,           // 0x4d55a5ef pluma: task 053
+	-91564461:   Predicate_msg_readReactions,          // 0xfa8ad653 pluma: task 053
+	-1806534101: Predicate_msg_updateSavedReactionTag, // 0x94527a2b pluma: task 053
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

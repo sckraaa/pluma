@@ -115,6 +115,13 @@ func Pick(h *mtproto.IDListHelper, selfId int64, updates ...*mtproto.Update) {
 		case mtproto.Predicate_updatePendingJoinRequests:
 			h.PickByPeer(u.GetPeer_PEER())
 			users(u.GetRecentRequesters()...)
+		case mtproto.Predicate_updateMessageReactions:
+			// The chat and the users of the recent reactions, whose
+			// avatars the clients show under the message.
+			h.PickByPeer(u.GetPeer_PEER())
+			for _, r := range u.GetReactions_MESSAGEREACTIONS().GetRecentReactions() {
+				h.PickByPeer(r.GetPeerId())
+			}
 		}
 	}
 }

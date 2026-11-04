@@ -51,3 +51,7 @@ func New(c config.Config) *Dao {
 		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 	}
 }
+
+// DB is the pool of the service's own tables and of the reaction settings
+// (task 053).
+func (d *Dao) DB() *sqlx.DB { return d.db }

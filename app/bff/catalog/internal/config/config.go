@@ -28,4 +28,10 @@ type Config struct {
 	DfsClient   zrpc.RpcClientConf
 	TelegramBot tgbot.Settings // fetches sets on demand (task 030); empty: none
 	SyncTopic   string         // the pushes of the account's sets to its devices (mq_outbox topic of bff)
+	// The reactions to messages (task 053): msg writes them, biz message
+	// reads the messages, biz user and biz chat give their users and chats.
+	MsgClient     zrpc.RpcClientConf
+	MessageClient zrpc.RpcClientConf
+	UserClient    zrpc.RpcClientConf
+	ChatClient    zrpc.RpcClientConf
 }

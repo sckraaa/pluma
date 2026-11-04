@@ -31,6 +31,8 @@ const (
 	Predicate_message_getUnreadMentionsCount               = "message_getUnreadMentionsCount"
 	Predicate_message_getSavedHistoryMessages              = "message_getSavedHistoryMessages"
 	Predicate_message_getOutboxReadDate                    = "message_getOutboxReadDate"
+	// pluma: task 053
+	Predicate_message_getUnreadReactions = "message_getUnreadReactions"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -114,6 +116,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1353708502, // 0xaf500c2a
 
 	},
+	Predicate_message_getUnreadReactions: { // pluma: task 053
+		0: -1051109802, // 0xc1595656
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -138,6 +144,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-60243377:   Predicate_message_getSavedHistoryMessages,              // 0xfc68c24f
 	-1353708502: Predicate_message_getOutboxReadDate,                    // 0xaf500c2a
 
+	-1051109802: Predicate_message_getUnreadReactions, // 0xc1595656 pluma: task 053
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

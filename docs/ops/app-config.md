@@ -121,8 +121,10 @@
 | `saved_gifs_limit_premium` | `200` | A D W | Сохранённых GIF нет. |
 | `stickers_faved_limit_default` | `5` | A D W | Избранных стикеров нет. |
 | `stickers_faved_limit_premium` | `5` | A D W | Избранных стикеров нет. |
-| `reactions_user_max_default` | `1` | A D W | Реакций (`messages.sendReaction`) нет. |
-| `reactions_user_max_premium` | `1` | A D W | Реакций нет. |
+| `reactions_user_max_default` | `3` | A D W | Реакций одного человека на сообщение: как в Telegram Premium, у всех (задача 053, решение владельца). Тот же лимит — теги в «Избранном». |
+| `reactions_user_max_premium` | `3` | A D W | То же значение: Premium в Pluma нет, а клиенты по умолчанию ждут 3. |
+| `reactions_uniq_max` | `11` | A D W | Разных реакций на одно сообщение, как в Telegram. Android число не применяет и берёт своё 11. |
+| `reactions_in_chat_max` | `100` | A | Реакций, которые группа может разрешить (`messages.setChatAvailableReactions`), как в Telegram. |
 
 ## Выключатели того, чего на сервере нет
 

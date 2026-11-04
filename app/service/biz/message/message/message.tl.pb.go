@@ -56,6 +56,8 @@ const (
 	TLConstructor_CRC32_message_getUnreadMentionsCount               TLConstructor = -1254023095
 	TLConstructor_CRC32_message_getSavedHistoryMessages              TLConstructor = -60243377
 	TLConstructor_CRC32_message_getOutboxReadDate                    TLConstructor = -1353708502
+	// pluma: task 053
+	TLConstructor_CRC32_message_getUnreadReactions TLConstructor = -1051109802
 )
 
 // Enum value maps for TLConstructor.
@@ -82,6 +84,7 @@ var (
 		-1254023095: "CRC32_message_getUnreadMentionsCount",
 		-60243377:   "CRC32_message_getSavedHistoryMessages",
 		-1353708502: "CRC32_message_getOutboxReadDate",
+		-1051109802: "CRC32_message_getUnreadReactions",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                                      0,
@@ -105,6 +108,7 @@ var (
 		"CRC32_message_getUnreadMentionsCount":               -1254023095,
 		"CRC32_message_getSavedHistoryMessages":              -60243377,
 		"CRC32_message_getOutboxReadDate":                    -1353708502,
+		"CRC32_message_getUnreadReactions":                   -1051109802,
 	}
 )
 
@@ -1788,6 +1792,118 @@ func (x *TLMessageGetOutboxReadDate) GetMsgId() int32 {
 }
 
 // --------------------------------------------------------------------------------------------
+// pluma: message.getUnreadReactions user_id:long peer_type:int peer_id:long offset_id:int add_offset:int limit:int min_id:int max_id:int = Vector<MessageBox>;
+// The user's messages of the dialog with reactions it has not seen, by the
+// paging of messages.getUnreadReactions (task 053).
+type TLMessageGetUnreadReactions struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=message.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,4,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,5,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	OffsetId      int32                  `protobuf:"varint,6,opt,name=offset_id,json=offsetId,proto3" json:"offset_id,omitempty"`
+	AddOffset     int32                  `protobuf:"varint,7,opt,name=add_offset,json=addOffset,proto3" json:"add_offset,omitempty"`
+	Limit         int32                  `protobuf:"varint,8,opt,name=limit,proto3" json:"limit,omitempty"`
+	MinId         int32                  `protobuf:"varint,9,opt,name=min_id,json=minId,proto3" json:"min_id,omitempty"`
+	MaxId         int32                  `protobuf:"varint,10,opt,name=max_id,json=maxId,proto3" json:"max_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMessageGetUnreadReactions) Reset() {
+	*x = TLMessageGetUnreadReactions{}
+	mi := &file_message_tl_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMessageGetUnreadReactions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMessageGetUnreadReactions) ProtoMessage() {}
+
+func (x *TLMessageGetUnreadReactions) ProtoReflect() protoreflect.Message {
+	mi := &file_message_tl_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMessageGetUnreadReactions.ProtoReflect.Descriptor instead.
+func (*TLMessageGetUnreadReactions) Descriptor() ([]byte, []int) {
+	return file_message_tl_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *TLMessageGetUnreadReactions) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMessageGetUnreadReactions) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMessageGetUnreadReactions) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMessageGetUnreadReactions) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMessageGetUnreadReactions) GetOffsetId() int32 {
+	if x != nil {
+		return x.OffsetId
+	}
+	return 0
+}
+
+func (x *TLMessageGetUnreadReactions) GetAddOffset() int32 {
+	if x != nil {
+		return x.AddOffset
+	}
+	return 0
+}
+
+func (x *TLMessageGetUnreadReactions) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *TLMessageGetUnreadReactions) GetMinId() int32 {
+	if x != nil {
+		return x.MinId
+	}
+	return 0
+}
+
+func (x *TLMessageGetUnreadReactions) GetMaxId() int32 {
+	if x != nil {
+		return x.MaxId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
 // Vector api result type
 type Vector_MessageBox struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1798,7 +1914,7 @@ type Vector_MessageBox struct {
 
 func (x *Vector_MessageBox) Reset() {
 	*x = Vector_MessageBox{}
-	mi := &file_message_tl_proto_msgTypes[20]
+	mi := &file_message_tl_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1810,7 +1926,7 @@ func (x *Vector_MessageBox) String() string {
 func (*Vector_MessageBox) ProtoMessage() {}
 
 func (x *Vector_MessageBox) ProtoReflect() protoreflect.Message {
-	mi := &file_message_tl_proto_msgTypes[20]
+	mi := &file_message_tl_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1823,7 +1939,7 @@ func (x *Vector_MessageBox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_MessageBox.ProtoReflect.Descriptor instead.
 func (*Vector_MessageBox) Descriptor() ([]byte, []int) {
-	return file_message_tl_proto_rawDescGZIP(), []int{20}
+	return file_message_tl_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Vector_MessageBox) GetDatas() []*mtproto.MessageBox {
@@ -1842,7 +1958,7 @@ type Vector_Int struct {
 
 func (x *Vector_Int) Reset() {
 	*x = Vector_Int{}
-	mi := &file_message_tl_proto_msgTypes[21]
+	mi := &file_message_tl_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1854,7 +1970,7 @@ func (x *Vector_Int) String() string {
 func (*Vector_Int) ProtoMessage() {}
 
 func (x *Vector_Int) ProtoReflect() protoreflect.Message {
-	mi := &file_message_tl_proto_msgTypes[21]
+	mi := &file_message_tl_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1867,7 +1983,7 @@ func (x *Vector_Int) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Int.ProtoReflect.Descriptor instead.
 func (*Vector_Int) Descriptor() ([]byte, []int) {
-	return file_message_tl_proto_rawDescGZIP(), []int{21}
+	return file_message_tl_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *Vector_Int) GetDatas() []int32 {
@@ -1886,7 +2002,7 @@ type Vector_ReadParticipantDate struct {
 
 func (x *Vector_ReadParticipantDate) Reset() {
 	*x = Vector_ReadParticipantDate{}
-	mi := &file_message_tl_proto_msgTypes[22]
+	mi := &file_message_tl_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1898,7 +2014,7 @@ func (x *Vector_ReadParticipantDate) String() string {
 func (*Vector_ReadParticipantDate) ProtoMessage() {}
 
 func (x *Vector_ReadParticipantDate) ProtoReflect() protoreflect.Message {
-	mi := &file_message_tl_proto_msgTypes[22]
+	mi := &file_message_tl_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1911,7 +2027,7 @@ func (x *Vector_ReadParticipantDate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_ReadParticipantDate.ProtoReflect.Descriptor instead.
 func (*Vector_ReadParticipantDate) Descriptor() ([]byte, []int) {
-	return file_message_tl_proto_rawDescGZIP(), []int{22}
+	return file_message_tl_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Vector_ReadParticipantDate) GetDatas() []*mtproto.ReadParticipantDate {
@@ -2074,14 +2190,26 @@ const file_message_tl_proto_rawDesc = "" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
 	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\x12\x15\n" +
-	"\x06msg_id\x18\x06 \x01(\x05R\x05msgId\">\n" +
+	"\x06msg_id\x18\x06 \x01(\x05R\x05msgId\"\xa8\x02\n" +
+	"\x1dTL_message_getUnreadReactions\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.message.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\x12\x1b\n" +
+	"\toffset_id\x18\x06 \x01(\x05R\boffsetId\x12\x1d\n" +
+	"\n" +
+	"add_offset\x18\a \x01(\x05R\taddOffset\x12\x14\n" +
+	"\x05limit\x18\b \x01(\x05R\x05limit\x12\x15\n" +
+	"\x06min_id\x18\t \x01(\x05R\x05minId\x12\x15\n" +
+	"\x06max_id\x18\n" +
+	" \x01(\x05R\x05maxId\">\n" +
 	"\x11Vector_MessageBox\x12)\n" +
 	"\x05datas\x18\x01 \x03(\v2\x13.mtproto.MessageBoxR\x05datas\"\"\n" +
 	"\n" +
 	"Vector_Int\x12\x14\n" +
 	"\x05datas\x18\x01 \x03(\x05R\x05datas\"P\n" +
 	"\x1aVector_ReadParticipantDate\x122\n" +
-	"\x05datas\x18\x01 \x03(\v2\x1c.mtproto.ReadParticipantDateR\x05datas*\xa4\a\n" +
+	"\x05datas\x18\x01 \x03(\v2\x1c.mtproto.ReadParticipantDateR\x05datas*\xd3\a\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12$\n" +
 	"\x1cCRC32_message_getUserMessage\x10\xc8\xe3\xb2\xd6\a\x12-\n" +
@@ -2103,7 +2231,8 @@ const file_message_tl_proto_rawDesc = "" +
 	"\x1fCRC32_message_getUnreadMentions\x10\xb4\x89\x86\xff\x06\x121\n" +
 	"$CRC32_message_getUnreadMentionsCount\x10\xc9\xc0\x84\xaa\xfb\xff\xff\xff\xff\x01\x122\n" +
 	"%CRC32_message_getSavedHistoryMessages\x10τ\xa3\xe3\xff\xff\xff\xff\xff\x01\x12,\n" +
-	"\x1fCRC32_message_getOutboxReadDate\x10\xaa\x98\xc0\xfa\xfa\xff\xff\xff\xff\x012\xa8\x0f\n" +
+	"\x1fCRC32_message_getOutboxReadDate\x10\xaa\x98\xc0\xfa\xfa\xff\xff\xff\xff\x01\x12-\n" +
+	" CRC32_message_getUnreadReactions\x10֬\xe5\x8a\xfc\xff\xff\xff\xff\x012\x8c\x10\n" +
 	"\n" +
 	"RPCMessage\x12S\n" +
 	"\x16message_getUserMessage\x12\".message.TL_message_getUserMessage\x1a\x13.mtproto.MessageBox\"\x00\x12b\n" +
@@ -2125,7 +2254,8 @@ const file_message_tl_proto_rawDesc = "" +
 	"\x19message_getUnreadMentions\x12%.message.TL_message_getUnreadMentions\x1a\x1a.message.Vector_MessageBox\"\x00\x12^\n" +
 	"\x1emessage_getUnreadMentionsCount\x12*.message.TL_message_getUnreadMentionsCount\x1a\x0e.mtproto.Int32\"\x00\x12i\n" +
 	"\x1fmessage_getSavedHistoryMessages\x12+.message.TL_message_getSavedHistoryMessages\x1a\x17.mtproto.MessageBoxList\"\x00\x12i\n" +
-	"\x19message_getOutboxReadDate\x12%.message.TL_message_getOutboxReadDate\x1a#.message.Vector_ReadParticipantDate\"\x00BEZCgithub.com/teamgram/teamgram-server/app/service/biz/message/messageb\x06proto3"
+	"\x19message_getOutboxReadDate\x12%.message.TL_message_getOutboxReadDate\x1a#.message.Vector_ReadParticipantDate\"\x00\x12b\n" +
+	"\x1amessage_getUnreadReactions\x12&.message.TL_message_getUnreadReactions\x1a\x1a.message.Vector_MessageBox\"\x00BEZCgithub.com/teamgram/teamgram-server/app/service/biz/message/messageb\x06proto3"
 
 var (
 	file_message_tl_proto_rawDescOnce sync.Once
@@ -2140,7 +2270,7 @@ func file_message_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_message_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_message_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_message_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_message_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                                    // 0: message.TLConstructor
 	(*TLMessageGetUserMessage)(nil),                       // 1: message.TL_message_getUserMessage
@@ -2163,13 +2293,14 @@ var file_message_tl_proto_goTypes = []any{
 	(*TLMessageGetUnreadMentionsCount)(nil),               // 18: message.TL_message_getUnreadMentionsCount
 	(*TLMessageGetSavedHistoryMessages)(nil),              // 19: message.TL_message_getSavedHistoryMessages
 	(*TLMessageGetOutboxReadDate)(nil),                    // 20: message.TL_message_getOutboxReadDate
-	(*Vector_MessageBox)(nil),                             // 21: message.Vector_MessageBox
-	(*Vector_Int)(nil),                                    // 22: message.Vector_Int
-	(*Vector_ReadParticipantDate)(nil),                    // 23: message.Vector_ReadParticipantDate
-	(*mtproto.MessageBox)(nil),                            // 24: mtproto.MessageBox
-	(*mtproto.ReadParticipantDate)(nil),                   // 25: mtproto.ReadParticipantDate
-	(*mtproto.Int32)(nil),                                 // 26: mtproto.Int32
-	(*mtproto.MessageBoxList)(nil),                        // 27: mtproto.MessageBoxList
+	(*TLMessageGetUnreadReactions)(nil),                   // 21: message.TL_message_getUnreadReactions
+	(*Vector_MessageBox)(nil),                             // 22: message.Vector_MessageBox
+	(*Vector_Int)(nil),                                    // 23: message.Vector_Int
+	(*Vector_ReadParticipantDate)(nil),                    // 24: message.Vector_ReadParticipantDate
+	(*mtproto.MessageBox)(nil),                            // 25: mtproto.MessageBox
+	(*mtproto.ReadParticipantDate)(nil),                   // 26: mtproto.ReadParticipantDate
+	(*mtproto.Int32)(nil),                                 // 27: mtproto.Int32
+	(*mtproto.MessageBoxList)(nil),                        // 28: mtproto.MessageBoxList
 }
 var file_message_tl_proto_depIdxs = []int32{
 	0,  // 0: message.TL_message_getUserMessage.constructor:type_name -> message.TLConstructor
@@ -2192,53 +2323,56 @@ var file_message_tl_proto_depIdxs = []int32{
 	0,  // 17: message.TL_message_getUnreadMentionsCount.constructor:type_name -> message.TLConstructor
 	0,  // 18: message.TL_message_getSavedHistoryMessages.constructor:type_name -> message.TLConstructor
 	0,  // 19: message.TL_message_getOutboxReadDate.constructor:type_name -> message.TLConstructor
-	24, // 20: message.Vector_MessageBox.datas:type_name -> mtproto.MessageBox
-	25, // 21: message.Vector_ReadParticipantDate.datas:type_name -> mtproto.ReadParticipantDate
-	1,  // 22: message.RPCMessage.message_getUserMessage:input_type -> message.TL_message_getUserMessage
-	2,  // 23: message.RPCMessage.message_getUserMessageList:input_type -> message.TL_message_getUserMessageList
-	3,  // 24: message.RPCMessage.message_getUserMessageListByDataIdList:input_type -> message.TL_message_getUserMessageListByDataIdList
-	4,  // 25: message.RPCMessage.message_getUserMessageListByDataIdUserIdList:input_type -> message.TL_message_getUserMessageListByDataIdUserIdList
-	5,  // 26: message.RPCMessage.message_getHistoryMessages:input_type -> message.TL_message_getHistoryMessages
-	6,  // 27: message.RPCMessage.message_getHistoryMessagesCount:input_type -> message.TL_message_getHistoryMessagesCount
-	7,  // 28: message.RPCMessage.message_getPeerUserMessageId:input_type -> message.TL_message_getPeerUserMessageId
-	8,  // 29: message.RPCMessage.message_getPeerUserMessage:input_type -> message.TL_message_getPeerUserMessage
-	9,  // 30: message.RPCMessage.message_searchByMediaType:input_type -> message.TL_message_searchByMediaType
-	10, // 31: message.RPCMessage.message_search:input_type -> message.TL_message_search
-	11, // 32: message.RPCMessage.message_searchGlobal:input_type -> message.TL_message_searchGlobal
-	12, // 33: message.RPCMessage.message_searchByPinned:input_type -> message.TL_message_searchByPinned
-	13, // 34: message.RPCMessage.message_getSearchCounter:input_type -> message.TL_message_getSearchCounter
-	14, // 35: message.RPCMessage.message_searchV2:input_type -> message.TL_message_searchV2
-	15, // 36: message.RPCMessage.message_getLastTwoPinnedMessageId:input_type -> message.TL_message_getLastTwoPinnedMessageId
-	16, // 37: message.RPCMessage.message_getPinnedMessageIdList:input_type -> message.TL_message_getPinnedMessageIdList
-	17, // 38: message.RPCMessage.message_getUnreadMentions:input_type -> message.TL_message_getUnreadMentions
-	18, // 39: message.RPCMessage.message_getUnreadMentionsCount:input_type -> message.TL_message_getUnreadMentionsCount
-	19, // 40: message.RPCMessage.message_getSavedHistoryMessages:input_type -> message.TL_message_getSavedHistoryMessages
-	20, // 41: message.RPCMessage.message_getOutboxReadDate:input_type -> message.TL_message_getOutboxReadDate
-	24, // 42: message.RPCMessage.message_getUserMessage:output_type -> mtproto.MessageBox
-	21, // 43: message.RPCMessage.message_getUserMessageList:output_type -> message.Vector_MessageBox
-	21, // 44: message.RPCMessage.message_getUserMessageListByDataIdList:output_type -> message.Vector_MessageBox
-	21, // 45: message.RPCMessage.message_getUserMessageListByDataIdUserIdList:output_type -> message.Vector_MessageBox
-	21, // 46: message.RPCMessage.message_getHistoryMessages:output_type -> message.Vector_MessageBox
-	26, // 47: message.RPCMessage.message_getHistoryMessagesCount:output_type -> mtproto.Int32
-	26, // 48: message.RPCMessage.message_getPeerUserMessageId:output_type -> mtproto.Int32
-	24, // 49: message.RPCMessage.message_getPeerUserMessage:output_type -> mtproto.MessageBox
-	27, // 50: message.RPCMessage.message_searchByMediaType:output_type -> mtproto.MessageBoxList
-	27, // 51: message.RPCMessage.message_search:output_type -> mtproto.MessageBoxList
-	27, // 52: message.RPCMessage.message_searchGlobal:output_type -> mtproto.MessageBoxList
-	27, // 53: message.RPCMessage.message_searchByPinned:output_type -> mtproto.MessageBoxList
-	26, // 54: message.RPCMessage.message_getSearchCounter:output_type -> mtproto.Int32
-	27, // 55: message.RPCMessage.message_searchV2:output_type -> mtproto.MessageBoxList
-	22, // 56: message.RPCMessage.message_getLastTwoPinnedMessageId:output_type -> message.Vector_Int
-	22, // 57: message.RPCMessage.message_getPinnedMessageIdList:output_type -> message.Vector_Int
-	21, // 58: message.RPCMessage.message_getUnreadMentions:output_type -> message.Vector_MessageBox
-	26, // 59: message.RPCMessage.message_getUnreadMentionsCount:output_type -> mtproto.Int32
-	27, // 60: message.RPCMessage.message_getSavedHistoryMessages:output_type -> mtproto.MessageBoxList
-	23, // 61: message.RPCMessage.message_getOutboxReadDate:output_type -> message.Vector_ReadParticipantDate
-	42, // [42:62] is the sub-list for method output_type
-	22, // [22:42] is the sub-list for method input_type
-	22, // [22:22] is the sub-list for extension type_name
-	22, // [22:22] is the sub-list for extension extendee
-	0,  // [0:22] is the sub-list for field type_name
+	0,  // 20: message.TL_message_getUnreadReactions.constructor:type_name -> message.TLConstructor
+	25, // 21: message.Vector_MessageBox.datas:type_name -> mtproto.MessageBox
+	26, // 22: message.Vector_ReadParticipantDate.datas:type_name -> mtproto.ReadParticipantDate
+	1,  // 23: message.RPCMessage.message_getUserMessage:input_type -> message.TL_message_getUserMessage
+	2,  // 24: message.RPCMessage.message_getUserMessageList:input_type -> message.TL_message_getUserMessageList
+	3,  // 25: message.RPCMessage.message_getUserMessageListByDataIdList:input_type -> message.TL_message_getUserMessageListByDataIdList
+	4,  // 26: message.RPCMessage.message_getUserMessageListByDataIdUserIdList:input_type -> message.TL_message_getUserMessageListByDataIdUserIdList
+	5,  // 27: message.RPCMessage.message_getHistoryMessages:input_type -> message.TL_message_getHistoryMessages
+	6,  // 28: message.RPCMessage.message_getHistoryMessagesCount:input_type -> message.TL_message_getHistoryMessagesCount
+	7,  // 29: message.RPCMessage.message_getPeerUserMessageId:input_type -> message.TL_message_getPeerUserMessageId
+	8,  // 30: message.RPCMessage.message_getPeerUserMessage:input_type -> message.TL_message_getPeerUserMessage
+	9,  // 31: message.RPCMessage.message_searchByMediaType:input_type -> message.TL_message_searchByMediaType
+	10, // 32: message.RPCMessage.message_search:input_type -> message.TL_message_search
+	11, // 33: message.RPCMessage.message_searchGlobal:input_type -> message.TL_message_searchGlobal
+	12, // 34: message.RPCMessage.message_searchByPinned:input_type -> message.TL_message_searchByPinned
+	13, // 35: message.RPCMessage.message_getSearchCounter:input_type -> message.TL_message_getSearchCounter
+	14, // 36: message.RPCMessage.message_searchV2:input_type -> message.TL_message_searchV2
+	15, // 37: message.RPCMessage.message_getLastTwoPinnedMessageId:input_type -> message.TL_message_getLastTwoPinnedMessageId
+	16, // 38: message.RPCMessage.message_getPinnedMessageIdList:input_type -> message.TL_message_getPinnedMessageIdList
+	17, // 39: message.RPCMessage.message_getUnreadMentions:input_type -> message.TL_message_getUnreadMentions
+	18, // 40: message.RPCMessage.message_getUnreadMentionsCount:input_type -> message.TL_message_getUnreadMentionsCount
+	19, // 41: message.RPCMessage.message_getSavedHistoryMessages:input_type -> message.TL_message_getSavedHistoryMessages
+	20, // 42: message.RPCMessage.message_getOutboxReadDate:input_type -> message.TL_message_getOutboxReadDate
+	21, // 43: message.RPCMessage.message_getUnreadReactions:input_type -> message.TL_message_getUnreadReactions
+	25, // 44: message.RPCMessage.message_getUserMessage:output_type -> mtproto.MessageBox
+	22, // 45: message.RPCMessage.message_getUserMessageList:output_type -> message.Vector_MessageBox
+	22, // 46: message.RPCMessage.message_getUserMessageListByDataIdList:output_type -> message.Vector_MessageBox
+	22, // 47: message.RPCMessage.message_getUserMessageListByDataIdUserIdList:output_type -> message.Vector_MessageBox
+	22, // 48: message.RPCMessage.message_getHistoryMessages:output_type -> message.Vector_MessageBox
+	27, // 49: message.RPCMessage.message_getHistoryMessagesCount:output_type -> mtproto.Int32
+	27, // 50: message.RPCMessage.message_getPeerUserMessageId:output_type -> mtproto.Int32
+	25, // 51: message.RPCMessage.message_getPeerUserMessage:output_type -> mtproto.MessageBox
+	28, // 52: message.RPCMessage.message_searchByMediaType:output_type -> mtproto.MessageBoxList
+	28, // 53: message.RPCMessage.message_search:output_type -> mtproto.MessageBoxList
+	28, // 54: message.RPCMessage.message_searchGlobal:output_type -> mtproto.MessageBoxList
+	28, // 55: message.RPCMessage.message_searchByPinned:output_type -> mtproto.MessageBoxList
+	27, // 56: message.RPCMessage.message_getSearchCounter:output_type -> mtproto.Int32
+	28, // 57: message.RPCMessage.message_searchV2:output_type -> mtproto.MessageBoxList
+	23, // 58: message.RPCMessage.message_getLastTwoPinnedMessageId:output_type -> message.Vector_Int
+	23, // 59: message.RPCMessage.message_getPinnedMessageIdList:output_type -> message.Vector_Int
+	22, // 60: message.RPCMessage.message_getUnreadMentions:output_type -> message.Vector_MessageBox
+	27, // 61: message.RPCMessage.message_getUnreadMentionsCount:output_type -> mtproto.Int32
+	28, // 62: message.RPCMessage.message_getSavedHistoryMessages:output_type -> mtproto.MessageBoxList
+	24, // 63: message.RPCMessage.message_getOutboxReadDate:output_type -> message.Vector_ReadParticipantDate
+	22, // 64: message.RPCMessage.message_getUnreadReactions:output_type -> message.Vector_MessageBox
+	44, // [44:65] is the sub-list for method output_type
+	23, // [23:44] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_message_tl_proto_init() }
@@ -2252,7 +2386,7 @@ func file_message_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_message_tl_proto_rawDesc), len(file_message_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -34,15 +34,19 @@ type ServiceContext struct {
 	Plugin plugin.MessagesPlugin
 	// WebPages builds the cards of links (task 023).
 	WebPages *webpage.Service
+	// Reactions reads the tags of Saved Messages (task 053).
+	Reactions *sqlx.DB
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
 	d := dao.New(c)
+	db := sqlx.NewMySQL(&c.Mysql)
 	return &ServiceContext{
-		Config: c,
-		Dao:    d,
-		Plugin: plugin,
-		WebPages: webpage.NewService(sqlx.NewMySQL(&c.Mysql), webpage.RPCPhotos{
+		Config:    c,
+		Dao:       d,
+		Plugin:    plugin,
+		Reactions: db,
+		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,
 		}),

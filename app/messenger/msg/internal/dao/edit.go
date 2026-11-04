@@ -78,9 +78,16 @@ func (d *Dao) editRowWith(b *userbox.Box, row *dataobject.MessagesDO, change fun
 	if err = d.replaceHashTags(b, boxPeer{PeerType: row.PeerType, PeerId: row.PeerId}, row.UserMessageBoxId, message, true); err != nil {
 		return nil, nil, err
 	}
-	update := mtproto.MakeTLUpdateEditMessage(&mtproto.Update{Message_MESSAGE: message}).To_Update()
+	// The update carries the reactions too: Desktop clears them from an
+	// edited message without the field (history_item.cpp:2240, task 053).
+	// The stored message never holds them.
+	shown, err := d.withReactions(b, row, message)
+	if err != nil {
+		return nil, nil, err
+	}
+	update := mtproto.MakeTLUpdateEditMessage(&mtproto.Update{Message_MESSAGE: shown}).To_Update()
 	b.AddPtsUpdate(update, 1)
-	box := boxOfRow(row, message)
+	box := boxOfRow(row, shown)
 	box.Pts, box.PtsCount = update.Pts_INT32, update.PtsCount
 	return box, update, nil
 }

@@ -61,7 +61,7 @@ func catalogImport(ctx context.Context, t *testing.T, u *user) {
 	r := o.(interface {
 		To_Messages_AvailableReactions() *mtproto.Messages_AvailableReactions
 	}).To_Messages_AvailableReactions()
-	if len(r.GetReactions()) != 1 || r.GetReactions()[0].GetTitle() != "Grin" || r.GetHash() == 0 {
+	if len(r.GetReactions()) != 5 || r.GetReactions()[0].GetTitle() != "Grin" || r.GetHash() == 0 {
 		t.Fatalf("reactions after the import: %v", r)
 	}
 	doc := r.GetReactions()[0].GetStaticIcon()
@@ -180,12 +180,22 @@ func writeE2ECollection(t *testing.T, sticker, thumb []byte) string {
 		"keywords":  []any{},
 		"documents": []any{doc},
 	})
+	// The reactions of the catalog, all drawn with the one document: the
+	// reactions tests (task 053) send several of them, which the server
+	// checks against the catalog when it has one.
+	reactionsOf := func(pairs ...string) []any {
+		var out []any
+		for i := 0; i < len(pairs); i += 2 {
+			out = append(out, map[string]any{
+				"_": "availableReaction", "pFlags": map[string]any{}, "reaction": pairs[i], "title": pairs[i+1],
+				"static_icon": doc, "appear_animation": doc, "select_animation": doc, "activate_animation": doc, "effect_animation": doc,
+			})
+		}
+		return out
+	}
 	js("answers/reactions.json", map[string]any{
 		"_": "messages.availableReactions", "hash": 7,
-		"reactions": []any{map[string]any{
-			"_": "availableReaction", "pFlags": map[string]any{}, "reaction": "😀", "title": "Grin",
-			"static_icon": doc, "appear_animation": doc, "select_animation": doc, "activate_animation": doc, "effect_animation": doc,
-		}},
+		"reactions": reactionsOf("😀", "Grin", "👍", "Like", "🔥", "Fire", "❤", "Heart", "😂", "Joy"),
 	})
 	js("answers/profile-emojis.json", map[string]any{"_": "emojiList", "hash": 3, "document_id": []any{fmt.Sprint(tgSticker)}})
 	write("files/doc", sticker)

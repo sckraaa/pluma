@@ -131,6 +131,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1353708502,
 		}
 	},
+	-1051109802: func() mtproto.TLObject { // 0xc1595656 pluma: task 053
+		return &TLMessageGetUnreadReactions{
+			Constructor: -1051109802,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1138,4 +1143,56 @@ func (m *Vector_ReadParticipantDate) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *Vector_ReadParticipantDate) CalcByteSize(layer int32) int {
 	return 0
+}
+
+// TLMessageGetUnreadReactions (pluma: task 053)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMessageGetUnreadReactions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc1595656:
+		x.UInt(0xc1595656)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetAddOffset())
+		x.Int(m.GetLimit())
+		x.Int(m.GetMinId())
+		x.Int(m.GetMaxId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMessageGetUnreadReactions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMessageGetUnreadReactions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc1595656:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.OffsetId = dBuf.Int()
+		m.AddOffset = dBuf.Int()
+		m.Limit = dBuf.Int()
+		m.MinId = dBuf.Int()
+		m.MaxId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
 }

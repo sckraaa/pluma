@@ -37,6 +37,9 @@ type MsgClient interface {
 	MsgReadMentions(ctx context.Context, in *msg.TLMsgReadMentions) (*mtproto.Messages_AffectedHistory, error)
 	MsgDeleteHistoryRange(ctx context.Context, in *msg.TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error)
 	MsgEditPeerFolders(ctx context.Context, in *msg.TLMsgEditPeerFolders) (*mtproto.Updates, error)
+	MsgSendReaction(ctx context.Context, in *msg.TLMsgSendReaction) (*mtproto.Updates, error)
+	MsgReadReactions(ctx context.Context, in *msg.TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
+	MsgUpdateSavedReactionTag(ctx context.Context, in *msg.TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
 }
 
 type defaultMsgClient struct {
@@ -201,4 +204,37 @@ func (m *defaultMsgClient) MsgEditPeerFolders(ctx context.Context, in *msg.TLMsg
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgEditPeerFolders(ctx, in)
+}
+
+// MsgSendReaction
+// msg.sendReaction user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int big:Bool add_to_recent:Bool reaction:Vector<Reaction> = Updates;
+func (m *defaultMsgClient) MsgSendReaction(ctx context.Context, in *msg.TLMsgSendReaction) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgSendReaction(ctx, in)
+}
+
+// MsgReadReactions
+// msg.readReactions user_id:long auth_key_id:long peer_type:int peer_id:long = messages.AffectedHistory;
+func (m *defaultMsgClient) MsgReadReactions(ctx context.Context, in *msg.TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgReadReactions(ctx, in)
+}
+
+// MsgUpdateSavedReactionTag
+// msg.updateSavedReactionTag user_id:long auth_key_id:long reaction:Reaction title:string = Bool;
+func (m *defaultMsgClient) MsgUpdateSavedReactionTag(ctx context.Context, in *msg.TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgUpdateSavedReactionTag(ctx, in)
 }

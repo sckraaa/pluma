@@ -254,6 +254,9 @@ func (b *Box) result() *Result {
 // The states of basic groups and of other users come from another user's
 // change, as an inbox event of the account (ADR 0021). A new login is a
 // state of the authorization hash, which clients replace (ADR 0022).
+// The reactions to a message of a private chat or a basic group (task 053)
+// are its whole state for the account, so the last one of a message is
+// enough; updateSavedReactionTags means "load the tags again".
 // Installed sticker sets (task 030) go with seq too: a set installed moves
 // it to the top, an order is the whole order, and the rest is "load the
 // kind again", so a replay of the journal's tail in order ends in the same
@@ -280,6 +283,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updatePendingJoinRequests,
 		mtproto.Predicate_updateNewAuthorization,
 		mtproto.Predicate_updateSavedGifs,
+		mtproto.Predicate_updateMessageReactions,
+		mtproto.Predicate_updateSavedReactionTags,
 		mtproto.Predicate_updateNewStickerSet,
 		mtproto.Predicate_updateStickerSets,
 		mtproto.Predicate_updateStickerSetsOrder:
