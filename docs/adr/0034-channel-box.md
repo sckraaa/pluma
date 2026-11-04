@@ -173,6 +173,11 @@
 - `userbox.SeqUpdate` пополняется `updateChannel`, `updateReadChannelInbox`, `updateChannelReadMessagesContents`, `updateChannelAvailableMessages`; `user_seq_cursors` — датой. Это изменения ADR 0020/0021 в рамках их механизма, не новый механизм.
 - Пока нет 040, каналы не выкатываются пользователям: iOS бесконечно повторяет заглушку `getChannelDifference` (C5).
 
+## Дополнение 2026-11-04 (задача 055): удаление канала
+- `channels.deleteChannel` — только создатель (`CHAT_ADMIN_REQUIRED` остальным, `CHANNEL_PRIVATE` не участнику приватного, `CHANNEL_TOO_LARGE` больше 1000 участников, `CHANNEL_INVALID` удалённому). Мягкое удаление: в транзакции создателя с заблокированным каналом `channels.deleted = 1`, все участники выходят (`state = left`, бан с `view_messages` остаётся баном), счётчики — 0, имя освобождается, ссылки отзываются, диалог создателя удаляется. Сообщения остаются строками и больше не читаются.
+- Каждому другому участнику — событие `inbox.channelDeletedToInbox` (по образцу `channelInvitedToInbox`): в его ящике диалог удаляется и журналируется `updateChannel` с `seq` и каналом как `channelForbidden`. Так узнаёт и устройство, бывшее офлайн (`getDifference`); все четыре клиента убирают канал по `channelForbidden` (бриф 055).
+- Чтение и изменение удалённого канала через bff — `CHANNEL_PRIVATE`. Какие коды даёт Telegram после удаления и освобождает ли он имя сразу — не сверено.
+
 ## Открытые вопросы (сверка с Telegram не проведена)
 Сверка через Web K `invokeApi` с настоящим Telegram в этой задаче была недоступна. Проверить до 049 (эталоны ADR 0018):
 - `timeout` в `channelDifference*` у Telegram (C1) и когда он отдаёт срез, а когда tooLong при большом разрыве;
