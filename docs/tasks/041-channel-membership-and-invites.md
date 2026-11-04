@@ -1,6 +1,6 @@
 # 041. Каналы: участники и приглашения
 
-- Статус: in progress (часть 1 готова: вступление, выход, участники, ссылки на вход)
+- Статус: in progress (готово: вступление, выход, участники, вход по ссылке, приглашение; нет: заявки на вступление, `getLeftChannels`, ветки каналов в прочих методах ссылок)
 - Зависит от: 040
 - ADR: 0020, 0021, 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.1, §1.5, §2.5–2.6, задача T6; `clients.md` §1 «Send and receive», §2, §4 п. 3–4; `plan.md` §2 C2, U1, §3, задача «040» плана).
 
@@ -43,5 +43,11 @@
 - **Участники.** `channels.getParticipants` со всеми фильтрами (`recent`, `admins`, `kicked`, `banned`, `search`, `mentions`, `bots`, `contacts`): создатель и админы первыми, затем по дате; поиск — начало имени, фамилии, полного имени или username. В канале (broadcast) список только админам (`CHAT_ADMIN_REQUIRED`). `channels.getParticipant` — теперь и о других (в канале — только админы).
 - **Проверка:** интеграционные `TestJoinLeave`, `TestJoinByLink`, `TestJoinConcurrent` (12 параллельных вступлений и выходов — счётчик и строки сходятся), `TestParticipants`; e2e `TestChannelJoin` (супергруппа и канал: ссылка, вступление, `getParticipant(self)`, список, пуш поста новому участнику, подписчик канала не публикует — критерий 039, выход, `channelForbidden`, `USER_CREATOR`).
 - **Решения на подтверждение:** при вступлении диалог прочитан до последнего сообщения; у вышедшего диалог удаляется; ссылка с `request_needed` для канала пока невозможна (её создаёт `exportChatInvite`, у каналов его нет) и отвечается `INVITE_HASH_INVALID` — до заявок на вступление.
-- **Осталось (часть 2):** `channels.inviteToChannel` (диалог приглашённого пишется в его ящике inbox-событием, ADR 0021; приватность «кто может добавлять»), `getLeftChannels`, заявки на вступление, `toggleJoinRequest`/`toggleJoinToSend`, ветки каналов в `exportChatInvite`, `editExportedChatInvite`, `getChatInviteImporters`, `hideChatJoinRequest` и прочих методах ссылок; вступление по имени — после 044.
+- **Осталось:** `getLeftChannels`, заявки на вступление, `toggleJoinRequest`/`toggleJoinToSend`, ветки каналов в `exportChatInvite`, `editExportedChatInvite`, `getChatInviteImporters`, `hideChatJoinRequest` и прочих методах ссылок; вступление по имени — после 044.
+
+### Часть 2: приглашение (2026-11-04)
+- `channels.inviteToChannel` (оба варианта схемы; в layer 228 — `#c9e33d54` → `messages.invitedUsers`). bff исключает тех, чья приватность «кто может добавлять меня» не пускает приглашающего, и называет их в `missing_invitees` (проверка перенесена из bff chats в biz user, `MissingInvitee`), удалённые аккаунты пропускает.
+- biz `channel.inviteToChannel`: транзакция ящика приглашающего под блокировкой канала пишет строки участников (вернувшийся исключённый — заново участник), счётчик, в супергруппе одно служебное `messageActionChatAddUser` со всеми добавленными (пуш участникам) и на каждого добавленного — inbox-событие `inbox.channelInvitedToInbox`. Его транзакция у получателя (msg inbox) пишет диалог, прочитанный до последнего сообщения, и `updateChannel` с `seq` (ADR 0021, ADR 0034, п. 3); если к тому времени он уже не в канале — ничего.
+- Права: создатель и админы с `invite_users` — всегда; в супергруппе обычный участник — если права по умолчанию не запрещают `invite_users`; иначе `CHAT_ADMIN_REQUIRED`. Исключённого возвращает только админ с `ban_users` (`USER_KICKED`). Уже участники пропускаются; у кого 500 каналов — `USER_CHANNELS_TOO_MUCH`; не больше 200 за вызов.
+- **Проверка:** интеграционный `TestInvite` (повторы, служебное сообщение, события, права участника, исключённый, подписчик канала); e2e `TestChannelInvite` (приглашённый получает `updateChannel`, диалог и пост; закрывший приглашения — в `missing_invitees`).
 
