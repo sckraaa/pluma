@@ -24,7 +24,9 @@
    - iOS: патч клиента пишет в `app_version` `"<версия> (<сборка>)"` и ` adhoc` для установки с сайта (по `embedded.mobileprovision`). Обновление со ссылкой `<сайт>/iphone/install` — только ad hoc-сборкам с меньшим номером; TestFlight-сборки обновляет TestFlight.
    - Desktop и Web — `help.noAppUpdate`.
    - Ошибка чтения таблицы или документа — `help.noAppUpdate` и строка в логе, не 500: проверка обновлений не должна ломать вход.
-5. **Desktop** — апдейтер tdesktop включается в форке со своей парой RSA-1024 (формат tdesktop, решение владельца 4); `help.getConfig` даёт `autoupdate_url_prefix = <сайт>/dl/desktop`. Закрытый ключ создаётся сразу в `~/pluma-secrets/desktop` и секрете `release`, на экран не выводится.
+5. **Desktop** — апдейтер tdesktop включается в форке со своей парой RSA-1024 (формат tdesktop, решение владельца 4); `help.getConfig` даёт `autoupdate_url_prefix = <сайт>/dl/desktop`.
+   - Апдейтер просит `<префикс>/current4`: суффикс — `AutoUpdateVersion()` из `lib_base` `82d182a2`, на всех системах, где Pluma запускается, это 4 (2 — только ниже macOS 10.13 или glibc 2.28; `base_info_mac.mm:210-215`, `base_info_linux.cpp:205-210`, `base_info_win.cpp:318-320`). Другой суффикс — другой апдейтер, ему 404.
+   - Ответ — JSON tdesktop: ключ системы (`AutoUpdateKey()`: `mac`/`armac`, `win`/`win64`/`winarm`, `linux`) → `stable` → `released` (версия) и `link` (путь от префикса) (`update_checker.cpp:606-680`, `:804-850` на `a1e89e1f`). Ключ берётся из имени пакета Packer (`packer.cpp:498-502`); универсальный `tmacupd` служит и `mac`, и `armac`. Закрытый ключ создаётся сразу в `~/pluma-secrets/desktop` и секрете `release`, на экран не выводится.
 6. **Windows** — пока без Authenticode (решение владельца 3).
 
 ## Последствия
