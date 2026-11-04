@@ -46,6 +46,10 @@ var sliceRows int32 = 1000
 // with date INT32_MAX (pts only: TDLib, the iOS notification extension)
 // gets none and leaves the cursor.
 //
+// The last page also marks with updateChannelTooLong the channels of the
+// account that changed since the earlier of the request's date and its
+// cursor's, less MaxRunTime (ADR 0034, p. 6; see channelsTooLong).
+//
 // pts_total_limit is the client's (ADR 0019): with it, a range longer than
 // it is differenceTooLong. A client ahead of the box gets the box's state.
 func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV2) (*updates.Difference, error) {
@@ -97,7 +101,14 @@ func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV
 			return nil, mtproto.ErrInternalServerError
 		}
 	}
-	if len(rows) == 0 && len(seq.updates) == 0 && in.Pts == st.Pts {
+	var channels []*mtproto.Update
+	if !full {
+		if channels, err = c.channelsTooLong(in, seq); err != nil {
+			c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)
+			return nil, mtproto.ErrInternalServerError
+		}
+	}
+	if len(rows) == 0 && len(seq.updates) == 0 && len(channels) == 0 && in.Pts == st.Pts {
 		c.setSeqCursor(in, st, seq)
 		return updates.MakeTLDifferenceEmpty(&updates.Difference{State: state(st.Pts, now)}).To_Difference(), nil
 	}
@@ -146,7 +157,7 @@ func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV
 	c.setSeqCursor(in, st, seq)
 	return updates.MakeTLDifference(&updates.Difference{
 		NewMessages:  b.messages(),
-		OtherUpdates: b.otherUpdates(),
+		OtherUpdates: append(b.otherUpdates(), channels...),
 		State:        state(st.Pts, now),
 	}).To_Difference(), nil
 }
@@ -160,8 +171,8 @@ type seqUpdate struct {
 
 // seqRange is what the last page of a difference reads of the seq journal.
 type seqRange struct {
-	asked     bool  // the request takes updates with seq
-	cursor    int32 // of the authorization, read
+	asked     bool // the request takes updates with seq
+	cursor    dao.SeqCursor
 	hasCursor bool
 	updates   []seqUpdate
 }
@@ -182,8 +193,8 @@ func (c *UpdatesCore) seqRange(in *updates.TLUpdatesGetDifferenceV2, st userbox.
 		r.cursor, r.hasCursor = cursor, ok
 		// A cursor above the state was given before a restore of the
 		// database: the date alone tells what the device has.
-		if ok && cursor <= st.Seq {
-			after = cursor
+		if ok && cursor.Seq <= st.Seq {
+			after = cursor.Seq
 		}
 	}
 	since := in.Date - int64(userbox.MaxRunTime/time.Second)
@@ -199,14 +210,22 @@ func (c *UpdatesCore) seqRange(in *updates.TLUpdatesGetDifferenceV2, st userbox.
 	return r, nil
 }
 
+// cursorRefresh is how old the date of an unchanged cursor may get before a
+// difference stores it again: the date bounds the channels marked with
+// updateChannelTooLong (channelsTooLong), so a stale one would mark more of
+// them each time.
+const cursorRefresh = time.Minute
+
 // setSeqCursor stores the state st as given to the authorization of in,
 // once the reply has brought it every update with seq up to st.seq. A
 // failure is logged: the next difference returns some updates again.
 func (c *UpdatesCore) setSeqCursor(in *updates.TLUpdatesGetDifferenceV2, st userbox.State, r seqRange) {
-	if !r.asked || in.AuthKeyId == 0 || (r.hasCursor && r.cursor == st.Seq) {
+	now := time.Now().Unix()
+	if !r.asked || in.AuthKeyId == 0 ||
+		(r.hasCursor && r.cursor.Seq == st.Seq && r.cursor.Date >= now-int64(cursorRefresh/time.Second)) {
 		return
 	}
-	if err := c.svcCtx.Dao.SetSeqCursor(c.ctx, in.UserId, in.AuthKeyId, st.Seq, time.Now().Unix()); err != nil {
+	if err := c.svcCtx.Dao.SetSeqCursor(c.ctx, in.UserId, in.AuthKeyId, st.Seq, now); err != nil {
 		c.Logger.Errorf("updates.getDifferenceV2 - seq cursor of user %d: %v", in.UserId, err)
 	}
 }
@@ -237,4 +256,39 @@ func (c *UpdatesCore) ptsUpdate(do *dataobject.UserPtsUpdatesDO) *mtproto.Update
 		return nil
 	}
 	return update.FixData()
+}
+
+// channelsTooLong is the updateChannelTooLong of the last page of a
+// difference (ADR 0034, p. 6): one, with the channel's pts, for each
+// channel the account is in whose box changed since the earlier of the
+// request's date and the date of its cursor, less MaxRunTime. A channel's
+// updates reach a device by push only, so the client learns here where to
+// call updates.getChannelDifference: the cursor finds the change whose push
+// was lost while tdesktop moved its date with other updates (ADR 0020), and
+// MaxRunTime the transaction that committed after its date. The pts lets
+// Android, tdesktop and iOS skip a channel they have caught up with
+// (MessagesController.java:19231-19233, api_updates.cpp:2484-2485,
+// AccountStateManagementUtils.swift:952-957). Telegram's rule is not
+// verified (U2): a channel marked in excess costs a call, not an update. A
+// request without updates with seq (date INT32_MAX) gets none.
+func (c *UpdatesCore) channelsTooLong(in *updates.TLUpdatesGetDifferenceV2, seq seqRange) ([]*mtproto.Update, error) {
+	if !seq.asked {
+		return nil, nil
+	}
+	since := in.Date
+	if seq.hasCursor {
+		since = min(since, seq.cursor.Date)
+	}
+	changed, err := c.svcCtx.Dao.ChangedChannels(c.ctx, in.UserId, since-int64(userbox.MaxRunTime/time.Second))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*mtproto.Update, 0, len(changed))
+	for _, ch := range changed {
+		out = append(out, mtproto.MakeTLUpdateChannelTooLong(&mtproto.Update{
+			ChannelId:     ch.Id,
+			Pts_FLAGINT32: mtproto.MakeFlagsInt32(ch.Pts),
+		}).To_Update())
+	}
+	return out, nil
 }

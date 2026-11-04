@@ -24,4 +24,6 @@ const (
 	CRC32_channel_getHistory TLConstructor = 653475021 // 0x26f33ccd
 	// pluma: task 039
 	CRC32_channel_getMessages TLConstructor = -1395419135 // 0xacd39801
+	// pluma: task 040
+	CRC32_channel_getChannelDifference TLConstructor = 2140231388 // 0x7f9156dc
 )

@@ -28,6 +28,9 @@ type Config struct {
 	UserClient    zrpc.RpcClientConf
 	ChatClient    zrpc.RpcClientConf
 	// ChannelClient looks up the channels of the difference (biz channel).
-	ChannelClient     zrpc.RpcClientConf
+	ChannelClient zrpc.RpcClientConf
+	// DialogClient reads the dialog of channelDifferenceTooLong (biz
+	// dialog).
+	DialogClient      zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
 }

@@ -43,6 +43,8 @@ enum TLConstructor {
   CRC32_channel_getHistory = 653475021;
   // pluma: task 039
   CRC32_channel_getMessages = -1395419135;
+  // pluma: task 040
+  CRC32_channel_getChannelDifference = 2140231388;
 }
 
 
@@ -219,6 +221,19 @@ message TL_channel_getMessages {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.getChannelDifference self_id:long channel_id:long pts:int limit:int = updates.ChannelDifference;
+// The difference of the channel from pts as self_id sees it (ADR 0034, p. 4):
+// empty, a slice of the journal folded, or too long with the dialog; the
+// chats and users are the caller's to fill.
+message TL_channel_getChannelDifference {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 pts = 5;
+  int32 limit = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -258,4 +273,6 @@ service RPCChannel {
   rpc channel_getHistory(TL_channel_getHistory) returns (mtproto.messages_Messages) {}
   // pluma: task 039
   rpc channel_getMessages(TL_channel_getMessages) returns (Vector_Message) {}
+  // pluma: task 040
+  rpc channel_getChannelDifference(TL_channel_getChannelDifference) returns (mtproto.updates_ChannelDifference) {}
 }

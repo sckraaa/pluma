@@ -24,6 +24,7 @@ import (
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	updates_client "github.com/teamgram/teamgram-server/app/service/biz/updates/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 )
@@ -33,6 +34,7 @@ type Dao struct {
 	user_client.UserClient
 	chat_client.ChatClient
 	channel_client.ChannelClient
+	dialog_client.DialogClient
 	authsession_client.AuthsessionClient
 }
 
@@ -42,6 +44,7 @@ func New(c config.Config) *Dao {
 		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		ChatClient:        chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		ChannelClient:     channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
+		DialogClient:      dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
 		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 	}
 }

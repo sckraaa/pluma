@@ -100,6 +100,10 @@ func TestPick(t *testing.T) {
 			RequestsPending:  2,
 			RecentRequesters: []int64{11, 12},
 		}).To_Update(), "users [11 12] chats [5] channels []"},
+		{"a channel to catch up with", mtproto.MakeTLUpdateChannelTooLong(&mtproto.Update{
+			ChannelId:     1000000004,
+			Pts_FLAGINT32: mtproto.MakeFlagsInt32(9),
+		}).To_Update(), "users [] chats [] channels [1000000004]"},
 		{"no user 0", mtproto.MakeTLUpdateUserName(&mtproto.Update{}).To_Update(), "users [] chats [] channels []"},
 	} {
 		t.Run(c.name, func(t *testing.T) {

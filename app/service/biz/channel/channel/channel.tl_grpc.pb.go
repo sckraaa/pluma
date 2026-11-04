@@ -44,6 +44,7 @@ const (
 	RPCChannel_ChannelGetMemberIdList_FullMethodName        = "/channel.RPCChannel/channel_getMemberIdList"
 	RPCChannel_ChannelGetHistory_FullMethodName             = "/channel.RPCChannel/channel_getHistory"
 	RPCChannel_ChannelGetMessages_FullMethodName            = "/channel.RPCChannel/channel_getMessages"
+	RPCChannel_ChannelGetChannelDifference_FullMethodName   = "/channel.RPCChannel/channel_getChannelDifference"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -64,6 +65,8 @@ type RPCChannelClient interface {
 	ChannelGetHistory(ctx context.Context, in *TLChannelGetHistory, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
 	// pluma: task 039
 	ChannelGetMessages(ctx context.Context, in *TLChannelGetMessages, opts ...grpc.CallOption) (*Vector_Message, error)
+	// pluma: task 040
+	ChannelGetChannelDifference(ctx context.Context, in *TLChannelGetChannelDifference, opts ...grpc.CallOption) (*mtproto.Updates_ChannelDifference, error)
 }
 
 type rPCChannelClient struct {
@@ -154,6 +157,16 @@ func (c *rPCChannelClient) ChannelGetMessages(ctx context.Context, in *TLChannel
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelGetChannelDifference(ctx context.Context, in *TLChannelGetChannelDifference, opts ...grpc.CallOption) (*mtproto.Updates_ChannelDifference, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates_ChannelDifference)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetChannelDifference_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -172,6 +185,8 @@ type RPCChannelServer interface {
 	ChannelGetHistory(context.Context, *TLChannelGetHistory) (*mtproto.Messages_Messages, error)
 	// pluma: task 039
 	ChannelGetMessages(context.Context, *TLChannelGetMessages) (*Vector_Message, error)
+	// pluma: task 040
+	ChannelGetChannelDifference(context.Context, *TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -204,6 +219,9 @@ func (UnimplementedRPCChannelServer) ChannelGetHistory(context.Context, *TLChann
 }
 func (UnimplementedRPCChannelServer) ChannelGetMessages(context.Context, *TLChannelGetMessages) (*Vector_Message, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetMessages not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetChannelDifference(context.Context, *TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetChannelDifference not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -369,6 +387,24 @@ func _RPCChannel_ChannelGetMessages_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelGetChannelDifference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetChannelDifference)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetChannelDifference(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetChannelDifference_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetChannelDifference(ctx, req.(*TLChannelGetChannelDifference))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -407,6 +443,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_getMessages",
 			Handler:    _RPCChannel_ChannelGetMessages_Handler,
+		},
+		{
+			MethodName: "channel_getChannelDifference",
+			Handler:    _RPCChannel_ChannelGetChannelDifference_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

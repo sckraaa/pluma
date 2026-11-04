@@ -259,6 +259,10 @@ func (noChannels) ChannelGetMessages(context.Context, *channelpb.TLChannelGetMes
 	return &channelpb.Vector_Message{}, nil
 }
 
+func (noChannels) ChannelGetChannelDifference(context.Context, *channelpb.TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]

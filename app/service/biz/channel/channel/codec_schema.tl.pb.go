@@ -81,6 +81,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1395419135,
 		}
 	},
+	2140231388: func() mtproto.TLObject { // 0x7f9156dc pluma: task 040
+		return &TLChannelGetChannelDifference{
+			Constructor: 2140231388,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1124,4 +1129,48 @@ func (m *Vector_Long) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *Vector_Long) CalcByteSize(layer int32) int {
 	return 0
+}
+
+// TLChannelGetChannelDifference (pluma: task 040)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetChannelDifference) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x7f9156dc:
+		x.UInt(0x7f9156dc)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetPts())
+		x.Int(m.GetLimit())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetChannelDifference) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetChannelDifference) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x7f9156dc:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Pts = dBuf.Int()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
 }

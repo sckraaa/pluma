@@ -53,11 +53,11 @@ func seqRowExcept(t *testing.T, userId int64, seq, pts int32, date, except int64
 
 func cursorOf(t *testing.T, userId, keyId int64) (int32, bool) {
 	t.Helper()
-	seq, ok, err := itSvc.Dao.SeqCursor(context.Background(), userId, keyId)
+	cursor, ok, err := itSvc.Dao.SeqCursor(context.Background(), userId, keyId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return seq, ok
+	return cursor.Seq, ok
 }
 
 // seqOf writes other_updates as N for new messages' ids and sN for updates

@@ -229,6 +229,7 @@ func (s *Server) Initialize() error {
 				UserClient:        c.BizServiceClient,
 				ChatClient:        c.BizServiceClient,
 				ChannelClient:     c.BizServiceClient,
+				DialogClient:      c.BizServiceClient,
 				AuthsessionClient: c.AuthSessionClient,
 			}))
 

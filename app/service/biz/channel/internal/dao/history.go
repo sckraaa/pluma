@@ -44,6 +44,7 @@ func (d *Dao) MemberIds(ctx context.Context, channelId int64) ([]int64, error) {
 // available_min_id on, nothing of a channel it may not read.
 type viewer struct {
 	canRead        bool
+	member         bool
 	availableMinId int32
 }
 
@@ -59,7 +60,7 @@ func (d *Dao) viewerOf(ctx context.Context, userId, channelId int64) (viewer, er
 	}
 	p, _ := mc.GetParticipant(userId)
 	if p.Member() {
-		return viewer{canRead: true, availableMinId: p.GetAvailableMinId()}, nil
+		return viewer{canRead: true, member: true, availableMinId: p.GetAvailableMinId()}, nil
 	}
 	return viewer{canRead: mc.GetChannel().Public() && mc.ToChat(userId, 0).GetPredicateName() == mtproto.Predicate_channel}, nil
 }

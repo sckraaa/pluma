@@ -54,20 +54,27 @@ func (d *Dao) SeqUpdates(ctx context.Context, userId, authKeyId int64, maxSeq, c
 	return out, rows.Err()
 }
 
-// SeqCursor returns the seq of the last state given to the authorization
-// authKeyId of userId, and false when it was given none.
-func (d *Dao) SeqCursor(ctx context.Context, userId, authKeyId int64) (int32, bool, error) {
-	var seq int32
+// SeqCursor is the state last given to an authorization: its seq and when
+// it was given (unix time).
+type SeqCursor struct {
+	Seq  int32
+	Date int64
+}
+
+// SeqCursor returns the cursor of the authorization authKeyId of userId,
+// and false when it was given no state.
+func (d *Dao) SeqCursor(ctx context.Context, userId, authKeyId int64) (SeqCursor, bool, error) {
+	var c SeqCursor
 	err := d.BoxDB.QueryRowContext(ctx,
-		"SELECT seq FROM user_seq_cursors WHERE user_id = ? AND auth_key_id = ?",
-		userId, authKeyId).Scan(&seq)
+		"SELECT seq, date2 FROM user_seq_cursors WHERE user_id = ? AND auth_key_id = ?",
+		userId, authKeyId).Scan(&c.Seq, &c.Date)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, false, nil
+		return SeqCursor{}, false, nil
 	}
 	if err != nil {
-		return 0, false, err
+		return SeqCursor{}, false, err
 	}
-	return seq, true, nil
+	return c, true, nil
 }
 
 // SetSeqCursor stores seq as the state given to the authorization. Two
@@ -78,4 +85,33 @@ func (d *Dao) SetSeqCursor(ctx context.Context, userId, authKeyId int64, seq int
 		"INSERT INTO user_seq_cursors (user_id, auth_key_id, seq, date2) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE seq = ?, date2 = ?",
 		userId, authKeyId, seq, now, seq, now)
 	return err
+}
+
+// ChannelState is a channel's committed pts.
+type ChannelState struct {
+	Id  int64
+	Pts int32
+}
+
+// ChangedChannels returns the channels userId is in whose box changed at
+// since or later (channels.date2, written by every transaction that moves
+// their pts), by id. It reads the master, as the account's state is read.
+func (d *Dao) ChangedChannels(ctx context.Context, userId, since int64) ([]ChannelState, error) {
+	rows, err := d.BoxDB.QueryContext(ctx,
+		"SELECT c.id, c.pts FROM channel_participants p JOIN channels c ON c.id = p.channel_id"+
+			" WHERE p.user_id = ? AND p.state = 0 AND c.deleted = 0 AND c.date2 >= ? ORDER BY c.id",
+		userId, since)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []ChannelState
+	for rows.Next() {
+		var c ChannelState
+		if err = rows.Scan(&c.Id, &c.Pts); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }

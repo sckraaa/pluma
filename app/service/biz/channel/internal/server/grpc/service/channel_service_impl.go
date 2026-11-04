@@ -135,3 +135,17 @@ func (s *Service) ChannelGetMessages(ctx context.Context, request *channel.TLCha
 
 	return r, err
 }
+
+// ChannelGetChannelDifference
+// channel.getChannelDifference self_id:long channel_id:long pts:int limit:int = updates.ChannelDifference;
+func (s *Service) ChannelGetChannelDifference(ctx context.Context, request *channel.TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getChannelDifference - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetChannelDifference(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

@@ -34,6 +34,7 @@ type ChannelClient interface {
 	ChannelGetMemberIdList(ctx context.Context, in *channel.TLChannelGetMemberIdList) (*channel.Vector_Long, error)
 	ChannelGetHistory(ctx context.Context, in *channel.TLChannelGetHistory) (*mtproto.Messages_Messages, error)
 	ChannelGetMessages(ctx context.Context, in *channel.TLChannelGetMessages) (*channel.Vector_Message, error)
+	ChannelGetChannelDifference(ctx context.Context, in *channel.TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error)
 }
 
 type defaultChannelClient struct {
@@ -132,4 +133,15 @@ func (m *defaultChannelClient) ChannelGetMessages(ctx context.Context, in *chann
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetMessages(ctx, in)
+}
+
+// ChannelGetChannelDifference
+// channel.getChannelDifference self_id:long channel_id:long pts:int limit:int = updates.ChannelDifference;
+func (m *defaultChannelClient) ChannelGetChannelDifference(ctx context.Context, in *channel.TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetChannelDifference(ctx, in)
 }

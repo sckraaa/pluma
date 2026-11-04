@@ -18,6 +18,13 @@ import (
 // update gets pts BasePts+1, as in a user's box (userbox.BasePts).
 const BasePts = 1
 
+// JournalWindow is how many pts of a channel's journal are kept: rows at or
+// below pts - JournalWindow are deleted by the transaction that writes past
+// them, and a client further behind gets channelDifferenceTooLong. Telegram
+// answers so beyond 100000 pts (core.telegram.org/api/updates, ADR 0034,
+// p. 4); there is no limit by time (the owner, 2026-11-03). Tests lower it.
+var JournalWindow int32 = 100000
+
 // ErrNoChannel: no row of channels has the id.
 var ErrNoChannel = errors.New("channelbox: no such channel")
 
@@ -81,6 +88,7 @@ const (
 		" WHERE id = ? AND pts = ? AND last_message_id = ?"
 	insertJournalRow = "(?, ?, ?, ?, ?, ?)"
 	insertJournal    = "INSERT INTO channel_pts_updates (channel_id, pts, pts_count, update_type, update_data, date2) VALUES "
+	trimJournal      = "DELETE FROM channel_pts_updates WHERE channel_id = ? AND pts <= ?"
 )
 
 // stateRow is a row of channels as go-zero scans it.
@@ -323,6 +331,14 @@ func (c *Channel) Flush(context.Context) error {
 		query := insertJournal + strings.Repeat(insertJournalRow+", ", len(c.journal)-1) + insertJournalRow
 		if _, err := tx.Exec(query, args...); err != nil {
 			return err
+		}
+		// The journal keeps the window: the rows that fell out of it go
+		// with the transaction that pushed them out, under the channel's
+		// lock, so the journal stays a contiguous range (ADR 0034, K2).
+		if c.pts > JournalWindow {
+			if _, err := tx.Exec(trimJournal, c.id, c.pts-JournalWindow); err != nil {
+				return err
+			}
 		}
 	}
 	res, err := tx.Exec(updateQuery, c.pts, c.msgId, c.b.Date(), c.id, c.state.Pts, c.state.LastMessageId)
