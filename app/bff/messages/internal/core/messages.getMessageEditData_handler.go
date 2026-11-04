@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 )
@@ -127,10 +128,7 @@ func (c *MessagesCore) MessagesGetMessageEditData(in *mtproto.TLMessagesGetMessa
 			}
 		}
 	case mtproto.PEER_CHANNEL:
-		// TODO: not impl
-		c.Logger.Errorf("messages.getMessageEditData blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		return c.channelEditData(peer, in.Id)
 	default:
 		err = mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.getMessageEditData - error: %v", err)
@@ -140,5 +138,50 @@ func (c *MessagesCore) MessagesGetMessageEditData(in *mtproto.TLMessagesGetMessa
 	_ = boxMsg
 	return mtproto.MakeTLMessagesMessageEditData(&mtproto.Messages_MessageEditData{
 		Caption: false,
+	}).To_Messages_MessageEditData(), nil
+}
+
+// channelEditData tells whether the account may edit message id of a
+// channel (task 043): Android asks it before it opens the editor and shows
+// "Sorry, you can't edit this message" on any error (ChatActivity.java:
+// 32881-32899 at aac1efcb). The rights are msg's (dao.EditChannel), which
+// checks them again on the edit: in a supergroup the author; in a channel
+// the creator and the admins who may edit messages, and the admins who may
+// post for posts (msg allows them their own; the post has no author here
+// to tell). caption is set for a message with media whose caption may be
+// edited (core.telegram.org/constructor/messages.messageEditData).
+func (c *MessagesCore) channelEditData(peer *mtproto.PeerUtil, id int32) (*mtproto.Messages_MessageEditData, error) {
+	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
+	if err != nil {
+		return nil, err
+	}
+	if mc.GetChannel().GetAccessHash() != peer.AccessHash {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	messages, err := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: c.MD.UserId, ChannelId: peer.PeerId, Id: []int32{id}})
+	if err != nil {
+		return nil, err
+	}
+	if len(messages.GetDatas()) == 0 || messages.GetDatas()[0].GetPredicateName() != mtproto.Predicate_message {
+		return nil, mtproto.ErrMessageIdInvalid
+	}
+	m := messages.GetDatas()[0]
+	me, _ := mc.GetParticipant(c.MD.UserId)
+	rights := mtproto.AdminRights(me.GetAdminRights())
+	switch {
+	case !me.Member():
+		return nil, mtproto.ErrChannelPrivate
+	case !mc.GetChannel().GetBroadcast():
+		if m.GetFromId().GetUserId() != c.MD.UserId {
+			return nil, mtproto.ErrMessageAuthorRequired
+		}
+	case me.GetRole() == channelpb.RoleCreator:
+	case me.GetRole() == channelpb.RoleAdmin && (rights.CanEditMessages() || rights.CanPostMessages()):
+	default:
+		return nil, mtproto.ErrChatAdminRequired
+	}
+	media := m.GetMedia().GetPredicateName()
+	return mtproto.MakeTLMessagesMessageEditData(&mtproto.Messages_MessageEditData{
+		Caption: media != "" && media != mtproto.Predicate_messageMediaEmpty && media != mtproto.Predicate_messageMediaWebPage,
 	}).To_Messages_MessageEditData(), nil
 }

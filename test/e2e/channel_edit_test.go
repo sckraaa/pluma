@@ -67,6 +67,21 @@ func TestChannelEdit(t *testing.T) {
 		})
 		return err
 	}
+	editData := func(u *user, id int32) error {
+		_, err := u.c.Invoke(ctx, &mtproto.TLMessagesGetMessageEditData{
+			Constructor: u.c.Constructor(mtproto.Predicate_messages_getMessageEditData),
+			Peer:        peer(u),
+			Id:          id,
+		})
+		return err
+	}
+	// Android asks it before it opens the editor (ChatActivity.java:32881).
+	if err := editData(bob, mine); err != nil {
+		t.Errorf("messages.getMessageEditData of the author's own: %v", err)
+	}
+	if err := editData(bob, theirs); !mtclient.IsRPCError(err, "MESSAGE_AUTHOR_REQUIRED") {
+		t.Errorf("messages.getMessageEditData of another's: %v, want MESSAGE_AUTHOR_REQUIRED", err)
+	}
 	if err := edit(bob, mine, "bob's, edited"); err != nil {
 		t.Fatalf("the author edits: %v", err)
 	}

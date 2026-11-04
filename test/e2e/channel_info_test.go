@@ -86,6 +86,23 @@ func TestChannelInfo(t *testing.T) {
 		t.Errorf("a subscriber renames: %v, want CHAT_ADMIN_REQUIRED", err)
 	}
 
+	// The creator may edit a post of the channel: Android asks
+	// messages.getMessageEditData before it opens the editor.
+	postId := sendMessageID(ctx, t, alice, &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: hash}, "a post", randomID())
+	for _, c := range []struct {
+		u    *user
+		want string
+	}{{alice, ""}, {bob, "CHAT_ADMIN_REQUIRED"}} {
+		_, err := c.u.c.Invoke(ctx, &mtproto.TLMessagesGetMessageEditData{
+			Constructor: c.u.c.Constructor(mtproto.Predicate_messages_getMessageEditData),
+			Peer:        &mtproto.InputPeer{Constructor: c.u.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: hash},
+			Id:          postId,
+		})
+		if (c.want == "" && err != nil) || (c.want != "" && !mtclient.IsRPCError(err, c.want)) {
+			t.Errorf("messages.getMessageEditData of a post by %s: %v, want %q", c.u.self.GetFirstName(), err, c.want)
+		}
+	}
+
 	about := func(u *user, text string) error {
 		_, err := u.c.Invoke(ctx, &mtproto.TLMessagesEditChatAbout{
 			Constructor: u.c.Constructor(mtproto.Predicate_messages_editChatAbout),
