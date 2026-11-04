@@ -61,6 +61,8 @@ services:
       TELEGRAM_API_ID: ${TELEGRAM_API_ID:-}
       TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      # bff.yaml names the site of the client releases (task 054); empty: none.
+      PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.

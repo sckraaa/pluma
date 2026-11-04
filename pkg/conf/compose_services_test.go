@@ -60,6 +60,26 @@ func TestComposeServices(t *testing.T) {
 	if err := yaml.Unmarshal(data, &compose); err != nil {
 		t.Fatal(err)
 	}
+	// The services of the overlays added to the services command run from
+	// the same image and configs, by the same rules.
+	for _, f := range overlayComposeFiles {
+		data, err := os.ReadFile(filepath.Join(repoRoot, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var overlay struct {
+			Services map[string]composeService `yaml:"services"`
+		}
+		if err := yaml.Unmarshal(data, &overlay); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+		for name, svc := range overlay.Services {
+			if _, ok := compose.Services[name]; ok {
+				t.Errorf("%s: %s is a service of docker-compose.yaml already", f, name)
+			}
+			compose.Services[name] = svc
+		}
+	}
 
 	configs, _ := filepath.Glob(filepath.Join(repoRoot, "teamgramd/etc2/*.yaml"))
 	want := map[string]bool{}
@@ -267,6 +287,11 @@ func listenPort(t *testing.T, name string) string {
 	return ""
 }
 
+// overlayComposeFiles add services of the services image to
+// docker-compose.yaml, each started only where its operator sets it up: the
+// releases of the client apps (task 054, docs/ops/releases.md).
+var overlayComposeFiles = []string{"docker-compose.releases.yaml"}
+
 // optionalVars are the variables a service may get empty: settings that are
 // off when empty, not secrets. Each of them is passed as ${NAME:-}.
 var optionalVars = map[string]bool{
@@ -278,6 +303,9 @@ var optionalVars = map[string]bool{
 	"TELEGRAM_API_ID":    true,
 	"TELEGRAM_API_HASH":  true,
 	"TELEGRAM_BOT_TOKEN": true,
+	// The site of the client releases (task 054): bff offers no app
+	// updates and no desktop update prefix when empty.
+	"PLUMA_RELEASES_URL": true,
 }
 
 // passed tells whether val, the compose value of the variable name, gives it
