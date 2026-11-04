@@ -40,11 +40,6 @@ func (c *ChannelsCore) ChannelsDeleteMessages(in *mtproto.TLChannelsDeleteMessag
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsGetMessages is not served yet: channels.getMessages#ad8c9a23 (also #93d7b347).
-func (c *ChannelsCore) ChannelsGetMessages(in *mtproto.TLChannelsGetMessages) (*mtproto.Messages_Messages, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsGetParticipants is not served yet: channels.getParticipants#77ced9d0.
 func (c *ChannelsCore) ChannelsGetParticipants(in *mtproto.TLChannelsGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

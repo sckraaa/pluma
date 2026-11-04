@@ -17,6 +17,12 @@ const (
 	Predicate_channel_getChannelDialogs = "channel_getChannelDialogs"
 	// pluma: task 038
 	Predicate_channel_getTopMessages = "channel_getTopMessages"
+	// pluma: task 039
+	Predicate_channel_getMemberIdList = "channel_getMemberIdList"
+	// pluma: task 039
+	Predicate_channel_getHistory = "channel_getHistory"
+	// pluma: task 039
+	Predicate_channel_getMessages = "channel_getMessages"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -47,6 +53,18 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 687937944, // 0x29011998
 
 	},
+	Predicate_channel_getMemberIdList: { // pluma: task 039
+		0: 771323905, // 0x2df97801
+
+	},
+	Predicate_channel_getHistory: { // pluma: task 039
+		0: 653475021, // 0x26f33ccd
+
+	},
+	Predicate_channel_getMessages: { // pluma: task 039
+		0: -1395419135, // 0xacd39801
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -58,6 +76,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-641600475:  Predicate_channel_createChannel,          // 0xd9c1f425 pluma: task 038
 	-1725659745: Predicate_channel_getChannelDialogs,      // 0x9924859f pluma: task 038
 	687937944:   Predicate_channel_getTopMessages,         // 0x29011998 pluma: task 038
+	771323905:   Predicate_channel_getMemberIdList,        // 0x2df97801 pluma: task 039
+	653475021:   Predicate_channel_getHistory,             // 0x26f33ccd pluma: task 039
+	-1395419135: Predicate_channel_getMessages,            // 0xacd39801 pluma: task 039
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

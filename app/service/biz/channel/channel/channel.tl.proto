@@ -37,6 +37,12 @@ enum TLConstructor {
   CRC32_channel_getChannelDialogs = -1725659745;
   // pluma: task 038
   CRC32_channel_getTopMessages = 687937944;
+  // pluma: task 039
+  CRC32_channel_getMemberIdList = 771323905;
+  // pluma: task 039
+  CRC32_channel_getHistory = 653475021;
+  // pluma: task 039
+  CRC32_channel_getMessages = -1395419135;
 }
 
 
@@ -177,7 +183,48 @@ message TL_channel_getTopMessages {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.getMemberIdList channel_id:long = Vector<long>;
+// The users in the channel now (state 0), the recipients of its updates.
+message TL_channel_getMemberIdList {
+  TLConstructor constructor = 1;
+  int64 channel_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getHistory self_id:long channel_id:long offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// A page of the channel's history as self_id sees it: messages.channelMessages
+// with the channel's pts and the count of the messages self_id may see; the
+// chats and users are the caller's to fill.
+message TL_channel_getHistory {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 offset_id = 5;
+  int32 offset_date = 6;
+  int32 add_offset = 7;
+  int32 limit = 8;
+  int32 max_id = 9;
+  int32 min_id = 10;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getMessages self_id:long channel_id:long id:Vector<int> = Vector<Message>;
+// The messages id of the channel that self_id may see, as it sees them, in the
+// order asked; a missing one is left out.
+message TL_channel_getMessages {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  repeated int32 id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
+// pluma: task 039
+message Vector_Long {
+    repeated int64 datas = 1;
+}
+
 // pluma: task 038
 message Vector_Dialog {
     repeated mtproto.Dialog datas = 1;
@@ -205,4 +252,10 @@ service RPCChannel {
   rpc channel_getChannelDialogs(TL_channel_getChannelDialogs) returns (Vector_Dialog) {}
   // pluma: task 038
   rpc channel_getTopMessages(TL_channel_getTopMessages) returns (Vector_Message) {}
+  // pluma: task 039
+  rpc channel_getMemberIdList(TL_channel_getMemberIdList) returns (Vector_Long) {}
+  // pluma: task 039
+  rpc channel_getHistory(TL_channel_getHistory) returns (mtproto.messages_Messages) {}
+  // pluma: task 039
+  rpc channel_getMessages(TL_channel_getMessages) returns (Vector_Message) {}
 }

@@ -203,3 +203,95 @@ func TestChannelCreate(t *testing.T) {
 		t.Errorf("%d channel dialogs, want 2", channels)
 	}
 }
+
+// Messages to a supergroup and posts to a channel (task 039): each gets the
+// channel's next id and pts; the sender's other device gets them pushed;
+// the history is messages.channelMessages with the channel's pts; a send
+// repeated with the same random_id gets the first answer, no second copy.
+func TestChannelSend(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phone := testPhones(t, 1)[0]
+	alice := login(ctx, t, phone, "Alice")
+	laptop := login(ctx, t, phone, "Alice")
+	getState(ctx, t, laptop)
+
+	for _, megagroup := range []bool{true, false} {
+		_, ch := createChannel(ctx, t, alice, fmt.Sprintf("send %v", megagroup), megagroup)
+		peer := &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}
+		send := func(text string, randomId int64) *mtproto.Update {
+			t.Helper()
+			o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
+				Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendMessage),
+				Peer:        peer,
+				Message:     text,
+				RandomId:    randomId,
+			})
+			if err != nil {
+				t.Fatalf("messages.sendMessage to a channel: %v", err)
+			}
+			for _, u := range o.(interface{ To_Updates() *mtproto.Updates }).To_Updates().GetUpdates() {
+				if u.GetPredicateName() == mtproto.Predicate_updateNewChannelMessage {
+					return u
+				}
+			}
+			t.Fatalf("no updateNewChannelMessage in the answer")
+			return nil
+		}
+		first, second := randomID(), randomID()
+		u1 := send("one", first)
+		u2 := send("two", second)
+		if u1.GetMessage_MESSAGE().GetId() != 2 || u2.GetMessage_MESSAGE().GetId() != 3 || u1.GetPts_INT32() != 3 || u2.GetPts_INT32() != 4 || !u2.GetMessage_MESSAGE().GetOut() {
+			t.Fatalf("ids %d, %d and pts %d, %d", u1.GetMessage_MESSAGE().GetId(), u2.GetMessage_MESSAGE().GetId(), u1.GetPts_INT32(), u2.GetPts_INT32())
+		}
+		if post := u1.GetMessage_MESSAGE().GetPost(); post == megagroup {
+			t.Errorf("post %v in a megagroup %v", post, megagroup)
+		}
+		// The same random_id again: the first answer.
+		if again := send("one", first); again.GetMessage_MESSAGE().GetId() != 2 || again.GetPts_INT32() != 3 {
+			t.Errorf("the repeat made %d with pts %d", again.GetMessage_MESSAGE().GetId(), again.GetPts_INT32())
+		}
+		waitUpdate(ctx, t, laptop, mtproto.Predicate_updateNewChannelMessage, func(u *mtproto.Update) bool {
+			return u.GetMessage_MESSAGE().GetPeerId().GetChannelId() == ch.GetId() && u.GetPts_INT32() == 4
+		})
+
+		o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetHistory{
+			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getHistory),
+			Peer:        peer,
+			Limit:       20,
+		})
+		if err != nil {
+			t.Fatalf("messages.getHistory of a channel: %v", err)
+		}
+		h := o.(interface {
+			To_Messages_Messages() *mtproto.Messages_Messages
+		}).To_Messages_Messages()
+		if h.GetPredicateName() != mtproto.Predicate_messages_channelMessages || h.GetPts() != 4 || h.GetCount() != 3 || len(h.GetMessages()) != 3 ||
+			h.GetMessages()[0].GetId() != 3 || len(h.GetChats()) != 1 {
+			t.Fatalf("history: %s pts %d count %d messages %d chats %d", h.GetPredicateName(), h.GetPts(), h.GetCount(), len(h.GetMessages()), len(h.GetChats()))
+		}
+
+		o, err = alice.c.Invoke(ctx, &mtproto.TLChannelsGetMessages{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getMessages),
+			Channel:     &mtproto.InputChannel{Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()},
+			Id_VECTORINPUTMESSAGE: []*mtproto.InputMessage{
+				{Constructor: alice.c.Constructor(mtproto.Predicate_inputMessageID), Id: 2},
+				{Constructor: alice.c.Constructor(mtproto.Predicate_inputMessageID), Id: 99},
+			},
+		})
+		if err != nil {
+			t.Fatalf("channels.getMessages: %v", err)
+		}
+		if ms := o.(interface {
+			To_Messages_Messages() *mtproto.Messages_Messages
+		}).To_Messages_Messages().GetMessages(); len(ms) != 1 || ms[0].GetMessage() != "one" {
+			t.Errorf("channels.getMessages: %v", ms)
+		}
+
+		// The dialog follows the last message.
+		if d := peerDialogs(ctx, t, alice, peer).GetDialogs(); len(d) != 1 || d[0].GetTopMessage() != 3 || d[0].GetPts().GetValue() != 4 {
+			t.Errorf("the dialog after sending: %v", d)
+		}
+	}
+}

@@ -13,7 +13,9 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/config"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -26,6 +28,11 @@ type Dao struct {
 	pusher *Pusher
 	status_client.StatusClient
 	chat_client.ChatClient
+	// Channel and User build each member's view of a channel's updates
+	// (task 039): biz channel and biz user, in the biz service of
+	// ChatClient.
+	Channel channel_client.ChannelClient
+	User    user_client.UserClient
 }
 
 func New(c config.Config) *Dao {
@@ -38,6 +45,8 @@ func New(c config.Config) *Dao {
 		pusher:       newPusher(func(addr string) (sessionNode, error) { return newRpcNode(sessionConf, addr) }),
 		StatusClient: status_client.NewStatusClient(zrpc.MustNewClient(c.StatusClient)),
 		ChatClient:   chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		Channel:      channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		User:         user_client.NewUserClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 	}
 	d.pusher.Start()
 	watchNodes(c.SessionClient, d.pusher)

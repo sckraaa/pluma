@@ -47,8 +47,7 @@ func (c *MsgCore) MsgSendMessageV2(in *msg.TLMsgSendMessageV2) (*mtproto.Updates
 	case mtproto.PEER_CHAT:
 		rUpdates, err = c.sendChatMessages(in.UserId, in.AuthKeyId, in.PeerId, outBoxList)
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("msg.sendMessageV2 blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		rUpdates, err = c.sendChannelMessages(in.UserId, in.AuthKeyId, in.PeerId, outBoxList)
 	default:
 		c.Logger.Errorf("msg.sendMessageV2 - error: invalid peer %d/%d", in.PeerType, in.PeerId)
 		return nil, mtproto.ErrPeerIdInvalid

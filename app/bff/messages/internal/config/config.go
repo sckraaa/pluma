@@ -40,4 +40,6 @@ type Config struct {
 	// storage of their pictures.
 	Mysql     sqlx.Config
 	DfsClient zrpc.RpcClientConf
+	// ChannelClient reads the history of channels (task 039).
+	ChannelClient zrpc.RpcClientConf
 }

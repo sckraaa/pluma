@@ -60,6 +60,8 @@ var handlers = map[protoreflect.FullName]pushHandler{
 		func() *sync.TLSyncPushRpcResult { return new(sync.TLSyncPushRpcResult) }, void((*core.SyncCore).SyncPushRpcResult)),
 	proto.MessageName((*sync.TLSyncBroadcastUpdates)(nil)): on(
 		func() *sync.TLSyncBroadcastUpdates { return new(sync.TLSyncBroadcastUpdates) }, void((*core.SyncCore).SyncBroadcastUpdates)),
+	proto.MessageName((*sync.TLSyncPushChannelUpdates)(nil)): on(
+		func() *sync.TLSyncPushChannelUpdates { return new(sync.TLSyncPushChannelUpdates) }, (*core.SyncCore).SyncPushChannelUpdates),
 }
 
 // Consumer hands the pushes of Sync-T to the sessions.

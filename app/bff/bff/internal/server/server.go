@@ -376,6 +376,7 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 				Mysql:         c.Mysql,
 				DfsClient:     c.DfsClient,
+				ChannelClient: c.BizServiceClient,
 			}, nil))
 
 		// notification_helper; it answers messages.reportMessagesDelivery of

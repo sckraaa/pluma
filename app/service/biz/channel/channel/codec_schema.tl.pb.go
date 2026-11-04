@@ -66,6 +66,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 687937944,
 		}
 	},
+	771323905: func() mtproto.TLObject { // 0x2df97801 pluma: task 039
+		return &TLChannelGetMemberIdList{
+			Constructor: 771323905,
+		}
+	},
+	653475021: func() mtproto.TLObject { // 0x26f33ccd pluma: task 039
+		return &TLChannelGetHistory{
+			Constructor: 653475021,
+		}
+	},
+	-1395419135: func() mtproto.TLObject { // 0xacd39801 pluma: task 039
+		return &TLChannelGetMessages{
+			Constructor: -1395419135,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -926,5 +941,187 @@ func (m *Vector_Message) Decode(dBuf *mtproto.DecodeBuf) error {
 }
 
 func (m *Vector_Message) CalcByteSize(layer int32) int {
+	return 0
+}
+
+// TLChannelGetMemberIdList (pluma: task 039)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetMemberIdList) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x2df97801:
+		x.UInt(0x2df97801)
+
+		// no flags
+
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetMemberIdList) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetMemberIdList) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x2df97801:
+
+		// not has flags
+
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetHistory (pluma: task 039)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x26f33ccd:
+		x.UInt(0x26f33ccd)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetOffsetDate())
+		x.Int(m.GetAddOffset())
+		x.Int(m.GetLimit())
+		x.Int(m.GetMaxId())
+		x.Int(m.GetMinId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x26f33ccd:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.OffsetId = dBuf.Int()
+		m.OffsetDate = dBuf.Int()
+		m.AddOffset = dBuf.Int()
+		m.Limit = dBuf.Int()
+		m.MaxId = dBuf.Int()
+		m.MinId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetMessages (pluma: task 039)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xacd39801:
+		x.UInt(0xacd39801)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetId())))
+		for _, v := range m.GetId() {
+			x.Int(v)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xacd39801:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		c2 := dBuf.Int()
+		if c2 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 2, c2)
+		}
+		l2 := dBuf.Int()
+		if vectorTooLong(dBuf, l2) {
+			return fmt.Errorf("invalid vector length: %d", l2)
+		}
+		v2 := make([]int32, l2)
+		for i := int32(0); i < l2; i++ {
+			v2[i] = dBuf.Int()
+		}
+		m.Id = v2
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// Vector_Long (pluma: task 039)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *Vector_Long) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.Datas)))
+	for _, v := range m.Datas {
+		x.Long(v)
+	}
+
+	return nil
+}
+
+func (m *Vector_Long) Decode(dBuf *mtproto.DecodeBuf) error {
+	if c := dBuf.Int(); c != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid CRC32_vector: %d", c)
+	}
+	l1 := dBuf.Int()
+	if vectorTooLong(dBuf, l1) {
+		return fmt.Errorf("invalid vector length: %d", l1)
+	}
+	m.Datas = make([]int64, l1)
+	for i := int32(0); i < l1; i++ {
+		m.Datas[i] = dBuf.Long()
+	}
+
+	return dBuf.GetError()
+}
+
+func (m *Vector_Long) CalcByteSize(layer int32) int {
 	return 0
 }

@@ -18,4 +18,10 @@ const (
 	CRC32_channel_getChannelDialogs TLConstructor = -1725659745 // 0x9924859f
 	// pluma: task 038
 	CRC32_channel_getTopMessages TLConstructor = 687937944 // 0x29011998
+	// pluma: task 039
+	CRC32_channel_getMemberIdList TLConstructor = 771323905 // 0x2df97801
+	// pluma: task 039
+	CRC32_channel_getHistory TLConstructor = 653475021 // 0x26f33ccd
+	// pluma: task 039
+	CRC32_channel_getMessages TLConstructor = -1395419135 // 0xacd39801
 )

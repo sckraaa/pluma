@@ -53,6 +53,12 @@ const (
 	TLConstructor_CRC32_channel_getChannelDialogs TLConstructor = -1725659745
 	// pluma: task 038
 	TLConstructor_CRC32_channel_getTopMessages TLConstructor = 687937944
+	// pluma: task 039
+	TLConstructor_CRC32_channel_getMemberIdList TLConstructor = 771323905
+	// pluma: task 039
+	TLConstructor_CRC32_channel_getHistory TLConstructor = 653475021
+	// pluma: task 039
+	TLConstructor_CRC32_channel_getMessages TLConstructor = -1395419135
 )
 
 // Enum value maps for TLConstructor.
@@ -67,6 +73,9 @@ var (
 		-641600475:  "CRC32_channel_createChannel",
 		-1725659745: "CRC32_channel_getChannelDialogs",
 		687937944:   "CRC32_channel_getTopMessages",
+		771323905:   "CRC32_channel_getMemberIdList",
+		653475021:   "CRC32_channel_getHistory",
+		-1395419135: "CRC32_channel_getMessages",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                        0,
@@ -78,6 +87,9 @@ var (
 		"CRC32_channel_createChannel":          -641600475,
 		"CRC32_channel_getChannelDialogs":      -1725659745,
 		"CRC32_channel_getTopMessages":         687937944,
+		"CRC32_channel_getMemberIdList":        771323905,
+		"CRC32_channel_getHistory":             653475021,
+		"CRC32_channel_getMessages":            -1395419135,
 	}
 )
 
@@ -1102,7 +1114,292 @@ func (x *TLChannelGetTopMessages) GetIdList() []int64 {
 }
 
 // --------------------------------------------------------------------------------------------
+// pluma: channel.getMemberIdList channel_id:long = Vector<long>;
+// The users in the channel now (state 0), the recipients of its updates.
+type TLChannelGetMemberIdList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,3,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelGetMemberIdList) Reset() {
+	*x = TLChannelGetMemberIdList{}
+	mi := &file_channel_tl_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelGetMemberIdList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelGetMemberIdList) ProtoMessage() {}
+
+func (x *TLChannelGetMemberIdList) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelGetMemberIdList.ProtoReflect.Descriptor instead.
+func (*TLChannelGetMemberIdList) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *TLChannelGetMemberIdList) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelGetMemberIdList) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.getHistory self_id:long channel_id:long offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// A page of the channel's history as self_id sees it: messages.channelMessages
+// with the channel's pts and the count of the messages self_id may see; the
+// chats and users are the caller's to fill.
+type TLChannelGetHistory struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,4,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	OffsetId      int32                  `protobuf:"varint,5,opt,name=offset_id,json=offsetId,proto3" json:"offset_id,omitempty"`
+	OffsetDate    int32                  `protobuf:"varint,6,opt,name=offset_date,json=offsetDate,proto3" json:"offset_date,omitempty"`
+	AddOffset     int32                  `protobuf:"varint,7,opt,name=add_offset,json=addOffset,proto3" json:"add_offset,omitempty"`
+	Limit         int32                  `protobuf:"varint,8,opt,name=limit,proto3" json:"limit,omitempty"`
+	MaxId         int32                  `protobuf:"varint,9,opt,name=max_id,json=maxId,proto3" json:"max_id,omitempty"`
+	MinId         int32                  `protobuf:"varint,10,opt,name=min_id,json=minId,proto3" json:"min_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelGetHistory) Reset() {
+	*x = TLChannelGetHistory{}
+	mi := &file_channel_tl_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelGetHistory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelGetHistory) ProtoMessage() {}
+
+func (x *TLChannelGetHistory) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelGetHistory.ProtoReflect.Descriptor instead.
+func (*TLChannelGetHistory) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *TLChannelGetHistory) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelGetHistory) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelGetHistory) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelGetHistory) GetOffsetId() int32 {
+	if x != nil {
+		return x.OffsetId
+	}
+	return 0
+}
+
+func (x *TLChannelGetHistory) GetOffsetDate() int32 {
+	if x != nil {
+		return x.OffsetDate
+	}
+	return 0
+}
+
+func (x *TLChannelGetHistory) GetAddOffset() int32 {
+	if x != nil {
+		return x.AddOffset
+	}
+	return 0
+}
+
+func (x *TLChannelGetHistory) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *TLChannelGetHistory) GetMaxId() int32 {
+	if x != nil {
+		return x.MaxId
+	}
+	return 0
+}
+
+func (x *TLChannelGetHistory) GetMinId() int32 {
+	if x != nil {
+		return x.MinId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.getMessages self_id:long channel_id:long id:Vector<int> = Vector<Message>;
+// The messages id of the channel that self_id may see, as it sees them, in the
+// order asked; a missing one is left out.
+type TLChannelGetMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,4,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Id            []int32                `protobuf:"varint,5,rep,packed,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelGetMessages) Reset() {
+	*x = TLChannelGetMessages{}
+	mi := &file_channel_tl_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelGetMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelGetMessages) ProtoMessage() {}
+
+func (x *TLChannelGetMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelGetMessages.ProtoReflect.Descriptor instead.
+func (*TLChannelGetMessages) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TLChannelGetMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelGetMessages) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelGetMessages) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelGetMessages) GetId() []int32 {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
 // Vector api result type
+// pluma: task 039
+type Vector_Long struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Datas         []int64                `protobuf:"varint,1,rep,packed,name=datas,proto3" json:"datas,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Vector_Long) Reset() {
+	*x = Vector_Long{}
+	mi := &file_channel_tl_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Vector_Long) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Vector_Long) ProtoMessage() {}
+
+func (x *Vector_Long) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Vector_Long.ProtoReflect.Descriptor instead.
+func (*Vector_Long) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *Vector_Long) GetDatas() []int64 {
+	if x != nil {
+		return x.Datas
+	}
+	return nil
+}
+
 // pluma: task 038
 type Vector_Dialog struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1113,7 +1410,7 @@ type Vector_Dialog struct {
 
 func (x *Vector_Dialog) Reset() {
 	*x = Vector_Dialog{}
-	mi := &file_channel_tl_proto_msgTypes[11]
+	mi := &file_channel_tl_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1125,7 +1422,7 @@ func (x *Vector_Dialog) String() string {
 func (*Vector_Dialog) ProtoMessage() {}
 
 func (x *Vector_Dialog) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[11]
+	mi := &file_channel_tl_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1138,7 +1435,7 @@ func (x *Vector_Dialog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Dialog.ProtoReflect.Descriptor instead.
 func (*Vector_Dialog) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{11}
+	return file_channel_tl_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Vector_Dialog) GetDatas() []*mtproto.Dialog {
@@ -1158,7 +1455,7 @@ type Vector_Message struct {
 
 func (x *Vector_Message) Reset() {
 	*x = Vector_Message{}
-	mi := &file_channel_tl_proto_msgTypes[12]
+	mi := &file_channel_tl_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1170,7 +1467,7 @@ func (x *Vector_Message) String() string {
 func (*Vector_Message) ProtoMessage() {}
 
 func (x *Vector_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[12]
+	mi := &file_channel_tl_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1183,7 +1480,7 @@ func (x *Vector_Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Message.ProtoReflect.Descriptor instead.
 func (*Vector_Message) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{12}
+	return file_channel_tl_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *Vector_Message) GetDatas() []*mtproto.Message {
@@ -1202,7 +1499,7 @@ type Vector_MutableChannel struct {
 
 func (x *Vector_MutableChannel) Reset() {
 	*x = Vector_MutableChannel{}
-	mi := &file_channel_tl_proto_msgTypes[13]
+	mi := &file_channel_tl_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1214,7 +1511,7 @@ func (x *Vector_MutableChannel) String() string {
 func (*Vector_MutableChannel) ProtoMessage() {}
 
 func (x *Vector_MutableChannel) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[13]
+	mi := &file_channel_tl_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1227,7 +1524,7 @@ func (x *Vector_MutableChannel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_MutableChannel.ProtoReflect.Descriptor instead.
 func (*Vector_MutableChannel) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{13}
+	return file_channel_tl_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *Vector_MutableChannel) GetDatas() []*MutableChannel {
@@ -1338,13 +1635,39 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x19TL_channel_getTopMessages\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x17\n" +
-	"\aid_list\x18\x04 \x03(\x03R\x06idList\"6\n" +
+	"\aid_list\x18\x04 \x03(\x03R\x06idList\"u\n" +
+	"\x1aTL_channel_getMemberIdList\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x03 \x01(\x03R\tchannelId\"\xaa\x02\n" +
+	"\x15TL_channel_getHistory\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x04 \x01(\x03R\tchannelId\x12\x1b\n" +
+	"\toffset_id\x18\x05 \x01(\x05R\boffsetId\x12\x1f\n" +
+	"\voffset_date\x18\x06 \x01(\x05R\n" +
+	"offsetDate\x12\x1d\n" +
+	"\n" +
+	"add_offset\x18\a \x01(\x05R\taddOffset\x12\x14\n" +
+	"\x05limit\x18\b \x01(\x05R\x05limit\x12\x15\n" +
+	"\x06max_id\x18\t \x01(\x05R\x05maxId\x12\x15\n" +
+	"\x06min_id\x18\n" +
+	" \x01(\x05R\x05minId\"\x9a\x01\n" +
+	"\x16TL_channel_getMessages\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x04 \x01(\x03R\tchannelId\x12\x0e\n" +
+	"\x02id\x18\x05 \x03(\x05R\x02id\"#\n" +
+	"\vVector_Long\x12\x14\n" +
+	"\x05datas\x18\x01 \x03(\x03R\x05datas\"6\n" +
 	"\rVector_Dialog\x12%\n" +
 	"\x05datas\x18\x01 \x03(\v2\x0f.mtproto.DialogR\x05datas\"8\n" +
 	"\x0eVector_Message\x12&\n" +
 	"\x05datas\x18\x01 \x03(\v2\x10.mtproto.MessageR\x05datas\"F\n" +
 	"\x15Vector_MutableChannel\x12-\n" +
-	"\x05datas\x18\x01 \x03(\v2\x17.channel.MutableChannelR\x05datas*\xf4\x02\n" +
+	"\x05datas\x18\x01 \x03(\v2\x17.channel.MutableChannelR\x05datas*\xe5\x03\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12#\n" +
 	"\x16CRC32_immutableChannel\x10\x82\x87ڹ\xfd\xff\xff\xff\xff\x01\x12)\n" +
@@ -1354,14 +1677,20 @@ const file_channel_tl_proto_rawDesc = "" +
 	"$CRC32_channel_getChannelListByIdList\x10\xfc\xab\xdf\xcc\xf8\xff\xff\xff\xff\x01\x12(\n" +
 	"\x1bCRC32_channel_createChannel\x10\xa5\xe8\x87\xce\xfd\xff\xff\xff\xff\x01\x12,\n" +
 	"\x1fCRC32_channel_getChannelDialogs\x10\x9f\x8b\x92\xc9\xf9\xff\xff\xff\xff\x01\x12$\n" +
-	"\x1cCRC32_channel_getTopMessages\x10\x98\xb3\x84\xc8\x022\xe2\x03\n" +
+	"\x1cCRC32_channel_getTopMessages\x10\x98\xb3\x84\xc8\x02\x12%\n" +
+	"\x1dCRC32_channel_getMemberIdList\x10\x81\xf0\xe5\xef\x02\x12 \n" +
+	"\x18CRC32_channel_getHistory\x10\xcd\xf9̷\x02\x12&\n" +
+	"\x19CRC32_channel_getMessages\x10\x81\xb0\xce\xe6\xfa\xff\xff\xff\xff\x012\xe1\x05\n" +
 	"\n" +
 	"RPCChannel\x12]\n" +
 	"\x19channel_getMutableChannel\x12%.channel.TL_channel_getMutableChannel\x1a\x17.channel.MutableChannel\"\x00\x12n\n" +
 	"\x1echannel_getChannelListByIdList\x12*.channel.TL_channel_getChannelListByIdList\x1a\x1e.channel.Vector_MutableChannel\"\x00\x12N\n" +
 	"\x15channel_createChannel\x12!.channel.TL_channel_createChannel\x1a\x10.mtproto.Updates\"\x00\x12\\\n" +
 	"\x19channel_getChannelDialogs\x12%.channel.TL_channel_getChannelDialogs\x1a\x16.channel.Vector_Dialog\"\x00\x12W\n" +
-	"\x16channel_getTopMessages\x12\".channel.TL_channel_getTopMessages\x1a\x17.channel.Vector_Message\"\x00BEZCgithub.com/teamgram/teamgram-server/app/service/biz/channel/channelb\x06proto3"
+	"\x16channel_getTopMessages\x12\".channel.TL_channel_getTopMessages\x1a\x17.channel.Vector_Message\"\x00\x12V\n" +
+	"\x17channel_getMemberIdList\x12#.channel.TL_channel_getMemberIdList\x1a\x14.channel.Vector_Long\"\x00\x12R\n" +
+	"\x12channel_getHistory\x12\x1e.channel.TL_channel_getHistory\x1a\x1a.mtproto.messages_Messages\"\x00\x12Q\n" +
+	"\x13channel_getMessages\x12\x1f.channel.TL_channel_getMessages\x1a\x17.channel.Vector_Message\"\x00BEZCgithub.com/teamgram/teamgram-server/app/service/biz/channel/channelb\x06proto3"
 
 var (
 	file_channel_tl_proto_rawDescOnce sync.Once
@@ -1376,7 +1705,7 @@ func file_channel_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_channel_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_channel_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_channel_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_channel_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                      // 0: channel.TLConstructor
 	(*ImmutableChannel)(nil),                // 1: channel.ImmutableChannel
@@ -1390,18 +1719,23 @@ var file_channel_tl_proto_goTypes = []any{
 	(*TLChannelCreateChannel)(nil),          // 9: channel.TL_channel_createChannel
 	(*TLChannelGetChannelDialogs)(nil),      // 10: channel.TL_channel_getChannelDialogs
 	(*TLChannelGetTopMessages)(nil),         // 11: channel.TL_channel_getTopMessages
-	(*Vector_Dialog)(nil),                   // 12: channel.Vector_Dialog
-	(*Vector_Message)(nil),                  // 13: channel.Vector_Message
-	(*Vector_MutableChannel)(nil),           // 14: channel.Vector_MutableChannel
-	(*mtproto.Photo)(nil),                   // 15: mtproto.Photo
-	(*mtproto.Bool)(nil),                    // 16: mtproto.Bool
-	(*mtproto.Dialog)(nil),                  // 17: mtproto.Dialog
-	(*mtproto.Message)(nil),                 // 18: mtproto.Message
-	(*mtproto.Updates)(nil),                 // 19: mtproto.Updates
+	(*TLChannelGetMemberIdList)(nil),        // 12: channel.TL_channel_getMemberIdList
+	(*TLChannelGetHistory)(nil),             // 13: channel.TL_channel_getHistory
+	(*TLChannelGetMessages)(nil),            // 14: channel.TL_channel_getMessages
+	(*Vector_Long)(nil),                     // 15: channel.Vector_Long
+	(*Vector_Dialog)(nil),                   // 16: channel.Vector_Dialog
+	(*Vector_Message)(nil),                  // 17: channel.Vector_Message
+	(*Vector_MutableChannel)(nil),           // 18: channel.Vector_MutableChannel
+	(*mtproto.Photo)(nil),                   // 19: mtproto.Photo
+	(*mtproto.Bool)(nil),                    // 20: mtproto.Bool
+	(*mtproto.Dialog)(nil),                  // 21: mtproto.Dialog
+	(*mtproto.Message)(nil),                 // 22: mtproto.Message
+	(*mtproto.Updates)(nil),                 // 23: mtproto.Updates
+	(*mtproto.Messages_Messages)(nil),       // 24: mtproto.messages_Messages
 }
 var file_channel_tl_proto_depIdxs = []int32{
 	0,  // 0: channel.ImmutableChannel.constructor:type_name -> channel.TLConstructor
-	15, // 1: channel.ImmutableChannel.photo:type_name -> mtproto.Photo
+	19, // 1: channel.ImmutableChannel.photo:type_name -> mtproto.Photo
 	1,  // 2: channel.TL_immutableChannel.data2:type_name -> channel.ImmutableChannel
 	0,  // 3: channel.ImmutableChannelParticipant.constructor:type_name -> channel.TLConstructor
 	3,  // 4: channel.TL_immutableChannelParticipant.data2:type_name -> channel.ImmutableChannelParticipant
@@ -1412,28 +1746,37 @@ var file_channel_tl_proto_depIdxs = []int32{
 	0,  // 9: channel.TL_channel_getMutableChannel.constructor:type_name -> channel.TLConstructor
 	0,  // 10: channel.TL_channel_getChannelListByIdList.constructor:type_name -> channel.TLConstructor
 	0,  // 11: channel.TL_channel_createChannel.constructor:type_name -> channel.TLConstructor
-	16, // 12: channel.TL_channel_createChannel.broadcast:type_name -> mtproto.Bool
-	16, // 13: channel.TL_channel_createChannel.megagroup:type_name -> mtproto.Bool
+	20, // 12: channel.TL_channel_createChannel.broadcast:type_name -> mtproto.Bool
+	20, // 13: channel.TL_channel_createChannel.megagroup:type_name -> mtproto.Bool
 	0,  // 14: channel.TL_channel_getChannelDialogs.constructor:type_name -> channel.TLConstructor
 	0,  // 15: channel.TL_channel_getTopMessages.constructor:type_name -> channel.TLConstructor
-	17, // 16: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
-	18, // 17: channel.Vector_Message.datas:type_name -> mtproto.Message
-	5,  // 18: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
-	7,  // 19: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
-	8,  // 20: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
-	9,  // 21: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
-	10, // 22: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
-	11, // 23: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
-	5,  // 24: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
-	14, // 25: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
-	19, // 26: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
-	12, // 27: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
-	13, // 28: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
-	24, // [24:29] is the sub-list for method output_type
-	19, // [19:24] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	0,  // 16: channel.TL_channel_getMemberIdList.constructor:type_name -> channel.TLConstructor
+	0,  // 17: channel.TL_channel_getHistory.constructor:type_name -> channel.TLConstructor
+	0,  // 18: channel.TL_channel_getMessages.constructor:type_name -> channel.TLConstructor
+	21, // 19: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
+	22, // 20: channel.Vector_Message.datas:type_name -> mtproto.Message
+	5,  // 21: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
+	7,  // 22: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
+	8,  // 23: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
+	9,  // 24: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
+	10, // 25: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
+	11, // 26: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
+	12, // 27: channel.RPCChannel.channel_getMemberIdList:input_type -> channel.TL_channel_getMemberIdList
+	13, // 28: channel.RPCChannel.channel_getHistory:input_type -> channel.TL_channel_getHistory
+	14, // 29: channel.RPCChannel.channel_getMessages:input_type -> channel.TL_channel_getMessages
+	5,  // 30: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
+	18, // 31: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
+	23, // 32: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
+	16, // 33: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
+	17, // 34: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
+	15, // 35: channel.RPCChannel.channel_getMemberIdList:output_type -> channel.Vector_Long
+	24, // 36: channel.RPCChannel.channel_getHistory:output_type -> mtproto.messages_Messages
+	17, // 37: channel.RPCChannel.channel_getMessages:output_type -> channel.Vector_Message
+	30, // [30:38] is the sub-list for method output_type
+	22, // [22:30] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_channel_tl_proto_init() }
@@ -1447,7 +1790,7 @@ func file_channel_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_channel_tl_proto_rawDesc), len(file_channel_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   14,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

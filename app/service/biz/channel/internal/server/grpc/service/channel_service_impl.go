@@ -93,3 +93,45 @@ func (s *Service) ChannelGetTopMessages(ctx context.Context, request *channel.TL
 
 	return r, err
 }
+
+// ChannelGetMemberIdList
+// channel.getMemberIdList channel_id:long = Vector<long>;
+func (s *Service) ChannelGetMemberIdList(ctx context.Context, request *channel.TLChannelGetMemberIdList) (*channel.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getMemberIdList - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetMemberIdList(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetHistory
+// channel.getHistory self_id:long channel_id:long offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) ChannelGetHistory(ctx context.Context, request *channel.TLChannelGetHistory) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getHistory - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetMessages
+// channel.getMessages self_id:long channel_id:long id:Vector<int> = Vector<Message>;
+func (s *Service) ChannelGetMessages(ctx context.Context, request *channel.TLChannelGetMessages) (*channel.Vector_Message, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

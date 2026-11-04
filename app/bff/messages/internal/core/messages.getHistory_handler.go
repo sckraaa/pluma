@@ -58,27 +58,8 @@ func (c *MessagesCore) MessagesGetHistory(in *mtproto.TLMessagesGetHistory) (*mt
 			_ = chat
 		}
 	case mtproto.PEER_CHANNEL:
-		//// 400	CHANNEL_INVALID	The provided channel is invalid
-		//// 400	CHANNEL_PRIVATE	You haven't joined this channel/supergroup
-		//channel, err = c.svcCtx.Dao.ChannelClient.ChannelGetMutableChannel(
-		//	c.ctx,
-		//	&channelpb.TLChannelGetMutableChannel{
-		//		ChannelId: peer.PeerId,
-		//		Id:        []int64{c.MD.UserId},
-		//	})
-		//if err != nil {
-		//	err = mtproto.ErrChannelInvalid
-		//	c.Logger.Errorf("messages.getHistory - error: %v", err)
-		//	return nil, err
-		//}
-		//
-		//me := channel.GetImmutableChannelParticipant(c.MD.UserId)
-		//if me != nil {
-		//	// TODO
-		//	// minId = mathx.MaxInt(int(me.AvailableMinId), int(in.MinId))
-		//}
-		//
-		//isChannel = true
+		// One copy for all the channel's members (task 039).
+		return c.channelHistory(peer.PeerId, in, limit)
 	default:
 		err = mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.getHistory - error: %v", err)

@@ -28,6 +28,8 @@ enum TLConstructor {
   CRC32_sync_pushBotUpdates = -1379667968;
   CRC32_sync_pushRpcResult = 27907250;
   CRC32_sync_broadcastUpdates = -169648970;
+  // pluma: task 039
+  CRC32_sync_pushChannelUpdates = 1215322123;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -84,6 +86,21 @@ message TL_sync_pushRpcResult {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: sync.pushChannelUpdates channel_id:long from_id:long from_auth_key_id:long mentioned:Vector<long> updates:Updates = Void;
+// New messages of a channel (task 039, ADR 0034, p. 5): sync gives each
+// member in the channel now the updates as it sees them, mentioned set for
+// the users mentioned, and pushes them to its devices; the sender's other
+// devices get them too, not the one of from_auth_key_id, which had them in
+// its answer. One event per channel operation, keyed by the channel.
+message TL_sync_pushChannelUpdates {
+  TLConstructor constructor = 1;
+  int64 channel_id = 3;
+  int64 from_id = 4;
+  int64 from_auth_key_id = 5;
+  repeated int64 mentioned = 6;
+  mtproto.Updates updates = 7;
+}
+
 message TL_sync_broadcastUpdates {
   TLConstructor constructor = 1;
   int32 broadcast_type = 3;
