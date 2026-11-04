@@ -179,3 +179,62 @@ func TestChannelJoin(t *testing.T) {
 		}
 	}
 }
+
+// The creator adds users to a supergroup (task 041): the added user's
+// devices get updateChannel and its dialog, then the posts by push; one
+// whose privacy lets only contacts add them is named in missing_invitees
+// and stays out.
+func TestChannelInvite(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 3)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	carol := login(ctx, t, phones[2], "Carol")
+	getState(ctx, t, bob)
+	if _, err := carol.c.Invoke(ctx, &mtproto.TLAccountSetPrivacy{
+		Constructor: carol.c.Constructor(mtproto.Predicate_account_setPrivacy),
+		Key:         &mtproto.InputPrivacyKey{Constructor: carol.c.Constructor(mtproto.Predicate_inputPrivacyKeyChatInvite)},
+		Rules:       []*mtproto.InputPrivacyRule{{Constructor: carol.c.Constructor(mtproto.Predicate_inputPrivacyValueAllowContacts)}},
+	}); err != nil {
+		t.Fatalf("account.setPrivacy: %v", err)
+	}
+
+	_, ch := createChannel(ctx, t, alice, "invite", true)
+	hash := ch.GetAccessHash_FLAGINT64().GetValue()
+	inputUser := func(u *user) *mtproto.InputUser {
+		return &mtproto.InputUser{Constructor: alice.c.Constructor(mtproto.Predicate_inputUser), UserId: u.self.GetId(), AccessHash: u.self.GetAccessHash().GetValue()}
+	}
+	o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsInviteToChannelC9E33D54{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_inviteToChannelC9E33D54),
+		Channel:     &mtproto.InputChannel{Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel), ChannelId: ch.GetId(), AccessHash: hash},
+		Users:       []*mtproto.InputUser{inputUser(bob), inputUser(carol)},
+	})
+	if err != nil {
+		t.Fatalf("channels.inviteToChannel: %v", err)
+	}
+	r := o.(interface {
+		To_Messages_InvitedUsers() *mtproto.Messages_InvitedUsers
+	}).To_Messages_InvitedUsers()
+	if ms := r.GetMissingInvitees(); len(ms) != 1 || ms[0].GetUserId() != carol.self.GetId() {
+		t.Errorf("missing invitees %v, want Carol", ms)
+	}
+	var added []int64
+	for _, u := range r.GetUpdates().GetUpdates() {
+		added = append(added, u.GetMessage_MESSAGE().GetAction().GetUsers()...)
+	}
+	if len(added) != 1 || added[0] != bob.self.GetId() {
+		t.Errorf("added %v, want Bob only", added)
+	}
+
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateChannel, func(u *mtproto.Update) bool { return u.GetChannelId() == ch.GetId() })
+	peer := &mtproto.InputPeer{Constructor: bob.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: hash}
+	if ds := peerDialogs(ctx, t, bob, peer).GetDialogs(); len(ds) != 1 {
+		t.Errorf("Bob's dialog with the supergroup: %d", len(ds))
+	}
+	sendMessageID(ctx, t, alice, &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: hash}, "welcome", randomID())
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateNewChannelMessage, func(u *mtproto.Update) bool {
+		return u.GetMessage_MESSAGE().GetMessage() == "welcome"
+	})
+}

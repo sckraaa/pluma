@@ -253,3 +253,36 @@ func (d *Dao) EmitChannelPush(b *userbox.Box, channelId, permAuthKeyId int64, se
 	b.Emit(userbox.Event{Topic: d.Topics.Sync, Recipient: channelId, Method: string(proto.MessageName(in)), Data: data})
 	return nil
 }
+
+// InvitedToChannel shows the channel in b's owner's dialogs when it is in
+// it (inbox.channelInvitedToInbox, task 041): the dialog is read up to the
+// last message, as a join leaves it. It tells whether the owner is in the
+// channel.
+func (d *Dao) InvitedToChannel(b *userbox.Box, channelId int64) (bool, error) {
+	var tops []int32
+	if err := b.Tx().QueryRowsPartial(&tops,
+		"SELECT c.top_message FROM channels c JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? AND p.state = 0 WHERE c.id = ? AND c.deleted = 0",
+		b.UserId(), channelId); err != nil {
+		return false, err
+	}
+	if len(tops) == 0 {
+		return false, nil
+	}
+	b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), mtproto.PEER_CHANNEL, channelId))
+	res, err := b.Tx().Exec("UPDATE dialogs SET top_message = ?, read_inbox_max_id = GREATEST(read_inbox_max_id, ?), date2 = ?, deleted = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+		tops[0], tops[0], b.Date(), b.UserId(), mtproto.PEER_CHANNEL, channelId)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if n == 0 {
+		if _, err = b.Tx().Exec("INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, read_inbox_max_id, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, ?, 'null', ?)",
+			b.UserId(), mtproto.PEER_CHANNEL, channelId, mtproto.MakePeerDialogId(mtproto.PEER_CHANNEL, channelId), tops[0], tops[0], b.Date()); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}

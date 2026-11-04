@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
 	ctx := context.Background()
 	var err error
 	code := 1
-	if err = outbox.Register(outbox.Topics{Push: []string{itSyncTopic}}); err != nil {
+	if err = outbox.Register(outbox.Topics{Push: []string{itSyncTopic}, Inbox: []string{itInboxTopic}}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -63,8 +63,11 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// itSyncTopic is the topic of the pushes the tests' transactions write.
-const itSyncTopic = "Sync-T"
+// The topics of the events the tests' transactions write.
+const (
+	itSyncTopic  = "Sync-T"
+	itInboxTopic = "Inbox-T"
+)
 
 func itId() int64 { return 50_000_000 + itSeq.Add(1) }
 
@@ -86,7 +89,7 @@ func newDiffFixture(t *testing.T) *diffFixture {
 	conf := itDB.Config()
 	d := dao.NewDao(sqlx.NewMySQL(&conf), nil)
 	d.BoxDB = box
-	d.Topics = config.Topics{Sync: itSyncTopic}
+	d.Topics = config.Topics{Sync: itSyncTopic, Inbox: itInboxTopic}
 	return &diffFixture{t: t, box: box, c: New(context.Background(), &svc.ServiceContext{Dao: d})}
 }
 

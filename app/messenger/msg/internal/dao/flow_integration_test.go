@@ -283,6 +283,10 @@ func (noChannels) ChannelDeleteMessages(context.Context, *channelpb.TLChannelDel
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelInviteToChannel(context.Context, *channelpb.TLChannelInviteToChannel) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelGetParticipants(context.Context, *channelpb.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

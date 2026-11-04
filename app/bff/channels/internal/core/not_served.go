@@ -45,11 +45,6 @@ func (c *ChannelsCore) ChannelsEditPhoto(in *mtproto.TLChannelsEditPhoto) (*mtpr
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsInviteToChannelC9E33D54 is not served yet: channels.inviteToChannelC9E33D54#c9e33d54.
-func (c *ChannelsCore) ChannelsInviteToChannelC9E33D54(in *mtproto.TLChannelsInviteToChannelC9E33D54) (*mtproto.Messages_InvitedUsers, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsDeleteChannel is not served yet: channels.deleteChannel#c0111fe3.
 func (c *ChannelsCore) ChannelsDeleteChannel(in *mtproto.TLChannelsDeleteChannel) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
@@ -142,11 +137,6 @@ func (c *ChannelsCore) ChannelsEditCreator(in *mtproto.TLChannelsEditCreator) (*
 
 // ChannelsGetFutureCreatorAfterLeave is not served yet: channels.getFutureCreatorAfterLeave#a00918af.
 func (c *ChannelsCore) ChannelsGetFutureCreatorAfterLeave(in *mtproto.TLChannelsGetFutureCreatorAfterLeave) (*mtproto.User, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsInviteToChannel199F3A6C is not served yet: channels.inviteToChannel199F3A6C#199f3a6c.
-func (c *ChannelsCore) ChannelsInviteToChannel199F3A6C(in *mtproto.TLChannelsInviteToChannel199F3A6C) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 

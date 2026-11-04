@@ -116,6 +116,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 1972359002,
 		}
 	},
+	293053083: func() mtproto.TLObject { // 0x1177a29b pluma: task 041
+		return &TLChannelInviteToChannel{
+			Constructor: 293053083,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1474,6 +1479,67 @@ func (m *TLChannelDeleteMessages) Decode(dBuf *mtproto.DecodeBuf) error {
 		v3 := make([]int32, l3)
 		for i := int32(0); i < l3; i++ {
 			v3[i] = dBuf.Int()
+		}
+		m.Id = v3
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelInviteToChannel (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelInviteToChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x1177a29b:
+		x.UInt(0x1177a29b)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetId())))
+		for _, v := range m.GetId() {
+			x.Long(v)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelInviteToChannel) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelInviteToChannel) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x1177a29b:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		c3 := dBuf.Int()
+		if c3 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 3, c3)
+		}
+		l3 := dBuf.Int()
+		if vectorTooLong(dBuf, l3) {
+			return fmt.Errorf("invalid vector length: %d", l3)
+		}
+		v3 := make([]int64, l3)
+		for i := int32(0); i < l3; i++ {
+			v3[i] = dBuf.Long()
 		}
 		m.Id = v3
 		return dBuf.GetError()

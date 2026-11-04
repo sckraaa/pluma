@@ -113,7 +113,7 @@ func (s *Server) Initialize() error {
 				Mysql:         c.Mysql,
 				Cache:         c.Cache,
 				MediaClient:   c.MediaClient,
-				Topics:        channel_helper.Topics{Sync: c.Topics.Sync},
+				Topics:        channel_helper.Topics{Sync: c.Topics.Sync, Inbox: c.Topics.Inbox},
 			}))
 
 		// code_helper

@@ -57,6 +57,8 @@ enum TLConstructor {
   CRC32_channel_readHistory = -585404897;
   // pluma: task 043
   CRC32_channel_deleteMessages = 1972359002;
+  // pluma: task 041
+  CRC32_channel_inviteToChannel = 293053083;
 }
 
 
@@ -319,6 +321,19 @@ message TL_channel_deleteMessages {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.inviteToChannel self_id:long perm_auth_key_id:long channel_id:long id:Vector<long> = Updates;
+// self_id adds users id to the channel: their participant rows, the
+// service message of a supergroup, an inbox event for each (ADR 0034,
+// p. 3). The users of the answer are the caller's to add.
+message TL_channel_inviteToChannel {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  repeated int64 id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -372,4 +387,6 @@ service RPCChannel {
   rpc channel_readHistory(TL_channel_readHistory) returns (mtproto.Bool) {}
   // pluma: task 043
   rpc channel_deleteMessages(TL_channel_deleteMessages) returns (mtproto.messages_AffectedMessages) {}
+  // pluma: task 041
+  rpc channel_inviteToChannel(TL_channel_inviteToChannel) returns (mtproto.Updates) {}
 }

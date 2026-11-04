@@ -233,3 +233,17 @@ func (s *Service) ChannelDeleteMessages(ctx context.Context, request *channel.TL
 
 	return r, err
 }
+
+// ChannelInviteToChannel
+// channel.inviteToChannel self_id:long perm_auth_key_id:long channel_id:long id:Vector<long> = Updates;
+func (s *Service) ChannelInviteToChannel(ctx context.Context, request *channel.TLChannelInviteToChannel) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.inviteToChannel - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelInviteToChannel(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

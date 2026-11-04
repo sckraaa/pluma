@@ -22,3 +22,4 @@ MediaClient:
     Key: service.media
 Topics:
   Sync: "Sync-T"
+  Inbox: "Inbox-T"

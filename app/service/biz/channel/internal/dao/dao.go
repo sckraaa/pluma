@@ -61,10 +61,10 @@ type PhotoSource interface {
 }
 
 func New(c config.Config) *Dao {
-	if c.Topics.Sync == "" {
-		panic("channel: Topics.Sync is required")
+	if c.Topics.Sync == "" || c.Topics.Inbox == "" {
+		panic("channel: Topics.Sync and Topics.Inbox are required")
 	}
-	if err := outbox.Register(outbox.Topics{Push: []string{c.Topics.Sync}}); err != nil {
+	if err := outbox.Register(outbox.Topics{Push: []string{c.Topics.Sync}, Inbox: []string{c.Topics.Inbox}}); err != nil {
 		panic(err)
 	}
 	boxDB, err := userbox.Open(c.Mysql.DSN)

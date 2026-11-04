@@ -43,12 +43,14 @@ const (
 	MembersMax = 200000
 )
 
-// ChannelChange is what Join or Leave wrote: the service message of a
-// supergroup (nil in a channel) with its pts.
+// ChannelChange is what a change of a channel wrote: its service message
+// (nil when it has none) with its pts; Reload when the members are to load
+// the channel again (updateChannel, ADR 0034, p. 3).
 type ChannelChange struct {
 	ChannelId int64
 	Message   *mtproto.Message
 	Pts       int32
+	Reload    bool
 }
 
 type memberChannelRow struct {
@@ -227,7 +229,7 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		if link != "" {
 			action = mtproto.MakeTLMessageActionChatJoinedByLink(&mtproto.MessageAction{InviterId: inviter}).To_MessageAction()
 		}
-		if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, action); err != nil {
+		if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, false, action); err != nil {
 			return nil, err
 		}
 	}
@@ -279,7 +281,7 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 	change := &ChannelChange{ChannelId: channelId}
 	if !c.Broadcast {
 		action := mtproto.MakeTLMessageActionChatDeleteUser(&mtproto.MessageAction{UserId: b.UserId()}).To_MessageAction()
-		if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, action); err != nil {
+		if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, false, action); err != nil {
 			return nil, err
 		}
 		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {
@@ -308,16 +310,21 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 	return change, nil
 }
 
-// addServiceMessage writes a service message from b's owner to the
-// supergroup: the next id and pts of the channel, one copy.
-func addServiceMessage(b *userbox.Box, ch *channelbox.Channel, channelId int64, action *mtproto.MessageAction) (*mtproto.Message, int32, error) {
+// addServiceMessage writes a service message of b's owner to the channel:
+// the next id and pts of the channel, one copy. In a supergroup it is from
+// the owner; in a channel (broadcast) it is a post, without an author, as
+// the first message of a channel is (channel.createChannel).
+func addServiceMessage(b *userbox.Box, ch *channelbox.Channel, channelId int64, broadcast bool, action *mtproto.MessageAction) (*mtproto.Message, int32, error) {
 	m := mtproto.MakeTLMessageService(&mtproto.Message{
 		Id:     ch.NextMessageId(),
-		FromId: mtproto.MakePeerUser(b.UserId()),
+		Post:   broadcast,
 		PeerId: mtproto.MakePeerChannel(channelId),
 		Date:   int32(b.Date()),
 		Action: action,
 	}).To_Message()
+	if !broadcast {
+		m.FromId = mtproto.MakePeerUser(b.UserId())
+	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
 	data, err := jsonx.MarshalToString(m)
 	if err != nil {
@@ -350,22 +357,30 @@ func upsertDialog(b *userbox.Box, channelId int64, top int32) error {
 	return err
 }
 
-// EmitChannelPush adds the push of the channel's new message to its
-// members (sync.pushChannelUpdates, keyed by the channel), as msg does for
-// the messages it sends.
+// EmitChannelPush adds the push of the change to the channel's members
+// (sync.pushChannelUpdates, keyed by the channel), as msg does for the
+// messages it sends: the new service message, and updateChannel without
+// seq when they are to load the channel again.
 func (d *Dao) EmitChannelPush(b *userbox.Box, permAuthKeyId int64, change *ChannelChange) error {
-	if change.Message == nil {
+	var updates []*mtproto.Update
+	if change.Message != nil {
+		updates = append(updates, mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{
+			Message_MESSAGE: change.Message,
+			Pts_INT32:       change.Pts,
+			PtsCount:        1,
+		}).To_Update())
+	}
+	if change.Reload {
+		updates = append(updates, mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: change.ChannelId}).To_Update())
+	}
+	if len(updates) == 0 {
 		return nil
 	}
 	in := &sync.TLSyncPushChannelUpdates{
 		ChannelId:     change.ChannelId,
 		FromId:        b.UserId(),
 		FromAuthKeyId: permAuthKeyId,
-		Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{
-			Message_MESSAGE: change.Message,
-			Pts_INT32:       change.Pts,
-			PtsCount:        1,
-		}).To_Update()),
+		Updates:       mtproto.MakeUpdatesByUpdates(updates...),
 	}
 	data, err := jsonx.Marshal(in)
 	if err != nil {

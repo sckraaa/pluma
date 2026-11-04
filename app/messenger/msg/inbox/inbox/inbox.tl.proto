@@ -30,6 +30,8 @@ enum TLConstructor {
   CRC32_inbox_seqUpdatesToInbox = -61692106;
   // pluma: task 053
   CRC32_inbox_updateMessageReactionsToInbox = -881825213;
+  // pluma: task 041
+  CRC32_inbox_channelInvitedToInbox = -733323321;
 }
 
 // Every event is addressed to one user, user_id: it changes that user's box
@@ -166,4 +168,16 @@ message TL_inbox_seqUpdatesToInbox {
   int64 user_id = 3;
   int64 from_id = 4;
   repeated mtproto.Update updates = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: inbox.channelInvitedToInbox user_id:long from_id:long channel_id:long = Void;
+// from_id added user_id to the channel channel_id (task 041, ADR 0034,
+// p. 3): the participant row is written; the recipient's box gets the
+// dialog with the channel and updateChannel with seq.
+message TL_inbox_channelInvitedToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int64 channel_id = 5;
 }

@@ -36,5 +36,6 @@ type Config struct {
 
 // Topics are the Kafka topics of the service's events.
 type Topics struct {
-	Sync string // pushes to devices (Sync-T)
+	Sync  string // pushes to devices (Sync-T)
+	Inbox string // events of other users' boxes (Inbox-T): the invited
 }
