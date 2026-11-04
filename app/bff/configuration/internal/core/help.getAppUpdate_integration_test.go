@@ -110,7 +110,7 @@ func TestHelpGetAppUpdate(t *testing.T) {
 		{"android current", apiIdAndroid, "12.9.1.7 (6979079)", "en", "", "", ""},
 		{"android of 3 parts", apiIdAndroid, "12.9.1 (69799)", "en", "", "", ""},
 		{"ios from the site", apiIdIOS, "12.9.2 (55) adhoc", "en", "12.9.2", "iOS", "https://pluma.example/iphone/install"},
-		{"ios from TestFlight", apiIdIOS, "12.9.2 (55)", "en", "", "", ""},
+		{"ios from TestFlight", apiIdIOS, "12.9.2 (55) ", "en", "", "", ""},
 		{"ios current", apiIdIOS, "12.9.2 (60) adhoc", "en", "", "", ""},
 		{"desktop", 10003, "7.0.9 x64", "en", "", "", ""},
 	} {

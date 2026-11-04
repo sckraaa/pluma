@@ -99,6 +99,7 @@ func TestIOSInstalled(t *testing.T) {
 	}{
 		{"12.9.2 (57) adhoc", 57, true, true},
 		{"12.9.2 (57)", 57, false, true},
+		{"12.9.2 (57) ", 57, false, true}, // MtProtoKit's form, an empty suffix
 		{"12.9.2", 0, false, false},
 		{"12.9.2 (x) adhoc", 0, false, false},
 	} {

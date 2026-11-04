@@ -269,14 +269,14 @@ func AndroidNewer(installed, offered string) bool {
 	return false
 }
 
-// IOSInstalled reads the app_version the iOS app of Pluma sends:
-// "<version> (<build>)", with " adhoc" after it from a build installed
-// from the site's install service rather than TestFlight (the patch of
-// task 054: TestFlight updates its own builds, ad hoc ones are offered
-// the install page). false for another form, Telegram's own included
-// (only the version, AppDelegate.swift:528 at 6ad963e5).
+// IOSInstalled reads the app_version the iOS app sends: MtProtoKit makes
+// it "<version> (<build>) <suffix>", the suffix empty on iOS
+// (MTApiEnvironment.m:384-394 at 6ad963e5); the patch of task 054 makes it
+// "adhoc" in a build installed from the site's install service rather than
+// TestFlight (TestFlight updates its own builds, ad hoc ones are offered
+// the install page). false for another form.
 func IOSInstalled(appVersion string) (build int32, adhoc, ok bool) {
-	rest := appVersion
+	rest := strings.TrimSpace(appVersion)
 	if strings.HasSuffix(rest, " adhoc") {
 		rest, adhoc = strings.TrimSuffix(rest, " adhoc"), true
 	}
