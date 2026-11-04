@@ -29,7 +29,7 @@ import (
 // Methods of channels not served yet answer ERR_ENTERPRISE_IS_BLOCKED
 // (400) through the session's routing, never an internal error, which the
 // clients' transports retry without end: those of RPCChannels from the bff
-// module channels, those the schema puts in other services (forums here)
+// module channels, those the schema puts in other services (anti-spam here)
 // from the proxy.
 func TestChannelsNotServed(t *testing.T) {
 	t.Parallel()
@@ -54,10 +54,10 @@ func TestChannelsNotServed(t *testing.T) {
 			Constructor: alice.c.Constructor(mtproto.Predicate_channels_leaveChannel),
 			Channel:     channel,
 		},
-		"channels.getForumTopics": &mtproto.TLChannelsGetForumTopics{
-			Constructor: alice.c.Constructor(mtproto.Predicate_channels_getForumTopics),
+		"channels.toggleAntiSpam": &mtproto.TLChannelsToggleAntiSpam{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_toggleAntiSpam),
 			Channel:     channel,
-			Limit:       10,
+			Enabled:     mtproto.BoolTrue,
 		},
 	} {
 		if _, err := alice.c.Invoke(ctx, req); !mtclient.IsRPCError(err, "ERR_ENTERPRISE_IS_BLOCKED") {
