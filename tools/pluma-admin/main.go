@@ -22,6 +22,7 @@
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
 //	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
 //	pluma-admin [-f bff.yaml] catalog import <dir>
+//	pluma-admin [-f bff.yaml] release list|withdraw|restore [<platform> <build>]
 //	pluma-admin catalog check <dir>
 //	pluma-admin catalog receive -dir <dir> [-listen :9099]
 //
@@ -169,6 +170,8 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
   pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
   pluma-admin [-f bff.yaml] catalog import <dir>   (a collection of the catalog from Telegram, task 024)
+  pluma-admin [-f bff.yaml] release list           (the current release of each client app, task 054)
+  pluma-admin [-f bff.yaml] release withdraw|restore <platform> <build>   (roll a release back, or forward again)
   pluma-admin catalog check <dir>   (decodes a collection, stores nothing)
   pluma-admin catalog receive -dir <dir> [-listen :9099]   (takes a collection; $CATALOG_UPLOAD_TOKEN)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
@@ -233,6 +236,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return langpackCommand(args, configFile, stdout)
 	case "catalog":
 		return catalogCommand(args, configFile, stdout)
+	case "release":
+		return releaseCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {
