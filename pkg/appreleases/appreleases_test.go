@@ -15,7 +15,10 @@
 
 package appreleases
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestAndroidNewer follows versionBiggerOrEqual of Android
 // (SharedConfig.java:811-824 at aac1efcb): only the parts both versions
@@ -103,5 +106,46 @@ func TestIOSInstalled(t *testing.T) {
 		if build != c.build || adhoc != c.adhoc || ok != c.ok {
 			t.Errorf("IOSInstalled(%q) = %d %v %v", c.appVersion, build, adhoc, ok)
 		}
+	}
+}
+
+func TestUpdaterKeys(t *testing.T) {
+	for _, c := range []struct {
+		platform, version, name string
+		want                    string // keys joined, "" for not a package
+	}{
+		{MacOS, "7000010", "tmacupd7000010", "mac armac"},
+		{MacOS, "7000010", "tarmacupd7000010", "armac"},
+		{Windows, "7000010", "tx64upd7000010", "win64"},
+		{Windows, "7000010", "tarm64upd7000010", "winarm"},
+		{Windows, "7000010", "tupdate7000010", "win"},
+		{Linux, "7000010", "tlinuxupd7000010", "linux"},
+		{Linux, "7000010", "tlinuxupd7000011", ""}, // another version
+		{Linux, "7000010", "tmacupd7000010", ""},   // another system
+		{MacOS, "7000010", "Pluma-7000010.zip", ""},
+		{MacOS, "7000010", "tmacupd7000010_x", ""},
+	} {
+		keys, ok := UpdaterKeys(c.platform, c.version, c.name)
+		if got := strings.Join(keys, " "); ok != (c.want != "") || got != c.want {
+			t.Errorf("%s %s %s: %q %v", c.platform, c.version, c.name, got, ok)
+		}
+	}
+}
+
+func TestUpdaterLinks(t *testing.T) {
+	mac := &Release{Platform: MacOS, Version: "7000010", Files: []File{
+		{Name: "tarmacupd7000010", Kind: KindUpdate},
+		{Name: "tmacupd7000010", Kind: KindUpdate},
+		{Name: "Pluma.zip", Kind: KindInstaller},
+	}}
+	win := &Release{Platform: Windows, Version: "7000009", Files: []File{{Name: "tx64upd7000009", Kind: KindUpdate}}}
+	got := UpdaterLinks([]*Release{mac, win})
+	if len(got) != 3 || got["mac"].Name != "tmacupd7000010" || got["armac"].Name != "tarmacupd7000010" ||
+		got["win64"].Release != win || got["win64"].Name != "tx64upd7000009" {
+		t.Errorf("%+v", got)
+	}
+	universal := UpdaterLinks([]*Release{{Platform: MacOS, Version: "7000010", Files: []File{{Name: "tmacupd7000010", Kind: KindUpdate}}}})
+	if universal["armac"].Name != "tmacupd7000010" || universal["mac"].Name != "tmacupd7000010" {
+		t.Errorf("universal %+v", universal)
 	}
 }

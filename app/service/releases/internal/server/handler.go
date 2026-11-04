@@ -51,6 +51,9 @@ import (
 //   - GET /dl/<platform>/latest[/<arch>]: a redirect to the current
 //     installer, the address the site's buttons keep.
 //   - GET /dl/<platform>/<version>/<name>: a file; it never changes.
+//   - GET /dl/desktop/current4: the update packages of the desktop app for
+//     its updater, which asks <autoupdate_url_prefix>/current4 (ADR 0035);
+//     GET /dl/desktop/<platform>/<version>/<name> is a package.
 //
 // The files are written once, fully and synced, before the row that makes
 // them the current release: a client never sees a release whose files are
@@ -91,6 +94,8 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /dl/{platform}/latest", h.latest)
 	mux.HandleFunc("GET /dl/{platform}/latest/{arch}", h.latest)
 	mux.HandleFunc("GET /dl/{platform}/{version}/{name}", h.file)
+	mux.HandleFunc("GET /dl/desktop/current4", h.desktopCurrent)
+	mux.HandleFunc("GET /dl/desktop/{platform}/{version}/{name}", h.file)
 	return mux
 }
 
@@ -239,6 +244,11 @@ func checkFiles(rel *appreleases.Release) error {
 		if rel.Installer("") == nil {
 			return errors.New(rel.Platform + ": no installer")
 		}
+		for _, f := range rel.Files {
+			if _, ok := appreleases.UpdaterKeys(rel.Platform, rel.Version, f.Name); f.Kind == appreleases.KindUpdate && !ok {
+				return fmt.Errorf("%s: %s is not an update package of %s %s", rel.Platform, f.Name, rel.Platform, rel.Version)
+			}
+		}
 	}
 	return nil
 }
@@ -375,6 +385,42 @@ func (h *Handler) releasesJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-cache")
 	_ = json.NewEncoder(w).Encode(map[string]any{"platforms": out})
+}
+
+// desktopCurrent answers the updater of tdesktop: for each key of its
+// systems, the version of the current package and its link, which the
+// updater adds to its prefix (HttpChecker::parseResponse and
+// ParseCommonMap, update_checker.cpp:606-680, :804-850 at a1e89e1f). It
+// takes a version above its own AppVersion. The suffix 4 is the updater
+// of lib_base 82d182a2 on every system the app runs on (AutoUpdateVersion:
+// 2 only below macOS 10.13 or glibc 2.28, which Pluma does not build for);
+// another suffix is another updater and gets nothing.
+func (h *Handler) desktopCurrent(w http.ResponseWriter, r *http.Request) {
+	var current []*appreleases.Release
+	for _, p := range []string{appreleases.MacOS, appreleases.Windows, appreleases.Linux} {
+		rel, err := appreleases.Current(r.Context(), h.DB, p)
+		if err != nil {
+			h.internal(w, err)
+			return
+		}
+		if rel != nil {
+			current = append(current, rel)
+		}
+	}
+	type channel struct {
+		Released string `json:"released"`
+		Link     string `json:"link"`
+	}
+	out := map[string]map[string]channel{}
+	for key, l := range appreleases.UpdaterLinks(current) {
+		out[key] = map[string]channel{"stable": {
+			Released: l.Release.Version,
+			Link:     "/" + l.Release.Platform + "/" + l.Release.Version + "/" + l.Name,
+		}}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-cache")
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 // latest redirects to the current installer of the platform (for arch).

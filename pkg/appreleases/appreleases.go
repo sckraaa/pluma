@@ -290,3 +290,75 @@ func IOSInstalled(appVersion string) (build int32, adhoc, ok bool) {
 	}
 	return int32(n), adhoc, true
 }
+
+// updatePackage is the name of a package of tdesktop's updater: the
+// prefix Packer gives it for its system and processor, then the version
+// (packer.cpp:498-502 at a1e89e1f). The updater finds a downloaded package
+// again only by these names (FindUpdateFile, update_checker.cpp:292-315).
+var updatePackage = regexp.MustCompile(`^(tupdate|tx64upd|tarm64upd|tmacupd|tarmacupd|tlinuxupd)(\d+)$`)
+
+// updaterKeys are the systems each package prefix serves, by the key the
+// updater asks with (Platform::AutoUpdateKey of lib_base 82d182a2:
+// base_info_win.cpp:322-330, base_info_mac.mm:217-224,
+// base_info_linux.cpp:212-214). The macOS app of Pluma is universal: one
+// tmacupd package serves Intel and Apple processors, unless the release
+// has a tarmacupd of its own.
+var updaterKeys = map[string]struct {
+	platform string
+	keys     []string
+}{
+	"tupdate":   {Windows, []string{"win"}},
+	"tx64upd":   {Windows, []string{"win64"}},
+	"tarm64upd": {Windows, []string{"winarm"}},
+	"tmacupd":   {MacOS, []string{"mac", "armac"}},
+	"tarmacupd": {MacOS, []string{"armac"}},
+	"tlinuxupd": {Linux, []string{"linux"}},
+}
+
+// UpdaterKeys are the keys of the updater a desktop update package of the
+// release serves; false when name is not a package of the release's
+// platform and version.
+func UpdaterKeys(platform, version, name string) ([]string, bool) {
+	m := updatePackage.FindStringSubmatch(name)
+	if m == nil || m[2] != version {
+		return nil, false
+	}
+	k := updaterKeys[m[1]]
+	if k.platform != platform {
+		return nil, false
+	}
+	return k.keys, true
+}
+
+// UpdaterLink is the update package a key of the updater is served.
+type UpdaterLink struct {
+	Release *Release
+	Name    string // the file within the release
+}
+
+// UpdaterLinks are the update packages of the desktop releases by the key
+// of the updater. A package made for one key wins over one that serves
+// several.
+func UpdaterLinks(releases []*Release) map[string]UpdaterLink {
+	out := map[string]UpdaterLink{}
+	specific := map[string]bool{}
+	for _, r := range releases {
+		for _, f := range r.Files {
+			if f.Kind != KindUpdate {
+				continue
+			}
+			keys, ok := UpdaterKeys(r.Platform, r.Version, f.Name)
+			if !ok {
+				continue
+			}
+			for _, k := range keys {
+				if specific[k] && len(keys) > 1 {
+					continue
+				}
+				out[k] = UpdaterLink{r, f.Name}
+				specific[k] = len(keys) == 1
+			}
+		}
+	}
+	return out
+}

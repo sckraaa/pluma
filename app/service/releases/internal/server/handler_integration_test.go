@@ -219,7 +219,9 @@ func TestRelease(t *testing.T) {
 }
 
 // TestDesktopFiles: a desktop release takes an installer and an update
-// package per processor; one without an installer is refused.
+// package per processor; one without an installer, or with a package of
+// another version, is refused. The updater finds the current packages at
+// current4 and fetches them by its prefix and their links.
 func TestDesktopFiles(t *testing.T) {
 	_, _, srv := newHandler(t)
 	code, body := upload(t, srv, token, part{name: "platform", body: "macos"}, part{name: "version", body: "7000010"},
@@ -232,5 +234,31 @@ func TestDesktopFiles(t *testing.T) {
 	if code, _ = upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7000010"},
 		part{name: "build", body: "7"}, part{name: "update", file: "tlinuxupd7000010", body: "pkg"}); code != http.StatusBadRequest {
 		t.Errorf("no installer: %d", code)
+	}
+	if code, _ = upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7000010"},
+		part{name: "build", body: "7"}, part{name: "installer", file: "Pluma.tar.xz", body: "xz"},
+		part{name: "update", file: "tlinuxupd7000009", body: "pkg"}); code != http.StatusBadRequest {
+		t.Errorf("a package of another version: %d", code)
+	}
+	if code, body = upload(t, srv, token, part{name: "platform", body: "windows"}, part{name: "version", body: "7000009"},
+		part{name: "build", body: "6"}, part{name: "installer", file: "Pluma-x64.zip", body: "zip"},
+		part{name: "update", file: "tx64upd7000009", body: "win"}); code != http.StatusOK {
+		t.Fatalf("windows: %d %s", code, body)
+	}
+
+	// The updater asks <prefix>/current4 and adds the link to the prefix.
+	var current map[string]map[string]struct{ Released, Link string }
+	if err := json.Unmarshal([]byte(get(t, srv, "/dl/desktop/current4").body), &current); err != nil {
+		t.Fatal(err)
+	}
+	if len(current) != 3 || current["mac"]["stable"].Released != "7000010" || current["armac"]["stable"].Link != "/macos/7000010/tmacupd7000010" ||
+		current["win64"]["stable"].Link != "/windows/7000009/tx64upd7000009" {
+		t.Errorf("current4: %+v", current)
+	}
+	if a := get(t, srv, "/dl/desktop"+current["win64"]["stable"].Link); a.code != http.StatusOK || a.body != "win" {
+		t.Errorf("the package: %d %q", a.code, a.body)
+	}
+	if a := get(t, srv, "/dl/desktop/current2"); a.code != http.StatusNotFound {
+		t.Errorf("another updater: %d", a.code)
 	}
 }
