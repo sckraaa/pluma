@@ -275,3 +275,45 @@ func (s *Service) ChannelEditAbout(ctx context.Context, request *channel.TLChann
 
 	return r, err
 }
+
+// ChannelCheckUsername
+// channel.checkUsername self_id:long channel_id:long username:string = Bool;
+func (s *Service) ChannelCheckUsername(ctx context.Context, request *channel.TLChannelCheckUsername) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.checkUsername - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelCheckUsername(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelUpdateUsername
+// channel.updateUsername self_id:long perm_auth_key_id:long channel_id:long username:string = Bool;
+func (s *Service) ChannelUpdateUsername(ctx context.Context, request *channel.TLChannelUpdateUsername) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.updateUsername - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUpdateUsername(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetAdminedPublicChannels
+// channel.getAdminedPublicChannels self_id:long = Vector<long>;
+func (s *Service) ChannelGetAdminedPublicChannels(ctx context.Context, request *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getAdminedPublicChannels - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetAdminedPublicChannels(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

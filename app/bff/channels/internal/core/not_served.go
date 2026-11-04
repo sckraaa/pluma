@@ -55,11 +55,6 @@ func (c *ChannelsCore) ChannelsToggleSignatures(in *mtproto.TLChannelsToggleSign
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsGetAdminedPublicChannels is not served yet: channels.getAdminedPublicChannels#f8b036af.
-func (c *ChannelsCore) ChannelsGetAdminedPublicChannels(in *mtproto.TLChannelsGetAdminedPublicChannels) (*mtproto.Messages_Chats, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsEditBanned is not served yet: channels.editBanned#96e6cd81.
 func (c *ChannelsCore) ChannelsEditBanned(in *mtproto.TLChannelsEditBanned) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

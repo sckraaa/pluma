@@ -44,6 +44,9 @@ type ChannelClient interface {
 	ChannelInviteToChannel(ctx context.Context, in *channel.TLChannelInviteToChannel) (*mtproto.Updates, error)
 	ChannelEditTitle(ctx context.Context, in *channel.TLChannelEditTitle) (*mtproto.Updates, error)
 	ChannelEditAbout(ctx context.Context, in *channel.TLChannelEditAbout) (*mtproto.Bool, error)
+	ChannelCheckUsername(ctx context.Context, in *channel.TLChannelCheckUsername) (*mtproto.Bool, error)
+	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
+	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 }
 
 type defaultChannelClient struct {
@@ -252,4 +255,37 @@ func (m *defaultChannelClient) ChannelEditAbout(ctx context.Context, in *channel
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelEditAbout(ctx, in)
+}
+
+// ChannelCheckUsername
+// channel.checkUsername self_id:long channel_id:long username:string = Bool;
+func (m *defaultChannelClient) ChannelCheckUsername(ctx context.Context, in *channel.TLChannelCheckUsername) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelCheckUsername(ctx, in)
+}
+
+// ChannelUpdateUsername
+// channel.updateUsername self_id:long perm_auth_key_id:long channel_id:long username:string = Bool;
+func (m *defaultChannelClient) ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelUpdateUsername(ctx, in)
+}
+
+// ChannelGetAdminedPublicChannels
+// channel.getAdminedPublicChannels self_id:long = Vector<long>;
+func (m *defaultChannelClient) ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetAdminedPublicChannels(ctx, in)
 }

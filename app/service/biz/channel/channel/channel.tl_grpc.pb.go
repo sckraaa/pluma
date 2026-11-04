@@ -36,24 +36,27 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RPCChannel_ChannelGetMutableChannel_FullMethodName      = "/channel.RPCChannel/channel_getMutableChannel"
-	RPCChannel_ChannelGetChannelListByIdList_FullMethodName = "/channel.RPCChannel/channel_getChannelListByIdList"
-	RPCChannel_ChannelCreateChannel_FullMethodName          = "/channel.RPCChannel/channel_createChannel"
-	RPCChannel_ChannelGetChannelDialogs_FullMethodName      = "/channel.RPCChannel/channel_getChannelDialogs"
-	RPCChannel_ChannelGetTopMessages_FullMethodName         = "/channel.RPCChannel/channel_getTopMessages"
-	RPCChannel_ChannelGetMemberIdList_FullMethodName        = "/channel.RPCChannel/channel_getMemberIdList"
-	RPCChannel_ChannelGetHistory_FullMethodName             = "/channel.RPCChannel/channel_getHistory"
-	RPCChannel_ChannelGetMessages_FullMethodName            = "/channel.RPCChannel/channel_getMessages"
-	RPCChannel_ChannelGetChannelDifference_FullMethodName   = "/channel.RPCChannel/channel_getChannelDifference"
-	RPCChannel_ChannelJoinChannel_FullMethodName            = "/channel.RPCChannel/channel_joinChannel"
-	RPCChannel_ChannelLeaveChannel_FullMethodName           = "/channel.RPCChannel/channel_leaveChannel"
-	RPCChannel_ChannelCheckChatInvite_FullMethodName        = "/channel.RPCChannel/channel_checkChatInvite"
-	RPCChannel_ChannelGetParticipants_FullMethodName        = "/channel.RPCChannel/channel_getParticipants"
-	RPCChannel_ChannelReadHistory_FullMethodName            = "/channel.RPCChannel/channel_readHistory"
-	RPCChannel_ChannelDeleteMessages_FullMethodName         = "/channel.RPCChannel/channel_deleteMessages"
-	RPCChannel_ChannelInviteToChannel_FullMethodName        = "/channel.RPCChannel/channel_inviteToChannel"
-	RPCChannel_ChannelEditTitle_FullMethodName              = "/channel.RPCChannel/channel_editTitle"
-	RPCChannel_ChannelEditAbout_FullMethodName              = "/channel.RPCChannel/channel_editAbout"
+	RPCChannel_ChannelGetMutableChannel_FullMethodName        = "/channel.RPCChannel/channel_getMutableChannel"
+	RPCChannel_ChannelGetChannelListByIdList_FullMethodName   = "/channel.RPCChannel/channel_getChannelListByIdList"
+	RPCChannel_ChannelCreateChannel_FullMethodName            = "/channel.RPCChannel/channel_createChannel"
+	RPCChannel_ChannelGetChannelDialogs_FullMethodName        = "/channel.RPCChannel/channel_getChannelDialogs"
+	RPCChannel_ChannelGetTopMessages_FullMethodName           = "/channel.RPCChannel/channel_getTopMessages"
+	RPCChannel_ChannelGetMemberIdList_FullMethodName          = "/channel.RPCChannel/channel_getMemberIdList"
+	RPCChannel_ChannelGetHistory_FullMethodName               = "/channel.RPCChannel/channel_getHistory"
+	RPCChannel_ChannelGetMessages_FullMethodName              = "/channel.RPCChannel/channel_getMessages"
+	RPCChannel_ChannelGetChannelDifference_FullMethodName     = "/channel.RPCChannel/channel_getChannelDifference"
+	RPCChannel_ChannelJoinChannel_FullMethodName              = "/channel.RPCChannel/channel_joinChannel"
+	RPCChannel_ChannelLeaveChannel_FullMethodName             = "/channel.RPCChannel/channel_leaveChannel"
+	RPCChannel_ChannelCheckChatInvite_FullMethodName          = "/channel.RPCChannel/channel_checkChatInvite"
+	RPCChannel_ChannelGetParticipants_FullMethodName          = "/channel.RPCChannel/channel_getParticipants"
+	RPCChannel_ChannelReadHistory_FullMethodName              = "/channel.RPCChannel/channel_readHistory"
+	RPCChannel_ChannelDeleteMessages_FullMethodName           = "/channel.RPCChannel/channel_deleteMessages"
+	RPCChannel_ChannelInviteToChannel_FullMethodName          = "/channel.RPCChannel/channel_inviteToChannel"
+	RPCChannel_ChannelEditTitle_FullMethodName                = "/channel.RPCChannel/channel_editTitle"
+	RPCChannel_ChannelEditAbout_FullMethodName                = "/channel.RPCChannel/channel_editAbout"
+	RPCChannel_ChannelCheckUsername_FullMethodName            = "/channel.RPCChannel/channel_checkUsername"
+	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
+	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -94,6 +97,12 @@ type RPCChannelClient interface {
 	ChannelEditTitle(ctx context.Context, in *TLChannelEditTitle, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelEditAbout(ctx context.Context, in *TLChannelEditAbout, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 044
+	ChannelCheckUsername(ctx context.Context, in *TLChannelCheckUsername, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 044
+	ChannelUpdateUsername(ctx context.Context, in *TLChannelUpdateUsername, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 044
+	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 }
 
 type rPCChannelClient struct {
@@ -284,6 +293,36 @@ func (c *rPCChannelClient) ChannelEditAbout(ctx context.Context, in *TLChannelEd
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelCheckUsername(ctx context.Context, in *TLChannelCheckUsername, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelCheckUsername_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelUpdateUsername(ctx context.Context, in *TLChannelUpdateUsername, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelUpdateUsername_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Long)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -322,6 +361,12 @@ type RPCChannelServer interface {
 	ChannelEditTitle(context.Context, *TLChannelEditTitle) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelEditAbout(context.Context, *TLChannelEditAbout) (*mtproto.Bool, error)
+	// pluma: task 044
+	ChannelCheckUsername(context.Context, *TLChannelCheckUsername) (*mtproto.Bool, error)
+	// pluma: task 044
+	ChannelUpdateUsername(context.Context, *TLChannelUpdateUsername) (*mtproto.Bool, error)
+	// pluma: task 044
+	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -384,6 +429,15 @@ func (UnimplementedRPCChannelServer) ChannelEditTitle(context.Context, *TLChanne
 }
 func (UnimplementedRPCChannelServer) ChannelEditAbout(context.Context, *TLChannelEditAbout) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditAbout not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelCheckUsername(context.Context, *TLChannelCheckUsername) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelCheckUsername not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelUpdateUsername(context.Context, *TLChannelUpdateUsername) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelUpdateUsername not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetAdminedPublicChannels not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -729,6 +783,60 @@ func _RPCChannel_ChannelEditAbout_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelCheckUsername_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelCheckUsername)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelCheckUsername(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelCheckUsername_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelCheckUsername(ctx, req.(*TLChannelCheckUsername))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelUpdateUsername_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelUpdateUsername)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelUpdateUsername(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelUpdateUsername_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelUpdateUsername(ctx, req.(*TLChannelUpdateUsername))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetAdminedPublicChannels_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetAdminedPublicChannels)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetAdminedPublicChannels(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetAdminedPublicChannels(ctx, req.(*TLChannelGetAdminedPublicChannels))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -807,6 +915,18 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_editAbout",
 			Handler:    _RPCChannel_ChannelEditAbout_Handler,
+		},
+		{
+			MethodName: "channel_checkUsername",
+			Handler:    _RPCChannel_ChannelCheckUsername_Handler,
+		},
+		{
+			MethodName: "channel_updateUsername",
+			Handler:    _RPCChannel_ChannelUpdateUsername_Handler,
+		},
+		{
+			MethodName: "channel_getAdminedPublicChannels",
+			Handler:    _RPCChannel_ChannelGetAdminedPublicChannels_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

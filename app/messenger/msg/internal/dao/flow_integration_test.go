@@ -295,6 +295,18 @@ func (noChannels) ChannelEditAbout(context.Context, *channelpb.TLChannelEditAbou
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelCheckUsername(context.Context, *channelpb.TLChannelCheckUsername) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelUpdateUsername(context.Context, *channelpb.TLChannelUpdateUsername) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetAdminedPublicChannels(context.Context, *channelpb.TLChannelGetAdminedPublicChannels) (*channelpb.Vector_Long, error) {
+	return &channelpb.Vector_Long{}, nil
+}
+
 func (noChannels) ChannelGetParticipants(context.Context, *channelpb.TLChannelGetParticipants) (*mtproto.Channels_ChannelParticipants, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

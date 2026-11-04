@@ -131,6 +131,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -564196321,
 		}
 	},
+	986177068: func() mtproto.TLObject { // 0x3ac7de2c pluma: task 044
+		return &TLChannelCheckUsername{
+			Constructor: 986177068,
+		}
+	},
+	418987336: func() mtproto.TLObject { // 0x18f93d48 pluma: task 044
+		return &TLChannelUpdateUsername{
+			Constructor: 418987336,
+		}
+	},
+	-2083237595: func() mtproto.TLObject { // 0x83d45125 pluma: task 044
+		return &TLChannelGetAdminedPublicChannels{
+			Constructor: -2083237595,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1640,6 +1655,130 @@ func (m *TLChannelEditAbout) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.PermAuthKeyId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		m.About = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelCheckUsername (pluma: task 044)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelCheckUsername) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x3ac7de2c:
+		x.UInt(0x3ac7de2c)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetUsername())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelCheckUsername) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelCheckUsername) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x3ac7de2c:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Username = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelUpdateUsername (pluma: task 044)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelUpdateUsername) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x18f93d48:
+		x.UInt(0x18f93d48)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetUsername())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelUpdateUsername) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelUpdateUsername) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x18f93d48:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Username = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetAdminedPublicChannels (pluma: task 044)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetAdminedPublicChannels) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x83d45125:
+		x.UInt(0x83d45125)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetAdminedPublicChannels) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetAdminedPublicChannels) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x83d45125:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

@@ -20,13 +20,30 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 )
 
 // ChannelsUpdateUsername
 // channels.updateUsername#3514b3de channel:InputChannel username:string = Bool;
+//
+// The channel's public link (task 044); "" makes the channel private. The
+// format is the one of accounts; biz channel checks the rights, the
+// owner's limit of public channels and that nobody else has the username.
 func (c *UsernamesCore) ChannelsUpdateUsername(in *mtproto.TLChannelsUpdateUsername) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("channels.updateUsername blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if in.GetChannel().GetPredicateName() != mtproto.Predicate_inputChannel {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	channelId, err := c.channelOf(in.Channel)
+	if err != nil {
+		return nil, err
+	}
+	if err = checkAccountUsername(in.Username); err != nil {
+		return nil, err
+	}
+	return c.svcCtx.Dao.Channel.ChannelUpdateUsername(c.ctx, &channelpb.TLChannelUpdateUsername{
+		SelfId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		ChannelId:     channelId,
+		Username:      in.Username,
+	})
 }

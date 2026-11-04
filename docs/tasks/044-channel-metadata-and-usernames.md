@@ -1,6 +1,6 @@
 # 044. Каналы: название, фото, настройки, реакции, публичные имена
 
-- Статус: in progress (название и описание готовы; фото, настройки, реакции, публичные имена, удаление канала — нет)
+- Статус: in progress (название, описание, публичные имена, бусты-заглушки готовы; фото, настройки, реакции, удаление канала — нет)
 - Зависит от: 040
 - ADR: 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.5, §2.6, задача T9; `clients.md` §1 «Create», §3, §4 п. 1, 5, 8, 10; `plan.md` §3, задача «043» плана, §4 п. 3).
 
@@ -41,4 +41,17 @@
 - `messages.editChatAbout` для канала (модуль bff chats получил клиент biz channel) → biz `channel.editAbout`: описание и `updateChannel` участникам пушем; служебного сообщения в схеме для описания нет. То же описание — `CHAT_ABOUT_NOT_MODIFIED`, длиннее 255 — `CHAT_ABOUT_TOO_LONG`.
 - Права: создатель и админы с `change_info`; в супергруппе обычный участник — если ни права по умолчанию, ни его ограничение не запрещают `change_info`; подписчик канала — никогда (`CHAT_ADMIN_REQUIRED`).
 - **Проверка:** интеграционный `TestEditInfo`; e2e `TestChannelInfo` (пост о переименовании, `updateChannel` подписчику, `CHAT_NOT_MODIFIED`, подписчик не меняет ни название, ни описание, описание видно в `getFullChannel`).
+
+### Публичные имена и бусты (2026-11-04, по отчёту владельца с Android)
+Владелец на Android: публичный канал не создаётся («… is already taken» на любое имя), в канале всплывает `ERR_ENTERPRISE_IS_BLOCKED`, пост не редактируется («Sorry, you can't edit this message»). Причины найдены по прод-логам и исходникам Android `aac1efcb`:
+- **«already taken»:** `channels.checkUsername` был заглушкой; Android показывает «занято» на любой ответ, кроме `true` и нескольких ошибок (`ChannelCreateActivity.java:1317-1347`).
+- **Всплывающая ошибка:** `premium.getBoostsStatus` — сервис `RPCBoosts` не маршрутизирован; Android зовёт его при каждом открытии канала и показывает ошибку (`ChatActivity.java:22397-22428`, `ChannelBoostsController.java:58-60`).
+- **Правка поста:** перед правкой Android вызывает `messages.getMessageEditData` и на любую ошибку показывает этот текст (`ChatActivity.java:32881-32899`); ветка каналов была заглушкой.
+
+Сделано:
+- `channels.checkUsername` (с `inputChannelEmpty` для ещё не созданного канала; лимит проверяется раньше формата, как ждёт проба Android с «1»), `channels.updateUsername` (транзакция редактора под блокировкой канала, общая таблица `username` с уникальным ключом, `USERNAME_OCCUPIED`, `USERNAME_NOT_MODIFIED`, «» — канал снова закрытый, участникам `updateChannel`), лимит 10 публичных каналов на создателя (`CHANNELS_ADMIN_PUBLIC_TOO_MUCH`), `channels.getAdminedPublicChannels`, `contacts.resolveUsername` находит каналы (вступление по имени).
+- Бусты: `premium.getBoostsStatus` для канала — 0 бустов, уровень 0 (в Pluma бустов нет), `boost_url` — `t.me/boost/<имя>` или `t.me/boost?c=<id>` (`LaunchActivity.java:2119-2125`) на хосте ссылок сервера; `premium.getMyBoosts` — пусто. Остальные методы `RPCBoosts` — `ERR_ENTERPRISE_IS_BLOCKED`. Маршрут `/mtproto.RPCBoosts` во всех трёх `session.yaml`.
+- `messages.getMessageEditData` для каналов (те же права, что у правки; `caption` — для сообщения с медиа).
+- **Проверка:** интеграционные `TestUsername`, `TestUsernameRace`; e2e `TestChannelUsername` (проба создания, проверка и запись имени, поиск другим, вступление по имени, бусты), проверки `getMessageEditData` в `TestChannelEdit` и `TestChannelInfo`.
+- **Молча падающие в Android (не видны пользователю, остаются):** `messages.getMessagesViews` (просмотры постов, 046), `messages.getMessagesReactions`, `messages.search` и `getSearchCounters` в канале (общие медиа), `messages.getAdminsWithInvites`, `messages.saveDraft` для канала (черновики в каналах теряются).
 

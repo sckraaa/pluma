@@ -28,4 +28,7 @@ type Config struct {
 	UserClient zrpc.RpcClientConf
 	ChatClient zrpc.RpcClientConf
 	SyncClient sync_client.OutboxConf
+	// ChannelClient checks and sets the usernames of channels and resolves
+	// them (biz channel).
+	ChannelClient zrpc.RpcClientConf
 }

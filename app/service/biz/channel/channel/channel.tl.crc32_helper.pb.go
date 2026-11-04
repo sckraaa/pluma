@@ -44,4 +44,10 @@ const (
 	CRC32_channel_editTitle TLConstructor = 325646357 // 0x1368f815
 	// pluma: task 044
 	CRC32_channel_editAbout TLConstructor = -564196321 // 0xde5f0c1f
+	// pluma: task 044
+	CRC32_channel_checkUsername TLConstructor = 986177068 // 0x3ac7de2c
+	// pluma: task 044
+	CRC32_channel_updateUsername TLConstructor = 418987336 // 0x18f93d48
+	// pluma: task 044
+	CRC32_channel_getAdminedPublicChannels TLConstructor = -2083237595 // 0x83d45125
 )

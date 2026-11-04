@@ -311,14 +311,15 @@ func (s *Server) Initialize() error {
 
 		// channels_helper: channels and supergroups (ADR 0034); the methods
 		// not served yet answer ERR_ENTERPRISE_IS_BLOCKED.
-		mtproto.RegisterRPCChannelsServer(
-			grpcServer,
-			channels_helper.New(channels_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				ChannelClient: c.BizServiceClient,
-				UserClient:    c.BizServiceClient,
-				ChatClient:    c.BizServiceClient,
-			}))
+		// The same module serves the boosts of channels (RPCBoosts).
+		channels := channels_helper.New(channels_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			ChannelClient: c.BizServiceClient,
+			UserClient:    c.BizServiceClient,
+			ChatClient:    c.BizServiceClient,
+		})
+		mtproto.RegisterRPCChannelsServer(grpcServer, channels)
+		mtproto.RegisterRPCBoostsServer(grpcServer, channels)
 
 		// stories_helper: the stories (none yet, the list answers so).
 		mtproto.RegisterRPCStoriesServer(
@@ -462,6 +463,7 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				ChatClient:    c.BizServiceClient,
 				SyncClient:    syncClient,
+				ChannelClient: c.BizServiceClient,
 			}, nil))
 
 		// privacysettingshelper

@@ -63,6 +63,12 @@ enum TLConstructor {
   CRC32_channel_editTitle = 325646357;
   // pluma: task 044
   CRC32_channel_editAbout = -564196321;
+  // pluma: task 044
+  CRC32_channel_checkUsername = 986177068;
+  // pluma: task 044
+  CRC32_channel_updateUsername = 418987336;
+  // pluma: task 044
+  CRC32_channel_getAdminedPublicChannels = -2083237595;
 }
 
 
@@ -362,6 +368,36 @@ message TL_channel_editAbout {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.checkUsername self_id:long channel_id:long username:string = Bool;
+// Whether self_id may give the channel (0: one not made yet) the
+// username: false when another peer has it.
+message TL_channel_checkUsername {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  string username = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.updateUsername self_id:long perm_auth_key_id:long channel_id:long username:string = Bool;
+// self_id gives the channel the username, "" makes it private.
+message TL_channel_updateUsername {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  string username = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getAdminedPublicChannels self_id:long = Vector<long>;
+// The public channels self_id created, newest first.
+message TL_channel_getAdminedPublicChannels {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -421,4 +457,10 @@ service RPCChannel {
   rpc channel_editTitle(TL_channel_editTitle) returns (mtproto.Updates) {}
   // pluma: task 044
   rpc channel_editAbout(TL_channel_editAbout) returns (mtproto.Bool) {}
+  // pluma: task 044
+  rpc channel_checkUsername(TL_channel_checkUsername) returns (mtproto.Bool) {}
+  // pluma: task 044
+  rpc channel_updateUsername(TL_channel_updateUsername) returns (mtproto.Bool) {}
+  // pluma: task 044
+  rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
 }

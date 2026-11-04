@@ -27,20 +27,21 @@ import (
 
 // served are the methods of the service that are served (task 038 on).
 var served = map[string]bool{
-	"ChannelsCreateChannel":           true,
-	"ChannelsGetChannels":             true,
-	"ChannelsGetFullChannel":          true,
-	"ChannelsGetParticipant":          true,
-	"ChannelsGetMessages":             true,
-	"ChannelsJoinChannel24B524C5":     true,
-	"ChannelsJoinChannel7F6A1E22":     true,
-	"ChannelsLeaveChannel":            true,
-	"ChannelsGetParticipants":         true,
-	"ChannelsReadHistory":             true,
-	"ChannelsDeleteMessages":          true,
-	"ChannelsInviteToChannelC9E33D54": true,
-	"ChannelsInviteToChannel199F3A6C": true,
-	"ChannelsEditTitle":               true,
+	"ChannelsCreateChannel":            true,
+	"ChannelsGetChannels":              true,
+	"ChannelsGetFullChannel":           true,
+	"ChannelsGetParticipant":           true,
+	"ChannelsGetMessages":              true,
+	"ChannelsJoinChannel24B524C5":      true,
+	"ChannelsJoinChannel7F6A1E22":      true,
+	"ChannelsLeaveChannel":             true,
+	"ChannelsGetParticipants":          true,
+	"ChannelsReadHistory":              true,
+	"ChannelsDeleteMessages":           true,
+	"ChannelsInviteToChannelC9E33D54":  true,
+	"ChannelsInviteToChannel199F3A6C":  true,
+	"ChannelsGetAdminedPublicChannels": true,
+	"ChannelsEditTitle":                true,
 }
 
 // Every method of the service not served yet answers ERR_ENTERPRISE_IS_BLOCKED

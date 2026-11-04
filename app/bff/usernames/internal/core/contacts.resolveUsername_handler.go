@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -29,9 +30,9 @@ import (
 //
 // The peer of a public username, with the user or chat as the user sees
 // it: USERNAME_INVALID for what cannot be a username, USERNAME_NOT_OCCUPIED
-// when nobody has it. Pluma serves no channels: a channel username, left
-// from data of another installation, resolves to nothing. referer (the
-// referral program) has no meaning here.
+// when nobody has it. A channel's username resolves to the channel as the
+// user sees it (task 044); one that is gone resolves to nothing. referer
+// (the referral program) has no meaning here.
 func (c *UsernamesCore) ContactsResolveUsername(in *mtproto.TLContactsResolveUsername) (*mtproto.Contacts_ResolvedPeer, error) {
 	var (
 		peer *mtproto.PeerUtil
@@ -85,12 +86,15 @@ func (c *UsernamesCore) ContactsResolveUsername(in *mtproto.TLContactsResolveUse
 		}
 		resolvedPeer.Chats = []*mtproto.Chat{chat.ToUnsafeChat(c.MD.UserId)}
 	case mtproto.PEER_CHANNEL:
-		if c.svcCtx.Plugin == nil {
-			err := mtproto.ErrUsernameNotOccupied
-			c.Logger.Errorf("contacts.resolveUsername - a channel username, channels are not served: %v", err)
+		list, err := c.svcCtx.Dao.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: []int64{peer.PeerId}})
+		if err != nil {
+			c.Logger.Errorf("contacts.resolveUsername - error: %v", err)
 			return nil, err
 		}
-		resolvedPeer.Chats = c.svcCtx.Plugin.GetChannelListByIdList(c.ctx, c.MD.UserId, peer.PeerId)
+		if len(list.GetDatas()) == 0 || list.GetDatas()[0].GetChannel().GetDeleted() {
+			return nil, mtproto.ErrUsernameNotOccupied
+		}
+		resolvedPeer.Chats = list.GetChannelListByIdList(c.MD.UserId)
 	default:
 		err := mtproto.ErrUsernameNotOccupied
 		c.Logger.Errorf("contacts.resolveUsername - error: %v", err)
