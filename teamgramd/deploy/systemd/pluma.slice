@@ -1,0 +1,18 @@
+# The slice of every Pluma container on a server shared with other software
+# (docs/ops/memory.md): PLUMA_CGROUP_PARENT=pluma.slice in .env puts them in
+# it, and the kernel keeps them all within MemoryMax, so that the host and
+# the other software keep the rest however Pluma behaves.
+#
+# MemoryMax = the server's memory - 2 GiB for the host - the limits of the
+# other containers. The Hetzner CX33 (7.6 GiB, lawyer-app with 1 GiB):
+# 7.6 - 2 - 1 = 4.5 GiB.
+#
+# Install: copy to /etc/systemd/system/pluma.slice, systemctl daemon-reload,
+# then recreate the containers (docs/ops/memory.md).
+[Unit]
+Description=Pluma containers
+
+[Slice]
+MemoryAccounting=yes
+MemoryMax=4608M
+MemorySwapMax=0

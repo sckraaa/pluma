@@ -14,8 +14,15 @@
 # TEAMGRAM_RESTART exists for the tests (test/e2e/run.sh); production keeps
 # the default.
 
+# Memory (docs/ops/memory.md): every service of every compose file has a
+# limit of its own without swap (mem_limit = memswap_limit), so that one
+# running away is killed alone; the Go runtime keeps its heap below 80% of it
+# (third_party/teamgram-marmota/pkg/commands/memlimit.go). On a server shared
+# with other software PLUMA_CGROUP_PARENT puts them all in a systemd slice
+# that caps Pluma as a whole; empty, Docker's default.
 x-teamgram: &teamgram
   image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
+  cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
   # Built locally by idgen (below), never pulled.
   pull_policy: never
   restart: ${TEAMGRAM_RESTART:-unless-stopped}
@@ -50,6 +57,8 @@ services:
   # it waits for it.
   migrate:
     <<: *teamgram
+    mem_limit: 256m
+    memswap_limit: 256m
     command: ["./pluma-admin", "-f=../etc2/bff.yaml", "migrate", "up", "-dir=../sql", "-wait=180s"]
     restart: "no"
     environment:
@@ -68,6 +77,8 @@ services:
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
   storage-init:
     <<: *teamgram
+    mem_limit: 128m
+    memswap_limit: 128m
     command: ["./pluma-admin", "-f=../etc2/dfs.yaml", "storage", "init", "-admin=http://garage:3903", "-wait=180s"]
     restart: "no"
     environment:
@@ -76,6 +87,8 @@ services:
 
   idgen:
     <<: *teamgram
+    mem_limit: 192m
+    memswap_limit: 192m
     # The one service that builds the shared image: with build on every
     # service compose would run eleven builds of it at once.
     build: .
@@ -90,6 +103,8 @@ services:
 
   status:
     <<: *teamgram
+    mem_limit: 192m
+    memswap_limit: 192m
     command: ["./status", "-f=../etc2/status.yaml"]
     healthcheck:
       <<: *health
@@ -102,6 +117,8 @@ services:
 
   authsession:
     <<: *teamgram
+    mem_limit: 256m
+    memswap_limit: 256m
     command: ["./authsession", "-f=../etc2/authsession.yaml"]
     healthcheck:
       <<: *health
@@ -123,6 +140,8 @@ services:
 
   dfs:
     <<: *teamgram
+    mem_limit: 1536m
+    memswap_limit: 1536m
     command: ["./dfs", "-f=../etc2/dfs.yaml"]
     healthcheck:
       <<: *health
@@ -137,6 +156,8 @@ services:
 
   media:
     <<: *teamgram
+    mem_limit: 256m
+    memswap_limit: 256m
     command: ["./media", "-f=../etc2/media.yaml"]
     healthcheck:
       <<: *health
@@ -149,6 +170,8 @@ services:
 
   biz:
     <<: *teamgram
+    mem_limit: 384m
+    memswap_limit: 384m
     command: ["./biz", "-f=../etc2/biz.yaml"]
     healthcheck:
       <<: *health
@@ -167,6 +190,8 @@ services:
 
   msg:
     <<: *teamgram
+    mem_limit: 256m
+    memswap_limit: 256m
     command: ["./msg", "-f=../etc2/msg.yaml"]
     healthcheck:
       <<: *health
@@ -179,6 +204,8 @@ services:
 
   sync:
     <<: *teamgram
+    mem_limit: 256m
+    memswap_limit: 256m
     command: ["./sync", "-f=../etc2/sync.yaml"]
     healthcheck:
       <<: *health
@@ -193,6 +220,8 @@ services:
   # a group of its own. The only service with the provider keys.
   push:
     <<: *teamgram
+    mem_limit: 256m
+    memswap_limit: 256m
     command: ["./push", "-f=../etc2/push.yaml"]
     healthcheck:
       <<: *health
@@ -215,6 +244,8 @@ services:
 
   bff:
     <<: *teamgram
+    mem_limit: 384m
+    memswap_limit: 384m
     command: ["./bff", "-f=../etc2/bff.yaml"]
     healthcheck:
       <<: *health
@@ -238,6 +269,8 @@ services:
 
   session:
     <<: *teamgram
+    mem_limit: 512m
+    memswap_limit: 512m
     command: ["./session", "-f=../etc2/session.yaml"]
     healthcheck:
       <<: *health
@@ -250,6 +283,8 @@ services:
 
   gnetway:
     <<: *teamgram
+    mem_limit: 512m
+    memswap_limit: 512m
     command: ["./gnetway", "-f=../etc2/gnetway.yaml"]
     environment:
       SERVER_RSA_KEY_FINGERPRINT: ${SERVER_RSA_KEY_FINGERPRINT:?set SERVER_RSA_KEY_FINGERPRINT in .env (printed by tools/genserverkey)}

@@ -7,6 +7,9 @@
 #   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.releases.yaml ...
 services:
   releases:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
     pull_policy: never
     restart: unless-stopped

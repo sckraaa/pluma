@@ -6,6 +6,9 @@
 #   docker compose ... -f docker-compose.catalog.yaml rm -sf catalog-receiver
 services:
   catalog-receiver:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: ${TEAMGRAM_IMAGE:-pluma-teamgram:local}
     working_dir: /app/bin
     command: ["./pluma-admin", "catalog", "receive", "-dir", "/catalog/${PLUMA_CATALOG_RUN:?set PLUMA_CATALOG_RUN, the name of the run}", "-listen", ":9099"]

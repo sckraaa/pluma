@@ -8,11 +8,18 @@
 # administration are bound to 127.0.0.1 only (Docker port publishing bypasses
 # host firewalls such as ufw). Passwords come from .env; compose refuses to
 # start while a required one is missing.
+#
+# Memory (docs/ops/memory.md): each service has a limit of its own without
+# swap, and PLUMA_CGROUP_PARENT, on a shared server, a slice over them all,
+# as in docker-compose.yaml.
 
 services:
   # --- 消息队列 (Bitnami Kafka KRaft 模式，无需 Zookeeper) ---
   #消息队列 - Message queue
   kafka:
+    mem_limit: 1024m
+    memswap_limit: 1024m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: apache/kafka:3.9.0@sha256:fbc7d7c428e3755cf36518d4976596002477e4c052d1f80b5b9eafd06d0fff2f
     container_name: kafka
     ports:
@@ -40,6 +47,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_LOG_DIRS: /var/lib/kafka/data
+      # The image's default heap is 1 GiB; this broker serves one small
+      # server (docs/ops/memory.md).
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx512m
     volumes:
       # Named volume avoids host bind-mount permission errors (AccessDeniedException on
       # bootstrap.checkpoint.tmp when ./data/kafka/data is root-owned from sudo compose).
@@ -58,6 +68,9 @@ services:
   # Creates the topics and sets their parameters, then exits; safe to run
   # again (teamgramd/deploy/kafka/topics.sh).
   kafka-init:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: apache/kafka:3.9.0@sha256:fbc7d7c428e3755cf36518d4976596002477e4c052d1f80b5b9eafd06d0fff2f
     entrypoint: ["bash", "/topics.sh", "kafka:9092"]
     volumes:
@@ -71,6 +84,9 @@ services:
 
   # --- 配置与发现 ---
   etcd:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: quay.io/coreos/etcd:v3.5.11@sha256:8429758911821e36a15e2fe6ae75cfd563a501c97af0b3d119c74921f5fb6f19
     container_name: etcd
     # No authentication: must never be reachable from outside the host.
@@ -100,6 +116,9 @@ services:
 
   # --- 缓存 ---
   redis:
+    mem_limit: 1280m
+    memswap_limit: 1280m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: redis:7.4.11-alpine@sha256:892022f9f18c26c92c30e15194d132f90044af87b94a491a75429bbc3982eab1
     container_name: redis
     ports:
@@ -126,6 +145,9 @@ services:
 
   # --- 关系数据库 ---
   mysql:
+    mem_limit: 1024m
+    memswap_limit: 1024m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
     container_name: mysql
     environment:
@@ -169,6 +191,9 @@ services:
   # prepares it (node layout, the dfs key, buckets). The image has no shell:
   # no health check here; storage-init waits for its admin API.
   garage:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
     container_name: garage
     environment:
@@ -186,6 +211,9 @@ services:
   # --- 可观测：追踪 ---
   #jaeger链路追踪 — Jaeger for tracing
   jaeger:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: jaegertracing/all-in-one:1.63.0@sha256:fd5697c37ba041a91cfca1d62621d32cdeb2041c0febc2f1579e5bac6f21e34b
     container_name: jaeger
     restart: unless-stopped
@@ -202,6 +230,9 @@ services:
 
   # --- Observability (ADR 0013) ---
   node-exporter:
+    mem_limit: 64m
+    memswap_limit: 64m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
     container_name: node-exporter
     # Scraped by prometheus over teamgram_net; not published. The textfile
@@ -222,6 +253,9 @@ services:
       - teamgram_net
 
   prometheus:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
     container_name: prometheus
     volumes:
@@ -239,6 +273,9 @@ services:
       - teamgram_net
 
   alertmanager:
+    mem_limit: 128m
+    memswap_limit: 128m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: prom/alertmanager:v0.34.1@sha256:e9733bafb1bdef9b00e25a21f8f99dc26a22224bf16641ad754d1649f4c3357a
     container_name: alertmanager
     volumes:
@@ -257,6 +294,9 @@ services:
 
   # Alertmanager -> ntfy pushes on the operator's phone (app/ops/alertpush).
   alertpush:
+    mem_limit: 64m
+    memswap_limit: 64m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     build:
       context: .
       dockerfile: teamgramd/deploy/alertpush/Dockerfile
@@ -272,6 +312,9 @@ services:
       - teamgram_net
 
   grafana:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f
     container_name: grafana
     environment:
@@ -293,6 +336,9 @@ services:
   # Daily encrypted backups to S3 outside the server and a weekly restore
   # check (teamgramd/deploy/backup/backup.sh, docs/ops/backup.md).
   backup:
+    mem_limit: 1024m
+    memswap_limit: 1024m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     build:
       context: .
       dockerfile: teamgramd/deploy/backup/Dockerfile
@@ -329,6 +375,9 @@ services:
   # EULA wants a release replaced within 30 days of a new one. A check that
   # finds nothing new does not count against the 30 downloads a day.
   geoipupdate:
+    mem_limit: 128m
+    memswap_limit: 128m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: ghcr.io/maxmind/geoipupdate:v8.0.0@sha256:51e70dd6f16cd3e4d845ac02d09940b10772a75b9d741427d235a78570923c1d
     container_name: geoipupdate
     environment:
@@ -346,6 +395,9 @@ services:
   # sends it to Loki (14 days). The services log JSON without keys, codes or
   # message text (tools/logaudit).
   loki:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: grafana/loki:3.7.9@sha256:0db216b630ae1f348a1584c67f3cead8b4c1fc839169a39501db664744158e28
     container_name: loki
     command: ["-config.file=/etc/loki/loki.yaml"]
@@ -357,6 +409,9 @@ services:
       - teamgram_net
 
   alloy:
+    mem_limit: 384m
+    memswap_limit: 384m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: grafana/alloy:v1.21.2@sha256:89a5a320168387336b9ac3c850609c3ba7757eadd4ae5f1d819deb35e9854b18
     container_name: alloy
     command: ["run", "--storage.path=/var/lib/alloy", "/etc/alloy/config.alloy"]

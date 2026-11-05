@@ -7,6 +7,9 @@
 #   docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml -f docker-compose.iosinstall.yaml ...
 services:
   iosinstall:
+    mem_limit: 512m
+    memswap_limit: 512m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     build:
       context: .
       dockerfile: teamgramd/deploy/iosinstall/Dockerfile

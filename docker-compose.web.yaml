@@ -14,6 +14,9 @@ services:
       - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:5222:5222"   # MTProto TCP, alternative port
 
   web:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: ${PLUMA_WEB_IMAGE:?set PLUMA_WEB_IMAGE in .env, the pluma-web image of the site}
     restart: unless-stopped
     environment:
