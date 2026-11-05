@@ -15,6 +15,7 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/mediaerr"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -156,7 +157,7 @@ func GetMessageMedia(ctx context.Context, d MediaHelper, userId, ownerId int64, 
 			Media:   media,
 		})
 		if err2 != nil {
-			err = mtproto.ErrMediaInvalid
+			err = mediaerr.ForClient(err2)
 			return
 		}
 		messageMedia = documentMedia

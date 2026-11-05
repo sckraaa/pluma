@@ -16,6 +16,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/mediaerr"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 	"google.golang.org/grpc/status"
 )
@@ -158,7 +159,7 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 			Media:   media,
 		})
 		if err2 != nil {
-			err = mtproto.ErrMediaInvalid
+			err = mediaerr.ForClient(err2)
 			return
 		}
 		messageMedia = documentMedia
