@@ -35,9 +35,11 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
            - <адрес>/32
    EOF
    chmod 600 /etc/netplan/60-pluma-floating-ip.yaml
-   netplan generate                     # проверка; адрес войдёт в силу при загрузке
+   # проверка во временном каталоге: адрес войдёт в силу при загрузке
+   d=$(mktemp -d) && mkdir -p $d/etc/netplan && cp -p /etc/netplan/*.yaml $d/etc/netplan/ && netplan generate --root-dir $d && rm -rf $d
    ip addr add <адрес>/32 dev eth0      # и сейчас
    ```
+   `netplan generate` без `--root-dir` на работающем сервере не запускать: он переписывает файлы `systemd-networkd` в `/run/systemd/network`, и с ограничительным `umask` (например, `077`) они получаются `0600`. Работающий networkd этого не замечает, но при следующем перезапуске (его делают автоматические обновления) не может прочитать свой файл, бросает `eth0`, аренда DHCP не продлевается, и через 12–24 часа ядро снимает основной адрес вместе с маршрутом: сервер пропадает из сети целиком. Так было 05.11.2026 (`docs/ops/incidents/2026-11-05-network.md`). Если файлы уже переписаны, проверить: `ls -l /run/systemd/network/` — у `*.network` должны быть права `0640` и группа `systemd-network`.
 3. В `.env` указать `PLUMA_PUBLIC_IPV4=<адрес>`.
 
 ## Первый запуск
@@ -52,7 +54,7 @@ docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml …      
    ```bash
    GOOS=linux GOARCH=amd64 go build -o genserverkey ./tools/genserverkey
    ```
-4. Push — `push.md`, алерты — `monitoring.md`, бэкапы — `backup.md`, разделы «Первый запуск». База GeoIP — раздел «GeoIP» ниже: ключ MaxMind в `.env` и сервис `geoipupdate`.
+4. Push — `push.md`, алерты — `monitoring.md`, бэкапы — `backup.md`, разделы «Первый запуск». На сервере, где есть другие программы, — общий потолок памяти Pluma (`memory.md`, «Один потолок на всю Pluma»). База GeoIP — раздел «GeoIP» ниже: ключ MaxMind в `.env` и сервис `geoipupdate`.
 5. В `.env` записать образы коммита и запустить:
    ```bash
    docker compose -f docker-compose-env.yaml -f docker-compose.public-ip.yaml pull
