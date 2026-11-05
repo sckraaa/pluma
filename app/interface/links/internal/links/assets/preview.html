@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<title>{{.Title}}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f4f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131513" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="{{.OgTitle}}">
+<meta property="og:image" content="{{.OgImage}}">
+<meta property="og:site_name" content="Pluma">
+<meta property="og:description" content="{{.OgDesc}}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{.OgTitle}}">
+<meta name="twitter:description" content="{{.OgDesc}}">
+<meta name="twitter:image" content="{{.OgImage}}">
+<meta property="al:ios:url" content="{{.AppURL}}">
+<meta property="al:android:url" content="{{.AppURL}}">
+<meta property="al:android:package" content="chat.pluma.app">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/_l/page.css">
+<link rel="stylesheet" href="/_l/preview.css">
+</head>
+<body class="preview">
+<header class="top">
+<a class="brand" href="/" aria-label="Pluma">{{template "wordmark"}}</a>
+<a class="download" href="{{.Download}}">{{index .Texts "download"}}</a>
+</header>
+<div class="preview-wrap">
+<aside class="channel">
+{{if .PhotoURL}}<div class="photo"><img src="{{.PhotoURL}}" alt=""></div>
+{{else if .Initials}}<div class="initials">{{.Initials}}</div>
+{{end}}<div class="name">{{.Name}}</div>
+<div class="extra"><a href="/{{.Username}}">@{{.Username}}</a></div>
+{{range .Extra}}<div class="extra">{{.}}</div>
+{{end}}{{if .Desc}}<div class="desc">{{.Desc}}</div>
+{{end}}<div class="action">
+<a class="btn" href="{{.AppURL}}">{{index .Texts "preview_join"}}</a>
+<a class="btn btn--quiet" href="{{.WebURL}}">{{index .Texts "open_web"}}</a>
+</div>
+</aside>
+<main class="history">
+{{if .More}}<a class="more" href="{{.More}}">{{index .Texts "preview_more"}}</a>
+{{end}}{{range .Posts}}<article class="post{{if .Service}} post--service{{end}}" id="post-{{.ID}}">
+{{if .Photo}}<a class="post-photo" href="{{.Link}}"><img src="{{.Photo}}" alt="" loading="lazy"></a>
+{{end}}{{if .Media}}<a class="post-media" href="{{.MediaURL}}">{{.Media}}</a>
+{{end}}{{if .Text}}<div class="post-text">{{.Text}}</div>
+{{end}}<footer class="post-meta">{{if .Views}}<span class="views">{{.Views}}</span>{{end}}<a href="{{.Link}}"><time datetime="{{.DateISO}}">{{.Date}}</time></a></footer>
+</article>
+{{else}}<p class="empty">{{index .Texts "preview_empty"}}</p>
+{{end}}</main>
+</div>
+</body>
+</html>

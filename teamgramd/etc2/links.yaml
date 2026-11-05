@@ -1,0 +1,29 @@
+# The links of pluma.chat in a browser (task 026, ADR 0036): every path of
+# the site that is no file of the site comes here from Caddy.
+Name: interface.links
+ListenOn: 0.0.0.0:9096
+Log:
+  ServiceName: interface.links
+  # debug is for troubleshooting; no level logs the links themselves.
+  Level: info
+# The link host (env2.TDotMe, me_url_prefix of teamgramd/bin/config.json)
+# and the web client.
+SiteURL: https://pluma.chat
+WebURL: https://web.pluma.chat
+BizServiceClient:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: service.biz_service
+  Timeout: 5000
+DfsClient:
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: service.dfs
+  Timeout: 5000
+Mysql:
+  DSN: "teamgram:${MYSQL_PASSWORD}@tcp(mysql:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  Active: 4
+  Idle: 2
+  IdleTimeout: 4h

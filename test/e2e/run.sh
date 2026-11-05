@@ -54,7 +54,7 @@ FAKEPUSH_URL=http://fakepush:8080
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
-TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway)
+TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
 SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1

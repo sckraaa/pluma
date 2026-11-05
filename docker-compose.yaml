@@ -285,6 +285,25 @@ services:
       bff:
         condition: service_healthy
 
+  # The links of pluma.chat in a browser (task 026): Caddy of
+  # docker-compose.web.yaml sends it the site's paths that are no files.
+  links:
+    <<: *teamgram
+    mem_limit: 128m
+    memswap_limit: 128m
+    command: ["./links", "-f=../etc2/links.yaml"]
+    healthcheck:
+      <<: *health
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9096"]
+    environment:
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+    stop_grace_period: 15s
+    depends_on:
+      biz:
+        condition: service_healthy
+      dfs:
+        condition: service_healthy
+
   gnetway:
     <<: *teamgram
     mem_limit: 512m

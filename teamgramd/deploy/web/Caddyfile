@@ -65,6 +65,20 @@
 	root * /pluma-site/current
 	encode zstd gzip
 
+	# The links of pluma.chat (task 026, ADR 0036): every path that is no
+	# file or page of the site goes to the links service, which shows the
+	# object as t.me shows Telegram's and hands off to the app. The site's
+	# own addresses (rewritten below) and its files win.
+	@links {
+		not path / /iphone /ipad /android /mac /windows /linux /web /pero /app /en /en/* /dl/* /ios/* /collect/* /progress.json
+		not file {
+			try_files {path} {path}/index.html
+		}
+	}
+	handle @links {
+		reverse_proxy links:9096
+	}
+
 	# The device addresses open the same page; its script picks the card by the
 	# address. /pero and /app answer without a redirect to the address with a slash.
 	@devices path /iphone /ipad /android /mac /windows /linux /web

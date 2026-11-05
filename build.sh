@@ -41,6 +41,10 @@ echo "build releases ..."
 cd ${TEAMGRAMAPP}/service/releases/cmd/releases
 go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/releases
 
+echo "build links ..."
+cd ${TEAMGRAMAPP}/interface/links/cmd/links
+go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/links
+
 echo "build msg ..."
 cd ${TEAMGRAMAPP}/messenger/msg/cmd/msg
 go build "${BUILD_FLAGS[@]}" -o ${INSTALL}/bin/msg
