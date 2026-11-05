@@ -74,7 +74,8 @@ func checkAccountUsername(username string) error {
 	}
 	if len(username) < userpb.MinUsernameLen ||
 		!strings2.IsAlNumString(username) ||
-		utils.IsNumber(username[0]) {
+		utils.IsNumber(username[0]) ||
+		userpb.ReservedUsername(username) {
 		return mtproto.ErrUsernameInvalid
 	}
 	return nil

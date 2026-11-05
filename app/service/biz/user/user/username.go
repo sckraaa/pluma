@@ -34,7 +34,27 @@ const (
 	UsernameExistedIsMe  = 3
 )
 
-var ()
+// reservedUsernames are the first path segments of the link host
+// (pluma.chat/<username>, task 026) that are not usernames: the pages of
+// the site and the link paths of core.telegram.org/api/links that are long
+// enough to be usernames. A username equal to one of them would never open.
+var reservedUsernames = map[string]bool{
+	// The site (teamgramd/deploy/web/Caddyfile).
+	"android": true, "iphone": true, "windows": true, "linux": true,
+	"assets": true, "collect": true,
+	// Links (core.telegram.org/api/links, the reserved list of <name>.t.me).
+	"addemoji": true, "addlist": true, "addstickers": true, "addstyle": true,
+	"addtheme": true, "auction": true, "boost": true, "confirmphone": true,
+	"contact": true, "giftcode": true, "invoice": true, "joinchat": true,
+	"login": true, "proxy": true, "setlanguage": true, "share": true,
+	"socks": true, "newbot": true,
+}
+
+// ReservedUsername tells whether username, in any case, is a path of the
+// link host rather than a username: USERNAME_INVALID.
+func ReservedUsername(username string) bool {
+	return reservedUsernames[strings.ToLower(username)]
+}
 
 /*
    if (name != null) {

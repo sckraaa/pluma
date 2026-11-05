@@ -39,7 +39,8 @@ func (c *UsernamesCore) AccountCheckUsername(in *mtproto.TLAccountCheckUsername)
 	//
 	if len(in.Username) < user.MinUsernameLen ||
 		!strings2.IsAlNumString(in.Username) ||
-		utils.IsNumber(in.Username[0]) {
+		utils.IsNumber(in.Username[0]) ||
+		user.ReservedUsername(in.Username) {
 		err := mtproto.ErrUsernameInvalid
 		c.Logger.Errorf("account.checkUsername#2714d86c - format error: %v", err)
 		return nil, err
