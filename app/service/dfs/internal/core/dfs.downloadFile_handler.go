@@ -32,6 +32,13 @@ func (c *DfsCore) DfsDownloadFile(in *dfs.TLDfsDownloadFile) (*mtproto.Upload_Fi
 		limit    = in.GetLimit()
 	)
 
+	// bff checks the rules of upload.getFile; whoever calls, an answer
+	// holds at most 1 MB (task 057).
+	if limit <= 0 || limit > 1<<20 || offset < 0 {
+		c.Logger.Errorf("dfs.downloadFile - offset %d, limit %d", offset, limit)
+		return nil, mtproto.ErrLimitInvalid
+	}
+
 	switch location.GetPredicateName() {
 	case mtproto.Predicate_inputFileLocation:
 		//inputFileLocation#dfdaabe1 volume_id:long local_id:int secret:long file_reference:bytes = InputFileLocation;

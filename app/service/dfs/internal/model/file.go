@@ -22,40 +22,43 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-// upload.saveFilePart#b304a621 file_id:long file_part:int bytes:bytes = Bool;
-//
+// MaxFileParts is upload_max_fileparts_default and _premium of
+// help.getAppConfig (teamgramd/bin/app_config.json): 2 GB in parts of 512
+// KB, as Telegram (core.telegram.org/api/files).
+const MaxFileParts = 4000
+
+// MaxFilePartSize: a part holds at most 512 KB (FILE_PART_TOO_BIG).
+const MaxFilePartSize = 512 << 10
 
 // CheckFileParts
-// FILE_PARTS_INVALID - Invalid number of parts. The value is not between 1..3000
+// FILE_PARTS_INVALID: Invalid number of parts. The value is not between
+// 1..upload_max_fileparts_* (core.telegram.org/api/files).
 func CheckFileParts(fileParts int32) (err error) {
-	if fileParts < 1 || fileParts > 3000 {
+	if fileParts < 1 || fileParts > MaxFileParts {
 		err = mtproto.ErrFilePartsInvalid
 	}
 	return
 }
 
 // CheckFilePart
-// FILE_PART_INVALID: The file part number is invalid. The value is not between 0 and 2,999.
+// FILE_PART_INVALID: The file part number is invalid. The value is not
+// between 0 and upload_max_fileparts_*-1.
 func CheckFilePart(filePart int32) (err error) {
-	if filePart < 0 || filePart > 2900 {
+	if filePart < 0 || filePart >= MaxFileParts {
 		err = mtproto.ErrFilePartInvalid
 	}
 	return
 }
 
-// CheckFilePartSize
-// FILE_PART_SIZE_INVALID - 512KB cannot be evenly divided by part_size
-func CheckFilePartSize(partSize int32) (err error) {
-	// part_size % 1024 = 0 (divisible by 1KB)
-	// 524288 % part_size = 0 (512KB must be evenly divisible by part_size)
-	if partSize%1024 != 0 {
-		err = mtproto.ErrFilePartLengthInvalid
-	} else if 524288%partSize != 0 {
-		err = mtproto.ErrFilePartSizeInvalid
-	} else if partSize > 524288 {
-		// FILE_PART_TOO_BIG: The size limit (512 KB) for the content of the file part has been exceeded
-		err = mtproto.ErrFilePartTooBig
+// CheckFilePartData checks the content of one part: not empty
+// (FILE_PART_EMPTY), at most 512 KB (FILE_PART_TOO_BIG). Its size against
+// the other parts is checked when the file is used (dao.OpenFile).
+func CheckFilePartData(b []byte) error {
+	switch {
+	case len(b) == 0:
+		return mtproto.ErrFilePartEmpty
+	case len(b) > MaxFilePartSize:
+		return mtproto.ErrFilePartTooBig
 	}
-
-	return
+	return nil
 }

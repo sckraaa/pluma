@@ -19,10 +19,13 @@
 package imaging
 
 import (
+	"bytes"
 	"image"
 	"io"
 
 	"github.com/disintegration/imaging"
+
+	"github.com/teamgram/proto/mtproto"
 )
 
 var (
@@ -132,8 +135,26 @@ func Save(img image.Image, filename string) (err error) {
 	return imaging.Save(img, filename)
 }
 
+// MaxDecodePixels is the largest image decoded (task 057): a decoded
+// image takes 4 to 8 bytes a pixel whatever the file's size, so a small
+// file declaring 20000x20000 would take gigabytes. 64 Mpx is above the
+// cameras of current phones; the official clients send photos far smaller.
+const MaxDecodePixels = 64_000_000
+
+// ErrImageTooLarge: the image has more than MaxDecodePixels pixels.
+var ErrImageTooLarge = mtproto.ErrPhotoInvalidDimensions
+
+// Decode decodes an image after checking its dimensions from its header.
 func Decode(r io.Reader, opts ...imaging.DecodeOption) (image.Image, error) {
-	return imaging.Decode(r, opts...)
+	var head bytes.Buffer
+	cfg, _, err := image.DecodeConfig(io.TeeReader(r, &head))
+	if err != nil {
+		return nil, err
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > MaxDecodePixels {
+		return nil, ErrImageTooLarge
+	}
+	return imaging.Decode(io.MultiReader(&head, r), opts...)
 }
 
 func Resize(img image.Image, width, height int) *image.NRGBA {

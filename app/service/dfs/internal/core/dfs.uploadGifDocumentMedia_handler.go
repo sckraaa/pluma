@@ -20,6 +20,7 @@ import (
 	"github.com/teamgram/marmota/pkg/bytes2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/ffmpegutil"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/imaging"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
@@ -64,14 +65,14 @@ func (c *DfsCore) DfsUploadGifDocumentMedia(in *dfs.TLDfsUploadGifDocumentMedia)
 		}
 	}
 
-	fileInfo, err2 := c.svcCtx.Dao.GetFileInfo(c.ctx, in.GetCreator(), file.GetId_INT64())
-	if err != nil {
+	fr, err2 := c.svcCtx.Dao.OpenFile(c.ctx, in.GetCreator(), file.GetId_INT64(), file.GetParts())
+	if err2 != nil {
 		c.Logger.Errorf("dfs.uploadGifDocumentMedia - error: %v", err2)
 		return nil, mtproto.ErrMediaInvalid
 	}
 
-	if fileInfo.GetFileSize() < GifNeedConvertSize {
-		document, err = c.uploadGifMedia(in.GetCreator(), media, fileInfo)
+	if fr.Size() < GifNeedConvertSize {
+		document, err = c.uploadGifMedia(in.GetCreator(), media, fr)
 	} else {
 		if media.GetThumb() != nil {
 			document, err = c.uploadHasThumbGifMp4Media(in.GetCreator(), media)
@@ -88,7 +89,7 @@ func (c *DfsCore) DfsUploadGifDocumentMedia(in *dfs.TLDfsUploadGifDocumentMedia)
 	return document, nil
 }
 
-func (c *DfsCore) uploadGifMedia(creatorId int64, media *mtproto.InputMedia, fileInfo *model.DfsFileInfo) (*mtproto.Document, error) {
+func (c *DfsCore) uploadGifMedia(creatorId int64, media *mtproto.InputMedia, fr *dao.PartsReader) (*mtproto.Document, error) {
 	var (
 		ext        = model.GetFileExtName(media.GetFile().GetName())
 		extType    = model.GetStorageFileTypeConstructor(ext)
@@ -101,7 +102,7 @@ func (c *DfsCore) uploadGifMedia(creatorId int64, media *mtproto.InputMedia, fil
 		return nil, err
 	}
 
-	gifData, err := c.svcCtx.Dao.NewSSDBReader(fileInfo).ReadAll(c.ctx)
+	gifData, err := fr.ReadAll(c.ctx)
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadGifDocumentMedia - error: %v", err)
 		return nil, err
@@ -122,7 +123,7 @@ func (c *DfsCore) uploadGifMedia(creatorId int64, media *mtproto.InputMedia, fil
 
 	// build file
 	path := fmt.Sprintf("%d.dat", documentId)
-	gifFileSize, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, path, bytes.NewReader(gifData))
+	gifFileSize, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, path, bytes.NewReader(gifData), int64(len(gifData)))
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadGifDocumentMedia - error: %v", err)
 		return nil, err
@@ -233,7 +234,7 @@ func (c *DfsCore) uploadHasThumbGifMp4Media(creatorId int64, media *mtproto.Inpu
 
 	// build file
 	path := fmt.Sprintf("%d.dat", documentId)
-	gifFileSize, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, path, bytes.NewReader(gifMp4Data))
+	gifFileSize, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, path, bytes.NewReader(gifMp4Data), int64(len(gifMp4Data)))
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadGifDocumentMedia - %v", err)
 		return nil, err
@@ -329,7 +330,7 @@ func (c *DfsCore) uploadGifMp4Media(creatorId int64, media *mtproto.InputMedia) 
 
 	// build file
 	path := fmt.Sprintf("%d.dat", documentId)
-	gifFileSize, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, path, bytes.NewReader(gifMp4Data))
+	gifFileSize, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, path, bytes.NewReader(gifMp4Data), int64(len(gifMp4Data)))
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadGifDocumentMedia - %v", err)
 		return nil, err

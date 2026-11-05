@@ -31,7 +31,7 @@ func (c *DfsCore) DfsUploadPhotoFileV2(in *dfs.TLDfsUploadPhotoFileV2) (*mtproto
 		cacheData []byte
 		file      = in.GetFile()
 		err       error
-		r         *dao.SSDBReader
+		r         *dao.PartsReader
 	)
 
 	if file == nil {

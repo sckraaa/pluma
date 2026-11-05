@@ -24,9 +24,19 @@ func (c *DfsCore) DfsWriteFilePartData(in *dfs.TLDfsWriteFilePartData) (*mtproto
 		err error
 	)
 
-	if len(in.GetBytes()) == 0 {
-		err = mtproto.ErrFilePartEmpty
-		c.Logger.Errorf("dfs.writeFilePartData - error: %v", err)
+	// core.telegram.org/api/files (task 057).
+	if err = model.CheckFilePartData(in.GetBytes()); err == nil {
+		err = model.CheckFilePart(in.GetFilePart())
+	}
+	// A total of -1: a streamed upload whose size is not known yet (Android
+	// FileUploadOperation: file_total_parts = -1 while estimatedSize != 0);
+	// the part that knows sends it. Missing or extra parts are found when
+	// the file is opened.
+	if total := in.GetFileTotalParts().GetValue(); err == nil && total > 0 {
+		err = model.CheckFileParts(total)
+	}
+	if err != nil {
+		c.Logger.Errorf("dfs.writeFilePartData - part %d: %v", in.GetFilePart(), err)
 		return nil, err
 	}
 

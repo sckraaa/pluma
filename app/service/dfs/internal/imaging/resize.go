@@ -87,7 +87,7 @@ func ReSizeImage(rb []byte, extName string, isABC bool, cb func(szType string, l
 		img image.Image
 	)
 
-	img, err = imaging.Decode(bytes.NewReader(rb))
+	img, err = Decode(bytes.NewReader(rb))
 	if err != nil {
 		logx.Errorf("decode r(%d) error: %v", len(rb), err)
 		return

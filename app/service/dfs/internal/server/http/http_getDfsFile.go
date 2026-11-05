@@ -78,14 +78,14 @@ func GetDfsFile(ctx *svc.ServiceContext) http.HandlerFunc {
 }
 
 func DfsOpenFile(ctx *svc.ServiceContext, creatorId, fileId int64) (f *model.DfsHttpFileInfo, err error) {
-	fileInfo, err := ctx.Dao.GetFileInfo(context.Background(), creatorId, fileId)
+	r, err := ctx.Dao.OpenFile(context.Background(), creatorId, fileId, 0)
 	if err != nil {
 		return nil, err
 	}
 
 	return &model.DfsHttpFileInfo{
-		ReadSeeker: ctx.Dao.NewSSDBReader(fileInfo),
-		Name:       fileInfo.FileName,
-		Modtime:    time.Unix(fileInfo.Mtime, 0),
+		ReadSeeker: r,
+		Name:       r.FileName,
+		Modtime:    time.Unix(r.Mtime, 0),
 	}, nil
 }

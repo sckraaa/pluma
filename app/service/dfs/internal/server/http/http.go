@@ -20,14 +20,21 @@ package http
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/svc"
 
 	"github.com/zeromicro/go-zero/rest"
 )
 
-// New new a grpc server.
+// New starts the loopback HTTP server that gives dfs's own ffmpeg the
+// uploads it transcodes (task 057). go-zero's timeout middleware would hold
+// the whole response in memory until the handler returns, a whole video for
+// ffmpeg's first read: it is off, and c.Timeout bounds each response as the
+// server's write deadline instead, which streams.
 func New(ctx *svc.ServiceContext, c rest.RestConf) *rest.Server {
+	timeout := time.Duration(c.Timeout) * time.Millisecond
+	c.Middlewares.Timeout = false
 	srv := rest.MustNewServer(c)
 
 	go func() {
@@ -41,7 +48,10 @@ func New(ctx *svc.ServiceContext, c rest.RestConf) *rest.Server {
 			},
 		})
 
-		srv.Start()
+		srv.StartWithOpts(func(s *http.Server) {
+			s.ReadHeaderTimeout = 10 * time.Second
+			s.WriteTimeout = timeout
+		})
 	}()
 	return srv
 }

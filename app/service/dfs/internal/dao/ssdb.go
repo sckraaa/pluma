@@ -21,165 +21,74 @@ package dao
 import (
 	"context"
 	"fmt"
-	"strconv"
 
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const (
-	_fileKeyPrefix     = "file_%d_%d"
 	_fileInfoKeyPrefix = "file_info_%d_%d"
 )
-
-func getFileKey(ownerId, fileId int64) string {
-	return fmt.Sprintf(_fileKeyPrefix, ownerId, fileId)
-}
 
 func getFileInfoKey(ownerId, fileId int64) string {
 	return fmt.Sprintf(_fileInfoKeyPrefix, ownerId, fileId)
 }
 
-func (d *Dao) WriteFilePartData(ctx context.Context, ownerId, fileId int64, filePart int32, bytes []byte) (err error) {
-	var (
-		k = getFileKey(ownerId, fileId)
-	)
-
-	err = d.ssdb.HsetCtx(ctx, k, strconv.Itoa(int(filePart)), string(bytes))
-	if err != nil {
-		logx.WithContext(ctx).Errorf("conn.Send(HSET %d, %d, %s) error(%v)", ownerId, fileId, filePart, err)
-		return
+// WriteFilePartData stores a part of an upload on dfs's disk (task 057).
+func (d *Dao) WriteFilePartData(ctx context.Context, ownerId, fileId int64, filePart int32, bytes []byte) error {
+	if err := d.parts.write(ownerId, fileId, filePart, bytes); err != nil {
+		logx.WithContext(ctx).Errorf("dfs: write part %d of %d_%d: %v", filePart, ownerId, fileId, err)
+		return err
 	}
-
-	_, err = d.ssdb.ExpireWithResultCtx(ctx, k, ssdbExpire)
-	if err != nil {
-		logx.WithContext(ctx).Errorf("conn.Send(EXPIRE %d,%d,%s) error(%v)", ownerId, fileId, filePart, err)
-		return
+	// A part sent again may change the layout OpenFile verified.
+	if _, err := d.ssdb.HdelCtx(ctx, getFileInfoKey(ownerId, fileId), "verified"); err != nil {
+		logx.WithContext(ctx).Errorf("dfs: unverify %d_%d: %v", ownerId, fileId, err)
+		return err
 	}
-
-	return
+	return nil
 }
 
 // DropFile removes the parts of an uploaded file and its info, once the
-// file is stored for good: otherwise they stay for ssdbExpire.
+// file is stored for good: otherwise they stay for partsTTL.
 func (d *Dao) DropFile(ctx context.Context, ownerId, fileId int64) error {
-	_, err := d.ssdb.DelCtx(ctx, getFileKey(ownerId, fileId), getFileInfoKey(ownerId, fileId))
+	if err := d.parts.drop(ownerId, fileId); err != nil {
+		return err
+	}
+	_, err := d.ssdb.DelCtx(ctx, getFileInfoKey(ownerId, fileId))
 	return err
 }
 
-func (d *Dao) ReadFile(ctx context.Context, ownerId, fileId int64, parts int32) (partLength int32, bytes []byte, err error) {
-	var (
-		k = getFileKey(ownerId, fileId)
-	)
-
-	for i := int32(0); i < parts; i++ {
-		var (
-			bBuf string
-			b    []byte
-		)
-		bBuf, err = d.ssdb.HgetCtx(ctx, k, strconv.Itoa(int(i)))
-		if err != nil {
-			logx.WithContext(ctx).Errorf("conn.Send(HGET %s, %d) error(%v)", k, i, err)
-			return 0, nil, err
-		}
-		b = []byte(bBuf)
-		if bytes == nil {
-			bytes = make([]byte, 0, len(b)*int(parts))
-		}
-		if i == 0 {
-			partLength = int32(len(b))
-		}
-		bytes = append(bytes, b...)
+// OpenFile opens an upload for reading. parts is the number of parts the
+// client names (InputFile.parts): checked against the parts on disk, which
+// are then recorded as verified. 0 takes the upload as it is: as verified,
+// without looking at its parts again, else the parts there are.
+func (d *Dao) OpenFile(ctx context.Context, ownerId, fileId int64, parts int32) (*PartsReader, error) {
+	if parts < 0 || parts > model.MaxFileParts {
+		return nil, mtproto.ErrFilePartsInvalid
 	}
-
-	return
-}
-
-func (d *Dao) ReadFileCB(ctx context.Context, ownerId, fileId int64, parts int32, cb func(part int32, bytes []byte) error) (err error) {
-	var (
-		k    = getFileKey(ownerId, fileId)
-		bBuf string
-	)
-
-	for i := int32(0); i < parts; i++ {
-		bBuf, err = d.ssdb.HgetCtx(ctx, k, strconv.Itoa(int(i)))
-		if err != nil {
-			logx.WithContext(ctx).Errorf("conn.Do(HGET %s, %d) error(%v)", k, i, err)
-			return
-		}
-		if err = cb(i, []byte(bBuf)); err != nil {
-			return
-		}
-	}
-
-	return
-}
-
-func (d *Dao) ReadOffsetLimit(ctx context.Context, fileInfo *model.DfsFileInfo, offset, limit int32) (bytes []byte, err error) {
-	if limit == 0 && offset != 0 {
-		return
-	}
-
-	var (
-		k    = getFileKey(fileInfo.Creator, fileInfo.FileId)
-		bBuf string
-		b    []byte
-	)
-
-	if limit == 0 && offset == 0 {
-		for i := 0; i < fileInfo.FileTotalParts; i++ {
-			bBuf, err = d.ssdb.HgetCtx(ctx, k, strconv.Itoa(int(i)))
-			if err != nil {
-				logx.WithContext(ctx).Errorf("conn.Send(HGET %s, %d) error(%v)", k, i, err)
-				return
-			}
-			b = []byte(bBuf)
-			if bytes == nil {
-				bytes = make([]byte, 0, len(b)*fileInfo.FileTotalParts)
-			}
-			bytes = append(bytes, b...)
-		}
-	} else {
-		var (
-			bPart = int(offset) / fileInfo.FilePartSize
-			ePart = int(offset+limit) / fileInfo.FilePartSize
-			bP    = int(offset) % fileInfo.FilePartSize
-			eP    = int(offset+limit) % fileInfo.FilePartSize
-		)
-
-		bytes = make([]byte, 0, limit)
-		for i := bPart; i <= ePart; i++ {
-			bBuf, err = d.ssdb.HgetCtx(ctx, k, strconv.Itoa(i))
-			if err != nil {
-				logx.WithContext(ctx).Errorf("conn.Send(HGET %s, %d) error(%v)", k, i, err)
-				return
-			}
-			b = []byte(bBuf)
-			if i == bPart {
-				if i == ePart {
-					bytes = append(bytes, b[bP:eP]...)
-				} else {
-					bytes = append(bytes, b[bP:]...)
-				}
-			} else if i == ePart {
-				bytes = append(bytes, b[:eP]...)
-			} else {
-				bytes = append(bytes, b...)
-			}
-		}
-	}
-
-	return
-}
-
-func (d *Dao) OpenFile(ctx context.Context, ownerId, fileId int64, parts int32) (*SSDBReader, error) {
 	fileInfo, err := d.GetFileInfo(ctx, ownerId, fileId)
 	if err != nil {
 		return nil, err
 	}
-	if parts > 0 {
-		// TODO(@benqi): check fileInfo.FileTotalParts == parts
+	if parts == 0 && fileInfo.Verified {
+		return newPartsReader(d.parts, fileInfo), nil
 	}
-	return d.NewSSDBReader(fileInfo), nil
+	if parts > 0 {
+		if fileInfo.Big && fileInfo.FileTotalParts > 0 && fileInfo.FileTotalParts != int(parts) {
+			return nil, mtproto.ErrFilePartsInvalid
+		}
+		fileInfo.FileTotalParts = int(parts)
+	}
+	r, err := d.parts.openParts(fileInfo)
+	if err != nil {
+		return nil, err
+	}
+	if parts > 0 {
+		if err := d.SetFileInfo(ctx, fileInfo); err != nil {
+			logx.WithContext(ctx).Errorf("dfs: record the parts of %d_%d: %v", ownerId, fileId, err)
+		}
+	}
+	return r, nil
 }

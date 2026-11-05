@@ -20,6 +20,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
+	"io"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
@@ -67,8 +68,8 @@ func (c *DfsCore) DfsImportDocument(in *dfs.TLDfsImportDocument) (*mtproto.Docum
 		c.Logger.Errorf("dfs.importDocument - open the file: %v", err)
 		return nil, mtproto.ErrMediaInvalid
 	}
-	size := r.DfsFileInfo.GetFileSize()
-	if _, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, fmt.Sprintf("%d.dat", documentId), c.svcCtx.Dao.NewSSDBReader(r.DfsFileInfo)); err != nil {
+	size := r.Size()
+	if _, err := c.svcCtx.Dao.PutDocumentFile(c.ctx, fmt.Sprintf("%d.dat", documentId), io.NewSectionReader(r, 0, size), size); err != nil {
 		c.Logger.Errorf("dfs.importDocument - store the file: %v", err)
 		return nil, err
 	}
@@ -88,9 +89,9 @@ func (c *DfsCore) DfsImportDocument(in *dfs.TLDfsImportDocument) (*mtproto.Docum
 		}
 		path := fmt.Sprintf("%s/%d.dat", typ, documentId)
 		if mtproto.PhotoSizeIsVideo(typ) {
-			_, err = c.svcCtx.Dao.PutVideoFileV2(c.ctx, path, bytes.NewReader(data))
+			_, err = c.svcCtx.Dao.PutVideoFileV2(c.ctx, path, bytes.NewReader(data), int64(len(data)))
 		} else {
-			_, err = c.svcCtx.Dao.PutPhotoFileV2(c.ctx, path, bytes.NewReader(data))
+			_, err = c.svcCtx.Dao.PutPhotoFileV2(c.ctx, path, bytes.NewReader(data), int64(len(data)))
 		}
 		if err != nil {
 			c.Logger.Errorf("dfs.importDocument - store the thumbnail %q: %v", typ, err)
@@ -100,8 +101,8 @@ func (c *DfsCore) DfsImportDocument(in *dfs.TLDfsImportDocument) (*mtproto.Docum
 	}
 
 	// The parts are stored for good now. A catalog brings tens of thousands
-	// of documents at once; left for their expiry, the parts filled Redis.
-	// One that is not dropped still expires.
+	// of documents at once; left for their expiry, their parts would pile
+	// up on dfs's disk. One that is not dropped still expires.
 	for _, f := range append([]*mtproto.InputFile{file}, in.GetThumbFiles()...) {
 		if err := c.svcCtx.Dao.DropFile(c.ctx, in.GetCreator(), f.GetId_INT64()); err != nil {
 			c.Logger.Errorf("dfs.importDocument - drop the parts of %d: %v", f.GetId_INT64(), err)

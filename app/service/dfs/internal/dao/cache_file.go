@@ -50,6 +50,13 @@ func (d *Dao) SetCacheFileInfo(ctx context.Context, id int64, dfsFileInfo *model
 	return
 }
 
+// DelCacheFileInfo ends downloads of id from the parts of its upload: the
+// file is in object storage.
+func (d *Dao) DelCacheFileInfo(ctx context.Context, id int64) error {
+	_, err := d.ssdb.DelCtx(ctx, getCacheFileInfoKey(id))
+	return err
+}
+
 func (d *Dao) GetCacheDfsFileInfo(ctx context.Context, id int64) (*model.DfsFileInfo, error) {
 	ownerId, fileId, err := d.getCacheFileInfo(ctx, id)
 	if err != nil {
@@ -97,45 +104,34 @@ func (d *Dao) getCacheFileInfo(ctx context.Context, id int64) (ownerId, fileId i
 	return
 }
 
+// GetCacheFile reads limit bytes at offset of the file id: from the parts
+// of its upload while it is still being stored (SetCacheFileInfo), else
+// with takeF from object storage. It never reads beyond the end of the file.
 func (d *Dao) GetCacheFile(
 	ctx context.Context,
 	id int64,
 	offset int64,
 	limit int32,
 	takeF func(ctx context.Context, path string, offset int64, limit int32) (bytes []byte, err error),
-) (bytes []byte, err error) {
-	var (
-		cacheFile *model.DfsFileInfo
-		n         int
-	)
-	cacheFile, _ = d.GetCacheDfsFileInfo(ctx, id)
-	if cacheFile != nil {
-		r := d.NewSSDBReader(cacheFile)
-		r.Seek(offset, io.SeekStart)
-		// TODO(@benqi: check limit)
-		bytes = make([]byte, limit)
-		n, err = r.Read(bytes)
-		if err != nil {
-			logx.WithContext(ctx).Errorf("getCacheFile(id: %d, offset: %d, limit: %d) error :%v",
-				id,
-				offset,
-				limit,
-				err)
-			return
-		}
-		bytes = bytes[:n]
-	} else {
-		path := fmt.Sprintf("%d.dat", id)
-		bytes, err = takeF(ctx, path, offset, limit)
-		if err != nil {
-			logx.WithContext(ctx).Errorf("getCacheFile(id: %d: %d, offset: %d, limit: %d) error :%v",
-				id,
-				offset,
-				limit,
-				err)
-			return
+) ([]byte, error) {
+	if ownerId, fileId, err := d.getCacheFileInfo(ctx, id); err == nil {
+		if r, err := d.OpenFile(ctx, ownerId, fileId, 0); err == nil {
+			if offset < 0 || offset >= r.Size() {
+				return []byte{}, nil
+			}
+			b := make([]byte, min(int64(limit), r.Size()-offset))
+			n, err := r.ReadAt(b, offset)
+			if err != nil && (err != io.EOF || n != len(b)) {
+				logx.WithContext(ctx).Errorf("getCacheFile(id: %d, offset: %d, limit: %d) error: %v", id, offset, limit, err)
+				return nil, err
+			}
+			return b[:n], nil
 		}
 	}
-
-	return
+	bytes, err := takeF(ctx, fmt.Sprintf("%d.dat", id), offset, limit)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("getCacheFile(id: %d, offset: %d, limit: %d) error: %v", id, offset, limit, err)
+		return nil, err
+	}
+	return bytes, nil
 }

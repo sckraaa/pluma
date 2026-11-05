@@ -80,11 +80,13 @@ func MustNewMinioClient(c *MinioConfig) *MinioUtil {
 //
 //}
 
-// putPartSize is the part of a multipart upload. Most puts here stream a
-// reader of unknown size (-1), for which minio-go would take the largest
-// object, 5 TiB over 10000 parts, and hold a buffer of about 525 MiB per
-// upload (OptimalPartInfo, putObjectMultipartStreamNoLength): a few at
-// once ran dfs out of memory. 16 MiB parts still allow 160 GB.
+// putPartSize is the part of a multipart upload. Every put passes its size
+// (task 057): with an io.ReaderAt (an upload's parts) minio-go reads each
+// part straight from it, otherwise it holds one part in memory. Without a
+// size it would take the largest object, 5 TiB over 10000 parts, and hold
+// about 525 MiB per upload (OptimalPartInfo,
+// putObjectMultipartStreamNoLength): a few at once ran dfs out of memory on
+// 2026-11-02. 16 MiB parts allow 160 GB.
 const putPartSize = 16 << 20
 
 func s3PutOptions(encrypted bool, contentType string) minio.PutObjectOptions {
@@ -150,7 +152,15 @@ func (m *MinioUtil) GetFile(ctx context.Context, bucket, path string, offset int
 	}
 	defer object.Close()
 
-	bytes = make([]byte, limit)
+	stat, err := object.Stat()
+	if err != nil {
+		logx.WithContext(ctx).Errorf("GetFile (%s) error: %v", path, err)
+		return nil, err
+	}
+	if offset < 0 || offset >= stat.Size {
+		return []byte{}, nil
+	}
+	bytes = make([]byte, min(int64(limit), stat.Size-offset))
 	n, err = object.ReadAt(bytes, offset)
 	//if err != nil {
 	//	// return
@@ -187,7 +197,7 @@ func (m *MinioUtil) PutPhotoFile(ctx context.Context, path string, buf []byte) (
 	return
 }
 
-func (m *MinioUtil) PutPhotoFileV2(ctx context.Context, path string, r io.Reader) (n minio.UploadInfo, err error) {
+func (m *MinioUtil) PutPhotoFileV2(ctx context.Context, path string, r io.Reader, size int64) (n minio.UploadInfo, err error) {
 	var (
 		contentType string
 	)
@@ -199,7 +209,7 @@ func (m *MinioUtil) PutPhotoFileV2(ctx context.Context, path string, r io.Reader
 	}
 
 	options := s3PutOptions(false, contentType)
-	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.Photos, path, r, -1, options)
+	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.Photos, path, r, size, options)
 	if err != nil {
 		logx.Errorf("PutPhotoFile (%s) error: %v", path, err)
 	}
@@ -230,7 +240,7 @@ func (m *MinioUtil) PutVideoFile(ctx context.Context, path string, buf []byte) (
 	return
 }
 
-func (m *MinioUtil) PutVideoFileV2(ctx context.Context, path string, r io.Reader) (n minio.UploadInfo, err error) {
+func (m *MinioUtil) PutVideoFileV2(ctx context.Context, path string, r io.Reader, size int64) (n minio.UploadInfo, err error) {
 	var (
 		contentType string
 	)
@@ -242,7 +252,7 @@ func (m *MinioUtil) PutVideoFileV2(ctx context.Context, path string, r io.Reader
 	}
 
 	options := s3PutOptions(false, contentType)
-	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.Videos, path, r, -1, options)
+	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.Videos, path, r, size, options)
 	if err != nil {
 		logx.Errorf("PutVideoFileV2 (%s) error: %v", path, err)
 	}
@@ -253,7 +263,7 @@ func (m *MinioUtil) GetDocumentFile(ctx context.Context, path string, offset int
 	return m.GetFile(ctx, m.c.Bucket.Documents, path, offset, limit)
 }
 
-func (m *MinioUtil) PutDocumentFile(ctx context.Context, path string, r io.Reader) (n minio.UploadInfo, err error) {
+func (m *MinioUtil) PutDocumentFile(ctx context.Context, path string, r io.Reader, size int64) (n minio.UploadInfo, err error) {
 	var (
 		contentType string
 	)
@@ -265,7 +275,7 @@ func (m *MinioUtil) PutDocumentFile(ctx context.Context, path string, r io.Reade
 	}
 
 	options := s3PutOptions(false, contentType)
-	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.Documents, path, r, -1, options)
+	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.Documents, path, r, size, options)
 	if err != nil {
 		logx.WithContext(ctx).Errorf("PutDocumentFile (%s) error: %v", path, err)
 	}
@@ -297,9 +307,9 @@ func (m *MinioUtil) GetEncryptedFile(ctx context.Context, path string, offset in
 	return m.GetFile(ctx, m.c.Bucket.EncryptedFiles, path, offset, limit)
 }
 
-func (m *MinioUtil) PutEncryptedFile(ctx context.Context, path string, r io.Reader) (n minio.UploadInfo, err error) {
+func (m *MinioUtil) PutEncryptedFile(ctx context.Context, path string, r io.Reader, size int64) (n minio.UploadInfo, err error) {
 	options := s3PutOptions(false, "binary/octet-stream")
-	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.EncryptedFiles, path, r, -1, options)
+	n, err = m.minio.Client.PutObject(ctx, m.c.Bucket.EncryptedFiles, path, r, size, options)
 	if err != nil {
 		logx.WithContext(ctx).Errorf("PutEncryptedFile (%s) error: %v", path, err)
 	}

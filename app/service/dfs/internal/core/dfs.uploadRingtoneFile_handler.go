@@ -19,14 +19,13 @@
 package core
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"time"
 
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/ffmpegutil"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
 
@@ -74,22 +73,14 @@ func (c *DfsCore) DfsUploadRingtoneFile(in *dfs.TLDfsUploadRingtoneFile) (*mtpro
 		//
 	}
 
-	fileInfo, err := c.svcCtx.Dao.GetFileInfo(c.ctx, creatorId, file.Id_INT64)
+	fr, err := c.svcCtx.Dao.OpenFile(c.ctx, creatorId, file.Id_INT64, file.GetParts())
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadRingtoneFile - error: %v", err)
 		return nil, err
 	}
+	fileInfo := fr.DfsFileInfo
 	c.svcCtx.Dao.SetCacheFileInfo(c.ctx, documentId, fileInfo)
-
-	threading2.GoSafeContext(c.ctx, func(ctx context.Context) {
-		_, err2 := c.svcCtx.Dao.PutDocumentFile(
-			ctx,
-			fmt.Sprintf("%d.dat", documentId),
-			c.svcCtx.Dao.NewSSDBReader(fileInfo))
-		if err2 != nil {
-			c.Logger.Errorf("dfs.uploadRingtoneFile - error: %v", err)
-		}
-	})
+	c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreDocument, fmt.Sprintf("%d.dat", documentId), documentId, fr)
 
 	// build document
 	document := mtproto.MakeTLDocument(&mtproto.Document{

@@ -147,6 +147,10 @@ services:
       <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/20640"]
     environment: *s3-env
+    volumes:
+      # The parts of uploads until their file is stored (task 057,
+      # teamgramd/etc2/dfs.yaml Parts): on disk, not in Redis's memory.
+      - dfs_parts:/data/parts
     stop_grace_period: 30s
     depends_on:
       migrate:
@@ -314,6 +318,9 @@ services:
     depends_on:
       session:
         condition: service_healthy
+
+volumes:
+  dfs_parts:
 
 secrets:
   server_rsa_key:

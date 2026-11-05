@@ -29,6 +29,17 @@ var (
 	ErrorDfsFileNotFound = fmt.Errorf("dfs file not found")
 )
 
+// PartsConf is where the parts of uploads wait until their file is stored
+// (task 057): on dfs's own disk, not in Redis, whose memory one 2 GB upload
+// (4000 parts of 512 KB, core.telegram.org/api/files) would fill.
+type PartsConf struct {
+	// Dir holds <owner>/<file id>/<part number>.
+	Dir string `json:",default=/data/parts"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// MinFreeBytes: below this much free space new parts are refused, so
+	// that uploads never fill the disk the other services share.
+	MinFreeBytes int64 `json:",default=1073741824"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
 type DfsFileInfo struct {
 	Creator           int64  `json:"creator"`
 	FileId            int64  `json:"file_id"`
@@ -40,10 +51,13 @@ type DfsFileInfo struct {
 	LastFilePartSize  int    `json:"last_file_part_size"`
 	MimeType          string `json:"mime_type"`
 	Mtime             int64  `json:"mtime"`
+	// Verified: the sizes above were read from the parts on disk, all of
+	// them present (dao.OpenFile), so readers need not check them again.
+	Verified bool `json:"verified"`
 }
 
 func (m *DfsFileInfo) ToArgs() map[string]string {
-	values := make(map[string]string, 7)
+	values := make(map[string]string, 8)
 	if m.Big {
 		values["big"] = "true"
 	}
@@ -64,6 +78,9 @@ func (m *DfsFileInfo) ToArgs() map[string]string {
 	}
 	if m.Mtime > 0 {
 		values["mtime"] = strconv.Itoa(int(m.Mtime))
+	}
+	if m.Verified {
+		values["verified"] = "true"
 	}
 	return values
 }

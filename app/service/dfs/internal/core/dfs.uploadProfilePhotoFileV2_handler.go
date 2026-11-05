@@ -12,6 +12,7 @@ package core
 import (
 	"crypto/md5"
 	"fmt"
+	"io"
 	"math/rand"
 	"time"
 
@@ -66,7 +67,7 @@ func (c *DfsCore) uploadVideoSizeListV2(creatorId int64, video *mtproto.InputFil
 		videoMp4Data []byte
 		photoData    []byte
 		// photoImg     image.Image
-		r *dao.SSDBReader
+		r *dao.PartsReader
 	)
 
 	r, err = c.svcCtx.Dao.OpenFile(c.ctx, creatorId, video.Id_INT64, video.Parts)
@@ -75,14 +76,21 @@ func (c *DfsCore) uploadVideoSizeListV2(creatorId int64, video *mtproto.InputFil
 		return nil, mtproto.ErrMediaInvalid
 	}
 
-	videoMp4Data, err = r.ReadAll(c.ctx)
-	if err != nil {
-		c.Logger.Errorf("dfs.uploadVideoSizeList - %v", err)
+	// The video goes to ffmpeg, whose output is held in memory: at most
+	// dao.MaxInMemoryFile in (the official clients send seconds). Its md5
+	// is computed as it is read, never on the whole file in memory (task
+	// 057).
+	if r.Size() > dao.MaxInMemoryFile {
+		c.Logger.Errorf("dfs.uploadVideoSizeList - %d bytes: %v", r.Size(), dao.ErrTooLargeForMemory)
 		return nil, mtproto.ErrMediaInvalid
 	}
-
 	if len(video.Md5Checksum) > 0 {
-		digest := fmt.Sprintf("%x", md5.Sum(videoMp4Data))
+		h := md5.New() //nolint:gosec // the md5_checksum of the upload (InputFile), not a protection
+		if _, err = io.Copy(h, io.NewSectionReader(r, 0, r.Size())); err != nil {
+			c.Logger.Errorf("dfs.uploadVideoSizeList - %v", err)
+			return nil, mtproto.ErrMediaInvalid
+		}
+		digest := fmt.Sprintf("%x", h.Sum(nil))
 		if digest != video.Md5Checksum {
 			c.Logger.Errorf("dfs.uploadPhotoFile - (%s, %s) error: %v", digest, video.Md5Checksum, err)
 			return nil, mtproto.ErrCheckSumInvalid
@@ -188,7 +196,7 @@ func (c *DfsCore) uploadPhotoSizeListV2(creatorId int64, file *mtproto.InputFile
 	var (
 		fileSize  minio.UploadInfo
 		cacheData []byte
-		r         *dao.SSDBReader
+		r         *dao.PartsReader
 	)
 
 	r, err = c.svcCtx.Dao.OpenFile(c.ctx, creatorId, file.Id_INT64, file.Parts)

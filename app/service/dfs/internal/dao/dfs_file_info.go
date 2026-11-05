@@ -94,6 +94,8 @@ func (d *Dao) GetFileInfo(ctx context.Context, ownerId, fileId int64) (fileInfo 
 			fileInfo.LastFilePartSize = lastFilePartSize
 		case "mtime":
 			fileInfo.Mtime, _ = strconv.ParseInt(v, 10, 64)
+		case "verified":
+			fileInfo.Verified = v == "true"
 		}
 	}
 
@@ -107,14 +109,12 @@ func (d *Dao) GetFileInfo(ctx context.Context, ownerId, fileId int64) (fileInfo 
 
 		fileInfo2.FileTotalParts, fileInfo2.LastFilePartSize, err = d.getFileTotalPartsByFile(ctx, fileInfo.Creator, fileInfo.FileId)
 		if err != nil {
-			logx.WithContext(ctx).Errorf("conn.Do(HLEN %s) error(%v)", k, err)
+			logx.WithContext(ctx).Errorf("getFileTotalPartsByFile(%s) error(%v)", k, err)
 			return
 		}
 
-		// save fileInfo
-		d.SetFileInfo(ctx, fileInfo2)
-
-		// refill to fileInfo
+		// Not saved: the parts there now, which a later part may extend.
+		// The count is saved once verified (OpenFile).
 		fileInfo.FileTotalParts = fileInfo2.FileTotalParts
 		fileInfo.LastFilePartSize = fileInfo2.LastFilePartSize
 	}
@@ -123,24 +123,12 @@ func (d *Dao) GetFileInfo(ctx context.Context, ownerId, fileId int64) (fileInfo 
 }
 
 func (d *Dao) getFileTotalPartsByFile(ctx context.Context, ownerId, fileId int64) (fileTotalParts, lastFilePartSize int, err error) {
-	var (
-		k    = getFileKey(ownerId, fileId)
-		bBuf string
-	)
-	if fileTotalParts, err = d.ssdb.HlenCtx(ctx, k); err != nil {
-		logx.WithContext(ctx).Errorf("getFileTotalPartsByFile: conn.Do(HLEN %s) error(%v)", k, err)
+	if fileTotalParts, lastFilePartSize, err = d.parts.count(ownerId, fileId); err != nil {
+		logx.WithContext(ctx).Errorf("getFileTotalPartsByFile(%d, %d): %v", ownerId, fileId, err)
 		return
-	} else if fileTotalParts == 0 {
+	}
+	if fileTotalParts == 0 {
 		err = model.ErrorDfsFileNotFound
-		logx.WithContext(ctx).Infof("getFileTotalPartsByFile: conn.Do(HLEN %s) error(%v)", k, err)
-		return
 	}
-
-	if bBuf, err = d.ssdb.HgetCtx(ctx, k, strconv.Itoa(fileTotalParts-1)); err != nil {
-		logx.WithContext(ctx).Errorf("getFileTotalPartsByFile: conn.Do(HGET %s %d) error(%v), fileTotalParts(%d)", k, err, fileTotalParts-1)
-		return
-	}
-
-	lastFilePartSize = len([]byte(bBuf))
 	return
 }

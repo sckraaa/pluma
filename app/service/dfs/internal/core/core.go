@@ -12,6 +12,9 @@ package core
 import (
 	"context"
 
+	"google.golang.org/grpc/status"
+
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/svc"
 
@@ -32,4 +35,14 @@ func New(ctx context.Context, svcCtx *svc.ServiceContext) *DfsCore {
 		Logger: logx.WithContext(ctx),
 		MD:     metadata.RpcMetadataFromIncoming(ctx),
 	}
+}
+
+// partsError is the answer to a send whose upload cannot be opened: what
+// the parts check found (FILE_PART_X_MISSING, FILE_PART_SIZE_CHANGED,
+// FILE_PARTS_INVALID), as Telegram answers it, else MEDIA_INVALID.
+func partsError(err error) error {
+	if s, ok := status.FromError(err); ok && s.Code() == mtproto.ErrBadRequest {
+		return err
+	}
+	return mtproto.ErrMediaInvalid
 }

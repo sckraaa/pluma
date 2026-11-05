@@ -11,21 +11,17 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"image"
 	"math/rand"
 	"time"
 
 	"github.com/teamgram/marmota/pkg/bytes2"
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/imaging"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
-
-	"github.com/zeromicro/go-zero/core/contextx"
-	"github.com/zeromicro/go-zero/core/threading"
 )
 
 func makeMp4DocumentAttributes(attrs []*mtproto.DocumentAttribute) []*mtproto.DocumentAttribute {
@@ -90,23 +86,15 @@ func (c *DfsCore) DfsUploadMp4DocumentMedia(in *dfs.TLDfsUploadMp4DocumentMedia)
 	thumbData, err = c.svcCtx.FFmpegUtil.GetFirstFrame(tmpFileName)
 	if thumbData == nil || err != nil {
 		// upload mp4 file
-		fileInfo, err := c.svcCtx.Dao.GetFileInfo(c.ctx, creatorId, file.Id_INT64)
+		r, err := c.svcCtx.Dao.OpenFile(c.ctx, creatorId, file.Id_INT64, file.GetParts())
 		if err != nil {
 			c.Logger.Errorf("dfs.uploadDocumentFile - error: %v", err)
 			return nil, err
 		}
+		fileInfo := r.DfsFileInfo
 		c.svcCtx.Dao.SetCacheFileInfo(c.ctx, documentId, fileInfo)
 		path = fmt.Sprintf("%d.dat", documentId)
-
-		threading.RunSafe(func() {
-			_, err2 := c.svcCtx.Dao.PutDocumentFile(
-				contextx.ValueOnlyFrom(c.ctx),
-				path,
-				c.svcCtx.Dao.NewSSDBReader(fileInfo))
-			if err2 != nil {
-				c.Logger.Errorf("dfs.PutDocumentFile - error: %v", err)
-			}
-		})
+		c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreDocument, path, documentId, r)
 		//c.Logger.Errorf("getFirstFrameByPipe - error: %v", err)
 		//return nil, err
 
@@ -181,23 +169,15 @@ func (c *DfsCore) DfsUploadMp4DocumentMedia(in *dfs.TLDfsUploadMp4DocumentMedia)
 		}
 
 		// upload mp4 file
-		fileInfo, err := c.svcCtx.Dao.GetFileInfo(c.ctx, creatorId, file.Id_INT64)
+		r, err := c.svcCtx.Dao.OpenFile(c.ctx, creatorId, file.Id_INT64, file.GetParts())
 		if err != nil {
 			c.Logger.Errorf("dfs.uploadDocumentFile - error: %v", err)
 			return nil, err
 		}
+		fileInfo := r.DfsFileInfo
 		c.svcCtx.Dao.SetCacheFileInfo(c.ctx, documentId, fileInfo)
 		path = fmt.Sprintf("%d.dat", documentId)
-
-		threading2.GoSafeContext(c.ctx, func(ctx context.Context) {
-			_, err2 := c.svcCtx.Dao.PutDocumentFile(
-				ctx,
-				path,
-				c.svcCtx.Dao.NewSSDBReader(fileInfo))
-			if err2 != nil {
-				c.Logger.Errorf("dfs.PutDocumentFile - error: %v", err)
-			}
-		})
+		c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreDocument, path, documentId, r)
 
 		// build document
 		document := mtproto.MakeTLDocument(&mtproto.Document{

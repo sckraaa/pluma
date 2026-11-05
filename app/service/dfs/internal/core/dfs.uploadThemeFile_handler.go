@@ -11,7 +11,6 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"fmt"
 	"image"
@@ -19,7 +18,6 @@ import (
 	"time"
 
 	"github.com/teamgram/marmota/pkg/bytes2"
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
@@ -61,22 +59,14 @@ func (c *DfsCore) DfsUploadThemeFile(in *dfs.TLDfsUploadThemeFile) (*mtproto.Doc
 		return nil, err
 	}
 
-	fileInfo, err := c.svcCtx.Dao.GetFileInfo(c.ctx, in.GetCreator(), file.Id_INT64)
+	fr, err := c.svcCtx.Dao.OpenFile(c.ctx, in.GetCreator(), file.Id_INT64, file.GetParts())
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadThemeFile - error: %v", err)
 		return nil, err
 	}
+	fileInfo := fr.DfsFileInfo
 	c.svcCtx.Dao.SetCacheFileInfo(c.ctx, documentId, fileInfo)
-
-	threading2.GoSafeContext(c.ctx, func(ctx context.Context) {
-		_, err2 := c.svcCtx.Dao.PutDocumentFile(
-			ctx,
-			fmt.Sprintf("%d.dat", documentId),
-			c.svcCtx.Dao.NewSSDBReader(fileInfo))
-		if err2 != nil {
-			c.Logger.Errorf("dfs.uploadThemeFile - error: %v", err2)
-		}
-	})
+	c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreDocument, fmt.Sprintf("%d.dat", documentId), documentId, fr)
 
 	// upload thumb file
 	if thumbFile != nil {
@@ -87,7 +77,7 @@ func (c *DfsCore) DfsUploadThemeFile(in *dfs.TLDfsUploadThemeFile) (*mtproto.Doc
 			// ext2           = request.GetThumb().GetName()
 			// extType2       = model.GetStorageFileTypeConstructor(ext2)
 			// secretId       = int64(extType2)<<32 | int64(rand.Uint32())
-			r *dao.SSDBReader
+			r *dao.PartsReader
 		)
 		r, err = c.svcCtx.Dao.OpenFile(c.ctx, in.GetCreator(), thumbFile.Id_INT64, thumbFile.Parts)
 		if err != nil {

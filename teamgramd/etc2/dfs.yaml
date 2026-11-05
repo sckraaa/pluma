@@ -24,7 +24,8 @@ Telemetry:
   Batcher: otlpgrpc
   
 # Serves uploaded files to dfs's own ffmpeg (http://127.0.0.1:11701), without
-# authentication: loopback only. No timeout: ffmpeg reads while it transcodes.
+# authentication: loopback only. Timeout bounds each response as the server's
+# write deadline; responses stream (app/service/dfs/internal/server/http).
 MiniHttp:
   Name: service.dfs.minihttp
   Host: 127.0.0.1
@@ -53,3 +54,9 @@ IdGen:
 SSDB:
   - Host: redis:6379 # if use pika, change to 9221
     Pass: "${REDIS_PASSWORD}"
+# The parts of uploads, until their file is in object storage and for
+# 3 hours after the last part (task 057). New parts are refused while the
+# disk has less than MinFreeBytes free.
+Parts:
+  Dir: /data/parts
+  MinFreeBytes: 1073741824

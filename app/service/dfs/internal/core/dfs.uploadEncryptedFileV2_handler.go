@@ -10,13 +10,12 @@
 package core
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 )
 
 // DfsUploadEncryptedFileV2
@@ -34,20 +33,15 @@ func (c *DfsCore) DfsUploadEncryptedFileV2(in *dfs.TLDfsUploadEncryptedFileV2) (
 		return nil, err
 	}
 
-	fileInfo, err := c.svcCtx.Dao.GetFileInfo(c.ctx, creatorId, file.Id)
+	r, err := c.svcCtx.Dao.OpenFile(c.ctx, creatorId, file.Id, file.GetParts())
 	if err != nil {
-		c.Logger.Errorf("dfs.uploadDocumentFile - error: %v", err)
+		c.Logger.Errorf("dfs.uploadEncryptedFile - error: %v", err)
 		return nil, err
 	}
+	fileInfo := r.DfsFileInfo
 	c.svcCtx.Dao.SetCacheFileInfo(c.ctx, encryptedFileId, fileInfo)
 	path := fmt.Sprintf("%d.dat", encryptedFileId)
-
-	threading2.GoSafeContext(c.ctx, func(ctx context.Context) {
-		_, err2 := c.svcCtx.Dao.PutEncryptedFile(ctx, path, c.svcCtx.Dao.NewSSDBReader(fileInfo))
-		if err2 != nil {
-			c.Logger.Errorf("dfs.uploadEncryptedFile - error: %v", err)
-		}
-	})
+	c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreEncrypted, path, encryptedFileId, r)
 
 	encryptedFile := mtproto.MakeTLEncryptedFile(&mtproto.EncryptedFile{
 		Id:             encryptedFileId,

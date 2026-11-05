@@ -73,8 +73,8 @@ func init() {
 	zrpc.DontLogContentForMethod("/dfs.RPCDfs/dfs_writeFilePartData")
 }
 
-func NewDFSHelper(minio *MinioConfig, idgen zrpc.RpcClientConf, ssdb kv.KvConf) *DFSHelper {
-	return dao.NewDFSHelper(minio, idgen, ssdb)
+func NewDFSHelper(minio *MinioConfig, idgen zrpc.RpcClientConf, ssdb kv.KvConf, parts model.PartsConf) *DFSHelper {
+	return dao.NewDFSHelper(minio, idgen, ssdb, parts)
 }
 
 // GetDfsFile - GetDfsFile

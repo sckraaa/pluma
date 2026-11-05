@@ -11,7 +11,6 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"crypto/md5"
 	"fmt"
 	"image"
@@ -38,7 +37,7 @@ func (c *DfsCore) DfsUploadWallPaperFile(in *dfs.TLDfsUploadWallPaperFile) (*mtp
 		ext        = model.GetFileExtName(file.GetName())
 		extType    = model.GetStorageFileTypeConstructor(ext)
 		accessHash = int64(extType)<<32 | int64(rand.Uint32())
-		r          *dao.SSDBReader
+		r          *dao.PartsReader
 	)
 
 	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
@@ -144,15 +143,7 @@ func (c *DfsCore) DfsUploadWallPaperFile(in *dfs.TLDfsUploadWallPaperFile) (*mtp
 
 	c.svcCtx.Dao.SetCacheFileInfo(c.ctx, documentId, r.DfsFileInfo)
 
-	go func() {
-		_, err2 := c.svcCtx.Dao.PutDocumentFile(
-			context.Background(),
-			fmt.Sprintf("%d.dat", documentId),
-			bytes.NewReader(cacheData))
-		if err2 != nil {
-			c.Logger.Errorf("dfs.uploadWallPaperFile - error: %v", err2)
-		}
-	}()
+	c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreDocument, fmt.Sprintf("%d.dat", documentId), documentId, r)
 
 	// build document
 	document := mtproto.MakeTLDocument(&mtproto.Document{

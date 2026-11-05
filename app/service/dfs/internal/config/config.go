@@ -10,9 +10,11 @@
 package config
 
 import (
-	"github.com/teamgram/teamgram-server/app/service/dfs/internal/minio_util"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/rest"
+
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/minio_util"
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -23,4 +25,6 @@ type Config struct {
 	Minio    minio_util.MinioConfig
 	IdGen    zrpc.RpcClientConf
 	SSDB     kv.KvConf
+	// Parts of uploads on disk (task 057).
+	Parts model.PartsConf `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

@@ -10,16 +10,16 @@
 package core
 
 import (
-	"bytes"
-	"context"
+	"bufio"
 	"fmt"
 	"image"
+	"io"
 	"math/rand"
 
 	"github.com/teamgram/marmota/pkg/bytes2"
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/imaging"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
 )
@@ -29,8 +29,7 @@ import (
 func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*mtproto.Document, error) {
 	var (
 		//idgen.GetUUID()
-		file      = in.GetMedia().GetFile()
-		cacheData []byte
+		file = in.GetMedia().GetFile()
 	)
 
 	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
@@ -46,7 +45,7 @@ func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*m
 	r, err := c.svcCtx.Dao.OpenFile(c.ctx, in.GetCreator(), file.Id_INT64, file.Parts)
 	if err != nil {
 		c.Logger.Errorf("dfs.uploadDocumentFile - %v", err)
-		return nil, mtproto.ErrMediaInvalid
+		return nil, partsError(err)
 	}
 
 	//fileInfo, err := s.Dao.GetFileInfo(ctx, creatorId, file.Id)
@@ -123,16 +122,9 @@ func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*m
 			// secretId = int64(extType2)<<32 | int64(rand.Uint32())
 		)
 
-		cacheData, err = r.ReadAll(c.ctx)
-		if err != nil {
-			c.Logger.Errorf("dfs.uploadDocumentFile - %v", err)
-			return nil, mtproto.ErrWallpaperFileInvalid
-		} else {
-			// log.Debugf("cacheData: %s", hex.EncodeToString(cacheData))
-		}
-
-		// build photoStrippedSize
-		thumb, err = imaging.Decode(bytes.NewReader(cacheData))
+		// build photoStrippedSize, decoding straight from the parts (task
+		// 057): the file itself is never held in memory.
+		thumb, err = imaging.Decode(bufio.NewReaderSize(io.NewSectionReader(r, 0, r.Size()), 64<<10))
 		if err == nil {
 			stripped := bytes2.NewBuffer(make([]byte, 0, 4096))
 			if thumb.Bounds().Dx() >= thumb.Bounds().Dy() {
@@ -147,7 +139,7 @@ func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*m
 
 			// upload thumb
 			var (
-				mThumbData = bytes2.NewBuffer(make([]byte, 0, len(cacheData)))
+				mThumbData = bytes2.NewBuffer(make([]byte, 0, 64<<10))
 				mThumb     image.Image
 			)
 			if thumb.Bounds().Dx() >= thumb.Bounds().Dy() {
@@ -189,26 +181,6 @@ func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*m
 		}
 	}
 
-	return threading2.WrapperGoFunc(
-		c.ctx,
-		document,
-		func(ctx context.Context) {
-			if isThumb {
-				_, err2 := c.svcCtx.Dao.PutDocumentFile(
-					ctx,
-					fmt.Sprintf("%d.dat", documentId),
-					bytes.NewReader(cacheData))
-				if err2 != nil {
-					c.Logger.Errorf("dfs.uploadDocumentFile - error: %v", err2)
-				}
-			} else {
-				_, err2 := c.svcCtx.Dao.PutDocumentFile(
-					ctx,
-					fmt.Sprintf("%d.dat", documentId),
-					c.svcCtx.Dao.NewSSDBReader(r.DfsFileInfo))
-				if err2 != nil {
-					c.Logger.Errorf("dfs.uploadDocumentFile - error: %v", err2)
-				}
-			}
-		}).(*mtproto.Document), nil
+	c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreDocument, fmt.Sprintf("%d.dat", documentId), documentId, r)
+	return document, nil
 }
