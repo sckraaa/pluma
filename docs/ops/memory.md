@@ -22,7 +22,8 @@
 | backup | 1024m | mysqldump, временный mysqld для проверки восстановления, restic |
 | kafka-init, garage, prometheus, loki, grafana | 512m | |
 | alloy | 384m | 130 МБ |
-| etcd, jaeger | 256m | |
+| jaeger | 512m | хранит в памяти последние 10 000 трассировок; 50 000 не помещались в 256 МБ под нагрузкой e2e |
+| etcd | 256m | |
 | alertmanager, geoipupdate | 128m | |
 | alertpush, node-exporter | 64m | |
 

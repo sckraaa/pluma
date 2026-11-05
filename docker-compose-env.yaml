@@ -211,8 +211,8 @@ services:
   # --- 可观测：追踪 ---
   #jaeger链路追踪 — Jaeger for tracing
   jaeger:
-    mem_limit: 256m
-    memswap_limit: 256m
+    mem_limit: 512m
+    memswap_limit: 512m
     cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: jaegertracing/all-in-one:1.63.0@sha256:fd5697c37ba041a91cfca1d62621d32cdeb2041c0febc2f1579e5bac6f21e34b
     container_name: jaeger
@@ -221,10 +221,11 @@ services:
     ports:
       - "127.0.0.1:16686:16686"  # UI
       - "127.0.0.1:14268:14268"  # collector for services run on the host (teamgramd/etc)
-    # Traces are a debugging aid: kept in memory, the newest 50000.
+    # Traces are a debugging aid: kept in memory, the newest 10000, which fit
+    # its memory limit (50000 did not, docs/ops/memory.md).
     environment:
       - SPAN_STORAGE_TYPE=memory
-      - MEMORY_MAX_TRACES=50000
+      - MEMORY_MAX_TRACES=10000
     networks:
       - teamgram_net
 
