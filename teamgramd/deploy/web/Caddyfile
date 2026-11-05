@@ -93,6 +93,11 @@
 	rewrite @devicesEn /en/index.html
 	rewrite /en/pero /en/pero/index.html
 
+	# The app's universal links (iOS) want the association file as JSON;
+	# it has no extension to tell the type by.
+	@aasa path /.well-known/apple-app-site-association
+	header @aasa Content-Type application/json
+
 	# Files with a hash in their names never change; the pages are checked on
 	# every visit.
 	@hashed path /assets/*
