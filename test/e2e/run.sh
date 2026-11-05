@@ -193,6 +193,22 @@ check_running() {
 		log "services exited during the run: $(tr '\n' ' ' <<<"$exited")"
 		return 1
 	fi
+	check_memory
+}
+
+# check_memory fails when the kernel killed a container of the stack at its
+# memory limit (docs/ops/memory.md): the limits must hold the load of the
+# tests, infrastructure included.
+check_memory() {
+	local ids killed
+	ids=$(compose ps --all --quiet) || return
+	[[ -n $ids ]] || return 0
+	# shellcheck disable=SC2086 # one id per word
+	killed=$(docker inspect --format '{{if .State.OOMKilled}}{{.Name}}{{end}}' $ids | sed '/^$/d; s#^/##') || return
+	if [[ -n $killed ]]; then
+		log "killed at their memory limit: $(tr '\n' ' ' <<<"$killed")"
+		return 1
+	fi
 }
 
 # wait_consumers waits until the Kafka consumer groups of msg and sync own
@@ -250,6 +266,7 @@ cmd_test() {
 cmd_logs() {
 	mkdir -p "$LOG_DIR"
 	compose ps --all >"$LOG_DIR/ps.txt" 2>&1 || true
+	check_memory >>"$LOG_DIR/ps.txt" 2>&1 || true
 	local s
 	for s in "${SERVICES[@]}"; do
 		compose logs --no-color --timestamps "$s" >"$LOG_DIR/$s.log" 2>&1 || true

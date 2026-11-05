@@ -16,7 +16,8 @@
 | storage-init | 128m | — |
 | releases, iosinstall | 512m | — |
 | web, catalog-receiver | 256m | — |
-| mysql, kafka | 1024m | 380 МБ, 680 МБ (до кучи 512 МБ) |
+| mysql | 2048m | 380 МБ; под нагрузкой e2e (восстановление дампа и поток сообщений) 1 ГБ не хватило |
+| kafka | 1024m | 680 МБ при куче 1 ГБ, теперь куча 512 МБ |
 | redis | 1280m | `maxmemory 1gb` с запасом на fork при перезаписи AOF |
 | backup | 1024m | mysqldump, временный mysqld для проверки восстановления, restic |
 | kafka-init, garage, prometheus, loki, grafana | 512m | |

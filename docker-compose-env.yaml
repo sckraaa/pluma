@@ -145,8 +145,8 @@ services:
 
   # --- 关系数据库 ---
   mysql:
-    mem_limit: 1024m
-    memswap_limit: 1024m
+    mem_limit: 2048m
+    memswap_limit: 2048m
     cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
     image: mysql:8.0.46@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
     container_name: mysql
