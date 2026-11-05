@@ -40,11 +40,6 @@ func (c *ChannelsCore) ChannelsEditPhoto(in *mtproto.TLChannelsEditPhoto) (*mtpr
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsExportMessageLink is not served yet: channels.exportMessageLink#e63fadeb.
-func (c *ChannelsCore) ChannelsExportMessageLink(in *mtproto.TLChannelsExportMessageLink) (*mtproto.ExportedMessageLink, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsToggleSignatures is not served yet: channels.toggleSignatures#418d549c (also #1f69b606).
 func (c *ChannelsCore) ChannelsToggleSignatures(in *mtproto.TLChannelsToggleSignatures) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

@@ -80,7 +80,7 @@
 
     "url_auth_domains": [],
     "autologin_domains": [],
-    "whitelisted_domains": [],
+    "whitelisted_domains": ["pluma.chat"],
     "fragment_prefixes": [],
     "ignore_restriction_reasons": []
 }

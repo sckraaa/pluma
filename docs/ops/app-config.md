@@ -165,7 +165,7 @@
 |---|---|---|---|
 | `url_auth_domains` | `[]` | A W | Вход на сайты по ссылке: у Telegram — его домены, у Pluma таких нет. |
 | `autologin_domains` | `[]` | A W | Домены, куда клиент подставляет токен входа. |
-| `whitelisted_domains` | `[]` | D W | Домены Telegram. Web K делает ссылки на них в «о себе» кликабельными, tdesktop ищет среди них Fragment. |
+| `whitelisted_domains` | `["pluma.chat"]` | D W | Домены Telegram; у Pluma — домен её ссылок (задача 026). Web K делает ссылки на них в «о себе» кликабельными, tdesktop ищет среди них Fragment. |
 | `fragment_prefixes` | `[]` | D W | Анонимные номера Fragment (+888). У tdesktop по умолчанию `["888"]`. |
 | `ignore_restriction_reasons` | `[]` | A D W | Как у Telegram. |
 

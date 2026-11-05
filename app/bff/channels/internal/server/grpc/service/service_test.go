@@ -32,6 +32,7 @@ var served = map[string]bool{
 	"ChannelsGetFullChannel":           true,
 	"ChannelsGetParticipant":           true,
 	"ChannelsGetMessages":              true,
+	"ChannelsExportMessageLink":        true,
 	"ChannelsJoinChannel24B524C5":      true,
 	"ChannelsJoinChannel7F6A1E22":      true,
 	"ChannelsLeaveChannel":             true,
