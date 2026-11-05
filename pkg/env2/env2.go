@@ -13,7 +13,10 @@ import (
 var (
 	MyAppName = "Pluma"
 	MyWebSite = "teamgram.net"
-	TDotMe    = "t.me"
+	// TDotMe is the host of the links the server builds (invites, boosts):
+	// the host of me_url_prefix in teamgramd/bin/config.json, as clients take
+	// it (core.telegram.org/api/links; task 026).
+	TDotMe = "pluma.chat"
 	// MyWebClientSite = "web.teamgram.net"
 	MyTgScheme = "tg"
 	// IosAppStoreId   = ""
@@ -31,7 +34,7 @@ var (
 func init() {
 	flag.StringVar(&MyAppName, "app_name", "Pluma", "app_name")
 	flag.StringVar(&MyWebSite, "site_name", "teamgram.net", "site_name")
-	flag.StringVar(&TDotMe, "t.me", "t.me", "t.me")
+	flag.StringVar(&TDotMe, "t.me", "pluma.chat", "the host of the links the server builds")
 	// flag.StringVar(&MyWebClientSite, "webclient", "web.teamgram.net", "web.teamgram.net")
 	flag.StringVar(&MyTgScheme, "tg", "tg", "tg")
 	// flag.StringVar(&IosAppStoreId, "app_store_id", "", "")

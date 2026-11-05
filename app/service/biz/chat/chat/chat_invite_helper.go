@@ -52,9 +52,24 @@ func GenChannelInviteHash() string {
 	return random2.RandomAlphabetic(1) + random2.RandomAlphanumeric(19)
 }
 
+// GetInviteHashByLink returns the hash of an invite link: the server's
+// host and Telegram's (links handed out before task 026 were t.me, and
+// clients send them back), with or without the scheme, in the forms "/+"
+// and "/joinchat/" (core.telegram.org/api/links). Anything else is taken
+// as the hash itself.
 func GetInviteHashByLink(link string) string {
-	if strings.HasPrefix(link, "https://"+env2.TDotMe+"/+") {
-		link = link[len("https://"+env2.TDotMe+"/+"):]
+	rest := strings.TrimPrefix(strings.TrimPrefix(link, "https://"), "http://")
+	for _, host := range []string{env2.TDotMe, "t.me", "telegram.me", "telegram.dog"} {
+		after, ok := strings.CutPrefix(rest, host+"/")
+		if !ok {
+			continue
+		}
+		if hash, ok := strings.CutPrefix(after, "+"); ok {
+			return hash
+		}
+		if hash, ok := strings.CutPrefix(after, "joinchat/"); ok {
+			return hash
+		}
 	}
 	return link
 }
