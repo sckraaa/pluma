@@ -35,6 +35,10 @@ func (c *FilesCore) UploadGetFile(in *mtproto.TLUploadGetFile) (*mtproto.Upload_
 	if offset == 0 {
 		offset = int64(in.GetOffset_INT32())
 	}
+	if err := checkFileRange(offset, limit, in.GetPrecise()); err != nil {
+		c.Logger.Errorf("upload.getFile - offset %d, limit %d, precise %v: %v", offset, limit, in.GetPrecise(), err)
+		return nil, err
+	}
 
 	switch location.GetPredicateName() {
 	case mtproto.Predicate_inputFileLocation:
@@ -135,4 +139,39 @@ func (c *FilesCore) UploadGetFile(in *mtproto.TLUploadGetFile) (*mtproto.Upload_
 	}
 
 	return uploadFile, nil
+}
+
+// checkFileRange applies the rules of upload.getFile
+// (core.telegram.org/api/files, task 057): without precise, offset and
+// limit are divisible by 4 KB and 1 MB by limit; with it, both are divisible
+// by 1 KB and limit is at most 1 MB; either way the range stays within one
+// 1 MB chunk. dfs allocates limit bytes for the answer: without these
+// checks a client could make it take 2 GB at once.
+func checkFileRange(offset int64, limit int32, precise bool) error {
+	const chunk = 1 << 20
+	switch {
+	case limit <= 0, limit > chunk:
+		return mtproto.ErrLimitInvalid
+	case offset < 0:
+		return mtproto.ErrOffsetInvalid
+	}
+	if precise {
+		if offset%1024 != 0 {
+			return mtproto.ErrOffsetInvalid
+		}
+		if limit%1024 != 0 {
+			return mtproto.ErrLimitInvalid
+		}
+	} else {
+		if offset%4096 != 0 {
+			return mtproto.ErrOffsetInvalid
+		}
+		if limit%4096 != 0 || chunk%limit != 0 {
+			return mtproto.ErrLimitInvalid
+		}
+	}
+	if offset/chunk != (offset+int64(limit)-1)/chunk {
+		return mtproto.ErrLimitInvalid
+	}
+	return nil
 }
