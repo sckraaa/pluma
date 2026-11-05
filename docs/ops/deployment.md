@@ -90,6 +90,11 @@ Web K раздаёт с адреса Pluma контейнер `web` (`docker-com
   ssh neo_old "cd /srv/pluma-site && ln -sfn releases/$R current.new && mv -T current.new current"
   ```
   Откат — то же `ln -sfn … && mv -T` на прежний выпуск. Старые выпуски удаляются руками, кроме двух последних.
+- **Ссылки pluma.chat** (задача 026, ADR 0036). Пути сайта, которые не являются его файлами или страницами (`/<имя>`, `/+<хеш>`, `/addstickers/…`, `/s/<канал>` и т. д.), Caddy передаёт сервису `links` (основной `docker-compose.yaml`, порт `9096` внутри сети). Сервис показывает объект, как t.me, и открывает приложение. Без сервиса эти пути отвечают 502. Новую страницу сайта нужно исключить из `@links` в Caddyfile; если её адрес может быть username — добавить его в `user.ReservedUsername`. Файл `/.well-known/assetlinks.json` (Android App Links, отпечаток сертификата подписи релиза) лежит в `public/` сайта. Заняты ли уже зарезервированные имена (список — `reservedUsernames` в `app/service/biz/user/user/username.go`):
+  ```bash
+  docker exec mysql sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -N teamgram -e "SELECT peer_type, peer_id, username FROM username WHERE LOWER(username) IN (\"android\",\"iphone\",\"windows\",\"linux\",\"assets\",\"collect\",\"addemoji\",\"addlist\",\"addstickers\",\"addstyle\",\"addtheme\",\"auction\",\"boost\",\"confirmphone\",\"contact\",\"giftcode\",\"invoice\",\"joinchat\",\"login\",\"proxy\",\"setlanguage\",\"share\",\"socks\",\"newbot\")"'
+  ```
+  Пустой ответ — совпадений нет. Совпавшее имя у владельца остаётся, но его ссылка pluma.chat не откроет профиль.
 - **Другие сайты на том же адресе.** Сайты оператора вне Pluma (например, свой сервис на отдельном домене) не дописываются в `teamgramd/deploy/web/Caddyfile`: локальная правка остановит `git checkout` при выкатке. Каждый — отдельный файл `<имя>.caddy` в `/srv/pluma-caddy-sites` на хосте (другое место — `PLUMA_CADDY_SITES_DIR` в `.env`); Caddyfile подключает их последней строкой `import`. Каталог может быть пустым. После изменения файла: `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.web.yaml exec web caddy reload --config /etc/caddy/Caddyfile`. Пароли (`basic_auth`) хранятся только в этих файлах, в репозиторий не попадают.
 
 Порядок:
