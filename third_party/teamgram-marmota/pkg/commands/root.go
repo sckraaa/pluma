@@ -80,6 +80,7 @@ func (r *Runner) Run() {
 	}
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	setMemoryLimit() // pluma: memlimit.go
 
 	logx.Info("instance initialize...")
 	err := r.inst.Initialize()
