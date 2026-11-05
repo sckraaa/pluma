@@ -154,3 +154,17 @@ func TestPeerPrivacy(t *testing.T) {
 		t.Error("a group has a preview")
 	}
 }
+
+// TestSpoilerPhoto: a photo under a spoiler is not shown in the preview;
+// the post says it has a photo.
+func TestSpoilerPhoto(t *testing.T) {
+	m := func(spoiler bool) *mtproto.Message {
+		return mtproto.MakeTLMessage(&mtproto.Message{Id: 5, Media: mtproto.MakeTLMessageMediaPhoto(&mtproto.MessageMedia{Photo_FLAGPHOTO: photo(9), Spoiler: spoiler}).To_MessageMedia()}).To_Message()
+	}
+	if p := postOf(m(false)); !p.HasPhoto || p.Media != "photo" {
+		t.Errorf("a photo: %+v", p)
+	}
+	if p := postOf(m(true)); p.HasPhoto || p.Media != "photo" {
+		t.Errorf("a photo under a spoiler: %+v", p)
+	}
+}

@@ -55,10 +55,29 @@ func (f *fakeData) Channel(ctx context.Context, username string) (*Peer, int64, 
 	return p, 1000000005, nil
 }
 
-func (f *fakeData) Posts(_ context.Context, _ int64, before, limit int) ([]Post, error) {
-	var out []Post
+func (f *fakeData) Posts(_ context.Context, _ int64, offset, add, limit int) ([]Post, error) {
+	// As the channel service's history: newest first.
+	if offset <= 0 {
+		offset = 1 << 30
+	}
+	var newer, out []Post
+	if add < 0 {
+		for _, p := range f.posts {
+			if p.ID >= offset && len(newer) < -add {
+				newer = append(newer, p)
+			}
+		}
+		for i := len(newer) - 1; i >= 0; i-- {
+			out = append(out, newer[i])
+		}
+		add = 0
+	}
 	for i := len(f.posts) - 1; i >= 0 && len(out) < limit; i-- {
-		if before == 0 || f.posts[i].ID < before {
+		if f.posts[i].ID < offset {
+			if add > 0 {
+				add--
+				continue
+			}
 			out = append(out, f.posts[i])
 		}
 	}
@@ -89,6 +108,7 @@ func newTestHandler(t *testing.T) (*Handler, *fakeData) {
 		data.posts = append(data.posts, Post{ID: i, Date: time.Unix(1700000000+int64(i)*60, 0), Text: "post " + itoa(i), Views: i * 1000})
 	}
 	data.posts[24].HasPhoto, data.posts[24].Media = true, "photo"
+	data.posts[23].Media = "video"
 	b := &Builder{Site: "https://pluma.chat", Web: "https://web.pluma.chat", Scheme: "plm", Data: data}
 	h, err := NewHandler(b, data, &Previews{Builder: b, Data: data})
 	if err != nil {
@@ -97,7 +117,13 @@ func newTestHandler(t *testing.T) (*Handler, *fakeData) {
 	return h, data
 }
 
-func get(t *testing.T, h http.Handler, path string, header map[string]string) (*http.Response, string) {
+// reply is what a test reads of an answer.
+type reply struct {
+	StatusCode int
+	Header     http.Header
+}
+
+func get(t *testing.T, h http.Handler, path string, header map[string]string) (reply, string) {
 	t.Helper()
 	r := httptest.NewRequest(http.MethodGet, path, nil)
 	for k, v := range header {
@@ -105,9 +131,8 @@ func get(t *testing.T, h http.Handler, path string, header map[string]string) (*
 	}
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, r)
-	res := w.Result()
-	b, _ := io.ReadAll(res.Body)
-	return res, string(b)
+	b, _ := io.ReadAll(w.Body)
+	return reply{StatusCode: w.Code, Header: w.Header()}, string(b)
 }
 
 func mustContain(t *testing.T, what, body string, parts ...string) {
@@ -127,13 +152,16 @@ func TestPages(t *testing.T) {
 	ru := map[string]string{"Accept-Language": "ru-RU,ru;q=0.9", "User-Agent": "Mozilla/5.0 (iPhone)"}
 
 	res, body := get(t, h, "/plumanews", en)
+	if !strings.Contains(res.Header.Get("Content-Security-Policy"), "frame-src plm:") {
+		t.Errorf("the page's policy: %q", res.Header.Get("Content-Security-Policy"))
+	}
 	if res.StatusCode != http.StatusOK || res.Header.Get("Cache-Control") != "no-store" {
 		t.Fatalf("channel: %d %v", res.StatusCode, res.Header)
 	}
 	mustContain(t, "channel", body,
 		"<title>Pluma: View @plumanews</title>", `content="Pluma News"`, "1 234 subscribers", "View in Pluma",
 		`href="plm://resolve?domain=plumanews"`, `href="/s/plumanews"`, "Preview channel",
-		"Новости &lt;b&gt;проекта&lt;/b&gt;", `src="https://pluma.chat/_l/avatar/plumanews"`,
+		"Новости &lt;b&gt;проекта&lt;/b&gt;", `src="/_l/avatar/plumanews"`, `content="https://pluma.chat/_l/avatar/plumanews"`,
 		`href="https://web.pluma.chat/#?tgaddr=plm%3A%2F%2Fresolve%3Fdomain%3Dplumanews"`, `href="https://pluma.chat/mac"`)
 	if strings.Contains(body, "<b>проекта</b>") {
 		t.Error("the about text not escaped")
@@ -143,7 +171,7 @@ func TestPages(t *testing.T) {
 	mustContain(t, "channel, Russian", body, `lang="ru"`, "1 234 подписчика", "Открыть в Pluma", "Посмотреть канал", `href="https://pluma.chat/iphone"`)
 
 	_, body = get(t, h, "/plumanews/7", en)
-	mustContain(t, "post", body, "View Post", `href="plm://resolve?domain=plumanews&amp;post=7"`, `href="/s/plumanews/7"`, "View context")
+	mustContain(t, "post", body, "View Post", `href="plm://resolve?domain=plumanews&amp;post=7"`, `href="/s/plumanews/7#post-7"`, "View context")
 
 	_, body = get(t, h, "/chatters", en)
 	mustContain(t, "group", body, "2 members", "View in Pluma", `class="initials"`, ">C<")
@@ -245,11 +273,21 @@ func TestPreview(t *testing.T) {
 	if strings.Index(body, `id="post-6"`) > strings.Index(body, `id="post-25"`) {
 		t.Error("not the newest last")
 	}
+	if strings.Contains(body, "Show later posts") {
+		t.Error("a link past the newest post")
+	}
+	// The media a post's link opens in the app, not a link html/template
+	// refused (#ZgotmplZ).
+	mustContain(t, "video", body, `class="post-media" href="plm://resolve?domain=plumanews&amp;post=24"`)
 	_, body = get(t, h, "/s/plumanews?before=6", en)
-	mustContain(t, "earlier", body, `id="post-5"`, `id="post-1"`)
+	mustContain(t, "earlier", body, `id="post-5"`, `id="post-1"`, `href="/s/plumanews?after=5"`, "Show later posts")
 	if strings.Contains(body, "Show earlier posts") {
 		t.Error("a link past the first post")
 	}
+	_, body = get(t, h, "/s/plumanews?after=5", en)
+	mustContain(t, "later", body, `id="post-6"`, `id="post-25"`)
+	_, body = get(t, h, "/s/plumanews/10", en)
+	mustContain(t, "around a post", body, `id="post-10"`, `id="post-19"`, `id="post-1"`, `href="/s/plumanews?after=19"`)
 	for _, p := range []string{"/s/chatters", "/s/alice_dev", "/s/nobody_here"} {
 		res, _ := get(t, h, p, nil)
 		if res.StatusCode != http.StatusFound || res.Header.Get("Location") != "/"+strings.TrimPrefix(p, "/s/") {

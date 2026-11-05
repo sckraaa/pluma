@@ -60,11 +60,12 @@ func (p *Preview) Channel(ctx context.Context, username string) (*links.Peer, in
 }
 
 // Posts implements links.PreviewSource.
-func (p *Preview) Posts(ctx context.Context, channelId int64, before, limit int) ([]links.Post, error) {
+func (p *Preview) Posts(ctx context.Context, channelId int64, offset, addOffset, limit int) ([]links.Post, error) {
 	h, err := p.Channels.ChannelGetHistory(ctx, &channelpb.TLChannelGetHistory{
 		SelfId:    0,
 		ChannelId: channelId,
-		OffsetId:  int32(before),
+		OffsetId:  int32(offset),
+		AddOffset: int32(addOffset),
 		Limit:     int32(limit),
 	})
 	if err != nil {
@@ -96,7 +97,8 @@ func postOf(m *mtproto.Message) links.Post {
 	switch media := m.GetMedia(); media.GetPredicateName() {
 	case "", mtproto.Predicate_messageMediaEmpty, mtproto.Predicate_messageMediaWebPage:
 	case mtproto.Predicate_messageMediaPhoto:
-		post.Media, post.HasPhoto = "photo", photoId(media.GetPhoto_FLAGPHOTO()) != 0
+		// A photo under a spoiler stays hidden: the app shows it covered.
+		post.Media, post.HasPhoto = "photo", photoId(media.GetPhoto_FLAGPHOTO()) != 0 && !media.GetSpoiler()
 	case mtproto.Predicate_messageMediaDocument:
 		post.Media = "file"
 		for _, a := range media.GetDocument().GetAttributes() {
@@ -140,7 +142,7 @@ func (p *Preview) PostPhoto(ctx context.Context, username string, id int) ([]byt
 	}
 	var photo int64
 	for _, m := range msgs.GetDatas() {
-		if m.GetId() == int32(id) && m.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaPhoto {
+		if m.GetId() == int32(id) && m.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaPhoto && !m.GetMedia().GetSpoiler() {
 			photo = photoId(m.GetMedia().GetPhoto_FLAGPHOTO())
 		}
 	}

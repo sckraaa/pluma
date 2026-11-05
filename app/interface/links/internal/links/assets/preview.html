@@ -48,6 +48,7 @@
 {{end}}<footer class="post-meta">{{if .Views}}<span class="views">{{.Views}}</span>{{end}}<a href="{{.Link}}"><time datetime="{{.DateISO}}">{{.Date}}</time></a></footer>
 </article>
 {{else}}<p class="empty">{{index .Texts "preview_empty"}}</p>
+{{end}}{{if .Newer}}<a class="more" href="{{.Newer}}">{{index .Texts "preview_newer"}}</a>
 {{end}}</main>
 </div>
 </body>

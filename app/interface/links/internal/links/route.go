@@ -65,9 +65,10 @@ type Link struct {
 	Subject string
 	Post    int
 	App     string
-	// Before and Query: the channel preview's page (/s/<name>?before=&q=).
-	Before int
-	Query  string
+	// Before, After and Query: the channel preview's page
+	// (/s/<name>?before=, ?after=, ?q=).
+	Before, After int
+	Query         string
 }
 
 var (
@@ -110,6 +111,7 @@ func Parse(path string, q url.Values) Link {
 			l.Post, _ = strconv.Atoi(parts[2])
 		}
 		l.Before, _ = strconv.Atoi(q.Get("before"))
+		l.After, _ = strconv.Atoi(q.Get("after"))
 		l.Query = q.Get("q")
 		return l
 	case head == "boost":

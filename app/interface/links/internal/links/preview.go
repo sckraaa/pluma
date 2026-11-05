@@ -62,9 +62,11 @@ type PreviewSource interface {
 	// Channel is the public channel of the username (nil for anything
 	// else) and its id.
 	Channel(ctx context.Context, username string) (*Peer, int64, error)
-	// Posts are the posts of the channel with ids below before (0: the
-	// newest), at most limit, newest first.
-	Posts(ctx context.Context, channelId int64, before, limit int) ([]Post, error)
+	// Posts are at most limit posts of the channel, newest first: those
+	// below offset (0: the newest), after skipping addOffset of them; a
+	// negative addOffset takes that many from offset up instead
+	// (messages.getHistory's offset_id and add_offset).
+	Posts(ctx context.Context, channelId int64, offset, addOffset, limit int) ([]Post, error)
 	// PostPhoto is the photo of a post of a public channel, as JPEG.
 	PostPhoto(ctx context.Context, username string, id int) ([]byte, error)
 }
@@ -81,6 +83,7 @@ type PreviewView struct {
 	Channel  *Peer
 	Posts    []PostView
 	More     string // the link to earlier posts, "" for none
+	Newer    string // the link to later posts, "" for none
 	Username string
 }
 
@@ -90,7 +93,7 @@ type PostView struct {
 	Text     template.HTML
 	Photo    string
 	Media    string
-	MediaURL string
+	MediaURL template.URL
 	Views    string
 	Date     string
 	DateISO  string
@@ -119,11 +122,24 @@ func (h *Handler) preview(ctx context.Context, w http.ResponseWriter, r *http.Re
 		http.Redirect(w, r, "/"+l.Subject, http.StatusFound)
 		return
 	}
-	before := l.Before
-	if l.Post > 0 {
-		before = l.Post + PreviewPage/2
+	offset, add := l.Before, 0
+	switch {
+	case l.Post > 0:
+		// The post among the posts around it, as t.me/s/<name>/<id>.
+		offset, add = l.Post, -PreviewPage/2
+	case l.After > 0:
+		offset, add = l.After+1, -PreviewPage
 	}
-	posts, err := p.Data.Posts(ctx, channelId, before, PreviewPage)
+	posts, err := p.Data.Posts(ctx, channelId, offset, add, PreviewPage)
+	if err == nil && len(posts) == 0 && offset > 0 {
+		posts, err = p.Data.Posts(ctx, channelId, 0, 0, PreviewPage)
+	}
+	var newest, older []Post
+	if err == nil && len(posts) > 0 {
+		if newest, err = p.Data.Posts(ctx, channelId, 0, 0, 1); err == nil {
+			older, err = p.Data.Posts(ctx, channelId, posts[len(posts)-1].ID, 0, 1)
+		}
+	}
 	if err != nil {
 		logx.WithContext(ctx).Errorf("links: a channel preview: %v", err)
 		http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
@@ -140,8 +156,11 @@ func (h *Handler) preview(ctx context.Context, w http.ResponseWriter, r *http.Re
 	for i := len(posts) - 1; i >= 0; i-- {
 		view.Posts = append(view.Posts, h.Builder.postView(peer.Username, posts[i], v))
 	}
-	if len(posts) == PreviewPage {
+	if len(older) > 0 {
 		view.More = "/s/" + peer.Username + "?before=" + strconv.Itoa(posts[len(posts)-1].ID)
+	}
+	if len(newest) > 0 && len(posts) > 0 && newest[0].ID > posts[0].ID {
+		view.Newer = "/s/" + peer.Username + "?after=" + strconv.Itoa(posts[0].ID)
 	}
 	h.render(ctx, w, "preview", view)
 }
@@ -167,7 +186,7 @@ func (b *Builder) postView(username string, p Post, v Visitor) PostView {
 	}
 	if p.Media != "" && !p.HasPhoto {
 		pv.Media = text(v.Lang, "preview_"+p.Media)
-		pv.MediaURL = string(b.appURL(v, "resolve?domain="+username+"&post="+strconv.Itoa(p.ID)))
+		pv.MediaURL = b.appURL(v, "resolve?domain="+username+"&post="+strconv.Itoa(p.ID))
 	}
 	if p.Service && p.Text == "" {
 		pv.Text = template.HTML(esc(text(v.Lang, "preview_service"))) //nolint:gosec // escaped
@@ -338,5 +357,6 @@ func (h *Handler) postPhoto(ctx context.Context, w http.ResponseWriter, rest str
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Cache-Control", "public, max-age=600")
-	_, _ = w.Write(b)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(b) //nolint:gosec // G705: a file of its own type (embedded asset or JPEG), never HTML
 }

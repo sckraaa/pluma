@@ -104,7 +104,9 @@
 	# the CSSOM, which the policy does not cover. No access log: the footer says
 	# the page counts nobody.
 	header {
-		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
+		# A default: the pages of links (task 026) send their own, which
+		# adds frames of plm: for the hand-off to the app on iOS.
+		?Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
 		Referrer-Policy no-referrer
 		X-Content-Type-Options nosniff
 		Permissions-Policy "interest-cohort=(), camera=(), microphone=(), geolocation=()"

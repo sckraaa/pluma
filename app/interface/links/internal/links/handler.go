@@ -34,12 +34,17 @@ var assetFS embed.FS
 // assets are the files of the pages under /_l/ (a path no username takes:
 // a username starts with a letter), with their types.
 var assets = map[string]string{
-	"page.css":              "text/css; charset=utf-8",
-	"preview.css":           "text/css; charset=utf-8",
-	"open.js":               "text/javascript; charset=utf-8",
-	"geologica-latin.woff2": "font/woff2",
+	"page.css":                 "text/css; charset=utf-8",
+	"preview.css":              "text/css; charset=utf-8",
+	"open.js":                  "text/javascript; charset=utf-8",
+	"geologica-latin.woff2":    "font/woff2",
 	"geologica-cyrillic.woff2": "font/woff2",
 }
+
+// pageCSP is the site's policy (teamgramd/deploy/web/Caddyfile) with
+// frames of the app's scheme: on iOS open.js opens the app through a
+// hidden frame, as t.me does. Caddy keeps a page's own policy.
+const pageCSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-src plm:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
 
 // Avatars gives the photo of a username's owner that anybody may see, as
 // JPEG; nil when there is none.
@@ -135,6 +140,7 @@ func (h *Handler) render(ctx context.Context, w http.ResponseWriter, name string
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", pageCSP)
 	// As t.me: the page is of the object now, never cached.
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Vary", "Accept-Language, User-Agent")
@@ -154,7 +160,8 @@ func (h *Handler) asset(w http.ResponseWriter, r *http.Request, name string) {
 	}
 	w.Header().Set("Content-Type", typ)
 	w.Header().Set("Cache-Control", "public, max-age=86400")
-	_, _ = w.Write(b)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(b) //nolint:gosec // G705: a file of its own type (embedded asset or JPEG), never HTML
 }
 
 func (h *Handler) avatar(ctx context.Context, w http.ResponseWriter, username string) {
@@ -174,7 +181,8 @@ func (h *Handler) avatar(ctx context.Context, w http.ResponseWriter, username st
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Cache-Control", "public, max-age=600")
-	_, _ = w.Write(b)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(b) //nolint:gosec // G705: a file of its own type (embedded asset or JPEG), never HTML
 }
 
 // visitorOf is the language and the device of the visitor: the language

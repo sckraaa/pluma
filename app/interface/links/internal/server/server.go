@@ -20,6 +20,7 @@ import (
 	"errors"
 	"flag"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -84,14 +85,18 @@ func (s *Server) Initialize() error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 	}
+	// A listener that fails ends the process, so that Docker restarts it,
+	// as releases does.
+	go func() {
+		if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logx.Errorf("links: %v", err)
+			os.Exit(1)
+		}
+	}()
 	return nil
 }
 
-func (s *Server) RunLoop() {
-	if err := s.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logx.Errorf("links: %v", err)
-	}
-}
+func (s *Server) RunLoop() {}
 
 func (s *Server) Destroy() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

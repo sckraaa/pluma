@@ -244,8 +244,11 @@ func (b *Builder) peerPage(ctx context.Context, l Link, v Visitor, p *Page) (*Pa
 		p.Desc = template.HTML(strings.ReplaceAll(esc(peer.About), "\n", "<br>")) //nolint:gosec // escaped
 	}
 	if peer.HasPhoto {
-		p.PhotoURL = b.Site + "/_l/avatar/" + url.PathEscape(peer.Username)
-		p.OgImage = p.PhotoURL
+		// Relative on the page: it is served on www.pluma.chat as well,
+		// whose CSP allows images of its own origin only. Absolute for
+		// those who fetch the page (og:image).
+		p.PhotoURL = "/_l/avatar/" + url.PathEscape(peer.Username)
+		p.OgImage = b.Site + p.PhotoURL
 	} else {
 		p.Initials = initials(peer.Name)
 	}
@@ -269,7 +272,7 @@ func (b *Builder) peerPage(ctx context.Context, l Link, v Visitor, p *Page) (*Pa
 		}
 		if peer.Kind == PeerChannel && peer.Public {
 			if l.Kind == KindPost {
-				p.Context = &Anchor{Text: v.text("view_context"), Href: "/s/" + peer.Username + "/" + itoa(l.Post)}
+				p.Context = &Anchor{Text: v.text("view_context"), Href: "/s/" + peer.Username + "/" + itoa(l.Post) + "#post-" + itoa(l.Post)}
 			} else {
 				p.Context = &Anchor{Text: v.text("preview_channel"), Href: "/s/" + peer.Username}
 			}
