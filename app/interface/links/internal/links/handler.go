@@ -22,6 +22,7 @@ import (
 	"html/template"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,10 +47,13 @@ var assets = map[string]string{
 // hidden frame, as t.me does. Caddy keeps a page's own policy.
 const pageCSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; font-src 'self'; connect-src 'self'; frame-src plm:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'"
 
-// Avatars gives the photo of a username's owner that anybody may see, as
-// JPEG; nil when there is none.
+// Avatars gives the photo of a username's owner that anybody may see.
 type Avatars interface {
-	Avatar(ctx context.Context, username string) ([]byte, error)
+	// AvatarId is the id of that photo, 0 when there is none.
+	AvatarId(ctx context.Context, username string) (int64, error)
+	// AvatarFile is the photo of the id as JPEG, nil when it has no size
+	// to show.
+	AvatarFile(ctx context.Context, id int64) ([]byte, error)
 }
 
 // Handler serves the links of the link host. Caddy sends it every path of
@@ -102,7 +106,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.postPhoto(ctx, w, strings.TrimPrefix(p, "/_l/post/"))
 		return
 	case strings.HasPrefix(p, "/_l/avatar/"):
-		h.avatar(ctx, w, strings.TrimPrefix(p, "/_l/avatar/"))
+		h.avatar(ctx, w, r, strings.TrimPrefix(p, "/_l/avatar/"))
 		return
 	case strings.HasPrefix(p, "/_l/"):
 		h.asset(w, r, strings.TrimPrefix(p, "/_l/"))
@@ -164,12 +168,39 @@ func (h *Handler) asset(w http.ResponseWriter, r *http.Request, name string) {
 	_, _ = w.Write(b) //nolint:gosec // G705: a file of its own type (embedded asset or JPEG), never HTML
 }
 
-func (h *Handler) avatar(ctx context.Context, w http.ResponseWriter, username string) {
+// avatar serves the photo of a username's owner that anybody may see now,
+// whatever photo the URL's v names: an old page's URL never brings back a
+// photo hidden since. The URL of the page's own photo (v = its id) is
+// cached for good; any other is asked again each time, and its ETag (the
+// photo's id) answers 304 while the photo is the same.
+func (h *Handler) avatar(ctx context.Context, w http.ResponseWriter, r *http.Request, username string) {
 	if !usernameRe.MatchString(username) || h.Avatars == nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
-	b, err := h.Avatars.Avatar(ctx, username)
+	id, err := h.Avatars.AvatarId(ctx, username)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("links: an avatar: %v", err)
+		http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if id == 0 {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	version := strconv.FormatInt(id, 10)
+	etag := `"` + version + `"`
+	w.Header().Set("ETag", etag)
+	if r.URL.Query().Get("v") == version {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	} else {
+		w.Header().Set("Cache-Control", "no-cache")
+	}
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	b, err := h.Avatars.AvatarFile(ctx, id)
 	if err != nil {
 		logx.WithContext(ctx).Errorf("links: an avatar: %v", err)
 		http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)
@@ -180,7 +211,6 @@ func (h *Handler) avatar(ctx context.Context, w http.ResponseWriter, username st
 		return
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
-	w.Header().Set("Cache-Control", "public, max-age=600")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	_, _ = w.Write(b) //nolint:gosec // G705: a file of its own type (embedded asset or JPEG), never HTML
 }

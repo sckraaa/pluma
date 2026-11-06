@@ -129,7 +129,7 @@ func (s *Source) Peer(ctx context.Context, username string) (*links.Peer, error)
 			Name:     ch.GetTitle(),
 			About:    ch.GetAbout(),
 			Members:  int(ch.GetParticipantsCount()),
-			HasPhoto: photoId(ch.GetPhoto()) != 0,
+			PhotoId:  photoId(ch.GetPhoto()),
 		}
 		if ch.GetBroadcast() {
 			p.Kind, p.Public = links.PeerChannel, true
@@ -142,7 +142,7 @@ func (s *Source) Peer(ctx context.Context, username string) (*links.Peer, error)
 		Username:  u.Username(),
 		Name:      fullName(u.FirstName(), u.LastName()),
 		FirstName: u.FirstName(),
-		HasPhoto:  userPhoto(u) != 0,
+		PhotoId:   userPhoto(u),
 	}
 	if u.IsBot() {
 		p.Kind = links.PeerBot
@@ -186,22 +186,21 @@ func fullName(first, last string) string {
 // a 160, b 320, c 640 px).
 var avatarSizes = []string{"c", "b", "a"}
 
-// Avatar implements links.Avatars: the photo of the username's owner that
-// anybody may see.
-func (s *Source) Avatar(ctx context.Context, username string) ([]byte, error) {
+// AvatarId implements links.Avatars: the photo of the username's owner
+// that anybody may see.
+func (s *Source) AvatarId(ctx context.Context, username string) (int64, error) {
 	o, err := s.resolve(ctx, username)
 	if err != nil || o == nil {
-		return nil, err
+		return 0, err
 	}
-	var id int64
 	if o.channel != nil {
-		id = photoId(o.channel.GetChannel().GetPhoto())
-	} else {
-		id = userPhoto(o.user)
+		return photoId(o.channel.GetChannel().GetPhoto()), nil
 	}
-	if id == 0 {
-		return nil, nil
-	}
+	return userPhoto(o.user), nil
+}
+
+// AvatarFile implements links.Avatars.
+func (s *Source) AvatarFile(ctx context.Context, id int64) ([]byte, error) {
 	return s.photo(ctx, id, avatarSizes)
 }
 

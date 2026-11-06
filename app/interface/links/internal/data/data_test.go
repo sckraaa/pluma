@@ -125,17 +125,23 @@ func TestPeerPrivacy(t *testing.T) {
 	s := newFake()
 	ctx := context.Background()
 	p, err := s.Peer(ctx, "open_user")
-	if err != nil || p == nil || p.Name != "Open User" || p.About != "hello" || !p.HasPhoto || p.Kind != links.PeerUser {
+	if err != nil || p == nil || p.Name != "Open User" || p.About != "hello" || p.PhotoId == 0 || p.Kind != links.PeerUser {
 		t.Fatalf("open user: %+v, %v", p, err)
 	}
-	if b, _ := s.Avatar(ctx, "open_user"); string(b) != "main" {
+	if id, _ := s.AvatarId(ctx, "open_user"); id != p.PhotoId {
+		t.Errorf("open_user: the avatar is photo %d, the page names %d", id, p.PhotoId)
+	}
+	if b, _ := s.AvatarFile(ctx, p.PhotoId); string(b) != "main" {
 		t.Errorf("open user's photo: %q", b)
 	}
 	p, err = s.Peer(ctx, "closed_one")
-	if err != nil || p == nil || p.About != "" || !p.HasPhoto {
+	if err != nil || p == nil || p.About != "" || p.PhotoId == 0 {
 		t.Fatalf("closed user: %+v, %v", p, err)
 	}
-	if b, _ := s.Avatar(ctx, "closed_one"); string(b) != "public" {
+	if id, _ := s.AvatarId(ctx, "closed_one"); id != p.PhotoId {
+		t.Errorf("closed_one: the avatar is photo %d, the page names %d", id, p.PhotoId)
+	}
+	if b, _ := s.AvatarFile(ctx, p.PhotoId); string(b) != "public" {
 		t.Errorf("closed user's photo: %q, want the public one", b)
 	}
 	for _, name := range []string{"gone_user", "nobody_here"} {

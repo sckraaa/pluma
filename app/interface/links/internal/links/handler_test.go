@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -40,9 +41,18 @@ func (f *fakeData) StickerSet(_ context.Context, name string) (string, bool, boo
 	return title, strings.HasPrefix(name, "Emoji"), ok, nil
 }
 
-func (f *fakeData) Avatar(_ context.Context, username string) ([]byte, error) {
-	if p := f.peers[strings.ToLower(username)]; p != nil && p.HasPhoto {
-		return []byte("\xff\xd8jpeg"), nil
+func (f *fakeData) AvatarId(_ context.Context, username string) (int64, error) {
+	if p := f.peers[strings.ToLower(username)]; p != nil {
+		return p.PhotoId, nil
+	}
+	return 0, nil
+}
+
+func (f *fakeData) AvatarFile(_ context.Context, id int64) ([]byte, error) {
+	for _, p := range f.peers {
+		if p.PhotoId == id {
+			return []byte("\xff\xd8jpeg " + strconv.FormatInt(id, 10)), nil
+		}
 	}
 	return nil, nil
 }
@@ -97,7 +107,7 @@ func newTestHandler(t *testing.T) (*Handler, *fakeData) {
 	t.Helper()
 	data := &fakeData{
 		peers: map[string]*Peer{
-			"plumanews": {Kind: PeerChannel, Username: "plumanews", Name: "Pluma News", About: "Новости <b>проекта</b>", Members: 1234, HasPhoto: true, Public: true},
+			"plumanews": {Kind: PeerChannel, Username: "plumanews", Name: "Pluma News", About: "Новости <b>проекта</b>", Members: 1234, PhotoId: 7, Public: true},
 			"chatters":  {Kind: PeerGroup, Username: "chatters", Name: "Chatters", Members: 2},
 			"alice_dev": {Kind: PeerUser, Username: "alice_dev", Name: "Alice Smith", FirstName: "Alice"},
 			"helperbot": {Kind: PeerBot, Username: "helperbot", Name: "Helper", About: "I help."},
@@ -161,7 +171,7 @@ func TestPages(t *testing.T) {
 	mustContain(t, "channel", body,
 		"<title>Pluma: View @plumanews</title>", `content="Pluma News"`, "1 234 subscribers", "View in Pluma",
 		`href="plm://resolve?domain=plumanews"`, `href="/s/plumanews"`, "Preview channel",
-		"Новости &lt;b&gt;проекта&lt;/b&gt;", `src="/_l/avatar/plumanews"`, `content="https://pluma.chat/_l/avatar/plumanews"`,
+		"Новости &lt;b&gt;проекта&lt;/b&gt;", `src="/_l/avatar/plumanews?v=7"`, `content="https://pluma.chat/_l/avatar/plumanews?v=7"`,
 		`href="https://web.pluma.chat/#?tgaddr=plm%3A%2F%2Fresolve%3Fdomain%3Dplumanews"`, `href="https://pluma.chat/mac"`)
 	if strings.Contains(body, "<b>проекта</b>") {
 		t.Error("the about text not escaped")
@@ -239,9 +249,6 @@ func TestAssetsAndPhotos(t *testing.T) {
 	if res, _ := get(t, h, "/_l/page.html", nil); res.StatusCode != http.StatusNotFound {
 		t.Errorf("the template served: %d", res.StatusCode)
 	}
-	if res, body := get(t, h, "/_l/avatar/plumanews", nil); res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/jpeg" || body == "" {
-		t.Errorf("avatar: %d", res.StatusCode)
-	}
 	for _, p := range []string{"/_l/avatar/alice_dev", "/_l/avatar/../etc", "/_l/avatar/nobody_here"} {
 		if res, _ := get(t, h, p, nil); res.StatusCode != http.StatusNotFound {
 			t.Errorf("%s: %d, want 404", p, res.StatusCode)
@@ -317,5 +324,41 @@ func TestRenderText(t *testing.T) {
 	}
 	if got := string(RenderText("short", []Entity{{Kind: "bold", Offset: 3, Length: 10}})); got != "short" {
 		t.Errorf("an entity past the text: %s", got)
+	}
+}
+
+// TestAvatarCaching: the page's avatar URL names the photo, so a new photo is
+// a new URL; that URL is cached for good, any other (an old page's, or none)
+// is asked again and answered 304 while the photo is the same. Whatever v
+// names, the photo served is the one visible now.
+func TestAvatarCaching(t *testing.T) {
+	h, data := newTestHandler(t)
+	res, body := get(t, h, "/_l/avatar/plumanews?v=7", nil)
+	if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/jpeg" || body != "\xff\xd8jpeg 7" {
+		t.Fatalf("avatar: %d %q", res.StatusCode, body)
+	}
+	if cc, etag := res.Header.Get("Cache-Control"), res.Header.Get("ETag"); cc != "public, max-age=31536000, immutable" || etag != `"7"` {
+		t.Errorf("the page's URL: Cache-Control %q, ETag %q", cc, etag)
+	}
+	for _, path := range []string{"/_l/avatar/plumanews", "/_l/avatar/plumanews?v=6"} {
+		res, body := get(t, h, path, nil)
+		if res.StatusCode != http.StatusOK || body != "\xff\xd8jpeg 7" || res.Header.Get("Cache-Control") != "no-cache" || res.Header.Get("ETag") != `"7"` {
+			t.Errorf("%s: %d %q, Cache-Control %q, ETag %q", path, res.StatusCode, body, res.Header.Get("Cache-Control"), res.Header.Get("ETag"))
+		}
+		if res, _ := get(t, h, path, map[string]string{"If-None-Match": `"7"`}); res.StatusCode != http.StatusNotModified {
+			t.Errorf("%s with the ETag: %d, want 304", path, res.StatusCode)
+		}
+	}
+	// A new photo: the page names it, the old ETag no longer matches.
+	data.peers["plumanews"].PhotoId = 8
+	_, page := get(t, h, "/plumanews", nil)
+	mustContain(t, "the page after a new photo", page, `src="/_l/avatar/plumanews?v=8"`)
+	if res, body := get(t, h, "/_l/avatar/plumanews?v=7", map[string]string{"If-None-Match": `"7"`}); res.StatusCode != http.StatusOK || body != "\xff\xd8jpeg 8" || res.Header.Get("Cache-Control") != "no-cache" {
+		t.Errorf("the old URL after a new photo: %d %q, Cache-Control %q", res.StatusCode, body, res.Header.Get("Cache-Control"))
+	}
+	for _, p := range []string{"/_l/avatar/alice_dev", "/_l/avatar/../etc", "/_l/avatar/nobody_here"} {
+		if res, _ := get(t, h, p, nil); res.StatusCode != http.StatusNotFound {
+			t.Errorf("%s: %d, want 404", p, res.StatusCode)
+		}
 	}
 }

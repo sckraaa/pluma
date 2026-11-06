@@ -42,7 +42,9 @@ type Peer struct {
 	FirstName string
 	About     string
 	Members   int
-	HasPhoto  bool
+	// PhotoId is the photo anybody may see, 0 for none: it names the
+	// avatar's URL, which changes with the photo.
+	PhotoId int64
 	// Public: a channel whose posts anybody may read (the preview).
 	Public bool
 }
@@ -134,7 +136,7 @@ func (b *Builder) webURL(path string) string {
 func (b *Builder) Build(ctx context.Context, l Link, v Visitor) (*Page, error) {
 	p := &Page{
 		Lang:     v.Lang,
-		OgImage:  b.Site + "/og.png",
+		OgImage:  b.Site + "/og-logo.png",
 		AppURL:   b.appURL(v, l.App),
 		WebURL:   b.webURL(l.App),
 		Download: b.Site + "/" + v.Device,
@@ -243,11 +245,12 @@ func (b *Builder) peerPage(ctx context.Context, l Link, v Visitor, p *Page) (*Pa
 		p.OgDesc = peer.About
 		p.Desc = template.HTML(strings.ReplaceAll(esc(peer.About), "\n", "<br>")) //nolint:gosec // escaped
 	}
-	if peer.HasPhoto {
+	if peer.PhotoId != 0 {
 		// Relative on the page: it is served on www.pluma.chat as well,
 		// whose CSP allows images of its own origin only. Absolute for
-		// those who fetch the page (og:image).
-		p.PhotoURL = "/_l/avatar/" + url.PathEscape(peer.Username)
+		// those who fetch the page (og:image). The photo's id makes a new
+		// photo a new URL, for browsers and for those who cache og:image.
+		p.PhotoURL = "/_l/avatar/" + url.PathEscape(peer.Username) + "?v=" + strconv.FormatInt(peer.PhotoId, 10)
 		p.OgImage = b.Site + p.PhotoURL
 	} else {
 		p.Initials = initials(peer.Name)
