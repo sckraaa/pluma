@@ -1,19 +1,19 @@
 {
   "layer": "228",
-  "total": 869,
-  "ok": 256,
+  "total": 844,
+  "ok": 249,
   "partial": 22,
   "areas": [
     {
       "key": "messages",
-      "total": 273,
-      "ok": 110,
+      "total": 202,
+      "ok": 80,
       "partial": 16
     },
     {
       "key": "channels",
-      "total": 74,
-      "ok": 19,
+      "total": 71,
+      "ok": 17,
       "partial": 1
     },
     {
@@ -24,7 +24,7 @@
     },
     {
       "key": "account",
-      "total": 159,
+      "total": 158,
       "ok": 67,
       "partial": 2
     },
@@ -36,31 +36,31 @@
     },
     {
       "key": "stickers",
-      "total": 11,
-      "ok": 0,
+      "total": 43,
+      "ok": 21,
       "partial": 0
     },
     {
       "key": "calls",
-      "total": 45,
+      "total": 43,
       "ok": 0,
       "partial": 0
     },
     {
       "key": "stories",
-      "total": 44,
+      "total": 39,
       "ok": 1,
       "partial": 0
     },
     {
       "key": "folders",
-      "total": 22,
-      "ok": 1,
+      "total": 27,
+      "ok": 6,
       "partial": 0
     },
     {
       "key": "bots",
-      "total": 39,
+      "total": 61,
       "ok": 0,
       "partial": 0
     },
@@ -72,8 +72,8 @@
     },
     {
       "key": "other",
-      "total": 74,
-      "ok": 19,
+      "total": 72,
+      "ok": 18,
       "partial": 1
     }
   ]

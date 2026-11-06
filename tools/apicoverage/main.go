@@ -416,23 +416,54 @@ func render(ms []*method, layer string) string {
 	return b.String()
 }
 
-// areas group the namespaces of the API into the parts of the messenger the
-// public progress names; a namespace not listed counts under "other".
+// areas group the methods of the API into the parts of the messenger the
+// public progress names: by namespace, and the methods of messages.* that
+// serve another part go to it by name (the stickers and emoji a user sees
+// are messages.getStickerSet and the like, stickers.* only makes sets; the
+// folders are messages.*DialogFilter*). A method of no area counts under
+// "other".
 var areas = []struct {
-	key string
-	ns  []string
+	key     string
+	ns      []string
+	methods *regexp.Regexp // of TL names, before the namespaces
 }{
-	{"messages", []string{"messages"}},
-	{"channels", []string{"channels"}},
-	{"contacts", []string{"contacts", "users"}},
-	{"account", []string{"account", "auth"}},
-	{"media", []string{"photos", "upload"}},
-	{"stickers", []string{"stickers"}},
-	{"calls", []string{"phone"}},
-	{"stories", []string{"stories"}},
-	{"folders", []string{"folders", "chatlists", "communities"}},
-	{"bots", []string{"bots"}},
-	{"payments", []string{"payments", "premium", "fragment"}},
+	{"messages", []string{"messages"}, nil},
+	{"channels", []string{"channels"}, nil},
+	{"contacts", []string{"contacts", "users"}, nil},
+	{"account", []string{"account", "auth"}, nil},
+	{"media", []string{"photos", "upload"}, nil},
+	{"stickers", []string{"stickers"}, regexp.MustCompile(`^messages\.\w*(Sticker|CustomEmoji|EmojiGroups|EmojiKeywords|EmojiURL)`)},
+	{"calls", []string{"phone"}, nil},
+	{"stories", []string{"stories"}, nil},
+	{"folders", []string{"folders", "chatlists", "communities"}, regexp.MustCompile(`^messages\.\w*DialogFilter`)},
+	{"bots", []string{"bots"}, regexp.MustCompile(`^messages\.\w*(Bot|InlineQuery|WebView|WebApp|AttachMenu)`)},
+	{"payments", []string{"payments", "premium", "fragment"}, nil},
+}
+
+// constructorSuffix ends the name of a method the schema has in more than
+// one version (messages.getDialogFiltersEFD48C89 and …F19ED96D): the
+// public progress counts it once.
+var constructorSuffix = regexp.MustCompile(`[0-9A-F]{8}$`)
+
+// statusRank orders the statuses from the best: a method of several
+// versions takes the best of them.
+var statusRank = map[string]int{"ok": 0, "partial": 1, "fake": 2, "notimpl": 3, "blocked": 4, "missing": 5}
+
+// areaOf is the area of a method by its TL name, "other" for none.
+func areaOf(tl, ns string) string {
+	for _, a := range areas {
+		if a.methods != nil && a.methods.MatchString(tl) {
+			return a.key
+		}
+	}
+	for _, a := range areas {
+		for _, n := range a.ns {
+			if n == ns {
+				return a.key
+			}
+		}
+	}
+	return "other"
 }
 
 type progressCounts struct {
@@ -449,10 +480,19 @@ type progressArea struct {
 // renderProgress is the public progress: the methods of the layer, how many
 // are implemented and partly implemented, overall and by area.
 func renderProgress(ms []*method, layer string) ([]byte, error) {
-	area := map[string]string{}
-	for _, a := range areas {
-		for _, ns := range a.ns {
-			area[ns] = a.key
+	// One entry per method name, of the best status of its versions.
+	byName := map[string]*method{}
+	var names []string
+	for _, m := range ms {
+		name := m.TLName
+		if strings.ContainsAny(name[max(0, len(name)-8):], "0123456789") {
+			name = constructorSuffix.ReplaceAllString(name, "")
+		}
+		if old, ok := byName[name]; !ok {
+			byName[name] = &method{TLName: name, NS: m.NS, Status: m.Status}
+			names = append(names, name)
+		} else if statusRank[m.Status] < statusRank[old.Status] {
+			old.Status = m.Status
 		}
 	}
 	add := func(c *progressCounts, m *method) {
@@ -466,11 +506,9 @@ func renderProgress(ms []*method, layer string) ([]byte, error) {
 	}
 	var all progressCounts
 	byArea := map[string]*progressCounts{}
-	for _, m := range ms {
-		key, ok := area[m.NS]
-		if !ok {
-			key = "other"
-		}
+	for _, name := range names {
+		m := byName[name]
+		key := areaOf(m.TLName, m.NS)
 		if byArea[key] == nil {
 			byArea[key] = &progressCounts{}
 		}
