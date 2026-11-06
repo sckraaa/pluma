@@ -83,7 +83,8 @@ func (c *DfsCore) DfsUploadPhotoFileV2(in *dfs.TLDfsUploadPhotoFileV2) (*mtproto
 		c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
 	}
 
-	err = imaging.ReSizeImage(cacheData, ext, false, func(szType string, localId int, w, h int32, b []byte) error {
+	var stripped *mtproto.PhotoSize
+	stripped, err = imaging.ReSizePhoto(cacheData, ext, false, func(szType string, localId int, w, h int32, b []byte) error {
 		// secretId := int64(extType)<<32 | int64(rand.Uint32())
 		path := fmt.Sprintf("%s/%d.dat", szType, photoId)
 		// c.Logger.Debugf("path: %s", path)
@@ -111,6 +112,10 @@ func (c *DfsCore) DfsUploadPhotoFileV2(in *dfs.TLDfsUploadPhotoFileV2) (*mtproto
 		err = mtproto.ErrImageProcessFailed
 		c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
 		return nil, err
+	}
+	// The inline thumbnail first, before the sizes it stands in for.
+	if stripped != nil {
+		sizeList = append([]*mtproto.PhotoSize{stripped}, sizeList...)
 	}
 
 	// photo#fb197a65 flags:#

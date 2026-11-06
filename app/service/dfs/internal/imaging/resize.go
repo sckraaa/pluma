@@ -174,3 +174,52 @@ func ReSizeImageByImage(img image.Image, extName string, isABC bool, cb func(szT
 
 	return
 }
+
+// StrippedSizeSide is the longer side of a photoStrippedSize, as the
+// documents' (dfs.uploadDocumentFileV2).
+const StrippedSizeSide = 40
+
+// ReSizePhoto is ReSizeImage that also returns the photo's photoStrippedSize
+// ("i"), from the same decoded image. The clients draw it until a real size
+// is loaded; tdesktop's privacy box of the profile photo has nothing else to
+// draw a public photo with and stops on an empty image without it
+// (prepare_short_info_box.cpp:179-183, settings_privacy_controllers.cpp:1184,
+// lib_ui image_prepare.cpp:1016 at a1e89e1f).
+func ReSizePhoto(rb []byte, extName string, isABC bool, cb func(szType string, localId int, w, h int32, b []byte) error) (*mtproto.PhotoSize, error) {
+	img, err := Decode(bytes.NewReader(rb))
+	if err != nil {
+		logx.Errorf("decode r(%d) error: %v", len(rb), err)
+		return nil, err
+	}
+	stripped, err := StrippedSize(img, isABC)
+	if err != nil {
+		return nil, err
+	}
+	if err = ReSizeImageByImage(img, extName, isABC, cb); err != nil {
+		return nil, err
+	}
+	return stripped, nil
+}
+
+// StrippedSize is the photoStrippedSize of img: its longer side fitted to
+// StrippedSizeSide, or, for a profile photo (square), the centre square, as
+// its other sizes (ReSizeImageByImage with isABC).
+func StrippedSize(img image.Image, square bool) (*mtproto.PhotoSize, error) {
+	var small image.Image
+	switch {
+	case square:
+		small = Fill(img, StrippedSizeSide, StrippedSizeSide)
+	case img.Bounds().Dx() >= img.Bounds().Dy():
+		small = Resize(img, StrippedSizeSide, 0)
+	default:
+		small = Resize(img, 0, StrippedSizeSide)
+	}
+	var b bytes.Buffer
+	if err := EncodeStripped(&b, small); err != nil {
+		return nil, err
+	}
+	return mtproto.MakeTLPhotoStrippedSize(&mtproto.PhotoSize{
+		Type:  mtproto.PhotoSZStrippedType,
+		Bytes: b.Bytes(),
+	}).To_PhotoSize(), nil
+}

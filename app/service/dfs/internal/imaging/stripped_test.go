@@ -21,7 +21,10 @@ import (
 	"image"
 	"image/color"
 	stdjpeg "image/jpeg"
+	"os"
 	"testing"
+
+	"github.com/teamgram/proto/mtproto"
 )
 
 // inflateStripped rebuilds a JPEG from photoStrippedSize bytes the way the
@@ -94,5 +97,38 @@ func TestStrippedMatchesClientHeader(t *testing.T) {
 	// quality scale every coefficient and move the colours by tens of levels.
 	if mae := sum / n; mae > 6 {
 		t.Errorf("mean absolute error of the decoded thumbnail = %.1f levels, want <= 6", mae)
+	}
+}
+
+// TestReSizePhotoStripped: every photo gets a photoStrippedSize "i" that the
+// clients can inflate; a profile photo's is the centre square, as its other
+// sizes, another photo's keeps its proportions with the longer side 40.
+func TestReSizePhotoStripped(t *testing.T) {
+	data, err := os.ReadFile("testdata/video-001.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, square := range []bool{true, false} {
+		sizes := 0
+		stripped, err := ReSizePhoto(data, ".png", square, func(string, int, int32, int32, []byte) error {
+			sizes++
+			return nil
+		})
+		if err != nil || stripped == nil || sizes == 0 {
+			t.Fatalf("square %v: stripped %v, %d sizes, %v", square, stripped, sizes, err)
+		}
+		if stripped.GetPredicateName() != mtproto.Predicate_photoStrippedSize || stripped.GetType() != mtproto.PhotoSZStrippedType {
+			t.Fatalf("square %v: %s %q", square, stripped.GetPredicateName(), stripped.GetType())
+		}
+		b := inflateStripped(t, stripped.GetBytes()).Bounds()
+		switch {
+		case square && (b.Dx() != StrippedSizeSide || b.Dy() != StrippedSizeSide):
+			t.Errorf("profile photo: stripped %dx%d, want %dx%d", b.Dx(), b.Dy(), StrippedSizeSide, StrippedSizeSide)
+		case !square && max(b.Dx(), b.Dy()) != StrippedSizeSide:
+			t.Errorf("photo: stripped %dx%d, want the longer side %d", b.Dx(), b.Dy(), StrippedSizeSide)
+		}
+	}
+	if _, err := ReSizePhoto([]byte("not an image"), ".jpg", true, func(string, int, int32, int32, []byte) error { return nil }); err == nil {
+		t.Error("a file that is not an image gave no error")
 	}
 }

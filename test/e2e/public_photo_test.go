@@ -108,6 +108,15 @@ func TestPublicAndPersonalPhoto(t *testing.T) {
 	if got, want := photosOf(ctx, t, bob, bob), (photosAs{photo: main.GetId(), profile: main.GetId(), fallback: public.GetId()}); got != want {
 		t.Errorf("Bob himself: %+v, want %+v", got, want)
 	}
+	// tdesktop draws the public photo in its privacy box from the inline
+	// thumbnail until a size is loaded, and stops without one
+	// (prepare_short_info_box.cpp:179-183 at a1e89e1f).
+	if full, _ := fullUser(ctx, t, bob, inputSelf(bob)); !hasStrippedSize(full.GetFallbackPhoto()) {
+		t.Errorf("Bob's public photo has no photoStrippedSize: %v", full.GetFallbackPhoto().GetSizes())
+	}
+	if !hasStrippedSize(main) {
+		t.Errorf("Bob's main photo has no photoStrippedSize: %v", main.GetSizes())
+	}
 	// The public photo is not one of Bob's photos: the clients add it to
 	// the gallery themselves.
 	o, err := bob.c.Invoke(ctx, &mtproto.TLPhotosGetUserPhotos{
@@ -237,4 +246,16 @@ func TestPublicAndPersonalPhoto(t *testing.T) {
 	if got := photosOf(ctx, t, bob, bob); got.photo != suggested.GetId() || got.fallback != 0 {
 		t.Errorf("Bob after the removal of the public photo: %+v", got)
 	}
+}
+
+// hasStrippedSize tells whether the photo carries a photoStrippedSize "i"
+// whose bytes have the 0x01 prefix the clients inflate.
+func hasStrippedSize(p *mtproto.Photo) bool {
+	for _, sz := range p.GetSizes() {
+		if sz.GetPredicateName() == mtproto.Predicate_photoStrippedSize && sz.GetType() == mtproto.PhotoSZStrippedType &&
+			len(sz.GetBytes()) > 3 && sz.GetBytes()[0] == 0x01 {
+			return true
+		}
+	}
+	return false
 }

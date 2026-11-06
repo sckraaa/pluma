@@ -132,7 +132,8 @@ func (c *DfsCore) uploadVideoSizeListV2(creatorId int64, video *mtproto.InputFil
 		return nil, err
 	}
 
-	err = imaging.ReSizeImage(photoData, ext, true, func(szType string, localId int, w, h int32, b []byte) error {
+	var stripped *mtproto.PhotoSize
+	stripped, err = imaging.ReSizePhoto(photoData, ext, true, func(szType string, localId int, w, h int32, b []byte) error {
 		// secretId := int64(extType)<<32 | int64(rand.Uint32())
 		path := fmt.Sprintf("%s/%d.dat", szType, photoId)
 		// c.Logger.Debugf("path: %s", path)
@@ -156,6 +157,10 @@ func (c *DfsCore) uploadVideoSizeListV2(creatorId int64, video *mtproto.InputFil
 		err = mtproto.ErrImageProcessFailed
 		c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
 		return nil, err
+	}
+	// The inline thumbnail first, before the sizes it stands in for.
+	if stripped != nil {
+		sizeList = append([]*mtproto.PhotoSize{stripped}, sizeList...)
 	}
 
 	// ext = model.GetFileExtName(video.GetName())
@@ -236,7 +241,8 @@ func (c *DfsCore) uploadPhotoSizeListV2(creatorId int64, file *mtproto.InputFile
 		c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
 	}
 
-	err = imaging.ReSizeImage(cacheData, ext, isABC, func(szType string, localId int, w, h int32, b []byte) error {
+	var stripped *mtproto.PhotoSize
+	stripped, err = imaging.ReSizePhoto(cacheData, ext, isABC, func(szType string, localId int, w, h int32, b []byte) error {
 		// secretId := int64(extType)<<32 | int64(rand.Uint32())
 		path := fmt.Sprintf("%s/%d.dat", szType, photoId)
 		// c.Logger.Debugf("path: %s", path)
@@ -260,6 +266,10 @@ func (c *DfsCore) uploadPhotoSizeListV2(creatorId int64, file *mtproto.InputFile
 		err = mtproto.ErrImageProcessFailed
 		c.Logger.Errorf("dfs.uploadPhotoFile - %v", err)
 		return nil, err
+	}
+	// The inline thumbnail first, before the sizes it stands in for.
+	if stripped != nil {
+		sizeList = append([]*mtproto.PhotoSize{stripped}, sizeList...)
 	}
 
 	return mtproto.MakeTLPhoto(&mtproto.Photo{
