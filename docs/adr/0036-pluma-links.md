@@ -27,7 +27,7 @@
    - pluma.chat — внутренний хост, как t.me, точное совпадение (не `*.pluma.chat`: `web.pluma.chat` — настоящий сайт). Ссылки t.me тоже остаются внутренними, как в апстриме.
    - Исходящие ссылки, которые клиент строит сам (профиль, сообщение, набор стикеров, QR, прокси, телефон, истории), — на pluma.chat. Ссылки на функции, которые есть только у Telegram (подарки, Premium, Stars, BotFather), не трогаем.
    - Android: перехват `https://pluma.chat` с `autoVerify`. Сайт отдаёт `/.well-known/assetlinks.json` с отпечатком сертификата подписи релиза (он публичен, читается из APK).
-   - iOS: универсальные ссылки (`applinks:pluma.chat`) отложены, они требуют возможности Associated Domains у App ID и новых профилей в аккаунте Apple. Внутри приложения pluma.chat распознаётся.
+   - iOS: универсальные ссылки `applinks:pluma.chat`. У App ID `chat.pluma.app` включена возможность Associated Domains, профили выпущены заново (2026-11-06). Сайт отдаёт `/.well-known/apple-app-site-association` (`application/json`) с appID `Y7293NU8GG.chat.pluma.app`; пути сайта в нём исключены и открываются в Safari.
 
 ## Последствия
 - Ссылки, выданные раньше (t.me/+…), продолжают работать в приложениях Pluma: t.me остался внутренним хостом.
