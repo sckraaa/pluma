@@ -318,12 +318,14 @@ func (c *session) checkBadMsgNotification(ctx context.Context, gatewayId string,
 			errorCode = kMsgIdMod4
 			break
 		}
-		// The lower 32 bits are the fraction of the second: never zero in a
-		// client's msg_id (counters replays of forged identifiers).
-		if uint32(msg.MsgId) == 0 {
-			errorCode = kMsgIdMod4
-			break
-		}
+		// A msg_id whose lower 32 bits are zero is accepted, although the
+		// description asks for a fraction of the second there: Android makes
+		// it from milliseconds, so a request sent on a whole second has none
+		// (ConnectionsManager::generateMessageId, ConnectionsManager.cpp:601-611
+		// at aac1efcb), about one in a thousand. It ignores code 18
+		// (ConnectionsManager.cpp:1566-1608), and the request never gets an
+		// answer: an upload stops on that part. Replays are recognized by the
+		// window of msg_ids below.
 
 		// Below the messages the session remembers, whether this one was
 		// received cannot be told: code 20, the client sends it again with a
