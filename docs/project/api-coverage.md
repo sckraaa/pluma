@@ -755,7 +755,7 @@
 | `messages.updateSavedReactionTag` | ok |  | app/bff/catalog/internal/core/messages.updateSavedReactionTag_handler.go:27 |
 | `messages.uploadEncryptedFile` | blocked |  | app/bff/files/internal/core/messages.uploadEncryptedFile_handler.go:27 |
 | `messages.uploadImportedMedia` | missing |  |  |
-| `messages.uploadMedia` | ok |  | app/bff/files/internal/core/messages.uploadMedia_handler.go:33 |
+| `messages.uploadMedia` | ok |  | app/bff/files/internal/core/messages.uploadMedia_handler.go:34 |
 | `messages.viewSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/messages.viewSponsoredMessage_handler.go:27 |
 
 ### payments
