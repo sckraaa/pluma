@@ -795,7 +795,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ## Ссылки pluma.chat (задача 026)
 
-- **Статус.** В рабочей копии `pluma-ios` (`~/pluma-work/pluma-ios-052`, от `a3b0b69`), 2026-11-06, не закоммичено. Проверено на копии закреплённого апстрима `6ad963e` (`UPSTREAM_DIR=<копия> ci/configure.sh dev`, с `verify()`) и тестами (70, все проходят). Сборки и проверки в симуляторе нет.
+- **Статус.** `128b1e1` (от `a3b0b69`), влито в `main` (`2ec2013`, PR #2), 2026-11-06. Проверено на копии закреплённого апстрима `6ad963e` (`UPSTREAM_DIR=<копия> ci/configure.sh dev`, с `verify()`) и тестами (70, все проходят). Сборки и проверки в симуляторе нет.
 - **Зачем.** Решение владельца (бриф 026): pluma.chat для Pluma — то же, что t.me для Telegram. Сервер отдаёт ссылки приглашений, бустов и `me_url_prefix` на `https://pluma.chat/`; iOS-клиент `me_url_prefix` не читает вовсе (поиск `meUrlPrefix`, `me_url_prefix`, `linkPrefix` вне сгенерированных `Api*.swift` ничего не находит, `docs/tasks/026-research/clients.md` §2), поэтому каждая ссылка правится в коде.
 
 ### I-103. pluma.chat — собственный хост приложения
@@ -814,7 +814,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Проверка.** `verify_links` (каждый новый текст на месте, `URL_SUBDOMAIN` ровно один), `LinksTest.test_table`, `UpstreamTest.test_patch`, `UpstreamTest.test_links` (список `OpenUrl` без pluma.chat, откат `URL_SUBDOMAIN`), `test_damage` (`OpenUrl.swift`, `UrlHandling.swift`).
 - **Не тронуто.** `BotCheckoutWebInteractionControllerNode.swift:145` (возврат платёжного провайдера на `t.me`), `WebAppUtils.swift:24` (внутренняя ссылка мини-приложения), `isTelegramWebShortLink` (`a.t.me`, `k.t.me`, `z.t.me` — веб-клиенты Telegram).
 - **Апстрим / официальный.** Свои только `t.me`, `telegram.me`, `telegram.dog`; ссылка `pluma.chat` открывается во встроенном браузере.
-- **История.** Не закоммичено, 2026-11-06, задача 026.
+- **История.** `128b1e1`, влито в `main` (`2ec2013`, PR #2), 2026-11-06, задача 026.
 
 ### I-104. Ссылки, которые приложение создаёт, — pluma.chat
 - **Что и зачем.** Каждая ссылка «Поделиться», «Копировать», QR-код и префикс перед именем — `https://pluma.chat/…` и `pluma.chat/` вместо `https://t.me/…` и `t.me/`.
@@ -828,7 +828,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Оставлено (`SHARE_KEEP`, файл, текст, число).** Списки хостов I-103 и формы разборщиков (`UrlHandling.swift:24, 254, 316`); ссылки только для открытия внутри приложения (`OpenUrl.swift:361` `makeTelegramUrl`, `WebAppUtils.swift:17, 24`, `StarsTransactionsScreen.swift:1314, 1316`); собственное Telegram — подарочные коды (`PremiumIntroScreen.swift:1899, 2796`, `PremiumGiftCodeScreen.swift:207, 241`), коллекционные подарки `nft` (`GiftViewScreen.swift:933, 1531`, `PeerInfoGiftsPaneNode.swift:1184`, `PeerInfoScreen.swift:2491`, `ChatController.swift:5447`, `StoryItemSetContainerViewSendMessage.swift:3725`, `ShareController.swift:616`), аукционы, `addstyle`, Stars (`StarsTransactionScreen.swift:1131`), Cocoon, бот `@previews` (`InstantPageFeedbackNode.swift:83`), страница «на экран „Домой“» мини-приложения на t.me (`WebAppController.swift:3337`), платёжный провайдер; без ссылки — маркеры QR до готовности кода (`ChatQrCodeScreen.swift:1842`) и фейковая реклама отладки (`ChatHistoryListNode.swift:847`); адрес юзернейма в контактах устройства (`DeviceContactData.swift:207` и `Telegram/SiriIntents/IntentContacts.swift:29` — меняются только вместе, иначе уже записанные контакты не читаются); старое расширение часов `Telegram/Watch/Extension/TGUserInfoController.m:254`, которое не собирает ни одна цель (в `BUILD`-файлах нет ссылок на `Telegram/Watch/`).
 - **Проверка.** `verify_links`: каждый текст `SHARE_LINKS` с `pluma.chat` ровно `count` раз; каждый текст `SHARE_KEEP` ровно `count` раз; во всех `.swift`, `.m`, `.mm`, `.h` деревьев `submodules/` и `Telegram/` число литералов `t.me` (`TME_LITERAL`: `"t.me…` или `://t.me`, за которыми `/`, `\` или `"`) равно числу оставленных — новая ссылка `t.me` в апстриме останавливает патч с именем файла. На копии апстрима после патча остаются 52 литерала `t.me` в 34 файлах, все из `SHARE_KEEP` (до патча — 117 в 69 файлах). `LinksTest.test_literals`, `test_table`, `UpstreamTest.test_patch`, `test_links` (новый файл с `t.me`, откат одной ссылки), `test_damage` (лишняя ссылка в `ShareController.swift`, изменённая оставленная в `PremiumGiftCodeScreen.swift`).
 - **Апстрим / официальный.** Все эти ссылки — `https://t.me/…`.
-- **История.** Не закоммичено, 2026-11-06, задача 026.
+- **История.** `128b1e1`, влито в `main` (`2ec2013`, PR #2), 2026-11-06, задача 026.
 
 ### I-105. Тексты со ссылкой — pluma.chat
 - **Что и зачем.** Английские строки (единственный язык, который приложение несёт), показывающие ссылку на юзернейм, номер или публичную ссылку, называют `pluma.chat`. Новых ключей нет, меняются значения существующих.
@@ -836,7 +836,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Оставлено (`STRINGS_KEEP`).** `Premium.Limits.PublicLinksInfo`, `CocoonInfo.IntergrateInfo`.
 - **Проверка.** `verify_links`: ни одно значение вне `STRINGS_KEEP` не содержит `t.me` (`STRINGS_TME`), в каждой строке `STRINGS_LINKS` нужное число `pluma.chat`. `test_patch`, `test_links` (строка с `t.me`), `test_damage` (`EmptyGroupInfo.Line3` с двумя ссылками).
 - **Ограничение.** Языковые пакеты сервера (`langpack.*`), если сервер их отдаёт, переопределяют эти строки своими значениями — их тексты задаёт сервер.
-- **История.** Не закоммичено, 2026-11-06, задача 026.
+- **История.** `128b1e1`, влито в `main` (`2ec2013`, PR #2), 2026-11-06, задача 026.
 
 ### I-106. Страницы самого сайта pluma.chat — ссылки сайта, не приложения
 - **Что и зачем.** У сайта pluma.chat есть страницы, первый сегмент пути которых похож на юзернейм; после I-103 приложение открывало бы их как профили. Ссылка `pluma.chat` с пустым путём или `/` либо с первым сегментом из списка (без учёта регистра) открывается как ссылка любого сайта — по настройкам браузера человека (встроенный браузер `BrowserScreen` по умолчанию или Safari / выбранный браузер); остальные пути `pluma.chat` открываются в приложении, как прежде. Только хост `pluma.chat`: `t.me` и поддомены не затронуты. Список один во всех клиентах: корень и `iphone`, `ipad`, `android`, `mac`, `windows`, `linux`, `web`, `pero`, `app`, `en`, `dl`, `ios`, `collect`, `assets`, `_l`, `.well-known`, файлы `favicon.svg`, `og.png`, `apple-touch-icon.png`, `404.html`, `progress.json` (`PLUMA_SITE_PATHS`).
@@ -851,10 +851,17 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Проверка.** `verify_links`: каждый текст `PLUMA_SITE` ровно `count` раз, `isPlumaSiteLink(` в `UrlHandling.swift` ровно 3 раза. `LinksTest.test_site_pages` (список, нижний регистр, каждый путь в Swift-коде, файлы в `--paths`), `UpstreamTest.test_patch` (все пять мест), `test_links` (откат каждой правки и путь, выпавший из списка), `test_damage` (изменённые якоря в `UrlHandling.swift`, `OpenUrl.swift`, `ChatControllerOpenLinkContextMenu.swift`). Тест `test_patch` падает без правки `OpenUrl.swift` (проверено). Функция `isPlumaSiteLink` из пропатченного дерева собрана `swiftc` на macOS отдельно и прогнана на 26 случаях (корень, `?`/`#`, регистр, `/iphone/`, `.well-known/…`, файлы; `durov`, `+hash`, `joinchat`, `iphones`, `c/…` — не сайт; `t.me/iphone`, `web.pluma.chat`, `pluma.chat.evil.com` — не сайт): все верны. Патч и `verify()` на копии закреплённого апстрима `6ad963e` — без ошибок.
 - **Не проверено.** Сборка приложения и поведение в симуляторе/на устройстве. Что iOS делает, когда приложение само открывает `UIApplication.open` универсальную ссылку своего же домена без исключения в AASA, — не проверено по документации Apple; защита от петли в Safari держится на AASA сайта.
 - **Апстрим / официальный.** Своего списка страниц сайта у `t.me` в апстриме нет: веб-страницы Telegram отделены по хостам (`isTelegramWebShortLink`, `baseTelegraPhPaths`).
-- **История.** Не закоммичено, 2026-11-06, задача 026.
+- **История.** `128b1e1`, влито в `main` (`2ec2013`, PR #2), 2026-11-06, задача 026.
+
+### I-107. Универсальные ссылки `applinks:pluma.chat`
+- **Что и зачем.** Ссылка `https://pluma.chat/…`, открытая в другом приложении, открывает Pluma, как `t.me` открывает Telegram. Апстрим даёт `associated_domains_fragment` (ссылки `t.me`) только официальным bundle ID, а любому другому не даёт ничего (`Telegram/BUILD`).
+- **Код.** `ci/patch.py`: `ASSOCIATED_DOMAINS_OLD` → `ASSOCIATED_DOMAINS`, правка в `patch_links`. Для не официального bundle ID в entitlements попадает `com.apple.developer.associated-domains` = `applinks:pluma.chat`. Проверка `verify_links`: строка `applinks:pluma.chat` в `Telegram/BUILD` ровно одна.
+- **Подпись.** У App ID `chat.pluma.app` включена возможность Associated Domains; профили ad hoc и App Store выпущены заново (2026-11-06, до 2027-08-17). `ci/preflight_sign.py` отказывает основному профилю без `com.apple.developer.associated-domains` («lacks Associated Domains»), тест — `preflight_sign_test.py`.
+- **Сайт.** `pluma.chat/.well-known/apple-app-site-association` (`application/json`, appID `Y7293NU8GG.chat.pluma.app`); пути сайта исключены и остаются в Safari (I-106).
+- **Не проверено.** Открытие ссылки из Заметок/Сообщений на устройстве — после первой ad hoc сборки с этим патчем.
+- **История.** `128b1e1`, влито в `main` (`2ec2013`), 2026-11-06, задача 026.
 
 ### Не сделано в этом проходе
-- **Универсальные ссылки.** `applinks:pluma.chat` требует Associated Domains у App ID `chat.pluma.app`, новые профили App Store и ad hoc, файл AASA на pluma.chat с Team ID и правку `associated_domains_fragment` в `Telegram/BUILD:517-525` (апстрим даёт его только официальным bundle ID) — отложено решением владельца (действие в аккаунте Apple). Без этого ссылка pluma.chat из другого приложения открывается в браузере, а передать её в приложение (`plm://`) — дело страницы сайта.
 - **Замечено, не исправлено.** Подпись второго варианта переключателя QR прокси `SocksProxySetup.QrCode.TgLink` — «tg:// link», хотя с I-039 этот QR — `plm://proxy`. Вне задачи 026.
 
 ---
@@ -863,5 +870,5 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 - **Счётчики и хэши.** Почти каждое обновление апстрима сломает `STRINGS_RENAMED`, хэши картинок и `AppIntentVocabulary.plist`, счётчики палитры. Это намеренно: каждое падение требует посмотреть, что изменилось.
 - **Не ловится проверками.** Новые `tg://` в других файлах, новые синие вне `TELEGRAM_BLUES`, новые копии таблиц цветов-идентичностей, новые предложения Premium/Stars, адреса и ключи вне трёх сетевых каталогов, обращения к внешним сервисам по именам хостов.
-- **Не решено или не сделано.** Миниатюра ночной темы в «Оформлении» с синим пузырём; ободок спидометра «Fast»; значки «Устройств» (`#0079FF`); минимальная iOS 15 (I-084); универсальные ссылки `applinks:pluma.chat` (I-105, задача 026).
+- **Не решено или не сделано.** Миниатюра ночной темы в «Оформлении» с синим пузырём; ободок спидометра «Fast»; значки «Устройств» (`#0079FF`); минимальная iOS 15 (I-084).
 - **Не определено по репозиторию.** Номер задачи сборки `reference` (`05c9e06`) в коммите не указан.

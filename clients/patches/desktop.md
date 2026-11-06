@@ -724,7 +724,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Если апстрим сдвинет.** Любой изменённый якорь → `PatchError` с файлом. Новый список хостов с `t.me` в другом файле → `verify_links()` (число `t.me` не совпадёт с `LINKS_KEPT`) — решить, добавлять ли туда `pluma.chat`.
 - **Апстрим до правки / официальный клиент.** Только `t.me`, `telegram.me`, `telegram.dog` (и их поддомены в двух списках `click_handler_types.cpp`); `pluma.chat` — внешняя ссылка, открывается в браузере после подтверждения для скрытых ссылок.
 - **Системные ссылки.** Desktop не регистрирует обработчик https: страница `pluma.chat`, открытая в браузере, передаёт ссылку приложению через `plm://` (как кнопки `tg://` на страницах `t.me`). Здесь ничего не меняется.
-- **Коммит.** Не закоммичено (рабочая копия `~/pluma-work/pluma-desktop-053`, ветка `main` от `21a2f74`, 2026-11-06), задача 026.
+- **Коммит.** `f608f06` (от `21a2f74`), влито в `main` (`28b85c8`, PR #2), 2026-11-06, задача 026.
 
 ### D-080. Ссылки, которые клиент строит сам, — `pluma.chat`
 - **Что и зачем.** Большинство ссылок Desktop строит от `me_url_prefix` сервера (`mtproto/mtproto_config.cpp:257`, `main/main_session.cpp:72-93` `ValidatedInternalLinksDomain`, `:466-490` `createInternalLink*`) — на Pluma это уже `https://pluma.chat/`. Остальные зашиты как `t.me`; в каждом `t.me` → `pluma.chat` (`LINK_BUILDERS`, точные замены с числом):
@@ -736,14 +736,14 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `boxes/peers/create_managed_bot_box.cpp:270` `u"t.me/"_q + full` (1) — подпись со ссылкой юзернейма нового управляемого бота.
 - **Проверка.** `verify_links()` (через `LINKS_KEPT`: в этих файлах `t.me` остаётся только там, где он в таблице); `test_links` проверяет тексты и что в файлах `LINK_BUILDERS` не осталось `"https://t.me/` (кроме `create_managed_bot_box.cpp`, где остаётся @BotFather). Без `LINK_HOSTS` и `LINK_BUILDERS` `test_links` падает на `verify_links()` (проверено). `DAMAGE` (2): иной `internalLinksDomain` апстрима, иная ссылка темы.
 - **Апстрим до правки.** Эти ссылки — `t.me`, независимо от сервера.
-- **Коммит.** Не закоммичено (`~/pluma-work/pluma-desktop-053`, 2026-11-06), задача 026.
+- **Коммит.** `f608f06`, влито в `main` (`28b85c8`, PR #2), 2026-11-06, задача 026.
 
 ### D-081. Имя ссылки-приглашения в списке — только хеш
 - **Что и зачем.** Список ссылок-приглашений чата и общей папки показывает ссылку без меток как хеш: апстрим срезает `https://`, `t.me/+`, `t.me/joinchat/`. Для `https://pluma.chat/+hash` осталось бы `pluma.chat/+hash`; добавлен ещё один срез `pluma.chat/+` (`LINK_HOSTS`).
 - **Где.** `boxes/peers/edit_peer_invite_links.cpp:297-308` (`Row::generateName`) и `boxes/filters/edit_filter_links.cpp:264-275` (`LinkRow::generateName`): после `.replace(u"t.me/joinchat/"_q, QString())` — `.replace(u"pluma.chat/+"_q, QString())`.
 - **Что не меняется.** Журнал действий (`history/admin_log/history_admin_log_item.cpp:446-453`, `GenerateInviteLinkText`) в апстриме срезает только `https://` и `t.me/joinchat/` и показывает `t.me/+hash`; у Pluma там будет `pluma.chat/+hash` — то же поведение. `joinchat/` у `pluma.chat` сервер не выдаёт.
 - **Проверка.** `test_links` (текст среза); `LINKS_KEPT` (срезы `t.me` на месте); `DAMAGE` (1): изменённый срез `joinchat`.
-- **Коммит.** Не закоммичено (`~/pluma-work/pluma-desktop-053`, 2026-11-06), задача 026.
+- **Коммит.** `f608f06`, влито в `main` (`28b85c8`, PR #2), 2026-11-06, задача 026.
 
 ### D-082. Что остаётся от `t.me` (`LINKS_KEPT`)
 - **Что.** Итоговая проверка `verify_links()` считает `t.me` (`t.me`, `t\.me`, `t\\.me`) в строковых литералах всех исходников (комментарии не считаются, `link_literals`) и сравнивает с таблицей по файлам. Остаются:
@@ -755,7 +755,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Проверка.** `verify_links()`; `BrandTest.test_link_literals` (подсчёт по литералам, комментарии и `part.messages`/`at.me`/`web.pluma.chat` не считаются); `DAMAGE` (2): новая ссылка `https://t.me/durov` в `core/sandbox.cpp`, пропавшая `t.me/stickers` в `sticker_set_box.cpp`.
 - **Если апстрим сдвинет.** Новое `t.me` в любом файле → ошибка с именем файла: решить — строит ли клиент ссылку (в `LINK_BUILDERS`), узнаёт ли хост (в `LINK_HOSTS`) или это Telegram-only (в `LINKS_KEPT` с причиной).
 - **Тексты `lang.strings` не тронуты.** Во встроенном английском `t.me` есть в `lng_group_about3` («Public links such as t.me/title»), `lng_factcheck_links`, `lng_premium_double_limits_about_links#one/#other` (Premium), `lng_translate_cocoon_text_link`, `lng_telegram_features_url` (Telegram). Это тексты языкового пакета; правка встроенного английского разошлась бы с пакетом сервера — открытый вопрос ниже.
-- **Коммит.** Не закоммичено (`~/pluma-work/pluma-desktop-053`, 2026-11-06), задача 026.
+- **Коммит.** `f608f06`, влито в `main` (`28b85c8`, PR #2), 2026-11-06, задача 026.
 
 ---
 
