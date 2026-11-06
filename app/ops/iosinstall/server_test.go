@@ -327,7 +327,7 @@ func TestInstallFlow(t *testing.T) {
 		t.Fatalf("profiles %q, want %q", h.apple.created, want)
 	}
 	s := h.status(token)
-	if s["state"] != "ready" || s["version"] != "12.9.2" ||
+	if s["state"] != "ready" || s["version"] != "12.9.2" || s["number"] != "21" ||
 		s["install"] != "itms-services://?action=download-manifest&url="+url.QueryEscape("https://pluma.example/ios/adhoc/manifest?t="+token) {
 		t.Fatalf("ready: %v", s)
 	}

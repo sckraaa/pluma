@@ -43,7 +43,7 @@ import (
 //     version, the challenge); the reply sends Safari back to the page
 //     with the device's token.
 //  3. GET  /ios/adhoc/status    "waiting" until the IPA is signed for the
-//     device, then the itms-services link.
+//     device, then the itms-services link, the version and the build number.
 //  4. GET  /ios/adhoc/manifest  and /ios/adhoc/app.ipa, by the token.
 //
 // CI uploads every signed ad hoc build: POST /ios/adhoc/upload.
@@ -348,6 +348,9 @@ func (s *server) status(w http.ResponseWriter, r *http.Request) {
 	case st.ready(d):
 		out["state"] = "ready"
 		out["version"] = st.Build.Version
+		// The version is Telegram's, the same across Pluma's builds; the
+		// page names the build too (ADR 0037).
+		out["number"] = st.Build.Number
 		out["install"] = "itms-services://?action=download-manifest&url=" +
 			url.QueryEscape(s.cfg.publicURL+"/ios/adhoc/manifest?t="+d.Token)
 	}
