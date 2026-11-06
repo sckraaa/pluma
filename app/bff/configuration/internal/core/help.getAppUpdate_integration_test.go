@@ -86,12 +86,14 @@ func appUpdateCore(apiId int32, appVersion, lang string) *ConfigurationCore {
 // TestHelpGetAppUpdate: an Android build older than the current release
 // gets it with the APK and the notes of its language, a build as new gets
 // nothing, nor one Android would not take for older (3 parts); an iOS build
-// from the site gets the install page, a TestFlight one nothing; Desktop
-// nothing.
+// from the site gets the install page of the latest build, named with its
+// number (the version is the same across builds), a TestFlight one nothing;
+// Desktop nothing.
 func TestHelpGetAppUpdate(t *testing.T) {
 	ctx := context.Background()
 	for _, r := range []*appreleases.Release{
 		{Platform: appreleases.Android, Version: "12.9.1.7", Build: 7, DocumentID: 77, NotesEn: "New", NotesRu: "Новое", Files: []appreleases.File{}, CreatedAt: time.Now().Unix()},
+		{Platform: appreleases.IOS, Version: "12.9.2", Build: 58, NotesEn: "older", Files: []appreleases.File{}, CreatedAt: time.Now().Unix()},
 		{Platform: appreleases.IOS, Version: "12.9.2", Build: 60, NotesEn: "iOS", Files: []appreleases.File{}, CreatedAt: time.Now().Unix()},
 	} {
 		if err := appreleases.Insert(ctx, itDB, r); err != nil {
@@ -109,7 +111,7 @@ func TestHelpGetAppUpdate(t *testing.T) {
 		{"android older", apiIdAndroid, "12.9.1.6 (6979069)", "ru", "12.9.1.7", "Новое", ""},
 		{"android current", apiIdAndroid, "12.9.1.7 (6979079)", "en", "", "", ""},
 		{"android of 3 parts", apiIdAndroid, "12.9.1 (69799)", "en", "", "", ""},
-		{"ios from the site", apiIdIOS, "12.9.2 (55) adhoc", "en", "12.9.2", "iOS", "https://pluma.example/iphone/install"},
+		{"ios from the site", apiIdIOS, "12.9.2 (55) adhoc", "en", "12.9.2 (60)", "iOS", "https://pluma.example/iphone/install"},
 		{"ios from TestFlight", apiIdIOS, "12.9.2 (55) ", "en", "", "", ""},
 		{"ios current", apiIdIOS, "12.9.2 (60) adhoc", "en", "", "", ""},
 		{"desktop", 10003, "7.0.9 x64", "en", "", "", ""},

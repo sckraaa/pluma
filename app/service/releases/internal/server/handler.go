@@ -46,7 +46,8 @@ import (
 //   - POST /dl/upload: CI hands over a signed build with the upload token;
 //     the files are written to DataDir/files/<platform>/<version>/, the
 //     APK of Android is stored as a document in dfs, and the release is a
-//     row of app_releases. The same build again is 409.
+//     row of app_releases. The same build again is 409; for a release
+//     with files, the version of another build is 422 (ADR 0037).
 //   - GET /dl/releases.json: the current release of each platform, which
 //     the site reads to offer the downloads.
 //   - GET /dl/<platform>/latest[/<arch>]: a redirect to the current
@@ -194,8 +195,8 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	// One release is published at a time: the check that its build and
-	// version are new, its files' directory and its row go together.
+	// One release is published at a time: the check that it may be
+	// published (released), its files' directory and its row go together.
 	h.publishing.Lock()
 	defer h.publishing.Unlock()
 	if status, msg, err := h.released(r.Context(), rel); err != nil {
@@ -307,18 +308,30 @@ func (h *Handler) importAPK(ctx context.Context, rel *appreleases.Release, path 
 	return stored.GetId(), nil
 }
 
-// released tells whether the platform has the build or the version of rel
-// already: 409 with its reason, 0 when both are new.
+// released tells whether rel may be published, 0 when it may.
+//   - 409: the platform has its build already. That is CI's repeat when a
+//     job runs again, and the scripts of CI take 409 for one.
+//   - 422: a release with files has the version of another build. Its
+//     version names its files' directory (files/<platform>/<version>),
+//     which never changes; the scripts must fail on it, not take it for a
+//     repeat.
+//
+// A release without files, an iOS one, may repeat a version: it is
+// Telegram's version, the same across Pluma's builds, and help.getAppUpdate
+// compares the build.
 func (h *Handler) released(ctx context.Context, rel *appreleases.Release) (int, string, error) {
 	if old, err := appreleases.ByBuild(ctx, h.DB, rel.Platform, rel.Build); err != nil {
 		return 0, "", err
 	} else if old != nil {
 		return http.StatusConflict, "the build is released already", nil
 	}
+	if len(rel.Files) == 0 {
+		return 0, "", nil
+	}
 	if old, err := appreleases.ByVersion(ctx, h.DB, rel.Platform, rel.Version); err != nil {
 		return 0, "", err
 	} else if old != nil {
-		return http.StatusConflict, fmt.Sprintf("version %s is released already, as build %d", rel.Version, old.Build), nil
+		return http.StatusUnprocessableEntity, fmt.Sprintf("version %s is released already, as build %d", rel.Version, old.Build), nil
 	}
 	return 0, "", nil
 }

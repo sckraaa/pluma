@@ -42,3 +42,4 @@
 | [0034](0034-channel-box.md) | Ящик канала: одна копия сообщений и свой `pts` на канал, журнал канала, рассылка через `Channel-T` без журнала на участника | accepted |
 | [0035](0035-client-releases.md) | Выпуски клиентов: сервис `releases` на `/dl/` сайта, `help.getAppUpdate` по таблице `app_releases`, апдейтер Desktop со своим ключом | accepted |
 | [0036](0036-pluma-links.md) | Ссылки pluma.chat: один хост ссылок, сервис `links` за Caddy, клиенты считают pluma.chat своим | accepted |
+| [0037](0037-ios-release-versions.md) | Выпуски iOS: версия повторяется, сборку различает номер; конфликт версии — 422, а не 409 | accepted |

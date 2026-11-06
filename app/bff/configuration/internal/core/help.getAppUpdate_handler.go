@@ -19,6 +19,8 @@
 package core
 
 import (
+	"fmt"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
@@ -94,10 +96,14 @@ func (c *ConfigurationCore) HelpGetAppUpdate(in *mtproto.TLHelpGetAppUpdate) (*m
 		if rel == nil || rel.Build <= build {
 			return none, nil
 		}
+		// The version is Telegram's and the same across Pluma's builds; the
+		// update screen shows it as "Pluma %@" (Update.AppVersion,
+		// UpdateInfoController.swift:87 at 6ad963e5), so it names the build
+		// too, as the app's own app_version does.
 		return mtproto.MakeTLHelpAppUpdate(&mtproto.Help_AppUpdate{
 			CanNotSkip: rel.CanNotSkip,
 			Id:         rel.Build,
-			Version:    rel.Version,
+			Version:    fmt.Sprintf("%s (%d)", rel.Version, rel.Build),
 			Text:       rel.Notes(c.MD.LangCode),
 			Entities:   []*mtproto.MessageEntity{},
 			Url:        mtproto.MakeFlagsString(c.svcCtx.Config.ReleasesURL + "/iphone/install"),

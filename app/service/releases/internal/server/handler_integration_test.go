@@ -147,7 +147,7 @@ func get(t *testing.T, srv *httptest.Server, path string) got {
 // document of the APK's type, the file is served and the latest link
 // points at it, releases.json lists it; the same build again is 409, a
 // wrong token 403; a newer build becomes current and its withdrawal brings
-// the older back.
+// the older back. iOS builds share a version: each is a release.
 func TestRelease(t *testing.T) {
 	h, docs, srv := newHandler(t)
 	apk := "PK fake apk"
@@ -199,6 +199,16 @@ func TestRelease(t *testing.T) {
 		part{name: "build", body: "55"}); code != http.StatusOK {
 		t.Fatalf("an iOS release: %d %s", code, body)
 	}
+	// iOS has Telegram's version in every build: the next build is a new
+	// release, its repeat CI's own.
+	if code, body = upload(t, srv, token, part{name: "platform", body: "ios"}, part{name: "version", body: "12.9.2"},
+		part{name: "build", body: "56"}); code != http.StatusOK {
+		t.Fatalf("the next iOS build of the same version: %d %s", code, body)
+	}
+	if code, _ = upload(t, srv, token, part{name: "platform", body: "ios"}, part{name: "version", body: "12.9.2"},
+		part{name: "build", body: "56"}); code != http.StatusConflict {
+		t.Errorf("the same iOS build: %d", code)
+	}
 	list := get(t, srv, "/dl/releases.json").body
 	var out struct {
 		Platforms map[string]releaseView `json:"platforms"`
@@ -206,7 +216,7 @@ func TestRelease(t *testing.T) {
 	if err = json.Unmarshal([]byte(list), &out); err != nil {
 		t.Fatal(err)
 	}
-	if out.Platforms["android"].Version != "12.9.1.2" || out.Platforms["ios"].URL != "https://pluma.example/iphone/install" {
+	if out.Platforms["android"].Version != "12.9.1.2" || out.Platforms["ios"].Build != 56 || out.Platforms["ios"].URL != "https://pluma.example/iphone/install" {
 		t.Errorf("releases.json %s", list)
 	}
 
@@ -286,7 +296,7 @@ func TestInterruptedUpload(t *testing.T) {
 		t.Errorf("the file: %d %q", a.code, a.body)
 	}
 	if code, body := upload(t, srv, token, part{name: "platform", body: "linux"}, part{name: "version", body: "7.0.9.00020"},
-		part{name: "build", body: "12"}, part{name: "installer", file: "Pluma.tar.xz", body: "other"}); code != http.StatusConflict {
+		part{name: "build", body: "12"}, part{name: "installer", file: "Pluma.tar.xz", body: "other"}); code != http.StatusUnprocessableEntity {
 		t.Errorf("the same version as another build: %d %s", code, body)
 	}
 	if a := get(t, srv, "/dl/linux/7.0.9.00020/Pluma.tar.xz"); a.body != "xz" {

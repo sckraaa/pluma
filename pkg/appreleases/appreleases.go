@@ -185,8 +185,9 @@ func ByBuild(ctx context.Context, db *sqlx.DB, platform string, build int32) (*R
 	return rows[0].release()
 }
 
-// ByVersion is the platform's release of version, nil for none: a version
-// is released once (its files' directory is named by it).
+// ByVersion is the platform's release of version, nil for none. A release
+// with files has a version of its own, which names its files' directory;
+// iOS builds share Telegram's version (ADR 0037).
 func ByVersion(ctx context.Context, db *sqlx.DB, platform, version string) (*Release, error) {
 	var rows []row
 	if err := db.QueryRowsPartial(ctx, &rows,
