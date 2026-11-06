@@ -181,22 +181,10 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if status, msg, err := h.released(r.Context(), rel); err != nil {
-		h.internal(w, err)
-		return
-	} else if status != 0 {
-		http.Error(w, msg, status)
-		return
-	}
-
-	if rel.Platform == appreleases.Android {
-		if rel.DocumentID, err = h.importAPK(r.Context(), rel, filepath.Join(work, rel.Files[0].Name)); err != nil {
-			h.internal(w, err)
-			return
-		}
-	}
 	// One release is published at a time: the check that it may be
-	// published (released), its files' directory and its row go together.
+	// published (released), the APK's document, its files' directory and
+	// its row go together, so that an upload refused here leaves no
+	// document behind in dfs.
 	h.publishing.Lock()
 	defer h.publishing.Unlock()
 	if status, msg, err := h.released(r.Context(), rel); err != nil {
@@ -205,6 +193,12 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	} else if status != 0 {
 		http.Error(w, msg, status)
 		return
+	}
+	if rel.Platform == appreleases.Android {
+		if rel.DocumentID, err = h.importAPK(r.Context(), rel, filepath.Join(work, rel.Files[0].Name)); err != nil {
+			h.internal(w, err)
+			return
+		}
 	}
 	dir, err := h.publishFiles(rel, work)
 	if err != nil {
@@ -309,9 +303,13 @@ func (h *Handler) importAPK(ctx context.Context, rel *appreleases.Release, path 
 }
 
 // released tells whether rel may be published, 0 when it may.
-//   - 409: the platform has its build already. That is CI's repeat when a
-//     job runs again, and the scripts of CI take 409 for one.
-//   - 422: a release with files has the version of another build. Its
+//   - 409: the platform has its build already, of the same version and with
+//     the same files. That is CI's repeat when a job runs again, and the
+//     scripts of CI take 409 for one.
+//   - 422: the platform has its build already with another version or other
+//     files (a run number that started again, a version changed under the
+//     same number): no repeat, and the scripts must fail on it. And a
+//     release with files that has the version of another build. Its
 //     version names its files' directory (files/<platform>/<version>),
 //     which never changes; the scripts must fail on it, not take it for a
 //     repeat.
@@ -323,7 +321,10 @@ func (h *Handler) released(ctx context.Context, rel *appreleases.Release) (int, 
 	if old, err := appreleases.ByBuild(ctx, h.DB, rel.Platform, rel.Build); err != nil {
 		return 0, "", err
 	} else if old != nil {
-		return http.StatusConflict, "the build is released already", nil
+		if sameRelease(old, rel) {
+			return http.StatusConflict, "the build is released already", nil
+		}
+		return http.StatusUnprocessableEntity, fmt.Sprintf("build %d is released already, as version %s with other files", old.Build, old.Version), nil
 	}
 	if len(rel.Files) == 0 {
 		return 0, "", nil
@@ -334,6 +335,24 @@ func (h *Handler) released(ctx context.Context, rel *appreleases.Release) (int, 
 		return http.StatusUnprocessableEntity, fmt.Sprintf("version %s is released already, as build %d", rel.Version, old.Build), nil
 	}
 	return 0, "", nil
+}
+
+// sameRelease tells whether rel repeats old: the same version and the same
+// files, by name, kind, processor and SHA-256. The notes may differ.
+func sameRelease(old, rel *appreleases.Release) bool {
+	if old.Version != rel.Version || len(old.Files) != len(rel.Files) {
+		return false
+	}
+	files := make(map[appreleases.File]bool, len(old.Files))
+	for _, f := range old.Files {
+		files[appreleases.File{Name: f.Name, Kind: f.Kind, Arch: f.Arch, SHA256: f.SHA256}] = true
+	}
+	for _, f := range rel.Files {
+		if !files[appreleases.File{Name: f.Name, Kind: f.Kind, Arch: f.Arch, SHA256: f.SHA256}] {
+			return false
+		}
+	}
+	return true
 }
 
 // publishFiles moves the files of a release to their directory, named by

@@ -179,9 +179,25 @@ func TestRelease(t *testing.T) {
 		t.Errorf("a path out of the release: %d", a.code)
 	}
 
+	// CI's repeat: the same build, version and file. Another file or
+	// version under the same number is no repeat (a run number that started
+	// again), and leaves no document in dfs.
 	if code, _ = upload(t, srv, token, part{name: "platform", body: "android"}, part{name: "version", body: "12.9.1.1"},
-		part{name: "build", body: "101"}, part{name: "installer", file: "x.apk", body: "x"}); code != http.StatusConflict {
-		t.Errorf("the same build: %d", code)
+		part{name: "build", body: "101"}, part{name: "notes_en", body: "Other notes"},
+		part{name: "installer", file: "Pluma-12.9.1.1.apk", body: apk}); code != http.StatusConflict {
+		t.Errorf("the same build again: %d", code)
+	}
+	for _, again := range [][]part{
+		{{name: "version", body: "12.9.1.1"}, {name: "installer", file: "Pluma-12.9.1.1.apk", body: "other apk"}},
+		{{name: "version", body: "12.9.1.9"}, {name: "installer", file: "Pluma-12.9.1.9.apk", body: apk}},
+	} {
+		parts := append([]part{{name: "platform", body: "android"}, {name: "build", body: "101"}}, again...)
+		if code, body = upload(t, srv, token, parts...); code != http.StatusUnprocessableEntity {
+			t.Errorf("build 101 with %v: %d %s", again, code, body)
+		}
+	}
+	if len(docs.got) != 1 {
+		t.Errorf("documents stored by refused uploads: %d", len(docs.got)-1)
 	}
 	if code, _ = upload(t, srv, "wrong"+token, part{name: "platform", body: "android"}); code != http.StatusForbidden {
 		t.Errorf("a wrong token: %d", code)
