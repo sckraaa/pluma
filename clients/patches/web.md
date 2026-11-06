@@ -274,6 +274,75 @@
 - **Проверка:** `test_patch`, `DAMAGE` (регэксп без `?`).
 - **Коммиты:** `abb939c`.
 
+### W-066. Ссылки `pluma.chat` вместо `t.me`
+- **Что и зачем:** задача 026. `pluma.chat` — хост ссылок Pluma, как `t.me` у Telegram: сервер отдаёт на нём приглашения, ссылки на бусты и `me_url_prefix`. Web K не читает `me_url_prefix` (он есть только в `layer.d.ts`) и собирает ссылки из литералов `https://t.me/`. Правка делает две вещи. Клиент открывает ссылку `pluma.chat` внутри приложения так же, как ссылку `t.me`. Ссылки, которые клиент сам делает для копирования, показа, отправки и QR, ведут на `https://pluma.chat/`.
+- **Где:** функция `link_host()` в `ci/patch.py`, константы `LINK_HOST`, `LINK_BUILDERS`, `LINK_KEEP`. Номера строк — закреплённый апстрим `346844bf`.
+  - **Распознавание.** `src/lib/richTextProcessor/matchTelegramUrlHost.ts` — единственное место, где решается, что хост ссылки «телеграмный». Через него идут `wrapUrl.ts:19` (ссылки в сообщениях, `appImManager.openUrl`, `#?tgaddr=`) и `helpers/addAnchorListener.ts:71`; патч сверяет оба вызова (`expect`).
+    - После `export const TELESCOPE_LINK_HOST = 'telesco.pe';` добавляется `export const PLUMA_LINK_HOST = 'pluma.chat';`.
+    - В начале `matchTelegramUrlHost` добавляется `if(matchUrlHost(url, [PLUMA_LINK_HOST])?.subdomain === '') return {prefix: undefined};`.
+    - Это точное совпадение хоста, без поддоменов: `web.pluma.chat` — сайт, а не юзернейм, как `durov.t.me`. Поэтому `pluma.chat` не добавлен в `TELEGRAM_LINK_HOSTS`: тот пропускает любой поддомен, а `T_ME_PREFIXES` (`appManagers/constants.ts:28`) отбрасывает только `web`, `k`, `z`, `a`.
+    - Страницы самого сайта `pluma.chat` не открываются как профили. Константа `LINK_SITE_PATHS` в `ci/patch.py` (тот же список, что у других клиентов): корень `/` и первые сегменты пути `iphone`, `ipad`, `android`, `mac`, `windows`, `linux`, `web`, `pero`, `app`, `en`, `dl`, `ios`, `collect`, `assets`, `_l`, `.well-known`, файлы `favicon.svg`, `og.png`, `apple-touch-icon.png`, `404.html`, `progress.json`. Из неё патч пишет `const PLUMA_SITE_PATHS = new Set([...])` после `PLUMA_LINK_HOST`, а в проверке точного хоста `pluma.chat` сначала берётся первый сегмент `url.pathname` в нижнем регистре: пустой или из набора — `matchTelegramUrlHost` отдаёт `undefined`. Тогда `wrapUrl` не даёт `onclick`, ссылка остаётся обычным `<a target="_blank">`, а `appImManager.openUrl` (`appImManager.ts:1873`) открывает её `safeWindowOpen`, как любую внешнюю. Только для `pluma.chat`: `t.me/iphone` по-прежнему юзернейм. Исправление по ревью задачи 026.
+    - `TELEGRAM_LINK_HOSTS = ['t.me', 'telegram.me']` не меняется (`expect`). Ссылки `t.me` по-прежнему открываются внутри приложения и ищутся на сервере Pluma, как у апстрима. `telegram.dog` у Web K в списке нет и не было.
+  - **Исходящие ссылки** (`LINK_BUILDERS`, в тексте якоря `t.me/` заменяется на `pluma.chat/`, число вхождений точное):
+    - `helpers/dom/anchorCopy.ts:7`: `const T_ME = 'https://t.me/';`. Это юзернейм и ссылка профиля в информации о чате и в настройках.
+    - Ссылки на сообщения из «Копировать ссылку»: `components/chat/contextMenu.ts:1916` и `components/popups/forward.tsx:174`, `    let url = 'https://t.me/';`.
+    - Строка ссылки в информации группы или канала: `components/peerProfile.tsx:992` (тема) и `:1006` (юзернейм).
+    - QR профиля:
+      - `helpers/qrCode/paintQrCode.ts:110` `buildTelegramUserQrUrl`;
+      - `components/popups/myQrCode.tsx:115` (`+<телефон>`) и `:116` (`c/<id>`).
+    - Истории, альбомы историй и коллекции подарков:
+      - `components/stories/profileList.tsx:218` (`/s/`) и `:350` (`/a/`);
+      - `components/stories/viewer.tsx:1875`;
+      - `components/stargifts/profileList.tsx:341` (`/c/`).
+    - Наборы стикеров и эмодзи: `components/popups/stickers.tsx:281`.
+    - Публичная ссылка чата строкой приглашения: `components/sidebarRight/tabs/chatInviteLinkShared.ts:57`.
+    - Префикс поля публичной ссылки: `components/sidebarRight/tabs/chatType.tsx:141` `const placeholder = 't.me/';`. `UsernameInputField` берёт длину префикса из `head`, поэтому длина не важна.
+    - «Последние действия», смена публичной ссылки: `components/chat/bubbleParts/adminLogsResolver/index.tsx:304, 327, 341, 344` — якорь `t.me/${action.`, 4 вхождения.
+    - Ссылка на трансляцию канала: `lib/rtmp/url.ts:18, 21`.
+    - Пост розыгрыша в транзакции: `components/popups/starsPay.tsx:255` `https://t.me/c/…`. Это ссылка на пост канала Pluma, а не на функцию Telegram.
+    - Подпись ссылки нового бота: `components/popups/createBot/CreateBotPopup.tsx:210` `t.me/{fullUsername()}`.
+    - Встроенные английские строки `src/lang.ts`. Это не новые строки, ключи те же; правится только английский текст, как в W-019:
+      - `:1350` `'PublicLinksLimitSubtitle'`: `'Reserve up to %d pluma.chat/username links'`;
+      - `:1851` `'GroupDescription3'`: `'Public links such as pluma.chat/title'`.
+  - **Исправление строки приглашения** `components/peerProfile.tsx:1014`.
+    - Апстрим: `exportedInvite.link.slice(exportedInvite.link.indexOf('t.me/'))`. Для `https://pluma.chat/+hash` `indexOf` даёт `-1`, и строка показывает последний символ ссылки.
+    - Патч: `exportedInvite.link.replace(/^https?:\/\//, '')`. Ссылка остаётся той, что дал сервер, без схемы; `onClick` (`:1019`) добавляет `https://`, как у апстрима.
+  - **Оставлены `t.me`** (`LINK_KEEP`, число хостов `t.me`/`telegram.me`/`telegram.dog` в коде без комментариев, по файлам):
+    - список хостов `matchTelegramUrlHost.ts` (2).
+    - Внутренние ссылки. Их тут же разбирает `wrapUrl`, и они не показываются:
+      - упоминание `wrapRichText.ts:676`;
+      - якорь темы `wrapTopicThreadAnchor.ts:12`;
+      - ссылка из мини-приложения `helpers/getWebViewTgLink.ts:5`.
+    - Ссылки на функции самого Telegram:
+      - `lang.ts`: BotFather, `TelegramFeaturesUrl` (2);
+      - `giftLink.tsx` (2), `promoSlideTab.tsx` — `giftcode`;
+      - `starGiftInfo.tsx` (2), `stargiftsGrid.tsx` (2), `starsPay.tsx:491` — `nft`;
+      - `aiEditorPopup/styleTab.tsx` — `addstyle`;
+      - `editBot.tsx` — `botfather`;
+      - `frozen.tsx` — `t.me/telegram`.
+    - Данные песочницы окон `components/popupSandbox/…` — страница разработки.
+- **Без правки (апстрим):** ссылки `https://pluma.chat/…` в сообщениях — внешние: у них нет внутреннего обработчика (`wrapUrl` отдаёт `onclick` undefined), их открывает браузер, а не приложение. Скопированные ссылки на профиль, сообщение, набор стикеров и QR ведут на `t.me`. Строка приглашения частной группы при ссылке сервера на `pluma.chat` показывает один символ.
+- **Не делается:**
+  - `scope_extensions` PWA для `pluma.chat` (решение 026: без него; W-012 убрал `t.me` из манифестов).
+  - Ссылки, которые приходят с сервера: приглашения, бусты, `freeze_appeal_url`, `contacts.exportContactToken`, `chatlists`. Их хост задаёт сервер.
+- **Проверка:**
+  - `verify`. В `matchTelegramUrlHost.ts` есть `PLUMA_LINK_HOST = 'pluma.chat'` и проверка точного хоста, а в ней ровно один раз набор `PLUMA_SITE_PATHS` и проверка первого сегмента; `pluma` нет в `TELEGRAM_LINK_HOSTS`. В каждом файле исходников (без комментариев) число `t.me`/`telegram.me`/`telegram.dog` равно `LINK_KEEP`, в остальных файлах оно 0. Значит, новая ссылка `t.me` у апстрима роняет патч, пока её не отнесут к `LINK_BUILDERS` или `LINK_KEEP`. В `peerProfile.tsx` нет `exportedInvite.link.indexOf(`.
+  - `test_patch`: проверка хоста, `anchorCopy`, `contextMenu`, QR, 4 места журнала действий, строка приглашения, строка `lang.ts`; оставленные упоминание, `giftcode` и BotFather.
+  - `DAMAGE`: 8 случаев. Это сигнатура вызова `matchUrlHost`, список хостов, `addAnchorListener` без `matchTelegramUrlHost`, `anchorCopy`, одно из 4 мест журнала, `indexOf` строки приглашения, новая ссылка `t.me` в `forward.tsx`, лишний хост в `getWebViewTgLink.ts`.
+  - 2026-11-05: `python3 -I ci/patch_test.py` — 33 теста, OK (UpstreamTest не пропущен, 142 случая `DAMAGE`). Без вызова `link_host()` `test_patch` падает на `verify`.
+  - Патч на копии `reference-src/tweb` (`346844bf`, цель `dev`, одноразовый ключ) проходит с `verify`. После него `tsc --noEmit` проходит без ошибок.
+  - vitest на той же копии: `src/tests/matchTelegramUrlHost.test.ts` и `src/tests/wrapUrl.test.ts` апстрима плюс разовый тест `pluma.chat`, 79 тестов, OK. Что проверено:
+    - `pluma.chat`, `http://`, верхний регистр и порт — внутренняя ссылка без префикса;
+    - `web.pluma.chat`, `durov.pluma.chat`, `pluma.chat.evil.com`, `pluma.chat@evil.com`, `user@pluma.chat`, `ftp://` — внешние;
+    - `wrapUrl` отдаёт `im`, `joinchat`, `addstickers`, `addemoji`, `addlist`, `boost` для путей `pluma.chat`;
+    - `addAnchorListener` передаёт путь.
+    - С апстримным `matchTelegramUrlHost.ts` разовый тест падает.
+  - Разовый тест в репозиторий клиента не входит: CI клиента тесты апстрима не запускает.
+  - 2026-11-06, страницы сайта: `test_patch` сверяет набор `PLUMA_SITE_PATHS` строкой целиком и проверку пути; без `"pero"` в `LINK_SITE_PATHS` он падает. Патч на свежей копии `346844bf` проходит с `verify`, `tsc --noEmit` без ошибок. vitest: тесты апстрима `matchTelegramUrlHost`, `wrapUrl` и разовый тест — 90 тестов, OK. Разовый тест: все 21 путь сайта, корень с запросом и без, `IPhone`, `PLUMA.chat/Windows/`, вложенные (`en/iphone`, `dl/x.apk`, `.well-known/…`) — `undefined` и без `onclick`; `durov`, `durov/12`, `iphones`, `+abcdef`, `joinchat/…`, `addstickers/…`, `addemoji/…`, `addlist/…`, `boost/…`, `c/1/2` — внутри приложения с прежним `onclick`; `t.me/iphone`, `t.me/windows`, `t.me/web` — `im`. Без проверки пути 28 случаев сайта падают.
+  - Сборка (`vite build`) и проверка в браузере не выполнялись.
+- **При обновлении:** новая ссылка `t.me` или изменившееся их число роняет `verify` с именем файла. Нужно решить, делает ли эту ссылку клиент для пользователя (тогда `LINK_BUILDERS`) или она внутренняя либо Telegram (тогда `LINK_KEEP`). Если апстрим начнёт читать `me_url_prefix`, исходящие замены можно убрать.
+- **Коммиты:** не закоммичено, задача 026.
+
 ### Цвета: тема «графит и шалфей»
 
 Палитра выбрана владельцем 2026-10-29 (бриф 017). Пресеты *Day*, *Dark Blue* и акценты, которые пользователь выбирает сам, остаются как у апстрима, кроме цветов-идентичностей (W-039). Исходящие пузыри сплошные: Web K не рисует градиентные пузыри, владелец согласился (бриф 017).
