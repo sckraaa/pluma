@@ -447,7 +447,7 @@
 | `help.getAppChangelog` | blocked |  | app/bff/configuration/internal/core/help.getAppChangelog_handler.go:29 |
 | `help.getAppConfig61E3F854` | ok |  | app/bff/configuration/internal/core/help.getAppConfig61E3F854_handler.go:27 |
 | `help.getAppConfig98914110` | ok |  | app/bff/configuration/internal/core/help.getAppConfig98914110_handler.go:28 |
-| `help.getAppUpdate` | ok |  | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:55 |
+| `help.getAppUpdate` | ok |  | app/bff/configuration/internal/core/help.getAppUpdate_handler.go:57 |
 | `help.getCdnConfig` | blocked |  | app/bff/files/internal/core/help.getCdnConfig_handler.go:27 |
 | `help.getConfig` | ok | yes | app/bff/configuration/internal/core/help.getConfig_handler.go:43 |
 | `help.getCountriesList` | ok |  | app/bff/configuration/internal/core/help.getCountriesList_handler.go:28 |
