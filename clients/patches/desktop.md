@@ -597,6 +597,7 @@ ci/lint.sh                                        # shellcheck и actionlint
   - Linux: `out/Release/Telegram` → `Pluma/Pluma`, `lib/xdg/org.telegram.desktop.desktop` → `Pluma/chat.pluma.desktop.desktop`, `pluma-desktop-<версия>-linux[-dev].tar.xz`;
   - Windows: `Telegram.exe` → `Pluma/Pluma.exe`, `.zip`; кодовой подписи нет;
   - macOS: `Telegram.app` → `Pluma.app` (внутри исполняемый файл `Telegram`), сверка `CFBundleIdentifier` = `chat.pluma.desktop` и `CFBundleShortVersionString` = версии апстрима, иконка D-020, ad hoc подпись `codesign --force --deep --sign -` и проверка, `.zip`.
+  - macOS, перед подписью: `strip` исполняемого файла и `Contents/Frameworks/Updater`, как в `Telegram/build/build.sh:320-325` апстрима (`a1e89e1f`): сборка Release символы не убирает (`COPY_PHASE_STRIP NO`), без этого приложение весило 1,5 ГБ, а пакет обновления берёт не больше 1 ГиБ (`packer.cpp:312, :380`). Упаковка печатает самые большие файлы и останавливается, если приложение больше 1 ГиБ. После `strip` — 538 МБ, из них исполняемый файл 487 МБ (PR #3, влито `e451e75`, 2026-11-06).
   - Рядом с каждым файлом `.sha256`.
 - **Проверка.** Только сборкой в CI.
 - **Коммиты.** `b441350`, `cd537bf`, задача 006 (иконка — 017).
