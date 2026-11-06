@@ -31,7 +31,7 @@
 | [003](003-reliable-delivery.md) | Надёжная доставка через Kafka и push в сессии | done |
 | [004](004-deployment.md) | Развёртывание, наблюдаемость, бэкапы | done |
 | [005](005-tests-and-ci.md) | Зелёная база тестов и CI | done |
-| [006](006-client-build-pipeline.md) | Конвейер сборки клиентов | done (preflight подписи iOS — после профилей Apple владельца) |
+| [006](006-client-build-pipeline.md) | Конвейер сборки клиентов | done (сборки и вход всех клиентов) |
 | [007](007-conformance-harness.md) | Каркас сравнительных тестов | done |
 | [008](008-security-p1.md) | Безопасность P1: 2FA, PFS, проверки протокола | done |
 | [009](009-push.md) | Push: APNs (включая VoIP) и FCM | done |
@@ -41,21 +41,21 @@
 | [013](013-dialog-filters.md) | Папки чатов | done |
 | [014](014-premium-by-admin.md) | Premium, который выдаёт администратор | done |
 | [015](015-app-config.md) | Конфиг приложения: help.getAppConfig | done |
-| [016](016-first-deployment.md) | Первый запуск на сервере | in-progress (остался замер задержки) |
+| [016](016-first-deployment.md) | Первый запуск на сервере | in progress (сервер, телефон и веб-клиент работают) |
 | [017](017-rebranding.md) | Ребрендинг клиентов | in-progress |
-| [018](018-apple-site-warning.md) | Снять пометку Apple с домена | in-progress (владелец отправляет обращение) |
-| [019](019-service-messages.md) | Служебные сообщения как у Telegram | in-progress (выкачено, ждёт проверки владельцем на Android) |
+| [018](018-apple-site-warning.md) | Снять пометку Apple с домена | in progress (владелец отправляет обращение) |
+| [019](019-service-messages.md) | Служебные сообщения как у Telegram | in progress (выкачено 2026-10-29, сервер на `5ddf8e89`) |
 | [020](020-parity-quick-fixes.md) | Быстрые правки по сверке с Telegram | in progress |
-| [021](021-language-packs.md) | Языковые пакеты | todo |
-| [022](022-service-chat-history.md) | Служебный чат 777000 с историей на сервере | todo |
+| [021](021-language-packs.md) | Языковые пакеты | done (2026-11-01) |
+| [022](022-service-chat-history.md) | Служебный чат 777000 с историей на сервере | done (2026-11-02) |
 | [023](023-link-previews.md) | Превью ссылок | done |
-| [024](024-telegram-data-import.md) | Импорт данных Telegram | todo |
+| [024](024-telegram-data-import.md) | Импорт данных Telegram | in progress (2026-11-02) |
 | [025](025-moderation-and-premium-panel.md) | Панель модерации: жалобы и Premium | todo |
-| [026](026-pluma-links.md) | Ссылки pluma.chat вместо t.me | todo |
+| [026](026-pluma-links.md) | Ссылки pluma.chat вместо t.me | done (выкачено 2026-11-06, прод `74decf8d`) |
 | [027](027-external-services.md) | Внешние сервисы: карты, GIF, места, перевод, распознавание речи | todo |
 | [028](028-pluma-texts.md) | FAQ Pluma | todo |
-| [029](029-ios-install-from-site.md) | Установка iOS-клиента с сайта (Ad Hoc) | blocked |
-| [030](030-sticker-sets-on-demand.md) | Наборы стикеров и эмодзи из Telegram по запросу | todo |
+| [029](029-ios-install-from-site.md) | Установка iOS-клиента с сайта (Ad Hoc) | in progress (2026-11-01) |
+| [030](030-sticker-sets-on-demand.md) | Наборы стикеров и эмодзи из Telegram по запросу | in progress (2026-11-02) |
 | [031](031-external-security-audit.md) | Внешний аудит безопасности | todo |
 | [032](032-online-status-push.md) | Статус «в сети» доходит до собеседников сразу | done |
 | [033](033-read-date-ios.md) | Время прочтения в iOS | done |
@@ -63,13 +63,13 @@
 | [035](035-channel-box-research.md) | Каналы: сверка с Telegram и ADR «Ящик канала» | in-progress |
 | [036](036-channel-schema-and-box.md) | Каналы: схема и `pkg/channelbox` | done |
 | [037](037-channels-service-skeleton.md) | Каналы: сервис biz `channel`, модуль bff `channels`, маршрутизация | done |
-| [038](038-channel-create-and-dialogs.md) | Каналы: создание, `getChannels`, `getFullChannel`, диалоги | todo |
-| [039](039-channel-send-and-history.md) | Каналы: отправка, история, `channels.getMessages` | todo |
-| [040](040-channel-difference.md) | Каналы: `updates.getChannelDifference` и `updateChannelTooLong` | todo |
-| [041](041-channel-membership-and-invites.md) | Каналы: участники и приглашения | todo |
+| [038](038-channel-create-and-dialogs.md) | Каналы: создание, `getChannels`, `getFullChannel`, диалоги | in progress (сервер выкачен 2026-11-04; проверка в клиентах) |
+| [039](039-channel-send-and-history.md) | Каналы: отправка, история, `channels.getMessages` | done (сервер) |
+| [040](040-channel-difference.md) | Каналы: `updates.getChannelDifference` и `updateChannelTooLong` | done (сервер) |
+| [041](041-channel-membership-and-invites.md) | Каналы: участники и приглашения | in progress (нет заявок на вступление) |
 | [042](042-channel-rights.md) | Каналы: права админов, баны, права по умолчанию | todo |
-| [043](043-channel-edit-delete-pin-read.md) | Каналы: правка, удаление, закрепление, прочтение | todo |
-| [044](044-channel-metadata-and-usernames.md) | Каналы: название, фото, настройки, реакции, публичные имена | todo |
+| [043](043-channel-edit-delete-pin-read.md) | Каналы: правка, удаление, закрепление, прочтение | in progress (нет закрепления и `readMessageContents`) |
+| [044](044-channel-metadata-and-usernames.md) | Каналы: название, фото, настройки, реакции, публичные имена | in progress (нет фото канала, настроек и реакций) |
 | [045](045-channel-slow-mode.md) | Супергруппы: медленный режим | todo |
 | [046](046-broadcast-channel-specifics.md) | Каналы-трансляции: просмотры, подписи, ссылки на посты | todo |
 | [047](047-group-to-supergroup-migration.md) | Переход базовой группы в супергруппу | todo |
@@ -79,7 +79,7 @@
 | [051](051-public-photo.md) | Фото «для всех» и личное фото контакта | done |
 | [052](052-media-quality.md) | Качество медиа: сжимаем меньше, чем Telegram | in progress |
 | [053](053-reactions.md) | Реакции на сообщения и теги «Избранного» без Premium | in progress |
-| [054](054-client-releases-and-self-update.md) | Сборки клиентов на сайте и самообновление | done |
+| [054](054-client-releases-and-self-update.md) | Сборки клиентов на сайте и самообновление | in progress (сервер выкачен; апдейтеры на устройствах не проверены) |
 | [055](055-channel-fixes.md) | Каналы после проверки владельцем | done |
 | [056](056-memory-limits.md) | Инцидент 05.11: сеть сервера и потолки памяти | done |
 | [057](057-dfs-memory.md) | dfs: файлы не держатся в памяти, части загрузок не в Redis | done |
