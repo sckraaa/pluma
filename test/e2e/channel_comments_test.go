@@ -154,6 +154,17 @@ func TestChannelComments(t *testing.T) {
 	if !seen {
 		t.Errorf("Bob does not see the discussion group: %v", dm.GetChats())
 	}
+	// The clients ask for the members of the group on opening its comments,
+	// and Android and iOS ask again and again on an error, never opening
+	// them (the owner's report of 08.11).
+	if _, err = bob.c.Invoke(ctx, &mtproto.TLChannelsGetParticipants{
+		Constructor: bob.c.Constructor(mtproto.Predicate_channels_getParticipants),
+		Channel:     inputOf(alice, gr),
+		Filter:      &mtproto.ChannelParticipantsFilter{Constructor: bob.c.Constructor(mtproto.Predicate_channelParticipantsRecent)},
+		Limit:       50,
+	}); err != nil {
+		t.Errorf("Bob asks for the group's members: %v", err)
+	}
 
 	if _, err = bob.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
 		Constructor: bob.c.Constructor(mtproto.Predicate_messages_sendMessage),
@@ -223,6 +234,12 @@ func TestChannelComments(t *testing.T) {
 		return o.(interface {
 			To_Messages_DiscussionMessage() *mtproto.Messages_DiscussionMessage
 		}).To_Messages_DiscussionMessage().GetUnreadCount()
+	}
+	if _, err = bob.c.Invoke(ctx, &mtproto.TLMessagesReadDiscussion{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_readDiscussion),
+		Peer:        peerOfChannel(alice, gr), MsgId: copyId, ReadMaxId: copyId + 1,
+	}); err != nil {
+		t.Errorf("Bob reads the comments: %v", err)
 	}
 	if n := unread(); n != 1 {
 		t.Errorf("Alice's unread comments %d, want 1", n)
