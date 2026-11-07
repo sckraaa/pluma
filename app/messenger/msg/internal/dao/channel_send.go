@@ -287,9 +287,12 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 			// MessageObject.isComments, messageOwner.replies.comments).
 			// The history fills in the counts when read.
 			m.Replies = mtproto.MakeTLMessageReplies(&mtproto.MessageReplies{
-				Comments:       true,
-				ChannelId:      mtproto.MakeFlagsInt64(group.Id()),
-				RepliesPts:     group.Pts(),
+				Comments:  true,
+				ChannelId: mtproto.MakeFlagsInt64(group.Id()),
+				// The pts of the post itself, which AddPtsUpdate below
+				// gives it ("PTS of the message that started this
+				// thread", constructor/messageReplies).
+				RepliesPts:     ch.Pts() + 1,
 				RecentRepliers: []*mtproto.Peer{},
 			}).To_MessageReplies()
 		}

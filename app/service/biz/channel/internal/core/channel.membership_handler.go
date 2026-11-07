@@ -204,8 +204,11 @@ func (c *ChannelCore) ChannelGetParticipants(in *channel.TLChannelGetParticipant
 	me, _ := mc.GetParticipant(in.SelfId)
 	admin := me.Admin()
 	now := int32(time.Now().Unix())
-	// One not in it reads a public channel unless kicked from it.
-	reader := me.Member() || mc.GetChannel().Public() && !me.Kicked(now)
+	// One not in it reads a public channel unless kicked from it, and the
+	// discussion group of a channel it is in (task 048): iOS asks for the
+	// members of the group of the comments it opens, again and again on an
+	// error, and the comments never opened (the owner's report of 08.11).
+	reader := me.Member() || (mc.GetChannel().Public() || me.GetState() == channel.StateLinked) && !me.Kicked(now)
 	switch {
 	case mc.GetChannel().GetDeleted():
 		return nil, mtproto.ErrChannelInvalid

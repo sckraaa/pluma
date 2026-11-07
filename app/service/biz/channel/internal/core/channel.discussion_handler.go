@@ -130,6 +130,13 @@ func (c *ChannelCore) ChannelReadDiscussion(in *channel.TLChannelReadDiscussion)
 	if err != nil {
 		return nil, err
 	}
+	v, err := c.svcCtx.Dao.ViewerOf(c.ctx, in.SelfId, t.GroupId)
+	if err != nil {
+		return nil, err
+	}
+	if !v.CanRead {
+		return nil, mtproto.ErrChannelPrivate
+	}
 	if _, err = c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
 		return c.svcCtx.Dao.ReadThread(b, t.GroupId, t.TopId, in.ReadMaxId)
 	}); err != nil {

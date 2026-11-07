@@ -197,7 +197,8 @@ type Thread struct {
 	MaxId    int32
 	Count    int32
 	Repliers []int64
-	// Pts is the group's pts when counted (messageReplies.replies_pts).
+	// Pts is messageReplies.replies_pts: the pts of the post's channel when
+	// counted.
 	Pts int32
 }
 
@@ -257,11 +258,6 @@ func (d *Dao) threadCounts(ctx context.Context, t *Thread) error {
 		return err
 	}
 	t.Count, t.MaxId = counts[0].Count, counts[0].MaxId
-	var pts []int32
-	if err := d.Mysql.QueryRowsPartial(ctx, &pts, "SELECT pts FROM channels WHERE id = ?", t.GroupId); err != nil {
-		return err
-	}
-	t.Pts = first(pts)
 	return d.Mysql.QueryRowsPartial(ctx, &t.Repliers,
 		"SELECT sender_user_id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0"+
 			" GROUP BY sender_user_id ORDER BY MAX(id) DESC LIMIT ?", t.GroupId, t.TopId, RepliersMax)
@@ -285,12 +281,10 @@ func (d *Dao) ThreadRead(ctx context.Context, userId int64, t *Thread) (readMax,
 }
 
 // ReadThread moves how far b's owner read the thread topId of groupId
-// forward to readMax (messages.readDiscussion); a member of the group only
-// (CHANNEL_PRIVATE).
+// forward to readMax (messages.readDiscussion). The caller has checked
+// that the owner may read the group: a member, or a reader through its
+// channel, who comments without joining (task 048).
 func (d *Dao) ReadThread(b *userbox.Box, groupId int64, topId, readMax int32) error {
-	if err := readerIn(b, groupId); err != nil {
-		return err
-	}
 	_, err := b.Tx().Exec("INSERT INTO channel_thread_reads (user_id, channel_id, top_id, read_max_id) VALUES (?, ?, ?, ?)"+
 		" ON DUPLICATE KEY UPDATE read_max_id = GREATEST(read_max_id, VALUES(read_max_id))",
 		b.UserId(), groupId, topId, readMax)
@@ -327,6 +321,15 @@ func (d *Dao) withReplies(ctx context.Context, channelId int64, broadcast bool, 
 		"SELECT post_id, group_id, group_message_id FROM channel_discussion_posts WHERE channel_id = ? AND post_id IN ("+marks+")", args...); err != nil {
 		return err
 	}
+	// replies_pts is the pts of the channel the post is in ("PTS of the
+	// message that started this thread", core.telegram.org/constructor/
+	// messageReplies): tdesktop takes the counts of an answer only when it
+	// is not older than the channel's pts it has (history_item.cpp:
+	// 4825-4832), and counts the comments it receives itself in between.
+	var pts []int32
+	if err := d.Mysql.QueryRowsPartial(ctx, &pts, "SELECT pts FROM channels WHERE id = ?", channelId); err != nil {
+		return err
+	}
 	byPost := map[int32]*Thread{}
 	for _, p := range posts {
 		t := &Thread{GroupId: p.GroupId, TopId: p.GroupMessageId, ChannelId: channelId, PostId: p.PostId}
@@ -337,6 +340,7 @@ func (d *Dao) withReplies(ctx context.Context, channelId int64, broadcast bool, 
 	}
 	for _, m := range messages {
 		if t, ok := byPost[m.GetId()]; ok {
+			t.Pts = first(pts)
 			m.Replies = MessageReplies(t, 0)
 		}
 	}
