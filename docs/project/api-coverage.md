@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 259, partial 21, blocked 121, notimpl 6, fake 7, missing 455 (ok = 29.8%); with a conformance scenario 9
+    layer 228: 869 methods — ok 260, partial 21, blocked 120, notimpl 6, fake 7, missing 455 (ok = 29.9%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | auth | 27 | 16 | 0 | 10 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | bots | 39 | 0 | 0 | 0 | 0 | 0 | 39 | 0 |
-| channels | 74 | 21 | 1 | 31 | 0 | 1 | 20 | 0 |
+| channels | 74 | 22 | 1 | 30 | 0 | 1 | 20 | 0 |
 | chatlists | 11 | 0 | 0 | 0 | 0 | 0 | 11 | 0 |
 | communities | 9 | 0 | 0 | 0 | 0 | 0 | 9 | 0 |
 | contacts | 29 | 23 | 0 | 2 | 0 | 0 | 4 | 0 |
@@ -285,13 +285,13 @@
 | `channels.deactivateAllUsernames` | missing |  |  |
 | `channels.deleteChannel` | ok |  | app/bff/channels/internal/core/channels.membership_handler.go:93 |
 | `channels.deleteHistory9BAA9647` | blocked |  | app/bff/channels/internal/core/not_served.go:59 |
-| `channels.deleteHistoryAF369D42` | blocked |  | app/bff/channels/internal/core/not_served.go:114 |
+| `channels.deleteHistoryAF369D42` | blocked |  | app/bff/channels/internal/core/not_served.go:109 |
 | `channels.deleteMessages` | ok |  | app/bff/channels/internal/core/channels.deleteMessages_handler.go:28 |
 | `channels.deleteParticipantHistory` | blocked |  | app/bff/channels/internal/core/not_served.go:94 |
 | `channels.deleteTopicHistory` | missing |  |  |
-| `channels.editAdmin` | ok |  | app/bff/channels/internal/core/channels.editRights_handler.go:31 |
-| `channels.editBanned` | ok |  | app/bff/channels/internal/core/channels.editRights_handler.go:75 |
-| `channels.editCreator` | blocked |  | app/bff/channels/internal/core/not_served.go:104 |
+| `channels.editAdmin` | ok |  | app/bff/channels/internal/core/channels.editRights_handler.go:34 |
+| `channels.editBanned` | ok |  | app/bff/channels/internal/core/channels.editRights_handler.go:69 |
+| `channels.editCreator` | ok |  | app/bff/channels/internal/core/channels.editRights_handler.go:109 |
 | `channels.editForumTopic` | missing |  |  |
 | `channels.editLocation` | blocked |  | app/bff/channels/internal/core/not_served.go:79 |
 | `channels.editPhoto` | blocked |  | app/bff/channels/internal/core/not_served.go:34 |
@@ -304,7 +304,7 @@
 | `channels.getForumTopics` | missing |  |  |
 | `channels.getForumTopicsByID` | missing |  |  |
 | `channels.getFullChannel` | ok |  | app/bff/channels/internal/core/channels.getFullChannel_handler.go:37 |
-| `channels.getFutureCreatorAfterLeave` | blocked |  | app/bff/channels/internal/core/not_served.go:109 |
+| `channels.getFutureCreatorAfterLeave` | blocked |  | app/bff/channels/internal/core/not_served.go:104 |
 | `channels.getGroupsForDiscussion` | blocked |  | app/bff/channels/internal/core/not_served.go:69 |
 | `channels.getInactiveChannels` | blocked |  | app/bff/channels/internal/core/not_served.go:89 |
 | `channels.getLeftChannels` | missing |  |  |
@@ -525,7 +525,7 @@
 | `messages.discardEncryption` | missing |  |  |
 | `messages.editChatAbout` | ok |  | app/bff/chats/internal/core/messages.editChatAbout_handler.go:35 |
 | `messages.editChatAdmin` | ok |  | app/bff/chats/internal/core/messages.editChatAdmin_handler.go:31 |
-| `messages.editChatCreator` | partial |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:36 |
+| `messages.editChatCreator` | partial |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:41 |
 | `messages.editChatDefaultBannedRights` | ok |  | app/bff/chats/internal/core/messages.editChatDefaultBannedRights_handler.go:36 |
 | `messages.editChatParticipantRank` | ok |  | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:32 |
 | `messages.editChatPhoto` | ok |  | app/bff/chats/internal/core/messages.editChatPhoto_handler.go:32 |
