@@ -73,7 +73,7 @@
 | [045](045-channel-slow-mode.md) | Супергруппы: медленный режим | todo |
 | [046](046-broadcast-channel-specifics.md) | Каналы-трансляции: просмотры, подписи, ссылки на посты | todo |
 | [047](047-group-to-supergroup-migration.md) | Переход базовой группы в супергруппу | in progress (сервер готов) |
-| [048](048-channel-discussion-and-threads.md) | Каналы: группа обсуждения и комментарии | todo |
+| [048](048-channel-discussion-and-threads.md) | Каналы: группа обсуждения и комментарии | in progress (сервер готов) |
 | [049](049-channels-conformance-and-client-pass.md) | Каналы: сравнительные тесты и проход по клиентам | todo |
 | [050](050-chat-archive.md) | Архив чатов: перенос, автоархив, возврат из архива | done |
 | [051](051-public-photo.md) | Фото «для всех» и личное фото контакта | done |

@@ -127,7 +127,7 @@ func TestChannelComments(t *testing.T) {
 
 	o, err = alice.c.Invoke(ctx, &mtproto.TLMessagesGetMessagesViews{
 		Constructor: alice.c.Constructor(mtproto.Predicate_messages_getMessagesViews),
-		Peer:        peerOfChannel(alice, ch), Id: []int32{post},
+		Peer:        peerOfChannel(alice, ch), Id: []int32{post}, Increment: mtproto.BoolFalse,
 	})
 	if err != nil {
 		t.Fatalf("messages.getMessagesViews: %v", err)
