@@ -123,3 +123,44 @@ func TestRead(t *testing.T) {
 	}
 	wantErr(t, "one not in the channel", f.read(outsider, id, 0), mtproto.ErrChannelPrivate)
 }
+
+// TestReadContents: a member who has seen messages reads its mentions
+// among them, not the others, and its devices get
+// updateChannelReadMessagesContents with seq of the messages that exist;
+// one not in the channel has nothing to read.
+func TestReadContents(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, bob, outsider := f.user("Creator"), f.user("Bob"), f.user("Out")
+	id := f.create(creator)
+	f.public(id)
+	if _, err := f.join(bob, id, ""); err != nil {
+		t.Fatal(err)
+	}
+	f.send(id, creator, 3)
+	var last int32
+	if err := f.box.QueryRow("SELECT top_message FROM channels WHERE id = ?", id).Scan(&last); err != nil {
+		t.Fatal(err)
+	}
+	f.exec("INSERT INTO channel_message_mentions (channel_id, user_id, message_id) VALUES (?, ?, ?), (?, ?, ?)", id, bob, last-1, id, bob, last)
+	read := func(self int64, ids ...int32) error {
+		_, err := f.c.ChannelReadMessageContents(&channel.TLChannelReadMessageContents{SelfId: self, PermAuthKeyId: 1, ChannelId: id, Id: ids})
+		return err
+	}
+	if err := read(bob, last, last+100); err != nil {
+		t.Fatal(err)
+	}
+	var unread int
+	if err := f.box.QueryRow("SELECT COUNT(*) FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0", id, bob).Scan(&unread); err != nil || unread != 1 {
+		t.Errorf("unread mentions %d, %v", unread, err)
+	}
+	var data string
+	if err := f.box.QueryRow("SELECT update_data FROM user_seq_updates WHERE user_id = ? AND update_type = ? ORDER BY seq DESC LIMIT 1",
+		bob, mtproto.Predicate_updateChannelReadMessagesContents).Scan(&data); err != nil {
+		t.Fatal(err)
+	}
+	u := new(mtproto.Update)
+	if err := jsonx.UnmarshalFromString(data, u); err != nil || u.GetChannelId() != id || len(u.GetMessages()) != 1 || u.GetMessages()[0] != last {
+		t.Errorf("the update %v, %v", u, err)
+	}
+	wantErr(t, "one not in the channel", read(outsider, last), mtproto.ErrChannelPrivate)
+}

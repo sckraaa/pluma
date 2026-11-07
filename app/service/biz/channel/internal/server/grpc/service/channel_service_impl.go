@@ -401,3 +401,17 @@ func (s *Service) ChannelSearch(ctx context.Context, request *channel.TLChannelS
 
 	return r, err
 }
+
+// ChannelReadMessageContents
+// channel.readMessageContents self_id:long perm_auth_key_id:long channel_id:long id:Vector<int> = Bool;
+func (s *Service) ChannelReadMessageContents(ctx context.Context, request *channel.TLChannelReadMessageContents) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.readMessageContents - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReadMessageContents(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

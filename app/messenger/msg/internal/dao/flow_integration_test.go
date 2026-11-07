@@ -323,6 +323,10 @@ func (noChannels) ChannelSearch(context.Context, *channelpb.TLChannelSearch) (*m
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelReadMessageContents(context.Context, *channelpb.TLChannelReadMessageContents) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

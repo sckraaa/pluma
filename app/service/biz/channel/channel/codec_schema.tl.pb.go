@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	2055458774: func() mtproto.TLObject { // 0x7a83cfd6 pluma: task 043
+		return &TLChannelReadMessageContents{
+			Constructor: 2055458774,
+		}
+	},
 	471620827: func() mtproto.TLObject { // 0x1c1c5cdb pluma: task 043
 		return &TLChannelSearch{
 			Constructor: 471620827,
@@ -2099,6 +2104,67 @@ func (m *TLChannelSearch) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.Limit = dBuf.Int()
 		m.MaxId = dBuf.Int()
 		m.MinId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelReadMessageContents (pluma: task 043)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelReadMessageContents) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x7a83cfd6:
+		x.UInt(0x7a83cfd6)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetId())))
+		for _, v := range m.GetId() {
+			x.Int(v)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelReadMessageContents) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelReadMessageContents) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x7a83cfd6:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		c3 := dBuf.Int()
+		if c3 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 3, c3)
+		}
+		l3 := dBuf.Int()
+		if vectorTooLong(dBuf, l3) {
+			return fmt.Errorf("invalid vector length: %d", l3)
+		}
+		v3 := make([]int32, l3)
+		for i := int32(0); i < l3; i++ {
+			v3[i] = dBuf.Int()
+		}
+		m.Id = v3
 		return dBuf.GetError()
 
 	default:

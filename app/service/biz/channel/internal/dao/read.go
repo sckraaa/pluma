@@ -16,6 +16,9 @@
 package dao
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -117,4 +120,57 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 		b.Emit(userbox.Event{Topic: d.Topics.Sync, Recipient: author, Method: string(proto.MessageName(in)), Data: data})
 	}
 	return nil
+}
+
+// ReadContentsMax is the most messages of one channels.readMessageContents,
+// as of messages.readMessageContents.
+const ReadContentsMax = 100
+
+// ReadContents marks what b's owner has seen of messages ids of the
+// channel: its mentions among them are read, and its devices get
+// updateChannelReadMessagesContents with seq (core.telegram.org/method/
+// channels.readMessageContents). Ids that are not the channel's messages
+// are left out. CHANNEL_PRIVATE when the owner has no dialog with the
+// channel (not in it).
+func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
+	var in []int32
+	if err := b.Tx().QueryRowsPartial(&in,
+		"SELECT g.top_message FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
+			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state = 0"+
+			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
+		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
+		return err
+	}
+	if len(in) == 0 {
+		return mtproto.ErrChannelPrivate
+	}
+	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
+	ids = slices.DeleteFunc(ids, func(id int32) bool { return id <= 0 })
+	if len(ids) > ReadContentsMax {
+		ids = ids[:ReadContentsMax]
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	args := []any{channelId}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	var found []int32
+	if err := b.Tx().QueryRowsPartial(&found,
+		"SELECT id FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") ORDER BY id",
+		args...); err != nil {
+		return err
+	}
+	if len(found) == 0 {
+		return nil
+	}
+	args = append([]any{channelId, b.UserId()}, args[1:]...)
+	if _, err := b.Tx().Exec("UPDATE channel_message_mentions SET `read` = 1 WHERE channel_id = ? AND user_id = ? AND `read` = 0 AND message_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		args...); err != nil {
+		return err
+	}
+	InvalidateDialog(b, channelId)
+	u := mtproto.MakeTLUpdateChannelReadMessagesContents(&mtproto.Update{ChannelId: channelId, Messages: found}).To_Update()
+	return d.EmitSeqUpdate(b, u, nil, nil)
 }

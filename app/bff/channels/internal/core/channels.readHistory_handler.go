@@ -45,3 +45,22 @@ func (c *ChannelsCore) ChannelsReadHistory(in *mtproto.TLChannelsReadHistory) (*
 		MaxId:         in.MaxId,
 	})
 }
+
+// ChannelsReadMessageContents
+// channels.readMessageContents#eab5dc38 channel:InputChannel id:Vector<int> = Bool;
+//
+// The account has seen messages of the channel (task 043, biz
+// channel.readMessageContents): its mentions among them are read and its
+// other devices are told.
+func (c *ChannelsCore) ChannelsReadMessageContents(in *mtproto.TLChannelsReadMessageContents) (*mtproto.Bool, error) {
+	mc, err := c.mutableChannel(in.Channel)
+	if err != nil {
+		return nil, err
+	}
+	return c.svcCtx.Channel.ChannelReadMessageContents(c.ctx, &channelpb.TLChannelReadMessageContents{
+		SelfId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		ChannelId:     mc.GetChannel().GetId(),
+		Id:            in.Id,
+	})
+}

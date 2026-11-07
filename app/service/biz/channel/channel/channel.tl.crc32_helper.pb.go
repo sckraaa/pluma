@@ -53,6 +53,8 @@ const (
 	// pluma: task 055
 	CRC32_channel_deleteChannel TLConstructor = -979916526 // 0xc597a912
 	// pluma: task 043
+	CRC32_channel_readMessageContents TLConstructor = 2055458774 // 0x7a83cfd6
+	// pluma: task 043
 	CRC32_channel_search TLConstructor = 471620827 // 0x1c1c5cdb
 	// pluma: task 042
 	CRC32_channel_editCreator TLConstructor = 860909233 // 0x33506eb1

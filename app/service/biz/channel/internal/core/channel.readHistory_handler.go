@@ -35,3 +35,17 @@ func (c *ChannelCore) ChannelReadHistory(in *channel.TLChannelReadHistory) (*mtp
 	}
 	return mtproto.BoolTrue, nil
 }
+
+// ChannelReadMessageContents
+// channel.readMessageContents self_id:long perm_auth_key_id:long channel_id:long id:Vector<int> = Bool;
+//
+// self_id has seen messages id of the channel (dao.ReadContents), in its
+// box transaction; the channel is not locked.
+func (c *ChannelCore) ChannelReadMessageContents(in *channel.TLChannelReadMessageContents) (*mtproto.Bool, error) {
+	if _, err := c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
+		return c.svcCtx.Dao.ReadContents(b, in.ChannelId, in.Id)
+	}); err != nil {
+		return nil, c.membershipError("channel.readMessageContents", err)
+	}
+	return mtproto.BoolTrue, nil
+}

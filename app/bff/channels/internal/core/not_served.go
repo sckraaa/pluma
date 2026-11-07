@@ -50,11 +50,6 @@ func (c *ChannelsCore) ChannelsSetStickers(in *mtproto.TLChannelsSetStickers) (*
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsReadMessageContents is not served yet: channels.readMessageContents#eab5dc38.
-func (c *ChannelsCore) ChannelsReadMessageContents(in *mtproto.TLChannelsReadMessageContents) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsDeleteHistory9BAA9647 is not served yet: channels.deleteHistory9BAA9647#9baa9647.
 func (c *ChannelsCore) ChannelsDeleteHistory9BAA9647(in *mtproto.TLChannelsDeleteHistory9BAA9647) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

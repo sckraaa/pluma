@@ -72,6 +72,8 @@ enum TLConstructor {
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
   // pluma: task 043
+  CRC32_channel_readMessageContents = 2055458774;
+  // pluma: task 043
   CRC32_channel_search = 471620827;
   // pluma: task 042
   CRC32_channel_editCreator = 860909233;
@@ -501,6 +503,19 @@ message TL_channel_search {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.readMessageContents self_id:long perm_auth_key_id:long channel_id:long id:Vector<int> = Bool;
+// self_id has seen the contents of messages id of the channel: its mentions
+// among them are read; its other devices get updateChannelReadMessagesContents (task 043).
+// (task 043)
+message TL_channel_readMessageContents {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  repeated int32 id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -568,6 +583,8 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 043
+  rpc channel_readMessageContents(TL_channel_readMessageContents) returns (mtproto.Bool) {}
   // pluma: task 043
   rpc channel_search(TL_channel_search) returns (mtproto.messages_Messages) {}
   // pluma: task 042

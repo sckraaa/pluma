@@ -48,6 +48,7 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelReadMessageContents(ctx context.Context, in *channel.TLChannelReadMessageContents) (*mtproto.Bool, error)
 	ChannelSearch(ctx context.Context, in *channel.TLChannelSearch) (*mtproto.Messages_Messages, error)
 	ChannelEditCreator(ctx context.Context, in *channel.TLChannelEditCreator) (*mtproto.Updates, error)
 	ChannelEditAdmin(ctx context.Context, in *channel.TLChannelEditAdmin) (*mtproto.Updates, error)
@@ -360,4 +361,15 @@ func (m *defaultChannelClient) ChannelSearch(ctx context.Context, in *channel.TL
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSearch(ctx, in)
+}
+
+// ChannelReadMessageContents
+// channel.readMessageContents self_id:long perm_auth_key_id:long channel_id:long id:Vector<int> = Bool;
+func (m *defaultChannelClient) ChannelReadMessageContents(ctx context.Context, in *channel.TLChannelReadMessageContents) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReadMessageContents(ctx, in)
 }
