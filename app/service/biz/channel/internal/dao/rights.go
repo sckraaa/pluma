@@ -1,0 +1,386 @@
+// Copyright 2026 The Pluma Authors
+//  All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package dao
+
+import (
+	"math"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
+
+	"github.com/zeromicro/go-zero/core/jsonx"
+	"google.golang.org/protobuf/proto"
+)
+
+// The rights in a channel (task 042): admins promoted and demoted
+// (channels.editAdmin), members restricted, kicked and freed
+// (channels.editBanned), the default restrictions of a supergroup
+// (messages.editChatDefaultBannedRights). Each is written in the actor's
+// box transaction with the channel locked; the members load the channel
+// again on updateChannel (ADR 0034, p. 3), a kicked user loses it by an
+// inbox event.
+
+// RankMax is the longest admin rank, in characters
+// (core.telegram.org/constructor/channelParticipantAdmin: "up to 16").
+const RankMax = 16
+
+type actorRow struct {
+	Broadcast           bool  `db:"broadcast"`
+	DefaultBannedRights int32 `db:"default_banned_rights"`
+	Role                int32 `db:"role"`
+	State               int32 `db:"state"`
+	AdminRights         int32 `db:"admin_rights"`
+	BannedRights        int32 `db:"banned_rights"`
+	UntilDate           int32 `db:"until_date"`
+}
+
+// actor is b's owner as a participant of a channel the transaction locked.
+type actor struct {
+	ch channelperm.Channel
+	p  channelperm.Participant
+}
+
+func (a *actor) can(act channelperm.Action, now int64) error {
+	return channelperm.Can(a.ch, a.p, act, int32(now))
+}
+
+// rightsActor reads the channel, locked, and b's owner's row of it.
+// CHANNEL_PRIVATE for one out of it.
+func rightsActor(b *userbox.Box, channelId int64) (*actor, error) {
+	var rows []actorRow
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT c.broadcast, c.default_banned_rights, p.role, p.state, p.admin_rights, p.banned_rights, p.until_date"+
+			" FROM channels c JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ? AND c.deleted = 0",
+		b.UserId(), channelId); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 || rows[0].State != channelperm.StateIn {
+		return nil, mtproto.ErrChannelPrivate
+	}
+	r := rows[0]
+	return &actor{
+		ch: channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
+		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
+			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
+	}, nil
+}
+
+type targetRow struct {
+	Role         int32  `db:"role"`
+	State        int32  `db:"state"`
+	AdminRights  int32  `db:"admin_rights"`
+	Rank         string `db:"rank"`
+	BannedRights int32  `db:"banned_rights"`
+	UntilDate    int32  `db:"until_date"`
+	PromotedBy   int64  `db:"promoted_by"`
+}
+
+// rightsTarget reads the row of userId in the channel, locked; nil when it
+// has none.
+func rightsTarget(b *userbox.Box, channelId, userId int64) (*targetRow, error) {
+	var rows []targetRow
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT role, state, admin_rights, `rank`, banned_rights, until_date, promoted_by FROM channel_participants WHERE channel_id = ? AND user_id = ? FOR UPDATE",
+		channelId, userId); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	return &rows[0], nil
+}
+
+// in tells whether the target is a member of the channel.
+func (t *targetRow) in() bool { return t != nil && t.State == channelperm.StateIn }
+
+// kicked tells whether the target is kept out of the channel at now: a
+// kick runs to its until_date (0 or Int32.max: for good).
+func (t *targetRow) kicked(now int64) bool {
+	return t != nil && t.State == channelperm.StateKicked &&
+		(t.UntilDate == 0 || t.UntilDate == math.MaxInt32 || now < int64(t.UntilDate))
+}
+
+// editableAdmin tells whether a may change the rights of the admin t: the
+// creator any, an admin with add_admins the admins it promoted
+// (core.telegram.org/api/rights; the clients show the same as canEdit).
+func (a *actor) editableAdmin(t *targetRow, selfId int64, now int64) bool {
+	if a.can(channelperm.AddAdmins, now) != nil {
+		return false
+	}
+	return a.p.Role == channelperm.RoleCreator || t.PromotedBy == selfId
+}
+
+// checkRank checks an admin rank: at most RankMax characters, no emoji
+// (ADMIN_RANK_INVALID, ADMIN_RANK_EMOJI_NOT_ALLOWED,
+// core.telegram.org/method/channels.editAdmin).
+func checkRank(rank string) error {
+	if !utf8.ValidString(rank) || utf8.RuneCountInString(rank) > RankMax {
+		return mtproto.ErrAdminRankInvalid
+	}
+	for _, r := range rank {
+		// Emoji are symbols (So); their skin tones are modifiers.
+		if unicode.Is(unicode.So, r) || r >= 0x1F3FB && r <= 0x1F3FF {
+			return mtproto.ErrAdminRankEmojiNotAllowed
+		}
+		if unicode.IsControl(r) {
+			return mtproto.ErrAdminRankInvalid
+		}
+	}
+	return nil
+}
+
+// EditAdmin gives userId the admin rights rights in the channel, or takes
+// them away with rights 0; rank is its title, kept as it is when keepRank.
+// The rules (core.telegram.org/api/rights, method/channels.editAdmin):
+//   - the creator changes its own rank and anonymity only;
+//   - one with add_admins promotes members and changes the admins it
+//     promoted (CHAT_ADMIN_REQUIRED for others), giving at most its own
+//     rights (RIGHT_FORBIDDEN); the creator gives every right;
+//   - the creator is not edited by others (USER_CREATOR);
+//   - the user must be in the channel: USER_NOT_PARTICIPANT, which iOS
+//     answers by inviting the user and trying again (PeerAdmins.swift:205-222),
+//     USER_KICKED for one kicked.
+//
+// A promotion lifts the member's restriction. The members load the channel
+// again.
+func (d *Dao) EditAdmin(b *userbox.Box, channelId, userId int64, rights int32, rank string, keepRank bool) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if rights&^channelperm.AdminMask != 0 {
+		return nil, mtproto.ErrRightForbidden
+	}
+	if !keepRank {
+		if err = checkRank(rank); err != nil {
+			return nil, err
+		}
+	}
+	t, err := rightsTarget(b, channelId, userId)
+	if err != nil {
+		return nil, err
+	}
+	now := b.Date()
+	change := &ChannelChange{ChannelId: channelId, Reload: true}
+	if userId == b.UserId() && a.p.Role == channelperm.RoleCreator {
+		// The creator holds every right; what it chooses is to stay
+		// anonymous, and its title.
+		if !keepRank {
+			t.Rank = rank
+		}
+		if _, err = b.Tx().Exec("UPDATE channel_participants SET admin_rights = ?, `rank` = ? WHERE channel_id = ? AND user_id = ?",
+			rights&mtproto.ADMIN_ANONYMOUS, t.Rank, channelId, userId); err != nil {
+			return nil, err
+		}
+		return change, nil
+	}
+	if err = a.can(channelperm.AddAdmins, now); err != nil {
+		return nil, err
+	}
+	switch {
+	case t != nil && t.Role == channelperm.RoleCreator:
+		return nil, mtproto.ErrUserCreator
+	case t.kicked(now):
+		return nil, mtproto.ErrUserKicked
+	case !t.in():
+		return nil, mtproto.ErrUserNotParticipant
+	case t.Role == channelperm.RoleAdmin && !a.editableAdmin(t, b.UserId(), now):
+		return nil, mtproto.ErrChatAdminRequired
+	case rights&^channelperm.Grantable(a.ch, a.p, int32(now)) != 0:
+		return nil, mtproto.ErrRightForbidden
+	}
+	wasAdmin := t.Role == channelperm.RoleAdmin
+	if keepRank {
+		rank = t.Rank
+	}
+	if rights == 0 {
+		if !wasAdmin {
+			return change, nil
+		}
+		if _, err = b.Tx().Exec("UPDATE channel_participants SET role = ?, admin_rights = 0, `rank` = '', promoted_by = 0 WHERE channel_id = ? AND user_id = ?",
+			channelperm.RoleMember, channelId, userId); err != nil {
+			return nil, err
+		}
+		if _, err = b.Tx().Exec("UPDATE channels SET admins_count = GREATEST(admins_count - 1, 0) WHERE id = ?", channelId); err != nil {
+			return nil, err
+		}
+		return change, nil
+	}
+	promotedBy := t.PromotedBy
+	if !wasAdmin {
+		promotedBy = b.UserId()
+	}
+	if _, err = b.Tx().Exec("UPDATE channel_participants SET role = ?, admin_rights = ?, `rank` = ?, promoted_by = ?, banned_rights = 0, until_date = 0, kicked_by = 0 WHERE channel_id = ? AND user_id = ?",
+		channelperm.RoleAdmin, rights, rank, promotedBy, channelId, userId); err != nil {
+		return nil, err
+	}
+	if !wasAdmin {
+		if _, err = b.Tx().Exec("UPDATE channels SET admins_count = admins_count + 1 WHERE id = ?", channelId); err != nil {
+			return nil, err
+		}
+	}
+	return change, nil
+}
+
+// EditBanned applies the restrictions rights until until (as the client
+// sent it, channelperm.UntilDate) to userId in the channel, by one with
+// ban_users (CHAT_ADMIN_REQUIRED). With view_messages the user is kicked:
+// out of the channel and kept out until the date, its dialog gone by an
+// inbox event, a service message in a supergroup; the user need not be in
+// the channel, as the clients block users from the list of the removed.
+// With rights 0 a kicked user may join again and a restricted member is
+// free. Other flags restrict a member (USER_NOT_PARTICIPANT for one out).
+// The creator and admins one may not edit are USER_ADMIN_INVALID; an admin
+// one may edit loses its rights. BANNED_RIGHTS_INVALID for unknown flags,
+// PARTICIPANT_ID_INVALID for oneself.
+func (d *Dao) EditBanned(b *userbox.Box, channelId, userId int64, rights, until int32) (*ChannelChange, error) {
+	ch, err := openChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	now := b.Date()
+	switch {
+	case rights&^channelperm.BannedMask != 0:
+		return nil, mtproto.ErrBannedRightsInvalid
+	case userId == b.UserId():
+		return nil, mtproto.ErrParticipantIdInvalid
+	}
+	if err = a.can(channelperm.BanUsers, now); err != nil {
+		return nil, err
+	}
+	t, err := rightsTarget(b, channelId, userId)
+	if err != nil {
+		return nil, err
+	}
+	if t != nil && (t.Role == channelperm.RoleCreator || t.Role == channelperm.RoleAdmin && !a.editableAdmin(t, b.UserId(), now)) {
+		return nil, mtproto.ErrUserAdminInvalid
+	}
+	change := &ChannelChange{ChannelId: channelId, Reload: true}
+	wasAdmin := t != nil && t.Role == channelperm.RoleAdmin
+	switch {
+	case rights&mtproto.BANNED_VIEW_MESSAGES != 0:
+		if err = d.kick(b, ch, a, change, channelId, userId, t, rights, channelperm.UntilDate(until, int32(now))); err != nil {
+			return nil, err
+		}
+	case rights == 0:
+		switch {
+		case t == nil || t.State == channelperm.StateLeft:
+			return change, nil
+		case t.State == channelperm.StateKicked:
+			_, err = b.Tx().Exec("UPDATE channel_participants SET state = ?, banned_rights = 0, until_date = 0, kicked_by = 0 WHERE channel_id = ? AND user_id = ?",
+				channelperm.StateLeft, channelId, userId)
+		default:
+			_, err = b.Tx().Exec("UPDATE channel_participants SET banned_rights = 0, until_date = 0, kicked_by = 0 WHERE channel_id = ? AND user_id = ?",
+				channelId, userId)
+		}
+		if err != nil {
+			return nil, err
+		}
+	default:
+		if !t.in() {
+			return nil, mtproto.ErrUserNotParticipant
+		}
+		if _, err = b.Tx().Exec("UPDATE channel_participants SET role = ?, admin_rights = 0, `rank` = '', promoted_by = 0, banned_rights = ?, until_date = ?, kicked_by = ? WHERE channel_id = ? AND user_id = ?",
+			channelperm.RoleMember, rights, channelperm.UntilDate(until, int32(now)), b.UserId(), channelId, userId); err != nil {
+			return nil, err
+		}
+	}
+	if wasAdmin && rights != 0 {
+		if _, err = b.Tx().Exec("UPDATE channels SET admins_count = GREATEST(admins_count - 1, 0) WHERE id = ?", channelId); err != nil {
+			return nil, err
+		}
+	}
+	return change, nil
+}
+
+// kick takes userId out of the channel and keeps it out until until: its
+// row is kicked, a member leaves the count, a supergroup gets the service
+// message of its removal, and the user's box drops the dialog by
+// inbox.channelKickedToInbox.
+func (d *Dao) kick(b *userbox.Box, ch *channelbox.Channel, a *actor, change *ChannelChange, channelId, userId int64, t *targetRow, rights, until int32) error {
+	if t.in() {
+		if !a.ch.Broadcast {
+			action := mtproto.MakeTLMessageActionChatDeleteUser(&mtproto.MessageAction{UserId: userId}).To_MessageAction()
+			var err error
+			if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, false, action); err != nil {
+				return err
+			}
+			if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {
+				return err
+			}
+		}
+		if _, err := b.Tx().Exec("UPDATE channels SET participants_count = GREATEST(participants_count - 1, 0) WHERE id = ?", channelId); err != nil {
+			return err
+		}
+	}
+	if _, err := b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, banned_rights, until_date, kicked_by, date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"+
+		" ON DUPLICATE KEY UPDATE role = VALUES(role), state = VALUES(state), admin_rights = 0, `rank` = '', promoted_by = 0,"+
+		" banned_rights = VALUES(banned_rights), until_date = VALUES(until_date), kicked_by = VALUES(kicked_by)",
+		channelId, userId, channelperm.RoleMember, channelperm.StateKicked, rights, until, b.UserId(), b.Date()); err != nil {
+		return err
+	}
+	ev := &inbox.TLInboxChannelKickedToInbox{UserId: userId, FromId: b.UserId(), ChannelId: channelId}
+	data, err := jsonx.Marshal(ev)
+	if err != nil {
+		return err
+	}
+	b.Emit(userbox.Event{Topic: d.Topics.Inbox, Recipient: userId, Method: string(proto.MessageName(ev)), Data: data})
+	return nil
+}
+
+// EditDefaultBannedRights sets the restrictions of every member of a
+// supergroup, by one with ban_users (CHAT_ADMIN_REQUIRED). A broadcast
+// channel has none (CHANNEL_INVALID); view_messages is not a default
+// (BANNED_RIGHTS_INVALID); the rights it has are CHAT_NOT_MODIFIED
+// (core.telegram.org/method/messages.editChatDefaultBannedRights). The
+// channel's version grows, as the clients compare it.
+func (d *Dao) EditDefaultBannedRights(b *userbox.Box, channelId int64, rights int32) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case a.ch.Broadcast:
+		return nil, mtproto.ErrChannelInvalid
+	case rights&^channelperm.BannedMask != 0, rights&mtproto.BANNED_VIEW_MESSAGES != 0:
+		return nil, mtproto.ErrBannedRightsInvalid
+	}
+	if err = a.can(channelperm.BanUsers, b.Date()); err != nil {
+		return nil, err
+	}
+	if rights == a.ch.Default {
+		return nil, mtproto.ErrChatNotModified
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET default_banned_rights = ?, version = version + 1 WHERE id = ?", rights, channelId); err != nil {
+		return nil, err
+	}
+	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}

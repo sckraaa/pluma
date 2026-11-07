@@ -51,6 +51,12 @@ const (
 	Predicate_channel_getAdminedPublicChannels = "channel_getAdminedPublicChannels"
 	// pluma: task 055
 	Predicate_channel_deleteChannel = "channel_deleteChannel"
+	// pluma: task 042
+	Predicate_channel_editAdmin = "channel_editAdmin"
+	// pluma: task 042
+	Predicate_channel_editBanned = "channel_editBanned"
+	// pluma: task 042
+	Predicate_channel_editDefaultBannedRights = "channel_editDefaultBannedRights"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -149,6 +155,18 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -979916526, // 0xc597a912
 
 	},
+	Predicate_channel_editAdmin: { // pluma: task 042
+		0: 1274612374, // 0x4bf90a96
+
+	},
+	Predicate_channel_editBanned: { // pluma: task 042
+		0: -1457424068, // 0xa921793c
+
+	},
+	Predicate_channel_editDefaultBannedRights: { // pluma: task 042
+		0: 1263700059, // 0x4b52885b
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -177,6 +195,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	418987336:   Predicate_channel_updateUsername,           // 0x18f93d48 pluma: task 044
 	-2083237595: Predicate_channel_getAdminedPublicChannels, // 0x83d45125 pluma: task 044
 	-979916526:  Predicate_channel_deleteChannel,            // 0xc597a912 pluma: task 055
+	1274612374:  Predicate_channel_editAdmin,                // 0x4bf90a96 pluma: task 042
+	-1457424068: Predicate_channel_editBanned,               // 0xa921793c pluma: task 042
+	1263700059:  Predicate_channel_editDefaultBannedRights,  // 0x4b52885b pluma: task 042
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

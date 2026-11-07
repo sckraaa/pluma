@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 )
 
@@ -30,7 +31,8 @@ import (
 //
 // biz chat gives every member, this account's devices included,
 // updateChatDefaultBannedRights with seq in the transaction of the change
-// (ADR 0021); the reply carries the chat.
+// (ADR 0021); the reply carries the chat. A supergroup's go to biz
+// channel (task 042).
 func (c *ChatsCore) MessagesEditChatDefaultBannedRights(in *mtproto.TLMessagesEditChatDefaultBannedRights) (*mtproto.Updates, error) {
 	var (
 		peer     = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
@@ -58,9 +60,26 @@ func (c *ChatsCore) MessagesEditChatDefaultBannedRights(in *mtproto.TLMessagesEd
 			Seq:     0,
 		}).To_Updates()
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("messages.editChatDefaultBannedRights blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// The default restrictions of a supergroup (task 042): biz
+		// channel checks the rights; the members load the channel again,
+		// and the answer carries it with its new default_banned_rights.
+		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
+		if err != nil {
+			return nil, err
+		}
+		if mc.GetChannel().GetAccessHash() != peer.AccessHash {
+			return nil, mtproto.ErrChannelInvalid
+		}
+		var flags int32
+		if in.BannedRights != nil {
+			flags = int32(uint32(in.BannedRights.ToBannedRights()))
+		}
+		return c.svcCtx.Dao.Channel.ChannelEditDefaultBannedRights(c.ctx, &channelpb.TLChannelEditDefaultBannedRights{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     peer.PeerId,
+			BannedRights:  flags,
+		})
 	default:
 		err := mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.editChatDefaultBannedRights - invalid peer type: %v", peer)

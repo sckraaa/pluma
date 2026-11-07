@@ -315,6 +315,18 @@ func (noChannels) ChannelDeleteChannel(context.Context, *channelpb.TLChannelDele
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelEditBanned(context.Context, *channelpb.TLChannelEditBanned) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelEditDefaultBannedRights(context.Context, *channelpb.TLChannelEditDefaultBannedRights) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]

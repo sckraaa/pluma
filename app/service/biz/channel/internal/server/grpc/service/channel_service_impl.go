@@ -331,3 +331,45 @@ func (s *Service) ChannelDeleteChannel(ctx context.Context, request *channel.TLC
 
 	return r, err
 }
+
+// ChannelEditAdmin
+// channel.editAdmin self_id:long perm_auth_key_id:long channel_id:long user_id:long admin_rights:int rank:string keep_rank:Bool = Updates;
+func (s *Service) ChannelEditAdmin(ctx context.Context, request *channel.TLChannelEditAdmin) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editAdmin - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditAdmin(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelEditBanned
+// channel.editBanned self_id:long perm_auth_key_id:long channel_id:long user_id:long banned_rights:int until_date:int = Updates;
+func (s *Service) ChannelEditBanned(ctx context.Context, request *channel.TLChannelEditBanned) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editBanned - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditBanned(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelEditDefaultBannedRights
+// channel.editDefaultBannedRights self_id:long perm_auth_key_id:long channel_id:long banned_rights:int = Updates;
+func (s *Service) ChannelEditDefaultBannedRights(ctx context.Context, request *channel.TLChannelEditDefaultBannedRights) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editDefaultBannedRights - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditDefaultBannedRights(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

@@ -71,6 +71,12 @@ enum TLConstructor {
   CRC32_channel_getAdminedPublicChannels = -2083237595;
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
+  // pluma: task 042
+  CRC32_channel_editAdmin = 1274612374;
+  // pluma: task 042
+  CRC32_channel_editBanned = -1457424068;
+  // pluma: task 042
+  CRC32_channel_editDefaultBannedRights = 1263700059;
 }
 
 
@@ -412,6 +418,50 @@ message TL_channel_deleteChannel {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.editAdmin self_id:long perm_auth_key_id:long channel_id:long user_id:long admin_rights:int rank:string keep_rank:Bool = Updates;
+// self_id sets the admin rights of user_id in the channel (channels.editAdmin):
+// admin_rights 0 takes them away; rank is kept when keep_rank is true.
+// (task 042)
+message TL_channel_editAdmin {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 user_id = 6;
+  int32 admin_rights = 7;
+  string rank = 8;
+  mtproto.Bool keep_rank = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.editBanned self_id:long perm_auth_key_id:long channel_id:long user_id:long banned_rights:int until_date:int = Updates;
+// self_id restricts, kicks or frees user_id in the channel (channels.editBanned):
+// banned_rights are the flags of chatBannedRights, until_date as the client sent it.
+// (task 042)
+message TL_channel_editBanned {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 user_id = 6;
+  int32 banned_rights = 7;
+  int32 until_date = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.editDefaultBannedRights self_id:long perm_auth_key_id:long channel_id:long banned_rights:int = Updates;
+// self_id sets the restrictions of every member of the supergroup
+// (messages.editChatDefaultBannedRights).
+// (task 042)
+message TL_channel_editDefaultBannedRights {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 banned_rights = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -479,4 +529,10 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 042
+  rpc channel_editAdmin(TL_channel_editAdmin) returns (mtproto.Updates) {}
+  // pluma: task 042
+  rpc channel_editBanned(TL_channel_editBanned) returns (mtproto.Updates) {}
+  // pluma: task 042
+  rpc channel_editDefaultBannedRights(TL_channel_editDefaultBannedRights) returns (mtproto.Updates) {}
 }

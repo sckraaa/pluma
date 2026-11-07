@@ -48,6 +48,9 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelEditAdmin(ctx context.Context, in *channel.TLChannelEditAdmin) (*mtproto.Updates, error)
+	ChannelEditBanned(ctx context.Context, in *channel.TLChannelEditBanned) (*mtproto.Updates, error)
+	ChannelEditDefaultBannedRights(ctx context.Context, in *channel.TLChannelEditDefaultBannedRights) (*mtproto.Updates, error)
 }
 
 type defaultChannelClient struct {
@@ -300,4 +303,37 @@ func (m *defaultChannelClient) ChannelDeleteChannel(ctx context.Context, in *cha
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelDeleteChannel(ctx, in)
+}
+
+// ChannelEditAdmin
+// channel.editAdmin self_id:long perm_auth_key_id:long channel_id:long user_id:long admin_rights:int rank:string keep_rank:Bool = Updates;
+func (m *defaultChannelClient) ChannelEditAdmin(ctx context.Context, in *channel.TLChannelEditAdmin) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditAdmin(ctx, in)
+}
+
+// ChannelEditBanned
+// channel.editBanned self_id:long perm_auth_key_id:long channel_id:long user_id:long banned_rights:int until_date:int = Updates;
+func (m *defaultChannelClient) ChannelEditBanned(ctx context.Context, in *channel.TLChannelEditBanned) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditBanned(ctx, in)
+}
+
+// ChannelEditDefaultBannedRights
+// channel.editDefaultBannedRights self_id:long perm_auth_key_id:long channel_id:long banned_rights:int = Updates;
+func (m *defaultChannelClient) ChannelEditDefaultBannedRights(ctx context.Context, in *channel.TLChannelEditDefaultBannedRights) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditDefaultBannedRights(ctx, in)
 }

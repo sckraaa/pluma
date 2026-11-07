@@ -151,6 +151,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	1274612374: func() mtproto.TLObject { // 0x4bf90a96 pluma: task 042
+		return &TLChannelEditAdmin{
+			Constructor: 1274612374,
+		}
+	},
+	-1457424068: func() mtproto.TLObject { // 0xa921793c pluma: task 042
+		return &TLChannelEditBanned{
+			Constructor: -1457424068,
+		}
+	},
+	1263700059: func() mtproto.TLObject { // 0x4b52885b pluma: task 042
+		return &TLChannelEditDefaultBannedRights{
+			Constructor: 1263700059,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1826,6 +1841,150 @@ func (m *TLChannelDeleteChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.SelfId = dBuf.Long()
 		m.PermAuthKeyId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditAdmin (pluma: task 042)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditAdmin) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x4bf90a96:
+		x.UInt(0x4bf90a96)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetUserId())
+		x.Int(m.GetAdminRights())
+		x.String(m.GetRank())
+		m.GetKeepRank().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditAdmin) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditAdmin) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x4bf90a96:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.UserId = dBuf.Long()
+		m.AdminRights = dBuf.Int()
+		m.Rank = dBuf.String()
+		m6 := &mtproto.Bool{}
+		m6.Decode(dBuf)
+		m.KeepRank = m6
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditBanned (pluma: task 042)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditBanned) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xa921793c:
+		x.UInt(0xa921793c)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetUserId())
+		x.Int(m.GetBannedRights())
+		x.Int(m.GetUntilDate())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditBanned) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditBanned) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xa921793c:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.UserId = dBuf.Long()
+		m.BannedRights = dBuf.Int()
+		m.UntilDate = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditDefaultBannedRights (pluma: task 042)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditDefaultBannedRights) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x4b52885b:
+		x.UInt(0x4b52885b)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetBannedRights())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditDefaultBannedRights) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditDefaultBannedRights) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x4b52885b:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.BannedRights = dBuf.Int()
 		return dBuf.GetError()
 
 	default:
