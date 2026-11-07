@@ -48,10 +48,16 @@ func (c *InboxCore) InboxChannelDeletedToInbox(in *inbox.TLInboxChannelDeletedTo
 		// Not deleted: the event is not this channel's state.
 		return c.apply(in.UserId, peer, func(*userbox.Box) (bool, error) { return true, nil })
 	}
-	view := mc.ToChat(in.UserId, int32(time.Now().Unix()))
-	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
+	return c.dropChannel(in.UserId, peer, mc.ToChat(in.UserId, int32(time.Now().Unix())))
+}
+
+// dropChannel drops the recipient's dialog of a channel it can no longer
+// see and journals updateChannel with seq and view, the channel as
+// channelForbidden.
+func (c *InboxCore) dropChannel(userId int64, peer *mtproto.PeerUtil, view *mtproto.Chat) error {
+	return c.apply(userId, peer, func(b *userbox.Box) (bool, error) {
 		if _, err := b.Tx().Exec("UPDATE dialogs SET deleted = 1 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
-			b.UserId(), mtproto.PEER_CHANNEL, in.ChannelId); err != nil {
+			b.UserId(), mtproto.PEER_CHANNEL, peer.PeerId); err != nil {
 			return true, err
 		}
 		u := mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: peer.PeerId}).To_Update()

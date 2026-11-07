@@ -51,6 +51,8 @@ const (
 	TLConstructor_CRC32_inbox_channelInvitedToInbox TLConstructor = -733323321
 	// pluma: task 055
 	TLConstructor_CRC32_inbox_channelDeletedToInbox TLConstructor = 723491564
+	// pluma: task 042
+	TLConstructor_CRC32_inbox_channelKickedToInbox TLConstructor = -1982245271
 )
 
 // Enum value maps for TLConstructor.
@@ -70,6 +72,7 @@ var (
 		-881825213:  "CRC32_inbox_updateMessageReactionsToInbox",
 		-733323321:  "CRC32_inbox_channelInvitedToInbox",
 		723491564:   "CRC32_inbox_channelDeletedToInbox",
+		-1982245271: "CRC32_inbox_channelKickedToInbox",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                             0,
@@ -86,6 +89,7 @@ var (
 		"CRC32_inbox_updateMessageReactionsToInbox": -881825213,
 		"CRC32_inbox_channelInvitedToInbox":         -733323321,
 		"CRC32_inbox_channelDeletedToInbox":         723491564,
+		"CRC32_inbox_channelKickedToInbox":          -1982245271,
 	}
 )
 
@@ -1203,6 +1207,79 @@ func (x *TLInboxChannelDeletedToInbox) GetChannelId() int64 {
 	return 0
 }
 
+// --------------------------------------------------------------------------------------------
+// pluma: inbox.channelKickedToInbox user_id:long from_id:long channel_id:long = Void;
+// from_id kicked user_id from the channel channel_id (channels.editBanned
+// with view_messages, task 042): the recipient's box loses the dialog and
+// gets updateChannel with seq and the channel as channelForbidden.
+type TLInboxChannelKickedToInbox struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=inbox.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	FromId        int64                  `protobuf:"varint,4,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLInboxChannelKickedToInbox) Reset() {
+	*x = TLInboxChannelKickedToInbox{}
+	mi := &file_inbox_tl_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLInboxChannelKickedToInbox) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLInboxChannelKickedToInbox) ProtoMessage() {}
+
+func (x *TLInboxChannelKickedToInbox) ProtoReflect() protoreflect.Message {
+	mi := &file_inbox_tl_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLInboxChannelKickedToInbox.ProtoReflect.Descriptor instead.
+func (*TLInboxChannelKickedToInbox) Descriptor() ([]byte, []int) {
+	return file_inbox_tl_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TLInboxChannelKickedToInbox) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLInboxChannelKickedToInbox) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLInboxChannelKickedToInbox) GetFromId() int64 {
+	if x != nil {
+		return x.FromId
+	}
+	return 0
+}
+
+func (x *TLInboxChannelKickedToInbox) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
 var File_inbox_tl_proto protoreflect.FileDescriptor
 
 const file_inbox_tl_proto_rawDesc = "" +
@@ -1296,7 +1373,13 @@ const file_inbox_tl_proto_rawDesc = "" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x17\n" +
 	"\afrom_id\x18\x04 \x01(\x03R\x06fromId\x12\x1d\n" +
 	"\n" +
-	"channel_id\x18\x05 \x01(\x03R\tchannelId*\xf8\x04\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\"\xa8\x01\n" +
+	"\x1dTL_inbox_channelKickedToInbox\x126\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x14.inbox.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x17\n" +
+	"\afrom_id\x18\x04 \x01(\x03R\x06fromId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId*\xa7\x05\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12.\n" +
 	"!CRC32_inbox_deleteMessagesToInbox\x10\xb5\xfb\xdf\xfe\xfe\xff\xff\xff\xff\x01\x121\n" +
@@ -1311,7 +1394,8 @@ const file_inbox_tl_proto_rawDesc = "" +
 	"\x1dCRC32_inbox_seqUpdatesToInbox\x10\xb6\xce\xca\xe2\xff\xff\xff\xff\xff\x01\x126\n" +
 	")CRC32_inbox_updateMessageReactionsToInbox\x10\xc3\xd4\xc1\xdb\xfc\xff\xff\xff\xff\x01\x12.\n" +
 	"!CRC32_inbox_channelInvitedToInbox\x10ǿ\xa9\xa2\xfd\xff\xff\xff\xff\x01\x12)\n" +
-	"!CRC32_inbox_channelDeletedToInbox\x10\xec\xb5\xfe\xd8\x02BCZAgithub.com/teamgram/teamgram-server/app/messenger/msg/inbox/inboxb\x06proto3"
+	"!CRC32_inbox_channelDeletedToInbox\x10\xec\xb5\xfe\xd8\x02\x12-\n" +
+	" CRC32_inbox_channelKickedToInbox\x10\xe9\xac\xe5\xce\xf8\xff\xff\xff\xff\x01BCZAgithub.com/teamgram/teamgram-server/app/messenger/msg/inbox/inboxb\x06proto3"
 
 var (
 	file_inbox_tl_proto_rawDescOnce sync.Once
@@ -1326,7 +1410,7 @@ func file_inbox_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_inbox_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_inbox_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_inbox_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_inbox_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                           // 0: inbox.TLConstructor
 	(*TLInboxDeleteMessagesToInbox)(nil),         // 1: inbox.TL_inbox_deleteMessagesToInbox
@@ -1342,10 +1426,11 @@ var file_inbox_tl_proto_goTypes = []any{
 	(*TLInboxSeqUpdatesToInbox)(nil),             // 11: inbox.TL_inbox_seqUpdatesToInbox
 	(*TLInboxChannelInvitedToInbox)(nil),         // 12: inbox.TL_inbox_channelInvitedToInbox
 	(*TLInboxChannelDeletedToInbox)(nil),         // 13: inbox.TL_inbox_channelDeletedToInbox
-	(*mtproto.MessageBox)(nil),                   // 14: mtproto.MessageBox
-	(*mtproto.User)(nil),                         // 15: mtproto.User
-	(*mtproto.Chat)(nil),                         // 16: mtproto.Chat
-	(*mtproto.Update)(nil),                       // 17: mtproto.Update
+	(*TLInboxChannelKickedToInbox)(nil),          // 14: inbox.TL_inbox_channelKickedToInbox
+	(*mtproto.MessageBox)(nil),                   // 15: mtproto.MessageBox
+	(*mtproto.User)(nil),                         // 16: mtproto.User
+	(*mtproto.Chat)(nil),                         // 17: mtproto.Chat
+	(*mtproto.Update)(nil),                       // 18: mtproto.Update
 }
 var file_inbox_tl_proto_depIdxs = []int32{
 	0,  // 0: inbox.TL_inbox_deleteMessagesToInbox.constructor:type_name -> inbox.TLConstructor
@@ -1354,25 +1439,26 @@ var file_inbox_tl_proto_depIdxs = []int32{
 	0,  // 3: inbox.TL_inbox_updatePinnedMessage.constructor:type_name -> inbox.TLConstructor
 	0,  // 4: inbox.TL_inbox_unpinAllMessages.constructor:type_name -> inbox.TLConstructor
 	0,  // 5: inbox.TL_inbox_sendUserMessageToInboxV2.constructor:type_name -> inbox.TLConstructor
-	14, // 6: inbox.TL_inbox_sendUserMessageToInboxV2.box_list:type_name -> mtproto.MessageBox
-	15, // 7: inbox.TL_inbox_sendUserMessageToInboxV2.users:type_name -> mtproto.User
-	16, // 8: inbox.TL_inbox_sendUserMessageToInboxV2.chats:type_name -> mtproto.Chat
+	15, // 6: inbox.TL_inbox_sendUserMessageToInboxV2.box_list:type_name -> mtproto.MessageBox
+	16, // 7: inbox.TL_inbox_sendUserMessageToInboxV2.users:type_name -> mtproto.User
+	17, // 8: inbox.TL_inbox_sendUserMessageToInboxV2.chats:type_name -> mtproto.Chat
 	0,  // 9: inbox.TL_inbox_editMessageToInboxV2.constructor:type_name -> inbox.TLConstructor
-	14, // 10: inbox.TL_inbox_editMessageToInboxV2.new_message:type_name -> mtproto.MessageBox
-	15, // 11: inbox.TL_inbox_editMessageToInboxV2.users:type_name -> mtproto.User
-	16, // 12: inbox.TL_inbox_editMessageToInboxV2.chats:type_name -> mtproto.Chat
+	15, // 10: inbox.TL_inbox_editMessageToInboxV2.new_message:type_name -> mtproto.MessageBox
+	16, // 11: inbox.TL_inbox_editMessageToInboxV2.users:type_name -> mtproto.User
+	17, // 12: inbox.TL_inbox_editMessageToInboxV2.chats:type_name -> mtproto.Chat
 	0,  // 13: inbox.TL_inbox_readOutboxHistory.constructor:type_name -> inbox.TLConstructor
 	0,  // 14: inbox.TL_inbox_updateMessageReactionsToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 15: inbox.TL_inbox_readMediaUnreadToInboxV2.constructor:type_name -> inbox.TLConstructor
 	0,  // 16: inbox.TL_inbox_seqUpdatesToInbox.constructor:type_name -> inbox.TLConstructor
-	17, // 17: inbox.TL_inbox_seqUpdatesToInbox.updates:type_name -> mtproto.Update
+	18, // 17: inbox.TL_inbox_seqUpdatesToInbox.updates:type_name -> mtproto.Update
 	0,  // 18: inbox.TL_inbox_channelInvitedToInbox.constructor:type_name -> inbox.TLConstructor
 	0,  // 19: inbox.TL_inbox_channelDeletedToInbox.constructor:type_name -> inbox.TLConstructor
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	0,  // 20: inbox.TL_inbox_channelKickedToInbox.constructor:type_name -> inbox.TLConstructor
+	21, // [21:21] is the sub-list for method output_type
+	21, // [21:21] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_inbox_tl_proto_init() }
@@ -1386,7 +1472,7 @@ func file_inbox_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_inbox_tl_proto_rawDesc), len(file_inbox_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
