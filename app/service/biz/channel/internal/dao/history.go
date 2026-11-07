@@ -50,8 +50,9 @@ type viewer struct {
 	availableMinId int32
 }
 
-// viewerOf reads what userId may see of channelId: a member, or anyone not
-// kicked from a public channel (ADR 0034, p. 4).
+// viewerOf reads what userId may see of channelId: a member, anyone not
+// kicked from a public channel (ADR 0034, p. 4), or a member of the
+// channel whose discussion group it is (task 048).
 func (d *Dao) viewerOf(ctx context.Context, userId, channelId int64) (viewer, error) {
 	mc, err := d.GetMutableChannel(ctx, channelId, []int64{userId})
 	if err != nil {
@@ -65,7 +66,10 @@ func (d *Dao) viewerOf(ctx context.Context, userId, channelId int64) (viewer, er
 	if p.Member() {
 		return viewer{canRead: true, member: true, broadcast: broadcast, availableMinId: p.GetAvailableMinId()}, nil
 	}
-	return viewer{canRead: mc.GetChannel().Public() && mc.ToChat(userId, 0).GetPredicateName() == mtproto.Predicate_channel, broadcast: broadcast}, nil
+	// A public channel, or the discussion group of a channel the user is
+	// in (task 048).
+	readable := mc.GetChannel().Public() || p.GetState() == channel.StateLinked
+	return viewer{canRead: readable && mc.ToChat(userId, 0).GetPredicateName() == mtproto.Predicate_channel, broadcast: broadcast}, nil
 }
 
 type messageRow struct {
