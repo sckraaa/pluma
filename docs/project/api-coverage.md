@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 264, partial 19, blocked 118, notimpl 6, fake 7, missing 455 (ok = 30.4%); with a conformance scenario 9
+    layer 228: 869 methods — ok 265, partial 19, blocked 117, notimpl 6, fake 7, missing 455 (ok = 30.5%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 273 | 113 | 13 | 22 | 5 | 2 | 118 | 3 |
+| messages | 273 | 114 | 13 | 21 | 5 | 2 | 118 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -648,7 +648,7 @@
 | `messages.initHistoryImport` | missing |  |  |
 | `messages.installStickerSet` | ok |  | app/bff/catalog/internal/core/messages.installStickerSet_handler.go:30 |
 | `messages.markDialogUnread` | ok |  | app/bff/dialogs/internal/core/messages.markDialogUnread_handler.go:37 |
-| `messages.migrateChat` | blocked |  | app/bff/chats/internal/core/messages.migrateChat_handler.go:27 |
+| `messages.migrateChat` | ok |  | app/bff/chats/internal/core/messages.migrateChat_handler.go:33 |
 | `messages.prolongWebView` | missing |  |  |
 | `messages.rateTranscribedAudio` | missing |  |  |
 | `messages.readDiscussion` | missing |  |  |
