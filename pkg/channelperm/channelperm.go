@@ -92,6 +92,9 @@ const (
 	SendGames
 	SendInline
 	SendPolls
+	// SendMedia is a kind of media without a flag of its own (location,
+	// contact): send_media forbids it.
+	SendMedia
 	EmbedLinks
 	// EditOthers and DeleteOthers act on the messages of others (in a
 	// broadcast channel, of other admins).
@@ -125,6 +128,7 @@ var sendBits = map[Action]struct {
 	SendGames:       {mtproto.BANNED_SEND_GAMES, true, mtproto.ErrChatSendGameForbidden},
 	SendInline:      {mtproto.BANNED_SEND_INLINE, true, mtproto.ErrChatSendInlineForbidden},
 	SendPolls:       {mtproto.BANNED_SEND_POLLS, true, mtproto.ErrChatSendPollForbidden},
+	SendMedia:       {0, true, mtproto.ErrChatSendMediaForbidden},
 	EmbedLinks:      {mtproto.BANNED_EMBED_LINKS, false, mtproto.ErrChatWriteForbidden},
 }
 
@@ -181,7 +185,7 @@ func Can(ch Channel, p Participant, a Action, now int32) error {
 		switch {
 		case banned&mtproto.BANNED_SEND_MESSAGES != 0:
 			return mtproto.ErrChatWriteForbidden
-		case banned&s.banned != 0, s.media && banned&mtproto.BANNED_SEND_MEDIA != 0:
+		case s.banned != 0 && banned&s.banned != 0, s.media && banned&mtproto.BANNED_SEND_MEDIA != 0:
 			// The error of the kind, also for send_media: Android has a
 			// text for each kind and none for CHAT_SEND_MEDIA_FORBIDDEN
 			// (AlertsCreator.java:448-519 at aac1efcb).

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 const now = int32(1_800_000_000)
@@ -26,7 +27,7 @@ func restricted(rights, until int32) Participant {
 }
 
 var allActions = []Action{SendPlain, SendPhotos, SendVideos, SendRoundVideos, SendAudios, SendVoices, SendDocs,
-	SendStickers, SendGifs, SendGames, SendInline, SendPolls, EmbedLinks, EditOthers, DeleteOthers, PinMessages,
+	SendStickers, SendGifs, SendGames, SendInline, SendPolls, SendMedia, EmbedLinks, EditOthers, DeleteOthers, PinMessages,
 	InviteUsers, ChangeInfo, BanUsers, AddAdmins, ManageCall, ManageTopics}
 
 // check compares the errors by their text: Can answers with the errors of
@@ -109,8 +110,10 @@ func TestMemberRestrictions(t *testing.T) {
 		check(t, "admin-only", Can(supergroup, member, a, now), mtproto.ErrChatAdminRequired)
 	}
 	for a, s := range sendBits {
-		check(t, "own flag", Can(supergroup, restricted(s.banned, 0), a, now), s.err)
-		check(t, "default flag", Can(Channel{Default: s.banned}, member, a, now), s.err)
+		if s.banned != 0 {
+			check(t, "own flag", Can(supergroup, restricted(s.banned, 0), a, now), s.err)
+			check(t, "default flag", Can(Channel{Default: s.banned}, member, a, now), s.err)
+		}
 		check(t, "send_messages", Can(supergroup, restricted(mtproto.BANNED_SEND_MESSAGES, 0), a, now), mtproto.ErrChatWriteForbidden)
 		want := error(nil)
 		if s.media {
@@ -158,6 +161,50 @@ func TestUntilDateOfARequest(t *testing.T) {
 	} {
 		if got := UntilDate(c.in, now); got != c.want {
 			t.Errorf("UntilDate(%d) = %d, want %d", c.in-now, got, c.want)
+		}
+	}
+}
+
+func document(attrs ...*mtproto.DocumentAttribute) *mtproto.Message {
+	return &mtproto.Message{Media: mtproto.MakeTLMessageMediaDocument(&mtproto.MessageMedia{
+		Document: mtproto.MakeTLDocument(&mtproto.Document{Attributes: attrs}).To_Document(),
+	}).To_MessageMedia()}
+}
+
+// The kind of a message is the action that sending it is.
+func TestMessageActions(t *testing.T) {
+	filename := mtproto.MakeTLDocumentAttributeFilename(&mtproto.DocumentAttribute{FileName: "a.mp4"}).To_DocumentAttribute()
+	video := mtproto.MakeTLDocumentAttributeVideo(&mtproto.DocumentAttribute{}).To_DocumentAttribute()
+	round := mtproto.MakeTLDocumentAttributeVideo(&mtproto.DocumentAttribute{RoundMessage: true}).To_DocumentAttribute()
+	audio := mtproto.MakeTLDocumentAttributeAudio(&mtproto.DocumentAttribute{}).To_DocumentAttribute()
+	voice := mtproto.MakeTLDocumentAttributeAudio(&mtproto.DocumentAttribute{Voice: true}).To_DocumentAttribute()
+	sticker := mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{}).To_DocumentAttribute()
+	animated := mtproto.MakeTLDocumentAttributeAnimated(&mtproto.DocumentAttribute{}).To_DocumentAttribute()
+	media := func(m *mtproto.MessageMedia) *mtproto.Message { return &mtproto.Message{Media: m} }
+	for _, c := range []struct {
+		name string
+		m    *mtproto.Message
+		want []Action
+	}{
+		{"text", &mtproto.Message{Message: "hi"}, []Action{SendPlain}},
+		{"text with a preview", media(mtproto.MakeTLMessageMediaWebPage(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendPlain}},
+		{"photo", media(mtproto.MakeTLMessageMediaPhoto(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendPhotos}},
+		{"file", document(filename), []Action{SendDocs}},
+		{"video", document(filename, video), []Action{SendVideos}},
+		{"round video", document(round), []Action{SendRoundVideos}},
+		{"music", document(filename, audio), []Action{SendAudios}},
+		{"voice", document(voice), []Action{SendVoices}},
+		{"sticker", document(sticker, filename), []Action{SendStickers}},
+		{"gif", document(video, animated), []Action{SendGifs}},
+		{"poll", media(mtproto.MakeTLMessageMediaPoll(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendPolls}},
+		{"game", media(mtproto.MakeTLMessageMediaGame(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendGames}},
+		{"dice", media(mtproto.MakeTLMessageMediaDice(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendStickers}},
+		{"location", media(mtproto.MakeTLMessageMediaGeo(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendMedia}},
+		{"contact", media(mtproto.MakeTLMessageMediaContact(&mtproto.MessageMedia{}).To_MessageMedia()), []Action{SendMedia}},
+		{"through a bot", &mtproto.Message{Message: "hi", ViaBotId: wrapperspb.Int64(7)}, []Action{SendPlain, SendInline}},
+	} {
+		if got := MessageActions(c.m); fmt.Sprint(got) != fmt.Sprint(c.want) {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
 	}
 }
