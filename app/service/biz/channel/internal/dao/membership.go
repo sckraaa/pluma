@@ -356,8 +356,8 @@ func addServiceMessage(b *userbox.Box, ch *channelbox.Channel, channelId int64, 
 	if err != nil {
 		return nil, 0, err
 	}
-	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_data, date2) VALUES (?, ?, ?, ?, ?, ?)",
-		channelId, m.Id, b.UserId(), ch.Pts(), data, b.Date()); err != nil {
+	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_filter_type, message_data, date2) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		channelId, m.Id, b.UserId(), ch.Pts(), mtproto.GetMediaType(m), data, b.Date()); err != nil {
 		return nil, 0, err
 	}
 	return m, ch.Pts(), nil

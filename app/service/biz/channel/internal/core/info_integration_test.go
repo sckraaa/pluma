@@ -18,10 +18,12 @@
 package core
 
 import (
+	"context"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/app/service/media/media"
 )
 
 func (f *diffFixture) title(self, channelId int64, title string) (*mtproto.Updates, error) {
@@ -85,4 +87,54 @@ func TestEditInfo(t *testing.T) {
 	if m = r.GetUpdates()[0].GetMessage_MESSAGE(); !m.GetPost() || m.GetFromId() != nil {
 		t.Errorf("a channel's rename is a post without an author: %v", m)
 	}
+}
+
+// onePhoto serves the photo of every id.
+type onePhoto struct{}
+
+func (onePhoto) MediaGetPhoto(_ context.Context, in *media.TLMediaGetPhoto) (*mtproto.Photo, error) {
+	return mtproto.MakeTLPhoto(&mtproto.Photo{
+		Id:    in.PhotoId,
+		Sizes: []*mtproto.PhotoSize{mtproto.MakeTLPhotoSize(&mtproto.PhotoSize{Type: "a", W: 160, H: 160}).To_PhotoSize()},
+	}).To_Photo(), nil
+}
+
+// TestEditPhoto: the creator gives a supergroup a photo, with the service
+// message messageActionChatEditPhoto in the journal and the photo in the
+// channel; takes it away with messageActionChatDeletePhoto; no photo again
+// is not modified; a member who may not change the info may not change it.
+func TestEditPhoto(t *testing.T) {
+	f := newDiffFixture(t)
+	f.c.svcCtx.Dao.Photos = onePhoto{}
+	creator, bob := f.user("Creator"), f.user("Bob")
+	id := f.create(creator)
+	f.public(id)
+	if _, err := f.join(bob, id, ""); err != nil {
+		t.Fatal(err)
+	}
+	edit := func(self, photoId int64) (*mtproto.Updates, error) {
+		return f.c.ChannelEditPhoto(&channel.TLChannelEditPhoto{SelfId: self, PermAuthKeyId: 1, ChannelId: id, PhotoId: photoId})
+	}
+	photoId := itId()
+	r, err := edit(creator, photoId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a := r.GetUpdates()[0].GetMessage_MESSAGE().GetAction(); a.GetPredicateName() != mtproto.Predicate_messageActionChatEditPhoto || a.GetPhoto().GetId() != photoId {
+		t.Errorf("the service message: %v", a)
+	}
+	if p := r.GetChats()[0].GetPhoto(); p.GetPhotoId() != photoId {
+		t.Errorf("the channel's photo: %v", p)
+	}
+	if r, err = edit(creator, 0); err != nil {
+		t.Fatal(err)
+	}
+	if a := r.GetUpdates()[0].GetMessage_MESSAGE().GetAction(); a.GetPredicateName() != mtproto.Predicate_messageActionChatDeletePhoto {
+		t.Errorf("the removal: %v", a)
+	}
+	_, err = edit(creator, 0)
+	wantErr(t, "no photo again", err, mtproto.ErrChatNotModified)
+	f.exec("UPDATE channels SET default_banned_rights = ? WHERE id = ?", mtproto.BANNED_CHANGE_INFO, id)
+	_, err = edit(bob, photoId)
+	wantErr(t, "a member who may not change the info", err, mtproto.ErrChatAdminRequired)
 }

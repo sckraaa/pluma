@@ -30,11 +30,6 @@ func (c *ChannelsCore) MessagesGetPersonalChannelHistory(in *mtproto.TLMessagesG
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsEditPhoto is not served yet: channels.editPhoto#f12e57c9.
-func (c *ChannelsCore) ChannelsEditPhoto(in *mtproto.TLChannelsEditPhoto) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsToggleSignatures is not served yet: channels.toggleSignatures#418d549c (also #1f69b606).
 func (c *ChannelsCore) ChannelsToggleSignatures(in *mtproto.TLChannelsToggleSignatures) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

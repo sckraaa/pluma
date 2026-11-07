@@ -21,6 +21,7 @@ import (
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -30,6 +31,7 @@ type ServiceContext struct {
 	User    user_client.UserClient
 	Chat    chat_client.ChatClient
 	Twofa   *twofa.Service
+	Media   media_client.MediaClient
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -39,5 +41,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		User:    user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		Chat:    chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		Twofa:   twofa.MustNewService(c.Mysql, c.KV),
+		Media:   media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 	}
 }

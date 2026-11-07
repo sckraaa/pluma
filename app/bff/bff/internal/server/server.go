@@ -319,6 +319,7 @@ func (s *Server) Initialize() error {
 			RpcServerConf: c.RpcServerConf,
 			KV:            c.KV,
 			Mysql:         c.Mysql,
+			MediaClient:   c.MediaClient,
 			ChannelClient: c.BizServiceClient,
 			UserClient:    c.BizServiceClient,
 			ChatClient:    c.BizServiceClient,

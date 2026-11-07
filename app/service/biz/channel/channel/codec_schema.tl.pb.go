@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	-1984581655: func() mtproto.TLObject { // 0x89b5afe9 pluma: task 044
+		return &TLChannelEditPhoto{
+			Constructor: -1984581655,
+		}
+	},
 	-521821973: func() mtproto.TLObject { // 0xe0e5a0eb pluma: task 043
 		return &TLChannelReadMentions{
 			Constructor: -521821973,
@@ -2267,6 +2272,50 @@ func (m *TLChannelGetUnreadMentions) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.Limit = dBuf.Int()
 		m.MaxId = dBuf.Int()
 		m.MinId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditPhoto (pluma: task 044)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditPhoto) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x89b5afe9:
+		x.UInt(0x89b5afe9)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetPhotoId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditPhoto) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditPhoto) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x89b5afe9:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.PhotoId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

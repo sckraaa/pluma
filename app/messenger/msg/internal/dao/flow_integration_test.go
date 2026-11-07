@@ -335,6 +335,10 @@ func (noChannels) ChannelGetUnreadMentions(context.Context, *channelpb.TLChannel
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelEditPhoto(context.Context, *channelpb.TLChannelEditPhoto) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
+	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"google.golang.org/protobuf/proto"
@@ -79,4 +80,51 @@ func (c *ChannelCore) ChannelEditAbout(in *channel.TLChannelEditAbout) (*mtproto
 		return nil, c.membershipError("channel.editAbout", err)
 	}
 	return mtproto.BoolTrue, nil
+}
+
+// ChannelEditPhoto
+// channel.editPhoto self_id:long perm_auth_key_id:long channel_id:long photo_id:long = Updates;
+//
+// self_id gives the channel the photo photo_id, 0 for none (dao.EditPhoto),
+// in its box transaction with the channel locked; the photo is loaded
+// before it. The answer holds the service message, updateChannel and the
+// channel with its photo, as channel.editTitle.
+func (c *ChannelCore) ChannelEditPhoto(in *channel.TLChannelEditPhoto) (*mtproto.Updates, error) {
+	var photo *mtproto.Photo
+	if in.PhotoId != 0 {
+		var err error
+		if photo, err = c.svcCtx.Dao.Photos.MediaGetPhoto(c.ctx, &media.TLMediaGetPhoto{PhotoId: in.PhotoId}); err != nil {
+			c.Logger.Errorf("channel.editPhoto - error: %v", err)
+			return nil, err
+		}
+		if photo.GetPredicateName() != mtproto.Predicate_photo {
+			return nil, mtproto.ErrPhotoInvalid
+		}
+	}
+	var change *dao.ChannelChange
+	if _, err := c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
+		var err error
+		if change, err = c.svcCtx.Dao.EditPhoto(b, in.ChannelId, photo); err != nil {
+			return err
+		}
+		return c.svcCtx.Dao.EmitChannelPush(b, in.PermAuthKeyId, change)
+	}); err != nil {
+		return nil, c.membershipError("channel.editPhoto", err)
+	}
+	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, in.ChannelId, []int64{in.SelfId})
+	if err != nil {
+		return nil, err
+	}
+	now := int32(time.Now().Unix())
+	shown := proto.Clone(change.Message).(*mtproto.Message)
+	shown.Out = true
+	return mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{
+			mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: change.Pts, PtsCount: 1}).To_Update(),
+			mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: in.ChannelId}).To_Update(),
+		},
+		Users: []*mtproto.User{},
+		Chats: []*mtproto.Chat{mc.ToChat(in.SelfId, now)},
+		Date:  now,
+	}).To_Updates(), nil
 }

@@ -48,6 +48,7 @@ var served = map[string]bool{
 	"ChannelsEditBanned":               true,
 	"ChannelsEditCreator":              true,
 	"ChannelsReadMessageContents":      true,
+	"ChannelsEditPhoto":                true,
 }
 
 // Every method of the service not served yet answers ERR_ENTERPRISE_IS_BLOCKED

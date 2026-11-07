@@ -27,6 +27,7 @@ import (
 
 type infoRow struct {
 	Title               string `db:"title"`
+	PhotoId             int64  `db:"photo_id"`
 	About               string `db:"about"`
 	Broadcast           bool   `db:"broadcast"`
 	DefaultBannedRights int32  `db:"default_banned_rights"`
@@ -46,7 +47,7 @@ type infoRow struct {
 func infoEditor(b *userbox.Box, channelId int64) (*infoRow, error) {
 	var rows []infoRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.title, c.about, c.broadcast, c.default_banned_rights, p.role, p.state, p.admin_rights, p.banned_rights, p.until_date"+
+		"SELECT c.title, c.photo_id, c.about, c.broadcast, c.default_banned_rights, p.role, p.state, p.admin_rights, p.banned_rights, p.until_date"+
 			" FROM channels c JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ? AND c.deleted = 0",
 		b.UserId(), channelId); err != nil {
 		return nil, err
@@ -108,4 +109,37 @@ func (d *Dao) EditAbout(b *userbox.Box, channelId int64, about string) (*Channel
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// EditPhoto gives the channel the photo photo (nil: no photo): the service
+// message messageActionChatEditPhoto, or messageActionChatDeletePhoto, and
+// updateChannel for the members, as for a basic group
+// (core.telegram.org/method/channels.editPhoto). CHAT_NOT_MODIFIED for no
+// photo when it has none. The caller loads the photo before the
+// transaction.
+func (d *Dao) EditPhoto(b *userbox.Box, channelId int64, photo *mtproto.Photo) (*ChannelChange, error) {
+	ch, err := openChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	r, err := infoEditor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	photoId := photo.GetId()
+	if photoId == 0 && r.PhotoId == 0 {
+		return nil, mtproto.ErrChatNotModified
+	}
+	action := mtproto.MakeTLMessageActionChatDeletePhoto(nil).To_MessageAction()
+	if photoId != 0 {
+		action = mtproto.MakeMessageActionChatEditPhoto(photo)
+	}
+	change := &ChannelChange{ChannelId: channelId, Reload: true}
+	if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, r.Broadcast, action); err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET photo_id = ?, top_message = ? WHERE id = ?", photoId, change.Message.GetId(), channelId); err != nil {
+		return nil, err
+	}
+	return change, nil
 }

@@ -58,6 +58,7 @@ const (
 	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelEditPhoto_FullMethodName                = "/channel.RPCChannel/channel_editPhoto"
 	RPCChannel_ChannelReadMentions_FullMethodName             = "/channel.RPCChannel/channel_readMentions"
 	RPCChannel_ChannelGetUnreadMentions_FullMethodName        = "/channel.RPCChannel/channel_getUnreadMentions"
 	RPCChannel_ChannelReadMessageContents_FullMethodName      = "/channel.RPCChannel/channel_readMessageContents"
@@ -114,6 +115,8 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelEditPhoto(ctx context.Context, in *TLChannelEditPhoto, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 043
 	ChannelReadMentions(ctx context.Context, in *TLChannelReadMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 043
@@ -360,6 +363,16 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelEditPhoto(ctx context.Context, in *TLChannelEditPhoto, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelEditPhoto_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelReadMentions(ctx context.Context, in *TLChannelReadMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Messages_AffectedHistory)
@@ -486,6 +499,8 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelEditPhoto(context.Context, *TLChannelEditPhoto) (*mtproto.Updates, error)
 	// pluma: task 043
 	ChannelReadMentions(context.Context, *TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 043
@@ -576,6 +591,9 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelEditPhoto(context.Context, *TLChannelEditPhoto) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditPhoto not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelReadMentions(context.Context, *TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelReadMentions not implemented")
@@ -1017,6 +1035,24 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelEditPhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelEditPhoto)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelEditPhoto(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelEditPhoto_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelEditPhoto(ctx, req.(*TLChannelEditPhoto))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelReadMentions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelReadMentions)
 	if err := dec(in); err != nil {
@@ -1255,6 +1291,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_editPhoto",
+			Handler:    _RPCChannel_ChannelEditPhoto_Handler,
 		},
 		{
 			MethodName: "channel_readMentions",

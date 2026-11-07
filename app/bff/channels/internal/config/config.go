@@ -31,4 +31,6 @@ type Config struct {
 	ChannelClient zrpc.RpcClientConf
 	UserClient    zrpc.RpcClientConf
 	ChatClient    zrpc.RpcClientConf
+	// MediaClient stores the photos of channels.editPhoto (media).
+	MediaClient zrpc.RpcClientConf
 }

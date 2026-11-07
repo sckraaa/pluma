@@ -71,6 +71,8 @@ enum TLConstructor {
   CRC32_channel_getAdminedPublicChannels = -2083237595;
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
+  // pluma: task 044
+  CRC32_channel_editPhoto = -1984581655;
   // pluma: task 043
   CRC32_channel_readMentions = -521821973;
   // pluma: task 043
@@ -548,6 +550,19 @@ message TL_channel_getUnreadMentions {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.editPhoto self_id:long perm_auth_key_id:long channel_id:long photo_id:long = Updates;
+// self_id gives the channel the photo photo_id, or takes it away with 0
+// (channels.editPhoto); a service message tells the members (task 044).
+// (task 044)
+message TL_channel_editPhoto {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 photo_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -615,6 +630,8 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 044
+  rpc channel_editPhoto(TL_channel_editPhoto) returns (mtproto.Updates) {}
   // pluma: task 043
   rpc channel_readMentions(TL_channel_readMentions) returns (mtproto.messages_AffectedHistory) {}
   // pluma: task 043

@@ -48,6 +48,7 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelEditPhoto(ctx context.Context, in *channel.TLChannelEditPhoto) (*mtproto.Updates, error)
 	ChannelReadMentions(ctx context.Context, in *channel.TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error)
 	ChannelGetUnreadMentions(ctx context.Context, in *channel.TLChannelGetUnreadMentions) (*mtproto.Messages_Messages, error)
 	ChannelReadMessageContents(ctx context.Context, in *channel.TLChannelReadMessageContents) (*mtproto.Bool, error)
@@ -396,4 +397,15 @@ func (m *defaultChannelClient) ChannelGetUnreadMentions(ctx context.Context, in 
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetUnreadMentions(ctx, in)
+}
+
+// ChannelEditPhoto
+// channel.editPhoto self_id:long perm_auth_key_id:long channel_id:long photo_id:long = Updates;
+func (m *defaultChannelClient) ChannelEditPhoto(ctx context.Context, in *channel.TLChannelEditPhoto) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditPhoto(ctx, in)
 }

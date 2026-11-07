@@ -443,3 +443,17 @@ func (s *Service) ChannelGetUnreadMentions(ctx context.Context, request *channel
 
 	return r, err
 }
+
+// ChannelEditPhoto
+// channel.editPhoto self_id:long perm_auth_key_id:long channel_id:long photo_id:long = Updates;
+func (s *Service) ChannelEditPhoto(ctx context.Context, request *channel.TLChannelEditPhoto) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editPhoto - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditPhoto(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
