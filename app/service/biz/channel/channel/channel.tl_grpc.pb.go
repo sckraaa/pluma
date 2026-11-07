@@ -58,6 +58,11 @@ const (
 	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelSetDiscussionGroup_FullMethodName       = "/channel.RPCChannel/channel_setDiscussionGroup"
+	RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName   = "/channel.RPCChannel/channel_getGroupsForDiscussion"
+	RPCChannel_ChannelGetDiscussionMessage_FullMethodName     = "/channel.RPCChannel/channel_getDiscussionMessage"
+	RPCChannel_ChannelGetReplies_FullMethodName               = "/channel.RPCChannel/channel_getReplies"
+	RPCChannel_ChannelReadDiscussion_FullMethodName           = "/channel.RPCChannel/channel_readDiscussion"
 	RPCChannel_ChannelEditPhoto_FullMethodName                = "/channel.RPCChannel/channel_editPhoto"
 	RPCChannel_ChannelReadMentions_FullMethodName             = "/channel.RPCChannel/channel_readMentions"
 	RPCChannel_ChannelGetUnreadMentions_FullMethodName        = "/channel.RPCChannel/channel_getUnreadMentions"
@@ -115,6 +120,16 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 048
+	ChannelSetDiscussionGroup(ctx context.Context, in *TLChannelSetDiscussionGroup, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 048
+	ChannelGetGroupsForDiscussion(ctx context.Context, in *TLChannelGetGroupsForDiscussion, opts ...grpc.CallOption) (*Vector_Long, error)
+	// pluma: task 048
+	ChannelGetDiscussionMessage(ctx context.Context, in *TLChannelGetDiscussionMessage, opts ...grpc.CallOption) (*mtproto.Messages_DiscussionMessage, error)
+	// pluma: task 048
+	ChannelGetReplies(ctx context.Context, in *TLChannelGetReplies, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
+	// pluma: task 048
+	ChannelReadDiscussion(ctx context.Context, in *TLChannelReadDiscussion, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 044
 	ChannelEditPhoto(ctx context.Context, in *TLChannelEditPhoto, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 043
@@ -363,6 +378,56 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelSetDiscussionGroup(ctx context.Context, in *TLChannelSetDiscussionGroup, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetDiscussionGroup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetGroupsForDiscussion(ctx context.Context, in *TLChannelGetGroupsForDiscussion, opts ...grpc.CallOption) (*Vector_Long, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Long)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetDiscussionMessage(ctx context.Context, in *TLChannelGetDiscussionMessage, opts ...grpc.CallOption) (*mtproto.Messages_DiscussionMessage, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_DiscussionMessage)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetDiscussionMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetReplies(ctx context.Context, in *TLChannelGetReplies, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetReplies_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelReadDiscussion(ctx context.Context, in *TLChannelReadDiscussion, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelReadDiscussion_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelEditPhoto(ctx context.Context, in *TLChannelEditPhoto, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -499,6 +564,16 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 048
+	ChannelSetDiscussionGroup(context.Context, *TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
+	// pluma: task 048
+	ChannelGetGroupsForDiscussion(context.Context, *TLChannelGetGroupsForDiscussion) (*Vector_Long, error)
+	// pluma: task 048
+	ChannelGetDiscussionMessage(context.Context, *TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error)
+	// pluma: task 048
+	ChannelGetReplies(context.Context, *TLChannelGetReplies) (*mtproto.Messages_Messages, error)
+	// pluma: task 048
+	ChannelReadDiscussion(context.Context, *TLChannelReadDiscussion) (*mtproto.Bool, error)
 	// pluma: task 044
 	ChannelEditPhoto(context.Context, *TLChannelEditPhoto) (*mtproto.Updates, error)
 	// pluma: task 043
@@ -591,6 +666,21 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSetDiscussionGroup(context.Context, *TLChannelSetDiscussionGroup) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetDiscussionGroup not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetGroupsForDiscussion(context.Context, *TLChannelGetGroupsForDiscussion) (*Vector_Long, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetGroupsForDiscussion not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetDiscussionMessage(context.Context, *TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetDiscussionMessage not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetReplies(context.Context, *TLChannelGetReplies) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetReplies not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelReadDiscussion(context.Context, *TLChannelReadDiscussion) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelReadDiscussion not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelEditPhoto(context.Context, *TLChannelEditPhoto) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditPhoto not implemented")
@@ -1035,6 +1125,96 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelSetDiscussionGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSetDiscussionGroup)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSetDiscussionGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSetDiscussionGroup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSetDiscussionGroup(ctx, req.(*TLChannelSetDiscussionGroup))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetGroupsForDiscussion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetGroupsForDiscussion)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetGroupsForDiscussion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetGroupsForDiscussion(ctx, req.(*TLChannelGetGroupsForDiscussion))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetDiscussionMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetDiscussionMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetDiscussionMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetDiscussionMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetDiscussionMessage(ctx, req.(*TLChannelGetDiscussionMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetReplies_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetReplies)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetReplies(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetReplies_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetReplies(ctx, req.(*TLChannelGetReplies))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelReadDiscussion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelReadDiscussion)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelReadDiscussion(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelReadDiscussion_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelReadDiscussion(ctx, req.(*TLChannelReadDiscussion))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelEditPhoto_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelEditPhoto)
 	if err := dec(in); err != nil {
@@ -1291,6 +1471,26 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_setDiscussionGroup",
+			Handler:    _RPCChannel_ChannelSetDiscussionGroup_Handler,
+		},
+		{
+			MethodName: "channel_getGroupsForDiscussion",
+			Handler:    _RPCChannel_ChannelGetGroupsForDiscussion_Handler,
+		},
+		{
+			MethodName: "channel_getDiscussionMessage",
+			Handler:    _RPCChannel_ChannelGetDiscussionMessage_Handler,
+		},
+		{
+			MethodName: "channel_getReplies",
+			Handler:    _RPCChannel_ChannelGetReplies_Handler,
+		},
+		{
+			MethodName: "channel_readDiscussion",
+			Handler:    _RPCChannel_ChannelReadDiscussion_Handler,
 		},
 		{
 			MethodName: "channel_editPhoto",

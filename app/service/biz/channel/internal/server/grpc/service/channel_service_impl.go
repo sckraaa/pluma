@@ -457,3 +457,73 @@ func (s *Service) ChannelEditPhoto(ctx context.Context, request *channel.TLChann
 
 	return r, err
 }
+
+// ChannelSetDiscussionGroup
+// channel.setDiscussionGroup self_id:long perm_auth_key_id:long channel_id:long group_id:long = Bool;
+func (s *Service) ChannelSetDiscussionGroup(ctx context.Context, request *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setDiscussionGroup - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetDiscussionGroup(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetGroupsForDiscussion
+// channel.getGroupsForDiscussion self_id:long = Vector<long>;
+func (s *Service) ChannelGetGroupsForDiscussion(ctx context.Context, request *channel.TLChannelGetGroupsForDiscussion) (*channel.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getGroupsForDiscussion - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetGroupsForDiscussion(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetDiscussionMessage
+// channel.getDiscussionMessage self_id:long channel_id:long msg_id:int = messages.DiscussionMessage;
+func (s *Service) ChannelGetDiscussionMessage(ctx context.Context, request *channel.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getDiscussionMessage - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetDiscussionMessage(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetReplies
+// channel.getReplies self_id:long channel_id:long msg_id:int offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) ChannelGetReplies(ctx context.Context, request *channel.TLChannelGetReplies) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getReplies - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetReplies(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelReadDiscussion
+// channel.readDiscussion self_id:long perm_auth_key_id:long channel_id:long msg_id:int read_max_id:int = Bool;
+func (s *Service) ChannelReadDiscussion(ctx context.Context, request *channel.TLChannelReadDiscussion) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.readDiscussion - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReadDiscussion(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

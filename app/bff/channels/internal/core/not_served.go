@@ -55,16 +55,6 @@ func (c *ChannelsCore) ChannelsTogglePreHistoryHidden(in *mtproto.TLChannelsTogg
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsGetGroupsForDiscussion is not served yet: channels.getGroupsForDiscussion#f5dad378.
-func (c *ChannelsCore) ChannelsGetGroupsForDiscussion(in *mtproto.TLChannelsGetGroupsForDiscussion) (*mtproto.Messages_Chats, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsSetDiscussionGroup is not served yet: channels.setDiscussionGroup#40582bb2.
-func (c *ChannelsCore) ChannelsSetDiscussionGroup(in *mtproto.TLChannelsSetDiscussionGroup) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsEditLocation is not served yet: channels.editLocation#58e63f6d.
 func (c *ChannelsCore) ChannelsEditLocation(in *mtproto.TLChannelsEditLocation) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

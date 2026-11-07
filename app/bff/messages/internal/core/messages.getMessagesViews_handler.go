@@ -147,84 +147,9 @@ func (c *MessagesCore) MessagesGetMessagesViews(in *mtproto.TLMessagesGetMessage
 			}
 		})
 	case mtproto.PEER_CHANNEL:
-		//channel, err := c.svcCtx.Dao.ChannelClient.ChannelGetMutableChannel(
-		//	c.ctx,
-		//	&channelpb.TLChannelGetMutableChannel{
-		//		ChannelId: peer.PeerId,
-		//		Id:        []int64{c.MD.UserId},
-		//	})
-		//if err != nil {
-		//	c.Logger.Errorf("messages.getMessagesViews#5784d3e - error: not found chat by id(%v) type", peer)
-		//	return nil, mtproto.ErrChannelInvalid
-		//}
-		//
-		///*{"user_id":1,"send_user_id":2,"message_id":70,"dialog_id":-1073741834,"dialog_message_id":0,"message_data_id":4611686061377060934,"random_id":-4236442189977411877,"pts":0,"pts_count":0,"message_filter_type":0,"message_box_type":2,"message_type":2,"message":{"predicate_name":"message","id":70,"out":true,"post":true,"to_id":{"predicate_name":"peerChannel","channel_id":1073741834},"date":1583378362,"message":"2233","views":{"value":1},"post_author":{"value":"璧君"}},"views":0,"reply_owner_id":0}*/
-		//boxMsgList, err = c.svcCtx.Dao.MessageClient.MessageGetChannelMessageList(
-		//	c.ctx,
-		//	&message.TLMessageGetChannelMessageList{
-		//		UserId:    c.MD.UserId,
-		//		ChannelId: peer.PeerId,
-		//		IdList:    in.Id,
-		//	})
-		//if err != nil {
-		//	c.Logger.Errorf("messages.getMessagesViews - error: %v", err)
-		//	return nil, err
-		//}
-		//
-		////log.Debugf("messages.getMessagesViews#5784d3e - channel boxMsgList: %s", boxMsgList)
-		//
-		//if channel.Megagroup() {
-		//	boxMsgList.Walk(func(idx int, v *mtproto.MessageBox) {
-		//		fwdFrom := v.Message.GetFwdFrom()
-		//		if fwdFrom == nil {
-		//			// TODO:
-		//			// c.Logger.Errorf("messages.getMessagesViews#5784d3e - error: boxMsgList empty by id(%v) type", in.Id)
-		//			// err = mtproto.ErrMsgIdInvalid
-		//			return
-		//		} else {
-		//			// TODO
-		//			//if idList, ok := channelIds[fwdFrom.GetChannelId().GetValue()]; !ok {
-		//			//	channelIds[fwdFrom.GetChannelId().GetValue()] = []int32{fwdFrom.GetChannelPost().GetValue()}
-		//			//} else {
-		//			//	idList = append(idList, box.Message.GetFwdFrom().GetChannelPost().GetValue())
-		//			//	channelIds[fwdFrom.GetChannelId().GetValue()] = idList
-		//			//}
-		//			//reqIndexViews[box.MessageId] = int64(fwdFrom.GetChannelId().GetValue())<<32 | int64(fwdFrom.GetChannelPost().GetValue())
-		//		}
-		//	})
-		//} else if channel.Broadcast() {
-		//	boxMsgList.Walk(func(idx int, v *mtproto.MessageBox) {
-		//		fwdFrom := v.Message.GetFwdFrom()
-		//		if fwdFrom == nil {
-		//			if idList, ok := channelIds[channel.Id()]; !ok {
-		//				channelIds[channel.Id()] = []int32{v.MessageId}
-		//				// log.Debugf("add boxId: (%d, %d, %v)", channel.Channel.Id, box.MessageId, channelIds)
-		//			} else {
-		//				idList = append(idList, v.MessageId)
-		//				channelIds[channel.Channel.Id] = idList
-		//				// log.Debugf("add boxId: (%d, %d, %v)", channel.Channel.Id, box.MessageId, channelIds)
-		//			}
-		//			reqIndexViews[v.MessageId] = msgIdPeerIdPair{msgId: v.MessageId, peerId: channel.Id()}
-		//		} else {
-		//			// TODO
-		//			//if idList, ok := channelIds[fwdFrom.GetChannelId().GetValue()]; !ok {
-		//			//	channelIds[fwdFrom.GetChannelId().GetValue()] = []int32{fwdFrom.GetChannelPost().GetValue()}
-		//			//	// log.Debugf("add boxId: (%d, %d, %v)", channel.Channel.Id, box.MessageId, channelIds)
-		//			//} else {
-		//			//	idList = append(idList, box.Message.GetFwdFrom().GetChannelPost().GetValue())
-		//			//	channelIds[fwdFrom.GetChannelId().GetValue()] = idList
-		//			//	// log.Debugf("add boxId: (%d, %d, %v)", channel.Channel.Id, box.MessageId, channelIds)
-		//			//}
-		//			//reqIndexViews[box.MessageId] = int64(fwdFrom.GetChannelId().GetValue())<<32 | int64(fwdFrom.GetChannelPost().GetValue())
-		//		}
-		//	})
-		//} else {
-		//	c.Logger.Errorf("messages.getMessagesViews#5784d3e -  error: invalid peer(%v) type", peer)
-		//	return nil, mtproto.ErrMsgIdInvalid
-		//}
-		c.Logger.Errorf("messages.getRecentLocations blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// The comments of channel posts (task 048); views and forwards
+		// are task 046.
+		return c.channelMessagesViews(peer.PeerId, in.Id)
 	default:
 		c.Logger.Errorf("messages.getMessagesViews#5784d3e -  error: invalid peer(%v) type", peer)
 		return nil, mtproto.ErrInputRequestInvalid

@@ -105,6 +105,9 @@ type SearchQuery struct {
 	// UnreadMentionsOf keeps the messages that mention this user and that
 	// it has not read.
 	UnreadMentionsOf int64
+	// ThreadTop keeps the replies of the thread that starts from this
+	// message (task 048).
+	ThreadTop int32
 }
 
 // SearchMax is the most messages of one page of a search
@@ -127,6 +130,9 @@ func (d *Dao) Search(ctx context.Context, selfId, channelId int64, q SearchQuery
 	}
 	if q.FromId != 0 {
 		add("sender_user_id = ?", q.FromId)
+	}
+	if q.ThreadTop != 0 {
+		add("reply_top_id = ?", q.ThreadTop)
 	}
 	if q.UnreadMentionsOf != 0 {
 		add("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)
@@ -217,7 +223,10 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if err != nil {
 		return nil, 0, err
 	}
-	return messages, first(count), d.withReactions(ctx, channelId, selfId, v.broadcast, messages)
+	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
+		return nil, 0, err
+	}
+	return messages, first(count), d.withReplies(ctx, channelId, v.broadcast, messages)
 }
 
 // Messages are the messages ids of channelId that selfId may see, as it sees
@@ -248,7 +257,10 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 	if err != nil {
 		return nil, err
 	}
-	return messages, d.withReactions(ctx, channelId, selfId, v.broadcast, messages)
+	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
+		return nil, err
+	}
+	return messages, d.withReplies(ctx, channelId, v.broadcast, messages)
 }
 
 // withReactions sets on messages the reactions to them as selfId sees them

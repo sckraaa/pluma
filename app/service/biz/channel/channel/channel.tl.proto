@@ -71,6 +71,16 @@ enum TLConstructor {
   CRC32_channel_getAdminedPublicChannels = -2083237595;
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
+  // pluma: task 048
+  CRC32_channel_setDiscussionGroup = 407453767;
+  // pluma: task 048
+  CRC32_channel_getGroupsForDiscussion = -1820701585;
+  // pluma: task 048
+  CRC32_channel_getDiscussionMessage = 941034930;
+  // pluma: task 048
+  CRC32_channel_getReplies = 973790184;
+  // pluma: task 048
+  CRC32_channel_readDiscussion = -325315711;
   // pluma: task 044
   CRC32_channel_editPhoto = -1984581655;
   // pluma: task 043
@@ -563,6 +573,69 @@ message TL_channel_editPhoto {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.setDiscussionGroup self_id:long perm_auth_key_id:long channel_id:long group_id:long = Bool;
+// self_id links the supergroup group_id to the broadcast channel channel_id as its
+// discussion group, or unlinks it with 0 (task 048).
+// (task 048)
+message TL_channel_setDiscussionGroup {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 group_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getGroupsForDiscussion self_id:long = Vector<long>;
+// The supergroups self_id may link to a channel as its discussion group (task 048).
+// (task 048)
+message TL_channel_getGroupsForDiscussion {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getDiscussionMessage self_id:long channel_id:long msg_id:int = messages.DiscussionMessage;
+// The thread of a post or of a message of a supergroup as self_id sees it (task 048).
+// (task 048)
+message TL_channel_getDiscussionMessage {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 msg_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getReplies self_id:long channel_id:long msg_id:int offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// A page of the replies of a thread, paged as channel.getHistory (task 048).
+// (task 048)
+message TL_channel_getReplies {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 msg_id = 5;
+  int32 offset_id = 6;
+  int32 offset_date = 7;
+  int32 add_offset = 8;
+  int32 limit = 9;
+  int32 max_id = 10;
+  int32 min_id = 11;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.readDiscussion self_id:long perm_auth_key_id:long channel_id:long msg_id:int read_max_id:int = Bool;
+// self_id read the thread of msg_id up to read_max_id (task 048).
+// (task 048)
+message TL_channel_readDiscussion {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 msg_id = 6;
+  int32 read_max_id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -630,6 +703,16 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 048
+  rpc channel_setDiscussionGroup(TL_channel_setDiscussionGroup) returns (mtproto.Bool) {}
+  // pluma: task 048
+  rpc channel_getGroupsForDiscussion(TL_channel_getGroupsForDiscussion) returns (Vector_Long) {}
+  // pluma: task 048
+  rpc channel_getDiscussionMessage(TL_channel_getDiscussionMessage) returns (mtproto.messages_DiscussionMessage) {}
+  // pluma: task 048
+  rpc channel_getReplies(TL_channel_getReplies) returns (mtproto.messages_Messages) {}
+  // pluma: task 048
+  rpc channel_readDiscussion(TL_channel_readDiscussion) returns (mtproto.Bool) {}
   // pluma: task 044
   rpc channel_editPhoto(TL_channel_editPhoto) returns (mtproto.Updates) {}
   // pluma: task 043

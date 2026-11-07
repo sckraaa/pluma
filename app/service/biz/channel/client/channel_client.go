@@ -48,6 +48,11 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
+	ChannelGetGroupsForDiscussion(ctx context.Context, in *channel.TLChannelGetGroupsForDiscussion) (*channel.Vector_Long, error)
+	ChannelGetDiscussionMessage(ctx context.Context, in *channel.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error)
+	ChannelGetReplies(ctx context.Context, in *channel.TLChannelGetReplies) (*mtproto.Messages_Messages, error)
+	ChannelReadDiscussion(ctx context.Context, in *channel.TLChannelReadDiscussion) (*mtproto.Bool, error)
 	ChannelEditPhoto(ctx context.Context, in *channel.TLChannelEditPhoto) (*mtproto.Updates, error)
 	ChannelReadMentions(ctx context.Context, in *channel.TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error)
 	ChannelGetUnreadMentions(ctx context.Context, in *channel.TLChannelGetUnreadMentions) (*mtproto.Messages_Messages, error)
@@ -408,4 +413,59 @@ func (m *defaultChannelClient) ChannelEditPhoto(ctx context.Context, in *channel
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelEditPhoto(ctx, in)
+}
+
+// ChannelSetDiscussionGroup
+// channel.setDiscussionGroup self_id:long perm_auth_key_id:long channel_id:long group_id:long = Bool;
+func (m *defaultChannelClient) ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetDiscussionGroup(ctx, in)
+}
+
+// ChannelGetGroupsForDiscussion
+// channel.getGroupsForDiscussion self_id:long = Vector<long>;
+func (m *defaultChannelClient) ChannelGetGroupsForDiscussion(ctx context.Context, in *channel.TLChannelGetGroupsForDiscussion) (*channel.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetGroupsForDiscussion(ctx, in)
+}
+
+// ChannelGetDiscussionMessage
+// channel.getDiscussionMessage self_id:long channel_id:long msg_id:int = messages.DiscussionMessage;
+func (m *defaultChannelClient) ChannelGetDiscussionMessage(ctx context.Context, in *channel.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetDiscussionMessage(ctx, in)
+}
+
+// ChannelGetReplies
+// channel.getReplies self_id:long channel_id:long msg_id:int offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (m *defaultChannelClient) ChannelGetReplies(ctx context.Context, in *channel.TLChannelGetReplies) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetReplies(ctx, in)
+}
+
+// ChannelReadDiscussion
+// channel.readDiscussion self_id:long perm_auth_key_id:long channel_id:long msg_id:int read_max_id:int = Bool;
+func (m *defaultChannelClient) ChannelReadDiscussion(ctx context.Context, in *channel.TLChannelReadDiscussion) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReadDiscussion(ctx, in)
 }

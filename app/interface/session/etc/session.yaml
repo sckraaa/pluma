@@ -83,7 +83,7 @@ BFFProxyClients:
     #"/mtproto.RPCImportedChats": "bff.bff"
     "/mtproto.RPCLangpack": "bff.bff"
     "/mtproto.RPCAutoDownload": "bff.bff"
-    #"/mtproto.RPCMessageThreads": "bff.bff"
+    "/mtproto.RPCMessageThreads": "bff.bff"
     "/mtproto.RPCMessages": "bff.bff"
     "/mtproto.RPCNotification": "bff.bff"
     "/mtproto.RPCGatewayVerificationMessages": "bff.bff"

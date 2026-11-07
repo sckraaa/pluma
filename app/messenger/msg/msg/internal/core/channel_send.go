@@ -51,11 +51,21 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 			sent = before
 			return err
 		}
-		var mentioned []int64
-		if sent, mentioned, err = c.svcCtx.Dao.SendChannel(b, channelId, outgoing); err != nil {
+		var (
+			mentioned []int64
+			disc      *dao.Discussion
+		)
+		if sent, mentioned, disc, err = c.svcCtx.Dao.SendChannel(b, channelId, outgoing); err != nil {
 			return err
 		}
-		return c.svcCtx.Dao.EmitChannelPush(b, channelId, fromAuthKeyId, sent, mentioned)
+		if err = c.svcCtx.Dao.EmitChannelPush(b, channelId, fromAuthKeyId, sent, mentioned); err != nil {
+			return err
+		}
+		if disc != nil && len(disc.Copies) > 0 {
+			// The copies in the discussion group, to its members.
+			return c.svcCtx.Dao.EmitChannelPush(b, disc.GroupId, fromAuthKeyId, disc.Copies, nil)
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

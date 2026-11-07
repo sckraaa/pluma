@@ -61,6 +61,16 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetAdminedPublicChannels": {"/mtproto.RPCChannel/channel_getAdminedPublicChannels", func() interface{} { return new(Vector_Long) }},
 	// pluma: task 055
 	"TLChannelDeleteChannel": {"/mtproto.RPCChannel/channel_deleteChannel", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 048
+	"TLChannelSetDiscussionGroup": {"/mtproto.RPCChannel/channel_setDiscussionGroup", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 048
+	"TLChannelGetGroupsForDiscussion": {"/mtproto.RPCChannel/channel_getGroupsForDiscussion", func() interface{} { return new(Vector_Long) }},
+	// pluma: task 048
+	"TLChannelGetDiscussionMessage": {"/mtproto.RPCChannel/channel_getDiscussionMessage", func() interface{} { return new(mtproto.Messages_DiscussionMessage) }},
+	// pluma: task 048
+	"TLChannelGetReplies": {"/mtproto.RPCChannel/channel_getReplies", func() interface{} { return new(mtproto.Messages_Messages) }},
+	// pluma: task 048
+	"TLChannelReadDiscussion": {"/mtproto.RPCChannel/channel_readDiscussion", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 044
 	"TLChannelEditPhoto": {"/mtproto.RPCChannel/channel_editPhoto", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 043

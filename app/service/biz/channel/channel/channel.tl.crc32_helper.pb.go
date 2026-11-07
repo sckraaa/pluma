@@ -52,6 +52,16 @@ const (
 	CRC32_channel_getAdminedPublicChannels TLConstructor = -2083237595 // 0x83d45125
 	// pluma: task 055
 	CRC32_channel_deleteChannel TLConstructor = -979916526 // 0xc597a912
+	// pluma: task 048
+	CRC32_channel_setDiscussionGroup TLConstructor = 407453767 // 0x18494047
+	// pluma: task 048
+	CRC32_channel_getGroupsForDiscussion TLConstructor = -1820701585 // 0x937a4c6f
+	// pluma: task 048
+	CRC32_channel_getDiscussionMessage TLConstructor = 941034930 // 0x38170db2
+	// pluma: task 048
+	CRC32_channel_getReplies TLConstructor = 973790184 // 0x3a0adbe8
+	// pluma: task 048
+	CRC32_channel_readDiscussion TLConstructor = -325315711 // 0xec9c1381
 	// pluma: task 044
 	CRC32_channel_editPhoto TLConstructor = -1984581655 // 0x89b5afe9
 	// pluma: task 043

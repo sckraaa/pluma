@@ -51,6 +51,16 @@ const (
 	Predicate_channel_getAdminedPublicChannels = "channel_getAdminedPublicChannels"
 	// pluma: task 055
 	Predicate_channel_deleteChannel = "channel_deleteChannel"
+	// pluma: task 048
+	Predicate_channel_setDiscussionGroup = "channel_setDiscussionGroup"
+	// pluma: task 048
+	Predicate_channel_getGroupsForDiscussion = "channel_getGroupsForDiscussion"
+	// pluma: task 048
+	Predicate_channel_getDiscussionMessage = "channel_getDiscussionMessage"
+	// pluma: task 048
+	Predicate_channel_getReplies = "channel_getReplies"
+	// pluma: task 048
+	Predicate_channel_readDiscussion = "channel_readDiscussion"
 	// pluma: task 044
 	Predicate_channel_editPhoto = "channel_editPhoto"
 	// pluma: task 043
@@ -167,6 +177,26 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -979916526, // 0xc597a912
 
 	},
+	Predicate_channel_setDiscussionGroup: { // pluma: task 048
+		0: 407453767, // 0x18494047
+
+	},
+	Predicate_channel_getGroupsForDiscussion: { // pluma: task 048
+		0: -1820701585, // 0x937a4c6f
+
+	},
+	Predicate_channel_getDiscussionMessage: { // pluma: task 048
+		0: 941034930, // 0x38170db2
+
+	},
+	Predicate_channel_getReplies: { // pluma: task 048
+		0: 973790184, // 0x3a0adbe8
+
+	},
+	Predicate_channel_readDiscussion: { // pluma: task 048
+		0: -325315711, // 0xec9c1381
+
+	},
 	Predicate_channel_editPhoto: { // pluma: task 044
 		0: -1984581655, // 0x89b5afe9
 
@@ -231,6 +261,11 @@ var clazzIdNameRegisters2 = map[int32]string{
 	418987336:   Predicate_channel_updateUsername,           // 0x18f93d48 pluma: task 044
 	-2083237595: Predicate_channel_getAdminedPublicChannels, // 0x83d45125 pluma: task 044
 	-979916526:  Predicate_channel_deleteChannel,            // 0xc597a912 pluma: task 055
+	407453767:   Predicate_channel_setDiscussionGroup,       // 0x18494047 pluma: task 048
+	-1820701585: Predicate_channel_getGroupsForDiscussion,   // 0x937a4c6f pluma: task 048
+	941034930:   Predicate_channel_getDiscussionMessage,     // 0x38170db2 pluma: task 048
+	973790184:   Predicate_channel_getReplies,               // 0x3a0adbe8 pluma: task 048
+	-325315711:  Predicate_channel_readDiscussion,           // 0xec9c1381 pluma: task 048
 	-1984581655: Predicate_channel_editPhoto,                // 0x89b5afe9 pluma: task 044
 	-521821973:  Predicate_channel_readMentions,             // 0xe0e5a0eb pluma: task 043
 	1865304106:  Predicate_channel_getUnreadMentions,        // 0x6f2e482a pluma: task 043

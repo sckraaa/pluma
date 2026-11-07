@@ -29,6 +29,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // Messages of channels and supergroups (task 039, ADR 0034): one copy in
@@ -170,15 +171,39 @@ func (d *Dao) ChannelSentBefore(b *userbox.Box, channelId int64, randomIds []int
 // owner in a supergroup. mentioned are the users the messages mention or
 // reply to, other than the owner, who get rows of channel_message_mentions.
 // The owner's dialog moves to the last message, read.
-func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) (sent []ChannelSent, mentioned []int64, err error) {
+func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) (sent []ChannelSent, mentioned []int64, disc *Discussion, err error) {
+	// The discussion group of a broadcast channel is locked with it, in
+	// ascending order: its link is read first, and checked once locked.
+	linked, err := linkedGroup(b, channelId)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if linked != 0 && linked < channelId {
+		if _, err = channelbox.Open(b, linked); err != nil {
+			return nil, nil, nil, err
+		}
+	}
 	ch, s, err := openChannel(b, channelId)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+	var group *channelbox.Channel
+	if s.ch.Broadcast && linked != 0 {
+		now, err := linkedGroup(b, channelId)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		if now == linked {
+			if group, err = channelbox.Open(b, linked); err != nil {
+				return nil, nil, nil, err
+			}
+			disc = &Discussion{GroupId: linked}
+		}
 	}
 	for _, o := range outgoing {
 		m := proto.Clone(o.Message).(*mtproto.Message)
 		if err = checkSend(s, m, b.Date()); err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		m.Id = ch.NextMessageId()
 		m.Out = false
@@ -198,44 +223,127 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 				who = append(who, id)
 			}
 		}
+		// A reply is in the thread of the message replied to: the thread
+		// that message is in, or the one it starts (task 048).
+		var top int32
 		if r := m.GetReplyTo().GetReplyToMsgId(); r != 0 {
-			var authors []int64
-			if err = b.Tx().QueryRowsPartial(&authors,
-				"SELECT sender_user_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0", channelId, r); err != nil {
-				return nil, nil, err
+			var replied []struct {
+				SenderUserId int64 `db:"sender_user_id"`
+				ReplyTopId   int32 `db:"reply_top_id"`
 			}
-			if len(authors) == 0 {
+			if err = b.Tx().QueryRowsPartial(&replied,
+				"SELECT sender_user_id, reply_top_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0", channelId, r); err != nil {
+				return nil, nil, nil, err
+			}
+			switch {
+			case len(replied) == 0:
 				m.ReplyTo = nil
-			} else if !s.ch.Broadcast {
-				who = append(who, authors[0])
+			case !s.ch.Broadcast:
+				who = append(who, replied[0].SenderUserId)
+				top = r
+				m.ReplyTo.ReplyToTopId = nil
+				if replied[0].ReplyTopId != 0 {
+					top = replied[0].ReplyTopId
+					m.ReplyTo.ReplyToTopId = wrapperspb.Int32(top)
+				}
 			}
 		}
 		ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
 		data, err := jsonx.MarshalToString(m)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, message, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			channelId, m.Id, b.UserId(), o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), b.Date()); err != nil {
-			return nil, nil, err
+		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, message, reply_top_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			channelId, m.Id, b.UserId(), o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, b.Date()); err != nil {
+			return nil, nil, nil, err
 		}
 		for _, id := range who {
 			if id == b.UserId() {
 				continue
 			}
 			if _, err = b.Tx().Exec("INSERT IGNORE INTO channel_message_mentions (channel_id, user_id, message_id) VALUES (?, ?, ?)", channelId, id, m.Id); err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 			if !slices.Contains(mentioned, id) {
 				mentioned = append(mentioned, id)
 			}
 		}
 		sent = append(sent, ChannelSent{RandomId: o.RandomId, Message: m, Pts: ch.Pts()})
+		if group != nil {
+			c, err := postCopy(b, group, channelId, m)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			disc.Copies = append(disc.Copies, c)
+		}
 	}
 	if err = movedTo(b, channelId, sent[len(sent)-1].Message.Id); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return sent, mentioned, nil
+	if disc != nil && len(disc.Copies) > 0 {
+		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", disc.Copies[len(disc.Copies)-1].Message.Id, disc.GroupId); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	return sent, mentioned, disc, nil
+}
+
+// Discussion is what a post wrote into the discussion group of its channel:
+// the copy of each message (task 048).
+type Discussion struct {
+	GroupId int64
+	Copies  []ChannelSent
+}
+
+// linkedGroup is the discussion group of a broadcast channel, 0 for none.
+func linkedGroup(b *userbox.Box, channelId int64) (int64, error) {
+	var linked []int64
+	if err := b.Tx().QueryRowsPartial(&linked,
+		"SELECT linked_chat_id FROM channels WHERE id = ? AND broadcast = 1 AND deleted = 0", channelId); err != nil {
+		return 0, err
+	}
+	if len(linked) == 0 {
+		return 0, nil
+	}
+	return linked[0], nil
+}
+
+// postCopy writes the copy of post m of channelId into its discussion
+// group, locked: from the channel and forwarded from it
+// (core.telegram.org/api/discussion: the thread of the "automatically
+// forwarded channel message"), with the post's text and media. Its thread
+// is the post's comments.
+func postCopy(b *userbox.Box, group *channelbox.Channel, channelId int64, post *mtproto.Message) (ChannelSent, error) {
+	m := proto.Clone(post).(*mtproto.Message)
+	from := mtproto.MakePeerChannel(channelId)
+	m.Id = group.NextMessageId()
+	m.PeerId = mtproto.MakePeerChannel(group.Id())
+	m.FromId = from
+	m.Post = false
+	m.ReplyTo = nil
+	m.Replies = nil
+	m.Pinned = false
+	m.FwdFrom = mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
+		FromId:         from,
+		Date:           post.Date,
+		ChannelPost:    mtproto.MakeFlagsInt32(post.Id),
+		SavedFromPeer:  from,
+		SavedFromMsgId: mtproto.MakeFlagsInt32(post.Id),
+	}).To_MessageFwdHeader()
+	group.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
+	data, err := jsonx.MarshalToString(m)
+	if err != nil {
+		return ChannelSent{}, err
+	}
+	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_filter_type, message_data, message, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		group.Id(), m.Id, b.UserId(), group.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), b.Date()); err != nil {
+		return ChannelSent{}, err
+	}
+	if _, err = b.Tx().Exec("INSERT INTO channel_discussion_posts (channel_id, post_id, group_id, group_message_id) VALUES (?, ?, ?, ?)",
+		channelId, post.Id, group.Id(), m.Id); err != nil {
+		return ChannelSent{}, err
+	}
+	return ChannelSent{Message: m, Pts: group.Pts()}, nil
 }
 
 // movedTo moves the channel's top message to last, b's owner's message, and

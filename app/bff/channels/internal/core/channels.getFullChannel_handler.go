@@ -72,6 +72,10 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		full.MigratedFromChatId = mtproto.MakeFlagsInt64(ch.GetMigratedFromChatId())
 		full.MigratedFromMaxId = mtproto.MakeFlagsInt32(ch.GetMigratedFromMaxId())
 	}
+	if ch.GetLinkedChatId() != 0 {
+		// The discussion group, or the channel a group discusses (task 048).
+		full.LinkedChatId = mtproto.MakeFlagsInt64(ch.GetLinkedChatId())
+	}
 	if ch.GetSlowmodeSeconds() > 0 {
 		full.SlowmodeSeconds = mtproto.MakeFlagsInt32(ch.GetSlowmodeSeconds())
 	}
@@ -125,9 +129,18 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err
 	}
+	chats := []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))}
+	if linked := ch.GetLinkedChatId(); linked != 0 {
+		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: []int64{linked}})
+		if err != nil {
+			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+			return nil, err
+		}
+		chats = append(chats, l.GetChannelListByIdList(c.MD.UserId)...)
+	}
 	return mtproto.MakeTLMessagesChatFull(&mtproto.Messages_ChatFull{
 		FullChat: mtproto.MakeTLChannelFull(full).To_ChatFull(),
-		Chats:    []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))},
+		Chats:    chats,
 		Users:    users.GetUserListByIdList(c.MD.UserId, c.MD.UserId),
 	}).To_Messages_ChatFull(), nil
 }

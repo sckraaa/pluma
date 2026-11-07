@@ -339,6 +339,26 @@ func (noChannels) ChannelEditPhoto(context.Context, *channelpb.TLChannelEditPhot
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelSetDiscussionGroup(context.Context, *channelpb.TLChannelSetDiscussionGroup) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetGroupsForDiscussion(context.Context, *channelpb.TLChannelGetGroupsForDiscussion) (*channelpb.Vector_Long, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetDiscussionMessage(context.Context, *channelpb.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetReplies(context.Context, *channelpb.TLChannelGetReplies) (*mtproto.Messages_Messages, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelReadDiscussion(context.Context, *channelpb.TLChannelReadDiscussion) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
