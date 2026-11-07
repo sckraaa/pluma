@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 261, partial 21, blocked 119, notimpl 6, fake 7, missing 455 (ok = 30.0%); with a conformance scenario 9
+    layer 228: 869 methods — ok 263, partial 19, blocked 119, notimpl 6, fake 7, missing 455 (ok = 30.3%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 273 | 111 | 15 | 22 | 5 | 2 | 118 | 3 |
+| messages | 273 | 113 | 13 | 22 | 5 | 2 | 118 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -633,7 +633,7 @@
 | `messages.getStickers` | ok |  | app/bff/catalog/internal/core/messages.getStickers_handler.go:26 |
 | `messages.getSuggestedDialogFilters` | ok |  | app/bff/folders/internal/core/messages.getSuggestedDialogFilters_handler.go:29 |
 | `messages.getTopReactions` | ok |  | app/bff/catalog/internal/core/messages.getTopReactions_handler.go:28 |
-| `messages.getUnreadMentions` | partial |  | app/bff/messages/internal/core/messages.getUnreadMentions_handler.go:30 |
+| `messages.getUnreadMentions` | ok |  | app/bff/messages/internal/core/messages.getUnreadMentions_handler.go:31 |
 | `messages.getUnreadPollVotes` | missing |  |  |
 | `messages.getUnreadReactions` | ok |  | app/bff/catalog/internal/core/messages.getUnreadReactions_handler.go:29 |
 | `messages.getWebPage32CA8F91` | blocked |  | app/bff/webpage/internal/core/messages.getWebPage_handler.go:59 |
@@ -655,7 +655,7 @@
 | `messages.readEncryptedHistory` | missing |  |  |
 | `messages.readFeaturedStickers` | missing |  |  |
 | `messages.readHistory` | ok |  | app/bff/messages/internal/core/messages.readHistory_handler.go:28 |
-| `messages.readMentions` | partial |  | app/bff/messages/internal/core/messages.readMentions_handler.go:33 |
+| `messages.readMentions` | ok |  | app/bff/messages/internal/core/messages.readMentions_handler.go:34 |
 | `messages.readMessageContents` | ok |  | app/bff/messages/internal/core/messages.readMessageContents_handler.go:31 |
 | `messages.readPollVotes` | missing |  |  |
 | `messages.readReactions` | ok |  | app/bff/catalog/internal/core/messages.readReactions_handler.go:27 |

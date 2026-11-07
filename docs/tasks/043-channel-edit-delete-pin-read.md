@@ -1,6 +1,6 @@
 # 043. Каналы: правка, удаление, закрепление, прочтение
 
-- Статус: in progress (прочтение, правка, удаление, пересылка из канала готовы; закрепление, `readMessageContents`, упоминания — нет)
+- Статус: in progress (готово всё, кроме `deleteHistory` и `deleteParticipantHistory`; ждёт проверки в клиентах)
 - Зависит от: 040
 - ADR: 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.1, §2.3, §2.5, задача T8; `clients.md` §1 «Read history», «Send and receive»; `plan.md` §2 U1, U5, §3, задача «042» плана).
 
@@ -46,3 +46,10 @@
 - **Проверка:** интеграционный `TestDelete`; e2e `TestChannelEdit` (правка автором доходит до другого участника, чужое не правится и не удаляется, создатель удаляет, удаление доходит пушем, история и разница его учитывают) и `TestChannelForward`.
 - **Осталось:** закрепление, `readMessageContents`, ветки каналов в `readMentions` и `getUnreadMentions`.
 
+### Закрепление, поиск, содержимое и упоминания (2026-11-07, ветка `task/043-pin`)
+- **Поиск в канале** (`messages.search` → biz `channel.search`): текст (символы `%`/`_` — как текст), автор, тип медиа (как хранится, `GetMediaType`; фото и видео вместе — `MEDIA_PHOTOVIDEO`; голосовые и кружки — один тип, как в ящиках пользователей), даты, закреплённые. Служебные сообщения не находятся, кроме смены фото. Ответ — `messages.channelMessages` со счётчиком всех найденных. Без него не работали вкладки медиа в профиле канала и загрузка закреплённых клиентами.
+- **Закрепление** (`messages.updatePinnedMessage`, `messages.unpinAllMessages` для канала): в транзакции закрепившего под блокировкой канала, права — `channelperm` (`PinMessages`: в трансляции и с `edit_messages`). Строка журнала `updatePinnedChannelMessages`, при закреплении — служебное `messageActionPinMessage` (в трансляции — пост без автора), пуш участникам. Сообщение получает флаг `pinned`. `channelFull.pinned_msg_id` — последнее закреплённое. Повторное закрепление закреплённого ничего не пишет.
+- **`channels.readMessageContents`:** упоминания среди сообщений прочитаны, своим устройствам — `updateChannelReadMessagesContents` с `seq` (добавлен в `userbox.SeqUpdate`: повтор безвреден). Отметка `media_unread` голосовых в канале не меняется — как её ведёт Telegram в супергруппах, не сверено.
+- **Упоминания:** `getUnreadMentions` — поиск по непрочитанным упоминаниям; `readMentions` — все сразу, ответ — `pts` канала с `pts_count` 0 (tdesktop применяет его к каналу, `apiwrap.cpp:2264-2273`; Web K — к общему `pts`, `appMessagesManager.ts:8837-8842`, где больший `pts` даст лишний `getDifference`).
+- **Проверка:** интеграционные `TestSearch`, `TestReadContents`, `TestMentions`; e2e `TestChannelPin` (участник без права не закрепляет, ответ и пуш, фильтр закреплённых, `pinned_msg_id`, открепление всех).
+- **Осталось:** `channels.deleteHistory` (оба варианта), `channels.deleteParticipantHistory`; проверка в клиентах.
