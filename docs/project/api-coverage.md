@@ -591,11 +591,11 @@
 | `messages.getInlineGameHighScores` | missing |  |  |
 | `messages.getMaskStickers` | ok |  | app/bff/catalog/internal/core/messages.getMaskStickers_handler.go:27 |
 | `messages.getMessageEditData` | ok |  | app/bff/messages/internal/core/messages.getMessageEditData_handler.go:64 |
-| `messages.getMessageReactionsList` | ok |  | app/bff/catalog/internal/core/messages.getMessageReactionsList_handler.go:33 |
+| `messages.getMessageReactionsList` | ok |  | app/bff/catalog/internal/core/messages.getMessageReactionsList_handler.go:35 |
 | `messages.getMessageReadParticipants2C6F97B7` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants2C6F97B7_handler.go:29 |
 | `messages.getMessageReadParticipants31C1C44F` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants31C1C44F_handler.go:27 |
 | `messages.getMessages` | partial |  | app/bff/messages/internal/core/messages.getMessages_handler.go:31 |
-| `messages.getMessagesReactions` | ok |  | app/bff/catalog/internal/core/messages.getMessagesReactions_handler.go:31 |
+| `messages.getMessagesReactions` | ok |  | app/bff/catalog/internal/core/messages.getMessagesReactions_handler.go:34 |
 | `messages.getMessagesViews` | partial |  | app/bff/messages/internal/core/messages.getMessagesViews_handler.go:57 |
 | `messages.getMyStickers` | missing |  |  |
 | `messages.getOldFeaturedStickers` | ok |  | app/bff/catalog/internal/core/messages.getOldFeaturedStickers_handler.go:27 |
@@ -709,7 +709,7 @@
 | `messages.sendMultiMedia` | ok |  | app/bff/messages/internal/core/messages.sendMultiMedia_handler.go:34 |
 | `messages.sendPaidReaction` | missing |  |  |
 | `messages.sendQuickReplyMessages` | missing |  |  |
-| `messages.sendReaction` | ok |  | app/bff/catalog/internal/core/messages.sendReaction_handler.go:32 |
+| `messages.sendReaction` | ok |  | app/bff/catalog/internal/core/messages.sendReaction_handler.go:34 |
 | `messages.sendScheduledMessages` | missing |  |  |
 | `messages.sendScreenshotNotification` | blocked |  | app/bff/dialogs/internal/core/messages.sendScreenshotNotification_handler.go:27 |
 | `messages.sendVote` | missing |  |  |
