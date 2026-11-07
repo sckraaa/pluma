@@ -67,6 +67,8 @@ func TestEditAdmin(t *testing.T) {
 	f := newDiffFixture(t)
 	creator, bob, carol, dave, eve := f.user("Creator"), f.user("Bob"), f.user("Carol"), f.user("Dave"), f.user("Eve")
 	id := f.create(creator)
+	// The creator counts among the admins, as channel.createChannel writes it.
+	f.exec("UPDATE channels SET admins_count = 1 WHERE id = ?", id)
 	f.public(id)
 	for _, u := range []int64{bob, carol, dave} {
 		if _, err := f.join(u, id, ""); err != nil {
@@ -252,6 +254,8 @@ func TestEditCreator(t *testing.T) {
 	f := newDiffFixture(t)
 	creator, bob, carol, eve := f.user("Creator"), f.user("Bob"), f.user("Carol"), f.user("Eve")
 	id := f.create(creator)
+	// The creator counts among the admins, as channel.createChannel writes it.
+	f.exec("UPDATE channels SET admins_count = 1 WHERE id = ?", id)
 	f.public(id)
 	for _, u := range []int64{bob, carol} {
 		if _, err := f.join(u, id, ""); err != nil {
