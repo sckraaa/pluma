@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	471620827: func() mtproto.TLObject { // 0x1c1c5cdb pluma: task 043
+		return &TLChannelSearch{
+			Constructor: 471620827,
+		}
+	},
 	860909233: func() mtproto.TLObject { // 0x33506eb1 pluma: task 042
 		return &TLChannelEditCreator{
 			Constructor: 860909233,
@@ -2034,6 +2039,66 @@ func (m *TLChannelEditCreator) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.PermAuthKeyId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSearch (pluma: task 043)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSearch) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x1c1c5cdb:
+		x.UInt(0x1c1c5cdb)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetQ())
+		x.Long(m.GetFromId())
+		x.Int(m.GetMediaType())
+		x.Int(m.GetMinDate())
+		x.Int(m.GetMaxDate())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetAddOffset())
+		x.Int(m.GetLimit())
+		x.Int(m.GetMaxId())
+		x.Int(m.GetMinId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSearch) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSearch) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x1c1c5cdb:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Q = dBuf.String()
+		m.FromId = dBuf.Long()
+		m.MediaType = dBuf.Int()
+		m.MinDate = dBuf.Int()
+		m.MaxDate = dBuf.Int()
+		m.OffsetId = dBuf.Int()
+		m.AddOffset = dBuf.Int()
+		m.Limit = dBuf.Int()
+		m.MaxId = dBuf.Int()
+		m.MinId = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

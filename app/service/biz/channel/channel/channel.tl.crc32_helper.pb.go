@@ -52,6 +52,8 @@ const (
 	CRC32_channel_getAdminedPublicChannels TLConstructor = -2083237595 // 0x83d45125
 	// pluma: task 055
 	CRC32_channel_deleteChannel TLConstructor = -979916526 // 0xc597a912
+	// pluma: task 043
+	CRC32_channel_search TLConstructor = 471620827 // 0x1c1c5cdb
 	// pluma: task 042
 	CRC32_channel_editCreator TLConstructor = 860909233 // 0x33506eb1
 	// pluma: task 042

@@ -18,6 +18,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
 )
 
 // ChannelGetMemberIdList
@@ -67,4 +68,32 @@ func (c *ChannelCore) ChannelGetMessages(in *channel.TLChannelGetMessages) (*cha
 		return nil, err
 	}
 	return &channel.Vector_Message{Datas: messages}, nil
+}
+
+// ChannelSearch
+// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+//
+// messages.channelMessages, as channel.getHistory answers, of the messages
+// that match (dao.Search), with the count of all that match: the clients'
+// media lists page by it and show "N of M".
+func (c *ChannelCore) ChannelSearch(in *channel.TLChannelSearch) (*mtproto.Messages_Messages, error) {
+	messages, count, err := c.svcCtx.Dao.Search(c.ctx, in.SelfId, in.ChannelId, dao.SearchQuery{
+		Q: in.Q, FromId: in.FromId, MediaType: in.MediaType, MinDate: in.MinDate, MaxDate: in.MaxDate,
+	}, in.OffsetId, in.AddOffset, in.Limit, in.MaxId, in.MinId)
+	if err != nil {
+		c.Logger.Errorf("channel.search - error: %v", err)
+		return nil, err
+	}
+	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, in.ChannelId, nil)
+	if err != nil {
+		return nil, err
+	}
+	return mtproto.MakeTLMessagesChannelMessages(&mtproto.Messages_Messages{
+		Pts:      mc.GetChannel().GetPts(),
+		Count:    count,
+		Messages: messages,
+		Topics:   []*mtproto.ForumTopic{},
+		Chats:    []*mtproto.Chat{},
+		Users:    []*mtproto.User{},
+	}).To_Messages_Messages(), nil
 }

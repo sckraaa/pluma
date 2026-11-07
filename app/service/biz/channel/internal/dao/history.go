@@ -88,6 +88,73 @@ func decode(rows []messageRow, channelId, selfId int64) ([]*mtproto.Message, err
 // many newer ones; min_id and max_id bound the ids. ErrChannelPrivate for a
 // channel selfId may not read.
 func (d *Dao) History(ctx context.Context, selfId, channelId int64, offsetId, offsetDate, addOffset, limit, maxId, minId int32) ([]*mtproto.Message, int32, error) {
+	return d.page(ctx, selfId, channelId, pageQuery{}, offsetId, offsetDate, addOffset, limit, maxId, minId)
+}
+
+// SearchQuery is what a search of a channel asks for, every part optional:
+// the text, the author, a kind of message (mtproto.MEDIA_*, MEDIA_EMPTY for
+// any) and the dates.
+type SearchQuery struct {
+	Q                string
+	FromId           int64
+	MediaType        int32
+	MinDate, MaxDate int32
+}
+
+// SearchMax is the most messages of one page of a search
+// (core.telegram.org/method/messages.search: up to 100).
+const SearchMax = 100
+
+// Search is a page of the messages of channelId that match q, as selfId
+// sees them, newest first, with the count of all that match; the paging is
+// History's. Pinned messages are MEDIA_PINNED; photos and videos together
+// MEDIA_PHOTOVIDEO, as the media lists of the clients ask. Service messages
+// are left out but for the photo's changes (MEDIA_CHAT_PHOTO).
+func (d *Dao) Search(ctx context.Context, selfId, channelId int64, q SearchQuery, offsetId, addOffset, limit, maxId, minId int32) ([]*mtproto.Message, int32, error) {
+	var pq pageQuery
+	add := func(cond string, args ...any) {
+		pq.where += " AND " + cond
+		pq.args = append(pq.args, args...)
+	}
+	if q.Q != "" {
+		add("message LIKE ? ESCAPE '!'", "%"+likeEscaper.Replace(q.Q)+"%")
+	}
+	if q.FromId != 0 {
+		add("sender_user_id = ?", q.FromId)
+	}
+	// Service messages are found only as changes of the photo.
+	if q.MediaType != mtproto.MEDIA_CHAT_PHOTO {
+		add("JSON_UNQUOTE(JSON_EXTRACT(message_data, '$.predicate_name')) = ?", mtproto.Predicate_message)
+	}
+	switch q.MediaType {
+	case mtproto.MEDIA_EMPTY:
+	case mtproto.MEDIA_PINNED:
+		add("pinned = 1")
+	case mtproto.MEDIA_PHOTOVIDEO:
+		add("message_filter_type IN (?, ?)", mtproto.MEDIA_PHOTOS_ONLY, mtproto.MEDIA_VIDEOS_ONLY)
+	default:
+		add("message_filter_type = ?", q.MediaType)
+	}
+	if q.MinDate > 0 {
+		add("date2 >= ?", q.MinDate)
+	}
+	if q.MaxDate > 0 {
+		add("date2 <= ?", q.MaxDate)
+	}
+	return d.page(ctx, selfId, channelId, pq, offsetId, 0, addOffset, min(limit, SearchMax), maxId, minId)
+}
+
+// likeEscaper escapes the wildcards of LIKE with '!'.
+var likeEscaper = strings.NewReplacer("!", "!!", "%", "!%", "_", "!_")
+
+// pageQuery narrows a page of messages: conditions on channel_messages
+// with their arguments.
+type pageQuery struct {
+	where string
+	args  []any
+}
+
+func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, offsetId, offsetDate, addOffset, limit, maxId, minId int32) ([]*mtproto.Message, int32, error) {
 	v, err := d.viewerOf(ctx, selfId, channelId)
 	if err != nil {
 		return nil, 0, err
@@ -108,8 +175,8 @@ func (d *Dao) History(ctx context.Context, selfId, channelId int64, offsetId, of
 		upper = maxId
 	}
 	lower := max(minId, v.availableMinId-1)
-	where := "channel_id = ? AND deleted = 0 AND id > ? AND id < ?"
-	args := []any{channelId, lower, upper}
+	where := "channel_id = ? AND deleted = 0 AND id > ? AND id < ?" + pq.where
+	args := append([]any{channelId, lower, upper}, pq.args...)
 
 	var rows []messageRow
 	if addOffset < 0 {
@@ -133,7 +200,8 @@ func (d *Dao) History(ctx context.Context, selfId, channelId int64, offsetId, of
 	}
 	var count []int32
 	if err = d.Mysql.QueryRowsPartial(ctx, &count,
-		"SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id >= ?", channelId, v.availableMinId); err != nil {
+		"SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id >= ?"+pq.where,
+		append([]any{channelId, v.availableMinId}, pq.args...)...); err != nil {
 		return nil, 0, err
 	}
 	messages, err := decode(rows, channelId, selfId)

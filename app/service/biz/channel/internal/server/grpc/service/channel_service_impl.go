@@ -387,3 +387,17 @@ func (s *Service) ChannelEditCreator(ctx context.Context, request *channel.TLCha
 
 	return r, err
 }
+
+// ChannelSearch
+// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) ChannelSearch(ctx context.Context, request *channel.TLChannelSearch) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.search - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSearch(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

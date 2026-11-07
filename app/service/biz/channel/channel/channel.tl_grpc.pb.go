@@ -58,6 +58,7 @@ const (
 	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelSearch_FullMethodName                   = "/channel.RPCChannel/channel_search"
 	RPCChannel_ChannelEditCreator_FullMethodName              = "/channel.RPCChannel/channel_editCreator"
 	RPCChannel_ChannelEditAdmin_FullMethodName                = "/channel.RPCChannel/channel_editAdmin"
 	RPCChannel_ChannelEditBanned_FullMethodName               = "/channel.RPCChannel/channel_editBanned"
@@ -110,6 +111,8 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 043
+	ChannelSearch(ctx context.Context, in *TLChannelSearch, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
 	// pluma: task 042
 	ChannelEditCreator(ctx context.Context, in *TLChannelEditCreator, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 042
@@ -348,6 +351,16 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelSearch(ctx context.Context, in *TLChannelSearch, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSearch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelEditCreator(ctx context.Context, in *TLChannelEditCreator, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -434,6 +447,8 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 043
+	ChannelSearch(context.Context, *TLChannelSearch) (*mtproto.Messages_Messages, error)
 	// pluma: task 042
 	ChannelEditCreator(context.Context, *TLChannelEditCreator) (*mtproto.Updates, error)
 	// pluma: task 042
@@ -516,6 +531,9 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSearch(context.Context, *TLChannelSearch) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSearch not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelEditCreator(context.Context, *TLChannelEditCreator) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditCreator not implemented")
@@ -945,6 +963,24 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelSearch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSearch)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSearch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSearch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSearch(ctx, req.(*TLChannelSearch))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelEditCreator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelEditCreator)
 	if err := dec(in); err != nil {
@@ -1111,6 +1147,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_search",
+			Handler:    _RPCChannel_ChannelSearch_Handler,
 		},
 		{
 			MethodName: "channel_editCreator",
