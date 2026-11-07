@@ -23,6 +23,14 @@ import (
 // It unpins a portion of the dialog's pinned messages; offset above 0 asks
 // the client to repeat the call. The other members unpin theirs.
 func (c *MsgCore) MsgUnpinAllMessages(in *msg.TLMsgUnpinAllMessages) (*mtproto.Messages_AffectedHistory, error) {
+	if in.PeerType == mtproto.PEER_CHANNEL {
+		r, err := c.unpinAllChannelMessages(in.UserId, in.AuthKeyId, in.PeerId)
+		if err != nil {
+			c.Logger.Errorf("msg.unpinAllMessages - error: %v", err)
+			return nil, err
+		}
+		return r, nil
+	}
 	peerType, peerId := selfPeer(in.UserId, in.PeerType, in.PeerId)
 	if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT {
 		c.Logger.Errorf("msg.unpinAllMessages - error: invalid peer %d/%d", in.PeerType, in.PeerId)

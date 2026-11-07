@@ -30,6 +30,14 @@ import (
 // other member gets the pin, then the service message, as inbox events of
 // one key in that order.
 func (c *MsgCore) MsgUpdatePinnedMessage(in *msg.TLMsgUpdatePinnedMessage) (*mtproto.Updates, error) {
+	if in.PeerType == mtproto.PEER_CHANNEL {
+		r, err := c.pinChannelMessage(in.UserId, in.AuthKeyId, in.PeerId, in.Id, in.Unpin, in.Silent)
+		if err != nil {
+			c.Logger.Errorf("msg.updatePinnedMessage - error: %v", err)
+			return nil, err
+		}
+		return r, nil
+	}
 	peerType, peerId := selfPeer(in.UserId, in.PeerType, in.PeerId)
 	if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT {
 		c.Logger.Errorf("msg.updatePinnedMessage - error: invalid peer %d/%d", in.PeerType, in.PeerId)

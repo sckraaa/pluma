@@ -87,6 +87,17 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		full.UnreadCount = d[0].GetUnreadCount()
 		full.Pts = d[0].GetPts().GetValue()
 	}
+	// The pinned bar shows the newest pinned message (task 043).
+	pinned, err := c.svcCtx.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{
+		SelfId: c.MD.UserId, ChannelId: ch.GetId(), MediaType: mtproto.MEDIA_PINNED, Limit: 1,
+	})
+	if err != nil {
+		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+		return nil, err
+	}
+	if m := pinned.GetMessages(); len(m) > 0 {
+		full.PinnedMsgId = mtproto.MakeFlagsInt32(m[0].GetId())
+	}
 	if full.NotifySettings, err = c.svcCtx.User.UserGetNotifySettings(c.ctx, &userpb.TLUserGetNotifySettings{
 		UserId:   c.MD.UserId,
 		PeerType: mtproto.PEER_CHANNEL,

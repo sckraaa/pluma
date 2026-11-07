@@ -232,27 +232,35 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 		}
 		sent = append(sent, ChannelSent{RandomId: o.RandomId, Message: m, Pts: ch.Pts()})
 	}
-	last := sent[len(sent)-1].Message.Id
-	if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", last, channelId); err != nil {
+	if err = movedTo(b, channelId, sent[len(sent)-1].Message.Id); err != nil {
 		return nil, nil, err
+	}
+	return sent, mentioned, nil
+}
+
+// movedTo moves the channel's top message to last, b's owner's message, and
+// the owner's dialog with it, read.
+func movedTo(b *userbox.Box, channelId int64, last int32) error {
+	if _, err := b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", last, channelId); err != nil {
+		return err
 	}
 	b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), mtproto.PEER_CHANNEL, channelId))
 	res, err := b.Tx().Exec("UPDATE dialogs SET top_message = ?, read_inbox_max_id = ?, date2 = ?, deleted = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
 		last, last, b.Date(), b.UserId(), mtproto.PEER_CHANNEL, channelId)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 	if n == 0 {
 		if _, err = b.Tx().Exec("INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, read_inbox_max_id, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, ?, 'null', ?)",
 			b.UserId(), mtproto.PEER_CHANNEL, channelId, mtproto.MakePeerDialogId(mtproto.PEER_CHANNEL, channelId), last, last, b.Date()); err != nil {
-			return nil, nil, err
+			return err
 		}
 	}
-	return sent, mentioned, nil
+	return nil
 }
 
 // EmitChannelPush adds the push of the new messages of the channel to its

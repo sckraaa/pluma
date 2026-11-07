@@ -31,7 +31,8 @@ func (c *MessagesCore) MessagesUpdatePinnedMessage(in *mtproto.TLMessagesUpdateP
 		rUpdates *mtproto.Updates
 	)
 
-	if !peer.IsChatOrUser() {
+	// A channel's pin is for everyone (task 043, msg checks the rights).
+	if !peer.IsChatOrUser() && !peer.IsChannel() {
 		c.Logger.Errorf("invalid peer: %v", in.Peer)
 		err := mtproto.ErrPeerIdInvalid
 		return nil, err
