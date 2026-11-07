@@ -24,6 +24,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/reactions"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
@@ -45,6 +46,7 @@ func (d *Dao) MemberIds(ctx context.Context, channelId int64) ([]int64, error) {
 type viewer struct {
 	canRead        bool
 	member         bool
+	broadcast      bool
 	availableMinId int32
 }
 
@@ -59,10 +61,11 @@ func (d *Dao) viewerOf(ctx context.Context, userId, channelId int64) (viewer, er
 		return viewer{}, nil
 	}
 	p, _ := mc.GetParticipant(userId)
+	broadcast := mc.GetChannel().GetBroadcast()
 	if p.Member() {
-		return viewer{canRead: true, member: true, availableMinId: p.GetAvailableMinId()}, nil
+		return viewer{canRead: true, member: true, broadcast: broadcast, availableMinId: p.GetAvailableMinId()}, nil
 	}
-	return viewer{canRead: mc.GetChannel().Public() && mc.ToChat(userId, 0).GetPredicateName() == mtproto.Predicate_channel}, nil
+	return viewer{canRead: mc.GetChannel().Public() && mc.ToChat(userId, 0).GetPredicateName() == mtproto.Predicate_channel, broadcast: broadcast}, nil
 }
 
 type messageRow struct {
@@ -211,7 +214,10 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 		return nil, 0, err
 	}
 	messages, err := decode(rows, channelId, selfId)
-	return messages, first(count), err
+	if err != nil {
+		return nil, 0, err
+	}
+	return messages, first(count), d.withReactions(ctx, channelId, selfId, v.broadcast, messages)
 }
 
 // Messages are the messages ids of channelId that selfId may see, as it sees
@@ -238,5 +244,31 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 		return nil, err
 	}
 	slices.SortFunc(rows, func(a, b messageRow) int { return slices.Index(ids, a.Id) - slices.Index(ids, b.Id) })
-	return decode(rows, channelId, selfId)
+	messages, err := decode(rows, channelId, selfId)
+	if err != nil {
+		return nil, err
+	}
+	return messages, d.withReactions(ctx, channelId, selfId, v.broadcast, messages)
+}
+
+// withReactions sets on messages the reactions to them as selfId sees them
+// (task 044).
+func (d *Dao) withReactions(ctx context.Context, channelId, selfId int64, broadcast bool, messages []*mtproto.Message) error {
+	ids := make([]int32, 0, len(messages))
+	for _, m := range messages {
+		if m.GetPredicateName() == mtproto.Predicate_message {
+			ids = append(ids, m.GetId())
+		}
+	}
+	rows, err := reactions.LoadChannel(ctx, d.Mysql, channelId, ids)
+	if err != nil {
+		return err
+	}
+	kind := reactions.ChannelKind(broadcast)
+	for _, m := range messages {
+		if r, ok := rows[m.GetId()]; ok && m.GetPredicateName() == mtproto.Predicate_message {
+			m.Reactions = reactions.View(r, selfId, m.GetFromId().GetUserId(), kind)
+		}
+	}
+	return nil
 }

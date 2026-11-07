@@ -43,6 +43,14 @@ func (c *MsgCore) MsgSendReaction(in *msg.TLMsgSendReaction) (*mtproto.Updates, 
 	if err != nil {
 		return nil, err
 	}
+	if peerType == mtproto.PEER_CHANNEL {
+		r, err := c.sendChannelReaction(in, keys)
+		if err != nil {
+			c.Logger.Errorf("msg.sendReaction - error: %v", err)
+			return nil, err
+		}
+		return r, nil
+	}
 	t, err := c.reactionPeers(in.UserId, peerType, peerId, keys)
 	if err != nil {
 		c.Logger.Errorf("msg.sendReaction - error: %v", err)

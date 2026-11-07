@@ -29,13 +29,18 @@ import (
 // its order (none takes them back); msg checks the limits and the group's
 // reactions and tells the other members (task 053). An emoji must be one of
 // the catalog's available reactions, as Telegram's REACTION_INVALID says.
+// A channel's reactions are one list for every member (task 044, msg
+// writes them with the channel locked).
 func (c *CatalogCore) MessagesSendReaction(in *mtproto.TLMessagesSendReaction) (*mtproto.Updates, error) {
-	peer, err := c.reactionPeer(in.Peer)
-	if err != nil {
-		return nil, err
-	}
 	list := in.GetReaction_FLAGVECTORREACTION()
-	if err = c.checkAvailable(list); err != nil {
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
+	if peer.PeerType != mtproto.PEER_CHANNEL {
+		var err error
+		if peer, err = c.reactionPeer(in.Peer); err != nil {
+			return nil, err
+		}
+	}
+	if err := c.checkAvailable(list); err != nil {
 		return nil, err
 	}
 	r, err := c.svcCtx.Msg.MsgSendReaction(c.ctx, &msgpb.TLMsgSendReaction{

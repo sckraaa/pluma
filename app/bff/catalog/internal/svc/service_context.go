@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/catalog/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
@@ -75,6 +76,7 @@ type ServiceContext struct {
 	Message   message_client.MessageClient
 	User      user_client.UserClient
 	Chat      chat_client.ChatClient
+	Channel   channel_client.ChannelClient
 	Reactions *sqlx.DB // message_reactions, saved_reaction_tags, user_reaction_settings: reads and the default reaction
 }
 
@@ -97,6 +99,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Message:   message_client.NewMessageClient(rpcx.GetCachedRpcClient(c.MessageClient)),
 		User:      user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		Chat:      chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		Channel:   channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		Reactions: sqlx.NewMySQL(&c.Mysql),
 	}
 	bot, err := tgbot.FromSettings(c.TelegramBot)

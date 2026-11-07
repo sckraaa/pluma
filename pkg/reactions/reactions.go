@@ -49,6 +49,10 @@ const (
 	Group
 	// Saved is the chat with oneself: reactions are tags there.
 	Saved
+	// Broadcast is a channel's posts: the counts only, no one's reactions
+	// listed, as the subscribers of a channel are not shown to each other
+	// (task 044; how Telegram fills them is not verified).
+	Broadcast
 )
 
 // Key is the key a reaction is stored under: "e" and the emoticon, or "c" and
@@ -168,7 +172,7 @@ func view(rows []Row, viewer, author int64, kind Kind) *mtproto.MessageReactions
 	})
 
 	out := &mtproto.MessageReactions{
-		CanSeeList:      kind != Saved,
+		CanSeeList:      kind != Saved && kind != Broadcast,
 		ReactionsAsTags: kind == Saved,
 		Results:         make([]*mtproto.ReactionCount, 0, len(results)),
 		RecentReactions: []*mtproto.MessagePeerReaction{},
@@ -181,7 +185,7 @@ func view(rows []Row, viewer, author int64, kind Kind) *mtproto.MessageReactions
 		}
 		out.Results = append(out.Results, mtproto.MakeTLReactionCount(rc).To_ReactionCount())
 	}
-	if kind != Saved {
+	if kind != Saved && kind != Broadcast {
 		recent := slices.Clone(rows)
 		slices.SortStableFunc(recent, func(a, b Row) int { return cmp.Compare(b.Date, a.Date) })
 		for _, r := range recent[:min(len(recent), RecentMax)] {

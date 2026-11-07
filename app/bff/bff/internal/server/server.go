@@ -298,6 +298,7 @@ func (s *Server) Initialize() error {
 			MessageClient: c.BizServiceClient,
 			UserClient:    c.BizServiceClient,
 			ChatClient:    c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
 		})
 		mtproto.RegisterRPCReactionsServer(grpcServer, catalog)
 		mtproto.RegisterRPCStickersServer(grpcServer, catalog)

@@ -50,6 +50,49 @@ func Load(ctx context.Context, q Querier, dialogMessageIds []int64) (map[int64][
 	return out, nil
 }
 
+type channelReactionRow struct {
+	MessageId   int32  `db:"message_id"`
+	UserId      int64  `db:"user_id"`
+	Reaction    string `db:"reaction"`
+	ChosenOrder int32  `db:"chosen_order"`
+	Big         bool   `db:"big"`
+	Unread      bool   `db:"unread"`
+	Date        int64  `db:"date"`
+}
+
+// LoadChannel returns the reactions to messages ids of channelId by message,
+// in the order of their dates (channel_message_reactions, task 044).
+func LoadChannel(ctx context.Context, q Querier, channelId int64, ids []int32) (map[int32][]Row, error) {
+	out := map[int32][]Row{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	args := []any{channelId}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	var rows []channelReactionRow
+	if err := q.QueryRowsPartial(ctx, &rows,
+		"SELECT message_id, user_id, reaction, chosen_order, big, unread, `date` FROM channel_message_reactions WHERE channel_id = ? AND message_id IN (?"+strings.Repeat(", ?", len(ids)-1)+") ORDER BY `date`, user_id, chosen_order",
+		args...); err != nil {
+		return nil, err
+	}
+	for _, r := range rows {
+		out[r.MessageId] = append(out[r.MessageId], Row{
+			UserId: r.UserId, Reaction: r.Reaction, ChosenOrder: r.ChosenOrder, Big: r.Big, Unread: r.Unread, Date: r.Date,
+		})
+	}
+	return out, nil
+}
+
+// ChannelKind is the kind of chat of a channel's messages.
+func ChannelKind(broadcast bool) Kind {
+	if broadcast {
+		return Broadcast
+	}
+	return Group
+}
+
 // BoxKind is the kind of chat of a copy of a message, 0 for one reactions of
 // this package do not cover (channels).
 func BoxKind(box *mtproto.MessageBox) Kind {
@@ -131,7 +174,7 @@ func ClearRecent(ctx context.Context, e Execer, userId, now int64) error {
 }
 
 // Recent are the keys of the reactions userId put lately outside Saved
-// Messages (where they are tags), the latest first, each once, at most
+// Messages (where they are tags), in chats and channels, the latest first, each once, at most
 // limit, since it last cleared them.
 func Recent(ctx context.Context, q Querier, userId int64, limit int32) ([]string, error) {
 	s, err := settings(ctx, q, userId)
@@ -140,10 +183,12 @@ func Recent(ctx context.Context, q Querier, userId int64, limit int32) ([]string
 	}
 	var keys []string
 	err = q.QueryRowsPartial(ctx, &keys,
-		"SELECT r.reaction FROM message_reactions r JOIN messages m ON m.user_id = r.user_id AND m.dialog_message_id = r.dialog_message_id"+
+		"SELECT reaction FROM ("+
+			"SELECT r.reaction, r.`date` FROM message_reactions r JOIN messages m ON m.user_id = r.user_id AND m.dialog_message_id = r.dialog_message_id"+
 			" WHERE r.user_id = ? AND r.`date` > ? AND NOT (m.peer_type = ? AND m.peer_id = r.user_id)"+
-			" GROUP BY r.reaction ORDER BY MAX(r.`date`) DESC LIMIT ?",
-		userId, s.RecentClearedAt, mtproto.PEER_USER, limit)
+			" UNION ALL SELECT reaction, `date` FROM channel_message_reactions WHERE user_id = ? AND `date` > ?"+
+			") t GROUP BY reaction ORDER BY MAX(`date`) DESC LIMIT ?",
+		userId, s.RecentClearedAt, mtproto.PEER_USER, userId, s.RecentClearedAt, limit)
 	return keys, err
 }
 

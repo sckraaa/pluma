@@ -115,3 +115,19 @@ func TestRecentMax(t *testing.T) {
 		t.Errorf("recent %d, first %d", len(v.RecentReactions), v.RecentReactions[0].PeerId.GetUserId())
 	}
 }
+
+// A channel's posts show the counts and the viewer's own choice, not who
+// reacted.
+func TestViewBroadcast(t *testing.T) {
+	rows := []Row{{UserId: 1, Reaction: "e👍", Date: 10}, {UserId: 2, Reaction: "e👍", Date: 11}}
+	v := View(rows, 2, 0, Broadcast)
+	if v.GetCanSeeList() || len(v.GetRecentReactions()) != 0 {
+		t.Errorf("who reacted is shown: %v", v)
+	}
+	if r := v.GetResults(); len(r) != 1 || r[0].GetCount() != 2 || r[0].GetChosenOrder() == nil {
+		t.Errorf("results %v", r)
+	}
+	if g := View(rows, 2, 0, Group); !g.GetCanSeeList() || len(g.GetRecentReactions()) != 2 {
+		t.Errorf("a supergroup shows who reacted: %v", g)
+	}
+}

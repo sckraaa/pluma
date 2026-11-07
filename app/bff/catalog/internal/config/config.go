@@ -34,4 +34,7 @@ type Config struct {
 	MessageClient zrpc.RpcClientConf
 	UserClient    zrpc.RpcClientConf
 	ChatClient    zrpc.RpcClientConf
+	// ChannelClient: the messages and the members of channels, whose
+	// reactions are served here too (task 044).
+	ChannelClient zrpc.RpcClientConf
 }
