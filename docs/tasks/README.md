@@ -67,7 +67,7 @@
 | [039](039-channel-send-and-history.md) | Каналы: отправка, история, `channels.getMessages` | done (сервер) |
 | [040](040-channel-difference.md) | Каналы: `updates.getChannelDifference` и `updateChannelTooLong` | done (сервер) |
 | [041](041-channel-membership-and-invites.md) | Каналы: участники и приглашения | in progress (нет заявок на вступление) |
-| [042](042-channel-rights.md) | Каналы: права админов, баны, права по умолчанию | todo |
+| [042](042-channel-rights.md) | Каналы: права админов, баны, права по умолчанию | in progress (выкачено, ждёт проверки в клиентах) |
 | [043](043-channel-edit-delete-pin-read.md) | Каналы: правка, удаление, закрепление, прочтение | in progress (нет закрепления и `readMessageContents`) |
 | [044](044-channel-metadata-and-usernames.md) | Каналы: название, фото, настройки, реакции, публичные имена | in progress (нет фото канала, настроек и реакций) |
 | [045](045-channel-slow-mode.md) | Супергруппы: медленный режим | todo |
