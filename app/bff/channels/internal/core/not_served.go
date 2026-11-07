@@ -100,11 +100,6 @@ func (c *ChannelsCore) ChannelsToggleParticipantsHidden(in *mtproto.TLChannelsTo
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsEditCreator is not served yet: channels.editCreator#8f38cd1f.
-func (c *ChannelsCore) ChannelsEditCreator(in *mtproto.TLChannelsEditCreator) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsGetFutureCreatorAfterLeave is not served yet: channels.getFutureCreatorAfterLeave#a00918af.
 func (c *ChannelsCore) ChannelsGetFutureCreatorAfterLeave(in *mtproto.TLChannelsGetFutureCreatorAfterLeave) (*mtproto.User, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	860909233: func() mtproto.TLObject { // 0x33506eb1 pluma: task 042
+		return &TLChannelEditCreator{
+			Constructor: 860909233,
+		}
+	},
 	1274612374: func() mtproto.TLObject { // 0x4bf90a96 pluma: task 042
 		return &TLChannelEditAdmin{
 			Constructor: 1274612374,
@@ -1985,6 +1990,50 @@ func (m *TLChannelEditDefaultBannedRights) Decode(dBuf *mtproto.DecodeBuf) error
 		m.PermAuthKeyId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		m.BannedRights = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditCreator (pluma: task 042)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditCreator) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x33506eb1:
+		x.UInt(0x33506eb1)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditCreator) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditCreator) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x33506eb1:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.UserId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

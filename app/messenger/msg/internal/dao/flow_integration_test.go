@@ -315,6 +315,10 @@ func (noChannels) ChannelDeleteChannel(context.Context, *channelpb.TLChannelDele
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelEditCreator(context.Context, *channelpb.TLChannelEditCreator) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

@@ -72,6 +72,8 @@ enum TLConstructor {
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
   // pluma: task 042
+  CRC32_channel_editCreator = 860909233;
+  // pluma: task 042
   CRC32_channel_editAdmin = 1274612374;
   // pluma: task 042
   CRC32_channel_editBanned = -1457424068;
@@ -462,6 +464,19 @@ message TL_channel_editDefaultBannedRights {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.editCreator self_id:long perm_auth_key_id:long channel_id:long user_id:long = Updates;
+// self_id, the creator, hands the channel to user_id (channels.editCreator,
+// messages.editChatCreator); the caller has checked the 2FA password.
+// (task 042)
+message TL_channel_editCreator {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 user_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -529,6 +544,8 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 042
+  rpc channel_editCreator(TL_channel_editCreator) returns (mtproto.Updates) {}
   // pluma: task 042
   rpc channel_editAdmin(TL_channel_editAdmin) returns (mtproto.Updates) {}
   // pluma: task 042

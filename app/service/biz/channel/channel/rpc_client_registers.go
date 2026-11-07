@@ -62,6 +62,8 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	// pluma: task 055
 	"TLChannelDeleteChannel": {"/mtproto.RPCChannel/channel_deleteChannel", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 042
+	"TLChannelEditCreator": {"/mtproto.RPCChannel/channel_editCreator", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 042
 	"TLChannelEditAdmin": {"/mtproto.RPCChannel/channel_editAdmin", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 042
 	"TLChannelEditBanned": {"/mtproto.RPCChannel/channel_editBanned", func() interface{} { return new(mtproto.Updates) }},

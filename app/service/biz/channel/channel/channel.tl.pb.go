@@ -88,6 +88,8 @@ const (
 	// pluma: task 055
 	TLConstructor_CRC32_channel_deleteChannel TLConstructor = -979916526
 	// pluma: task 042
+	TLConstructor_CRC32_channel_editCreator TLConstructor = 860909233
+	// pluma: task 042
 	TLConstructor_CRC32_channel_editAdmin TLConstructor = 1274612374
 	// pluma: task 042
 	TLConstructor_CRC32_channel_editBanned TLConstructor = -1457424068
@@ -124,6 +126,7 @@ var (
 		418987336:   "CRC32_channel_updateUsername",
 		-2083237595: "CRC32_channel_getAdminedPublicChannels",
 		-979916526:  "CRC32_channel_deleteChannel",
+		860909233:   "CRC32_channel_editCreator",
 		1274612374:  "CRC32_channel_editAdmin",
 		-1457424068: "CRC32_channel_editBanned",
 		1263700059:  "CRC32_channel_editDefaultBannedRights",
@@ -155,6 +158,7 @@ var (
 		"CRC32_channel_updateUsername":           418987336,
 		"CRC32_channel_getAdminedPublicChannels": -2083237595,
 		"CRC32_channel_deleteChannel":            -979916526,
+		"CRC32_channel_editCreator":              860909233,
 		"CRC32_channel_editAdmin":                1274612374,
 		"CRC32_channel_editBanned":               -1457424068,
 		"CRC32_channel_editDefaultBannedRights":  1263700059,
@@ -2780,6 +2784,87 @@ func (x *TLChannelEditDefaultBannedRights) GetBannedRights() int32 {
 }
 
 // --------------------------------------------------------------------------------------------
+// pluma: channel.editCreator self_id:long perm_auth_key_id:long channel_id:long user_id:long = Updates;
+// self_id, the creator, hands the channel to user_id (channels.editCreator,
+// messages.editChatCreator); the caller has checked the 2FA password.
+// (task 042)
+type TLChannelEditCreator struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,6,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelEditCreator) Reset() {
+	*x = TLChannelEditCreator{}
+	mi := &file_channel_tl_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelEditCreator) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelEditCreator) ProtoMessage() {}
+
+func (x *TLChannelEditCreator) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelEditCreator.ProtoReflect.Descriptor instead.
+func (*TLChannelEditCreator) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *TLChannelEditCreator) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelEditCreator) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelEditCreator) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelEditCreator) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelEditCreator) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 type Vector_Long struct {
@@ -2791,7 +2876,7 @@ type Vector_Long struct {
 
 func (x *Vector_Long) Reset() {
 	*x = Vector_Long{}
-	mi := &file_channel_tl_proto_msgTypes[31]
+	mi := &file_channel_tl_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2803,7 +2888,7 @@ func (x *Vector_Long) String() string {
 func (*Vector_Long) ProtoMessage() {}
 
 func (x *Vector_Long) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[31]
+	mi := &file_channel_tl_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2816,7 +2901,7 @@ func (x *Vector_Long) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Long.ProtoReflect.Descriptor instead.
 func (*Vector_Long) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{31}
+	return file_channel_tl_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *Vector_Long) GetDatas() []int64 {
@@ -2836,7 +2921,7 @@ type Vector_Dialog struct {
 
 func (x *Vector_Dialog) Reset() {
 	*x = Vector_Dialog{}
-	mi := &file_channel_tl_proto_msgTypes[32]
+	mi := &file_channel_tl_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2848,7 +2933,7 @@ func (x *Vector_Dialog) String() string {
 func (*Vector_Dialog) ProtoMessage() {}
 
 func (x *Vector_Dialog) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[32]
+	mi := &file_channel_tl_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2861,7 +2946,7 @@ func (x *Vector_Dialog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Dialog.ProtoReflect.Descriptor instead.
 func (*Vector_Dialog) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{32}
+	return file_channel_tl_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *Vector_Dialog) GetDatas() []*mtproto.Dialog {
@@ -2881,7 +2966,7 @@ type Vector_Message struct {
 
 func (x *Vector_Message) Reset() {
 	*x = Vector_Message{}
-	mi := &file_channel_tl_proto_msgTypes[33]
+	mi := &file_channel_tl_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2893,7 +2978,7 @@ func (x *Vector_Message) String() string {
 func (*Vector_Message) ProtoMessage() {}
 
 func (x *Vector_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[33]
+	mi := &file_channel_tl_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2906,7 +2991,7 @@ func (x *Vector_Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Message.ProtoReflect.Descriptor instead.
 func (*Vector_Message) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{33}
+	return file_channel_tl_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *Vector_Message) GetDatas() []*mtproto.Message {
@@ -2925,7 +3010,7 @@ type Vector_MutableChannel struct {
 
 func (x *Vector_MutableChannel) Reset() {
 	*x = Vector_MutableChannel{}
-	mi := &file_channel_tl_proto_msgTypes[34]
+	mi := &file_channel_tl_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2937,7 +3022,7 @@ func (x *Vector_MutableChannel) String() string {
 func (*Vector_MutableChannel) ProtoMessage() {}
 
 func (x *Vector_MutableChannel) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[34]
+	mi := &file_channel_tl_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2950,7 +3035,7 @@ func (x *Vector_MutableChannel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_MutableChannel.ProtoReflect.Descriptor instead.
 func (*Vector_MutableChannel) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{34}
+	return file_channel_tl_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *Vector_MutableChannel) GetDatas() []*MutableChannel {
@@ -3202,7 +3287,14 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
 	"\n" +
 	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12#\n" +
-	"\rbanned_rights\x18\x06 \x01(\x05R\fbannedRights\"#\n" +
+	"\rbanned_rights\x18\x06 \x01(\x05R\fbannedRights\"\xcc\x01\n" +
+	"\x16TL_channel_editCreator\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12\x17\n" +
+	"\auser_id\x18\x06 \x01(\x03R\x06userId\"#\n" +
 	"\vVector_Long\x12\x14\n" +
 	"\x05datas\x18\x01 \x03(\x03R\x05datas\"6\n" +
 	"\rVector_Dialog\x12%\n" +
@@ -3210,7 +3302,7 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x0eVector_Message\x12&\n" +
 	"\x05datas\x18\x01 \x03(\v2\x10.mtproto.MessageR\x05datas\"F\n" +
 	"\x15Vector_MutableChannel\x12-\n" +
-	"\x05datas\x18\x01 \x03(\v2\x17.channel.MutableChannelR\x05datas*\x8d\t\n" +
+	"\x05datas\x18\x01 \x03(\v2\x17.channel.MutableChannelR\x05datas*\xb0\t\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12#\n" +
 	"\x16CRC32_immutableChannel\x10\x82\x87ڹ\xfd\xff\xff\xff\xff\x01\x12)\n" +
@@ -3237,10 +3329,11 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x1bCRC32_channel_checkUsername\x10\xac\xbc\x9f\xd6\x03\x12$\n" +
 	"\x1cCRC32_channel_updateUsername\x10\xc8\xfa\xe4\xc7\x01\x123\n" +
 	"&CRC32_channel_getAdminedPublicChannels\x10\xa5\xa2ў\xf8\xff\xff\xff\xff\x01\x12(\n" +
-	"\x1bCRC32_channel_deleteChannel\x10\x92\xd2ެ\xfc\xff\xff\xff\xff\x01\x12\x1f\n" +
+	"\x1bCRC32_channel_deleteChannel\x10\x92\xd2ެ\xfc\xff\xff\xff\xff\x01\x12!\n" +
+	"\x19CRC32_channel_editCreator\x10\xb1\xdd\xc1\x9a\x03\x12\x1f\n" +
 	"\x17CRC32_channel_editAdmin\x10\x96\x95\xe4\xdf\x04\x12%\n" +
 	"\x18CRC32_channel_editBanned\x10\xbc\xf2\x85\xc9\xfa\xff\xff\xff\xff\x01\x12-\n" +
-	"%CRC32_channel_editDefaultBannedRights\x10ې\xca\xda\x042\x85\x11\n" +
+	"%CRC32_channel_editDefaultBannedRights\x10ې\xca\xda\x042\xd1\x11\n" +
 	"\n" +
 	"RPCChannel\x12]\n" +
 	"\x19channel_getMutableChannel\x12%.channel.TL_channel_getMutableChannel\x1a\x17.channel.MutableChannel\"\x00\x12n\n" +
@@ -3264,7 +3357,8 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x15channel_checkUsername\x12!.channel.TL_channel_checkUsername\x1a\r.mtproto.Bool\"\x00\x12M\n" +
 	"\x16channel_updateUsername\x12\".channel.TL_channel_updateUsername\x1a\r.mtproto.Bool\"\x00\x12h\n" +
 	" channel_getAdminedPublicChannels\x12,.channel.TL_channel_getAdminedPublicChannels\x1a\x14.channel.Vector_Long\"\x00\x12N\n" +
-	"\x15channel_deleteChannel\x12!.channel.TL_channel_deleteChannel\x1a\x10.mtproto.Updates\"\x00\x12F\n" +
+	"\x15channel_deleteChannel\x12!.channel.TL_channel_deleteChannel\x1a\x10.mtproto.Updates\"\x00\x12J\n" +
+	"\x13channel_editCreator\x12\x1f.channel.TL_channel_editCreator\x1a\x10.mtproto.Updates\"\x00\x12F\n" +
 	"\x11channel_editAdmin\x12\x1d.channel.TL_channel_editAdmin\x1a\x10.mtproto.Updates\"\x00\x12H\n" +
 	"\x12channel_editBanned\x12\x1e.channel.TL_channel_editBanned\x1a\x10.mtproto.Updates\"\x00\x12b\n" +
 	"\x1fchannel_editDefaultBannedRights\x12+.channel.TL_channel_editDefaultBannedRights\x1a\x10.mtproto.Updates\"\x00BEZCgithub.com/teamgram/teamgram-server/app/service/biz/channel/channelb\x06proto3"
@@ -3282,7 +3376,7 @@ func file_channel_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_channel_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_channel_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
+var file_channel_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 36)
 var file_channel_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                           // 0: channel.TLConstructor
 	(*ImmutableChannel)(nil),                     // 1: channel.ImmutableChannel
@@ -3316,24 +3410,25 @@ var file_channel_tl_proto_goTypes = []any{
 	(*TLChannelEditAdmin)(nil),                   // 29: channel.TL_channel_editAdmin
 	(*TLChannelEditBanned)(nil),                  // 30: channel.TL_channel_editBanned
 	(*TLChannelEditDefaultBannedRights)(nil),     // 31: channel.TL_channel_editDefaultBannedRights
-	(*Vector_Long)(nil),                          // 32: channel.Vector_Long
-	(*Vector_Dialog)(nil),                        // 33: channel.Vector_Dialog
-	(*Vector_Message)(nil),                       // 34: channel.Vector_Message
-	(*Vector_MutableChannel)(nil),                // 35: channel.Vector_MutableChannel
-	(*mtproto.Photo)(nil),                        // 36: mtproto.Photo
-	(*mtproto.Bool)(nil),                         // 37: mtproto.Bool
-	(*mtproto.Dialog)(nil),                       // 38: mtproto.Dialog
-	(*mtproto.Message)(nil),                      // 39: mtproto.Message
-	(*mtproto.Updates)(nil),                      // 40: mtproto.Updates
-	(*mtproto.Messages_Messages)(nil),            // 41: mtproto.messages_Messages
-	(*mtproto.Updates_ChannelDifference)(nil),    // 42: mtproto.updates_ChannelDifference
-	(*mtproto.ChatInvite)(nil),                   // 43: mtproto.ChatInvite
-	(*mtproto.Channels_ChannelParticipants)(nil), // 44: mtproto.channels_ChannelParticipants
-	(*mtproto.Messages_AffectedMessages)(nil),    // 45: mtproto.messages_AffectedMessages
+	(*TLChannelEditCreator)(nil),                 // 32: channel.TL_channel_editCreator
+	(*Vector_Long)(nil),                          // 33: channel.Vector_Long
+	(*Vector_Dialog)(nil),                        // 34: channel.Vector_Dialog
+	(*Vector_Message)(nil),                       // 35: channel.Vector_Message
+	(*Vector_MutableChannel)(nil),                // 36: channel.Vector_MutableChannel
+	(*mtproto.Photo)(nil),                        // 37: mtproto.Photo
+	(*mtproto.Bool)(nil),                         // 38: mtproto.Bool
+	(*mtproto.Dialog)(nil),                       // 39: mtproto.Dialog
+	(*mtproto.Message)(nil),                      // 40: mtproto.Message
+	(*mtproto.Updates)(nil),                      // 41: mtproto.Updates
+	(*mtproto.Messages_Messages)(nil),            // 42: mtproto.messages_Messages
+	(*mtproto.Updates_ChannelDifference)(nil),    // 43: mtproto.updates_ChannelDifference
+	(*mtproto.ChatInvite)(nil),                   // 44: mtproto.ChatInvite
+	(*mtproto.Channels_ChannelParticipants)(nil), // 45: mtproto.channels_ChannelParticipants
+	(*mtproto.Messages_AffectedMessages)(nil),    // 46: mtproto.messages_AffectedMessages
 }
 var file_channel_tl_proto_depIdxs = []int32{
 	0,  // 0: channel.ImmutableChannel.constructor:type_name -> channel.TLConstructor
-	36, // 1: channel.ImmutableChannel.photo:type_name -> mtproto.Photo
+	37, // 1: channel.ImmutableChannel.photo:type_name -> mtproto.Photo
 	1,  // 2: channel.TL_immutableChannel.data2:type_name -> channel.ImmutableChannel
 	0,  // 3: channel.ImmutableChannelParticipant.constructor:type_name -> channel.TLConstructor
 	3,  // 4: channel.TL_immutableChannelParticipant.data2:type_name -> channel.ImmutableChannelParticipant
@@ -3344,8 +3439,8 @@ var file_channel_tl_proto_depIdxs = []int32{
 	0,  // 9: channel.TL_channel_getMutableChannel.constructor:type_name -> channel.TLConstructor
 	0,  // 10: channel.TL_channel_getChannelListByIdList.constructor:type_name -> channel.TLConstructor
 	0,  // 11: channel.TL_channel_createChannel.constructor:type_name -> channel.TLConstructor
-	37, // 12: channel.TL_channel_createChannel.broadcast:type_name -> mtproto.Bool
-	37, // 13: channel.TL_channel_createChannel.megagroup:type_name -> mtproto.Bool
+	38, // 12: channel.TL_channel_createChannel.broadcast:type_name -> mtproto.Bool
+	38, // 13: channel.TL_channel_createChannel.megagroup:type_name -> mtproto.Bool
 	0,  // 14: channel.TL_channel_getChannelDialogs.constructor:type_name -> channel.TLConstructor
 	0,  // 15: channel.TL_channel_getTopMessages.constructor:type_name -> channel.TLConstructor
 	0,  // 16: channel.TL_channel_getMemberIdList.constructor:type_name -> channel.TLConstructor
@@ -3366,67 +3461,70 @@ var file_channel_tl_proto_depIdxs = []int32{
 	0,  // 31: channel.TL_channel_getAdminedPublicChannels.constructor:type_name -> channel.TLConstructor
 	0,  // 32: channel.TL_channel_deleteChannel.constructor:type_name -> channel.TLConstructor
 	0,  // 33: channel.TL_channel_editAdmin.constructor:type_name -> channel.TLConstructor
-	37, // 34: channel.TL_channel_editAdmin.keep_rank:type_name -> mtproto.Bool
+	38, // 34: channel.TL_channel_editAdmin.keep_rank:type_name -> mtproto.Bool
 	0,  // 35: channel.TL_channel_editBanned.constructor:type_name -> channel.TLConstructor
 	0,  // 36: channel.TL_channel_editDefaultBannedRights.constructor:type_name -> channel.TLConstructor
-	38, // 37: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
-	39, // 38: channel.Vector_Message.datas:type_name -> mtproto.Message
-	5,  // 39: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
-	7,  // 40: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
-	8,  // 41: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
-	9,  // 42: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
-	10, // 43: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
-	11, // 44: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
-	12, // 45: channel.RPCChannel.channel_getMemberIdList:input_type -> channel.TL_channel_getMemberIdList
-	13, // 46: channel.RPCChannel.channel_getHistory:input_type -> channel.TL_channel_getHistory
-	14, // 47: channel.RPCChannel.channel_getMessages:input_type -> channel.TL_channel_getMessages
-	15, // 48: channel.RPCChannel.channel_getChannelDifference:input_type -> channel.TL_channel_getChannelDifference
-	16, // 49: channel.RPCChannel.channel_joinChannel:input_type -> channel.TL_channel_joinChannel
-	17, // 50: channel.RPCChannel.channel_leaveChannel:input_type -> channel.TL_channel_leaveChannel
-	18, // 51: channel.RPCChannel.channel_checkChatInvite:input_type -> channel.TL_channel_checkChatInvite
-	19, // 52: channel.RPCChannel.channel_getParticipants:input_type -> channel.TL_channel_getParticipants
-	20, // 53: channel.RPCChannel.channel_readHistory:input_type -> channel.TL_channel_readHistory
-	21, // 54: channel.RPCChannel.channel_deleteMessages:input_type -> channel.TL_channel_deleteMessages
-	22, // 55: channel.RPCChannel.channel_inviteToChannel:input_type -> channel.TL_channel_inviteToChannel
-	23, // 56: channel.RPCChannel.channel_editTitle:input_type -> channel.TL_channel_editTitle
-	24, // 57: channel.RPCChannel.channel_editAbout:input_type -> channel.TL_channel_editAbout
-	25, // 58: channel.RPCChannel.channel_checkUsername:input_type -> channel.TL_channel_checkUsername
-	26, // 59: channel.RPCChannel.channel_updateUsername:input_type -> channel.TL_channel_updateUsername
-	27, // 60: channel.RPCChannel.channel_getAdminedPublicChannels:input_type -> channel.TL_channel_getAdminedPublicChannels
-	28, // 61: channel.RPCChannel.channel_deleteChannel:input_type -> channel.TL_channel_deleteChannel
-	29, // 62: channel.RPCChannel.channel_editAdmin:input_type -> channel.TL_channel_editAdmin
-	30, // 63: channel.RPCChannel.channel_editBanned:input_type -> channel.TL_channel_editBanned
-	31, // 64: channel.RPCChannel.channel_editDefaultBannedRights:input_type -> channel.TL_channel_editDefaultBannedRights
-	5,  // 65: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
-	35, // 66: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
-	40, // 67: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
-	33, // 68: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
-	34, // 69: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
-	32, // 70: channel.RPCChannel.channel_getMemberIdList:output_type -> channel.Vector_Long
-	41, // 71: channel.RPCChannel.channel_getHistory:output_type -> mtproto.messages_Messages
-	34, // 72: channel.RPCChannel.channel_getMessages:output_type -> channel.Vector_Message
-	42, // 73: channel.RPCChannel.channel_getChannelDifference:output_type -> mtproto.updates_ChannelDifference
-	40, // 74: channel.RPCChannel.channel_joinChannel:output_type -> mtproto.Updates
-	40, // 75: channel.RPCChannel.channel_leaveChannel:output_type -> mtproto.Updates
-	43, // 76: channel.RPCChannel.channel_checkChatInvite:output_type -> mtproto.ChatInvite
-	44, // 77: channel.RPCChannel.channel_getParticipants:output_type -> mtproto.channels_ChannelParticipants
-	37, // 78: channel.RPCChannel.channel_readHistory:output_type -> mtproto.Bool
-	45, // 79: channel.RPCChannel.channel_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	40, // 80: channel.RPCChannel.channel_inviteToChannel:output_type -> mtproto.Updates
-	40, // 81: channel.RPCChannel.channel_editTitle:output_type -> mtproto.Updates
-	37, // 82: channel.RPCChannel.channel_editAbout:output_type -> mtproto.Bool
-	37, // 83: channel.RPCChannel.channel_checkUsername:output_type -> mtproto.Bool
-	37, // 84: channel.RPCChannel.channel_updateUsername:output_type -> mtproto.Bool
-	32, // 85: channel.RPCChannel.channel_getAdminedPublicChannels:output_type -> channel.Vector_Long
-	40, // 86: channel.RPCChannel.channel_deleteChannel:output_type -> mtproto.Updates
-	40, // 87: channel.RPCChannel.channel_editAdmin:output_type -> mtproto.Updates
-	40, // 88: channel.RPCChannel.channel_editBanned:output_type -> mtproto.Updates
-	40, // 89: channel.RPCChannel.channel_editDefaultBannedRights:output_type -> mtproto.Updates
-	65, // [65:90] is the sub-list for method output_type
-	40, // [40:65] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	0,  // 37: channel.TL_channel_editCreator.constructor:type_name -> channel.TLConstructor
+	39, // 38: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
+	40, // 39: channel.Vector_Message.datas:type_name -> mtproto.Message
+	5,  // 40: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
+	7,  // 41: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
+	8,  // 42: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
+	9,  // 43: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
+	10, // 44: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
+	11, // 45: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
+	12, // 46: channel.RPCChannel.channel_getMemberIdList:input_type -> channel.TL_channel_getMemberIdList
+	13, // 47: channel.RPCChannel.channel_getHistory:input_type -> channel.TL_channel_getHistory
+	14, // 48: channel.RPCChannel.channel_getMessages:input_type -> channel.TL_channel_getMessages
+	15, // 49: channel.RPCChannel.channel_getChannelDifference:input_type -> channel.TL_channel_getChannelDifference
+	16, // 50: channel.RPCChannel.channel_joinChannel:input_type -> channel.TL_channel_joinChannel
+	17, // 51: channel.RPCChannel.channel_leaveChannel:input_type -> channel.TL_channel_leaveChannel
+	18, // 52: channel.RPCChannel.channel_checkChatInvite:input_type -> channel.TL_channel_checkChatInvite
+	19, // 53: channel.RPCChannel.channel_getParticipants:input_type -> channel.TL_channel_getParticipants
+	20, // 54: channel.RPCChannel.channel_readHistory:input_type -> channel.TL_channel_readHistory
+	21, // 55: channel.RPCChannel.channel_deleteMessages:input_type -> channel.TL_channel_deleteMessages
+	22, // 56: channel.RPCChannel.channel_inviteToChannel:input_type -> channel.TL_channel_inviteToChannel
+	23, // 57: channel.RPCChannel.channel_editTitle:input_type -> channel.TL_channel_editTitle
+	24, // 58: channel.RPCChannel.channel_editAbout:input_type -> channel.TL_channel_editAbout
+	25, // 59: channel.RPCChannel.channel_checkUsername:input_type -> channel.TL_channel_checkUsername
+	26, // 60: channel.RPCChannel.channel_updateUsername:input_type -> channel.TL_channel_updateUsername
+	27, // 61: channel.RPCChannel.channel_getAdminedPublicChannels:input_type -> channel.TL_channel_getAdminedPublicChannels
+	28, // 62: channel.RPCChannel.channel_deleteChannel:input_type -> channel.TL_channel_deleteChannel
+	32, // 63: channel.RPCChannel.channel_editCreator:input_type -> channel.TL_channel_editCreator
+	29, // 64: channel.RPCChannel.channel_editAdmin:input_type -> channel.TL_channel_editAdmin
+	30, // 65: channel.RPCChannel.channel_editBanned:input_type -> channel.TL_channel_editBanned
+	31, // 66: channel.RPCChannel.channel_editDefaultBannedRights:input_type -> channel.TL_channel_editDefaultBannedRights
+	5,  // 67: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
+	36, // 68: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
+	41, // 69: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
+	34, // 70: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
+	35, // 71: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
+	33, // 72: channel.RPCChannel.channel_getMemberIdList:output_type -> channel.Vector_Long
+	42, // 73: channel.RPCChannel.channel_getHistory:output_type -> mtproto.messages_Messages
+	35, // 74: channel.RPCChannel.channel_getMessages:output_type -> channel.Vector_Message
+	43, // 75: channel.RPCChannel.channel_getChannelDifference:output_type -> mtproto.updates_ChannelDifference
+	41, // 76: channel.RPCChannel.channel_joinChannel:output_type -> mtproto.Updates
+	41, // 77: channel.RPCChannel.channel_leaveChannel:output_type -> mtproto.Updates
+	44, // 78: channel.RPCChannel.channel_checkChatInvite:output_type -> mtproto.ChatInvite
+	45, // 79: channel.RPCChannel.channel_getParticipants:output_type -> mtproto.channels_ChannelParticipants
+	38, // 80: channel.RPCChannel.channel_readHistory:output_type -> mtproto.Bool
+	46, // 81: channel.RPCChannel.channel_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	41, // 82: channel.RPCChannel.channel_inviteToChannel:output_type -> mtproto.Updates
+	41, // 83: channel.RPCChannel.channel_editTitle:output_type -> mtproto.Updates
+	38, // 84: channel.RPCChannel.channel_editAbout:output_type -> mtproto.Bool
+	38, // 85: channel.RPCChannel.channel_checkUsername:output_type -> mtproto.Bool
+	38, // 86: channel.RPCChannel.channel_updateUsername:output_type -> mtproto.Bool
+	33, // 87: channel.RPCChannel.channel_getAdminedPublicChannels:output_type -> channel.Vector_Long
+	41, // 88: channel.RPCChannel.channel_deleteChannel:output_type -> mtproto.Updates
+	41, // 89: channel.RPCChannel.channel_editCreator:output_type -> mtproto.Updates
+	41, // 90: channel.RPCChannel.channel_editAdmin:output_type -> mtproto.Updates
+	41, // 91: channel.RPCChannel.channel_editBanned:output_type -> mtproto.Updates
+	41, // 92: channel.RPCChannel.channel_editDefaultBannedRights:output_type -> mtproto.Updates
+	67, // [67:93] is the sub-list for method output_type
+	41, // [41:67] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_channel_tl_proto_init() }
@@ -3440,7 +3538,7 @@ func file_channel_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_channel_tl_proto_rawDesc), len(file_channel_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   35,
+			NumMessages:   36,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

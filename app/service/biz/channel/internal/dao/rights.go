@@ -384,3 +384,66 @@ func (d *Dao) EditDefaultBannedRights(b *userbox.Box, channelId int64, rights in
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }
+
+// EditCreator hands the channel to userId, by its creator: the user, a
+// member, becomes the creator, the old creator an admin with every right
+// promoted by the new one, and the members load the channel again
+// (core.telegram.org/method/channels.editCreator, messages.editChatCreator).
+// The caller has checked the 2FA password. CHAT_ADMIN_REQUIRED for one
+// not the creator, CHAT_NOT_MODIFIED for itself, USER_ID_INVALID for a
+// user not in the channel; CHANNELS_ADMIN_PUBLIC_TOO_MUCH when the channel
+// is public and the user owns PublicChannelsLimit public channels.
+func (d *Dao) EditCreator(b *userbox.Box, channelId, userId int64) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	switch {
+	case a.p.Role != channelperm.RoleCreator:
+		return nil, mtproto.ErrChatAdminRequired
+	case userId == b.UserId():
+		return nil, mtproto.ErrChatNotModified
+	}
+	t, err := rightsTarget(b, channelId, userId)
+	if err != nil {
+		return nil, err
+	}
+	if !t.in() {
+		return nil, mtproto.ErrUserIdInvalid
+	}
+	name, err := channelUsername(b.Tx(), channelId)
+	if err != nil {
+		return nil, err
+	}
+	if name != "" {
+		n, err := ownedPublic(b.Tx(), userId, channelId)
+		if err != nil {
+			return nil, err
+		}
+		if n >= PublicChannelsLimit {
+			return nil, mtproto.ErrChannelsAdminPublicTooMuch
+		}
+	}
+	if _, err = b.Tx().Exec("UPDATE channel_participants SET role = ?, admin_rights = 0, promoted_by = 0, banned_rights = 0, until_date = 0, kicked_by = 0 WHERE channel_id = ? AND user_id = ?",
+		channelperm.RoleCreator, channelId, userId); err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE channel_participants SET role = ?, admin_rights = ?, promoted_by = ? WHERE channel_id = ? AND user_id = ?",
+		channelperm.RoleAdmin, channelperm.CreatorRights, userId, channelId, b.UserId()); err != nil {
+		return nil, err
+	}
+	// The creator counts among the admins (channel.createChannel): a member
+	// made the creator adds one, an admin does not.
+	admins := 0
+	if t.Role != channelperm.RoleAdmin {
+		admins = 1
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET creator_user_id = ?, admins_count = admins_count + ?, version = version + 1 WHERE id = ?",
+		userId, admins, channelId); err != nil {
+		return nil, err
+	}
+	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}

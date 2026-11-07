@@ -373,3 +373,17 @@ func (s *Service) ChannelEditDefaultBannedRights(ctx context.Context, request *c
 
 	return r, err
 }
+
+// ChannelEditCreator
+// channel.editCreator self_id:long perm_auth_key_id:long channel_id:long user_id:long = Updates;
+func (s *Service) ChannelEditCreator(ctx context.Context, request *channel.TLChannelEditCreator) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editCreator - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditCreator(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

@@ -16,11 +16,16 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
+
+	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
+	KV    kv.KvConf   // 2FA of channels.editCreator: SRP sessions and limits
+	Mysql sqlx.Config // 2FA passwords
 	// The channels themselves (biz channel), their users (biz user) and
 	// their invite links, kept with those of basic groups (biz chat).
 	ChannelClient zrpc.RpcClientConf

@@ -48,6 +48,7 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelEditCreator(ctx context.Context, in *channel.TLChannelEditCreator) (*mtproto.Updates, error)
 	ChannelEditAdmin(ctx context.Context, in *channel.TLChannelEditAdmin) (*mtproto.Updates, error)
 	ChannelEditBanned(ctx context.Context, in *channel.TLChannelEditBanned) (*mtproto.Updates, error)
 	ChannelEditDefaultBannedRights(ctx context.Context, in *channel.TLChannelEditDefaultBannedRights) (*mtproto.Updates, error)
@@ -336,4 +337,15 @@ func (m *defaultChannelClient) ChannelEditDefaultBannedRights(ctx context.Contex
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelEditDefaultBannedRights(ctx, in)
+}
+
+// ChannelEditCreator
+// channel.editCreator self_id:long perm_auth_key_id:long channel_id:long user_id:long = Updates;
+func (m *defaultChannelClient) ChannelEditCreator(ctx context.Context, in *channel.TLChannelEditCreator) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditCreator(ctx, in)
 }

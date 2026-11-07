@@ -59,6 +59,17 @@ func (c *ChannelCore) ChannelEditDefaultBannedRights(in *channel.TLChannelEditDe
 	})
 }
 
+// ChannelEditCreator
+// channel.editCreator self_id:long perm_auth_key_id:long channel_id:long user_id:long = Updates;
+//
+// self_id, the creator, hands the channel to user_id (dao.EditCreator); the
+// caller has checked its 2FA password. The members load the channel again.
+func (c *ChannelCore) ChannelEditCreator(in *channel.TLChannelEditCreator) (*mtproto.Updates, error) {
+	return c.editRights("channel.editCreator", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.EditCreator(b, in.ChannelId, in.UserId)
+	})
+}
+
 // editRights runs a change of rights by selfId in its box transaction and
 // pushes it to the members in the same transaction. The answer holds the
 // service message of a kick, updateChannel and the channel as selfId sees

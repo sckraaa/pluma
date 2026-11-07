@@ -317,6 +317,8 @@ func (s *Server) Initialize() error {
 		// The same module serves the boosts of channels (RPCBoosts).
 		channels := channels_helper.New(channels_helper.Config{
 			RpcServerConf: c.RpcServerConf,
+			KV:            c.KV,
+			Mysql:         c.Mysql,
 			ChannelClient: c.BizServiceClient,
 			UserClient:    c.BizServiceClient,
 			ChatClient:    c.BizServiceClient,

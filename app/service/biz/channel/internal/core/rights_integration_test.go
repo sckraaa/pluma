@@ -24,6 +24,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 )
 
 func (f *diffFixture) editAdmin(self, channelId, userId int64, rights int32, rank string) (*mtproto.Updates, error) {
@@ -83,7 +84,8 @@ func TestEditAdmin(t *testing.T) {
 	if role, _, admin, _, _ := f.row(id, bob); role != channel.RoleAdmin || admin != bobRights {
 		t.Errorf("bob: role %d rights %b", role, admin)
 	}
-	if _, admins := f.counts(id); admins != 1 {
+	// The creator is one of them.
+	if _, admins := f.counts(id); admins != 2 {
 		t.Errorf("admins %d", admins)
 	}
 
@@ -119,7 +121,7 @@ func TestEditAdmin(t *testing.T) {
 	if role, _, admin, _, _ := f.row(id, carol); role != channel.RoleMember || admin != 0 {
 		t.Errorf("carol demoted: role %d rights %b", role, admin)
 	}
-	if _, admins := f.counts(id); admins != 2 {
+	if _, admins := f.counts(id); admins != 3 {
 		t.Errorf("admins after a demotion %d", admins)
 	}
 }
@@ -241,4 +243,45 @@ func TestEditDefaultBannedRights(t *testing.T) {
 	wantErr(t, "a member", edit(bob, 0), mtproto.ErrChatAdminRequired)
 	f.exec("UPDATE channels SET broadcast = 1, megagroup = 0 WHERE id = ?", id)
 	wantErr(t, "a channel", edit(creator, 0), mtproto.ErrChannelInvalid)
+}
+
+// TestEditCreator: the creator hands the channel to a member, who becomes
+// the creator, while the old one stays an admin with every right that the
+// new one may edit; only the creator hands it, only to a member.
+func TestEditCreator(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, bob, carol, eve := f.user("Creator"), f.user("Bob"), f.user("Carol"), f.user("Eve")
+	id := f.create(creator)
+	f.public(id)
+	for _, u := range []int64{bob, carol} {
+		if _, err := f.join(u, id, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	give := func(self, to int64) error {
+		_, err := f.c.ChannelEditCreator(&channel.TLChannelEditCreator{SelfId: self, PermAuthKeyId: 1, ChannelId: id, UserId: to})
+		return err
+	}
+	wantErr(t, "a member hands it", give(bob, carol), mtproto.ErrChatAdminRequired)
+	wantErr(t, "to oneself", give(creator, creator), mtproto.ErrChatNotModified)
+	wantErr(t, "to one out", give(creator, eve), mtproto.ErrUserIdInvalid)
+	if err := give(creator, bob); err != nil {
+		t.Fatal(err)
+	}
+	if role, _, _, _, _ := f.row(id, bob); role != channel.RoleCreator {
+		t.Errorf("bob: role %d", role)
+	}
+	if role, _, admin, _, _ := f.row(id, creator); role != channel.RoleAdmin || admin != channelperm.CreatorRights {
+		t.Errorf("the old creator: role %d rights %b", role, admin)
+	}
+	var owner int64
+	if err := f.box.QueryRow("SELECT creator_user_id FROM channels WHERE id = ?", id).Scan(&owner); err != nil || owner != bob {
+		t.Errorf("creator_user_id %d, %v", owner, err)
+	}
+	if _, admins := f.counts(id); admins != 2 {
+		t.Errorf("admins %d", admins)
+	}
+	if _, err := f.editAdmin(bob, id, creator, 0, ""); err != nil {
+		t.Errorf("the new creator demotes the old one: %v", err)
+	}
 }
