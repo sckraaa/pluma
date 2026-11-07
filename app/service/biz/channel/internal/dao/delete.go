@@ -21,7 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
-	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -68,11 +68,11 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	if !p.Member() {
 		return nil, mtproto.ErrChannelPrivate
 	}
-	var rights []int32
-	if err = b.Tx().QueryRowsPartial(&rights, "SELECT admin_rights FROM channel_participants WHERE channel_id = ? AND user_id = ?", channelId, b.UserId()); err != nil {
+	a, err := rightsActor(b, channelId)
+	if err != nil {
 		return nil, err
 	}
-	admin := me.Role == channel.RoleCreator || me.Role == channel.RoleAdmin && first(rights)&mtproto.ADMIN_DELETE_MESSAGES != 0
+	admin := a.can(channelperm.DeleteOthers, b.Date()) == nil
 
 	out := &Deleted{ChannelId: channelId}
 	ids = slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(ids))), func(id int32) bool { return id <= 0 })

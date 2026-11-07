@@ -20,7 +20,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -32,12 +32,6 @@ import (
 // channel; the clients send them in one call).
 const InviteMax = 200
 
-type inviterRow struct {
-	Role                int32 `db:"role"`
-	AdminRights         int32 `db:"admin_rights"`
-	DefaultBannedRights int32 `db:"default_banned_rights"`
-}
-
 // Invited is what AddMembers wrote: the users added and the service message
 // of a supergroup (nil in a channel, or when nobody was added).
 type Invited struct {
@@ -47,8 +41,8 @@ type Invited struct {
 
 // AddMembers adds users ids to the channel, by b's owner (task 041): the
 // creator and the admins who may invite users add to any; in a supergroup
-// whose members may invite (the default rights do not ban invite_users)
-// any member adds. Otherwise CHAT_ADMIN_REQUIRED. Users already in are
+// a member whom neither the default rights nor its own restriction ban
+// invite_users adds (channelperm.Can). Otherwise CHAT_ADMIN_REQUIRED. Users already in are
 // left out; one kicked comes back only by an admin who may ban
 // (USER_KICKED otherwise); one in ChannelsLimit channels is
 // USER_CHANNELS_TOO_MUCH, as Telegram answers
@@ -66,21 +60,14 @@ func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited
 	if !me.participant().Member() {
 		return nil, mtproto.ErrChannelPrivate
 	}
-	var inviter []inviterRow
-	if err = b.Tx().QueryRowsPartial(&inviter,
-		"SELECT p.role, p.admin_rights, c.default_banned_rights FROM channel_participants p JOIN channels c ON c.id = p.channel_id WHERE p.channel_id = ? AND p.user_id = ?",
-		channelId, b.UserId()); err != nil {
+	a, err := rightsActor(b, channelId)
+	if err != nil {
 		return nil, err
 	}
-	r := inviter[0]
-	creator := r.Role == channel.RoleCreator
-	admin := r.Role == channel.RoleAdmin
-	canInvite := creator || admin && r.AdminRights&mtproto.ADMIN_INVITE_USERS != 0 ||
-		!c.Broadcast && r.Role == channel.RoleMember && r.DefaultBannedRights&mtproto.BANNED_INVITE_USERS == 0
-	if !canInvite {
-		return nil, mtproto.ErrChatAdminRequired
+	if err = a.can(channelperm.InviteUsers, b.Date()); err != nil {
+		return nil, err
 	}
-	canBan := creator || admin && r.AdminRights&mtproto.ADMIN_BAN_USERS != 0
+	canBan := a.can(channelperm.BanUsers, b.Date()) == nil
 
 	out := &Invited{ChannelChange: ChannelChange{ChannelId: channelId}}
 	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
