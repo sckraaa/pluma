@@ -67,7 +67,8 @@ type migrateChatRow struct {
 }
 
 // MigrateChat moves the basic group chat, read before the transaction, to
-// a new supergroup by b's owner, its creator (CHAT_ADMIN_REQUIRED for
+// a new supergroup by b's owner (dialogMessageId: the id every member's
+// copy of chatMigrateTo shares), its creator (CHAT_ADMIN_REQUIRED for
 // another). A group moved already gives its supergroup again, so that a
 // repeat after a failure makes no second one; a deleted group is
 // CHAT_ID_INVALID; CHANNELS_TOO_MUCH when the creator is in ChannelsLimit
@@ -79,7 +80,7 @@ type migrateChatRow struct {
 // newest message of the group in any member's box: the ids of a basic
 // group are each member's own, and every member's history of the group
 // ends below it. The group's invite links become the supergroup's.
-func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat) (*Migrated, error) {
+func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat, dialogMessageId int64) (*Migrated, error) {
 	chatId := chat.Id()
 	var rows []migrateChatRow
 	if err := b.Tx().QueryRowsPartial(&rows,
@@ -187,8 +188,9 @@ func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat) (*Migrated,
 	// The creator's chatMigrateTo, while the group is still active.
 	action := mtproto.MakeTLMessageActionChatMigrateTo(&mtproto.MessageAction{ChannelId: out.ChannelId}).To_MessageAction()
 	if out.Service, err = d.SendOutgoing(b, mtproto.PEER_CHAT, chatId, []Outgoing{{
-		RandomId: rand.Int64(), //nolint:gosec // random_id of a service message, not a secret
-		Message:  chat.MakeMessageService(b.UserId(), action),
+		RandomId:        rand.Int64(), //nolint:gosec // random_id of a service message, not a secret
+		DialogMessageId: dialogMessageId,
+		Message:         chat.MakeMessageService(b.UserId(), action),
 	}}); err != nil {
 		return nil, err
 	}

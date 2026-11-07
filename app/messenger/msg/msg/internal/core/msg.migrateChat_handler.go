@@ -66,10 +66,14 @@ func (c *MsgCore) migrateChat(in *msg.TLMsgMigrateChat) (*mtproto.Updates, error
 		return nil
 	})
 
+	dialogMessageId, err := c.svcCtx.Dao.NextId(c.ctx)
+	if err != nil {
+		return nil, err
+	}
 	var m *dao.Migrated
 	moved := proto.Clone(chat).(*mtproto.MutableChat)
 	if _, err = c.svcCtx.Dao.RunBox(c.ctx, in.UserId, keys, func(b *userbox.Box) error {
-		if m, err = c.svcCtx.Dao.MigrateChat(b, chat); err != nil || m.Again {
+		if m, err = c.svcCtx.Dao.MigrateChat(b, chat, dialogMessageId); err != nil || m.Again {
 			return err
 		}
 		moved.Chat.Deactivated = true
