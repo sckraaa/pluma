@@ -16,11 +16,9 @@
 package dao
 
 import (
-	"errors"
-
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
-	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -31,8 +29,6 @@ import (
 // changes in the editor's box transaction with the channel locked, one row
 // of the channel's journal holds the whole message after the edit (as for a
 // user's box, ADR 0019), and one event pushes it to the members.
-
-const adminEditMessages = mtproto.ADMIN_EDIT_MESSAGES
 
 type channelMessageRow struct {
 	SenderUserId int64  `db:"sender_user_id"`
@@ -47,15 +43,8 @@ type channelMessageRow struct {
 // message that does not exist or is deleted, MESSAGE_AUTHOR_REQUIRED for
 // one the owner may not edit. It returns the message as stored and its pts.
 func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtproto.Message) (*mtproto.Message, int32, error) {
-	s, err := channelSender(b, channelId)
-	if err != nil && !errors.Is(err, mtproto.ErrChatWriteForbidden) {
-		return nil, 0, err
-	}
-	ch, err := channelbox.Open(b, channelId)
+	ch, s, err := openChannel(b, channelId)
 	if err != nil {
-		if errors.Is(err, channelbox.ErrNoChannel) {
-			return nil, 0, mtproto.ErrChannelInvalid
-		}
 		return nil, 0, err
 	}
 	var rows []channelMessageRow
@@ -66,14 +55,14 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 	if len(rows) == 0 {
 		return nil, 0, mtproto.ErrMessageIdInvalid
 	}
+	// One who may not post (a subscriber, a member restricted from
+	// sending) edits nothing; others' messages only in a broadcast channel,
+	// with edit_messages.
 	own := rows[0].SenderUserId == b.UserId()
 	switch {
-	case s == nil:
-		// A member who may not post (a subscriber, one restricted) edits
-		// nothing.
+	case s.can(channelperm.SendPlain, b.Date()) != nil:
 		return nil, 0, mtproto.ErrMessageAuthorRequired
-	case !s.Broadcast && !own,
-		s.Broadcast && !own && s.Role != 2 && (s.Role != 1 || s.AdminRights&adminEditMessages == 0):
+	case !own && (!s.ch.Broadcast || s.can(channelperm.EditOthers, b.Date()) != nil):
 		return nil, 0, mtproto.ErrMessageAuthorRequired
 	}
 	var stored *mtproto.Message
@@ -82,6 +71,13 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 	}
 	if stored.GetPredicateName() != mtproto.Predicate_message {
 		return nil, 0, mtproto.ErrMessageIdInvalid
+	}
+	// New media is sent anew: its kind must be one s may send now.
+	if !proto.Equal(stored.GetMedia(), edit.GetMedia()) {
+		edit = proto.Clone(edit).(*mtproto.Message)
+		if err = checkSend(s, edit, b.Date()); err != nil {
+			return nil, 0, err
+		}
 	}
 	m := applyEdit(stored, edit)
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)

@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -33,13 +34,6 @@ import (
 // Messages of channels and supergroups (task 039, ADR 0034): one copy in
 // channel_messages, one row of the channel's journal each, in the sender's
 // box transaction with the channel locked after the sender.
-
-// Rights of chatBannedRights and chatAdminRights the send checks; the full
-// rules of rights are task 042.
-const (
-	bannedSendMessages = 1 << 1
-	adminPostMessages  = mtproto.ADMIN_POST_MESSAGES
-)
 
 // ChannelSent is a message sent to a channel.
 type ChannelSent struct {
@@ -57,42 +51,75 @@ type senderRow struct {
 	AdminRights         int32 `db:"admin_rights"`
 	BannedRights        int32 `db:"banned_rights"`
 	UntilDate           int32 `db:"until_date"`
-	Member              bool  `db:"member"`
 }
 
-// channelSender checks that b's owner may post to the channel: a member in
-// good standing; in a channel (broadcast) its creator or an admin who may
-// post; in a supergroup one not banned from sending.
-func channelSender(b *userbox.Box, channelId int64) (*senderRow, error) {
+// sender is b's owner as a participant of a channel, for channelperm.
+type sender struct {
+	ch channelperm.Channel
+	p  channelperm.Participant
+}
+
+func (s *sender) can(a channelperm.Action, now int64) error {
+	return channelperm.Can(s.ch, s.p, a, int32(now))
+}
+
+// channelSender reads b's owner as a participant of the channel. It is
+// called with the channel locked (channelbox.Open), so that a change of
+// rights either comes before the check or waits for the send. Out of the
+// channel is CHANNEL_PRIVATE.
+func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.deleted, c.default_banned_rights, COALESCE(p.role, 0) AS role, COALESCE(p.state, 1) AS state,"+
-			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date,"+
-			" p.user_id IS NOT NULL AS member"+
+		"SELECT c.broadcast, c.deleted, c.default_banned_rights, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
-		b.UserId(), channelId); err != nil {
+		channelperm.StateLeft, b.UserId(), channelId); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 || rows[0].Deleted {
 		return nil, mtproto.ErrChannelInvalid
 	}
-	s := &rows[0]
-	switch {
-	case !s.Member || s.State != 0:
+	r := rows[0]
+	if r.State != channelperm.StateIn {
 		return nil, mtproto.ErrChannelPrivate
-	case s.Role == 2:
-		return s, nil
-	case s.Broadcast:
-		if s.Role == 1 && s.AdminRights&adminPostMessages != 0 {
-			return s, nil
-		}
-		return nil, mtproto.ErrChatWriteForbidden
-	case s.Role == 1:
-		return s, nil
-	case s.DefaultBannedRights&bannedSendMessages != 0, s.BannedRights&bannedSendMessages != 0 && (s.UntilDate == 0 || int64(s.UntilDate) > b.Date()):
-		return nil, mtproto.ErrChatWriteForbidden
 	}
-	return s, nil
+	return &sender{
+		ch: channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
+		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
+			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
+	}, nil
+}
+
+// openChannel locks the channel in b's transaction and reads its sender.
+func openChannel(b *userbox.Box, channelId int64) (*channelbox.Channel, *sender, error) {
+	ch, err := channelbox.Open(b, channelId)
+	if err != nil {
+		if errors.Is(err, channelbox.ErrNoChannel) {
+			return nil, nil, mtproto.ErrChannelInvalid
+		}
+		return nil, nil, err
+	}
+	s, err := channelSender(b, channelId)
+	if err != nil {
+		return nil, nil, err
+	}
+	return ch, s, nil
+}
+
+// checkSend checks that s may send m, each kind of it with its own error
+// (chatBannedRights), and drops its link preview when s may not embed
+// links: the official clients make none then, and a preview the server
+// made is not one the member chose.
+func checkSend(s *sender, m *mtproto.Message, now int64) error {
+	for _, a := range channelperm.MessageActions(m) {
+		if err := s.can(a, now); err != nil {
+			return err
+		}
+	}
+	if m.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaWebPage && s.can(channelperm.EmbedLinks, now) != nil {
+		m.Media = nil
+	}
+	return nil
 }
 
 type channelSentRow struct {
@@ -144,24 +171,20 @@ func (d *Dao) ChannelSentBefore(b *userbox.Box, channelId int64, randomIds []int
 // reply to, other than the owner, who get rows of channel_message_mentions.
 // The owner's dialog moves to the last message, read.
 func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) (sent []ChannelSent, mentioned []int64, err error) {
-	s, err := channelSender(b, channelId)
+	ch, s, err := openChannel(b, channelId)
 	if err != nil {
-		return nil, nil, err
-	}
-	ch, err := channelbox.Open(b, channelId)
-	if err != nil {
-		if errors.Is(err, channelbox.ErrNoChannel) {
-			return nil, nil, mtproto.ErrChannelInvalid
-		}
 		return nil, nil, err
 	}
 	for _, o := range outgoing {
 		m := proto.Clone(o.Message).(*mtproto.Message)
+		if err = checkSend(s, m, b.Date()); err != nil {
+			return nil, nil, err
+		}
 		m.Id = ch.NextMessageId()
 		m.Out = false
 		m.PeerId = mtproto.MakePeerChannel(channelId)
 		m.Date = int32(b.Date())
-		if s.Broadcast {
+		if s.ch.Broadcast {
 			m.Post = true
 			m.FromId = nil
 		} else {
@@ -183,7 +206,7 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 			}
 			if len(authors) == 0 {
 				m.ReplyTo = nil
-			} else if !s.Broadcast {
+			} else if !s.ch.Broadcast {
 				who = append(who, authors[0])
 			}
 		}
