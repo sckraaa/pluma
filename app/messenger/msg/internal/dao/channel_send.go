@@ -58,6 +58,10 @@ type senderRow struct {
 type sender struct {
 	ch channelperm.Channel
 	p  channelperm.Participant
+	// guest: not in the discussion group, writing to it as a member of
+	// its channel (task 048); a member with the group's default rights,
+	// without the group in its dialogs.
+	guest bool
 }
 
 func (s *sender) can(a channelperm.Action, now int64) error {
@@ -82,13 +86,41 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	}
 	r := rows[0]
 	if r.State != channelperm.StateIn {
-		return nil, mtproto.ErrChannelPrivate
+		if r.State == channelperm.StateKicked {
+			return nil, mtproto.ErrChannelPrivate
+		}
+		guest, err := discussionGuest(b, channelId)
+		if err != nil {
+			return nil, err
+		}
+		if !guest {
+			return nil, mtproto.ErrChannelPrivate
+		}
+		return &sender{
+			ch:    channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
+			p:     channelperm.Participant{Role: channelperm.RoleMember, State: channelperm.StateIn},
+			guest: true,
+		}, nil
 	}
 	return &sender{
 		ch: channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil
+}
+
+// discussionGuest tells whether b's owner, not in the supergroup channelId,
+// may write to it: it is the discussion group of a broadcast channel the
+// owner is in, and it does not ask commenters to join (join_to_send,
+// core.telegram.org/method/channels.toggleJoinToSend).
+func discussionGuest(b *userbox.Box, channelId int64) (bool, error) {
+	var ok []int64
+	err := b.Tx().QueryRowsPartial(&ok,
+		"SELECT b.id FROM channels g JOIN channels b ON b.id = g.linked_chat_id AND b.broadcast = 1 AND b.deleted = 0 AND b.linked_chat_id = g.id"+
+			" JOIN channel_participants p ON p.channel_id = b.id AND p.user_id = ? AND p.state = 0"+
+			" WHERE g.id = ? AND g.megagroup = 1 AND g.join_to_send = 0",
+		b.UserId(), channelId)
+	return len(ok) > 0, err
 }
 
 // openChannel locks the channel in b's transaction and reads its sender.
@@ -277,7 +309,13 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 			disc.Copies = append(disc.Copies, c)
 		}
 	}
-	if err = movedTo(b, channelId, sent[len(sent)-1].Message.Id); err != nil {
+	if s.guest {
+		// The group's top message moves; the guest has no dialog with it.
+		_, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", sent[len(sent)-1].Message.Id, channelId)
+	} else {
+		err = movedTo(b, channelId, sent[len(sent)-1].Message.Id)
+	}
+	if err != nil {
 		return nil, nil, nil, err
 	}
 	if disc != nil && len(disc.Copies) > 0 {

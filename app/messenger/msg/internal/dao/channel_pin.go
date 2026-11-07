@@ -55,6 +55,9 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 	if err != nil {
 		return nil, err
 	}
+	if s.guest {
+		return nil, mtproto.ErrChatAdminRequired
+	}
 	if err = s.can(channelperm.PinMessages, b.Date()); err != nil {
 		return nil, err
 	}
@@ -125,6 +128,9 @@ func (d *Dao) UnpinAllChannel(b *userbox.Box, channelId int64) (*mtproto.Update,
 	ch, s, err := openChannel(b, channelId)
 	if err != nil {
 		return nil, err
+	}
+	if s.guest {
+		return nil, mtproto.ErrChatAdminRequired
 	}
 	if err = s.can(channelperm.PinMessages, b.Date()); err != nil {
 		return nil, err

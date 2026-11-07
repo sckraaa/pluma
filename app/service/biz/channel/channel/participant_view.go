@@ -37,7 +37,7 @@ func (p *ImmutableChannelParticipant) ToChannelParticipant(viewer *ImmutableChan
 			Date:         int32(p.GetDate()),
 			BannedRights: chatBannedRights(p.GetBannedRights(), p.GetUntilDate()),
 		}).To_ChannelParticipant()
-	case p.GetState() == StateLeft:
+	case p.GetState() == StateLeft, p.GetState() == StateLinked:
 		return mtproto.MakeTLChannelParticipantLeft(&mtproto.ChannelParticipant{
 			Peer: mtproto.MakePeerUser(userId),
 		}).To_ChannelParticipant()

@@ -57,7 +57,9 @@ func readable(mc *channelpb.MutableChannel, userId int64) error {
 	if p.Member() {
 		return nil
 	}
-	if mc.GetChannel().Public() && mc.ToChat(userId, int32(time.Now().Unix())).GetPredicateName() == mtproto.Predicate_channel {
+	// A public channel, or the discussion group of a channel the user is
+	// in (task 048): the view is a channel, not channelForbidden.
+	if (mc.GetChannel().Public() || p.GetState() == channelpb.StateLinked) && mc.ToChat(userId, int32(time.Now().Unix())).GetPredicateName() == mtproto.Predicate_channel {
 		return nil
 	}
 	return mtproto.ErrChannelPrivate

@@ -26,12 +26,13 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
-// TestChannelComments (task 048, the owner's report of 07.11) end to end:
-// Alice links her supergroup to her channel as its discussion group; her
-// post gets a copy in the group; Bob opens the post's comments
-// (getDiscussionMessage), comments on the copy, and the post shows one
-// comment by Bob in getMessagesViews and in the history; getReplies lists
-// the comment; Alice has it unread until she reads the thread.
+// TestChannelComments (task 048, the owner's reports of 07.11) end to end:
+// Alice links her private supergroup to her channel as its discussion
+// group; her post gets a copy in the group; Bob, subscribed to the channel
+// only, sees the group, opens the post's comments (getDiscussionMessage)
+// and comments on the copy without joining it, and the group stays out of
+// his dialogs; the post shows one comment by Bob in getMessagesViews;
+// getReplies lists it; Alice has it unread until she reads the thread.
 func TestChannelComments(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -48,13 +49,13 @@ func TestChannelComments(t *testing.T) {
 	peerOfChannel := func(u *user, c *mtproto.Chat) *mtproto.InputPeer {
 		return &mtproto.InputPeer{Constructor: u.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: c.GetId(), AccessHash: c.GetAccessHash_FLAGINT64().GetValue()}
 	}
-	for _, c := range []*mtproto.Chat{ch, gr} {
-		if _, err := bob.c.Invoke(ctx, &mtproto.TLMessagesImportChatInviteDE91436E{
-			Constructor: bob.c.Constructor(mtproto.Predicate_messages_importChatInviteDE91436E),
-			Hash:        channelInviteHash(ctx, t, alice, inputOf(alice, c)),
-		}); err != nil {
-			t.Fatalf("messages.importChatInvite: %v", err)
-		}
+	// Bob subscribes to the channel only: its subscribers read and write
+	// the comments without joining the group (join_to_send off).
+	if _, err := bob.c.Invoke(ctx, &mtproto.TLMessagesImportChatInviteDE91436E{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_importChatInviteDE91436E),
+		Hash:        channelInviteHash(ctx, t, alice, inputOf(alice, ch)),
+	}); err != nil {
+		t.Fatalf("messages.importChatInvite: %v", err)
 	}
 	link := func(u *user, group *mtproto.InputChannel) error {
 		_, err := u.c.Invoke(ctx, &mtproto.TLChannelsSetDiscussionGroup{
@@ -64,7 +65,7 @@ func TestChannelComments(t *testing.T) {
 		})
 		return err
 	}
-	if err := link(bob, inputOf(bob, gr)); !mtclient.IsRPCError(err, "CHAT_ADMIN_REQUIRED") {
+	if err := link(bob, inputOf(alice, gr)); err == nil {
 		t.Errorf("a subscriber links: %v, want CHAT_ADMIN_REQUIRED", err)
 	}
 	o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsGetGroupsForDiscussion{Constructor: alice.c.Constructor(mtproto.Predicate_channels_getGroupsForDiscussion)})
@@ -116,6 +117,13 @@ func TestChannelComments(t *testing.T) {
 		t.Fatalf("the post's copy: %v", dm.GetMessages())
 	}
 	copyId := dm.GetMessages()[0].GetId()
+	var seen bool
+	for _, c := range dm.GetChats() {
+		seen = seen || c.GetId() == gr.GetId() && c.GetPredicateName() == mtproto.Predicate_channel
+	}
+	if !seen {
+		t.Errorf("Bob does not see the discussion group: %v", dm.GetChats())
+	}
 
 	if _, err = bob.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
 		Constructor: bob.c.Constructor(mtproto.Predicate_messages_sendMessage),
@@ -123,6 +131,22 @@ func TestChannelComments(t *testing.T) {
 		ReplyTo: mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{ReplyToMsgId: copyId, TopMsgId: mtproto.MakeFlagsInt32(copyId)}).To_InputReplyTo(),
 	}); err != nil {
 		t.Fatalf("the comment: %v", err)
+	}
+
+	o, err = bob.c.Invoke(ctx, &mtproto.TLMessagesGetDialogs{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_getDialogs),
+		OffsetPeer:  &mtproto.InputPeer{Constructor: bob.c.Constructor(mtproto.Predicate_inputPeerEmpty)},
+		Limit:       100,
+	})
+	if err != nil {
+		t.Fatalf("messages.getDialogs: %v", err)
+	}
+	for _, d := range o.(interface {
+		To_Messages_Dialogs() *mtproto.Messages_Dialogs
+	}).To_Messages_Dialogs().GetDialogs() {
+		if d.GetPeer().GetChannelId() == gr.GetId() {
+			t.Error("the group Bob commented in is in his dialogs")
+		}
 	}
 
 	o, err = alice.c.Invoke(ctx, &mtproto.TLMessagesGetMessagesViews{

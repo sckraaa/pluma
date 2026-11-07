@@ -40,6 +40,13 @@ const (
 	// ban's until_date. A restricted member (banned_rights without
 	// view_messages) stays StateIn.
 	StateKicked int32 = 2
+	// StateLinked is never stored: a user not in a discussion group who
+	// reads it through its channel, of which the user is a member. The
+	// subscribers of a channel read its comments and, unless the group asks
+	// them to join (join_to_send), write them without joining
+	// (core.telegram.org/constructor/channel: join_to_send "can be false
+	// only for discussion groups"; task 048).
+	StateLinked int32 = 3
 )
 
 // Restricted reports whether p's own restriction is in effect at now: set,
@@ -139,7 +146,7 @@ func (m *ImmutableChannel) ToChat(p *ImmutableChannelParticipant, now int32) *mt
 		return m.forbidden(p)
 	}
 	member := p != nil && p.Member()
-	if !member && !m.Public() {
+	if !member && !m.Public() && p.GetState() != StateLinked {
 		return m.forbidden(nil)
 	}
 

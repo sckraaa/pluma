@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
@@ -45,10 +46,59 @@ func (d *Dao) GetMutableChannel(ctx context.Context, channelId int64, idList []i
 	for i := range dos {
 		participants = append(participants, makeParticipant(&dos[i]))
 	}
+	if participants, err = d.withLinkedReaders(ctx, channels[0], uniqueIds(idList), participants); err != nil {
+		return nil, err
+	}
 	return channel.MakeTLMutableChannel(&channel.MutableChannel{
 		Channel:      channels[0],
 		Participants: participants,
 	}).To_MutableChannel(), nil
+}
+
+// withLinkedReaders adds to participants, for each user of ids that is not
+// in the discussion group ch but in its channel, a participant in
+// StateLinked: the user reads the group through the channel (task 048).
+// A user kicked from the group stays kicked.
+func (d *Dao) withLinkedReaders(ctx context.Context, ch *channel.ImmutableChannel, ids []int64, participants []*channel.ImmutableChannelParticipant) ([]*channel.ImmutableChannelParticipant, error) {
+	if !ch.GetMegagroup() || ch.GetLinkedChatId() == 0 || len(ids) == 0 {
+		return participants, nil
+	}
+	rows := map[int64]int{}
+	for i, p := range participants {
+		rows[p.GetUserId()] = i
+	}
+	var outside []int64
+	for _, id := range ids {
+		i, ok := rows[id]
+		if !ok || participants[i].GetState() == channel.StateLeft {
+			outside = append(outside, id)
+		}
+	}
+	if len(outside) == 0 {
+		return participants, nil
+	}
+	args := []any{ch.GetLinkedChatId(), ch.GetId()}
+	for _, id := range outside {
+		args = append(args, id)
+	}
+	var readers []int64
+	if err := d.Mysql.QueryRowsPartial(ctx, &readers,
+		"SELECT p.user_id FROM channels b JOIN channel_participants p ON p.channel_id = b.id AND p.state = 0"+
+			" WHERE b.id = ? AND b.broadcast = 1 AND b.deleted = 0 AND b.linked_chat_id = ? AND p.user_id IN (?"+strings.Repeat(", ?", len(outside)-1)+")",
+		args...); err != nil {
+		return nil, fmt.Errorf("channel %d: readers through %d: %w", ch.GetId(), ch.GetLinkedChatId(), err)
+	}
+	for _, id := range readers {
+		linked := channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
+			ChannelId: ch.GetId(), UserId: id, State: channel.StateLinked,
+		}).To_ImmutableChannelParticipant()
+		if i, ok := rows[id]; ok {
+			participants[i] = linked
+		} else {
+			participants = append(participants, linked)
+		}
+	}
+	return participants, nil
 }
 
 // GetChannelListByIdList returns the channels of idList that exist, in its
@@ -75,6 +125,9 @@ func (d *Dao) GetChannelListByIdList(ctx context.Context, selfId int64, idList [
 		participants := []*channel.ImmutableChannelParticipant{}
 		if p, ok := mine[c.Id]; ok {
 			participants = append(participants, p)
+		}
+		if participants, err = d.withLinkedReaders(ctx, c, []int64{selfId}, participants); err != nil {
+			return nil, err
 		}
 		out = append(out, channel.MakeTLMutableChannel(&channel.MutableChannel{
 			Channel:      c,
