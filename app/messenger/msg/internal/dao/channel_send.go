@@ -280,6 +280,19 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 				}
 			}
 		}
+		if group != nil {
+			// A post with comments says so itself, as every view of it
+			// (the push, the difference, the dialogs) carries it: the
+			// clients show the comments button by it (Android
+			// MessageObject.isComments, messageOwner.replies.comments).
+			// The history fills in the counts when read.
+			m.Replies = mtproto.MakeTLMessageReplies(&mtproto.MessageReplies{
+				Comments:       true,
+				ChannelId:      mtproto.MakeFlagsInt64(group.Id()),
+				RepliesPts:     group.Pts(),
+				RecentRepliers: []*mtproto.Peer{},
+			}).To_MessageReplies()
+		}
 		ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
 		data, err := jsonx.MarshalToString(m)
 		if err != nil {

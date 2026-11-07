@@ -96,10 +96,40 @@ func TestChannelComments(t *testing.T) {
 		t.Fatalf("the post: %v", err)
 	}
 	var post int32
+	var commentsOn bool
 	for _, u := range o.(interface{ To_Updates() *mtproto.Updates }).To_Updates().GetUpdates() {
-		if u.GetPredicateName() == mtproto.Predicate_updateMessageID {
+		switch u.GetPredicateName() {
+		case mtproto.Predicate_updateMessageID:
 			post = u.GetId_INT32()
+		case mtproto.Predicate_updateNewChannelMessage:
+			r := u.GetMessage_MESSAGE().GetReplies()
+			commentsOn = r.GetComments() && r.GetChannelId().GetValue() == gr.GetId()
 		}
+	}
+	// The post itself says it has comments, as every view of it does: the
+	// clients show the button by it, and a view without it (a push, the
+	// difference, the dialogs) hid the button (the owner's report of 08.11).
+	if !commentsOn {
+		t.Error("the post does not say it has comments")
+	}
+	o, err = bob.c.Invoke(ctx, &mtproto.TLUpdatesGetChannelDifference{
+		Constructor: bob.c.Constructor(mtproto.Predicate_updates_getChannelDifference),
+		Channel:     inputOf(bob, ch),
+		Filter:      &mtproto.ChannelMessagesFilter{Constructor: bob.c.Constructor(mtproto.Predicate_channelMessagesFilterEmpty)},
+		Pts:         1,
+		Limit:       100,
+	})
+	if err != nil {
+		t.Fatalf("updates.getChannelDifference: %v", err)
+	}
+	var inDifference bool
+	for _, m := range o.(interface {
+		To_Updates_ChannelDifference() *mtproto.Updates_ChannelDifference
+	}).To_Updates_ChannelDifference().GetNewMessages() {
+		inDifference = inDifference || m.GetId() == post && m.GetReplies().GetComments()
+	}
+	if !inDifference {
+		t.Error("the post in the difference does not say it has comments")
 	}
 
 	o, err = bob.c.Invoke(ctx, &mtproto.TLMessagesGetDiscussionMessage{
