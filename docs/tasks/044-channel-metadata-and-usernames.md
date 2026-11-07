@@ -1,6 +1,6 @@
 # 044. Каналы: название, фото, настройки, реакции, публичные имена
 
-- Статус: in progress (название, описание, публичные имена, бусты-заглушки готовы; фото, настройки, реакции, удаление канала — нет)
+- Статус: in progress (название, описание, публичные имена, удаление, фото, реакции готовы; настройки — нет)
 - Зависит от: 040
 - ADR: 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.5, §2.6, задача T9; `clients.md` §1 «Create», §3, §4 п. 1, 5, 8, 10; `plan.md` §3, задача «043» плана, §4 п. 3).
 
@@ -58,3 +58,12 @@
 - **Молча падающие в Android (не видны пользователю, остаются):** `messages.getMessagesViews` (просмотры постов, 046), `messages.getMessagesReactions`, `messages.search` и `getSearchCounters` в канале (общие медиа), `messages.getAdminsWithInvites`, `messages.saveDraft` для канала (черновики в каналах теряются).
 - **Ревью исправлений (до выката):** ссылку мог менять любой участник супергруппы (права проверялись как для названия), лимит публичных каналов считался по редактору, а не по создателю; в статусе бустов не было `next_level_boosts`, и Android рисует «Level -1» и максимальный уровень (`ChannelBoostsController.java:73`, `LimitPreviewView.java:631-634`). Исправлено: ссылку меняет только создатель — Android и показывает выбор типа только ему при `can_set_username` (`ChatEditActivity.java:891`), остальным `CHAT_ADMIN_REQUIRED`; лимит считается под блокировкой ящика создателя; `next_level_boosts` = 1 (пороги Telegram не сверены).
 
+### Фото канала и реакции (2026-11-07, ветка `task/044-reactions`, по отчёту владельца)
+- **Фото** (`channels.editPhoto` → biz `channel.editPhoto`): загруженное фото (и видео) сохраняется, как у базовой группы (`media.uploadProfilePhotoFile`), существующее берётся по id, пустое убирает фото. Запись в транзакции редактора под блокировкой канала, права — `change_info`; служебное `messageActionChatEditPhoto`/`messageActionChatDeletePhoto`, участники перечитывают канал. Служебные сообщения каналов теперь пишутся со своим типом медиа (смена фото находится фильтром фото чата).
+- **Реакции** (миграция `migrate-20261107-channel-reactions.sql`, таблица `channel_message_reactions`):
+  - запись — `msg.sendReaction` в транзакции реагирующего под блокировкой канала (держится лимит разных реакций `reactions.UniqMax`); в трансляции реагирует любой подписчик, в супергруппе — участник без запрета `send_reactions` (иначе `CHAT_WRITE_FORBIDDEN`, имя ошибки Telegram не сверено);
+  - участники получают `updateMessageReactions` пушем (`min`, без своих отметок), клиенты к тому же опрашивают `messages.getMessagesReactions` (ветка каналов есть);
+  - реакции есть в истории, поиске и `getMessages`; в супергруппе виден список отреагировавших (`getMessageReactionsList`), в трансляции — только счётчики (`can_see_list = false`, список — `BROADCAST_FORBIDDEN`; как это у Telegram, не сверено);
+  - «недавние реакции» учитывают и каналы. Отметка «непрочитано» для автора в каналах не ведётся.
+- **Проверка:** интеграционный `TestEditPhoto`, модульный `TestViewBroadcast`, e2e `TestChannelReactions` (ответ, пуш автору, `getMessagesReactions`, история, список, снятие реакции).
+- **Осталось:** подписи (`toggleSignatures`), история для новых (`togglePreHistoryHidden`), скрытие участников, `toggleNoForwards` и `setChatAvailableReactions` для каналов; проверка в клиентах.
