@@ -21,6 +21,8 @@
 - Реакции: `setChatAvailableReactions`, `sendReaction`, `getMessagesReactions`, `getMessageReactionsList`, `available_reactions`/`reactions_limit` в `channelFull`, `updateMessageReactions` (`clients.md` §4 п. 10). Хранение реакций — этап 2 (ROADMAP); здесь — ветка каналов на том, что уже есть для групп.
 - `channels.updateColor` в `plan.md` не входит: цвет канала у Telegram открывается бустами (`channel_color_level_min`; в закреплённом Android `aac1efcb` ключ не найден, 035); остаётся 400, пока владелец не решит иначе (ADR 0016).
 
+- **Отчёт владельца 2026-11-07:** реакции в каналах не работают (ни поставить, ни увидеть). Это область этой задачи: `sendReaction` и `getMessagesReactions` для каналов, `available_reactions` канала.
+
 ## Область
 - `channels.editTitle`, `editPhoto`, `toggleSignatures`, `togglePreHistoryHidden`, `toggleParticipantsHidden`, `deleteChannel`.
 - Ветки каналов в `messages.toggleNoForwards`, `setChatAvailableReactions`, `sendReaction`.
