@@ -217,7 +217,7 @@ func TestJoinByLink(t *testing.T) {
 	wantErr(t, "an unknown link", err, mtproto.ErrInviteHashInvalid)
 
 	f.exec("INSERT INTO channel_participants (channel_id, user_id, state, banned_rights, kicked_by, `date`) VALUES (?, ?, ?, ?, ?, 0)",
-		id, dave, channel.StateBanned, mtproto.BANNED_VIEW_MESSAGES, creator)
+		id, dave, channel.StateKicked, mtproto.BANNED_VIEW_MESSAGES, creator)
 	_, err = f.join(dave, 0, f.link(id, creator, 0, 0))
 	wantErr(t, "one kicked", err, mtproto.ErrChannelPrivate)
 }
@@ -258,7 +258,7 @@ func TestRejoinByLink(t *testing.T) {
 
 	// Kicked, then unbanned: the same link again.
 	f.exec("UPDATE channel_participants SET state = ?, banned_rights = ?, kicked_by = ? WHERE channel_id = ? AND user_id = ?",
-		channel.StateBanned, mtproto.BANNED_VIEW_MESSAGES, creator, id, bob)
+		channel.StateKicked, mtproto.BANNED_VIEW_MESSAGES, creator, id, bob)
 	_, err = f.join(bob, 0, link)
 	wantErr(t, "one kicked", err, mtproto.ErrChannelPrivate)
 	f.exec("UPDATE channel_participants SET state = ?, banned_rights = 0, kicked_by = 0 WHERE channel_id = ? AND user_id = ?",
@@ -324,7 +324,12 @@ func TestParticipants(t *testing.T) {
 	id := f.create(creator)
 	f.exec("INSERT INTO channel_participants (channel_id, user_id, role, admin_rights, `date`) VALUES (?, ?, ?, ?, 2)", id, admin, channel.RoleAdmin, mtproto.ADMIN_INVITE_USERS)
 	f.exec("INSERT INTO channel_participants (channel_id, user_id, `date`) VALUES (?, ?, 3), (?, ?, 4)", id, anna, id, bob)
-	f.exec("INSERT INTO channel_participants (channel_id, user_id, state, banned_rights, `date`) VALUES (?, ?, ?, ?, 5)", id, kicked, channel.StateBanned, mtproto.BANNED_VIEW_MESSAGES)
+	f.exec("INSERT INTO channel_participants (channel_id, user_id, state, banned_rights, `date`) VALUES (?, ?, ?, ?, 5)", id, kicked, channel.StateKicked, mtproto.BANNED_VIEW_MESSAGES)
+	// Restricted members stay members: Rita for good, Olga's restriction
+	// is over.
+	rita, olga := f.user("Rita"), f.user("Olga")
+	f.exec("INSERT INTO channel_participants (channel_id, user_id, banned_rights, until_date, `date`) VALUES (?, ?, ?, 0, 6), (?, ?, ?, ?, 7)",
+		id, rita, mtproto.BANNED_SEND_MEDIA, id, olga, mtproto.BANNED_SEND_MEDIA, time.Now().Unix()-60)
 
 	get := func(self int64, filter, q string) (*mtproto.Channels_ChannelParticipants, error) {
 		return f.c.ChannelGetParticipants(&channel.TLChannelGetParticipants{SelfId: self, ChannelId: id, Filter: filter, Q: q, Limit: 100})
@@ -333,9 +338,10 @@ func TestParticipants(t *testing.T) {
 		filter, q string
 		want      int32
 	}{
-		{mtproto.Predicate_channelParticipantsRecent, "", 4},
+		{mtproto.Predicate_channelParticipantsRecent, "", 6},
 		{mtproto.Predicate_channelParticipantsAdmins, "", 2},
-		{mtproto.Predicate_channelParticipantsKicked, "", 1},
+		// Who is kicked or restricted is for admins: a member gets none.
+		{mtproto.Predicate_channelParticipantsKicked, "", 0},
 		{mtproto.Predicate_channelParticipantsBanned, "", 0},
 		{mtproto.Predicate_channelParticipantsSearch, "an", 1},
 		{mtproto.Predicate_channelParticipantsSearch, "%", 0},
@@ -349,7 +355,22 @@ func TestParticipants(t *testing.T) {
 			t.Errorf("%s %q: count %d, %d rows, want %d", c.filter, c.q, r.GetCount(), len(r.GetParticipants()), c.want)
 		}
 	}
+	// An admin sees the one kicked, and Rita restricted (Olga's restriction
+	// is over); a member sees Rita as a member.
+	for filter, want := range map[string]int64{mtproto.Predicate_channelParticipantsKicked: kicked, mtproto.Predicate_channelParticipantsBanned: rita} {
+		r, err := get(admin, filter, "")
+		if err != nil || r.GetCount() != 1 || len(r.GetParticipants()) != 1 ||
+			r.GetParticipants()[0].GetPredicateName() != mtproto.Predicate_channelParticipantBanned ||
+			r.GetParticipants()[0].GetPeer().GetUserId() != want {
+			t.Errorf("an admin, %s: %v, %v", filter, r, err)
+		}
+	}
 	r, _ := get(bob, mtproto.Predicate_channelParticipantsRecent, "")
+	for _, p := range r.GetParticipants() {
+		if p.GetPredicateName() == mtproto.Predicate_channelParticipantBanned {
+			t.Errorf("a member sees a restriction: %v", p)
+		}
+	}
 	if got := r.GetParticipants(); got[0].GetPredicateName() != mtproto.Predicate_channelParticipantCreator ||
 		got[1].GetPredicateName() != mtproto.Predicate_channelParticipantAdmin {
 		t.Errorf("order %s, %s: the creator and admins first", got[0].GetPredicateName(), got[1].GetPredicateName())

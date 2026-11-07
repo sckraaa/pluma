@@ -134,7 +134,7 @@ func TestGetMutableChannel(t *testing.T) {
 	id := f.create(creator, true)
 	until := int32(time.Now().Add(time.Hour).Unix())
 	f.exec("INSERT INTO channel_participants (channel_id, user_id, state, banned_rights, until_date, kicked_by, `rank`, `date`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		id, kicked, channel.StateBanned, mtproto.BANNED_VIEW_MESSAGES|mtproto.BANNED_SEND_MESSAGES, until, creator, "r", 42)
+		id, kicked, channel.StateKicked, mtproto.BANNED_VIEW_MESSAGES|mtproto.BANNED_SEND_MESSAGES, until, creator, "r", 42)
 	photoId := itId()
 	f.photos.ids[photoId] = true
 	f.exec("UPDATE channels SET photo_id = ?, participants_count = 1, kicked_count = 1, slowmode_seconds = 10, default_banned_rights = ? WHERE id = ?",
@@ -168,7 +168,7 @@ func TestGetMutableChannel(t *testing.T) {
 		t.Errorf("creator %v", p)
 	}
 	p, ok = mc.GetParticipant(kicked)
-	if !ok || p.GetState() != channel.StateBanned || p.GetUntilDate() != until || p.GetKickedBy() != creator || p.GetRank() != "r" || p.GetDate() != 42 {
+	if !ok || p.GetState() != channel.StateKicked || p.GetUntilDate() != until || p.GetKickedBy() != creator || p.GetRank() != "r" || p.GetDate() != 42 {
 		t.Errorf("kicked %v", p)
 	}
 

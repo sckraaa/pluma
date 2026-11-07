@@ -17,7 +17,7 @@ package dao
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -38,11 +38,11 @@ type infoRow struct {
 }
 
 // infoEditor reads the channel, which the transaction has locked, with b's
-// owner's row and checks that it may change the channel's info: the creator, an
-// admin with change_info, or in a supergroup a member when neither the
-// default rights nor its own restriction ban change_info
-// (core.telegram.org/constructor/chatBannedRights). CHAT_ADMIN_REQUIRED
-// otherwise.
+// owner's row and checks that it may change the channel's info
+// (channelperm.Can, ChangeInfo): the creator, an admin with change_info, or
+// in a supergroup a member when neither the default rights nor its own
+// restriction ban change_info. CHANNEL_PRIVATE for one out of it,
+// CHAT_ADMIN_REQUIRED otherwise.
 func infoEditor(b *userbox.Box, channelId int64) (*infoRow, error) {
 	var rows []infoRow
 	if err := b.Tx().QueryRowsPartial(&rows,
@@ -55,16 +55,10 @@ func infoEditor(b *userbox.Box, channelId int64) (*infoRow, error) {
 		return nil, mtproto.ErrChannelPrivate
 	}
 	r := &rows[0]
-	p := &channel.ImmutableChannelParticipant{Role: r.Role, State: r.State, BannedRights: r.BannedRights, UntilDate: r.UntilDate}
-	now := int32(b.Date())
-	switch {
-	case !p.Member():
-		return nil, mtproto.ErrChannelPrivate
-	case r.Role == channel.RoleCreator, r.Role == channel.RoleAdmin && r.AdminRights&mtproto.ADMIN_CHANGE_INFO != 0:
-		return r, nil
-	case r.Broadcast, r.DefaultBannedRights&mtproto.BANNED_CHANGE_INFO != 0,
-		r.State == channel.StateBanned && (r.UntilDate == 0 || now < r.UntilDate) && r.BannedRights&mtproto.BANNED_CHANGE_INFO != 0:
-		return nil, mtproto.ErrChatAdminRequired
+	ch := channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights}
+	p := channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights, BannedRights: r.BannedRights, UntilDate: r.UntilDate}
+	if err := channelperm.Can(ch, p, channelperm.ChangeInfo, int32(b.Date())); err != nil {
+		return nil, err
 	}
 	return r, nil
 }

@@ -49,6 +49,14 @@ const (
 	StateKicked int32 = 2
 )
 
+// CreatorRights are the admin rights the creator holds: every right but
+// anonymous, which is a choice of the admin's own.
+const CreatorRights = mtproto.ADMIN_CHANGE_INFO | mtproto.ADMIN_POST_MESSAGES | mtproto.ADMIN_EDIT_MESSAGES |
+	mtproto.ADMIN_DELETE_MESSAGES | mtproto.ADMIN_BAN_USERS | mtproto.ADMIN_INVITE_USERS | mtproto.ADMIN_PIN_MESSAGES |
+	mtproto.ADMIN_ADD_ADMINS | mtproto.ADMIN_MANAGE_CALL | mtproto.ADMIN_OTHER | mtproto.ADMIN_MANAGE_TOPICS |
+	mtproto.ADMIN_POST_STORIES | mtproto.ADMIN_EDIT_STORIES | mtproto.ADMIN_DELETE_STORIES |
+	mtproto.ADMIN_MANAGE_DIRECT_MESSAGES | mtproto.ADMIN_MANAGE_RANKS
+
 // Channel is what Can reads of a channel.
 type Channel struct {
 	Broadcast bool

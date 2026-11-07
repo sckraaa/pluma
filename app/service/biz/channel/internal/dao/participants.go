@@ -38,34 +38,39 @@ const participantsColumns = "p.channel_id, p.user_id, p.role, p.state, p.admin_r
 var ErrUnknownFilter = fmt.Errorf("channel: unknown participants filter")
 
 // participantsWhere is the condition of a filter (the predicate of
-// channelParticipantsFilter, api.tl) on channel_participants p and users u,
-// with its arguments: members are those in the channel or restricted
-// without view_messages (ImmutableChannelParticipant.Member); kicked and
-// banned (restricted) rows are those of a ban; q matches the beginning of
-// a name or the username.
-func participantsWhere(filter, q string, selfId int64) (string, []any, error) {
-	const member = "(p.state = 0 OR (p.state = 2 AND p.banned_rights & ? = 0))"
-	view := int32(mtproto.BANNED_VIEW_MESSAGES)
+// channelParticipantsFilter, api.tl) on channel_participants p and users u
+// at now, with its arguments: members are those in the channel
+// (ImmutableChannelParticipant.Member); kicked are those kicked whose ban
+// runs, banned (restricted) the members whose restriction runs
+// (channelperm.Restricted); q matches the beginning of a name or the
+// username.
+func participantsWhere(filter, q string, selfId int64, now int32) (string, []any, error) {
+	const (
+		member = "p.state = 0"
+		// The ban or restriction runs: until_date 0 or Int32.max is for
+		// good.
+		running = "(p.until_date = 0 OR p.until_date = 2147483647 OR p.until_date > ?)"
+	)
 	var (
 		where string
 		args  []any
 	)
 	switch filter {
 	case mtproto.Predicate_channelParticipantsRecent:
-		where, args = member, []any{view}
+		where = member
 	case mtproto.Predicate_channelParticipantsAdmins:
-		where, args = member+" AND p.role > 0", []any{view}
+		where = member + " AND p.role > 0"
 	case mtproto.Predicate_channelParticipantsKicked:
-		where, args = "p.state = 2 AND p.banned_rights & ? <> 0", []any{view}
+		where, args = "p.state = 2 AND "+running, []any{now}
 	case mtproto.Predicate_channelParticipantsBanned:
-		where, args = "p.state = 2 AND p.banned_rights & ? = 0", []any{view}
+		where, args = member+" AND p.role = 0 AND p.banned_rights <> 0 AND "+running, []any{now}
 	case mtproto.Predicate_channelParticipantsSearch, mtproto.Predicate_channelParticipantsMentions:
-		where, args = member, []any{view}
+		where = member
 	case mtproto.Predicate_channelParticipantsBots:
-		where, args = member+" AND u.is_bot = 1", []any{view}
+		where = member + " AND u.is_bot = 1"
 	case mtproto.Predicate_channelParticipantsContacts:
 		where, args = member+" AND EXISTS (SELECT 1 FROM user_contacts uc WHERE uc.owner_user_id = ? AND uc.contact_user_id = p.user_id AND uc.is_deleted = 0)",
-			[]any{view, selfId}
+			[]any{selfId}
 	default:
 		return "", nil, fmt.Errorf("%w: %q", ErrUnknownFilter, filter)
 	}
@@ -80,8 +85,8 @@ func participantsWhere(filter, q string, selfId int64) (string, []any, error) {
 // Participants is a page of channelId's participants by filter and q, the
 // creator and admins first and then the most recent, with the count of all
 // that match.
-func (d *Dao) Participants(ctx context.Context, channelId, selfId int64, filter, q string, offset, limit int32) ([]*channel.ImmutableChannelParticipant, int32, error) {
-	where, args, err := participantsWhere(filter, q, selfId)
+func (d *Dao) Participants(ctx context.Context, channelId, selfId int64, filter, q string, offset, limit, now int32) ([]*channel.ImmutableChannelParticipant, int32, error) {
+	where, args, err := participantsWhere(filter, q, selfId, now)
 	if err != nil {
 		return nil, 0, err
 	}

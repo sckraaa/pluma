@@ -31,7 +31,8 @@ import (
 // (JoinChannel.swift:70-81). Anyone who may read a supergroup may ask
 // about any member; in a channel only its admins ask about others
 // (CHAT_ADMIN_REQUIRED). One not in the channel (never joined or left) is
-// USER_NOT_PARTICIPANT; a banned one is channelParticipantBanned.
+// USER_NOT_PARTICIPANT, and so is one kicked to all but admins; a
+// restricted member is channelParticipantBanned to admins.
 func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipant) (*mtproto.Channels_ChannelParticipant, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Participant)
 	if peer.PeerType == mtproto.PEER_SELF {
@@ -61,10 +62,17 @@ func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipa
 		}
 	}
 	row, ok := mc.GetParticipant(target)
-	if !ok || row.GetState() == channelpb.StateLeft || (target == c.MD.UserId && !row.Member()) {
+	me, _ := mc.GetParticipant(c.MD.UserId)
+	switch {
+	case !ok, row.GetState() == channelpb.StateLeft, target == c.MD.UserId && !row.Member():
+		return nil, mtproto.ErrUserNotParticipant
+	case row.GetState() == channelpb.StateKicked && !me.Admin():
+		// Who was kicked is for admins (channelParticipantsKicked):
+		// to a member one kicked is not in the channel.
 		return nil, mtproto.ErrUserNotParticipant
 	}
-	p := row.ToChannelParticipant(c.MD.UserId)
+	now := int32(time.Now().Unix())
+	p := row.ToChannelParticipant(me, now)
 	h := mtproto.NewIDListHelper(c.MD.UserId)
 	for _, id := range []int64{c.MD.UserId, target, row.GetInviterUserId(), row.GetPromotedBy(), row.GetKickedBy()} {
 		if id != 0 {
@@ -82,7 +90,7 @@ func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipa
 	}
 	return mtproto.MakeTLChannelsChannelParticipant(&mtproto.Channels_ChannelParticipant{
 		Participant: p,
-		Chats:       []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))},
+		Chats:       []*mtproto.Chat{mc.ToChat(c.MD.UserId, now)},
 		Users:       users.GetUserListByIdList(c.MD.UserId, h.UserIdList...),
 	}).To_Channels_ChannelParticipant(), nil
 }

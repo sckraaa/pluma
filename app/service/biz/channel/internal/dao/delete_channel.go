@@ -87,11 +87,10 @@ func (d *Dao) DeleteChannel(b *userbox.Box, channelId int64) ([]int64, error) {
 		channelId); err != nil {
 		return nil, err
 	}
-	// Every member leaves, a restricted one too; a ban with view_messages
-	// stays a ban.
+	// Every member leaves, a restricted one too; one kicked stays kicked.
 	if _, err = b.Tx().Exec("UPDATE channel_participants SET state = ?, role = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0"+
-		" WHERE channel_id = ? AND (state <> ? OR banned_rights & ? = 0)",
-		channel.StateLeft, channelId, channel.StateBanned, mtproto.BANNED_VIEW_MESSAGES); err != nil {
+		" WHERE channel_id = ? AND state <> ?",
+		channel.StateLeft, channelId, channel.StateKicked); err != nil {
 		return nil, err
 	}
 	if _, err = b.Tx().Exec("DELETE FROM username WHERE peer_type = ? AND peer_id = ?", mtproto.PEER_CHANNEL, channelId); err != nil {

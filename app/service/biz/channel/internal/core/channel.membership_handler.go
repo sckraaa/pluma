@@ -202,9 +202,10 @@ func (c *ChannelCore) ChannelGetParticipants(in *channel.TLChannelGetParticipant
 		return nil, err
 	}
 	me, _ := mc.GetParticipant(in.SelfId)
-	admin := me.Member() && me.GetRole() != channel.RoleMember
+	admin := me.Admin()
+	now := int32(time.Now().Unix())
 	// One not in it reads a public channel unless kicked from it.
-	reader := me.Member() || mc.GetChannel().Public() && !me.Kicked(int32(time.Now().Unix()))
+	reader := me.Member() || mc.GetChannel().Public() && !me.Kicked(now)
 	switch {
 	case mc.GetChannel().GetDeleted():
 		return nil, mtproto.ErrChannelInvalid
@@ -213,7 +214,17 @@ func (c *ChannelCore) ChannelGetParticipants(in *channel.TLChannelGetParticipant
 	case mc.GetChannel().GetBroadcast() && !admin:
 		return nil, mtproto.ErrChatAdminRequired
 	}
-	list, count, err := c.svcCtx.Dao.Participants(c.ctx, in.ChannelId, in.SelfId, in.Filter, in.Q, in.Offset, in.Limit)
+	if !admin && (in.Filter == mtproto.Predicate_channelParticipantsKicked || in.Filter == mtproto.Predicate_channelParticipantsBanned) {
+		// Who is kicked or restricted is for admins. An empty list, not an
+		// error: iOS asks again and again on any error
+		// (ChannelMembers.swift:91, Network.swift:1208-1215 at 6ad963e5).
+		return mtproto.MakeTLChannelsChannelParticipants(&mtproto.Channels_ChannelParticipants{
+			Participants: []*mtproto.ChannelParticipant{},
+			Chats:        []*mtproto.Chat{},
+			Users:        []*mtproto.User{},
+		}).To_Channels_ChannelParticipants(), nil
+	}
+	list, count, err := c.svcCtx.Dao.Participants(c.ctx, in.ChannelId, in.SelfId, in.Filter, in.Q, in.Offset, in.Limit, now)
 	if errors.Is(err, dao.ErrUnknownFilter) {
 		return nil, mtproto.ErrInputConstructorInvalid
 	}
@@ -223,7 +234,7 @@ func (c *ChannelCore) ChannelGetParticipants(in *channel.TLChannelGetParticipant
 	}
 	participants := make([]*mtproto.ChannelParticipant, 0, len(list))
 	for _, p := range list {
-		participants = append(participants, p.ToChannelParticipant(in.SelfId))
+		participants = append(participants, p.ToChannelParticipant(me, now))
 	}
 	return mtproto.MakeTLChannelsChannelParticipants(&mtproto.Channels_ChannelParticipants{
 		Count:        count,

@@ -19,6 +19,7 @@ import (
 	"math"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -34,52 +35,65 @@ const (
 	StateIn int32 = 0
 	// StateLeft is one who left (or was removed without a ban).
 	StateLeft int32 = 1
-	// StateBanned is one with banned_rights: with view_messages kicked, out
-	// of the channel; without it restricted, and still in.
-	StateBanned int32 = 2
+	// StateKicked is one removed with a ban (chatBannedRights with
+	// view_messages, task 042): out of the channel, and kept out until the
+	// ban's until_date. A restricted member (banned_rights without
+	// view_messages) stays StateIn.
+	StateKicked int32 = 2
 )
 
-// banned reports whether the ban of p is in effect at now: an until_date
-// of 0 is a ban for good, as is Int32.max (the clients show neither as a
-// date: iOS ChatRestrictedInputPanelNode.swift:128); a ban whose date has
-// passed is over.
-func (p *ImmutableChannelParticipant) banned(now int32) bool {
-	if p.GetState() != StateBanned {
-		return false
-	}
-	u := p.GetUntilDate()
-	return u == 0 || now < u
+// Restricted reports whether p's own restriction is in effect at now: set,
+// and its until_date not passed; 0 or Int32.max is for good (the clients
+// show neither as a date: iOS ChatRestrictedInputPanelNode.swift:128).
+func (p *ImmutableChannelParticipant) Restricted(now int32) bool {
+	return p.GetState() == StateIn && channelperm.Restricted(p.Perm(), now)
 }
 
-// Kicked reports a ban with view_messages in effect at now (kicked).
+// Kicked reports a ban with view_messages in effect at now: the user may not
+// see the channel at all and may not join it again (chatBannedRights
+// view_messages, core.telegram.org/constructor/chatBannedRights). A ban that
+// ran out leaves the user out of the channel until they join again.
 func (p *ImmutableChannelParticipant) Kicked(now int32) bool {
 	return p.kicked(now)
 }
 
-// kicked reports a ban with view_messages in effect at now: the user may not
-// see the channel at all (chatBannedRights.view_messages,
-// core.telegram.org/constructor/chatBannedRights).
 func (p *ImmutableChannelParticipant) kicked(now int32) bool {
-	return p.banned(now) && p.GetBannedRights()&mtproto.BANNED_VIEW_MESSAGES != 0
+	if p.GetState() != StateKicked {
+		return false
+	}
+	u := p.GetUntilDate()
+	return u == 0 || u == math.MaxInt32 || now < u
 }
 
-// Member reports whether p is in the channel: in it, or restricted
-// without view_messages. A ban with view_messages that ran out leaves the
-// user out of the channel until they join again; a restriction that ran out
-// leaves them a plain member.
+// Member reports whether p is in the channel.
 func (p *ImmutableChannelParticipant) Member() bool {
+	// No row: never joined (the zero state is StateIn).
+	return p != nil && p.GetState() == StateIn
+}
+
+// Perm is p as channelperm reads it; nil is one never joined (left).
+func (p *ImmutableChannelParticipant) Perm() channelperm.Participant {
 	if p == nil {
-		// No row: never joined. The zero state is StateIn.
-		return false
+		return channelperm.Participant{State: channelperm.StateLeft}
 	}
-	switch p.GetState() {
-	case StateIn:
-		return true
-	case StateBanned:
-		return p.GetBannedRights()&mtproto.BANNED_VIEW_MESSAGES == 0
-	default:
-		return false
+	return channelperm.Participant{
+		Role:         p.GetRole(),
+		State:        p.GetState(),
+		AdminRights:  p.GetAdminRights(),
+		BannedRights: p.GetBannedRights(),
+		UntilDate:    p.GetUntilDate(),
 	}
+}
+
+// Perm is the channel as channelperm reads it.
+func (m *ImmutableChannel) Perm() channelperm.Channel {
+	return channelperm.Channel{Broadcast: m.GetBroadcast(), Default: m.GetDefaultBannedRights()}
+}
+
+// Can answers whether the participant p may do a in the channel at now
+// (channelperm.Can): nil, or the error the clients expect.
+func (m *ImmutableChannel) Can(p *ImmutableChannelParticipant, a channelperm.Action, now int32) error {
+	return channelperm.Can(m.Perm(), p.Perm(), a, now)
 }
 
 // Public reports whether the channel has a public username.
@@ -142,11 +156,21 @@ func (m *ImmutableChannel) ToChat(p *ImmutableChannelParticipant, now int32) *mt
 
 	c.Date = int32(p.GetDate())
 	c.Creator = p.GetRole() == RoleCreator
-	if p.GetRole() == RoleAdmin || p.GetRole() == RoleCreator {
+	switch p.GetRole() {
+	case RoleCreator:
+		// Every right: the clients let the creator grant what it holds
+		// (Android ChatRightsEditActivity.java:232-236, tdesktop
+		// edit_participant_box.cpp:541-554).
+		c.AdminRights = mtproto.AdminRights(channelperm.CreatorRights).ToChatAdminRights()
+	case RoleAdmin:
+		// None for an admin of no right: iOS and Android take any
+		// admin_rights for an admin's (TelegramChannel.swift:46-48,
+		// ChatObject.java:1928-1930).
 		c.AdminRights = mtproto.AdminRights(p.GetAdminRights()).ToChatAdminRights()
-	}
-	if p.banned(now) {
-		c.BannedRights = bannedRights(p.GetBannedRights(), p.GetUntilDate())
+	default:
+		if p.Restricted(now) {
+			c.BannedRights = bannedRights(p.GetBannedRights(), p.GetUntilDate())
+		}
 	}
 	return mtproto.MakeTLChannel(c).To_Chat()
 }

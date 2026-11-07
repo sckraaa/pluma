@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 )
 
 const (
@@ -87,28 +88,28 @@ func TestToChat(t *testing.T) {
 		want     want
 	}{
 		{"creator", "", participant(RoleCreator, StateIn, adminRights, 0, 0),
-			want{predicate: mtproto.Predicate_channel, creator: true, adminRights: adminRights, bannedRights: -1, date: int32(viewJoined)}},
+			want{predicate: mtproto.Predicate_channel, creator: true, adminRights: channelperm.CreatorRights, bannedRights: -1, date: int32(viewJoined)}},
 		{"admin", "", participant(RoleAdmin, StateIn, adminRights, 0, 0),
 			want{predicate: mtproto.Predicate_channel, adminRights: adminRights, bannedRights: -1, date: int32(viewJoined)}},
 		{"member", "", participant(RoleMember, StateIn, 0, 0, 0), member},
-		{"restricted for good", "", participant(RoleMember, StateBanned, 0, mute, 0),
+		{"restricted for good", "", participant(RoleMember, StateIn, 0, mute, 0),
 			want{predicate: mtproto.Predicate_channel, bannedRights: mute, date: int32(viewJoined)}},
-		{"restricted until later", "", participant(RoleMember, StateBanned, 0, mute, later),
+		{"restricted until later", "", participant(RoleMember, StateIn, 0, mute, later),
 			want{predicate: mtproto.Predicate_channel, bannedRights: mute, bannedUntil: later, date: int32(viewJoined)}},
-		{"restriction over", "", participant(RoleMember, StateBanned, 0, mute, earlier), member},
+		{"restriction over", "", participant(RoleMember, StateIn, 0, mute, earlier), member},
 		{"left a private channel", "", participant(RoleMember, StateLeft, 0, 0, 0),
 			want{predicate: mtproto.Predicate_channelForbidden}},
 		{"left a public channel", "pub", participant(RoleMember, StateLeft, 0, 0, 0),
 			want{predicate: mtproto.Predicate_channel, left: true, bannedRights: -1, date: int32(viewCreated)}},
-		{"kicked for good", "pub", participant(RoleMember, StateBanned, 0, kick, 0),
+		{"kicked for good", "pub", participant(RoleMember, StateKicked, 0, kick, 0),
 			want{predicate: mtproto.Predicate_channelForbidden}},
-		{"kicked for good, Int32.max", "", participant(RoleMember, StateBanned, 0, kick, math.MaxInt32),
+		{"kicked for good, Int32.max", "", participant(RoleMember, StateKicked, 0, kick, math.MaxInt32),
 			want{predicate: mtproto.Predicate_channelForbidden}},
-		{"banned until later", "pub", participant(RoleMember, StateBanned, 0, kick, later),
+		{"banned until later", "pub", participant(RoleMember, StateKicked, 0, kick, later),
 			want{predicate: mtproto.Predicate_channelForbidden, untilDate: later}},
-		{"ban over, public", "pub", participant(RoleMember, StateBanned, 0, kick, earlier),
+		{"ban over, public", "pub", participant(RoleMember, StateKicked, 0, kick, earlier),
 			want{predicate: mtproto.Predicate_channel, left: true, bannedRights: -1, date: int32(viewCreated)}},
-		{"ban over, private", "", participant(RoleMember, StateBanned, 0, kick, earlier),
+		{"ban over, private", "", participant(RoleMember, StateKicked, 0, kick, earlier),
 			want{predicate: mtproto.Predicate_channelForbidden}},
 		{"never joined a public channel", "pub", nil,
 			want{predicate: mtproto.Predicate_channel, left: true, bannedRights: -1, date: int32(viewCreated)}},
@@ -276,9 +277,8 @@ func TestCodecRoundTrip(t *testing.T) {
 	}
 }
 
-// TestMember: only a row in the channel, or restricted without
-// view_messages, is a member; no row (never joined) is none, though the
-// zero state is StateIn.
+// TestMember: only a row in the channel, restricted or not, is a member;
+// no row (never joined) is none, though the zero state is StateIn.
 func TestMember(t *testing.T) {
 	for _, c := range []struct {
 		name string
@@ -288,8 +288,8 @@ func TestMember(t *testing.T) {
 		{"no row", nil, false},
 		{"in", participant(RoleMember, StateIn, 0, 0, 0), true},
 		{"left", participant(RoleMember, StateLeft, 0, 0, 0), false},
-		{"restricted", participant(RoleMember, StateBanned, 0, mtproto.BANNED_SEND_MESSAGES, 0), true},
-		{"kicked", participant(RoleMember, StateBanned, 0, mtproto.BANNED_VIEW_MESSAGES, 0), false},
+		{"restricted", participant(RoleMember, StateIn, 0, mtproto.BANNED_SEND_MESSAGES, 0), true},
+		{"kicked", participant(RoleMember, StateKicked, 0, mtproto.BANNED_VIEW_MESSAGES, 0), false},
 	} {
 		if got := c.p.Member(); got != c.want {
 			t.Errorf("%s: member %v, want %v", c.name, got, c.want)

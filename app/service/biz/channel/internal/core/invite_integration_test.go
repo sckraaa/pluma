@@ -79,7 +79,7 @@ func TestInvite(t *testing.T) {
 	}
 
 	f.exec("INSERT INTO channel_participants (channel_id, user_id, state, banned_rights, `date`) VALUES (?, ?, ?, ?, 0)",
-		id, kicked, channel.StateBanned, mtproto.BANNED_VIEW_MESSAGES)
+		id, kicked, channel.StateKicked, mtproto.BANNED_VIEW_MESSAGES)
 	_, err = f.invite(bob, id, kicked)
 	wantErr(t, "one kicked, by a member", err, mtproto.ErrUserKicked)
 	if _, err = f.invite(creator, id, kicked); err != nil {
