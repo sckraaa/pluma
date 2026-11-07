@@ -415,3 +415,31 @@ func (s *Service) ChannelReadMessageContents(ctx context.Context, request *chann
 
 	return r, err
 }
+
+// ChannelReadMentions
+// channel.readMentions self_id:long perm_auth_key_id:long channel_id:long = messages.AffectedHistory;
+func (s *Service) ChannelReadMentions(ctx context.Context, request *channel.TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.readMentions - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReadMentions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetUnreadMentions
+// channel.getUnreadMentions self_id:long channel_id:long offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) ChannelGetUnreadMentions(ctx context.Context, request *channel.TLChannelGetUnreadMentions) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getUnreadMentions - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetUnreadMentions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

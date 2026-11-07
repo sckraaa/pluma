@@ -122,6 +122,49 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 	return nil
 }
 
+// ReadMentions marks every unread mention of b's owner in the channel
+// read, and its devices get updateChannelReadMessagesContents with seq of
+// those messages (core.telegram.org/method/messages.readMentions).
+// CHANNEL_PRIVATE when the owner is not in the channel.
+func (d *Dao) ReadMentions(b *userbox.Box, channelId int64) error {
+	if err := readerIn(b, channelId); err != nil {
+		return err
+	}
+	var ids []int32
+	if err := b.Tx().QueryRowsPartial(&ids,
+		"SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0 ORDER BY message_id FOR UPDATE",
+		channelId, b.UserId()); err != nil {
+		return err
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	if _, err := b.Tx().Exec("UPDATE channel_message_mentions SET `read` = 1 WHERE channel_id = ? AND user_id = ? AND `read` = 0",
+		channelId, b.UserId()); err != nil {
+		return err
+	}
+	InvalidateDialog(b, channelId)
+	u := mtproto.MakeTLUpdateChannelReadMessagesContents(&mtproto.Update{ChannelId: channelId, Messages: ids}).To_Update()
+	return d.EmitSeqUpdate(b, u, nil, nil)
+}
+
+// readerIn checks that b's owner is in the channel with its dialog, locked:
+// CHANNEL_PRIVATE otherwise.
+func readerIn(b *userbox.Box, channelId int64) error {
+	var in []int32
+	if err := b.Tx().QueryRowsPartial(&in,
+		"SELECT g.top_message FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
+			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state = 0"+
+			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
+		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
+		return err
+	}
+	if len(in) == 0 {
+		return mtproto.ErrChannelPrivate
+	}
+	return nil
+}
+
 // ReadContentsMax is the most messages of one channels.readMessageContents,
 // as of messages.readMessageContents.
 const ReadContentsMax = 100
@@ -133,16 +176,8 @@ const ReadContentsMax = 100
 // are left out. CHANNEL_PRIVATE when the owner has no dialog with the
 // channel (not in it).
 func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
-	var in []int32
-	if err := b.Tx().QueryRowsPartial(&in,
-		"SELECT g.top_message FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
-			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state = 0"+
-			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
-		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
+	if err := readerIn(b, channelId); err != nil {
 		return err
-	}
-	if len(in) == 0 {
-		return mtproto.ErrChannelPrivate
 	}
 	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
 	ids = slices.DeleteFunc(ids, func(id int32) bool { return id <= 0 })

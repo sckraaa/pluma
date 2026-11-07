@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 )
 
 // MessagesReadMentions
@@ -35,8 +36,17 @@ func (c *MessagesCore) MessagesReadMentions(in *mtproto.TLMessagesReadMentions) 
 	switch peer.PeerType {
 	case mtproto.PEER_SELF, mtproto.PEER_USER, mtproto.PEER_CHAT:
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("messages.readMentions blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// A channel's mentions, all at once (task 043, biz channel.readMentions).
+		affected, err := c.svcCtx.Dao.Channel.ChannelReadMentions(c.ctx, &channelpb.TLChannelReadMentions{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     peer.PeerId,
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.readMentions - error: %v", err)
+			return nil, err
+		}
+		return affected, nil
 	default:
 		c.Logger.Errorf("messages.readMentions - error: invalid peer %v", in.Peer)
 		return nil, mtproto.ErrPeerIdInvalid

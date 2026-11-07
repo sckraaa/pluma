@@ -77,14 +77,21 @@ func (c *ChannelCore) ChannelGetMessages(in *channel.TLChannelGetMessages) (*cha
 // that match (dao.Search), with the count of all that match: the clients'
 // media lists page by it and show "N of M".
 func (c *ChannelCore) ChannelSearch(in *channel.TLChannelSearch) (*mtproto.Messages_Messages, error) {
-	messages, count, err := c.svcCtx.Dao.Search(c.ctx, in.SelfId, in.ChannelId, dao.SearchQuery{
+	r, err := c.search(in.SelfId, in.ChannelId, dao.SearchQuery{
 		Q: in.Q, FromId: in.FromId, MediaType: in.MediaType, MinDate: in.MinDate, MaxDate: in.MaxDate,
 	}, in.OffsetId, in.AddOffset, in.Limit, in.MaxId, in.MinId)
 	if err != nil {
 		c.Logger.Errorf("channel.search - error: %v", err)
+	}
+	return r, err
+}
+
+func (c *ChannelCore) search(selfId, channelId int64, q dao.SearchQuery, offsetId, addOffset, limit, maxId, minId int32) (*mtproto.Messages_Messages, error) {
+	messages, count, err := c.svcCtx.Dao.Search(c.ctx, selfId, channelId, q, offsetId, addOffset, limit, maxId, minId)
+	if err != nil {
 		return nil, err
 	}
-	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, in.ChannelId, nil)
+	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, channelId, nil)
 	if err != nil {
 		return nil, err
 	}

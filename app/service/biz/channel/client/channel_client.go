@@ -48,6 +48,8 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelReadMentions(ctx context.Context, in *channel.TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error)
+	ChannelGetUnreadMentions(ctx context.Context, in *channel.TLChannelGetUnreadMentions) (*mtproto.Messages_Messages, error)
 	ChannelReadMessageContents(ctx context.Context, in *channel.TLChannelReadMessageContents) (*mtproto.Bool, error)
 	ChannelSearch(ctx context.Context, in *channel.TLChannelSearch) (*mtproto.Messages_Messages, error)
 	ChannelEditCreator(ctx context.Context, in *channel.TLChannelEditCreator) (*mtproto.Updates, error)
@@ -372,4 +374,26 @@ func (m *defaultChannelClient) ChannelReadMessageContents(ctx context.Context, i
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelReadMessageContents(ctx, in)
+}
+
+// ChannelReadMentions
+// channel.readMentions self_id:long perm_auth_key_id:long channel_id:long = messages.AffectedHistory;
+func (m *defaultChannelClient) ChannelReadMentions(ctx context.Context, in *channel.TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReadMentions(ctx, in)
+}
+
+// ChannelGetUnreadMentions
+// channel.getUnreadMentions self_id:long channel_id:long offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (m *defaultChannelClient) ChannelGetUnreadMentions(ctx context.Context, in *channel.TLChannelGetUnreadMentions) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetUnreadMentions(ctx, in)
 }

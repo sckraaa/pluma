@@ -327,6 +327,14 @@ func (noChannels) ChannelReadMessageContents(context.Context, *channelpb.TLChann
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelReadMentions(context.Context, *channelpb.TLChannelReadMentions) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetUnreadMentions(context.Context, *channelpb.TLChannelGetUnreadMentions) (*mtproto.Messages_Messages, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

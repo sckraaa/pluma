@@ -52,6 +52,10 @@ const (
 	// pluma: task 055
 	Predicate_channel_deleteChannel = "channel_deleteChannel"
 	// pluma: task 043
+	Predicate_channel_readMentions = "channel_readMentions"
+	// pluma: task 043
+	Predicate_channel_getUnreadMentions = "channel_getUnreadMentions"
+	// pluma: task 043
 	Predicate_channel_readMessageContents = "channel_readMessageContents"
 	// pluma: task 043
 	Predicate_channel_search = "channel_search"
@@ -161,6 +165,14 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -979916526, // 0xc597a912
 
 	},
+	Predicate_channel_readMentions: { // pluma: task 043
+		0: -521821973, // 0xe0e5a0eb
+
+	},
+	Predicate_channel_getUnreadMentions: { // pluma: task 043
+		0: 1865304106, // 0x6f2e482a
+
+	},
 	Predicate_channel_readMessageContents: { // pluma: task 043
 		0: 2055458774, // 0x7a83cfd6
 
@@ -213,6 +225,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	418987336:   Predicate_channel_updateUsername,           // 0x18f93d48 pluma: task 044
 	-2083237595: Predicate_channel_getAdminedPublicChannels, // 0x83d45125 pluma: task 044
 	-979916526:  Predicate_channel_deleteChannel,            // 0xc597a912 pluma: task 055
+	-521821973:  Predicate_channel_readMentions,             // 0xe0e5a0eb pluma: task 043
+	1865304106:  Predicate_channel_getUnreadMentions,        // 0x6f2e482a pluma: task 043
 	2055458774:  Predicate_channel_readMessageContents,      // 0x7a83cfd6 pluma: task 043
 	471620827:   Predicate_channel_search,                   // 0x1c1c5cdb pluma: task 043
 	860909233:   Predicate_channel_editCreator,              // 0x33506eb1 pluma: task 042

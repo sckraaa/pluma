@@ -151,6 +151,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	-521821973: func() mtproto.TLObject { // 0xe0e5a0eb pluma: task 043
+		return &TLChannelReadMentions{
+			Constructor: -521821973,
+		}
+	},
+	1865304106: func() mtproto.TLObject { // 0x6f2e482a pluma: task 043
+		return &TLChannelGetUnreadMentions{
+			Constructor: 1865304106,
+		}
+	},
 	2055458774: func() mtproto.TLObject { // 0x7a83cfd6 pluma: task 043
 		return &TLChannelReadMessageContents{
 			Constructor: 2055458774,
@@ -2165,6 +2175,98 @@ func (m *TLChannelReadMessageContents) Decode(dBuf *mtproto.DecodeBuf) error {
 			v3[i] = dBuf.Int()
 		}
 		m.Id = v3
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelReadMentions (pluma: task 043)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelReadMentions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xe0e5a0eb:
+		x.UInt(0xe0e5a0eb)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelReadMentions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelReadMentions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xe0e5a0eb:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetUnreadMentions (pluma: task 043)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetUnreadMentions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x6f2e482a:
+		x.UInt(0x6f2e482a)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetAddOffset())
+		x.Int(m.GetLimit())
+		x.Int(m.GetMaxId())
+		x.Int(m.GetMinId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetUnreadMentions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetUnreadMentions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x6f2e482a:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.OffsetId = dBuf.Int()
+		m.AddOffset = dBuf.Int()
+		m.Limit = dBuf.Int()
+		m.MaxId = dBuf.Int()
+		m.MinId = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

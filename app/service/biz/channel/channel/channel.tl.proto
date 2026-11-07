@@ -72,6 +72,10 @@ enum TLConstructor {
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
   // pluma: task 043
+  CRC32_channel_readMentions = -521821973;
+  // pluma: task 043
+  CRC32_channel_getUnreadMentions = 1865304106;
+  // pluma: task 043
   CRC32_channel_readMessageContents = 2055458774;
   // pluma: task 043
   CRC32_channel_search = 471620827;
@@ -516,6 +520,34 @@ message TL_channel_readMessageContents {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.readMentions self_id:long perm_auth_key_id:long channel_id:long = messages.AffectedHistory;
+// self_id reads all its unread mentions in the channel; its devices get
+// updateChannelReadMessagesContents of them (task 043).
+// (task 043)
+message TL_channel_readMentions {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getUnreadMentions self_id:long channel_id:long offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// The messages of the channel that mention self_id and that it has not read,
+// paged as channel.getHistory, newest first (task 043).
+// (task 043)
+message TL_channel_getUnreadMentions {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 offset_id = 5;
+  int32 add_offset = 6;
+  int32 limit = 7;
+  int32 max_id = 8;
+  int32 min_id = 9;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -583,6 +615,10 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 043
+  rpc channel_readMentions(TL_channel_readMentions) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 043
+  rpc channel_getUnreadMentions(TL_channel_getUnreadMentions) returns (mtproto.messages_Messages) {}
   // pluma: task 043
   rpc channel_readMessageContents(TL_channel_readMessageContents) returns (mtproto.Bool) {}
   // pluma: task 043

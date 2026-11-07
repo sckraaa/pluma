@@ -164,3 +164,44 @@ func TestReadContents(t *testing.T) {
 	}
 	wantErr(t, "one not in the channel", read(outsider, last), mtproto.ErrChannelPrivate)
 }
+
+// TestMentions: a member's unread mentions are listed newest first and all
+// read at once; the answer is the channel's pts with nothing counted, and
+// its devices get updateChannelReadMessagesContents of them.
+func TestMentions(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, bob := f.user("Creator"), f.user("Bob")
+	id := f.create(creator)
+	f.public(id)
+	if _, err := f.join(bob, id, ""); err != nil {
+		t.Fatal(err)
+	}
+	pts := f.send(id, creator, 3)
+	var last int32
+	if err := f.box.QueryRow("SELECT top_message FROM channels WHERE id = ?", id).Scan(&last); err != nil {
+		t.Fatal(err)
+	}
+	f.exec("INSERT INTO channel_message_mentions (channel_id, user_id, message_id, `read`) VALUES (?, ?, ?, 0), (?, ?, ?, 0), (?, ?, ?, 1)",
+		id, bob, last-2, id, bob, last, id, bob, last-1)
+	r, err := f.c.ChannelGetUnreadMentions(&channel.TLChannelGetUnreadMentions{SelfId: bob, ChannelId: id, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := r.GetMessages(); len(m) != 2 || m[0].GetId() != last || m[1].GetId() != last-2 || r.GetCount() != 2 {
+		t.Errorf("unread mentions: %v count %d", m, r.GetCount())
+	}
+	a, err := f.c.ChannelReadMentions(&channel.TLChannelReadMentions{SelfId: bob, PermAuthKeyId: 1, ChannelId: id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.GetPts() != pts || a.GetPtsCount() != 0 || a.GetOffset() != 0 {
+		t.Errorf("affected %v, want pts %d", a, pts)
+	}
+	if r, err = f.c.ChannelGetUnreadMentions(&channel.TLChannelGetUnreadMentions{SelfId: bob, ChannelId: id, Limit: 10}); err != nil || len(r.GetMessages()) != 0 {
+		t.Errorf("after reading: %v, %v", r.GetMessages(), err)
+	}
+	var n int
+	if err = f.box.QueryRow("SELECT COUNT(*) FROM user_seq_updates WHERE user_id = ? AND update_type = ?", bob, mtproto.Predicate_updateChannelReadMessagesContents).Scan(&n); err != nil || n != 1 {
+		t.Errorf("seq updates %d, %v", n, err)
+	}
+}

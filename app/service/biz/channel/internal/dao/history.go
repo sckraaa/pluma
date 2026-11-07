@@ -99,6 +99,9 @@ type SearchQuery struct {
 	FromId           int64
 	MediaType        int32
 	MinDate, MaxDate int32
+	// UnreadMentionsOf keeps the messages that mention this user and that
+	// it has not read.
+	UnreadMentionsOf int64
 }
 
 // SearchMax is the most messages of one page of a search
@@ -121,6 +124,9 @@ func (d *Dao) Search(ctx context.Context, selfId, channelId int64, q SearchQuery
 	}
 	if q.FromId != 0 {
 		add("sender_user_id = ?", q.FromId)
+	}
+	if q.UnreadMentionsOf != 0 {
+		add("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)
 	}
 	// Service messages are found only as changes of the photo.
 	if q.MediaType != mtproto.MEDIA_CHAT_PHOTO {

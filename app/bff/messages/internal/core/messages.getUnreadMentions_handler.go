@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	messagepb "github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -73,41 +74,25 @@ func (c *MessagesCore) MessagesGetUnreadMentions(in *mtproto.TLMessagesGetUnread
 			Users:    []*mtproto.User{},
 		}).To_Messages_Messages()
 	case mtproto.PEER_CHANNEL:
-		//// 400	CHANNEL_INVALID	The provided channel is invalid
-		//// 400	CHANNEL_PRIVATE	You haven't joined this channel/supergroup
-		//channel, err = c.svcCtx.Dao.ChannelClient.ChannelGetMutableChannel(
-		//	c.ctx,
-		//	&channelpb.TLChannelGetMutableChannel{
-		//		ChannelId: peer.PeerId,
-		//		Id:        []int64{c.MD.UserId},
-		//	})
-		//if err != nil {
-		//	err = mtproto.ErrPeerIdInvalid
-		//	c.Logger.Errorf("messages.getHistory - error: %v", err)
-		//	return nil, err
-		//}
-		//
-		//me := channel.GetImmutableChannelParticipant(c.MD.UserId)
-		//if me != nil {
-		//	minId = int32(mathx.MaxInt(int(me.AvailableMinId), int(in.MinId)))
-		//}
-		//
-		//isChannel = true
-		//// TODO(@benqi): check kicked
-		//_ = channel
-		//
-		//rValues = mtproto.MakeTLMessagesChannelMessages(&mtproto.Messages_Messages{
-		//	Messages: []*mtproto.Message{},
-		//	Chats:    []*mtproto.Chat{},
-		//	Users:    []*mtproto.User{},
-		//	Inexact:  false,
-		//	Count:    0,
-		//	NextRate: nil,
-		//	Pts:      channel.Pts(),
-		//}).To_Messages_Messages()
-		c.Logger.Errorf("messages.readHistory blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// A channel's unread mentions (task 043, biz channel.getUnreadMentions).
+		r, err := c.svcCtx.Dao.Channel.ChannelGetUnreadMentions(c.ctx, &channelpb.TLChannelGetUnreadMentions{
+			SelfId:    c.MD.UserId,
+			ChannelId: peer.PeerId,
+			OffsetId:  in.OffsetId,
+			AddOffset: in.AddOffset,
+			Limit:     limit,
+			MaxId:     in.MaxId,
+			MinId:     in.MinId,
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.getUnreadMentions - error: %v", err)
+			return nil, err
+		}
+		if err = c.fillChannelPeers(r, peer.PeerId); err != nil {
+			c.Logger.Errorf("messages.getUnreadMentions - error: %v", err)
+			return nil, err
+		}
+		return r, nil
 	default:
 		err = mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.getHistory - error: %v", err)
