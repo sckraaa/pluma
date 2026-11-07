@@ -556,9 +556,10 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `submodules/TelegramUI/Resources/Fonts/AremacFS-Regular.otf` (`1a78b533…`), `AremacFS-Semibold.otf` (`28eab504…`) — `remove_file`.
   - `Telegram/BUILD`: блок `<key>UIAppFonts</key> <array> <string>AremacFS-Regular.otf</string> <string>AremacFS-Semibold.otf</string> </array>` удалён (`replace` на пустое).
   - `submodules/Display/Source/Font.swift`: две строки запасного шрифта (`UIFont(name: encodeText(string: "TGDbnfsb.Tfnjcpme", key: -1), size: size) ?? UIFont.systemFont(…)` и `"TGDbnfsb.Sfhvmbs"`) — `expect`, на них правка опирается.
-- **Проверка.** `verify_store` (нет `AremacFS` в `BUILD`, файлов нет), `test_patch`, `test_damage` (`FONT`).
+  - `submodules/LegacyComponents/Sources/TGCameraInterfaceAssets.m`, `regularFontOfSize:` и `boldFontOfSize:` (57-65): старая камера (меню скрепки) берёт тот же шрифт без запасного; `nil` в атрибутах заголовка бросает исключение (`TGCameraModeControl _createButtonForMode:title:`), и приложение падало при открытии камеры (отчёт владельца 2026-11-07, сбой воспроизведён в симуляторе). `return [UIFont fontWithName:…]` → `UIFont *font = …; return font ?: [UIFont systemFontOfSize:size weight:UIFontWeightRegular / UIFontWeightSemibold];` — `replace` (`CAMERA_ASSETS_FALLBACKS`).
+- **Проверка.** `verify_store` (нет `AremacFS` в `BUILD`, файлов нет, у шрифтов камеры есть запасной), `test_patch`, `test_damage` (`FONT`, `CAMERA_ASSETS`).
 - **Апстрим / официальный.** Шрифт в бандле и в `UIAppFonts`. Как с этим поступает сборка Telegram для App Store, не проверялось.
-- **История.** `4c6fe94`, 2026-11-01, задача 029.
+- **История.** `4c6fe94`, 2026-11-01, задача 029. Запасной шрифт старой камеры — ветка `fix/camera-font`, 2026-11-07, задача 059.
 
 ### I-062. Альбом «Фото» называется Pluma
 См. I-036 (`StoreDownloadedMedia.swift`).

@@ -1,6 +1,6 @@
 # 059. iOS: вылет при открытии камеры из скрепки
 
-- Статус: todo (2026-11-07), нужен отчёт о сбое
+- Статус: in progress (2026-11-07), причина найдена, правка в pluma-ios PR #3
 - Зависит от: —
 
 ## Цель
@@ -19,3 +19,8 @@
 - На устройстве со скриншотами: камера из скрепки открывается, фото и видео отправляются.
 
 ## Результат
+### Причина и правка (2026-11-07)
+- Сбой воспроизведён владельцем в симуляторе; отчёт `Telegram-2026-11-07-163559.ips` (Pluma 12.9.2 (26)): `SIGABRT` из `-[__NSPlaceholderDictionary initWithObjects:forKeys:count:]` в `-[TGCameraModeControl _createButtonForMode:title:]` ← `TGCameraMainPhoneView` ← `TGCameraController loadView`.
+- Старая камера берёт шрифт SF Camera через `TGCameraInterfaceAssets regularFontOfSize:/boldFontOfSize:` (`LegacyComponents/Sources/TGCameraInterfaceAssets.m:57-65` на `6ad963e5`) без запасного; наш патч I-061 убрал шрифт из бандла (ITMS-91198), `fontWithName:` вернул `nil`, словарь атрибутов бросил исключение. Запасной был только в Swift (`Font.swift`).
+- Правка: оба метода возвращают системный шрифт того же веса, если SF Camera нет (`ci/patch.py`, `CAMERA_ASSETS_FALLBACKS`; `verify_store` проверяет). Реестр — I-061. Тесты патча: 56 зелёные.
+- Осталось: сборка для симулятора из PR, проверка камеры со скриншотом, слияние и выпуск iOS.
