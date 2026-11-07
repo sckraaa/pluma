@@ -105,6 +105,8 @@
 - Окно журнала — 100000 `pts`; `limit` разницы — до 1000.
 
 ### 8. Ошибки (U3)
+> Строка `USER_BANNED_IN_CHANNEL` заменена ADR 0038 (2026-11-07): запрет в канале — `CHAT_WRITE_FORBIDDEN` и `CHAT_SEND_*_FORBIDDEN`.
+
 | Ошибка | Код | Когда | Источник |
 |---|---|---|---|
 | `SLOWMODE_WAIT_%d` | 420 | медленный режим | core.telegram.org/method/messages.sendMessage |
