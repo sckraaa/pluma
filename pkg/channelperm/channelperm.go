@@ -57,6 +57,18 @@ const CreatorRights = mtproto.ADMIN_CHANGE_INFO | mtproto.ADMIN_POST_MESSAGES | 
 	mtproto.ADMIN_POST_STORIES | mtproto.ADMIN_EDIT_STORIES | mtproto.ADMIN_DELETE_STORIES |
 	mtproto.ADMIN_MANAGE_DIRECT_MESSAGES | mtproto.ADMIN_MANAGE_RANKS
 
+// AdminMask are the flags of chatAdminRights: the creator's rights and
+// anonymous.
+const AdminMask = CreatorRights | mtproto.ADMIN_ANONYMOUS
+
+// BannedMask are the flags of chatBannedRights.
+const BannedMask = mtproto.BANNED_VIEW_MESSAGES | mtproto.BANNED_SEND_MESSAGES | mtproto.BANNED_SEND_MEDIA |
+	mtproto.BANNED_SEND_STICKERS | mtproto.BANNED_SEND_GIFS | mtproto.BANNED_SEND_GAMES | mtproto.BANNED_SEND_INLINE |
+	mtproto.BANNED_EMBED_LINKS | mtproto.BANNED_SEND_POLLS | mtproto.BANNED_CHANGE_INFO | mtproto.BANNED_INVITE_USERS |
+	mtproto.BANNED_PIN_MESSAGES | mtproto.BANNED_MANAGE_TOPICS | mtproto.BANNED_SEND_PHOTOS | mtproto.BANNED_SEND_VIDEOS |
+	mtproto.BANNED_SEND_ROUNDVIDEOS | mtproto.BANNED_SEND_AUDIOS | mtproto.BANNED_SEND_VOICES | mtproto.BANNED_SEND_DOCS |
+	mtproto.BANNED_SEND_PLAIN | mtproto.BANNED_EDIT_RANK | mtproto.BANNED_SEND_REACTIONS
+
 // Channel is what Can reads of a channel.
 type Channel struct {
 	Broadcast bool
@@ -244,4 +256,18 @@ func UntilDate(until, now int32) int32 {
 		return math.MaxInt32
 	}
 	return until
+}
+
+// Grantable are the admin rights p may give another admin: every right for
+// the creator, its own for an admin with add_admins ("equal or fewer
+// rights", core.telegram.org/api/rights; the clients offer the same,
+// Android ChatRightsEditActivity.java:232-236), none for anyone else.
+func Grantable(ch Channel, p Participant, now int32) int32 {
+	if Can(ch, p, AddAdmins, now) != nil {
+		return 0
+	}
+	if p.Role == RoleCreator {
+		return AdminMask
+	}
+	return p.AdminRights & AdminMask
 }

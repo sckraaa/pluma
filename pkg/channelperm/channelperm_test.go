@@ -208,3 +208,24 @@ func TestMessageActions(t *testing.T) {
 		}
 	}
 }
+
+// The creator gives every right, an admin with add_admins its own, others
+// none.
+func TestGrantable(t *testing.T) {
+	mine := mtproto.ADMIN_ADD_ADMINS | mtproto.ADMIN_PIN_MESSAGES
+	for _, c := range []struct {
+		name string
+		p    Participant
+		want int32
+	}{
+		{"creator", creator, AdminMask},
+		{"admin with add_admins", admin(mine), mine},
+		{"admin without add_admins", admin(mtproto.ADMIN_PIN_MESSAGES), 0},
+		{"member", member, 0},
+		{"left creator", Participant{Role: RoleCreator, State: StateLeft}, 0},
+	} {
+		if got := Grantable(supergroup, c.p, now); got != c.want {
+			t.Errorf("%s: %b, want %b", c.name, got, c.want)
+		}
+	}
+}
