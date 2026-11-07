@@ -48,6 +48,8 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMsgReadReactions": {"/mtproto.RPCMsg/msg_readReactions", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
 	// pluma: task 053
 	"TLMsgUpdateSavedReactionTag": {"/mtproto.RPCMsg/msg_updateSavedReactionTag", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 047
+	"TLMsgMigrateChat": {"/mtproto.RPCMsg/msg_migrateChat", func() interface{} { return new(mtproto.Updates) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

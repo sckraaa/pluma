@@ -45,6 +45,8 @@ enum TLConstructor {
   CRC32_msg_readReactions = -91564461;
   // pluma: task 053
   CRC32_msg_updateSavedReactionTag = -1806534101;
+  // pluma: task 047
+  CRC32_msg_migrateChat = 1705671888;
 }
 
 // ContentMessage <--
@@ -287,6 +289,18 @@ message TL_msg_updateSavedReactionTag {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: msg.migrateChat user_id:long auth_key_id:long chat_id:long = Updates;
+// user_id, the creator, turns the basic group chat_id into a supergroup:
+// the new channel with the members and message 1 channelMigrateFrom, the
+// group deactivated with chatMigrateTo in every member's box (task 047).
+message TL_msg_migrateChat {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int64 chat_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -323,4 +337,6 @@ service RPCMsg {
   rpc msg_readReactions(TL_msg_readReactions) returns (mtproto.messages_AffectedHistory) {}
   // pluma: task 053
   rpc msg_updateSavedReactionTag(TL_msg_updateSavedReactionTag) returns (mtproto.Bool) {}
+  // pluma: task 047
+  rpc msg_migrateChat(TL_msg_migrateChat) returns (mtproto.Updates) {}
 }

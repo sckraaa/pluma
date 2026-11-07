@@ -40,6 +40,7 @@ type MsgClient interface {
 	MsgSendReaction(ctx context.Context, in *msg.TLMsgSendReaction) (*mtproto.Updates, error)
 	MsgReadReactions(ctx context.Context, in *msg.TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
 	MsgUpdateSavedReactionTag(ctx context.Context, in *msg.TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
+	MsgMigrateChat(ctx context.Context, in *msg.TLMsgMigrateChat) (*mtproto.Updates, error)
 }
 
 type defaultMsgClient struct {
@@ -237,4 +238,15 @@ func (m *defaultMsgClient) MsgUpdateSavedReactionTag(ctx context.Context, in *ms
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgUpdateSavedReactionTag(ctx, in)
+}
+
+// MsgMigrateChat
+// msg.migrateChat user_id:long auth_key_id:long chat_id:long = Updates;
+func (m *defaultMsgClient) MsgMigrateChat(ctx context.Context, in *msg.TLMsgMigrateChat) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgMigrateChat(ctx, in)
 }

@@ -46,6 +46,7 @@ const (
 	RPCMsg_MsgSendReaction_FullMethodName           = "/msg.RPCMsg/msg_sendReaction"
 	RPCMsg_MsgReadReactions_FullMethodName          = "/msg.RPCMsg/msg_readReactions"
 	RPCMsg_MsgUpdateSavedReactionTag_FullMethodName = "/msg.RPCMsg/msg_updateSavedReactionTag"
+	RPCMsg_MsgMigrateChat_FullMethodName            = "/msg.RPCMsg/msg_migrateChat"
 )
 
 // RPCMsgClient is the client API for RPCMsg service.
@@ -73,6 +74,8 @@ type RPCMsgClient interface {
 	MsgReadReactions(ctx context.Context, in *TLMsgReadReactions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 053
 	MsgUpdateSavedReactionTag(ctx context.Context, in *TLMsgUpdateSavedReactionTag, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 047
+	MsgMigrateChat(ctx context.Context, in *TLMsgMigrateChat, opts ...grpc.CallOption) (*mtproto.Updates, error)
 }
 
 type rPCMsgClient struct {
@@ -253,6 +256,16 @@ func (c *rPCMsgClient) MsgUpdateSavedReactionTag(ctx context.Context, in *TLMsgU
 	return out, nil
 }
 
+func (c *rPCMsgClient) MsgMigrateChat(ctx context.Context, in *TLMsgMigrateChat, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgMigrateChat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCMsgServer is the server API for RPCMsg service.
 // All implementations should embed UnimplementedRPCMsgServer
 // for forward compatibility.
@@ -278,6 +291,8 @@ type RPCMsgServer interface {
 	MsgReadReactions(context.Context, *TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 053
 	MsgUpdateSavedReactionTag(context.Context, *TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
+	// pluma: task 047
+	MsgMigrateChat(context.Context, *TLMsgMigrateChat) (*mtproto.Updates, error)
 }
 
 // UnimplementedRPCMsgServer should be embedded to have
@@ -337,6 +352,9 @@ func (UnimplementedRPCMsgServer) MsgReadReactions(context.Context, *TLMsgReadRea
 }
 func (UnimplementedRPCMsgServer) MsgUpdateSavedReactionTag(context.Context, *TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgUpdateSavedReactionTag not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgMigrateChat(context.Context, *TLMsgMigrateChat) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgMigrateChat not implemented")
 }
 func (UnimplementedRPCMsgServer) testEmbeddedByValue() {}
 
@@ -664,6 +682,24 @@ func _RPCMsg_MsgUpdateSavedReactionTag_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCMsg_MsgMigrateChat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgMigrateChat)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgMigrateChat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgMigrateChat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgMigrateChat(ctx, req.(*TLMsgMigrateChat))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCMsg_ServiceDesc is the grpc.ServiceDesc for RPCMsg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -738,6 +774,10 @@ var RPCMsg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "msg_updateSavedReactionTag",
 			Handler:    _RPCMsg_MsgUpdateSavedReactionTag_Handler,
+		},
+		{
+			MethodName: "msg_migrateChat",
+			Handler:    _RPCMsg_MsgMigrateChat_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

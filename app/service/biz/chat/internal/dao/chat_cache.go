@@ -9,20 +9,15 @@ package dao
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 
 	"github.com/zeromicro/go-zero/core/mr"
-)
-
-const (
-	chatKeyPrefix            = "chat"
-	chatParticipantKeyPrefix = "chat_participant.3"
 )
 
 type ChatCacheData struct {
@@ -32,7 +27,7 @@ type ChatCacheData struct {
 }
 
 func (d *Dao) GetChatCacheKey(chatId int64) string {
-	return fmt.Sprintf("%s#%d", chatKeyPrefix, chatId)
+	return chat.CacheKey(chatId)
 }
 
 //func genChatParticipantCacheKey(chatId, chatParticipantId int64) string {
@@ -40,7 +35,7 @@ func (d *Dao) GetChatCacheKey(chatId int64) string {
 //}
 
 func (d *Dao) GetChatParticipantCacheKey(chatId, chatParticipantId int64) string {
-	return fmt.Sprintf("%s#%d_%d", chatParticipantKeyPrefix, chatId, chatParticipantId)
+	return chat.ParticipantCacheKey(chatId, chatParticipantId)
 }
 
 func (d *Dao) getChatData(ctx context.Context, chatId int64) (*ChatCacheData, error) {

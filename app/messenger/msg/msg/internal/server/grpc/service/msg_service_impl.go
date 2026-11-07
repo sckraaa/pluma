@@ -255,3 +255,17 @@ func (s *Service) MsgUpdateSavedReactionTag(ctx context.Context, request *msg.TL
 
 	return r, err
 }
+
+// MsgMigrateChat
+// msg.migrateChat user_id:long auth_key_id:long chat_id:long = Updates;
+func (s *Service) MsgMigrateChat(ctx context.Context, request *msg.TLMsgMigrateChat) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.migrateChat - metadata: {%s}", c.MD)
+
+	r, err := c.MsgMigrateChat(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

@@ -20,13 +20,25 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 )
 
 // MessagesMigrateChat
 // messages.migrateChat#a2875319 chat_id:long = Updates;
+//
+// The creator turns the basic group into a supergroup (task 047, msg
+// migrateChat). The clients call it themselves before what a basic group
+// cannot do: a public link, the history for new members, admin rights or
+// ranks, restrictions and the rest (ADR 0034, p. 10).
 func (c *ChatsCore) MessagesMigrateChat(in *mtproto.TLMessagesMigrateChat) (*mtproto.Updates, error) {
-	// TODO: not impl
-	c.Logger.Errorf("messages.migrateChat blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	r, err := c.svcCtx.Dao.MsgClient.MsgMigrateChat(c.ctx, &msgpb.TLMsgMigrateChat{
+		UserId:    c.MD.UserId,
+		AuthKeyId: c.MD.PermAuthKeyId,
+		ChatId:    in.ChatId,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.migrateChat - error: %v", err)
+		return nil, err
+	}
+	return r, nil
 }

@@ -131,6 +131,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1806534101,
 		}
 	},
+	1705671888: func() mtproto.TLObject { // 0x65aa7cd0 pluma: task 047
+		return &TLMsgMigrateChat{
+			Constructor: 1705671888,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1534,6 +1539,48 @@ func (m *TLMsgUpdateSavedReactionTag) Decode(dBuf *mtproto.DecodeBuf) error {
 		m2.Decode(dBuf)
 		m.Reaction = m2
 		m.Title = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgMigrateChat (pluma: task 047)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgMigrateChat) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x65aa7cd0:
+		x.UInt(0x65aa7cd0)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Long(m.GetChatId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgMigrateChat) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgMigrateChat) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x65aa7cd0:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.ChatId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

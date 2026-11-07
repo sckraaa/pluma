@@ -303,7 +303,9 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 	if err != nil {
 		return nil, err
 	}
-	if _, ok := chat.GetImmutableChatParticipant(fromUserId); !ok {
+	// A group moved to a supergroup takes no more messages (task 047): its
+	// members are moved and it is deactivated.
+	if p, ok := chat.GetImmutableChatParticipant(fromUserId); !ok || !p.IsChatMemberStateNormal() || chat.Deactivated() {
 		return nil, mtproto.ErrChatWriteForbidden
 	}
 

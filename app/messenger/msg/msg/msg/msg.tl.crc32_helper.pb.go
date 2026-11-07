@@ -37,4 +37,6 @@ const (
 	CRC32_msg_readReactions TLConstructor = -91564461 // 0xfa8ad653
 	// pluma: task 053
 	CRC32_msg_updateSavedReactionTag TLConstructor = -1806534101 // 0x94527a2b
+	// pluma: task 047
+	CRC32_msg_migrateChat TLConstructor = 1705671888 // 0x65aa7cd0
 )
