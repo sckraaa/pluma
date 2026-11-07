@@ -6,7 +6,7 @@ _Обновлено: 2026-11-07. Держать коротким._
 Этап 0 — фундамент. Аудит завершён, вердикт: ядро teamgram оставляем и глубоко чиним (`docs/audit/00-summary.md`). План этапа 0 — задачи 001–010 (`docs/tasks/README.md`), две параллельные линии: сервер и клиенты.
 
 ## Цифры
-- API layer 228: 869 методов (с версиями методов); реализовано 260 (29,9%), частично 21, заглушки 120, подмены прокси (`fake`) 7, нет обработчика 455. Публичный прогресс сайта (`api-coverage.json`) считает метод один раз, без версий (844), и раскладывает `messages.*` по разделам: стикеры, папки, боты Источник: `docs/project/api-coverage.md` (`go run ./tools/apicoverage`, статус `fake` с задачи 020).
+- API layer 228: 869 методов (с версиями методов); реализовано 263 (30,3%), частично 19, заглушки 119, подмены прокси (`fake`) 7, нет обработчика 455. Публичный прогресс сайта (`api-coverage.json`) считает метод один раз, без версий (844), и раскладывает `messages.*` по разделам: стикеры, папки, боты Источник: `docs/project/api-coverage.md` (`go run ./tools/apicoverage`, статус `fake` с задачи 020).
 - Сравнительных тестов: 6 сценариев с эталонами Telegram, все проходят в CI (`test/conformance`, 9 методов API). Зелёные `go test ./...` (оба модуля), `-race` на нашем коде, `go vet -unreachable=false`, golangci-lint (по коду, изменённому после апстрима), govulncheck, actionlint и shellcheck. Интеграционные тесты на настоящих MySQL/Redis/Kafka (`make test-integration`, testcontainers; перезапускаемые, `-count=3 -shuffle=on`) и e2e всего стека через `docker compose` (`make e2e`). CI: `.github/workflows/ci.yml` — `make ci`, integration и e2e на каждый push/PR и раз в неделю; обновления закреплённых версий — Dependabot (см. `docs/ops/testing.md`).
 
 ## В работе
