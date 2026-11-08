@@ -53,7 +53,16 @@ const (
 	Predicate_dialog_createDialogFilter                = "dialog_createDialogFilter"
 	Predicate_dialog_toggleDialogFilterTags            = "dialog_toggleDialogFilterTags"
 	Predicate_dialog_getDialogFilterTags               = "dialog_getDialogFilterTags"
-	Predicate_dialog_setChatWallpaper                  = "dialog_setChatWallpaper"
+	// pluma: task 064
+	Predicate_chatlistInviteExt           = "chatlistInviteExt"
+	Predicate_dialog_exportChatlistInvite = "dialog_exportChatlistInvite"
+	Predicate_dialog_editChatlistInvite   = "dialog_editChatlistInvite"
+	Predicate_dialog_deleteChatlistInvite = "dialog_deleteChatlistInvite"
+	Predicate_dialog_getChatlistInvites   = "dialog_getChatlistInvites"
+	Predicate_dialog_getChatlistInvite    = "dialog_getChatlistInvite"
+	Predicate_dialog_joinChatlist         = "dialog_joinChatlist"
+	Predicate_dialog_hideChatlistUpdates  = "dialog_hideChatlistUpdates"
+	Predicate_dialog_setChatWallpaper     = "dialog_setChatWallpaper"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -225,6 +234,38 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -84870505, // 0xfaf0fa97
 
 	},
+	Predicate_chatlistInviteExt: { // pluma: task 064
+		0: 845724500, // 0x3268bb54
+
+	},
+	Predicate_dialog_exportChatlistInvite: { // pluma: task 064
+		0: -342736050, // 0xeb92434e
+
+	},
+	Predicate_dialog_editChatlistInvite: { // pluma: task 064
+		0: 167718874, // 0x09ff2fda
+
+	},
+	Predicate_dialog_deleteChatlistInvite: { // pluma: task 064
+		0: -1495566841, // 0xa6db7607
+
+	},
+	Predicate_dialog_getChatlistInvites: { // pluma: task 064
+		0: -1799858035, // 0x94b8588d
+
+	},
+	Predicate_dialog_getChatlistInvite: { // pluma: task 064
+		0: -992271428, // 0xc4db23bc
+
+	},
+	Predicate_dialog_joinChatlist: { // pluma: task 064
+		0: -209386231, // 0xf3850509
+
+	},
+	Predicate_dialog_hideChatlistUpdates: { // pluma: task 064
+		0: -2122372205, // 0x817f2b93
+
+	},
 	Predicate_dialog_setChatWallpaper: {
 		0: -1252926702, // 0xb551db12
 
@@ -274,6 +315,14 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-959749265:  Predicate_dialog_createDialogFilter,                // 0xc6cb636f
 	-1597149815: Predicate_dialog_toggleDialogFilterTags,            // 0xa0cd6d89
 	-84870505:   Predicate_dialog_getDialogFilterTags,               // 0xfaf0fa97
+	845724500:   Predicate_chatlistInviteExt,                        // 0x3268bb54 pluma: task 064
+	-342736050:  Predicate_dialog_exportChatlistInvite,              // 0xeb92434e pluma: task 064
+	167718874:   Predicate_dialog_editChatlistInvite,                // 0x09ff2fda pluma: task 064
+	-1495566841: Predicate_dialog_deleteChatlistInvite,              // 0xa6db7607 pluma: task 064
+	-1799858035: Predicate_dialog_getChatlistInvites,                // 0x94b8588d pluma: task 064
+	-992271428:  Predicate_dialog_getChatlistInvite,                 // 0xc4db23bc pluma: task 064
+	-209386231:  Predicate_dialog_joinChatlist,                      // 0xf3850509 pluma: task 064
+	-2122372205: Predicate_dialog_hideChatlistUpdates,               // 0x817f2b93 pluma: task 064
 	-1252926702: Predicate_dialog_setChatWallpaper,                  // 0xb551db12
 
 }

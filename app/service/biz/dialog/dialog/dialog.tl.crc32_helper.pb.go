@@ -54,5 +54,14 @@ const (
 	CRC32_dialog_createDialogFilter                TLConstructor = -959749265  // 0xc6cb636f
 	CRC32_dialog_toggleDialogFilterTags            TLConstructor = -1597149815 // 0xa0cd6d89
 	CRC32_dialog_getDialogFilterTags               TLConstructor = -84870505   // 0xfaf0fa97
-	CRC32_dialog_setChatWallpaper                  TLConstructor = -1252926702 // 0xb551db12
+	// pluma: task 064
+	CRC32_chatlistInviteExt           TLConstructor = 845724500   // 0x3268bb54
+	CRC32_dialog_exportChatlistInvite TLConstructor = -342736050  // 0xeb92434e
+	CRC32_dialog_editChatlistInvite   TLConstructor = 167718874   // 0x09ff2fda
+	CRC32_dialog_deleteChatlistInvite TLConstructor = -1495566841 // 0xa6db7607
+	CRC32_dialog_getChatlistInvites   TLConstructor = -1799858035 // 0x94b8588d
+	CRC32_dialog_getChatlistInvite    TLConstructor = -992271428  // 0xc4db23bc
+	CRC32_dialog_joinChatlist         TLConstructor = -209386231  // 0xf3850509
+	CRC32_dialog_hideChatlistUpdates  TLConstructor = -2122372205 // 0x817f2b93
+	CRC32_dialog_setChatWallpaper     TLConstructor = -1252926702 // 0xb551db12
 )

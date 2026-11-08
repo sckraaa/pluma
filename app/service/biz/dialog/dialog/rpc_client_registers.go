@@ -62,7 +62,21 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLDialogCreateDialogFilter":                RPCContextTuple{"/mtproto.RPCDialog/dialog_createDialogFilter", func() interface{} { return new(DialogFilterExt) }},
 	"TLDialogToggleDialogFilterTags":            RPCContextTuple{"/mtproto.RPCDialog/dialog_toggleDialogFilterTags", func() interface{} { return new(mtproto.Bool) }},
 	"TLDialogGetDialogFilterTags":               RPCContextTuple{"/mtproto.RPCDialog/dialog_getDialogFilterTags", func() interface{} { return new(mtproto.Bool) }},
-	"TLDialogSetChatWallpaper":                  RPCContextTuple{"/mtproto.RPCDialog/dialog_setChatWallpaper", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 064
+	"TLDialogExportChatlistInvite": RPCContextTuple{"/mtproto.RPCDialog/dialog_exportChatlistInvite", func() interface{} { return new(mtproto.Chatlists_ExportedChatlistInvite) }},
+	// pluma: task 064
+	"TLDialogEditChatlistInvite": RPCContextTuple{"/mtproto.RPCDialog/dialog_editChatlistInvite", func() interface{} { return new(mtproto.ExportedChatlistInvite) }},
+	// pluma: task 064
+	"TLDialogDeleteChatlistInvite": RPCContextTuple{"/mtproto.RPCDialog/dialog_deleteChatlistInvite", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 064
+	"TLDialogGetChatlistInvites": RPCContextTuple{"/mtproto.RPCDialog/dialog_getChatlistInvites", func() interface{} { return new(mtproto.Chatlists_ExportedInvites) }},
+	// pluma: task 064
+	"TLDialogGetChatlistInvite": RPCContextTuple{"/mtproto.RPCDialog/dialog_getChatlistInvite", func() interface{} { return new(ChatlistInviteExt) }},
+	// pluma: task 064
+	"TLDialogJoinChatlist": RPCContextTuple{"/mtproto.RPCDialog/dialog_joinChatlist", func() interface{} { return new(DialogFilterExt) }},
+	// pluma: task 064
+	"TLDialogHideChatlistUpdates": RPCContextTuple{"/mtproto.RPCDialog/dialog_hideChatlistUpdates", func() interface{} { return new(mtproto.Bool) }},
+	"TLDialogSetChatWallpaper":    RPCContextTuple{"/mtproto.RPCDialog/dialog_setChatWallpaper", func() interface{} { return new(mtproto.Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

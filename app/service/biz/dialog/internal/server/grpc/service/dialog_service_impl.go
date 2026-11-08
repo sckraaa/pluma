@@ -535,3 +535,101 @@ func (s *Service) DialogSetChatWallpaper(ctx context.Context, request *dialog.TL
 
 	return r, err
 }
+
+// DialogExportChatlistInvite
+// dialog.exportChatlistInvite user_id:long filter_id:int title:string peers:Vector<InputPeer> migrated_chats:Vector<long> migrated_channels:Vector<long> chats:Vector<Chat> check_only:Bool = chatlists.ExportedChatlistInvite;
+func (s *Service) DialogExportChatlistInvite(ctx context.Context, request *dialog.TLDialogExportChatlistInvite) (*mtproto.Chatlists_ExportedChatlistInvite, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.exportChatlistInvite - metadata: {%s}", c.MD)
+
+	r, err := c.DialogExportChatlistInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// DialogEditChatlistInvite
+// dialog.editChatlistInvite user_id:long filter_id:int slug:string set_title:Bool title:string set_peers:Bool peers:Vector<InputPeer> migrated_chats:Vector<long> migrated_channels:Vector<long> chats:Vector<Chat> check_only:Bool = ExportedChatlistInvite;
+func (s *Service) DialogEditChatlistInvite(ctx context.Context, request *dialog.TLDialogEditChatlistInvite) (*mtproto.ExportedChatlistInvite, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.editChatlistInvite - metadata: {%s}", c.MD)
+
+	r, err := c.DialogEditChatlistInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// DialogDeleteChatlistInvite
+// dialog.deleteChatlistInvite user_id:long filter_id:int slug:string = Bool;
+func (s *Service) DialogDeleteChatlistInvite(ctx context.Context, request *dialog.TLDialogDeleteChatlistInvite) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.deleteChatlistInvite - metadata: {%s}", c.MD)
+
+	r, err := c.DialogDeleteChatlistInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// DialogGetChatlistInvites
+// dialog.getChatlistInvites user_id:long filter_id:int = chatlists.ExportedInvites;
+func (s *Service) DialogGetChatlistInvites(ctx context.Context, request *dialog.TLDialogGetChatlistInvites) (*mtproto.Chatlists_ExportedInvites, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.getChatlistInvites - metadata: {%s}", c.MD)
+
+	r, err := c.DialogGetChatlistInvites(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// DialogGetChatlistInvite
+// dialog.getChatlistInvite user_id:long slug:string filter_id:int = ChatlistInviteExt;
+func (s *Service) DialogGetChatlistInvite(ctx context.Context, request *dialog.TLDialogGetChatlistInvite) (*dialog.ChatlistInviteExt, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.getChatlistInvite - metadata: {%s}", c.MD)
+
+	r, err := c.DialogGetChatlistInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// DialogJoinChatlist
+// dialog.joinChatlist user_id:long slug:string filter_id:int peers:Vector<InputPeer> chats:Vector<Chat> check_only:Bool = DialogFilterExt;
+func (s *Service) DialogJoinChatlist(ctx context.Context, request *dialog.TLDialogJoinChatlist) (*dialog.DialogFilterExt, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.joinChatlist - metadata: {%s}", c.MD)
+
+	r, err := c.DialogJoinChatlist(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// DialogHideChatlistUpdates
+// dialog.hideChatlistUpdates user_id:long filter_id:int = Bool;
+func (s *Service) DialogHideChatlistUpdates(ctx context.Context, request *dialog.TLDialogHideChatlistUpdates) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.hideChatlistUpdates - metadata: {%s}", c.MD)
+
+	r, err := c.DialogHideChatlistUpdates(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
