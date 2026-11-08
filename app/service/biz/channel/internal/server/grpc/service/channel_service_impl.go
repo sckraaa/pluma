@@ -555,3 +555,31 @@ func (s *Service) ChannelSetAvailableReactions(ctx context.Context, request *cha
 
 	return r, err
 }
+
+// ChannelIncrementMessageViews
+// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> = Bool;
+func (s *Service) ChannelIncrementMessageViews(ctx context.Context, request *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.incrementMessageViews - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelIncrementMessageViews(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelAddMessageForwards
+// channel.addMessageForwards self_id:long channel_id:long id:Vector<int> random_id:Vector<long> = Bool;
+func (s *Service) ChannelAddMessageForwards(ctx context.Context, request *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.addMessageForwards - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelAddMessageForwards(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

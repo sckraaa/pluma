@@ -48,6 +48,8 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
+	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
 	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
@@ -492,4 +494,26 @@ func (m *defaultChannelClient) ChannelSetAvailableReactions(ctx context.Context,
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetAvailableReactions(ctx, in)
+}
+
+// ChannelIncrementMessageViews
+// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> = Bool;
+func (m *defaultChannelClient) ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelIncrementMessageViews(ctx, in)
+}
+
+// ChannelAddMessageForwards
+// channel.addMessageForwards self_id:long channel_id:long id:Vector<int> random_id:Vector<long> = Bool;
+func (m *defaultChannelClient) ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelAddMessageForwards(ctx, in)
 }

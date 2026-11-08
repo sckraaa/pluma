@@ -58,6 +58,8 @@ const (
 	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelIncrementMessageViews_FullMethodName    = "/channel.RPCChannel/channel_incrementMessageViews"
+	RPCChannel_ChannelAddMessageForwards_FullMethodName       = "/channel.RPCChannel/channel_addMessageForwards"
 	RPCChannel_ChannelToggleSetting_FullMethodName            = "/channel.RPCChannel/channel_toggleSetting"
 	RPCChannel_ChannelSetAvailableReactions_FullMethodName    = "/channel.RPCChannel/channel_setAvailableReactions"
 	RPCChannel_ChannelSetDiscussionGroup_FullMethodName       = "/channel.RPCChannel/channel_setDiscussionGroup"
@@ -122,6 +124,10 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 046
+	ChannelIncrementMessageViews(ctx context.Context, in *TLChannelIncrementMessageViews, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 046
+	ChannelAddMessageForwards(ctx context.Context, in *TLChannelAddMessageForwards, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 044
 	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -384,6 +390,26 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelIncrementMessageViews(ctx context.Context, in *TLChannelIncrementMessageViews, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelIncrementMessageViews_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelAddMessageForwards(ctx context.Context, in *TLChannelAddMessageForwards, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelAddMessageForwards_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -590,6 +616,10 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 046
+	ChannelIncrementMessageViews(context.Context, *TLChannelIncrementMessageViews) (*mtproto.Bool, error)
+	// pluma: task 046
+	ChannelAddMessageForwards(context.Context, *TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	// pluma: task 044
 	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -696,6 +726,12 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelIncrementMessageViews(context.Context, *TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelIncrementMessageViews not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelAddMessageForwards(context.Context, *TLChannelAddMessageForwards) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelAddMessageForwards not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
@@ -1161,6 +1197,42 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelIncrementMessageViews_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelIncrementMessageViews)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelIncrementMessageViews(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelIncrementMessageViews_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelIncrementMessageViews(ctx, req.(*TLChannelIncrementMessageViews))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelAddMessageForwards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelAddMessageForwards)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelAddMessageForwards(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelAddMessageForwards_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelAddMessageForwards(ctx, req.(*TLChannelAddMessageForwards))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelToggleSetting)
 	if err := dec(in); err != nil {
@@ -1543,6 +1615,14 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_incrementMessageViews",
+			Handler:    _RPCChannel_ChannelIncrementMessageViews_Handler,
+		},
+		{
+			MethodName: "channel_addMessageForwards",
+			Handler:    _RPCChannel_ChannelAddMessageForwards_Handler,
 		},
 		{
 			MethodName: "channel_toggleSetting",
