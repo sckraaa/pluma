@@ -102,7 +102,7 @@ func TestHistoryTTLPrivate(t *testing.T) {
 		t.Errorf("dialog %v", d)
 	}
 
-	id := sendTo(ctx, t, alice, toBob, "self-destruct")
+	id := sendMessageID(ctx, t, alice, toBob, "self-destruct", randomID())
 	bobId := waitMessageId(ctx, t, bob, "self-destruct")
 	waitDeleted(ctx, t, alice, id)
 	waitDeleted(ctx, t, bob, bobId)

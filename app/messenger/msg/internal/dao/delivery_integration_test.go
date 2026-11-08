@@ -312,7 +312,7 @@ func (w *worldDelivery) drain() {
 func ptr[T any](v T) *T { return &v }
 
 // waitState waits until the row of event id is in one of states, or gone
-// when none is given.
+// when none is given or EventPublished is among them: a delivered row is deleted.
 func waitState(t testing.TB, id int64, states ...userbox.EventState) {
 	t.Helper()
 	deadline := time.Now().Add(30 * time.Second)
