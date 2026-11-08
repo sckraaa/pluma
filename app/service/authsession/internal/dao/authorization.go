@@ -131,7 +131,7 @@ func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.A
 		ApiId:           cData.ApiId(),
 		AppName:         appName(cData.LangPack(), cData.AppVersion()),
 		AppVersion:      cData.AppVersion(),
-		DateCreated:     0,
+		DateCreated:     int32(cData.DateCreated()),
 		DateActive:      0,
 		Country:         country,
 	}).To_Authorization(), nil

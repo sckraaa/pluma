@@ -128,3 +128,25 @@ func TestRecentLangCode(t *testing.T) {
 		t.Fatalf("recent language of all %q, %v", lang, err)
 	}
 }
+
+// One authorization says when the session was logged in: a transfer of
+// ownership is refused to a session younger than a day
+// (SESSION_TOO_FRESH_X, twofa.CheckTransfer).
+func TestGetAuthorizationDateCreated(t *testing.T) {
+	ctx := context.Background()
+	d := newIntegrationDao(t, itFullDB)
+	key := storeKey(t, d, mtproto.AuthKeyTypePerm, 0)
+	connect(t, openSQL(t, itFullDB), key, "en", time.Now().Unix())
+
+	before := time.Now().Unix()
+	if h := d.BindAuthKeyUser(ctx, key, rand.Int63n(1<<40)+1); h == 0 {
+		t.Fatal("the key was not bound")
+	}
+	a, err := d.GetAuthorization(ctx, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := int64(a.GetDateCreated()); got < before || got > time.Now().Unix() {
+		t.Errorf("date_created %d, the login was at %d", got, before)
+	}
+}
