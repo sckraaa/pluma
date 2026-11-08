@@ -49,8 +49,12 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	}
 	h := mtproto.NewIDListHelper()
 	h.PickByUpdates(in.GetUpdates().GetUpdates()...)
+	// The members as well as the users of the messages: each member's view
+	// of the users is made from the member's own row
+	// (MutableUsers.GetUserListByIdList), and without it the member gets no
+	// users at all, not even the sender of the message pushed.
 	users, err := c.svcCtx.Dao.User.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
-		Id:      h.UserIdList,
+		Id:      append(append([]int64{}, h.UserIdList...), members.GetDatas()...),
 		Privacy: true,
 		HasTo:   true,
 		To:      members.GetDatas(),
