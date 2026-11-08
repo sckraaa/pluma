@@ -285,6 +285,12 @@ func TestScheduledReadEditDelete(t *testing.T) {
 		t.Errorf("edit of a missing message: %v", err)
 	}
 
+	zero := msg.MakeTLOutboxMessage(&msg.OutboxMessage{Message: textMessage(a, mtproto.MakePeerUser(b), "no date"), ScheduleDate: wrapperspb.Int32(0)}).To_OutboxMessage()
+	if _, err = w.rpc.MsgEditMessageV2(ctx, &msg.TLMsgEditMessageV2{UserId: a, AuthKeyId: 1, PeerType: mtproto.PEER_USER, PeerId: b, EditType: msg.EditTypeNormal,
+		NewMessage: zero, DstMessage: &mtproto.MessageBox{MessageId: ids[0]}}); err == nil || !strings.Contains(err.Error(), "SCHEDULE_DATE_INVALID") {
+		t.Errorf("an edit with date 0: %v", err)
+	}
+
 	if r, err = w.rpc.MsgDeleteScheduledMessages(ctx, &msg.TLMsgDeleteScheduledMessages{UserId: a, AuthKeyId: 1, PeerType: mtproto.PEER_USER, PeerId: b, Id: ids}); err != nil ||
 		r.GetUpdates()[0].GetPredicateName() != mtproto.Predicate_updateDeleteScheduledMessages || len(r.GetUpdates()[0].GetSentMessages()) != 0 {
 		t.Fatalf("delete: %v, %v", r, err)
