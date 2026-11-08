@@ -32,7 +32,7 @@ enum TLConstructor {
     CRC32_channel_getMutableChannel = -437245607;
     CRC32_channel_getChannelListByIdList = -1986537988;
   // pluma: task 038
-  CRC32_channel_createChannel = -641600475;
+  CRC32_channel_createChannel = 1532314294;
   // pluma: task 038
   CRC32_channel_getChannelDialogs = -1725659745;
   // pluma: task 038
@@ -71,6 +71,30 @@ enum TLConstructor {
   CRC32_channel_getAdminedPublicChannels = -2083237595;
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
+  // pluma: task 060
+  CRC32_channel_toggleForum = 1073186003;
+  // pluma: task 060
+  CRC32_channel_toggleViewForumAsMessages = -1875771675;
+  // pluma: task 060
+  CRC32_channel_createForumTopic = -610599565;
+  // pluma: task 060
+  CRC32_channel_editForumTopic = 1853047093;
+  // pluma: task 060
+  CRC32_channel_updatePinnedForumTopic = -110001806;
+  // pluma: task 060
+  CRC32_channel_reorderPinnedForumTopics = -1269591301;
+  // pluma: task 060
+  CRC32_channel_deleteTopicHistory = 62210273;
+  // pluma: task 060
+  CRC32_channel_getForumTopics = -553446363;
+  // pluma: task 060
+  CRC32_channel_getForumTopicsByID = 1892057379;
+  // pluma: task 060
+  CRC32_channel_searchTopic = -2126242873;
+  // pluma: task 060
+  CRC32_channel_readTopicMentions = -701570663;
+  // pluma: task 060
+  CRC32_channel_unpinAllTopicMessages = -1405087645;
   // pluma: task 044
   CRC32_channel_toggleSetting = -922563101;
   // pluma: task 044
@@ -146,6 +170,8 @@ message ImmutableChannel {
     // (chatReactions: 0 none, 1 all, 2 some, as biz chat keeps them).
     int32 available_reactions_type = 33;
     repeated string available_reactions = 34;
+    // pluma: task 060: flags.15, the tabbed layout of a forum.
+    bool forum_tabs = 40;
 }
 
 message TL_immutableChannel {
@@ -213,7 +239,7 @@ message TL_channel_getChannelListByIdList {
 
 
 //--------------------------------------------------------------------------------------------
-// pluma: channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+// pluma: channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool forum:Bool = Updates;
 // Creates a channel (broadcast) or a supergroup (megagroup) of creator_id in
 // its box transaction: the channel, its creator, its first message, the
 // creator's dialog and invite link; the answer of channels.createChannel.
@@ -224,6 +250,8 @@ message TL_channel_createChannel {
   string about = 5;
   mtproto.Bool broadcast = 6;
   mtproto.Bool megagroup = 7;
+  // pluma: task 060
+  mtproto.Bool forum = 8;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -673,6 +701,174 @@ message TL_channel_setAvailableReactions {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
+// self_id turns the channel's forum on or off (channels.toggleForum); tabs: the tabbed layout.
+// (task 060)
+message TL_channel_toggleForum {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool enabled = 6;
+  mtproto.Bool tabs = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.toggleViewForumAsMessages self_id:long perm_auth_key_id:long channel_id:long enabled:Bool = Updates;
+// self_id reads the forum as one feed of messages, or by topics (channels.toggleViewForumAsMessages).
+// (task 060)
+message TL_channel_toggleViewForumAsMessages {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool enabled = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.createForumTopic self_id:long perm_auth_key_id:long channel_id:long title:string icon_color:int icon_emoji_id:long title_missing:Bool random_id:long = Updates;
+// self_id creates a topic (messages.createForumTopic); random_id makes a repeat give the first answer.
+// (task 060)
+message TL_channel_createForumTopic {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  string title = 6;
+  int32 icon_color = 7;
+  int64 icon_emoji_id = 8;
+  mtproto.Bool title_missing = 9;
+  int64 random_id = 10;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.editForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int fields:int title:string icon_emoji_id:long closed:Bool hidden:Bool = Updates;
+// self_id edits a topic (messages.editForumTopic); fields says which values are given (channel.TopicField*).
+// (task 060)
+message TL_channel_editForumTopic {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 topic_id = 6;
+  int32 fields = 7;
+  string title = 8;
+  int64 icon_emoji_id = 9;
+  mtproto.Bool closed = 10;
+  mtproto.Bool hidden = 11;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.updatePinnedForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int pinned:Bool = Updates;
+// self_id pins or unpins a topic (messages.updatePinnedForumTopic).
+// (task 060)
+message TL_channel_updatePinnedForumTopic {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 topic_id = 6;
+  mtproto.Bool pinned = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.reorderPinnedForumTopics self_id:long perm_auth_key_id:long channel_id:long force:Bool order:Vector<int> = Updates;
+// self_id orders the pinned topics (messages.reorderPinnedForumTopics).
+// (task 060)
+message TL_channel_reorderPinnedForumTopics {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool force = 6;
+  repeated int32 order = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.deleteTopicHistory self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+// self_id deletes a portion of a topic, its root message last (messages.deleteTopicHistory).
+// (task 060)
+message TL_channel_deleteTopicHistory {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 top_msg_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getForumTopics self_id:long channel_id:long q:string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
+// A page of the forum's topics as self_id sees them (messages.getForumTopics); users and chats are left to the caller.
+// (task 060)
+message TL_channel_getForumTopics {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  string q = 5;
+  int32 offset_date = 6;
+  int32 offset_id = 7;
+  int32 offset_topic = 8;
+  int32 limit = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getForumTopicsByID self_id:long channel_id:long topics:Vector<int> = messages.ForumTopics;
+// The topics asked for, forumTopicDeleted for those not there (messages.getForumTopicsByID).
+// (task 060)
+message TL_channel_getForumTopicsByID {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  repeated int32 topics = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.searchTopic self_id:long channel_id:long top_msg_id:int q:string from_id:long media_type:int unread_mentions:Bool min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// A page of the messages of a topic that match, or of a thread in a supergroup that is no forum (messages.search and messages.getUnreadMentions with top_msg_id).
+// (task 060)
+message TL_channel_searchTopic {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 top_msg_id = 5;
+  string q = 6;
+  int64 from_id = 7;
+  int32 media_type = 8;
+  mtproto.Bool unread_mentions = 9;
+  int32 min_date = 10;
+  int32 max_date = 11;
+  int32 offset_id = 12;
+  int32 add_offset = 13;
+  int32 limit = 14;
+  int32 max_id = 15;
+  int32 min_id = 16;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.readTopicMentions self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+// self_id reads its unread mentions of a topic (messages.readMentions with top_msg_id).
+// (task 060)
+message TL_channel_readTopicMentions {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 top_msg_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.unpinAllTopicMessages self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+// self_id unpins all the messages of a topic (messages.unpinAllMessages with top_msg_id).
+// (task 060)
+message TL_channel_unpinAllTopicMessages {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 top_msg_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -740,6 +936,30 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 060
+  rpc channel_toggleForum(TL_channel_toggleForum) returns (mtproto.Updates) {}
+  // pluma: task 060
+  rpc channel_toggleViewForumAsMessages(TL_channel_toggleViewForumAsMessages) returns (mtproto.Updates) {}
+  // pluma: task 060
+  rpc channel_createForumTopic(TL_channel_createForumTopic) returns (mtproto.Updates) {}
+  // pluma: task 060
+  rpc channel_editForumTopic(TL_channel_editForumTopic) returns (mtproto.Updates) {}
+  // pluma: task 060
+  rpc channel_updatePinnedForumTopic(TL_channel_updatePinnedForumTopic) returns (mtproto.Updates) {}
+  // pluma: task 060
+  rpc channel_reorderPinnedForumTopics(TL_channel_reorderPinnedForumTopics) returns (mtproto.Updates) {}
+  // pluma: task 060
+  rpc channel_deleteTopicHistory(TL_channel_deleteTopicHistory) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 060
+  rpc channel_getForumTopics(TL_channel_getForumTopics) returns (mtproto.messages_ForumTopics) {}
+  // pluma: task 060
+  rpc channel_getForumTopicsByID(TL_channel_getForumTopicsByID) returns (mtproto.messages_ForumTopics) {}
+  // pluma: task 060
+  rpc channel_searchTopic(TL_channel_searchTopic) returns (mtproto.messages_Messages) {}
+  // pluma: task 060
+  rpc channel_readTopicMentions(TL_channel_readTopicMentions) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 060
+  rpc channel_unpinAllTopicMessages(TL_channel_unpinAllTopicMessages) returns (mtproto.messages_AffectedHistory) {}
   // pluma: task 044
   rpc channel_toggleSetting(TL_channel_toggleSetting) returns (mtproto.Updates) {}
   // pluma: task 044

@@ -367,6 +367,54 @@ func (noChannels) ChannelSetAvailableReactions(context.Context, *channelpb.TLCha
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelToggleForum(context.Context, *channelpb.TLChannelToggleForum) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelToggleViewForumAsMessages(context.Context, *channelpb.TLChannelToggleViewForumAsMessages) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelCreateForumTopic(context.Context, *channelpb.TLChannelCreateForumTopic) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelEditForumTopic(context.Context, *channelpb.TLChannelEditForumTopic) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelUpdatePinnedForumTopic(context.Context, *channelpb.TLChannelUpdatePinnedForumTopic) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelReorderPinnedForumTopics(context.Context, *channelpb.TLChannelReorderPinnedForumTopics) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelDeleteTopicHistory(context.Context, *channelpb.TLChannelDeleteTopicHistory) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetForumTopics(context.Context, *channelpb.TLChannelGetForumTopics) (*mtproto.Messages_ForumTopics, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetForumTopicsByID(context.Context, *channelpb.TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSearchTopic(context.Context, *channelpb.TLChannelSearchTopic) (*mtproto.Messages_Messages, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelReadTopicMentions(context.Context, *channelpb.TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelUnpinAllTopicMessages(context.Context, *channelpb.TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

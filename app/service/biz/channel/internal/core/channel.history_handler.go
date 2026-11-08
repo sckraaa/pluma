@@ -45,15 +45,27 @@ func (c *ChannelCore) ChannelGetHistory(in *channel.TLChannelGetHistory) (*mtpro
 		c.Logger.Errorf("channel.getHistory - error: %v", err)
 		return nil, err
 	}
-	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, in.ChannelId, nil)
+	return c.channelMessages(in.SelfId, in.ChannelId, messages, count)
+}
+
+// channelMessages is messages.channelMessages of messages of the channel,
+// with the channel's pts and, in a forum, the topics they are in.
+func (c *ChannelCore) channelMessages(selfId, channelId int64, messages []*mtproto.Message, count int32) (*mtproto.Messages_Messages, error) {
+	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, channelId, nil)
 	if err != nil {
 		return nil, err
+	}
+	topics := []*mtproto.ForumTopic{}
+	if mc.GetChannel().GetForum() {
+		if topics, err = c.svcCtx.Dao.TopicsOfMessages(c.ctx, selfId, channelId, messages); err != nil {
+			return nil, err
+		}
 	}
 	return mtproto.MakeTLMessagesChannelMessages(&mtproto.Messages_Messages{
 		Pts:      mc.GetChannel().GetPts(),
 		Count:    count,
 		Messages: messages,
-		Topics:   []*mtproto.ForumTopic{},
+		Topics:   topics,
 		Chats:    []*mtproto.Chat{},
 		Users:    []*mtproto.User{},
 	}).To_Messages_Messages(), nil
@@ -91,16 +103,5 @@ func (c *ChannelCore) search(selfId, channelId int64, q dao.SearchQuery, offsetI
 	if err != nil {
 		return nil, err
 	}
-	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, channelId, nil)
-	if err != nil {
-		return nil, err
-	}
-	return mtproto.MakeTLMessagesChannelMessages(&mtproto.Messages_Messages{
-		Pts:      mc.GetChannel().GetPts(),
-		Count:    count,
-		Messages: messages,
-		Topics:   []*mtproto.ForumTopic{},
-		Chats:    []*mtproto.Chat{},
-		Users:    []*mtproto.User{},
-	}).To_Messages_Messages(), nil
+	return c.channelMessages(selfId, channelId, messages, count)
 }

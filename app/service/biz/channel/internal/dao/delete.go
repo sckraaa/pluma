@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -35,6 +36,7 @@ const DeleteMax = 100
 type deleteRow struct {
 	Id           int32 `db:"id"`
 	SenderUserId int64 `db:"sender_user_id"`
+	TopicId      int32 `db:"topic_id"`
 }
 
 // Deleted is what Delete wrote: the ids deleted and the pts of the row of
@@ -54,13 +56,14 @@ type Deleted struct {
 // without the right is MESSAGE_DELETE_FORBIDDEN, as Telegram answers
 // (core.telegram.org/method/channels.deleteMessages). The deleted ids are
 // one row of the journal, pts_count their number; the channel's
-// top_message moves to the last message left.
+// top_message moves to the last message left. The root message of a topic
+// is left out: it goes only with its topic (DeleteTopicHistory).
 func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, error) {
 	ch, err := openChannel(b, channelId)
 	if err != nil {
 		return nil, err
 	}
-	c, me, err := channelForMember(b, channelId)
+	_, me, err := channelForMember(b, channelId)
 	if err != nil {
 		return nil, err
 	}
@@ -83,45 +86,70 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	for _, id := range ids {
 		args = append(args, id)
 	}
+	roots, err := topicsOf(b, channelId, ids)
+	if err != nil {
+		return nil, err
+	}
 	var rows []deleteRow
 	if err = b.Tx().QueryRowsPartial(&rows,
-		"SELECT id, sender_user_id FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") FOR UPDATE",
+		"SELECT id, sender_user_id, topic_id FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") FOR UPDATE",
 		args...); err != nil {
 		return nil, err
 	}
+	var kept []int32
+	var topics []int32
 	for _, r := range rows {
+		if slices.Contains(roots, r.Id) {
+			continue
+		}
 		if r.SenderUserId != b.UserId() && !admin {
 			return nil, mtproto.ErrMessageDeleteForbidden
 		}
-		out.Ids = append(out.Ids, r.Id)
+		kept = append(kept, r.Id)
+		topics = append(topics, r.TopicId)
 	}
-	if len(out.Ids) == 0 {
+	if len(kept) == 0 {
 		return out, nil
 	}
-	args = []any{channelId}
-	for _, id := range out.Ids {
+	if err = deleteRows(b, ch, channelId, kept, out); err != nil {
+		return nil, err
+	}
+	return out, refreshTopicTops(b, channelId, topics)
+}
+
+// deleteRows marks messages ids of the channel deleted and journals one
+// updateDeleteChannelMessages in out; the channel's top_message moves to the
+// last message left.
+func deleteRows(b *userbox.Box, ch *channelbox.Channel, channelId int64, ids []int32, out *Deleted) error {
+	out.Ids = ids
+	args := []any{channelId}
+	for _, id := range ids {
 		args = append(args, id)
 	}
-	in := "(?" + strings.Repeat(", ?", len(out.Ids)-1) + ")"
-	if _, err = b.Tx().Exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id IN "+in, args...); err != nil {
-		return nil, err
+	in := "(?" + strings.Repeat(", ?", len(ids)-1) + ")"
+	if _, err := b.Tx().Exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id IN "+in, args...); err != nil {
+		return err
 	}
-	if _, err = b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
-		return nil, err
+	if _, err := b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
+		return err
 	}
-	if slices.Contains(out.Ids, c.TopMessage) {
+	var tops []int32
+	if err := b.Tx().QueryRowsPartial(&tops, "SELECT top_message FROM channels WHERE id = ?", channelId); err != nil {
+		return err
+	}
+	if len(tops) > 0 && slices.Contains(ids, tops[0]) {
 		var top []int32
-		if err = b.Tx().QueryRowsPartial(&top, "SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0", channelId); err != nil {
-			return nil, err
+		if err := b.Tx().QueryRowsPartial(&top, "SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0", channelId); err != nil {
+			return err
 		}
-		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", first(top), channelId); err != nil {
-			return nil, err
+		if _, err := b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", first(top), channelId); err != nil {
+			return err
 		}
 	}
-	out.PtsCount = int32(len(out.Ids))
-	ch.AddPtsUpdate(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{ChannelId: channelId, Messages: out.Ids}).To_Update(), out.PtsCount)
+	out.PtsCount = int32(len(ids))
+	ch.AddPtsUpdate(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{ChannelId: channelId, Messages: ids}).To_Update(), out.PtsCount)
 	out.Pts = ch.Pts()
-	return out, nil
+	return nil
 }
 
 // EmitDeletePush adds the push of the deletion to the channel's members.

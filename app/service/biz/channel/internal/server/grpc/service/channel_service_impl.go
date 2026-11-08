@@ -53,7 +53,7 @@ func (s *Service) ChannelGetChannelListByIdList(ctx context.Context, request *ch
 }
 
 // ChannelCreateChannel
-// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool forum:Bool = Updates;
 func (s *Service) ChannelCreateChannel(ctx context.Context, request *channel.TLChannelCreateChannel) (*mtproto.Updates, error) {
 	c := core.New(ctx, s.svcCtx)
 	c.Logger.Debugf("channel.createChannel - metadata: {%s}", c.MD)
@@ -549,6 +549,174 @@ func (s *Service) ChannelSetAvailableReactions(ctx context.Context, request *cha
 	c.Logger.Debugf("channel.setAvailableReactions - metadata: {%s}", c.MD)
 
 	r, err := c.ChannelSetAvailableReactions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelToggleForum
+// channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
+func (s *Service) ChannelToggleForum(ctx context.Context, request *channel.TLChannelToggleForum) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.toggleForum - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelToggleForum(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelToggleViewForumAsMessages
+// channel.toggleViewForumAsMessages self_id:long perm_auth_key_id:long channel_id:long enabled:Bool = Updates;
+func (s *Service) ChannelToggleViewForumAsMessages(ctx context.Context, request *channel.TLChannelToggleViewForumAsMessages) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.toggleViewForumAsMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelToggleViewForumAsMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelCreateForumTopic
+// channel.createForumTopic self_id:long perm_auth_key_id:long channel_id:long title:string icon_color:int icon_emoji_id:long title_missing:Bool random_id:long = Updates;
+func (s *Service) ChannelCreateForumTopic(ctx context.Context, request *channel.TLChannelCreateForumTopic) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.createForumTopic - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelCreateForumTopic(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelEditForumTopic
+// channel.editForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int fields:int title:string icon_emoji_id:long closed:Bool hidden:Bool = Updates;
+func (s *Service) ChannelEditForumTopic(ctx context.Context, request *channel.TLChannelEditForumTopic) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editForumTopic - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditForumTopic(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelUpdatePinnedForumTopic
+// channel.updatePinnedForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int pinned:Bool = Updates;
+func (s *Service) ChannelUpdatePinnedForumTopic(ctx context.Context, request *channel.TLChannelUpdatePinnedForumTopic) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.updatePinnedForumTopic - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUpdatePinnedForumTopic(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelReorderPinnedForumTopics
+// channel.reorderPinnedForumTopics self_id:long perm_auth_key_id:long channel_id:long force:Bool order:Vector<int> = Updates;
+func (s *Service) ChannelReorderPinnedForumTopics(ctx context.Context, request *channel.TLChannelReorderPinnedForumTopics) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.reorderPinnedForumTopics - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReorderPinnedForumTopics(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelDeleteTopicHistory
+// channel.deleteTopicHistory self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (s *Service) ChannelDeleteTopicHistory(ctx context.Context, request *channel.TLChannelDeleteTopicHistory) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteTopicHistory - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteTopicHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetForumTopics
+// channel.getForumTopics self_id:long channel_id:long q:string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
+func (s *Service) ChannelGetForumTopics(ctx context.Context, request *channel.TLChannelGetForumTopics) (*mtproto.Messages_ForumTopics, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getForumTopics - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetForumTopics(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetForumTopicsByID
+// channel.getForumTopicsByID self_id:long channel_id:long topics:Vector<int> = messages.ForumTopics;
+func (s *Service) ChannelGetForumTopicsByID(ctx context.Context, request *channel.TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getForumTopicsByID - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetForumTopicsByID(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelSearchTopic
+// channel.searchTopic self_id:long channel_id:long top_msg_id:int q:string from_id:long media_type:int unread_mentions:Bool min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) ChannelSearchTopic(ctx context.Context, request *channel.TLChannelSearchTopic) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.searchTopic - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSearchTopic(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelReadTopicMentions
+// channel.readTopicMentions self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (s *Service) ChannelReadTopicMentions(ctx context.Context, request *channel.TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.readTopicMentions - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReadTopicMentions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelUnpinAllTopicMessages
+// channel.unpinAllTopicMessages self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (s *Service) ChannelUnpinAllTopicMessages(ctx context.Context, request *channel.TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.unpinAllTopicMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUnpinAllTopicMessages(request)
 	if err != nil {
 		return nil, err
 	}

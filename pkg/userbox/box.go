@@ -262,6 +262,8 @@ func (b *Box) result() *Result {
 // the account's read state of a channel, so the last one is enough;
 // updateChannelReadMessagesContents marks messages of a channel seen, which
 // is the same twice.
+// So do how far a topic of a forum was read and the choice to read a forum
+// as messages (task 060): the last one is enough.
 // Installed sticker sets (task 030) go with seq too: a set installed moves
 // it to the top, an order is the whole order, and the rest is "load the
 // kind again", so a replay of the journal's tail in order ends in the same
@@ -292,6 +294,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateChannel,
 		mtproto.Predicate_updateReadChannelInbox,
 		mtproto.Predicate_updateChannelReadMessagesContents,
+		mtproto.Predicate_updateReadChannelDiscussionInbox,
+		mtproto.Predicate_updateChannelViewForumAsMessages,
 		mtproto.Predicate_updateSavedReactionTags,
 		mtproto.Predicate_updateNewStickerSet,
 		mtproto.Predicate_updateStickerSets,

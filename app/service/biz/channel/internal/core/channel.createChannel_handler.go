@@ -49,7 +49,7 @@ const (
 )
 
 // ChannelCreateChannel
-// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool forum:Bool = Updates;
 //
 // The channel, its creator, its first message (messageActionChannelCreate,
 // id 1, the channel's pts BasePts+1), the creator's dialog and permanent
@@ -63,7 +63,8 @@ const (
 // bff's to add.
 func (c *ChannelCore) ChannelCreateChannel(in *channel.TLChannelCreateChannel) (*mtproto.Updates, error) {
 	broadcast, megagroup := mtproto.FromBool(in.Broadcast), mtproto.FromBool(in.Megagroup)
-	if broadcast == megagroup {
+	forum := mtproto.FromBool(in.Forum)
+	if broadcast == megagroup || forum && !megagroup {
 		return nil, mtproto.ErrChannelInvalid
 	}
 	rights := broadcastCreatorRights
@@ -92,6 +93,7 @@ func (c *ChannelCore) ChannelCreateChannel(in *channel.TLChannelCreateChannel) (
 			About:         in.About,
 			Broadcast:     broadcast,
 			Megagroup:     megagroup,
+			Forum:         forum,
 			Date:          b.Date(),
 		})
 		if err != nil {
@@ -137,6 +139,11 @@ func (c *ChannelCore) ChannelCreateChannel(in *channel.TLChannelCreateChannel) (
 			return err
 		}
 		dao.InvalidateDialog(b, channelId)
+		if forum {
+			if err = dao.EnsureGeneralTopic(b, channelId); err != nil {
+				return err
+			}
+		}
 		// The permanent invite link: Android's creation screen takes the
 		// first of messages.getExportedChatInvites(limit=1) unchecked
 		// (ChannelCreateActivity.java:940-943).

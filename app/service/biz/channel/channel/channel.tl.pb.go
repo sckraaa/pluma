@@ -48,7 +48,7 @@ const (
 	TLConstructor_CRC32_channel_getMutableChannel      TLConstructor = -437245607
 	TLConstructor_CRC32_channel_getChannelListByIdList TLConstructor = -1986537988
 	// pluma: task 038
-	TLConstructor_CRC32_channel_createChannel TLConstructor = -641600475
+	TLConstructor_CRC32_channel_createChannel TLConstructor = 1532314294
 	// pluma: task 038
 	TLConstructor_CRC32_channel_getChannelDialogs TLConstructor = -1725659745
 	// pluma: task 038
@@ -87,6 +87,30 @@ const (
 	TLConstructor_CRC32_channel_getAdminedPublicChannels TLConstructor = -2083237595
 	// pluma: task 055
 	TLConstructor_CRC32_channel_deleteChannel TLConstructor = -979916526
+	// pluma: task 060
+	TLConstructor_CRC32_channel_toggleForum TLConstructor = 1073186003
+	// pluma: task 060
+	TLConstructor_CRC32_channel_toggleViewForumAsMessages TLConstructor = -1875771675
+	// pluma: task 060
+	TLConstructor_CRC32_channel_createForumTopic TLConstructor = -610599565
+	// pluma: task 060
+	TLConstructor_CRC32_channel_editForumTopic TLConstructor = 1853047093
+	// pluma: task 060
+	TLConstructor_CRC32_channel_updatePinnedForumTopic TLConstructor = -110001806
+	// pluma: task 060
+	TLConstructor_CRC32_channel_reorderPinnedForumTopics TLConstructor = -1269591301
+	// pluma: task 060
+	TLConstructor_CRC32_channel_deleteTopicHistory TLConstructor = 62210273
+	// pluma: task 060
+	TLConstructor_CRC32_channel_getForumTopics TLConstructor = -553446363
+	// pluma: task 060
+	TLConstructor_CRC32_channel_getForumTopicsByID TLConstructor = 1892057379
+	// pluma: task 060
+	TLConstructor_CRC32_channel_searchTopic TLConstructor = -2126242873
+	// pluma: task 060
+	TLConstructor_CRC32_channel_readTopicMentions TLConstructor = -701570663
+	// pluma: task 060
+	TLConstructor_CRC32_channel_unpinAllTopicMessages TLConstructor = -1405087645
 	// pluma: task 044
 	TLConstructor_CRC32_channel_toggleSetting TLConstructor = -922563101
 	// pluma: task 044
@@ -130,7 +154,7 @@ var (
 		-662027966:  "CRC32_mutableChannel",
 		-437245607:  "CRC32_channel_getMutableChannel",
 		-1986537988: "CRC32_channel_getChannelListByIdList",
-		-641600475:  "CRC32_channel_createChannel",
+		1532314294:  "CRC32_channel_createChannel",
 		-1725659745: "CRC32_channel_getChannelDialogs",
 		687937944:   "CRC32_channel_getTopMessages",
 		771323905:   "CRC32_channel_getMemberIdList",
@@ -150,6 +174,18 @@ var (
 		418987336:   "CRC32_channel_updateUsername",
 		-2083237595: "CRC32_channel_getAdminedPublicChannels",
 		-979916526:  "CRC32_channel_deleteChannel",
+		1073186003:  "CRC32_channel_toggleForum",
+		-1875771675: "CRC32_channel_toggleViewForumAsMessages",
+		-610599565:  "CRC32_channel_createForumTopic",
+		1853047093:  "CRC32_channel_editForumTopic",
+		-110001806:  "CRC32_channel_updatePinnedForumTopic",
+		-1269591301: "CRC32_channel_reorderPinnedForumTopics",
+		62210273:    "CRC32_channel_deleteTopicHistory",
+		-553446363:  "CRC32_channel_getForumTopics",
+		1892057379:  "CRC32_channel_getForumTopicsByID",
+		-2126242873: "CRC32_channel_searchTopic",
+		-701570663:  "CRC32_channel_readTopicMentions",
+		-1405087645: "CRC32_channel_unpinAllTopicMessages",
 		-922563101:  "CRC32_channel_toggleSetting",
 		994913470:   "CRC32_channel_setAvailableReactions",
 		407453767:   "CRC32_channel_setDiscussionGroup",
@@ -168,48 +204,60 @@ var (
 		1263700059:  "CRC32_channel_editDefaultBannedRights",
 	}
 	TLConstructor_value = map[string]int32{
-		"CRC32_UNKNOWN":                          0,
-		"CRC32_immutableChannel":                 -1502604851,
-		"CRC32_immutableChannelParticipant":      675582471,
-		"CRC32_mutableChannel":                   -662027966,
-		"CRC32_channel_getMutableChannel":        -437245607,
-		"CRC32_channel_getChannelListByIdList":   -1986537988,
-		"CRC32_channel_createChannel":            -641600475,
-		"CRC32_channel_getChannelDialogs":        -1725659745,
-		"CRC32_channel_getTopMessages":           687937944,
-		"CRC32_channel_getMemberIdList":          771323905,
-		"CRC32_channel_getHistory":               653475021,
-		"CRC32_channel_getMessages":              -1395419135,
-		"CRC32_channel_getChannelDifference":     2140231388,
-		"CRC32_channel_joinChannel":              634004096,
-		"CRC32_channel_leaveChannel":             1331881771,
-		"CRC32_channel_checkChatInvite":          -1311035397,
-		"CRC32_channel_getParticipants":          -212979149,
-		"CRC32_channel_readHistory":              -585404897,
-		"CRC32_channel_deleteMessages":           1972359002,
-		"CRC32_channel_inviteToChannel":          293053083,
-		"CRC32_channel_editTitle":                325646357,
-		"CRC32_channel_editAbout":                -564196321,
-		"CRC32_channel_checkUsername":            986177068,
-		"CRC32_channel_updateUsername":           418987336,
-		"CRC32_channel_getAdminedPublicChannels": -2083237595,
-		"CRC32_channel_deleteChannel":            -979916526,
-		"CRC32_channel_toggleSetting":            -922563101,
-		"CRC32_channel_setAvailableReactions":    994913470,
-		"CRC32_channel_setDiscussionGroup":       407453767,
-		"CRC32_channel_getGroupsForDiscussion":   -1820701585,
-		"CRC32_channel_getDiscussionMessage":     941034930,
-		"CRC32_channel_getReplies":               973790184,
-		"CRC32_channel_readDiscussion":           -325315711,
-		"CRC32_channel_editPhoto":                -1984581655,
-		"CRC32_channel_readMentions":             -521821973,
-		"CRC32_channel_getUnreadMentions":        1865304106,
-		"CRC32_channel_readMessageContents":      2055458774,
-		"CRC32_channel_search":                   471620827,
-		"CRC32_channel_editCreator":              860909233,
-		"CRC32_channel_editAdmin":                1274612374,
-		"CRC32_channel_editBanned":               -1457424068,
-		"CRC32_channel_editDefaultBannedRights":  1263700059,
+		"CRC32_UNKNOWN":                           0,
+		"CRC32_immutableChannel":                  -1502604851,
+		"CRC32_immutableChannelParticipant":       675582471,
+		"CRC32_mutableChannel":                    -662027966,
+		"CRC32_channel_getMutableChannel":         -437245607,
+		"CRC32_channel_getChannelListByIdList":    -1986537988,
+		"CRC32_channel_createChannel":             1532314294,
+		"CRC32_channel_getChannelDialogs":         -1725659745,
+		"CRC32_channel_getTopMessages":            687937944,
+		"CRC32_channel_getMemberIdList":           771323905,
+		"CRC32_channel_getHistory":                653475021,
+		"CRC32_channel_getMessages":               -1395419135,
+		"CRC32_channel_getChannelDifference":      2140231388,
+		"CRC32_channel_joinChannel":               634004096,
+		"CRC32_channel_leaveChannel":              1331881771,
+		"CRC32_channel_checkChatInvite":           -1311035397,
+		"CRC32_channel_getParticipants":           -212979149,
+		"CRC32_channel_readHistory":               -585404897,
+		"CRC32_channel_deleteMessages":            1972359002,
+		"CRC32_channel_inviteToChannel":           293053083,
+		"CRC32_channel_editTitle":                 325646357,
+		"CRC32_channel_editAbout":                 -564196321,
+		"CRC32_channel_checkUsername":             986177068,
+		"CRC32_channel_updateUsername":            418987336,
+		"CRC32_channel_getAdminedPublicChannels":  -2083237595,
+		"CRC32_channel_deleteChannel":             -979916526,
+		"CRC32_channel_toggleForum":               1073186003,
+		"CRC32_channel_toggleViewForumAsMessages": -1875771675,
+		"CRC32_channel_createForumTopic":          -610599565,
+		"CRC32_channel_editForumTopic":            1853047093,
+		"CRC32_channel_updatePinnedForumTopic":    -110001806,
+		"CRC32_channel_reorderPinnedForumTopics":  -1269591301,
+		"CRC32_channel_deleteTopicHistory":        62210273,
+		"CRC32_channel_getForumTopics":            -553446363,
+		"CRC32_channel_getForumTopicsByID":        1892057379,
+		"CRC32_channel_searchTopic":               -2126242873,
+		"CRC32_channel_readTopicMentions":         -701570663,
+		"CRC32_channel_unpinAllTopicMessages":     -1405087645,
+		"CRC32_channel_toggleSetting":             -922563101,
+		"CRC32_channel_setAvailableReactions":     994913470,
+		"CRC32_channel_setDiscussionGroup":        407453767,
+		"CRC32_channel_getGroupsForDiscussion":    -1820701585,
+		"CRC32_channel_getDiscussionMessage":      941034930,
+		"CRC32_channel_getReplies":                973790184,
+		"CRC32_channel_readDiscussion":            -325315711,
+		"CRC32_channel_editPhoto":                 -1984581655,
+		"CRC32_channel_readMentions":              -521821973,
+		"CRC32_channel_getUnreadMentions":         1865304106,
+		"CRC32_channel_readMessageContents":       2055458774,
+		"CRC32_channel_search":                    471620827,
+		"CRC32_channel_editCreator":               860909233,
+		"CRC32_channel_editAdmin":                 1274612374,
+		"CRC32_channel_editBanned":                -1457424068,
+		"CRC32_channel_editDefaultBannedRights":   1263700059,
 	}
 )
 
@@ -280,8 +328,10 @@ type ImmutableChannel struct {
 	// (chatReactions: 0 none, 1 all, 2 some, as biz chat keeps them).
 	AvailableReactionsType int32    `protobuf:"varint,33,opt,name=available_reactions_type,json=availableReactionsType,proto3" json:"available_reactions_type,omitempty"`
 	AvailableReactions     []string `protobuf:"bytes,34,rep,name=available_reactions,json=availableReactions,proto3" json:"available_reactions,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	// pluma: task 060: flags.15, the tabbed layout of a forum.
+	ForumTabs     bool `protobuf:"varint,40,opt,name=forum_tabs,json=forumTabs,proto3" json:"forum_tabs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ImmutableChannel) Reset() {
@@ -550,6 +600,13 @@ func (x *ImmutableChannel) GetAvailableReactions() []string {
 		return x.AvailableReactions
 	}
 	return nil
+}
+
+func (x *ImmutableChannel) GetForumTabs() bool {
+	if x != nil {
+		return x.ForumTabs
+	}
+	return false
 }
 
 type TLImmutableChannel struct {
@@ -1035,18 +1092,20 @@ func (x *TLChannelGetChannelListByIdList) GetIdList() []int64 {
 }
 
 // --------------------------------------------------------------------------------------------
-// pluma: channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+// pluma: channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool forum:Bool = Updates;
 // Creates a channel (broadcast) or a supergroup (megagroup) of creator_id in
 // its box transaction: the channel, its creator, its first message, the
 // creator's dialog and invite link; the answer of channels.createChannel.
 type TLChannelCreateChannel struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
-	CreatorId     int64                  `protobuf:"varint,3,opt,name=creator_id,json=creatorId,proto3" json:"creator_id,omitempty"`
-	Title         string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
-	About         string                 `protobuf:"bytes,5,opt,name=about,proto3" json:"about,omitempty"`
-	Broadcast     *mtproto.Bool          `protobuf:"bytes,6,opt,name=broadcast,proto3" json:"broadcast,omitempty"`
-	Megagroup     *mtproto.Bool          `protobuf:"bytes,7,opt,name=megagroup,proto3" json:"megagroup,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Constructor TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	CreatorId   int64                  `protobuf:"varint,3,opt,name=creator_id,json=creatorId,proto3" json:"creator_id,omitempty"`
+	Title       string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	About       string                 `protobuf:"bytes,5,opt,name=about,proto3" json:"about,omitempty"`
+	Broadcast   *mtproto.Bool          `protobuf:"bytes,6,opt,name=broadcast,proto3" json:"broadcast,omitempty"`
+	Megagroup   *mtproto.Bool          `protobuf:"bytes,7,opt,name=megagroup,proto3" json:"megagroup,omitempty"`
+	// pluma: task 060
+	Forum         *mtproto.Bool `protobuf:"bytes,8,opt,name=forum,proto3" json:"forum,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1119,6 +1178,13 @@ func (x *TLChannelCreateChannel) GetBroadcast() *mtproto.Bool {
 func (x *TLChannelCreateChannel) GetMegagroup() *mtproto.Bool {
 	if x != nil {
 		return x.Megagroup
+	}
+	return nil
+}
+
+func (x *TLChannelCreateChannel) GetForum() *mtproto.Bool {
+	if x != nil {
+		return x.Forum
 	}
 	return nil
 }
@@ -4013,6 +4079,1158 @@ func (x *TLChannelSetAvailableReactions) GetReactions() []string {
 }
 
 // --------------------------------------------------------------------------------------------
+// pluma: channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
+// self_id turns the channel's forum on or off (channels.toggleForum); tabs: the tabbed layout.
+// (task 060)
+type TLChannelToggleForum struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Enabled       *mtproto.Bool          `protobuf:"bytes,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Tabs          *mtproto.Bool          `protobuf:"bytes,7,opt,name=tabs,proto3" json:"tabs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelToggleForum) Reset() {
+	*x = TLChannelToggleForum{}
+	mi := &file_channel_tl_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelToggleForum) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelToggleForum) ProtoMessage() {}
+
+func (x *TLChannelToggleForum) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelToggleForum.ProtoReflect.Descriptor instead.
+func (*TLChannelToggleForum) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *TLChannelToggleForum) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelToggleForum) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelToggleForum) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelToggleForum) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelToggleForum) GetEnabled() *mtproto.Bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return nil
+}
+
+func (x *TLChannelToggleForum) GetTabs() *mtproto.Bool {
+	if x != nil {
+		return x.Tabs
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.toggleViewForumAsMessages self_id:long perm_auth_key_id:long channel_id:long enabled:Bool = Updates;
+// self_id reads the forum as one feed of messages, or by topics (channels.toggleViewForumAsMessages).
+// (task 060)
+type TLChannelToggleViewForumAsMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Enabled       *mtproto.Bool          `protobuf:"bytes,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelToggleViewForumAsMessages) Reset() {
+	*x = TLChannelToggleViewForumAsMessages{}
+	mi := &file_channel_tl_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelToggleViewForumAsMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelToggleViewForumAsMessages) ProtoMessage() {}
+
+func (x *TLChannelToggleViewForumAsMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelToggleViewForumAsMessages.ProtoReflect.Descriptor instead.
+func (*TLChannelToggleViewForumAsMessages) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *TLChannelToggleViewForumAsMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelToggleViewForumAsMessages) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelToggleViewForumAsMessages) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelToggleViewForumAsMessages) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelToggleViewForumAsMessages) GetEnabled() *mtproto.Bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.createForumTopic self_id:long perm_auth_key_id:long channel_id:long title:string icon_color:int icon_emoji_id:long title_missing:Bool random_id:long = Updates;
+// self_id creates a topic (messages.createForumTopic); random_id makes a repeat give the first answer.
+// (task 060)
+type TLChannelCreateForumTopic struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Title         string                 `protobuf:"bytes,6,opt,name=title,proto3" json:"title,omitempty"`
+	IconColor     int32                  `protobuf:"varint,7,opt,name=icon_color,json=iconColor,proto3" json:"icon_color,omitempty"`
+	IconEmojiId   int64                  `protobuf:"varint,8,opt,name=icon_emoji_id,json=iconEmojiId,proto3" json:"icon_emoji_id,omitempty"`
+	TitleMissing  *mtproto.Bool          `protobuf:"bytes,9,opt,name=title_missing,json=titleMissing,proto3" json:"title_missing,omitempty"`
+	RandomId      int64                  `protobuf:"varint,10,opt,name=random_id,json=randomId,proto3" json:"random_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelCreateForumTopic) Reset() {
+	*x = TLChannelCreateForumTopic{}
+	mi := &file_channel_tl_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelCreateForumTopic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelCreateForumTopic) ProtoMessage() {}
+
+func (x *TLChannelCreateForumTopic) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelCreateForumTopic.ProtoReflect.Descriptor instead.
+func (*TLChannelCreateForumTopic) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *TLChannelCreateForumTopic) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelCreateForumTopic) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelCreateForumTopic) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelCreateForumTopic) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelCreateForumTopic) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *TLChannelCreateForumTopic) GetIconColor() int32 {
+	if x != nil {
+		return x.IconColor
+	}
+	return 0
+}
+
+func (x *TLChannelCreateForumTopic) GetIconEmojiId() int64 {
+	if x != nil {
+		return x.IconEmojiId
+	}
+	return 0
+}
+
+func (x *TLChannelCreateForumTopic) GetTitleMissing() *mtproto.Bool {
+	if x != nil {
+		return x.TitleMissing
+	}
+	return nil
+}
+
+func (x *TLChannelCreateForumTopic) GetRandomId() int64 {
+	if x != nil {
+		return x.RandomId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.editForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int fields:int title:string icon_emoji_id:long closed:Bool hidden:Bool = Updates;
+// self_id edits a topic (messages.editForumTopic); fields says which values are given (channel.TopicField*).
+// (task 060)
+type TLChannelEditForumTopic struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	TopicId       int32                  `protobuf:"varint,6,opt,name=topic_id,json=topicId,proto3" json:"topic_id,omitempty"`
+	Fields        int32                  `protobuf:"varint,7,opt,name=fields,proto3" json:"fields,omitempty"`
+	Title         string                 `protobuf:"bytes,8,opt,name=title,proto3" json:"title,omitempty"`
+	IconEmojiId   int64                  `protobuf:"varint,9,opt,name=icon_emoji_id,json=iconEmojiId,proto3" json:"icon_emoji_id,omitempty"`
+	Closed        *mtproto.Bool          `protobuf:"bytes,10,opt,name=closed,proto3" json:"closed,omitempty"`
+	Hidden        *mtproto.Bool          `protobuf:"bytes,11,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelEditForumTopic) Reset() {
+	*x = TLChannelEditForumTopic{}
+	mi := &file_channel_tl_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelEditForumTopic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelEditForumTopic) ProtoMessage() {}
+
+func (x *TLChannelEditForumTopic) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelEditForumTopic.ProtoReflect.Descriptor instead.
+func (*TLChannelEditForumTopic) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *TLChannelEditForumTopic) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelEditForumTopic) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelEditForumTopic) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelEditForumTopic) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelEditForumTopic) GetTopicId() int32 {
+	if x != nil {
+		return x.TopicId
+	}
+	return 0
+}
+
+func (x *TLChannelEditForumTopic) GetFields() int32 {
+	if x != nil {
+		return x.Fields
+	}
+	return 0
+}
+
+func (x *TLChannelEditForumTopic) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *TLChannelEditForumTopic) GetIconEmojiId() int64 {
+	if x != nil {
+		return x.IconEmojiId
+	}
+	return 0
+}
+
+func (x *TLChannelEditForumTopic) GetClosed() *mtproto.Bool {
+	if x != nil {
+		return x.Closed
+	}
+	return nil
+}
+
+func (x *TLChannelEditForumTopic) GetHidden() *mtproto.Bool {
+	if x != nil {
+		return x.Hidden
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.updatePinnedForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int pinned:Bool = Updates;
+// self_id pins or unpins a topic (messages.updatePinnedForumTopic).
+// (task 060)
+type TLChannelUpdatePinnedForumTopic struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	TopicId       int32                  `protobuf:"varint,6,opt,name=topic_id,json=topicId,proto3" json:"topic_id,omitempty"`
+	Pinned        *mtproto.Bool          `protobuf:"bytes,7,opt,name=pinned,proto3" json:"pinned,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) Reset() {
+	*x = TLChannelUpdatePinnedForumTopic{}
+	mi := &file_channel_tl_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelUpdatePinnedForumTopic) ProtoMessage() {}
+
+func (x *TLChannelUpdatePinnedForumTopic) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelUpdatePinnedForumTopic.ProtoReflect.Descriptor instead.
+func (*TLChannelUpdatePinnedForumTopic) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) GetTopicId() int32 {
+	if x != nil {
+		return x.TopicId
+	}
+	return 0
+}
+
+func (x *TLChannelUpdatePinnedForumTopic) GetPinned() *mtproto.Bool {
+	if x != nil {
+		return x.Pinned
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.reorderPinnedForumTopics self_id:long perm_auth_key_id:long channel_id:long force:Bool order:Vector<int> = Updates;
+// self_id orders the pinned topics (messages.reorderPinnedForumTopics).
+// (task 060)
+type TLChannelReorderPinnedForumTopics struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Force         *mtproto.Bool          `protobuf:"bytes,6,opt,name=force,proto3" json:"force,omitempty"`
+	Order         []int32                `protobuf:"varint,7,rep,packed,name=order,proto3" json:"order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelReorderPinnedForumTopics) Reset() {
+	*x = TLChannelReorderPinnedForumTopics{}
+	mi := &file_channel_tl_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelReorderPinnedForumTopics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelReorderPinnedForumTopics) ProtoMessage() {}
+
+func (x *TLChannelReorderPinnedForumTopics) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelReorderPinnedForumTopics.ProtoReflect.Descriptor instead.
+func (*TLChannelReorderPinnedForumTopics) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *TLChannelReorderPinnedForumTopics) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelReorderPinnedForumTopics) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelReorderPinnedForumTopics) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelReorderPinnedForumTopics) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelReorderPinnedForumTopics) GetForce() *mtproto.Bool {
+	if x != nil {
+		return x.Force
+	}
+	return nil
+}
+
+func (x *TLChannelReorderPinnedForumTopics) GetOrder() []int32 {
+	if x != nil {
+		return x.Order
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.deleteTopicHistory self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+// self_id deletes a portion of a topic, its root message last (messages.deleteTopicHistory).
+// (task 060)
+type TLChannelDeleteTopicHistory struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	TopMsgId      int32                  `protobuf:"varint,6,opt,name=top_msg_id,json=topMsgId,proto3" json:"top_msg_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelDeleteTopicHistory) Reset() {
+	*x = TLChannelDeleteTopicHistory{}
+	mi := &file_channel_tl_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelDeleteTopicHistory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelDeleteTopicHistory) ProtoMessage() {}
+
+func (x *TLChannelDeleteTopicHistory) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelDeleteTopicHistory.ProtoReflect.Descriptor instead.
+func (*TLChannelDeleteTopicHistory) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *TLChannelDeleteTopicHistory) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelDeleteTopicHistory) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelDeleteTopicHistory) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelDeleteTopicHistory) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelDeleteTopicHistory) GetTopMsgId() int32 {
+	if x != nil {
+		return x.TopMsgId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.getForumTopics self_id:long channel_id:long q:string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
+// A page of the forum's topics as self_id sees them (messages.getForumTopics); users and chats are left to the caller.
+// (task 060)
+type TLChannelGetForumTopics struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,4,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Q             string                 `protobuf:"bytes,5,opt,name=q,proto3" json:"q,omitempty"`
+	OffsetDate    int32                  `protobuf:"varint,6,opt,name=offset_date,json=offsetDate,proto3" json:"offset_date,omitempty"`
+	OffsetId      int32                  `protobuf:"varint,7,opt,name=offset_id,json=offsetId,proto3" json:"offset_id,omitempty"`
+	OffsetTopic   int32                  `protobuf:"varint,8,opt,name=offset_topic,json=offsetTopic,proto3" json:"offset_topic,omitempty"`
+	Limit         int32                  `protobuf:"varint,9,opt,name=limit,proto3" json:"limit,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelGetForumTopics) Reset() {
+	*x = TLChannelGetForumTopics{}
+	mi := &file_channel_tl_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelGetForumTopics) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelGetForumTopics) ProtoMessage() {}
+
+func (x *TLChannelGetForumTopics) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelGetForumTopics.ProtoReflect.Descriptor instead.
+func (*TLChannelGetForumTopics) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *TLChannelGetForumTopics) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelGetForumTopics) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelGetForumTopics) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelGetForumTopics) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+func (x *TLChannelGetForumTopics) GetOffsetDate() int32 {
+	if x != nil {
+		return x.OffsetDate
+	}
+	return 0
+}
+
+func (x *TLChannelGetForumTopics) GetOffsetId() int32 {
+	if x != nil {
+		return x.OffsetId
+	}
+	return 0
+}
+
+func (x *TLChannelGetForumTopics) GetOffsetTopic() int32 {
+	if x != nil {
+		return x.OffsetTopic
+	}
+	return 0
+}
+
+func (x *TLChannelGetForumTopics) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.getForumTopicsByID self_id:long channel_id:long topics:Vector<int> = messages.ForumTopics;
+// The topics asked for, forumTopicDeleted for those not there (messages.getForumTopicsByID).
+// (task 060)
+type TLChannelGetForumTopicsByID struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,4,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	Topics        []int32                `protobuf:"varint,5,rep,packed,name=topics,proto3" json:"topics,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelGetForumTopicsByID) Reset() {
+	*x = TLChannelGetForumTopicsByID{}
+	mi := &file_channel_tl_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelGetForumTopicsByID) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelGetForumTopicsByID) ProtoMessage() {}
+
+func (x *TLChannelGetForumTopicsByID) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelGetForumTopicsByID.ProtoReflect.Descriptor instead.
+func (*TLChannelGetForumTopicsByID) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *TLChannelGetForumTopicsByID) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelGetForumTopicsByID) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelGetForumTopicsByID) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelGetForumTopicsByID) GetTopics() []int32 {
+	if x != nil {
+		return x.Topics
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.searchTopic self_id:long channel_id:long top_msg_id:int q:string from_id:long media_type:int unread_mentions:Bool min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// A page of the messages of a topic that match, or of a thread in a supergroup that is no forum (messages.search and messages.getUnreadMentions with top_msg_id).
+// (task 060)
+type TLChannelSearchTopic struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Constructor    TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId         int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	ChannelId      int64                  `protobuf:"varint,4,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	TopMsgId       int32                  `protobuf:"varint,5,opt,name=top_msg_id,json=topMsgId,proto3" json:"top_msg_id,omitempty"`
+	Q              string                 `protobuf:"bytes,6,opt,name=q,proto3" json:"q,omitempty"`
+	FromId         int64                  `protobuf:"varint,7,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	MediaType      int32                  `protobuf:"varint,8,opt,name=media_type,json=mediaType,proto3" json:"media_type,omitempty"`
+	UnreadMentions *mtproto.Bool          `protobuf:"bytes,9,opt,name=unread_mentions,json=unreadMentions,proto3" json:"unread_mentions,omitempty"`
+	MinDate        int32                  `protobuf:"varint,10,opt,name=min_date,json=minDate,proto3" json:"min_date,omitempty"`
+	MaxDate        int32                  `protobuf:"varint,11,opt,name=max_date,json=maxDate,proto3" json:"max_date,omitempty"`
+	OffsetId       int32                  `protobuf:"varint,12,opt,name=offset_id,json=offsetId,proto3" json:"offset_id,omitempty"`
+	AddOffset      int32                  `protobuf:"varint,13,opt,name=add_offset,json=addOffset,proto3" json:"add_offset,omitempty"`
+	Limit          int32                  `protobuf:"varint,14,opt,name=limit,proto3" json:"limit,omitempty"`
+	MaxId          int32                  `protobuf:"varint,15,opt,name=max_id,json=maxId,proto3" json:"max_id,omitempty"`
+	MinId          int32                  `protobuf:"varint,16,opt,name=min_id,json=minId,proto3" json:"min_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *TLChannelSearchTopic) Reset() {
+	*x = TLChannelSearchTopic{}
+	mi := &file_channel_tl_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelSearchTopic) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelSearchTopic) ProtoMessage() {}
+
+func (x *TLChannelSearchTopic) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelSearchTopic.ProtoReflect.Descriptor instead.
+func (*TLChannelSearchTopic) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *TLChannelSearchTopic) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelSearchTopic) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetTopMsgId() int32 {
+	if x != nil {
+		return x.TopMsgId
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetQ() string {
+	if x != nil {
+		return x.Q
+	}
+	return ""
+}
+
+func (x *TLChannelSearchTopic) GetFromId() int64 {
+	if x != nil {
+		return x.FromId
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetMediaType() int32 {
+	if x != nil {
+		return x.MediaType
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetUnreadMentions() *mtproto.Bool {
+	if x != nil {
+		return x.UnreadMentions
+	}
+	return nil
+}
+
+func (x *TLChannelSearchTopic) GetMinDate() int32 {
+	if x != nil {
+		return x.MinDate
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetMaxDate() int32 {
+	if x != nil {
+		return x.MaxDate
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetOffsetId() int32 {
+	if x != nil {
+		return x.OffsetId
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetAddOffset() int32 {
+	if x != nil {
+		return x.AddOffset
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetMaxId() int32 {
+	if x != nil {
+		return x.MaxId
+	}
+	return 0
+}
+
+func (x *TLChannelSearchTopic) GetMinId() int32 {
+	if x != nil {
+		return x.MinId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.readTopicMentions self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+// self_id reads its unread mentions of a topic (messages.readMentions with top_msg_id).
+// (task 060)
+type TLChannelReadTopicMentions struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	TopMsgId      int32                  `protobuf:"varint,6,opt,name=top_msg_id,json=topMsgId,proto3" json:"top_msg_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelReadTopicMentions) Reset() {
+	*x = TLChannelReadTopicMentions{}
+	mi := &file_channel_tl_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelReadTopicMentions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelReadTopicMentions) ProtoMessage() {}
+
+func (x *TLChannelReadTopicMentions) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelReadTopicMentions.ProtoReflect.Descriptor instead.
+func (*TLChannelReadTopicMentions) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *TLChannelReadTopicMentions) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelReadTopicMentions) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelReadTopicMentions) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelReadTopicMentions) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelReadTopicMentions) GetTopMsgId() int32 {
+	if x != nil {
+		return x.TopMsgId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: channel.unpinAllTopicMessages self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+// self_id unpins all the messages of a topic (messages.unpinAllMessages with top_msg_id).
+// (task 060)
+type TLChannelUnpinAllTopicMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=channel.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	PermAuthKeyId int64                  `protobuf:"varint,4,opt,name=perm_auth_key_id,json=permAuthKeyId,proto3" json:"perm_auth_key_id,omitempty"`
+	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
+	TopMsgId      int32                  `protobuf:"varint,6,opt,name=top_msg_id,json=topMsgId,proto3" json:"top_msg_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChannelUnpinAllTopicMessages) Reset() {
+	*x = TLChannelUnpinAllTopicMessages{}
+	mi := &file_channel_tl_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChannelUnpinAllTopicMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChannelUnpinAllTopicMessages) ProtoMessage() {}
+
+func (x *TLChannelUnpinAllTopicMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_channel_tl_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChannelUnpinAllTopicMessages.ProtoReflect.Descriptor instead.
+func (*TLChannelUnpinAllTopicMessages) Descriptor() ([]byte, []int) {
+	return file_channel_tl_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *TLChannelUnpinAllTopicMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChannelUnpinAllTopicMessages) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChannelUnpinAllTopicMessages) GetPermAuthKeyId() int64 {
+	if x != nil {
+		return x.PermAuthKeyId
+	}
+	return 0
+}
+
+func (x *TLChannelUnpinAllTopicMessages) GetChannelId() int64 {
+	if x != nil {
+		return x.ChannelId
+	}
+	return 0
+}
+
+func (x *TLChannelUnpinAllTopicMessages) GetTopMsgId() int32 {
+	if x != nil {
+		return x.TopMsgId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 type Vector_Long struct {
@@ -4024,7 +5242,7 @@ type Vector_Long struct {
 
 func (x *Vector_Long) Reset() {
 	*x = Vector_Long{}
-	mi := &file_channel_tl_proto_msgTypes[44]
+	mi := &file_channel_tl_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4036,7 +5254,7 @@ func (x *Vector_Long) String() string {
 func (*Vector_Long) ProtoMessage() {}
 
 func (x *Vector_Long) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[44]
+	mi := &file_channel_tl_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4049,7 +5267,7 @@ func (x *Vector_Long) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Long.ProtoReflect.Descriptor instead.
 func (*Vector_Long) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{44}
+	return file_channel_tl_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *Vector_Long) GetDatas() []int64 {
@@ -4069,7 +5287,7 @@ type Vector_Dialog struct {
 
 func (x *Vector_Dialog) Reset() {
 	*x = Vector_Dialog{}
-	mi := &file_channel_tl_proto_msgTypes[45]
+	mi := &file_channel_tl_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4081,7 +5299,7 @@ func (x *Vector_Dialog) String() string {
 func (*Vector_Dialog) ProtoMessage() {}
 
 func (x *Vector_Dialog) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[45]
+	mi := &file_channel_tl_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4094,7 +5312,7 @@ func (x *Vector_Dialog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Dialog.ProtoReflect.Descriptor instead.
 func (*Vector_Dialog) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{45}
+	return file_channel_tl_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *Vector_Dialog) GetDatas() []*mtproto.Dialog {
@@ -4114,7 +5332,7 @@ type Vector_Message struct {
 
 func (x *Vector_Message) Reset() {
 	*x = Vector_Message{}
-	mi := &file_channel_tl_proto_msgTypes[46]
+	mi := &file_channel_tl_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4126,7 +5344,7 @@ func (x *Vector_Message) String() string {
 func (*Vector_Message) ProtoMessage() {}
 
 func (x *Vector_Message) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[46]
+	mi := &file_channel_tl_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4139,7 +5357,7 @@ func (x *Vector_Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Message.ProtoReflect.Descriptor instead.
 func (*Vector_Message) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{46}
+	return file_channel_tl_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *Vector_Message) GetDatas() []*mtproto.Message {
@@ -4158,7 +5376,7 @@ type Vector_MutableChannel struct {
 
 func (x *Vector_MutableChannel) Reset() {
 	*x = Vector_MutableChannel{}
-	mi := &file_channel_tl_proto_msgTypes[47]
+	mi := &file_channel_tl_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4170,7 +5388,7 @@ func (x *Vector_MutableChannel) String() string {
 func (*Vector_MutableChannel) ProtoMessage() {}
 
 func (x *Vector_MutableChannel) ProtoReflect() protoreflect.Message {
-	mi := &file_channel_tl_proto_msgTypes[47]
+	mi := &file_channel_tl_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4183,7 +5401,7 @@ func (x *Vector_MutableChannel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_MutableChannel.ProtoReflect.Descriptor instead.
 func (*Vector_MutableChannel) Descriptor() ([]byte, []int) {
-	return file_channel_tl_proto_rawDescGZIP(), []int{47}
+	return file_channel_tl_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *Vector_MutableChannel) GetDatas() []*MutableChannel {
@@ -4197,7 +5415,7 @@ var File_channel_tl_proto protoreflect.FileDescriptor
 
 const file_channel_tl_proto_rawDesc = "" +
 	"\n" +
-	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xd6\t\n" +
+	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xf5\t\n" +
 	"\x10ImmutableChannel\x12%\n" +
 	"\x0epredicate_name\x18\x01 \x01(\tR\rpredicateName\x128\n" +
 	"\vconstructor\x18\x02 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x1c\n" +
@@ -4240,7 +5458,9 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\aversion\x18\x1f \x01(\x05R\aversion\x12\x12\n" +
 	"\x04date\x18  \x01(\x03R\x04date\x128\n" +
 	"\x18available_reactions_type\x18! \x01(\x05R\x16availableReactionsType\x12/\n" +
-	"\x13available_reactions\x18\" \x03(\tR\x12availableReactions\"F\n" +
+	"\x13available_reactions\x18\" \x03(\tR\x12availableReactions\x12\x1d\n" +
+	"\n" +
+	"forum_tabs\x18( \x01(\bR\tforumTabs\"F\n" +
 	"\x13TL_immutableChannel\x12/\n" +
 	"\x05data2\x18\x01 \x01(\v2\x19.channel.ImmutableChannelR\x05data2\"\xff\x03\n" +
 	"\x1bImmutableChannelParticipant\x12%\n" +
@@ -4280,7 +5500,7 @@ const file_channel_tl_proto_rawDesc = "" +
 	"!TL_channel_getChannelListByIdList\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x17\n" +
-	"\aid_list\x18\x04 \x03(\x03R\x06idList\"\xf9\x01\n" +
+	"\aid_list\x18\x04 \x03(\x03R\x06idList\"\x9e\x02\n" +
 	"\x18TL_channel_createChannel\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x1d\n" +
 	"\n" +
@@ -4288,7 +5508,8 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x05title\x18\x04 \x01(\tR\x05title\x12\x14\n" +
 	"\x05about\x18\x05 \x01(\tR\x05about\x12+\n" +
 	"\tbroadcast\x18\x06 \x01(\v2\r.mtproto.BoolR\tbroadcast\x12+\n" +
-	"\tmegagroup\x18\a \x01(\v2\r.mtproto.BoolR\tmegagroup\"\x8a\x01\n" +
+	"\tmegagroup\x18\a \x01(\v2\r.mtproto.BoolR\tmegagroup\x12#\n" +
+	"\x05forum\x18\b \x01(\v2\r.mtproto.BoolR\x05forum\"\x8a\x01\n" +
 	"\x1cTL_channel_getChannelDialogs\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x17\n" +
@@ -4548,7 +5769,126 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\n" +
 	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12%\n" +
 	"\x0ereactions_type\x18\x06 \x01(\x05R\rreactionsType\x12\x1c\n" +
-	"\treactions\x18\a \x03(\tR\treactions\"#\n" +
+	"\treactions\x18\a \x03(\tR\treactions\"\xff\x01\n" +
+	"\x16TL_channel_toggleForum\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12'\n" +
+	"\aenabled\x18\x06 \x01(\v2\r.mtproto.BoolR\aenabled\x12!\n" +
+	"\x04tabs\x18\a \x01(\v2\r.mtproto.BoolR\x04tabs\"\xea\x01\n" +
+	"$TL_channel_toggleViewForumAsMessages\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12'\n" +
+	"\aenabled\x18\x06 \x01(\v2\r.mtproto.BoolR\aenabled\"\xe2\x02\n" +
+	"\x1bTL_channel_createForumTopic\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12\x14\n" +
+	"\x05title\x18\x06 \x01(\tR\x05title\x12\x1d\n" +
+	"\n" +
+	"icon_color\x18\a \x01(\x05R\ticonColor\x12\"\n" +
+	"\ricon_emoji_id\x18\b \x01(\x03R\viconEmojiId\x122\n" +
+	"\rtitle_missing\x18\t \x01(\v2\r.mtproto.BoolR\ftitleMissing\x12\x1b\n" +
+	"\trandom_id\x18\n" +
+	" \x01(\x03R\brandomId\"\xf1\x02\n" +
+	"\x19TL_channel_editForumTopic\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12\x19\n" +
+	"\btopic_id\x18\x06 \x01(\x05R\atopicId\x12\x16\n" +
+	"\x06fields\x18\a \x01(\x05R\x06fields\x12\x14\n" +
+	"\x05title\x18\b \x01(\tR\x05title\x12\"\n" +
+	"\ricon_emoji_id\x18\t \x01(\x03R\viconEmojiId\x12%\n" +
+	"\x06closed\x18\n" +
+	" \x01(\v2\r.mtproto.BoolR\x06closed\x12%\n" +
+	"\x06hidden\x18\v \x01(\v2\r.mtproto.BoolR\x06hidden\"\x80\x02\n" +
+	"!TL_channel_updatePinnedForumTopic\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12\x19\n" +
+	"\btopic_id\x18\x06 \x01(\x05R\atopicId\x12%\n" +
+	"\x06pinned\x18\a \x01(\v2\r.mtproto.BoolR\x06pinned\"\xfb\x01\n" +
+	"#TL_channel_reorderPinnedForumTopics\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12#\n" +
+	"\x05force\x18\x06 \x01(\v2\r.mtproto.BoolR\x05force\x12\x14\n" +
+	"\x05order\x18\a \x03(\x05R\x05order\"\xd8\x01\n" +
+	"\x1dTL_channel_deleteTopicHistory\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12\x1c\n" +
+	"\n" +
+	"top_msg_id\x18\x06 \x01(\x05R\btopMsgId\"\x92\x02\n" +
+	"\x19TL_channel_getForumTopics\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x04 \x01(\x03R\tchannelId\x12\f\n" +
+	"\x01q\x18\x05 \x01(\tR\x01q\x12\x1f\n" +
+	"\voffset_date\x18\x06 \x01(\x05R\n" +
+	"offsetDate\x12\x1b\n" +
+	"\toffset_id\x18\a \x01(\x05R\boffsetId\x12!\n" +
+	"\foffset_topic\x18\b \x01(\x05R\voffsetTopic\x12\x14\n" +
+	"\x05limit\x18\t \x01(\x05R\x05limit\"\xa9\x01\n" +
+	"\x1dTL_channel_getForumTopicsByID\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x04 \x01(\x03R\tchannelId\x12\x16\n" +
+	"\x06topics\x18\x05 \x03(\x05R\x06topics\"\xdc\x03\n" +
+	"\x16TL_channel_searchTopic\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x04 \x01(\x03R\tchannelId\x12\x1c\n" +
+	"\n" +
+	"top_msg_id\x18\x05 \x01(\x05R\btopMsgId\x12\f\n" +
+	"\x01q\x18\x06 \x01(\tR\x01q\x12\x17\n" +
+	"\afrom_id\x18\a \x01(\x03R\x06fromId\x12\x1d\n" +
+	"\n" +
+	"media_type\x18\b \x01(\x05R\tmediaType\x126\n" +
+	"\x0funread_mentions\x18\t \x01(\v2\r.mtproto.BoolR\x0eunreadMentions\x12\x19\n" +
+	"\bmin_date\x18\n" +
+	" \x01(\x05R\aminDate\x12\x19\n" +
+	"\bmax_date\x18\v \x01(\x05R\amaxDate\x12\x1b\n" +
+	"\toffset_id\x18\f \x01(\x05R\boffsetId\x12\x1d\n" +
+	"\n" +
+	"add_offset\x18\r \x01(\x05R\taddOffset\x12\x14\n" +
+	"\x05limit\x18\x0e \x01(\x05R\x05limit\x12\x15\n" +
+	"\x06max_id\x18\x0f \x01(\x05R\x05maxId\x12\x15\n" +
+	"\x06min_id\x18\x10 \x01(\x05R\x05minId\"\xd7\x01\n" +
+	"\x1cTL_channel_readTopicMentions\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12\x1c\n" +
+	"\n" +
+	"top_msg_id\x18\x06 \x01(\x05R\btopMsgId\"\xdb\x01\n" +
+	" TL_channel_unpinAllTopicMessages\x128\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
+	"\x10perm_auth_key_id\x18\x04 \x01(\x03R\rpermAuthKeyId\x12\x1d\n" +
+	"\n" +
+	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12\x1c\n" +
+	"\n" +
+	"top_msg_id\x18\x06 \x01(\x05R\btopMsgId\"#\n" +
 	"\vVector_Long\x12\x14\n" +
 	"\x05datas\x18\x01 \x03(\x03R\x05datas\"6\n" +
 	"\rVector_Dialog\x12%\n" +
@@ -4556,15 +5896,15 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x0eVector_Message\x12&\n" +
 	"\x05datas\x18\x01 \x03(\v2\x10.mtproto.MessageR\x05datas\"F\n" +
 	"\x15Vector_MutableChannel\x12-\n" +
-	"\x05datas\x18\x01 \x03(\v2\x17.channel.MutableChannelR\x05datas*\x9e\r\n" +
+	"\x05datas\x18\x01 \x03(\v2\x17.channel.MutableChannelR\x05datas*\xb3\x11\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12#\n" +
 	"\x16CRC32_immutableChannel\x10ͣ\xc0\xb3\xfa\xff\xff\xff\xff\x01\x12)\n" +
 	"!CRC32_immutableChannelParticipant\x10\x87\xa4\x92\xc2\x02\x12!\n" +
 	"\x14CRC32_mutableChannel\x10\u0082\xa9\xc4\xfd\xff\xff\xff\xff\x01\x12,\n" +
 	"\x1fCRC32_channel_getMutableChannel\x10\xd9\xd2\xc0\xaf\xfe\xff\xff\xff\xff\x01\x121\n" +
-	"$CRC32_channel_getChannelListByIdList\x10\xfc\xab\xdf\xcc\xf8\xff\xff\xff\xff\x01\x12(\n" +
-	"\x1bCRC32_channel_createChannel\x10\xa5\xe8\x87\xce\xfd\xff\xff\xff\xff\x01\x12,\n" +
+	"$CRC32_channel_getChannelListByIdList\x10\xfc\xab\xdf\xcc\xf8\xff\xff\xff\xff\x01\x12#\n" +
+	"\x1bCRC32_channel_createChannel\x10\xb6\x85\xd5\xda\x05\x12,\n" +
 	"\x1fCRC32_channel_getChannelDialogs\x10\x9f\x8b\x92\xc9\xf9\xff\xff\xff\xff\x01\x12$\n" +
 	"\x1cCRC32_channel_getTopMessages\x10\x98\xb3\x84\xc8\x02\x12%\n" +
 	"\x1dCRC32_channel_getMemberIdList\x10\x81\xf0\xe5\xef\x02\x12 \n" +
@@ -4583,7 +5923,19 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x1bCRC32_channel_checkUsername\x10\xac\xbc\x9f\xd6\x03\x12$\n" +
 	"\x1cCRC32_channel_updateUsername\x10\xc8\xfa\xe4\xc7\x01\x123\n" +
 	"&CRC32_channel_getAdminedPublicChannels\x10\xa5\xa2ў\xf8\xff\xff\xff\xff\x01\x12(\n" +
-	"\x1bCRC32_channel_deleteChannel\x10\x92\xd2ެ\xfc\xff\xff\xff\xff\x01\x12(\n" +
+	"\x1bCRC32_channel_deleteChannel\x10\x92\xd2ެ\xfc\xff\xff\xff\xff\x01\x12!\n" +
+	"\x19CRC32_channel_toggleForum\x10Ӊ\xde\xff\x03\x124\n" +
+	"'CRC32_channel_toggleViewForumAsMessages\x10\xe5\xfdǁ\xf9\xff\xff\xff\xff\x01\x12+\n" +
+	"\x1eCRC32_channel_createForumTopic\x10\xf3\xfa\xeb\xdc\xfd\xff\xff\xff\xff\x01\x12$\n" +
+	"\x1cCRC32_channel_editForumTopic\x10\xb5\x82\xcd\xf3\x06\x121\n" +
+	"$CRC32_channel_updatePinnedForumTopic\x10\xf2\x82\xc6\xcb\xff\xff\xff\xff\xff\x01\x123\n" +
+	"&CRC32_channel_reorderPinnedForumTopics\x10\xfb\xa5\u03a2\xfb\xff\xff\xff\xff\x01\x12'\n" +
+	" CRC32_channel_deleteTopicHistory\x10\xe1\x81\xd5\x1d\x12)\n" +
+	"\x1cCRC32_channel_getForumTopics\x10\xa5\xa8\x8c\xf8\xfd\xff\xff\xff\xff\x01\x12(\n" +
+	" CRC32_channel_getForumTopicsByID\x10\xa3\x82\x9a\x86\a\x12&\n" +
+	"\x19CRC32_channel_searchTopic\x10Ƿ\x90\x8a\xf8\xff\xff\xff\xff\x01\x12,\n" +
+	"\x1fCRC32_channel_readTopicMentions\x10\x99û\xb1\xfd\xff\xff\xff\xff\x01\x120\n" +
+	"#CRC32_channel_unpinAllTopicMessages\x10㠀\xe2\xfa\xff\xff\xff\xff\x01\x12(\n" +
 	"\x1bCRC32_channel_toggleSetting\x10㛋\xc8\xfc\xff\xff\xff\xff\x01\x12+\n" +
 	"#CRC32_channel_setAvailableReactions\x10\xbeٴ\xda\x03\x12(\n" +
 	" CRC32_channel_setDiscussionGroup\x10ǀ\xa5\xc2\x01\x121\n" +
@@ -4599,7 +5951,7 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x19CRC32_channel_editCreator\x10\xb1\xdd\xc1\x9a\x03\x12\x1f\n" +
 	"\x17CRC32_channel_editAdmin\x10\x96\x95\xe4\xdf\x04\x12%\n" +
 	"\x18CRC32_channel_editBanned\x10\xbc\xf2\x85\xc9\xfa\xff\xff\xff\xff\x01\x12-\n" +
-	"%CRC32_channel_editDefaultBannedRights\x10ې\xca\xda\x042\x80\x1a\n" +
+	"%CRC32_channel_editDefaultBannedRights\x10ې\xca\xda\x042\x85#\n" +
 	"\n" +
 	"RPCChannel\x12]\n" +
 	"\x19channel_getMutableChannel\x12%.channel.TL_channel_getMutableChannel\x1a\x17.channel.MutableChannel\"\x00\x12n\n" +
@@ -4623,7 +5975,19 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x15channel_checkUsername\x12!.channel.TL_channel_checkUsername\x1a\r.mtproto.Bool\"\x00\x12M\n" +
 	"\x16channel_updateUsername\x12\".channel.TL_channel_updateUsername\x1a\r.mtproto.Bool\"\x00\x12h\n" +
 	" channel_getAdminedPublicChannels\x12,.channel.TL_channel_getAdminedPublicChannels\x1a\x14.channel.Vector_Long\"\x00\x12N\n" +
-	"\x15channel_deleteChannel\x12!.channel.TL_channel_deleteChannel\x1a\x10.mtproto.Updates\"\x00\x12N\n" +
+	"\x15channel_deleteChannel\x12!.channel.TL_channel_deleteChannel\x1a\x10.mtproto.Updates\"\x00\x12J\n" +
+	"\x13channel_toggleForum\x12\x1f.channel.TL_channel_toggleForum\x1a\x10.mtproto.Updates\"\x00\x12f\n" +
+	"!channel_toggleViewForumAsMessages\x12-.channel.TL_channel_toggleViewForumAsMessages\x1a\x10.mtproto.Updates\"\x00\x12T\n" +
+	"\x18channel_createForumTopic\x12$.channel.TL_channel_createForumTopic\x1a\x10.mtproto.Updates\"\x00\x12P\n" +
+	"\x16channel_editForumTopic\x12\".channel.TL_channel_editForumTopic\x1a\x10.mtproto.Updates\"\x00\x12`\n" +
+	"\x1echannel_updatePinnedForumTopic\x12*.channel.TL_channel_updatePinnedForumTopic\x1a\x10.mtproto.Updates\"\x00\x12d\n" +
+	" channel_reorderPinnedForumTopics\x12,.channel.TL_channel_reorderPinnedForumTopics\x1a\x10.mtproto.Updates\"\x00\x12i\n" +
+	"\x1achannel_deleteTopicHistory\x12&.channel.TL_channel_deleteTopicHistory\x1a!.mtproto.messages_AffectedHistory\"\x00\x12]\n" +
+	"\x16channel_getForumTopics\x12\".channel.TL_channel_getForumTopics\x1a\x1d.mtproto.messages_ForumTopics\"\x00\x12e\n" +
+	"\x1achannel_getForumTopicsByID\x12&.channel.TL_channel_getForumTopicsByID\x1a\x1d.mtproto.messages_ForumTopics\"\x00\x12T\n" +
+	"\x13channel_searchTopic\x12\x1f.channel.TL_channel_searchTopic\x1a\x1a.mtproto.messages_Messages\"\x00\x12g\n" +
+	"\x19channel_readTopicMentions\x12%.channel.TL_channel_readTopicMentions\x1a!.mtproto.messages_AffectedHistory\"\x00\x12o\n" +
+	"\x1dchannel_unpinAllTopicMessages\x12).channel.TL_channel_unpinAllTopicMessages\x1a!.mtproto.messages_AffectedHistory\"\x00\x12N\n" +
 	"\x15channel_toggleSetting\x12!.channel.TL_channel_toggleSetting\x1a\x10.mtproto.Updates\"\x00\x12^\n" +
 	"\x1dchannel_setAvailableReactions\x12).channel.TL_channel_setAvailableReactions\x1a\x10.mtproto.Updates\"\x00\x12U\n" +
 	"\x1achannel_setDiscussionGroup\x12&.channel.TL_channel_setDiscussionGroup\x1a\r.mtproto.Bool\"\x00\x12d\n" +
@@ -4654,7 +6018,7 @@ func file_channel_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_channel_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_channel_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
+var file_channel_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
 var file_channel_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                           // 0: channel.TLConstructor
 	(*ImmutableChannel)(nil),                     // 1: channel.ImmutableChannel
@@ -4701,159 +6065,218 @@ var file_channel_tl_proto_goTypes = []any{
 	(*TLChannelReadDiscussion)(nil),              // 42: channel.TL_channel_readDiscussion
 	(*TLChannelToggleSetting)(nil),               // 43: channel.TL_channel_toggleSetting
 	(*TLChannelSetAvailableReactions)(nil),       // 44: channel.TL_channel_setAvailableReactions
-	(*Vector_Long)(nil),                          // 45: channel.Vector_Long
-	(*Vector_Dialog)(nil),                        // 46: channel.Vector_Dialog
-	(*Vector_Message)(nil),                       // 47: channel.Vector_Message
-	(*Vector_MutableChannel)(nil),                // 48: channel.Vector_MutableChannel
-	(*mtproto.Photo)(nil),                        // 49: mtproto.Photo
-	(*mtproto.Bool)(nil),                         // 50: mtproto.Bool
-	(*mtproto.Dialog)(nil),                       // 51: mtproto.Dialog
-	(*mtproto.Message)(nil),                      // 52: mtproto.Message
-	(*mtproto.Updates)(nil),                      // 53: mtproto.Updates
-	(*mtproto.Messages_Messages)(nil),            // 54: mtproto.messages_Messages
-	(*mtproto.Updates_ChannelDifference)(nil),    // 55: mtproto.updates_ChannelDifference
-	(*mtproto.ChatInvite)(nil),                   // 56: mtproto.ChatInvite
-	(*mtproto.Channels_ChannelParticipants)(nil), // 57: mtproto.channels_ChannelParticipants
-	(*mtproto.Messages_AffectedMessages)(nil),    // 58: mtproto.messages_AffectedMessages
-	(*mtproto.Messages_DiscussionMessage)(nil),   // 59: mtproto.messages_DiscussionMessage
-	(*mtproto.Messages_AffectedHistory)(nil),     // 60: mtproto.messages_AffectedHistory
+	(*TLChannelToggleForum)(nil),                 // 45: channel.TL_channel_toggleForum
+	(*TLChannelToggleViewForumAsMessages)(nil),   // 46: channel.TL_channel_toggleViewForumAsMessages
+	(*TLChannelCreateForumTopic)(nil),            // 47: channel.TL_channel_createForumTopic
+	(*TLChannelEditForumTopic)(nil),              // 48: channel.TL_channel_editForumTopic
+	(*TLChannelUpdatePinnedForumTopic)(nil),      // 49: channel.TL_channel_updatePinnedForumTopic
+	(*TLChannelReorderPinnedForumTopics)(nil),    // 50: channel.TL_channel_reorderPinnedForumTopics
+	(*TLChannelDeleteTopicHistory)(nil),          // 51: channel.TL_channel_deleteTopicHistory
+	(*TLChannelGetForumTopics)(nil),              // 52: channel.TL_channel_getForumTopics
+	(*TLChannelGetForumTopicsByID)(nil),          // 53: channel.TL_channel_getForumTopicsByID
+	(*TLChannelSearchTopic)(nil),                 // 54: channel.TL_channel_searchTopic
+	(*TLChannelReadTopicMentions)(nil),           // 55: channel.TL_channel_readTopicMentions
+	(*TLChannelUnpinAllTopicMessages)(nil),       // 56: channel.TL_channel_unpinAllTopicMessages
+	(*Vector_Long)(nil),                          // 57: channel.Vector_Long
+	(*Vector_Dialog)(nil),                        // 58: channel.Vector_Dialog
+	(*Vector_Message)(nil),                       // 59: channel.Vector_Message
+	(*Vector_MutableChannel)(nil),                // 60: channel.Vector_MutableChannel
+	(*mtproto.Photo)(nil),                        // 61: mtproto.Photo
+	(*mtproto.Bool)(nil),                         // 62: mtproto.Bool
+	(*mtproto.Dialog)(nil),                       // 63: mtproto.Dialog
+	(*mtproto.Message)(nil),                      // 64: mtproto.Message
+	(*mtproto.Updates)(nil),                      // 65: mtproto.Updates
+	(*mtproto.Messages_Messages)(nil),            // 66: mtproto.messages_Messages
+	(*mtproto.Updates_ChannelDifference)(nil),    // 67: mtproto.updates_ChannelDifference
+	(*mtproto.ChatInvite)(nil),                   // 68: mtproto.ChatInvite
+	(*mtproto.Channels_ChannelParticipants)(nil), // 69: mtproto.channels_ChannelParticipants
+	(*mtproto.Messages_AffectedMessages)(nil),    // 70: mtproto.messages_AffectedMessages
+	(*mtproto.Messages_AffectedHistory)(nil),     // 71: mtproto.messages_AffectedHistory
+	(*mtproto.Messages_ForumTopics)(nil),         // 72: mtproto.messages_ForumTopics
+	(*mtproto.Messages_DiscussionMessage)(nil),   // 73: mtproto.messages_DiscussionMessage
 }
 var file_channel_tl_proto_depIdxs = []int32{
-	0,  // 0: channel.ImmutableChannel.constructor:type_name -> channel.TLConstructor
-	49, // 1: channel.ImmutableChannel.photo:type_name -> mtproto.Photo
-	1,  // 2: channel.TL_immutableChannel.data2:type_name -> channel.ImmutableChannel
-	0,  // 3: channel.ImmutableChannelParticipant.constructor:type_name -> channel.TLConstructor
-	3,  // 4: channel.TL_immutableChannelParticipant.data2:type_name -> channel.ImmutableChannelParticipant
-	0,  // 5: channel.MutableChannel.constructor:type_name -> channel.TLConstructor
-	1,  // 6: channel.MutableChannel.channel:type_name -> channel.ImmutableChannel
-	3,  // 7: channel.MutableChannel.participants:type_name -> channel.ImmutableChannelParticipant
-	5,  // 8: channel.TL_mutableChannel.data2:type_name -> channel.MutableChannel
-	0,  // 9: channel.TL_channel_getMutableChannel.constructor:type_name -> channel.TLConstructor
-	0,  // 10: channel.TL_channel_getChannelListByIdList.constructor:type_name -> channel.TLConstructor
-	0,  // 11: channel.TL_channel_createChannel.constructor:type_name -> channel.TLConstructor
-	50, // 12: channel.TL_channel_createChannel.broadcast:type_name -> mtproto.Bool
-	50, // 13: channel.TL_channel_createChannel.megagroup:type_name -> mtproto.Bool
-	0,  // 14: channel.TL_channel_getChannelDialogs.constructor:type_name -> channel.TLConstructor
-	0,  // 15: channel.TL_channel_getTopMessages.constructor:type_name -> channel.TLConstructor
-	0,  // 16: channel.TL_channel_getMemberIdList.constructor:type_name -> channel.TLConstructor
-	0,  // 17: channel.TL_channel_getHistory.constructor:type_name -> channel.TLConstructor
-	0,  // 18: channel.TL_channel_getMessages.constructor:type_name -> channel.TLConstructor
-	0,  // 19: channel.TL_channel_getChannelDifference.constructor:type_name -> channel.TLConstructor
-	0,  // 20: channel.TL_channel_joinChannel.constructor:type_name -> channel.TLConstructor
-	0,  // 21: channel.TL_channel_leaveChannel.constructor:type_name -> channel.TLConstructor
-	0,  // 22: channel.TL_channel_checkChatInvite.constructor:type_name -> channel.TLConstructor
-	0,  // 23: channel.TL_channel_getParticipants.constructor:type_name -> channel.TLConstructor
-	0,  // 24: channel.TL_channel_readHistory.constructor:type_name -> channel.TLConstructor
-	0,  // 25: channel.TL_channel_deleteMessages.constructor:type_name -> channel.TLConstructor
-	0,  // 26: channel.TL_channel_inviteToChannel.constructor:type_name -> channel.TLConstructor
-	0,  // 27: channel.TL_channel_editTitle.constructor:type_name -> channel.TLConstructor
-	0,  // 28: channel.TL_channel_editAbout.constructor:type_name -> channel.TLConstructor
-	0,  // 29: channel.TL_channel_checkUsername.constructor:type_name -> channel.TLConstructor
-	0,  // 30: channel.TL_channel_updateUsername.constructor:type_name -> channel.TLConstructor
-	0,  // 31: channel.TL_channel_getAdminedPublicChannels.constructor:type_name -> channel.TLConstructor
-	0,  // 32: channel.TL_channel_deleteChannel.constructor:type_name -> channel.TLConstructor
-	0,  // 33: channel.TL_channel_editAdmin.constructor:type_name -> channel.TLConstructor
-	50, // 34: channel.TL_channel_editAdmin.keep_rank:type_name -> mtproto.Bool
-	0,  // 35: channel.TL_channel_editBanned.constructor:type_name -> channel.TLConstructor
-	0,  // 36: channel.TL_channel_editDefaultBannedRights.constructor:type_name -> channel.TLConstructor
-	0,  // 37: channel.TL_channel_editCreator.constructor:type_name -> channel.TLConstructor
-	0,  // 38: channel.TL_channel_search.constructor:type_name -> channel.TLConstructor
-	0,  // 39: channel.TL_channel_readMessageContents.constructor:type_name -> channel.TLConstructor
-	0,  // 40: channel.TL_channel_readMentions.constructor:type_name -> channel.TLConstructor
-	0,  // 41: channel.TL_channel_getUnreadMentions.constructor:type_name -> channel.TLConstructor
-	0,  // 42: channel.TL_channel_editPhoto.constructor:type_name -> channel.TLConstructor
-	0,  // 43: channel.TL_channel_setDiscussionGroup.constructor:type_name -> channel.TLConstructor
-	0,  // 44: channel.TL_channel_getGroupsForDiscussion.constructor:type_name -> channel.TLConstructor
-	0,  // 45: channel.TL_channel_getDiscussionMessage.constructor:type_name -> channel.TLConstructor
-	0,  // 46: channel.TL_channel_getReplies.constructor:type_name -> channel.TLConstructor
-	0,  // 47: channel.TL_channel_readDiscussion.constructor:type_name -> channel.TLConstructor
-	0,  // 48: channel.TL_channel_toggleSetting.constructor:type_name -> channel.TLConstructor
-	50, // 49: channel.TL_channel_toggleSetting.enabled:type_name -> mtproto.Bool
-	0,  // 50: channel.TL_channel_setAvailableReactions.constructor:type_name -> channel.TLConstructor
-	51, // 51: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
-	52, // 52: channel.Vector_Message.datas:type_name -> mtproto.Message
-	5,  // 53: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
-	7,  // 54: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
-	8,  // 55: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
-	9,  // 56: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
-	10, // 57: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
-	11, // 58: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
-	12, // 59: channel.RPCChannel.channel_getMemberIdList:input_type -> channel.TL_channel_getMemberIdList
-	13, // 60: channel.RPCChannel.channel_getHistory:input_type -> channel.TL_channel_getHistory
-	14, // 61: channel.RPCChannel.channel_getMessages:input_type -> channel.TL_channel_getMessages
-	15, // 62: channel.RPCChannel.channel_getChannelDifference:input_type -> channel.TL_channel_getChannelDifference
-	16, // 63: channel.RPCChannel.channel_joinChannel:input_type -> channel.TL_channel_joinChannel
-	17, // 64: channel.RPCChannel.channel_leaveChannel:input_type -> channel.TL_channel_leaveChannel
-	18, // 65: channel.RPCChannel.channel_checkChatInvite:input_type -> channel.TL_channel_checkChatInvite
-	19, // 66: channel.RPCChannel.channel_getParticipants:input_type -> channel.TL_channel_getParticipants
-	20, // 67: channel.RPCChannel.channel_readHistory:input_type -> channel.TL_channel_readHistory
-	21, // 68: channel.RPCChannel.channel_deleteMessages:input_type -> channel.TL_channel_deleteMessages
-	22, // 69: channel.RPCChannel.channel_inviteToChannel:input_type -> channel.TL_channel_inviteToChannel
-	23, // 70: channel.RPCChannel.channel_editTitle:input_type -> channel.TL_channel_editTitle
-	24, // 71: channel.RPCChannel.channel_editAbout:input_type -> channel.TL_channel_editAbout
-	25, // 72: channel.RPCChannel.channel_checkUsername:input_type -> channel.TL_channel_checkUsername
-	26, // 73: channel.RPCChannel.channel_updateUsername:input_type -> channel.TL_channel_updateUsername
-	27, // 74: channel.RPCChannel.channel_getAdminedPublicChannels:input_type -> channel.TL_channel_getAdminedPublicChannels
-	28, // 75: channel.RPCChannel.channel_deleteChannel:input_type -> channel.TL_channel_deleteChannel
-	43, // 76: channel.RPCChannel.channel_toggleSetting:input_type -> channel.TL_channel_toggleSetting
-	44, // 77: channel.RPCChannel.channel_setAvailableReactions:input_type -> channel.TL_channel_setAvailableReactions
-	38, // 78: channel.RPCChannel.channel_setDiscussionGroup:input_type -> channel.TL_channel_setDiscussionGroup
-	39, // 79: channel.RPCChannel.channel_getGroupsForDiscussion:input_type -> channel.TL_channel_getGroupsForDiscussion
-	40, // 80: channel.RPCChannel.channel_getDiscussionMessage:input_type -> channel.TL_channel_getDiscussionMessage
-	41, // 81: channel.RPCChannel.channel_getReplies:input_type -> channel.TL_channel_getReplies
-	42, // 82: channel.RPCChannel.channel_readDiscussion:input_type -> channel.TL_channel_readDiscussion
-	37, // 83: channel.RPCChannel.channel_editPhoto:input_type -> channel.TL_channel_editPhoto
-	35, // 84: channel.RPCChannel.channel_readMentions:input_type -> channel.TL_channel_readMentions
-	36, // 85: channel.RPCChannel.channel_getUnreadMentions:input_type -> channel.TL_channel_getUnreadMentions
-	34, // 86: channel.RPCChannel.channel_readMessageContents:input_type -> channel.TL_channel_readMessageContents
-	33, // 87: channel.RPCChannel.channel_search:input_type -> channel.TL_channel_search
-	32, // 88: channel.RPCChannel.channel_editCreator:input_type -> channel.TL_channel_editCreator
-	29, // 89: channel.RPCChannel.channel_editAdmin:input_type -> channel.TL_channel_editAdmin
-	30, // 90: channel.RPCChannel.channel_editBanned:input_type -> channel.TL_channel_editBanned
-	31, // 91: channel.RPCChannel.channel_editDefaultBannedRights:input_type -> channel.TL_channel_editDefaultBannedRights
-	5,  // 92: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
-	48, // 93: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
-	53, // 94: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
-	46, // 95: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
-	47, // 96: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
-	45, // 97: channel.RPCChannel.channel_getMemberIdList:output_type -> channel.Vector_Long
-	54, // 98: channel.RPCChannel.channel_getHistory:output_type -> mtproto.messages_Messages
-	47, // 99: channel.RPCChannel.channel_getMessages:output_type -> channel.Vector_Message
-	55, // 100: channel.RPCChannel.channel_getChannelDifference:output_type -> mtproto.updates_ChannelDifference
-	53, // 101: channel.RPCChannel.channel_joinChannel:output_type -> mtproto.Updates
-	53, // 102: channel.RPCChannel.channel_leaveChannel:output_type -> mtproto.Updates
-	56, // 103: channel.RPCChannel.channel_checkChatInvite:output_type -> mtproto.ChatInvite
-	57, // 104: channel.RPCChannel.channel_getParticipants:output_type -> mtproto.channels_ChannelParticipants
-	50, // 105: channel.RPCChannel.channel_readHistory:output_type -> mtproto.Bool
-	58, // 106: channel.RPCChannel.channel_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	53, // 107: channel.RPCChannel.channel_inviteToChannel:output_type -> mtproto.Updates
-	53, // 108: channel.RPCChannel.channel_editTitle:output_type -> mtproto.Updates
-	50, // 109: channel.RPCChannel.channel_editAbout:output_type -> mtproto.Bool
-	50, // 110: channel.RPCChannel.channel_checkUsername:output_type -> mtproto.Bool
-	50, // 111: channel.RPCChannel.channel_updateUsername:output_type -> mtproto.Bool
-	45, // 112: channel.RPCChannel.channel_getAdminedPublicChannels:output_type -> channel.Vector_Long
-	53, // 113: channel.RPCChannel.channel_deleteChannel:output_type -> mtproto.Updates
-	53, // 114: channel.RPCChannel.channel_toggleSetting:output_type -> mtproto.Updates
-	53, // 115: channel.RPCChannel.channel_setAvailableReactions:output_type -> mtproto.Updates
-	50, // 116: channel.RPCChannel.channel_setDiscussionGroup:output_type -> mtproto.Bool
-	45, // 117: channel.RPCChannel.channel_getGroupsForDiscussion:output_type -> channel.Vector_Long
-	59, // 118: channel.RPCChannel.channel_getDiscussionMessage:output_type -> mtproto.messages_DiscussionMessage
-	54, // 119: channel.RPCChannel.channel_getReplies:output_type -> mtproto.messages_Messages
-	50, // 120: channel.RPCChannel.channel_readDiscussion:output_type -> mtproto.Bool
-	53, // 121: channel.RPCChannel.channel_editPhoto:output_type -> mtproto.Updates
-	60, // 122: channel.RPCChannel.channel_readMentions:output_type -> mtproto.messages_AffectedHistory
-	54, // 123: channel.RPCChannel.channel_getUnreadMentions:output_type -> mtproto.messages_Messages
-	50, // 124: channel.RPCChannel.channel_readMessageContents:output_type -> mtproto.Bool
-	54, // 125: channel.RPCChannel.channel_search:output_type -> mtproto.messages_Messages
-	53, // 126: channel.RPCChannel.channel_editCreator:output_type -> mtproto.Updates
-	53, // 127: channel.RPCChannel.channel_editAdmin:output_type -> mtproto.Updates
-	53, // 128: channel.RPCChannel.channel_editBanned:output_type -> mtproto.Updates
-	53, // 129: channel.RPCChannel.channel_editDefaultBannedRights:output_type -> mtproto.Updates
-	92, // [92:130] is the sub-list for method output_type
-	54, // [54:92] is the sub-list for method input_type
-	54, // [54:54] is the sub-list for extension type_name
-	54, // [54:54] is the sub-list for extension extendee
-	0,  // [0:54] is the sub-list for field type_name
+	0,   // 0: channel.ImmutableChannel.constructor:type_name -> channel.TLConstructor
+	61,  // 1: channel.ImmutableChannel.photo:type_name -> mtproto.Photo
+	1,   // 2: channel.TL_immutableChannel.data2:type_name -> channel.ImmutableChannel
+	0,   // 3: channel.ImmutableChannelParticipant.constructor:type_name -> channel.TLConstructor
+	3,   // 4: channel.TL_immutableChannelParticipant.data2:type_name -> channel.ImmutableChannelParticipant
+	0,   // 5: channel.MutableChannel.constructor:type_name -> channel.TLConstructor
+	1,   // 6: channel.MutableChannel.channel:type_name -> channel.ImmutableChannel
+	3,   // 7: channel.MutableChannel.participants:type_name -> channel.ImmutableChannelParticipant
+	5,   // 8: channel.TL_mutableChannel.data2:type_name -> channel.MutableChannel
+	0,   // 9: channel.TL_channel_getMutableChannel.constructor:type_name -> channel.TLConstructor
+	0,   // 10: channel.TL_channel_getChannelListByIdList.constructor:type_name -> channel.TLConstructor
+	0,   // 11: channel.TL_channel_createChannel.constructor:type_name -> channel.TLConstructor
+	62,  // 12: channel.TL_channel_createChannel.broadcast:type_name -> mtproto.Bool
+	62,  // 13: channel.TL_channel_createChannel.megagroup:type_name -> mtproto.Bool
+	62,  // 14: channel.TL_channel_createChannel.forum:type_name -> mtproto.Bool
+	0,   // 15: channel.TL_channel_getChannelDialogs.constructor:type_name -> channel.TLConstructor
+	0,   // 16: channel.TL_channel_getTopMessages.constructor:type_name -> channel.TLConstructor
+	0,   // 17: channel.TL_channel_getMemberIdList.constructor:type_name -> channel.TLConstructor
+	0,   // 18: channel.TL_channel_getHistory.constructor:type_name -> channel.TLConstructor
+	0,   // 19: channel.TL_channel_getMessages.constructor:type_name -> channel.TLConstructor
+	0,   // 20: channel.TL_channel_getChannelDifference.constructor:type_name -> channel.TLConstructor
+	0,   // 21: channel.TL_channel_joinChannel.constructor:type_name -> channel.TLConstructor
+	0,   // 22: channel.TL_channel_leaveChannel.constructor:type_name -> channel.TLConstructor
+	0,   // 23: channel.TL_channel_checkChatInvite.constructor:type_name -> channel.TLConstructor
+	0,   // 24: channel.TL_channel_getParticipants.constructor:type_name -> channel.TLConstructor
+	0,   // 25: channel.TL_channel_readHistory.constructor:type_name -> channel.TLConstructor
+	0,   // 26: channel.TL_channel_deleteMessages.constructor:type_name -> channel.TLConstructor
+	0,   // 27: channel.TL_channel_inviteToChannel.constructor:type_name -> channel.TLConstructor
+	0,   // 28: channel.TL_channel_editTitle.constructor:type_name -> channel.TLConstructor
+	0,   // 29: channel.TL_channel_editAbout.constructor:type_name -> channel.TLConstructor
+	0,   // 30: channel.TL_channel_checkUsername.constructor:type_name -> channel.TLConstructor
+	0,   // 31: channel.TL_channel_updateUsername.constructor:type_name -> channel.TLConstructor
+	0,   // 32: channel.TL_channel_getAdminedPublicChannels.constructor:type_name -> channel.TLConstructor
+	0,   // 33: channel.TL_channel_deleteChannel.constructor:type_name -> channel.TLConstructor
+	0,   // 34: channel.TL_channel_editAdmin.constructor:type_name -> channel.TLConstructor
+	62,  // 35: channel.TL_channel_editAdmin.keep_rank:type_name -> mtproto.Bool
+	0,   // 36: channel.TL_channel_editBanned.constructor:type_name -> channel.TLConstructor
+	0,   // 37: channel.TL_channel_editDefaultBannedRights.constructor:type_name -> channel.TLConstructor
+	0,   // 38: channel.TL_channel_editCreator.constructor:type_name -> channel.TLConstructor
+	0,   // 39: channel.TL_channel_search.constructor:type_name -> channel.TLConstructor
+	0,   // 40: channel.TL_channel_readMessageContents.constructor:type_name -> channel.TLConstructor
+	0,   // 41: channel.TL_channel_readMentions.constructor:type_name -> channel.TLConstructor
+	0,   // 42: channel.TL_channel_getUnreadMentions.constructor:type_name -> channel.TLConstructor
+	0,   // 43: channel.TL_channel_editPhoto.constructor:type_name -> channel.TLConstructor
+	0,   // 44: channel.TL_channel_setDiscussionGroup.constructor:type_name -> channel.TLConstructor
+	0,   // 45: channel.TL_channel_getGroupsForDiscussion.constructor:type_name -> channel.TLConstructor
+	0,   // 46: channel.TL_channel_getDiscussionMessage.constructor:type_name -> channel.TLConstructor
+	0,   // 47: channel.TL_channel_getReplies.constructor:type_name -> channel.TLConstructor
+	0,   // 48: channel.TL_channel_readDiscussion.constructor:type_name -> channel.TLConstructor
+	0,   // 49: channel.TL_channel_toggleSetting.constructor:type_name -> channel.TLConstructor
+	62,  // 50: channel.TL_channel_toggleSetting.enabled:type_name -> mtproto.Bool
+	0,   // 51: channel.TL_channel_setAvailableReactions.constructor:type_name -> channel.TLConstructor
+	0,   // 52: channel.TL_channel_toggleForum.constructor:type_name -> channel.TLConstructor
+	62,  // 53: channel.TL_channel_toggleForum.enabled:type_name -> mtproto.Bool
+	62,  // 54: channel.TL_channel_toggleForum.tabs:type_name -> mtproto.Bool
+	0,   // 55: channel.TL_channel_toggleViewForumAsMessages.constructor:type_name -> channel.TLConstructor
+	62,  // 56: channel.TL_channel_toggleViewForumAsMessages.enabled:type_name -> mtproto.Bool
+	0,   // 57: channel.TL_channel_createForumTopic.constructor:type_name -> channel.TLConstructor
+	62,  // 58: channel.TL_channel_createForumTopic.title_missing:type_name -> mtproto.Bool
+	0,   // 59: channel.TL_channel_editForumTopic.constructor:type_name -> channel.TLConstructor
+	62,  // 60: channel.TL_channel_editForumTopic.closed:type_name -> mtproto.Bool
+	62,  // 61: channel.TL_channel_editForumTopic.hidden:type_name -> mtproto.Bool
+	0,   // 62: channel.TL_channel_updatePinnedForumTopic.constructor:type_name -> channel.TLConstructor
+	62,  // 63: channel.TL_channel_updatePinnedForumTopic.pinned:type_name -> mtproto.Bool
+	0,   // 64: channel.TL_channel_reorderPinnedForumTopics.constructor:type_name -> channel.TLConstructor
+	62,  // 65: channel.TL_channel_reorderPinnedForumTopics.force:type_name -> mtproto.Bool
+	0,   // 66: channel.TL_channel_deleteTopicHistory.constructor:type_name -> channel.TLConstructor
+	0,   // 67: channel.TL_channel_getForumTopics.constructor:type_name -> channel.TLConstructor
+	0,   // 68: channel.TL_channel_getForumTopicsByID.constructor:type_name -> channel.TLConstructor
+	0,   // 69: channel.TL_channel_searchTopic.constructor:type_name -> channel.TLConstructor
+	62,  // 70: channel.TL_channel_searchTopic.unread_mentions:type_name -> mtproto.Bool
+	0,   // 71: channel.TL_channel_readTopicMentions.constructor:type_name -> channel.TLConstructor
+	0,   // 72: channel.TL_channel_unpinAllTopicMessages.constructor:type_name -> channel.TLConstructor
+	63,  // 73: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
+	64,  // 74: channel.Vector_Message.datas:type_name -> mtproto.Message
+	5,   // 75: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
+	7,   // 76: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
+	8,   // 77: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
+	9,   // 78: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
+	10,  // 79: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
+	11,  // 80: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
+	12,  // 81: channel.RPCChannel.channel_getMemberIdList:input_type -> channel.TL_channel_getMemberIdList
+	13,  // 82: channel.RPCChannel.channel_getHistory:input_type -> channel.TL_channel_getHistory
+	14,  // 83: channel.RPCChannel.channel_getMessages:input_type -> channel.TL_channel_getMessages
+	15,  // 84: channel.RPCChannel.channel_getChannelDifference:input_type -> channel.TL_channel_getChannelDifference
+	16,  // 85: channel.RPCChannel.channel_joinChannel:input_type -> channel.TL_channel_joinChannel
+	17,  // 86: channel.RPCChannel.channel_leaveChannel:input_type -> channel.TL_channel_leaveChannel
+	18,  // 87: channel.RPCChannel.channel_checkChatInvite:input_type -> channel.TL_channel_checkChatInvite
+	19,  // 88: channel.RPCChannel.channel_getParticipants:input_type -> channel.TL_channel_getParticipants
+	20,  // 89: channel.RPCChannel.channel_readHistory:input_type -> channel.TL_channel_readHistory
+	21,  // 90: channel.RPCChannel.channel_deleteMessages:input_type -> channel.TL_channel_deleteMessages
+	22,  // 91: channel.RPCChannel.channel_inviteToChannel:input_type -> channel.TL_channel_inviteToChannel
+	23,  // 92: channel.RPCChannel.channel_editTitle:input_type -> channel.TL_channel_editTitle
+	24,  // 93: channel.RPCChannel.channel_editAbout:input_type -> channel.TL_channel_editAbout
+	25,  // 94: channel.RPCChannel.channel_checkUsername:input_type -> channel.TL_channel_checkUsername
+	26,  // 95: channel.RPCChannel.channel_updateUsername:input_type -> channel.TL_channel_updateUsername
+	27,  // 96: channel.RPCChannel.channel_getAdminedPublicChannels:input_type -> channel.TL_channel_getAdminedPublicChannels
+	28,  // 97: channel.RPCChannel.channel_deleteChannel:input_type -> channel.TL_channel_deleteChannel
+	45,  // 98: channel.RPCChannel.channel_toggleForum:input_type -> channel.TL_channel_toggleForum
+	46,  // 99: channel.RPCChannel.channel_toggleViewForumAsMessages:input_type -> channel.TL_channel_toggleViewForumAsMessages
+	47,  // 100: channel.RPCChannel.channel_createForumTopic:input_type -> channel.TL_channel_createForumTopic
+	48,  // 101: channel.RPCChannel.channel_editForumTopic:input_type -> channel.TL_channel_editForumTopic
+	49,  // 102: channel.RPCChannel.channel_updatePinnedForumTopic:input_type -> channel.TL_channel_updatePinnedForumTopic
+	50,  // 103: channel.RPCChannel.channel_reorderPinnedForumTopics:input_type -> channel.TL_channel_reorderPinnedForumTopics
+	51,  // 104: channel.RPCChannel.channel_deleteTopicHistory:input_type -> channel.TL_channel_deleteTopicHistory
+	52,  // 105: channel.RPCChannel.channel_getForumTopics:input_type -> channel.TL_channel_getForumTopics
+	53,  // 106: channel.RPCChannel.channel_getForumTopicsByID:input_type -> channel.TL_channel_getForumTopicsByID
+	54,  // 107: channel.RPCChannel.channel_searchTopic:input_type -> channel.TL_channel_searchTopic
+	55,  // 108: channel.RPCChannel.channel_readTopicMentions:input_type -> channel.TL_channel_readTopicMentions
+	56,  // 109: channel.RPCChannel.channel_unpinAllTopicMessages:input_type -> channel.TL_channel_unpinAllTopicMessages
+	43,  // 110: channel.RPCChannel.channel_toggleSetting:input_type -> channel.TL_channel_toggleSetting
+	44,  // 111: channel.RPCChannel.channel_setAvailableReactions:input_type -> channel.TL_channel_setAvailableReactions
+	38,  // 112: channel.RPCChannel.channel_setDiscussionGroup:input_type -> channel.TL_channel_setDiscussionGroup
+	39,  // 113: channel.RPCChannel.channel_getGroupsForDiscussion:input_type -> channel.TL_channel_getGroupsForDiscussion
+	40,  // 114: channel.RPCChannel.channel_getDiscussionMessage:input_type -> channel.TL_channel_getDiscussionMessage
+	41,  // 115: channel.RPCChannel.channel_getReplies:input_type -> channel.TL_channel_getReplies
+	42,  // 116: channel.RPCChannel.channel_readDiscussion:input_type -> channel.TL_channel_readDiscussion
+	37,  // 117: channel.RPCChannel.channel_editPhoto:input_type -> channel.TL_channel_editPhoto
+	35,  // 118: channel.RPCChannel.channel_readMentions:input_type -> channel.TL_channel_readMentions
+	36,  // 119: channel.RPCChannel.channel_getUnreadMentions:input_type -> channel.TL_channel_getUnreadMentions
+	34,  // 120: channel.RPCChannel.channel_readMessageContents:input_type -> channel.TL_channel_readMessageContents
+	33,  // 121: channel.RPCChannel.channel_search:input_type -> channel.TL_channel_search
+	32,  // 122: channel.RPCChannel.channel_editCreator:input_type -> channel.TL_channel_editCreator
+	29,  // 123: channel.RPCChannel.channel_editAdmin:input_type -> channel.TL_channel_editAdmin
+	30,  // 124: channel.RPCChannel.channel_editBanned:input_type -> channel.TL_channel_editBanned
+	31,  // 125: channel.RPCChannel.channel_editDefaultBannedRights:input_type -> channel.TL_channel_editDefaultBannedRights
+	5,   // 126: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
+	60,  // 127: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
+	65,  // 128: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
+	58,  // 129: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
+	59,  // 130: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
+	57,  // 131: channel.RPCChannel.channel_getMemberIdList:output_type -> channel.Vector_Long
+	66,  // 132: channel.RPCChannel.channel_getHistory:output_type -> mtproto.messages_Messages
+	59,  // 133: channel.RPCChannel.channel_getMessages:output_type -> channel.Vector_Message
+	67,  // 134: channel.RPCChannel.channel_getChannelDifference:output_type -> mtproto.updates_ChannelDifference
+	65,  // 135: channel.RPCChannel.channel_joinChannel:output_type -> mtproto.Updates
+	65,  // 136: channel.RPCChannel.channel_leaveChannel:output_type -> mtproto.Updates
+	68,  // 137: channel.RPCChannel.channel_checkChatInvite:output_type -> mtproto.ChatInvite
+	69,  // 138: channel.RPCChannel.channel_getParticipants:output_type -> mtproto.channels_ChannelParticipants
+	62,  // 139: channel.RPCChannel.channel_readHistory:output_type -> mtproto.Bool
+	70,  // 140: channel.RPCChannel.channel_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	65,  // 141: channel.RPCChannel.channel_inviteToChannel:output_type -> mtproto.Updates
+	65,  // 142: channel.RPCChannel.channel_editTitle:output_type -> mtproto.Updates
+	62,  // 143: channel.RPCChannel.channel_editAbout:output_type -> mtproto.Bool
+	62,  // 144: channel.RPCChannel.channel_checkUsername:output_type -> mtproto.Bool
+	62,  // 145: channel.RPCChannel.channel_updateUsername:output_type -> mtproto.Bool
+	57,  // 146: channel.RPCChannel.channel_getAdminedPublicChannels:output_type -> channel.Vector_Long
+	65,  // 147: channel.RPCChannel.channel_deleteChannel:output_type -> mtproto.Updates
+	65,  // 148: channel.RPCChannel.channel_toggleForum:output_type -> mtproto.Updates
+	65,  // 149: channel.RPCChannel.channel_toggleViewForumAsMessages:output_type -> mtproto.Updates
+	65,  // 150: channel.RPCChannel.channel_createForumTopic:output_type -> mtproto.Updates
+	65,  // 151: channel.RPCChannel.channel_editForumTopic:output_type -> mtproto.Updates
+	65,  // 152: channel.RPCChannel.channel_updatePinnedForumTopic:output_type -> mtproto.Updates
+	65,  // 153: channel.RPCChannel.channel_reorderPinnedForumTopics:output_type -> mtproto.Updates
+	71,  // 154: channel.RPCChannel.channel_deleteTopicHistory:output_type -> mtproto.messages_AffectedHistory
+	72,  // 155: channel.RPCChannel.channel_getForumTopics:output_type -> mtproto.messages_ForumTopics
+	72,  // 156: channel.RPCChannel.channel_getForumTopicsByID:output_type -> mtproto.messages_ForumTopics
+	66,  // 157: channel.RPCChannel.channel_searchTopic:output_type -> mtproto.messages_Messages
+	71,  // 158: channel.RPCChannel.channel_readTopicMentions:output_type -> mtproto.messages_AffectedHistory
+	71,  // 159: channel.RPCChannel.channel_unpinAllTopicMessages:output_type -> mtproto.messages_AffectedHistory
+	65,  // 160: channel.RPCChannel.channel_toggleSetting:output_type -> mtproto.Updates
+	65,  // 161: channel.RPCChannel.channel_setAvailableReactions:output_type -> mtproto.Updates
+	62,  // 162: channel.RPCChannel.channel_setDiscussionGroup:output_type -> mtproto.Bool
+	57,  // 163: channel.RPCChannel.channel_getGroupsForDiscussion:output_type -> channel.Vector_Long
+	73,  // 164: channel.RPCChannel.channel_getDiscussionMessage:output_type -> mtproto.messages_DiscussionMessage
+	66,  // 165: channel.RPCChannel.channel_getReplies:output_type -> mtproto.messages_Messages
+	62,  // 166: channel.RPCChannel.channel_readDiscussion:output_type -> mtproto.Bool
+	65,  // 167: channel.RPCChannel.channel_editPhoto:output_type -> mtproto.Updates
+	71,  // 168: channel.RPCChannel.channel_readMentions:output_type -> mtproto.messages_AffectedHistory
+	66,  // 169: channel.RPCChannel.channel_getUnreadMentions:output_type -> mtproto.messages_Messages
+	62,  // 170: channel.RPCChannel.channel_readMessageContents:output_type -> mtproto.Bool
+	66,  // 171: channel.RPCChannel.channel_search:output_type -> mtproto.messages_Messages
+	65,  // 172: channel.RPCChannel.channel_editCreator:output_type -> mtproto.Updates
+	65,  // 173: channel.RPCChannel.channel_editAdmin:output_type -> mtproto.Updates
+	65,  // 174: channel.RPCChannel.channel_editBanned:output_type -> mtproto.Updates
+	65,  // 175: channel.RPCChannel.channel_editDefaultBannedRights:output_type -> mtproto.Updates
+	126, // [126:176] is the sub-list for method output_type
+	76,  // [76:126] is the sub-list for method input_type
+	76,  // [76:76] is the sub-list for extension type_name
+	76,  // [76:76] is the sub-list for extension extendee
+	0,   // [0:76] is the sub-list for field type_name
 }
 
 func init() { file_channel_tl_proto_init() }
@@ -4867,7 +6290,7 @@ func file_channel_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_channel_tl_proto_rawDesc), len(file_channel_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   48,
+			NumMessages:   60,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

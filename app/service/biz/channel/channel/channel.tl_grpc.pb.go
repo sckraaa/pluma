@@ -36,44 +36,56 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RPCChannel_ChannelGetMutableChannel_FullMethodName        = "/channel.RPCChannel/channel_getMutableChannel"
-	RPCChannel_ChannelGetChannelListByIdList_FullMethodName   = "/channel.RPCChannel/channel_getChannelListByIdList"
-	RPCChannel_ChannelCreateChannel_FullMethodName            = "/channel.RPCChannel/channel_createChannel"
-	RPCChannel_ChannelGetChannelDialogs_FullMethodName        = "/channel.RPCChannel/channel_getChannelDialogs"
-	RPCChannel_ChannelGetTopMessages_FullMethodName           = "/channel.RPCChannel/channel_getTopMessages"
-	RPCChannel_ChannelGetMemberIdList_FullMethodName          = "/channel.RPCChannel/channel_getMemberIdList"
-	RPCChannel_ChannelGetHistory_FullMethodName               = "/channel.RPCChannel/channel_getHistory"
-	RPCChannel_ChannelGetMessages_FullMethodName              = "/channel.RPCChannel/channel_getMessages"
-	RPCChannel_ChannelGetChannelDifference_FullMethodName     = "/channel.RPCChannel/channel_getChannelDifference"
-	RPCChannel_ChannelJoinChannel_FullMethodName              = "/channel.RPCChannel/channel_joinChannel"
-	RPCChannel_ChannelLeaveChannel_FullMethodName             = "/channel.RPCChannel/channel_leaveChannel"
-	RPCChannel_ChannelCheckChatInvite_FullMethodName          = "/channel.RPCChannel/channel_checkChatInvite"
-	RPCChannel_ChannelGetParticipants_FullMethodName          = "/channel.RPCChannel/channel_getParticipants"
-	RPCChannel_ChannelReadHistory_FullMethodName              = "/channel.RPCChannel/channel_readHistory"
-	RPCChannel_ChannelDeleteMessages_FullMethodName           = "/channel.RPCChannel/channel_deleteMessages"
-	RPCChannel_ChannelInviteToChannel_FullMethodName          = "/channel.RPCChannel/channel_inviteToChannel"
-	RPCChannel_ChannelEditTitle_FullMethodName                = "/channel.RPCChannel/channel_editTitle"
-	RPCChannel_ChannelEditAbout_FullMethodName                = "/channel.RPCChannel/channel_editAbout"
-	RPCChannel_ChannelCheckUsername_FullMethodName            = "/channel.RPCChannel/channel_checkUsername"
-	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
-	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
-	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
-	RPCChannel_ChannelToggleSetting_FullMethodName            = "/channel.RPCChannel/channel_toggleSetting"
-	RPCChannel_ChannelSetAvailableReactions_FullMethodName    = "/channel.RPCChannel/channel_setAvailableReactions"
-	RPCChannel_ChannelSetDiscussionGroup_FullMethodName       = "/channel.RPCChannel/channel_setDiscussionGroup"
-	RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName   = "/channel.RPCChannel/channel_getGroupsForDiscussion"
-	RPCChannel_ChannelGetDiscussionMessage_FullMethodName     = "/channel.RPCChannel/channel_getDiscussionMessage"
-	RPCChannel_ChannelGetReplies_FullMethodName               = "/channel.RPCChannel/channel_getReplies"
-	RPCChannel_ChannelReadDiscussion_FullMethodName           = "/channel.RPCChannel/channel_readDiscussion"
-	RPCChannel_ChannelEditPhoto_FullMethodName                = "/channel.RPCChannel/channel_editPhoto"
-	RPCChannel_ChannelReadMentions_FullMethodName             = "/channel.RPCChannel/channel_readMentions"
-	RPCChannel_ChannelGetUnreadMentions_FullMethodName        = "/channel.RPCChannel/channel_getUnreadMentions"
-	RPCChannel_ChannelReadMessageContents_FullMethodName      = "/channel.RPCChannel/channel_readMessageContents"
-	RPCChannel_ChannelSearch_FullMethodName                   = "/channel.RPCChannel/channel_search"
-	RPCChannel_ChannelEditCreator_FullMethodName              = "/channel.RPCChannel/channel_editCreator"
-	RPCChannel_ChannelEditAdmin_FullMethodName                = "/channel.RPCChannel/channel_editAdmin"
-	RPCChannel_ChannelEditBanned_FullMethodName               = "/channel.RPCChannel/channel_editBanned"
-	RPCChannel_ChannelEditDefaultBannedRights_FullMethodName  = "/channel.RPCChannel/channel_editDefaultBannedRights"
+	RPCChannel_ChannelGetMutableChannel_FullMethodName         = "/channel.RPCChannel/channel_getMutableChannel"
+	RPCChannel_ChannelGetChannelListByIdList_FullMethodName    = "/channel.RPCChannel/channel_getChannelListByIdList"
+	RPCChannel_ChannelCreateChannel_FullMethodName             = "/channel.RPCChannel/channel_createChannel"
+	RPCChannel_ChannelGetChannelDialogs_FullMethodName         = "/channel.RPCChannel/channel_getChannelDialogs"
+	RPCChannel_ChannelGetTopMessages_FullMethodName            = "/channel.RPCChannel/channel_getTopMessages"
+	RPCChannel_ChannelGetMemberIdList_FullMethodName           = "/channel.RPCChannel/channel_getMemberIdList"
+	RPCChannel_ChannelGetHistory_FullMethodName                = "/channel.RPCChannel/channel_getHistory"
+	RPCChannel_ChannelGetMessages_FullMethodName               = "/channel.RPCChannel/channel_getMessages"
+	RPCChannel_ChannelGetChannelDifference_FullMethodName      = "/channel.RPCChannel/channel_getChannelDifference"
+	RPCChannel_ChannelJoinChannel_FullMethodName               = "/channel.RPCChannel/channel_joinChannel"
+	RPCChannel_ChannelLeaveChannel_FullMethodName              = "/channel.RPCChannel/channel_leaveChannel"
+	RPCChannel_ChannelCheckChatInvite_FullMethodName           = "/channel.RPCChannel/channel_checkChatInvite"
+	RPCChannel_ChannelGetParticipants_FullMethodName           = "/channel.RPCChannel/channel_getParticipants"
+	RPCChannel_ChannelReadHistory_FullMethodName               = "/channel.RPCChannel/channel_readHistory"
+	RPCChannel_ChannelDeleteMessages_FullMethodName            = "/channel.RPCChannel/channel_deleteMessages"
+	RPCChannel_ChannelInviteToChannel_FullMethodName           = "/channel.RPCChannel/channel_inviteToChannel"
+	RPCChannel_ChannelEditTitle_FullMethodName                 = "/channel.RPCChannel/channel_editTitle"
+	RPCChannel_ChannelEditAbout_FullMethodName                 = "/channel.RPCChannel/channel_editAbout"
+	RPCChannel_ChannelCheckUsername_FullMethodName             = "/channel.RPCChannel/channel_checkUsername"
+	RPCChannel_ChannelUpdateUsername_FullMethodName            = "/channel.RPCChannel/channel_updateUsername"
+	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName  = "/channel.RPCChannel/channel_getAdminedPublicChannels"
+	RPCChannel_ChannelDeleteChannel_FullMethodName             = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelToggleForum_FullMethodName               = "/channel.RPCChannel/channel_toggleForum"
+	RPCChannel_ChannelToggleViewForumAsMessages_FullMethodName = "/channel.RPCChannel/channel_toggleViewForumAsMessages"
+	RPCChannel_ChannelCreateForumTopic_FullMethodName          = "/channel.RPCChannel/channel_createForumTopic"
+	RPCChannel_ChannelEditForumTopic_FullMethodName            = "/channel.RPCChannel/channel_editForumTopic"
+	RPCChannel_ChannelUpdatePinnedForumTopic_FullMethodName    = "/channel.RPCChannel/channel_updatePinnedForumTopic"
+	RPCChannel_ChannelReorderPinnedForumTopics_FullMethodName  = "/channel.RPCChannel/channel_reorderPinnedForumTopics"
+	RPCChannel_ChannelDeleteTopicHistory_FullMethodName        = "/channel.RPCChannel/channel_deleteTopicHistory"
+	RPCChannel_ChannelGetForumTopics_FullMethodName            = "/channel.RPCChannel/channel_getForumTopics"
+	RPCChannel_ChannelGetForumTopicsByID_FullMethodName        = "/channel.RPCChannel/channel_getForumTopicsByID"
+	RPCChannel_ChannelSearchTopic_FullMethodName               = "/channel.RPCChannel/channel_searchTopic"
+	RPCChannel_ChannelReadTopicMentions_FullMethodName         = "/channel.RPCChannel/channel_readTopicMentions"
+	RPCChannel_ChannelUnpinAllTopicMessages_FullMethodName     = "/channel.RPCChannel/channel_unpinAllTopicMessages"
+	RPCChannel_ChannelToggleSetting_FullMethodName             = "/channel.RPCChannel/channel_toggleSetting"
+	RPCChannel_ChannelSetAvailableReactions_FullMethodName     = "/channel.RPCChannel/channel_setAvailableReactions"
+	RPCChannel_ChannelSetDiscussionGroup_FullMethodName        = "/channel.RPCChannel/channel_setDiscussionGroup"
+	RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName    = "/channel.RPCChannel/channel_getGroupsForDiscussion"
+	RPCChannel_ChannelGetDiscussionMessage_FullMethodName      = "/channel.RPCChannel/channel_getDiscussionMessage"
+	RPCChannel_ChannelGetReplies_FullMethodName                = "/channel.RPCChannel/channel_getReplies"
+	RPCChannel_ChannelReadDiscussion_FullMethodName            = "/channel.RPCChannel/channel_readDiscussion"
+	RPCChannel_ChannelEditPhoto_FullMethodName                 = "/channel.RPCChannel/channel_editPhoto"
+	RPCChannel_ChannelReadMentions_FullMethodName              = "/channel.RPCChannel/channel_readMentions"
+	RPCChannel_ChannelGetUnreadMentions_FullMethodName         = "/channel.RPCChannel/channel_getUnreadMentions"
+	RPCChannel_ChannelReadMessageContents_FullMethodName       = "/channel.RPCChannel/channel_readMessageContents"
+	RPCChannel_ChannelSearch_FullMethodName                    = "/channel.RPCChannel/channel_search"
+	RPCChannel_ChannelEditCreator_FullMethodName               = "/channel.RPCChannel/channel_editCreator"
+	RPCChannel_ChannelEditAdmin_FullMethodName                 = "/channel.RPCChannel/channel_editAdmin"
+	RPCChannel_ChannelEditBanned_FullMethodName                = "/channel.RPCChannel/channel_editBanned"
+	RPCChannel_ChannelEditDefaultBannedRights_FullMethodName   = "/channel.RPCChannel/channel_editDefaultBannedRights"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -122,6 +134,30 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelToggleForum(ctx context.Context, in *TLChannelToggleForum, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelToggleViewForumAsMessages(ctx context.Context, in *TLChannelToggleViewForumAsMessages, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelCreateForumTopic(ctx context.Context, in *TLChannelCreateForumTopic, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelEditForumTopic(ctx context.Context, in *TLChannelEditForumTopic, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelUpdatePinnedForumTopic(ctx context.Context, in *TLChannelUpdatePinnedForumTopic, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelReorderPinnedForumTopics(ctx context.Context, in *TLChannelReorderPinnedForumTopics, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelDeleteTopicHistory(ctx context.Context, in *TLChannelDeleteTopicHistory, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 060
+	ChannelGetForumTopics(ctx context.Context, in *TLChannelGetForumTopics, opts ...grpc.CallOption) (*mtproto.Messages_ForumTopics, error)
+	// pluma: task 060
+	ChannelGetForumTopicsByID(ctx context.Context, in *TLChannelGetForumTopicsByID, opts ...grpc.CallOption) (*mtproto.Messages_ForumTopics, error)
+	// pluma: task 060
+	ChannelSearchTopic(ctx context.Context, in *TLChannelSearchTopic, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
+	// pluma: task 060
+	ChannelReadTopicMentions(ctx context.Context, in *TLChannelReadTopicMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 060
+	ChannelUnpinAllTopicMessages(ctx context.Context, in *TLChannelUnpinAllTopicMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 044
 	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -384,6 +420,126 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelToggleForum(ctx context.Context, in *TLChannelToggleForum, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelToggleForum_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelToggleViewForumAsMessages(ctx context.Context, in *TLChannelToggleViewForumAsMessages, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelToggleViewForumAsMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelCreateForumTopic(ctx context.Context, in *TLChannelCreateForumTopic, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelCreateForumTopic_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelEditForumTopic(ctx context.Context, in *TLChannelEditForumTopic, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelEditForumTopic_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelUpdatePinnedForumTopic(ctx context.Context, in *TLChannelUpdatePinnedForumTopic, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelUpdatePinnedForumTopic_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelReorderPinnedForumTopics(ctx context.Context, in *TLChannelReorderPinnedForumTopics, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelReorderPinnedForumTopics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelDeleteTopicHistory(ctx context.Context, in *TLChannelDeleteTopicHistory, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteTopicHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetForumTopics(ctx context.Context, in *TLChannelGetForumTopics, opts ...grpc.CallOption) (*mtproto.Messages_ForumTopics, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_ForumTopics)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetForumTopics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetForumTopicsByID(ctx context.Context, in *TLChannelGetForumTopicsByID, opts ...grpc.CallOption) (*mtproto.Messages_ForumTopics, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_ForumTopics)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetForumTopicsByID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSearchTopic(ctx context.Context, in *TLChannelSearchTopic, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSearchTopic_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelReadTopicMentions(ctx context.Context, in *TLChannelReadTopicMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelReadTopicMentions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelUnpinAllTopicMessages(ctx context.Context, in *TLChannelUnpinAllTopicMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelUnpinAllTopicMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -590,6 +746,30 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelToggleViewForumAsMessages(context.Context, *TLChannelToggleViewForumAsMessages) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelCreateForumTopic(context.Context, *TLChannelCreateForumTopic) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelEditForumTopic(context.Context, *TLChannelEditForumTopic) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelUpdatePinnedForumTopic(context.Context, *TLChannelUpdatePinnedForumTopic) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelReorderPinnedForumTopics(context.Context, *TLChannelReorderPinnedForumTopics) (*mtproto.Updates, error)
+	// pluma: task 060
+	ChannelDeleteTopicHistory(context.Context, *TLChannelDeleteTopicHistory) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 060
+	ChannelGetForumTopics(context.Context, *TLChannelGetForumTopics) (*mtproto.Messages_ForumTopics, error)
+	// pluma: task 060
+	ChannelGetForumTopicsByID(context.Context, *TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error)
+	// pluma: task 060
+	ChannelSearchTopic(context.Context, *TLChannelSearchTopic) (*mtproto.Messages_Messages, error)
+	// pluma: task 060
+	ChannelReadTopicMentions(context.Context, *TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 060
+	ChannelUnpinAllTopicMessages(context.Context, *TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 044
 	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -696,6 +876,42 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleForum not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelToggleViewForumAsMessages(context.Context, *TLChannelToggleViewForumAsMessages) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleViewForumAsMessages not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelCreateForumTopic(context.Context, *TLChannelCreateForumTopic) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelCreateForumTopic not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelEditForumTopic(context.Context, *TLChannelEditForumTopic) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditForumTopic not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelUpdatePinnedForumTopic(context.Context, *TLChannelUpdatePinnedForumTopic) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelUpdatePinnedForumTopic not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelReorderPinnedForumTopics(context.Context, *TLChannelReorderPinnedForumTopics) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelReorderPinnedForumTopics not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteTopicHistory(context.Context, *TLChannelDeleteTopicHistory) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteTopicHistory not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetForumTopics(context.Context, *TLChannelGetForumTopics) (*mtproto.Messages_ForumTopics, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetForumTopics not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetForumTopicsByID(context.Context, *TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetForumTopicsByID not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSearchTopic(context.Context, *TLChannelSearchTopic) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSearchTopic not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelReadTopicMentions(context.Context, *TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelReadTopicMentions not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelUnpinAllTopicMessages(context.Context, *TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelUnpinAllTopicMessages not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
@@ -1161,6 +1377,222 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelToggleForum_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelToggleForum)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelToggleForum(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelToggleForum_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelToggleForum(ctx, req.(*TLChannelToggleForum))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelToggleViewForumAsMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelToggleViewForumAsMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelToggleViewForumAsMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelToggleViewForumAsMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelToggleViewForumAsMessages(ctx, req.(*TLChannelToggleViewForumAsMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelCreateForumTopic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelCreateForumTopic)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelCreateForumTopic(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelCreateForumTopic_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelCreateForumTopic(ctx, req.(*TLChannelCreateForumTopic))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelEditForumTopic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelEditForumTopic)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelEditForumTopic(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelEditForumTopic_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelEditForumTopic(ctx, req.(*TLChannelEditForumTopic))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelUpdatePinnedForumTopic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelUpdatePinnedForumTopic)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelUpdatePinnedForumTopic(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelUpdatePinnedForumTopic_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelUpdatePinnedForumTopic(ctx, req.(*TLChannelUpdatePinnedForumTopic))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelReorderPinnedForumTopics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelReorderPinnedForumTopics)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelReorderPinnedForumTopics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelReorderPinnedForumTopics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelReorderPinnedForumTopics(ctx, req.(*TLChannelReorderPinnedForumTopics))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelDeleteTopicHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteTopicHistory)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteTopicHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteTopicHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteTopicHistory(ctx, req.(*TLChannelDeleteTopicHistory))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetForumTopics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetForumTopics)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetForumTopics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetForumTopics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetForumTopics(ctx, req.(*TLChannelGetForumTopics))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetForumTopicsByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetForumTopicsByID)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetForumTopicsByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetForumTopicsByID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetForumTopicsByID(ctx, req.(*TLChannelGetForumTopicsByID))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSearchTopic_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSearchTopic)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSearchTopic(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSearchTopic_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSearchTopic(ctx, req.(*TLChannelSearchTopic))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelReadTopicMentions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelReadTopicMentions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelReadTopicMentions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelReadTopicMentions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelReadTopicMentions(ctx, req.(*TLChannelReadTopicMentions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelUnpinAllTopicMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelUnpinAllTopicMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelUnpinAllTopicMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelUnpinAllTopicMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelUnpinAllTopicMessages(ctx, req.(*TLChannelUnpinAllTopicMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelToggleSetting)
 	if err := dec(in); err != nil {
@@ -1543,6 +1975,54 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_toggleForum",
+			Handler:    _RPCChannel_ChannelToggleForum_Handler,
+		},
+		{
+			MethodName: "channel_toggleViewForumAsMessages",
+			Handler:    _RPCChannel_ChannelToggleViewForumAsMessages_Handler,
+		},
+		{
+			MethodName: "channel_createForumTopic",
+			Handler:    _RPCChannel_ChannelCreateForumTopic_Handler,
+		},
+		{
+			MethodName: "channel_editForumTopic",
+			Handler:    _RPCChannel_ChannelEditForumTopic_Handler,
+		},
+		{
+			MethodName: "channel_updatePinnedForumTopic",
+			Handler:    _RPCChannel_ChannelUpdatePinnedForumTopic_Handler,
+		},
+		{
+			MethodName: "channel_reorderPinnedForumTopics",
+			Handler:    _RPCChannel_ChannelReorderPinnedForumTopics_Handler,
+		},
+		{
+			MethodName: "channel_deleteTopicHistory",
+			Handler:    _RPCChannel_ChannelDeleteTopicHistory_Handler,
+		},
+		{
+			MethodName: "channel_getForumTopics",
+			Handler:    _RPCChannel_ChannelGetForumTopics_Handler,
+		},
+		{
+			MethodName: "channel_getForumTopicsByID",
+			Handler:    _RPCChannel_ChannelGetForumTopicsByID_Handler,
+		},
+		{
+			MethodName: "channel_searchTopic",
+			Handler:    _RPCChannel_ChannelSearchTopic_Handler,
+		},
+		{
+			MethodName: "channel_readTopicMentions",
+			Handler:    _RPCChannel_ChannelReadTopicMentions_Handler,
+		},
+		{
+			MethodName: "channel_unpinAllTopicMessages",
+			Handler:    _RPCChannel_ChannelUnpinAllTopicMessages_Handler,
 		},
 		{
 			MethodName: "channel_toggleSetting",

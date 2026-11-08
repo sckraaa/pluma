@@ -69,7 +69,14 @@ func (c *ChannelCore) ChannelGetGroupsForDiscussion(in *channel.TLChannelGetGrou
 // CHANNEL_PRIVATE.
 func (c *ChannelCore) ChannelGetDiscussionMessage(in *channel.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error) {
 	d := c.svcCtx.Dao
-	if _, err := d.Messages(c.ctx, in.SelfId, in.ChannelId, []int32{in.MsgId}); err != nil {
+	forum, err := d.IsForum(c.ctx, in.ChannelId)
+	if err != nil {
+		return nil, err
+	}
+	if forum {
+		return c.topicDiscussion(in)
+	}
+	if _, err = d.Messages(c.ctx, in.SelfId, in.ChannelId, []int32{in.MsgId}); err != nil {
 		return nil, err
 	}
 	t, err := d.ThreadOf(c.ctx, in.ChannelId, in.MsgId)
@@ -109,6 +116,13 @@ func (c *ChannelCore) ChannelGetDiscussionMessage(in *channel.TLChannelGetDiscus
 // newest first, as messages.channelMessages of the group with the count of
 // all the replies (dao.Search).
 func (c *ChannelCore) ChannelGetReplies(in *channel.TLChannelGetReplies) (*mtproto.Messages_Messages, error) {
+	forum, err := c.svcCtx.Dao.IsForum(c.ctx, in.ChannelId)
+	if err != nil {
+		return nil, err
+	}
+	if forum {
+		return c.topicReplies(in)
+	}
 	t, err := c.svcCtx.Dao.ThreadOf(c.ctx, in.ChannelId, in.MsgId)
 	if err != nil {
 		return nil, err
@@ -126,6 +140,13 @@ func (c *ChannelCore) ChannelGetReplies(in *channel.TLChannelGetReplies) (*mtpro
 //
 // self_id read the thread of msg_id up to read_max_id (dao.ReadThread).
 func (c *ChannelCore) ChannelReadDiscussion(in *channel.TLChannelReadDiscussion) (*mtproto.Bool, error) {
+	forum, err := c.svcCtx.Dao.IsForum(c.ctx, in.ChannelId)
+	if err != nil {
+		return nil, err
+	}
+	if forum {
+		return c.readTopic(in)
+	}
 	t, err := c.svcCtx.Dao.ThreadOf(c.ctx, in.ChannelId, in.MsgId)
 	if err != nil {
 		return nil, err

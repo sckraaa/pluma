@@ -36,6 +36,8 @@ type channelDialogRow struct {
 	TopMessage     int32 `db:"top_message"`
 	ReadInboxMaxId int32 `db:"read_inbox_max_id"`
 	AvailableMinId int32 `db:"available_min_id"`
+	Forum          bool  `db:"forum"`
+	ViewAsMessages bool  `db:"view_forum_as_messages"`
 }
 
 // ChannelDialogs returns the dialogs of selfId with the channels idList that
@@ -48,7 +50,7 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 	for _, id := range dedupe(idList) {
 		var rows []channelDialogRow
 		if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-			"SELECT c.id, c.pts, c.top_message, g.read_inbox_max_id, COALESCE(p.available_min_id, 0) AS available_min_id"+
+			"SELECT c.id, c.pts, c.top_message, g.read_inbox_max_id, COALESCE(p.available_min_id, 0) AS available_min_id, c.forum, g.view_forum_as_messages"+
 				" FROM channels c JOIN dialogs g ON g.user_id = ? AND g.peer_type = ? AND g.peer_id = c.id AND g.deleted = 0"+
 				" LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id"+
 				" WHERE c.id = ? AND c.deleted = 0",
@@ -60,9 +62,15 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 		}
 		r := rows[0]
 		var unread, mentions, outbox []int32
-		if err := d.Mysql.QueryRowsPartial(ctx, &unread,
-			"SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND id >= ? AND sender_user_id <> ? AND deleted = 0",
-			id, r.ReadInboxMaxId, r.AvailableMinId, selfId); err != nil {
+		// In a forum a message is also read by how far its topic was read.
+		query := "SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND id >= ? AND sender_user_id <> ? AND deleted = 0"
+		args := []any{id, r.ReadInboxMaxId, r.AvailableMinId, selfId}
+		if r.Forum {
+			query = "SELECT COUNT(*) FROM channel_messages m LEFT JOIN channel_thread_reads t ON t.user_id = ? AND t.channel_id = m.channel_id AND t.top_id = IF(m.topic_id = 0, 1, m.topic_id)" +
+				" WHERE m.channel_id = ? AND m.id > GREATEST(?, COALESCE(t.read_max_id, 0)) AND m.id >= ? AND m.sender_user_id <> ? AND m.deleted = 0"
+			args = append([]any{selfId}, args...)
+		}
+		if err := d.Mysql.QueryRowsPartial(ctx, &unread, query, args...); err != nil {
 			return nil, err
 		}
 		if err := d.Mysql.QueryRowsPartial(ctx, &mentions,
@@ -86,6 +94,7 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 			UnreadCount:         first(unread),
 			UnreadMentionsCount: first(mentions),
 			Pts:                 mtproto.MakeFlagsInt32(r.Pts),
+			ViewForumAsMessages: r.ViewAsMessages,
 		}).To_Dialog())
 	}
 	return out, nil
