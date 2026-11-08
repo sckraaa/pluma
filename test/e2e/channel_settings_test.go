@@ -82,8 +82,10 @@ func TestChannelSettings(t *testing.T) {
 	for _, u := range o.(interface{ To_Updates() *mtproto.Updates }).To_Updates().GetUpdates() {
 		if u.GetPredicateName() == mtproto.Predicate_updateNewChannelMessage {
 			post = u.GetMessage_MESSAGE().GetId()
-			if a := u.GetMessage_MESSAGE().GetPostAuthor().GetValue(); a != "Alice" {
-				t.Errorf("the post's author %q, want Alice", a)
+			// The author's first and last name; the tests' users are
+			// "<name> E2E".
+			if a := u.GetMessage_MESSAGE().GetPostAuthor().GetValue(); a != "Alice E2E" {
+				t.Errorf("the post's author %q, want Alice E2E", a)
 			}
 		}
 	}
