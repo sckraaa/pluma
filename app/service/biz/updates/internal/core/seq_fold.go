@@ -144,11 +144,16 @@ func seqKey(u *mtproto.Update) string {
 	case mtproto.Predicate_updateMessageReactions:
 		return "reactions:" + peerKey(u.GetPeer_PEER()) + "/" + strconv.Itoa(int(u.GetMsgId_INT32()))
 	case mtproto.Predicate_updateMessagePoll:
-		// A min update must not hide the personal one before it: the two
-		// fold apart, each to its last state.
+		// A min update must not hide the personal one before it, and a
+		// later vote, which has only results, must not hide a change of
+		// the poll itself (closed, an answer added): they fold apart, each
+		// to its last state.
 		key := "poll:" + strconv.FormatInt(u.GetPollId(), 10)
 		if u.GetResults().GetMin() {
 			key += "/min"
+		}
+		if u.GetPoll() != nil {
+			key += "/poll"
 		}
 		return key
 	case mtproto.Predicate_updateSavedReactionTags:

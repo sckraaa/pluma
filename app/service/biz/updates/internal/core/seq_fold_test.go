@@ -39,6 +39,11 @@ func TestSeqKeyPoll(t *testing.T) {
 	if seqKey(poll(true)) != seqKey(poll(true)) {
 		t.Fatal("min updates of a poll do not fold")
 	}
+	changed := poll(true)
+	changed.Poll = mtproto.MakeTLPoll(&mtproto.Poll{Id: 5, Closed: true}).To_Poll()
+	if seqKey(changed) == seqKey(poll(true)) {
+		t.Fatal("a later vote hides the change of the poll")
+	}
 }
 
 func notify(peer int64, muteUntil int32) *mtproto.Update {
