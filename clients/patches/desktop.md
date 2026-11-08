@@ -489,11 +489,11 @@ ci/lint.sh                                        # shellcheck и actionlint
 ---
 
 ### D-083. Премиум-стикеры без Premium (задача 058)
-- **Статус.** Ветка `task/058-premium-stickers` (`d054209`), не влита, не выпущена (2026-11-08).
+- **Статус.** Ветка `task/058-premium-stickers` (`4522de5`), не влита, не выпущена (2026-11-08).
 - **Что и зачем.** Премиум-стикеры (видео-миниатюра `"f"`, `data_session.cpp:4003`) отправляются, показываются и предлагаются всем, как с Premium в Telegram; Pluma Premium не продаёт (отчёт владельца 2026-11-07, подтвердить решение). `Main::Session::premiumStickersAvailable()` (`true`) используется только у гейтов стикеров.
 - **Где** (`PREMIUM_STICKERS` в `ci/patch.py`):
   - `window/section_widget.cpp:600` (`ShowSendPremiumError`, общий гейт всех путей отправки: история, отложенные, раздел чата, опрос, истории);
-  - `chat_helpers/stickers_list_widget.cpp` (`skipPremium` ×6) и `boxes/sticker_set_box.cpp:1112` — стикеры не выпадают из панели и окна набора;
+  - `chat_helpers/stickers_list_widget.cpp` (`skipPremium` ×6) и `boxes/sticker_set_box.cpp:1112` — стикеры не выпадают из панели и окна набора; `boxes/stickers_box.cpp:2455` (`skipPremium`) — счётчик стикеров набора в окне наборов их учитывает;
   - `data/stickers/data_stickers.cpp:1503` — порядок в подсказках;
   - `boxes/sticker_set_box.{h,cpp}` (`StickerPremiumMark`, новый параметр `unlocked`), `stickers_list_widget.cpp:250`, `field_autocomplete.cpp:1054`, `sticker_set_box.cpp:1076` — звезда вместо замка на стикерах; панель эмодзи (`emoji_list_widget.cpp:511`) и подарки не меняются;
   - `history/history_item.cpp:788`, `data/data_media_types.cpp:1092` — своя копия отправленного и пересланного стикера играет эффект.

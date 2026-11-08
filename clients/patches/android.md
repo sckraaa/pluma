@@ -676,13 +676,14 @@
 ---
 
 ### A-108. Премиум-стикеры без Premium (задача 058)
-- **Статус.** Ветка `task/058-premium-stickers` (`1c7c765`), не влита, не выпущена (2026-11-08).
+- **Статус.** Ветка `task/058-premium-stickers` (`54c3da1`), не влита, не выпущена (2026-11-08).
 - **Что и зачем.** Премиум-стикеры (`video_thumbs` с `type = "f"`, `MessageObject.java:425`) отправляются, показываются и предлагаются всем, как с Premium в Telegram. Pluma Premium не продаёт, владелец сообщил об ограничении как о дефекте (2026-11-07, подтвердить решение). Серверного признака клиент не читает: места проверяют `UserConfig.isPremium()`, а `premium_purchase_blocked` (мы его отдаём) вырезает такие стикеры из списков. В `MessagesController` добавлен `premiumStickersAvailable()` (`return true`), спрашивают его только места ниже.
 - **Где** (строки апстрима 12.9.1, `aac1efcb`; функция `premium_stickers()` в `ci/patch.py`, `PREMIUM_STICKERS_EDITS`, каждая по одному вхождению, перед изменённой строкой `// pluma: premium stickers without Premium.`):
   - `messenger/MessagesController.java:969` — метод и `filterPremiumStickers`: наборы панели, окна и настроек оставляют премиум-стикеры (без правки `premiumFeaturesBlocked()` их убирает);
   - `ui/Components/EmojiView.java:2350` (тап: отправка вместо окна разблокировки) и `:6179` (избранные и недавние не теряют их);
   - `ui/ContentPreviewViewer.java:714` (долгое нажатие: меню с «Отправить» вместо `showUnlockPremiumView()`);
   - `ui/Adapters/MentionsAdapter.java:273, 298` (подсказки стикеров по эмодзи);
+  - `ui/ChatActivity.java:25320` (эффект у отправителя: `forcePlayEffect` ставится только с Premium, а `:15985` без него не играет эффект исходящего);
   - `ui/Cells/StickerEmojiCell.java:298-318` и `ui/Cells/StickerCell.java:212-231` (значок: звезда Premium в углу вместо замка посередине), плюс импорт `MessagesController`.
 - **Не правится.** Воспроизведение эффекта у получателя (`ChatActivity.java:15984`, `EmojiAnimationsOverlay.java:682-687`; нужны `video_thumbs` и отсутствие `nopremium`) и кастомные эмодзи (`docs/tasks/058-premium-stickers.md`, вопрос владельцу).
 - **Как проверяется.** `verify_premium_stickers` (из `verify()`): каждое новое место ровно один раз, старого нет, число вызовов по файлам (`PREMIUM_STICKERS_USES`), метод возвращает `true`. Тесты `PremiumStickersTest` в `ci/patch_test.py`: применение, изменённый якорь — `PatchError`, откат/удаление правки и лишний вызов — падает. Все 58 тестов зелёные; правки и `verify` применены к файлам закреплённого апстрима. Сборка Gradle и проверка на устройстве не делались.
