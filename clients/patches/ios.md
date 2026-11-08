@@ -548,6 +548,18 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ---
 
+### I-108. Премиум-стикеры без Premium (задача 058)
+- **Статус.** Ветка `task/058-premium-stickers` (`d8c32bd`), не влита, не выпущена (2026-11-08).
+- **Что и зачем.** Премиум-стикеры (`videoThumbnails` с размером `"f"`, `SyncCore_TelegramMediaFile.swift:1060`) отправляются, показываются и предлагаются всем, как с Premium в Telegram; Pluma Premium не продаёт (отчёт владельца 2026-11-07, подтвердить решение). Ключа `appConfiguration` для этого нет: места смотрят на `isPremium` аккаунта, а `PremiumConfiguration.isPremiumDisabled` (`premium_purchase_blocked`) убирает такие стикеры из списков. Функция `premiumStickersAvailable()` (TelegramCore, `true`) используется только у гейтов стикеров.
+- **Где** (`patch_premium_stickers()`, `PREMIUM_STICKERS_GATES`):
+  - `ChatEntityKeyboardInputNode.swift:1278, 2996` — отправка вместо Premium, пункты отправки в просмотре;
+  - `EmojiPagerContentSignals.swift` (`isPremiumLocked` ×3, `isPremiumDisabled && …isPremiumSticker` ×4: списки панели; строки 327 и 1282 относятся к панели эмодзи и не срабатывают, в эмодзи нет файла `"f"`);
+  - `StickerPackScreen.swift:594, 1748-1751, 1867-1870` — окно набора;
+  - `ChatInterfaceStateContextMenus.swift:1007` — «В избранное» в меню сообщения;
+  - `SearchStickers.swift:166, 756, 1154` — поиск стикеров; `searchEmoji` (`:1545`) оставляет `isPremium`.
+- **Не правится.** Воспроизведение у получателя (`ChatMessageAnimatedStickerItemNode.swift:1688, 2591`: только если нет `nopremium`) и кастомные эмодзи (вопрос владельцу в брифе).
+- **Как проверяется.** `verify_premium_stickers`: каждое новое место, функция только `return true`, счётчики вызовов по файлам, `searchEmoji` без правки. Тесты `PremiumStickersTest` (применение, порча каждого места, чужой вызов, изменённый апстрим). `patch_test.py` со `./upstream`: 60 тестов, OK, 0 пропусков. Сборка Bazel и проверка на устройстве не делались.
+
 ## Медиа
 
 ### I-061. Без шрифта Apple SF Camera

@@ -35,7 +35,16 @@ import (
 const (
 	tgSet     = int64(1258816259751998)
 	tgSticker = int64(5368324170671202286)
+
+	tgPremiumSet     = int64(1258816259751999)
+	tgPremiumSticker = int64(5368324170671202287)
 )
+
+// premiumSetShortName names the set of the collection with a premium
+// sticker; premiumEffect is that sticker's effect file.
+const premiumSetShortName = "PremiumStickers"
+
+var premiumEffect = bytes.Repeat([]byte("tgs-effect-"), 50)
 
 // catalogImport imports a collection of one set with one sticker, a
 // reaction drawn with it and an emoji list naming it, as tweb gives them,
@@ -172,6 +181,31 @@ func writeE2ECollection(t *testing.T, sticker, thumb []byte) string {
 			map[string]any{"_": "documentAttributeFilename", "file_name": "AnimatedSticker.tgs"},
 		},
 	}
+	// A premium sticker: its video_thumbs entry "f" is the effect played
+	// full screen (Android MessageObject.isPremiumSticker, iOS
+	// TelegramMediaFile.isPremiumSticker, tdesktop isPremiumSticker).
+	premium := map[string]any{
+		"_": "document", "pFlags": map[string]any{}, "id": fmt.Sprint(tgPremiumSticker), "access_hash": "-6", "file_reference": []any{3},
+		"date": 1700000000, "mime_type": "application/x-tgsticker", "size": len(sticker), "dc_id": 2,
+		"thumbs":       []any{map[string]any{"_": "photoSize", "type": "m", "w": 128, "h": 128, "size": len(thumb)}},
+		"video_thumbs": []any{map[string]any{"_": "videoSize", "pFlags": map[string]any{}, "type": "f", "w": 512, "h": 512, "size": len(premiumEffect)}},
+		"attributes": []any{
+			map[string]any{"_": "documentAttributeSticker", "pFlags": map[string]any{}, "alt": "😎",
+				"stickerset": map[string]any{"_": "inputStickerSetID", "id": fmt.Sprint(tgPremiumSet), "access_hash": "9"}},
+			map[string]any{"_": "documentAttributeFilename", "file_name": "AnimatedSticker.tgs"},
+		},
+	}
+	js("sets/premium.json", map[string]any{
+		"_": "messages.stickerSet",
+		"set": map[string]any{"_": "stickerSet", "pFlags": map[string]any{}, "id": fmt.Sprint(tgPremiumSet), "access_hash": "9", "title": "Premium",
+			"short_name": premiumSetShortName, "count": 1, "hash": 2},
+		"packs":     []any{map[string]any{"_": "stickerPack", "emoticon": "😎", "documents": []any{fmt.Sprint(tgPremiumSticker)}}},
+		"keywords":  []any{},
+		"documents": []any{premium},
+	})
+	write("files/premium", sticker)
+	write("files/premium.m", thumb)
+	write("files/premium.f", premiumEffect)
 	js("sets/set.json", map[string]any{
 		"_": "messages.stickerSet",
 		"set": map[string]any{"_": "stickerSet", "pFlags": map[string]any{}, "id": fmt.Sprint(tgSet), "access_hash": "8", "title": "Animated",
@@ -206,8 +240,15 @@ func writeE2ECollection(t *testing.T, sticker, thumb []byte) string {
 			map[string]any{"method": "messages.getAvailableReactions", "arg": "", "file": "answers/reactions.json"},
 			map[string]any{"method": "account.getDefaultProfilePhotoEmojis", "arg": "", "file": "answers/profile-emojis.json"},
 		},
-		"sets":  []any{map[string]any{"file": "sets/set.json", "kind": "inputStickerSetAnimatedEmoji"}},
-		"files": []any{map[string]any{"id": fmt.Sprint(tgSticker), "file": "files/doc", "thumbs": map[string]any{"m": "files/doc.m"}}},
+		"sets": []any{
+			map[string]any{"file": "sets/set.json", "kind": "inputStickerSetAnimatedEmoji"},
+			map[string]any{"file": "sets/premium.json"},
+		},
+		"files": []any{
+			map[string]any{"id": fmt.Sprint(tgSticker), "file": "files/doc", "thumbs": map[string]any{"m": "files/doc.m"}},
+			map[string]any{"id": fmt.Sprint(tgPremiumSticker), "file": "files/premium",
+				"thumbs": map[string]any{"m": "files/premium.m", "f": "files/premium.f"}},
+		},
 	})
 	return dir
 }
