@@ -36,25 +36,7 @@ import (
 // poll counts the vote as unread here.
 func (c *InboxCore) InboxUpdatePollToInbox(in *inbox.TLInboxUpdatePollToInbox) error {
 	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
-
-	// As for reactions: who the update may name, resolved before the box
-	// transaction, which calls no service.
-	h := mtproto.NewIDListHelper(in.UserId, in.FromId)
-	if peer.PeerType == mtproto.PEER_CHAT {
-		chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: peer.PeerId})
-		if err != nil {
-			return err
-		}
-		chat.Walk(func(userId int64, _ *mtproto.ImmutableChatParticipant) error {
-			h.AppendUsers(userId)
-			return nil
-		})
-		h.AppendChats(peer.PeerId)
-	}
-	if peer.PeerType == mtproto.PEER_CHANNEL {
-		h.AppendChannels(peer.PeerId)
-	}
-	peers, err := seqpeers.Resolve(c.ctx, c.svcCtx.Dao, in.UserId, h)
+	peers, err := c.chatPeers(in.UserId, in.FromId, peer)
 	if err != nil {
 		return err
 	}
@@ -80,11 +62,37 @@ func (c *InboxCore) InboxUpdatePollToInbox(in *inbox.TLInboxUpdatePollToInbox) e
 // A checklist of the chat with the recipient changed: its copy takes the
 // current state.
 func (c *InboxCore) InboxUpdateTodoToInbox(in *inbox.TLInboxUpdateTodoToInbox) error {
-	return c.apply(in.UserId, recipientPeer(in.FromId, in.PeerType, in.PeerId), func(b *userbox.Box) (bool, error) {
+	peer := recipientPeer(in.FromId, in.PeerType, in.PeerId)
+	peers, err := c.chatPeers(in.UserId, in.FromId, peer)
+	if err != nil {
+		return err
+	}
+	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
 		update, err := c.svcCtx.Dao.ApplyTodo(b, in.DialogMessageId)
 		if err != nil || update == nil {
 			return true, err
 		}
-		return true, c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, false, mtproto.MakeUpdatesByUpdatesUsersChats(nil, nil, update))
+		return true, c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, false, mtproto.MakeUpdatesByUpdatesUsersChats(peers.Users, peers.Chats, update))
 	})
+}
+
+// chatPeers resolves, before the box transaction, which calls no service, who
+// an update of the recipient's chat with peer may name, as for reactions.
+func (c *InboxCore) chatPeers(userId, fromId int64, peer *mtproto.PeerUtil) (*seqpeers.Peers, error) {
+	h := mtproto.NewIDListHelper(userId, fromId)
+	switch peer.PeerType {
+	case mtproto.PEER_CHAT:
+		chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: peer.PeerId})
+		if err != nil {
+			return nil, err
+		}
+		chat.Walk(func(id int64, _ *mtproto.ImmutableChatParticipant) error {
+			h.AppendUsers(id)
+			return nil
+		})
+		h.AppendChats(peer.PeerId)
+	case mtproto.PEER_CHANNEL:
+		h.AppendChannels(peer.PeerId)
+	}
+	return seqpeers.Resolve(c.ctx, c.svcCtx.Dao, userId, h)
 }
