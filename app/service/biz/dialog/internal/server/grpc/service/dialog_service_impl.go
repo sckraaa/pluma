@@ -16,6 +16,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/internal/core"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 )
 
 // DialogSaveDraftMessage
@@ -126,6 +127,9 @@ func (s *Service) DialogGetDialogsByOffsetDate(ctx context.Context, request *dia
 	if err != nil {
 		return nil, err
 	}
+	if err = attachUnreadPollVotes(ctx, s.svcCtx.Dao.Mysql.DB, request.UserId, r.GetDatas()); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -140,6 +144,9 @@ func (s *Service) DialogGetDialogs(ctx context.Context, request *dialog.TLDialog
 	if err != nil {
 		return nil, err
 	}
+	if err = attachUnreadPollVotes(ctx, s.svcCtx.Dao.Mysql.DB, request.UserId, r.GetDatas()); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -152,6 +159,9 @@ func (s *Service) DialogGetDialogsByIdList(ctx context.Context, request *dialog.
 
 	r, err := c.DialogGetDialogsByIdList(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = attachUnreadPollVotes(ctx, s.svcCtx.Dao.Mysql.DB, request.UserId, r.GetDatas()); err != nil {
 		return nil, err
 	}
 
@@ -180,6 +190,9 @@ func (s *Service) DialogGetPinnedDialogs(ctx context.Context, request *dialog.TL
 
 	r, err := c.DialogGetPinnedDialogs(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = attachUnreadPollVotes(ctx, s.svcCtx.Dao.Mysql.DB, request.UserId, r.GetDatas()); err != nil {
 		return nil, err
 	}
 
@@ -320,6 +333,9 @@ func (s *Service) DialogGetDialogFolder(ctx context.Context, request *dialog.TLD
 
 	r, err := c.DialogGetDialogFolder(request)
 	if err != nil {
+		return nil, err
+	}
+	if err = attachUnreadPollVotes(ctx, s.svcCtx.Dao.Mysql.DB, request.UserId, r.GetDatas()); err != nil {
 		return nil, err
 	}
 
@@ -534,4 +550,16 @@ func (s *Service) DialogSetChatWallpaper(ctx context.Context, request *dialog.TL
 	}
 
 	return r, err
+}
+
+// attachUnreadPollVotes sets unread_poll_votes_count of the dialogs, read
+// after the row cache: the count lives with the polls (task 062).
+func attachUnreadPollVotes(ctx context.Context, q polls.Querier, userId int64, list []*dialog.DialogExt) error {
+	dialogs := make([]*mtproto.Dialog, 0, len(list))
+	for _, ex := range list {
+		if ex.GetDialog() != nil {
+			dialogs = append(dialogs, ex.GetDialog())
+		}
+	}
+	return polls.AttachUnreadDialogs(ctx, q, userId, dialogs...)
 }

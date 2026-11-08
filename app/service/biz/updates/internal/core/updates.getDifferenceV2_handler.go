@@ -17,6 +17,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -134,6 +135,10 @@ func (c *UpdatesCore) UpdatesGetDifferenceV2(in *updates.TLUpdatesGetDifferenceV
 		return nil, mtproto.ErrInternalServerError
 	}
 	b.addMessageIds(randomIds)
+	if err = polls.AttachMessages(c.ctx, c.svcCtx.Dao.Mysql, in.UserId, b.messages()...); err != nil {
+		c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
 	for _, r := range b.inboxReads() {
 		if r.StillUnreadCount, err = c.svcCtx.Dao.UnreadAfter(c.ctx, in.UserId, r.GetPeer_PEER(), r.GetMaxId(), end); err != nil {
 			c.Logger.Errorf("updates.getDifferenceV2 - error: %v", err)

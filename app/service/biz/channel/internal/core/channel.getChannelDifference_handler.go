@@ -19,6 +19,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -120,10 +121,18 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 	}
 	f.addMessageIds(randomIds)
 
+	// Each message with a poll carries the results as they are now, for
+	// this viewer.
+	newMessages := f.messages()
+	if err = polls.AttachMessages(c.ctx, c.svcCtx.Dao.Mysql, in.SelfId, newMessages...); err != nil {
+		c.Logger.Errorf("channel.getChannelDifference - polls of channel %d: %v", in.ChannelId, err)
+		return nil, err
+	}
+
 	d := &mtproto.Updates_ChannelDifference{
 		Final:        final,
 		Pts:          end,
-		NewMessages:  f.messages(),
+		NewMessages:  newMessages,
 		OtherUpdates: f.otherUpdates(),
 		Chats:        []*mtproto.Chat{},
 		Users:        []*mtproto.User{},

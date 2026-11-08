@@ -143,6 +143,14 @@ func seqKey(u *mtproto.Update) string {
 		return "saved_gifs"
 	case mtproto.Predicate_updateMessageReactions:
 		return "reactions:" + peerKey(u.GetPeer_PEER()) + "/" + strconv.Itoa(int(u.GetMsgId_INT32()))
+	case mtproto.Predicate_updateMessagePoll:
+		// A min update must not hide the personal one before it: the two
+		// fold apart, each to its last state.
+		key := "poll:" + strconv.FormatInt(u.GetPollId(), 10)
+		if u.GetResults().GetMin() {
+			key += "/min"
+		}
+		return key
 	case mtproto.Predicate_updateSavedReactionTags:
 		return "saved_reaction_tags"
 	case mtproto.Predicate_updateChannel:

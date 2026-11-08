@@ -24,6 +24,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -262,6 +263,9 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 		return nil, err
 	}
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
+		return nil, err
+	}
+	if err = polls.AttachMessages(ctx, d.Mysql, selfId, messages...); err != nil {
 		return nil, err
 	}
 	return messages, d.withReplies(ctx, channelId, v.broadcast, messages)
