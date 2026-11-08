@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/polls"
@@ -363,11 +364,13 @@ func (c *MsgCore) closeDuePoll(rec *polls.Record) error {
 	var recipients []int64
 	switch rec.PeerType {
 	case mtproto.PEER_CHAT:
-		t, err := c.reactionPeers(rec.Creator, mtproto.PEER_CHAT, rec.PeerId, nil)
+		// The members of now, whether or not the creator is still one of
+		// them: its poll closes all the same.
+		chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: rec.PeerId})
 		if err != nil {
 			return err
 		}
-		recipients = t.recipients
+		recipients = chatRecipients(chat, rec.Creator, false)
 	case mtproto.PEER_USER:
 		if rec.PeerId != rec.Creator {
 			recipients = []int64{rec.PeerId}
