@@ -22,6 +22,8 @@
 - **Список тем.** Android использует `topics[]`, `messages[]` (`top_message` и корень, `TopicsController.java:278-297`) и `count`; tdesktop считает конец списка по `count` (`data_forum.cpp:181-190`), ошибка `CHANNEL_FORUM_MISSING` снимает форум (`data_forum.cpp:197-200`). `forumTopicDeleted` — через `getForumTopicsByID` (tdesktop `data_forum.cpp:405`, Android `TopicsController.java:270-276`). Смещение — последняя тема страницы (core.telegram.org/method/messages.getForumTopics, tdesktop `_offset`, Web K `appMessagesManager.ts:4923-4928`).
 - **Права.** Создание — `canUserDoAction(ACTION_MANAGE_TOPICS)` (Android `ChatObject.java:2287`), редактирование и закрытие своей темы — `my || canManageTopics` (tdesktop `data_forum_topic.cpp:317-336`, Android `ChatObject.java:2295`), закрепление — только `canManageTopics` (tdesktop `:338-340`). Удаление: право удалять чужое, либо своя тема, где только свои сообщения и их не больше 10 (`data_forum_topic.cpp:321-332`, `data_replies_list.cpp:30,1028-1047`). Включает форум только владелец (core.telegram.org/api/forum).
 - **Закрытая тема.** Писать может только автор темы или управляющий темами (tdesktop `data_peer_values.cpp:207`, ошибка `TOPIC_CLOSED` — `apiwrap.cpp:626`). Скрытый General клиент считает закрытым (Android `TopicsController.java:832-842`).
+- **Включение тем.** Переключатель заперт, пока участников меньше `forum_upgrade_participants_min`: по умолчанию 200 в tdesktop (`edit_peer_info_box.cpp:108-112,1281-1283`), Android (`MessagesController.java:1675`, `ChatEditActivity.java:382`) и iOS (`PeerInfoProfileItems.swift:1556-1559`); Web K без ключа не включает никогда (`editChat.tsx:207`).
+- **Ответ на сообщение другой темы.** tdesktop шлёт `reply_to_peer_id` = сам форум и `top_msg_id` текущей темы (`data_histories.cpp:75-77,100-103`), Android — то же через `anotherTopic` (`SendMessagesHelper.java:4947-4953`, `createReplyInput` `:212-224`). Новое сообщение остаётся в той теме, где написано.
 - **Настройки уведомлений темы.** `forumTopic.notify_settings` обязателен и применяется клиентом (tdesktop `data_forum_topic.cpp:413`); `account.getNotifySettings(inputNotifyForumTopic)` клиенты могут запросить (tdesktop `apiwrap.cpp:1975`), без ответа мешает открытию не больше, чем ошибка запроса (не проверено).
 - **`topics` в `messages.channelMessages`** клиенты читают, если есть: tdesktop `apiwrap.cpp:3464`, `api_messages_search.cpp:176`, iOS `Holes.swift:268`.
 - **Лимит закреплённых** — `topics_pinned_limit`, 5 (core.telegram.org/api/config); у Android запас по умолчанию 3, берётся из конфига (`MessagesController.java:1676,3750-3755`).
@@ -40,6 +42,7 @@
 Сделано всё из постановки, кроме перечисленного ниже как открытые вопросы.
 
 ## Решения на подтверждение
+- `forum_upgrade_participants_min = 0` в `app_config.json`: иначе клиенты не дают включить темы в группе меньше 200 участников, а в Pluma таких групп не будет. Значение Telegram другое (не проверено какое).
 - Заголовок General — `"General"` как `forum_topic.title` (Telegram шлёт заголовок сервером; ключа локализации для него в TL нет). Клиент показывает его как есть.
 - Нет ошибки на недопустимый `icon_color` в документации Telegram; отвечаем `INPUT_REQUEST_INVALID`. Не проверено.
 - `TOPIC_HIDE_SEPARATELY` в схеме ошибок нет: совмещение `hidden` с другими полями — `TOPIC_CLOSE_SEPARATELY` (как у `closed`, core.telegram.org). Не проверено.
@@ -50,6 +53,8 @@
 - `messages.getSearchCounters` и `messages.setTyping` с `top_msg_id` тему не учитывают.
 - Настройки уведомлений темы не хранятся: `account.getNotifySettings(inputNotifyForumTopic)` отвечает настройками по умолчанию, `account.updateNotifySettings` для темы — по-прежнему `PEER_ID_INVALID`.
 - Черновики по темам не разведены: `messages.saveDraft` с темой пишет черновик диалога.
+- При выключении форума чтение по темам не переносится в `read_inbox_max_id` диалога: прочитанное только внутри тем снова считается непрочитанным.
+- `channels.deleteMessages` не удаляет корень темы и после выключения форума.
 - `upsertDialog` (вступление, правка названия) сдвигает `read_inbox_max_id` действующего в форуме (мелкая неточность для него одного).
 - Ветка `deleteHistory` (другая задача) должна при массовом удалении обновить `top_message` тем (`refreshTopicTops`) или полагаться на сортировку по старому значению — отображаемый `top_message` считается честно.
 
