@@ -339,3 +339,115 @@ func (s *Service) MsgHasScheduled(ctx context.Context, request *msg.TLMsgHasSche
 
 	return r, err
 }
+
+// MsgSendVote
+// msg.sendVote user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int options:Vector<bytes> = Updates;
+func (s *Service) MsgSendVote(ctx context.Context, request *msg.TLMsgSendVote) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.sendVote - metadata: {%s}", c.MD)
+
+	r, err := c.MsgSendVote(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgClosePoll
+// msg.closePoll user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int = Updates;
+func (s *Service) MsgClosePoll(ctx context.Context, request *msg.TLMsgClosePoll) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.closePoll - metadata: {%s}", c.MD)
+
+	r, err := c.MsgClosePoll(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgAddPollAnswer
+// msg.addPollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int answer:PollAnswer = Updates;
+func (s *Service) MsgAddPollAnswer(ctx context.Context, request *msg.TLMsgAddPollAnswer) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.addPollAnswer - metadata: {%s}", c.MD)
+
+	r, err := c.MsgAddPollAnswer(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgDeletePollAnswer
+// msg.deletePollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int option:bytes = Updates;
+func (s *Service) MsgDeletePollAnswer(ctx context.Context, request *msg.TLMsgDeletePollAnswer) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.deletePollAnswer - metadata: {%s}", c.MD)
+
+	r, err := c.MsgDeletePollAnswer(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgReadPollVotes
+// msg.readPollVotes user_id:long auth_key_id:long peer_type:int peer_id:long top_msg_id:int = messages.AffectedHistory;
+func (s *Service) MsgReadPollVotes(ctx context.Context, request *msg.TLMsgReadPollVotes) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.readPollVotes - metadata: {%s}", c.MD)
+
+	r, err := c.MsgReadPollVotes(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgToggleTodoCompleted
+// msg.toggleTodoCompleted user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int completed:Vector<int> incompleted:Vector<int> = Updates;
+func (s *Service) MsgToggleTodoCompleted(ctx context.Context, request *msg.TLMsgToggleTodoCompleted) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.toggleTodoCompleted - metadata: {%s}", c.MD)
+
+	r, err := c.MsgToggleTodoCompleted(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgAppendTodoList
+// msg.appendTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int list:Vector<TodoItem> = Updates;
+func (s *Service) MsgAppendTodoList(ctx context.Context, request *msg.TLMsgAppendTodoList) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.appendTodoList - metadata: {%s}", c.MD)
+
+	r, err := c.MsgAppendTodoList(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgEditTodoList
+// msg.editTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int todo:TodoList = Updates;
+func (s *Service) MsgEditTodoList(ctx context.Context, request *msg.TLMsgEditTodoList) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.editTodoList - metadata: {%s}", c.MD)
+
+	r, err := c.MsgEditTodoList(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

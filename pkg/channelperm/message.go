@@ -33,7 +33,9 @@ func MessageActions(m *mtproto.Message) []Action {
 		out = append(out, SendPhotos)
 	case mtproto.Predicate_messageMediaDocument:
 		out = append(out, documentAction(media.GetDocument()))
-	case mtproto.Predicate_messageMediaPoll:
+	case mtproto.Predicate_messageMediaPoll, mtproto.Predicate_messageMediaToDo:
+		// A checklist is posted under the right to post polls
+		// (tdesktop PeerData::canCreateTodoLists).
 		out = append(out, SendPolls)
 	case mtproto.Predicate_messageMediaGame:
 		out = append(out, SendGames)

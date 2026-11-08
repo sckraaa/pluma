@@ -24,6 +24,28 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
+// TestSeqKeyPoll: updates of one poll fold to the last of each kind: a min
+// update never hides the personal one before it (task 062).
+func TestSeqKeyPoll(t *testing.T) {
+	poll := func(min bool) *mtproto.Update {
+		return mtproto.MakeTLUpdateMessagePoll(&mtproto.Update{
+			PollId:  5,
+			Results: mtproto.MakeTLPollResults(&mtproto.PollResults{Min: min}).To_PollResults(),
+		}).To_Update()
+	}
+	if seqKey(poll(false)) == seqKey(poll(true)) {
+		t.Fatal("min and personal updates of a poll fold together")
+	}
+	if seqKey(poll(true)) != seqKey(poll(true)) {
+		t.Fatal("min updates of a poll do not fold")
+	}
+	changed := poll(true)
+	changed.Poll = mtproto.MakeTLPoll(&mtproto.Poll{Id: 5, Closed: true}).To_Poll()
+	if seqKey(changed) == seqKey(poll(true)) {
+		t.Fatal("a later vote hides the change of the poll")
+	}
+}
+
 func notify(peer int64, muteUntil int32) *mtproto.Update {
 	return mtproto.MakeTLUpdateNotifySettings(&mtproto.Update{
 		Peer_NOTIFYPEER: mtproto.MakeTLNotifyPeer(&mtproto.NotifyPeer{Peer: mtproto.MakePeerUser(peer)}).To_NotifyPeer(),

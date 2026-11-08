@@ -73,6 +73,11 @@ func (d *Dao) deleteRows(b *userbox.Box, rows []dataobject.MessagesDO) (*Deleted
 	if err := recountSavedDialogs(b, rows); err != nil {
 		return nil, err
 	}
+	// A deleted poll of the owner counts no more among its unread votes:
+	// messages.getUnreadPollVotes could not find it.
+	if err := readOwnPollVotes(b, rows); err != nil {
+		return nil, err
+	}
 	res.Update = mtproto.MakeTLUpdateDeleteMessages(&mtproto.Update{Messages: ids}).To_Update()
 	b.AddPtsUpdate(res.Update, int32(len(ids)))
 	return res, nil

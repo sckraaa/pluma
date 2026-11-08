@@ -57,6 +57,22 @@ enum TLConstructor {
   CRC32_msg_deleteScheduledMessages = -698200857;
   // pluma: task 061
   CRC32_msg_hasScheduled = -1139649382;
+  // pluma: task 062
+  CRC32_msg_sendVote = 764721422;
+  // pluma: task 062
+  CRC32_msg_closePoll = 512196319;
+  // pluma: task 062
+  CRC32_msg_addPollAnswer = 660503693;
+  // pluma: task 062
+  CRC32_msg_deletePollAnswer = 871616521;
+  // pluma: task 062
+  CRC32_msg_readPollVotes = 574587703;
+  // pluma: task 062
+  CRC32_msg_toggleTodoCompleted = 2077104412;
+  // pluma: task 062
+  CRC32_msg_appendTodoList = 1736696679;
+  // pluma: task 062
+  CRC32_msg_editTodoList = 1650536534;
 }
 
 // ContentMessage <--
@@ -372,6 +388,118 @@ message TL_msg_hasScheduled {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: msg.sendVote user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int options:Vector<bytes> = Updates;
+// The user's vote in the poll of its copy msg_id: options replaces the
+// options it had chosen; none takes the vote back.
+// (task 062)
+message TL_msg_sendVote {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 msg_id = 7;
+  repeated bytes options = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.closePoll user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int = Updates;
+// Closes the poll of message msg_id (messages.editMessage with poll.closed).
+// (task 062)
+message TL_msg_closePoll {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 msg_id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.addPollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int answer:PollAnswer = Updates;
+// Adds an answer to the open-answer poll of message msg_id.
+// (task 062)
+message TL_msg_addPollAnswer {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 msg_id = 7;
+  mtproto.PollAnswer answer = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.deletePollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int option:bytes = Updates;
+// Takes an answer out of the open-answer poll of message msg_id.
+// (task 062)
+message TL_msg_deletePollAnswer {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 msg_id = 7;
+  bytes option = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.readPollVotes user_id:long auth_key_id:long peer_type:int peer_id:long top_msg_id:int = messages.AffectedHistory;
+// Marks the unread votes of the user's polls of the dialog seen.
+// (task 062)
+message TL_msg_readPollVotes {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 top_msg_id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.toggleTodoCompleted user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int completed:Vector<int> incompleted:Vector<int> = Updates;
+// Marks items of the checklist of message msg_id done or not done.
+// (task 062)
+message TL_msg_toggleTodoCompleted {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 msg_id = 7;
+  repeated int32 completed = 8;
+  repeated int32 incompleted = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.appendTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int list:Vector<TodoItem> = Updates;
+// Adds items at the end of the checklist of message msg_id.
+// (task 062)
+message TL_msg_appendTodoList {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 msg_id = 7;
+  repeated mtproto.TodoItem list = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.editTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int todo:TodoList = Updates;
+// Replaces the checklist of message msg_id by its author (messages.editMessage).
+// (task 062)
+message TL_msg_editTodoList {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int32 msg_id = 7;
+  mtproto.TodoList todo = 8;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -420,4 +548,20 @@ service RPCMsg {
   rpc msg_deleteScheduledMessages(TL_msg_deleteScheduledMessages) returns (mtproto.Updates) {}
   // pluma: task 061
   rpc msg_hasScheduled(TL_msg_hasScheduled) returns (mtproto.Bool) {}
+  // pluma: task 062
+  rpc msg_sendVote(TL_msg_sendVote) returns (mtproto.Updates) {}
+  // pluma: task 062
+  rpc msg_closePoll(TL_msg_closePoll) returns (mtproto.Updates) {}
+  // pluma: task 062
+  rpc msg_addPollAnswer(TL_msg_addPollAnswer) returns (mtproto.Updates) {}
+  // pluma: task 062
+  rpc msg_deletePollAnswer(TL_msg_deletePollAnswer) returns (mtproto.Updates) {}
+  // pluma: task 062
+  rpc msg_readPollVotes(TL_msg_readPollVotes) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 062
+  rpc msg_toggleTodoCompleted(TL_msg_toggleTodoCompleted) returns (mtproto.Updates) {}
+  // pluma: task 062
+  rpc msg_appendTodoList(TL_msg_appendTodoList) returns (mtproto.Updates) {}
+  // pluma: task 062
+  rpc msg_editTodoList(TL_msg_editTodoList) returns (mtproto.Updates) {}
 }

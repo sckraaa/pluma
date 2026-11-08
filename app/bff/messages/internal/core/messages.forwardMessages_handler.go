@@ -31,6 +31,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -115,6 +116,7 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		}
 		return nil, err
 	}
+	c.attachPollReply(rUpdates)
 
 	if fromPeer.PeerType == mtproto.PEER_CHANNEL {
 		// The forward is done and answered whatever happens to its count.
@@ -223,6 +225,12 @@ func (c *MessagesCore) makeForwardMessages(
 	for i := len(messageList.Datas) - 1; i >= 0; i-- {
 		box := messageList.Datas[i]
 		m := box.Message
+		// A quiz goes without its source only once answered (QUIZ_ANSWER_MISSING,
+		// method/messages.forwardMessages); a forward shares the poll.
+		if request.DropAuthor && m.GetMedia().GetPoll().GetQuiz() && !hasChosen(m.GetMedia().GetResults()) {
+			return nil, mtproto.ErrQuizAnswerMissing
+		}
+		m.Media = polls.ForForward(m.GetMedia())
 		// TODO(@benqi): rid is 0
 
 		if m.GetGroupedId() != nil {
@@ -430,4 +438,9 @@ func (c *MessagesCore) channelForwardSource(channelId int64, ids []int32) (*mess
 	// walks them back to send the oldest first.
 	slices.SortFunc(out.Datas, func(a, b *mtproto.MessageBox) int { return int(b.MessageId) - int(a.MessageId) })
 	return out, nil
+}
+
+// hasChosen tells whether the results hold an answer the viewer chose.
+func hasChosen(r *mtproto.PollResults) bool {
+	return slices.ContainsFunc(r.GetResults(), func(a *mtproto.PollAnswerVoters) bool { return a.GetChosen() })
 }

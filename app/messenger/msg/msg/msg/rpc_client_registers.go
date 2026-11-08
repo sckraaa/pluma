@@ -60,6 +60,22 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMsgDeleteScheduledMessages": {"/mtproto.RPCMsg/msg_deleteScheduledMessages", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 061
 	"TLMsgHasScheduled": {"/mtproto.RPCMsg/msg_hasScheduled", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 062
+	"TLMsgSendVote": {"/mtproto.RPCMsg/msg_sendVote", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 062
+	"TLMsgClosePoll": {"/mtproto.RPCMsg/msg_closePoll", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 062
+	"TLMsgAddPollAnswer": {"/mtproto.RPCMsg/msg_addPollAnswer", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 062
+	"TLMsgDeletePollAnswer": {"/mtproto.RPCMsg/msg_deletePollAnswer", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 062
+	"TLMsgReadPollVotes": {"/mtproto.RPCMsg/msg_readPollVotes", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	// pluma: task 062
+	"TLMsgToggleTodoCompleted": {"/mtproto.RPCMsg/msg_toggleTodoCompleted", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 062
+	"TLMsgAppendTodoList": {"/mtproto.RPCMsg/msg_appendTodoList", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 062
+	"TLMsgEditTodoList": {"/mtproto.RPCMsg/msg_editTodoList", func() interface{} { return new(mtproto.Updates) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

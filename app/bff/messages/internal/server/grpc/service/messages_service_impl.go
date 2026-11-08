@@ -506,3 +506,129 @@ func (s *Service) ChannelsCheckSearchPostsFlood(ctx context.Context, request *mt
 
 	return r, err
 }
+
+// MessagesSendVote
+// messages.sendVote#10ea6184 peer:InputPeer msg_id:int options:Vector<bytes> = Updates;
+func (s *Service) MessagesSendVote(ctx context.Context, request *mtproto.TLMessagesSendVote) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.sendVote - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesSendVote(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesGetPollResults
+// messages.getPollResults#eda3e33b peer:InputPeer msg_id:int poll_hash:long = Updates;
+func (s *Service) MessagesGetPollResults(ctx context.Context, request *mtproto.TLMessagesGetPollResults) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getPollResults - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesGetPollResults(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesGetPollVotes
+// messages.getPollVotes#b86e380e flags:# peer:InputPeer id:int option:flags.0?bytes offset:flags.1?string limit:int = messages.VotesList;
+func (s *Service) MessagesGetPollVotes(ctx context.Context, request *mtproto.TLMessagesGetPollVotes) (*mtproto.Messages_VotesList, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getPollVotes - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesGetPollVotes(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesAddPollAnswer
+// messages.addPollAnswer#19bc4b6d peer:InputPeer msg_id:int answer:PollAnswer = Updates;
+func (s *Service) MessagesAddPollAnswer(ctx context.Context, request *mtproto.TLMessagesAddPollAnswer) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.addPollAnswer - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesAddPollAnswer(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesDeletePollAnswer
+// messages.deletePollAnswer#ac8505a5 peer:InputPeer msg_id:int option:bytes = Updates;
+func (s *Service) MessagesDeletePollAnswer(ctx context.Context, request *mtproto.TLMessagesDeletePollAnswer) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.deletePollAnswer - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesDeletePollAnswer(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesGetUnreadPollVotes
+// messages.getUnreadPollVotes#43286cf2 flags:# peer:InputPeer top_msg_id:flags.0?int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) MessagesGetUnreadPollVotes(ctx context.Context, request *mtproto.TLMessagesGetUnreadPollVotes) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getUnreadPollVotes - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesGetUnreadPollVotes(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesReadPollVotes
+// messages.readPollVotes#1720b4d8 flags:# peer:InputPeer top_msg_id:flags.0?int = messages.AffectedHistory;
+func (s *Service) MessagesReadPollVotes(ctx context.Context, request *mtproto.TLMessagesReadPollVotes) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.readPollVotes - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesReadPollVotes(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesToggleTodoCompleted
+// messages.toggleTodoCompleted#d3e03124 peer:InputPeer msg_id:int completed:Vector<int> incompleted:Vector<int> = Updates;
+func (s *Service) MessagesToggleTodoCompleted(ctx context.Context, request *mtproto.TLMessagesToggleTodoCompleted) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.toggleTodoCompleted - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesToggleTodoCompleted(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MessagesAppendTodoList
+// messages.appendTodoList#21a61057 peer:InputPeer msg_id:int list:Vector<TodoItem> = Updates;
+func (s *Service) MessagesAppendTodoList(ctx context.Context, request *mtproto.TLMessagesAppendTodoList) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.appendTodoList - metadata: {%s}", c.MD)
+
+	r, err := c.MessagesAppendTodoList(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

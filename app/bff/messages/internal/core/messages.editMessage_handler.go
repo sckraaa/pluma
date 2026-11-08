@@ -40,6 +40,17 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 		err          error
 	)
 
+	// A poll is only closed through an edit; a checklist changes under its
+	// own lock, so that a simultaneous tick is not lost (task 062).
+	switch in.GetMedia().GetPredicateName() {
+	case mtproto.Predicate_inputMediaPoll:
+		return c.closePollByEdit(peer, in)
+	case mtproto.Predicate_inputMediaTodo:
+		return c.svcCtx.Dao.MsgClient.MsgEditTodoList(c.ctx, &msgpb.TLMsgEditTodoList{
+			UserId: c.MD.UserId, AuthKeyId: c.MD.PermAuthKeyId, PeerType: peer.PeerType, PeerId: peer.PeerId, MsgId: in.Id, Todo: in.Media.GetTodo(),
+		})
+	}
+
 	scheduled := in.GetScheduleDate() != nil
 	peerType := peer.PeerType
 	if scheduled {

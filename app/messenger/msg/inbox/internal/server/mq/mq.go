@@ -109,6 +109,12 @@ var handlers = map[protoreflect.FullName]handler{
 			return new(inbox.TLInboxUpdateMessageReactionsToInbox)
 		},
 		(*core.InboxCore).InboxUpdateMessageReactionsToInbox),
+	proto.MessageName((*inbox.TLInboxUpdatePollToInbox)(nil)): on(
+		func() *inbox.TLInboxUpdatePollToInbox { return new(inbox.TLInboxUpdatePollToInbox) },
+		(*core.InboxCore).InboxUpdatePollToInbox),
+	proto.MessageName((*inbox.TLInboxUpdateTodoToInbox)(nil)): on(
+		func() *inbox.TLInboxUpdateTodoToInbox { return new(inbox.TLInboxUpdateTodoToInbox) },
+		(*core.InboxCore).InboxUpdateTodoToInbox),
 	proto.MessageName((*inbox.TLInboxChannelInvitedToInbox)(nil)): on(
 		func() *inbox.TLInboxChannelInvitedToInbox { return new(inbox.TLInboxChannelInvitedToInbox) },
 		(*core.InboxCore).InboxChannelInvitedToInbox),

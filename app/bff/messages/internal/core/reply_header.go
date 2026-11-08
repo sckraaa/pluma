@@ -199,6 +199,9 @@ func sameChatReply(id int32, replyTo *mtproto.InputReplyTo) *mtproto.MessageRepl
 		header.QuoteEntities = replyTo.GetQuoteEntities()
 		header.QuoteOffset = replyTo.GetQuoteOffset()
 	}
+	// A reply to one answer or one checklist item (api/poll, api/todo).
+	header.TodoItemId = replyTo.GetTodoItemId()
+	header.PollOption = replyTo.GetPollOption()
 	return header
 }
 

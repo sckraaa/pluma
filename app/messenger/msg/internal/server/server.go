@@ -55,6 +55,7 @@ type Server struct {
 	relay   *outbox.Relay
 	// scheduled delivers the schedule queues (task 061).
 	scheduled interface{ Stop() }
+	polls     *msg_helper.PollSweeper
 
 	draining atomic.Bool
 	running  sync.WaitGroup
@@ -104,6 +105,7 @@ func (s *Server) Initialize() error {
 	scheduled := msg_helper.NewScheduledWorker(d, nil)
 	scheduled.Start()
 	s.scheduled = scheduled
+	s.polls = msg_helper.StartPollSweeper(d)
 
 	return nil
 }
@@ -130,6 +132,9 @@ func (s *Server) Destroy() {
 	s.draining.Store(true)
 	if s.scheduled != nil {
 		s.scheduled.Stop()
+	}
+	if s.polls != nil {
+		s.polls.Stop()
 	}
 	var wg sync.WaitGroup
 	wg.Add(2)

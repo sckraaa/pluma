@@ -161,6 +161,46 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1139649382,
 		}
 	},
+	764721422: func() mtproto.TLObject { // 0x2d94b90e pluma: task 062
+		return &TLMsgSendVote{
+			Constructor: 764721422,
+		}
+	},
+	512196319: func() mtproto.TLObject { // 0x1e877edf pluma: task 062
+		return &TLMsgClosePoll{
+			Constructor: 512196319,
+		}
+	},
+	660503693: func() mtproto.TLObject { // 0x275e7c8d pluma: task 062
+		return &TLMsgAddPollAnswer{
+			Constructor: 660503693,
+		}
+	},
+	871616521: func() mtproto.TLObject { // 0x33f3d009 pluma: task 062
+		return &TLMsgDeletePollAnswer{
+			Constructor: 871616521,
+		}
+	},
+	574587703: func() mtproto.TLObject { // 0x223f8337 pluma: task 062
+		return &TLMsgReadPollVotes{
+			Constructor: 574587703,
+		}
+	},
+	2077104412: func() mtproto.TLObject { // 0x7bce191c pluma: task 062
+		return &TLMsgToggleTodoCompleted{
+			Constructor: 2077104412,
+		}
+	},
+	1736696679: func() mtproto.TLObject { // 0x6783e367 pluma: task 062
+		return &TLMsgAppendTodoList{
+			Constructor: 1736696679,
+		}
+	},
+	1650536534: func() mtproto.TLObject { // 0x62613056 pluma: task 062
+		return &TLMsgEditTodoList{
+			Constructor: 1650536534,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1828,6 +1868,410 @@ func (m *TLMsgHasScheduled) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.UserId = dBuf.Long()
 		m.PeerType = dBuf.Int()
 		m.PeerId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgSendVote (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgSendVote) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x2d94b90e:
+		x.UInt(0x2d94b90e)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+		x.VectorBytes(m.GetOptions())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgSendVote) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgSendVote) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x2d94b90e:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		m.Options = dBuf.VectorBytes()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgClosePoll (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgClosePoll) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x1e877edf:
+		x.UInt(0x1e877edf)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgClosePoll) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgClosePoll) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x1e877edf:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgAddPollAnswer (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgAddPollAnswer) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x275e7c8d:
+		x.UInt(0x275e7c8d)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+		m.GetAnswer().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgAddPollAnswer) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgAddPollAnswer) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x275e7c8d:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		m5 := &mtproto.PollAnswer{}
+		m5.Decode(dBuf)
+		m.Answer = m5
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgDeletePollAnswer (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgDeletePollAnswer) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x33f3d009:
+		x.UInt(0x33f3d009)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+		x.StringBytes(m.GetOption())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgDeletePollAnswer) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgDeletePollAnswer) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x33f3d009:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		m.Option = dBuf.StringBytes()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgReadPollVotes (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgReadPollVotes) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x223f8337:
+		x.UInt(0x223f8337)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetTopMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgReadPollVotes) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgReadPollVotes) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x223f8337:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgToggleTodoCompleted (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgToggleTodoCompleted) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x7bce191c:
+		x.UInt(0x7bce191c)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+		x.VectorInt(m.GetCompleted())
+		x.VectorInt(m.GetIncompleted())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgToggleTodoCompleted) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgToggleTodoCompleted) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x7bce191c:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		m.Completed = dBuf.VectorInt()
+		m.Incompleted = dBuf.VectorInt()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgAppendTodoList (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgAppendTodoList) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x6783e367:
+		x.UInt(0x6783e367)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetList())))
+		for _, v := range m.GetList() {
+			v.Encode(x, layer)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgAppendTodoList) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgAppendTodoList) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x6783e367:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		c5 := dBuf.Int()
+		if c5 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 5, c5)
+		}
+		l5 := dBuf.Int()
+		if l5 < 0 || l5 > 64 {
+			return fmt.Errorf("invalid length of a vector, c%d: %d", 5, l5)
+		}
+		v5 := make([]*mtproto.TodoItem, l5)
+		for i := int32(0); i < l5; i++ {
+			v5[i] = &mtproto.TodoItem{}
+			v5[i].Decode(dBuf)
+		}
+		m.List = v5
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgEditTodoList (pluma: task 062)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgEditTodoList) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x62613056:
+		x.UInt(0x62613056)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMsgId())
+		m.GetTodo().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgEditTodoList) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgEditTodoList) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x62613056:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		m5 := &mtproto.TodoList{}
+		m5.Decode(dBuf)
+		m.Todo = m5
 		return dBuf.GetError()
 
 	default:

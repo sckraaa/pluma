@@ -187,6 +187,11 @@ func removeMessages(b *userbox.Box, ch *channelbox.Channel, out *Deleted) error 
 	if _, err := b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
 		return err
 	}
+	// A deleted poll counts no more among its creator's unread votes.
+	if _, err := b.Tx().Exec("UPDATE polls SET has_unread = 0 WHERE peer_type = ? AND peer_id = ? AND has_unread = 1 AND message_id IN "+in,
+		append([]any{mtproto.PEER_CHANNEL}, args...)...); err != nil {
+		return err
+	}
 	var top []int32
 	if err := b.Tx().QueryRowsPartial(&top, "SELECT top_message FROM channels WHERE id = ?", out.ChannelId); err != nil {
 		return err

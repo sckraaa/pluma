@@ -240,6 +240,9 @@ func (d *Dao) ReadContents(b *userbox.Box, ids []int32) (*ReadContentsResult, er
 	if err = d.readOwnReactions(b, ownSeen); err != nil {
 		return nil, err
 	}
+	if err = readOwnPollVotes(b, rows); err != nil {
+		return nil, err
+	}
 	if len(changed) == 0 {
 		return nil, nil
 	}

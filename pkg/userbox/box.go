@@ -294,6 +294,7 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateNewAuthorization,
 		mtproto.Predicate_updateSavedGifs,
 		mtproto.Predicate_updateMessageReactions,
+		mtproto.Predicate_updateMessagePoll,
 		mtproto.Predicate_updateChannel,
 		mtproto.Predicate_updateReadChannelInbox,
 		mtproto.Predicate_updateReadChannelDiscussionInbox,

@@ -72,6 +72,22 @@ const (
 	TLConstructor_CRC32_msg_deleteScheduledMessages TLConstructor = -698200857
 	// pluma: task 061
 	TLConstructor_CRC32_msg_hasScheduled TLConstructor = -1139649382
+	// pluma: task 062
+	TLConstructor_CRC32_msg_sendVote TLConstructor = 764721422
+	// pluma: task 062
+	TLConstructor_CRC32_msg_closePoll TLConstructor = 512196319
+	// pluma: task 062
+	TLConstructor_CRC32_msg_addPollAnswer TLConstructor = 660503693
+	// pluma: task 062
+	TLConstructor_CRC32_msg_deletePollAnswer TLConstructor = 871616521
+	// pluma: task 062
+	TLConstructor_CRC32_msg_readPollVotes TLConstructor = 574587703
+	// pluma: task 062
+	TLConstructor_CRC32_msg_toggleTodoCompleted TLConstructor = 2077104412
+	// pluma: task 062
+	TLConstructor_CRC32_msg_appendTodoList TLConstructor = 1736696679
+	// pluma: task 062
+	TLConstructor_CRC32_msg_editTodoList TLConstructor = 1650536534
 )
 
 // Enum value maps for TLConstructor.
@@ -104,6 +120,14 @@ var (
 		-754764820:  "CRC32_msg_sendScheduledMessages",
 		-698200857:  "CRC32_msg_deleteScheduledMessages",
 		-1139649382: "CRC32_msg_hasScheduled",
+		764721422:   "CRC32_msg_sendVote",
+		512196319:   "CRC32_msg_closePoll",
+		660503693:   "CRC32_msg_addPollAnswer",
+		871616521:   "CRC32_msg_deletePollAnswer",
+		574587703:   "CRC32_msg_readPollVotes",
+		2077104412:  "CRC32_msg_toggleTodoCompleted",
+		1736696679:  "CRC32_msg_appendTodoList",
+		1650536534:  "CRC32_msg_editTodoList",
 	}
 	TLConstructor_value = map[string]int32{
 		"CRC32_UNKNOWN":                     0,
@@ -133,6 +157,14 @@ var (
 		"CRC32_msg_sendScheduledMessages":   -754764820,
 		"CRC32_msg_deleteScheduledMessages": -698200857,
 		"CRC32_msg_hasScheduled":            -1139649382,
+		"CRC32_msg_sendVote":                764721422,
+		"CRC32_msg_closePoll":               512196319,
+		"CRC32_msg_addPollAnswer":           660503693,
+		"CRC32_msg_deletePollAnswer":        871616521,
+		"CRC32_msg_readPollVotes":           574587703,
+		"CRC32_msg_toggleTodoCompleted":     2077104412,
+		"CRC32_msg_appendTodoList":          1736696679,
+		"CRC32_msg_editTodoList":            1650536534,
 	}
 )
 
@@ -2563,6 +2595,767 @@ func (x *TLMsgHasScheduled) GetPeerId() int64 {
 	return 0
 }
 
+// --------------------------------------------------------------------------------------------
+// pluma: msg.sendVote user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int options:Vector<bytes> = Updates;
+// The user's vote in the poll of its copy msg_id: options replaces the
+// options it had chosen; none takes the vote back.
+// (task 062)
+type TLMsgSendVote struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	Options       [][]byte               `protobuf:"bytes,8,rep,name=options,proto3" json:"options,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgSendVote) Reset() {
+	*x = TLMsgSendVote{}
+	mi := &file_msg_tl_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgSendVote) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgSendVote) ProtoMessage() {}
+
+func (x *TLMsgSendVote) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgSendVote.ProtoReflect.Descriptor instead.
+func (*TLMsgSendVote) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *TLMsgSendVote) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgSendVote) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgSendVote) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgSendVote) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgSendVote) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgSendVote) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *TLMsgSendVote) GetOptions() [][]byte {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.closePoll user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int = Updates;
+// Closes the poll of message msg_id (messages.editMessage with poll.closed).
+// (task 062)
+type TLMsgClosePoll struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgClosePoll) Reset() {
+	*x = TLMsgClosePoll{}
+	mi := &file_msg_tl_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgClosePoll) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgClosePoll) ProtoMessage() {}
+
+func (x *TLMsgClosePoll) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgClosePoll.ProtoReflect.Descriptor instead.
+func (*TLMsgClosePoll) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *TLMsgClosePoll) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgClosePoll) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgClosePoll) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgClosePoll) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgClosePoll) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgClosePoll) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.addPollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int answer:PollAnswer = Updates;
+// Adds an answer to the open-answer poll of message msg_id.
+// (task 062)
+type TLMsgAddPollAnswer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	Answer        *mtproto.PollAnswer    `protobuf:"bytes,8,opt,name=answer,proto3" json:"answer,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgAddPollAnswer) Reset() {
+	*x = TLMsgAddPollAnswer{}
+	mi := &file_msg_tl_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgAddPollAnswer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgAddPollAnswer) ProtoMessage() {}
+
+func (x *TLMsgAddPollAnswer) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgAddPollAnswer.ProtoReflect.Descriptor instead.
+func (*TLMsgAddPollAnswer) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *TLMsgAddPollAnswer) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgAddPollAnswer) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgAddPollAnswer) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgAddPollAnswer) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgAddPollAnswer) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgAddPollAnswer) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *TLMsgAddPollAnswer) GetAnswer() *mtproto.PollAnswer {
+	if x != nil {
+		return x.Answer
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.deletePollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int option:bytes = Updates;
+// Takes an answer out of the open-answer poll of message msg_id.
+// (task 062)
+type TLMsgDeletePollAnswer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	Option        []byte                 `protobuf:"bytes,8,opt,name=option,proto3" json:"option,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgDeletePollAnswer) Reset() {
+	*x = TLMsgDeletePollAnswer{}
+	mi := &file_msg_tl_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgDeletePollAnswer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgDeletePollAnswer) ProtoMessage() {}
+
+func (x *TLMsgDeletePollAnswer) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgDeletePollAnswer.ProtoReflect.Descriptor instead.
+func (*TLMsgDeletePollAnswer) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *TLMsgDeletePollAnswer) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgDeletePollAnswer) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgDeletePollAnswer) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgDeletePollAnswer) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgDeletePollAnswer) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgDeletePollAnswer) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *TLMsgDeletePollAnswer) GetOption() []byte {
+	if x != nil {
+		return x.Option
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.readPollVotes user_id:long auth_key_id:long peer_type:int peer_id:long top_msg_id:int = messages.AffectedHistory;
+// Marks the unread votes of the user's polls of the dialog seen.
+// (task 062)
+type TLMsgReadPollVotes struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	TopMsgId      int32                  `protobuf:"varint,7,opt,name=top_msg_id,json=topMsgId,proto3" json:"top_msg_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgReadPollVotes) Reset() {
+	*x = TLMsgReadPollVotes{}
+	mi := &file_msg_tl_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgReadPollVotes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgReadPollVotes) ProtoMessage() {}
+
+func (x *TLMsgReadPollVotes) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgReadPollVotes.ProtoReflect.Descriptor instead.
+func (*TLMsgReadPollVotes) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *TLMsgReadPollVotes) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgReadPollVotes) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgReadPollVotes) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgReadPollVotes) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgReadPollVotes) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgReadPollVotes) GetTopMsgId() int32 {
+	if x != nil {
+		return x.TopMsgId
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.toggleTodoCompleted user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int completed:Vector<int> incompleted:Vector<int> = Updates;
+// Marks items of the checklist of message msg_id done or not done.
+// (task 062)
+type TLMsgToggleTodoCompleted struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	Completed     []int32                `protobuf:"varint,8,rep,packed,name=completed,proto3" json:"completed,omitempty"`
+	Incompleted   []int32                `protobuf:"varint,9,rep,packed,name=incompleted,proto3" json:"incompleted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgToggleTodoCompleted) Reset() {
+	*x = TLMsgToggleTodoCompleted{}
+	mi := &file_msg_tl_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgToggleTodoCompleted) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgToggleTodoCompleted) ProtoMessage() {}
+
+func (x *TLMsgToggleTodoCompleted) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgToggleTodoCompleted.ProtoReflect.Descriptor instead.
+func (*TLMsgToggleTodoCompleted) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *TLMsgToggleTodoCompleted) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgToggleTodoCompleted) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgToggleTodoCompleted) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgToggleTodoCompleted) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgToggleTodoCompleted) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgToggleTodoCompleted) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *TLMsgToggleTodoCompleted) GetCompleted() []int32 {
+	if x != nil {
+		return x.Completed
+	}
+	return nil
+}
+
+func (x *TLMsgToggleTodoCompleted) GetIncompleted() []int32 {
+	if x != nil {
+		return x.Incompleted
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.appendTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int list:Vector<TodoItem> = Updates;
+// Adds items at the end of the checklist of message msg_id.
+// (task 062)
+type TLMsgAppendTodoList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	List          []*mtproto.TodoItem    `protobuf:"bytes,8,rep,name=list,proto3" json:"list,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgAppendTodoList) Reset() {
+	*x = TLMsgAppendTodoList{}
+	mi := &file_msg_tl_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgAppendTodoList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgAppendTodoList) ProtoMessage() {}
+
+func (x *TLMsgAppendTodoList) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgAppendTodoList.ProtoReflect.Descriptor instead.
+func (*TLMsgAppendTodoList) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *TLMsgAppendTodoList) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgAppendTodoList) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgAppendTodoList) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgAppendTodoList) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgAppendTodoList) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgAppendTodoList) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *TLMsgAppendTodoList) GetList() []*mtproto.TodoItem {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.editTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int todo:TodoList = Updates;
+// Replaces the checklist of message msg_id by its author (messages.editMessage).
+// (task 062)
+type TLMsgEditTodoList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	MsgId         int32                  `protobuf:"varint,7,opt,name=msg_id,json=msgId,proto3" json:"msg_id,omitempty"`
+	Todo          *mtproto.TodoList      `protobuf:"bytes,8,opt,name=todo,proto3" json:"todo,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgEditTodoList) Reset() {
+	*x = TLMsgEditTodoList{}
+	mi := &file_msg_tl_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgEditTodoList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgEditTodoList) ProtoMessage() {}
+
+func (x *TLMsgEditTodoList) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgEditTodoList.ProtoReflect.Descriptor instead.
+func (*TLMsgEditTodoList) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *TLMsgEditTodoList) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgEditTodoList) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgEditTodoList) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgEditTodoList) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgEditTodoList) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgEditTodoList) GetMsgId() int32 {
+	if x != nil {
+		return x.MsgId
+	}
+	return 0
+}
+
+func (x *TLMsgEditTodoList) GetTodo() *mtproto.TodoList {
+	if x != nil {
+		return x.Todo
+	}
+	return nil
+}
+
 var File_msg_tl_proto protoreflect.FileDescriptor
 
 const file_msg_tl_proto_rawDesc = "" +
@@ -2769,7 +3562,72 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
 	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
-	"\apeer_id\x18\x05 \x01(\x03R\x06peerId*\xfd\a\n" +
+	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\"\xe7\x01\n" +
+	"\x0fTL_msg_sendVote\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\x12\x18\n" +
+	"\aoptions\x18\b \x03(\fR\aoptions\"\xce\x01\n" +
+	"\x10TL_msg_closePoll\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\"\xff\x01\n" +
+	"\x14TL_msg_addPollAnswer\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\x12+\n" +
+	"\x06answer\x18\b \x01(\v2\x13.mtproto.PollAnswerR\x06answer\"\xed\x01\n" +
+	"\x17TL_msg_deletePollAnswer\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\x12\x16\n" +
+	"\x06option\x18\b \x01(\fR\x06option\"\xd9\x01\n" +
+	"\x14TL_msg_readPollVotes\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x1c\n" +
+	"\n" +
+	"top_msg_id\x18\a \x01(\x05R\btopMsgId\"\x98\x02\n" +
+	"\x1aTL_msg_toggleTodoCompleted\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\x12\x1c\n" +
+	"\tcompleted\x18\b \x03(\x05R\tcompleted\x12 \n" +
+	"\vincompleted\x18\t \x03(\x05R\vincompleted\"\xfa\x01\n" +
+	"\x15TL_msg_appendTodoList\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\x12%\n" +
+	"\x04list\x18\b \x03(\v2\x11.mtproto.TodoItemR\x04list\"\xf8\x01\n" +
+	"\x13TL_msg_editTodoList\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x15\n" +
+	"\x06msg_id\x18\a \x01(\x05R\x05msgId\x12%\n" +
+	"\x04todo\x18\b \x01(\v2\x11.mtproto.TodoListR\x04todo*\x85\n" +
+	"\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12\x14\n" +
 	"\fCRC32_sender\x10\xba\xc9\xe1\xd1\x05\x12\x1b\n" +
@@ -2797,7 +3655,15 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x1eCRC32_msg_getScheduledMessages\x10\x80\xa5\xa4\xf6\xfd\xff\xff\xff\xff\x01\x12,\n" +
 	"\x1fCRC32_msg_sendScheduledMessages\x10\xec猘\xfd\xff\xff\xff\xff\x01\x12.\n" +
 	"!CRC32_msg_deleteScheduledMessages\x10癉\xb3\xfd\xff\xff\xff\xff\x01\x12#\n" +
-	"\x16CRC32_msg_hasScheduled\x10\x9a\xa9\xc9\xe0\xfb\xff\xff\xff\xff\x012\xe0\x0e\n" +
+	"\x16CRC32_msg_hasScheduled\x10\x9a\xa9\xc9\xe0\xfb\xff\xff\xff\xff\x01\x12\x1a\n" +
+	"\x12CRC32_msg_sendVote\x10\x8e\xf2\xd2\xec\x02\x12\x1b\n" +
+	"\x13CRC32_msg_closePoll\x10\xdf\xfd\x9d\xf4\x01\x12\x1f\n" +
+	"\x17CRC32_msg_addPollAnswer\x10\x8d\xf9\xf9\xba\x02\x12\"\n" +
+	"\x1aCRC32_msg_deletePollAnswer\x10\x89\xa0ϟ\x03\x12\x1f\n" +
+	"\x17CRC32_msg_readPollVotes\x10\xb7\x86\xfe\x91\x02\x12%\n" +
+	"\x1dCRC32_msg_toggleTodoCompleted\x10\x9c\xb2\xb8\xde\a\x12 \n" +
+	"\x18CRC32_msg_appendTodoList\x10\xe7Ə\xbc\x06\x12\x1e\n" +
+	"\x16CRC32_msg_editTodoList\x10\xd6\xe0\x84\x93\x062\x91\x13\n" +
 	"\x06RPCMsg\x12C\n" +
 	"\x13msg_pushUserMessage\x12\x1b.msg.TL_msg_pushUserMessage\x1a\r.mtproto.Bool\"\x00\x12`\n" +
 	"\x17msg_readMessageContents\x12\x1f.msg.TL_msg_readMessageContents\x1a\".mtproto.messages_AffectedMessages\"\x00\x12B\n" +
@@ -2821,7 +3687,15 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x18msg_getScheduledMessages\x12 .msg.TL_msg_getScheduledMessages\x1a\x1a.mtproto.messages_Messages\"\x00\x12R\n" +
 	"\x19msg_sendScheduledMessages\x12!.msg.TL_msg_sendScheduledMessages\x1a\x10.mtproto.Updates\"\x00\x12V\n" +
 	"\x1bmsg_deleteScheduledMessages\x12#.msg.TL_msg_deleteScheduledMessages\x1a\x10.mtproto.Updates\"\x00\x12=\n" +
-	"\x10msg_hasScheduled\x12\x18.msg.TL_msg_hasScheduled\x1a\r.mtproto.Bool\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
+	"\x10msg_hasScheduled\x12\x18.msg.TL_msg_hasScheduled\x1a\r.mtproto.Bool\"\x00\x128\n" +
+	"\fmsg_sendVote\x12\x14.msg.TL_msg_sendVote\x1a\x10.mtproto.Updates\"\x00\x12:\n" +
+	"\rmsg_closePoll\x12\x15.msg.TL_msg_closePoll\x1a\x10.mtproto.Updates\"\x00\x12B\n" +
+	"\x11msg_addPollAnswer\x12\x19.msg.TL_msg_addPollAnswer\x1a\x10.mtproto.Updates\"\x00\x12H\n" +
+	"\x14msg_deletePollAnswer\x12\x1c.msg.TL_msg_deletePollAnswer\x1a\x10.mtproto.Updates\"\x00\x12S\n" +
+	"\x11msg_readPollVotes\x12\x19.msg.TL_msg_readPollVotes\x1a!.mtproto.messages_AffectedHistory\"\x00\x12N\n" +
+	"\x17msg_toggleTodoCompleted\x12\x1f.msg.TL_msg_toggleTodoCompleted\x1a\x10.mtproto.Updates\"\x00\x12D\n" +
+	"\x12msg_appendTodoList\x12\x1a.msg.TL_msg_appendTodoList\x1a\x10.mtproto.Updates\"\x00\x12@\n" +
+	"\x10msg_editTodoList\x12\x18.msg.TL_msg_editTodoList\x1a\x10.mtproto.Updates\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
 
 var (
 	file_msg_tl_proto_rawDescOnce sync.Once
@@ -2836,7 +3710,7 @@ func file_msg_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_msg_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_msg_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                             // 0: msg.TLConstructor
 	(*ContentMessage)(nil),                         // 1: msg.ContentMessage
@@ -2868,23 +3742,34 @@ var file_msg_tl_proto_goTypes = []any{
 	(*TLMsgSendScheduledMessages)(nil),             // 27: msg.TL_msg_sendScheduledMessages
 	(*TLMsgDeleteScheduledMessages)(nil),           // 28: msg.TL_msg_deleteScheduledMessages
 	(*TLMsgHasScheduled)(nil),                      // 29: msg.TL_msg_hasScheduled
-	(*mtproto.Message)(nil),                        // 30: mtproto.Message
-	(*wrapperspb.Int32Value)(nil),                  // 31: google.protobuf.Int32Value
-	(*mtproto.MessageBox)(nil),                     // 32: mtproto.MessageBox
-	(*mtproto.Bool)(nil),                           // 33: mtproto.Bool
-	(*mtproto.Reaction)(nil),                       // 34: mtproto.Reaction
-	(*mtproto.Messages_AffectedMessages)(nil),      // 35: mtproto.messages_AffectedMessages
-	(*mtproto.Updates)(nil),                        // 36: mtproto.Updates
-	(*mtproto.Messages_AffectedHistory)(nil),       // 37: mtproto.messages_AffectedHistory
-	(*mtproto.Messages_AffectedFoundMessages)(nil), // 38: mtproto.messages_AffectedFoundMessages
-	(*mtproto.Messages_Messages)(nil),              // 39: mtproto.messages_Messages
+	(*TLMsgSendVote)(nil),                          // 30: msg.TL_msg_sendVote
+	(*TLMsgClosePoll)(nil),                         // 31: msg.TL_msg_closePoll
+	(*TLMsgAddPollAnswer)(nil),                     // 32: msg.TL_msg_addPollAnswer
+	(*TLMsgDeletePollAnswer)(nil),                  // 33: msg.TL_msg_deletePollAnswer
+	(*TLMsgReadPollVotes)(nil),                     // 34: msg.TL_msg_readPollVotes
+	(*TLMsgToggleTodoCompleted)(nil),               // 35: msg.TL_msg_toggleTodoCompleted
+	(*TLMsgAppendTodoList)(nil),                    // 36: msg.TL_msg_appendTodoList
+	(*TLMsgEditTodoList)(nil),                      // 37: msg.TL_msg_editTodoList
+	(*mtproto.Message)(nil),                        // 38: mtproto.Message
+	(*wrapperspb.Int32Value)(nil),                  // 39: google.protobuf.Int32Value
+	(*mtproto.MessageBox)(nil),                     // 40: mtproto.MessageBox
+	(*mtproto.Bool)(nil),                           // 41: mtproto.Bool
+	(*mtproto.Reaction)(nil),                       // 42: mtproto.Reaction
+	(*mtproto.PollAnswer)(nil),                     // 43: mtproto.PollAnswer
+	(*mtproto.TodoItem)(nil),                       // 44: mtproto.TodoItem
+	(*mtproto.TodoList)(nil),                       // 45: mtproto.TodoList
+	(*mtproto.Messages_AffectedMessages)(nil),      // 46: mtproto.messages_AffectedMessages
+	(*mtproto.Updates)(nil),                        // 47: mtproto.Updates
+	(*mtproto.Messages_AffectedHistory)(nil),       // 48: mtproto.messages_AffectedHistory
+	(*mtproto.Messages_AffectedFoundMessages)(nil), // 49: mtproto.messages_AffectedFoundMessages
+	(*mtproto.Messages_Messages)(nil),              // 50: mtproto.messages_Messages
 }
 var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 0: msg.ContentMessage.constructor:type_name -> msg.TLConstructor
 	1,  // 1: msg.TL_contentMessage.data2:type_name -> msg.ContentMessage
 	0,  // 2: msg.OutboxMessage.constructor:type_name -> msg.TLConstructor
-	30, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
-	31, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
+	38, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
+	39, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
 	3,  // 5: msg.TL_outboxMessage.data2:type_name -> msg.OutboxMessage
 	0,  // 6: msg.Sender.constructor:type_name -> msg.TLConstructor
 	5,  // 7: msg.TL_sender.data2:type_name -> msg.Sender
@@ -2896,7 +3781,7 @@ var file_msg_tl_proto_depIdxs = []int32{
 	3,  // 13: msg.TL_msg_sendMessageV2.message:type_name -> msg.OutboxMessage
 	0,  // 14: msg.TL_msg_editMessageV2.constructor:type_name -> msg.TLConstructor
 	3,  // 15: msg.TL_msg_editMessageV2.new_message:type_name -> msg.OutboxMessage
-	32, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
+	40, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
 	0,  // 17: msg.TL_msg_deleteMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 18: msg.TL_msg_deleteHistory.constructor:type_name -> msg.TLConstructor
 	0,  // 19: msg.TL_msg_deletePhoneCallHistory.constructor:type_name -> msg.TLConstructor
@@ -2906,72 +3791,99 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 23: msg.TL_msg_unpinAllMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 24: msg.TL_msg_readMentions.constructor:type_name -> msg.TLConstructor
 	0,  // 25: msg.TL_msg_deleteHistoryRange.constructor:type_name -> msg.TLConstructor
-	33, // 26: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
+	41, // 26: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
 	0,  // 27: msg.TL_msg_editPeerFolders.constructor:type_name -> msg.TLConstructor
 	0,  // 28: msg.TL_msg_sendReaction.constructor:type_name -> msg.TLConstructor
-	33, // 29: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
-	33, // 30: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
-	34, // 31: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
+	41, // 29: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
+	41, // 30: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
+	42, // 31: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
 	0,  // 32: msg.TL_msg_readReactions.constructor:type_name -> msg.TLConstructor
 	0,  // 33: msg.TL_msg_updateSavedReactionTag.constructor:type_name -> msg.TLConstructor
-	34, // 34: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
+	42, // 34: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
 	0,  // 35: msg.TL_msg_migrateChat.constructor:type_name -> msg.TLConstructor
 	0,  // 36: msg.TL_msg_getScheduledHistory.constructor:type_name -> msg.TLConstructor
 	0,  // 37: msg.TL_msg_getScheduledMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 38: msg.TL_msg_sendScheduledMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 39: msg.TL_msg_deleteScheduledMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 40: msg.TL_msg_hasScheduled.constructor:type_name -> msg.TLConstructor
-	7,  // 41: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
-	8,  // 42: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
-	9,  // 43: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
-	10, // 44: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
-	11, // 45: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
-	12, // 46: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
-	13, // 47: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
-	14, // 48: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
-	15, // 49: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
-	16, // 50: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
-	17, // 51: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
-	18, // 52: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
-	19, // 53: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
-	20, // 54: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
-	21, // 55: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
-	22, // 56: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
-	23, // 57: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
-	24, // 58: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
-	25, // 59: msg.RPCMsg.msg_getScheduledHistory:input_type -> msg.TL_msg_getScheduledHistory
-	26, // 60: msg.RPCMsg.msg_getScheduledMessages:input_type -> msg.TL_msg_getScheduledMessages
-	27, // 61: msg.RPCMsg.msg_sendScheduledMessages:input_type -> msg.TL_msg_sendScheduledMessages
-	28, // 62: msg.RPCMsg.msg_deleteScheduledMessages:input_type -> msg.TL_msg_deleteScheduledMessages
-	29, // 63: msg.RPCMsg.msg_hasScheduled:input_type -> msg.TL_msg_hasScheduled
-	33, // 64: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
-	35, // 65: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
-	36, // 66: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
-	36, // 67: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
-	35, // 68: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	37, // 69: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
-	38, // 70: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
-	33, // 71: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
-	35, // 72: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
-	36, // 73: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
-	37, // 74: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
-	37, // 75: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
-	37, // 76: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
-	36, // 77: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
-	36, // 78: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
-	37, // 79: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
-	33, // 80: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
-	36, // 81: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
-	39, // 82: msg.RPCMsg.msg_getScheduledHistory:output_type -> mtproto.messages_Messages
-	39, // 83: msg.RPCMsg.msg_getScheduledMessages:output_type -> mtproto.messages_Messages
-	36, // 84: msg.RPCMsg.msg_sendScheduledMessages:output_type -> mtproto.Updates
-	36, // 85: msg.RPCMsg.msg_deleteScheduledMessages:output_type -> mtproto.Updates
-	33, // 86: msg.RPCMsg.msg_hasScheduled:output_type -> mtproto.Bool
-	64, // [64:87] is the sub-list for method output_type
-	41, // [41:64] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	0,  // 41: msg.TL_msg_sendVote.constructor:type_name -> msg.TLConstructor
+	0,  // 42: msg.TL_msg_closePoll.constructor:type_name -> msg.TLConstructor
+	0,  // 43: msg.TL_msg_addPollAnswer.constructor:type_name -> msg.TLConstructor
+	43, // 44: msg.TL_msg_addPollAnswer.answer:type_name -> mtproto.PollAnswer
+	0,  // 45: msg.TL_msg_deletePollAnswer.constructor:type_name -> msg.TLConstructor
+	0,  // 46: msg.TL_msg_readPollVotes.constructor:type_name -> msg.TLConstructor
+	0,  // 47: msg.TL_msg_toggleTodoCompleted.constructor:type_name -> msg.TLConstructor
+	0,  // 48: msg.TL_msg_appendTodoList.constructor:type_name -> msg.TLConstructor
+	44, // 49: msg.TL_msg_appendTodoList.list:type_name -> mtproto.TodoItem
+	0,  // 50: msg.TL_msg_editTodoList.constructor:type_name -> msg.TLConstructor
+	45, // 51: msg.TL_msg_editTodoList.todo:type_name -> mtproto.TodoList
+	7,  // 52: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
+	8,  // 53: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
+	9,  // 54: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
+	10, // 55: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
+	11, // 56: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
+	12, // 57: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
+	13, // 58: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
+	14, // 59: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
+	15, // 60: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
+	16, // 61: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
+	17, // 62: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
+	18, // 63: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
+	19, // 64: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
+	20, // 65: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
+	21, // 66: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
+	22, // 67: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
+	23, // 68: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
+	24, // 69: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
+	25, // 70: msg.RPCMsg.msg_getScheduledHistory:input_type -> msg.TL_msg_getScheduledHistory
+	26, // 71: msg.RPCMsg.msg_getScheduledMessages:input_type -> msg.TL_msg_getScheduledMessages
+	27, // 72: msg.RPCMsg.msg_sendScheduledMessages:input_type -> msg.TL_msg_sendScheduledMessages
+	28, // 73: msg.RPCMsg.msg_deleteScheduledMessages:input_type -> msg.TL_msg_deleteScheduledMessages
+	29, // 74: msg.RPCMsg.msg_hasScheduled:input_type -> msg.TL_msg_hasScheduled
+	30, // 75: msg.RPCMsg.msg_sendVote:input_type -> msg.TL_msg_sendVote
+	31, // 76: msg.RPCMsg.msg_closePoll:input_type -> msg.TL_msg_closePoll
+	32, // 77: msg.RPCMsg.msg_addPollAnswer:input_type -> msg.TL_msg_addPollAnswer
+	33, // 78: msg.RPCMsg.msg_deletePollAnswer:input_type -> msg.TL_msg_deletePollAnswer
+	34, // 79: msg.RPCMsg.msg_readPollVotes:input_type -> msg.TL_msg_readPollVotes
+	35, // 80: msg.RPCMsg.msg_toggleTodoCompleted:input_type -> msg.TL_msg_toggleTodoCompleted
+	36, // 81: msg.RPCMsg.msg_appendTodoList:input_type -> msg.TL_msg_appendTodoList
+	37, // 82: msg.RPCMsg.msg_editTodoList:input_type -> msg.TL_msg_editTodoList
+	41, // 83: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
+	46, // 84: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
+	47, // 85: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
+	47, // 86: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
+	46, // 87: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	48, // 88: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
+	49, // 89: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
+	41, // 90: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
+	46, // 91: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
+	47, // 92: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
+	48, // 93: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
+	48, // 94: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
+	48, // 95: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
+	47, // 96: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
+	47, // 97: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
+	48, // 98: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
+	41, // 99: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
+	47, // 100: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
+	50, // 101: msg.RPCMsg.msg_getScheduledHistory:output_type -> mtproto.messages_Messages
+	50, // 102: msg.RPCMsg.msg_getScheduledMessages:output_type -> mtproto.messages_Messages
+	47, // 103: msg.RPCMsg.msg_sendScheduledMessages:output_type -> mtproto.Updates
+	47, // 104: msg.RPCMsg.msg_deleteScheduledMessages:output_type -> mtproto.Updates
+	41, // 105: msg.RPCMsg.msg_hasScheduled:output_type -> mtproto.Bool
+	47, // 106: msg.RPCMsg.msg_sendVote:output_type -> mtproto.Updates
+	47, // 107: msg.RPCMsg.msg_closePoll:output_type -> mtproto.Updates
+	47, // 108: msg.RPCMsg.msg_addPollAnswer:output_type -> mtproto.Updates
+	47, // 109: msg.RPCMsg.msg_deletePollAnswer:output_type -> mtproto.Updates
+	48, // 110: msg.RPCMsg.msg_readPollVotes:output_type -> mtproto.messages_AffectedHistory
+	47, // 111: msg.RPCMsg.msg_toggleTodoCompleted:output_type -> mtproto.Updates
+	47, // 112: msg.RPCMsg.msg_appendTodoList:output_type -> mtproto.Updates
+	47, // 113: msg.RPCMsg.msg_editTodoList:output_type -> mtproto.Updates
+	83, // [83:114] is the sub-list for method output_type
+	52, // [52:83] is the sub-list for method input_type
+	52, // [52:52] is the sub-list for extension type_name
+	52, // [52:52] is the sub-list for extension extendee
+	0,  // [0:52] is the sub-list for field type_name
 }
 
 func init() { file_msg_tl_proto_init() }
@@ -2985,7 +3897,7 @@ func file_msg_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_msg_tl_proto_rawDesc), len(file_msg_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   29,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

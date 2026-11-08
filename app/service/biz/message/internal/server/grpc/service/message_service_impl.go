@@ -12,6 +12,7 @@ package service
 
 import (
 	"context"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 
 	"github.com/teamgram/proto/mtproto"
@@ -32,6 +33,9 @@ func (s *Service) MessageGetUserMessage(ctx context.Context, request *message.TL
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -47,6 +51,9 @@ func (s *Service) MessageGetUserMessageList(ctx context.Context, request *messag
 		return nil, err
 	}
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
 
@@ -66,6 +73,9 @@ func (s *Service) MessageGetUserMessageListByDataIdList(ctx context.Context, req
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -83,6 +93,9 @@ func (s *Service) MessageGetUserMessageListByDataIdUserIdList(ctx context.Contex
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -98,6 +111,9 @@ func (s *Service) MessageGetHistoryMessages(ctx context.Context, request *messag
 		return nil, err
 	}
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
 
@@ -145,6 +161,9 @@ func (s *Service) MessageGetPeerUserMessage(ctx context.Context, request *messag
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -160,6 +179,9 @@ func (s *Service) MessageSearchByMediaType(ctx context.Context, request *message
 		return nil, err
 	}
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
 
@@ -179,6 +201,9 @@ func (s *Service) MessageSearch(ctx context.Context, request *message.TLMessageS
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -196,6 +221,9 @@ func (s *Service) MessageSearchGlobal(ctx context.Context, request *message.TLMe
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -211,6 +239,9 @@ func (s *Service) MessageSearchByPinned(ctx context.Context, request *message.TL
 		return nil, err
 	}
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
 
@@ -242,6 +273,9 @@ func (s *Service) MessageSearchV2(ctx context.Context, request *message.TLMessag
 		return nil, err
 	}
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
 
@@ -289,6 +323,9 @@ func (s *Service) MessageGetUnreadMentions(ctx context.Context, request *message
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -320,6 +357,9 @@ func (s *Service) MessageGetSavedHistoryMessages(ctx context.Context, request *m
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
 		return nil, err
 	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetBoxList()...); err != nil {
+		return nil, err
+	}
 
 	return r, err
 }
@@ -349,6 +389,9 @@ func (s *Service) MessageGetUnreadReactions(ctx context.Context, request *messag
 		return nil, err
 	}
 	if err = reactions.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
+		return nil, err
+	}
+	if err = polls.Attach(ctx, s.svcCtx.Dao.Mysql.DB, r.GetDatas()...); err != nil {
 		return nil, err
 	}
 

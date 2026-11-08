@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -176,6 +177,12 @@ func checkSend(s *sender, m *mtproto.Message, now int64) error {
 	if m.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaWebPage && s.can(channelperm.EmbedLinks, now) != nil {
 		m.Media = nil
 	}
+	// A broadcast channel takes no poll with public voters, sent or
+	// forwarded (BROADCAST_PUBLIC_VOTERS_FORBIDDEN, method/messages.sendMedia):
+	// its subscribers are anonymous.
+	if s.ch.Broadcast && m.GetMedia().GetPoll().GetPublicVoters() {
+		return mtproto.ErrBroadcastPublicVotersForbidden
+	}
 	return nil
 }
 
@@ -319,6 +326,13 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		m.Out = false
 		m.PeerId = mtproto.MakePeerChannel(channelId)
 		m.Date = int32(b.Date())
+		if polls.IsNew(m.Media) {
+			// A channel has one copy of the message; its poll id comes
+			// from the one snowflake the send issued.
+			if m, err = d.storeNewPoll(b, m, mtproto.PEER_CHANNEL, channelId, m.Id, 0, o.DialogMessageId); err != nil {
+				return nil, nil, nil, err
+			}
+		}
 		if s.ch.Broadcast {
 			m.Post = true
 			m.FromId = nil

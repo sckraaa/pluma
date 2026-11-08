@@ -221,6 +221,12 @@ func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
 		args...); err != nil {
 		return err
 	}
+	// A poll of the owner among them: its votes are seen (Desktop reads
+	// them this way, history_inner_widget.cpp:1558, task 062).
+	if _, err := b.Tx().Exec("UPDATE polls SET has_unread = 0 WHERE creator_user_id = ? AND has_unread = 1 AND peer_type = ? AND peer_id = ? AND message_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		append([]any{b.UserId(), mtproto.PEER_CHANNEL, channelId}, args[2:]...)...); err != nil {
+		return err
+	}
 	InvalidateDialog(b, channelId)
 	u := mtproto.MakeTLUpdateChannelReadMessagesContents(&mtproto.Update{ChannelId: channelId, Messages: found}).To_Update()
 	return d.EmitSeqUpdate(b, u, nil, nil)
