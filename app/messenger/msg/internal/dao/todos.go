@@ -59,6 +59,10 @@ func (d *Dao) storeNewMedia(b *userbox.Box, message *mtproto.Message, peerType i
 	case mtproto.Predicate_messageMediaPoll:
 		return d.storeNewPoll(b, message, peerType, peerId, id, dialogMessageId, dialogMessageId)
 	case mtproto.Predicate_messageMediaToDo:
+		// A forward is a frozen copy of the list (checkTodoMessage).
+		if message.GetFwdFrom() != nil {
+			return message, nil
+		}
 		data, err := jsonx.MarshalToString(message.GetMedia().GetTodo())
 		if err != nil {
 			return nil, err
@@ -90,8 +94,8 @@ func (d *Dao) TodoRefOf(b *userbox.Box, peerType int32, peerId int64, msgId int3
 	if err = jsonx.UnmarshalFromString(row.MessageData, &m); err != nil {
 		return nil, err
 	}
-	if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaToDo {
-		return nil, mtproto.ErrMessageIdInvalid
+	if err = checkTodoMessage(m); err != nil {
+		return nil, err
 	}
 	list, completions, err := lockTodo(b, row.DialogMessageId)
 	if err != nil {
@@ -101,6 +105,20 @@ func (d *Dao) TodoRefOf(b *userbox.Box, peerType int32, peerId int64, msgId int3
 		return nil, mtproto.ErrMessageIdInvalid
 	}
 	return &TodoRef{Peer: peer, MessageId: row.UserMessageBoxId, DialogMessageId: row.DialogMessageId, AuthorId: row.SenderUserId, List: list, Completions: completions, row: row}, nil
+}
+
+// checkTodoMessage: m holds a checklist that may change. A forward of one is
+// a frozen copy, which no client ticks or extends (tdesktop TodoList::canComplete,
+// Android MessageObject.canCompleteTodo, canAppendToTodo, iOS
+// ChatMessageTodoBubbleContentNode).
+func checkTodoMessage(m *mtproto.Message) error {
+	if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaToDo {
+		return mtproto.ErrMessageIdInvalid
+	}
+	if m.GetFwdFrom() != nil {
+		return mtproto.ErrMessageAuthorRequired
+	}
+	return nil
 }
 
 func lockTodo(b *userbox.Box, dialogMessageId int64) (*mtproto.TodoList, []*mtproto.TodoCompletion, error) {
@@ -146,8 +164,8 @@ func (d *Dao) ChannelTodoRefOf(b *userbox.Box, channelId int64, msgId int32) (*T
 	if err = jsonx.UnmarshalFromString(rows[0].MessageData, &m); err != nil {
 		return nil, err
 	}
-	if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaToDo {
-		return nil, mtproto.ErrMessageIdInvalid
+	if err = checkTodoMessage(m); err != nil {
+		return nil, err
 	}
 	return &TodoRef{
 		Peer: boxPeer{PeerType: mtproto.PEER_CHANNEL, PeerId: channelId}, MessageId: msgId, AuthorId: rows[0].SenderUserId,

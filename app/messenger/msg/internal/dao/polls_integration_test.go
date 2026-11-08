@@ -281,3 +281,132 @@ func TestTodoParallelToggle(t *testing.T) {
 		w.checkBox(u)
 	}
 }
+
+// forwardHeader marks a message as forwarded.
+func forwardHeader(from int64) *mtproto.MessageFwdHeader {
+	return mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
+		FromId: mtproto.MakePeerUser(from),
+		Date:   int32(time.Now().Unix()),
+	}).To_MessageFwdHeader()
+}
+
+// sendForward sends m as a forward by from to the chat and returns from's
+// copy of it.
+func (w *world) sendForward(from, chat int64, m *mtproto.Message) int32 {
+	w.t.Helper()
+	if _, err := w.rpc.MsgSendMessageV2(context.Background(), &msg.TLMsgSendMessageV2{
+		UserId: from, AuthKeyId: from * 10, PeerType: mtproto.PEER_CHAT, PeerId: chat, Message: []*msg.OutboxMessage{outbox(m)},
+	}); err != nil {
+		w.t.Fatal(err)
+	}
+	w.pub.drain()
+	for _, r := range w.messages(from) {
+		if storedMessage(w.t, r).GetFwdFrom() != nil {
+			return r.Id
+		}
+	}
+	w.t.Fatalf("user %d: no forward", from)
+	return 0
+}
+
+func (w *world) pollRow(id int64) (closed, unread bool) {
+	w.t.Helper()
+	var rows []struct {
+		Closed bool `db:"closed"`
+		Unread bool `db:"has_unread"`
+	}
+	if err := w.d.Mysql.DB.QueryRowsPartial(context.Background(), &rows, "SELECT closed, has_unread FROM polls WHERE id = ?", id); err != nil {
+		w.t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		w.t.Fatalf("poll %d: %d rows", id, len(rows))
+	}
+	return rows[0].Closed, rows[0].Unread
+}
+
+// TestForwardsAreFrozen: who forwarded a poll may not stop it for everyone,
+// and a forwarded checklist is not ticked.
+func TestForwardsAreFrozen(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	a, b := newUser(), newUser()
+	chat := newChat()
+	w.chats.members[chat] = []int64{a, b}
+	id, _ := w.sentPoll(a, chat, nil)
+
+	fwd := textMessage(b, mtproto.MakePeerChat(chat), "")
+	fwd.FwdFrom = forwardHeader(a)
+	fwd.Media = polls.ForForward(mtproto.MakeTLMessageMediaPoll(&mtproto.MessageMedia{
+		Poll:    mtproto.MakeTLPoll(&mtproto.Poll{Id: id, Question_TEXTWITHENTITIES: pollText("Which?")}).To_Poll(),
+		Results: polls.EmptyResults(),
+	}).To_MessageMedia())
+	copyId := w.sendForward(b, chat, fwd)
+	if _, err := w.rpc.MsgClosePoll(context.Background(), &msg.TLMsgClosePoll{
+		UserId: b, AuthKeyId: b * 10, PeerType: mtproto.PEER_CHAT, PeerId: chat, MsgId: copyId,
+	}); err == nil {
+		t.Fatal("the forward of a poll closed it")
+	}
+	if closed, _ := w.pollRow(id); closed {
+		t.Fatal("the poll is closed")
+	}
+
+	other := newChat()
+	w.chats.members[other] = []int64{a, b}
+	list := textMessage(a, mtproto.MakePeerChat(other), "")
+	list.FwdFrom = forwardHeader(b)
+	list.Media = polls.TodoMedia(mtproto.MakeTLTodoList(&mtproto.TodoList{
+		Title: pollText("list"),
+		List:  []*mtproto.TodoItem{mtproto.MakeTLTodoItem(&mtproto.TodoItem{Id: 1, Title: pollText("one")}).To_TodoItem()},
+	}).To_TodoList(), nil)
+	listId := w.sendForward(a, other, list)
+	if _, err := w.rpc.MsgToggleTodoCompleted(context.Background(), &msg.TLMsgToggleTodoCompleted{
+		UserId: a, AuthKeyId: a * 10, PeerType: mtproto.PEER_CHAT, PeerId: other, MsgId: listId, Completed: []int32{1}, Incompleted: []int32{},
+	}); err == nil {
+		t.Fatal("a forwarded checklist was ticked")
+	}
+}
+
+// TestPollUnreadGoesWithTheMessage: deleting a poll with unread votes leaves
+// no count that messages.getUnreadPollVotes could not satisfy.
+func TestPollUnreadGoesWithTheMessage(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	a, b := newUser(), newUser()
+	chat := newChat()
+	w.chats.members[chat] = []int64{a, b}
+	id, copies := w.sentPoll(a, chat, func(p *mtproto.Poll) { p.PublicVoters = true })
+	if err := w.vote(b, chat, copies[b], polls.OptionOf(0)); err != nil {
+		t.Fatal(err)
+	}
+	w.pub.drain()
+	if _, unread := w.pollRow(id); !unread {
+		t.Fatal("a vote on a public poll left no unread mark")
+	}
+	if _, err := w.rpc.MsgDeleteMessages(context.Background(), &msg.TLMsgDeleteMessages{UserId: a, AuthKeyId: a * 10, Revoke: true, Id: []int32{copies[a]}}); err != nil {
+		t.Fatal(err)
+	}
+	w.pub.drain()
+	if _, unread := w.pollRow(id); unread {
+		t.Fatal("the deleted poll still counts as unread")
+	}
+}
+
+// TestSweepClosesPollOfCreatorWhoLeft: the sweep does not depend on the
+// creator being a member still.
+func TestSweepClosesPollOfCreatorWhoLeft(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	a, b := newUser(), newUser()
+	chat := newChat()
+	w.chats.members[chat] = []int64{a, b}
+	id, _ := w.sentPoll(a, chat, func(p *mtproto.Poll) { p.CloseDate = wrapperspb.Int32(int32(time.Now().Unix()) + 1) })
+	w.chats.mu.Lock()
+	w.chats.states[[2]int64{chat, a}] = mtproto.ChatMemberStateKicked
+	w.chats.mu.Unlock()
+	t.Cleanup(msg_helper.StartPollSweeper(w.d).Stop)
+	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(200 * time.Millisecond) {
+		if closed, _ := w.pollRow(id); closed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the poll of a creator who left was not closed")
+		}
+	}
+}

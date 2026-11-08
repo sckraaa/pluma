@@ -281,6 +281,11 @@ func (d *Dao) checkPollRestriction(b *userbox.Box, ref *PollRef, country string)
 // mayEdit tells whether b's owner may edit the message of ref, as for an
 // edit of the message (messages.editMessage, EditChannel).
 func (ref *PollRef) mayEdit(b *userbox.Box) error {
+	// A forward shares the poll of its source and is not its author's to
+	// stop (tdesktop HistoryItem::canBeEdited, canStopPoll).
+	if ref.Message.GetFwdFrom() != nil {
+		return mtproto.ErrMessageAuthorRequired
+	}
 	own := ref.AuthorId == b.UserId()
 	if ref.sender == nil {
 		if !own {
