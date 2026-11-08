@@ -29,8 +29,7 @@ const (
 	HistoryPortion = 1000
 	// historyParticipantsMax is the largest channel whose history may be
 	// deleted for everyone (core.telegram.org/method/channels.deleteHistory:
-	// CHANNEL_TOO_BIG; iOS offers it up to 1000 members too,
-	// ChatControllerNavigationButtonAction.swift:147).
+	// CHANNEL_TOO_BIG).
 	historyParticipantsMax = 1000
 )
 
@@ -59,7 +58,7 @@ func checkHistoryMember(c *memberChannelRow, me *memberRow) error {
 
 // historyMaxId is the last message of a deletion up to maxId: the channel's
 // last one for 0 or anything above it, as the clients send (Android
-// Integer.MAX_VALUE, MessagesController.java:10251; Web K "the server
+// Integer.MAX_VALUE, MessagesController.java:10252; Web K "the server
 // clamps max_id", appMessagesManager.ts flushHistory).
 func historyMaxId(maxId, top int32) int32 {
 	if maxId <= 0 || maxId > top {

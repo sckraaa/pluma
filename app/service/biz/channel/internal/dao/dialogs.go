@@ -79,7 +79,7 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 			return nil, err
 		}
 		// All of the channel the owner has hidden: no last message, as
-		// TopMessages gives none (viewerDialog does the same).
+		// TopMessages gives none (ViewerDialog does the same).
 		top := r.TopMessage
 		if top < r.AvailableMinId {
 			top = 0

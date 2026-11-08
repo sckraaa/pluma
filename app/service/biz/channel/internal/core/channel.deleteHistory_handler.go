@@ -28,9 +28,9 @@ import (
 // self_id deletes the history of the channel up to max_id, for everyone
 // (dao.DeleteHistory, portion after portion) or for itself (dao.HideHistory).
 // The answer is the Updates Android, iOS and Web K apply
-// (MessagesController.java:10255, ManagedCloudChatRemoveMessagesOperations.
+// (MessagesController.java:10258, ManagedCloudChatRemoveMessagesOperations.
 // swift:591, appMessagesManager.ts flushHistory); tdesktop does not look at
-// it (data_histories.cpp:838) and meets the same pts by the next difference.
+// it (data_histories.cpp:839) and meets the same pts by the next difference.
 func (c *ChannelCore) ChannelDeleteHistory(in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error) {
 	if !mtproto.FromBool(in.ForEveryone) {
 		var hidden int32
@@ -113,8 +113,8 @@ func deleteHistoryUpdates(channelId int64, portions []*dao.Deleted) *mtproto.Upd
 // a portion at a time (dao.DeleteParticipantHistory). offset is the number
 // left: above 0 the client repeats the call, and it falls as the history
 // goes (core.telegram.org/constructor/messages.affectedHistory; Android
-// MessagesController.java:9633, tdesktop apiwrap.cpp:1509, iOS
-// DeleteMessagesInteractively.swift:269). The pts is the channel's, as
+// MessagesController.java:9634, tdesktop apiwrap.cpp:1508, iOS
+// DeleteMessagesInteractively.swift:273). The pts is the channel's, as
 // channels.deleteMessages answers, with count 0 when nothing was deleted.
 func (c *ChannelCore) ChannelDeleteParticipantHistory(in *channel.TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
 	var del *dao.ParticipantHistoryDeleted

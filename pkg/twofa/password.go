@@ -131,7 +131,7 @@ const TransferFreshWait = int64(24 * 60 * 60)
 // seconds left. They come before the hash because the clients probe with
 // an empty password and show these as the reasons the transfer cannot be
 // done yet (iOS ChannelOwnershipTransfer.swift:36-53, Android
-// ChatRightsEditActivity.java:1147).
+// ChatRightsEditActivity.java:1148).
 func (s *Service) CheckTransfer(ctx context.Context, userId, authKeyId int64, in *mtproto.InputCheckPasswordSRP, sessionCreated int64) error {
 	p, err := s.get(ctx, userId)
 	if err != nil {

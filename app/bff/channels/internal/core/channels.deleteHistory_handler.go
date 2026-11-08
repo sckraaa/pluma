@@ -61,8 +61,8 @@ func (c *ChannelsCore) deleteHistory(input *mtproto.InputChannel, forEveryone bo
 // channels.deleteParticipantHistory#367544db channel:InputChannel participant:InputPeer = messages.AffectedHistory;
 //
 // The messages a member sent to the supergroup (task 043), a portion at a
-// time. The authors of a supergroup are users (biz channel.sendMessage), so
-// a channel as a participant is PARTICIPANT_ID_INVALID.
+// time. channel_messages keeps users as authors, so a channel as a
+// participant is PARTICIPANT_ID_INVALID.
 func (c *ChannelsCore) ChannelsDeleteParticipantHistory(in *mtproto.TLChannelsDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
 	participant := mtproto.FromInputPeer2(c.MD.UserId, in.Participant)
 	if !participant.IsUser() {
