@@ -457,3 +457,26 @@ func TestQuoteLimitIsTheAppConfigs(t *testing.T) {
 		t.Errorf("quote_length_max of app_config.json %v, the server's limit %d", config["quote_length_max"], QuoteLengthMax)
 	}
 }
+
+// A reply to a channel carries top_msg_id to biz; to the other chats it means
+// nothing. A forward to a channel names only the topic.
+func TestReplyAndForwardTopic(t *testing.T) {
+	channel := &mtproto.PeerUtil{PeerType: mtproto.PEER_CHANNEL, PeerId: 7}
+	user := &mtproto.PeerUtil{PeerType: mtproto.PEER_USER, PeerId: 7}
+	in := mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{ReplyToMsgId: 3, TopMsgId: wrapperspb.Int32(9)}).To_InputReplyTo()
+	h := func() *mtproto.MessageReplyHeader {
+		return sameChatReply(3, nil)
+	}
+	if got := replyWithTopic(h(), channel, in); got.GetReplyToTopId().GetValue() != 9 {
+		t.Errorf("to a channel: %v", got)
+	}
+	if got := replyWithTopic(h(), user, in); got.GetReplyToTopId() != nil {
+		t.Errorf("to a user: %v", got)
+	}
+	if got := forwardTopicHeader(channel, wrapperspb.Int32(9), nil); got.GetReplyToTopId().GetValue() != 9 || got.GetReplyToMsgId() != 0 {
+		t.Errorf("a forward to a topic: %v", got)
+	}
+	if got := forwardTopicHeader(user, wrapperspb.Int32(9), nil); got != nil {
+		t.Errorf("a forward to a user: %v", got)
+	}
+}

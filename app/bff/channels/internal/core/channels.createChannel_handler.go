@@ -36,9 +36,9 @@ const (
 //
 // A channel or a supergroup of the account (task 038); biz channel makes it
 // in one transaction and answers it as the clients take it, the account
-// added to users. Forums, imports and geo groups are not served yet.
+// added to users. Imports and geo groups are not served yet.
 func (c *ChannelsCore) ChannelsCreateChannel(in *mtproto.TLChannelsCreateChannel) (*mtproto.Updates, error) {
-	if in.Forum || in.ForImport || in.GeoPoint != nil {
+	if in.ForImport || in.GeoPoint != nil {
 		return nil, mtproto.ErrEnterpriseIsBlocked
 	}
 	title := strings.TrimSpace(in.Title)
@@ -58,6 +58,7 @@ func (c *ChannelsCore) ChannelsCreateChannel(in *mtproto.TLChannelsCreateChannel
 		About:     in.About,
 		Broadcast: mtproto.ToBool(broadcast),
 		Megagroup: mtproto.ToBool(!broadcast),
+		Forum:     mtproto.ToBool(in.Forum && !broadcast),
 	})
 	if err != nil {
 		c.Logger.Errorf("channels.createChannel - error: %v", err)

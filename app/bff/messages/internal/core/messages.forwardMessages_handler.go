@@ -305,7 +305,7 @@ func (c *MessagesCore) makeForwardMessages(
 		} else {
 			m.GroupedId = nil
 		}
-		m.ReplyTo = nil
+		m.ReplyTo = forwardTopicHeader(toPeer, request.GetTopMsgId(), request.GetReplyTo())
 		m.Reactions = nil
 		if m.ReplyMarkup != nil {
 			m.ReplyMarkup = m.ReplyMarkup.ToForwardMessage()

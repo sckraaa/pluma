@@ -78,6 +78,7 @@ BFFProxyClients:
     "/mtproto.RPCDrafts": "bff.bff"
     "/mtproto.RPCFolders": "bff.bff"
     "/mtproto.RPCFolderTags": "bff.bff"
+    "/mtproto.RPCForums": "bff.bff"
     #"/mtproto.RPCGames": "bff.bff"
     #"/mtproto.RPCGroupCalls": "bff.bff"
     #"/mtproto.RPCImportedChats": "bff.bff"

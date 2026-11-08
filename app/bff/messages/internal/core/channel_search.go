@@ -81,7 +81,39 @@ func (c *MessagesCore) searchChannel(in *mtproto.TLMessagesSearch, channelId int
 	if filter == mtproto.FilterEmpty && in.Q == "" && fromId == 0 {
 		return nil, mtproto.ErrSearchQueryEmpty
 	}
-	r, err := c.svcCtx.Dao.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{
+	var (
+		r   *mtproto.Messages_Messages
+		err error
+	)
+	if top := in.GetTopMsgId(); top != nil {
+		// A search in a topic, or in a thread (task 060).
+		r, err = c.svcCtx.Dao.Channel.ChannelSearchTopic(c.ctx, &channelpb.TLChannelSearchTopic{
+			SelfId:         c.MD.UserId,
+			ChannelId:      channelId,
+			TopMsgId:       top.GetValue(),
+			Q:              in.Q,
+			FromId:         fromId,
+			MediaType:      mediaType,
+			UnreadMentions: mtproto.BoolFalse,
+			MinDate:        in.MinDate,
+			MaxDate:        in.MaxDate,
+			OffsetId:       offsetId,
+			AddOffset:      in.AddOffset,
+			Limit:          limit,
+			MaxId:          in.MaxId,
+			MinId:          in.MinId,
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.search - error: %v", err)
+			return nil, err
+		}
+		if err = c.fillChannelPeers(r, channelId); err != nil {
+			c.Logger.Errorf("messages.search - error: %v", err)
+			return nil, err
+		}
+		return r, nil
+	}
+	r, err = c.svcCtx.Dao.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{
 		SelfId:    c.MD.UserId,
 		ChannelId: channelId,
 		Q:         in.Q,
