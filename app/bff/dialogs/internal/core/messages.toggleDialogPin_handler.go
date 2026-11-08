@@ -71,15 +71,15 @@ func (c *DialogsCore) MessagesToggleDialogPin(in *mtproto.TLMessagesToggleDialog
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.toggleDialogPin - error: %v", err)
-		return mtproto.BoolFalse, nil
+		return nil, err
 	}
 
 	return mtproto.BoolTrue, nil
 }
 
 // pinPeers returns the users and chats of h as the account sees them: the
-// peers an update of pins names, for its push with seq (ADR 0020).
-// Channels are not served.
+// peers an update of pins names, for its push with seq (ADR 0020). The
+// channels are among the chats.
 func (c *DialogsCore) pinPeers(h *mtproto.IDListHelper) (users []*mtproto.User, chats []*mtproto.Chat, err error) {
 	h.Visit(
 		func(userIdList []int64) {
@@ -102,6 +102,10 @@ func (c *DialogsCore) pinPeers(h *mtproto.IDListHelper) (users []*mtproto.User, 
 				chats = r.GetChatListByIdList(c.MD.UserId, chatIdList...)
 			}
 		},
-		nil)
+		func(channelIdList []int64) {
+			if err == nil {
+				chats = append(chats, c.channelChats(channelIdList)...)
+			}
+		})
 	return users, chats, err
 }

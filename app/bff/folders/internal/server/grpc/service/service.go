@@ -21,8 +21,8 @@ import (
 )
 
 // Service serves mtproto.RPCFolders and mtproto.RPCFolderTags. Of
-// RPCFolders it implements the folders of chats (task 013); the archive
-// (folders.editPeerFolders, folders.deleteFolder) and shared folders
+// RPCFolders it implements the folders of chats (task 013) and the archive
+// (folders.editPeerFolders, folders.deleteFolder); shared folders
 // (chatlists.*) are not served and answer as unimplemented.
 type Service struct {
 	mtproto.UnimplementedRPCFoldersServer

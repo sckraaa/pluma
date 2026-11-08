@@ -38,7 +38,7 @@ func (c *MsgCore) MsgEditPeerFolders(in *msg.TLMsgEditPeerFolders) (*mtproto.Upd
 	for _, id := range in.Peers {
 		peerType, peerId := mtproto.GetPeerUtilByPeerDialogId(id)
 		peerType, peerId = selfPeer(in.UserId, peerType, peerId)
-		if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT {
+		if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT && peerType != mtproto.PEER_CHANNEL {
 			c.Logger.Errorf("msg.editPeerFolders - error: invalid peer %d/%d", peerType, peerId)
 			return nil, mtproto.ErrPeerIdInvalid
 		}

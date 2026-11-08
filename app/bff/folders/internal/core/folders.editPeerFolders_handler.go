@@ -41,7 +41,7 @@ func (c *FoldersCore) FoldersEditPeerFolders(in *mtproto.TLFoldersEditPeerFolder
 		}
 		peer := mtproto.FromInputPeer2(c.MD.UserId, fp.GetPeer())
 		switch peer.PeerType {
-		case mtproto.PEER_SELF, mtproto.PEER_USER, mtproto.PEER_CHAT:
+		case mtproto.PEER_SELF, mtproto.PEER_USER, mtproto.PEER_CHAT, mtproto.PEER_CHANNEL:
 		default:
 			c.Logger.Errorf("folders.editPeerFolders - error: invalid peer %v", fp.GetPeer())
 			return nil, mtproto.ErrPeerIdInvalid
