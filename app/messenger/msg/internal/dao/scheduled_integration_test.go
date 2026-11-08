@@ -294,6 +294,28 @@ func TestScheduledReadEditDelete(t *testing.T) {
 	}
 }
 
+// The queue names the chats its messages speak of, a forward's origin among
+// them, as a page of history does.
+func TestScheduledHistoryNamesChats(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	a, b := newUser(), newUser()
+	origin := newChat()
+	w.chats.members[origin] = []int64{a}
+	o := outbox(textMessage(a, mtproto.MakePeerUser(b), "forwarded"))
+	o.Message.FwdFrom = mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{FromId: mtproto.MakePeerChat(origin), Date: 1}).To_MessageFwdHeader()
+	o.ScheduleDate = wrapperspb.Int32(int32(time.Now().Unix() + 3600))
+	if _, err := w.rpc.MsgSendMessageV2(context.Background(), &msg.TLMsgSendMessageV2{UserId: a, AuthKeyId: 1, PeerType: mtproto.PEER_USER, PeerId: b, Message: []*msg.OutboxMessage{o}}); err != nil {
+		t.Fatal(err)
+	}
+	h, err := w.rpc.MsgGetScheduledHistory(context.Background(), &msg.TLMsgGetScheduledHistory{UserId: a, PeerType: mtproto.PEER_USER, PeerId: b})
+	if err != nil || len(h.GetMessages()) != 1 {
+		t.Fatalf("history: %v, %v", h, err)
+	}
+	if len(h.GetChats()) != 1 || h.GetChats()[0].GetId() != origin {
+		t.Errorf("chats: %v, want the origin %d", h.GetChats(), origin)
+	}
+}
+
 // A sender out of the group by the time comes loses the message: the checks
 // of the send are made when it goes out. The participant's row stays, with
 // its state, as biz chat keeps it after a leave or a removal.

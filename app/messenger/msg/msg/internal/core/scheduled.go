@@ -501,9 +501,7 @@ func (c *MsgCore) scheduledMessagesAnswer(userId int64, peerType int32, peerId i
 	}
 	shown := viewAll(messages, rows, userId)
 	h := mtproto.NewIDListHelper(userId)
-	if peerType == mtproto.PEER_USER {
-		h.AppendUsers(peerId)
-	}
+	h.PickByPeer(queuePeer(peerType, peerId))
 	for _, m := range shown {
 		h.PickByMessage(m)
 	}
@@ -511,15 +509,37 @@ func (c *MsgCore) scheduledMessagesAnswer(userId int64, peerType int32, peerId i
 	if err != nil {
 		return nil, err
 	}
-	chats, err := c.queueChats(userId, peerType, peerId)
+	chats, err := c.namedChats(userId, h)
 	if err != nil {
 		return nil, err
 	}
 	return mtproto.MakeTLMessagesMessages(&mtproto.Messages_Messages{
 		Messages: shown,
-		Chats:    chats(userId),
+		Chats:    chats,
 		Users:    users.GetUserListByIdList(userId, h.UserIdList...),
 	}).To_Messages_Messages(), nil
+}
+
+// namedChats are the chats and channels h holds as userId sees them: the
+// dialog of a queue and those its messages name, a forward from a channel
+// for one, without which the clients have no name to show for it.
+func (c *MsgCore) namedChats(userId int64, h *mtproto.IDListHelper) ([]*mtproto.Chat, error) {
+	chats := []*mtproto.Chat{}
+	if len(h.ChatIdList) > 0 {
+		list, err := c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx, &chatpb.TLChatGetChatListByIdList{SelfId: userId, IdList: h.ChatIdList})
+		if err != nil {
+			return nil, err
+		}
+		chats = append(chats, list.GetChatListByIdList(userId, h.ChatIdList...)...)
+	}
+	if len(h.ChannelIdList) > 0 {
+		list, err := c.svcCtx.Dao.ChannelClient.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: userId, IdList: h.ChannelIdList})
+		if err != nil {
+			return nil, err
+		}
+		chats = append(chats, list.GetChannelListByIdList(userId)...)
+	}
+	return chats, nil
 }
 
 // queueChats is the chat of a dialog's queue as each viewer sees it.
