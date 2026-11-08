@@ -279,6 +279,12 @@ func (noChannels) ChannelReadHistory(context.Context, *channelpb.TLChannelReadHi
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelDeleteHistory(context.Context, *channelpb.TLChannelDeleteHistory) (*mtproto.Updates, error) {
+	return nil, nil
+}
+func (noChannels) ChannelDeleteParticipantHistory(context.Context, *channelpb.TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, nil
+}
 func (noChannels) ChannelDeleteMessages(context.Context, *channelpb.TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

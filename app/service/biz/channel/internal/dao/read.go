@@ -55,48 +55,17 @@ type readRow struct {
 // moves nothing writes nothing. CHANNEL_PRIVATE when the owner has no
 // dialog with the channel (not in it).
 func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
-	var rows []readRow
-	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, COALESCE(p.available_min_id, 0) AS available_min_id"+
-			" FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
-			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state <> 1"+
-			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
-		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
+	r, err := readerRow(b, channelId)
+	if err != nil {
 		return err
 	}
-	if len(rows) == 0 {
-		return mtproto.ErrChannelPrivate
-	}
-	r := rows[0]
 	if maxId <= 0 || maxId > r.TopMessage {
 		maxId = r.TopMessage
 	}
 	if maxId <= r.ReadInboxMaxId {
 		return nil
 	}
-	if _, err := b.Tx().Exec("UPDATE dialogs SET read_inbox_max_id = ? WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
-		maxId, b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
-		return err
-	}
-	InvalidateDialog(b, channelId)
-	if _, err := b.Tx().Exec("UPDATE channel_message_mentions SET `read` = 1 WHERE channel_id = ? AND user_id = ? AND message_id <= ? AND `read` = 0",
-		channelId, b.UserId(), maxId); err != nil {
-		return err
-	}
-	var unread []int32
-	if err := b.Tx().QueryRowsPartial(&unread,
-		"SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND id >= ? AND sender_user_id <> ? AND deleted = 0",
-		channelId, maxId, r.AvailableMinId, b.UserId()); err != nil {
-		return err
-	}
-	u := mtproto.MakeTLUpdateReadChannelInbox(&mtproto.Update{
-		FolderId:         mtproto.MakeFlagsInt32(r.FolderId),
-		ChannelId:        channelId,
-		MaxId:            maxId,
-		StillUnreadCount: first(unread),
-		Pts_INT32:        r.Pts,
-	}).To_Update()
-	if err := d.EmitSeqUpdate(b, u, nil, nil); err != nil {
+	if err = d.moveRead(b, channelId, maxId, r); err != nil {
 		return err
 	}
 	if r.Broadcast {
@@ -104,7 +73,7 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 		return nil
 	}
 	var authors []int64
-	if err := b.Tx().QueryRowsPartial(&authors,
+	if err = b.Tx().QueryRowsPartial(&authors,
 		"SELECT sender_user_id FROM channel_messages WHERE channel_id = ? AND id > ? AND id <= ? AND sender_user_id <> ? AND deleted = 0"+
 			" GROUP BY sender_user_id ORDER BY MAX(id) DESC LIMIT ?",
 		channelId, r.ReadInboxMaxId, maxId, b.UserId(), readAuthorsMax); err != nil {
@@ -120,6 +89,53 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 		b.Emit(userbox.Event{Topic: d.Topics.Sync, Recipient: author, Method: string(proto.MessageName(in)), Data: data})
 	}
 	return nil
+}
+
+// readerRow reads the row of b's owner's dialog with the channel, locked,
+// and what the channel gives it: CHANNEL_PRIVATE when it has none (not in
+// the channel).
+func readerRow(b *userbox.Box, channelId int64) (*readRow, error) {
+	var rows []readRow
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, COALESCE(p.available_min_id, 0) AS available_min_id"+
+			" FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
+			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state <> 1"+
+			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
+		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return nil, mtproto.ErrChannelPrivate
+	}
+	return &rows[0], nil
+}
+
+// moveRead moves the read mark of b's owner forward to maxId, marks its
+// mentions up to it read and journals updateReadChannelInbox for its
+// devices.
+func (d *Dao) moveRead(b *userbox.Box, channelId int64, maxId int32, r *readRow) error {
+	if _, err := b.Tx().Exec("UPDATE dialogs SET read_inbox_max_id = ? WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+		maxId, b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
+		return err
+	}
+	InvalidateDialog(b, channelId)
+	if _, err := b.Tx().Exec("UPDATE channel_message_mentions SET `read` = 1 WHERE channel_id = ? AND user_id = ? AND message_id <= ? AND `read` = 0",
+		channelId, b.UserId(), maxId); err != nil {
+		return err
+	}
+	var unread []int32
+	if err := b.Tx().QueryRowsPartial(&unread,
+		"SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND id >= ? AND sender_user_id <> ? AND deleted = 0",
+		channelId, maxId, r.AvailableMinId, b.UserId()); err != nil {
+		return err
+	}
+	return d.EmitSeqUpdate(b, mtproto.MakeTLUpdateReadChannelInbox(&mtproto.Update{
+		FolderId:         mtproto.MakeFlagsInt32(r.FolderId),
+		ChannelId:        channelId,
+		MaxId:            maxId,
+		StillUnreadCount: first(unread),
+		Pts_INT32:        r.Pts,
+	}).To_Update(), nil, nil)
 }
 
 // ReadMentions marks every unread mention of b's owner in the channel

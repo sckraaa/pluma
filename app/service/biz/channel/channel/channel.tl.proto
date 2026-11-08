@@ -71,6 +71,10 @@ enum TLConstructor {
   CRC32_channel_getAdminedPublicChannels = -2083237595;
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
+  // pluma: task 043
+  CRC32_channel_deleteHistory = -1441587995;
+  // pluma: task 043
+  CRC32_channel_deleteParticipantHistory = -1046826439;
   // pluma: task 044
   CRC32_channel_toggleSetting = -922563101;
   // pluma: task 044
@@ -673,6 +677,33 @@ message TL_channel_setAvailableReactions {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.deleteHistory self_id:long perm_auth_key_id:long channel_id:long for_everyone:Bool max_id:int = Updates;
+// self_id deletes the history of the channel up to max_id: for everyone, or
+// for itself through its available_min_id (channels.deleteHistory).
+// (task 043)
+message TL_channel_deleteHistory {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool for_everyone = 6;
+  int32 max_id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.deleteParticipantHistory self_id:long perm_auth_key_id:long channel_id:long participant_id:long = messages.AffectedHistory;
+// self_id deletes the newest portion of the messages participant_id sent to
+// the supergroup (channels.deleteParticipantHistory).
+// (task 043)
+message TL_channel_deleteParticipantHistory {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 participant_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -740,6 +771,10 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 043
+  rpc channel_deleteHistory(TL_channel_deleteHistory) returns (mtproto.Updates) {}
+  // pluma: task 043
+  rpc channel_deleteParticipantHistory(TL_channel_deleteParticipantHistory) returns (mtproto.messages_AffectedHistory) {}
   // pluma: task 044
   rpc channel_toggleSetting(TL_channel_toggleSetting) returns (mtproto.Updates) {}
   // pluma: task 044

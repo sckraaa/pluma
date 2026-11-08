@@ -555,3 +555,31 @@ func (s *Service) ChannelSetAvailableReactions(ctx context.Context, request *cha
 
 	return r, err
 }
+
+// ChannelDeleteHistory
+// channel.deleteHistory self_id:long perm_auth_key_id:long channel_id:long for_everyone:Bool max_id:int = Updates;
+func (s *Service) ChannelDeleteHistory(ctx context.Context, request *channel.TLChannelDeleteHistory) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteHistory - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelDeleteParticipantHistory
+// channel.deleteParticipantHistory self_id:long perm_auth_key_id:long channel_id:long participant_id:long = messages.AffectedHistory;
+func (s *Service) ChannelDeleteParticipantHistory(ctx context.Context, request *channel.TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteParticipantHistory - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteParticipantHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

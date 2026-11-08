@@ -30,9 +30,19 @@ func (c *MessagesCore) MessagesDeleteHistory(in *mtproto.TLMessagesDeleteHistory
 		peer = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	)
 
+	// A channel's history goes by channels.deleteHistory (Android
+	// MessagesController.java:10247, Web K flushHistory, iOS
+	// ManagedCloudChatRemoveMessagesOperations.swift:584, tdesktop
+	// data_histories.cpp:834). Only the days chosen in the calendar come
+	// here (Web K flushHistory, tdesktop deleteMessagesByDates, both ready
+	// for a refusal), and they are for private chats only
+	// (core.telegram.org/method/messages.deleteHistory:
+	// CHAT_REVOKE_DATE_UNSUPPORTED).
 	if peer.IsChannel() {
-		c.Logger.Errorf("messages.deleteHistory blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		if in.GetMinDate() != nil || in.GetMaxDate() != nil {
+			return nil, mtproto.ErrChatRevokeDateUnsupported
+		}
+		return nil, mtproto.ErrPeerIdInvalid
 	}
 
 	if !peer.IsChatOrUser() {

@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -64,8 +65,7 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	if err != nil {
 		return nil, err
 	}
-	p := me.participant()
-	if !p.Member() {
+	if !me.participant().Member() {
 		return nil, mtproto.ErrChannelPrivate
 	}
 	a, err := rightsActor(b, channelId)
@@ -74,10 +74,9 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	}
 	admin := a.can(channelperm.DeleteOthers, b.Date()) == nil
 
-	out := &Deleted{ChannelId: channelId}
 	ids = slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(ids))), func(id int32) bool { return id <= 0 })
 	if len(ids) == 0 {
-		return out, nil
+		return &Deleted{ChannelId: channelId}, nil
 	}
 	args := []any{channelId}
 	for _, id := range ids {
@@ -89,37 +88,48 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 		args...); err != nil {
 		return nil, err
 	}
+	found := make([]int32, 0, len(rows))
 	for _, r := range rows {
 		if r.SenderUserId != b.UserId() && !admin {
 			return nil, mtproto.ErrMessageDeleteForbidden
 		}
-		out.Ids = append(out.Ids, r.Id)
+		found = append(found, r.Id)
 	}
-	if len(out.Ids) == 0 {
+	return deleteRows(b, ch, channelId, c.TopMessage, found)
+}
+
+// deleteRows deletes for everyone the messages ids, which exist and are not
+// deleted, of the channel ch has locked: the rows, their mentions, one row
+// of the journal with pts_count their number, and top_message moves back
+// when the last message went. The counters of comments and the pinned
+// message are read from the rows left. Nothing is written for no ids.
+func deleteRows(b *userbox.Box, ch *channelbox.Channel, channelId int64, top int32, ids []int32) (*Deleted, error) {
+	out := &Deleted{ChannelId: channelId, Ids: ids}
+	if len(ids) == 0 {
 		return out, nil
 	}
-	args = []any{channelId}
-	for _, id := range out.Ids {
+	args := []any{channelId}
+	for _, id := range ids {
 		args = append(args, id)
 	}
-	in := "(?" + strings.Repeat(", ?", len(out.Ids)-1) + ")"
-	if _, err = b.Tx().Exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id IN "+in, args...); err != nil {
+	in := "(?" + strings.Repeat(", ?", len(ids)-1) + ")"
+	if _, err := b.Tx().Exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id IN "+in, args...); err != nil {
 		return nil, err
 	}
-	if _, err = b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
+	if _, err := b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
 		return nil, err
 	}
-	if slices.Contains(out.Ids, c.TopMessage) {
-		var top []int32
-		if err = b.Tx().QueryRowsPartial(&top, "SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0", channelId); err != nil {
+	if slices.Contains(ids, top) {
+		var left []int32
+		if err := b.Tx().QueryRowsPartial(&left, "SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0", channelId); err != nil {
 			return nil, err
 		}
-		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", first(top), channelId); err != nil {
+		if _, err := b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", first(left), channelId); err != nil {
 			return nil, err
 		}
 	}
-	out.PtsCount = int32(len(out.Ids))
-	ch.AddPtsUpdate(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{ChannelId: channelId, Messages: out.Ids}).To_Update(), out.PtsCount)
+	out.PtsCount = int32(len(ids))
+	ch.AddPtsUpdate(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{ChannelId: channelId, Messages: ids}).To_Update(), out.PtsCount)
 	out.Pts = ch.Pts()
 	return out, nil
 }

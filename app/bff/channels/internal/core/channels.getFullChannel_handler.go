@@ -81,6 +81,12 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	if ch.GetSlowmodeSeconds() > 0 {
 		full.SlowmodeSeconds = mtproto.MakeFlagsInt32(ch.GetSlowmodeSeconds())
 	}
+	if minId := me.GetAvailableMinId(); minId > 1 {
+		// The participant's row keeps the first message it sees, the field
+		// the last it does not (core.telegram.org/constructor/channelFull,
+		// History::clearUpTill, tdesktop).
+		full.AvailableMinId = mtproto.MakeFlagsInt32(minId - 1)
+	}
 
 	dialogs, err := c.svcCtx.Channel.ChannelGetChannelDialogs(c.ctx, &channelpb.TLChannelGetChannelDialogs{SelfId: c.MD.UserId, IdList: []int64{ch.GetId()}})
 	if err != nil {

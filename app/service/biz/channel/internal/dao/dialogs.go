@@ -78,9 +78,15 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 			mtproto.PEER_CHANNEL, id, selfId); err != nil {
 			return nil, err
 		}
+		// All of the channel the owner has hidden: no last message, as
+		// TopMessages gives none (viewerDialog does the same).
+		top := r.TopMessage
+		if top < r.AvailableMinId {
+			top = 0
+		}
 		out = append(out, mtproto.MakeTLDialog(&mtproto.Dialog{
 			Peer:                mtproto.MakePeerChannel(id),
-			TopMessage:          r.TopMessage,
+			TopMessage:          top,
 			ReadInboxMaxId:      r.ReadInboxMaxId,
 			ReadOutboxMaxId:     first(outbox),
 			UnreadCount:         first(unread),
