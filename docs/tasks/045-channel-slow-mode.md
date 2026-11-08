@@ -45,12 +45,14 @@
 - core.telegram.org: `constructor/channel` — посты админов ссылаются на профиль, поле входит в список полей min-конструктора; `method/channels.toggleSignatures` — `profiles_enabled` только вместе с `signatures_enabled`; `constructor/message` — `post_author` у постов с подписями.
 - tdesktop: `HistoryItem::isPostHidingAuthor` смотрит только на флаг канала (`history_item.cpp:4044-4051`); подпись снизу не рисуется, если у поста есть `from_id` и флаг включён (`history_view_bottom_info.cpp:677-685`); профили меняют раскладку всей истории (`data_channel.cpp:269-271`).
 - Android: при флаге и `from_id` (`flags & 256`) подпись скрыта (`ChatMessageCell.java:18373-18378`), отправитель берётся из `from_id` (`:18673-18674`), рисуется аватар (`MessageObject.java:9542-9549`).
-- iOS: флаг читается в `ApiGroupOrChannel.swift:136`, включается флагом `1 << 1` запроса (`ToggleChannelSignatures.swift:15-17`). Отрисовку поста в iOS не читал: не проверено.
+- iOS: флаг читается в `ApiGroupOrChannel.swift:136`, включается флагом `1 << 1` запроса (`ToggleChannelSignatures.swift:15-17`); автор поста берётся из `from_id` (`StoreMessage_Telegram.swift:1092`), подпись не рисуется, если автор поста не сам канал и флаг включён (`StringForMessageTimestampStatus.swift:197-205`).
 - Web K: канал с флагом считается похожим на группу (`appPeersManager.ts:137-148`), `post_author` тогда не показывается (`bubbles.ts:9082`).
 
 Сделано: колонка `channels.signature_profiles` (`migrate-20261108-channel-signature-profiles.sql`), поле в `immutableChannel`, флаг в `channel` и в min-форме; biz `channel.toggleSignatures` меняет оба флага одной записью (из `toggleSetting` подписи убраны). `profiles_enabled` без подписей игнорируется: отдельной ошибки в документации нет, и выключение подписей снимает ссылки. Посты: `post_author` при подписях, `from_id` автора — при подписях со ссылкой.
 
-Доставка автора: история, `channels.getMessages`, `getChannelDifference`, ответ на отправку и пуш берут пользователей через `PickByMessage`, то есть из `from_id`. **Найден и исправлен дефект:** `sync.pushChannelUpdates` запрашивал только авторов, а `GetUserListByIdList` строит вид от строки зрителя и без неё отдаёт пусто. Поэтому пуш участнику приходил с пустым `users` и в супергруппах тоже. Теперь запрашиваются и участники, как в `msg.sendMessageV2`. Min-объекты не используются: подписчик получает полного пользователя, как и в супергруппе (что отдаёт Telegram, не сверено).
+Доставка автора: история, `channels.getMessages`, `getChannelDifference`, ответ на отправку и пуш берут пользователей через `PickByMessage`, то есть из `from_id`. **Найден и исправлен дефект:** `sync.pushChannelUpdates` запрашивал только авторов, а `GetUserListByIdList` строит вид от строки зрителя и без неё отдаёт пусто. Поэтому пуш участнику приходил с пустым `users` и в супергруппах тоже. Теперь запрашиваются и участники, как в `msg.sendMessageV2`; так же исправлен тот же дефект в событии пуш-уведомлений (`app/messenger/push/internal/dao/dao.go`, `TestRecipientsHaveTheSender`), без него уведомление шло без имени отправителя. Min-объекты не используются: подписчик получает полного пользователя, как и в супергруппе (что отдаёт Telegram, не сверено).
+
+Пересылка подписанного поста (`messages.forwardMessages`): подпись остаётся только в `fwd_from.post_author`, с `drop_author` исчезает. У самой пересланной копии `post_author` убран: иначе tdesktop (`history_view_bottom_info.cpp:677-684`) и Android (`ChatMessageCell.java:18349-18354`) рисуют его как подпись нового сообщения.
 
 ### Проверка
 - Модульные: `pkg/channelperm` (`TestSlowmodeWait`: граница, смена интервала, выключение, часы назад; `TestSlowmodeValid`, `TestSlowmodeApplies`), `channel_view_test.go`.
@@ -66,5 +68,6 @@
 4. В посте со ссылкой есть и `post_author`, и `from_id`: клиенты подпись тогда не рисуют, а при выключении ссылок подпись остаётся. Что именно присылает Telegram, не сверено.
 
 ### Открытые вопросы
-- `app/messenger/push/internal/dao/dao.go:144` запрашивает пользователей так же, как делал `sync` до исправления: пустой `users` в событии пуша канала. Не правил: вне области задачи, проверить отдельно.
+- e2e, `-race` и `make lint` после последних правок (пересылка, события пуш-уведомлений) ещё не запускались: они идут общим прогоном объединённых веток.
+- При слиянии с 041: `LeftChannels` (ветка `task/041-join-requests`) считает все строки со `state = 1` и включит строку комментатора, который в группе не состоял. Метод доступен только через takeout; решить при слиянии.
 - Проверка в клиентах со скриншотами (iOS, Android, Desktop, Web K) не выполнялась.
