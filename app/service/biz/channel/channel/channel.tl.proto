@@ -83,6 +83,30 @@ enum TLConstructor {
   CRC32_channel_toggleSignatures = 1137012701;
   // pluma: task 045
   CRC32_channel_toggleSlowMode = -1991690360;
+  // pluma: task 041
+  CRC32_channel_toggleJoinRequest = 295422623;
+  // pluma: task 041
+  CRC32_channel_exportChatInvite = 1117566284;
+  // pluma: task 041
+  CRC32_channel_getExportedChatInvite = 1706919575;
+  // pluma: task 041
+  CRC32_channel_getExportedChatInvites = -1412847419;
+  // pluma: task 041
+  CRC32_channel_editExportedChatInvite = 1438538611;
+  // pluma: task 041
+  CRC32_channel_deleteExportedChatInvite = 714654860;
+  // pluma: task 041
+  CRC32_channel_deleteRevokedExportedChatInvites = -692237588;
+  // pluma: task 041
+  CRC32_channel_getAdminsWithInvites = 1965843750;
+  // pluma: task 041
+  CRC32_channel_getChatInviteImporters = 1917986431;
+  // pluma: task 041
+  CRC32_channel_hideChatJoinRequests = -1624124263;
+  // pluma: task 041
+  CRC32_channel_getPendingJoinRequests = 2040559942;
+  // pluma: task 041
+  CRC32_channel_getLeftChannels = -2063367371;
   // pluma: task 044
   CRC32_channel_toggleSetting = -922563101;
   // pluma: task 044
@@ -769,6 +793,167 @@ message TL_channel_toggleSlowMode {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.toggleJoinRequest self_id:long perm_auth_key_id:long channel_id:long enabled:Bool apply_to_invites:Bool = Updates;
+// self_id turns the approval of those who join on or off (channels.toggleJoinRequest);
+// apply_to_invites gives the channel's working links the same setting.
+// (task 041)
+message TL_channel_toggleJoinRequest {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool enabled = 6;
+  mtproto.Bool apply_to_invites = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.exportChatInvite self_id:long channel_id:long legacy_revoke_permanent:Bool request_needed:Bool expire_date:int usage_limit:int title:string = ExportedChatInvite;
+// self_id makes an invite link of the channel (messages.exportChatInvite).
+// expire_date and usage_limit 0: none.
+// (task 041)
+message TL_channel_exportChatInvite {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  mtproto.Bool legacy_revoke_permanent = 5;
+  mtproto.Bool request_needed = 6;
+  int32 expire_date = 7;
+  int32 usage_limit = 8;
+  string title = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getExportedChatInvite self_id:long channel_id:long link:string = ExportedChatInvite;
+// An invite link of the channel, by its link or hash (messages.getExportedChatInvite).
+// (task 041)
+message TL_channel_getExportedChatInvite {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  string link = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getExportedChatInvites self_id:long channel_id:long admin_id:long revoked:Bool offset_date:int offset_link:string limit:int = messages.ExportedChatInvites;
+// A page of admin_id's links of the channel (messages.getExportedChatInvites);
+// users are left to the caller.
+// (task 041)
+message TL_channel_getExportedChatInvites {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int64 admin_id = 5;
+  mtproto.Bool revoked = 6;
+  int32 offset_date = 7;
+  string offset_link = 8;
+  int32 limit = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.editExportedChatInvite self_id:long channel_id:long link:string revoked:Bool fields:int expire_date:int usage_limit:int request_needed:Bool title:string = messages.ExportedChatInvite;
+// self_id revokes or edits a link of the channel (messages.editExportedChatInvite);
+// fields says which of the values are given (channel.InviteField*).
+// (task 041)
+message TL_channel_editExportedChatInvite {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  string link = 5;
+  mtproto.Bool revoked = 6;
+  int32 fields = 7;
+  int32 expire_date = 8;
+  int32 usage_limit = 9;
+  mtproto.Bool request_needed = 10;
+  string title = 11;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.deleteExportedChatInvite self_id:long channel_id:long link:string = Bool;
+// self_id deletes a revoked link (messages.deleteExportedChatInvite).
+// (task 041)
+message TL_channel_deleteExportedChatInvite {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  string link = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.deleteRevokedExportedChatInvites self_id:long channel_id:long admin_id:long = Bool;
+// self_id deletes the revoked links of admin_id (messages.deleteRevokedExportedChatInvites).
+// (task 041)
+message TL_channel_deleteRevokedExportedChatInvites {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int64 admin_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getAdminsWithInvites self_id:long channel_id:long = messages.ChatAdminsWithInvites;
+// The admins with links and their counts (messages.getAdminsWithInvites).
+// (task 041)
+message TL_channel_getAdminsWithInvites {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getChatInviteImporters self_id:long channel_id:long requested:Bool link:string q:string offset_date:int offset_user:long limit:int = messages.ChatInviteImporters;
+// A page of those who joined by the links of the channel or asked to join
+// (messages.getChatInviteImporters).
+// (task 041)
+message TL_channel_getChatInviteImporters {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  mtproto.Bool requested = 5;
+  string link = 6;
+  string q = 7;
+  int32 offset_date = 8;
+  int64 offset_user = 9;
+  int32 limit = 10;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.hideChatJoinRequests self_id:long perm_auth_key_id:long channel_id:long approved:Bool all:Bool link:string user_id:long = Updates;
+// self_id approves or declines the request of user_id, or (all) every request,
+// those of link when it is set (messages.hideChatJoinRequest, hideAllChatJoinRequests).
+// (task 041)
+message TL_channel_hideChatJoinRequests {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool approved = 6;
+  mtproto.Bool all = 7;
+  string link = 8;
+  int64 user_id = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getPendingJoinRequests self_id:long channel_id:long = Update;
+// The requests to join not answered yet, as updatePendingJoinRequests names them;
+// for channelFull of one who may answer them.
+// (task 041)
+message TL_channel_getPendingJoinRequests {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getLeftChannels self_id:long offset:int = messages.Chats;
+// A page of the channels and supergroups self_id left (channels.getLeftChannels).
+// (task 041)
+message TL_channel_getLeftChannels {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int32 offset = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -848,6 +1033,30 @@ service RPCChannel {
   rpc channel_toggleSignatures(TL_channel_toggleSignatures) returns (mtproto.Updates) {}
   // pluma: task 045
   rpc channel_toggleSlowMode(TL_channel_toggleSlowMode) returns (mtproto.Updates) {}
+  // pluma: task 041
+  rpc channel_toggleJoinRequest(TL_channel_toggleJoinRequest) returns (mtproto.Updates) {}
+  // pluma: task 041
+  rpc channel_exportChatInvite(TL_channel_exportChatInvite) returns (mtproto.ExportedChatInvite) {}
+  // pluma: task 041
+  rpc channel_getExportedChatInvite(TL_channel_getExportedChatInvite) returns (mtproto.ExportedChatInvite) {}
+  // pluma: task 041
+  rpc channel_getExportedChatInvites(TL_channel_getExportedChatInvites) returns (mtproto.messages_ExportedChatInvites) {}
+  // pluma: task 041
+  rpc channel_editExportedChatInvite(TL_channel_editExportedChatInvite) returns (mtproto.messages_ExportedChatInvite) {}
+  // pluma: task 041
+  rpc channel_deleteExportedChatInvite(TL_channel_deleteExportedChatInvite) returns (mtproto.Bool) {}
+  // pluma: task 041
+  rpc channel_deleteRevokedExportedChatInvites(TL_channel_deleteRevokedExportedChatInvites) returns (mtproto.Bool) {}
+  // pluma: task 041
+  rpc channel_getAdminsWithInvites(TL_channel_getAdminsWithInvites) returns (mtproto.messages_ChatAdminsWithInvites) {}
+  // pluma: task 041
+  rpc channel_getChatInviteImporters(TL_channel_getChatInviteImporters) returns (mtproto.messages_ChatInviteImporters) {}
+  // pluma: task 041
+  rpc channel_hideChatJoinRequests(TL_channel_hideChatJoinRequests) returns (mtproto.Updates) {}
+  // pluma: task 041
+  rpc channel_getPendingJoinRequests(TL_channel_getPendingJoinRequests) returns (mtproto.Update) {}
+  // pluma: task 041
+  rpc channel_getLeftChannels(TL_channel_getLeftChannels) returns (mtproto.messages_Chats) {}
   // pluma: task 044
   rpc channel_toggleSetting(TL_channel_toggleSetting) returns (mtproto.Updates) {}
   // pluma: task 044

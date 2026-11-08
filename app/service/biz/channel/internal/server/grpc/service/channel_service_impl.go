@@ -639,3 +639,171 @@ func (s *Service) ChannelToggleSlowMode(ctx context.Context, request *channel.TL
 
 	return r, err
 }
+
+// ChannelToggleJoinRequest
+// channel.toggleJoinRequest self_id:long perm_auth_key_id:long channel_id:long enabled:Bool apply_to_invites:Bool = Updates;
+func (s *Service) ChannelToggleJoinRequest(ctx context.Context, request *channel.TLChannelToggleJoinRequest) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.toggleJoinRequest - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelToggleJoinRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelExportChatInvite
+// channel.exportChatInvite self_id:long channel_id:long legacy_revoke_permanent:Bool request_needed:Bool expire_date:int usage_limit:int title:string = ExportedChatInvite;
+func (s *Service) ChannelExportChatInvite(ctx context.Context, request *channel.TLChannelExportChatInvite) (*mtproto.ExportedChatInvite, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.exportChatInvite - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelExportChatInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetExportedChatInvite
+// channel.getExportedChatInvite self_id:long channel_id:long link:string = ExportedChatInvite;
+func (s *Service) ChannelGetExportedChatInvite(ctx context.Context, request *channel.TLChannelGetExportedChatInvite) (*mtproto.ExportedChatInvite, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getExportedChatInvite - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetExportedChatInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetExportedChatInvites
+// channel.getExportedChatInvites self_id:long channel_id:long admin_id:long revoked:Bool offset_date:int offset_link:string limit:int = messages.ExportedChatInvites;
+func (s *Service) ChannelGetExportedChatInvites(ctx context.Context, request *channel.TLChannelGetExportedChatInvites) (*mtproto.Messages_ExportedChatInvites, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getExportedChatInvites - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetExportedChatInvites(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelEditExportedChatInvite
+// channel.editExportedChatInvite self_id:long channel_id:long link:string revoked:Bool fields:int expire_date:int usage_limit:int request_needed:Bool title:string = messages.ExportedChatInvite;
+func (s *Service) ChannelEditExportedChatInvite(ctx context.Context, request *channel.TLChannelEditExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editExportedChatInvite - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditExportedChatInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelDeleteExportedChatInvite
+// channel.deleteExportedChatInvite self_id:long channel_id:long link:string = Bool;
+func (s *Service) ChannelDeleteExportedChatInvite(ctx context.Context, request *channel.TLChannelDeleteExportedChatInvite) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteExportedChatInvite - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteExportedChatInvite(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelDeleteRevokedExportedChatInvites
+// channel.deleteRevokedExportedChatInvites self_id:long channel_id:long admin_id:long = Bool;
+func (s *Service) ChannelDeleteRevokedExportedChatInvites(ctx context.Context, request *channel.TLChannelDeleteRevokedExportedChatInvites) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteRevokedExportedChatInvites - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteRevokedExportedChatInvites(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetAdminsWithInvites
+// channel.getAdminsWithInvites self_id:long channel_id:long = messages.ChatAdminsWithInvites;
+func (s *Service) ChannelGetAdminsWithInvites(ctx context.Context, request *channel.TLChannelGetAdminsWithInvites) (*mtproto.Messages_ChatAdminsWithInvites, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getAdminsWithInvites - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetAdminsWithInvites(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetChatInviteImporters
+// channel.getChatInviteImporters self_id:long channel_id:long requested:Bool link:string q:string offset_date:int offset_user:long limit:int = messages.ChatInviteImporters;
+func (s *Service) ChannelGetChatInviteImporters(ctx context.Context, request *channel.TLChannelGetChatInviteImporters) (*mtproto.Messages_ChatInviteImporters, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getChatInviteImporters - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetChatInviteImporters(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelHideChatJoinRequests
+// channel.hideChatJoinRequests self_id:long perm_auth_key_id:long channel_id:long approved:Bool all:Bool link:string user_id:long = Updates;
+func (s *Service) ChannelHideChatJoinRequests(ctx context.Context, request *channel.TLChannelHideChatJoinRequests) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.hideChatJoinRequests - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelHideChatJoinRequests(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetPendingJoinRequests
+// channel.getPendingJoinRequests self_id:long channel_id:long = Update;
+func (s *Service) ChannelGetPendingJoinRequests(ctx context.Context, request *channel.TLChannelGetPendingJoinRequests) (*mtproto.Update, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getPendingJoinRequests - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetPendingJoinRequests(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetLeftChannels
+// channel.getLeftChannels self_id:long offset:int = messages.Chats;
+func (s *Service) ChannelGetLeftChannels(ctx context.Context, request *channel.TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getLeftChannels - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetLeftChannels(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

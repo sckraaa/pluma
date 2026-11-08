@@ -50,6 +50,9 @@ func (c *ChatInvitesCore) MessagesHideChatJoinRequest(in *mtproto.TLMessagesHide
 		return nil, mtproto.ErrUserIdInvalid
 	}
 
+	if peer.IsChannel() {
+		return c.hideChannelRequests(peer, in.GetApproved(), false, "", userId.PeerId)
+	}
 	if !peer.IsChat() {
 		c.Logger.Errorf("messages.hideChatJoinRequest - error: peer %v is not a basic group", peer)
 		return nil, mtproto.ErrPeerIdInvalid

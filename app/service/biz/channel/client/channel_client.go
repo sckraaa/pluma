@@ -54,6 +54,18 @@ type ChannelClient interface {
 	ChannelDeleteParticipantHistory(ctx context.Context, in *channel.TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error)
 	ChannelToggleSignatures(ctx context.Context, in *channel.TLChannelToggleSignatures) (*mtproto.Updates, error)
 	ChannelToggleSlowMode(ctx context.Context, in *channel.TLChannelToggleSlowMode) (*mtproto.Updates, error)
+	ChannelToggleJoinRequest(ctx context.Context, in *channel.TLChannelToggleJoinRequest) (*mtproto.Updates, error)
+	ChannelExportChatInvite(ctx context.Context, in *channel.TLChannelExportChatInvite) (*mtproto.ExportedChatInvite, error)
+	ChannelGetExportedChatInvite(ctx context.Context, in *channel.TLChannelGetExportedChatInvite) (*mtproto.ExportedChatInvite, error)
+	ChannelGetExportedChatInvites(ctx context.Context, in *channel.TLChannelGetExportedChatInvites) (*mtproto.Messages_ExportedChatInvites, error)
+	ChannelEditExportedChatInvite(ctx context.Context, in *channel.TLChannelEditExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error)
+	ChannelDeleteExportedChatInvite(ctx context.Context, in *channel.TLChannelDeleteExportedChatInvite) (*mtproto.Bool, error)
+	ChannelDeleteRevokedExportedChatInvites(ctx context.Context, in *channel.TLChannelDeleteRevokedExportedChatInvites) (*mtproto.Bool, error)
+	ChannelGetAdminsWithInvites(ctx context.Context, in *channel.TLChannelGetAdminsWithInvites) (*mtproto.Messages_ChatAdminsWithInvites, error)
+	ChannelGetChatInviteImporters(ctx context.Context, in *channel.TLChannelGetChatInviteImporters) (*mtproto.Messages_ChatInviteImporters, error)
+	ChannelHideChatJoinRequests(ctx context.Context, in *channel.TLChannelHideChatJoinRequests) (*mtproto.Updates, error)
+	ChannelGetPendingJoinRequests(ctx context.Context, in *channel.TLChannelGetPendingJoinRequests) (*mtproto.Update, error)
+	ChannelGetLeftChannels(ctx context.Context, in *channel.TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error)
 	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
 	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
@@ -564,4 +576,136 @@ func (m *defaultChannelClient) ChannelToggleSlowMode(ctx context.Context, in *ch
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelToggleSlowMode(ctx, in)
+}
+
+// ChannelToggleJoinRequest
+// channel.toggleJoinRequest self_id:long perm_auth_key_id:long channel_id:long enabled:Bool apply_to_invites:Bool = Updates;
+func (m *defaultChannelClient) ChannelToggleJoinRequest(ctx context.Context, in *channel.TLChannelToggleJoinRequest) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelToggleJoinRequest(ctx, in)
+}
+
+// ChannelExportChatInvite
+// channel.exportChatInvite self_id:long channel_id:long legacy_revoke_permanent:Bool request_needed:Bool expire_date:int usage_limit:int title:string = ExportedChatInvite;
+func (m *defaultChannelClient) ChannelExportChatInvite(ctx context.Context, in *channel.TLChannelExportChatInvite) (*mtproto.ExportedChatInvite, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelExportChatInvite(ctx, in)
+}
+
+// ChannelGetExportedChatInvite
+// channel.getExportedChatInvite self_id:long channel_id:long link:string = ExportedChatInvite;
+func (m *defaultChannelClient) ChannelGetExportedChatInvite(ctx context.Context, in *channel.TLChannelGetExportedChatInvite) (*mtproto.ExportedChatInvite, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetExportedChatInvite(ctx, in)
+}
+
+// ChannelGetExportedChatInvites
+// channel.getExportedChatInvites self_id:long channel_id:long admin_id:long revoked:Bool offset_date:int offset_link:string limit:int = messages.ExportedChatInvites;
+func (m *defaultChannelClient) ChannelGetExportedChatInvites(ctx context.Context, in *channel.TLChannelGetExportedChatInvites) (*mtproto.Messages_ExportedChatInvites, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetExportedChatInvites(ctx, in)
+}
+
+// ChannelEditExportedChatInvite
+// channel.editExportedChatInvite self_id:long channel_id:long link:string revoked:Bool fields:int expire_date:int usage_limit:int request_needed:Bool title:string = messages.ExportedChatInvite;
+func (m *defaultChannelClient) ChannelEditExportedChatInvite(ctx context.Context, in *channel.TLChannelEditExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditExportedChatInvite(ctx, in)
+}
+
+// ChannelDeleteExportedChatInvite
+// channel.deleteExportedChatInvite self_id:long channel_id:long link:string = Bool;
+func (m *defaultChannelClient) ChannelDeleteExportedChatInvite(ctx context.Context, in *channel.TLChannelDeleteExportedChatInvite) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteExportedChatInvite(ctx, in)
+}
+
+// ChannelDeleteRevokedExportedChatInvites
+// channel.deleteRevokedExportedChatInvites self_id:long channel_id:long admin_id:long = Bool;
+func (m *defaultChannelClient) ChannelDeleteRevokedExportedChatInvites(ctx context.Context, in *channel.TLChannelDeleteRevokedExportedChatInvites) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteRevokedExportedChatInvites(ctx, in)
+}
+
+// ChannelGetAdminsWithInvites
+// channel.getAdminsWithInvites self_id:long channel_id:long = messages.ChatAdminsWithInvites;
+func (m *defaultChannelClient) ChannelGetAdminsWithInvites(ctx context.Context, in *channel.TLChannelGetAdminsWithInvites) (*mtproto.Messages_ChatAdminsWithInvites, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetAdminsWithInvites(ctx, in)
+}
+
+// ChannelGetChatInviteImporters
+// channel.getChatInviteImporters self_id:long channel_id:long requested:Bool link:string q:string offset_date:int offset_user:long limit:int = messages.ChatInviteImporters;
+func (m *defaultChannelClient) ChannelGetChatInviteImporters(ctx context.Context, in *channel.TLChannelGetChatInviteImporters) (*mtproto.Messages_ChatInviteImporters, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetChatInviteImporters(ctx, in)
+}
+
+// ChannelHideChatJoinRequests
+// channel.hideChatJoinRequests self_id:long perm_auth_key_id:long channel_id:long approved:Bool all:Bool link:string user_id:long = Updates;
+func (m *defaultChannelClient) ChannelHideChatJoinRequests(ctx context.Context, in *channel.TLChannelHideChatJoinRequests) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelHideChatJoinRequests(ctx, in)
+}
+
+// ChannelGetPendingJoinRequests
+// channel.getPendingJoinRequests self_id:long channel_id:long = Update;
+func (m *defaultChannelClient) ChannelGetPendingJoinRequests(ctx context.Context, in *channel.TLChannelGetPendingJoinRequests) (*mtproto.Update, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetPendingJoinRequests(ctx, in)
+}
+
+// ChannelGetLeftChannels
+// channel.getLeftChannels self_id:long offset:int = messages.Chats;
+func (m *defaultChannelClient) ChannelGetLeftChannels(ctx context.Context, in *channel.TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetLeftChannels(ctx, in)
 }

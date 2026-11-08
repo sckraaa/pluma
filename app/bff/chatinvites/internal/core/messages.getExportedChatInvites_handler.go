@@ -20,7 +20,6 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -34,18 +33,10 @@ func (c *ChatInvitesCore) MessagesGetExportedChatInvites(in *mtproto.TLMessagesG
 		// limit   = in.GetLimit()
 	)
 
-	switch {
-	case peer.IsChat():
-	case peer.IsChannel():
-		// The links of a channel are kept with those of basic groups,
-		// under its id (biz chat tells them apart by the hash). Its admins
-		// see them: Android's creation screen takes the first one
-		// (ChannelCreateActivity.java:940-943, task 038).
-		if err := c.channelAdmin(peer.PeerId); err != nil {
-			c.Logger.Errorf("messages.getExportedChatInvites - error: %v", err)
-			return nil, err
-		}
-	default:
+	if peer.IsChannel() {
+		return c.channelExportedInvites(peer, adminId.PeerId, in)
+	}
+	if !peer.IsChat() {
 		err := mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.getExportedChatInvites - error: ", err)
 		return nil, err
@@ -91,23 +82,4 @@ func (c *ChatInvitesCore) MessagesGetExportedChatInvites(in *mtproto.TLMessagesG
 	}, nil, nil)
 
 	return rValues, nil
-}
-
-// channelAdmin checks that the account is the creator or an admin of the
-// channel who may invite users.
-func (c *ChatInvitesCore) channelAdmin(channelId int64) error {
-	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: channelId, Id: []int64{c.MD.UserId}})
-	if err != nil {
-		return err
-	}
-	me, ok := mc.GetParticipant(c.MD.UserId)
-	switch {
-	case !ok || !me.Member():
-		return mtproto.ErrChannelPrivate
-	case me.GetRole() == channelpb.RoleCreator:
-		return nil
-	case me.GetRole() == channelpb.RoleAdmin && mtproto.AdminRights(me.GetAdminRights()).CanInviteUsers():
-		return nil
-	}
-	return mtproto.ErrChatAdminRequired
 }

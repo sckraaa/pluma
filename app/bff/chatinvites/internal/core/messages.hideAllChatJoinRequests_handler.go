@@ -24,9 +24,13 @@ import (
 
 // MessagesHideAllChatJoinRequests
 // messages.hideAllChatJoinRequests#e085f4ea flags:# approved:flags.0?true peer:InputPeer link:flags.1?string = Updates;
+//
+// Every request to join a channel, or those of one link (task 041). A basic
+// group answers its requests one by one (biz chat serves no bulk answer).
 func (c *ChatInvitesCore) MessagesHideAllChatJoinRequests(in *mtproto.TLMessagesHideAllChatJoinRequests) (*mtproto.Updates, error) {
-	// TODO: not impl
-	c.Logger.Errorf("messages.hideAllChatJoinRequests blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
+	if !peer.IsChannel() {
+		return nil, mtproto.ErrEnterpriseIsBlocked
+	}
+	return c.hideChannelRequests(peer, in.GetApproved(), true, in.GetLink().GetValue(), 0)
 }

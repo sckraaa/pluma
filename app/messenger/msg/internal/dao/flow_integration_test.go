@@ -399,6 +399,54 @@ func (noChannels) ChannelEditDefaultBannedRights(context.Context, *channelpb.TLC
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelToggleJoinRequest(context.Context, *channelpb.TLChannelToggleJoinRequest) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelExportChatInvite(context.Context, *channelpb.TLChannelExportChatInvite) (*mtproto.ExportedChatInvite, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetExportedChatInvite(context.Context, *channelpb.TLChannelGetExportedChatInvite) (*mtproto.ExportedChatInvite, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetExportedChatInvites(context.Context, *channelpb.TLChannelGetExportedChatInvites) (*mtproto.Messages_ExportedChatInvites, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelEditExportedChatInvite(context.Context, *channelpb.TLChannelEditExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelDeleteExportedChatInvite(context.Context, *channelpb.TLChannelDeleteExportedChatInvite) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelDeleteRevokedExportedChatInvites(context.Context, *channelpb.TLChannelDeleteRevokedExportedChatInvites) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetAdminsWithInvites(context.Context, *channelpb.TLChannelGetAdminsWithInvites) (*mtproto.Messages_ChatAdminsWithInvites, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetChatInviteImporters(context.Context, *channelpb.TLChannelGetChatInviteImporters) (*mtproto.Messages_ChatInviteImporters, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelHideChatJoinRequests(context.Context, *channelpb.TLChannelHideChatJoinRequests) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetPendingJoinRequests(context.Context, *channelpb.TLChannelGetPendingJoinRequests) (*mtproto.Update, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetLeftChannels(context.Context, *channelpb.TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]

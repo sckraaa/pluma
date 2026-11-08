@@ -48,6 +48,7 @@ type Invited struct {
 // USER_CHANNELS_TOO_MUCH, as Telegram answers
 // (core.telegram.org/method/channels.inviteToChannel). Each added user's
 // dialog is written in its own box by the event AddMembers emits (ADR 0021).
+// The request to join of one added no longer stands.
 func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited, error) {
 	ch, err := openChannel(b, channelId)
 	if err != nil {
@@ -134,6 +135,9 @@ func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited
 		b.Emit(userbox.Event{Topic: d.Topics.Inbox, Recipient: id, Method: string(proto.MessageName(ev)), Data: data})
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + ? WHERE id = ?", len(out.Users), channelId); err != nil {
+		return nil, err
+	}
+	if err = d.dropRequests(b, channelId, out.Users...); err != nil {
 		return nil, err
 	}
 	return out, nil

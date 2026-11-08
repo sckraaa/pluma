@@ -30,3 +30,11 @@ const (
 	// first (channels.toggleJoinToSend).
 	SettingJoinToSend int32 = 5
 )
+
+// The values channel.editExportedChatInvite gives (fields).
+const (
+	InviteFieldExpireDate int32 = 1 << iota
+	InviteFieldUsageLimit
+	InviteFieldRequestNeeded
+	InviteFieldTitle
+)
