@@ -116,6 +116,15 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		return nil, err
 	}
 
+	if fromPeer.PeerType == mtproto.PEER_CHANNEL {
+		// The forward is done and answered whatever happens to its count.
+		if _, cErr := c.svcCtx.Dao.Channel.ChannelAddMessageForwards(c.ctx, &channelpb.TLChannelAddMessageForwards{
+			SelfId: c.MD.UserId, ChannelId: fromPeer.PeerId, Id: in.Id, RandomId: in.RandomId,
+		}); cErr != nil {
+			c.Logger.Errorf("messages.forwardMessages - count the forwards of channel %d: %v", fromPeer.PeerId, cErr)
+		}
+	}
+
 	return rUpdates, err
 }
 
@@ -307,6 +316,16 @@ func (c *MessagesCore) makeForwardMessages(
 		}
 		m.ReplyTo = nil
 		m.Reactions = nil
+		if m.FwdFrom == nil {
+			// A copy is the sender's own message and has no counters.
+			m.Views, m.Forwards = nil, nil
+		} else if m.Views != nil {
+			// A forward keeps the post's views, as the clients show it when
+			// they send it (Android SendMessagesHelper.java:2428-2431,
+			// tdesktop history_item.cpp:692-694); the forwards are the
+			// post's, and both are one flag of message.
+			m.Forwards = wrapperspb.Int32(0)
+		}
 		if m.ReplyMarkup != nil {
 			m.ReplyMarkup = m.ReplyMarkup.ToForwardMessage()
 		}

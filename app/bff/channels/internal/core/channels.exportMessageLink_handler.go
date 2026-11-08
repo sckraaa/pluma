@@ -71,8 +71,10 @@ func messageLink(username string, channelId int64, msg *mtproto.Message, grouped
 		link += "c/" + strconv.FormatInt(channelId, 10) + "/"
 	}
 	if r := msg.GetReplyTo(); thread && r != nil {
+		// Without reply_to_top_id the message replied to starts the thread
+		// (tdesktop history_item.cpp:2502; a comment directly to a post).
 		top := r.GetReplyToTopId().GetValue()
-		if top == 0 && r.GetForumTopic() {
+		if top == 0 {
 			top = r.GetReplyToMsgId()
 		}
 		if top != 0 {

@@ -256,6 +256,14 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		} else {
 			m.FromId = mtproto.MakePeerUser(b.UserId())
 		}
+		if s.ch.Broadcast {
+			// A post starts with its author's view (task 046): the clients
+			// show 1 on a post they have just sent (Android
+			// SendMessagesHelper.java:2424, tdesktop history_item.cpp:698,
+			// iOS EnqueueMessage.swift:1012, Web K appMessagesManager.ts:
+			// 4093). Both are one flag of message.
+			m.Views, m.Forwards = wrapperspb.Int32(1), wrapperspb.Int32(0)
+		}
 		// Mentions: the users of the text's mentions, the author of the
 		// message replied to.
 		var who []int64
@@ -413,6 +421,7 @@ func postCopy(b *userbox.Box, group *channelbox.Channel, channelId int64, post *
 	m.Post = false
 	m.ReplyTo = nil
 	m.Replies = nil
+	m.Views, m.Forwards = nil, nil
 	m.Pinned = false
 	m.FwdFrom = mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
 		FromId:         from,

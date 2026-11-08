@@ -255,6 +255,12 @@ func (noChannels) ChannelGetHistory(context.Context, *channelpb.TLChannelGetHist
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelIncrementMessageViews(context.Context, *channelpb.TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
+	return nil, nil
+}
+func (noChannels) ChannelAddMessageForwards(context.Context, *channelpb.TLChannelAddMessageForwards) (*mtproto.Bool, error) {
+	return nil, nil
+}
 func (noChannels) ChannelGetMessages(context.Context, *channelpb.TLChannelGetMessages) (*channelpb.Vector_Message, error) {
 	return &channelpb.Vector_Message{}, nil
 }

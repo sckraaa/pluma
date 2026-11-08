@@ -29,6 +29,7 @@ func TestMessageLink(t *testing.T) {
 	plain := &mtproto.Message{Id: 5}
 	album := &mtproto.Message{Id: 6, GroupedId: wrapperspb.Int64(77)}
 	inThread := &mtproto.Message{Id: 9, ReplyTo: &mtproto.MessageReplyHeader{ReplyToMsgId: 8, ReplyToTopId: wrapperspb.Int32(3)}}
+	directComment := &mtproto.Message{Id: 10, ReplyTo: &mtproto.MessageReplyHeader{ReplyToMsgId: 8}}
 	for _, c := range []struct {
 		username        string
 		msg             *mtproto.Message
@@ -41,6 +42,8 @@ func TestMessageLink(t *testing.T) {
 		{"news", album, true, false, "https://pluma.chat/news/6"},
 		{"news", inThread, false, true, "https://pluma.chat/news/3/9"},
 		{"news", inThread, false, false, "https://pluma.chat/news/9"},
+		{"news", directComment, false, true, "https://pluma.chat/news/8/10"},
+		{"news", directComment, false, false, "https://pluma.chat/news/10"},
 	} {
 		if got := messageLink(c.username, 1000000005, c.msg, c.grouped, c.thread); got != c.want {
 			t.Errorf("%s %v grouped=%v thread=%v: %s, want %s", c.username, c.msg.Id, c.grouped, c.thread, got, c.want)

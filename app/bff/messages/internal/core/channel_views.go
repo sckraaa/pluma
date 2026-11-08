@@ -26,11 +26,18 @@ import (
 
 // channelMessagesViews is messages.getMessagesViews in a channel: for each
 // id, in order, the messageViews of the message as the account sees it,
-// with the comments of a post (replies), which the clients poll to keep the
-// counts under the posts current (Android MessagesController.java:
-// 10579-10630, task 035); an empty one for an id it may not see. Views and
-// forwards are not counted yet (task 046).
-func (c *MessagesCore) channelMessagesViews(channelId int64, ids []int32) (*mtproto.Messages_MessageViews, error) {
+// with the post's views, forwards and comments (replies), which the clients
+// poll to keep the counts under the posts current (Android
+// MessagesController.java:10579-10630, task 035); an empty one for an id it
+// may not see. With increment the account's view of the posts counts first,
+// so that the answer has it (task 046).
+func (c *MessagesCore) channelMessagesViews(channelId int64, ids []int32, increment bool) (*mtproto.Messages_MessageViews, error) {
+	if increment {
+		if _, err := c.svcCtx.Dao.Channel.ChannelIncrementMessageViews(c.ctx, &channelpb.TLChannelIncrementMessageViews{SelfId: c.MD.UserId, ChannelId: channelId, Id: ids}); err != nil {
+			c.Logger.Errorf("messages.getMessagesViews - error: %v", err)
+			return nil, err
+		}
+	}
 	messages, err := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: c.MD.UserId, ChannelId: channelId, Id: ids})
 	if err != nil {
 		c.Logger.Errorf("messages.getMessagesViews - error: %v", err)
@@ -44,7 +51,7 @@ func (c *MessagesCore) channelMessagesViews(channelId int64, ids []int32) (*mtpr
 	h := mtproto.NewIDListHelper(c.MD.UserId)
 	h.AppendChannels(channelId)
 	for _, id := range ids {
-		v := &mtproto.MessageViews{}
+		v := &mtproto.MessageViews{Views: byId[id].GetViews(), Forwards: byId[id].GetForwards()}
 		if r := byId[id].GetReplies(); r != nil {
 			v.Replies = r
 			for _, p := range r.GetRecentRepliers() {

@@ -16,6 +16,8 @@
 package core
 
 import (
+	"slices"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
@@ -130,6 +132,17 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 	}
 	if final {
 		d.Timeout = timeout
+	}
+	// The journal holds a post as it was: its counters are read now.
+	posts := slices.Clone(d.NewMessages)
+	for _, u := range d.OtherUpdates {
+		if m := u.GetMessage_MESSAGE(); m != nil {
+			posts = append(posts, m)
+		}
+	}
+	if err = c.svcCtx.Dao.WithPostCounters(c.ctx, in.ChannelId, posts); err != nil {
+		c.Logger.Errorf("channel.getChannelDifference - counters of channel %d: %v", in.ChannelId, err)
+		return nil, err
 	}
 	return mtproto.MakeTLUpdatesChannelDifference(d).To_Updates_ChannelDifference(), nil
 }

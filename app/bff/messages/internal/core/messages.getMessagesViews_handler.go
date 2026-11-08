@@ -147,9 +147,7 @@ func (c *MessagesCore) MessagesGetMessagesViews(in *mtproto.TLMessagesGetMessage
 			}
 		})
 	case mtproto.PEER_CHANNEL:
-		// The comments of channel posts (task 048); views and forwards
-		// are task 046.
-		return c.channelMessagesViews(peer.PeerId, in.Id)
+		return c.channelMessagesViews(peer.PeerId, in.Id, mtproto.FromBool(in.GetIncrement()))
 	default:
 		c.Logger.Errorf("messages.getMessagesViews#5784d3e -  error: invalid peer(%v) type", peer)
 		return nil, mtproto.ErrInputRequestInvalid

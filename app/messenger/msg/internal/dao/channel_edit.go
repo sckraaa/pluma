@@ -24,6 +24,7 @@ import (
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // The edit of a message of a channel (task 043, ADR 0034): the one copy
@@ -34,6 +35,8 @@ import (
 type channelMessageRow struct {
 	SenderUserId int64  `db:"sender_user_id"`
 	MessageData  string `db:"message_data"`
+	Views        int32  `db:"views"`
+	Forwards     int32  `db:"forwards"`
 }
 
 // ChannelEdited is what EditChannel wrote: the message as stored and its
@@ -79,7 +82,7 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 	}
 	var rows []channelMessageRow
 	if err = b.Tx().QueryRowsPartial(&rows,
-		"SELECT sender_user_id, message_data FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", channelId, id); err != nil {
+		"SELECT sender_user_id, message_data, views, forwards FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", channelId, id); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -121,6 +124,11 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 		if m.Replies, err = postReplies(b, groupId, copyId, ch.Pts()+1); err != nil {
 			return nil, err
 		}
+	}
+	if m.GetPost() {
+		// The update carries the post's counters as they are now; the
+		// clients replace the message with it (task 046).
+		m.Views, m.Forwards = wrapperspb.Int32(rows[0].Views), wrapperspb.Int32(rows[0].Forwards)
 	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
 	data, err := jsonx.MarshalToString(m)

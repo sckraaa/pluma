@@ -49,6 +49,8 @@ type Dao struct {
 	// Cache deletes the cached dialog rows the box transactions change
 	// (biz dialog's cache); nil deletes nothing (tests without Redis).
 	Cache CacheDeleter
+	// pushes keeps the pushes of the counters of posts to a bounded rate.
+	pushes *counterPush
 }
 
 // CacheDeleter deletes cache keys.
@@ -83,10 +85,12 @@ func New(c config.Config) *Dao {
 }
 
 func NewDao(db *sqlx.DB, photos PhotoSource) *Dao {
-	return &Dao{
+	d := &Dao{
 		Mysql:  newMysqlDao(db),
 		Photos: photos,
 	}
+	d.pushes = newCounterPush(counterPushWindow, d.sendCounters)
+	return d
 }
 
 // RunBox runs fn as a box transaction of userId (userbox.Run), wakes the

@@ -96,6 +96,8 @@ type topMessageRow struct {
 	MessageData    string `db:"message_data"`
 	AvailableMinId int32  `db:"available_min_id"`
 	Id             int32  `db:"id"`
+	Views          int32  `db:"views"`
+	Forwards       int32  `db:"forwards"`
 }
 
 // TopMessages returns the last message of each channel of idList that
@@ -105,7 +107,7 @@ func (d *Dao) TopMessages(ctx context.Context, selfId int64, idList []int64) ([]
 	for _, id := range dedupe(idList) {
 		var rows []topMessageRow
 		if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-			"SELECT m.channel_id, m.id, m.message_data, COALESCE(p.available_min_id, 0) AS available_min_id"+
+			"SELECT m.channel_id, m.id, m.message_data, m.views, m.forwards, COALESCE(p.available_min_id, 0) AS available_min_id"+
 				" FROM channels c JOIN channel_messages m ON m.channel_id = c.id AND m.id = c.top_message AND m.deleted = 0"+
 				" LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ?"+
 				" WHERE c.id = ? AND c.deleted = 0",
@@ -118,6 +120,10 @@ func (d *Dao) TopMessages(ctx context.Context, selfId int64, idList []int64) ([]
 		var m mtproto.Message
 		if err := jsonx.UnmarshalFromString(rows[0].MessageData, &m); err != nil {
 			return nil, fmt.Errorf("channel: message %d of channel %d: %w", rows[0].Id, id, err)
+		}
+		if m.GetPredicateName() == mtproto.Predicate_message && m.GetPost() {
+			// The stored copy holds them as they were (task 046).
+			channel.SetPostCounters(&m, rows[0].Views, rows[0].Forwards)
 		}
 		out = append(out, channel.ViewMessage(&m, selfId))
 	}

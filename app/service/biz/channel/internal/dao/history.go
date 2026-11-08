@@ -230,6 +230,9 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
 		return nil, 0, err
 	}
+	if err = d.WithPostCounters(ctx, channelId, messages); err != nil {
+		return nil, 0, err
+	}
 	return messages, first(count), d.withReplies(ctx, selfId, channelId, v.broadcast, messages)
 }
 
@@ -262,6 +265,9 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 		return nil, err
 	}
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
+		return nil, err
+	}
+	if err = d.WithPostCounters(ctx, channelId, messages); err != nil {
 		return nil, err
 	}
 	return messages, d.withReplies(ctx, selfId, channelId, v.broadcast, messages)
