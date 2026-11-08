@@ -184356,11 +184356,11 @@ func (m *TLPollAnswerVoters) Encode(x *EncodeBuf, layer int32) error {
 		var flags = getFlags()
 		x.UInt(flags)
 		x.StringBytes(m.GetOption())
-		if m.GetVoters_FLAGINT32() != nil {
-			x.Int(m.GetVoters_FLAGINT32().Value)
+		if (flags & (1 << 2)) != 0 { // pluma: voters and recent_voters share flags.2, both or neither on the wire
+			x.Int(m.GetVoters_FLAGINT32().GetValue())
 		}
 
-		if m.GetRecentVoters() != nil {
+		if (flags & (1 << 2)) != 0 { // pluma: an empty recent_voters arrives nil over gRPC and from JSON
 			x.Int(int32(CRC32_vector))
 			{
 				var (
