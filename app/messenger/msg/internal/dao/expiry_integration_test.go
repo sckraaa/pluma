@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/historyttl"
@@ -191,6 +192,107 @@ func TestAutoDeleteDefaultPeriod(t *testing.T) {
 		if m := u.GetMessage_MESSAGE(); m != nil && historyttl.IsChange(m) {
 			t.Errorf("a second service message: %v", m)
 		}
+	}
+}
+
+// A group's period reaches its members with the service message, its
+// messages carry it and every copy goes; so does the service message of a
+// pin, in a group and in a private chat.
+func TestAutoDeleteGroupAndPins(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	a, b := newUser(), newUser()
+	chat := newChat()
+	w.chats.members[chat] = []int64{a, b}
+	w.chats.ttl = map[int64]int32{chat: testTTL}
+
+	for _, peer := range []struct {
+		peerType int32
+		toA, toB int64
+	}{
+		{mtproto.PEER_CHAT, chat, chat},
+		{mtproto.PEER_USER, a, b},
+	} {
+		if _, err := w.setTTL(a, peer.peerType, peer.toB, testTTL); err != nil {
+			t.Fatal(err)
+		}
+		w.pub.drain()
+		for user, id := range map[int64]int64{a: peer.toB, b: peer.toA} {
+			if got := w.dialogTTL(user, peer.peerType, id); got != testTTL {
+				t.Errorf("peer type %d, user %d: dialog period %d", peer.peerType, user, got)
+			}
+		}
+		before := w.countRows("SELECT COUNT(*) FROM message_expiry WHERE user_id = ?", b)
+
+		r := w.send(a, peer.peerType, peer.toB, "goes")
+		w.pub.drain()
+		ids := sentIds(r)
+		pin, err := w.rpc.MsgUpdatePinnedMessage(ctx, &msg.TLMsgUpdatePinnedMessage{
+			UserId: a, AuthKeyId: a * 10, PeerType: peer.peerType, PeerId: peer.toB, Id: ids[0],
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		w.pub.drain()
+		var service *mtproto.Message
+		for _, u := range pin.GetUpdates() {
+			if u.GetPredicateName() == mtproto.Predicate_updateNewMessage {
+				service = u.GetMessage_MESSAGE()
+			}
+		}
+		if service.GetTtlPeriod().GetValue() != testTTL {
+			t.Errorf("peer type %d: service message of the pin %v", peer.peerType, service)
+		}
+		if n := w.countRows("SELECT COUNT(*) FROM message_expiry WHERE user_id = ?", b); n != before+2 {
+			t.Errorf("peer type %d: recipient's expiry rows %d, want %d", peer.peerType, n, before+2)
+		}
+	}
+
+	if _, err := w.d.ExpireDue(ctx, time.Now().Unix()+testTTL+100); err != nil {
+		t.Fatal(err)
+	}
+	for _, user := range []int64{a, b} {
+		for _, m := range alive(w.messages(user)) {
+			if m.Text == "goes" {
+				t.Errorf("message of user %d survived", user)
+			}
+		}
+		if n := w.countRows("SELECT COUNT(*) FROM message_expiry WHERE user_id = ?", user); n != 0 {
+			t.Errorf("rows of user %d left: %d", user, n)
+		}
+		w.checkBox(user)
+	}
+}
+
+// A supergroup made of a group keeps its period.
+func TestAutoDeleteMigratedChat(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	a, b := newUser(), newUser()
+	chatId := newChat()
+	w.chats.members[chatId] = []int64{a, b}
+	w.chats.ttl = map[int64]int32{chatId: testTTL}
+	if _, err := w.check.Exec("INSERT INTO chats (id, creator_user_id, access_hash, random_id, participant_count, title) VALUES (?, ?, 1, ?, 2, 'chat')",
+		chatId, a, randomId()); err != nil {
+		t.Fatal(err)
+	}
+	chat, err := w.chats.ChatGetMutableChat(ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var channelId int64
+	if _, err = w.d.RunBox(ctx, a, nil, func(box *userbox.Box) error {
+		m, err := w.d.MigrateChat(box, chat, randomId())
+		if err != nil {
+			return err
+		}
+		channelId = m.ChannelId
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if n := w.countRows("SELECT COUNT(*) FROM channels WHERE id = ? AND ttl_period = ?", channelId, testTTL); n != 1 {
+		t.Errorf("supergroup %d lost the period", channelId)
 	}
 }
 

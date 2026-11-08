@@ -210,6 +210,7 @@ type fakeChats struct {
 	mu      sync.Mutex
 	members map[int64][]int64
 	states  map[[2]int64]int32
+	ttl     map[int64]int32 // auto-delete periods of the chats
 }
 
 func (f *fakeChats) ChatGetMutableChat(_ context.Context, in *chatpb.TLChatGetMutableChat) (*mtproto.MutableChat, error) {
@@ -411,6 +412,7 @@ func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 			Creator:           members[0],
 			Title:             "chat",
 			ParticipantsCount: int32(len(members)),
+			TtlPeriod:         f.ttl[chatId],
 		}).To_ImmutableChat(),
 		ChatParticipants: ps,
 	}).To_MutableChat(), nil
