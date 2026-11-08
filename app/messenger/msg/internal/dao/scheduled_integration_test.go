@@ -295,31 +295,42 @@ func TestScheduledReadEditDelete(t *testing.T) {
 }
 
 // A sender out of the group by the time comes loses the message: the checks
-// of the send are made when it goes out.
+// of the send are made when it goes out. The participant's row stays, with
+// its state, as biz chat keeps it after a leave or a removal.
 func TestScheduledDroppedWhenSenderLeft(t *testing.T) {
-	w := newWorld(t, boxDSN(""), 0)
-	a, b := newUser(), newUser()
-	chat := newChat()
-	w.chats.members[chat] = []int64{a, b}
-	ids := w.mustSchedule(a, mtproto.PEER_CHAT, chat, int32(time.Now().Unix()+3600), "left")
-	w.chats.members[chat] = []int64{b}
-	w.makeDue(ids...)
-	w.startWorkers(1)
-	w.waitQueue(a)
-	if n := w.sentCount(a, "left"); n != 0 {
-		t.Fatalf("sent %d times", n)
-	}
-	w.pub.drain()
-	found := false
-	for _, p := range itDelivery.pushesTo(a) {
-		for _, u := range p.updates.GetUpdates() {
-			if u.GetPredicateName() == mtproto.Predicate_updateDeleteScheduledMessages && len(u.GetSentMessages()) == 0 {
-				found = true
+	for name, state := range map[string]int32{"left": mtproto.ChatMemberStateLeft, "kicked": mtproto.ChatMemberStateKicked} {
+		t.Run(name, func(t *testing.T) {
+			w := newWorld(t, boxDSN(""), 0)
+			a, b := newUser(), newUser()
+			chat := newChat()
+			w.chats.members[chat] = []int64{a, b}
+			date := int32(time.Now().Unix() + 3600)
+			ids := w.mustSchedule(a, mtproto.PEER_CHAT, chat, date, name)
+			w.chats.mu.Lock()
+			w.chats.states[[2]int64{chat, a}] = state
+			w.chats.mu.Unlock()
+			if _, err := w.schedule(a, mtproto.PEER_CHAT, chat, date, "after"); err == nil || !strings.Contains(err.Error(), "CHAT_WRITE_FORBIDDEN") {
+				t.Errorf("scheduled from out of the group: %v", err)
 			}
-		}
-	}
-	if !found {
-		t.Error("the sender is not told the message is gone")
+			w.makeDue(ids...)
+			w.startWorkers(1)
+			w.waitQueue(a)
+			if n := w.sentCount(a, name); n != 0 {
+				t.Fatalf("sent %d times", n)
+			}
+			w.pub.drain()
+			found := false
+			for _, p := range itDelivery.pushesTo(a) {
+				for _, u := range p.updates.GetUpdates() {
+					if u.GetPredicateName() == mtproto.Predicate_updateDeleteScheduledMessages && len(u.GetSentMessages()) == 0 {
+						found = true
+					}
+				}
+			}
+			if !found {
+				t.Error("the sender is not told the message is gone")
+			}
+		})
 	}
 }
 

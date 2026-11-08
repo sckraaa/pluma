@@ -53,9 +53,11 @@ const (
 
 // sendOptions change a send on behalf of a schedule queue.
 type sendOptions struct {
-	// remade: the messages went through plugin.RemakeMessage when they were
-	// scheduled; a second pass would add their automatic entities again.
-	remade bool
+	// queued: the messages come off a schedule queue. They went through
+	// plugin.RemakeMessage when they were scheduled, and a second pass would
+	// add their automatic entities again; and their sender must still be in
+	// the group, unlike the sender of the service message of its own leave.
+	queued bool
 	// fromScheduled: the send is the delivery of waiting messages at their
 	// time: in Saved Messages they stay unread as reminders.
 	fromScheduled bool
@@ -295,7 +297,7 @@ func (c *MsgCore) scheduleChat(in *msg.TLMsgSendMessageV2, date int32) (*mtproto
 	if err != nil {
 		return nil, err
 	}
-	if p, ok := chat.GetImmutableChatParticipant(in.UserId); !ok || p.IsChatMemberStateMigrated() || chat.GetChat().GetMigratedTo() != nil {
+	if p, ok := chat.GetImmutableChatParticipant(in.UserId); !ok || !p.IsChatMemberStateNormal() || chat.GetChat().GetMigratedTo() != nil {
 		return nil, mtproto.ErrChatWriteForbidden
 	}
 	hasBot := func() bool {
@@ -804,7 +806,7 @@ func (c *MsgCore) deliverScheduled(rows []*dao.ScheduledRow, authKeyId int64, fr
 	var deleted *mtproto.Update
 	in := &msg.TLMsgSendMessageV2{UserId: senderId, AuthKeyId: authKeyId, PeerType: peerType, PeerId: peerId, Message: outBox}
 	updates, err := c.send(in, sendOptions{
-		remade:        true,
+		queued:        true,
 		fromScheduled: fromScheduled,
 		after: func(b *userbox.Box, sent []int32) error {
 			if err := c.svcCtx.Dao.DeleteScheduled(b, ids); err != nil {

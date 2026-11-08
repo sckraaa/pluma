@@ -119,7 +119,7 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 		})
 		return found
 	}
-	if !opt.remade {
+	if !opt.queued {
 		for _, outBox := range outBoxList {
 			outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
 		}
@@ -327,6 +327,8 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 	// its leave, after its row changed.
 	if p, ok := chat.GetImmutableChatParticipant(fromUserId); !ok || p.IsChatMemberStateMigrated() || chat.GetChat().GetMigratedTo() != nil {
 		return nil, mtproto.ErrChatWriteForbidden
+	} else if opt.queued && !p.IsChatMemberStateNormal() {
+		return nil, mtproto.ErrChatWriteForbidden
 	}
 
 	hasBot := func() bool {
@@ -339,7 +341,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		})
 		return found
 	}
-	if !opt.remade {
+	if !opt.queued {
 		for _, outBox := range outBoxList {
 			outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
 		}
