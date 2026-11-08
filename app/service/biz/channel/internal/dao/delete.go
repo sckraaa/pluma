@@ -68,7 +68,8 @@ type PostCommentsOff struct {
 // without the right is MESSAGE_DELETE_FORBIDDEN, as Telegram answers
 // (core.telegram.org/method/channels.deleteMessages). The deleted ids are
 // one row of the journal, pts_count their number; the channel's
-// top_message moves to the last message left.
+// top_message moves to the last message left. The root message of a topic
+// is left out: it goes only with its topic (DeleteTopicHistory).
 //
 // A deleted post takes its copy in the discussion group with it; the
 // comments stay in the group. A deleted copy turns the comments of its
@@ -108,6 +109,10 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	for _, id := range ids {
 		args = append(args, id)
 	}
+	roots, err := topicsOf(b, channelId, ids)
+	if err != nil {
+		return nil, err
+	}
 	var rows []deleteRow
 	if err = b.Tx().QueryRowsPartial(&rows,
 		"SELECT id, sender_user_id FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") FOR UPDATE",
@@ -115,6 +120,9 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 		return nil, err
 	}
 	for _, r := range rows {
+		if slices.Contains(roots, r.Id) {
+			continue
+		}
 		if r.SenderUserId != b.UserId() && !admin {
 			return nil, mtproto.ErrMessageDeleteForbidden
 		}
@@ -126,13 +134,18 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 // deleteRows deletes for everyone the messages ids, which exist and are not
 // deleted, of the channel ch has locked, and what goes with them in the
 // discussion group or its channel. The other channel of each link of ids
-// is locked too. Nothing is written for no ids.
+// is locked too, and the topics of a forum that lost their newest messages
+// move back. Nothing is written for no ids.
 func deleteRows(b *userbox.Box, ch *channelbox.Channel, channelId int64, ids []int32) (*Deleted, error) {
 	out := &Deleted{ChannelId: channelId, Ids: ids}
 	if len(ids) == 0 {
 		return out, nil
 	}
-	if err := removeMessages(b, ch, out); err != nil {
+	topics, err := topicsOfMessages(b, channelId, ids)
+	if err != nil {
+		return nil, err
+	}
+	if err = removeMessages(b, ch, out); err != nil {
 		return nil, err
 	}
 	// Read again with the channels locked: a link changes only with both
@@ -144,7 +157,19 @@ func deleteRows(b *userbox.Box, ch *channelbox.Channel, channelId int64, ids []i
 	if err = removeLinked(b, channelId, links, out); err != nil {
 		return nil, err
 	}
-	return out, nil
+	return out, refreshTopicTops(b, channelId, topics)
+}
+
+// topicsOfMessages are the topics the messages ids of channelId are in.
+func topicsOfMessages(b *userbox.Box, channelId int64, ids []int32) ([]int32, error) {
+	args := []any{channelId}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	var topics []int32
+	err := b.Tx().QueryRowsPartial(&topics,
+		"SELECT DISTINCT topic_id FROM channel_messages WHERE channel_id = ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")", args...)
+	return topics, err
 }
 
 // removeMessages deletes out.Ids of the locked channel: the mentions of

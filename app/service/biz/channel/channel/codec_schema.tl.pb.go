@@ -51,9 +51,9 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1986537988,
 		}
 	},
-	-641600475: func() mtproto.TLObject { // 0xd9c1f425 pluma: task 038
+	1532314294: func() mtproto.TLObject { // 0x5b5542b6 pluma: task 038
 		return &TLChannelCreateChannel{
-			Constructor: -641600475,
+			Constructor: 1532314294,
 		}
 	},
 	-1725659745: func() mtproto.TLObject { // 0x9924859f pluma: task 038
@@ -239,6 +239,66 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 	-2063367371: func() mtproto.TLObject { // 0x85038335 pluma: task 041
 		return &TLChannelGetLeftChannels{
 			Constructor: -2063367371,
+		}
+	},
+	1073186003: func() mtproto.TLObject { // 0x3ff784d3 pluma: task 060
+		return &TLChannelToggleForum{
+			Constructor: 1073186003,
+		}
+	},
+	-1875771675: func() mtproto.TLObject { // 0x9031fee5 pluma: task 060
+		return &TLChannelToggleViewForumAsMessages{
+			Constructor: -1875771675,
+		}
+	},
+	-610599565: func() mtproto.TLObject { // 0xdb9afd73 pluma: task 060
+		return &TLChannelCreateForumTopic{
+			Constructor: -610599565,
+		}
+	},
+	1853047093: func() mtproto.TLObject { // 0x6e734135 pluma: task 060
+		return &TLChannelEditForumTopic{
+			Constructor: 1853047093,
+		}
+	},
+	-110001806: func() mtproto.TLObject { // 0xf9718172 pluma: task 060
+		return &TLChannelUpdatePinnedForumTopic{
+			Constructor: -110001806,
+		}
+	},
+	-1269591301: func() mtproto.TLObject { // 0xb45392fb pluma: task 060
+		return &TLChannelReorderPinnedForumTopics{
+			Constructor: -1269591301,
+		}
+	},
+	62210273: func() mtproto.TLObject { // 0x03b540e1 pluma: task 060
+		return &TLChannelDeleteTopicHistory{
+			Constructor: 62210273,
+		}
+	},
+	-553446363: func() mtproto.TLObject { // 0xdf031425 pluma: task 060
+		return &TLChannelGetForumTopics{
+			Constructor: -553446363,
+		}
+	},
+	1892057379: func() mtproto.TLObject { // 0x70c68123 pluma: task 060
+		return &TLChannelGetForumTopicsByID{
+			Constructor: 1892057379,
+		}
+	},
+	-2126242873: func() mtproto.TLObject { // 0x81441bc7 pluma: task 060
+		return &TLChannelSearchTopic{
+			Constructor: -2126242873,
+		}
+	},
+	-701570663: func() mtproto.TLObject { // 0xd62ee199 pluma: task 060
+		return &TLChannelReadTopicMentions{
+			Constructor: -701570663,
+		}
+	},
+	-1405087645: func() mtproto.TLObject { // 0xac401063 pluma: task 060
+		return &TLChannelUnpinAllTopicMessages{
+			Constructor: -1405087645,
 		}
 	},
 	-922563101: func() mtproto.TLObject { // 0xc902cde3 pluma: task 044
@@ -432,6 +492,9 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 				if d.GetForum() {
 					flags |= 1 << 2
 				}
+				if d.GetForumTabs() {
+					flags |= 1 << 15
+				}
 				if d.GetSignatures() {
 					flags |= 1 << 3
 				}
@@ -514,6 +577,7 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.Broadcast = (flags & (1 << 0)) != 0
 			d.Megagroup = (flags & (1 << 1)) != 0
 			d.Forum = (flags & (1 << 2)) != 0
+			d.ForumTabs = (flags & (1 << 15)) != 0
 			d.Signatures = (flags & (1 << 3)) != 0
 			d.Noforwards = (flags & (1 << 4)) != 0
 			d.JoinToSend = (flags & (1 << 5)) != 0
@@ -959,8 +1023,8 @@ func (m *Vector_MutableChannel) CalcByteSize(layer int32) int {
 
 func (m *TLChannelCreateChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	switch uint32(m.Constructor) {
-	case 0xd9c1f425:
-		x.UInt(0xd9c1f425)
+	case 0x5b5542b6:
+		x.UInt(0x5b5542b6)
 
 		// no flags
 
@@ -969,6 +1033,7 @@ func (m *TLChannelCreateChannel) Encode(x *mtproto.EncodeBuf, layer int32) error
 		x.String(m.GetAbout())
 		m.GetBroadcast().Encode(x, layer)
 		m.GetMegagroup().Encode(x, layer)
+		m.GetForum().Encode(x, layer)
 
 	default:
 		// log.Errorf("")
@@ -983,7 +1048,7 @@ func (m *TLChannelCreateChannel) CalcByteSize(layer int32) int {
 
 func (m *TLChannelCreateChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
-	case 0xd9c1f425:
+	case 0x5b5542b6:
 
 		// not has flags
 
@@ -996,6 +1061,9 @@ func (m *TLChannelCreateChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 		m4 := &mtproto.Bool{}
 		m4.Decode(dBuf)
 		m.Megagroup = m4
+		m5 := &mtproto.Bool{}
+		m5.Decode(dBuf)
+		m.Forum = m5
 		return dBuf.GetError()
 
 	default:
@@ -3660,6 +3728,600 @@ func (m *TLChannelGetLeftChannels) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.SelfId = dBuf.Long()
 		m.Offset = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelToggleForum (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelToggleForum) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x3ff784d3:
+		x.UInt(0x3ff784d3)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetEnabled().Encode(x, layer)
+		m.GetTabs().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelToggleForum) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelToggleForum) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x3ff784d3:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Enabled = m3
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Tabs = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelToggleViewForumAsMessages (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelToggleViewForumAsMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x9031fee5:
+		x.UInt(0x9031fee5)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetEnabled().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelToggleViewForumAsMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelToggleViewForumAsMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x9031fee5:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Enabled = m3
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelCreateForumTopic (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelCreateForumTopic) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xdb9afd73:
+		x.UInt(0xdb9afd73)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetTitle())
+		x.Int(m.GetIconColor())
+		x.Long(m.GetIconEmojiId())
+		m.GetTitleMissing().Encode(x, layer)
+		x.Long(m.GetRandomId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelCreateForumTopic) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelCreateForumTopic) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xdb9afd73:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Title = dBuf.String()
+		m.IconColor = dBuf.Int()
+		m.IconEmojiId = dBuf.Long()
+		m6 := &mtproto.Bool{}
+		m6.Decode(dBuf)
+		m.TitleMissing = m6
+		m.RandomId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditForumTopic (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditForumTopic) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x6e734135:
+		x.UInt(0x6e734135)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopicId())
+		x.Int(m.GetFields())
+		x.String(m.GetTitle())
+		x.Long(m.GetIconEmojiId())
+		m.GetClosed().Encode(x, layer)
+		m.GetHidden().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditForumTopic) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditForumTopic) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x6e734135:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopicId = dBuf.Int()
+		m.Fields = dBuf.Int()
+		m.Title = dBuf.String()
+		m.IconEmojiId = dBuf.Long()
+		m7 := &mtproto.Bool{}
+		m7.Decode(dBuf)
+		m.Closed = m7
+		m8 := &mtproto.Bool{}
+		m8.Decode(dBuf)
+		m.Hidden = m8
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelUpdatePinnedForumTopic (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelUpdatePinnedForumTopic) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xf9718172:
+		x.UInt(0xf9718172)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopicId())
+		m.GetPinned().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelUpdatePinnedForumTopic) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelUpdatePinnedForumTopic) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xf9718172:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopicId = dBuf.Int()
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Pinned = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelReorderPinnedForumTopics (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelReorderPinnedForumTopics) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xb45392fb:
+		x.UInt(0xb45392fb)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetForce().Encode(x, layer)
+		x.VectorInt(m.GetOrder())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelReorderPinnedForumTopics) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelReorderPinnedForumTopics) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xb45392fb:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Force = m3
+		m.Order = dBuf.VectorInt()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelDeleteTopicHistory (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelDeleteTopicHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x03b540e1:
+		x.UInt(0x03b540e1)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelDeleteTopicHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelDeleteTopicHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x03b540e1:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetForumTopics (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetForumTopics) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xdf031425:
+		x.UInt(0xdf031425)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetQ())
+		x.Int(m.GetOffsetDate())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetOffsetTopic())
+		x.Int(m.GetLimit())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetForumTopics) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetForumTopics) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xdf031425:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Q = dBuf.String()
+		m.OffsetDate = dBuf.Int()
+		m.OffsetId = dBuf.Int()
+		m.OffsetTopic = dBuf.Int()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetForumTopicsByID (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetForumTopicsByID) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x70c68123:
+		x.UInt(0x70c68123)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.VectorInt(m.GetTopics())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetForumTopicsByID) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetForumTopicsByID) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x70c68123:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Topics = dBuf.VectorInt()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSearchTopic (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSearchTopic) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x81441bc7:
+		x.UInt(0x81441bc7)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopMsgId())
+		x.String(m.GetQ())
+		x.Long(m.GetFromId())
+		x.Int(m.GetMediaType())
+		m.GetUnreadMentions().Encode(x, layer)
+		x.Int(m.GetMinDate())
+		x.Int(m.GetMaxDate())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetAddOffset())
+		x.Int(m.GetLimit())
+		x.Int(m.GetMaxId())
+		x.Int(m.GetMinId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSearchTopic) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSearchTopic) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x81441bc7:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		m.Q = dBuf.String()
+		m.FromId = dBuf.Long()
+		m.MediaType = dBuf.Int()
+		m6 := &mtproto.Bool{}
+		m6.Decode(dBuf)
+		m.UnreadMentions = m6
+		m.MinDate = dBuf.Int()
+		m.MaxDate = dBuf.Int()
+		m.OffsetId = dBuf.Int()
+		m.AddOffset = dBuf.Int()
+		m.Limit = dBuf.Int()
+		m.MaxId = dBuf.Int()
+		m.MinId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelReadTopicMentions (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelReadTopicMentions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xd62ee199:
+		x.UInt(0xd62ee199)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelReadTopicMentions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelReadTopicMentions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xd62ee199:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelUnpinAllTopicMessages (pluma: task 060)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelUnpinAllTopicMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xac401063:
+		x.UInt(0xac401063)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelUnpinAllTopicMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelUnpinAllTopicMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xac401063:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

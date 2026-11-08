@@ -24,6 +24,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -112,6 +113,8 @@ type SearchQuery struct {
 	// ThreadTop keeps the replies of the thread that starts from this
 	// message (task 048).
 	ThreadTop int32
+	// Topic keeps the messages of this topic of a forum (task 060).
+	Topic int32
 }
 
 // SearchMax is the most messages of one page of a search
@@ -137,6 +140,9 @@ func (d *Dao) Search(ctx context.Context, selfId, channelId int64, q SearchQuery
 	}
 	if q.ThreadTop != 0 {
 		add("reply_top_id = ?", q.ThreadTop)
+	}
+	if q.Topic != 0 {
+		add("topic_id = ?", channelbox.TopicColumn(q.Topic))
 	}
 	if q.UnreadMentionsOf != 0 {
 		add("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)

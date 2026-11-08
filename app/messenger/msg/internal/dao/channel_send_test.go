@@ -47,3 +47,22 @@ func TestCheckSend(t *testing.T) {
 		t.Error("preview dropped for a member who may embed links")
 	}
 }
+
+// A reply with no message of this chat is kept only if it says what it
+// replies to.
+func TestReplyStandsAlone(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		h    *mtproto.MessageReplyHeader
+		want bool
+	}{
+		{"none", nil, false},
+		{"only a topic", mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{}).To_MessageReplyHeader(), false},
+		{"another chat", mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{ReplyFrom: &mtproto.MessageFwdHeader{}}).To_MessageReplyHeader(), true},
+		{"a story", mtproto.MakeTLMessageReplyStoryHeader(&mtproto.MessageReplyHeader{}).To_MessageReplyHeader(), true},
+	} {
+		if got := replyStandsAlone(c.h); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+}

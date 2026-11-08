@@ -265,6 +265,8 @@ func (b *Box) result() *Result {
 // is the same twice; updateChannelAvailableMessages is how much of a channel
 // the account has hidden from itself (channels.deleteHistory), which the
 // clients take as a maximum, so a repeat changes nothing.
+// So do how far a topic of a forum was read and the choice to read a forum
+// as messages (task 060): the last one is enough.
 // Installed sticker sets (task 030) go with seq too: a set installed moves
 // it to the top, an order is the whole order, and the rest is "load the
 // kind again", so a replay of the journal's tail in order ends in the same
@@ -297,6 +299,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateReadChannelDiscussionInbox,
 		mtproto.Predicate_updateChannelReadMessagesContents,
 		mtproto.Predicate_updateChannelAvailableMessages,
+		mtproto.Predicate_updateReadChannelDiscussionInbox,
+		mtproto.Predicate_updateChannelViewForumAsMessages,
 		mtproto.Predicate_updateSavedReactionTags,
 		mtproto.Predicate_updateNewStickerSet,
 		mtproto.Predicate_updateStickerSets,

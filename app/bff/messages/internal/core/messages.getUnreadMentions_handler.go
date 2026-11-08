@@ -74,16 +74,33 @@ func (c *MessagesCore) MessagesGetUnreadMentions(in *mtproto.TLMessagesGetUnread
 			Users:    []*mtproto.User{},
 		}).To_Messages_Messages()
 	case mtproto.PEER_CHANNEL:
-		// A channel's unread mentions (task 043, biz channel.getUnreadMentions).
-		r, err := c.svcCtx.Dao.Channel.ChannelGetUnreadMentions(c.ctx, &channelpb.TLChannelGetUnreadMentions{
-			SelfId:    c.MD.UserId,
-			ChannelId: peer.PeerId,
-			OffsetId:  in.OffsetId,
-			AddOffset: in.AddOffset,
-			Limit:     limit,
-			MaxId:     in.MaxId,
-			MinId:     in.MinId,
-		})
+		// A channel's unread mentions (task 043, biz channel.getUnreadMentions),
+		// or those of a topic (task 060).
+		var r *mtproto.Messages_Messages
+		if top := in.GetTopMsgId(); top != nil {
+			r, err = c.svcCtx.Dao.Channel.ChannelSearchTopic(c.ctx, &channelpb.TLChannelSearchTopic{
+				SelfId:         c.MD.UserId,
+				ChannelId:      peer.PeerId,
+				TopMsgId:       top.GetValue(),
+				MediaType:      mtproto.MEDIA_EMPTY,
+				UnreadMentions: mtproto.BoolTrue,
+				OffsetId:       in.OffsetId,
+				AddOffset:      in.AddOffset,
+				Limit:          limit,
+				MaxId:          in.MaxId,
+				MinId:          in.MinId,
+			})
+		} else {
+			r, err = c.svcCtx.Dao.Channel.ChannelGetUnreadMentions(c.ctx, &channelpb.TLChannelGetUnreadMentions{
+				SelfId:    c.MD.UserId,
+				ChannelId: peer.PeerId,
+				OffsetId:  in.OffsetId,
+				AddOffset: in.AddOffset,
+				Limit:     limit,
+				MaxId:     in.MaxId,
+				MinId:     in.MinId,
+			})
+		}
 		if err != nil {
 			c.Logger.Errorf("messages.getUnreadMentions - error: %v", err)
 			return nil, err

@@ -319,7 +319,7 @@ func (c *MessagesCore) makeForwardMessages(
 		} else {
 			m.GroupedId = nil
 		}
-		m.ReplyTo = nil
+		m.ReplyTo = forwardTopicHeader(toPeer, request.GetTopMsgId(), request.GetReplyTo())
 		m.Reactions = nil
 		if m.FwdFrom == nil {
 			// A copy is the sender's own message and has no counters.

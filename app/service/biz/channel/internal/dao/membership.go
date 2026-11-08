@@ -51,6 +51,8 @@ type ChannelChange struct {
 	Message   *mtproto.Message
 	Pts       int32
 	Reload    bool
+	// Updates are told to the members beside the rest (task 060).
+	Updates []*mtproto.Update
 	// Self and Count are, for a join or a leave, the owner's participant
 	// row and the channel's participants_count as the transaction wrote
 	// them.
@@ -389,6 +391,11 @@ func addServiceMessageFrom(b *userbox.Box, ch *channelbox.Channel, channelId, fr
 		channelId, m.Id, fromId, ch.Pts(), mtproto.GetMediaType(m), data, b.Date()); err != nil {
 		return nil, 0, err
 	}
+	// In a forum it is a message of General, which moves up the list of
+	// topics (task 060).
+	if _, err = b.Tx().Exec("UPDATE channel_forum_topics SET top_message = ? WHERE channel_id = ? AND topic_id = ?", m.Id, channelId, channelbox.GeneralTopicId); err != nil {
+		return nil, 0, err
+	}
 	return m, ch.Pts(), nil
 }
 
@@ -428,6 +435,7 @@ func (d *Dao) EmitChannelPush(b *userbox.Box, permAuthKeyId int64, change *Chann
 	if change.Reload {
 		updates = append(updates, mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: change.ChannelId}).To_Update())
 	}
+	updates = append(updates, change.Updates...)
 	if len(updates) == 0 {
 		return nil
 	}

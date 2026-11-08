@@ -13,7 +13,7 @@ const (
 	CRC32_channel_getMutableChannel      TLConstructor = -437245607  // 0xe5f02959
 	CRC32_channel_getChannelListByIdList TLConstructor = -1986537988 // 0x8997d5fc
 	// pluma: task 038
-	CRC32_channel_createChannel TLConstructor = -641600475 // 0xd9c1f425
+	CRC32_channel_createChannel TLConstructor = 1532314294 // 0x5b5542b6
 	// pluma: task 038
 	CRC32_channel_getChannelDialogs TLConstructor = -1725659745 // 0x9924859f
 	// pluma: task 038
@@ -88,6 +88,30 @@ const (
 	CRC32_channel_getPendingJoinRequests TLConstructor = 2040559942 // 0x79a07946
 	// pluma: task 041
 	CRC32_channel_getLeftChannels TLConstructor = -2063367371 // 0x85038335
+	// pluma: task 060
+	CRC32_channel_toggleForum TLConstructor = 1073186003 // 0x3ff784d3
+	// pluma: task 060
+	CRC32_channel_toggleViewForumAsMessages TLConstructor = -1875771675 // 0x9031fee5
+	// pluma: task 060
+	CRC32_channel_createForumTopic TLConstructor = -610599565 // 0xdb9afd73
+	// pluma: task 060
+	CRC32_channel_editForumTopic TLConstructor = 1853047093 // 0x6e734135
+	// pluma: task 060
+	CRC32_channel_updatePinnedForumTopic TLConstructor = -110001806 // 0xf9718172
+	// pluma: task 060
+	CRC32_channel_reorderPinnedForumTopics TLConstructor = -1269591301 // 0xb45392fb
+	// pluma: task 060
+	CRC32_channel_deleteTopicHistory TLConstructor = 62210273 // 0x03b540e1
+	// pluma: task 060
+	CRC32_channel_getForumTopics TLConstructor = -553446363 // 0xdf031425
+	// pluma: task 060
+	CRC32_channel_getForumTopicsByID TLConstructor = 1892057379 // 0x70c68123
+	// pluma: task 060
+	CRC32_channel_searchTopic TLConstructor = -2126242873 // 0x81441bc7
+	// pluma: task 060
+	CRC32_channel_readTopicMentions TLConstructor = -701570663 // 0xd62ee199
+	// pluma: task 060
+	CRC32_channel_unpinAllTopicMessages TLConstructor = -1405087645 // 0xac401063
 	// pluma: task 044
 	CRC32_channel_toggleSetting TLConstructor = -922563101 // 0xc902cde3
 	// pluma: task 044

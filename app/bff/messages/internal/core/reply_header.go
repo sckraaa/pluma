@@ -90,7 +90,37 @@ func (s coreReplySource) authorOrigin(box *mtproto.MessageBox) (*mtproto.Message
 // legacy reply_to_msg_id or from reply_to; nil when the message replies to
 // no message (a reply to a story is built by the caller).
 func (c *MessagesCore) makeReplyHeader(peer *mtproto.PeerUtil, replyToMsgId *wrapperspb.Int32Value, replyTo *mtproto.InputReplyTo) (*mtproto.MessageReplyHeader, error) {
-	return makeReplyHeader(coreReplySource{c: c}, c.MD.UserId, peer, replyToMsgId, replyTo)
+	h, err := makeReplyHeader(coreReplySource{c: c}, c.MD.UserId, peer, replyToMsgId, replyTo)
+	if err != nil {
+		return nil, err
+	}
+	return replyWithTopic(h, peer, replyTo), nil
+}
+
+// replyWithTopic carries top_msg_id of a reply sent to a channel (a topic
+// of a forum, core.telegram.org/api/forum) to biz, which resolves it (task
+// 060); it means nothing in the other chats.
+func replyWithTopic(h *mtproto.MessageReplyHeader, peer *mtproto.PeerUtil, replyTo *mtproto.InputReplyTo) *mtproto.MessageReplyHeader {
+	if h != nil && peer.PeerType == mtproto.PEER_CHANNEL && replyTo.GetTopMsgId() != nil {
+		h.ReplyToTopId = replyTo.GetTopMsgId()
+	}
+	return h
+}
+
+// forwardTopicHeader names the topic of a forward to a channel: top_msg_id
+// (Android SendMessagesHelper.java:2508-2513), or that of reply_to; biz
+// resolves it (task 060). nil for no topic.
+func forwardTopicHeader(to *mtproto.PeerUtil, topMsgId *wrapperspb.Int32Value, replyTo *mtproto.InputReplyTo) *mtproto.MessageReplyHeader {
+	if to.PeerType != mtproto.PEER_CHANNEL {
+		return nil
+	}
+	if topMsgId == nil {
+		topMsgId = replyTo.GetTopMsgId()
+	}
+	if topMsgId == nil {
+		return nil
+	}
+	return mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{ReplyToTopId: topMsgId}).To_MessageReplyHeader()
 }
 
 // makeReplyHeader is the reply header of a message selfId sends to peer.
@@ -118,6 +148,15 @@ func makeReplyHeader(src replySource, selfId int64, peer *mtproto.PeerUtil, repl
 	}
 
 	source := mtproto.FromInputPeer2(selfId, replyTo.GetReplyToPeerId())
+	if source.PeerType == mtproto.PEER_CHANNEL && peer.PeerType == mtproto.PEER_CHANNEL && source.PeerId == peer.PeerId {
+		// A message of another topic of the same forum: the clients name
+		// the forum itself (tdesktop data_histories.cpp:75-77, Android
+		// SendMessagesHelper.java:4947-4953), and biz keeps the new message
+		// in the topic it is written to (task 060).
+		header := sameChatReply(replyTo.GetReplyToMsgId(), replyTo)
+		header.ReplyToPeerId = mtproto.MakePeerChannel(peer.PeerId)
+		return header, nil
+	}
 	switch source.PeerType {
 	case mtproto.PEER_SELF:
 		source.PeerType = mtproto.PEER_USER

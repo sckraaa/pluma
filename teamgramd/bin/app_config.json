@@ -33,6 +33,7 @@
     "saved_dialogs_pinned_limit_default": 5,
     "saved_dialogs_pinned_limit_premium": 100,
     "topics_pinned_limit": 5,
+    "forum_upgrade_participants_min": 0,
 
     "message_length_limit_default": 4096,
     "message_length_limit_premium": 4096,

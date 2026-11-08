@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 )
 
 // MessagesUnpinAllMessages
@@ -38,6 +39,13 @@ func (c *MessagesCore) MessagesUnpinAllMessages(in *mtproto.TLMessagesUnpinAllMe
 		c.Logger.Errorf("invalid peer: %v", in.Peer)
 		err := mtproto.ErrPeerIdInvalid
 		return nil, err
+	}
+
+	if top := in.GetTopMsgId(); top != nil && peer.PeerType == mtproto.PEER_CHANNEL {
+		// The messages of one topic (task 060).
+		return c.svcCtx.Dao.Channel.ChannelUnpinAllTopicMessages(c.ctx, &channelpb.TLChannelUnpinAllTopicMessages{
+			SelfId: c.MD.UserId, PermAuthKeyId: c.MD.PermAuthKeyId, ChannelId: peer.PeerId, TopMsgId: top.GetValue(),
+		})
 	}
 
 	rValues, err := c.svcCtx.Dao.MsgClient.MsgUnpinAllMessages(c.ctx, &msgpb.TLMsgUnpinAllMessages{

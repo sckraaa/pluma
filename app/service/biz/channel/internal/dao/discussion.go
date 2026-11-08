@@ -43,6 +43,7 @@ type linkRow struct {
 	Hidden    bool  `db:"hidden_prehistory"`
 	Linked    int64 `db:"linked_chat_id"`
 	Deleted   bool  `db:"deleted"`
+	Forum     bool  `db:"forum"`
 }
 
 func linkRows(b *userbox.Box, ids ...int64) (map[int64]linkRow, error) {
@@ -53,7 +54,7 @@ func linkRows(b *userbox.Box, ids ...int64) (map[int64]linkRow, error) {
 		}
 		var rows []linkRow
 		if err := b.Tx().QueryRowsPartial(&rows,
-			"SELECT id, broadcast, megagroup, hidden_prehistory, linked_chat_id, deleted FROM channels WHERE id = ?", id); err != nil {
+			"SELECT id, broadcast, megagroup, hidden_prehistory, linked_chat_id, deleted, forum FROM channels WHERE id = ?", id); err != nil {
 			return nil, err
 		}
 		if len(rows) > 0 && !rows[0].Deleted {
@@ -126,7 +127,9 @@ func (d *Dao) SetDiscussionGroup(b *userbox.Box, channelId, groupId int64) ([]in
 	if groupId != 0 {
 		g, ok := rows[groupId]
 		switch {
-		case !ok || !g.Megagroup:
+		case !ok || !g.Megagroup, g.Forum:
+			// A forum cannot be a discussion group
+			// (CHAT_DISCUSSION_UNALLOWED, channels.toggleForum).
 			return nil, mtproto.ErrMegagroupIdInvalid
 		case g.Hidden:
 			return nil, mtproto.ErrMegagroupPrehistoryHidden
@@ -326,7 +329,7 @@ func (d *Dao) GroupsForDiscussion(ctx context.Context, userId int64) ([]int64, e
 	if err := d.Mysql.QueryRowsPartial(ctx, &rows,
 		"SELECT c.id, c.default_banned_rights, p.role, p.admin_rights, p.banned_rights, p.until_date FROM channel_participants p"+
 			" JOIN channels c ON c.id = p.channel_id"+
-			" WHERE p.user_id = ? AND p.state = 0 AND p.role > 0 AND c.megagroup = 1 AND c.deleted = 0 AND c.linked_chat_id = 0"+
+			" WHERE p.user_id = ? AND p.state = 0 AND p.role > 0 AND c.megagroup = 1 AND c.deleted = 0 AND c.linked_chat_id = 0 AND c.forum = 0"+
 			" ORDER BY c.id DESC", userId); err != nil {
 		return nil, err
 	}

@@ -117,7 +117,11 @@ func (d *Dao) DeleteHistory(b *userbox.Box, channelId int64, maxId int32) (*Hist
 		channelId, maxId, HistoryPortion); err != nil {
 		return nil, err
 	}
-	del, err := deleteRows(b, ch, channelId, onlyKnown(ids, known))
+	roots, err := topicsOf(b, channelId, ids)
+	if err != nil {
+		return nil, err
+	}
+	del, err := deleteRows(b, ch, channelId, slices.DeleteFunc(onlyKnown(ids, known), func(id int32) bool { return slices.Contains(roots, id) }))
 	if err != nil {
 		return nil, err
 	}
@@ -228,9 +232,13 @@ func (d *Dao) DeleteParticipantHistory(b *userbox.Box, channelId, userId int64) 
 		channelId, userId, DeleteMax); err != nil {
 		return nil, err
 	}
+	roots, err := topicsOf(b, channelId, ids)
+	if err != nil {
+		return nil, err
+	}
 	// What a member wrote to a supergroup is no post, and the copies of
 	// posts are left out: no message here has a discussion link.
-	del, err := deleteRows(b, ch, channelId, ids)
+	del, err := deleteRows(b, ch, channelId, slices.DeleteFunc(ids, func(id int32) bool { return slices.Contains(roots, id) }))
 	if err != nil {
 		return nil, err
 	}

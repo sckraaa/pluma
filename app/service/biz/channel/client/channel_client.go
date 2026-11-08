@@ -66,6 +66,18 @@ type ChannelClient interface {
 	ChannelHideChatJoinRequests(ctx context.Context, in *channel.TLChannelHideChatJoinRequests) (*mtproto.Updates, error)
 	ChannelGetPendingJoinRequests(ctx context.Context, in *channel.TLChannelGetPendingJoinRequests) (*mtproto.Update, error)
 	ChannelGetLeftChannels(ctx context.Context, in *channel.TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error)
+	ChannelToggleForum(ctx context.Context, in *channel.TLChannelToggleForum) (*mtproto.Updates, error)
+	ChannelToggleViewForumAsMessages(ctx context.Context, in *channel.TLChannelToggleViewForumAsMessages) (*mtproto.Updates, error)
+	ChannelCreateForumTopic(ctx context.Context, in *channel.TLChannelCreateForumTopic) (*mtproto.Updates, error)
+	ChannelEditForumTopic(ctx context.Context, in *channel.TLChannelEditForumTopic) (*mtproto.Updates, error)
+	ChannelUpdatePinnedForumTopic(ctx context.Context, in *channel.TLChannelUpdatePinnedForumTopic) (*mtproto.Updates, error)
+	ChannelReorderPinnedForumTopics(ctx context.Context, in *channel.TLChannelReorderPinnedForumTopics) (*mtproto.Updates, error)
+	ChannelDeleteTopicHistory(ctx context.Context, in *channel.TLChannelDeleteTopicHistory) (*mtproto.Messages_AffectedHistory, error)
+	ChannelGetForumTopics(ctx context.Context, in *channel.TLChannelGetForumTopics) (*mtproto.Messages_ForumTopics, error)
+	ChannelGetForumTopicsByID(ctx context.Context, in *channel.TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error)
+	ChannelSearchTopic(ctx context.Context, in *channel.TLChannelSearchTopic) (*mtproto.Messages_Messages, error)
+	ChannelReadTopicMentions(ctx context.Context, in *channel.TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error)
+	ChannelUnpinAllTopicMessages(ctx context.Context, in *channel.TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error)
 	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
 	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
@@ -117,7 +129,7 @@ func (m *defaultChannelClient) ChannelGetChannelListByIdList(ctx context.Context
 }
 
 // ChannelCreateChannel
-// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool = Updates;
+// channel.createChannel creator_id:long title:string about:string broadcast:Bool megagroup:Bool forum:Bool = Updates;
 func (m *defaultChannelClient) ChannelCreateChannel(ctx context.Context, in *channel.TLChannelCreateChannel) (*mtproto.Updates, error) {
 	md := metadata.RpcMetadataFromIncoming(ctx)
 	if md != nil {
@@ -708,4 +720,136 @@ func (m *defaultChannelClient) ChannelGetLeftChannels(ctx context.Context, in *c
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetLeftChannels(ctx, in)
+}
+
+// ChannelToggleForum
+// channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
+func (m *defaultChannelClient) ChannelToggleForum(ctx context.Context, in *channel.TLChannelToggleForum) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelToggleForum(ctx, in)
+}
+
+// ChannelToggleViewForumAsMessages
+// channel.toggleViewForumAsMessages self_id:long perm_auth_key_id:long channel_id:long enabled:Bool = Updates;
+func (m *defaultChannelClient) ChannelToggleViewForumAsMessages(ctx context.Context, in *channel.TLChannelToggleViewForumAsMessages) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelToggleViewForumAsMessages(ctx, in)
+}
+
+// ChannelCreateForumTopic
+// channel.createForumTopic self_id:long perm_auth_key_id:long channel_id:long title:string icon_color:int icon_emoji_id:long title_missing:Bool random_id:long = Updates;
+func (m *defaultChannelClient) ChannelCreateForumTopic(ctx context.Context, in *channel.TLChannelCreateForumTopic) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelCreateForumTopic(ctx, in)
+}
+
+// ChannelEditForumTopic
+// channel.editForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int fields:int title:string icon_emoji_id:long closed:Bool hidden:Bool = Updates;
+func (m *defaultChannelClient) ChannelEditForumTopic(ctx context.Context, in *channel.TLChannelEditForumTopic) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditForumTopic(ctx, in)
+}
+
+// ChannelUpdatePinnedForumTopic
+// channel.updatePinnedForumTopic self_id:long perm_auth_key_id:long channel_id:long topic_id:int pinned:Bool = Updates;
+func (m *defaultChannelClient) ChannelUpdatePinnedForumTopic(ctx context.Context, in *channel.TLChannelUpdatePinnedForumTopic) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelUpdatePinnedForumTopic(ctx, in)
+}
+
+// ChannelReorderPinnedForumTopics
+// channel.reorderPinnedForumTopics self_id:long perm_auth_key_id:long channel_id:long force:Bool order:Vector<int> = Updates;
+func (m *defaultChannelClient) ChannelReorderPinnedForumTopics(ctx context.Context, in *channel.TLChannelReorderPinnedForumTopics) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReorderPinnedForumTopics(ctx, in)
+}
+
+// ChannelDeleteTopicHistory
+// channel.deleteTopicHistory self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (m *defaultChannelClient) ChannelDeleteTopicHistory(ctx context.Context, in *channel.TLChannelDeleteTopicHistory) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteTopicHistory(ctx, in)
+}
+
+// ChannelGetForumTopics
+// channel.getForumTopics self_id:long channel_id:long q:string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
+func (m *defaultChannelClient) ChannelGetForumTopics(ctx context.Context, in *channel.TLChannelGetForumTopics) (*mtproto.Messages_ForumTopics, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetForumTopics(ctx, in)
+}
+
+// ChannelGetForumTopicsByID
+// channel.getForumTopicsByID self_id:long channel_id:long topics:Vector<int> = messages.ForumTopics;
+func (m *defaultChannelClient) ChannelGetForumTopicsByID(ctx context.Context, in *channel.TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetForumTopicsByID(ctx, in)
+}
+
+// ChannelSearchTopic
+// channel.searchTopic self_id:long channel_id:long top_msg_id:int q:string from_id:long media_type:int unread_mentions:Bool min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (m *defaultChannelClient) ChannelSearchTopic(ctx context.Context, in *channel.TLChannelSearchTopic) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSearchTopic(ctx, in)
+}
+
+// ChannelReadTopicMentions
+// channel.readTopicMentions self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (m *defaultChannelClient) ChannelReadTopicMentions(ctx context.Context, in *channel.TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReadTopicMentions(ctx, in)
+}
+
+// ChannelUnpinAllTopicMessages
+// channel.unpinAllTopicMessages self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (m *defaultChannelClient) ChannelUnpinAllTopicMessages(ctx context.Context, in *channel.TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelUnpinAllTopicMessages(ctx, in)
 }

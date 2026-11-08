@@ -97,6 +97,30 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetPendingJoinRequests": {"/mtproto.RPCChannel/channel_getPendingJoinRequests", func() interface{} { return new(mtproto.Update) }},
 	// pluma: task 041
 	"TLChannelGetLeftChannels": {"/mtproto.RPCChannel/channel_getLeftChannels", func() interface{} { return new(mtproto.Messages_Chats) }},
+	// pluma: task 060
+	"TLChannelToggleForum": {"/mtproto.RPCChannel/channel_toggleForum", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 060
+	"TLChannelToggleViewForumAsMessages": {"/mtproto.RPCChannel/channel_toggleViewForumAsMessages", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 060
+	"TLChannelCreateForumTopic": {"/mtproto.RPCChannel/channel_createForumTopic", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 060
+	"TLChannelEditForumTopic": {"/mtproto.RPCChannel/channel_editForumTopic", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 060
+	"TLChannelUpdatePinnedForumTopic": {"/mtproto.RPCChannel/channel_updatePinnedForumTopic", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 060
+	"TLChannelReorderPinnedForumTopics": {"/mtproto.RPCChannel/channel_reorderPinnedForumTopics", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 060
+	"TLChannelDeleteTopicHistory": {"/mtproto.RPCChannel/channel_deleteTopicHistory", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	// pluma: task 060
+	"TLChannelGetForumTopics": {"/mtproto.RPCChannel/channel_getForumTopics", func() interface{} { return new(mtproto.Messages_ForumTopics) }},
+	// pluma: task 060
+	"TLChannelGetForumTopicsByID": {"/mtproto.RPCChannel/channel_getForumTopicsByID", func() interface{} { return new(mtproto.Messages_ForumTopics) }},
+	// pluma: task 060
+	"TLChannelSearchTopic": {"/mtproto.RPCChannel/channel_searchTopic", func() interface{} { return new(mtproto.Messages_Messages) }},
+	// pluma: task 060
+	"TLChannelReadTopicMentions": {"/mtproto.RPCChannel/channel_readTopicMentions", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	// pluma: task 060
+	"TLChannelUnpinAllTopicMessages": {"/mtproto.RPCChannel/channel_unpinAllTopicMessages", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
 	// pluma: task 044
 	"TLChannelToggleSetting": {"/mtproto.RPCChannel/channel_toggleSetting", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 044

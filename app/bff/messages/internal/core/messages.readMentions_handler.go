@@ -36,6 +36,12 @@ func (c *MessagesCore) MessagesReadMentions(in *mtproto.TLMessagesReadMentions) 
 	switch peer.PeerType {
 	case mtproto.PEER_SELF, mtproto.PEER_USER, mtproto.PEER_CHAT:
 	case mtproto.PEER_CHANNEL:
+		if top := in.GetTopMsgId(); top != nil {
+			// The mentions of a topic (task 060).
+			return c.svcCtx.Dao.Channel.ChannelReadTopicMentions(c.ctx, &channelpb.TLChannelReadTopicMentions{
+				SelfId: c.MD.UserId, PermAuthKeyId: c.MD.PermAuthKeyId, ChannelId: peer.PeerId, TopMsgId: top.GetValue(),
+			})
+		}
 		// A channel's mentions, all at once (task 043, biz channel.readMentions).
 		affected, err := c.svcCtx.Dao.Channel.ChannelReadMentions(c.ctx, &channelpb.TLChannelReadMentions{
 			SelfId:        c.MD.UserId,

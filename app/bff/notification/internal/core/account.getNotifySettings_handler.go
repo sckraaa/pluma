@@ -31,6 +31,12 @@ func (c *NotificationCore) AccountGetNotifySettings(in *mtproto.TLAccountGetNoti
 		settings *mtproto.PeerNotifySettings
 	)
 
+	// The settings of one topic are not kept: its forum's apply (task 060),
+	// as an answer of default ones (empty) says to the clients.
+	if in.GetPeer().GetPredicateName() == mtproto.Predicate_inputNotifyForumTopic {
+		return mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{}).To_PeerNotifySettings(), nil
+	}
+
 	peer := mtproto.FromInputNotifyPeer(c.MD.UserId, in.Peer)
 	switch peer.PeerType {
 	case mtproto.PEER_USER:
