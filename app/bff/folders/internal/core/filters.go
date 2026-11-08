@@ -22,6 +22,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -182,15 +183,17 @@ func cutTitle(title *mtproto.TextWithEntities, max int) *mtproto.TextWithEntitie
 // checkPeers answers PEER_ID_INVALID for a peer of a folder the user cannot
 // have a chat with: not a user, a basic group, a channel or Saved Messages,
 // a user that does not exist, a group the user never was in or a channel
-// that does not exist. A channel need not be joined: a join request of a
-// shared folder waits for an admin (task 064), and a channel the user left
-// stays until it edits the folder. It returns the users, groups and
-// channels of the peers as the user sees them; Saved Messages adds none, a
-// client always has its own user.
+// that does not exist or is named with a wrong access_hash. A channel need
+// not be joined: a join request of a shared folder waits for an admin (task
+// 064), a channel the user left stays until it edits the folder, and one
+// deleted since stays in the folder its client still sends. It returns the
+// users, groups and channels of the peers as the user sees them, a channel
+// as everywhere else (channelForbidden when private and not joined); Saved
+// Messages adds none, a client always has its own user.
 func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) (filterPeers, error) {
 	var peers filterPeers
 	var users, chats, channels []int64
-	seenUser, seenChat, seenChannel := map[int64]bool{}, map[int64]bool{}, map[int64]bool{}
+	seenUser, seenChat, channelHash := map[int64]bool{}, map[int64]bool{}, map[int64]int64{}
 	for _, list := range lists {
 		for _, in := range list {
 			p := mtproto.FromInputPeer2(c.MD.UserId, in)
@@ -207,9 +210,13 @@ func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) (filterPeers, er
 					chats = append(chats, p.PeerId)
 				}
 			case p.IsChannel():
-				if !seenChannel[p.PeerId] {
-					seenChannel[p.PeerId] = true
+				hash, seen := channelHash[p.PeerId]
+				switch {
+				case !seen:
+					channelHash[p.PeerId] = p.AccessHash
 					channels = append(channels, p.PeerId)
+				case hash != p.AccessHash:
+					return filterPeers{}, mtproto.ErrPeerIdInvalid
 				}
 			default:
 				return filterPeers{}, mtproto.ErrPeerIdInvalid
@@ -217,17 +224,21 @@ func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) (filterPeers, er
 		}
 	}
 	if len(channels) > 0 {
-		found, err := c.channelsOf(channels)
+		list, err := c.channelRows(channels)
 		if err != nil {
 			return filterPeers{}, err
+		}
+		found := make(map[int64]*channelpb.MutableChannel, len(list))
+		for _, m := range list {
+			found[m.GetChannel().GetId()] = m
 		}
 		now := int32(time.Now().Unix())
 		for _, id := range channels {
 			m, ok := found[id]
-			if !ok {
+			if !ok || m.GetChannel().GetAccessHash() != channelHash[id] {
 				return filterPeers{}, mtproto.ErrPeerIdInvalid
 			}
-			peers.chats = append(peers.chats, m.ToInvitedChat(c.MD.UserId, now))
+			peers.chats = append(peers.chats, m.ToChat(c.MD.UserId, now))
 		}
 	}
 	if len(users) > 0 {

@@ -16,12 +16,53 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/bff/folders/internal/dao"
+	"github.com/teamgram/teamgram-server/app/bff/folders/internal/svc"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
+
+// fakeChannels answers the channels of a folder.
+type fakeChannels struct {
+	channel_client.ChannelClient
+	list []*channelpb.MutableChannel
+}
+
+func (f *fakeChannels) ChannelGetChannelListByIdList(context.Context, *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error) {
+	return &channelpb.Vector_MutableChannel{Datas: f.list}, nil
+}
+
+// A folder names a channel with its access_hash, and saving one does not show
+// a private channel to who is out of it.
+func TestCheckPeersChannels(t *testing.T) {
+	private := &channelpb.MutableChannel{Channel: &channelpb.ImmutableChannel{Id: 7, AccessHash: 70, Title: "Private"}}
+	deleted := &channelpb.MutableChannel{Channel: &channelpb.ImmutableChannel{Id: 8, AccessHash: 80, Title: "Gone", Deleted: true}}
+	c := testCore()
+	c.svcCtx = &svc.ServiceContext{Dao: &dao.Dao{ChannelClient: &fakeChannels{list: []*channelpb.MutableChannel{private, deleted}}}}
+	peer := func(id, hash int64) []*mtproto.InputPeer {
+		return []*mtproto.InputPeer{mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: id, AccessHash: hash}).To_InputPeer()}
+	}
+	for _, in := range [][]*mtproto.InputPeer{peer(7, 0), peer(7, 71), peer(9, 90), append(peer(7, 70), peer(7, 71)...)} {
+		if _, err := c.checkPeers(in); !errors.Is(err, mtproto.ErrPeerIdInvalid) {
+			t.Fatalf("%v: %v, want PEER_ID_INVALID", in, err)
+		}
+	}
+	for _, in := range [][]*mtproto.InputPeer{peer(7, 70), peer(8, 80)} {
+		r, err := c.checkPeers(in)
+		if err != nil {
+			t.Fatalf("%v: %v", in, err)
+		}
+		if len(r.chats) != 1 || r.chats[0].GetPredicateName() != mtproto.Predicate_channelForbidden {
+			t.Fatalf("%v: chats %v, want channelForbidden", in, r.chats)
+		}
+	}
+}
 
 func TestChatlistSlugOf(t *testing.T) {
 	for in, want := range map[string]string{

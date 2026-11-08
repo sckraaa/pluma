@@ -120,12 +120,9 @@ func (c *FoldersCore) chatlistFolder(id int32) (*mtproto.DialogFilter, []*dialog
 	return nil, nil, mtproto.ErrFilterIdInvalid
 }
 
-// channelsOf reads the channels ids that exist, each with the participant
-// row of the user.
-func (c *FoldersCore) channelsOf(ids []int64) (map[int64]*channelpb.MutableChannel, error) {
-	if len(ids) == 0 {
-		return map[int64]*channelpb.MutableChannel{}, nil
-	}
+// channelRows reads the channels ids, deleted ones too, each with the
+// participant row of the user.
+func (c *FoldersCore) channelRows(ids []int64) ([]*channelpb.MutableChannel, error) {
 	list, err := c.svcCtx.Dao.ChannelClient.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{
 		SelfId: c.MD.UserId,
 		IdList: ids,
@@ -133,8 +130,21 @@ func (c *FoldersCore) channelsOf(ids []int64) (map[int64]*channelpb.MutableChann
 	if err != nil {
 		return nil, err
 	}
-	out := make(map[int64]*channelpb.MutableChannel, len(list.GetDatas()))
-	for _, m := range list.GetDatas() {
+	return list.GetDatas(), nil
+}
+
+// channelsOf reads the channels ids that exist, each with the participant
+// row of the user.
+func (c *FoldersCore) channelsOf(ids []int64) (map[int64]*channelpb.MutableChannel, error) {
+	if len(ids) == 0 {
+		return map[int64]*channelpb.MutableChannel{}, nil
+	}
+	list, err := c.channelRows(ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int64]*channelpb.MutableChannel, len(list))
+	for _, m := range list {
 		if !m.GetChannel().GetDeleted() {
 			out[m.GetChannel().GetId()] = m
 		}
