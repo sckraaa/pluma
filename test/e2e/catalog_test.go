@@ -18,6 +18,7 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -92,6 +93,129 @@ func TestCatalog(t *testing.T) {
 
 	catalogImport(ctx, t, u)
 	catalogInstall(ctx, t, u, laptop)
+	catalogPremiumSticker(ctx, t, u)
+}
+
+// catalogPremiumSticker sends the premium sticker of the collection from an
+// account without Premium (task 058). Telegram refuses that in its clients;
+// the server does not ask: the sticker goes as any document, the recipient
+// gets it with its "f" video thumbnail and without nopremium (Android
+// ChatActivity 15984, iOS ChatMessageAnimatedStickerItemNode.swift 1688, Web K
+// wrappers/sticker.ts:742 play the effect on that) and downloads the effect
+// with inputDocumentFileLocation thumb_size "f", as the clients ask for it
+// (Android EmojiAnimationsOverlay 682, ImageLocation.getForDocument;
+// tdesktop Stickers::EffectType::PremiumSticker).
+func catalogPremiumSticker(ctx context.Context, t *testing.T, alice *user) {
+	t.Helper()
+	bob := login(ctx, t, testPhones(t, 1)[0], "Bob")
+	if alice.self.GetPremium() || bob.self.GetPremium() {
+		t.Fatalf("the accounts must not have Premium: %v, %v", alice.self.GetPremium(), bob.self.GetPremium())
+	}
+	getState(ctx, t, bob)
+
+	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetStickerSet{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_getStickerSet),
+		Stickerset:  mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: premiumSetShortName}).To_InputStickerSet(),
+	})
+	if err != nil {
+		t.Fatalf("messages.getStickerSet: %v", err)
+	}
+	set := o.(interface {
+		To_Messages_StickerSet() *mtproto.Messages_StickerSet
+	}).To_Messages_StickerSet()
+	if len(set.GetDocuments()) != 1 {
+		t.Fatalf("the premium set: %v", set)
+	}
+	doc := set.GetDocuments()[0]
+	effect := func(d *mtproto.Document) *mtproto.VideoSize {
+		t.Helper()
+		if len(d.GetVideoThumbs()) != 1 || d.GetVideoThumbs()[0].GetType() != "f" {
+			t.Fatalf("video_thumbs of the premium sticker: %v", d.GetVideoThumbs())
+		}
+		return d.GetVideoThumbs()[0]
+	}
+	if int(effect(doc).GetSize2()) != len(premiumEffect) {
+		t.Fatalf("the effect's size: %d, want %d", effect(doc).GetSize2(), len(premiumEffect))
+	}
+	download := func(u *user, d *mtproto.Document) {
+		t.Helper()
+		o, err := u.c.Invoke(ctx, &mtproto.TLUploadGetFile{
+			Constructor: u.c.Constructor(mtproto.Predicate_upload_getFile),
+			Location: &mtproto.InputFileLocation{
+				Constructor:   u.c.Constructor(mtproto.Predicate_inputDocumentFileLocation),
+				Id:            d.GetId(),
+				AccessHash:    d.GetAccessHash(),
+				FileReference: d.GetFileReference(),
+				ThumbSize:     "f",
+			},
+			Limit: 1 << 20,
+		})
+		if err != nil {
+			t.Fatalf("upload.getFile of the effect: %v", err)
+		}
+		if f := o.(interface{ To_Upload_File() *mtproto.Upload_File }).To_Upload_File(); !bytes.Equal(f.GetBytes(), premiumEffect) {
+			t.Fatalf("the effect file: %d bytes, want %d", len(f.GetBytes()), len(premiumEffect))
+		}
+	}
+	download(alice, doc)
+
+	o, err = alice.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendMedia),
+		Peer:        peerOf(ctx, t, alice, bob),
+		Media: mtproto.MakeTLInputMediaDocument(&mtproto.InputMedia{
+			Id_INPUTDOCUMENT: &mtproto.InputDocument{
+				Constructor:   alice.c.Constructor(mtproto.Predicate_inputDocument),
+				Id:            doc.GetId(),
+				AccessHash:    doc.GetAccessHash(),
+				FileReference: doc.GetFileReference(),
+			},
+		}).To_InputMedia(),
+		RandomId: randomID(),
+	})
+	if err != nil {
+		t.Fatalf("messages.sendMedia of a premium sticker without Premium: %v", err)
+	}
+	sent := newMessages(o.(interface{ To_Updates() *mtproto.Updates }).To_Updates())
+	if len(sent) != 1 || sent[0].GetMedia().GetDocument().GetId() != doc.GetId() {
+		t.Fatalf("the sent message: %v", sent)
+	}
+	effect(sent[0].GetMedia().GetDocument())
+	if sent[0].GetMedia().GetNopremium() {
+		t.Fatalf("the sender's copy has nopremium: %v", sent[0])
+	}
+
+	var got *mtproto.Message
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateNewMessage, func(x *mtproto.Update) bool {
+		if x.GetMessage_MESSAGE().GetMedia().GetDocument().GetId() != doc.GetId() {
+			return false
+		}
+		got = x.GetMessage_MESSAGE()
+		return true
+	})
+	if got.GetMedia().GetNopremium() {
+		t.Fatalf("the recipient's copy has nopremium: %v", got)
+	}
+	received := got.GetMedia().GetDocument()
+	effect(received)
+	download(bob, received)
+
+	// A forward keeps the effect: the server does not mark it nopremium,
+	// whoever forwards.
+	o, err = bob.c.Invoke(ctx, &mtproto.TLMessagesForwardMessages{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_forwardMessages),
+		FromPeer:    peerOf(ctx, t, bob, alice),
+		Id:          []int32{got.GetId()},
+		RandomId:    []int64{randomID()},
+		ToPeer:      peerOf(ctx, t, bob, alice),
+	})
+	if err != nil {
+		t.Fatalf("messages.forwardMessages: %v", err)
+	}
+	forwarded := newMessages(o.(interface{ To_Updates() *mtproto.Updates }).To_Updates())
+	if len(forwarded) != 1 || forwarded[0].GetMedia().GetNopremium() {
+		t.Fatalf("the forwarded message: %v", forwarded)
+	}
+	effect(forwarded[0].GetMedia().GetDocument())
 }
 
 // catalogInstall installs the imported set on one device of the account
