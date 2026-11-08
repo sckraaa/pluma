@@ -39,6 +39,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 var (
@@ -291,6 +292,89 @@ func TestDifferenceTooLong(t *testing.T) {
 	}
 	if d = f.diff(creator, id, s-4, 100); d.GetPredicateName() != mtproto.Predicate_updates_channelDifferenceTooLong {
 		t.Errorf("just past the window: %s", d.GetPredicateName())
+	}
+}
+
+// post writes a post to the channel as msg does, with the counters a new
+// post has, and returns its id and pts.
+func (f *diffFixture) post(channelId, from int64) (id, pts int32) {
+	f.t.Helper()
+	_, err := userbox.Run(context.Background(), f.box, from, func(b *userbox.Box) error {
+		ch, err := channelbox.Open(b, channelId)
+		if err != nil {
+			return err
+		}
+		m := f.postMessage(ch.NextMessageId(), channelId, int32(b.Date()))
+		ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
+		data, err := jsonx.MarshalToString(m)
+		if err != nil {
+			return err
+		}
+		id, pts = m.Id, ch.Pts()
+		_, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_data, date2) VALUES (?, ?, ?, ?, ?, ?)",
+			channelId, m.Id, from, pts, data, b.Date())
+		return err
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return id, pts
+}
+
+func (f *diffFixture) postMessage(id int32, channelId int64, date int32) *mtproto.Message {
+	return mtproto.MakeTLMessage(&mtproto.Message{
+		Id: id, Post: true, PeerId: mtproto.MakePeerChannel(channelId), Date: date, Message: "post",
+		Views: wrapperspb.Int32(1), Forwards: wrapperspb.Int32(0),
+	}).To_Message()
+}
+
+// editPost journals an edit of the post with the counters it had then.
+func (f *diffFixture) editPost(channelId, from int64, id int32) {
+	f.t.Helper()
+	_, err := userbox.Run(context.Background(), f.box, from, func(b *userbox.Box) error {
+		ch, err := channelbox.Open(b, channelId)
+		if err != nil {
+			return err
+		}
+		ch.AddPtsUpdate(mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: f.postMessage(id, channelId, int32(b.Date()))}).To_Update(), 1)
+		return nil
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+// TestDifferencePostCounters: the journal holds a post as it was; the
+// difference gives the new posts and the edits with the counters of now.
+func TestDifferencePostCounters(t *testing.T) {
+	f := newDiffFixture(t)
+	creator := itId()
+	id := f.create(creator)
+	post, pts := f.post(id, creator)
+	f.editPost(id, creator, post)
+	f.exec("UPDATE channel_messages SET views = 7, forwards = 2 WHERE channel_id = ? AND id = ?", id, post)
+
+	check := func(what string, m *mtproto.Message) {
+		t.Helper()
+		if m.GetViews().GetValue() != 7 || m.GetForwards().GetValue() != 2 {
+			t.Errorf("%s: views %v forwards %v, want 7 and 2", what, m.GetViews(), m.GetForwards())
+		}
+	}
+	d := f.diff(creator, id, channelbox.BasePts, 100)
+	if len(d.GetNewMessages()) != 1 {
+		t.Fatalf("new messages %v", ids(d.GetNewMessages()))
+	}
+	check("the new post", d.GetNewMessages()[0])
+
+	edits := 0
+	for _, u := range f.diff(creator, id, pts, 100).GetOtherUpdates() {
+		if u.GetPredicateName() == mtproto.Predicate_updateEditChannelMessage {
+			edits++
+			check("the edit", u.GetMessage_MESSAGE())
+		}
+	}
+	if edits != 1 {
+		t.Errorf("%d edits, want 1", edits)
 	}
 }
 
