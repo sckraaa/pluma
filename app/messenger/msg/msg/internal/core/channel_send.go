@@ -68,8 +68,9 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 			return err
 		}
 		if disc != nil && len(disc.Copies) > 0 {
-			// The copies in the discussion group, to its members.
-			return c.svcCtx.Dao.EmitChannelPush(b, disc.GroupId, fromAuthKeyId, disc.Copies, nil)
+			// The copies in the discussion group, to its members: every
+			// device of the author too, whose answer holds the posts alone.
+			return c.svcCtx.Dao.EmitChannelPush(b, disc.GroupId, 0, disc.Copies, nil)
 		}
 		return nil
 	})
