@@ -21,54 +21,9 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-// The methods of mtproto.RPCFolders the server does not serve: shared
-// folders (chatlists.*), an upstream enterprise feature. They answer ERR_ENTERPRISE_IS_BLOCKED (400), as before the
-// folders were served here: a client gives up on a 400, while it retries
-// an internal error.
-
-func (s *Service) ChatlistsExportChatlistInvite(ctx context.Context, request *mtproto.TLChatlistsExportChatlistInvite) (*mtproto.Chatlists_ExportedChatlistInvite, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsDeleteExportedInvite(ctx context.Context, request *mtproto.TLChatlistsDeleteExportedInvite) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsEditExportedInvite(ctx context.Context, request *mtproto.TLChatlistsEditExportedInvite) (*mtproto.ExportedChatlistInvite, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsGetExportedInvites(ctx context.Context, request *mtproto.TLChatlistsGetExportedInvites) (*mtproto.Chatlists_ExportedInvites, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsCheckChatlistInvite(ctx context.Context, request *mtproto.TLChatlistsCheckChatlistInvite) (*mtproto.Chatlists_ChatlistInvite, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsJoinChatlistInvite(ctx context.Context, request *mtproto.TLChatlistsJoinChatlistInvite) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsGetChatlistUpdates(ctx context.Context, request *mtproto.TLChatlistsGetChatlistUpdates) (*mtproto.Chatlists_ChatlistUpdates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsJoinChatlistUpdates(ctx context.Context, request *mtproto.TLChatlistsJoinChatlistUpdates) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsHideChatlistUpdates(ctx context.Context, request *mtproto.TLChatlistsHideChatlistUpdates) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsGetLeaveChatlistSuggestions(ctx context.Context, request *mtproto.TLChatlistsGetLeaveChatlistSuggestions) (*mtproto.Vector_Peer, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-func (s *Service) ChatlistsLeaveChatlist(ctx context.Context, request *mtproto.TLChatlistsLeaveChatlist) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
+// The methods of mtproto.RPCFolders the server does not serve. They answer
+// ERR_ENTERPRISE_IS_BLOCKED (400), as before the folders were served here:
+// a client gives up on a 400, while it retries an internal error.
 
 func (s *Service) FoldersDeleteFolder(ctx context.Context, request *mtproto.TLFoldersDeleteFolder) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
