@@ -24,14 +24,14 @@ var _ fmt.Stringer
 
 var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 	// Constructor
-	-1502604851: func() mtproto.TLObject { // 0xa67011cd
+	1726695119: func() mtproto.TLObject { // 0x66eb46cf
 		o := MakeTLImmutableChannel(nil)
-		o.Data2.Constructor = -1502604851
+		o.Data2.Constructor = 1726695119
 		return o
 	},
-	675582471: func() mtproto.TLObject { // 0x28449207
+	885437367: func() mtproto.TLObject { // 0x34c6b3b7
 		o := MakeTLImmutableChannelParticipant(nil)
-		o.Data2.Constructor = 675582471
+		o.Data2.Constructor = 885437367
 		return o
 	},
 	-662027966: func() mtproto.TLObject { // 0xd88a4142
@@ -171,6 +171,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1046826439,
 		}
 	},
+	1137012701: func() mtproto.TLObject { // 0x43c56fdd pluma: task 045
+		return &TLChannelToggleSignatures{
+			Constructor: 1137012701,
+		}
+	},
+	-1991690360: func() mtproto.TLObject { // 0x89493788 pluma: task 045
+		return &TLChannelToggleSlowMode{
+			Constructor: -1991690360,
+		}
+	},
 	-922563101: func() mtproto.TLObject { // 0xc902cde3 pluma: task 044
 		return &TLChannelToggleSetting{
 			Constructor: -922563101,
@@ -303,7 +313,7 @@ func (m *ImmutableChannel) CalcByteSize(layer int32) int {
 func (m *ImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
-	case 0xa67011cd:
+	case 0x66eb46cf:
 		m2 := MakeTLImmutableChannel(m)
 		_ = m2.Decode(dBuf)
 
@@ -344,8 +354,8 @@ func (m *TLImmutableChannel) GetPredicateName() string {
 
 func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	var encodeF = map[uint32]func() error{
-		0xa67011cd: func() error {
-			x.UInt(0xa67011cd)
+		0x66eb46cf: func() error {
+			x.UInt(0x66eb46cf)
 
 			d := m.Data2
 
@@ -382,6 +392,9 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 				}
 				if d.GetDeleted() {
 					flags |= 1 << 9
+				}
+				if d.GetSignatureProfiles() {
+					flags |= 1 << 10
 				}
 
 				return flags
@@ -434,7 +447,7 @@ func (m *TLImmutableChannel) CalcByteSize(layer int32) int {
 
 func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 	var decodeF = map[uint32]func() error{
-		0xa67011cd: func() error {
+		0x66eb46cf: func() error {
 			d := m.Data2
 
 			var flags = dBuf.UInt()
@@ -448,6 +461,7 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.ParticipantsHidden = (flags & (1 << 7)) != 0
 			d.HiddenPrehistory = (flags & (1 << 8)) != 0
 			d.Deleted = (flags & (1 << 9)) != 0
+			d.SignatureProfiles = (flags & (1 << 10)) != 0
 			d.Id = dBuf.Long()
 			d.AccessHash = dBuf.Long()
 			d.CreatorUserId = dBuf.Long()
@@ -513,7 +527,7 @@ func (m *ImmutableChannelParticipant) CalcByteSize(layer int32) int {
 func (m *ImmutableChannelParticipant) Decode(dBuf *mtproto.DecodeBuf) error {
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
-	case 0x28449207:
+	case 0x34c6b3b7:
 		m2 := MakeTLImmutableChannelParticipant(m)
 		_ = m2.Decode(dBuf)
 
@@ -554,8 +568,8 @@ func (m *TLImmutableChannelParticipant) GetPredicateName() string {
 
 func (m *TLImmutableChannelParticipant) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	var encodeF = map[uint32]func() error{
-		0x28449207: func() error {
-			x.UInt(0x28449207)
+		0x34c6b3b7: func() error {
+			x.UInt(0x34c6b3b7)
 
 			d := m.Data2
 			x.Long(d.GetChannelId())
@@ -571,6 +585,7 @@ func (m *TLImmutableChannelParticipant) Encode(x *mtproto.EncodeBuf, layer int32
 			x.Long(d.GetKickedBy())
 			x.Int(d.GetAvailableMinId())
 			x.Long(d.GetDate())
+			x.Long(d.GetLastSendDate())
 
 			return nil
 		},
@@ -589,7 +604,7 @@ func (m *TLImmutableChannelParticipant) CalcByteSize(layer int32) int {
 
 func (m *TLImmutableChannelParticipant) Decode(dBuf *mtproto.DecodeBuf) error {
 	var decodeF = map[uint32]func() error{
-		0x28449207: func() error {
+		0x34c6b3b7: func() error {
 			d := m.Data2
 			d.ChannelId = dBuf.Long()
 			d.UserId = dBuf.Long()
@@ -604,6 +619,7 @@ func (m *TLImmutableChannelParticipant) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.KickedBy = dBuf.Long()
 			d.AvailableMinId = dBuf.Int()
 			d.Date = dBuf.Long()
+			d.LastSendDate = dBuf.Long()
 			return dBuf.GetError()
 		},
 	}
@@ -2922,6 +2938,100 @@ func (m *TLChannelDeleteParticipantHistory) Decode(dBuf *mtproto.DecodeBuf) erro
 		m.PermAuthKeyId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		m.ParticipantId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelToggleSignatures (pluma: task 045)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelToggleSignatures) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x43c56fdd:
+		x.UInt(0x43c56fdd)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetEnabled().Encode(x, layer)
+		m.GetProfiles().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelToggleSignatures) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelToggleSignatures) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x43c56fdd:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Enabled = m3
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Profiles = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelToggleSlowMode (pluma: task 045)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelToggleSlowMode) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x89493788:
+		x.UInt(0x89493788)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetSeconds())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelToggleSlowMode) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelToggleSlowMode) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x89493788:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Seconds = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

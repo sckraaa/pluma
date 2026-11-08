@@ -196,6 +196,55 @@ func checkChat(t *testing.T, got *mtproto.Chat, ch *ImmutableChannel, w want) {
 	}
 }
 
+func TestSlowmodeNextSendDate(t *testing.T) {
+	ch := testChannel("")
+	ch.SlowmodeSeconds = 30
+	now := int64(viewNow)
+	member := participant(RoleMember, StateIn, 0, 0, 0)
+	member.LastSendDate = now - 10
+	if got := ch.SlowmodeNextSendDate(member, now); got != viewNow+20 {
+		t.Errorf("waiting member: %d, want %d", got, viewNow+20)
+	}
+	member.LastSendDate = now - 30
+	if got := ch.SlowmodeNextSendDate(member, now); got != 0 {
+		t.Errorf("window over: %d", got)
+	}
+	member.LastSendDate = now
+	admin := participant(RoleAdmin, StateIn, mtproto.ADMIN_BAN_USERS, 0, 0)
+	admin.LastSendDate = now
+	creator := participant(RoleCreator, StateIn, 0, 0, 0)
+	creator.LastSendDate = now
+	if ch.SlowmodeNextSendDate(admin, now) != 0 || ch.SlowmodeNextSendDate(creator, now) != 0 {
+		t.Error("an admin or the creator waits")
+	}
+	if ch.SlowmodeNextSendDate(nil, now) != 0 {
+		t.Error("one never joined waits")
+	}
+	guest := &ImmutableChannelParticipant{State: StateLinked, LastSendDate: now}
+	if got := ch.SlowmodeNextSendDate(guest, now); got != viewNow+30 {
+		t.Errorf("guest of a discussion group: %d", got)
+	}
+	ch.SlowmodeSeconds = 0
+	if ch.SlowmodeNextSendDate(member, now) != 0 {
+		t.Error("waits with the slow mode off")
+	}
+}
+
+func TestSignatureProfilesView(t *testing.T) {
+	ch := testChannel("")
+	ch.Broadcast, ch.Megagroup, ch.Signatures, ch.SignatureProfiles = true, false, true, true
+	if got := ch.ToChat(participant(RoleMember, StateIn, 0, 0, 0), viewNow); !got.GetSignatures() || !got.GetSignatureProfiles() {
+		t.Errorf("channel: %v", got)
+	}
+	if got := ch.ToMinChat(); !got.GetSignatureProfiles() {
+		t.Errorf("min channel: %v", got)
+	}
+	x := mtproto.NewEncodeBuf(512)
+	if err := ch.ToMinChat().Encode(x, 228); err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+}
+
 func TestToChatDeleted(t *testing.T) {
 	ch := testChannel("pub")
 	ch.Deleted = true

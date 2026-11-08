@@ -34,6 +34,28 @@ func (c *ChannelCore) ChannelToggleSetting(in *channel.TLChannelToggleSetting) (
 	})
 }
 
+// ChannelToggleSignatures
+// channel.toggleSignatures self_id:long perm_auth_key_id:long channel_id:long enabled:Bool profiles:Bool = Updates;
+//
+// self_id signs the posts of a broadcast channel with their authors
+// (dao.ToggleSignatures); the members load the channel again.
+func (c *ChannelCore) ChannelToggleSignatures(in *channel.TLChannelToggleSignatures) (*mtproto.Updates, error) {
+	return c.editRights("channel.toggleSignatures", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.ToggleSignatures(b, in.ChannelId, mtproto.FromBool(in.Enabled), mtproto.FromBool(in.Profiles))
+	})
+}
+
+// ChannelToggleSlowMode
+// channel.toggleSlowMode self_id:long perm_auth_key_id:long channel_id:long seconds:int = Updates;
+//
+// self_id sets the slow mode of a supergroup (dao.ToggleSlowMode); the members
+// load the channel again.
+func (c *ChannelCore) ChannelToggleSlowMode(in *channel.TLChannelToggleSlowMode) (*mtproto.Updates, error) {
+	return c.editRights("channel.toggleSlowMode", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.ToggleSlowMode(b, in.ChannelId, in.Seconds)
+	})
+}
+
 // ChannelSetAvailableReactions
 // channel.setAvailableReactions self_id:long perm_auth_key_id:long channel_id:long reactions_type:int reactions:Vector<string> = Updates;
 //

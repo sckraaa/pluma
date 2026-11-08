@@ -379,6 +379,14 @@ func (noChannels) ChannelSetAvailableReactions(context.Context, *channelpb.TLCha
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelToggleSignatures(context.Context, *channelpb.TLChannelToggleSignatures) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelToggleSlowMode(context.Context, *channelpb.TLChannelToggleSlowMode) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

@@ -93,6 +93,11 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	}
 	if ch.GetSlowmodeSeconds() > 0 {
 		full.SlowmodeSeconds = mtproto.MakeFlagsInt32(ch.GetSlowmodeSeconds())
+		// The countdown of the input field (tdesktop data_channel.cpp:1415,
+		// Android AlertsCreator.java:794, Web K input.ts:3901).
+		if next := ch.SlowmodeNextSendDate(me, time.Now().Unix()); next != 0 {
+			full.SlowmodeNextSendDate = mtproto.MakeFlagsInt32(next)
+		}
 	}
 	full.AvailableMinId = availableMinId(me)
 

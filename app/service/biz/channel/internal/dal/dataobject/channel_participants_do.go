@@ -30,5 +30,6 @@ type ChannelParticipantsDO struct {
 	PromotedBy     int64  `db:"promoted_by" json:"promoted_by"`
 	KickedBy       int64  `db:"kicked_by" json:"kicked_by"`
 	AvailableMinId int32  `db:"available_min_id" json:"available_min_id"`
+	LastSendDate   int64  `db:"last_send_date" json:"last_send_date"`
 	Date           int64  `db:"date" json:"date"`
 }

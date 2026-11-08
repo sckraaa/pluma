@@ -53,6 +53,9 @@ type senderRow struct {
 	BannedRights        int32 `db:"banned_rights"`
 	UntilDate           int32 `db:"until_date"`
 	Signatures          bool  `db:"signatures"`
+	SignatureProfiles   bool  `db:"signature_profiles"`
+	SlowmodeSeconds     int32 `db:"slowmode_seconds"`
+	LastSendDate        int64 `db:"last_send_date"`
 }
 
 // sender is b's owner as a participant of a channel, for channelperm.
@@ -65,6 +68,12 @@ type sender struct {
 	guest bool
 	// signatures: the channel signs its posts with their authors (task 044).
 	signatures bool
+	// signatureProfiles: the signature links to the author (task 045).
+	signatureProfiles bool
+	// slowmodeSeconds and lastSend: the slow mode of the group and the
+	// owner's last message under it (task 045).
+	slowmodeSeconds int32
+	lastSend        int64
 }
 
 func (s *sender) can(a channelperm.Action, now int64) error {
@@ -78,8 +87,9 @@ func (s *sender) can(a channelperm.Action, now int64) error {
 func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.deleted, c.default_banned_rights, c.signatures, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
-			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date"+
+		"SELECT c.broadcast, c.deleted, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date,"+
+			" COALESCE(p.last_send_date, 0) AS last_send_date"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
 		channelperm.StateLeft, b.UserId(), channelId); err != nil {
 		return nil, err
@@ -103,11 +113,17 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 			ch:    channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
 			p:     channelperm.Participant{Role: channelperm.RoleMember, State: channelperm.StateIn},
 			guest: true,
+
+			slowmodeSeconds: r.SlowmodeSeconds,
+			lastSend:        r.LastSendDate,
 		}, nil
 	}
 	return &sender{
-		signatures: r.Signatures,
-		ch:         channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
+		signatures:        r.Signatures,
+		signatureProfiles: r.SignatureProfiles,
+		slowmodeSeconds:   r.SlowmodeSeconds,
+		lastSend:          r.LastSendDate,
+		ch:                channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil
@@ -157,6 +173,53 @@ func checkSend(s *sender, m *mtproto.Message, now int64) error {
 		m.Media = nil
 	}
 	return nil
+}
+
+// checkSlowmode answers whether s may send outgoing now under the slow mode
+// of the group: one message, or one album (a forwarded one too: tdesktop
+// history_item_helpers.cpp:158-173; the rest is
+// SLOWMODE_MULTI_MSGS_DISABLED, core.telegram.org/method/messages.forwardMessages),
+// every so many seconds (SLOWMODE_WAIT_X). It runs with the channel locked,
+// and the send records its time in the same transaction: of two sends at
+// once, the second finds the first's.
+func checkSlowmode(s *sender, outgoing []Outgoing, now int64) error {
+	if !channelperm.SlowmodeApplies(s.slowmodeSeconds, s.p.Role) {
+		return nil
+	}
+	if !oneSend(outgoing) {
+		return mtproto.ErrSlowmodeMultiMsgsDisabled
+	}
+	if wait := channelperm.SlowmodeWait(s.slowmodeSeconds, s.lastSend, now); wait > 0 {
+		return mtproto.NewErrSlowModeWaitX(wait)
+	}
+	return nil
+}
+
+// oneSend reports whether outgoing is one message or one album.
+func oneSend(outgoing []Outgoing) bool {
+	if len(outgoing) <= 1 {
+		return true
+	}
+	album := outgoing[0].Message.GetGroupedId().GetValue()
+	if album == 0 {
+		return false
+	}
+	for _, o := range outgoing[1:] {
+		if o.Message.GetGroupedId().GetValue() != album {
+			return false
+		}
+	}
+	return true
+}
+
+// recordSlowmode remembers b's owner's send under the slow mode. A guest of a
+// discussion group has no row of its own: it gets one as out of the group,
+// which is what no row reads as, and joining keeps the date.
+func recordSlowmode(b *userbox.Box, channelId int64) error {
+	_, err := b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, state, last_send_date) VALUES (?, ?, ?, ?)"+
+		" ON DUPLICATE KEY UPDATE last_send_date = VALUES(last_send_date)",
+		channelId, b.UserId(), channelperm.StateLeft, b.Date())
+	return err
 }
 
 type channelSentRow struct {
@@ -236,6 +299,9 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			disc = &Discussion{GroupId: linked}
 		}
 	}
+	if err = checkSlowmode(s, outgoing, b.Date()); err != nil {
+		return nil, nil, nil, err
+	}
 	for _, o := range outgoing {
 		m := proto.Clone(o.Message).(*mtproto.Message)
 		if err = checkSend(s, m, b.Date()); err != nil {
@@ -249,9 +315,16 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			m.Post = true
 			m.FromId = nil
 			// A signed post names its author (channels.toggleSignatures).
+			// With signature_profiles it also comes from the author, whose
+			// profile the clients then open, showing the sender in place of
+			// the signature (tdesktop history_view_bottom_info.cpp:677-685,
+			// Android ChatMessageCell.java:18375-18377).
 			m.PostAuthor = nil
 			if s.signatures && author != "" {
 				m.PostAuthor = wrapperspb.String(author)
+			}
+			if s.signatures && s.signatureProfiles {
+				m.FromId = mtproto.MakePeerUser(b.UserId())
 			}
 		} else {
 			m.FromId = mtproto.MakePeerUser(b.UserId())
@@ -353,6 +426,11 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 				return nil, nil, nil, err
 			}
 			disc.Copies = append(disc.Copies, c)
+		}
+	}
+	if channelperm.SlowmodeApplies(s.slowmodeSeconds, s.p.Role) {
+		if err = recordSlowmode(b, channelId); err != nil {
+			return nil, nil, nil, err
 		}
 	}
 	if s.guest {

@@ -17,9 +17,6 @@ package channel
 
 // The settings channel.toggleSetting turns on and off.
 const (
-	// SettingSignatures signs the posts of a broadcast channel with their
-	// authors (channels.toggleSignatures).
-	SettingSignatures int32 = 1
 	// SettingPrehistoryHidden hides the history of a supergroup from new
 	// members (channels.togglePreHistoryHidden).
 	SettingPrehistoryHidden int32 = 2

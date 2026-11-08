@@ -30,6 +30,7 @@ type ChannelsDO struct {
 	Megagroup           bool   `db:"megagroup" json:"megagroup"`
 	Forum               bool   `db:"forum" json:"forum"`
 	Signatures          bool   `db:"signatures" json:"signatures"`
+	SignatureProfiles   bool   `db:"signature_profiles" json:"signature_profiles"`
 	Pts                 int32  `db:"pts" json:"pts"`
 	TopMessage          int32  `db:"top_message" json:"top_message"`
 	ParticipantsCount   int32  `db:"participants_count" json:"participants_count"`

@@ -95,6 +95,9 @@ func (d *Dao) withLinkedReaders(ctx context.Context, ch *channel.ImmutableChanne
 			ChannelId: ch.GetId(), UserId: id, State: channel.StateLinked,
 		}).To_ImmutableChannelParticipant()
 		if i, ok := rows[id]; ok {
+			// The row of one who writes through the channel keeps its last
+			// send under the slow mode.
+			linked.LastSendDate = participants[i].GetLastSendDate()
 			participants[i] = linked
 		} else {
 			participants = append(participants, linked)
@@ -204,6 +207,7 @@ func makeChannel(do *dataobject.ChannelsDO, username string) *channel.ImmutableC
 		Megagroup:           do.Megagroup,
 		Forum:               do.Forum,
 		Signatures:          do.Signatures,
+		SignatureProfiles:   do.SignatureProfiles,
 		Noforwards:          do.Noforwards,
 		JoinToSend:          do.JoinToSend,
 		JoinRequest:         do.JoinRequest,
@@ -247,6 +251,7 @@ func makeParticipant(do *dataobject.ChannelParticipantsDO) *channel.ImmutableCha
 		PromotedBy:     do.PromotedBy,
 		KickedBy:       do.KickedBy,
 		AvailableMinId: do.AvailableMinId,
+		LastSendDate:   do.LastSendDate,
 		Date:           do.Date,
 	}).To_ImmutableChannelParticipant()
 }

@@ -611,3 +611,31 @@ func (s *Service) ChannelDeleteParticipantHistory(ctx context.Context, request *
 
 	return r, err
 }
+
+// ChannelToggleSignatures
+// channel.toggleSignatures self_id:long perm_auth_key_id:long channel_id:long enabled:Bool profiles:Bool = Updates;
+func (s *Service) ChannelToggleSignatures(ctx context.Context, request *channel.TLChannelToggleSignatures) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.toggleSignatures - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelToggleSignatures(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelToggleSlowMode
+// channel.toggleSlowMode self_id:long perm_auth_key_id:long channel_id:long seconds:int = Updates;
+func (s *Service) ChannelToggleSlowMode(ctx context.Context, request *channel.TLChannelToggleSlowMode) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.toggleSlowMode - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelToggleSlowMode(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

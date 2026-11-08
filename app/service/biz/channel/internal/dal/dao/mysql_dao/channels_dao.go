@@ -41,7 +41,7 @@ const runningBan = "(p.until_date = 0 OR p.until_date = 2147483647 OR p.until_da
 
 // kicked_count and banned_count are counted, not stored (task 042): a
 // stored count would keep the bans that ran out.
-const channelsColumns = "id, access_hash, creator_user_id, title, about, photo_id, broadcast, megagroup, forum, signatures, pts, top_message, " +
+const channelsColumns = "id, access_hash, creator_user_id, title, about, photo_id, broadcast, megagroup, forum, signatures, signature_profiles, pts, top_message, " +
 	"participants_count, admins_count, " +
 	"(SELECT COUNT(*) FROM channel_participants p WHERE p.channel_id = channels.id AND p.state = 2 AND " + runningBan + ") AS kicked_count, " +
 	"(SELECT COUNT(*) FROM channel_participants p WHERE p.channel_id = channels.id AND p.state = 0 AND p.role = 0 AND p.banned_rights <> 0 AND " + runningBan + ") AS banned_count, " +
