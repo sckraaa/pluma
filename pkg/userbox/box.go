@@ -299,7 +299,6 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateReadChannelDiscussionInbox,
 		mtproto.Predicate_updateChannelReadMessagesContents,
 		mtproto.Predicate_updateChannelAvailableMessages,
-		mtproto.Predicate_updateReadChannelDiscussionInbox,
 		mtproto.Predicate_updateChannelViewForumAsMessages,
 		mtproto.Predicate_updateSavedReactionTags,
 		mtproto.Predicate_updateNewStickerSet,

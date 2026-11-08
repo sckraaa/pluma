@@ -29,24 +29,29 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RPCMsg_MsgPushUserMessage_FullMethodName        = "/msg.RPCMsg/msg_pushUserMessage"
-	RPCMsg_MsgReadMessageContents_FullMethodName    = "/msg.RPCMsg/msg_readMessageContents"
-	RPCMsg_MsgSendMessageV2_FullMethodName          = "/msg.RPCMsg/msg_sendMessageV2"
-	RPCMsg_MsgEditMessageV2_FullMethodName          = "/msg.RPCMsg/msg_editMessageV2"
-	RPCMsg_MsgDeleteMessages_FullMethodName         = "/msg.RPCMsg/msg_deleteMessages"
-	RPCMsg_MsgDeleteHistory_FullMethodName          = "/msg.RPCMsg/msg_deleteHistory"
-	RPCMsg_MsgDeletePhoneCallHistory_FullMethodName = "/msg.RPCMsg/msg_deletePhoneCallHistory"
-	RPCMsg_MsgDeleteChatHistory_FullMethodName      = "/msg.RPCMsg/msg_deleteChatHistory"
-	RPCMsg_MsgReadHistoryV2_FullMethodName          = "/msg.RPCMsg/msg_readHistoryV2"
-	RPCMsg_MsgUpdatePinnedMessage_FullMethodName    = "/msg.RPCMsg/msg_updatePinnedMessage"
-	RPCMsg_MsgUnpinAllMessages_FullMethodName       = "/msg.RPCMsg/msg_unpinAllMessages"
-	RPCMsg_MsgReadMentions_FullMethodName           = "/msg.RPCMsg/msg_readMentions"
-	RPCMsg_MsgDeleteHistoryRange_FullMethodName     = "/msg.RPCMsg/msg_deleteHistoryRange"
-	RPCMsg_MsgEditPeerFolders_FullMethodName        = "/msg.RPCMsg/msg_editPeerFolders"
-	RPCMsg_MsgSendReaction_FullMethodName           = "/msg.RPCMsg/msg_sendReaction"
-	RPCMsg_MsgReadReactions_FullMethodName          = "/msg.RPCMsg/msg_readReactions"
-	RPCMsg_MsgUpdateSavedReactionTag_FullMethodName = "/msg.RPCMsg/msg_updateSavedReactionTag"
-	RPCMsg_MsgMigrateChat_FullMethodName            = "/msg.RPCMsg/msg_migrateChat"
+	RPCMsg_MsgPushUserMessage_FullMethodName         = "/msg.RPCMsg/msg_pushUserMessage"
+	RPCMsg_MsgReadMessageContents_FullMethodName     = "/msg.RPCMsg/msg_readMessageContents"
+	RPCMsg_MsgSendMessageV2_FullMethodName           = "/msg.RPCMsg/msg_sendMessageV2"
+	RPCMsg_MsgEditMessageV2_FullMethodName           = "/msg.RPCMsg/msg_editMessageV2"
+	RPCMsg_MsgDeleteMessages_FullMethodName          = "/msg.RPCMsg/msg_deleteMessages"
+	RPCMsg_MsgDeleteHistory_FullMethodName           = "/msg.RPCMsg/msg_deleteHistory"
+	RPCMsg_MsgDeletePhoneCallHistory_FullMethodName  = "/msg.RPCMsg/msg_deletePhoneCallHistory"
+	RPCMsg_MsgDeleteChatHistory_FullMethodName       = "/msg.RPCMsg/msg_deleteChatHistory"
+	RPCMsg_MsgReadHistoryV2_FullMethodName           = "/msg.RPCMsg/msg_readHistoryV2"
+	RPCMsg_MsgUpdatePinnedMessage_FullMethodName     = "/msg.RPCMsg/msg_updatePinnedMessage"
+	RPCMsg_MsgUnpinAllMessages_FullMethodName        = "/msg.RPCMsg/msg_unpinAllMessages"
+	RPCMsg_MsgReadMentions_FullMethodName            = "/msg.RPCMsg/msg_readMentions"
+	RPCMsg_MsgDeleteHistoryRange_FullMethodName      = "/msg.RPCMsg/msg_deleteHistoryRange"
+	RPCMsg_MsgEditPeerFolders_FullMethodName         = "/msg.RPCMsg/msg_editPeerFolders"
+	RPCMsg_MsgSendReaction_FullMethodName            = "/msg.RPCMsg/msg_sendReaction"
+	RPCMsg_MsgReadReactions_FullMethodName           = "/msg.RPCMsg/msg_readReactions"
+	RPCMsg_MsgUpdateSavedReactionTag_FullMethodName  = "/msg.RPCMsg/msg_updateSavedReactionTag"
+	RPCMsg_MsgMigrateChat_FullMethodName             = "/msg.RPCMsg/msg_migrateChat"
+	RPCMsg_MsgGetScheduledHistory_FullMethodName     = "/msg.RPCMsg/msg_getScheduledHistory"
+	RPCMsg_MsgGetScheduledMessages_FullMethodName    = "/msg.RPCMsg/msg_getScheduledMessages"
+	RPCMsg_MsgSendScheduledMessages_FullMethodName   = "/msg.RPCMsg/msg_sendScheduledMessages"
+	RPCMsg_MsgDeleteScheduledMessages_FullMethodName = "/msg.RPCMsg/msg_deleteScheduledMessages"
+	RPCMsg_MsgHasScheduled_FullMethodName            = "/msg.RPCMsg/msg_hasScheduled"
 )
 
 // RPCMsgClient is the client API for RPCMsg service.
@@ -76,6 +81,16 @@ type RPCMsgClient interface {
 	MsgUpdateSavedReactionTag(ctx context.Context, in *TLMsgUpdateSavedReactionTag, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 047
 	MsgMigrateChat(ctx context.Context, in *TLMsgMigrateChat, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 061
+	MsgGetScheduledHistory(ctx context.Context, in *TLMsgGetScheduledHistory, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
+	// pluma: task 061
+	MsgGetScheduledMessages(ctx context.Context, in *TLMsgGetScheduledMessages, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
+	// pluma: task 061
+	MsgSendScheduledMessages(ctx context.Context, in *TLMsgSendScheduledMessages, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 061
+	MsgDeleteScheduledMessages(ctx context.Context, in *TLMsgDeleteScheduledMessages, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 061
+	MsgHasScheduled(ctx context.Context, in *TLMsgHasScheduled, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCMsgClient struct {
@@ -266,6 +281,56 @@ func (c *rPCMsgClient) MsgMigrateChat(ctx context.Context, in *TLMsgMigrateChat,
 	return out, nil
 }
 
+func (c *rPCMsgClient) MsgGetScheduledHistory(ctx context.Context, in *TLMsgGetScheduledHistory, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgGetScheduledHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgGetScheduledMessages(ctx context.Context, in *TLMsgGetScheduledMessages, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgGetScheduledMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgSendScheduledMessages(ctx context.Context, in *TLMsgSendScheduledMessages, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgSendScheduledMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgDeleteScheduledMessages(ctx context.Context, in *TLMsgDeleteScheduledMessages, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgDeleteScheduledMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgHasScheduled(ctx context.Context, in *TLMsgHasScheduled, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgHasScheduled_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCMsgServer is the server API for RPCMsg service.
 // All implementations should embed UnimplementedRPCMsgServer
 // for forward compatibility.
@@ -293,6 +358,16 @@ type RPCMsgServer interface {
 	MsgUpdateSavedReactionTag(context.Context, *TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
 	// pluma: task 047
 	MsgMigrateChat(context.Context, *TLMsgMigrateChat) (*mtproto.Updates, error)
+	// pluma: task 061
+	MsgGetScheduledHistory(context.Context, *TLMsgGetScheduledHistory) (*mtproto.Messages_Messages, error)
+	// pluma: task 061
+	MsgGetScheduledMessages(context.Context, *TLMsgGetScheduledMessages) (*mtproto.Messages_Messages, error)
+	// pluma: task 061
+	MsgSendScheduledMessages(context.Context, *TLMsgSendScheduledMessages) (*mtproto.Updates, error)
+	// pluma: task 061
+	MsgDeleteScheduledMessages(context.Context, *TLMsgDeleteScheduledMessages) (*mtproto.Updates, error)
+	// pluma: task 061
+	MsgHasScheduled(context.Context, *TLMsgHasScheduled) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCMsgServer should be embedded to have
@@ -355,6 +430,21 @@ func (UnimplementedRPCMsgServer) MsgUpdateSavedReactionTag(context.Context, *TLM
 }
 func (UnimplementedRPCMsgServer) MsgMigrateChat(context.Context, *TLMsgMigrateChat) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgMigrateChat not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgGetScheduledHistory(context.Context, *TLMsgGetScheduledHistory) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgGetScheduledHistory not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgGetScheduledMessages(context.Context, *TLMsgGetScheduledMessages) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgGetScheduledMessages not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgSendScheduledMessages(context.Context, *TLMsgSendScheduledMessages) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgSendScheduledMessages not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgDeleteScheduledMessages(context.Context, *TLMsgDeleteScheduledMessages) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgDeleteScheduledMessages not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgHasScheduled(context.Context, *TLMsgHasScheduled) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgHasScheduled not implemented")
 }
 func (UnimplementedRPCMsgServer) testEmbeddedByValue() {}
 
@@ -700,6 +790,96 @@ func _RPCMsg_MsgMigrateChat_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCMsg_MsgGetScheduledHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgGetScheduledHistory)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgGetScheduledHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgGetScheduledHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgGetScheduledHistory(ctx, req.(*TLMsgGetScheduledHistory))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgGetScheduledMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgGetScheduledMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgGetScheduledMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgGetScheduledMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgGetScheduledMessages(ctx, req.(*TLMsgGetScheduledMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgSendScheduledMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgSendScheduledMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgSendScheduledMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgSendScheduledMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgSendScheduledMessages(ctx, req.(*TLMsgSendScheduledMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgDeleteScheduledMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgDeleteScheduledMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgDeleteScheduledMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgDeleteScheduledMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgDeleteScheduledMessages(ctx, req.(*TLMsgDeleteScheduledMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgHasScheduled_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgHasScheduled)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgHasScheduled(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgHasScheduled_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgHasScheduled(ctx, req.(*TLMsgHasScheduled))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCMsg_ServiceDesc is the grpc.ServiceDesc for RPCMsg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -778,6 +958,26 @@ var RPCMsg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "msg_migrateChat",
 			Handler:    _RPCMsg_MsgMigrateChat_Handler,
+		},
+		{
+			MethodName: "msg_getScheduledHistory",
+			Handler:    _RPCMsg_MsgGetScheduledHistory_Handler,
+		},
+		{
+			MethodName: "msg_getScheduledMessages",
+			Handler:    _RPCMsg_MsgGetScheduledMessages_Handler,
+		},
+		{
+			MethodName: "msg_sendScheduledMessages",
+			Handler:    _RPCMsg_MsgSendScheduledMessages_Handler,
+		},
+		{
+			MethodName: "msg_deleteScheduledMessages",
+			Handler:    _RPCMsg_MsgDeleteScheduledMessages_Handler,
+		},
+		{
+			MethodName: "msg_hasScheduled",
+			Handler:    _RPCMsg_MsgHasScheduled_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

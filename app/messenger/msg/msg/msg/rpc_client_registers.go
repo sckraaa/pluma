@@ -50,6 +50,16 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMsgUpdateSavedReactionTag": {"/mtproto.RPCMsg/msg_updateSavedReactionTag", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 047
 	"TLMsgMigrateChat": {"/mtproto.RPCMsg/msg_migrateChat", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 061
+	"TLMsgGetScheduledHistory": {"/mtproto.RPCMsg/msg_getScheduledHistory", func() interface{} { return new(mtproto.Messages_Messages) }},
+	// pluma: task 061
+	"TLMsgGetScheduledMessages": {"/mtproto.RPCMsg/msg_getScheduledMessages", func() interface{} { return new(mtproto.Messages_Messages) }},
+	// pluma: task 061
+	"TLMsgSendScheduledMessages": {"/mtproto.RPCMsg/msg_sendScheduledMessages", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 061
+	"TLMsgDeleteScheduledMessages": {"/mtproto.RPCMsg/msg_deleteScheduledMessages", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 061
+	"TLMsgHasScheduled": {"/mtproto.RPCMsg/msg_hasScheduled", func() interface{} { return new(mtproto.Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

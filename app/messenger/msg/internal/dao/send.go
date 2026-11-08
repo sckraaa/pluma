@@ -120,6 +120,13 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 	return boxes, nil
 }
 
+// CountSavedUnread counts n messages delivered to Saved Messages as unread:
+// the reminders of a schedule queue (task 061), which the clients keep
+// unread and show a notification for.
+func (d *Dao) CountSavedUnread(b *userbox.Box, n int32) error {
+	return updateDialog(b, boxPeer{PeerType: mtproto.PEER_USER, PeerId: b.UserId()}, "unread_count = unread_count + ?", n)
+}
+
 // ReadSaved marks Saved Messages of b's owner read up to maxId, as Telegram
 // does as soon as a message is sent there: updateReadHistoryInbox with its
 // pts, after the updateNewMessage. It returns nil when the chat is read that
@@ -157,6 +164,8 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		message := proto.Clone(src.GetMessage()).(*mtproto.Message)
 		message.Out = false
 		message.Id = id
+		// from_scheduled tells the sender its message went out (task 061).
+		message.FromScheduled = false
 
 		switch message.GetReplyTo().GetPredicateName() {
 		case mtproto.Predicate_messageReplyHeader:

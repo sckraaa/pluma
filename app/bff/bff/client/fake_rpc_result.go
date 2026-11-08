@@ -31,14 +31,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Expires: int32(time.Now().Unix() + 3600),
 		}).To_Help_TermsOfServiceUpdate(), nil
 
-	// 	scheduledmessages
-	case "TLMessagesGetScheduledMessages":
-		return mtproto.MakeTLMessagesMessages(&mtproto.Messages_Messages{
-			Messages: []*mtproto.Message{},
-			Chats:    []*mtproto.Chat{},
-			Users:    []*mtproto.User{},
-		}).To_Messages_Messages(), nil
-
 	// reports
 	case "TLAccountReportPeer":
 		return mtproto.BoolTrue, nil

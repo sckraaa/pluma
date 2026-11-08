@@ -39,4 +39,14 @@ const (
 	CRC32_msg_updateSavedReactionTag TLConstructor = -1806534101 // 0x94527a2b
 	// pluma: task 047
 	CRC32_msg_migrateChat TLConstructor = 1705671888 // 0x65aa7cd0
+	// pluma: task 061
+	CRC32_msg_getScheduledHistory TLConstructor = -1158782976 // 0xbaee6000
+	// pluma: task 061
+	CRC32_msg_getScheduledMessages TLConstructor = -557247872 // 0xdec91280
+	// pluma: task 061
+	CRC32_msg_sendScheduledMessages TLConstructor = -754764820 // 0xd30333ec
+	// pluma: task 061
+	CRC32_msg_deleteScheduledMessages TLConstructor = -698200857 // 0xd6624ce7
+	// pluma: task 061
+	CRC32_msg_hasScheduled TLConstructor = -1139649382 // 0xbc12549a
 )

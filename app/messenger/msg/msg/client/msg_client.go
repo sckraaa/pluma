@@ -41,6 +41,11 @@ type MsgClient interface {
 	MsgReadReactions(ctx context.Context, in *msg.TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
 	MsgUpdateSavedReactionTag(ctx context.Context, in *msg.TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
 	MsgMigrateChat(ctx context.Context, in *msg.TLMsgMigrateChat) (*mtproto.Updates, error)
+	MsgGetScheduledHistory(ctx context.Context, in *msg.TLMsgGetScheduledHistory) (*mtproto.Messages_Messages, error)
+	MsgGetScheduledMessages(ctx context.Context, in *msg.TLMsgGetScheduledMessages) (*mtproto.Messages_Messages, error)
+	MsgSendScheduledMessages(ctx context.Context, in *msg.TLMsgSendScheduledMessages) (*mtproto.Updates, error)
+	MsgDeleteScheduledMessages(ctx context.Context, in *msg.TLMsgDeleteScheduledMessages) (*mtproto.Updates, error)
+	MsgHasScheduled(ctx context.Context, in *msg.TLMsgHasScheduled) (*mtproto.Bool, error)
 }
 
 type defaultMsgClient struct {
@@ -249,4 +254,59 @@ func (m *defaultMsgClient) MsgMigrateChat(ctx context.Context, in *msg.TLMsgMigr
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgMigrateChat(ctx, in)
+}
+
+// MsgGetScheduledHistory
+// msg.getScheduledHistory user_id:long peer_type:int peer_id:long hash:long = messages.Messages;
+func (m *defaultMsgClient) MsgGetScheduledHistory(ctx context.Context, in *msg.TLMsgGetScheduledHistory) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgGetScheduledHistory(ctx, in)
+}
+
+// MsgGetScheduledMessages
+// msg.getScheduledMessages user_id:long peer_type:int peer_id:long id:Vector<int> = messages.Messages;
+func (m *defaultMsgClient) MsgGetScheduledMessages(ctx context.Context, in *msg.TLMsgGetScheduledMessages) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgGetScheduledMessages(ctx, in)
+}
+
+// MsgSendScheduledMessages
+// msg.sendScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+func (m *defaultMsgClient) MsgSendScheduledMessages(ctx context.Context, in *msg.TLMsgSendScheduledMessages) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgSendScheduledMessages(ctx, in)
+}
+
+// MsgDeleteScheduledMessages
+// msg.deleteScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+func (m *defaultMsgClient) MsgDeleteScheduledMessages(ctx context.Context, in *msg.TLMsgDeleteScheduledMessages) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgDeleteScheduledMessages(ctx, in)
+}
+
+// MsgHasScheduled
+// msg.hasScheduled user_id:long peer_type:int peer_id:long = Bool;
+func (m *defaultMsgClient) MsgHasScheduled(ctx context.Context, in *msg.TLMsgHasScheduled) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgHasScheduled(ctx, in)
 }

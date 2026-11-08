@@ -18,6 +18,7 @@ package svc
 import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/channels/internal/config"
+	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
@@ -34,6 +35,7 @@ type ServiceContext struct {
 	Twofa   *twofa.Service
 	Media   media_client.MediaClient
 	Auth    authsession_client.AuthsessionClient
+	Msg     msg_client.MsgClient
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -45,5 +47,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Twofa:   twofa.MustNewService(c.Mysql, c.KV),
 		Media:   media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 		Auth:    authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
+		Msg:     msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 	}
 }

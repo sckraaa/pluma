@@ -87,6 +87,10 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 			continue
 		}
 		m.Out = m.GetFromId().GetUserId() == member
+		// A scheduled post tells its sender only that it went out (task 061).
+		if member != in.GetFromId() {
+			m.FromScheduled = false
+		}
 		if mentioned && !m.Out {
 			m.Mentioned = true
 			m.MediaUnread = true

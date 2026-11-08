@@ -53,6 +53,8 @@ type Server struct {
 	grpcSrv *zrpc.RpcServer
 	inbox   *mqconsumer.Consumer
 	relay   *outbox.Relay
+	// scheduled delivers the schedule queues (task 061).
+	scheduled interface{ Stop() }
 
 	draining atomic.Bool
 	running  sync.WaitGroup
@@ -97,6 +99,11 @@ func (s *Server) Initialize() error {
 	s.relay.Start()
 	s.inbox = inbox_helper.New(d, c.InboxConsumer)
 	s.inbox.Start()
+	// The queues are read from the database, so the messages that came due
+	// while the service was down go out at once.
+	scheduled := msg_helper.NewScheduledWorker(d, nil)
+	scheduled.Start()
+	s.scheduled = scheduled
 
 	return nil
 }
@@ -121,6 +128,9 @@ func (s *Server) RunLoop() {
 // events are rows of mq_outbox.
 func (s *Server) Destroy() {
 	s.draining.Store(true)
+	if s.scheduled != nil {
+		s.scheduled.Stop()
+	}
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {

@@ -309,6 +309,9 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 	var lastTopic int32
 	for _, o := range outgoing {
 		m := proto.Clone(o.Message).(*mtproto.Message)
+		// from_scheduled is the sender's alone, pushed by flagFromScheduled;
+		// the one copy of the message does not hold it.
+		m.FromScheduled = false
 		if err = checkSend(s, m, b.Date()); err != nil {
 			return nil, nil, nil, err
 		}
