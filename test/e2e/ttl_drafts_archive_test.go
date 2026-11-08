@@ -156,6 +156,10 @@ func TestHistoryTTLChannel(t *testing.T) {
 		t.Fatalf("answer %v", r.GetUpdates())
 	}
 	waitPeerTTL(ctx, t, bob, 86400)
+	d := peerDialogs(ctx, t, alice, peerFor(alice)).GetDialogs()
+	if len(d) == 0 || d[0].GetTtlPeriod().GetValue() != 86400 {
+		t.Errorf("dialog %v", d)
+	}
 
 	sent, err := alice.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
 		Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendMessage),
@@ -270,7 +274,7 @@ func TestDraftsSync(t *testing.T) {
 
 // The archive with channels and its entry in the main list: a channel moves
 // into it with updateFolderPeers, the pinned dialogs give the dialogFolder
-// with the channel's unread messages, folders.deleteFolder empties it.
+// of the channel, folders.deleteFolder empties it.
 func TestArchiveFolderChannels(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
