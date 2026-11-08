@@ -378,6 +378,56 @@ func TestScheduledChannel(t *testing.T) {
 	}
 }
 
+// An admin who sends another admin's post by hand gets the queue's update in
+// the answer, and the post as a member does, not as its author sees it.
+func TestScheduledSentByAnotherAdmin(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	_, ch := createChannel(ctx, t, alice, "sent by another", false)
+	input := &mtproto.InputChannel{Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}
+	peer := &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}
+	if _, err := bob.c.Invoke(ctx, &mtproto.TLMessagesImportChatInviteDE91436E{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_importChatInviteDE91436E),
+		Hash:        channelInviteHash(ctx, t, alice, input),
+	}); err != nil {
+		t.Fatalf("join: %v", err)
+	}
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsEditAdmin{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_editAdmin),
+		Channel:     input,
+		UserId:      inputUserOf(ctx, t, alice, bob),
+		AdminRights: &mtproto.ChatAdminRights{Constructor: alice.c.Constructor(mtproto.Predicate_chatAdminRights), PostMessages: true, EditMessages: true},
+	}); err != nil {
+		t.Fatalf("channels.editAdmin: %v", err)
+	}
+	getState(ctx, t, bob)
+
+	r, err := scheduleText(ctx, alice, peer, "post by hand", int32(time.Now().Unix()+3600))
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := scheduledId(t, r)
+	o, err := bob.c.Invoke(ctx, &mtproto.TLMessagesSendScheduledMessages{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_sendScheduledMessages),
+		Peer:        peer,
+		Id:          []int32{id},
+	})
+	if err != nil {
+		t.Fatalf("send now: %v", err)
+	}
+	sent := o.(interface{ To_Updates() *mtproto.Updates }).To_Updates()
+	if len(sent.GetChats()) != 0 || len(sent.GetUpdates()) != 1 || sent.GetUpdates()[0].GetPredicateName() != mtproto.Predicate_updateDeleteScheduledMessages {
+		t.Fatalf("the answer: %v, chats %v", sent.GetUpdates(), sent.GetChats())
+	}
+	if _, hit, err := updateMatching(ctx, bob, mtproto.Predicate_updateNewChannelMessage, 20*time.Second); err != nil || !containsMessage(hit, "post by hand") || hit.GetMessage_MESSAGE().GetOut() {
+		t.Fatalf("Bob's post: %v, %v", hit, err)
+	}
+}
+
 // waitStatus waits for viewer to see u with the status, written after
 // account.updateStatus answers.
 func waitStatus(ctx context.Context, t *testing.T, viewer, u *user, want string) {

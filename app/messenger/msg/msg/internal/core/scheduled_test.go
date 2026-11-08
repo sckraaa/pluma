@@ -116,3 +116,18 @@ func TestViewScheduled(t *testing.T) {
 		t.Error("the stored message changed")
 	}
 }
+
+func TestQueueUpdatesOf(t *testing.T) {
+	deleted := dao.DeleteScheduledUpdate(mtproto.MakePeerChannel(7), []int32{1}, []int32{2})
+	r := dao.UpdatesOf([]*mtproto.Update{
+		mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: &mtproto.Message{Id: 2, Out: true}}).To_Update(),
+		deleted,
+	}, []*mtproto.User{{Id: 1}}, []*mtproto.Chat{{Id: 7, Creator: true}}, 100)
+	got := queueUpdatesOf(r)
+	if len(got.GetUpdates()) != 1 || got.GetUpdates()[0] != deleted {
+		t.Errorf("updates: %v", got.GetUpdates())
+	}
+	if len(got.GetUsers()) != 0 || len(got.GetChats()) != 0 {
+		t.Errorf("the author's view is left: users %v, chats %v", got.GetUsers(), got.GetChats())
+	}
+}

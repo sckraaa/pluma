@@ -742,11 +742,28 @@ func (c *MsgCore) MsgSendScheduledMessages(in *msg.TLMsgSendScheduledMessages) (
 			c.Logger.Errorf("msg.sendScheduledMessages - error: %v", err)
 			return nil, err
 		}
+		if unit[0].SenderUserId != in.UserId {
+			r = queueUpdatesOf(r)
+		}
 		out.Updates = append(out.Updates, r.Updates...)
 		out.Users = append(out.Users, r.Users...)
 		out.Chats = append(out.Chats, r.Chats...)
 	}
 	return out, nil
+}
+
+// queueUpdatesOf is what is left of a delivery's answer for an admin who sent
+// another admin's post: the send was made in the author's name, so its
+// message and chat are as the author sees them (out, the author's rights).
+// The admin gets the post as any member does, by the channel's push.
+func queueUpdatesOf(r *mtproto.Updates) *mtproto.Updates {
+	us := make([]*mtproto.Update, 0, 1)
+	for _, u := range r.GetUpdates() {
+		if u.GetPredicateName() == mtproto.Predicate_updateDeleteScheduledMessages {
+			us = append(us, u)
+		}
+	}
+	return dao.UpdatesOf(us, []*mtproto.User{}, []*mtproto.Chat{}, r.GetDate())
 }
 
 // deliveryUnits splits rows into what goes as one send: an album whole,
