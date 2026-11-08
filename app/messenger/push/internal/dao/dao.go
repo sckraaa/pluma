@@ -141,7 +141,15 @@ func (d *Channels) Recipients(ctx context.Context, ev *core.ChannelEvent) ([]*co
 	}
 	h := mtproto.NewIDListHelper()
 	h.PickByUpdates(ev.Updates.GetUpdates()...)
-	users, err := d.User.UserGetMutableUsersV2(ctx, &user.TLUserGetMutableUsersV2{Id: h.UserIdList, Privacy: true, HasTo: true, To: recipients})
+	// The recipients as well as the users of the messages: each one's view of
+	// the users is made from its own row (GetUserListByIdList), and without
+	// it the notification has no sender's name.
+	users, err := d.User.UserGetMutableUsersV2(ctx, &user.TLUserGetMutableUsersV2{
+		Id:      append(append([]int64{}, h.UserIdList...), recipients...),
+		Privacy: true,
+		HasTo:   true,
+		To:      recipients,
+	})
 	if err != nil {
 		return nil, err
 	}
