@@ -18,11 +18,14 @@ package dao
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // Pinned messages of a channel (task 043, ADR 0034): the pinned flag of the
@@ -41,6 +44,7 @@ type ChannelPinned struct {
 type pinRow struct {
 	MessageData string `db:"message_data"`
 	Pinned      bool   `db:"pinned"`
+	TopicId     int32  `db:"topic_id"`
 }
 
 // PinChannel pins message id of the channel, or unpins it, by b's owner:
@@ -63,7 +67,7 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 	}
 	var rows []pinRow
 	if err = b.Tx().QueryRowsPartial(&rows,
-		"SELECT message_data, pinned FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", channelId, id); err != nil {
+		"SELECT message_data, pinned, topic_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", channelId, id); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -106,15 +110,29 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 		service.Post = true
 		service.FromId = nil
 	}
+	topicId := int32(channelbox.GeneralTopicId)
+	if s.forum && rows[0].TopicId != 0 {
+		// The service message is in the topic of the message pinned
+		// (Android MessageObject.getTopicId).
+		topicId = rows[0].TopicId
+		service.ReplyTo.ForumTopic = true
+		service.ReplyTo.ReplyToTopId = wrapperspb.Int32(topicId)
+	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: service}).To_Update(), 1)
 	if data, err = jsonx.MarshalToString(service); err != nil {
 		return nil, err
 	}
-	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-		channelId, service.Id, b.UserId(), randomId, ch.Pts(), mtproto.GetMediaType(service), data, b.Date()); err != nil {
+	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, topic_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		channelId, service.Id, b.UserId(), randomId, ch.Pts(), mtproto.GetMediaType(service), data, channelbox.TopicColumn(topicId), b.Date()); err != nil {
 		return nil, err
 	}
-	if err = movedTo(b, channelId, service.Id); err != nil {
+	if s.forum {
+		err = channelbox.ForumMoved(b, channelId, topicId, service.Id)
+		b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), mtproto.PEER_CHANNEL, channelId))
+	} else {
+		err = movedTo(b, channelId, service.Id)
+	}
+	if err != nil {
 		return nil, err
 	}
 	out.Service = &ChannelSent{RandomId: randomId, Message: service, Pts: ch.Pts()}

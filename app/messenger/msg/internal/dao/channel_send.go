@@ -53,6 +53,7 @@ type senderRow struct {
 	BannedRights        int32 `db:"banned_rights"`
 	UntilDate           int32 `db:"until_date"`
 	Signatures          bool  `db:"signatures"`
+	Forum               bool  `db:"forum"`
 }
 
 // sender is b's owner as a participant of a channel, for channelperm.
@@ -65,6 +66,8 @@ type sender struct {
 	guest bool
 	// signatures: the channel signs its posts with their authors (task 044).
 	signatures bool
+	// forum: its messages are in topics (task 060).
+	forum bool
 }
 
 func (s *sender) can(a channelperm.Action, now int64) error {
@@ -78,7 +81,7 @@ func (s *sender) can(a channelperm.Action, now int64) error {
 func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.deleted, c.default_banned_rights, c.signatures, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+		"SELECT c.broadcast, c.deleted, c.default_banned_rights, c.signatures, c.forum, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
 			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
 		channelperm.StateLeft, b.UserId(), channelId); err != nil {
@@ -107,6 +110,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	}
 	return &sender{
 		signatures: r.Signatures,
+		forum:      r.Forum,
 		ch:         channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
@@ -236,6 +240,7 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			disc = &Discussion{GroupId: linked}
 		}
 	}
+	var lastTopic int32
 	for _, o := range outgoing {
 		m := proto.Clone(o.Message).(*mtproto.Message)
 		if err = checkSend(s, m, b.Date()); err != nil {
@@ -266,8 +271,21 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		}
 		// A reply is in the thread of the message replied to: the thread
 		// that message is in, or the one it starts (task 048).
-		var top int32
-		if r := m.GetReplyTo().GetReplyToMsgId(); r != 0 {
+		var top, topicId int32
+		if s.forum {
+			var replied int64
+			if topicId, replied, err = routeToTopic(b, channelId, s, m, b.Date()); err != nil {
+				return nil, nil, nil, err
+			}
+			if replied != 0 {
+				who = append(who, replied)
+			}
+		} else if r := m.GetReplyTo().GetReplyToMsgId(); r == 0 {
+			// Only a top_msg_id, of a topic: nothing here is one.
+			if m.GetReplyTo().GetReplyToTopId() != nil {
+				m.ReplyTo = nil
+			}
+		} else {
 			var replied []struct {
 				SenderUserId int64 `db:"sender_user_id"`
 				ReplyTopId   int32 `db:"reply_top_id"`
@@ -310,8 +328,8 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, message, reply_top_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			channelId, m.Id, b.UserId(), o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, b.Date()); err != nil {
+		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, message, reply_top_id, topic_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			channelId, m.Id, b.UserId(), o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, channelbox.TopicColumn(topicId), b.Date()); err != nil {
 			return nil, nil, nil, err
 		}
 		for _, id := range who {
@@ -326,6 +344,7 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			}
 		}
 		sent = append(sent, ChannelSent{RandomId: o.RandomId, Message: m, Pts: ch.Pts()})
+		lastTopic = topicId
 		if group != nil {
 			c, err := postCopy(b, group, channelId, m)
 			if err != nil {
@@ -334,10 +353,14 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			disc.Copies = append(disc.Copies, c)
 		}
 	}
-	if s.guest {
+	switch {
+	case s.forum:
+		err = channelbox.ForumMoved(b, channelId, lastTopic, sent[len(sent)-1].Message.Id)
+		b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), mtproto.PEER_CHANNEL, channelId))
+	case s.guest:
 		// The group's top message moves; the guest has no dialog with it.
 		_, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", sent[len(sent)-1].Message.Id, channelId)
-	} else {
+	default:
 		err = movedTo(b, channelId, sent[len(sent)-1].Message.Id)
 	}
 	if err != nil {
@@ -349,6 +372,93 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		}
 	}
 	return sent, mentioned, disc, nil
+}
+
+// routeToTopic puts m in its topic of the forum and writes its reply_to as
+// the clients read it (Android MessageObject.getTopicId, tdesktop
+// HistoryItem::topicRootId): in a topic other than General forum_topic is
+// set, and reply_to_msg_id is the topic's id or, for a reply within the
+// topic, the message replied to with reply_to_top_id the topic; in General
+// neither. The topic comes from the message replied to; if that is gone,
+// from top_msg_id (core.telegram.org/api/forum); else General. It returns
+// the topic and the author of the message replied to (0 for none).
+// TOPIC_ID_INVALID for a topic that never was, TOPIC_DELETED for a deleted
+// one, TOPIC_CLOSED for a closed one unless its author or one who manages
+// topics writes (tdesktop data_peer_values.cpp:207).
+func routeToTopic(b *userbox.Box, channelId int64, s *sender, m *mtproto.Message, now int64) (int32, int64, error) {
+	h := m.GetReplyTo()
+	r, top := h.GetReplyToMsgId(), h.GetReplyToTopId().GetValue()
+	topicId := int32(channelbox.GeneralTopicId)
+	if top != 0 {
+		topicId = top
+	}
+	var author int64
+	if r != 0 {
+		var replied []struct {
+			SenderUserId int64 `db:"sender_user_id"`
+			TopicId      int32 `db:"topic_id"`
+		}
+		if err := b.Tx().QueryRowsPartial(&replied,
+			"SELECT sender_user_id, topic_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0", channelId, r); err != nil {
+			return 0, 0, err
+		}
+		if len(replied) == 0 {
+			r = 0
+		} else {
+			topicId = max(replied[0].TopicId, channelbox.GeneralTopicId)
+			if r != topicId {
+				author = replied[0].SenderUserId
+			} else {
+				r = 0
+			}
+		}
+	}
+	var rows []struct {
+		Creator int64 `db:"creator_user_id"`
+		Closed  bool  `db:"closed"`
+		Deleted bool  `db:"deleted"`
+	}
+	if err := b.Tx().QueryRowsPartial(&rows, "SELECT creator_user_id, closed, deleted FROM channel_forum_topics WHERE channel_id = ? AND topic_id = ?", channelId, topicId); err != nil {
+		return 0, 0, err
+	}
+	switch {
+	case len(rows) == 0:
+		return 0, 0, mtproto.ErrTopicIdInvalid
+	case rows[0].Deleted:
+		return 0, 0, mtproto.ErrTopicDeleted
+	case rows[0].Closed && rows[0].Creator != b.UserId() && !topicManager(s, now):
+		return 0, 0, mtproto.ErrTopicClosed
+	}
+	if topicId == channelbox.GeneralTopicId {
+		if h != nil {
+			h.ForumTopic = false
+			h.ReplyToTopId = nil
+		}
+		if r == 0 && h.GetPredicateName() != mtproto.Predicate_messageReplyStoryHeader {
+			m.ReplyTo = nil
+		}
+		return topicId, author, nil
+	}
+	if h == nil {
+		h = mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{}).To_MessageReplyHeader()
+		m.ReplyTo = h
+	}
+	h.ForumTopic = true
+	h.ReplyToTopId = nil
+	id := topicId
+	if r != 0 {
+		id = r
+		h.ReplyToTopId = wrapperspb.Int32(topicId)
+	}
+	h.ReplyToMsgId, h.ReplyToMsgId_INT32, h.ReplyToMsgId_FLAGINT32 = id, id, mtproto.MakeFlagsInt32(id)
+	return topicId, author, nil
+}
+
+// topicManager tells whether s manages the topics: the creator, an admin
+// with manage_topics (Android ChatObject.canManageTopics).
+func topicManager(s *sender, now int64) bool {
+	return s.p.Role == channelperm.RoleCreator ||
+		s.p.Role == channelperm.RoleAdmin && s.can(channelperm.ManageTopics, now) == nil
 }
 
 // Discussion is what a post wrote into the discussion group of its channel:
