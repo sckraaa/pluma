@@ -271,16 +271,29 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			var replied []struct {
 				SenderUserId int64 `db:"sender_user_id"`
 				ReplyTopId   int32 `db:"reply_top_id"`
+				Deleted      bool  `db:"deleted"`
 			}
 			if err = b.Tx().QueryRowsPartial(&replied,
-				"SELECT sender_user_id, reply_top_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0", channelId, r); err != nil {
+				"SELECT sender_user_id, reply_top_id, deleted FROM channel_messages WHERE channel_id = ? AND id = ?", channelId, r); err != nil {
 				return nil, nil, nil, err
 			}
+			alive := len(replied) > 0 && !replied[0].Deleted
+			inThread := alive
+			if len(replied) > 0 && !alive && !s.ch.Broadcast {
+				// A thread outlives its deleted message: tdesktop keeps it
+				// open by its root's id and replies to that id
+				// (ChatWidget::replyTo, history_view_chat_section.cpp).
+				if inThread, err = threadStays(b, channelId, r, replied[0].ReplyTopId); err != nil {
+					return nil, nil, nil, err
+				}
+			}
 			switch {
-			case len(replied) == 0:
+			case !inThread:
 				m.ReplyTo = nil
 			case !s.ch.Broadcast:
-				who = append(who, replied[0].SenderUserId)
+				if alive {
+					who = append(who, replied[0].SenderUserId)
+				}
 				top = r
 				m.ReplyTo.ReplyToTopId = nil
 				if replied[0].ReplyTopId != 0 {
@@ -349,6 +362,21 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		}
 	}
 	return sent, mentioned, disc, nil
+}
+
+// threadStays tells whether the deleted message id of a supergroup, itself
+// a reply in the thread top (0: it was in none), leaves a thread to reply
+// in.
+func threadStays(b *userbox.Box, channelId int64, id, top int32) (bool, error) {
+	if top != 0 {
+		return true, nil
+	}
+	var replies []int32
+	if err := b.Tx().QueryRowsPartial(&replies,
+		"SELECT id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0 LIMIT 1", channelId, id); err != nil {
+		return false, err
+	}
+	return len(replies) > 0, nil
 }
 
 // Discussion is what a post wrote into the discussion group of its channel:
