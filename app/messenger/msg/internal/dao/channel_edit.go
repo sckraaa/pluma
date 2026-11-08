@@ -110,6 +110,18 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 		}
 	}
 	m := applyEdit(stored, edit)
+	var copyId int32
+	if groupId != 0 {
+		if copyId, err = postCopyId(b, channelId, id); err != nil {
+			return nil, err
+		}
+	}
+	if copyId != 0 {
+		// What is stored is the count of when the post was written.
+		if m.Replies, err = postReplies(b, groupId, copyId, ch.Pts()+1); err != nil {
+			return nil, err
+		}
+	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
 	data, err := jsonx.MarshalToString(m)
 	if err != nil {
@@ -120,8 +132,8 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 		return nil, err
 	}
 	out := &ChannelEdited{Message: m, Pts: ch.Pts()}
-	if groupId != 0 {
-		if out.Copy, err = editPostCopy(b, groupId, channelId, m); err != nil {
+	if copyId != 0 {
+		if out.Copy, err = editPostCopy(b, groupId, copyId, m); err != nil {
 			return nil, err
 		}
 		out.GroupId = groupId
@@ -143,20 +155,67 @@ func postCopyGroup(b *userbox.Box, channelId int64, postId int32) (int64, error)
 	return groups[0], nil
 }
 
-// editPostCopy brings the copy of post in its discussion group, locked, to
-// the post as edited: nil when the group removed the copy in between.
-func editPostCopy(b *userbox.Box, groupId, channelId int64, post *mtproto.Message) (*ChannelSent, error) {
+// postCopyId is the copy of the post in its discussion group, read with
+// both locked: 0 when the group removed it in between.
+func postCopyId(b *userbox.Box, channelId int64, postId int32) (int32, error) {
 	var ids []int32
 	if err := b.Tx().QueryRowsPartial(&ids,
-		"SELECT group_message_id FROM channel_discussion_posts WHERE channel_id = ? AND post_id = ?", channelId, post.GetId()); err != nil {
-		return nil, err
+		"SELECT group_message_id FROM channel_discussion_posts WHERE channel_id = ? AND post_id = ?", channelId, postId); err != nil {
+		return 0, err
 	}
 	if len(ids) == 0 {
-		return nil, nil
+		return 0, nil
 	}
+	return ids[0], nil
+}
+
+// repliersMax is the most authors of recent_repliers
+// (core.telegram.org/constructor/messageReplies: the clients show three).
+const repliersMax = 3
+
+// postReplies is the messageReplies of the comments of a post whose copy is
+// copyId, with the pts the post is written at. An edit carries them as they
+// are now: Android keeps the message of updateEditChannelMessage as it
+// comes (MessagesController.java:19356), and tdesktop clears the button of
+// a message without replies (history_item.cpp:2307-2314).
+func postReplies(b *userbox.Box, groupId int64, copyId, pts int32) (*mtproto.MessageReplies, error) {
+	var counts []struct {
+		Count int32 `db:"n"`
+		MaxId int32 `db:"max_id"`
+	}
+	if err := b.Tx().QueryRowsPartial(&counts,
+		"SELECT COUNT(*) AS n, COALESCE(MAX(id), 0) AS max_id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0",
+		groupId, copyId); err != nil {
+		return nil, err
+	}
+	var repliers []int64
+	if err := b.Tx().QueryRowsPartial(&repliers,
+		"SELECT sender_user_id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0"+
+			" GROUP BY sender_user_id ORDER BY MAX(id) DESC LIMIT ?", groupId, copyId, repliersMax); err != nil {
+		return nil, err
+	}
+	r := &mtproto.MessageReplies{
+		Comments:       true,
+		Replies:        counts[0].Count,
+		RepliesPts:     pts,
+		ChannelId:      mtproto.MakeFlagsInt64(groupId),
+		RecentRepliers: []*mtproto.Peer{},
+	}
+	for _, id := range repliers {
+		r.RecentRepliers = append(r.RecentRepliers, mtproto.MakePeerUser(id))
+	}
+	if counts[0].MaxId != 0 {
+		r.MaxId = mtproto.MakeFlagsInt32(counts[0].MaxId)
+	}
+	return mtproto.MakeTLMessageReplies(r).To_MessageReplies(), nil
+}
+
+// editPostCopy brings the copy copyId in the locked discussion group to the
+// post as edited: nil when the copy is gone.
+func editPostCopy(b *userbox.Box, groupId int64, copyId int32, post *mtproto.Message) (*ChannelSent, error) {
 	var rows []channelMessageRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT sender_user_id, message_data FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", groupId, ids[0]); err != nil {
+		"SELECT sender_user_id, message_data FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", groupId, copyId); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -177,7 +236,7 @@ func editPostCopy(b *userbox.Box, groupId, channelId int64, post *mtproto.Messag
 		return nil, err
 	}
 	if _, err = b.Tx().Exec("UPDATE channel_messages SET message_data = ?, message = ?, message_filter_type = ? WHERE channel_id = ? AND id = ?",
-		data, m.GetMessage(), mtproto.GetMediaType(m), groupId, ids[0]); err != nil {
+		data, m.GetMessage(), mtproto.GetMediaType(m), groupId, copyId); err != nil {
 		return nil, err
 	}
 	return &ChannelSent{Message: m, Pts: group.Pts()}, nil
