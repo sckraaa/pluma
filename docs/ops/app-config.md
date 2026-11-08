@@ -85,7 +85,8 @@
 | `dialogs_folder_pinned_limit_premium` | `200` | D W | То же с Premium. |
 | `saved_dialogs_pinned_limit_default` | `5` | A D W | Закреплённые чаты в «Избранном». |
 | `saved_dialogs_pinned_limit_premium` | `100` | A D W | То же с Premium. |
-| `topics_pinned_limit` | `5` | A D W | Закреплённые темы форума (форумов пока нет). |
+| `topics_pinned_limit` | `5` | A D W | Закреплённые темы форума. |
+| `forum_upgrade_participants_min` | `0` | A D W | С какого числа участников владелец может включить темы. Без ключа Android и tdesktop берут 200, Web K не включает никогда; в Pluma столько участников не наберётся. |
 
 ## Длины текстов и загрузка
 
