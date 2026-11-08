@@ -246,6 +246,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1252926702,
 		}
 	},
+	-416704029: func() mtproto.TLObject { // 0xe72999e3 pluma: task 063
+		return &TLDialogSaveThreadDraft{
+			Constructor: -416704029,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -2936,4 +2941,52 @@ func (m *Vector_Long) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *Vector_Long) CalcByteSize(layer int32) int {
 	return 0
+}
+
+// TLDialogSaveThreadDraft (pluma: task 063)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogSaveThreadDraft) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xe72999e3:
+		x.UInt(0xe72999e3)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetTopMsgId())
+		m.GetMessage().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogSaveThreadDraft) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogSaveThreadDraft) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xe72999e3:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		m4 := &mtproto.DraftMessage{}
+		m4.Decode(dBuf)
+		m.Message = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
 }

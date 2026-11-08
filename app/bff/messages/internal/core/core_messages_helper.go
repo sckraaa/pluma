@@ -21,28 +21,49 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// draft
-func (c *MessagesCore) doClearDraft(ctx context.Context, userId int64, authKeyId int64, peer *mtproto.PeerUtil) {
-	rV, _ := c.svcCtx.Dao.DialogClient.DialogClearDraftMessage(ctx, &dialog.TLDialogClearDraftMessage{
-		UserId:   c.MD.UserId,
-		PeerType: peer.PeerType,
-		PeerId:   peer.PeerId,
-	})
-
-	// ClearDraft
-	if mtproto.FromBool(rV) {
-		updateDraftMessage := mtproto.MakeTLUpdateDraftMessage(&mtproto.Update{
-			Peer_PEER: peer.ToPeer(),
-			Draft:     mtproto.MakeTLDraftMessageEmpty(nil).To_DraftMessage(),
-		}).To_Update()
-
-		c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(
-			ctx,
-			&sync.TLSyncUpdatesNotMe{
-				UserId:        userId,
-				PermAuthKeyId: authKeyId,
-				Updates:       mtproto.MakeUpdatesByUpdates(updateDraftMessage),
-			})
+// doClearDraft clears the draft a sent message came from, of the chat or of
+// its topic, and tells the user's other devices (clear_draft of
+// messages.sendMessage).
+func (c *MessagesCore) doClearDraft(ctx context.Context, userId int64, authKeyId int64, peer *mtproto.PeerUtil, topMsgId int32) {
+	var (
+		rV  *mtproto.Bool
+		err error
+	)
+	if topMsgId != 0 {
+		rV, err = c.svcCtx.Dao.DialogClient.DialogSaveThreadDraft(ctx, &dialog.TLDialogSaveThreadDraft{
+			UserId:   userId,
+			PeerType: peer.PeerType,
+			PeerId:   peer.PeerId,
+			TopMsgId: topMsgId,
+			Message:  mtproto.MakeTLDraftMessageEmpty(nil).To_DraftMessage(),
+		})
+	} else {
+		rV, err = c.svcCtx.Dao.DialogClient.DialogClearDraftMessage(ctx, &dialog.TLDialogClearDraftMessage{
+			UserId:   userId,
+			PeerType: peer.PeerType,
+			PeerId:   peer.PeerId,
+		})
+	}
+	if err != nil {
+		c.Logger.Errorf("clear draft - error: %v", err)
+		return
+	}
+	if !mtproto.FromBool(rV) {
+		return
+	}
+	updateDraftMessage := mtproto.MakeTLUpdateDraftMessage(&mtproto.Update{
+		Peer_PEER:          peer.ToPeer(),
+		TopMsgId_FLAGINT32: mtproto.MakeFlagsInt32(topMsgId),
+		Draft: mtproto.MakeTLDraftMessageEmpty(&mtproto.DraftMessage{
+			Date_FLAGINT32: mtproto.MakeFlagsInt32(int32(time.Now().Unix())),
+		}).To_DraftMessage(),
+	}).To_Update()
+	if _, err = c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(ctx, &sync.TLSyncUpdatesNotMe{
+		UserId:        userId,
+		PermAuthKeyId: authKeyId,
+		Updates:       mtproto.MakeUpdatesByUpdates(updateDraftMessage),
+	}); err != nil {
+		c.Logger.Errorf("clear draft - error: %v", err)
 	}
 }
 

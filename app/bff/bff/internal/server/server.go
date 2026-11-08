@@ -364,6 +364,7 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				SyncClient:    syncClient,
 				ChatClient:    c.BizServiceClient,
+				ChannelClient: c.BizServiceClient,
 			}, nil))
 
 		// autodownload_helper

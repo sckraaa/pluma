@@ -45,8 +45,9 @@ func (c *DraftsCore) MessagesGetAllDrafts(in *mtproto.TLMessagesGetAllDrafts) (*
 
 	for _, v := range drafts.Datas {
 		rUpdates.PushBackUpdate(mtproto.MakeTLUpdateDraftMessage(&mtproto.Update{
-			Peer_PEER: v.Peer,
-			Draft:     v.Draft,
+			Peer_PEER:          v.Peer,
+			TopMsgId_FLAGINT32: mtproto.MakeFlagsInt32(v.TopMsgId),
+			Draft:              v.Draft,
 		}).To_Update())
 
 		idHelper.PickByPeer(v.Peer)
@@ -68,13 +69,16 @@ func (c *DraftsCore) MessagesGetAllDrafts(in *mtproto.TLMessagesGetAllDrafts) (*
 			rUpdates.PushChat(chats.GetChatListByIdList(c.MD.UserId, chatIdList...)...)
 		},
 		func(channelIdList []int64) {
-			if c.svcCtx.Plugin != nil {
-				chats := c.svcCtx.Plugin.GetChannelListByIdList(c.ctx, c.MD.UserId, channelIdList...)
+			var chats []*mtproto.Chat
+			if chats, err = c.channelChats(channelIdList...); err == nil {
 				rUpdates.PushChat(chats...)
-			} else {
-				c.Logger.Errorf("messages.getAllDrafts blocked, License key from https://teamgram.net required to unlock enterprise features.")
 			}
 		})
+	if err != nil {
+		// An update must not name a channel the answer does not carry.
+		c.Logger.Errorf("messages.getAllDrafts - error: %v", err)
+		return nil, err
+	}
 
 	return rUpdates, nil
 }

@@ -32,7 +32,7 @@ const (
 	// Upserts of the dialog row: the row may be new (rows affected 1) or
 	// changed (2). top_message only grows here.
 	upsertOutgoingDialogQuery = "INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, 'null', ?) AS new" +
-		" ON DUPLICATE KEY UPDATE top_message = GREATEST(dialogs.top_message, new.top_message), date2 = new.date2, deleted = 0, draft_type = 0, draft_message_data = 'null'"
+		" ON DUPLICATE KEY UPDATE top_message = GREATEST(dialogs.top_message, new.top_message), date2 = new.date2, deleted = 0"
 	upsertIncomingDialogQuery = "INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, unread_count, unread_mentions_count, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, ?, ?, 'null', ?) AS new" +
 		" ON DUPLICATE KEY UPDATE top_message = GREATEST(dialogs.top_message, new.top_message), unread_count = dialogs.unread_count + new.unread_count," +
 		" unread_mentions_count = dialogs.unread_mentions_count + new.unread_mentions_count, date2 = new.date2, deleted = 0"

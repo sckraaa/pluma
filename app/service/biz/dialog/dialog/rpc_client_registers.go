@@ -63,6 +63,8 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLDialogToggleDialogFilterTags":            RPCContextTuple{"/mtproto.RPCDialog/dialog_toggleDialogFilterTags", func() interface{} { return new(mtproto.Bool) }},
 	"TLDialogGetDialogFilterTags":               RPCContextTuple{"/mtproto.RPCDialog/dialog_getDialogFilterTags", func() interface{} { return new(mtproto.Bool) }},
 	"TLDialogSetChatWallpaper":                  RPCContextTuple{"/mtproto.RPCDialog/dialog_setChatWallpaper", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 063
+	"TLDialogSaveThreadDraft": RPCContextTuple{"/mtproto.RPCDialog/dialog_saveThreadDraft", func() interface{} { return new(mtproto.Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

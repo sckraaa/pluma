@@ -535,3 +535,17 @@ func (s *Service) DialogSetChatWallpaper(ctx context.Context, request *dialog.TL
 
 	return r, err
 }
+
+// DialogSaveThreadDraft
+// dialog.saveThreadDraft user_id:long peer_type:int peer_id:long top_msg_id:int message:DraftMessage = Bool;
+func (s *Service) DialogSaveThreadDraft(ctx context.Context, request *dialog.TLDialogSaveThreadDraft) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.saveThreadDraft - metadata: {%s}", c.MD)
+
+	r, err := c.DialogSaveThreadDraft(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
