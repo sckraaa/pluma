@@ -273,8 +273,10 @@ func removeCopies(b *userbox.Box, groupId int64, ids []int32) (*Deleted, error) 
 // postCommentsOff takes the comments off the post of the locked channel:
 // each view of a post carries them (SendChannel), and the clients take a
 // post without replies as one without the button (tdesktop
-// history_item.cpp:2484-2488, clearReplies). The post changes with a pts,
-// no edit date: nobody edited it. Nil for a post that is gone or has none.
+// history_item.cpp:2307-2314, clearReplies). The post changes with a pts,
+// no edit date: nobody edited it. A post stored without replies, written
+// before posts carried them, changes too: the history showed its comments
+// by the link. Nil for a post that is gone.
 func postCommentsOff(b *userbox.Box, channelId int64, postId int32) (*PostCommentsOff, error) {
 	var data []string
 	if err := b.Tx().QueryRowsPartial(&data,
@@ -287,9 +289,6 @@ func postCommentsOff(b *userbox.Box, channelId int64, postId int32) (*PostCommen
 	var m *mtproto.Message
 	if err := jsonx.UnmarshalFromString(data[0], &m); err != nil {
 		return nil, err
-	}
-	if m.GetReplies() == nil {
-		return nil, nil
 	}
 	ch, err := channelbox.Open(b, channelId)
 	if err != nil {
@@ -519,8 +518,10 @@ func (d *Dao) ReadThread(b *userbox.Box, t *Thread, readMax int32) error {
 
 // withReplies sets on the posts of a broadcast channel with comments their
 // messageReplies: the count, the discussion group, the newest reply and
-// its recent authors (core.telegram.org/constructor/messageReplies).
-func (d *Dao) withReplies(ctx context.Context, channelId int64, broadcast bool, messages []*mtproto.Message) error {
+// its recent authors, and how far selfId read them (read_max_id, without
+// which tdesktop never marks comments unread, history_item.cpp:1367-1375;
+// core.telegram.org/constructor/messageReplies).
+func (d *Dao) withReplies(ctx context.Context, selfId, channelId int64, broadcast bool, messages []*mtproto.Message) error {
 	if !broadcast || len(messages) == 0 {
 		return nil
 	}
@@ -557,17 +558,24 @@ func (d *Dao) withReplies(ctx context.Context, channelId int64, broadcast bool, 
 		return err
 	}
 	byPost := map[int32]*Thread{}
+	readMax := map[int32]int32{}
 	for _, p := range posts {
 		t := &Thread{GroupId: p.GroupId, TopId: p.GroupMessageId, ChannelId: channelId, PostId: p.PostId}
 		if err := d.threadCounts(ctx, t); err != nil {
 			return err
 		}
 		byPost[p.PostId] = t
+		var reads []int32
+		if err := d.Mysql.QueryRowsPartial(ctx, &reads,
+			"SELECT read_max_id FROM channel_thread_reads WHERE user_id = ? AND channel_id = ? AND top_id = ?", selfId, p.GroupId, p.GroupMessageId); err != nil {
+			return err
+		}
+		readMax[p.PostId] = first(reads)
 	}
 	for _, m := range messages {
 		if t, ok := byPost[m.GetId()]; ok {
 			t.Pts = first(pts)
-			m.Replies = MessageReplies(t, 0)
+			m.Replies = MessageReplies(t, readMax[m.GetId()])
 		}
 	}
 	return nil

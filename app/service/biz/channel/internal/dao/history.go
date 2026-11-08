@@ -230,7 +230,7 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
 		return nil, 0, err
 	}
-	return messages, first(count), d.withReplies(ctx, channelId, v.broadcast, messages)
+	return messages, first(count), d.withReplies(ctx, selfId, channelId, v.broadcast, messages)
 }
 
 // Messages are the messages ids of channelId that selfId may see, as it sees
@@ -264,7 +264,7 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
 		return nil, err
 	}
-	return messages, d.withReplies(ctx, channelId, v.broadcast, messages)
+	return messages, d.withReplies(ctx, selfId, channelId, v.broadcast, messages)
 }
 
 // withReactions sets on messages the reactions to them as selfId sees them

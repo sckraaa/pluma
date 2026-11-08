@@ -67,9 +67,10 @@ func (c *ChannelCore) ChannelGetGroupsForDiscussion(in *channel.TLChannelGetGrou
 // clients then load the replies by the group and that message
 // (Android ChatActivity.java:35598-35680). A group self_id may not read is
 // CHANNEL_PRIVATE. The thread of a supergroup whose first message was
-// deleted has no message and goes on (tdesktop
-// window_session_controller.cpp:1265-1273 opens it by the root's id); a
-// post whose copy is gone has no comments.
+// deleted has no message and goes on while it has replies (tdesktop
+// window_session_controller.cpp:1265-1273 opens it by the root's id, and
+// says the message is not found on MSG_ID_INVALID); a post whose copy is
+// gone has no comments.
 func (c *ChannelCore) ChannelGetDiscussionMessage(in *channel.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error) {
 	d := c.svcCtx.Dao
 	if _, err := d.Messages(c.ctx, in.SelfId, in.ChannelId, []int32{in.MsgId}); err != nil {
@@ -83,7 +84,7 @@ func (c *ChannelCore) ChannelGetDiscussionMessage(in *channel.TLChannelGetDiscus
 	if err != nil {
 		return nil, err
 	}
-	if len(top) == 0 && t.GroupId != in.ChannelId {
+	if len(top) == 0 && (t.GroupId != in.ChannelId || t.Count == 0) {
 		return nil, mtproto.ErrMsgIdInvalid
 	}
 	readMax, unread, err := d.ThreadRead(c.ctx, in.SelfId, t)

@@ -18,6 +18,7 @@
 package core
 
 import (
+	"context"
 	"slices"
 	"testing"
 
@@ -58,7 +59,13 @@ func (f *diffFixture) stored(channelId int64, id int32) *mtproto.Message {
 
 func (f *diffFixture) newDiscussionPost(creator, bob int64) *discussionPost {
 	f.t.Helper()
-	p := &discussionPost{channelId: f.create(creator), groupId: f.create(creator)}
+	channelId := f.create(creator)
+	return f.discussionPostIn(channelId, f.create(creator), creator, bob)
+}
+
+func (f *diffFixture) discussionPostIn(channelId, groupId, creator, bob int64) *discussionPost {
+	f.t.Helper()
+	p := &discussionPost{channelId: channelId, groupId: groupId}
 	f.exec("UPDATE channels SET broadcast = 1, megagroup = 0, linked_chat_id = ? WHERE id = ?", p.groupId, p.channelId)
 	f.exec("UPDATE channels SET linked_chat_id = ? WHERE id = ?", p.channelId, p.groupId)
 	f.public(p.groupId)
@@ -149,6 +156,64 @@ func TestDeletePostWithComments(t *testing.T) {
 	}
 }
 
+// TestDeletePostGroupFirst: the two are locked in ascending order when the
+// group has the lower id too.
+func TestDeletePostGroupFirst(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, bob := f.user("Creator"), f.user("Bob")
+	groupId := f.create(creator)
+	p := f.discussionPostIn(f.create(creator), groupId, creator, bob)
+	if p.groupId >= p.channelId {
+		t.Fatalf("group %d, channel %d", p.groupId, p.channelId)
+	}
+	before := f.journal(p.groupId)
+	if _, err := f.delete(creator, p.channelId, p.post); err != nil {
+		t.Fatal(err)
+	}
+	if after := f.journal(p.groupId); len(after) != len(before)+1 {
+		t.Errorf("the group's journal: %v after %v", after, before)
+	}
+}
+
+// TestDeletedMessageWithoutThread: the thread of a deleted message that has
+// no replies does not open.
+func TestDeletedMessageWithoutThread(t *testing.T) {
+	f := newDiffFixture(t)
+	creator := f.user("Creator")
+	groupId := f.create(creator)
+	f.send(groupId, creator, 1)
+	id := f.top(groupId)
+	if _, err := f.delete(creator, groupId, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.discussionMessage(creator, groupId, id); err != mtproto.ErrMsgIdInvalid {
+		t.Errorf("the thread of a deleted message: %v", err)
+	}
+}
+
+// TestDeleteCopyOfOldPost: a post stored before posts carried their
+// comments had them shown by its link, and loses them the same way.
+func TestDeleteCopyOfOldPost(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, bob := f.user("Creator"), f.user("Bob")
+	p := f.newDiscussionPost(creator, bob)
+	m := f.stored(p.channelId, p.post)
+	m.Replies = nil
+	data, err := jsonx.MarshalToString(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.exec("UPDATE channel_messages SET message_data = ? WHERE channel_id = ? AND id = ?", data, p.channelId, p.post)
+
+	before := f.journal(p.channelId)
+	if _, err = f.delete(creator, p.groupId, p.copyId); err != nil {
+		t.Fatal(err)
+	}
+	if after := f.journal(p.channelId); len(after) != len(before)+1 {
+		t.Errorf("the channel's journal: %v after %v", after, before)
+	}
+}
+
 // TestDeleteCopyTurnsCommentsOff: the group's admin removes the copy; the
 // post loses its comments, by a change with a pts and no edit date.
 func TestDeleteCopyTurnsCommentsOff(t *testing.T) {
@@ -190,6 +255,7 @@ func TestReadDiscussionUpdates(t *testing.T) {
 	f := newDiffFixture(t)
 	creator, bob := f.user("Creator"), f.user("Bob")
 	p := f.newDiscussionPost(creator, bob)
+	f.public(p.channelId)
 
 	discussionReads := func(userId int64) int {
 		t.Helper()
@@ -206,8 +272,22 @@ func TestReadDiscussionUpdates(t *testing.T) {
 		}
 	}
 	pushes := f.outboxPushes(bob)
+	postReadMax := func(self int64) int32 {
+		t.Helper()
+		m, err := f.c.svcCtx.Dao.Messages(context.Background(), self, p.channelId, []int32{p.post})
+		if err != nil || len(m) != 1 {
+			t.Fatalf("the post: %v, %v", m, err)
+		}
+		return m[0].GetReplies().GetReadMaxId().GetValue()
+	}
 
 	read(creator, p.copyId, p.comment+100)
+	if got := postReadMax(creator); got != p.comment {
+		t.Errorf("the post's read_max_id for the reader: %d, want %d", got, p.comment)
+	}
+	if got := postReadMax(bob); got != 0 {
+		t.Errorf("the post's read_max_id for another: %d", got)
+	}
 	if n := discussionReads(creator); n != 1 {
 		t.Fatalf("%d inbox updates", n)
 	}
