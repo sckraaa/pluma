@@ -10,6 +10,9 @@
 package core
 
 import (
+	"math/rand"
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
@@ -18,6 +21,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/historyttl"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
@@ -173,6 +177,10 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 	if err != nil {
 		return nil, err
 	}
+	auto, err := c.autoTTLMessage(fromUserId, toUserId, msgs)
+	if err != nil {
+		return nil, err
+	}
 
 	var rUpdates *mtproto.Updates
 	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId,
@@ -188,12 +196,24 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 				reply(sent)
 				return err
 			}
-			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_USER, toUserId, msgs)
+			send, period, changed, err := c.resolveDialogTTL(b, toUserId, msgs, auto)
+			if err != nil {
+				return err
+			}
+			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_USER, toUserId, send)
 			if err != nil {
 				return err
 			}
 			reply(boxes)
 			updates := newMessageUpdates(boxes)
+			if changed {
+				u, err := c.svcCtx.Dao.SetPeerTTL(b, mtproto.PEER_USER, toUserId, period,
+					users.GetUserListByIdList(fromUserId, toUserId), nil)
+				if err != nil {
+					return err
+				}
+				rUpdates.Updates = append(rUpdates.Updates, u)
+			}
 			// Saved Messages hold nothing unread: Telegram reads them up to
 			// the new message at once.
 			if toUserId == fromUserId && len(boxes) > 0 {
@@ -227,6 +247,74 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 		return nil, err
 	}
 	return rUpdates, nil
+}
+
+// autoTTLMessage is the service message that gives a new chat the sender's
+// default auto-delete period (core.telegram.org/constructor/
+// messageActionSetMessagesTTL, auto_setting_from: "emitted before our first
+// message"), or nil when the chat needs none: a chat with oneself, one the
+// sender wrote to before, a send that sets the period by hand. The message
+// is made here, with its id, so that resolveDialogTTL only has to decide
+// under the lock.
+func (c *MsgCore) autoTTLMessage(fromUserId, toUserId int64, msgs []dao.Outgoing) ([]dao.Outgoing, error) {
+	if fromUserId == toUserId {
+		return nil, nil
+	}
+	if _, set := dao.TTLChange(msgs); set {
+		return nil, nil
+	}
+	written, err := c.svcCtx.Dao.HasOutgoing(c.ctx, fromUserId, toUserId)
+	if err != nil || written {
+		return nil, err
+	}
+	def, err := c.svcCtx.Dao.UserClient.UserGetDefaultHistoryTTL(c.ctx, &userpb.TLUserGetDefaultHistoryTTL{UserId: fromUserId})
+	if err != nil {
+		return nil, err
+	}
+	if def.GetPeriod() == 0 {
+		return nil, nil
+	}
+	return c.outgoing([]*msg.OutboxMessage{msg.MakeTLOutboxMessage(&msg.OutboxMessage{
+		NoWebpage: true,
+		RandomId:  rand.Int63(),
+		Message: mtproto.MakeTLMessageService(&mtproto.Message{
+			Out:    true,
+			FromId: mtproto.MakePeerUser(fromUserId),
+			PeerId: mtproto.MakePeerUser(toUserId),
+			Date:   int32(time.Now().Unix()),
+			Action: historyttl.Action(def.GetPeriod(), fromUserId),
+		}).To_Message(),
+	}).To_OutboxMessage()})
+}
+
+// resolveDialogTTL decides under b's lock the period of the private chat
+// with toUserId for msgs, and gives it to them. It returns the messages to
+// send (auto before them when it applies) and the period, and tells whether
+// the dialog's period changes. A change to the period the chat has is
+// CHAT_NOT_MODIFIED (core.telegram.org/method/messages.setHistoryTTL).
+func (c *MsgCore) resolveDialogTTL(b *userbox.Box, toUserId int64, msgs, auto []dao.Outgoing) (send []dao.Outgoing, period int32, changed bool, err error) {
+	current, err := c.svcCtx.Dao.DialogTTL(b, mtproto.PEER_USER, toUserId)
+	if err != nil {
+		return nil, 0, false, err
+	}
+	send, period = msgs, current
+	if p, set := dao.TTLChange(msgs); set {
+		if p == current {
+			return nil, 0, false, mtproto.ErrChatNotModified
+		}
+		period, changed = p, true
+	} else if len(auto) > 0 && current == 0 {
+		written, err := c.svcCtx.Dao.HasOutgoingTx(b, toUserId)
+		if err != nil {
+			return nil, 0, false, err
+		}
+		if !written {
+			send = append(append([]dao.Outgoing{}, auto...), msgs...)
+			period, changed = auto[0].Message.GetAction().GetPeriod(), true
+		}
+	}
+	dao.ApplyTTL(send, period)
+	return send, period, changed, nil
 }
 
 // newMessageUpdates are the journaled updateNewMessage of boxes.
@@ -347,11 +435,24 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 				reply(sent)
 				return err
 			}
+			period, changed := dao.TTLChange(msgs)
+			if !changed {
+				period = chat.TTLPeriod()
+			}
+			dao.ApplyTTL(msgs, period)
 			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_CHAT, peerChatId, msgs)
 			if err != nil {
 				return err
 			}
 			reply(boxes)
+			if changed {
+				u, err := c.svcCtx.Dao.SetPeerTTL(b, mtproto.PEER_CHAT, peerChatId, period,
+					users.For(fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)})
+				if err != nil {
+					return err
+				}
+				rUpdates.Updates = append(rUpdates.Updates, u)
+			}
 
 			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
 				mtproto.MakeUpdatesByUpdatesUsersChats(users.For(fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {

@@ -34,4 +34,7 @@ type Config struct {
 	// ChannelClient gives the dialogs with channels what their channels
 	// hold (task 038).
 	ChannelClient zrpc.RpcClientConf
+	// MsgClient writes the service message of a change of the auto-delete
+	// period (task 063).
+	MsgClient zrpc.RpcClientConf
 }

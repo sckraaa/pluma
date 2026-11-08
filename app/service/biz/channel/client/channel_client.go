@@ -48,6 +48,7 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelSetHistoryTTL(ctx context.Context, in *channel.TLChannelSetHistoryTTL) (*mtproto.Updates, error)
 	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
 	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
@@ -492,4 +493,15 @@ func (m *defaultChannelClient) ChannelSetAvailableReactions(ctx context.Context,
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetAvailableReactions(ctx, in)
+}
+
+// ChannelSetHistoryTTL
+// channel.setHistoryTTL self_id:long perm_auth_key_id:long channel_id:long ttl_period:int = Updates;
+func (m *defaultChannelClient) ChannelSetHistoryTTL(ctx context.Context, in *channel.TLChannelSetHistoryTTL) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetHistoryTTL(ctx, in)
 }

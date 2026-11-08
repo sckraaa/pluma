@@ -130,6 +130,14 @@ type fakeUsers struct {
 	premiumOnly map[int64]bool
 	bots        map[int64]bool
 	missing     map[int64]bool
+	// defaultTTL are the default auto-delete periods of the accounts.
+	defaultTTL map[int64]int32
+}
+
+func (f *fakeUsers) UserGetDefaultHistoryTTL(_ context.Context, in *userpb.TLUserGetDefaultHistoryTTL) (*mtproto.DefaultHistoryTTL, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return mtproto.MakeTLDefaultHistoryTTL(&mtproto.DefaultHistoryTTL{Period: f.defaultTTL[in.UserId]}).To_DefaultHistoryTTL(), nil
 }
 
 // mark gives users their Premium and settings.
@@ -233,6 +241,10 @@ func (noChannels) ChannelGetMutableChannel(context.Context, *channelpb.TLChannel
 
 func (noChannels) ChannelGetChannelListByIdList(context.Context, *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error) {
 	return &channelpb.Vector_MutableChannel{}, nil
+}
+
+func (noChannels) ChannelSetHistoryTTL(context.Context, *channelpb.TLChannelSetHistoryTTL) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
 }
 
 func (noChannels) ChannelCreateChannel(context.Context, *channelpb.TLChannelCreateChannel) (*mtproto.Updates, error) {

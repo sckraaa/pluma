@@ -38,7 +38,7 @@ func (d *Dao) MakeDialog(dialogDO *dataobject.DialogsDO) *dialog.DialogExt {
 		Pts:                  nil,
 		Draft:                nil,
 		FolderId:             mtproto.MakeFlagsInt32(dialogDO.FolderId),
-		TtlPeriod:            nil,
+		TtlPeriod:            mtproto.MakeFlagsInt32(dialogDO.TtlPeriod),
 	}).To_Dialog()
 	// fix unreadCount
 	if dialog2.UnreadMentionsCount < 0 {

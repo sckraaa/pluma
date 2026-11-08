@@ -245,6 +245,9 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		m.Out = false
 		m.PeerId = mtproto.MakePeerChannel(channelId)
 		m.Date = int32(b.Date())
+		if err = ch.ApplyTTL(m); err != nil {
+			return nil, nil, nil, err
+		}
 		if s.ch.Broadcast {
 			m.Post = true
 			m.FromId = nil
@@ -386,6 +389,9 @@ func postCopy(b *userbox.Box, group *channelbox.Channel, channelId int64, post *
 	m.ReplyTo = nil
 	m.Replies = nil
 	m.Pinned = false
+	if err := group.ApplyTTL(m); err != nil {
+		return ChannelSent{}, err
+	}
 	m.FwdFrom = mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
 		FromId:         from,
 		Date:           post.Date,

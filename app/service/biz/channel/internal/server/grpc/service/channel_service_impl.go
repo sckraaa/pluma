@@ -555,3 +555,17 @@ func (s *Service) ChannelSetAvailableReactions(ctx context.Context, request *cha
 
 	return r, err
 }
+
+// ChannelSetHistoryTTL
+// channel.setHistoryTTL self_id:long perm_auth_key_id:long channel_id:long ttl_period:int = Updates;
+func (s *Service) ChannelSetHistoryTTL(ctx context.Context, request *channel.TLChannelSetHistoryTTL) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setHistoryTTL - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetHistoryTTL(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

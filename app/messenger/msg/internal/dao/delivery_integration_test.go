@@ -197,6 +197,9 @@ func (d *delivery) record(m *sarama.ConsumerMessage) {
 			return
 		}
 		p = push{updates: in.Updates}
+	case "sync.TL_sync_pushChannelUpdates":
+		// Channel pts are the channel's: the delivery checks boxes of users.
+		return
 	default:
 		d.fail("unexpected push %s", method)
 		return

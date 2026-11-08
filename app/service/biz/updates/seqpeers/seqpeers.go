@@ -68,6 +68,8 @@ func Pick(h *mtproto.IDListHelper, selfId int64, updates ...*mtproto.Update) {
 			if p := u.GetPeer_NOTIFYPEER().GetPeer(); p != nil {
 				h.PickByPeer(p)
 			}
+		case mtproto.Predicate_updatePeerHistoryTTL:
+			h.PickByPeer(u.GetPeer_PEER())
 		case mtproto.Predicate_updateDialogPinned,
 			mtproto.Predicate_updateSavedDialogPinned:
 			dialogPeer(u.GetPeer_DIALOGPEER())

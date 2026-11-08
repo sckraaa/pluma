@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/historyttl"
 )
 
 // MessagesSetDefaultHistoryTTL
@@ -28,7 +29,7 @@ import (
 func (c *PrivacySettingsCore) MessagesSetDefaultHistoryTTL(in *mtproto.TLMessagesSetDefaultHistoryTTL) (*mtproto.Bool, error) {
 	period := in.GetPeriod()
 
-	if period < 0 || period > 366*86400 {
+	if !historyttl.Valid(period) {
 		c.Logger.Errorf("messages.setDefaultHistoryTTL - error: invalid period %v", period)
 		return nil, mtproto.ErrTtlPeriodInvalid
 	}

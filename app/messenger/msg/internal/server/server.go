@@ -53,6 +53,8 @@ type Server struct {
 	grpcSrv *zrpc.RpcServer
 	inbox   *mqconsumer.Consumer
 	relay   *outbox.Relay
+	// stopExpiry stops the worker of the auto-deletion of messages.
+	stopExpiry context.CancelFunc
 
 	draining atomic.Bool
 	running  sync.WaitGroup
@@ -98,6 +100,10 @@ func (s *Server) Initialize() error {
 	s.inbox = inbox_helper.New(d, c.InboxConsumer)
 	s.inbox.Start()
 
+	expiry, stop := context.WithCancel(context.Background())
+	s.stopExpiry = stop
+	go d.RunExpiry(expiry)
+
 	return nil
 }
 
@@ -121,6 +127,9 @@ func (s *Server) RunLoop() {
 // events are rows of mq_outbox.
 func (s *Server) Destroy() {
 	s.draining.Store(true)
+	if s.stopExpiry != nil {
+		s.stopExpiry()
+	}
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {

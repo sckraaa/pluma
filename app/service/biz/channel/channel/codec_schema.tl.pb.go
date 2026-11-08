@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	-1811095406: func() mtproto.TLObject { // 0x940ce092 pluma: task 063
+		return &TLChannelSetHistoryTTL{
+			Constructor: -1811095406,
+		}
+	},
 	-922563101: func() mtproto.TLObject { // 0xc902cde3 pluma: task 044
 		return &TLChannelToggleSetting{
 			Constructor: -922563101,
@@ -2673,6 +2678,50 @@ func (m *TLChannelSetAvailableReactions) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.ChannelId = dBuf.Long()
 		m.ReactionsType = dBuf.Int()
 		m.Reactions = dBuf.VectorString()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSetHistoryTTL (pluma: task 063)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSetHistoryTTL) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x940ce092:
+		x.UInt(0x940ce092)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTtlPeriod())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSetHistoryTTL) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSetHistoryTTL) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x940ce092:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TtlPeriod = dBuf.Int()
 		return dBuf.GetError()
 
 	default:
