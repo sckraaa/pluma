@@ -152,3 +152,26 @@ func TestToggleSlowMode(t *testing.T) {
 	_, err = f.slowMode(creator, post, 30)
 	wantErr(t, "a broadcast channel", err, mtproto.ErrChannelInvalid)
 }
+
+// TestSlowModeLinkedReader: one who comments through the channel, out of its
+// discussion group, reads as a linked reader and keeps the last send of its
+// row, which the countdown of the full channel comes from.
+func TestSlowModeLinkedReader(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, reader := itId(), itId()
+	post, group := f.create(creator), f.create(creator)
+	f.broadcast(post)
+	f.member(post, reader)
+	f.exec("UPDATE channels SET linked_chat_id = ? WHERE id = ?", group, post)
+	f.exec("UPDATE channels SET linked_chat_id = ?, slowmode_seconds = 30 WHERE id = ?", post, group)
+	f.exec("INSERT INTO channel_participants (channel_id, user_id, state, last_send_date, `date`) VALUES (?, ?, ?, 1234, 1)", group, reader, channel.StateLeft)
+
+	mc, err := f.c.ChannelGetMutableChannel(&channel.TLChannelGetMutableChannel{ChannelId: group, Id: []int64{reader}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, ok := mc.GetParticipant(reader)
+	if !ok || p.GetState() != channel.StateLinked || p.GetLastSendDate() != 1234 {
+		t.Errorf("the reader: found %v, state %d, last send %d", ok, p.GetState(), p.GetLastSendDate())
+	}
+}
