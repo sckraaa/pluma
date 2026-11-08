@@ -217,8 +217,19 @@ func dialogRow(b *userbox.Box, peer boxPeer) (*dataobject.DialogsDO, error) {
 }
 
 // upsertDialog runs a dialog upsert and adds the cache keys it invalidates:
-// the row's key, and the list keys when the row is new.
+// the row's key, and the list keys when the row is new. A row that was
+// hidden (the draft of a chat without messages, task 063) joins the lists
+// just as a new one does.
 func upsertDialog(b *userbox.Box, peer boxPeer, query string, args ...any) error {
+	shown, err := b.Tx().Exec("UPDATE dialogs SET deleted = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ? AND deleted = 1",
+		b.UserId(), peer.PeerType, peer.PeerId)
+	if err != nil {
+		return err
+	}
+	revived, err := shown.RowsAffected()
+	if err != nil {
+		return err
+	}
 	r, err := b.Tx().Exec(query, args...)
 	if err != nil {
 		return err
@@ -226,6 +237,9 @@ func upsertDialog(b *userbox.Box, peer boxPeer, query string, args ...any) error
 	n, err := r.RowsAffected()
 	if err != nil {
 		return err
+	}
+	if revived > 0 {
+		n = 1
 	}
 	b.InvalidateCache(dialog.UpsertCacheKeys(b.UserId(), peer.PeerType, peer.PeerId, n)...)
 	return nil

@@ -19,12 +19,14 @@ package dao_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/historyttl"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -143,7 +145,7 @@ func TestAutoDeleteNotModified(t *testing.T) {
 	}
 	w.pub.drain()
 	before := w.state(a)
-	if _, err := w.setTTL(a, mtproto.PEER_USER, b, testTTL); err == nil || err.Error() == "" {
+	if _, err := w.setTTL(a, mtproto.PEER_USER, b, testTTL); !errors.Is(err, mtproto.ErrChatNotModified) {
 		t.Fatalf("same period: %v", err)
 	}
 	if st := w.state(a); st.Pts != before.Pts {
@@ -274,8 +276,17 @@ func TestDraftRowIsNoChat(t *testing.T) {
 	if has, err := w.d.HasPrivateChat(ctx, a, b); err != nil || has {
 		t.Errorf("HasPrivateChat of a draft: %v, %v", has, err)
 	}
-	// The first message shows the dialog and leaves the draft to clear_draft.
+	// The first message shows the dialog and leaves the draft to clear_draft;
+	// the cached list of dialogs, which did not have it, is dropped.
+	list := dialog.GetNotPinnedDialogIdListCacheKey(a)
+	if err := w.d.CachedConn.SetCache(ctx, list, []int64{}); err != nil {
+		t.Fatal(err)
+	}
 	w.send(a, mtproto.PEER_USER, b, "hi")
+	var cached []int64
+	if err := w.d.CachedConn.GetCache(ctx, list, &cached); err == nil {
+		t.Errorf("the list of dialogs stayed cached without the new one: %v", cached)
+	}
 	if has, err := w.d.HasPrivateChat(ctx, a, b); err != nil || !has {
 		t.Errorf("HasPrivateChat after a message: %v, %v", has, err)
 	}
