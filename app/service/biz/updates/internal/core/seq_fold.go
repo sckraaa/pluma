@@ -149,6 +149,8 @@ func seqKey(u *mtproto.Update) string {
 		return "channel:" + strconv.FormatInt(u.GetChannelId(), 10)
 	case mtproto.Predicate_updateReadChannelInbox:
 		return "channel_read:" + strconv.FormatInt(u.GetChannelId(), 10)
+	case mtproto.Predicate_updateReadChannelDiscussionInbox:
+		return "thread_read:" + strconv.FormatInt(u.GetChannelId(), 10) + "/" + strconv.Itoa(int(u.GetTopMsgId_INT32()))
 	}
 	return ""
 }

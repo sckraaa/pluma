@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -44,6 +45,19 @@ type Deleted struct {
 	Ids       []int32
 	Pts       int32
 	PtsCount  int32
+	// Copies are the deletions of the copies of deleted posts, one per
+	// discussion group; Posts the posts whose comments went with a deleted
+	// copy (task 048).
+	Copies []*Deleted
+	Posts  []PostCommentsOff
+}
+
+// PostCommentsOff is a post that no longer has comments, as stored, and
+// the pts of that change.
+type PostCommentsOff struct {
+	ChannelId int64
+	Message   *mtproto.Message
+	Pts       int32
 }
 
 // Delete deletes messages ids of the channel for everyone, by b's owner
@@ -55,12 +69,24 @@ type Deleted struct {
 // (core.telegram.org/method/channels.deleteMessages). The deleted ids are
 // one row of the journal, pts_count their number; the channel's
 // top_message moves to the last message left.
+//
+// A deleted post takes its copy in the discussion group with it; the
+// comments stay in the group. A deleted copy turns the comments of its
+// post off (core.telegram.org/api/discussion: "the comment section of a
+// particular post can be disabled by removing the auto-forwarded channel
+// post message"). Either way the other channel is locked with this one, in
+// ascending order, and written in the same transaction.
 func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, error) {
-	ch, err := openChannel(b, channelId)
+	ids = slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(ids))), func(id int32) bool { return id <= 0 })
+	links, err := discussionLinks(b, channelId, ids)
 	if err != nil {
 		return nil, err
 	}
-	c, me, err := channelForMember(b, channelId)
+	ch, err := openWithLinked(b, channelId, links)
+	if err != nil {
+		return nil, err
+	}
+	_, me, err := channelForMember(b, channelId)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +101,6 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	admin := a.can(channelperm.DeleteOthers, b.Date()) == nil
 
 	out := &Deleted{ChannelId: channelId}
-	ids = slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(ids))), func(id int32) bool { return id <= 0 })
 	if len(ids) == 0 {
 		return out, nil
 	}
@@ -98,52 +123,99 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	if len(out.Ids) == 0 {
 		return out, nil
 	}
-	args = []any{channelId}
+	if err = removeMessages(b, ch, out); err != nil {
+		return nil, err
+	}
+	// Read again with the channels locked: a link changes only with both
+	// of its channels locked.
+	if links, err = discussionLinks(b, channelId, out.Ids); err != nil {
+		return nil, err
+	}
+	if err = removeLinked(b, channelId, links, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// removeMessages deletes out.Ids of the locked channel: the mentions of
+// them go, top_message moves to the last message left, and one row of the
+// journal holds them, pts_count their number.
+func removeMessages(b *userbox.Box, ch *channelbox.Channel, out *Deleted) error {
+	args := []any{out.ChannelId}
 	for _, id := range out.Ids {
 		args = append(args, id)
 	}
 	in := "(?" + strings.Repeat(", ?", len(out.Ids)-1) + ")"
-	if _, err = b.Tx().Exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id IN "+in, args...); err != nil {
-		return nil, err
+	if _, err := b.Tx().Exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id IN "+in, args...); err != nil {
+		return err
 	}
-	if _, err = b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
-		return nil, err
+	if _, err := b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
+		return err
 	}
-	if slices.Contains(out.Ids, c.TopMessage) {
-		var top []int32
-		if err = b.Tx().QueryRowsPartial(&top, "SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0", channelId); err != nil {
-			return nil, err
+	var top []int32
+	if err := b.Tx().QueryRowsPartial(&top, "SELECT top_message FROM channels WHERE id = ?", out.ChannelId); err != nil {
+		return err
+	}
+	if slices.Contains(out.Ids, first(top)) {
+		var last []int32
+		if err := b.Tx().QueryRowsPartial(&last, "SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0", out.ChannelId); err != nil {
+			return err
 		}
-		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", first(top), channelId); err != nil {
-			return nil, err
+		if _, err := b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", first(last), out.ChannelId); err != nil {
+			return err
 		}
 	}
 	out.PtsCount = int32(len(out.Ids))
-	ch.AddPtsUpdate(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{ChannelId: channelId, Messages: out.Ids}).To_Update(), out.PtsCount)
+	ch.AddPtsUpdate(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{ChannelId: out.ChannelId, Messages: out.Ids}).To_Update(), out.PtsCount)
 	out.Pts = ch.Pts()
-	return out, nil
+	return nil
 }
 
-// EmitDeletePush adds the push of the deletion to the channel's members.
+// EmitDeletePush adds the push of the deletion to the channel's members,
+// and of what went with it to the members of the other channels. The
+// answer to the deletion holds the channel's own pts alone: every device
+// of the owner is told of the rest.
 func (d *Dao) EmitDeletePush(b *userbox.Box, permAuthKeyId int64, del *Deleted) error {
 	if len(del.Ids) == 0 {
 		return nil
 	}
+	if err := d.emitDeletion(b, permAuthKeyId, del); err != nil {
+		return err
+	}
+	for _, c := range del.Copies {
+		if err := d.emitDeletion(b, 0, c); err != nil {
+			return err
+		}
+	}
+	for _, p := range del.Posts {
+		u := mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: p.Message, Pts_INT32: p.Pts, PtsCount: 1}).To_Update()
+		if err := d.emitChannelUpdate(b, p.ChannelId, 0, u); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (d *Dao) emitDeletion(b *userbox.Box, permAuthKeyId int64, del *Deleted) error {
+	return d.emitChannelUpdate(b, del.ChannelId, permAuthKeyId, mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{
+		ChannelId: del.ChannelId,
+		Messages:  del.Ids,
+		Pts_INT32: del.Pts,
+		PtsCount:  del.PtsCount,
+	}).To_Update())
+}
+
+func (d *Dao) emitChannelUpdate(b *userbox.Box, channelId, permAuthKeyId int64, u *mtproto.Update) error {
 	in := &sync.TLSyncPushChannelUpdates{
-		ChannelId:     del.ChannelId,
+		ChannelId:     channelId,
 		FromId:        b.UserId(),
 		FromAuthKeyId: permAuthKeyId,
-		Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{
-			ChannelId: del.ChannelId,
-			Messages:  del.Ids,
-			Pts_INT32: del.Pts,
-			PtsCount:  del.PtsCount,
-		}).To_Update()),
+		Updates:       mtproto.MakeUpdatesByUpdates(u),
 	}
 	data, err := jsonx.Marshal(in)
 	if err != nil {
 		return err
 	}
-	b.Emit(userbox.Event{Topic: d.Topics.Sync, Recipient: del.ChannelId, Method: string(proto.MessageName(in)), Data: data})
+	b.Emit(userbox.Event{Topic: d.Topics.Sync, Recipient: channelId, Method: string(proto.MessageName(in)), Data: data})
 	return nil
 }
