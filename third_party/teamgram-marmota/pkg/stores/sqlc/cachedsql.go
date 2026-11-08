@@ -123,6 +123,28 @@ func (cc CachedConn) QueryRows(ctx context.Context, query KeysQueryFn, calVal Ca
 		keys...)
 }
 
+// pluma: leased reads, cache/batchlease.go.
+//
+// QueryRowLeased is QueryRow for a key whose writers delete it after their
+// commit: a query that overlaps a change does not fill the cache, and no
+// query is shared between requests (cache.TakeLeasedCtx).
+func (cc CachedConn) QueryRowLeased(ctx context.Context, v interface{}, key string, query QueryFn) error {
+	return cc.cache.TakeLeasedCtx(ctx, v, key, func(v interface{}) error {
+		return query(ctx, cc.db, v)
+	})
+}
+
+// QueryRowsLeased is QueryRows with the guarantee of QueryRowLeased.
+func (cc CachedConn) QueryRowsLeased(ctx context.Context, query KeysQueryFn, calVal CacheFn, keys ...string) error {
+	return cc.cache.TakesLeasedCtx(
+		ctx,
+		func(keys ...string) (map[string]interface{}, error) {
+			return query(ctx, cc.db, keys...)
+		},
+		calVal,
+		keys...)
+}
+
 // QueryRowIndex unmarshals into v with given key.
 func (cc CachedConn) QueryRowIndex(ctx context.Context, v interface{}, key string,
 	keyer func(primary interface{}) string, indexQuery IndexQueryFn,

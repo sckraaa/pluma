@@ -90,6 +90,39 @@ func (bc *batchCluster) TakesCtx(ctx context.Context,
 	return be.Err()
 }
 
+// pluma: leased reads, batchlease.go.
+func (bc *batchCluster) TakeLeasedCtx(ctx context.Context, v any, key string, query func(v any) error) error {
+	c, ok := bc.dispatcher.Get(key)
+	if !ok {
+		return fmt.Errorf("key %q not found", key)
+	}
+	return c.(*batchNode).TakeLeasedCtx(ctx, v, key, query)
+}
+
+func (bc *batchCluster) TakesLeasedCtx(ctx context.Context,
+	query func(keys ...string) (map[string]any, error),
+	cacheF func(k, v string) (any, error), keys ...string) error {
+	var be errorx.BatchError
+	nodes := make(map[any][]string)
+
+	for _, key := range keys {
+		c, ok := bc.dispatcher.Get(key)
+		if !ok {
+			be.Add(fmt.Errorf("key %q not found", key))
+			continue
+		}
+		nodes[c] = append(nodes[c], key)
+	}
+
+	for c, ks := range nodes {
+		if err := c.(*batchNode).TakesLeasedCtx(ctx, query, cacheF, ks...); err != nil {
+			be.Add(err)
+		}
+	}
+
+	return be.Err()
+}
+
 func (bc *batchCluster) TakesWithExpire(
 	query func(expire time.Duration, keys ...string) (map[string]any, error),
 	cacheF func(k, v string) (any, error), keys ...string) error {

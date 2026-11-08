@@ -102,7 +102,9 @@ func (d *Dao) GetCacheUserData(ctx context.Context, id int64) *CacheUserData {
 		cacheUserData *CacheUserData
 	)
 
-	err := d.CachedConn.QueryRow(
+	// Leased: a load takes several reads and RPCs, and one that overlaps a
+	// change of the user must not leave the old user in the cache.
+	err := d.CachedConn.QueryRowLeased(
 		ctx,
 		&cacheUserData,
 		genCacheUserDataCacheKey(id),
@@ -358,7 +360,7 @@ func (d *Dao) GetCacheUserDataListByIdList(ctx context.Context, idList []int64) 
 		keyList = append(keyList, genCacheUserDataCacheKey(id))
 	}
 
-	_ = d.CachedConn.QueryRows(
+	_ = d.CachedConn.QueryRowsLeased(
 		ctx,
 		func(ctx context.Context, conn *sqlx.DB, keys ...string) (map[string]interface{}, error) {
 			vList := make(map[string]interface{}, len(keys))

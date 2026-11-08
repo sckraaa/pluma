@@ -176,6 +176,30 @@ func eventually(t testing.TB, timeout time.Duration, what string, ok func() bool
 	}
 }
 
+// waitTopicServed waits until the broker answers for every partition of a
+// topic just created. kafka-topics.sh returns earlier: a KRaft broker
+// publishes the new topic to its metadata cache before it creates the
+// partitions (BrokerMetadataPublisher.scala in 3.9.0), and in between it
+// answers NOT_LEADER_OR_FOLLOWER (ReplicaManager.getPartitionOrError).
+func waitTopicServed(t testing.TB, topic string) {
+	t.Helper()
+	cfg := sarama.NewConfig()
+	cfg.Version = KafkaVersion
+	c, err := sarama.NewClient(itKafka.Brokers, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	eventually(t, 30*time.Second, "topic "+topic+" served", func() bool {
+		for p := range int32(Partitions) {
+			if _, err := c.GetOffset(topic, p, sarama.OffsetOldest); err != nil {
+				return false
+			}
+		}
+		return true
+	})
+}
+
 func countRows(t testing.TB, db *sql.DB, where string, args ...any) int {
 	t.Helper()
 	var n int
@@ -483,6 +507,7 @@ func TestRelayRefusedRows(t *testing.T) {
 		"--replication-factor", "1", "--config", "max.message.bytes=200"); err != nil {
 		t.Fatal(err)
 	}
+	waitTopicServed(t, smallInbox)
 	tr := readTopics(t, "Sync-T", smallInbox)
 	startRelay(t, db, nil)
 	recipient := itUser()

@@ -22,11 +22,16 @@ import (
 	"errors"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // The public photo and the personal photo of a contact (task 051, ADR 0033).
@@ -62,6 +67,85 @@ func storedInt(t *testing.T, query string, args ...any) int64 {
 		t.Fatal(err)
 	}
 	return v
+}
+
+// gatedMedia holds the first request for a photo once armed, as a slow
+// media server would: the load of the user it belongs to stays in progress.
+type gatedMedia struct {
+	*fakeMedia
+	armed   atomic.Bool
+	once    sync.Once
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (g *gatedMedia) MediaGetPhoto(ctx context.Context, in *media.TLMediaGetPhoto) (*mtproto.Photo, error) {
+	if g.armed.Load() {
+		g.once.Do(func() {
+			close(g.entered)
+			<-g.release
+		})
+	}
+	return g.fakeMedia.MediaGetPhoto(ctx, in)
+}
+
+// A load of the user that began before a change and ends after it: a read
+// made after the commit does not get what the load read, and the load does
+// not put it into the cache.
+func TestLoadOverlappingAChangeDoesNotFillTheCache(t *testing.T) {
+	const public = 7301
+	g := &gatedMedia{fakeMedia: newFakeMedia(public), entered: make(chan struct{}), release: make(chan struct{})}
+	c := mediaCore(t, g.fakeMedia)
+	u, _ := newUser(t, "Lea")
+	if _, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: u, Id: public, Uploaded: true, Fallback: true}); err != nil {
+		t.Fatal(err)
+	}
+
+	d := *c.svcCtx.Dao
+	d.MediaClient = g
+	ctx := context.Background()
+	key := dao.GenCacheUserDataCacheKey(u)
+	if err := d.CachedConn.DelCache(ctx, key); err != nil {
+		t.Fatal(err)
+	}
+	fallbackOf := func() int64 { return d.GetCacheUserData(ctx, u).GetUserData().GetFallbackPhoto().GetId() }
+
+	g.armed.Store(true)
+	var unblock sync.Once
+	defer unblock.Do(func() { close(g.release) })
+	stale := make(chan int64, 1)
+	go func() { stale <- fallbackOf() }()
+	select {
+	case <-g.entered:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the load did not reach the media server")
+	}
+
+	if _, err := d.RunBox(ctx, u, []string{key}, func(b *userbox.Box) error {
+		_, err := b.Tx().Exec("UPDATE users SET fallback_photo_id = 0 WHERE id = ?", u)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	fresh := make(chan int64, 1)
+	go func() { fresh <- fallbackOf() }()
+	select {
+	case got := <-fresh:
+		if got != 0 {
+			t.Errorf("a read after the commit: public photo %d, want none", got)
+		}
+	case <-time.After(10 * time.Second):
+		t.Error("a read after the commit waits for a load begun before it")
+	}
+
+	unblock.Do(func() { close(g.release) })
+	if got := <-stale; got != public {
+		t.Errorf("the load overlapping the change read %d, want %d", got, public)
+	}
+	if got := fallbackOf(); got != 0 {
+		t.Errorf("after the overlapping load: public photo %d, want none", got)
+	}
 }
 
 // The public photo is kept apart from the main photo and the album: users
