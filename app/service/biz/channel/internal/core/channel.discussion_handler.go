@@ -66,7 +66,11 @@ func (c *ChannelCore) ChannelGetGroupsForDiscussion(in *channel.TLChannelGetGrou
 // not read (core.telegram.org/method/messages.getDiscussionMessage). The
 // clients then load the replies by the group and that message
 // (Android ChatActivity.java:35598-35680). A group self_id may not read is
-// CHANNEL_PRIVATE.
+// CHANNEL_PRIVATE. The thread of a supergroup whose first message was
+// deleted has no message and goes on while it has replies (tdesktop
+// window_session_controller.cpp:1265-1273 opens it by the root's id, and
+// says the message is not found on MSG_ID_INVALID); a post whose copy is
+// gone has no comments.
 func (c *ChannelCore) ChannelGetDiscussionMessage(in *channel.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error) {
 	d := c.svcCtx.Dao
 	if _, err := d.Messages(c.ctx, in.SelfId, in.ChannelId, []int32{in.MsgId}); err != nil {
@@ -80,10 +84,14 @@ func (c *ChannelCore) ChannelGetDiscussionMessage(in *channel.TLChannelGetDiscus
 	if err != nil {
 		return nil, err
 	}
-	if len(top) == 0 {
+	if len(top) == 0 && (t.GroupId != in.ChannelId || t.Count == 0) {
 		return nil, mtproto.ErrMsgIdInvalid
 	}
 	readMax, unread, err := d.ThreadRead(c.ctx, in.SelfId, t)
+	if err != nil {
+		return nil, err
+	}
+	outbox, err := d.ThreadOutboxRead(c.ctx, in.SelfId, t)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +106,9 @@ func (c *ChannelCore) ChannelGetDiscussionMessage(in *channel.TLChannelGetDiscus
 	}
 	if readMax != 0 {
 		out.ReadInboxMaxId = mtproto.MakeFlagsInt32(readMax)
+	}
+	if outbox != 0 {
+		out.ReadOutboxMaxId = mtproto.MakeFlagsInt32(outbox)
 	}
 	return mtproto.MakeTLMessagesDiscussionMessage(out).To_Messages_DiscussionMessage(), nil
 }
@@ -124,7 +135,8 @@ func (c *ChannelCore) ChannelGetReplies(in *channel.TLChannelGetReplies) (*mtpro
 // ChannelReadDiscussion
 // channel.readDiscussion self_id:long perm_auth_key_id:long channel_id:long msg_id:int read_max_id:int = Bool;
 //
-// self_id read the thread of msg_id up to read_max_id (dao.ReadThread).
+// self_id read the thread of msg_id up to read_max_id (dao.ReadThread),
+// its devices and the authors of the replies read told by the updates.
 func (c *ChannelCore) ChannelReadDiscussion(in *channel.TLChannelReadDiscussion) (*mtproto.Bool, error) {
 	t, err := c.svcCtx.Dao.ThreadOf(c.ctx, in.ChannelId, in.MsgId)
 	if err != nil {
@@ -138,7 +150,7 @@ func (c *ChannelCore) ChannelReadDiscussion(in *channel.TLChannelReadDiscussion)
 		return nil, mtproto.ErrChannelPrivate
 	}
 	if _, err = c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
-		return c.svcCtx.Dao.ReadThread(b, t.GroupId, t.TopId, in.ReadMaxId)
+		return c.svcCtx.Dao.ReadThread(b, t, in.ReadMaxId)
 	}); err != nil {
 		return nil, c.membershipError("channel.readDiscussion", err)
 	}

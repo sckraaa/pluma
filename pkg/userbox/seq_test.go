@@ -117,6 +117,7 @@ func TestSeqUpdate(t *testing.T) {
 		mtproto.Predicate_updateChatDefaultBannedRights,
 		mtproto.Predicate_updatePendingJoinRequests,
 		mtproto.Predicate_updateNewAuthorization,
+		mtproto.Predicate_updateReadChannelDiscussionInbox,
 	} {
 		if !SeqUpdate(p) {
 			t.Errorf("%s goes without seq", p)
