@@ -1,6 +1,6 @@
 # 044. Каналы: название, фото, настройки, реакции, публичные имена
 
-- Статус: in progress (название, описание, публичные имена, удаление, фото, реакции готовы; настройки — нет)
+- Статус: in progress (сервер готов; ждёт проверки в клиентах)
 - Зависит от: 040
 - ADR: 0034 «Ящик канала». Исследование: `docs/tasks/035-research/` (`server.md` §1.5, §2.6, задача T9; `clients.md` §1 «Create», §3, §4 п. 1, 5, 8, 10; `plan.md` §3, задача «043» плана, §4 п. 3).
 
@@ -67,3 +67,15 @@
   - «недавние реакции» учитывают и каналы. Отметка «непрочитано» для автора в каналах не ведётся.
 - **Проверка:** интеграционный `TestEditPhoto`, модульный `TestViewBroadcast`, e2e `TestChannelReactions` (ответ, пуш автору, `getMessagesReactions`, история, список, снятие реакции).
 - **Осталось:** подписи (`toggleSignatures`), история для новых (`togglePreHistoryHidden`), скрытие участников, `toggleNoForwards` и `setChatAvailableReactions` для каналов; проверка в клиентах.
+
+### Настройки (2026-11-08, ветка `task/044-settings`)
+- Один RPC biz `channel.toggleSetting` (номера — `channel.Setting*`): в транзакции меняющего под блокировкой канала, права — `change_info`; тот же — `CHAT_NOT_MODIFIED`; версия канала растёт, участники перечитывают канал.
+  - `channels.toggleSignatures` (оба варианта): посты трансляции подписываются именем автора (`post_author`, имя и фамилия). Подписи-ссылки на профиль (`profiles_enabled`) не хранятся — решение на подтверждение.
+  - `channels.togglePreHistoryHidden`: новые участники супергруппы видят историю со своего вступления (как уже делали вступление и приглашение); у группы обсуждения — `CHAT_LINK_EXISTS` (её читают комментаторы).
+  - `channels.toggleParticipantsHidden`: не-админам список участников — только админы (любой фильтр; список, а не ошибка — iOS повторяет ошибку бесконечно; как отвечает Telegram, не сверено); включение — от 100 участников (`hidden_members_group_size_min`), иначе `PARTICIPANTS_TOO_FEW`. В `channelFull` — `participants_hidden`, `can_view_participants` у не-админа выключен.
+  - `messages.toggleNoForwards` для канала: пересылка из него — `CHAT_FORWARDS_RESTRICTED` (проверка в пересылке уже была).
+  - `channels.toggleJoinToSend`: комментаторы группы обсуждения вступают сначала (иначе — гости, 048).
+  - `channels.toggleJoinRequest` не включён: без заявок на вступление (041) он закрыл бы вход.
+- Реакции: `messages.setChatAvailableReactions` для канала → biz `channel.setAvailableReactions` (как у базовых групп: нет / все без своих эмодзи / все / выбранные, до 100); `channelFull.available_reactions` отдаёт их (канал без выбора — стандартные); реакция вне списка — `REACTION_INVALID`. Вид канала (`immutableChannel`) получил `available_reactions_type` и `available_reactions` — конструктор сменился вместе с ними.
+- **Проверка:** e2e `TestChannelSettings` (подписчик не меняет, подпись поста, повтор — `CHAT_NOT_MODIFIED`, запрет пересылки, разрешённая и неразрешённая реакции, скрытая история, `PARTICIPANTS_TOO_FEW`).
+- **Осталось:** проверка в клиентах.
