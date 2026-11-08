@@ -56,6 +56,18 @@ func (c *ChannelCore) ChannelToggleSlowMode(in *channel.TLChannelToggleSlowMode)
 	})
 }
 
+// ChannelSetHistoryTTL
+// channel.setHistoryTTL self_id:long perm_auth_key_id:long channel_id:long ttl_period:int = Updates;
+//
+// self_id sets the auto-delete period of the channel's new messages
+// (dao.SetHistoryTTL), with the service message and updatePeerHistoryTTL for
+// the members.
+func (c *ChannelCore) ChannelSetHistoryTTL(in *channel.TLChannelSetHistoryTTL) (*mtproto.Updates, error) {
+	return c.editRights("channel.setHistoryTTL", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.SetHistoryTTL(b, in.ChannelId, in.TtlPeriod)
+	})
+}
+
 // ChannelSetAvailableReactions
 // channel.setAvailableReactions self_id:long perm_auth_key_id:long channel_id:long reactions_type:int reactions:Vector<string> = Updates;
 //

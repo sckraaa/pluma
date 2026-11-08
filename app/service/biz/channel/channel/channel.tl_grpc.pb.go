@@ -88,6 +88,7 @@ const (
 	RPCChannel_ChannelSearchTopic_FullMethodName                      = "/channel.RPCChannel/channel_searchTopic"
 	RPCChannel_ChannelReadTopicMentions_FullMethodName                = "/channel.RPCChannel/channel_readTopicMentions"
 	RPCChannel_ChannelUnpinAllTopicMessages_FullMethodName            = "/channel.RPCChannel/channel_unpinAllTopicMessages"
+	RPCChannel_ChannelSetHistoryTTL_FullMethodName                    = "/channel.RPCChannel/channel_setHistoryTTL"
 	RPCChannel_ChannelToggleSetting_FullMethodName                    = "/channel.RPCChannel/channel_toggleSetting"
 	RPCChannel_ChannelSetAvailableReactions_FullMethodName            = "/channel.RPCChannel/channel_setAvailableReactions"
 	RPCChannel_ChannelSetDiscussionGroup_FullMethodName               = "/channel.RPCChannel/channel_setDiscussionGroup"
@@ -212,6 +213,8 @@ type RPCChannelClient interface {
 	ChannelReadTopicMentions(ctx context.Context, in *TLChannelReadTopicMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 060
 	ChannelUnpinAllTopicMessages(ctx context.Context, in *TLChannelUnpinAllTopicMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 063
+	ChannelSetHistoryTTL(ctx context.Context, in *TLChannelSetHistoryTTL, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -774,6 +777,16 @@ func (c *rPCChannelClient) ChannelUnpinAllTopicMessages(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelSetHistoryTTL(ctx context.Context, in *TLChannelSetHistoryTTL, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetHistoryTTL_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -1040,6 +1053,8 @@ type RPCChannelServer interface {
 	ChannelReadTopicMentions(context.Context, *TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 060
 	ChannelUnpinAllTopicMessages(context.Context, *TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 063
+	ChannelSetHistoryTTL(context.Context, *TLChannelSetHistoryTTL) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -1236,6 +1251,9 @@ func (UnimplementedRPCChannelServer) ChannelReadTopicMentions(context.Context, *
 }
 func (UnimplementedRPCChannelServer) ChannelUnpinAllTopicMessages(context.Context, *TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelUnpinAllTopicMessages not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSetHistoryTTL(context.Context, *TLChannelSetHistoryTTL) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetHistoryTTL not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
@@ -2241,6 +2259,24 @@ func _RPCChannel_ChannelUnpinAllTopicMessages_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelSetHistoryTTL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSetHistoryTTL)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSetHistoryTTL(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSetHistoryTTL_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSetHistoryTTL(ctx, req.(*TLChannelSetHistoryTTL))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelToggleSetting)
 	if err := dec(in); err != nil {
@@ -2743,6 +2779,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_unpinAllTopicMessages",
 			Handler:    _RPCChannel_ChannelUnpinAllTopicMessages_Handler,
+		},
+		{
+			MethodName: "channel_setHistoryTTL",
+			Handler:    _RPCChannel_ChannelSetHistoryTTL_Handler,
 		},
 		{
 			MethodName: "channel_toggleSetting",

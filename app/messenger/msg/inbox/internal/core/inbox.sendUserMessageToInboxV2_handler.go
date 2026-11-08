@@ -73,8 +73,11 @@ func (c *InboxCore) InboxSendUserMessageToInboxV2(in *inbox.TLInboxSendUserMessa
 				updates = append(updates, moved)
 			}
 		}
-		return true, c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, bot,
-			mtproto.MakeUpdatesByUpdatesUsersChats(in.Users, in.Chats, updates...))
+		if err = c.svcCtx.Dao.EmitPushUpdates(b, in.UserId, bot,
+			mtproto.MakeUpdatesByUpdatesUsersChats(in.Users, in.Chats, updates...)); err != nil || received.TTL == nil || bot {
+			return true, err
+		}
+		return true, c.svcCtx.Dao.EmitSeqUpdate(b, received.TTL, in.Users, in.Chats)
 	})
 }
 

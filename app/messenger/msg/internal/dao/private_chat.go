@@ -22,11 +22,12 @@ import (
 )
 
 // HasPrivateChat tells whether userId has a private chat with peerId: its
-// dialog with the user (task 014, pkg/premium).
+// dialog with the user (task 014, pkg/premium). A row that only holds a
+// draft of a chat that never had a message is none (task 063).
 func (d *Dao) HasPrivateChat(ctx context.Context, userId, peerId int64) (bool, error) {
 	var ids []int64
 	if err := d.Mysql.DB.QueryRowsPartial(ctx, &ids,
-		"SELECT peer_id FROM dialogs WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+		"SELECT peer_id FROM dialogs WHERE user_id = ? AND peer_type = ? AND peer_id = ? AND (deleted = 0 OR top_message > 0)",
 		userId, mtproto.PEER_USER, peerId); err != nil {
 		return false, err
 	}

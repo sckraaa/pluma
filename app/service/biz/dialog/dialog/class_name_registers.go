@@ -54,6 +54,8 @@ const (
 	Predicate_dialog_toggleDialogFilterTags            = "dialog_toggleDialogFilterTags"
 	Predicate_dialog_getDialogFilterTags               = "dialog_getDialogFilterTags"
 	Predicate_dialog_setChatWallpaper                  = "dialog_setChatWallpaper"
+	// pluma: task 063
+	Predicate_dialog_saveThreadDraft = "dialog_saveThreadDraft"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -229,6 +231,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1252926702, // 0xb551db12
 
 	},
+	Predicate_dialog_saveThreadDraft: { // pluma: task 063
+		0: -416704029, // 0xe72999e3
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -275,6 +281,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1597149815: Predicate_dialog_toggleDialogFilterTags,            // 0xa0cd6d89
 	-84870505:   Predicate_dialog_getDialogFilterTags,               // 0xfaf0fa97
 	-1252926702: Predicate_dialog_setChatWallpaper,                  // 0xb551db12
+	-416704029:  Predicate_dialog_saveThreadDraft,                   // 0xe72999e3 pluma: task 063
 
 }
 

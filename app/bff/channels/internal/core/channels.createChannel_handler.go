@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/historyttl"
 )
 
 // Limits of a channel's title and description, in characters, as the
@@ -30,6 +31,16 @@ const (
 	titleMax = 128
 	aboutMax = 255
 )
+
+// createdChannel is the id of the channel in the answer of its creation.
+func createdChannel(r *mtproto.Updates) int64 {
+	for _, chat := range r.GetChats() {
+		if chat.GetPredicateName() == mtproto.Predicate_channel {
+			return chat.GetId()
+		}
+	}
+	return 0
+}
 
 // ChannelsCreateChannel
 // channels.createChannel#91006707 flags:# broadcast:flags.0?true megagroup:flags.1?true for_import:flags.3?true forum:flags.5?true title:string about:string geo_point:flags.2?InputGeoPoint address:flags.2?string ttl_period:flags.4?int = Updates;
@@ -51,6 +62,22 @@ func (c *ChannelsCore) ChannelsCreateChannel(in *mtproto.TLChannelsCreateChannel
 	if utf8.RuneCountInString(in.About) > aboutMax {
 		return nil, mtproto.ErrChatAboutTooLong
 	}
+	ttl := in.GetTtlPeriod().GetValue()
+	if in.GetTtlPeriod() == nil {
+		// The clients send the account's default period for a supergroup
+		// (tdesktop add_contact_box.cpp); for a channel Android sends none
+		// (ChannelCreateActivity), and the default applies to all new chats
+		// (core.telegram.org/method/messages.setDefaultHistoryTTL).
+		def, err := c.svcCtx.User.UserGetDefaultHistoryTTL(c.ctx, &userpb.TLUserGetDefaultHistoryTTL{UserId: c.MD.UserId})
+		if err != nil {
+			c.Logger.Errorf("channels.createChannel - error: %v", err)
+			return nil, err
+		}
+		ttl = def.GetPeriod()
+	}
+	if !historyttl.Valid(ttl) {
+		return nil, mtproto.ErrTtlPeriodInvalid
+	}
 	broadcast := !in.Megagroup
 	r, err := c.svcCtx.Channel.ChannelCreateChannel(c.ctx, &channelpb.TLChannelCreateChannel{
 		CreatorId: c.MD.UserId,
@@ -70,5 +97,17 @@ func (c *ChannelsCore) ChannelsCreateChannel(in *mtproto.TLChannelsCreateChannel
 		return nil, err
 	}
 	r.Users = users.GetUserListByIdList(c.MD.UserId, c.MD.UserId)
+	if ttl > 0 {
+		// The channel stands by now: a period that fails is logged and the
+		// user sets it again, rather than creating a second channel.
+		set, err := c.svcCtx.Channel.ChannelSetHistoryTTL(c.ctx, &channelpb.TLChannelSetHistoryTTL{
+			SelfId: c.MD.UserId, PermAuthKeyId: c.MD.PermAuthKeyId, ChannelId: createdChannel(r), TtlPeriod: ttl,
+		})
+		if err != nil {
+			c.Logger.Errorf("channels.createChannel - setHistoryTTL: %v", err)
+		} else {
+			r.Updates = append(r.Updates, set.GetUpdates()...)
+		}
+	}
 	return r, nil
 }

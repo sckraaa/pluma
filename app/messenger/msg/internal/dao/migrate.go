@@ -74,8 +74,8 @@ type migrateChatRow struct {
 // CHAT_ID_INVALID; CHANNELS_TOO_MUCH when the creator is in ChannelsLimit
 // channels.
 //
-// The supergroup takes the group's title, description, photo and default
-// restrictions; the creator is its creator, the admins its admins with
+// The supergroup takes the group's title, description, photo, default
+// restrictions and auto-delete period; the creator is its creator, the admins its admins with
 // MigrateAdminRights, the others members. migrated_from_max_id is the
 // newest message of the group in any member's box: the ids of a basic
 // group are each member's own, and every member's history of the group
@@ -177,8 +177,8 @@ func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat, dialogMessa
 		banned = int32(uint32(r.ToBannedRights())) &^ mtproto.BANNED_VIEW_MESSAGES
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET photo_id = ?, default_banned_rights = ?, migrated_from_chat_id = ?, migrated_from_max_id = ?,"+
-		" participants_count = ?, admins_count = ?, top_message = ? WHERE id = ?",
-		chat.Photo().GetId(), banned, chatId, maxIds[0], count, admins, out.First.Id, out.ChannelId); err != nil {
+		" participants_count = ?, admins_count = ?, top_message = ?, ttl_period = ? WHERE id = ?",
+		chat.Photo().GetId(), banned, chatId, maxIds[0], count, admins, out.First.Id, chat.TTLPeriod(), out.ChannelId); err != nil {
 		return nil, err
 	}
 	if err = movedTo(b, out.ChannelId, out.First.Id); err != nil {

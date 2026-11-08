@@ -114,6 +114,7 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		full.UnreadCount = d[0].GetUnreadCount()
 		full.Pts = d[0].GetPts().GetValue()
 		full.ViewForumAsMessages = d[0].GetViewForumAsMessages()
+		full.TtlPeriod = d[0].GetTtlPeriod()
 	}
 	// The pinned bar shows the newest pinned message (task 043).
 	pinned, err := c.svcCtx.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{

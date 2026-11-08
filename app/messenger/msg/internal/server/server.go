@@ -56,6 +56,8 @@ type Server struct {
 	// scheduled delivers the schedule queues (task 061).
 	scheduled interface{ Stop() }
 	polls     *msg_helper.PollSweeper
+	// stopExpiry stops the worker of the auto-deletion of messages.
+	stopExpiry context.CancelFunc
 
 	draining atomic.Bool
 	running  sync.WaitGroup
@@ -107,6 +109,10 @@ func (s *Server) Initialize() error {
 	s.scheduled = scheduled
 	s.polls = msg_helper.StartPollSweeper(d)
 
+	expiry, stop := context.WithCancel(context.Background())
+	s.stopExpiry = stop
+	go d.RunExpiry(expiry)
+
 	return nil
 }
 
@@ -135,6 +141,9 @@ func (s *Server) Destroy() {
 	}
 	if s.polls != nil {
 		s.polls.Stop()
+	}
+	if s.stopExpiry != nil {
+		s.stopExpiry()
 	}
 	var wg sync.WaitGroup
 	wg.Add(2)

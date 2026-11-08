@@ -96,6 +96,9 @@ func (c *ChannelCore) editRights(method string, selfId, permAuthKeyId, channelId
 		shown.Out = true
 		updates = append(updates, mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: change.Pts, PtsCount: 1}).To_Update())
 	}
+	if change.TTL != nil {
+		updates = append(updates, change.TTL)
+	}
 	updates = append(updates, mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: channelId}).To_Update())
 	return mtproto.MakeTLUpdates(&mtproto.Updates{
 		Updates: updates,

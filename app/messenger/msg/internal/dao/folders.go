@@ -96,7 +96,7 @@ func (d *Dao) IncomingArchiveOf(ctx context.Context, userId, fromId int64) (Inco
 	}
 	var folders []int32
 	if err := d.DB.QueryRowsPartial(ctx, &folders,
-		"SELECT folder_id FROM dialogs WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+		"SELECT folder_id FROM dialogs WHERE user_id = ? AND peer_type = ? AND peer_id = ? AND (deleted = 0 OR top_message > 0)",
 		userId, mtproto.PEER_USER, fromId); err != nil {
 		return IncomingArchive{}, err
 	}

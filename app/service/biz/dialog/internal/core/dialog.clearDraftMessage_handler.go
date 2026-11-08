@@ -18,41 +18,27 @@ import (
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
 
-func getEmptyDraftMessage() string {
-	draftData, _ := jsonx.Marshal(
+func getEmptyDraftMessage() (string, error) {
+	return jsonx.MarshalToString(
 		mtproto.MakeTLDraftMessageEmpty(&mtproto.DraftMessage{
 			Date_FLAGINT32: mtproto.MakeFlagsInt32(int32(time.Now().Unix())),
 		}).To_DraftMessage())
-	return string(draftData)
 }
 
 // DialogClearDraftMessage
 // dialog.clearDraftMessage user_id:long peer_type:int peer_id:long = Bool;
+//
+// It tells whether there was a draft to clear.
 func (c *DialogCore) DialogClearDraftMessage(in *dialog.TLDialogClearDraftMessage) (*mtproto.Bool, error) {
-	dlgDO, err := c.svcCtx.Dao.DialogsDAO.SelectDialog(
-		c.ctx,
-		in.UserId,
-		in.PeerType,
-		in.PeerId)
+	empty, err := getEmptyDraftMessage()
 	if err != nil {
 		c.Logger.Errorf("dialog.clearDraftMessage - error: %v", err)
 		return nil, err
 	}
-
-	if dlgDO != nil && dlgDO.DraftType == 2 {
-		_, err = c.svcCtx.Dao.DialogsDAO.SaveDraft(
-			c.ctx,
-			1,
-			getEmptyDraftMessage(),
-			in.UserId,
-			in.PeerType,
-			in.PeerId)
-		if err != nil {
-			c.Logger.Errorf("dialog.clearDraftMessage - error: %v", err)
-			return nil, err
-		}
-		return mtproto.BoolTrue, nil
-	} else {
-		return mtproto.BoolFalse, nil
+	cleared, err := c.svcCtx.Dao.ClearDialogDraft(c.ctx, in.UserId, in.PeerType, in.PeerId, empty)
+	if err != nil {
+		c.Logger.Errorf("dialog.clearDraftMessage - error: %v", err)
+		return nil, err
 	}
+	return mtproto.ToBool(cleared), nil
 }

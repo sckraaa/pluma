@@ -19,38 +19,39 @@
 package core
 
 import (
-	"context"
-	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // ChatSetHistoryTTL
 // chat.setHistoryTTL self_id:long chat_id:long ttl_period:int = Bool;
+//
+// The members who may change the chat's info may set the period of its new
+// messages (tdesktop TTLValidator::can, canEditInformation).
+// CHAT_NOT_MODIFIED for the period it has
+// (core.telegram.org/method/messages.setHistoryTTL).
 func (c *ChatCore) ChatSetHistoryTTL(in *chat.TLChatSetHistoryTTL) (*mtproto.MutableChat, error) {
-	mChat, err := c.svcCtx.Dao.GetMutableChat(c.ctx, in.ChatId)
+	mChat, err := c.changeChat(in.SelfId, in.ChatId, func(b *userbox.Box, t *chatTx) error {
+		me := t.member(in.SelfId)
+		switch {
+		case me == nil:
+			return mtproto.ErrInputUserDeactivated
+		case !me.CanChangeInfo():
+			return mtproto.ErrChatAdminRequired
+		case t.Chat.TtlPeriod == in.TtlPeriod:
+			return mtproto.ErrChatNotModified
+		}
+		if _, err := c.svcCtx.Dao.ChatsDAO.UpdateTTLPeriodTx(b.Tx(), in.TtlPeriod, in.ChatId); err != nil {
+			return err
+		}
+		t.Chat.TtlPeriod = in.TtlPeriod
+		t.Chat.Version++
+		return nil
+	})
 	if err != nil {
 		c.Logger.Errorf("chat.setHistoryTTL - error: %v", err)
 		return nil, err
 	}
-	if mChat.Creator() != in.SelfId {
-		err = mtproto.ErrChatAdminRequired
-		c.Logger.Errorf("chat.setHistoryTTL - error: %v", err)
-		return nil, err
-	}
-
-	_, _, err = c.svcCtx.Dao.CachedConn.Exec(
-		c.ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			rowsAffected, err2 := c.svcCtx.Dao.ChatsDAO.UpdateTTLPeriod(c.ctx, in.TtlPeriod, in.ChatId)
-			return 0, rowsAffected, err2
-		},
-		c.svcCtx.Dao.GetChatCacheKey(in.ChatId))
-
-	if err != nil {
-		c.Logger.Errorf("chat.setHistoryTTL - error: %v", err)
-		return nil, err
-	}
-
 	return mChat, nil
 }

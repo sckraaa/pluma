@@ -29,4 +29,6 @@ type Config struct {
 	UserClient   zrpc.RpcClientConf
 	SyncClient   sync_client.OutboxConf
 	ChatClient   zrpc.RpcClientConf
+	// ChannelClient gives the channels the drafts name (task 063).
+	ChannelClient zrpc.RpcClientConf
 }

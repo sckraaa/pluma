@@ -70,6 +70,15 @@ func (s *Service) MessagesToggleDialogFilterTags(ctx context.Context, request *m
 	return c.MessagesToggleDialogFilterTags(request)
 }
 
+// FoldersDeleteFolder
+// folders.deleteFolder#1c295881 folder_id:int = Updates;
+func (s *Service) FoldersDeleteFolder(ctx context.Context, request *mtproto.TLFoldersDeleteFolder) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("folders.deleteFolder - metadata: {%s}, request: {%s}", c.MD, request)
+
+	return c.FoldersDeleteFolder(request)
+}
+
 // FoldersEditPeerFolders
 // folders.editPeerFolders#6847d0ab folder_peers:Vector<InputFolderPeer> = Updates;
 func (s *Service) FoldersEditPeerFolders(ctx context.Context, request *mtproto.TLFoldersEditPeerFolders) (*mtproto.Updates, error) {

@@ -53,6 +53,8 @@ type ChannelChange struct {
 	Reload    bool
 	// Updates are told to the members beside the rest (task 060).
 	Updates []*mtproto.Update
+	// TTL is updatePeerHistoryTTL of a change of the auto-delete period.
+	TTL *mtproto.Update
 	// Self and Count are, for a join or a leave, the owner's participant
 	// row and the channel's participants_count as the transaction wrote
 	// them.
@@ -382,6 +384,9 @@ func addServiceMessageFrom(b *userbox.Box, ch *channelbox.Channel, channelId, fr
 	if !broadcast {
 		m.FromId = mtproto.MakePeerUser(fromId)
 	}
+	if err := ch.ApplyTTL(m); err != nil {
+		return nil, 0, err
+	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
 	data, err := jsonx.MarshalToString(m)
 	if err != nil {
@@ -431,6 +436,9 @@ func (d *Dao) EmitChannelPush(b *userbox.Box, permAuthKeyId int64, change *Chann
 			Pts_INT32:       change.Pts,
 			PtsCount:        1,
 		}).To_Update())
+	}
+	if change.TTL != nil {
+		updates = append(updates, change.TTL)
 	}
 	if change.Reload {
 		updates = append(updates, mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: change.ChannelId}).To_Update())

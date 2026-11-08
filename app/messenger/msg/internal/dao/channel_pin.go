@@ -118,6 +118,9 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 		service.ReplyTo.ForumTopic = true
 		service.ReplyTo.ReplyToTopId = wrapperspb.Int32(topicId)
 	}
+	if err = ch.ApplyTTL(service); err != nil {
+		return nil, err
+	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: service}).To_Update(), 1)
 	if data, err = jsonx.MarshalToString(service); err != nil {
 		return nil, err

@@ -56,6 +56,7 @@ type pinTarget struct {
 	recipients []int64
 	notify     bool // a service message goes with the pin
 	toService  func(userId int64) bool
+	chatTTL    int32 // the group's auto-delete period
 	users      func(userId int64) []*mtproto.User
 	chats      func(userId int64) []*mtproto.Chat
 }
@@ -96,6 +97,7 @@ func (c *MsgCore) pinTarget(in *msg.TLMsgUpdatePinnedMessage, peerType int32, pe
 		if _, ok := chat.GetImmutableChatParticipant(in.UserId); !ok {
 			return nil, mtproto.ErrChatWriteForbidden
 		}
+		t.chatTTL = chat.TTLPeriod()
 		t.users = func(userId int64) []*mtproto.User { return users.For(userId) }
 		t.chats = func(userId int64) []*mtproto.Chat { return []*mtproto.Chat{chat.ToUnsafeChat(userId)} }
 		if !in.PmOneside {
@@ -135,6 +137,14 @@ func (c *MsgCore) updatePinnedMessage(in *msg.TLMsgUpdatePinnedMessage, peerType
 			updates := []*mtproto.Update{pinned.Update}
 			var boxes []*mtproto.MessageBox
 			if len(service) > 0 {
+				// It goes away with the chat's other messages (task 063).
+				period := t.chatTTL
+				if peerType == mtproto.PEER_USER {
+					if period, err = c.svcCtx.Dao.DialogTTL(b, peerType, peerId); err != nil {
+						return err
+					}
+				}
+				dao.ApplyTTL(service, period)
 				if boxes, err = c.svcCtx.Dao.SendOutgoing(b, peerType, peerId, service); err != nil {
 					return err
 				}

@@ -190,7 +190,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() {
-			c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer)
+			c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer, in.GetReplyTo().GetTopMsgId().GetValue())
 		})
 	}
 

@@ -4,6 +4,7 @@ import (
 	"github.com/teamgram/marmota/pkg/container2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/historyttl"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -93,7 +94,11 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 			SavedPeerType:     saved.PeerType,
 			SavedPeerId:       saved.PeerId,
 			Date2:             int64(message.GetDate()),
+			TtlPeriod:         message.GetTtlPeriod().GetValue(),
 		}, box.Pts); err != nil {
+			return nil, err
+		}
+		if err = scheduleExpiry(b, message); err != nil {
 			return nil, err
 		}
 		if err = d.replaceHashTags(b, peer, id, message, false); err != nil {
@@ -146,6 +151,9 @@ type Incoming struct {
 	Boxes []*mtproto.MessageBox
 	// Updates are the journaled updates to push, in pts order.
 	Updates []*mtproto.Update
+	// TTL is updatePeerHistoryTTL when the messages change the period of
+	// the dialog, nil otherwise: the caller journals it with seq.
+	TTL *mtproto.Update
 }
 
 // ReceiveIncoming writes the messages fromId sent (boxes from the sender's
@@ -163,6 +171,8 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		out      = &Incoming{}
 		mentions int32
 		migrated int32
+		period   int32
+		changed  bool
 	)
 	for _, src := range boxes {
 		id := b.NextMessageId()
@@ -261,7 +271,11 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 			Mentioned:         message.Mentioned,
 			MediaUnread:       message.MediaUnread,
 			Date2:             b.Date(),
+			TtlPeriod:         message.GetTtlPeriod().GetValue(),
 		}, box.Pts); err != nil {
+			return nil, err
+		}
+		if err = scheduleExpiry(b, message); err != nil {
 			return nil, err
 		}
 		if err = d.replaceHashTags(b, rowPeer, id, message, false); err != nil {
@@ -270,6 +284,9 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		out.Boxes = append(out.Boxes, box)
 		out.Updates = append(out.Updates, update)
 
+		if historyttl.IsChange(message) {
+			period, changed = message.GetAction().GetPeriod(), true
+		}
 		if peerType == mtproto.PEER_CHAT && message.GetAction().GetPredicateName() == mtproto.Predicate_messageActionChatMigrateTo {
 			migrated = id
 		}
@@ -281,6 +298,12 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 	last := out.Boxes[len(out.Boxes)-1]
 	if err := upsertIncomingDialog(b, dlgPeer, last.MessageId, int32(len(out.Boxes)), mentions, b.Date()); err != nil {
 		return nil, err
+	}
+	if changed {
+		if err := updateDialog(b, dlgPeer, "ttl_period = ?", period); err != nil {
+			return nil, err
+		}
+		out.TTL = historyttl.Update(dlgPeer.toPeer(), period)
 	}
 
 	// A chat migrated to a supergroup: its history is read up to the

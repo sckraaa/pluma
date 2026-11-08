@@ -55,4 +55,6 @@ const (
 	CRC32_dialog_toggleDialogFilterTags            TLConstructor = -1597149815 // 0xa0cd6d89
 	CRC32_dialog_getDialogFilterTags               TLConstructor = -84870505   // 0xfaf0fa97
 	CRC32_dialog_setChatWallpaper                  TLConstructor = -1252926702 // 0xb551db12
+	// pluma: task 063
+	CRC32_dialog_saveThreadDraft TLConstructor = -416704029 // 0xe72999e3
 )

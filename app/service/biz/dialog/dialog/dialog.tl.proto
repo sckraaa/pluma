@@ -64,6 +64,8 @@ enum TLConstructor {
   CRC32_dialog_toggleDialogFilterTags = -1597149815;
   CRC32_dialog_getDialogFilterTags = -84870505;
   CRC32_dialog_setChatWallpaper = -1252926702;
+  // pluma: task 063
+  CRC32_dialog_saveThreadDraft = -416704029;
 }
 
 // DialogExt <--
@@ -141,6 +143,8 @@ message PeerWithDraftMessage {
   TLConstructor constructor = 2;
   mtproto.Peer peer = 3;
   mtproto.DraftMessage draft = 4;
+  // pluma: the topic of the draft, 0 for the chat itself (task 063)
+  int32 top_msg_id = 5;
 }
 
 message TL_updateDraftMessage {
@@ -475,6 +479,19 @@ message TL_dialog_setChatWallpaper {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: dialog.saveThreadDraft user_id:long peer_type:int peer_id:long top_msg_id:int message:DraftMessage = Bool;
+// Saves the draft of a topic; draftMessageEmpty clears it. It tells whether anything changed.
+// (task 063)
+message TL_dialog_saveThreadDraft {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 peer_type = 4;
+  int64 peer_id = 5;
+  int32 top_msg_id = 6;
+  mtproto.DraftMessage message = 7;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_PeerWithDraftMessage {
   repeated PeerWithDraftMessage datas = 1;
@@ -568,4 +585,6 @@ service RPCDialog {
       returns (mtproto.Bool) {}
   rpc dialog_setChatWallpaper(TL_dialog_setChatWallpaper)
       returns (mtproto.Bool) {}
+  // pluma: task 063
+  rpc dialog_saveThreadDraft(TL_dialog_saveThreadDraft) returns (mtproto.Bool) {}
 }

@@ -66,6 +66,7 @@ const (
 	RPCDialog_DialogToggleDialogFilterTags_FullMethodName            = "/dialog.RPCDialog/dialog_toggleDialogFilterTags"
 	RPCDialog_DialogGetDialogFilterTags_FullMethodName               = "/dialog.RPCDialog/dialog_getDialogFilterTags"
 	RPCDialog_DialogSetChatWallpaper_FullMethodName                  = "/dialog.RPCDialog/dialog_setChatWallpaper"
+	RPCDialog_DialogSaveThreadDraft_FullMethodName                   = "/dialog.RPCDialog/dialog_saveThreadDraft"
 )
 
 // RPCDialogClient is the client API for RPCDialog service.
@@ -109,6 +110,8 @@ type RPCDialogClient interface {
 	DialogToggleDialogFilterTags(ctx context.Context, in *TLDialogToggleDialogFilterTags, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(ctx context.Context, in *TLDialogGetDialogFilterTags, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(ctx context.Context, in *TLDialogSetChatWallpaper, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 063
+	DialogSaveThreadDraft(ctx context.Context, in *TLDialogSaveThreadDraft, opts ...grpc.CallOption) (*mtproto.Bool, error)
 }
 
 type rPCDialogClient struct {
@@ -489,6 +492,16 @@ func (c *rPCDialogClient) DialogSetChatWallpaper(ctx context.Context, in *TLDial
 	return out, nil
 }
 
+func (c *rPCDialogClient) DialogSaveThreadDraft(ctx context.Context, in *TLDialogSaveThreadDraft, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogSaveThreadDraft_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCDialogServer is the server API for RPCDialog service.
 // All implementations should embed UnimplementedRPCDialogServer
 // for forward compatibility.
@@ -530,6 +543,8 @@ type RPCDialogServer interface {
 	DialogToggleDialogFilterTags(context.Context, *TLDialogToggleDialogFilterTags) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(context.Context, *TLDialogGetDialogFilterTags) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(context.Context, *TLDialogSetChatWallpaper) (*mtproto.Bool, error)
+	// pluma: task 063
+	DialogSaveThreadDraft(context.Context, *TLDialogSaveThreadDraft) (*mtproto.Bool, error)
 }
 
 // UnimplementedRPCDialogServer should be embedded to have
@@ -649,6 +664,9 @@ func (UnimplementedRPCDialogServer) DialogGetDialogFilterTags(context.Context, *
 }
 func (UnimplementedRPCDialogServer) DialogSetChatWallpaper(context.Context, *TLDialogSetChatWallpaper) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogSetChatWallpaper not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogSaveThreadDraft(context.Context, *TLDialogSaveThreadDraft) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogSaveThreadDraft not implemented")
 }
 func (UnimplementedRPCDialogServer) testEmbeddedByValue() {}
 
@@ -1336,6 +1354,24 @@ func _RPCDialog_DialogSetChatWallpaper_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCDialog_DialogSaveThreadDraft_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogSaveThreadDraft)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogSaveThreadDraft(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogSaveThreadDraft_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogSaveThreadDraft(ctx, req.(*TLDialogSaveThreadDraft))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCDialog_ServiceDesc is the grpc.ServiceDesc for RPCDialog service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1490,6 +1526,10 @@ var RPCDialog_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "dialog_setChatWallpaper",
 			Handler:    _RPCDialog_DialogSetChatWallpaper_Handler,
+		},
+		{
+			MethodName: "dialog_saveThreadDraft",
+			Handler:    _RPCDialog_DialogSaveThreadDraft_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

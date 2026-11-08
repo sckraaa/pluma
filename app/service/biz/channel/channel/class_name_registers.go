@@ -111,6 +111,8 @@ const (
 	Predicate_channel_readTopicMentions = "channel_readTopicMentions"
 	// pluma: task 060
 	Predicate_channel_unpinAllTopicMessages = "channel_unpinAllTopicMessages"
+	// pluma: task 063
+	Predicate_channel_setHistoryTTL = "channel_setHistoryTTL"
 	// pluma: task 044
 	Predicate_channel_toggleSetting = "channel_toggleSetting"
 	// pluma: task 044
@@ -361,6 +363,10 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1405087645, // 0xac401063
 
 	},
+	Predicate_channel_setHistoryTTL: { // pluma: task 063
+		0: -1811095406, // 0x940ce092
+
+	},
 	Predicate_channel_toggleSetting: { // pluma: task 044
 		0: -922563101, // 0xc902cde3
 
@@ -459,6 +465,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1046826439: Predicate_channel_deleteParticipantHistory, // 0xc19ab239 pluma: task 043
 	1137012701:  Predicate_channel_toggleSignatures,         // 0x43c56fdd pluma: task 045
 	-1991690360: Predicate_channel_toggleSlowMode,           // 0x89493788 pluma: task 045
+	-1811095406: Predicate_channel_setHistoryTTL,            // 0x940ce092 pluma: task 063
 	-922563101:  Predicate_channel_toggleSetting,            // 0xc902cde3 pluma: task 044
 	994913470:   Predicate_channel_setAvailableReactions,    // 0x3b4d2cbe pluma: task 044
 	407453767:   Predicate_channel_setDiscussionGroup,       // 0x18494047 pluma: task 048

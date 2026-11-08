@@ -69,7 +69,3 @@ func (s *Service) ChatlistsGetLeaveChatlistSuggestions(ctx context.Context, requ
 func (s *Service) ChatlistsLeaveChatlist(ctx context.Context, request *mtproto.TLChatlistsLeaveChatlist) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
-
-func (s *Service) FoldersDeleteFolder(ctx context.Context, request *mtproto.TLFoldersDeleteFolder) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}

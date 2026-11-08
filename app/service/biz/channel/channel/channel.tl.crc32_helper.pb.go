@@ -112,6 +112,8 @@ const (
 	CRC32_channel_readTopicMentions TLConstructor = -701570663 // 0xd62ee199
 	// pluma: task 060
 	CRC32_channel_unpinAllTopicMessages TLConstructor = -1405087645 // 0xac401063
+	// pluma: task 063
+	CRC32_channel_setHistoryTTL TLConstructor = -1811095406 // 0x940ce092
 	// pluma: task 044
 	CRC32_channel_toggleSetting TLConstructor = -922563101 // 0xc902cde3
 	// pluma: task 044

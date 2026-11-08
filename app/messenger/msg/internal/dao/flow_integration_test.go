@@ -130,6 +130,14 @@ type fakeUsers struct {
 	premiumOnly map[int64]bool
 	bots        map[int64]bool
 	missing     map[int64]bool
+	// defaultTTL are the default auto-delete periods of the accounts.
+	defaultTTL map[int64]int32
+}
+
+func (f *fakeUsers) UserGetDefaultHistoryTTL(_ context.Context, in *userpb.TLUserGetDefaultHistoryTTL) (*mtproto.DefaultHistoryTTL, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return mtproto.MakeTLDefaultHistoryTTL(&mtproto.DefaultHistoryTTL{Period: f.defaultTTL[in.UserId]}).To_DefaultHistoryTTL(), nil
 }
 
 // mark gives users their Premium and settings.
@@ -202,6 +210,7 @@ type fakeChats struct {
 	mu      sync.Mutex
 	members map[int64][]int64
 	states  map[[2]int64]int32
+	ttl     map[int64]int32 // auto-delete periods of the chats
 }
 
 func (f *fakeChats) ChatGetMutableChat(_ context.Context, in *chatpb.TLChatGetMutableChat) (*mtproto.MutableChat, error) {
@@ -233,6 +242,10 @@ func (noChannels) ChannelGetMutableChannel(context.Context, *channelpb.TLChannel
 
 func (noChannels) ChannelGetChannelListByIdList(context.Context, *channelpb.TLChannelGetChannelListByIdList) (*channelpb.Vector_MutableChannel, error) {
 	return &channelpb.Vector_MutableChannel{}, nil
+}
+
+func (noChannels) ChannelSetHistoryTTL(context.Context, *channelpb.TLChannelSetHistoryTTL) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
 }
 
 func (noChannels) ChannelCreateChannel(context.Context, *channelpb.TLChannelCreateChannel) (*mtproto.Updates, error) {
@@ -515,6 +528,7 @@ func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 			Creator:           members[0],
 			Title:             "chat",
 			ParticipantsCount: int32(len(members)),
+			TtlPeriod:         f.ttl[chatId],
 		}).To_ImmutableChat(),
 		ChatParticipants: ps,
 	}).To_MutableChat(), nil

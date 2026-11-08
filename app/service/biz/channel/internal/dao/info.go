@@ -18,6 +18,7 @@ package dao
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/historyttl"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -85,6 +86,40 @@ func (d *Dao) EditTitle(b *userbox.Box, channelId int64, title string) (*Channel
 		return nil, err
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET title = ?, top_message = ? WHERE id = ?", title, change.Message.GetId(), channelId); err != nil {
+		return nil, err
+	}
+	return change, nil
+}
+
+// SetHistoryTTL gives the channel's new messages the auto-delete period,
+// for those allowed to change its info (channelperm, ChangeInfo: tdesktop
+// TTLValidator::can, canEditInformation): the service message
+// messageActionSetMessagesTTL and updatePeerHistoryTTL for the members.
+// CHAT_NOT_MODIFIED for the period it has.
+func (d *Dao) SetHistoryTTL(b *userbox.Box, channelId int64, period int32) (*ChannelChange, error) {
+	ch, err := openChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	r, err := infoEditor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	current, err := ch.TTL()
+	if err != nil {
+		return nil, err
+	}
+	if current == period {
+		return nil, mtproto.ErrChatNotModified
+	}
+	if err = ch.SetTTL(period); err != nil {
+		return nil, err
+	}
+	change := &ChannelChange{ChannelId: channelId, TTL: historyttl.Update(mtproto.MakePeerChannel(channelId), period)}
+	if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, r.Broadcast, historyttl.Action(period, 0)); err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {
 		return nil, err
 	}
 	return change, nil

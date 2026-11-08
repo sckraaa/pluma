@@ -131,6 +131,8 @@ enum TLConstructor {
   CRC32_channel_readTopicMentions = -701570663;
   // pluma: task 060
   CRC32_channel_unpinAllTopicMessages = -1405087645;
+  // pluma: task 063
+  CRC32_channel_setHistoryTTL = -1811095406;
   // pluma: task 044
   CRC32_channel_toggleSetting = -922563101;
   // pluma: task 044
@@ -1150,6 +1152,18 @@ message TL_channel_unpinAllTopicMessages {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.setHistoryTTL self_id:long perm_auth_key_id:long channel_id:long ttl_period:int = Updates;
+// self_id sets the auto-delete period of new messages of the channel (messages.setHistoryTTL).
+// (task 063)
+message TL_channel_setHistoryTTL {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 ttl_period = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -1277,6 +1291,8 @@ service RPCChannel {
   rpc channel_readTopicMentions(TL_channel_readTopicMentions) returns (mtproto.messages_AffectedHistory) {}
   // pluma: task 060
   rpc channel_unpinAllTopicMessages(TL_channel_unpinAllTopicMessages) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 063
+  rpc channel_setHistoryTTL(TL_channel_setHistoryTTL) returns (mtproto.Updates) {}
   // pluma: task 044
   rpc channel_toggleSetting(TL_channel_toggleSetting) returns (mtproto.Updates) {}
   // pluma: task 044

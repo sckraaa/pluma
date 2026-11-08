@@ -563,3 +563,17 @@ func attachUnreadPollVotes(ctx context.Context, q polls.Querier, userId int64, l
 	}
 	return polls.AttachUnreadDialogs(ctx, q, userId, dialogs...)
 }
+
+// DialogSaveThreadDraft
+// dialog.saveThreadDraft user_id:long peer_type:int peer_id:long top_msg_id:int message:DraftMessage = Bool;
+func (s *Service) DialogSaveThreadDraft(ctx context.Context, request *dialog.TLDialogSaveThreadDraft) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.saveThreadDraft - metadata: {%s}", c.MD)
+
+	r, err := c.DialogSaveThreadDraft(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

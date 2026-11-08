@@ -70,6 +70,9 @@ type Channel struct {
 	state State // locked at Open or created by Create
 	pts   int32 // last allocated pts
 	msgId int32 // last issued message id
+	// ttl is the channel's auto-delete period, read once (TTL).
+	ttl     int32
+	ttlRead bool
 
 	journal []journalRow
 	updates []*mtproto.Update

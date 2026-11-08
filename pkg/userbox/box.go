@@ -282,6 +282,7 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateSavedDialogPinned,
 		mtproto.Predicate_updatePinnedSavedDialogs,
 		mtproto.Predicate_updateDialogUnreadMark,
+		mtproto.Predicate_updatePeerHistoryTTL,
 		mtproto.Predicate_updateUserName,
 		mtproto.Predicate_updateUser,
 		mtproto.Predicate_updatePrivacy,

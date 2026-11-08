@@ -38,6 +38,7 @@ type channelDialogRow struct {
 	AvailableMinId int32 `db:"available_min_id"`
 	Forum          bool  `db:"forum"`
 	ViewAsMessages bool  `db:"view_forum_as_messages"`
+	TtlPeriod      int32 `db:"ttl_period"`
 }
 
 // unreadQuery counts what selfId has not read of the channel above read, its
@@ -63,7 +64,7 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 	for _, id := range dedupe(idList) {
 		var rows []channelDialogRow
 		if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-			"SELECT c.id, c.pts, c.top_message, g.read_inbox_max_id, COALESCE(p.available_min_id, 0) AS available_min_id, c.forum, g.view_forum_as_messages"+
+			"SELECT c.id, c.pts, c.top_message, g.read_inbox_max_id, COALESCE(p.available_min_id, 0) AS available_min_id, c.forum, g.view_forum_as_messages, c.ttl_period"+
 				" FROM channels c JOIN dialogs g ON g.user_id = ? AND g.peer_type = ? AND g.peer_id = c.id AND g.deleted = 0"+
 				" LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id"+
 				" WHERE c.id = ? AND c.deleted = 0",
@@ -107,6 +108,7 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 			UnreadMentionsCount: first(mentions),
 			Pts:                 mtproto.MakeFlagsInt32(r.Pts),
 			ViewForumAsMessages: r.ViewAsMessages,
+			TtlPeriod:           mtproto.MakeFlagsInt32(r.TtlPeriod),
 		}).To_Dialog())
 	}
 	return out, nil

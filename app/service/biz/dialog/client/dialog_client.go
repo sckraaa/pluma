@@ -60,6 +60,7 @@ type DialogClient interface {
 	DialogToggleDialogFilterTags(ctx context.Context, in *dialog.TLDialogToggleDialogFilterTags) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(ctx context.Context, in *dialog.TLDialogGetDialogFilterTags) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(ctx context.Context, in *dialog.TLDialogSetChatWallpaper) (*mtproto.Bool, error)
+	DialogSaveThreadDraft(ctx context.Context, in *dialog.TLDialogSaveThreadDraft) (*mtproto.Bool, error)
 }
 
 type defaultDialogClient struct {
@@ -477,4 +478,11 @@ func (m *defaultDialogClient) DialogSetChatWallpaper(ctx context.Context, in *di
 	}
 	client := dialog.NewRPCDialogClient(m.cli.Conn())
 	return client.DialogSetChatWallpaper(ctx, in)
+}
+
+// DialogSaveThreadDraft
+// dialog.saveThreadDraft user_id:long peer_type:int peer_id:long top_msg_id:int message:DraftMessage = Bool;
+func (m *defaultDialogClient) DialogSaveThreadDraft(ctx context.Context, in *dialog.TLDialogSaveThreadDraft) (*mtproto.Bool, error) {
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogSaveThreadDraft(ctx, in)
 }

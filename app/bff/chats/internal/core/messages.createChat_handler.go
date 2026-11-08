@@ -26,6 +26,7 @@ import (
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/historyttl"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -122,6 +123,22 @@ func (c *ChatsCore) createChat(iUsers []*mtproto.InputUser, chatTitle string, tt
 		err := mtproto.ErrUsersTooFew
 		c.Logger.Errorf("messages.createChat - error: %v", err)
 		return nil, err
+	}
+
+	if ttlPeriod == nil {
+		// The clients send the account's default period themselves (Android
+		// GroupCreateFinalActivity, tdesktop add_contact_box.cpp); one that
+		// sends none gets it here: it applies to all new chats
+		// (core.telegram.org/method/messages.setDefaultHistoryTTL).
+		def, err := c.svcCtx.Dao.UserClient.UserGetDefaultHistoryTTL(c.ctx, &userpb.TLUserGetDefaultHistoryTTL{UserId: c.MD.UserId})
+		if err != nil {
+			c.Logger.Errorf("createChat - error: %v", err)
+			return nil, err
+		}
+		ttlPeriod = mtproto.MakeFlagsInt32(def.GetPeriod())
+	}
+	if !historyttl.Valid(ttlPeriod.GetValue()) {
+		return nil, mtproto.ErrTtlPeriodInvalid
 	}
 
 	chat, err := c.svcCtx.Dao.ChatClient.Client().ChatCreateChat2(c.ctx, &chatpb.TLChatCreateChat2{
