@@ -52,6 +52,7 @@ var served = map[string]bool{
 	"ChannelsSetDiscussionGroup":       true,
 	"ChannelsGetGroupsForDiscussion":   true,
 	"ChannelsToggleSignatures":         true,
+	"ChannelsToggleSlowMode":           true,
 	"ChannelsTogglePreHistoryHidden":   true,
 	"ChannelsToggleParticipantsHidden": true,
 }

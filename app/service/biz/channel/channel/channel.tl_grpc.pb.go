@@ -5,8 +5,8 @@
 // The TL schema of the service, in the layout mtprotoc gives the other
 // services (the constructor ids are the CRC32 of these lines):
 //
-// immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long available_reactions_type:int available_reactions:Vector<string> = ImmutableChannel;
-// immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long = ImmutableChannelParticipant;
+// immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true signature_profiles:flags.10?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long available_reactions_type:int available_reactions:Vector<string> = ImmutableChannel;
+// immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long last_send_date:long = ImmutableChannelParticipant;
 // mutableChannel channel:ImmutableChannel participants:Vector<ImmutableChannelParticipant> = MutableChannel;
 //
 // ---functions---
@@ -58,6 +58,8 @@ const (
 	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelToggleSignatures_FullMethodName         = "/channel.RPCChannel/channel_toggleSignatures"
+	RPCChannel_ChannelToggleSlowMode_FullMethodName           = "/channel.RPCChannel/channel_toggleSlowMode"
 	RPCChannel_ChannelToggleSetting_FullMethodName            = "/channel.RPCChannel/channel_toggleSetting"
 	RPCChannel_ChannelSetAvailableReactions_FullMethodName    = "/channel.RPCChannel/channel_setAvailableReactions"
 	RPCChannel_ChannelSetDiscussionGroup_FullMethodName       = "/channel.RPCChannel/channel_setDiscussionGroup"
@@ -122,6 +124,10 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 045
+	ChannelToggleSignatures(ctx context.Context, in *TLChannelToggleSignatures, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 045
+	ChannelToggleSlowMode(ctx context.Context, in *TLChannelToggleSlowMode, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -384,6 +390,26 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelToggleSignatures(ctx context.Context, in *TLChannelToggleSignatures, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelToggleSignatures_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelToggleSlowMode(ctx context.Context, in *TLChannelToggleSlowMode, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelToggleSlowMode_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -590,6 +616,10 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 045
+	ChannelToggleSignatures(context.Context, *TLChannelToggleSignatures) (*mtproto.Updates, error)
+	// pluma: task 045
+	ChannelToggleSlowMode(context.Context, *TLChannelToggleSlowMode) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -696,6 +726,12 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelToggleSignatures(context.Context, *TLChannelToggleSignatures) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSignatures not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelToggleSlowMode(context.Context, *TLChannelToggleSlowMode) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSlowMode not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
@@ -1161,6 +1197,42 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelToggleSignatures_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelToggleSignatures)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelToggleSignatures(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelToggleSignatures_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelToggleSignatures(ctx, req.(*TLChannelToggleSignatures))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelToggleSlowMode_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelToggleSlowMode)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelToggleSlowMode(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelToggleSlowMode_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelToggleSlowMode(ctx, req.(*TLChannelToggleSlowMode))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelToggleSetting)
 	if err := dec(in); err != nil {
@@ -1543,6 +1615,14 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_toggleSignatures",
+			Handler:    _RPCChannel_ChannelToggleSignatures_Handler,
+		},
+		{
+			MethodName: "channel_toggleSlowMode",
+			Handler:    _RPCChannel_ChannelToggleSlowMode_Handler,
 		},
 		{
 			MethodName: "channel_toggleSetting",

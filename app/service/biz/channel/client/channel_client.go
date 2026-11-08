@@ -48,6 +48,8 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelToggleSignatures(ctx context.Context, in *channel.TLChannelToggleSignatures) (*mtproto.Updates, error)
+	ChannelToggleSlowMode(ctx context.Context, in *channel.TLChannelToggleSlowMode) (*mtproto.Updates, error)
 	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
 	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
@@ -492,4 +494,26 @@ func (m *defaultChannelClient) ChannelSetAvailableReactions(ctx context.Context,
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetAvailableReactions(ctx, in)
+}
+
+// ChannelToggleSignatures
+// channel.toggleSignatures self_id:long perm_auth_key_id:long channel_id:long enabled:Bool profiles:Bool = Updates;
+func (m *defaultChannelClient) ChannelToggleSignatures(ctx context.Context, in *channel.TLChannelToggleSignatures) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelToggleSignatures(ctx, in)
+}
+
+// ChannelToggleSlowMode
+// channel.toggleSlowMode self_id:long perm_auth_key_id:long channel_id:long seconds:int = Updates;
+func (m *defaultChannelClient) ChannelToggleSlowMode(ctx context.Context, in *channel.TLChannelToggleSlowMode) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelToggleSlowMode(ctx, in)
 }

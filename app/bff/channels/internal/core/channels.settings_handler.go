@@ -43,15 +43,52 @@ func (c *ChannelsCore) toggle(in *mtproto.InputChannel, setting int32, enabled b
 // channels.toggleSignatures#418d549c flags:# signatures_enabled:flags.0?true profiles_enabled:flags.1?true channel:InputChannel = Updates;
 // channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
 //
-// The posts of a channel signed with their authors. Signatures that link
-// to the authors' profiles (profiles_enabled) are not kept: a post shows
-// its author's name.
+// The posts of a channel signed with their authors and, with
+// profiles_enabled, linked to the authors' profiles; the old constructor has
+// no such flag.
 func (c *ChannelsCore) ChannelsToggleSignatures(in *mtproto.TLChannelsToggleSignatures) (*mtproto.Updates, error) {
 	enabled := in.SignaturesEnabled
 	if in.GetEnabled() != nil {
 		enabled = mtproto.FromBool(in.GetEnabled())
 	}
-	return c.toggle(in.Channel, channelpb.SettingSignatures, enabled)
+	mc, err := c.mutableChannel(in.Channel)
+	if err != nil {
+		return nil, err
+	}
+	r, err := c.svcCtx.Channel.ChannelToggleSignatures(c.ctx, &channelpb.TLChannelToggleSignatures{
+		SelfId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		ChannelId:     mc.GetChannel().GetId(),
+		Enabled:       mtproto.ToBool(enabled),
+		Profiles:      mtproto.ToBool(in.ProfilesEnabled),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r, c.addUsers(r)
+}
+
+// ChannelsToggleSlowMode
+// channels.toggleSlowMode#edd49ef0 channel:InputChannel seconds:int = Updates;
+//
+// One message every seconds seconds for the members of a supergroup, 0 for
+// no limit. updateChannel makes the members who are not admins load the full
+// channel (tdesktop api_updates.cpp:2461-2465), with the seconds in it.
+func (c *ChannelsCore) ChannelsToggleSlowMode(in *mtproto.TLChannelsToggleSlowMode) (*mtproto.Updates, error) {
+	mc, err := c.mutableChannel(in.Channel)
+	if err != nil {
+		return nil, err
+	}
+	r, err := c.svcCtx.Channel.ChannelToggleSlowMode(c.ctx, &channelpb.TLChannelToggleSlowMode{
+		SelfId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		ChannelId:     mc.GetChannel().GetId(),
+		Seconds:       in.Seconds,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r, c.addUsers(r)
 }
 
 // ChannelsTogglePreHistoryHidden

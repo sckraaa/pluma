@@ -36,7 +36,6 @@ import (
 const HiddenMembersMin = 100
 
 var settingColumns = map[int32]string{
-	channel.SettingSignatures:         "signatures",
 	channel.SettingPrehistoryHidden:   "hidden_prehistory",
 	channel.SettingParticipantsHidden: "participants_hidden",
 	channel.SettingNoforwards:         "noforwards",
@@ -47,7 +46,6 @@ type settingsRow struct {
 	Broadcast          bool  `db:"broadcast"`
 	Linked             int64 `db:"linked_chat_id"`
 	ParticipantsCount  int32 `db:"participants_count"`
-	Signatures         bool  `db:"signatures"`
 	HiddenPrehistory   bool  `db:"hidden_prehistory"`
 	ParticipantsHidden bool  `db:"participants_hidden"`
 	Noforwards         bool  `db:"noforwards"`
@@ -56,8 +54,6 @@ type settingsRow struct {
 
 func (r *settingsRow) value(setting int32) bool {
 	switch setting {
-	case channel.SettingSignatures:
-		return r.Signatures
 	case channel.SettingPrehistoryHidden:
 		return r.HiddenPrehistory
 	case channel.SettingParticipantsHidden:
@@ -70,9 +66,9 @@ func (r *settingsRow) value(setting int32) bool {
 
 // ToggleSetting turns setting of the channel on or off by b's owner.
 // Errors as Telegram's: CHAT_NOT_MODIFIED for the value it has;
-// CHANNEL_INVALID for a setting the kind of channel has not (signatures
-// of a broadcast channel; the history, the members and joining to comment
-// of a supergroup, the last of a discussion group only);
+// CHANNEL_INVALID for a setting the kind of channel has not (the history,
+// the members and joining to comment of a supergroup, the last of a
+// discussion group only);
 // CHAT_LINK_EXISTS for hiding the history of a discussion group, whose
 // commenters read it; PARTICIPANTS_TOO_FEW for hiding the members of a
 // group of fewer than HiddenMembersMin.
@@ -93,7 +89,7 @@ func (d *Dao) ToggleSetting(b *userbox.Box, channelId int64, setting int32, enab
 	}
 	var rows []settingsRow
 	if err = b.Tx().QueryRowsPartial(&rows,
-		"SELECT broadcast, linked_chat_id, participants_count, signatures, hidden_prehistory, participants_hidden, noforwards, join_to_send FROM channels WHERE id = ?",
+		"SELECT broadcast, linked_chat_id, participants_count, hidden_prehistory, participants_hidden, noforwards, join_to_send FROM channels WHERE id = ?",
 		channelId); err != nil {
 		return nil, err
 	}
@@ -102,8 +98,7 @@ func (d *Dao) ToggleSetting(b *userbox.Box, channelId int64, setting int32, enab
 	}
 	r := rows[0]
 	switch {
-	case setting == channel.SettingSignatures && !r.Broadcast,
-		setting == channel.SettingPrehistoryHidden && r.Broadcast,
+	case setting == channel.SettingPrehistoryHidden && r.Broadcast,
 		setting == channel.SettingParticipantsHidden && r.Broadcast,
 		setting == channel.SettingJoinToSend && (r.Broadcast || r.Linked == 0):
 		return nil, mtproto.ErrChannelInvalid
@@ -115,6 +110,85 @@ func (d *Dao) ToggleSetting(b *userbox.Box, channelId int64, setting int32, enab
 		return nil, mtproto.ErrParticipantsTooFew
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET `"+column+"` = ?, version = version + 1 WHERE id = ?", enabled, channelId); err != nil {
+		return nil, err
+	}
+	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// ToggleSignatures signs the posts of a broadcast channel with their authors
+// and, with profiles, links them to the authors' profiles, by b's owner. The
+// links go only with signatures ("can only be set if the signatures_enabled
+// flag is set", core.telegram.org/method/channels.toggleSignatures), and go
+// off with them. CHAT_NOT_MODIFIED for what the channel has; tdesktop takes it
+// as done (edit_peer_info_box.cpp:2910).
+func (d *Dao) ToggleSignatures(b *userbox.Box, channelId int64, enabled, profiles bool) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if err = a.can(channelperm.ChangeInfo, b.Date()); err != nil {
+		return nil, err
+	}
+	var rows []struct {
+		Broadcast         bool `db:"broadcast"`
+		Signatures        bool `db:"signatures"`
+		SignatureProfiles bool `db:"signature_profiles"`
+	}
+	if err = b.Tx().QueryRowsPartial(&rows, "SELECT broadcast, signatures, signature_profiles FROM channels WHERE id = ?", channelId); err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 || !rows[0].Broadcast {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	profiles = profiles && enabled
+	if rows[0].Signatures == enabled && rows[0].SignatureProfiles == profiles {
+		return nil, mtproto.ErrChatNotModified
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET signatures = ?, signature_profiles = ?, version = version + 1 WHERE id = ?",
+		enabled, profiles, channelId); err != nil {
+		return nil, err
+	}
+	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// ToggleSlowMode sets the interval of the slow mode of a supergroup, 0 for
+// none, by b's owner, who may ban members: the clients show the setting to
+// those (tdesktop data_channel.cpp:798-802, Android ChatUsersActivity.java:452).
+// Errors as core.telegram.org/method/channels.toggleSlowMode: SECONDS_INVALID,
+// CHANNEL_INVALID for a broadcast channel, CHAT_ADMIN_REQUIRED,
+// CHAT_NOT_MODIFIED. A member's last send stays: the new interval counts from
+// it.
+func (d *Dao) ToggleSlowMode(b *userbox.Box, channelId int64, seconds int32) (*ChannelChange, error) {
+	if !channelperm.SlowmodeValid(seconds) {
+		return nil, mtproto.ErrSecondsInvalid
+	}
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if a.ch.Broadcast {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	if err = a.can(channelperm.BanUsers, b.Date()); err != nil {
+		return nil, err
+	}
+	var current []int32
+	if err = b.Tx().QueryRowsPartial(&current, "SELECT slowmode_seconds FROM channels WHERE id = ?", channelId); err != nil {
+		return nil, err
+	}
+	if len(current) == 0 {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	if current[0] == seconds {
+		return nil, mtproto.ErrChatNotModified
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET slowmode_seconds = ?, version = version + 1 WHERE id = ?", seconds, channelId); err != nil {
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil

@@ -5,8 +5,8 @@
  * The TL schema of the service, in the layout mtprotoc gives the other
  * services (the constructor ids are the CRC32 of these lines):
  *
- * immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long available_reactions_type:int available_reactions:Vector<string> = ImmutableChannel;
- * immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long = ImmutableChannelParticipant;
+ * immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true signature_profiles:flags.10?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long available_reactions_type:int available_reactions:Vector<string> = ImmutableChannel;
+ * immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long last_send_date:long = ImmutableChannelParticipant;
  * mutableChannel channel:ImmutableChannel participants:Vector<ImmutableChannelParticipant> = MutableChannel;
  *
  * ---functions---
@@ -26,8 +26,8 @@ option go_package = "github.com/teamgram/teamgram-server/app/service/biz/channel
 
 enum TLConstructor {
     CRC32_UNKNOWN = 0;
-    CRC32_immutableChannel = -1502604851;
-    CRC32_immutableChannelParticipant = 675582471;
+    CRC32_immutableChannel = 1726695119;
+    CRC32_immutableChannelParticipant = 885437367;
     CRC32_mutableChannel = -662027966;
     CRC32_channel_getMutableChannel = -437245607;
     CRC32_channel_getChannelListByIdList = -1986537988;
@@ -71,6 +71,10 @@ enum TLConstructor {
   CRC32_channel_getAdminedPublicChannels = -2083237595;
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
+  // pluma: task 045
+  CRC32_channel_toggleSignatures = 1137012701;
+  // pluma: task 045
+  CRC32_channel_toggleSlowMode = -1991690360;
   // pluma: task 044
   CRC32_channel_toggleSetting = -922563101;
   // pluma: task 044
@@ -146,6 +150,9 @@ message ImmutableChannel {
     // (chatReactions: 0 none, 1 all, 2 some, as biz chat keeps them).
     int32 available_reactions_type = 33;
     repeated string available_reactions = 34;
+    // pluma: task 045, signatures that link to the authors' profiles
+    // (channel.signature_profiles).
+    bool signature_profiles = 35;
 }
 
 message TL_immutableChannel {
@@ -172,6 +179,8 @@ message ImmutableChannelParticipant {
     int64 kicked_by = 13;
     int32 available_min_id = 14;
     int64 date = 15;
+    // pluma: task 045, the last message sent under the slow mode.
+    int64 last_send_date = 16;
 }
 
 message TL_immutableChannelParticipant {
@@ -673,6 +682,33 @@ message TL_channel_setAvailableReactions {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.toggleSignatures self_id:long perm_auth_key_id:long channel_id:long enabled:Bool profiles:Bool = Updates;
+// self_id signs the posts of a broadcast channel with their authors, and with
+// profiles links them to the authors' profiles (task 045).
+// (task 045)
+message TL_channel_toggleSignatures {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool enabled = 6;
+  mtproto.Bool profiles = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.toggleSlowMode self_id:long perm_auth_key_id:long channel_id:long seconds:int = Updates;
+// self_id sets the slow mode of a supergroup: one message every seconds
+// seconds, 0 for none (task 045).
+// (task 045)
+message TL_channel_toggleSlowMode {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 seconds = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -740,6 +776,10 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 045
+  rpc channel_toggleSignatures(TL_channel_toggleSignatures) returns (mtproto.Updates) {}
+  // pluma: task 045
+  rpc channel_toggleSlowMode(TL_channel_toggleSlowMode) returns (mtproto.Updates) {}
   // pluma: task 044
   rpc channel_toggleSetting(TL_channel_toggleSetting) returns (mtproto.Updates) {}
   // pluma: task 044

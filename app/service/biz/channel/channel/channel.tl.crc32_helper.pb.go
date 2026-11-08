@@ -7,8 +7,8 @@ package channel
 
 const (
 	CRC32_UNKNOWN                        TLConstructor = 0
-	CRC32_immutableChannel               TLConstructor = -1502604851 // 0xa67011cd
-	CRC32_immutableChannelParticipant    TLConstructor = 675582471   // 0x28449207
+	CRC32_immutableChannel               TLConstructor = 1726695119  // 0x66eb46cf
+	CRC32_immutableChannelParticipant    TLConstructor = 885437367   // 0x34c6b3b7
 	CRC32_mutableChannel                 TLConstructor = -662027966  // 0xd88a4142
 	CRC32_channel_getMutableChannel      TLConstructor = -437245607  // 0xe5f02959
 	CRC32_channel_getChannelListByIdList TLConstructor = -1986537988 // 0x8997d5fc
@@ -52,6 +52,10 @@ const (
 	CRC32_channel_getAdminedPublicChannels TLConstructor = -2083237595 // 0x83d45125
 	// pluma: task 055
 	CRC32_channel_deleteChannel TLConstructor = -979916526 // 0xc597a912
+	// pluma: task 045
+	CRC32_channel_toggleSignatures TLConstructor = 1137012701 // 0x43c56fdd
+	// pluma: task 045
+	CRC32_channel_toggleSlowMode TLConstructor = -1991690360 // 0x89493788
 	// pluma: task 044
 	CRC32_channel_toggleSetting TLConstructor = -922563101 // 0xc902cde3
 	// pluma: task 044

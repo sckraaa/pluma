@@ -103,6 +103,16 @@ func (m *ImmutableChannel) Can(p *ImmutableChannelParticipant, a channelperm.Act
 	return channelperm.Can(m.Perm(), p.Perm(), a, now)
 }
 
+// SlowmodeNextSendDate is when the viewer whose row is p may send again under
+// the slow mode (channelFull.slowmode_next_send_date), 0 when it is not
+// waiting or the slow mode does not limit it.
+func (m *ImmutableChannel) SlowmodeNextSendDate(p *ImmutableChannelParticipant, now int64) int32 {
+	if p == nil || !channelperm.SlowmodeApplies(m.GetSlowmodeSeconds(), p.GetRole()) {
+		return 0
+	}
+	return int32(channelperm.SlowmodeNextSend(m.GetSlowmodeSeconds(), p.GetLastSendDate(), now))
+}
+
 // Public reports whether the channel has a public username.
 func (m *ImmutableChannel) Public() bool {
 	return m.GetUsername() != ""
@@ -209,7 +219,11 @@ func (m *ImmutableChannel) base() *mtproto.Chat {
 		JoinToSend:  m.GetJoinToSend(),
 		JoinRequest: m.GetJoinRequest(),
 		// The writers set the slow mode of supergroups only.
-		SlowmodeEnabled:     m.GetSlowmodeSeconds() > 0,
+		SlowmodeEnabled: m.GetSlowmodeSeconds() > 0,
+		// A min channel carries it (core.telegram.org/constructor/channel):
+		// the clients draw the posts of a channel by it (tdesktop
+		// history_item.cpp:4044-4051, Android MessageObject.java:9542-9549).
+		SignatureProfiles:   m.GetSignatureProfiles(),
 		DefaultBannedRights: bannedRights(m.GetDefaultBannedRights(), 0),
 	}
 	if m.Public() {
