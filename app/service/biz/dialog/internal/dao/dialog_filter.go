@@ -102,11 +102,12 @@ func lockFilters(b *userbox.Box) ([]filterOrder, error) {
 // gets updateDialogFilter with the folder as stored; users and chats are
 // its peers as userId sees them. A folder saved as it is changes nothing.
 //
-// A shared folder (task 064) stays shared: dialogFilterChatlist is the only
-// form of it the clients send (tdesktop ChatFilter::tl, iOS
-// ChatListFiltering.swift:475), it keeps the owner's invites and the import
-// of the row, and the server alone makes one, by a link
-// (FILTER_NOT_SUPPORTED otherwise).
+// A shared folder (task 064) stays shared, in whichever form it comes:
+// tdesktop and iOS send dialogFilterChatlist (ChatFilter::tl,
+// ChatListFiltering.swift:475), Android dialogFilter for every folder
+// (FilterCreateActivity.saveFilterToServer). It keeps the owner's invites and
+// the import of the row. Only the server makes one, by a link, and it has no
+// rules or exclusions: FILTER_NOT_SUPPORTED otherwise.
 func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filter *mtproto.DialogFilter, users []*mtproto.User, chats []*mtproto.Chat) error {
 	return d.RunBox(ctx, userId, []string{dialog.GetDialogFilterCacheKey(userId)}, func(b *userbox.Box) error {
 		rows, err := lockFilters(b)
@@ -144,7 +145,6 @@ func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filt
 				order = rows[len(rows)-1].Order - filterOrderStep
 			}
 		}
-		shared := filter.GetPredicateName() == mtproto.Predicate_dialogFilterChatlist
 		var meta filterRow
 		var old *mtproto.DialogFilter
 		if found {
@@ -156,13 +156,15 @@ func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filt
 				meta, old = *row, f
 			}
 		}
-		if shared != meta.IsChatlist {
+		if filter.GetPredicateName() == mtproto.Predicate_dialogFilterChatlist && !meta.IsChatlist {
 			return mtproto.ErrFilterNotSupported
 		}
 		f := filter
-		if shared {
-			f = proto.Clone(filter).(*mtproto.DialogFilter)
-			f.HasMyInvites = old.GetHasMyInvites()
+		if meta.IsChatlist {
+			if !shareable(filter) {
+				return mtproto.ErrFilterNotSupported
+			}
+			f = toChatlist(filter, old.GetHasMyInvites())
 		}
 		data, err := jsonx.Marshal(f)
 		if err != nil {
@@ -180,7 +182,7 @@ func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filt
 		if _, _, err = d.DialogFiltersDAO.InsertOrUpdateTx(b.Tx(), &dataobject.DialogFiltersDO{
 			UserId:         userId,
 			DialogFilterId: id,
-			IsChatlist:     shared,
+			IsChatlist:     meta.IsChatlist,
 			JoinedBySlug:   meta.JoinedBySlug,
 			Slug:           meta.Slug,
 			DialogFilter:   string(data),

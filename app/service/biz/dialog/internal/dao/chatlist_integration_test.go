@@ -455,11 +455,24 @@ func TestSaveChatlistFilter(t *testing.T) {
 	if err != nil || after.GetTitle_TEXTWITHENTITIES().GetText() != "Other" || !after.GetHasMyInvites() || !do.IsChatlist {
 		t.Fatalf("the shared folder after a rename: %v %v", after, err)
 	}
-	// Writing a plain form over a shared folder, or the shared form over a
-	// plain one, is refused.
-	plain := folder(2, "Plain")
-	if err = itDao.SaveDialogFilter(ctx, u, 2, plain, nil, nil); !errors.Is(err, mtproto.ErrFilterNotSupported) {
-		t.Fatalf("a plain folder over a shared one: %v", err)
+	// Android saves a shared folder as dialogFilter: it stays shared.
+	plain := mtproto.MakeTLDialogFilter(&mtproto.DialogFilter{
+		Id:                     2,
+		Title_TEXTWITHENTITIES: mtproto.MakeTLTextWithEntities(&mtproto.TextWithEntities{Text: "Plain"}).To_TextWithEntities(),
+		IncludePeers:           channelInput(a),
+	}).To_DialogFilter()
+	if err = itDao.SaveDialogFilter(ctx, u, 2, plain, nil, nil); err != nil {
+		t.Fatalf("a shared folder in the plain form: %v", err)
+	}
+	do, _ = itDao.DialogFiltersDAO.Select(ctx, u, 2)
+	after, err = mtproto.UnmarshalDialogFilter(do.DialogFilter)
+	if err != nil || after.GetPredicateName() != mtproto.Predicate_dialogFilterChatlist || after.GetTitle_TEXTWITHENTITIES().GetText() != "Plain" || !after.GetHasMyInvites() || !do.IsChatlist {
+		t.Fatalf("the shared folder after a save in the plain form: %v %v", after, err)
+	}
+	// Rules cannot be written over a shared folder, nor the shared form over
+	// a plain one.
+	if err = itDao.SaveDialogFilter(ctx, u, 2, folder(2, "Rules"), nil, nil); !errors.Is(err, mtproto.ErrFilterNotSupported) {
+		t.Fatalf("rules over a shared folder: %v", err)
 	}
 	save(t, u, 3, "Plain")
 	shared := toChatlist(folder(3, "Plain"), false)
