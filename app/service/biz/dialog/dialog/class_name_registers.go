@@ -65,7 +65,6 @@ const (
 	Predicate_dialog_getChatlistInvite    = "dialog_getChatlistInvite"
 	Predicate_dialog_joinChatlist         = "dialog_joinChatlist"
 	Predicate_dialog_hideChatlistUpdates  = "dialog_hideChatlistUpdates"
-	Predicate_dialog_setChatWallpaper     = "dialog_setChatWallpaper"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{

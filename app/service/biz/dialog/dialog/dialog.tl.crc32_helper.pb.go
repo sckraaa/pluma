@@ -66,5 +66,4 @@ const (
 	CRC32_dialog_getChatlistInvite    TLConstructor = -992271428  // 0xc4db23bc
 	CRC32_dialog_joinChatlist         TLConstructor = -209386231  // 0xf3850509
 	CRC32_dialog_hideChatlistUpdates  TLConstructor = -2122372205 // 0x817f2b93
-	CRC32_dialog_setChatWallpaper     TLConstructor = -1252926702 // 0xb551db12
 )
