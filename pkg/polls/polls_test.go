@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -454,5 +455,75 @@ func TestCountry(t *testing.T) {
 	}
 	if c := Country("not-a-phone"); c != "" {
 		t.Fatalf("got %q", c)
+	}
+}
+
+// A list of a poll without votes, or whose last voter took the vote back,
+// still goes out: Android keeps the chosen answers of a non-min update with
+// no list (MessageObject.updatePollResults).
+func TestViewNoVotesHasList(t *testing.T) {
+	rec := record(nil)
+	for _, mode := range []Mode{Full, Min} {
+		_, r := rec.View(Tally(nil, 2), 2, mode, 100)
+		if len(r.GetResults()) != 3 || r.GetTotalVoters().GetValue() != 0 {
+			t.Fatalf("mode %v: %+v", mode, r)
+		}
+	}
+}
+
+// An anonymous poll holds empty recent_voters, which proto and JSON turn
+// into nil on the way to the session: voters and recent_voters share one
+// flag, so the vector must be written anyway or the answer is undecodable.
+func TestResultsSurviveTheWire(t *testing.T) {
+	_, r := record(nil).View(Tally(votes(2, "a", 3, "b"), 2), 2, Full, 100)
+	data, err := proto.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back := &mtproto.PollResults{}
+	if err = proto.Unmarshal(data, back); err != nil {
+		t.Fatal(err)
+	}
+	x := mtproto.NewEncodeBuf(512)
+	if err = back.Encode(x, 228); err != nil {
+		t.Fatal(err)
+	}
+	d := mtproto.NewDecodeBuf(x.GetBuf())
+	got := &mtproto.PollResults{}
+	if err = got.Decode(d); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.GetResults()) != 3 || got.GetTotalVoters().GetValue() != 2 {
+		t.Fatalf("decoded %+v", got)
+	}
+	for _, a := range got.GetResults() {
+		if a.GetRecentVoters() == nil {
+			t.Fatalf("no recent_voters in %+v", a)
+		}
+	}
+}
+
+func TestMayListVoters(t *testing.T) {
+	rec := record(func(p *mtproto.Poll) { p.PublicVoters = true })
+	hide := record(func(p *mtproto.Poll) { p.PublicVoters, p.HideResultsUntilClose = true, true })
+	closed := record(func(p *mtproto.Poll) { p.HideResultsUntilClose = true })
+	closed.Closed = true
+	for _, c := range []struct {
+		name   string
+		rec    *Record
+		voted  bool
+		viewer int64
+		want   bool
+	}{
+		{"creator", rec, false, 1, true},
+		{"voter", rec, true, 2, true},
+		{"not a voter", rec, false, 2, false},
+		{"voter, results hidden", hide, true, 2, false},
+		{"creator, results hidden", hide, false, 1, true},
+		{"closed", closed, false, 2, true},
+	} {
+		if got := c.rec.MayListVoters(c.voted, c.viewer, 100); got != c.want {
+			t.Errorf("%s: %v", c.name, got)
+		}
 	}
 }

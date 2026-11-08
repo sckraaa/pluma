@@ -208,8 +208,8 @@ func (c *MessagesCore) MessagesGetPollResults(in *mtproto.TLMessagesGetPollResul
 // MessagesGetPollVotes
 // messages.getPollVotes#b86e380e flags:# peer:InputPeer id:int option:flags.0?bytes offset:flags.1?string limit:int = messages.VotesList;
 //
-// The voters of a public poll: its creator, or one who has voted, or anyone
-// once it is closed (POLL_VOTE_REQUIRED otherwise, method/messages.getPollVotes).
+// The voters of a public poll, for polls.Record.MayListVoters
+// (POLL_VOTE_REQUIRED otherwise, method/messages.getPollVotes).
 // A poll with anonymous voters shows none (BROADCAST_FORBIDDEN).
 func (c *MessagesCore) MessagesGetPollVotes(in *mtproto.TLMessagesGetPollVotes) (*mtproto.Messages_VotesList, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
@@ -222,7 +222,7 @@ func (c *MessagesCore) MessagesGetPollVotes(in *mtproto.TLMessagesGetPollVotes) 
 		return nil, mtproto.ErrBroadcastForbidden
 	}
 	me := polls.Tally(votes, c.MD.UserId)
-	if len(me.Mine) == 0 && rec.Creator != c.MD.UserId && !rec.IsClosed(time.Now().Unix()) {
+	if !rec.MayListVoters(len(me.Mine) > 0, c.MD.UserId, time.Now().Unix()) {
 		return nil, mtproto.ErrPollVoteRequired
 	}
 	voters, count, next, err := polls.VotersPage(c.ctx, c.svcCtx.Reactions, rec.Id, in.GetOption(), in.GetOffset().GetValue(), in.Limit)

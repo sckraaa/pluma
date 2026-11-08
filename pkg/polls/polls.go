@@ -217,9 +217,11 @@ func (r *Record) View(votes *Votes, viewer int64, mode Mode, now int64) (*mtprot
 		correct[optionKey(o)] = true
 	}
 	results := &mtproto.PollResults{Min: mode == Min}
-	// Before the first vote the list stays absent (as tdesktop and Android
-	// guard, results.flags without bit 1).
-	if (!hidden && votes.Total > 0) || voted {
+	// The list goes out with its zeros as well: for a non-min update
+	// without it Android keeps the answers it holds, the chosen mark
+	// included, which is what the last voter taking its vote back would
+	// leave (MessageObject.updatePollResults).
+	if !hidden || voted {
 		for _, a := range poll.GetAnswers() {
 			key := optionKey(a.GetOption())
 			row := &mtproto.PollAnswerVoters{
@@ -554,6 +556,17 @@ func RemoveAnswer(rec *Record, option []byte, by, now int64) (*mtproto.PollAnswe
 	}
 	rec.Poll.Answers = slices.Delete(slices.Clone(rec.Poll.Answers), i, i+1)
 	return answer, nil
+}
+
+// MayListVoters tells whether viewer may read the voters of a public poll:
+// its creator or anyone once it is closed; one who has voted, unless the
+// poll hides its results until then (View shows that voter no counts
+// either).
+func (r *Record) MayListVoters(voted bool, viewer, now int64) bool {
+	if viewer == r.Creator || r.IsClosed(now) {
+		return true
+	}
+	return voted && !r.Poll.GetHideResultsUntilClose()
 }
 
 // SameOptions tells whether two lists hold the same options.
