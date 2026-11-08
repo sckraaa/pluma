@@ -285,7 +285,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	418987336:   Predicate_channel_updateUsername,           // 0x18f93d48 pluma: task 044
 	-2083237595: Predicate_channel_getAdminedPublicChannels, // 0x83d45125 pluma: task 044
 	-979916526:  Predicate_channel_deleteChannel,            // 0xc597a912 pluma: task 055
-	-1441587995: Predicate_channel_deleteHistory, // 0xaa131ce5 pluma: task 043
+	-1441587995: Predicate_channel_deleteHistory,            // 0xaa131ce5 pluma: task 043
 	-1046826439: Predicate_channel_deleteParticipantHistory, // 0xc19ab239 pluma: task 043
 	-922563101:  Predicate_channel_toggleSetting,            // 0xc902cde3 pluma: task 044
 	994913470:   Predicate_channel_setAvailableReactions,    // 0x3b4d2cbe pluma: task 044
