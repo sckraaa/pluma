@@ -148,12 +148,8 @@ func TestChannelForum(t *testing.T) {
 		t.Fatalf("the topic is not pushed: %v", err)
 	}
 
-	send := func(u *user, text string, replyMsg, top int32) *mtproto.Message {
+	sendReply := func(u *user, text string, reply *mtproto.InputReplyTo) *mtproto.Message {
 		t.Helper()
-		reply := &mtproto.InputReplyTo{Constructor: u.c.Constructor(mtproto.Predicate_inputReplyToMessage), ReplyToMsgId: replyMsg}
-		if top != 0 {
-			reply.TopMsgId = mtproto.MakeFlagsInt32(top)
-		}
 		us, err := sendWithReply(ctx, u, peer(u), text, reply)
 		if err != nil {
 			t.Fatalf("send: %v", err)
@@ -165,6 +161,14 @@ func TestChannelForum(t *testing.T) {
 		}
 		t.Fatalf("no new message: %v", us)
 		return nil
+	}
+	send := func(u *user, text string, replyMsg, top int32) *mtproto.Message {
+		t.Helper()
+		reply := &mtproto.InputReplyTo{Constructor: u.c.Constructor(mtproto.Predicate_inputReplyToMessage), ReplyToMsgId: replyMsg}
+		if top != 0 {
+			reply.TopMsgId = mtproto.MakeFlagsInt32(top)
+		}
+		return sendReply(u, text, reply)
 	}
 	first := send(bob, "in topic", topic, 0)
 	if h := first.GetReplyTo(); !h.GetForumTopic() || h.GetReplyToMsgId_FLAGINT32().GetValue() != topic || h.GetReplyToTopId() != nil {
@@ -210,6 +214,18 @@ func TestChannelForum(t *testing.T) {
 	}
 	if tp = topicIn(getTopics(bob), topic); tp.GetUnreadCount() != 0 {
 		t.Errorf("after read: %v", tp)
+	}
+
+	// A reply from General to a message of a topic names the forum, as
+	// tdesktop and Android send it, and stays in General.
+	quoted := sendReply(bob, "from general", &mtproto.InputReplyTo{
+		Constructor: bob.c.Constructor(mtproto.Predicate_inputReplyToMessage), ReplyToMsgId: first.GetId(), ReplyToPeerId: peer(bob),
+	})
+	if h := quoted.GetReplyTo(); h.GetForumTopic() || h.GetReplyToMsgId_FLAGINT32().GetValue() != first.GetId() {
+		t.Errorf("reply_to of a reply to another topic: %v", h)
+	}
+	if g := replies(alice, 1); g.GetMessages()[0].GetId() != quoted.GetId() {
+		t.Errorf("General after a reply to another topic: %v", g.GetMessages())
 	}
 
 	if _, err = bob.c.Invoke(ctx, &mtproto.TLMessagesUpdatePinnedForumTopic{

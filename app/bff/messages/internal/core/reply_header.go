@@ -148,6 +148,15 @@ func makeReplyHeader(src replySource, selfId int64, peer *mtproto.PeerUtil, repl
 	}
 
 	source := mtproto.FromInputPeer2(selfId, replyTo.GetReplyToPeerId())
+	if source.PeerType == mtproto.PEER_CHANNEL && peer.PeerType == mtproto.PEER_CHANNEL && source.PeerId == peer.PeerId {
+		// A message of another topic of the same forum: the clients name
+		// the forum itself (tdesktop data_histories.cpp:75-77, Android
+		// SendMessagesHelper.java:4947-4953), and biz keeps the new message
+		// in the topic it is written to (task 060).
+		header := sameChatReply(replyTo.GetReplyToMsgId(), replyTo)
+		header.ReplyToPeerId = mtproto.MakePeerChannel(peer.PeerId)
+		return header, nil
+	}
 	switch source.PeerType {
 	case mtproto.PEER_SELF:
 		source.PeerType = mtproto.PEER_USER

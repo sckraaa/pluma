@@ -480,3 +480,25 @@ func TestReplyAndForwardTopic(t *testing.T) {
 		t.Errorf("a forward to a user: %v", got)
 	}
 }
+
+// A reply to a message of another topic names the forum itself: it is a reply
+// to a message of the same chat, and the header says so for biz.
+func TestReplyToAnotherTopic(t *testing.T) {
+	forum := &mtproto.PeerUtil{PeerType: mtproto.PEER_CHANNEL, PeerId: 7}
+	in := mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{
+		ReplyToMsgId:  3,
+		TopMsgId:      wrapperspb.Int32(9),
+		ReplyToPeerId: mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: 7}).To_InputPeer(),
+	}).To_InputReplyTo()
+	h, err := makeReplyHeader(newReplySource(), 1, forum, nil, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.GetReplyToMsgId() != 3 || h.GetReplyToPeerId().GetChannelId() != 7 {
+		t.Errorf("the header: %v", h)
+	}
+	other := &mtproto.PeerUtil{PeerType: mtproto.PEER_CHANNEL, PeerId: 8}
+	if _, err = makeReplyHeader(newReplySource(), 1, other, nil, in); err != errReplyMessageIdInvalid {
+		t.Errorf("a message of another channel: %v", err)
+	}
+}

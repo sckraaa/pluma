@@ -281,9 +281,13 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 				who = append(who, replied)
 			}
 		} else if r := m.GetReplyTo().GetReplyToMsgId(); r == 0 {
-			// Only a top_msg_id, of a topic: nothing here is one.
+			// A top_msg_id means nothing here: nothing is a topic.
 			if m.GetReplyTo().GetReplyToTopId() != nil {
-				m.ReplyTo = nil
+				if replyStandsAlone(m.GetReplyTo()) {
+					m.ReplyTo.ReplyToTopId = nil
+				} else {
+					m.ReplyTo = nil
+				}
 			}
 		} else {
 			var replied []struct {
@@ -380,14 +384,18 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 // set, and reply_to_msg_id is the topic's id or, for a reply within the
 // topic, the message replied to with reply_to_top_id the topic; in General
 // neither. The topic comes from the message replied to; if that is gone,
-// from top_msg_id (core.telegram.org/api/forum); else General. It returns
-// the topic and the author of the message replied to (0 for none).
+// from top_msg_id (core.telegram.org/api/forum); else General. A reply to a
+// message of another topic names the forum as reply_to_peer_id (tdesktop
+// data_histories.cpp:75-77, Android SendMessagesHelper.java:4947-4953): it
+// stays in the topic of top_msg_id. It returns the topic and the author of
+// the message replied to (0 for none).
 // TOPIC_ID_INVALID for a topic that never was, TOPIC_DELETED for a deleted
 // one, TOPIC_CLOSED for a closed one unless its author or one who manages
 // topics writes (tdesktop data_peer_values.cpp:207).
 func routeToTopic(b *userbox.Box, channelId int64, s *sender, m *mtproto.Message, now int64) (int32, int64, error) {
 	h := m.GetReplyTo()
 	r, top := h.GetReplyToMsgId(), h.GetReplyToTopId().GetValue()
+	external := h.GetReplyToPeerId().GetChannelId() == channelId
 	topicId := int32(channelbox.GeneralTopicId)
 	if top != 0 {
 		topicId = top
@@ -405,13 +413,18 @@ func routeToTopic(b *userbox.Box, channelId int64, s *sender, m *mtproto.Message
 		if len(replied) == 0 {
 			r = 0
 		} else {
-			topicId = max(replied[0].TopicId, channelbox.GeneralTopicId)
+			if !external {
+				topicId = max(replied[0].TopicId, channelbox.GeneralTopicId)
+			}
 			if r != topicId {
 				author = replied[0].SenderUserId
 			} else {
 				r = 0
 			}
 		}
+	}
+	if r == 0 && external {
+		h.ReplyToPeerId = nil
 	}
 	var rows []struct {
 		Creator int64 `db:"creator_user_id"`
@@ -434,7 +447,7 @@ func routeToTopic(b *userbox.Box, channelId int64, s *sender, m *mtproto.Message
 			h.ForumTopic = false
 			h.ReplyToTopId = nil
 		}
-		if r == 0 && h.GetPredicateName() != mtproto.Predicate_messageReplyStoryHeader {
+		if r == 0 && !replyStandsAlone(h) {
 			m.ReplyTo = nil
 		}
 		return topicId, author, nil
@@ -452,6 +465,13 @@ func routeToTopic(b *userbox.Box, channelId int64, s *sender, m *mtproto.Message
 	}
 	h.ReplyToMsgId, h.ReplyToMsgId_INT32, h.ReplyToMsgId_FLAGINT32 = id, id, mtproto.MakeFlagsInt32(id)
 	return topicId, author, nil
+}
+
+// replyStandsAlone tells whether a reply header without a message of this
+// chat says what it replies to: a story, or a message of another chat, whose
+// origin is reply_from (bff otherChatReply).
+func replyStandsAlone(h *mtproto.MessageReplyHeader) bool {
+	return h.GetPredicateName() == mtproto.Predicate_messageReplyStoryHeader || h.GetReplyFrom() != nil
 }
 
 // topicManager tells whether s manages the topics: the creator, an admin
