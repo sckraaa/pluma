@@ -72,6 +72,26 @@ type want struct {
 	date         int32
 }
 
+// The view of a shared folder's link: a private channel of which the
+// viewer is no member shows with left and its count; banned stays out.
+func TestToInvitedChat(t *testing.T) {
+	ch := testChannel("")
+	ch.ParticipantsCount = 12
+	if got := (&MutableChannel{Channel: ch}).ToInvitedChat(viewer, viewNow); got.GetPredicateName() != mtproto.Predicate_channel || !got.GetLeft() || got.GetParticipantsCount_FLAGINT32().GetValue() != 12 {
+		t.Fatalf("a stranger: %v", got)
+	}
+	banned := &MutableChannel{Channel: ch, Participants: []*ImmutableChannelParticipant{participant(RoleMember, StateKicked, 0, mtproto.BANNED_VIEW_MESSAGES|mtproto.BANNED_SEND_MESSAGES, 0)}}
+	banned.Participants[0].UserId = viewer
+	if got := banned.ToInvitedChat(viewer, viewNow); got.GetPredicateName() != mtproto.Predicate_channelForbidden {
+		t.Fatalf("banned: %v", got)
+	}
+	member := &MutableChannel{Channel: ch, Participants: []*ImmutableChannelParticipant{participant(RoleMember, StateIn, 0, 0, 0)}}
+	member.Participants[0].UserId = viewer
+	if got := member.ToInvitedChat(viewer, viewNow); got.GetPredicateName() != mtproto.Predicate_channel || got.GetLeft() {
+		t.Fatalf("a member: %v", got)
+	}
+}
+
 func TestToChat(t *testing.T) {
 	const (
 		adminRights = mtproto.ADMIN_CHANGE_INFO | mtproto.ADMIN_BAN_USERS
