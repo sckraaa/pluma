@@ -162,6 +162,8 @@ type Hidden struct {
 type requestRow struct {
 	UserId int64  `db:"user_id"`
 	Link   string `db:"link"`
+	// Gone: the account was deleted since it asked.
+	Gone bool `db:"gone"`
 }
 
 // HideRequests answers requests to join of the channel, by b's owner, who
@@ -203,18 +205,20 @@ func (d *Dao) HideRequests(b *userbox.Box, channelId int64, approved, all bool, 
 		}
 	}
 
-	query := "SELECT user_id, link FROM channel_join_requests WHERE channel_id = ?"
+	// The subquery's users are read, not locked: FOR UPDATE takes the
+	// requests only.
+	query := "SELECT r.user_id, r.link, NOT EXISTS (SELECT 1 FROM users u WHERE u.id = r.user_id AND u.deleted = 0) AS gone FROM channel_join_requests r WHERE r.channel_id = ?"
 	args := []any{channelId}
 	switch {
 	case !all:
-		query += " AND user_id = ?"
+		query += " AND r.user_id = ?"
 		args = append(args, userId)
 	case link != "":
-		query += " AND link = ?"
+		query += " AND r.link = ?"
 		args = append(args, link)
 	}
 	var rows []requestRow
-	if err = b.Tx().QueryRowsPartial(&rows, query+" ORDER BY date2, user_id LIMIT ? FOR UPDATE", append(args, RequestsHideMax)...); err != nil {
+	if err = b.Tx().QueryRowsPartial(&rows, query+" ORDER BY r.date2, r.user_id LIMIT ? FOR UPDATE", append(args, RequestsHideMax)...); err != nil {
 		return nil, err
 	}
 
@@ -239,8 +243,8 @@ func (d *Dao) HideRequests(b *userbox.Box, channelId int64, approved, all bool, 
 	return h, nil
 }
 
-// approve admits the users of rows, the requests of those in, gone or kicked
-// being dropped, and tells the admins once.
+// approve admits the users of rows, the requests of those in, kicked or with
+// a deleted account being dropped, and tells the admins once.
 func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, rows []requestRow, all bool, h *Hidden) error {
 	c, err := memberChannel(b, channelId)
 	if err != nil {
@@ -249,6 +253,10 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 	top := c.TopMessage
 	var drop []int64
 	for _, r := range rows {
+		if r.Gone {
+			drop = append(drop, r.UserId)
+			continue
+		}
 		t, err := rightsTarget(b, channelId, r.UserId)
 		if err != nil {
 			return err

@@ -90,8 +90,8 @@ func inviteHash(t *testing.T, e *mtproto.ExportedChatInvite) string {
 // join_request write one request each, the admins see them, a member sees
 // nothing; approving makes the user a member with one service message and
 // an inbox event, a second approval changes nothing; a declined user is
-// not a member; those who may not answer get errors; a group with
-// join_to_send off keeps its toggle.
+// not a member; the request of a deleted account lets no one in; those who
+// may not answer get errors. The list of requests is searched by name.
 func TestJoinRequests(t *testing.T) {
 	f := newDiffFixture(t)
 	creator, admin, anna, bob, carol := f.user("Creator"), f.user("Admin"), f.user("Anna"), f.user("Bob"), f.user("Carol")
@@ -133,6 +133,12 @@ func TestJoinRequests(t *testing.T) {
 	}
 	if _, err = f.c.ChannelGetPendingJoinRequests(&channel.TLChannelGetPendingJoinRequests{SelfId: anna, ChannelId: id}); !errors.Is(err, mtproto.ErrChannelPrivate) {
 		t.Errorf("getPendingJoinRequests of one not in: %v", err)
+	}
+	for q, want := range map[string]int32{"Ann": 1, "Zed": 0, "%": 0} {
+		found, err := f.c.ChannelGetChatInviteImporters(&channel.TLChannelGetChatInviteImporters{SelfId: admin, ChannelId: id, Requested: mtproto.BoolTrue, Q: q, Limit: 10})
+		if err != nil || found.GetCount() != want || int32(len(found.GetImporters())) != want {
+			t.Errorf("search %q: %v, %v", q, found, err)
+		}
 	}
 
 	// Approved: a member, one service message, one inbox event.
@@ -187,6 +193,20 @@ func TestJoinRequests(t *testing.T) {
 	}
 	if f.asks(id) != 0 {
 		t.Errorf("the request of one added stands")
+	}
+
+	// An account deleted while it asks does not join, and its request goes.
+	dave := f.user("Dave")
+	if _, err = f.join(dave, id, ""); !errors.Is(err, mtproto.ErrInviteRequestSent) {
+		t.Fatal(err)
+	}
+	f.exec("UPDATE users SET deleted = 1 WHERE id = ?", dave)
+	before = func() int { n, _ := f.counts(id); return int(n) }()
+	if _, err = f.hideAll(creator, id, true, ""); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := f.counts(id); int(n) != before || f.asks(id) != 0 || f.invitedEvents(dave) != 0 {
+		t.Errorf("a deleted account approved: count %d (was %d), requests %d, events %d", n, before, f.asks(id), f.invitedEvents(dave))
 	}
 
 	// A plain member may not answer.
