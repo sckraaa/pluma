@@ -90,6 +90,7 @@ func (bc *batchCluster) TakesCtx(ctx context.Context,
 	return be.Err()
 }
 
+// pluma: leased reads, batchlease.go.
 func (bc *batchCluster) TakeLeasedCtx(ctx context.Context, v any, key string, query func(v any) error) error {
 	c, ok := bc.dispatcher.Get(key)
 	if !ok {

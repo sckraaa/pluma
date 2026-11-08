@@ -28,6 +28,8 @@ import (
 	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
+// pluma: leased reads, not in upstream marmota.
+//
 // A load from the database that overlaps a change must not fill the cache:
 // it read the row before the commit, the writer deleted the key after it,
 // and only then the load would store what it read. The entry would stay

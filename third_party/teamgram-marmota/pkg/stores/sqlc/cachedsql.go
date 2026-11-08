@@ -123,6 +123,8 @@ func (cc CachedConn) QueryRows(ctx context.Context, query KeysQueryFn, calVal Ca
 		keys...)
 }
 
+// pluma: leased reads, cache/batchlease.go.
+//
 // QueryRowLeased is QueryRow for a key whose writers delete it after their
 // commit: a query that overlaps a change does not fill the cache, and no
 // query is shared between requests (cache.TakeLeasedCtx).

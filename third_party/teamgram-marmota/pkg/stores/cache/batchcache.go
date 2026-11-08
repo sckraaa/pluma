@@ -56,6 +56,8 @@ type BatchCache interface {
 	// query from DB and set cache using given expire, then return the result.
 	TakesWithExpireCtx(ctx context.Context, query func(expire time.Duration, keys ...string) (map[string]any, error),
 		cacheF func(k, v string) (any, error), keys ...string) error
+	// pluma: leased reads, batchlease.go.
+	//
 	// TakeLeasedCtx is TakeCtx for a key whose writers delete it after
 	// their commit: a load that overlaps a change does not fill the cache
 	// (see batchlease.go). Its keys must be read only by the leased calls.
