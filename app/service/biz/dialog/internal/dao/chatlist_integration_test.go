@@ -221,6 +221,29 @@ func TestChatlistLimits(t *testing.T) {
 	}
 }
 
+// The check before joining counts the channels to come: over the chats of a
+// folder nothing is joined.
+func TestChatlistJoinCheckCountsChats(t *testing.T) {
+	ctx := context.Background()
+	owner, u := newUser(), newUser()
+	ch := newShareChannel(t, owner, true)
+	shareFolder(t, owner, 2, ch)
+	slug := exported(t, owner, 2, ch)
+	many := make([]int64, FilterChatsLimit+1)
+	for i := range many {
+		many[i] = int64(i + 1)
+	}
+	if _, err := itDao.JoinChatlistFolder(ctx, u, slug, 0, channelInput(many...), nil, true); !errors.Is(err, ErrFilterChatsTooMuch) {
+		t.Fatalf("over the chats of a folder: %v", err)
+	}
+	if ext, err := itDao.JoinChatlistFolder(ctx, u, slug, 0, channelInput(many[:FilterChatsLimit]...), nil, true); err != nil || ext != nil {
+		t.Fatalf("up to the limit: %v %v", ext, err)
+	}
+	if do, err := itDao.DialogFiltersDAO.SelectBySlug(ctx, u, slug); err != nil || do != nil {
+		t.Fatalf("the check wrote a folder: %v %v", do, err)
+	}
+}
+
 // Two devices making links at once do not pass the limit of links.
 func TestChatlistLinksConcurrent(t *testing.T) {
 	ctx := context.Background()

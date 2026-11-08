@@ -862,8 +862,9 @@ func markChatlistSeen(b *userbox.Box, id int32, ids []int64) error {
 // to join by now, and returns the folder. A first import makes the folder,
 // shared, with the title and icon of the owner's: DIALOG_FILTERS_TOO_MUCH or
 // CHATLISTS_TOO_MUCH over the limits. It is safe to repeat. With CheckOnly
-// only the limits are checked and nil is returned, before any channel is
-// joined for the folder.
+// only the limits are checked, with peers the channels to come, and nil is
+// returned, before any channel is joined for the folder: a folder over its
+// limit of chats answers FILTER_INCLUDE_TOO_MUCH with nothing joined.
 func (d *Dao) JoinChatlistFolder(ctx context.Context, userId int64, slug string, filterId int32, peers []*mtproto.InputPeer, chats []*mtproto.Chat, checkOnly bool) (*dialog.DialogFilterExt, error) {
 	var ext *dialog.DialogFilterExt
 	err := d.RunBox(ctx, userId, []string{dialog.GetDialogFilterCacheKey(userId)}, func(b *userbox.Box) error {
@@ -910,9 +911,6 @@ func (d *Dao) JoinChatlistFolder(ctx context.Context, userId int64, slug string,
 				return err
 			}
 		}
-		if checkOnly {
-			return nil
-		}
 		order, found := folderPlace(rows, filterId)
 		before := 0
 		if f == nil {
@@ -952,6 +950,9 @@ func (d *Dao) JoinChatlistFolder(ctx context.Context, userId int64, slug string,
 		}
 		if len(next.GetIncludePeers())+len(next.GetPinnedPeers()) > chatsLimit {
 			return ErrFilterChatsTooMuch
+		}
+		if checkOnly {
+			return nil
 		}
 		// The link's whole list is seen: what is new to the folder is only
 		// what the link gets from now on, also of what was not chosen now

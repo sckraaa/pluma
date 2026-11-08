@@ -380,17 +380,20 @@ func (c *FoldersCore) joinChatlistFrom(ext *dialog.ChatlistInviteExt, slug strin
 	if len(peers) == 0 {
 		return nil, mtproto.ErrFilterIncludeEmpty
 	}
+	ids := make([]int64, 0, len(peers))
+	wanted := make([]*mtproto.InputPeer, 0, len(peers))
+	for _, p := range peers {
+		ids = append(ids, p.id)
+		wanted = append(wanted, mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: p.id}).To_InputPeer())
+	}
 	if _, err := c.svcCtx.Dao.DialogClient.DialogJoinChatlist(c.ctx, &dialog.TLDialogJoinChatlist{
 		UserId:    c.MD.UserId,
 		Slug:      slug,
 		FilterId:  filterId,
+		Peers:     wanted,
 		CheckOnly: mtproto.BoolTrue,
 	}); err != nil {
 		return nil, err
-	}
-	ids := make([]int64, 0, len(peers))
-	for _, p := range peers {
-		ids = append(ids, p.id)
 	}
 	channels, err := c.channelsOf(ids)
 	if err != nil {
