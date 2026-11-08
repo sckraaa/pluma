@@ -373,23 +373,25 @@ func (s *Server) Initialize() error {
 			}))
 
 		// messages_helper
-		mtproto.RegisterRPCMessagesServer(
-			grpcServer,
-			messages_helper.New(messages_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				UserClient:    c.BizServiceClient,
-				ChatClient:    c.BizServiceClient,
-				MsgClient:     c.MsgClient,
-				DialogClient:  c.BizServiceClient,
-				IdgenClient:   c.IdgenClient,
-				MessageClient: c.BizServiceClient,
-				MediaClient:   c.MediaClient,
-				UpdatesClient: c.BizServiceClient,
-				SyncClient:    syncClient,
-				Mysql:         c.Mysql,
-				DfsClient:     c.DfsClient,
-				ChannelClient: c.BizServiceClient,
-			}, nil))
+		messagesService := messages_helper.New(messages_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			UserClient:    c.BizServiceClient,
+			ChatClient:    c.BizServiceClient,
+			MsgClient:     c.MsgClient,
+			DialogClient:  c.BizServiceClient,
+			IdgenClient:   c.IdgenClient,
+			MessageClient: c.BizServiceClient,
+			MediaClient:   c.MediaClient,
+			UpdatesClient: c.BizServiceClient,
+			SyncClient:    syncClient,
+			Mysql:         c.Mysql,
+			DfsClient:     c.DfsClient,
+			ChannelClient: c.BizServiceClient,
+		}, nil)
+		mtproto.RegisterRPCMessagesServer(grpcServer, messagesService)
+		// pluma: task 062
+		mtproto.RegisterRPCPollsServer(grpcServer, messagesService)
+		mtproto.RegisterRPCTodoListsServer(grpcServer, messagesService)
 
 		// notification_helper; it answers messages.reportMessagesDelivery of
 		// the pushes too (task 009), and the reaction notification settings

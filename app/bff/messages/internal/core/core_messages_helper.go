@@ -18,6 +18,7 @@ import (
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/mediaerr"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 	"google.golang.org/grpc/status"
 )
 
@@ -228,8 +229,9 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 	case mtproto.Predicate_inputMediaPoll:
 		// inputMediaPoll#f94e5f1 flags:# poll:Poll correct_answers:flags.0?Vector<bytes> solution:flags.1?string solution_entities:flags.1?Vector<MessageEntity> = InputMedia;
 
-		// TODO(@benqi): Not impl inputMediaPoll
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		// pluma: checked here; msg stores the poll in the send transaction
+		// (task 062, pkg/polls).
+		messageMedia, err = c.makePollMedia(media)
 	case mtproto.Predicate_inputMediaDice:
 		// inputMediaDice#e66fbf7b emoticon:string = InputMedia;
 
@@ -288,7 +290,9 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 	case mtproto.Predicate_inputMediaTodo:
 		// inputMediaTodo#9fc55fde todo:TodoList = InputMedia;
 
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		if err = polls.CheckTodo(media.GetTodo()); err == nil {
+			messageMedia = polls.TodoMedia(media.GetTodo(), nil)
+		}
 	default:
 		err = mtproto.ErrMediaInvalid
 	}
