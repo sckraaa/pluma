@@ -74,7 +74,7 @@ func (s *Service) MessagesToggleDialogFilterTags(ctx context.Context, request *m
 // folders.deleteFolder#1c295881 folder_id:int = Updates;
 func (s *Service) FoldersDeleteFolder(ctx context.Context, request *mtproto.TLFoldersDeleteFolder) (*mtproto.Updates, error) {
 	c := core.New(ctx, s.svcCtx)
-	c.Logger.Debugf("folders.deleteFolder - metadata: {%s}, request: {%s}", c.MD, request)
+	c.Logger.Debugf("folders.deleteFolder - metadata: {%s}, folder_id: %d", c.MD, request.GetFolderId())
 
 	return c.FoldersDeleteFolder(request)
 }

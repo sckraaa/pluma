@@ -138,6 +138,15 @@ func TestHistoryTTLChannel(t *testing.T) {
 		}
 	}
 
+	// Who may change the period is who may change the group's info (tdesktop
+	// menu_ttl_validator.cpp:123-125).
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLMessagesEditChatDefaultBannedRights{
+		Constructor:  alice.c.Constructor(mtproto.Predicate_messages_editChatDefaultBannedRights),
+		Peer:         peerFor(alice),
+		BannedRights: &mtproto.ChatBannedRights{Constructor: alice.c.Constructor(mtproto.Predicate_chatBannedRights), ChangeInfo: true},
+	}); err != nil {
+		t.Fatalf("messages.editChatDefaultBannedRights: %v", err)
+	}
 	if _, err := setHistoryTTL(ctx, bob, peerFor(bob), 86400); !mtclient.IsRPCError(err, "CHAT_ADMIN_REQUIRED") {
 		t.Fatalf("a member's change: %v", err)
 	}

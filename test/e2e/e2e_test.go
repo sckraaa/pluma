@@ -95,7 +95,7 @@ var (
 	phonesTaken = map[string]bool{}
 )
 
-// testPhones returns n phones of 201-555-0100..0199 and 202-555-0100..0199,
+// testPhones returns n phones of 201..204-555-0100..0199,
 // numbers kept for fiction in the North American plan (NANPA keeps
 // 555-0100..0199 so in every area code; its page was not read when the
 // second area code was added). They never leave the stand: codes come from
@@ -105,11 +105,11 @@ func testPhones(t *testing.T, n int) []string {
 	phonesMu.Lock()
 	defer phonesMu.Unlock()
 	var phones []string
-	if len(phonesTaken)+n > 200 {
-		t.Fatalf("%d more test phones needed, %d of 200 are taken", n, len(phonesTaken))
+	if len(phonesTaken)+n > 400 {
+		t.Fatalf("%d more test phones needed, %d of 400 are taken", n, len(phonesTaken))
 	}
 	for len(phones) < n {
-		v, err := rand.Int(rand.Reader, big.NewInt(200))
+		v, err := rand.Int(rand.Reader, big.NewInt(400))
 		if err != nil {
 			t.Fatal(err)
 		}

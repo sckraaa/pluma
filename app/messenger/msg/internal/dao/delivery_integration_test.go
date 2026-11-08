@@ -319,7 +319,7 @@ func waitState(t testing.TB, id int64, states ...userbox.EventState) {
 	for {
 		var st int8
 		err := itCheck.QueryRow("SELECT state FROM mq_outbox WHERE id = ?", id).Scan(&st)
-		if err == nil && slices.Contains(states, userbox.EventState(st)) || errors.Is(err, sql.ErrNoRows) && len(states) == 0 {
+		if err == nil && slices.Contains(states, userbox.EventState(st)) || errors.Is(err, sql.ErrNoRows) && (len(states) == 0 || slices.Contains(states, userbox.EventPublished)) {
 			return
 		}
 		if time.Now().After(deadline) {

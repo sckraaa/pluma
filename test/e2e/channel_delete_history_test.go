@@ -1,3 +1,5 @@
+//go:build e2e
+
 // Copyright 2026 The Pluma Authors
 //  All rights reserved.
 //
