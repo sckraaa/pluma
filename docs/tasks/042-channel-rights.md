@@ -59,7 +59,7 @@
 11. **Общие запреты** у трансляции — `CHANNEL_INVALID`; `view_messages` общим запретом быть не может — `BANNED_RIGHTS_INVALID`; те же — `CHAT_NOT_MODIFIED`. Версия канала растёт.
 12. **Звание админа** — до 16 символов (constructor/channelParticipantAdmin), без эмодзи (`ADMIN_RANK_EMOJI_NOT_ALLOWED`) и управляющих символов. Создатель меняет у себя только анонимность и звание.
 13. **Счётчик админов включает создателя** (так было с создания канала). Лимит числа админов (`ADMINS_TOO_MUCH`) не задан: при ≤100 пользователях он не достижим; число Telegram не проверено.
-14. **Передача владения**: бывший создатель — админ со всеми правами, назначенный новым. `PASSWORD_TOO_FRESH_X` и `SESSION_TOO_FRESH_X` не отдаются: сервис 2FA не хранит дату смены пароля и создания сессии. Передача базовой группы по-прежнему не обслуживается.
+14. **Передача владения**: бывший создатель — админ со всеми правами, назначенный новым. Передача базовой группы по-прежнему не обслуживается. Свежесть пароля и сессии — см. «Дополнение 2026-11-08» ниже.
 
 ## Ход работы
 - [x] `channelperm.Can` и таблица тестов.
@@ -73,3 +73,7 @@
 - [ ] CI ветки зелёный, выкатка, проверка в четырёх клиентах со скриншотами.
 
 ## Результат
+
+## Дополнение 2026-11-08 (ветка `task/043-delete-history`)
+- **`PASSWORD_TOO_FRESH_X`, `SESSION_TOO_FRESH_X` сделаны** (`twofa.CheckTransfer`, `channels.editCreator` и `messages.editChatCreator`). Дат не хватало только в записи решения 14: `user_passwords.set_at` и дата входа сессии (`authsession.getAuthorization`, `date_created`) есть. Порог — 24 часа, X — секунды ожидания (core.telegram.org/method/channels.editCreator). Проверка идёт до сверки хэша: iOS и Android зондируют пустым паролем и показывают эти ошибки как причины, почему передача пока недоступна (`ChannelOwnershipTransfer.swift:36-53`, `ChatRightsEditActivity.java:1147`). Следствие: только что заданный пароль или новый вход — передача через сутки.
+- **`channels.getFutureCreatorAfterLeave` исследован, не реализован.** Документация (core.telegram.org/api/channel, method/channels.getFutureCreatorAfterLeave): метод для создателя, возвращает будущего владельца; клиенты показывают предупреждение «станет владельцем через 7 дней» (Android `AlertsCreator.java:2895`, tdesktop `window_peer_menu.cpp:4084`, iOS `RemovePeerChat.swift:92`); при ошибке «the client can silently proceed with leaving». Правило выбора пользователя в документации не описано. У нас `channels.leaveChannel` создателю отвечает `USER_CREATOR`, отложенной на 7 дней передачи нет. Вернуть пользователя значило бы обещать передачу, которой не произойдёт, поэтому `channels.getFutureCreatorAfterLeave` и `messages.getFutureChatCreatorAfterLeave` остаются с ошибкой (`ErrEnterpriseIsBlocked`, 400): все три клиента на неё уходят в обычный выход. Настоящая реализация — вместе с отложенной передачей (выход создателя, таймер, возврат отменяет); это отдельная задача и решение владельца (решение 6).
