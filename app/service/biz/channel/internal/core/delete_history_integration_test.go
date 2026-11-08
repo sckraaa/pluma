@@ -18,6 +18,7 @@
 package core
 
 import (
+	"context"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -293,4 +294,46 @@ func TestDeleteParticipantHistory(t *testing.T) {
 	f.exec("UPDATE channels SET broadcast = 1, megagroup = 0 WHERE id = ?", broadcast)
 	_, err = f.deleteParticipant(creator, broadcast, bob)
 	wantErr(t, "a broadcast channel", err, mtproto.ErrChannelInvalid)
+}
+
+// TestDeleteParticipantHistoryKeepsPosts: the copy of a channel's post in its
+// discussion group is the channel's message, though its row names the admin
+// who posted: deleting that user's messages leaves it, and the thread counts
+// only the comments left.
+func TestDeleteParticipantHistoryKeepsPosts(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, bob := f.user("Creator"), f.user("Bob")
+	group := f.create(creator)
+	f.public(group)
+	if _, err := f.join(bob, group, ""); err != nil {
+		t.Fatal(err)
+	}
+	f.send(group, bob, 2)
+	f.send(group, creator, 1)
+	top := f.top(group)
+	root := top - 2
+	f.exec("INSERT INTO channel_discussion_posts (channel_id, post_id, group_id, group_message_id) VALUES (?, 1, ?, ?)", group+1, group, root)
+	f.exec("UPDATE channel_messages SET reply_top_id = ? WHERE channel_id = ? AND id > ?", root, group, root)
+
+	r, err := f.deleteParticipant(creator, group, bob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.GetPtsCount() != 2 || r.GetOffset() != 0 { // his comment and the message of his joining
+		t.Errorf("the answer: %v", r)
+	}
+	var deleted bool
+	if err = f.box.QueryRow("SELECT deleted FROM channel_messages WHERE channel_id = ? AND id = ?", group, root).Scan(&deleted); err != nil {
+		t.Fatal(err)
+	}
+	if deleted {
+		t.Errorf("the copy of the post %d was deleted with the messages of its author", root)
+	}
+	thread, err := f.c.svcCtx.Dao.ThreadOf(context.Background(), group, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if thread.Count != 1 || thread.MaxId != top {
+		t.Errorf("the thread after the deletion: %d comments up to %d, want 1 up to %d", thread.Count, thread.MaxId, top)
+	}
 }

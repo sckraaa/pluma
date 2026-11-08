@@ -31,6 +31,10 @@ const (
 	// deleted for everyone (core.telegram.org/method/channels.deleteHistory:
 	// CHANNEL_TOO_BIG).
 	historyParticipantsMax = 1000
+
+	// participantMessages selects what a user wrote to a supergroup.
+	participantMessages = " FROM channel_messages m WHERE m.channel_id = ? AND m.sender_user_id = ? AND m.deleted = 0" +
+		" AND NOT EXISTS (SELECT 1 FROM channel_discussion_posts p WHERE p.group_id = m.channel_id AND p.group_message_id = m.id)"
 )
 
 // HistoryDeleted is one portion of DeleteHistory.
@@ -162,7 +166,10 @@ type ParticipantHistoryDeleted struct {
 // messages of userId in the supergroup, by a member with the right to delete
 // the messages of others (channelperm.DeleteOthers, as channels.deleteMessages
 // for another's message; CHAT_ADMIN_REQUIRED, core.telegram.org/method/
-// channels.deleteParticipantHistory). Left tells how many remain.
+// channels.deleteParticipantHistory). Left tells how many remain. The copy
+// of a channel's post in its discussion group is left out: its author is the
+// channel (postCopy in msg, core.telegram.org/api/discussion), though its row
+// names the admin who posted.
 func (d *Dao) DeleteParticipantHistory(b *userbox.Box, channelId, userId int64) (*ParticipantHistoryDeleted, error) {
 	ch, err := openChannel(b, channelId)
 	if err != nil {
@@ -189,7 +196,7 @@ func (d *Dao) DeleteParticipantHistory(b *userbox.Box, channelId, userId int64) 
 	}
 	var ids []int32
 	if err = b.Tx().QueryRowsPartial(&ids,
-		"SELECT id FROM channel_messages WHERE channel_id = ? AND sender_user_id = ? AND deleted = 0 ORDER BY id DESC LIMIT ? FOR UPDATE",
+		"SELECT m.id"+participantMessages+" ORDER BY m.id DESC LIMIT ? FOR UPDATE",
 		channelId, userId, DeleteMax); err != nil {
 		return nil, err
 	}
@@ -199,7 +206,7 @@ func (d *Dao) DeleteParticipantHistory(b *userbox.Box, channelId, userId int64) 
 	}
 	var left []int32
 	if err = b.Tx().QueryRowsPartial(&left,
-		"SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND sender_user_id = ? AND deleted = 0",
+		"SELECT COUNT(*)"+participantMessages,
 		channelId, userId); err != nil {
 		return nil, err
 	}
