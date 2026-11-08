@@ -299,6 +299,11 @@ func (c *MessagesCore) makeForwardMessages(
 		m.Date = now
 		m.Silent = request.Silent
 		m.Post = false
+		// The forward is no post: the signature stays in fwd_from, or goes
+		// with drop_author; the clients draw a post_author left here as the
+		// new message's own (tdesktop history_view_bottom_info.cpp:677-684,
+		// Android ChatMessageCell.java:18349-18354).
+		m.PostAuthor = nil
 		if m.GetGroupedId() != nil {
 			groupedId := groupedIds[m.GetGroupedId().GetValue()]
 			m.GroupedId = mtproto.MakeFlagsInt64(groupedId)

@@ -351,6 +351,29 @@ func TestChannelSignatureProfiles(t *testing.T) {
 	if m = post("signed only").GetMessage_MESSAGE(); m.GetFromId() != nil || m.GetPostAuthor().GetValue() != "Alice E2E" {
 		t.Errorf("links off: from %v, author %v", m.GetFromId(), m.GetPostAuthor())
 	}
+	forward := func(dropAuthor bool) *mtproto.Message {
+		t.Helper()
+		o, err := bob.c.Invoke(ctx, &mtproto.TLMessagesForwardMessages{
+			Constructor: bob.c.Constructor(mtproto.Predicate_messages_forwardMessages),
+			DropAuthor:  dropAuthor,
+			FromPeer:    peer(bob), Id: []int32{m.GetId()}, RandomId: []int64{randomID()},
+			ToPeer: &mtproto.InputPeer{Constructor: bob.c.Constructor(mtproto.Predicate_inputPeerSelf)},
+		})
+		if err != nil {
+			t.Fatalf("messages.forwardMessages (drop_author %v): %v", dropAuthor, err)
+		}
+		msgs := newMessages(o.(interface{ To_Updates() *mtproto.Updates }).To_Updates())
+		if len(msgs) != 1 {
+			t.Fatalf("messages.forwardMessages (drop_author %v): %d messages", dropAuthor, len(msgs))
+		}
+		return msgs[0]
+	}
+	if f := forward(false); f.GetPostAuthor() != nil || f.GetFwdFrom().GetPostAuthor().GetValue() != "Alice E2E" {
+		t.Errorf("a forwarded signed post: author %v, header author %v", f.GetPostAuthor(), f.GetFwdFrom().GetPostAuthor())
+	}
+	if f := forward(true); f.GetPostAuthor() != nil || f.GetFwdFrom() != nil {
+		t.Errorf("a signed post copied without the sender: author %v, header %v", f.GetPostAuthor(), f.GetFwdFrom())
+	}
 	if c := toggle(false, true); c.GetSignatures() || c.GetSignatureProfiles() {
 		t.Errorf("signatures off: signatures %v, profiles %v", c.GetSignatures(), c.GetSignatureProfiles())
 	}
