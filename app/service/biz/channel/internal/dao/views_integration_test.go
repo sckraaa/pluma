@@ -151,11 +151,12 @@ func TestViewsOncePerUser(t *testing.T) {
 }
 
 // TestViewsOnlyPostsTheyMaySee: a user who may not read the channel is
-// refused; deleted posts, service messages and supergroups count nothing.
+// refused; deleted posts, posts below the user's available_min_id, service
+// messages and supergroups count nothing.
 func TestViewsOnlyPostsTheyMaySee(t *testing.T) {
 	ctx := context.Background()
 	f := viewsFixture(t)
-	author, stranger, member := itId(), itId(), itId()
+	author, stranger, member, late := itId(), itId(), itId(), itId()
 	id := f.create(author, false)
 	f.join(id, member)
 	f.post(id, author, 1)
@@ -175,6 +176,34 @@ func TestViewsOnlyPostsTheyMaySee(t *testing.T) {
 		t.Errorf("the deleted post: views %d", v)
 	}
 
+	service, err := jsonx.MarshalToString(mtproto.MakeTLMessageService(&mtproto.Message{
+		Id: 3, PeerId: mtproto.MakePeerChannel(id), Action: mtproto.MakeTLMessageActionHistoryClear(nil).To_MessageAction(),
+	}).To_Message())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_data, date2) VALUES (?, 3, ?, 3, ?, 0)", id, author, service)
+	if err = f.d.IncrementViews(ctx, member, id, []int32{3}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := f.counters(id, 3); v != 1 {
+		t.Errorf("a service message: views %d", v)
+	}
+
+	// One who joined after a post does not see it.
+	f.post(id, author, 4)
+	f.join(id, late)
+	f.exec("UPDATE channel_participants SET available_min_id = 4 WHERE channel_id = ? AND user_id = ?", id, late)
+	if err = f.d.IncrementViews(ctx, late, id, []int32{1, 4}); err != nil {
+		t.Fatal(err)
+	}
+	if v, _ := f.counters(id, 1); v != 2 {
+		t.Errorf("a post below available_min_id: views %d", v)
+	}
+	if v, _ := f.counters(id, 4); v != 2 {
+		t.Errorf("a post at available_min_id: views %d", v)
+	}
+
 	group := f.create(author, true)
 	f.join(group, member)
 	f.post(group, author, 1)
@@ -183,6 +212,43 @@ func TestViewsOnlyPostsTheyMaySee(t *testing.T) {
 	}
 	if v, _ := f.counters(group, 1); v != 1 {
 		t.Errorf("a message of a supergroup: views %d", v)
+	}
+}
+
+// TestTopMessageCounters: the last message of a channel, as the dialogs give
+// it, has the counters of now, also a post stored before there were any; a
+// message of a supergroup has none.
+func TestTopMessageCounters(t *testing.T) {
+	ctx := context.Background()
+	f := viewsFixture(t)
+	author, member := itId(), itId()
+	id := f.create(author, false)
+	f.join(id, member)
+	f.post(id, author, 1)
+	f.exec("UPDATE channels SET top_message = 1 WHERE id = ?", id)
+	f.exec("UPDATE channel_messages SET views = 5, forwards = 0 WHERE channel_id = ? AND id = 1", id)
+
+	got, err := f.d.TopMessages(ctx, member, []int64{id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].GetViews().GetValue() != 5 || got[0].GetForwards() == nil || got[0].GetForwards().GetValue() != 0 {
+		t.Fatalf("the top post: %v", got)
+	}
+
+	group := f.create(author, true)
+	f.join(group, member)
+	data, err := jsonx.MarshalToString(mtproto.MakeTLMessage(&mtproto.Message{Id: 1, PeerId: mtproto.MakePeerChannel(group), Message: "hi"}).To_Message())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_data, date2) VALUES (?, 1, ?, 1, ?, 0)", group, author, data)
+	f.exec("UPDATE channels SET top_message = 1 WHERE id = ?", group)
+	if got, err = f.d.TopMessages(ctx, member, []int64{group}); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].GetViews() != nil || got[0].GetForwards() != nil {
+		t.Fatalf("the top message of a supergroup: %v", got)
 	}
 }
 
