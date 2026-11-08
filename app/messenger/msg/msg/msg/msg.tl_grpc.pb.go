@@ -47,6 +47,14 @@ const (
 	RPCMsg_MsgReadReactions_FullMethodName          = "/msg.RPCMsg/msg_readReactions"
 	RPCMsg_MsgUpdateSavedReactionTag_FullMethodName = "/msg.RPCMsg/msg_updateSavedReactionTag"
 	RPCMsg_MsgMigrateChat_FullMethodName            = "/msg.RPCMsg/msg_migrateChat"
+	RPCMsg_MsgSendVote_FullMethodName               = "/msg.RPCMsg/msg_sendVote"
+	RPCMsg_MsgClosePoll_FullMethodName              = "/msg.RPCMsg/msg_closePoll"
+	RPCMsg_MsgAddPollAnswer_FullMethodName          = "/msg.RPCMsg/msg_addPollAnswer"
+	RPCMsg_MsgDeletePollAnswer_FullMethodName       = "/msg.RPCMsg/msg_deletePollAnswer"
+	RPCMsg_MsgReadPollVotes_FullMethodName          = "/msg.RPCMsg/msg_readPollVotes"
+	RPCMsg_MsgToggleTodoCompleted_FullMethodName    = "/msg.RPCMsg/msg_toggleTodoCompleted"
+	RPCMsg_MsgAppendTodoList_FullMethodName         = "/msg.RPCMsg/msg_appendTodoList"
+	RPCMsg_MsgEditTodoList_FullMethodName           = "/msg.RPCMsg/msg_editTodoList"
 )
 
 // RPCMsgClient is the client API for RPCMsg service.
@@ -76,6 +84,22 @@ type RPCMsgClient interface {
 	MsgUpdateSavedReactionTag(ctx context.Context, in *TLMsgUpdateSavedReactionTag, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 047
 	MsgMigrateChat(ctx context.Context, in *TLMsgMigrateChat, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgSendVote(ctx context.Context, in *TLMsgSendVote, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgClosePoll(ctx context.Context, in *TLMsgClosePoll, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgAddPollAnswer(ctx context.Context, in *TLMsgAddPollAnswer, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgDeletePollAnswer(ctx context.Context, in *TLMsgDeletePollAnswer, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgReadPollVotes(ctx context.Context, in *TLMsgReadPollVotes, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 062
+	MsgToggleTodoCompleted(ctx context.Context, in *TLMsgToggleTodoCompleted, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgAppendTodoList(ctx context.Context, in *TLMsgAppendTodoList, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgEditTodoList(ctx context.Context, in *TLMsgEditTodoList, opts ...grpc.CallOption) (*mtproto.Updates, error)
 }
 
 type rPCMsgClient struct {
@@ -266,6 +290,86 @@ func (c *rPCMsgClient) MsgMigrateChat(ctx context.Context, in *TLMsgMigrateChat,
 	return out, nil
 }
 
+func (c *rPCMsgClient) MsgSendVote(ctx context.Context, in *TLMsgSendVote, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgSendVote_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgClosePoll(ctx context.Context, in *TLMsgClosePoll, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgClosePoll_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgAddPollAnswer(ctx context.Context, in *TLMsgAddPollAnswer, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgAddPollAnswer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgDeletePollAnswer(ctx context.Context, in *TLMsgDeletePollAnswer, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgDeletePollAnswer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgReadPollVotes(ctx context.Context, in *TLMsgReadPollVotes, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgReadPollVotes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgToggleTodoCompleted(ctx context.Context, in *TLMsgToggleTodoCompleted, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgToggleTodoCompleted_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgAppendTodoList(ctx context.Context, in *TLMsgAppendTodoList, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgAppendTodoList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgEditTodoList(ctx context.Context, in *TLMsgEditTodoList, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgEditTodoList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCMsgServer is the server API for RPCMsg service.
 // All implementations should embed UnimplementedRPCMsgServer
 // for forward compatibility.
@@ -293,6 +397,22 @@ type RPCMsgServer interface {
 	MsgUpdateSavedReactionTag(context.Context, *TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
 	// pluma: task 047
 	MsgMigrateChat(context.Context, *TLMsgMigrateChat) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgSendVote(context.Context, *TLMsgSendVote) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgClosePoll(context.Context, *TLMsgClosePoll) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgAddPollAnswer(context.Context, *TLMsgAddPollAnswer) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgDeletePollAnswer(context.Context, *TLMsgDeletePollAnswer) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgReadPollVotes(context.Context, *TLMsgReadPollVotes) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 062
+	MsgToggleTodoCompleted(context.Context, *TLMsgToggleTodoCompleted) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgAppendTodoList(context.Context, *TLMsgAppendTodoList) (*mtproto.Updates, error)
+	// pluma: task 062
+	MsgEditTodoList(context.Context, *TLMsgEditTodoList) (*mtproto.Updates, error)
 }
 
 // UnimplementedRPCMsgServer should be embedded to have
@@ -355,6 +475,30 @@ func (UnimplementedRPCMsgServer) MsgUpdateSavedReactionTag(context.Context, *TLM
 }
 func (UnimplementedRPCMsgServer) MsgMigrateChat(context.Context, *TLMsgMigrateChat) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgMigrateChat not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgSendVote(context.Context, *TLMsgSendVote) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgSendVote not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgClosePoll(context.Context, *TLMsgClosePoll) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgClosePoll not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgAddPollAnswer(context.Context, *TLMsgAddPollAnswer) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgAddPollAnswer not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgDeletePollAnswer(context.Context, *TLMsgDeletePollAnswer) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgDeletePollAnswer not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgReadPollVotes(context.Context, *TLMsgReadPollVotes) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgReadPollVotes not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgToggleTodoCompleted(context.Context, *TLMsgToggleTodoCompleted) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgToggleTodoCompleted not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgAppendTodoList(context.Context, *TLMsgAppendTodoList) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgAppendTodoList not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgEditTodoList(context.Context, *TLMsgEditTodoList) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgEditTodoList not implemented")
 }
 func (UnimplementedRPCMsgServer) testEmbeddedByValue() {}
 
@@ -700,6 +844,150 @@ func _RPCMsg_MsgMigrateChat_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCMsg_MsgSendVote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgSendVote)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgSendVote(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgSendVote_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgSendVote(ctx, req.(*TLMsgSendVote))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgClosePoll_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgClosePoll)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgClosePoll(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgClosePoll_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgClosePoll(ctx, req.(*TLMsgClosePoll))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgAddPollAnswer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgAddPollAnswer)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgAddPollAnswer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgAddPollAnswer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgAddPollAnswer(ctx, req.(*TLMsgAddPollAnswer))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgDeletePollAnswer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgDeletePollAnswer)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgDeletePollAnswer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgDeletePollAnswer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgDeletePollAnswer(ctx, req.(*TLMsgDeletePollAnswer))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgReadPollVotes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgReadPollVotes)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgReadPollVotes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgReadPollVotes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgReadPollVotes(ctx, req.(*TLMsgReadPollVotes))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgToggleTodoCompleted_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgToggleTodoCompleted)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgToggleTodoCompleted(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgToggleTodoCompleted_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgToggleTodoCompleted(ctx, req.(*TLMsgToggleTodoCompleted))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgAppendTodoList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgAppendTodoList)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgAppendTodoList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgAppendTodoList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgAppendTodoList(ctx, req.(*TLMsgAppendTodoList))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgEditTodoList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgEditTodoList)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgEditTodoList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgEditTodoList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgEditTodoList(ctx, req.(*TLMsgEditTodoList))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCMsg_ServiceDesc is the grpc.ServiceDesc for RPCMsg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -778,6 +1066,38 @@ var RPCMsg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "msg_migrateChat",
 			Handler:    _RPCMsg_MsgMigrateChat_Handler,
+		},
+		{
+			MethodName: "msg_sendVote",
+			Handler:    _RPCMsg_MsgSendVote_Handler,
+		},
+		{
+			MethodName: "msg_closePoll",
+			Handler:    _RPCMsg_MsgClosePoll_Handler,
+		},
+		{
+			MethodName: "msg_addPollAnswer",
+			Handler:    _RPCMsg_MsgAddPollAnswer_Handler,
+		},
+		{
+			MethodName: "msg_deletePollAnswer",
+			Handler:    _RPCMsg_MsgDeletePollAnswer_Handler,
+		},
+		{
+			MethodName: "msg_readPollVotes",
+			Handler:    _RPCMsg_MsgReadPollVotes_Handler,
+		},
+		{
+			MethodName: "msg_toggleTodoCompleted",
+			Handler:    _RPCMsg_MsgToggleTodoCompleted_Handler,
+		},
+		{
+			MethodName: "msg_appendTodoList",
+			Handler:    _RPCMsg_MsgAppendTodoList_Handler,
+		},
+		{
+			MethodName: "msg_editTodoList",
+			Handler:    _RPCMsg_MsgEditTodoList_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

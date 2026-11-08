@@ -39,4 +39,20 @@ const (
 	CRC32_msg_updateSavedReactionTag TLConstructor = -1806534101 // 0x94527a2b
 	// pluma: task 047
 	CRC32_msg_migrateChat TLConstructor = 1705671888 // 0x65aa7cd0
+	// pluma: task 062
+	CRC32_msg_sendVote TLConstructor = 764721422 // 0x2d94b90e
+	// pluma: task 062
+	CRC32_msg_closePoll TLConstructor = 512196319 // 0x1e877edf
+	// pluma: task 062
+	CRC32_msg_addPollAnswer TLConstructor = 660503693 // 0x275e7c8d
+	// pluma: task 062
+	CRC32_msg_deletePollAnswer TLConstructor = 871616521 // 0x33f3d009
+	// pluma: task 062
+	CRC32_msg_readPollVotes TLConstructor = 574587703 // 0x223f8337
+	// pluma: task 062
+	CRC32_msg_toggleTodoCompleted TLConstructor = 2077104412 // 0x7bce191c
+	// pluma: task 062
+	CRC32_msg_appendTodoList TLConstructor = 1736696679 // 0x6783e367
+	// pluma: task 062
+	CRC32_msg_editTodoList TLConstructor = 1650536534 // 0x62613056
 )

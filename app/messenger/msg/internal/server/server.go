@@ -53,6 +53,7 @@ type Server struct {
 	grpcSrv *zrpc.RpcServer
 	inbox   *mqconsumer.Consumer
 	relay   *outbox.Relay
+	polls   *msg_helper.PollSweeper
 
 	draining atomic.Bool
 	running  sync.WaitGroup
@@ -97,6 +98,7 @@ func (s *Server) Initialize() error {
 	s.relay.Start()
 	s.inbox = inbox_helper.New(d, c.InboxConsumer)
 	s.inbox.Start()
+	s.polls = msg_helper.StartPollSweeper(d)
 
 	return nil
 }
@@ -121,6 +123,9 @@ func (s *Server) RunLoop() {
 // events are rows of mq_outbox.
 func (s *Server) Destroy() {
 	s.draining.Store(true)
+	if s.polls != nil {
+		s.polls.Stop()
+	}
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {

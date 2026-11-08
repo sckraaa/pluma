@@ -40,6 +40,14 @@ type MsgClient interface {
 	MsgSendReaction(ctx context.Context, in *msg.TLMsgSendReaction) (*mtproto.Updates, error)
 	MsgReadReactions(ctx context.Context, in *msg.TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
 	MsgUpdateSavedReactionTag(ctx context.Context, in *msg.TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
+	MsgSendVote(ctx context.Context, in *msg.TLMsgSendVote) (*mtproto.Updates, error)
+	MsgClosePoll(ctx context.Context, in *msg.TLMsgClosePoll) (*mtproto.Updates, error)
+	MsgAddPollAnswer(ctx context.Context, in *msg.TLMsgAddPollAnswer) (*mtproto.Updates, error)
+	MsgDeletePollAnswer(ctx context.Context, in *msg.TLMsgDeletePollAnswer) (*mtproto.Updates, error)
+	MsgReadPollVotes(ctx context.Context, in *msg.TLMsgReadPollVotes) (*mtproto.Messages_AffectedHistory, error)
+	MsgToggleTodoCompleted(ctx context.Context, in *msg.TLMsgToggleTodoCompleted) (*mtproto.Updates, error)
+	MsgAppendTodoList(ctx context.Context, in *msg.TLMsgAppendTodoList) (*mtproto.Updates, error)
+	MsgEditTodoList(ctx context.Context, in *msg.TLMsgEditTodoList) (*mtproto.Updates, error)
 	MsgMigrateChat(ctx context.Context, in *msg.TLMsgMigrateChat) (*mtproto.Updates, error)
 }
 
@@ -249,4 +257,92 @@ func (m *defaultMsgClient) MsgMigrateChat(ctx context.Context, in *msg.TLMsgMigr
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgMigrateChat(ctx, in)
+}
+
+// MsgSendVote
+// msg.sendVote user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int options:Vector<bytes> = Updates;
+func (m *defaultMsgClient) MsgSendVote(ctx context.Context, in *msg.TLMsgSendVote) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgSendVote(ctx, in)
+}
+
+// MsgClosePoll
+// msg.closePoll user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int = Updates;
+func (m *defaultMsgClient) MsgClosePoll(ctx context.Context, in *msg.TLMsgClosePoll) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgClosePoll(ctx, in)
+}
+
+// MsgAddPollAnswer
+// msg.addPollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int answer:PollAnswer = Updates;
+func (m *defaultMsgClient) MsgAddPollAnswer(ctx context.Context, in *msg.TLMsgAddPollAnswer) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgAddPollAnswer(ctx, in)
+}
+
+// MsgDeletePollAnswer
+// msg.deletePollAnswer user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int option:bytes = Updates;
+func (m *defaultMsgClient) MsgDeletePollAnswer(ctx context.Context, in *msg.TLMsgDeletePollAnswer) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgDeletePollAnswer(ctx, in)
+}
+
+// MsgReadPollVotes
+// msg.readPollVotes user_id:long auth_key_id:long peer_type:int peer_id:long top_msg_id:int = messages.AffectedHistory;
+func (m *defaultMsgClient) MsgReadPollVotes(ctx context.Context, in *msg.TLMsgReadPollVotes) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgReadPollVotes(ctx, in)
+}
+
+// MsgToggleTodoCompleted
+// msg.toggleTodoCompleted user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int completed:Vector<int> incompleted:Vector<int> = Updates;
+func (m *defaultMsgClient) MsgToggleTodoCompleted(ctx context.Context, in *msg.TLMsgToggleTodoCompleted) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgToggleTodoCompleted(ctx, in)
+}
+
+// MsgAppendTodoList
+// msg.appendTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int list:Vector<TodoItem> = Updates;
+func (m *defaultMsgClient) MsgAppendTodoList(ctx context.Context, in *msg.TLMsgAppendTodoList) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgAppendTodoList(ctx, in)
+}
+
+// MsgEditTodoList
+// msg.editTodoList user_id:long auth_key_id:long peer_type:int peer_id:long msg_id:int todo:TodoList = Updates;
+func (m *defaultMsgClient) MsgEditTodoList(ctx context.Context, in *msg.TLMsgEditTodoList) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgEditTodoList(ctx, in)
 }

@@ -30,6 +30,10 @@ enum TLConstructor {
   CRC32_inbox_seqUpdatesToInbox = -61692106;
   // pluma: task 053
   CRC32_inbox_updateMessageReactionsToInbox = -881825213;
+  // pluma: task 062
+  CRC32_inbox_updatePollToInbox = -1155736255;
+  // pluma: task 062
+  CRC32_inbox_updateTodoToInbox = -679404915;
   // pluma: task 041
   CRC32_inbox_channelInvitedToInbox = -733323321;
   // pluma: task 055
@@ -144,6 +148,34 @@ message TL_inbox_readOutboxHistory {
 // its own, task 053): the recipient journals the reactions of its copy as it
 // sees them.
 message TL_inbox_updateMessageReactionsToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int64 dialog_message_id = 7;
+}
+
+// pluma: inbox.updatePollToInbox user_id:long from_id:long peer_type:int peer_id:long dialog_message_id:long poll_id:long with_poll:int = Void;
+// The results of a poll of the chat with the recipient changed (from_id
+// voted, or the poll closed): the recipient journals them for its copy.
+// (task 062)
+message TL_inbox_updatePollToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  int64 dialog_message_id = 7;
+  int64 poll_id = 8;
+  int32 with_poll = 9;
+}
+
+// pluma: inbox.updateTodoToInbox user_id:long from_id:long peer_type:int peer_id:long dialog_message_id:long = Void;
+// A checklist of the chat with the recipient changed: the recipient's copy
+// takes the current state.
+// (task 062)
+message TL_inbox_updateTodoToInbox {
   TLConstructor constructor = 1;
   int64 user_id = 3;
   int64 from_id = 4;

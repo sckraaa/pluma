@@ -38,6 +38,22 @@ const (
 	Predicate_msg_updateSavedReactionTag = "msg_updateSavedReactionTag"
 	// pluma: task 047
 	Predicate_msg_migrateChat = "msg_migrateChat"
+	// pluma: task 062
+	Predicate_msg_sendVote = "msg_sendVote"
+	// pluma: task 062
+	Predicate_msg_closePoll = "msg_closePoll"
+	// pluma: task 062
+	Predicate_msg_addPollAnswer = "msg_addPollAnswer"
+	// pluma: task 062
+	Predicate_msg_deletePollAnswer = "msg_deletePollAnswer"
+	// pluma: task 062
+	Predicate_msg_readPollVotes = "msg_readPollVotes"
+	// pluma: task 062
+	Predicate_msg_toggleTodoCompleted = "msg_toggleTodoCompleted"
+	// pluma: task 062
+	Predicate_msg_appendTodoList = "msg_appendTodoList"
+	// pluma: task 062
+	Predicate_msg_editTodoList = "msg_editTodoList"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -125,6 +141,38 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 1705671888, // 0x65aa7cd0
 
 	},
+	Predicate_msg_sendVote: { // pluma: task 062
+		0: 764721422, // 0x2d94b90e
+
+	},
+	Predicate_msg_closePoll: { // pluma: task 062
+		0: 512196319, // 0x1e877edf
+
+	},
+	Predicate_msg_addPollAnswer: { // pluma: task 062
+		0: 660503693, // 0x275e7c8d
+
+	},
+	Predicate_msg_deletePollAnswer: { // pluma: task 062
+		0: 871616521, // 0x33f3d009
+
+	},
+	Predicate_msg_readPollVotes: { // pluma: task 062
+		0: 574587703, // 0x223f8337
+
+	},
+	Predicate_msg_toggleTodoCompleted: { // pluma: task 062
+		0: 2077104412, // 0x7bce191c
+
+	},
+	Predicate_msg_appendTodoList: { // pluma: task 062
+		0: 1736696679, // 0x6783e367
+
+	},
+	Predicate_msg_editTodoList: { // pluma: task 062
+		0: 1650536534, // 0x62613056
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -150,6 +198,14 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-91564461:   Predicate_msg_readReactions,          // 0xfa8ad653 pluma: task 053
 	-1806534101: Predicate_msg_updateSavedReactionTag, // 0x94527a2b pluma: task 053
 	1705671888:  Predicate_msg_migrateChat,            // 0x65aa7cd0 pluma: task 047
+	764721422:   Predicate_msg_sendVote,               // 0x2d94b90e pluma: task 062
+	512196319:   Predicate_msg_closePoll,              // 0x1e877edf pluma: task 062
+	660503693:   Predicate_msg_addPollAnswer,          // 0x275e7c8d pluma: task 062
+	871616521:   Predicate_msg_deletePollAnswer,       // 0x33f3d009 pluma: task 062
+	574587703:   Predicate_msg_readPollVotes,          // 0x223f8337 pluma: task 062
+	2077104412:  Predicate_msg_toggleTodoCompleted,    // 0x7bce191c pluma: task 062
+	1736696679:  Predicate_msg_appendTodoList,         // 0x6783e367 pluma: task 062
+	1650536534:  Predicate_msg_editTodoList,           // 0x62613056 pluma: task 062
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

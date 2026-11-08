@@ -39,7 +39,12 @@ func (d *Dao) SendOutgoing(b *userbox.Box, peerType int32, peerId int64, msgs []
 	)
 	for _, m := range msgs {
 		id := b.NextMessageId()
-		message := m.Message
+		// A poll or a checklist is written once, here, under the dialog
+		// message id all its copies share.
+		message, err := d.storeNewMedia(b, m.Message, peerType, peerId, id, m.DialogMessageId)
+		if err != nil {
+			return nil, err
+		}
 		message.Out = !self
 		if self {
 			message.FromId = nil
