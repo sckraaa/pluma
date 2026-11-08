@@ -30,27 +30,15 @@ func (c *MsgCore) MsgSendMessageV2(in *msg.TLMsgSendMessageV2) (*mtproto.Updates
 		c.Logger.Errorf("msg.sendMessageV2: {user_id: %d, peer: %d/%d} - error: no messages", in.GetUserId(), in.GetPeerType(), in.GetPeerId())
 		return nil, mtproto.ErrInputRequestInvalid
 	}
-	for _, outBox := range outBoxList {
-		if outBox.GetScheduleDate().GetValue() != 0 {
-			c.Logger.Errorf("msg.sendMessageV2 blocked, License key from https://teamgram.net required to unlock enterprise features.")
-			return nil, mtproto.ErrEnterpriseIsBlocked
-		}
+	date, err := scheduleDateOf(outBoxList)
+	if err != nil {
+		return nil, err
 	}
-
-	var (
-		rUpdates *mtproto.Updates
-		err      error
-	)
-	switch in.PeerType {
-	case mtproto.PEER_USER:
-		rUpdates, err = c.sendUserMessages(in.UserId, in.AuthKeyId, in.PeerId, outBoxList)
-	case mtproto.PEER_CHAT:
-		rUpdates, err = c.sendChatMessages(in.UserId, in.AuthKeyId, in.PeerId, outBoxList)
-	case mtproto.PEER_CHANNEL:
-		rUpdates, err = c.sendChannelMessages(in.UserId, in.AuthKeyId, in.PeerId, outBoxList)
-	default:
-		c.Logger.Errorf("msg.sendMessageV2 - error: invalid peer %d/%d", in.PeerType, in.PeerId)
-		return nil, mtproto.ErrPeerIdInvalid
+	var rUpdates *mtproto.Updates
+	if date != 0 {
+		rUpdates, err = c.scheduleMessages(in, date)
+	} else {
+		rUpdates, err = c.send(in, sendOptions{})
 	}
 	if err != nil {
 		c.Logger.Errorf("msg.sendMessageV2 - error: %v", err)
@@ -108,7 +96,116 @@ func sendReply(boxes []*mtproto.MessageBox, users func([]int64) []*mtproto.User,
 // one inbox event with all the messages to the recipient (unless it
 // blocked the sender), in one transaction. A send repeated with the same
 // random ids gets the first reply (dao.SentBefore).
-func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, outBoxList []*msg.OutboxMessage) (*mtproto.Updates, error) {
+func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, outBoxList []*msg.OutboxMessage, opt sendOptions) (*mtproto.Updates, error) {
+	idHelper := mtproto.NewIDListHelper(fromUserId, toUserId)
+	for _, outBox := range outBoxList {
+		idHelper.PickByMessage(outBox.GetMessage())
+	}
+	users, err := c.privateUsers(fromUserId, toUserId, outBoxList)
+	if err != nil {
+		return nil, err
+	}
+	blocked, err := c.isBlockedBy(fromUserId, toUserId)
+	if err != nil {
+		return nil, err
+	}
+
+	hasBot := func() bool {
+		found := false
+		users.Visit(func(it *mtproto.ImmutableUser) {
+			if it.IsBot() {
+				found = true
+			}
+		})
+		return found
+	}
+	if !opt.remade {
+		for _, outBox := range outBoxList {
+			outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
+		}
+	}
+	repeat, err := randomIds(outBoxList)
+	if err != nil {
+		return nil, err
+	}
+	msgs, err := c.outgoing(outBoxList)
+	if err != nil {
+		return nil, err
+	}
+
+	var rUpdates *mtproto.Updates
+	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId,
+		[]string{dialog.GetDialogCacheKeyByPeer(fromUserId, mtproto.PEER_USER, toUserId)},
+		func(b *userbox.Box) error {
+			reply := func(boxes []*mtproto.MessageBox) {
+				rUpdates = sendReply(boxes,
+					func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
+					func([]int64) []*mtproto.Chat { return []*mtproto.Chat{} })
+			}
+			sent, err := c.svcCtx.Dao.SentBefore(b, mtproto.PEER_USER, toUserId, repeat)
+			if err != nil || sent != nil {
+				reply(sent)
+				if err != nil {
+					return err
+				}
+				return opt.runAfter(b, sentIds(sent))
+			}
+			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_USER, toUserId, msgs)
+			if err != nil {
+				return err
+			}
+			reply(boxes)
+			updates := newMessageUpdates(boxes)
+			switch {
+			case toUserId != fromUserId || len(boxes) == 0:
+			case opt.fromScheduled:
+				// A reminder is unread until read: the clients keep it
+				// unread and notify (tdesktop HistoryItem::unread, Android
+				// MessagesController "!message.from_scheduled").
+				if err = c.svcCtx.Dao.CountSavedUnread(b, int32(len(boxes))); err != nil {
+					return err
+				}
+			default:
+				// Saved Messages hold nothing unread: Telegram reads them
+				// up to the new message at once.
+				read, err := c.svcCtx.Dao.ReadSaved(b, boxes[len(boxes)-1].MessageId)
+				if err != nil {
+					return err
+				}
+				if read != nil {
+					rUpdates.Updates = append(rUpdates.Updates, read)
+					updates = append(updates, read)
+				}
+			}
+
+			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
+				mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, updates...)); err != nil {
+				return err
+			}
+			if toUserId != fromUserId && !blocked {
+				if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
+					UserId:   toUserId,
+					FromId:   fromUserId,
+					PeerType: mtproto.PEER_USER,
+					PeerId:   toUserId,
+					BoxList:  boxes,
+					Users:    users.GetUserListByIdList(toUserId, idHelper.UserIdList...),
+				}); err != nil {
+					return err
+				}
+			}
+			return opt.runAfter(b, sentIds(boxes))
+		})
+	if err != nil {
+		return nil, err
+	}
+	return rUpdates, nil
+}
+
+// privateUsers loads the users of messages from fromUserId to toUserId and
+// checks that the messages may be sent: both accounts exist, and the
+// recipient's privacy allows them.
+func (c *MsgCore) privateUsers(fromUserId, toUserId int64, outBoxList []*msg.OutboxMessage) (*userpb.Vector_ImmutableUser, error) {
 	idHelper := mtproto.NewIDListHelper(fromUserId, toUserId)
 	for _, outBox := range outBoxList {
 		idHelper.PickByMessage(outBox.GetMessage())
@@ -148,85 +245,7 @@ func (c *MsgCore) sendUserMessages(fromUserId, fromAuthKeyId, toUserId int64, ou
 			}
 		}
 	}
-	blocked, err := c.isBlockedBy(fromUserId, toUserId)
-	if err != nil {
-		return nil, err
-	}
-
-	hasBot := func() bool {
-		found := false
-		users.Visit(func(it *mtproto.ImmutableUser) {
-			if it.IsBot() {
-				found = true
-			}
-		})
-		return found
-	}
-	for _, outBox := range outBoxList {
-		outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
-	}
-	repeat, err := randomIds(outBoxList)
-	if err != nil {
-		return nil, err
-	}
-	msgs, err := c.outgoing(outBoxList)
-	if err != nil {
-		return nil, err
-	}
-
-	var rUpdates *mtproto.Updates
-	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId,
-		[]string{dialog.GetDialogCacheKeyByPeer(fromUserId, mtproto.PEER_USER, toUserId)},
-		func(b *userbox.Box) error {
-			reply := func(boxes []*mtproto.MessageBox) {
-				rUpdates = sendReply(boxes,
-					func(idList []int64) []*mtproto.User { return users.GetUserListByIdList(fromUserId, idList...) },
-					func([]int64) []*mtproto.Chat { return []*mtproto.Chat{} })
-			}
-			sent, err := c.svcCtx.Dao.SentBefore(b, mtproto.PEER_USER, toUserId, repeat)
-			if err != nil || sent != nil {
-				reply(sent)
-				return err
-			}
-			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_USER, toUserId, msgs)
-			if err != nil {
-				return err
-			}
-			reply(boxes)
-			updates := newMessageUpdates(boxes)
-			// Saved Messages hold nothing unread: Telegram reads them up to
-			// the new message at once.
-			if toUserId == fromUserId && len(boxes) > 0 {
-				read, err := c.svcCtx.Dao.ReadSaved(b, boxes[len(boxes)-1].MessageId)
-				if err != nil {
-					return err
-				}
-				if read != nil {
-					rUpdates.Updates = append(rUpdates.Updates, read)
-					updates = append(updates, read)
-				}
-			}
-
-			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, fromUserId, fromAuthKeyId,
-				mtproto.MakeUpdatesByUpdatesUsersChats(users.GetUserListByIdList(fromUserId, idHelper.UserIdList...), nil, updates...)); err != nil {
-				return err
-			}
-			if toUserId == fromUserId || blocked {
-				return nil
-			}
-			return c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
-				UserId:   toUserId,
-				FromId:   fromUserId,
-				PeerType: mtproto.PEER_USER,
-				PeerId:   toUserId,
-				BoxList:  boxes,
-				Users:    users.GetUserListByIdList(toUserId, idHelper.UserIdList...),
-			})
-		})
-	if err != nil {
-		return nil, err
-	}
-	return rUpdates, nil
+	return users, nil
 }
 
 // newMessageUpdates are the journaled updateNewMessage of boxes.
@@ -294,7 +313,7 @@ func (c *MsgCore) chatAndUsers(chatId int64, idHelper *mtproto.IDListHelper) (*m
 // one inbox event with all the messages to each member, in one
 // transaction. A send repeated with the same random ids gets the first
 // reply (dao.SentBefore).
-func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, outBoxList []*msg.OutboxMessage) (*mtproto.Updates, error) {
+func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, outBoxList []*msg.OutboxMessage, opt sendOptions) (*mtproto.Updates, error) {
 	idHelper := mtproto.NewIDListHelper(fromUserId)
 	for _, outBox := range outBoxList {
 		idHelper.PickByMessage(outBox.GetMessage())
@@ -320,8 +339,10 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		})
 		return found
 	}
-	for _, outBox := range outBoxList {
-		outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
+	if !opt.remade {
+		for _, outBox := range outBoxList {
+			outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
+		}
 	}
 	repeat, err := randomIds(outBoxList)
 	if err != nil {
@@ -345,7 +366,10 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 			sent, err := c.svcCtx.Dao.SentBefore(b, mtproto.PEER_CHAT, peerChatId, repeat)
 			if err != nil || sent != nil {
 				reply(sent)
-				return err
+				if err != nil {
+					return err
+				}
+				return opt.runAfter(b, sentIds(sent))
 			}
 			boxes, err := c.svcCtx.Dao.SendOutgoing(b, mtproto.PEER_CHAT, peerChatId, msgs)
 			if err != nil {
@@ -370,7 +394,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 					return err
 				}
 			}
-			return nil
+			return opt.runAfter(b, sentIds(boxes))
 		})
 	if err != nil {
 		return nil, err

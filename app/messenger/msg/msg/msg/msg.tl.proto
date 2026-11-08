@@ -47,6 +47,16 @@ enum TLConstructor {
   CRC32_msg_updateSavedReactionTag = -1806534101;
   // pluma: task 047
   CRC32_msg_migrateChat = 1705671888;
+  // pluma: task 061
+  CRC32_msg_getScheduledHistory = -1158782976;
+  // pluma: task 061
+  CRC32_msg_getScheduledMessages = -557247872;
+  // pluma: task 061
+  CRC32_msg_sendScheduledMessages = -754764820;
+  // pluma: task 061
+  CRC32_msg_deleteScheduledMessages = -698200857;
+  // pluma: task 061
+  CRC32_msg_hasScheduled = -1139649382;
 }
 
 // ContentMessage <--
@@ -301,6 +311,67 @@ message TL_msg_migrateChat {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: msg.getScheduledHistory user_id:long peer_type:int peer_id:long hash:long = messages.Messages;
+// The schedule queue of the dialog as user_id sees it (messages.getScheduledHistory).
+// (task 061)
+message TL_msg_getScheduledHistory {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 peer_type = 4;
+  int64 peer_id = 5;
+  int64 hash = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.getScheduledMessages user_id:long peer_type:int peer_id:long id:Vector<int> = messages.Messages;
+// Messages of the schedule queue of the dialog by their ids (messages.getScheduledMessages).
+// (task 061)
+message TL_msg_getScheduledMessages {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 peer_type = 4;
+  int64 peer_id = 5;
+  repeated int32 id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.sendScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+// Sends messages of the schedule queue right away (messages.sendScheduledMessages).
+// (task 061)
+message TL_msg_sendScheduledMessages {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  repeated int32 id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.deleteScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+// Takes messages off the schedule queue (messages.deleteScheduledMessages).
+// (task 061)
+message TL_msg_deleteScheduledMessages {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int32 peer_type = 5;
+  int64 peer_id = 6;
+  repeated int32 id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: msg.hasScheduled user_id:long peer_type:int peer_id:long = Bool;
+// Whether user_id has anything scheduled in the dialog (has_scheduled of its full info).
+// (task 061)
+message TL_msg_hasScheduled {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 peer_type = 4;
+  int64 peer_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 
 //--------------------------------------------------------------------------------------------
@@ -339,4 +410,14 @@ service RPCMsg {
   rpc msg_updateSavedReactionTag(TL_msg_updateSavedReactionTag) returns (mtproto.Bool) {}
   // pluma: task 047
   rpc msg_migrateChat(TL_msg_migrateChat) returns (mtproto.Updates) {}
+  // pluma: task 061
+  rpc msg_getScheduledHistory(TL_msg_getScheduledHistory) returns (mtproto.messages_Messages) {}
+  // pluma: task 061
+  rpc msg_getScheduledMessages(TL_msg_getScheduledMessages) returns (mtproto.messages_Messages) {}
+  // pluma: task 061
+  rpc msg_sendScheduledMessages(TL_msg_sendScheduledMessages) returns (mtproto.Updates) {}
+  // pluma: task 061
+  rpc msg_deleteScheduledMessages(TL_msg_deleteScheduledMessages) returns (mtproto.Updates) {}
+  // pluma: task 061
+  rpc msg_hasScheduled(TL_msg_hasScheduled) returns (mtproto.Bool) {}
 }

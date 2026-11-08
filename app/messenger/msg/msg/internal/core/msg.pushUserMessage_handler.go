@@ -30,7 +30,7 @@ func (c *MsgCore) MsgPushUserMessage(in *msg.TLMsgPushUserMessage) (*mtproto.Boo
 	}
 
 	if in.PushType == 0 {
-		if _, err := c.sendUserMessages(in.UserId, 0, peer.PeerId, []*msg.OutboxMessage{in.Message}); err != nil {
+		if _, err := c.sendUserMessages(in.UserId, 0, peer.PeerId, []*msg.OutboxMessage{in.Message}, sendOptions{}); err != nil {
 			c.Logger.Errorf("msg.pushUserMessage - error: %v", err)
 			return nil, err
 		}

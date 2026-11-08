@@ -136,6 +136,31 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 1705671888,
 		}
 	},
+	-1158782976: func() mtproto.TLObject { // 0xbaee6000 pluma: task 061
+		return &TLMsgGetScheduledHistory{
+			Constructor: -1158782976,
+		}
+	},
+	-557247872: func() mtproto.TLObject { // 0xdec91280 pluma: task 061
+		return &TLMsgGetScheduledMessages{
+			Constructor: -557247872,
+		}
+	},
+	-754764820: func() mtproto.TLObject { // 0xd30333ec pluma: task 061
+		return &TLMsgSendScheduledMessages{
+			Constructor: -754764820,
+		}
+	},
+	-698200857: func() mtproto.TLObject { // 0xd6624ce7 pluma: task 061
+		return &TLMsgDeleteScheduledMessages{
+			Constructor: -698200857,
+		}
+	},
+	-1139649382: func() mtproto.TLObject { // 0xbc12549a pluma: task 061
+		return &TLMsgHasScheduled{
+			Constructor: -1139649382,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -1581,6 +1606,228 @@ func (m *TLMsgMigrateChat) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.UserId = dBuf.Long()
 		m.AuthKeyId = dBuf.Long()
 		m.ChatId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgGetScheduledHistory (pluma: task 061)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgGetScheduledHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xbaee6000:
+		x.UInt(0xbaee6000)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.Long(m.GetHash())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgGetScheduledHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgGetScheduledHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xbaee6000:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.Hash = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgGetScheduledMessages (pluma: task 061)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgGetScheduledMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xdec91280:
+		x.UInt(0xdec91280)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.VectorInt(m.GetId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgGetScheduledMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgGetScheduledMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xdec91280:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.Id = dBuf.VectorInt()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgSendScheduledMessages (pluma: task 061)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgSendScheduledMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xd30333ec:
+		x.UInt(0xd30333ec)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.VectorInt(m.GetId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgSendScheduledMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgSendScheduledMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xd30333ec:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.Id = dBuf.VectorInt()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgDeleteScheduledMessages (pluma: task 061)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgDeleteScheduledMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xd6624ce7:
+		x.UInt(0xd6624ce7)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+		x.VectorInt(m.GetId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgDeleteScheduledMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgDeleteScheduledMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xd6624ce7:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
+		m.Id = dBuf.VectorInt()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgHasScheduled (pluma: task 061)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgHasScheduled) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xbc12549a:
+		x.UInt(0xbc12549a)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetPeerType())
+		x.Long(m.GetPeerId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgHasScheduled) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgHasScheduled) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xbc12549a:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.PeerType = dBuf.Int()
+		m.PeerId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

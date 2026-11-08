@@ -29,6 +29,17 @@ func (c *MsgCore) MsgEditMessageV2(in *msg.TLMsgEditMessageV2) (*mtproto.Updates
 		return nil, mtproto.ErrInputRequestInvalid
 	}
 
+	if in.NewMessage.GetScheduleDate().GetValue() != 0 {
+		// An edit of a waiting message: it names the message by its queue id
+		// and comes with schedule_date always (tdesktop api_editing.cpp,
+		// Android SendMessagesHelper).
+		r, err := c.editScheduled(in, in.DstMessage.MessageId)
+		if err != nil {
+			c.Logger.Errorf("msg.editMessage - error: %v", err)
+			return nil, err
+		}
+		return r, nil
+	}
 	var (
 		rUpdates *mtproto.Updates
 		err      error

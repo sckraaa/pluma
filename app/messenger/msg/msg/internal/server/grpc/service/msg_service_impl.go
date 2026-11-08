@@ -269,3 +269,73 @@ func (s *Service) MsgMigrateChat(ctx context.Context, request *msg.TLMsgMigrateC
 
 	return r, err
 }
+
+// MsgGetScheduledHistory
+// msg.getScheduledHistory user_id:long peer_type:int peer_id:long hash:long = messages.Messages;
+func (s *Service) MsgGetScheduledHistory(ctx context.Context, request *msg.TLMsgGetScheduledHistory) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.getScheduledHistory - metadata: {%s}", c.MD)
+
+	r, err := c.MsgGetScheduledHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgGetScheduledMessages
+// msg.getScheduledMessages user_id:long peer_type:int peer_id:long id:Vector<int> = messages.Messages;
+func (s *Service) MsgGetScheduledMessages(ctx context.Context, request *msg.TLMsgGetScheduledMessages) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.getScheduledMessages - metadata: {%s}", c.MD)
+
+	r, err := c.MsgGetScheduledMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgSendScheduledMessages
+// msg.sendScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+func (s *Service) MsgSendScheduledMessages(ctx context.Context, request *msg.TLMsgSendScheduledMessages) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.sendScheduledMessages - metadata: {%s}", c.MD)
+
+	r, err := c.MsgSendScheduledMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgDeleteScheduledMessages
+// msg.deleteScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+func (s *Service) MsgDeleteScheduledMessages(ctx context.Context, request *msg.TLMsgDeleteScheduledMessages) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.deleteScheduledMessages - metadata: {%s}", c.MD)
+
+	r, err := c.MsgDeleteScheduledMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgHasScheduled
+// msg.hasScheduled user_id:long peer_type:int peer_id:long = Bool;
+func (s *Service) MsgHasScheduled(ctx context.Context, request *msg.TLMsgHasScheduled) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.hasScheduled - metadata: {%s}", c.MD)
+
+	r, err := c.MsgHasScheduled(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

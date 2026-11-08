@@ -62,6 +62,16 @@ const (
 	TLConstructor_CRC32_msg_updateSavedReactionTag TLConstructor = -1806534101
 	// pluma: task 047
 	TLConstructor_CRC32_msg_migrateChat TLConstructor = 1705671888
+	// pluma: task 061
+	TLConstructor_CRC32_msg_getScheduledHistory TLConstructor = -1158782976
+	// pluma: task 061
+	TLConstructor_CRC32_msg_getScheduledMessages TLConstructor = -557247872
+	// pluma: task 061
+	TLConstructor_CRC32_msg_sendScheduledMessages TLConstructor = -754764820
+	// pluma: task 061
+	TLConstructor_CRC32_msg_deleteScheduledMessages TLConstructor = -698200857
+	// pluma: task 061
+	TLConstructor_CRC32_msg_hasScheduled TLConstructor = -1139649382
 )
 
 // Enum value maps for TLConstructor.
@@ -89,30 +99,40 @@ var (
 		-91564461:   "CRC32_msg_readReactions",
 		-1806534101: "CRC32_msg_updateSavedReactionTag",
 		1705671888:  "CRC32_msg_migrateChat",
+		-1158782976: "CRC32_msg_getScheduledHistory",
+		-557247872:  "CRC32_msg_getScheduledMessages",
+		-754764820:  "CRC32_msg_sendScheduledMessages",
+		-698200857:  "CRC32_msg_deleteScheduledMessages",
+		-1139649382: "CRC32_msg_hasScheduled",
 	}
 	TLConstructor_value = map[string]int32{
-		"CRC32_UNKNOWN":                    0,
-		"CRC32_sender":                     1513645242,
-		"CRC32_outboxMessage":              1402283185,
-		"CRC32_contentMessage":             -1922780877,
-		"CRC32_msg_pushUserMessage":        902887962,
-		"CRC32_msg_readMessageContents":    673481940,
-		"CRC32_msg_sendMessageV2":          -188056380,
-		"CRC32_msg_editMessageV2":          1778278369,
-		"CRC32_msg_deleteMessages":         568855069,
-		"CRC32_msg_deleteHistory":          1975576778,
-		"CRC32_msg_deletePhoneCallHistory": 649568574,
-		"CRC32_msg_deleteChatHistory":      -283155749,
-		"CRC32_msg_readHistoryV2":          263827974,
-		"CRC32_msg_updatePinnedMessage":    -441560663,
-		"CRC32_msg_unpinAllMessages":       -1199153371,
-		"CRC32_msg_readMentions":           -2049897703,
-		"CRC32_msg_deleteHistoryRange":     -2133492186,
-		"CRC32_msg_editPeerFolders":        -2047878569,
-		"CRC32_msg_sendReaction":           1297458671,
-		"CRC32_msg_readReactions":          -91564461,
-		"CRC32_msg_updateSavedReactionTag": -1806534101,
-		"CRC32_msg_migrateChat":            1705671888,
+		"CRC32_UNKNOWN":                     0,
+		"CRC32_sender":                      1513645242,
+		"CRC32_outboxMessage":               1402283185,
+		"CRC32_contentMessage":              -1922780877,
+		"CRC32_msg_pushUserMessage":         902887962,
+		"CRC32_msg_readMessageContents":     673481940,
+		"CRC32_msg_sendMessageV2":           -188056380,
+		"CRC32_msg_editMessageV2":           1778278369,
+		"CRC32_msg_deleteMessages":          568855069,
+		"CRC32_msg_deleteHistory":           1975576778,
+		"CRC32_msg_deletePhoneCallHistory":  649568574,
+		"CRC32_msg_deleteChatHistory":       -283155749,
+		"CRC32_msg_readHistoryV2":           263827974,
+		"CRC32_msg_updatePinnedMessage":     -441560663,
+		"CRC32_msg_unpinAllMessages":        -1199153371,
+		"CRC32_msg_readMentions":            -2049897703,
+		"CRC32_msg_deleteHistoryRange":      -2133492186,
+		"CRC32_msg_editPeerFolders":         -2047878569,
+		"CRC32_msg_sendReaction":            1297458671,
+		"CRC32_msg_readReactions":           -91564461,
+		"CRC32_msg_updateSavedReactionTag":  -1806534101,
+		"CRC32_msg_migrateChat":             1705671888,
+		"CRC32_msg_getScheduledHistory":     -1158782976,
+		"CRC32_msg_getScheduledMessages":    -557247872,
+		"CRC32_msg_sendScheduledMessages":   -754764820,
+		"CRC32_msg_deleteScheduledMessages": -698200857,
+		"CRC32_msg_hasScheduled":            -1139649382,
 	}
 )
 
@@ -2135,6 +2155,414 @@ func (x *TLMsgMigrateChat) GetChatId() int64 {
 	return 0
 }
 
+// --------------------------------------------------------------------------------------------
+// pluma: msg.getScheduledHistory user_id:long peer_type:int peer_id:long hash:long = messages.Messages;
+// The schedule queue of the dialog as user_id sees it (messages.getScheduledHistory).
+// (task 061)
+type TLMsgGetScheduledHistory struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,4,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,5,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	Hash          int64                  `protobuf:"varint,6,opt,name=hash,proto3" json:"hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgGetScheduledHistory) Reset() {
+	*x = TLMsgGetScheduledHistory{}
+	mi := &file_msg_tl_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgGetScheduledHistory) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgGetScheduledHistory) ProtoMessage() {}
+
+func (x *TLMsgGetScheduledHistory) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgGetScheduledHistory.ProtoReflect.Descriptor instead.
+func (*TLMsgGetScheduledHistory) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *TLMsgGetScheduledHistory) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgGetScheduledHistory) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgGetScheduledHistory) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgGetScheduledHistory) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgGetScheduledHistory) GetHash() int64 {
+	if x != nil {
+		return x.Hash
+	}
+	return 0
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.getScheduledMessages user_id:long peer_type:int peer_id:long id:Vector<int> = messages.Messages;
+// Messages of the schedule queue of the dialog by their ids (messages.getScheduledMessages).
+// (task 061)
+type TLMsgGetScheduledMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,4,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,5,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	Id            []int32                `protobuf:"varint,6,rep,packed,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgGetScheduledMessages) Reset() {
+	*x = TLMsgGetScheduledMessages{}
+	mi := &file_msg_tl_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgGetScheduledMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgGetScheduledMessages) ProtoMessage() {}
+
+func (x *TLMsgGetScheduledMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgGetScheduledMessages.ProtoReflect.Descriptor instead.
+func (*TLMsgGetScheduledMessages) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *TLMsgGetScheduledMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgGetScheduledMessages) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgGetScheduledMessages) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgGetScheduledMessages) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgGetScheduledMessages) GetId() []int32 {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.sendScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+// Sends messages of the schedule queue right away (messages.sendScheduledMessages).
+// (task 061)
+type TLMsgSendScheduledMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	Id            []int32                `protobuf:"varint,7,rep,packed,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgSendScheduledMessages) Reset() {
+	*x = TLMsgSendScheduledMessages{}
+	mi := &file_msg_tl_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgSendScheduledMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgSendScheduledMessages) ProtoMessage() {}
+
+func (x *TLMsgSendScheduledMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgSendScheduledMessages.ProtoReflect.Descriptor instead.
+func (*TLMsgSendScheduledMessages) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *TLMsgSendScheduledMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgSendScheduledMessages) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgSendScheduledMessages) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgSendScheduledMessages) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgSendScheduledMessages) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgSendScheduledMessages) GetId() []int32 {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.deleteScheduledMessages user_id:long auth_key_id:long peer_type:int peer_id:long id:Vector<int> = Updates;
+// Takes messages off the schedule queue (messages.deleteScheduledMessages).
+// (task 061)
+type TLMsgDeleteScheduledMessages struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	AuthKeyId     int64                  `protobuf:"varint,4,opt,name=auth_key_id,json=authKeyId,proto3" json:"auth_key_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,5,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,6,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	Id            []int32                `protobuf:"varint,7,rep,packed,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgDeleteScheduledMessages) Reset() {
+	*x = TLMsgDeleteScheduledMessages{}
+	mi := &file_msg_tl_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgDeleteScheduledMessages) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgDeleteScheduledMessages) ProtoMessage() {}
+
+func (x *TLMsgDeleteScheduledMessages) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgDeleteScheduledMessages.ProtoReflect.Descriptor instead.
+func (*TLMsgDeleteScheduledMessages) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *TLMsgDeleteScheduledMessages) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgDeleteScheduledMessages) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgDeleteScheduledMessages) GetAuthKeyId() int64 {
+	if x != nil {
+		return x.AuthKeyId
+	}
+	return 0
+}
+
+func (x *TLMsgDeleteScheduledMessages) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgDeleteScheduledMessages) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
+func (x *TLMsgDeleteScheduledMessages) GetId() []int32 {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+// --------------------------------------------------------------------------------------------
+// pluma: msg.hasScheduled user_id:long peer_type:int peer_id:long = Bool;
+// Whether user_id has anything scheduled in the dialog (has_scheduled of its full info).
+// (task 061)
+type TLMsgHasScheduled struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=msg.TLConstructor" json:"constructor,omitempty"`
+	UserId        int64                  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	PeerType      int32                  `protobuf:"varint,4,opt,name=peer_type,json=peerType,proto3" json:"peer_type,omitempty"`
+	PeerId        int64                  `protobuf:"varint,5,opt,name=peer_id,json=peerId,proto3" json:"peer_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLMsgHasScheduled) Reset() {
+	*x = TLMsgHasScheduled{}
+	mi := &file_msg_tl_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLMsgHasScheduled) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLMsgHasScheduled) ProtoMessage() {}
+
+func (x *TLMsgHasScheduled) ProtoReflect() protoreflect.Message {
+	mi := &file_msg_tl_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLMsgHasScheduled.ProtoReflect.Descriptor instead.
+func (*TLMsgHasScheduled) Descriptor() ([]byte, []int) {
+	return file_msg_tl_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *TLMsgHasScheduled) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLMsgHasScheduled) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
+func (x *TLMsgHasScheduled) GetPeerType() int32 {
+	if x != nil {
+		return x.PeerType
+	}
+	return 0
+}
+
+func (x *TLMsgHasScheduled) GetPeerId() int64 {
+	if x != nil {
+		return x.PeerId
+	}
+	return 0
+}
+
 var File_msg_tl_proto protoreflect.FileDescriptor
 
 const file_msg_tl_proto_rawDesc = "" +
@@ -2310,7 +2738,38 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
 	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x17\n" +
-	"\achat_id\x18\x05 \x01(\x03R\x06chatId*\xa1\x06\n" +
+	"\achat_id\x18\x05 \x01(\x03R\x06chatId\"\xb5\x01\n" +
+	"\x1aTL_msg_getScheduledHistory\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\x12\x12\n" +
+	"\x04hash\x18\x06 \x01(\x03R\x04hash\"\xb2\x01\n" +
+	"\x1bTL_msg_getScheduledMessages\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x05 \x01(\x03R\x06peerId\x12\x0e\n" +
+	"\x02id\x18\x06 \x03(\x05R\x02id\"\xd3\x01\n" +
+	"\x1cTL_msg_sendScheduledMessages\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x0e\n" +
+	"\x02id\x18\a \x03(\x05R\x02id\"\xd5\x01\n" +
+	"\x1eTL_msg_deleteScheduledMessages\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1e\n" +
+	"\vauth_key_id\x18\x04 \x01(\x03R\tauthKeyId\x12\x1b\n" +
+	"\tpeer_type\x18\x05 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x06 \x01(\x03R\x06peerId\x12\x0e\n" +
+	"\x02id\x18\a \x03(\x05R\x02id\"\x9a\x01\n" +
+	"\x13TL_msg_hasScheduled\x124\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x12.msg.TLConstructorR\vconstructor\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x03R\x06userId\x12\x1b\n" +
+	"\tpeer_type\x18\x04 \x01(\x05R\bpeerType\x12\x17\n" +
+	"\apeer_id\x18\x05 \x01(\x03R\x06peerId*\xfd\a\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12\x14\n" +
 	"\fCRC32_sender\x10\xba\xc9\xe1\xd1\x05\x12\x1b\n" +
@@ -2333,7 +2792,12 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x16CRC32_msg_sendReaction\x10\xef\xcb\xd6\xea\x04\x12$\n" +
 	"\x17CRC32_msg_readReactions\x10Ӭ\xab\xd4\xff\xff\xff\xff\xff\x01\x12-\n" +
 	" CRC32_msg_updateSavedReactionTag\x10\xab\xf4ɢ\xf9\xff\xff\xff\xff\x01\x12\x1d\n" +
-	"\x15CRC32_msg_migrateChat\x10\xd0\xf9\xa9\xad\x062\xbf\v\n" +
+	"\x15CRC32_msg_migrateChat\x10\xd0\xf9\xa9\xad\x06\x12*\n" +
+	"\x1dCRC32_msg_getScheduledHistory\x10\x80\xc0\xb9\xd7\xfb\xff\xff\xff\xff\x01\x12+\n" +
+	"\x1eCRC32_msg_getScheduledMessages\x10\x80\xa5\xa4\xf6\xfd\xff\xff\xff\xff\x01\x12,\n" +
+	"\x1fCRC32_msg_sendScheduledMessages\x10\xec猘\xfd\xff\xff\xff\xff\x01\x12.\n" +
+	"!CRC32_msg_deleteScheduledMessages\x10癉\xb3\xfd\xff\xff\xff\xff\x01\x12#\n" +
+	"\x16CRC32_msg_hasScheduled\x10\x9a\xa9\xc9\xe0\xfb\xff\xff\xff\xff\x012\xe0\x0e\n" +
 	"\x06RPCMsg\x12C\n" +
 	"\x13msg_pushUserMessage\x12\x1b.msg.TL_msg_pushUserMessage\x1a\r.mtproto.Bool\"\x00\x12`\n" +
 	"\x17msg_readMessageContents\x12\x1f.msg.TL_msg_readMessageContents\x1a\".mtproto.messages_AffectedMessages\"\x00\x12B\n" +
@@ -2352,7 +2816,12 @@ const file_msg_tl_proto_rawDesc = "" +
 	"\x10msg_sendReaction\x12\x18.msg.TL_msg_sendReaction\x1a\x10.mtproto.Updates\"\x00\x12S\n" +
 	"\x11msg_readReactions\x12\x19.msg.TL_msg_readReactions\x1a!.mtproto.messages_AffectedHistory\"\x00\x12Q\n" +
 	"\x1amsg_updateSavedReactionTag\x12\".msg.TL_msg_updateSavedReactionTag\x1a\r.mtproto.Bool\"\x00\x12>\n" +
-	"\x0fmsg_migrateChat\x12\x17.msg.TL_msg_migrateChat\x1a\x10.mtproto.Updates\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
+	"\x0fmsg_migrateChat\x12\x17.msg.TL_msg_migrateChat\x1a\x10.mtproto.Updates\"\x00\x12X\n" +
+	"\x17msg_getScheduledHistory\x12\x1f.msg.TL_msg_getScheduledHistory\x1a\x1a.mtproto.messages_Messages\"\x00\x12Z\n" +
+	"\x18msg_getScheduledMessages\x12 .msg.TL_msg_getScheduledMessages\x1a\x1a.mtproto.messages_Messages\"\x00\x12R\n" +
+	"\x19msg_sendScheduledMessages\x12!.msg.TL_msg_sendScheduledMessages\x1a\x10.mtproto.Updates\"\x00\x12V\n" +
+	"\x1bmsg_deleteScheduledMessages\x12#.msg.TL_msg_deleteScheduledMessages\x1a\x10.mtproto.Updates\"\x00\x12=\n" +
+	"\x10msg_hasScheduled\x12\x18.msg.TL_msg_hasScheduled\x1a\r.mtproto.Bool\"\x00B?Z=github.com/teamgram/teamgram-server/app/messenger/msg/msg/msgb\x06proto3"
 
 var (
 	file_msg_tl_proto_rawDescOnce sync.Once
@@ -2367,7 +2836,7 @@ func file_msg_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_msg_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_msg_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_msg_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                             // 0: msg.TLConstructor
 	(*ContentMessage)(nil),                         // 1: msg.ContentMessage
@@ -2394,22 +2863,28 @@ var file_msg_tl_proto_goTypes = []any{
 	(*TLMsgReadReactions)(nil),                     // 22: msg.TL_msg_readReactions
 	(*TLMsgUpdateSavedReactionTag)(nil),            // 23: msg.TL_msg_updateSavedReactionTag
 	(*TLMsgMigrateChat)(nil),                       // 24: msg.TL_msg_migrateChat
-	(*mtproto.Message)(nil),                        // 25: mtproto.Message
-	(*wrapperspb.Int32Value)(nil),                  // 26: google.protobuf.Int32Value
-	(*mtproto.MessageBox)(nil),                     // 27: mtproto.MessageBox
-	(*mtproto.Bool)(nil),                           // 28: mtproto.Bool
-	(*mtproto.Reaction)(nil),                       // 29: mtproto.Reaction
-	(*mtproto.Messages_AffectedMessages)(nil),      // 30: mtproto.messages_AffectedMessages
-	(*mtproto.Updates)(nil),                        // 31: mtproto.Updates
-	(*mtproto.Messages_AffectedHistory)(nil),       // 32: mtproto.messages_AffectedHistory
-	(*mtproto.Messages_AffectedFoundMessages)(nil), // 33: mtproto.messages_AffectedFoundMessages
+	(*TLMsgGetScheduledHistory)(nil),               // 25: msg.TL_msg_getScheduledHistory
+	(*TLMsgGetScheduledMessages)(nil),              // 26: msg.TL_msg_getScheduledMessages
+	(*TLMsgSendScheduledMessages)(nil),             // 27: msg.TL_msg_sendScheduledMessages
+	(*TLMsgDeleteScheduledMessages)(nil),           // 28: msg.TL_msg_deleteScheduledMessages
+	(*TLMsgHasScheduled)(nil),                      // 29: msg.TL_msg_hasScheduled
+	(*mtproto.Message)(nil),                        // 30: mtproto.Message
+	(*wrapperspb.Int32Value)(nil),                  // 31: google.protobuf.Int32Value
+	(*mtproto.MessageBox)(nil),                     // 32: mtproto.MessageBox
+	(*mtproto.Bool)(nil),                           // 33: mtproto.Bool
+	(*mtproto.Reaction)(nil),                       // 34: mtproto.Reaction
+	(*mtproto.Messages_AffectedMessages)(nil),      // 35: mtproto.messages_AffectedMessages
+	(*mtproto.Updates)(nil),                        // 36: mtproto.Updates
+	(*mtproto.Messages_AffectedHistory)(nil),       // 37: mtproto.messages_AffectedHistory
+	(*mtproto.Messages_AffectedFoundMessages)(nil), // 38: mtproto.messages_AffectedFoundMessages
+	(*mtproto.Messages_Messages)(nil),              // 39: mtproto.messages_Messages
 }
 var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 0: msg.ContentMessage.constructor:type_name -> msg.TLConstructor
 	1,  // 1: msg.TL_contentMessage.data2:type_name -> msg.ContentMessage
 	0,  // 2: msg.OutboxMessage.constructor:type_name -> msg.TLConstructor
-	25, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
-	26, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
+	30, // 3: msg.OutboxMessage.message:type_name -> mtproto.Message
+	31, // 4: msg.OutboxMessage.schedule_date:type_name -> google.protobuf.Int32Value
 	3,  // 5: msg.TL_outboxMessage.data2:type_name -> msg.OutboxMessage
 	0,  // 6: msg.Sender.constructor:type_name -> msg.TLConstructor
 	5,  // 7: msg.TL_sender.data2:type_name -> msg.Sender
@@ -2421,7 +2896,7 @@ var file_msg_tl_proto_depIdxs = []int32{
 	3,  // 13: msg.TL_msg_sendMessageV2.message:type_name -> msg.OutboxMessage
 	0,  // 14: msg.TL_msg_editMessageV2.constructor:type_name -> msg.TLConstructor
 	3,  // 15: msg.TL_msg_editMessageV2.new_message:type_name -> msg.OutboxMessage
-	27, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
+	32, // 16: msg.TL_msg_editMessageV2.dst_message:type_name -> mtproto.MessageBox
 	0,  // 17: msg.TL_msg_deleteMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 18: msg.TL_msg_deleteHistory.constructor:type_name -> msg.TLConstructor
 	0,  // 19: msg.TL_msg_deletePhoneCallHistory.constructor:type_name -> msg.TLConstructor
@@ -2431,57 +2906,72 @@ var file_msg_tl_proto_depIdxs = []int32{
 	0,  // 23: msg.TL_msg_unpinAllMessages.constructor:type_name -> msg.TLConstructor
 	0,  // 24: msg.TL_msg_readMentions.constructor:type_name -> msg.TLConstructor
 	0,  // 25: msg.TL_msg_deleteHistoryRange.constructor:type_name -> msg.TLConstructor
-	28, // 26: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
+	33, // 26: msg.TL_msg_deleteHistoryRange.revoke:type_name -> mtproto.Bool
 	0,  // 27: msg.TL_msg_editPeerFolders.constructor:type_name -> msg.TLConstructor
 	0,  // 28: msg.TL_msg_sendReaction.constructor:type_name -> msg.TLConstructor
-	28, // 29: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
-	28, // 30: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
-	29, // 31: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
+	33, // 29: msg.TL_msg_sendReaction.big:type_name -> mtproto.Bool
+	33, // 30: msg.TL_msg_sendReaction.add_to_recent:type_name -> mtproto.Bool
+	34, // 31: msg.TL_msg_sendReaction.reaction:type_name -> mtproto.Reaction
 	0,  // 32: msg.TL_msg_readReactions.constructor:type_name -> msg.TLConstructor
 	0,  // 33: msg.TL_msg_updateSavedReactionTag.constructor:type_name -> msg.TLConstructor
-	29, // 34: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
+	34, // 34: msg.TL_msg_updateSavedReactionTag.reaction:type_name -> mtproto.Reaction
 	0,  // 35: msg.TL_msg_migrateChat.constructor:type_name -> msg.TLConstructor
-	7,  // 36: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
-	8,  // 37: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
-	9,  // 38: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
-	10, // 39: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
-	11, // 40: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
-	12, // 41: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
-	13, // 42: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
-	14, // 43: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
-	15, // 44: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
-	16, // 45: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
-	17, // 46: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
-	18, // 47: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
-	19, // 48: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
-	20, // 49: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
-	21, // 50: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
-	22, // 51: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
-	23, // 52: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
-	24, // 53: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
-	28, // 54: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
-	30, // 55: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
-	31, // 56: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
-	31, // 57: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
-	30, // 58: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	32, // 59: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
-	33, // 60: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
-	28, // 61: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
-	30, // 62: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
-	31, // 63: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
-	32, // 64: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
-	32, // 65: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
-	32, // 66: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
-	31, // 67: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
-	31, // 68: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
-	32, // 69: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
-	28, // 70: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
-	31, // 71: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
-	54, // [54:72] is the sub-list for method output_type
-	36, // [36:54] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	0,  // 36: msg.TL_msg_getScheduledHistory.constructor:type_name -> msg.TLConstructor
+	0,  // 37: msg.TL_msg_getScheduledMessages.constructor:type_name -> msg.TLConstructor
+	0,  // 38: msg.TL_msg_sendScheduledMessages.constructor:type_name -> msg.TLConstructor
+	0,  // 39: msg.TL_msg_deleteScheduledMessages.constructor:type_name -> msg.TLConstructor
+	0,  // 40: msg.TL_msg_hasScheduled.constructor:type_name -> msg.TLConstructor
+	7,  // 41: msg.RPCMsg.msg_pushUserMessage:input_type -> msg.TL_msg_pushUserMessage
+	8,  // 42: msg.RPCMsg.msg_readMessageContents:input_type -> msg.TL_msg_readMessageContents
+	9,  // 43: msg.RPCMsg.msg_sendMessageV2:input_type -> msg.TL_msg_sendMessageV2
+	10, // 44: msg.RPCMsg.msg_editMessageV2:input_type -> msg.TL_msg_editMessageV2
+	11, // 45: msg.RPCMsg.msg_deleteMessages:input_type -> msg.TL_msg_deleteMessages
+	12, // 46: msg.RPCMsg.msg_deleteHistory:input_type -> msg.TL_msg_deleteHistory
+	13, // 47: msg.RPCMsg.msg_deletePhoneCallHistory:input_type -> msg.TL_msg_deletePhoneCallHistory
+	14, // 48: msg.RPCMsg.msg_deleteChatHistory:input_type -> msg.TL_msg_deleteChatHistory
+	15, // 49: msg.RPCMsg.msg_readHistoryV2:input_type -> msg.TL_msg_readHistoryV2
+	16, // 50: msg.RPCMsg.msg_updatePinnedMessage:input_type -> msg.TL_msg_updatePinnedMessage
+	17, // 51: msg.RPCMsg.msg_unpinAllMessages:input_type -> msg.TL_msg_unpinAllMessages
+	18, // 52: msg.RPCMsg.msg_readMentions:input_type -> msg.TL_msg_readMentions
+	19, // 53: msg.RPCMsg.msg_deleteHistoryRange:input_type -> msg.TL_msg_deleteHistoryRange
+	20, // 54: msg.RPCMsg.msg_editPeerFolders:input_type -> msg.TL_msg_editPeerFolders
+	21, // 55: msg.RPCMsg.msg_sendReaction:input_type -> msg.TL_msg_sendReaction
+	22, // 56: msg.RPCMsg.msg_readReactions:input_type -> msg.TL_msg_readReactions
+	23, // 57: msg.RPCMsg.msg_updateSavedReactionTag:input_type -> msg.TL_msg_updateSavedReactionTag
+	24, // 58: msg.RPCMsg.msg_migrateChat:input_type -> msg.TL_msg_migrateChat
+	25, // 59: msg.RPCMsg.msg_getScheduledHistory:input_type -> msg.TL_msg_getScheduledHistory
+	26, // 60: msg.RPCMsg.msg_getScheduledMessages:input_type -> msg.TL_msg_getScheduledMessages
+	27, // 61: msg.RPCMsg.msg_sendScheduledMessages:input_type -> msg.TL_msg_sendScheduledMessages
+	28, // 62: msg.RPCMsg.msg_deleteScheduledMessages:input_type -> msg.TL_msg_deleteScheduledMessages
+	29, // 63: msg.RPCMsg.msg_hasScheduled:input_type -> msg.TL_msg_hasScheduled
+	33, // 64: msg.RPCMsg.msg_pushUserMessage:output_type -> mtproto.Bool
+	35, // 65: msg.RPCMsg.msg_readMessageContents:output_type -> mtproto.messages_AffectedMessages
+	36, // 66: msg.RPCMsg.msg_sendMessageV2:output_type -> mtproto.Updates
+	36, // 67: msg.RPCMsg.msg_editMessageV2:output_type -> mtproto.Updates
+	35, // 68: msg.RPCMsg.msg_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	37, // 69: msg.RPCMsg.msg_deleteHistory:output_type -> mtproto.messages_AffectedHistory
+	38, // 70: msg.RPCMsg.msg_deletePhoneCallHistory:output_type -> mtproto.messages_AffectedFoundMessages
+	33, // 71: msg.RPCMsg.msg_deleteChatHistory:output_type -> mtproto.Bool
+	35, // 72: msg.RPCMsg.msg_readHistoryV2:output_type -> mtproto.messages_AffectedMessages
+	36, // 73: msg.RPCMsg.msg_updatePinnedMessage:output_type -> mtproto.Updates
+	37, // 74: msg.RPCMsg.msg_unpinAllMessages:output_type -> mtproto.messages_AffectedHistory
+	37, // 75: msg.RPCMsg.msg_readMentions:output_type -> mtproto.messages_AffectedHistory
+	37, // 76: msg.RPCMsg.msg_deleteHistoryRange:output_type -> mtproto.messages_AffectedHistory
+	36, // 77: msg.RPCMsg.msg_editPeerFolders:output_type -> mtproto.Updates
+	36, // 78: msg.RPCMsg.msg_sendReaction:output_type -> mtproto.Updates
+	37, // 79: msg.RPCMsg.msg_readReactions:output_type -> mtproto.messages_AffectedHistory
+	33, // 80: msg.RPCMsg.msg_updateSavedReactionTag:output_type -> mtproto.Bool
+	36, // 81: msg.RPCMsg.msg_migrateChat:output_type -> mtproto.Updates
+	39, // 82: msg.RPCMsg.msg_getScheduledHistory:output_type -> mtproto.messages_Messages
+	39, // 83: msg.RPCMsg.msg_getScheduledMessages:output_type -> mtproto.messages_Messages
+	36, // 84: msg.RPCMsg.msg_sendScheduledMessages:output_type -> mtproto.Updates
+	36, // 85: msg.RPCMsg.msg_deleteScheduledMessages:output_type -> mtproto.Updates
+	33, // 86: msg.RPCMsg.msg_hasScheduled:output_type -> mtproto.Bool
+	64, // [64:87] is the sub-list for method output_type
+	41, // [41:64] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_msg_tl_proto_init() }
@@ -2495,7 +2985,7 @@ func file_msg_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_msg_tl_proto_rawDesc), len(file_msg_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   24,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

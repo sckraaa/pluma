@@ -38,6 +38,16 @@ const (
 	Predicate_msg_updateSavedReactionTag = "msg_updateSavedReactionTag"
 	// pluma: task 047
 	Predicate_msg_migrateChat = "msg_migrateChat"
+	// pluma: task 061
+	Predicate_msg_getScheduledHistory = "msg_getScheduledHistory"
+	// pluma: task 061
+	Predicate_msg_getScheduledMessages = "msg_getScheduledMessages"
+	// pluma: task 061
+	Predicate_msg_sendScheduledMessages = "msg_sendScheduledMessages"
+	// pluma: task 061
+	Predicate_msg_deleteScheduledMessages = "msg_deleteScheduledMessages"
+	// pluma: task 061
+	Predicate_msg_hasScheduled = "msg_hasScheduled"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -125,6 +135,26 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 1705671888, // 0x65aa7cd0
 
 	},
+	Predicate_msg_getScheduledHistory: { // pluma: task 061
+		0: -1158782976, // 0xbaee6000
+
+	},
+	Predicate_msg_getScheduledMessages: { // pluma: task 061
+		0: -557247872, // 0xdec91280
+
+	},
+	Predicate_msg_sendScheduledMessages: { // pluma: task 061
+		0: -754764820, // 0xd30333ec
+
+	},
+	Predicate_msg_deleteScheduledMessages: { // pluma: task 061
+		0: -698200857, // 0xd6624ce7
+
+	},
+	Predicate_msg_hasScheduled: { // pluma: task 061
+		0: -1139649382, // 0xbc12549a
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -146,10 +176,15 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-2133492186: Predicate_msg_deleteHistoryRange,     // 0x80d57e26
 	-2047878569: Predicate_msg_editPeerFolders,        // 0x85efda57 pluma: task 050
 
-	1297458671:  Predicate_msg_sendReaction,           // 0x4d55a5ef pluma: task 053
-	-91564461:   Predicate_msg_readReactions,          // 0xfa8ad653 pluma: task 053
-	-1806534101: Predicate_msg_updateSavedReactionTag, // 0x94527a2b pluma: task 053
-	1705671888:  Predicate_msg_migrateChat,            // 0x65aa7cd0 pluma: task 047
+	1297458671:  Predicate_msg_sendReaction,            // 0x4d55a5ef pluma: task 053
+	-91564461:   Predicate_msg_readReactions,           // 0xfa8ad653 pluma: task 053
+	-1806534101: Predicate_msg_updateSavedReactionTag,  // 0x94527a2b pluma: task 053
+	1705671888:  Predicate_msg_migrateChat,             // 0x65aa7cd0 pluma: task 047
+	-1158782976: Predicate_msg_getScheduledHistory,     // 0xbaee6000 pluma: task 061
+	-557247872:  Predicate_msg_getScheduledMessages,    // 0xdec91280 pluma: task 061
+	-754764820:  Predicate_msg_sendScheduledMessages,   // 0xd30333ec pluma: task 061
+	-698200857:  Predicate_msg_deleteScheduledMessages, // 0xd6624ce7 pluma: task 061
+	-1139649382: Predicate_msg_hasScheduled,            // 0xbc12549a pluma: task 061
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

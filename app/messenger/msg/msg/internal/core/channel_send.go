@@ -36,7 +36,7 @@ import (
 // repeated with the same random ids gets the first answer from the
 // database, whatever a cache kept. The answer holds updateMessageID and
 // updateNewChannelMessage of each message, the channel and the users.
-func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64, outBoxList []*msg.OutboxMessage) (*mtproto.Updates, error) {
+func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64, outBoxList []*msg.OutboxMessage, opt sendOptions) (*mtproto.Updates, error) {
 	randomIds, err := randomIds(outBoxList)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,10 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 		before, err := c.svcCtx.Dao.ChannelSentBefore(b, channelId, randomIds)
 		if err != nil || before != nil {
 			sent = before
-			return err
+			if err != nil {
+				return err
+			}
+			return opt.runAfter(b, channelSentIds(sent))
 		}
 		var (
 			mentioned []int64
@@ -64,14 +67,20 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 		if sent, mentioned, disc, err = c.svcCtx.Dao.SendChannel(b, channelId, outgoing, author); err != nil {
 			return err
 		}
-		if err = c.svcCtx.Dao.EmitChannelPush(b, channelId, fromAuthKeyId, sent, mentioned); err != nil {
+		pushed := sent
+		if opt.fromScheduled {
+			pushed = flagFromScheduled(sent)
+		}
+		if err = c.svcCtx.Dao.EmitChannelPush(b, channelId, fromAuthKeyId, pushed, mentioned); err != nil {
 			return err
 		}
 		if disc != nil && len(disc.Copies) > 0 {
 			// The copies in the discussion group, to its members.
-			return c.svcCtx.Dao.EmitChannelPush(b, disc.GroupId, fromAuthKeyId, disc.Copies, nil)
+			if err = c.svcCtx.Dao.EmitChannelPush(b, disc.GroupId, fromAuthKeyId, disc.Copies, nil); err != nil {
+				return err
+			}
 		}
-		return nil
+		return opt.runAfter(b, channelSentIds(sent))
 	})
 	if err != nil {
 		return nil, err
@@ -102,6 +111,28 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
 		Date:    int32(time.Now().Unix()),
 	}).To_Updates(), nil
+}
+
+// channelSentIds are the ids of sent, in order.
+func channelSentIds(sent []dao.ChannelSent) []int32 {
+	ids := make([]int32, len(sent))
+	for i, s := range sent {
+		ids[i] = s.Message.Id
+	}
+	return ids
+}
+
+// flagFromScheduled is sent as pushed to the sender: from_scheduled marks a
+// delivery for its sender alone (sync.pushChannelUpdates clears it for the
+// others). The stored message and the journal do not carry it.
+func flagFromScheduled(sent []dao.ChannelSent) []dao.ChannelSent {
+	out := make([]dao.ChannelSent, len(sent))
+	for i, s := range sent {
+		s.Message = proto.Clone(s.Message).(*mtproto.Message)
+		s.Message.FromScheduled = true
+		out[i] = s
+	}
+	return out
 }
 
 // editChannelMessage applies fromUserId's edit to message id of a channel or
