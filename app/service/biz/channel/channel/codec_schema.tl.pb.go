@@ -161,6 +161,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1892777199,
 		}
 	},
+	-1441587995: func() mtproto.TLObject { // 0xaa131ce5 pluma: task 043
+		return &TLChannelDeleteHistory{
+			Constructor: -1441587995,
+		}
+	},
+	-1046826439: func() mtproto.TLObject { // 0xc19ab239 pluma: task 043
+		return &TLChannelDeleteParticipantHistory{
+			Constructor: -1046826439,
+		}
+	},
 	-922563101: func() mtproto.TLObject { // 0xc902cde3 pluma: task 044
 		return &TLChannelToggleSetting{
 			Constructor: -922563101,
@@ -2820,6 +2830,98 @@ func (m *TLChannelAddMessageForwards) Decode(dBuf *mtproto.DecodeBuf) error {
 			v3[i] = dBuf.Long()
 		}
 		m.RandomId = v3
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelDeleteHistory (pluma: task 043)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelDeleteHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xaa131ce5:
+		x.UInt(0xaa131ce5)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetForEveryone().Encode(x, layer)
+		x.Int(m.GetMaxId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelDeleteHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelDeleteHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xaa131ce5:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.ForEveryone = m3
+		m.MaxId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelDeleteParticipantHistory (pluma: task 043)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelDeleteParticipantHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc19ab239:
+		x.UInt(0xc19ab239)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetParticipantId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelDeleteParticipantHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelDeleteParticipantHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc19ab239:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.ParticipantId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

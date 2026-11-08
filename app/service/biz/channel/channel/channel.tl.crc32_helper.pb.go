@@ -56,6 +56,10 @@ const (
 	CRC32_channel_incrementMessageViews TLConstructor = 1668730682 // 0x6376cf3a
 	// pluma: task 046
 	CRC32_channel_addMessageForwards TLConstructor = -1892777199 // 0x8f2e8311
+	// pluma: task 043
+	CRC32_channel_deleteHistory TLConstructor = -1441587995 // 0xaa131ce5
+	// pluma: task 043
+	CRC32_channel_deleteParticipantHistory TLConstructor = -1046826439 // 0xc19ab239
 	// pluma: task 044
 	CRC32_channel_toggleSetting TLConstructor = -922563101 // 0xc902cde3
 	// pluma: task 044

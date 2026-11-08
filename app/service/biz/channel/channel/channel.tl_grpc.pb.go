@@ -60,6 +60,8 @@ const (
 	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
 	RPCChannel_ChannelIncrementMessageViews_FullMethodName    = "/channel.RPCChannel/channel_incrementMessageViews"
 	RPCChannel_ChannelAddMessageForwards_FullMethodName       = "/channel.RPCChannel/channel_addMessageForwards"
+	RPCChannel_ChannelDeleteHistory_FullMethodName            = "/channel.RPCChannel/channel_deleteHistory"
+	RPCChannel_ChannelDeleteParticipantHistory_FullMethodName = "/channel.RPCChannel/channel_deleteParticipantHistory"
 	RPCChannel_ChannelToggleSetting_FullMethodName            = "/channel.RPCChannel/channel_toggleSetting"
 	RPCChannel_ChannelSetAvailableReactions_FullMethodName    = "/channel.RPCChannel/channel_setAvailableReactions"
 	RPCChannel_ChannelSetDiscussionGroup_FullMethodName       = "/channel.RPCChannel/channel_setDiscussionGroup"
@@ -128,6 +130,10 @@ type RPCChannelClient interface {
 	ChannelIncrementMessageViews(ctx context.Context, in *TLChannelIncrementMessageViews, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 046
 	ChannelAddMessageForwards(ctx context.Context, in *TLChannelAddMessageForwards, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 043
+	ChannelDeleteHistory(ctx context.Context, in *TLChannelDeleteHistory, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 043
+	ChannelDeleteParticipantHistory(ctx context.Context, in *TLChannelDeleteParticipantHistory, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 044
 	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -410,6 +416,26 @@ func (c *rPCChannelClient) ChannelAddMessageForwards(ctx context.Context, in *TL
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelDeleteHistory(ctx context.Context, in *TLChannelDeleteHistory, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelDeleteParticipantHistory(ctx context.Context, in *TLChannelDeleteParticipantHistory, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteParticipantHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -620,6 +646,10 @@ type RPCChannelServer interface {
 	ChannelIncrementMessageViews(context.Context, *TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	// pluma: task 046
 	ChannelAddMessageForwards(context.Context, *TLChannelAddMessageForwards) (*mtproto.Bool, error)
+	// pluma: task 043
+	ChannelDeleteHistory(context.Context, *TLChannelDeleteHistory) (*mtproto.Updates, error)
+	// pluma: task 043
+	ChannelDeleteParticipantHistory(context.Context, *TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 044
 	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -732,6 +762,12 @@ func (UnimplementedRPCChannelServer) ChannelIncrementMessageViews(context.Contex
 }
 func (UnimplementedRPCChannelServer) ChannelAddMessageForwards(context.Context, *TLChannelAddMessageForwards) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelAddMessageForwards not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteHistory(context.Context, *TLChannelDeleteHistory) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteHistory not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteParticipantHistory(context.Context, *TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteParticipantHistory not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
@@ -1233,6 +1269,42 @@ func _RPCChannel_ChannelAddMessageForwards_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelDeleteHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteHistory)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteHistory(ctx, req.(*TLChannelDeleteHistory))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelDeleteParticipantHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteParticipantHistory)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteParticipantHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteParticipantHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteParticipantHistory(ctx, req.(*TLChannelDeleteParticipantHistory))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelToggleSetting)
 	if err := dec(in); err != nil {
@@ -1623,6 +1695,14 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_addMessageForwards",
 			Handler:    _RPCChannel_ChannelAddMessageForwards_Handler,
+		},
+		{
+			MethodName: "channel_deleteHistory",
+			Handler:    _RPCChannel_ChannelDeleteHistory_Handler,
+		},
+		{
+			MethodName: "channel_deleteParticipantHistory",
+			Handler:    _RPCChannel_ChannelDeleteParticipantHistory_Handler,
 		},
 		{
 			MethodName: "channel_toggleSetting",

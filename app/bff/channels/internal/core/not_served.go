@@ -40,11 +40,6 @@ func (c *ChannelsCore) ChannelsSetStickers(in *mtproto.TLChannelsSetStickers) (*
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsDeleteHistory9BAA9647 is not served yet: channels.deleteHistory9BAA9647#9baa9647.
-func (c *ChannelsCore) ChannelsDeleteHistory9BAA9647(in *mtproto.TLChannelsDeleteHistory9BAA9647) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsEditLocation is not served yet: channels.editLocation#58e63f6d.
 func (c *ChannelsCore) ChannelsEditLocation(in *mtproto.TLChannelsEditLocation) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
@@ -60,17 +55,7 @@ func (c *ChannelsCore) ChannelsGetInactiveChannels(in *mtproto.TLChannelsGetInac
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsDeleteParticipantHistory is not served yet: channels.deleteParticipantHistory#367544db.
-func (c *ChannelsCore) ChannelsDeleteParticipantHistory(in *mtproto.TLChannelsDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsGetFutureCreatorAfterLeave is not served yet: channels.getFutureCreatorAfterLeave#a00918af.
 func (c *ChannelsCore) ChannelsGetFutureCreatorAfterLeave(in *mtproto.TLChannelsGetFutureCreatorAfterLeave) (*mtproto.User, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsDeleteHistoryAF369D42 is not served yet: channels.deleteHistoryAF369D42#af369d42.
-func (c *ChannelsCore) ChannelsDeleteHistoryAF369D42(in *mtproto.TLChannelsDeleteHistoryAF369D42) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }

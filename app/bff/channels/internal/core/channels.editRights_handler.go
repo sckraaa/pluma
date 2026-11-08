@@ -19,6 +19,7 @@ import (
 	"errors"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
@@ -104,10 +105,15 @@ func bannedFlags(r *mtproto.ChatBannedRights) int32 {
 // channel.editCreator), as messages.editChatCreator does for a channel:
 // Android sends this one, iOS and Desktop the other. The 2FA password is
 // checked first, as the clients probe with an empty one and expect
-// PASSWORD_MISSING or PASSWORD_HASH_INVALID before they ask for it
-// (Android ChatRightsEditActivity.java:1116-1148).
+// PASSWORD_MISSING, PASSWORD_TOO_FRESH_X, SESSION_TOO_FRESH_X or
+// PASSWORD_HASH_INVALID before they ask for it (Android
+// ChatRightsEditActivity.java:1116-1148).
 func (c *ChannelsCore) ChannelsEditCreator(in *mtproto.TLChannelsEditCreator) (*mtproto.Updates, error) {
-	if err := c.svcCtx.Twofa.Check(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, in.GetPassword()); err != nil {
+	session, err := c.svcCtx.Auth.AuthsessionGetAuthorization(c.ctx, &authsession.TLAuthsessionGetAuthorization{AuthKeyId: c.MD.PermAuthKeyId})
+	if err != nil {
+		return nil, err
+	}
+	if err = c.svcCtx.Twofa.CheckTransfer(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, in.GetPassword(), int64(session.GetDateCreated())); err != nil {
 		if errors.Is(err, twofa.ErrNoPassword) {
 			err = mtproto.ErrPasswordMissing
 		}

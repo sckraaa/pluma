@@ -118,6 +118,38 @@ func (s *Service) Check(ctx context.Context, userId, authKeyId int64, in *mtprot
 	return s.check(ctx, p, authKeyId, in)
 }
 
+// TransferFreshWait is how long a password must have been set and a session
+// logged in before they may transfer the ownership of a channel
+// (core.telegram.org/method/channels.editCreator: PASSWORD_TOO_FRESH_%d,
+// SESSION_TOO_FRESH_%d, "less than 24 hours ago").
+const TransferFreshWait = int64(24 * 60 * 60)
+
+// CheckTransfer is Check for a transfer of ownership: before the password
+// is compared the account must have one set for TransferFreshWait and the
+// session (sessionCreated, unix seconds; 0 when not known) must be as old,
+// or the answer is PASSWORD_TOO_FRESH_X or SESSION_TOO_FRESH_X with the
+// seconds left. They come before the hash because the clients probe with
+// an empty password and show these as the reasons the transfer cannot be
+// done yet (iOS ChannelOwnershipTransfer.swift:36-53, Android
+// ChatRightsEditActivity.java:1148).
+func (s *Service) CheckTransfer(ctx context.Context, userId, authKeyId int64, in *mtproto.InputCheckPasswordSRP, sessionCreated int64) error {
+	p, err := s.get(ctx, userId)
+	if err != nil {
+		return err
+	}
+	if p == nil {
+		return ErrNoPassword
+	}
+	now := s.now().Unix()
+	if wait := p.SetAt + TransferFreshWait - now; wait > 0 {
+		return mtproto.NewErrPasswordTooFreshX(int32(wait))
+	}
+	if wait := sessionCreated + TransferFreshWait - now; sessionCreated != 0 && wait > 0 {
+		return mtproto.NewErrSessionTooFreshX(int32(wait))
+	}
+	return s.check(ctx, p, authKeyId, in)
+}
+
 func (s *Service) check(ctx context.Context, p *Password, authKeyId int64, in *mtproto.InputCheckPasswordSRP) error {
 	if passwordEmpty(in) {
 		return mtproto.ErrPasswordHashInvalid

@@ -50,6 +50,8 @@ type ChannelClient interface {
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
 	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
+	ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error)
+	ChannelDeleteParticipantHistory(ctx context.Context, in *channel.TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error)
 	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
 	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
@@ -516,4 +518,26 @@ func (m *defaultChannelClient) ChannelAddMessageForwards(ctx context.Context, in
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelAddMessageForwards(ctx, in)
+}
+
+// ChannelDeleteHistory
+// channel.deleteHistory self_id:long perm_auth_key_id:long channel_id:long for_everyone:Bool max_id:int = Updates;
+func (m *defaultChannelClient) ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteHistory(ctx, in)
+}
+
+// ChannelDeleteParticipantHistory
+// channel.deleteParticipantHistory self_id:long perm_auth_key_id:long channel_id:long participant_id:long = messages.AffectedHistory;
+func (m *defaultChannelClient) ChannelDeleteParticipantHistory(ctx context.Context, in *channel.TLChannelDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteParticipantHistory(ctx, in)
 }

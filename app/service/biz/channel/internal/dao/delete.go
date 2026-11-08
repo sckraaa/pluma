@@ -120,15 +120,25 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 		}
 		out.Ids = append(out.Ids, r.Id)
 	}
-	if len(out.Ids) == 0 {
+	return deleteRows(b, ch, channelId, out.Ids)
+}
+
+// deleteRows deletes for everyone the messages ids, which exist and are not
+// deleted, of the channel ch has locked, and what goes with them in the
+// discussion group or its channel. The other channel of each link of ids
+// is locked too. Nothing is written for no ids.
+func deleteRows(b *userbox.Box, ch *channelbox.Channel, channelId int64, ids []int32) (*Deleted, error) {
+	out := &Deleted{ChannelId: channelId, Ids: ids}
+	if len(ids) == 0 {
 		return out, nil
 	}
-	if err = removeMessages(b, ch, out); err != nil {
+	if err := removeMessages(b, ch, out); err != nil {
 		return nil, err
 	}
 	// Read again with the channels locked: a link changes only with both
 	// of its channels locked.
-	if links, err = discussionLinks(b, channelId, out.Ids); err != nil {
+	links, err := discussionLinks(b, channelId, ids)
+	if err != nil {
 		return nil, err
 	}
 	if err = removeLinked(b, channelId, links, out); err != nil {

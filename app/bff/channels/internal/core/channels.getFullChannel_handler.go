@@ -22,7 +22,20 @@ import (
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
+
+// availableMinId is channelFull.available_min_id for participant p. The row
+// keeps the first message p sees, the field the last it does not
+// (core.telegram.org/constructor/channelFull, History::clearUpTill, tdesktop).
+// The row outlives leaving, but one outside a public channel reads all of it
+// (viewerOf in biz channel), so only a member has anything hidden.
+func availableMinId(p *channelpb.ImmutableChannelParticipant) *wrapperspb.Int32Value {
+	if !p.Member() || p.GetAvailableMinId() <= 1 {
+		return nil
+	}
+	return mtproto.MakeFlagsInt32(p.GetAvailableMinId() - 1)
+}
 
 // ChannelsGetFullChannel
 // channels.getFullChannel#8736a09 channel:InputChannel = messages.ChatFull;
@@ -81,6 +94,7 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	if ch.GetSlowmodeSeconds() > 0 {
 		full.SlowmodeSeconds = mtproto.MakeFlagsInt32(ch.GetSlowmodeSeconds())
 	}
+	full.AvailableMinId = availableMinId(me)
 
 	dialogs, err := c.svcCtx.Channel.ChannelGetChannelDialogs(c.ctx, &channelpb.TLChannelGetChannelDialogs{SelfId: c.MD.UserId, IdList: []int64{ch.GetId()}})
 	if err != nil {

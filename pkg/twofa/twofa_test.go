@@ -21,6 +21,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -674,5 +675,31 @@ func TestFailClosed(t *testing.T) {
 	mustError(t, e.s.Check(ctx, alice, keyOne, in), "INTERNAL_SERVER_ERROR")
 	if _, err := e.s.WaitingLogin(ctx, keyOne); !errorIs(err, "INTERNAL_SERVER_ERROR") {
 		t.Fatalf("WaitingLogin: %v", err)
+	}
+}
+
+// TestCheckTransfer: a transfer of ownership needs a password set a day ago
+// and a session as old, and says so before it looks at the password, so that
+// a probe with an empty one learns why (PASSWORD_TOO_FRESH_X and
+// SESSION_TOO_FRESH_X, with the seconds left).
+func TestCheckTransfer(t *testing.T) {
+	ctx := context.Background()
+	e := newTestEnv(t)
+
+	if err := e.s.CheckTransfer(ctx, alice, keyOne, mtclient.NoPassword(), 1); !errors.Is(err, ErrNoPassword) {
+		t.Fatalf("no password: %v", err)
+	}
+	e.setPassword(t, alice, "correct horse", "")
+
+	e.advance(time.Hour)
+	mustError(t, e.s.CheckTransfer(ctx, alice, keyOne, mtclient.NoPassword(), 1), "PASSWORD_TOO_FRESH_"+strconv.FormatInt(TransferFreshWait-3600, 10))
+
+	e.advance(24 * time.Hour)
+	fresh := e.now.Unix() - 600
+	mustError(t, e.s.CheckTransfer(ctx, alice, keyOne, mtclient.NoPassword(), fresh), "SESSION_TOO_FRESH_"+strconv.FormatInt(TransferFreshWait-600, 10))
+	mustError(t, e.s.CheckTransfer(ctx, alice, keyOne, mtclient.NoPassword(), 0), "PASSWORD_HASH_INVALID")
+	mustError(t, e.s.CheckTransfer(ctx, alice, keyOne, mtclient.NoPassword(), 1), "PASSWORD_HASH_INVALID")
+	if err := e.s.CheckTransfer(ctx, alice, keyOne, e.proof(t, alice, "correct horse"), 1); err != nil {
+		t.Fatalf("the right password: %v", err)
 	}
 }
