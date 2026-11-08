@@ -23,6 +23,20 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
+func TestChatlistSlugOf(t *testing.T) {
+	for in, want := range map[string]string{
+		"abc":                            "abc",
+		"https://pluma.chat/addlist/abc": "abc",
+		"pluma.chat/addlist/abc":         "abc",
+		"https://pluma.chat/addlist/":    "",
+		"":                               "",
+	} {
+		if got := chatlistSlugOf(in); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestChatlistFolderId(t *testing.T) {
 	make := func(id int32) *mtproto.InputChatlist {
 		return mtproto.MakeTLInputChatlistDialogFilter(&mtproto.InputChatlist{FilterId: id}).To_InputChatlist()

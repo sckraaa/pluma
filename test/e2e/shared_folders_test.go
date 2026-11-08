@@ -208,10 +208,11 @@ func TestSharedFolder(t *testing.T) {
 	if u := chatlistUpdates(ctx, t, bob, folderId); len(u.GetMissingPeers()) != 0 {
 		t.Fatalf("new channels before the link has them: %v", u.GetMissingPeers())
 	}
+	// Desktop and Web name a link by its whole url here and in its deletion.
 	o, err = alice.c.Invoke(ctx, &mtproto.TLChatlistsEditExportedInvite{
 		Constructor: alice.c.Constructor(mtproto.Predicate_chatlists_editExportedInvite),
 		Chatlist:    chatlistInput(2),
-		Slug:        slug,
+		Slug:        url,
 		Peers:       []*mtproto.InputPeer{channelInputPeer(news), channelInputPeer(chat), channelInputPeer(more)},
 	})
 	if err != nil {
@@ -298,7 +299,7 @@ func TestSharedFolder(t *testing.T) {
 	if _, err = alice.c.Invoke(ctx, &mtproto.TLChatlistsDeleteExportedInvite{
 		Constructor: alice.c.Constructor(mtproto.Predicate_chatlists_deleteExportedInvite),
 		Chatlist:    chatlistInput(2),
-		Slug:        slug,
+		Slug:        url,
 	}); err != nil {
 		t.Fatalf("chatlists.deleteExportedInvite: %v", err)
 	}

@@ -18,6 +18,7 @@ package core
 import (
 	"errors"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -92,6 +93,14 @@ func chatlistFolderId(in *mtproto.InputChatlist) (int32, error) {
 	}
 	return id, nil
 }
+
+// chatlistSlugOf is the slug a link's edit or deletion names. Desktop and Web
+// send the whole url of the link there (tdesktop data_chat_filters.cpp:597,
+// 621, edit_filter_links.cpp:1059; tweb sharedFolder.tsx:154, 261,
+// editFolder.tsx:616), Android and iOS the part after its last slash
+// (FilterCreateActivity.java:2077, ChatFolders.swift:62-64). A slug has no
+// slash, so both come to the same.
+func chatlistSlugOf(s string) string { return s[strings.LastIndexByte(s, '/')+1:] }
 
 // chatlistFolder returns folder id of the user if it is shared.
 func (c *FoldersCore) chatlistFolder(id int32) (*mtproto.DialogFilter, []*dialog.DialogFilterExt, error) {

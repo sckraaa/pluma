@@ -30,13 +30,14 @@ func (c *FoldersCore) ChatlistsDeleteExportedInvite(in *mtproto.TLChatlistsDelet
 		c.Logger.Errorf("chatlists.deleteExportedInvite - %v", err)
 		return nil, err
 	}
-	if in.GetSlug() == "" {
+	slug := chatlistSlugOf(in.GetSlug())
+	if slug == "" {
 		return nil, mtproto.ErrInviteSlugEmpty
 	}
 	if _, err = c.svcCtx.Dao.DialogClient.DialogDeleteChatlistInvite(c.ctx, &dialog.TLDialogDeleteChatlistInvite{
 		UserId:   c.MD.UserId,
 		FilterId: id,
-		Slug:     in.GetSlug(),
+		Slug:     slug,
 	}); err != nil {
 		c.Logger.Errorf("chatlists.deleteExportedInvite - folder %d: %v", id, err)
 		return nil, err

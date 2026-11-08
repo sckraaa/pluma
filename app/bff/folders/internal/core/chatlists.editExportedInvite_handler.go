@@ -31,14 +31,15 @@ func (c *FoldersCore) ChatlistsEditExportedInvite(in *mtproto.TLChatlistsEditExp
 		c.Logger.Errorf("chatlists.editExportedInvite - %v", err)
 		return nil, err
 	}
-	if in.GetSlug() == "" {
+	slug := chatlistSlugOf(in.GetSlug())
+	if slug == "" {
 		return nil, mtproto.ErrInviteSlugEmpty
 	}
 	setPeers := in.GetPeers() != nil
 	req := &dialog.TLDialogEditChatlistInvite{
 		UserId:    c.MD.UserId,
 		FilterId:  id,
-		Slug:      in.GetSlug(),
+		Slug:      slug,
 		SetTitle:  mtproto.ToBool(in.GetTitle() != nil),
 		Title:     in.GetTitle().GetValue(),
 		SetPeers:  mtproto.ToBool(setPeers),
@@ -49,7 +50,7 @@ func (c *FoldersCore) ChatlistsEditExportedInvite(in *mtproto.TLChatlistsEditExp
 			_, err := c.svcCtx.Dao.DialogClient.DialogEditChatlistInvite(c.ctx, &dialog.TLDialogEditChatlistInvite{
 				UserId:    c.MD.UserId,
 				FilterId:  id,
-				Slug:      in.GetSlug(),
+				Slug:      slug,
 				SetTitle:  mtproto.BoolFalse,
 				SetPeers:  mtproto.BoolFalse,
 				CheckOnly: mtproto.BoolTrue,
