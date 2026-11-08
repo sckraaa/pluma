@@ -488,6 +488,18 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ---
 
+### D-083. Премиум-стикеры без Premium (задача 058)
+- **Статус.** Ветка `task/058-premium-stickers` (`d054209`), не влита, не выпущена (2026-11-08).
+- **Что и зачем.** Премиум-стикеры (видео-миниатюра `"f"`, `data_session.cpp:4003`) отправляются, показываются и предлагаются всем, как с Premium в Telegram; Pluma Premium не продаёт (отчёт владельца 2026-11-07, подтвердить решение). `Main::Session::premiumStickersAvailable()` (`true`) используется только у гейтов стикеров.
+- **Где** (`PREMIUM_STICKERS` в `ci/patch.py`):
+  - `window/section_widget.cpp:600` (`ShowSendPremiumError`, общий гейт всех путей отправки: история, отложенные, раздел чата, опрос, истории);
+  - `chat_helpers/stickers_list_widget.cpp` (`skipPremium` ×6) и `boxes/sticker_set_box.cpp:1112` — стикеры не выпадают из панели и окна набора;
+  - `data/stickers/data_stickers.cpp:1503` — порядок в подсказках;
+  - `boxes/sticker_set_box.{h,cpp}` (`StickerPremiumMark`, новый параметр `unlocked`), `stickers_list_widget.cpp:250`, `field_autocomplete.cpp:1054`, `sticker_set_box.cpp:1076` — звезда вместо замка на стикерах; панель эмодзи (`emoji_list_widget.cpp:511`) и подарки не меняются;
+  - `history/history_item.cpp:788`, `data/data_media_types.cpp:1092` — своя копия отправленного и пересланного стикера играет эффект.
+- **Не правится.** Эффект у получателя (`history_view_sticker.cpp:140`: нет `nopremium` от сервера) и кастомные эмодзи (вопрос владельцу в брифе).
+- **Как проверяется.** `UpstreamTest.test_premium_stickers` и порча каждой правки в `DAMAGE` (патч падает с именем файла). `ci/patch_test.py` со `./upstream`: 51 тест, OK. Компиляция (Qt/CMake) и проверка в клиенте не делались.
+
 ## Медиа
 
 Правок поведения медиа нет. Связанное с медиа: текст кольца вокруг записываемого кружка (D-013, `round_video_recorder.cpp`), фильтр файлов «Pluma sticker (*.tgs)» (D-013, `mime_type.cpp`), аватары HTML-экспорта (D-028). Папка загрузок называется по `AppName` — «Pluma» (задача 020, сверка клиентов).

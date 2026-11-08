@@ -551,6 +551,18 @@
 - **При обновлении:** если апстрим сам откроет теги или поменяет гейты, упадёт `replace` или проверка в `verify`; новый вызов окна Premium с `saved_tags` нужно прочитать и решить, гейт ли это тегов. Если `getLimit('reactions')` перестанет определять число тегов, упадёт `expect`: тогда проверить, не стал ли лимит жёстким для не-Premium.
 - **Коммиты:** не закоммичено, ветка `task/053-saved-tags`, задача 053.
 
+### W-067. Премиум-стикеры без Premium (задача 058)
+- **Статус.** Ветка `task/058-premium-stickers` (`0de2ee1`), не влита, не выпущена (2026-11-08).
+- **Что и зачем.** Премиум-стикеры (`getStickerEffectThumb`, `video_thumbs`) отправляются, показываются и предлагаются всем, как с Premium в Telegram; Pluma Premium не продаёт (отчёт владельца 2026-11-07, подтвердить решение). `premium_purchase_blocked` ещё и прячет такие стикеры из наборов (`tabs/stickers.ts`).
+- **Где** (`premium_stickers()` в `ci/patch.py`, `PREMIUM_STICKER_GATES`; новый файл `src/lib/appManagers/utils/stickers/premiumStickersAvailable.ts`, импорт — за импортом `getStickerEffectThumb` в каждом файле):
+  - `src/components/chat/input.ts:4583` — окно Premium вместо отправки;
+  - `src/lib/appManagers/appMessagesManager.ts:5100` — локальная копия пересылки с `nopremium`;
+  - `src/components/emoticonsDropdown/tabs/stickers.ts:570` — стикеры, скрытые при `premium_purchase_blocked`;
+  - `src/lib/appManagers/appStickersManager.ts:841` — подсказки по эмодзи;
+  - `src/components/wrappers/sticker.ts:194` — значок замка.
+- **Не правится.** Эффекты отправки (`sendContextMenu.ts:118`) и кастомные эмодзи (вопрос владельцу в брифе). Эффект у получателя играет `wrappers/sticker.ts:742` без проверки Premium.
+- **Как проверяется.** `verify_premium_stickers` (функция `true`, вызовы только в пяти гейтах, каждый гейт), `test_premium_stickers`, `test_premium_stickers_verify`, порча каждого гейта в `DAMAGE`. `ci/patch_test.py` со `./upstream`: 35 тестов, OK. Сборка и проверка в браузере не делались.
+
 ## Медиа
 
 ### W-048. «Добавить» в наборе стикеров, открытом по ссылке (только `main`)
