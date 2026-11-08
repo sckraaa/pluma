@@ -65,6 +65,13 @@ const (
 	RPCDialog_DialogCreateDialogFilter_FullMethodName                = "/dialog.RPCDialog/dialog_createDialogFilter"
 	RPCDialog_DialogToggleDialogFilterTags_FullMethodName            = "/dialog.RPCDialog/dialog_toggleDialogFilterTags"
 	RPCDialog_DialogGetDialogFilterTags_FullMethodName               = "/dialog.RPCDialog/dialog_getDialogFilterTags"
+	RPCDialog_DialogExportChatlistInvite_FullMethodName              = "/dialog.RPCDialog/dialog_exportChatlistInvite"
+	RPCDialog_DialogEditChatlistInvite_FullMethodName                = "/dialog.RPCDialog/dialog_editChatlistInvite"
+	RPCDialog_DialogDeleteChatlistInvite_FullMethodName              = "/dialog.RPCDialog/dialog_deleteChatlistInvite"
+	RPCDialog_DialogGetChatlistInvites_FullMethodName                = "/dialog.RPCDialog/dialog_getChatlistInvites"
+	RPCDialog_DialogGetChatlistInvite_FullMethodName                 = "/dialog.RPCDialog/dialog_getChatlistInvite"
+	RPCDialog_DialogJoinChatlist_FullMethodName                      = "/dialog.RPCDialog/dialog_joinChatlist"
+	RPCDialog_DialogHideChatlistUpdates_FullMethodName               = "/dialog.RPCDialog/dialog_hideChatlistUpdates"
 	RPCDialog_DialogSetChatWallpaper_FullMethodName                  = "/dialog.RPCDialog/dialog_setChatWallpaper"
 	RPCDialog_DialogSaveThreadDraft_FullMethodName                   = "/dialog.RPCDialog/dialog_saveThreadDraft"
 )
@@ -109,6 +116,20 @@ type RPCDialogClient interface {
 	DialogCreateDialogFilter(ctx context.Context, in *TLDialogCreateDialogFilter, opts ...grpc.CallOption) (*DialogFilterExt, error)
 	DialogToggleDialogFilterTags(ctx context.Context, in *TLDialogToggleDialogFilterTags, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(ctx context.Context, in *TLDialogGetDialogFilterTags, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 064
+	DialogExportChatlistInvite(ctx context.Context, in *TLDialogExportChatlistInvite, opts ...grpc.CallOption) (*mtproto.Chatlists_ExportedChatlistInvite, error)
+	// pluma: task 064
+	DialogEditChatlistInvite(ctx context.Context, in *TLDialogEditChatlistInvite, opts ...grpc.CallOption) (*mtproto.ExportedChatlistInvite, error)
+	// pluma: task 064
+	DialogDeleteChatlistInvite(ctx context.Context, in *TLDialogDeleteChatlistInvite, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 064
+	DialogGetChatlistInvites(ctx context.Context, in *TLDialogGetChatlistInvites, opts ...grpc.CallOption) (*mtproto.Chatlists_ExportedInvites, error)
+	// pluma: task 064
+	DialogGetChatlistInvite(ctx context.Context, in *TLDialogGetChatlistInvite, opts ...grpc.CallOption) (*ChatlistInviteExt, error)
+	// pluma: task 064
+	DialogJoinChatlist(ctx context.Context, in *TLDialogJoinChatlist, opts ...grpc.CallOption) (*DialogFilterExt, error)
+	// pluma: task 064
+	DialogHideChatlistUpdates(ctx context.Context, in *TLDialogHideChatlistUpdates, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(ctx context.Context, in *TLDialogSetChatWallpaper, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 063
 	DialogSaveThreadDraft(ctx context.Context, in *TLDialogSaveThreadDraft, opts ...grpc.CallOption) (*mtproto.Bool, error)
@@ -482,6 +503,76 @@ func (c *rPCDialogClient) DialogGetDialogFilterTags(ctx context.Context, in *TLD
 	return out, nil
 }
 
+func (c *rPCDialogClient) DialogExportChatlistInvite(ctx context.Context, in *TLDialogExportChatlistInvite, opts ...grpc.CallOption) (*mtproto.Chatlists_ExportedChatlistInvite, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Chatlists_ExportedChatlistInvite)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogExportChatlistInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCDialogClient) DialogEditChatlistInvite(ctx context.Context, in *TLDialogEditChatlistInvite, opts ...grpc.CallOption) (*mtproto.ExportedChatlistInvite, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.ExportedChatlistInvite)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogEditChatlistInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCDialogClient) DialogDeleteChatlistInvite(ctx context.Context, in *TLDialogDeleteChatlistInvite, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogDeleteChatlistInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCDialogClient) DialogGetChatlistInvites(ctx context.Context, in *TLDialogGetChatlistInvites, opts ...grpc.CallOption) (*mtproto.Chatlists_ExportedInvites, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Chatlists_ExportedInvites)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogGetChatlistInvites_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCDialogClient) DialogGetChatlistInvite(ctx context.Context, in *TLDialogGetChatlistInvite, opts ...grpc.CallOption) (*ChatlistInviteExt, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChatlistInviteExt)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogGetChatlistInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCDialogClient) DialogJoinChatlist(ctx context.Context, in *TLDialogJoinChatlist, opts ...grpc.CallOption) (*DialogFilterExt, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DialogFilterExt)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogJoinChatlist_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCDialogClient) DialogHideChatlistUpdates(ctx context.Context, in *TLDialogHideChatlistUpdates, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCDialog_DialogHideChatlistUpdates_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCDialogClient) DialogSetChatWallpaper(ctx context.Context, in *TLDialogSetChatWallpaper, opts ...grpc.CallOption) (*mtproto.Bool, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Bool)
@@ -542,6 +633,20 @@ type RPCDialogServer interface {
 	DialogCreateDialogFilter(context.Context, *TLDialogCreateDialogFilter) (*DialogFilterExt, error)
 	DialogToggleDialogFilterTags(context.Context, *TLDialogToggleDialogFilterTags) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(context.Context, *TLDialogGetDialogFilterTags) (*mtproto.Bool, error)
+	// pluma: task 064
+	DialogExportChatlistInvite(context.Context, *TLDialogExportChatlistInvite) (*mtproto.Chatlists_ExportedChatlistInvite, error)
+	// pluma: task 064
+	DialogEditChatlistInvite(context.Context, *TLDialogEditChatlistInvite) (*mtproto.ExportedChatlistInvite, error)
+	// pluma: task 064
+	DialogDeleteChatlistInvite(context.Context, *TLDialogDeleteChatlistInvite) (*mtproto.Bool, error)
+	// pluma: task 064
+	DialogGetChatlistInvites(context.Context, *TLDialogGetChatlistInvites) (*mtproto.Chatlists_ExportedInvites, error)
+	// pluma: task 064
+	DialogGetChatlistInvite(context.Context, *TLDialogGetChatlistInvite) (*ChatlistInviteExt, error)
+	// pluma: task 064
+	DialogJoinChatlist(context.Context, *TLDialogJoinChatlist) (*DialogFilterExt, error)
+	// pluma: task 064
+	DialogHideChatlistUpdates(context.Context, *TLDialogHideChatlistUpdates) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(context.Context, *TLDialogSetChatWallpaper) (*mtproto.Bool, error)
 	// pluma: task 063
 	DialogSaveThreadDraft(context.Context, *TLDialogSaveThreadDraft) (*mtproto.Bool, error)
@@ -661,6 +766,27 @@ func (UnimplementedRPCDialogServer) DialogToggleDialogFilterTags(context.Context
 }
 func (UnimplementedRPCDialogServer) DialogGetDialogFilterTags(context.Context, *TLDialogGetDialogFilterTags) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogGetDialogFilterTags not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogExportChatlistInvite(context.Context, *TLDialogExportChatlistInvite) (*mtproto.Chatlists_ExportedChatlistInvite, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogExportChatlistInvite not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogEditChatlistInvite(context.Context, *TLDialogEditChatlistInvite) (*mtproto.ExportedChatlistInvite, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogEditChatlistInvite not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogDeleteChatlistInvite(context.Context, *TLDialogDeleteChatlistInvite) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogDeleteChatlistInvite not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogGetChatlistInvites(context.Context, *TLDialogGetChatlistInvites) (*mtproto.Chatlists_ExportedInvites, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogGetChatlistInvites not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogGetChatlistInvite(context.Context, *TLDialogGetChatlistInvite) (*ChatlistInviteExt, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogGetChatlistInvite not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogJoinChatlist(context.Context, *TLDialogJoinChatlist) (*DialogFilterExt, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogJoinChatlist not implemented")
+}
+func (UnimplementedRPCDialogServer) DialogHideChatlistUpdates(context.Context, *TLDialogHideChatlistUpdates) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DialogHideChatlistUpdates not implemented")
 }
 func (UnimplementedRPCDialogServer) DialogSetChatWallpaper(context.Context, *TLDialogSetChatWallpaper) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DialogSetChatWallpaper not implemented")
@@ -1336,6 +1462,132 @@ func _RPCDialog_DialogGetDialogFilterTags_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCDialog_DialogExportChatlistInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogExportChatlistInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogExportChatlistInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogExportChatlistInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogExportChatlistInvite(ctx, req.(*TLDialogExportChatlistInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCDialog_DialogEditChatlistInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogEditChatlistInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogEditChatlistInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogEditChatlistInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogEditChatlistInvite(ctx, req.(*TLDialogEditChatlistInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCDialog_DialogDeleteChatlistInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogDeleteChatlistInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogDeleteChatlistInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogDeleteChatlistInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogDeleteChatlistInvite(ctx, req.(*TLDialogDeleteChatlistInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCDialog_DialogGetChatlistInvites_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogGetChatlistInvites)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogGetChatlistInvites(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogGetChatlistInvites_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogGetChatlistInvites(ctx, req.(*TLDialogGetChatlistInvites))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCDialog_DialogGetChatlistInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogGetChatlistInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogGetChatlistInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogGetChatlistInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogGetChatlistInvite(ctx, req.(*TLDialogGetChatlistInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCDialog_DialogJoinChatlist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogJoinChatlist)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogJoinChatlist(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogJoinChatlist_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogJoinChatlist(ctx, req.(*TLDialogJoinChatlist))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCDialog_DialogHideChatlistUpdates_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLDialogHideChatlistUpdates)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCDialogServer).DialogHideChatlistUpdates(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCDialog_DialogHideChatlistUpdates_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCDialogServer).DialogHideChatlistUpdates(ctx, req.(*TLDialogHideChatlistUpdates))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCDialog_DialogSetChatWallpaper_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLDialogSetChatWallpaper)
 	if err := dec(in); err != nil {
@@ -1522,6 +1774,34 @@ var RPCDialog_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "dialog_getDialogFilterTags",
 			Handler:    _RPCDialog_DialogGetDialogFilterTags_Handler,
+		},
+		{
+			MethodName: "dialog_exportChatlistInvite",
+			Handler:    _RPCDialog_DialogExportChatlistInvite_Handler,
+		},
+		{
+			MethodName: "dialog_editChatlistInvite",
+			Handler:    _RPCDialog_DialogEditChatlistInvite_Handler,
+		},
+		{
+			MethodName: "dialog_deleteChatlistInvite",
+			Handler:    _RPCDialog_DialogDeleteChatlistInvite_Handler,
+		},
+		{
+			MethodName: "dialog_getChatlistInvites",
+			Handler:    _RPCDialog_DialogGetChatlistInvites_Handler,
+		},
+		{
+			MethodName: "dialog_getChatlistInvite",
+			Handler:    _RPCDialog_DialogGetChatlistInvite_Handler,
+		},
+		{
+			MethodName: "dialog_joinChatlist",
+			Handler:    _RPCDialog_DialogJoinChatlist_Handler,
+		},
+		{
+			MethodName: "dialog_hideChatlistUpdates",
+			Handler:    _RPCDialog_DialogHideChatlistUpdates_Handler,
 		},
 		{
 			MethodName: "dialog_setChatWallpaper",

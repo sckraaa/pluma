@@ -27,4 +27,7 @@ type Config struct {
 	ChatClient   zrpc.RpcClientConf
 	SyncClient   sync_client.OutboxConf
 	MsgClient    zrpc.RpcClientConf // the archive (task 050)
+	// ChannelClient joins and leaves the channels of shared folders and
+	// shows them (task 064).
+	ChannelClient zrpc.RpcClientConf
 }

@@ -192,6 +192,19 @@ func (m *ImmutableChannel) ToChat(p *ImmutableChannelParticipant, now int32) *mt
 	return mtproto.MakeTLChannel(c).To_Chat()
 }
 
+// ToInvitedChat is the channel as shown to viewerId through a link of a
+// shared folder (task 064, chatlists.checkChatlistInvite): a private channel
+// viewerId is not in reads as a public one does, with left, so that the
+// clients show it and read participants_count (iOS ChatFolders.swift:216-223);
+// a member sees its own view and one banned stays out.
+func (m *MutableChannel) ToInvitedChat(viewerId int64, now int32) *mtproto.Chat {
+	p, _ := m.GetParticipant(viewerId)
+	if p != nil && (p.Member() || p.kicked(now)) {
+		return m.GetChannel().ToChat(p, now)
+	}
+	return m.GetChannel().ToChat(&ImmutableChannelParticipant{State: StateLinked}, now)
+}
+
 // ToMinChat is the min form of the channel (core.telegram.org/api/min): for a
 // peer one only sees referenced, without the viewer's state. It carries the
 // fields a client applies over its stored copy of a min channel (the list on

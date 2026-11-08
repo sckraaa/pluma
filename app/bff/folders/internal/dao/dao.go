@@ -20,6 +20,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/folders/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
@@ -31,14 +32,16 @@ type Dao struct {
 	chat_client.ChatClient
 	sync_client.SyncClient
 	msg_client.MsgClient
+	channel_client.ChannelClient
 }
 
 func New(c config.Config) *Dao {
 	return &Dao{
-		DialogClient: dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
-		UserClient:   user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
-		ChatClient:   chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
-		SyncClient:   sync_client.MustNewSyncOutboxClient(c.SyncClient),
-		MsgClient:    msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
+		DialogClient:  dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
+		UserClient:    user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		ChatClient:    chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		SyncClient:    sync_client.MustNewSyncOutboxClient(c.SyncClient),
+		MsgClient:     msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
+		ChannelClient: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 	}
 }

@@ -88,6 +88,8 @@ func dialogFilters(ctx context.Context, t *testing.T, u *user) ([]int32, map[int
 			old[i] = 0
 		case *mtproto.TLDialogFilter:
 			old[i] = f.GetId()
+		case *mtproto.TLDialogFilterChatlist:
+			old[i] = f.GetId()
 		default:
 			t.Fatalf("messages.getDialogFilters (Vector) item %d is %T", i, f)
 		}

@@ -63,6 +63,22 @@ enum TLConstructor {
   CRC32_dialog_createDialogFilter = -959749265;
   CRC32_dialog_toggleDialogFilterTags = -1597149815;
   CRC32_dialog_getDialogFilterTags = -84870505;
+  // pluma: task 064
+  CRC32_chatlistInviteExt = 845724500;
+  // pluma: task 064
+  CRC32_dialog_exportChatlistInvite = -342736050;
+  // pluma: task 064
+  CRC32_dialog_editChatlistInvite = 167718874;
+  // pluma: task 064
+  CRC32_dialog_deleteChatlistInvite = -1495566841;
+  // pluma: task 064
+  CRC32_dialog_getChatlistInvites = -1799858035;
+  // pluma: task 064
+  CRC32_dialog_getChatlistInvite = -992271428;
+  // pluma: task 064
+  CRC32_dialog_joinChatlist = -209386231;
+  // pluma: task 064
+  CRC32_dialog_hideChatlistUpdates = -2122372205;
   CRC32_dialog_setChatWallpaper = -1252926702;
   // pluma: task 063
   CRC32_dialog_saveThreadDraft = -416704029;
@@ -103,6 +119,32 @@ message DialogFilterExt {
 
 message TL_dialogFilterExt {
   DialogFilterExt data2 = 1;
+}
+
+// ChatlistInviteExt <--
+//  + TL_chatlistInviteExt
+//
+// pluma: chatlistInviteExt slug:string owner_id:long owner_filter_id:int link_title:string dialog_filter:DialogFilter peers:Vector<Peer> links:Vector<string> my_filter_id:int my_peers:Vector<Peer> = ChatlistInviteExt;
+// A shared link of a folder (task 064): peers with their channel invite
+// links ("" for a public channel), parallel; dialog_filter is the owner's
+// folder; my_filter_id, the folder of the reader for this link (0: none) and
+// my_peers its peers.
+message ChatlistInviteExt {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  string slug = 3;
+  int64 owner_id = 4;
+  int32 owner_filter_id = 5;
+  string link_title = 6;
+  mtproto.DialogFilter dialog_filter = 7;
+  repeated mtproto.Peer peers = 8;
+  repeated string links = 9;
+  int32 my_filter_id = 10;
+  repeated mtproto.Peer my_peers = 11;
+}
+
+message TL_chatlistInviteExt {
+  ChatlistInviteExt data2 = 1;
 }
 
 // DialogPinnedExt <--
@@ -492,6 +534,105 @@ message TL_dialog_saveThreadDraft {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: dialog.exportChatlistInvite user_id:long filter_id:int title:string peers:Vector<InputPeer> migrated_chats:Vector<long> migrated_channels:Vector<long> chats:Vector<Chat> check_only:Bool = chatlists.ExportedChatlistInvite;
+// user_id makes a new shared link of its folder filter_id for the channels of
+// peers (chatlists.exportChatlistInvite). migrated_chats[i] was moved to
+// supergroup migrated_channels[i]: the folder follows. check_only makes only
+// the checks of the folder and the limits, before a group is moved for it.
+// (task 064)
+message TL_dialog_exportChatlistInvite {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 filter_id = 4;
+  string title = 5;
+  repeated mtproto.InputPeer peers = 6;
+  repeated int64 migrated_chats = 7;
+  repeated int64 migrated_channels = 8;
+  repeated mtproto.Chat chats = 9;
+  mtproto.Bool check_only = 10;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: dialog.editChatlistInvite user_id:long filter_id:int slug:string set_title:Bool title:string set_peers:Bool peers:Vector<InputPeer> migrated_chats:Vector<long> migrated_channels:Vector<long> chats:Vector<Chat> check_only:Bool = ExportedChatlistInvite;
+// user_id changes the title or the channels of its shared link
+// (chatlists.editExportedInvite).
+// (task 064)
+message TL_dialog_editChatlistInvite {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 filter_id = 4;
+  string slug = 5;
+  mtproto.Bool set_title = 6;
+  string title = 7;
+  mtproto.Bool set_peers = 8;
+  repeated mtproto.InputPeer peers = 9;
+  repeated int64 migrated_chats = 10;
+  repeated int64 migrated_channels = 11;
+  repeated mtproto.Chat chats = 12;
+  mtproto.Bool check_only = 13;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: dialog.deleteChatlistInvite user_id:long filter_id:int slug:string = Bool;
+// user_id deletes its shared link (chatlists.deleteExportedInvite).
+// (task 064)
+message TL_dialog_deleteChatlistInvite {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 filter_id = 4;
+  string slug = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: dialog.getChatlistInvites user_id:long filter_id:int = chatlists.ExportedInvites;
+// The shared links of folder filter_id of user_id; chats and users are the
+// caller's to add.
+// (task 064)
+message TL_dialog_getChatlistInvites {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 filter_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: dialog.getChatlistInvite user_id:long slug:string filter_id:int = ChatlistInviteExt;
+// The shared link of slug as user_id may use it; with slug empty, what is new
+// in the link of its imported folder filter_id.
+// (task 064)
+message TL_dialog_getChatlistInvite {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  string slug = 4;
+  int32 filter_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: dialog.joinChatlist user_id:long slug:string filter_id:int peers:Vector<InputPeer> chats:Vector<Chat> check_only:Bool = DialogFilterExt;
+// The folder of user_id for the link of slug (or its folder filter_id) gets
+// the channels of peers, which user_id is in by now.
+// (task 064)
+message TL_dialog_joinChatlist {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  string slug = 4;
+  int32 filter_id = 5;
+  repeated mtproto.InputPeer peers = 6;
+  repeated mtproto.Chat chats = 7;
+  mtproto.Bool check_only = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: dialog.hideChatlistUpdates user_id:long filter_id:int = Bool;
+// user_id dismisses the channels new in the link of its folder filter_id
+// (chatlists.hideChatlistUpdates).
+// (task 064)
+message TL_dialog_hideChatlistUpdates {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 filter_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_PeerWithDraftMessage {
   repeated PeerWithDraftMessage datas = 1;
@@ -582,6 +723,27 @@ service RPCDialog {
   rpc dialog_toggleDialogFilterTags(TL_dialog_toggleDialogFilterTags)
       returns (mtproto.Bool) {}
   rpc dialog_getDialogFilterTags(TL_dialog_getDialogFilterTags)
+      returns (mtproto.Bool) {}
+  // pluma: task 064
+  rpc dialog_exportChatlistInvite(TL_dialog_exportChatlistInvite)
+      returns (mtproto.chatlists_ExportedChatlistInvite) {}
+  // pluma: task 064
+  rpc dialog_editChatlistInvite(TL_dialog_editChatlistInvite)
+      returns (mtproto.ExportedChatlistInvite) {}
+  // pluma: task 064
+  rpc dialog_deleteChatlistInvite(TL_dialog_deleteChatlistInvite)
+      returns (mtproto.Bool) {}
+  // pluma: task 064
+  rpc dialog_getChatlistInvites(TL_dialog_getChatlistInvites)
+      returns (mtproto.chatlists_ExportedInvites) {}
+  // pluma: task 064
+  rpc dialog_getChatlistInvite(TL_dialog_getChatlistInvite)
+      returns (ChatlistInviteExt) {}
+  // pluma: task 064
+  rpc dialog_joinChatlist(TL_dialog_joinChatlist)
+      returns (DialogFilterExt) {}
+  // pluma: task 064
+  rpc dialog_hideChatlistUpdates(TL_dialog_hideChatlistUpdates)
       returns (mtproto.Bool) {}
   rpc dialog_setChatWallpaper(TL_dialog_setChatWallpaper)
       returns (mtproto.Bool) {}

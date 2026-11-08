@@ -59,6 +59,13 @@ type DialogClient interface {
 	DialogCreateDialogFilter(ctx context.Context, in *dialog.TLDialogCreateDialogFilter) (*dialog.DialogFilterExt, error)
 	DialogToggleDialogFilterTags(ctx context.Context, in *dialog.TLDialogToggleDialogFilterTags) (*mtproto.Bool, error)
 	DialogGetDialogFilterTags(ctx context.Context, in *dialog.TLDialogGetDialogFilterTags) (*mtproto.Bool, error)
+	DialogExportChatlistInvite(ctx context.Context, in *dialog.TLDialogExportChatlistInvite) (*mtproto.Chatlists_ExportedChatlistInvite, error)
+	DialogEditChatlistInvite(ctx context.Context, in *dialog.TLDialogEditChatlistInvite) (*mtproto.ExportedChatlistInvite, error)
+	DialogDeleteChatlistInvite(ctx context.Context, in *dialog.TLDialogDeleteChatlistInvite) (*mtproto.Bool, error)
+	DialogGetChatlistInvites(ctx context.Context, in *dialog.TLDialogGetChatlistInvites) (*mtproto.Chatlists_ExportedInvites, error)
+	DialogGetChatlistInvite(ctx context.Context, in *dialog.TLDialogGetChatlistInvite) (*dialog.ChatlistInviteExt, error)
+	DialogJoinChatlist(ctx context.Context, in *dialog.TLDialogJoinChatlist) (*dialog.DialogFilterExt, error)
+	DialogHideChatlistUpdates(ctx context.Context, in *dialog.TLDialogHideChatlistUpdates) (*mtproto.Bool, error)
 	DialogSetChatWallpaper(ctx context.Context, in *dialog.TLDialogSetChatWallpaper) (*mtproto.Bool, error)
 	DialogSaveThreadDraft(ctx context.Context, in *dialog.TLDialogSaveThreadDraft) (*mtproto.Bool, error)
 }
@@ -485,4 +492,81 @@ func (m *defaultDialogClient) DialogSetChatWallpaper(ctx context.Context, in *di
 func (m *defaultDialogClient) DialogSaveThreadDraft(ctx context.Context, in *dialog.TLDialogSaveThreadDraft) (*mtproto.Bool, error) {
 	client := dialog.NewRPCDialogClient(m.cli.Conn())
 	return client.DialogSaveThreadDraft(ctx, in)
+}
+
+// DialogExportChatlistInvite
+// dialog.exportChatlistInvite user_id:long filter_id:int title:string peers:Vector<InputPeer> migrated_chats:Vector<long> migrated_channels:Vector<long> chats:Vector<Chat> check_only:Bool = chatlists.ExportedChatlistInvite;
+func (m *defaultDialogClient) DialogExportChatlistInvite(ctx context.Context, in *dialog.TLDialogExportChatlistInvite) (*mtproto.Chatlists_ExportedChatlistInvite, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogExportChatlistInvite(ctx, in)
+}
+
+// DialogEditChatlistInvite
+// dialog.editChatlistInvite user_id:long filter_id:int slug:string set_title:Bool title:string set_peers:Bool peers:Vector<InputPeer> migrated_chats:Vector<long> migrated_channels:Vector<long> chats:Vector<Chat> check_only:Bool = ExportedChatlistInvite;
+func (m *defaultDialogClient) DialogEditChatlistInvite(ctx context.Context, in *dialog.TLDialogEditChatlistInvite) (*mtproto.ExportedChatlistInvite, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogEditChatlistInvite(ctx, in)
+}
+
+// DialogDeleteChatlistInvite
+// dialog.deleteChatlistInvite user_id:long filter_id:int slug:string = Bool;
+func (m *defaultDialogClient) DialogDeleteChatlistInvite(ctx context.Context, in *dialog.TLDialogDeleteChatlistInvite) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogDeleteChatlistInvite(ctx, in)
+}
+
+// DialogGetChatlistInvites
+// dialog.getChatlistInvites user_id:long filter_id:int = chatlists.ExportedInvites;
+func (m *defaultDialogClient) DialogGetChatlistInvites(ctx context.Context, in *dialog.TLDialogGetChatlistInvites) (*mtproto.Chatlists_ExportedInvites, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogGetChatlistInvites(ctx, in)
+}
+
+// DialogGetChatlistInvite
+// dialog.getChatlistInvite user_id:long slug:string filter_id:int = ChatlistInviteExt;
+func (m *defaultDialogClient) DialogGetChatlistInvite(ctx context.Context, in *dialog.TLDialogGetChatlistInvite) (*dialog.ChatlistInviteExt, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogGetChatlistInvite(ctx, in)
+}
+
+// DialogJoinChatlist
+// dialog.joinChatlist user_id:long slug:string filter_id:int peers:Vector<InputPeer> chats:Vector<Chat> check_only:Bool = DialogFilterExt;
+func (m *defaultDialogClient) DialogJoinChatlist(ctx context.Context, in *dialog.TLDialogJoinChatlist) (*dialog.DialogFilterExt, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogJoinChatlist(ctx, in)
+}
+
+// DialogHideChatlistUpdates
+// dialog.hideChatlistUpdates user_id:long filter_id:int = Bool;
+func (m *defaultDialogClient) DialogHideChatlistUpdates(ctx context.Context, in *dialog.TLDialogHideChatlistUpdates) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogHideChatlistUpdates(ctx, in)
 }

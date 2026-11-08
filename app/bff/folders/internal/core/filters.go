@@ -18,9 +18,11 @@ package core
 import (
 	"slices"
 	"strings"
+	"time"
 	"unicode/utf16"
 
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -128,10 +130,9 @@ type filterPeers struct {
 // answers; and its peers.
 func (c *FoldersCore) checkFilter(id int32, filter *mtproto.DialogFilter) (*mtproto.DialogFilter, filterPeers, error) {
 	switch filter.GetPredicateName() {
-	case mtproto.Predicate_dialogFilter:
-	case mtproto.Predicate_dialogFilterChatlist:
-		// Shared folders (chatlists.*) are not served.
-		return nil, filterPeers{}, mtproto.ErrFilterNotSupported
+	case mtproto.Predicate_dialogFilter, mtproto.Predicate_dialogFilterChatlist:
+		// Which of the two a folder may be is the dialog service's, which
+		// knows it (task 064): FILTER_NOT_SUPPORTED for the other.
 	default:
 		return nil, filterPeers{}, mtproto.ErrFilterIdInvalid
 	}
@@ -180,14 +181,19 @@ func cutTitle(title *mtproto.TextWithEntities, max int) *mtproto.TextWithEntitie
 }
 
 // checkPeers answers PEER_ID_INVALID for a peer of a folder the user cannot
-// have a chat with: not a user, a basic group or Saved Messages (Pluma has
-// no channels), a user that does not exist or a group the user never was
-// in. It returns the users and groups of the peers as the user sees them;
-// Saved Messages adds none, a client always has its own user.
+// have a chat with: not a user, a basic group, a channel or Saved Messages,
+// a user that does not exist, a group the user never was in or a channel
+// that does not exist or is named with a wrong access_hash. A channel need
+// not be joined: a join request of a shared folder waits for an admin (task
+// 064), a channel the user left stays until it edits the folder, and one
+// deleted since stays in the folder its client still sends. It returns the
+// users, groups and channels of the peers as the user sees them, a channel
+// as everywhere else (channelForbidden when private and not joined); Saved
+// Messages adds none, a client always has its own user.
 func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) (filterPeers, error) {
 	var peers filterPeers
-	var users, chats []int64
-	seenUser, seenChat := map[int64]bool{}, map[int64]bool{}
+	var users, chats, channels []int64
+	seenUser, seenChat, channelHash := map[int64]bool{}, map[int64]bool{}, map[int64]int64{}
 	for _, list := range lists {
 		for _, in := range list {
 			p := mtproto.FromInputPeer2(c.MD.UserId, in)
@@ -203,9 +209,36 @@ func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) (filterPeers, er
 					seenChat[p.PeerId] = true
 					chats = append(chats, p.PeerId)
 				}
+			case p.IsChannel():
+				hash, seen := channelHash[p.PeerId]
+				switch {
+				case !seen:
+					channelHash[p.PeerId] = p.AccessHash
+					channels = append(channels, p.PeerId)
+				case hash != p.AccessHash:
+					return filterPeers{}, mtproto.ErrPeerIdInvalid
+				}
 			default:
 				return filterPeers{}, mtproto.ErrPeerIdInvalid
 			}
+		}
+	}
+	if len(channels) > 0 {
+		list, err := c.channelRows(channels)
+		if err != nil {
+			return filterPeers{}, err
+		}
+		found := make(map[int64]*channelpb.MutableChannel, len(list))
+		for _, m := range list {
+			found[m.GetChannel().GetId()] = m
+		}
+		now := int32(time.Now().Unix())
+		for _, id := range channels {
+			m, ok := found[id]
+			if !ok || m.GetChannel().GetAccessHash() != channelHash[id] {
+				return filterPeers{}, mtproto.ErrPeerIdInvalid
+			}
+			peers.chats = append(peers.chats, m.ToChat(c.MD.UserId, now))
 		}
 	}
 	if len(users) > 0 {
@@ -242,7 +275,7 @@ func (c *FoldersCore) checkPeers(lists ...[]*mtproto.InputPeer) (filterPeers, er
 				return filterPeers{}, mtproto.ErrPeerIdInvalid
 			}
 		}
-		peers.chats = found.GetChatListByIdList(c.MD.UserId, chats...)
+		peers.chats = append(peers.chats, found.GetChatListByIdList(c.MD.UserId, chats...)...)
 	}
 	return peers, nil
 }

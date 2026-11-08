@@ -97,33 +97,18 @@ func lockFilters(b *userbox.Box) ([]filterOrder, error) {
 	return rows, err
 }
 
-// storedFilter returns folder id of the user of b as it is stored, nil when
-// there is none; its row is locked by lockFilters.
-func storedFilter(b *userbox.Box, id int32) (*mtproto.DialogFilter, error) {
-	var data []string
-	if err := b.Tx().QueryRowsPartial(&data,
-		"SELECT dialog_filter FROM dialog_filters WHERE user_id = ? AND dialog_filter_id = ? AND deleted = 0",
-		b.UserId(), id); err != nil || len(data) == 0 {
-		return nil, err
-	}
-	return mtproto.UnmarshalDialogFilter(data[0])
-}
-
 // SaveDialogFilter creates folder id of userId or changes it: a changed
 // folder keeps its place, a new one goes last. Every device of the account
 // gets updateDialogFilter with the folder as stored; users and chats are
 // its peers as userId sees them. A folder saved as it is changes nothing.
+//
+// A shared folder (task 064) stays shared, in whichever form it comes:
+// tdesktop and iOS send dialogFilterChatlist (ChatFilter::tl,
+// ChatListFiltering.swift:475), Android dialogFilter for every folder
+// (FilterCreateActivity.saveFilterToServer). It keeps the owner's invites and
+// the import of the row. Only the server makes one, by a link, and it has no
+// rules or exclusions: FILTER_NOT_SUPPORTED otherwise.
 func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filter *mtproto.DialogFilter, users []*mtproto.User, chats []*mtproto.Chat) error {
-	data, err := jsonx.Marshal(filter)
-	if err != nil {
-		return err
-	}
-	// The folder as it reads back from its JSON, to compare with the one
-	// stored.
-	saved, err := mtproto.UnmarshalDialogFilter(string(data))
-	if err != nil {
-		return err
-	}
 	return d.RunBox(ctx, userId, []string{dialog.GetDialogFilterCacheKey(userId)}, func(b *userbox.Box) error {
 		rows, err := lockFilters(b)
 		if err != nil {
@@ -159,19 +144,47 @@ func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filt
 			if len(rows) > 0 {
 				order = rows[len(rows)-1].Order - filterOrderStep
 			}
-		} else {
-			old, err := storedFilter(b, id)
+		}
+		var meta filterRow
+		var old *mtproto.DialogFilter
+		if found {
+			row, f, err := lockedFilter(b, id)
 			if err != nil {
 				return err
 			}
-			if proto.Equal(old, saved) {
-				return nil
+			if row != nil {
+				meta, old = *row, f
 			}
+		}
+		if filter.GetPredicateName() == mtproto.Predicate_dialogFilterChatlist && !meta.IsChatlist {
+			return mtproto.ErrFilterNotSupported
+		}
+		f := filter
+		if meta.IsChatlist {
+			if !shareable(filter) {
+				return mtproto.ErrFilterNotSupported
+			}
+			f = toChatlist(filter, old.GetHasMyInvites())
+		}
+		data, err := jsonx.Marshal(f)
+		if err != nil {
+			return err
+		}
+		// The folder as it reads back from its JSON, to compare with the one
+		// stored.
+		saved, err := mtproto.UnmarshalDialogFilter(string(data))
+		if err != nil {
+			return err
+		}
+		if found && old != nil && proto.Equal(old, saved) {
+			return nil
 		}
 		if _, _, err = d.DialogFiltersDAO.InsertOrUpdateTx(b.Tx(), &dataobject.DialogFiltersDO{
 			UserId:         userId,
 			DialogFilterId: id,
-			IsChatlist:     filter.GetPredicateName() == mtproto.Predicate_dialogFilterChatlist,
+			IsChatlist:     meta.IsChatlist,
+			JoinedBySlug:   meta.JoinedBySlug,
+			Slug:           meta.Slug,
 			DialogFilter:   string(data),
 			OrderValue:     order,
 		}); err != nil {
@@ -197,6 +210,10 @@ func (d *Dao) DeleteDialogFilter(ctx context.Context, userId int64, id int32) er
 			return nil
 		}
 		if _, err = d.DialogFiltersDAO.ClearTx(b.Tx(), userId, id); err != nil {
+			return err
+		}
+		// Its links stop working with it (task 064).
+		if err = clearChatlistState(b, id); err != nil {
 			return err
 		}
 		return d.EmitSeqUpdate(b, mtproto.MakeTLUpdateDialogFilter(&mtproto.Update{

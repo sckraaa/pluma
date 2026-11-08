@@ -29,6 +29,46 @@ var _ fmt.Stringer
 
 var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 	// Constructor
+	845724500: func() mtproto.TLObject { // 0x3268bb54 pluma: task 064
+		o := MakeTLChatlistInviteExt(nil)
+		o.Data2.Constructor = 845724500
+		return o
+	},
+	-342736050: func() mtproto.TLObject { // 0xeb92434e pluma: task 064
+		return &TLDialogExportChatlistInvite{
+			Constructor: -342736050,
+		}
+	},
+	167718874: func() mtproto.TLObject { // 0x09ff2fda pluma: task 064
+		return &TLDialogEditChatlistInvite{
+			Constructor: 167718874,
+		}
+	},
+	-1495566841: func() mtproto.TLObject { // 0xa6db7607 pluma: task 064
+		return &TLDialogDeleteChatlistInvite{
+			Constructor: -1495566841,
+		}
+	},
+	-1799858035: func() mtproto.TLObject { // 0x94b8588d pluma: task 064
+		return &TLDialogGetChatlistInvites{
+			Constructor: -1799858035,
+		}
+	},
+	-992271428: func() mtproto.TLObject { // 0xc4db23bc pluma: task 064
+		return &TLDialogGetChatlistInvite{
+			Constructor: -992271428,
+		}
+	},
+	-209386231: func() mtproto.TLObject { // 0xf3850509 pluma: task 064
+		return &TLDialogJoinChatlist{
+			Constructor: -209386231,
+		}
+	},
+	-2122372205: func() mtproto.TLObject { // 0x817f2b93 pluma: task 064
+		return &TLDialogHideChatlistUpdates{
+			Constructor: -2122372205,
+		}
+	},
 	1930144063: func() mtproto.TLObject { // 0x730ba93f
 		o := MakeTLDialogExt(nil)
 		o.Data2.Constructor = 1930144063
@@ -2987,6 +3027,529 @@ func (m *TLDialogSaveThreadDraft) Decode(dBuf *mtproto.DecodeBuf) error {
 
 	default:
 		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogExportChatlistInvite (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogExportChatlistInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xeb92434e:
+		x.UInt(0xeb92434e)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetFilterId())
+		x.String(m.GetTitle())
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetPeers())))
+		for _, v := range m.GetPeers() {
+			v.Encode(x, layer)
+		}
+		x.VectorLong(m.GetMigratedChats())
+		x.VectorLong(m.GetMigratedChannels())
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetChats())))
+		for _, v := range m.GetChats() {
+			v.Encode(x, layer)
+		}
+		m.GetCheckOnly().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogExportChatlistInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogExportChatlistInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xeb92434e:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.FilterId = dBuf.Int()
+		m.Title = dBuf.String()
+		c3 := dBuf.Int()
+		if c3 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid vector: %x", uint32(c3))
+		}
+		l3 := dBuf.Int()
+		m.Peers = make([]*mtproto.InputPeer, l3)
+		for i := int32(0); i < l3; i++ {
+			m.Peers[i] = &mtproto.InputPeer{}
+			m.Peers[i].Decode(dBuf)
+		}
+		m.MigratedChats = dBuf.VectorLong()
+		m.MigratedChannels = dBuf.VectorLong()
+		c6 := dBuf.Int()
+		if c6 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid vector: %x", uint32(c6))
+		}
+		l6 := dBuf.Int()
+		m.Chats = make([]*mtproto.Chat, l6)
+		for i := int32(0); i < l6; i++ {
+			m.Chats[i] = &mtproto.Chat{}
+			m.Chats[i].Decode(dBuf)
+		}
+		m7 := &mtproto.Bool{}
+		m7.Decode(dBuf)
+		m.CheckOnly = m7
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogEditChatlistInvite (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogEditChatlistInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x09ff2fda:
+		x.UInt(0x09ff2fda)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetFilterId())
+		x.String(m.GetSlug())
+		m.GetSetTitle().Encode(x, layer)
+		x.String(m.GetTitle())
+		m.GetSetPeers().Encode(x, layer)
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetPeers())))
+		for _, v := range m.GetPeers() {
+			v.Encode(x, layer)
+		}
+		x.VectorLong(m.GetMigratedChats())
+		x.VectorLong(m.GetMigratedChannels())
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetChats())))
+		for _, v := range m.GetChats() {
+			v.Encode(x, layer)
+		}
+		m.GetCheckOnly().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogEditChatlistInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogEditChatlistInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x09ff2fda:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.FilterId = dBuf.Int()
+		m.Slug = dBuf.String()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.SetTitle = m3
+		m.Title = dBuf.String()
+		m5 := &mtproto.Bool{}
+		m5.Decode(dBuf)
+		m.SetPeers = m5
+		c6 := dBuf.Int()
+		if c6 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid vector: %x", uint32(c6))
+		}
+		l6 := dBuf.Int()
+		m.Peers = make([]*mtproto.InputPeer, l6)
+		for i := int32(0); i < l6; i++ {
+			m.Peers[i] = &mtproto.InputPeer{}
+			m.Peers[i].Decode(dBuf)
+		}
+		m.MigratedChats = dBuf.VectorLong()
+		m.MigratedChannels = dBuf.VectorLong()
+		c9 := dBuf.Int()
+		if c9 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid vector: %x", uint32(c9))
+		}
+		l9 := dBuf.Int()
+		m.Chats = make([]*mtproto.Chat, l9)
+		for i := int32(0); i < l9; i++ {
+			m.Chats[i] = &mtproto.Chat{}
+			m.Chats[i].Decode(dBuf)
+		}
+		m10 := &mtproto.Bool{}
+		m10.Decode(dBuf)
+		m.CheckOnly = m10
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogDeleteChatlistInvite (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogDeleteChatlistInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xa6db7607:
+		x.UInt(0xa6db7607)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetFilterId())
+		x.String(m.GetSlug())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogDeleteChatlistInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogDeleteChatlistInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xa6db7607:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.FilterId = dBuf.Int()
+		m.Slug = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogGetChatlistInvites (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogGetChatlistInvites) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x94b8588d:
+		x.UInt(0x94b8588d)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetFilterId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogGetChatlistInvites) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogGetChatlistInvites) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x94b8588d:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.FilterId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogGetChatlistInvite (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogGetChatlistInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc4db23bc:
+		x.UInt(0xc4db23bc)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.String(m.GetSlug())
+		x.Int(m.GetFilterId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogGetChatlistInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogGetChatlistInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc4db23bc:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.Slug = dBuf.String()
+		m.FilterId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogJoinChatlist (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogJoinChatlist) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xf3850509:
+		x.UInt(0xf3850509)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.String(m.GetSlug())
+		x.Int(m.GetFilterId())
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetPeers())))
+		for _, v := range m.GetPeers() {
+			v.Encode(x, layer)
+		}
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetChats())))
+		for _, v := range m.GetChats() {
+			v.Encode(x, layer)
+		}
+		m.GetCheckOnly().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogJoinChatlist) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogJoinChatlist) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xf3850509:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.Slug = dBuf.String()
+		m.FilterId = dBuf.Int()
+		c3 := dBuf.Int()
+		if c3 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid vector: %x", uint32(c3))
+		}
+		l3 := dBuf.Int()
+		m.Peers = make([]*mtproto.InputPeer, l3)
+		for i := int32(0); i < l3; i++ {
+			m.Peers[i] = &mtproto.InputPeer{}
+			m.Peers[i].Decode(dBuf)
+		}
+		c4 := dBuf.Int()
+		if c4 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid vector: %x", uint32(c4))
+		}
+		l4 := dBuf.Int()
+		m.Chats = make([]*mtproto.Chat, l4)
+		for i := int32(0); i < l4; i++ {
+			m.Chats[i] = &mtproto.Chat{}
+			m.Chats[i].Decode(dBuf)
+		}
+		m5 := &mtproto.Bool{}
+		m5.Decode(dBuf)
+		m.CheckOnly = m5
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogHideChatlistUpdates (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogHideChatlistUpdates) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x817f2b93:
+		x.UInt(0x817f2b93)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Int(m.GetFilterId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogHideChatlistUpdates) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogHideChatlistUpdates) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x817f2b93:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.FilterId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// ChatlistInviteExt (pluma: task 064)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *ChatlistInviteExt) Encode(x *mtproto.EncodeBuf, layer int32) []byte {
+	m.To_ChatlistInviteExt().Encode(x, layer)
+	return nil
+}
+
+func (m *ChatlistInviteExt) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *ChatlistInviteExt) Decode(dBuf *mtproto.DecodeBuf) error {
+	m.Constructor = TLConstructor(dBuf.Int())
+	switch uint32(m.Constructor) {
+	case 0x3268bb54:
+		m2 := MakeTLChatlistInviteExt(m)
+		return m2.Decode(dBuf)
+
+	default:
+		return fmt.Errorf("invalid constructorId: 0x%x", uint32(m.Constructor))
+	}
+}
+
+// To_ChatlistInviteExt
+func (m *ChatlistInviteExt) To_ChatlistInviteExt() *TLChatlistInviteExt {
+	m.PredicateName = Predicate_chatlistInviteExt
+	return &TLChatlistInviteExt{
+		Data2: m,
+	}
+}
+
+// MakeTLChatlistInviteExt
+func MakeTLChatlistInviteExt(data2 *ChatlistInviteExt) *TLChatlistInviteExt {
+	if data2 == nil {
+		return &TLChatlistInviteExt{Data2: &ChatlistInviteExt{
+			PredicateName: Predicate_chatlistInviteExt,
+		}}
+	}
+	data2.PredicateName = Predicate_chatlistInviteExt
+	return &TLChatlistInviteExt{Data2: data2}
+}
+
+func (m *TLChatlistInviteExt) To_ChatlistInviteExt() *ChatlistInviteExt {
+	m.Data2.PredicateName = Predicate_chatlistInviteExt
+	return m.Data2
+}
+
+func (m *TLChatlistInviteExt) GetPredicateName() string {
+	return Predicate_chatlistInviteExt
+}
+
+func (t *TLChatlistInviteExt) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	x.UInt(0x3268bb54)
+	m := t.Data2
+	x.String(m.GetSlug())
+	x.Long(m.GetOwnerId())
+	x.Int(m.GetOwnerFilterId())
+	x.String(m.GetLinkTitle())
+	m.GetDialogFilter().Encode(x, layer)
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.GetPeers())))
+	for _, v := range m.GetPeers() {
+		v.Encode(x, layer)
+	}
+	x.VectorString(m.GetLinks())
+	x.Int(m.GetMyFilterId())
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.GetMyPeers())))
+	for _, v := range m.GetMyPeers() {
+		v.Encode(x, layer)
+	}
+	return nil
+}
+
+func (m *TLChatlistInviteExt) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChatlistInviteExt) Decode(dBuf *mtproto.DecodeBuf) error {
+	v := m.Data2
+	v.Slug = dBuf.String()
+	v.OwnerId = dBuf.Long()
+	v.OwnerFilterId = dBuf.Int()
+	v.LinkTitle = dBuf.String()
+	m4 := &mtproto.DialogFilter{}
+	m4.Decode(dBuf)
+	v.DialogFilter = m4
+	c5 := dBuf.Int()
+	if c5 != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid vector: %x", uint32(c5))
+	}
+	l5 := dBuf.Int()
+	v.Peers = make([]*mtproto.Peer, l5)
+	for i := int32(0); i < l5; i++ {
+		v.Peers[i] = &mtproto.Peer{}
+		v.Peers[i].Decode(dBuf)
+	}
+	v.Links = dBuf.VectorString()
+	v.MyFilterId = dBuf.Int()
+	c8 := dBuf.Int()
+	if c8 != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid vector: %x", uint32(c8))
+	}
+	l8 := dBuf.Int()
+	v.MyPeers = make([]*mtproto.Peer, l8)
+	for i := int32(0); i < l8; i++ {
+		v.MyPeers[i] = &mtproto.Peer{}
+		v.MyPeers[i].Decode(dBuf)
 	}
 	return dBuf.GetError()
 }

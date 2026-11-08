@@ -54,29 +54,23 @@ func self() *mtproto.InputPeer {
 }
 
 func TestCheckFilterRejects(t *testing.T) {
-	chatlist := folder(3, "Work")
-	chatlist.PredicateName = mtproto.Predicate_dialogFilterChatlist
 	empty := folder(3, "Work")
 	empty.Contacts = false
 	tooMany := folder(3, "Work")
 	for range filterChatsMax + 1 {
 		tooMany.IncludePeers = append(tooMany.IncludePeers, self())
 	}
-	channel := folder(3, "Work")
-	channel.IncludePeers = []*mtproto.InputPeer{mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: 5}).To_InputPeer()}
 
 	for _, tc := range []struct {
 		name   string
 		filter *mtproto.DialogFilter
 		want   error
 	}{
-		{"a shared folder", chatlist, mtproto.ErrFilterNotSupported},
 		{"All chats", mtproto.MakeTLDialogFilterDefault(nil).To_DialogFilter(), mtproto.ErrFilterIdInvalid},
 		{"another id", folder(4, "Work"), mtproto.ErrFilterIdInvalid},
 		{"an empty title", folder(3, "  "), mtproto.ErrFilterTitleEmpty},
 		{"no chats", empty, mtproto.ErrFilterIncludeEmpty},
 		{"too many chats", tooMany, errFilterChatsTooMuch},
-		{"a channel", channel, mtproto.ErrPeerIdInvalid},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, _, err := testCore().checkFilter(3, tc.filter); !errors.Is(err, tc.want) {
