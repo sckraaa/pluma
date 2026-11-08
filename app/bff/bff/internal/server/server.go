@@ -324,6 +324,8 @@ func (s *Server) Initialize() error {
 			ChannelClient: c.BizServiceClient,
 			UserClient:    c.BizServiceClient,
 			ChatClient:    c.BizServiceClient,
+
+			AuthsessionClient: c.AuthSessionClient,
 		})
 		mtproto.RegisterRPCChannelsServer(grpcServer, channels)
 		mtproto.RegisterRPCBoostsServer(grpcServer, channels)

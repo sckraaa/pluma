@@ -21,6 +21,7 @@ import (
 	"errors"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
@@ -31,8 +32,9 @@ import (
 //
 // The 2FA password it takes is checked first with the shared code, as
 // Telegram does, so clients go through their usual steps: PASSWORD_MISSING
-// without a password (the user is asked to set one), PASSWORD_HASH_INVALID
-// for inputCheckPasswordEmpty or a wrong one (the user is asked for it),
+// without a password (the user is asked to set one), PASSWORD_TOO_FRESH_X
+// and SESSION_TOO_FRESH_X (twofa.CheckTransfer), PASSWORD_HASH_INVALID for
+// inputCheckPasswordEmpty or a wrong one (the user is asked for it),
 // FLOOD_WAIT_X past the limits. iOS probes so with inputPeerEmpty
 // (ChannelOwnershipTransfer.swift:36-41). A channel or supergroup goes to
 // its new owner (task 042, biz channel.editCreator, as channels.editCreator);
@@ -42,7 +44,11 @@ func (c *ChatsCore) MessagesEditChatCreator(in *mtproto.TLMessagesEditChatCreato
 	if c.MD.UserId == 0 {
 		return nil, mtproto.ErrAuthKeyUnregistered
 	}
-	if err := c.svcCtx.Twofa.Check(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, in.GetPassword()); err != nil {
+	session, err := c.svcCtx.Dao.AuthsessionGetAuthorization(c.ctx, &authsession.TLAuthsessionGetAuthorization{AuthKeyId: c.MD.PermAuthKeyId})
+	if err != nil {
+		return nil, err
+	}
+	if err = c.svcCtx.Twofa.CheckTransfer(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, in.GetPassword(), int64(session.GetDateCreated())); err != nil {
 		if errors.Is(err, twofa.ErrNoPassword) {
 			err = mtproto.ErrPasswordMissing
 		}

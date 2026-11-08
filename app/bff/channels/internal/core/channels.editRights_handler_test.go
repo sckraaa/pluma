@@ -11,12 +11,23 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
+	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/cache"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/core/stores/redis"
 	"google.golang.org/grpc/status"
 )
+
+// oldSession is a session logged in long ago.
+type oldSession struct {
+	authsession_client.AuthsessionClient
+}
+
+func (oldSession) AuthsessionGetAuthorization(context.Context, *authsession.TLAuthsessionGetAuthorization) (*mtproto.Authorization, error) {
+	return mtproto.MakeTLAuthorization(&mtproto.Authorization{DateCreated: 1}).To_Authorization(), nil
+}
 
 // channels.editCreator checks the 2FA password before anything else, as
 // Android probes it with an empty one and no channel needed to answer
@@ -31,7 +42,7 @@ func TestEditCreatorChecksPasswordFirst(t *testing.T) {
 	}}))
 	c := &ChannelsCore{
 		ctx:    ctx,
-		svcCtx: &svc.ServiceContext{Twofa: s},
+		svcCtx: &svc.ServiceContext{Twofa: s, Auth: oldSession{}},
 		Logger: logx.WithContext(ctx),
 		MD:     &metadata.RpcMetadata{UserId: 52, PermAuthKeyId: 3},
 	}
