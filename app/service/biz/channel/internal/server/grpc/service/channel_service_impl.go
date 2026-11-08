@@ -527,3 +527,31 @@ func (s *Service) ChannelReadDiscussion(ctx context.Context, request *channel.TL
 
 	return r, err
 }
+
+// ChannelToggleSetting
+// channel.toggleSetting self_id:long perm_auth_key_id:long channel_id:long setting:int enabled:Bool = Updates;
+func (s *Service) ChannelToggleSetting(ctx context.Context, request *channel.TLChannelToggleSetting) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.toggleSetting - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelToggleSetting(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelSetAvailableReactions
+// channel.setAvailableReactions self_id:long perm_auth_key_id:long channel_id:long reactions_type:int reactions:Vector<string> = Updates;
+func (s *Service) ChannelSetAvailableReactions(ctx context.Context, request *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setAvailableReactions - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetAvailableReactions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

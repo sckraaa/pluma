@@ -227,7 +227,14 @@ func (c *ChannelCore) ChannelGetParticipants(in *channel.TLChannelGetParticipant
 			Users:        []*mtproto.User{},
 		}).To_Channels_ChannelParticipants(), nil
 	}
-	list, count, err := c.svcCtx.Dao.Participants(c.ctx, in.ChannelId, in.SelfId, in.Filter, in.Q, in.Offset, in.Limit, now)
+	filter := in.Filter
+	if mc.GetChannel().GetParticipantsHidden() && !admin {
+		// The members are hidden from members who are not admins (task
+		// 044): the admins only, whatever was asked. A list, not an
+		// error, which iOS asks again and again.
+		filter = mtproto.Predicate_channelParticipantsAdmins
+	}
+	list, count, err := c.svcCtx.Dao.Participants(c.ctx, in.ChannelId, in.SelfId, filter, in.Q, in.Offset, in.Limit, now)
 	if errors.Is(err, dao.ErrUnknownFilter) {
 		return nil, mtproto.ErrInputConstructorInvalid
 	}

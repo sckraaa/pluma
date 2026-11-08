@@ -30,11 +30,6 @@ func (c *ChannelsCore) MessagesGetPersonalChannelHistory(in *mtproto.TLMessagesG
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsToggleSignatures is not served yet: channels.toggleSignatures#418d549c (also #1f69b606).
-func (c *ChannelsCore) ChannelsToggleSignatures(in *mtproto.TLChannelsToggleSignatures) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsGetAdminLog is not served yet: channels.getAdminLog#33ddf480.
 func (c *ChannelsCore) ChannelsGetAdminLog(in *mtproto.TLChannelsGetAdminLog) (*mtproto.Channels_AdminLogResults, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
@@ -47,11 +42,6 @@ func (c *ChannelsCore) ChannelsSetStickers(in *mtproto.TLChannelsSetStickers) (*
 
 // ChannelsDeleteHistory9BAA9647 is not served yet: channels.deleteHistory9BAA9647#9baa9647.
 func (c *ChannelsCore) ChannelsDeleteHistory9BAA9647(in *mtproto.TLChannelsDeleteHistory9BAA9647) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsTogglePreHistoryHidden is not served yet: channels.togglePreHistoryHidden#eabbb94c.
-func (c *ChannelsCore) ChannelsTogglePreHistoryHidden(in *mtproto.TLChannelsTogglePreHistoryHidden) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
@@ -72,11 +62,6 @@ func (c *ChannelsCore) ChannelsGetInactiveChannels(in *mtproto.TLChannelsGetInac
 
 // ChannelsDeleteParticipantHistory is not served yet: channels.deleteParticipantHistory#367544db.
 func (c *ChannelsCore) ChannelsDeleteParticipantHistory(in *mtproto.TLChannelsDeleteParticipantHistory) (*mtproto.Messages_AffectedHistory, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsToggleParticipantsHidden is not served yet: channels.toggleParticipantsHidden#6a6e7854.
-func (c *ChannelsCore) ChannelsToggleParticipantsHidden(in *mtproto.TLChannelsToggleParticipantsHidden) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 

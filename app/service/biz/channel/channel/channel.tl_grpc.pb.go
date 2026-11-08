@@ -5,7 +5,7 @@
 // The TL schema of the service, in the layout mtprotoc gives the other
 // services (the constructor ids are the CRC32 of these lines):
 //
-// immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long = ImmutableChannel;
+// immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long available_reactions_type:int available_reactions:Vector<string> = ImmutableChannel;
 // immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long = ImmutableChannelParticipant;
 // mutableChannel channel:ImmutableChannel participants:Vector<ImmutableChannelParticipant> = MutableChannel;
 //
@@ -58,6 +58,8 @@ const (
 	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelToggleSetting_FullMethodName            = "/channel.RPCChannel/channel_toggleSetting"
+	RPCChannel_ChannelSetAvailableReactions_FullMethodName    = "/channel.RPCChannel/channel_setAvailableReactions"
 	RPCChannel_ChannelSetDiscussionGroup_FullMethodName       = "/channel.RPCChannel/channel_setDiscussionGroup"
 	RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName   = "/channel.RPCChannel/channel_getGroupsForDiscussion"
 	RPCChannel_ChannelGetDiscussionMessage_FullMethodName     = "/channel.RPCChannel/channel_getDiscussionMessage"
@@ -120,6 +122,10 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelSetAvailableReactions(ctx context.Context, in *TLChannelSetAvailableReactions, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 048
 	ChannelSetDiscussionGroup(ctx context.Context, in *TLChannelSetDiscussionGroup, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 048
@@ -378,6 +384,26 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelToggleSetting_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSetAvailableReactions(ctx context.Context, in *TLChannelSetAvailableReactions, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetAvailableReactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelSetDiscussionGroup(ctx context.Context, in *TLChannelSetDiscussionGroup, opts ...grpc.CallOption) (*mtproto.Bool, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Bool)
@@ -564,6 +590,10 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
+	// pluma: task 044
+	ChannelSetAvailableReactions(context.Context, *TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	// pluma: task 048
 	ChannelSetDiscussionGroup(context.Context, *TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
 	// pluma: task 048
@@ -666,6 +696,12 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSetAvailableReactions(context.Context, *TLChannelSetAvailableReactions) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetAvailableReactions not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelSetDiscussionGroup(context.Context, *TLChannelSetDiscussionGroup) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetDiscussionGroup not implemented")
@@ -1125,6 +1161,42 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelToggleSetting)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelToggleSetting(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelToggleSetting_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelToggleSetting(ctx, req.(*TLChannelToggleSetting))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSetAvailableReactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSetAvailableReactions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSetAvailableReactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSetAvailableReactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSetAvailableReactions(ctx, req.(*TLChannelSetAvailableReactions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelSetDiscussionGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelSetDiscussionGroup)
 	if err := dec(in); err != nil {
@@ -1471,6 +1543,14 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_toggleSetting",
+			Handler:    _RPCChannel_ChannelToggleSetting_Handler,
+		},
+		{
+			MethodName: "channel_setAvailableReactions",
+			Handler:    _RPCChannel_ChannelSetAvailableReactions_Handler,
 		},
 		{
 			MethodName: "channel_setDiscussionGroup",

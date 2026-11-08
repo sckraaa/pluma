@@ -20,13 +20,31 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 )
 
 // ChannelsToggleJoinToSend
 // channels.toggleJoinToSend#e4cb9580 channel:InputChannel enabled:Bool = Updates;
+//
+// Whether the commenters of a discussion group join it first (task 044, biz
+// channel.toggleSetting): off, the channel's subscribers comment without
+// joining (task 048).
 func (c *ChatInvitesCore) ChannelsToggleJoinToSend(in *mtproto.TLChannelsToggleJoinToSend) (*mtproto.Updates, error) {
-	// TODO: not impl
-	c.Logger.Errorf("channels.toggleJoinToSend blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if in.GetChannel().GetPredicateName() != mtproto.Predicate_inputChannel {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: in.Channel.ChannelId, Id: []int64{c.MD.UserId}})
+	if err != nil {
+		return nil, err
+	}
+	if mc.GetChannel().GetAccessHash() != in.Channel.AccessHash {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	return c.svcCtx.Dao.Channel.ChannelToggleSetting(c.ctx, &channelpb.TLChannelToggleSetting{
+		SelfId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		ChannelId:     in.Channel.ChannelId,
+		Setting:       channelpb.SettingJoinToSend,
+		Enabled:       in.Enabled,
+	})
 }

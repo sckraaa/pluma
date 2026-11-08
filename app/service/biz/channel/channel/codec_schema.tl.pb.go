@@ -24,9 +24,9 @@ var _ fmt.Stringer
 
 var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 	// Constructor
-	-684293246: func() mtproto.TLObject { // 0xd7368382
+	-1502604851: func() mtproto.TLObject { // 0xa67011cd
 		o := MakeTLImmutableChannel(nil)
-		o.Data2.Constructor = -684293246
+		o.Data2.Constructor = -1502604851
 		return o
 	},
 	675582471: func() mtproto.TLObject { // 0x28449207
@@ -151,6 +151,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	-922563101: func() mtproto.TLObject { // 0xc902cde3 pluma: task 044
+		return &TLChannelToggleSetting{
+			Constructor: -922563101,
+		}
+	},
+	994913470: func() mtproto.TLObject { // 0x3b4d2cbe pluma: task 044
+		return &TLChannelSetAvailableReactions{
+			Constructor: 994913470,
+		}
+	},
 	407453767: func() mtproto.TLObject { // 0x18494047 pluma: task 048
 		return &TLChannelSetDiscussionGroup{
 			Constructor: 407453767,
@@ -273,7 +283,7 @@ func (m *ImmutableChannel) CalcByteSize(layer int32) int {
 func (m *ImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 	m.Constructor = TLConstructor(dBuf.Int())
 	switch uint32(m.Constructor) {
-	case 0xd7368382:
+	case 0xa67011cd:
 		m2 := MakeTLImmutableChannel(m)
 		_ = m2.Decode(dBuf)
 
@@ -314,8 +324,8 @@ func (m *TLImmutableChannel) GetPredicateName() string {
 
 func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	var encodeF = map[uint32]func() error{
-		0xd7368382: func() error {
-			x.UInt(0xd7368382)
+		0xa67011cd: func() error {
+			x.UInt(0xa67011cd)
 
 			d := m.Data2
 
@@ -384,6 +394,8 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 			x.Int(d.GetTopMessage())
 			x.Int(d.GetVersion())
 			x.Long(d.GetDate())
+			x.Int(d.GetAvailableReactionsType())
+			x.VectorString(d.GetAvailableReactions())
 
 			return nil
 		},
@@ -402,7 +414,7 @@ func (m *TLImmutableChannel) CalcByteSize(layer int32) int {
 
 func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 	var decodeF = map[uint32]func() error{
-		0xd7368382: func() error {
+		0xa67011cd: func() error {
 			d := m.Data2
 
 			var flags = dBuf.UInt()
@@ -440,6 +452,8 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.TopMessage = dBuf.Int()
 			d.Version = dBuf.Int()
 			d.Date = dBuf.Long()
+			d.AvailableReactionsType = dBuf.Int()
+			d.AvailableReactions = dBuf.VectorString()
 			return dBuf.GetError()
 		},
 	}
@@ -2565,6 +2579,100 @@ func (m *TLChannelReadDiscussion) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.ChannelId = dBuf.Long()
 		m.MsgId = dBuf.Int()
 		m.ReadMaxId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelToggleSetting (pluma: task 044)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelToggleSetting) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc902cde3:
+		x.UInt(0xc902cde3)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetSetting())
+		m.GetEnabled().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelToggleSetting) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelToggleSetting) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc902cde3:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Setting = dBuf.Int()
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Enabled = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSetAvailableReactions (pluma: task 044)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSetAvailableReactions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x3b4d2cbe:
+		x.UInt(0x3b4d2cbe)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetReactionsType())
+		x.VectorString(m.GetReactions())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSetAvailableReactions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSetAvailableReactions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x3b4d2cbe:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.ReactionsType = dBuf.Int()
+		m.Reactions = dBuf.VectorString()
 		return dBuf.GetError()
 
 	default:

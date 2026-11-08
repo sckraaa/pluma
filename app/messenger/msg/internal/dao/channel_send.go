@@ -52,6 +52,7 @@ type senderRow struct {
 	AdminRights         int32 `db:"admin_rights"`
 	BannedRights        int32 `db:"banned_rights"`
 	UntilDate           int32 `db:"until_date"`
+	Signatures          bool  `db:"signatures"`
 }
 
 // sender is b's owner as a participant of a channel, for channelperm.
@@ -62,6 +63,8 @@ type sender struct {
 	// its channel (task 048); a member with the group's default rights,
 	// without the group in its dialogs.
 	guest bool
+	// signatures: the channel signs its posts with their authors (task 044).
+	signatures bool
 }
 
 func (s *sender) can(a channelperm.Action, now int64) error {
@@ -75,7 +78,7 @@ func (s *sender) can(a channelperm.Action, now int64) error {
 func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.deleted, c.default_banned_rights, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+		"SELECT c.broadcast, c.deleted, c.default_banned_rights, c.signatures, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
 			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
 		channelperm.StateLeft, b.UserId(), channelId); err != nil {
@@ -103,7 +106,8 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 		}, nil
 	}
 	return &sender{
-		ch: channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
+		signatures: r.Signatures,
+		ch:         channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil
@@ -203,7 +207,7 @@ func (d *Dao) ChannelSentBefore(b *userbox.Box, channelId int64, randomIds []int
 // owner in a supergroup. mentioned are the users the messages mention or
 // reply to, other than the owner, who get rows of channel_message_mentions.
 // The owner's dialog moves to the last message, read.
-func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) (sent []ChannelSent, mentioned []int64, disc *Discussion, err error) {
+func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, author string) (sent []ChannelSent, mentioned []int64, disc *Discussion, err error) {
 	// The discussion group of a broadcast channel is locked with it, in
 	// ascending order: its link is read first, and checked once locked.
 	linked, err := linkedGroup(b, channelId)
@@ -244,6 +248,11 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing) 
 		if s.ch.Broadcast {
 			m.Post = true
 			m.FromId = nil
+			// A signed post names its author (channels.toggleSignatures).
+			m.PostAuthor = nil
+			if s.signatures && author != "" {
+				m.PostAuthor = wrapperspb.String(author)
+			}
 		} else {
 			m.FromId = mtproto.MakePeerUser(b.UserId())
 		}

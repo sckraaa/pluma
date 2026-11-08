@@ -15,6 +15,8 @@
 
 package dataobject
 
+import "database/sql"
+
 // ChannelsDO is a row of channels (migrate-20261103-channels.sql), the
 // columns the service reads.
 type ChannelsDO struct {
@@ -43,8 +45,12 @@ type ChannelsDO struct {
 	Noforwards          bool   `db:"noforwards" json:"noforwards"`
 	JoinToSend          bool   `db:"join_to_send" json:"join_to_send"`
 	JoinRequest         bool   `db:"join_request" json:"join_request"`
-	ParticipantsHidden  bool   `db:"participants_hidden" json:"participants_hidden"`
-	Deleted             bool   `db:"deleted" json:"deleted"`
-	Version             int32  `db:"version" json:"version"`
-	Date                int64  `db:"date" json:"date"`
+	// The reactions the members may use (task 044): the kind, and the
+	// keys of some (a JSON array, NULL for none).
+	AvailableReactionsType int32          `db:"available_reactions_type" json:"available_reactions_type"`
+	AvailableReactions     sql.NullString `db:"available_reactions" json:"available_reactions"`
+	ParticipantsHidden     bool           `db:"participants_hidden" json:"participants_hidden"`
+	Deleted                bool           `db:"deleted" json:"deleted"`
+	Version                int32          `db:"version" json:"version"`
+	Date                   int64          `db:"date" json:"date"`
 }

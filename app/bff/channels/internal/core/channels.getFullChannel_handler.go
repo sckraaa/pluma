@@ -52,13 +52,15 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		ParticipantsCount:   mtproto.MakeFlagsInt32(ch.GetParticipantsCount()),
 		ChatPhoto:           ch.GetPhoto(),
 		BotInfo:             []*mtproto.BotInfo{},
-		CanViewParticipants: ch.GetMegagroup() || admin,
+		CanViewParticipants: ch.GetMegagroup() && !ch.GetParticipantsHidden() || admin,
+		ParticipantsHidden:  ch.GetParticipantsHidden(),
 		CanSetUsername:      me.GetRole() == channelpb.RoleCreator,
 		CanDeleteChannel:    me.GetRole() == channelpb.RoleCreator,
 		HiddenPrehistory:    ch.GetHiddenPrehistory(),
 		Pts:                 ch.GetPts(),
-		// Reactions of channels are task 044: the standard ones.
-		AvailableReactions_FLAGCHATREACTIONS: mtproto.FromChatReactions(mtproto.ChatReactionsTypeAllNoAllowCustom, nil),
+		// The reactions the members may use (task 044); a channel that never
+		// chose has the standard ones.
+		AvailableReactions_FLAGCHATREACTIONS: availableReactions(ch),
 	}
 	if full.ChatPhoto == nil {
 		full.ChatPhoto = mtproto.MakeTLPhotoEmpty(nil).To_Photo()
@@ -143,4 +145,14 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		Chats:    chats,
 		Users:    users.GetUserListByIdList(c.MD.UserId, c.MD.UserId),
 	}).To_Messages_ChatFull(), nil
+}
+
+// availableReactions are the reactions of the channel: the standard ones
+// until it chooses (as new groups have them, task 053).
+func availableReactions(ch *channelpb.ImmutableChannel) *mtproto.ChatReactions {
+	t := ch.GetAvailableReactionsType()
+	if t == mtproto.ChatReactionsTypeNotDefined {
+		t = mtproto.ChatReactionsTypeAllNoAllowCustom
+	}
+	return mtproto.FromChatReactions(t, ch.GetAvailableReactions())
 }

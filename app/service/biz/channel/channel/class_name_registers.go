@@ -51,6 +51,10 @@ const (
 	Predicate_channel_getAdminedPublicChannels = "channel_getAdminedPublicChannels"
 	// pluma: task 055
 	Predicate_channel_deleteChannel = "channel_deleteChannel"
+	// pluma: task 044
+	Predicate_channel_toggleSetting = "channel_toggleSetting"
+	// pluma: task 044
+	Predicate_channel_setAvailableReactions = "channel_setAvailableReactions"
 	// pluma: task 048
 	Predicate_channel_setDiscussionGroup = "channel_setDiscussionGroup"
 	// pluma: task 048
@@ -83,7 +87,7 @@ const (
 
 var clazzNameRegisters2 = map[string]map[int]int32{
 	Predicate_immutableChannel: {
-		0: -684293246, // 0xd7368382
+		0: -1502604851, // 0xa67011cd
 	},
 	Predicate_immutableChannelParticipant: {
 		0: 675582471, // 0x28449207
@@ -177,6 +181,14 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -979916526, // 0xc597a912
 
 	},
+	Predicate_channel_toggleSetting: { // pluma: task 044
+		0: -922563101, // 0xc902cde3
+
+	},
+	Predicate_channel_setAvailableReactions: { // pluma: task 044
+		0: 994913470, // 0x3b4d2cbe
+
+	},
 	Predicate_channel_setDiscussionGroup: { // pluma: task 048
 		0: 407453767, // 0x18494047
 
@@ -236,7 +248,7 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
-	-684293246:  Predicate_immutableChannel,                 // 0xd7368382
+	-1502604851: Predicate_immutableChannel,                 // 0xa67011cd
 	675582471:   Predicate_immutableChannelParticipant,      // 0x28449207
 	-662027966:  Predicate_mutableChannel,                   // 0xd88a4142
 	-437245607:  Predicate_channel_getMutableChannel,        // 0xe5f02959
@@ -261,6 +273,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	418987336:   Predicate_channel_updateUsername,           // 0x18f93d48 pluma: task 044
 	-2083237595: Predicate_channel_getAdminedPublicChannels, // 0x83d45125 pluma: task 044
 	-979916526:  Predicate_channel_deleteChannel,            // 0xc597a912 pluma: task 055
+	-922563101:  Predicate_channel_toggleSetting,            // 0xc902cde3 pluma: task 044
+	994913470:   Predicate_channel_setAvailableReactions,    // 0x3b4d2cbe pluma: task 044
 	407453767:   Predicate_channel_setDiscussionGroup,       // 0x18494047 pluma: task 048
 	-1820701585: Predicate_channel_getGroupsForDiscussion,   // 0x937a4c6f pluma: task 048
 	941034930:   Predicate_channel_getDiscussionMessage,     // 0x38170db2 pluma: task 048

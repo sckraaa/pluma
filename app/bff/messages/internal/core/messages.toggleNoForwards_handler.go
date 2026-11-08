@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 )
 
@@ -31,6 +32,16 @@ func (c *MessagesCore) MessagesToggleNoForwards(in *mtproto.TLMessagesToggleNoFo
 		rUpdates *mtproto.Updates
 	)
 
+	if peer.IsChannel() {
+		// A channel's messages may not be forwarded or saved (task 044).
+		return c.svcCtx.Dao.Channel.ChannelToggleSetting(c.ctx, &channelpb.TLChannelToggleSetting{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     peer.PeerId,
+			Setting:       channelpb.SettingNoforwards,
+			Enabled:       in.Enabled,
+		})
+	}
 	if !peer.IsChat() {
 		err := mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.toggleNoForwards - error: %v", err)

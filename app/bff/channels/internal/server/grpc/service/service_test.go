@@ -51,6 +51,9 @@ var served = map[string]bool{
 	"ChannelsEditPhoto":                true,
 	"ChannelsSetDiscussionGroup":       true,
 	"ChannelsGetGroupsForDiscussion":   true,
+	"ChannelsToggleSignatures":         true,
+	"ChannelsTogglePreHistoryHidden":   true,
+	"ChannelsToggleParticipantsHidden": true,
 }
 
 // Every method of the service not served yet answers ERR_ENTERPRISE_IS_BLOCKED

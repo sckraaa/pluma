@@ -359,6 +359,14 @@ func (noChannels) ChannelReadDiscussion(context.Context, *channelpb.TLChannelRea
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelToggleSetting(context.Context, *channelpb.TLChannelToggleSetting) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSetAvailableReactions(context.Context, *channelpb.TLChannelSetAvailableReactions) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelEditAdmin(context.Context, *channelpb.TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

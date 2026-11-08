@@ -16,12 +16,16 @@
 package dao
 
 import (
+	"database/sql"
 	"slices"
+	"strings"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
+
+	"github.com/zeromicro/go-zero/core/jsonx"
 )
 
 // Reactions to messages of channels (task 044): one row per reaction of a
@@ -59,6 +63,9 @@ func (d *Dao) SetChannelReactions(b *userbox.Box, channelId int64, msgId int32, 
 		if banned&mtproto.BANNED_SEND_REACTIONS != 0 {
 			return nil, mtproto.ErrChatWriteForbidden
 		}
+	}
+	if err = channelAllows(b, channelId, keys); err != nil {
+		return nil, err
 	}
 	var msgs []struct {
 		SenderUserId int64 `db:"sender_user_id"`
@@ -175,4 +182,55 @@ func ChannelReactionsUpdate(viewer, channelId int64, msgId int32, r *ChannelReac
 		MsgId_INT32:                msgId,
 		Reactions_MESSAGEREACTIONS: view,
 	}).To_Update()
+}
+
+// channelAllows checks keys against the reactions the channel allows
+// (task 044, chatReactions): none, all but custom emoji, all, or some;
+// REACTION_INVALID for one it does not. A channel that never chose allows
+// the standard ones.
+func channelAllows(b *userbox.Box, channelId int64, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	var rows []struct {
+		Type int32          `db:"available_reactions_type"`
+		List sql.NullString `db:"available_reactions"`
+	}
+	if err := b.Tx().QueryRowsPartial(&rows, "SELECT available_reactions_type, available_reactions FROM channels WHERE id = ?", channelId); err != nil {
+		return err
+	}
+	if len(rows) == 0 {
+		return mtproto.ErrChannelInvalid
+	}
+	var some map[string]bool
+	if rows[0].Type == mtproto.ChatReactionsTypeSome {
+		var list []string
+		if rows[0].List.Valid {
+			if err := jsonx.UnmarshalFromString(rows[0].List.String, &list); err != nil {
+				return err
+			}
+		}
+		some = map[string]bool{}
+		for _, r := range list {
+			if k, err := reactions.Key(mtproto.FromReaction(r)); err == nil {
+				some[k] = true
+			}
+		}
+	}
+	for _, k := range keys {
+		custom := strings.HasPrefix(k, "c")
+		switch rows[0].Type {
+		case mtproto.ChatReactionsTypeNone:
+			return mtproto.ErrReactionInvalid
+		case mtproto.ChatReactionsTypeNotDefined, mtproto.ChatReactionsTypeAllNoAllowCustom:
+			if custom {
+				return mtproto.ErrReactionInvalid
+			}
+		case mtproto.ChatReactionsTypeSome:
+			if !some[k] {
+				return mtproto.ErrReactionInvalid
+			}
+		}
+	}
+	return nil
 }

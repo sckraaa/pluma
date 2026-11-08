@@ -48,6 +48,8 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
+	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
 	ChannelGetGroupsForDiscussion(ctx context.Context, in *channel.TLChannelGetGroupsForDiscussion) (*channel.Vector_Long, error)
 	ChannelGetDiscussionMessage(ctx context.Context, in *channel.TLChannelGetDiscussionMessage) (*mtproto.Messages_DiscussionMessage, error)
@@ -468,4 +470,26 @@ func (m *defaultChannelClient) ChannelReadDiscussion(ctx context.Context, in *ch
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelReadDiscussion(ctx, in)
+}
+
+// ChannelToggleSetting
+// channel.toggleSetting self_id:long perm_auth_key_id:long channel_id:long setting:int enabled:Bool = Updates;
+func (m *defaultChannelClient) ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelToggleSetting(ctx, in)
+}
+
+// ChannelSetAvailableReactions
+// channel.setAvailableReactions self_id:long perm_auth_key_id:long channel_id:long reactions_type:int reactions:Vector<string> = Updates;
+func (m *defaultChannelClient) ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetAvailableReactions(ctx, in)
 }

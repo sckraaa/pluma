@@ -17,6 +17,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 )
@@ -28,6 +29,17 @@ import (
 // right to change its info set them (biz chat checks it). The answer holds
 // the group, whose full info the clients load again (task 053).
 func (c *CatalogCore) MessagesSetChatAvailableReactions(in *mtproto.TLMessagesSetChatAvailableReactions) (*mtproto.Updates, error) {
+	if p := mtproto.FromInputPeer2(c.MD.UserId, in.Peer); p.PeerType == mtproto.PEER_CHANNEL {
+		// A channel's reactions (task 044, biz channel.setAvailableReactions).
+		t, list := in.GetAvailableReactions_CHATREACTIONS().ToChatReactions()
+		return c.svcCtx.Channel.ChannelSetAvailableReactions(c.ctx, &channelpb.TLChannelSetAvailableReactions{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     p.PeerId,
+			ReactionsType: t,
+			Reactions:     list,
+		})
+	}
 	peer, err := c.reactionPeer(in.Peer)
 	if err != nil {
 		return nil, err

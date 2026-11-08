@@ -16,6 +16,7 @@
 package core
 
 import (
+	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -40,6 +41,11 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	if err != nil {
 		return nil, err
 	}
+	// The author's name, for a channel that signs its posts (task 044).
+	author, err := c.authorName(fromUserId)
+	if err != nil {
+		return nil, err
+	}
 	outgoing := make([]dao.Outgoing, len(outBoxList))
 	for i, o := range outBoxList {
 		outgoing[i] = dao.Outgoing{RandomId: o.RandomId, Message: o.Message}
@@ -55,7 +61,7 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 			mentioned []int64
 			disc      *dao.Discussion
 		)
-		if sent, mentioned, disc, err = c.svcCtx.Dao.SendChannel(b, channelId, outgoing); err != nil {
+		if sent, mentioned, disc, err = c.svcCtx.Dao.SendChannel(b, channelId, outgoing, author); err != nil {
 			return err
 		}
 		if err = c.svcCtx.Dao.EmitChannelPush(b, channelId, fromAuthKeyId, sent, mentioned); err != nil {
@@ -135,4 +141,18 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
 		Date:    int32(time.Now().Unix()),
 	}).To_Updates(), nil
+}
+
+// authorName is the name a signed post shows: the user's first and last
+// name, as Telegram signs posts (channels.toggleSignatures).
+func (c *MsgCore) authorName(userId int64) (string, error) {
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: []int64{userId}})
+	if err != nil {
+		return "", err
+	}
+	u, ok := users.GetImmutableUser(userId)
+	if !ok {
+		return "", nil
+	}
+	return strings.TrimSpace(u.FirstName() + " " + u.LastName()), nil
 }

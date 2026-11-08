@@ -25,6 +25,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
+
+	"github.com/zeromicro/go-zero/core/jsonx"
 )
 
 // GetMutableChannel returns the channel channelId with the participant rows
@@ -163,6 +165,12 @@ func (d *Dao) getChannels(ctx context.Context, idList []int64) ([]*channel.Immut
 	byId := make(map[int64]*channel.ImmutableChannel, len(dos))
 	for i := range dos {
 		c := makeChannel(&dos[i], usernames[dos[i].Id])
+		c.AvailableReactionsType = dos[i].AvailableReactionsType
+		if dos[i].AvailableReactions.Valid {
+			if err = jsonx.UnmarshalFromString(dos[i].AvailableReactions.String, &c.AvailableReactions); err != nil {
+				return nil, fmt.Errorf("reactions of channel %d: %w", dos[i].Id, err)
+			}
+		}
 		if dos[i].PhotoId != 0 {
 			if c.Photo, err = d.Photos.MediaGetPhoto(ctx, &media.TLMediaGetPhoto{PhotoId: dos[i].PhotoId}); err != nil {
 				return nil, fmt.Errorf("photo %d of channel %d: %w", dos[i].PhotoId, dos[i].Id, err)
