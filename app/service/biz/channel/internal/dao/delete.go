@@ -109,6 +109,11 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	if _, err = b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
 		return nil, err
 	}
+	// A deleted poll counts no more among its creator's unread votes.
+	if _, err = b.Tx().Exec("UPDATE polls SET has_unread = 0 WHERE peer_type = ? AND peer_id = ? AND has_unread = 1 AND message_id IN "+in,
+		append([]any{mtproto.PEER_CHANNEL}, args...)...); err != nil {
+		return nil, err
+	}
 	if slices.Contains(out.Ids, c.TopMessage) {
 		var top []int32
 		if err = b.Tx().QueryRowsPartial(&top, "SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0", channelId); err != nil {

@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS `polls` (
   `date` bigint(20) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `closing` (`closed`, `close_date`),
-  KEY `creator_unread` (`creator_user_id`, `has_unread`, `peer_type`, `peer_id`)
+  KEY `creator_unread` (`creator_user_id`, `has_unread`, `peer_type`, `peer_id`),
+  KEY `peer_message` (`peer_type`, `peer_id`, `message_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='Polls and quizzes';
 
 CREATE TABLE IF NOT EXISTS `poll_votes` (
