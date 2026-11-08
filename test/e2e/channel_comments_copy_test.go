@@ -149,6 +149,11 @@ func TestChannelPostEditReachesCopy(t *testing.T) {
 	defer cancel()
 	f := newCommentsFixture(ctx, t)
 	post, copyId := f.post("as posted")
+	waitUpdate(ctx, t, f.alice, mtproto.Predicate_updateNewChannelMessage, func(u *mtproto.Update) bool {
+		m := u.GetMessage_MESSAGE()
+		return m.GetPeerId().GetChannelId() == f.gr.GetId() && m.GetId() == copyId
+	})
+	f.comment(f.bob, copyId, "a comment")
 
 	if _, err := f.alice.c.Invoke(ctx, &mtproto.TLMessagesEditMessage{
 		Constructor: f.alice.c.Constructor(mtproto.Predicate_messages_editMessage),
@@ -161,6 +166,10 @@ func TestChannelPostEditReachesCopy(t *testing.T) {
 		return m.GetPeerId().GetChannelId() == f.gr.GetId() && m.GetId() == copyId && m.GetMessage() == "as edited" && m.GetEditDate() != nil && u.GetPts_INT32() != 0
 	}
 	waitUpdate(ctx, t, f.bob, mtproto.Predicate_updateEditChannelMessage, isCopy)
+	waitUpdate(ctx, t, f.bob, mtproto.Predicate_updateEditChannelMessage, func(u *mtproto.Update) bool {
+		m := u.GetMessage_MESSAGE()
+		return m.GetPeerId().GetChannelId() == f.ch.GetId() && m.GetId() == post && m.GetReplies().GetReplies() == 1
+	})
 	waitUpdate(ctx, t, f.alice, mtproto.Predicate_updateEditChannelMessage, isCopy)
 	dm, err := f.discussion(f.bob, f.ch, post)
 	if err != nil {
@@ -208,6 +217,12 @@ func TestChannelPostDeleteTakesCopy(t *testing.T) {
 		To_Messages_Messages() *mtproto.Messages_Messages
 	}).To_Messages_Messages().GetMessages(); len(m) != 1 || m[0].GetId() != comment {
 		t.Errorf("the comments left: %v", m)
+	}
+	// Who still has the thread open replies to its deleted start.
+	later := f.comment(f.alice, copyId, "after the post")
+	dm, err = f.discussion(f.alice, f.gr, later)
+	if err != nil || dm.GetMaxId().GetValue() != later {
+		t.Errorf("the thread after a later comment: max %d, %v, want %d", dm.GetMaxId().GetValue(), err, later)
 	}
 
 	post2, copy2 := f.post("to lose its comments")
@@ -263,6 +278,18 @@ func TestChannelDiscussionReadUpdates(t *testing.T) {
 	}
 	if dm.GetReadOutboxMaxId().GetValue() != comment {
 		t.Errorf("read_outbox_max_id %d, want %d", dm.GetReadOutboxMaxId().GetValue(), comment)
+	}
+	o, err := f.bob.c.Invoke(ctx, &mtproto.TLMessagesGetMessagesViews{
+		Constructor: f.bob.c.Constructor(mtproto.Predicate_messages_getMessagesViews),
+		Peer:        f.peer(f.bob, f.ch), Id: []int32{post}, Increment: mtproto.BoolFalse,
+	})
+	if err != nil {
+		t.Fatalf("messages.getMessagesViews: %v", err)
+	}
+	if v := o.(interface {
+		To_Messages_MessageViews() *mtproto.Messages_MessageViews
+	}).To_Messages_MessageViews().GetViews(); len(v) != 1 || v[0].GetReplies().GetReadMaxId().GetValue() != comment {
+		t.Errorf("the post's views: %v, want read_max_id %d", v, comment)
 	}
 }
 
