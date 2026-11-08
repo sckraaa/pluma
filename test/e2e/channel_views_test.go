@@ -197,6 +197,23 @@ func TestChannelViewsAndLinks(t *testing.T) {
 	}
 	waitCounter(mtproto.Predicate_updateChannelMessageForwards, 1)
 
+	// The forward keeps the views it had, with its own forwards: one flag of
+	// message carries both.
+	o, err = bob.c.Invoke(ctx, &mtproto.TLMessagesGetHistory{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_getHistory),
+		Peer:        &mtproto.InputPeer{Constructor: bob.c.Constructor(mtproto.Predicate_inputPeerSelf)}, Limit: 1,
+	})
+	if err != nil {
+		t.Fatalf("messages.getHistory of Saved Messages: %v", err)
+	}
+	saved := o.(interface {
+		To_Messages_Messages() *mtproto.Messages_Messages
+	}).To_Messages_Messages().GetMessages()
+	if len(saved) != 1 || saved[0].GetFwdFrom() == nil || saved[0].GetViews().GetValue() != 3 ||
+		saved[0].GetForwards() == nil || saved[0].GetForwards().GetValue() != 0 {
+		t.Errorf("the forward in Saved Messages: %v, want 3 views and 0 forwards", saved)
+	}
+
 	o, err = alice.c.Invoke(ctx, &mtproto.TLMessagesEditMessage{
 		Constructor: alice.c.Constructor(mtproto.Predicate_messages_editMessage),
 		Peer:        peerOf(alice), Id: post, Message: wrapperspb.String("edited"),
