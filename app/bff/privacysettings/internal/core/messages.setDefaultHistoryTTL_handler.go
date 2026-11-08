@@ -34,10 +34,13 @@ func (c *PrivacySettingsCore) MessagesSetDefaultHistoryTTL(in *mtproto.TLMessage
 		return nil, mtproto.ErrTtlPeriodInvalid
 	}
 
-	_, _ = c.svcCtx.Dao.UserClient.UserSetDefaultHistoryTTL(c.ctx, &user.TLUserSetDefaultHistoryTTL{
+	if _, err := c.svcCtx.Dao.UserClient.UserSetDefaultHistoryTTL(c.ctx, &user.TLUserSetDefaultHistoryTTL{
 		UserId: c.MD.UserId,
 		Ttl:    period,
-	})
+	}); err != nil {
+		c.Logger.Errorf("messages.setDefaultHistoryTTL - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }
