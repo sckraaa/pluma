@@ -465,13 +465,16 @@ func createDeadlockRows(t *testing.T, db *sql.DB, u int64) {
 	}
 }
 
-// waitLockWait waits until a transaction waits for a lock.
+// waitLockWait waits until a transaction waits for a lock. It reads
+// performance_schema: information_schema.INNODB_TRX is a snapshot InnoDB
+// refreshes only when it was not read for 100 ms (can_cache_be_updated in
+// trx0i_s.cc), so polling it faster keeps showing the first poll's answer.
 func waitLockWait(t *testing.T, root *sql.DB) {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		var n int
-		if err := root.QueryRow("SELECT COUNT(*) FROM information_schema.INNODB_TRX WHERE trx_state = 'LOCK WAIT'").Scan(&n); err != nil {
+		if err := root.QueryRow("SELECT COUNT(*) FROM performance_schema.data_lock_waits").Scan(&n); err != nil {
 			t.Error(err)
 			return
 		}
