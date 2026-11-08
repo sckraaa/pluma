@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/marmota/pkg/utils"
 	"github.com/teamgram/proto/mtproto"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	dialogclient "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
@@ -75,12 +76,22 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		return nil, err
 	}
 
+	hasScheduled, err := c.svcCtx.Dao.MsgClient.MsgHasScheduled(c.ctx, &msgpb.TLMsgHasScheduled{
+		UserId:   c.MD.UserId,
+		PeerType: mtproto.PEER_USER,
+		PeerId:   peerId,
+	})
+	if err != nil {
+		c.Logger.Errorf("users.getFullUser - error: %v", err)
+		return nil, err
+	}
+
 	userFull := mtproto.MakeTLUserFull(&mtproto.UserFull{
 		Blocked:                  false,
 		PhoneCallsAvailable:      c.MD.UserId != peerId,
 		PhoneCallsPrivate:        false,
 		CanPinMessage:            true,
-		HasScheduled:             false,
+		HasScheduled:             mtproto.FromBool(hasScheduled),
 		VideoCallsAvailable:      c.MD.UserId != peerId,
 		VoiceMessagesForbidden:   false,
 		TranslationsDisabled:     false,

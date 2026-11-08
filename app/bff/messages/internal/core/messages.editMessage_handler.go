@@ -40,7 +40,22 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 		err          error
 	)
 
-	switch peer.PeerType {
+	scheduled := in.GetScheduleDate() != nil
+	peerType := peer.PeerType
+	if scheduled {
+		// A waiting message is read from its queue, by its queue id (task 061).
+		if peerType == mtproto.PEER_SELF {
+			peer.PeerType = mtproto.PEER_USER
+			peer.PeerId = c.MD.UserId
+		}
+		peerType = mtproto.PEER_EMPTY
+		if editMessages, err = c.scheduledMessageToEdit(peer, in.Id); err != nil {
+			c.Logger.Errorf("messages.editMessage - error: %v", err)
+			return nil, err
+		}
+	}
+	switch peerType {
+	case mtproto.PEER_EMPTY:
 	case mtproto.PEER_SELF, mtproto.PEER_USER, mtproto.PEER_CHAT:
 		if peer.PeerType == mtproto.PEER_SELF {
 			peer.PeerType = mtproto.PEER_USER
@@ -83,7 +98,7 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 		return nil, err
 	}
 
-	if peer.PeerType == mtproto.PEER_CHANNEL && len(editMessages.GetDatas()) == 0 {
+	if (scheduled || peer.PeerType == mtproto.PEER_CHANNEL) && len(editMessages.GetDatas()) == 0 {
 		// Deleted, or hidden from the account (available_min_id): as msg
 		// answers for a message gone in the meantime.
 		return nil, mtproto.ErrMessageIdInvalid
@@ -167,6 +182,32 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 	}
 
 	return rUpdates, nil
+}
+
+// scheduledMessageToEdit reads message id from the queue of the dialog;
+// who may edit it is msg's to check, as it is for a channel's.
+func (c *MessagesCore) scheduledMessageToEdit(peer *mtproto.PeerUtil, id int32) (*message.Vector_MessageBox, error) {
+	found, err := c.svcCtx.Dao.MsgClient.MsgGetScheduledMessages(c.ctx, &msgpb.TLMsgGetScheduledMessages{
+		UserId:   c.MD.UserId,
+		PeerType: peer.PeerType,
+		PeerId:   peer.PeerId,
+		Id:       []int32{id},
+	})
+	if err != nil {
+		return nil, err
+	}
+	boxes := &message.Vector_MessageBox{}
+	for _, m := range found.GetMessages() {
+		boxes.Datas = append(boxes.Datas, &mtproto.MessageBox{
+			UserId:       c.MD.UserId,
+			MessageId:    m.GetId(),
+			SenderUserId: c.MD.UserId,
+			PeerType:     peer.PeerType,
+			PeerId:       peer.PeerId,
+			Message:      m,
+		})
+	}
+	return boxes, nil
 }
 
 // editedEntities is what the entities of an edited message start from;

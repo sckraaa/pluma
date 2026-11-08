@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/teamgram-server/app/bff/users/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/users/internal/plugin"
+	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
@@ -33,6 +34,7 @@ type Dao struct {
 	chat_client.ChatClient
 	dialog_client.DialogClient
 	media_client.MediaClient
+	msg_client.MsgClient
 	plugin.StoryPlugin
 	plugin.PersonalChannelPlugin
 	plugin.WallpaperPlugin
@@ -44,6 +46,7 @@ func New(c config.Config, plugin1 plugin.StoryPlugin, plugin2 plugin.PersonalCha
 		ChatClient:            chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		DialogClient:          dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
 		MediaClient:           media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
+		MsgClient:             msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 		StoryPlugin:           plugin1,
 		PersonalChannelPlugin: plugin2,
 		WallpaperPlugin:       plugin3,

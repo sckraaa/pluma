@@ -111,7 +111,7 @@ BFFProxyClients:
     "/mtproto.RPCUsers": "bff.bff"
     #"/mtproto.RPCPayments": "bff.bff"
     #"/mtproto.RPCPolls": "bff.bff"
-    #"/mtproto.RPCScheduledMessages": "bff.bff"
+    "/mtproto.RPCScheduledMessages": "bff.bff"
     "/mtproto.RPCNsfw": "bff.bff"
     "/mtproto.RPCSponsoredMessages": "bff.bff"
     #"/mtproto.RPCProxyData": "bff.bff"

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -112,6 +113,16 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err
 	}
+	hasScheduled, err := c.svcCtx.Msg.MsgHasScheduled(c.ctx, &msgpb.TLMsgHasScheduled{
+		UserId:   c.MD.UserId,
+		PeerType: mtproto.PEER_CHANNEL,
+		PeerId:   ch.GetId(),
+	})
+	if err != nil {
+		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+		return nil, err
+	}
+	full.HasScheduled = mtproto.FromBool(hasScheduled)
 	if admin {
 		invites, err := c.svcCtx.Chat.ChatGetExportedChatInvites(c.ctx, &chatpb.TLChatGetExportedChatInvites{ChatId: ch.GetId(), AdminId: c.MD.UserId, Limit: 50})
 		if err != nil {

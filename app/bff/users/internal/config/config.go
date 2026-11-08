@@ -28,4 +28,5 @@ type Config struct {
 	ChatClient   zrpc.RpcClientConf
 	DialogClient zrpc.RpcClientConf
 	MediaClient  zrpc.RpcClientConf // personal photos of contacts (task 051)
+	MsgClient    zrpc.RpcClientConf // has_scheduled of the full user (task 061)
 }

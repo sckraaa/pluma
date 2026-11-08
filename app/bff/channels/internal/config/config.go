@@ -31,6 +31,8 @@ type Config struct {
 	ChannelClient zrpc.RpcClientConf
 	UserClient    zrpc.RpcClientConf
 	ChatClient    zrpc.RpcClientConf
+	// MsgClient tells has_scheduled of the full channel (task 061).
+	MsgClient zrpc.RpcClientConf
 	// MediaClient stores the photos of channels.editPhoto (media).
 	MediaClient zrpc.RpcClientConf
 }

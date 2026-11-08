@@ -48,6 +48,7 @@ import (
 	privacysettingshelper "github.com/teamgram/teamgram-server/app/bff/privacysettings"
 	qrcode_helper "github.com/teamgram/teamgram-server/app/bff/qrcode"
 	savedmessagedialogshelper "github.com/teamgram/teamgram-server/app/bff/savedmessagedialogs"
+	scheduledmessages_helper "github.com/teamgram/teamgram-server/app/bff/scheduledmessages"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
@@ -171,6 +172,14 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			premium_helper.New(premium_helper.Config{
 				RpcServerConf: c.RpcServerConf,
+			}))
+
+		// scheduledmessages_helper (task 061)
+		mtproto.RegisterRPCScheduledMessagesServer(
+			grpcServer,
+			scheduledmessages_helper.New(scheduledmessages_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				MsgClient:     c.MsgClient,
 			}))
 
 		// chatinvites_helper
@@ -324,6 +333,7 @@ func (s *Server) Initialize() error {
 			ChannelClient: c.BizServiceClient,
 			UserClient:    c.BizServiceClient,
 			ChatClient:    c.BizServiceClient,
+			MsgClient:     c.MsgClient,
 		})
 		mtproto.RegisterRPCChannelsServer(grpcServer, channels)
 		mtproto.RegisterRPCBoostsServer(grpcServer, channels)
@@ -416,6 +426,7 @@ func (s *Server) Initialize() error {
 					ChatClient:    c.BizServiceClient,
 					DialogClient:  c.BizServiceClient,
 					MediaClient:   c.MediaClient,
+					MsgClient:     c.MsgClient,
 				},
 				nil,
 				nil,

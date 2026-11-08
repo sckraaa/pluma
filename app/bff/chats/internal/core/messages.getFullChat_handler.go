@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -60,9 +61,18 @@ func (c *ChatsCore) MessagesGetFullChat(in *mtproto.TLMessagesGetFullChat) (*mtp
 	}
 
 	dlg := dialog2.Datas[0].GetDialog()
+	hasScheduled, err := c.svcCtx.Dao.MsgClient.MsgHasScheduled(c.ctx, &msgpb.TLMsgHasScheduled{
+		UserId:   c.MD.UserId,
+		PeerType: mtproto.PEER_CHAT,
+		PeerId:   in.ChatId,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.getFullChat - error: %v", err)
+		return nil, err
+	}
 	chatFull := mtproto.MakeTLChatFull(&mtproto.ChatFull{
 		CanSetUsername:                       true,
-		HasScheduled:                         false, // TODO
+		HasScheduled:                         mtproto.FromBool(hasScheduled),
 		Id:                                   chat.Id(),
 		About:                                chat.About(),
 		Participants:                         chat.ToChatParticipants(c.MD.UserId),
