@@ -35,15 +35,6 @@ type discussionPost struct {
 	post, copyId, comment int32
 }
 
-func (f *diffFixture) top(channelId int64) int32 {
-	f.t.Helper()
-	var top int32
-	if err := f.box.QueryRow("SELECT top_message FROM channels WHERE id = ?", channelId).Scan(&top); err != nil {
-		f.t.Fatal(err)
-	}
-	return top
-}
-
 func (f *diffFixture) stored(channelId int64, id int32) *mtproto.Message {
 	f.t.Helper()
 	var data string

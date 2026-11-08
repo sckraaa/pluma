@@ -43,13 +43,6 @@ func (w *world) newChannelRow(creator int64, broadcast bool) int64 {
 	return id
 }
 
-func (w *world) exec(query string, args ...any) {
-	w.t.Helper()
-	if _, err := w.check.Exec(query, args...); err != nil {
-		w.t.Fatal(err)
-	}
-}
-
 func (w *world) member(channelId, userId int64, role int32) {
 	w.t.Helper()
 	w.exec("INSERT INTO channel_participants (channel_id, user_id, role, `date`) VALUES (?, ?, ?, 1)", channelId, userId, role)
@@ -72,7 +65,7 @@ func channelText(from, channelId int64, grouped int64) dao.Outgoing {
 	return dao.Outgoing{RandomId: randomId(), Message: m}
 }
 
-func (w *world) sendChannel(from, channelId int64, out ...dao.Outgoing) ([]dao.ChannelSent, error) {
+func (w *world) sendOutgoing(from, channelId int64, out ...dao.Outgoing) ([]dao.ChannelSent, error) {
 	var sent []dao.ChannelSent
 	_, err := w.d.RunBox(context.Background(), from, nil, func(b *userbox.Box) error {
 		var err error
@@ -106,7 +99,7 @@ func TestChannelSlowmodeParallel(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, errs[i] = w.sendChannel(member, id, channelText(member, id, 0))
+			_, errs[i] = w.sendOutgoing(member, id, channelText(member, id, 0))
 		}()
 	}
 	wg.Wait()
@@ -147,7 +140,7 @@ func TestChannelSlowmodeRules(t *testing.T) {
 
 	for _, who := range []int64{creator, admin} {
 		for range 3 {
-			if _, err := w.sendChannel(who, id, channelText(who, id, 0)); err != nil {
+			if _, err := w.sendOutgoing(who, id, channelText(who, id, 0)); err != nil {
 				t.Fatalf("user %d is limited: %v", who, err)
 			}
 		}
@@ -156,30 +149,30 @@ func TestChannelSlowmodeRules(t *testing.T) {
 		}
 	}
 
-	if _, err := w.sendChannel(member, id, channelText(member, id, 0), channelText(member, id, 0)); !errors.Is(err, mtproto.ErrSlowmodeMultiMsgsDisabled) {
+	if _, err := w.sendOutgoing(member, id, channelText(member, id, 0), channelText(member, id, 0)); !errors.Is(err, mtproto.ErrSlowmodeMultiMsgsDisabled) {
 		t.Errorf("two messages at once: %v, want SLOWMODE_MULTI_MSGS_DISABLED", err)
 	}
-	if _, err := w.sendChannel(member, id, channelText(member, id, 11), channelText(member, id, 12)); !errors.Is(err, mtproto.ErrSlowmodeMultiMsgsDisabled) {
+	if _, err := w.sendOutgoing(member, id, channelText(member, id, 11), channelText(member, id, 12)); !errors.Is(err, mtproto.ErrSlowmodeMultiMsgsDisabled) {
 		t.Errorf("two albums at once: %v, want SLOWMODE_MULTI_MSGS_DISABLED", err)
 	}
 	if last, _ := w.lastSend(id, member); last != 0 {
 		t.Errorf("a refused send wrote %d", last)
 	}
-	sent, err := w.sendChannel(member, id, channelText(member, id, 21), channelText(member, id, 21), channelText(member, id, 21))
+	sent, err := w.sendOutgoing(member, id, channelText(member, id, 21), channelText(member, id, 21), channelText(member, id, 21))
 	if err != nil || len(sent) != 3 {
 		t.Fatalf("an album: %d sent, %v", len(sent), err)
 	}
-	if _, err = w.sendChannel(member, id, channelText(member, id, 0)); !isSlowmodeWait(err) {
+	if _, err = w.sendOutgoing(member, id, channelText(member, id, 0)); !isSlowmodeWait(err) {
 		t.Errorf("after the album: %v, want SLOWMODE_WAIT_X", err)
 	}
 
 	w.exec("UPDATE channel_participants SET last_send_date = last_send_date - ? WHERE channel_id = ? AND user_id = ?", slowmodeSeconds, id, member)
-	if _, err = w.sendChannel(member, id, channelText(member, id, 0)); err != nil {
+	if _, err = w.sendOutgoing(member, id, channelText(member, id, 0)); err != nil {
 		t.Errorf("after the window: %v", err)
 	}
 	w.exec("UPDATE channels SET slowmode_seconds = 0 WHERE id = ?", id)
 	for range 2 {
-		if _, err = w.sendChannel(member, id, channelText(member, id, 0)); err != nil {
+		if _, err = w.sendOutgoing(member, id, channelText(member, id, 0)); err != nil {
 			t.Errorf("slow mode off: %v", err)
 		}
 	}
@@ -197,13 +190,13 @@ func TestChannelSlowmodeGuest(t *testing.T) {
 	w.exec("UPDATE channels SET linked_chat_id = ? WHERE id = ?", group, post)
 	w.exec("UPDATE channels SET linked_chat_id = ?, slowmode_seconds = ? WHERE id = ?", post, slowmodeSeconds, group)
 
-	if _, err := w.sendChannel(guest, group, channelText(guest, group, 0)); err != nil {
+	if _, err := w.sendOutgoing(guest, group, channelText(guest, group, 0)); err != nil {
 		t.Fatalf("the guest's comment: %v", err)
 	}
 	if last, state := w.lastSend(group, guest); last == 0 || state != channelperm.StateLeft {
 		t.Errorf("the guest's row: last %d, state %d", last, state)
 	}
-	if _, err := w.sendChannel(guest, group, channelText(guest, group, 0)); !isSlowmodeWait(err) {
+	if _, err := w.sendOutgoing(guest, group, channelText(guest, group, 0)); !isSlowmodeWait(err) {
 		t.Errorf("the guest again: %v, want SLOWMODE_WAIT_X", err)
 	}
 }
@@ -216,7 +209,7 @@ func TestChannelSignatureProfiles(t *testing.T) {
 	id := w.newChannelRow(creator, true)
 	post := func() *mtproto.Message {
 		t.Helper()
-		sent, err := w.sendChannel(creator, id, channelText(creator, id, 0))
+		sent, err := w.sendOutgoing(creator, id, channelText(creator, id, 0))
 		if err != nil {
 			t.Fatal(err)
 		}
