@@ -41,6 +41,7 @@ type readRow struct {
 	TopMessage     int32 `db:"top_message"`
 	Pts            int32 `db:"pts"`
 	Broadcast      bool  `db:"broadcast"`
+	Forum          bool  `db:"forum"`
 	AvailableMinId int32 `db:"available_min_id"`
 }
 
@@ -57,7 +58,7 @@ type readRow struct {
 func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 	var rows []readRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, COALESCE(p.available_min_id, 0) AS available_min_id"+
+		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, c.forum, COALESCE(p.available_min_id, 0) AS available_min_id"+
 			" FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
 			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state <> 1"+
 			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
@@ -84,9 +85,8 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 		return err
 	}
 	var unread []int32
-	if err := b.Tx().QueryRowsPartial(&unread,
-		"SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND id >= ? AND sender_user_id <> ? AND deleted = 0",
-		channelId, maxId, r.AvailableMinId, b.UserId()); err != nil {
+	query, args := unreadQuery(b.UserId(), channelId, r.Forum, maxId, r.AvailableMinId)
+	if err := b.Tx().QueryRowsPartial(&unread, query, args...); err != nil {
 		return err
 	}
 	u := mtproto.MakeTLUpdateReadChannelInbox(&mtproto.Update{

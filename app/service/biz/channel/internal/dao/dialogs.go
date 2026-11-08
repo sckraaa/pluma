@@ -40,6 +40,19 @@ type channelDialogRow struct {
 	ViewAsMessages bool  `db:"view_forum_as_messages"`
 }
 
+// unreadQuery counts what selfId has not read of the channel above read, its
+// mark of the whole channel. In a forum a message is also read by how far its
+// topic was read.
+func unreadQuery(selfId, channelId int64, forum bool, read, availableMinId int32) (string, []any) {
+	if forum {
+		return "SELECT COUNT(*) FROM channel_messages m LEFT JOIN channel_thread_reads t ON t.user_id = ? AND t.channel_id = m.channel_id AND t.top_id = IF(m.topic_id = 0, 1, m.topic_id)" +
+				" WHERE m.channel_id = ? AND m.id > GREATEST(?, COALESCE(t.read_max_id, 0)) AND m.id >= ? AND m.sender_user_id <> ? AND m.deleted = 0",
+			[]any{selfId, channelId, read, availableMinId, selfId}
+	}
+	return "SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND id >= ? AND sender_user_id <> ? AND deleted = 0",
+		[]any{channelId, read, availableMinId, selfId}
+}
+
 // ChannelDialogs returns the dialogs of selfId with the channels idList that
 // it has, with what the channel gives them: pts, top_message,
 // read_inbox_max_id, read_outbox_max_id, unread_count,
@@ -62,14 +75,7 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 		}
 		r := rows[0]
 		var unread, mentions, outbox []int32
-		// In a forum a message is also read by how far its topic was read.
-		query := "SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND id > ? AND id >= ? AND sender_user_id <> ? AND deleted = 0"
-		args := []any{id, r.ReadInboxMaxId, r.AvailableMinId, selfId}
-		if r.Forum {
-			query = "SELECT COUNT(*) FROM channel_messages m LEFT JOIN channel_thread_reads t ON t.user_id = ? AND t.channel_id = m.channel_id AND t.top_id = IF(m.topic_id = 0, 1, m.topic_id)" +
-				" WHERE m.channel_id = ? AND m.id > GREATEST(?, COALESCE(t.read_max_id, 0)) AND m.id >= ? AND m.sender_user_id <> ? AND m.deleted = 0"
-			args = append([]any{selfId}, args...)
-		}
+		query, args := unreadQuery(selfId, id, r.Forum, r.ReadInboxMaxId, r.AvailableMinId)
 		if err := d.Mysql.QueryRowsPartial(ctx, &unread, query, args...); err != nil {
 			return nil, err
 		}

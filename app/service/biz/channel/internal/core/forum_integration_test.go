@@ -188,6 +188,11 @@ func TestForumTopics(t *testing.T) {
 	if tb := topicOf(bobs, b); !tb.GetMy() || tb.GetUnreadCount() != 1 {
 		t.Errorf("bob sees his topic B: %v", tb)
 	}
+	// One not in the public forum has nothing unread in it.
+	stranger := topicOf(f.topics(f.user("Stranger"), id), a)
+	if stranger.GetUnreadCount() != 0 || stranger.GetReadInboxMaxId() != inA || stranger.GetTopMessage() != inA {
+		t.Errorf("a stranger sees topic A: %v", stranger)
+	}
 	h, err := f.c.ChannelGetReplies(&channel.TLChannelGetReplies{SelfId: bob, ChannelId: id, MsgId: a, Limit: 10})
 	if err != nil {
 		t.Fatal(err)
@@ -214,6 +219,14 @@ func TestForumTopics(t *testing.T) {
 	// and read A; the dialog counts what is left of B's.
 	if len(dialogs) != 1 || dialogs[0].GetUnreadCount() != 1 {
 		t.Errorf("the dialog: %v", dialogs)
+	}
+	// Reading the whole forum below A's newest counts what A's reading
+	// left: B's message alone, as the dialog does.
+	if err = f.read(bob, id, a); err != nil {
+		t.Fatal(err)
+	}
+	if us := f.readUpdates(bob); len(us) != 1 || us[0].GetStillUnreadCount() != 1 {
+		t.Errorf("updateReadChannelInbox in a forum: %v", us)
 	}
 
 	edit := &channel.TLChannelEditForumTopic{SelfId: bob, PermAuthKeyId: 1, ChannelId: id, TopicId: a, Fields: channel.TopicFieldTitle, Title: "AA", Closed: mtproto.BoolFalse, Hidden: mtproto.BoolFalse}

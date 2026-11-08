@@ -832,6 +832,8 @@ func (d *Dao) countTopics(ctx context.Context, selfId, channelId int64, availabl
 		selfId, mtproto.PEER_CHANNEL, channelId); err != nil {
 		return nil, err
 	}
+	// One with no dialog (a public forum it is not in) has nothing unread.
+	reader := len(dialogRead) > 0
 	base := first(dialogRead)
 	for _, r := range rows {
 		out.floor[r.TopicId] = base
@@ -855,13 +857,19 @@ func (d *Dao) countTopics(ctx context.Context, selfId, channelId int64, availabl
 		out.top[asTopic(c.Topic)] = c.N
 	}
 	var unread []count
-	if err := d.Mysql.QueryRowsPartial(ctx, &unread,
-		"SELECT m.topic_id AS topic, COUNT(*) AS n FROM channel_messages m"+
-			" LEFT JOIN channel_thread_reads r ON r.user_id = ? AND r.channel_id = m.channel_id AND r.top_id = IF(m.topic_id = 0, 1, m.topic_id)"+
-			" WHERE m.channel_id = ? AND m.deleted = 0 AND m.sender_user_id <> ? AND m.id >= ? AND m.id > GREATEST(?, COALESCE(r.read_max_id, 0))"+
-			" AND m.topic_id IN "+columnsIn+" GROUP BY m.topic_id",
-		append([]any{selfId, channelId, selfId, availableMinId, base}, columnArgs...)...); err != nil {
-		return nil, err
+	if reader {
+		if err := d.Mysql.QueryRowsPartial(ctx, &unread,
+			"SELECT m.topic_id AS topic, COUNT(*) AS n FROM channel_messages m"+
+				" LEFT JOIN channel_thread_reads r ON r.user_id = ? AND r.channel_id = m.channel_id AND r.top_id = IF(m.topic_id = 0, 1, m.topic_id)"+
+				" WHERE m.channel_id = ? AND m.deleted = 0 AND m.sender_user_id <> ? AND m.id >= ? AND m.id > GREATEST(?, COALESCE(r.read_max_id, 0))"+
+				" AND m.topic_id IN "+columnsIn+" GROUP BY m.topic_id",
+			append([]any{selfId, channelId, selfId, availableMinId, base}, columnArgs...)...); err != nil {
+			return nil, err
+		}
+	} else {
+		for _, r := range rows {
+			out.floor[r.TopicId] = out.top[r.TopicId]
+		}
 	}
 	for _, c := range unread {
 		out.unread[asTopic(c.Topic)] = c.N
