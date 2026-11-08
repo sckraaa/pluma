@@ -102,6 +102,11 @@ func TestDeleteHistoryForEveryone(t *testing.T) {
 	_, err := f.deleteHistory(bob, id, true, top)
 	wantErr(t, "a member", err, mtproto.ErrChatAdminRequired)
 
+	f.exec("UPDATE channels SET participants_count = 1001 WHERE id = ?", id)
+	_, err = f.deleteHistory(creator, id, true, top)
+	wantErr(t, "a channel too big", err, mtproto.ErrChannelTooBig)
+	f.exec("UPDATE channels SET participants_count = 2 WHERE id = ?", id)
+
 	upto, err := f.deleteHistory(creator, id, true, top-2)
 	if err != nil {
 		t.Fatal(err)
@@ -146,7 +151,7 @@ func TestDeleteHistoryForEveryone(t *testing.T) {
 	if mentions != 0 {
 		t.Errorf("%d mentions left", mentions)
 	}
-	// One journal row each, contiguous: a member behind sees both.
+	// One journal row for the whole request: a member one row behind gets it.
 	d := f.diff(bob, id, pts-all.GetUpdates()[0].GetPtsCount(), 10)
 	if len(d.GetOtherUpdates()) != 1 || d.GetOtherUpdates()[0].GetPredicateName() != mtproto.Predicate_updateDeleteChannelMessages {
 		t.Errorf("the difference: %v", d.GetOtherUpdates())
