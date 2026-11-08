@@ -31,6 +31,9 @@ func (c *ChatInvitesCore) MessagesDeleteExportedChatInvite(in *mtproto.TLMessage
 		err  error
 	)
 
+	if peer.IsChannel() {
+		return c.deleteChannelInvite(peer, in.GetLink())
+	}
 	if !peer.IsChat() {
 		err = mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.deleteExportedChatInvite - error: ", err)

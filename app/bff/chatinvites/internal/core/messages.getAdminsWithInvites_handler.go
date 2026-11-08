@@ -31,6 +31,9 @@ func (c *ChatInvitesCore) MessagesGetAdminsWithInvites(in *mtproto.TLMessagesGet
 		peer = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	)
 
+	if peer.IsChannel() {
+		return c.channelAdminsWithInvites(peer)
+	}
 	if !peer.IsChat() {
 		err := mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.getAdminsWithInvites - error: ", err)

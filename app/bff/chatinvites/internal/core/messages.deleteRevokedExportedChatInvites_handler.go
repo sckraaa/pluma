@@ -32,6 +32,9 @@ func (c *ChatInvitesCore) MessagesDeleteRevokedExportedChatInvites(in *mtproto.T
 		adminId = mtproto.FromInputUser(c.MD.UserId, in.AdminId)
 	)
 
+	if peer.IsChannel() {
+		return c.deleteRevokedChannelInvites(peer, adminId.PeerId)
+	}
 	if !peer.IsChat() {
 		err = mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.deleteRevokedExportedChatInvites - error: ", err)

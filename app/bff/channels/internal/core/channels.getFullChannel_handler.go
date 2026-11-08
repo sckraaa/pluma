@@ -22,6 +22,7 @@ import (
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 )
 
 // ChannelsGetFullChannel
@@ -112,6 +113,20 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err
 	}
+	var requesters []int64
+	if admin && ch.Can(me, channelperm.InviteUsers, int32(time.Now().Unix())) == nil {
+		// Those who may answer the requests see them (task 041).
+		pending, err := c.svcCtx.Channel.ChannelGetPendingJoinRequests(c.ctx, &channelpb.TLChannelGetPendingJoinRequests{SelfId: c.MD.UserId, ChannelId: ch.GetId()})
+		if err != nil {
+			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+			return nil, err
+		}
+		if n := pending.GetRequestsPending(); n > 0 {
+			requesters = pending.GetRecentRequesters()
+			full.RequestsPending = mtproto.MakeFlagsInt32(n)
+			full.RecentRequesters = requesters
+		}
+	}
 	if admin {
 		invites, err := c.svcCtx.Chat.ChatGetExportedChatInvites(c.ctx, &chatpb.TLChatGetExportedChatInvites{ChatId: ch.GetId(), AdminId: c.MD.UserId, Limit: 50})
 		if err != nil {
@@ -126,7 +141,8 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		}
 	}
 
-	users, err := c.svcCtx.User.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: []int64{c.MD.UserId}, To: []int64{c.MD.UserId}})
+	ids := append([]int64{c.MD.UserId}, requesters...)
+	users, err := c.svcCtx.User.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: ids, To: []int64{c.MD.UserId}})
 	if err != nil {
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err
@@ -143,7 +159,7 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	return mtproto.MakeTLMessagesChatFull(&mtproto.Messages_ChatFull{
 		FullChat: mtproto.MakeTLChannelFull(full).To_ChatFull(),
 		Chats:    chats,
-		Users:    users.GetUserListByIdList(c.MD.UserId, c.MD.UserId),
+		Users:    users.GetUserListByIdList(c.MD.UserId, ids...),
 	}).To_Messages_ChatFull(), nil
 }
 

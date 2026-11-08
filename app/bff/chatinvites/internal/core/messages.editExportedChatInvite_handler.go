@@ -33,6 +33,9 @@ func (c *ChatInvitesCore) MessagesEditExportedChatInvite(in *mtproto.TLMessagesE
 		rValue  *mtproto.Messages_ExportedChatInvite
 	)
 
+	if peer.IsChannel() {
+		return c.editChannelInvite(peer, in)
+	}
 	if !peer.IsChat() {
 		err := mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("messages.editExportedChatInvite - error: ", err)
