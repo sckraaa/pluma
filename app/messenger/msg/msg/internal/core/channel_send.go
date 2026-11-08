@@ -110,16 +110,13 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 // holds updateEditChannelMessage, the channel and the users.
 func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64, editBox *msg.OutboxMessage, id int32) (*mtproto.Updates, error) {
 	edit := plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, editBox.Message, fromUserId, editBox.NoWebpage, func() bool { return false })
-	var (
-		edited *mtproto.Message
-		pts    int32
-	)
+	var edited *dao.ChannelEdited
 	_, err := c.svcCtx.Dao.RunBox(c.ctx, fromUserId, nil, func(b *userbox.Box) error {
 		var err error
-		if edited, pts, err = c.svcCtx.Dao.EditChannel(b, channelId, id, edit); err != nil {
+		if edited, err = c.svcCtx.Dao.EditChannel(b, channelId, id, edit); err != nil {
 			return err
 		}
-		return c.svcCtx.Dao.EmitChannelEditPush(b, channelId, fromAuthKeyId, edited, pts)
+		return c.svcCtx.Dao.EmitChannelEditPush(b, channelId, fromAuthKeyId, edited)
 	})
 	if err != nil {
 		return nil, err
@@ -128,7 +125,7 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 	if err != nil {
 		return nil, err
 	}
-	shown := channelpb.ViewMessage(edited, fromUserId)
+	shown := channelpb.ViewMessage(edited.Message, fromUserId)
 	h := mtproto.NewIDListHelper(fromUserId)
 	h.PickByMessage(shown)
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: h.UserIdList, To: []int64{fromUserId}})
@@ -136,7 +133,7 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 		return nil, err
 	}
 	return mtproto.MakeTLUpdates(&mtproto.Updates{
-		Updates: []*mtproto.Update{mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: pts, PtsCount: 1}).To_Update()},
+		Updates: []*mtproto.Update{mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: edited.Pts, PtsCount: 1}).To_Update()},
 		Users:   users.GetUserListByIdList(fromUserId, h.UserIdList...),
 		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
 		Date:    int32(time.Now().Unix()),
