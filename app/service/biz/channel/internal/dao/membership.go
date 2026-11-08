@@ -56,12 +56,16 @@ type ChannelChange struct {
 	// them.
 	Self  *channel.ImmutableChannelParticipant
 	Count int32
+	// Requested: a request to join was written instead of a join; the
+	// answer is INVITE_REQUEST_SENT, after the commit.
+	Requested bool
 }
 
 type memberChannelRow struct {
 	Broadcast         bool  `db:"broadcast"`
 	Deleted           bool  `db:"deleted"`
 	HiddenPrehistory  bool  `db:"hidden_prehistory"`
+	JoinRequest       bool  `db:"join_request"`
 	ParticipantsCount int32 `db:"participants_count"`
 	TopMessage        int32 `db:"top_message"`
 	Public            bool  `db:"public"`
@@ -117,19 +121,28 @@ func (d *Dao) InviteChannel(ctx context.Context, link string) (int64, error) {
 	return inv.ChatId, nil
 }
 
-// channelForMember reads the channel locked by ch and b's owner's row of
-// it, locked.
-func channelForMember(b *userbox.Box, channelId int64) (*memberChannelRow, *memberRow, error) {
+// memberChannel reads the channel locked by the transaction.
+func memberChannel(b *userbox.Box, channelId int64) (*memberChannelRow, error) {
 	var chans []memberChannelRow
 	if err := b.Tx().QueryRowsPartial(&chans,
-		"SELECT c.broadcast, c.deleted, c.hidden_prehistory, c.participants_count, c.top_message,"+
+		"SELECT c.broadcast, c.deleted, c.hidden_prehistory, c.join_request, c.participants_count, c.top_message,"+
 			" EXISTS (SELECT 1 FROM username u WHERE u.peer_type = ? AND u.peer_id = c.id AND u.editable = 1) AS public"+
 			" FROM channels c WHERE c.id = ?",
 		mtproto.PEER_CHANNEL, channelId); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if len(chans) == 0 || chans[0].Deleted {
-		return nil, nil, mtproto.ErrChannelInvalid
+		return nil, mtproto.ErrChannelInvalid
+	}
+	return &chans[0], nil
+}
+
+// channelForMember reads the channel locked by ch and b's owner's row of
+// it, locked.
+func channelForMember(b *userbox.Box, channelId int64) (*memberChannelRow, *memberRow, error) {
+	c, err := memberChannel(b, channelId)
+	if err != nil {
+		return nil, nil, err
 	}
 	var members []memberRow
 	if err := b.Tx().QueryRowsPartial(&members,
@@ -138,9 +151,9 @@ func channelForMember(b *userbox.Box, channelId int64) (*memberChannelRow, *memb
 		return nil, nil, err
 	}
 	if len(members) == 0 {
-		return &chans[0], nil, nil
+		return c, nil, nil
 	}
-	return &chans[0], &members[0], nil
+	return c, &members[0], nil
 }
 
 func (m *memberRow) participant() *channel.ImmutableChannelParticipant {
@@ -160,10 +173,14 @@ func openChannel(b *userbox.Box, channelId int64) (*channelbox.Channel, error) {
 }
 
 // Join makes b's owner a member of the channel: by itself in a public one
-// (link empty), by the invite link link in any. Errors as Telegram's
-// (core.telegram.org/method/channels.joinChannel): CHANNEL_PRIVATE for a
-// private channel without a link or for one kicked from it,
-// USER_ALREADY_PARTICIPANT, CHANNELS_TOO_MUCH, USERS_TOO_MUCH,
+// (link empty), by the invite link link in any. A channel with join_request
+// and a link that needs approval write a request instead (the change says
+// Requested): the admins see it, the answer is INVITE_REQUEST_SENT
+// (core.telegram.org/api/invites). join_request is of the public way in: a
+// private channel's link that needs no approval still lets one in. Errors
+// as Telegram's (core.telegram.org/method/channels.joinChannel):
+// CHANNEL_PRIVATE for a private channel without a link or for one kicked
+// from it, USER_ALREADY_PARTICIPANT, CHANNELS_TOO_MUCH, USERS_TOO_MUCH,
 // INVITE_HASH_EXPIRED for a revoked, expired or used up link.
 func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange, error) {
 	ch, err := openChannel(b, channelId)
@@ -182,7 +199,10 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		return nil, mtproto.ErrChannelPrivate
 	}
 
-	var inviter int64
+	var (
+		inviter int64
+		ask     bool
+	)
 	if link != "" {
 		var invites []Invite
 		if err = b.Tx().QueryRowsPartial(&invites,
@@ -193,29 +213,15 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 			return nil, mtproto.ErrInviteHashInvalid
 		}
 		inv := invites[0]
-		switch {
-		case !inv.Works(b.Date()):
+		if !inv.Works(b.Date()) {
 			return nil, mtproto.ErrInviteHashExpired
-		case inv.RequestNeeded:
-			// Links that need an admin's approval are made by
-			// messages.exportChatInvite, which channels do not have yet:
-			// such a link cannot be a channel's (task 041, join requests).
-			return nil, mtproto.ErrInviteHashInvalid
 		}
 		inviter = inv.AdminId
-		if _, err = b.Tx().Exec("UPDATE chat_invites SET usage2 = usage2 + 1 WHERE link = ?", link); err != nil {
-			return nil, err
-		}
-		// The user may have joined by this link before and left: the row
-		// of the link and the user is there (UNIQUE link, user_id), and the
-		// join is new (an upsert, as basic groups write it, chat_box.go).
-		if _, err = b.Tx().Exec("INSERT INTO chat_invite_participants (chat_id, link, user_id, requested, approved_by, date2) VALUES (?, ?, ?, 0, 0, ?) AS new"+
-			" ON DUPLICATE KEY UPDATE chat_id = new.chat_id, requested = 0, approved_by = 0, date2 = new.date2",
-			channelId, link, b.UserId(), b.Date()); err != nil {
-			return nil, err
-		}
+		ask = inv.RequestNeeded
 	} else if !c.Public {
 		return nil, mtproto.ErrChannelPrivate
+	} else {
+		ask = c.JoinRequest
 	}
 
 	var joined []int64
@@ -228,6 +234,23 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		return nil, mtproto.ErrChannelsTooMuch
 	case c.ParticipantsCount >= MembersMax:
 		return nil, mtproto.ErrUsersTooMuch
+	}
+	if ask {
+		if err = d.addRequest(b, channelId, link); err != nil {
+			return nil, err
+		}
+		return &ChannelChange{ChannelId: channelId, Requested: true}, nil
+	}
+	if link != "" {
+		// The user may have joined by this link before and left: the row
+		// of the link and the user is there (UNIQUE link, user_id) and the
+		// use is not a new one (recordInviteUse).
+		if err = recordInviteUse(b, channelId, link, b.UserId(), 0); err != nil {
+			return nil, err
+		}
+	}
+	if err = d.dropRequests(b, channelId, b.UserId()); err != nil {
+		return nil, err
 	}
 
 	change := &ChannelChange{ChannelId: channelId}
@@ -341,6 +364,12 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 // the owner; in a channel (broadcast) it is a post, without an author, as
 // the first message of a channel is (channel.createChannel).
 func addServiceMessage(b *userbox.Box, ch *channelbox.Channel, channelId int64, broadcast bool, action *mtproto.MessageAction) (*mtproto.Message, int32, error) {
+	return addServiceMessageFrom(b, ch, channelId, b.UserId(), broadcast, action)
+}
+
+// addServiceMessageFrom is addServiceMessage with the message's author
+// named: fromId in a supergroup (an approved member's own join).
+func addServiceMessageFrom(b *userbox.Box, ch *channelbox.Channel, channelId, fromId int64, broadcast bool, action *mtproto.MessageAction) (*mtproto.Message, int32, error) {
 	m := mtproto.MakeTLMessageService(&mtproto.Message{
 		Id:     ch.NextMessageId(),
 		Post:   broadcast,
@@ -349,7 +378,7 @@ func addServiceMessage(b *userbox.Box, ch *channelbox.Channel, channelId int64, 
 		Action: action,
 	}).To_Message()
 	if !broadcast {
-		m.FromId = mtproto.MakePeerUser(b.UserId())
+		m.FromId = mtproto.MakePeerUser(fromId)
 	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
 	data, err := jsonx.MarshalToString(m)
@@ -357,7 +386,7 @@ func addServiceMessage(b *userbox.Box, ch *channelbox.Channel, channelId int64, 
 		return nil, 0, err
 	}
 	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_filter_type, message_data, date2) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		channelId, m.Id, b.UserId(), ch.Pts(), mtproto.GetMediaType(m), data, b.Date()); err != nil {
+		channelId, m.Id, fromId, ch.Pts(), mtproto.GetMediaType(m), data, b.Date()); err != nil {
 		return nil, 0, err
 	}
 	return m, ch.Pts(), nil

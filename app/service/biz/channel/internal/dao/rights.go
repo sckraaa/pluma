@@ -344,6 +344,9 @@ func (d *Dao) kick(b *userbox.Box, ch *channelbox.Channel, a *actor, change *Cha
 		channelId, userId, channelperm.RoleMember, channelperm.StateKicked, rights, until, b.UserId(), b.Date()); err != nil {
 		return err
 	}
+	if err := d.dropRequests(b, channelId, userId); err != nil {
+		return err
+	}
 	ev := &inbox.TLInboxChannelKickedToInbox{UserId: userId, FromId: b.UserId(), ChannelId: channelId}
 	data, err := jsonx.Marshal(ev)
 	if err != nil {

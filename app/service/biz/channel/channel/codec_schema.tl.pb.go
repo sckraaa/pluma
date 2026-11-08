@@ -151,6 +151,66 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	295422623: func() mtproto.TLObject { // 0x119bca9f pluma: task 041
+		return &TLChannelToggleJoinRequest{
+			Constructor: 295422623,
+		}
+	},
+	1117566284: func() mtproto.TLObject { // 0x429cb54c pluma: task 041
+		return &TLChannelExportChatInvite{
+			Constructor: 1117566284,
+		}
+	},
+	1706919575: func() mtproto.TLObject { // 0x65bd8697 pluma: task 041
+		return &TLChannelGetExportedChatInvite{
+			Constructor: 1706919575,
+		}
+	},
+	-1412847419: func() mtproto.TLObject { // 0xabc9a8c5 pluma: task 041
+		return &TLChannelGetExportedChatInvites{
+			Constructor: -1412847419,
+		}
+	},
+	1438538611: func() mtproto.TLObject { // 0x55be5b73 pluma: task 041
+		return &TLChannelEditExportedChatInvite{
+			Constructor: 1438538611,
+		}
+	},
+	714654860: func() mtproto.TLObject { // 0x2a98c48c pluma: task 041
+		return &TLChannelDeleteExportedChatInvite{
+			Constructor: 714654860,
+		}
+	},
+	-692237588: func() mtproto.TLObject { // 0xd6bd4aec pluma: task 041
+		return &TLChannelDeleteRevokedExportedChatInvites{
+			Constructor: -692237588,
+		}
+	},
+	1965843750: func() mtproto.TLObject { // 0x752c6526 pluma: task 041
+		return &TLChannelGetAdminsWithInvites{
+			Constructor: 1965843750,
+		}
+	},
+	1917986431: func() mtproto.TLObject { // 0x7252267f pluma: task 041
+		return &TLChannelGetChatInviteImporters{
+			Constructor: 1917986431,
+		}
+	},
+	-1624124263: func() mtproto.TLObject { // 0x9f31d499 pluma: task 041
+		return &TLChannelHideChatJoinRequests{
+			Constructor: -1624124263,
+		}
+	},
+	2040559942: func() mtproto.TLObject { // 0x79a07946 pluma: task 041
+		return &TLChannelGetPendingJoinRequests{
+			Constructor: 2040559942,
+		}
+	},
+	-2063367371: func() mtproto.TLObject { // 0x85038335 pluma: task 041
+		return &TLChannelGetLeftChannels{
+			Constructor: -2063367371,
+		}
+	},
 	-922563101: func() mtproto.TLObject { // 0xc902cde3 pluma: task 044
 		return &TLChannelToggleSetting{
 			Constructor: -922563101,
@@ -2673,6 +2733,574 @@ func (m *TLChannelSetAvailableReactions) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.ChannelId = dBuf.Long()
 		m.ReactionsType = dBuf.Int()
 		m.Reactions = dBuf.VectorString()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelToggleJoinRequest (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelToggleJoinRequest) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x119bca9f:
+		x.UInt(0x119bca9f)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetEnabled().Encode(x, layer)
+		m.GetApplyToInvites().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelToggleJoinRequest) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelToggleJoinRequest) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x119bca9f:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Enabled = m3
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.ApplyToInvites = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelExportChatInvite (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelExportChatInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x429cb54c:
+		x.UInt(0x429cb54c)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		m.GetLegacyRevokePermanent().Encode(x, layer)
+		m.GetRequestNeeded().Encode(x, layer)
+		x.Int(m.GetExpireDate())
+		x.Int(m.GetUsageLimit())
+		x.String(m.GetTitle())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelExportChatInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelExportChatInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x429cb54c:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m2 := &mtproto.Bool{}
+		m2.Decode(dBuf)
+		m.LegacyRevokePermanent = m2
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.RequestNeeded = m3
+		m.ExpireDate = dBuf.Int()
+		m.UsageLimit = dBuf.Int()
+		m.Title = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetExportedChatInvite (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetExportedChatInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x65bd8697:
+		x.UInt(0x65bd8697)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetLink())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetExportedChatInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetExportedChatInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x65bd8697:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Link = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetExportedChatInvites (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetExportedChatInvites) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xabc9a8c5:
+		x.UInt(0xabc9a8c5)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetAdminId())
+		m.GetRevoked().Encode(x, layer)
+		x.Int(m.GetOffsetDate())
+		x.String(m.GetOffsetLink())
+		x.Int(m.GetLimit())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetExportedChatInvites) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetExportedChatInvites) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xabc9a8c5:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.AdminId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Revoked = m3
+		m.OffsetDate = dBuf.Int()
+		m.OffsetLink = dBuf.String()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditExportedChatInvite (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditExportedChatInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x55be5b73:
+		x.UInt(0x55be5b73)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetLink())
+		m.GetRevoked().Encode(x, layer)
+		x.Int(m.GetFields())
+		x.Int(m.GetExpireDate())
+		x.Int(m.GetUsageLimit())
+		m.GetRequestNeeded().Encode(x, layer)
+		x.String(m.GetTitle())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditExportedChatInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditExportedChatInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x55be5b73:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Link = dBuf.String()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Revoked = m3
+		m.Fields = dBuf.Int()
+		m.ExpireDate = dBuf.Int()
+		m.UsageLimit = dBuf.Int()
+		m7 := &mtproto.Bool{}
+		m7.Decode(dBuf)
+		m.RequestNeeded = m7
+		m.Title = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelDeleteExportedChatInvite (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelDeleteExportedChatInvite) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x2a98c48c:
+		x.UInt(0x2a98c48c)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetLink())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelDeleteExportedChatInvite) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelDeleteExportedChatInvite) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x2a98c48c:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Link = dBuf.String()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelDeleteRevokedExportedChatInvites (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelDeleteRevokedExportedChatInvites) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xd6bd4aec:
+		x.UInt(0xd6bd4aec)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetAdminId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelDeleteRevokedExportedChatInvites) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelDeleteRevokedExportedChatInvites) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xd6bd4aec:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.AdminId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetAdminsWithInvites (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetAdminsWithInvites) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x752c6526:
+		x.UInt(0x752c6526)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetAdminsWithInvites) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetAdminsWithInvites) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x752c6526:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetChatInviteImporters (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetChatInviteImporters) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x7252267f:
+		x.UInt(0x7252267f)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		m.GetRequested().Encode(x, layer)
+		x.String(m.GetLink())
+		x.String(m.GetQ())
+		x.Int(m.GetOffsetDate())
+		x.Long(m.GetOffsetUser())
+		x.Int(m.GetLimit())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetChatInviteImporters) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetChatInviteImporters) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x7252267f:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m2 := &mtproto.Bool{}
+		m2.Decode(dBuf)
+		m.Requested = m2
+		m.Link = dBuf.String()
+		m.Q = dBuf.String()
+		m.OffsetDate = dBuf.Int()
+		m.OffsetUser = dBuf.Long()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelHideChatJoinRequests (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelHideChatJoinRequests) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x9f31d499:
+		x.UInt(0x9f31d499)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetApproved().Encode(x, layer)
+		m.GetAll().Encode(x, layer)
+		x.String(m.GetLink())
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelHideChatJoinRequests) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelHideChatJoinRequests) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x9f31d499:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Approved = m3
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.All = m4
+		m.Link = dBuf.String()
+		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetPendingJoinRequests (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetPendingJoinRequests) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x79a07946:
+		x.UInt(0x79a07946)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetPendingJoinRequests) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetPendingJoinRequests) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x79a07946:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelGetLeftChannels (pluma: task 041)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetLeftChannels) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x85038335:
+		x.UInt(0x85038335)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Int(m.GetOffset())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetLeftChannels) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetLeftChannels) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x85038335:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.Offset = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

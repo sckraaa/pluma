@@ -52,6 +52,30 @@ const (
 	CRC32_channel_getAdminedPublicChannels TLConstructor = -2083237595 // 0x83d45125
 	// pluma: task 055
 	CRC32_channel_deleteChannel TLConstructor = -979916526 // 0xc597a912
+	// pluma: task 041
+	CRC32_channel_toggleJoinRequest TLConstructor = 295422623 // 0x119bca9f
+	// pluma: task 041
+	CRC32_channel_exportChatInvite TLConstructor = 1117566284 // 0x429cb54c
+	// pluma: task 041
+	CRC32_channel_getExportedChatInvite TLConstructor = 1706919575 // 0x65bd8697
+	// pluma: task 041
+	CRC32_channel_getExportedChatInvites TLConstructor = -1412847419 // 0xabc9a8c5
+	// pluma: task 041
+	CRC32_channel_editExportedChatInvite TLConstructor = 1438538611 // 0x55be5b73
+	// pluma: task 041
+	CRC32_channel_deleteExportedChatInvite TLConstructor = 714654860 // 0x2a98c48c
+	// pluma: task 041
+	CRC32_channel_deleteRevokedExportedChatInvites TLConstructor = -692237588 // 0xd6bd4aec
+	// pluma: task 041
+	CRC32_channel_getAdminsWithInvites TLConstructor = 1965843750 // 0x752c6526
+	// pluma: task 041
+	CRC32_channel_getChatInviteImporters TLConstructor = 1917986431 // 0x7252267f
+	// pluma: task 041
+	CRC32_channel_hideChatJoinRequests TLConstructor = -1624124263 // 0x9f31d499
+	// pluma: task 041
+	CRC32_channel_getPendingJoinRequests TLConstructor = 2040559942 // 0x79a07946
+	// pluma: task 041
+	CRC32_channel_getLeftChannels TLConstructor = -2063367371 // 0x85038335
 	// pluma: task 044
 	CRC32_channel_toggleSetting TLConstructor = -922563101 // 0xc902cde3
 	// pluma: task 044

@@ -51,6 +51,30 @@ const (
 	Predicate_channel_getAdminedPublicChannels = "channel_getAdminedPublicChannels"
 	// pluma: task 055
 	Predicate_channel_deleteChannel = "channel_deleteChannel"
+	// pluma: task 041
+	Predicate_channel_toggleJoinRequest = "channel_toggleJoinRequest"
+	// pluma: task 041
+	Predicate_channel_exportChatInvite = "channel_exportChatInvite"
+	// pluma: task 041
+	Predicate_channel_getExportedChatInvite = "channel_getExportedChatInvite"
+	// pluma: task 041
+	Predicate_channel_getExportedChatInvites = "channel_getExportedChatInvites"
+	// pluma: task 041
+	Predicate_channel_editExportedChatInvite = "channel_editExportedChatInvite"
+	// pluma: task 041
+	Predicate_channel_deleteExportedChatInvite = "channel_deleteExportedChatInvite"
+	// pluma: task 041
+	Predicate_channel_deleteRevokedExportedChatInvites = "channel_deleteRevokedExportedChatInvites"
+	// pluma: task 041
+	Predicate_channel_getAdminsWithInvites = "channel_getAdminsWithInvites"
+	// pluma: task 041
+	Predicate_channel_getChatInviteImporters = "channel_getChatInviteImporters"
+	// pluma: task 041
+	Predicate_channel_hideChatJoinRequests = "channel_hideChatJoinRequests"
+	// pluma: task 041
+	Predicate_channel_getPendingJoinRequests = "channel_getPendingJoinRequests"
+	// pluma: task 041
+	Predicate_channel_getLeftChannels = "channel_getLeftChannels"
 	// pluma: task 044
 	Predicate_channel_toggleSetting = "channel_toggleSetting"
 	// pluma: task 044
@@ -181,6 +205,54 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -979916526, // 0xc597a912
 
 	},
+	Predicate_channel_toggleJoinRequest: { // pluma: task 041
+		0: 295422623, // 0x119bca9f
+
+	},
+	Predicate_channel_exportChatInvite: { // pluma: task 041
+		0: 1117566284, // 0x429cb54c
+
+	},
+	Predicate_channel_getExportedChatInvite: { // pluma: task 041
+		0: 1706919575, // 0x65bd8697
+
+	},
+	Predicate_channel_getExportedChatInvites: { // pluma: task 041
+		0: -1412847419, // 0xabc9a8c5
+
+	},
+	Predicate_channel_editExportedChatInvite: { // pluma: task 041
+		0: 1438538611, // 0x55be5b73
+
+	},
+	Predicate_channel_deleteExportedChatInvite: { // pluma: task 041
+		0: 714654860, // 0x2a98c48c
+
+	},
+	Predicate_channel_deleteRevokedExportedChatInvites: { // pluma: task 041
+		0: -692237588, // 0xd6bd4aec
+
+	},
+	Predicate_channel_getAdminsWithInvites: { // pluma: task 041
+		0: 1965843750, // 0x752c6526
+
+	},
+	Predicate_channel_getChatInviteImporters: { // pluma: task 041
+		0: 1917986431, // 0x7252267f
+
+	},
+	Predicate_channel_hideChatJoinRequests: { // pluma: task 041
+		0: -1624124263, // 0x9f31d499
+
+	},
+	Predicate_channel_getPendingJoinRequests: { // pluma: task 041
+		0: 2040559942, // 0x79a07946
+
+	},
+	Predicate_channel_getLeftChannels: { // pluma: task 041
+		0: -2063367371, // 0x85038335
+
+	},
 	Predicate_channel_toggleSetting: { // pluma: task 044
 		0: -922563101, // 0xc902cde3
 
@@ -248,47 +320,59 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
-	-1502604851: Predicate_immutableChannel,                 // 0xa67011cd
-	675582471:   Predicate_immutableChannelParticipant,      // 0x28449207
-	-662027966:  Predicate_mutableChannel,                   // 0xd88a4142
-	-437245607:  Predicate_channel_getMutableChannel,        // 0xe5f02959
-	-1986537988: Predicate_channel_getChannelListByIdList,   // 0x8997d5fc
-	-641600475:  Predicate_channel_createChannel,            // 0xd9c1f425 pluma: task 038
-	-1725659745: Predicate_channel_getChannelDialogs,        // 0x9924859f pluma: task 038
-	687937944:   Predicate_channel_getTopMessages,           // 0x29011998 pluma: task 038
-	771323905:   Predicate_channel_getMemberIdList,          // 0x2df97801 pluma: task 039
-	653475021:   Predicate_channel_getHistory,               // 0x26f33ccd pluma: task 039
-	-1395419135: Predicate_channel_getMessages,              // 0xacd39801 pluma: task 039
-	2140231388:  Predicate_channel_getChannelDifference,     // 0x7f9156dc pluma: task 040
-	634004096:   Predicate_channel_joinChannel,              // 0x25ca2280 pluma: task 041
-	1331881771:  Predicate_channel_leaveChannel,             // 0x4f62e72b pluma: task 041
-	-1311035397: Predicate_channel_checkChatInvite,          // 0xb1db2ffb pluma: task 041
-	-212979149:  Predicate_channel_getParticipants,          // 0xf34e3233 pluma: task 041
-	-585404897:  Predicate_channel_readHistory,              // 0xdd1b6e1f pluma: task 043
-	1972359002:  Predicate_channel_deleteMessages,           // 0x758fcf5a pluma: task 043
-	293053083:   Predicate_channel_inviteToChannel,          // 0x1177a29b pluma: task 041
-	325646357:   Predicate_channel_editTitle,                // 0x1368f815 pluma: task 044
-	-564196321:  Predicate_channel_editAbout,                // 0xde5f0c1f pluma: task 044
-	986177068:   Predicate_channel_checkUsername,            // 0x3ac7de2c pluma: task 044
-	418987336:   Predicate_channel_updateUsername,           // 0x18f93d48 pluma: task 044
-	-2083237595: Predicate_channel_getAdminedPublicChannels, // 0x83d45125 pluma: task 044
-	-979916526:  Predicate_channel_deleteChannel,            // 0xc597a912 pluma: task 055
-	-922563101:  Predicate_channel_toggleSetting,            // 0xc902cde3 pluma: task 044
-	994913470:   Predicate_channel_setAvailableReactions,    // 0x3b4d2cbe pluma: task 044
-	407453767:   Predicate_channel_setDiscussionGroup,       // 0x18494047 pluma: task 048
-	-1820701585: Predicate_channel_getGroupsForDiscussion,   // 0x937a4c6f pluma: task 048
-	941034930:   Predicate_channel_getDiscussionMessage,     // 0x38170db2 pluma: task 048
-	973790184:   Predicate_channel_getReplies,               // 0x3a0adbe8 pluma: task 048
-	-325315711:  Predicate_channel_readDiscussion,           // 0xec9c1381 pluma: task 048
-	-1984581655: Predicate_channel_editPhoto,                // 0x89b5afe9 pluma: task 044
-	-521821973:  Predicate_channel_readMentions,             // 0xe0e5a0eb pluma: task 043
-	1865304106:  Predicate_channel_getUnreadMentions,        // 0x6f2e482a pluma: task 043
-	2055458774:  Predicate_channel_readMessageContents,      // 0x7a83cfd6 pluma: task 043
-	471620827:   Predicate_channel_search,                   // 0x1c1c5cdb pluma: task 043
-	860909233:   Predicate_channel_editCreator,              // 0x33506eb1 pluma: task 042
-	1274612374:  Predicate_channel_editAdmin,                // 0x4bf90a96 pluma: task 042
-	-1457424068: Predicate_channel_editBanned,               // 0xa921793c pluma: task 042
-	1263700059:  Predicate_channel_editDefaultBannedRights,  // 0x4b52885b pluma: task 042
+	-1502604851: Predicate_immutableChannel,                         // 0xa67011cd
+	675582471:   Predicate_immutableChannelParticipant,              // 0x28449207
+	-662027966:  Predicate_mutableChannel,                           // 0xd88a4142
+	-437245607:  Predicate_channel_getMutableChannel,                // 0xe5f02959
+	-1986537988: Predicate_channel_getChannelListByIdList,           // 0x8997d5fc
+	-641600475:  Predicate_channel_createChannel,                    // 0xd9c1f425 pluma: task 038
+	-1725659745: Predicate_channel_getChannelDialogs,                // 0x9924859f pluma: task 038
+	687937944:   Predicate_channel_getTopMessages,                   // 0x29011998 pluma: task 038
+	771323905:   Predicate_channel_getMemberIdList,                  // 0x2df97801 pluma: task 039
+	653475021:   Predicate_channel_getHistory,                       // 0x26f33ccd pluma: task 039
+	-1395419135: Predicate_channel_getMessages,                      // 0xacd39801 pluma: task 039
+	2140231388:  Predicate_channel_getChannelDifference,             // 0x7f9156dc pluma: task 040
+	634004096:   Predicate_channel_joinChannel,                      // 0x25ca2280 pluma: task 041
+	1331881771:  Predicate_channel_leaveChannel,                     // 0x4f62e72b pluma: task 041
+	-1311035397: Predicate_channel_checkChatInvite,                  // 0xb1db2ffb pluma: task 041
+	-212979149:  Predicate_channel_getParticipants,                  // 0xf34e3233 pluma: task 041
+	-585404897:  Predicate_channel_readHistory,                      // 0xdd1b6e1f pluma: task 043
+	1972359002:  Predicate_channel_deleteMessages,                   // 0x758fcf5a pluma: task 043
+	293053083:   Predicate_channel_inviteToChannel,                  // 0x1177a29b pluma: task 041
+	325646357:   Predicate_channel_editTitle,                        // 0x1368f815 pluma: task 044
+	-564196321:  Predicate_channel_editAbout,                        // 0xde5f0c1f pluma: task 044
+	986177068:   Predicate_channel_checkUsername,                    // 0x3ac7de2c pluma: task 044
+	418987336:   Predicate_channel_updateUsername,                   // 0x18f93d48 pluma: task 044
+	-2083237595: Predicate_channel_getAdminedPublicChannels,         // 0x83d45125 pluma: task 044
+	-979916526:  Predicate_channel_deleteChannel,                    // 0xc597a912 pluma: task 055
+	295422623:   Predicate_channel_toggleJoinRequest,                // 0x119bca9f pluma: task 041
+	1117566284:  Predicate_channel_exportChatInvite,                 // 0x429cb54c pluma: task 041
+	1706919575:  Predicate_channel_getExportedChatInvite,            // 0x65bd8697 pluma: task 041
+	-1412847419: Predicate_channel_getExportedChatInvites,           // 0xabc9a8c5 pluma: task 041
+	1438538611:  Predicate_channel_editExportedChatInvite,           // 0x55be5b73 pluma: task 041
+	714654860:   Predicate_channel_deleteExportedChatInvite,         // 0x2a98c48c pluma: task 041
+	-692237588:  Predicate_channel_deleteRevokedExportedChatInvites, // 0xd6bd4aec pluma: task 041
+	1965843750:  Predicate_channel_getAdminsWithInvites,             // 0x752c6526 pluma: task 041
+	1917986431:  Predicate_channel_getChatInviteImporters,           // 0x7252267f pluma: task 041
+	-1624124263: Predicate_channel_hideChatJoinRequests,             // 0x9f31d499 pluma: task 041
+	2040559942:  Predicate_channel_getPendingJoinRequests,           // 0x79a07946 pluma: task 041
+	-2063367371: Predicate_channel_getLeftChannels,                  // 0x85038335 pluma: task 041
+	-922563101:  Predicate_channel_toggleSetting,                    // 0xc902cde3 pluma: task 044
+	994913470:   Predicate_channel_setAvailableReactions,            // 0x3b4d2cbe pluma: task 044
+	407453767:   Predicate_channel_setDiscussionGroup,               // 0x18494047 pluma: task 048
+	-1820701585: Predicate_channel_getGroupsForDiscussion,           // 0x937a4c6f pluma: task 048
+	941034930:   Predicate_channel_getDiscussionMessage,             // 0x38170db2 pluma: task 048
+	973790184:   Predicate_channel_getReplies,                       // 0x3a0adbe8 pluma: task 048
+	-325315711:  Predicate_channel_readDiscussion,                   // 0xec9c1381 pluma: task 048
+	-1984581655: Predicate_channel_editPhoto,                        // 0x89b5afe9 pluma: task 044
+	-521821973:  Predicate_channel_readMentions,                     // 0xe0e5a0eb pluma: task 043
+	1865304106:  Predicate_channel_getUnreadMentions,                // 0x6f2e482a pluma: task 043
+	2055458774:  Predicate_channel_readMessageContents,              // 0x7a83cfd6 pluma: task 043
+	471620827:   Predicate_channel_search,                           // 0x1c1c5cdb pluma: task 043
+	860909233:   Predicate_channel_editCreator,                      // 0x33506eb1 pluma: task 042
+	1274612374:  Predicate_channel_editAdmin,                        // 0x4bf90a96 pluma: task 042
+	-1457424068: Predicate_channel_editBanned,                       // 0xa921793c pluma: task 042
+	1263700059:  Predicate_channel_editDefaultBannedRights,          // 0x4b52885b pluma: task 042
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

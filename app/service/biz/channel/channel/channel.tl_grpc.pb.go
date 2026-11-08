@@ -36,44 +36,56 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RPCChannel_ChannelGetMutableChannel_FullMethodName        = "/channel.RPCChannel/channel_getMutableChannel"
-	RPCChannel_ChannelGetChannelListByIdList_FullMethodName   = "/channel.RPCChannel/channel_getChannelListByIdList"
-	RPCChannel_ChannelCreateChannel_FullMethodName            = "/channel.RPCChannel/channel_createChannel"
-	RPCChannel_ChannelGetChannelDialogs_FullMethodName        = "/channel.RPCChannel/channel_getChannelDialogs"
-	RPCChannel_ChannelGetTopMessages_FullMethodName           = "/channel.RPCChannel/channel_getTopMessages"
-	RPCChannel_ChannelGetMemberIdList_FullMethodName          = "/channel.RPCChannel/channel_getMemberIdList"
-	RPCChannel_ChannelGetHistory_FullMethodName               = "/channel.RPCChannel/channel_getHistory"
-	RPCChannel_ChannelGetMessages_FullMethodName              = "/channel.RPCChannel/channel_getMessages"
-	RPCChannel_ChannelGetChannelDifference_FullMethodName     = "/channel.RPCChannel/channel_getChannelDifference"
-	RPCChannel_ChannelJoinChannel_FullMethodName              = "/channel.RPCChannel/channel_joinChannel"
-	RPCChannel_ChannelLeaveChannel_FullMethodName             = "/channel.RPCChannel/channel_leaveChannel"
-	RPCChannel_ChannelCheckChatInvite_FullMethodName          = "/channel.RPCChannel/channel_checkChatInvite"
-	RPCChannel_ChannelGetParticipants_FullMethodName          = "/channel.RPCChannel/channel_getParticipants"
-	RPCChannel_ChannelReadHistory_FullMethodName              = "/channel.RPCChannel/channel_readHistory"
-	RPCChannel_ChannelDeleteMessages_FullMethodName           = "/channel.RPCChannel/channel_deleteMessages"
-	RPCChannel_ChannelInviteToChannel_FullMethodName          = "/channel.RPCChannel/channel_inviteToChannel"
-	RPCChannel_ChannelEditTitle_FullMethodName                = "/channel.RPCChannel/channel_editTitle"
-	RPCChannel_ChannelEditAbout_FullMethodName                = "/channel.RPCChannel/channel_editAbout"
-	RPCChannel_ChannelCheckUsername_FullMethodName            = "/channel.RPCChannel/channel_checkUsername"
-	RPCChannel_ChannelUpdateUsername_FullMethodName           = "/channel.RPCChannel/channel_updateUsername"
-	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName = "/channel.RPCChannel/channel_getAdminedPublicChannels"
-	RPCChannel_ChannelDeleteChannel_FullMethodName            = "/channel.RPCChannel/channel_deleteChannel"
-	RPCChannel_ChannelToggleSetting_FullMethodName            = "/channel.RPCChannel/channel_toggleSetting"
-	RPCChannel_ChannelSetAvailableReactions_FullMethodName    = "/channel.RPCChannel/channel_setAvailableReactions"
-	RPCChannel_ChannelSetDiscussionGroup_FullMethodName       = "/channel.RPCChannel/channel_setDiscussionGroup"
-	RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName   = "/channel.RPCChannel/channel_getGroupsForDiscussion"
-	RPCChannel_ChannelGetDiscussionMessage_FullMethodName     = "/channel.RPCChannel/channel_getDiscussionMessage"
-	RPCChannel_ChannelGetReplies_FullMethodName               = "/channel.RPCChannel/channel_getReplies"
-	RPCChannel_ChannelReadDiscussion_FullMethodName           = "/channel.RPCChannel/channel_readDiscussion"
-	RPCChannel_ChannelEditPhoto_FullMethodName                = "/channel.RPCChannel/channel_editPhoto"
-	RPCChannel_ChannelReadMentions_FullMethodName             = "/channel.RPCChannel/channel_readMentions"
-	RPCChannel_ChannelGetUnreadMentions_FullMethodName        = "/channel.RPCChannel/channel_getUnreadMentions"
-	RPCChannel_ChannelReadMessageContents_FullMethodName      = "/channel.RPCChannel/channel_readMessageContents"
-	RPCChannel_ChannelSearch_FullMethodName                   = "/channel.RPCChannel/channel_search"
-	RPCChannel_ChannelEditCreator_FullMethodName              = "/channel.RPCChannel/channel_editCreator"
-	RPCChannel_ChannelEditAdmin_FullMethodName                = "/channel.RPCChannel/channel_editAdmin"
-	RPCChannel_ChannelEditBanned_FullMethodName               = "/channel.RPCChannel/channel_editBanned"
-	RPCChannel_ChannelEditDefaultBannedRights_FullMethodName  = "/channel.RPCChannel/channel_editDefaultBannedRights"
+	RPCChannel_ChannelGetMutableChannel_FullMethodName                = "/channel.RPCChannel/channel_getMutableChannel"
+	RPCChannel_ChannelGetChannelListByIdList_FullMethodName           = "/channel.RPCChannel/channel_getChannelListByIdList"
+	RPCChannel_ChannelCreateChannel_FullMethodName                    = "/channel.RPCChannel/channel_createChannel"
+	RPCChannel_ChannelGetChannelDialogs_FullMethodName                = "/channel.RPCChannel/channel_getChannelDialogs"
+	RPCChannel_ChannelGetTopMessages_FullMethodName                   = "/channel.RPCChannel/channel_getTopMessages"
+	RPCChannel_ChannelGetMemberIdList_FullMethodName                  = "/channel.RPCChannel/channel_getMemberIdList"
+	RPCChannel_ChannelGetHistory_FullMethodName                       = "/channel.RPCChannel/channel_getHistory"
+	RPCChannel_ChannelGetMessages_FullMethodName                      = "/channel.RPCChannel/channel_getMessages"
+	RPCChannel_ChannelGetChannelDifference_FullMethodName             = "/channel.RPCChannel/channel_getChannelDifference"
+	RPCChannel_ChannelJoinChannel_FullMethodName                      = "/channel.RPCChannel/channel_joinChannel"
+	RPCChannel_ChannelLeaveChannel_FullMethodName                     = "/channel.RPCChannel/channel_leaveChannel"
+	RPCChannel_ChannelCheckChatInvite_FullMethodName                  = "/channel.RPCChannel/channel_checkChatInvite"
+	RPCChannel_ChannelGetParticipants_FullMethodName                  = "/channel.RPCChannel/channel_getParticipants"
+	RPCChannel_ChannelReadHistory_FullMethodName                      = "/channel.RPCChannel/channel_readHistory"
+	RPCChannel_ChannelDeleteMessages_FullMethodName                   = "/channel.RPCChannel/channel_deleteMessages"
+	RPCChannel_ChannelInviteToChannel_FullMethodName                  = "/channel.RPCChannel/channel_inviteToChannel"
+	RPCChannel_ChannelEditTitle_FullMethodName                        = "/channel.RPCChannel/channel_editTitle"
+	RPCChannel_ChannelEditAbout_FullMethodName                        = "/channel.RPCChannel/channel_editAbout"
+	RPCChannel_ChannelCheckUsername_FullMethodName                    = "/channel.RPCChannel/channel_checkUsername"
+	RPCChannel_ChannelUpdateUsername_FullMethodName                   = "/channel.RPCChannel/channel_updateUsername"
+	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName         = "/channel.RPCChannel/channel_getAdminedPublicChannels"
+	RPCChannel_ChannelDeleteChannel_FullMethodName                    = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelToggleJoinRequest_FullMethodName                = "/channel.RPCChannel/channel_toggleJoinRequest"
+	RPCChannel_ChannelExportChatInvite_FullMethodName                 = "/channel.RPCChannel/channel_exportChatInvite"
+	RPCChannel_ChannelGetExportedChatInvite_FullMethodName            = "/channel.RPCChannel/channel_getExportedChatInvite"
+	RPCChannel_ChannelGetExportedChatInvites_FullMethodName           = "/channel.RPCChannel/channel_getExportedChatInvites"
+	RPCChannel_ChannelEditExportedChatInvite_FullMethodName           = "/channel.RPCChannel/channel_editExportedChatInvite"
+	RPCChannel_ChannelDeleteExportedChatInvite_FullMethodName         = "/channel.RPCChannel/channel_deleteExportedChatInvite"
+	RPCChannel_ChannelDeleteRevokedExportedChatInvites_FullMethodName = "/channel.RPCChannel/channel_deleteRevokedExportedChatInvites"
+	RPCChannel_ChannelGetAdminsWithInvites_FullMethodName             = "/channel.RPCChannel/channel_getAdminsWithInvites"
+	RPCChannel_ChannelGetChatInviteImporters_FullMethodName           = "/channel.RPCChannel/channel_getChatInviteImporters"
+	RPCChannel_ChannelHideChatJoinRequests_FullMethodName             = "/channel.RPCChannel/channel_hideChatJoinRequests"
+	RPCChannel_ChannelGetPendingJoinRequests_FullMethodName           = "/channel.RPCChannel/channel_getPendingJoinRequests"
+	RPCChannel_ChannelGetLeftChannels_FullMethodName                  = "/channel.RPCChannel/channel_getLeftChannels"
+	RPCChannel_ChannelToggleSetting_FullMethodName                    = "/channel.RPCChannel/channel_toggleSetting"
+	RPCChannel_ChannelSetAvailableReactions_FullMethodName            = "/channel.RPCChannel/channel_setAvailableReactions"
+	RPCChannel_ChannelSetDiscussionGroup_FullMethodName               = "/channel.RPCChannel/channel_setDiscussionGroup"
+	RPCChannel_ChannelGetGroupsForDiscussion_FullMethodName           = "/channel.RPCChannel/channel_getGroupsForDiscussion"
+	RPCChannel_ChannelGetDiscussionMessage_FullMethodName             = "/channel.RPCChannel/channel_getDiscussionMessage"
+	RPCChannel_ChannelGetReplies_FullMethodName                       = "/channel.RPCChannel/channel_getReplies"
+	RPCChannel_ChannelReadDiscussion_FullMethodName                   = "/channel.RPCChannel/channel_readDiscussion"
+	RPCChannel_ChannelEditPhoto_FullMethodName                        = "/channel.RPCChannel/channel_editPhoto"
+	RPCChannel_ChannelReadMentions_FullMethodName                     = "/channel.RPCChannel/channel_readMentions"
+	RPCChannel_ChannelGetUnreadMentions_FullMethodName                = "/channel.RPCChannel/channel_getUnreadMentions"
+	RPCChannel_ChannelReadMessageContents_FullMethodName              = "/channel.RPCChannel/channel_readMessageContents"
+	RPCChannel_ChannelSearch_FullMethodName                           = "/channel.RPCChannel/channel_search"
+	RPCChannel_ChannelEditCreator_FullMethodName                      = "/channel.RPCChannel/channel_editCreator"
+	RPCChannel_ChannelEditAdmin_FullMethodName                        = "/channel.RPCChannel/channel_editAdmin"
+	RPCChannel_ChannelEditBanned_FullMethodName                       = "/channel.RPCChannel/channel_editBanned"
+	RPCChannel_ChannelEditDefaultBannedRights_FullMethodName          = "/channel.RPCChannel/channel_editDefaultBannedRights"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -122,6 +134,30 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelToggleJoinRequest(ctx context.Context, in *TLChannelToggleJoinRequest, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelExportChatInvite(ctx context.Context, in *TLChannelExportChatInvite, opts ...grpc.CallOption) (*mtproto.ExportedChatInvite, error)
+	// pluma: task 041
+	ChannelGetExportedChatInvite(ctx context.Context, in *TLChannelGetExportedChatInvite, opts ...grpc.CallOption) (*mtproto.ExportedChatInvite, error)
+	// pluma: task 041
+	ChannelGetExportedChatInvites(ctx context.Context, in *TLChannelGetExportedChatInvites, opts ...grpc.CallOption) (*mtproto.Messages_ExportedChatInvites, error)
+	// pluma: task 041
+	ChannelEditExportedChatInvite(ctx context.Context, in *TLChannelEditExportedChatInvite, opts ...grpc.CallOption) (*mtproto.Messages_ExportedChatInvite, error)
+	// pluma: task 041
+	ChannelDeleteExportedChatInvite(ctx context.Context, in *TLChannelDeleteExportedChatInvite, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 041
+	ChannelDeleteRevokedExportedChatInvites(ctx context.Context, in *TLChannelDeleteRevokedExportedChatInvites, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 041
+	ChannelGetAdminsWithInvites(ctx context.Context, in *TLChannelGetAdminsWithInvites, opts ...grpc.CallOption) (*mtproto.Messages_ChatAdminsWithInvites, error)
+	// pluma: task 041
+	ChannelGetChatInviteImporters(ctx context.Context, in *TLChannelGetChatInviteImporters, opts ...grpc.CallOption) (*mtproto.Messages_ChatInviteImporters, error)
+	// pluma: task 041
+	ChannelHideChatJoinRequests(ctx context.Context, in *TLChannelHideChatJoinRequests, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelGetPendingJoinRequests(ctx context.Context, in *TLChannelGetPendingJoinRequests, opts ...grpc.CallOption) (*mtproto.Update, error)
+	// pluma: task 041
+	ChannelGetLeftChannels(ctx context.Context, in *TLChannelGetLeftChannels, opts ...grpc.CallOption) (*mtproto.Messages_Chats, error)
 	// pluma: task 044
 	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -384,6 +420,126 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelToggleJoinRequest(ctx context.Context, in *TLChannelToggleJoinRequest, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelToggleJoinRequest_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelExportChatInvite(ctx context.Context, in *TLChannelExportChatInvite, opts ...grpc.CallOption) (*mtproto.ExportedChatInvite, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.ExportedChatInvite)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelExportChatInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetExportedChatInvite(ctx context.Context, in *TLChannelGetExportedChatInvite, opts ...grpc.CallOption) (*mtproto.ExportedChatInvite, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.ExportedChatInvite)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetExportedChatInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetExportedChatInvites(ctx context.Context, in *TLChannelGetExportedChatInvites, opts ...grpc.CallOption) (*mtproto.Messages_ExportedChatInvites, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_ExportedChatInvites)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetExportedChatInvites_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelEditExportedChatInvite(ctx context.Context, in *TLChannelEditExportedChatInvite, opts ...grpc.CallOption) (*mtproto.Messages_ExportedChatInvite, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_ExportedChatInvite)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelEditExportedChatInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelDeleteExportedChatInvite(ctx context.Context, in *TLChannelDeleteExportedChatInvite, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteExportedChatInvite_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelDeleteRevokedExportedChatInvites(ctx context.Context, in *TLChannelDeleteRevokedExportedChatInvites, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteRevokedExportedChatInvites_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetAdminsWithInvites(ctx context.Context, in *TLChannelGetAdminsWithInvites, opts ...grpc.CallOption) (*mtproto.Messages_ChatAdminsWithInvites, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_ChatAdminsWithInvites)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetAdminsWithInvites_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetChatInviteImporters(ctx context.Context, in *TLChannelGetChatInviteImporters, opts ...grpc.CallOption) (*mtproto.Messages_ChatInviteImporters, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_ChatInviteImporters)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetChatInviteImporters_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelHideChatJoinRequests(ctx context.Context, in *TLChannelHideChatJoinRequests, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelHideChatJoinRequests_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetPendingJoinRequests(ctx context.Context, in *TLChannelGetPendingJoinRequests, opts ...grpc.CallOption) (*mtproto.Update, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Update)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetPendingJoinRequests_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetLeftChannels(ctx context.Context, in *TLChannelGetLeftChannels, opts ...grpc.CallOption) (*mtproto.Messages_Chats, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Chats)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetLeftChannels_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -590,6 +746,30 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelToggleJoinRequest(context.Context, *TLChannelToggleJoinRequest) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelExportChatInvite(context.Context, *TLChannelExportChatInvite) (*mtproto.ExportedChatInvite, error)
+	// pluma: task 041
+	ChannelGetExportedChatInvite(context.Context, *TLChannelGetExportedChatInvite) (*mtproto.ExportedChatInvite, error)
+	// pluma: task 041
+	ChannelGetExportedChatInvites(context.Context, *TLChannelGetExportedChatInvites) (*mtproto.Messages_ExportedChatInvites, error)
+	// pluma: task 041
+	ChannelEditExportedChatInvite(context.Context, *TLChannelEditExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error)
+	// pluma: task 041
+	ChannelDeleteExportedChatInvite(context.Context, *TLChannelDeleteExportedChatInvite) (*mtproto.Bool, error)
+	// pluma: task 041
+	ChannelDeleteRevokedExportedChatInvites(context.Context, *TLChannelDeleteRevokedExportedChatInvites) (*mtproto.Bool, error)
+	// pluma: task 041
+	ChannelGetAdminsWithInvites(context.Context, *TLChannelGetAdminsWithInvites) (*mtproto.Messages_ChatAdminsWithInvites, error)
+	// pluma: task 041
+	ChannelGetChatInviteImporters(context.Context, *TLChannelGetChatInviteImporters) (*mtproto.Messages_ChatInviteImporters, error)
+	// pluma: task 041
+	ChannelHideChatJoinRequests(context.Context, *TLChannelHideChatJoinRequests) (*mtproto.Updates, error)
+	// pluma: task 041
+	ChannelGetPendingJoinRequests(context.Context, *TLChannelGetPendingJoinRequests) (*mtproto.Update, error)
+	// pluma: task 041
+	ChannelGetLeftChannels(context.Context, *TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error)
 	// pluma: task 044
 	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -696,6 +876,42 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelToggleJoinRequest(context.Context, *TLChannelToggleJoinRequest) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleJoinRequest not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelExportChatInvite(context.Context, *TLChannelExportChatInvite) (*mtproto.ExportedChatInvite, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelExportChatInvite not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetExportedChatInvite(context.Context, *TLChannelGetExportedChatInvite) (*mtproto.ExportedChatInvite, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetExportedChatInvite not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetExportedChatInvites(context.Context, *TLChannelGetExportedChatInvites) (*mtproto.Messages_ExportedChatInvites, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetExportedChatInvites not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelEditExportedChatInvite(context.Context, *TLChannelEditExportedChatInvite) (*mtproto.Messages_ExportedChatInvite, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditExportedChatInvite not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteExportedChatInvite(context.Context, *TLChannelDeleteExportedChatInvite) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteExportedChatInvite not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteRevokedExportedChatInvites(context.Context, *TLChannelDeleteRevokedExportedChatInvites) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteRevokedExportedChatInvites not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetAdminsWithInvites(context.Context, *TLChannelGetAdminsWithInvites) (*mtproto.Messages_ChatAdminsWithInvites, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetAdminsWithInvites not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetChatInviteImporters(context.Context, *TLChannelGetChatInviteImporters) (*mtproto.Messages_ChatInviteImporters, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetChatInviteImporters not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelHideChatJoinRequests(context.Context, *TLChannelHideChatJoinRequests) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelHideChatJoinRequests not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetPendingJoinRequests(context.Context, *TLChannelGetPendingJoinRequests) (*mtproto.Update, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetPendingJoinRequests not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetLeftChannels(context.Context, *TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetLeftChannels not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
@@ -1161,6 +1377,222 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelToggleJoinRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelToggleJoinRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelToggleJoinRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelToggleJoinRequest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelToggleJoinRequest(ctx, req.(*TLChannelToggleJoinRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelExportChatInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelExportChatInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelExportChatInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelExportChatInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelExportChatInvite(ctx, req.(*TLChannelExportChatInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetExportedChatInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetExportedChatInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetExportedChatInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetExportedChatInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetExportedChatInvite(ctx, req.(*TLChannelGetExportedChatInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetExportedChatInvites_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetExportedChatInvites)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetExportedChatInvites(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetExportedChatInvites_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetExportedChatInvites(ctx, req.(*TLChannelGetExportedChatInvites))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelEditExportedChatInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelEditExportedChatInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelEditExportedChatInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelEditExportedChatInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelEditExportedChatInvite(ctx, req.(*TLChannelEditExportedChatInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelDeleteExportedChatInvite_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteExportedChatInvite)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteExportedChatInvite(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteExportedChatInvite_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteExportedChatInvite(ctx, req.(*TLChannelDeleteExportedChatInvite))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelDeleteRevokedExportedChatInvites_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteRevokedExportedChatInvites)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteRevokedExportedChatInvites(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteRevokedExportedChatInvites_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteRevokedExportedChatInvites(ctx, req.(*TLChannelDeleteRevokedExportedChatInvites))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetAdminsWithInvites_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetAdminsWithInvites)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetAdminsWithInvites(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetAdminsWithInvites_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetAdminsWithInvites(ctx, req.(*TLChannelGetAdminsWithInvites))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetChatInviteImporters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetChatInviteImporters)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetChatInviteImporters(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetChatInviteImporters_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetChatInviteImporters(ctx, req.(*TLChannelGetChatInviteImporters))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelHideChatJoinRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelHideChatJoinRequests)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelHideChatJoinRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelHideChatJoinRequests_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelHideChatJoinRequests(ctx, req.(*TLChannelHideChatJoinRequests))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetPendingJoinRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetPendingJoinRequests)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetPendingJoinRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetPendingJoinRequests_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetPendingJoinRequests(ctx, req.(*TLChannelGetPendingJoinRequests))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetLeftChannels_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetLeftChannels)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetLeftChannels(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetLeftChannels_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetLeftChannels(ctx, req.(*TLChannelGetLeftChannels))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelToggleSetting)
 	if err := dec(in); err != nil {
@@ -1543,6 +1975,54 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_toggleJoinRequest",
+			Handler:    _RPCChannel_ChannelToggleJoinRequest_Handler,
+		},
+		{
+			MethodName: "channel_exportChatInvite",
+			Handler:    _RPCChannel_ChannelExportChatInvite_Handler,
+		},
+		{
+			MethodName: "channel_getExportedChatInvite",
+			Handler:    _RPCChannel_ChannelGetExportedChatInvite_Handler,
+		},
+		{
+			MethodName: "channel_getExportedChatInvites",
+			Handler:    _RPCChannel_ChannelGetExportedChatInvites_Handler,
+		},
+		{
+			MethodName: "channel_editExportedChatInvite",
+			Handler:    _RPCChannel_ChannelEditExportedChatInvite_Handler,
+		},
+		{
+			MethodName: "channel_deleteExportedChatInvite",
+			Handler:    _RPCChannel_ChannelDeleteExportedChatInvite_Handler,
+		},
+		{
+			MethodName: "channel_deleteRevokedExportedChatInvites",
+			Handler:    _RPCChannel_ChannelDeleteRevokedExportedChatInvites_Handler,
+		},
+		{
+			MethodName: "channel_getAdminsWithInvites",
+			Handler:    _RPCChannel_ChannelGetAdminsWithInvites_Handler,
+		},
+		{
+			MethodName: "channel_getChatInviteImporters",
+			Handler:    _RPCChannel_ChannelGetChatInviteImporters_Handler,
+		},
+		{
+			MethodName: "channel_hideChatJoinRequests",
+			Handler:    _RPCChannel_ChannelHideChatJoinRequests_Handler,
+		},
+		{
+			MethodName: "channel_getPendingJoinRequests",
+			Handler:    _RPCChannel_ChannelGetPendingJoinRequests_Handler,
+		},
+		{
+			MethodName: "channel_getLeftChannels",
+			Handler:    _RPCChannel_ChannelGetLeftChannels_Handler,
 		},
 		{
 			MethodName: "channel_toggleSetting",

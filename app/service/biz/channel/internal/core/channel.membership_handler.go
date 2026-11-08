@@ -38,7 +38,8 @@ import (
 // user's other devices get updateChannel with seq (p. 3). The answer holds
 // updateChannel, the service message and the channel: Android reads the
 // channel from the answer, iOS then asks channels.getParticipant(self)
-// (JoinChannel.swift:70-81).
+// (JoinChannel.swift:70-81). When an admin's approval is needed the request
+// is written instead and the answer is INVITE_REQUEST_SENT.
 func (c *ChannelCore) ChannelJoinChannel(in *channel.TLChannelJoinChannel) (*mtproto.Updates, error) {
 	channelId := in.ChannelId
 	if in.Link != "" {
@@ -59,6 +60,11 @@ func (c *ChannelCore) ChannelJoinChannel(in *channel.TLChannelJoinChannel) (*mtp
 	}, in.PermAuthKeyId)
 	if err != nil {
 		return nil, c.membershipError("channel.joinChannel", err)
+	}
+	if change.Requested {
+		// The request is committed: this is the answer the clients take
+		// for it (core.telegram.org/api/invites).
+		return nil, mtproto.ErrInviteRequestSent
 	}
 	return membershipAnswer(change, view), nil
 }
@@ -110,6 +116,9 @@ func (c *ChannelCore) membership(selfId, channelId int64, fn func(b *userbox.Box
 		var err error
 		if change, err = fn(b); err != nil {
 			return err
+		}
+		if change.Requested {
+			return nil
 		}
 		after := proto.Clone(mc).(*channel.MutableChannel)
 		after.Channel.ParticipantsCount = change.Count

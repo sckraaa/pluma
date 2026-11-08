@@ -61,6 +61,30 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetAdminedPublicChannels": {"/mtproto.RPCChannel/channel_getAdminedPublicChannels", func() interface{} { return new(Vector_Long) }},
 	// pluma: task 055
 	"TLChannelDeleteChannel": {"/mtproto.RPCChannel/channel_deleteChannel", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 041
+	"TLChannelToggleJoinRequest": {"/mtproto.RPCChannel/channel_toggleJoinRequest", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 041
+	"TLChannelExportChatInvite": {"/mtproto.RPCChannel/channel_exportChatInvite", func() interface{} { return new(mtproto.ExportedChatInvite) }},
+	// pluma: task 041
+	"TLChannelGetExportedChatInvite": {"/mtproto.RPCChannel/channel_getExportedChatInvite", func() interface{} { return new(mtproto.ExportedChatInvite) }},
+	// pluma: task 041
+	"TLChannelGetExportedChatInvites": {"/mtproto.RPCChannel/channel_getExportedChatInvites", func() interface{} { return new(mtproto.Messages_ExportedChatInvites) }},
+	// pluma: task 041
+	"TLChannelEditExportedChatInvite": {"/mtproto.RPCChannel/channel_editExportedChatInvite", func() interface{} { return new(mtproto.Messages_ExportedChatInvite) }},
+	// pluma: task 041
+	"TLChannelDeleteExportedChatInvite": {"/mtproto.RPCChannel/channel_deleteExportedChatInvite", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 041
+	"TLChannelDeleteRevokedExportedChatInvites": {"/mtproto.RPCChannel/channel_deleteRevokedExportedChatInvites", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 041
+	"TLChannelGetAdminsWithInvites": {"/mtproto.RPCChannel/channel_getAdminsWithInvites", func() interface{} { return new(mtproto.Messages_ChatAdminsWithInvites) }},
+	// pluma: task 041
+	"TLChannelGetChatInviteImporters": {"/mtproto.RPCChannel/channel_getChatInviteImporters", func() interface{} { return new(mtproto.Messages_ChatInviteImporters) }},
+	// pluma: task 041
+	"TLChannelHideChatJoinRequests": {"/mtproto.RPCChannel/channel_hideChatJoinRequests", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 041
+	"TLChannelGetPendingJoinRequests": {"/mtproto.RPCChannel/channel_getPendingJoinRequests", func() interface{} { return new(mtproto.Update) }},
+	// pluma: task 041
+	"TLChannelGetLeftChannels": {"/mtproto.RPCChannel/channel_getLeftChannels", func() interface{} { return new(mtproto.Messages_Chats) }},
 	// pluma: task 044
 	"TLChannelToggleSetting": {"/mtproto.RPCChannel/channel_toggleSetting", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 044
