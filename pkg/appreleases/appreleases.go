@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -183,6 +184,36 @@ func ByBuild(ctx context.Context, db *sqlx.DB, platform string, build int32) (*R
 		return nil, nil
 	}
 	return rows[0].release()
+}
+
+// Listed is a row of List: the release and whether it is withdrawn.
+type Listed struct {
+	Release
+	Withdrawn bool
+}
+
+// List is the platform's releases, the newest build first, for the panel
+// (limit > 0).
+func List(ctx context.Context, db *sqlx.DB, platform string, limit int) ([]Listed, error) {
+	var rows []row
+	if err := db.QueryRowsPartial(ctx, &rows,
+		"SELECT "+columns+" FROM app_releases WHERE platform = ? ORDER BY build DESC LIMIT ?", platform, limit); err != nil {
+		return nil, err
+	}
+	var withdrawn []int32
+	if err := db.QueryRowsPartial(ctx, &withdrawn,
+		"SELECT build FROM app_releases WHERE platform = ? AND withdrawn = 1", platform); err != nil {
+		return nil, err
+	}
+	out := make([]Listed, len(rows))
+	for i := range rows {
+		r, err := rows[i].release()
+		if err != nil {
+			return nil, err
+		}
+		out[i] = Listed{Release: *r, Withdrawn: slices.Contains(withdrawn, r.Build)}
+	}
+	return out, nil
 }
 
 // ByVersion is the platform's release of version, nil for none. A release

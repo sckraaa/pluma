@@ -59,10 +59,11 @@ func (s *Server) Initialize() error {
 		return fmt.Errorf("releases: the upload token: %w", err)
 	}
 	h := &Handler{
-		PublicURL: strings.TrimRight(c.PublicURL, "/"),
-		DataDir:   c.DataDir,
-		Token:     strings.TrimSpace(string(token)),
-		DB:        sqlx.NewMySQL(&c.Mysql),
+		AdminToken: strings.TrimSpace(c.AdminToken),
+		PublicURL:  strings.TrimRight(c.PublicURL, "/"),
+		DataDir:    c.DataDir,
+		Token:      strings.TrimSpace(string(token)),
+		DB:         sqlx.NewMySQL(&c.Mysql),
 		Documents: importer.RPCDocuments{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),

@@ -22,9 +22,14 @@ services:
       start_period: 30s
       start_interval: 2s
       retries: 3
+    # The panel (network host) reaches the admin routes here; they are not
+    # proxied by Caddy (docs/ops/releases.md).
+    ports:
+      - "127.0.0.1:9097:9097"
     environment:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:?set PLUMA_RELEASES_URL in .env, the site, https://pluma.chat}
+      RELEASES_ADMIN_TOKEN: ${RELEASES_ADMIN_TOKEN:-}
     volumes:
       # upload-token: one line, at least 32 characters, mode 0400.
       - ${PLUMA_RELEASES_SECRETS:-/opt/pluma/releases}:/run/secrets/releases:ro
