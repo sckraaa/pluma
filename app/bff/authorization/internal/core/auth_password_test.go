@@ -201,6 +201,13 @@ type noBans struct{}
 
 func (noBans) PhoneBanned(context.Context, string) (bool, error) { return false, nil }
 
+// bannedPhone bans one phone.
+type bannedPhone string
+
+func (b bannedPhone) PhoneBanned(_ context.Context, phone string) (bool, error) {
+	return phone == string(b), nil
+}
+
 // core returns the handlers as a request of key with the user of the key.
 func (e *passwordEnv) core(key, userId int64) *AuthorizationCore {
 	return &AuthorizationCore{
@@ -336,6 +343,27 @@ func TestSignInWaitsForPassword(t *testing.T) {
 	// A logged-in key checks its own password.
 	if a, err = e.core(pwKey, pwUserId).AuthCheckPassword(&mtproto.TLAuthCheckPassword{Password: e.proof(t, pwUserId, "secret")}); err != nil || a.GetUser().GetId() != pwUserId {
 		t.Fatalf("auth.checkPassword of a logged-in key: %v %v", a, err)
+	}
+}
+
+// A ban that comes between auth.signIn and the password ends the login.
+func TestBanWhileWaitingForPassword(t *testing.T) {
+	e := newPasswordEnv(t)
+	e.setPassword(t, pwUserId, "secret")
+	if _, _, err := e.signIn(t, pwKey, pwPhone, pwUserId); rpcErrorMessage(err) != "SESSION_PASSWORD_NEEDED" {
+		t.Fatalf("auth.signIn: %v", err)
+	}
+
+	e.svcCtx.Moderation = bannedPhone(pwPhone)
+	_, err := e.core(pwKey, 0).AuthCheckPassword(&mtproto.TLAuthCheckPassword{Password: e.proof(t, pwUserId, "secret")})
+	if rpcErrorMessage(err) != "PHONE_NUMBER_BANNED" {
+		t.Fatalf("auth.checkPassword of a banned account: %v", err)
+	}
+	if e.bound.of(pwKey) != 0 {
+		t.Fatal("the key of a banned account was bound")
+	}
+	if l, _ := e.twofa.WaitingLogin(e.ctx, pwKey); l != nil {
+		t.Fatalf("the login still waits: %v", l)
 	}
 }
 

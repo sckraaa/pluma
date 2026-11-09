@@ -55,6 +55,17 @@ func (c *AuthorizationCore) AuthCheckPassword(in *mtproto.TLAuthCheckPassword) (
 		return nil, mtproto.ErrAuthKeyUnregistered
 	}
 
+	// A ban that came while the login waited for the password (task 025).
+	banned, err := c.svcCtx.Moderation.PhoneBanned(c.ctx, login.Phone)
+	if err != nil {
+		c.Logger.Errorf("auth.checkPassword - moderation: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	if banned {
+		c.svcCtx.Twofa.EndLogin(c.ctx, c.MD.PermAuthKeyId)
+		return nil, mtproto.ErrPhoneNumberBanned
+	}
+
 	if err = c.svcCtx.Twofa.Check(c.ctx, login.UserId, c.MD.PermAuthKeyId, in.GetPassword()); err != nil {
 		c.Logger.Errorf("auth.checkPassword - user %d: %v", login.UserId, err)
 		if errors.Is(err, twofa.ErrNoPassword) {
