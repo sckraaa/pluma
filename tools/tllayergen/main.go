@@ -72,7 +72,7 @@ func main() {
 	if err := g.save(*dir); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("added: %d constructors, %d new ids of known constructors, %d layer table entries", g.stats.added, g.stats.changed, g.stats.entries)
+	log.Printf("added: %d constructors, %d new ids of known constructors, %d true flags, %d layer table entries", g.stats.added, g.stats.changed, g.stats.flags, g.stats.entries)
 }
 
 // ---------------------------------------------------------------------------
@@ -277,7 +277,7 @@ type generator struct {
 	newTable    map[string]bool // keys first added by this run
 	pending     map[string]*strings.Builder
 
-	stats struct{ added, changed, entries int }
+	stats struct{ added, changed, entries, flags int }
 }
 
 var (
@@ -357,6 +357,14 @@ func (g *generator) addLayer(layer int, items []item) error {
 	for i := range items {
 		it := &items[i]
 		key := g.keyOf(it)
+		if g.knownID(key, it.id) {
+			// The id does not depend on "flags.N?true" fields (the constructor
+			// number is computed without them), so a known id may have new
+			// ones: channel got forum_sidebar at 233 under the id of 232.
+			if err := g.addTrueFlags(key, it); err != nil {
+				return err
+			}
+		}
 		if g.table[key][layer] == it.id {
 			continue // already there
 		}
@@ -484,6 +492,109 @@ func (g *generator) addVersion(key string, it *item) error {
 		return fmt.Errorf("no Decode of %s", baseG)
 	}
 	g.addAccessors(key, class, fm)
+	return nil
+}
+
+// caseOf returns the bounds of "case id:" in the function of class, in src, or
+// ok=false when src does not hold it. A class created by this run is in newCodec,
+// not in codec.
+func caseOf(src, class, fn string, id uint32) (start, end int, ok bool) {
+	sig := "func (m *" + class + ") " + fn + "("
+	i := strings.Index(src, sig)
+	if i < 0 {
+		return 0, 0, false
+	}
+	fnEnd := strings.Index(src[i:], "\n}\n")
+	if fnEnd < 0 {
+		return 0, 0, false
+	}
+	body := src[i : i+fnEnd]
+	c := strings.Index(body, "\tcase "+hex32(id)+":\n")
+	if c < 0 {
+		return 0, 0, false
+	}
+	rest := body[c+1:]
+	next := len(rest)
+	for _, marker := range []string{"\n\tcase 0x", "\n\tdefault:\n"} {
+		if j := strings.Index(rest, marker); j >= 0 && j < next {
+			next = j
+		}
+	}
+	return i + c, i + c + 1 + next, true
+}
+
+// addTrueFlags adds the "flags.N?true" fields a known id does not have yet in
+// its Encode and Decode cases.
+func (g *generator) addTrueFlags(key string, it *item) error {
+	class := tlName(key)
+	union := !it.isMethod
+	msg := "TL_" + key
+	if union {
+		msg = protoTypeName(it.result)
+	}
+	pm := g.messages[msg]
+	if pm == nil {
+		return nil // the generic wrappers
+	}
+	for i := range it.fields {
+		f := it.fields[i]
+		if f.typ != "true" {
+			continue
+		}
+		sub := item{name: it.name, id: it.id, fields: []field{f}, result: it.result, isMethod: it.isMethod}
+		fm, err := g.mapFields(msg, pm, &sub, union)
+		if err != nil {
+			return err
+		}
+		goName := goCamel(fm[f.name].name)
+		get := "m.Get" + goName + "()"
+
+		// Encode
+		src := &g.codec
+		start, end, ok := caseOf(*src, class, "Encode", it.id)
+		if !ok {
+			continue // a class of this run, generated from this very line
+		}
+		region := (*src)[start:end]
+		if strings.Contains(region, get+" == true") {
+			continue
+		}
+		closure := "var get" + upperFirst(f.flagWord) + " = func() uint32 {"
+		k := strings.Index(region, closure)
+		if k < 0 {
+			return fmt.Errorf("%s: no flag function for %s", class, f.flagWord)
+		}
+		ret := strings.Index(region[k:], "\t\t\treturn flags\n")
+		if ret < 0 {
+			return fmt.Errorf("%s: flag function of %s has no end", class, f.flagWord)
+		}
+		add := fmt.Sprintf("\t\t\tif %s == true {\n\t\t\t\tflags |= 1 << %d\n\t\t\t}\n", get, f.flagBit)
+		pos := start + k + ret
+		*src = (*src)[:pos] + add + (*src)[pos:]
+
+		// Decode
+		ds, de, ok := caseOf(*src, class, "Decode", it.id)
+		if !ok {
+			return fmt.Errorf("%s: no Decode case %s", class, hex32(it.id))
+		}
+		dregion := (*src)[ds:de]
+		marker := fmt.Sprintf("var %s = dBuf.UInt()\n\t\t_ = %s\n", f.flagWord, f.flagWord)
+		m := strings.Index(dregion, marker)
+		if m < 0 {
+			return fmt.Errorf("%s: no %s in Decode", class, f.flagWord)
+		}
+		set := fmt.Sprintf("m.%s = true", goName)
+		if union {
+			set = fmt.Sprintf("m.Set%s(true)", goName)
+		}
+		dadd := fmt.Sprintf("\t\tif (%s & (1 << %d)) != 0 {\n\t\t\t%s\n\t\t}\n", f.flagWord, f.flagBit, set)
+		dpos := ds + m + len(marker)
+		*src = (*src)[:dpos] + dadd + (*src)[dpos:]
+		g.stats.flags++
+		if union {
+			g.addAccessors(key, class, fm)
+		}
+	}
 	return nil
 }
 

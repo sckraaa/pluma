@@ -37791,6 +37791,9 @@ func (m *TLChannel) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 22
 			}
 
+			if m.GetForumSidebar() == true {
+				flags |= 1 << 23
+			}
 			return flags
 		}
 
@@ -40824,6 +40827,9 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 		}
 		var flags2 = dBuf.UInt()
 		_ = flags2
+		if (flags2 & (1 << 23)) != 0 {
+			m.SetForumSidebar(true)
+		}
 		if (flags2 & (1 << 1)) != 0 {
 			m.SetStoriesHidden(true)
 		}
@@ -74489,6 +74495,9 @@ func (m *TLGlobalPrivacySettings) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 6
 			}
 
+			if m.GetArchiveAndMuteNewNoncontactPeers() == true {
+				flags |= 1 << 0
+			}
 			return flags
 		}
 
@@ -74613,6 +74622,9 @@ func (m *TLGlobalPrivacySettings) Decode(dBuf *DecodeBuf) error {
 	case 0xfe41b34f:
 		var flags = dBuf.UInt()
 		_ = flags
+		if (flags & (1 << 0)) != 0 {
+			m.SetArchiveAndMuteNewNoncontactPeers(true)
+		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetArchiveAndMuteNewNoncontactPeers_FLAGBOOLEAN(true)
 		}
@@ -131595,6 +131607,9 @@ func (m *TLMessageActionGiveawayResults) Encode(x *EncodeBuf, layer int32) error
 				flags |= 1 << 0
 			}
 
+			if m.GetStars() == true {
+				flags |= 1 << 0
+			}
 			return flags
 		}
 
@@ -131627,6 +131642,9 @@ func (m *TLMessageActionGiveawayResults) Decode(dBuf *DecodeBuf) error {
 	case 0x87e2f155:
 		var flags = dBuf.UInt()
 		_ = flags
+		if (flags & (1 << 0)) != 0 {
+			m.SetStars(true)
+		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetStars_FLAGBOOLEAN(true)
 		}
@@ -141043,6 +141061,9 @@ func (m *TLMessageMediaDocument) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 2
 			}
 
+			if m.GetVideo() == true {
+				flags |= 1 << 6
+			}
 			return flags
 		}
 
@@ -141262,6 +141283,9 @@ func (m *TLMessageMediaDocument) Decode(dBuf *DecodeBuf) error {
 	case 0x52d8ccd9:
 		var flags = dBuf.UInt()
 		_ = flags
+		if (flags & (1 << 6)) != 0 {
+			m.SetVideo(true)
+		}
 		if (flags & (1 << 3)) != 0 {
 			m.SetNopremium(true)
 		}
@@ -252118,6 +252142,9 @@ func (m *TLUpdatePeerBlocked) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 1
 			}
 
+			if m.GetBlocked() == true {
+				flags |= 1 << 0
+			}
 			return flags
 		}
 
@@ -252157,6 +252184,9 @@ func (m *TLUpdatePeerBlocked) Decode(dBuf *DecodeBuf) error {
 	case 0xebe07752:
 		var flags = dBuf.UInt()
 		_ = flags
+		if (flags & (1 << 0)) != 0 {
+			m.SetBlocked(true)
+		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetBlocked_FLAGBOOLEAN(true)
 		}
@@ -257500,6 +257530,9 @@ func (m *TLUpdateMonoForumNoPaidException) Encode(x *EncodeBuf, layer int32) err
 				flags |= 1 << 0
 			}
 
+			if m.GetException() == true {
+				flags |= 1 << 0
+			}
 			return flags
 		}
 
@@ -257527,6 +257560,9 @@ func (m *TLUpdateMonoForumNoPaidException) Decode(dBuf *DecodeBuf) error {
 	case 0x9f812b08:
 		var flags = dBuf.UInt()
 		_ = flags
+		if (flags & (1 << 0)) != 0 {
+			m.SetException(true)
+		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetException_FLAGBOOLEAN(true)
 		}
@@ -258812,6 +258848,9 @@ func (m *TLUpdateWebBrowserSettings) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 1
 			}
 
+			if m.GetOpenExternalBrowser() == true {
+				flags |= 1 << 0
+			}
 			return flags
 		}
 
@@ -258835,6 +258874,9 @@ func (m *TLUpdateWebBrowserSettings) Decode(dBuf *DecodeBuf) error {
 	case 0xc39a2ade:
 		var flags = dBuf.UInt()
 		_ = flags
+		if (flags & (1 << 0)) != 0 {
+			m.SetOpenExternalBrowser(true)
+		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetOpenExternalBrowser_FLAGBOOLEAN(true)
 		}
@@ -265217,6 +265259,9 @@ func (m *TLUser) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 21
 			}
 
+			if m.GetBotForumSidebar() == true {
+				flags |= 1 << 22
+			}
 			return flags
 		}
 
@@ -267782,6 +267827,9 @@ func (m *TLUser) Decode(dBuf *DecodeBuf) error {
 		}
 		var flags2 = dBuf.UInt()
 		_ = flags2
+		if (flags2 & (1 << 22)) != 0 {
+			m.SetBotForumSidebar(true)
+		}
 		if (flags2 & (1 << 1)) != 0 {
 			m.SetBotCanEdit(true)
 		}
@@ -288165,6 +288213,9 @@ func (m *TLWebPageAttributeStickerSet) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 1
 			}
 
+			if m.GetTextColor() == true {
+				flags |= 1 << 1
+			}
 			return flags
 		}
 
@@ -288205,6 +288256,9 @@ func (m *TLWebPageAttributeStickerSet) Decode(dBuf *DecodeBuf) error {
 	case 0x50cc03d3:
 		var flags = dBuf.UInt()
 		_ = flags
+		if (flags & (1 << 1)) != 0 {
+			m.SetTextColor(true)
+		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetEmojis(true)
 		}
@@ -361493,3 +361547,35 @@ func (m *TLMessagesGetTranscriptionLangs) Decode(dBuf *DecodeBuf) error {
 		return fmt.Errorf("invalid constructorId: 0x%x", uint32(m.Constructor))
 	}
 }
+func (m *TLChannel) SetForumSidebar(v bool) { m.Data2.ForumSidebar = v }
+func (m *TLChannel) GetForumSidebar() bool  { return m.Data2.ForumSidebar }
+
+func (m *TLGlobalPrivacySettings) SetArchiveAndMuteNewNoncontactPeers(v bool) {
+	m.Data2.ArchiveAndMuteNewNoncontactPeers = v
+}
+func (m *TLGlobalPrivacySettings) GetArchiveAndMuteNewNoncontactPeers() bool {
+	return m.Data2.ArchiveAndMuteNewNoncontactPeers
+}
+
+func (m *TLMessageActionGiveawayResults) SetStars(v bool) { m.Data2.Stars = v }
+func (m *TLMessageActionGiveawayResults) GetStars() bool  { return m.Data2.Stars }
+
+func (m *TLMessageMediaDocument) SetVideo(v bool) { m.Data2.Video = v }
+func (m *TLMessageMediaDocument) GetVideo() bool  { return m.Data2.Video }
+
+func (m *TLUpdateMonoForumNoPaidException) SetException(v bool) { m.Data2.Exception = v }
+func (m *TLUpdateMonoForumNoPaidException) GetException() bool  { return m.Data2.Exception }
+
+func (m *TLUpdatePeerBlocked) SetBlocked(v bool) { m.Data2.Blocked = v }
+func (m *TLUpdatePeerBlocked) GetBlocked() bool  { return m.Data2.Blocked }
+
+func (m *TLUpdateWebBrowserSettings) SetOpenExternalBrowser(v bool) { m.Data2.OpenExternalBrowser = v }
+func (m *TLUpdateWebBrowserSettings) GetOpenExternalBrowser() bool {
+	return m.Data2.OpenExternalBrowser
+}
+
+func (m *TLUser) SetBotForumSidebar(v bool) { m.Data2.BotForumSidebar = v }
+func (m *TLUser) GetBotForumSidebar() bool  { return m.Data2.BotForumSidebar }
+
+func (m *TLWebPageAttributeStickerSet) SetTextColor(v bool) { m.Data2.TextColor = v }
+func (m *TLWebPageAttributeStickerSet) GetTextColor() bool  { return m.Data2.TextColor }

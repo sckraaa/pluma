@@ -1928,6 +1928,7 @@ message Chat {
   RecentStory stories_max_id = 102;
   PeerColor color_PEERCOLOR = 103;
   google.protobuf.Int32Value pinned_msg_id = 104;
+  bool forum_sidebar = 105;
 }
 
 // TL_chatEmpty
@@ -3627,6 +3628,7 @@ message GlobalPrivacySettings {
   google.protobuf.Int64Value noncontact_peers_paid_stars = 9;
   DisallowedGiftsSettings disallowed_gifts = 10;
   Bool archive_and_mute_new_noncontact_peers_FLAGBOOL = 11;
+  bool archive_and_mute_new_noncontact_peers = 12;
 }
 
 // TL_globalPrivacySettings
@@ -7283,6 +7285,7 @@ message MessageAction {
   string domain_STRING = 137;
   BizDataRaw biz_data = 138;
   string title = 200;
+  bool stars = 208;
 }
 
 // TL_messageActionEmpty
@@ -8086,6 +8089,7 @@ message MessageMedia {
   google.protobuf.Int64Value public_data_hash = 87;
   google.protobuf.StringValue chat_data = 88;
   google.protobuf.Int64Value widget_id = 89;
+  bool video = 90;
 }
 
 // TL_messageMediaEmpty
@@ -13787,6 +13791,9 @@ message Update {
   google.protobuf.StringValue public_data = 225;
   google.protobuf.Int64Value public_data_hash = 226;
   google.protobuf.StringValue chat_data = 227;
+  bool blocked = 242;
+  bool exception = 243;
+  bool open_external_browser = 244;
 }
 
 // TL_updateNewMessage
@@ -14888,6 +14895,7 @@ message User {
   google.protobuf.Int32Value color_FLAGINT32 = 55;
   google.protobuf.Int64Value background_emoji_id = 56;
   google.protobuf.Int32Value color = 100;
+  bool bot_forum_sidebar = 101;
 }
 
 // TL_userEmpty
@@ -15549,6 +15557,7 @@ message WebPageAttribute {
   int32 edge_color = 16;
   int32 text_color_INT32 = 17;
   int64 user_id = 18;
+  bool text_color = 19;
 }
 
 // TL_webPageAttributeTheme
