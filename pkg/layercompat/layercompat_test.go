@@ -285,6 +285,25 @@ func TestQuoteRichForOldLayer(t *testing.T) {
 	}
 }
 
+func TestFlatRichText(t *testing.T) {
+	plain := func(s string) *mtproto.RichText {
+		return mtproto.MakeTLTextPlain(&mtproto.RichText{Text_STRING: s}).To_RichText()
+	}
+	got := FlatRichText([]*mtproto.RichText{
+		plain("first"),
+		mtproto.MakeTLTextConcat(&mtproto.RichText{Texts: []*mtproto.RichText{
+			mtproto.MakeTLTextMath(&mtproto.RichText{Source: "x^2"}).To_RichText(),
+			mtproto.MakeTLTextImage(&mtproto.RichText{DocumentId: 1}).To_RichText(),
+			mtproto.MakeTLTextCustomEmoji(&mtproto.RichText{Alt: "*"}).To_RichText(),
+			mtproto.MakeTLTextCustomEmoji(&mtproto.RichText{}).To_RichText(),
+			mtproto.MakeTLTextDiff(&mtproto.RichText{Text_RICHTEXT: mtproto.MakeTLTextEmpty(nil).To_RichText(), OldText: plain(" was")}).To_RichText(),
+		}}).To_RichText(),
+	})
+	if want := "first\nx^2*😀 was"; got != want {
+		t.Fatalf("%q, want %q", got, want)
+	}
+}
+
 func TestEncodeNeverPartial(t *testing.T) {
 	// the codec returns the failure of a nested object
 	bad := mtproto.MakeTLUser(&mtproto.User{Id: 1, Photo: &mtproto.UserProfilePhoto{PredicateName: "nothing"}}).To_User()

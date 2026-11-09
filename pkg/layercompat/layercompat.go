@@ -25,6 +25,7 @@ package layercompat
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/teamgram/proto/mtproto"
 	"google.golang.org/protobuf/proto"
@@ -236,26 +237,45 @@ func convert(m protoreflect.Message, layer int32) bool {
 }
 
 // FlatRichText renders the fragments of quote_rich as the plain text older
-// clients show (RichQuote.flatText, Android 13.2.1 RichQuote.java:223-229).
+// clients show, the way a newer client flattens them itself: fragments joined
+// by a line break, a formula as its source, a custom emoji as its alt, nothing
+// for an image, the old text of a diff with no new one (Android 13.2.1
+// RichQuote.flatText and appendFlat, RichQuote.java:143-190).
 func FlatRichText(rich []*mtproto.RichText) string {
-	var out []byte
+	var out strings.Builder
 	var walk func(*mtproto.RichText)
 	walk = func(t *mtproto.RichText) {
-		if t == nil {
-			return
-		}
-		if s := t.GetText_STRING(); s != "" {
-			out = append(out, s...)
-		}
-		if inner := t.GetText_RICHTEXT(); inner != nil {
-			walk(inner)
-		}
-		for _, c := range t.GetTexts() {
-			walk(c)
+		switch t.GetPredicateName() {
+		case "", mtproto.Predicate_textEmpty, mtproto.Predicate_textImage:
+		case mtproto.Predicate_textPlain:
+			out.WriteString(t.GetText_STRING())
+		case mtproto.Predicate_textMath:
+			out.WriteString(t.GetSource())
+		case mtproto.Predicate_textCustomEmoji:
+			if alt := t.GetAlt(); alt != "" {
+				out.WriteString(alt)
+			} else {
+				out.WriteString("😀")
+			}
+		case mtproto.Predicate_textConcat:
+			for _, c := range t.GetTexts() {
+				walk(c)
+			}
+		case mtproto.Predicate_textDiff:
+			if n := t.GetText_RICHTEXT(); n == nil || n.GetPredicateName() == mtproto.Predicate_textEmpty {
+				walk(t.GetOldText())
+			} else {
+				walk(n)
+			}
+		default:
+			walk(t.GetText_RICHTEXT())
 		}
 	}
-	for _, t := range rich {
+	for i, t := range rich {
+		if i > 0 {
+			out.WriteByte('\n')
+		}
 		walk(t)
 	}
-	return string(out)
+	return out.String()
 }
