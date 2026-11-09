@@ -276,6 +276,7 @@ type generator struct {
 	newRevName  strings.Builder
 	newTable    map[string]bool // keys first added by this run
 	pending     map[string]*strings.Builder
+	notServed   []string // rpc lines of new methods, for RPCNotServed
 
 	stats struct{ added, changed, entries, flags int }
 }
@@ -667,6 +668,18 @@ func suffixOf(f *field) string {
 	return "_" + s
 }
 
+// resultProto is the protobuf name of a method's result type.
+func resultProto(tl string) string {
+	if strings.HasPrefix(tl, "Vector<") {
+		inner := tl[len("Vector<") : len(tl)-1]
+		if isPrimitive(inner) {
+			inner = upperFirst(inner) // Vector_Int, Vector_Long, Vector_String
+		}
+		return "Vector_" + protoTypeName(inner)
+	}
+	return protoTypeName(tl)
+}
+
 func primitiveProto(t string) string {
 	switch t {
 	case "int":
@@ -937,6 +950,7 @@ func (g *generator) addMethod(key string, it *item) error {
 	if err != nil {
 		return err
 	}
+	g.notServed = append(g.notServed, fmt.Sprintf("  rpc %s(TL_%s) returns (%s) {}\n", key, key, resultProto(it.result)))
 	class := tlName(key)
 	fmt.Fprintf(&g.newCodec, `
 // %[1]s
@@ -1205,6 +1219,17 @@ func (g *generator) save(dir string) error {
 		return fmt.Errorf("crc32_helper: const end not found")
 	}
 
+	if len(g.notServed) != 0 {
+		// Without a route the session proxy answers ErrEnterpriseIsBlocked;
+		// listing them here puts them into the API coverage matrix.
+		const header = "service RPCNotServed {\n"
+		if !strings.Contains(g.service, header) {
+			g.service += "\n// Methods of the layers after 231 that no service serves yet: the session\n// proxy has no route for them and answers ErrEnterpriseIsBlocked.\n" + header + "}\n"
+		}
+		if !insertBeforeMapEnd(&g.service, header, strings.Join(g.notServed, "")) {
+			return fmt.Errorf("sync_service: RPCNotServed not found")
+		}
+	}
 	g.sync += g.newSync.String()
 	g.codec += accessors.String() + g.newCodec.String()
 

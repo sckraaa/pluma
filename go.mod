@@ -25,7 +25,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
 	github.com/teamgram/marmota v0.2.0
-	github.com/teamgram/proto v0.228.0
+	github.com/teamgram/proto v0.233.0
 	github.com/testcontainers/testcontainers-go v0.44.0
 	github.com/zeromicro/go-zero v1.10.3
 	go.opentelemetry.io/otel v1.45.0

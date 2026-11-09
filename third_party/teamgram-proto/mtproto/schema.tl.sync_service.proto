@@ -8286,3 +8286,25 @@ message TL_messages_getTranscriptionLangs {
   TLConstructor constructor = 1;
   InputPeer peer = 3;
 }
+
+// Methods of the layers after 231 that no service serves yet: the session
+// proxy has no route for them and answers ErrEnterpriseIsBlocked.
+service RPCNotServed {
+  rpc messages_setShareTheme(TL_messages_setShareTheme) returns (Bool) {}
+  rpc messages_getShareThemeBackdrops(TL_messages_getShareThemeBackdrops) returns (ShareThemeBackdrops) {}
+  rpc messages_getBotWidgetQueryAnswer(TL_messages_getBotWidgetQueryAnswer) returns (messages_BotWidgetQueryAnswer) {}
+  rpc messages_setBotWidgetQueryAnswer(TL_messages_setBotWidgetQueryAnswer) returns (Bool) {}
+  rpc messages_editMessageWidgetData(TL_messages_editMessageWidgetData) returns (Updates) {}
+  rpc messages_editInlineBotMessageWidgetData(TL_messages_editInlineBotMessageWidgetData) returns (Bool) {}
+  rpc messages_editWidgetData(TL_messages_editWidgetData) returns (Bool) {}
+  rpc messages_getWidgetPublicData(TL_messages_getWidgetPublicData) returns (messages_WidgetPublicData) {}
+  rpc messages_transcribeAudioFile(TL_messages_transcribeAudioFile) returns (messages_TranscribedAudio) {}
+  rpc messages_getTranscriptionLangs(TL_messages_getTranscriptionLangs) returns (Vector_String) {}
+  rpc contacts_exportNoPaidMessagesToken(TL_contacts_exportNoPaidMessagesToken) returns (ExportedNoPaidMessagesToken) {}
+  rpc contacts_importNoPaidMessagesToken(TL_contacts_importNoPaidMessagesToken) returns (User) {}
+  rpc payments_withdrawStarGift(TL_payments_withdrawStarGift) returns (Bool) {}
+  rpc payments_depositStarGift(TL_payments_depositStarGift) returns (payments_StarGiftDepositPayload) {}
+  rpc payments_displayStarGift(TL_payments_displayStarGift) returns (Bool) {}
+  rpc payments_deleteStarGift(TL_payments_deleteStarGift) returns (Bool) {}
+  rpc wallet_setCardStickers(TL_wallet_setCardStickers) returns (wallet_Card) {}
+}
