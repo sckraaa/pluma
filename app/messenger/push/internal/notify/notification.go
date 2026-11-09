@@ -231,7 +231,9 @@ func FromUpdates(userId int64, ups *mtproto.Updates) []*Notification {
 }
 
 // callUpdatesLayer is the layer the "updates" of a call push are encoded
-// in: the one of the server and of the clients pinned to it (ADR 0008).
+// in. A push is made for a device whose layer is not known here; updates,
+// updatePhoneCall, phoneCall* and user have the same constructors from 228
+// to 233 (the schemas of tools/tllayergen), so every client served reads it.
 const callUpdatesLayer = 228
 
 // callNotification makes the push of an incoming call. "updates" is the
