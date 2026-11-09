@@ -67,8 +67,8 @@ func TestUploadParts(t *testing.T) {
 		total int32
 		want  string
 	}{
-		{"a part number past the limit", 4000, file[:part], 3, "FILE_PART_INVALID"},
-		{"more parts than allowed", 0, file[:part], 4001, "FILE_PARTS_INVALID"},
+		{"a part number past the limit", 8000, file[:part], 3, "FILE_PART_INVALID"},
+		{"more parts than allowed", 0, file[:part], 8001, "FILE_PARTS_INVALID"},
 		{"a part over 512 KB", 0, make([]byte, part+1024), 3, "FILE_PART_TOO_BIG"},
 		{"an empty part", 1, nil, 3, "FILE_PART_EMPTY"},
 	} {

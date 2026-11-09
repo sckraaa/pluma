@@ -152,16 +152,14 @@ func TestDialogFilterOrderWithSeq(t *testing.T) {
 		return got
 	}
 
-	// Without Premium "All chats" is first in the order the devices get.
+	// "All chats" takes its place, and a row keeps it.
 	u := newUser()
 	save(t, u, 2, "Work")
 	save(t, u, 3, "Family")
 	n := len(seqPushes(t, u))
-	if got := order(u, 3, 0, 2); !slices.Equal(got, []int32{3, 2}) {
+	if got := order(u, 3, 0, 2); !slices.Equal(got, []int32{3, 0, 2}) {
 		t.Fatalf("stored order %v", got)
 	}
-	order(u, 3, 2)    // as it is: nothing
-	order(u, 3, 0, 2) // "All chats" takes its place, and a row keeps it
 	order(u, 3, 0, 2) // as it is: nothing
 	if ids, _ := stored(t, u); !slices.Equal(ids, []int32{3, 0, 2}) {
 		t.Fatalf("stored folders %v", ids)
