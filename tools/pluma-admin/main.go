@@ -17,6 +17,10 @@
 //	pluma-admin [-f bff.yaml] outbox replay -user <id>
 //	pluma-admin [-f bff.yaml] outbox discard -id <event id>
 //	pluma-admin [-f bff.yaml] password reset <phone>
+//	pluma-admin [-f bff.yaml] bot create <username> <name...> [-owner <phone>]
+//	pluma-admin [-f bff.yaml] bot list
+//	pluma-admin [-f bff.yaml] bot token <username>
+//	pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off]
 //	pluma-admin [-f bff.yaml] service-photo [image]
 //	pluma-admin langpack fetch -out <dir> [-pack <packs>] [-lang <langs>] [-api-id <id>]
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
@@ -55,6 +59,13 @@
 // password reset removes the 2FA password of an account (task 008) whose
 // owner forgot it and is logged in nowhere to reset it with a week's wait
 // (account.resetPassword). Establish who asks outside the server first.
+//
+// bot creates and tunes bot accounts (task 070, ADR 0041): create and token
+// print a token, which the server keeps only as a hash, so this is the one
+// time it can be read; the token goes to whoever runs the bot, over a
+// channel you trust. token replaces the old one. list prints no token. set
+// changes the flags of the bot; -privacy off lets it read every message of
+// its groups.
 //
 // service-photo sets the profile photo of the service notifications
 // account (777000, "Pluma"), Pluma's by default, the way a client sets its
@@ -170,6 +181,10 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] panel owner <login>   (the first owner of the moderation panel)
   pluma-admin [-f bff.yaml] panel reset-passkey <login>
   pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password)
+  pluma-admin [-f bff.yaml] bot create <username> <name...> [-owner <phone>]   (prints the token)
+  pluma-admin [-f bff.yaml] bot list
+  pluma-admin [-f bff.yaml] bot token <username>   (replaces the token)
+  pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off]
   pluma-admin [-f bff.yaml] service-photo [image]   (the service account's photo; Pluma's by default)
   pluma-admin langpack fetch -out <dir> [-pack android,ios,...] [-lang ru,...] [-api-id <id>]   (from Telegram; $TELEGRAM_API_ID)
   pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
@@ -229,6 +244,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return migrateCommand(args, configFile, stdout)
 	case "storage":
 		return storageCommand(args, configFile, stdout)
+	case "bot":
+		return botCommand(args, configFile, stdout)
 	case "premium":
 		return premiumCommand(args, configFile, stdout)
 	case "moderation":
