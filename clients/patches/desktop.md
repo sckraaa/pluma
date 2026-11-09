@@ -2,7 +2,7 @@
 
 Всё, что Pluma меняет в Telegram Desktop: правки исходников апстрима, ресурсы, сборка, подпись, CI. Назначение: при обновлении апстрима сразу видеть, какие места апстрима мы трогаем, на что опирается каждая правка и что сломается, если апстрим их сдвинет.
 
-Состояние реестра: обновление до tdesktop 7.4.1 (layer 233, система обновлений v2) — ветка `task/074-upstream`, коммиты `9af2f24`, `fb65af9`, `d581567` (2026-11-09): записи D-013, D-014, D-030, D-042, D-053, D-055, D-057, D-060, D-070, D-074…D-079, D-082 обновлены, новые — D-086…D-090. До этого: ветка `main` репозитория `sckraaa/pluma-desktop`, коммит `ff05bde` (2026-10-31); в истории 41 коммит, все от Alexandr Skraglenko. Ветка `origin/task/020-parity-fixes` указывает на тот же коммит. Тесты на этом коммите: 65, все проходят (`python3 -I -m unittest discover -s ci -p '*_test.py'` на разреженной выгрузке закреплённого апстрима, 2026-11-03). Ветка `task/053-saved-tags` (задача 053, ещё не в `main`): D-073, тестов 66, все проходят (2026-11-04).
+Состояние реестра: обновление до tdesktop 7.4.1 (layer 233, система обновлений v2) — ветка `task/074-upstream`, коммиты `9af2f24`, `fb65af9`, `d581567` (2026-11-09): записи D-017, D-018, D-019, D-049 и правки D-030, D-079, D-082 после сверки поведения — `a13dd57`, `9053859`, `5dcc340`; записи D-013, D-014, D-030, D-042, D-053, D-055, D-057, D-060, D-070, D-074…D-079, D-082 обновлены, новые — D-086…D-090. До этого: ветка `main` репозитория `sckraaa/pluma-desktop`, коммит `ff05bde` (2026-10-31); в истории 41 коммит, все от Alexandr Skraglenko. Ветка `origin/task/020-parity-fixes` указывает на тот же коммит. Тесты на этом коммите: 65, все проходят (`python3 -I -m unittest discover -s ci -p '*_test.py'` на разреженной выгрузке закреплённого апстрима, 2026-11-03). Ветка `task/053-saved-tags` (задача 053, ещё не в `main`): D-073, тестов 66, все проходят (2026-11-04).
 
 ## Общее
 
@@ -233,23 +233,25 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Что.** `\taddOne(QString::fromLatin1("tg")); // local urls\n` → `"plm"` `// local urls (pluma)`.
 - **Где.** Сабмодуль `Telegram/lib_ui`, `ui/text/text_entity.cpp` (стр. 185), точная замена.
 - **Проверка.** `verify_brand()`; `test_brand`; `DAMAGE`: изменённый комментарий.
+- **7.4.1 (задача 074), сверка.** Весь `lib_ui` и `lib_base` прочитан поиском (сабмодули 7.4.1: `lib_ui` `42c6f1e8`, `lib_base` `42a0e5dd`): список протоколов — по-прежнему только `CreateValidProtocols`; второй `"tg"` в `text_entity.cpp:412` — верхний домен Того, не схема. Правка в силе.
 - **Коммит.** `7e6c8d6`, задача 017.
 
 ### D-018. lib_base считает `plm` ссылкой
 - **Что.** `\t\t|| equals(qstr("tg"))\n` → `\t\t|| equals(qstr("plm")) // pluma\n`.
 - **Где.** Сабмодуль `Telegram/lib_base`, `base/qthelp_url.cpp` (стр. 63), точная замена.
 - **Проверка.** `verify_brand()` (нет `qstr("tg")`); `DAMAGE`: добавленный `tg2`.
+- **7.4.1 (задача 074), сверка.** `IsGoodProtocol` (`qthelp_url.cpp:57-66`) — единственный такой список в `lib_base`; других мест со схемой `tg` нет (сабмодули 7.4.1: `lib_ui` `42c6f1e8`, `lib_base` `42a0e5dd`).
 - **Коммит.** `7e6c8d6`, задача 017.
 
-### D-019. Иконки Pluma вместо иконок Telegram (60 файлов)
+### D-019. Иконки Pluma вместо иконок Telegram (61 файл)
 - **Что.** Файлы `brand/tree/<путь апстрима>` записываются поверх файлов апстрима, только если SHA-256 файла апстрима равен закреплённому в `ASSETS`. Состав:
   - `Telegram/Resources/art/`: `icon{16,32,48,64,128,256,512}.png` и `@2x`, `icon256.ico` (иконка exe: BMP до 48, PNG на 256, как у апстрима), `icon_round512@2x.png` (круглый вариант macOS), `logo_256.png` (окно, панель задач, трей Windows/Linux; тело 228 из 256), `logo_256_no_margin.png` (круглый логотип без поля: мелкие иконки трея, уведомления);
-  - `Telegram/Resources/icons/`: альфа-маски 1x/2x/3x `intro_plane_{inner,outer,top,trace}` (знак на заставке: кольцо и три пера, окрашиваются палитрой), `intro_qr_plane` (знак в центре QR), `mac_tray_icon` (строка меню macOS); SVG `plane_white.svg`, `tray_monochrome{,_attention,_mute}.svg`;
+  - `Telegram/Resources/icons/`: альфа-маски 1x/2x/3x `intro_plane_{inner,outer,top,trace}` (знак на заставке: кольцо и три пера, окрашиваются палитрой), `intro_qr_plane` (знак в центре QR), `mac_tray_icon` (строка меню macOS); SVG `plane_white.svg`, `tray_monochrome{,_attention,_mute}.svg`, `chat/unsupported_plane.svg` (с 7.4.1: знак на плашке «сообщение не поддерживается» в чатах и статьях, `ui/chat/unsupported_notice.cpp:151`; источник `brand/svg/unsupported-plane.svg`, знак из `plane-white.svg`, 20 × 20);
   - `Telegram/Telegram/Images.xcassets/Icon.appiconset/*` и `Icon.iconset/*` (иконка macOS).
 - **Источник.** `brand/svg/*.svg` → `brand/render.sh` (rsvg-convert + ImageMagick 7, без меток времени, воспроизводимо); результат закоммичен, сборке инструменты не нужны.
-- **Проверка.** `verify_brand()`: каждый файл равен `brand/tree`; `BrandTest.test_tree_is_the_assets`; `test_brand`; `test_changed_binary_files` (изменённая иконка апстрима останавливает патч).
-- **Если апстрим сдвинет.** Изменённая иконка апстрима → `PatchError` «not the pinned upstream's file»; нужно посмотреть изменение и перерисовать. Новая иконка в другом месте не будет замечена — ищите глазами.
-- **Коммиты.** `9569cc4` (рендер, 2026-10-29), `736e7fd` (применение), `8a3b45d` (`logo_256_no_margin` сделан круглым, как у апстрима: квадрат резался кругом аватара служебного аккаунта), задача 017.
+- **Проверка.** `verify_brand()`: каждый файл равен `brand/tree`, и ни один `*.svg` в `Telegram/Resources/icons` не содержит контур самолётика Telegram (`TELEGRAM_PLANE`); `BrandTest.test_tree_is_the_assets`; `test_brand`; `test_changed_binary_files` (изменённая иконка апстрима останавливает патч); `test_telegram_plane_in_a_new_icon`.
+- **Если апстрим сдвинет.** Изменённая иконка апстрима → `PatchError` «not the pinned upstream's file»; нужно посмотреть изменение и перерисовать. Новый SVG с контуром самолётика Telegram останавливает `verify_brand()` (при сборке — на всём дереве, в разреженной выгрузке — на её файлах); знак, нарисованный иначе (PNG, другой контур), не будет замечен — ищите глазами.
+- **Коммиты.** `a13dd57` (`unsupported_plane.svg`, задача 074), `9569cc4` (рендер, 2026-10-29), `736e7fd` (применение), `8a3b45d` (`logo_256_no_margin` сделан круглым, как у апстрима: квадрат резался кругом аватара служебного аккаунта), задача 017.
 
 ### D-020. Иконка macOS 26 из Icon Composer
 - **Что и зачем.** macOS 26 рисует иконку старого формата на серой подложке. `ci/package.sh macos` компилирует `brand/Icon.icon` (знак на белом, без стекла, тени и бликов; `icon.json` + `Assets/mark.png` из `brand/svg/macos-mark.svg`) через `xcrun actool --app-icon Icon` и кладёт `Assets.car` и `Icon.icns` в `Contents/Resources` поверх апстрима; actool рендерит и для старых систем.
@@ -262,6 +264,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Где.** `recolor()`: каждая строка `\nключ: старое;` должна встретиться ровно один раз; старое `-` значит «добавить ключ, которого в апстриме нет».
 - **Проверка.** `verify_brand()`: после разрешения ссылок ни один ключ не синий (`is_blue`: тон 185–240°) и не из `TELEGRAM_BLUES`, кроме `KEPT_BLUE` (`msgFile1*`, `mediaviewFileBlueCornerFg`, `settingsIconBg[45]`, `stickerPanPremium[12]`, `premiumButtonBg1`, `statisticsChart*`, `groupCall*`); `BrandTest.test_palette_tables`, `test_recolor`, `test_load_table_errors`; `test_brand`; `DAMAGE`: `windowBgActive: #40a7e4`, новый ключ `newAccentFg: #3390ec`.
 - **Если апстрим сдвинет.** Изменённое значение → `PatchError` «upstream changed the colour»; новый синий ключ → `verify_brand()`.
+- **7.4.1 (задача 074), сверка.** `colors.palette` в `lib_ui` `42c6f1e8` побайтно совпадает со старым закреплённым; новых ключей нет.
 - **Сверка клиентов (задача 020).** Светлый фон чата — узор Telegram в Android и Desktop, свой в iOS и Web K.
 - **Коммиты.** `736e7fd` (2026-10-29), задача 017; `831289b` (2026-10-31) поправил таблицу под цвета-идентичности.
 
@@ -319,8 +322,9 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### D-030. В «Настройках» нет FAQ, Telegram Features и Ask a Question
 - **Что и зачем.** Тело `BuildHelpSection(SectionBuilder &builder)` → `Q_UNUSED(builder);`. Они ведут на страницы и поддержку Telegram (`help.getSupport` сервер не обслуживает).
 - **Где.** `Telegram/SourceFiles/settings/sections/settings_main.cpp`, `replace_body` от `void BuildHelpSection(SectionBuilder &builder) {\n` (стр. 574); `must_contain`: `OpenFaq(controller);`, `OpenFeatures(controller);` (с 7.4.1, было `lng_telegram_features_url`), `OpenAskQuestionConfirm(controller);`.
-- **Проверка.** `test_brand`; `DAMAGE`: `OpenAskQuestion(controller)`.
-- **Коммит.** `a1fa34a` (2026-10-29), задача 017.
+- **Ссылки (задача 074).** `HELP_ROUTES`: из `core/deep_links/deep_links_settings.cpp` убраны маршруты `settings/faq`, `settings/ask-question`, `settings/features` и функция `ShowFaq` — `plm://settings/faq` и т. п. вели туда же, минуя `BuildHelpSection` (`features` — новый с 7.4; `faq` и `features` работали без сессии). Без маршрута ссылка получает обычный ответ роутера на незнакомый путь (`Result::Unsupported`, тост апстрима). Поиск по настройкам не задет.
+- **Проверка.** `test_brand`; `DAMAGE`: `OpenAskQuestion(controller)`; `verify_help_and_gifts()` — вызовы `OpenFaq`, `OpenFeatures`, `OpenAskQuestionConfirm` есть только в `settings_main.{cpp,h}` (`HELP_OPENERS_KEPT`); `test_help_and_gift_links`.
+- **Коммит.** `a1fa34a` (2026-10-29), задача 017; маршруты — `5dcc340`, задача 074.
 
 ### D-031. Нет FAQ в настройках экрана входа
 - **Что.** Удалены `Ui::AddDivider`, `Ui::AddSkip` и кнопка `tr::lng_settings_faq()` с `OpenFaq(nullptr);`.
@@ -457,7 +461,8 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### D-049. Кнопка подарка в чате — только когда Premium продаётся
 - **Что.** В `HistoryWidget::refreshSendGiftToggle` после `\t\t&& !user->isBot()\n` вставлено `\t\t&& session().premiumCanBuy()\n` (перед `&& ((disallowed & Type::SendHide)`).
 - **Где.** `Telegram/SourceFiles/history/history_widget.cpp` (стр. 3745), точная замена.
-- **Проверка.** `test_birthday_banner`; `DAMAGE`: вставка `isInaccessible()`.
+- **Ссылки (задача 074).** `BIRTHDAY_GIFTS`: маршруты `settings/send-gift`, `settings/send-gift/self` (`core/deep_links/deep_links_settings.cpp`) при `!premiumCanBuy()` отвечают `Result::Unsupported`, `ResolvePremiumMultigift` (`core/local_url_handlers.cpp`) — `false`. Были и на старом закреплённом апстриме.
+- **Проверка.** `test_birthday_banner`; `DAMAGE`: вставка `isInaccessible()`; `verify_help_and_gifts()` — число открытий окна подарка и проверок в этих файлах задано (новая ссылка останавливает патч); `test_help_and_gift_links`.
 - **Апстрим до правки.** Кнопка подарка у поля ввода в день рождения контакта независимо от Premium.
 - **Коммит.** `2f6fbbe`, задача 020.
 
@@ -731,13 +736,13 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Где в `ci/patch.py`.** Таблицы `LINK_HOSTS` (распознавание и имена приглашений: файл, текст апстрима, текст Pluma), `LINK_BUILDERS` (файл, текст, число; в каждом `t.me` → `pluma.chat`), `LINKS_KEPT` (что остаётся от `t.me`), функции `links()` (вызывается в `patch()` перед `rebrand()`), `links_edited()` (LF-проверка в `check_upstream()`), `verify_links()` (в `verify()` перед `verify_brand()`), `link_literals()`.
 
 ### D-079. `pluma.chat` — внутренний хост ссылок
-- **7.4.1 (задача 074).** Правка хостов, которые открываются без вопроса: была в регэкспе `|^pluma\\.chat$`, теперь — строка `u"pluma.chat"_q` в `DefaultWhitelistedDomains()` (`HostInDomains` принимает и поддомены; сервер `whitelisted_domains` не отправляет).
+- **7.4.1 (задача 074).** Хосты, которые открываются без вопроса, апстрим перенёс из регэкспа в `whitelisted_domains` конфига (`core/click_handler_types.cpp:151-156`): список сервера заменяет клиентский `DefaultWhitelistedDomains()`, а сервер Pluma отправляет `["pluma.chat"]` (`teamgramd/bin/app_config.json:84`). Правка в трёх частях (`LINK_HOSTS`, п. 3): `u"pluma.chat"_q` в `DefaultWhitelistedDomains()`; список сервера дополняет клиентский, а не заменяет (иначе `telegram.org`, `telegra.ph`, `fragment.com` и пр. спрашивали бы подтверждение и вырезались бы из био); `HostOpensWithoutAsking` — обёртка над `HostInDomains` в обеих проверках подтверждения (`HiddenUrlRequiresConfirmation`, `UrlRequiresConfirmation`): имена под `pluma.chat` спрашивают, как при старом `^pluma\\.chat$`, это решение владельца. `HostInAnyWhitelist` оставлен широким: он срезает токены чужого входа (`UrlWithoutWebAuthTokens`), и `web.pluma.chat` должен под него попадать. `verify_links()` считает все вызовы `HostInDomains`, `WhitelistedDomains`, `HostOpensWithoutAsking`: новая проверка списка останавливает патч. Коммит `9053859`.
 - **Что и зачем.** Ссылка `pluma.chat` (кликнутая, вставленная, перетащенная, переданная при запуске) открывается внутри приложения так же, как `t.me`: юзернейм, приглашение `+hash`, сообщение `c/<id>/<msg>`, наборы стикеров и эмодзи, прокси и остальные пути `t.me`. Сервер отдаёт приглашения, бусты и `me_url_prefix` как `https://pluma.chat/`, а `channels.exportMessageLink` — `https://pluma.chat/<username>/<id>` и `https://pluma.chat/c/<channel_id>/<id>`; без правки клиент открывал бы их в браузере.
 - **Где** (`LINK_HOSTS`, точные замены по одному разу; в коде — `// pluma`):
   1. `core/local_url_handlers.cpp:1936`, `TryConvertUrlToLocal` — единственный преобразователь https-ссылок во внутренние (`plm://` после D-014): `^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$` → `^(https?://)?(?:(www\\.)?(telegram\\.(me|dog)|t\\.me)|pluma\\.chat)/(.+)$`. Группа пути остаётся пятой (`capturedView(5)`), `www.pluma.chat` и поддомены не подходят. Правило поддоменов `user.t.me` (`:1921-1934`) не тронуто.
   1a. Там же, перед этой строкой, — страницы самого сайта `pluma.chat` (`SITE_PATHS`, один список во всех клиентах): корень (пусто, `/`, с `?…`/`#…`) и первые сегменты `iphone`, `ipad`, `android`, `mac`, `windows`, `linux`, `web`, `pero`, `app`, `en`, `dl`, `ios`, `collect`, `assets`, `_l`, `.well-known`, файлы `favicon.svg`, `og.png`, `apple-touch-icon.png`, `404.html`, `progress.json`, без учёта регистра, за сегментом — ничего, `/…`, `?…` или `#…` (`SITE_LINK`). Для них `TryConvertUrlToLocal` возвращает ссылку как есть, и вызывающие открывают её в браузере, как любую внешнюю: `UiIntegration::handleUrlClick` (`core/ui_integration.cpp:406-440`) отдаёт не-`tg://`/`tonsite://`/`internal:` в `File::OpenUrl` (так же уходит `t.me/iv?…`, для которого конвертер тоже возвращает `url`, `:1958-1968`); `HiddenUrlClickHandler::Open` (`core/click_handler_types.cpp:269-300`) — тоже. Без этого `pluma.chat/iphone` и другие страницы сайта открывались бы как профиль. Только `pluma.chat`: `t.me/…` не тронуты. Новая страница сайта — её путь добавляется в `SITE_PATHS` всех клиентов (и в `ReservedUsername` сервера, ADR 0036).
   2. `core/click_handler_types.cpp:81`, `IsTelegramShortLinkHost` — скрытая ссылка (текст со ссылкой под ним) на `pluma.chat` спрашивает подтверждение, как на `t.me`: к `(^|\\.)(telegram\\.(me|dog)|t\\.me)$` добавлено `|^pluma\\.chat$`.
-  3. `core/click_handler_types.cpp:218-231`, `UrlRequiresConfirmation` — хосты, ссылки на которые открываются без вопроса и остаются в био без Premium (`Info::Profile::StripExternalLinks`, `info/profile/info_profile_values.cpp:76-78`): после `")$"` добавлено `"|^pluma\\.chat$"`.
+  3. `core/click_handler_types.cpp`, `UrlRequiresConfirmation` — хосты, ссылки на которые открываются без вопроса и остаются в био без Premium (`Info::Profile::StripExternalLinks`, `info/profile/info_profile_values.cpp:81`): с 7.4.1 см. запись в начале D-079.
   4. `boxes/connection_box.cpp:90`, `ExtractLinkCandidates` — ссылки прокси, вставленные в настройки прокси: `(?:(?:www\.)?(?:t\.me|telegram\.me|telegram\.dog)|pluma\.chat)\/[^\s]+`.
   5. `boxes/stickers_box.cpp:2186-2195`, `AddressField::correctValue` — ссылка набора стикеров, вставленная как набор группы: в список срезаемых префиксов после `u"telegram.dog/"_q` добавлено `u"pluma.chat/"_q`.
   6. `boxes/choose_filter_box.cpp:527-528` — ссылка на чат, брошенная на папку (перетащенный юзернейм профиля, который теперь `https://pluma.chat/…`): ветка `startsWith(u"https://pluma.chat/"_q)` → `text.mid(19)` рядом с `https://t.me/` → `mid(13)`.
@@ -770,7 +775,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Коммит.** `f608f06`, влито в `main` (`28b85c8`, PR #2), 2026-11-06, задача 026.
 
 ### D-082. Что остаётся от `t.me` (`LINKS_KEPT`)
-- **7.4.1 (задача 074).** `core/local_url_handlers.cpp` 4 (`name.t.me` как TON-DNS-имя → `t.me/name`), новый файл `tgw/tgw_bridge.cpp` 1 (ответ виджета, не ссылка). Хост-лист: `DefaultWhitelistedDomains` (`core/click_handler_types.cpp`) вместо регэкспа — см. D-079; добавлено `pluma.chat`, совпадение теперь включает поддомены (`web.pluma.chat` без вопроса при открытии).
+- **7.4.1 (задача 074).** `core/local_url_handlers.cpp` 4 (`name.t.me` как TON-DNS-имя → `t.me/name`), новый файл `tgw/tgw_bridge.cpp` 1 (ответ виджета, не ссылка). Хост-лист: `DefaultWhitelistedDomains` (`core/click_handler_types.cpp`) вместо регэкспа — см. D-079; добавлено `pluma.chat`, для открытия без вопроса — только точное имя (`HostOpensWithoutAsking`).
 - **Что.** Итоговая проверка `verify_links()` считает `t.me` (`t.me`, `t\.me`, `t\\.me`) в строковых литералах всех исходников (комментарии не считаются, `link_literals`) и сравнивает с таблицей по файлам. Остаются:
   - хосты, узнаваемые как свои, рядом с `pluma.chat`, и правило `user.t.me`: `core/local_url_handlers.cpp` 3, `core/click_handler_types.cpp` 2, `boxes/connection_box.cpp` 1, `boxes/stickers_box.cpp` 2, `boxes/choose_filter_box.cpp` 1, `chat_helpers/message_field.cpp` 2, `settings/sections/settings_information.cpp` 1 (ключевое слово поиска);
   - срезы имён приглашений: `boxes/peers/edit_peer_invite_links.cpp` 2, `boxes/filters/edit_filter_links.cpp` 2, `history/admin_log/history_admin_log_item.cpp` 1 — ссылки, выданные раньше, по-прежнему показываются хешем;

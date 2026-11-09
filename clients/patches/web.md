@@ -262,7 +262,10 @@
 - **Где** (`help_section()` в `ci/patch.py`): `src/components/sidebarLeft/tabs/settings.tsx` — импорт `askQuestion`, `openTelegramFaq` и блок от `{/* help, the way tdesktop ends its main settings */}` до `</Section>`; `src/lib/settingsSearch/generated.ts` — записи `AppSettingsTab:AskAQuestion` и `AppSettingsTab:TelegramFaq`. Строки в `lang.ts` и `askQuestion.ts` остаются недостижимыми.
 - **Счёт `telegram.org`.** `SITE_KEEP` и проверка в `verify`: число хостов `telegram.org` по файлам в коде без комментариев; новый останавливает патч, пока кто-то не решит, ведёт ли он к сервисам Telegram. Что оставлено и почему — комментарии в `SITE_KEEP`.
 - **Поиск по настройкам.** Записи `AppSettingsTab:Premium.Boarding.Title`, `TelegramBusiness`, `MenuTelegramStars`, `MenuTelegramStarsTon`, `Chat.Menu.SendGift` (`SETTINGS_SEARCH_SALE_ROWS`) не показываются: сами строки скрыты `premium_purchase_blocked`, у поиска такого условия нет. Правка в `src/lib/settingsSearch/openers.ts` (набор `SALE_ENTRIES`) и `registry.ts` (фильтр рядом с `WALLET_ENTRIES`), а не в `generated.ts`: индекс генерируется из вкладок при старте сборки (`scripts/settings-search-plugin.mjs`), и правка `generated.ts` стиралась бы. Записи FAQ и Ask a Question исчезают сами, вместе с разделом в `settings.tsx`.
-- **Как проверяется.** `verify_help_section`, `test_patch`, `DAMAGE` (импорт, заголовок блока, записи поиска; новый `telegram.org` в `helpers/copyContact.ts`).
+- **Ссылки на экранах** (`TELEGRAM_SITE_EDITS`, применяются до `rebrand`):
+  - `src/lang.ts`, `ChatList.Main.EmptyPlaceholder.SubtitleNoContacts`: у аккаунта без контактов на пустом списке чатов были ссылки на приложения Telegram; текст остался, ссылок нет;
+  - `src/lang.ts`, `ChatAutomation.HeroDescription`, и `sidebarLeft/tabs/chatAutomation.tsx`: нет «Learn More» на telegram.org. Вкладку открывает поиск по настройкам (`settingsSearch/openers.ts`), даже когда сервер не отвечает на `account.getConnectedBots`.
+- **Как проверяется.** `verify_help_section`, `test_patch`, `test_no_telegram_site_on_screens`, счёт `SITE_KEEP`, `DAMAGE` (импорт, заголовок блока, записи поиска; новый `telegram.org` в `helpers/copyContact.ts`; опоры ссылок на экранах).
 
 ### W-071. Нет сообщения о новой версии (задача 074)
 - **Что и зачем.** В 2.3 есть `public/changelogs/{en,ru}_2.3.md`. `apiUpdatesManager.deliverChangelog` после обновления кладёт текст файла текущей версии в служебный чат каждого вошедшего аккаунта, а там написано Telegram и Telegram Premium и дана ссылка на t.me. Файла нет — сообщения нет (404 считается «у версии его нет»).
@@ -636,7 +639,7 @@
 - Читает каждый файл сайта, включая source maps и бинарные (как latin-1).
 - Ищет: адреса из сетей Telegram (`TELEGRAM_NETWORKS`), IPv6-префиксы, ключи и отпечатки, `.web.telegram.org`, `_websync_`, учётные данные (api_hash Telegram, VAPID-ключ, GCM sender id `122867383838`).
 - Требует:
-  - WebSocket только на URL сервера, нет переключателей HTTP;
+  - WebSocket только на URL сервера, нет чтения флагов HTTP (на 2.3: `Modes.http = isFlagOn('http')` и `!isFlagOn('noMultipleTransports')` в минифицированном виде; сами имена флагов остаются в любой сборке, поэтому ищется форма чтения). `tree.expect` в `ci/patch.py` останавливает патч, если апстрим изменит эти строки в `src/config/modes.ts`. На настоящей сборке новые выражения ещё не проверены;
   - есть modulus, api_hash и `layer:228`;
   - `<title>Pluma</title>` и имя в манифестах;
   - иконки из `brand/web`, нет скриншота;
@@ -722,8 +725,10 @@
   - `components/sidebarLeft/index.ts`: кнопки эмодзи-статуса в шапке нет;
   - `components/chat/bubbles.ts`: `canTranscribeVoice: false` у голосовых;
   - `components/chat/bubbles.ts`: вызова `wrapRoundVideoBubble` нет (задача 074): эта обёртка только добавляет кнопку текста к круглому видео и разворачивает его в голосовое, а `messages.transcribeAudio` сервер не обслуживает;
-  - `helpers/dom/createStickersContextMenu.ts`: пункта «Set as Status» в меню эмодзи нет (задача 074), `account.updateEmojiStatus` сервер не обслуживает.
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (круглое видео).
+  - `helpers/dom/createStickersContextMenu.ts`: пункта «Set as Status» в меню эмодзи нет (задача 074), `account.updateEmojiStatus` сервер не обслуживает;
+  - `components/webApp.tsx`: `web_app_set_emoji_status` сразу отвечает мини-приложению `emoji_status_failed` с `SERVER_ERROR`, без окна согласия; `web_app_request_emoji_status_access` отвечает `cancelled` (`bots.toggleUserEmojiStatusPermission` сервер тоже не обслуживает);
+  - `lib/internalLinkProcessor.ts`: ссылка `emoji-status` (из `chats` и `settings`) ничего не открывает; без правки она вела к промо Premium, потому что кнопки в шапке нет.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (круглое видео), `test_no_way_to_an_emoji_status`.
 
 ### W-069. Бустов нет: пункты меню, ссылка, «Не ограничивать бустеров» (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`18482a0`), не влита, не выпущена (2026-11-09).
@@ -739,5 +744,8 @@
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `components/chat/topbar.ts`: «Send a Gift» в меню чата, был и на 2.2;
   - `components/peerProfile.tsx`: тот же пункт в меню профиля, новое в 2.3;
-  - `components/popups/myQrCode.tsx`: панели «Подарки» нет, новое в 2.3 (её «Browse Gifts» открывал магазин). Код панели остаётся недостижимым.
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (нет `id: 'gifts'`).
+  - `components/popups/myQrCode.tsx`: панели «Подарки» нет, новое в 2.3 (её «Browse Gifts» открывал магазин). Код панели остаётся недостижимым;
+  - `components/chat/input.ts`: `hasGift = false`, на нижней плашке канала, куда пользователь не может писать, нет кнопки подарка (новое в 2.3);
+  - `lib/internalLinkProcessor.ts`: ссылки `send-gift` и `send-gift/self` ничего не открывают.
+- **Без правки.** `Chat.canGiftPremium` и строка в настройках закрыты `premium_purchase_blocked`; строка дня рождения в профиле — W-046, баннер — W-043; `btnSendGift` требует `display_gifts_button`, сервер его не ставит.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (нет `id: 'gifts'`), `test_no_gift_entries`.

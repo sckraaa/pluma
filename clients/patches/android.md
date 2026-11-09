@@ -223,6 +223,7 @@
   - `ui/SessionsActivity.java`: `session.app_name = "Telegram Android";` → `session.app_name = "Pluma Android";` (1, текущий сеанс до ответа сервера, с 13.2.0);
   - `ui/ThemePreviewActivity.java`: `"Telegram Beta Chat"` → `"Pluma Beta Chat"` (1).
   С 13.2.1 тексты `MessagePreviewView`, `PasscodeView`, `NewContactBottomSheet` ушли в `strings.xml` (`UnlockToUse`, `NewContactPhone*`) и правит их A-011.
+  Ссылка в приглашении (`INVITE_LINK_FILES`, `brand_invite_link`): `"https://telegram.org/dl"` → `"https://pluma.chat/"` в `ui/NewContactBottomSheet.java` (SMS со шторки нового контакта, всегда) и `messenger/ContactsController.java` (`getInviteText`; `help.getInviteText` сервер не обслуживает, поэтому это ссылка всех приглашений: `InviteContactsActivity`, `ChatActivity`, `ContactsActivity`, `AlertsCreator`, `ContactsEmptyView`). Обоих файлов нет в `TELEGRAM_SITE_KEEP`: откат правки останавливает `verify_brand`.
 - **Как проверяется.** Счётчики замен и `verify_brand`: строки Java с литералом, где есть слово `Telegram`, — ровно в файлах и количествах `JAVA_NAMES_KEEP` (папки хранилища, API мини-приложений, user agent), строки с литералом `telegram.org` — ровно в `TELEGRAM_SITE_KEEP` (задача 074).
 - **Если апстрим изменит.** Изменённый или новый литерал — падение; новый прочитать: виден пользователю — в `JAVA_NAMES`, иначе в таблицу `*_KEEP`.
 - **История.** `46fefef`, 2026-10-29, задача 017.
@@ -273,11 +274,13 @@
 ### A-019. Скрыт раздел «Помощь» в настройках
 
 - **Что и зачем.** Раздел ведёт только к сервисам Telegram: чат волонтёрской поддержки (`help.getSupport`, сервер тогда не обслуживал), FAQ Telegram, канал советов и политика конфиденциальности Telegram.
-- **Где.** `TMessagesProj/src/main/java/org/telegram/ui/SettingsActivity.java`.
-  - Замена тела (`replace_body`): от `getString(R.string.SendAGift)));\n        }\n` до `            items.add(UItem.asHeader(getString(R.string.SettingsDebug)));\n`; блок обязан содержать `R.string.AskAQuestion`, `R.string.TelegramFAQ`, `R.string.TelegramFeatures`, `R.string.PrivacyPolicy`, `items.add(UItem.asShadow(null));`. Новое тело оставляет только вход в раздел отладки (`if (BuildVars.LOGS_ENABLED || BuildVars.DEBUG_PRIVATE_VERSION)`) с тенью перед ним, если её ещё нет.
-  - Точная замена `        items.add(UItem.asCustomShadow(versionView));\n`: перед ней убирается последняя обычная тень, чтобы не было двух подряд.
-- **Как проверяется.** Сами правки; тестов и `verify` нет.
-- **Если апстрим изменит.** Новый пункт между «Send a Gift» и отладкой попадёт в удаляемый блок без предупреждения, если `must_contain` выполнены. При обновлении сравнить блок апстрима глазами.
+- **Где.** Таблица `NOT_SERVED_EDITS`, точные замены (задача 074, раньше — `replace_body`, который с 13.x удалял и новый раздел экспериментальных настроек):
+  - `ui/SettingsActivity.java`: заголовок `SettingsHelp` и четыре строки (id 17, 18, 23, 19) убраны вместе с первой тенью раздела экспериментальных настроек; сам раздел (`SharedSettings.experimentalSettingsAllowed`, строки 24, 26, 27) остаётся. Тень перед разделом отладки (`BuildVars.LOGS_ENABLED || DEBUG_PRIVATE_VERSION`) добавляется, только если её ещё нет. Точная замена `        items.add(UItem.asCustomShadow(versionView));\n` (в `brand_entry_points`): перед ней убирается последняя обычная тень, чтобы не было двух подряд;
+  - `ui/LogoutActivity.java`: `supportRow = -1` — та же поддержка с экрана выхода (`createSupportAlert` → `help.getSupport`, сервер отвечает `ErrEnterpriseIsBlocked`);
+  - `ui/LinkManager.java`, `handleSettings`: ветки `ask-question`/`ask-a-question`, `faq`, `features`, `privacy-policy` убраны; такие ссылки открывают настройки.
+  Пути старые (были и в 12.9.1), закрыты в задаче 074. Строки «Помощи» в `ProfileActivity` (`questionRow`, ветка `UserObject.isUserSelf(user) && !myProfile`) мертвы: для себя конструктор ставит `myProfile = true` (`ProfileActivity.java:2209-2211`).
+- **Как проверяется.** `verify_not_served`: новые тексты на месте, старых нет, `R.string.SettingsExperimental` ровно одна; `NotServedTest`; порча на настоящем апстриме 13.2.1 останавливает `verify`.
+- **Если апстрим изменит.** Блок точный: новая строка внутри него или рядом с якорем — падение. Прочитать её и решить, куда она ведёт.
 - **Апстрим до правки.** Раздел «Помощь» с четырьмя пунктами. Официальный Telegram — так же.
 - **История.** `00fb7c4`, 2026-10-29, задача 017. Задача 028: «Помощь» вернуть, когда будет куда вести; сейчас скрыта.
 
@@ -717,16 +720,16 @@
 - **Где.** `UpdateAppAlertDialog.java` (SHA-256 `4545e52e…`) и `UpdateLayout.java` (`e1050c8c…`) копируются из `TMessagesProj_AppStandalone/src/main/java/org/telegram/ui/Components/` в тот же путь `TMessagesProj_App`; изменённый апстримом файл — ошибка. Строки и ресурсы — библиотеки (`org.telegram.messenger.R`).
 - `TMessagesProj_App/build.gradle`: `implementation 'androidx.core:core:1.16.0'` (`FileProvider`, `NestedScrollView`): библиотека держит его как `implementation`, модуль standalone тоже объявляет его сам; версия сверяется с библиотекой.
 
-### A-097. Версия `12.9.1.NNNNN`
+### A-097. Версия `<версия апстрима>.NNNNN` (сейчас `13.2.1.NNNNN`)
 
-- **Где.** `TMessagesProj_App/build.gradle:176`: `versionName APP_VERSION_NAME + ".NNNNN"` (5 цифр с нулями); `:157`: `versionCode = APP_VERSION_CODE * 1000 + N` (итог `(6979000 + N) * 10 + 9`). `gradle.properties` не меняется: `BUILD_VERSION_STRING` библиотеки остаётся `12.9.1`, её компиляция не выпадает из кэша Gradle; приложение сообщает и сравнивает версию пакета (`ConnectionsManager.java:223`, `SharedConfig.java:567`, `:791`).
+- **Где.** `TMessagesProj_App/build.gradle:171` (13.2.1): `versionName APP_VERSION_NAME + ".NNNNN"` (5 цифр с нулями); `:152`: `versionCode = APP_VERSION_CODE * 1000 + N` (`APP_VERSION_CODE` 7291). `gradle.properties` не меняется: `BUILD_VERSION_STRING` библиотеки остаётся версией апстрима, её компиляция не выпадает из кэша Gradle; приложение сообщает и сравнивает версию пакета (`ConnectionsManager.java:223`, `SharedConfig.java:567`, `:791`).
 - **Почему 5 цифр.** После перезапуска клиент сохраняет предложение, только пока своя `versionName` меньше как строка (`SharedConfig.java:576`): `12.9.1.99` против `12.9.1.100` сбросило бы его.
 - **N** — `--build` у `ci/patch.py` (`PLUMA_BUILD` в `configure.sh`, в CI `github.run_number`; 0 для локальной сборки).
-- **Зачем.** Android сравнивает версии по общим частям (`SharedConfig.java:811-824`): без четвёртой части сборки одного апстрима неразличимы. Установки `12.9.1` (три части) обновления не увидят — один раз поставить с сайта.
+- **Зачем.** Android сравнивает версии по общим частям (`SharedConfig.java:811-824`): без четвёртой части сборки одного апстрима неразличимы. Установки с тремя частями версии обновления не увидят — один раз поставить с сайта.
 
 ### A-098. Выпуск на сайт (`ci/publish.sh`, `android.yml`)
 
-- После подписи в job `sign` ветки `main`: `ci/publish.sh signed/<apk> $GITHUB_RUN_NUMBER` → `POST <PLUMA_RELEASES_URL>/dl/upload` (токен — секрет `RELEASES_UPLOAD_TOKEN` окружения `release`, заголовок через файл), версия `12.9.1.NNNNN`, заметки `release/notes.en.txt`, `release/notes.ru.txt`. 409 (сборка уже выложена) — не ошибка. Нет токена или адреса — job падает. Сборка с входом `abis` не публикуется (только подписывается); недельный canary в своей группе concurrency и не вытесняет ожидающий push.
+- После подписи в job `sign` ветки `main`: `ci/publish.sh signed/<apk> $GITHUB_RUN_NUMBER` → `POST <PLUMA_RELEASES_URL>/dl/upload` (токен — секрет `RELEASES_UPLOAD_TOKEN` окружения `release`, заголовок через файл), версия `<версия апстрима>.NNNNN`, заметки `release/notes.en.txt`, `release/notes.ru.txt`. 409 (сборка уже выложена) — не ошибка. Нет токена или адреса — job падает. Сборка с входом `abis` не публикуется (только подписывается); недельный canary в своей группе concurrency и не вытесняет ожидающий push.
 
 ---
 
@@ -791,7 +794,7 @@
 
 - **Где.** `TMessagesProj/src/main/AndroidManifest.xml`. Фильтр `LaunchActivity` с t.me (`:257-267`) не меняется. После него новый `<intent-filter android:autoVerify="true">` (VIEW, DEFAULT, BROWSABLE) с комментарием `<!-- pluma: verified app links of pluma.chat, the links and not the site's pages -->`: `host="pluma.chat"` со `scheme` `http` и `https`, `pathPrefix` из `LINK_PATH_PREFIXES` (`/+`, `/joinchat/`, `/addstickers/`, `/addemoji/`, `/addlist/`, `/folder/`, `/c/`, `/s/`, `/m/`, `/call/`, `/boost`, `/proxy`, `/socks`, `/setlanguage/`, `/addtheme/`, `/bg/`, `/login/`, `/contact/`, `/share`) и два `pathAdvancedPattern` из `LINK_USERNAME_PATTERNS`: `/[A-Za-z][A-Za-z0-9_]{4,31}` и `/[A-Za-z][A-Za-z0-9_]{4,31}/.*` (юзернейм 5–32 символа и что угодно после него). Все `<data>` одного фильтра складываются (developer.android.com, `<data>`: «All the `<data>` elements … contribute to the same filter»), поэтому каждый путь действует для обеих схем.
 - **Почему pluma.chat нет ни в одном фильтре без пути.** Система проверяет хосты из всех фильтров с VIEW, BROWSABLE, DEFAULT и http(s), а не только из фильтра с `autoVerify` («The system inspects all intent filters…», «For each unique hostname…», developer.android.com, Verify Android App Links), и состояние проверки ведётся по хосту (`pm get-app-links`). Запись `host="pluma.chat"` без пути в общем фильтре t.me, как было в первой версии этой правки, взяла бы весь сайт. Поэтому записи pluma.chat из фильтра t.me убраны (отступление от формулировки «оставить записи непроверенного фильтра»: записи t.me, telegram.me, telegram.dog остались как в апстриме).
-- **Почему `pathAdvancedPattern`, а не `pathPattern`.** `minSdkVersion 21`, `targetSdkVersion 35`, `compileSdkVersion 35` (`TMessagesProj/build.gradle:86`, `:113-114`). `pathAdvancedPattern` появился в API 31 (developer.android.com, `<data>`: «`pathSuffix` and `pathAdvancedPattern` were introduced in API level 31»); на Android 11 и ниже атрибут пропускается, и система передаёт приложению только ссылки с префиксами, а ссылку на юзернейм из другого приложения — нет. `pathPattern` (все версии) не знает классов символов: шаблон «5 символов и больше» (`/......*`, `.` совпадает и с `/`) взял бы и `/en/iphone`, `/dl/…`, `/assets/…`. Выбор — точность на Android 12+ ценой ссылок на юзернейм на Android 11 и ниже (решение к подтверждению).
+- **Почему `pathAdvancedPattern`, а не `pathPattern`.** `minSdkVersion 23`, `targetSdkVersion 36`, `compileSdkVersion 36` (13.2.1, `TMessagesProj/build.gradle:118`, `:143-144`). `pathAdvancedPattern` появился в API 31 (developer.android.com, `<data>`: «`pathSuffix` and `pathAdvancedPattern` were introduced in API level 31»); на Android 11 и ниже атрибут пропускается, и система передаёт приложению только ссылки с префиксами, а ссылку на юзернейм из другого приложения — нет. `pathPattern` (все версии) не знает классов символов: шаблон «5 символов и больше» (`/......*`, `.` совпадает и с `/`) взял бы и `/en/iphone`, `/dl/…`, `/assets/…`. Выбор — точность на Android 12+ ценой ссылок на юзернейм на Android 11 и ниже (решение к подтверждению).
 - **Остаток.** Слова сайта из 5+ букв (`iphone`, `android`, `windows`, `linux`, `assets`, `collect`) подходят под шаблон юзернейма. Такую ссылку из другого приложения система отдаст Pluma, и `handleIntent` сразу откроет её в браузере (A-106). Тест `test_username_patterns` фиксирует этот список.
 - **Добавлены к списку брифа** `/folder/`, `/m/`, `/call/`: такие ссылки делает само приложение или сервер (`FilterChatlistActivity`, `BusinessLinksController`, `VoIPService`, A-103).
 - **`<queries>`.** В `<queries>` манифеста (`:89-95`) после `ton` добавлен `<intent>` VIEW + BROWSABLE + `scheme="https"` с комментарием `<!-- pluma: the browsers that show the pages of pluma.chat (Browser.plumaSiteBrowser) -->`: без него видимость пакетов Android 11+ скрывает браузеры от `queryIntentActivities` в `plumaSiteBrowser` (A-106).
@@ -981,7 +984,7 @@
 
 ### A-073. Установка инструментов: `setup.sh`
 
-- **Где.** `ci/setup.sh build` — `ccache`, `age`, SDK `platforms;android-35`, `build-tools;35.0.0`, `ndk;27.2.12479018`, `cmake;3.10.2.4988404`; `CCACHE_COMPILERCHECK=string:<NDK>`. `ci/setup.sh sign` — `age` и build-tools. Повторы и таймауты.
+- **Где.** `ci/setup.sh build` — `ccache`, `age`, SDK `platforms;$PLATFORM`, `build-tools;$BUILD_TOOLS`, `build-tools;$MEDIA_BUILD_TOOLS`, `ndk;$NDK_VERSION`, `cmake;$CMAKE_PACKAGE` (из `upstream.env`: `android-36`, `36.0.0`, `35.0.0`, `27.2.12479018`, `3.22.1`); `CCACHE_COMPILERCHECK=string:<NDK>`. `ci/setup.sh sign` — `age` и build-tools. Повторы и таймауты.
 - **История.** `991d01b` 2026-10-23; `dd9136d` (age, переработка); задача 006.
 
 ### A-074. Workflow `android.yml`
@@ -1040,15 +1043,18 @@
   - `ui/Cells/ChatMessageBotButtons.java`, `ui/QrShare/QrScanOverlay.java`, `messenger/NotificationsController.java`: схема `plm:` (A-016), `ChatMessageBotButtons` ещё и хост `pluma.chat` (A-099);
   - `ui/LinkManager.java`: регулярное выражение `sendgrams` на `plm:` (`SCHEME_REGEX`);
   - `ui/ChannelAdminLogActivity.java`: кнопки обновления спрашивают `isSelfUpdatingBuild()` (A-094);
-  - `ui/SessionsActivity.createLocalSession`: `"Telegram Android"` → `"Pluma Android"` (A-014).
+  - `ui/SessionsActivity.createLocalSession`: `"Telegram Android"` → `"Pluma Android"` (A-014);
+  - TON Connect (`tc://`, новый путь 13.x, `NOT_SERVED_EDITS`): `LinkManager.handleTc` спрашивает `walletAvailable`, как `handleTon` и `handleSendGrams`, иначе ссылка оставляла спиннер в ожидании кошелька, которого нет (`GramWallet.whenReady`); фильтр `tc` с `priority="1"` убран из манифеста, чтобы Pluma не забирала чужие ссылки TON Connect;
+  - экран QR `ui/QrShare/QrShareView.canBuyGifts` (новый экран 13.2.0, `PREMIUM_FOR_EVERYONE_EDITS`): при `premiumPurchaseBlocked()` пустой слой подарков не предлагает магазин (`Browse Gifts` → `GiftSheet`) и говорит только, что подарков нет; собственные подарки в слое остаются. Что показал бы `GiftSheet` на сервере Pluma, не проверялось: вход закрыт.
 - **Как проверяется.** `verify_links`, `verify_brand` (и новые `JAVA_NAMES_KEEP`, `TELEGRAM_SITE_KEEP`, `SCHEME_REGEX`), `verify_self_update`; `SchemeTest`; порча таблиц на настоящем апстриме (убранная правка `ProxySettings`, `QrScanOverlay`, `ChannelAdminLog`, `SessionsActivity`, `SCHEME_REGEX`, `LINKS_OUT`) останавливает `verify`.
 - **Осмотрено, правок не потребовало.**
   - Запись кружков (`InstantCameraView2`, `InstantCameraViewBase`, `utils/recorder/round/*`, `TelegramRoundVideoUpload`, `RoundVideoSettingsActivity`): нет хостов Telegram; настройки только локальные (`SharedSettings`), единственный внешний выключатель — ключ `android_round_video_recorder_v2_disabled` (`InstantCameraViewBase.isCamera2Enabled`, умолчание false, `AppGlobalConfig.java:109`), сервер его не отдаёт, значит новый рекордер включён. Ключ `round_video_encoding` новый рекордер не читает: умолчания 480p и 1,2 Мбит/с (`SharedSettings.java:19-37`), правки качества A-079…A-085 его не касаются.
   - Вход Firebase PNV: закрыт `BuildVars.SUPPORTS_FPNV` и `messagesController.fpnvAllowed` (`help.getConfig`, флаг 17, сервер не ставит): запрос не уходит.
   - Web-прокси (`utils/proxy/WebProxyTransport`): только адрес, заданный пользователем, своих хостов нет.
-  - Кошелёк (`ui/Wallet/*`): закрыт `wallet_available` (умолчание `DEBUG_VERSION`), сервер его не отдаёт.
+  - Кошелёк (`ui/Wallet/*`): закрыт `wallet_available` (умолчание `DEBUG_VERSION`), сервер его не отдаёт; с `handleTc` (выше) проверка стоит на всех трёх входах ссылками.
 - **Сборка.** Настоящая сборка как в CI (`ci/fetch-upstream.sh`, `ci/patch.py --ccache` с подставными значениями, `ci/build.sh dev` в образе из `Dockerfile` апстрима): APK 40 МБ, arm64-v8a, `13.2.1.00000`, подпись тестовая апстрима. Javac нашёл то, чего не видит `verify`: конструктор `RLottieDrawable` без имени кэша (правка интро, якорь исправлен).
-- **Не проверено.** Работа на устройстве; соединение реального клиента 233 с сервером; сборка на раннере GitHub.
+- **Не проверено.** Работа на устройстве; соединение реального клиента 233 с сервером; сборка на раннере GitHub. Настоящая сборка выше сделана до правок A-014 (ссылка приглашения), A-019, A-111 (`tc`, QR), A-112: они проверены применением патча с `verify` на копии апстрима `7be672ea`, порчей и `patch_test.py`; изменённые `.java` разобраны `javac` без синтаксических ошибок, манифест разбирается как XML. Gradle и устройство после них не запускались.
+- **Осталось (не правилось).** `handleSettings`: ссылки `settings/stars…`, `settings/send-gift`, `settings/ton` по-прежнему открывают свои экраны; фильтр манифеста `ton://transfer` остался (ссылка закрыта `walletAvailable` в `handleTon`, но Pluma предлагается как обработчик).
 
 ## Снятые правки
 
@@ -1071,7 +1077,7 @@
 ## Пробелы и замечания
 
 - Правки A-001…A-021 и замена ресурсов проверяются только на настоящем апстриме (CI `build` или локальный `configure.sh`); `patch_test.py` их не воспроизводит.
-- A-021 не ловит новые строки поиска «Помощи»; A-005 не ловит новый источник резервных адресов вне `onRequestNewServerIpAndPort`; A-019 удалит без предупреждения новый пункт апстрима внутри блока «Помощь».
+- A-021 не ловит новые строки поиска «Помощи»; A-005 не ловит новый источник резервных адресов вне `onRequestNewServerIpAndPort`.
 - Ветки: `origin/main` и `task/020-parity-fixes` на `d9ad7cf`; локальная `main` отстаёт (`7c78c00`). `sticker-set-kinds` = `origin/main` + `339fd8c`.
 - A-099…A-106 (задача 026) проверены применением на копии апстрима `aac1efcb` и тестами `LinksTest` (A-105, A-106 ещё `aapt2 link` манифеста и `javac` блока Java); сборка CI (Gradle) прошла, выпуск `12.9.1.00031`; `assetlinks.json` с отпечатком подписи отдаётся на pluma.chat. Поведение на устройстве и проверка app links системой не проверены.
 - Не сделано и правок нет: возврат «Помощи» (задача 028); перевод «Send Message» баннера на другие встроенные языки (A-056).
@@ -1079,4 +1085,4 @@
 
 ### A-112. Ссылка `getpremium` закрыта (задача 074)
 - **Статус.** Ветка `task/074-upstream`, не влита, не выпущена (2026-11-09).
-- **Что.** В `LinkManager` убран маршрут `getpremium`: Premium есть у всех (ADR 0041), экран покупки не нужен. Проверяется таблицей `PREMIUM_FOR_EVERYONE_EDITS`.
+- **Что.** Premium есть у всех (ADR 0041), экран покупки не нужен, поэтому закрыты все входы в него ссылками: `LinkManager` — маршрут `getpremium` и ветки `settings/premium`, `settings/business` (такие ссылки открывают настройки); `LaunchActivity`, ветка `premium_offer` — ссылка только открывает приложение (счётчик `SCHEME_JAVA` для `LaunchActivity` стал 158: ушла строка `finalUrl` с двумя литералами `tg:`). Проверяется таблицей `PREMIUM_FOR_EVERYONE_EDITS` (`verify_premium_for_everyone`, `PremiumForEveryoneTest`), порчей на настоящем апстриме.

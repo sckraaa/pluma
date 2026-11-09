@@ -395,9 +395,11 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### I-043. Тема Night: палитра
 - **Что и зачем.** Шалфей `#9DBB9F` там, где был белый или синий (с тёмным текстом `#131513`), ссылки, время и галочки `#B2CEB4`, пузыри `#232623` и `#2C3A2D → #36473A`, фон `#131513`, графитовый фон чата вместо узора. Тёмный текст на акценте.
 - **Где.** `submodules/TelegramPresentationData/Sources/DefaultDarkPresentationTheme.swift`, строки `PALETTE_EDITS` с `DARK_THEME` (около 40 `replace`). Ключевые якоря: `accentColor: UIColor(rgb: 0x3e88f7), backgroundColors: [], …`, ветка `} else if accentColor.rgb == 0x3e88f7 { bubbleColors = [0x0771ff, 0x9047ff, 0xa256bf].reversed()` → `[0x2c3a2d, 0x36473a]`, `if initialAccentColor.lightness > 0.735 {` (плюс `|| initialAccentColor.rgb == 0x9dbb9f`), `let defaultPatternWallpaper … defaultDarkWallpaperGradientColors … intensity: -34` → `.color(0x131513)`.
-- **Проверка.** `verify_palette`, `test_damage` (2 порчи `DARK_THEME`).
-- **Апстрим / официальный.** Белый акцент, синие исходящие, узор.
-- **История.** `6f57e5e`, 2026-10-29, задача 017.
+  - С 13.2 — ночная тема режима без пузырей (`neutralNight`): `submodules/TelegramPresentationData/Sources/MakePresentationTheme.swift`, `neutralNightAccentColor` `0x3e88f7` → `0x9dbb9f`. Кнопка отправки в этом режиме: `ChatTextInputActionButtonsNode.swift`, `bubblelessSendButtonGlassColor` принимала шалфей (насыщенность 0,16 < 0,2) за бесцветный акцент и красила в системный синий; `SEND_GLASS` делает для `0x9dbb9f` исключение, `SEND_GLASS_ICON` даёт значку на шалфее цвет `#131513` вместо белого. Серые пузыри и чёрный фон режима — как в апстриме.
+- **Проверка.** `verify_palette` (`MAKE_THEME` в списке файлов без синих, `SEND_GLASS`, `SEND_GLASS_ICON` на месте), `test_patch`, `test_damage` (2 порчи `DARK_THEME`, `MAKE_THEME`, 2 порчи `SEND_BUTTON`).
+- **Апстрим / официальный.** Белый акцент, синие исходящие, узор; в режиме без пузырей синий `0x3e88f7` и системный синий у кнопки.
+- **Не проверено.** Режим без пузырей на устройстве, сборки нет.
+- **История.** `6f57e5e`, 2026-10-29, задача 017; режим без пузырей — `34362fb`, 2026-11-09, задача 074.
 
 ### I-044. Тема Night: цвета сообщений в длинных строках
 - **Где.** `DefaultDarkPresentationTheme.swift`, `PALETTE_LINE_EDITS`, `replace_in_line`: строка входящих (якорь `secondaryTextColor: UIColor(rgb: 0xffffff, alpha: 0.5), linkTextColor: UIColor(rgb: 0xffffff),`, 8 правок: ссылки, акцент, элементы управления, полоса, выделение текста) и строка исходящих (якорь `), primaryTextColor: UIColor(rgb: 0xffffff), secondaryTextColor: …`, 10 правок).
@@ -414,10 +416,12 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Где.**
   - `submodules/TelegramUIPreferences/Sources/PresentationThemeSettings.swift`: `case .blue:\n                value = 0x0088ff` → `0x5b7a5e`; `if baseTheme == .night && self.baseColor == .blue { return UIColor(rgb: 0x3e88f7)` → `0x9dbb9f`. `replace`.
   - `submodules/LegacyComponents/Sources/TGColor.m`: `color = TGColorWithHex(0x0088ff);` → `0x5b7a5e` (камера, редактор медиа, геопозиция).
-- **Проверка.** `test_patch`, `test_damage` (`THEME_SETTINGS`, `LEGACY_COLORS`).
+  - Редакторы, которые берут не этот акцент, а синий константой (`MEDIA_EDITOR_ACCENTS`, `UIColor(rgb: 0x0088ff)` → `0x5b7a5e`, `replace` с числом вхождений): новый редактор чата 13.2 `ChatMediaEditorBottomControlsComponent.swift` (кнопка отправки, 1) и `ChatMediaEditorCover.swift` (сохранить обложку, 1), `MediaEditorScreen.swift` (4), `MediaToolsScreen.swift` (1), `DrawingUI/Sources/DrawingScreen.swift` (2), `MediaPickerPhotoToolbarView.swift` (кнопка отправки, 1).
+- **Проверка.** `verify_media_editor_accent` (в этих файлах целиком нет `0x0088ff`, новый синий останавливает патч), `MediaEditorAccentTest`, `test_patch`, `test_damage` (`THEME_SETTINGS`, `LEGACY_COLORS`, по одной порче на файл редактора).
 - **Что оставлено.** Темы «Day», «Night Tinted» и прочие акценты — как в апстриме.
-- **Не сделано.** Миниатюра ночной темы в «Оформлении» показывает синий исходящий пузырь Telegram (бриф 020, замечание без решения).
-- **История.** `6f57e5e`, 2026-10-29, задача 017.
+- **Не сделано.** Миниатюра ночной темы в «Оформлении» показывает синий исходящий пузырь Telegram (бриф 020, замечание без решения); та же константа `0x3e88f7` в превью `ThemePickerController.swift:540` и `WallpaperResources.swift:1435`. Синий константой, который был и на 12.9.2 и вне кнопок редактора: курсор `DrawingTextEntityView.swift:547`, точка обложки `MediaScrubberComponent.swift:247`, кнопка `LegacyPaintStickersContext.swift:832`, «сохранить обложку» `TGMediaPickerGalleryInterfaceView.m:534`, `TGCheckButtonView.m:63`, кнопка доступа к камере `CameraScreen/PlaceholderComponent.swift:116,118`.
+- **Не проверено.** Как шалфей смотрится на стеклянных кнопках редакторов, сборки нет.
+- **История.** `6f57e5e`, 2026-10-29, задача 017; редакторы — `e8b8e4a`, 2026-11-09, задача 074.
 
 ### I-047. Аватары «Избранного» и репостов
 - **Что и зачем.** `AvatarNode` держит эти градиенты константами в синем Telegram в любой теме.
@@ -461,9 +465,11 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift`, `SUPPORT_ITEMS_OLD`: три `items[.support]!.append(PeerInfoScreenDisclosureItem(id: 0|1|2, …Settings_Support|Settings_FAQ|Settings_Tips…))`. `replace_lines`.
   - `submodules/SettingsUI/Sources/Search/SettingsSearchableItems.swift`: `let helpItems = helpSearchableItems(context: context)\n allItems.append(contentsOf: helpItems)`. `replace_lines`.
   - `submodules/DebugSettingsUI/Sources/CrashReportsController.swift`, `CRASH_REPORT_TEAM_OLD` (13.2): пункт меню журнала сбоя «Send to Telegram Team» убран. Он шлёт архив боту `iOSCrashReportsBot`, а это имя на сервере Pluma может занять кто угодно. «Share Log», «View Log», «Delete Log» остаются.
-- **Проверка.** `verify_support`, `test_patch`, `test_damage` (`SETTINGS_ITEMS`, `SETTINGS_SEARCH`, `CRASH_REPORTS`).
+  - Там же, `CRASH_REPORT_PROMPT_OLD`, `CRASH_REPORT_SHARE_OLD` (13.2): в окне «New Crash Log Available» (`setupCrashReportPrompt`, по умолчанию выключено, включается переключателем на экране Crash Logs) кнопка «Send Log» вызывала `actions.send` и слала архив тому же боту. Теперь `actions.share`: пользователь сам выбирает чат; `share` больше не `private`. `send` и `confirmSend` остались в файле без вызовов.
+- **Проверка.** `verify_support`, `verify_crash_reports` (нет `.confirmSend(`, нет `actions.send(`, единственный `.send(` — внутри `confirmSend`), `CrashReportsTest`, `test_patch`, `test_damage` (`SETTINGS_ITEMS`, `SETTINGS_SEARCH`, `CRASH_REPORTS`).
+- **Не проверено.** Окно после сбоя на устройстве, сборки нет. Текст окна («…to help us fix the issue») не менялся.
 - **Апстрим / официальный.** Раздел есть.
-- **История.** `a4843f4`, 2026-10-29, задача 017.
+- **История.** `a4843f4`, 2026-10-29, задача 017; окно после сбоя — `c5c64b7`, 2026-11-09, задача 074.
 
 ---
 
@@ -595,9 +601,12 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Где.**
   - `TGMediaVideoConverter.m`, `_audioBitrateKbpsForPreset` (1447-1479) и `_audioChannelsCountForPreset` (1481-1510): `case …:\n            return <N>;\n` по пресетам. Таблицы `LEGACY_AUDIO_KBPS`, `LEGACY_AUDIO_CHANNELS`. `replace`.
   - `MediaEditorValues.swift`, `audioBitrateKbps` (209-218): блок из трёх веток (`case .compressedVeryLow, .compressedLow: return 32` / `case .compressedMedium, .compressedHigh, .compressedVeryHigh, .videoMessage: return 64` / `default: return 0`, отступ 8) заменён целиком, `.videoMessage` вынесен в свою ветку. `audioChannelsCount` (220-227): ветка `case .compressedVeryLow, .compressedLow: return 1` убрана, остаётся `default: return 2`. `replace` блоков `src(" " * 8, …)`.
-- **Проверка.** `verify_video_quality`, `test_patch` (в новой таблице нет `return 1`), `test_damage` (`VIDEO_PRESETS_LEGACY` 360p, `VIDEO_PRESETS` звук и каналы).
+  - Кружок без обрезки в пресеты не попадает (I-093). Новая камера 13.2, `submodules/Camera/CameraNeo/Sources/VideoRecorder.swift:676`: `AVEncoderBitRateKey: 64_000`; после `audioSettings[AVSampleRateKey] = …` вставлено 96 000 при частоте от 44,1 кГц (`ROUND_VIDEO_RECORDER_NEO`, `replace`). При низкой частоте (микрофон Bluetooth-гарнитуры) остаётся 64: `canApply` с отказом обрывает запись (`.audioInitializationError`), а 96 кбит/с на такой частоте на устройстве не пробовали.
+- **Проверка.** `verify_video_quality`, `test_patch` (в новой таблице нет `return 1`, 96 000 в новой камере), `test_damage` (`VIDEO_PRESETS_LEGACY` 360p, `VIDEO_PRESETS` звук и каналы, `ROUND_VIDEO_RECORDER_NEO`).
+- **Не сделано.** Старая камера (`CameraOutput.swift:379`, `recommendedAudioSettingsForAssetWriter`): битрейт задаёт система, в коде числа нет, правка без устройства опасна. На кружок она идёт только по `ios_killswitch_disable_neo_round_camera_v2` или настройке отладки (`VideoMessageCameraScreen.swift:979-981`; по умолчанию `.hdBilinear`, новая камера).
+- **Не проверено.** Запись кружка и фактический битрейт на устройстве, сборки нет.
 - **Апстрим / официальный.** 32 моно для 240p и 360p, 64 для остальных.
-- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
+- **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052; новая камера — `d9ca2b5`, 2026-11-09, задача 074.
 
 ### I-092. Видео, отправленное как GIF (пресет Animation)
 - **Что и зачем.** 900 → 1800 кбит/с. У апстрима Animation попадает в `default`, поэтому правка добавляет отдельную ветку перед `default`, а сам `default` (900) остаётся для прочих пресетов.
@@ -796,7 +805,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### I-100. Экран обновления открывает `url`
 
-- **Где.** `submodules/TelegramUpdateUI/Sources/UpdateInfoController.swift:117-119`: кнопка «Обновить» открывает `appUpdateInfo.url` через `applicationBindings.openUrl`, без `url` — как прежде, `openAppStorePage` (у Pluma `appstore_id = 0`, страницы нет).
+- **Где.** `submodules/TelegramUpdateUI/Sources/UpdateInfoController.swift:117-119`: кнопка «Обновить» открывает `appUpdateInfo.url` через `applicationBindings.openUrl`, без `url` — `openAppStorePage`, с 2026-11-09 (`8b45518`) это сайт (I-111).
 
 ### I-101. Признак `adhoc` в `app_version`
 
@@ -920,8 +929,9 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Статус.** Ветка `task/074-upstream`, 13.2 (2026-11-09).
 - **Что и зачем.** С 13.x у плашки неподдерживаемого сообщения и блока свой значок — самолёт Telegram (шаблон, `UnsupportedContentPillView.swift:47`). Заменён на знак Pluma, шаблон 44×44 в 26 pt.
 - **Где.** `submodules/TelegramUI/Images.xcassets/Chat/Message/UnsupportedIcon.imageset/logo.pdf`, `BRAND_REPLACED`, рендер `brand/render.sh`. Фон `UnsupportedIconBackground` (пузырь) без бренда, не правится.
-- **Проверка.** `verify_brand`, `BrandTest` (файл и SHA-256 апстрима), `test_damaged_images`.
-- **Не проверено.** Как значок смотрится в плашке, сборки нет.
+- **Кнопка плашки.** Она зовёт `openAppStorePage`: `ChatMessageUnsupportedBubbleContentNode.swift:33`, с 13.2 ещё `ChatMessageRichDataBubbleContentNode.swift:562` и `ChatMessageWidgetBubbleContentNode.swift:135` (и Passport, истории, экран обновления без `url`). С `appstore_id = 0` это страница, которой нет. `submodules/TelegramUI/Sources/AppDelegate.swift:938-939`, строка в `APP_UPDATE_EDITS`: привязка открывает `https://pluma.chat/` (корень сайта исключён из universal links, `apple-app-site-association`, откроется браузер). Коммит `8b45518`, 2026-11-09.
+- **Проверка.** `verify_brand`, `BrandTest` (файл и SHA-256 апстрима), `test_damaged_images`; кнопка — `verify_app_update`, `AppUpdateTest`, `test_damage` (`APP_DELEGATE`).
+- **Не проверено.** Как значок смотрится в плашке и куда ведёт кнопка на устройстве, сборки нет.
 
 ### I-112. Подпись схемы на QR-коде прокси
 - **Статус.** Ветка `task/074-upstream`, 13.2 (2026-11-09).
