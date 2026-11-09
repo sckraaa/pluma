@@ -30,7 +30,10 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/servicemsg"
 
+	"github.com/zeromicro/go-zero/core/breaker"
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // A broadcast is a job of the panel: a text from the service account to an
@@ -59,6 +62,7 @@ const (
 	broadcastIdsMax  = 10000
 	broadcastLease   = 5 * time.Minute
 	broadcastPollGap = 5 * time.Second
+	broadcastErrMax  = 512 // characters of admin_broadcasts.last_error
 )
 
 // broadcast is a row of admin_broadcasts.
@@ -236,8 +240,13 @@ func (s *server) handleBroadcastStart(w http.ResponseWriter, r *http.Request, a 
 		return
 	}
 	// The journal has the audience and the numbers, the text stays in the
-	// row of the broadcast.
+	// row of the broadcast. The row exists stopped until the journal has it:
+	// the journal names its id, and what it did not record does not go out.
 	if !s.journal(w, r, a, "broadcast_start", fmt.Sprintf("broadcast:%d", id), fmt.Sprintf("audience=%s total=%d", body.Audience, total)) {
+		return
+	}
+	if err := s.store.startBroadcast(r.Context(), id); err != nil {
+		s.fail(w, r, "broadcast start", err)
 		return
 	}
 	writeJSON(w, map[string]any{"id": id})
@@ -271,13 +280,20 @@ func (s *server) handleBroadcastCancel(w http.ResponseWriter, r *http.Request, a
 
 const broadcastColumns = "id, `text`, audience, audience_id, ids, state, total, sent, failed, cursor_id, last_error, created_by, created_at, done_at, claim_until"
 
+// createBroadcast writes a broadcast stopped, for the worker not to take it
+// before startBroadcast.
 func (s *store) createBroadcast(ctx context.Context, b *broadcast) (int64, error) {
-	r, err := s.db.Exec(ctx, "INSERT INTO admin_broadcasts (`text`, audience, audience_id, ids, total, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		b.Text, b.Audience, b.AudienceId, b.Ids, b.Total, b.CreatedBy, b.CreatedAt)
+	r, err := s.db.Exec(ctx, "INSERT INTO admin_broadcasts (`text`, audience, audience_id, ids, state, total, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		b.Text, b.Audience, b.AudienceId, b.Ids, broadcastCanceled, b.Total, b.CreatedBy, b.CreatedAt)
 	if err != nil {
 		return 0, err
 	}
 	return r.LastInsertId()
+}
+
+func (s *store) startBroadcast(ctx context.Context, id int64) error {
+	_, err := s.db.Exec(ctx, "UPDATE admin_broadcasts SET state = ? WHERE id = ? AND state = ?", broadcastRunning, id, broadcastCanceled)
+	return err
 }
 
 func (s *store) broadcasts(ctx context.Context, limit int) ([]broadcast, error) {
@@ -350,6 +366,27 @@ func (s *store) broadcastState(ctx context.Context, id int64) (int8, error) {
 	return state, nil
 }
 
+// serviceDown tells a message service that did not answer (a restart, the
+// client's circuit breaker) from an answer refusing the recipient.
+func serviceDown(err error) bool {
+	if errors.Is(err, breaker.ErrServiceUnavailable) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	switch status.Code(err) {
+	case codes.Unavailable, codes.Canceled, codes.DeadlineExceeded:
+		return true
+	}
+	return false
+}
+
+// cutError fits an error into admin_broadcasts.last_error.
+func cutError(s string) string {
+	if r := []rune(s); len(r) > broadcastErrMax {
+		return string(r[:broadcastErrMax])
+	}
+	return s
+}
+
 // runBroadcasts sends the running broadcasts, one at a time, until ctx ends.
 func runBroadcasts(ctx context.Context, st *store, msg servicemsg.Msg) {
 	for {
@@ -395,12 +432,18 @@ func sendNext(ctx context.Context, st *store, msg servicemsg.Msg) error {
 			var failed bool
 			var lastError string
 			sendCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			if err := servicemsg.Send(sendCtx, msg, userId, time.Now(), b.Text, nil); err != nil {
+			err := servicemsg.Send(sendCtx, msg, userId, time.Now(), b.Text, nil)
+			cancel()
+			if err != nil {
+				if serviceDown(err) {
+					// Not this recipient's failure: the broadcast stays where
+					// it is and goes on when its lease ends.
+					return fmt.Errorf("broadcast %d: the message service: %w", b.Id, err)
+				}
 				failed = true
-				lastError = fmt.Sprintf("user %d: %v", userId, err)
+				lastError = cutError(fmt.Sprintf("user %d: %v", userId, err))
 				logx.Errorf("admin: broadcast %d: %s", b.Id, lastError)
 			}
-			cancel()
 			if err := st.advanceBroadcast(ctx, b.Id, userId, failed, lastError); err != nil {
 				return err
 			}

@@ -16,9 +16,16 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
+	"unicode/utf8"
+
+	"github.com/zeromicro/go-zero/core/breaker"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestMaskPhone(t *testing.T) {
@@ -52,6 +59,31 @@ func TestUserSearchWhere(t *testing.T) {
 		if len(args) != tc.nargs {
 			t.Errorf("%q: %d args, want %d", tc.q, len(args), tc.nargs)
 		}
+	}
+}
+
+func TestServiceDown(t *testing.T) {
+	for err, want := range map[error]bool{
+		status.Error(codes.Unavailable, "restart"):       true,
+		status.Error(codes.DeadlineExceeded, "slow"):     true,
+		breaker.ErrServiceUnavailable:                    true,
+		context.Canceled:                                 true,
+		status.Error(codes.Code(400), "PEER_ID_INVALID"): false,
+		errors.New("refused"):                            false,
+	} {
+		if got := serviceDown(err); got != want {
+			t.Errorf("serviceDown(%v) = %v", err, got)
+		}
+	}
+}
+
+func TestCutError(t *testing.T) {
+	long := strings.Repeat("ё", broadcastErrMax+10)
+	if got := cutError(long); utf8.RuneCountInString(got) != broadcastErrMax {
+		t.Errorf("%d characters", utf8.RuneCountInString(got))
+	}
+	if got := cutError("short"); got != "short" {
+		t.Errorf("got %q", got)
 	}
 }
 

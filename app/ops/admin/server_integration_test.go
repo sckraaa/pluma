@@ -27,6 +27,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -45,6 +46,9 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
 	"github.com/teamgram/teamgram-server/pkg/phoneallowlist"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var itDB *testinfra.MySQL
@@ -72,11 +76,18 @@ type fakeServices struct {
 	chatsDeleted               []int64
 	messaged                   []int64
 	forgotten                  []int64
+	failForget                 bool
+	// pushes counts the calls of MsgPushUserMessage; the call number
+	// downAt finds the message service down, once.
+	pushes, downAt int
 }
 
 func (f *fakeServices) MsgPushUserMessage(ctx context.Context, in *msgpb.TLMsgPushUserMessage) (*mtproto.Bool, error) {
 	if f.failNotify {
 		return nil, fmt.Errorf("msg is down")
+	}
+	if f.pushes++; f.pushes == f.downAt {
+		return nil, status.Error(codes.Unavailable, "msg restarts")
 	}
 	f.notified++
 	f.messaged = append(f.messaged, in.PeerId)
@@ -130,6 +141,9 @@ func (f *fakeServices) AuthsessionGetAuthorizations(ctx context.Context, in *aut
 	return mtproto.MakeTLAccountAuthorizations(&mtproto.Account_Authorizations{Authorizations: []*mtproto.Authorization{}}).To_Account_Authorizations(), nil
 }
 func (f *fakeServices) Forget(ctx context.Context, userId int64) error {
+	if f.failForget {
+		return fmt.Errorf("redis is down")
+	}
 	f.forgotten = append(f.forgotten, userId)
 	return nil
 }
@@ -616,6 +630,15 @@ func TestPanelUserDeletionRules(t *testing.T) {
 	if code, _ := owner.signedAction(path, map[string]any{"confirm": "12"}); code != http.StatusBadRequest {
 		t.Fatalf("delete with a wrong confirmation: %d", code)
 	}
+	// A step that fails is an error, the account stays to be deleted again.
+	e.fake.failForget = true
+	if code, _ := owner.signedAction(path, body); code != http.StatusBadGateway {
+		t.Fatalf("delete with a failing step: %d", code)
+	}
+	if len(e.fake.userDeleted) != 0 {
+		t.Fatal("the account was deleted before its last step")
+	}
+	e.fake.failForget = false
 	// Blocked and confirmed.
 	if code, out := owner.signedAction(path, body); code != http.StatusOK {
 		t.Fatalf("delete: %d %s", code, out)
@@ -780,7 +803,8 @@ func TestPanelRegistration(t *testing.T) {
 	owner.loginWithPasskey()
 	ctx := context.Background()
 	list := phoneallowlist.New(e.db)
-	phone := "1999" + unique("")[6:]
+	uniqueUser++
+	phone := fmt.Sprintf("1201555%04d", 100+uniqueUser%100) // a number the validator takes
 	defer func() { _ = list.SetRegistrationOpen(ctx, false, "test") }()
 
 	if allowed, err := list.Contains(ctx, phone); err != nil || allowed {
@@ -838,12 +862,26 @@ func TestPanelBroadcast(t *testing.T) {
 		t.Error("not journaled")
 	}
 
-	// A first run cut off after one send resumes at the second recipient.
+	// The message service goes down at the second recipient: nobody is lost
+	// and the run goes on from there when the lease ends.
 	ctx := context.Background()
+	e.fake.downAt = 2
+	if err := sendNext(ctx, e.store, e.fake); err == nil {
+		t.Fatal("the run went on with the message service down")
+	}
+	if len(e.fake.messaged) != 1 {
+		t.Fatalf("sent to %v before the service went down", e.fake.messaged)
+	}
+	if b, err := e.store.claimBroadcast(ctx); err != nil || b != nil {
+		t.Fatalf("taken again under its lease: %+v %v", b, err)
+	}
+	if _, err := e.db.Exec(ctx, "UPDATE admin_broadcasts SET claim_until = 0 WHERE state = ?", broadcastRunning); err != nil {
+		t.Fatal(err)
+	}
 	if err := sendNext(ctx, e.store, e.fake); err != nil {
 		t.Fatal(err)
 	}
-	if len(e.fake.messaged) != len(ids) {
+	if !slices.Equal(e.fake.messaged, ids) {
 		t.Fatalf("sent to %v, want %v", e.fake.messaged, ids)
 	}
 	rows, err := e.store.broadcasts(ctx, 5)

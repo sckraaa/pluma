@@ -308,10 +308,11 @@ type deleteBody struct {
 	Confirm string `json:"confirm"`
 }
 
-// handleUserDelete deletes an account for good, the same steps as
+// handleUserDelete deletes an account for good, the steps of
 // account.deleteAccount (bff account). Only an account blocked first, with a
-// separate confirmation; a step that fails leaves the deletion to be tried
-// again, each step is safe to repeat.
+// separate confirmation. The deletion itself goes last: a step that fails
+// answers an error and leaves the account to delete again, which repeats the
+// steps before it safely (a blocked account cannot log back in meanwhile).
 func (s *server) handleUserDelete(w http.ResponseWriter, r *http.Request, a *actor) {
 	id, ok := parseID(w, r.PathValue("id"))
 	if !ok {
@@ -329,6 +330,10 @@ func (s *server) handleUserDelete(w http.ResponseWriter, r *http.Request, a *act
 		httpError(w, http.StatusBadRequest, "the confirmation does not match")
 		return
 	}
+	if u.Deleted {
+		httpError(w, http.StatusConflict, "the account is deleted")
+		return
+	}
 	restriction, err := s.dao.Restriction(r.Context(), id)
 	if err != nil {
 		s.fail(w, r, "restriction", err)
@@ -341,23 +346,30 @@ func (s *server) handleUserDelete(w http.ResponseWriter, r *http.Request, a *act
 	if !s.journal(w, r, a, "delete_user", fmt.Sprintf("user:%d", id), "") {
 		return
 	}
-	if u.Username != "" {
-		if _, err = s.user.UserDeleteUsername(r.Context(), &user.TLUserDeleteUsername{Username: u.Username}); err != nil {
-			s.logWarn(r, "delete username", err)
+	steps := []struct {
+		name string
+		run  func() error
+	}{
+		{"sessions", func() error { return s.runner.Revoke(r.Context(), id) }},
+		{"2fa", func() error { return s.twofa.Forget(r.Context(), id) }},
+		{"username", func() error {
+			if u.Username == "" {
+				return nil
+			}
+			_, err := s.user.UserDeleteUsername(r.Context(), &user.TLUserDeleteUsername{Username: u.Username})
+			return err
+		}},
+		{"user", func() error {
+			_, err := s.user.UserDeleteUser(r.Context(), &user.TLUserDeleteUser{UserId: id, Reason: "panel", Phone: u.Phone})
+			return err
+		}},
+	}
+	for _, step := range steps {
+		if err = step.run(); err != nil {
+			s.logWarn(r, "delete "+step.name, err)
 			httpError(w, http.StatusBadGateway, "the account could not be deleted")
 			return
 		}
-	}
-	if _, err = s.user.UserDeleteUser(r.Context(), &user.TLUserDeleteUser{UserId: id, Reason: "panel", Phone: u.Phone}); err != nil {
-		s.logWarn(r, "delete user", err)
-		httpError(w, http.StatusBadGateway, "the account could not be deleted")
-		return
-	}
-	if err = s.twofa.Forget(r.Context(), id); err != nil {
-		s.logWarn(r, "delete 2fa", err)
-	}
-	if err = s.runner.Revoke(r.Context(), id); err != nil {
-		s.logWarn(r, "delete sessions", err)
 	}
 	writeJSON(w, map[string]any{"ok": true})
 }
