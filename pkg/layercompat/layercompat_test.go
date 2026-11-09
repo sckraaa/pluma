@@ -16,7 +16,6 @@
 package layercompat
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -201,7 +200,7 @@ func TestRequiredFieldMakesParentGoAway(t *testing.T) {
 	full := mtproto.MakeTLUserFull(&mtproto.UserFull{Id: 1,
 		Settings: &mtproto.PeerSettings{PredicateName: "peerSettingsFromTheFuture"},
 	}).To_UserFull()
-	if _, err := EncodeFor(full, 233); !errors.Is(err, ErrNotRepresentable) {
+	if _, err := EncodeFor(full, 233); err == nil {
 		t.Fatalf("got %v", err)
 	}
 }

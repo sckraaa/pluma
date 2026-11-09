@@ -101,14 +101,18 @@ func constructorOf(m protoreflect.Message) (predicate string, ok bool) {
 		return predicate, true
 	}
 	if cfd := m.Descriptor().Fields().ByName("constructor"); cfd != nil && cfd.Kind() == protoreflect.EnumKind {
-		return mtproto.GetClazzNameById(int32(m.Get(cfd).Enum())), true
+		if name := mtproto.GetClazzNameById(int32(m.Get(cfd).Enum())); name != "" {
+			return name, true
+		}
 	}
-	return "", true
+	// Neither name nor number: nothing to judge by here (the core objects
+	// are built like that); Encode says whether it can be written.
+	return "", false
 }
 
 // representable says whether the layer has the constructor.
 func representable(predicate string, layer int32) bool {
-	return predicate != "" && mtproto.GetClazzID(predicate, int(layer)) != 0
+	return predicate != "" && mtproto.IsInLayer(predicate, int(layer))
 }
 
 func needsChange(m protoreflect.Message, layer int32) bool {
@@ -161,7 +165,7 @@ func fixChild(m protoreflect.Message, layer int32) bool {
 		convertMarkup(v, layer)
 	case *mtproto.MessageReplyHeader:
 		if layer < layerRichQuote && len(v.GetQuoteRich()) != 0 && v.GetQuoteText() == nil {
-			v.QuoteText = wrapperspb.String(flatRichText(v.GetQuoteRich()))
+			v.QuoteText = wrapperspb.String(FlatRichText(v.GetQuoteRich()))
 		}
 	}
 
@@ -231,9 +235,9 @@ func convert(m protoreflect.Message, layer int32) bool {
 	return false
 }
 
-// flatRichText renders the fragments of quote_rich as the plain text older
+// FlatRichText renders the fragments of quote_rich as the plain text older
 // clients show (RichQuote.flatText, Android 13.2.1 RichQuote.java:223-229).
-func flatRichText(rich []*mtproto.RichText) string {
+func FlatRichText(rich []*mtproto.RichText) string {
 	var out []byte
 	var walk func(*mtproto.RichText)
 	walk = func(t *mtproto.RichText) {
