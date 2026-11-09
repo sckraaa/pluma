@@ -842,6 +842,11 @@ func (c *MsgCore) deliverScheduled(rows []*dao.ScheduledRow, authKeyId int64, fr
 	v := queueView{peer: queuePeer(peerType, peerId), audience: audience, users: noUsers, chats: noChats}
 	var deleted *mtproto.Update
 	in := &msg.TLMsgSendMessageV2{UserId: senderId, AuthKeyId: authKeyId, PeerType: peerType, PeerId: peerId, Message: outBox}
+	// A restriction may have come after the message was scheduled; for the
+	// worker it is final, as for a sender who lost the chat (dropScheduled).
+	if err = c.checkRestriction(in); err != nil {
+		return nil, err
+	}
 	updates, err := c.send(in, sendOptions{
 		queued:        true,
 		fromScheduled: fromScheduled,

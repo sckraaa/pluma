@@ -30,8 +30,16 @@ import (
 // (core.telegram.org/method/messages.sendMessage). A chat with oneself and
 // with the service notifications account stay open, so that a restricted
 // user is not cut off from the appeal (Android opens @spambot from the
-// PEER_FLOOD alert).
+// PEER_FLOOD alert). A banned account, whose sessions are being ended, has
+// no exception for its contacts.
+//
+// A service message is not a message the user wrote: it records a chat
+// action (leaving a group, creating one) that its own service has already
+// carried out, and refusing it would leave that action half done.
 func (c *MsgCore) checkRestriction(in *msg.TLMsgSendMessageV2) error {
+	if onlyServiceMessages(in.GetMessage()) {
+		return nil
+	}
 	r, err := c.svcCtx.Dao.Moderation.Restriction(c.ctx, in.GetUserId())
 	if err != nil {
 		return err
@@ -43,6 +51,9 @@ func (c *MsgCore) checkRestriction(in *msg.TLMsgSendMessageV2) error {
 	case mtproto.PEER_USER:
 		if in.GetPeerId() == in.GetUserId() || in.GetPeerId() == moderation.ServiceUserId {
 			return nil
+		}
+		if r.Kind == moderation.RestrictBanned {
+			return moderation.ErrPeerFlood
 		}
 		users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{
 			Id: []int64{in.GetUserId(), in.GetPeerId()},
@@ -61,4 +72,15 @@ func (c *MsgCore) checkRestriction(in *msg.TLMsgSendMessageV2) error {
 		return mtproto.ErrUserBannedInChannel
 	}
 	return nil
+}
+
+// onlyServiceMessages tells whether a send holds nothing but service
+// messages.
+func onlyServiceMessages(outBox []*msg.OutboxMessage) bool {
+	for _, m := range outBox {
+		if m.GetMessage().GetPredicateName() != mtproto.Predicate_messageService {
+			return false
+		}
+	}
+	return true
 }

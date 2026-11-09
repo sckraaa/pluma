@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -83,6 +84,8 @@ func TestPermanentSendError(t *testing.T) {
 		{mtproto.ErrChatWriteForbidden, true},
 		{mtproto.ErrChannelPrivate, true},
 		{mtproto.ErrPeerIdInvalid, true},
+		{moderation.ErrPeerFlood, true},
+		{mtproto.ErrUserBannedInChannel, true},
 		{status.Error(codes.Unavailable, "msg is down"), false},
 		{mtproto.ErrInternalServerError, false},
 		{errors.New("deadlock"), false},
