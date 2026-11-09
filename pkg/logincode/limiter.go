@@ -43,6 +43,10 @@ var (
 	// All code requests from one address: bounds the codes (and messages
 	// from 777000) one address can trigger across many phones.
 	SendCodePerIP = Rule{Name: "send_code_ip", Limit: 200, Window: time.Hour}
+	// Codes written by the real Telegram account (DeliverByTelegram) for one
+	// address. Over it no error is returned: the code just takes the
+	// administrator path. The account's own limits are in app/ops/codes.
+	TelegramCodePerIP = Rule{Name: "telegram_code_ip", Limit: 20, Window: time.Hour}
 
 	// Phones not on the allowlist, asked about from one address by any
 	// method that takes a phone. Only misses count: the allowlist cannot be

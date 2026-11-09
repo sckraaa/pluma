@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -245,5 +246,29 @@ func TestRedisLimiter(t *testing.T) {
 	s.limiter.Refund(ctx, rule, subject)
 	if ok, _ := rds.ExistsCtx(ctx, floodKey(rule, subject)); ok {
 		t.Fatal("Refund created a counter")
+	}
+}
+
+// TestRegistrationSwitchOnMySQL runs the switch on the migrated schema.
+func TestRegistrationSwitchOnMySQL(t *testing.T) {
+	ctx := context.Background()
+	mysql, err := testinfra.StartMySQL(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = mysql.Terminate(ctx) })
+	conf := mysql.Config()
+	r := NewRegistration(sqlx.NewMySQL(&conf))
+
+	if open, err := r.RegistrationOpen(ctx); err != nil || open {
+		t.Fatalf("no row: %v, %v", open, err)
+	}
+	for _, want := range []bool{true, true, false, true} {
+		if err := r.SetRegistrationOpen(ctx, want); err != nil {
+			t.Fatal(err)
+		}
+		if open, err := r.RegistrationOpen(ctx); err != nil || open != want {
+			t.Fatalf("after set %v: %v, %v", want, open, err)
+		}
 	}
 }

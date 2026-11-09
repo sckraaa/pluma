@@ -3,18 +3,21 @@
 // closed deployment (task 001, ADR 0003):
 //
 //   - only phones on the allowlist (MySQL table phone_allowlist, managed with
-//     tools/pluma-admin) may request or use a code; others get
+//     tools/pluma-admin) may request or use a code, or anyone while
+//     registration is open (RegistrationOpen); others get
 //     PHONE_NUMBER_INVALID, whether or not an account exists;
 //   - a code is Length random digits from crypto/rand; only its HMAC (see
 //     Hasher) is stored, in Redis, next to the phone_code_hash;
 //   - a phone_code_hash allows MaxAttempts code checks, then
 //     PHONE_CODE_EXPIRED; code requests and checks are limited with
 //     FLOOD_WAIT_X (see Rule);
-//   - a code goes either to the user's other authorized sessions (the caller
-//     sends it as a message from the service notifications account) or, when
-//     there is none, nowhere: the administrator issues one for a chosen
-//     pending request with `pluma-admin login-code <phone> [request]`
-//     (Service.Pending, Service.Reissue). There is no fixed or test code.
+//   - a code goes to the user's other authorized sessions (the caller sends
+//     it as a message from the service notifications account); when there is
+//     none, to the user's own Telegram account, if the sender of task 073 is
+//     deployed (DeliverByTelegram); and in every other case nowhere: the
+//     administrator issues one for a chosen pending request with
+//     `pluma-admin login-code <phone> [request]` (Service.Pending,
+//     Service.Reissue). There is no fixed or test code.
 package logincode
 
 import (
@@ -57,6 +60,12 @@ type Config struct {
 	// phone must still be on the allowlist, and every limit applies to it.
 	ReviewPhone string
 	ReviewCode  string
+	// SenderURL and SenderToken reach the service that writes codes from a
+	// real Telegram account (app/ops/codes, docs/ops/login-codes.md):
+	// ${LOGIN_CODES_SENDER_URL}, ${LOGIN_CODES_SENDER_TOKEN}. Both empty: no
+	// such service, codes come in the app or from the administrator.
+	SenderURL   string `json:",optional"`
+	SenderToken string `json:",optional"`
 }
 
 // Allowlist tells which phones may log in or sign up.
@@ -96,6 +105,10 @@ type Service struct {
 	hasher    *Hasher
 	// review is the phone with a fixed code and the code, or empty.
 	reviewPhone, reviewCode string
+	// sender writes codes to the user's Telegram account; nil if not deployed.
+	sender Sender
+	// registration opens login to phones off the allowlist; nil: by list.
+	registration RegistrationSwitch
 
 	now    func() time.Time
 	random io.Reader
@@ -114,8 +127,13 @@ func NewService(c Config, allowlist Allowlist, kv kv.Store) (*Service, error) {
 	if err := checkReview(c.ReviewPhone, c.ReviewCode); err != nil {
 		return nil, err
 	}
+	sender, err := senderFromConfig(c)
+	if err != nil {
+		return nil, err
+	}
 	return &Service{
 		allowlist:   allowlist,
+		sender:      sender,
 		store:       NewStore(kv),
 		limiter:     NewLimiter(kv),
 		hasher:      hasher,
@@ -143,7 +161,7 @@ func checkReview(phone, code string) error {
 
 // CheckAllowed returns PHONE_NUMBER_INVALID if phone is not on the allowlist.
 func (s *Service) CheckAllowed(ctx context.Context, phone string) error {
-	ok, err := s.allowlist.Contains(ctx, phone)
+	ok, err := s.allowed(ctx, phone)
 	if err != nil {
 		logx.WithContext(ctx).Errorf("phone allowlist lookup: %v", err)
 		return mtproto.ErrInternalServerError
@@ -370,7 +388,7 @@ const requestIdLength = 8
 // who knows the phone can create one, so the administrator picks the one
 // whose time and address match what the owner says.
 func (s *Service) Pending(ctx context.Context, phone string) ([]PendingRequest, error) {
-	if ok, err := s.allowlist.Contains(ctx, phone); err != nil {
+	if ok, err := s.allowed(ctx, phone); err != nil {
 		return nil, err
 	} else if !ok {
 		return nil, ErrNotAllowed

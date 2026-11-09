@@ -44,6 +44,7 @@ func TestSchemaLoads(t *testing.T) {
 		{"user_passwords", "pending_delete_date"},
 		{"user_seq_updates", "pts"}, // migrate-20261026-seq-journal.sql
 		{"user_seq_cursors", "seq"},
+		{"registration_settings", "is_open"}, // migrate-20261109-login-codes.sql
 	} {
 		var n int
 		err = db.QueryRow("select count(*) from information_schema.columns where table_schema = ? and table_name = ? and column_name = ?",
