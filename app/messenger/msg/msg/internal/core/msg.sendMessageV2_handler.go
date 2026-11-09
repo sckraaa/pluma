@@ -554,7 +554,8 @@ func botCopy(b *userbox.Box, chat *mtproto.MutableChat, users *mtproto.MutableUs
 		if err != nil {
 			return nil, err
 		}
-		if botprivacy.Visible(bot, box.GetMessage(), author == userId) {
+		sender, _ := users.GetImmutableUser(box.GetMessage().GetFromId().GetUserId())
+		if botprivacy.Visible(bot, box.GetMessage(), sender != nil && sender.IsBot(), author == userId) {
 			out = append(out, box)
 		}
 	}

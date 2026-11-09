@@ -18,7 +18,8 @@
 // privacy mode unless turned off or added as admins, and then see commands
 // meant for them, inline messages sent via them, replies to messages meant
 // for them and all service messages. Channels and private chats are not
-// filtered.
+// filtered. core.telegram.org/bots/faq: bots "will not be able to see messages
+// from other bots regardless of mode".
 package botprivacy
 
 import (
@@ -36,20 +37,26 @@ type Bot struct {
 	ReadsAll bool
 }
 
-// Visible tells whether the bot gets m. repliedToBot: m replies to a message
-// the bot sent.
+// Visible tells whether the bot gets m. fromBot: another bot sent m.
+// repliedToBot: m replies to a message the bot sent.
 //
 // A general command, without @name, goes to every bot of the group. Telegram
 // sends it only to the last bot that wrote there; that needs per-chat state
 // and ours is a deliberate superset (the brief's decisions to confirm).
-func Visible(b Bot, m *mtproto.Message, repliedToBot bool) bool {
+func Visible(b Bot, m *mtproto.Message, fromBot, repliedToBot bool) bool {
 	if m == nil {
 		return false
 	}
-	if b.ReadsAll || repliedToBot {
+	if m.GetFromId().GetUserId() == b.Id {
 		return true
 	}
 	if m.GetPredicateName() == mtproto.Predicate_messageService || m.GetAction() != nil {
+		return true
+	}
+	if fromBot {
+		return false
+	}
+	if b.ReadsAll || repliedToBot {
 		return true
 	}
 	if m.GetViaBotId() != nil && m.GetViaBotId().GetValue() == b.Id {

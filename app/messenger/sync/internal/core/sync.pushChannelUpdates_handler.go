@@ -114,7 +114,9 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 
 // forBot is what of updates the member gets when it is a bot in privacy mode
 // of a supergroup: nil when no update remains (pkg/botprivacy; a broadcast
-// channel's posts reach all its bots). mentioned tells replies to the bot.
+// channel's posts reach all its bots). mentioned holds for the author of the
+// message replied to and for the users of the text's mentions: only the
+// first counts for the bot, as in a basic group.
 func forBot(updates *mtproto.Updates, mc *channelpb.MutableChannel, users *mtproto.MutableUsers, member int64, mentioned bool) *mtproto.Updates {
 	u, ok := users.GetImmutableUser(member)
 	if !ok || !u.IsBot() || mc.GetChannel().GetBroadcast() {
@@ -128,8 +130,11 @@ func forBot(updates *mtproto.Updates, mc *channelpb.MutableChannel, users *mtpro
 	}
 	kept := updates.GetUpdates()[:0]
 	for _, up := range updates.GetUpdates() {
-		if m := up.GetMessage_MESSAGE(); m != nil && !botprivacy.Visible(bot, m, mentioned) {
-			continue
+		if m := up.GetMessage_MESSAGE(); m != nil {
+			sender, _ := users.GetImmutableUser(m.GetFromId().GetUserId())
+			if !botprivacy.Visible(bot, m, sender != nil && sender.IsBot(), mentioned && m.GetReplyTo() != nil) {
+				continue
+			}
 		}
 		kept = append(kept, up)
 	}

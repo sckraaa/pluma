@@ -43,8 +43,14 @@ func TestForBotSupergroup(t *testing.T) {
 	if forBot(mtproto.MakeUpdatesByUpdates(msg("plain")), mc, users, botId, false) != nil {
 		t.Fatal("a push with nothing for the bot")
 	}
-	if forBot(mtproto.MakeUpdatesByUpdates(msg("plain")), mc, users, botId, true) == nil {
+	reply := msg("plain")
+	reply.GetMessage_MESSAGE().ReplyTo = mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{ReplyToMsgId_FLAGINT32: mtproto.MakeFlagsInt32(7)}).To_MessageReplyHeader()
+	if forBot(mtproto.MakeUpdatesByUpdates(reply), mc, users, botId, true) == nil {
 		t.Fatal("a reply to the bot was dropped")
+	}
+	// Mentioned, but in no reply: as in a basic group, the bot does not get it.
+	if forBot(mtproto.MakeUpdatesByUpdates(msg("plain")), mc, users, botId, true) != nil {
+		t.Fatal("a mention reached a bot in privacy mode")
 	}
 
 	// A broadcast channel's posts reach all its bots.

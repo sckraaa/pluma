@@ -49,11 +49,28 @@ func TestVisible(t *testing.T) {
 		{"via another", mtproto.MakeTLMessage(&mtproto.Message{Message: "x", ViaBotId: wrapperspb.Int64(6)}).To_Message(), false, false},
 	}
 	for _, c := range cases {
-		if got := Visible(bot, c.m, c.replied); got != c.want {
+		if got := Visible(bot, c.m, false, c.replied); got != c.want {
 			t.Errorf("%s: %v, want %v", c.name, got, c.want)
 		}
 	}
-	if !Visible(Bot{Id: 5, ReadsAll: true}, text("hello"), false) {
+	if !Visible(Bot{Id: 5, ReadsAll: true}, text("hello"), false, false) {
 		t.Error("privacy off hides a message")
+	}
+}
+
+// core.telegram.org/bots/faq: no mode shows a bot what another bot wrote; its
+// service messages stay, and the bot's own messages are its own.
+func TestVisibleOtherBots(t *testing.T) {
+	reader := Bot{Id: 5, Username: "my_bot", ReadsAll: true}
+	if Visible(reader, text("/help@my_bot"), true, true) {
+		t.Error("a message of another bot reached a bot that reads all")
+	}
+	service := mtproto.MakeTLMessageService(&mtproto.Message{Action: mtproto.MakeTLMessageActionChatJoinedByLink(&mtproto.MessageAction{}).To_MessageAction()}).To_Message()
+	if !Visible(reader, service, true, false) {
+		t.Error("a service message of another bot was hidden")
+	}
+	own := mtproto.MakeTLMessage(&mtproto.Message{Message: "plain", FromId: mtproto.MakePeerUser(5)}).To_Message()
+	if !Visible(Bot{Id: 5, Username: "my_bot"}, own, false, false) {
+		t.Error("the bot's own message was hidden")
 	}
 }
