@@ -46,8 +46,8 @@ func TestSearchAcross(t *testing.T) {
 	f.send(ch1, me, 2)
 	f.send(ch2, me, 2)
 	a, b := f.firstMessageId(ch1, me), f.firstMessageId(ch2, me)
-	f.exec("UPDATE channel_messages SET message = 'Кот на крыше', date2 = 100 WHERE channel_id = ? AND id = ?", ch1, a)
-	f.exec("UPDATE channel_messages SET message = 'коты в доме', date2 = 200 WHERE channel_id = ? AND id = ?", ch2, b)
+	f.exec("UPDATE channel_messages SET message = 'Кот на крыше', date2 = 100, message_data = JSON_SET(message_data, '$.date', 100) WHERE channel_id = ? AND id = ?", ch1, a)
+	f.exec("UPDATE channel_messages SET message = 'коты в доме', date2 = 200, message_data = JSON_SET(message_data, '$.date', 200) WHERE channel_id = ? AND id = ?", ch2, b)
 
 	search := func(q dao.AcrossQuery) *mtproto.Messages_Messages {
 		t.Helper()
@@ -120,7 +120,7 @@ func TestSearchAuthors(t *testing.T) {
 	f := newDiffFixture(t)
 	me := f.user("Me")
 	id := f.create(me)
-	f.send(id, me, 2)
+	f.send(id, me, 3)
 	first := f.firstMessageId(id, me)
 	f.exec("UPDATE channel_messages SET message_data = JSON_REMOVE(message_data, '$.from_id') WHERE channel_id = ? AND id = ?", id, first)
 	f.exec("UPDATE channel_messages SET message_data = JSON_SET(message_data, '$.from_id', JSON_OBJECT('predicate_name', ?, 'channel_id', ?)) WHERE channel_id = ? AND id = ?",
@@ -130,8 +130,8 @@ func TestSearchAuthors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if byUser.GetCount() != 0 {
-		t.Errorf("the anonymous and the channel's posts under the writer: %d", byUser.GetCount())
+	if byUser.GetCount() != 1 || byUser.GetMessages()[0].GetId() != first+2 {
+		t.Errorf("under the writer, only its signed message: %d %v", byUser.GetCount(), byUser.GetMessages())
 	}
 	byChannel, err := f.c.ChannelSearch(&channel.TLChannelSearch{SelfId: me, ChannelId: id, FromId: -99, MediaType: mtproto.MEDIA_EMPTY, Limit: 10})
 	if err != nil {
