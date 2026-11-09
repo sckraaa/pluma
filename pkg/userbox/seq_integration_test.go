@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/go-sql-driver/mysql"
+	"github.com/teamgram/proto/mtproto"
 )
 
 // setNotify writes an update with seq and nothing else.
@@ -208,5 +209,35 @@ func TestCheckSeqJournalFindsGaps(t *testing.T) {
 	}
 	if want := []Range{{From: 3, To: 4}, {From: 5, To: 7}}; rep.OK() || rep.Rows != 3 || !slices.Equal(rep.Gaps, want) {
 		t.Errorf("report %+v, want gaps %v", rep, want)
+	}
+}
+
+// TrimQueryUpdates takes out only the presses and queries past their time.
+func TestTrimQueryUpdates(t *testing.T) {
+	db := openPool(t, boxDSN(itDB.DSN()), 2)
+	u := itUser()
+	press := func(b *Box) error {
+		b.AddSeqUpdate(mtproto.MakeTLUpdateBotCallbackQuery(&mtproto.Update{QueryId_INT64: 1, Peer_PEER: mtproto.MakePeerUser(1)}).To_Update())
+		return nil
+	}
+	ctx := context.Background()
+	for _, fn := range []func(b *Box) error{press, setNotify(1), press} {
+		if _, err := Run(ctx, db, u, fn); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The first two rows are old: one a press, one the state of the account.
+	if _, err := db.Exec("UPDATE user_seq_updates SET date2 = date2 - ? WHERE user_id = ? AND seq <= ?", QueryUpdateTTL+5, u, BaseSeq+2); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Run(ctx, db, u, func(b *Box) error { return b.TrimQueryUpdates() }); err != nil {
+		t.Fatal(err)
+	}
+	var got []int32
+	for _, e := range seqJournalOf(t, db, u) {
+		got = append(got, e.seq)
+	}
+	if want := []int32{BaseSeq + 2, BaseSeq + 3}; !slices.Equal(got, want) {
+		t.Errorf("seq left %v, want %v", got, want)
 	}
 }

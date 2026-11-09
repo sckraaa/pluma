@@ -6,8 +6,10 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/updates/updates"
@@ -79,6 +81,40 @@ func seqOf(d *updates.Difference) string {
 }
 
 const key = int64(77)
+
+// A press a bot was away for is dead after its time: a difference does not
+// give it, however far behind the cursor it is; a recent one it does.
+func TestDifferenceSkipsExpiredQueries(t *testing.T) {
+	u := newUser()
+	seqState(t, u, 1, 4)
+	now := time.Now().Unix()
+	for _, row := range []struct {
+		seq  int32
+		date int64
+	}{{2, now - userbox.QueryUpdateTTL - 5}, {3, now}} {
+		update := mtproto.MakeTLUpdateBotCallbackQuery(&mtproto.Update{QueryId_INT64: 1, Peer_PEER: mtproto.MakePeerUser(1), MsgId_INT32: row.seq}).To_Update()
+		data, err := jsonx.Marshal(update)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = itRaw.Exec("INSERT INTO user_seq_updates (user_id, seq, pts, update_type, update_data, except_auth_key_id, date2) VALUES (?, ?, 1, ?, ?, 0, ?)",
+			u, row.seq, update.PredicateName, string(data), row.date); err != nil {
+			t.Fatal(err)
+		}
+	}
+	seqRow(t, u, 4, 1, now-1000)
+	got, err := itSvc.Dao.SeqUpdates(context.Background(), u, 0, 4, 1, now+1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seqs []int32
+	for _, r := range got {
+		seqs = append(seqs, r.Seq)
+	}
+	if want := []int32{3, 4}; !slices.Equal(seqs, want) {
+		t.Errorf("seq %v, want %v", seqs, want)
+	}
+}
 
 func TestDifferenceSeq(t *testing.T) {
 	t.Run("by the date, among the journal updates", func(t *testing.T) {

@@ -19,6 +19,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -56,6 +57,9 @@ type Dao struct {
 	db        *sqlx.DB
 	boxDB     *sql.DB
 	syncTopic string
+
+	waitsMu sync.Mutex
+	waits   map[int64]int // requests of a user waiting for bots (EnterWait)
 }
 
 // New connects the clients.
@@ -88,9 +92,12 @@ func New(c config.Config) *Dao {
 // PushToBot writes u, an update with seq, to the journal of the bot and
 // pushes it to the bot's sessions. An update of a press or a query missed
 // while the bot was away comes with its updates.getDifference (other_updates
-// of updates.difference).
+// of updates.difference) while it can still be answered.
 func (d *Dao) PushToBot(ctx context.Context, botId int64, u *mtproto.Update, users []*mtproto.User, chats []*mtproto.Chat) error {
 	_, err := userbox.Run(ctx, d.boxDB, botId, func(b *userbox.Box) error {
+		if err := b.TrimQueryUpdates(); err != nil {
+			return err
+		}
 		return sync_client.EmitSeqUpdate(b, d.syncTopic, u, users, chats)
 	})
 	if err != nil {

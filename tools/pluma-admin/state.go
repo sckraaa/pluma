@@ -159,7 +159,7 @@ func verifySeq(ctx context.Context, stdout io.Writer, db *sql.DB, userId int64, 
 		fmt.Fprintf(stdout, "  gap: seq (%d, %d] have no row\n", g.From, g.To)
 	}
 	if !rep.OK() {
-		fmt.Fprintln(stdout, "A gap of the margin of state-raise at the time it ran is that jump, not a loss.")
+		fmt.Fprintln(stdout, "A gap of the margin of state-raise at the time it ran is that jump, not a loss; so are the presses and inline queries a bot's journal has dropped after their time.")
 		return errSeqJournal
 	}
 	fmt.Fprintln(stdout, "OK: every seq has its row.")

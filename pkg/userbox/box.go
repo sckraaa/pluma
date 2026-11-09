@@ -318,6 +318,33 @@ func SeqUpdate(predicate string) bool {
 	return false
 }
 
+// QueryUpdateTTL is how long, in seconds, the update of a press of a button
+// or of an inline query means anything to a bot: later the query can no longer
+// be answered (QUERY_ID_INVALID). Such rows are not state to replay: the
+// difference leaves them out when they are older (LiveSeqRows) and the next
+// update of the kind removes them (TrimQueryUpdates), so a bot that reads
+// nothing for long has only the last minute's to get.
+const QueryUpdateTTL = 60
+
+const queryUpdateTypes = "'" + mtproto.Predicate_updateBotCallbackQuery + "', '" +
+	mtproto.Predicate_updateInlineBotCallbackQuery + "', '" + mtproto.Predicate_updateBotInlineQuery + "'"
+
+// LiveSeqRows is the condition on user_seq_updates of the rows still worth
+// giving at the time passed as its argument (NotExpiredSince).
+const LiveSeqRows = " AND (update_type NOT IN (" + queryUpdateTypes + ") OR date2 >= ?)"
+
+// NotExpiredSince is the argument of LiveSeqRows at now, unix time.
+func NotExpiredSince(now int64) int64 { return now - QueryUpdateTTL }
+
+// TrimQueryUpdates removes the expired updates of presses and inline queries
+// from the journal of b's owner, in the transaction that holds its box. The
+// seq they had stays unused: nothing reads the journal by consecutive seq but
+// pluma-admin verify-seq.
+func (b *Box) TrimQueryUpdates() error {
+	_, err := b.tx.Exec("DELETE FROM user_seq_updates WHERE user_id = ? AND date2 < ? AND update_type IN ("+queryUpdateTypes+")", b.userId, NotExpiredSince(b.now))
+	return err
+}
+
 // commonBoxUpdate tells whether an update type belongs to the common message
 // box (pts of the user): not channels, not qts.
 func commonBoxUpdate(t int32) bool {
