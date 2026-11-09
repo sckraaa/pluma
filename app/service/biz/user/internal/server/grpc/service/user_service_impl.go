@@ -1543,3 +1543,45 @@ func (s *Service) UserAddSuggestedPhoto(ctx context.Context, request *user.TLUse
 
 	return r, err
 }
+
+// UserSetTopicNotifySettings
+// user.setTopicNotifySettings user_id:long channel_id:long top_msg_id:int settings:PeerNotifySettings = Bool;
+func (s *Service) UserSetTopicNotifySettings(ctx context.Context, request *user.TLUserSetTopicNotifySettings) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.setTopicNotifySettings - metadata: {%s}", c.MD)
+
+	r, err := c.UserSetTopicNotifySettings(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserGetTopicNotifySettings
+// user.getTopicNotifySettings user_id:long channel_id:long top_msg_id:int = PeerNotifySettings;
+func (s *Service) UserGetTopicNotifySettings(ctx context.Context, request *user.TLUserGetTopicNotifySettings) (*mtproto.PeerNotifySettings, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.getTopicNotifySettings - metadata: {%s}", c.MD)
+
+	r, err := c.UserGetTopicNotifySettings(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// UserGetTopicNotifyExceptions
+// user.getTopicNotifyExceptions user_id:long channel_id:long = Updates;
+func (s *Service) UserGetTopicNotifyExceptions(ctx context.Context, request *user.TLUserGetTopicNotifyExceptions) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.getTopicNotifyExceptions - metadata: {%s}", c.MD)
+
+	r, err := c.UserGetTopicNotifyExceptions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

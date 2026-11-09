@@ -138,6 +138,9 @@ const (
 	RPCUser_UserGetStatusWatchers_FullMethodName             = "/user.RPCUser/user_getStatusWatchers"
 	RPCUser_UserSetContactPersonalPhoto_FullMethodName       = "/user.RPCUser/user_setContactPersonalPhoto"
 	RPCUser_UserAddSuggestedPhoto_FullMethodName             = "/user.RPCUser/user_addSuggestedPhoto"
+	RPCUser_UserSetTopicNotifySettings_FullMethodName        = "/user.RPCUser/user_setTopicNotifySettings"
+	RPCUser_UserGetTopicNotifySettings_FullMethodName        = "/user.RPCUser/user_getTopicNotifySettings"
+	RPCUser_UserGetTopicNotifyExceptions_FullMethodName      = "/user.RPCUser/user_getTopicNotifyExceptions"
 )
 
 // RPCUserClient is the client API for RPCUser service.
@@ -257,6 +260,12 @@ type RPCUserClient interface {
 	// pluma: task 051
 	UserSetContactPersonalPhoto(ctx context.Context, in *TLUserSetContactPersonalPhoto, opts ...grpc.CallOption) (*mtproto.User, error)
 	UserAddSuggestedPhoto(ctx context.Context, in *TLUserAddSuggestedPhoto, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 067
+	UserSetTopicNotifySettings(ctx context.Context, in *TLUserSetTopicNotifySettings, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 067
+	UserGetTopicNotifySettings(ctx context.Context, in *TLUserGetTopicNotifySettings, opts ...grpc.CallOption) (*mtproto.PeerNotifySettings, error)
+	// pluma: task 067
+	UserGetTopicNotifyExceptions(ctx context.Context, in *TLUserGetTopicNotifyExceptions, opts ...grpc.CallOption) (*mtproto.Updates, error)
 }
 
 type rPCUserClient struct {
@@ -1357,6 +1366,36 @@ func (c *rPCUserClient) UserAddSuggestedPhoto(ctx context.Context, in *TLUserAdd
 	return out, nil
 }
 
+func (c *rPCUserClient) UserSetTopicNotifySettings(ctx context.Context, in *TLUserSetTopicNotifySettings, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCUser_UserSetTopicNotifySettings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserGetTopicNotifySettings(ctx context.Context, in *TLUserGetTopicNotifySettings, opts ...grpc.CallOption) (*mtproto.PeerNotifySettings, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.PeerNotifySettings)
+	err := c.cc.Invoke(ctx, RPCUser_UserGetTopicNotifySettings_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCUserClient) UserGetTopicNotifyExceptions(ctx context.Context, in *TLUserGetTopicNotifyExceptions, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCUser_UserGetTopicNotifyExceptions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCUserServer is the server API for RPCUser service.
 // All implementations should embed UnimplementedRPCUserServer
 // for forward compatibility.
@@ -1474,6 +1513,12 @@ type RPCUserServer interface {
 	// pluma: task 051
 	UserSetContactPersonalPhoto(context.Context, *TLUserSetContactPersonalPhoto) (*mtproto.User, error)
 	UserAddSuggestedPhoto(context.Context, *TLUserAddSuggestedPhoto) (*mtproto.Bool, error)
+	// pluma: task 067
+	UserSetTopicNotifySettings(context.Context, *TLUserSetTopicNotifySettings) (*mtproto.Bool, error)
+	// pluma: task 067
+	UserGetTopicNotifySettings(context.Context, *TLUserGetTopicNotifySettings) (*mtproto.PeerNotifySettings, error)
+	// pluma: task 067
+	UserGetTopicNotifyExceptions(context.Context, *TLUserGetTopicNotifyExceptions) (*mtproto.Updates, error)
 }
 
 // UnimplementedRPCUserServer should be embedded to have
@@ -1809,6 +1854,15 @@ func (UnimplementedRPCUserServer) UserSetContactPersonalPhoto(context.Context, *
 }
 func (UnimplementedRPCUserServer) UserAddSuggestedPhoto(context.Context, *TLUserAddSuggestedPhoto) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UserAddSuggestedPhoto not implemented")
+}
+func (UnimplementedRPCUserServer) UserSetTopicNotifySettings(context.Context, *TLUserSetTopicNotifySettings) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserSetTopicNotifySettings not implemented")
+}
+func (UnimplementedRPCUserServer) UserGetTopicNotifySettings(context.Context, *TLUserGetTopicNotifySettings) (*mtproto.PeerNotifySettings, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGetTopicNotifySettings not implemented")
+}
+func (UnimplementedRPCUserServer) UserGetTopicNotifyExceptions(context.Context, *TLUserGetTopicNotifyExceptions) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UserGetTopicNotifyExceptions not implemented")
 }
 func (UnimplementedRPCUserServer) testEmbeddedByValue() {}
 
@@ -3792,6 +3846,60 @@ func _RPCUser_UserAddSuggestedPhoto_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCUser_UserSetTopicNotifySettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserSetTopicNotifySettings)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserSetTopicNotifySettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserSetTopicNotifySettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserSetTopicNotifySettings(ctx, req.(*TLUserSetTopicNotifySettings))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserGetTopicNotifySettings_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserGetTopicNotifySettings)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserGetTopicNotifySettings(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserGetTopicNotifySettings_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserGetTopicNotifySettings(ctx, req.(*TLUserGetTopicNotifySettings))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCUser_UserGetTopicNotifyExceptions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLUserGetTopicNotifyExceptions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCUserServer).UserGetTopicNotifyExceptions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCUser_UserGetTopicNotifyExceptions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCUserServer).UserGetTopicNotifyExceptions(ctx, req.(*TLUserGetTopicNotifyExceptions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCUser_ServiceDesc is the grpc.ServiceDesc for RPCUser service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4234,6 +4342,18 @@ var RPCUser_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "user_addSuggestedPhoto",
 			Handler:    _RPCUser_UserAddSuggestedPhoto_Handler,
+		},
+		{
+			MethodName: "user_setTopicNotifySettings",
+			Handler:    _RPCUser_UserSetTopicNotifySettings_Handler,
+		},
+		{
+			MethodName: "user_getTopicNotifySettings",
+			Handler:    _RPCUser_UserGetTopicNotifySettings_Handler,
+		},
+		{
+			MethodName: "user_getTopicNotifyExceptions",
+			Handler:    _RPCUser_UserGetTopicNotifyExceptions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -631,6 +631,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 649527691,
 		}
 	},
+	381358547: func() mtproto.TLObject { // 0x16bb11d3 pluma: task 067
+		return &TLUserSetTopicNotifySettings{
+			Constructor: 381358547,
+		}
+	},
+	1032369295: func() mtproto.TLObject { // 0x3d88b48f pluma: task 067
+		return &TLUserGetTopicNotifySettings{
+			Constructor: 1032369295,
+		}
+	},
+	-852948814: func() mtproto.TLObject { // 0xcd2908b2 pluma: task 067
+		return &TLUserGetTopicNotifyExceptions{
+			Constructor: -852948814,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -7095,6 +7110,134 @@ func (m *TLUserAddSuggestedPhoto) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.UserId = dBuf.Long()
 		m.FromUserId = dBuf.Long()
 		m.PhotoId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserSetTopicNotifySettings (pluma: task 067)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserSetTopicNotifySettings) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x16bb11d3:
+		x.UInt(0x16bb11d3)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopMsgId())
+		m.GetSettings().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserSetTopicNotifySettings) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserSetTopicNotifySettings) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x16bb11d3:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		m3 := &mtproto.PeerNotifySettings{}
+		m3.Decode(dBuf)
+		m.Settings = m3
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserGetTopicNotifySettings (pluma: task 067)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserGetTopicNotifySettings) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x3d88b48f:
+		x.UInt(0x3d88b48f)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserGetTopicNotifySettings) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserGetTopicNotifySettings) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x3d88b48f:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserGetTopicNotifyExceptions (pluma: task 067)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserGetTopicNotifyExceptions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xcd2908b2:
+		x.UInt(0xcd2908b2)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserGetTopicNotifyExceptions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserGetTopicNotifyExceptions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xcd2908b2:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

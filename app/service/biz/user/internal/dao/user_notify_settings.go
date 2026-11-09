@@ -184,7 +184,7 @@ func (d *Dao) ResetNotifySettings(ctx context.Context, id int64) error {
 				return err
 			}
 		}
-		return nil
+		return d.resetTopicNotifySettings(b, id)
 	})
 	return err
 }

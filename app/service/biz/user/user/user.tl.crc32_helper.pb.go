@@ -140,4 +140,10 @@ const (
 	// pluma: task 051
 	CRC32_user_setContactPersonalPhoto TLConstructor = 342634673 // 0x146c30b1
 	CRC32_user_addSuggestedPhoto       TLConstructor = 649527691 // 0x26b7018b
+	// pluma: task 067
+	CRC32_user_setTopicNotifySettings TLConstructor = 381358547 // 0x16bb11d3
+	// pluma: task 067
+	CRC32_user_getTopicNotifySettings TLConstructor = 1032369295 // 0x3d88b48f
+	// pluma: task 067
+	CRC32_user_getTopicNotifyExceptions TLConstructor = -852948814 // 0xcd2908b2
 )

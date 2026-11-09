@@ -145,6 +145,12 @@ enum TLConstructor {
   // pluma: task 051
   CRC32_user_setContactPersonalPhoto = 342634673;
   CRC32_user_addSuggestedPhoto = 649527691;
+  // pluma: task 067
+  CRC32_user_setTopicNotifySettings = 381358547;
+  // pluma: task 067
+  CRC32_user_getTopicNotifySettings = 1032369295;
+  // pluma: task 067
+  CRC32_user_getTopicNotifyExceptions = -852948814;
 }
 
 // BotInfoData <--
@@ -1116,6 +1122,41 @@ message TL_user_setReactionsNotifySettings {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: user.setTopicNotifySettings user_id:long channel_id:long top_msg_id:int settings:PeerNotifySettings = Bool;
+// The notify settings of user_id for one topic of a forum
+// (account.updateNotifySettings with inputNotifyForumTopic).
+// (task 067)
+message TL_user_setTopicNotifySettings {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 channel_id = 4;
+  int32 top_msg_id = 5;
+  mtproto.PeerNotifySettings settings = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: user.getTopicNotifySettings user_id:long channel_id:long top_msg_id:int = PeerNotifySettings;
+// The notify settings of user_id for one topic, empty when it has none.
+// (task 067)
+message TL_user_getTopicNotifySettings {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 channel_id = 4;
+  int32 top_msg_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: user.getTopicNotifyExceptions user_id:long channel_id:long = Updates;
+// updateNotifySettings of each topic of the forum with settings of user_id
+// (account.getNotifyExceptions with the forum as peer).
+// (task 067)
+message TL_user_getTopicNotifyExceptions {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_LastSeenData {
   repeated LastSeenData datas = 1;
@@ -1334,4 +1375,10 @@ service RPCUser {
       returns (mtproto.User) {}
   rpc user_addSuggestedPhoto(TL_user_addSuggestedPhoto)
       returns (mtproto.Bool) {}
+  // pluma: task 067
+  rpc user_setTopicNotifySettings(TL_user_setTopicNotifySettings) returns (mtproto.Bool) {}
+  // pluma: task 067
+  rpc user_getTopicNotifySettings(TL_user_getTopicNotifySettings) returns (mtproto.PeerNotifySettings) {}
+  // pluma: task 067
+  rpc user_getTopicNotifyExceptions(TL_user_getTopicNotifyExceptions) returns (mtproto.Updates) {}
 }
