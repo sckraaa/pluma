@@ -21,13 +21,8 @@ import (
 
 // saveDocument records a stored file as a document (with its thumbnails),
 // so that media.getDocument finds it by its id later: account.createTheme
-// asks for the file of a theme by the id of the document uploaded.
+// asks for the file of a theme by the id of the document uploaded. A document
+// that could not be recorded is an error here, not a file lost later.
 func saveDocument(c *MediaCore, fileName string, document *mtproto.Document) error {
-	if len(document.GetThumbs()) > 0 {
-		if err := c.svcCtx.Dao.SavePhotoSizeV2(c.ctx, document.GetId(), document.GetThumbs()); err != nil {
-			return err
-		}
-	}
-	c.svcCtx.Dao.SaveDocumentV2(c.ctx, fileName, document)
-	return nil
+	return c.svcCtx.Dao.ImportDocument(c.ctx, fileName, document)
 }
