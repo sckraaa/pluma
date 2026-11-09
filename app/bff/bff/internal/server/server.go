@@ -51,6 +51,7 @@ import (
 	reports_helper "github.com/teamgram/teamgram-server/app/bff/reports"
 	savedmessagedialogshelper "github.com/teamgram/teamgram-server/app/bff/savedmessagedialogs"
 	scheduledmessages_helper "github.com/teamgram/teamgram-server/app/bff/scheduledmessages"
+	secretchats_helper "github.com/teamgram/teamgram-server/app/bff/secretchats"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
@@ -117,6 +118,9 @@ func (s *Server) Initialize() error {
 		}
 		mtproto.RegisterRPCVoipCallsServer(grpcServer, voipcalls_helper.New(callsConf))
 		s.calls = voipcalls_helper.StartSweeper(callsConf)
+
+		// secretchats_helper: messages.getDhConfig, the first step of a call.
+		mtproto.RegisterRPCSecretChatsServer(grpcServer, secretchats_helper.New())
 
 		// reports_helper: the moderation queue (task 025, ADR 0040).
 		mtproto.RegisterRPCReportsServer(
