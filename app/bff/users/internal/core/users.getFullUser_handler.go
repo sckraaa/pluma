@@ -139,8 +139,8 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		Note:                     nil,
 	}).To_UserFull()
 
-	// Pluma sells no Premium and nobody gifts it, the admin grants it
-	// (ADR 0016): no premium_gifts.
+	// Pluma sells no Premium and nobody gifts it, everybody has it
+	// (ADR 0041): no premium_gifts.
 
 	// What the privacy of the user lets me see (task 034, ADR 0031): the
 	// rules of every key come with the user, chat rules resolved for me.

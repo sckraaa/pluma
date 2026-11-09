@@ -782,3 +782,13 @@ ci/lint.sh                                        # shellcheck и actionlint
 - Тексты с `t.me` во встроенном английском и в языковом пакете сервера (`lng_group_about3` «Public links such as t.me/title», `lng_factcheck_links` «Only **t.me/** links are allowed.»): менять ли их на `pluma.chat` — вопрос к пакету сервера, не к патчу (D-082).
 - Вставка `plm://`-ссылки прокси в настройках прокси: регэксп `ExtractLinkCandidates` (`boxes/connection_box.cpp:90`) ищет `tg:\/\/`, которого D-014 не меняет (там нет `tg://` подряд), поэтому `plm://proxy?…` из буфера кандидатом не находится. Не исправлено: к задаче 026 не относится.
 - Пути сайта `pluma.chat`, похожие на юзернейм (`/privacy`, `/download` и т. п.), клиент теперь открывает как юзернейм внутри (как любой путь `t.me`); список зарезервированных путей — в `docs/tasks/026-research/site.md`, п. 3.
+
+### D-084. Premium для всех: звезда, раздел Premium, статус, расшифровка (задача 071)
+- **Статус.** Ветка `task/071-premium-for-everyone` (`eb3a112`), не влита, не выпущена (2026-11-09).
+- **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041).
+- **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
+  - `Session::premiumBadgesShown` — только режим поддержки: звезды нет (`Badge::setContent`, `unread_badge.cpp`);
+  - `BuildPremiumSection` — по `premiumCanBuy`;
+  - `MainMenu::setupSetEmojiStatus` скрывает ссылку статуса: сервер не обслуживает `account.updateEmojiStatus`;
+  - `history_view_document.cpp`: кнопка расшифровки выключена.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.

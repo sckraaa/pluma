@@ -1008,6 +1008,18 @@
 
 ---
 
+### A-109. Premium для всех: звезда, строки покупки, расшифровка (задача 071)
+- **Статус.** Ветка `task/071-premium-for-everyone` (`7d0df1b`), не влита, не выпущена (2026-11-09).
+- **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). Ненужное от этого убираем, функции флаг открывает сам.
+- **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
+  - `messenger/MessagesController.isPremiumUser` возвращает `false`: звезды в `DialogCell`, `UserCell`, `ProfileSearchCell`, `DialogStoriesCell`, `DialogsActivity`, заголовке `ChatActivity`, `ProfileActivity`;
+  - `ImageReceiver`, `ImageLocation` читают `user.premium`, анимация аватарок остаётся;
+  - звезды прямых чтений: `SettingsActivity`, `ChatActivity:19346`, `ChatMessageCell`, `GroupCallUserCell`, `StatusBadgeComponent`, `TableView`;
+  - строки Premium и Business: `SettingsActivity`, `ProfileActivity` — по `premiumPurchaseBlocked`;
+  - кнопка расшифровки (`useTranscribeButton`).
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
+- **При обновлении апстрима.** Новые места со звездой — по `user.premium` и `msg_premium_liststar`.
+
 ## Снятые правки
 
 Правки, которые были в клиенте и потом убраны; записаны, чтобы история была полной.

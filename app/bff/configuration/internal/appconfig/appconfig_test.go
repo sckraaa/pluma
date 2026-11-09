@@ -164,7 +164,7 @@ func TestReply(t *testing.T) {
 }
 
 // The config the server ships: it parses, keeps Premium purchases off
-// (ADR 0016) and says what the server checks for the privacy setting of
+// (ADR 0041) and says what the server checks for the privacy setting of
 // task 014.
 func TestShippedConfig(t *testing.T) {
 	c, err := Load(filepath.Join(root, "teamgramd", "bin", "app_config.json"))

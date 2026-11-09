@@ -40,7 +40,7 @@
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `premium_purchase_blocked` | `true` | A D W | Оплаты нет (ADR 0016): клиенты скрывают покупку Premium. По умолчанию у Android `false`, у tdesktop `true`. |
+| `premium_purchase_blocked` | `true` | A D W | Оплаты нет (ADR 0041): клиенты скрывают покупку Premium. По умолчанию у Android `false`, у tdesktop `true`. |
 | `premium_promo_order` | `["more_upload", "double_limits", "folder_tags", "message_privacy", "profile_badge"]` | A W | Экран Premium показывает только перечисленное. Реализовано: файлы 4 ГБ, лимиты папок и других возможностей (задача 025), теги папок, «только контакты и Premium», значок у имени. |
 | `premium_gift_attach_menu_icon` | `false` | A | Подарка Premium нет. |
 | `premium_gift_text_field_icon` | `false` | A | Подарка Premium нет. |
@@ -54,11 +54,30 @@
 | `starref_program_allowed` | `false` | A D | Партнёрских программ ботов нет. |
 | `starref_connect_allowed` | `false` | A D | Партнёрских программ ботов нет. |
 
+## Бусты
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `channel_color_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_bg_icon_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_profile_bg_icon_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_emoji_status_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_wallpaper_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_custom_wallpaper_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_restrict_sponsored_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_autotranslation_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `group_transcribe_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `group_emoji_stickers_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `group_profile_bg_icon_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `group_emoji_status_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `group_wallpaper_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `group_custom_wallpaper_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+
 ## Приватность
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `new_noncontact_peers_require_premium_without_ownpremium` | `false` | A D | Настройку «писать могут только контакты и Premium» сервер разрешает включить только с Premium (задача 014). |
+| `new_noncontact_peers_require_premium_without_ownpremium` | `false` | A D | Настройку «писать могут только контакты и Premium» сервер разрешает всем: Premium есть у всех (ADR 0041). |
 | `autoarchive_setting_available` | `false` | A D W | «Архивировать новые чаты»: сервер хранит настройку, но не применяет. У Telegram `true`. |
 
 ## Папки
@@ -66,7 +85,7 @@
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
 | `dialog_filters_enabled` | `true` | A D | Папки есть (задача 013), у Telegram `true`. По умолчанию у клиентов `false`. |
-| `dialog_filters_limit_default` | `10` | A D W | Проверяет сервер (`DIALOG_FILTERS_TOO_MUCH`). |
+| `dialog_filters_limit_default` | `30` | A D W | Проверяет сервер (`DIALOG_FILTERS_TOO_MUCH`). |
 | `dialog_filters_limit_premium` | `30` | A D W | Проверяет сервер. Без ключа Android берёт 20. |
 | `dialog_filters_chats_limit_default` | `100` | A D W | Проверяет сервер (`FILTER_INCLUDE_TOO_MUCH`). |
 | `dialog_filters_chats_limit_premium` | `200` | A D W | Проверяет сервер. |
@@ -94,9 +113,9 @@
 |---|---|---|---|
 | `message_length_limit_default` | `4096` | A D | Как `message_length_max` в `help.getConfig`. Сервер длину не проверяет. |
 | `message_length_limit_premium` | `4096` | A D | Длинных сообщений с Premium сервер не реализует. Клиенты по умолчанию берут 8192. |
-| `caption_length_limit_default` | `1024` | A D W | Как у Telegram. Сервер проверяет. |
+| `caption_length_limit_default` | `4096` | A D W | Премиальное для всех (ADR 0041). Сервер проверяет. |
 | `caption_length_limit_premium` | `4096` | A D W | Как у Telegram (задача 025). Сервер проверяет по Premium пользователя. |
-| `about_length_limit_default` | `70` | A D W | Как у Telegram. Сервер проверяет. |
+| `about_length_limit_default` | `140` | A D W | Премиальное для всех (ADR 0041). Сервер проверяет. |
 | `about_length_limit_premium` | `140` | A D W | Как у Telegram (задача 025). |
 | `quote_length_max` | `1024` | A D W | Как у Telegram. |
 | `upload_max_fileparts_default` | `8000` | A D W | 4 ГБ частями по 512 КБ у всех (ADR 0041, задача 071). |

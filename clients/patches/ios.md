@@ -885,3 +885,12 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Не ловится проверками.** Новые `tg://` в других файлах, новые синие вне `TELEGRAM_BLUES`, новые копии таблиц цветов-идентичностей, новые предложения Premium/Stars, адреса и ключи вне трёх сетевых каталогов, обращения к внешним сервисам по именам хостов.
 - **Не решено или не сделано.** Миниатюра ночной темы в «Оформлении» с синим пузырём; ободок спидометра «Fast»; значки «Устройств» (`#0079FF`); минимальная iOS 15 (I-084).
 - **Не определено по репозиторию.** Номер задачи сборки `reference` (`05c9e06`) в коммите не указан.
+
+### I-109. Premium для всех: строки покупки, премиум-эмодзи, расшифровка (задача 071)
+- **Статус.** Ветка `task/071-premium-for-everyone` (`091c206`), не влита, не выпущена (2026-11-09).
+- **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). На iOS звезда уже скрыта `isPremiumDisabled`.
+- **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
+  - `PeerInfoSettingsItems`: строки Premium и Business только при возможности покупки;
+  - `EmojiPagerContentSignals`: `isPremiumDisabled = false` (три места), премиум-эмодзи и наборы в клавиатуре;
+  - `ChatMessageInteractiveFileNode`, `ChatMessageInteractiveInstantVideoNode`: кнопка расшифровки выключена.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.

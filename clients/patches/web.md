@@ -697,3 +697,12 @@
 - Значения флагов `VITE_MTPROTO_*` в апстримном `.env` здесь не приведены: файлы `.env` по правилам проекта не читаются. Что апстрим по умолчанию стартует на HTTP, известно из README и брифа 012.
 - `useAppConfig` в W-046 не охранён `expect` (см. замечание в записи).
 - Решение на подтверждение (бриф 020): тёмный цвет имён бирюзового `#53CCC6` на всех платформах.
+
+### W-068. Premium для всех: звезда, кнопка статуса, расшифровка (задача 071)
+- **Статус.** Ветка `task/071-premium-for-everyone` (`b34d7f8`), не влита, не выпущена (2026-11-09).
+- **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). Строка Premium в настройках уже закрыта `isPremiumPurchaseBlocked`.
+- **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
+  - `components/generateTitleIcons.ts`: звезды нет;
+  - `components/sidebarLeft/index.ts`: кнопки эмодзи-статуса в шапке нет;
+  - `components/chat/bubbles.ts`: `canTranscribeVoice: false` у голосовых. Кнопка расшифровки круглых видео (`roundVideoBubble.ts`) не правилась.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
