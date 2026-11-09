@@ -554,9 +554,12 @@ type DifferenceInput struct {
 	OnlyQueue bool
 }
 
-// Empty tells whether the difference changes nothing for a client at qts.
+// Empty tells whether the difference changes nothing for a client at qts. A
+// negative qts is a client without secret chats, which has no qts to correct:
+// tweb always asks with -1 (apiUpdatesManager.ts) and tdesktop keeps -1 until
+// a state has a non-zero one (api_updates.h, Updates::setState).
 func (d *Difference) Empty(clientQts int32) bool {
-	return len(d.Messages) == 0 && len(d.Updates) == 0 && !d.More && d.Qts == clientQts
+	return len(d.Messages) == 0 && len(d.Updates) == 0 && !d.More && (d.Qts == clientQts || clientQts < 0)
 }
 
 // Difference confirms the queue up to in.Qts, the implicit acknowledgement
