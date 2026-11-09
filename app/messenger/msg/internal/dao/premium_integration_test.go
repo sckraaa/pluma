@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
@@ -66,4 +67,32 @@ func TestSendToPremiumOnly(t *testing.T) {
 	w.users.premium[target] = false
 	w.users.mu.Unlock()
 	w.send(other, mtproto.PEER_USER, target, "Hi")
+}
+
+// The record of a call is not a message the user wrote: a call the callee's
+// other settings allowed must not be lost from the history.
+func TestServiceMessageToPremiumOnly(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	ctx := context.Background()
+	target, stranger := newUser(), newUser()
+	w.users.mu.Lock()
+	w.users.premium[target], w.users.premiumOnly[target] = true, true
+	w.users.mu.Unlock()
+
+	_, err := w.rpc.MsgSendMessageV2(ctx, &msg.TLMsgSendMessageV2{
+		UserId: stranger, PeerType: mtproto.PEER_USER, PeerId: target,
+		Message: []*msg.OutboxMessage{outbox(mtproto.MakeTLMessageService(&mtproto.Message{
+			Out:    true,
+			FromId: mtproto.MakePeerUser(stranger),
+			PeerId: mtproto.MakePeerUser(target),
+			Date:   1700000000,
+			Action: mtproto.MakeMessageActionPhoneCall(false, 1, nil, 0),
+		}).To_Message())},
+	})
+	if err != nil {
+		t.Fatalf("the record of a call: %v", err)
+	}
+	eventually(t, 30*time.Second, "the callee's dialog with the record of the call", func() bool {
+		return w.hasDialog(target, mtproto.PEER_USER, stranger)
+	})
 }

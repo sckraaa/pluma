@@ -250,15 +250,19 @@ func (c *MsgCore) privateUsers(fromUserId, toUserId int64, outBoxList []*msg.Out
 		return nil, mtproto.ErrInputUserDeactivated
 	}
 	// The recipient may let only its contacts, chats there already and
-	// Premium users write (task 014).
-	required, err := premium.RequiredToContact(sender, peerUser, func() (bool, error) {
-		return c.svcCtx.Dao.HasPrivateChat(c.ctx, toUserId, fromUserId)
-	})
-	if err != nil {
-		return nil, err
-	}
-	if required {
-		return nil, premium.ErrPrivacyPremiumRequired
+	// Premium users write (task 014). A service message records what its
+	// own service has already carried out, a call that took place, as for
+	// checkRestriction: refusing it would only lose the record.
+	if !onlyServiceMessages(outBoxList) {
+		required, err := premium.RequiredToContact(sender, peerUser, func() (bool, error) {
+			return c.svcCtx.Dao.HasPrivateChat(c.ctx, toUserId, fromUserId)
+		})
+		if err != nil {
+			return nil, err
+		}
+		if required {
+			return nil, premium.ErrPrivacyPremiumRequired
+		}
 	}
 	// "Who can send me voice and video messages" of the recipient (task
 	// 034): the server refuses them, not only the client's greyed button.
