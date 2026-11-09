@@ -18,6 +18,7 @@
 package core
 
 import (
+	"errors"
 	"math/rand"
 
 	"github.com/teamgram/proto/mtproto"
@@ -57,6 +58,10 @@ func (c *ChatInvitesCore) MessagesImportChatInvite6C50051C(in *mtproto.TLMessage
 		SelfId: c.MD.UserId,
 		Hash:   in.Hash,
 	})
+	if errors.Is(err, mtproto.ErrMigratedToChannel) {
+		// A link of a group that became a supergroup (task 067).
+		return c.importChannelInvite(in.Hash)
+	}
 	if err != nil {
 		c.Logger.Errorf("messages.importChatInvite - error: %v", err)
 		return nil, err

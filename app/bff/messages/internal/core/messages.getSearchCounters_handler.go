@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 )
 
@@ -112,6 +113,20 @@ func (c *MessagesCore) MessagesGetSearchCounters(in *mtproto.TLMessagesGetSearch
 			continue
 		}
 
+		if peer.PeerType == mtproto.PEER_CHANNEL {
+			n, err := c.channelSearchCount(peer.PeerId, in.GetTopMsgId().GetValue(), mType)
+			if err != nil {
+				c.Logger.Errorf("messages.getSearchCounters - error: %v", err)
+				return nil, err
+			}
+			counters.Datas = append(counters.Datas, mtproto.MakeTLMessagesSearchCounter(&mtproto.Messages_SearchCounter{
+				Inexact: false,
+				Filter:  filter,
+				Count:   n,
+			}).To_Messages_SearchCounter())
+			continue
+		}
+
 		sz, _ := c.svcCtx.Dao.MessageClient.MessageGetSearchCounter(
 			c.ctx,
 			&message.TLMessageGetSearchCounter{
@@ -131,4 +146,25 @@ func (c *MessagesCore) MessagesGetSearchCounters(in *mtproto.TLMessagesGetSearch
 	}
 
 	return counters, nil
+}
+
+// channelSearchCount is how many messages of a channel, or of a topic or a
+// thread with top_msg_id, have the media type: the count of a search page
+// of one message (task 067; biz channel counts what it searches).
+func (c *MessagesCore) channelSearchCount(channelId int64, top, mType int32) (int32, error) {
+	var (
+		r   *mtproto.Messages_Messages
+		err error
+	)
+	if top != 0 {
+		r, err = c.svcCtx.Dao.Channel.ChannelSearchTopic(c.ctx, &channelpb.TLChannelSearchTopic{
+			SelfId: c.MD.UserId, ChannelId: channelId, TopMsgId: top, MediaType: mType, UnreadMentions: mtproto.BoolFalse, Limit: 1,
+		})
+	} else {
+		r, err = c.svcCtx.Dao.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{SelfId: c.MD.UserId, ChannelId: channelId, MediaType: mType, Limit: 1})
+	}
+	if err != nil {
+		return 0, err
+	}
+	return r.GetCount(), nil
 }

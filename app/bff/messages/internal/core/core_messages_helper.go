@@ -20,6 +20,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // doClearDraft clears the draft a sent message came from, of the chat or of
@@ -476,3 +477,12 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 //	message.Entities = entities
 //	return message, nil
 //}
+
+// withRepeatPeriod gives m the schedule_repeat_period of a request that
+// schedules it (task 067); a send without a date has no use for it.
+func withRepeatPeriod(m *mtproto.Message, date, period *wrapperspb.Int32Value) *mtproto.Message {
+	if date != nil {
+		m.ScheduleRepeatPeriod = period
+	}
+	return m
+}

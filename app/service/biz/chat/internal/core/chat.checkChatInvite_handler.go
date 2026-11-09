@@ -27,6 +27,11 @@ func (c *ChatCore) ChatCheckChatInvite(in *chat.TLChatCheckChatInvite) (*chat.Ch
 		err = mtproto.ErrInviteHashInvalid
 		return nil, err
 	}
+	// A link of a group that became a supergroup leads there: the caller
+	// asks biz channel (task 067).
+	if chatInviteDO.MigratedToId != 0 {
+		return nil, mtproto.ErrMigratedToChannel
+	}
 
 	// check expire
 	if chatInviteDO.Revoked {

@@ -59,6 +59,25 @@ func (c *NotificationCore) AccountUpdateNotifySettings(in *mtproto.TLAccountUpda
 		return nil, err
 	}
 
+	if in.GetPeer().GetPredicateName() == mtproto.Predicate_inputNotifyForumTopic {
+		// biz pushes updateNotifySettings with notifyForumTopic with seq.
+		channelId, err := c.forumOf(in.GetPeer())
+		if err != nil {
+			c.Logger.Errorf("account.updateNotifySettings - error: %v", err)
+			return nil, err
+		}
+		if _, err = c.svcCtx.Dao.UserClient.UserSetTopicNotifySettings(c.ctx, &userpb.TLUserSetTopicNotifySettings{
+			UserId:    c.MD.UserId,
+			ChannelId: channelId,
+			TopMsgId:  in.GetPeer().GetTopMsgId(),
+			Settings:  settings,
+		}); err != nil {
+			c.Logger.Errorf("account.updateNotifySettings - error: %v", err)
+			return nil, err
+		}
+		return mtproto.BoolTrue, nil
+	}
+
 	peer := mtproto.FromInputNotifyPeer(c.MD.UserId, in.GetPeer())
 	switch peer.PeerType {
 	case mtproto.PEER_USERS:

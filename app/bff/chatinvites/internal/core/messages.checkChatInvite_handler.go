@@ -19,6 +19,8 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
@@ -64,6 +66,10 @@ func (c *ChatInvitesCore) MessagesCheckChatInvite(in *mtproto.TLMessagesCheckCha
 		SelfId: c.MD.UserId,
 		Hash:   in.Hash,
 	})
+	if errors.Is(err, mtproto.ErrMigratedToChannel) {
+		// A link of a group that became a supergroup (task 067).
+		return c.svcCtx.Dao.Channel.ChannelCheckChatInvite(c.ctx, &channelpb.TLChannelCheckChatInvite{SelfId: c.MD.UserId, Link: in.Hash})
+	}
 	if err != nil {
 		c.Logger.Errorf("messages.checkChatInvite - error: %v", err)
 		return nil, err

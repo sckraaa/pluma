@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -63,9 +64,7 @@ func (c *MessagesCore) MessagesGetMessagesViews(in *mtproto.TLMessagesGetMessage
 		boxMsgList    *message.Vector_MessageBox
 		channelIds    = make(map[int64][]int32, 0)
 		reqIndexViews = make(map[int32]msgIdPeerIdPair, 0)
-		views         = make(map[int64][]int32, 0)
-		// increment     = mtproto.FromBool(in.GetIncrement())
-		peer = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
+		peer          = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	)
 
 	if len(in.Id) == 0 {
@@ -128,23 +127,18 @@ func (c *MessagesCore) MessagesGetMessagesViews(in *mtproto.TLMessagesGetMessage
 		//}
 		// log.Debugf("user boxMsgList: %s", boxMsgList)
 
+		// A post forwarded here counts as a view of the original
+		// (core.telegram.org/method/messages.getMessagesViews: "sent or
+		// forwarded from a channel"; the clients keep the views of a
+		// forward, Android SendMessagesHelper.java:2428-2431).
 		boxMsgList.Walk(func(idx int, v *mtproto.MessageBox) {
 			fwdFrom := v.Message.GetFwdFrom()
-			if fwdFrom == nil {
-				// TODO:
-				// c.Logger.Errorf("messages.getMessagesViews#5784d3e - error: boxMsgList empty by id(%v) type", in.Id)
-				// err = mtproto.ErrMsgIdInvalid
-				// return
-			} else {
-				// TODO
-				//if idList, ok := channelIds[fwdFrom.GetChannelId().GetValue()]; !ok {
-				//	channelIds[fwdFrom.GetChannelId().GetValue()] = []int32{fwdFrom.GetChannelPost().GetValue()}
-				//} else {
-				//	idList = append(idList, fwdFrom.GetChannelPost().GetValue())
-				//	channelIds[fwdFrom.GetChannelId().GetValue()] = idList
-				//}
-				//reqIndexViews[box.MessageId] = int64(fwdFrom.GetChannelId().GetValue())<<32 | int64(fwdFrom.GetChannelPost().GetValue())
+			channelId, post := fwdFrom.GetFromId().GetChannelId(), fwdFrom.GetChannelPost().GetValue()
+			if channelId == 0 || post == 0 {
+				return
 			}
+			channelIds[channelId] = append(channelIds[channelId], post)
+			reqIndexViews[v.MessageId] = msgIdPeerIdPair{msgId: post, peerId: channelId}
 		})
 	case mtproto.PEER_CHANNEL:
 		return c.channelMessagesViews(peer.PeerId, in.Id, mtproto.FromBool(in.GetIncrement()))
@@ -153,85 +147,41 @@ func (c *MessagesCore) MessagesGetMessagesViews(in *mtproto.TLMessagesGetMessage
 		return nil, mtproto.ErrInputRequestInvalid
 	}
 
-	//for k, v := range channelIds {
-	//	if increment {
-	//		rViews, _ := c.svcCtx.Dao.ChannelClient.ChannelIncrementChannelMessagesViews(
-	//			c.ctx,
-	//			&channelpb.TLChannelIncrementChannelMessagesViews{
-	//				ChannelId: k,
-	//				IdList:    v,
-	//			})
-	//		if rViews.GetDatas() != nil {
-	//			views[k] = rViews.GetDatas()
-	//		}
-	//	} else {
-	//		rViews, _ := c.svcCtx.Dao.ChannelClient.ChannelGetChannelMessagesViews(
-	//			c.ctx,
-	//			&channelpb.TLChannelGetChannelMessagesViews{
-	//				ChannelId: k,
-	//				IdList:    v,
-	//			})
-	//		if rViews.GetDatas() != nil {
-	//			views[k] = rViews.GetDatas()
-	//		}
-	//	}
-	//}
+	// A channel the account may not read shows nothing: an empty one, as
+	// channelMessagesViews gives for an id it may not see.
+	posts := make(map[int64]map[int32]*mtproto.Message, len(channelIds))
+	for channelId, ids := range channelIds {
+		if mtproto.FromBool(in.GetIncrement()) {
+			if _, err := c.svcCtx.Dao.Channel.ChannelIncrementMessageViews(c.ctx, &channelpb.TLChannelIncrementMessageViews{SelfId: c.MD.UserId, ChannelId: channelId, Id: ids}); err != nil {
+				c.Logger.Infof("messages.getMessagesViews - channel %d: %v", channelId, err)
+			}
+		}
+		messages, err := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: c.MD.UserId, ChannelId: channelId, Id: ids})
+		if err != nil {
+			c.Logger.Infof("messages.getMessagesViews - channel %d: %v", channelId, err)
+			continue
+		}
+		byId := make(map[int32]*mtproto.Message, len(messages.GetDatas()))
+		for _, m := range messages.GetDatas() {
+			byId[m.GetId()] = m
+		}
+		posts[channelId] = byId
+	}
 
 	rViews := mtproto.MakeTLMessagesMessageViews(&mtproto.Messages_MessageViews{
-		Views: []*mtproto.MessageViews{},
+		Views: make([]*mtproto.MessageViews, 0, len(in.Id)),
 		Chats: []*mtproto.Chat{},
 		Users: []*mtproto.User{},
 	}).To_Messages_MessageViews()
-
 	for _, id := range in.Id {
-		if indexV, ok := reqIndexViews[id]; !ok {
-			rViews.Views = append(rViews.Views, mtproto.MakeTLMessageViews(&mtproto.MessageViews{
-				Views:    nil,
-				Forwards: nil,
-				Replies:  nil,
-			}).To_MessageViews())
-		} else {
-			// rcId := int32(indexV >> 32)
-			// rmId := int32(indexV & 0xffffffff)
-			mId := int32(0)
-			for i, id2 := range channelIds[indexV.peerId] {
-				if id2 == indexV.msgId {
-					mId = views[indexV.peerId][i]
-					break
-				}
-			}
-			if mId == 0 {
-				rViews.Views = append(rViews.Views, mtproto.MakeTLMessageViews(&mtproto.MessageViews{
-					Views:    nil,
-					Forwards: nil,
-					Replies:  nil,
-				}).To_MessageViews())
-			} else {
-				rViews.Views = append(rViews.Views, mtproto.MakeTLMessageViews(&mtproto.MessageViews{
-					Views:    mtproto.MakeFlagsInt32(mId),
-					Forwards: nil,
-					Replies:  nil,
-					//Replies: mtproto.MakeTLMessageReplies(&mtproto.MessageReplies{
-					//	Comments:       true,
-					//	Replies:        0,
-					//	RepliesPts:     0,
-					//	RecentRepliers: nil,
-					//	ChannelId:      mtproto.MakeFlagsInt32(rcId),
-					//	MaxId:          nil,
-					//	ReadMaxId:      nil,
-					//}).To_MessageReplies(),
-				}).To_MessageViews())
+		v := &mtproto.MessageViews{}
+		if p, ok := reqIndexViews[id]; ok {
+			if m := posts[p.peerId][p.msgId]; m != nil {
+				v.Views, v.Forwards = m.GetViews(), m.GetForwards()
 			}
 		}
+		rViews.Views = append(rViews.Views, mtproto.MakeTLMessageViews(v).To_MessageViews())
 	}
-
-	boxMsgList.Walk(func(idx int, v *mtproto.MessageBox) {
-		for _, v2 := range rViews.GetViews() {
-			if v2.GetReplies() != nil {
-				v2.Replies = v2.GetReplies()
-			}
-		}
-	})
 
 	return rViews, nil
 }

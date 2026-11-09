@@ -17,6 +17,7 @@ package core
 
 import (
 	"errors"
+	"math/rand"
 	"slices"
 	"strings"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -501,7 +503,7 @@ func (c *FoldersCore) checkChatlistInviteOf(ext *dialog.ChatlistInviteExt) (*mtp
 	}).To_Chatlists_ChatlistInvite(), nil
 }
 
-// chatlistLeaveSuggestions are the channels a client offers to leave with
+// chatlistLeaveSuggestions are the chats a client offers to leave with
 // folder: those in it, and in no other folder, that the user may leave
 // (core.telegram.org/method/chatlists.getLeaveChatlistSuggestions; Android
 // marks them in FolderBottomSheet.showForDeletion). Which of them Telegram
@@ -509,23 +511,33 @@ func (c *FoldersCore) checkChatlistInviteOf(ext *dialog.ChatlistInviteExt) (*mtp
 // or created by the user, is what the user wants unverified.
 func (c *FoldersCore) chatlistLeaveSuggestions(id int32, folder *mtproto.DialogFilter, all []*dialog.DialogFilterExt) ([]*mtproto.Peer, error) {
 	others := map[int64]bool{}
+	otherChats := map[int64]bool{}
 	for _, ext := range all {
 		if ext.GetId() == id {
 			continue
 		}
 		for _, list := range [][]*mtproto.InputPeer{ext.GetDialogFilter().GetPinnedPeers(), ext.GetDialogFilter().GetIncludePeers()} {
 			for _, p := range list {
-				if p.GetPredicateName() == mtproto.Predicate_inputPeerChannel {
+				switch p.GetPredicateName() {
+				case mtproto.Predicate_inputPeerChannel:
 					others[p.GetChannelId()] = true
+				case mtproto.Predicate_inputPeerChat:
+					otherChats[p.GetChatId()] = true
 				}
 			}
 		}
 	}
-	var ids []int64
+	var (
+		ids     []int64
+		chatIds []int64
+	)
 	for _, list := range [][]*mtproto.InputPeer{folder.GetPinnedPeers(), folder.GetIncludePeers()} {
 		for _, p := range list {
-			if p.GetPredicateName() == mtproto.Predicate_inputPeerChannel && !others[p.GetChannelId()] && !slices.Contains(ids, p.GetChannelId()) {
+			switch {
+			case p.GetPredicateName() == mtproto.Predicate_inputPeerChannel && !others[p.GetChannelId()] && !slices.Contains(ids, p.GetChannelId()):
 				ids = append(ids, p.GetChannelId())
+			case p.GetPredicateName() == mtproto.Predicate_inputPeerChat && !otherChats[p.GetChatId()] && !slices.Contains(chatIds, p.GetChatId()):
+				chatIds = append(chatIds, p.GetChatId())
 			}
 		}
 	}
@@ -544,23 +556,43 @@ func (c *FoldersCore) chatlistLeaveSuggestions(id int32, folder *mtproto.DialogF
 			out = append(out, mtproto.MakePeer(mtproto.PEER_CHANNEL, cid))
 		}
 	}
+	for _, chatId := range chatIds {
+		mc, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: chatId})
+		if err != nil {
+			c.Logger.Infof("chatlists.getLeaveChatlistSuggestions - chat %d of user %d left out: %v", chatId, c.MD.UserId, err)
+			continue
+		}
+		if me, ok := mc.GetImmutableChatParticipant(c.MD.UserId); ok && me.IsChatMemberStateNormal() && mc.Creator() != c.MD.UserId {
+			out = append(out, mtproto.MakePeer(mtproto.PEER_CHAT, chatId))
+		}
+	}
 	return out, nil
 }
 
-// leaveChatlistChannels leaves the channels of peers that the folder holds.
-// What cannot be left any more does not stop the folder from going
-// (not in it, its creator, banned, a channel gone).
+// leaveChatlistChannels leaves the channels and the basic groups of peers
+// that the folder holds. What cannot be left any more does not stop the
+// folder from going (not in it, its creator, banned, a channel gone).
 func (c *FoldersCore) leaveChatlistChannels(folder *mtproto.DialogFilter, in []*mtproto.InputPeer) (*mtproto.Updates, error) {
 	inFolder := map[int64]bool{}
+	chatsInFolder := map[int64]bool{}
 	for _, list := range [][]*mtproto.InputPeer{folder.GetPinnedPeers(), folder.GetIncludePeers()} {
 		for _, p := range list {
-			if p.GetPredicateName() == mtproto.Predicate_inputPeerChannel {
+			switch p.GetPredicateName() {
+			case mtproto.Predicate_inputPeerChannel:
 				inFolder[p.GetChannelId()] = true
+			case mtproto.Predicate_inputPeerChat:
+				chatsInFolder[p.GetChatId()] = true
 			}
 		}
 	}
 	out := newChatlistUpdates()
 	for _, p := range in {
+		if p.GetPredicateName() == mtproto.Predicate_inputPeerChat && chatsInFolder[p.GetChatId()] {
+			if err := c.leaveChatlistGroup(p.GetChatId(), out); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		if p.GetPredicateName() != mtproto.Predicate_inputPeerChannel || !inFolder[p.GetChannelId()] {
 			continue
 		}
@@ -580,4 +612,43 @@ func (c *FoldersCore) leaveChatlistChannels(folder *mtproto.DialogFilter, in []*
 		}
 	}
 	return out, nil
+}
+
+// leaveChatlistGroup leaves a basic group as messages.deleteChatUser does
+// for the user itself: biz chat removes it, the service message goes to the
+// members. Android can send one for a folder with groups in it
+// (FolderBottomSheet.java:391, the peers of the suggestions). One that
+// cannot be left any more does not stop the folder from going.
+func (c *FoldersCore) leaveChatlistGroup(chatId int64, out *mtproto.Updates) error {
+	mc, err := c.svcCtx.Dao.ChatClient.ChatDeleteChatUser(c.ctx, &chatpb.TLChatDeleteChatUser{
+		ChatId:       chatId,
+		OperatorId:   c.MD.UserId,
+		DeleteUserId: c.MD.UserId,
+	})
+	switch {
+	case err == nil:
+	case errors.Is(err, mtproto.ErrUserNotParticipant), errors.Is(err, mtproto.ErrChatIdInvalid), errors.Is(err, mtproto.ErrPeerIdInvalid):
+		c.Logger.Infof("chatlists.leaveChatlist - chat %d of user %d stays: %v", chatId, c.MD.UserId, err)
+		return nil
+	default:
+		return err
+	}
+	r, err := c.svcCtx.Dao.MsgClient.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
+		UserId:    c.MD.UserId,
+		AuthKeyId: c.MD.PermAuthKeyId,
+		PeerType:  mtproto.PEER_CHAT,
+		PeerId:    chatId,
+		Message: []*msgpb.OutboxMessage{
+			msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
+				NoWebpage: true,
+				RandomId:  rand.Int63(), //nolint:gosec // random_id of a service message, not a secret
+				Message:   mc.MakeMessageService(c.MD.UserId, mtproto.MakeMessageActionChatDeleteUser(c.MD.UserId)),
+			}).To_OutboxMessage(),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	mergeChatlistUpdates(out, r)
+	return nil
 }

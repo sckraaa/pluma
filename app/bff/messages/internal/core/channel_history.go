@@ -55,6 +55,11 @@ func (c *MessagesCore) channelHistory(channelId int64, in *mtproto.TLMessagesGet
 func (c *MessagesCore) fillChannelPeers(r *mtproto.Messages_Messages, channelId int64) error {
 	h := mtproto.NewIDListHelper(c.MD.UserId)
 	h.PickByMessages(r.GetMessages()...)
+	// The clients read the creators of topics from users too: tdesktop
+	// Data::ForumTopic::applyTopic (data_forum_topic.cpp) owner by from_id.
+	for _, t := range r.GetTopics() {
+		h.PickByPeer(t.GetFromId())
+	}
 	h.AppendChannels(channelId)
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
 		Id:      h.UserIdList,

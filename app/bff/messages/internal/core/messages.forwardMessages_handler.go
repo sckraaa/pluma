@@ -347,7 +347,7 @@ func (c *MessagesCore) makeForwardMessages(
 			NoWebpage:    true,
 			Background:   false,
 			RandomId:     findRandomIdById(m.GetId()),
-			Message:      m,
+			Message:      withRepeatPeriod(m, request.GetScheduleDate(), request.GetScheduleRepeatPeriod()),
 			ScheduleDate: request.GetScheduleDate(),
 		})
 	}

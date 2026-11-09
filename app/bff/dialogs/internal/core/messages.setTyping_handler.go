@@ -19,10 +19,12 @@
 package core
 
 import (
+	"slices"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 )
 
@@ -75,8 +77,52 @@ func (c *DialogsCore) MessagesSetTyping(in *mtproto.TLMessagesSetTyping) (*mtpro
 			return nil
 		})
 	case mtproto.PEER_CHANNEL:
-		// Tips: disable updates
+		// updateChannelUserTyping to the other members in a supergroup, with
+		// the topic or the thread (task 067); a broadcast has no typing. A
+		// signal of a few seconds: a failure costs nothing, it is logged.
+		if err := c.channelTyping(peer.PeerId, in, date); err != nil {
+			c.Logger.Errorf("messages.setTyping - error: %v", err)
+		}
 	}
 
 	return mtproto.BoolTrue, nil
+}
+
+// channelTyping pushes the action of the member to the other members of the
+// supergroup. The clients show it in the topic of top_msg_id
+// (core.telegram.org/constructor/updateChannelUserTyping, tdesktop
+// api_updates.cpp:2020-2027).
+func (c *DialogsCore) channelTyping(channelId int64, in *mtproto.TLMessagesSetTyping, date int32) error {
+	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: channelId})
+	if err != nil {
+		return err
+	}
+	if mc.GetChannel().GetBroadcast() {
+		return nil
+	}
+	members, err := c.svcCtx.Dao.Channel.ChannelGetMemberIdList(c.ctx, &channelpb.TLChannelGetMemberIdList{ChannelId: channelId})
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(members.GetDatas(), c.MD.UserId) {
+		return nil
+	}
+	u := mtproto.MakeTLUpdateChannelUserTyping(&mtproto.Update{
+		ChannelId: channelId,
+		FromId:    mtproto.MakePeerUser(c.MD.UserId),
+		Action:    in.Action,
+	}).To_Update()
+	if top := in.GetTopMsgId(); top != nil {
+		u.TopMsgId_FLAGINT32 = top
+	}
+	updates := mtproto.MakeTLUpdateShort(&mtproto.Updates{Update: u, Date: date}).To_Updates()
+	for _, id := range members.GetDatas() {
+		if id == c.MD.UserId {
+			continue
+		}
+		if _, err = c.svcCtx.Dao.SyncClient.SyncPushUpdates(c.ctx, &sync.TLSyncPushUpdates{UserId: id, Updates: updates}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
