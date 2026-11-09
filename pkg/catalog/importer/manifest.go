@@ -83,7 +83,7 @@ func readManifest(root *os.Root, layer int) (*Manifest, error) {
 		return nil, fmt.Errorf("importer: manifest: %w", err)
 	}
 	if m.Layer != layer {
-		return nil, fmt.Errorf("importer: the collection is of layer %d, the server's is %d", m.Layer, layer)
+		return nil, fmt.Errorf("importer: the collection is of layer %d, this importer reads %d", m.Layer, layer)
 	}
 	var names []string
 	for _, a := range m.Answers {

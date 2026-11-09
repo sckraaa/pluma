@@ -19,8 +19,8 @@ import (
 	"github.com/teamgram/proto/mtproto/crypto"
 )
 
-// DefaultLayer is the API layer the server implements (ADR 0008).
-const DefaultLayer = 228
+// DefaultLayer is the newest API layer the server implements (ADR 0045).
+const DefaultLayer = 233
 
 const (
 	// ackDelay is how long received content messages wait for an outgoing

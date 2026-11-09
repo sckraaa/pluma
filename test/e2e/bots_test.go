@@ -22,12 +22,19 @@ var botCreatedRe = regexp.MustCompile(`bot (\d+): (\S+)`)
 // its token. owner is the phone of the account that may edit it.
 func botLoggedIn(ctx context.Context, t *testing.T, owner, username string) *user {
 	t.Helper()
+	return botLoggedInAtLayer(ctx, t, owner, username, 228) // the tests build keyboards of layer 228
+}
+
+func botLoggedInAtLayer(ctx context.Context, t *testing.T, owner, username string, layer int32) *user {
+	t.Helper()
 	out := admin(t, "bot", "create", username, "Test Bot", "-owner", owner)
 	m := botCreatedRe.FindStringSubmatch(out)
 	if m == nil {
 		t.Fatalf("no token in %q", out)
 	}
-	c, err := mtclient.Dial(ctx, config(t, "e2e bot "+username))
+	cfg := config(t, "e2e bot "+username)
+	cfg.Layer = layer
+	c, err := mtclient.Dial(ctx, cfg)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}

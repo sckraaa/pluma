@@ -57,7 +57,7 @@ func TestForumTopicGaps(t *testing.T) {
 	}
 	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsToggleForum{
 		Constructor: alice.c.Constructor(mtproto.Predicate_channels_toggleForum),
-		Channel:     input(alice), Enabled: mtproto.BoolTrue, Tabs: mtproto.BoolFalse,
+		Channel:     input(alice), Enabled: mtproto.BoolTrue, Tabs: mtproto.BoolFalse, Sidebar: mtproto.BoolFalse,
 	}); err != nil {
 		t.Fatalf("channels.toggleForum: %v", err)
 	}

@@ -60,13 +60,13 @@ func TestChannelForum(t *testing.T) {
 
 	if _, err := bob.c.Invoke(ctx, &mtproto.TLChannelsToggleForum{
 		Constructor: bob.c.Constructor(mtproto.Predicate_channels_toggleForum),
-		Channel:     input(bob), Enabled: mtproto.BoolTrue, Tabs: mtproto.BoolFalse,
+		Channel:     input(bob), Enabled: mtproto.BoolTrue, Tabs: mtproto.BoolFalse, Sidebar: mtproto.BoolFalse,
 	}); err == nil {
 		t.Fatal("a member turned the forum on")
 	}
 	o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsToggleForum{
 		Constructor: alice.c.Constructor(mtproto.Predicate_channels_toggleForum),
-		Channel:     input(alice), Enabled: mtproto.BoolTrue, Tabs: mtproto.BoolFalse,
+		Channel:     input(alice), Enabled: mtproto.BoolTrue, Tabs: mtproto.BoolFalse, Sidebar: mtproto.BoolFalse,
 	})
 	if err != nil {
 		t.Fatalf("channels.toggleForum: %v", err)

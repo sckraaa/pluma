@@ -24,7 +24,8 @@
 // them by the schema they came from and decoding the bytes leaves nothing
 // to guess.
 //
-// api.tl is the schema of layer 228, the server's, from tdesktop v7.0.9
+// api.tl is the schema of layer 228, the layer the catalog collections are
+// gathered with (the server serves several layers, ADR 0045), from tdesktop v7.0.9
 // (Telegram/SourceFiles/mtproto/scheme/api.tl).
 package tl
 

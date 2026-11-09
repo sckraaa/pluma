@@ -165,12 +165,26 @@ func resetLoginsPerAddress(t *testing.T) {
 // "" for the default.
 func loginIn(ctx context.Context, t *testing.T, phone, firstName, langCode string) *user {
 	t.Helper()
-	admin(t, "allowlist", "add", phone, "e2e test")
-
 	cfg := config(t, "e2e "+firstName)
 	if langCode != "" {
 		cfg.LangCode = langCode
 	}
+	return loginWith(ctx, t, phone, firstName, cfg)
+}
+
+// loginAtLayer is login from a client of an older or newer API layer than the
+// default.
+func loginAtLayer(ctx context.Context, t *testing.T, phone, firstName string, layer int32) *user {
+	t.Helper()
+	cfg := config(t, "e2e "+firstName)
+	cfg.Layer = layer
+	return loginWith(ctx, t, phone, firstName, cfg)
+}
+
+func loginWith(ctx context.Context, t *testing.T, phone, firstName string, cfg mtclient.Config) *user {
+	t.Helper()
+	admin(t, "allowlist", "add", phone, "e2e test")
+
 	c, err := mtclient.Dial(ctx, cfg)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
