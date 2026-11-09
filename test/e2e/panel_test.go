@@ -140,5 +140,10 @@ func TestChannelBlockedByOwner(t *testing.T) {
 	if restricted() {
 		t.Error("the channel is still restricted")
 	}
-	sendTo(ctx, t, alice, peer, "after the unblock")
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendMessage),
+		Peer:        peer, Message: "after the unblock", RandomId: randomID(),
+	}); err != nil {
+		t.Fatalf("messages.sendMessage: %v", err)
+	}
 }
