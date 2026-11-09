@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package sender is the queue of the code sender (task 073, ADR 0042): it
+// Package sender is the queue of the code sender (task 073, ADR 0044): it
 // takes login codes from bff and hands them, one at a time and with human
 // pauses, to the Telegram account. What it remembers (the limits, a flood
 // wait, contacts still to remove) lives in a file of its volume and survives

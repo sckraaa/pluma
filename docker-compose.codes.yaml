@@ -1,4 +1,4 @@
-# The login code sender (task 073, ADR 0042, docs/ops/login-codes.md): a real
+# The login code sender (task 073, ADR 0044, docs/ops/login-codes.md): a real
 # Telegram account writes the codes, over TDLib. Not started by default: it
 # needs an account that has been logged in by QR first. Added to the services
 # command after the other compose files:

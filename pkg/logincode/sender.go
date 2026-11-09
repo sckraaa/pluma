@@ -15,7 +15,7 @@ import (
 	"github.com/zeromicro/go-zero/core/metric"
 )
 
-// SendResult is what the code sender (app/ops/codes, task 073, ADR 0042) did
+// SendResult is what the code sender (app/ops/codes, task 073, ADR 0044) did
 // with a code. The values are its wire format.
 type SendResult string
 

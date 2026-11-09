@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Command codes sends login codes from a real Telegram account, over TDLib
-// (task 073, ADR 0042, docs/ops/login-codes.md). A small separate service: it
+// (task 073, ADR 0044, docs/ops/login-codes.md). A small separate service: it
 // holds the account's session in its own volume and has one narrow internal
 // API, used by bff.
 //

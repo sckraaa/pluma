@@ -8,7 +8,7 @@
 Бот — учётная запись MTProto: вход токеном, команды, описание, кнопка меню, инлайн-клавиатуры и ответы на кнопки, инлайн-режим, `/start` с параметром и глубокая ссылка, обновления через `getDifference`, боты в группах и каналах с режимом конфиденциальности. HTTP Bot API и мини-приложения — отдельные задачи.
 
 ## Что выяснено у клиентов и в документации
-- **Вход:** `auth.importBotAuthorization` — `ACCESS_TOKEN_INVALID`, `ACCESS_TOKEN_EXPIRED`, `API_ID_INVALID` (core.telegram.org/method/auth.importBotAuthorization). Клиенты Telegram его не вызывают; вызывают библиотеки. `bots.createBot` — поток управляемых ботов: `manager_id` (tdesktop `boxes/peers/create_managed_bot_box.cpp`, Android `CreateBotAlert.java:275-279`), в ADR 0041 не берётся.
+- **Вход:** `auth.importBotAuthorization` — `ACCESS_TOKEN_INVALID`, `ACCESS_TOKEN_EXPIRED`, `API_ID_INVALID` (core.telegram.org/method/auth.importBotAuthorization). Клиенты Telegram его не вызывают; вызывают библиотеки. `bots.createBot` — поток управляемых ботов: `manager_id` (tdesktop `boxes/peers/create_managed_bot_box.cpp`, Android `CreateBotAlert.java:275-279`), в ADR 0043 не берётся.
 - **Команды** приходят в `botInfo` внутри `userFull`, `chatFull`, `channelFull`; изменение видно по `bot_info_version` (core.telegram.org/api/bots/commands). Порядок выбора списка, ограничения команд и описаний: core.telegram.org/bots/api, разделы Determining list of commands, BotCommand (команда 1–32 символа, строчные, цифры, `_`; описание 1–256), setMyCommands (не более 100), setMyName (64), setMyDescription (512), setMyShortDescription (120).
 - **Кнопки:** `messages.getBotCallbackAnswer` → `updateBotCallbackQuery` боту → `messages.setBotCallbackAnswer`; клиенты обрабатывают `BOT_RESPONSE_TIMEOUT`; `data` до 64 байт (core.telegram.org/api/bots/buttons, method/messages.getBotCallbackAnswer, bots/api#inlinekeyboardbutton; `text` ответа до 200 символов — bots/api#answercallbackquery). `requires_password` от бота не поддержан: сервер пароль на нажатие не спрашивает.
 - **Инлайн:** core.telegram.org/api/bots/inline; `cache_time`, `private`, `next_offset` до 64 байт, не больше 50 результатов — method/messages.setInlineBotResults и bots/api#answerinlinequery.
@@ -18,7 +18,7 @@
 - **Флаги пользователя:** `bot_chat_history`, `bot_nochats`, `bot_inline_placeholder`, `bot_info_version`, `bot_can_edit` — в схеме layer 228.
 
 ## Решения
-- Хранилище и путь управления — ADR 0041, `pkg/botstore`, `pluma-admin bot`.
+- Хранилище и путь управления — ADR 0043, `pkg/botstore`, `pluma-admin bot`.
 - Клавиатуры: `pkg/botmarkup` проверяет разметку бота; `inputKeyboardButton*` превращаются в полученные клиентом формы; `reply_markup` от обычного аккаунта отбрасывается молча.
 - Обновления боту о кнопке и инлайне — журнал seq (`EmitSeqUpdate`), новые типы разрешены в `userbox.SeqUpdate`; offline-бот получит их через `other_updates`, пока запрос жив (60 с): старше `updates.getDifference` их не отдаёт, а следующая запись боту удаляет (`userbox.TrimQueryUpdates`, `QueryUpdateTTL`); ответ на устаревший запрос — `QUERY_ID_INVALID`.
 - Запросы с ожиданием бота не задерживают остальные запросы ключа (сессия, `waitsForBot`).

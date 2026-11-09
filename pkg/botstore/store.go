@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Package botstore keeps what the server knows of bot accounts beyond their
-// row of users (task 070, ADR 0041): the tokens, the command lists by scope
+// row of users (task 070, ADR 0043): the tokens, the command lists by scope
 // and language, the texts by language and the menu buttons. The flags that
 // travel with the user are biz user's (user.updateBotData), which owns the
 // cache of users.

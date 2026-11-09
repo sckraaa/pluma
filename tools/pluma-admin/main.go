@@ -60,7 +60,7 @@
 // owner forgot it and is logged in nowhere to reset it with a week's wait
 // (account.resetPassword). Establish who asks outside the server first.
 //
-// bot creates and tunes bot accounts (task 070, ADR 0041): create and token
+// bot creates and tunes bot accounts (task 070, ADR 0043): create and token
 // print a token, which the server keeps only as a hash, so this is the one
 // time it can be read; the token goes to whoever runs the bot, over a
 // channel you trust. token replaces the old one. list prints no token. set

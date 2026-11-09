@@ -29,7 +29,7 @@ import (
 const secretBytes = 26
 
 // newToken returns a token of the bot, <bot id>:<secret>, and the hash of its
-// secret, which is all that is stored (ADR 0041).
+// secret, which is all that is stored (ADR 0043).
 func newToken(botId int64) (token, hash string, err error) {
 	b := make([]byte, secretBytes)
 	if _, err = rand.Read(b); err != nil {

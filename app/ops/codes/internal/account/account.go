@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Package account is the Telegram account that writes the login codes, on
-// TDLib (ADR 0042). The methods and states are those of td_api.tl of the
+// TDLib (ADR 0044). The methods and states are those of td_api.tl of the
 // commit pinned in teamgramd/deploy/codes/Dockerfile. Nothing here logs a
 // phone, a text or a TDLib object.
 package account

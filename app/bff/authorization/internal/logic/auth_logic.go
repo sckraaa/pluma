@@ -74,7 +74,7 @@ func NewAuthSignLogic(store PhoneCodeStore, codes *logincode.Service) *AuthLogic
 // The code goes to the user's other authorized sessions when there are any
 // (auth.sentCodeTypeApp). Otherwise to the user's own Telegram account, if
 // the sender is deployed and takes it (also auth.sentCodeTypeApp: every
-// client then offers the next_type as "did not get the code"; ADR 0042).
+// client then offers the next_type as "did not get the code"; ADR 0044).
 // Failing that the answer is auth.sentCodeTypeSms and nothing is sent: the
 // administrator issues the code (pluma-admin login-code).
 func (m *AuthLogic) DoAuthSendCode(ctx context.Context,

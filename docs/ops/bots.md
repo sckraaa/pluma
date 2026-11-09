@@ -1,6 +1,6 @@
 # Боты
 
-Боты — обычные аккаунты MTProto (ADR 0041). Создаёт их администратор через `pluma-admin`, клиенты и библиотеки (Telethon, TDLib, Pyrogram) входят токеном через `auth.importBotAuthorization`. Отдельный сервер Bot API и мини-приложения пока не сделаны.
+Боты — обычные аккаунты MTProto (ADR 0043). Создаёт их администратор через `pluma-admin`, клиенты и библиотеки (Telethon, TDLib, Pyrogram) входят токеном через `auth.importBotAuthorization`. Отдельный сервер Bot API и мини-приложения пока не сделаны.
 
 ## Развёртывание
 Миграция `migrate-20261109-bots-core.sql` применяется службой миграций. Новых переменных нет. Вызовы `RPCBots`, `RPCBotMenuButton`, `RPCInlineBot`, `RPCDeepLinks` уже разведены в `session.yaml`.

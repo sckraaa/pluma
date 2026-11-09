@@ -1,4 +1,4 @@
--- Bots at the MTProto level (task 070, ADR 0041).
+-- Bots at the MTProto level (task 070, ADR 0043).
 --
 -- bots: the columns the service reads of a bot (user.getBotInfo) that no
 -- earlier migration added, and an index for the bots of an owner.

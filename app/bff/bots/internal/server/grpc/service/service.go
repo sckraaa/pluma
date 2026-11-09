@@ -162,12 +162,12 @@ func (s *Service) BotsCheckUsername(ctx context.Context, request *mtproto.TLBots
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// BotsCreateBot is the managed-bot flow, not served (ADR 0041).
+// BotsCreateBot is the managed-bot flow, not served (ADR 0043).
 func (s *Service) BotsCreateBot(ctx context.Context, request *mtproto.TLBotsCreateBot) (*mtproto.User, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// BotsExportBotToken is the managed-bot flow, not served (ADR 0041).
+// BotsExportBotToken is the managed-bot flow, not served (ADR 0043).
 func (s *Service) BotsExportBotToken(ctx context.Context, request *mtproto.TLBotsExportBotToken) (*mtproto.Bots_ExportedBotToken, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }

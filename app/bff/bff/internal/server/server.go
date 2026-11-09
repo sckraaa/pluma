@@ -120,7 +120,7 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCVoipCallsServer(grpcServer, voipcalls_helper.New(callsConf))
 		s.calls = voipcalls_helper.StartSweeper(callsConf)
 
-		// bots_helper: the methods of bot accounts (task 070, ADR 0041).
+		// bots_helper: the methods of bot accounts (task 070, ADR 0043).
 		bots := bots_helper.New(bots_helper.Config{
 			RpcServerConf: c.RpcServerConf,
 			Mysql:         c.Mysql,

@@ -1,4 +1,4 @@
-# The login code sender (app/ops/codes, task 073, ADR 0042). Its own image: it
+# The login code sender (app/ops/codes, task 073, ADR 0044). Its own image: it
 # links TDLib, which nothing else needs.
 #
 # TDLib is built from the commit below (official tdlib/td, whose td_api.tl was

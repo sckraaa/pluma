@@ -1,4 +1,4 @@
-# Login codes sent from the Telegram account (task 073, ADR 0042,
+# Login codes sent from the Telegram account (task 073, ADR 0044,
 # docs/ops/login-codes.md). The service is optional: when it is not deployed
 # Prometheus finds no target (dns_sd) and none of these fire.
 groups:

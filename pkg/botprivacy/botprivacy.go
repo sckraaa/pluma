@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Package botprivacy decides which messages of a group a bot gets (task 070,
-// ADR 0041). core.telegram.org/bots/features#privacy-mode: all bots run in
+// ADR 0043). core.telegram.org/bots/features#privacy-mode: all bots run in
 // privacy mode unless turned off or added as admins, and then see commands
 // meant for them, inline messages sent via them, replies to messages meant
 // for them and all service messages. Channels and private chats are not

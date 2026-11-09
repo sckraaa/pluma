@@ -50,7 +50,7 @@ type botConfig struct {
 	SyncClient        struct{ Topic string }
 }
 
-// botCommand runs bot create, list, token and set (task 070, ADR 0041).
+// botCommand runs bot create, list, token and set (task 070, ADR 0043).
 func botCommand(args []string, configFile string, stdout io.Writer) error {
 	if len(args) < 2 {
 		return errUsage

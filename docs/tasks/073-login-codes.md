@@ -39,7 +39,7 @@ Telegram Gateway отпал: минимальное пополнение 100 $. 
 - `teamgramd/deploy/codes/Dockerfile`, `docker-compose.codes.yaml` (256 МБ, том `codes_data`, порт `127.0.0.1:9378`), `pluma-codes` в CI образов.
 - `pkg/logincode`: интерфейс `Sender`, HTTP-клиент, `Service.DeliverByTelegram`, правило `TelegramCodePerIP`, `Service.RegistrationOpen(ctx)`, таблица `registration_settings` (`migrate-20261109-login-codes.sql`).
 - `auth.sendCode`, `auth.resendCode`, `account.sendChangePhoneCode` пробуют аккаунт; метрика `login_code_sender_total`, правила `rules/codes.yml`, цель `ops.codes`.
-- Документы: `docs/ops/login-codes.md`, ADR 0042, раздел в `monitoring.md`, строка в `security-setup.md`, `TESTING-BACKLOG`.
+- Документы: `docs/ops/login-codes.md`, ADR 0044, раздел в `monitoring.md`, строка в `security-setup.md`, `TESTING-BACKLOG`.
 
 **Источники**
 - TDLib: коммит `c0a540074fa449094340f76a3ea56f7096e0ad4c` (2026-11-08, версия 1.8.69 по `CMakeLists.txt`), лицензия Boost 1.0 (`LICENSE_1_0.txt`), официальный `tdlib/td`, не tdlight (форк не нужен: нужен только JSON-интерфейс и эти методы).
