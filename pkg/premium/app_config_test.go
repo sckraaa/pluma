@@ -48,7 +48,7 @@ func TestAppConfigOpensEverything(t *testing.T) {
 		}
 	}
 	for _, key := range []string{
-		"channel_color_level_min", "channel_bg_icon_level_min", "channel_profile_bg_icon_level_min",
+		"channel_color_level_min", "channel_bg_icon_level_min", "channel_profile_bg_icon_level_min", "channel_profile_color_level_min",
 		"channel_emoji_status_level_min", "channel_wallpaper_level_min", "channel_custom_wallpaper_level_min",
 		"channel_restrict_sponsored_level_min", "channel_autotranslation_level_min",
 		"group_transcribe_level_min", "group_emoji_stickers_level_min", "group_profile_bg_icon_level_min",

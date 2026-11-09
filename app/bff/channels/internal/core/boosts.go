@@ -22,26 +22,38 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/env2"
 )
 
-// Boosts (task 044): Pluma has no Premium boosts, so a channel has none and
-// its level is 0, which is its real state. Android asks the status of every
+// Boosts (task 044): Pluma has no Premium boosts, so a channel has none, and
+// what boosts unlock in Telegram is open to everybody (ADR 0041), so its
+// level is openLevel. Android asks the status of every
 // channel it opens and shows an error bulletin when the answer is an error
 // (ChatActivity.java:22397-22428, ChannelBoostsController.java:58-60 at
 // aac1efcb), and then the account's own boosts (getMyBoosts). Giving and
 // listing boosts is not served (ERR_ENTERPRISE_IS_BLOCKED, 400, which the
 // clients do not retry).
 
-// nextLevelBoosts is the boosts of the next level a channel at level 0 is
-// shown: without it Android takes the channel for one at its highest level
-// and draws "Level -1" (ChannelBoostsController.java:73,
+// openLevel is the level of every channel. Most gates compare the level with
+// a *_level_min of help.getAppConfig, 0 in ours, but the custom reactions of
+// a channel have no such key: the clients let an admin keep as many as the
+// channel has levels (Android ChatCustomReactionsEditActivity.java:352,764,792
+// at aac1efcb; iOS PeerAllowedReactionsScreen.swift:273,538,1542 at 6ad963e5;
+// tdesktop edit_peer_info_box.cpp:1922 and edit_peer_reactions.cpp:981 at
+// a1e89e1), so at level 0 none is allowed. 100 is the most the clients offer
+// (boosts_channel_level_max: Android MessagesController.java:1759, tdesktop
+// data_premium_limits.cpp:221) and reactions.InChatMax.
+const openLevel = 100
+
+// nextLevelBoosts is the boosts of the next level a channel is shown: without
+// it Android takes the channel for one at its highest level and draws the
+// level below it (ChannelBoostsController.java:73,
 // LimitReachedBottomSheet.java:2206, LimitPreviewView.java:631-634 at
-// aac1efcb). One boost for level 1 is the least that shows a level not yet
-// reached; Telegram's thresholds are not verified.
+// aac1efcb). One boost is the least that shows a level not yet reached;
+// Telegram's thresholds are not verified.
 const nextLevelBoosts = 1
 
 // PremiumGetBoostsStatus
 // premium.getBoostsStatus#42f1f61 peer:InputPeer = premium.BoostsStatus;
 //
-// The boosts of a channel the account may read: none, level 0. boost_url is
+// The boosts of a channel the account may read: none, at openLevel. boost_url is
 // the link Android opens boosts by: t.me/boost/<username> or
 // t.me/boost?c=<id> (LaunchActivity.java:2119-2125 at aac1efcb), on this
 // server's link host. Another peer is PEER_ID_INVALID.
@@ -62,7 +74,7 @@ func (c *ChannelsCore) PremiumGetBoostsStatus(in *mtproto.TLPremiumGetBoostsStat
 		url = "https://" + env2.TDotMe + "/boost/" + name
 	}
 	return mtproto.MakeTLPremiumBoostsStatus(&mtproto.Premium_BoostsStatus{
-		Level:              0,
+		Level:              openLevel,
 		CurrentLevelBoosts: 0,
 		Boosts:             0,
 		NextLevelBoosts:    mtproto.MakeFlagsInt32(nextLevelBoosts),

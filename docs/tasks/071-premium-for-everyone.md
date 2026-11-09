@@ -22,7 +22,9 @@ Android на `aac1efcb`, iOS `6ad963e5`, tdesktop `a1e89e1`, tweb `346844bf`; с
 - tdesktop `premiumPossible = premium() || premiumCanBuy()` (`main_session.cpp:349`), `premiumBadgesShown = supportMode() || premiumPossible()` (`:353`).
 - iOS `isPremiumDisabled` — только конфиг, без учёта флага (`Premium.swift:282`), поэтому звезда там уже скрыта, а часть функций спрятана (ниже).
 
-**`app_config.json`.** Все `*_default`, у которых есть `*_premium`, равны премиальным; `upload_max_fileparts_default = 8000` (4 ГБ, dfs и так принимает 8000, `MaxFileParts`). Добавлены `channel_*_level_min` и `group_*_level_min` со значением 0 (14 ключей, разбор: Android `MessagesController.java:4208-4362`, tdesktop `data_premium_limits.cpp:255-311`). `premium.getBoostsStatus` остаётся с `level 0`: `0 >= 0` открывает проверки, поддельные уровни не нужны.
+**`app_config.json`.** Все `*_default`, у которых есть `*_premium`, равны премиальным; `upload_max_fileparts_default = 8000` (4 ГБ, dfs и так принимает 8000, `MaxFileParts`). Добавлены `channel_*_level_min` и `group_*_level_min` со значением 0 (15 ключей, разбор: Android `MessagesController.java:4208-4362`, tdesktop `data_premium_limits.cpp:255-311`, iOS `Premium.swift:295` — `channel_profile_color_level_min` читает только он).
+
+**`premium.getBoostsStatus` отвечает `level 100`.** Нулевых `*_level_min` мало: у своих реакций канала ключа нет, клиенты разрешают столько реакций, сколько уровней (Android `ChatCustomReactionsEditActivity.java:352,764,792`, iOS `PeerAllowedReactionsScreen.swift:273,538,1542`, tdesktop `edit_peer_info_box.cpp:1922`, `edit_peer_reactions.cpp:981`), при уровне 0 ни одной. 100 — столько клиенты и предлагают (`boosts_channel_level_max`: Android `MessagesController.java:1759`, tdesktop `data_premium_limits.cpp:221`) и столько принимает сервер (`reactions.InChatMax`). `next_level_boosts` остаётся 1: без него Android рисует уровень на единицу ниже (`LimitPreviewView.java:631-634`).
 
 ## Что убрано на сервере
 - Проверки: `schedule_repeat_period` (`scheduled.go`, отправка и правка), `messages.getOutboxReadDate` (ветка без Premium), подпись 4096 (`caption.go`), `VOICE_MESSAGES` и `normalizeRules`, `new_noncontact_peers_require_premium` (`setGlobalPrivacySettings`, `getGlobalPrivacySettings`), био 140 (`about.go`), `for_both` (`wallpapers.go`), части файлов (`upload.saveBigFilePart`, `premium.go` удалён), папки и теги и «Все чаты» в любом месте (`filters.go`, `toggleDialogFilterTags`, `updateDialogFiltersOrder`, `dialog_filter.go`), `chatlist.go`, сохранённые GIF, лимиты каналов и публичных каналов (`pkg/premium/limits.go` — только константы).
@@ -44,6 +46,11 @@ Android на `aac1efcb`, iOS `6ad963e5`, tdesktop `a1e89e1`, tweb `346844bf`; с
 
 Тесты патч-скриптов зелёные: Android 61, iOS 63, Desktop 55, Web 38; `PremiumForEveryoneTest` проверяет применение, `verify` и падение при изменении апстрима. Якоря сверены с закреплёнными апстримами в `reference-src`; сборки клиентов не запускались.
 
+## Осталось поправить в патчах клиентов
+Найдено при проверке ветки, в ветках клиентов этого ещё нет:
+- **iOS, панель реакций.** `ChatControllerOpenMessageContextMenu.swift:187`: `areCustomEmojiEnabled: !premiumConfiguration.isPremiumDisabled`. При `premium_purchase_blocked = true` своих эмодзи в расширенной панели реакций нет, хотя Premium есть. Нужна правка в `PREMIUM_FOR_EVERYONE_EDITS`: `areCustomEmojiEnabled: true`.
+- **Android, поиск в настройках.** `ProfileActivity.java:14768-14774` (`isPremiumFeatureAvailable`): с флагом условие истинно, в поиске появляются «Telegram Premium» и пункты экрана покупки (`:14646-14659`). Нужна проверка `premiumPurchaseBlocked()`.
+
 ## Что клиенты теперь предлагают, а сервер не умеет
 С флагом открылись входы в функции, которых на сервере нет (`docs/project/api-coverage.md`). Часть скрыта патчем, остальное нужно делать отдельными задачами:
 - **Скрыто патчем:** расшифровка голосовых (`messages.transcribeAudio`), установка эмодзи-статуса (`account.updateEmojiStatus`) на Desktop и Web; на Android и iOS вход исчезает вместе со звездой (`DialogsActivity`, `ProfileActivity`), на iOS — `isPremiumDisabled`.
@@ -60,7 +67,8 @@ Android на `aac1efcb`, iOS `6ad963e5`, tdesktop `a1e89e1`, tweb `346844bf`; с
 ## Решения, требующие подтверждения
 - «Написать могут только контакты и Premium»: опция остаётся, но сервер считает Premium всех людей, поэтому никого не отсекает. Убрать её из клиентов — патчи.
 - Боты считаются без Premium (`!IsBot`), как в Telegram; пользователей `bot` с флагом клиенты никак не показывают.
-- Значения `stickers_faved_limit_premium: 5`, `recommended_channels_limit_premium: 10` не менялись: у Telegram с Premium верхняя граница больше, но это не проверено.
+- Значения `stickers_faved_limit_premium: 5`, `recommended_channels_limit_premium: 10` не менялись: `messages.faveSticker` сервер не обслуживает, рекомендаций каналов нет. По умолчанию у клиентов они больше: Android 200 и 100 (`MessagesController.java:1643,1758`), tdesktop 10 и 100 (`data_premium_limits.cpp:35,59`).
+- `level 100` виден на экранах бустов канала (Android `ChannelBoostLayout`, Web K `boosts.tsx`): цена открытых реакций без патчей клиентов.
 
 ## Результат
 Premium и бусты открыты всем одним методом `ImmutableUser.Premium()`; гейтов нет, лимиты премиальные, файлы до 4 ГБ; выдача Premium убрана из `pluma-admin` и панели, воркер истечения удалён; RPC `user.updatePremium` нейтрализован. Клиентские патчи (звезда, строки покупки, расшифровка, статус) готовы, ветки локальные, в клиентах со скриншотами не проверены. Функции Premium, которых нет на сервере (цвета, эмодзи-статус, транскрипция, перевод, Business), перечислены выше и требуют отдельных задач.

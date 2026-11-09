@@ -16,6 +16,7 @@
     "channel_color_level_min": 0,
     "channel_bg_icon_level_min": 0,
     "channel_profile_bg_icon_level_min": 0,
+    "channel_profile_color_level_min": 0,
     "channel_emoji_status_level_min": 0,
     "channel_wallpaper_level_min": 0,
     "channel_custom_wallpaper_level_min": 0,

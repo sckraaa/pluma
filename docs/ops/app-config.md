@@ -28,13 +28,13 @@
   - Выключатели того, чего на сервере нет. Они передаются явно, даже если у клиента сейчас такое же значение по умолчанию: значения по умолчанию меняются от версии к версии.
   - Ключи, которые Web K читает для реализованных возможностей и лимитов.
   - Значения Telegram, которые расходятся с клиентскими по умолчанию и важны Pluma (фоновое соединение Android).
-- **Premium и бусты (ADR 0041).** Premium есть у всех: значения `_default` равны значениям `_premium`, все ключи `*_level_min` равны нулю. Ключ `premium_purchase_blocked` остаётся `true`: это скрывает покупку.
+- **Premium и бусты (ADR 0041).** Premium есть у всех: значения `_default` равны значениям `_premium`, все ключи `*_level_min` равны нулю, `premium.getBoostsStatus` отвечает уровнем 100: число своих реакций канала клиенты сравнивают с уровнем, ключа для этого нет. Ключ `premium_purchase_blocked` остаётся `true`: это скрывает покупку.
 - **Чего в файле нет.**
   - Значения Telegram для конкретного пользователя или сессии: `freeze_*`, `call_requests_disabled`, `phone_country_iso2`, `transcribe_audio_trial_cooldown_until`.
   - Боты и сервисы Telegram: `premium_bot_username`, `premium_invoice_slug`, `telegram_antispam_user_id`, `ton_*`, `stars_*` с суммами, `weather_search_username` и т. п.
   - Настройки внутренностей клиента (видео-кружки, очереди загрузки, анимации). Здесь подходят значения клиента по умолчанию.
 
-Клиенты в таблицах: A — Android, D — Desktop (tdesktop), W — Web K.
+Клиенты в таблицах: A — Android, D — Desktop (tdesktop), W — Web K, I — iOS (указан там, где ключ читает только он).
 
 ## Premium и платежи
 
@@ -61,6 +61,7 @@
 | `channel_color_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
 | `channel_bg_icon_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
 | `channel_profile_bg_icon_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
+| `channel_profile_color_level_min` | `0` | I | Уровень буста не нужен: всё открыто всем (ADR 0041). Читает только iOS (`Premium.swift:295`). |
 | `channel_emoji_status_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
 | `channel_wallpaper_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
 | `channel_custom_wallpaper_level_min` | `0` | A D | Уровень буста не нужен: всё открыто всем (ADR 0041). |
@@ -87,7 +88,7 @@
 | `dialog_filters_enabled` | `true` | A D | Папки есть (задача 013), у Telegram `true`. По умолчанию у клиентов `false`. |
 | `dialog_filters_limit_default` | `30` | A D W | Проверяет сервер (`DIALOG_FILTERS_TOO_MUCH`). |
 | `dialog_filters_limit_premium` | `30` | A D W | Проверяет сервер. Без ключа Android берёт 20. |
-| `dialog_filters_chats_limit_default` | `100` | A D W | Проверяет сервер (`FILTER_INCLUDE_TOO_MUCH`). |
+| `dialog_filters_chats_limit_default` | `200` | A D W | Премиальное для всех (ADR 0041). Проверяет сервер (`FILTER_INCLUDE_TOO_MUCH`). |
 | `dialog_filters_chats_limit_premium` | `200` | A D W | Проверяет сервер. |
 
 ## Закреплённые чаты
@@ -96,13 +97,13 @@
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `dialogs_pinned_limit_default` | `5` | D W | Закреплённые чаты в списке. |
+| `dialogs_pinned_limit_default` | `10` | D W | Закреплённые чаты в списке. Премиальное для всех (ADR 0041). |
 | `dialogs_pinned_limit_premium` | `10` | D W | То же с Premium. |
-| `pinned_dialogs_count_max_default` | `5` | A | То же для Android, у него свой ключ. |
+| `pinned_dialogs_count_max_default` | `10` | A | То же для Android, у него свой ключ. |
 | `pinned_dialogs_count_max_premium` | `10` | A | То же с Premium. Без ключа Android берёт 5. |
-| `dialogs_folder_pinned_limit_default` | `100` | D W | Закреплённые чаты в архиве. |
+| `dialogs_folder_pinned_limit_default` | `200` | D W | Закреплённые чаты в архиве. Премиальное для всех (ADR 0041). |
 | `dialogs_folder_pinned_limit_premium` | `200` | D W | То же с Premium. |
-| `saved_dialogs_pinned_limit_default` | `5` | A D W | Закреплённые чаты в «Избранном». |
+| `saved_dialogs_pinned_limit_default` | `100` | A D W | Закреплённые чаты в «Избранном». Премиальное для всех (ADR 0041). |
 | `saved_dialogs_pinned_limit_premium` | `100` | A D W | То же с Premium. |
 | `topics_pinned_limit` | `5` | A D W | Закреплённые темы форума. |
 | `forum_upgrade_participants_min` | `0` | A D W | С какого числа участников владелец может включить темы. Без ключа Android и tdesktop берут 200, Web K не включает никогда; в Pluma столько участников не наберётся. |
@@ -114,7 +115,7 @@
 | `message_length_limit_default` | `4096` | A D | Как `message_length_max` в `help.getConfig`. Сервер длину не проверяет. |
 | `message_length_limit_premium` | `4096` | A D | Длинных сообщений с Premium сервер не реализует. Клиенты по умолчанию берут 8192. |
 | `caption_length_limit_default` | `4096` | A D W | Премиальное для всех (ADR 0041). Сервер проверяет. |
-| `caption_length_limit_premium` | `4096` | A D W | Как у Telegram (задача 025). Сервер проверяет по Premium пользователя. |
+| `caption_length_limit_premium` | `4096` | A D W | Как у Telegram (задача 025). Сервер проверяет. |
 | `about_length_limit_default` | `140` | A D W | Премиальное для всех (ADR 0041). Сервер проверяет. |
 | `about_length_limit_premium` | `140` | A D W | Как у Telegram (задача 025). |
 | `quote_length_max` | `1024` | A D W | Как у Telegram. |
@@ -127,22 +128,22 @@
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `channels_limit_default` | `500` | A D W | Каналов пока нет. |
+| `channels_limit_default` | `1000` | A D W | Премиальное для всех (ADR 0041). Проверяет сервер. |
 | `channels_limit_premium` | `1000` | A D W | Как у Telegram (задача 025). |
-| `channels_public_limit_default` | `10` | A D W | Каналов пока нет. |
+| `channels_public_limit_default` | `20` | A D W | Премиальное для всех (ADR 0041). Проверяет сервер. |
 | `channels_public_limit_premium` | `20` | A D W | Как у Telegram (задача 025). |
 | `recommended_channels_limit_default` | `10` | A D W | Каналов пока нет. |
 | `recommended_channels_limit_premium` | `10` | A D W | Каналов пока нет. |
-| `chatlist_invites_limit_default` | `3` | A D W | Общих папок (`chatlists.*`) нет. |
-| `chatlist_invites_limit_premium` | `3` | A D W | Общих папок нет. |
-| `chatlists_joined_limit_default` | `2` | A D W | Общих папок нет. |
-| `chatlists_joined_limit_premium` | `2` | A D W | Общих папок нет. |
-| `saved_gifs_limit_default` | `200` | A D W | Сохранённых GIF (`messages.saveGif`) нет. |
+| `chatlist_invites_limit_default` | `100` | A D W | Премиальное для всех (ADR 0041). Проверяет сервер. |
+| `chatlist_invites_limit_premium` | `100` | A D W | Проверяет сервер. |
+| `chatlists_joined_limit_default` | `20` | A D W | Премиальное для всех (ADR 0041). Проверяет сервер. |
+| `chatlists_joined_limit_premium` | `20` | A D W | Проверяет сервер. |
+| `saved_gifs_limit_default` | `400` | A D W | Премиальное для всех (ADR 0041). Проверяет сервер. |
 | `saved_gifs_limit_premium` | `400` | A D W | Как у Telegram (задача 025). |
 | `stickers_faved_limit_default` | `5` | A D W | Избранных стикеров нет. |
 | `stickers_faved_limit_premium` | `5` | A D W | Избранных стикеров нет. |
 | `reactions_user_max_default` | `3` | A D W | Реакций одного человека на сообщение: как в Telegram Premium, у всех (задача 053, решение владельца). Тот же лимит — теги в «Избранном». |
-| `reactions_user_max_premium` | `3` | A D W | То же значение: Premium в Pluma нет, а клиенты по умолчанию ждут 3. |
+| `reactions_user_max_premium` | `3` | A D W | То же значение; клиенты по умолчанию ждут 3. |
 | `reactions_uniq_max` | `11` | A D W | Разных реакций на одно сообщение, как в Telegram. Android число не применяет и берёт своё 11. |
 | `reactions_in_chat_max` | `100` | A | Реакций, которые группа может разрешить (`messages.setChatAvailableReactions`), как в Telegram. |
 
@@ -191,5 +192,5 @@
 
 ## Чего конфигом не исправить
 
-- **Premium-функции, которых на сервере нет.** Пользователь с Premium видит кнопки расшифровки голосовых, чек-листов и т. п.: клиент включает их по флагу `premium`, ключа для них нет. Сервер отвечает ошибкой (ADR 0016).
+- **Premium-функции, которых на сервере нет.** Пользователь с Premium (теперь это все, ADR 0041) видит вход в них: клиент включает их по флагу `premium`, ключа для них нет. Что скрыто патчами клиентов и что осталось видно, — в брифе задачи 071.
 - **`help.getPremiumPromo`** — заглушка апстрима, отвечает ошибкой. Экран Premium остаётся без видео и описаний с сервера.
