@@ -311,7 +311,7 @@
 | `channels.getMessageAuthor` | blocked |  | app/bff/savedmessagedialogs/internal/core/channels.getMessageAuthor_handler.go:27 |
 | `channels.getMessages` | ok |  | app/bff/channels/internal/core/channels.getMessages_handler.go:37 |
 | `channels.getParticipant` | ok |  | app/bff/channels/internal/core/channels.getParticipant_handler.go:36 |
-| `channels.getParticipants` | ok |  | app/bff/channels/internal/core/channels.membership_handler.go:133 |
+| `channels.getParticipants` | ok |  | app/bff/channels/internal/core/channels.membership_handler.go:138 |
 | `channels.getSendAs` | blocked |  | app/bff/messages/internal/core/channels.getSendAs_handler.go:27 |
 | `channels.getSponsoredMessages` | ok |  | app/bff/sponsoredmessages/internal/core/channels.getSponsoredMessages_handler.go:27 |
 | `channels.inviteToChannel199F3A6C` | ok |  | app/bff/channels/internal/core/channels.inviteToChannel_handler.go:37 |
