@@ -37,6 +37,13 @@ type Viewer struct {
 
 // ViewerOf reads what userId may see of channelId (viewerOf).
 func (d *Dao) ViewerOf(ctx context.Context, userId, channelId int64) (Viewer, error) {
+	v, err := d.viewerOf(ctx, userId, channelId)
+	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId}, err
+}
+
+// ViewerOfCatchUp is ViewerOf for updates.getChannelDifference, which goes on
+// while the channel is blocked (viewerFor).
+func (d *Dao) ViewerOfCatchUp(ctx context.Context, userId, channelId int64) (Viewer, error) {
 	v, err := d.viewerFor(ctx, userId, channelId, true)
 	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId}, err
 }

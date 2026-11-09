@@ -29,7 +29,8 @@ import (
 // box transaction with the channel locked; the members get the deletion by
 // push. The answer is the pts of the deletion and its count, or the
 // channel's pts with count 0 when nothing was deleted, as clients take it
-// (messages.affectedMessages).
+// (messages.affectedMessages). No perm_auth_key_id is the server's own
+// moderation (pkg/moderation/effects), not a client.
 func (c *ChannelCore) ChannelDeleteMessages(in *channel.TLChannelDeleteMessages) (*mtproto.Messages_AffectedMessages, error) {
 	if len(in.Id) > dao.DeleteMax {
 		return nil, mtproto.ErrLimitInvalid
@@ -37,7 +38,7 @@ func (c *ChannelCore) ChannelDeleteMessages(in *channel.TLChannelDeleteMessages)
 	var del *dao.Deleted
 	if _, err := c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
 		var err error
-		if del, err = c.svcCtx.Dao.Delete(b, in.ChannelId, in.Id); err != nil {
+		if del, err = c.svcCtx.Dao.Delete(b, in.ChannelId, in.Id, in.PermAuthKeyId == 0); err != nil {
 			return err
 		}
 		return c.svcCtx.Dao.EmitDeletePush(b, in.PermAuthKeyId, del)

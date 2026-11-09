@@ -61,10 +61,9 @@ func (d *Dao) viewerOf(ctx context.Context, userId, channelId int64) (viewer, er
 }
 
 // viewerFor is viewerOf; a blocked channel shows nothing (channel.setBlocked)
-// but to a catch-up (forDifference), which goes on so that the clients do not
-// take CHANNEL_PRIVATE for being out of the channel and drop it from their
-// dialogs (Android checkChannelError); no new messages come to a blocked
-// channel.
+// but to a catch-up (forDifference), which goes on: tdesktop asks again on a
+// timer after a failed one (Updates::channelDifferenceFail), for as long as
+// the block lasts, and no new messages come to a blocked channel.
 func (d *Dao) viewerFor(ctx context.Context, userId, channelId int64, forDifference bool) (viewer, error) {
 	mc, err := d.GetMutableChannel(ctx, channelId, []int64{userId})
 	if err != nil {

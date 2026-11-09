@@ -100,6 +100,12 @@ func TestChannelBlockedByOwner(t *testing.T) {
 	}); !mtclient.IsRPCError(err, "CHANNEL_PRIVATE") {
 		t.Fatalf("send to a blocked channel: %v, want CHANNEL_PRIVATE", err)
 	}
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsDeleteChannel{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_deleteChannel),
+		Channel:     input,
+	}); !mtclient.IsRPCError(err, "CHANNEL_PRIVATE") {
+		t.Fatalf("delete a blocked channel: %v, want CHANNEL_PRIVATE", err)
+	}
 
 	restricted := func() bool {
 		o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsGetChannels{

@@ -95,6 +95,11 @@ func (c *ChannelsCore) ChannelsDeleteChannel(in *mtproto.TLChannelsDeleteChannel
 	if err != nil {
 		return nil, err
 	}
+	// A blocked channel is deleted only by the owner of the server (the
+	// panel calls the service itself).
+	if mc.GetChannel().GetBlocked() {
+		return nil, mtproto.ErrChannelPrivate
+	}
 	r, err := c.svcCtx.Channel.ChannelDeleteChannel(c.ctx, &channelpb.TLChannelDeleteChannel{
 		SelfId:        c.MD.UserId,
 		PermAuthKeyId: c.MD.PermAuthKeyId,

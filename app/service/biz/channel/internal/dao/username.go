@@ -46,14 +46,19 @@ func usernameEditor(b *userbox.Box, channelId int64) error {
 	if _, err := openChannel(b, channelId); err != nil {
 		return err
 	}
-	var creators []int64
-	if err := b.Tx().QueryRowsPartial(&creators, "SELECT creator_user_id FROM channels WHERE id = ? AND deleted = 0", channelId); err != nil {
+	var rows []struct {
+		Creator int64 `db:"creator_user_id"`
+		Blocked bool  `db:"blocked"`
+	}
+	if err := b.Tx().QueryRowsPartial(&rows, "SELECT creator_user_id, blocked FROM channels WHERE id = ? AND deleted = 0", channelId); err != nil {
 		return err
 	}
 	switch {
-	case len(creators) == 0:
+	case len(rows) == 0:
 		return mtproto.ErrChannelInvalid
-	case creators[0] != b.UserId():
+	case rows[0].Blocked:
+		return mtproto.ErrChannelPrivate
+	case rows[0].Creator != b.UserId():
 		return mtproto.ErrChatAdminRequired
 	}
 	return nil
