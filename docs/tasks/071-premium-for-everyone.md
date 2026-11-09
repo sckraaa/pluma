@@ -44,15 +44,10 @@ Android на `aac1efcb`, iOS `6ad963e5`, tdesktop `a1e89e1`, tweb `346844bf`; с
 
 Патчи стикеров (058) и тегов (053) оставлены: они избыточны при флаге, но безвредны; убрать можно одной уборкой.
 
-Тесты патч-скриптов зелёные: Android 61, iOS 63, Desktop 55, Web 38; `PremiumForEveryoneTest` проверяет применение, `verify` и падение при изменении апстрима. Якоря сверены с закреплёнными апстримами в `reference-src`; сборки клиентов не запускались.
-
-## Осталось поправить в патчах клиентов
-Найдено при проверке ветки, в ветках клиентов этого ещё нет:
-- **iOS, панель реакций.** `ChatControllerOpenMessageContextMenu.swift:187`: `areCustomEmojiEnabled: !premiumConfiguration.isPremiumDisabled`. При `premium_purchase_blocked = true` своих эмодзи в расширенной панели реакций нет, хотя Premium есть. Нужна правка в `PREMIUM_FOR_EVERYONE_EDITS`: `areCustomEmojiEnabled: true`.
-- **Android, поиск в настройках.** `ProfileActivity.java:14768-14774` (`isPremiumFeatureAvailable`): с флагом условие истинно, в поиске появляются «Telegram Premium» и пункты экрана покупки (`:14646-14659`). Нужна проверка `premiumPurchaseBlocked()`.
+Тесты патч-скриптов зелёные: Android 61, iOS 64, Desktop 55, Web 38; `PremiumForEveryoneTest` проверяет применение, `verify` и падение при изменении апстрима. Якоря сверены с закреплёнными апстримами в `reference-src`; сборки клиентов не запускались.
 
 ## Бусты в клиентах
-Уровень нигде не сравнивается, входы в бусты скрыты; записи A-110, I-110, D-085, W-069. Android: `b39e60b`, iOS: `28d5533`, Desktop: `a1b03bc`, Web K: `18482a0`. Цвета из `help.getPeerColors` приходят с `channel_min_level`, поэтому правка на клиентах: `getLvl`, `requiredBoostSubjectLevel`, `requiredLevelFor` возвращают 0. Web K выбора цвета канала и лимита своих реакций по уровню не имеет.
+Уровень нигде не сравнивается, входы в бусты скрыты; записи A-110, I-110, D-085, W-069. Android: `b39e60b`, `f791823`; iOS: `28d5533`, `6d3933e`, `919afb4`; Desktop: `a1b03bc`, `e0c615d`, `ea02704`; Web K: `18482a0`. Цвета из `help.getPeerColors` приходят с `channel_min_level`, поэтому правка на клиентах: `getLvl`, `requiredBoostSubjectLevel`, `requiredLevelFor` возвращают 0. Web K выбора цвета канала и лимита своих реакций по уровню не имеет.
 
 ## Что клиенты теперь предлагают, а сервер не умеет
 С флагом открылись входы в функции, которых на сервере нет (`docs/project/api-coverage.md`). Часть скрыта патчем, остальное нужно делать отдельными задачами:

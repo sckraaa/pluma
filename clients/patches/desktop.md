@@ -794,12 +794,13 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
 
 ### D-085. Бустов нет: свои реакции и цвета без уровня, пункты и ссылка убраны (задача 071)
-- **Статус.** Ветка `task/071-premium-for-everyone` (`a1b03bc`), не влита, не выпущена (2026-11-09).
+- **Статус.** Ветка `task/071-premium-for-everyone` (`a1b03bc`, `e0c615d`, `ea02704`), не влита, не выпущена (2026-11-09).
 - **Что и зачем.** `premium.getBoostsStatus` отвечает уровнем 0; ничего не ждёт уровня.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `edit_peer_info_box.cpp`: `allowedCustomReactions` = `maxBoostLevel` (жёсткий лимит), этим снято и сравнение в `edit_peer_reactions.cpp:981`, и подсказка об уровне;
   - `api_peer_colors.cpp`: `requiredLevelFor` → 0;
   - `window_peer_menu.cpp`: пункты «Бустить» и «Бусты» убраны;
   - `window_session_controller.cpp`: ссылка `boost` открывает канал;
-  - `edit_peer_permissions_box.cpp`: «Не ограничивать бустеров» скрыто.
+  - `edit_peer_permissions_box.cpp`: «Не ограничивать бустеров» скрыто;
+  - `edit_peer_color_box.cpp`: подпись о бустах в цветах группы (`CreateBoostLevelContainer`) не создаётся.
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `a1e89e1`. Компиляция и окно клиента не проверены.

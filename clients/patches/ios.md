@@ -896,13 +896,15 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
 
 ### I-110. Бустов нет: свои реакции и цвета без уровня, пункт и ссылки убраны (задача 071)
-- **Статус.** Ветка `task/071-premium-for-everyone` (`28d5533`), не влита, не выпущена (2026-11-09).
+- **Статус.** Ветка `task/071-premium-for-everyone` (`28d5533`, `6d3933e`, `919afb4`), не влита, не выпущена (2026-11-09).
 - **Что и зачем.** `premium.getBoostsStatus` отвечает уровнем 0; без правки цвета просили бы уровень, а свои реакции — буст.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `PeerAllowedReactionsScreen`: три сравнения с уровнем;
   - `requiredBoostSubjectLevel` → 0 (у цветов без записи в `help.getPeerColors` фолбэк 1, поэтому мало нулевых `*_level_min`);
   - `PeerInfoScreenPerformButtonAction`: пункта «Буст» нет;
   - `UrlHandling`: ссылка `boost` открывает канал, неизвестный канал — как любая битая ссылка;
-  - `ChannelPermissionsController`: «Не ограничивать бустеров» нет.
+  - `ChannelPermissionsController`: «Не ограничивать бустеров» нет;
+  - `ChannelAppearanceScreen`: секция «что такое бусты» не добавляется в экран;
+  - файлы всех правок `PREMIUM_FOR_EVERYONE_EDITS` входят в `UPSTREAM_PATHS`: без них проверочный job падает на файле, которого нет в разреженном апстриме.
   - Не правилось: вкладка бустов `ChannelStatsController` (экран статистики открывается только при `canViewStats`, сервер его не ставит); входы `openBoostToUnrestrict` (`boosts_unrestrict` сервер не отдаёт).
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `6ad963e5`. Формы условий проверены `swiftc -warnings-as-errors`; сборка Telegram-iOS не запускалась.
