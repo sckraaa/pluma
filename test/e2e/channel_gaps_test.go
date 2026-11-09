@@ -200,9 +200,13 @@ func TestForumTopicGaps(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("messages.setTyping: %v", err)
 	}
-	waitUpdate(ctx, t, bob, mtproto.Predicate_updateChannelUserTyping, func(u *mtproto.Update) bool {
-		return u.GetChannelId() == ch.GetId() && u.GetTopMsgId_FLAGINT32().GetValue() == topic
-	})
+	// It comes as updateShort, as in a basic group.
+	if _, err = bob.c.WaitUpdate(ctx, func(us *mtproto.Updates) bool {
+		u := us.GetUpdate()
+		return u.GetPredicateName() == mtproto.Predicate_updateChannelUserTyping && u.GetChannelId() == ch.GetId() && u.GetTopMsgId_FLAGINT32().GetValue() == topic
+	}); err != nil {
+		t.Fatalf("no updateChannelUserTyping: %v", err)
+	}
 
 	// The counters of a topic of a forum.
 	if _, err = alice.c.InvokeRaw(ctx, &mtproto.TLMessagesGetSearchCounters{
