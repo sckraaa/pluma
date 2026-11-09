@@ -27,7 +27,8 @@ import (
 // PhotosUpdateProfilePhoto
 // photos.updateProfilePhoto#9e82039 flags:# fallback:flags.0?true bot:flags.1?InputUser id:InputPhoto = photos.Photo;
 func (c *UserChannelProfilesCore) PhotosUpdateProfilePhoto(in *mtproto.TLPhotosUpdateProfilePhoto) (*mtproto.Photos_Photo, error) {
-	if err := checkBot(in.GetBot(), in.GetFallback()); err != nil {
+	owner, err := c.photoOwner(in.GetBot(), in.GetFallback())
+	if err != nil {
 		c.Logger.Errorf("photos.updateProfilePhoto - error: %v", err)
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func (c *UserChannelProfilesCore) PhotosUpdateProfilePhoto(in *mtproto.TLPhotosU
 	// see the account, in the transaction of the change (ADR 0020, 0021).
 	// TODO: ALBUM_PHOTOS_TOO_MANY
 	updatedPhotoId, err := c.svcCtx.Dao.UserClient.UserUpdateProfilePhoto(c.ctx, &userpb.TLUserUpdateProfilePhoto{
-		UserId:   c.MD.UserId,
+		UserId:   owner,
 		Id:       photoId,
 		Fallback: in.GetFallback(),
 	})
@@ -89,7 +90,7 @@ func (c *UserChannelProfilesCore) PhotosUpdateProfilePhoto(in *mtproto.TLPhotosU
 		photo = mtproto.MakeTLPhotoEmpty(nil).To_Photo()
 	}
 
-	users, err := c.selfUsers()
+	users, err := c.photoUsers(owner)
 	if err != nil {
 		c.Logger.Errorf("photos.updateProfilePhoto - error: %v", err)
 		return nil, err

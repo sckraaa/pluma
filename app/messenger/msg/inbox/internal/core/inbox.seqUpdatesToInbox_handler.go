@@ -79,10 +79,10 @@ func (c *InboxCore) InboxSeqUpdatesToInbox(in *inbox.TLInboxSeqUpdatesToInbox) e
 
 	return c.apply(in.UserId, nil, func(b *userbox.Box) (bool, error) {
 		if bot {
-			// Bots are not served (sync.pushBotUpdates is a stub, msg has no
-			// BotSync topic configured) and the Bot API has none of these
-			// updates: a bot's state of a chat comes from its requests.
-			// The event goes; nothing is journaled.
+			// The Bot API has none of these updates: a bot's state of a chat
+			// comes from its requests. The event goes; nothing is journaled.
+			// What a bot does get with seq (a press, an inline query) is
+			// journaled by app/bff/bots, not here.
 			return true, nil
 		}
 		for _, u := range in.Updates {

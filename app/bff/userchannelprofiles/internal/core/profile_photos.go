@@ -34,20 +34,49 @@ var (
 	errContactMissing = status.Error(mtproto.ErrBadRequest, "CONTACT_MISSING")
 )
 
-// checkBot refuses the photo of a bot (the bot flag of photos.uploadProfilePhoto
-// and photos.updateProfilePhoto): the public photo of a bot is
-// BOT_FALLBACK_UNSUPPORTED, as in Telegram; any other is BOT_INVALID, since
-// no account in Pluma owns a bot. Without the flag the request changes the
-// caller's own photo.
-func checkBot(bot *mtproto.InputUser, fallback bool) error {
-	switch {
-	case bot == nil:
-		return nil
-	case fallback:
-		return errBotFallbackUnsupported
-	default:
-		return mtproto.ErrBotInvalid
+// photoOwner is whose photo photos.uploadProfilePhoto and
+// photos.updateProfilePhoto change: the caller's, or with the bot flag "a bot
+// we own" (core.telegram.org/method/photos.uploadProfilePhoto), which the
+// clients offer on user.bot_can_edit (Android ChatEditActivity.java:1915-1941)
+// and which is BOT_INVALID for any other user. The public photo of a bot is
+// BOT_FALLBACK_UNSUPPORTED, as in Telegram.
+func (c *UserChannelProfilesCore) photoOwner(bot *mtproto.InputUser, fallback bool) (int64, error) {
+	if bot == nil {
+		return c.MD.UserId, nil
 	}
+	if fallback {
+		return 0, errBotFallbackUnsupported
+	}
+	target := mtproto.FromInputUser(c.MD.UserId, bot)
+	if !target.IsUser() {
+		return 0, mtproto.ErrBotInvalid
+	}
+	u, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: target.PeerId})
+	if err != nil {
+		return 0, err
+	}
+	if !u.IsBot() || u.Id() != c.MD.UserId && !u.BotCanEditFor(c.MD.UserId) {
+		return 0, mtproto.ErrBotInvalid
+	}
+	return target.PeerId, nil
+}
+
+// photoUsers is the users of a photos.Photo answer about owner's photo: the
+// account as it sees itself, or the bot as its owner sees it.
+func (c *UserChannelProfilesCore) photoUsers(owner int64) ([]*mtproto.User, error) {
+	if owner == c.MD.UserId {
+		return c.selfUsers()
+	}
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
+		Id:      []int64{owner, c.MD.UserId},
+		Privacy: true,
+		HasTo:   true,
+		To:      []int64{c.MD.UserId},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return users.GetUserListByIdList(c.MD.UserId, owner), nil
 }
 
 // selfUsers is the users of a photos.Photo answer about the caller's own

@@ -19,12 +19,15 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 type ServiceContext struct {
+	Bots *botstore.Store
 	Config config.Config
 	*dao.Dao
 	Twofa *twofa.Service
@@ -35,5 +38,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config: c,
 		Dao:    dao.New(c),
 		Twofa:  twofa.MustNewService(c.Mysql, c.KV),
+		Bots:   botstore.New(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

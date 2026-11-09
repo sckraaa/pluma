@@ -19,6 +19,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
+
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
 // SeqRow is a row of the seq journal (user_seq_updates, ADR 0020).
@@ -32,13 +35,14 @@ type SeqRow struct {
 // SeqUpdates returns the rows of userId's seq journal up to maxSeq that
 // are after cursor or were written at since or later, in seq order, but
 // those the authorization on the permanent key authKeyId must not get (ADR
-// 0022; 0 is no authorization). It reads the master (BoxDB), where the state
-// maxSeq is from: every row up to it is committed there.
+// 0022; 0 is no authorization) and a bot's presses and inline queries past
+// their time. It reads the master (BoxDB), where the state maxSeq is from:
+// every row up to it is committed there.
 func (d *Dao) SeqUpdates(ctx context.Context, userId, authKeyId int64, maxSeq, cursor int32, since int64) ([]SeqRow, error) {
 	rows, err := d.BoxDB.QueryContext(ctx,
 		"SELECT seq, pts, update_type, update_data FROM user_seq_updates WHERE user_id = ? AND seq <= ? AND (seq > ? OR date2 >= ?)"+
-			" AND (except_auth_key_id = 0 OR except_auth_key_id <> ?) ORDER BY seq",
-		userId, maxSeq, cursor, since, authKeyId)
+			" AND (except_auth_key_id = 0 OR except_auth_key_id <> ?)"+userbox.LiveSeqRows+" ORDER BY seq",
+		userId, maxSeq, cursor, since, authKeyId, userbox.NotExpiredSince(time.Now().Unix()))
 	if err != nil {
 		return nil, err
 	}

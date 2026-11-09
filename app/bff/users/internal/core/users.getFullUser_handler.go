@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 
 	"github.com/zeromicro/go-zero/core/mr"
@@ -231,9 +232,7 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 			if user.GetUser().GetBot() != nil {
 				userFull.PhoneCallsAvailable = false
 				userFull.VideoCallsAvailable = false
-				userFull.BotInfo, _ = c.svcCtx.Dao.UserClient.UserGetBotInfo(c.ctx, &userpb.TLUserGetBotInfo{
-					BotId: peerId,
-				})
+				c.fillBotInfo(userFull, peerId)
 			}
 		},
 		func() {
@@ -329,4 +328,26 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		Chats:    chats,
 		Users:    []*mtproto.User{unsafeUser},
 	}).To_Users_UserFull(), nil
+}
+
+// fillBotInfo sets userFull.bot_info, what the chat with the bot shows as the
+// user sees it (core.telegram.org/api/bots/commands), and the about of the
+// user's language. A failure leaves the profile without it: the client
+// fetches the full user again when bot_info_version changes.
+func (c *UsersCore) fillBotInfo(userFull *mtproto.UserFull, botId int64) {
+	v := botstore.Viewer{UserId: c.MD.UserId, PeerType: mtproto.PEER_USER, PeerId: c.MD.UserId, Lang: c.MD.LangCode}
+	info, err := c.svcCtx.Dao.Bots.BotInfo(c.ctx, botId, v)
+	if err != nil {
+		c.Logger.Errorf("users.getFullUser - bot info of %d: %v", botId, err)
+		return
+	}
+	userFull.BotInfo = info
+	texts, err := c.svcCtx.Dao.Bots.LangTexts(c.ctx, botId, c.MD.LangCode)
+	if err != nil {
+		c.Logger.Errorf("users.getFullUser - bot texts of %d: %v", botId, err)
+		return
+	}
+	if texts.About != nil {
+		userFull.About = mtproto.MakeFlagsString(*texts.About)
+	}
 }

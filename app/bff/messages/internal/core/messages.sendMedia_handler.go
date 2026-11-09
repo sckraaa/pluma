@@ -62,6 +62,12 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		return nil, err
 	}
 
+	replyMarkup, err := c.botMarkup(in.ReplyMarkup)
+	if err != nil {
+		c.Logger.Errorf("messages.sendMedia - reply markup: %v", err)
+		return nil, err
+	}
+
 	outMessage := mtproto.MakeTLMessage(&mtproto.Message{
 		Out:                  true,
 		Mentioned:            false,
@@ -84,7 +90,7 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		Date:                 int32(time.Now().Unix()),
 		Media:                nil,
 		Message:              in.Message,
-		ReplyMarkup:          in.ReplyMarkup,
+		ReplyMarkup:          replyMarkup,
 		Entities:             in.Entities,
 		Views:                nil,
 		Forwards:             nil,

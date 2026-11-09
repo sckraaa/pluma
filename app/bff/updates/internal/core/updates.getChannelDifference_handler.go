@@ -71,6 +71,11 @@ func (c *UpdatesCore) UpdatesGetChannelDifference(in *mtproto.TLUpdatesGetChanne
 		}
 	}
 
+	if err = c.hideFromBot(ch.GetChannelId(), mc, diff); err != nil {
+		c.Logger.Errorf("updates.getChannelDifference - channel %d: %v", ch.GetChannelId(), err)
+		return nil, err
+	}
+
 	// The channel itself, as the account sees it now, and the peers of the
 	// messages and updates.
 	h := mtproto.NewIDListHelper(c.MD.UserId)

@@ -63,6 +63,7 @@ func (f *fakeMedia) MediaUploadProfilePhotoFile(_ context.Context, in *mediapb.T
 // makes next main. Users 1 and 2 exist; 2 is a contact of 1 when contact.
 type fakeUsers struct {
 	user_client.UserClient
+	owners    []int64
 	asked     []int64
 	uploaded  []bool
 	fallback  []bool
@@ -73,6 +74,7 @@ type fakeUsers struct {
 }
 
 func (f *fakeUsers) UserUpdateProfilePhoto(_ context.Context, in *userpb.TLUserUpdateProfilePhoto) (*mtproto.Int64, error) {
+	f.owners = append(f.owners, in.UserId)
 	f.asked = append(f.asked, in.Id)
 	f.uploaded = append(f.uploaded, in.Uploaded)
 	f.fallback = append(f.fallback, in.Fallback)
@@ -82,10 +84,23 @@ func (f *fakeUsers) UserUpdateProfilePhoto(_ context.Context, in *userpb.TLUserU
 	return &mtproto.Int64{V: in.Id}, nil
 }
 
+// UserGetImmutableUser: 3 is a bot of user 1, 9 a bot of user 5, 1 and 2
+// are not bots.
+func (f *fakeUsers) UserGetImmutableUser(_ context.Context, in *userpb.TLUserGetImmutableUser) (*mtproto.ImmutableUser, error) {
+	data := &mtproto.UserData{Id: in.Id, FirstName: "U"}
+	switch in.Id {
+	case 3:
+		data.Bot = mtproto.MakeTLBotData(&mtproto.BotData{Creator: 1}).To_BotData()
+	case 9:
+		data.Bot = mtproto.MakeTLBotData(&mtproto.BotData{Creator: 5}).To_BotData()
+	}
+	return mtproto.MakeTLImmutableUser(&mtproto.ImmutableUser{User: mtproto.MakeTLUserData(data).To_UserData()}).To_ImmutableUser(), nil
+}
+
 func (f *fakeUsers) UserGetMutableUsersV2(_ context.Context, in *userpb.TLUserGetMutableUsersV2) (*mtproto.MutableUsers, error) {
 	users := &mtproto.MutableUsers{}
 	for _, id := range in.Id {
-		if id != 1 && id != 2 {
+		if id != 1 && id != 2 && id != 3 {
 			continue
 		}
 		u := mtproto.MakeTLImmutableUser(&mtproto.ImmutableUser{
@@ -222,7 +237,7 @@ func TestFallbackPhoto(t *testing.T) {
 	}
 }
 
-// The bot flag: no account owns a bot, and a bot has no public photo.
+// The bot flag: only of a bot the caller owns, and a bot has no public photo.
 func TestProfilePhotoOfBot(t *testing.T) {
 	users := &fakeUsers{}
 	media := &fakeMedia{photos: []int64{5}}
@@ -243,6 +258,38 @@ func TestProfilePhotoOfBot(t *testing.T) {
 	}
 	if len(users.asked) != 0 || media.uploads != 0 {
 		t.Errorf("biz asked for %v, %d uploads: the caller's photo must not change", users.asked, media.uploads)
+	}
+}
+
+// The owner of a bot changes the bot's photo, and nobody's else; the answer
+// shows the bot.
+func TestProfilePhotoOfOwnBot(t *testing.T) {
+	users := &fakeUsers{}
+	media := &fakeMedia{photos: []int64{5}}
+	c := newTestCore(users, media, nil)
+	bot := mtproto.MakeTLInputUser(&mtproto.InputUser{UserId: 3, AccessHash: 1}).To_InputUser()
+	file := mtproto.MakeTLInputFile(&mtproto.InputFile{Id_INT64: 1, Parts: 1, Name: "a.jpg"}).To_InputFile()
+	r, err := c.PhotosUploadProfilePhoto(&mtproto.TLPhotosUploadProfilePhoto{Bot: bot, File: file})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(users.owners, []int64{3}) || !slices.Equal(users.uploaded, []bool{true}) {
+		t.Errorf("owners %v, uploaded %v", users.owners, users.uploaded)
+	}
+	if len(r.GetUsers()) != 1 || r.GetUsers()[0].GetId() != 3 {
+		t.Errorf("users %v", r.GetUsers())
+	}
+	photo := mtproto.MakeTLInputPhoto(&mtproto.InputPhoto{Id: 5, AccessHash: 50}).To_InputPhoto()
+	if _, err = c.PhotosUpdateProfilePhoto(&mtproto.TLPhotosUpdateProfilePhoto{Bot: bot, Id: photo}); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(users.owners, []int64{3, 3}) {
+		t.Errorf("owners %v", users.owners)
+	}
+	// A user who is no bot is BOT_INVALID, however it is named.
+	notBot := mtproto.MakeTLInputUser(&mtproto.InputUser{UserId: 2, AccessHash: 1}).To_InputUser()
+	if _, err = c.PhotosUploadProfilePhoto(&mtproto.TLPhotosUploadProfilePhoto{Bot: notBot, File: file}); !errors.Is(err, mtproto.ErrBotInvalid) {
+		t.Errorf("not a bot: %v", err)
 	}
 }
 

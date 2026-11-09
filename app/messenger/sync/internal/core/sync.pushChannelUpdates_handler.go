@@ -16,6 +16,7 @@
 package core
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/botprivacy"
 	"slices"
 	"time"
 
@@ -65,6 +66,10 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	now := int32(time.Now().Unix())
 	for _, member := range members.GetDatas() {
 		updates := c.channelView(in, member, mc.ToChat(member, now), users.GetUserListByIdList(member, h.UserIdList...))
+		repliesTo := func(m *mtproto.Message) bool { return c.repliesTo(in.ChannelId, member, m) }
+		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member), repliesTo); updates == nil {
+			continue
+		}
 		if member == in.FromId {
 			_, err = c.SyncUpdatesNotMe(&sync.TLSyncUpdatesNotMe{UserId: member, PermAuthKeyId: in.FromAuthKeyId, Updates: updates})
 		} else {
@@ -105,5 +110,61 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 	}
 	updates.Chats = []*mtproto.Chat{channel}
 	updates.Users = users
+	return updates
+}
+
+// repliesTo tells whether m replies to a message member sent. A failure of
+// the look-up leaves the message out of the push: the gap in pts it makes
+// brings the bot to updates.getChannelDifference, which decides again.
+func (c *SyncCore) repliesTo(channelId, member int64, m *mtproto.Message) bool {
+	id := botprivacy.ReplyToInChat(m)
+	if id == 0 {
+		return false
+	}
+	replied, err := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: member, ChannelId: channelId, Id: []int32{id}})
+	if err != nil {
+		c.Logger.Errorf("sync.pushChannelUpdates - channel %d, message %d: %v", channelId, id, err)
+		return false
+	}
+	for _, r := range replied.GetDatas() {
+		if r.GetFromId().GetUserId() == member {
+			return true
+		}
+	}
+	return false
+}
+
+// forBot is what of updates the member gets when it is a bot in privacy mode
+// of a supergroup: nil when no update remains (pkg/botprivacy; a broadcast
+// channel's posts reach all its bots). mentioned holds for the author of the
+// message replied to and for the users of the text's mentions, so it only
+// tells when the author is worth looking up: repliesTo decides, as the
+// channel difference does, and a message that is no reply to the bot is
+// hidden from it, as in a basic group.
+func forBot(updates *mtproto.Updates, mc *channelpb.MutableChannel, users *mtproto.MutableUsers, member int64, mentioned bool, repliesTo func(*mtproto.Message) bool) *mtproto.Updates {
+	u, ok := users.GetImmutableUser(member)
+	if !ok || !u.IsBot() || mc.GetChannel().GetBroadcast() {
+		return updates
+	}
+	p, _ := mc.GetParticipant(member)
+	bot := botprivacy.Bot{
+		Id:       member,
+		Username: u.Username(),
+		ReadsAll: u.BotChatHistory() || p.GetRole() == channelpb.RoleCreator || p.GetRole() == channelpb.RoleAdmin,
+	}
+	kept := updates.GetUpdates()[:0]
+	for _, up := range updates.GetUpdates() {
+		if m := up.GetMessage_MESSAGE(); m != nil {
+			sender, _ := users.GetImmutableUser(m.GetFromId().GetUserId())
+			if !botprivacy.Visible(bot, m, sender != nil && sender.IsBot(), mentioned && repliesTo(m)) {
+				continue
+			}
+		}
+		kept = append(kept, up)
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	updates.Updates = kept
 	return updates
 }

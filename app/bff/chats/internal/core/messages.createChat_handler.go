@@ -98,7 +98,7 @@ func (c *ChatsCore) createChat(iUsers []*mtproto.InputUser, chatTitle string, tt
 			return nil, err
 		} else {
 			if addUser.IsBot() {
-				if !addUser.BotNochats() {
+				if addUser.BotNochats() {
 					c.Logger.Errorf("user is bot and nochats, ignore %d", u.UserId)
 					continue
 				} else {

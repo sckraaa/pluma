@@ -26,10 +26,12 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/appearance"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 type ServiceContext struct {
+	Bots    *botstore.Store // bot_info of the full channel (task 070)
 	Config  config.Config
 	Channel channel_client.ChannelClient
 	User    user_client.UserClient
@@ -53,5 +55,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Auth:    authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 		Msg:     msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 		Look:    appearance.NewStore(sqlx.NewMySQL(&c.Mysql), nil, ""),
+		Bots:    botstore.New(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

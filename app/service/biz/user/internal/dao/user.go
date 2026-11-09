@@ -947,3 +947,8 @@ func (d *Dao) UpdatePhoneNumber(ctx context.Context, id int64, phoneNumber strin
 
 	return nil
 }
+
+// DropUserCache drops the cached user data of id.
+func (d *Dao) DropUserCache(ctx context.Context, id int64) error {
+	return d.CachedConn.DelCache(ctx, genCacheUserDataCacheKey(id))
+}

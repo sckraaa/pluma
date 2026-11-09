@@ -552,7 +552,7 @@ func (c *session) onRpcResult(ctx context.Context, rpcResult *rpcApiMessage) {
 		} else {
 			c.onLoginError(ctx, rpcErr)
 		}
-	case *mtproto.TLAuthSignIn:
+	case *mtproto.TLAuthSignIn, *mtproto.TLAuthImportBotAuthorization:
 		if rpcErr == nil {
 			c.onLoggedIn(ctx, rpcResult)
 		} else {

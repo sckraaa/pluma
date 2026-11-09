@@ -20,13 +20,46 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // AuthImportBotAuthorization
 // auth.importBotAuthorization#67a3ff2c flags:int api_id:int api_hash:string bot_auth_token:string = auth.Authorization;
+//
+// The token names the bot and proves the right to it (pkg/botstore); a token
+// no bot has, or one replaced, is ACCESS_TOKEN_INVALID; a deleted bot's token
+// ACCESS_TOKEN_EXPIRED (core.telegram.org/method/auth.importBotAuthorization).
+// No other login of the account is told: it has no human sessions to read it.
 func (c *AuthorizationCore) AuthImportBotAuthorization(in *mtproto.TLAuthImportBotAuthorization) (*mtproto.Auth_Authorization, error) {
-	// TODO: not impl
-	c.Logger.Errorf("auth.importBotAuthorization blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if err := c.svcCtx.Dao.CheckApiIdAndHash(in.ApiId, in.ApiHash); err != nil {
+		c.Logger.Errorf("auth.importBotAuthorization - invalid api: %d", in.ApiId)
+		return nil, err
+	}
+	botId, err := c.svcCtx.Bots.BotIdOfToken(c.ctx, in.BotAuthToken)
+	if err != nil {
+		c.Logger.Errorf("auth.importBotAuthorization - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	if botId == 0 {
+		return nil, mtproto.ErrAccessTokenInvalid
+	}
+	bot, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: botId})
+	if err != nil {
+		c.Logger.Errorf("auth.importBotAuthorization - bot %d: %v", botId, err)
+		return nil, err
+	}
+	if !bot.IsBot() || bot.Deleted() {
+		return nil, mtproto.ErrAccessTokenExpired
+	}
+	if _, err = c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
+		AuthKeyId: c.MD.PermAuthKeyId,
+		UserId:    botId,
+	}); err != nil {
+		c.Logger.Errorf("auth.importBotAuthorization - bind the key to bot %d: %v", botId, err)
+		return nil, err
+	}
+	return mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
+		User: bot.ToSelfUser(),
+	}).To_Auth_Authorization(), nil
 }

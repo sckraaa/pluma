@@ -77,6 +77,9 @@ func (c *ChannelsCore) invite(input *mtproto.InputChannel, inputUsers []*mtproto
 		switch {
 		case !ok || u.Deleted():
 		case id == c.MD.UserId:
+		case u.IsBot() && u.BotNochats():
+			// user.bot_nochats: the bot can't be added to groups.
+			return nil, mtproto.ErrBotGroupsBlocked
 		default:
 			if m := userpb.MissingInvitee(me, u); m != nil {
 				missing = append(missing, m)
