@@ -24,7 +24,7 @@ import (
 // clients limit the field.
 const (
 	AboutLimit        = 70
-	AboutLimitPremium = 70
+	AboutLimitPremium = 140
 )
 
 // aboutTooLong tells whether about is longer than the limit. Characters

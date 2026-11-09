@@ -48,6 +48,7 @@ import (
 	premium_helper "github.com/teamgram/teamgram-server/app/bff/premium"
 	privacysettingshelper "github.com/teamgram/teamgram-server/app/bff/privacysettings"
 	qrcode_helper "github.com/teamgram/teamgram-server/app/bff/qrcode"
+	reports_helper "github.com/teamgram/teamgram-server/app/bff/reports"
 	savedmessagedialogshelper "github.com/teamgram/teamgram-server/app/bff/savedmessagedialogs"
 	scheduledmessages_helper "github.com/teamgram/teamgram-server/app/bff/scheduledmessages"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
@@ -102,6 +103,17 @@ func (s *Server) Initialize() error {
 	syncClient := sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+		// reports_helper: the moderation queue (task 025, ADR 0039).
+		mtproto.RegisterRPCReportsServer(
+			grpcServer,
+			reports_helper.New(reports_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				UserClient:    c.BizServiceClient,
+				MessageClient: c.BizServiceClient,
+				ChannelClient: c.BizServiceClient,
+			}))
+
 		// tos_helper
 		mtproto.RegisterRPCTosServer(
 			grpcServer,

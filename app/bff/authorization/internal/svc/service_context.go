@@ -19,6 +19,8 @@
 package svc
 
 import (
+	"context"
+
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/dao"
@@ -26,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/plugin"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
@@ -41,6 +44,13 @@ type ServiceContext struct {
 	PushDevices pushdevices.Store
 	// NewLogin tells the other sessions about a login (task 019).
 	NewLogin newlogin.Notifier
+	// Moderation answers whether a phone is banned (task 025).
+	Moderation PhoneBans
+}
+
+// PhoneBans tells whether the account of a phone is banned (pkg/moderation).
+type PhoneBans interface {
+	PhoneBanned(ctx context.Context, phone string) (bool, error)
 }
 
 func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *ServiceContext {
@@ -57,5 +67,6 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 			User:        d.UserClient,
 			Msg:         d.MsgClient,
 		},
+		Moderation: moderation.New(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

@@ -53,7 +53,7 @@ BFFProxyClients:
       Timeout: 150000
   IDMap:
     "/mtproto.RPCTos": "bff.bff"
-    #"/mtproto.RPCReports": "bff.bff"
+    "/mtproto.RPCReports": "bff.bff"
     "/mtproto.RPCConfiguration": "bff.bff"
     "/mtproto.RPCQrCode": "bff.bff"
     "/mtproto.RPCMiscellaneous": "bff.bff"

@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -35,9 +36,6 @@ import (
 // a supergroup and updateChannel with the user's seq.
 
 const (
-	// ChannelsLimit is the most channels and supergroups a user is in
-	// (channels_limit_default, core.telegram.org/api/config: 500).
-	ChannelsLimit = 500
 	// MembersMax is the most members of a supergroup or channel
 	// (megagroup_size_max, core.telegram.org/api/config: 200000).
 	MembersMax = 200000
@@ -230,13 +228,17 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		ask = c.JoinRequest
 	}
 
+	limit, err := premium.ChannelsLimit(b.Tx(), b.UserId(), b.Date())
+	if err != nil {
+		return nil, err
+	}
 	var joined []int64
 	if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?",
-		b.UserId(), ChannelsLimit); err != nil {
+		b.UserId(), limit); err != nil {
 		return nil, err
 	}
 	switch {
-	case len(joined) >= ChannelsLimit:
+	case len(joined) >= limit:
 		return nil, mtproto.ErrChannelsTooMuch
 	case c.ParticipantsCount >= MembersMax:
 		return nil, mtproto.ErrUsersTooMuch

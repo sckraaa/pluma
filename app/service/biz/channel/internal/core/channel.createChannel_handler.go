@@ -24,16 +24,12 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"google.golang.org/protobuf/proto"
 )
-
-// ChannelsLimit is the most channels and supergroups a user is in:
-// channels_limit_default of the clients and Telegram (core.telegram.org/
-// api/config, 500); the owner kept Telegram's limits (task 035).
-const ChannelsLimit = 500
 
 // Rights of a creator (channelParticipantCreator.admin_rights). Telegram
 // does not document them; these are the rights each kind of chat has
@@ -78,12 +74,16 @@ func (c *ChannelCore) ChannelCreateChannel(in *channel.TLChannelCreateChannel) (
 		pts       int32
 	)
 	_, err := c.svcCtx.Dao.RunBox(c.ctx, in.CreatorId, func(b *userbox.Box) error {
-		var joined []int64
-		if err := b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?",
-			in.CreatorId, ChannelsLimit); err != nil {
+		limit, err := premium.ChannelsLimit(b.Tx(), in.CreatorId, b.Date())
+		if err != nil {
 			return err
 		}
-		if len(joined) >= ChannelsLimit {
+		var joined []int64
+		if err := b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?",
+			in.CreatorId, limit); err != nil {
+			return err
+		}
+		if len(joined) >= limit {
 			return mtproto.ErrChannelsTooMuch
 		}
 		ch, err := channelbox.Create(b, channelbox.NewChannel{

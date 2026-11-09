@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -44,7 +45,7 @@ type Invited struct {
 // a member whom neither the default rights nor its own restriction ban
 // invite_users adds (channelperm.Can). Otherwise CHAT_ADMIN_REQUIRED. Users already in are
 // left out; one kicked comes back only by an admin who may ban
-// (USER_KICKED otherwise); one in ChannelsLimit channels is
+// (USER_KICKED otherwise); one at the limit of channels is
 // USER_CHANNELS_TOO_MUCH, as Telegram answers
 // (core.telegram.org/method/channels.inviteToChannel). Each added user's
 // dialog is written in its own box by the event AddMembers emits (ADR 0021).
@@ -91,11 +92,15 @@ func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited
 		case p != nil && p.participant().Kicked(int32(b.Date())) && !canBan:
 			return nil, mtproto.ErrUserKicked
 		}
-		var joined []int64
-		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", id, ChannelsLimit); err != nil {
+		limit, err := premium.ChannelsLimit(b.Tx(), id, b.Date())
+		if err != nil {
 			return nil, err
 		}
-		if len(joined) >= ChannelsLimit {
+		var joined []int64
+		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", id, limit); err != nil {
+			return nil, err
+		}
+		if len(joined) >= limit {
 			return nil, mtproto.ErrUserChannelsTooMuch
 		}
 		out.Users = append(out.Users, id)

@@ -88,6 +88,14 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 		return nil, err
 	}
 
+	// A ban after the code was sent (task 025).
+	if banned, err2 := c.svcCtx.Moderation.PhoneBanned(c.ctx, phoneNumber); err2 != nil {
+		c.Logger.Errorf("auth.signIn - moderation: %v", err2)
+		return nil, mtproto.ErrInternalServerError
+	} else if banned {
+		return nil, mtproto.ErrPhoneNumberBanned
+	}
+
 	// Checks the code with the attempt and flood limits of pkg/logincode.
 	codeData, err2 := c.svcCtx.AuthLogic.DoAuthSignIn(c.ctx,
 		c.MD.PermAuthKeyId,

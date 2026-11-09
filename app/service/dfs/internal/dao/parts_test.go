@@ -155,7 +155,7 @@ func TestOpenFileChecksParts(t *testing.T) {
 	if _, err := d.OpenFile(ctx, 1, 6, 3); rpcMessage(err) != "FILE_PART_SIZE_CHANGED" {
 		t.Errorf("a first part larger than the others: %v", err)
 	}
-	for _, parts := range []int32{-1, 4001, 1<<31 - 1} {
+	for _, parts := range []int32{-1, 8001, 1<<31 - 1} {
 		if _, err := d.OpenFile(ctx, 1, 5, parts); rpcMessage(err) != "FILE_PARTS_INVALID" {
 			t.Errorf("%d parts: %v", parts, err)
 		}

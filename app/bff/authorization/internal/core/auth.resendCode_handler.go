@@ -112,6 +112,14 @@ func (c *AuthorizationCore) AuthResendCode(in *mtproto.TLAuthResendCode) (*mtpro
 		}
 	}
 
+	// An account banned from the moderation panel (task 025).
+	if banned, err2 := c.svcCtx.Moderation.PhoneBanned(c.ctx, phoneNumber); err2 != nil {
+		c.Logger.Errorf("auth.resendCode - moderation: %v", err2)
+		return nil, mtproto.ErrInternalServerError
+	} else if banned {
+		return nil, mtproto.ErrPhoneNumberBanned
+	}
+
 	// 400	PHONE_NUMBER_FLOOD	You asked for the code too many times.
 	// phone number flood
 	// TODO(@benqi): PHONE_NUMBER_FLOOD

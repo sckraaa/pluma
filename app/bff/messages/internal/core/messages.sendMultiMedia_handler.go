@@ -107,8 +107,7 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 			message	string	A caption for the media
 			entities	flags.0?Vector<MessageEntity>	Message entities for styled text
 		*/
-		if len(media.Message) > 4000 {
-			err := mtproto.ErrMediaCaptionTooLong
+		if err := c.checkCaption(media.Message); err != nil {
 			c.Logger.Errorf("messages.sendMultiMedia: %v", err)
 			return nil, err
 		}

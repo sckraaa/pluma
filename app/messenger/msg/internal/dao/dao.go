@@ -22,6 +22,7 @@ import (
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	idgen_client "github.com/teamgram/teamgram-server/app/service/idgen/client"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
@@ -41,6 +42,9 @@ type Dao struct {
 	user_client.UserClient
 	chat_client.ChatClient
 	channel_client.ChannelClient
+
+	// Moderation holds the restrictions of accounts (task 025).
+	Moderation *moderation.DAO
 
 	// BoxDB is the pool of the box transactions: the *sql.DB of Mysql.
 	BoxDB *sql.DB
@@ -98,6 +102,7 @@ func New(ctx context.Context, c config.Config) (*Dao, error) {
 		ChatClient:  chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
 		// biz channel is served by the biz server with user and chat.
 		ChannelClient: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
+		Moderation:    moderation.New(db),
 		BoxDB:         boxDB,
 		Topics:        c.Topics,
 	}, nil

@@ -156,6 +156,12 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 			c.Logger.Errorf("message empty: %v", err)
 			return nil, err
 		}
+		if hasCaption(outMessage) {
+			if err = c.checkCaption(in.Message.Value); err != nil {
+				c.Logger.Errorf("messages.editMessage: %v", err)
+				return nil, err
+			}
+		}
 		outMessage.Message = in.Message.Value
 		//outMessage, _ = c.fixMessageEntities(c.MD.UserId, peer, in.NoWebpage, outMessage, func() bool {
 		//	hasBot := c.MD.IsBot

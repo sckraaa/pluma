@@ -164,6 +164,11 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] premium grant <phone> [-months N]   (without -months: for good)
   pluma-admin [-f bff.yaml] premium revoke <phone>
   pluma-admin [-f bff.yaml] premium list
+  pluma-admin [-f bff.yaml] moderation reports [-all]
+  pluma-admin [-f bff.yaml] moderation restrict|ban <phone> [-days <n>]   (emergency access; the panel is the normal way)
+  pluma-admin [-f bff.yaml] moderation lift <phone>
+  pluma-admin [-f bff.yaml] panel owner <login>   (the first owner of the moderation panel)
+  pluma-admin [-f bff.yaml] panel reset-passkey <login>
   pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password)
   pluma-admin [-f bff.yaml] service-photo [image]   (the service account's photo; Pluma's by default)
   pluma-admin langpack fetch -out <dir> [-pack android,ios,...] [-lang ru,...] [-api-id <id>]   (from Telegram; $TELEGRAM_API_ID)
@@ -226,6 +231,10 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return storageCommand(args, configFile, stdout)
 	case "premium":
 		return premiumCommand(args, configFile, stdout)
+	case "moderation":
+		return moderationCommand(args, configFile, stdout)
+	case "panel":
+		return panelCommand(args, configFile, stdout)
 	case "password":
 		return passwordCommand(args, configFile, stdout)
 	case "push":

@@ -1,0 +1,55 @@
+# The moderation panel (app/ops/admin, ADR 0039, docs/ops/admin-panel.md).
+# It runs with the host's network (docker-compose.admin.yaml) so that it
+# listens on the real loopback address: tailscale serve is the only way in.
+
+# Must be a loopback address. The service refuses to start otherwise.
+Listen: 127.0.0.1:9100
+
+# The https address of the panel in the tailnet; its host is the WebAuthn
+# relying party. The passkeys are bound to it: changing it means registering
+# them again.
+Origin: "${PANEL_ORIGIN}"
+
+Log:
+  ServiceName: admin
+  Mode: console
+  Encoding: json
+  Level: info
+
+# A database user of its own (docs/ops/admin-panel.md): its own tables, SELECT
+# on what it reads, and INSERT on mq_outbox for the pushes of a session end.
+Mysql:
+  DSN: "pluma_admin:${ADMIN_MYSQL_PASSWORD}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true"
+  Active: 8
+  Idle: 2
+  IdleTimeout: 4h
+
+BizServiceClient:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.biz_service
+  Timeout: 30000
+MsgClient:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: messenger.msg
+  Timeout: 30000
+AuthSessionClient:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.authsession
+  Timeout: 5000
+DfsClient:
+  Etcd:
+    Hosts:
+      - 127.0.0.1:2379
+    Key: service.dfs
+  Timeout: 20000
+
+# Pushes that end a banned user's sessions: rows of mq_outbox, as bff writes
+# them.
+SyncClient:
+  Topic: "Sync-T"
