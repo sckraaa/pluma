@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -142,6 +143,18 @@ func login(ctx context.Context, t *testing.T, phone, firstName string) *user {
 	return loginIn(ctx, t, phone, firstName, "")
 }
 
+// resetLoginsPerAddress forgets the codes asked from one address
+// (logincode.SendCodePerIP): every login of the run comes from the test host,
+// and the run has more of them than one person's network ever would.
+func resetLoginsPerAddress(t *testing.T) {
+	t.Helper()
+	out, err := exec.Command(runScript, "compose", "exec", "-T", "redis", "sh", "-c",
+		"redis-cli --scan --pattern 'login_flood_send_code_ip_*' | xargs -r redis-cli del").CombinedOutput()
+	if err != nil {
+		t.Fatalf("reset the login limit: %v\n%s", err, out)
+	}
+}
+
 // loginIn is login from a device whose app is in langCode (initConnection),
 // "" for the default.
 func loginIn(ctx context.Context, t *testing.T, phone, firstName, langCode string) *user {
@@ -158,7 +171,7 @@ func loginIn(ctx context.Context, t *testing.T, phone, firstName, langCode strin
 	}
 	closeChecked(t, firstName, c)
 
-	o, err := c.Invoke(ctx, &mtproto.TLAuthSendCode{
+	sendCode := &mtproto.TLAuthSendCode{
 		Constructor: c.Constructor(mtproto.Predicate_auth_sendCode),
 		PhoneNumber: phone,
 		ApiId:       1,
@@ -166,7 +179,12 @@ func loginIn(ctx context.Context, t *testing.T, phone, firstName, langCode strin
 		Settings: &mtproto.CodeSettings{
 			Constructor: c.Constructor(mtproto.Predicate_codeSettings),
 		},
-	})
+	}
+	o, err := c.Invoke(ctx, sendCode)
+	if e := (*mtclient.RPCError)(nil); errors.As(err, &e) && strings.HasPrefix(e.Message, "FLOOD_WAIT_") {
+		resetLoginsPerAddress(t)
+		o, err = c.Invoke(ctx, sendCode)
+	}
 	if err != nil {
 		t.Fatalf("auth.sendCode: %v", err)
 	}
