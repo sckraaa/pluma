@@ -510,21 +510,58 @@ func TestSweep(t *testing.T) {
 	if again, err := s.Sweep(ctx); err != nil || len(again) != 0 {
 		t.Fatalf("second sweep: %d %v", len(again), err)
 	}
-	var n int
-	if err = db.QueryRow("SELECT COUNT(*) FROM encrypted_chat_devices WHERE auth_key_id = ?", alice.AuthKey).Scan(&n); err != nil || n != 0 {
-		t.Fatalf("device row: %d %v", n, err)
+	count := func(q string, args ...any) int {
+		t.Helper()
+		var n int
+		if err := db.QueryRow(q, args...).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := count("SELECT COUNT(*) FROM encrypted_chat_devices WHERE auth_key_id = ?", alice.AuthKey); n != 0 {
+		t.Fatalf("device row: %d", n)
+	}
+	if n := count("SELECT COUNT(*) FROM encrypted_chat_queue WHERE auth_key_id = ?", alice.AuthKey); n != 0 {
+		t.Fatalf("queue of the authorization that is gone: %d", n)
 	}
 
-	// Retention: a request nobody answers, an old queue row.
+	// Retention: a request nobody answers, an old queue row, an old answer
+	// of a send, a discarded chat whose ends all knew.
+	if _, err = db.Exec("UPDATE auth_users SET deleted = 0 WHERE auth_key_id = ?", alice.AuthKey); err != nil {
+		t.Fatal(err)
+	}
 	s.now = func() time.Time { return time.Now().Add(-8 * 24 * time.Hour) }
 	r, _, err := s.Request(ctx, Request{Admin: bob1, ParticipantId: alice.UserId, RandomId: 9, GA: []byte{1}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	old := accept(ctx, t, s, request(ctx, t, s, 10), bob2)
+	if _, err = s.Send(ctx, Send{From: alice, ChatId: old.Id, AccessHash: old.AccessHash, RandomId: 2, Data: []byte("x")}); err != nil {
+		t.Fatal(err)
+	}
 	s.now = time.Now
+	ended := accept(ctx, t, s, request(ctx, t, s, 11), bob1)
+	if _, _, err = s.Discard(ctx, Discard{By: alice, ChatId: ended.Id}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Exec("UPDATE encrypted_chats SET state_at = ? WHERE id = ?", s.unix()-8*24*3600, ended.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.MarkDifference(ctx, bob1); err != nil {
+		t.Fatal(err)
+	}
 	gone, err = s.Sweep(ctx)
 	if err != nil || len(gone) != 1 || gone[0].Chat.Id != r.Id {
 		t.Fatalf("retention: %+v %v", gone, err)
+	}
+	if n := count("SELECT COUNT(*) FROM encrypted_chat_queue WHERE chat_id = ?", old.Id); n != 0 {
+		t.Fatalf("an old queue row: %d", n)
+	}
+	if n := count("SELECT COUNT(*) FROM encrypted_chat_sent WHERE chat_id = ?", old.Id); n != 0 {
+		t.Fatalf("an old answer of a send: %d", n)
+	}
+	if n := count("SELECT COUNT(*) FROM encrypted_chats WHERE id = ?", ended.Id); n != 0 {
+		t.Fatalf("an old discarded chat: %d", n)
 	}
 }
 
