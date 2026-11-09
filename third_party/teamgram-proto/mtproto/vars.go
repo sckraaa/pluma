@@ -38,7 +38,7 @@ const (
 	// MinNebulaChatChannelID   = 3 << 48       // 844424930131968
 	// MaxNebulaChatChannelID   = (4 << 48) - 1 // 1125899906842623
 
-	MinNebulaChatChatID    = 1              // 1
+	MinNebulaChatChatID = 1 // 1
 	// pluma: channel ids count from 1000000000 (migrate-20261104-channel-ids.sql).
 	MaxNebulaChatChatID    = 1000000000 - 1
 	MinNebulaChatChannelID = 1000000000
