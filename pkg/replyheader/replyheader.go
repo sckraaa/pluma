@@ -21,6 +21,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/layercompat"
 
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -139,6 +140,10 @@ func sameChatReply(id int32, replyTo *mtproto.InputReplyTo) *mtproto.MessageRepl
 		header.QuoteText = replyTo.GetQuoteText()
 		header.QuoteEntities = replyTo.GetQuoteEntities()
 		header.QuoteOffset = replyTo.GetQuoteOffset()
+	} else if len(replyTo.GetQuoteRich()) != 0 && richQuoteFits(replyTo.GetQuoteRich()) {
+		header.Quote = true
+		header.QuoteRich = replyTo.GetQuoteRich()
+		header.QuoteOffset = replyTo.GetQuoteOffset()
 	}
 	// A reply to one answer or one checklist item (api/poll, api/todo).
 	header.TodoItemId = replyTo.GetTodoItemId()
@@ -199,7 +204,17 @@ func otherChatReply(src Source, selfId int64, box *mtproto.MessageBox, replyTo *
 	}
 
 	header := &mtproto.MessageReplyHeader{}
-	if quote := replyTo.GetQuoteText().GetValue(); quote != "" {
+	if rich := replyTo.GetQuoteRich(); len(rich) != 0 {
+		// The client quotes a fragment of a rich text (layer 232,
+		// SendMessagesHelper.java:191 at Android 13.2.1); the fragments
+		// are shown as they came.
+		if !richQuoteFits(rich) {
+			return nil, errQuoteTextInvalid
+		}
+		header.Quote = true
+		header.QuoteRich = rich
+		header.QuoteOffset = replyTo.GetQuoteOffset()
+	} else if quote := replyTo.GetQuoteText().GetValue(); quote != "" {
 		offset, n := findQuote(m.GetMessage(), quote, replyTo.GetQuoteOffset().GetValue())
 		if offset < 0 {
 			return nil, errQuoteTextInvalid
@@ -261,6 +276,11 @@ var quoteEntityTypes = map[string]bool{
 	mtproto.Predicate_messageEntityStrike:      true,
 	mtproto.Predicate_messageEntitySpoiler:     true,
 	mtproto.Predicate_messageEntityCustomEmoji: true,
+}
+
+// richQuoteFits says whether the text of a rich quote is within QuoteLengthMax.
+func richQuoteFits(rich []*mtproto.RichText) bool {
+	return len(utf16.Encode([]rune(layercompat.FlatRichText(rich)))) <= QuoteLengthMax
 }
 
 // findQuote is the offset of quote in text and its length, both in UTF-16

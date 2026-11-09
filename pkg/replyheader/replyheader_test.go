@@ -505,3 +505,19 @@ func TestWithTopic(t *testing.T) {
 		t.Errorf("to a user: %v", got)
 	}
 }
+
+// A quote of a rich text arrives as fragments (layer 232); they are kept on
+// the header, and a quote longer than the bound of the clients is not stored.
+func TestSameChatRichQuote(t *testing.T) {
+	rich := []*mtproto.RichText{mtproto.MakeTLTextPlain(&mtproto.RichText{Text_STRING: "a fragment"}).To_RichText()}
+	replyTo := mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{ReplyToMsgId: 5, QuoteRich: rich}).To_InputReplyTo()
+	h := sameChatReply(5, replyTo)
+	if !h.GetQuote() || len(h.GetQuoteRich()) != 1 || h.GetQuoteText() != nil {
+		t.Fatalf("header %v", h)
+	}
+	long := []*mtproto.RichText{mtproto.MakeTLTextPlain(&mtproto.RichText{Text_STRING: strings.Repeat("x", QuoteLengthMax+1)}).To_RichText()}
+	h = sameChatReply(5, mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{ReplyToMsgId: 5, QuoteRich: long}).To_InputReplyTo())
+	if h.GetQuote() || h.GetQuoteRich() != nil {
+		t.Fatalf("an over-long rich quote was stored: %v", h)
+	}
+}
