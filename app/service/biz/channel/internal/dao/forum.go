@@ -218,7 +218,10 @@ func topicTitle(title string) (string, error) {
 // broadcast channel, CHAT_DISCUSSION_UNALLOWED for a discussion group,
 // CHAT_NOT_MODIFIED for what it is already. Messages keep their topics
 // when the forum goes off and find them again when it comes back.
-func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs, sidebar bool) (*ChannelChange, error) {
+//
+// sidebar is nil from a client of a layer before 233, whose request does not
+// have it: such a client cannot mean to change it and it stays.
+func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool, sidebar *mtproto.Bool) (*ChannelChange, error) {
 	if _, err := openChannel(b, channelId); err != nil {
 		return nil, err
 	}
@@ -246,10 +249,15 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs, sideba
 	switch {
 	case enabled && r.Linked != 0:
 		return nil, mtproto.ErrChatDiscussionUnallowed
-	case !enabled:
-		tabs, sidebar = false, false
 	}
-	if r.Forum == enabled && r.Tabs == tabs && r.Sidebar == sidebar {
+	withSidebar := r.Sidebar
+	if sidebar != nil {
+		withSidebar = mtproto.FromBool(sidebar)
+	}
+	if !enabled {
+		tabs, withSidebar = false, false
+	}
+	if r.Forum == enabled && r.Tabs == tabs && r.Sidebar == withSidebar {
 		return nil, mtproto.ErrChatNotModified
 	}
 	if enabled {
@@ -261,7 +269,7 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs, sideba
 			return nil, err
 		}
 	}
-	if _, err = b.Tx().Exec("UPDATE channels SET forum = ?, forum_tabs = ?, forum_sidebar = ?, version = version + 1 WHERE id = ?", enabled, tabs, sidebar, channelId); err != nil {
+	if _, err = b.Tx().Exec("UPDATE channels SET forum = ?, forum_tabs = ?, forum_sidebar = ?, version = version + 1 WHERE id = ?", enabled, tabs, withSidebar, channelId); err != nil {
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil

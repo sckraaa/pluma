@@ -37,7 +37,7 @@ func (c *ChannelsCore) ChannelsToggleForum(in *mtproto.TLChannelsToggleForum) (*
 	}
 	return c.svcCtx.Channel.ChannelToggleForum(c.ctx, &channelpb.TLChannelToggleForum{
 		SelfId: c.MD.UserId, PermAuthKeyId: c.MD.PermAuthKeyId, ChannelId: mc.GetChannel().GetId(),
-		Enabled: in.Enabled, Tabs: mtproto.ToBool(mtproto.FromBool(in.Tabs)), Sidebar: mtproto.ToBool(mtproto.FromBool(in.Sidebar)),
+		Enabled: in.Enabled, Tabs: mtproto.ToBool(mtproto.FromBool(in.Tabs)), Sidebar: in.Sidebar, // nil in the form of older layers
 	})
 }
 

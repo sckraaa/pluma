@@ -157,6 +157,44 @@ func TestForumToggle(t *testing.T) {
 	}
 }
 
+// TestForumSidebar: the form of layer 233 sets the sidebar; the older form,
+// which does not have the field, leaves it alone and is not modified by a
+// repeat.
+func TestForumSidebar(t *testing.T) {
+	f := newDiffFixture(t)
+	creator := f.user("Creator")
+	id := f.create(creator)
+	f.send(id, creator, 1)
+	toggle := func(enabled, tabs, sidebar *mtproto.Bool) (*mtproto.Chat, error) {
+		r, err := f.c.ChannelToggleForum(&channel.TLChannelToggleForum{SelfId: creator, PermAuthKeyId: 1, ChannelId: id, Enabled: enabled, Tabs: tabs, Sidebar: sidebar})
+		if err != nil {
+			return nil, err
+		}
+		return r.GetChats()[0], nil
+	}
+	c, err := toggle(mtproto.BoolTrue, mtproto.BoolFalse, mtproto.BoolTrue)
+	if err != nil || !c.GetForum() || !c.GetForumSidebar() {
+		t.Fatalf("with a sidebar: %v, %v", c, err)
+	}
+	c, err = toggle(mtproto.BoolTrue, mtproto.BoolTrue, nil)
+	if err != nil || !c.GetForumTabs() || !c.GetForumSidebar() {
+		t.Fatalf("the older form: %v, %v", c, err)
+	}
+	_, err = toggle(mtproto.BoolTrue, mtproto.BoolTrue, nil)
+	wantErr(t, "a repeat of the older form", err, mtproto.ErrChatNotModified)
+	c, err = toggle(mtproto.BoolTrue, mtproto.BoolTrue, mtproto.BoolFalse)
+	if err != nil || c.GetForumSidebar() {
+		t.Fatalf("without a sidebar: %v, %v", c, err)
+	}
+	if _, err = toggle(mtproto.BoolTrue, mtproto.BoolTrue, mtproto.BoolTrue); err != nil {
+		t.Fatal(err)
+	}
+	c, err = toggle(mtproto.BoolFalse, mtproto.BoolFalse, nil)
+	if err != nil || c.GetForum() || c.GetForumSidebar() {
+		t.Fatalf("off: %v, %v", c, err)
+	}
+}
+
 // TestForumTopics: a topic's root is its id and stands first in its
 // history; a repeated create gives the first answer; the messages of a
 // topic count in it alone; reading one topic leaves the others unread; a

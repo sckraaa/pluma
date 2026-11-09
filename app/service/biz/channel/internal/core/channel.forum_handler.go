@@ -34,7 +34,7 @@ import (
 // (Android MessagesController.toggleChannelForum).
 func (c *ChannelCore) ChannelToggleForum(in *channel.TLChannelToggleForum) (*mtproto.Updates, error) {
 	return c.editRights("channel.toggleForum", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
-		return c.svcCtx.Dao.ToggleForum(b, in.ChannelId, mtproto.FromBool(in.Enabled), mtproto.FromBool(in.Tabs), mtproto.FromBool(in.Sidebar))
+		return c.svcCtx.Dao.ToggleForum(b, in.ChannelId, mtproto.FromBool(in.Enabled), mtproto.FromBool(in.Tabs), in.Sidebar)
 	})
 }
 
