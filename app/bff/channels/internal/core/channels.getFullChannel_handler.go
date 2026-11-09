@@ -17,6 +17,7 @@ package core
 
 import (
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"slices"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -188,6 +189,13 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	}
 
 	ids := append([]int64{c.MD.UserId}, requesters...)
+	// The users of bot_info: Android writes /cmd@bot from them, and a bare
+	// /cmd without one (MentionsAdapter.java:1566, 1861-1866).
+	for _, info := range full.BotInfo {
+		if id := info.GetUserId_INT64(); !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
 	users, err := c.svcCtx.User.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: ids, To: []int64{c.MD.UserId}})
 	if err != nil {
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
