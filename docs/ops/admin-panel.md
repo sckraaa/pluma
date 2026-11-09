@@ -11,19 +11,21 @@
 2. Создать пользователя БД панели. Пароль — в `.env` как `ADMIN_MYSQL_PASSWORD`; в репозиторий он не попадает.
 
    ```sql
-   CREATE USER IF NOT EXISTS 'pluma_admin'@'127.0.0.1' IDENTIFIED BY '<ADMIN_MYSQL_PASSWORD>';
-   GRANT SELECT, INSERT, UPDATE ON teamgram.moderation_reports TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.moderation_restrictions TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_users TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_passkeys TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_sessions TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_challenges TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT, INSERT ON teamgram.admin_audit TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT (id, phone, first_name, premium, premium_expire_date, deleted) ON teamgram.users TO 'pluma_admin'@'127.0.0.1';
-   GRANT SELECT (id, creator_user_id, title) ON teamgram.channels TO 'pluma_admin'@'127.0.0.1';
-   GRANT INSERT ON teamgram.mq_outbox TO 'pluma_admin'@'127.0.0.1';
+   CREATE USER IF NOT EXISTS 'pluma_admin'@'172.20.%' IDENTIFIED BY '<ADMIN_MYSQL_PASSWORD>';
+   GRANT SELECT, INSERT, UPDATE ON teamgram.moderation_reports TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.moderation_restrictions TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_users TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_passkeys TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_sessions TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_challenges TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT, INSERT ON teamgram.admin_audit TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT (id, phone, first_name, premium, premium_expire_date, deleted) ON teamgram.users TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT (id, creator_user_id, title) ON teamgram.channels TO 'pluma_admin'@'172.20.%';
+   GRANT INSERT ON teamgram.mq_outbox TO 'pluma_admin'@'172.20.%';
    FLUSH PRIVILEGES;
    ```
+
+   Адрес `172.20.%` — сеть `teamgram_net`: порт MySQL опубликован Docker, и для сервера подключение панели приходит со шлюза этой сети, а не с `127.0.0.1`. Снаружи MySQL закрыт: порт привязан к `127.0.0.1` хоста.
 
    Таблица `admin_audit` только на добавление: ни обновить, ни удалить запись пользователь панели не может.
 3. В `.env`: `PANEL_ORIGIN=https://<имя>.<tailnet>.ts.net` и `ADMIN_MYSQL_PASSWORD`.

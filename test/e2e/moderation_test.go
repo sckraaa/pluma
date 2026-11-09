@@ -61,13 +61,18 @@ func sendCodeFails(ctx context.Context, t *testing.T, phone, code string) {
 		t.Fatalf("connect: %v", err)
 	}
 	closeChecked(t, "banned", c)
-	_, err = c.Invoke(ctx, &mtproto.TLAuthSendCode{
+	sendCode := &mtproto.TLAuthSendCode{
 		Constructor: c.Constructor(mtproto.Predicate_auth_sendCode),
 		PhoneNumber: phone,
 		ApiId:       1,
 		ApiHash:     "e2e",
 		Settings:    &mtproto.CodeSettings{Constructor: c.Constructor(mtproto.Predicate_codeSettings)},
-	})
+	}
+	_, err = c.Invoke(ctx, sendCode)
+	if e := (*mtclient.RPCError)(nil); errors.As(err, &e) && strings.HasPrefix(e.Message, "FLOOD_WAIT_") {
+		resetLoginsPerAddress(t)
+		_, err = c.Invoke(ctx, sendCode)
+	}
 	if !mtclient.IsRPCError(err, code) {
 		t.Errorf("auth.sendCode of a banned account: %v, want %s", err, code)
 	}
@@ -144,6 +149,16 @@ func TestModerationReportTreeAndRestriction(t *testing.T) {
 	}
 	// Carol has Alice in contacts: the chat stays open.
 	sendTo(ctx, t, alice, peerOf(ctx, t, alice, carol), "hi carol")
+	// A group can be created, its service message is no message of Alice's,
+	// but she cannot write in it.
+	group := createChat(ctx, t, alice, fmt.Sprintf("restricted %d", randomID()), carol)
+	_, err = alice.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendMessage),
+		Peer:        chatPeer(alice, group), Message: "still spammy", RandomId: randomID(),
+	})
+	if !mtclient.IsRPCError(err, "USER_BANNED_IN_CHANNEL") {
+		t.Errorf("restricted, in a group: %v, want USER_BANNED_IN_CHANNEL", err)
+	}
 
 	admin(t, "moderation", "lift", alice.phone)
 	sendTo(ctx, t, alice, aliceToBob, "free again")
