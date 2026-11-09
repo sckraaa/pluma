@@ -75,6 +75,12 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	//send_as:flags.13?InputPeer
 	//quick_reply_shortcut:flags.17?InputQuickReplyShortcut
 	//effect:flags.18?long = Updates;
+	replyMarkup, err := c.botMarkup(in.ReplyMarkup)
+	if err != nil {
+		c.Logger.Errorf("messages.sendMessage - reply markup: %v", err)
+		return nil, err
+	}
+
 	outMessage := mtproto.MakeTLMessage(&mtproto.Message{
 		Out:                  true,
 		Mentioned:            false,
@@ -97,7 +103,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 		Date:                 int32(time.Now().Unix()),
 		Message:              in.Message,
 		Media:                nil,
-		ReplyMarkup:          in.ReplyMarkup,
+		ReplyMarkup:          replyMarkup,
 		Entities:             in.Entities,
 		Views:                nil,
 		Forwards:             nil,
@@ -119,7 +125,6 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	}
 
 	// Fix ReplyToMsgId
-	var err error
 	if outMessage.ReplyTo, err = c.makeReplyHeader(peer, in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
 		c.Logger.Errorf("messages.sendMessage - error: %v", err)
 		return nil, err

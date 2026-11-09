@@ -137,7 +137,10 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 
 	// reply_markup
 	if in.ReplyMarkup != nil {
-		outMessage.ReplyMarkup = in.ReplyMarkup
+		if outMessage.ReplyMarkup, err = c.botMarkup(in.ReplyMarkup); err != nil {
+			c.Logger.Errorf("messages.editMessage - reply markup: %v", err)
+			return nil, err
+		}
 	}
 
 	if in.Media != nil {

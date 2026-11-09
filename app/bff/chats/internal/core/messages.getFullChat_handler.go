@@ -24,6 +24,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -135,9 +136,16 @@ func (c *ChatsCore) MessagesGetFullChat(in *mtproto.TLMessagesGetFullChat) (*mtp
 			idList = append(idList, participant.UserId)
 			if participant.IsBot {
 				// TODO: 优化
-				botInfo, _ := c.svcCtx.Dao.UserClient.UserGetBotInfo(c.ctx, &userpb.TLUserGetBotInfo{
-					BotId: participant.UserId,
+				admin := false
+				if me, ok := chat.GetImmutableChatParticipant(c.MD.UserId); ok {
+					admin = me.IsChatMemberAdmin() || me.IsChatMemberCreator()
+				}
+				botInfo, err := c.svcCtx.Bots.BotInfo(c.ctx, participant.UserId, botstore.Viewer{
+					UserId: c.MD.UserId, PeerType: mtproto.PEER_CHAT, PeerId: in.ChatId, Admin: admin, Lang: c.MD.LangCode,
 				})
+				if err != nil {
+					c.Logger.Errorf("messages.getFullChat - bot info of %d: %v", participant.UserId, err)
+				}
 				if botInfo != nil {
 					chatFull.BotInfo = append(chatFull.BotInfo, botInfo)
 				}

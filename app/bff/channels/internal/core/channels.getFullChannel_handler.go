@@ -16,6 +16,7 @@
 package core
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -102,6 +103,10 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		}
 	}
 	full.AvailableMinId = availableMinId(me)
+	if full.BotInfo, err = c.channelBotInfo(ch.GetId(), admin); err != nil {
+		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+		return nil, err
+	}
 
 	dialogs, err := c.svcCtx.Channel.ChannelGetChannelDialogs(c.ctx, &channelpb.TLChannelGetChannelDialogs{SelfId: c.MD.UserId, IdList: []int64{ch.GetId()}})
 	if err != nil {
@@ -212,4 +217,28 @@ func availableReactions(ch *channelpb.ImmutableChannel) *mtproto.ChatReactions {
 		t = mtproto.ChatReactionsTypeAllNoAllowCustom
 	}
 	return mtproto.FromChatReactions(t, ch.GetAvailableReactions())
+}
+
+// channelBotInfo is the bot_info of the channel's bots, as the user sees
+// them (core.telegram.org/api/bots/commands).
+func (c *ChannelsCore) channelBotInfo(channelId int64, admin bool) ([]*mtproto.BotInfo, error) {
+	members, err := c.svcCtx.Channel.ChannelGetMemberIdList(c.ctx, &channelpb.TLChannelGetMemberIdList{ChannelId: channelId})
+	if err != nil {
+		return nil, err
+	}
+	bots, err := c.svcCtx.User.UserCheckBots(c.ctx, &userpb.TLUserCheckBots{Id: members.GetDatas()})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*mtproto.BotInfo, 0, len(bots.GetDatas()))
+	for _, id := range bots.GetDatas() {
+		info, err := c.svcCtx.Bots.BotInfo(c.ctx, id, botstore.Viewer{
+			UserId: c.MD.UserId, PeerType: mtproto.PEER_CHANNEL, PeerId: channelId, Admin: admin, Lang: c.MD.LangCode,
+		})
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, info)
+	}
+	return out, nil
 }
