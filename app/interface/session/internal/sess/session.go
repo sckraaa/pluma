@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/layercompat"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -471,17 +472,26 @@ func (c *session) sendRpcResultToQueue(ctx context.Context, gatewayId string, re
 		ReqMsgId: reqMsgId,
 		Result:   result,
 	}
-	rawMsg := func() *mtproto.TLMessageRawData {
-		x := mtproto.GetEncodeBuf()
-		defer mtproto.PutEncodeBuf(x)
-		rpcResult.Encode(x, c.sessList.cb.Layer())
-		return &mtproto.TLMessageRawData{
-			MsgId: nextMessageId(true),
-			Seqno: c.generateMessageSeqNo(true),
-			Bytes: int32(x.GetOffset()),
-			Body:  append([]byte(nil), x.GetBuf()...),
+	body, err := layercompat.EncodeFor(rpcResult, c.sessList.cb.Layer())
+	if err != nil {
+		// Never a part of an object: the client gets an error for its
+		// request instead.
+		logx.WithContext(ctx).Errorf("sendRpcResultToQueue - %T for layer %d: %v", result, c.sessList.cb.Layer(), err)
+		body, err = layercompat.EncodeFor(&mtproto.TLRpcResult{
+			ReqMsgId: reqMsgId,
+			Result:   mtproto.NewRpcError(mtproto.ErrInternalServerError),
+		}, c.sessList.cb.Layer())
+		if err != nil {
+			logx.WithContext(ctx).Errorf("sendRpcResultToQueue - rpc_error: %v", err)
+			return
 		}
-	}()
+	}
+	rawMsg := &mtproto.TLMessageRawData{
+		MsgId: nextMessageId(true),
+		Seqno: c.generateMessageSeqNo(true),
+		Bytes: int32(len(body)),
+		Body:  body,
+	}
 	c.outQueue.AddRpcResultMsg(reqMsgId, rawMsg)
 	// cb(rawMsg)
 }
@@ -503,12 +513,11 @@ func (c *session) sendPushRpcResultToQueue(gatewayId string, reqMsgId int64, res
 }
 
 func (c *session) sendPushToQueue(ctx context.Context, gatewayId string, pushMsgId int64, pushMsg mtproto.TLObject) {
-	rawBytes := func() []byte {
-		x := mtproto.GetEncodeBuf()
-		defer mtproto.PutEncodeBuf(x)
-		pushMsg.Encode(x, c.sessList.cb.Layer())
-		return append([]byte(nil), x.GetBuf()...)
-	}()
+	rawBytes, err := layercompat.EncodeFor(pushMsg, c.sessList.cb.Layer())
+	if err != nil {
+		logx.WithContext(ctx).Errorf("sendPushToQueue - %T for layer %d: %v", pushMsg, c.sessList.cb.Layer(), err)
+		return
+	}
 	if len(rawBytes) > 256 {
 		gzipPacked := &mtproto.TLGzipPacked{
 			PackedData: rawBytes,
@@ -531,12 +540,11 @@ func (c *session) sendPushToQueue(ctx context.Context, gatewayId string, pushMsg
 }
 
 func (c *session) sendRawToQueue(ctx context.Context, gatewayId string, msgId int64, confirm bool, rawMsg mtproto.TLObject) {
-	b := func() []byte {
-		x := mtproto.GetEncodeBuf()
-		defer mtproto.PutEncodeBuf(x)
-		rawMsg.Encode(x, c.sessList.cb.Layer())
-		return append([]byte(nil), x.GetBuf()...)
-	}()
+	b, err := layercompat.EncodeFor(rawMsg, c.sessList.cb.Layer())
+	if err != nil {
+		logx.WithContext(ctx).Errorf("sendRawToQueue - %T for layer %d: %v", rawMsg, c.sessList.cb.Layer(), err)
+		return
+	}
 	rawMsg2 := &mtproto.TLMessageRawData{
 		MsgId: nextMessageId(false),
 		Seqno: c.generateMessageSeqNo(confirm),
@@ -552,12 +560,11 @@ func (c *session) sendHttpDirectToGateway(ctx context.Context, ch chan interface
 	}
 
 	salt := c.sessList.cacheSalt.GetSalt()
-	b := func() []byte {
-		x := mtproto.GetEncodeBuf()
-		defer mtproto.PutEncodeBuf(x)
-		obj.Encode(x, c.sessList.cb.Layer())
-		return append([]byte(nil), x.GetBuf()...)
-	}()
+	b, err := layercompat.EncodeFor(obj, c.sessList.cb.Layer())
+	if err != nil {
+		logx.WithContext(ctx).Errorf("sendHttpDirectToGateway - %T for layer %d: %v", obj, c.sessList.cb.Layer(), err)
+		return false, err
+	}
 	rawMsg := &mtproto.TLMessageRawData{
 		MsgId: nextMessageId(false),
 		Seqno: c.generateMessageSeqNo(confirm),
@@ -590,12 +597,11 @@ func (c *session) sendDirectToGateway(ctx context.Context, gatewayId string, con
 	}
 
 	salt := c.sessList.cacheSalt.GetSalt()
-	b := func() []byte {
-		x := mtproto.GetEncodeBuf()
-		defer mtproto.PutEncodeBuf(x)
-		_ = obj.Encode(x, c.sessList.cb.Layer())
-		return append([]byte(nil), x.GetBuf()...)
-	}()
+	b, encErr := layercompat.EncodeFor(obj, c.sessList.cb.Layer())
+	if encErr != nil {
+		logx.WithContext(ctx).Errorf("sendDirectToGateway - %T for layer %d: %v", obj, c.sessList.cb.Layer(), encErr)
+		return false, encErr
+	}
 
 	rawMsg := &mtproto.TLMessageRawData{
 		MsgId: nextMessageId(false),

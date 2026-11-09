@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/layercompat"
 )
 
 // maxCallbackData: core.telegram.org/bots/api#inlinekeyboardbutton,
@@ -37,6 +38,8 @@ func Normalize(markup *mtproto.ReplyMarkup, resolve func(*mtproto.InputUser) int
 	if markup == nil {
 		return nil, nil
 	}
+	// A bot of layer 229 or later sends the buttons of that layer's schema.
+	markup = layercompat.Canonical(markup)
 	switch markup.GetPredicateName() {
 	case mtproto.Predicate_replyKeyboardHide,
 		mtproto.Predicate_replyKeyboardForceReply:
