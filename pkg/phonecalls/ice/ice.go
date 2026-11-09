@@ -34,10 +34,12 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-// Server is one configured STUN/TURN endpoint.
+// Server is one configured STUN/TURN endpoint. Host6 is the IPv6 address of
+// a Host given as an IPv4 address.
 type Server struct {
-	Host string
-	Port int32
+	Host  string
+	Host6 string
+	Port  int32
 	Stun bool
 	Turn bool
 }
@@ -53,7 +55,9 @@ type Servers struct {
 // Parse reads "host:port:stun+turn,host:port:turn". A host may be an
 // IPv4 address, a host name or an IPv6 address in square brackets; the
 // flag stun or turn or both separated by "+" says what it serves. The TURN
-// secret must be set if any entry has turn.
+// secret must be set if any entry has turn. An IPv6 address is one more
+// address of the entry with an IPv4 address and the same port and flags: a
+// connection needs an IPv4 address (see Connections).
 func Parse(cfg, secret string) (*Servers, error) {
 	s := &Servers{secret: []byte(secret), now: time.Now, resolver: net.DefaultResolver.LookupIPAddr}
 	for _, entry := range strings.Split(cfg, ",") {
@@ -90,7 +94,43 @@ func Parse(cfg, secret string) (*Servers, error) {
 		}
 		s.list = append(s.list, srv)
 	}
+	if err := s.pairIPv6(); err != nil {
+		return nil, err
+	}
 	return s, nil
+}
+
+// pairIPv6 folds every entry with an IPv6 address into its IPv4 entry.
+func (s *Servers) pairIPv6() error {
+	out := s.list[:0:0]
+	for _, srv := range s.list {
+		if !isIPv6(srv.Host) {
+			out = append(out, srv)
+		}
+	}
+	for _, srv := range s.list {
+		if !isIPv6(srv.Host) {
+			continue
+		}
+		paired := false
+		for i := range out {
+			o := &out[i]
+			if o.Host6 == "" && o.Port == srv.Port && o.Stun == srv.Stun && o.Turn == srv.Turn && net.ParseIP(o.Host) != nil {
+				o.Host6, paired = srv.Host, true
+				break
+			}
+		}
+		if !paired {
+			return fmt.Errorf("[%s]:%d: an IPv6 address needs an IPv4 entry with the same port and kinds", srv.Host, srv.Port)
+		}
+	}
+	s.list = out
+	return nil
+}
+
+func isIPv6(host string) bool {
+	ip := net.ParseIP(host)
+	return ip != nil && ip.To4() == nil
 }
 
 // Empty tells whether no server is configured: calls cannot start.
@@ -99,18 +139,23 @@ func (s *Servers) Empty() bool { return len(s.list) == 0 }
 // resolveTimeout bounds the name lookup of a call's servers.
 const resolveTimeout = 2 * time.Second
 
-// Connections returns the connections of callId: an address family of a
-// host the name of which does not resolve is left out. The clients take
-// numeric addresses only (ADR 0004: names are resolved before they are
-// handed out). A TURN credential lives as long as a call may.
+// Connections returns the connections of callId. The clients take numeric
+// addresses only (ADR 0004: names are resolved before they are handed out).
+// A host without an IPv4 address is left out: Android reads only ip for such
+// a connection (jni/voip/org_telegram_messenger_voip_Instance.cpp:854), Web K
+// makes an URL of it unchecked (p2P/utils.ts:169,175) and tdesktop a TURN
+// server (calls_call.cpp:155). A TURN credential lives as long as a call may.
 func (s *Servers) Connections(ctx context.Context, callId int64, lifetime time.Duration) []*mtproto.PhoneConnection {
 	out := make([]*mtproto.PhoneConnection, 0, len(s.list))
 	expires := s.now().Add(lifetime).Unix()
 	username := strconv.FormatInt(expires, 10) + ":" + strconv.FormatInt(callId, 10)
 	for i, srv := range s.list {
 		ipv4, ipv6 := s.addresses(ctx, srv.Host)
-		if ipv4 == "" && ipv6 == "" {
+		if ipv4 == "" {
 			continue
+		}
+		if srv.Host6 != "" {
+			ipv6 = srv.Host6
 		}
 		conn := &mtproto.PhoneConnection{
 			Id:   int64(i + 1),

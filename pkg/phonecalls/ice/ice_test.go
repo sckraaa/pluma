@@ -28,7 +28,7 @@ import (
 )
 
 func TestParseErrors(t *testing.T) {
-	for _, bad := range []string{"host:3478", "host:0:stun", "host:99999:stun", "host:3478:relay", "host:3478:turn"} {
+	for _, bad := range []string{"host:3478", "host:0:stun", "host:99999:stun", "host:3478:relay", "host:3478:turn", "[2001:db8::7]:3478:stun"} {
 		if _, err := Parse(bad, ""); err == nil {
 			t.Errorf("%q: no error", bad)
 		}
@@ -39,7 +39,7 @@ func TestParseErrors(t *testing.T) {
 }
 
 func TestConnections(t *testing.T) {
-	s, err := Parse("198.51.100.7:3478:stun+turn,[2001:db8::7]:5349:turn,stun.example:3478:stun,gone.example:3478:stun", "secret")
+	s, err := Parse("198.51.100.7:3478:stun+turn,[2001:db8::7]:3478:stun+turn,stun.example:3478:stun,gone.example:3478:stun,v6only.example:3478:stun", "secret")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,14 +48,17 @@ func TestConnections(t *testing.T) {
 		if host == "gone.example" {
 			return nil, errors.New("no such host")
 		}
+		if host == "v6only.example" {
+			return []net.IPAddr{{IP: net.ParseIP("2001:db8::9")}}, nil
+		}
 		return []net.IPAddr{{IP: net.ParseIP("203.0.113.5")}, {IP: net.ParseIP("2001:db8::5")}}, nil
 	}
 	list := s.Connections(context.Background(), 77, time.Hour)
-	if len(list) != 3 {
-		t.Fatalf("%d connections, want 3 (a server whose name does not resolve is left out)", len(list))
+	if len(list) != 2 {
+		t.Fatalf("%d connections, want 2 (a server whose name does not resolve or has no IPv4 is left out)", len(list))
 	}
 	first := list[0]
-	if first.GetIp() != "198.51.100.7" || first.GetIpv6() != "" || !first.GetStun() || !first.GetTurn() {
+	if first.GetIp() != "198.51.100.7" || first.GetIpv6() != "2001:db8::7" || !first.GetStun() || !first.GetTurn() {
 		t.Fatalf("first: %+v", first)
 	}
 	h := hmac.New(sha1.New, []byte("secret"))
@@ -64,10 +67,12 @@ func TestConnections(t *testing.T) {
 	if first.GetUsername() != "4600:77" || first.GetPassword() != want {
 		t.Fatalf("credentials %q %q", first.GetUsername(), first.GetPassword())
 	}
-	if v6 := list[1]; v6.GetIpv6() != "2001:db8::7" || v6.GetIp() != "" {
-		t.Fatalf("second: %+v", v6)
+	for _, c := range list {
+		if c.GetIp() == "" {
+			t.Fatalf("a connection without an IPv4 address: %+v", c)
+		}
 	}
-	third := list[2]
+	third := list[1]
 	if third.GetIp() != "203.0.113.5" || third.GetIpv6() != "2001:db8::5" || third.GetUsername() != "" {
 		t.Fatalf("stun host: %+v", third)
 	}
