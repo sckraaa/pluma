@@ -48,6 +48,21 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 
 	switch updatesDiff.GetPredicateName() {
 	case updates.Predicate_differenceEmpty:
+		// A device woken by a push for a call that still rings: Android gets
+		// it nowhere else (a push of a call is empty for it,
+		// PushListenerController.java:1400). The empty difference cannot
+		// carry the update.
+		if ringing := c.ringingCalls(); len(ringing) > 0 {
+			rDifference = mtproto.MakeTLUpdatesDifference(&mtproto.Updates_Difference{
+				NewMessages:          []*mtproto.Message{},
+				NewEncryptedMessages: []*mtproto.EncryptedMessage{},
+				OtherUpdates:         ringing,
+				Chats:                nil,
+				Users:                nil,
+				State:                updatesDiff.GetState(),
+			}).To_Updates_Difference()
+			break
+		}
 		return mtproto.MakeTLUpdatesDifferenceEmpty(&mtproto.Updates_Difference{
 			Date: updatesDiff.GetState().GetDate(),
 			Seq:  updatesDiff.GetState().GetSeq(),
@@ -56,7 +71,7 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 		rDifference = mtproto.MakeTLUpdatesDifference(&mtproto.Updates_Difference{
 			NewMessages:          updatesDiff.NewMessages,
 			NewEncryptedMessages: []*mtproto.EncryptedMessage{},
-			OtherUpdates:         updatesDiff.OtherUpdates,
+			OtherUpdates:         append(updatesDiff.OtherUpdates, c.ringingCalls()...),
 			Chats:                nil,
 			Users:                nil,
 			State:                updatesDiff.State,
@@ -65,7 +80,7 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 		rDifference = mtproto.MakeTLUpdatesDifferenceSlice(&mtproto.Updates_Difference{
 			NewMessages:          updatesDiff.NewMessages,
 			NewEncryptedMessages: []*mtproto.EncryptedMessage{},
-			OtherUpdates:         updatesDiff.OtherUpdates,
+			OtherUpdates:         append(updatesDiff.OtherUpdates, c.ringingCalls()...),
 			Chats:                nil,
 			Users:                nil,
 			IntermediateState:    updatesDiff.IntermediateState,
@@ -83,6 +98,11 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 
 	idHelper.PickByMessages(rDifference.NewMessages...)
 	idHelper.PickByUpdates(rDifference.OtherUpdates...)
+	for _, u := range rDifference.OtherUpdates {
+		if u.GetPredicateName() == mtproto.Predicate_updatePhoneCall {
+			idHelper.AppendUsers(u.GetPhoneCall().GetAdminId())
+		}
+	}
 	seqpeers.Pick(idHelper, c.MD.UserId, rDifference.OtherUpdates...)
 
 	// The difference goes with the peers found: a client asks again for

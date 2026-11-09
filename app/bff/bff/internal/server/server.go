@@ -60,6 +60,7 @@ import (
 	userchannelprofileshelper "github.com/teamgram/teamgram-server/app/bff/userchannelprofiles"
 	usernames_helper "github.com/teamgram/teamgram-server/app/bff/usernames"
 	users_helper "github.com/teamgram/teamgram-server/app/bff/users"
+	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
 	webbrowserhelper "github.com/teamgram/teamgram-server/app/bff/webbrowser"
 	webpage_helper "github.com/teamgram/teamgram-server/app/bff/webpage"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
@@ -77,6 +78,7 @@ var configFile = flag.String("f", "etc/bff.yaml", "the config file")
 
 type Server struct {
 	grpcSrv *zrpc.RpcServer
+	calls   *voipcalls_helper.Sweeper // ends the abandoned calls (task 068)
 }
 
 func New() *Server {
@@ -103,6 +105,19 @@ func (s *Server) Initialize() error {
 	syncClient := sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+		// voipcalls_helper: phone.* of one-to-one calls (task 068).
+		callsConf := voipcalls_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			Calls:         c.Calls,
+			UserClient:    c.BizServiceClient,
+			MsgClient:     c.MsgClient,
+			StatusClient:  c.StatusClient,
+			SyncClient:    syncClient,
+		}
+		mtproto.RegisterRPCVoipCallsServer(grpcServer, voipcalls_helper.New(callsConf))
+		s.calls = voipcalls_helper.StartSweeper(callsConf)
+
 		// reports_helper: the moderation queue (task 025, ADR 0040).
 		mtproto.RegisterRPCReportsServer(
 			grpcServer,
@@ -251,6 +266,7 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			updates_helper.New(updates_helper.Config{
 				RpcServerConf:     c.RpcServerConf,
+				Mysql:             c.Mysql,
 				UpdatesClient:     c.BizServiceClient,
 				UserClient:        c.BizServiceClient,
 				ChatClient:        c.BizServiceClient,
@@ -576,5 +592,8 @@ func (s *Server) RunLoop() {
 }
 
 func (s *Server) Destroy() {
+	if s.calls != nil {
+		s.calls.Stop()
+	}
 	s.grpcSrv.Stop()
 }

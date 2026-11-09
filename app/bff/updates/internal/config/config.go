@@ -19,11 +19,13 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
+	Mysql         sqlx.Config // the calls that ring (pkg/phonecalls)
 	UpdatesClient zrpc.RpcClientConf
 	UserClient    zrpc.RpcClientConf
 	ChatClient    zrpc.RpcClientConf

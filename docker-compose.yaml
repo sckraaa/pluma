@@ -72,6 +72,9 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       # bff.yaml names the site of the client releases (task 054); empty: none.
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
+      # bff.yaml names the servers of one-to-one calls (task 068); empty: off.
+      CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
+      CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -266,6 +269,9 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       # The site of the releases of the client apps (task 054); empty: none.
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
+      # The servers of one-to-one calls (task 068); empty: calls are off.
+      CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
+      CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
     stop_grace_period: 30s
     depends_on:
       sync:
