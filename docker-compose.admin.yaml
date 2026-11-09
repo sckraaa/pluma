@@ -1,0 +1,22 @@
+# The internal moderation panel (task 025, ADR 0039, docs/ops/admin-panel.md).
+# With the network of the host, so that it listens on the real loopback
+# address: tailscale serve on the host is the only way in, and the identity
+# header is believed only on loopback connections. Added to the services
+# command after the other compose files:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.admin.yaml up -d admin
+services:
+  admin:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/admin/Dockerfile
+    image: ${PLUMA_ADMIN_IMAGE:-pluma-admin-panel:local}
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      PANEL_ORIGIN: ${PANEL_ORIGIN:?set PANEL_ORIGIN in .env, the panel's https address in the tailnet}
+      ADMIN_MYSQL_PASSWORD: ${ADMIN_MYSQL_PASSWORD:?set ADMIN_MYSQL_PASSWORD in .env, the password of the pluma_admin database user}
+    stop_grace_period: 30s
