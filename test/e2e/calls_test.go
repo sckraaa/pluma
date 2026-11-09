@@ -114,6 +114,21 @@ func TestCallRoundTrip(t *testing.T) {
 	getState(ctx, t, bob)
 	getState(ctx, t, bobLaptop)
 
+	// Every client asks for the group first.
+	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetDhConfig{
+		Constructor:  alice.c.Constructor(mtproto.Predicate_messages_getDhConfig),
+		RandomLength: 256,
+	})
+	if err != nil {
+		t.Fatalf("messages.getDhConfig: %v", err)
+	}
+	dh := o.(interface {
+		To_Messages_DhConfig() *mtproto.Messages_DhConfig
+	}).To_Messages_DhConfig()
+	if dh.GetPredicateName() != mtproto.Predicate_messages_dhConfig || len(dh.GetP()) != 256 || dh.GetG() == 0 || len(dh.GetRandom()) != 256 {
+		t.Fatalf("messages.getDhConfig: %v", dh)
+	}
+
 	call := requestCall(ctx, t, alice, bob)
 	if call.GetPredicateName() != mtproto.Predicate_phoneCallWaiting {
 		t.Fatalf("requestCall answered %s", call.GetPredicateName())
@@ -150,7 +165,7 @@ func TestCallRoundTrip(t *testing.T) {
 	// The caller reveals g_a; the other side gets it with the connections.
 	gA := make([]byte, 256)
 	gA[0] = 9
-	o, err := alice.c.Invoke(ctx, &mtproto.TLPhoneConfirmCall{Constructor: alice.c.Constructor(mtproto.Predicate_phone_confirmCall), Peer: inputCall(alice, call), GA: gA, KeyFingerprint: 1234, Protocol: callProtocol(alice)})
+	o, err = alice.c.Invoke(ctx, &mtproto.TLPhoneConfirmCall{Constructor: alice.c.Constructor(mtproto.Predicate_phone_confirmCall), Peer: inputCall(alice, call), GA: gA, KeyFingerprint: 1234, Protocol: callProtocol(alice)})
 	if err != nil {
 		t.Fatalf("phone.confirmCall: %v", err)
 	}
@@ -196,9 +211,29 @@ func TestCallRoundTrip(t *testing.T) {
 		t.Fatalf("history: %v", calls)
 	}
 
-	// A repeated discard answers the same, without a second message.
-	if _, err := discard(ctx, bob, call, mtproto.Predicate_phoneCallDiscardReasonHangup); err != nil {
+	// A repeated discard answers the same and tells nobody again.
+	again, err := discard(ctx, bob, call, mtproto.Predicate_phoneCallDiscardReasonHangup)
+	if err != nil {
 		t.Fatalf("second discard: %v", err)
+	}
+	if u := again.GetUpdates(); len(u) != 1 || u[0].GetPhoneCall().GetPredicateName() != mtproto.Predicate_phoneCallDiscarded ||
+		u[0].GetPhoneCall().GetReason().GetPredicateName() != mtproto.Predicate_phoneCallDiscardReasonHangup {
+		t.Fatalf("second discard answered %v", again)
+	}
+	quiet, stop := context.WithTimeout(ctx, 2*time.Second)
+	defer stop()
+	if _, err := alice.c.WaitUpdate(quiet, func(us *mtproto.Updates) bool {
+		for _, x := range us.GetUpdates() {
+			if c := x.GetPhoneCall(); c.GetPredicateName() == mtproto.Predicate_phoneCallDiscarded && c.GetId() == call.GetId() {
+				return true
+			}
+			if x.GetPredicateName() == mtproto.Predicate_updateNewMessage && isCallMessage(x) {
+				return true
+			}
+		}
+		return false
+	}); err == nil {
+		t.Fatal("the repeated discard reached the other side")
 	}
 	// Rating, on either side.
 	if _, err = bob.c.Invoke(ctx, &mtproto.TLPhoneSetCallRating{Constructor: bob.c.Constructor(mtproto.Predicate_phone_setCallRating), Peer: inputCall(bob, call), Rating: 5, Comment: "ok"}); err != nil {
