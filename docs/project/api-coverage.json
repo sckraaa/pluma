@@ -1,12 +1,12 @@
 {
-  "layer": "228",
-  "total": 844,
+  "layer": "233",
+  "total": 905,
   "ok": 382,
   "partial": 12,
   "areas": [
     {
       "key": "messages",
-      "total": 202,
+      "total": 209,
       "ok": 136,
       "partial": 6
     },
@@ -18,13 +18,13 @@
     },
     {
       "key": "contacts",
-      "total": 39,
+      "total": 41,
       "ok": 30,
       "partial": 0
     },
     {
       "key": "account",
-      "total": 158,
+      "total": 162,
       "ok": 80,
       "partial": 2
     },
@@ -60,19 +60,19 @@
     },
     {
       "key": "bots",
-      "total": 61,
+      "total": 66,
       "ok": 14,
       "partial": 0
     },
     {
       "key": "payments",
-      "total": 76,
+      "total": 87,
       "ok": 2,
       "partial": 1
     },
     {
       "key": "other",
-      "total": 72,
+      "total": 104,
       "ok": 18,
       "partial": 1
     }
