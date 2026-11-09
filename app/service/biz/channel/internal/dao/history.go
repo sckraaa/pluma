@@ -237,6 +237,9 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
 		return nil, 0, err
 	}
+	if err = polls.AttachMessages(ctx, d.Mysql, selfId, messages...); err != nil {
+		return nil, 0, err
+	}
 	if err = d.WithPostCounters(ctx, channelId, messages); err != nil {
 		return nil, 0, err
 	}

@@ -80,7 +80,7 @@ func (c *DialogsCore) MessagesSetHistoryTTL(in *mtproto.TLMessagesSetHistoryTTL)
 		PeerId:    peer.PeerId,
 		Message: []*msgpb.OutboxMessage{msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
 			NoWebpage: true,
-			RandomId:  rand.Int63(),
+			RandomId:  rand.Int63(), //nolint:gosec // G404: a random_id is unique, not secret
 			Message: mtproto.MakeTLMessageService(&mtproto.Message{
 				Out:    true,
 				FromId: mtproto.MakePeerUser(c.MD.UserId),

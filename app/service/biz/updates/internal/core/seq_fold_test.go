@@ -36,7 +36,7 @@ func TestSeqKeyPoll(t *testing.T) {
 	if seqKey(poll(false)) == seqKey(poll(true)) {
 		t.Fatal("min and personal updates of a poll fold together")
 	}
-	if seqKey(poll(true)) != seqKey(poll(true)) {
+	if first, second := seqKey(poll(true)), seqKey(poll(true)); first != second {
 		t.Fatal("min updates of a poll do not fold")
 	}
 	changed := poll(true)

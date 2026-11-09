@@ -295,7 +295,7 @@ func (c *MsgCore) autoTTLMessage(fromUserId, toUserId int64, msgs []dao.Outgoing
 	}
 	return c.outgoing([]*msg.OutboxMessage{msg.MakeTLOutboxMessage(&msg.OutboxMessage{
 		NoWebpage: true,
-		RandomId:  rand.Int63(),
+		RandomId:  rand.Int63(), //nolint:gosec // G404: a random_id is unique, not secret
 		Message: mtproto.MakeTLMessageService(&mtproto.Message{
 			Out:    true,
 			FromId: mtproto.MakePeerUser(fromUserId),
