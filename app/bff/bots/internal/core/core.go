@@ -44,6 +44,18 @@ func New(ctx context.Context, svcCtx *svc.ServiceContext) *BotsCore {
 	}
 }
 
+// chatPeer is the chat an input peer names. inputPeerSelf, Saved Messages
+// (Android MessagesController.getInputPeer, tdesktop data_peer.cpp:2077), is
+// the chat with oneself as PEER_USER: the only form of it msg and the boxes
+// know.
+func (c *BotsCore) chatPeer(in *mtproto.InputPeer) *mtproto.PeerUtil {
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in)
+	if peer.PeerType == mtproto.PEER_SELF {
+		peer.PeerType = mtproto.PEER_USER
+	}
+	return peer
+}
+
 // meBot checks that the caller is a bot account (USER_BOT_REQUIRED).
 func (c *BotsCore) meBot() (*mtproto.ImmutableUser, error) {
 	me, err := c.svcCtx.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: c.MD.UserId})

@@ -17,16 +17,21 @@ package core
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
+	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
+	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 
+	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 )
 
 // peerMessages answers only the look-up a press needs; any other method of
@@ -80,5 +85,108 @@ func TestInlinePeerTypeOfNoChat(t *testing.T) {
 	pt, kind, err := c.inlinePeerType(20, peer)
 	if err != nil || pt != nil || kind == "" {
 		t.Fatalf("peer type %v, kind %q, error %v", pt, kind, err)
+	}
+}
+
+// userMessages answers the look-up of a press with one copy.
+type userMessages struct {
+	message_client.MessageClient
+	box *mtproto.MessageBox
+}
+
+func (u *userMessages) MessageGetUserMessage(_ context.Context, _ *message.TLMessageGetUserMessage) (*mtproto.MessageBox, error) {
+	return u.box, nil
+}
+
+// copyIn is a copy in the box of owner of a message from sender, which the
+// sender addressed to peer: an incoming copy has the owner as its peer.
+func copyIn(sender int64, peerType int32, peerId int64) *mtproto.MessageBox {
+	did := mtproto.MakeDialogId(sender, peerType, peerId)
+	return &mtproto.MessageBox{PeerType: peerType, PeerId: peerId, DialogId1: did.A, DialogId2: did.B, Message: &mtproto.Message{}}
+}
+
+// A press names the chat as the user sees it: in a private chat the bot,
+// though the user's copy has the user as its peer.
+func TestPressedMessageOfTheChat(t *testing.T) {
+	const user, bot, other, chat = int64(10), int64(20), int64(30), int64(40)
+	for _, tc := range []struct {
+		name string
+		box  *mtproto.MessageBox
+		peer *mtproto.PeerUtil
+		ok   bool
+	}{
+		{"incoming copy, the bot's chat", copyIn(bot, mtproto.PEER_USER, user), mtproto.MakeUserPeerUtil(bot), true},
+		{"incoming copy, another chat", copyIn(bot, mtproto.PEER_USER, user), mtproto.MakeUserPeerUtil(other), false},
+		{"own copy of a message via a bot", copyIn(user, mtproto.PEER_USER, bot), mtproto.MakeUserPeerUtil(bot), true},
+		{"a basic group", copyIn(bot, mtproto.PEER_CHAT, chat), &mtproto.PeerUtil{PeerType: mtproto.PEER_CHAT, PeerId: chat}, true},
+		{"a private copy named as a group", copyIn(bot, mtproto.PEER_USER, user), &mtproto.PeerUtil{PeerType: mtproto.PEER_CHAT, PeerId: chat}, false},
+	} {
+		c := testCore(&dao.Dao{MessageClient: &userMessages{box: tc.box}}, user)
+		p, err := c.pressedMessage(tc.peer, 33)
+		switch {
+		case tc.ok && (err != nil || p == nil):
+			t.Errorf("%s: %v", tc.name, err)
+		case !tc.ok && !errors.Is(err, mtproto.ErrMessageIdInvalid):
+			t.Errorf("%s: got %v", tc.name, err)
+		}
+	}
+	// Saved Messages: inputPeerSelf is the chat with oneself.
+	c := testCore(&dao.Dao{MessageClient: &userMessages{box: copyIn(user, mtproto.PEER_USER, user)}}, user)
+	if _, err := c.pressedMessage(c.chatPeer(mtproto.MakeTLInputPeerSelf(nil).To_InputPeer()), 33); err != nil {
+		t.Errorf("Saved Messages: %v", err)
+	}
+}
+
+// memoryKV holds what a test puts in Redis.
+type memoryKV struct {
+	kv.Store
+	values map[string]string
+}
+
+func (m *memoryKV) GetCtx(_ context.Context, key string) (string, error) {
+	return m.values[key], nil
+}
+
+// sentMessages records what is given to msg.
+type sentMessages struct {
+	msg_client.MsgClient
+	got *msgpb.TLMsgSendMessageV2
+}
+
+func (s *sentMessages) MsgSendMessageV2(_ context.Context, in *msgpb.TLMsgSendMessageV2) (*mtproto.Updates, error) {
+	s.got = in
+	return mtproto.MakeEmptyUpdates(), nil
+}
+
+// inlineCore is a core with the answer of query 5, one article "a".
+func inlineCore(t *testing.T, d *dao.Dao, user, bot int64) *BotsCore {
+	t.Helper()
+	data, err := jsonx.Marshal(&dao.InlineAnswer{Bot: bot, Results: []*mtproto.BotInlineResult{
+		mtproto.MakeTLBotInlineResult(&mtproto.BotInlineResult{Id: "a", Type: "article", SendMessage: mtproto.MakeTLBotInlineMessageText(&mtproto.BotInlineMessage{Message: "hi"}).To_BotInlineMessage()}).To_BotInlineResult(),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.KV = &memoryKV{values: map[string]string{"bot_inline_answer:5": string(data)}}
+	return testCore(d, user)
+}
+
+// A result chosen in Saved Messages (inputPeerSelf) goes to msg as the chat
+// with oneself, in the sub-chat of the user.
+func TestSendInlineResultToSavedMessages(t *testing.T) {
+	const user, bot = int64(10), int64(20)
+	sent := &sentMessages{}
+	c := inlineCore(t, &dao.Dao{MsgClient: sent}, user, bot)
+	if _, err := c.MessagesSendInlineBotResult(&mtproto.TLMessagesSendInlineBotResult{
+		Peer: mtproto.MakeTLInputPeerSelf(nil).To_InputPeer(), RandomId: 1, QueryId: 5, Id: "a",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if sent.got.GetPeerType() != mtproto.PEER_USER || sent.got.GetPeerId() != user {
+		t.Fatalf("peer %d/%d", sent.got.GetPeerType(), sent.got.GetPeerId())
+	}
+	m := sent.got.GetMessage()[0].GetMessage()
+	if m.GetSavedPeerId().GetUserId() != user || m.GetPeerId().GetUserId() != user {
+		t.Fatalf("saved_peer_id %v, peer_id %v", m.GetSavedPeerId(), m.GetPeerId())
 	}
 }

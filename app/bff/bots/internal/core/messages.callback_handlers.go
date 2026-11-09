@@ -44,7 +44,11 @@ type pressed struct {
 
 // pressedMessage finds the message of the press and its bot. It is the
 // viewer's copy; a bot's message is the bot's own in a private chat (its peer)
-// and a group (its from_id), or the post's author in a channel.
+// and a group (its from_id), or the post's author in a channel. The clients
+// name the chat as they see it, the bot in a private chat (Android
+// SendMessagesHelper.sendCallback, tdesktop api_bot.cpp history->peer->input()),
+// and only the dialog of the copy says so: its peer_id is the chat as its
+// sender addressed it, the viewer on an incoming copy.
 func (c *BotsCore) pressedMessage(peer *mtproto.PeerUtil, msgId int32) (*pressed, error) {
 	p := &pressed{peer: peer}
 	switch {
@@ -53,7 +57,7 @@ func (c *BotsCore) pressedMessage(peer *mtproto.PeerUtil, msgId int32) (*pressed
 		if err != nil {
 			return nil, err
 		}
-		if box.GetPeerType() != peer.PeerType || box.GetPeerId() != peer.PeerId {
+		if (mtproto.DialogID{A: box.GetDialogId1(), B: box.GetDialogId2()}) != mtproto.MakeDialogId(c.MD.UserId, peer.PeerType, peer.PeerId) {
 			return nil, mtproto.ErrMessageIdInvalid
 		}
 		p.message = box.GetMessage()
@@ -125,7 +129,7 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 		// Games are not served.
 		return nil, mtproto.ErrDataInvalid
 	}
-	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
+	peer := c.chatPeer(in.Peer)
 	p, err := c.pressedMessage(peer, in.MsgId)
 	if err != nil {
 		c.Logger.Errorf("messages.getBotCallbackAnswer - error: %v", err)

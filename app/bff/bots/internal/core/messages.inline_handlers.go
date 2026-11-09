@@ -377,7 +377,7 @@ func replyHeaderOf(replyTo *mtproto.InputReplyTo, peer *mtproto.PeerUtil) *mtpro
 // MessagesSendInlineBotResult
 // messages.sendInlineBotResult#c0cf7646 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to:flags.0?InputReplyTo random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer quick_reply_shortcut:flags.17?InputQuickReplyShortcut allow_paid_stars:flags.21?long = Updates;
 func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineBotResult) (*mtproto.Updates, error) {
-	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
+	peer := c.chatPeer(in.Peer)
 	if !peer.IsUser() && !peer.IsChat() && !peer.IsChannel() {
 		return nil, mtproto.ErrPeerIdInvalid
 	}
@@ -407,6 +407,10 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 	out.Date = int32(time.Now().Unix())
 	out.FromId = mtproto.MakePeerUser(c.MD.UserId)
 	out.PeerId = peer.ToPeer()
+	if peer.IsSelfUser(c.MD.UserId) {
+		// The sub-chat of Saved Messages, as messages.sendMessage writes it.
+		out.SavedPeerId = peer.ToPeer()
+	}
 	out.Silent = in.Silent
 	// core.telegram.org/api/bots/inline: the message has via_bot_id, and
 	// clients show the username of the bot in its header. hide_via is not
