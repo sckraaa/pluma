@@ -69,12 +69,13 @@ func (c *CatalogCore) AccountUploadWallPaper(in *mtproto.TLAccountUploadWallPape
 		c.Logger.Errorf("account.uploadWallPaper - error: %v", err)
 		return nil, err
 	}
+	// The list is the uploader's alone, so its entry says who made it.
+	w.Creator = true
 	if !in.GetForChat() {
 		if err = c.svcCtx.Appearance.SaveWallpaper(c.ctx, c.MD.UserId, w); err != nil {
 			c.Logger.Errorf("account.uploadWallPaper - error: %v", err)
 			return nil, err
 		}
 	}
-	w.Creator = true
 	return w, nil
 }

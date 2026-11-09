@@ -133,8 +133,12 @@ func (c *CatalogCore) wallpaperForChat(ask *mtproto.InputWallPaper, settings *mt
 // "apply" button: tdesktop setExistingForPeer, Android setWallpaperToPeer).
 func (c *CatalogCore) wallpaperFromMessage(peerID int64, msgID int32, settings *mtproto.WallPaperSettings) (*mtproto.WallPaper, error) {
 	box, err := c.svcCtx.Message.MessageGetUserMessage(c.ctx, &messagepb.TLMessageGetUserMessage{UserId: c.MD.UserId, Id: msgID})
-	if err != nil {
+	if errors.Is(err, mtproto.ErrMessageIdInvalid) {
 		return nil, errWallpaperNotFound
+	}
+	if err != nil {
+		c.Logger.Errorf("messages.setChatWallPaper - error: %v", err)
+		return nil, err
 	}
 	m := box.GetMessage()
 	if box.GetPeerType() != mtproto.PEER_USER || box.GetPeerId() != peerID || m == nil ||
@@ -274,7 +278,15 @@ func (c *CatalogCore) checkPremium() error {
 // setChannelWallpaper serves messages.setChatWallPaper in a channel or a
 // supergroup: biz channel checks the right to change its info and records
 // the wallpaper; for_both means nothing there (core.telegram.org/api/wallpapers).
+//
+// revert and id name a wallpaper of a private chat's sides or of its service
+// message (core.telegram.org/method/messages.setChatWallPaper). tdesktop
+// offers neither in a channel (ThemeDocumentBox::button); they carry no
+// wallpaper and must not read as a request to take the channel's away.
 func (c *CatalogCore) setChannelWallpaper(channelID int64, in *mtproto.TLMessagesSetChatWallPaper) (*mtproto.Updates, error) {
+	if in.GetRevert() || in.GetId() != nil {
+		return nil, errWallpaperNotFound
+	}
 	var (
 		w   *mtproto.WallPaper
 		err error

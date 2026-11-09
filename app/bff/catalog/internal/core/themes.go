@@ -29,12 +29,17 @@ import (
 // application/x-tgtheme-<format> (core.telegram.org/method/account.uploadTheme).
 const themeMimePrefix = "application/x-tgtheme-"
 
-// maxThemeTitle bounds the title; the documentation gives no number
-// (UNVERIFIED), so it is a generous limit that the themes table can hold.
-const maxThemeTitle = 64
+// maxThemeTitle bounds the title: the documentation gives no number, and
+// Android's name field takes 128 characters (ThemeSetUrlActivity.java:215).
+const maxThemeTitle = 128
 
 // maxFormat: every format the clients use is one short word.
 const maxFormat = 32
+
+// themeFormats are the formats the catalog keeps account.getThemes under
+// (tools/catalog-collector). account.saveTheme names none, and a theme of the
+// catalog has to be found by it all the same.
+var themeFormats = []string{"android", "ios", "macos", "tdesktop"}
 
 func checkThemeMime(mime string) error {
 	if !strings.HasPrefix(mime, themeMimePrefix) || len(mime) == len(themeMimePrefix) {
@@ -115,17 +120,26 @@ func checkThemeTitle(title string) error {
 }
 
 // catalogTheme is a theme of the catalog by id and access hash or by slug,
-// with the format's list and the chat themes, which a client may also ask
-// for by id; nil if there is none.
+// with the format's list, or all of them when no format is named, and the
+// chat themes, which a client may also ask for by id; nil if there is none.
 func (c *CatalogCore) catalogTheme(format string, ask *mtproto.InputTheme) (*mtproto.Theme, error) {
-	lists := make([]*mtproto.Account_Themes, 2)
-	lists[0], lists[1] = &mtproto.Account_Themes{}, &mtproto.Account_Themes{}
-	if _, _, err := c.stored("account.getThemes", format, lists[0]); err != nil {
+	formats := []string{format}
+	if format == "" {
+		formats = themeFormats
+	}
+	lists := make([]*mtproto.Account_Themes, 0, len(formats)+1)
+	for _, f := range formats {
+		l := &mtproto.Account_Themes{}
+		if _, _, err := c.stored("account.getThemes", f, l); err != nil {
+			return nil, err
+		}
+		lists = append(lists, l)
+	}
+	chat := &mtproto.Account_Themes{}
+	if _, _, err := c.stored("account.getChatThemes", "", chat); err != nil {
 		return nil, err
 	}
-	if _, _, err := c.stored("account.getChatThemes", "", lists[1]); err != nil {
-		return nil, err
-	}
+	lists = append(lists, chat)
 	for _, l := range lists {
 		for _, t := range l.GetThemes() {
 			switch ask.GetPredicateName() {

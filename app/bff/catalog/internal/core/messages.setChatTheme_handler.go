@@ -16,6 +16,8 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
@@ -65,8 +67,13 @@ func (c *CatalogCore) setPrivateChatTheme(peer *mtproto.PeerUtil, emoticon strin
 		PeerType: mtproto.PEER_USER,
 		PeerId:   peer.PeerId,
 	})
-	if err == nil && current != nil {
+	switch {
+	case err == nil:
 		have = current.GetThemeEmoticon()
+	case !errors.Is(err, mtproto.ErrPeerIdInvalid):
+		// PEER_ID_INVALID is a chat with no dialog yet: no theme.
+		c.Logger.Errorf("messages.setChatTheme - error: %v", err)
+		return nil, err
 	}
 	if have == emoticon {
 		return nil, mtproto.ErrEmojiNotModified

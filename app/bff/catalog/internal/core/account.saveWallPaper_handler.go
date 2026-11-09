@@ -24,27 +24,38 @@ import (
 //
 // Saves the wallpaper in the account's list or takes it out, a preinstalled
 // one too (core.telegram.org/api/wallpapers). A fill wallpaper has no place in
-// the list and is WALLPAPER_INVALID.
+// the list and saving one is WALLPAPER_INVALID, but one of the catalog can be
+// taken out by its bare id: inputWallPaperNoFile with unsave
+// (core.telegram.org/constructor/inputWallPaperNoFile, Android
+// WallpapersListActivity.java:554).
 func (c *CatalogCore) AccountSaveWallPaper(in *mtproto.TLAccountSaveWallPaper) (*mtproto.Bool, error) {
+	unsave := mtproto.FromBool(in.GetUnsave())
 	if in.GetWallpaper().GetPredicateName() == mtproto.Predicate_inputWallPaperNoFile {
-		return nil, mtproto.ErrWallpaperInvalid
+		if !unsave {
+			return nil, mtproto.ErrWallpaperInvalid
+		}
+		return c.unsaveWallPaper(in.GetWallpaper().GetId())
 	}
 	w, err := c.wallPaper(in.GetWallpaper())
 	if err != nil {
 		return nil, err
 	}
-	if mtproto.FromBool(in.GetUnsave()) {
-		inCatalog, err := c.hasCatalogWallpaper(w.GetId())
-		if err != nil {
-			return nil, err
-		}
-		if err = c.svcCtx.Appearance.UnsaveWallpaper(c.ctx, c.MD.UserId, w.GetId(), inCatalog); err != nil {
-			c.Logger.Errorf("account.saveWallPaper - error: %v", err)
-			return nil, err
-		}
-		return mtproto.BoolTrue, nil
+	if unsave {
+		return c.unsaveWallPaper(w.GetId())
 	}
 	if err = c.svcCtx.Appearance.SaveWallpaper(c.ctx, c.MD.UserId, withSettings(w, in.GetSettings())); err != nil {
+		c.Logger.Errorf("account.saveWallPaper - error: %v", err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
+}
+
+func (c *CatalogCore) unsaveWallPaper(id int64) (*mtproto.Bool, error) {
+	inCatalog, err := c.hasCatalogWallpaper(id)
+	if err != nil {
+		return nil, err
+	}
+	if err = c.svcCtx.Appearance.UnsaveWallpaper(c.ctx, c.MD.UserId, id, inCatalog); err != nil {
 		c.Logger.Errorf("account.saveWallPaper - error: %v", err)
 		return nil, err
 	}

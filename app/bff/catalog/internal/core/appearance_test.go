@@ -37,6 +37,8 @@ type memAppearance struct {
 	owners map[int64]int64 // the creator of each theme
 	slugs  map[string]int64
 	saves  map[int64]int // themes saved, by id
+	// themes taken out of the list, by id: whether of the catalog
+	unsaved map[int64]bool
 }
 
 func newMemAppearance() *memAppearance {
@@ -46,6 +48,8 @@ func newMemAppearance() *memAppearance {
 		owners: map[int64]int64{},
 		slugs:  map[string]int64{},
 		saves:  map[int64]int{},
+
+		unsaved: map[int64]bool{},
 	}
 }
 
@@ -110,8 +114,11 @@ func (m *memAppearance) SaveTheme(_ context.Context, _, id int64) error {
 	m.saves[id]++
 	return nil
 }
-func (m *memAppearance) UnsaveTheme(context.Context, int64, int64, bool) error { return nil }
-func (m *memAppearance) InstallTheme(context.Context, int64, int64) error      { return nil }
+func (m *memAppearance) UnsaveTheme(_ context.Context, _, id int64, inCatalog bool) error {
+	m.unsaved[id] = inCatalog
+	return nil
+}
+func (m *memAppearance) InstallTheme(context.Context, int64, int64) error { return nil }
 func (m *memAppearance) ThemeEntries(context.Context, int64) ([]appearance.ThemeEntry, error) {
 	return nil, nil
 }
@@ -143,6 +150,72 @@ func TestUploadWallPaperMime(t *testing.T) {
 	}
 	if !appearance.ValidThemeSlug(w.GetSlug()) {
 		t.Fatalf("slug %q", w.GetSlug())
+	}
+}
+
+// The entry an upload adds to the uploader's list says who made it.
+func TestUploadedWallPaperListedAsCreator(t *testing.T) {
+	a := newMemAppearance()
+	c := appearanceCore(&memCatalog{}, a, &fakeMedia{})
+	if _, err := c.AccountUploadWallPaper(&mtproto.TLAccountUploadWallPaper{MimeType: "image/jpeg"}); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.saved) != 1 {
+		t.Fatalf("saved: %+v", a.saved)
+	}
+	if w, err := a.saved[0].Wallpaper(); err != nil || !w.GetCreator() {
+		t.Fatalf("the entry: %v, %v", w, err)
+	}
+}
+
+// A fill wallpaper of the catalog is taken out by its bare id, as Android
+// asks, and stays out; it still cannot be saved.
+func TestUnsaveFillWallpaper(t *testing.T) {
+	m := &memCatalog{answers: map[[2]string]*catalog.Answer{}}
+	put(t, m, "account.getWallPapers", "", 77, mtproto.MakeTLAccountWallPapers(&mtproto.Account_WallPapers{Hash: 77, Wallpapers: []*mtproto.WallPaper{
+		mtproto.MakeTLWallPaperNoFile(&mtproto.WallPaper{Id: 9}).To_WallPaper(),
+	}}).To_Account_WallPapers())
+	a := newMemAppearance()
+	c := appearanceCore(m, a, &fakeMedia{})
+	fill := mtproto.MakeTLInputWallPaperNoFile(&mtproto.InputWallPaper{Id: 9}).To_InputWallPaper()
+	if _, err := c.AccountSaveWallPaper(&mtproto.TLAccountSaveWallPaper{Wallpaper: fill, Unsave: mtproto.BoolTrue}); err != nil {
+		t.Fatalf("unsave: %v", err)
+	}
+	if len(a.saved) != 1 || a.saved[0].WallpaperID != 9 || !a.saved[0].Removed {
+		t.Fatalf("saved: %+v", a.saved)
+	}
+}
+
+// account.saveTheme names no format: a theme of the catalog, kept per
+// format, is found all the same and stays out of the list.
+func TestUnsaveCatalogTheme(t *testing.T) {
+	m := &memCatalog{answers: map[[2]string]*catalog.Answer{}}
+	put(t, m, "account.getThemes", "tdesktop", 5, mtproto.MakeTLAccountThemes(&mtproto.Account_Themes{Hash: 5, Themes: []*mtproto.Theme{
+		mtproto.MakeTLTheme(&mtproto.Theme{Id: 31, AccessHash: 32, Slug: "preset"}).To_Theme(),
+	}}).To_Account_Themes())
+	a := newMemAppearance()
+	c := appearanceCore(m, a, &fakeMedia{})
+	ask := mtproto.MakeTLInputTheme(&mtproto.InputTheme{Id: 31, AccessHash: 32}).To_InputTheme()
+	if _, err := c.AccountSaveTheme(&mtproto.TLAccountSaveTheme{Theme: ask, Unsave: mtproto.BoolTrue}); err != nil {
+		t.Fatalf("unsave: %v", err)
+	}
+	if inCatalog, ok := a.unsaved[31]; !ok || !inCatalog {
+		t.Fatalf("unsaved: %v", a.unsaved)
+	}
+}
+
+// revert and id carry no wallpaper: in a channel they must not take its
+// wallpaper away.
+func TestChannelWallpaperRevertOrIDRefused(t *testing.T) {
+	c := appearanceCore(&memCatalog{}, newMemAppearance(), &fakeMedia{})
+	peer := mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: 1000000001, AccessHash: 1}).To_InputPeer()
+	for _, in := range []*mtproto.TLMessagesSetChatWallPaper{
+		{Peer: peer, Revert: true},
+		{Peer: peer, Id: mtproto.MakeFlagsInt32(7)},
+	} {
+		if _, err := c.MessagesSetChatWallPaper(in); !errors.Is(err, errWallpaperNotFound) {
+			t.Fatalf("%+v: %v", in, err)
+		}
 	}
 }
 
