@@ -261,11 +261,17 @@ func (q *Queue) reserve(phone string) Result {
 	if countSince(q.st.Sends, now-3600) >= q.limits.PerHour || len(q.st.Sends) >= q.limits.PerDay {
 		return AccountLimited
 	}
-	key := q.recipientKey(phone)
-	times := prune(q.st.Recipients[key], now)
-	if len(times) == 0 {
-		delete(q.st.Recipients, key)
+	// Every phone is pruned, not only this one: most never ask again, and
+	// the file must not keep them for good.
+	for k, t := range q.st.Recipients {
+		if t = prune(t, now); len(t) == 0 {
+			delete(q.st.Recipients, k)
+		} else {
+			q.st.Recipients[k] = t
+		}
 	}
+	key := q.recipientKey(phone)
+	times := q.st.Recipients[key]
 	if countSince(times, now-3600) >= q.limits.PerRecipientHour || len(times) >= q.limits.PerRecipientDay {
 		return RecipientLimited
 	}
@@ -408,7 +414,11 @@ func (q *Queue) deliver(ctx context.Context, it *item) {
 	// The message comes first: only then the contact goes.
 	finish(it, d.Result)
 	if d.UserID != 0 {
-		if err := q.account.RemoveContacts(ctx, []int64{d.UserID}); err != nil {
+		// Bounded: TDLib keeps a request while it has no network, and the
+		// queue must not stop behind it.
+		rctx, rcancel := context.WithTimeout(ctx, q.limits.DeliverTimeout)
+		defer rcancel()
+		if err := q.account.RemoveContacts(rctx, []int64{d.UserID}); err != nil {
 			metricRemovalErrors.Inc()
 			log.Printf("sender: an imported contact could not be removed, will retry")
 			q.mu.Lock()

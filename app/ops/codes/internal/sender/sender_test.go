@@ -324,6 +324,46 @@ func TestContactRemovalIsRetried(t *testing.T) {
 	waitFor(t, func() bool { return q.State().ContactsToRemove == 0 })
 }
 
+// hangingRemoval never answers a removal, as TDLib without a network.
+type hangingRemoval struct{ *fakeMessenger }
+
+func (hangingRemoval) RemoveContacts(ctx context.Context, _ []int64) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func TestHangingRemovalDoesNotStopTheQueue(t *testing.T) {
+	l := testLimits()
+	l.DeliverTimeout = 20 * time.Millisecond
+	q, _ := startQueue(t, hangingRemoval{newFake()}, l)
+	if r := submit(q, testPhone); r != Sent {
+		t.Fatalf("result %s", r)
+	}
+	waitFor(t, func() bool { return q.State().ContactsToRemove == 1 })
+	if r := submit(q, "79991234568"); r != Sent {
+		t.Fatalf("the next code: %s", r)
+	}
+}
+
+func TestOldRecipientsLeaveTheState(t *testing.T) {
+	q, err := Open(newFake(), testLimits(), filepath.Join(t.TempDir(), "state.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(1_000_000, 0)
+	q.now = func() time.Time { return now }
+	if r := q.reserve(testPhone); r != "" {
+		t.Fatalf("first: %s", r)
+	}
+	now = now.Add(25 * time.Hour)
+	if r := q.reserve("79991234568"); r != "" {
+		t.Fatalf("second: %s", r)
+	}
+	if _, kept := q.st.Recipients[q.recipientKey(testPhone)]; kept || len(q.st.Recipients) != 1 {
+		t.Fatalf("recipients: %v", q.st.Recipients)
+	}
+}
+
 func TestDamagedStateFileStopsTheStart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.json")
 	if err := os.WriteFile(path, []byte("{broken"), 0o600); err != nil {

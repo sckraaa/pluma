@@ -105,7 +105,6 @@ type Account struct {
 
 	closing  bool
 	closedCh chan struct{}
-	asked    bool
 }
 
 // New returns an Account that serves codes (login nil) or walks the operator
@@ -151,7 +150,6 @@ func (a *Account) start() {
 	client := a.lib.CreateClient()
 	a.mu.Lock()
 	a.client = client
-	a.asked = false
 	a.mu.Unlock()
 	// A client starts on its first request (td_json_client.h).
 	a.lib.Send(client, `{"@type":"getOption","name":"version"}`)
