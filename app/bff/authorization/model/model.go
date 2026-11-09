@@ -40,6 +40,9 @@ type PhoneCodeTransaction struct {
 	FlashCallPattern      string `json:"flash_call_pattern"`
 	NextCodeType          int    `json:"next_code_type"`
 	State                 int    `json:"state"`
+	// TelegramTried: the code of this request was already offered to the
+	// user's Telegram account (logincode.Service.DeliverByTelegram).
+	TelegramTried bool `json:"telegram_tried,omitempty"`
 }
 
 // ToAuthSentCode returns the auth.sentCode for the request.

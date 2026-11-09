@@ -298,6 +298,9 @@ var optionalVars = map[string]bool{
 	// The App Store review account (pkg/logincode, task 029).
 	"LOGIN_REVIEW_PHONE": true,
 	"LOGIN_REVIEW_CODE":  true,
+	// The service of login codes (task 073): none when empty.
+	"LOGIN_CODES_SENDER_URL":   true,
+	"LOGIN_CODES_SENDER_TOKEN": true,
 	// The bot that fetches sticker sets from Telegram (pkg/tgbot, task
 	// 030): no bot when empty.
 	"TELEGRAM_API_ID":    true,

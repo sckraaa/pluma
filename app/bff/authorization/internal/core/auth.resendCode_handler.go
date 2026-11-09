@@ -127,12 +127,13 @@ func (c *AuthorizationCore) AuthResendCode(in *mtproto.TLAuthResendCode) (*mtpro
 	//    Please wait for a few days before signing up again.</string>
 	//
 
-	// The in-app code falls back to the administrator ("send as SMS"):
-	// nothing is sent from here, pluma-admin login-code issues the code.
+	// The next_type: the user's Telegram account if not tried yet, else the
+	// administrator ("send as SMS"), pluma-admin login-code issues the code.
 	codeData, err2 := c.svcCtx.AuthLogic.DoAuthReSendCode(c.ctx,
 		c.MD.PermAuthKeyId,
 		phoneNumber,
-		in.PhoneCodeHash)
+		in.PhoneCodeHash,
+		c.MD.ClientAddr)
 	if err2 != nil {
 		c.Logger.Errorf("auth.resendCode - error: %v", err2)
 		err = err2

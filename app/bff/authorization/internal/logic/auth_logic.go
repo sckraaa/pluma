@@ -72,8 +72,11 @@ func NewAuthSignLogic(store PhoneCodeStore, codes *logincode.Service) *AuthLogic
 // Codes.CheckSendCode.
 //
 // The code goes to the user's other authorized sessions when there are any
-// (auth.sentCodeTypeApp). Otherwise the answer is auth.sentCodeTypeSms and
-// nothing is sent: the administrator issues the code (pluma-admin login-code).
+// (auth.sentCodeTypeApp). Otherwise to the user's own Telegram account, if
+// the sender is deployed and takes it (also auth.sentCodeTypeApp: every
+// client then offers the next_type as "did not get the code"; ADR 0042).
+// Failing that the answer is auth.sentCodeTypeSms and nothing is sent: the
+// administrator issues the code (pluma-admin login-code).
 func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	authKeyId int64,
 	sessionId int64,
@@ -120,6 +123,12 @@ func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
+	if !toApp && m.Codes.DeliverByTelegram(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp) {
+		codeData.TelegramTried = true
+		codeData.SentCodeType = model.SentCodeTypeApp
+		// auth.resendCode then falls back to the administrator.
+		codeData.NextCodeType = model.CodeTypeSms
+	}
 	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
 		m.Codes.Cancel(ctx, phoneNumber, codeData.PhoneCodeHash)
 		return nil, mtproto.ErrInternalServerError
@@ -130,12 +139,13 @@ func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	return codeData, nil
 }
 
-// DoAuthReSendCode switches a request delivered in the app to the
-// administrator path (auth.sentCodeTypeSms, no next type). The phone must have
-// passed Codes.CheckSendCode.
+// DoAuthReSendCode moves a request that offered the next_type on: to the
+// user's Telegram account the first time, if the sender takes the code, and
+// then to the administrator path (auth.sentCodeTypeSms, no next type). The
+// phone must have passed Codes.CheckSendCode.
 func (m *AuthLogic) DoAuthReSendCode(ctx context.Context,
 	authKeyId int64,
-	phoneNumber, phoneCodeHash string) (*model.PhoneCodeTransaction, error) {
+	phoneNumber, phoneCodeHash, clientIp string) (*model.PhoneCodeTransaction, error) {
 	codeData, err := m.getPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash)
 	if err != nil {
 		return nil, err
@@ -146,6 +156,18 @@ func (m *AuthLogic) DoAuthReSendCode(ctx context.Context,
 	if codeData.NextCodeType == model.CodeTypeNone {
 		// 406: every delivery option was already used.
 		return nil, mtproto.ErrSendCodeUnavailable
+	}
+
+	if !codeData.TelegramTried {
+		codeData.TelegramTried = true
+		if m.Codes.DeliverByTelegram(ctx, phoneNumber, phoneCodeHash, clientIp) {
+			codeData.SentCodeType = model.SentCodeTypeApp
+			codeData.NextCodeType = model.CodeTypeSms
+			if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
+				return nil, mtproto.ErrInternalServerError
+			}
+			return codeData, nil
+		}
 	}
 
 	codeData.SentCodeType = model.SentCodeTypeSms
