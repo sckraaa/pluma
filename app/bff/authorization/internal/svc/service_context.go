@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/logic"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/plugin"
+	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
@@ -42,6 +43,8 @@ type ServiceContext struct {
 	// PushDevices: auth.logOut removes the devices of the authorization
 	// (task 009); no secrets are read here.
 	PushDevices pushdevices.Store
+	// Bots finds the bot of a token (auth.importBotAuthorization, task 070).
+	Bots *botstore.Store
 	// NewLogin tells the other sessions about a login (task 019).
 	NewLogin newlogin.Notifier
 	// Moderation answers whether a phone is banned (task 025).
@@ -68,5 +71,6 @@ func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *Serv
 			Msg:         d.MsgClient,
 		},
 		Moderation: moderation.New(sqlx.NewMySQL(&c.Mysql)),
+		Bots:       botstore.New(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

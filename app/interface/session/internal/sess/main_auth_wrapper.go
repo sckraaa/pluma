@@ -110,6 +110,7 @@ type MainAuthWrapper struct {
 	sessionDataChan      chan interface{} // receive from client
 	rpcDataChan          chan interface{}
 	rpcQueue             *queue2.SyncQueue
+	botWaits             sync.WaitGroup // requests waiting for a bot's answer (waitsForBot)
 	finish               sync.WaitGroup
 	running              *syncx.AtomicBool
 	onlineExpired        int64
@@ -726,6 +727,7 @@ func (m *MainAuthWrapper) runLoop() {
 
 func (m *MainAuthWrapper) rpcRunLoop() {
 	defer func() {
+		m.botWaits.Wait()
 		m.finish.Done()
 		close(m.rpcDataChan)
 	}()
@@ -737,29 +739,56 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 		} else {
 			threading.RunSafe(func() {
 				for _, request := range apiRequest.([]*rpcApiMessage) {
-					doRpcRequest(request.ctx,
-						m.cb.Dao,
-						&metadata.RpcMetadata{
-							ServerId:      m.cb.Dao.MyServerId,
-							ClientAddr:    request.clientIp,
-							AuthId:        request.sessList.authId,
-							SessionId:     request.sessionId,
-							ReceiveTime:   time.Now().Unix(),
-							UserId:        m.AuthUserId,
-							ClientMsgId:   request.reqMsgId,
-							Layer:         m.Layer(),
-							Client:        m.ClientName(),
-							Langpack:      m.LangPack(),
-							PermAuthKeyId: m.permAuthKeyId(),
-							LangCode:      m.LangCode(),
-							Takeout:       request.takeout,
-						},
-						request)
+					md := &metadata.RpcMetadata{
+						ServerId:      m.cb.Dao.MyServerId,
+						ClientAddr:    request.clientIp,
+						AuthId:        request.sessList.authId,
+						SessionId:     request.sessionId,
+						ReceiveTime:   time.Now().Unix(),
+						UserId:        m.AuthUserId,
+						ClientMsgId:   request.reqMsgId,
+						Layer:         m.Layer(),
+						Client:        m.ClientName(),
+						Langpack:      m.LangPack(),
+						PermAuthKeyId: m.permAuthKeyId(),
+						LangCode:      m.LangCode(),
+						Takeout:       request.takeout,
+					}
+					if waitsForBot(request.reqMsg) {
+						m.startBotWait(request, md)
+						continue
+					}
+					doRpcRequest(request.ctx, m.cb.Dao, md, request)
 					m.rpcDataChan <- request
 				}
 			})
 		}
 	}
+}
+
+// waitsForBot tells the requests that wait up to seconds for a bot's answer
+// (task 070, app/bff/bots): they must not hold up the requests of the key
+// behind them.
+func waitsForBot(req mtproto.TLObject) bool {
+	switch req.(type) {
+	case *mtproto.TLMessagesGetBotCallbackAnswer, *mtproto.TLMessagesGetInlineBotResults:
+		return true
+	}
+	return false
+}
+
+// startBotWait runs a request that waits for a bot on its own goroutine. It
+// answers through rpcDataChan, unless the wrapper has stopped by then.
+func (m *MainAuthWrapper) startBotWait(request *rpcApiMessage, md *metadata.RpcMetadata) {
+	m.botWaits.Add(1)
+	threading.GoSafe(func() {
+		defer m.botWaits.Done()
+		doRpcRequest(request.ctx, m.cb.Dao, md, request)
+		select {
+		case m.rpcDataChan <- request:
+		case <-m.closeChan:
+		}
+	})
 }
 
 func (m *MainAuthWrapper) sendToRpcQueue(ctx context.Context, rpcMessage []*rpcApiMessage) {

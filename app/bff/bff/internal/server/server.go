@@ -26,6 +26,7 @@ import (
 	account_helper "github.com/teamgram/teamgram-server/app/bff/account"
 	authorization_helper "github.com/teamgram/teamgram-server/app/bff/authorization"
 	autodownload_helper "github.com/teamgram/teamgram-server/app/bff/autodownload"
+	bots_helper "github.com/teamgram/teamgram-server/app/bff/bots"
 	"github.com/teamgram/teamgram-server/app/bff/bff/internal/config"
 	catalog_helper "github.com/teamgram/teamgram-server/app/bff/catalog"
 	channels_helper "github.com/teamgram/teamgram-server/app/bff/channels"
@@ -103,6 +104,25 @@ func (s *Server) Initialize() error {
 	syncClient := sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+		// bots_helper: the methods of bot accounts (task 070, ADR 0041).
+		bots := bots_helper.New(bots_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			KV:            c.KV,
+			SyncClient:    syncClient,
+			UserClient:    c.BizServiceClient,
+			MessageClient: c.BizServiceClient,
+			ChatClient:    c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			DialogClient:  c.BizServiceClient,
+			MediaClient:   c.MediaClient,
+			MsgClient:     c.MsgClient,
+		})
+		mtproto.RegisterRPCBotsServer(grpcServer, bots)
+		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)
+		mtproto.RegisterRPCInlineBotServer(grpcServer, bots)
+		mtproto.RegisterRPCDeepLinksServer(grpcServer, bots)
+
 		// reports_helper: the moderation queue (task 025, ADR 0040).
 		mtproto.RegisterRPCReportsServer(
 			grpcServer,
@@ -449,6 +469,7 @@ func (s *Server) Initialize() error {
 			users_helper.New(
 				users_helper.Config{
 					RpcServerConf: c.RpcServerConf,
+					Mysql:         c.Mysql,
 					UserClient:    c.BizServiceClient,
 					ChatClient:    c.BizServiceClient,
 					DialogClient:  c.BizServiceClient,
