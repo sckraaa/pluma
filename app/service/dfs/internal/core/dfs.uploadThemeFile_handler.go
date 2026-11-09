@@ -103,8 +103,7 @@ func (c *DfsCore) DfsUploadThemeFile(in *dfs.TLDfsUploadThemeFile) (*mtproto.Doc
 		thumb, err = imaging.Decode(bytes.NewReader(thumbCacheData))
 		if err != nil {
 			c.Logger.Errorf("dfs.uploadThemeFile - error: %v", err)
-			return nil, err
-
+			return nil, mtproto.ErrThemeFileInvalid
 		}
 		stripped := bytes2.NewBuffer(make([]byte, 0, 4096))
 		if thumb.Bounds().Dx() >= thumb.Bounds().Dy() {
@@ -137,7 +136,10 @@ func (c *DfsCore) DfsUploadThemeFile(in *dfs.TLDfsUploadThemeFile) (*mtproto.Doc
 		// upload thumb
 		path = fmt.Sprintf("%s/%d.dat", mtproto.PhotoSZMediumType, documentId)
 		// upload
-		c.svcCtx.Dao.PutPhotoFile(c.ctx, path, mThumbData.Bytes())
+		if _, err = c.svcCtx.Dao.PutPhotoFile(c.ctx, path, mThumbData.Bytes()); err != nil {
+			c.Logger.Errorf("dfs.uploadThemeFile - error: %v", err)
+			return nil, err
+		}
 
 		thumbSizeList = []*mtproto.PhotoSize{
 			mtproto.MakeTLPhotoStrippedSize(&mtproto.PhotoSize{
