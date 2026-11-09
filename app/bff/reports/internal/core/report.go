@@ -116,12 +116,28 @@ func (c *ReportsCore) reportedMessages(peer *mtproto.PeerUtil, ids []int32) ([]m
 		}
 		out := make([]moderation.SnapshotMessage, 0, len(boxes.GetDatas()))
 		for _, b := range boxes.GetDatas() {
-			if b.GetMessage().GetPredicateName() == mtproto.Predicate_message {
-				out = append(out, snapshotMessage(b.GetMessage(), c.MD.UserId))
+			if m := b.GetMessage(); m.GetPredicateName() == mtproto.Predicate_message && inChat(m, peer) {
+				out = append(out, snapshotMessage(m, c.MD.UserId))
 			}
 		}
 		return out, nil
 	}
+}
+
+// inChat tells whether a message of the reporter's box is of the reported
+// chat. The peer of the message is the reporter's view of it; the peer
+// columns of a box row are the sender's (msg dao.ReceiveIncoming).
+func inChat(m *mtproto.Message, peer *mtproto.PeerUtil) bool {
+	to := m.GetPeerId()
+	switch peer.PeerType {
+	case mtproto.PEER_SELF:
+		return to.GetUserId() == peer.SelfId
+	case mtproto.PEER_USER:
+		return to.GetUserId() == peer.PeerId
+	case mtproto.PEER_CHAT:
+		return to.GetChatId() == peer.PeerId
+	}
+	return false
 }
 
 // historyOf reads the last messages of a private chat, the evidence of a

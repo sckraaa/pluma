@@ -119,3 +119,27 @@ func TestFromIdOf(t *testing.T) {
 		t.Errorf("from_id: %d", got)
 	}
 }
+
+// A report names messages of the chat it is about, whatever else the
+// reporter's box holds.
+func TestInChat(t *testing.T) {
+	private := &mtproto.Message{PeerId: mtproto.MakePeerUser(7)}
+	group := &mtproto.Message{PeerId: mtproto.MakePeerChat(7)}
+	saved := &mtproto.Message{PeerId: mtproto.MakePeerUser(1)}
+	for _, tc := range []struct {
+		m    *mtproto.Message
+		peer *mtproto.PeerUtil
+		want bool
+	}{
+		{private, &mtproto.PeerUtil{SelfId: 1, PeerType: mtproto.PEER_USER, PeerId: 7}, true},
+		{private, &mtproto.PeerUtil{SelfId: 1, PeerType: mtproto.PEER_USER, PeerId: 8}, false},
+		{private, &mtproto.PeerUtil{SelfId: 1, PeerType: mtproto.PEER_CHAT, PeerId: 7}, false},
+		{group, &mtproto.PeerUtil{SelfId: 1, PeerType: mtproto.PEER_CHAT, PeerId: 7}, true},
+		{group, &mtproto.PeerUtil{SelfId: 1, PeerType: mtproto.PEER_USER, PeerId: 7}, false},
+		{saved, &mtproto.PeerUtil{SelfId: 1, PeerType: mtproto.PEER_SELF, PeerId: 1}, true},
+	} {
+		if got := inChat(tc.m, tc.peer); got != tc.want {
+			t.Errorf("inChat(%v, %v) = %v", tc.m.GetPeerId(), tc.peer, got)
+		}
+	}
+}
