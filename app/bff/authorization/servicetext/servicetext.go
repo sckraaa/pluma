@@ -217,6 +217,43 @@ func (c TwoStepChanged) Text(lang Lang) (string, []*mtproto.MessageEntity) {
 	})
 }
 
+// The messages about a restriction of the account (task 025). Telegram's
+// own wording is not known: restrictions are reported through @SpamBot,
+// which Pluma does not have.
+var (
+	restrictedUntil = map[Lang]string{
+		English: "**Your account is limited** until {date} UTC after reports from other users. Until then you can only write to people who have you in their contacts, and you cannot write in groups and channels.",
+		Russian: "**Ваш аккаунт ограничен** до {date} UTC после жалоб других пользователей. До этого времени Вы можете писать только тем, у кого Вы есть в контактах, и не можете писать в группах и каналах.",
+	}
+	restrictedForever = map[Lang]string{
+		English: "**Your account is limited** after reports from other users. You can only write to people who have you in their contacts, and you cannot write in groups and channels.",
+		Russian: "**Ваш аккаунт ограничен** после жалоб других пользователей. Вы можете писать только тем, у кого Вы есть в контактах, и не можете писать в группах и каналах.",
+	}
+	bannedUntil = map[Lang]string{
+		English: "**Your account is blocked** until {date} UTC after reports from other users. You will not be able to log in until then.",
+		Russian: "**Ваш аккаунт заблокирован** до {date} UTC после жалоб других пользователей. До этого времени войти в него нельзя.",
+	}
+	bannedForever = map[Lang]string{
+		English: "**Your account is blocked** after reports from other users. You will not be able to log in.",
+		Russian: "**Ваш аккаунт заблокирован** после жалоб других пользователей. Войти в него больше нельзя.",
+	}
+)
+
+// Restricted is the message about a limit or, with banned, a ban of the
+// account; a zero until has no end.
+func Restricted(lang Lang, banned bool, until time.Time) (string, []*mtproto.MessageEntity) {
+	tpl := restrictedForever
+	switch {
+	case banned && until.IsZero():
+		tpl = bannedForever
+	case banned:
+		tpl = bannedUntil
+	case !until.IsZero():
+		tpl = restrictedUntil
+	}
+	return Render(textOf(tpl, lang), map[string]string{"date": until.UTC().Format("02/01/2006 15:04")})
+}
+
 func textOf(texts map[Lang]string, lang Lang) string {
 	if t, ok := texts[lang]; ok {
 		return t
