@@ -41,5 +41,7 @@ type PersonalChannelPlugin interface {
 }
 
 type WallpaperPlugin interface {
-	GetChatWallpaper(ctx context.Context, userId, wallpaperId int64) *mtproto.WallPaper
+	// GetChatWallpaper is the wallpaper of userId's chat with peerId, nil
+	// if it has none, and whether the other side chose it (task 065).
+	GetChatWallpaper(ctx context.Context, userId, peerId int64) (*mtproto.WallPaper, bool, error)
 }

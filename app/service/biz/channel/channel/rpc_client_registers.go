@@ -123,6 +123,10 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelUnpinAllTopicMessages": {"/mtproto.RPCChannel/channel_unpinAllTopicMessages", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
 	// pluma: task 063
 	"TLChannelSetHistoryTTL": {"/mtproto.RPCChannel/channel_setHistoryTTL", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 065
+	"TLChannelSetChatWallpaper": {"/mtproto.RPCChannel/channel_setChatWallpaper", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 065
+	"TLChannelSetChatTheme": {"/mtproto.RPCChannel/channel_setChatTheme", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 044
 	"TLChannelToggleSetting": {"/mtproto.RPCChannel/channel_toggleSetting", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 044

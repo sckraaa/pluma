@@ -266,18 +266,26 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 						userFull.FolderId = f
 					}
 					userFull.ThemeEmoticon = mtproto.MakeFlagsString(dialogExt.ThemeEmoticon)
+					// The field clients of this layer read
+					// (core.telegram.org/constructor/userFull).
+					if dialogExt.ThemeEmoticon != "" {
+						userFull.Theme = mtproto.MakeTLChatTheme(&mtproto.ChatTheme{Emoticon: dialogExt.ThemeEmoticon}).To_ChatTheme()
+					}
 					userFull.TtlPeriod = mtproto.MakeFlagsInt32(dialogExt.TtlPeriod)
-					if dialogExt.WallpaperId != 0 && c.svcCtx.Dao.WallpaperPlugin != nil {
-						userFull.Wallpaper = c.svcCtx.Dao.WallpaperPlugin.GetChatWallpaper(c.ctx, c.MD.UserId, dialogExt.WallpaperId)
-						userFull.WallpaperOverridden = true
+				}
+				if c.svcCtx.Dao.WallpaperPlugin != nil {
+					w, overridden, err := c.svcCtx.Dao.WallpaperPlugin.GetChatWallpaper(c.ctx, c.MD.UserId, peerId)
+					if err != nil {
+						c.Logger.Errorf("users.getFullUser - error: %v", err)
+					} else if w != nil {
+						userFull.Wallpaper = w
+						userFull.WallpaperOverridden = overridden
 					}
 				}
 			}
 		})
 
 	// TODO: FolderId:    0,
-
-	// TODO: WallPaper
 
 	// TODO: Stories
 	if c.svcCtx.Dao.StoryPlugin != nil {

@@ -56,6 +56,28 @@ func (c *ChannelCore) ChannelToggleSlowMode(in *channel.TLChannelToggleSlowMode)
 	})
 }
 
+// ChannelSetChatWallpaper
+// channel.setChatWallpaper flags:# self_id:long perm_auth_key_id:long channel_id:long wallpaper:flags.0?WallPaper = Updates;
+//
+// The wallpaper of the channel, for those allowed to change its info
+// (dao.SetChatWallpaper): the service message and updatePeerWallpaper for
+// the members.
+func (c *ChannelCore) ChannelSetChatWallpaper(in *channel.TLChannelSetChatWallpaper) (*mtproto.Updates, error) {
+	return c.editRights("channel.setChatWallpaper", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.SetChatWallpaper(b, in.ChannelId, in.GetWallpaper())
+	})
+}
+
+// ChannelSetChatTheme
+// channel.setChatTheme self_id:long perm_auth_key_id:long channel_id:long theme_emoticon:string = Updates;
+//
+// The chat theme of the channel (dao.SetChatTheme); the same rights.
+func (c *ChannelCore) ChannelSetChatTheme(in *channel.TLChannelSetChatTheme) (*mtproto.Updates, error) {
+	return c.editRights("channel.setChatTheme", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.SetChatTheme(b, in.ChannelId, in.GetThemeEmoticon())
+	})
+}
+
 // ChannelSetHistoryTTL
 // channel.setHistoryTTL self_id:long perm_auth_key_id:long channel_id:long ttl_period:int = Updates;
 //

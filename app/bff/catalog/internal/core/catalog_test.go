@@ -90,7 +90,7 @@ func (f *fakeMedia) MediaGetDocumentList(_ context.Context, in *media.TLMediaGet
 
 func newCore(t *testing.T, m *memCatalog, fm *fakeMedia) *CatalogCore {
 	t.Helper()
-	c := New(context.Background(), &svc.ServiceContext{Catalog: m, Media: fm, Installed: &memInstalled{}})
+	c := New(context.Background(), &svc.ServiceContext{Catalog: m, Media: fm, Installed: &memInstalled{}, Appearance: newMemAppearance()})
 	c.MD = &metadata.RpcMetadata{UserId: 1}
 	return c
 }
@@ -289,7 +289,7 @@ func TestStickerSetOnDemand(t *testing.T) {
 	}).To_Messages_StickerSet()
 	b, _ := proto.Marshal(set)
 	d := &fakeDemand{set: &catalog.Set{ID: 70, ShortName: "Free420", Hash: 3, Data: b}}
-	c := New(context.Background(), &svc.ServiceContext{Catalog: &memCatalog{}, Media: &fakeMedia{}, Demand: d, Installed: &memInstalled{}})
+	c := New(context.Background(), &svc.ServiceContext{Catalog: &memCatalog{}, Media: &fakeMedia{}, Demand: d, Installed: &memInstalled{}, Appearance: newMemAppearance()})
 	c.MD = &metadata.RpcMetadata{UserId: 1}
 	byName := mtproto.MakeTLInputStickerSetShortName(&mtproto.InputStickerSet{ShortName: "Free420"}).To_InputStickerSet()
 	r, err := c.MessagesGetStickerSet(&mtproto.TLMessagesGetStickerSet{Stickerset: byName})
@@ -387,7 +387,7 @@ func setOf(t *testing.T, id int64, name string, hash int32, emojis bool) *catalo
 func TestInstallAndList(t *testing.T) {
 	ins := &memInstalled{}
 	cat := &memCatalog{sets: []*catalog.Set{setOf(t, 10, "Cats", 7, false), setOf(t, 20, "Dogs", -3, false), setOf(t, 30, "Emo", 5, true), setOf(t, 40, "Owls", 1, false)}}
-	c := New(context.Background(), &svc.ServiceContext{Catalog: cat, Media: &fakeMedia{}, Installed: ins})
+	c := New(context.Background(), &svc.ServiceContext{Catalog: cat, Media: &fakeMedia{}, Installed: ins, Appearance: newMemAppearance()})
 	c.MD = &metadata.RpcMetadata{UserId: 42, PermAuthKeyId: 9}
 	for _, name := range []string{"Cats", "Dogs", "Emo"} {
 		r, err := c.MessagesInstallStickerSet(&mtproto.TLMessagesInstallStickerSet{

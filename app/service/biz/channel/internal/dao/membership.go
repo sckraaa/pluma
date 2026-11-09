@@ -55,6 +55,8 @@ type ChannelChange struct {
 	Updates []*mtproto.Update
 	// TTL is updatePeerHistoryTTL of a change of the auto-delete period.
 	TTL *mtproto.Update
+	// Peer is updatePeerWallpaper of a change of the channel's wallpaper.
+	Peer *mtproto.Update
 	// Self and Count are, for a join or a leave, the owner's participant
 	// row and the channel's participants_count as the transaction wrote
 	// them.
@@ -439,6 +441,9 @@ func (d *Dao) EmitChannelPush(b *userbox.Box, permAuthKeyId int64, change *Chann
 	}
 	if change.TTL != nil {
 		updates = append(updates, change.TTL)
+	}
+	if change.Peer != nil {
+		updates = append(updates, change.Peer)
 	}
 	if change.Reload {
 		updates = append(updates, mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: change.ChannelId}).To_Update())

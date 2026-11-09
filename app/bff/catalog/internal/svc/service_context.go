@@ -26,10 +26,12 @@ import (
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
+	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
 	"github.com/teamgram/teamgram-server/pkg/catalog/demand"
 	"github.com/teamgram/teamgram-server/pkg/catalog/importer"
@@ -64,6 +66,30 @@ type Installed interface {
 	Reorder(ctx context.Context, userID int64, kind installed.Kind, order []int64) ([]int64, error)
 }
 
+// Appearance is what accounts upload and choose for the look of their chats
+// (appearance.Store).
+type Appearance interface {
+	AddWallpaper(ctx context.Context, creatorID int64, forChat bool, w *mtproto.WallPaper) error
+	WallpaperByID(ctx context.Context, id int64) (*mtproto.WallPaper, int64, error)
+	WallpaperBySlug(ctx context.Context, slug string) (*mtproto.WallPaper, int64, error)
+	SavedWallpapers(ctx context.Context, userID int64) ([]appearance.SavedWallpaper, error)
+	SaveWallpaper(ctx context.Context, userID int64, w *mtproto.WallPaper) error
+	UnsaveWallpaper(ctx context.Context, userID, wallpaperID int64, inCatalog bool) error
+	ResetWallpapers(ctx context.Context, userID int64) error
+	SetChatWallpaper(ctx context.Context, userID, peerID int64, w *mtproto.WallPaper) error
+	OverrideChatWallpaper(ctx context.Context, userID, peerID int64, w *mtproto.WallPaper) error
+	RevertChatWallpaper(ctx context.Context, userID, peerID int64) (*mtproto.WallPaper, error)
+	CreateTheme(ctx context.Context, creatorID int64, t *mtproto.Theme) error
+	ThemeByID(ctx context.Context, id int64) (*mtproto.Theme, int64, int32, error)
+	ThemeBySlug(ctx context.Context, slug string) (*mtproto.Theme, int64, int32, error)
+	UpdateTheme(ctx context.Context, creatorID int64, t *mtproto.Theme) error
+	SaveTheme(ctx context.Context, userID, themeID int64) error
+	UnsaveTheme(ctx context.Context, userID, themeID int64, inCatalog bool) error
+	InstallTheme(ctx context.Context, userID, themeID int64) error
+	ThemeEntries(ctx context.Context, userID int64) ([]appearance.ThemeEntry, error)
+	SavedThemes(ctx context.Context, userID int64) ([]appearance.SavedTheme, error)
+}
+
 type ServiceContext struct {
 	Config    config.Config
 	Catalog   Catalog
@@ -78,6 +104,10 @@ type ServiceContext struct {
 	Chat      chat_client.ChatClient
 	Channel   channel_client.ChannelClient
 	Reactions *sqlx.DB // message_reactions, saved_reaction_tags, user_reaction_settings: reads and the default reaction
+
+	// Wallpapers and themes (task 065).
+	Dialog     dialog_client.DialogClient
+	Appearance Appearance
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -101,6 +131,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Chat:      chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		Channel:   channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		Reactions: sqlx.NewMySQL(&c.Mysql),
+
+		Dialog:     dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
+		Appearance: appearance.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
 	}
 	bot, err := tgbot.FromSettings(c.TelegramBot)
 	if err != nil {

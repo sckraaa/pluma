@@ -271,6 +271,8 @@ func (b *Box) result() *Result {
 // it to the top, an order is the whole order, and the rest is "load the
 // kind again", so a replay of the journal's tail in order ends in the same
 // sets.
+// The wallpaper of a chat (task 065) is the whole state each time, and
+// updateTheme is the whole theme, so a replay in order ends the same.
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateNotifySettings,
@@ -283,6 +285,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updatePinnedSavedDialogs,
 		mtproto.Predicate_updateDialogUnreadMark,
 		mtproto.Predicate_updatePeerHistoryTTL,
+		mtproto.Predicate_updatePeerWallpaper,
+		mtproto.Predicate_updateTheme,
 		mtproto.Predicate_updateUserName,
 		mtproto.Predicate_updateUser,
 		mtproto.Predicate_updatePrivacy,

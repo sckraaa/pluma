@@ -116,6 +116,15 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		full.ViewForumAsMessages = d[0].GetViewForumAsMessages()
 		full.TtlPeriod = d[0].GetTtlPeriod()
 	}
+	if c.svcCtx.Look != nil {
+		wallpaper, emoticon, err := c.svcCtx.Look.ChannelLook(c.ctx, ch.GetId())
+		if err != nil {
+			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+			return nil, err
+		}
+		full.Wallpaper = wallpaper
+		full.ThemeEmoticon = mtproto.MakeFlagsString(emoticon)
+	}
 	// The pinned bar shows the newest pinned message (task 043).
 	pinned, err := c.svcCtx.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{
 		SelfId: c.MD.UserId, ChannelId: ch.GetId(), MediaType: mtproto.MEDIA_PINNED, Limit: 1,

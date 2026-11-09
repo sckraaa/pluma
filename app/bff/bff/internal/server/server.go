@@ -21,6 +21,7 @@ package server
 import (
 	"flag"
 
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	account_helper "github.com/teamgram/teamgram-server/app/bff/account"
 	authorization_helper "github.com/teamgram/teamgram-server/app/bff/authorization"
@@ -62,6 +63,7 @@ import (
 	webpage_helper "github.com/teamgram/teamgram-server/app/bff/webpage"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -310,6 +312,7 @@ func (s *Server) Initialize() error {
 			UserClient:    c.BizServiceClient,
 			ChatClient:    c.BizServiceClient,
 			ChannelClient: c.BizServiceClient,
+			DialogClient:  c.BizServiceClient,
 		})
 		mtproto.RegisterRPCReactionsServer(grpcServer, catalog)
 		mtproto.RegisterRPCStickersServer(grpcServer, catalog)
@@ -441,7 +444,7 @@ func (s *Server) Initialize() error {
 				},
 				nil,
 				nil,
-				nil))
+				appearance.NewStore(sqlx.NewMySQL(&c.Mysql), nil, "")))
 
 		// nsfw_helper
 		mtproto.RegisterRPCNsfwServer(

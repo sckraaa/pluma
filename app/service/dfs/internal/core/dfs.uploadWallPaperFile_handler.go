@@ -88,10 +88,8 @@ func (c *DfsCore) DfsUploadWallPaperFile(in *dfs.TLDfsUploadWallPaperFile) (*mtp
 	// build photoStrippedSize
 	thumb, err = imaging.Decode(bytes.NewReader(cacheData))
 	if err != nil {
-		// ioutil.WriteFile("./t.jpg", cacheData, 0644)
 		c.Logger.Errorf("dfs.uploadWallPaperFile - error: %v", err)
-		return nil, err
-
+		return nil, mtproto.ErrWallpaperFileInvalid
 	}
 	stripped := bytes2.NewBuffer(make([]byte, 0, 4096))
 	if thumb.Bounds().Dx() >= thumb.Bounds().Dy() {
@@ -126,7 +124,10 @@ func (c *DfsCore) DfsUploadWallPaperFile(in *dfs.TLDfsUploadWallPaperFile) (*mtp
 	// upload thumb
 	path = fmt.Sprintf("%s/%d.dat", mtproto.PhotoSZMediumType, documentId)
 	// upload
-	c.svcCtx.Dao.PutPhotoFile(c.ctx, path, mThumbData.Bytes())
+	if _, err = c.svcCtx.Dao.PutPhotoFile(c.ctx, path, mThumbData.Bytes()); err != nil {
+		c.Logger.Errorf("dfs.uploadWallPaperFile - error: %v", err)
+		return nil, err
+	}
 
 	szList := []*mtproto.PhotoSize{
 		mtproto.MakeTLPhotoStrippedSize(&mtproto.PhotoSize{
