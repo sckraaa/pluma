@@ -35,7 +35,7 @@ const (
 	// retention is how long the server keeps what an authorization did not
 	// confirm: "messages older than 7 days" may be deleted
 	// (core.telegram.org/api/end-to-end). An unanswered request goes with
-	// them, and so does a discarded chat's row.
+	// them, and so does a discarded chat's row once its ends were told.
 	retention = 7 * 24 * time.Hour
 	// eventMargin widens the window of the updates without qts: updates with
 	// the same second as the last state must not be missed.
@@ -819,13 +819,42 @@ func (s *Store) Sweep(ctx context.Context) ([]*Discarded, error) {
 	}{
 		{"DELETE FROM encrypted_chat_queue WHERE date < ? LIMIT ?", []any{cutoff, sweepBatch}},
 		{"DELETE FROM encrypted_chat_sent WHERE date < ? LIMIT ?", []any{cutoff, sweepBatch}},
-		{"DELETE FROM encrypted_chats WHERE state = 3 AND state_at < ? LIMIT ?", []any{cutoff, sweepBatch}},
 	} {
 		if _, err := s.db.ExecContext(ctx, q.q, q.args...); err != nil {
 			return out, err
 		}
 	}
+	if err := s.purgeDiscarded(ctx, cutoff); err != nil {
+		return out, err
+	}
 	return out, s.sweepDevices(ctx)
+}
+
+// untold selects whether one end of a discarded chat c may not have heard of
+// the end: its authorization still lives (and is not a later login) and has
+// been given no state since. The changes of a difference are read off the
+// row, so the row must outlive such a device.
+func untold(key, user string) string {
+	return "EXISTS (SELECT 1 FROM auth_users a LEFT JOIN encrypted_chat_devices d ON d.auth_key_id = a.auth_key_id AND d.user_id = a.user_id" +
+		" WHERE a.auth_key_id = c." + key + " AND a.user_id = c." + user + " AND a.deleted = 0 AND a.date_created <= c.state_at" +
+		" AND c." + key + " <> c.discarded_by AND COALESCE(d.state_given_at, 0) <= c.state_at + ?)"
+}
+
+// purgeDiscarded deletes the old rows of discarded chats, except those an
+// end has yet to learn of. A request that was never accepted belongs to no
+// device yet and goes at the cutoff.
+func (s *Store) purgeDiscarded(ctx context.Context, cutoff int32) error {
+	ids, err := s.idList(ctx, "SELECT c.id FROM encrypted_chats c WHERE c.state = 3 AND c.state_at < ? AND (c.participant_auth_key_id = 0 OR NOT ("+untold("admin_auth_key_id", "admin_id")+" OR "+untold("participant_auth_key_id", "participant_id")+")) LIMIT ?",
+		cutoff, eventMargin, eventMargin, sweepBatch)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if _, err = s.db.ExecContext(ctx, "DELETE FROM encrypted_chats WHERE id = ?", id); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // sweepDevices clears the state and queues of authorizations that are gone,

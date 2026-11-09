@@ -519,6 +519,47 @@ func TestSweepLoginAgain(t *testing.T) {
 	}
 }
 
+// TestPurgeWaitsForDevice: a discarded chat stays past the retention while a
+// live end has not been given a state since, and reaches it in a difference;
+// then it goes.
+func TestPurgeWaitsForDevice(t *testing.T) {
+	ctx := context.Background()
+	s, db := newTestStore(ctx, t)
+	s.now = func() time.Time { return time.Now().Add(-9 * 24 * time.Hour) }
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	if _, _, err := s.Discard(ctx, Discard{By: alice, ChatId: c.Id}); err != nil {
+		t.Fatal(err)
+	}
+	s.now = time.Now
+	if _, err := s.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	exists := func() bool {
+		t.Helper()
+		var n int
+		if err := db.QueryRow("SELECT COUNT(*) FROM encrypted_chats WHERE id = ?", c.Id).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n == 1
+	}
+	if !exists() {
+		t.Fatal("deleted before the device was told")
+	}
+	d, err := s.Difference(ctx, DifferenceInput{Device: bob1, Date: s.unix() - 10*24*3600})
+	if err != nil || len(d.Updates) != 1 || d.Updates[0].Chat.State != StateDiscarded {
+		t.Fatalf("difference: %+v %v", d, err)
+	}
+	if err = s.MarkDifference(ctx, bob1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if exists() {
+		t.Fatal("the row outlived the device that was told")
+	}
+}
+
 // TestFiles: stored with their fingerprint, and the access hash is checked.
 func TestFiles(t *testing.T) {
 	ctx := context.Background()
