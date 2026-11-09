@@ -1,6 +1,8 @@
 package msgsearch
 
 import (
+	"context"
+	"database/sql"
 	"strings"
 	"testing"
 	"time"
@@ -72,5 +74,37 @@ func TestDayEnd(t *testing.T) {
 	f := makeFlood(false, 0, now)
 	if f.GetWaitTill().GetValue() != int32(now.Unix())+30 || f.GetTotalDaily() != PostsDaily {
 		t.Errorf("flood %v", f)
+	}
+}
+
+// quotaRace is a store where the slot of the query is taken by a parallel
+// request between the check and the insert.
+type quotaRace struct {
+	hash    int64
+	checked int
+}
+
+type noRows struct{ sql.Result }
+
+func (noRows) RowsAffected() (int64, error) { return 0, nil }
+
+func (q *quotaRace) Exec(context.Context, string, ...interface{}) (sql.Result, error) {
+	return noRows{}, nil
+}
+
+func (q *quotaRace) QueryRowsPartial(_ context.Context, v interface{}, _ string, _ ...interface{}) error {
+	if q.checked++; q.checked > 1 {
+		*v.(*[]int64) = []int64{q.hash}
+	}
+	return nil
+}
+
+func TestTakePostsSlotSameQueryInParallel(t *testing.T) {
+	st, err := TakePostsSlot(context.Background(), &quotaRace{hash: queryHash("кот")}, 7, "кот", time.Unix(1_800_000_000, 0))
+	if err != nil {
+		t.Fatalf("a parallel search of the same query: %v", err)
+	}
+	if !st.GetQueryIsFree() {
+		t.Errorf("%v", st)
 	}
 }

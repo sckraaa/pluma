@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"google.golang.org/grpc/status"
 )
 
 // PostsDaily is how many different queries of channels.searchPosts a user
@@ -83,11 +84,23 @@ func makeFlood(free bool, remains int32, now time.Time) *mtproto.SearchPostsFloo
 	return mtproto.MakeTLSearchPostsFlood(f).To_SearchPostsFlood()
 }
 
+// errPostsFlood is the answer to a search with no slot left, in the form the
+// clients read: Android and tweb parse FLOOD_WAIT_(\d+)_OR_STARS_(\d+)
+// (PostsSearchContainer.java, globalPostsSearch.tsx), tdesktop refreshes the
+// state on any FLOOD_WAIT_ prefix (dialogs_search_posts.cpp). Searches are
+// not paid for here, so the price is 0. The code is 400, not 420: tgnet
+// holds a request answered 420 FLOOD_WAIT_ until the wait is over and never
+// gives the answer to its caller (ConnectionsManager.cpp, error_code == 420),
+// which here would be the rest of the day; what Telegram's code is for this
+// answer was not observed.
+func errPostsFlood(seconds int32) error {
+	return status.Errorf(mtproto.ErrBadRequest, "FLOOD_WAIT_%d_OR_STARS_0", seconds)
+}
+
 // TakePostsSlot takes a slot of the quota for a first page of query and
 // says how the quota stands after it. An already searched query takes
-// none; with none left the error is FLOOD_WAIT_X for the rest of the day,
-// which clients answer by refreshing the state (tdesktop
-// dialogs_search_posts.cpp).
+// none; with none left the error is FLOOD_WAIT_X_OR_STARS_0 for the rest of
+// the day.
 func TakePostsSlot(ctx context.Context, db PostsDB, userId int64, query string, now time.Time) (*mtproto.SearchPostsFlood, error) {
 	day := dayOf(now)
 	h := queryHash(query)
@@ -111,7 +124,14 @@ func TakePostsSlot(ctx context.Context, db PostsDB, userId int64, query string, 
 		if n, err := res.RowsAffected(); err != nil {
 			return nil, err
 		} else if n == 0 {
-			return nil, mtproto.NewErrFloodWaitX(secondsToDayEnd(now))
+			// Nothing was added: the quota is spent, or a parallel request
+			// took the slot of this same query (INSERT IGNORE).
+			if err = db.QueryRowsPartial(ctx, &had, "SELECT query_hash FROM posts_search_slots WHERE user_id = ? AND day = ? AND query_hash = ?", userId, day, h); err != nil {
+				return nil, err
+			}
+			if len(had) == 0 {
+				return nil, errPostsFlood(secondsToDayEnd(now))
+			}
 		}
 	}
 	return PostsFlood(ctx, db, userId, query, now)
