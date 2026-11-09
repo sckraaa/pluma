@@ -48,12 +48,12 @@ const (
 	Predicate_chat_setChatAvailableReactions        = "chat_setChatAvailableReactions"
 	Predicate_chat_setHistoryTTL                    = "chat_setHistoryTTL"
 	// pluma: task 072
-	Predicate_chat_setBlocked = "chat_setBlocked"
-	Predicate_chat_search                           = "chat_search"
-	Predicate_chat_getRecentChatInviteRequesters    = "chat_getRecentChatInviteRequesters"
-	Predicate_chat_hideChatJoinRequests             = "chat_hideChatJoinRequests"
-	Predicate_chat_importChatInvite2                = "chat_importChatInvite2"
-	Predicate_chat_editChatParticipantRank          = "chat_editChatParticipantRank"
+	Predicate_chat_setBlocked                    = "chat_setBlocked"
+	Predicate_chat_search                        = "chat_search"
+	Predicate_chat_getRecentChatInviteRequesters = "chat_getRecentChatInviteRequesters"
+	Predicate_chat_hideChatJoinRequests          = "chat_hideChatJoinRequests"
+	Predicate_chat_importChatInvite2             = "chat_importChatInvite2"
+	Predicate_chat_editChatParticipantRank       = "chat_editChatParticipantRank"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -264,7 +264,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1348907914: Predicate_chat_editExportedChatInvite,           // 0xaf994c76
 	-992966286:  Predicate_chat_setChatAvailableReactions,        // 0xc4d08972
 	1023107972:  Predicate_chat_setHistoryTTL,                    // 0x3cfb6384
-	1239474570: Predicate_chat_setBlocked, // 0x49e0e18a pluma: task 072
+	1239474570:  Predicate_chat_setBlocked,                       // 0x49e0e18a pluma: task 072
 	568333563:   Predicate_chat_search,                           // 0x21e014fb
 	-19132264:   Predicate_chat_getRecentChatInviteRequesters,    // 0xfedc1098
 	1051012305:  Predicate_chat_hideChatJoinRequests,             // 0x3ea52cd1

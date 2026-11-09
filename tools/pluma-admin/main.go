@@ -175,6 +175,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] moderation reports [-all]
   pluma-admin [-f bff.yaml] moderation restrict|ban <phone> [-days <n>]   (emergency access; the panel is the normal way)
   pluma-admin [-f bff.yaml] moderation lift <phone>
+  pluma-admin [-f bff.yaml] moderation block-channel|unblock-channel|block-chat|unblock-chat <id>
   pluma-admin [-f bff.yaml] registration open|list   (who may sign up: every number or the allowlist)
   pluma-admin [-f bff.yaml] panel owner <login>   (the first owner of the moderation panel)
   pluma-admin [-f bff.yaml] panel reset-passkey <login>
