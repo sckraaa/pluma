@@ -213,6 +213,16 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 		}
 	}
 
+	// An account banned from the moderation panel (task 025).
+	if banned, err2 := c.svcCtx.Moderation.PhoneBanned(c.ctx, phoneNumber); err2 != nil {
+		c.Logger.Errorf("auth.sendCode - moderation: %v", err2)
+		err = mtproto.ErrInternalServerError
+		return
+	} else if banned {
+		err = mtproto.ErrPhoneNumberBanned
+		return
+	}
+
 	// 400	PHONE_NUMBER_FLOOD	You asked for the code too many times.
 	// phone number flood
 	// TODO(@benqi): PHONE_NUMBER_FLOOD

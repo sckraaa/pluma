@@ -34,6 +34,10 @@ func (c *MsgCore) MsgSendMessageV2(in *msg.TLMsgSendMessageV2) (*mtproto.Updates
 		c.Logger.Errorf("msg.sendMessageV2: {user_id: %d, peer: %d/%d} - error: no messages", in.GetUserId(), in.GetPeerType(), in.GetPeerId())
 		return nil, mtproto.ErrInputRequestInvalid
 	}
+	if err := c.checkRestriction(in); err != nil {
+		c.Logger.Errorf("msg.sendMessageV2: user %d, peer %d/%d: %v", in.GetUserId(), in.GetPeerType(), in.GetPeerId(), err)
+		return nil, err
+	}
 	date, err := scheduleDateOf(outBoxList)
 	if err != nil {
 		return nil, err
