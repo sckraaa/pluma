@@ -21,6 +21,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 )
 
 func TestCheckProtocolLibraryNames(t *testing.T) {
@@ -49,5 +50,41 @@ func TestClip(t *testing.T) {
 	}
 	if got := clip("short", 10); got != "short" {
 		t.Fatalf("short text: %q", got)
+	}
+}
+
+func TestOverCallLimit(t *testing.T) {
+	for _, tc := range []struct {
+		total, peer int64
+		want        bool
+	}{
+		{0, 0, false},
+		{maxCallsPerWindow - 1, maxCallsToOnePeer - 1, false},
+		{maxCallsPerWindow, 0, true},
+		{5, maxCallsToOnePeer, true},
+	} {
+		if got := overCallLimit(tc.total, tc.peer); got != tc.want {
+			t.Errorf("%d calls, %d to one peer: %v", tc.total, tc.peer, got)
+		}
+	}
+}
+
+func TestRestrictionRefuses(t *testing.T) {
+	limited := &moderation.Restriction{Kind: moderation.RestrictLimited}
+	banned := &moderation.Restriction{Kind: moderation.RestrictBanned}
+	for _, tc := range []struct {
+		name    string
+		r       *moderation.Restriction
+		contact bool
+		want    bool
+	}{
+		{"not restricted", nil, false, false},
+		{"limited, a stranger", limited, false, true},
+		{"limited, a contact", limited, true, false},
+		{"banned, a contact", banned, true, true},
+	} {
+		if got := restrictionRefuses(tc.r, tc.contact); got != tc.want {
+			t.Errorf("%s: %v", tc.name, got)
+		}
 	}
 }

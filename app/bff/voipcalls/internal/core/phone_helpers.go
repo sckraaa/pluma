@@ -19,8 +19,10 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"strings"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 )
 
 const (
@@ -33,7 +35,27 @@ const (
 	maxSignaling   = 64 * 1024
 	maxDebugLog    = 64 * 1024
 	maxComment     = 1024
+
+	// Limits on what one caller can start in callLimitWindow, far above what
+	// a person redialling does: every call rings all the devices of the
+	// callee, sends a push and leaves a message in both histories.
+	callLimitWindow   = time.Minute
+	maxCallsPerWindow = 30
+	maxCallsToOnePeer = 10
 )
+
+// overCallLimit tells whether a caller who started total calls in the window,
+// toPeer of them to this callee, must wait.
+func overCallLimit(total, toPeer int64) bool {
+	return total >= maxCallsPerWindow || toPeer >= maxCallsToOnePeer
+}
+
+// restrictionRefuses tells whether a restricted caller may not ring: the
+// limit of the messages (msg checkRestriction, task 025) holds for calls, a
+// contact of the callee stays reachable unless the account is banned.
+func restrictionRefuses(r *moderation.Restriction, contact bool) bool {
+	return r != nil && (r.Kind == moderation.RestrictBanned || !contact)
+}
 
 func positiveId() (int64, error) {
 	var b [8]byte

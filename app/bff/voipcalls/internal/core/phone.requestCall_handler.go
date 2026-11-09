@@ -17,6 +17,7 @@ package core
 
 import (
 	"errors"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -76,6 +77,9 @@ func (c *VoipCallsCore) PhoneRequestCall(in *mtproto.TLPhoneRequestCall) (*mtpro
 	if !callee.CheckPrivacyFor(mtproto.PHONE_CALL, me) {
 		return nil, mtproto.ErrUserPrivacyRestricted
 	}
+	if err := c.checkCaller(me, callee); err != nil {
+		return nil, err
+	}
 	id, err := positiveId()
 	if err != nil {
 		return nil, err
@@ -110,6 +114,35 @@ func (c *VoipCallsCore) PhoneRequestCall(in *mtproto.TLPhoneRequestCall) (*mtpro
 		PhoneCall: call.TL(phonecalls.Admin, nil),
 		Users:     c.usersOf(c.MD.UserId, peer.PeerId),
 	}).To_Phone_PhoneCall(), nil
+}
+
+// checkCaller applies the limits that do not depend on the callee's
+// settings: a restricted account and a flood. A restricted caller gets
+// USER_PRIVACY_RESTRICTED, the refusal core.telegram.org/method/phone.requestCall
+// lists and the clients explain (tdesktop calls_call.cpp:1610), whereas
+// tdesktop would show a bare PEER_FLOOD.
+func (c *VoipCallsCore) checkCaller(me, callee *mtproto.ImmutableUser) error {
+	r, err := c.svcCtx.Dao.Moderation.Restriction(c.ctx, me.Id())
+	if err != nil {
+		c.Logger.Errorf("phone.requestCall - error: %v", err)
+		return err
+	}
+	contact, _ := callee.CheckContact(me.Id())
+	if !contact {
+		contact, _ = me.CheckReverseContact(callee.Id())
+	}
+	if restrictionRefuses(r, contact) {
+		return mtproto.ErrUserPrivacyRestricted
+	}
+	total, toPeer, err := c.svcCtx.Dao.Store.RecentCalls(c.ctx, me.Id(), callee.Id(), time.Now().Add(-callLimitWindow))
+	if err != nil {
+		c.Logger.Errorf("phone.requestCall - error: %v", err)
+		return err
+	}
+	if overCallLimit(total, toPeer) {
+		return mtproto.NewErrFloodWaitX(int32(callLimitWindow / time.Second))
+	}
+	return nil
 }
 
 // ring records which devices of the callee the live update goes to, then

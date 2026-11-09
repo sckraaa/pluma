@@ -23,6 +23,7 @@ import (
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/phonecalls"
 )
 
@@ -33,11 +34,15 @@ type Dao struct {
 	msg_client.MsgClient
 	status_client.StatusClient
 	sync_client.SyncClient
+	// Moderation answers whether the caller is restricted (task 025).
+	Moderation *moderation.DAO
 }
 
 func New(c config.Config) *Dao {
+	db := sqlx.NewMySQL(&c.Mysql)
 	return &Dao{
-		Store:        phonecalls.NewStore(sqlx.NewMySQL(&c.Mysql)),
+		Store:        phonecalls.NewStore(db),
+		Moderation:   moderation.New(db),
 		UserClient:   user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		MsgClient:    msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 		StatusClient: status_client.NewStatusClient(rpcx.GetCachedRpcClient(c.StatusClient)),
