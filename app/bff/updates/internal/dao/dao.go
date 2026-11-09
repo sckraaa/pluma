@@ -20,6 +20,7 @@ package dao
 
 import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/updates/internal/config"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
@@ -28,6 +29,7 @@ import (
 	updates_client "github.com/teamgram/teamgram-server/app/service/biz/updates/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	"github.com/teamgram/teamgram-server/pkg/secretchat"
+	"github.com/teamgram/teamgram-server/pkg/phonecalls"
 )
 
 type Dao struct {
@@ -38,10 +40,13 @@ type Dao struct {
 	dialog_client.DialogClient
 	authsession_client.AuthsessionClient
 	SecretChats *secretchat.Store
+	// Calls is the table of one-to-one calls (task 068).
+	Calls *phonecalls.Store
 }
 
 func New(c config.Config) *Dao {
 	return &Dao{
+		Calls:             phonecalls.NewStore(sqlx.NewMySQL(&c.Mysql)),
 		UpdatesClient:     updates_client.NewUpdatesClient(rpcx.GetCachedRpcClient(c.UpdatesClient)),
 		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		ChatClient:        chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),

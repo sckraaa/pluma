@@ -25,7 +25,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	Mysql         sqlx.Config // the secret chats: qts and the queue of each authorization (pkg/secretchat)
+	Mysql         sqlx.Config // pkg/secretchat (qts and the queue of each authorization) and pkg/phonecalls (the calls that ring)
 	UpdatesClient zrpc.RpcClientConf
 	UserClient    zrpc.RpcClientConf
 	ChatClient    zrpc.RpcClientConf

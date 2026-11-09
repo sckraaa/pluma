@@ -107,3 +107,9 @@ StatusClient:
 # Pushes are rows of mq_outbox in the database of Mysql (ADR 0012).
 SyncClient:
   Topic: "Sync-T"
+
+# One-to-one calls (task 068, docs/ops/calls.md): STUN/TURN servers and the
+# static-auth-secret of coturn; calls are off without servers.
+Calls:
+  IceServers: "${CALLS_ICE_SERVERS}"
+  TurnSecret: "${CALLS_TURN_SECRET}"

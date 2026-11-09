@@ -31,12 +31,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(ctx context.Context, object mtpr
 			Expires: int32(time.Now().Unix() + 3600),
 		}).To_Help_TermsOfServiceUpdate(), nil
 
-	// phone
-	case "TLPhoneGetCallConfig":
-		return mtproto.MakeTLDataJSON(&mtproto.DataJSON{
-			Data: "{}",
-		}).To_DataJSON(), nil
-
 	case "TLAccountGetAuthorizations":
 		return mtproto.MakeTLAccountAuthorizations(&mtproto.Account_Authorizations{
 			AuthorizationTtlDays: 0,

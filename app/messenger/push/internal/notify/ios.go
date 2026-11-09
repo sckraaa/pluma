@@ -84,6 +84,17 @@ func IOS(n *Notification, lang string, hide Hide) (*IOSPush, error) {
 		return background(map[string]any{"loc-key": "SESSION_REVOKE"})
 	case KindMuted:
 		return nil, nil // iOS registers with no_muted
+	case KindCall:
+		// All NotificationService.swift:1053 and PushKit read: the ids as
+		// strings, and the update to ring on.
+		ids["call_id"] = strconv.FormatInt(n.CallId, 10)
+		ids["call_ah"] = strconv.FormatInt(n.CallAccessHash, 10)
+		ids["updates"] = n.CallUpdates
+		payload, err := json.Marshal(ids)
+		if err != nil {
+			return nil, err
+		}
+		return &IOSPush{Payload: payload, Alert: true, ThreadId: threadId(n), Placeholder: t.newMessage}, nil
 	}
 
 	title, body := iosText(n, t, hide)
