@@ -20,15 +20,20 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strconv"
 	"text/tabwriter"
 	"time"
 
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/proto/mtproto"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
+	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
@@ -46,10 +51,15 @@ type moderationConfig struct {
 	SyncClient        struct{ Topic string }
 }
 
-// moderationCommand runs restrict, ban, lift and reports.
+// moderationCommand runs restrict, ban, lift, reports and the blocks of a
+// channel or a group.
 func moderationCommand(args []string, configFile string, stdout io.Writer) error {
 	if len(args) < 2 {
 		return errUsage
+	}
+	switch args[1] {
+	case "block-channel", "unblock-channel", "block-chat", "unblock-chat":
+		return moderationBlockPeer(args, configFile, stdout)
 	}
 	var (
 		phone string
@@ -142,6 +152,37 @@ func moderationCommand(args []string, configFile string, stdout io.Writer) error
 	return nil
 }
 
+// moderationBlockPeer blocks a channel or a basic group, or unblocks it, by
+// the same RPC as the panel.
+func moderationBlockPeer(args []string, configFile string, stdout io.Writer) error {
+	if len(args) != 3 {
+		return errUsage
+	}
+	id, err := strconv.ParseInt(args[2], 10, 64)
+	if err != nil || id <= 0 {
+		return errUsage
+	}
+	var c moderationConfig
+	if err := conf.Load(configFile, &c); err != nil {
+		return fmt.Errorf("config %s: %w", configFile, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	cli := rpcx.GetCachedRpcClient(c.BizServiceClient)
+	blocked := args[1] == "block-channel" || args[1] == "block-chat"
+	switch args[1] {
+	case "block-channel", "unblock-channel":
+		_, err = channel_client.NewChannelClient(cli).ChannelSetBlocked(ctx, &channel.TLChannelSetBlocked{ChannelId: id, Blocked: mtproto.ToBool(blocked)})
+	default:
+		_, err = chat_client.NewChatClient(cli).ChatSetBlocked(ctx, &chat.TLChatSetBlocked{ChatId: id, Blocked: mtproto.ToBool(blocked)})
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s %d: done.\n", args[1], id)
+	return nil
+}
+
 func listReports(ctx context.Context, dao *moderation.DAO, all bool, stdout io.Writer) error {
 	status := moderation.StatusOpen
 	if all {
@@ -180,14 +221,14 @@ func panelCommand(args []string, configFile string, stdout io.Writer) error {
 	switch args[1] {
 	case "owner":
 		if _, err := db.Exec(ctx,
-			"INSERT INTO admin_users (login, role, created_by, created_at) VALUES (?, 2, 'pluma-admin', ?) ON DUPLICATE KEY UPDATE role = 2, disabled = 0",
+			"INSERT INTO admin_users (login, created_by, created_at) VALUES (?, 'pluma-admin', ?) ON DUPLICATE KEY UPDATE disabled = 0",
 			login, time.Now().Unix()); err != nil {
 			return err
 		}
 		if err := moderation.New(db).Audit(ctx, "pluma-admin", "admin_owner", "admin:"+login, ""); err != nil {
 			return err
 		}
-		fmt.Fprintf(stdout, "%s is an owner of the panel.\n", login)
+		fmt.Fprintf(stdout, "%s may enter the panel.\n", login)
 	case "reset-passkey":
 		if _, err := db.Exec(ctx, "DELETE FROM admin_passkeys WHERE login = ?", login); err != nil {
 			return err
