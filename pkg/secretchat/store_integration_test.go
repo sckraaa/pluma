@@ -321,6 +321,29 @@ func TestAckAndRead(t *testing.T) {
 	}
 }
 
+// TestReadEnded: reading a chat that ended, or whose row is gone, succeeds
+// and tells nobody; the hash and the device are still checked.
+func TestReadEnded(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(ctx, t)
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	if _, _, err := s.Discard(ctx, Discard{By: alice, ChatId: c.Id}); err != nil {
+		t.Fatal(err)
+	}
+	if _, changed, err := s.ReadHistory(ctx, bob1, c.Id, c.AccessHash, 500); err != nil || changed {
+		t.Fatalf("a discarded chat: %v %v", changed, err)
+	}
+	if _, changed, err := s.ReadHistory(ctx, bob1, c.Id+1, 1, 500); err != nil || changed {
+		t.Fatalf("a row that is gone: %v %v", changed, err)
+	}
+	if _, _, err := s.ReadHistory(ctx, bob1, c.Id, c.AccessHash+1, 500); !errors.Is(err, ErrChatNotFound) {
+		t.Fatalf("a wrong hash: %v", err)
+	}
+	if _, _, err := s.ReadHistory(ctx, bob2, c.Id, c.AccessHash, 500); !errors.Is(err, ErrWrongDevice) {
+		t.Fatalf("another device: %v", err)
+	}
+}
+
 // TestDiscardKeepsQueue: without the history, what the peer sent before the
 // end still reaches a device that was offline.
 func TestDiscardKeepsQueue(t *testing.T) {

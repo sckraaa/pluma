@@ -461,14 +461,25 @@ func nextQts(ctx context.Context, tx *sql.Tx, d Device) (int32, error) {
 
 // ReadHistory records messages.readEncryptedHistory of d and returns the
 // other end to tell; changed is false for an old max_date, nothing to tell.
+// A chat that has ended, or whose row is gone, has nothing to record and the
+// read succeeds: iOS shows the last messages of a terminated chat, reads them
+// with no look at its state (ApiUtils.swift:269) and on any error starts the
+// same push again at once, for as long as the operation is stored
+// (SynchronizePeerReadState.swift:236, ManagedSynchronizePeerReadStates.swift:97).
 func (s *Store) ReadHistory(ctx context.Context, d Device, chatId int32, accessHash int64, maxDate int32) (to Device, changed bool, err error) {
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		c, e := lockChat(ctx, tx, chatId)
+		if errors.Is(e, ErrChatNotFound) {
+			return nil
+		}
 		if e != nil {
 			return e
 		}
 		if e = access(c, d, accessHash, true); e != nil {
 			return e
+		}
+		if c.State == StateDiscarded {
+			return nil
 		}
 		if c.State != StateActive {
 			return ErrDeclined
