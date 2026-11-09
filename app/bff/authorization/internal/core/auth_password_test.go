@@ -187,13 +187,19 @@ func newPasswordEnv(t *testing.T) *passwordEnv {
 	}
 	e.auth = logic.NewAuthSignLogic(e.phoneLog, codes)
 	e.svcCtx = &svc.ServiceContext{
-		Dao:       &dao.Dao{UserClient: passwordUsers{}, AuthsessionClient: e.bound, SyncClient: e.pushes},
-		AuthLogic: e.auth,
-		Twofa:     e.twofa,
-		NewLogin:  newlogin.Notifier{Authsession: e.bound, User: e.reviews, Msg: e.pushes},
+		Dao:        &dao.Dao{UserClient: passwordUsers{}, AuthsessionClient: e.bound, SyncClient: e.pushes},
+		AuthLogic:  e.auth,
+		Twofa:      e.twofa,
+		NewLogin:   newlogin.Notifier{Authsession: e.bound, User: e.reviews, Msg: e.pushes},
+		Moderation: noBans{},
 	}
 	return e
 }
+
+// noBans bans no phone.
+type noBans struct{}
+
+func (noBans) PhoneBanned(context.Context, string) (bool, error) { return false, nil }
 
 // core returns the handlers as a request of key with the user of the key.
 func (e *passwordEnv) core(key, userId int64) *AuthorizationCore {

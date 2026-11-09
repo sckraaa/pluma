@@ -137,9 +137,10 @@ func TestAuthSignUpHandlerRequiresAcceptedCode(t *testing.T) {
 		c        = &AuthorizationCore{
 			ctx: ctx,
 			svcCtx: &svc.ServiceContext{
-				Dao:       &dao.Dao{UserClient: users, AuthsessionClient: sessions},
-				AuthLogic: auth,
-				Twofa:     twofa.NewService(twofa.NewMemStore(), testKV(mr)),
+				Dao:        &dao.Dao{UserClient: users, AuthsessionClient: sessions},
+				AuthLogic:  auth,
+				Twofa:      twofa.NewService(twofa.NewMemStore(), testKV(mr)),
+				Moderation: noBans{},
 			},
 			Logger: logx.WithContext(ctx),
 			MD:     &metadata.RpcMetadata{PermAuthKeyId: signUpAuthKeyId, ClientAddr: "203.0.113.1", Layer: 228},
