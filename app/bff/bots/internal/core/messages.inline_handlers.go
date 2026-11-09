@@ -275,14 +275,16 @@ func (c *BotsCore) inlineResult(r *mtproto.InputBotInlineResult) (*mtproto.BotIn
 			Thumb: webDocument(r.GetThumb()), Content: webDocument(r.GetContent()), SendMessage: send,
 		}).To_BotInlineResult(), nil
 	case mtproto.Predicate_inputBotInlineResultPhoto:
+		// The access hash says the bot was given the file; only with it
+		// does the answer hand the file out to others.
 		photo, err := c.svcCtx.MediaGetPhoto(c.ctx, &media.TLMediaGetPhoto{PhotoId: r.GetPhoto().GetId()})
-		if err != nil || photo.GetPredicateName() != mtproto.Predicate_photo {
+		if err != nil || photo.GetPredicateName() != mtproto.Predicate_photo || photo.GetAccessHash() != r.GetPhoto().GetAccessHash() {
 			return nil, mtproto.ErrPhotoInvalid
 		}
 		return mtproto.MakeTLBotInlineMediaResult(&mtproto.BotInlineResult{Id: r.GetId(), Type: r.GetType(), Photo: photo, SendMessage: send}).To_BotInlineResult(), nil
 	case mtproto.Predicate_inputBotInlineResultDocument:
 		document, err := c.svcCtx.MediaGetDocument(c.ctx, &media.TLMediaGetDocument{Id: r.GetDocument().GetId()})
-		if err != nil || document.GetPredicateName() != mtproto.Predicate_document {
+		if err != nil || document.GetPredicateName() != mtproto.Predicate_document || document.GetAccessHash() != r.GetDocument().GetAccessHash() {
 			return nil, mtproto.ErrDocumentInvalid
 		}
 		return mtproto.MakeTLBotInlineMediaResult(&mtproto.BotInlineResult{Id: r.GetId(), Type: r.GetType(), Document: document, Title: r.GetTitle(), Description: r.GetDescription(), SendMessage: send}).To_BotInlineResult(), nil
