@@ -28,7 +28,9 @@ type Config struct {
 	zrpc.RpcServerConf
 	UserClient zrpc.RpcClientConf
 	ChatClient zrpc.RpcClientConf
-	SyncClient sync_client.OutboxConf
+	// ChannelClient checks the forum of a topic's notification settings.
+	ChannelClient zrpc.RpcClientConf
+	SyncClient    sync_client.OutboxConf
 	// pluma: task 009. Mysql keeps the push devices (pkg/pushdevices), whose
 	// secrets PushSecretEncryptionKey seals.
 	Mysql                   sqlx.Config

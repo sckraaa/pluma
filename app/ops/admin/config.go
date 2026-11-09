@@ -45,17 +45,17 @@ type config struct {
 func (c *config) check() error {
 	host, _, err := net.SplitHostPort(c.Listen)
 	if err != nil {
-		return fmt.Errorf("Listen: %w", err)
+		return fmt.Errorf("listen: %w", err)
 	}
 	if ip, err := netip.ParseAddr(host); err != nil || !ip.IsLoopback() {
-		return errors.New("Listen must be a loopback address (ADR 0040)")
+		return errors.New("listen must be a loopback address (ADR 0040)")
 	}
 	u, err := url.Parse(c.Origin)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.Path != "" {
-		return errors.New("Origin must be the panel's https:// address in the tailnet")
+		return errors.New("origin must be the panel's https:// address in the tailnet")
 	}
 	if strings.Contains(u.Host, ":") {
-		return errors.New("Origin must have no port")
+		return errors.New("origin must have no port")
 	}
 	return nil
 }

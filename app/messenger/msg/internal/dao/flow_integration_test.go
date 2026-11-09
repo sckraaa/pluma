@@ -31,6 +31,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 	mqoutbox "github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/readmarks"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
@@ -606,6 +607,7 @@ func newWorld(t *testing.T, dsn string, maxConns int) *world {
 		UserClient:    w.users,
 		ChatClient:    w.chats,
 		ChannelClient: noChannels{},
+		Moderation:    moderation.New(db),
 		BoxDB:         boxDB,
 		Topics:        itTopics,
 	}

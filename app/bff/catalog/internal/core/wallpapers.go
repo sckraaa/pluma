@@ -141,7 +141,9 @@ func (c *CatalogCore) wallpaperFromMessage(peerID int64, msgID int32, settings *
 		return nil, err
 	}
 	m := box.GetMessage()
-	if box.GetPeerType() != mtproto.PEER_USER || box.GetPeerId() != peerID || m == nil ||
+	// The peer of the message: the other user in either direction, while
+	// the row of a received message names its owner.
+	if box.GetPeerType() != mtproto.PEER_USER || m.GetPeerId().GetUserId() != peerID || m == nil ||
 		m.GetAction().GetPredicateName() != mtproto.Predicate_messageActionSetChatWallPaper || m.GetAction().GetWallpaper() == nil {
 		return nil, errWallpaperNotFound
 	}

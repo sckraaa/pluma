@@ -19,7 +19,10 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -84,14 +87,20 @@ func (c *NotificationCore) AccountGetNotifySettings(in *mtproto.TLAccountGetNoti
 // read: a peer that is not one is PEER_ID_INVALID.
 func (c *NotificationCore) forumOf(in *mtproto.InputNotifyPeer) (int64, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
-	if peer.PeerType != mtproto.PEER_CHANNEL || c.svcCtx.Plugin == nil {
+	if peer.PeerType != mtproto.PEER_CHANNEL {
 		return 0, mtproto.ErrPeerIdInvalid
 	}
-	channel, err := c.svcCtx.Plugin.GetChannelById(c.ctx, c.MD.UserId, peer.PeerId)
+	channel, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{
+		ChannelId: peer.PeerId,
+		Id:        []int64{c.MD.UserId},
+	})
 	if err != nil {
 		return 0, err
 	}
-	if channel.GetPredicateName() == mtproto.Predicate_channelForbidden {
+	if channel.GetChannel().GetAccessHash() != peer.AccessHash {
+		return 0, mtproto.ErrPeerIdInvalid
+	}
+	if channel.ToChat(c.MD.UserId, int32(time.Now().Unix())).GetPredicateName() == mtproto.Predicate_channelForbidden {
 		return 0, mtproto.ErrChannelPrivate
 	}
 	return peer.PeerId, nil

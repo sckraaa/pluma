@@ -434,6 +434,7 @@ func (s *Server) Initialize() error {
 			RpcServerConf:           c.RpcServerConf,
 			UserClient:              c.BizServiceClient,
 			ChatClient:              c.BizServiceClient,
+			ChannelClient:           c.BizServiceClient,
 			SyncClient:              syncClient,
 			Mysql:                   c.Mysql,
 			PushSecretEncryptionKey: c.PushSecretEncryptionKey,
