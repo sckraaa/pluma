@@ -748,6 +748,13 @@ message BotInlineMessage {
   bool safe = 30;
   string url = 31;
   RichMessage rich_message = 32;
+  int32 width = 33;
+  int32 height = 34;
+  bytes payload = 35;
+  google.protobuf.StringValue public_data = 36;
+  google.protobuf.Int64Value public_data_hash = 37;
+  google.protobuf.StringValue chat_data = 38;
+  google.protobuf.Int64Value widget_id = 39;
 }
 
 // TL_botInlineMessageMediaAuto
@@ -1917,6 +1924,10 @@ message Chat {
   google.protobuf.Int32Value color_FLAGINT32 = 61;
   google.protobuf.Int64Value background_emoji_id = 62;
   google.protobuf.Int32Value color = 100;
+  bool in_news = 101;
+  RecentStory stories_max_id = 102;
+  PeerColor color_PEERCOLOR = 103;
+  google.protobuf.Int32Value pinned_msg_id = 104;
 }
 
 // TL_chatEmpty
@@ -2132,6 +2143,8 @@ message ChatFull {
   repeated CommunityPeer linked_peers = 72;
   google.protobuf.Int32Value peer_link_requests_pending = 73;
   repeated string available_reactions_FLAGVECTORSTRING = 74;
+  ChatReactions available_reactions = 75;
+  ShareTheme share_theme = 76;
 }
 
 // TL_chatFull
@@ -4183,6 +4196,14 @@ message InputBotInlineMessage {
   bool optional = 28;
   string url = 29;
   InputRichMessage rich_message = 30;
+  bool allow_queries = 31;
+  bool shared_widget = 32;
+  int32 width = 33;
+  int32 height = 34;
+  string html = 35;
+  google.protobuf.StringValue public_data = 36;
+  google.protobuf.StringValue chat_data = 37;
+  int64 widget_id = 38;
 }
 
 // TL_inputBotInlineMessageMediaAuto
@@ -5106,6 +5127,14 @@ message InputMedia {
   repeated bytes correct_answers_FLAGVECTORBYTES = 62;
   InputUser user_id = 63;
   BizDataRaw biz_data = 64;
+  bool allow_queries = 65;
+  bool shared_widget = 66;
+  int32 width = 67;
+  int32 height = 68;
+  string html = 69;
+  google.protobuf.StringValue public_data = 70;
+  google.protobuf.StringValue chat_data = 71;
+  int64 widget_id = 72;
 }
 
 // TL_inputMediaEmpty
@@ -5738,6 +5767,7 @@ message InputReplyTo {
   int32 story_id = 13;
   int32 id = 14;
   InputUser user_id = 15;
+  repeated RichText quote_rich = 16;
 }
 
 // TL_inputReplyToMessage
@@ -8046,6 +8076,16 @@ message MessageMedia {
   Document alt_document = 77;
   int32 months_INT32 = 78;
   BizDataRaw biz_data = 79;
+  bool is_copy = 80;
+  bool can_query = 81;
+  bool background_query = 82;
+  int32 width = 83;
+  int32 height = 84;
+  bytes payload = 85;
+  google.protobuf.StringValue public_data = 86;
+  google.protobuf.Int64Value public_data_hash = 87;
+  google.protobuf.StringValue chat_data = 88;
+  google.protobuf.Int64Value widget_id = 89;
 }
 
 // TL_messageMediaEmpty
@@ -8304,6 +8344,7 @@ message MessageReplyHeader {
   int64 user_id = 19;
   int32 reply_to_msg_id_INT32 = 20;
   int32 reply_to_msg_id = 100;
+  repeated RichText quote_rich = 101;
 }
 
 // TL_messageReplyHeader
@@ -13732,6 +13773,20 @@ message Update {
   google.protobuf.Int32Value topic_id_FLAGINT32 = 211;
   string username = 212;
   BizDataRaw biz_data = 213;
+  google.protobuf.StringValue title = 214;
+  google.protobuf.Int64Value icon_emoji_id = 215;
+  Bool closed = 216;
+  Bool hidden = 217;
+  WidgetQueryType query_type = 218;
+  string chat_type = 219;
+  bytes data = 220;
+  google.protobuf.Int64Value widget_id = 221;
+  wallet_Card wallet_card = 222;
+  InputBotInlineMessageID inline_message_id = 223;
+  int64 widget_id_INT64 = 224;
+  google.protobuf.StringValue public_data = 225;
+  google.protobuf.Int64Value public_data_hash = 226;
+  google.protobuf.StringValue chat_data = 227;
 }
 
 // TL_updateNewMessage
@@ -14983,6 +15038,9 @@ message UserFull {
   google.protobuf.StringValue theme_emoticon = 61;
   repeated PremiumGiftOption premium_gifts = 62;
   UserStories stories_FLAGUSERSTORIES = 63;
+  PeerStories stories = 64;
+  wallet_Card wallet_card = 65;
+  ShareTheme share_theme = 66;
 }
 
 // TL_userFull
@@ -15302,6 +15360,8 @@ message WalletTransactionPeer {
   string address = 4;
   google.protobuf.StringValue domain = 5;
   string provider_name = 6;
+  int64 channel_id = 7;
+  bool own_profile = 8;
 }
 
 // TL_walletTransactionPeerUser
@@ -20297,6 +20357,7 @@ message wallet_NftItem {
   WebDocument lottie = 12;
   repeated wallet_NftAttribute attributes = 13;
   DataJSON extra = 14;
+  StarGift gift = 15;
 }
 
 // TL_wallet_nftItem
@@ -20425,4 +20486,272 @@ message wallet_UserAddresses {
 // TL_wallet_userAddresses
 message TL_wallet_userAddresses {
   wallet_UserAddresses data2 = 1;
+}
+
+message ExportedNoPaidMessagesToken {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  string token = 3;
+  string url = 4;
+  google.protobuf.Int32Value expires = 5;
+}
+
+message ShareTheme {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  google.protobuf.Int32Value backdrop_id = 3;
+  repeated Reaction emojis = 4;
+  StarGift stargift = 5;
+  InputSavedStarGift stargift_INPUTSAVEDSTARGIFT = 6;
+}
+
+message ShareThemeBackdropOption {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  int32 backdrop_id = 3;
+  string name = 4;
+  int32 center_color = 5;
+  int32 edge_color = 6;
+  int32 pattern_color = 7;
+  int32 text_color = 8;
+}
+
+message ShareThemeBackdrops {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  int32 hash = 3;
+  repeated ShareThemeBackdropOption backdrops = 4;
+}
+
+message InputWalletCardSticker {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  MediaAreaCoordinates coordinates = 3;
+  string nft_address = 4;
+}
+
+message wallet_CardSticker {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  MediaAreaCoordinates coordinates = 3;
+  wallet_NftItem nft = 4;
+}
+
+message wallet_Card {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  repeated wallet_CardSticker stickers = 3;
+  wallet_NftItem bg_nft_item = 4;
+  string address = 5;
+  int64 balance = 6;
+}
+
+message payments_StarGiftDepositPayload {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  string nft_address = 3;
+  bytes payload = 4;
+  int64 amount = 5;
+}
+
+message UserWallet {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  string address = 3;
+  int64 balance = 4;
+  bytes public_key = 5;
+  bytes state_init = 6;
+}
+
+message WidgetQueryType {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  bool with_wallet = 3;
+  UserWallet wallet = 4;
+  DataJSON sign_data = 5;
+  string msg_hash = 6;
+}
+
+message messages_BotWidgetQueryAnswer {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  google.protobuf.StringValue result = 3;
+}
+
+message messages_WidgetPublicData {
+  string predicate_name = 1;
+  TLConstructor constructor = 2;
+  int32 period = 3;
+  int64 hash = 4;
+  string data = 5;
+}
+
+// messageActionNoPaidMessagesTokenUsed
+message TL_messageActionNoPaidMessagesTokenUsed {
+  MessageAction data2 = 1;
+}
+
+// walletTransactionPeerChannel
+message TL_walletTransactionPeerChannel {
+  WalletTransactionPeer data2 = 1;
+}
+
+// walletTransactionPeerTelegramGift
+message TL_walletTransactionPeerTelegramGift {
+  WalletTransactionPeer data2 = 1;
+}
+
+// exportedNoPaidMessagesToken
+message TL_exportedNoPaidMessagesToken {
+  ExportedNoPaidMessagesToken data2 = 1;
+}
+
+// shareThemeDefault
+message TL_shareThemeDefault {
+  ShareTheme data2 = 1;
+}
+
+// shareThemeEmojiBackdrop
+message TL_shareThemeEmojiBackdrop {
+  ShareTheme data2 = 1;
+}
+
+// shareThemeGift
+message TL_shareThemeGift {
+  ShareTheme data2 = 1;
+}
+
+// inputShareThemeGift
+message TL_inputShareThemeGift {
+  ShareTheme data2 = 1;
+}
+
+// shareThemeBackdropOption
+message TL_shareThemeBackdropOption {
+  ShareThemeBackdropOption data2 = 1;
+}
+
+// shareThemeBackdropsNotModified
+message TL_shareThemeBackdropsNotModified {
+  ShareThemeBackdrops data2 = 1;
+}
+
+// shareThemeBackdrops
+message TL_shareThemeBackdrops {
+  ShareThemeBackdrops data2 = 1;
+}
+
+// inputWalletCardSticker
+message TL_inputWalletCardSticker {
+  InputWalletCardSticker data2 = 1;
+}
+
+// wallet.cardSticker
+message TL_wallet_cardSticker {
+  wallet_CardSticker data2 = 1;
+}
+
+// wallet.card
+message TL_wallet_card {
+  wallet_Card data2 = 1;
+}
+
+// payments.starGiftDepositPayload
+message TL_payments_starGiftDepositPayload {
+  payments_StarGiftDepositPayload data2 = 1;
+}
+
+// inputMediaWidget
+message TL_inputMediaWidget {
+  InputMedia data2 = 1;
+}
+
+// inputMediaWidgetId
+message TL_inputMediaWidgetId {
+  InputMedia data2 = 1;
+}
+
+// messageMediaWidget
+message TL_messageMediaWidget {
+  MessageMedia data2 = 1;
+}
+
+// updateEditForumTopic
+message TL_updateEditForumTopic {
+  Update data2 = 1;
+}
+
+// updateBotWidgetQuery
+message TL_updateBotWidgetQuery {
+  Update data2 = 1;
+}
+
+// updateInlineBotWidgetQuery
+message TL_updateInlineBotWidgetQuery {
+  Update data2 = 1;
+}
+
+// updateBotWidgetCopyQuery
+message TL_updateBotWidgetCopyQuery {
+  Update data2 = 1;
+}
+
+// updateMessageWidgetData
+message TL_updateMessageWidgetData {
+  Update data2 = 1;
+}
+
+// updateTranscribedAudioFile
+message TL_updateTranscribedAudioFile {
+  Update data2 = 1;
+}
+
+// inputBotInlineMessageWidget
+message TL_inputBotInlineMessageWidget {
+  InputBotInlineMessage data2 = 1;
+}
+
+// inputBotInlineMessageWidgetId
+message TL_inputBotInlineMessageWidgetId {
+  InputBotInlineMessage data2 = 1;
+}
+
+// botInlineMessageWidget
+message TL_botInlineMessageWidget {
+  BotInlineMessage data2 = 1;
+}
+
+// userWallet
+message TL_userWallet {
+  UserWallet data2 = 1;
+}
+
+// widgetQueryTypeData
+message TL_widgetQueryTypeData {
+  WidgetQueryType data2 = 1;
+}
+
+// widgetQueryTypeSignData
+message TL_widgetQueryTypeSignData {
+  WidgetQueryType data2 = 1;
+}
+
+// widgetQueryTypeSentTransaction
+message TL_widgetQueryTypeSentTransaction {
+  WidgetQueryType data2 = 1;
+}
+
+// messages.botWidgetQueryAnswer
+message TL_messages_botWidgetQueryAnswer {
+  messages_BotWidgetQueryAnswer data2 = 1;
+}
+
+// messages.widgetPublicDataNotModified
+message TL_messages_widgetPublicDataNotModified {
+  messages_WidgetPublicData data2 = 1;
+}
+
+// messages.widgetPublicData
+message TL_messages_widgetPublicData {
+  messages_WidgetPublicData data2 = 1;
 }

@@ -3654,6 +3654,7 @@ message TL_channels_toggleForum {
   InputChannel channel = 3;
   Bool enabled = 4;
   Bool tabs = 5;
+  Bool sidebar = 6;
 }
 
 message TL_channels_toggleAntiSpam {
@@ -4316,6 +4317,7 @@ message TL_payments_getStarGiftWithdrawalUrl {
   TLConstructor constructor = 1;
   InputSavedStarGift stargift = 3;
   InputCheckPasswordSRP password = 4;
+  bytes tmp_password = 5;
 }
 
 message TL_payments_toggleChatStarGiftNotifications {
@@ -8176,4 +8178,111 @@ service RPCWebPage {
 
 service RPCBiz {
   rpc biz_invokeBizDataRaw(TL_biz_invokeBizDataRaw) returns (BizDataRaw) {}
+}
+
+message TL_contacts_exportNoPaidMessagesToken {
+  TLConstructor constructor = 1;
+  bool revoke = 3;
+  bool temporary = 4;
+}
+
+message TL_contacts_importNoPaidMessagesToken {
+  TLConstructor constructor = 1;
+  InputUser user_id = 3;
+  string token = 4;
+}
+
+message TL_messages_setShareTheme {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+  ShareTheme theme = 4;
+}
+
+message TL_messages_getShareThemeBackdrops {
+  TLConstructor constructor = 1;
+  int32 hash = 3;
+}
+
+message TL_payments_withdrawStarGift {
+  TLConstructor constructor = 1;
+  bool keep_on_profile = 3;
+  InputSavedStarGift stargift = 4;
+  bytes tmp_password = 5;
+}
+
+message TL_payments_depositStarGift {
+  TLConstructor constructor = 1;
+  bool hide_sender = 3;
+  InputPeer peer = 4;
+  string slug = 5;
+}
+
+message TL_payments_displayStarGift {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+  string slug = 4;
+}
+
+message TL_payments_deleteStarGift {
+  TLConstructor constructor = 1;
+  InputSavedStarGift stargift = 3;
+}
+
+message TL_wallet_setCardStickers {
+  TLConstructor constructor = 1;
+  repeated InputWalletCardSticker stickers = 3;
+  google.protobuf.StringValue bg_nft_address = 4;
+}
+
+message TL_messages_getBotWidgetQueryAnswer {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+  int32 msg_id = 4;
+  WidgetQueryType query_type = 5;
+  bytes data = 6;
+}
+
+message TL_messages_setBotWidgetQueryAnswer {
+  TLConstructor constructor = 1;
+  int64 query_id = 3;
+  google.protobuf.StringValue result = 4;
+}
+
+message TL_messages_editMessageWidgetData {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+  int32 id = 4;
+  google.protobuf.StringValue public_data = 5;
+  google.protobuf.StringValue chat_data = 6;
+}
+
+message TL_messages_editInlineBotMessageWidgetData {
+  TLConstructor constructor = 1;
+  InputBotInlineMessageID id = 3;
+  google.protobuf.StringValue public_data = 4;
+  google.protobuf.StringValue chat_data = 5;
+}
+
+message TL_messages_editWidgetData {
+  TLConstructor constructor = 1;
+  int64 widget_id = 3;
+  string public_data = 4;
+  google.protobuf.Int32Value cache_time = 5;
+}
+
+message TL_messages_getWidgetPublicData {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+  int32 msg_id = 4;
+  int64 hash = 5;
+}
+
+message TL_messages_transcribeAudioFile {
+  TLConstructor constructor = 1;
+  InputFile file = 3;
+}
+
+message TL_messages_getTranscriptionLangs {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
 }
