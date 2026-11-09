@@ -68,7 +68,7 @@ func (c *SecretChatsCore) send(in *sendInput) (*secretchat.Sent, error) {
 	}
 	var file *secretchat.File
 	if in.file != nil {
-		if file, err = store.ResolveFile(c.ctx, c.svcCtx.Dao.DfsClient, c.MD.UserId, in.file); err != nil {
+		if file, err = store.ResolveFile(c.ctx, c.svcCtx.Dao.DfsClient, c.MD.PermAuthKeyId, in.file); err != nil {
 			return nil, c.rpcError(in.name, err)
 		}
 	}

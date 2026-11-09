@@ -31,8 +31,10 @@ type Dfs interface {
 // ResolveFile turns an InputEncryptedFile into a stored file. An upload is
 // stored and recorded with its key fingerprint and a fresh access hash; an
 // inputEncryptedFile (a forwarded file, not stored twice,
-// core.telegram.org/api/end-to-end) must name a stored file.
-func (s *Store) ResolveFile(ctx context.Context, store Dfs, creator int64, in *mtproto.InputEncryptedFile) (*File, error) {
+// core.telegram.org/api/end-to-end) must name a stored file. owner is the
+// authorization that saved the parts: upload.saveFilePart keeps them under
+// its perm auth key.
+func (s *Store) ResolveFile(ctx context.Context, store Dfs, owner int64, in *mtproto.InputEncryptedFile) (*File, error) {
 	switch in.GetPredicateName() {
 	case mtproto.Predicate_inputEncryptedFileEmpty, "":
 		return nil, mtproto.ErrFileEmtpy
@@ -46,7 +48,7 @@ func (s *Store) ResolveFile(ctx context.Context, store Dfs, creator int64, in *m
 		}
 		return f, nil
 	}
-	stored, err := store.DfsUploadEncryptedFileV2(ctx, &dfs.TLDfsUploadEncryptedFileV2{Creator: creator, File: in})
+	stored, err := store.DfsUploadEncryptedFileV2(ctx, &dfs.TLDfsUploadEncryptedFileV2{Creator: owner, File: in})
 	if err != nil {
 		return nil, err
 	}

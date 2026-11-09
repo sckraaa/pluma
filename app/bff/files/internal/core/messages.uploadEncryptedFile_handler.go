@@ -45,7 +45,7 @@ func (c *FilesCore) MessagesUploadEncryptedFile(in *mtproto.TLMessagesUploadEncr
 		c.Logger.Errorf("messages.uploadEncryptedFile - %v", err)
 		return nil, mtproto.ErrInternalServerError
 	}
-	file, err := store.ResolveFile(c.ctx, c.svcCtx.Dao.DfsClient, c.MD.UserId, in.GetFile())
+	file, err := store.ResolveFile(c.ctx, c.svcCtx.Dao.DfsClient, c.MD.PermAuthKeyId, in.GetFile())
 	if err != nil {
 		c.Logger.Errorf("messages.uploadEncryptedFile - %v", err)
 		if _, ok := status.FromError(err); ok {
