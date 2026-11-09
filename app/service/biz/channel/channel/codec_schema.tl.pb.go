@@ -306,6 +306,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1811095406,
 		}
 	},
+	-1144851290: func() mtproto.TLObject { // 0xbbc2f4a6 pluma: task 065
+		return &TLChannelSetChatWallpaper{
+			Constructor: -1144851290,
+		}
+	},
+	-653877279: func() mtproto.TLObject { // 0xd9069fe1 pluma: task 065
+		return &TLChannelSetChatTheme{
+			Constructor: -653877279,
+		}
+	},
 	-922563101: func() mtproto.TLObject { // 0xc902cde3 pluma: task 044
 		return &TLChannelToggleSetting{
 			Constructor: -922563101,
@@ -4371,6 +4381,103 @@ func (m *TLChannelSetHistoryTTL) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.PermAuthKeyId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		m.TtlPeriod = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSetChatWallpaper (pluma: task 065)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSetChatWallpaper) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xbbc2f4a6:
+		x.UInt(0xbbc2f4a6)
+
+		// set flags
+		var flags uint32 = 0
+		if m.GetWallpaper() != nil {
+			flags |= 1 << 0
+		}
+		x.UInt(flags)
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		if m.GetWallpaper() != nil {
+			m.GetWallpaper().Encode(x, layer)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSetChatWallpaper) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSetChatWallpaper) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xbbc2f4a6:
+
+		flags := dBuf.UInt()
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		if (flags & (1 << 0)) != 0 {
+			m.Wallpaper = &mtproto.WallPaper{}
+			m.Wallpaper.Decode(dBuf)
+		}
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSetChatTheme (pluma: task 065)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSetChatTheme) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xd9069fe1:
+		x.UInt(0xd9069fe1)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetThemeEmoticon())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSetChatTheme) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSetChatTheme) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xd9069fe1:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.ThemeEmoticon = dBuf.String()
 		return dBuf.GetError()
 
 	default:

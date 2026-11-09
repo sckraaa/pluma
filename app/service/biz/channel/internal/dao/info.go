@@ -16,10 +16,14 @@
 package dao
 
 import (
+	"fmt"
+
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/historyttl"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
+	"google.golang.org/protobuf/proto"
 )
 
 // The title and the description of a channel (task 044): written in the
@@ -117,6 +121,84 @@ func (d *Dao) SetHistoryTTL(b *userbox.Box, channelId int64, period int32) (*Cha
 	}
 	change := &ChannelChange{ChannelId: channelId, TTL: historyttl.Update(mtproto.MakePeerChannel(channelId), period)}
 	if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, r.Broadcast, historyttl.Action(period, 0)); err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {
+		return nil, err
+	}
+	return change, nil
+}
+
+// SetChatWallpaper gives the channel the wallpaper w, nil to take it away,
+// for those allowed to change its info (channelperm, ChangeInfo: Android
+// ChannelColorActivity and tdesktop setExistingForPeer offer it to admins with
+// that right). Setting one writes the service message messageActionSetChatWallPaper
+// (Android MessageObject: ActionSetWallpaperForThisChannel); taking it
+// away only tells the members, as the clients show nothing for it
+// (tdesktop resetForPeer has no message to show).
+func (d *Dao) SetChatWallpaper(b *userbox.Box, channelId int64, w *mtproto.WallPaper) (*ChannelChange, error) {
+	ch, err := openChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	r, err := infoEditor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	var data []byte
+	if w != nil {
+		if data, err = proto.Marshal(w); err != nil {
+			return nil, fmt.Errorf("channel: encode a wallpaper: %w", err)
+		}
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET wallpaper = ? WHERE id = ?", data, channelId); err != nil {
+		return nil, err
+	}
+	change := &ChannelChange{
+		ChannelId: channelId,
+		Peer:      appearance.PeerWallpaperUpdate(mtproto.MakePeerChannel(channelId), w, false),
+	}
+	if w == nil {
+		return change, nil
+	}
+	action := mtproto.MakeTLMessageActionSetChatWallPaper(&mtproto.MessageAction{Wallpaper: w}).To_MessageAction()
+	if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, r.Broadcast, action); err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {
+		return nil, err
+	}
+	return change, nil
+}
+
+// SetChatTheme gives the channel a chat theme, "" for none: the service
+// message messageActionSetChatTheme and updateChannel for the members, who
+// read channelFull.theme_emoticon. EMOJI_NOT_MODIFIED for the theme it has
+// (core.telegram.org/method/messages.setChatTheme).
+func (d *Dao) SetChatTheme(b *userbox.Box, channelId int64, emoticon string) (*ChannelChange, error) {
+	ch, err := openChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	r, err := infoEditor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	var current string
+	if err = b.Tx().QueryRow(&current, "SELECT theme_emoticon FROM channels WHERE id = ?", channelId); err != nil {
+		return nil, err
+	}
+	if current == emoticon {
+		return nil, mtproto.ErrEmojiNotModified
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET theme_emoticon = ? WHERE id = ?", emoticon, channelId); err != nil {
+		return nil, err
+	}
+	change := &ChannelChange{ChannelId: channelId, Reload: true}
+	action := mtproto.MakeTLMessageActionSetChatTheme(&mtproto.MessageAction{
+		Theme: mtproto.MakeTLChatTheme(&mtproto.ChatTheme{Emoticon: emoticon}).To_ChatTheme(),
+	}).To_MessageAction()
+	if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, r.Broadcast, action); err != nil {
 		return nil, err
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {

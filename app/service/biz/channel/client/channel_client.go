@@ -79,6 +79,8 @@ type ChannelClient interface {
 	ChannelReadTopicMentions(ctx context.Context, in *channel.TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error)
 	ChannelUnpinAllTopicMessages(ctx context.Context, in *channel.TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error)
 	ChannelSetHistoryTTL(ctx context.Context, in *channel.TLChannelSetHistoryTTL) (*mtproto.Updates, error)
+	ChannelSetChatWallpaper(ctx context.Context, in *channel.TLChannelSetChatWallpaper) (*mtproto.Updates, error)
+	ChannelSetChatTheme(ctx context.Context, in *channel.TLChannelSetChatTheme) (*mtproto.Updates, error)
 	ChannelToggleSetting(ctx context.Context, in *channel.TLChannelToggleSetting) (*mtproto.Updates, error)
 	ChannelSetAvailableReactions(ctx context.Context, in *channel.TLChannelSetAvailableReactions) (*mtproto.Updates, error)
 	ChannelSetDiscussionGroup(ctx context.Context, in *channel.TLChannelSetDiscussionGroup) (*mtproto.Bool, error)
@@ -864,4 +866,26 @@ func (m *defaultChannelClient) ChannelSetHistoryTTL(ctx context.Context, in *cha
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetHistoryTTL(ctx, in)
+}
+
+// ChannelSetChatWallpaper
+// channel.setChatWallpaper flags:# self_id:long perm_auth_key_id:long channel_id:long wallpaper:flags.0?WallPaper = Updates;
+func (m *defaultChannelClient) ChannelSetChatWallpaper(ctx context.Context, in *channel.TLChannelSetChatWallpaper) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetChatWallpaper(ctx, in)
+}
+
+// ChannelSetChatTheme
+// channel.setChatTheme self_id:long perm_auth_key_id:long channel_id:long theme_emoticon:string = Updates;
+func (m *defaultChannelClient) ChannelSetChatTheme(ctx context.Context, in *channel.TLChannelSetChatTheme) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetChatTheme(ctx, in)
 }

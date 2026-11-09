@@ -989,3 +989,31 @@ func (s *Service) ChannelSetHistoryTTL(ctx context.Context, request *channel.TLC
 
 	return r, err
 }
+
+// ChannelSetChatWallpaper
+// channel.setChatWallpaper flags:# self_id:long perm_auth_key_id:long channel_id:long wallpaper:flags.0?WallPaper = Updates;
+func (s *Service) ChannelSetChatWallpaper(ctx context.Context, request *channel.TLChannelSetChatWallpaper) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setChatWallpaper - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetChatWallpaper(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelSetChatTheme
+// channel.setChatTheme self_id:long perm_auth_key_id:long channel_id:long theme_emoticon:string = Updates;
+func (s *Service) ChannelSetChatTheme(ctx context.Context, request *channel.TLChannelSetChatTheme) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setChatTheme - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetChatTheme(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

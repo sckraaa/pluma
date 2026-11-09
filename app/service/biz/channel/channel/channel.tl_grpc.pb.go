@@ -89,6 +89,8 @@ const (
 	RPCChannel_ChannelReadTopicMentions_FullMethodName                = "/channel.RPCChannel/channel_readTopicMentions"
 	RPCChannel_ChannelUnpinAllTopicMessages_FullMethodName            = "/channel.RPCChannel/channel_unpinAllTopicMessages"
 	RPCChannel_ChannelSetHistoryTTL_FullMethodName                    = "/channel.RPCChannel/channel_setHistoryTTL"
+	RPCChannel_ChannelSetChatWallpaper_FullMethodName                 = "/channel.RPCChannel/channel_setChatWallpaper"
+	RPCChannel_ChannelSetChatTheme_FullMethodName                     = "/channel.RPCChannel/channel_setChatTheme"
 	RPCChannel_ChannelToggleSetting_FullMethodName                    = "/channel.RPCChannel/channel_toggleSetting"
 	RPCChannel_ChannelSetAvailableReactions_FullMethodName            = "/channel.RPCChannel/channel_setAvailableReactions"
 	RPCChannel_ChannelSetDiscussionGroup_FullMethodName               = "/channel.RPCChannel/channel_setDiscussionGroup"
@@ -215,6 +217,10 @@ type RPCChannelClient interface {
 	ChannelUnpinAllTopicMessages(ctx context.Context, in *TLChannelUnpinAllTopicMessages, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 063
 	ChannelSetHistoryTTL(ctx context.Context, in *TLChannelSetHistoryTTL, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 065
+	ChannelSetChatWallpaper(ctx context.Context, in *TLChannelSetChatWallpaper, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 065
+	ChannelSetChatTheme(ctx context.Context, in *TLChannelSetChatTheme, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -787,6 +793,26 @@ func (c *rPCChannelClient) ChannelSetHistoryTTL(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelSetChatWallpaper(ctx context.Context, in *TLChannelSetChatWallpaper, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetChatWallpaper_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSetChatTheme(ctx context.Context, in *TLChannelSetChatTheme, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetChatTheme_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelToggleSetting(ctx context.Context, in *TLChannelToggleSetting, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -1055,6 +1081,10 @@ type RPCChannelServer interface {
 	ChannelUnpinAllTopicMessages(context.Context, *TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 063
 	ChannelSetHistoryTTL(context.Context, *TLChannelSetHistoryTTL) (*mtproto.Updates, error)
+	// pluma: task 065
+	ChannelSetChatWallpaper(context.Context, *TLChannelSetChatWallpaper) (*mtproto.Updates, error)
+	// pluma: task 065
+	ChannelSetChatTheme(context.Context, *TLChannelSetChatTheme) (*mtproto.Updates, error)
 	// pluma: task 044
 	ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error)
 	// pluma: task 044
@@ -1254,6 +1284,12 @@ func (UnimplementedRPCChannelServer) ChannelUnpinAllTopicMessages(context.Contex
 }
 func (UnimplementedRPCChannelServer) ChannelSetHistoryTTL(context.Context, *TLChannelSetHistoryTTL) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetHistoryTTL not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSetChatWallpaper(context.Context, *TLChannelSetChatWallpaper) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetChatWallpaper not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSetChatTheme(context.Context, *TLChannelSetChatTheme) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetChatTheme not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleSetting(context.Context, *TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleSetting not implemented")
@@ -2277,6 +2313,42 @@ func _RPCChannel_ChannelSetHistoryTTL_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelSetChatWallpaper_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSetChatWallpaper)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSetChatWallpaper(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSetChatWallpaper_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSetChatWallpaper(ctx, req.(*TLChannelSetChatWallpaper))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSetChatTheme_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSetChatTheme)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSetChatTheme(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSetChatTheme_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSetChatTheme(ctx, req.(*TLChannelSetChatTheme))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelToggleSetting_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelToggleSetting)
 	if err := dec(in); err != nil {
@@ -2783,6 +2855,14 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_setHistoryTTL",
 			Handler:    _RPCChannel_ChannelSetHistoryTTL_Handler,
+		},
+		{
+			MethodName: "channel_setChatWallpaper",
+			Handler:    _RPCChannel_ChannelSetChatWallpaper_Handler,
+		},
+		{
+			MethodName: "channel_setChatTheme",
+			Handler:    _RPCChannel_ChannelSetChatTheme_Handler,
 		},
 		{
 			MethodName: "channel_toggleSetting",
