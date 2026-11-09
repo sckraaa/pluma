@@ -89,6 +89,9 @@ linters:
       # always carry the standard "Code generated" header.
       - \.tl\.pb\.go$
       - \.tl\..*\.pb\.go$
+      # The registry of predicate names of the same generators: names like
+      # wallet_fetchEncryptedSecretPhrasePart are no credentials.
+      - class_name_registers\.go$
 
 formatters:
   enable:
