@@ -10576,7 +10576,7 @@ message ReplyMarkup {
   bool resize = 6;
   bool persistent = 7;
   bool force_reply = 8;
-  repeated KeyboardButtonRow rows_VECTORKEYBOARDBUTTONROW = 9;
+  repeated KeyboardButtonRow rows = 9;
   repeated KeyboardInlineButtonRow rows_VECTORKEYBOARDINLINEBUTTONROW = 10;
 }
 

@@ -196809,11 +196809,11 @@ func (m *TLReplyKeyboardMarkup) GetPersistent() bool  { return m.Data2.Persisten
 func (m *TLReplyKeyboardMarkup) SetForceReply(v bool) { m.Data2.ForceReply = v }
 func (m *TLReplyKeyboardMarkup) GetForceReply() bool  { return m.Data2.ForceReply }
 
-func (m *TLReplyKeyboardMarkup) SetRows_VECTORKEYBOARDBUTTONROW(v []*KeyboardButtonRow) {
-	m.Data2.Rows_VECTORKEYBOARDBUTTONROW = v
+func (m *TLReplyKeyboardMarkup) SetRows(v []*KeyboardButtonRow) {
+	m.Data2.Rows = v
 }
-func (m *TLReplyKeyboardMarkup) GetRows_VECTORKEYBOARDBUTTONROW() []*KeyboardButtonRow {
-	return m.Data2.Rows_VECTORKEYBOARDBUTTONROW
+func (m *TLReplyKeyboardMarkup) GetRows() []*KeyboardButtonRow {
+	return m.Data2.Rows
 }
 
 func (m *TLReplyKeyboardMarkup) SetPlaceholder(v *wrapperspb.StringValue) { m.Data2.Placeholder = v }
@@ -196866,7 +196866,7 @@ func (m *TLReplyKeyboardMarkup) Encode(x *EncodeBuf, layer int32) error {
 				sz     = int32(0)
 				offset = x.GetOffset()
 			)
-			list7 := m.GetRows_VECTORKEYBOARDBUTTONROW()
+			list7 := m.GetRows()
 			x.Int(int32(len(list7)))
 			for _, v := range list7 {
 				if err := v.Encode(x, layer); err != nil { // pluma: never send a partial vector
@@ -196926,7 +196926,7 @@ func (m *TLReplyKeyboardMarkup) Decode(dBuf *DecodeBuf) error {
 			v7[i] = &KeyboardButtonRow{}
 			v7[i].Decode(dBuf)
 		}
-		m.SetRows_VECTORKEYBOARDBUTTONROW(v7)
+		m.SetRows(v7)
 
 		if (flags & (1 << 3)) != 0 {
 			m.SetPlaceholder(&wrapperspb.StringValue{Value: dBuf.String()})
@@ -196967,11 +196967,11 @@ func (m *TLReplyInlineMarkup) GetRows_VECTORKEYBOARDINLINEBUTTONROW() []*Keyboar
 	return m.Data2.Rows_VECTORKEYBOARDINLINEBUTTONROW
 }
 
-func (m *TLReplyInlineMarkup) SetRows_VECTORKEYBOARDBUTTONROW(v []*KeyboardButtonRow) {
-	m.Data2.Rows_VECTORKEYBOARDBUTTONROW = v
+func (m *TLReplyInlineMarkup) SetRows(v []*KeyboardButtonRow) {
+	m.Data2.Rows = v
 }
-func (m *TLReplyInlineMarkup) GetRows_VECTORKEYBOARDBUTTONROW() []*KeyboardButtonRow {
-	return m.Data2.Rows_VECTORKEYBOARDBUTTONROW
+func (m *TLReplyInlineMarkup) GetRows() []*KeyboardButtonRow {
+	return m.Data2.Rows
 }
 
 func (m *TLReplyInlineMarkup) GetPredicateName() string {
@@ -197026,7 +197026,7 @@ func (m *TLReplyInlineMarkup) Encode(x *EncodeBuf, layer int32) error {
 				sz     = int32(0)
 				offset = x.GetOffset()
 			)
-			list7 := m.GetRows_VECTORKEYBOARDBUTTONROW()
+			list7 := m.GetRows()
 			x.Int(int32(len(list7)))
 			for _, v := range list7 {
 				if err := v.Encode(x, layer); err != nil { // pluma: never send a partial vector
@@ -197088,7 +197088,7 @@ func (m *TLReplyInlineMarkup) Decode(dBuf *DecodeBuf) error {
 			v7[i] = &KeyboardButtonRow{}
 			v7[i].Decode(dBuf)
 		}
-		m.SetRows_VECTORKEYBOARDBUTTONROW(v7)
+		m.SetRows(v7)
 
 		return dBuf.GetError()
 
