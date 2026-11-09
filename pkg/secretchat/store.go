@@ -271,8 +271,11 @@ type Discard struct {
 	Server         bool
 }
 
-// Discard ends a chat and drops what is queued for it: a client ignores the
-// messages of a discarded chat (Android SecretChatHelper.decryptMessage).
+// Discard ends a chat. What is queued for it stays until it is confirmed or
+// expires, as any queued message: a difference is decrypted before its
+// updates are applied (Android MessagesController.getDifference), so the
+// last messages of a chat still reach a client that was offline. Only a
+// discard with the history drops them, since the client deletes the chat.
 // It returns the chat and whether it was still only requested.
 func (s *Store) Discard(ctx context.Context, d Discard) (c *Chat, wasRequested bool, err error) {
 	err = s.tx(ctx, func(tx *sql.Tx) error {
@@ -294,8 +297,10 @@ func (s *Store) Discard(ctx context.Context, d Discard) (c *Chat, wasRequested b
 			StateDiscarded, d.HistoryDeleted, by, now, c.Id); err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE chat_id = ?", c.Id); err != nil {
-			return err
+		if d.HistoryDeleted {
+			if _, err = tx.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE chat_id = ?", c.Id); err != nil {
+				return err
+			}
 		}
 		c.State, c.HistoryDeleted, c.DiscardedBy, c.GA, c.GB, c.StateAt = StateDiscarded, d.HistoryDeleted, by, nil, nil, now
 		return nil

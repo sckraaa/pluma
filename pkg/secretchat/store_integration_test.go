@@ -241,8 +241,27 @@ func TestAckAndRead(t *testing.T) {
 	}
 }
 
-// TestDiscard: the queue goes with the chat, the second discard is refused,
-// sending is refused, and only the other end is told.
+// TestDiscardKeepsQueue: without the history, what the peer sent before the
+// end still reaches a device that was offline.
+func TestDiscardKeepsQueue(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(ctx, t)
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	if _, err := s.Send(ctx, Send{From: alice, ChatId: c.Id, AccessHash: c.AccessHash, RandomId: 1, Data: []byte("x")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Discard(ctx, Discard{By: alice, ChatId: c.Id}); err != nil {
+		t.Fatal(err)
+	}
+	d, err := s.Difference(ctx, DifferenceInput{Device: bob1, Date: s.unix()})
+	if err != nil || len(d.Messages) != 1 || d.Messages[0].RandomId != 1 {
+		t.Fatalf("difference after the discard: %+v %v", d, err)
+	}
+}
+
+// TestDiscard: the queue goes with a discard that deletes the history, the
+// second discard is refused, sending is refused, and only the other end is
+// told.
 func TestDiscard(t *testing.T) {
 	ctx := context.Background()
 	s, db := newTestStore(ctx, t)
