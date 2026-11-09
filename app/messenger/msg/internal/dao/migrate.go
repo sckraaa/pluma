@@ -22,6 +22,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -33,10 +34,6 @@ import (
 // deactivates the group with migrated_to and writes chatMigrateTo into the
 // creator's box. The other members get their chatMigrateTo and the
 // supergroup's dialog by inbox events of the same transaction.
-
-// ChannelsLimit is the most channels and supergroups one user is in
-// (channels_limit_default, as biz channel counts it).
-const ChannelsLimit = 500
 
 // MigrateAdminRights are the admin rights of an admin of a basic group in
 // the supergroup it becomes: what a basic group's admin may do, as tdesktop
@@ -71,7 +68,7 @@ type migrateChatRow struct {
 // copy of chatMigrateTo shares), its creator (CHAT_ADMIN_REQUIRED for
 // another). A group moved already gives its supergroup again, so that a
 // repeat after a failure makes no second one; a deleted group is
-// CHAT_ID_INVALID; CHANNELS_TOO_MUCH when the creator is in ChannelsLimit
+// CHAT_ID_INVALID; CHANNELS_TOO_MUCH when the creator is at the limit of channels
 // channels.
 //
 // The supergroup takes the group's title, description, photo, default
@@ -97,12 +94,16 @@ func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat, dialogMessa
 	case rows[0].Deactivated:
 		return nil, mtproto.ErrChatIdInvalid
 	}
-	var joined []int64
-	if err := b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?",
-		b.UserId(), ChannelsLimit); err != nil {
+	limit, err := premium.ChannelsLimit(b.Tx(), b.UserId(), b.Date())
+	if err != nil {
 		return nil, err
 	}
-	if len(joined) >= ChannelsLimit {
+	var joined []int64
+	if err := b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?",
+		b.UserId(), limit); err != nil {
+		return nil, err
+	}
+	if len(joined) >= limit {
 		return nil, mtproto.ErrChannelsTooMuch
 	}
 	var maxIds []int32

@@ -28,6 +28,16 @@ import (
 // UploadSaveBigFilePart
 // upload.saveBigFilePart#de7b673d file_id:long file_part:int file_total_parts:int bytes:bytes = Bool;
 func (c *FilesCore) UploadSaveBigFilePart(in *mtproto.TLUploadSaveBigFilePart) (*mtproto.Bool, error) {
+	if in.FileTotalParts > freeFileParts {
+		premium, err := c.isPremium()
+		if err != nil {
+			c.Logger.Errorf("upload.saveBigFilePart - user %d: %v", c.MD.UserId, err)
+			return nil, err
+		}
+		if !premium {
+			return nil, mtproto.ErrFilePartsInvalid
+		}
+	}
 	_, err := c.svcCtx.Dao.DfsClient.DfsWriteFilePartData(c.ctx, &dfs.TLDfsWriteFilePartData{
 		Creator:        c.MD.PermAuthKeyId,
 		FileId:         in.FileId,

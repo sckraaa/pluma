@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -426,7 +427,11 @@ func (d *Dao) EditCreator(b *userbox.Box, channelId, userId int64) (*ChannelChan
 		if err != nil {
 			return nil, err
 		}
-		if n >= PublicChannelsLimit {
+		limit, err := premium.PublicChannelsLimit(b.Tx(), userId, b.Date())
+		if err != nil {
+			return nil, err
+		}
+		if n >= limit {
 			return nil, mtproto.ErrChannelsAdminPublicTooMuch
 		}
 	}

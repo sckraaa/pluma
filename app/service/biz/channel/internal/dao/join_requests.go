@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -265,11 +266,15 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 			drop = append(drop, r.UserId)
 			continue
 		}
-		var joined []int64
-		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", r.UserId, ChannelsLimit); err != nil {
+		limit, err := premium.ChannelsLimit(b.Tx(), r.UserId, b.Date())
+		if err != nil {
 			return err
 		}
-		if len(joined) >= ChannelsLimit {
+		var joined []int64
+		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", r.UserId, limit); err != nil {
+			return err
+		}
+		if len(joined) >= limit {
 			if !all {
 				return mtproto.ErrUserChannelsTooMuch
 			}

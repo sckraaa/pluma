@@ -57,8 +57,7 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		return nil, err
 	}
 
-	if len(in.Message) > 4000 {
-		err = mtproto.ErrMediaCaptionTooLong
+	if err = c.checkCaption(in.Message); err != nil {
 		c.Logger.Errorf("messages.sendMedia: %v", err)
 		return nil, err
 	}

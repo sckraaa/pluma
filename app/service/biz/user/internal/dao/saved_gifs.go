@@ -29,7 +29,7 @@ import (
 // oldest.
 const (
 	SavedGifsLimit        = 200
-	SavedGifsLimitPremium = 200
+	SavedGifsLimitPremium = 400
 )
 
 // SavedGifIdList returns the ids of userId's saved GIFs, the newest first.

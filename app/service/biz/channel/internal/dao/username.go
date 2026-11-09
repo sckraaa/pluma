@@ -20,6 +20,7 @@ import (
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -31,8 +32,9 @@ import (
 // PublicChannelsLimit is the most public channels one user may own:
 // channels_public_limit_default of the clients and Telegram (10;
 // core.telegram.org/api/config; Android MessagesController.java:1608, iOS
-// UserLimitsConfiguration.swift:42), the limit the owner kept (task 035).
-const PublicChannelsLimit = 10
+// UserLimitsConfiguration.swift:42), the limit the owner kept (task 035);
+// premium.PublicChannelsLimit raises it with Premium (task 025).
+const PublicChannelsLimit = premium.PublicLimitFree
 
 // usernameEditor checks that b's owner created the channel: only the
 // creator gives a channel its public link, as Android offers it only to the
@@ -106,7 +108,11 @@ func (d *Dao) CheckUsername(b *userbox.Box, channelId int64, username string) (b
 		if err != nil {
 			return false, err
 		}
-		if n >= PublicChannelsLimit {
+		limit, err := premium.PublicChannelsLimit(b.Tx(), b.UserId(), b.Date())
+		if err != nil {
+			return false, err
+		}
+		if n >= limit {
 			return false, mtproto.ErrChannelsAdminPublicTooMuch
 		}
 	}
@@ -167,7 +173,11 @@ func (d *Dao) UpdateUsername(b *userbox.Box, channelId int64, username string) (
 		if err != nil {
 			return nil, err
 		}
-		if n >= PublicChannelsLimit {
+		limit, err := premium.PublicChannelsLimit(b.Tx(), b.UserId(), b.Date())
+		if err != nil {
+			return nil, err
+		}
+		if n >= limit {
 			return nil, mtproto.ErrChannelsAdminPublicTooMuch
 		}
 	}
