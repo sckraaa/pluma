@@ -100,10 +100,17 @@ func (p Protocol) TL() *mtproto.PhoneCallProtocol {
 }
 
 // Negotiate returns the protocol of the call that clients a (the admin) and
-// b (the participant) can both speak: their common layers and the first of
-// a's library versions that b also has. The clients start the library named
-// first (Telegram-iOS CallSessionManager.swift:1226, versions[0]), so the
-// answer names just that one. ok is false when they have none in common.
+// b (the participant) can both speak: their common layers and one library
+// version. The clients start the library named first (Telegram-iOS
+// CallSessionManager.swift:1226, Android VoIPService.java:3480, tdesktop
+// calls_call.cpp:1045), so the answer names just that one: the greatest of
+// the common versions compared as strings, the one Telegram-iOS and tdesktop
+// list first (the sorted registry reversed: OngoingCallThreadLocalContext.mm:1651
+// and CallSessionManager.swift:558, calls_call.cpp:195). The order of the
+// caller's list cannot decide it: Android sends the registry unreversed,
+// "10.0.0" first (tgcalls Instance.cpp, std::map), and drops the camera of
+// its outgoing call on a version that sorts below "2.7.7"
+// (VoIPService.java:3465). ok is false when they have none in common.
 func Negotiate(a, b Protocol) (out Protocol, ok bool) {
 	lo, hi := a.MinLayer, a.MaxLayer
 	if b.MinLayer > lo {
@@ -115,18 +122,22 @@ func Negotiate(a, b Protocol) (out Protocol, ok bool) {
 	if lo > hi {
 		return Protocol{}, false
 	}
+	version := ""
 	for _, v := range a.LibraryVersions {
-		if slices.Contains(b.LibraryVersions, v) {
-			return Protocol{
-				UdpP2P:          a.UdpP2P && b.UdpP2P,
-				UdpReflector:    a.UdpReflector && b.UdpReflector,
-				MinLayer:        lo,
-				MaxLayer:        hi,
-				LibraryVersions: []string{v},
-			}, true
+		if v > version && slices.Contains(b.LibraryVersions, v) {
+			version = v
 		}
 	}
-	return Protocol{}, false
+	if version == "" {
+		return Protocol{}, false
+	}
+	return Protocol{
+		UdpP2P:          a.UdpP2P && b.UdpP2P,
+		UdpReflector:    a.UdpReflector && b.UdpReflector,
+		MinLayer:        lo,
+		MaxLayer:        hi,
+		LibraryVersions: []string{version},
+	}, true
 }
 
 // Call is a row of phone_calls.

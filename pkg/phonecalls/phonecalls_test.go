@@ -29,10 +29,23 @@ func TestNegotiate(t *testing.T) {
 	a := Protocol{UdpP2P: true, UdpReflector: true, MinLayer: 65, MaxLayer: 92, LibraryVersions: []string{"10.0.0", "9.0.0"}}
 	b := Protocol{UdpP2P: true, UdpReflector: true, MinLayer: 70, MaxLayer: 90, LibraryVersions: []string{"9.0.0", "10.0.0", "8.0.0"}}
 	got, ok := Negotiate(a, b)
-	// The first of the admin's versions that the other side also has.
-	want := Protocol{UdpP2P: true, UdpReflector: true, MinLayer: 70, MaxLayer: 90, LibraryVersions: []string{"10.0.0"}}
+	// The greatest common version as a string, whatever the order of the lists.
+	want := Protocol{UdpP2P: true, UdpReflector: true, MinLayer: 70, MaxLayer: 90, LibraryVersions: []string{"9.0.0"}}
 	if !ok || !reflect.DeepEqual(got, want) {
 		t.Fatalf("Negotiate = %+v %v, want %+v", got, ok, want)
+	}
+	// Android as the caller, its list in the order of the registry, and an
+	// iOS or desktop client: never a version Android takes for an old one.
+	android := []string{"10.0.0", "11.0.0", "12.0.0", "13.0.0", "2.4.4", "2.7.7", "5.0.0", "7.0.0", "8.0.0", "9.0.0"}
+	desktop := []string{"9.0.0", "8.0.0", "7.0.0", "5.0.0", "2.7.7", "13.0.0", "12.0.0", "11.0.0", "10.0.0"}
+	got, ok = Negotiate(Protocol{MinLayer: 65, MaxLayer: 92, LibraryVersions: android}, Protocol{MinLayer: 65, MaxLayer: 92, LibraryVersions: desktop})
+	if !ok || got.LibraryVersions[0] != "9.0.0" {
+		t.Fatalf("Android and desktop: %+v %v", got, ok)
+	}
+	// Web K speaks one version.
+	got, ok = Negotiate(Protocol{MinLayer: 65, MaxLayer: 92, LibraryVersions: android}, Protocol{MinLayer: 92, MaxLayer: 92, LibraryVersions: []string{"13.0.0"}})
+	if !ok || got.LibraryVersions[0] != "13.0.0" {
+		t.Fatalf("Android and Web K: %+v %v", got, ok)
 	}
 	if _, ok := Negotiate(a, Protocol{MinLayer: 93, MaxLayer: 95, LibraryVersions: []string{"9.0.0"}}); ok {
 		t.Fatal("no common layer: negotiated")
