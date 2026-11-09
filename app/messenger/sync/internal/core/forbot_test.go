@@ -35,27 +35,32 @@ func TestForBotSupergroup(t *testing.T) {
 		return mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: mtproto.MakeTLMessage(&mtproto.Message{Message: text}).To_Message()}).To_Update()
 	}
 	other := mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: 1}).To_Update()
+	repliesToBot := func(m *mtproto.Message) bool { return m.GetReplyTo() != nil }
 
-	got := forBot(mtproto.MakeUpdatesByUpdates(msg("/help@my_bot"), msg("plain"), other), mc, users, botId, false)
+	got := forBot(mtproto.MakeUpdatesByUpdates(msg("/help@my_bot"), msg("plain"), other), mc, users, botId, false, repliesToBot)
 	if got == nil || len(got.GetUpdates()) != 2 || got.GetUpdates()[0].GetMessage_MESSAGE().GetMessage() != "/help@my_bot" {
 		t.Fatalf("updates: %v", got.GetUpdates())
 	}
-	if forBot(mtproto.MakeUpdatesByUpdates(msg("plain")), mc, users, botId, false) != nil {
+	if forBot(mtproto.MakeUpdatesByUpdates(msg("plain")), mc, users, botId, false, repliesToBot) != nil {
 		t.Fatal("a push with nothing for the bot")
 	}
 	reply := msg("plain")
 	reply.GetMessage_MESSAGE().ReplyTo = mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{ReplyToMsgId_FLAGINT32: mtproto.MakeFlagsInt32(7)}).To_MessageReplyHeader()
-	if forBot(mtproto.MakeUpdatesByUpdates(reply), mc, users, botId, true) == nil {
+	if forBot(mtproto.MakeUpdatesByUpdates(reply), mc, users, botId, true, repliesToBot) == nil {
 		t.Fatal("a reply to the bot was dropped")
 	}
+	// A reply to someone else that names the bot in its entities.
+	if forBot(mtproto.MakeUpdatesByUpdates(reply), mc, users, botId, true, func(*mtproto.Message) bool { return false }) != nil {
+		t.Fatal("a reply to someone else reached a bot in privacy mode")
+	}
 	// Mentioned, but in no reply: as in a basic group, the bot does not get it.
-	if forBot(mtproto.MakeUpdatesByUpdates(msg("plain")), mc, users, botId, true) != nil {
+	if forBot(mtproto.MakeUpdatesByUpdates(msg("plain")), mc, users, botId, true, repliesToBot) != nil {
 		t.Fatal("a mention reached a bot in privacy mode")
 	}
 
 	// A broadcast channel's posts reach all its bots.
 	broadcast := &channelpb.MutableChannel{Channel: &channelpb.ImmutableChannel{Broadcast: true}}
-	if forBot(mtproto.MakeUpdatesByUpdates(msg("post")), broadcast, users, botId, false) == nil {
+	if forBot(mtproto.MakeUpdatesByUpdates(msg("post")), broadcast, users, botId, false, repliesToBot) == nil {
 		t.Fatal("a channel post was dropped")
 	}
 }

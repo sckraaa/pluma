@@ -65,6 +65,14 @@ func Visible(b Bot, m *mtproto.Message, fromBot, repliedToBot bool) bool {
 	return commandForBot(m.GetMessage(), b.Username)
 }
 
+// ReplyToInChat is the message of the same chat m replies to, 0 for none.
+func ReplyToInChat(m *mtproto.Message) int32 {
+	if m.GetReplyTo().GetPredicateName() != mtproto.Predicate_messageReplyHeader || m.GetReplyTo().GetReplyFrom() != nil {
+		return 0
+	}
+	return m.GetReplyTo().GetFixedReplyToMsgId()
+}
+
 // commandForBot tells whether text opens with a command meant for the bot:
 // /name or /name@username. Clients write a command only at the start of a
 // message; another bot's command is not this bot's.

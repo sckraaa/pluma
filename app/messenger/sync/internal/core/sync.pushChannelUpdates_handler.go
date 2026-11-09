@@ -66,7 +66,8 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	now := int32(time.Now().Unix())
 	for _, member := range members.GetDatas() {
 		updates := c.channelView(in, member, mc.ToChat(member, now), users.GetUserListByIdList(member, h.UserIdList...))
-		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member)); updates == nil {
+		repliesTo := func(m *mtproto.Message) bool { return c.repliesTo(in.ChannelId, member, m) }
+		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member), repliesTo); updates == nil {
 			continue
 		}
 		if member == in.FromId {
@@ -112,12 +113,35 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 	return updates
 }
 
+// repliesTo tells whether m replies to a message member sent. A failure of
+// the look-up leaves the message out of the push: the gap in pts it makes
+// brings the bot to updates.getChannelDifference, which decides again.
+func (c *SyncCore) repliesTo(channelId, member int64, m *mtproto.Message) bool {
+	id := botprivacy.ReplyToInChat(m)
+	if id == 0 {
+		return false
+	}
+	replied, err := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: member, ChannelId: channelId, Id: []int32{id}})
+	if err != nil {
+		c.Logger.Errorf("sync.pushChannelUpdates - channel %d, message %d: %v", channelId, id, err)
+		return false
+	}
+	for _, r := range replied.GetDatas() {
+		if r.GetFromId().GetUserId() == member {
+			return true
+		}
+	}
+	return false
+}
+
 // forBot is what of updates the member gets when it is a bot in privacy mode
 // of a supergroup: nil when no update remains (pkg/botprivacy; a broadcast
 // channel's posts reach all its bots). mentioned holds for the author of the
-// message replied to and for the users of the text's mentions: only the
-// first counts for the bot, as in a basic group.
-func forBot(updates *mtproto.Updates, mc *channelpb.MutableChannel, users *mtproto.MutableUsers, member int64, mentioned bool) *mtproto.Updates {
+// message replied to and for the users of the text's mentions, so it only
+// tells when the author is worth looking up: repliesTo decides, as the
+// channel difference does, and a message that is no reply to the bot is
+// hidden from it, as in a basic group.
+func forBot(updates *mtproto.Updates, mc *channelpb.MutableChannel, users *mtproto.MutableUsers, member int64, mentioned bool, repliesTo func(*mtproto.Message) bool) *mtproto.Updates {
 	u, ok := users.GetImmutableUser(member)
 	if !ok || !u.IsBot() || mc.GetChannel().GetBroadcast() {
 		return updates
@@ -132,7 +156,7 @@ func forBot(updates *mtproto.Updates, mc *channelpb.MutableChannel, users *mtpro
 	for _, up := range updates.GetUpdates() {
 		if m := up.GetMessage_MESSAGE(); m != nil {
 			sender, _ := users.GetImmutableUser(m.GetFromId().GetUserId())
-			if !botprivacy.Visible(bot, m, sender != nil && sender.IsBot(), mentioned && m.GetReplyTo() != nil) {
+			if !botprivacy.Visible(bot, m, sender != nil && sender.IsBot(), mentioned && repliesTo(m)) {
 				continue
 			}
 		}

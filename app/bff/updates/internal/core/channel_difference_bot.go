@@ -55,7 +55,7 @@ func (c *UpdatesCore) hideFromBot(channelId int64, mc *channelpb.MutableChannel,
 		if id := m.GetFromId().GetUserId(); id != 0 && !slices.Contains(senders, id) {
 			senders = append(senders, id)
 		}
-		if id := replyToInChat(m); id != 0 && !slices.Contains(replied, id) {
+		if id := botprivacy.ReplyToInChat(m); id != 0 && !slices.Contains(replied, id) {
 			replied = append(replied, id)
 		}
 	})
@@ -77,17 +77,9 @@ func (c *UpdatesCore) hideFromBot(channelId int64, mc *channelpb.MutableChannel,
 	}
 	keepVisible(diff, func(m *mtproto.Message) bool {
 		fromBot := slices.Contains(bots.GetDatas(), m.GetFromId().GetUserId())
-		return botprivacy.Visible(bot, m, fromBot, slices.Contains(mine, replyToInChat(m)))
+		return botprivacy.Visible(bot, m, fromBot, slices.Contains(mine, botprivacy.ReplyToInChat(m)))
 	})
 	return nil
-}
-
-// replyToInChat is the message of the same chat m replies to, 0 for none.
-func replyToInChat(m *mtproto.Message) int32 {
-	if m.GetReplyTo().GetPredicateName() != mtproto.Predicate_messageReplyHeader || m.GetReplyTo().GetReplyFrom() != nil {
-		return 0
-	}
-	return m.GetReplyTo().GetFixedReplyToMsgId()
 }
 
 // eachMessage visits the messages of the difference, those of its updates too.

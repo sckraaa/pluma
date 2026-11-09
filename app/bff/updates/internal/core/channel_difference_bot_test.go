@@ -45,13 +45,3 @@ func TestKeepVisible(t *testing.T) {
 		t.Fatalf("other updates: %v", diff.OtherUpdates)
 	}
 }
-
-func TestReplyToInChat(t *testing.T) {
-	m := mtproto.MakeTLMessage(&mtproto.Message{ReplyTo: mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{ReplyToMsgId_FLAGINT32: mtproto.MakeFlagsInt32(9)}).To_MessageReplyHeader()}).To_Message()
-	if got := replyToInChat(m); got != 9 {
-		t.Fatalf("reply: %d", got)
-	}
-	if got := replyToInChat(mtproto.MakeTLMessage(&mtproto.Message{}).To_Message()); got != 0 {
-		t.Fatalf("no reply: %d", got)
-	}
-}

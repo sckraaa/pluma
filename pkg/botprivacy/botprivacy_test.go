@@ -74,3 +74,13 @@ func TestVisibleOtherBots(t *testing.T) {
 		t.Error("the bot's own message was hidden")
 	}
 }
+
+func TestReplyToInChat(t *testing.T) {
+	m := mtproto.MakeTLMessage(&mtproto.Message{ReplyTo: mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{ReplyToMsgId_FLAGINT32: mtproto.MakeFlagsInt32(9)}).To_MessageReplyHeader()}).To_Message()
+	if got := ReplyToInChat(m); got != 9 {
+		t.Fatalf("reply: %d", got)
+	}
+	if got := ReplyToInChat(mtproto.MakeTLMessage(&mtproto.Message{}).To_Message()); got != 0 {
+		t.Fatalf("no reply: %d", got)
+	}
+}
