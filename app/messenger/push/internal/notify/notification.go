@@ -89,6 +89,7 @@ type Notification struct {
 	Channel   bool
 	Broadcast bool
 	PeerId    int64
+	TopicId   int32 // the topic of a forum, 0 for General and elsewhere
 	MsgId     int32
 	FromId    int64 // the author
 	FromName  string
@@ -230,6 +231,7 @@ func fromMessage(userId int64, m *mtproto.Message, names, titles map[int64]strin
 		MsgId:   m.GetId(),
 		Mention: m.GetMentioned(),
 		Silent:  m.GetSilent(),
+		TopicId: topicOf(m),
 	}
 	switch peer := m.GetPeerId(); peer.GetPredicateName() {
 	case mtproto.Predicate_peerUser:
@@ -437,4 +439,17 @@ func truncate(s string) string {
 	}
 	r := []rune(s)
 	return string(r[:MaxTextLength-1]) + "…"
+}
+
+// topicOf is the topic of a message of a forum, 0 for General and outside a
+// forum (core.telegram.org/api/forum; as Android MessageObject.getTopicId).
+func topicOf(m *mtproto.Message) int32 {
+	r := m.GetReplyTo()
+	if !r.GetForumTopic() {
+		return 0
+	}
+	if top := r.GetReplyToTopId().GetValue(); top != 0 {
+		return top
+	}
+	return r.GetReplyToMsgId_INT32()
 }

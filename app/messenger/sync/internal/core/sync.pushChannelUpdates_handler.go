@@ -82,6 +82,13 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 	updates := proto.Clone(in.GetUpdates()).(*mtproto.Updates)
 	mentioned := slices.Contains(in.GetMentioned(), member)
 	for _, u := range updates.GetUpdates() {
+		// The unread marks of reactions are for the author, sent as the
+		// mentioned of the push (task 067).
+		if u.GetPredicateName() == mtproto.Predicate_updateMessageReactions && !mentioned {
+			for _, p := range u.GetReactions_MESSAGEREACTIONS().GetRecentReactions() {
+				p.Unread = false
+			}
+		}
 		m := u.GetMessage_MESSAGE()
 		if m == nil {
 			continue

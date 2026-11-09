@@ -93,6 +93,11 @@ type Settings struct {
 	Client user_client.UserClient
 }
 
+// TopicNotifySettings of userId for a topic of a forum, empty for none.
+func (s *Settings) TopicNotifySettings(ctx context.Context, userId, channelId int64, topMsgId int32) (*mtproto.PeerNotifySettings, error) {
+	return s.Client.UserGetTopicNotifySettings(ctx, &user.TLUserGetTopicNotifySettings{UserId: userId, ChannelId: channelId, TopMsgId: topMsgId})
+}
+
 func (s *Settings) NotifySettings(ctx context.Context, userId int64, peerType int32, peerId int64) (*mtproto.PeerNotifySettings, error) {
 	return s.Client.UserGetNotifySettings(ctx, &user.TLUserGetNotifySettings{UserId: userId, PeerType: peerType, PeerId: peerId})
 }

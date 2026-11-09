@@ -47,6 +47,8 @@ type Authorizations interface {
 
 // Settings are the notification settings of a user.
 type Settings interface {
+	// TopicNotifySettings of userId for a topic of a forum, empty for none.
+	TopicNotifySettings(ctx context.Context, userId, channelId int64, topMsgId int32) (*mtproto.PeerNotifySettings, error)
 	// NotifySettings of userId for a peer (PEER_USER, PEER_CHAT) or a peer
 	// type (PEER_USERS, PEER_CHATS, peerId 0).
 	NotifySettings(ctx context.Context, userId int64, peerType int32, peerId int64) (*mtproto.PeerNotifySettings, error)
@@ -301,6 +303,28 @@ func peerKind(n *notify.Notification) int32 {
 	return mtproto.PEER_USER
 }
 
+// generalTopicId is the General topic of a forum (core.telegram.org/api/forum).
+const generalTopicId = 1
+
+// overTopic is what the dialog's settings own become in a topic with
+// settings t: a field t sets wins.
+func overTopic(own, t *mtproto.PeerNotifySettings) *mtproto.PeerNotifySettings {
+	if t == nil {
+		return own
+	}
+	out := &mtproto.PeerNotifySettings{ShowPreviews: own.GetShowPreviews(), Silent: own.GetSilent(), MuteUntil: own.GetMuteUntil()}
+	if t.GetShowPreviews() != nil {
+		out.ShowPreviews = t.GetShowPreviews()
+	}
+	if t.GetSilent() != nil {
+		out.Silent = t.GetSilent()
+	}
+	if t.GetMuteUntil() != nil {
+		out.MuteUntil = t.GetMuteUntil()
+	}
+	return out
+}
+
 // settings of the dialog of n: the dialog's own, else those of its type
 // (private chats, groups, channels), as Telegram combines them: a
 // supergroup is a group (inputNotifyChats), a channel one of the channels
@@ -323,6 +347,20 @@ func (c *Core) settings(ctx context.Context, n *notify.Notification) dialogSetti
 	}
 	if def, err = c.Settings.NotifySettings(ctx, n.UserId, typeOf, 0); err != nil {
 		logx.WithContext(ctx).Errorf("push: notify settings of user %d: %v", n.UserId, err)
+	}
+	if n.Channel && !n.Broadcast {
+		// The settings of the topic come first (task 067; a message of a
+		// supergroup outside any topic asks General, without a row for
+		// a group that is no forum).
+		topic := n.TopicId
+		if topic == 0 {
+			topic = generalTopicId
+		}
+		t, err := c.Settings.TopicNotifySettings(ctx, n.UserId, n.PeerId, topic)
+		if err != nil {
+			logx.WithContext(ctx).Errorf("push: topic notify settings of user %d: %v", n.UserId, err)
+		}
+		own = overTopic(own, t)
 	}
 	now := int32(c.now().Unix())
 	switch {

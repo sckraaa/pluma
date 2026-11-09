@@ -141,6 +141,30 @@ func ViewOrEmpty(rows []Row, viewer, author int64, kind Kind) *mtproto.MessageRe
 	return view(rows, viewer, author, kind)
 }
 
+// WithUnreadOf marks unread, in view's recent reactions, the reactions of
+// others to a message of author that it has not seen: view is the min view,
+// which names no viewer, and the marks go only to the author (task 067).
+func WithUnreadOf(view *mtproto.MessageReactions, rows []Row, author int64) *mtproto.MessageReactions {
+	if author == 0 {
+		return view
+	}
+	for _, p := range view.GetRecentReactions() {
+		for _, r := range rows {
+			if r.Unread && r.UserId != author && r.UserId == p.GetPeerId().GetUserId() && Equal(FromKey(r.Reaction), p.GetReaction_REACTION()) {
+				p.Unread = true
+			}
+		}
+	}
+	return view
+}
+
+// Equal tells the same reaction: an emoticon, or a custom emoji.
+func Equal(a, b *mtproto.Reaction) bool {
+	ka, err1 := Key(a)
+	kb, err2 := Key(b)
+	return err1 == nil && err2 == nil && ka == kb
+}
+
 func view(rows []Row, viewer, author int64, kind Kind) *mtproto.MessageReactions {
 	type result struct {
 		key   string

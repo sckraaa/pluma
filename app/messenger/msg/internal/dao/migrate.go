@@ -208,6 +208,9 @@ func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat, dialogMessa
 	if _, err = b.Tx().Exec("UPDATE chat_invites SET chat_id = ?, migrated_to_id = ? WHERE chat_id = ?", out.ChannelId, out.ChannelId, chatId); err != nil {
 		return nil, err
 	}
+	if err = moveInviteImporters(b, chatId, out.ChannelId); err != nil {
+		return nil, err
+	}
 	var permanent []int64
 	if err = b.Tx().QueryRowsPartial(&permanent, "SELECT id FROM chat_invites WHERE chat_id = ? AND admin_id = ? AND permanent = 1 AND revoked = 0 LIMIT 1",
 		out.ChannelId, b.UserId()); err != nil {
@@ -220,6 +223,21 @@ func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat, dialogMessa
 		}
 	}
 	return out, nil
+}
+
+// moveInviteImporters carries over who joined by the group's links, for
+// their lists of importers, and the requests to join still waiting, which
+// a supergroup keeps in channel_join_requests.
+func moveInviteImporters(b *userbox.Box, chatId, channelId int64) error {
+	if _, err := b.Tx().Exec("INSERT IGNORE INTO channel_join_requests (channel_id, user_id, link, date2)"+
+		" SELECT ?, user_id, link, date2 FROM chat_invite_participants WHERE chat_id = ? AND requested = 1", channelId, chatId); err != nil {
+		return err
+	}
+	if _, err := b.Tx().Exec("DELETE FROM chat_invite_participants WHERE chat_id = ? AND requested = 1", chatId); err != nil {
+		return err
+	}
+	_, err := b.Tx().Exec("UPDATE chat_invite_participants SET chat_id = ? WHERE chat_id = ?", channelId, chatId)
+	return err
 }
 
 func promotedBy(role int32, creator int64) int64 {

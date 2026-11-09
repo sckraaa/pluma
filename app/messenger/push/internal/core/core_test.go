@@ -71,6 +71,13 @@ func (f fakeSettings) NotifySettings(_ context.Context, _ int64, t int32, id int
 	return mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{}).To_PeerNotifySettings(), nil
 }
 
+func (f fakeSettings) TopicNotifySettings(_ context.Context, _ int64, id int64, top int32) (*mtproto.PeerNotifySettings, error) {
+	if s, ok := f[settingsKey{-top, id}]; ok {
+		return s, nil
+	}
+	return mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{}).To_PeerNotifySettings(), nil
+}
+
 type fakeMessages map[int32]*mtproto.Message
 
 func (f fakeMessages) UserMessage(_ context.Context, _ int64, id int32) (*mtproto.Message, error) {

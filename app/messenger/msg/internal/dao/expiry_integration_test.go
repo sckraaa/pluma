@@ -20,15 +20,15 @@ package dao_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
-	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/historyttl"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
@@ -296,73 +296,40 @@ func TestAutoDeleteMigratedChat(t *testing.T) {
 	}
 }
 
-// A channel's messages go the same way, one row of its journal for all of
-// them, and the worker's pass repeats nothing.
+// expireRecorder answers channel.expireMessages in biz channel's place.
+type expireRecorder struct {
+	noChannels
+	calls []int64
+}
+
+func (e *expireRecorder) ChannelExpireMessages(_ context.Context, in *channelpb.TLChannelExpireMessages) (*mtproto.Int32, error) {
+	e.calls = append(e.calls, in.ChannelId)
+	return &mtproto.Int32{V: 1}, nil
+}
+
+// The worker hands a channel with messages due to biz channel, whose
+// deletion takes what goes with them (task 067): not one that has none due.
 func TestAutoDeleteChannel(t *testing.T) {
 	w := newWorld(t, boxDSN(""), 0)
 	ctx := context.Background()
-	owner := newUser()
-	channelId := int64(90_000_000) + itIdSeq.Add(1)
+	rec := &expireRecorder{}
+	w.d.ChannelClient = rec
 	now := time.Now().Unix()
-
-	if _, err := w.d.RunBox(ctx, owner, nil, func(b *userbox.Box) error {
-		ch, err := channelbox.Create(b, channelbox.NewChannel{Id: channelId, CreatorUserId: owner, Title: "c", Megagroup: true, Date: now})
-		if err != nil {
-			return err
-		}
-		if err = ch.SetTTL(testTTL); err != nil {
-			return err
-		}
-		_, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, date) VALUES (?, ?, 2, 0, ?)", channelId, owner, now)
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
-
-	send := func(text string) []dao.ChannelSent {
-		var sent []dao.ChannelSent
-		if _, err := w.d.RunBox(ctx, owner, nil, func(b *userbox.Box) error {
-			var err error
-			sent, _, _, err = w.d.SendChannel(b, channelId, []dao.Outgoing{{RandomId: randomId(), Message: textMessage(owner, mtproto.MakePeerChannel(channelId), text)}}, "")
-			return err
-		}); err != nil {
+	due, later := int64(90_000_000)+itIdSeq.Add(1), int64(90_000_000)+itIdSeq.Add(1)
+	for _, r := range [][3]int64{{due, 1, now - 5}, {later, 1, now + 5000}} {
+		if _, err := w.check.Exec("INSERT INTO channel_message_expiry (channel_id, message_id, expire_at) VALUES (?, ?, ?)", r[0], r[1], r[2]); err != nil {
 			t.Fatal(err)
 		}
-		return sent
-	}
-	first := send("one")
-	if first[0].Message.GetTtlPeriod().GetValue() != testTTL {
-		t.Fatalf("channel message ttl: %v", first[0].Message.GetTtlPeriod())
-	}
-	last := send("two")
-
-	var pts int32
-	if err := w.check.QueryRow("SELECT pts FROM channels WHERE id = ?", channelId).Scan(&pts); err != nil {
-		t.Fatal(err)
 	}
 	// Earlier tests of the world's database may have rows due as well.
-	n, err := w.d.ExpireDue(ctx, now+testTTL+100)
-	if err != nil || n < 2 {
+	if n, err := w.d.ExpireDue(ctx, now); err != nil || n < 1 {
 		t.Fatalf("pass: %d, %v", n, err)
 	}
-	var (
-		after int32
-		top   int32
-	)
-	if err = w.check.QueryRow("SELECT pts, top_message FROM channels WHERE id = ?", channelId).Scan(&after, &top); err != nil {
-		t.Fatal(err)
+	if !slices.Contains(rec.calls, due) {
+		t.Errorf("channel %d with a message due not handed over: %v", due, rec.calls)
 	}
-	if after != pts+2 {
-		t.Errorf("channel pts %d -> %d, want +2", pts, after)
-	}
-	if top >= last[0].Message.GetId() {
-		t.Errorf("top message %d after its messages went", top)
-	}
-	if n := w.countRows("SELECT COUNT(*) FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?, ?)", channelId, first[0].Message.GetId(), last[0].Message.GetId()); n != 0 {
-		t.Errorf("%d messages left", n)
-	}
-	if n, err = w.d.ExpireDue(ctx, now+testTTL+100); err != nil || n != 0 {
-		t.Fatalf("second pass: %d, %v", n, err)
+	if slices.Contains(rec.calls, later) {
+		t.Errorf("channel %d with nothing due handed over", later)
 	}
 }
 

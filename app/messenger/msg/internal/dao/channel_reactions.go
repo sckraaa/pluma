@@ -21,11 +21,14 @@ import (
 	"strings"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // Reactions to messages of channels (task 044): one row per reaction of a
@@ -39,6 +42,7 @@ import (
 type ChannelReactions struct {
 	Rows      []reactions.Row
 	AuthorId  int64
+	TopicId   int32 // the topic of a forum, 0 for General and elsewhere
 	Broadcast bool
 	Changed   bool
 }
@@ -69,20 +73,24 @@ func (d *Dao) SetChannelReactions(b *userbox.Box, channelId int64, msgId int32, 
 	}
 	var msgs []struct {
 		SenderUserId int64 `db:"sender_user_id"`
+		TopicId      int32 `db:"topic_id"`
 		Service      bool  `db:"service"`
 	}
 	if err = b.Tx().QueryRowsPartial(&msgs,
-		"SELECT sender_user_id, JSON_UNQUOTE(JSON_EXTRACT(message_data, '$.predicate_name')) <> ? AS service FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE",
+		"SELECT sender_user_id, topic_id, JSON_UNQUOTE(JSON_EXTRACT(message_data, '$.predicate_name')) <> ? AS service FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE",
 		mtproto.Predicate_message, channelId, msgId); err != nil {
 		return nil, err
 	}
 	if len(msgs) == 0 || msgs[0].Service {
 		return nil, mtproto.ErrMessageIdInvalid
 	}
-	out := &ChannelReactions{Broadcast: s.ch.Broadcast}
+	out := &ChannelReactions{Broadcast: s.ch.Broadcast, TopicId: msgs[0].TopicId}
 	if !s.ch.Broadcast {
 		out.AuthorId = msgs[0].SenderUserId
 	}
+	// The author alone sees a reaction of another as unread (task 067), a
+	// post has nobody to show it to.
+	unread := !s.ch.Broadcast && msgs[0].SenderUserId != b.UserId()
 	rows, err := channelReactionRows(b, channelId, msgId)
 	if err != nil {
 		return nil, err
@@ -125,8 +133,8 @@ func (d *Dao) SetChannelReactions(b *userbox.Box, channelId int64, msgId int32, 
 			}
 			continue
 		}
-		if _, err = b.Tx().Exec("INSERT INTO channel_message_reactions (channel_id, message_id, user_id, reaction, chosen_order, big, `date`) VALUES (?, ?, ?, ?, ?, ?, ?)",
-			channelId, msgId, b.UserId(), k, i, big, b.Date()); err != nil {
+		if _, err = b.Tx().Exec("INSERT INTO channel_message_reactions (channel_id, message_id, user_id, reaction, chosen_order, big, unread, `date`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			channelId, msgId, b.UserId(), k, i, big, unread, b.Date()); err != nil {
 			return nil, err
 		}
 	}
@@ -154,16 +162,17 @@ func channelReactionRows(b *userbox.Box, channelId int64, msgId int32) ([]reacti
 		Reaction    string `db:"reaction"`
 		ChosenOrder int32  `db:"chosen_order"`
 		Big         bool   `db:"big"`
+		Unread      bool   `db:"unread"`
 		Date        int64  `db:"date"`
 	}
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT user_id, reaction, chosen_order, big, `date` FROM channel_message_reactions WHERE channel_id = ? AND message_id = ? ORDER BY `date`, user_id, chosen_order",
+		"SELECT user_id, reaction, chosen_order, big, unread, `date` FROM channel_message_reactions WHERE channel_id = ? AND message_id = ? ORDER BY `date`, user_id, chosen_order",
 		channelId, msgId); err != nil {
 		return nil, err
 	}
 	out := make([]reactions.Row, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, reactions.Row{UserId: r.UserId, Reaction: r.Reaction, ChosenOrder: r.ChosenOrder, Big: r.Big, Date: r.Date})
+		out = append(out, reactions.Row{UserId: r.UserId, Reaction: r.Reaction, ChosenOrder: r.ChosenOrder, Big: r.Big, Unread: r.Unread, Date: r.Date})
 	}
 	return out, nil
 }
@@ -175,13 +184,44 @@ func channelReactionRows(b *userbox.Box, channelId int64, msgId int32) ([]reacti
 func ChannelReactionsUpdate(viewer, channelId int64, msgId int32, r *ChannelReactions) *mtproto.Update {
 	view := reactions.ViewOrEmpty(r.Rows, viewer, r.AuthorId, reactions.ChannelKind(r.Broadcast))
 	if viewer == 0 {
+		view = reactions.WithUnreadOf(view, r.Rows, r.AuthorId)
 		view.Min = true
 	}
-	return mtproto.MakeTLUpdateMessageReactions(&mtproto.Update{
+	u := mtproto.MakeTLUpdateMessageReactions(&mtproto.Update{
 		Peer_PEER:                  mtproto.MakePeerChannel(channelId),
 		MsgId_INT32:                msgId,
 		Reactions_MESSAGEREACTIONS: view,
 	}).To_Update()
+	if r.TopicId != 0 {
+		u.TopMsgId_FLAGINT32 = wrapperspb.Int32(r.TopicId)
+	}
+	return u
+}
+
+// EmitChannelReactionsPush pushes the reactions r of a message to the
+// members in their min view. The unread marks are for the author (the
+// mentioned of the push): sync takes them off everyone else's copy, and it
+// is by them that the clients count the unread reactions of a message
+// (Android MessagesController.java:19509 hasUnreadReactions, tdesktop
+// data_message_reactions.cpp:2169).
+func (d *Dao) EmitChannelReactionsPush(b *userbox.Box, channelId, permAuthKeyId int64, msgId int32, r *ChannelReactions) error {
+	var author []int64
+	if r.AuthorId != 0 && r.AuthorId != b.UserId() {
+		author = []int64{r.AuthorId}
+	}
+	in := &sync.TLSyncPushChannelUpdates{
+		ChannelId:     channelId,
+		FromId:        b.UserId(),
+		FromAuthKeyId: permAuthKeyId,
+		Mentioned:     author,
+		Updates:       mtproto.MakeUpdatesByUpdates(ChannelReactionsUpdate(0, channelId, msgId, r)),
+	}
+	data, err := jsonx.Marshal(in)
+	if err != nil {
+		return err
+	}
+	b.Emit(userbox.Event{Topic: d.Topics.Sync, Recipient: channelId, Method: string(proto.MessageName(in)), Data: data})
+	return nil
 }
 
 // channelAllows checks keys against the reactions the channel allows

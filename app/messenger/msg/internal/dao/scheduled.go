@@ -429,9 +429,14 @@ func (d *Dao) LockScheduledFor(b *userbox.Box, peerType int32, peerId int64, ids
 
 // ApplyScheduledEdit is stored with the editable parts of edit and date. A
 // waiting message has no edit date: an edit shows as edit_hide (tdesktop
-// scheduled_messages.cpp, ScheduledMessages::append).
+// scheduled_messages.cpp, ScheduledMessages::append). The clients send
+// schedule_repeat_period with every edit of a repeating message (tdesktop
+// api_editing.cpp, Android SendMessagesHelper.editMessage), so one that
+// comes without it ends the series.
 func ApplyScheduledEdit(stored, edit *mtproto.Message, date int32) *mtproto.Message {
+	period := edit.GetScheduleRepeatPeriod()
 	stored = applyEdit(stored, edit)
+	stored.ScheduleRepeatPeriod = period
 	stored.EditDate = nil
 	stored.EditHide = true
 	stored.Date = date

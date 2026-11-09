@@ -79,3 +79,17 @@ func TestScheduledLease(t *testing.T) {
 		t.Errorf("lease %v", ScheduledLease)
 	}
 }
+
+// An edit carries the period, one without it ends the series: tdesktop
+// sends it with every edit of a repeating message (api_editing.cpp:86).
+func TestApplyScheduledEditRepeat(t *testing.T) {
+	stored := &mtproto.Message{Message: "a", ScheduleRepeatPeriod: wrapperspb.Int32(86400)}
+	got := ApplyScheduledEdit(stored, &mtproto.Message{Message: "b", ScheduleRepeatPeriod: wrapperspb.Int32(604800)}, 10)
+	if got.GetScheduleRepeatPeriod().GetValue() != 604800 {
+		t.Errorf("the period of the edit: %v", got.GetScheduleRepeatPeriod())
+	}
+	got = ApplyScheduledEdit(got, &mtproto.Message{Message: "c"}, 10)
+	if got.GetScheduleRepeatPeriod() != nil {
+		t.Errorf("an edit without it: %v", got.GetScheduleRepeatPeriod())
+	}
+}

@@ -350,7 +350,7 @@ func (d *Dao) PostChannelService(b *userbox.Box, ch *channelbox.Channel, channel
 		channelId, service.Id, b.UserId(), randomId, ch.Pts(), data, b.Date()); err != nil {
 		return nil, err
 	}
-	if err = movedTo(b, channelId, service.Id); err != nil {
+	if err = serviceMoved(b, channelId, service.Id); err != nil {
 		return nil, err
 	}
 	return &ChannelSent{RandomId: randomId, Message: service, Pts: ch.Pts()}, nil

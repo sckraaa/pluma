@@ -131,3 +131,24 @@ func TestQueueUpdatesOf(t *testing.T) {
 		t.Errorf("the author's view is left: users %v, chats %v", got.GetUsers(), got.GetChats())
 	}
 }
+
+func TestRepeatPeriodOf(t *testing.T) {
+	one := func(period int32) []*msg.OutboxMessage {
+		return []*msg.OutboxMessage{{Message: &mtproto.Message{ScheduleRepeatPeriod: wrapperspb.Int32(period)}}}
+	}
+	if p, err := repeatPeriodOf(one(7*86400), 100); err != nil || p != 7*86400 {
+		t.Errorf("weekly: %d, %v", p, err)
+	}
+	if p, err := repeatPeriodOf([]*msg.OutboxMessage{{Message: &mtproto.Message{}}}, 100); err != nil || p != 0 {
+		t.Errorf("no period: %d, %v", p, err)
+	}
+	if _, err := repeatPeriodOf(one(1000), 100); err == nil {
+		t.Error("a period that is not offered")
+	}
+	if _, err := repeatPeriodOf(one(86400), dao.ScheduleWhenOnline); err == nil {
+		t.Error("a repeat of a message waiting for the peer")
+	}
+	if _, err := repeatPeriodOf(append(one(86400), one(86400)...), 100); err == nil {
+		t.Error("a repeat of several messages")
+	}
+}
