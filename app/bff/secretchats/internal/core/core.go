@@ -130,7 +130,7 @@ func push(ctx context.Context, svcCtx *svc.ServiceContext, d secretchat.Device, 
 		}).To_Updates(),
 	})
 	if err != nil {
-		logx.WithContext(ctx).Errorf("secretchats: push to authorization %d of user %d: %v", d.AuthKey, d.UserId, err)
+		logx.WithContext(ctx).Errorf("secretchats: push to user %d: %v", d.UserId, err)
 	}
 }
 
