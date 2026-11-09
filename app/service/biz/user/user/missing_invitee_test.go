@@ -21,9 +21,15 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-func inviteUser(id int64, premium bool, rules ...*mtproto.PrivacyRule) *mtproto.ImmutableUser {
+// inviteUser is a person, or with bot a bot: the one account without Premium
+// (ADR 0041).
+func inviteUser(id int64, bot bool, rules ...*mtproto.PrivacyRule) *mtproto.ImmutableUser {
+	data := &mtproto.UserData{Id: id}
+	if bot {
+		data.Bot = mtproto.MakeTLBotData(&mtproto.BotData{}).To_BotData()
+	}
 	return mtproto.MakeTLImmutableUser(&mtproto.ImmutableUser{
-		User: mtproto.MakeTLUserData(&mtproto.UserData{Id: id, Premium: premium}).To_UserData(),
+		User: mtproto.MakeTLUserData(data).To_UserData(),
 		KeysPrivacyRules: []*mtproto.PrivacyKeyRules{
 			mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{Key: mtproto.CHAT_INVITE, Rules: rules}).To_PrivacyKeyRules(),
 		},
@@ -37,7 +43,7 @@ func TestMissingInvitee(t *testing.T) {
 		everybody = mtproto.MakeTLPrivacyValueAllowAll(nil).To_PrivacyRule()
 		notMe     = mtproto.MakeTLPrivacyValueDisallowUsers(&mtproto.PrivacyRule{Users: []int64{1}}).To_PrivacyRule()
 	)
-	inviter := inviteUser(1, false)
+	inviter := inviteUser(1, true)
 	for _, tc := range []struct {
 		name       string
 		invitee    *mtproto.ImmutableUser

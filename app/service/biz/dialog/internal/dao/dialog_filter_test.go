@@ -35,9 +35,9 @@ func TestFolderLimitsAreTheAppConfigs(t *testing.T) {
 	}
 	for key, limit := range map[string]int{
 		"dialog_filters_limit_default":       DialogFiltersLimit,
-		"dialog_filters_limit_premium":       DialogFiltersLimitPremium,
+		"dialog_filters_limit_premium":       DialogFiltersLimit,
 		"dialog_filters_chats_limit_default": FilterChatsLimit,
-		"dialog_filters_chats_limit_premium": FilterChatsLimitPremium,
+		"dialog_filters_chats_limit_premium": FilterChatsLimit,
 	} {
 		if v, ok := config[key].(float64); !ok || v != float64(limit) {
 			t.Errorf("%s of app_config.json %v, the server's limit %d", key, config[key], limit)

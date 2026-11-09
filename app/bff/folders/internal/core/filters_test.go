@@ -134,17 +134,15 @@ func TestWithAllChats(t *testing.T) {
 	}
 	moved := []*dialog.DialogFilterExt{ext(3), ext(0), ext(2)}
 	for _, tc := range []struct {
-		name    string
-		stored  []*dialog.DialogFilterExt
-		premium bool
-		want    []int32
+		name   string
+		stored []*dialog.DialogFilterExt
+		want   []int32
 	}{
-		{"none", nil, false, []int32{0}},
-		{"without a row of All chats", []*dialog.DialogFilterExt{ext(2), ext(3)}, true, []int32{0, 2, 3}},
-		{"moved, with Premium", moved, true, []int32{3, 0, 2}},
-		{"moved, Premium ended", moved, false, []int32{0, 3, 2}},
+		{"none", nil, []int32{0}},
+		{"without a row of All chats", []*dialog.DialogFilterExt{ext(2), ext(3)}, []int32{0, 2, 3}},
+		{"moved", moved, []int32{3, 0, 2}},
 	} {
-		got := withAllChats(tc.stored, tc.premium)
+		got := withAllChats(tc.stored)
 		if !slices.Equal(ids(got), tc.want) {
 			t.Errorf("%s: %v, want %v", tc.name, ids(got), tc.want)
 		}

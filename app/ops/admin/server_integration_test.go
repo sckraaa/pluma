@@ -35,7 +35,6 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
@@ -87,9 +86,6 @@ func (f *fakeServices) AuthsessionGetRecentLangCode(ctx context.Context, in *aut
 func (f *fakeServices) SyncUpdatesMe(ctx context.Context, in *sync.TLSyncUpdatesMe) (*mtproto.Void, error) {
 	return &mtproto.Void{}, nil
 }
-func (f *fakeServices) UserUpdatePremium(ctx context.Context, in *userpb.TLUserUpdatePremium) (*mtproto.Bool, error) {
-	return mtproto.BoolTrue, nil
-}
 func (f *fakeServices) DfsDownloadFile(ctx context.Context, in *dfs.TLDfsDownloadFile) (*mtproto.Upload_File, error) {
 	return nil, nil
 }
@@ -110,7 +106,7 @@ func newEnv(t *testing.T) *env {
 	fake := &fakeServices{}
 	cfg := &config{Listen: "127.0.0.1:0", Origin: testOrigin}
 	runner := &effects.Runner{DAO: dao, Msg: fake, Channel: fake, Authsession: fake, Sync: fake}
-	srv := httptest.NewServer(newServer(cfg, st, dao, runner, fake, fake).routes())
+	srv := httptest.NewServer(newServer(cfg, st, dao, runner, fake).routes())
 	t.Cleanup(srv.Close)
 	return &env{srv: srv, store: st, dao: dao, fake: fake}
 }
@@ -351,9 +347,6 @@ func TestPanelIdentityAndRoles(t *testing.T) {
 	if code, _ := observer.do("POST", "/api/reports/1/decide", map[string]any{"payload": `{"action":"dismiss"}`}); code != http.StatusForbidden {
 		t.Errorf("an observer decided: %d", code)
 	}
-	if code, _ := observer.do("GET", "/api/premium", nil); code != http.StatusForbidden {
-		t.Errorf("an observer saw Premium: %d", code)
-	}
 
 	// Not a person of the panel.
 	stranger := &client{t: t, e: e, login: "stranger@example"}
@@ -362,7 +355,7 @@ func TestPanelIdentityAndRoles(t *testing.T) {
 	}
 
 	// The same header from outside the machine is not believed.
-	s := newServer(&config{Origin: testOrigin}, e.store, e.dao, nil, e.fake, e.fake)
+	s := newServer(&config{Origin: testOrigin}, e.store, e.dao, nil, e.fake)
 	req := httptest.NewRequest("GET", "/api/me", nil)
 	req.RemoteAddr = "100.64.0.1:40000"
 	req.Header.Set(identityHeader, "obs@example")

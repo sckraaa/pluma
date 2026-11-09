@@ -28,42 +28,26 @@ import (
 )
 
 // A user who lets only contacts, chats there already and Premium users
-// write gets no message from a stranger without Premium (task 014).
+// write: everybody has Premium (ADR 0041), so only a bot, the one account
+// without it, is refused.
 func TestSendToPremiumOnly(t *testing.T) {
 	w := newWorld(t, boxDSN(""), 0)
 	ctx := context.Background()
-	target, stranger, rich := newUser(), newUser(), newUser()
+	target, stranger, bot := newUser(), newUser(), newUser()
 	w.users.mu.Lock()
-	w.users.premium[target], w.users.premiumOnly[target] = true, true
-	w.users.premium[rich] = true
+	w.users.premiumOnly[target] = true
+	w.users.bots[bot] = true
 	w.users.mu.Unlock()
 
-	sendText := func(from, to int64) error {
-		_, err := w.rpc.MsgSendMessageV2(ctx, &msg.TLMsgSendMessageV2{
-			UserId: from, AuthKeyId: from * 10, PeerType: mtproto.PEER_USER, PeerId: to,
-			Message: []*msg.OutboxMessage{outbox(textMessage(from, mtproto.MakePeerUser(to), "Hi"))},
-		})
-		return err
+	w.send(stranger, mtproto.PEER_USER, target, "Hi")
+	_, err := w.rpc.MsgSendMessageV2(ctx, &msg.TLMsgSendMessageV2{
+		UserId: bot, AuthKeyId: bot * 10, PeerType: mtproto.PEER_USER, PeerId: target,
+		Message: []*msg.OutboxMessage{outbox(textMessage(bot, mtproto.MakePeerUser(target), "Hi"))},
+	})
+	if !errors.Is(err, premium.ErrPrivacyPremiumRequired) {
+		t.Fatalf("a bot: %v, want PRIVACY_PREMIUM_REQUIRED", err)
 	}
-	if err := sendText(stranger, target); !errors.Is(err, premium.ErrPrivacyPremiumRequired) {
-		t.Fatalf("a stranger without Premium: %v, want PRIVACY_PREMIUM_REQUIRED", err)
-	}
-	if w.hasDialog(target, mtproto.PEER_USER, stranger) || w.hasDialog(stranger, mtproto.PEER_USER, target) {
+	if w.hasDialog(target, mtproto.PEER_USER, bot) || w.hasDialog(bot, mtproto.PEER_USER, target) {
 		t.Fatal("a refused message made a dialog")
 	}
-	w.send(rich, mtproto.PEER_USER, target, "From Premium")
-
-	// Once the target writes, there is a chat and the stranger may answer.
-	w.send(target, mtproto.PEER_USER, stranger, "Hello")
-	if has, err := w.d.HasPrivateChat(ctx, target, stranger); err != nil || !has {
-		t.Fatalf("the target's chat with the stranger: %v, %v", has, err)
-	}
-	w.send(stranger, mtproto.PEER_USER, target, "Hi back")
-
-	// Without Premium the setting does not work.
-	other := newUser()
-	w.users.mu.Lock()
-	w.users.premium[target] = false
-	w.users.mu.Unlock()
-	w.send(other, mtproto.PEER_USER, target, "Hi")
 }

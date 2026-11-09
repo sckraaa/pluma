@@ -19,33 +19,16 @@ import (
 	"unicode/utf16"
 
 	"github.com/teamgram/proto/mtproto"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
-// The most UTF-16 code units of a caption: caption_length_limit_default and
-// _premium of help.getAppConfig (core.telegram.org/api/config; clients
-// count UTF-16 code units).
-const (
-	captionLimit        = 1024
-	captionLimitPremium = 4096
-)
+// captionLimit is the most UTF-16 code units of a caption: the Premium limit
+// (caption_length_limit_premium of help.getAppConfig, core.telegram.org/api/config;
+// clients count UTF-16 code units), which everybody has (ADR 0041).
+const captionLimit = 4096
 
-// checkCaption answers MEDIA_CAPTION_TOO_LONG for a caption over the
-// caller's limit; only a caption past the free limit costs a read of the
-// user.
+// checkCaption answers MEDIA_CAPTION_TOO_LONG for a caption over the limit.
 func (c *MessagesCore) checkCaption(caption string) error {
-	n := len(utf16.Encode([]rune(caption)))
-	if n <= captionLimit {
-		return nil
-	}
-	if n > captionLimitPremium {
-		return mtproto.ErrMediaCaptionTooLong
-	}
-	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: c.MD.UserId})
-	if err != nil {
-		return err
-	}
-	if !me.Premium() {
+	if len(utf16.Encode([]rune(caption))) > captionLimit {
 		return mtproto.ErrMediaCaptionTooLong
 	}
 	return nil

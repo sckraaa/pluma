@@ -94,16 +94,12 @@ func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat, dialogMessa
 	case rows[0].Deactivated:
 		return nil, mtproto.ErrChatIdInvalid
 	}
-	limit, err := premium.ChannelsLimit(b.Tx(), b.UserId(), b.Date())
-	if err != nil {
-		return nil, err
-	}
 	var joined []int64
 	if err := b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?",
-		b.UserId(), limit); err != nil {
+		b.UserId(), premium.ChannelsLimit); err != nil {
 		return nil, err
 	}
-	if len(joined) >= limit {
+	if len(joined) >= premium.ChannelsLimit {
 		return nil, mtproto.ErrChannelsTooMuch
 	}
 	var maxIds []int32

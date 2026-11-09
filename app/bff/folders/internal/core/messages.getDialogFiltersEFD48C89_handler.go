@@ -22,8 +22,7 @@ import (
 // MessagesGetDialogFiltersEFD48C89
 // messages.getDialogFilters#efd48c89 = messages.DialogFilters;
 //
-// The folders with "All chats" in its place; folder tags are on only for a
-// user with Premium who turned them on.
+// The folders with "All chats" in its place and whether folder tags are on.
 func (c *FoldersCore) MessagesGetDialogFiltersEFD48C89(in *mtproto.TLMessagesGetDialogFiltersEFD48C89) (*mtproto.Messages_DialogFilters, error) {
 	filters, tags, err := c.dialogFilters()
 	if err != nil {

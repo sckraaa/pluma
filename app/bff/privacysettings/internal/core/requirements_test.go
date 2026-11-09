@@ -33,11 +33,12 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// testUser is a user of the fakes: Premium, the setting that only
-// contacts, chats there already and Premium users may write, contacts.
+// testUser is a user of the fakes: a bot (the one account without Premium),
+// the setting that only contacts, chats there already and Premium users may
+// write, contacts.
 type testUser struct {
-	premium, requires bool
-	contacts          []int64
+	bot, requires bool
+	contacts      []int64
 }
 
 type fakeUsers struct {
@@ -48,13 +49,11 @@ type fakeUsers struct {
 
 func (f *fakeUsers) immutable(id int64) *mtproto.ImmutableUser {
 	u := f.users[id]
-	m := mtproto.MakeTLImmutableUser(&mtproto.ImmutableUser{
-		User: mtproto.MakeTLUserData(&mtproto.UserData{
-			Id:                               id,
-			Premium:                          u.premium,
-			NewNoncontactPeersRequirePremium: u.requires,
-		}).To_UserData(),
-	}).To_ImmutableUser()
+	data := &mtproto.UserData{Id: id, NewNoncontactPeersRequirePremium: u.requires}
+	if u.bot {
+		data.Bot = mtproto.MakeTLBotData(&mtproto.BotData{}).To_BotData()
+	}
+	m := mtproto.MakeTLImmutableUser(&mtproto.ImmutableUser{User: mtproto.MakeTLUserData(data).To_UserData()}).To_ImmutableUser()
 	for _, c := range u.contacts {
 		m.Contacts = append(m.Contacts, &mtproto.ContactData{UserId: id, ContactUserId: c})
 	}
@@ -99,19 +98,20 @@ func (f *fakeDialogs) DialogGetDialogById(_ context.Context, in *dialog.TLDialog
 	return nil, mtproto.ErrPeerIdInvalid
 }
 
-// The requester is 1, without Premium. 2 has no setting; 3, 4 and 5 let
-// only contacts, chats there already and Premium users write: 3 has 1 in
-// its contacts, 4 a chat with 1, 5 neither; 6 has the setting but no
-// Premium, so it does not work.
+// The requester is 1, a bot: the one account without Premium, so these
+// rules still apply to it. 2 has no setting; 3, 4 and 5 let only contacts,
+// chats there already and Premium users write: 3 has 1 in its contacts, 4 a
+// chat with 1, 5 neither; 6 is a bot with the setting, which has no Premium
+// to be asked of.
 func newCore() (*PrivacySettingsCore, *fakeUsers, *fakeDialogs) {
 	ctx := context.Background()
 	users := &fakeUsers{users: map[int64]testUser{
-		1: {},
-		2: {premium: true},
-		3: {premium: true, requires: true, contacts: []int64{1}},
-		4: {premium: true, requires: true},
-		5: {premium: true, requires: true},
-		6: {requires: true},
+		1: {bot: true},
+		2: {},
+		3: {requires: true, contacts: []int64{1}},
+		4: {requires: true},
+		5: {requires: true},
+		6: {bot: true, requires: true},
 	}}
 	dialogs := &fakeDialogs{chats: map[int64][]int64{4: {1}}}
 	return &PrivacySettingsCore{
@@ -161,8 +161,8 @@ func TestRequirementsToContact(t *testing.T) {
 		}
 	}
 
-	// A requester with Premium needs nothing.
-	users.users[1] = testUser{premium: true}
+	// A person has Premium and needs nothing.
+	users.users[1] = testUser{}
 	premium, err = c.UsersGetIsPremiumRequiredToContact(&mtproto.TLUsersGetIsPremiumRequiredToContact{Id: in})
 	if err != nil || slices.ContainsFunc(premium.GetDatas(), mtproto.FromBool) {
 		t.Fatalf("with Premium: %v, %v", premium, err)
@@ -183,31 +183,15 @@ func TestRequirementsToContactOfUnknownUsers(t *testing.T) {
 	}
 }
 
-// Only a user with Premium turns the setting on, and it shows on while the
-// user has Premium.
+// Everybody may turn the setting on (ADR 0041), and it shows as set.
 func TestGlobalPrivacySettingsRequirePremium(t *testing.T) {
-	c, users, _ := newCore()
+	c, _, _ := newCore()
 	on := mtproto.MakeTLGlobalPrivacySettings(&mtproto.GlobalPrivacySettings{NewNoncontactPeersRequirePremium: true}).To_GlobalPrivacySettings()
-	_, err := c.AccountSetGlobalPrivacySettings(&mtproto.TLAccountSetGlobalPrivacySettings{Settings: on})
-	if st, _ := status.FromError(err); st.Message() != "PREMIUM_ACCOUNT_REQUIRED" {
-		t.Fatalf("without Premium: %v", err)
-	}
-	if users.settings != nil {
-		t.Fatal("stored without Premium")
-	}
-
-	users.users[1] = testUser{premium: true}
-	if _, err = c.AccountSetGlobalPrivacySettings(&mtproto.TLAccountSetGlobalPrivacySettings{Settings: on}); err != nil {
+	if _, err := c.AccountSetGlobalPrivacySettings(&mtproto.TLAccountSetGlobalPrivacySettings{Settings: on}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := c.AccountGetGlobalPrivacySettings(&mtproto.TLAccountGetGlobalPrivacySettings{})
 	if err != nil || !got.GetNewNoncontactPeersRequirePremium() {
-		t.Fatalf("with Premium: %v, %v", got, err)
-	}
-
-	users.users[1] = testUser{}
-	got, err = c.AccountGetGlobalPrivacySettings(&mtproto.TLAccountGetGlobalPrivacySettings{})
-	if err != nil || got.GetNewNoncontactPeersRequirePremium() {
-		t.Fatalf("after Premium ended: %v, %v", got, err)
+		t.Fatalf("%v, %v", got, err)
 	}
 }

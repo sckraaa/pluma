@@ -31,12 +31,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The folders of chats as Telegram serves them (task 013), with or without
-// the Premium the admin grants (ADR 0016, task 014). The official clients
+// The folders of chats as Telegram serves them (task 013), with the Premium
+// limits and features, which everybody has (ADR 0041). The official clients
 // enforce the same limits from the app config before they ask; the checks
-// stand for the server against other clients. The limits that depend on
-// Premium are checked where the folder is stored, in the user's box
-// transaction (dialog service).
+// stand for the server against other clients. The folder limits are checked
+// where the folder is stored, in the user's box transaction (dialog
+// service).
 const (
 	// filterIdMin and filterIdMax bound the ids a client gives its folders:
 	// 0 is "All chats" (dialogFilterDefault) and 1 the archive.
@@ -46,43 +46,25 @@ const (
 	// "max 12 UTF-8 chars"); the clients cut a title there.
 	filterTitleMax = 12
 	// filterChatsMax bounds the chats of a folder before their peers are
-	// looked up: the limit with Premium; the limit of the user is the
-	// dialog service's to check.
+	// looked up; the limit is the dialog service's to check.
 	filterChatsMax = 200
 )
 
 // errFilterChatsTooMuch: more chats in a folder than any user may have.
 var errFilterChatsTooMuch = status.Error(mtproto.ErrBadRequest, "FILTER_INCLUDE_TOO_MUCH")
 
-// premium returns whether the user has Premium now.
-func (c *FoldersCore) premium() (bool, error) {
-	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: c.MD.UserId})
-	if err != nil {
-		return false, err
-	}
-	return me.Premium(), nil
-}
-
 // dialogFilters returns the user's folders as the clients expect them, and
 // whether folder tags are on. "All chats" (dialogFilterDefault, id 0) is
-// first, unless the user has Premium and put it elsewhere; the Android
-// client reads its place as the place of the main chat list. Tags are a
-// Premium feature: they are on only while the user has Premium.
+// first, unless the user put it elsewhere; the Android client reads its
+// place as the place of the main chat list.
 func (c *FoldersCore) dialogFilters() ([]*mtproto.DialogFilter, bool, error) {
-	premium, err := c.premium()
-	if err != nil {
-		return nil, false, err
-	}
 	stored, err := c.svcCtx.Dao.DialogClient.DialogGetDialogFilters(c.ctx, &dialog.TLDialogGetDialogFilters{
 		UserId: c.MD.UserId,
 	})
 	if err != nil {
 		return nil, false, err
 	}
-	filters := withAllChats(stored.GetDatas(), premium)
-	if !premium {
-		return filters, false, nil
-	}
+	filters := withAllChats(stored.GetDatas())
 	tags, err := c.svcCtx.Dao.DialogClient.DialogGetDialogFilterTags(c.ctx, &dialog.TLDialogGetDialogFilterTags{
 		UserId: c.MD.UserId,
 	})
@@ -93,9 +75,8 @@ func (c *FoldersCore) dialogFilters() ([]*mtproto.DialogFilter, bool, error) {
 }
 
 // withAllChats returns the stored folders, in their order, with "All
-// chats": at the place of its row (id 0) for a user with Premium, first
-// otherwise.
-func withAllChats(stored []*dialog.DialogFilterExt, premium bool) []*mtproto.DialogFilter {
+// chats": at the place of its row (id 0), first when it has none.
+func withAllChats(stored []*dialog.DialogFilterExt) []*mtproto.DialogFilter {
 	allChats := mtproto.MakeTLDialogFilterDefault(nil).To_DialogFilter()
 	filters := make([]*mtproto.DialogFilter, 0, len(stored)+1)
 	placed := false
@@ -104,7 +85,7 @@ func withAllChats(stored []*dialog.DialogFilterExt, premium bool) []*mtproto.Dia
 		switch {
 		case f == nil:
 		case ext.GetId() == 0:
-			if premium && !placed {
+			if !placed {
 				filters = append(filters, allChats)
 				placed = true
 			}

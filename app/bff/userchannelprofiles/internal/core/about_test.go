@@ -23,19 +23,19 @@ import (
 	"testing"
 )
 
-// 70 letters of Cyrillic are 140 bytes: the bio counts characters.
+// 140 letters of Cyrillic are 280 bytes: the bio counts characters.
 func TestAboutTooLong(t *testing.T) {
 	for _, c := range []struct {
 		about string
 		want  bool
 	}{
-		{strings.Repeat("я", 70), false},
-		{strings.Repeat("я", 71), true},
-		{strings.Repeat("a", 70), false},
-		{strings.Repeat("😀", 70), false},
+		{strings.Repeat("я", 140), false},
+		{strings.Repeat("я", 141), true},
+		{strings.Repeat("a", 140), false},
+		{strings.Repeat("😀", 140), false},
 		{"", false},
 	} {
-		if got := aboutTooLong(c.about, false); got != c.want {
+		if got := aboutTooLong(c.about); got != c.want {
 			t.Errorf("%d runes: %v", len([]rune(c.about)), got)
 		}
 	}
@@ -54,7 +54,7 @@ func TestAboutLimitsAreTheAppConfigs(t *testing.T) {
 	}
 	for key, limit := range map[string]int{
 		"about_length_limit_default": AboutLimit,
-		"about_length_limit_premium": AboutLimitPremium,
+		"about_length_limit_premium": AboutLimit,
 	} {
 		if v, ok := config[key].(float64); !ok || v != float64(limit) {
 			t.Errorf("%s of app_config.json %v, the server's limit %d", key, config[key], limit)

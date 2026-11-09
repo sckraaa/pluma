@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Command admin is the internal moderation and Premium panel (task 025,
+// Command admin is the internal moderation panel (task 025,
 // ADR 0040). It listens on a loopback address only and is published to the
 // tailnet by tailscale serve, whose identity headers it trusts on loopback
 // requests, with a passkey on top (docs/ops/admin-panel.md).
@@ -36,7 +36,6 @@ import (
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
-	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
@@ -78,7 +77,7 @@ func main() {
 	}
 	srv := &http.Server{
 		Addr:              c.Listen,
-		Handler:           newServer(&c, &store{db: db}, dao, runner, user_client.NewUserClient(rpcx.GetCachedRpcClient(c.BizServiceClient)), dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient))).routes(),
+		Handler:           newServer(&c, &store{db: db}, dao, runner, dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient))).routes(),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      2 * time.Minute,

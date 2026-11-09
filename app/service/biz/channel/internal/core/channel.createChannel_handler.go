@@ -74,16 +74,12 @@ func (c *ChannelCore) ChannelCreateChannel(in *channel.TLChannelCreateChannel) (
 		pts       int32
 	)
 	_, err := c.svcCtx.Dao.RunBox(c.ctx, in.CreatorId, func(b *userbox.Box) error {
-		limit, err := premium.ChannelsLimit(b.Tx(), in.CreatorId, b.Date())
-		if err != nil {
-			return err
-		}
 		var joined []int64
 		if err := b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?",
-			in.CreatorId, limit); err != nil {
+			in.CreatorId, premium.ChannelsLimit); err != nil {
 			return err
 		}
-		if len(joined) >= limit {
+		if len(joined) >= premium.ChannelsLimit {
 			return mtproto.ErrChannelsTooMuch
 		}
 		ch, err := channelbox.Create(b, channelbox.NewChannel{

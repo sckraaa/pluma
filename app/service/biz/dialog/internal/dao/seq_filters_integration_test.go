@@ -152,34 +152,19 @@ func TestDialogFilterOrderWithSeq(t *testing.T) {
 		return got
 	}
 
-	// Without Premium "All chats" is first in the order the devices get.
+	// "All chats" takes its place, and a row keeps it.
 	u := newUser()
 	save(t, u, 2, "Work")
 	save(t, u, 3, "Family")
 	n := len(seqPushes(t, u))
-	if got := order(u, 3, 0, 2); !slices.Equal(got, []int32{3, 2}) {
+	if got := order(u, 3, 0, 2); !slices.Equal(got, []int32{3, 0, 2}) {
 		t.Fatalf("stored order %v", got)
 	}
-	order(u, 3, 2)    // as it is: nothing
-	order(u, 3, 0, 2) // "All chats" is not placed without Premium: nothing
-	checkSeq(t, u, n, fmt.Sprintf("%d:order [0 3 2] u0 c0", int(userbox.BaseSeq)+n+1))
-
-	// With Premium it takes its place, and a row keeps it.
-	p := newPremiumUser(t)
-	save(t, p, 2, "Work")
-	save(t, p, 3, "Family")
-	n = len(seqPushes(t, p))
-	order(p, 3, 0, 2)
-	order(p, 3, 0, 2) // as it is: nothing
-	if ids, _ := stored(t, p); !slices.Equal(ids, []int32{3, 0, 2}) {
+	order(u, 3, 0, 2) // as it is: nothing
+	if ids, _ := stored(t, u); !slices.Equal(ids, []int32{3, 0, 2}) {
 		t.Fatalf("stored folders %v", ids)
 	}
-	// After Premium its place goes back to the top.
-	setPremium(t, p, false, 0)
-	order(p, 3, 0, 2)
-	checkSeq(t, p, n,
-		fmt.Sprintf("%d:order [3 0 2] u0 c0", int(userbox.BaseSeq)+n+1),
-		fmt.Sprintf("%d:order [0 3 2] u0 c0", int(userbox.BaseSeq)+n+2))
+	checkSeq(t, u, n, fmt.Sprintf("%d:order [3 0 2] u0 c0", int(userbox.BaseSeq)+n+1))
 }
 
 func TestDialogFilterTagsWithSeq(t *testing.T) {

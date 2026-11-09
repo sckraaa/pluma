@@ -38,14 +38,7 @@ func (c *PrivacySettingsCore) AccountSetPrivacy(in *mtproto.TLAccountSetPrivacy)
 		return nil, err
 	}
 
-	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{
-		Id: c.MD.UserId,
-	})
-	if err != nil {
-		c.Logger.Errorf("account.setPrivacy - error: %v", err)
-		return nil, err
-	}
-	ruleList, err := normalizeRules(key, mtproto.ToPrivacyRuleListByInput(c.MD.UserId, in.Rules), me.Premium())
+	ruleList, err := normalizeRules(mtproto.ToPrivacyRuleListByInput(c.MD.UserId, in.Rules))
 	if err != nil {
 		return nil, err
 	}

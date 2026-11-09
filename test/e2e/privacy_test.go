@@ -172,8 +172,8 @@ func TestPrivacyRules(t *testing.T) {
 		t.Errorf("close friends on the profile photo: %v, want PRIVACY_VALUE_INVALID", err)
 	}
 	if _, err := setPrivacy(ctx, alice, mtproto.Predicate_inputPrivacyKeyVoiceMessages,
-		ruleOf(alice, mtproto.Predicate_inputPrivacyValueAllowContacts)); !mtclient.IsRPCError(err, "PREMIUM_ACCOUNT_REQUIRED") {
-		t.Errorf("voice messages from contacts without Premium: %v, want PREMIUM_ACCOUNT_REQUIRED", err)
+		ruleOf(alice, mtproto.Predicate_inputPrivacyValueAllowContacts)); err != nil {
+		t.Errorf("voice messages from contacts: %v", err)
 	}
 }
 

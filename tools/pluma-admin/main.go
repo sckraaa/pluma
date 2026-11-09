@@ -161,9 +161,6 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] migrate up [-dir <sql dir>] [-wait <duration>]
   pluma-admin [-f bff.yaml] migrate status [-dir <sql dir>]
   pluma-admin [-f bff.yaml] migrate baseline -through <file> [-dir <sql dir>]
-  pluma-admin [-f bff.yaml] premium grant <phone> [-months N]   (without -months: for good)
-  pluma-admin [-f bff.yaml] premium revoke <phone>
-  pluma-admin [-f bff.yaml] premium list
   pluma-admin [-f bff.yaml] moderation reports [-all]
   pluma-admin [-f bff.yaml] moderation restrict|ban <phone> [-days <n>]   (emergency access; the panel is the normal way)
   pluma-admin [-f bff.yaml] moderation lift <phone>
@@ -229,8 +226,6 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return migrateCommand(args, configFile, stdout)
 	case "storage":
 		return storageCommand(args, configFile, stdout)
-	case "premium":
-		return premiumCommand(args, configFile, stdout)
 	case "moderation":
 		return moderationCommand(args, configFile, stdout)
 	case "panel":

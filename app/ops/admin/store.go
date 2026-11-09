@@ -184,32 +184,3 @@ func (s *store) prune(ctx context.Context) error {
 	_, err := s.db.Exec(ctx, "DELETE FROM admin_sessions WHERE expires_at <= ?", now)
 	return err
 }
-
-// premiumRow is one account on the Premium page. The phone is shown to the
-// owner only, who needs it to find a person.
-type premiumRow struct {
-	Id      int64  `db:"id" json:"id"`
-	Phone   string `db:"phone" json:"phone"`
-	Name    string `db:"first_name" json:"name"`
-	Premium bool   `db:"premium" json:"premium"`
-	Until   int64  `db:"premium_expire_date" json:"until"`
-}
-
-func (s *store) accountByPhone(ctx context.Context, phone string) (*premiumRow, error) {
-	var rows []premiumRow
-	if err := s.db.QueryRowsPartial(ctx, &rows,
-		"SELECT id, phone, first_name, premium, premium_expire_date FROM users WHERE phone = ? AND deleted = 0", phone); err != nil {
-		return nil, err
-	}
-	if len(rows) == 0 {
-		return nil, nil
-	}
-	return &rows[0], nil
-}
-
-func (s *store) premiumAccounts(ctx context.Context) ([]premiumRow, error) {
-	var rows []premiumRow
-	err := s.db.QueryRowsPartial(ctx, &rows,
-		"SELECT id, phone, first_name, premium, premium_expire_date FROM users WHERE premium = 1 AND deleted = 0 ORDER BY id")
-	return rows, err
-}

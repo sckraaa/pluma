@@ -23,19 +23,19 @@ import (
 )
 
 // Boosts (task 044): Pluma has no Premium boosts, so a channel has none and
-// its level is 0, which is its real state. Android asks the status of every
-// channel it opens and shows an error bulletin when the answer is an error
+// stays at level 0; what boosts unlock in Telegram is open to everybody (ADR
+// 0041): the *_level_min of help.getAppConfig are 0 and the patched clients
+// never wait for a level. Android asks the status of every channel it opens
+// and shows an error bulletin when the answer is an error
 // (ChatActivity.java:22397-22428, ChannelBoostsController.java:58-60 at
 // aac1efcb), and then the account's own boosts (getMyBoosts). Giving and
 // listing boosts is not served (ERR_ENTERPRISE_IS_BLOCKED, 400, which the
 // clients do not retry).
 
-// nextLevelBoosts is the boosts of the next level a channel at level 0 is
-// shown: without it Android takes the channel for one at its highest level
-// and draws "Level -1" (ChannelBoostsController.java:73,
-// LimitReachedBottomSheet.java:2206, LimitPreviewView.java:631-634 at
-// aac1efcb). One boost for level 1 is the least that shows a level not yet
-// reached; Telegram's thresholds are not verified.
+// nextLevelBoosts is the boosts of the next level: without it Android takes
+// the channel for one at its highest level (ChannelBoostsController.java:73
+// at aac1efcb). One boost is the least that shows a level not yet reached;
+// Telegram's thresholds are not verified.
 const nextLevelBoosts = 1
 
 // PremiumGetBoostsStatus
