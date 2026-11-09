@@ -205,7 +205,7 @@ func (c *Core) Handle(ctx context.Context, ev *Event) {
 func (c *Core) pushOne(ctx context.Context, ev *Event, n *notify.Notification) {
 	all := *ev
 	all.Only = 0
-	for _, d := range c.targets(ctx, &all) {
+	for _, d := range c.targets(ctx, &all, false) {
 		if d.AuthKeyId == ev.Only {
 			c.notify(ctx, n, d)
 		}
