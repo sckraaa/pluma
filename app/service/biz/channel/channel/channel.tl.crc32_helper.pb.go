@@ -108,6 +108,14 @@ const (
 	CRC32_channel_getForumTopicsByID TLConstructor = 1892057379 // 0x70c68123
 	// pluma: task 060
 	CRC32_channel_searchTopic TLConstructor = -2126242873 // 0x81441bc7
+	// pluma: task 066
+	CRC32_channel_searchCount TLConstructor = 622787338 // 0x251efb0a
+	// pluma: task 066
+	CRC32_channel_searchCalendar TLConstructor = -16614681 // 0xff027ae7
+	// pluma: task 066
+	CRC32_channel_searchPositions TLConstructor = -1144250748 // 0xbbcc1e84
+	// pluma: task 066
+	CRC32_channel_searchAcross TLConstructor = -1564360787 // 0xa2c1bfad
 	// pluma: task 060
 	CRC32_channel_readTopicMentions TLConstructor = -701570663 // 0xd62ee199
 	// pluma: task 060

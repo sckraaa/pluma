@@ -76,6 +76,10 @@ type ChannelClient interface {
 	ChannelGetForumTopics(ctx context.Context, in *channel.TLChannelGetForumTopics) (*mtproto.Messages_ForumTopics, error)
 	ChannelGetForumTopicsByID(ctx context.Context, in *channel.TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error)
 	ChannelSearchTopic(ctx context.Context, in *channel.TLChannelSearchTopic) (*mtproto.Messages_Messages, error)
+	ChannelSearchCount(ctx context.Context, in *channel.TLChannelSearchCount) (*mtproto.Int32, error)
+	ChannelSearchCalendar(ctx context.Context, in *channel.TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error)
+	ChannelSearchPositions(ctx context.Context, in *channel.TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error)
+	ChannelSearchAcross(ctx context.Context, in *channel.TLChannelSearchAcross) (*mtproto.Messages_Messages, error)
 	ChannelReadTopicMentions(ctx context.Context, in *channel.TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error)
 	ChannelUnpinAllTopicMessages(ctx context.Context, in *channel.TLChannelUnpinAllTopicMessages) (*mtproto.Messages_AffectedHistory, error)
 	ChannelSetHistoryTTL(ctx context.Context, in *channel.TLChannelSetHistoryTTL) (*mtproto.Updates, error)
@@ -864,4 +868,48 @@ func (m *defaultChannelClient) ChannelSetHistoryTTL(ctx context.Context, in *cha
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetHistoryTTL(ctx, in)
+}
+
+// ChannelSearchCount
+// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int = int;
+func (m *defaultChannelClient) ChannelSearchCount(ctx context.Context, in *channel.TLChannelSearchCount) (*mtproto.Int32, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSearchCount(ctx, in)
+}
+
+// ChannelSearchCalendar
+// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int = messages.SearchResultsCalendar;
+func (m *defaultChannelClient) ChannelSearchCalendar(ctx context.Context, in *channel.TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSearchCalendar(ctx, in)
+}
+
+// ChannelSearchPositions
+// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int = messages.SearchResultsPositions;
+func (m *defaultChannelClient) ChannelSearchPositions(ctx context.Context, in *channel.TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSearchPositions(ctx, in)
+}
+
+// ChannelSearchAcross
+// channel.searchAcross self_id:long public_only:Bool broadcasts_only:Bool groups_only:Bool community_id:long folder_mode:int folder_channels:Vector<long> q:string media_type:int min_date:int max_date:int offset_rate:int offset_channel_id:long offset_id:int limit:int = messages.Messages;
+func (m *defaultChannelClient) ChannelSearchAcross(ctx context.Context, in *channel.TLChannelSearchAcross) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSearchAcross(ctx, in)
 }

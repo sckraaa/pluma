@@ -989,3 +989,59 @@ func (s *Service) ChannelSetHistoryTTL(ctx context.Context, request *channel.TLC
 
 	return r, err
 }
+
+// ChannelSearchCount
+// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int = int;
+func (s *Service) ChannelSearchCount(ctx context.Context, request *channel.TLChannelSearchCount) (*mtproto.Int32, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.searchCount - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSearchCount(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelSearchCalendar
+// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int = messages.SearchResultsCalendar;
+func (s *Service) ChannelSearchCalendar(ctx context.Context, request *channel.TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.searchCalendar - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSearchCalendar(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelSearchPositions
+// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int = messages.SearchResultsPositions;
+func (s *Service) ChannelSearchPositions(ctx context.Context, request *channel.TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.searchPositions - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSearchPositions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelSearchAcross
+// channel.searchAcross self_id:long public_only:Bool broadcasts_only:Bool groups_only:Bool community_id:long folder_mode:int folder_channels:Vector<long> q:string media_type:int min_date:int max_date:int offset_rate:int offset_channel_id:long offset_id:int limit:int = messages.Messages;
+func (s *Service) ChannelSearchAcross(ctx context.Context, request *channel.TLChannelSearchAcross) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.searchAcross - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSearchAcross(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

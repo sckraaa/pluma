@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/msgsearch"
 )
 
 // Querier reads rows outside a box transaction: the *sqlx.DB of a service.
@@ -260,16 +261,13 @@ func Tagged(ctx context.Context, q Querier, userId int64, keys []string, savedPe
 		query += " AND m.saved_peer_type = ? AND m.saved_peer_id = ?"
 		args = append(args, savedPeer.PeerType, savedPeer.PeerId)
 	}
-	if text != "" {
-		query += " AND m.message LIKE ?"
-		args = append(args, "%"+likeEscaper.Replace(text)+"%")
-	}
+	var where msgsearch.Where
+	msgsearch.Columns{Prefix: "m."}.Text(&where, msgsearch.KindEmpty, text)
+	query += where.SQL
+	args = append(args, where.Args...)
 	query += " GROUP BY m.user_message_box_id HAVING COUNT(DISTINCT r.reaction) = ? ORDER BY m.user_message_box_id DESC LIMIT ?"
 	args = append(args, len(keys), limit)
 	var ids []int32
 	err := q.QueryRowsPartial(ctx, &ids, query, args...)
 	return ids, err
 }
-
-// likeEscaper escapes the wildcards of LIKE in a text searched for.
-var likeEscaper = strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
