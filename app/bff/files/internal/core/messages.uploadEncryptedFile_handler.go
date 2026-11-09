@@ -19,14 +19,39 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/secretchat"
+
+	"google.golang.org/grpc/status"
 )
 
 // MessagesUploadEncryptedFile
 // messages.uploadEncryptedFile#5057c497 peer:InputEncryptedChat file:InputEncryptedFile = EncryptedFile;
+//
+// The file is stored for the chat without a message: the clients reference
+// it later with inputEncryptedFile.
 func (c *FilesCore) MessagesUploadEncryptedFile(in *mtproto.TLMessagesUploadEncryptedFile) (*mtproto.EncryptedFile, error) {
-	// TODO: not impl
-	c.Logger.Errorf("messages.uploadEncryptedFile blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	store := c.svcCtx.Dao.SecretChats
+	_, err := store.Check(c.ctx, secretchat.Device{UserId: c.MD.UserId, AuthKey: c.MD.PermAuthKeyId}, in.GetPeer().GetChatId(), in.GetPeer().GetAccessHash())
+	if err != nil {
+		switch {
+		case errors.Is(err, secretchat.ErrChatNotFound):
+			return nil, mtproto.ErrChatIdInvalid
+		case errors.Is(err, secretchat.ErrWrongDevice):
+			return nil, mtproto.ErrEncryptionIdInvalid
+		}
+		c.Logger.Errorf("messages.uploadEncryptedFile - %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	file, err := store.ResolveFile(c.ctx, c.svcCtx.Dao.DfsClient, c.MD.UserId, in.GetFile())
+	if err != nil {
+		c.Logger.Errorf("messages.uploadEncryptedFile - %v", err)
+		if _, ok := status.FromError(err); ok {
+			return nil, err
+		}
+		return nil, mtproto.ErrInternalServerError
+	}
+	return file.Encrypted(), nil
 }

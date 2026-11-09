@@ -19,11 +19,13 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
+	Mysql       sqlx.Config // the encrypted files (pkg/secretchat)
 	DfsClient   zrpc.RpcClientConf
 	UserClient  zrpc.RpcClientConf
 	MediaClient zrpc.RpcClientConf

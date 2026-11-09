@@ -51,6 +51,7 @@ import (
 	reports_helper "github.com/teamgram/teamgram-server/app/bff/reports"
 	savedmessagedialogshelper "github.com/teamgram/teamgram-server/app/bff/savedmessagedialogs"
 	scheduledmessages_helper "github.com/teamgram/teamgram-server/app/bff/scheduledmessages"
+	secretchats_helper "github.com/teamgram/teamgram-server/app/bff/secretchats"
 	sponsoredmessages_helper "github.com/teamgram/teamgram-server/app/bff/sponsoredmessages"
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
@@ -112,6 +113,17 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				MessageClient: c.BizServiceClient,
 				ChannelClient: c.BizServiceClient,
+			}))
+
+		// secretchats_helper: secret chats (task 069).
+		mtproto.RegisterRPCSecretChatsServer(
+			grpcServer,
+			secretchats_helper.New(secretchats_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				UserClient:    c.BizServiceClient,
+				DfsClient:     c.DfsClient,
+				SyncClient:    syncClient,
 			}))
 
 		// tos_helper
@@ -232,6 +244,7 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			files_helper.New(files_helper.Config{
 				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
 				DfsClient:     c.DfsClient,
 				UserClient:    c.BizServiceClient,
 				MediaClient:   c.MediaClient,
@@ -251,6 +264,7 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			updates_helper.New(updates_helper.Config{
 				RpcServerConf:     c.RpcServerConf,
+				Mysql:             c.Mysql,
 				UpdatesClient:     c.BizServiceClient,
 				UserClient:        c.BizServiceClient,
 				ChatClient:        c.BizServiceClient,

@@ -81,10 +81,12 @@ func (s *Service) ChannelsReportSpam(ctx context.Context, request *mtproto.TLCha
 	return c.ChannelsReportSpam(request)
 }
 
-// MessagesReportEncryptedSpam is not served: Pluma has no secret chats.
+// MessagesReportEncryptedSpam
 // messages.reportEncryptedSpam#4b0c8c0f peer:InputEncryptedChat = Bool;
 func (s *Service) MessagesReportEncryptedSpam(ctx context.Context, request *mtproto.TLMessagesReportEncryptedSpam) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.reportEncryptedSpam - metadata: {%s}", c.MD)
+	return c.MessagesReportEncryptedSpam(request)
 }
 
 // MessagesReportReadMetrics is not served.

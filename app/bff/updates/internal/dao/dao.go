@@ -27,6 +27,7 @@ import (
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	updates_client "github.com/teamgram/teamgram-server/app/service/biz/updates/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	"github.com/teamgram/teamgram-server/pkg/secretchat"
 )
 
 type Dao struct {
@@ -36,6 +37,7 @@ type Dao struct {
 	channel_client.ChannelClient
 	dialog_client.DialogClient
 	authsession_client.AuthsessionClient
+	SecretChats *secretchat.Store
 }
 
 func New(c config.Config) *Dao {
@@ -46,5 +48,6 @@ func New(c config.Config) *Dao {
 		ChannelClient:     channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		DialogClient:      dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
 		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
+		SecretChats:       secretchat.MustOpen(c.Mysql.DSN),
 	}
 }

@@ -24,12 +24,14 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
+	"github.com/teamgram/teamgram-server/pkg/secretchat"
 )
 
 type Dao struct {
 	dfs_client.DfsClient
 	media_client.MediaClient
 	user_client.UserClient
+	SecretChats *secretchat.Store
 }
 
 func New(c config.Config) *Dao {
@@ -37,5 +39,6 @@ func New(c config.Config) *Dao {
 		DfsClient:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 		MediaClient: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 		UserClient:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		SecretChats: secretchat.MustOpen(c.Mysql.DSN),
 	}
 }

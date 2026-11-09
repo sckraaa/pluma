@@ -25,6 +25,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/updates/internal/svc"
+	"github.com/teamgram/teamgram-server/pkg/secretchat"
 )
 
 type UpdatesCore struct {
@@ -32,6 +33,11 @@ type UpdatesCore struct {
 	svcCtx *svc.ServiceContext
 	logx.Logger
 	MD *metadata.RpcMetadata
+}
+
+// device is the authorization of the request.
+func (c *UpdatesCore) device() secretchat.Device {
+	return secretchat.Device{UserId: c.MD.UserId, AuthKey: c.MD.PermAuthKeyId}
 }
 
 func New(ctx context.Context, svcCtx *svc.ServiceContext) *UpdatesCore {
