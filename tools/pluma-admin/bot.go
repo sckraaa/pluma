@@ -28,20 +28,26 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // botConfig is the part of the bff config bot needs: the database of bots,
-// the user service for the flags (it owns the cache of users).
+// the user service for the flags (it owns the cache of users), authsession
+// and sync to end the sessions of a replaced token.
 type botConfig struct {
-	Mysql            sqlx.Config
-	BizServiceClient zrpc.RpcClientConf
+	Mysql             sqlx.Config
+	BizServiceClient  zrpc.RpcClientConf
+	AuthSessionClient zrpc.RpcClientConf
+	SyncClient        struct{ Topic string }
 }
 
 // botCommand runs bot create, list, token and set (task 070, ADR 0041).
@@ -78,7 +84,16 @@ func botCommand(args []string, configFile string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
+		// Printed first: it cannot be shown again, and a failed revocation
+		// is repaired by running the command once more.
 		fmt.Fprintln(stdout, token)
+		runner := &effects.Runner{
+			Authsession: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthSessionClient)),
+			Sync:        sync_client.MustNewSyncOutboxClient(sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}),
+		}
+		if err = runner.Revoke(ctx, id); err != nil {
+			return fmt.Errorf("the token is replaced, but the sessions of the bot are not ended: %w", err)
+		}
 		return nil
 	case "set":
 		return setBot(ctx, c, store, args[2:], stdout)
