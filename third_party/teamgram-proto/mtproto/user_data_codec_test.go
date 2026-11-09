@@ -40,13 +40,19 @@ func TestUserDataRequirePremium(t *testing.T) {
 		}
 	}
 
-	user := func(premium bool, until int64) *ImmutableUser {
-		return MakeTLImmutableUser(&ImmutableUser{User: MakeTLUserData(&UserData{
+	// Whatever users.premium stores, a person has Premium (ADR 0041) and
+	// others see the setting of a person; a bot has no Premium.
+	user := func(premium bool, bot bool) *ImmutableUser {
+		data := &UserData{
 			Id:                               7,
 			Premium:                          premium,
-			PremiumExpireDate:                wrapperspb.Int64(until),
+			PremiumExpireDate:                wrapperspb.Int64(1),
 			NewNoncontactPeersRequirePremium: true,
-		}).To_UserData()}).To_ImmutableUser()
+		}
+		if bot {
+			data.Bot = MakeTLBotData(&BotData{}).To_BotData()
+		}
+		return MakeTLImmutableUser(&ImmutableUser{User: MakeTLUserData(data).To_UserData()}).To_ImmutableUser()
 	}
 	viewer := MakeTLImmutableUser(&ImmutableUser{User: MakeTLUserData(&UserData{Id: 8}).To_UserData()}).To_ImmutableUser()
 	for _, tc := range []struct {
@@ -54,18 +60,21 @@ func TestUserDataRequirePremium(t *testing.T) {
 		user *ImmutableUser
 		want bool
 	}{
-		{"with Premium", user(true, 0), true},
-		{"Premium ended", user(true, 1), false},
-		{"without Premium", user(false, 0), false},
+		{"stored Premium", user(true, false), true},
+		{"stored without Premium", user(false, false), true},
+		{"a bot", user(true, true), false},
 	} {
-		if got := tc.user.ToUnsafeUser(viewer).GetContactRequirePremium(); got != tc.want {
-			t.Errorf("%s: ToUnsafeUser %v, want %v", tc.name, got, tc.want)
+		if tc.user.Premium() == tc.user.IsBot() {
+			t.Errorf("%s: Premium() %v", tc.name, tc.user.Premium())
 		}
-		if got := tc.user.ToUser(viewer.Id()).GetContactRequirePremium(); got != tc.want {
-			t.Errorf("%s: ToUser %v, want %v", tc.name, got, tc.want)
+		if got := tc.user.ToUnsafeUser(viewer); got.GetContactRequirePremium() != tc.want || got.GetPremium() == tc.user.IsBot() {
+			t.Errorf("%s: ToUnsafeUser contact_require_premium %v, premium %v", tc.name, got.GetContactRequirePremium(), got.GetPremium())
 		}
-		if tc.user.ToSelfUser().GetContactRequirePremium() {
-			t.Errorf("%s: the user's own view has contact_require_premium", tc.name)
+		if got := tc.user.ToUser(viewer.Id()); got.GetContactRequirePremium() != tc.want || got.GetPremium() == tc.user.IsBot() {
+			t.Errorf("%s: ToUser contact_require_premium %v, premium %v", tc.name, got.GetContactRequirePremium(), got.GetPremium())
+		}
+		if self := tc.user.ToSelfUser(); self.GetContactRequirePremium() || self.GetPremium() == tc.user.IsBot() {
+			t.Errorf("%s: own view contact_require_premium %v, premium %v", tc.name, self.GetContactRequirePremium(), self.GetPremium())
 		}
 	}
 }

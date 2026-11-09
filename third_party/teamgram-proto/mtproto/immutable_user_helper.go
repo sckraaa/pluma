@@ -19,8 +19,6 @@
 package mtproto
 
 import (
-	"time"
-
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -199,16 +197,12 @@ func (m *ImmutableUser) BotAttachMenu() bool {
 	return m.User.Bot.GetBotAttachMenu()
 }
 
+// pluma: Premium is the one place that says who has Premium: every user but
+// a bot (ADR 0041), whatever users.premium stores. Clients read the flag of
+// their own user for their limits and features and the flag of another user
+// for its animated avatar and the links of its bio (task 071).
 func (m *ImmutableUser) Premium() bool {
-	if !m.User.Premium {
-		return false
-	} else {
-		if m.User.PremiumExpireDate.GetValue() == 0 {
-			return true
-		} else {
-			return time.Now().Unix() < m.User.PremiumExpireDate.GetValue()
-		}
-	}
+	return !m.IsBot()
 }
 
 // ContactRequirePremium tells whether only contacts, chats there already and
