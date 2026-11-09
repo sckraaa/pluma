@@ -62,8 +62,11 @@ type BoxQuery struct {
 	MinDate, MaxDate int32
 
 	// Extra narrows the search further: the kinds of chats of a global
-	// search, its folders, the cursor of a merged list.
+	// search, its folders.
 	Extra Where
+	// Cursor is where a page of a merged list starts: it narrows the page
+	// and not the count of all that match.
+	Cursor Where
 }
 
 var boxColumns = Columns{}
@@ -115,7 +118,10 @@ func SearchBox(ctx context.Context, db Querier, q BoxQuery, pg Page) ([]int32, i
 	var ids []int32
 	if limit > 0 {
 		var err error
-		if ids, err = page(ctx, db, src, pg, limit); err != nil {
+		from := src
+		from.Where += q.Cursor.SQL
+		from.Args = append(slices.Clone(src.Args), q.Cursor.Args...)
+		if ids, err = page(ctx, db, from, pg, limit); err != nil {
 			return nil, 0, err
 		}
 	}

@@ -32,6 +32,18 @@ func TestPatterns(t *testing.T) {
 	}
 }
 
+func TestPostsHashtag(t *testing.T) {
+	for tag, want := range map[string]string{
+		"#Отпуск": wordStart + "#отпуск" + tagEnd,
+		"$BTC":    wordStart + `\$btc` + tagEnd,
+		"Отпуск":  wordStart + "[#$]отпуск" + tagEnd,
+	} {
+		if got := Patterns(PostsHashtag(tag)); !reflect.DeepEqual(got, []string{want}) {
+			t.Errorf("PostsHashtag(%q): %q, want %q", tag, got, want)
+		}
+	}
+}
+
 func TestPatternsLimits(t *testing.T) {
 	if got := Patterns(strings.Repeat("слово ", 40)); len(got) != maxWords {
 		t.Errorf("%d words", len(got))

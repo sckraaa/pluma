@@ -42,6 +42,21 @@ const tagEnd = `(?![\p{L}\p{N}_])`
 // are part of what is looked for ("50%", "c++", "кот-пёс").
 const sentencePunct = `.,!?:;"'«»()[]{}…—–`
 
+// anyTag starts a word of a query that is a tag with either sign.
+const anyTag = "#$"
+
+// PostsHashtag is the query for the hashtag of channels.searchPosts. Android
+// sends the tag with its sign (HashtagSearchController: req.hashtag = query,
+// "#tag" or "$TAG"), tdesktop and tweb cut the first letter off a hashtag and
+// a cashtag alike (dialogs_widget.cpp requestPublicPosts: mid(1),
+// appMessagesManager.ts: query.slice(1)), so a tag with no sign may be either.
+func PostsHashtag(tag string) string {
+	if strings.HasPrefix(tag, "#") || strings.HasPrefix(tag, "$") {
+		return tag
+	}
+	return anyTag + tag
+}
+
 // Patterns are the regular expressions (ICU, as REGEXP_LIKE takes them) a
 // message must all match for query q; none for an empty query. Every word
 // of q is a condition of its own, in any order and place of the text, each
@@ -73,8 +88,11 @@ func Patterns(q string) []string {
 
 func wordPattern(word string) string {
 	var sigil string
-	if word[0] == '#' || word[0] == '$' {
-		sigil, word = word[:1], word[1:]
+	switch {
+	case strings.HasPrefix(word, anyTag):
+		sigil, word = `[#$]`, word[len(anyTag):]
+	case word[0] == '#' || word[0] == '$':
+		sigil, word = quote(word[:1]), word[1:]
 	}
 	word = strings.Trim(word, sentencePunct)
 	if word == "" {
@@ -84,7 +102,7 @@ func wordPattern(word string) string {
 		word = string(r[:maxWordRunes])
 	}
 	if sigil != "" {
-		return wordStart + quote(sigil+word) + tagEnd
+		return wordStart + sigil + quote(word) + tagEnd
 	}
 	if cyrillicWord(word) {
 		word = stemRussian(word)

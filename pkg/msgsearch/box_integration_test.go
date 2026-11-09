@@ -251,6 +251,12 @@ func TestSearchScopesAndPaging(t *testing.T) {
 	if err != nil || !slices.Equal(ids, []int32{b}) || count != 4 {
 		t.Errorf("a page below c: %v %d %v", ids, count, err)
 	}
+	cursor := q
+	cursor.Cursor.And("user_message_box_id < ?", c)
+	ids, count, err = SearchBox(context.Background(), f.db, cursor, Page{Limit: 10})
+	if err != nil || len(ids) != 2 || ids[0] != b || count != 4 {
+		t.Errorf("a cursor narrows the page, not the count: %v %d %v", ids, count, err)
+	}
 	ids, _, err = SearchBox(context.Background(), f.db, q, Page{OffsetId: c, AddOffset: -1, Limit: 2})
 	if err != nil || !slices.Equal(ids, []int32{c, b}) {
 		t.Errorf("a negative add_offset: %v %v", ids, err)
@@ -384,7 +390,7 @@ func TestPostsQuota(t *testing.T) {
 		t.Fatalf("exhausted: %v %v", st, err)
 	}
 	_, err = TakePostsSlot(ctx, f.db, f.user, "one more", now)
-	if err == nil || !strings.Contains(err.Error(), "FLOOD_WAIT_") {
+	if err == nil || !strings.Contains(err.Error(), "_OR_STARS_0") {
 		t.Fatalf("over the quota: %v", err)
 	}
 	if st, err = TakePostsSlot(ctx, f.db, f.user, "кот", now); err != nil || !st.GetQueryIsFree() {

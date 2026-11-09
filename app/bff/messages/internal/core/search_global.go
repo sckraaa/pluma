@@ -95,11 +95,11 @@ func (c *MessagesCore) searchGlobal(in *mtproto.TLMessagesSearchGlobal) (*mtprot
 		}
 		if in.OffsetRate > 0 {
 			if offsetPeer.IsChannel() {
-				q.Extra.And("date2 < ?", in.OffsetRate)
+				q.Cursor.And("date2 < ?", in.OffsetRate)
 			} else if in.OffsetId > 0 {
-				q.Extra.And("user_message_box_id < ?", in.OffsetId)
+				q.Cursor.And("user_message_box_id < ?", in.OffsetId)
 			} else {
-				q.Extra.And("date2 <= ?", in.OffsetRate)
+				q.Cursor.And("date2 <= ?", in.OffsetRate)
 			}
 		}
 		ids, count, err := msgsearch.SearchBox(c.ctx, c.svcCtx.Search, q, msgsearch.Page{Limit: limit})
@@ -233,10 +233,13 @@ func isSentMediaKind(kind int32) bool {
 		kind == mtproto.MEDIA_VOICE_FILE || kind == mtproto.MEDIA_ROUND_FILE
 }
 
-// searchPosts answers channels.searchPosts over all public channels:
-// hashtag without "#", or a text query, exactly one of them. Text
-// queries are counted against the daily quota, pagination and repeated
-// queries free of it (searchPostsFlood). Stars are not taken here, so
+// searchPosts answers channels.searchPosts over all public channels: a
+// hashtag or a text query, not both. Text queries are counted against the
+// daily quota, pagination and repeated queries free of it
+// (searchPostsFlood). The empty query is what the clients open the list
+// with (tdesktop PostsSearch::applyQuery, Android PostsSearchContainer
+// "news"): it gives the newest posts and takes no slot. Which posts
+// Telegram puts there is not documented. Stars are not taken here, so
 // allow_paid_stars is never needed; stars_amount says 0.
 func (c *MessagesCore) searchPosts(in *mtproto.TLChannelsSearchPosts) (*mtproto.Messages_Messages, error) {
 	if c.MD.IsBot {
@@ -247,8 +250,12 @@ func (c *MessagesCore) searchPosts(in *mtproto.TLChannelsSearchPosts) (*mtproto.
 		hashtag = in.GetHashtag_STRING()
 	}
 	query := in.GetQuery().GetValue()
-	if (hashtag == "") == (query == "") {
+	if (hashtag != "" && query != "") || (hashtag == "" && in.GetQuery() == nil) {
 		return nil, mtproto.ErrSearchQueryEmpty
+	}
+	offsetPeer := mtproto.FromInputPeer2(c.MD.UserId, in.GetOffsetPeer())
+	if offsetPeer.PeerType != mtproto.PEER_EMPTY && !offsetPeer.IsChannel() {
+		return nil, mtproto.ErrOffsetPeerIdInvalid
 	}
 	var flood *mtproto.SearchPostsFlood
 	if query != "" {
@@ -264,11 +271,7 @@ func (c *MessagesCore) searchPosts(in *mtproto.TLChannelsSearchPosts) (*mtproto.
 	}
 	text := query
 	if hashtag != "" {
-		text = "#" + hashtag
-	}
-	offsetPeer := mtproto.FromInputPeer2(c.MD.UserId, in.GetOffsetPeer())
-	if offsetPeer.PeerType != mtproto.PEER_EMPTY && !offsetPeer.IsChannel() {
-		return nil, mtproto.ErrOffsetPeerIdInvalid
+		text = msgsearch.PostsHashtag(hashtag)
 	}
 	offsetChannel := int64(0)
 	if offsetPeer.IsChannel() {

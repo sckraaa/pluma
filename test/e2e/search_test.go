@@ -25,6 +25,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func messagesOf(t *testing.T, o mtproto.TLObject) *mtproto.Messages_Messages {
@@ -81,6 +82,14 @@ func TestSearch(t *testing.T) {
 	sendMessageID(ctx, t, alice, peer, "большое стадо, скот пасётся", randomID())
 	tag := sendMessageID(ctx, t, alice, peer, "едем в #отпуск завтра", randomID())
 	sendMessageID(ctx, t, alice, peer, "опять #отпуска кончились", randomID())
+
+	// A message of another user reaches the box after the send has answered.
+	for deadline := time.Now().Add(15 * time.Second); len(searchIn(ctx, t, alice, peer, "дома", nil).GetMessages()) == 0; {
+		if time.Now().After(deadline) {
+			t.Fatal("the message of the other user did not reach the box")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	if r := searchIn(ctx, t, alice, peer, "кота", nil); len(r.GetMessages()) != 2 {
 		t.Errorf("the forms of a word: %s", ids(r))
@@ -184,6 +193,15 @@ func TestSearchPosts(t *testing.T) {
 	}
 	if r.GetSearchFlood() != nil {
 		t.Errorf("a hashtag has no quota: %v", r.GetSearchFlood())
+	}
+	for _, tag := range []string{"#новости", "#НОВОСТИ"} {
+		if r = search(&mtproto.TLChannelsSearchPosts{Hashtag_FLAGSTRING: mtproto.MakeFlagsString(tag)}); len(r.GetMessages()) != 1 {
+			t.Errorf("a hashtag sent with its sign %q: %s", tag, ids(r))
+		}
+	}
+	// The list the clients open with: no query, no slot of the quota.
+	if r = search(&mtproto.TLChannelsSearchPosts{Query: &wrapperspb.StringValue{}}); len(r.GetMessages()) == 0 || r.GetSearchFlood() != nil {
+		t.Errorf("the empty query: %s flood %v", ids(r), r.GetSearchFlood())
 	}
 	r = search(&mtproto.TLChannelsSearchPosts{Query: mtproto.MakeFlagsString("новости дня")})
 	if len(r.GetMessages()) != 1 || r.GetSearchFlood().GetTotalDaily() == 0 {
