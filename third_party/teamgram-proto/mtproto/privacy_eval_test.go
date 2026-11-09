@@ -215,9 +215,14 @@ func TestCheckPrivacyFailsClosed(t *testing.T) {
 }
 
 func TestStatusFor(t *testing.T) {
+	// Without premium the viewer is a bot: everybody else has it (ADR 0041).
 	owner := func(id int64, premium bool, rules ...*PrivacyRule) *ImmutableUser {
+		data := &UserData{Id: id}
+		if !premium {
+			data.Bot = MakeTLBotData(&BotData{}).To_BotData()
+		}
 		u := MakeTLImmutableUser(&ImmutableUser{
-			User:       MakeTLUserData(&UserData{Id: id, Premium: premium}).To_UserData(),
+			User:       MakeTLUserData(data).To_UserData(),
 			LastSeenAt: 1 << 40, // online
 			KeysPrivacyRules: []*PrivacyKeyRules{
 				MakeTLPrivacyKeyRules(&PrivacyKeyRules{Key: STATUS_TIMESTAMP, Rules: rules}).To_PrivacyKeyRules(),
@@ -247,15 +252,19 @@ func TestStatusFor(t *testing.T) {
 // StatusFor decides it: the viewer's own rule and Premium count.
 func TestToUserForStatus(t *testing.T) {
 	mk := func(id int64, premium bool, status *PrivacyRule) *ImmutableUser {
+		data := &UserData{Id: id}
+		if !premium {
+			data.Bot = MakeTLBotData(&BotData{}).To_BotData()
+		}
 		return MakeTLImmutableUser(&ImmutableUser{
-			User:       MakeTLUserData(&UserData{Id: id, Premium: premium}).To_UserData(),
+			User:       MakeTLUserData(data).To_UserData(),
 			LastSeenAt: 1 << 40,
 			KeysPrivacyRules: []*PrivacyKeyRules{
 				MakeTLPrivacyKeyRules(&PrivacyKeyRules{Key: STATUS_TIMESTAMP, Rules: []*PrivacyRule{status}}).To_PrivacyKeyRules(),
 			},
 		}).To_ImmutableUser()
 	}
-	sender := mk(1, false, allowAll())
+	sender := mk(1, true, allowAll())
 	if s := sender.ToUserFor(mk(2, false, disallowAll())).GetStatus(); s.GetPredicateName() != Predicate_userStatusRecently || !s.GetByMe() {
 		t.Errorf("a viewer who hides its own last seen: %s by_me %v", s.GetPredicateName(), s.GetByMe())
 	}
