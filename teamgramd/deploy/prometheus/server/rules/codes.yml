@@ -1,0 +1,35 @@
+# Login codes sent from the Telegram account (task 073, ADR 0042,
+# docs/ops/login-codes.md). The service is optional: when it is not deployed
+# Prometheus finds no target (dns_sd) and none of these fire.
+groups:
+  - name: codes
+    rules:
+      - alert: LoginCodesSessionGone
+        expr: codes_session_ready == 0
+        for: 5m
+        labels: {severity: critical}
+        annotations:
+          summary: "The Telegram account of the login codes has no session"
+          description: "Telegram ended the session, or it was never logged in. Codes go only through the administrator until codes login is repeated. docs/ops/login-codes.md"
+
+      - alert: LoginCodesAccountLimited
+        expr: codes_account_limited == 1
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "Telegram limits the account of the login codes"
+          description: "A flood wait or a restriction: codes go through the administrator meanwhile. docs/ops/login-codes.md"
+
+      - alert: LoginCodesSenderUnreachable
+        expr: sum(increase(login_code_sender_total{result="error"}[15m])) > 2
+        labels: {severity: warning}
+        annotations:
+          summary: "bff cannot reach the service of the login codes"
+          description: "Codes go through the administrator. docker compose ps codes; docs/ops/login-codes.md"
+
+      - alert: LoginCodesContactsNotRemoved
+        expr: codes_contacts_to_remove > 5
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "Imported contacts are not being removed from the account"

@@ -1,0 +1,36 @@
+# The login code sender (task 073, ADR 0042, docs/ops/login-codes.md): a real
+# Telegram account writes the codes, over TDLib. Not started by default: it
+# needs an account that has been logged in by QR first. Added to the services
+# command after the other compose files:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.codes.yaml up -d codes
+#
+# The memory limit is an estimate until the service has run with the real
+# account (docs/ops/login-codes.md, "Память").
+services:
+  codes:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/codes/Dockerfile
+    image: ${PLUMA_CODES_IMAGE:-pluma-codes:local}
+    restart: unless-stopped
+    environment:
+      TELEGRAM_API_ID: ${TELEGRAM_API_ID:?set TELEGRAM_API_ID in .env, the application at my.telegram.org}
+      TELEGRAM_API_HASH: ${TELEGRAM_API_HASH:?set TELEGRAM_API_HASH in .env}
+      CODES_API_TOKEN: ${LOGIN_CODES_SENDER_TOKEN:?set LOGIN_CODES_SENDER_TOKEN in .env (openssl rand -hex 32)}
+      CODES_DB_KEY: ${LOGIN_CODES_DB_KEY:?set LOGIN_CODES_DB_KEY in .env (openssl rand -hex 32)}
+    volumes:
+      # The TDLib session and the sender's limits: a secret, not backed up.
+      - codes_data:/data
+    ports:
+      # For the panel, which runs with the network of the host.
+      - "127.0.0.1:9378:9378"
+    networks:
+      - teamgram_net
+    stop_grace_period: 30s
+
+volumes:
+  codes_data:
