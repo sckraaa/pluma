@@ -61,6 +61,9 @@ type iosAlert struct {
 // push has no loc-key, a service push has nothing else.
 func IOS(n *Notification, lang string, hide Hide) (*IOSPush, error) {
 	t := textsFor(lang)
+	if n.Kind == KindEncrypted {
+		return iosEncrypted(n, t)
+	}
 	ids := map[string]any{}
 	switch {
 	case n.Channel:
@@ -171,4 +174,23 @@ func iosText(n *Notification, t *texts, hide Hide) (string, string) {
 		body = n.FromName + ": " + body
 	}
 	return n.ChatTitle, body
+}
+
+// iosEncrypted is the push of a secret chat: nothing but that something came.
+// Telegram-iOS reads encryption_id for the peer
+// (NotificationService.swift:1022-1025).
+func iosEncrypted(n *Notification, t *texts) (*IOSPush, error) {
+	aps := iosAps{Alert: &iosAlert{Body: t.newMessage}, Sound: "default"}
+	fields := map[string]any{
+		"aps":           aps,
+		"encryption_id": strconv.FormatInt(n.PeerId, 10),
+	}
+	if n.RandomId != 0 {
+		fields["random_id"] = strconv.FormatInt(n.RandomId, 10)
+	}
+	payload, err := json.Marshal(fields)
+	if err != nil {
+		return nil, err
+	}
+	return &IOSPush{Payload: payload, Alert: true, Sound: true, Placeholder: t.newMessage}, nil
 }

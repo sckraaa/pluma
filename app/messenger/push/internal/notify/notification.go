@@ -37,6 +37,7 @@ const (
 	KindReadHistory                   // read on another device: remove the notifications
 	KindMuted                         // a message in a muted chat: refresh, nothing shown
 	KindSessionRevoke                 // the authorization was terminated: log out
+	KindEncrypted                     // a message of a secret chat: PeerId is the chat, the text is unknown
 )
 
 // Content is what a message carries, as the loc_key suffix names it.
@@ -111,6 +112,9 @@ type Notification struct {
 	// (NeedsPinned).
 	PinnedId int32
 	MaxId    int32 // READ_HISTORY
+	RandomId int64 // KindEncrypted, a message: its random_id, 0 for a request or an acceptance
+	// EncryptedKey is the loc_key of KindEncrypted.
+	EncryptedKey string
 
 	Mention bool
 	Silent  bool
@@ -129,6 +133,35 @@ func (n *Notification) NeedsPinned() bool { return n.Kind == KindPinned && n.Pin
 // SetPinned sets the content of the pinned message m.
 func (n *Notification) SetPinned(m *mtproto.Message) {
 	n.Content, n.Text = content(m)
+}
+
+// EncryptedFromUpdates returns the notification that a secret chat update
+// calls for, for one authorization, nil if none
+// (core.telegram.org/api/push-updates: ENCRYPTED_MESSAGE, ENCRYPTION_REQUEST,
+// ENCRYPTION_ACCEPT). A service message (ttl, key exchange, a resend) calls
+// for none, as the clients show none (Android
+// SecretChatHelper.decryptMessage). The silent flag does not reach the push:
+// the update does not carry it.
+func EncryptedFromUpdates(userId int64, ups *mtproto.Updates) *Notification {
+	list, _, _ := unpack(ups)
+	for _, u := range list {
+		switch u.GetPredicateName() {
+		case mtproto.Predicate_updateNewEncryptedMessage:
+			m := u.GetMessage_ENCRYPTEDMESSAGE()
+			if m.GetPredicateName() != mtproto.Predicate_encryptedMessage {
+				continue
+			}
+			return &Notification{Kind: KindEncrypted, UserId: userId, PeerId: int64(m.GetChatId()), RandomId: m.GetRandomId(), EncryptedKey: "ENCRYPTED_MESSAGE"}
+		case mtproto.Predicate_updateEncryption:
+			switch u.GetChat().GetPredicateName() {
+			case mtproto.Predicate_encryptedChatRequested:
+				return &Notification{Kind: KindEncrypted, UserId: userId, PeerId: int64(u.GetChat().GetId()), EncryptedKey: "ENCRYPTION_REQUEST"}
+			case mtproto.Predicate_encryptedChat:
+				return &Notification{Kind: KindEncrypted, UserId: userId, PeerId: int64(u.GetChat().GetId()), EncryptedKey: "ENCRYPTION_ACCEPT"}
+			}
+		}
+	}
+	return nil
 }
 
 // FromUpdates returns the notifications that the updates of userId call

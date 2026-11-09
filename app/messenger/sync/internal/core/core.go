@@ -171,7 +171,7 @@ func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId
 		return
 	}
 	for _, sess := range sessions {
-		if syncType == syncTypeUserNotMe && sess.AuthKeyId == permAuthKeyId {
+		if skipSession(syncType, permAuthKeyId, sess.AuthKeyId) {
 			continue
 		}
 		c.svcCtx.Dao.PushUpdates(
@@ -183,6 +183,19 @@ func (c *SyncCore) pushUpdatesToSession(syncType SyncType, userId, permAuthKeyId
 				Updates:       pushData,
 			})
 	}
+}
+
+// skipSession tells whether a push of syncType, about the authorization
+// permAuthKeyId, passes by a session of the authorization sessionAuthKeyId.
+func skipSession(syncType SyncType, permAuthKeyId, sessionAuthKeyId int64) bool {
+	switch syncType {
+	case syncTypeUserNotMe:
+		return sessionAuthKeyId == permAuthKeyId
+	case syncTypeUserMe:
+		// Only to that authorization (the secret chats, the end of a session).
+		return permAuthKeyId != 0 && sessionAuthKeyId != permAuthKeyId
+	}
+	return false
 }
 
 // Online sessions are looked up with a short deadline and retried for a
