@@ -418,8 +418,8 @@ func (s *Store) Send(ctx context.Context, in Send) (*Sent, error) {
 		if err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO encrypted_chat_queue (auth_key_id, qts, chat_id, random_id, date, service, data, file_id, file_access_hash, file_size, file_dc_id, file_key_fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			to.AuthKey, qts, in.ChatId, in.RandomId, now, in.Service, in.Data, f.Id, f.AccessHash, f.Size, f.DcId, f.KeyFingerprint); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO encrypted_chat_queue (auth_key_id, user_id, qts, chat_id, random_id, date, service, data, file_id, file_access_hash, file_size, file_dc_id, file_key_fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			to.AuthKey, to.UserId, qts, in.ChatId, in.RandomId, now, in.Service, in.Data, f.Id, f.AccessHash, f.Size, f.DcId, f.KeyFingerprint); err != nil {
 			return err
 		}
 		out = &Sent{
@@ -439,7 +439,7 @@ func nextQts(ctx context.Context, tx *sql.Tx, d Device) (int32, error) {
 		return 0, err
 	}
 	var qts int32
-	err := tx.QueryRowContext(ctx, "SELECT qts FROM encrypted_chat_devices WHERE auth_key_id = ?", d.AuthKey).Scan(&qts)
+	err := tx.QueryRowContext(ctx, "SELECT qts FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId).Scan(&qts)
 	return qts, err
 }
 
@@ -488,10 +488,10 @@ func (s *Store) Check(ctx context.Context, d Device, chatId int32, accessHash in
 
 // Ack confirms the queue of an authorization up to maxQts and returns the
 // random ids of the confirmed messages.
-func (s *Store) Ack(ctx context.Context, authKey int64, maxQts int32) ([]int64, error) {
+func (s *Store) Ack(ctx context.Context, d Device, maxQts int32) ([]int64, error) {
 	var ids []int64
 	err := s.tx(ctx, func(tx *sql.Tx) error {
-		rows, err := tx.QueryContext(ctx, "SELECT random_id FROM encrypted_chat_queue WHERE auth_key_id = ? AND qts <= ? ORDER BY qts FOR UPDATE", authKey, maxQts)
+		rows, err := tx.QueryContext(ctx, "SELECT random_id FROM encrypted_chat_queue WHERE auth_key_id = ? AND user_id = ? AND qts <= ? ORDER BY qts FOR UPDATE", d.AuthKey, d.UserId, maxQts)
 		if err != nil {
 			return err
 		}
@@ -508,7 +508,7 @@ func (s *Store) Ack(ctx context.Context, authKey int64, maxQts int32) ([]int64, 
 		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE auth_key_id = ? AND qts <= ?", authKey, maxQts)
+		_, err = tx.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE auth_key_id = ? AND user_id = ? AND qts <= ?", d.AuthKey, d.UserId, maxQts)
 		return err
 	})
 	if err != nil {
@@ -524,7 +524,7 @@ func (s *Store) State(ctx context.Context, d Device) (int32, error) {
 		return 0, err
 	}
 	var qts int32
-	err := s.db.QueryRowContext(ctx, "SELECT qts FROM encrypted_chat_devices WHERE auth_key_id = ?", d.AuthKey).Scan(&qts)
+	err := s.db.QueryRowContext(ctx, "SELECT qts FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId).Scan(&qts)
 	return qts, err
 }
 
@@ -572,7 +572,7 @@ func (d *Difference) Empty(clientQts int32) bool {
 // date.
 func (s *Store) Difference(ctx context.Context, in DifferenceInput) (*Difference, error) {
 	if in.Qts > 0 {
-		if _, err := s.Ack(ctx, in.Device.AuthKey, in.Qts); err != nil {
+		if _, err := s.Ack(ctx, in.Device, in.Qts); err != nil {
 			return nil, fmt.Errorf("secretchat: difference ack: %w", err)
 		}
 	}
@@ -580,13 +580,13 @@ func (s *Store) Difference(ctx context.Context, in DifferenceInput) (*Difference
 		qts, given int32
 		d          = new(Difference)
 	)
-	err := s.db.QueryRowContext(ctx, "SELECT qts, state_given_at FROM encrypted_chat_devices WHERE auth_key_id = ?", in.Device.AuthKey).Scan(&qts, &given)
+	err := s.db.QueryRowContext(ctx, "SELECT qts, state_given_at FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", in.Device.AuthKey, in.Device.UserId).Scan(&qts, &given)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("secretchat: difference state: %w", err)
 	}
 	d.Qts = qts
 	if in.Qts < qts {
-		if d.Messages, d.More, err = s.queuePage(ctx, in.Device.AuthKey, in.Qts, qts); err != nil {
+		if d.Messages, d.More, err = s.queuePage(ctx, in.Device, in.Qts, qts); err != nil {
 			return nil, err
 		}
 		if d.More {
@@ -609,9 +609,9 @@ func (s *Store) MarkDifference(ctx context.Context, d Device) error {
 
 // queuePage reads the queue after from, up to the qts upTo read before it:
 // a row with a larger qts may not be alone in having committed.
-func (s *Store) queuePage(ctx context.Context, authKey int64, from, upTo int32) ([]*QueuedMessage, bool, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT qts, chat_id, random_id, date, service, data, file_id, file_access_hash, file_size, file_dc_id, file_key_fingerprint FROM encrypted_chat_queue WHERE auth_key_id = ? AND qts > ? AND qts <= ? ORDER BY qts LIMIT ?",
-		authKey, from, upTo, differencePage+1)
+func (s *Store) queuePage(ctx context.Context, d Device, from, upTo int32) ([]*QueuedMessage, bool, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT qts, chat_id, random_id, date, service, data, file_id, file_access_hash, file_size, file_dc_id, file_key_fingerprint FROM encrypted_chat_queue WHERE auth_key_id = ? AND user_id = ? AND qts > ? AND qts <= ? ORDER BY qts LIMIT ?",
+		d.AuthKey, d.UserId, from, upTo, differencePage+1)
 	if err != nil {
 		return nil, false, err
 	}
@@ -720,16 +720,20 @@ type Discarded struct {
 // that are gone (logged out, terminated; "the event queue of the
 // corresponding device will be forcibly cleared",
 // core.telegram.org/api/end-to-end) and the requests nobody answered, and
-// deletes what the retention allows. It is safe to run on several
-// instances at once: a chat is ended once.
+// deletes what the retention allows. An authorization is gone also when its
+// row came back with a later login: Android keeps the key on logout
+// (MessagesController.java:16079, cleanup(false)) and the next sign-in on
+// it revives the row of auth_users with a new date_created, while the client
+// has wiped its chats. It is safe to run on several instances at once: a
+// chat is ended once.
 func (s *Store) Sweep(ctx context.Context) ([]*Discarded, error) {
 	cutoff := s.unix() - int32(retention/time.Second)
 	queries := []struct {
 		q    string
 		args []any
 	}{
-		{"SELECT c.id FROM encrypted_chats c LEFT JOIN auth_users a ON a.auth_key_id = c.admin_auth_key_id AND a.user_id = c.admin_id AND a.deleted = 0 WHERE c.state IN (1, 2) AND a.id IS NULL LIMIT ?", []any{sweepBatch}},
-		{"SELECT c.id FROM encrypted_chats c LEFT JOIN auth_users a ON a.auth_key_id = c.participant_auth_key_id AND a.user_id = c.participant_id AND a.deleted = 0 WHERE c.state = 2 AND a.id IS NULL LIMIT ?", []any{sweepBatch}},
+		{"SELECT c.id FROM encrypted_chats c LEFT JOIN auth_users a ON a.auth_key_id = c.admin_auth_key_id AND a.user_id = c.admin_id AND a.deleted = 0 WHERE c.state IN (1, 2) AND (a.id IS NULL OR a.date_created > c.date) LIMIT ?", []any{sweepBatch}},
+		{"SELECT c.id FROM encrypted_chats c LEFT JOIN auth_users a ON a.auth_key_id = c.participant_auth_key_id AND a.user_id = c.participant_id AND a.deleted = 0 WHERE c.state = 2 AND (a.id IS NULL OR a.date_created > c.state_at) LIMIT ?", []any{sweepBatch}},
 		{"SELECT id FROM encrypted_chats WHERE state = 1 AND date < ? LIMIT ?", []any{cutoff, sweepBatch}},
 	}
 	var out []*Discarded
@@ -768,21 +772,40 @@ func (s *Store) Sweep(ctx context.Context) ([]*Discarded, error) {
 	return out, s.sweepDevices(ctx)
 }
 
-// sweepDevices clears the state and queues of authorizations that are gone.
+// sweepDevices clears the state and queues of authorizations that are gone,
+// and what a later login on the same key cannot have been sent for.
 func (s *Store) sweepDevices(ctx context.Context) error {
-	ids, err := s.idList64(ctx, "SELECT d.auth_key_id FROM encrypted_chat_devices d LEFT JOIN auth_users a ON a.auth_key_id = d.auth_key_id AND a.deleted = 0 WHERE a.id IS NULL LIMIT ?", sweepBatch)
+	gone, err := s.goneDevices(ctx)
 	if err != nil {
 		return err
 	}
-	for _, id := range ids {
-		if _, err = s.db.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE auth_key_id = ?", id); err != nil {
+	for _, d := range gone {
+		if _, err = s.db.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId); err != nil {
 			return err
 		}
-		if _, err = s.db.ExecContext(ctx, "DELETE FROM encrypted_chat_devices WHERE auth_key_id = ?", id); err != nil {
+		if _, err = s.db.ExecContext(ctx, "DELETE FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", d.AuthKey, d.UserId); err != nil {
 			return err
 		}
 	}
-	return nil
+	_, err = s.db.ExecContext(ctx, "DELETE q FROM encrypted_chat_queue q JOIN auth_users a ON a.auth_key_id = q.auth_key_id AND a.user_id = q.user_id AND a.deleted = 0 WHERE q.date < a.date_created")
+	return err
+}
+
+func (s *Store) goneDevices(ctx context.Context) ([]Device, error) {
+	rows, err := s.db.QueryContext(ctx, "SELECT d.auth_key_id, d.user_id FROM encrypted_chat_devices d LEFT JOIN auth_users a ON a.auth_key_id = d.auth_key_id AND a.user_id = d.user_id AND a.deleted = 0 WHERE a.id IS NULL LIMIT ?", sweepBatch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Device
+	for rows.Next() {
+		var d Device
+		if err = rows.Scan(&d.AuthKey, &d.UserId); err != nil {
+			return nil, err
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
 }
 
 func (s *Store) idList(ctx context.Context, q string, args ...any) ([]int32, error) {
@@ -794,23 +817,6 @@ func (s *Store) idList(ctx context.Context, q string, args ...any) ([]int32, err
 	var out []int32
 	for rows.Next() {
 		var id int32
-		if err = rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, rows.Err()
-}
-
-func (s *Store) idList64(ctx context.Context, q string, args ...any) ([]int64, error) {
-	rows, err := s.db.QueryContext(ctx, q, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []int64
-	for rows.Next() {
-		var id int64
 		if err = rows.Scan(&id); err != nil {
 			return nil, err
 		}

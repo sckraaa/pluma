@@ -211,11 +211,11 @@ func TestAckAndRead(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	ids, err := s.Ack(ctx, bob1.AuthKey, 2)
+	ids, err := s.Ack(ctx, bob1, 2)
 	if err != nil || len(ids) != 2 || ids[0] != 1 || ids[1] != 2 {
 		t.Fatalf("ack: %v %v", ids, err)
 	}
-	if ids, err = s.Ack(ctx, bob1.AuthKey, 2); err != nil || len(ids) != 0 {
+	if ids, err = s.Ack(ctx, bob1, 2); err != nil || len(ids) != 0 {
 		t.Fatalf("ack again: %v %v", ids, err)
 	}
 
@@ -356,11 +356,71 @@ func TestSweep(t *testing.T) {
 	}
 }
 
+// TestKeyReused: Android keeps the key on logout, so the next account on it
+// has its own queue and qts, and the one that left loses its queue.
+func TestKeyReused(t *testing.T) {
+	ctx := context.Background()
+	s, db := newTestStore(ctx, t)
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	if _, err := s.Send(ctx, Send{From: alice, ChatId: c.Id, AccessHash: c.AccessHash, RandomId: 1, Data: []byte("x")}); err != nil {
+		t.Fatal(err)
+	}
+	next := Device{UserId: 3, AuthKey: bob1.AuthKey}
+	if _, err := db.Exec("UPDATE auth_users SET deleted = 1 WHERE auth_key_id = ? AND user_id = ?", bob1.AuthKey, bob1.UserId); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("INSERT INTO auth_users (auth_key_id, user_id, hash, deleted) VALUES (?, ?, ?, 0)", next.AuthKey, next.UserId, 3); err != nil {
+		t.Fatal(err)
+	}
+	// Before the sweep too: nothing of the other account is seen.
+	qts, err := s.State(ctx, next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := s.Difference(ctx, DifferenceInput{Device: next, Qts: 0, Date: s.unix()})
+	if err != nil || len(d.Messages) != 0 || d.Qts != qts {
+		t.Fatalf("difference of the next account: %+v, qts %d, %v", d, qts, err)
+	}
+	if _, err = s.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	if err = db.QueryRow("SELECT COUNT(*) FROM encrypted_chat_queue WHERE auth_key_id = ?", bob1.AuthKey).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("queue of the account that left: %d %v", n, err)
+	}
+	if err = db.QueryRow("SELECT COUNT(*) FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", next.AuthKey, next.UserId).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("device of the next account: %d %v", n, err)
+	}
+}
+
+// TestSweepLoginAgain: a new login on the key of the same account ends the
+// chats of the old one and drops its queue, the row of auth_users being the
+// same one.
+func TestSweepLoginAgain(t *testing.T) {
+	ctx := context.Background()
+	s, db := newTestStore(ctx, t)
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	if _, err := s.Send(ctx, Send{From: alice, ChatId: c.Id, AccessHash: c.AccessHash, RandomId: 1, Data: []byte("x")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec("UPDATE auth_users SET date_created = ? WHERE auth_key_id = ? AND user_id = ?", s.unix()+10, bob1.AuthKey, bob1.UserId); err != nil {
+		t.Fatal(err)
+	}
+	gone, err := s.Sweep(ctx)
+	if err != nil || len(gone) != 1 || gone[0].Chat.Id != c.Id {
+		t.Fatalf("sweep: %+v %v", gone, err)
+	}
+	var n int
+	if err = db.QueryRow("SELECT COUNT(*) FROM encrypted_chat_queue WHERE auth_key_id = ?", bob1.AuthKey).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("queue of the old login: %d %v", n, err)
+	}
+}
+
 // TestFiles: stored with their fingerprint, and the access hash is checked.
 func TestFiles(t *testing.T) {
 	ctx := context.Background()
 	s, _ := newTestStore(ctx, t)
-	f := &File{Id: 55, AccessHash: 66, Size: 1024, DcId: 1, KeyFingerprint: 7}
+	f := &File{Id: 55, AccessHash: 66, Size: 3 << 30, DcId: 1, KeyFingerprint: 7}
 	if err := s.SaveFile(ctx, f); err != nil {
 		t.Fatal(err)
 	}

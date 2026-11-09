@@ -31,7 +31,7 @@ func (c *SecretChatsCore) MessagesReceivedQueue(in *mtproto.TLMessagesReceivedQu
 	if in.GetMaxQts() < 0 {
 		return nil, mtproto.ErrMaxQtsInvalid
 	}
-	ids, err := c.svcCtx.Dao.Store.Ack(c.ctx, c.MD.PermAuthKeyId, in.GetMaxQts())
+	ids, err := c.svcCtx.Dao.Store.Ack(c.ctx, c.device(), in.GetMaxQts())
 	if err != nil {
 		c.Logger.Errorf("messages.receivedQueue - user %d: %v", c.MD.UserId, err)
 		return nil, mtproto.ErrInternalServerError

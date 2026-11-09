@@ -7,7 +7,8 @@
 -- when the chat is discarded. state: 1 requested, 2 active, 3 discarded.
 -- *_read_date: the last max_date of messages.readEncryptedHistory.
 --
--- encrypted_chat_devices: per authorization, the last qts of its queue and
+-- encrypted_chat_devices: per authorization (a key and the account signed in
+-- on it: Android keeps the key across a logout), the last qts of its queue and
 -- the time it was last given a state (the cursor of the updates that have no
 -- qts).
 --
@@ -53,11 +54,12 @@ CREATE TABLE IF NOT EXISTS `encrypted_chat_devices` (
   `user_id` bigint(20) NOT NULL,
   `qts` int(11) NOT NULL DEFAULT '0',
   `state_given_at` int(11) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`auth_key_id`)
+  PRIMARY KEY (`auth_key_id`, `user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `encrypted_chat_queue` (
   `auth_key_id` bigint(20) NOT NULL,
+  `user_id` bigint(20) NOT NULL,
   `qts` int(11) NOT NULL,
   `chat_id` int(11) NOT NULL,
   `random_id` bigint(20) NOT NULL,
@@ -69,7 +71,7 @@ CREATE TABLE IF NOT EXISTS `encrypted_chat_queue` (
   `file_size` bigint(20) NOT NULL DEFAULT '0',
   `file_dc_id` int(11) NOT NULL DEFAULT '0',
   `file_key_fingerprint` int(11) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`auth_key_id`, `qts`),
+  PRIMARY KEY (`auth_key_id`, `user_id`, `qts`),
   KEY `chat_id` (`chat_id`),
   KEY `date` (`date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
