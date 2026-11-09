@@ -1,5 +1,5 @@
 'use strict';
-// The moderation panel (task 025, ADR 0039). No build step, no dependencies:
+// The moderation panel (task 025, ADR 0040). No build step, no dependencies:
 // the Content-Security-Policy allows only this file.
 
 const main = document.getElementById('main');

@@ -89,7 +89,7 @@ type actor struct {
 
 // peerIsLoopback tells whether the connection is from this machine, where
 // only tailscale serve may be listening on the proxy side. A connection
-// from anywhere else never has its identity header believed (ADR 0039).
+// from anywhere else never has its identity header believed (ADR 0040).
 func peerIsLoopback(remoteAddr string) bool {
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
@@ -708,7 +708,7 @@ type decideBody struct {
 }
 
 // dangerousAction: the decisions that change an account or remove content
-// need the passkey again (ADR 0039).
+// need the passkey again (ADR 0040).
 func dangerousAction(action string) bool {
 	return action != moderation.ActionDismiss
 }

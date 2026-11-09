@@ -37,7 +37,7 @@ import (
 )
 
 // moderationConfig is the part of the bff config moderation needs: the
-// emergency access to the moderation of the panel, by SSH (ADR 0039).
+// emergency access to the moderation of the panel, by SSH (ADR 0040).
 type moderationConfig struct {
 	Mysql             sqlx.Config
 	BizServiceClient  zrpc.RpcClientConf

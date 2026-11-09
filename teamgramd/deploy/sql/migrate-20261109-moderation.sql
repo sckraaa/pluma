@@ -1,4 +1,4 @@
--- Moderation (task 025, ADR 0039): reports of users, the restrictions the
+-- Moderation (task 025, ADR 0040): reports of users, the restrictions the
 -- decisions impose, and the people of the internal panel.
 --
 -- moderation_reports: a report with what it was about at that moment

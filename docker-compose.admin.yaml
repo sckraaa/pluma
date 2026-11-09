@@ -1,4 +1,4 @@
-# The internal moderation panel (task 025, ADR 0039, docs/ops/admin-panel.md).
+# The internal moderation panel (task 025, ADR 0040, docs/ops/admin-panel.md).
 # With the network of the host, so that it listens on the real loopback
 # address: tailscale serve on the host is the only way in, and the identity
 # header is believed only on loopback connections. Added to the services

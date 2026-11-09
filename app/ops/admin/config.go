@@ -29,7 +29,7 @@ import (
 )
 
 // config is admin.yaml (docs/ops/admin-panel.md). Listen must be a loopback
-// address: tailscale serve is the only way in (ADR 0039).
+// address: tailscale serve is the only way in (ADR 0040).
 type config struct {
 	Listen            string
 	Origin            string
@@ -48,7 +48,7 @@ func (c *config) check() error {
 		return fmt.Errorf("Listen: %w", err)
 	}
 	if ip, err := netip.ParseAddr(host); err != nil || !ip.IsLoopback() {
-		return errors.New("Listen must be a loopback address (ADR 0039)")
+		return errors.New("Listen must be a loopback address (ADR 0040)")
 	}
 	u, err := url.Parse(c.Origin)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.Path != "" {

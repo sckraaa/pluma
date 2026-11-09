@@ -103,7 +103,7 @@ func (s *Server) Initialize() error {
 	syncClient := sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
-		// reports_helper: the moderation queue (task 025, ADR 0039).
+		// reports_helper: the moderation queue (task 025, ADR 0040).
 		mtproto.RegisterRPCReportsServer(
 			grpcServer,
 			reports_helper.New(reports_helper.Config{

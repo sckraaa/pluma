@@ -1,4 +1,4 @@
-# The moderation panel (app/ops/admin, ADR 0039, docs/ops/admin-panel.md).
+# The moderation panel (app/ops/admin, ADR 0040, docs/ops/admin-panel.md).
 # It runs with the host's network (docker-compose.admin.yaml) so that it
 # listens on the real loopback address: tailscale serve is the only way in.
 

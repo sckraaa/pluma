@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Package moderation is the storage of reports and restrictions and the
-// decisions on them (task 025, ADR 0039). The reports are written by bff,
+// decisions on them (task 025, ADR 0040). The reports are written by bff,
 // the decisions are made in the internal panel (app/ops/admin) or with
 // pluma-admin, and the restrictions are read where a user acts: msg for
 // sending, bff for logging in.
@@ -68,7 +68,7 @@ const (
 	ReportsPerHour = 60
 )
 
-// SnapshotUser is what a moderator sees of a user: no phone (ADR 0039,
+// SnapshotUser is what a moderator sees of a user: no phone (ADR 0040,
 // minimum of data).
 type SnapshotUser struct {
 	Id        int64  `json:"id"`

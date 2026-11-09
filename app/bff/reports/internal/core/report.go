@@ -221,7 +221,7 @@ func targetOf(s *moderation.Snapshot, peer *mtproto.PeerUtil, reporter int64) in
 	return 0
 }
 
-// file stores a report with the limit of reports per user (ADR 0039).
+// file stores a report with the limit of reports per user (ADR 0040).
 func (c *ReportsCore) file(r *moderation.Report, ids []int32, s *moderation.Snapshot) error {
 	since := time.Now().Add(-time.Hour).Unix()
 	n, err := c.svcCtx.Dao.Reports.ReportsSince(c.ctx, c.MD.UserId, since)

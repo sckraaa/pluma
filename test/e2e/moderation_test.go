@@ -29,7 +29,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
-// Reports and restrictions (task 025, ADR 0039): a report goes through the
+// Reports and restrictions (task 025, ADR 0040): a report goes through the
 // tree of messages.report into the queue, and pluma-admin, the emergency
 // access to the same decisions the panel makes, restricts and bans as the
 // clients see it.

@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Command admin is the internal moderation and Premium panel (task 025,
-// ADR 0039). It listens on a loopback address only and is published to the
+// ADR 0040). It listens on a loopback address only and is published to the
 // tailnet by tailscale serve, whose identity headers it trusts on loopback
 // requests, with a passkey on top (docs/ops/admin-panel.md).
 package main

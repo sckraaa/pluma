@@ -1,4 +1,4 @@
-# The moderation panel (app/ops/admin, task 025, ADR 0039). A small static
+# The moderation panel (app/ops/admin, task 025, ADR 0040). A small static
 # binary; the builder matches the main Dockerfile (go.mod toolchain).
 FROM golang:1.27.3-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS builder
 WORKDIR /src

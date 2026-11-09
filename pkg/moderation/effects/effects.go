@@ -15,7 +15,7 @@
 
 // Package effects carries out what a decision does outside the database,
 // through the internal RPCs of the services that own the data (task 025,
-// ADR 0039). Each step is done and recorded before the next one, so that a
+// ADR 0040). Each step is done and recorded before the next one, so that a
 // restart or a failed service continues where it stopped.
 package effects
 
