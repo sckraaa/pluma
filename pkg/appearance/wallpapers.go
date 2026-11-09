@@ -106,7 +106,7 @@ func (s *Store) SaveWallpaper(ctx context.Context, userID int64, w *mtproto.Wall
 	_, err = s.db.Exec(ctx,
 		"INSERT INTO user_wallpapers (user_id, wallpaper_id, removed, data, order2) VALUES (?, ?, 0, ?, ?)"+
 			" AS new ON DUPLICATE KEY UPDATE removed = 0, data = new.data, order2 = new.order2",
-		userID, w.GetId(), data, time.Now().UnixMilli())
+		userID, w.GetId(), data, time.Now().UnixMicro())
 	return err
 }
 

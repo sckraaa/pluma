@@ -148,7 +148,7 @@ func (s *Store) SaveTheme(ctx context.Context, userID, themeID int64) error {
 	_, err := s.db.Exec(ctx,
 		"INSERT INTO user_themes (user_id, theme_id, state, saved_at) VALUES (?, ?, ?, ?)"+
 			" AS new ON DUPLICATE KEY UPDATE state = new.state, saved_at = new.saved_at",
-		userID, themeID, themeSaved, time.Now().UnixMilli())
+		userID, themeID, themeSaved, time.Now().UnixMicro())
 	return err
 }
 
@@ -172,9 +172,11 @@ func (s *Store) UnsaveTheme(ctx context.Context, userID, themeID int64, inCatalo
 // account's first install.
 func (s *Store) InstallTheme(ctx context.Context, userID, themeID int64) error {
 	return s.db.Transact(ctx, func(tx *sqlx.Tx) error {
-		// The row is created first, so that a second install of the account
-		// waits on its lock and sees installed.
-		if _, err := tx.Exec("INSERT IGNORE INTO user_themes (user_id, theme_id) VALUES (?, ?)", userID, themeID); err != nil {
+		// The row is created or locked exclusively first, so that a second
+		// install of the account waits and sees installed. INSERT IGNORE
+		// would leave concurrent installs sharing a lock on the row, each
+		// then deadlocking on the other's to take it for update.
+		if _, err := tx.Exec("INSERT INTO user_themes (user_id, theme_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE installed = installed", userID, themeID); err != nil {
 			return err
 		}
 		var installed []bool
