@@ -77,8 +77,14 @@ func closeChecked(t *testing.T, name string, c *mtclient.Client) {
 }
 
 // admin runs tools/pluma-admin in the teamgram container.
+// adminMu keeps one pluma-admin running at a time: each runs inside the bff
+// container, and several at once go past its memory limit.
+var adminMu sync.Mutex
+
 func admin(t *testing.T, args ...string) string {
 	t.Helper()
+	adminMu.Lock()
+	defer adminMu.Unlock()
 	out, err := exec.Command(runScript, append([]string{"admin"}, args...)...).CombinedOutput()
 	if err != nil {
 		t.Fatalf("pluma-admin %s: %v\n%s", strings.Join(args, " "), err, out)
