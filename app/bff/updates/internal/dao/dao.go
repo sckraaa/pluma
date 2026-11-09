@@ -28,8 +28,8 @@ import (
 	dialog_client "github.com/teamgram/teamgram-server/app/service/biz/dialog/client"
 	updates_client "github.com/teamgram/teamgram-server/app/service/biz/updates/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
-	"github.com/teamgram/teamgram-server/pkg/secretchat"
 	"github.com/teamgram/teamgram-server/pkg/phonecalls"
+	"github.com/teamgram/teamgram-server/pkg/secretchat"
 )
 
 type Dao struct {

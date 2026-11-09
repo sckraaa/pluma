@@ -40,8 +40,8 @@ type Server struct {
 	Host  string
 	Host6 string
 	Port  int32
-	Stun bool
-	Turn bool
+	Stun  bool
+	Turn  bool
 }
 
 // Servers are the endpoints; the zero value has none.
