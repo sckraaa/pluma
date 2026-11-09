@@ -46,9 +46,10 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	if err != nil {
 		return nil, err
 	}
-	outgoing := make([]dao.Outgoing, len(outBoxList))
-	for i, o := range outBoxList {
-		outgoing[i] = dao.Outgoing{RandomId: o.RandomId, Message: o.Message}
+	// The snowflake of each message is the id of a new poll in it.
+	outgoing, err := c.outgoing(outBoxList)
+	if err != nil {
+		return nil, err
 	}
 	var sent []dao.ChannelSent
 	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId, nil, func(b *userbox.Box) error {

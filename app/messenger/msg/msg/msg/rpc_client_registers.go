@@ -26,19 +26,19 @@ type RPCContextTuple struct {
 }
 
 var rpcContextRegisters = map[string]RPCContextTuple{
-	"TLMsgPushUserMessage":        RPCContextTuple{"/mtproto.RPCMsg/msg_pushUserMessage", func() interface{} { return new(mtproto.Bool) }},
-	"TLMsgReadMessageContents":    RPCContextTuple{"/mtproto.RPCMsg/msg_readMessageContents", func() interface{} { return new(mtproto.Messages_AffectedMessages) }},
-	"TLMsgSendMessageV2":          RPCContextTuple{"/mtproto.RPCMsg/msg_sendMessageV2", func() interface{} { return new(mtproto.Updates) }},
-	"TLMsgEditMessageV2":          RPCContextTuple{"/mtproto.RPCMsg/msg_editMessageV2", func() interface{} { return new(mtproto.Updates) }},
-	"TLMsgDeleteMessages":         RPCContextTuple{"/mtproto.RPCMsg/msg_deleteMessages", func() interface{} { return new(mtproto.Messages_AffectedMessages) }},
-	"TLMsgDeleteHistory":          RPCContextTuple{"/mtproto.RPCMsg/msg_deleteHistory", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
-	"TLMsgDeletePhoneCallHistory": RPCContextTuple{"/mtproto.RPCMsg/msg_deletePhoneCallHistory", func() interface{} { return new(mtproto.Messages_AffectedFoundMessages) }},
-	"TLMsgDeleteChatHistory":      RPCContextTuple{"/mtproto.RPCMsg/msg_deleteChatHistory", func() interface{} { return new(mtproto.Bool) }},
-	"TLMsgReadHistoryV2":          RPCContextTuple{"/mtproto.RPCMsg/msg_readHistoryV2", func() interface{} { return new(mtproto.Messages_AffectedMessages) }},
-	"TLMsgUpdatePinnedMessage":    RPCContextTuple{"/mtproto.RPCMsg/msg_updatePinnedMessage", func() interface{} { return new(mtproto.Updates) }},
-	"TLMsgUnpinAllMessages":       RPCContextTuple{"/mtproto.RPCMsg/msg_unpinAllMessages", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
-	"TLMsgReadMentions":           RPCContextTuple{"/mtproto.RPCMsg/msg_readMentions", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
-	"TLMsgDeleteHistoryRange":     RPCContextTuple{"/mtproto.RPCMsg/msg_deleteHistoryRange", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	"TLMsgPushUserMessage":        {"/mtproto.RPCMsg/msg_pushUserMessage", func() interface{} { return new(mtproto.Bool) }},
+	"TLMsgReadMessageContents":    {"/mtproto.RPCMsg/msg_readMessageContents", func() interface{} { return new(mtproto.Messages_AffectedMessages) }},
+	"TLMsgSendMessageV2":          {"/mtproto.RPCMsg/msg_sendMessageV2", func() interface{} { return new(mtproto.Updates) }},
+	"TLMsgEditMessageV2":          {"/mtproto.RPCMsg/msg_editMessageV2", func() interface{} { return new(mtproto.Updates) }},
+	"TLMsgDeleteMessages":         {"/mtproto.RPCMsg/msg_deleteMessages", func() interface{} { return new(mtproto.Messages_AffectedMessages) }},
+	"TLMsgDeleteHistory":          {"/mtproto.RPCMsg/msg_deleteHistory", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	"TLMsgDeletePhoneCallHistory": {"/mtproto.RPCMsg/msg_deletePhoneCallHistory", func() interface{} { return new(mtproto.Messages_AffectedFoundMessages) }},
+	"TLMsgDeleteChatHistory":      {"/mtproto.RPCMsg/msg_deleteChatHistory", func() interface{} { return new(mtproto.Bool) }},
+	"TLMsgReadHistoryV2":          {"/mtproto.RPCMsg/msg_readHistoryV2", func() interface{} { return new(mtproto.Messages_AffectedMessages) }},
+	"TLMsgUpdatePinnedMessage":    {"/mtproto.RPCMsg/msg_updatePinnedMessage", func() interface{} { return new(mtproto.Updates) }},
+	"TLMsgUnpinAllMessages":       {"/mtproto.RPCMsg/msg_unpinAllMessages", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	"TLMsgReadMentions":           {"/mtproto.RPCMsg/msg_readMentions", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	"TLMsgDeleteHistoryRange":     {"/mtproto.RPCMsg/msg_deleteHistoryRange", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
 
 	// pluma: task 050
 	"TLMsgEditPeerFolders": {"/mtproto.RPCMsg/msg_editPeerFolders", func() interface{} { return new(mtproto.Updates) }},
