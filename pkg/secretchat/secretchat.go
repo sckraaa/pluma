@@ -58,8 +58,8 @@ const DHVersion int32 = 1
 const DHG int32 = 3
 
 // DHPrime is the safe prime of the key exchange: the one the official
-// clients accept without a primality check (Utilities.goodPrime in
-// DrKLO/Telegram) and this server's own handshake uses.
+// clients accept without a primality check (goodPrime in tgnet/Handshake.cpp
+// of DrKLO/Telegram) and this server's own handshake uses.
 var DHPrime = mustHex("c71caeb9c6b1c9048e6c522f70f13f73980d40238e3e21c14934d037563d930f" +
 	"48198a0aa7c14058229493d22530f4dbfa336f6e0ac925139543aed44cce7c37" +
 	"20fd51f69458705ac68cd4fe6b6b13abdc9746512969328454f18faf8c595f64" +
