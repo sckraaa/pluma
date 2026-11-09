@@ -53,6 +53,8 @@ services:
   jaeger:
     container_name: !reset null
     ports: !reset []
+    # A full run writes more spans than the production limit is sized for.
+    mem_limit: 1g
     # Spans are kept in memory: the production setup stores them in
     # Elasticsearch, which tests do not start.
     environment: !override
