@@ -392,6 +392,30 @@ func (noChannels) ChannelSetAvailableReactions(context.Context, *channelpb.TLCha
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelSearchCount(context.Context, *channelpb.TLChannelSearchCount) (*mtproto.Int32, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSearchCalendar(context.Context, *channelpb.TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSearchPositions(context.Context, *channelpb.TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSearchAcross(context.Context, *channelpb.TLChannelSearchAcross) (*mtproto.Messages_Messages, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSetChatWallpaper(context.Context, *channelpb.TLChannelSetChatWallpaper) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSetChatTheme(context.Context, *channelpb.TLChannelSetChatTheme) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelToggleSignatures(context.Context, *channelpb.TLChannelToggleSignatures) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
