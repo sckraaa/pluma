@@ -332,7 +332,9 @@ func TestArchiveFolderChannels(t *testing.T) {
 	}
 
 	o, err = alice.c.Invoke(ctx, &mtproto.TLFoldersDeleteFolder{
-		Constructor: alice.c.Constructor(mtproto.Predicate_folders_deleteFolder),
+		// Not in the schema of this layer, which is why Constructor has no
+		// number for it; older clients of the schema still call it.
+		Constructor: mtproto.CRC32_folders_deleteFolder,
 		FolderId:    1,
 	})
 	if err != nil {
