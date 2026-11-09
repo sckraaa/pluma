@@ -226,6 +226,12 @@ func (m *ImmutableUser) BotCanEdit() bool {
 	return m.User.Bot.GetBotCanEdit()
 }
 
+// pluma: BotCanEditFor is user.bot_can_edit as viewerId sees it: the
+// creator of the bot may edit it (bots.setBotInfo, task 070).
+func (m *ImmutableUser) BotCanEditFor(viewerId int64) bool {
+	return m.User.Bot != nil && viewerId != 0 && m.User.Bot.GetCreator() == viewerId
+}
+
 func (m *ImmutableUser) StoriesUnavailable() bool {
 	return m.User.StoriesUnavailable
 }
@@ -406,7 +412,7 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 		BotAttachMenu:                m.BotAttachMenu(),
 		Premium:                      m.Premium(),
 		AttachMenuEnabled:            m.AttachMenuEnabled(),
-		BotCanEdit:                   m.BotCanEdit(),
+		BotCanEdit:                   m.BotCanEditFor(selfUser.Id()),
 		CloseFriend:                  false,
 		StoriesHidden:                false,
 		StoriesUnavailable:           m.StoriesUnavailable(),
@@ -497,6 +503,15 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 	return user
 }
 
+// pluma: selfPhone is the phone of the account's own user; a bot's row holds
+// a placeholder (task 070), and no client asks a bot for one.
+func (m *ImmutableUser) selfPhone() *wrapperspb.StringValue {
+	if m.IsBot() {
+		return nil
+	}
+	return MakeFlagsString(m.Phone())
+}
+
 func (m *ImmutableUser) ToSelfUser() *User {
 	user := MakeTLUser(&User{
 		Self: true,
@@ -531,7 +546,7 @@ func (m *ImmutableUser) ToSelfUser() *User {
 		FirstName:                    MakeFlagsString(m.FirstName()),
 		LastName:                     MakeFlagsString(m.LastName()),
 		Username:                     nil,
-		Phone:                        MakeFlagsString(m.Phone()),
+		Phone:                        m.selfPhone(),
 		Photo:                        m.ProfilePhoto(),
 		Status:                       MakeUserStatus(m.LastSeenAt, true),
 		BotInfoVersion:               MakeFlagsInt32(m.BotInfoVersion()),
@@ -666,7 +681,7 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 		BotAttachMenu:                m.BotAttachMenu(),
 		Premium:                      m.Premium(),
 		AttachMenuEnabled:            m.AttachMenuEnabled(),
-		BotCanEdit:                   m.BotCanEdit(),
+		BotCanEdit:                   m.BotCanEditFor(selfUserId),
 		CloseFriend:                  false,
 		StoriesHidden:                false,
 		StoriesUnavailable:           m.StoriesUnavailable(),
