@@ -407,6 +407,12 @@ var scenarios = []scenario{
 		// and secret chats, its username) and its presence, which its other
 		// sessions decide.
 		rules: Rules{
+			Deviations: []Deviation{
+				{Step: 1, Path: "users.[].premium", Reason: "ADR 0041: every user has Premium"},
+				{Step: 2, Path: "users.[].premium", Reason: "ADR 0041: every user has Premium"},
+				{Step: 3, Path: "users.[].premium", Reason: "ADR 0041: every user has Premium"},
+				{Step: 5, Path: "users.[].premium", Reason: "ADR 0041: every user has Premium"},
+			},
 			Loose: []string{"unread_count", "state.unread_count", "qts", "state.qts",
 				"users.[].username", "users.[].status"},
 		},

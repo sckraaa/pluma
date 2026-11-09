@@ -39,6 +39,7 @@ type SeqRow struct {
 // their time. It reads the master (BoxDB), where the state maxSeq is from:
 // every row up to it is committed there.
 func (d *Dao) SeqUpdates(ctx context.Context, userId, authKeyId int64, maxSeq, cursor int32, since int64) ([]SeqRow, error) {
+	//nolint:gosec // G202: only constants are joined
 	rows, err := d.BoxDB.QueryContext(ctx,
 		"SELECT seq, pts, update_type, update_data FROM user_seq_updates WHERE user_id = ? AND seq <= ? AND (seq > ? OR date2 >= ?)"+
 			" AND (except_auth_key_id = 0 OR except_auth_key_id <> ?)"+userbox.LiveSeqRows+" ORDER BY seq",

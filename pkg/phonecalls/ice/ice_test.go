@@ -18,7 +18,7 @@ package ice
 import (
 	"context"
 	"crypto/hmac"
-	"crypto/sha1" //nolint:gosec // the TURN REST credential is HMAC-SHA1 by definition
+	"crypto/sha1"
 	"encoding/base64"
 	"errors"
 	"net"

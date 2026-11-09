@@ -78,7 +78,7 @@ func Parse(cfg, secret string) (*Servers, error) {
 		if err != nil || p <= 0 || p > 65535 {
 			return nil, fmt.Errorf("%q: bad port", entry)
 		}
-		srv := Server{Host: host, Port: int32(p)}
+		srv := Server{Host: host, Port: int32(p)} //nolint:gosec // G109: p is at most 65535, checked above
 		for _, k := range strings.Split(kinds, "+") {
 			switch k {
 			case "stun":

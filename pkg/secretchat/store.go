@@ -581,17 +581,8 @@ func (s *Store) Ack(ctx context.Context, d Device, maxQts int32) ([]int64, error
 		if err != nil {
 			return err
 		}
-		for rows.Next() {
-			var id int64
-			if err = rows.Scan(&id); err != nil {
-				rows.Close()
-				return err
-			}
-			ids = append(ids, id)
-		}
-		err = rows.Err()
-		rows.Close() // the connection is needed for the DELETE
-		if err != nil {
+		// Read to the end first: the connection is needed for the DELETE.
+		if ids, err = scanIds(rows); err != nil {
 			return err
 		}
 		_, err = tx.ExecContext(ctx, "DELETE FROM encrypted_chat_queue WHERE auth_key_id = ? AND user_id = ? AND qts <= ?", d.AuthKey, d.UserId, maxQts)
@@ -974,4 +965,18 @@ func (s *Store) idList(ctx context.Context, q string, args ...any) ([]int32, err
 		out = append(out, id)
 	}
 	return out, rows.Err()
+}
+
+// scanIds reads one int64 column to the end and closes rows.
+func scanIds(rows *sql.Rows) ([]int64, error) {
+	defer rows.Close()
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
