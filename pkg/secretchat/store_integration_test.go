@@ -118,11 +118,11 @@ func TestSend(t *testing.T) {
 		return s.Send(ctx, Send{From: from, ChatId: c.Id, AccessHash: c.AccessHash, RandomId: randomId, Data: []byte("ciphertext")})
 	}
 	first, err := send(alice, 100)
-	if err != nil || first.Delivered == nil || first.Delivered.Qts != 1 || first.To != bob1 {
+	if err != nil || first.Delivered == nil || first.Delivered.Qts != firstQts+1 || first.To != bob1 {
 		t.Fatalf("send: %+v %v", first, err)
 	}
 	second, err := send(alice, 101)
-	if err != nil || second.Delivered == nil || second.Delivered.Qts != 2 {
+	if err != nil || second.Delivered == nil || second.Delivered.Qts != firstQts+2 {
 		t.Fatalf("send: %+v %v", second, err)
 	}
 	repeat, err := send(alice, 100)
@@ -130,7 +130,7 @@ func TestSend(t *testing.T) {
 		t.Fatalf("repeat: %+v %v", repeat, err)
 	}
 	back, err := send(bob1, 200)
-	if err != nil || back.Delivered.Qts != 1 || back.To != alice {
+	if err != nil || back.Delivered.Qts != firstQts+1 || back.To != alice {
 		t.Fatalf("back: %+v %v", back, err)
 	}
 	if _, err = send(bob2, 300); !errors.Is(err, ErrWrongDevice) {
@@ -155,18 +155,18 @@ func TestDifference(t *testing.T) {
 	}
 
 	d, err := s.Difference(ctx, DifferenceInput{Device: bob1, Qts: 0, Date: s.unix()})
-	if err != nil || len(d.Messages) != differencePage || !d.More || d.Qts != differencePage {
+	if err != nil || len(d.Messages) != differencePage || !d.More || d.Qts != firstQts+differencePage {
 		t.Fatalf("first page: %d messages, more %v, qts %d, %v", len(d.Messages), d.More, d.Qts, err)
 	}
 	if len(d.Updates) != 0 {
 		t.Fatalf("the acceptor is told of its own acceptance: %d", len(d.Updates))
 	}
-	if d.Messages[0].Qts != 1 {
+	if d.Messages[0].Qts != firstQts+1 {
 		t.Fatalf("first message: qts %d", d.Messages[0].Qts)
 	}
 
 	d, err = s.Difference(ctx, DifferenceInput{Device: bob1, Qts: d.Qts, Date: s.unix()})
-	if err != nil || len(d.Messages) != 5 || d.More || d.Qts != differencePage+5 {
+	if err != nil || len(d.Messages) != 5 || d.More || d.Qts != firstQts+differencePage+5 {
 		t.Fatalf("last page: %d messages, more %v, qts %d, %v", len(d.Messages), d.More, d.Qts, err)
 	}
 	// The qts of the second request confirmed the first page.
@@ -185,6 +185,27 @@ func TestDifference(t *testing.T) {
 	}
 }
 
+// TestFirstQts: a new authorization starts at firstQts, not 0, and the first
+// event follows it.
+func TestFirstQts(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(ctx, t)
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	qts, err := s.State(ctx, bob1)
+	if err != nil || qts != firstQts || qts == 0 {
+		t.Fatalf("state: %d %v", qts, err)
+	}
+	sent, err := s.Send(ctx, Send{From: alice, ChatId: c.Id, AccessHash: c.AccessHash, RandomId: 1, Data: []byte("x")})
+	if err != nil || sent.Delivered.Qts != qts+1 {
+		t.Fatalf("first event: %+v %v", sent, err)
+	}
+	// With no row yet, as before the first getState.
+	d, err := s.Difference(ctx, DifferenceInput{Device: Device{UserId: 9, AuthKey: 9001}, Qts: 0, Date: s.unix()})
+	if err != nil || d.Qts != firstQts || !d.Empty(0) {
+		t.Fatalf("no row: %+v %v", d, err)
+	}
+}
+
 // TestDifferenceAhead: a client whose qts is past the queue (a restored
 // backup) takes the lower qts.
 func TestDifferenceAhead(t *testing.T) {
@@ -195,7 +216,7 @@ func TestDifferenceAhead(t *testing.T) {
 		t.Fatal(err)
 	}
 	d, err := s.Difference(ctx, DifferenceInput{Device: bob1, Qts: 50, Date: s.unix()})
-	if err != nil || d.Qts != 1 || d.Empty(50) {
+	if err != nil || d.Qts != firstQts+1 || d.Empty(50) {
 		t.Fatalf("%+v %v", d, err)
 	}
 }
@@ -211,11 +232,11 @@ func TestAckAndRead(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	ids, err := s.Ack(ctx, bob1, 2)
+	ids, err := s.Ack(ctx, bob1, firstQts+2)
 	if err != nil || len(ids) != 2 || ids[0] != 1 || ids[1] != 2 {
 		t.Fatalf("ack: %v %v", ids, err)
 	}
-	if ids, err = s.Ack(ctx, bob1, 2); err != nil || len(ids) != 0 {
+	if ids, err = s.Ack(ctx, bob1, firstQts+2); err != nil || len(ids) != 0 {
 		t.Fatalf("ack again: %v %v", ids, err)
 	}
 

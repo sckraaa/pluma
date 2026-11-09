@@ -164,7 +164,8 @@ func TestSecretChat(t *testing.T) {
 		wantRPCError(t, err, "ENCRYPTION_ALREADY_ACCEPTED")
 	}
 
-	// A message reaches the accepting device with qts 1, a repeat answers
+	// A message reaches the accepting device with qts 2, the first after the
+	// state of a new authorization; a repeat answers
 	// the same date.
 	first := randomID()
 	sendMessage := func(rand int64, data []byte) *mtproto.TLMessagesSentEncryptedMessage {
@@ -182,7 +183,7 @@ func TestSecretChat(t *testing.T) {
 	}
 	sent := sendMessage(first, []byte("ciphertext one"))
 	m, qts := newEncryptedMessage(ctx, t, bob, first)
-	if m.GetChatId() != chatId || !bytes.Equal(m.GetBytes(), []byte("ciphertext one")) || qts != 1 {
+	if m.GetChatId() != chatId || !bytes.Equal(m.GetBytes(), []byte("ciphertext one")) || qts != 2 {
 		t.Fatalf("message: qts %d %v", qts, m)
 	}
 	if again := sendMessage(first, []byte("ciphertext one")); again.GetDate() != sent.GetDate() {
@@ -195,11 +196,11 @@ func TestSecretChat(t *testing.T) {
 	sendMessage(second, []byte("ciphertext two"))
 	newEncryptedMessage(ctx, t, bob, second)
 	st := getState(ctx, t, bob)
-	if st.GetQts() != 2 {
+	if st.GetQts() != 3 {
 		t.Fatalf("qts of the state %d", st.GetQts())
 	}
 	o, err = bob.c.Invoke(ctx, &mtproto.TLUpdatesGetDifference{
-		Constructor: bob.c.Constructor(mtproto.Predicate_updates_getDifference), Pts: st.GetPts(), Date: st.GetDate(), Qts: 1,
+		Constructor: bob.c.Constructor(mtproto.Predicate_updates_getDifference), Pts: st.GetPts(), Date: st.GetDate(), Qts: 2,
 	})
 	if err != nil {
 		t.Fatalf("getDifference: %v", err)
@@ -207,7 +208,7 @@ func TestSecretChat(t *testing.T) {
 	d := o.(interface {
 		To_Updates_Difference() *mtproto.Updates_Difference
 	}).To_Updates_Difference()
-	if len(d.GetNewEncryptedMessages()) != 1 || d.GetNewEncryptedMessages()[0].GetRandomId() != second || d.GetState().GetQts() != 2 {
+	if len(d.GetNewEncryptedMessages()) != 1 || d.GetNewEncryptedMessages()[0].GetRandomId() != second || d.GetState().GetQts() != 3 {
 		t.Fatalf("difference: %v", d)
 	}
 
@@ -293,7 +294,7 @@ func TestSecretChat(t *testing.T) {
 	rq := func() int {
 		t.Helper()
 		raw, err := bob.c.InvokeRaw(ctx, &mtproto.TLMessagesReceivedQueue{
-			Constructor: bob.c.Constructor(mtproto.Predicate_messages_receivedQueue), MaxQts: 3,
+			Constructor: bob.c.Constructor(mtproto.Predicate_messages_receivedQueue), MaxQts: 4,
 		})
 		if err != nil || len(raw) < 8 {
 			t.Fatalf("receivedQueue: %v (%d bytes)", err, len(raw))

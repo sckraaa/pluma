@@ -42,8 +42,14 @@ const (
 	// differenceBytes the most ciphertext.
 	differencePage  = 100
 	differenceBytes = 4 << 20
-	idAttempts      = 16
-	sweepBatch      = 1000
+	// firstQts is the qts of an authorization with no events yet, the first
+	// event being the next one. It is not 0: at a local qts of 0 Android
+	// applies any update without looking for a gap and confirms it
+	// (MessagesController.java:18113, :18298), so a lost or late first event
+	// would be confirmed undelivered.
+	firstQts   = 1
+	idAttempts = 16
+	sweepBatch = 1000
 )
 
 // Store keeps the chats, their queues and the encrypted files in MySQL.
@@ -435,7 +441,7 @@ func (s *Store) Send(ctx context.Context, in Send) (*Sent, error) {
 }
 
 func nextQts(ctx context.Context, tx *sql.Tx, d Device) (int32, error) {
-	if _, err := tx.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, qts) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE qts = qts + 1", d.AuthKey, d.UserId); err != nil {
+	if _, err := tx.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, qts) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE qts = qts + 1", d.AuthKey, d.UserId, firstQts+1); err != nil {
 		return 0, err
 	}
 	var qts int32
@@ -520,7 +526,7 @@ func (s *Store) Ack(ctx context.Context, d Device, maxQts int32) ([]int64, error
 // State returns the qts of d for updates.getState and marks that d was given
 // a state.
 func (s *Store) State(ctx context.Context, d Device) (int32, error) {
-	if _, err := s.db.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, state_given_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE state_given_at = VALUES(state_given_at)", d.AuthKey, d.UserId, s.unix()); err != nil {
+	if _, err := s.db.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, qts, state_given_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE state_given_at = VALUES(state_given_at)", d.AuthKey, d.UserId, firstQts, s.unix()); err != nil {
 		return 0, err
 	}
 	var qts int32
@@ -557,9 +563,13 @@ type DifferenceInput struct {
 // Empty tells whether the difference changes nothing for a client at qts. A
 // negative qts is a client without secret chats, which has no qts to correct:
 // tweb always asks with -1 (apiUpdatesManager.ts) and tdesktop keeps -1 until
-// a state has a non-zero one (api_updates.h, Updates::setState).
+// a state has a non-zero one (api_updates.h, Updates::setState). A client at
+// 0 that never asked for a state has missed nothing while there are no events.
 func (d *Difference) Empty(clientQts int32) bool {
-	return len(d.Messages) == 0 && len(d.Updates) == 0 && !d.More && (d.Qts == clientQts || clientQts < 0)
+	if len(d.Messages) != 0 || len(d.Updates) != 0 || d.More {
+		return false
+	}
+	return d.Qts == clientQts || clientQts < 0 || (clientQts == 0 && d.Qts == firstQts)
 }
 
 // Difference confirms the queue up to in.Qts, the implicit acknowledgement
@@ -581,7 +591,10 @@ func (s *Store) Difference(ctx context.Context, in DifferenceInput) (*Difference
 		d          = new(Difference)
 	)
 	err := s.db.QueryRowContext(ctx, "SELECT qts, state_given_at FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", in.Device.AuthKey, in.Device.UserId).Scan(&qts, &given)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		qts = firstQts
+	case err != nil:
 		return nil, fmt.Errorf("secretchat: difference state: %w", err)
 	}
 	d.Qts = qts
@@ -603,7 +616,7 @@ func (s *Store) Difference(ctx context.Context, in DifferenceInput) (*Difference
 
 // MarkDifference records that d was given a final difference.
 func (s *Store) MarkDifference(ctx context.Context, d Device) error {
-	_, err := s.db.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, state_given_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE state_given_at = VALUES(state_given_at)", d.AuthKey, d.UserId, s.unix())
+	_, err := s.db.ExecContext(ctx, "INSERT INTO encrypted_chat_devices (auth_key_id, user_id, qts, state_given_at) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE state_given_at = VALUES(state_given_at)", d.AuthKey, d.UserId, firstQts, s.unix())
 	return err
 }
 

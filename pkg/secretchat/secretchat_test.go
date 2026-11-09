@@ -139,6 +139,12 @@ func TestDifferenceEmpty(t *testing.T) {
 	if d := (&Difference{Messages: []*QueuedMessage{{}}, Qts: 3}); d.Empty(3) {
 		t.Error("messages")
 	}
+	if d := (&Difference{Qts: firstQts}); !d.Empty(0) {
+		t.Error("no events yet at qts 0")
+	}
+	if d := (&Difference{Qts: firstQts + 1}); d.Empty(0) {
+		t.Error("an event since qts 0")
+	}
 	if d := (&Difference{}); !d.Empty(-1) {
 		t.Error("a client that asks with qts -1 has nothing new")
 	}
