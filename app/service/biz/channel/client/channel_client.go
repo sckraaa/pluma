@@ -48,6 +48,7 @@ type ChannelClient interface {
 	ChannelUpdateUsername(ctx context.Context, in *channel.TLChannelUpdateUsername) (*mtproto.Bool, error)
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
+	ChannelSetBlocked(ctx context.Context, in *channel.TLChannelSetBlocked) (*mtproto.Bool, error)
 	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error)
@@ -972,4 +973,15 @@ func (m *defaultChannelClient) ChannelReadReactions(ctx context.Context, in *cha
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelReadReactions(ctx, in)
+}
+
+// ChannelSetBlocked
+// channel.setBlocked channel_id:long blocked:Bool = Bool;
+func (m *defaultChannelClient) ChannelSetBlocked(ctx context.Context, in *channel.TLChannelSetBlocked) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetBlocked(ctx, in)
 }

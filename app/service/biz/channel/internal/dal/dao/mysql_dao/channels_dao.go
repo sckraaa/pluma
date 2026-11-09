@@ -47,7 +47,7 @@ const channelsColumns = "id, access_hash, creator_user_id, title, about, photo_i
 	"(SELECT COUNT(*) FROM channel_participants p WHERE p.channel_id = channels.id AND p.state = 0 AND p.role = 0 AND p.banned_rights <> 0 AND " + runningBan + ") AS banned_count, " +
 	"default_banned_rights, slowmode_seconds, hidden_prehistory, " +
 	"linked_chat_id, migrated_from_chat_id, migrated_from_max_id, noforwards, join_to_send, join_request, participants_hidden, " +
-	"deleted, version, `date`, available_reactions_type, available_reactions"
+	"deleted, blocked, version, `date`, available_reactions_type, available_reactions"
 
 // SelectByIdList
 // select <channelsColumns> from channels where id in (:idList)

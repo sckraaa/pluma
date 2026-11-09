@@ -58,6 +58,7 @@ const (
 	RPCChannel_ChannelUpdateUsername_FullMethodName                   = "/channel.RPCChannel/channel_updateUsername"
 	RPCChannel_ChannelGetAdminedPublicChannels_FullMethodName         = "/channel.RPCChannel/channel_getAdminedPublicChannels"
 	RPCChannel_ChannelDeleteChannel_FullMethodName                    = "/channel.RPCChannel/channel_deleteChannel"
+	RPCChannel_ChannelSetBlocked_FullMethodName                       = "/channel.RPCChannel/channel_setBlocked"
 	RPCChannel_ChannelIncrementMessageViews_FullMethodName            = "/channel.RPCChannel/channel_incrementMessageViews"
 	RPCChannel_ChannelAddMessageForwards_FullMethodName               = "/channel.RPCChannel/channel_addMessageForwards"
 	RPCChannel_ChannelDeleteHistory_FullMethodName                    = "/channel.RPCChannel/channel_deleteHistory"
@@ -162,6 +163,8 @@ type RPCChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *TLChannelGetAdminedPublicChannels, opts ...grpc.CallOption) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(ctx context.Context, in *TLChannelDeleteChannel, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 072
+	ChannelSetBlocked(ctx context.Context, in *TLChannelSetBlocked, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 046
 	ChannelIncrementMessageViews(ctx context.Context, in *TLChannelIncrementMessageViews, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 046
@@ -498,6 +501,16 @@ func (c *rPCChannelClient) ChannelDeleteChannel(ctx context.Context, in *TLChann
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
 	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteChannel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSetBlocked(ctx context.Context, in *TLChannelSetBlocked, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetBlocked_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1110,6 +1123,8 @@ type RPCChannelServer interface {
 	ChannelGetAdminedPublicChannels(context.Context, *TLChannelGetAdminedPublicChannels) (*Vector_Long, error)
 	// pluma: task 055
 	ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error)
+	// pluma: task 072
+	ChannelSetBlocked(context.Context, *TLChannelSetBlocked) (*mtproto.Bool, error)
 	// pluma: task 046
 	ChannelIncrementMessageViews(context.Context, *TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	// pluma: task 046
@@ -1296,6 +1311,9 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminedPublicChannels(context.Con
 }
 func (UnimplementedRPCChannelServer) ChannelDeleteChannel(context.Context, *TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteChannel not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSetBlocked(context.Context, *TLChannelSetBlocked) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetBlocked not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelIncrementMessageViews(context.Context, *TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelIncrementMessageViews not implemented")
@@ -1877,6 +1895,24 @@ func _RPCChannel_ChannelDeleteChannel_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCChannelServer).ChannelDeleteChannel(ctx, req.(*TLChannelDeleteChannel))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSetBlocked_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSetBlocked)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSetBlocked(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSetBlocked_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSetBlocked(ctx, req.(*TLChannelSetBlocked))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2983,6 +3019,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_deleteChannel",
 			Handler:    _RPCChannel_ChannelDeleteChannel_Handler,
+		},
+		{
+			MethodName: "channel_setBlocked",
+			Handler:    _RPCChannel_ChannelSetBlocked_Handler,
 		},
 		{
 			MethodName: "channel_incrementMessageViews",

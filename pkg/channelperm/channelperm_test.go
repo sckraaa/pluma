@@ -229,3 +229,12 @@ func TestGrantable(t *testing.T) {
 		}
 	}
 }
+
+func TestBlockedChannel(t *testing.T) {
+	blocked := Channel{Broadcast: false, Blocked: true}
+	for _, p := range []Participant{member, creator, admin(math.MaxInt32)} {
+		for _, a := range []Action{SendPlain, InviteUsers, ChangeInfo, PinMessages} {
+			check(t, "blocked", Can(blocked, p, a, now), mtproto.ErrChannelPrivate)
+		}
+	}
+}

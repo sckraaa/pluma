@@ -337,6 +337,9 @@ func (noChannels) ChannelGetParticipants(context.Context, *channelpb.TLChannelGe
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelSetBlocked(context.Context, *channelpb.TLChannelSetBlocked) (*mtproto.Bool, error) {
+	return mtproto.BoolTrue, nil
+}
 func (noChannels) ChannelDeleteChannel(context.Context, *channelpb.TLChannelDeleteChannel) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

@@ -365,3 +365,22 @@ func TestMember(t *testing.T) {
 		}
 	}
 }
+
+func TestToChatBlocked(t *testing.T) {
+	ch := testChannel("name")
+	ch.Blocked = true
+	c := ch.ToChat(participant(RoleCreator, StateIn, 0, 0, 0), int32(viewJoined))
+	if !c.GetRestricted() || len(c.GetRestrictionReason()) != 1 {
+		t.Fatalf("blocked: %+v", c)
+	}
+	if r := c.GetRestrictionReason()[0]; r.GetPlatform() != "all" || r.GetText() == "" {
+		t.Errorf("reason: %+v", r)
+	}
+	if err := ch.Can(participant(RoleCreator, StateIn, 0, 0, 0), channelperm.SendPlain, int32(viewJoined)); err != mtproto.ErrChannelPrivate {
+		t.Errorf("the creator of a blocked channel posts: %v", err)
+	}
+	ch.Blocked = false
+	if c := ch.ToChat(participant(RoleCreator, StateIn, 0, 0, 0), int32(viewJoined)); c.GetRestricted() {
+		t.Error("unblocked channel is restricted")
+	}
+}

@@ -74,6 +74,9 @@ type Channel struct {
 	Broadcast bool
 	// Default is default_banned_rights: the restrictions of every member.
 	Default int32
+	// Blocked: the owner of the server blocked the channel (the panel,
+	// channel.setBlocked); nobody may do anything in it.
+	Blocked bool
 }
 
 // Participant is what Can reads of a participant of the channel.
@@ -174,7 +177,7 @@ var ErrChatSendRoundvideosForbidden = status.Error(mtproto.ErrForbidden, "CHAT_S
 // clients expect. A participant out of the channel (left, kicked) gets
 // CHANNEL_PRIVATE; the caller has already let in whom it lets read.
 func Can(ch Channel, p Participant, a Action, now int32) error {
-	if p.State != StateIn {
+	if ch.Blocked || p.State != StateIn {
 		return mtproto.ErrChannelPrivate
 	}
 	switch p.Role {

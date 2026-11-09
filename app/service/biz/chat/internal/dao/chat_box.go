@@ -45,7 +45,7 @@ const (
 	requestersQuery    = "SELECT user_id FROM chat_invite_participants WHERE chat_id = ? AND requested = 1 GROUP BY user_id ORDER BY MAX(date2) DESC, MAX(id) DESC"
 	upsertInviteeQuery = "INSERT INTO chat_invite_participants (chat_id, link, user_id, requested, approved_by, date2) VALUES (?, ?, ?, ?, 0, ?) AS new" +
 		" ON DUPLICATE KEY UPDATE chat_id = new.chat_id, requested = new.requested, approved_by = 0, date2 = new.date2"
-	deleteChatQuery = "UPDATE chats SET participant_count = 0, deactivated = 1, version = version + 1 WHERE id = ?"
+	deleteChatQuery = "UPDATE chats SET participant_count = 0, deactivated = 1, blocked = 0, version = version + 1 WHERE id = ?"
 )
 
 // RecentRequestersMax is how many of the latest requesters to join a chat
@@ -178,5 +178,24 @@ func (d *Dao) PutInviteeTx(b *userbox.Box, chatId int64, link string, userId int
 // once.
 func (d *Dao) DeleteChatTx(b *userbox.Box, chatId int64) error {
 	_, err := b.Tx().Exec(deleteChatQuery, chatId)
+	return err
+}
+
+// ChatBlocked tells whether the owner of the server blocked the group
+// (chat.setBlocked), inside the transaction that holds the chat's lock.
+func (d *Dao) ChatBlocked(b *userbox.Box, chatId int64) (bool, error) {
+	var rows []struct {
+		Blocked bool `db:"blocked"`
+	}
+	if err := b.Tx().QueryRowsPartial(&rows, "SELECT blocked FROM chats WHERE id = ?", chatId); err != nil || len(rows) == 0 {
+		return false, err
+	}
+	return rows[0].Blocked, nil
+}
+
+// SetChatBlocked writes the block of a group: deactivated together with
+// blocked, so that an unblock brings back the group and only that.
+func (d *Dao) SetChatBlocked(b *userbox.Box, chatId int64, blocked bool) error {
+	_, err := b.Tx().Exec("UPDATE chats SET blocked = ?, deactivated = ?, version = version + 1 WHERE id = ?", blocked, blocked, chatId)
 	return err
 }

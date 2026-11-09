@@ -71,6 +71,8 @@ enum TLConstructor {
   CRC32_channel_getAdminedPublicChannels = -2083237595;
   // pluma: task 055
   CRC32_channel_deleteChannel = -979916526;
+  // pluma: task 072
+  CRC32_channel_setBlocked = -63031132;
   // pluma: task 046
   CRC32_channel_incrementMessageViews = 1668730682;
   // pluma: task 046
@@ -231,6 +233,9 @@ message ImmutableChannel {
     bool signature_profiles = 35;
     // pluma: task 060: flags.15, the tabbed layout of a forum.
     bool forum_tabs = 40;
+    // pluma: task 072: flags.16, blocked by the owner of the server (the
+    // members see it restricted; channel.setBlocked).
+    bool blocked = 41;
 }
 
 message TL_immutableChannel {
@@ -1314,6 +1319,17 @@ message TL_channel_readReactions {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.setBlocked channel_id:long blocked:Bool = Bool;
+// The owner of the server blocks a channel or a supergroup, or unblocks it
+// (the panel, docs/ops/admin-panel.md).
+// (task 072)
+message TL_channel_setBlocked {
+  TLConstructor constructor = 1;
+  int64 channel_id = 3;
+  mtproto.Bool blocked = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -1381,6 +1397,8 @@ service RPCChannel {
   rpc channel_getAdminedPublicChannels(TL_channel_getAdminedPublicChannels) returns (Vector_Long) {}
   // pluma: task 055
   rpc channel_deleteChannel(TL_channel_deleteChannel) returns (mtproto.Updates) {}
+  // pluma: task 072
+  rpc channel_setBlocked(TL_channel_setBlocked) returns (mtproto.Bool) {}
   // pluma: task 046
   rpc channel_incrementMessageViews(TL_channel_incrementMessageViews) returns (mtproto.Bool) {}
   // pluma: task 046

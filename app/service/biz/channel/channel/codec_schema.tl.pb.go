@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	-63031132: func() mtproto.TLObject { // 0xfc3e38a4 pluma: task 072
+		return &TLChannelSetBlocked{
+			Constructor: -63031132,
+		}
+	},
 	1668730682: func() mtproto.TLObject { // 0x6376cf3a pluma: task 046
 		return &TLChannelIncrementMessageViews{
 			Constructor: 1668730682,
@@ -545,6 +550,9 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 				if d.GetForumTabs() {
 					flags |= 1 << 15
 				}
+				if d.GetBlocked() {
+					flags |= 1 << 16
+				}
 				if d.GetSignatures() {
 					flags |= 1 << 3
 				}
@@ -628,6 +636,7 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.Megagroup = (flags & (1 << 1)) != 0
 			d.Forum = (flags & (1 << 2)) != 0
 			d.ForumTabs = (flags & (1 << 15)) != 0
+			d.Blocked = (flags & (1 << 16)) != 0
 			d.Signatures = (flags & (1 << 3)) != 0
 			d.Noforwards = (flags & (1 << 4)) != 0
 			d.JoinToSend = (flags & (1 << 5)) != 0
@@ -4853,6 +4862,48 @@ func (m *TLChannelReadReactions) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.PermAuthKeyId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		m.TopMsgId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSetBlocked (pluma: task 072)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSetBlocked) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xfc3e38a4:
+		x.UInt(0xfc3e38a4)
+
+		// no flags
+
+		x.Long(m.GetChannelId())
+		m.GetBlocked().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSetBlocked) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSetBlocked) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xfc3e38a4:
+
+		// not has flags
+
+		m.ChannelId = dBuf.Long()
+		m1 := &mtproto.Bool{}
+		m1.Decode(dBuf)
+		m.Blocked = m1
 		return dBuf.GetError()
 
 	default:

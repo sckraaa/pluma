@@ -211,6 +211,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 1023107972,
 		}
 	},
+	1239474570: func() mtproto.TLObject { // 0x49e0e18a pluma: task 072
+		return &TLChatSetBlocked{
+			Constructor: 1239474570,
+		}
+	},
 	568333563: func() mtproto.TLObject { // 0x21e014fb
 		return &TLChatSearch{
 			Constructor: 568333563,
@@ -2890,4 +2895,46 @@ func (m *Vector_ChatInviteImporter) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *Vector_ChatInviteImporter) CalcByteSize(layer int32) int {
 	return 0
+}
+
+// TLChatSetBlocked (pluma: task 072)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChatSetBlocked) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x49e0e18a:
+		x.UInt(0x49e0e18a)
+
+		// no flags
+
+		x.Long(m.GetChatId())
+		m.GetBlocked().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChatSetBlocked) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChatSetBlocked) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x49e0e18a:
+
+		// not has flags
+
+		m.ChatId = dBuf.Long()
+		m1 := &mtproto.Bool{}
+		m1.Decode(dBuf)
+		m.Blocked = m1
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
 }
