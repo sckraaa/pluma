@@ -98,7 +98,7 @@ func (c *CatalogCore) channelUnreadReactions(in *mtproto.TLMessagesGetUnreadReac
 const channelUnreadReactionsMax = 100
 
 // fillChannelReactionPeers sets the channel and the users of a page of its
-// messages, the reacting users among them.
+// messages, the reacting users and the creators of its topics among them.
 func (c *CatalogCore) fillChannelReactionPeers(r *mtproto.Messages_Messages, channelId int64) error {
 	h := mtproto.NewIDListHelper(c.MD.UserId)
 	h.PickByMessages(r.GetMessages()...)
@@ -106,6 +106,9 @@ func (c *CatalogCore) fillChannelReactionPeers(r *mtproto.Messages_Messages, cha
 		for _, p := range m.GetReactions().GetRecentReactions() {
 			h.PickByPeer(p.GetPeerId())
 		}
+	}
+	for _, t := range r.GetTopics() {
+		h.PickByPeer(t.GetFromId())
 	}
 	users, err := c.svcCtx.User.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: h.UserIdList, To: []int64{c.MD.UserId}})
 	if err != nil {
