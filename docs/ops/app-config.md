@@ -41,7 +41,7 @@
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
 | `premium_purchase_blocked` | `true` | A D W | Оплаты нет (ADR 0016): клиенты скрывают покупку Premium. По умолчанию у Android `false`, у tdesktop `true`. |
-| `premium_promo_order` | `["double_limits", "folder_tags", "message_privacy", "profile_badge"]` | A W | Экран Premium показывает только перечисленное. Реализовано: лимиты папок, теги папок, «только контакты и Premium», значок у имени. |
+| `premium_promo_order` | `["more_upload", "double_limits", "folder_tags", "message_privacy", "profile_badge"]` | A W | Экран Premium показывает только перечисленное. Реализовано: файлы 4 ГБ, лимиты папок и других возможностей (задача 025), теги папок, «только контакты и Premium», значок у имени. |
 | `premium_gift_attach_menu_icon` | `false` | A | Подарка Premium нет. |
 | `premium_gift_text_field_icon` | `false` | A | Подарка Premium нет. |
 | `stars_purchase_blocked` | `true` | A W | Покупки звёзд нет. |
@@ -94,13 +94,13 @@
 |---|---|---|---|
 | `message_length_limit_default` | `4096` | A D | Как `message_length_max` в `help.getConfig`. Сервер длину не проверяет. |
 | `message_length_limit_premium` | `4096` | A D | Длинных сообщений с Premium сервер не реализует. Клиенты по умолчанию берут 8192. |
-| `caption_length_limit_default` | `1024` | A D W | Как у Telegram. Сервер проверяет не больше 4000 байт, 1024 символа в них всегда помещаются. |
-| `caption_length_limit_premium` | `1024` | A D W | Подпись в 4096 символов (Telegram) сервер может отклонить: он проверяет 4000 байт. |
-| `about_length_limit_default` | `70` | A D W | Как у Telegram. Сервер проверяет не больше 128 байт, а не 70 символов: см. брифинг задачи 015. |
-| `about_length_limit_premium` | `70` | A D W | 140 символов (Telegram) не помещаются в 128 байт. |
+| `caption_length_limit_default` | `1024` | A D W | Как у Telegram. Сервер проверяет. |
+| `caption_length_limit_premium` | `4096` | A D W | Как у Telegram (задача 025). Сервер проверяет по Premium пользователя. |
+| `about_length_limit_default` | `70` | A D W | Как у Telegram. Сервер проверяет. |
+| `about_length_limit_premium` | `140` | A D W | Как у Telegram (задача 025). |
 | `quote_length_max` | `1024` | A D W | Как у Telegram. |
-| `upload_max_fileparts_default` | `4000` | A D W | Как у Telegram: 2 ГБ частями по 512 КБ. Сервер число частей документа не проверяет. |
-| `upload_max_fileparts_premium` | `4000` | A D W | Файлов по 4 ГБ сервер не реализует. |
+| `upload_max_fileparts_default` | `4000` | A D W | Как у Telegram: 2 ГБ частями по 512 КБ. Без Premium больше частей сервер не примет (задача 025). |
+| `upload_max_fileparts_premium` | `8000` | A D W | Как у Telegram: 4 ГБ с Premium (задача 025). |
 
 ## Лимиты того, чего на сервере нет
 
@@ -109,9 +109,9 @@
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
 | `channels_limit_default` | `500` | A D W | Каналов пока нет. |
-| `channels_limit_premium` | `500` | A D W | Каналов пока нет. |
+| `channels_limit_premium` | `1000` | A D W | Как у Telegram (задача 025). |
 | `channels_public_limit_default` | `10` | A D W | Каналов пока нет. |
-| `channels_public_limit_premium` | `10` | A D W | Каналов пока нет. |
+| `channels_public_limit_premium` | `20` | A D W | Как у Telegram (задача 025). |
 | `recommended_channels_limit_default` | `10` | A D W | Каналов пока нет. |
 | `recommended_channels_limit_premium` | `10` | A D W | Каналов пока нет. |
 | `chatlist_invites_limit_default` | `3` | A D W | Общих папок (`chatlists.*`) нет. |
@@ -119,7 +119,7 @@
 | `chatlists_joined_limit_default` | `2` | A D W | Общих папок нет. |
 | `chatlists_joined_limit_premium` | `2` | A D W | Общих папок нет. |
 | `saved_gifs_limit_default` | `200` | A D W | Сохранённых GIF (`messages.saveGif`) нет. |
-| `saved_gifs_limit_premium` | `200` | A D W | Сохранённых GIF нет. |
+| `saved_gifs_limit_premium` | `400` | A D W | Как у Telegram (задача 025). |
 | `stickers_faved_limit_default` | `5` | A D W | Избранных стикеров нет. |
 | `stickers_faved_limit_premium` | `5` | A D W | Избранных стикеров нет. |
 | `reactions_user_max_default` | `3` | A D W | Реакций одного человека на сообщение: как в Telegram Premium, у всех (задача 053, решение владельца). Тот же лимит — теги в «Избранном». |

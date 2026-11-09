@@ -31,6 +31,12 @@ docker compose exec bff ./pluma-admin -f ../etc2/bff.yaml premium list
 | Теги папок | `PREMIUM_ACCOUNT_REQUIRED` | можно включить |
 | «Все чаты» | всегда первые | на любом месте |
 | «Писать могут только контакты и Premium» | `PREMIUM_ACCOUNT_REQUIRED` | можно включить |
+| Каналы и супергруппы | 500 | 1000 |
+| Публичные каналы владельца | 10 | 20 |
+| Био (символов) | 70 | 140 |
+| Подпись к медиа | 1024 | 4096 |
+| Сохранённые GIF | 200 | 400 |
+| Файл | 2 ГБ | 4 ГБ |
 
 **Настройка «только контакты и Premium»** (`new_noncontact_peers_require_premium`). Писать такому пользователю могут:
 - его контакты;
@@ -48,5 +54,5 @@ docker compose exec bff ./pluma-admin -f ../etc2/bff.yaml premium list
 ## Что видят клиенты
 Лимиты и выключатели клиенты берут из `help.getAppConfig` (`docs/ops/app-config.md`, задача 015).
 - Покупка Premium скрыта (`premium_purchase_blocked`).
-- Лимиты папок — 10/30 и 100/200, как проверяет сервер.
+- Лимиты — как в таблице выше: они же в `help.getAppConfig`, проверяет сервер.
 - Экран Premium перечисляет только реализованное.
