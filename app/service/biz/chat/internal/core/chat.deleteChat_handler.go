@@ -42,7 +42,16 @@ func (c *ChatCore) ChatDeleteChat(in *chat.TLChatDeleteChat) (*mtproto.MutableCh
 		case t.Chat.Creator != operatorId:
 			return mtproto.ErrChatAdminRequired
 		case t.Chat.Deactivated:
-			return nil
+			// A blocked group (chat.setBlocked) is deactivated but still has
+			// its members: only the server's admin deletes it, as nobody
+			// else changes a blocked group.
+			blocked, err := t.c.svcCtx.Dao.ChatBlocked(b, in.ChatId)
+			switch {
+			case err != nil || !blocked:
+				return err
+			case in.OperatorId != 0:
+				return mtproto.ErrChatIdInvalid
+			}
 		}
 		to := t.members()
 		if !slices.Contains(to, operatorId) {

@@ -94,7 +94,7 @@ func (p *ImmutableChannelParticipant) Perm() channelperm.Participant {
 
 // Perm is the channel as channelperm reads it.
 func (m *ImmutableChannel) Perm() channelperm.Channel {
-	return channelperm.Channel{Broadcast: m.GetBroadcast(), Default: m.GetDefaultBannedRights()}
+	return channelperm.Channel{Broadcast: m.GetBroadcast(), Default: m.GetDefaultBannedRights(), Blocked: m.GetBlocked()}
 }
 
 // Can answers whether the participant p may do a in the channel at now
@@ -205,6 +205,19 @@ func (m *MutableChannel) ToInvitedChat(viewerId int64, now int32) *mtproto.Chat 
 	return m.GetChannel().ToChat(&ImmutableChannelParticipant{State: StateLinked}, now)
 }
 
+// blockedReason is the channel's restriction when the owner of the server
+// blocked it: every client refuses to open it and shows the text (platform
+// "all": Android MessagesController.getRestrictionReason and checkCanOpenChat,
+// tdesktop UnavailableReason::Extract, iOS PeerUtils restrictionText, Web K
+// isPeerRestricted; core.telegram.org/constructor/restrictionReason). The
+// field has one text for every reader, and the viewer's language is not
+// known here, so it carries both of the server's languages.
+var blockedReason = mtproto.MakeTLRestrictionReason(&mtproto.RestrictionReason{
+	Platform: "all",
+	Reason:   "terms",
+	Text:     "Канал заблокирован администрацией Pluma.\nThis channel has been blocked by the Pluma administration.",
+}).To_RestrictionReason()
+
 // ToMinChat is the min form of the channel (core.telegram.org/api/min): for a
 // peer one only sees referenced, without the viewer's state. It carries the
 // fields a client applies over its stored copy of a min channel (the list on
@@ -221,17 +234,27 @@ func (m *ImmutableChannel) ToMinChat() *mtproto.Chat {
 
 // base is what every channel object carries: the fields of a min channel.
 func (m *ImmutableChannel) base() *mtproto.Chat {
+	var (
+		restricted bool
+		reasons    []*mtproto.RestrictionReason
+	)
+	if m.GetBlocked() {
+		restricted = true
+		reasons = []*mtproto.RestrictionReason{blockedReason}
+	}
 	c := &mtproto.Chat{
-		Id:          m.GetId(),
-		Title:       m.GetTitle(),
-		Photo:       mtproto.MakeChatPhotoByPhoto(m.GetPhoto()),
-		Broadcast:   m.GetBroadcast(),
-		Megagroup:   m.GetMegagroup(),
-		Noforwards:  m.GetNoforwards(),
-		Forum:       m.GetForum(),
-		ForumTabs:   m.GetForumTabs(),
-		JoinToSend:  m.GetJoinToSend(),
-		JoinRequest: m.GetJoinRequest(),
+		Restricted:        restricted,
+		RestrictionReason: reasons,
+		Id:                m.GetId(),
+		Title:             m.GetTitle(),
+		Photo:             mtproto.MakeChatPhotoByPhoto(m.GetPhoto()),
+		Broadcast:         m.GetBroadcast(),
+		Megagroup:         m.GetMegagroup(),
+		Noforwards:        m.GetNoforwards(),
+		Forum:             m.GetForum(),
+		ForumTabs:         m.GetForumTabs(),
+		JoinToSend:        m.GetJoinToSend(),
+		JoinRequest:       m.GetJoinRequest(),
 		// The writers set the slow mode of supergroups only.
 		SlowmodeEnabled: m.GetSlowmodeSeconds() > 0,
 		// A min channel carries it (core.telegram.org/constructor/channel):

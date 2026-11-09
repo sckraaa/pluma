@@ -30,12 +30,12 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
-	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -52,6 +52,8 @@ const (
 	mediaChunk    = 1 << 20
 	queuePage     = 50
 	auditPage     = 100
+	// listPage bounds the lists of the panel's searches.
+	listPage = 50
 )
 
 // dfsClient reads the media of a reported message.
@@ -61,21 +63,18 @@ type dfsClient interface {
 
 // server is the HTTP API and pages of the panel.
 type server struct {
-	cfg    *config
-	store  *store
-	dao    *moderation.DAO
-	runner *effects.Runner
-	dfs    dfsClient
+	cfg   *config
+	store *store
+	deps
 }
 
-func newServer(c *config, st *store, dao *moderation.DAO, runner *effects.Runner, d dfsClient) *server {
-	return &server{cfg: c, store: st, dao: dao, runner: runner, dfs: d}
+func newServer(c *config, st *store, d deps) *server {
+	return &server{cfg: c, store: st, deps: d}
 }
 
 // actor is the person behind a request.
 type actor struct {
 	login string
-	role  int8
 }
 
 // peerIsLoopback tells whether the connection is from this machine, where
@@ -123,15 +122,16 @@ func securityHeaders(w http.ResponseWriter) {
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("X-Frame-Options", "DENY")
 	h.Set("Referrer-Policy", "no-referrer")
-	h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'")
+	h.Set("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; media-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'")
 	h.Set("Cache-Control", "no-store")
 }
 
-// wrap authenticates a request: tailnet identity, then the role, then a
-// live session cookie of the same person. Only these checks apply to a
-// passkey ceremony, which a person without a session does (needSession
-// false).
-func (s *server) wrap(minRole int8, needSession bool, fn func(w http.ResponseWriter, r *http.Request, a *actor)) http.HandlerFunc {
+// wrap authenticates a request: tailnet identity, then a live session
+// cookie of the same person. Only the first applies to a passkey ceremony,
+// which a person without a session does (needSession false). There is one
+// person of the panel, the owner: the people of admin_users have no roles
+// (task 072).
+func (s *server) wrap(needSession bool, fn func(w http.ResponseWriter, r *http.Request, a *actor)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		securityHeaders(w)
 		if r.Method != http.MethodGet && r.Header.Get("Origin") != s.cfg.Origin {
@@ -146,10 +146,6 @@ func (s *server) wrap(minRole int8, needSession bool, fn func(w http.ResponseWri
 		}
 		if a == nil {
 			httpError(w, http.StatusForbidden, "not an administrator")
-			return
-		}
-		if a.Role < minRole {
-			httpError(w, http.StatusForbidden, "not allowed")
 			return
 		}
 		if needSession {
@@ -170,7 +166,7 @@ func (s *server) wrap(minRole int8, needSession bool, fn func(w http.ResponseWri
 			}
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
-		fn(w, r, &actor{login: a.Login, role: a.Role})
+		fn(w, r, &actor{login: a.Login})
 	}
 }
 
@@ -192,22 +188,52 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /api/me", s.wrap(roleObserver, false, s.handleMe))
-	mux.HandleFunc("POST /api/passkey/register/begin", s.wrap(roleObserver, false, s.handleRegisterBegin))
-	mux.HandleFunc("POST /api/passkey/register/finish", s.wrap(roleObserver, false, s.handleRegisterFinish))
-	mux.HandleFunc("POST /api/login/begin", s.wrap(roleObserver, false, s.handleLoginBegin))
-	mux.HandleFunc("POST /api/login/finish", s.wrap(roleObserver, false, s.handleLoginFinish))
-	mux.HandleFunc("POST /api/logout", s.wrap(roleObserver, true, s.handleLogout))
-	mux.HandleFunc("POST /api/stepup/begin", s.wrap(roleModerator, true, s.handleStepUpBegin))
-	mux.HandleFunc("GET /api/reports", s.wrap(roleObserver, true, s.handleQueue))
-	mux.HandleFunc("GET /api/reports/{id}", s.wrap(roleObserver, true, s.handleReport))
-	mux.HandleFunc("GET /api/reports/{id}/media/{msg}", s.wrap(roleObserver, true, s.handleMedia))
-	mux.HandleFunc("POST /api/reports/{id}/decide", s.wrap(roleModerator, true, s.handleDecide))
-	mux.HandleFunc("POST /api/reports/{id}/retry", s.wrap(roleModerator, true, s.handleRetry))
-	mux.HandleFunc("POST /api/users/{id}/lift", s.wrap(roleModerator, true, s.handleLift))
-	mux.HandleFunc("GET /api/audit", s.wrap(roleObserver, true, s.handleAudit))
-	mux.HandleFunc("GET /api/admins", s.wrap(roleOwner, true, s.handleAdminsList))
-	mux.HandleFunc("POST /api/admins", s.wrap(roleOwner, true, s.handleAdminSet))
+	mux.HandleFunc("GET /api/me", s.wrap(false, s.handleMe))
+	mux.HandleFunc("POST /api/passkey/register/begin", s.wrap(false, s.handleRegisterBegin))
+	mux.HandleFunc("POST /api/passkey/register/finish", s.wrap(false, s.handleRegisterFinish))
+	mux.HandleFunc("POST /api/login/begin", s.wrap(false, s.handleLoginBegin))
+	mux.HandleFunc("POST /api/login/finish", s.wrap(false, s.handleLoginFinish))
+	mux.HandleFunc("POST /api/logout", s.wrap(true, s.handleLogout))
+	mux.HandleFunc("POST /api/stepup/begin", s.wrap(true, s.handleStepUpBegin))
+	mux.HandleFunc("GET /api/overview", s.wrap(true, s.handleOverview))
+	mux.HandleFunc("GET /api/users", s.wrap(true, s.handleUsersSearch))
+	mux.HandleFunc("GET /api/users/{id}", s.wrap(true, s.handleUserCard))
+	mux.HandleFunc("POST /api/users/{id}/terminate", s.wrap(true, s.handleUserTerminate))
+	mux.HandleFunc("POST /api/users/{id}/restrict", s.wrap(true, s.handleUserRestrict))
+	mux.HandleFunc("POST /api/users/{id}/lift", s.wrap(true, s.handleLift))
+	mux.HandleFunc("POST /api/users/{id}/code", s.wrap(true, s.handleUserCode))
+	mux.HandleFunc("POST /api/users/{id}/message", s.wrap(true, s.handleUserMessage))
+	mux.HandleFunc("POST /api/users/{id}/delete", s.wrap(true, s.handleUserDelete))
+	mux.HandleFunc("GET /api/peers", s.wrap(true, s.handlePeersSearch))
+	mux.HandleFunc("GET /api/peers/{type}/{id}", s.wrap(true, s.handlePeerCard))
+	mux.HandleFunc("POST /api/peers/{type}/{id}/block", s.wrap(true, s.handlePeerBlock))
+	mux.HandleFunc("POST /api/peers/{type}/{id}/unblock", s.wrap(true, s.handlePeerUnblock))
+	mux.HandleFunc("POST /api/peers/{type}/{id}/delete", s.wrap(true, s.handlePeerDelete))
+	mux.HandleFunc("GET /api/reports", s.wrap(true, s.handleQueue))
+	mux.HandleFunc("GET /api/reports/{id}", s.wrap(true, s.handleReport))
+	mux.HandleFunc("GET /api/reports/{id}/media/{msg}", s.wrap(true, s.handleMedia))
+	mux.HandleFunc("POST /api/reports/{id}/decide", s.wrap(true, s.handleDecide))
+	mux.HandleFunc("POST /api/reports/{id}/retry", s.wrap(true, s.handleRetry))
+	mux.HandleFunc("GET /api/registration", s.wrap(true, s.handleRegistration))
+	mux.HandleFunc("POST /api/registration/mode", s.wrap(true, s.handleRegistrationMode))
+	mux.HandleFunc("POST /api/registration/phones", s.wrap(true, s.handleRegistrationAdd))
+	mux.HandleFunc("POST /api/registration/phones/remove", s.wrap(true, s.handleRegistrationRemove))
+	mux.HandleFunc("POST /api/registration/code", s.wrap(true, s.handleRegistrationCode))
+	mux.HandleFunc("GET /api/broadcasts", s.wrap(true, s.handleBroadcasts))
+	mux.HandleFunc("POST /api/broadcasts/preview", s.wrap(true, s.handleBroadcastPreview))
+	mux.HandleFunc("POST /api/broadcasts", s.wrap(true, s.handleBroadcastStart))
+	mux.HandleFunc("POST /api/broadcasts/{id}/cancel", s.wrap(true, s.handleBroadcastCancel))
+	mux.HandleFunc("GET /api/releases", s.wrap(true, s.handleReleases))
+	mux.HandleFunc("POST /api/releases/{platform}/{build}/withdraw", s.wrap(true, s.handleReleaseWithdraw))
+	mux.HandleFunc("POST /api/releases/{platform}/{build}/restore", s.wrap(true, s.handleReleaseRestore))
+	mux.HandleFunc("GET /api/system", s.wrap(true, s.handleSystem))
+	mux.HandleFunc("POST /api/system/outbox/replay", s.wrap(true, s.handleOutboxReplay))
+	mux.HandleFunc("POST /api/system/outbox/discard", s.wrap(true, s.handleOutboxDiscard))
+	mux.HandleFunc("GET /api/audit", s.wrap(true, s.handleAudit))
+	mux.HandleFunc("GET /api/admins", s.wrap(true, s.handleAdminsList))
+	mux.HandleFunc("POST /api/admins", s.wrap(true, s.handleAdminSet))
+	mux.HandleFunc("GET /api/passkeys", s.wrap(true, s.handlePasskeys))
+	mux.HandleFunc("POST /api/passkeys/remove", s.wrap(true, s.handlePasskeyRemove))
 	return mux
 }
 
@@ -290,7 +316,7 @@ func (s *server) handleMe(w http.ResponseWriter, r *http.Request, a *actor) {
 			loggedIn = login == a.login
 		}
 	}
-	writeJSON(w, map[string]any{"login": a.login, "role": a.role, "has_passkey": len(credentials) > 0, "logged_in": loggedIn})
+	writeJSON(w, map[string]any{"login": a.login, "has_passkey": len(credentials) > 0, "logged_in": loggedIn})
 }
 
 func (s *server) handleRegisterBegin(w http.ResponseWriter, r *http.Request, a *actor) {
@@ -780,8 +806,14 @@ func (s *server) handleLift(w http.ResponseWriter, r *http.Request, a *actor) {
 }
 
 func (s *server) handleAudit(w http.ResponseWriter, r *http.Request, a *actor) {
-	before, _ := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
-	rows, err := s.dao.AuditLog(r.Context(), before, auditPage)
+	q := r.URL.Query()
+	before, _ := strconv.ParseInt(q.Get("before"), 10, 64)
+	rows, err := s.dao.AuditLogFiltered(r.Context(), moderation.AuditFilter{
+		Before: before,
+		Action: strings.TrimSpace(q.Get("action")),
+		Target: strings.TrimSpace(q.Get("target")),
+		Limit:  auditPage,
+	})
 	if err != nil {
 		logx.WithContext(r.Context()).Errorf("admin: audit: %v", err)
 		httpError(w, http.StatusInternalServerError, "internal error")
@@ -800,10 +832,9 @@ func (s *server) handleAdminsList(w http.ResponseWriter, r *http.Request, a *act
 	writeJSON(w, map[string]any{"admins": rows})
 }
 
-// adminBody adds a person or changes one.
+// adminBody adds a person or disables one.
 type adminBody struct {
 	Login    string `json:"login"`
-	Role     int8   `json:"role"`
 	Disabled bool   `json:"disabled"`
 }
 
@@ -812,20 +843,20 @@ func (s *server) handleAdminSet(w http.ResponseWriter, r *http.Request, a *actor
 	if !s.readDangerous(w, r, a, &body) {
 		return
 	}
-	if body.Login == "" || body.Role < roleObserver || body.Role > roleOwner {
-		httpError(w, http.StatusBadRequest, "bad login or role")
+	if body.Login == "" {
+		httpError(w, http.StatusBadRequest, "bad login")
 		return
 	}
-	if body.Login == a.login && (body.Disabled || body.Role != roleOwner) {
+	if body.Login == a.login && body.Disabled {
 		httpError(w, http.StatusBadRequest, "the owner cannot lock himself out")
 		return
 	}
-	if err := s.dao.Audit(r.Context(), a.login, "admin_set", "admin:"+body.Login, fmt.Sprintf("role=%d disabled=%v", body.Role, body.Disabled)); err != nil {
+	if err := s.dao.Audit(r.Context(), a.login, "admin_set", "admin:"+body.Login, fmt.Sprintf("disabled=%v", body.Disabled)); err != nil {
 		logx.WithContext(r.Context()).Errorf("admin: audit: %v", err)
 		httpError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	if err := s.store.setAdmin(r.Context(), body.Login, body.Role, body.Disabled, a.login); err != nil {
+	if err := s.store.setAdmin(r.Context(), body.Login, body.Disabled, a.login); err != nil {
 		logx.WithContext(r.Context()).Errorf("admin: set admin: %v", err)
 		httpError(w, http.StatusInternalServerError, "internal error")
 		return

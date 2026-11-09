@@ -1115,3 +1115,17 @@ func (s *Service) ChannelReadReactions(ctx context.Context, request *channel.TLC
 
 	return r, err
 }
+
+// ChannelSetBlocked
+// channel.setBlocked channel_id:long blocked:Bool = Bool;
+func (s *Service) ChannelSetBlocked(ctx context.Context, request *channel.TLChannelSetBlocked) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setBlocked - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetBlocked(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

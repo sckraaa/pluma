@@ -41,6 +41,13 @@ func (d *Dao) ViewerOf(ctx context.Context, userId, channelId int64) (Viewer, er
 	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId}, err
 }
 
+// ViewerOfCatchUp is ViewerOf for updates.getChannelDifference, which goes on
+// while the channel is blocked (viewerFor).
+func (d *Dao) ViewerOfCatchUp(ctx context.Context, userId, channelId int64) (Viewer, error) {
+	v, err := d.viewerFor(ctx, userId, channelId, true)
+	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId}, err
+}
+
 // ChannelPts is the committed pts of the channel's box; ErrChannelInvalid
 // for a channel that does not exist.
 func (d *Dao) ChannelPts(ctx context.Context, channelId int64) (int32, error) {

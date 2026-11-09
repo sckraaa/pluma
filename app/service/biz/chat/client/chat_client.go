@@ -53,6 +53,7 @@ type ChatClient interface {
 	ChatEditExportedChatInvite(ctx context.Context, in *chat.TLChatEditExportedChatInvite) (*chat.Vector_ExportedChatInvite, error)
 	ChatSetChatAvailableReactions(ctx context.Context, in *chat.TLChatSetChatAvailableReactions) (*mtproto.MutableChat, error)
 	ChatSetHistoryTTL(ctx context.Context, in *chat.TLChatSetHistoryTTL) (*mtproto.MutableChat, error)
+	ChatSetBlocked(ctx context.Context, in *chat.TLChatSetBlocked) (*mtproto.Bool, error)
 	ChatSearch(ctx context.Context, in *chat.TLChatSearch) (*chat.Vector_MutableChat, error)
 	ChatGetRecentChatInviteRequesters(ctx context.Context, in *chat.TLChatGetRecentChatInviteRequesters) (*chat.RecentChatInviteRequesters, error)
 	ChatHideChatJoinRequests(ctx context.Context, in *chat.TLChatHideChatJoinRequests) (*chat.RecentChatInviteRequesters, error)
@@ -453,4 +454,15 @@ func (m *defaultChatClient) ChatEditChatParticipantRank(ctx context.Context, in 
 	}
 	client := chat.NewRPCChatClient(m.cli.Conn())
 	return client.ChatEditChatParticipantRank(ctx, in)
+}
+
+// ChatSetBlocked
+// chat.setBlocked chat_id:long blocked:Bool = Bool;
+func (m *defaultChatClient) ChatSetBlocked(ctx context.Context, in *chat.TLChatSetBlocked) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := chat.NewRPCChatClient(m.cli.Conn())
+	return client.ChatSetBlocked(ctx, in)
 }

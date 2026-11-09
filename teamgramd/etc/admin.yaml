@@ -53,3 +53,25 @@ DfsClient:
 # them.
 SyncClient:
   Topic: "Sync-T"
+
+# Redis of bff: the login codes shown on request (pkg/logincode, the same
+# HMAC key as bff) and the 2FA state of a deleted account (pkg/twofa). The
+# port is published on the host's loopback.
+KV:
+  - Host: 127.0.0.1:6379
+    Pass: "${REDIS_PASSWORD}"
+LoginCode:
+  HmacKey: "${LOGIN_CODE_HMAC_KEY}"
+  ReviewPhone: "${LOGIN_REVIEW_PHONE}"
+  ReviewCode: "${LOGIN_REVIEW_CODE}"
+
+# What the Overview and System pages read: Prometheus on the host's loopback,
+# and the link to Grafana (empty: no link).
+Prometheus: "http://127.0.0.1:9090"
+GrafanaUrl: "${PANEL_GRAFANA_URL}"
+
+# The releases service: list, roll back and bring back builds
+# (docs/ops/releases.md). Empty token: the page says it is not configured.
+Releases:
+  Url: "http://127.0.0.1:9097"
+  Token: "${RELEASES_ADMIN_TOKEN}"

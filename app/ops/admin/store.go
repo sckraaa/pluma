@@ -25,13 +25,6 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 )
 
-// Roles of the panel, weakest first.
-const (
-	roleObserver  int8 = 0
-	roleModerator int8 = 1
-	roleOwner     int8 = 2
-)
-
 var errNoChallenge = errors.New("challenge unknown or expired")
 
 const (
@@ -39,10 +32,9 @@ const (
 	sessionTTL   = 12 * time.Hour
 )
 
-// admin is a person of the panel.
+// admin is a person of the panel, a login of the tailnet that may enter it.
 type admin struct {
 	Login    string `db:"login" json:"login"`
-	Role     int8   `db:"role" json:"role"`
 	Disabled bool   `db:"disabled" json:"disabled"`
 }
 
@@ -53,7 +45,7 @@ type store struct {
 
 func (s *store) admin(ctx context.Context, login string) (*admin, error) {
 	var rows []admin
-	if err := s.db.QueryRowsPartial(ctx, &rows, "SELECT login, role, disabled FROM admin_users WHERE login = ?", login); err != nil {
+	if err := s.db.QueryRowsPartial(ctx, &rows, "SELECT login, disabled FROM admin_users WHERE login = ?", login); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -64,17 +56,17 @@ func (s *store) admin(ctx context.Context, login string) (*admin, error) {
 
 func (s *store) admins(ctx context.Context) ([]admin, error) {
 	var rows []admin
-	err := s.db.QueryRowsPartial(ctx, &rows, "SELECT login, role, disabled FROM admin_users ORDER BY login")
+	err := s.db.QueryRowsPartial(ctx, &rows, "SELECT login, disabled FROM admin_users ORDER BY login")
 	return rows, err
 }
 
-// setAdmin adds a person or changes the role of one, and ends the sessions
-// of a person whose access was taken away.
-func (s *store) setAdmin(ctx context.Context, login string, role int8, disabled bool, by string) error {
+// setAdmin adds a person or disables one, and ends the sessions of a person
+// whose access was taken away.
+func (s *store) setAdmin(ctx context.Context, login string, disabled bool, by string) error {
 	if _, err := s.db.Exec(ctx,
-		"INSERT INTO admin_users (login, role, disabled, created_by, created_at) VALUES (?, ?, ?, ?, ?)"+
-			" ON DUPLICATE KEY UPDATE role = VALUES(role), disabled = VALUES(disabled)",
-		login, role, disabled, by, time.Now().Unix()); err != nil {
+		"INSERT INTO admin_users (login, disabled, created_by, created_at) VALUES (?, ?, ?, ?)"+
+			" ON DUPLICATE KEY UPDATE disabled = VALUES(disabled)",
+		login, disabled, by, time.Now().Unix()); err != nil {
 		return err
 	}
 	if !disabled {

@@ -61,7 +61,7 @@ const (
 // A final answer always has a timeout above zero. CHANNEL_PRIVATE for a
 // channel self_id may not read. Chats and users are the caller's to add.
 func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChannelDifference) (*mtproto.Updates_ChannelDifference, error) {
-	v, err := c.svcCtx.Dao.ViewerOf(c.ctx, in.SelfId, in.ChannelId)
+	v, err := c.svcCtx.Dao.ViewerOfCatchUp(c.ctx, in.SelfId, in.ChannelId)
 	if err != nil {
 		c.Logger.Errorf("channel.getChannelDifference - viewer %d of channel %d: %v", in.SelfId, in.ChannelId, err)
 		return nil, err

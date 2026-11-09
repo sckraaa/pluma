@@ -57,11 +57,19 @@ type viewer struct {
 // kicked from a public channel (ADR 0034, p. 4), or a member of the
 // channel whose discussion group it is (task 048).
 func (d *Dao) viewerOf(ctx context.Context, userId, channelId int64) (viewer, error) {
+	return d.viewerFor(ctx, userId, channelId, false)
+}
+
+// viewerFor is viewerOf; a blocked channel shows nothing (channel.setBlocked)
+// but to a catch-up (forDifference), which goes on: tdesktop asks again on a
+// timer after a failed one (Updates::channelDifferenceFail), for as long as
+// the block lasts, and no new messages come to a blocked channel.
+func (d *Dao) viewerFor(ctx context.Context, userId, channelId int64, forDifference bool) (viewer, error) {
 	mc, err := d.GetMutableChannel(ctx, channelId, []int64{userId})
 	if err != nil {
 		return viewer{}, err
 	}
-	if mc.GetChannel().GetDeleted() {
+	if mc.GetChannel().GetDeleted() || mc.GetChannel().GetBlocked() && !forDifference {
 		return viewer{}, nil
 	}
 	p, _ := mc.GetParticipant(userId)

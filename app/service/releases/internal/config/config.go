@@ -34,6 +34,9 @@ type Config struct {
 	// UploadTokenFile holds the token CI uploads with (Bearer), never
 	// logged.
 	UploadTokenFile string
+	// AdminToken is the token of the panel's routes (/internal/releases,
+	// docs/ops/releases.md); empty turns them off. Never logged.
+	AdminToken string
 	// Mysql holds app_releases.
 	Mysql sqlx.Config
 	// DfsClient and MediaClient store the APK of Android as a document,

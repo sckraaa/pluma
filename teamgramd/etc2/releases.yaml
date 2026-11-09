@@ -10,6 +10,8 @@ Log:
 PublicURL: "${PLUMA_RELEASES_URL}"
 DataDir: /data
 UploadTokenFile: /run/secrets/releases/upload-token
+# The token of the panel's routes (/internal/releases); empty turns them off.
+AdminToken: "${RELEASES_ADMIN_TOKEN}"
 Mysql:
   DSN: "teamgram:${MYSQL_PASSWORD}@tcp(mysql:3306)/teamgram?charset=utf8mb4&parseTime=true"
   Active: 4

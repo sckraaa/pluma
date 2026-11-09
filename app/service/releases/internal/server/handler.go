@@ -78,9 +78,12 @@ type Handler struct {
 	PublicURL string
 	DataDir   string
 	Token     string
-	DB        *sqlx.DB
-	Documents Documents
-	Now       func() time.Time
+	// AdminToken guards the panel's routes (/internal/releases); empty
+	// turns them off (503).
+	AdminToken string
+	DB         *sqlx.DB
+	Documents  Documents
+	Now        func() time.Time
 
 	publishing sync.Mutex
 }
@@ -100,6 +103,10 @@ func (h *Handler) Routes() http.Handler {
 	mux.HandleFunc("GET /dl/{platform}/{version}/{name}", h.file)
 	mux.HandleFunc("GET /dl/desktop/current4", h.desktopCurrent)
 	mux.HandleFunc("GET /dl/desktop/{platform}/{version}/{name}", h.file)
+	// The panel's routes: not under /dl/, Caddy does not proxy them.
+	mux.HandleFunc("GET /internal/releases", h.adminList)
+	mux.HandleFunc("POST /internal/releases/{platform}/{build}/withdraw", h.adminWithdraw)
+	mux.HandleFunc("POST /internal/releases/{platform}/{build}/restore", h.adminRestore)
 	return mux
 }
 
@@ -584,4 +591,117 @@ func (p *progressWriter) Write(b []byte) (int, error) {
 		return 0, err
 	}
 	return p.ResponseWriter.Write(b)
+}
+
+// adminAuth allows a panel's request: the admin token, a constant-time
+// compare. 503 when the routes are off, 403 for a wrong token.
+func (h *Handler) adminAuth(w http.ResponseWriter, r *http.Request) bool {
+	if h.AdminToken == "" {
+		http.Error(w, "not configured", http.StatusServiceUnavailable)
+		return false
+	}
+	auth := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if subtle.ConstantTimeCompare([]byte(auth), []byte(h.AdminToken)) != 1 {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return false
+	}
+	return true
+}
+
+// adminRelease is a build as the panel lists it.
+type adminRelease struct {
+	Version    string             `json:"version"`
+	Build      int32              `json:"build"`
+	NotesRu    string             `json:"notes_ru"`
+	NotesEn    string             `json:"notes_en"`
+	CanNotSkip bool               `json:"can_not_skip"`
+	CreatedAt  int64              `json:"created_at"`
+	Withdrawn  bool               `json:"withdrawn"`
+	Files      []appreleases.File `json:"files"`
+}
+
+// adminPlatform is a platform's builds and its current one.
+type adminPlatform struct {
+	Platform string         `json:"platform"`
+	Current  int32          `json:"current"`
+	Builds   []adminRelease `json:"builds"`
+}
+
+func (h *Handler) adminState(r *http.Request, platform string) (*adminPlatform, error) {
+	list, err := appreleases.List(r.Context(), h.DB, platform, 30)
+	if err != nil {
+		return nil, err
+	}
+	cur, err := appreleases.Current(r.Context(), h.DB, platform)
+	if err != nil {
+		return nil, err
+	}
+	out := &adminPlatform{Platform: platform, Builds: make([]adminRelease, len(list))}
+	if cur != nil {
+		out.Current = cur.Build
+	}
+	for i, l := range list {
+		out.Builds[i] = adminRelease{Version: l.Version, Build: l.Build, NotesRu: l.NotesRu, NotesEn: l.NotesEn,
+			CanNotSkip: l.CanNotSkip, CreatedAt: l.CreatedAt, Withdrawn: l.Withdrawn, Files: l.Files}
+	}
+	return out, nil
+}
+
+func (h *Handler) adminList(w http.ResponseWriter, r *http.Request) {
+	if !h.adminAuth(w, r) {
+		return
+	}
+	out := struct {
+		Platforms []*adminPlatform `json:"platforms"`
+	}{}
+	for _, p := range appreleases.Platforms {
+		state, err := h.adminState(r, p)
+		if err != nil {
+			h.internal(w, err)
+			return
+		}
+		out.Platforms = append(out.Platforms, state)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(out); err != nil {
+		logx.Errorf("releases: encode: %v", err)
+	}
+}
+
+func (h *Handler) adminWithdraw(w http.ResponseWriter, r *http.Request) { h.adminSet(w, r, true) }
+
+func (h *Handler) adminRestore(w http.ResponseWriter, r *http.Request) { h.adminSet(w, r, false) }
+
+// adminSet rolls a platform back (withdraws the build) or brings a withdrawn
+// build back; the one publish lock keeps it from interleaving with an upload.
+func (h *Handler) adminSet(w http.ResponseWriter, r *http.Request, withdrawn bool) {
+	if !h.adminAuth(w, r) {
+		return
+	}
+	platform := r.PathValue("platform")
+	build, err := strconv.ParseInt(r.PathValue("build"), 10, 32)
+	if !appreleases.Known(platform) || err != nil || build <= 0 {
+		http.Error(w, "bad platform or build", http.StatusBadRequest)
+		return
+	}
+	h.publishing.Lock()
+	defer h.publishing.Unlock()
+	found, err := appreleases.SetWithdrawn(r.Context(), h.DB, platform, int32(build), withdrawn)
+	if err != nil {
+		h.internal(w, err)
+		return
+	}
+	if !found {
+		http.Error(w, "no such build", http.StatusNotFound)
+		return
+	}
+	state, err := h.adminState(r, platform)
+	if err != nil {
+		h.internal(w, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(state); err != nil {
+		logx.Errorf("releases: encode: %v", err)
+	}
 }

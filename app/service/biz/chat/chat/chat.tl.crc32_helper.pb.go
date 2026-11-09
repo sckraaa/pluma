@@ -48,9 +48,11 @@ const (
 	CRC32_chat_editExportedChatInvite           TLConstructor = -1348907914 // 0xaf994c76
 	CRC32_chat_setChatAvailableReactions        TLConstructor = -992966286  // 0xc4d08972
 	CRC32_chat_setHistoryTTL                    TLConstructor = 1023107972  // 0x3cfb6384
-	CRC32_chat_search                           TLConstructor = 568333563   // 0x21e014fb
-	CRC32_chat_getRecentChatInviteRequesters    TLConstructor = -19132264   // 0xfedc1098
-	CRC32_chat_hideChatJoinRequests             TLConstructor = 1051012305  // 0x3ea52cd1
-	CRC32_chat_importChatInvite2                TLConstructor = -589742657  // 0xdcd93dbf
-	CRC32_chat_editChatParticipantRank          TLConstructor = 2075490336  // 0x7bb57820
+	// pluma: task 072
+	CRC32_chat_setBlocked                    TLConstructor = 1239474570 // 0x49e0e18a
+	CRC32_chat_search                        TLConstructor = 568333563  // 0x21e014fb
+	CRC32_chat_getRecentChatInviteRequesters TLConstructor = -19132264  // 0xfedc1098
+	CRC32_chat_hideChatJoinRequests          TLConstructor = 1051012305 // 0x3ea52cd1
+	CRC32_chat_importChatInvite2             TLConstructor = -589742657 // 0xdcd93dbf
+	CRC32_chat_editChatParticipantRank       TLConstructor = 2075490336 // 0x7bb57820
 )

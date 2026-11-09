@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -385,6 +386,47 @@ func (d *DAO) AuditLog(ctx context.Context, before int64, limit int) ([]AuditEnt
 	}
 	query += " ORDER BY id DESC LIMIT ?"
 	args = append(args, limit)
+	var rows []AuditEntry
+	err := d.db.QueryRowsPartial(ctx, &rows, query, args...)
+	return rows, err
+}
+
+// ReportsOfPeer lists the reports about a channel or a group, the newest
+// first.
+func (d *DAO) ReportsOfPeer(ctx context.Context, peerType int32, peerId int64, limit int) ([]Report, error) {
+	var rows []Report
+	err := d.db.QueryRowsPartial(ctx, &rows,
+		"SELECT "+reportColumns+" FROM moderation_reports WHERE peer_type = ? AND peer_id = ? ORDER BY id DESC LIMIT ?", peerType, peerId, limit)
+	return rows, err
+}
+
+// AuditFilter narrows the journal: zero fields select all. Action is exact,
+// Target a prefix (user:12 or report:).
+type AuditFilter struct {
+	Before int64
+	Action string
+	Target string
+	Limit  int
+}
+
+// AuditLogFiltered returns the journal under a filter, the newest first.
+func (d *DAO) AuditLogFiltered(ctx context.Context, f AuditFilter) ([]AuditEntry, error) {
+	query := "SELECT id, at, actor, action, target, detail FROM admin_audit WHERE 1 = 1"
+	args := []any{}
+	if f.Before > 0 {
+		query += " AND id < ?"
+		args = append(args, f.Before)
+	}
+	if f.Action != "" {
+		query += " AND action = ?"
+		args = append(args, f.Action)
+	}
+	if f.Target != "" {
+		query += " AND target LIKE ? ESCAPE '\\\\'"
+		args = append(args, strings.NewReplacer("\\", "\\\\", "%", "\\%", "_", "\\_").Replace(f.Target)+"%")
+	}
+	query += " ORDER BY id DESC LIMIT ?"
+	args = append(args, f.Limit)
 	var rows []AuditEntry
 	err := d.db.QueryRowsPartial(ctx, &rows, query, args...)
 	return rows, err

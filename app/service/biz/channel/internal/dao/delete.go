@@ -77,7 +77,11 @@ type PostCommentsOff struct {
 // particular post can be disabled by removing the auto-forwarded channel
 // post message"). Either way the other channel is locked with this one, in
 // ascending order, and written in the same transaction.
-func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, error) {
+//
+// While the channel is blocked (channel.setBlocked) nobody deletes anything,
+// so that what was reported stays; byServer is the server's moderation
+// acting as the creator, whose decision on a report goes on.
+func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32, byServer bool) (*Deleted, error) {
 	ids = slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(ids))), func(id int32) bool { return id <= 0 })
 	links, err := discussionLinks(b, channelId, ids)
 	if err != nil {
@@ -99,6 +103,10 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32) (*Deleted, er
 	if err != nil {
 		return nil, err
 	}
+	if a.ch.Blocked && !byServer {
+		return nil, mtproto.ErrChannelPrivate
+	}
+	a.ch.Blocked = false
 	admin := a.can(channelperm.DeleteOthers, b.Date()) == nil
 
 	out := &Deleted{ChannelId: channelId}

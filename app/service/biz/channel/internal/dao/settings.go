@@ -229,3 +229,21 @@ func (d *Dao) SetAvailableReactions(b *userbox.Box, channelId int64, t int32, li
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }
+
+// SetBlocked blocks the channel or unblocks it for the owner of the server
+// (channel.setBlocked), under the channel's lock so that a send either comes
+// before it or sees it. nil when the channel is in that state already.
+func (d *Dao) SetBlocked(b *userbox.Box, channelId int64, blocked bool) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	r, err := b.Tx().Exec("UPDATE channels SET blocked = ?, version = version + 1 WHERE id = ? AND deleted = 0 AND blocked <> ?", blocked, channelId, blocked)
+	if err != nil {
+		return nil, err
+	}
+	n, err := r.RowsAffected()
+	if err != nil || n == 0 {
+		return nil, err
+	}
+	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}

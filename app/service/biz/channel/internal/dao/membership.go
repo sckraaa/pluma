@@ -68,6 +68,7 @@ type ChannelChange struct {
 type memberChannelRow struct {
 	Broadcast         bool  `db:"broadcast"`
 	Deleted           bool  `db:"deleted"`
+	Blocked           bool  `db:"blocked"`
 	HiddenPrehistory  bool  `db:"hidden_prehistory"`
 	JoinRequest       bool  `db:"join_request"`
 	ParticipantsCount int32 `db:"participants_count"`
@@ -129,7 +130,7 @@ func (d *Dao) InviteChannel(ctx context.Context, link string) (int64, error) {
 func memberChannel(b *userbox.Box, channelId int64) (*memberChannelRow, error) {
 	var chans []memberChannelRow
 	if err := b.Tx().QueryRowsPartial(&chans,
-		"SELECT c.broadcast, c.deleted, c.hidden_prehistory, c.join_request, c.participants_count, c.top_message,"+
+		"SELECT c.broadcast, c.deleted, c.blocked, c.hidden_prehistory, c.join_request, c.participants_count, c.top_message,"+
 			" EXISTS (SELECT 1 FROM username u WHERE u.peer_type = ? AND u.peer_id = c.id AND u.editable = 1) AS public"+
 			" FROM channels c WHERE c.id = ?",
 		mtproto.PEER_CHANNEL, channelId); err != nil {
@@ -199,7 +200,7 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 	switch {
 	case p.Member():
 		return nil, mtproto.ErrUserAlreadyParticipant
-	case p != nil && p.Kicked(int32(b.Date())):
+	case c.Blocked, p != nil && p.Kicked(int32(b.Date())):
 		return nil, mtproto.ErrChannelPrivate
 	}
 

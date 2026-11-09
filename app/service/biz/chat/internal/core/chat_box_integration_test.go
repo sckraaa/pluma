@@ -738,3 +738,65 @@ func TestLinksOfAdmins(t *testing.T) {
 		t.Errorf("joined by the creator's link: %+v", p)
 	}
 }
+
+// TestSetBlockedAndDelete: a block deactivates the group and keeps its
+// members, an unblock brings it back; a blocked group can be deleted, unlike
+// one deleted already.
+func TestSetBlockedAndDelete(t *testing.T) {
+	u := newUsers(3)
+	a, b, c := u[0], u[1], u[2]
+	id := newChat(t, a, b, c)
+	cc := chatCore()
+
+	block := func(blocked bool) error {
+		_, err := cc.ChatSetBlocked(&chat.TLChatSetBlocked{ChatId: id, Blocked: mtproto.ToBool(blocked)})
+		return err
+	}
+	if err := block(true); err != nil {
+		t.Fatal(err)
+	}
+	if r := rowOf(t, id); !r.deactivated || r.count != 3 {
+		t.Errorf("blocked: %+v", r)
+	}
+	if !cached(t, id).Deactivated() {
+		t.Error("cached chat is not deactivated")
+	}
+	// A repeat changes nothing.
+	v := rowOf(t, id).version
+	if err := block(true); err != nil || rowOf(t, id).version != v {
+		t.Errorf("repeat: %v, version %d", err, rowOf(t, id).version)
+	}
+	// A blocked group refuses changes like a deactivated one.
+	_, err := cc.ChatAddChatUser(&chat.TLChatAddChatUser{ChatId: id, InviterId: a, UserId: u[1]})
+	wantErr(t, "add to a blocked chat", err, mtproto.ErrChatIdInvalid)
+
+	if err := block(false); err != nil {
+		t.Fatal(err)
+	}
+	if r := rowOf(t, id); r.deactivated {
+		t.Errorf("after the unblock: %+v", r)
+	}
+
+	// Blocked again: its creator cannot delete it, the owner of the server
+	// can, for good.
+	if err := block(true); err != nil {
+		t.Fatal(err)
+	}
+	_, err = cc.ChatDeleteChat(&chat.TLChatDeleteChat{ChatId: id, OperatorId: a})
+	wantErr(t, "the creator deletes a blocked chat", err, mtproto.ErrChatIdInvalid)
+	if r := rowOf(t, id); r.count != 3 {
+		t.Errorf("after the creator's delete: %+v", r)
+	}
+	deleted, err := cc.ChatDeleteChat(&chat.TLChatDeleteChat{ChatId: id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := rowOf(t, id); !r.deactivated || r.count != 0 || !deleted.Deactivated() {
+		t.Errorf("deleted: %+v", r)
+	}
+	if n := count(t, "SELECT COUNT(*) FROM chat_participants WHERE chat_id = ? AND state = ?", id, mtproto.ChatMemberStateKicked); n != 3 {
+		t.Errorf("%d participants removed", n)
+	}
+	// Deleted: a block is refused.
+	wantErr(t, "block a deleted chat", block(true), mtproto.ErrChatIdInvalid)
+}

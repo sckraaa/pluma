@@ -215,6 +215,7 @@ func makeChannel(do *dataobject.ChannelsDO, username string) *channel.ImmutableC
 		ParticipantsHidden:  do.ParticipantsHidden,
 		HiddenPrehistory:    do.HiddenPrehistory,
 		Deleted:             do.Deleted,
+		Blocked:             do.Blocked,
 		Id:                  do.Id,
 		AccessHash:          do.AccessHash,
 		CreatorUserId:       do.CreatorUserId,

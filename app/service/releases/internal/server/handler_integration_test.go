@@ -28,6 +28,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -321,5 +323,57 @@ func TestInterruptedUpload(t *testing.T) {
 	entries, err := os.ReadDir(filepath.Join(h.DataDir, "work"))
 	if err != nil || len(entries) != 0 {
 		t.Errorf("work directory: %v %v", entries, err)
+	}
+}
+
+// TestAdminRoutes: the panel's routes are closed without their token, list
+// the builds of a platform, and a rollback changes which is current.
+func TestAdminRoutes(t *testing.T) {
+	h, _, srv := newHandler(t)
+	call := func(method, path, auth string) (int, string) {
+		req, err := http.NewRequest(method, srv.URL+path, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if auth != "" {
+			req.Header.Set("Authorization", "Bearer "+auth)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		data, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, string(data)
+	}
+	if code, _ := call(http.MethodGet, "/internal/releases", ""); code != http.StatusServiceUnavailable {
+		t.Errorf("no admin token configured: %d", code)
+	}
+	h.AdminToken = token + "-admin"
+	if code, _ := call(http.MethodGet, "/internal/releases", "wrong"); code != http.StatusForbidden {
+		t.Errorf("a wrong token: %d", code)
+	}
+	ctx := context.Background()
+	for build := int32(101); build <= 102; build++ {
+		rel := &appreleases.Release{Platform: appreleases.Linux, Version: "7.0.9." + strconv.Itoa(int(build)), Build: build, Files: []appreleases.File{}, CreatedAt: time.Now().Unix()}
+		if err := appreleases.Insert(ctx, h.DB, rel); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, body := call(http.MethodGet, "/internal/releases", h.AdminToken)
+	if code != http.StatusOK || !strings.Contains(body, `"platform":"linux"`) || !strings.Contains(body, `"current":102`) {
+		t.Fatalf("list: %d %s", code, body)
+	}
+	if code, body = call(http.MethodPost, "/internal/releases/linux/102/withdraw", h.AdminToken); code != http.StatusOK || !strings.Contains(body, `"current":101`) {
+		t.Fatalf("withdraw: %d %s", code, body)
+	}
+	if code, body = call(http.MethodPost, "/internal/releases/linux/102/restore", h.AdminToken); code != http.StatusOK || !strings.Contains(body, `"current":102`) {
+		t.Fatalf("restore: %d %s", code, body)
+	}
+	if code, _ = call(http.MethodPost, "/internal/releases/linux/999/withdraw", h.AdminToken); code != http.StatusNotFound {
+		t.Errorf("an unknown build: %d", code)
+	}
+	if code, _ = call(http.MethodPost, "/internal/releases/bada/1/withdraw", h.AdminToken); code != http.StatusBadRequest {
+		t.Errorf("an unknown platform: %d", code)
 	}
 }

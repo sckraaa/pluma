@@ -507,3 +507,17 @@ func (s *Service) ChatEditChatParticipantRank(ctx context.Context, request *chat
 
 	return r, err
 }
+
+// ChatSetBlocked
+// chat.setBlocked chat_id:long blocked:Bool = Bool;
+func (s *Service) ChatSetBlocked(ctx context.Context, request *chat.TLChatSetBlocked) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("chat.setBlocked - metadata: {%s}", c.MD)
+
+	r, err := c.ChatSetBlocked(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

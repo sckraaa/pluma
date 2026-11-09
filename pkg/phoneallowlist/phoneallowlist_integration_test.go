@@ -171,3 +171,47 @@ func TestAllowlistMigration(t *testing.T) {
 		t.Fatalf("allowlist after the migration: %+v, want only the regular account", list)
 	}
 }
+
+// TestRegistrationSwitch: the login flow reads Contains; an open registration
+// lets every number in and the list comes back as it was.
+func TestRegistrationSwitch(t *testing.T) {
+	ctx := context.Background()
+	d := newDAO(itFullDB)
+	const phone = "19995550100"
+	if _, err := d.Remove(ctx, phone); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := d.SetRegistrationOpen(ctx, false, "test"); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	if open, err := d.RegistrationOpen(ctx); err != nil || open {
+		t.Fatalf("by default: %v %v", open, err)
+	}
+	if ok, err := d.Contains(ctx, phone); err != nil || ok {
+		t.Fatalf("off the list: %v %v", ok, err)
+	}
+	if err := d.SetRegistrationOpen(ctx, true, "test"); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := d.Contains(ctx, phone); err != nil || !ok {
+		t.Fatalf("open: %v %v", ok, err)
+	}
+	if err := d.SetRegistrationOpen(ctx, false, "test"); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := d.Contains(ctx, phone); err != nil || ok {
+		t.Fatalf("back to the list: %v %v", ok, err)
+	}
+	if _, err := d.Add(ctx, phone, "n"); err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := d.Contains(ctx, phone); err != nil || !ok {
+		t.Fatalf("on the list: %v %v", ok, err)
+	}
+	if _, err := d.Remove(ctx, phone); err != nil {
+		t.Fatal(err)
+	}
+}

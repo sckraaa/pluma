@@ -53,6 +53,7 @@ type ChannelsDO struct {
 	AvailableReactions     sql.NullString `db:"available_reactions" json:"available_reactions"`
 	ParticipantsHidden     bool           `db:"participants_hidden" json:"participants_hidden"`
 	Deleted                bool           `db:"deleted" json:"deleted"`
+	Blocked                bool           `db:"blocked" json:"blocked"`
 	Version                int32          `db:"version" json:"version"`
 	Date                   int64          `db:"date" json:"date"`
 }
