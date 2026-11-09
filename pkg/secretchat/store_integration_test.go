@@ -206,6 +206,65 @@ func TestFirstQts(t *testing.T) {
 	}
 }
 
+// TestDifferenceBytes: a page of the longest messages stays under the limit
+// by stopping before it, and the next page goes on from there.
+func TestDifferenceBytes(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(ctx, t)
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	const (
+		size = 300 << 10
+		sent = differenceBytes/size + 2
+	)
+	for i := range sent {
+		if _, err := s.Send(ctx, Send{From: alice, ChatId: c.Id, AccessHash: c.AccessHash, RandomId: int64(i + 1), Data: make([]byte, size)}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d, err := s.Difference(ctx, DifferenceInput{Device: bob1, Qts: firstQts, Date: s.unix()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	total := 0
+	for _, m := range d.Messages {
+		total += len(m.Data)
+	}
+	if total > differenceBytes || !d.More {
+		t.Fatalf("page: %d bytes in %d messages, more %v", total, len(d.Messages), d.More)
+	}
+	first := len(d.Messages)
+	d, err = s.Difference(ctx, DifferenceInput{Device: bob1, Qts: d.Qts, Date: s.unix()})
+	if err != nil || len(d.Messages) != sent-first || d.More {
+		t.Fatalf("next page: %d messages, more %v, %v", len(d.Messages), d.More, err)
+	}
+}
+
+// TestChangesLimit: over the limit of a difference the changes of the
+// authorization's own chats stay and the oldest requests are left out.
+func TestChangesLimit(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(ctx, t)
+	base := time.Now()
+	at := func(ago time.Duration) { s.now = func() time.Time { return base.Add(-ago) } }
+	at(3 * time.Minute)
+	own := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	if _, _, err := s.Discard(ctx, Discard{By: alice, ChatId: own.Id}); err != nil {
+		t.Fatal(err)
+	}
+	at(2 * time.Minute)
+	old := request(ctx, t, s, 2)
+	at(time.Minute)
+	newest := request(ctx, t, s, 3)
+	s.now = time.Now
+
+	defer func(n int) { changesBytes = n }(changesBytes)
+	changesBytes = 2*changeSize + len(newest.GA)
+	d, err := s.Difference(ctx, DifferenceInput{Device: bob1, Date: 1})
+	if err != nil || len(d.Updates) != 2 || d.Updates[0].Chat.Id != own.Id || d.Updates[1].Chat.Id != newest.Id {
+		t.Fatalf("over the limit: %+v %v (a request %d left out)", d.Updates, err, old.Id)
+	}
+}
+
 // TestDifferenceAhead: a client whose qts is past the queue (a restored
 // backup) takes the lower qts.
 func TestDifferenceAhead(t *testing.T) {

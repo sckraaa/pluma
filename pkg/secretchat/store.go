@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/teamgram/teamgram-server/pkg/userbox"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const (
@@ -39,9 +41,14 @@ const (
 	// the same second as the last state must not be missed.
 	eventMargin = 60
 	// differencePage is the most queued messages one difference carries;
-	// differenceBytes the most ciphertext.
+	// differenceBytes the most ciphertext. With changesBytes it leaves the
+	// box's part of the answer room under the 4 MiB a gRPC client receives
+	// (session asks bff with the default, grpc clientconn.go:139).
 	differencePage  = 100
-	differenceBytes = 4 << 20
+	differenceBytes = 1 << 20
+	// changeSize is what a change of a chat takes in a difference, g_a and
+	// g_b apart.
+	changeSize = 64
 	// firstQts is the qts of an authorization with no events yet, the first
 	// event being the next one. It is not 0: at a local qts of 0 Android
 	// applies any update without looking for a gap and confirms it
@@ -57,6 +64,9 @@ type Store struct {
 	db  *sql.DB
 	now func() time.Time
 }
+
+// changesBytes is the most the changes of the chats take in one difference.
+var changesBytes = 1 << 20
 
 // New returns the store on db.
 func New(db *sql.DB) *Store { return &Store{db: db, now: time.Now} }
@@ -635,7 +645,7 @@ func (s *Store) queuePage(ctx context.Context, d Device, from, upTo int32) ([]*Q
 		size int
 	)
 	for rows.Next() {
-		if len(out) == differencePage || size >= differenceBytes {
+		if len(out) == differencePage {
 			more = true
 			break
 		}
@@ -643,6 +653,10 @@ func (s *Store) queuePage(ctx context.Context, d Device, from, upTo int32) ([]*Q
 		var f File
 		if err = rows.Scan(&m.Qts, &m.ChatId, &m.RandomId, &m.Date, &m.Service, &m.Data, &f.Id, &f.AccessHash, &f.Size, &f.DcId, &f.KeyFingerprint); err != nil {
 			return nil, false, err
+		}
+		if len(out) > 0 && size+len(m.Data) > differenceBytes {
+			more = true
+			break
 		}
 		if f.Id != 0 {
 			m.File = &f
@@ -653,19 +667,25 @@ func (s *Store) queuePage(ctx context.Context, d Device, from, upTo int32) ([]*Q
 	return out, more, rows.Err()
 }
 
-// changes returns the chats of d that changed state or were read since.
+// changes returns the chats of d that changed state or were read since. The
+// chats of this authorization come first and then the newest, so that what
+// cannot fit under changesBytes (only a flood of requests can fill it) is the
+// oldest requests, which end by themselves.
 func (s *Store) changes(ctx context.Context, d Device, since int32) ([]*DifferenceUpdate, error) {
 	var disabled bool
 	err := s.db.QueryRowContext(ctx, "SELECT encrypted_requests_disabled FROM auth_users WHERE auth_key_id = ? AND user_id = ? AND deleted = 0", d.AuthKey, d.UserId).Scan(&disabled)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, "SELECT "+chatColumns+" FROM encrypted_chats WHERE (admin_auth_key_id = ? AND admin_id = ?) OR participant_id = ?", d.AuthKey, d.UserId, d.UserId)
+	rows, err := s.db.QueryContext(ctx, "SELECT "+chatColumns+" FROM encrypted_chats WHERE (admin_auth_key_id = ? AND admin_id = ?) OR participant_id = ? ORDER BY admin_auth_key_id = ? OR participant_auth_key_id = ? DESC, state_at DESC", d.AuthKey, d.UserId, d.UserId, d.AuthKey, d.AuthKey)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []*DifferenceUpdate
+	var (
+		out  []*DifferenceUpdate
+		size int
+	)
 	for rows.Next() {
 		c, err := scanChat(rows)
 		if err != nil {
@@ -673,16 +693,28 @@ func (s *Store) changes(ctx context.Context, d Device, since int32) ([]*Differen
 		}
 		admin := c.AdminId == d.UserId && c.AdminAuthKey == d.AuthKey
 		own := admin || c.ParticipantAuthKey == d.AuthKey
-		if c.StateAt >= since && shouldTell(c, d, admin, disabled) {
-			out = append(out, &DifferenceUpdate{Chat: c})
-		}
+		tell := c.StateAt >= since && shouldTell(c, d, admin, disabled)
+		var read *DifferenceUpdate
 		if c.State == StateActive && own {
 			switch {
 			case admin && c.ParticipantReadAt >= since && c.ParticipantRead > 0:
-				out = append(out, &DifferenceUpdate{Chat: c, ReadMax: c.ParticipantRead, ReadAt: c.ParticipantReadAt})
+				read = &DifferenceUpdate{Chat: c, ReadMax: c.ParticipantRead, ReadAt: c.ParticipantReadAt}
 			case !admin && c.AdminReadAt >= since && c.AdminRead > 0:
-				out = append(out, &DifferenceUpdate{Chat: c, ReadMax: c.AdminRead, ReadAt: c.AdminReadAt})
+				read = &DifferenceUpdate{Chat: c, ReadMax: c.AdminRead, ReadAt: c.AdminReadAt}
 			}
+		}
+		if !tell && read == nil {
+			continue
+		}
+		if size += changeSize + len(c.GA) + len(c.GB); size > changesBytes {
+			logx.WithContext(ctx).Errorf("secretchat: changes of user %d over the limit of a difference", d.UserId)
+			break
+		}
+		if tell {
+			out = append(out, &DifferenceUpdate{Chat: c})
+		}
+		if read != nil {
+			out = append(out, read)
 		}
 	}
 	return out, rows.Err()
