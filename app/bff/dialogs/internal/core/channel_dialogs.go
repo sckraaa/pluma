@@ -63,6 +63,7 @@ func (c *DialogsCore) fillChannelDialogs(list dialog.DialogExtList) error {
 			ex.Dialog.ReadOutboxMaxId = d.GetReadOutboxMaxId()
 			ex.Dialog.UnreadCount = d.GetUnreadCount()
 			ex.Dialog.UnreadMentionsCount = d.GetUnreadMentionsCount()
+			ex.Dialog.UnreadReactionsCount = d.GetUnreadReactionsCount()
 			ex.Dialog.ViewForumAsMessages = d.GetViewForumAsMessages()
 			ex.Dialog.TtlPeriod = d.GetTtlPeriod()
 		}
