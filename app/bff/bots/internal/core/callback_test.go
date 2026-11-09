@@ -32,6 +32,7 @@ import (
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/kv"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // peerMessages answers only the look-up a press needs; any other method of
@@ -188,5 +189,35 @@ func TestSendInlineResultToSavedMessages(t *testing.T) {
 	m := sent.got.GetMessage()[0].GetMessage()
 	if m.GetSavedPeerId().GetUserId() != user || m.GetPeerId().GetUserId() != user {
 		t.Fatalf("saved_peer_id %v, peer_id %v", m.GetSavedPeerId(), m.GetPeerId())
+	}
+}
+
+// A result sent as a reply keeps what the client said of the reply: the quote
+// and, for another topic of the forum, the forum named as the chat.
+func TestSendInlineResultAsReply(t *testing.T) {
+	const user, bot, forum = int64(10), int64(20), int64(70)
+	sent := &sentMessages{}
+	c := inlineCore(t, &dao.Dao{MsgClient: sent}, user, bot)
+	send := func(peer *mtproto.InputPeer, replyTo *mtproto.InputReplyTo) *mtproto.MessageReplyHeader {
+		t.Helper()
+		if _, err := c.MessagesSendInlineBotResult(&mtproto.TLMessagesSendInlineBotResult{Peer: peer, ReplyTo: replyTo, RandomId: 1, QueryId: 5, Id: "a"}); err != nil {
+			t.Fatal(err)
+		}
+		return sent.got.GetMessage()[0].GetMessage().GetReplyTo()
+	}
+
+	h := send(mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: bot}).To_InputPeer(), mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{
+		ReplyToMsgId: 3,
+		QuoteText:    wrapperspb.String("part"),
+		QuoteOffset:  wrapperspb.Int32(2),
+	}).To_InputReplyTo())
+	if h.GetFixedReplyToMsgId() != 3 || !h.GetQuote() || h.GetQuoteText().GetValue() != "part" || h.GetQuoteOffset().GetValue() != 2 {
+		t.Fatalf("a quote: %v", h)
+	}
+
+	channel := mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: forum}).To_InputPeer()
+	h = send(channel, mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{ReplyToMsgId: 3, TopMsgId: wrapperspb.Int32(9), ReplyToPeerId: channel}).To_InputReplyTo())
+	if h.GetFixedReplyToMsgId() != 3 || h.GetReplyToPeerId().GetChannelId() != forum || h.GetReplyToTopId().GetValue() != 9 {
+		t.Fatalf("another topic: %v", h)
 	}
 }

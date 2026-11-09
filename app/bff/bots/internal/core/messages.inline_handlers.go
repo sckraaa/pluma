@@ -28,6 +28,7 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
+	"github.com/teamgram/teamgram-server/pkg/replyheader"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/threading"
@@ -359,21 +360,6 @@ func outOfResult(r *mtproto.BotInlineResult) (*mtproto.Message, error) {
 	return out, nil
 }
 
-func replyHeaderOf(replyTo *mtproto.InputReplyTo, peer *mtproto.PeerUtil) *mtproto.MessageReplyHeader {
-	if replyTo.GetPredicateName() != mtproto.Predicate_inputReplyToMessage || replyTo.GetReplyToPeerId() != nil || replyTo.GetReplyToMsgId() == 0 {
-		return nil
-	}
-	h := mtproto.MakeTLMessageReplyHeader(&mtproto.MessageReplyHeader{
-		ReplyToMsgId:           replyTo.GetReplyToMsgId(),
-		ReplyToMsgId_INT32:     replyTo.GetReplyToMsgId(),
-		ReplyToMsgId_FLAGINT32: mtproto.MakeFlagsInt32(replyTo.GetReplyToMsgId()),
-	}).To_MessageReplyHeader()
-	if peer.IsChannel() && replyTo.GetTopMsgId() != nil {
-		h.ReplyToTopId = replyTo.GetTopMsgId()
-	}
-	return h
-}
-
 // MessagesSendInlineBotResult
 // messages.sendInlineBotResult#c0cf7646 flags:# silent:flags.5?true background:flags.6?true clear_draft:flags.7?true hide_via:flags.11?true peer:InputPeer reply_to:flags.0?InputReplyTo random_id:long query_id:long id:string schedule_date:flags.10?int send_as:flags.13?InputPeer quick_reply_shortcut:flags.17?InputQuickReplyShortcut allow_paid_stars:flags.21?long = Updates;
 func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineBotResult) (*mtproto.Updates, error) {
@@ -416,7 +402,14 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 	// clients show the username of the bot in its header. hide_via is not
 	// honored: no bot here has the right to hide itself.
 	out.ViaBotId = wrapperspb.Int64(answer.Bot)
-	out.ReplyTo = replyHeaderOf(in.ReplyTo, peer)
+	// The same reply as messages.sendMessage makes: the clients fill reply_to
+	// of both alike (tdesktop data_histories.cpp ReplyToForMTP, Android
+	// SendMessagesHelper.createReplyInput).
+	if out.ReplyTo, err = replyheader.Make(replySource{c: c}, c.MD.UserId, peer, nil, in.GetReplyTo()); err != nil {
+		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
+		return nil, err
+	}
+	out.ReplyTo = replyheader.WithTopic(out.ReplyTo, peer, in.GetReplyTo())
 
 	updates, err := c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
 		UserId:    c.MD.UserId,
