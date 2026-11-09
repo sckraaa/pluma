@@ -134,9 +134,9 @@ func TestWithAllChats(t *testing.T) {
 	}
 	moved := []*dialog.DialogFilterExt{ext(3), ext(0), ext(2)}
 	for _, tc := range []struct {
-		name    string
-		stored  []*dialog.DialogFilterExt
-		want    []int32
+		name   string
+		stored []*dialog.DialogFilterExt
+		want   []int32
 	}{
 		{"none", nil, []int32{0}},
 		{"without a row of All chats", []*dialog.DialogFilterExt{ext(2), ext(3)}, []int32{0, 2, 3}},

@@ -1,6 +1,6 @@
 # Панель модерации
 
-Внутренняя веб-панель: очередь жалоб, решения, журнал, Premium, люди панели (задача 025, ADR 0040). Открыта только из tailnet, в интернет не выставлена.
+Внутренняя веб-панель: очередь жалоб, решения, журнал, люди панели (задача 025, ADR 0040). Открыта только из tailnet, в интернет не выставлена.
 
 ## Что нужно от владельца
 - Аккаунт Tailscale и Tailscale на Маке и телефоне (задача брифа). Вход в tailnet — через аккаунт с двухфакторкой.
@@ -19,7 +19,7 @@
    GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_sessions TO 'pluma_admin'@'172.20.%';
    GRANT SELECT, INSERT, UPDATE, DELETE ON teamgram.admin_challenges TO 'pluma_admin'@'172.20.%';
    GRANT SELECT, INSERT ON teamgram.admin_audit TO 'pluma_admin'@'172.20.%';
-   GRANT SELECT (id, phone, first_name, premium, premium_expire_date, deleted) ON teamgram.users TO 'pluma_admin'@'172.20.%';
+   GRANT SELECT (id, phone, first_name, deleted) ON teamgram.users TO 'pluma_admin'@'172.20.%';
    GRANT SELECT (id, creator_user_id, title) ON teamgram.channels TO 'pluma_admin'@'172.20.%';
    GRANT INSERT ON teamgram.mq_outbox TO 'pluma_admin'@'172.20.%';
    FLUSH PRIVILEGES;
@@ -55,7 +55,7 @@ docker compose exec bff ./pluma-admin -f ../etc2/bff.yaml panel reset-passkey <l
 
 Срок необязателен; если не указан, решение бессрочно. Закрыть жалобу и поставить ограничение можно только один раз: при повторе ответ 409. Если шаг решения не выполнился, панель показывает ошибку, сервис повторяет его сам. После 10 неудач есть кнопка «Повторить».
 
-Опасные действия (всё, кроме «отклонить»: блокировка, удаление, ограничение, Premium, снятие ограничения, правка людей) просят ключ доступа ещё раз.
+Опасные действия (всё, кроме «отклонить»: блокировка, удаление, ограничение, снятие ограничения, правка людей) просят ключ доступа ещё раз.
 
 ## Журнал
 Страница «Журнал» — все действия и просмотры. Копия без подробностей в Grafana: `{service="admin"} |= "moderation audit"`.

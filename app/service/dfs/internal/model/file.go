@@ -24,8 +24,7 @@ import (
 
 // MaxFileParts is upload_max_fileparts_premium of help.getAppConfig
 // (teamgramd/bin/app_config.json): 4 GB in parts of 512 KB, as Telegram
-// (core.telegram.org/api/files). The limit without Premium, 4000, is
-// checked by bff, which knows the user (upload.saveBigFilePart).
+// (core.telegram.org/api/files), for everybody (ADR 0041).
 const MaxFileParts = 8000
 
 // MaxFilePartSize: a part holds at most 512 KB (FILE_PART_TOO_BIG).

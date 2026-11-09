@@ -90,4 +90,3 @@ func (d *Dao) SaveGif(ctx context.Context, userId, id int64, unsave bool) (bool,
 	})
 	return changed, err
 }
-

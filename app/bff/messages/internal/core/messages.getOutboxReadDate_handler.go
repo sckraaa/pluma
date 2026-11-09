@@ -36,10 +36,6 @@ import (
 // as such, api_who_reacted.cpp).
 var errMessageTooOld = status.Error(mtproto.ErrBadRequest, "MESSAGE_TOO_OLD")
 
-// errYourPrivacyRestricted: the caller hides its own read dates from the
-// peer and has no Premium (core.telegram.org/method/messages.getOutboxReadDate).
-var errYourPrivacyRestricted = status.Error(mtproto.ErrForbidden, "YOUR_PRIVACY_RESTRICTED")
-
 // MessagesGetOutboxReadDate
 // messages.getOutboxReadDate#8c4bfe5d peer:InputPeer msg_id:int = OutboxReadDate;
 func (c *MessagesCore) MessagesGetOutboxReadDate(in *mtproto.TLMessagesGetOutboxReadDate) (*mtproto.OutboxReadDate, error) {

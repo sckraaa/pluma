@@ -52,11 +52,11 @@ func TestNormalizeRules(t *testing.T) {
 		many[i] = int64(i + 1)
 	}
 	for _, tc := range []struct {
-		name    string
-		key     int
-		rules   []*mtproto.PrivacyRule
-		want    []string
-		err     error
+		name  string
+		key   int
+		rules []*mtproto.PrivacyRule
+		want  []string
+		err   error
 	}{
 		{"Android: nobody except B, with an empty chat rule", mtproto.PROFILE_PHOTO,
 			[]*mtproto.PrivacyRule{users(5), chats(), nobody},

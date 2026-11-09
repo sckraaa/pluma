@@ -184,4 +184,3 @@ func (s *store) prune(ctx context.Context) error {
 	_, err := s.db.Exec(ctx, "DELETE FROM admin_sessions WHERE expires_at <= ?", now)
 	return err
 }
-
