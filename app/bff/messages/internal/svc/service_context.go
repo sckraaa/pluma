@@ -36,6 +36,9 @@ type ServiceContext struct {
 	WebPages *webpage.Service
 	// Reactions reads the tags of Saved Messages (task 053).
 	Reactions *sqlx.DB
+	// Search reads the boxes of users for messages.search and keeps the
+	// quota of channels.searchPosts (task 066).
+	Search *sqlx.DB
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
@@ -46,6 +49,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceCo
 		Dao:       d,
 		Plugin:    plugin,
 		Reactions: db,
+		Search:    db,
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

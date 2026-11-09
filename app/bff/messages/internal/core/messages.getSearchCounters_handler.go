@@ -20,115 +20,64 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/msgsearch"
 )
 
 // MessagesGetSearchCounters
-// messages.getSearchCounters#732eef00 peer:InputPeer filters:Vector<MessagesFilter> = Vector<messages.SearchCounter>;
+// messages.getSearchCounters#1bbcf300 flags:# peer:InputPeer saved_peer_id:flags.2?InputPeer top_msg_id:flags.0?int filters:Vector<MessagesFilter> = Vector<messages.SearchCounter>;
 func (c *MessagesCore) MessagesGetSearchCounters(in *mtproto.TLMessagesGetSearchCounters) (*mtproto.Vector_Messages_SearchCounter, error) {
-	var (
-		peer = mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
-	)
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
 	counters := &mtproto.Vector_Messages_SearchCounter{
 		Datas: make([]*mtproto.Messages_SearchCounter, 0, len(in.GetFilters())),
 	}
-
-	if in.SavedPeerId != nil {
-		// TODO: not impl
-		return counters, nil
-	}
-
 	for _, filter := range in.GetFilters() {
-		/*
-			{
-			    "constructor": "CRC32_messages_getSearchCounters",
-			    "peer": {
-			        "predicate_name": "inputPeerChat",
-			        "constructor": "CRC32_inputPeerChat",
-			        "chat_id": 10053
-			    },
-			    "filters": [
-			        {
-			            "predicate_name": "inputMessagesFilterPhotoVideo",
-			            "constructor": "CRC32_inputMessagesFilterPhotoVideo"
-			        },
-			        {
-			            "predicate_name": "inputMessagesFilterDocument",
-			            "constructor": "CRC32_inputMessagesFilterDocument"
-			        },
-			        {
-			            "predicate_name": "inputMessagesFilterRoundVoice",
-			            "constructor": "CRC32_inputMessagesFilterRoundVoice"
-			        },
-			        {
-			            "predicate_name": "inputMessagesFilterUrl",
-			            "constructor": "CRC32_inputMessagesFilterUrl"
-			        },
-			        {
-			            "predicate_name": "inputMessagesFilterMusic",
-			            "constructor": "CRC32_inputMessagesFilterMusic"
-			        },
-			        {
-			            "predicate_name": "inputMessagesFilterGif",
-			            "constructor": "CRC32_inputMessagesFilterGif"
-			        }
-			    ]
+		var n int32
+		if kind, ok := msgsearch.KindOf(filter); ok {
+			var err error
+			if n, err = c.searchCount(in, peer, kind); err != nil {
+				c.Logger.Errorf("messages.getSearchCounters - error: %v", err)
+				return nil, err
 			}
-		*/
-
-		/*
-		 */
-		var (
-			fType = mtproto.FromMessagesFilter(filter)
-			mType int32
-		)
-
-		switch fType {
-		case mtproto.FilterPhotoVideo:
-			mType = mtproto.MEDIA_PHOTOVIDEO
-		case mtproto.FilterPhotos:
-			mType = mtproto.MEDIA_PHOTOS_ONLY
-		case mtproto.FilterVideo:
-			mType = mtproto.MEDIA_VIDEOS_ONLY
-		case mtproto.FilterDocument:
-			mType = mtproto.MEDIA_FILE
-		case mtproto.FilterUrl:
-			mType = mtproto.MEDIA_URL
-		case mtproto.FilterGif:
-			mType = mtproto.MEDIA_GIF
-		case mtproto.FilterMusic:
-			mType = mtproto.MEDIA_MUSIC
-		case mtproto.FilterRoundVoice:
-			mType = mtproto.MEDIA_AUDIO
-		case mtproto.FilterChatPhotos:
-			mType = mtproto.MEDIA_CHAT_PHOTO
-		default:
-			counter := mtproto.MakeTLMessagesSearchCounter(&mtproto.Messages_SearchCounter{
-				Inexact: false,
-				Filter:  filter,
-				Count:   0,
-			}).To_Messages_SearchCounter()
-			counters.Datas = append(counters.Datas, counter)
-			continue
 		}
-
-		sz, _ := c.svcCtx.Dao.MessageClient.MessageGetSearchCounter(
-			c.ctx,
-			&message.TLMessageGetSearchCounter{
-				UserId:    c.MD.UserId,
-				PeerType:  peer.PeerType,
-				PeerId:    peer.PeerId,
-				MediaType: mType,
-			})
-
-		counter := mtproto.MakeTLMessagesSearchCounter(&mtproto.Messages_SearchCounter{
-			Inexact: false,
-			Filter:  filter,
-			Count:   sz.GetV(),
-		}).To_Messages_SearchCounter()
-		counters.Datas = append(counters.Datas, counter)
-		c.Logger.Debugf("messages.getSearchCounters - result: {filter: %s, count: %d}", counter.GetFilter().GetPredicateName(), counter.GetCount())
+		counters.Datas = append(counters.Datas, mtproto.MakeTLMessagesSearchCounter(&mtproto.Messages_SearchCounter{
+			Filter: filter,
+			Count:  n,
+		}).To_Messages_SearchCounter())
 	}
-
 	return counters, nil
+}
+
+func (c *MessagesCore) searchCount(in *mtproto.TLMessagesGetSearchCounters, peer *mtproto.PeerUtil, kind int32) (int32, error) {
+	if peer.IsChannel() {
+		// Saved dialogs are of the account's own Saved Messages only.
+		if in.SavedPeerId != nil {
+			return 0, nil
+		}
+		n, err := c.svcCtx.Dao.Channel.ChannelSearchCount(c.ctx, &channelpb.TLChannelSearchCount{
+			SelfId: c.MD.UserId, ChannelId: peer.PeerId, TopMsgId: in.GetTopMsgId().GetValue(), MediaType: kind,
+		})
+		if err != nil {
+			return 0, err
+		}
+		return n.GetV(), nil
+	}
+	if in.GetTopMsgId() != nil {
+		// A box has no threads.
+		return 0, nil
+	}
+	q := msgsearch.BoxQuery{UserId: c.MD.UserId, PeerType: peer.PeerType, PeerId: peer.PeerId, Kind: kind}
+	c.applySaved(&q, in.SavedPeerId)
+	return msgsearch.Count(c.ctx, c.svcCtx.Search, q.Source())
+}
+
+func (c *MessagesCore) applySaved(q *msgsearch.BoxQuery, saved *mtproto.InputPeer) {
+	if saved == nil {
+		return
+	}
+	p := mtproto.FromInputPeer2(c.MD.UserId, saved)
+	if p.PeerType == mtproto.PEER_SELF {
+		p = mtproto.MakePeerUtil(mtproto.PEER_USER, c.MD.UserId)
+	}
+	q.HasSaved, q.SavedPeerType, q.SavedPeerId = true, p.PeerType, p.PeerId
 }
