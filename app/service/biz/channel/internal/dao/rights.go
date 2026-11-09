@@ -158,12 +158,19 @@ func checkRank(rank string) error {
 //   - the creator is not edited by others (USER_CREATOR);
 //   - the user must be in the channel: USER_NOT_PARTICIPANT, which iOS
 //     answers by inviting the user and trying again (PeerAdmins.swift:205-222),
-//     USER_KICKED for one kicked.
+//     USER_KICKED for one kicked;
+//   - a bot is the exception: it joins by being made an admin. The clients
+//     send only this method for a new bot (Android setUserAdminRole,
+//     `!user.bot && addingNew`; tdesktop SaveChannelAdmin), and a broadcast
+//     channel has no other way in (tdesktop api_chat_participants.cpp:593:
+//     USER_BOT); the method answers BOT_GROUPS_BLOCKED, which only a bot
+//     joining by it can get (core.telegram.org/method/channels.editAdmin).
 //
 // A promotion lifts the member's restriction. The members load the channel
 // again.
 func (d *Dao) EditAdmin(b *userbox.Box, channelId, userId int64, rights int32, rank string, keepRank bool) (*ChannelChange, error) {
-	if _, err := openChannel(b, channelId); err != nil {
+	ch, err := openChannel(b, channelId)
+	if err != nil {
 		return nil, err
 	}
 	a, err := rightsActor(b, channelId)
@@ -199,17 +206,27 @@ func (d *Dao) EditAdmin(b *userbox.Box, channelId, userId int64, rights int32, r
 	if err = a.can(channelperm.AddAdmins, now); err != nil {
 		return nil, err
 	}
+	joins := !t.in()
 	switch {
 	case t != nil && t.Role == channelperm.RoleCreator:
 		return nil, mtproto.ErrUserCreator
 	case t.kicked(now):
 		return nil, mtproto.ErrUserKicked
-	case !t.in():
-		return nil, mtproto.ErrUserNotParticipant
+	case joins:
+		// Checked below, once the rights are known to be allowed.
 	case t.Role == channelperm.RoleAdmin && !a.editableAdmin(t, b.UserId(), now):
 		return nil, mtproto.ErrChatAdminRequired
-	case rights&^channelperm.Grantable(a.ch, a.p, int32(now)) != 0:
+	}
+	if joins && rights == 0 {
+		return nil, mtproto.ErrUserNotParticipant
+	}
+	if rights&^channelperm.Grantable(a.ch, a.p, int32(now)) != 0 {
 		return nil, mtproto.ErrRightForbidden
+	}
+	if joins {
+		if t, err = d.joinBot(b, ch, channelId, userId, change); err != nil {
+			return nil, err
+		}
 	}
 	wasAdmin := t.Role == channelperm.RoleAdmin
 	if keepRank {
@@ -242,6 +259,32 @@ func (d *Dao) EditAdmin(b *userbox.Box, channelId, userId int64, rights int32, r
 		}
 	}
 	return change, nil
+}
+
+// joinBot makes the bot userId a member of the channel, for EditAdmin to
+// promote it: USER_NOT_PARTICIPANT for anyone else. The new row is returned.
+func (d *Dao) joinBot(b *userbox.Box, ch *channelbox.Channel, channelId, userId int64, change *ChannelChange) (*targetRow, error) {
+	var nochats []bool
+	if err := b.Tx().QueryRowsPartial(&nochats, "SELECT bot_nochats FROM bots WHERE bot_id = ?", userId); err != nil {
+		return nil, err
+	}
+	if len(nochats) == 0 {
+		return nil, mtproto.ErrUserNotParticipant
+	}
+	c, err := memberChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if !c.Broadcast && nochats[0] {
+		return nil, mtproto.ErrBotGroupsBlocked
+	}
+	if err = checkChannelsLimit(b, userId); err != nil {
+		return nil, err
+	}
+	if err = d.writeMembers(b, ch, c, channelId, []int64{userId}, change); err != nil {
+		return nil, err
+	}
+	return &targetRow{Role: channelperm.RoleMember, State: channelperm.StateIn}, nil
 }
 
 // EditBanned applies the restrictions rights until until (as the client

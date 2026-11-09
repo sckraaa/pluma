@@ -18,6 +18,7 @@
 package core
 
 import (
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -287,5 +288,81 @@ func TestEditCreator(t *testing.T) {
 	}
 	if _, err := f.editAdmin(bob, id, creator, 0, ""); err != nil {
 		t.Errorf("the new creator demotes the old one: %v", err)
+	}
+}
+
+// bot makes userId a bot; nochats: it cannot join groups.
+func (f *diffFixture) bot(userId int64, nochats bool) {
+	f.t.Helper()
+	f.exec("INSERT INTO bots (bot_id, bot_nochats, token) VALUES (?, ?, ?)", userId, nochats, fmt.Sprint("token", userId))
+}
+
+// TestEditAdminAddsBot: a bot out of a channel or a supergroup joins by being
+// made an admin, as the clients expect; nobody else does, and the admin still
+// gives no more than its own rights.
+func TestEditAdminAddsBot(t *testing.T) {
+	f := newDiffFixture(t)
+	creator, user, bob := f.user("Creator"), f.user("User"), f.user("Bob")
+	id := f.create(creator)
+	f.exec("UPDATE channels SET admins_count = 1 WHERE id = ?", id)
+	f.public(id)
+	if _, err := f.join(bob, id, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.editAdmin(creator, id, bob, mtproto.ADMIN_ADD_ADMINS|mtproto.ADMIN_PIN_MESSAGES, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	bot, nochats, greedy := f.user("Bot"), f.user("NoChats"), f.user("Greedy")
+	f.bot(bot, false)
+	f.bot(nochats, true)
+	f.bot(greedy, false)
+
+	participants, _ := f.counts(id)
+	r, err := f.editAdmin(creator, id, bot, mtproto.ADMIN_PIN_MESSAGES, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if role, state, admin, _, _ := f.row(id, bot); role != channel.RoleAdmin || state != channelperm.StateIn || admin != mtproto.ADMIN_PIN_MESSAGES {
+		t.Errorf("bot: role %d state %d rights %b", role, state, admin)
+	}
+	if now, admins := f.counts(id); now != participants+1 || admins != 3 {
+		t.Errorf("participants %d (was %d), admins %d", now, participants, admins)
+	}
+	if n := f.invitedEvents(bot); n != 1 {
+		t.Errorf("inbox events of the bot: %d", n)
+	}
+	// A supergroup tells of the new member, as an invitation does.
+	var added bool
+	for _, u := range r.GetUpdates() {
+		if a := u.GetMessage_MESSAGE().GetAction(); a.GetPredicateName() == mtproto.Predicate_messageActionChatAddUser && len(a.GetUsers()) == 1 && a.GetUsers()[0] == bot {
+			added = true
+		}
+	}
+	if !added {
+		t.Errorf("answer %v", r.GetUpdates())
+	}
+
+	_, err = f.editAdmin(creator, id, user, mtproto.ADMIN_PIN_MESSAGES, "")
+	wantErr(t, "a user out of the channel", err, mtproto.ErrUserNotParticipant)
+	_, err = f.editAdmin(creator, id, greedy, 0, "")
+	wantErr(t, "a bot with no rights", err, mtproto.ErrUserNotParticipant)
+	_, err = f.editAdmin(bob, id, greedy, mtproto.ADMIN_BAN_USERS, "")
+	wantErr(t, "more than its own", err, mtproto.ErrRightForbidden)
+	_, err = f.editAdmin(creator, id, nochats, mtproto.ADMIN_PIN_MESSAGES, "")
+	wantErr(t, "a bot that cannot join groups", err, mtproto.ErrBotGroupsBlocked)
+
+	// A broadcast channel: no service message, and bot_nochats is of groups.
+	post := f.create(creator)
+	f.broadcast(post)
+	r, err = f.editAdmin(creator, post, nochats, mtproto.ADMIN_POST_MESSAGES, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u := r.GetUpdates(); len(u) != 1 || u[0].GetPredicateName() != mtproto.Predicate_updateChannel {
+		t.Errorf("answer in a broadcast channel %v", u)
+	}
+	if role, _, _, _, _ := f.row(post, nochats); role != channel.RoleAdmin {
+		t.Errorf("bot in a broadcast channel: role %d", role)
 	}
 }

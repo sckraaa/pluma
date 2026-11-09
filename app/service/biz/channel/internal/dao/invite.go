@@ -20,6 +20,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -92,58 +93,75 @@ func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited
 		case p != nil && p.participant().Kicked(int32(b.Date())) && !canBan:
 			return nil, mtproto.ErrUserKicked
 		}
-		limit, err := premium.ChannelsLimit(b.Tx(), id, b.Date())
-		if err != nil {
+		if err = checkChannelsLimit(b, id); err != nil {
 			return nil, err
-		}
-		var joined []int64
-		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", id, limit); err != nil {
-			return nil, err
-		}
-		if len(joined) >= limit {
-			return nil, mtproto.ErrUserChannelsTooMuch
 		}
 		out.Users = append(out.Users, id)
 	}
 	if len(out.Users) == 0 {
 		return out, nil
 	}
-	if c.ParticipantsCount+int32(len(out.Users)) > MembersMax {
-		return nil, mtproto.ErrUsersTooMuch
+	if err = d.writeMembers(b, ch, c, channelId, out.Users, &out.ChannelChange); err != nil {
+		return nil, err
 	}
+	return out, nil
+}
 
+// checkChannelsLimit refuses id at the limit of its channels
+// (USER_CHANNELS_TOO_MUCH).
+func checkChannelsLimit(b *userbox.Box, id int64) error {
+	limit, err := premium.ChannelsLimit(b.Tx(), id, b.Date())
+	if err != nil {
+		return err
+	}
+	var joined []int64
+	if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", id, limit); err != nil {
+		return err
+	}
+	if len(joined) >= limit {
+		return mtproto.ErrUserChannelsTooMuch
+	}
+	return nil
+}
+
+// writeMembers makes users, none of them in the channel now, its members by
+// b's owner: their rows, the counter, the service message of a supergroup
+// (into change) and an inbox event for each. USERS_TOO_MUCH when they do not
+// fit.
+func (d *Dao) writeMembers(b *userbox.Box, ch *channelbox.Channel, c *memberChannelRow, channelId int64, users []int64, change *ChannelChange) error {
+	if c.ParticipantsCount+int32(len(users)) > MembersMax {
+		return mtproto.ErrUsersTooMuch
+	}
+	var err error
 	if !c.Broadcast {
-		action := mtproto.MakeTLMessageActionChatAddUser(&mtproto.MessageAction{Users: out.Users}).To_MessageAction()
-		if out.Message, out.Pts, err = addServiceMessage(b, ch, channelId, false, action); err != nil {
-			return nil, err
+		action := mtproto.MakeTLMessageActionChatAddUser(&mtproto.MessageAction{Users: users}).To_MessageAction()
+		if change.Message, change.Pts, err = addServiceMessage(b, ch, channelId, false, action); err != nil {
+			return err
 		}
-		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", out.Message.GetId(), channelId); err != nil {
-			return nil, err
+		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {
+			return err
 		}
 	}
 	var availableMinId int32
 	if c.HiddenPrehistory && !c.Broadcast {
-		availableMinId = out.Message.GetId()
+		availableMinId = change.Message.GetId()
 	}
-	for _, id := range out.Users {
+	for _, id := range users {
 		if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, inviter_user_id, available_min_id, `date`) VALUES (?, ?, 0, 0, ?, ?, ?)"+
 			" ON DUPLICATE KEY UPDATE role = 0, state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0,"+
 			" inviter_user_id = VALUES(inviter_user_id), available_min_id = VALUES(available_min_id), `date` = VALUES(`date`)",
 			channelId, id, b.UserId(), availableMinId, b.Date()); err != nil {
-			return nil, err
+			return err
 		}
 		ev := &inbox.TLInboxChannelInvitedToInbox{UserId: id, FromId: b.UserId(), ChannelId: channelId}
 		data, err := jsonx.Marshal(ev)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		b.Emit(userbox.Event{Topic: d.Topics.Inbox, Recipient: id, Method: string(proto.MessageName(ev)), Data: data})
 	}
-	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + ? WHERE id = ?", len(out.Users), channelId); err != nil {
-		return nil, err
+	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + ? WHERE id = ?", len(users), channelId); err != nil {
+		return err
 	}
-	if err = d.dropRequests(b, channelId, out.Users...); err != nil {
-		return nil, err
-	}
-	return out, nil
+	return d.dropRequests(b, channelId, users...)
 }
