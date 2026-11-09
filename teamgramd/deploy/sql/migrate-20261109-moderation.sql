@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS `admin_audit` (
   `at` bigint(20) NOT NULL,
   `actor` varchar(255) NOT NULL,
   `action` varchar(32) NOT NULL,
-  `target` varchar(64) NOT NULL DEFAULT '',
+  `target` varchar(300) NOT NULL DEFAULT '',
   `detail` varchar(1024) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   KEY `actor` (`actor`, `id`)

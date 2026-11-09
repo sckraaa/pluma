@@ -224,15 +224,19 @@ func (d *DAO) Decide(ctx context.Context, dn Decision) error {
 // emergency access. changed is false when a stricter restriction holds.
 func (d *DAO) ApplyDirect(ctx context.Context, userId int64, kind int8, until int32, reason, actor string) (changed bool, err error) {
 	reason = cutReason(reason)
+	action := "restrict_direct"
+	if kind == RestrictBanned {
+		action = "ban_direct"
+	}
 	err = d.db.Transact(ctx, func(tx *sqlx.Tx) error {
 		var err error
 		if changed, err = restrictTx(tx, userId, kind, until, 0, reason, actor); err != nil {
 			return err
 		}
-		return auditTx(tx, actor, "restrict_direct", fmt.Sprintf("user:%d", userId), reason)
+		return auditTx(tx, actor, action, fmt.Sprintf("user:%d", userId), fmt.Sprintf("until=%d changed=%v %s", until, changed, reason))
 	})
 	if err == nil {
-		auditLog(ctx, actor, "restrict_direct", fmt.Sprintf("user:%d", userId))
+		auditLog(ctx, actor, action, fmt.Sprintf("user:%d", userId))
 	}
 	return changed, err
 }

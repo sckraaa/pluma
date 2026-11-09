@@ -132,9 +132,9 @@ func (r *Runner) step(ctx context.Context, report *moderation.Report, snapshot *
 // is where the report found them. In a channel the channel's creator does
 // it, the one member whose rights always allow it (pkg/channelperm).
 func (r *Runner) deleteMessages(ctx context.Context, report *moderation.Report, snapshot *moderation.Snapshot) error {
-	ids := make([]int32, len(snapshot.Messages))
-	for i, m := range snapshot.Messages {
-		ids[i] = m.Id
+	ids := idsToDelete(report, snapshot)
+	if len(ids) == 0 {
+		return nil
 	}
 	if report.PeerType == mtproto.PEER_CHANNEL {
 		creator, err := r.DAO.ChannelCreator(ctx, report.PeerId)
@@ -158,6 +158,19 @@ func (r *Runner) deleteMessages(ctx context.Context, report *moderation.Report, 
 		Id:       ids,
 	})
 	return err
+}
+
+// idsToDelete is what a deletion takes from the snapshot. The reporter's own
+// messages stay: a report accuses others, and a spam report keeps the last
+// messages of both sides only as the evidence.
+func idsToDelete(report *moderation.Report, snapshot *moderation.Snapshot) []int32 {
+	ids := make([]int32, 0, len(snapshot.Messages))
+	for _, m := range snapshot.Messages {
+		if m.FromId != report.ReporterUserId {
+			ids = append(ids, m.Id)
+		}
+	}
+	return ids
 }
 
 // Notify sends the user the message about the restriction from the service

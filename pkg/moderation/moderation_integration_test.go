@@ -173,7 +173,7 @@ func TestExpiredRestrictionReadsAsNone(t *testing.T) {
 		t.Errorf("expired: %+v %v", r, err)
 	}
 	phone := fmt.Sprintf("%d", target)
-	if _, err = db.Exec(ctx, "INSERT INTO users (id, phone, first_name, last_name, username, country_code) VALUES (?, ?, 'U', '', '', '')", target, phone); err != nil {
+	if _, err = db.Exec(ctx, "INSERT INTO users (id, access_hash, phone, first_name, last_name, username, country_code) VALUES (?, 1, ?, 'U', '', '', '')", target, phone); err != nil {
 		t.Fatal(err)
 	}
 	if banned, err := d.PhoneBanned(ctx, phone); err != nil || banned {
