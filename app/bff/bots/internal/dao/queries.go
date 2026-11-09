@@ -259,6 +259,10 @@ func wait[T any](ctx context.Context, get func(context.Context) (*T, error)) (*T
 	defer tick.Stop()
 	for {
 		v, err := get(ctx)
+		if err != nil && ctx.Err() != nil {
+			// The wait ended during the read: no answer, not a failure.
+			return nil, nil
+		}
 		if err != nil || v != nil {
 			return v, err
 		}

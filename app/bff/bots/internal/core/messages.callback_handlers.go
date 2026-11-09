@@ -20,6 +20,7 @@ import (
 	"encoding/binary"
 	"hash/fnv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/teamgram/proto/mtproto"
@@ -207,6 +208,11 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 	switch {
 	case p.peer.IsChannel():
 		peer = mtproto.MakePeerChannel(p.peer.PeerId)
+		mc, err := c.svcCtx.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: p.peer.PeerId, Id: []int64{p.botId}})
+		if err != nil {
+			return nil, nil, err
+		}
+		chats = []*mtproto.Chat{mc.ToChat(p.botId, int32(time.Now().Unix()))}
 	case p.peer.IsChat():
 		peer = mtproto.MakePeerChat(p.peer.PeerId)
 		chat, err := c.svcCtx.Chat.ChatGetChatBySelfId(c.ctx, &chatpb.TLChatGetChatBySelfId{SelfId: p.botId, ChatId: p.peer.PeerId})
@@ -218,14 +224,11 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 		peer = mtproto.MakePeerUser(c.MD.UserId)
 	}
 	if p.botMsg == 0 {
-		id, err := c.svcCtx.MessageGetPeerUserMessageId(c.ctx, &message.TLMessageGetPeerUserMessageId{UserId: c.MD.UserId, PeerUserId: p.botId, MsgId: msgId})
+		box, err := c.svcCtx.MessageGetPeerUserMessage(c.ctx, &message.TLMessageGetPeerUserMessage{UserId: c.MD.UserId, PeerUserId: p.botId, MsgId: msgId})
 		if err != nil {
 			return nil, nil, err
 		}
-		if id.GetV() == 0 {
-			return nil, nil, mtproto.ErrMessageIdInvalid
-		}
-		p.botMsg = id.GetV()
+		p.botMsg = box.GetMessageId()
 	}
 	return mtproto.MakeTLUpdateBotCallbackQuery(&mtproto.Update{
 		QueryId_INT64:  queryId,

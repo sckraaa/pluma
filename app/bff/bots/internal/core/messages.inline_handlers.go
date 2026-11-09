@@ -42,9 +42,14 @@ const (
 )
 
 // inlinePeerType is the peer_type of updateBotInlineQuery and a key part of
-// the cache: inlineQueryPeerType of the chat the query is made in.
+// the cache: inlineQueryPeerType of the chat the query is made in. A query
+// from no chat the server knows has none, which the update allows: clients
+// send inputPeerEmpty from a secret chat (Android MentionsAdapter.java:925)
+// and with no recipient (tdesktop location_picker.cpp:1230).
 func (c *BotsCore) inlinePeerType(botId int64, peer *mtproto.PeerUtil) (*mtproto.InlineQueryPeerType, string, error) {
 	switch {
+	case peer.PeerType == mtproto.PEER_EMPTY:
+		return nil, "none", nil
 	case peer.IsUser() && peer.PeerId == botId:
 		return mtproto.MakeTLInlineQueryPeerTypeSameBotPM(nil).To_InlineQueryPeerType(), "same_bot", nil
 	case peer.IsUser():
