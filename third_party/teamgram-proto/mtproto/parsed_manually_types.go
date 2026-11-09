@@ -129,7 +129,9 @@ func (m *TLMsgRawDataContainer) Encode(x *EncodeBuf, layer int32) error {
 
 	x.Int(int32(len(m.Messages)))
 	for _, v := range m.Messages {
-		v.Encode(x, layer)
+		if err := v.Encode(x, layer); err != nil { // pluma: never send a partial container
+			return err
+		}
 	}
 	return nil
 }
@@ -178,7 +180,9 @@ func (m *TLMessage2) Encode(x *EncodeBuf, layer int32) error {
 	x.Int(m.Seqno)
 	offset := x.GetOffset()
 	x.Int(m.Bytes)
-	m.Object.Encode(x, layer)
+	if err := m.Object.Encode(x, layer); err != nil { // pluma: never send a partial message
+		return err
+	}
 	x.IntOffset(offset, int32(x.GetOffset()-offset-4))
 
 	return nil
@@ -231,7 +235,9 @@ func (m *TLMsgContainer) Encode(x *EncodeBuf, layer int32) error {
 
 	x.Int(int32(len(m.Messages)))
 	for _, v := range m.Messages {
-		v.Encode(x, layer)
+		if err := v.Encode(x, layer); err != nil { // pluma: never send a partial container
+			return err
+		}
 	}
 	return nil
 }
@@ -272,7 +278,9 @@ func (m *TLMsgCopy) String() string {
 func (m *TLMsgCopy) Encode(x *EncodeBuf, layer int32) error {
 	x.Int(int32(CRC32_msg_copy))
 	if m.OrigMessage != nil {
-		m.OrigMessage.Encode(x, layer)
+		if err := m.OrigMessage.Encode(x, layer); err != nil { // pluma: never send a partial message
+			return err
+		}
 	}
 	return nil
 }
@@ -396,15 +404,22 @@ func (m *TLRpcResult) String() string {
 }
 
 func (m *TLRpcResult) Encode(x *EncodeBuf, layer int32) error {
-	x.Int(int32(CRC32_rpc_result))
-	x.Long(m.ReqMsgId)
-
-	rawBody, offset := func() ([]byte, int) {
+	// pluma: the result is encoded first, so that one the layer cannot
+	// represent writes nothing at all.
+	rawBody, offset, err := func() ([]byte, int, error) {
 		x2 := GetEncodeBuf()
 		defer PutEncodeBuf(x2)
-		m.Result.Encode(x2, layer)
-		return append([]byte(nil), x2.GetBuf()...), x2.GetOffset()
+		if err := m.Result.Encode(x2, layer); err != nil {
+			return nil, 0, err
+		}
+		return append([]byte(nil), x2.GetBuf()...), x2.GetOffset(), nil
 	}()
+	if err != nil {
+		return err
+	}
+
+	x.Int(int32(CRC32_rpc_result))
+	x.Long(m.ReqMsgId)
 
 	if offset > 256 {
 		switch m.Result.(type) {
