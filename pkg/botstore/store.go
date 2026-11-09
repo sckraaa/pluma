@@ -407,6 +407,9 @@ func (s *Store) SetMenuButton(ctx context.Context, botId, userId int64, button *
 	return errButtonInvalid
 }
 
+// maxMenuURL is the column bot_menu_buttons.url.
+const maxMenuURL = 1024
+
 // MenuButton returns the button userId sees: its own, the default of all
 // users, then botMenuButtonDefault.
 func (s *Store) MenuButton(ctx context.Context, botId, userId int64) (*mtproto.BotMenuButton, error) {
@@ -432,9 +435,9 @@ func (s *Store) MenuButton(ctx context.Context, botId, userId int64) (*mtproto.B
 	return mtproto.MakeTLBotMenuButtonDefault(nil).To_BotMenuButton(), nil
 }
 
-// httpsURL tells a link a web app may open.
+// httpsURL tells a link a web app may open and bot_menu_buttons.url holds.
 func httpsURL(u string) bool {
-	return strings.HasPrefix(u, "https://") && len(u) > len("https://")
+	return strings.HasPrefix(u, "https://") && len(u) > len("https://") && utf8.RuneCountInString(u) <= maxMenuURL
 }
 
 // BotInfo is the info of the bot as viewer sees it, for userFull.bot_info and

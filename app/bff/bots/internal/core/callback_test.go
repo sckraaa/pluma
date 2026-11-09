@@ -18,6 +18,7 @@ package core
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -28,6 +29,8 @@ import (
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -219,5 +222,33 @@ func TestSendInlineResultAsReply(t *testing.T) {
 	h = send(channel, mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{ReplyToMsgId: 3, TopMsgId: wrapperspb.Int32(9), ReplyToPeerId: channel}).To_InputReplyTo())
 	if h.GetFixedReplyToMsgId() != 3 || h.GetReplyToPeerId().GetChannelId() != forum || h.GetReplyToTopId().GetValue() != 9 {
 		t.Fatalf("another topic: %v", h)
+	}
+}
+
+// botUsers answers with a bot that has inline mode.
+type botUsers struct {
+	user_client.UserClient
+}
+
+func (botUsers) UserGetImmutableUser(_ context.Context, in *userpb.TLUserGetImmutableUser) (*mtproto.ImmutableUser, error) {
+	return mtproto.MakeTLImmutableUser(&mtproto.ImmutableUser{User: mtproto.MakeTLUserData(&mtproto.UserData{
+		Id:  in.Id,
+		Bot: mtproto.MakeTLBotData(&mtproto.BotData{BotInlinePlaceholder: wrapperspb.String("search")}).To_BotData(),
+	}).To_UserData()}).To_ImmutableUser(), nil
+}
+
+// A query goes to the bot's journal, so its size is bounded before anything
+// is written.
+func TestInlineQueryBounds(t *testing.T) {
+	c := testCore(&dao.Dao{UserClient: botUsers{}}, 10)
+	bot := mtproto.MakeTLInputUser(&mtproto.InputUser{UserId: 20}).To_InputUser()
+	peer := mtproto.MakeTLInputPeerEmpty(nil).To_InputPeer()
+	_, err := c.MessagesGetInlineBotResults(&mtproto.TLMessagesGetInlineBotResults{Bot: bot, Peer: peer, Query: strings.Repeat("я", maxInlineQuery+1)})
+	if !errors.Is(err, mtproto.ErrMessageTooLong) {
+		t.Errorf("a long query: %v", err)
+	}
+	_, err = c.MessagesGetInlineBotResults(&mtproto.TLMessagesGetInlineBotResults{Bot: bot, Peer: peer, Offset: strings.Repeat("0", maxNextOffset+1)})
+	if !errors.Is(err, mtproto.ErrNextOffsetInvalid) {
+		t.Errorf("a long offset: %v", err)
 	}
 }

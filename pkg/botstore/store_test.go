@@ -136,3 +136,19 @@ func TestUsernameRule(t *testing.T) {
 		}
 	}
 }
+
+// A menu button's link is https and fits its column.
+func TestHttpsURL(t *testing.T) {
+	long := "https://a/" + strings.Repeat("b", maxMenuURL-len("https://a/"))
+	for u, want := range map[string]bool{
+		"https://a":  true,
+		long:         true,
+		long + "b":   false,
+		"https://":   false,
+		"http://a/b": false,
+	} {
+		if got := httpsURL(u); got != want {
+			t.Errorf("%.20q: %v", u, got)
+		}
+	}
+}

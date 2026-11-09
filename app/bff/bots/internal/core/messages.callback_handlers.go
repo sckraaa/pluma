@@ -151,6 +151,10 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 		return callbackResult(cached), nil
 	}
 
+	if !c.svcCtx.EnterWait(c.MD.UserId) {
+		return nil, mtproto.ErrBotResponseTimeout
+	}
+	defer c.svcCtx.LeaveWait(c.MD.UserId)
 	queryId, err := dao.NewQueryId()
 	if err != nil {
 		return nil, mtproto.ErrInternalServerError

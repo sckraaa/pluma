@@ -18,6 +18,7 @@ package core
 import (
 	"context"
 	"time"
+	"unicode/utf8"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/dao"
@@ -40,6 +41,10 @@ import (
 const (
 	maxInlineResults = 50
 	maxNextOffset    = 64
+	// maxInlineQuery: bots/api#inlinequery, query "up to 256 characters".
+	// messages.getInlineBotResults lists no error for a longer one, so
+	// MESSAGE_TOO_LONG is this server's choice.
+	maxInlineQuery = 256
 )
 
 // inlinePeerType is the peer_type of updateBotInlineQuery and a key part of
@@ -91,6 +96,13 @@ func (c *BotsCore) MessagesGetInlineBotResults(in *mtproto.TLMessagesGetInlineBo
 	if bot.BotInlinePlaceholder() == nil {
 		return nil, mtproto.ErrBotInlineDisabled
 	}
+	// Each query is written to the bot's journal: it cannot be of any size.
+	if utf8.RuneCountInString(in.Query) > maxInlineQuery {
+		return nil, mtproto.ErrMessageTooLong
+	}
+	if len(in.Offset) > maxNextOffset {
+		return nil, mtproto.ErrNextOffsetInvalid
+	}
 	peerType, kind, err := c.inlinePeerType(bot.Id(), mtproto.FromInputPeer2(c.MD.UserId, in.Peer))
 	if err != nil {
 		return nil, err
@@ -120,6 +132,10 @@ func (c *BotsCore) MessagesGetInlineBotResults(in *mtproto.TLMessagesGetInlineBo
 		}
 	}
 
+	if !c.svcCtx.EnterWait(c.MD.UserId) {
+		return nil, mtproto.ErrBotResponseTimeout
+	}
+	defer c.svcCtx.LeaveWait(c.MD.UserId)
 	queryId, err := dao.NewQueryId()
 	if err != nil {
 		return nil, mtproto.ErrInternalServerError

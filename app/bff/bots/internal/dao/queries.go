@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/stores/redis"
@@ -46,14 +47,25 @@ const (
 	// answerPoll is how often the waiting request looks for the answer.
 	answerPoll = 100 * time.Millisecond
 	// queryTTL is how long an unanswered query can be answered.
-	queryTTL = 60
-	// inlineKeep is how long inline results stay for a send at least,
-	// whatever their cache_time: the user may send a result long after the
+	queryTTL = userbox.QueryUpdateTTL
+	// inlineKeep is how long inline results stay for a send after the cache
+	// may last have shown them: the user may send a result long after the
 	// list appeared.
 	inlineKeep = 3600
-	// inlineKeepMax bounds a large cache_time from a bot.
-	inlineKeepMax = 86400
+	// cacheTimeMax bounds a large cache_time from a bot, in Redis: of a
+	// button's answer and of an inline list.
+	cacheTimeMax = 86400
+	// maxWaitsPerUser bounds the requests of one user waiting for bots at
+	// once: typing an inline query to a silent bot sends two or three a
+	// second for AnswerWait, and clients do not tell the server of those
+	// they drop.
+	maxWaitsPerUser = 32
 )
+
+// cacheSeconds is how long a cache_time from a bot is kept.
+func cacheSeconds(cacheTime int32) int {
+	return min(max(int(cacheTime), 0), cacheTimeMax)
+}
 
 // CallbackAnswer is the answer of a bot to a button.
 type CallbackAnswer struct {
@@ -145,7 +157,7 @@ func (d *Dao) CacheCallback(ctx context.Context, key string, a *CallbackAnswer) 
 	if err != nil {
 		return err
 	}
-	return d.KV.SetexCtx(ctx, key, string(data), int(a.CacheTime))
+	return d.KV.SetexCtx(ctx, key, string(data), cacheSeconds(a.CacheTime))
 }
 
 // CallbackCacheKey is the key of the cached answer to userId's press of the
@@ -185,14 +197,11 @@ func (d *Dao) SetInlineAnswer(ctx context.Context, queryId, botId int64, a *Inli
 	return true, d.KV.SetexCtx(ctx, inlineAnswerKey(queryId), string(data), inlineKeepOf(a.CacheTime))
 }
 
+// inlineKeepOf is how long the answer stays: past the cache that points to
+// it (CacheInline) by inlineKeep, so a list served at the last moment of the
+// cache can still be sent from.
 func inlineKeepOf(cacheTime int32) int {
-	switch {
-	case cacheTime < inlineKeep:
-		return inlineKeep
-	case cacheTime > inlineKeepMax:
-		return inlineKeepMax
-	}
-	return int(cacheTime)
+	return cacheSeconds(cacheTime) + inlineKeep
 }
 
 // WaitInlineAnswer waits for the answer, up to AnswerWait; nil when the bot
@@ -224,7 +233,7 @@ func (d *Dao) CacheInline(ctx context.Context, key string, queryId int64, cacheT
 	if cacheTime <= 0 {
 		return nil
 	}
-	return d.KV.SetexCtx(ctx, key, strconv.FormatInt(queryId, 10), int(cacheTime))
+	return d.KV.SetexCtx(ctx, key, strconv.FormatInt(queryId, 10), cacheSeconds(cacheTime))
 }
 
 // InlineCacheKey is the cache of the same query to a bot; userId is 0 for
@@ -248,6 +257,31 @@ func decode[T any](s string, err error) (*T, error) {
 		return nil, err
 	}
 	return v, nil
+}
+
+// EnterWait counts a request of userId that is about to bother a bot and wait
+// for it: false, and nothing counted, when the user has maxWaitsPerUser of
+// them in this process. LeaveWait ends a counted one.
+func (d *Dao) EnterWait(userId int64) bool {
+	d.waitsMu.Lock()
+	defer d.waitsMu.Unlock()
+	if d.waits[userId] >= maxWaitsPerUser {
+		return false
+	}
+	if d.waits == nil {
+		d.waits = make(map[int64]int)
+	}
+	d.waits[userId]++
+	return true
+}
+
+// LeaveWait ends a request EnterWait counted.
+func (d *Dao) LeaveWait(userId int64) {
+	d.waitsMu.Lock()
+	defer d.waitsMu.Unlock()
+	if d.waits[userId]--; d.waits[userId] <= 0 {
+		delete(d.waits, userId)
+	}
 }
 
 // wait polls get until it answers something, the request ends or AnswerWait
