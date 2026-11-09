@@ -96,6 +96,8 @@ func LocKey(n *Notification, hideText bool) (string, []string) {
 		return "MESSAGE_MUTED", nil
 	case KindSessionRevoke:
 		return "SESSION_REVOKE", nil
+	case KindCall:
+		return "PHONE_CALL_REQUEST", []string{n.FromName}
 	}
 	return "", nil
 }
@@ -131,6 +133,12 @@ func custom(n *Notification) map[string]any {
 		}
 	default:
 		c["from_id"] = n.PeerId
+	}
+	if n.Kind == KindCall {
+		// core.telegram.org/api/push-updates, PHONE_CALL_REQUEST.
+		c["call_id"] = n.CallId
+		c["call_ah"] = n.CallAccessHash
+		c["updates"] = n.CallUpdates
 	}
 	if n.MsgId != 0 {
 		c["msg_id"] = n.MsgId

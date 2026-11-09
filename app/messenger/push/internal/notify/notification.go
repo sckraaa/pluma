@@ -21,6 +21,7 @@
 package notify
 
 import (
+	"encoding/base64"
 	"strings"
 	"unicode/utf8"
 
@@ -37,6 +38,7 @@ const (
 	KindReadHistory                   // read on another device: remove the notifications
 	KindMuted                         // a message in a muted chat: refresh, nothing shown
 	KindSessionRevoke                 // the authorization was terminated: log out
+	KindCall                          // an incoming call: wake the device, it fetches or carries the call
 )
 
 // Content is what a message carries, as the loc_key suffix names it.
@@ -112,6 +114,12 @@ type Notification struct {
 	PinnedId int32
 	MaxId    int32 // READ_HISTORY
 
+	// An incoming call (KindCall): CallUpdates is the base64url TL Updates
+	// of the call for the device to ring on.
+	CallId         int64
+	CallAccessHash int64
+	CallUpdates    string
+
 	Mention bool
 	Silent  bool
 
@@ -174,6 +182,12 @@ func FromUpdates(userId int64, ups *mtproto.Updates) []*Notification {
 				continue
 			}
 			out = append(out, n)
+		case mtproto.Predicate_updatePhoneCall:
+			// Only a call that starts ringing is a push; the rest reaches the
+			// live sessions.
+			if call := u.GetPhoneCall(); call.GetPredicateName() == mtproto.Predicate_phoneCallRequested {
+				out = append(out, callNotification(userId, u, call, users, names[call.GetAdminId()]))
+			}
 		case mtproto.Predicate_updateReadChannelInbox:
 			// Read on another device: Android clears it by READ_HISTORY with
 			// channel_id (PushListenerController.java:375-382 at aac1efcb).
@@ -181,6 +195,32 @@ func FromUpdates(userId int64, ups *mtproto.Updates) []*Notification {
 		}
 	}
 	return out
+}
+
+// callUpdatesLayer is the layer the "updates" of a call push are encoded
+// in: the one of the server and of the clients pinned to it (ADR 0008).
+const callUpdatesLayer = 228
+
+// callNotification makes the push of an incoming call. "updates" is the
+// update for a device to ring on before it connects: base64url of the TL
+// Updates, with the caller in users (core.telegram.org/api/push-updates;
+// Telegram-iOS AccountStateManager.extractIncomingCallUpdate).
+func callNotification(userId int64, u *mtproto.Update, call *mtproto.PhoneCall, users []*mtproto.User, name string) *Notification {
+	n := &Notification{
+		Kind:           KindCall,
+		UserId:         userId,
+		PeerId:         call.GetAdminId(),
+		FromId:         call.GetAdminId(),
+		FromName:       name,
+		CallId:         call.GetId(),
+		CallAccessHash: call.GetAccessHash(),
+	}
+	x := mtproto.NewEncodeBuf(512)
+	ups := mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{u}, Users: users, Chats: []*mtproto.Chat{}}).To_Updates()
+	if err := ups.Encode(x, callUpdatesLayer); err == nil {
+		n.CallUpdates = base64.RawURLEncoding.EncodeToString(x.GetBuf())
+	}
+	return n
 }
 
 func lastOf(ns []*Notification) *Notification {

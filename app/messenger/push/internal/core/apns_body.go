@@ -41,3 +41,10 @@ func apnsBody(push *notify.IOSPush, p string) []byte {
 	b, _ := json.Marshal(map[string]any{"aps": aps, "p": p})
 	return b
 }
+
+// apnsVoIPBody is what a PushKit push carries: only the encrypted payload;
+// PushKit has no alert to show.
+func apnsVoIPBody(p string) []byte {
+	b, _ := json.Marshal(map[string]any{"p": p})
+	return b
+}

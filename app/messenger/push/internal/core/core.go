@@ -98,6 +98,8 @@ const (
 	// Push expiration at the provider for an offline device.
 	alertExpiration      = 24 * time.Hour
 	backgroundExpiration = time.Hour
+	// A call that has stopped ringing is worthless.
+	callExpiration = 2 * time.Minute
 )
 
 // Core sends the pushes of events.
@@ -177,7 +179,8 @@ func (c *Core) Handle(ctx context.Context, ev *Event) {
 	if len(ns) == 0 {
 		return
 	}
-	targets := c.targets(ctx, ev)
+	forCall := ns[0].Kind == notify.KindCall
+	targets := c.targets(ctx, ev, forCall)
 	if len(targets) == 0 {
 		return
 	}
@@ -202,7 +205,7 @@ func isReset(ups *mtproto.Updates) bool {
 
 // targets returns the devices of ev.UserId that get pushes: not the
 // authorization that acted, not one online, still the user's.
-func (c *Core) targets(ctx context.Context, ev *Event) []*pushdevices.Device {
+func (c *Core) targets(ctx context.Context, ev *Event, forCall bool) []*pushdevices.Device {
 	log := logx.WithContext(ctx)
 	devices, err := c.Devices.List(ctx, ev.UserId)
 	if err != nil {
@@ -222,7 +225,7 @@ func (c *Core) targets(ctx context.Context, ev *Event) []*pushdevices.Device {
 	var out []*pushdevices.Device
 	for _, d := range devices {
 		switch {
-		case d.TokenType != pushdevices.TokenAPNs && d.TokenType != pushdevices.TokenFCM:
+		case !pushable(d.TokenType, forCall):
 			continue // VoIP is for calls, web push is not sent yet
 		case d.AuthKeyId == ev.Except:
 			metricDropped.Inc("initiator")
@@ -250,6 +253,40 @@ func (c *Core) targets(ctx context.Context, ev *Event) []*pushdevices.Device {
 		}
 		out = append(out, d)
 	}
+	if forCall {
+		out = oneChannelPerDevice(out)
+	}
+	return out
+}
+
+// pushable tells which token types get which pushes.
+func pushable(tokenType int32, forCall bool) bool {
+	switch tokenType {
+	case pushdevices.TokenAPNs, pushdevices.TokenFCM:
+		return true
+	case pushdevices.TokenVoIP:
+		return forCall
+	}
+	return false
+}
+
+// oneChannelPerDevice leaves one way to reach an iPhone for a call: PushKit
+// if the authorization has a VoIP token (Telegram-iOS AppDelegate
+// pushRegistry), the notification extension otherwise; both would report the
+// same call to CallKit twice.
+func oneChannelPerDevice(devices []*pushdevices.Device) []*pushdevices.Device {
+	voip := map[int64]bool{}
+	for _, d := range devices {
+		if d.TokenType == pushdevices.TokenVoIP {
+			voip[d.AuthKeyId] = true
+		}
+	}
+	out := devices[:0]
+	for _, d := range devices {
+		if d.TokenType != pushdevices.TokenAPNs || !voip[d.AuthKeyId] {
+			out = append(out, d)
+		}
+	}
 	return out
 }
 
@@ -267,7 +304,10 @@ func (c *Core) prepare(ctx context.Context, n *notify.Notification) {
 
 // notify sends n to d, as the settings of the recipient allow.
 func (c *Core) notify(ctx context.Context, n *notify.Notification, d *pushdevices.Device) {
-	if n.Kind == notify.KindReadHistory {
+	// A call rings whatever the settings of the chat: no client consults
+	// them for updatePhoneCall (Android MessagesController.java:20328-20420,
+	// tdesktop Calls::Instance).
+	if n.Kind == notify.KindReadHistory || n.Kind == notify.KindCall {
 		c.deliver(ctx, n, d, false)
 		return
 	}
@@ -421,7 +461,7 @@ func (c *Core) deliver(ctx context.Context, n *notify.Notification, d *pushdevic
 	case pushdevices.TokenFCM:
 		name = "fcm"
 		outcome, err = c.sendFCM(ctx, n, d, hideText)
-	case pushdevices.TokenAPNs:
+	case pushdevices.TokenAPNs, pushdevices.TokenVoIP:
 		name = "apns"
 		outcome, err = c.sendAPNs(ctx, n, d, hideText)
 	default:
@@ -435,7 +475,7 @@ func (c *Core) deliver(ctx context.Context, n *notify.Notification, d *pushdevic
 	case pushprovider.OutcomeSent, pushprovider.OutcomeDisabled:
 	case pushprovider.OutcomeTokenInvalid:
 		log.Infof("push: %s device %d of user %d: the token is invalid (%v)", name, d.Id, d.UserId, err)
-		if d.TokenType == pushdevices.TokenAPNs {
+		if d.TokenType != pushdevices.TokenFCM {
 			// The next registration of the token gets TOKEN_WAS_INVALIDATED.
 			err = c.Devices.Invalidate(ctx, d.Id)
 		} else {
@@ -480,7 +520,21 @@ func (c *Core) sendAPNs(ctx context.Context, n *notify.Notification, d *pushdevi
 	if err != nil {
 		return pushprovider.OutcomeRejected, err
 	}
-	body, req := apnsBody(push, p), &pushprovider.APNsPush{Token: d.Token, Sandbox: d.AppSandbox}
+	req := &pushprovider.APNsPush{Token: d.Token, Sandbox: d.AppSandbox}
+	if n.Kind == notify.KindCall {
+		req.Expiration = c.now().Add(callExpiration)
+		if d.TokenType == pushdevices.TokenVoIP {
+			// PushKit: the payload alone (AppDelegate.swift pushRegistryImpl
+			// reads "p").
+			req.Type = pushprovider.APNsVoIP
+			req.Body = apnsVoIPBody(p)
+			return c.APNs.Send(ctx, req)
+		}
+		req.Type = pushprovider.APNsAlert
+		req.Body = apnsBody(push, p)
+		return c.APNs.Send(ctx, req)
+	}
+	body := apnsBody(push, p)
 	if push.Alert {
 		req.Type, req.Expiration = pushprovider.APNsAlert, c.now().Add(alertExpiration)
 	} else {
