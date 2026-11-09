@@ -777,9 +777,15 @@ func TestSetBlockedAndDelete(t *testing.T) {
 		t.Errorf("after the unblock: %+v", r)
 	}
 
-	// Blocked again, then deleted for good.
+	// Blocked again: its creator cannot delete it, the owner of the server
+	// can, for good.
 	if err := block(true); err != nil {
 		t.Fatal(err)
+	}
+	_, err = cc.ChatDeleteChat(&chat.TLChatDeleteChat{ChatId: id, OperatorId: a})
+	wantErr(t, "the creator deletes a blocked chat", err, mtproto.ErrChatIdInvalid)
+	if r := rowOf(t, id); r.count != 3 {
+		t.Errorf("after the creator's delete: %+v", r)
 	}
 	deleted, err := cc.ChatDeleteChat(&chat.TLChatDeleteChat{ChatId: id})
 	if err != nil {
