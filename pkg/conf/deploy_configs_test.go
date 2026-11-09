@@ -73,6 +73,13 @@ func TestDeployConfigVariablesAreProvided(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, overlay := range overlayComposeFiles {
+		b, err := os.ReadFile(filepath.Join(repoRoot, overlay))
+		if err != nil {
+			t.Fatal(err)
+		}
+		compose = append(compose, b...)
+	}
 	for name, files := range configVars(t, "teamgramd/etc2/*.yaml") {
 		required := regexp.MustCompile(`(?m)^\s+` + name + `: \$\{` + name + `:\?`)
 		optional := regexp.MustCompile(`(?m)^\s+` + name + `: \$\{` + name + `:-\}$`)

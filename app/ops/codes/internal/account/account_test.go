@@ -287,8 +287,7 @@ func TestTdlibParameters(t *testing.T) {
 
 func TestSessionGoneIsReported(t *testing.T) {
 	var clients int
-	var f *fakeLib
-	f = &fakeLib{events: make(chan string, 64), handle: func(req map[string]any) []string {
+	f := &fakeLib{events: make(chan string, 64), handle: func(req map[string]any) []string {
 		switch req["@type"] {
 		case "getOption":
 			clients++

@@ -250,7 +250,7 @@ func healthcheck() error {
 		port = ":9378"
 	}
 	client := &http.Client{Timeout: 3 * time.Second}
-	resp, err := client.Get("http://127.0.0.1" + port + "/healthz")
+	resp, err := client.Get("http://127.0.0.1" + port + "/healthz") //nolint:gosec // G704: an address of the configuration, not of a request
 	if err != nil {
 		return err
 	}

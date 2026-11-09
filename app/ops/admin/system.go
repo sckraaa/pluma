@@ -48,11 +48,11 @@ func (p *promClient) get(ctx context.Context, path string, out any) error {
 	if p.base == "" {
 		return errors.New("prometheus is not configured")
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.base+path, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.base+path, http.NoBody) //nolint:gosec // G704: an address of the configuration, not of a request
 	if err != nil {
 		return err
 	}
-	resp, err := p.http.Do(req)
+	resp, err := p.http.Do(req) //nolint:gosec // G704: an address of the configuration, not of a request
 	if err != nil {
 		return err
 	}

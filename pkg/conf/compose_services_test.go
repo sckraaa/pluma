@@ -186,6 +186,9 @@ func TestComposeServices(t *testing.T) {
 			if len(s.Ports) > 0 || fmt.Sprint(secretSources(s.Secrets)) != "[apns_key fcm_credentials]" {
 				t.Errorf("push publishes ports %v or gets secrets %v; want only apns_key and fcm_credentials", s.Ports, s.Secrets)
 			}
+		case name == "releases" && loopbackOnly(s.Ports) && len(s.Secrets) == 0:
+			// The panel runs on the host and reaches it on the loopback
+			// address (task 072).
 		case len(s.Ports) > 0 || len(s.Secrets) > 0:
 			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway and push may", name, s.Ports, s.Secrets)
 		}
@@ -312,6 +315,8 @@ var optionalVars = map[string]bool{
 	// The servers of one-to-one calls (task 068): calls are off when empty.
 	"CALLS_ICE_SERVERS": true,
 	"CALLS_TURN_SECRET": true,
+	// The panel's access to the releases service (task 072): off when empty.
+	"RELEASES_ADMIN_TOKEN": true,
 }
 
 // passed tells whether val, the compose value of the variable name, gives it
@@ -319,4 +324,14 @@ var optionalVars = map[string]bool{
 // variable is unset or empty, or ${NAME:-} for an optional variable.
 func passed(name, val string) bool {
 	return strings.HasPrefix(val, "${"+name+":?") || optionalVars[name] && val == "${"+name+":-}"
+}
+
+// loopbackOnly tells whether every published port is bound to 127.0.0.1.
+func loopbackOnly(ports []string) bool {
+	for _, p := range ports {
+		if !strings.HasPrefix(p, "127.0.0.1:") {
+			return false
+		}
+	}
+	return len(ports) > 0
 }

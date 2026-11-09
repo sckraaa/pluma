@@ -74,12 +74,12 @@ func (c *releasesClient) do(ctx context.Context, method, path string, out any) e
 	if c.base == "" || c.token == "" {
 		return errReleasesOff
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.base+path, http.NoBody)
+	req, err := http.NewRequestWithContext(ctx, method, c.base+path, http.NoBody) //nolint:gosec // G704: an address of the configuration, not of a request
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
-	resp, err := c.http.Do(req)
+	resp, err := c.http.Do(req) //nolint:gosec // G704: an address of the configuration, not of a request
 	if err != nil {
 		return err
 	}

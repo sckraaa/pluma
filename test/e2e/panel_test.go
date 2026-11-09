@@ -86,7 +86,12 @@ func TestChannelBlockedByOwner(t *testing.T) {
 	_, ch := createChannel(ctx, t, alice, "blocked channel", true)
 	peer := &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}
 	input := &mtproto.InputChannel{Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel), ChannelId: ch.GetId(), AccessHash: ch.GetAccessHash_FLAGINT64().GetValue()}
-	sendTo(ctx, t, alice, peer, "before the block")
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_sendMessage),
+		Peer:        peer, Message: "before the block", RandomId: randomID(),
+	}); err != nil {
+		t.Fatalf("messages.sendMessage: %v", err)
+	}
 
 	id := fmt.Sprint(ch.GetId())
 	admin(t, "moderation", "block-channel", id)

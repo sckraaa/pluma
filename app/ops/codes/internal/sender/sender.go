@@ -367,7 +367,7 @@ func (q *Queue) pause(ctx context.Context) bool {
 	}
 	gap := q.limits.MinGap
 	if q.limits.MaxJitter > 0 {
-		gap += time.Duration(mrand.Int64N(int64(q.limits.MaxJitter)))
+		gap += time.Duration(mrand.Int64N(int64(q.limits.MaxJitter))) //nolint:gosec // G404: a pause between messages, not a secret
 	}
 	wait := time.UnixMilli(last).Add(gap).Sub(q.now())
 	if wait <= 0 {
