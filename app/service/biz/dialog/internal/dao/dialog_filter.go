@@ -36,15 +36,12 @@ import (
 // the account about the change (ADR 0020); a request that changes nothing
 // pushes nothing.
 
-// The limits of folders: Telegram's for a user without Premium and with it
-// (appConfig dialog_filters_limit_default/_premium and
-// dialog_filters_chats_limit_default/_premium; the clients enforce them
-// too). Premium is the user's, granted by the admin (ADR 0016).
+// The limits of folders: Telegram's with Premium, which everybody has
+// (ADR 0041; appConfig dialog_filters_limit_premium and
+// dialog_filters_chats_limit_premium, which the clients enforce too).
 const (
-	DialogFiltersLimit        = 10
-	DialogFiltersLimitPremium = 30
-	FilterChatsLimit          = 100
-	FilterChatsLimitPremium   = 200
+	DialogFiltersLimit = 30
+	FilterChatsLimit   = 200
 )
 
 var (
@@ -55,25 +52,12 @@ var (
 	ErrFilterChatsTooMuch = status.Error(mtproto.ErrBadRequest, "FILTER_INCLUDE_TOO_MUCH")
 )
 
-// allChats is the id of "All chats" (dialogFilterDefault). A user with
-// Premium may put it after other folders: its place is kept as a row with
-// this id; without Premium it is first and the row is ignored.
+// allChats is the id of "All chats" (dialogFilterDefault). A user may put
+// it after other folders: its place is kept as a row with this id.
 const allChats = 0
 
 // dialogFilterTagsKey is the user_settings key of folder tags: "1" — on.
 const dialogFilterTagsKey = "dialogFilterTags"
-
-// boxPremium returns whether the user of b has Premium now.
-func boxPremium(b *userbox.Box) (bool, error) {
-	var rows []struct {
-		Premium bool  `db:"premium"`
-		Until   int64 `db:"premium_expire_date"`
-	}
-	if err := b.Tx().QueryRowsPartial(&rows, "SELECT premium, premium_expire_date FROM users WHERE id = ?", b.UserId()); err != nil {
-		return false, err
-	}
-	return len(rows) == 1 && rows[0].Premium && (rows[0].Until == 0 || b.Date() < rows[0].Until), nil
-}
 
 // order_value of the folders: the list is read in descending order. The
 // first folder gets filterOrderTop; a new folder goes after the last one,
@@ -114,15 +98,7 @@ func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filt
 		if err != nil {
 			return err
 		}
-		premium, err := boxPremium(b)
-		if err != nil {
-			return err
-		}
-		folders, chatsLimit := DialogFiltersLimit, FilterChatsLimit
-		if premium {
-			folders, chatsLimit = DialogFiltersLimitPremium, FilterChatsLimitPremium
-		}
-		if len(filter.GetPinnedPeers())+len(filter.GetIncludePeers()) > chatsLimit || len(filter.GetExcludePeers()) > chatsLimit {
+		if len(filter.GetPinnedPeers())+len(filter.GetIncludePeers()) > FilterChatsLimit || len(filter.GetExcludePeers()) > FilterChatsLimit {
 			return ErrFilterChatsTooMuch
 		}
 		order, found, count := int64(0), false, 0
@@ -135,9 +111,7 @@ func (d *Dao) SaveDialogFilter(ctx context.Context, userId int64, id int32, filt
 			}
 		}
 		if !found {
-			// After losing Premium a user keeps the folders over the limit
-			// (the clients lock them), but makes no new ones.
-			if count >= folders {
+			if count >= DialogFiltersLimit {
 				return ErrDialogFiltersTooMuch
 			}
 			order = filterOrderTop
@@ -225,10 +199,8 @@ func (d *Dao) DeleteDialogFilter(ctx context.Context, userId int64, id int32) er
 // OrderDialogFilters puts the folders of userId in the order of ids. Ids of
 // folders the user does not have are ignored (a device may reorder a list
 // another one just changed); folders missing from ids keep their relative
-// order after the others. "All chats" (0) takes its place for a user with
-// Premium; without Premium its place in ids is ignored and a place kept
-// from a Premium that ended goes back to the top, where the clients show
-// it. It returns the order now stored. Every device of the account gets
+// order after the others. "All chats" (0) takes its place like the others.
+// It returns the order now stored. Every device of the account gets
 // updateDialogFilterOrder with it as the clients see it (clientOrder); an
 // order as it is changes nothing.
 func (d *Dao) OrderDialogFilters(ctx context.Context, userId int64, ids []int32) ([]int32, error) {
@@ -238,24 +210,15 @@ func (d *Dao) OrderDialogFilters(ctx context.Context, userId int64, ids []int32)
 		if err != nil {
 			return err
 		}
-		premium, err := boxPremium(b)
-		if err != nil {
-			return err
-		}
 		have := make(map[int32]bool, len(rows))
 		current := make([]int32, 0, len(rows))
 		for _, r := range rows {
 			have[r.Id] = true
 			current = append(current, r.Id)
 		}
-		// With Premium, "All chats" gets a row to keep its place.
+		// "All chats" gets a row to keep its place.
 		placeAllChats := false
-		if !premium {
-			ids = slices.DeleteFunc(slices.Clone(ids), func(id int32) bool { return id == allChats })
-			if have[allChats] {
-				ids = append([]int32{allChats}, ids...)
-			}
-		} else if !have[allChats] && slices.Contains(ids, allChats) {
+		if !have[allChats] && slices.Contains(ids, allChats) {
 			placeAllChats = true
 			have[allChats] = true
 			rows = append(rows, filterOrder{Id: allChats})

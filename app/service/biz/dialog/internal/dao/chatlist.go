@@ -45,14 +45,12 @@ import (
 // one invite link per channel that cannot be joined by name, which the link
 // keeps until it stops sharing the channel.
 
-// The limits of shared folders (appConfig chatlist_invites_limit_* and
-// chatlists_joined_limit_*, core.telegram.org/api/config); Premium is the
-// user's, granted by the admin (ADR 0016).
+// The limits of shared folders: the Premium ones, which everybody has (ADR
+// 0041; appConfig chatlist_invites_limit_premium and
+// chatlists_joined_limit_premium, core.telegram.org/api/config).
 const (
-	ChatlistInvitesLimit        = 3
-	ChatlistInvitesLimitPremium = 100
-	ChatlistsJoinedLimit        = 2
-	ChatlistsJoinedLimitPremium = 20
+	ChatlistInvitesLimit = 100
+	ChatlistsJoinedLimit = 20
 )
 
 const (
@@ -193,19 +191,6 @@ func countChatlists(b *userbox.Box) (int, error) {
 		return 0, err
 	}
 	return n[0], nil
-}
-
-// chatlistLimits returns the limits of b's owner: of shared folders and of
-// links of a folder.
-func chatlistLimits(b *userbox.Box) (joined, invites int, err error) {
-	premium, err := boxPremium(b)
-	if err != nil {
-		return 0, 0, err
-	}
-	if premium {
-		return ChatlistsJoinedLimitPremium, ChatlistInvitesLimitPremium, nil
-	}
-	return ChatlistsJoinedLimit, ChatlistInvitesLimit, nil
 }
 
 // inputMigrated replaces, in peers, basic groups moved to supergroups: the
@@ -375,15 +360,11 @@ func checkExport(b *userbox.Box, id int32, mkLink bool) (*filterRow, *mtproto.Di
 	if !mkLink {
 		return row, f, order, nil
 	}
-	joined, invites, err := chatlistLimits(b)
-	if err != nil {
-		return nil, nil, 0, err
-	}
 	var count []int
-	if err = b.Tx().QueryRowsPartial(&count, "SELECT COUNT(*) FROM chatlist_invites WHERE user_id = ? AND dialog_filter_id = ?", b.UserId(), id); err != nil {
+	if err := b.Tx().QueryRowsPartial(&count, "SELECT COUNT(*) FROM chatlist_invites WHERE user_id = ? AND dialog_filter_id = ?", b.UserId(), id); err != nil {
 		return nil, nil, 0, err
 	}
-	if count[0] >= invites {
+	if count[0] >= ChatlistInvitesLimit {
 		return nil, nil, 0, mtproto.ErrInvitesTooMuch
 	}
 	if !row.IsChatlist {
@@ -391,7 +372,7 @@ func checkExport(b *userbox.Box, id int32, mkLink bool) (*filterRow, *mtproto.Di
 		if err != nil {
 			return nil, nil, 0, err
 		}
-		if lists >= joined {
+		if lists >= ChatlistsJoinedLimit {
 			return nil, nil, 0, ErrChatlistsTooMuch
 		}
 	}
@@ -940,15 +921,7 @@ func (d *Dao) JoinChatlistFolder(ctx context.Context, userId int64, slug string,
 				next.IncludePeers = append(next.IncludePeers, p)
 			}
 		}
-		chatsLimit := FilterChatsLimit
-		premium, err := boxPremium(b)
-		if err != nil {
-			return err
-		}
-		if premium {
-			chatsLimit = FilterChatsLimitPremium
-		}
-		if len(next.GetIncludePeers())+len(next.GetPinnedPeers()) > chatsLimit {
+		if len(next.GetIncludePeers())+len(next.GetPinnedPeers()) > FilterChatsLimit {
 			return ErrFilterChatsTooMuch
 		}
 		if checkOnly {
@@ -1035,24 +1008,12 @@ func joinedFolderId(b *userbox.Box, inv *chatlistInviteRow) (int32, error) {
 
 // checkNewChatlist checks the limits for a new imported folder of b's owner.
 func checkNewChatlist(b *userbox.Box, rows []filterOrder) error {
-	joined, _, err := chatlistLimits(b)
-	if err != nil {
-		return err
-	}
 	lists, err := countChatlists(b)
 	if err != nil {
 		return err
 	}
-	if lists >= joined {
+	if lists >= ChatlistsJoinedLimit {
 		return ErrChatlistsTooMuch
-	}
-	premium, err := boxPremium(b)
-	if err != nil {
-		return err
-	}
-	folders := DialogFiltersLimit
-	if premium {
-		folders = DialogFiltersLimitPremium
 	}
 	count := 0
 	for _, r := range rows {
@@ -1060,7 +1021,7 @@ func checkNewChatlist(b *userbox.Box, rows []filterOrder) error {
 			count++
 		}
 	}
-	if count >= folders {
+	if count >= DialogFiltersLimit {
 		return ErrDialogFiltersTooMuch
 	}
 	return nil

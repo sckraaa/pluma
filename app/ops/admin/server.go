@@ -33,14 +33,11 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
-	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 
 	"github.com/zeromicro/go-zero/core/logx"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // identityHeader carries the login of the person tailscale serve proxied
@@ -57,11 +54,6 @@ const (
 	auditPage     = 100
 )
 
-// User is what the panel needs of the user service.
-type userClient interface {
-	UserUpdatePremium(ctx context.Context, in *userpb.TLUserUpdatePremium) (*mtproto.Bool, error)
-}
-
 // dfsClient reads the media of a reported message.
 type dfsClient interface {
 	DfsDownloadFile(ctx context.Context, in *dfs.TLDfsDownloadFile) (*mtproto.Upload_File, error)
@@ -73,12 +65,11 @@ type server struct {
 	store  *store
 	dao    *moderation.DAO
 	runner *effects.Runner
-	user   userClient
 	dfs    dfsClient
 }
 
-func newServer(c *config, st *store, dao *moderation.DAO, runner *effects.Runner, user userClient, d dfsClient) *server {
-	return &server{cfg: c, store: st, dao: dao, runner: runner, user: user, dfs: d}
+func newServer(c *config, st *store, dao *moderation.DAO, runner *effects.Runner, d dfsClient) *server {
+	return &server{cfg: c, store: st, dao: dao, runner: runner, dfs: d}
 }
 
 // actor is the person behind a request.
@@ -215,8 +206,6 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/reports/{id}/retry", s.wrap(roleModerator, true, s.handleRetry))
 	mux.HandleFunc("POST /api/users/{id}/lift", s.wrap(roleModerator, true, s.handleLift))
 	mux.HandleFunc("GET /api/audit", s.wrap(roleObserver, true, s.handleAudit))
-	mux.HandleFunc("GET /api/premium", s.wrap(roleOwner, true, s.handlePremiumList))
-	mux.HandleFunc("POST /api/premium", s.wrap(roleOwner, true, s.handlePremiumSet))
 	mux.HandleFunc("GET /api/admins", s.wrap(roleOwner, true, s.handleAdminsList))
 	mux.HandleFunc("POST /api/admins", s.wrap(roleOwner, true, s.handleAdminSet))
 	return mux
@@ -799,74 +788,6 @@ func (s *server) handleAudit(w http.ResponseWriter, r *http.Request, a *actor) {
 		return
 	}
 	writeJSON(w, map[string]any{"entries": rows})
-}
-
-func (s *server) handlePremiumList(w http.ResponseWriter, r *http.Request, a *actor) {
-	rows, err := s.store.premiumAccounts(r.Context())
-	if err != nil {
-		logx.WithContext(r.Context()).Errorf("admin: premium list: %v", err)
-		httpError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	writeJSON(w, map[string]any{"accounts": rows})
-}
-
-// premiumBody is a grant or a revocation.
-type premiumBody struct {
-	Phone  string `json:"phone"`
-	Months int32  `json:"months"`
-	Grant  bool   `json:"grant"`
-}
-
-// handlePremiumSet grants or revokes Premium through the user service, the
-// owner of the flag, which also tells the user's devices (task 014).
-func (s *server) handlePremiumSet(w http.ResponseWriter, r *http.Request, a *actor) {
-	var body premiumBody
-	if !s.readDangerous(w, r, a, &body) {
-		return
-	}
-	if body.Months < 0 || body.Months > 120 {
-		httpError(w, http.StatusBadRequest, "bad months")
-		return
-	}
-	_, phone, err := phonenumber.CheckPhoneNumberInvalid(body.Phone)
-	if err != nil {
-		httpError(w, http.StatusBadRequest, "bad phone")
-		return
-	}
-	account, err := s.store.accountByPhone(r.Context(), phone)
-	if err != nil {
-		logx.WithContext(r.Context()).Errorf("admin: premium account: %v", err)
-		httpError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	if account == nil {
-		httpError(w, http.StatusNotFound, "no such account")
-		return
-	}
-	target := fmt.Sprintf("user:%d", account.Id)
-	action, detail := "premium_revoke", ""
-	if body.Grant {
-		action, detail = "premium_grant", fmt.Sprintf("months=%d", body.Months)
-	}
-	if err = s.dao.Audit(r.Context(), a.login, action, target, detail); err != nil {
-		logx.WithContext(r.Context()).Errorf("admin: audit: %v", err)
-		httpError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-	in := &userpb.TLUserUpdatePremium{UserId: account.Id, Premium: mtproto.ToBool(body.Grant)}
-	if body.Grant && body.Months > 0 {
-		in.Months = wrapperspb.Int32(body.Months)
-	}
-	if _, err = s.user.UserUpdatePremium(r.Context(), in); err != nil {
-		logx.WithContext(r.Context()).Errorf("admin: premium of user %d: %v", account.Id, err)
-		if aerr := s.dao.Audit(r.Context(), a.login, action+"_failed", target, ""); aerr != nil {
-			logx.WithContext(r.Context()).Errorf("admin: audit: %v", aerr)
-		}
-		httpError(w, http.StatusBadGateway, "the user service refused")
-		return
-	}
-	writeJSON(w, map[string]any{"ok": true})
 }
 
 func (s *server) handleAdminsList(w http.ResponseWriter, r *http.Request, a *actor) {

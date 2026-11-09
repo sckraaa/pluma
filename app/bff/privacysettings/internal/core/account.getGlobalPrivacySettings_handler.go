@@ -25,9 +25,6 @@ import (
 
 // AccountGetGlobalPrivacySettings
 // account.getGlobalPrivacySettings#eb2b4cf6 = GlobalPrivacySettings;
-//
-// new_noncontact_peers_require_premium works only while the user has
-// Premium: without it the setting is off, as the user's contacts see it.
 func (c *PrivacySettingsCore) AccountGetGlobalPrivacySettings(in *mtproto.TLAccountGetGlobalPrivacySettings) (*mtproto.GlobalPrivacySettings, error) {
 	_ = in
 	globalPrivacySettings, err := c.svcCtx.Dao.UserGetGlobalPrivacySettings(c.ctx, &userpb.TLUserGetGlobalPrivacySettings{
@@ -36,14 +33,6 @@ func (c *PrivacySettingsCore) AccountGetGlobalPrivacySettings(in *mtproto.TLAcco
 	if err != nil {
 		c.Logger.Errorf("account.getGlobalPrivacySettings - error: %v", err)
 		return nil, err
-	}
-	if globalPrivacySettings.GetNewNoncontactPeersRequirePremium() {
-		me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: c.MD.UserId})
-		if err != nil {
-			c.Logger.Errorf("account.getGlobalPrivacySettings - error: %v", err)
-			return nil, err
-		}
-		globalPrivacySettings.NewNoncontactPeersRequirePremium = me.Premium()
 	}
 
 	return globalPrivacySettings, nil

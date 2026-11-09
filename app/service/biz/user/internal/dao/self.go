@@ -30,7 +30,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The account's own name, username, photo and Premium (ADR 0020): a change
+// The account's own name, username and photo (ADR 0020): a change
 // and the update with seq that tells every device of the account are one
 // box transaction of the account. The update goes with the account as it
 // sees itself after the change: TDLib takes the data from users, not from
@@ -46,14 +46,12 @@ type selfRow struct {
 	LastName  string `db:"last_name"`
 	Username  string `db:"username"`
 	PhotoId   int64  `db:"photo_id"`
-	Premium   bool   `db:"premium"`
-	Until     int64  `db:"premium_expire_date"`
 	// FallbackPhotoId is the public photo (task 051): not in the account's
 	// own user, so the push does not carry it.
 	FallbackPhotoId int64 `db:"fallback_photo_id"`
 }
 
-const selfRowQuery = "SELECT first_name, last_name, username, photo_id, premium, premium_expire_date, fallback_photo_id FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
+const selfRowQuery = "SELECT first_name, last_name, username, photo_id, fallback_photo_id FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
 
 // selfAttempts bounds the box transactions of one change of the account:
 // one more is run for each photo the transaction found main and the
@@ -195,8 +193,6 @@ func selfUser(me *mtproto.ImmutableUser, row selfRow, usernames []*mtproto.Usern
 	u.Username = row.Username
 	u.Usernames = usernames
 	u.ProfilePhoto = photo
-	u.Premium = row.Premium
-	u.PremiumExpireDate = mtproto.MakeFlagsInt64(row.Until)
 	return view.ToSelfUser()
 }
 

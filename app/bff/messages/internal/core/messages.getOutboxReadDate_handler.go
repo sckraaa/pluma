@@ -109,9 +109,10 @@ func (c *MessagesCore) MessagesGetOutboxReadDate(in *mtproto.TLMessagesGetOutbox
 // checkReadDatePrivacy applies "hide read time" (globalPrivacySettings
 // hide_read_marks, task 034): it makes the last seen rule of a user guard
 // its read dates too. The reader who hides them from the caller answers
-// USER_PRIVACY_RESTRICTED; a caller who hides its own from the reader, and
-// has no Premium, YOUR_PRIVACY_RESTRICTED ("their read time will also be
-// hidden from you", Android HideReadTimeInfo).
+// USER_PRIVACY_RESTRICTED. A caller who hides its own from the reader would
+// get YOUR_PRIVACY_RESTRICTED without Premium ("their read time will also be
+// hidden from you", Android HideReadTimeInfo); everybody has Premium here
+// (ADR 0041).
 func (c *MessagesCore) checkReadDatePrivacy(peerId int64) error {
 	ids := []int64{c.MD.UserId, peerId}
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
@@ -144,15 +145,6 @@ func (c *MessagesCore) checkReadDatePrivacy(peerId int64) error {
 		}
 		if hidden {
 			return mtproto.ErrUserPrivacyRestricted
-		}
-	}
-	if !me.Premium() && !me.CheckPrivacyFor(mtproto.STATUS_TIMESTAMP, reader) {
-		hidden, err := hides(c.MD.UserId)
-		if err != nil {
-			return err
-		}
-		if hidden {
-			return errYourPrivacyRestricted
 		}
 	}
 	return nil

@@ -234,11 +234,6 @@ func (c *MsgCore) scheduleMessages(in *msg.TLMsgSendMessageV2, date int32) (*mtp
 	}
 	if u, ok := users.GetImmutableUser(in.UserId); ok && u.IsBot() {
 		return nil, mtproto.ErrScheduleBotNotAllowed
-	} else if ok && repeat != 0 && !u.Premium() {
-		// "Premium users can send repeating scheduled messages"
-		// (core.telegram.org/api/scheduled-messages); the clients do not
-		// offer it to others (tdesktop history_view_schedule_box.cpp:358-383).
-		return nil, mtproto.ErrPremiumAccountRequired
 	}
 
 	switch in.PeerType {
@@ -632,18 +627,8 @@ func (c *MsgCore) editScheduled(in *msg.TLMsgEditMessageV2, id int32) (*mtproto.
 		return nil, mtproto.ErrScheduleDateTooLate
 	}
 
-	repeat, err := repeatPeriodOf([]*msg.OutboxMessage{in.NewMessage}, date)
-	if err != nil {
+	if _, err := repeatPeriodOf([]*msg.OutboxMessage{in.NewMessage}, date); err != nil {
 		return nil, err
-	}
-	if repeat != 0 {
-		users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: []int64{in.UserId}, To: []int64{in.UserId}})
-		if err != nil {
-			return nil, err
-		}
-		if u, ok := users.GetImmutableUser(in.UserId); ok && !u.Premium() {
-			return nil, mtproto.ErrPremiumAccountRequired
-		}
 	}
 
 	edit := plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, in.NewMessage.Message, in.UserId, in.NewMessage.NoWebpage, func() bool { return false })

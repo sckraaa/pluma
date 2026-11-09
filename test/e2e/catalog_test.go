@@ -96,8 +96,8 @@ func TestCatalog(t *testing.T) {
 	catalogPremiumSticker(ctx, t, u)
 }
 
-// catalogPremiumSticker sends the premium sticker of the collection from an
-// account without Premium (task 058). Telegram refuses that in its clients;
+// catalogPremiumSticker sends the premium sticker of the collection (task
+// 058). Telegram refuses that in its clients;
 // the server does not ask: the sticker goes as any document, the recipient
 // gets it with its "f" video thumbnail and without nopremium (Android
 // ChatActivity 15984, iOS ChatMessageAnimatedStickerItemNode.swift 1688, Web K
@@ -108,9 +108,6 @@ func TestCatalog(t *testing.T) {
 func catalogPremiumSticker(ctx context.Context, t *testing.T, alice *user) {
 	t.Helper()
 	bob := login(ctx, t, testPhones(t, 1)[0], "Bob")
-	if alice.self.GetPremium() || bob.self.GetPremium() {
-		t.Fatalf("the accounts must not have Premium: %v, %v", alice.self.GetPremium(), bob.self.GetPremium())
-	}
 	getState(ctx, t, bob)
 
 	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetStickerSet{
@@ -173,7 +170,7 @@ func catalogPremiumSticker(ctx context.Context, t *testing.T, alice *user) {
 		RandomId: randomID(),
 	})
 	if err != nil {
-		t.Fatalf("messages.sendMedia of a premium sticker without Premium: %v", err)
+		t.Fatalf("messages.sendMedia of a premium sticker: %v", err)
 	}
 	sent := newMessages(o.(interface{ To_Updates() *mtproto.Updates }).To_Updates())
 	if len(sent) != 1 || sent[0].GetMedia().GetDocument().GetId() != doc.GetId() {

@@ -23,14 +23,11 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
-// The most saved GIFs an account keeps: help.getAppConfig gives the same
-// numbers (saved_gifs_limit_default, saved_gifs_limit_premium), and the
-// clients trim their lists to them. A GIF saved over the limit drops the
-// oldest.
-const (
-	SavedGifsLimit        = 200
-	SavedGifsLimitPremium = 400
-)
+// SavedGifsLimit is the most saved GIFs an account keeps: the Premium limit,
+// which everybody has (ADR 0041); help.getAppConfig gives the same number
+// (saved_gifs_limit_default and saved_gifs_limit_premium), and the clients
+// trim their lists to it. A GIF saved over the limit drops the oldest.
+const SavedGifsLimit = 400
 
 // SavedGifIdList returns the ids of userId's saved GIFs, the newest first.
 func (d *Dao) SavedGifIdList(ctx context.Context, userId int64) ([]int64, error) {
@@ -65,15 +62,12 @@ func (d *Dao) SaveGif(ctx context.Context, userId, id int64, unsave bool) (bool,
 		case unsave:
 			drop = []int64{id}
 		default:
-			limit, err := savedGifsLimit(b)
-			if err != nil {
-				return err
-			}
+			limit := SavedGifsLimit
 			order := int64(1)
 			if len(rows) > 0 {
 				order = rows[0].Order + 1
 			}
-			if _, err = b.Tx().Exec("INSERT INTO user_saved_gifs (user_id, document_id, order2) VALUES (?, ?, ?) AS new ON DUPLICATE KEY UPDATE order2 = new.order2",
+			if _, err := b.Tx().Exec("INSERT INTO user_saved_gifs (user_id, document_id, order2) VALUES (?, ?, ?) AS new ON DUPLICATE KEY UPDATE order2 = new.order2",
 				userId, id, order); err != nil {
 				return err
 			}
@@ -97,17 +91,3 @@ func (d *Dao) SaveGif(ctx context.Context, userId, id int64, unsave bool) (bool,
 	return changed, err
 }
 
-// savedGifsLimit is the saved GIFs limit of b's account, by its Premium.
-func savedGifsLimit(b *userbox.Box) (int, error) {
-	var rows []struct {
-		Premium bool  `db:"premium"`
-		Until   int64 `db:"premium_expire_date"`
-	}
-	if err := b.Tx().QueryRowsPartial(&rows, "SELECT premium, premium_expire_date FROM users WHERE id = ?", b.UserId()); err != nil {
-		return 0, err
-	}
-	if len(rows) == 1 && (PremiumState{Premium: rows[0].Premium, Until: rows[0].Until}).Active(b.Date()) {
-		return SavedGifsLimitPremium, nil
-	}
-	return SavedGifsLimit, nil
-}

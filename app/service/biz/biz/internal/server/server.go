@@ -172,8 +172,7 @@ func (s *Server) RunLoop() {
 }
 
 // Destroy stops the workers of the user service, which finish the work in
-// progress (user_helper.SignUpStopWait, PremiumStopWait), while the server
-// stops.
+// progress (user_helper.SignUpStopWait), while the server stops.
 func (s *Server) Destroy() {
 	done := make(chan struct{})
 	go func() {

@@ -266,15 +266,11 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 			drop = append(drop, r.UserId)
 			continue
 		}
-		limit, err := premium.ChannelsLimit(b.Tx(), r.UserId, b.Date())
-		if err != nil {
-			return err
-		}
 		var joined []int64
-		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", r.UserId, limit); err != nil {
+		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", r.UserId, premium.ChannelsLimit); err != nil {
 			return err
 		}
-		if len(joined) >= limit {
+		if len(joined) >= premium.ChannelsLimit {
 			if !all {
 				return mtproto.ErrUserChannelsTooMuch
 			}

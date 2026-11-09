@@ -198,7 +198,7 @@ func TestChatlistLimits(t *testing.T) {
 		t.Fatalf("over the links of a folder: %v", err)
 	}
 
-	// A second shared folder is the last without Premium; a third is refused,
+	// The shared folders up to the limit; one more is refused,
 	// made by a link or by an import.
 	for id := int32(3); id < 3+ChatlistsJoinedLimit-1; id++ {
 		shareFolder(t, u, id, ch)

@@ -57,7 +57,7 @@ func serviceAction(ups *mtproto.Updates) *mtproto.MessageAction {
 // A fill wallpaper in a private chat (task 065, core.telegram.org/api/wallpapers):
 // the chat gets a service message for both, the side that set it has it in
 // userFull and is told of it, the other side is not changed and can accept
-// it with the message id (same), the setter's Premium decides for_both;
+// it with the message id (same), for_both is open to everybody (ADR 0041);
 // a reset clears only the own side.
 func TestChatWallpaperPrivate(t *testing.T) {
 	t.Parallel()
@@ -74,10 +74,6 @@ func TestChatWallpaperPrivate(t *testing.T) {
 	inputAlice := &mtproto.InputUser{Constructor: bob.c.Constructor(mtproto.Predicate_inputUser), UserId: alice.self.GetId(), AccessHash: alice.self.GetAccessHash().GetValue()}
 	wall, settings := fillWallpaper(alice)
 
-	// Premium for both is refused for a user without it.
-	if _, err := setChatWallPaper(ctx, alice, &mtproto.TLMessagesSetChatWallPaper{ForBoth: true, Peer: toBob, Wallpaper: wall, Settings: settings}); !rpcErrorIs(err, "PREMIUM_ACCOUNT_REQUIRED") {
-		t.Fatalf("for_both without Premium: %v", err)
-	}
 	// A revert with nothing overridden has nothing to bring back.
 	if _, err := setChatWallPaper(ctx, alice, &mtproto.TLMessagesSetChatWallPaper{Revert: true, Peer: toBob}); !rpcErrorIs(err, "WALLPAPER_NOT_FOUND") {
 		t.Fatalf("revert: %v", err)

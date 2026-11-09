@@ -19,22 +19,16 @@ import (
 	"unicode/utf8"
 )
 
-// The most characters of the bio: help.getAppConfig gives the same numbers
-// (about_length_limit_default, about_length_limit_premium), by which the
+// AboutLimit is the most characters of the bio: the Premium limit, which
+// everybody has (ADR 0041); help.getAppConfig gives the same number
+// (about_length_limit_default and about_length_limit_premium), by which the
 // clients limit the field.
-const (
-	AboutLimit        = 70
-	AboutLimitPremium = 140
-)
+const AboutLimit = 140
 
-// aboutTooLong tells whether about is longer than the limit. Characters
+// aboutTooLong tells whether about is longer than AboutLimit. Characters
 // are Unicode code points: Android and Web K count UTF-16 code units and
 // iOS grapheme clusters (PeerInfoScreen.swift, bio.count), so a bio a
 // client lets through passes unless iOS took emoji of several code points.
-func aboutTooLong(about string, premium bool) bool {
-	limit := AboutLimit
-	if premium {
-		limit = AboutLimitPremium
-	}
-	return utf8.RuneCountInString(about) > limit
+func aboutTooLong(about string) bool {
+	return utf8.RuneCountInString(about) > AboutLimit
 }

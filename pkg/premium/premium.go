@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package premium holds the rules of Premium (granted by the admin, task
-// 014, ADR 0016) that several services apply.
+// Package premium holds the rules of Premium, which every user has (ADR
+// 0041; mtproto.ImmutableUser.Premium decides), that several services apply.
 package premium
 
 import (

@@ -25,7 +25,6 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	inboxpb "github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
-	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -82,7 +81,6 @@ func watcherUpdate(t *testing.T, userId int64, updates []*mtproto.Update) string
 
 func TestNameAndPhotoToWatchers(t *testing.T) {
 	const p1 = 7101
-	ctx := context.Background()
 	c := mediaCore(t, newFakeMedia(p1))
 	me, _ := newUser(t, "Mia")
 	ann, _ := newUser(t, "Ann") // has Mia as a contact
@@ -139,17 +137,11 @@ func TestNameAndPhotoToWatchers(t *testing.T) {
 	if _, err := c.UserUpdateProfilePhoto(&user.TLUserUpdateProfilePhoto{UserId: me, Id: p1}); err != nil { // changes nothing
 		t.Fatal(err)
 	}
-	for _, change := range []dao.PremiumChange{{Grant: true}, {Grant: true}} { // the second changes nothing
-		if _, err := ChangePremium(ctx, c.svcCtx, me, change); err != nil {
-			t.Fatal(err)
-		}
-	}
 
 	var want []string
 	for _, u := range []string{
 		"name Mia Moss []",
 		fmt.Sprintf("name Mia Moss [%s/true/true]", username),
-		mtproto.Predicate_updateUser,
 		mtproto.Predicate_updateUser,
 	} {
 		want = append(want, "self "+u)
@@ -167,7 +159,7 @@ func TestNameAndPhotoToWatchers(t *testing.T) {
 	}
 	// The account's own pushes have their rows of the seq journal; the
 	// others' accounts get theirs when msg applies the events.
-	if n := len(seqPushes(t, me)); n != 4 || stateSeq(t, me) != userbox.BaseSeq+4 {
+	if n := len(seqPushes(t, me)); n != 3 || stateSeq(t, me) != userbox.BaseSeq+3 {
 		t.Errorf("%d own pushes with seq, seq %d", n, stateSeq(t, me))
 	}
 	for _, u := range []int64{ann, bob, cat} {

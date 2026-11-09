@@ -35,7 +35,7 @@ func TestSavedGifsLimitsAreTheAppConfigs(t *testing.T) {
 	}
 	for key, limit := range map[string]int{
 		"saved_gifs_limit_default": SavedGifsLimit,
-		"saved_gifs_limit_premium": SavedGifsLimitPremium,
+		"saved_gifs_limit_premium": SavedGifsLimit,
 	} {
 		if v, ok := config[key].(float64); !ok || v != float64(limit) {
 			t.Errorf("%s of app_config.json %v, the server's limit %d", key, config[key], limit)

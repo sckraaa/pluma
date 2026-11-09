@@ -92,15 +92,11 @@ func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited
 		case p != nil && p.participant().Kicked(int32(b.Date())) && !canBan:
 			return nil, mtproto.ErrUserKicked
 		}
-		limit, err := premium.ChannelsLimit(b.Tx(), id, b.Date())
-		if err != nil {
-			return nil, err
-		}
 		var joined []int64
-		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", id, limit); err != nil {
+		if err = b.Tx().QueryRowsPartial(&joined, "SELECT channel_id FROM channel_participants WHERE user_id = ? AND state = 0 LIMIT ?", id, premium.ChannelsLimit); err != nil {
 			return nil, err
 		}
-		if len(joined) >= limit {
+		if len(joined) >= premium.ChannelsLimit {
 			return nil, mtproto.ErrUserChannelsTooMuch
 		}
 		out.Users = append(out.Users, id)

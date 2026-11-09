@@ -33,7 +33,6 @@ func names(rules []*mtproto.PrivacyRule) []string {
 
 func TestNormalizeRules(t *testing.T) {
 	var (
-		all      = mtproto.MakeTLPrivacyValueAllowAll(nil).To_PrivacyRule()
 		contacts = mtproto.MakeTLPrivacyValueAllowContacts(nil).To_PrivacyRule()
 		nobody   = mtproto.MakeTLPrivacyValueDisallowAll(nil).To_PrivacyRule()
 		users    = func(ids ...int64) *mtproto.PrivacyRule {
@@ -56,37 +55,30 @@ func TestNormalizeRules(t *testing.T) {
 		name    string
 		key     int
 		rules   []*mtproto.PrivacyRule
-		premium bool
 		want    []string
 		err     error
 	}{
 		{"Android: nobody except B, with an empty chat rule", mtproto.PROFILE_PHOTO,
-			[]*mtproto.PrivacyRule{users(5), chats(), nobody}, false,
+			[]*mtproto.PrivacyRule{users(5), chats(), nobody},
 			[]string{mtproto.Predicate_privacyValueAllowUsers, mtproto.Predicate_privacyValueDisallowAll}, nil},
 		{"Web K: base first", mtproto.STATUS_TIMESTAMP,
-			[]*mtproto.PrivacyRule{contacts, notUsers(5)}, false,
+			[]*mtproto.PrivacyRule{contacts, notUsers(5)},
 			[]string{mtproto.Predicate_privacyValueDisallowUsers, mtproto.Predicate_privacyValueAllowContacts}, nil},
 		{"no base rule is nobody", mtproto.FORWARDS,
-			[]*mtproto.PrivacyRule{users(5)}, false,
+			[]*mtproto.PrivacyRule{users(5)},
 			[]string{mtproto.Predicate_privacyValueAllowUsers, mtproto.Predicate_privacyValueDisallowAll}, nil},
 		{"two base rules, the most open stays", mtproto.ABOUT,
-			[]*mtproto.PrivacyRule{contacts, nobody}, false,
+			[]*mtproto.PrivacyRule{contacts, nobody},
 			[]string{mtproto.Predicate_privacyValueAllowContacts}, nil},
 		{"contacts and Premium users", mtproto.CHAT_INVITE,
-			[]*mtproto.PrivacyRule{contacts, premiumRule}, false,
+			[]*mtproto.PrivacyRule{contacts, premiumRule},
 			[]string{mtproto.Predicate_privacyValueAllowPremium, mtproto.Predicate_privacyValueAllowContacts}, nil},
 		{"close friends outside stories", mtproto.PROFILE_PHOTO,
-			[]*mtproto.PrivacyRule{closeFriends, nobody}, false, nil, mtproto.ErrPrivacyValueInvalid},
+			[]*mtproto.PrivacyRule{closeFriends, nobody}, nil, mtproto.ErrPrivacyValueInvalid},
 		{"too many users", mtproto.PROFILE_PHOTO,
-			[]*mtproto.PrivacyRule{users(many...), nobody}, false, nil, mtproto.ErrPrivacyTooLong},
-		{"voice messages restricted without Premium", mtproto.VOICE_MESSAGES,
-			[]*mtproto.PrivacyRule{contacts}, false, nil, mtproto.ErrPremiumAccountRequired},
-		{"voice messages restricted with Premium", mtproto.VOICE_MESSAGES,
-			[]*mtproto.PrivacyRule{contacts}, true, []string{mtproto.Predicate_privacyValueAllowContacts}, nil},
-		{"voice messages back to everybody without Premium", mtproto.VOICE_MESSAGES,
-			[]*mtproto.PrivacyRule{all}, false, []string{mtproto.Predicate_privacyValueAllowAll}, nil},
+			[]*mtproto.PrivacyRule{users(many...), nobody}, nil, mtproto.ErrPrivacyTooLong},
 	} {
-		got, err := normalizeRules(tc.key, tc.rules, tc.premium)
+		got, err := normalizeRules(tc.rules)
 		if !errors.Is(err, tc.err) {
 			t.Errorf("%s: error %v, want %v", tc.name, err, tc.err)
 			continue

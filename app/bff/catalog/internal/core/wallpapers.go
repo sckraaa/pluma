@@ -25,7 +25,6 @@ import (
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	messagepb "github.com/teamgram/teamgram-server/app/service/biz/message/message"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"google.golang.org/grpc/status"
@@ -226,11 +225,6 @@ func (c *CatalogCore) setPrivateWallpaper(peer *mtproto.PeerUtil, in *mtproto.TL
 		return nil, err
 	}
 	forBoth := in.GetForBoth() && !same
-	if forBoth {
-		if err = c.checkPremium(); err != nil {
-			return nil, err
-		}
-	}
 
 	r, err := c.sendPrivateService(peer, wallpaperAction(w, same, forBoth))
 	if err != nil {
@@ -261,20 +255,6 @@ func (c *CatalogCore) revertChatWallpaper(peer *mtproto.PeerUtil) (*mtproto.Upda
 		return nil, err
 	}
 	return updatesWith(appearance.PeerWallpaperUpdate(mtproto.MakePeerUser(peer.PeerId), w, false)), nil
-}
-
-// checkPremium is the condition of for_both, which docs name "for Premium
-// users" (core.telegram.org/method/messages.setChatWallPaper); Android's
-// button is locked the same (ThemePreviewActivity.java:2459).
-func (c *CatalogCore) checkPremium() error {
-	me, err := c.svcCtx.User.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: c.MD.UserId})
-	if err != nil {
-		return err
-	}
-	if !me.Premium() {
-		return mtproto.ErrPremiumAccountRequired
-	}
-	return nil
 }
 
 // setChannelWallpaper serves messages.setChatWallPaper in a channel or a

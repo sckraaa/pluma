@@ -22,12 +22,14 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
+// user is a person, with Premium as everybody (ADR 0041), or with premium
+// false a bot, the one account without it.
 func user(id int64, premium, requires bool, contacts ...int64) *mtproto.ImmutableUser {
-	u := &mtproto.ImmutableUser{User: mtproto.MakeTLUserData(&mtproto.UserData{
-		Id:                               id,
-		Premium:                          premium,
-		NewNoncontactPeersRequirePremium: requires,
-	}).To_UserData()}
+	data := &mtproto.UserData{Id: id, NewNoncontactPeersRequirePremium: requires}
+	if !premium {
+		data.Bot = mtproto.MakeTLBotData(&mtproto.BotData{}).To_BotData()
+	}
+	u := &mtproto.ImmutableUser{User: mtproto.MakeTLUserData(data).To_UserData()}
 	for _, c := range contacts {
 		u.Contacts = append(u.Contacts, &mtproto.ContactData{UserId: id, ContactUserId: c})
 	}

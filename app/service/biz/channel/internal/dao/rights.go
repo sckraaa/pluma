@@ -427,11 +427,7 @@ func (d *Dao) EditCreator(b *userbox.Box, channelId, userId int64) (*ChannelChan
 		if err != nil {
 			return nil, err
 		}
-		limit, err := premium.PublicChannelsLimit(b.Tx(), userId, b.Date())
-		if err != nil {
-			return nil, err
-		}
-		if n >= limit {
+		if n >= premium.PublicChannelsLimit {
 			return nil, mtproto.ErrChannelsAdminPublicTooMuch
 		}
 	}

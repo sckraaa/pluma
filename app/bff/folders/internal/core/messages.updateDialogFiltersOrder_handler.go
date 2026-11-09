@@ -23,10 +23,8 @@ import (
 // MessagesUpdateDialogFiltersOrder
 // messages.updateDialogFiltersOrder#c563c1e4 order:Vector<int> = Bool;
 //
-// Puts the folders in the order given. "All chats" (id 0) takes its place
-// for a user with Premium; without Premium it stays first and its place
-// in order is ignored, as are ids of folders the user does not have. Every
-// device of the account, this one included, gets updateDialogFilterOrder
+// Puts the folders in the order given, "All chats" (id 0) included; ids of
+// folders the user does not have are ignored. Every device of the account, this one included, gets updateDialogFilterOrder
 // with seq and the order now stored: the dialog service pushes it in the
 // transaction of the change (ADR 0020).
 func (c *FoldersCore) MessagesUpdateDialogFiltersOrder(in *mtproto.TLMessagesUpdateDialogFiltersOrder) (*mtproto.Bool, error) {

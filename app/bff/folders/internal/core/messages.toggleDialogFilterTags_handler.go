@@ -23,27 +23,12 @@ import (
 // MessagesToggleDialogFilterTags
 // messages.toggleDialogFilterTags#fd2dda49 enabled:Bool = Bool;
 //
-// Turns the folder tags on or off. Tags are a Premium feature: turning
-// them on without Premium answers PREMIUM_ACCOUNT_REQUIRED, as Telegram
-// does; turning them off is always allowed. The choice stays when Premium
-// ends, and tags show again when it comes back. Every device of the
-// account, this one included, gets updateDialogFilters with seq and asks
-// for the folders again: the dialog service pushes it in the transaction of
-// the change (ADR 0020).
+// Turns the folder tags on or off. Every device of the account, this one
+// included, gets updateDialogFilters with seq and asks for the folders
+// again: the dialog service pushes it in the transaction of the change
+// (ADR 0020).
 func (c *FoldersCore) MessagesToggleDialogFilterTags(in *mtproto.TLMessagesToggleDialogFilterTags) (*mtproto.Bool, error) {
 	enabled := mtproto.FromBool(in.GetEnabled())
-	if enabled {
-		premium, err := c.premium()
-		if err != nil {
-			c.Logger.Errorf("messages.toggleDialogFilterTags - user %d: %v", c.MD.UserId, err)
-			return nil, err
-		}
-		if !premium {
-			err = mtproto.ErrPremiumAccountRequired
-			c.Logger.Errorf("messages.toggleDialogFilterTags - user %d: %v", c.MD.UserId, err)
-			return nil, err
-		}
-	}
 	if _, err := c.svcCtx.Dao.DialogClient.DialogToggleDialogFilterTags(c.ctx, &dialog.TLDialogToggleDialogFilterTags{
 		UserId:  c.MD.UserId,
 		Enabled: mtproto.ToBool(enabled),

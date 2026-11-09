@@ -27,7 +27,6 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	syncpb "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
-	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
@@ -429,23 +428,5 @@ func TestProfilePhotoOwnership(t *testing.T) {
 	refused("u sets the photo it deleted", p2)
 	if n := count(t, "SELECT COUNT(*) FROM user_profile_photos WHERE photo_id = ? AND deleted = 0", p3); n != 1 {
 		t.Errorf("v's photo is in %d galleries", n)
-	}
-}
-
-func TestOwnPremiumWithSeq(t *testing.T) {
-	ctx := context.Background()
-	u, _ := newUser(t, "Pete")
-	for _, change := range []dao.PremiumChange{{Grant: true}, {Grant: true}, {}, {}} {
-		if _, err := ChangePremium(ctx, itSvc, u, change); err != nil {
-			t.Fatal(err)
-		}
-	}
-	pushes, users := selfPushes(t, u)
-	var desc []string
-	for i, p := range pushes {
-		desc = append(desc, fmt.Sprintf("%s:%d|%v", p.update.GetPredicateName(), p.update.GetUserId(), users[i].GetPremium()))
-	}
-	if want := fmt.Sprintf("[updateUser:%[1]d|true updateUser:%[1]d|false]", u); fmt.Sprint(desc) != want {
-		t.Errorf("pushes %v, want %s", desc, want)
 	}
 }

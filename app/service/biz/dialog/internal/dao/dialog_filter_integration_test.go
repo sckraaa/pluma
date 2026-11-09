@@ -73,27 +73,6 @@ func TestMain(m *testing.M) {
 
 func newUser() int64 { return itUser.Add(1) }
 
-// newPremiumUser returns a user with Premium for good.
-func newPremiumUser(t *testing.T) int64 {
-	t.Helper()
-	u := newUser()
-	if _, err := itDao.Mysql.DB.Exec(context.Background(),
-		"INSERT INTO users (id, access_hash, phone, country_code, premium) VALUES (?, 1, ?, 'US', 1)", u, fmt.Sprint("1999", u)); err != nil {
-		t.Fatal(err)
-	}
-	return u
-}
-
-// setPremium gives userId Premium until the moment given (0 — for good) or
-// takes it away.
-func setPremium(t *testing.T, userId int64, premium bool, until int64) {
-	t.Helper()
-	if _, err := itDao.Mysql.DB.Exec(context.Background(),
-		"UPDATE users SET premium = ?, premium_expire_date = ? WHERE id = ?", premium, until, userId); err != nil {
-		t.Fatal(err)
-	}
-}
-
 // withChats returns folder id that includes n chats and excludes m.
 func withChats(id int32, n, m int) *mtproto.DialogFilter {
 	f := folder(id, "Chats")
@@ -235,8 +214,8 @@ func TestDialogFiltersConcurrent(t *testing.T) {
 	}
 }
 
-// The order of a reorder; "All chats" (0) and unknown ids are ignored,
-// folders left out follow the others.
+// The order of a reorder: "All chats" (0) takes its place, unknown ids are
+// ignored, folders left out follow the others.
 func TestOrderDialogFilters(t *testing.T) {
 	u := newUser()
 	save(t, u, 2, "Work")
@@ -246,73 +225,43 @@ func TestOrderDialogFilters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Equal(got, []int32{4, 2, 3}) {
-		t.Fatalf("stored order %v, want [4 2 3]", got)
+	if !slices.Equal(got, []int32{4, 0, 2, 3}) {
+		t.Fatalf("stored order %v, want [4 0 2 3]", got)
 	}
 	if ids, _ := stored(t, u); !slices.Equal(ids, got) {
 		t.Fatalf("read order %v, stored %v", ids, got)
 	}
 	// A new folder still goes last.
 	save(t, u, 5, "News")
-	if ids, _ := stored(t, u); !slices.Equal(ids, []int32{4, 2, 3, 5}) {
+	if ids, _ := stored(t, u); !slices.Equal(ids, []int32{4, 0, 2, 3, 5}) {
 		t.Fatalf("after a new folder: %v", ids)
 	}
 }
 
-// With Premium a user has 30 folders; after it ends they stay and can be
-// changed, but no new one is made.
-func TestDialogFiltersLimitPremium(t *testing.T) {
-	ctx := context.Background()
-	u := newPremiumUser(t)
-	for id := int32(2); id < 2+DialogFiltersLimitPremium; id++ {
-		save(t, u, id, fmt.Sprint("Folder ", id))
-	}
-	last := int32(2 + DialogFiltersLimitPremium)
-	if err := itDao.SaveDialogFilter(ctx, u, last, folder(last, "One more"), nil, nil); !errors.Is(err, ErrDialogFiltersTooMuch) {
-		t.Fatalf("folder %d with Premium: %v, want DIALOG_FILTERS_TOO_MUCH", DialogFiltersLimitPremium+1, err)
-	}
-
-	setPremium(t, u, true, time.Now().Unix()-1)
-	if ids, _ := stored(t, u); len(ids) != DialogFiltersLimitPremium {
-		t.Fatalf("%d folders after Premium ended, want all %d kept", len(ids), DialogFiltersLimitPremium)
-	}
-	save(t, u, 2+DialogFiltersLimit, "Renamed")
-	if err := itDao.DeleteDialogFilter(ctx, u, 2); err != nil {
-		t.Fatal(err)
-	}
-	if err := itDao.SaveDialogFilter(ctx, u, 2, folder(2, "Back"), nil, nil); !errors.Is(err, ErrDialogFiltersTooMuch) {
-		t.Fatalf("a new folder over the limit without Premium: %v, want DIALOG_FILTERS_TOO_MUCH", err)
-	}
-}
-
-// A folder has 100 chats included and 100 excluded, 200 with Premium.
+// A folder has 200 chats included and 200 excluded.
 func TestFilterChatsLimit(t *testing.T) {
 	ctx := context.Background()
-	free, premium := newUser(), newPremiumUser(t)
+	u := newUser()
 	for _, tc := range []struct {
 		name    string
-		user    int64
 		in, out int
 		tooMuch bool
 	}{
-		{"free, included at the limit", free, FilterChatsLimit, FilterChatsLimit, false},
-		{"free, one more included", free, FilterChatsLimit + 1, 0, true},
-		{"free, one more excluded", free, 1, FilterChatsLimit + 1, true},
-		{"Premium, included at the limit", premium, FilterChatsLimitPremium, FilterChatsLimitPremium, false},
-		{"Premium, one more included", premium, FilterChatsLimitPremium + 1, 0, true},
+		{"included at the limit", FilterChatsLimit, FilterChatsLimit, false},
+		{"one more included", FilterChatsLimit + 1, 0, true},
+		{"one more excluded", 1, FilterChatsLimit + 1, true},
 	} {
-		err := itDao.SaveDialogFilter(ctx, tc.user, 2, withChats(2, tc.in, tc.out), nil, nil)
+		err := itDao.SaveDialogFilter(ctx, u, 2, withChats(2, tc.in, tc.out), nil, nil)
 		if tc.tooMuch != errors.Is(err, ErrFilterChatsTooMuch) || (!tc.tooMuch && err != nil) {
 			t.Errorf("%s: %v", tc.name, err)
 		}
 	}
 }
 
-// With Premium "All chats" (0) takes the place given; when Premium ends it
-// goes back to the top.
-func TestOrderDialogFiltersPremium(t *testing.T) {
+// "All chats" (0) takes the place given.
+func TestOrderDialogFiltersAllChats(t *testing.T) {
 	ctx := context.Background()
-	u := newPremiumUser(t)
+	u := newUser()
 	save(t, u, 2, "Work")
 	save(t, u, 3, "Family")
 	got, err := itDao.OrderDialogFilters(ctx, u, []int32{3, 0, 2})
@@ -329,14 +278,6 @@ func TestOrderDialogFiltersPremium(t *testing.T) {
 	save(t, u, 4, "News")
 	if ids, _ := stored(t, u); !slices.Equal(ids, []int32{3, 0, 2, 4}) {
 		t.Fatalf("after a new folder: %v", ids)
-	}
-
-	setPremium(t, u, false, 0)
-	if got, err = itDao.OrderDialogFilters(ctx, u, []int32{2, 0, 3}); err != nil {
-		t.Fatal(err)
-	}
-	if !slices.Equal(got, []int32{0, 2, 3, 4}) {
-		t.Fatalf("order without Premium %v, want [0 2 3 4]", got)
 	}
 }
 

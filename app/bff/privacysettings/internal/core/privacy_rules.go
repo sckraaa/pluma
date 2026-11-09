@@ -24,7 +24,7 @@ import (
 // exceptions together.
 const maxPrivacyEntries = 1000
 
-// normalizeRules checks the rules account.setPrivacy got for key and
+// normalizeRules checks the rules account.setPrivacy got and
 // returns them as they are stored (task 034, ADR 0031):
 //   - exception rules with an empty list go: Android sends both user and
 //     chat rules when it has either (PrivacyControlActivity.java:1072-1126);
@@ -32,11 +32,8 @@ const maxPrivacyEntries = 1000
 //     DisallowAll when none was sent, as every client reads such a list;
 //   - AllowCloseFriends only applies to stories ("can be used only when
 //     posting stories", core.telegram.org/api/privacy): PRIVACY_VALUE_INVALID;
-//   - more than maxPrivacyEntries users and chats: PRIVACY_TOO_LONG;
-//   - who may send voice messages is a Premium setting: without Premium only
-//     "everybody" may be set (PREMIUM_ACCOUNT_REQUIRED, which tdesktop shows
-//     as the Premium offer, api_user_privacy.cpp:282-286).
-func normalizeRules(key int, rules []*mtproto.PrivacyRule, premium bool) ([]*mtproto.PrivacyRule, error) {
+//   - more than maxPrivacyEntries users and chats: PRIVACY_TOO_LONG.
+func normalizeRules(rules []*mtproto.PrivacyRule) ([]*mtproto.PrivacyRule, error) {
 	var (
 		base     *mtproto.PrivacyRule
 		out      = make([]*mtproto.PrivacyRule, 0, len(rules)+1)
@@ -93,26 +90,5 @@ func normalizeRules(key int, rules []*mtproto.PrivacyRule, premium bool) ([]*mtp
 		base = mtproto.MakeTLPrivacyValueDisallowAll(nil).To_PrivacyRule()
 	}
 	out = append(out, base)
-	if key == mtproto.VOICE_MESSAGES && !premium && !opensToAll(out) {
-		return nil, mtproto.ErrPremiumAccountRequired
-	}
 	return out, nil
-}
-
-// opensToAll tells rules that let everybody: AllowAll and no exception that
-// keeps someone out.
-func opensToAll(rules []*mtproto.PrivacyRule) bool {
-	all := false
-	for _, r := range rules {
-		switch r.GetPredicateName() {
-		case mtproto.Predicate_privacyValueAllowAll:
-			all = true
-		case mtproto.Predicate_privacyValueDisallowUsers,
-			mtproto.Predicate_privacyValueDisallowChatParticipants,
-			mtproto.Predicate_privacyValueDisallowContacts,
-			mtproto.Predicate_privacyValueDisallowBots:
-			return false
-		}
-	}
-	return all
 }

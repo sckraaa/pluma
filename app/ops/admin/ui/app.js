@@ -121,7 +121,6 @@ async function route() {
   if (hash.startsWith('report/')) return run(() => reportPage(hash.split('/')[1]));
   if (hash === 'queue' || hash === 'decided') return run(() => queuePage(hash));
   if (hash === 'audit') return run(auditPage);
-  if (hash === 'premium') return run(premiumPage);
   if (hash === 'admins') return run(adminsPage);
   show(el('p', { textContent: 'Нет такой страницы' }));
 }
@@ -202,19 +201,6 @@ async function reportPage(id) {
 async function auditPage() {
   const { entries } = await api('/api/audit');
   show(el('table', {}, el('tbody', {}, ...(entries || []).map((e) => el('tr', {}, el('td', { textContent: dateOf(e.at) }), el('td', { textContent: e.actor }), el('td', { textContent: e.action }), el('td', { textContent: e.target }), el('td', { textContent: e.detail }))))));
-}
-
-async function premiumPage() {
-  const { accounts } = await api('/api/premium');
-  const phone = el('input', { placeholder: '+7...', required: true });
-  const months = el('input', { type: 'number', min: 0, placeholder: 'Месяцев (0 — бессрочно)' });
-  const form = (grant) => () => run(async () => {
-    await signed('/api/premium', { phone: phone.value, months: Number(months.value || 0), grant });
-    route();
-  });
-  show(el('form', { className: 'row', onsubmit: (e) => e.preventDefault() }, phone, months,
-    el('button', { type: 'button', textContent: 'Выдать', onclick: form(true) }), el('button', { type: 'button', className: 'danger', textContent: 'Снять', onclick: form(false) })),
-    el('table', {}, el('tbody', {}, ...(accounts || []).map((a) => el('tr', {}, el('td', { textContent: a.phone }), el('td', { textContent: a.name }), el('td', { textContent: a.until ? 'до ' + dateOf(a.until) : 'бессрочно' }))))));
 }
 
 async function adminsPage() {

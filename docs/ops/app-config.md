@@ -28,7 +28,7 @@
   - Выключатели того, чего на сервере нет. Они передаются явно, даже если у клиента сейчас такое же значение по умолчанию: значения по умолчанию меняются от версии к версии.
   - Ключи, которые Web K читает для реализованных возможностей и лимитов.
   - Значения Telegram, которые расходятся с клиентскими по умолчанию и важны Pluma (фоновое соединение Android).
-- **Premium (ADR 0016).** Лимит с Premium как у Telegram ставится только там, где сервер это реализует (папки) или принимает любое число (закреплённые чаты). Для остального значение с Premium равно бесплатному, чтобы клиент не обещал того, чего нет.
+- **Premium и бусты (ADR 0041).** Premium есть у всех: значения `_default` равны значениям `_premium`, все ключи `*_level_min` равны нулю. Ключ `premium_purchase_blocked` остаётся `true`: это скрывает покупку.
 - **Чего в файле нет.**
   - Значения Telegram для конкретного пользователя или сессии: `freeze_*`, `call_requests_disabled`, `phone_country_iso2`, `transcribe_audio_trial_cooldown_until`.
   - Боты и сервисы Telegram: `premium_bot_username`, `premium_invoice_slug`, `telegram_antispam_user_id`, `ton_*`, `stars_*` с суммами, `weather_search_username` и т. п.
@@ -99,7 +99,7 @@
 | `about_length_limit_default` | `70` | A D W | Как у Telegram. Сервер проверяет. |
 | `about_length_limit_premium` | `140` | A D W | Как у Telegram (задача 025). |
 | `quote_length_max` | `1024` | A D W | Как у Telegram. |
-| `upload_max_fileparts_default` | `4000` | A D W | Как у Telegram: 2 ГБ частями по 512 КБ. Без Premium больше частей сервер не примет (задача 025). |
+| `upload_max_fileparts_default` | `8000` | A D W | 4 ГБ частями по 512 КБ у всех (ADR 0041, задача 071). |
 | `upload_max_fileparts_premium` | `8000` | A D W | Как у Telegram: 4 ГБ с Premium (задача 025). |
 
 ## Лимиты того, чего на сервере нет
