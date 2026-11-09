@@ -200,13 +200,14 @@ func ChannelReactionsUpdate(viewer, channelId int64, msgId int32, r *ChannelReac
 
 // EmitChannelReactionsPush pushes the reactions r of a message to the
 // members in their min view. The unread marks are for the author (the
-// mentioned of the push): sync takes them off everyone else's copy, and it
-// is by them that the clients count the unread reactions of a message
-// (Android MessagesController.java:19509 hasUnreadReactions, tdesktop
+// mentioned of the push), also when it reacts itself and its other devices
+// get this push: sync takes them off everyone else's copy, and it is by
+// them that the clients count the unread reactions of a message (Android
+// MessagesController.java:19509 hasUnreadReactions, tdesktop
 // data_message_reactions.cpp:2169).
 func (d *Dao) EmitChannelReactionsPush(b *userbox.Box, channelId, permAuthKeyId int64, msgId int32, r *ChannelReactions) error {
 	var author []int64
-	if r.AuthorId != 0 && r.AuthorId != b.UserId() {
+	if r.AuthorId != 0 {
 		author = []int64{r.AuthorId}
 	}
 	in := &sync.TLSyncPushChannelUpdates{
