@@ -156,6 +156,10 @@ func TestCallRoundTrip(t *testing.T) {
 	if _, err := bobLaptop.c.Invoke(ctx, &mtproto.TLPhoneAcceptCall{Constructor: bobLaptop.c.Constructor(mtproto.Predicate_phone_acceptCall), Peer: inputCall(bobLaptop, call), GB: gB, Protocol: callProtocol(bobLaptop)}); err == nil || !strings.Contains(err.Error(), "CALL_ALREADY_ACCEPTED") {
 		t.Fatalf("second accept: %v", err)
 	}
+	// A device woken late must stop ringing: answered elsewhere is an error.
+	if _, err := bobLaptop.c.Invoke(ctx, &mtproto.TLPhoneReceivedCall{Constructor: bobLaptop.c.Constructor(mtproto.Predicate_phone_receivedCall), Peer: inputCall(bobLaptop, call)}); err == nil || !strings.Contains(err.Error(), "CALL_ALREADY_DECLINED") {
+		t.Fatalf("phone.receivedCall after the answer on another device: %v", err)
+	}
 	callOf(ctx, t, bobLaptop, call.GetId(), mtproto.Predicate_phoneCallDiscarded)
 	accepted := callOf(ctx, t, alice, call.GetId(), mtproto.Predicate_phoneCallAccepted)
 	if string(accepted.GetGB()) != string(gB) {
