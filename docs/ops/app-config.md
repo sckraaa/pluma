@@ -28,7 +28,7 @@
   - Выключатели того, чего на сервере нет. Они передаются явно, даже если у клиента сейчас такое же значение по умолчанию: значения по умолчанию меняются от версии к версии.
   - Ключи, которые Web K читает для реализованных возможностей и лимитов.
   - Значения Telegram, которые расходятся с клиентскими по умолчанию и важны Pluma (фоновое соединение Android).
-- **Premium и бусты (ADR 0041).** Premium есть у всех: значения `_default` равны значениям `_premium`, все ключи `*_level_min` равны нулю, `premium.getBoostsStatus` отвечает уровнем 100: число своих реакций канала клиенты сравнивают с уровнем, ключа для этого нет. Ключ `premium_purchase_blocked` остаётся `true`: это скрывает покупку.
+- **Premium и бусты (ADR 0041).** Premium есть у всех: значения `_default` равны значениям `_premium`, все ключи `*_level_min` равны нулю, `premium.getBoostsStatus` отвечает уровнем 0: бустов в Pluma нет, а патчи клиентов снимают зависимость от уровня (свои реакции канала — до `reactions.InChatMax`, цвета) и прячут экраны и ссылки бустов (задача 071). Ключ `premium_purchase_blocked` остаётся `true`: это скрывает покупку.
 - **Чего в файле нет.**
   - Значения Telegram для конкретного пользователя или сессии: `freeze_*`, `call_requests_disabled`, `phone_country_iso2`, `transcribe_audio_trial_cooldown_until`.
   - Боты и сервисы Telegram: `premium_bot_username`, `premium_invoice_slug`, `telegram_antispam_user_id`, `ton_*`, `stars_*` с суммами, `weather_search_username` и т. п.

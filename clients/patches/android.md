@@ -1020,6 +1020,17 @@
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
 - **При обновлении апстрима.** Новые места со звездой — по `user.premium` и `msg_premium_liststar`.
 
+### A-110. Бустов нет: свои реакции и цвета без уровня, входы и ссылки убраны (задача 071)
+- **Статус.** Ветка `task/071-premium-for-everyone` (`b39e60b`), не влита, не выпущена (2026-11-09).
+- **Что и зачем.** Канал не должен показывать уровень; `premium.getBoostsStatus` отвечает уровнем 0. Ничего не ждёт уровня, бустов как сущности нет.
+- **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
+  - `ChatCustomReactionsEditActivity`: три сравнения с уровнем (кнопка, выход, подсказка), лимит — `maxReactionsCount`;
+  - `MessagesController.PeerColor.getLvl` → 0 (цвета из `help.getPeerColors` с `channel_min_level`);
+  - скрыто: «Статистика и бусты» в `ChatEditActivity`, вкладка бустов `StatisticActivity`, пункт меню `ChatActivity` и `TopicsFragment`, число бустов в превью `ChannelColorActivity`, «Не ограничивать бустеров» `ChatUsersActivity`;
+  - `LaunchActivity`: три входа ссылки `boost` не открывают окно буста, ссылка открывает канал.
+  - Не правилось: `ChatObject.isBoostSupported` (им же закрыты истории каналов, `StoriesController.canPostStories`); остальные ворота сравнивают уровень с `*_level_min` = 0; `boosts_unrestrict` и `BOOSTS_REQUIRED` сервер не отдаёт.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `aac1efcb`. Компиляция и экран на устройстве не проверены.
+
 ## Снятые правки
 
 Правки, которые были в клиенте и потом убраны; записаны, чтобы история была полной.

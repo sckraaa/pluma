@@ -706,3 +706,12 @@
   - `components/sidebarLeft/index.ts`: кнопки эмодзи-статуса в шапке нет;
   - `components/chat/bubbles.ts`: `canTranscribeVoice: false` у голосовых. Кнопка расшифровки круглых видео (`roundVideoBubble.ts`) не правилась.
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
+
+### W-069. Бустов нет: пункты меню, ссылка, «Не ограничивать бустеров» (задача 071)
+- **Статус.** Ветка `task/071-premium-for-everyone` (`18482a0`), не влита, не выпущена (2026-11-09).
+- **Что и зачем.** `premium.getBoostsStatus` отвечает уровнем 0. Ограничения своих реакций по уровню в Web K нет (`sidebarRight/tabs/chatReactions.tsx`), правки не требует.
+- **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
+  - `components/chat/topbar.ts`: пунктов `BoostChannel`, `BoostGroup` нет, через них открывалась и вкладка `boosts.tsx`;
+  - `lib/internalLinkProcessor.ts`: ссылка `boost` открывает канал;
+  - `groupPermissions.tsx`: секция бустеров не показывается.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `346844bf`. Сборка и экран не проверены.
