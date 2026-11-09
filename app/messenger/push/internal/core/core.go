@@ -170,6 +170,8 @@ func (c *Core) Handle(ctx context.Context, ev *Event) {
 	if ev.Only != 0 {
 		if isReset(ev.Updates) {
 			c.revoke(ctx, ev.UserId, ev.Only)
+		} else if n := notify.EncryptedFromUpdates(ev.UserId, ev.Updates); n != nil {
+			c.pushOne(ctx, ev, n)
 		}
 		return
 	}
@@ -193,6 +195,18 @@ func (c *Core) Handle(ctx context.Context, ev *Event) {
 		}
 	}
 	wg.Wait()
+}
+
+// pushOne sends n to the device of the authorization ev.Only, if it is
+// offline. A secret chat is one authorization's.
+func (c *Core) pushOne(ctx context.Context, ev *Event, n *notify.Notification) {
+	all := *ev
+	all.Only = 0
+	for _, d := range c.targets(ctx, &all) {
+		if d.AuthKeyId == ev.Only {
+			c.notify(ctx, n, d)
+		}
+	}
 }
 
 // isReset tells whether updates terminate the authorization.
@@ -272,6 +286,12 @@ func (c *Core) notify(ctx context.Context, n *notify.Notification, d *pushdevice
 		return
 	}
 	s := c.settings(ctx, n)
+	if s.muted && n.Kind == notify.KindEncrypted {
+		// Nothing to refresh by a background push: the client decrypts
+		// when it next connects.
+		metricDropped.Inc("muted")
+		return
+	}
 	if s.muted && !n.Mention {
 		if d.NoMuted || !c.muted.allow(d.Id, n.PeerId, peerKind(n)) {
 			metricDropped.Inc("muted")
@@ -342,8 +362,10 @@ func (c *Core) settings(ctx context.Context, n *notify.Notification) dialogSetti
 	s := dialogSettings{previews: true}
 	var own, def *mtproto.PeerNotifySettings
 	var err error
-	if own, err = c.Settings.NotifySettings(ctx, n.UserId, peerType, n.PeerId); err != nil {
-		logx.WithContext(ctx).Errorf("push: notify settings of user %d: %v", n.UserId, err)
+	if n.Kind != notify.KindEncrypted { // a secret chat has no settings of its own on the server
+		if own, err = c.Settings.NotifySettings(ctx, n.UserId, peerType, n.PeerId); err != nil {
+			logx.WithContext(ctx).Errorf("push: notify settings of user %d: %v", n.UserId, err)
+		}
 	}
 	if def, err = c.Settings.NotifySettings(ctx, n.UserId, typeOf, 0); err != nil {
 		logx.WithContext(ctx).Errorf("push: notify settings of user %d: %v", n.UserId, err)

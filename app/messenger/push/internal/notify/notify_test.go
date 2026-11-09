@@ -486,3 +486,38 @@ func TestLongText(t *testing.T) {
 		t.Fatalf("text of %d runes", utf8.RuneCountInString(n.Text))
 	}
 }
+
+// TestEncrypted: a secret chat message is announced without a name or
+// text, a service message not at all.
+func TestEncrypted(t *testing.T) {
+	msg := func(predicate string) *mtproto.Updates {
+		m := &mtproto.EncryptedMessage{PredicateName: predicate, ChatId: 77, RandomId: 900}
+		return mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{
+			mtproto.MakeTLUpdateNewEncryptedMessage(&mtproto.Update{Message_ENCRYPTEDMESSAGE: m, Qts: 3}).To_Update(),
+		}}).To_Updates()
+	}
+	if n := EncryptedFromUpdates(5, msg(mtproto.Predicate_encryptedMessageService)); n != nil {
+		t.Fatalf("service message: %+v", n)
+	}
+	n := EncryptedFromUpdates(me, msg(mtproto.Predicate_encryptedMessage))
+	if n == nil || n.Kind != KindEncrypted || n.PeerId != 77 || n.RandomId != 900 || n.EncryptedKey != "ENCRYPTED_MESSAGE" {
+		t.Fatalf("message: %+v", n)
+	}
+	a := androidOf(t, n, false)
+	if a.LocKey != "ENCRYPTED_MESSAGE" || len(a.LocArgs) != 0 || a.Custom["encryption_id"] != 77 {
+		t.Fatalf("android: %+v", a)
+	}
+	push, m := iosOf(t, n, "ru", HideNone)
+	if !push.Alert || m["encryption_id"] != "77" || m["from_id"] != nil {
+		t.Fatalf("ios: %+v %v", push, m)
+	}
+	if title, _ := alertOf(m); title != "" {
+		t.Fatalf("ios title: %q", title)
+	}
+	req := mtproto.MakeTLUpdates(&mtproto.Updates{Updates: []*mtproto.Update{
+		mtproto.MakeTLUpdateEncryption(&mtproto.Update{Chat: mtproto.MakeTLEncryptedChatRequested(&mtproto.EncryptedChat{Id: 77}).To_EncryptedChat()}).To_Update(),
+	}}).To_Updates()
+	if r := EncryptedFromUpdates(me, req); r == nil || r.EncryptedKey != "ENCRYPTION_REQUEST" || r.PeerId != 77 {
+		t.Fatalf("request: %+v", r)
+	}
+}

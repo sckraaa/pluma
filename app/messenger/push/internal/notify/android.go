@@ -41,6 +41,10 @@ func Android(n *Notification, hideText bool) ([]byte, error) {
 
 // LocKey returns the loc_key of n and its loc_args.
 func LocKey(n *Notification, hideText bool) (string, []string) {
+	if n.Kind == KindEncrypted {
+		// No names or text: core.telegram.org/api/push-updates.
+		return n.EncryptedKey, []string{}
+	}
 	base := []string{n.FromName}
 	msgPrefix := "MESSAGE_"
 	switch {
@@ -113,6 +117,14 @@ func contentArg(c Content, text string) (string, bool) {
 func custom(n *Notification) map[string]any {
 	c := map[string]any{}
 	if n.Kind == KindSessionRevoke {
+		return c
+	}
+	if n.Kind == KindEncrypted {
+		// PushListenerController.java:343-344.
+		c["encryption_id"] = n.PeerId
+		if n.RandomId != 0 {
+			c["random_id"] = n.RandomId
+		}
 		return c
 	}
 	switch {

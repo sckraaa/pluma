@@ -55,6 +55,14 @@ func (c *FilesCore) UploadGetFile(in *mtproto.TLUploadGetFile) (*mtproto.Upload_
 		// inputEncryptedFileLocation#f5235d55
 		//	id:long
 		//	access_hash:long = InputFileLocation;
+		ok, err := c.svcCtx.Dao.SecretChats.CheckFile(c.ctx, location.GetId(), location.GetAccessHash())
+		if err != nil {
+			c.Logger.Errorf("upload.getFile - encrypted file: %v", err)
+			return nil, mtproto.ErrInternalServerError
+		}
+		if !ok {
+			return nil, mtproto.ErrFileIdInvalid
+		}
 
 	case mtproto.Predicate_inputDocumentFileLocation:
 		// inputDocumentFileLocation#bad07584

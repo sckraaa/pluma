@@ -24,6 +24,7 @@ import (
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
+	"github.com/teamgram/teamgram-server/pkg/secretchat"
 )
 
 // Dao holds the clients of the services a report's snapshot is read from
@@ -32,7 +33,8 @@ type Dao struct {
 	user_client.UserClient
 	message_client.MessageClient
 	channel_client.ChannelClient
-	Reports *moderation.DAO
+	Reports     *moderation.DAO
+	SecretChats *secretchat.Store
 }
 
 // New connects the clients.
@@ -42,5 +44,6 @@ func New(c config.Config) *Dao {
 		MessageClient: message_client.NewMessageClient(rpcx.GetCachedRpcClient(c.MessageClient)),
 		ChannelClient: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		Reports:       moderation.New(sqlx.NewMySQL(&c.Mysql)),
+		SecretChats:   secretchat.MustOpen(c.Mysql.DSN),
 	}
 }
