@@ -7,16 +7,16 @@
 
 ## Summary
 
-    layer 228: 869 methods — ok 328, partial 14, blocked 108, notimpl 5, fake 6, missing 408 (ok = 37.7%); with a conformance scenario 9
+    layer 228: 869 methods — ok 353, partial 12, blocked 104, notimpl 4, fake 2, missing 394 (ok = 40.6%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
-| account | 132 | 51 | 2 | 29 | 0 | 3 | 47 | 0 |
+| account | 132 | 63 | 2 | 29 | 0 | 1 | 37 | 0 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | auth | 27 | 16 | 0 | 10 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | bots | 39 | 0 | 0 | 0 | 0 | 0 | 39 | 0 |
-| channels | 74 | 45 | 1 | 17 | 0 | 1 | 10 | 0 |
+| channels | 74 | 48 | 1 | 15 | 0 | 0 | 10 | 0 |
 | chatlists | 11 | 11 | 0 | 0 | 0 | 0 | 0 | 0 |
 | communities | 9 | 0 | 0 | 0 | 0 | 0 | 9 | 0 |
 | contacts | 29 | 23 | 0 | 2 | 0 | 0 | 4 | 0 |
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 273 | 144 | 8 | 21 | 4 | 1 | 95 | 3 |
+| messages | 273 | 154 | 6 | 19 | 3 | 0 | 91 | 3 |
 | payments | 70 | 0 | 1 | 4 | 0 | 0 | 65 | 0 |
 | phone | 45 | 0 | 0 | 0 | 0 | 1 | 44 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -56,7 +56,7 @@
 | `account.confirmPasswordEmail` | missing |  |  |
 | `account.confirmPhone` | blocked |  | app/bff/account/internal/core/account.confirmPhone_handler.go:27 |
 | `account.createBusinessChatLink` | missing |  |  |
-| `account.createTheme` | missing |  |  |
+| `account.createTheme` | ok |  | app/bff/catalog/internal/core/account.createTheme_handler.go:36 |
 | `account.declinePasswordReset` | ok |  | app/bff/twofa/internal/core/account.declinePasswordReset_handler.go:27 |
 | `account.deleteAccount` | ok |  | app/bff/account/internal/core/account.deleteAccount_handler.go:42 |
 | `account.deleteAutoSaveExceptions` | missing |  |  |
@@ -89,7 +89,7 @@
 | `account.getGlobalPrivacySettings` | ok |  | app/bff/privacysettings/internal/core/account.getGlobalPrivacySettings_handler.go:31 |
 | `account.getMultiWallPapers` | ok |  | app/bff/catalog/internal/core/account.getMultiWallPapers_handler.go:27 |
 | `account.getNotifyExceptions` | partial |  | app/bff/notification/internal/core/account.getNotifyExceptions_handler.go:29 |
-| `account.getNotifySettings` | ok |  | app/bff/notification/internal/core/account.getNotifySettings_handler.go:28 |
+| `account.getNotifySettings` | ok |  | app/bff/notification/internal/core/account.getNotifySettings_handler.go:31 |
 | `account.getPaidMessagesRevenue` | missing |  |  |
 | `account.getPasskeys` | blocked |  | app/bff/passkey/internal/core/account.getPasskeys_handler.go:27 |
 | `account.getPassword` | ok |  | app/bff/twofa/internal/core/account.getPassword_handler.go:29 |
@@ -100,29 +100,29 @@
 | `account.getSavedMusicIds` | ok |  | app/bff/userchannelprofiles/internal/core/account.getSavedMusicIds_handler.go:28 |
 | `account.getSavedRingtones` | missing |  |  |
 | `account.getSecureValue` | blocked |  | app/bff/passport/internal/core/account.getSecureValue_handler.go:27 |
-| `account.getTheme` | missing |  |  |
-| `account.getThemes` | ok |  | app/bff/catalog/internal/core/account.getThemes_handler.go:26 |
+| `account.getTheme` | ok |  | app/bff/catalog/internal/core/account.getTheme_handler.go:27 |
+| `account.getThemes` | ok |  | app/bff/catalog/internal/core/account.getThemes_handler.go:28 |
 | `account.getTmpPassword` | missing |  |  |
 | `account.getUniqueGiftChatThemes` | missing |  |  |
 | `account.getWallPaper` | ok |  | app/bff/catalog/internal/core/account.getWallPaper_handler.go:28 |
-| `account.getWallPapers` | ok |  | app/bff/catalog/internal/core/account.getWallPapers_handler.go:26 |
-| `account.getWebAuthorizations` | fake |  | app/bff/bff/client/fake_rpc_result.go:56 |
+| `account.getWallPapers` | ok |  | app/bff/catalog/internal/core/account.getWallPapers_handler.go:28 |
+| `account.getWebAuthorizations` | fake |  | app/bff/bff/client/fake_rpc_result.go:46 |
 | `account.getWebBrowserSettings` | blocked |  | app/bff/webbrowser/internal/core/account.getWebBrowserSettings_handler.go:26 |
 | `account.initPasskeyRegistration` | blocked |  | app/bff/passkey/internal/core/account.initPasskeyRegistration_handler.go:27 |
 | `account.initTakeoutSession` | blocked |  | app/bff/channels/internal/core/channels.getLeftChannels_handler.go:46 |
-| `account.installTheme` | missing |  |  |
-| `account.installWallPaper` | missing |  |  |
+| `account.installTheme` | ok |  | app/bff/catalog/internal/core/account.installTheme_handler.go:29 |
+| `account.installWallPaper` | ok |  | app/bff/catalog/internal/core/account.installWallPaper_handler.go:29 |
 | `account.invalidateSignInCodes` | blocked |  | app/bff/authorization/internal/core/account.invalidateSignInCodes_handler.go:27 |
 | `account.registerDevice` | ok |  | app/bff/notification/internal/core/account.registerDevice_handler.go:43 |
 | `account.registerPasskey` | blocked |  | app/bff/passkey/internal/core/account.registerPasskey_handler.go:27 |
 | `account.reorderUsernames` | missing |  |  |
-| `account.reportPeer` | fake |  | app/bff/bff/client/fake_rpc_result.go:35 |
-| `account.reportProfilePhoto` | fake |  | app/bff/bff/client/fake_rpc_result.go:37 |
+| `account.reportPeer` | ok |  | app/bff/reports/internal/core/account.reportPeer_handler.go:25 |
+| `account.reportProfilePhoto` | ok |  | app/bff/reports/internal/core/account.reportProfilePhoto_handler.go:25 |
 | `account.resendPasswordEmail` | missing |  |  |
 | `account.resetAuthorization` | ok |  | app/bff/account/internal/core/account.resetAuthorization_handler.go:32 |
 | `account.resetNotifySettings` | ok |  | app/bff/notification/internal/core/account.resetNotifySettings_handler.go:28 |
 | `account.resetPassword` | ok |  | app/bff/authorization/internal/core/account.resetPassword_handler.go:34 |
-| `account.resetWallPapers` | missing |  |  |
+| `account.resetWallPapers` | ok |  | app/bff/catalog/internal/core/account.resetWallPapers_handler.go:27 |
 | `account.resetWebAuthorization` | missing |  |  |
 | `account.resetWebAuthorizations` | missing |  |  |
 | `account.resolveBusinessChatLink` | missing |  |  |
@@ -131,8 +131,8 @@
 | `account.saveMusic` | ok |  | app/bff/userchannelprofiles/internal/core/account.saveMusic_handler.go:28 |
 | `account.saveRingtone` | missing |  |  |
 | `account.saveSecureValue` | blocked |  | app/bff/passport/internal/core/account.saveSecureValue_handler.go:27 |
-| `account.saveTheme` | missing |  |  |
-| `account.saveWallPaper` | missing |  |  |
+| `account.saveTheme` | ok |  | app/bff/catalog/internal/core/account.saveTheme_handler.go:26 |
+| `account.saveWallPaper` | ok |  | app/bff/catalog/internal/core/account.saveWallPaper_handler.go:31 |
 | `account.sendChangePhoneCode` | ok |  | app/bff/account/internal/core/account.sendChangePhoneCode_handler.go:48 |
 | `account.sendConfirmPhoneCode` | blocked |  | app/bff/account/internal/core/account.sendConfirmPhoneCode_handler.go:27 |
 | `account.sendVerifyEmailCode` | blocked |  | app/bff/authorization/internal/core/account.sendVerifyEmailCode_handler.go:27 |
@@ -167,13 +167,13 @@
 | `account.updatePersonalChannel` | ok |  | app/bff/userchannelprofiles/internal/core/account.updatePersonalChannel_handler.go:28 |
 | `account.updateProfile` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateProfile_handler.go:30 |
 | `account.updateStatus` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateStatus_handler.go:39 |
-| `account.updateTheme` | missing |  |  |
+| `account.updateTheme` | ok |  | app/bff/catalog/internal/core/account.updateTheme_handler.go:30 |
 | `account.updateUsername` | ok |  | app/bff/usernames/internal/core/account.updateUsername_handler.go:30 |
 | `account.updateVerified` | blocked |  | app/bff/userchannelprofiles/internal/core/account.updateVerified_handler.go:27 |
 | `account.updateWebBrowserSettings` | blocked |  | app/bff/webbrowser/internal/core/account.updateWebBrowserSettings_handler.go:26 |
 | `account.uploadRingtone` | missing |  |  |
-| `account.uploadTheme` | missing |  |  |
-| `account.uploadWallPaper` | missing |  |  |
+| `account.uploadTheme` | ok |  | app/bff/catalog/internal/core/account.uploadTheme_handler.go:29 |
+| `account.uploadWallPaper` | ok |  | app/bff/catalog/internal/core/account.uploadWallPaper_handler.go:39 |
 | `account.verifyEmail32DA4CF` | blocked |  | app/bff/authorization/internal/core/account.verifyEmail32DA4CF_handler.go:27 |
 | `account.verifyEmailECBA39DB` | blocked |  | app/bff/authorization/internal/core/account.verifyEmailECBA39DB_handler.go:27 |
 | `account.verifyPhone` | blocked |  | app/bff/passport/internal/core/account.verifyPhone_handler.go:27 |
@@ -276,7 +276,7 @@
 
 | method | status | scenario | handler |
 |---|---|---|---|
-| `channels.checkSearchPostsFlood` | blocked |  | app/bff/messages/internal/core/channels.checkSearchPostsFlood_handler.go:27 |
+| `channels.checkSearchPostsFlood` | ok |  | app/bff/messages/internal/core/channels.checkSearchPostsFlood_handler.go:30 |
 | `channels.checkUsername` | ok |  | app/bff/usernames/internal/core/channels.checkUsername_handler.go:36 |
 | `channels.clickSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.clickSponsoredMessage_handler.go:27 |
 | `channels.convertToGigagroup` | blocked |  | app/bff/chats/internal/core/channels.convertToGigagroup_handler.go:27 |
@@ -324,10 +324,10 @@
 | `channels.reorderPinnedForumTopics` | ok |  | app/bff/channels/internal/core/channels.forum_handler.go:164 |
 | `channels.reorderUsernames` | missing |  |  |
 | `channels.reportAntiSpamFalsePositive` | missing |  |  |
-| `channels.reportSpam` | fake |  | app/bff/bff/client/fake_rpc_result.go:39 |
+| `channels.reportSpam` | ok |  | app/bff/reports/internal/core/channels.reportSpam_handler.go:28 |
 | `channels.reportSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.reportSponsoredMessage_handler.go:27 |
 | `channels.restrictSponsoredMessages` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.restrictSponsoredMessages_handler.go:27 |
-| `channels.searchPosts` | blocked |  | app/bff/messages/internal/core/channels.searchPosts_handler.go:27 |
+| `channels.searchPosts` | ok |  | app/bff/messages/internal/core/channels.searchPosts_handler.go:27 |
 | `channels.setBoostsToUnblockRestrictions` | blocked |  | app/bff/channels/internal/core/boosts.go:86 |
 | `channels.setDiscussionGroup` | ok |  | app/bff/channels/internal/core/channels.discussion_handler.go:32 |
 | `channels.setEmojiStickers` | blocked |  | app/bff/chats/internal/core/channels.setEmojiStickers_handler.go:27 |
@@ -488,9 +488,9 @@
 | `messages.acceptUrlAuth` | missing |  |  |
 | `messages.addChatUserCBC6D107` | ok |  | app/bff/chats/internal/core/messages.addChatUserCBC6D107_handler.go:27 |
 | `messages.addChatUserF24753E3` | ok |  | app/bff/chats/internal/core/messages.addChatUserF24753E3_handler.go:27 |
-| `messages.addPollAnswer` | ok |  | app/bff/messages/internal/core/polls.go:259 |
-| `messages.appendTodoList` | ok |  | app/bff/messages/internal/core/polls.go:417 |
-| `messages.checkChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.checkChatInvite_handler.go:30 |
+| `messages.addPollAnswer` | ok |  | app/bff/messages/internal/core/polls.go:260 |
+| `messages.appendTodoList` | ok |  | app/bff/messages/internal/core/polls.go:419 |
+| `messages.checkChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.checkChatInvite_handler.go:32 |
 | `messages.checkHistoryImport` | missing |  |  |
 | `messages.checkHistoryImportPeer` | missing |  |  |
 | `messages.checkQuickReplyShortcut` | missing |  |  |
@@ -515,7 +515,7 @@
 | `messages.deleteParticipantReaction` | missing |  |  |
 | `messages.deleteParticipantReactions` | missing |  |  |
 | `messages.deletePhoneCallHistory` | missing |  |  |
-| `messages.deletePollAnswer` | ok |  | app/bff/messages/internal/core/polls.go:281 |
+| `messages.deletePollAnswer` | ok |  | app/bff/messages/internal/core/polls.go:282 |
 | `messages.deleteQuickReplyMessages` | missing |  |  |
 | `messages.deleteQuickReplyShortcut` | missing |  |  |
 | `messages.deleteRevokedExportedChatInvites` | ok |  | app/bff/chatinvites/internal/core/messages.deleteRevokedExportedChatInvites_handler.go:28 |
@@ -596,7 +596,7 @@
 | `messages.getMessageReadParticipants31C1C44F` | ok |  | app/bff/chats/internal/core/messages.getMessageReadParticipants31C1C44F_handler.go:27 |
 | `messages.getMessages` | partial |  | app/bff/messages/internal/core/messages.getMessages_handler.go:31 |
 | `messages.getMessagesReactions` | ok |  | app/bff/catalog/internal/core/messages.getMessagesReactions_handler.go:34 |
-| `messages.getMessagesViews` | ok |  | app/bff/messages/internal/core/messages.getMessagesViews_handler.go:57 |
+| `messages.getMessagesViews` | ok |  | app/bff/messages/internal/core/messages.getMessagesViews_handler.go:58 |
 | `messages.getMyStickers` | missing |  |  |
 | `messages.getOldFeaturedStickers` | ok |  | app/bff/catalog/internal/core/messages.getOldFeaturedStickers_handler.go:27 |
 | `messages.getOnlines` | notimpl |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:27 |
@@ -607,8 +607,8 @@
 | `messages.getPersonalChannelHistory` | blocked |  | app/bff/channels/internal/core/not_served.go:29 |
 | `messages.getPinnedDialogs` | ok |  | app/bff/dialogs/internal/core/messages.getPinnedDialogs_handler.go:37 |
 | `messages.getPinnedSavedDialogs` | partial |  | app/bff/savedmessagedialogs/internal/core/messages.getPinnedSavedDialogs_handler.go:32 |
-| `messages.getPollResults` | ok |  | app/bff/messages/internal/core/polls.go:190 |
-| `messages.getPollVotes` | ok |  | app/bff/messages/internal/core/polls.go:214 |
+| `messages.getPollResults` | ok |  | app/bff/messages/internal/core/polls.go:191 |
+| `messages.getPollVotes` | ok |  | app/bff/messages/internal/core/polls.go:215 |
 | `messages.getPreparedInlineMessage` | missing |  |  |
 | `messages.getQuickReplies` | missing |  |  |
 | `messages.getQuickReplyMessages` | missing |  |  |
@@ -624,9 +624,9 @@
 | `messages.getSavedReactionTags` | ok |  | app/bff/catalog/internal/core/messages.getSavedReactionTags_handler.go:31 |
 | `messages.getScheduledHistory` | ok |  | app/bff/scheduledmessages/internal/core/messages.getScheduledHistory_handler.go:25 |
 | `messages.getScheduledMessages` | ok |  | app/bff/scheduledmessages/internal/core/messages.getScheduledMessages_handler.go:25 |
-| `messages.getSearchCounters` | partial |  | app/bff/messages/internal/core/messages.getSearchCounters_handler.go:28 |
-| `messages.getSearchResultsCalendar` | blocked |  | app/bff/messages/internal/core/messages.getSearchResultsCalendar_handler.go:27 |
-| `messages.getSearchResultsPositions` | notimpl |  | app/bff/messages/internal/core/messages.getSearchResultsPositions_handler.go:27 |
+| `messages.getSearchCounters` | ok |  | app/bff/messages/internal/core/messages.getSearchCounters_handler.go:29 |
+| `messages.getSearchResultsCalendar` | ok |  | app/bff/messages/internal/core/messages.getSearchResultsCalendar_handler.go:27 |
+| `messages.getSearchResultsPositions` | ok |  | app/bff/messages/internal/core/messages.getSearchResultsPositions_handler.go:27 |
 | `messages.getSplitRanges` | blocked |  | app/bff/channels/internal/core/channels.getLeftChannels_handler.go:56 |
 | `messages.getSponsoredMessages` | ok |  | app/bff/sponsoredmessages/internal/core/messages.getSponsoredMessages_handler.go:27 |
 | `messages.getStickerSet` | ok |  | app/bff/catalog/internal/core/messages.getStickerSet_handler.go:32 |
@@ -634,8 +634,8 @@
 | `messages.getSuggestedDialogFilters` | ok |  | app/bff/folders/internal/core/messages.getSuggestedDialogFilters_handler.go:29 |
 | `messages.getTopReactions` | ok |  | app/bff/catalog/internal/core/messages.getTopReactions_handler.go:28 |
 | `messages.getUnreadMentions` | ok |  | app/bff/messages/internal/core/messages.getUnreadMentions_handler.go:31 |
-| `messages.getUnreadPollVotes` | ok |  | app/bff/messages/internal/core/polls.go:315 |
-| `messages.getUnreadReactions` | ok |  | app/bff/catalog/internal/core/messages.getUnreadReactions_handler.go:29 |
+| `messages.getUnreadPollVotes` | ok |  | app/bff/messages/internal/core/polls.go:316 |
+| `messages.getUnreadReactions` | ok |  | app/bff/catalog/internal/core/messages.getUnreadReactions_handler.go:32 |
 | `messages.getWebPage32CA8F91` | blocked |  | app/bff/webpage/internal/core/messages.getWebPage_handler.go:59 |
 | `messages.getWebPage8D9692A3` | ok |  | app/bff/webpage/internal/core/messages.getWebPage_handler.go:32 |
 | `messages.getWebPagePreview570D6F6F` | ok |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:37 |
@@ -643,22 +643,22 @@
 | `messages.hideAllChatJoinRequests` | partial |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:30 |
 | `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:42 |
 | `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
-| `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:30 |
-| `messages.importChatInviteDE91436E` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInviteDE91436E_handler.go:30 |
+| `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:31 |
+| `messages.importChatInviteDE91436E` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInviteDE91436E_handler.go:31 |
 | `messages.initHistoryImport` | missing |  |  |
 | `messages.installStickerSet` | ok |  | app/bff/catalog/internal/core/messages.installStickerSet_handler.go:30 |
 | `messages.markDialogUnread` | ok |  | app/bff/dialogs/internal/core/messages.markDialogUnread_handler.go:37 |
 | `messages.migrateChat` | ok |  | app/bff/chats/internal/core/messages.migrateChat_handler.go:33 |
 | `messages.prolongWebView` | missing |  |  |
 | `messages.rateTranscribedAudio` | missing |  |  |
-| `messages.readDiscussion` | ok |  | app/bff/channels/internal/core/messages.threads_handler.go:90 |
+| `messages.readDiscussion` | ok |  | app/bff/channels/internal/core/messages.threads_handler.go:95 |
 | `messages.readEncryptedHistory` | missing |  |  |
 | `messages.readFeaturedStickers` | missing |  |  |
 | `messages.readHistory` | ok |  | app/bff/messages/internal/core/messages.readHistory_handler.go:28 |
 | `messages.readMentions` | ok |  | app/bff/messages/internal/core/messages.readMentions_handler.go:34 |
 | `messages.readMessageContents` | ok |  | app/bff/messages/internal/core/messages.readMessageContents_handler.go:31 |
-| `messages.readPollVotes` | ok |  | app/bff/messages/internal/core/polls.go:388 |
-| `messages.readReactions` | ok |  | app/bff/catalog/internal/core/messages.readReactions_handler.go:27 |
+| `messages.readPollVotes` | ok |  | app/bff/messages/internal/core/polls.go:390 |
+| `messages.readReactions` | ok |  | app/bff/catalog/internal/core/messages.readReactions_handler.go:28 |
 | `messages.readSavedHistory` | blocked |  | app/bff/savedmessagedialogs/internal/core/messages.readSavedHistory_handler.go:27 |
 | `messages.receivedMessages` | notimpl |  | app/bff/messages/internal/core/messages.receivedMessages_handler.go:27 |
 | `messages.receivedQueue` | missing |  |  |
@@ -667,14 +667,14 @@
 | `messages.reorderPinnedSavedDialogs` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.reorderPinnedSavedDialogs_handler.go:28 |
 | `messages.reorderQuickReplies` | missing |  |  |
 | `messages.reorderStickerSets` | ok |  | app/bff/catalog/internal/core/messages.reorderStickerSets_handler.go:27 |
-| `messages.report8953AB4E` | missing |  |  |
+| `messages.report8953AB4E` | ok |  | app/bff/reports/internal/core/messages.report8953AB4E_handler.go:25 |
 | `messages.reportEncryptedSpam` | missing |  |  |
-| `messages.reportFC78AF9B` | missing |  |  |
+| `messages.reportFC78AF9B` | ok |  | app/bff/reports/internal/core/messages.reportFC78AF9B_handler.go:28 |
 | `messages.reportMessagesDelivery` | ok |  | app/bff/notification/internal/core/messages.reportMessagesDelivery_handler.go:27 |
 | `messages.reportMusicListen` | missing |  |  |
 | `messages.reportReaction` | missing |  |  |
 | `messages.reportReadMetrics` | missing |  |  |
-| `messages.reportSpam` | fake |  | app/bff/bff/client/fake_rpc_result.go:41 |
+| `messages.reportSpam` | ok |  | app/bff/reports/internal/core/messages.reportSpam_handler.go:28 |
 | `messages.reportSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/messages.reportSponsoredMessage_handler.go:27 |
 | `messages.requestAppWebView53618BCE` | missing |  |  |
 | `messages.requestAppWebView8C5A3B3C` | missing |  |  |
@@ -692,11 +692,11 @@
 | `messages.saveGif` | ok |  | app/bff/gifs/internal/core/messages.saveGif_handler.go:31 |
 | `messages.savePreparedInlineMessage` | missing |  |  |
 | `messages.saveRecentSticker` | missing |  |  |
-| `messages.search` | partial |  | app/bff/messages/internal/core/messages.search_handler.go:33 |
+| `messages.search` | ok |  | app/bff/messages/internal/core/messages.search_handler.go:36 |
 | `messages.searchCustomEmoji` | missing |  |  |
 | `messages.searchEmojiStickerSets` | missing |  |  |
-| `messages.searchGlobal` | ok |  | app/bff/messages/internal/core/messages.searchGlobal_handler.go:31 |
-| `messages.searchSentMedia` | blocked |  | app/bff/messages/internal/core/messages.searchSentMedia_handler.go:27 |
+| `messages.searchGlobal` | ok |  | app/bff/messages/internal/core/messages.searchGlobal_handler.go:27 |
+| `messages.searchSentMedia` | ok |  | app/bff/messages/internal/core/messages.searchSentMedia_handler.go:27 |
 | `messages.searchStickerSets` | missing |  |  |
 | `messages.searchStickers` | missing |  |  |
 | `messages.sendBotRequestedPeer` | missing |  |  |
@@ -712,7 +712,7 @@
 | `messages.sendReaction` | ok |  | app/bff/catalog/internal/core/messages.sendReaction_handler.go:34 |
 | `messages.sendScheduledMessages` | ok |  | app/bff/scheduledmessages/internal/core/messages.sendScheduledMessages_handler.go:25 |
 | `messages.sendScreenshotNotification` | blocked |  | app/bff/dialogs/internal/core/messages.sendScreenshotNotification_handler.go:27 |
-| `messages.sendVote` | ok |  | app/bff/messages/internal/core/polls.go:168 |
+| `messages.sendVote` | ok |  | app/bff/messages/internal/core/polls.go:169 |
 | `messages.sendWebViewData` | missing |  |  |
 | `messages.sendWebViewResultMessage` | missing |  |  |
 | `messages.setBotCallbackAnswer` | missing |  |  |
@@ -720,8 +720,8 @@
 | `messages.setBotPrecheckoutResults` | missing |  |  |
 | `messages.setBotShippingResults` | missing |  |  |
 | `messages.setChatAvailableReactions` | ok |  | app/bff/catalog/internal/core/messages.setChatAvailableReactions_handler.go:31 |
-| `messages.setChatTheme` | missing |  |  |
-| `messages.setChatWallPaper` | missing |  |  |
+| `messages.setChatTheme` | ok |  | app/bff/catalog/internal/core/messages.setChatTheme_handler.go:34 |
+| `messages.setChatWallPaper` | ok |  | app/bff/catalog/internal/core/messages.setChatWallPaper_handler.go:29 |
 | `messages.setDefaultHistoryTTL` | ok |  | app/bff/privacysettings/internal/core/messages.setDefaultHistoryTTL_handler.go:29 |
 | `messages.setDefaultReaction` | ok |  | app/bff/catalog/internal/core/messages.setDefaultReaction_handler.go:28 |
 | `messages.setEncryptedTyping` | missing |  |  |
@@ -729,7 +729,7 @@
 | `messages.setHistoryTTL` | ok |  | app/bff/dialogs/internal/core/messages.setHistoryTTL_handler.go:40 |
 | `messages.setInlineBotResults` | missing |  |  |
 | `messages.setInlineGameScore` | missing |  |  |
-| `messages.setTyping` | ok |  | app/bff/dialogs/internal/core/messages.setTyping_handler.go:31 |
+| `messages.setTyping` | ok |  | app/bff/dialogs/internal/core/messages.setTyping_handler.go:33 |
 | `messages.startBot` | missing |  |  |
 | `messages.startHistoryImport` | missing |  |  |
 | `messages.summarizeText` | notimpl |  | app/bff/messages/internal/core/messages.summarizeText_handler.go:27 |
@@ -742,7 +742,7 @@
 | `messages.toggleSavedDialogPin` | ok |  | app/bff/savedmessagedialogs/internal/core/messages.toggleSavedDialogPin_handler.go:32 |
 | `messages.toggleStickerSets` | ok |  | app/bff/catalog/internal/core/messages.toggleStickerSets_handler.go:28 |
 | `messages.toggleSuggestedPostApproval` | missing |  |  |
-| `messages.toggleTodoCompleted` | ok |  | app/bff/messages/internal/core/polls.go:402 |
+| `messages.toggleTodoCompleted` | ok |  | app/bff/messages/internal/core/polls.go:404 |
 | `messages.transcribeAudio` | missing |  |  |
 | `messages.translateRichMessage` | blocked |  | app/bff/messages/internal/core/messages.translateRichMessage_handler.go:26 |
 | `messages.translateText` | missing |  |  |
@@ -852,7 +852,7 @@
 | `phone.editGroupCallParticipant` | missing |  |  |
 | `phone.editGroupCallTitle` | missing |  |  |
 | `phone.exportGroupCallInvite` | missing |  |  |
-| `phone.getCallConfig` | fake |  | app/bff/bff/client/fake_rpc_result.go:45 |
+| `phone.getCallConfig` | fake |  | app/bff/bff/client/fake_rpc_result.go:35 |
 | `phone.getGroupCall` | missing |  |  |
 | `phone.getGroupCallChainBlocks` | missing |  |  |
 | `phone.getGroupCallJoinAs` | missing |  |  |
