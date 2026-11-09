@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS `encrypted_chats` (
   `participant_read_at` int(11) NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `request` (`admin_auth_key_id`, `random_id`),
+  KEY `requester` (`admin_id`, `date`),
   KEY `participant` (`participant_id`, `state`),
   KEY `participant_device` (`participant_auth_key_id`),
   KEY `state` (`state`, `state_at`)
@@ -66,6 +67,7 @@ CREATE TABLE IF NOT EXISTS `encrypted_chat_queue` (
   `date` int(11) NOT NULL,
   `service` tinyint(1) NOT NULL DEFAULT '0',
   `data` mediumblob NOT NULL,
+  `data_size` int(11) NOT NULL DEFAULT '0',
   `file_id` bigint(20) NOT NULL DEFAULT '0',
   `file_access_hash` bigint(20) NOT NULL DEFAULT '0',
   `file_size` bigint(20) NOT NULL DEFAULT '0',

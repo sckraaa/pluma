@@ -37,6 +37,9 @@ import (
 // below this.
 const maxPayload = 256 << 10
 
+// floodWait is the wait of a request over a limit of the store, seconds.
+const floodWait = 3600
+
 // errUserIsBlocked is 403, as core.telegram.org/method/messages.requestEncryption
 // lists it (mtproto.ErrUserIsBlocked is 400).
 var errUserIsBlocked = status.Error(mtproto.ErrForbidden, "USER_IS_BLOCKED")
@@ -90,6 +93,11 @@ func (c *SecretChatsCore) rpcError(name string, err error) error {
 		return mtproto.ErrEncryptionAlreadyDeclined
 	case errors.Is(err, secretchat.ErrRandomIdUsed):
 		return randomIdDuplicate
+	case errors.Is(err, secretchat.ErrRequestFlood), errors.Is(err, secretchat.ErrQueueFull):
+		// The clients show a failed request or message (iOS
+		// ManagedSecretChatOutgoingOperations.swift:2173, CreateSecretChat.swift:34).
+		c.Logger.Errorf("%s - user %d: %v", name, c.MD.UserId, err)
+		return mtproto.NewErrFloodWaitX(floodWait)
 	}
 	if _, ok := status.FromError(err); ok {
 		return err

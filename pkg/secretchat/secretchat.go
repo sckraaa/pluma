@@ -49,6 +49,8 @@ var (
 	ErrAlreadyAccepted = errors.New("secretchat: the chat was already accepted")
 	ErrAlreadyDeclined = errors.New("secretchat: the chat was already declined")
 	ErrRandomIdUsed    = errors.New("secretchat: the random id was used for another request")
+	ErrRequestFlood    = errors.New("secretchat: too many requests in the last hour")
+	ErrQueueFull       = errors.New("secretchat: the queue of the recipient is full")
 )
 
 // DHVersion is the version of messages.dhConfig. It changes with the prime.

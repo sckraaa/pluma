@@ -344,6 +344,75 @@ func TestReadEnded(t *testing.T) {
 	}
 }
 
+// TestRequestLimit: over the hourly limit a new request is refused and a
+// repeat of one already made is still answered.
+func TestRequestLimit(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(ctx, t)
+	var last *Chat
+	for i := range requestsPerHour {
+		last = request(ctx, t, s, int32(i+1))
+	}
+	if _, _, err := s.Request(ctx, Request{Admin: alice, ParticipantId: bob1.UserId, RandomId: 999, GA: []byte{1, 2, 3}}); !errors.Is(err, ErrRequestFlood) {
+		t.Fatalf("over the limit: %v", err)
+	}
+	if c, created, err := s.Request(ctx, Request{Admin: alice, ParticipantId: bob1.UserId, RandomId: requestsPerHour, GA: []byte{1, 2, 3}}); err != nil || created || c.Id != last.Id {
+		t.Fatalf("a repeat over the limit: %+v %v %v", c, created, err)
+	}
+	// An hour later there is room again.
+	s.now = func() time.Time { return time.Now().Add(2 * time.Hour) }
+	defer func() { s.now = time.Now }()
+	if _, created, err := s.Request(ctx, Request{Admin: alice, ParticipantId: bob1.UserId, RandomId: 999, GA: []byte{1, 2, 3}}); err != nil || !created {
+		t.Fatalf("an hour later: %v %v", created, err)
+	}
+}
+
+// TestQueueLimit: a recipient's queue takes no more than its limits, per
+// chat and per authorization; a repeat still answers; a confirmed message
+// frees the room.
+func TestQueueLimit(t *testing.T) {
+	ctx := context.Background()
+	s, _ := newTestStore(ctx, t)
+	saved := queueLimit
+	defer func() { queueLimit = saved }()
+	queueLimit.chatMessages, queueLimit.chatBytes = 2, 1000
+	c := accept(ctx, t, s, request(ctx, t, s, 1), bob1)
+	other := accept(ctx, t, s, request(ctx, t, s, 2), bob1)
+	send := func(chat *Chat, randomId int64, size int) error {
+		_, err := s.Send(ctx, Send{From: alice, ChatId: chat.Id, AccessHash: chat.AccessHash, RandomId: randomId, Data: make([]byte, size)})
+		return err
+	}
+	if err := send(c, 1, 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := send(c, 2, 10); err != nil {
+		t.Fatal(err)
+	}
+	if err := send(c, 3, 10); !errors.Is(err, ErrQueueFull) {
+		t.Fatalf("over the messages of a chat: %v", err)
+	}
+	if err := send(c, 1, 10); err != nil {
+		t.Fatalf("a repeat: %v", err)
+	}
+	if err := send(other, 4, 2000); !errors.Is(err, ErrQueueFull) {
+		t.Fatalf("over the bytes of a chat: %v", err)
+	}
+	if err := send(other, 5, 10); err != nil {
+		t.Fatalf("another chat is not blocked: %v", err)
+	}
+	queueLimit.deviceMessages = 3
+	if err := send(other, 6, 10); !errors.Is(err, ErrQueueFull) {
+		t.Fatalf("over the messages of the authorization: %v", err)
+	}
+	queueLimit.deviceMessages = saved.deviceMessages
+	if _, err := s.Ack(ctx, bob1, firstQts+1); err != nil {
+		t.Fatal(err)
+	}
+	if err := send(c, 7, 10); err != nil {
+		t.Fatalf("after a confirmation: %v", err)
+	}
+}
+
 // TestDiscardKeepsQueue: without the history, what the peer sent before the
 // end still reaches a device that was offline.
 func TestDiscardKeepsQueue(t *testing.T) {

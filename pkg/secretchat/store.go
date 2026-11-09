@@ -65,6 +65,22 @@ type Store struct {
 	now func() time.Time
 }
 
+// requestsPerHour is the most chats one account may request in an hour: each
+// reaches every device of the target, and Android answers each with a key
+// exchange (SecretChatHelper.java:190-219).
+const requestsPerHour = 30
+
+// queueLimit is the most a queue may hold unconfirmed, for one chat and for
+// one authorization: a recipient that stays offline must not let one sender
+// fill the database in the 7 days of the retention. Messages are small, the
+// media go as files, so a real conversation is far below these.
+var queueLimit = struct{ chatMessages, chatBytes, deviceMessages, deviceBytes int64 }{
+	chatMessages:   20000,
+	chatBytes:      32 << 20,
+	deviceMessages: 50000,
+	deviceBytes:    128 << 20,
+}
+
 // changesBytes is the most the changes of the chats take in one difference.
 var changesBytes = 1 << 20
 
@@ -201,9 +217,21 @@ type Request struct {
 
 // Request creates a chat in the requested state. The same random_id of the
 // same authorization returns the same chat (a repeated request), created
-// false; with other values it is ErrRandomIdUsed.
+// false; with other values it is ErrRandomIdUsed. Over requestsPerHour only
+// a repeat passes, ErrRequestFlood for a new one.
 func (s *Store) Request(ctx context.Context, r Request) (*Chat, bool, error) {
 	now := s.unix()
+	var recent int
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM encrypted_chats WHERE admin_id = ? AND date > ?", r.Admin.UserId, now-3600).Scan(&recent); err != nil {
+		return nil, false, fmt.Errorf("secretchat: request: %w", err)
+	}
+	if recent >= requestsPerHour {
+		c, err := s.repeatedRequest(ctx, r)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, false, ErrRequestFlood
+		}
+		return c, false, err
+	}
 	for range idAttempts {
 		id, hash := randomChatId(), randomInt64()
 		res, err := s.db.ExecContext(ctx, "INSERT IGNORE INTO encrypted_chats (id, access_hash, admin_id, admin_auth_key_id, participant_id, random_id, g_a, state, date, state_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -220,19 +248,30 @@ func (s *Store) Request(ctx context.Context, r Request) (*Chat, bool, error) {
 			return c, true, err
 		}
 		// A taken id or the same request again.
-		c, err := scanChat(s.db.QueryRowContext(ctx, "SELECT "+chatColumns+" FROM encrypted_chats WHERE admin_auth_key_id = ? AND random_id = ?", r.Admin.AuthKey, r.RandomId))
+		c, err := s.repeatedRequest(ctx, r)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 		if err != nil {
-			return nil, false, fmt.Errorf("secretchat: request: %w", err)
-		}
-		if c.State == StateDiscarded || c.ParticipantId != r.ParticipantId || !bytes.Equal(c.GA, r.GA) {
-			return nil, false, ErrRandomIdUsed
+			return nil, false, err
 		}
 		return c, false, nil
 	}
 	return nil, false, errors.New("secretchat: no free chat id")
+}
+
+// repeatedRequest returns the chat of the same request made before,
+// sql.ErrNoRows if there was none, ErrRandomIdUsed if its random_id went to
+// another one.
+func (s *Store) repeatedRequest(ctx context.Context, r Request) (*Chat, error) {
+	c, err := scanChat(s.db.QueryRowContext(ctx, "SELECT "+chatColumns+" FROM encrypted_chats WHERE admin_auth_key_id = ? AND random_id = ?", r.Admin.AuthKey, r.RandomId))
+	if err != nil {
+		return nil, fmt.Errorf("secretchat: request: %w", err)
+	}
+	if c.State == StateDiscarded || c.ParticipantId != r.ParticipantId || !bytes.Equal(c.GA, r.GA) {
+		return nil, ErrRandomIdUsed
+	}
+	return c, nil
 }
 
 // Accept is the input of messages.acceptEncryption.
@@ -422,6 +461,9 @@ func (s *Store) Send(ctx context.Context, in Send) (*Sent, error) {
 		}
 		now := s.unix()
 		to := c.Peer(in.From)
+		if err = queueRoom(ctx, tx, to, in.ChatId, len(in.Data)); err != nil {
+			return err
+		}
 		f := File{}
 		if in.File != nil {
 			f = *in.File
@@ -434,8 +476,8 @@ func (s *Store) Send(ctx context.Context, in Send) (*Sent, error) {
 		if err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, "INSERT INTO encrypted_chat_queue (auth_key_id, user_id, qts, chat_id, random_id, date, service, data, file_id, file_access_hash, file_size, file_dc_id, file_key_fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			to.AuthKey, to.UserId, qts, in.ChatId, in.RandomId, now, in.Service, in.Data, f.Id, f.AccessHash, f.Size, f.DcId, f.KeyFingerprint); err != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO encrypted_chat_queue (auth_key_id, user_id, qts, chat_id, random_id, date, service, data, data_size, file_id, file_access_hash, file_size, file_dc_id, file_key_fingerprint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			to.AuthKey, to.UserId, qts, in.ChatId, in.RandomId, now, in.Service, in.Data, len(in.Data), f.Id, f.AccessHash, f.Size, f.DcId, f.KeyFingerprint); err != nil {
 			return err
 		}
 		out = &Sent{
@@ -448,6 +490,23 @@ func (s *Store) Send(ctx context.Context, in Send) (*Sent, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// queueRoom is ErrQueueFull when a message of size bytes for chatId would
+// take the queue of to past queueLimit.
+func queueRoom(ctx context.Context, tx *sql.Tx, to Device, chatId int32, size int) error {
+	var deviceMessages, deviceBytes, chatMessages, chatBytes int64
+	err := tx.QueryRowContext(ctx, "SELECT COUNT(*), COALESCE(SUM(data_size), 0), COALESCE(SUM(chat_id = ?), 0), COALESCE(SUM(IF(chat_id = ?, data_size, 0)), 0) FROM encrypted_chat_queue WHERE auth_key_id = ? AND user_id = ?",
+		chatId, chatId, to.AuthKey, to.UserId).Scan(&deviceMessages, &deviceBytes, &chatMessages, &chatBytes)
+	if err != nil {
+		return err
+	}
+	n := int64(size)
+	if chatMessages >= queueLimit.chatMessages || chatBytes+n > queueLimit.chatBytes ||
+		deviceMessages >= queueLimit.deviceMessages || deviceBytes+n > queueLimit.deviceBytes {
+		return ErrQueueFull
+	}
+	return nil
 }
 
 func nextQts(ctx context.Context, tx *sql.Tx, d Device) (int32, error) {
