@@ -200,24 +200,33 @@ func (c *ChannelCore) ChannelSearchTopic(in *channel.TLChannelSearchTopic) (*mtp
 	if mtproto.FromBool(in.UnreadMentions) {
 		q.UnreadMentionsOf = in.SelfId
 	}
-	forum, err := c.svcCtx.Dao.IsForum(c.ctx, in.ChannelId)
-	if err != nil {
+	if err := c.narrowToTopic(&q, in.ChannelId, in.TopMsgId); err != nil {
 		return nil, err
-	}
-	if forum {
-		q.Topic = in.TopMsgId
-	} else {
-		t, err := c.svcCtx.Dao.ThreadOf(c.ctx, in.ChannelId, in.TopMsgId)
-		if err != nil {
-			return nil, err
-		}
-		q.ThreadTop = t.TopId
 	}
 	r, err := c.search(in.SelfId, in.ChannelId, q, in.OffsetId, in.AddOffset, in.Limit, in.MaxId, in.MinId)
 	if err != nil {
 		return nil, c.membershipError("channel.searchTopic", err)
 	}
 	return r, nil
+}
+
+// narrowToTopic keeps q to top: a topic of a forum, a thread of replies
+// elsewhere.
+func (c *ChannelCore) narrowToTopic(q *dao.SearchQuery, channelId int64, top int32) error {
+	forum, err := c.svcCtx.Dao.IsForum(c.ctx, channelId)
+	if err != nil {
+		return err
+	}
+	if forum {
+		q.Topic = top
+		return nil
+	}
+	t, err := c.svcCtx.Dao.ThreadOf(c.ctx, channelId, top)
+	if err != nil {
+		return err
+	}
+	q.ThreadTop = t.TopId
+	return nil
 }
 
 // ChannelReadTopicMentions

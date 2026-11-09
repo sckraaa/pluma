@@ -989,3 +989,45 @@ func (s *Service) ChannelSetHistoryTTL(ctx context.Context, request *channel.TLC
 
 	return r, err
 }
+
+// ChannelExpireMessages
+// channel.expireMessages channel_id:long now:long = Int32;
+func (s *Service) ChannelExpireMessages(ctx context.Context, request *channel.TLChannelExpireMessages) (*mtproto.Int32, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.expireMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelExpireMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelGetUnreadReactions
+// channel.getUnreadReactions self_id:long channel_id:long top_msg_id:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) ChannelGetUnreadReactions(ctx context.Context, request *channel.TLChannelGetUnreadReactions) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getUnreadReactions - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetUnreadReactions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// ChannelReadReactions
+// channel.readReactions self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (s *Service) ChannelReadReactions(ctx context.Context, request *channel.TLChannelReadReactions) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.readReactions - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReadReactions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

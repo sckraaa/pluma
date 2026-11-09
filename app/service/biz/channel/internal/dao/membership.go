@@ -404,11 +404,13 @@ func addServiceMessageFrom(b *userbox.Box, ch *channelbox.Channel, channelId, fr
 	return m, ch.Pts(), nil
 }
 
-// upsertDialog shows the channel in b's owner's dialogs, read up to top.
+// upsertDialog shows the channel in b's owner's dialogs, read up to top. A
+// dialog of a forum its owner still has keeps its mark, which every topic
+// counts from (task 060).
 func upsertDialog(b *userbox.Box, channelId int64, top int32) error {
 	InvalidateDialog(b, channelId)
-	res, err := b.Tx().Exec("UPDATE dialogs SET top_message = ?, read_inbox_max_id = ?, date2 = ?, deleted = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
-		top, top, b.Date(), b.UserId(), mtproto.PEER_CHANNEL, channelId)
+	res, err := b.Tx().Exec("UPDATE dialogs SET top_message = ?, read_inbox_max_id = IF(deleted = 1 OR NOT (SELECT forum FROM channels WHERE id = ?), ?, read_inbox_max_id), date2 = ?, deleted = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+		top, channelId, top, b.Date(), b.UserId(), mtproto.PEER_CHANNEL, channelId)
 	if err != nil {
 		return err
 	}

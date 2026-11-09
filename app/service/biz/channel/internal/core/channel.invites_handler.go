@@ -251,10 +251,11 @@ func (c *ChannelCore) ChannelGetChatInviteImporters(in *channel.TLChannelGetChat
 	importers := make([]*mtproto.ChatInviteImporter, 0, len(rows))
 	for _, r := range rows {
 		importers = append(importers, mtproto.MakeTLChatInviteImporter(&mtproto.ChatInviteImporter{
-			Requested:  requested,
-			UserId:     r.UserId,
-			Date:       int32(r.Date),
-			ApprovedBy: mtproto.MakeFlagsInt64(r.ApprovedBy),
+			Requested:   requested,
+			ViaChatlist: r.ViaChatlist,
+			UserId:      r.UserId,
+			Date:        int32(r.Date),
+			ApprovedBy:  mtproto.MakeFlagsInt64(r.ApprovedBy),
 		}).To_ChatInviteImporter())
 	}
 	return mtproto.MakeTLMessagesChatInviteImporters(&mtproto.Messages_ChatInviteImporters{

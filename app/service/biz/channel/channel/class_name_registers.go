@@ -145,6 +145,12 @@ const (
 	Predicate_channel_editBanned = "channel_editBanned"
 	// pluma: task 042
 	Predicate_channel_editDefaultBannedRights = "channel_editDefaultBannedRights"
+	// pluma: task 067
+	Predicate_channel_expireMessages = "channel_expireMessages"
+	// pluma: task 067
+	Predicate_channel_getUnreadReactions = "channel_getUnreadReactions"
+	// pluma: task 067
+	Predicate_channel_readReactions = "channel_readReactions"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -431,6 +437,18 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 1263700059, // 0x4b52885b
 
 	},
+	Predicate_channel_expireMessages: { // pluma: task 067
+		0: 1530267177, // 0x5b360629
+
+	},
+	Predicate_channel_getUnreadReactions: { // pluma: task 067
+		0: -793086366, // 0xd0ba7662
+
+	},
+	Predicate_channel_readReactions: { // pluma: task 067
+		0: 2058932457, // 0x7ab8d0e9
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -509,6 +527,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-2126242873: Predicate_channel_searchTopic,                      // 0x81441bc7 pluma: task 060
 	-701570663:  Predicate_channel_readTopicMentions,                // 0xd62ee199 pluma: task 060
 	-1405087645: Predicate_channel_unpinAllTopicMessages,            // 0xac401063 pluma: task 060
+	1530267177:  Predicate_channel_expireMessages,                   // 0x5b360629 pluma: task 067
+	-793086366:  Predicate_channel_getUnreadReactions,               // 0xd0ba7662 pluma: task 067
+	2058932457:  Predicate_channel_readReactions,                    // 0x7ab8d0e9 pluma: task 067
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

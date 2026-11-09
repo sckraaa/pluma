@@ -116,6 +116,9 @@ type SearchQuery struct {
 	ThreadTop int32
 	// Topic keeps the messages of this topic of a forum (task 060).
 	Topic int32
+	// UnreadReactionsOf keeps the messages of this user with reactions it
+	// has not seen (task 067).
+	UnreadReactionsOf int64
 }
 
 // SearchMax is the most messages of one page of a search
@@ -147,6 +150,10 @@ func (d *Dao) Search(ctx context.Context, selfId, channelId int64, q SearchQuery
 	}
 	if q.UnreadMentionsOf != 0 {
 		add("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)
+	}
+	if q.UnreadReactionsOf != 0 {
+		add("sender_user_id = ?", q.UnreadReactionsOf)
+		add("id IN (SELECT message_id FROM channel_message_reactions WHERE channel_id = ? AND unread = 1)", channelId)
 	}
 	// Service messages are found only as changes of the photo.
 	if q.MediaType != mtproto.MEDIA_CHAT_PHOTO {
