@@ -9,9 +9,9 @@
 - Репозиторий: `sckraaa/pluma-ios` (публичный), ветка `main`. Копии кода приложения в нём нет: только патч, картинки бренда, конфигурация и CI.
 - Апстрим (`upstream.env`):
   - `UPSTREAM_REPO=https://github.com/TelegramMessenger/Telegram-iOS.git`
-  - `UPSTREAM_TAG=release-12.9.2`, `UPSTREAM_REF=6ad963e5b62d354da79040f388ae2b9132fb17b8`
-  - `UPSTREAM_VERSION=12.9.2`, `UPSTREAM_LAYER=228`
-  - `XCODE_VERSION=26.2`, `BAZEL_VERSION=8.4.2` (из `versions.json` апстрима)
+  - `UPSTREAM_TAG=release-13.2`, `UPSTREAM_REF=24638bc69bd083981b178dd1e7f921eebbf7fc46` (ветка `task/074-upstream`; в `main` пока 12.9.2)
+  - `UPSTREAM_VERSION=13.2`, `UPSTREAM_LAYER=233`
+  - `XCODE_VERSION=27.1`, `BAZEL_VERSION=9.2.0` (из `versions.json` апстрима)
 - Приложение (`config/app.env`): `PLUMA_BUNDLE_ID=chat.pluma.app`, `PLUMA_APP_NAME=Pluma`, `PLUMA_URL_SCHEME=plm`, `PLUMA_API_ID=10002`, `PLUMA_API_HASH` (не секрет, его несёт каждый клиент), `PLUMA_SIM_CONFIGURATION=debug_sim_arm64`.
 
 ## Как накладывается патч
@@ -59,13 +59,13 @@ ci/lint.sh                                        # shellcheck и actionlint
 1. Новый тег в `upstream.env`: тег, коммит, версия, слой (только тот, что говорит сервер), Xcode и Bazel из `versions.json`. Есть ли образ `macos-*` с этим Xcode (`ci/setup.sh` падает без `/Applications/Xcode_<версия>.app`).
 2. `ci/fetch-upstream.sh sparse`, затем тесты. Каждое падение называет файл и текст — по ID записи ниже понять, зачем правка, и перенести её на новый код, а не ослабить проверку.
 3. Счётчики, которые почти наверняка изменятся с любым релизом:
-   - `STRINGS_RENAMED = (556, 609)` — записи и вхождения «Telegram» в `en.lproj/Localizable.strings` (I-033);
+   - `STRINGS_RENAMED = (585, 638)` — записи и вхождения «Telegram» в `en.lproj/Localizable.strings` (I-033);
    - `INFOPLIST_NAMES` — число вхождений имени в каждом `InfoPlist.strings` (I-034);
    - SHA-256 всех картинок в `BRAND_REPLACED`, `BRAND_REMOVED`, `CAMERA_FONTS`, `SIRI_UPSTREAM` (I-015…I-023, I-061, I-086);
    - `count=` в `PALETTE_EDITS` (I-042, I-043), счётчики `CFBundleName` (7) и `CFBundleDisplayName` (2) в `Telegram/BUILD` (I-032).
 4. Новые места, которые патч не знает, но должен покрыть (их не поймает ни одна проверка, кроме `verify()` сетевого кода):
    - новые адреса или ключи Telegram в MtProtoKit, TelegramCore, TelegramVoip — ловит `verify()` (I-012);
-   - новые ссылки `tg://`, которые приложение создаёт, вне `SCHEME_LINKS` (I-039);
+   - новые ссылки `tg://` и новые хосты Telegram ловит `verify_links` по таблицам `KEPT_TG_LINKS`, `KEPT_TELEGRAM_SITES`, `STRINGS_TELEGRAM_SITES` (I-114), но только на полном дереве;
    - новые ссылки `t.me` ловит `verify_links` (I-104), но только в файлах, которые есть в дереве: в разреженной копии — лишь файлы `--paths`, полностью — при `configure.sh` на полной копии; новые списки хостов Telegram (как `telegramMeHosts`) не ловит никто — искать `"telegram.dog"`, `"telegram.me"` по коду (I-103);
    - новые места с синим Telegram в темах по умолчанию вне `TELEGRAM_BLUES` (I-042…I-047);
    - новые таблицы семи цветов-идентичностей (I-048);
@@ -125,8 +125,9 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **История.** `807e2a8`, 2026-10-27, задача 006.
 
 ### I-007. Имена прокси — системным резолвером
+- **Состояние (2026-11-09, задача 074).** С 13.2 апстрим сам убрал запрос к Google (`MTDNS.m:237-251`), правки нет; патч проверяет `expect`-ом (`DNS_NATIVE`), что тело `resolveHostnameUniversal` — системный резолвер.
 - **Что и зачем.** Имя хоста прокси разрешается только системой, без DNS-over-HTTPS у Google.
-- **Где.** `submodules/MtProtoKit/Sources/MTDNS.m`, `DNS_OLD`: `return [[self resolveHostname:hostname] timeout:10.0 onQueue:… orSignal:[self resolveHostnameNative:hostname port:port]];` → `return [self resolveHostnameNative:hostname port:port];`. `replace`.
+- **Где (до 13.2).** `submodules/MtProtoKit/Sources/MTDNS.m`, `DNS_OLD`: `return [[self resolveHostname:hostname] timeout:10.0 onQueue:… orSignal:[self resolveHostnameNative:hostname port:port]];` → `return [self resolveHostnameNative:hostname port:port];`. `replace`.
 - **Проверка.** `test_patch`, `test_damage` (`DNS`).
 - **Апстрим.** Сначала Google DoH, через 10 с системный резолвер. Официальный — так же.
 - **История.** `807e2a8`, 2026-10-27, задача 006.
@@ -146,6 +147,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **История.** `807e2a8`, 2026-10-27, задача 006.
 
 ### I-010. Звонки: без лишнего TCP-отражателя Telegram
+- **Состояние (2026-11-09, задача 074).** С 13.2 ветки `12.0.0` в апстриме нет (`OngoingCallContext.swift:987-988`), правка убрана; `expect` (`CALL_CONNECTIONS`) и общая проверка адресов I-012 следят, чтобы адреса Telegram не вернулись.
 - **Что и зачем.** Для протокола звонков 12.0.0 апстрим добавляет к каждому отражателю свой TCP-отражатель `91.108.9.38:595`. Pluma использует только отражатели сервера.
 - **Где.** `submodules/TelegramVoip/Sources/OngoingCallContext.swift`, `CALL_REFLECTOR_OLD` (от `var unfilteredConnections: [CallSessionConnection]` до конца `if version == "12.0.0" { … }`). Заменяется на `let unfilteredConnections = [connections.primary] + connections.alternatives`. `replace_lines`, отступ 16.
 - **Проверка.** `verify()` (адрес Telegram в сетевом коде), `test_patch` (`CallSessionConnection.Reflector(` нет), `test_damage` (2 порчи `CALLS`).
@@ -161,7 +163,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### I-012. Итоговая проверка сетевого кода
 - **Что и зачем.** Не правка, а страховка: после всех правок в `submodules/MtProtoKit`, `submodules/TelegramCore/Sources`, `submodules/TelegramVoip/Sources` (файлы `.swift .m .h .mm .c .cpp`) нет адресов из диапазонов Telegram (`TELEGRAM_NETWORKS`: опубликованный `core.telegram.org/resources/cidr.txt` плюс `95.161.76.100/32`), нет строк ключей Telegram, все PEM-ключи — ключ сервера, ключей ровно 3.
-- **Где.** `verify()` в `ci/patch.py`.
+- **Где.** `verify()` в `ci/patch.py`. С 13.2 юнит-тесты (`is_unit_test`, например `submodules/MtProtoKit/Tests`) исключены: в приложение не входят и несут адреса Telegram как данные.
 - **Проверка.** `ScanTest` (IPv4/IPv6, литералы, код вокруг маркеров в `MTRsa.m`), `ConfigTest.test_rejects` (адрес сервера в диапазонах Telegram).
 - **Если апстрим изменится.** Новый адрес или ключ Telegram в любом файле этих каталогов останавливает сборку. Список диапазонов в `TELEGRAM_NETWORKS` надо сверять с `cidr.txt` при обновлении.
 - **Чего проверка не видит.** Адреса и ключи вне трёх каталогов. Подключения по именам хостов (например, `google.com` для пинга прокси, I-089).
@@ -273,7 +275,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### I-028. Вступление: правки RMIntroViewController.m
 Все в `submodules/RMIntro/Sources/platform/ios/RMIntroViewController.m`, все `replace` (якорь плюс добавка), кроме раскладки (`replace_lines`):
 - **Константы раскладки** после `} DeviceScreen;`: `PlumaIntroMarkHeight = 128`, `PlumaIntroMarkGap = 32`, `PlumaIntroGroupBias = 0.44`, геометрия холста знака (512, чернила x 79.6–433.1, y 99.95–405.15), `PlumaIntroMarkSide()`.
-- **Поля** вместо `    bool _loadedView;\n}\n@end\n`: контейнер знака, флаги «на экране», «показан», «ждёт записи».
+- **Поля** после `    bool _loadedView;\n` (с 13.2 за ним идёт `_accessibilityPendingPage`): контейнер знака, флаги «на экране», «показан», «ждёт записи».
 - **animateIn** (`INTRO_ANIMATE_IN`, 5 якорей вокруг `_glkView.transform`, `_glkView.alpha`, `_startButton.alpha = 1.0; } completion:nil];`): знак входит вместе с GL-видом и через 0,15 с начинает писать себя.
 - **GL-вид под всем**: `[self.view addSubview:_glkView];` → `[self.view insertSubview:_glkView atIndex:0];` (при повторном создании вида после ухода вступления непрозрачный GL-вид иначе ложится поверх заголовков и знака).
 - **Контейнер знака** перед концом `loadView` (якорь `    [_wrapperView addSubview:_pageControl];\n}\n`): между GL-видом и страницами, скрыт от VoiceOver.
@@ -313,7 +315,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### I-033. Встроенные английские строки: Telegram → Pluma
 - **Что и зачем.** Интерфейс (генерируемые `PresentationStrings`) и тексты push-уведомлений. Слово `Telegram` (`TELEGRAM`) становится `Pluma` (`PLUMA`) только в значениях, включая названия функций («Pluma Premium»). Ключи, URL, имена пользователей и цели ссылок не меняются (они в нижнем регистре или часть другого слова: `telegram.org`, `t.me`, `TelegramTips`).
-- **Где.** `Telegram/Telegram-iOS/en.lproj/Localizable.strings`, регулярные выражения `STRINGS_ENTRY` и `TELEGRAM_WORD` (слово целиком, также после `\n`). Счётчик `STRINGS_RENAMED = (556, 609)` — записей и вхождений в закреплённом коммите.
+- **Где.** `Telegram/Telegram-iOS/en.lproj/Localizable.strings`, регулярные выражения `STRINGS_ENTRY` и `TELEGRAM_WORD` (слово целиком, также после `\n`). Счётчик `STRINGS_RENAMED = (585, 638)` (13.2; было 556, 609) — записей и вхождений в закреплённом коммите.
 - **Проверка.** `verify_names` (ни одно значение не называет Telegram), `RenameTest.test_values_only`, `test_damage` (`STRINGS`).
 - **Если апстрим изменит.** Любая новая или удалённая строка с «Telegram» меняет счётчик — патч падает; счётчик обновлять после просмотра новых строк.
 - **Ограничение.** Английский — единственный язык, встроенный в приложение. Остальные языки приходят с сервера языковыми пакетами (задача 021).
@@ -332,10 +334,11 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### I-036. Имя в коде (`CODE_NAMES`)
 - **Что и зачем.** Тексты, зашитые в исходники. Все `replace`, `{name}` = Telegram → Pluma:
   - `submodules/TelegramUI/Sources/StoreDownloadedMedia.swift`: `let albumName = "Telegram"` — альбом «Фото»;
-  - `submodules/TelegramCallsUI/Sources/CallKitIntegration.swift`: `CXProviderConfiguration(localizedName: "Telegram")` — имя в системном экране звонка (iOS 13);
+  - `CallKitIntegration.swift`: с 13.2 правки нет, `CXProviderConfiguration()` апстрима без имени, система берёт имя приложения (минимальная iOS 15);
   - `submodules/WidgetItems/Sources/WidgetItems.swift` и `Telegram/SiriIntents/IntentHandler.swift`: «Open Telegram and enter passcode to edit widget.»;
-  - `submodules/TelegramCore/Sources/State/AccountStateManagementUtils.swift`: `firstName: "Telegram Notifications"` — служебный аккаунт 777000 до прихода данных сервера;
+  - `submodules/TelegramCore/Sources/State/Sync/UpdateInterpreter+Messages.swift` (до 13.2 `AccountStateManagementUtils.swift`): `firstName: "Telegram Notifications"` — служебный аккаунт 777000 до прихода данных сервера;
   - `submodules/AuthorizationUI/Sources/AuthorizationSequenceController.swift`: `emailBody.append("Telegram: \(appVersion)\n")` — письмо о непришедшем коде;
+  - `submodules/DebugSettingsUI/Sources/CrashReportsController.swift`: «Sign in to a Telegram account to share this log.» — экран Crash Logs, с 13.x он есть в поиске по настройкам (I-052);
   - `submodules/AccountContext/Sources/DeviceContactData.swift` (`self.init(label: "Telegram", value: "\(phonebookUsernamePrefix)`), `submodules/TelegramUI/Sources/DeviceContactDataManager.swift` (×3) и `Telegram/SiriIntents/IntentContacts.swift` (`if address.label == "Telegram", let peerId = parseAppSpecificContactReference(`) — метка записи приложения в контакте адресной книги: иначе её делит Telegram, установленный на том же телефоне.
 - **Проверка.** `verify_names`, `test_damage` (`StoreDownloadedMedia.swift`, `DeviceContactDataManager.swift`).
 - **История.** `2530746`, 2026-10-29, задача 017.
@@ -346,9 +349,9 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Проверка.** `verify_scheme` (зарегистрированы ровно `plm` и `tonsite`), `verify()` (нет `<string>telegram</string>`), `ConfigTest.test_rejects` (схемы `tg`, `telegram`, `tonsite` запрещены).
 - **История.** `807e2a8` (схема `pluma`), 2026-10-27, задача 006; `e1c8fc5` (`plm`, `config/app.env`), 2026-10-29, задача 017.
 
-### I-038. tg:// больше не регистрируется
-- **Что и зачем.** `tg://` из других приложений открывает Telegram, если он установлен. `tonsite` остаётся.
-- **Где.** `Telegram/BUILD`: `<string>tg</string>\n                <string>tonsite</string>\n` → только `tonsite`. `replace`.
+### I-038. tg:// больше не регистрируется, ton:// и tc:// тоже
+- **Что и зачем.** `tg://` из других приложений открывает Telegram, если он установлен. `tonsite` остаётся. `ton` и `tc` (13.x, `Telegram/BUILD:445-446`) ведут в кошелёк, которого сервер не предлагает (`wallet_available`), и не должны перехватывать ссылки у приложений с кошельком (2026-11-09, задача 074).
+- **Где.** `Telegram/BUILD`: `<string>tg</string>\n                <string>tonsite</string>\n                <string>ton</string>\n                <string>tc</string>\n` → только `tonsite`. `replace`.
 - **Проверка.** `verify_scheme`, `test_patch`.
 - **Апстрим / официальный.** Регистрирует `telegram`, `tg`, `tonsite`.
 - **История.** `e1c8fc5`, 2026-10-29, задача 017.
@@ -457,7 +460,8 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Где.**
   - `submodules/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoSettingsItems.swift`, `SUPPORT_ITEMS_OLD`: три `items[.support]!.append(PeerInfoScreenDisclosureItem(id: 0|1|2, …Settings_Support|Settings_FAQ|Settings_Tips…))`. `replace_lines`.
   - `submodules/SettingsUI/Sources/Search/SettingsSearchableItems.swift`: `let helpItems = helpSearchableItems(context: context)\n allItems.append(contentsOf: helpItems)`. `replace_lines`.
-- **Проверка.** `verify_support`, `test_patch`, `test_damage` (`SETTINGS_ITEMS`, `SETTINGS_SEARCH`).
+  - `submodules/DebugSettingsUI/Sources/CrashReportsController.swift`, `CRASH_REPORT_TEAM_OLD` (13.2): пункт меню журнала сбоя «Send to Telegram Team» убран. Он шлёт архив боту `iOSCrashReportsBot`, а это имя на сервере Pluma может занять кто угодно. «Share Log», «View Log», «Delete Log» остаются.
+- **Проверка.** `verify_support`, `test_patch`, `test_damage` (`SETTINGS_ITEMS`, `SETTINGS_SEARCH`, `CRASH_REPORTS`).
 - **Апстрим / официальный.** Раздел есть.
 - **История.** `a4843f4`, 2026-10-29, задача 017.
 
@@ -583,7 +587,7 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `submodules/TelegramUI/Components/MediaEditor/Sources/MediaEditorValues.swift`, `MediaQualityPreset.videoBitrateKbps` (180-207): `        case .<case>:\n            return <N>\n` → новое значение. Таблица `VIDEO_KBPS`. `return 1000` у `.sticker` не трогается (якорь включает `case .videoMessage:`).
   - `replace` (функция `video_quality_edits()`).
 - **Проверка.** `verify_video_quality` (каждая новая строка ровно один раз, старой нет), `test_patch`, `test_damage` (`VIDEO_PRESETS_LEGACY` 1080p, `VIDEO_PRESETS` 720p).
-- **Апстрим / официальный.** Числа апстрима — в комментарии каждой строки; так же сжимает официальный Telegram 12.9.2.
+- **Апстрим / официальный.** Числа апстрима — в комментарии каждой строки; так же сжимает официальный Telegram (13.2: кружок `.videoMessage` 1200, было 1000).
 - **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
 ### I-091. Звук видео в пресетах качества
@@ -604,8 +608,8 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### I-093. Запись кружка: 2 Мбит/с
 - **Что и зачем.** Кружок без обрезки отправляется таким, каким его записала камера (`VideoMessageCameraScreen.swift:2000`), с битрейтом записи. 1000 → 2000 кбит/с, 400×400 H.264 High, как в таблице Pluma.
-- **Где.** `submodules/Camera/Sources/CameraOutput.swift:374`: `                AVVideoAverageBitRateKey: 1000 * 1000,\n` (единственное вхождение, ветка `.roundVideo`) → `2000 * 1000`. `replace`.
-- **Проверка.** `verify_video_quality`, `test_patch`, `test_damage` (`ROUND_VIDEO_RECORDER`).
+- **Где.** 13.2: старый `submodules/Camera/CameraLegacy/Sources/CameraOutput.swift:356` (`1000 * 1000` → `2000 * 1000`) и новая камера `submodules/Camera/CameraNeo/Sources/VideoRecorder.swift:625` (`1_200_000` → `2_000_000`, `ROUND_VIDEO_RECORDER_NEO`). Кружок, который перекодируется (обрезка), на 13.2 берёт битрейт не из пресета, а из `VideoMessageExportSettings` в `MediaEditorValues.swift:2087` (`≤400 px ? 1000 : 1200` → `2000`), правка `.videoMessage` в `videoBitrateKbps` на этот путь не влияет. `replace`.
+- **Проверка.** `verify_video_quality`, `test_patch`, `test_damage` (`ROUND_VIDEO_RECORDER`, `VIDEO_PRESETS`).
 - **Апстрим / официальный.** 1 Мбит/с.
 - **История.** `f375701`, в `main` с `ff26f63`; 2026-11-03, задача 052.
 
@@ -640,7 +644,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 ## Сборка и подпись
 
 ### I-063. Проверка закреплённого апстрима
-- **Что и зачем.** Правок нет, только `expect`: слой схемы `public func currentLayer() -> UInt {\n        return 228\n    }` в `submodules/TelegramCore/Sources/State/Serialization.swift` (слой, который говорит сервер; ADR 0008 сервера); `versions.json`: `app` = 12.9.2, `xcode` = 26.2, `bazel` начинается с 8.4.2.
+- **Что и зачем.** Правок нет, только `expect`: слой схемы `public func currentLayer() -> UInt {\n        return 233\n    }` (было 228) в `submodules/TelegramCore/Sources/State/Serialization.swift` (слой, который говорит сервер; ADR 0008 сервера); `versions.json`: `app` = 13.2, `xcode` = 27.1, `bazel` начинается с 8.4.2.
 - **Проверка.** `test_damage` (`SERIALIZATION`, 3 порчи `VERSIONS`).
 - **История.** `807e2a8`, 2026-10-27, задача 006.
 
@@ -648,12 +652,12 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Где.** `expect`:
   - `build-system/Make/Make.py`: `elif configuration == 'debug_sim_arm64':`, `'release_sim_arm64'`, `'release_arm64'`, опции `--xcodeManagedCodesigning`, `--codesigningInformationPath`, `--cacheDir`, `--bazelUserRoot`, `--continueOnError`;
   - `build-system/Make/BuildConfiguration.py`: `'<суффикс>': '<имя профиля>'` для семи целей `TARGETS` (`''`→`Telegram`, `.Share`, `.NotificationService`, `.NotificationContent`, `.Widget`, `.SiriIntents`→`Intents`, `.BroadcastUpload`);
-  - `Telegram/BUILD`: блок `extensions = select({ ":disableExtensionsSetting": [], … ShareExtension … BroadcastUploadExtension })`, `name = "disableProvisioningProfiles"`, `":disableProvisioningProfilesSetting": None,` ×10, `<string>group.{telegram_bundle_id}</string>`.
+  - `Telegram/BUILD`: блок `extensions = select({ ":disableExtensionsSetting": [], … ShareExtension … BroadcastUploadExtension })`, `name = "disableProvisioningProfiles"`, `":disableProvisioningProfilesSetting": None,` ×9 (13.2 убрал `spm_build_app`), `<string>group.{telegram_bundle_id}</string>`.
 - **Проверка.** `test_damage` (3 порчи `MAKE`, 2 `BUILD_CONFIGURATION`, 9 `BUILD`).
 - **История.** `807e2a8`, 2026-10-27, задача 006.
 
 ### I-065. Конфигурация сборки Make.py (идентичность приложения)
-- **Что и зачем.** Не правка исходника, а добавленный файл `build-system/pluma-configuration.json` (`--configurationPath`): `bundle_id` `chat.pluma.app` (расширения `chat.pluma.app.<имя>`, App Group `group.chat.pluma.app`), `api_id` 10002, `api_hash`, `team_id`, `app_center_id "0"`, `is_internal_build "false"`, `is_appstore_build "true"`, `appstore_id "0"`, `app_specific_url_scheme "plm"`, `premium_iap_product_id ""`, `enable_siri false`, `enable_icloud false` (Siri и iCloud требуют своих возможностей; iCloud — ещё и источник резервных адресов). Набор ключей обязан совпадать с `required_keys` из `BuildConfiguration.py`.
+- **Что и зачем.** Не правка исходника, а добавленный файл `build-system/pluma-configuration.json` (`--configurationPath`): `bundle_id` `chat.pluma.app` (расширения `chat.pluma.app.<имя>`, App Group `group.chat.pluma.app`), `api_id` 10002, `api_hash`, `team_id`, `app_center_id "0"` (до 13.2; ключ убран из `required_keys`), `is_internal_build "false"`, `is_appstore_build "true"`, `appstore_id "0"`, `app_specific_url_scheme "plm"`, `premium_iap_product_id ""`, `enable_siri false`, `enable_icloud false` (Siri и iCloud требуют своих возможностей; iCloud — ещё и источник резервных адресов). Набор ключей обязан совпадать с `required_keys` из `BuildConfiguration.py`.
 - **Проверка.** `verify()` (bundle ID, api_id, Team ID), `test_patch`, `test_damage` (`BUILD_CONFIGURATION`).
 - **Если апстрим изменит.** Новый обязательный ключ — патч падает и называет оба набора.
 - **Официальный.** `build-system/appstore-configuration.json` апстрима (его использует сборка `reference`, I-081).
@@ -694,7 +698,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - Окружение `release`: обязательный ревьюер — владелец, развёртывание только с `main`.
 
 ### I-073. Workflow `ios.yml`
-- **Задачи.** `check` (Ubuntu: тесты, патч для dev и, при `PLUMA_TEAM_ID`, для сервера, lint); `build-sim` (macos-26, артефакт `simulator` 7 дней на push и ручной запуск); `preflight-sign` → `build-ipa` (ad hoc, `release`, артефакт `pluma-ios` 30 дней, зашифрован); `preflight-testflight` → `build-testflight` (ручной запуск `main` с `testflight`); `prune-caches`.
+- **Задачи.** `check` (Ubuntu: тесты, патч для dev и, при `PLUMA_TEAM_ID`, для сервера, lint); `build-sim` (`xcode-27`, до 13.2 macos-26, артефакт `simulator` 7 дней на push и ручной запуск); `preflight-sign` → `build-ipa` (ad hoc, `release`, артефакт `pluma-ios` 30 дней, зашифрован); `preflight-testflight` → `build-testflight` (ручной запуск `main` с `testflight`); `prune-caches`.
 - **Триггеры.** push в `main`, pull request (без артефакта и без сохранения кэша), еженедельный canary `17 3 * * 1` (свежий образ раннера, не даёт кэшу истечь), ручной запуск с флажками `ipa`, `testflight`.
 - **Кэш Bazel.** Ключ `bazel-sim|ipa-<hashFiles(upstream.env, config/**, ci/patch.py)>-<run_id>-<attempt>`, восстановление по префиксам; сохраняется и при неудачной сборке; перед сохранением подрезается `cache_gc.py` до 12 ГБ; `build-testflight` читает кэш IPA и не сохраняет свой.
 - **Действия** закреплены по SHA (`actions/checkout` v7.0.1, `actions/cache` v6.1.0, `actions/upload-artifact` v7.0.2), обновляет Dependabot.
@@ -744,6 +748,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **История.** `512ace1` 2026-10-29 (задача 017); `b0586ec` 2026-10-30 (`pluma-devices.tgs`); `6101991` 2026-10-31 (`pluma-wordmark.svg`, словесный знак); `8314118` 2026-10-31 (`mark_write.py`, прозрачная текстура шара).
 
 ### I-084. Минимальная iOS остаётся 13.0 (отменённая правка)
+- **Закрыто (2026-11-09, задача 074).** 13.0+ поднял минимум до 15.0 сам (`Telegram/BUILD:169`).
 - **Что.** `4c6fe94` (2026-11-01) поднимал `minimum_os_version = "13.0"` в `Telegram/BUILD` до 15.0 (ITMS-90068: iOS 15 с апреля 2027). `ee2ac77` (2026-11-01) откатил: при 15.0 API, устаревшие в iOS 14–15 (`UIApplication.windows` в `AppDelegate.swift` и других), становятся предупреждениями, а 673 модуля апстрима собираются с `-warnings-as-errors`. Ждём, когда Telegram поднимет цель сам.
 - **При обновлении апстрима.** Проверить `minimum_os_version` нового релиза. Задача 029.
 
@@ -762,7 +767,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### I-086. Фразы Siri для каждого намерения на каждом языке
 - **Что и зачем.** ITMS-90626: пример фразы для каждого системного намерения расширения Intents на каждом языке. Апстрим даёт фразу только для отправки сообщения, с именем Telegram, и для большинства языков по-английски. Каждый `AppIntentVocabulary.plist` заменяется пятью фразами на своём языке (`INSendMessageIntent`, `INStartAudioCallIntent`, `INSearchCallHistoryIntent`, `INSearchForMessagesIntent`, `INSetMessageAttributeIntent`) с именем Pluma. Где у апстрима фраза своего языка (ar, de, es, it, ko, nl, pt, ru), фраза сообщения — апстрима с именем Pluma.
-- **Где.** `Telegram/Telegram-iOS/<lang>.lproj/AppIntentVocabulary.plist`, 19 языков, `replace_file` по SHA-256 (`SIRI_UPSTREAM`; у be, ca, en, fa, fr, id, ms, pl, tr, uk, uz одинаковый английский файл `eb529c93…`). Список намерений расширения в `Telegram/BUILD` (`IntentsSupported`, 7 строк, включая собственные `SelectFriendsIntent`, `SelectAvatarFriendsIntent` без фраз) — `expect`.
+- **Где.** `Telegram/Telegram-iOS/<lang>.lproj/AppIntentVocabulary.plist`, 19 языков и новый `Base.lproj` (13.x, фразы `en`), `replace_file` по SHA-256 (`SIRI_UPSTREAM`). Новый словарь, которого нет в `SIRI_PHRASES`, останавливает `verify_store`. Список намерений расширения в `Telegram/BUILD` (`IntentsSupported`, 7 строк, включая собственные `SelectFriendsIntent`, `SelectAvatarFriendsIntent` без фраз) — `expect`.
 - **Проверка.** `verify_store` (нет слова Telegram, есть все пять намерений), `test_patch`, `test_damage` (`SIRI_VOCABULARY`).
 - **Замечание.** Siri выключена в конфигурации (`enable_siri: false`, I-065); фразы нужны только ради требования App Store Connect.
 - **История.** `4c6fe94`, 2026-11-01, задача 029.
@@ -831,13 +836,14 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### I-104. Ссылки, которые приложение создаёт, — pluma.chat
 - **Что и зачем.** Каждая ссылка «Поделиться», «Копировать», QR-код и префикс перед именем — `https://pluma.chat/…` и `pluma.chat/` вместо `https://t.me/…` и `t.me/`.
-- **Где.** `SHARE_LINKS` (файл, текст с `{host}`, число; `{host}` = `t.me` в апстриме), `replace`, 62 записи в 41 файле. Строки по исследованию `026-research/clients.md` §2(1), все перечитаны:
+- **Где.** `SHARE_LINKS` (файл, текст с `{host}`, число; `{host}` = `t.me` в апстриме), `replace`, 67 записей. С 13.2 к ним добавлены `ChatMessageCopyLink.swift` (личная ссылка на сообщение), `QrStudioScreen.swift` (QR профиля, номера, канала), веб-прокси в `ProxySettings.swift` (разбор принимает и `t.me`, и `pluma.chat`, как остальной `LINK_HOSTS`). Строки по исследованию `026-research/clients.md` §2(1), все перечитаны:
   - профили, каналы, группы: `UsernameSetupController.swift:490`, `PeerInfoScreen.swift:3733`, `PeerInfoProfileItems.swift:572, 630`, `PeerInfoScreenOpenPeerInfoContextMenu.swift:135, 142` (`@id…`), `PeerInfoScreenOpenURL.swift:217`, `ChatInterfaceStateContextMenus.swift:696`, `CollectibleItemInfoScreen.swift:492`, `BusinessLinksSetupScreen.swift:476, 478`, `PostSuggestionsSettingsScreen.swift:523`, `InviteLinkListController.swift:287` (постоянная ссылка публичного чата), `QrCodeScreen.swift:486, 493`, `ChatQrCodeScreen.swift:1802, 1804, 1806`, `ChatRecentActionsHistoryTransition.swift:220, 225, 275, 287`, `SelectivePrivacySettingsController.swift:981` (ссылка по номеру), `WebAppController.swift:3981` (профиль бота), `GameControllerNode.swift:172`, `VideoChatScreenInviteMembers.swift:356`, `MediaStreamComponent.swift:1151`;
   - коллекции подарков профиля (`PeerInfoGiftsPaneNode.swift:540`, `PeerInfoScreenDisplayGiftsContextMenu.swift:110`) и альбомы историй (`PeerInfoStoryPaneNode.swift:5365`);
   - сообщения: `ShareController.swift:1009`, `ChatControllerOpenTimecodeContextMenu.swift:70`, `UniversalVideoGalleryItem.swift:1047`, `ChatQrCodeScreen.swift:2537`;
   - наборы стикеров и эмодзи: `InstalledStickerPacksController.swift:1086`, `ArchivedStickerPacksController.swift:563`, `StickerPackScreen.swift:1090, 1092, 1099, 1101`, `PaneSearchContainerNode.swift:227`;
   - темы, обои, языки, прокси: `ThemePickerController.swift:625, 877`, `ThemeSettingsController.swift:778, 1028`, `ThemePreviewController.swift:518, 521`, `WallpaperGalleryController.swift:1136, 1171, 1174, 1190`, `ThemeGridController.swift:458`, `LocalizationListControllerNode.swift:795`, `ProxyListSettingsController.swift:547, 550`, `QrCodeScreen.swift:501, 504` (рядом с `plm://proxy` из I-039);
   - префиксы: `ChannelVisibilityController.swift:662, 709`, `CreateGroupController.swift:341`, `CreateChannelController.swift:220`, `EditThemeController.swift:184`, `StickerPackEditTitleController.swift:549`, `GroupStickerPackSetupController.swift:273`.
+- **Оставлено с 13.2 (`SHARE_KEEP`).** `t.me/sendgrams` (`InstantPageTextItem.swift`, `OpenUrl.swift`, `UrlHandling.swift`, `WalletTonConnect.swift`) и `t.me/nft/` кошелька (`WalletCollectibleScreen.swift`): только кошелёк, сервер его не предлагает; хосты песочницы виджета (`Links.cpp`, виджетов сервер не создаёт); заполнитель `https://t.me/contact/<случайное>` (QR Studio, до прихода токена) и прогрев генератора `https://t.me/telegram` (`QrCode.swift`). В скан `t.me` добавлены `.cpp`, юнит-тесты исключены (`is_unit_test`).
 - **Оставлено (`SHARE_KEEP`, файл, текст, число).** Списки хостов I-103 и формы разборщиков (`UrlHandling.swift:24, 254, 316`); ссылки только для открытия внутри приложения (`OpenUrl.swift:361` `makeTelegramUrl`, `WebAppUtils.swift:17, 24`, `StarsTransactionsScreen.swift:1314, 1316`); собственное Telegram — подарочные коды (`PremiumIntroScreen.swift:1899, 2796`, `PremiumGiftCodeScreen.swift:207, 241`), коллекционные подарки `nft` (`GiftViewScreen.swift:933, 1531`, `PeerInfoGiftsPaneNode.swift:1184`, `PeerInfoScreen.swift:2491`, `ChatController.swift:5447`, `StoryItemSetContainerViewSendMessage.swift:3725`, `ShareController.swift:616`), аукционы, `addstyle`, Stars (`StarsTransactionScreen.swift:1131`), Cocoon, бот `@previews` (`InstantPageFeedbackNode.swift:83`), страница «на экран „Домой“» мини-приложения на t.me (`WebAppController.swift:3337`), платёжный провайдер; без ссылки — маркеры QR до готовности кода (`ChatQrCodeScreen.swift:1842`) и фейковая реклама отладки (`ChatHistoryListNode.swift:847`); адрес юзернейма в контактах устройства (`DeviceContactData.swift:207` и `Telegram/SiriIntents/IntentContacts.swift:29` — меняются только вместе, иначе уже записанные контакты не читаются); старое расширение часов `Telegram/Watch/Extension/TGUserInfoController.m:254`, которое не собирает ни одна цель (в `BUILD`-файлах нет ссылок на `Telegram/Watch/`).
 - **Проверка.** `verify_links`: каждый текст `SHARE_LINKS` с `pluma.chat` ровно `count` раз; каждый текст `SHARE_KEEP` ровно `count` раз; во всех `.swift`, `.m`, `.mm`, `.h` деревьев `submodules/` и `Telegram/` число литералов `t.me` (`TME_LITERAL`: `"t.me…` или `://t.me`, за которыми `/`, `\` или `"`) равно числу оставленных — новая ссылка `t.me` в апстриме останавливает патч с именем файла. На копии апстрима после патча остаются 52 литерала `t.me` в 34 файлах, все из `SHARE_KEEP` (до патча — 117 в 69 файлах). `LinksTest.test_literals`, `test_table`, `UpstreamTest.test_patch`, `test_links` (новый файл с `t.me`, откат одной ссылки), `test_damage` (лишняя ссылка в `ShareController.swift`, изменённая оставленная в `PremiumGiftCodeScreen.swift`).
 - **Апстрим / официальный.** Все эти ссылки — `https://t.me/…`.
@@ -845,7 +851,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### I-105. Тексты со ссылкой — pluma.chat
 - **Что и зачем.** Английские строки (единственный язык, который приложение несёт), показывающие ссылку на юзернейм, номер или публичную ссылку, называют `pluma.chat`. Новых ключей нет, меняются значения существующих.
-- **Где.** `Telegram/Telegram-iOS/en.lproj/Localizable.strings`, `STRINGS_LINKS`, `replace_in_line` по ключу (`t.me` → `pluma.chat`, число в строке): `Username.LinkHint`, `Channel.Username.LinkHint`, `EmptyGroupInfo.Line3`, `PrivacyPhoneNumberSettings.CustomPublicLink`, `Business.Links.SimpleLinkInfoUsernamePhone` (2), `Business.Links.SimpleLinkInfoUsername`, `Business.Links.SimpleLinkInfoPhone`, `CreateBot.UsernameStatus.Link`, `SocksProxySetup.QrCode.TMeLink` («t.me link» → «pluma.chat link», переключатель QR прокси). Идёт после I-033, якорь — только ключ.
+- **Где.** `Telegram/Telegram-iOS/en.lproj/Localizable.strings`, `STRINGS_LINKS` (13.2 убрал `CreateBot.UsernameStatus.Link`), `replace_in_line` по ключу (`t.me` → `pluma.chat`, число в строке): `Username.LinkHint`, `Channel.Username.LinkHint`, `EmptyGroupInfo.Line3`, `PrivacyPhoneNumberSettings.CustomPublicLink`, `Business.Links.SimpleLinkInfoUsernamePhone` (2), `Business.Links.SimpleLinkInfoUsername`, `Business.Links.SimpleLinkInfoPhone`, `CreateBot.UsernameStatus.Link`, `SocksProxySetup.QrCode.TMeLink` («t.me link» → «pluma.chat link», переключатель QR прокси). Идёт после I-033, якорь — только ключ.
 - **Оставлено (`STRINGS_KEEP`).** `Premium.Limits.PublicLinksInfo`, `CocoonInfo.IntergrateInfo`.
 - **Проверка.** `verify_links`: ни одно значение вне `STRINGS_KEEP` не содержит `t.me` (`STRINGS_TME`), в каждой строке `STRINGS_LINKS` нужное число `pluma.chat`. `test_patch`, `test_links` (строка с `t.me`), `test_damage` (`EmptyGroupInfo.Line3` с двумя ссылками).
 - **Ограничение.** Языковые пакеты сервера (`langpack.*`), если сервер их отдаёт, переопределяют эти строки своими значениями — их тексты задаёт сервер.
@@ -905,6 +911,38 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `UrlHandling`: ссылка `boost` открывает канал, неизвестный канал — как любая битая ссылка;
   - `ChannelPermissionsController`: «Не ограничивать бустеров» нет;
   - `ChannelAppearanceScreen`: секция «что такое бусты» не добавляется в экран;
+  - `QrStudioLook.availableKinds` (13.2, экран QR-кода): без вкладки подарков, пустая она вела в магазин подарков (`QrStudio.Gifts.Browse` → `makeGiftCollectiblesController`);
   - файлы всех правок `PREMIUM_FOR_EVERYONE_EDITS` входят в `UPSTREAM_PATHS`: без них проверочный job падает на файле, которого нет в разреженном апстриме.
   - Не правилось: вкладка бустов `ChannelStatsController` (экран статистики открывается только при `canViewStats`, сервер его не ставит); входы `openBoostToUnrestrict` (`boosts_unrestrict` сервер не отдаёт).
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `6ad963e5`. Формы условий проверены `swiftc -warnings-as-errors`; сборка Telegram-iOS не запускалась.
+
+### I-111. Значок сообщения, которое приложение не показывает
+- **Статус.** Ветка `task/074-upstream`, 13.2 (2026-11-09).
+- **Что и зачем.** С 13.x у плашки неподдерживаемого сообщения и блока свой значок — самолёт Telegram (шаблон, `UnsupportedContentPillView.swift:47`). Заменён на знак Pluma, шаблон 44×44 в 26 pt.
+- **Где.** `submodules/TelegramUI/Images.xcassets/Chat/Message/UnsupportedIcon.imageset/logo.pdf`, `BRAND_REPLACED`, рендер `brand/render.sh`. Фон `UnsupportedIconBackground` (пузырь) без бренда, не правится.
+- **Проверка.** `verify_brand`, `BrandTest` (файл и SHA-256 апстрима), `test_damaged_images`.
+- **Не проверено.** Как значок смотрится в плашке, сборки нет.
+
+### I-112. Подпись схемы на QR-коде прокси
+- **Статус.** Ветка `task/074-upstream`, 13.2 (2026-11-09).
+- **Что и зачем.** Переключатель QR-кода прокси пишет «tg:// link», а ссылка у Pluma `plm://` (`SCHEME_LINKS`). Значение `SocksProxySetup.QrCode.TgLink` → `plm:// link` (`SCHEME_TEXT`, по `url_scheme`). Было неверно и на 12.9.2, новый проход это показал.
+- **Проверка.** `verify_scheme`, `test_patch`, `test_links`, `test_damage`.
+
+### I-113. Сетевой движок и разделы, которых нет на сервере
+- **Статус.** Ветка `task/074-upstream`, 13.2 (2026-11-09).
+- **Что и зачем.** Правок нет, только `expect`: то, на что опирается патч, не должно незаметно измениться.
+  - `NETWORK_ENGINE_DEFAULT`: `SyncCore_NetworkEngineSettings.swift`, на iOS по умолчанию MtProtoKit. Rust-движок `third-party/mtproto-engine` в сборке есть, но на iOS включается только в Debug Settings и адреса с ключами берёт из контекста MtProtoKit; `NETWORK_DIRS` движок не сканирует (`.rs`, отдельный репозиторий).
+  - `OFF_BY_SERVER`: `WalletConfiguration.defaultValue.isAvailable = false`, чтение `wallet_available`, строка настроек `.wallet` (за ним), новости `isNewsFeedEnabled` (`news_feed_enabled`/`dev`), агент `agent_bot_ids`. Сервер этих ключей не шлёт, разделы не показываются.
+- **Проверка.** `test_damage`.
+- **Не проверено.** Поведение клиента без сервера на этих экранах: сборки и запуска 13.2 не было.
+
+### I-114. Новые tg:// и хосты Telegram
+- **Статус.** Ветка `task/074-upstream`, 13.2 (2026-11-09).
+- **Что и зачем.** Закрывает пробел «новые `tg://` не ловятся». В каждом файле `submodules/` и `Telegram/` (без юнит-тестов) число литералов `"tg://`, хостов `telegram.org`, `telegram.me`, `telegram.dog`, `telegra.ph`, `telesco.pe` и строковых литералов со словом `Telegram` совпадает с таблицей `KEPT_TG_LINKS` / `KEPT_TELEGRAM_SITES` / `KEPT_TELEGRAM_NAMES`; в `Localizable.strings` число значений с такими хостами — `STRINGS_TELEGRAM_SITES` (33). Оставленные: разборщики и префиксы `tg://`, маркеры эмодзи и упоминаний, условия и FAQ (I-088).
+- **Где.** `verify_links`, таблицы `ci/patch.py`.
+- **Проверка.** `test_new_links_stop_the_patch`. На разреженной копии проверяются только её файлы; полный обход идёт в `configure.sh` на полной копии.
+
+### I-115. Сборка 13.2: инструменты и раннер
+- **Статус.** Ветка `task/074-upstream` (2026-11-09). Сборка не запускалась.
+- **Что.** `upstream.env`: Xcode 27.1, Bazel 9.2.0. `ios.yml`, `reference.yml`: `xcode-27` (macOS 27.0.1, Xcode 27.1 по умолчанию, публичный preview; `.github/actionlint.yaml` объявляет метку для actionlint). `Telegram/BUILD`: 9 `provisioning_profile` (убран `spm_build_app`).
+- **Не проверено.** Bazel 9 и `pluma.bazelrc`, `rules_rust` и крейты двух движков на холодной сборке, расход диска (порог `PLUMA_MIN_FREE_GB` 60), `-warnings-as-errors` Xcode 27 на правках вида `if false && …`, новый `exported_symbols_lists` релизных фреймворков. Запись I-093 и I-090: кружок в обеих камерах. Вступление: то, как новый плеер `tlottie` рисует знак с заменой цветов (I-026).

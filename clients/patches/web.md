@@ -7,7 +7,7 @@
 ## Общие сведения
 
 - **Репозиторий:** `github.com/sckraaa/pluma-web` (локально `~/pluma-web`). Копии кода приложения в нём нет: CI скачивает апстрим и применяет патч.
-- **Апстрим** (`upstream.env`): `UPSTREAM_REPO=https://github.com/morethanwords/tweb.git`, `UPSTREAM_REF=346844bf8c002bc1af4de20e78ae1d0df0265019` (коммит 2026-09-22), `UPSTREAM_VERSION=2.2`, `UPSTREAM_BUILD=676` (`public/version` = `2.2 (676)`), `UPSTREAM_LAYER=228`, `NODE_VERSION=24.22.1`, `PNPM_VERSION=11.16.0`. Почему этот коммит: последний с layer 228. Следующий, `8197da75` «Layer 229», переделывает `keyboardButton…` и меняет id десяти конструкторов (README, бриф 012, ADR 0008).
+- **Апстрим** (`upstream.env`): `UPSTREAM_REPO=https://github.com/morethanwords/tweb.git`, `UPSTREAM_REF=aa74832ed1976008d1ad1859d0b0cd671e75a7bd` (коммит «Build» 2026-11-08), `UPSTREAM_VERSION=2.3`, `UPSTREAM_BUILD=686` (`public/version` = `2.3 (686)`), `UPSTREAM_LAYER=233`, `NODE_VERSION=24.22.1`, `PNPM_VERSION=11.16.0`. Почему этот коммит: новейшая сборка на момент задачи 074; сервер обслуживает слои 228 и 233 одновременно (ADR 0045). До задачи 074 — `346844bf`, 2.2 (676), layer 228.
 - **Как применяется патч:** `ci/fetch-upstream.sh` (чистый checkout закреплённого коммита в `./upstream`) → `ci/configure.sh` (выбирает цель `server`/`dev` и вызывает `python3 -I ci/patch.py --source upstream --upstream upstream.env --app config/app.env --server-url … --rsa-public-key … --target …`) → `ci/build.sh <target>` (typecheck, `vite build`, сборка сайта, `ci/check_bundle.py`, архив). Точка входа патча — `main()` → `patch(tree, c)` → `verify(tree, c)` → запись `.pluma-patch.json`.
 - **Виды правок** (методы класса `Tree` в `ci/patch.py`). Любая правка, у которой не совпало число вхождений, роняет весь прогон с `PatchError`, где названы файл и ожидаемый текст:
   - `replace(rel, old, new, count=1)` — точная замена текста, `old` должен встретиться ровно `count` раз;
@@ -25,6 +25,7 @@
   - Остальное: `test_icon_changed`, `test_identity_colors`, `test_dev_server`, `test_env_file_of_upstream`, `KeyTest`, `ServerUrlTest`, `NodeEnginesTest`, `ConfigTest`, `TraceTest`, `TreeTest`, `BundleTest`.
   - На 2026-11-03 на `task/020-parity-fixes` проходят 32 теста за 48 с.
   - На 2026-11-04 на `task/053-saved-tags` (W-065) проходят 33 теста, в `DAMAGE` 134 случая.
+  - На 2026-11-09 на `task/074-upstream` (2.3 (686), layer 233) проходят 38 тестов.
 - **Проверки результата** — в двух местах, независимо от того, как делались правки:
   - `verify()` в `ci/patch.py` — по исходникам (W-057);
   - `ci/check_bundle.py` — по собранному сайту (W-056).
@@ -43,13 +44,13 @@
 
 ### Что проверять при обновлении апстрима
 
-1. Новый коммит обязан иметь layer, который понимает сервер: `"layer":N` в `src/lib/mtproto/schema.ts` = `UPSTREAM_LAYER`. Иначе меняется сервер, а не только патч (ADR 0008).
+1. Новый коммит обязан иметь layer, который понимает сервер: `"layer":N` в `src/lib/mtproto/schema.ts` = `UPSTREAM_LAYER`. Иначе меняется сервер, а не только патч (ADR 0045).
 2. Обновить вместе все поля `upstream.env`: `UPSTREAM_REF`, `UPSTREAM_VERSION`, `UPSTREAM_BUILD` (как в `public/version`), `PNPM_VERSION` (= `packageManager` в `package.json`), `NODE_VERSION` (должен проходить `engines.node`). Патч сверяет всё это сам (W-008).
 3. `ci/fetch-upstream.sh && python3 -I ci/patch_test.py -v`. Каждое упавшее место искать в этом реестре по имени файла.
 4. Флаги `import.meta.env.VITE_MTPROTO_*`: новый флаг или исчезнувший роняет патч (W-008). Решить, каким он должен быть при транспорте «только WebSocket».
 5. Не появился ли у апстрима свой `.env.production.local` (W-002).
-6. Новые следы Telegram — адреса DC, `*.web.telegram.org`, ключи, учётные данные (W-057, W-056). Отдельно смотреть новые места, куда клиент сам ходит к Telegram, вроде `telegramMeWebManager` (W-007); `verify` их ловит только по списку известных следов.
-7. Строки. Счётчики «Telegram» в `src/lang.ts` (210 заменяемых / 30 оставляемых) и `src/langSign.ts` (7 / 0) сломаются на любой новой строке. Каждую новую строку прочитать и решить вручную (W-020).
+6. Новые следы Telegram — адреса DC, `*.web.telegram.org`, ключи, учётные данные (W-057, W-056), новые `telegram.org` (`SITE_KEEP`, W-070). Отдельно смотреть новые места, куда клиент сам ходит к Telegram, вроде `telegramMeWebManager` (W-007); `verify` их ловит только по списку известных следов.
+7. Строки. Счётчики «Telegram» в `src/lang.ts` (272 заменяемых / 45 оставляемых) и `src/langSign.ts` (7 / 0) сломаются на любой новой строке. Каждую новую строку прочитать и решить вручную (W-020).
 8. Иконки: если апстрим заменил любой файл из `ICONS` (SHA-256), проверить, что `brand/render.sh` рендерит файл того же назначения и размера, и обновить хэш (W-015).
 9. Новые ссылки `tg:` в коде (`verify` падает на любой `'tg:`, `"tg:`, `` `tg: ``, `^tg:` вне комментариев) — сделать их `plm:` (W-025, W-026).
 10. Цвета:
@@ -57,7 +58,7 @@
     - новые цвета тем в `themeController.ts`;
     - синий или бирюзовый Telegram в новых местах (на ветке 020 `verify` их ловит).
 11. Баннер дня рождения и строка профиля: поменялась ли логика гейта Premium и подарков (W-043…W-046).
-12. Стикеры: исправил ли апстрим `toggleStickerSet` сам. Живой web.telegram.org/k на 2026-11-02 уже исправил. Если исправил, правку W-048 убрать.
+12. Настройки: не появились ли у апстрима новые строки, ведущие к сервисам Telegram (W-070).
 13. После сборки: `ci/check_bundle.py` (CI делает сам) и `PLUMA_SERVER_DIR=~/teamgram-server e2e/run.sh` на стенде (W-062). Затем глазами в браузере: вход, QR (`plm://login`), светлая и тёмная темы.
 
 ---
@@ -107,9 +108,9 @@
 - **Коммиты:** `facdd16`, задача 012.
 
 ### W-005. Базовый DC — 1
-- **Где:** `src/config/app.ts`, `replace` `  baseDcId: 2 as TrueDcId,` → `  baseDcId: 1 as TrueDcId,`.
+- **Где:** `src/lib/accounts/authKeyFingerprint.ts` (`BASE_DC`), `replace` `export const BASE_DC_ID = 2;` → `export const BASE_DC_ID = 1;`; `src/config/app.ts`, `expect` `  baseDcId: BASE_DC_ID as TrueDcId,`.
 - **Зачем:** сервер Pluma — DC 1.
-- **Проверка:** `verify`, `DAMAGE` (`baseDcId: 4`).
+- **Проверка:** `verify` (`BASE_DC_ID = 1`), `DAMAGE` (`baseDcId: 4`, `BASE_DC_ID = 4`).
 - **Апстрим до правки:** DC 2.
 - **Коммиты:** `facdd16`, задача 012.
 
@@ -223,7 +224,7 @@
 ### W-019. Имя «Pluma» во встроенных английских строках
 - **Что и зачем:** каждое «Telegram» в **значениях** строк становится `PLUMA_APP_NAME` («Sign in to Pluma», «Pluma Premium», «Pluma Stars»). Ключи, комментарии и URL (`https://t.me/TelegramTips`) остаются.
 - **Где:** `rename_strings()` для `STRINGS`. Строка вида `'key': value` (регэксп `_STRING_ENTRY`); слово — регэксп `_TELEGRAM_WORD`: не после `[\w./@-]`, но допускается после `\n`.
-  - `src/lang.ts`: ожидается ровно 210 замен и 30 оставшихся «Telegram»;
+  - `src/lang.ts`: ожидается ровно 272 замены и 45 оставшихся «Telegram» (новые строки 2.3 прочитаны: кошелёк, бизнес, настройка Experimental, подсказки Premium);
   - `src/langSign.ts`: 7 замен, 0 оставшихся.
 - **Проверка:** `verify` — ни одно значение не содержит слово. `check_bundle` — есть «Sign in to Pluma», нет «Sign in to Telegram» и «Scan with Telegram». `test_patch` проверяет `AppName`, `BoostingStars`, `Premium.Boarding.Peer.Title`. `DAMAGE` (новая строка `AppNameFull`, «Sign in» без Telegram, `t.me/Tips`).
 - **При обновлении:** любая новая или удалённая строка с Telegram меняет счётчик, и патч падает, пока строку не прочтут.
@@ -233,7 +234,8 @@
 ### W-020. Подвал меню: ссылка на исходники и версия
 - **Где:** `src/components/sidebarLeft/index.ts`.
   - `replace` `  btnMenuFooter.href = 'https://github.com/morethanwords/tweb/blob/master/CHANGELOG.md';` → `'https://github.com/sckraaa/pluma-web'` (`SOURCE_URL`; исходники сборки по GPL);
-  - `replace` ``  t.textContent = `Telegram Web${App.suffix} ${App.version} (${App.build})`;`` → ``  t.textContent = `Pluma Web ${App.version} (${App.build})`;``.
+  - `expect` `  t.textContent = getAppVersionText();`;
+  - `src/config/app.ts`, `replace` ``  return `Telegram Web${App.suffix} ${App.version} (${App.build})`;`` → ``  return `Pluma Web ${App.version} (${App.build})`;`` (та же подпись и в «Настройках», и в `Experimental`).
 - **Проверка:** `test_patch`, `DAMAGE` (`github.com/tweb`, пробел перед `${App.suffix}`).
 - **Коммиты:** `bb3c634`.
 
@@ -255,6 +257,19 @@
 - **При обновлении:** фрагмент длинный (21 строка), поэтому любое изменение в соседних пунктах меню роняет замену.
 - **Коммиты:** `bb3c634`.
 
+### W-070. В «Настройках» нет раздела помощи; `telegram.org` под счётом (задача 074)
+- **Что и зачем.** С 2.3 в конце настроек есть раздел: FAQ на telegram.org и «Ask a Question» с чатом волонтёров Telegram (`help.getSupport`). У остальных клиентов Pluma раздела нет (Android, iOS, Desktop D-030), поэтому и здесь.
+- **Где** (`help_section()` в `ci/patch.py`): `src/components/sidebarLeft/tabs/settings.tsx` — импорт `askQuestion`, `openTelegramFaq` и блок от `{/* help, the way tdesktop ends its main settings */}` до `</Section>`; `src/lib/settingsSearch/generated.ts` — записи `AppSettingsTab:AskAQuestion` и `AppSettingsTab:TelegramFaq`. Строки в `lang.ts` и `askQuestion.ts` остаются недостижимыми.
+- **Счёт `telegram.org`.** `SITE_KEEP` и проверка в `verify`: число хостов `telegram.org` по файлам в коде без комментариев; новый останавливает патч, пока кто-то не решит, ведёт ли он к сервисам Telegram. Что оставлено и почему — комментарии в `SITE_KEEP`.
+- **Поиск по настройкам.** Записи `AppSettingsTab:Premium.Boarding.Title`, `TelegramBusiness`, `MenuTelegramStars`, `MenuTelegramStarsTon`, `Chat.Menu.SendGift` (`SETTINGS_SEARCH_SALE_ROWS`) не показываются: сами строки скрыты `premium_purchase_blocked`, у поиска такого условия нет. Правка в `src/lib/settingsSearch/openers.ts` (набор `SALE_ENTRIES`) и `registry.ts` (фильтр рядом с `WALLET_ENTRIES`), а не в `generated.ts`: индекс генерируется из вкладок при старте сборки (`scripts/settings-search-plugin.mjs`), и правка `generated.ts` стиралась бы. Записи FAQ и Ask a Question исчезают сами, вместе с разделом в `settings.tsx`.
+- **Как проверяется.** `verify_help_section`, `test_patch`, `DAMAGE` (импорт, заголовок блока, записи поиска; новый `telegram.org` в `helpers/copyContact.ts`).
+
+### W-071. Нет сообщения о новой версии (задача 074)
+- **Что и зачем.** В 2.3 есть `public/changelogs/{en,ru}_2.3.md`. `apiUpdatesManager.deliverChangelog` после обновления кладёт текст файла текущей версии в служебный чат каждого вошедшего аккаунта, а там написано Telegram и Telegram Premium и дана ссылка на t.me. Файла нет — сообщения нет (404 считается «у версии его нет»).
+- **Где.** `CHANGELOGS` и `rebrand()` в `ci/patch.py`: оба файла удаляются по SHA-256 (`replace_file`); `tree.expect` на `` fetch(`changelogs/${lang}_… `` в `apiUpdatesManager.ts`.
+- **Как проверяется.** `verify` и `check_bundle` падают на `changelogs/*_<текущая версия>.md`, `test_patch`, `DAMAGE` (оба файла и строка `fetch`), `BundleTest.test_rejects`.
+- **При обновлении.** Новая версия со своим файлом роняет `verify`: добавить файл в `CHANGELOGS`. Файлы прежних версий не читаются и лежат как есть.
+
 ### W-024. Ссылки `plm://`, которые создаёт клиент
 - **Что и зачем:** приложения Pluma работают с `plm://`, а `tg://` остаётся за Telegram, установленным рядом. QR входа Pluma не откроет Telegram, и наоборот (бриф 017). Веб-страница не может зарегистрировать `plm://` в системе (браузеры принимают только `web+`).
 - **Где:** `PLM_LINKS`, точные замены `tg:` → `plm:`:
@@ -264,8 +279,14 @@
   - `src/components/wrappers/joinVoiceChatAnchor.ts` `` `tg://voicechat? `` (1);
   - `src/lib/richTextProcessor/wrapRichText.ts` `'tg://bot_command?` (1);
   - `src/lib/richTextProcessor/index.ts` `'tg://search_hashtag?` (1);
-  - `src/lib/settingsSearch/link.ts` `'tg://settings'` (1).
-- **Проверка:** `verify` — нигде в коде (без комментариев) нет `'tg:`, `"tg:`, `` `tg: `` и `^tg:`; есть `'plm://login?token='`. `check_bundle` — есть `plm://login?token=`, нет `tg://login`. `DAMAGE` (`login/`, `iv/`, `settings/`, новая константа `'tg://resolve'`).
+  - `src/lib/settingsSearch/link.ts` `'tg://settings'` (1);
+  - `src/lib/richTextProcessor/wrapRichText.ts` `'tg://sendgrams?to='` (1, адрес TON в сообщении, 2.3);
+  - `src/components/chat/inputEditor/richMessage.ts` `url.startsWith('tg://user?')` (1, упоминание ссылкой в редакторе rich-сообщений, 2.3);
+  - `src/helpers/string/normalizeLinkUrl.ts` `  'tg:',` и `url.protocol === 'tg:'` (допустимые схемы ссылки, 2.3);
+  - `src/lib/appManagers/utils/richMessage/validateRichMessage.ts` список схем (2.3);
+  - `src/lib/internalLinkProcessor.ts` `element.href.replace(/^tg:(?:` (путь неизвестной ссылки, 2.3);
+  - `src/lib/richTextProcessor/inferRichMessageNoAutolink.ts` `|tg:\/\/|` (что композитор считает кандидатом на автоссылку, 2.3).
+- **Проверка:** `verify` — нигде в коде (без комментариев) нет `'tg:`, `"tg:`, `` `tg: ``, `^tg:` и `tg://` (в том числе `tg:\/\/` в регулярном выражении); есть `'plm://login?token='`. `check_bundle` — есть `plm://login?token=`, нет `tg://login`. `DAMAGE` (`login/`, `iv/`, `settings/`, новая константа `'tg://resolve'`).
 - **Коммиты:** `abb939c` (2026-10-29), задача 017.
 
 ### W-025. Клиент открывает `plm:`-ссылки вместо `tg:`
@@ -284,15 +305,15 @@
     - Страницы самого сайта `pluma.chat` не открываются как профили. Константа `LINK_SITE_PATHS` в `ci/patch.py` (тот же список, что у других клиентов): корень `/` и первые сегменты пути `iphone`, `ipad`, `android`, `mac`, `windows`, `linux`, `web`, `pero`, `app`, `en`, `dl`, `ios`, `collect`, `assets`, `_l`, `.well-known`, файлы `favicon.svg`, `og.png`, `apple-touch-icon.png`, `404.html`, `progress.json`. Из неё патч пишет `const PLUMA_SITE_PATHS = new Set([...])` после `PLUMA_LINK_HOST`, а в проверке точного хоста `pluma.chat` сначала берётся первый сегмент `url.pathname` в нижнем регистре: пустой или из набора — `matchTelegramUrlHost` отдаёт `undefined`. Тогда `wrapUrl` не даёт `onclick`, ссылка остаётся обычным `<a target="_blank">`, а `appImManager.openUrl` (`appImManager.ts:1873`) открывает её `safeWindowOpen`, как любую внешнюю. Только для `pluma.chat`: `t.me/iphone` по-прежнему юзернейм. Исправление по ревью задачи 026.
     - `TELEGRAM_LINK_HOSTS = ['t.me', 'telegram.me']` не меняется (`expect`). Ссылки `t.me` по-прежнему открываются внутри приложения и ищутся на сервере Pluma, как у апстрима. `telegram.dog` у Web K в списке нет и не было.
   - **Исходящие ссылки** (`LINK_BUILDERS`, в тексте якоря `t.me/` заменяется на `pluma.chat/`, число вхождений точное):
-    - `helpers/dom/anchorCopy.ts:7`: `const T_ME = 'https://t.me/';`. Это юзернейм и ссылка профиля в информации о чате и в настройках.
+    - `helpers/copyContact.ts` (2.3, импортируется в `helpers/dom/anchorCopy.ts`): `export const T_ME = 'https://t.me/';`. Это юзернейм и ссылка профиля в информации о чате и в настройках.
     - Ссылки на сообщения из «Копировать ссылку»: `components/chat/contextMenu.ts:1916` и `components/popups/forward.tsx:174`, `    let url = 'https://t.me/';`.
     - Строка ссылки в информации группы или канала: `components/peerProfile.tsx:992` (тема) и `:1006` (юзернейм).
     - QR профиля:
       - `helpers/qrCode/paintQrCode.ts:110` `buildTelegramUserQrUrl`;
-      - `components/popups/myQrCode.tsx:115` (`+<телефон>`) и `:116` (`c/<id>`).
+      - `components/popups/myQrCode/link.ts` (`+<телефон>`, 2.3) и `components/popups/myQrCode.tsx` (`c/<id>`).
+      - `components/sidebarLeft/tabs/businessChatLinks.tsx` (ссылки бизнес-аккаунта: `copyLink('https://t.me/' + path)` и подпись, 2.3).
     - Истории, альбомы историй и коллекции подарков:
-      - `components/stories/profileList.tsx:218` (`/s/`) и `:350` (`/a/`);
-      - `components/stories/viewer.tsx:1875`;
+      - `lib/appManagers/utils/stories/storyLink.ts` (`/s/`, 2.3: один генератор для списка и просмотрщика) и `components/stories/profileList.tsx` (`/a/`);
       - `components/stargifts/profileList.tsx:341` (`/c/`).
     - Наборы стикеров и эмодзи: `components/popups/stickers.tsx:281`.
     - Публичная ссылка чата строкой приглашения: `components/sidebarRight/tabs/chatInviteLinkShared.ts:57`.
@@ -315,7 +336,7 @@
       - ссылка из мини-приложения `helpers/getWebViewTgLink.ts:5`.
     - Ссылки на функции самого Telegram:
       - `lang.ts`: BotFather, `TelegramFeaturesUrl` (2);
-      - `giftLink.tsx` (2), `promoSlideTab.tsx` — `giftcode`;
+      - `giftLink.tsx` (2), `premium/promoSlide.tsx` — `giftcode`; `popups/premium.tsx` — счёт-фактура, сразу уходит во внутренний маршрут; `stories/viewer.tsx` — NFT-подарок, сразу уходит во внутренний маршрут; `validateRichMessage.ts` — основание для разбора относительной ссылки; `lib/wallet/tonConnectWire.ts`, `vendor/widget-sandbox/**` (API виджетов, кошелёк не выпущен; 2.3);
       - `starGiftInfo.tsx` (2), `stargiftsGrid.tsx` (2), `starsPay.tsx:491` — `nft`;
       - `aiEditorPopup/styleTab.tsx` — `addstyle`;
       - `editBot.tsx` — `botfather`;
@@ -349,16 +370,16 @@
 
 ### W-026. Цвета светлой и тёмной тем по умолчанию
 - **Где:** `src/helpers/themeController.ts`, `replace_within` в блоках `  day: {\n` … `\n  },\n` и `  night: {\n` … `\n  },\n`, по одной точной замене `'<ключ>': '<цвет>'` (`THEME_COLORS`).
-  - day: `primary-color` `#3390ec`→`#5b7a5e`, `message-out-primary-color` `#5CA853`→`#5b7a5e`, `message-background-color` `#ffffff`→`#f1f2f0`, `primary-text-color` `#000000`→`#111111`, `secondary-text-color` `#707579`→`#6b6f6b`, `saved-color` `#359AD4`→`#5b7a5e`, `background-color` `#f4f4f5`→`#f4f5f4`, `border-color` `#dfe1e5`→`#dfe2df`, `secondary-color` `#c4c9cc`→`#c4c9c4`, `link-color` `#00488f`→`#4f6e52`.
-  - night: `primary-color` `#8774E1`→`#9dbb9f`, `message-out-primary-color` `#8774E1`→`#b2ceb4`, `message-background-color` `#212121`→`#232623`, `surface-color` `#212121`→`#131513`, `primary-text-color` `#ffffff`→`#e8ece8`, `secondary-text-color` `#aaaaaa`→`#9aa29a`, `saved-color` `#8774E1`→`#9dbb9f`, `background-color` и `body-background-color` `#181818`→`#0c0e0c`, `border-color` `#0f0f0f`→`#070807`, `secondary-color` `#707579`→`#6e756e`, `link-color` `#8774E1`→`#b2ceb4`, `input-search-background-color` `#181818`→`#0c0e0c`.
-  - Отдельный `replace` комментария `'link-color': '#b2ceb4', // SCSS resolves to var(--primary-color)` → `// pluma: lighter than the accent`.
-- **Проверка:** `test_patch`, `DAMAGE` (`#3390EC`, комментарий link-color).
+  - day: `primary-color` `#3390ec`→`#5b7a5e`, `message-out-primary-color` `#5CA853`→`#5b7a5e`, `message-background-color` `#ffffff`→`#f1f2f0`, `primary-text-color` `#000000`→`#111111`, `secondary-text-color` `#707579`→`#6b6f6b`, `saved-color` `#359AD4`→`#5b7a5e`, `background-color` `#f4f4f5`→`#f4f5f4`, `border-color` `#dfe1e5`→`#dfe2df`, `secondary-color` `#c4c9cc`→`#c4c9c4`.
+  - night: `primary-color` `#8774E1`→`#9dbb9f`, `message-out-primary-color` `#8774E1`→`#b2ceb4`, `message-background-color` `#212121`→`#232623`, `surface-color` `#212121`→`#131513`, `primary-text-color` `#ffffff`→`#e8ece8`, `secondary-text-color` `#aaaaaa`→`#9aa29a`, `saved-color` `#8774E1`→`#9dbb9f`, `background-color` и `body-background-color` `#181818`→`#0c0e0c`, `border-color` `#0f0f0f`→`#070807`, `secondary-color` `#707579`→`#6e756e`, `input-search-background-color` `#181818`→`#0c0e0c`.
+  - `link-color` с версии 2.3 в таблице нет: апстрим красит ссылки акцентом (`applyAppColor({name: 'link-color', hex: newAccentHex})`), поэтому ссылки — шалфей акцента (`#5b7a5e`, `#9dbb9f`), а не прежние `#4f6e52`, `#b2ceb4`.
+- **Проверка:** `test_patch`, `DAMAGE` (`#3390EC`).
 - **Коммиты:** `3460637` (2026-10-29), задача 017.
 
 ### W-027. `--on-primary-color`: текст и значки на заливке акцентом
 - **Что и зачем:** акцент тёмной темы — светлый шалфей, белое на нём не читается. Тема ставит `--on-primary-color`: тёмный `#131513`, если яркость акцента больше 0,65, иначе белый.
 - **Где:**
-  - `themeController.ts`, `replace` строки импорта из `@helpers/color` — добавлен `computePerceivedBrightness`. Импорт заменяется целиком, поэтому любое изменение списка у апстрима роняет патч.
+  - `themeController.ts`, `replace` начала строки импорта из `@helpers/color` (до `getAccentColor`) — добавлен `computePerceivedBrightness`.
   - `themeController.ts`, `replace` после `applyAppColor({ name: 'primary-color', hex: newAccentHex, darkenAlpha: 0.04 });` добавлен `element.style.setProperty('--on-primary-color', …)`.
   - `src/scss/base.scss`: после `  --badge-text-color: #fff;\n  --original-ripple-color: …` добавлено `  --on-primary-color: #fff;`.
   - Потребители — W-035, W-036.
@@ -374,7 +395,7 @@
 - **Коммиты:** `3460637`.
 
 ### W-029. Время и галочки исходящих в тёмной теме — цвет outbox accent
-- **Где:** `themeController.ts`, `replace` `      hex: isNight ? '#ffffff' : rgbaToHexa(accentColor2 ? hsvToRgb(...accentColor2) : myMessagesAccent),` → `hex: accentColor2 ? rgbaToHexa(hsvToRgb(...accentColor2)) : (isNight ? '#ffffff' : rgbaToHexa(myMessagesAccent))`.
+- **Где:** `themeController.ts`, `replace` `      hex: isNight ? '#ffffff' : outgoingGradient ? keepReadableOnOutgoingMessageGradient(outgoingAccent, outgoingGradient) : outgoingAccent,` → `hex: isNight && !accentColor2 ? '#ffffff' : outgoingGradient ? … : outgoingAccent` (`outgoingAccent` апстрима и есть outbox accent, если он задан).
 - **Апстрим до правки:** ночью всегда белый.
 - **Проверка:** `DAMAGE` (`'#fff'`).
 - **Коммиты:** `3460637`.
@@ -423,12 +444,12 @@
 - **Проверка:** `DAMAGE` (`background:` вместо `background-color:`).
 - **Коммиты:** `3460637`.
 
-### W-036. Белый на акцентной заливке → `--on-primary-color` (25 правил)
+### W-036. Белый на акцентной заливке → `--on-primary-color` (24 правила)
 - **Где:** `ON_PRIMARY` — пары (файл, точный многострочный фрагмент правила). Внутри фрагмента регэксп `_WHITE_ON_PRIMARY` должен найти ровно одно `color:`/`stroke:` со значением `#fff`, `white`, `var(--white)` или `var(--badge-text-color)`; оно меняется на `var(--on-primary-color)`. Затем точная замена фрагмента в файле.
-  - `_button.scss` ×3, `_row.scss`, `_chat.scss` ×3 (`.btn-send`, команды, ещё одна кнопка);
-  - `_chatInlineHelper.scss`, `_chatMarkupTooltip.scss`, `_chatPinned.scss`, `_checkbox.scss` (`stroke`), `_poll.scss`, `_replyKeyboard.scss`, `_searchSuper.scss`, `_topbarSearch.scss`, `_voiceRecordingPanel.scss`, `_leftSidebar.scss`;
+  - `_button.scss` ×2, `_chat.scss` ×3 (`.btn-send`, команды, ещё одна кнопка; значки `&-badge` в `_button.scss` и `_row.scss` апстрим удалил в 2.3, клавиатура ботов в 2.3 без заливки акцентом);
+  - `_chatInlineHelper.scss`, `_chatMarkupTooltip.scss`, `_chatPinned.scss`, `_checkbox.scss` (`stroke`), `_poll.scss`, `_searchSuper.scss`, `_topbarSearch.scss`, `_voiceRecordingPanel.scss`, `_leftSidebar.scss`;
   - `popups/_datePicker.scss` ×2, `popups/_giftPremium.scss`;
-  - `components/call/callLogo.module.scss`, `featureDetailsIconSticker.module.scss`, `popups/sendGift.module.scss`, `popups/starGiftValue.module.scss`, `popups/webAppLocationAccess.module.scss`.
+  - `components/call/callLogo.module.scss`, `featureDetailsIconSticker.module.scss`, `popups/sendGift.module.scss`, `popups/starGiftValue.module.scss` (заливка теперь `--primary-button-color`), `popups/webAppLocationAccess.module.scss`, `wallet/tonConnect/tonConnect.module.scss` (буква вместо значка, 2.3), `chat/inputEditor/style.scss` (ручка ячейки таблицы, 2.3).
   - Точные тексты — в `ci/patch.py`.
 - **Проверка:** `test_patch` (`.btn-color-primary`), `DAMAGE` (порядок свойств в `_chat.scss`, `white` в `_button.scss`, `_checkbox.scss`, `#fff` в `webAppLocationAccess`).
 - **При обновлении:** новые места «белое на `--primary-color`» патч сам не найдёт: их надо искать вручную (`grep -n "primary-color" -A3 | grep "#fff"`).
@@ -436,7 +457,7 @@
 
 ### W-037. Выбранный чат в списке
 - **Где:** `src/scss/partials/_chatlist.scss`, `replace_within` от `      &.active {\n        --background: var(--primary-color) !important;\n` до `\n      }\n`:
-  - `#fff` → `var(--on-primary-color)` (ровно 9);
+  - `#fff` → `var(--on-primary-color)` (ровно 11; в 2.3 добавились `.folder-tag` и обводка `.dialog-subtitle-badge-bot-app`);
   - `color: white;` (1);
   - `rgba(255, 255, 255, .7)` и `.2` → `color-mix(in srgb, var(--on-primary-color) 70%|20%, transparent)`.
 - **Проверка:** `test_patch` (в блоке не осталось `#fff`), `DAMAGE` (`.6`, `--color: white`).
@@ -448,7 +469,8 @@
 ### W-039. Цвета-идентичности: аватары синего и бирюзового (только ветка 020)
 - **Что и зачем:** из семи цветов, которые Telegram даёт пользователю или чату по id (`getPeerColorIndexByPeer`: `peer.color`, иначе `id % 7`), синий становится шалфеем, а бирюзовый — teal без синевы, во всех темах. Остальные пять и id ≥ 7 остаются как есть. Решение владельца — выровнять с Android (бриф 020, «Равномерность платформ»).
 - **Где:** `identity_colors()`.
-  - `expect` в `src/lib/appManagers/utils/peers/getPeerColorById.ts` списка `  DialogColors = ['red', 'orange', 'violet', 'green', 'cyan', 'blue', 'pink'] as const;`;
+  - `expect` в `src/lib/appManagers/utils/peers/dialogColors.ts` (2.3: вынесен из `getPeerColorById.ts`) списка `export const DialogColors = ['red', 'orange', 'violet', 'green', 'cyan', 'blue', 'pink'] as const;`;
+  - `src/components/wallet/wallet.module.scss`, `replace` `background: linear-gradient(#70a7db, #408acf);` → градиент синей идентичности (`--peer-avatar-blue-top`, `-bottom`), синий Telegram в кошельке 2.3;
   - `src/scss/base.scss`, `replace`:
     - `  @include avatar-color("cyan", #53edd6, #28c9b7);` → `#5BCBC4, #2C9C98`;
     - `  @include avatar-color("blue", #5CAFFA, #408ACF);` → `#7FA082, #5B7A5E`.
@@ -459,7 +481,7 @@
 
 ### W-040. Цвета имён идентичностей, своя палитра для тёмных тем (только ветка 020)
 - **Где:** `getPeerColorById.ts`.
-  - Регэксп `_NAME_COLORS` ищет ровно одну строку `const DialogColorsFg: Array<string[]> = [[...] ×7],`. Цвета cyan (`#309EBA`→`#1F8A80`) и blue (`#368AD1`→`#4F6E52`) сверяются и заменяются точной заменой всей строки.
+  - Регэксп `_NAME_COLORS` ищет ровно одну строку `const DialogColorsFg: Array<string[]> = [[...] ×7];` (2.3: своя константа, раньше `,` в общем объявлении). Цвета cyan (`#309EBA`→`#1F8A80`) и blue (`#368AD1`→`#4F6E52`) сверяются и заменяются точной заменой всей строки.
   - `replace` `const _DialogColorsFg = DialogColorsFg;` → `const DialogColorsFgNight = {4: ['#53CCC6'], 5: ['#9DBB9F']}` и `const _DialogColorsFg = DialogColorsFg.slice();`. Копия нужна потому, что `setPeerColors` пишет цвета темы прямо в `DialogColorsFg`.
   - `replace` `  let newColors = replaceColors(_DialogColorsFg.slice(), peerColorOptions);\n  if(themeController.isNight()) {` → ночью берутся `DialogColorsFgNight`, поверх — цвета сервера (`help.getPeerColors`).
 - **Зачем:** у Web K один цвет имени на все темы. Тёмные имена бирюзового `#53CCC6` (значение ночной темы Android) — решение на подтверждение (бриф 020).
@@ -487,7 +509,7 @@
 ### W-043. Баннер дней рождения: нажатие открывает чат, а не подарок
 - **Где:** `src/components/sidebarLeft/birthdaySuggestions.tsx`, функция `birthday_banner()`.
   - Сначала `expect` опор: в `src/lang.ts` строки `'SendMessageTitle': 'Send message'` и `'Suggestion.BirthdayContacts.Today': 'Birthday today'`; в `src/components/popups/pickUser.tsx` `export default function showPickUserPopup(options: PopupPickUserOptions) {`; в `src/lib/appImManager.ts` `public async setPeer(options: Partial<ChatSetInnerPeerOptions> = {}, animate?: boolean): Promise<boolean> {`.
-  - Импорты: `showSendGiftPicker` и `showSendGiftPopup` → `showPickUserPopup`; удалены `toastNew` и `useAppState`; добавлен `appImManager`; поправлен комментарий «Preview-only».
+  - Импорты: `showSendGiftPicker` и `showSendGiftPopup` → `showPickUserPopup`; удалены `toastNew` и `useAppState`; добавлен `appImManager`.
   - Большая точная замена от `  const nearbyContacts = createMemo(() => [` до конца `onClick` (`showSendGiftPicker({…});\n  };\n`):
     - один именинник — `appImManager.setPeer({peerId})`, как нажатие в списке чатов (`appDialogsManager`, без `openInner`);
     - несколько — `showPickUserPopup` с `titleLangKey: 'SendMessageTitle'`, `peerType: ['custom']`, списком сегодняшних, взятым в момент нажатия, подписью «Birthday today», без поиска; выбор открывает чат.
@@ -507,7 +529,7 @@
 - **Где:** тот же файл.
   - Импорт `solid-js` без `createEffect`;
   - удалено `const [{appConfig}] = useAppState();`;
-  - из `canShowBirthdayContacts` убрано `canLoadBirthdayContacts()` (там было `!appConfig.premium_purchase_blocked`);
+  - `canLoadBirthdayContacts` (`!appConfig.premium_purchase_blocked`) удалена: убрана из `canShowBirthdayContacts`, из `refreshForNewDay` и из `onAccountSwitched` (две последние проверки появились в 2.3, загрузка там теперь без условия);
   - `createEffect`, который следил за гейтом, заменён на `onMount(() => { void loadContactBirthdays(); })`;
   - удалён эффект, который заранее загружал `appGiftsManager.getStarGiftOptions()`.
 - **Апстрим до правки:** при `premium_purchase_blocked` баннер скрыт. Официальный Telegram ведёт себя так же: Android и Web K прячут его по этому флагу (бриф 020). Здесь Pluma сознательно отличается от Telegram.
@@ -531,7 +553,7 @@
 - **Что и зачем:** решение владельца 2026-11-03 (задача 053). Теги Saved Messages доступны каждому пользователю, как Premium-пользователю Telegram: поставить и снять тег, фильтр по тегу, переименование. Pluma не продаёт Premium, а сервер обслуживает теги для всех (`messages.getSavedReactionTags`, `updateSavedReactionTag`, `messages.search` с `saved_reaction`, `updateSavedReactionTags`). Серверного сигнала у Web K нет: все гейты смотрят на Premium своего пользователя (`rootScope.premium`, `usePremium()`).
 - **Где:** функция `saved_tags()` в `ci/patch.py`.
   - Новый файл `src/lib/appManagers/utils/reactions/savedTagsAvailable.ts`: `export default function savedTagsAvailable() { return true; }`. Если апстрим принесёт файл с таким путём, патч падает.
-  - Импорт `savedTagsAvailable` добавляется после `import showPremiumPopup from '@components/popups/premium';` в четырёх файлах гейтов.
+  - Импорт `savedTagsAvailable` добавляется после импорта `hotReloadGuard` из `@lib/solidjs/hotReloadGuardProvider` в четырёх файлах гейтов (`SAVED_TAG_GATES`; с 2.3 окно открывается через `hotReloadGuard.showPremiumPopup`, своего импорта `showPremiumPopup` в файлах нет).
   - Гейты (номера строк — закреплённый апстрим `346844bf`):
     - `src/components/chat/contextMenu.ts:465-468` — правый клик по тегу: `this.isTag && !rootScope.premium` → `this.isTag && !savedTagsAvailable()`. Без правки вместо меню «Фильтр / Переименовать» (`:764-799`) открывается окно Premium.
     - `src/components/chat/contextMenu.ts:1809-1812` — тег из полосы реакций контекстного меню: `!rootScope.premium && tags` → `!savedTagsAvailable() && tags`.
@@ -558,22 +580,15 @@
   - `src/components/chat/input.ts:4583` — окно Premium вместо отправки;
   - `src/lib/appManagers/appMessagesManager.ts:5100` — локальная копия пересылки с `nopremium`;
   - `src/components/emoticonsDropdown/tabs/stickers.ts:570` — стикеры, скрытые при `premium_purchase_blocked`;
-  - `src/lib/appManagers/appStickersManager.ts:841` — подсказки по эмодзи;
+  - `src/lib/appManagers/appStickersManager.ts` (`filterShowableStickers`, 2.3) — подсказки по эмодзи;
   - `src/components/wrappers/sticker.ts:194` — значок замка.
 - **Не правится.** Эффекты отправки (`sendContextMenu.ts:118`) и кастомные эмодзи (вопрос владельцу в брифе). Эффект у получателя играет `wrappers/sticker.ts:742` без проверки Premium.
 - **Как проверяется.** `verify_premium_stickers` (функция `true`, вызовы только в пяти гейтах, каждый гейт), `test_premium_stickers`, `test_premium_stickers_verify`, порча каждого гейта в `DAMAGE`. `ci/patch_test.py` со `./upstream`: 35 тестов, OK. Сборка и проверка в браузере не делались.
 
 ## Медиа
 
-### W-048. «Добавить» в наборе стикеров, открытом по ссылке (только `main`)
-- **Что и зачем:** в закреплённом tweb «Add» в окне набора, открытого по `t.me/addstickers/<имя>` или `t.me/addemoji/<имя>`, ничего не делает. Окно кэширует набор под коротким именем, а `toggleStickerSet` ищет его по id, ничего не находит и падает до запроса к серверу.
-- **Где:** `src/lib/appManagers/appStickersManager.ts`, `sticker_set_toggle()`, точная замена:
-  - было: `    const cacheKey = this.getCacheKey(input);\n    const stickerSet = this.storage.getFromCache(cacheKey);\n    set = stickerSet.set;`;
-  - стало: `… this.storage.getFromCache(cacheKey) ?? await this.getStickerSet(input);`.
-- **Официальный Telegram:** живой web.telegram.org/k уже переписал функцию (читает переданный набор, `getCachedStickerSets`). Это наблюдение 2026-11-02 по его worker-скрипту, бриф 030.
-- **Проверка:** `DAMAGE` (`getFromCache(cacheKey)!`). В `verify` и `test_patch` отдельной проверки нет. Проверено на проде 2026-11-02 (`t.me/addstickers/UtyaDuck`).
-- **При обновлении:** если новый апстрим это уже исправил, якорь пропадёт, и патч упадёт. Тогда правку нужно удалить.
-- **Коммиты:** `fe68fd5` (2026-11-02), задача 030. Только в `main` и `fix/sticker-set-link-add`.
+### W-048. «Добавить» в наборе стикеров, открытом по ссылке (снято в задаче 074)
+- **Статус:** правка убрана при переходе на 2.3 (686). Апстрим исправил это сам: `toggleStickerSet(set)` принимает набор и читает кэш по нему (`set = this.getCachedStickerSets(set)[0]?.stickerSet.set ?? set`, `appStickersManager.ts`); набор, открытый по ссылке, передаётся ей напрямую. По чтению кода; запуском на 2.3 не проверено.
 
 ## Сборка, CI и подпись
 
@@ -673,7 +688,8 @@
 - Playwright 1.64.1, Chromium, `--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost`. Любой запрос не на localhost роняет прогон.
 - Сценарий: вход с кодом из `pluma-admin`, регистрация, сообщение в «Избранное», создание папки чатов (Web K берёт лимиты из `help.getAppConfig`); второй браузер должен увидеть сообщение и папку.
 - Стенд и файлы браузера удаляются в конце.
-- Коммиты: `5f1ffda` (2026-10-24), `93ebb14` (папка, `actionTimeout` 30 с).
+- Коммиты: `5f1ffda` (2026-10-24), `93ebb14` (папка, `actionTimeout` 30 с), `4b42d8e` (пузырь отбирается по `data-mid`: в 2.3 при отправке есть летящая копия), `5409719` (меню открывается повторно).
+- 2026-11-09, 2.3 (686), сервер на слое 233 (ветка `task/batch-20261109d`): сценарий пройден, 0 запросов вне машины.
 
 ### W-063. Остальные файлы репозитория
 - `LICENSE` — GPL-3.0, как у апстрима.
@@ -704,8 +720,10 @@
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `components/generateTitleIcons.ts`: звезды нет;
   - `components/sidebarLeft/index.ts`: кнопки эмодзи-статуса в шапке нет;
-  - `components/chat/bubbles.ts`: `canTranscribeVoice: false` у голосовых. Кнопка расшифровки круглых видео (`roundVideoBubble.ts`) не правилась.
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
+  - `components/chat/bubbles.ts`: `canTranscribeVoice: false` у голосовых;
+  - `components/chat/bubbles.ts`: вызова `wrapRoundVideoBubble` нет (задача 074): эта обёртка только добавляет кнопку текста к круглому видео и разворачивает его в голосовое, а `messages.transcribeAudio` сервер не обслуживает;
+  - `helpers/dom/createStickersContextMenu.ts`: пункта «Set as Status» в меню эмодзи нет (задача 074), `account.updateEmojiStatus` сервер не обслуживает.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (круглое видео).
 
 ### W-069. Бустов нет: пункты меню, ссылка, «Не ограничивать бустеров» (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`18482a0`), не влита, не выпущена (2026-11-09).
@@ -715,3 +733,11 @@
   - `lib/internalLinkProcessor.ts`: ссылка `boost` открывает канал;
   - `groupPermissions.tsx`: секция бустеров не показывается.
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `346844bf`. Сборка и экран не проверены.
+
+### W-072. Подарков нет: меню чата, профиль, QR-код (задача 074)
+- **Что и зачем.** Подарки продаются за Stars, которых в Pluma нет (ADR 0041). `stargifts_blocked` из конфигурации tweb не читает (ключ есть только в `appConfig.d.ts`), поэтому входы показывались бы всем.
+- **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
+  - `components/chat/topbar.ts`: «Send a Gift» в меню чата, был и на 2.2;
+  - `components/peerProfile.tsx`: тот же пункт в меню профиля, новое в 2.3;
+  - `components/popups/myQrCode.tsx`: панели «Подарки» нет, новое в 2.3 (её «Browse Gifts» открывал магазин). Код панели остаётся недостижимым.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (нет `id: 'gifts'`).

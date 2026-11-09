@@ -9,11 +9,11 @@
 - **Репозиторий:** `sckraaa/pluma-android` (локально `~/pluma-android`). Кода клиента в нём нет: только скрипт патча, ресурсы бренда, конфиги и CI.
 - **Закреплённый апстрим** (`upstream.env`):
   - `UPSTREAM_REPO=https://github.com/DrKLO/Telegram.git`
-  - `UPSTREAM_REF=aac1efcb83d6575efb0c819c6ddc4ea6c8cf64e1`
-  - `UPSTREAM_VERSION=12.9.1`, `UPSTREAM_LAYER=228`
-  - `NDK_VERSION=27.2.12479018`, `CMAKE_VERSION=3.10.2`, `CMAKE_PACKAGE=3.10.2.4988404`, `BUILD_TOOLS=35.0.0`, `PLATFORM=android-35`
+  - `UPSTREAM_REF=7be672ead283d022812d75c729d3a04dd4c2a2c6`
+  - `UPSTREAM_VERSION=13.2.1`, `UPSTREAM_LAYER=233`
+  - `NDK_VERSION=27.2.12479018`, `CMAKE_VERSION=3.22.1`, `CMAKE_PACKAGE=3.22.1`, `BUILD_TOOLS=36.0.0`, `PLATFORM=android-36`
 - **Как применяется патч:**
-  1. `ci/fetch-upstream.sh` скачивает в `./upstream` один коммит `UPSTREAM_REF` (`--depth 1`, три попытки) и сверяет `HEAD`.
+  1. `ci/fetch-upstream.sh` скачивает в `./upstream` один коммит `UPSTREAM_REF` (`--depth 1`, три попытки) и сверяет `HEAD`, затем 19 субмодулей апстрима на записанных коммитах (`submodule update --init --recursive --depth 1`, три попытки) и сверяет их `submodule status`.
   2. `ci/configure.sh` выбирает цель (`dev` или `server`) и вызывает `python3 -I ci/patch.py --source upstream --upstream upstream.env --app config/app.env --server-ipv4 … --server-port … --rsa-public-key … [--server-ipv6] [--google-services] [--abis] [--ccache]`.
   3. Точка входа — `main()` в `ci/patch.py`: `Config(...)` проверяет параметры, `patch(tree, c)` делает правки, `verify(tree, c)` проверяет результат независимо от того, как правки сделаны. Любая `PatchError` — код выхода 1, сборка падает.
   4. `ci/build.sh dev|server` собирает `:TMessagesProj_App:assembleAfatRelease`.
@@ -59,10 +59,10 @@
 
 - **Что и зачем.** Перед правками скрипт убеждается, что дерево — тот самый релиз: слой схемы, который говорит сервер (ADR 0008), версия и инструменты, которые ставит CI. Правок нет.
 - **Где** (`expect`, точный текст, ровно одно вхождение):
-  - `TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java`: `public static final int LAYER = 228;`
-  - `gradle.properties`: `APP_VERSION_NAME=12.9.1\n`
+  - `TMessagesProj/src/main/java/org/telegram/tgnet/TLRPC.java`: `public static final int LAYER = 233;`
+  - `gradle.properties`: `APP_VERSION_NAME=13.2.1\n`
   - `TMessagesProj/build.gradle` и `TMessagesProj_App/build.gradle`: `ndkVersion "27.2.12479018"`
-  - `TMessagesProj/build.gradle`: `version '3.10.2'`
+  - `TMessagesProj/build.gradle`: `version '3.22.1'`
 - **Как проверяется.** Сам `expect`; тестов на дереве нет.
 - **Если апстрим изменит.** Сборка падает с «N occurrences of …, expected 1; upstream changed it». Это ожидаемо при каждом обновлении: значения меняются в `upstream.env`.
 - **Апстрим и Telegram.** Значения апстрима 12.9.1; у официального Telegram те же.
@@ -110,8 +110,8 @@
 ### A-005. Нет резервных адресов Telegram
 
 - **Что и зачем.** Клиент не запрашивает резервные адреса в DNS (Google DoH) и Firebase Telegram: они вели бы к Telegram.
-- **Где.** `TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java`, метод `onRequestNewServerIpAndPort(final int second, final int currentAccount)`. Замена тела (`replace_body`) от `    public static void onRequestNewServerIpAndPort(final int second, final int currentAccount) {\n` до первого `\n    }\n`; блок обязан содержать `GoogleDnsLoadTask` и `FirebaseTask`. Новое тело — один комментарий `// pluma: the client knows its server; Telegram's backup addresses do not apply.`
-- **Как проверяется.** Только сам `replace_body`. Сами классы `GoogleDnsLoadTask`/`FirebaseTask` в файле остаются (не вызываются).
+- **Где.** `TMessagesProj/src/main/java/org/telegram/tgnet/ConnectionsManager.java`, метод `onRequestNewServerIpAndPort(final int second, final int currentAccount)`. Замена тела (`replace_body`) от `    public static void onRequestNewServerIpAndPort(final int second, final int currentAccount) {\n` до первого `\n    }\n`; блок обязан содержать `GoogleDnsLoadTask` и `MozillaDnsLoadTask` (с 13.2.1 вторым источником вместо Firebase идёт DoH Mozilla/Cloudflare). Новое тело — один комментарий `// pluma: the client knows its server; Telegram's backup addresses do not apply.`
+- **Как проверяется.** Только сам `replace_body`. Сами классы `GoogleDnsLoadTask`/`MozillaDnsLoadTask` в файле остаются (не вызываются).
 - **Если апстрим изменит.** Новая сигнатура или перенос задач в другой метод — падение. Новый источник резервных адресов в другом месте не будет замечен: проверять вручную (чек-лист, п. 4).
 - **Апстрим до правки.** При неудаче соединения клиент по очереди спрашивает резервные адреса у DNS и Firebase. Официальный Telegram — так же.
 - **История.** `991d01b`, 2026-10-23, задача 006.
@@ -172,11 +172,11 @@
 ### A-011. «Telegram» → «Pluma» в тексте встроенных строк
 
 - **Что и зачем.** Пользователь видит Pluma, а не Telegram, включая названия функций («Pluma Premium», «Pluma Stars»). Ключи строк, теги, URL (`t.me/TelegramTips`, `telegram.org`), имена папок (`Pictures/Telegram`), API мини-приложений (`window.Telegram`) и другие слова («Telegramm») не меняются.
-- **Где.** Все `res/values*/strings.xml` (`brand_strings` → `rename_strings`). Меняется только текст элементов (регулярное выражение `>[^<]*<`), внутри — целое слово по `TELEGRAM_WORD = (?<![A-Za-z0-9@/.])(Telegram|TELEGRAM)(?![A-Za-z0-9]|\.\w)`: `Telegram` → `Pluma`, `TELEGRAM` → `PLUMA`. Число замен закреплено по файлу (`STRING_RENAMES`, `(Telegram, TELEGRAM)`):
+- **Где.** Все `res/values*/strings.xml` (`brand_strings` → `rename_strings`). Меняется только текст элементов (регулярное выражение `>[^<]*<`), внутри — целое слово по `TELEGRAM_WORD = (?:(?<![A-Za-z0-9@/.])|(?<=\\n))(Telegram|TELEGRAM)(?![A-Za-z0-9]|\.\w)` (два символа `\n` перевода строки в тексте заканчивают предыдущее слово, хотя `n` для ретроспективной проверки — буква): `Telegram` → `Pluma`, `TELEGRAM` → `PLUMA`. Число замен закреплено по файлу (`STRING_RENAMES`, `(Telegram, TELEGRAM)`):
 
   | Папка | Telegram | TELEGRAM |
   |---|---|---|
-  | `values` | 508 | 1 |
+  | `values` | 534 | 1 |
   | `values-ar` | 0 | 0 |
   | `values-de` | 80 | 0 |
   | `values-es` | 95 | 0 |
@@ -191,7 +191,7 @@
 - **Как проверяется.** Счётчики при замене; `verify_brand`: ни в одном тексте строк нет `TELEGRAM_WORD`, локальных написаний (`LOCAL_NAMES`) и сайтов клиентов Telegram (`CLIENT_SITES`). Тест `BrandTest.test_rename_strings` проверяет правила замены на образце.
 - **Если апстрим изменит.** Любая новая или удалённая строка с именем меняет счётчик — падение с именем файла и числами; новая языковая папка — падение. Каждую новую строку прочитать: может понадобиться A-013 (переписать фразу), а не замена.
 - **Апстрим до правки.** «Telegram» во всех строках. Официальный Telegram — так же. Строки языкового пакета сервера (задача 021) сюда не относятся: их отдаёт сервер.
-- **История.** `46fefef`, 2026-10-29, задача 017. Счётчики с тех пор не менялись.
+- **История.** `46fefef`, 2026-10-29, задача 017; счётчики менялись только при обновлении апстрима. Задача 074: `WalletAddressNoLinkedAccount` с `\nTelegram` не находился ни заменой, ни `verify_brand`, правило дополнено, `JAVA_NAME_LITERAL` тоже.
 
 ### A-012. Имя в других письменностях и в составных словах
 
@@ -219,13 +219,12 @@
   - `messenger/ContactsController.java`: `"Telegram Profile"` → `"Pluma Profile"` (1), `"Telegram Voice Call"` → `"Pluma Voice Call"` (1), `"Telegram Video Call"` → `"Pluma Video Call"` (1);
   - `messenger/MessagesController.java`: `user.first_name = "Telegram";` → `user.first_name = "Pluma";` (2);
   - `ui/Components/ChatAttachAlertDocumentLayout.java`: `fs.title = "Telegram";` → `fs.title = "Pluma";` (1);
-  - `ui/Components/MessagePreviewView.java`: `"Subscribe to **Telegram Premium** to` → `"Subscribe to **Pluma Premium** to` (1);
-  - `ui/Components/PasscodeView.java`: `"Unlock to use Telegram"` → `"Unlock to use Pluma"` (1);
   - `ui/LoginActivity.java`: `But Telegram says it's` → `But Pluma says it's` (2);
-  - `ui/NewContactBottomSheet.java`: `"This phone number is not on Telegram.` → `"This phone number is not on Pluma.` (1), `"This phone number is on Telegram."` → `"This phone number is on Pluma."` (1);
+  - `ui/SessionsActivity.java`: `session.app_name = "Telegram Android";` → `session.app_name = "Pluma Android";` (1, текущий сеанс до ответа сервера, с 13.2.0);
   - `ui/ThemePreviewActivity.java`: `"Telegram Beta Chat"` → `"Pluma Beta Chat"` (1).
-- **Как проверяется.** Только счётчики замен. Проверки, что в литералах Java не осталось других «Telegram», нет.
-- **Если апстрим изменит.** Изменённый литерал — падение. Новый литерал с «Telegram» не будет замечен: искать вручную (`grep '"[^"]*Telegram'`).
+  С 13.2.1 тексты `MessagePreviewView`, `PasscodeView`, `NewContactBottomSheet` ушли в `strings.xml` (`UnlockToUse`, `NewContactPhone*`) и правит их A-011.
+- **Как проверяется.** Счётчики замен и `verify_brand`: строки Java с литералом, где есть слово `Telegram`, — ровно в файлах и количествах `JAVA_NAMES_KEEP` (папки хранилища, API мини-приложений, user agent), строки с литералом `telegram.org` — ровно в `TELEGRAM_SITE_KEEP` (задача 074).
+- **Если апстрим изменит.** Изменённый или новый литерал — падение; новый прочитать: виден пользователю — в `JAVA_NAMES`, иначе в таблицу `*_KEEP`.
 - **История.** `46fefef`, 2026-10-29, задача 017.
 
 ### A-015. Ссылки на клиенты: pluma.chat и web.pluma.chat
@@ -246,7 +245,8 @@
 
 - **Что и зачем.** Приложение принимает и создаёт ссылки `plm://`: глубокие ссылки, кнопки ботов, поиск по настройкам, подсказки, возврат плеера к сообщению. QR-вход принимает только `plm://login?token=…`, поэтому работает между клиентами Pluma. `tg://` остаётся у установленного рядом Telegram.
 - **Где.** Точные замены в `TMessagesProj/src/main/java/org/telegram/` (`SCHEME_JAVA`): `"tg:` → `"plm:` и `"tg"` → `"plm"`, с числом вхождений (двоеточие, без):
-  `messenger/AndroidUtilities.java` (13, 1), `messenger/MusicPlayerService.java` (2, 0), `messenger/browser/Browser.java` (3, 1), `ui/Business/BusinessLinksController.java` (1, 0), `ui/CameraScanActivity.java` (1, 0), `ui/Cells/ChatMessageCell.java` (2, 1), `ui/ChatActivity.java` (13, 0), `ui/Components/Premium/boosts/GiftInfoBottomSheet.java` (2, 1), `ui/Components/Premium/boosts/UserSelectorBottomSheet.java` (2, 1), `ui/Components/UndoView.java` (3, 0), `ui/LaunchActivity.java` (156, 2), `ui/LinkManager.java` (2, 2), `ui/LoginActivity.java` (1, 0), `ui/PaymentFormActivity.java` (0, 1), `ui/ProfileActivity.java` (76, 0), `ui/ProxySettingsActivity.java` (2, 0), `ui/SessionsActivity.java` (1, 0), `ui/WebviewActivity.java` (2, 1).
+  `messenger/AndroidUtilities.java` (1, 0), `messenger/MusicPlayerService.java` (2, 0), `messenger/NotificationsController.java` (1, 0), `messenger/browser/Browser.java` (3, 1), `ui/Business/BusinessLinksController.java` (1, 0), `ui/CameraScanActivity.java` (1, 0), `ui/QrShare/QrScanOverlay.java` (1, 0), `ui/Cells/ChatMessageBotButtons.java` (2, 1), `ui/ChatActivity.java` (13, 0), `ui/Components/Premium/boosts/GiftInfoBottomSheet.java` (2, 1), `ui/Components/Premium/boosts/UserSelectorBottomSheet.java` (2, 1), `ui/Components/UndoView.java` (3, 0), `ui/LaunchActivity.java` (160, 2), `ui/LinkManager.java` (3, 2), `ui/LoginActivity.java` (1, 0), `ui/PaymentFormActivity.java` (0, 1), `ui/ProfileActivity.java` (75, 0), `ui/SessionsActivity.java` (1, 0), `ui/WebviewActivity.java` (2, 1), `utils/proxy/ProxySettings.java` (7, 1).
+  Регулярное выражение `"(?i)^tg:(//)?sendgrams&"` в `ui/LinkManager.java` → `^plm:` (`SCHEME_REGEX`, `verify_brand`).
   Счётчик `ProfileActivity.java` взят после удаления строк поиска «Помощи» (A-021).
 - **Что остаётся** (`SCHEME_KEEP`, число литералов `"tg:`/`"tg"`): внутренние URI `tg://`, через которые ExoPlayer читает файлы, и код языка таджикского: `messenger/FileStreamLoadOperation.java` 1, `messenger/MediaController.java` 2, `messenger/TranslateController.java` 1, `messenger/secretmedia/ExtendedDefaultDataSource.java` 1, `ui/Components/Premium/VideoScreenPreview.java` 1, `ui/Components/VideoPlayer.java` 1, `ui/Components/VideoSeekPreviewImage.java` 1, `ui/Stories/PeerStoriesView.java` 2.
 - **Как проверяется.** `verify_brand`: по всем `.java` литералы `"tg:`/`"tg"` (регулярное выражение `"tg(?::|")`) остались ровно в файлах и количествах `SCHEME_KEEP`. `BrandTest.test_tables` проверяет, что списки не пересекаются.
@@ -353,7 +353,7 @@
 
 ### A-030. Центр QR-кодов
 
-- **Где.** `res/raw/qr_logo.svg` (центр QR, который рисует `QRCodeWriter`: белый знак на шалфейном круге); `res/raw/qr_code_logo.json`, `qr_code_logo_2.json`, `plane_logo_plain.json` (белый неподвижный знак поверх QR и водяного знака круглого видео).
+- **Где.** `res/raw/qr_logo.svg` (центр QR, который рисует `QRCodeWriter`: белый знак на шалфейном круге); `res/raw/qr_code_logo.json`, `plane_logo_plain.json` (`qr_code_logo_2.json` апстрим удалил в 12.9.2, файл бренда снят; белый неподвижный знак поверх QR и водяного знака круглого видео).
 - **История.** `a946650`, 2026-10-29, задача 017.
 
 ### A-031. Водяной знак круглого видео без «TELEGRAM»
@@ -384,11 +384,11 @@
   - `ui/SessionsActivity.java`, точные замены (`SESSIONS_EDITS`):
     - импорт `android.widget.ImageView` после `android.widget.FrameLayout`; `RLottieImageView` перед `RecyclerListView`;
     - удалены импорты `DocumentObject`, `ImageLocation`, `MediaDataController`, `SvgHelper`, `BackupImageView`;
-    - `private class ScanQRCodeView extends FrameLayout implements NotificationCenter.NotificationCenterDelegate {` + `BackupImageView imageView;` → без интерфейса, `RLottieImageView imageView;`;
+    - `private class ScanQRCodeView extends FrameLayout implements Theme.Colorable, NotificationCenter.NotificationCenterDelegate {` + `BackupImageView imageView;` → без интерфейса наблюдателя, `Theme.Colorable` остаётся, `RLottieImageView imageView;`;
     - создание `new BackupImageView(context)` → `RLottieImageView` с `setAnimation(R.raw.pluma_devices, 130, 130)`, `setAutoRepeat(2)`, `playAnimation()`;
     - `imageView.getImageReceiver().getLottieAnimation()` → `imageView.getAnimatedDrawable()` (4 вхождения, обработчик нажатия);
     - удалён вызов `setSticker();` в конструкторе;
-    - удалены целиком `onAttachedToWindow`, `onDetachedFromWindow`, `didReceivedNotification` (наблюдатель `diceStickersDidLoad`) и `setSticker()` — от `@Override protected void onAttachedToWindow()` до `private void openCameraScanActivity() {`.
+    - удалены целиком `onAttachedToWindow`, `onDetachedFromWindow` (с 13.2 — `addWeakObserver`), `didReceivedNotification` (наблюдатель `diceStickersDidLoad`) и `setSticker()` — от `@Override protected void onAttachedToWindow()` до `private int lastButtonColor, lastButtonPressedColor;` (апстрим добавил после них `updateColors`).
 - **Как проверяется.** После правок в файле не должно быть слов `BackupImageView`, `DocumentObject`, `ImageLocation`, `MediaDataController`, `SvgHelper`, `STICKERS_PLACEHOLDER_PACK_NAME`, `diceStickersDidLoad`, `setSticker` (`SESSIONS_GONE`); `verify_brand`: ровно одно `R.raw.pluma_devices`. Тесты `BrandTest.test_devices_animation` (копия источника, 512×512, есть слои), `test_add_asset`.
 - **Если апстрим изменит.** Любая из длинных точных замен (особенно блок `setSticker`) — падение. Если апстрим начнёт использовать удалённые импорты в другом месте файла, сработает `SESSIONS_GONE` — тогда импорт надо оставить.
 - **Апстрим до правки.** Стикер с сервера (`SessionsActivity.java:1187-1216` по брифу 017). У официального Telegram сервер этот набор отдаёт, ноутбук виден.
@@ -702,10 +702,10 @@
 
 - **Где.** `isStandaloneBuild()` → `isSelfUpdatingBuild()`:
   - `ui/LaunchActivity.java:5958` — проверка обновлений `checkAppUpdate`, `:6011` — лист `showUpdateAppPopup`;
-  - `ui/ChatActivity.java:41304`, `ui/Stories/PeerStoriesView.java:4416` — кнопки «обновить приложение» у неподдерживаемых сообщений и историй (вместо Google Play);
+  - `ui/ChatActivity.java` (`didPressAppUpdateButtonInternal`), `ui/ChannelAdminLogActivity.java` (2, с 13.2.0, два делегата ячейки), `ui/Stories/PeerStoriesView.java` — кнопки «обновить приложение» у неподдерживаемых сообщений и историй (вместо Google Play);
   - `ui/Components/BlockingUpdateView.java:142`, `:303` — блокирующий экран (`can_not_skip`);
   - `messenger/SharedConfig.java:771` — плашка бокового меню (`isAppUpdateAvailable`);
-  - `ui/ProfileActivity.java:4653`, `ui/SettingsActivity.java:1430` — пункт отладочного меню «Check app update».
+  - `ui/ProfileActivity.java`, `ui/DebugSettingsActivity.java` (с 13.2.0, раньше `SettingsActivity`) — пункт отладочного меню «Check app update».
 - **Проверка.** `verify_self_update` считает вызовы в каждом файле (`SELF_UPDATE_USES`): лишнее место — ошибка.
 
 ### A-095. `ApplicationLoaderImpl` приложения: установка, лист, плашка
@@ -749,12 +749,12 @@
 - **Где** (`LINKS_EDITS`, по одному вхождению):
   - `ui/LaunchActivity.java:1969` и `ui/LinkManager.java:1518`: `host.equals("t.me") || host.equals("telegram.dog") || isPrefix` → `… || host.equals("pluma.chat") || isPrefix` — ветка http(s) `handleIntent` (интенты системы и `Browser.openUrl`) и `LinkManager`;
   - `ui/LinkManager.java:107` (`handleHttp`): `!"telegram.dog".equalsIgnoreCase(host) && !isPrefix` → с `!"pluma.chat".equalsIgnoreCase(host)`;
-  - `messenger/AndroidUtilities.java:4609`: ссылка на прокси (`/socks`, `/proxy`);
+  - `utils/proxy/ProxySettings.java` (`fromUri`, с 13.2.0 вместо `AndroidUtilities`): ссылка на прокси (`/socks`, `/proxy`, `/webproxy`);
   - `messenger/browser/Browser.java:727` (`isInternalUri`): `"telegram.me".equals(host) || "t.me".equals(host)` → с `"pluma.chat".equals(host)`; отсюда каждая нажатая ссылка решает «в приложении или в браузере». Ветка `telegram.dog` (`:712`, блог и FAQ Telegram) не меняется;
-  - `ui/Cells/ChatMessageCell.java:10884`: кнопка бота «добавить в группу» (`startgroup`);
+  - `ui/Cells/ChatMessageBotButtons.java` (с 13.2.0 вынесено из `ChatMessageCell`): кнопка бота «добавить в группу» (`startgroup`);
   - `ui/web/BotWebViewContainer.java:4089`: встроенный пост (`embed=1`) остаётся в веб-вью мини-приложения;
   - `ui/Business/BusinessLinksController.java:311` (`findLink`): ссылка на свой бизнес-чат `https://pluma.chat/m/<slug>` — такую сделает сервер по `me_url_prefix` (сейчас `account.getBusinessChatLinks` не обслуживается).
-- **Не меняются** (`HOSTS_KEEP`): коды подарков `UserSelectorBottomSheet.java:146`, `GiftInfoBottomSheet.java:88`; платежи и подарки Premium/звёзд `PaymentFormActivity.java:1257`, `:2539`, `GiftPremiumBottomSheet.java:304`, `SendGiftSheet.java:835`, `PremiumPreviewFragment.java:1168` — этого в Pluma нет; ветка `telegram.dog` в `Browser.java:712`.
+- **Не меняются** (`HOSTS_KEEP`): коды подарков `UserSelectorBottomSheet.java:146`, `GiftInfoBottomSheet.java:88`; платежи и подарки Premium/звёзд `PaymentFormActivity.java:1257`, `:2539`, `GiftPremiumBottomSheet.java:304`, `SendGiftSheet.java:835`, `PremiumPreviewFragment.java:1168` — этого в Pluma нет; ветка `telegram.dog` в `Browser.java:712`; `ui/Wallet/WalletActivity.isTelegramHost` (кошелёк закрыт `wallet_available`, сервер его не отдаёт).
 - **Если апстрим изменит.** Якорь сдвинулся — падение `replace`. Новая проверка хоста — падение `verify_links` по `HOSTS_KEEP`.
 
 ### A-100. Юзернейм из ссылки pluma.chat (`Browser.extractUsername`)
@@ -771,16 +771,16 @@
 ### A-102. Вставка ссылки на прокси, перевод упоминания
 
 - **Где.**
-  - `ui/ProxySettingsActivity.java:597`, `:608`: `{"t.me/socks?", ` → `{"t.me/socks?", "pluma.chat/socks?", ` и то же для `proxy?` — ссылка на прокси из буфера обмена (A-103 делает такие ссылки на pluma.chat).
+  - Снято в 13.2.0: вставка ссылки из буфера идёт через `ProxySettings.fromUri`, там `pluma.chat` добавлен (A-099).
   - `ui/Components/TranslateAlert2.java:863-865`: ссылка-упоминание из перевода `https://pluma.chat/<username>` с текстом `@username` снова становится упоминанием; длина префикса берётся как `entity.url.indexOf('/', 8) + 1` вместо 13. `messages.translateText` сервер пока не обслуживает.
 
 ### A-103. Ссылки, которые приложение делает само
 
 - **Что и зачем.** Скопированная, отправленная, показанная или в QR ссылка — pluma.chat. Большинство ссылок апстрим уже строит из `linkPrefix` (около 100 мест: профиль, юзернейм, наборы стикеров, темы, QR профиля); здесь — жёстко прописанные `https://t.me/`.
 - **Где** (`LINKS_OUT`, число литералов `"https://t.me/` и `"t.me/` → pluma.chat):
-  `messenger/SharedConfig.java` (2, 0) — ссылка на прокси `:408`; `messenger/voip/VoIPService.java` (1, 0) — `/call/<slug>` `:2241`; `ui/Cells/StickerSetCell.java` (0, 2) — префиксы `addstickers/`, `addemoji/` `:70-71`; `ui/ChatActivity.java` (4, 0) — ссылка на сообщение с `?t=` `:35984`, `:35990`, `:44224`, `:44230`; `ui/ChatEditActivity.java` (0, 1) — публичная ссылка бота `:1627`; `ui/Components/PermanentLinkBottomSheet.java` (1, 0) `:127`; `ui/Components/StickersAlert.java` (0, 1) — префикс поля `:1667`; `ui/FilterChatlistActivity.java` (0, 1) — образец ссылки на папку под спойлером `:967`; `ui/GroupStickersActivity.java` (0, 1) `:1012`; `ui/ManageLinksActivity.java` (5, 0) — публичная ссылка `:837` и заголовок приглашения `:1362-1365` (`https://pluma.chat/+` → `pluma.chat/<hash>`; ссылка t.me падает в ветку `https://`); `ui/PhotoViewer.java` (2, 0) `:1397`, `:1403`; `ui/PrivacyControlActivity.java` (1, 0) — ссылка на номер `+%s` `:2007`; `ui/ProxySettingsActivity.java` (2, 0) `:520`, `:526`; `ui/SessionsActivity.java` (1, 0) — подключённые чат-боты в подтверждении «завершить все сеансы» `:331`; `ui/Stories/ChannelBoostUtilities.java` (2, 0) `:14`, `:16`; `ui/Stories/PeerStoriesView.java` (4, 0) — ссылки на историю `:7103-7114`.
+  `utils/proxy/ProxySettings.java` (3, 0) — ссылка на прокси `getLink()`, с web-прокси (`/webproxy`, пути в манифесте A-105); `messenger/voip/VoIPService.java` (1, 0) — `/call/<slug>` `:2241`; `ui/Cells/StickerSetCell.java` (0, 2) — префиксы `addstickers/`, `addemoji/` `:70-71`; `ui/ChatActivity.java` (4, 0) — ссылка на сообщение с `?t=` `:35984`, `:35990`, `:44224`, `:44230`; `ui/ChatEditActivity.java` (0, 1) — публичная ссылка бота `:1627`; `ui/Components/PermanentLinkBottomSheet.java` (1, 0) `:127`; `ui/Components/StickersAlert.java` (0, 1) — префикс поля `:1667`; `ui/FilterChatlistActivity.java` (0, 1) — образец ссылки на папку под спойлером `:967`; `ui/GroupStickersActivity.java` (0, 1) `:1012`; `ui/ManageLinksActivity.java` (5, 0) — публичная ссылка `:837` и заголовок приглашения `:1362-1365` (`https://pluma.chat/+` → `pluma.chat/<hash>`; ссылка t.me падает в ветку `https://`); `ui/PhotoViewer.java` (2, 0) `:1397`, `:1403`; `ui/PrivacyControlActivity.java` (1, 0) — ссылка на номер `+%s` `:2007`; `ui/ProxySettingsActivity.java` (2, 0) `:520`, `:526`; `ui/SessionsActivity.java` (1, 0) — подключённые чат-боты в подтверждении «завершить все сеансы» `:331`; `ui/Stories/ChannelBoostUtilities.java` (2, 0) `:14`, `:16`; `ui/Stories/PeerStoriesView.java` (4, 0) — ссылки на историю `:7103-7114`.
 - **По умолчанию `linkPrefix`.** `messenger/MessagesController.java:1585`: `getString("linkPrefix", "t.me")` → `"pluma.chat"` — до первого конфига; потом значение из `me_url_prefix`.
-- **Остаются** (`LINKS_KEEP`, число литералов): ссылки, которые приложение само превращает обратно в t.me и открывает у себя — `LaunchActivity.java` 1 (`:1971`, `x.t.me`), `LinkManager.java` 1 (`:111`), `messenger/browser/Browser.java` 4 (`:207-213` распознавание, `:693`), `Components/URLSpanNoUnderline.java` 1 (`@username`), `web/BotWebViewContainer.java` 1 (`openTgLink` мини-приложения, `:1759`), `Components/DialogsBotsAdapter.java` 1; формы t.me, которые приложение по-прежнему распознаёт рядом с pluma.chat — `ProxySettingsActivity.java` 2, `Business/BusinessLinksController.java` 1, `Components/TranslateAlert2.java` 1; сервисы Telegram, которых в Pluma нет — `PremiumPreviewFragment.java` 2, `ChatEditActivity.java` 4 (BotFather), `Stars/StarsIntroActivity.java` 1, `Stars/ProfileGiftsView.java` 1 (`nft`), `Components/CreateBotAlert.java` 1, `Components/AIEditorAlert.java` 1 (`addstyle`), `Components/Reactions/ChatCustomReactionsEditActivity.java` 1 (@stickers), `Components/Premium/boosts/PremiumPreviewGiftLinkBottomSheet.java` 1, `…/adapters/GiftInfoAdapter.java` 1, `…/cells/LinkCell.java` 3 (`giftcode`), `messenger/MessagesController.java` 3 (`premiumbot`, `spambot` ×2), `messenger/MessageObject.java` 1 (метка `+PublicChat` журнала действий), `ChatActivity.java` 1 и `ChannelAdminLogActivity.java` 1 (`t.me/iv`); закомментированные строки `SecretMediaViewer.java` 2.
+- **Остаются** (`LINKS_KEEP`, число литералов): ссылки, которые приложение само превращает обратно в t.me и открывает у себя — `LaunchActivity.java` 1 (`:1971`, `x.t.me`), `LinkManager.java` 1 (`:111`), `messenger/browser/Browser.java` 4 (`:207-213` распознавание, `:693`), `Components/URLSpanNoUnderline.java` 1 (`@username`), `web/BotWebViewContainer.java` 1 (`openTgLink` мини-приложения, `:1759`), `Components/DialogsBotsAdapter.java` 1; формы t.me, которые приложение по-прежнему распознаёт рядом с pluma.chat — `Business/BusinessLinksController.java` 1, `Components/TranslateAlert2.java` 1; сервисы Telegram, которых в Pluma нет — `PremiumPreviewFragment.java` 2, `ChatEditActivity.java` 4 (BotFather), `Stars/StarsIntroActivity.java` 1, `Stars/ProfileGiftsView.java` 1 (`nft`), `Components/CreateBotAlert.java` 1, `Components/AIEditorAlert.java` 1 (`addstyle`), `Components/Reactions/ChatCustomReactionsEditActivity.java` 1 (@stickers), `Components/Premium/boosts/PremiumPreviewGiftLinkBottomSheet.java` 1, `…/adapters/GiftInfoAdapter.java` 1, `…/cells/LinkCell.java` 3 (`giftcode`), `messenger/MessagesController.java` 3 (`premiumbot`, `spambot` ×2), `messenger/MessageObject.java` 1 (метка `+PublicChat` журнала действий), `ChatActivity.java` 1 и `ChannelAdminLogActivity.java` 1 (`t.me/iv`); закомментированные строки `SecretMediaViewer.java` 2.
 
 ### A-104. Текст о публичных ссылках
 
@@ -938,14 +938,14 @@
 
 ### A-066. ccache для нативного кода
 
-- **Что и зачем.** CMake 3.10 не берёт launcher из окружения, поэтому он в аргументах CMake. Только с `--ccache` (CI).
-- **Где.** `TMessagesProj/build.gradle`, точная замена `arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-21'` → с добавлением `'-DCMAKE_C_COMPILER_LAUNCHER=ccache', '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache'`.
+- **Что и зачем.** Launcher задан в аргументах CMake модуля, который собирает нативный код. Только с `--ccache` (CI).
+- **Где.** `TMessagesProj/build.gradle`, точная замена `arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-23'` → с добавлением `'-DCMAKE_C_COMPILER_LAUNCHER=ccache', '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache'`.
 - **История.** `991d01b`, 2026-10-23, задача 006.
 
 ### A-067. Закрепление апстрима и его загрузка
 
-- **Где.** `upstream.env` (см. «Общее»); `ci/fetch-upstream.sh`: `git init`, `fetch --depth 1 origin $UPSTREAM_REF` с таймаутом 10 мин и тремя попытками, `checkout FETCH_HEAD`, сверка `rev-parse HEAD`.
-- **История.** `991d01b`, 2026-10-23, задача 006.
+- **Где.** `upstream.env` (см. «Общее»); `ci/fetch-upstream.sh`: `git init`, `fetch --depth 1 origin $UPSTREAM_REF` с таймаутом 10 мин и тремя попытками, `checkout FETCH_HEAD`, сверка `rev-parse HEAD`; затем `submodule update --init --recursive --depth 1 --jobs 4` (40 мин, три попытки) и сверка `submodule status` (с 13.2.1 у апстрима 19 субмодулей). `MEDIA_BUILD_TOOLS=35.0.0` в `upstream.env` и `ci/setup.sh`: модули media не называют build-tools и берут умолчание AGP 8.13.
+- **История.** `991d01b`, 2026-10-23, задача 006; `5de5e96`, `7eb8d34`, 2026-11-09, задача 074.
 
 ### A-068. Цели сборки: `configure.sh`
 
@@ -1032,6 +1032,24 @@
   - Не правилось: `ChatObject.isBoostSupported` (им же закрыты истории каналов, `StoriesController.canPostStories`); остальные ворота сравнивают уровень с `*_level_min` = 0; `boosts_unrestrict` и `BOOSTS_REQUIRED` сервер не отдаёт.
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`; якоря — на `aac1efcb`. Компиляция и экран на устройстве не проверены.
 
+### A-111. Обновление до 13.2.1 (слой 233): новые места (задача 074)
+
+- **Статус.** Ветка `task/074-upstream` (`5de5e96`…`bf8ac2a`), не влита, не выпущена (2026-11-09).
+- **Что и зачем.** Апстрим 12.9.1 → 13.2.1 (`7be672ea`). Сервер отдаёт 228 и 233 одновременно (ADR 0045). Перенесены сломанные якоря A-001, A-005, A-011, A-014, A-016, A-030, A-034, A-066, A-094, A-099, A-102, A-103 (изменения в их записях), добавлены места, которых раньше не было:
+  - `utils/proxy/ProxySettings.java` (новый класс 13.2.0): `pluma.chat` в проверке хоста, `getLink()` на `pluma.chat`, схема `plm:` (A-016, A-099, A-103); путь `/webproxy` в манифесте (`LINK_PATH_PREFIXES`, A-105);
+  - `ui/Cells/ChatMessageBotButtons.java`, `ui/QrShare/QrScanOverlay.java`, `messenger/NotificationsController.java`: схема `plm:` (A-016), `ChatMessageBotButtons` ещё и хост `pluma.chat` (A-099);
+  - `ui/LinkManager.java`: регулярное выражение `sendgrams` на `plm:` (`SCHEME_REGEX`);
+  - `ui/ChannelAdminLogActivity.java`: кнопки обновления спрашивают `isSelfUpdatingBuild()` (A-094);
+  - `ui/SessionsActivity.createLocalSession`: `"Telegram Android"` → `"Pluma Android"` (A-014).
+- **Как проверяется.** `verify_links`, `verify_brand` (и новые `JAVA_NAMES_KEEP`, `TELEGRAM_SITE_KEEP`, `SCHEME_REGEX`), `verify_self_update`; `SchemeTest`; порча таблиц на настоящем апстриме (убранная правка `ProxySettings`, `QrScanOverlay`, `ChannelAdminLog`, `SessionsActivity`, `SCHEME_REGEX`, `LINKS_OUT`) останавливает `verify`.
+- **Осмотрено, правок не потребовало.**
+  - Запись кружков (`InstantCameraView2`, `InstantCameraViewBase`, `utils/recorder/round/*`, `TelegramRoundVideoUpload`, `RoundVideoSettingsActivity`): нет хостов Telegram; настройки только локальные (`SharedSettings`), единственный внешний выключатель — ключ `android_round_video_recorder_v2_disabled` (`InstantCameraViewBase.isCamera2Enabled`, умолчание false, `AppGlobalConfig.java:109`), сервер его не отдаёт, значит новый рекордер включён. Ключ `round_video_encoding` новый рекордер не читает: умолчания 480p и 1,2 Мбит/с (`SharedSettings.java:19-37`), правки качества A-079…A-085 его не касаются.
+  - Вход Firebase PNV: закрыт `BuildVars.SUPPORTS_FPNV` и `messagesController.fpnvAllowed` (`help.getConfig`, флаг 17, сервер не ставит): запрос не уходит.
+  - Web-прокси (`utils/proxy/WebProxyTransport`): только адрес, заданный пользователем, своих хостов нет.
+  - Кошелёк (`ui/Wallet/*`): закрыт `wallet_available` (умолчание `DEBUG_VERSION`), сервер его не отдаёт.
+- **Сборка.** Настоящая сборка как в CI (`ci/fetch-upstream.sh`, `ci/patch.py --ccache` с подставными значениями, `ci/build.sh dev` в образе из `Dockerfile` апстрима): APK 40 МБ, arm64-v8a, `13.2.1.00000`, подпись тестовая апстрима. Javac нашёл то, чего не видит `verify`: конструктор `RLottieDrawable` без имени кэша (правка интро, якорь исправлен).
+- **Не проверено.** Работа на устройстве; соединение реального клиента 233 с сервером; сборка на раннере GitHub.
+
 ## Снятые правки
 
 Правки, которые были в клиенте и потом убраны; записаны, чтобы история была полной.
@@ -1053,7 +1071,7 @@
 ## Пробелы и замечания
 
 - Правки A-001…A-021 и замена ресурсов проверяются только на настоящем апстриме (CI `build` или локальный `configure.sh`); `patch_test.py` их не воспроизводит.
-- A-014 и A-021 не ловят новые места апстрима с «Telegram» в литералах Java и новые строки поиска «Помощи»; A-005 не ловит новый источник резервных адресов вне `onRequestNewServerIpAndPort`; A-019 удалит без предупреждения новый пункт апстрима внутри блока «Помощь».
+- A-021 не ловит новые строки поиска «Помощи»; A-005 не ловит новый источник резервных адресов вне `onRequestNewServerIpAndPort`; A-019 удалит без предупреждения новый пункт апстрима внутри блока «Помощь».
 - Ветки: `origin/main` и `task/020-parity-fixes` на `d9ad7cf`; локальная `main` отстаёт (`7c78c00`). `sticker-set-kinds` = `origin/main` + `339fd8c`.
 - A-099…A-106 (задача 026) проверены применением на копии апстрима `aac1efcb` и тестами `LinksTest` (A-105, A-106 ещё `aapt2 link` манифеста и `javac` блока Java); сборка CI (Gradle) прошла, выпуск `12.9.1.00031`; `assetlinks.json` с отпечатком подписи отдаётся на pluma.chat. Поведение на устройстве и проверка app links системой не проверены.
 - Не сделано и правок нет: возврат «Помощи» (задача 028); перевод «Send Message» баннера на другие встроенные языки (A-056).

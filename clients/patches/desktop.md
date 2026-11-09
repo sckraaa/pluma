@@ -2,15 +2,15 @@
 
 Всё, что Pluma меняет в Telegram Desktop: правки исходников апстрима, ресурсы, сборка, подпись, CI. Назначение: при обновлении апстрима сразу видеть, какие места апстрима мы трогаем, на что опирается каждая правка и что сломается, если апстрим их сдвинет.
 
-Состояние реестра: ветка `main` репозитория `sckraaa/pluma-desktop`, коммит `ff05bde` (2026-10-31); в истории 41 коммит, все от Alexandr Skraglenko. Ветка `origin/task/020-parity-fixes` указывает на тот же коммит. Тесты на этом коммите: 65, все проходят (`python3 -I -m unittest discover -s ci -p '*_test.py'` на разреженной выгрузке закреплённого апстрима, 2026-11-03). Ветка `task/053-saved-tags` (задача 053, ещё не в `main`): D-073, тестов 66, все проходят (2026-11-04).
+Состояние реестра: обновление до tdesktop 7.4.1 (layer 233, система обновлений v2) — ветка `task/074-upstream`, коммиты `9af2f24`, `fb65af9`, `d581567` (2026-11-09): записи D-013, D-014, D-030, D-042, D-053, D-055, D-057, D-060, D-070, D-074…D-079, D-082 обновлены, новые — D-086…D-090. До этого: ветка `main` репозитория `sckraaa/pluma-desktop`, коммит `ff05bde` (2026-10-31); в истории 41 коммит, все от Alexandr Skraglenko. Ветка `origin/task/020-parity-fixes` указывает на тот же коммит. Тесты на этом коммите: 65, все проходят (`python3 -I -m unittest discover -s ci -p '*_test.py'` на разреженной выгрузке закреплённого апстрима, 2026-11-03). Ветка `task/053-saved-tags` (задача 053, ещё не в `main`): D-073, тестов 66, все проходят (2026-11-04).
 
 ## Общее
 
 **Репозиторий.** `github.com/sckraaa/pluma-desktop`. Кода апстрима в нём нет: CI скачивает закреплённый релиз, правит его скриптом и собирает. Состав: `ci/patch.py` (патч и итоговая проверка), `ci/patch_test.py`, `ci/sign_test.py`, `ci/budget_test.py` (тесты), `ci/*.sh` (выгрузка, сборка, упаковка, подпись, шифрование, кэш), `brand/` (иконки, палитры, таблица строк), `config/app.env` (идентичность), `config/dev/` (dev-сервер и его публичный ключ), `upstream.env` (закрепление апстрима и тулчейна), `.github/workflows/desktop.yml` и `staple-macos.yml`.
 
 **Закреплённый апстрим** (`upstream.env`):
-- `UPSTREAM_REPO=https://github.com/telegramdesktop/tdesktop.git`, тег `v7.0.9`, коммит `a1e89e1f64f08cb058caf1c61ff43f319f98a6ec` (дата коммита 2026-08-05), `UPSTREAM_VERSION=7.0.9`, `UPSTREAM_LAYER=228` — последний релиз на layer 228.
-- Тулчейн тега: `QT_VERSION=6.11.1` (из `Telegram/build/qt_version.py`), `WINDOWS_SDK=10.0.26100.0` и `MSVC_TOOLSET=14.44` (из `docs/building-win.md`), `XCODE_VERSION=26.6` (Xcode по умолчанию образа `macos-26` на момент закрепления), `CCACHE_VERSION=4.13.6` (из `.github/workflows/linux.yml`), `BUILDKIT_IMAGE=moby/buildkit:v0.33.1@sha256:cec9f139…`.
+- `UPSTREAM_REPO=https://github.com/telegramdesktop/tdesktop.git`, тег `v7.4.1`, коммит `157f5cfc85e2dd1fa67f129a5e31a81db5ddeb19` (дата 2026-11-06), `UPSTREAM_VERSION=7.4.1`, `UPSTREAM_LAYER=233`.
+- Тулчейн тега: `QT_VERSION=6.11.2` (из `Telegram/build/qt_version.py`), `WINDOWS_SDK=10.0.26100.0` и `MSVC_TOOLSET=14.44` (из `docs/building-win.md`), `XCODE_VERSION=26.6` (Xcode по умолчанию образа `macos-26` на момент закрепления), `CCACHE_VERSION=4.13.6` (из `.github/workflows/linux.yml`), `BUILDKIT_IMAGE=moby/buildkit:v0.33.1@sha256:cec9f139…`.
 
 **Как применяется патч.**
 - Точка входа: `ci/configure.sh dev|server` → `python3 -I ci/patch.py --source <checkout> --upstream upstream.env --app config/app.env --server-ipv4 … --server-port … [--server-ipv6 …] --rsa-public-key <PEM>`.
@@ -203,13 +203,15 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 - **Что остаётся намеренно (`CODE_TELEGRAM`, счётчик по файлу).** Updater и его задачи (`_other/startup_task_win.cpp` 1, `updater_linux.cpp` 4, `updater_osx.m` 2, `updater_win.cpp` 9, `core/update_checker.cpp` 1); строки логов (`api/api_updates.cpp`, `core/crash_reports.cpp`, `core/launcher.cpp` 2, `core/sandbox.cpp`); окна crash report, вырезанные компиляцией (`core/crash_report_window.cpp` 7); сборки, которых Pluma не делает — альфа, Mac App Store, Windows Store (`boxes/about_box.cpp`, `core/file_utilities.cpp`, `platform/win/specific_win.cpp`, `platform/win/windows_app_user_model_id.cpp`); `api_id` Telegram Desktop в списке сессий (`api/api_authorizations.cpp`); имена в форматах, которые никто не читает (`core/click_handler_types.cpp` PRODID календаря, `iv/iv_rich_page.h`, `export/output/export_output_abstract.cpp`, `payments/payments_form.cpp` — имя компании для Stripe, `platform/mac/launcher_mac.mm`).
 - **Проверка.** `verify_brand()` считает «Telegram» как слово в строковых литералах всех исходников (ссылки и комментарии не считаются, `code_telegram`) и сравнивает с `CODE_TELEGRAM`; `BrandTest.test_code_telegram`; `test_brand`; `DAMAGE`: `intro_start.cpp` с `u"Telegram"_q`, `export_output_html.cpp` с `" has joined Telegram"`, новый литерал в `main_window.cpp`.
+- **Обновление 7.4.1 (задача 074).** Новые строки таблицы: `window/window_restore_shell.cpp`, `window/window_saved_windows.cpp` (заголовки окон), `platform/mac/window_title_mac.mm` (второй вызов, `style::al_left`), `platform/mac/global_menu_mac.mm` (`: u"Telegram"_q;`), `platform/mac/specific_mac.mm` (сообщение App Translocation, 2 строки), `_other/updater_win.cpp` (`L"Failed to update Telegram :(`), `platform/linux/launcher_linux.cpp`, `mtproto/web_proxy/web_proxy_transport.cpp` (страница WEB-прокси в браузере: заголовок 2, статусы 4, подсказка 1). `page.js` — теперь `data.windowTitle`, 2 раза. В `CODE_TELEGRAM` добавлен `platform/linux/update_install_linux.cpp` 6 (имя бинарника в пакете и сообщение журнала).
 - **Если апстрим сдвинет.** Изменённый текст → `PatchError` в `replace`; новый литерал с «Telegram» где угодно → `verify_brand()`.
 - **Коммит.** `7b07c40` (2026-10-29), задача 017. Ранее (`9cbdbf0`) были только имена идентичности (D-035…D-046).
 
 ### D-014. Ссылки `plm://` вместо `tg://` в исходниках
 - **Что и зачем.** Схема Pluma — `plm://` (задача 017). Во всех `tg://` 23 файлов исходников (67 вхождений) — `plm://`: приложение открывает `plm://`, превращает в них `t.me` как прежде и создаёт их везде, где создавал `tg://` (QR входа `plm://login?token=…`, скопированные ссылки настроек и постов). `tg://` и `tonsite://` остаются установленному рядом Telegram Desktop.
-- **Где.** Точная замена `tg://` → `plm://` с числом вхождений по файлу (`SCHEME_FILES`): `api/api_single_message_search.cpp` 3, `boxes/connection_box.cpp` 3, `core/application.cpp` 3, `core/click_handler_types.cpp` 2, `core/deep_links/deep_links_settings.cpp` 2, `core/local_url_handlers.cpp` 30, `core/ui_integration.cpp` 1, `data/data_cloud_themes.cpp` 1, `data/data_story.cpp` 1, `history/history_drag_area.cpp` 2, `history/view/media/history_view_theme_document.cpp` 1, `history/view/media/history_view_userpic_suggestion.cpp` 1, `inline_bots/bot_attach_web_view.cpp` 2, `intro/intro_qr.cpp` 1, `iv/editor/iv_editor_clipboard_import.cpp` 1, `iv/iv_rich_message_html_export.cpp` 4, `media/stories/media_stories_controller.cpp` 1, `menu/menu_ttl_validator.cpp` 1, `settings/sections/settings_main.cpp` 1, `settings/sections/settings_privacy_security.cpp` 1, `settings/settings_experimental.cpp` 1, `ui/boxes/about_cocoon_box.cpp` 1, `window/window_filters_favorite.cpp` 3.
-- **Проверка.** `verify_brand()`: ни одного `tg://` во всех исходниках; `test_brand` (`_qrCodes.fire_copy("plm://login?token=" + encoded);`, `openCustomUrl("plm://", …)`); `DAMAGE`: QR на `https://t.me/login?token=`, новый `tg://resolve` в `core/sandbox.cpp`.
+- **Где.** Точная замена `tg://` → `plm://` с числом вхождений по файлу (`SCHEME_FILES`): `api/api_single_message_search.cpp` 3, `boxes/connection_box.cpp` 3, `core/application.cpp` 4, `core/click_handler_types.cpp` 2, `core/deep_links/deep_links_settings.cpp` 2, `core/local_url_handlers.cpp` 35, `core/ui_integration.cpp` 1, `data/data_cloud_themes.cpp` 1, `data/data_story.cpp` 1, `history/history_drag_area.cpp` 3, `history/view/media/history_view_theme_document.cpp` 1, `history/view/media/history_view_userpic_suggestion.cpp` 1, `inline_bots/bot_attach_web_view.cpp` 3, `intro/intro_qr.cpp` 1, `iv/editor/iv_editor_clipboard_import.cpp` 1, `iv/iv_rich_message_html_export.cpp` 4, `media/stories/media_stories_controller.cpp` 1, `menu/menu_ttl_validator.cpp` 1, `settings/sections/settings_main.cpp` 1, `settings/sections/settings_privacy_security.cpp` 1, `settings/settings_experimental.cpp` 1, `ui/boxes/about_cocoon_box.cpp` 1, `window/window_filters_favorite.cpp` 3.
+- **Списки разрешённых схем (7.4.1, `SCHEME_LISTS`).** В `core/file_utilities.cpp` (`IsUrlSchemeAllowed`), `iv/markdown/iv_markdown_prepare_links.cpp` (`IsAllowedExternalTarget`) и `export/output/export_output_html.cpp` перед `u"tg"_q` добавлен `u"plm"_q`: иначе `plm://` отвергается в статье Markdown и в HTML-экспорте, а ссылка `plm://` в тексте считается требующей подтверждения (`SchemeRequiresConfirmation`, `core/ui_integration.cpp`). `tg` остаётся: такая ссылка открывает Telegram Desktop.
+- **Проверка.** `verify_brand()`: ни одного `tg://` во всех исходниках, `SCHEME_LISTS` на месте (`test_scheme_lists_take_plm`); `test_brand` (`_qrCodes.fire_copy("plm://login?token=" + encoded);`, `openCustomUrl("plm://", …)`); `DAMAGE`: QR на `https://t.me/login?token=`, новый `tg://resolve` в `core/sandbox.cpp`.
 - **Если апстрим сдвинет.** Изменённое число `tg://` в файле → `PatchError`; новый файл с `tg://` → `verify_brand()`.
 - **Поведение официального клиента.** Telegram Desktop создаёт и открывает `tg://`. Задача 017: Android и iOS Pluma принимают `plm://login?token=` — QR-вход между клиентами работает, когда все на `plm://`. `t.me` в сообщениях открываются внутри Pluma, как в Telegram; `pluma.chat` — тоже (задача 026, D-079).
 - **Коммит.** `7e6c8d6` (2026-10-29), задача 017. В `9cbdbf0` было иначе: схема `tg://` оставалась в коде, но не регистрировалась при первом запуске (`autoRegisterUrlScheme` опустошался), `CFBundleURLTypes` удалялся из Info.plist, `MimeType` — из `.desktop`; `7e6c8d6` это заменил.
@@ -316,7 +318,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### D-030. В «Настройках» нет FAQ, Telegram Features и Ask a Question
 - **Что и зачем.** Тело `BuildHelpSection(SectionBuilder &builder)` → `Q_UNUSED(builder);`. Они ведут на страницы и поддержку Telegram (`help.getSupport` сервер не обслуживает).
-- **Где.** `Telegram/SourceFiles/settings/sections/settings_main.cpp`, `replace_body` от `void BuildHelpSection(SectionBuilder &builder) {\n` (стр. 574); `must_contain`: `OpenFaq(controller);`, `lng_telegram_features_url`, `OpenAskQuestionConfirm(controller);`.
+- **Где.** `Telegram/SourceFiles/settings/sections/settings_main.cpp`, `replace_body` от `void BuildHelpSection(SectionBuilder &builder) {\n` (стр. 574); `must_contain`: `OpenFaq(controller);`, `OpenFeatures(controller);` (с 7.4.1, было `lng_telegram_features_url`), `OpenAskQuestionConfirm(controller);`.
 - **Проверка.** `test_brand`; `DAMAGE`: `OpenAskQuestion(controller)`.
 - **Коммит.** `a1fa34a` (2026-10-29), задача 017.
 
@@ -395,6 +397,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Коммит.** `9cbdbf0`, задача 006.
 
 ### D-042. Файл `.desktop`
+- **7.4.1 (задача 074).** В `MimeType` апстрима добавлен `x-scheme-handler/ton`: Pluma объявляет только `plm`, как и в `Telegram.plist` (`<string>ton</string>` убран вместе с `tg`/`tonsite`) и в `RegisterUrlScheme` (`.protocol = u"ton"_q` в `must_contain`, тело заменяется целиком).
 - **Что.** В `lib/xdg/org.telegram.desktop.desktop` 10 точных замен: `Name=Telegram` → `Name=Pluma`; `TryExec=Telegram` → `TryExec=Pluma`; `Exec=Telegram -- %U` → `Exec=Pluma -- %U`; `Icon=org.telegram.desktop` → `Icon=chat.pluma.desktop`; `StartupWMClass=TelegramDesktop` → `StartupWMClass=Pluma`; `MimeType=x-scheme-handler/tg;x-scheme-handler/tonsite;` → `MimeType=x-scheme-handler/plm;`; `Keywords=tg;chat;im;messaging;messenger;sms;tdesktop;` → `Keywords=chat;im;messaging;messenger;`; строка `DBusActivatable=true` удалена (с приложением не идёт D-Bus service file); `Exec=Telegram -quit` → `Exec=Pluma -quit`; `Name=Quit Telegram` → `Name=Quit Pluma`. Упаковка кладёт его как `Pluma/chat.pluma.desktop.desktop` (D-063).
 - **Проверка.** `verify()` (нет `Telegram`, `x-scheme-handler/tg`, `tonsite`); `verify_brand()` (`MimeType=x-scheme-handler/plm;`); `test_patch`; `DAMAGE`: `Name=Telegram Desktop`, `MimeType` без `tonsite`.
 - **Коммиты.** `9cbdbf0` (в нём `MimeType` удалялся), `7e6c8d6` (`MimeType` → `plm`), задачи 006 и 017.
@@ -527,6 +530,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 ## Сборка и подпись
 
 ### D-053. Бэкпорт апстрима `b244f1b3`: пакеты MSYS2 UCRT в `prepare.py`
+- **Убрана (задача 074).** Коммит `b244f1b3` входит в v7.4.1 (проверено `merge-base`); таблица `BACKPORTS` пуста.
 - **Что и зачем.** MSYS2 удалил пакеты `mingw-w64-x86_64-*` (msvcrt), и `prepare.py` 7.0.9 падал на Windows («target not found: mingw-w64-x86_64-diffutils»). Три точные замены в `Telegram/build/prepare/prepare.py`, побайтно как в апстриме (tdesktop `b244f1b3`, 2026-09-30, «Update msys2 and use ucrt versions of packages»):
   - `'ThirdParty\\msys64\\mingw64\\bin',` → `'ThirdParty\\msys64\\ucrt64\\bin',` (стр. 85);
   - установщик `releases/download/2025-08-30/msys2-base-x86_64-20250830.sfx.exe` → `2026-09-27/msys2-base-x86_64-20260927.sfx.exe` (стр. 471);
@@ -556,13 +560,13 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### D-057. Закрепление апстрима и проверка его тулчейна
 - **Что.** `upstream.env` (см. «Общее») и `check_upstream()`: патч отказывается работать с выгрузкой не того layer, не той версии и не того тулчейна, а также если изменились места апстрима, на которые опираются наши скрипты (`centos_env/build.sh`, `gen_dockerfile.py`, опции `prepare.py`, опции `cmake/variables.cmake`, entitlements).
 - **Где (опоры `check_upstream`, правок нет).**
-  - `Telegram/SourceFiles/mtproto/scheme/api.tl`: ровно одна строка `// LAYER 228` (регулярное выражение `^// LAYER (\d+)$`);
-  - `Telegram/SourceFiles/core/version.h`: `constexpr auto AppVersionStr = "7.0.9";\n` (`expect`);
-  - `Telegram/build/qt_version.py`: `os.environ['QT'] = '6.11.1'\n`, ровно 2 вхождения (macOS и Windows с qt6);
+  - `Telegram/SourceFiles/mtproto/scheme/api.tl`: ровно одна строка `// LAYER 233` (регулярное выражение `^// LAYER (\d+)$`);
+  - `Telegram/SourceFiles/core/version.h`: `constexpr auto AppVersionStr = "7.4.1";\n` (`expect`);
+  - `Telegram/build/qt_version.py`: `os.environ['QT'] = '6.11.2'\n`, ровно 2 вхождения (macOS и Windows с qt6);
   - `docs/building-win.md`: `**10.0.26100.0** SDK version` (`expect`) и хотя бы одно `-vcvars_ver=14.44` (`expect_some`);
   - `.github/workflows/linux.yml`: хотя бы одно `/ccache/releases/download/v4.13.6/ccache-4.13.6-linux-x86_64-glibc.tar.xz` (`expect_some`);
-  - `Telegram/build/docker/centos_env/build.sh`: `cd Telegram\n./configure.sh "$@"\ncmake --build ../out --config "${CONFIG:-Release}"\n`; `centos_env/gen_dockerfile.py`: `DEBUG=checkEnv("DEBUG", True),\n` и `LTO=checkEnv("LTO", True),\n`;
-  - `Telegram/build/prepare/prepare.py`: `optionsList = [\n    'qt6',\n` и `        elif arg == 'silent':\n            rebuildStale = True\n`;
+  - `Telegram/build/docker/centos_env/build.sh`: `cd Telegram\n./configure.sh "$@"\n` и `cmake --build ../out --config "${CONFIG:-Release}" ${KEEP_GOING:+-- -k 0}\n` (два `expect`, между ними комментарий апстрима); `centos_env/gen_dockerfile.py`: `DEBUG=checkEnv("DEBUG", True),\n` и `LTO=checkEnv("LTO", True),\n`;
+  - `Telegram/build/prepare/prepare.py`: `optionsList = [\n    'qt5',\n    'qt6',\n` и `        elif arg == 'silent':\n            rebuildStale = True\n`;
   - `cmake/variables.cmake`: `option(DESKTOP_APP_DISABLE_AUTOUPDATE "Disable autoupdate."` и `option(DESKTOP_APP_DISABLE_CRASH_REPORTS "Disable crash report generation."`;
   - `Telegram/Telegram/Telegram.entitlements` побайтно равен `ci/macos.entitlements` (D-065);
   - каждый правленый файл (`EDITED` и файлы бренда) без CRLF (`lf_only`, D-071).
@@ -582,7 +586,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ### D-060. Сборка Linux: `ci/build-linux.sh`
 - **Что.** В образе D-059 запускается `centos_env/build.sh` апстрима с Release, флагами `-O3 -DNDEBUG -fpch-preprocess`, `api_id`/`api_hash` и опциями D-009; поверх ccache 3.7.7 образа монтируется статический ccache 4.13.6 с раннера (`-v $ccache:/usr/bin/ccache:ro`; 3.7.7 выбрасывал предкомпилированные заголовки), `CCACHE_SLOPPINESS=pch_defines,time_macros`, `CCACHE_MAXSIZE`, журнал статистики. Требует `pluma-patch.txt` и ccache нужной версии.
-- **Проверка.** `check_upstream()` требует текст `build.sh`: `cd Telegram\n./configure.sh "$@"\ncmake --build ../out --config "${CONFIG:-Release}"\n`.
+- **Проверка.** `check_upstream()` требует текст `build.sh` (D-057).
 - **Коммиты.** `b441350`, `66af343` (ccache 4), `e7654de` (журнал промахов), задача 006.
 
 ### D-061. Сборка Windows: `ci/windows.sh`
@@ -649,6 +653,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 ## Прочее
 
 ### D-070. Исправление апстрима: подсказка над списком чатов, которая грузится первой, показывается
+- **Убрана (задача 074, коммит `d581567`).** С 7.4.1 апстрим сам отдаёт обёртку, созданную позже: `deliver()` в `dialogs_top_bar_suggestion.cpp` (`wrapGeneration`/`deliveredGeneration`, вызов из `done`). `test_birthday_banner` проверяет наличие `deliver()`.
 - **Что и зачем.** `TopBarSuggestionValue` отдаёт списку чатов новую обёртку, только если подсказка готова, пока обрабатывается событие promo/авторизации/Premium. Баннер дня рождения готов лишь после ответа `contacts.getBirthdays`, и тогда его никто не передавал: баннер не показывался (увидено на dev-сборке против стенда, 2026-10-31). Четыре точные замены в `Telegram/SourceFiles/dialogs/dialogs_top_bar_suggestion.cpp` (`TOP_BAR_WRAP`):
   1. в состояние после `int activationId = 0;` (стр. 82) добавлено поле `bool processing = false;`;
   2. перед `if (!state->wrap) {` запоминается `const auto created = !state->wrap;`;
@@ -687,32 +692,37 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 - `telegram_options.cmake`: сборка падает без `DESKTOP_APP_DISABLE_CRASH_REPORTS=ON` или с `DESKTOP_APP_DISABLE_AUTOUPDATE`; определяется только `TDESKTOP_DISABLE_CRASH_REPORTS`. Флаг автообновления убран из `ci/build-linux.sh`, `ci/macos.sh`, `ci/windows.sh`.
 
-### D-075. Ключ, префикс, без MTP-проверки
+### D-075. Ключи, префикс, без MTP-проверки (система обновлений v2, задача 074)
 
-- `config.h:45-58`: ключ Pluma (RSA-1024, PKCS#1 из `config/update_public.pem`) в оба слота `UpdatesPublicKey`/`UpdatesPublicBetaKey`; ключи Telegram остаются только в `packer.cpp`, который не собирается.
-- `storage/localstorage.cpp:557`: префикс по умолчанию `PLUMA_UPDATE_PREFIX` (`https://pluma.chat/dl/desktop`), у dev-сборки — `https://127.0.0.1/dl/desktop`.
-- `core/update_checker.cpp:1509-1511`: `MtpChecker` не запускается (канал `tdhbcfeed` Telegram).
+- `Telegram/Resources/update/{root-public.pem,manifest.min.json,manifest.sig}`: файлы Telegram заменяются файлами `config/update` (dev-сборка — `config/dev/update`) с проверкой SHA-256 пинов апстрима (`UPDATE_RESOURCE_FILES`). Обновление принимает только пакет с подписью ключа из манифеста, манифест подписан корневым Ed25519 (`core/update_verify.cpp`, `VerifyUpdate`). `update_verify.cpp`, `update_unpack.cpp` не переписаны, кроме D-087.
+- Ключи `UpdatesPublicKey`/`UpdatesPublicBetaKey` из `config.h` удалены апстримом: прежнего RSA-1024 в клиенте нет (D-078 — один выпуск v1 для установленных клиентов).
+- `storage/localstorage.cpp:558`: префикс по умолчанию `PLUMA_UPDATE_PREFIX` (`https://pluma.chat/dl/desktop`), у dev-сборки — `https://127.0.0.1/dl/desktop`.
+- `core/update_checker.cpp:1768-1772`: `MtpChecker` не запускается (канал `tdhbcfeed`, а для canary — их каналы), `LookupCanaryPrivateSession` помечен `[[maybe_unused]]`.
 
 ### D-076. Имена в Updater
 
-- `update_checker.cpp:1804`, `updater_osx.m:11`: `Telegram.app` → `Pluma.app`.
-- `updater_win.cpp:283`: ключ удаления `{53F49750-…}_is1` (GUID Telegram) → GUID Pluma; `:310-322` имена и издатель → Pluma, ссылка → сайт; `:494` папка в APPDATA → Pluma. Иначе рядом с установленным Telegram Desktop Updater перезаписал бы его запись.
-- Бинарник в пакете — под именем апстрима (`Telegram.exe`, `Telegram`): Updater сам переименует его в установленный (`updater_win.cpp:207-210`, `updater_linux.cpp:272-276`).
+- `update_checker.cpp:2129`, `updater_osx.m:11`: `Telegram.app` → `Pluma.app`.
+- `updater_win.cpp:431-440`: ключ удаления `{53F49750-…}_is1` (GUID Telegram) → GUID Pluma; имена и издатель → Pluma, ссылка → сайт; `:646` папка в APPDATA → Pluma; сообщение об ошибке копирования (`L"Failed to update Telegram :(`) → Pluma (новое в 074). Иначе рядом с установленным Telegram Desktop Updater перезаписал бы его запись.
+- Бинарник в пакете — под именем апстрима (`Telegram.exe`, `Telegram`): Updater сам переименует его в установленный.
 
 ### D-077. Апдейтер сравнивает `PlumaBuild`, `AppVersion` — апстрима
 
 - `core/version.h`: после `AppVersion` (не меняется) — `constexpr auto PlumaBuild = N;` (`--build`, в CI `github.run_number`).
-- `core/update_checker.cpp`: `AppVersion` → `PlumaBuild` в трёх сравнениях апдейтера — версия пакета (490), версия из `/current4` (844), версия готового обновления (1791).
-- **Почему не сдвиг `AppVersion`** (первый вариант, отклонён ревью): tdesktop помечает локальные данные `AppVersion` и читает поля по порогам `streamAppVersion >= N`, мигрирует настройки по порогам старой версии; версия Pluma выше следующего апстрима заставила бы его неверно читать данные.
-- Выпуск — `7.0.9.NNNNN`, пакет — `t*upd<N>`, `released` в `/current4` — номер сборки.
+- `core/update_checker.cpp`: `AppVersion` → `PlumaBuild` в двух сравнениях (`: uint64(AppVersion);` :883 — версия из `/current4`; `versionNum <= AppVersion` :2116 — готовое обновление); `core/update_channel.h`: `RunningUpdateVersion` строит `MakeUpdateVersion(quint32(PlumaBuild), 0)` — то, что сверяет `VerifyUpdate`. Третьего прежнего сравнения (`int32(version) <= AppVersion`, UnpackUpdate) в 7.4.1 нет.
+- Версия пакета в v2 — `<N> << 32`, внутренняя (`Updates::UpdateVersionBase`) — `<N>`, как и номер в `/current4`.
+- **Почему не сдвиг `AppVersion`:** tdesktop помечает локальные данные `AppVersion`; версия Pluma выше следующего апстрима заставила бы его неверно читать данные.
+- Выпуск — `7.4.1.NNNNN`.
 
 ### D-078. Пакеты, упаковщик, выпуск
 
 - `ci/package.sh`: Updater рядом с exe (Windows, Linux), проверка `Contents/Frameworks/Updater` (macOS).
-- `ci/pack_update.py`: формат Packer на Python (QDataStream Qt_5_1; xz на macOS/Linux, сырой LZMA с параметрами `LzmaCompress` на Windows; SHA-1; подпись `openssl dgst -sha1 -sign`), с обратным чтением как в `UnpackUpdate` и проверкой подписи. **Не проверено:** сырой LZMA от liblzma (с маркером конца) в `LzmaUncompress` клиента Windows — проверить первым обновлением на Windows.
-- `ci/publish.sh`: установщик + пакет (`tx64upd`, `tmacupd` универсальный, `tlinuxupd`) → `POST /dl/upload`; job `release` (бывший `sign-macos`, одно одобрение) идёт, если собралась хотя бы одна система, и публикует каждую собравшуюся; `staple-macos` публикует macOS после нотаризации с коммита своего запуска.
-- Сборки передают `-D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF` (по умолчанию опция ON без особой цели, `cmake/variables.cmake:14-39`); MTP-проверка заменена пустой (`startImplementation(&_mtpImplementation, nullptr)`), чтобы ошибка HTTP-проверки обрабатывалась как в апстриме; dev-сборка — с ключом `config/dev/update_public.pem`, закрытой половины которого нет.
-- `ci/update-key.sh`: ключ один раз сразу в `~/pluma-secrets/desktop` и секрет `PLUMA_UPDATE_KEY`, публичный — в `config/update_public.pem`; ничего не печатает.
+- `ci/pack_update.py` (Python, без `openssl` для v2): `--format v2` — конверт `TDUP` (тело как в Packer: QDataStream Qt_5_1, xz/сырой LZMA; `ed25519.py` — подпись), обратное чтение как в `VerifyUpdate`; `--format v1` — прежний формат Packer для одного выпуска.
+- `ci/publish.sh`: формат из `release/update-format`; секреты `PLUMA_UPDATE_KEY_V2_FILE` (v2) и `PLUMA_UPDATE_KEY_FILE` (v1); имена пакетов не менялись (`tx64upd`, `tmacupd`, `tlinuxupd`), сервер не менялся.
+- `release/update-format` = `v1` для первого выпуска 7.4.1: установленные 7.0.9 читают только RSA-формат. Новый клиент читает только v2. После этого выпуска — поменять на `v2`; иначе новые клиенты перестанут обновляться (откажутся от v1-пакета). Клиент 7.0.9, не успевший обновиться в окно выпуска, ставится заново с сайта один раз.
+- `ci/update-key.sh` + `ci/update-keys-v2.py`: выводят RSA-ключ как раньше и создают Ed25519-ключи в `~/pluma-secrets/desktop` (`update-root.pem` остаётся только там), секрет `PLUMA_UPDATE_KEY_V2`, публичные файлы в `config/update` (коммитить). `config/dev/update` — ключи, закрытой половины которых нет.
+- **Проверено (2026-11-09, CachyOS):** образ `centos_env` 7.4.1 и сборка клиента Release с заменами вместо реальных значений (2618/2618, бинарник 507 МБ, Updater 1,6 МБ), запуск под изолированным Xwayland без сети — экран приветствия Pluma; пакет реального размера (99 МБ) принят собственным `VerifyUpdate`/`DecompressUpdatePayload`/`ExtractUpdateFiles` клиента (Linux), файлы совпали; изменённый байт и та же сборка отвергнуты.
+- **Не проверено:** полный цикл обновления установленного клиента, первое обновление на Windows и macOS.
+- Коммиты: `fb65af9` (packer и выпуск), `d581567` (патч), задача 074.
 
 ## Ссылки pluma.chat (задача 026)
 
@@ -721,6 +731,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Где в `ci/patch.py`.** Таблицы `LINK_HOSTS` (распознавание и имена приглашений: файл, текст апстрима, текст Pluma), `LINK_BUILDERS` (файл, текст, число; в каждом `t.me` → `pluma.chat`), `LINKS_KEPT` (что остаётся от `t.me`), функции `links()` (вызывается в `patch()` перед `rebrand()`), `links_edited()` (LF-проверка в `check_upstream()`), `verify_links()` (в `verify()` перед `verify_brand()`), `link_literals()`.
 
 ### D-079. `pluma.chat` — внутренний хост ссылок
+- **7.4.1 (задача 074).** Правка хостов, которые открываются без вопроса: была в регэкспе `|^pluma\\.chat$`, теперь — строка `u"pluma.chat"_q` в `DefaultWhitelistedDomains()` (`HostInDomains` принимает и поддомены; сервер `whitelisted_domains` не отправляет).
 - **Что и зачем.** Ссылка `pluma.chat` (кликнутая, вставленная, перетащенная, переданная при запуске) открывается внутри приложения так же, как `t.me`: юзернейм, приглашение `+hash`, сообщение `c/<id>/<msg>`, наборы стикеров и эмодзи, прокси и остальные пути `t.me`. Сервер отдаёт приглашения, бусты и `me_url_prefix` как `https://pluma.chat/`, а `channels.exportMessageLink` — `https://pluma.chat/<username>/<id>` и `https://pluma.chat/c/<channel_id>/<id>`; без правки клиент открывал бы их в браузере.
 - **Где** (`LINK_HOSTS`, точные замены по одному разу; в коде — `// pluma`):
   1. `core/local_url_handlers.cpp:1936`, `TryConvertUrlToLocal` — единственный преобразователь https-ссылок во внутренние (`plm://` после D-014): `^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$` → `^(https?://)?(?:(www\\.)?(telegram\\.(me|dog)|t\\.me)|pluma\\.chat)/(.+)$`. Группа пути остаётся пятой (`capturedView(5)`), `www.pluma.chat` и поддомены не подходят. Правило поддоменов `user.t.me` (`:1921-1934`) не тронуто.
@@ -759,6 +770,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Коммит.** `f608f06`, влито в `main` (`28b85c8`, PR #2), 2026-11-06, задача 026.
 
 ### D-082. Что остаётся от `t.me` (`LINKS_KEPT`)
+- **7.4.1 (задача 074).** `core/local_url_handlers.cpp` 4 (`name.t.me` как TON-DNS-имя → `t.me/name`), новый файл `tgw/tgw_bridge.cpp` 1 (ответ виджета, не ссылка). Хост-лист: `DefaultWhitelistedDomains` (`core/click_handler_types.cpp`) вместо регэкспа — см. D-079; добавлено `pluma.chat`, совпадение теперь включает поддомены (`web.pluma.chat` без вопроса при открытии).
 - **Что.** Итоговая проверка `verify_links()` считает `t.me` (`t.me`, `t\.me`, `t\\.me`) в строковых литералах всех исходников (комментарии не считаются, `link_literals`) и сравнивает с таблицей по файлам. Остаются:
   - хосты, узнаваемые как свои, рядом с `pluma.chat`, и правило `user.t.me`: `core/local_url_handlers.cpp` 3, `core/click_handler_types.cpp` 2, `boxes/connection_box.cpp` 1, `boxes/stickers_box.cpp` 2, `boxes/choose_filter_box.cpp` 1, `chat_helpers/message_field.cpp` 2, `settings/sections/settings_information.cpp` 1 (ключевое слово поиска);
   - срезы имён приглашений: `boxes/peers/edit_peer_invite_links.cpp` 2, `boxes/filters/edit_filter_links.cpp` 2, `history/admin_log/history_admin_log_item.cpp` 1 — ссылки, выданные раньше, по-прежнему показываются хешем;
@@ -769,6 +781,24 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Если апстрим сдвинет.** Новое `t.me` в любом файле → ошибка с именем файла: решить — строит ли клиент ссылку (в `LINK_BUILDERS`), узнаёт ли хост (в `LINK_HOSTS`) или это Telegram-only (в `LINKS_KEPT` с причиной).
 - **Тексты `lang.strings` не тронуты.** Во встроенном английском `t.me` есть в `lng_group_about3` («Public links such as t.me/title»), `lng_factcheck_links`, `lng_premium_double_limits_about_links#one/#other` (Premium), `lng_translate_cocoon_text_link`, `lng_telegram_features_url` (Telegram). Это тексты языкового пакета; правка встроенного английского разошлась бы с пакетом сервера — открытый вопрос ниже.
 - **Коммит.** `f608f06`, влито в `main` (`28b85c8`, PR #2), 2026-11-06, задача 026.
+
+### D-086. Манифест и корневой ключ Ed25519 (см. D-075)
+- **Проверка.** `check_update_keys` (в `Config` и в `verify_updates`): корневой ключ не Telegram, подпись манифеста проверяется (`ed25519.verify`), формат как у `ParseVerifiedManifest`, единственный канал `stable`, ключи манифеста — Ed25519, не Telegram. `DAMAGE`: `UPDATE_ROOT`, `UPDATE_MANIFEST`; `test_update_keys_are_verified`, `ConfigTest.test_rejects`.
+
+### D-087. Имена файлов обновления, цель macOS, LZMA Windows
+- **Что и зачем.** `FindUpdateFile` (`core/update_checker.cpp:351`): регулярное выражение принимает и `tx64upd<N>|tmacupd<N>|tlinuxupd<N>` — так называются пакеты на сервере (`pkg/appreleases`); `TargetFromPlatformKey` (`core/update_verify.cpp`): `armac` → `Mac/X64`, чтобы один универсальный пакет подходил обоим процессорам; `DecompressUpdatePayload` (`core/update_unpack.cpp:155-163`): убрано требование прочитать весь сжатый блок — LZMA из Python `lzma` кончается маркером конца (проверено: декодер `eof` только после последнего байта), `LzmaUncompress` останавливается раньше. Полезная нагрузка уже подписана до распаковки.
+- **Проверка.** `test_updates`, `DAMAGE`, `verify_updates` (`UPDATE_FILE_NEW`, `UPDATE_TARGET_NEW`, `UPDATE_LZMA_NEW`).
+
+### D-088. Кошелёк выключен по умолчанию
+- **Что и зачем.** `AppConfig::walletAvailable` (`main/main_app_config.cpp`): значение по умолчанию `false` вместо `true`, правка в `PREMIUM_FOR_EVERYONE_EDITS`. Сервер не обслуживает кошелёк и `wallet_available` не шлёт; без правки при старте появился бы пункт «Кошелёк» и трафик на `toncenter.com`. Сервер сможет включить его ключом `wallet_available` в `help.getAppConfig`.
+- **Проверка.** `test_wallet_is_off`; `verify_premium_for_everyone`.
+
+### D-089. Внешние хосты в литералах: `HOSTS_KEPT`
+- **Что и зачем.** `verify_hosts`: в строковых литералах исходников хосты Telegram и TON (`telegram.org`, `telegram.me`, `telegram.dog`, `telegra.ph`, `fragment.com`, `toncenter.com`, `tonviewer.com`) сверяются с таблицей по файлам; новый литерал останавливает патч.
+- **Проверка.** `test_new_hosts_stop_the_patch`.
+
+### D-090. Тесты апстрима вне проверок
+- `Tree.sources()` пропускает `Telegram/SourceFiles/test/`, `gram/tests/`, `tests/`: это тестовый стенд апстрима, в Release не компилируется (`_DEBUG` или `TDESKTOP_RELEASE_TEST_HARNESS`, выключен), в нём образцы ссылок и имён.
 
 ---
 
@@ -791,7 +821,15 @@ ci/lint.sh                                        # shellcheck и actionlint
   - `BuildPremiumSection` — по `premiumCanBuy`;
   - `MainMenu::setupSetEmojiStatus` скрывает ссылку статуса: сервер не обслуживает `account.updateEmojiStatus`;
   - `history_view_document.cpp`: кнопка расшифровки выключена.
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
+- **7.4.1 (задача 074), места, которых патч 071 не закрывал.** Там же:
+  - `history_view_message.cpp` (`validateFromNameText`): звезда после имени отправителя в группе; место под значок остаётся только для эмодзи-статуса;
+  - `settings_privacy_security.cpp` (`AddPrivacyPremiumStar`): звезда на строках приватности;
+  - `history_view_gif.cpp` (`ensureTranscribeButton`): кнопка расшифровки на кружке, сервер не обслуживает `messages.transcribeAudio`;
+  - `menu/menu_emoji_status.cpp` (`AddSetAsStatusAction`, новый файл): пункт «поставить статусом» в меню эмодзи;
+  - `history_view_compose_controls.cpp` (`refreshSendGiftToggle`, новая копия D-049): кнопка подарка у поля ввода раздела чата — по `premiumCanBuy`;
+  - `info_profile_qr_gifts.cpp` (`BrowseShownValue`, новый экран QR): переход в магазин подарков со своего профиля — по `premiumCanBuy`.
+- **Не закрыто.** `dialogs_inner_widget_accessibility.cpp` (3 места): экранный диктор называет любого пользователя словом Premium (`lng_premium`), так как флаг есть у всех; на экране этого нет.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_no_star_store_or_transcription_on_new_surfaces`.
 
 ### D-085. Бустов нет: свои реакции и цвета без уровня, пункты и ссылка убраны (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`a1b03bc`, `e0c615d`, `ea02704`), не влита, не выпущена (2026-11-09).
