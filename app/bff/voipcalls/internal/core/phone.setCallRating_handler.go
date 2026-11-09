@@ -31,11 +31,7 @@ func (c *VoipCallsCore) PhoneSetCallRating(in *mtproto.TLPhoneSetCallRating) (*m
 	if in.GetRating() < 1 || in.GetRating() > 5 {
 		return nil, mtproto.ErrCallPeerInvalid
 	}
-	comment := in.GetComment()
-	if len(comment) > maxComment {
-		comment = comment[:maxComment]
-	}
-	if err := c.svcCtx.Dao.Store.SetRating(c.ctx, call.Id, role, in.GetRating(), comment); err != nil {
+	if err := c.svcCtx.Dao.Store.SetRating(c.ctx, call.Id, role, in.GetRating(), clip(in.GetComment(), maxComment)); err != nil {
 		c.Logger.Errorf("phone.setCallRating - error: %v", err)
 		return nil, err
 	}

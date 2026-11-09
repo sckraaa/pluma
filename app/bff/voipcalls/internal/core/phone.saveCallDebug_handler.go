@@ -26,11 +26,7 @@ func (c *VoipCallsCore) PhoneSaveCallDebug(in *mtproto.TLPhoneSaveCallDebug) (*m
 	if err != nil {
 		return nil, err
 	}
-	debug := in.GetDebug().GetData()
-	if len(debug) > maxDebugLog {
-		debug = debug[:maxDebugLog]
-	}
-	if err := c.svcCtx.Dao.Store.SetDebug(c.ctx, call.Id, debug); err != nil {
+	if err := c.svcCtx.Dao.Store.SetDebug(c.ctx, call.Id, clip(in.GetDebug().GetData(), maxDebugLog)); err != nil {
 		c.Logger.Errorf("phone.saveCallDebug - error: %v", err)
 		return nil, err
 	}

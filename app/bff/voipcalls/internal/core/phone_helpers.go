@@ -18,6 +18,7 @@ package core
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"strings"
 
 	"github.com/teamgram/proto/mtproto"
 )
@@ -28,6 +29,7 @@ const (
 	maxKeyMaterial = 1024
 	gAHashSize     = 32 // SHA-256 (core.telegram.org/api/end-to-end/voice-calls)
 	maxVersions    = 16
+	maxVersionLen  = 32
 	maxSignaling   = 64 * 1024
 	maxDebugLog    = 64 * 1024
 	maxComment     = 1024
@@ -53,5 +55,23 @@ func checkProtocol(p *mtproto.PhoneCallProtocol) error {
 	if len(p.GetLibraryVersions()) == 0 || len(p.GetLibraryVersions()) > maxVersions {
 		return errProtocolLayer
 	}
+	// The protocol is kept as JSON in a text column: a longer one would be
+	// cut by "insert ignore", and the row could not be read back, by the
+	// sweep either.
+	for _, v := range p.GetLibraryVersions() {
+		if v == "" || len(v) > maxVersionLen {
+			return errProtocolLayer
+		}
+	}
 	return nil
+}
+
+// clip bounds text a client sent to n bytes of valid UTF-8. A utf8mb4 column
+// refuses a character cut in half or bytes that are no text, and the client
+// would repeat the failed request.
+func clip(s string, n int) string {
+	if len(s) > n {
+		s = s[:n]
+	}
+	return strings.ToValidUTF8(s, "")
 }
