@@ -162,6 +162,16 @@ func (s *Service) BotsCheckUsername(ctx context.Context, request *mtproto.TLBots
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
+// BotsAddUsername is not served: a bot has the one username it was created with.
+func (s *Service) BotsAddUsername(ctx context.Context, request *mtproto.TLBotsAddUsername) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrEnterpriseIsBlocked
+}
+
+// BotsRemoveUsername is not served, see BotsAddUsername.
+func (s *Service) BotsRemoveUsername(ctx context.Context, request *mtproto.TLBotsRemoveUsername) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrEnterpriseIsBlocked
+}
+
 // BotsCreateBot is the managed-bot flow, not served (ADR 0043).
 func (s *Service) BotsCreateBot(ctx context.Context, request *mtproto.TLBotsCreateBot) (*mtproto.User, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

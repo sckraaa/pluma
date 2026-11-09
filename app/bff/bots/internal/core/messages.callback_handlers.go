@@ -204,8 +204,8 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 				OwnerId:  c.MD.UserId,
 				Id_INT32: msgId,
 			}).To_InputBotInlineMessageID(),
-			ChatInstance:   instance,
-			Data_FLAGBYTES: data,
+			ChatInstance_INT64: instance,
+			Data_FLAGBYTES:     data,
 		}).To_Update(), nil, nil
 	}
 
@@ -239,12 +239,12 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 		p.botMsg = box.GetMessageId()
 	}
 	return mtproto.MakeTLUpdateBotCallbackQuery(&mtproto.Update{
-		QueryId_INT64:  queryId,
-		UserId:         c.MD.UserId,
-		Peer_PEER:      peer,
-		MsgId_INT32:    p.botMsg,
-		ChatInstance:   instance,
-		Data_FLAGBYTES: data,
+		QueryId_INT64:      queryId,
+		UserId:             c.MD.UserId,
+		Peer_PEER:          peer,
+		MsgId_INT32:        p.botMsg,
+		ChatInstance_INT64: instance,
+		Data_FLAGBYTES:     data,
 	}).To_Update(), chats, nil
 }
 
