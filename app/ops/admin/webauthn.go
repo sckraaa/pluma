@@ -21,14 +21,12 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/asn1"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/fxamacker/cbor/v2"
 )
@@ -211,18 +209,14 @@ func verifyAssertion(pk *passkey, clientDataJSON, authData, signature []byte, ch
 	if pk.signCount != 0 && counter <= pk.signCount {
 		return 0, fmt.Errorf("%w: sign counter went back", errBadCeremony)
 	}
-	key := ecdsa.PublicKey{Curve: elliptic.P256(), X: new(big.Int).SetBytes(pk.x), Y: new(big.Int).SetBytes(pk.y)}
-	if !key.Curve.IsOnCurve(key.X, key.Y) {
+	key, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), append(append([]byte{4}, pk.x...), pk.y...))
+	if err != nil {
 		return 0, fmt.Errorf("%w: public key", errBadSig)
-	}
-	var sig struct{ R, S *big.Int }
-	if rest, err := asn1.Unmarshal(signature, &sig); err != nil || len(rest) != 0 {
-		return 0, errBadSig
 	}
 	cdh := sha256.Sum256(clientDataJSON)
 	signed := append(append([]byte{}, authData...), cdh[:]...)
 	digest := sha256.Sum256(signed)
-	if !ecdsa.Verify(&key, digest[:], sig.R, sig.S) {
+	if !ecdsa.VerifyASN1(key, digest[:], signature) {
 		return 0, errBadSig
 	}
 	return counter, nil

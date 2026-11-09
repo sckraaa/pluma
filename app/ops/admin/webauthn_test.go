@@ -20,13 +20,11 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/asn1"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"math/big"
 	"testing"
 
 	"github.com/fxamacker/cbor/v2"
@@ -50,10 +48,16 @@ func newSoftKey(t *testing.T) *softKey {
 	if err != nil {
 		t.Fatal(err)
 	}
-	x, y := make([]byte, 32), make([]byte, 32)
-	k.X.FillBytes(x)
-	k.Y.FillBytes(y)
-	return &softKey{priv: k, id: []byte("credential-1"), x: x, y: y}
+	point, err := k.PublicKey.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The tests share a database, where a credential id is a primary key.
+	id := make([]byte, 16)
+	if _, err = rand.Read(id); err != nil {
+		t.Fatal(err)
+	}
+	return &softKey{priv: k, id: id, x: point[1:33], y: point[33:]}
 }
 
 func clientDataFor(t *testing.T, typ, challengeHex, origin string) []byte {
@@ -103,11 +107,7 @@ func (k *softKey) sign(t *testing.T, authData, client []byte) []byte {
 	t.Helper()
 	cdh := sha256.Sum256(client)
 	digest := sha256.Sum256(append(append([]byte{}, authData...), cdh[:]...))
-	r, s, err := ecdsa.Sign(rand.Reader, k.priv, digest[:])
-	if err != nil {
-		t.Fatal(err)
-	}
-	der, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
+	der, err := ecdsa.SignASN1(rand.Reader, k.priv, digest[:])
 	if err != nil {
 		t.Fatal(err)
 	}
