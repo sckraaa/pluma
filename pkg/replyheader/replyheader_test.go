@@ -398,11 +398,20 @@ func TestOtherChatReplyErrors(t *testing.T) {
 		in.QuoteOffset = wrapperspb.Int32(offset)
 		return in
 	}
+	richQuote := func(id int32, text string) *mtproto.InputReplyTo {
+		in := replyToMessage(id, inputUser(replyOther))
+		in.QuoteRich = []*mtproto.RichText{mtproto.MakeTLTextPlain(&mtproto.RichText{Text_STRING: text}).To_RichText()}
+		return in
+	}
+	if h, err := Make(src, replySelf, toChat, nil, richQuote(10, "look")); err != nil || !h.GetQuote() || len(h.GetQuoteRich()) != 1 {
+		t.Errorf("a rich quote of a part of the text: %v, %v", h, err)
+	}
 	for name, c := range map[string]struct {
 		peer *mtproto.PeerUtil
 		in   *mtproto.InputReplyTo
 		want error
 	}{
+		"rich quote not in text": {toChat, richQuote(10, "nothing"), errQuoteTextInvalid},
 		"no such message":        {toChat, replyToMessage(99, inputUser(replyOther)), errReplyMessageIdInvalid},
 		"message of other chat":  {toChat, replyToMessage(20, inputUser(replyOther)), errReplyMessageIdInvalid},
 		"named as destination":   {toOther, replyToMessage(20, inputUser(replyOther)), errReplyMessageIdInvalid},

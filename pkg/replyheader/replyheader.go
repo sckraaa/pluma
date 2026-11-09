@@ -207,9 +207,16 @@ func otherChatReply(src Source, selfId int64, box *mtproto.MessageBox, replyTo *
 	if rich := replyTo.GetQuoteRich(); len(rich) != 0 {
 		// The client quotes a fragment of a rich text (layer 232,
 		// SendMessagesHelper.java:191 at Android 13.2.1); the fragments
-		// are shown as they came.
+		// are shown as they came. Only a message with rich_message has
+		// them (RichQuote.canQuote); of any other the quote is a part of
+		// the text like a plain one.
 		if !richQuoteFits(rich) {
 			return nil, errQuoteTextInvalid
+		}
+		if m.GetRichMessage() == nil {
+			if offset, _ := findQuote(m.GetMessage(), layercompat.FlatRichText(rich), replyTo.GetQuoteOffset().GetValue()); offset < 0 {
+				return nil, errQuoteTextInvalid
+			}
 		}
 		header.Quote = true
 		header.QuoteRich = rich
