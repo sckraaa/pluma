@@ -33,7 +33,8 @@ import (
 // so from the privacy settings (api_peer_photo.cpp:474-481,
 // PrivacyControlActivity.java:257-258, PeerPhotoUpdater.swift:195-201).
 func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosUploadProfilePhoto) (*mtproto.Photos_Photo, error) {
-	if err := checkBot(in.GetBot(), in.GetFallback()); err != nil {
+	owner, err := c.photoOwner(in.GetBot(), in.GetFallback())
+	if err != nil {
 		c.Logger.Errorf("photos.uploadProfilePhoto - error: %v", err)
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosU
 	// of the change (ADR 0020).
 	// TODO: ALBUM_PHOTOS_TOO_MANY
 	_, err = c.svcCtx.Dao.UserClient.UserUpdateProfilePhoto(c.ctx, &userpb.TLUserUpdateProfilePhoto{
-		UserId:   c.MD.UserId,
+		UserId:   owner,
 		Id:       photo.GetId(),
 		Uploaded: true,
 		Fallback: in.GetFallback(),
@@ -65,7 +66,7 @@ func (c *UserChannelProfilesCore) PhotosUploadProfilePhoto(in *mtproto.TLPhotosU
 		return nil, err
 	}
 
-	users, err := c.selfUsers()
+	users, err := c.photoUsers(owner)
 	if err != nil {
 		c.Logger.Errorf("photos.uploadProfilePhoto - error: %v", err)
 		return nil, err
