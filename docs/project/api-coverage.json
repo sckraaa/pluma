@@ -1,13 +1,13 @@
 {
   "layer": "228",
   "total": 844,
-  "ok": 344,
+  "ok": 382,
   "partial": 12,
   "areas": [
     {
       "key": "messages",
       "total": 202,
-      "ok": 123,
+      "ok": 136,
       "partial": 6
     },
     {
@@ -25,7 +25,7 @@
     {
       "key": "account",
       "total": 158,
-      "ok": 79,
+      "ok": 80,
       "partial": 2
     },
     {
@@ -43,7 +43,7 @@
     {
       "key": "calls",
       "total": 43,
-      "ok": 0,
+      "ok": 10,
       "partial": 0
     },
     {
@@ -61,7 +61,7 @@
     {
       "key": "bots",
       "total": 61,
-      "ok": 0,
+      "ok": 14,
       "partial": 0
     },
     {

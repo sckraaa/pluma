@@ -93,10 +93,10 @@
 | [065](065-wallpapers-and-themes.md) | Обои и темы | in progress (сервер готов; ждёт проверки в клиентах) |
 | [066](066-search.md) | Поиск | in progress (сервер готов; ждёт проверки в клиентах) |
 | [067](067-channel-gaps.md) | Хвосты партии каналов | in progress (сервер готов; ждёт проверки в клиентах) |
-| [068](068-calls-1to1.md) | Звонки один на один | in progress |
-| [069](069-secret-chats.md) | Секретные чаты | in progress |
-| [070](070-bots-core.md) | Боты (MTProto) | in progress |
-| [071](071-premium-for-everyone.md) | Premium и бусты для всех | in progress |
+| [068](068-calls-1to1.md) | Звонки один на один | in progress (сервер готов; нужен TURN и проверка) |
+| [069](069-secret-chats.md) | Секретные чаты | in progress (сервер готов; ждёт проверки в клиентах) |
+| [070](070-bots-core.md) | Боты (MTProto) | in progress (сервер готов; ждёт проверки в клиентах) |
+| [071](071-premium-for-everyone.md) | Premium и бусты для всех | in progress (сервер и патчи готовы; ждёт проверки в клиентах) |
 | [072](072-admin-panel.md) | Панель управления | todo |
 | [073](073-login-codes.md) | Коды входа: Telegram, SMS | todo |
 | 074 | Обновление версий клиентов (Android: интерфейс, камера в кружках) | todo, после 072 |
