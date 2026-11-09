@@ -109,13 +109,6 @@ func (m *IDListHelper) PickByFwdFrom(fwd *MessageFwdHeader) {
 //	reply_to_top_id:flags.1?int = MessageReplyHeader;
 func (m *IDListHelper) PickByReplyTo(replyTo *MessageReplyHeader) {
 	m.PickByPeer(replyTo.GetReplyToPeerId())
-	// pluma: a reply to a message of another chat names its origin
-	// (reply_from) and carries its media (reply_media); the clients read the
-	// users of both (iOS StoreMessage_Telegram.swift:398-417).
-	if replyTo.GetReplyFrom() != nil {
-		m.PickByFwdFrom(replyTo.GetReplyFrom())
-	}
-	m.PickByMessageMedia(replyTo.GetReplyMedia())
 }
 
 // PickByReplies
@@ -173,24 +166,6 @@ func (m *IDListHelper) PickByMessageMedia(media *MessageMedia) {
 	case Predicate_messageMediaContact:
 		// messageMediaContact#cbf24940 phone_number:string first_name:string last_name:string vcard:string user_id:int = MessageMedia;
 		m.AppendUsers(media.UserId)
-	case Predicate_messageMediaPoll:
-		// pluma: the users a poll names, drawn under it (task 062).
-		for _, a := range media.GetPoll().GetAnswers() {
-			m.PickByPeer(a.GetAddedBy())
-		}
-		for _, p := range media.GetResults().GetRecentVoters_FLAGVECTORPEER() {
-			m.PickByPeer(p)
-		}
-		for _, r := range media.GetResults().GetResults() {
-			for _, p := range r.GetRecentVoters() {
-				m.PickByPeer(p)
-			}
-		}
-	case Predicate_messageMediaToDo:
-		// pluma: who completed the items of a checklist (task 062).
-		for _, c := range media.GetCompletions() {
-			m.PickByPeer(c.GetCompletedBy_PEER())
-		}
 	}
 }
 

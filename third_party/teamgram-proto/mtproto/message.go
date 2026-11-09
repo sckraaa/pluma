@@ -19,10 +19,11 @@
 package mtproto
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 
@@ -277,18 +278,17 @@ func (m *EncryptedMessage2) decrypt(msgKey, authKey, data []byte) ([]byte, error
 	x, err := d.Decrypt(data)
 	if err != nil {
 		// log.Errorf("descrypted data error: %v", err)
-		return nil, crypto.ErrDecryptMessage // pluma: no detail derived from the key or the data
-	}
-	if len(x) < 32 { // pluma: x[28:] below must not panic
-		return nil, crypto.ErrDecryptMessage
+		return nil, err
 	}
 
 	//// 校验解密后的数据合法性
 	messageLen := binary.LittleEndian.Uint32(x[28:])
 	// log.Info("descrypt - messageLen = ", messageLen)
-	if uint64(messageLen)+32 > uint64(dataLen) { // pluma: no uint32 overflow
-		// pluma: the same error for every failure (security guidelines)
-		return nil, crypto.ErrDecryptMessage
+	if messageLen+32 > dataLen {
+		// 	return fmt.Errorf("Message len: %d (need less than %d)", messageLen, dbuf.size-32)
+		err = fmt.Errorf("descrypted data error: Wrong message length %d", messageLen)
+		// log.Error(err.Error())
+		return nil, err
 	}
 
 	var messageKey [96]byte
@@ -303,11 +303,17 @@ func (m *EncryptedMessage2) decrypt(msgKey, authKey, data []byte) ([]byte, error
 		copy(messageKey[4:], sha1Dig[:])
 	}
 
-	// pluma: the error used to carry aesKey, aesIV, part of the auth key and
-	// the ciphertext (audit finding #9); compare in constant time and return
-	// nothing derived from the key or the data.
-	if len(msgKey) < 16 || subtle.ConstantTimeCompare(messageKey[8:8+16], msgKey[:16]) != 1 {
-		return nil, crypto.ErrDecryptMessage
+	if !bytes.Equal(messageKey[8:8+16], msgKey[:16]) {
+		err = fmt.Errorf("descrypted data error: (data: %s, aesKey: %s, aseIV: %s, authKeyId: %d, authKey: %s), msgKey verify error, sign: %s, msgKey: %s",
+			hex.EncodeToString(data[:64]),
+			hex.EncodeToString(aesKey),
+			hex.EncodeToString(aesIV),
+			m.authKeyId,
+			hex.EncodeToString(authKey[88:88+32]),
+			hex.EncodeToString(messageKey[8:8+16]),
+			hex.EncodeToString(msgKey[:16]))
+		// log.Error(err.Error())
+		return nil, err
 	}
 
 	return x, nil

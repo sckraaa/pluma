@@ -259,6 +259,30 @@ message TL_auth_finishPasskeyLogin {
   google.protobuf.Int64Value from_auth_key_id = 5;
 }
 
+message TL_auth_cancelWebTokenAuthorization {
+  TLConstructor constructor = 1;
+  string web_auth_token = 3;
+}
+
+message TL_auth_initFirebasePnvLogin {
+  TLConstructor constructor = 1;
+  repeated int64 except_ids = 3;
+  int32 api_id = 4;
+  string api_hash = 5;
+}
+
+message TL_auth_finishFirebasePnvLogin {
+  TLConstructor constructor = 1;
+  string google_token = 3;
+}
+
+message TL_auth_firebasePnvSignUp {
+  TLConstructor constructor = 1;
+  bool no_joined_notifications = 3;
+  string first_name = 4;
+  string last_name = 5;
+}
+
 message TL_account_registerDevice {
   TLConstructor constructor = 1;
   bool no_muted = 3;
@@ -1336,20 +1360,21 @@ message TL_messages_forwardMessages {
   bool drop_media_captions = 7;
   bool noforwards = 8;
   bool allow_paid_floodskip = 9;
-  InputPeer from_peer = 10;
-  repeated int32 id = 11;
-  repeated int64 random_id = 12;
-  InputPeer to_peer = 13;
-  google.protobuf.Int32Value top_msg_id = 14;
-  InputReplyTo reply_to = 15;
-  google.protobuf.Int32Value schedule_date = 16;
-  google.protobuf.Int32Value schedule_repeat_period = 17;
-  InputPeer send_as = 18;
-  InputQuickReplyShortcut quick_reply_shortcut = 19;
-  google.protobuf.Int64Value effect = 20;
-  google.protobuf.Int32Value video_timestamp = 21;
-  google.protobuf.Int64Value allow_paid_stars = 22;
-  SuggestedPost suggested_post = 23;
+  bool from_ephemeral = 10;
+  InputPeer from_peer = 11;
+  repeated int32 id = 12;
+  repeated int64 random_id = 13;
+  InputPeer to_peer = 14;
+  google.protobuf.Int32Value top_msg_id = 15;
+  InputReplyTo reply_to = 16;
+  google.protobuf.Int32Value schedule_date = 17;
+  google.protobuf.Int32Value schedule_repeat_period = 18;
+  InputPeer send_as = 19;
+  InputQuickReplyShortcut quick_reply_shortcut = 20;
+  google.protobuf.Int64Value effect = 21;
+  google.protobuf.Int32Value video_timestamp = 22;
+  google.protobuf.Int64Value allow_paid_stars = 23;
+  SuggestedPost suggested_post = 24;
 }
 
 message TL_messages_reportSpam {
@@ -2046,6 +2071,7 @@ message TL_messages_acceptUrlAuth {
   google.protobuf.Int32Value button_id = 7;
   google.protobuf.StringValue url = 8;
   google.protobuf.StringValue match_code = 9;
+  InputTonConnectOauthSession tonconnect_session = 10;
 }
 
 message TL_messages_hidePeerSettingsBar {
@@ -3912,7 +3938,8 @@ message TL_bots_setCustomVerification {
   bool enabled = 3;
   InputUser bot = 4;
   InputPeer peer = 5;
-  google.protobuf.StringValue custom_description = 6;
+  TextWithEntities custom_description_FLAGTEXTWITHENTITIES = 6;
+  google.protobuf.StringValue custom_description_FLAGSTRING = 7;
 }
 
 message TL_bots_getBotRecommendations {
@@ -3922,7 +3949,8 @@ message TL_bots_getBotRecommendations {
 
 message TL_bots_checkUsername {
   TLConstructor constructor = 1;
-  string username = 3;
+  bool additional = 3;
+  string username = 4;
 }
 
 message TL_bots_createBot {
@@ -3967,6 +3995,18 @@ message TL_bots_setJoinChatResults {
   TLConstructor constructor = 1;
   int64 query_id = 3;
   JoinChatBotResult result = 4;
+}
+
+message TL_bots_addUsername {
+  TLConstructor constructor = 1;
+  InputUser bot = 3;
+  string username = 4;
+}
+
+message TL_bots_removeUsername {
+  TLConstructor constructor = 1;
+  InputUser bot = 3;
+  string username = 4;
 }
 
 message TL_payments_getPaymentForm {
@@ -4407,6 +4447,61 @@ message TL_payments_getCraftStarGifts {
 message TL_payments_craftStarGift {
   TLConstructor constructor = 1;
   repeated InputSavedStarGift stargift = 3;
+}
+
+message TL_payments_getCurrencyRates {
+  TLConstructor constructor = 1;
+}
+
+message TL_payments_getOnrampProviders {
+  TLConstructor constructor = 1;
+  google.protobuf.StringValue crypto_currency = 3;
+}
+
+message TL_payments_getOnrampBaseCurrencies {
+  TLConstructor constructor = 1;
+  string provider = 3;
+  string crypto_currency = 4;
+}
+
+message TL_payments_getOnrampAvailability {
+  TLConstructor constructor = 1;
+  string provider = 3;
+  string crypto_currency = 4;
+  google.protobuf.StringValue base_currency = 5;
+}
+
+message TL_payments_getOnrampLimits {
+  TLConstructor constructor = 1;
+  string provider = 3;
+  string crypto_currency = 4;
+  string base_currency = 5;
+  google.protobuf.StringValue payment_method = 6;
+}
+
+message TL_payments_getOnrampQuote {
+  TLConstructor constructor = 1;
+  string provider = 3;
+  string crypto_currency = 4;
+  string base_currency = 5;
+  google.protobuf.StringValue base_amount = 6;
+  google.protobuf.StringValue crypto_amount = 7;
+  google.protobuf.StringValue payment_method = 8;
+}
+
+message TL_payments_createOnrampSession {
+  TLConstructor constructor = 1;
+  string provider = 3;
+  string crypto_currency = 4;
+  string address = 5;
+  google.protobuf.StringValue payment_method = 6;
+  google.protobuf.StringValue base_currency = 7;
+  google.protobuf.StringValue base_amount = 8;
+  google.protobuf.StringValue memo = 9;
+  google.protobuf.StringValue theme = 10;
+  google.protobuf.StringValue success_return_url = 11;
+  google.protobuf.StringValue fail_return_url = 12;
+  google.protobuf.StringValue crypto_amount = 13;
 }
 
 message TL_stickers_createStickerSet {
@@ -5365,16 +5460,20 @@ message TL_communities_getParticipantJoinedChats {
 
 message TL_ephemeral_sendMessage {
   TLConstructor constructor = 1;
-  InputPeer peer = 3;
-  InputUser receiver_id = 4;
-  google.protobuf.Int64Value query_id = 5;
-  string message = 6;
-  repeated MessageEntity entities = 7;
-  InputMedia media = 8;
-  ReplyMarkup reply_markup = 9;
-  InputRichMessage rich_message = 10;
-  int64 random_id = 11;
-  InputReplyTo reply_to = 12;
+  bool invert_media = 3;
+  bool welcome = 4;
+  bool anchor = 5;
+  bool noforwards = 6;
+  InputPeer peer = 7;
+  InputUser receiver_id = 8;
+  google.protobuf.Int64Value query_id = 9;
+  string message = 10;
+  repeated MessageEntity entities = 11;
+  InputMedia media = 12;
+  ReplyMarkup reply_markup = 13;
+  InputRichMessage rich_message = 14;
+  int64 random_id = 15;
+  InputReplyTo reply_to = 16;
 }
 
 message TL_ephemeral_deleteMessage {
@@ -5397,6 +5496,198 @@ message TL_ephemeral_getCallbackAnswer {
   InputPeer peer = 3;
   int32 id = 4;
   bytes data = 5;
+}
+
+message TL_ephemeral_editMessage {
+  TLConstructor constructor = 1;
+  bool invert_media = 3;
+  bool welcome = 4;
+  InputPeer peer = 5;
+  InputUser receiver_id = 6;
+  int32 id = 7;
+  google.protobuf.StringValue message = 8;
+  InputMedia media = 9;
+  repeated MessageEntity entities = 10;
+  ReplyMarkup reply_markup = 11;
+  InputRichMessage rich_message = 12;
+}
+
+message TL_ephemeral_deleteWelcomeMessage {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+  int32 id = 4;
+}
+
+message TL_ephemeral_deleteAllWelcomeMessages {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+}
+
+message TL_ephemeral_getWelcomeMessages {
+  TLConstructor constructor = 1;
+  InputPeer peer = 3;
+  int64 hash = 4;
+}
+
+message TL_toncenter_performApiRequest {
+  TLConstructor constructor = 1;
+  bool post = 3;
+  string endpoint = 4;
+  google.protobuf.StringValue query = 5;
+  google.protobuf.StringValue payload = 6;
+}
+
+message TL_toncenter_getStreamingUrl {
+  TLConstructor constructor = 1;
+}
+
+message TL_wallet_getState {
+  TLConstructor constructor = 1;
+}
+
+message TL_wallet_getUserAddresses {
+  TLConstructor constructor = 1;
+  bool force = 3;
+  repeated InputUser id = 4;
+  repeated string addresses = 5;
+}
+
+message TL_wallet_getTransactions {
+  TLConstructor constructor = 1;
+  bool inbound = 3;
+  bool outbound = 4;
+  string offset = 5;
+  int32 limit = 6;
+}
+
+message TL_wallet_getTransactionsByIDs {
+  TLConstructor constructor = 1;
+  repeated string id = 3;
+}
+
+message TL_wallet_getTransactionsByMsgHash {
+  TLConstructor constructor = 1;
+  repeated string msg_hash = 3;
+}
+
+message TL_wallet_exportSecretPhrase {
+  TLConstructor constructor = 1;
+  InputCheckPasswordSRP password = 3;
+}
+
+message TL_wallet_fetchEncryptedSecretPhrasePart {
+  TLConstructor constructor = 1;
+  string token = 3;
+  bytes public_key = 4;
+}
+
+message TL_wallet_replaceWallet {
+  TLConstructor constructor = 1;
+  InputWalletReplacement wallet = 3;
+  InputCheckPasswordSRP password = 4;
+}
+
+message TL_wallet_disableBackup {
+  TLConstructor constructor = 1;
+  InputCheckPasswordSRP password = 3;
+  bytes new_public_key = 4;
+  WalletOwnershipProof proof = 5;
+}
+
+message TL_wallet_getBackupHolderDcs {
+  TLConstructor constructor = 1;
+}
+
+message TL_wallet_enableBackup {
+  TLConstructor constructor = 1;
+  repeated bytes parts = 3;
+  bytes new_public_key = 4;
+  WalletOwnershipProof proof = 5;
+}
+
+message TL_wallet_getProofChallenge {
+  TLConstructor constructor = 1;
+}
+
+message TL_wallet_sendTransfer {
+  TLConstructor constructor = 1;
+  bytes data_normal = 3;
+  bytes data_gasless = 4;
+  InputUser user_id = 5;
+  int64 random_id = 6;
+}
+
+message TL_wallet_getGaslessInfo {
+  TLConstructor constructor = 1;
+}
+
+message TL_wallet_getExistingWaltBalance {
+  TLConstructor constructor = 1;
+}
+
+message TL_wallet_getNfts {
+  TLConstructor constructor = 1;
+  string offset = 3;
+  int32 limit = 4;
+}
+
+message TL_wallet_tonConnectCreateSession {
+  TLConstructor constructor = 1;
+  string dapp_client_id = 3;
+  string manifest_url = 4;
+}
+
+message TL_wallet_tonConnectRegisterKey {
+  TLConstructor constructor = 1;
+  int64 session_id = 3;
+  string client_id = 4;
+}
+
+message TL_wallet_tonConnectSubmitConnectResult {
+  TLConstructor constructor = 1;
+  bool error = 3;
+  int64 session_id = 4;
+  bytes challenge_answer = 5;
+  bytes body = 6;
+  google.protobuf.StringValue trace_id = 7;
+}
+
+message TL_wallet_tonConnectGetPending {
+  TLConstructor constructor = 1;
+  google.protobuf.StringValue dapp_client_id = 3;
+  google.protobuf.Int64Value session_id = 4;
+}
+
+message TL_wallet_tonConnectClaimRequest {
+  TLConstructor constructor = 1;
+  bool declined = 3;
+  int64 session_id = 4;
+  int32 msg_id = 5;
+  string app_request_id = 6;
+  bytes challenge_answer = 7;
+}
+
+message TL_wallet_tonConnectSubmitResponse {
+  TLConstructor constructor = 1;
+  int64 session_id = 3;
+  int32 msg_id = 4;
+  bytes body = 5;
+  google.protobuf.StringValue trace_id = 6;
+}
+
+message TL_wallet_tonConnectNextEventId {
+  TLConstructor constructor = 1;
+  int64 session_id = 3;
+}
+
+message TL_wallet_tonConnectCloseSession {
+  TLConstructor constructor = 1;
+  int64 session_id = 3;
+  bytes body = 4;
+}
+
+message TL_wallet_tonConnectGetSessions {
+  TLConstructor constructor = 1;
 }
 
 message TL_account_toggleWebBrowserSettingsException2D0A0571 {
@@ -5947,6 +6238,12 @@ message Vector_StarsGiftOption {
 message Vector_StarsGiveawayOption {
   repeated StarsGiveawayOption datas = 1;
 }
+message Vector_OnrampProviderInfo {
+  repeated OnrampProviderInfo datas = 1;
+}
+message Vector_String {
+  repeated string datas = 1;
+}
 message Vector_LangPackString {
   repeated LangPackString datas = 1;
 }
@@ -5959,14 +6256,14 @@ message Vector_Peer {
 message Vector_RecentStory {
   repeated RecentStory datas = 1;
 }
+message Vector_Wallet_HolderDc {
+  repeated wallet_HolderDc datas = 1;
+}
 message Vector_Bool {
   repeated Bool datas = 1;
 }
 message Vector_DialogFilter {
   repeated DialogFilter datas = 1;
-}
-message Vector_String {
-  repeated string datas = 1;
 }
 message Vector_PredefinedUser {
   repeated PredefinedUser datas = 1;
@@ -6065,6 +6362,14 @@ service RPCAuthorization {
   rpc auth_resetLoginEmail(TL_auth_resetLoginEmail) returns (auth_SentCode) {}
   rpc auth_reportMissingCode(TL_auth_reportMissingCode) returns (Bool) {}
   rpc auth_checkPaidAuth(TL_auth_checkPaidAuth) returns (auth_SentCode) {}
+  rpc auth_cancelWebTokenAuthorization(TL_auth_cancelWebTokenAuthorization)
+      returns (Bool) {}
+  rpc auth_initFirebasePnvLogin(TL_auth_initFirebasePnvLogin)
+      returns (auth_FirebasePnvIntent) {}
+  rpc auth_finishFirebasePnvLogin(TL_auth_finishFirebasePnvLogin)
+      returns (auth_Authorization) {}
+  rpc auth_firebasePnvSignUp(TL_auth_firebasePnvSignUp)
+      returns (auth_Authorization) {}
   rpc account_sendVerifyEmailCode(TL_account_sendVerifyEmailCode)
       returns (account_SentEmailCode) {}
   rpc account_verifyEmail32DA4CF(TL_account_verifyEmail32DA4CF)
@@ -6162,6 +6467,8 @@ service RPCBots {
       returns (bots_AccessSettings) {}
   rpc bots_editAccessSettings(TL_bots_editAccessSettings) returns (Bool) {}
   rpc bots_setJoinChatResults(TL_bots_setJoinChatResults) returns (Bool) {}
+  rpc bots_addUsername(TL_bots_addUsername) returns (Bool) {}
+  rpc bots_removeUsername(TL_bots_removeUsername) returns (Bool) {}
   rpc bots_getBotInfo75EC12E6(TL_bots_getBotInfo75EC12E6)
       returns (Vector_String) {}
 }
@@ -6582,6 +6889,13 @@ service RPCEphemeral {
       returns (ReportResult) {}
   rpc ephemeral_getCallbackAnswer(TL_ephemeral_getCallbackAnswer)
       returns (messages_BotCallbackAnswer) {}
+  rpc ephemeral_editMessage(TL_ephemeral_editMessage) returns (Updates) {}
+  rpc ephemeral_deleteWelcomeMessage(TL_ephemeral_deleteWelcomeMessage)
+      returns (Bool) {}
+  rpc ephemeral_deleteAllWelcomeMessages(TL_ephemeral_deleteAllWelcomeMessages)
+      returns (Bool) {}
+  rpc ephemeral_getWelcomeMessages(TL_ephemeral_getWelcomeMessages)
+      returns (ephemeral_WelcomeMessages) {}
 }
 
 service RPCFactChecks {
@@ -7135,6 +7449,20 @@ service RPCPayments {
       returns (payments_BankCardData) {}
   rpc payments_exportInvoice(TL_payments_exportInvoice)
       returns (payments_ExportedInvoice) {}
+  rpc payments_getCurrencyRates(TL_payments_getCurrencyRates)
+      returns (payments_CurrencyRates) {}
+  rpc payments_getOnrampProviders(TL_payments_getOnrampProviders)
+      returns (Vector_OnrampProviderInfo) {}
+  rpc payments_getOnrampBaseCurrencies(TL_payments_getOnrampBaseCurrencies)
+      returns (Vector_String) {}
+  rpc payments_getOnrampAvailability(TL_payments_getOnrampAvailability)
+      returns (OnrampAvailability) {}
+  rpc payments_getOnrampLimits(TL_payments_getOnrampLimits)
+      returns (OnrampLimits) {}
+  rpc payments_getOnrampQuote(TL_payments_getOnrampQuote)
+      returns (OnrampQuote) {}
+  rpc payments_createOnrampSession(TL_payments_createOnrampSession)
+      returns (OnrampSession) {}
   rpc payments_requestRecurringPayment(TL_payments_requestRecurringPayment)
       returns (Updates) {}
   rpc payments_restorePlayMarketReceipt(TL_payments_restorePlayMarketReceipt)
@@ -7754,6 +8082,57 @@ service RPCVoipCalls {
   rpc phone_saveCallDebug(TL_phone_saveCallDebug) returns (Bool) {}
   rpc phone_sendSignalingData(TL_phone_sendSignalingData) returns (Bool) {}
   rpc phone_saveCallLog(TL_phone_saveCallLog) returns (Bool) {}
+}
+
+service RPCWallet {
+  rpc toncenter_performApiRequest(TL_toncenter_performApiRequest)
+      returns (toncenter_ApiResponse) {}
+  rpc toncenter_getStreamingUrl(TL_toncenter_getStreamingUrl)
+      returns (toncenter_StreamingUrl) {}
+  rpc wallet_getState(TL_wallet_getState) returns (WalletState) {}
+  rpc wallet_getUserAddresses(TL_wallet_getUserAddresses)
+      returns (wallet_UserAddresses) {}
+  rpc wallet_getTransactions(TL_wallet_getTransactions)
+      returns (wallet_Transactions) {}
+  rpc wallet_getTransactionsByIDs(TL_wallet_getTransactionsByIDs)
+      returns (wallet_Transactions) {}
+  rpc wallet_getTransactionsByMsgHash(TL_wallet_getTransactionsByMsgHash)
+      returns (wallet_Transactions) {}
+  rpc wallet_exportSecretPhrase(TL_wallet_exportSecretPhrase)
+      returns (wallet_SecretPhraseParts) {}
+  rpc wallet_fetchEncryptedSecretPhrasePart(
+      TL_wallet_fetchEncryptedSecretPhrasePart)
+      returns (wallet_EncryptedSecretPhrasePart) {}
+  rpc wallet_replaceWallet(TL_wallet_replaceWallet) returns (WalletState) {}
+  rpc wallet_disableBackup(TL_wallet_disableBackup) returns (WalletState) {}
+  rpc wallet_getBackupHolderDcs(TL_wallet_getBackupHolderDcs)
+      returns (Vector_Wallet_HolderDc) {}
+  rpc wallet_enableBackup(TL_wallet_enableBackup) returns (WalletState) {}
+  rpc wallet_getProofChallenge(TL_wallet_getProofChallenge)
+      returns (wallet_ProofChallenge) {}
+  rpc wallet_sendTransfer(TL_wallet_sendTransfer) returns (Updates) {}
+  rpc wallet_getGaslessInfo(TL_wallet_getGaslessInfo) returns (Updates) {}
+  rpc wallet_getExistingWaltBalance(TL_wallet_getExistingWaltBalance)
+      returns (wallet_ExistingBalance) {}
+  rpc wallet_getNfts(TL_wallet_getNfts) returns (wallet_NftItems) {}
+  rpc wallet_tonConnectCreateSession(TL_wallet_tonConnectCreateSession)
+      returns (TonConnectSession) {}
+  rpc wallet_tonConnectRegisterKey(TL_wallet_tonConnectRegisterKey)
+      returns (wallet_TonConnectChallenge) {}
+  rpc wallet_tonConnectSubmitConnectResult(
+      TL_wallet_tonConnectSubmitConnectResult) returns (Bool) {}
+  rpc wallet_tonConnectGetPending(TL_wallet_tonConnectGetPending)
+      returns (wallet_TonConnectPending) {}
+  rpc wallet_tonConnectClaimRequest(TL_wallet_tonConnectClaimRequest)
+      returns (Bool) {}
+  rpc wallet_tonConnectSubmitResponse(TL_wallet_tonConnectSubmitResponse)
+      returns (Bool) {}
+  rpc wallet_tonConnectNextEventId(TL_wallet_tonConnectNextEventId)
+      returns (TonConnectNextEventId) {}
+  rpc wallet_tonConnectCloseSession(TL_wallet_tonConnectCloseSession)
+      returns (Bool) {}
+  rpc wallet_tonConnectGetSessions(TL_wallet_tonConnectGetSessions)
+      returns (wallet_TonConnectSessions) {}
 }
 
 service RPCWallpapers {

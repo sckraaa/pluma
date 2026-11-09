@@ -84,18 +84,13 @@ func MakeUserStatusOffline(lastSeenAt int64) *UserStatus {
 	// 60*60*24*7   week
 	// 60*60*24*30  month
 */
-// pluma: lastSeenAt is the moment the user is seen until: the end of the online
-// window while it lasts, and the moment they went offline once it is over
-// (account.updateStatus, task 032). The user is online while it is ahead;
-// upstream counted a fixed 60 s from the last request, so an offline user
-// still read as online and an online one dropped out between requests.
 func MakeUserStatus(lastSeenAt int64, allowTimestamp bool) *UserStatus {
 	now := time.Now().Unix()
 
 	if allowTimestamp {
-		if now < lastSeenAt {
+		if now <= lastSeenAt+60 {
 			status := MakeTLUserStatusOnline(&UserStatus{
-				Expires: int32(lastSeenAt),
+				Expires: int32(lastSeenAt + 60),
 			}).To_UserStatus()
 			return status
 		} else {

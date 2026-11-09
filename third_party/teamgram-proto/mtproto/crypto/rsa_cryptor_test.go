@@ -129,9 +129,7 @@ FwIDAQAB
 
 func TestNewRSACryptor(t *testing.T) {
 
-	// pluma: private key files are not kept in the repository (docs/ops/security-setup.md);
-	// test_pkcs1.key held this same key, which is already inline above.
-	rsa, _ := NewRSACryptorByKeyData(pkcs1PemPrivateKey)
+	rsa, _ := NewRSACryptor("test_pkcs1.key")
 
 	testData := []byte("rsa 2048 key!!!!")
 	fmt.Println(string(testData))

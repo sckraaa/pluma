@@ -19,6 +19,8 @@
 package mtproto
 
 import (
+	"time"
+
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -72,69 +74,6 @@ func (m *ImmutableUser) ProfilePhoto() *UserProfilePhoto {
 
 func (m *ImmutableUser) Photo() *Photo {
 	return m.User.ProfilePhoto
-}
-
-// pluma: FallbackPhoto is the public photo of the user, the one shown to the
-// users the privacy of the profile photo hides the main photo from
-// (photos.uploadProfilePhoto with fallback, task 051).
-func (m *ImmutableUser) FallbackPhoto() *Photo {
-	return m.User.GetFallbackPhoto()
-}
-
-// pluma: PersonalProfilePhoto is the personal photo of the contact row c, the
-// photo its owner set for the contact (photos.uploadContactProfilePhoto with
-// save), as the contact's user.photo: with personal, which clients show
-// instead of the contact's own (userProfilePhoto.personal). nil without one.
-func PersonalProfilePhoto(c *ContactData) *UserProfilePhoto {
-	if c.GetPersonalPhotoId() == 0 {
-		return nil
-	}
-	return MakeTLUserProfilePhoto(&UserProfilePhoto{
-		HasVideo: c.GetPersonalPhotoHasVideo(),
-		Personal: true,
-		PhotoId:  c.GetPersonalPhotoId(),
-		DcId:     1,
-	}).To_UserProfilePhoto()
-}
-
-// pluma: ContactRowOf is the contact row the viewer has of m, from whichever
-// side the loader filled: the viewer's Contacts or m's ReverseContacts. nil
-// when m is not the viewer's contact or the row is not loaded.
-func (m *ImmutableUser) ContactRowOf(viewer *ImmutableUser) *ContactData {
-	if c := viewer.GetContactData(m.Id()); c != nil {
-		return c
-	}
-	return m.GetReverseContactData(viewer.Id())
-}
-
-// pluma: PhotoFor is user.photo of m as viewer sees it when the viewer's
-// contact row of m is c, nil for none (task 051): the account and bots
-// show their main photo; otherwise photoFor with the privacy of the profile
-// photo for viewer; a deleted account none. It tells what a change of the
-// row shows before the loaded users carry it.
-func (m *ImmutableUser) PhotoFor(viewer *ImmutableUser, c *ContactData) *UserProfilePhoto {
-	if m.Deleted() {
-		return nil
-	}
-	if m.Id() == viewer.Id() || m.IsBot() {
-		return m.ProfilePhoto()
-	}
-	return m.photoFor(c, m.CheckPrivacyFor(PROFILE_PHOTO, viewer))
-}
-
-// pluma: photoFor is user.photo of m for a viewer with the contact row c of
-// m, when the privacy of the profile photo lets the viewer see it (allowed)
-// or not (task 051): the viewer's personal photo of m first, whatever the
-// privacy says; then the main photo when allowed; otherwise the public
-// photo, which carries no flag (clients tell it by userFull.fallback_photo).
-func (m *ImmutableUser) photoFor(c *ContactData, allowed bool) *UserProfilePhoto {
-	if p := PersonalProfilePhoto(c); p != nil {
-		return p
-	}
-	if allowed {
-		return m.ProfilePhoto()
-	}
-	return MakeUserProfilePhotoByPhoto(m.FallbackPhoto())
 }
 
 func (m *ImmutableUser) About() string {
@@ -197,19 +136,16 @@ func (m *ImmutableUser) BotAttachMenu() bool {
 	return m.User.Bot.GetBotAttachMenu()
 }
 
-// pluma: Premium is the one place that says who has Premium: every user but
-// a bot (ADR 0041), whatever users.premium stores. Clients read the flag of
-// their own user for their limits and features and the flag of another user
-// for its animated avatar and the links of its bio (task 071).
 func (m *ImmutableUser) Premium() bool {
-	return !m.IsBot()
-}
-
-// ContactRequirePremium tells whether only contacts, chats there already and
-// Premium users may write to the user: the user's setting, which works
-// while the user has Premium (pluma: task 014).
-func (m *ImmutableUser) ContactRequirePremium() bool {
-	return m.User.GetNewNoncontactPeersRequirePremium() && m.Premium()
+	if !m.User.Premium {
+		return false
+	} else {
+		if m.User.PremiumExpireDate.GetValue() == 0 {
+			return true
+		} else {
+			return time.Now().Unix() < m.User.PremiumExpireDate.GetValue()
+		}
+	}
 }
 
 func (m *ImmutableUser) AttachMenuEnabled() bool {
@@ -218,12 +154,6 @@ func (m *ImmutableUser) AttachMenuEnabled() bool {
 
 func (m *ImmutableUser) BotCanEdit() bool {
 	return m.User.Bot.GetBotCanEdit()
-}
-
-// pluma: BotCanEditFor is user.bot_can_edit as viewerId sees it: the
-// creator of the bot may edit it (bots.setBotInfo, task 070).
-func (m *ImmutableUser) BotCanEditFor(viewerId int64) bool {
-	return m.User.Bot != nil && viewerId != 0 && m.User.Bot.GetCreator() == viewerId
 }
 
 func (m *ImmutableUser) StoriesUnavailable() bool {
@@ -325,57 +255,30 @@ func (m *ImmutableUser) GetReverseContactData(cId int64) *ContactData {
 	return nil
 }
 
-// pluma: CheckPrivacy answers whether the user id may see what the rules of
-// keyType guard (EvaluatePrivacy, task 034). The account always sees its
-// own; without the rules of the key loaded nobody else does.
 func (m *ImmutableUser) CheckPrivacy(keyType int, id int64) bool {
+	var (
+		rules *PrivacyKeyRules
+	)
+
 	if m.Id() == id {
 		return true
 	}
-	isContact, _ := m.CheckContact(id)
-	return m.checkPrivacy(keyType, PrivacyViewer{Id: id, Contact: isContact})
-}
 
-// pluma: CheckPrivacyFor is CheckPrivacy for a viewer whose Premium and bot
-// flags count too (AllowPremium, Allow/DisallowBots).
-func (m *ImmutableUser) CheckPrivacyFor(keyType int, viewer *ImmutableUser) bool {
-	if m.Id() == viewer.Id() {
-		return true
-	}
-	isContact, _ := m.CheckContact(viewer.Id())
-	return m.checkPrivacy(keyType, PrivacyViewer{
-		Id:      viewer.Id(),
-		Contact: isContact,
-		Premium: viewer.Premium(),
-		Bot:     viewer.IsBot(),
-	})
-}
-
-func (m *ImmutableUser) checkPrivacy(keyType int, v PrivacyViewer) bool {
-	for _, k := range m.KeysPrivacyRules {
-		if k.Key == int32(keyType) {
-			return EvaluatePrivacy(k.Rules, v)
+	for _, v := range m.KeysPrivacyRules {
+		if v.Key == int32(keyType) {
+			rules = v
+			break
 		}
 	}
-	return false
-}
 
-// pluma: StatusFor is the status of m as viewer sees it. The exact time
-// needs both: m's rule lets viewer see it, and viewer's own rule lets m see
-// viewer's, unless viewer has Premium. When only viewer's own rule stands
-// in the way, the rounded status says so with by_me
-// (core.telegram.org/constructor/privacyKeyStatusTimestamp).
-func (m *ImmutableUser) StatusFor(viewer *ImmutableUser) *UserStatus {
-	if m.Id() == viewer.Id() {
-		return MakeUserStatus(m.LastSeenAt, true)
+	if rules == nil {
+		return true
 	}
-	ownerAllows := m.CheckPrivacyFor(STATUS_TIMESTAMP, viewer)
-	viewerAllows := viewer.Premium() || viewer.CheckPrivacy(STATUS_TIMESTAMP, m.Id())
-	status := MakeUserStatus(m.LastSeenAt, ownerAllows && viewerAllows)
-	if ownerAllows && !viewerAllows && status != nil {
-		status.ByMe = true
-	}
-	return status
+
+	isContact, _ := m.CheckContact(id)
+	allow := privacyIsAllow(rules.Rules, id, isContact)
+
+	return allow
 }
 
 func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
@@ -406,11 +309,11 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 		BotAttachMenu:                m.BotAttachMenu(),
 		Premium:                      m.Premium(),
 		AttachMenuEnabled:            m.AttachMenuEnabled(),
-		BotCanEdit:                   m.BotCanEditFor(selfUser.Id()),
+		BotCanEdit:                   m.BotCanEdit(),
 		CloseFriend:                  false,
 		StoriesHidden:                false,
 		StoriesUnavailable:           m.StoriesUnavailable(),
-		ContactRequirePremium:        m.ContactRequirePremium(), // pluma: new_noncontact_peers_require_premium
+		ContactRequirePremium:        false,
 		BotBusiness:                  m.BotBusiness(),
 		BotHasMainApp:                m.BotHasMainApp(),
 		Id:                           m.Id(),
@@ -454,7 +357,6 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 
 	// contact
 	contact := selfUser.GetContactData(m.Id())
-	row := contact
 	if contact != nil {
 		user.Contact = true
 		user.MutualContact = contact.MutualContact
@@ -468,7 +370,6 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 	} else {
 		// reverse contact
 		reverseContact := m.GetReverseContactData(selfUser.Id())
-		row = reverseContact
 		if reverseContact != nil {
 			user.Contact = true
 			user.MutualContact = reverseContact.MutualContact
@@ -481,15 +382,21 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 	}
 
 	// phone
-	if m.CheckPrivacyFor(PHONE_NUMBER, selfUser) {
+	if m.CheckPrivacy(PHONE_NUMBER, selfUser.Id()) {
 		user.Phone = MakeFlagsString(m.Phone())
 	}
 
-	// photo: personal, main or public (pluma: task 051)
-	user.Photo = m.photoFor(row, m.CheckPrivacyFor(PROFILE_PHOTO, selfUser))
+	// photo
+	if m.CheckPrivacy(PROFILE_PHOTO, selfUser.Id()) {
+		user.Photo = m.ProfilePhoto()
+	}
 
 	// status
-	user.Status = m.StatusFor(selfUser)
+	allowTimestamp := selfUser.CheckPrivacy(STATUS_TIMESTAMP, m.Id())
+	if allowTimestamp {
+		allowTimestamp = m.CheckPrivacy(STATUS_TIMESTAMP, selfUser.Id())
+	}
+	user.Status = MakeUserStatus(m.LastSeenAt, allowTimestamp)
 
 	//// TODO: check stories_unavailable
 	// user.StoriesUnavailable = false
@@ -497,22 +404,11 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 	return user
 }
 
-// pluma: selfPhone is the phone of the account's own user; a bot's row holds
-// a placeholder (task 070), and no client asks a bot for one.
-func (m *ImmutableUser) selfPhone() *wrapperspb.StringValue {
-	if m.IsBot() {
-		return nil
-	}
-	return MakeFlagsString(m.Phone())
-}
-
 func (m *ImmutableUser) ToSelfUser() *User {
 	user := MakeTLUser(&User{
-		Self: true,
-		// pluma: Telegram does not mark the account a contact of itself
-		// and sets apply_min_photo (conformance fixture saved_messages).
-		Contact:                      false,
-		MutualContact:                false,
+		Self:                         true,
+		Contact:                      true,
+		MutualContact:                true,
 		Deleted:                      false,
 		Bot:                          m.IsBot(),
 		BotChatHistory:               m.BotChatHistory(),
@@ -523,7 +419,7 @@ func (m *ImmutableUser) ToSelfUser() *User {
 		BotInlineGeo:                 m.BotInlineGeo(),
 		Support:                      m.Support(),
 		Scam:                         m.Scam(),
-		ApplyMinPhoto:                true, // pluma: see Contact
+		ApplyMinPhoto:                false,
 		Fake:                         m.Fake(),
 		BotAttachMenu:                m.BotAttachMenu(),
 		Premium:                      m.Premium(),
@@ -540,7 +436,7 @@ func (m *ImmutableUser) ToSelfUser() *User {
 		FirstName:                    MakeFlagsString(m.FirstName()),
 		LastName:                     MakeFlagsString(m.LastName()),
 		Username:                     nil,
-		Phone:                        m.selfPhone(),
+		Phone:                        MakeFlagsString(m.Phone()),
 		Photo:                        m.ProfilePhoto(),
 		Status:                       MakeUserStatus(m.LastSeenAt, true),
 		BotInfoVersion:               MakeFlagsInt32(m.BotInfoVersion()),
@@ -628,26 +524,7 @@ func (m *ImmutableUser) ToDeletedUser() *User {
 	}).To_User()
 }
 
-// ToUser is m as the user selfUserId sees it when nothing else is known of
-// that user: its Premium and its own last seen rule do not count (ToUserFor).
 func (m *ImmutableUser) ToUser(selfUserId int64) *User {
-	return m.toUser(selfUserId, nil)
-}
-
-// pluma: ToUserFor is ToUser for a viewer whose Premium and own last seen
-// rule count, as in ToUnsafeUser (task 034).
-func (m *ImmutableUser) ToUserFor(viewer *ImmutableUser) *User {
-	return m.toUser(viewer.Id(), viewer)
-}
-
-func (m *ImmutableUser) checkPrivacyOf(keyType int, selfUserId int64, viewer *ImmutableUser) bool {
-	if viewer != nil {
-		return m.CheckPrivacyFor(keyType, viewer)
-	}
-	return m.CheckPrivacy(keyType, selfUserId)
-}
-
-func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 	if m.Deleted() {
 		return m.ToDeletedUser()
 	}
@@ -675,12 +552,12 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 		BotAttachMenu:                m.BotAttachMenu(),
 		Premium:                      m.Premium(),
 		AttachMenuEnabled:            m.AttachMenuEnabled(),
-		BotCanEdit:                   m.BotCanEditFor(selfUserId),
+		BotCanEdit:                   m.BotCanEdit(),
 		CloseFriend:                  false,
 		StoriesHidden:                false,
 		StoriesUnavailable:           m.StoriesUnavailable(),
 		Id:                           m.Id(),
-		ContactRequirePremium:        m.ContactRequirePremium(), // pluma: new_noncontact_peers_require_premium
+		ContactRequirePremium:        false,
 		BotBusiness:                  m.BotBusiness(),
 		BotHasMainApp:                m.BotHasMainApp(),
 		AccessHash:                   MakeFlagsInt64(m.AccessHash()),
@@ -735,19 +612,19 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 	}
 
 	// phone
-	if m.checkPrivacyOf(PHONE_NUMBER, selfUserId, viewer) {
+	if m.CheckPrivacy(PHONE_NUMBER, selfUserId) {
 		user.Phone = MakeFlagsString(m.Phone())
 	}
 
-	// photo: personal, main or public (pluma: task 051)
-	user.Photo = m.photoFor(reverseContact, m.checkPrivacyOf(PROFILE_PHOTO, selfUserId, viewer))
-
-	// status
-	if viewer != nil {
-		user.Status = m.StatusFor(viewer)
-	} else {
-		user.Status = MakeUserStatus(m.LastSeenAt, m.CheckPrivacy(STATUS_TIMESTAMP, selfUserId))
+	// photo
+	if m.CheckPrivacy(PROFILE_PHOTO, selfUserId) {
+		user.Photo = m.ProfilePhoto()
 	}
+
+	// TODO: check if we need to check privacy for status
+	// status
+	allowTimestamp := m.CheckPrivacy(STATUS_TIMESTAMP, selfUserId)
+	user.Status = MakeUserStatus(m.LastSeenAt, allowTimestamp)
 
 	// TODO: check stories_unavailable
 	// user.StoriesUnavailable = false
