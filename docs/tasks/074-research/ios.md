@@ -76,7 +76,7 @@
 
 **Чего патч не увидит:**
 - Кошелёк и другие новые платные разделы (I-053…I-060): скрываются ли они при `premium_purchase_blocked` и что покажет клиент без `wallet.*` на сервере, не проверялось.
-- Rust-движок MTProto встроен в каждую iOS-сборку (`submodules/MTProtoRustEngine/CLAUDE.md:4`). На iOS по умолчанию остаётся MtProtoKit (`SyncCore_NetworkEngineSettings.swift:6-11`), переключатель только в Debug. Ключи движок получает извне (`crates/mtproto-ffi/src/lib.rs:897`), ключ Telegram в `rsa.rs:209` под `cfg(test)`. Но `third-party/mtproto-engine` не входит в `NETWORK_DIRS`, скан его не видит.
+- Rust-движок MTProto встроен в каждую iOS-сборку (заметки разработчиков в `submodules/MTProtoRustEngine`). На iOS по умолчанию остаётся MtProtoKit (`SyncCore_NetworkEngineSettings.swift:6-11`), переключатель только в Debug. Ключи движок получает извне (`crates/mtproto-ffi/src/lib.rs:897`), ключ Telegram в `rsa.rs:209` под `cfg(test)`. Но `third-party/mtproto-engine` не входит в `NETWORK_DIRS`, скан его не видит.
 - `rlottie` заменён на `tlottie` (`.gitmodules`). Вызов с `colorReplacements` сохранился (`ManagedAnimationNode.swift:49`), но то, как тёмная тема знака во вступлении (I-026) рисуется новым плеером, не проверено.
 - Новые хосты в `TelegramCore`, `MtProtoKit`, `TelegramUI`, `WebUI`: только `maps.apple.com`.
 
