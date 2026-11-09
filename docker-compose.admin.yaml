@@ -19,4 +19,12 @@ services:
     environment:
       PANEL_ORIGIN: ${PANEL_ORIGIN:?set PANEL_ORIGIN in .env, the panel's https address in the tailnet}
       ADMIN_MYSQL_PASSWORD: ${ADMIN_MYSQL_PASSWORD:?set ADMIN_MYSQL_PASSWORD in .env, the password of the pluma_admin database user}
+      # Redis of bff and the key of the login codes: a code on request
+      # (docs/ops/admin-panel.md).
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      LOGIN_CODE_HMAC_KEY: ${LOGIN_CODE_HMAC_KEY:?set LOGIN_CODE_HMAC_KEY in .env}
+      LOGIN_REVIEW_PHONE: ${LOGIN_REVIEW_PHONE:-}
+      LOGIN_REVIEW_CODE: ${LOGIN_REVIEW_CODE:-}
+      PANEL_GRAFANA_URL: ${PANEL_GRAFANA_URL:-}
+      RELEASES_ADMIN_TOKEN: ${RELEASES_ADMIN_TOKEN:-}
     stop_grace_period: 30s

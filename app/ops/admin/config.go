@@ -24,7 +24,10 @@ import (
 	"strings"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/logincode"
+
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -39,7 +42,21 @@ type config struct {
 	AuthSessionClient zrpc.RpcClientConf
 	DfsClient         zrpc.RpcClientConf
 	SyncClient        struct{ Topic string }
-	Log               logx.LogConf
+	// KV holds the login codes and the 2FA state (Redis of bff).
+	KV        kv.KvConf
+	LoginCode logincode.Config
+	// Prometheus is the base address of the monitoring stack, on the
+	// host's loopback; empty hides what it knows.
+	Prometheus string
+	// GrafanaUrl is the link of the System page; empty shows none.
+	GrafanaUrl string
+	// Releases is the releases service and the token of its admin routes
+	// (docs/ops/releases.md); empty turns the page off.
+	Releases struct {
+		Url   string
+		Token string
+	}
+	Log logx.LogConf
 }
 
 func (c *config) check() error {
