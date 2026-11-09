@@ -37,4 +37,6 @@ type Config struct {
 	// ChannelClient: the messages and the members of channels, whose
 	// reactions are served here too (task 044).
 	ChannelClient zrpc.RpcClientConf
+	// DialogClient keeps the chat theme of a private chat (task 065).
+	DialogClient zrpc.RpcClientConf
 }

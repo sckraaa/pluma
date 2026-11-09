@@ -562,34 +562,52 @@ func (s *Service) ChannelsUpdateColor(ctx context.Context, request *mtproto.TLCh
 
 // mtproto.RPCThemes
 
-// AccountUploadTheme is not served: account.uploadTheme#1c3db333 flags:# file:InputFile thumb:flags.0?InputFile file_name:string mime_type:string = Document;
+// AccountUploadTheme
+// account.uploadTheme#1c3db333 flags:# file:InputFile thumb:flags.0?InputFile file_name:string mime_type:string = Document;
 func (s *Service) AccountUploadTheme(ctx context.Context, request *mtproto.TLAccountUploadTheme) (*mtproto.Document, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.uploadTheme - metadata: {%s}", c.MD)
+	return c.AccountUploadTheme(request)
 }
 
-// AccountCreateTheme is not served: account.createTheme#652e4400 flags:# slug:string title:string document:flags.2?InputDocument settings:flags.3?Vector<InputThemeSettings> = Theme;
+// AccountCreateTheme
+// account.createTheme#652e4400 flags:# slug:string title:string document:flags.2?InputDocument settings:flags.3?Vector<InputThemeSettings> = Theme;
 func (s *Service) AccountCreateTheme(ctx context.Context, request *mtproto.TLAccountCreateTheme) (*mtproto.Theme, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.createTheme - metadata: {%s}", c.MD)
+	return c.AccountCreateTheme(request)
 }
 
-// AccountUpdateTheme is not served: account.updateTheme#2bf40ccc flags:# format:string theme:InputTheme slug:flags.0?string title:flags.1?string document:flags.2?InputDocument settings:flags.3?Vector<InputThemeSettings> = Theme;
+// AccountUpdateTheme
+// account.updateTheme#2bf40ccc flags:# format:string theme:InputTheme slug:flags.0?string title:flags.1?string document:flags.2?InputDocument settings:flags.3?Vector<InputThemeSettings> = Theme;
 func (s *Service) AccountUpdateTheme(ctx context.Context, request *mtproto.TLAccountUpdateTheme) (*mtproto.Theme, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.updateTheme - metadata: {%s}", c.MD)
+	return c.AccountUpdateTheme(request)
 }
 
-// AccountSaveTheme is not served: account.saveTheme#f257106c theme:InputTheme unsave:Bool = Bool;
+// AccountSaveTheme
+// account.saveTheme#f257106c theme:InputTheme unsave:Bool = Bool;
 func (s *Service) AccountSaveTheme(ctx context.Context, request *mtproto.TLAccountSaveTheme) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.saveTheme - metadata: {%s}", c.MD)
+	return c.AccountSaveTheme(request)
 }
 
-// AccountInstallTheme is not served: account.installTheme#c727bb3b flags:# dark:flags.0?true theme:flags.1?InputTheme format:flags.2?string base_theme:flags.3?BaseTheme = Bool;
+// AccountInstallTheme
+// account.installTheme#c727bb3b flags:# dark:flags.0?true theme:flags.1?InputTheme format:flags.2?string base_theme:flags.3?BaseTheme = Bool;
 func (s *Service) AccountInstallTheme(ctx context.Context, request *mtproto.TLAccountInstallTheme) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.installTheme - metadata: {%s}", c.MD)
+	return c.AccountInstallTheme(request)
 }
 
-// AccountGetTheme is not served: account.getTheme#3a5869ec format:string theme:InputTheme = Theme;
+// AccountGetTheme
+// account.getTheme#3a5869ec format:string theme:InputTheme = Theme;
 func (s *Service) AccountGetTheme(ctx context.Context, request *mtproto.TLAccountGetTheme) (*mtproto.Theme, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.getTheme - metadata: {%s}", c.MD)
+	return c.AccountGetTheme(request)
 }
 
 // AccountGetThemes
@@ -613,9 +631,12 @@ func (s *Service) AccountGetUniqueGiftChatThemes(ctx context.Context, request *m
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesSetChatTheme is not served: messages.setChatTheme#81202c9 peer:InputPeer theme:InputChatTheme = Updates;
+// MessagesSetChatTheme
+// messages.setChatTheme#81202c9 peer:InputPeer theme:InputChatTheme = Updates;
 func (s *Service) MessagesSetChatTheme(ctx context.Context, request *mtproto.TLMessagesSetChatTheme) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.setChatTheme - metadata: {%s}", c.MD)
+	return c.MessagesSetChatTheme(request)
 }
 
 // mtproto.RPCWallpapers
@@ -636,24 +657,36 @@ func (s *Service) AccountGetWallPaper(ctx context.Context, request *mtproto.TLAc
 	return c.AccountGetWallPaper(request)
 }
 
-// AccountUploadWallPaper is not served: account.uploadWallPaper#e39a8f03 flags:# for_chat:flags.0?true file:InputFile mime_type:string settings:WallPaperSettings = WallPaper;
+// AccountUploadWallPaper
+// account.uploadWallPaper#e39a8f03 flags:# for_chat:flags.0?true file:InputFile mime_type:string settings:WallPaperSettings = WallPaper;
 func (s *Service) AccountUploadWallPaper(ctx context.Context, request *mtproto.TLAccountUploadWallPaper) (*mtproto.WallPaper, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.uploadWallPaper - metadata: {%s}", c.MD)
+	return c.AccountUploadWallPaper(request)
 }
 
-// AccountSaveWallPaper is not served: account.saveWallPaper#6c5a5b37 wallpaper:InputWallPaper unsave:Bool settings:WallPaperSettings = Bool;
+// AccountSaveWallPaper
+// account.saveWallPaper#6c5a5b37 wallpaper:InputWallPaper unsave:Bool settings:WallPaperSettings = Bool;
 func (s *Service) AccountSaveWallPaper(ctx context.Context, request *mtproto.TLAccountSaveWallPaper) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.saveWallPaper - metadata: {%s}", c.MD)
+	return c.AccountSaveWallPaper(request)
 }
 
-// AccountInstallWallPaper is not served: account.installWallPaper#feed5769 wallpaper:InputWallPaper settings:WallPaperSettings = Bool;
+// AccountInstallWallPaper
+// account.installWallPaper#feed5769 wallpaper:InputWallPaper settings:WallPaperSettings = Bool;
 func (s *Service) AccountInstallWallPaper(ctx context.Context, request *mtproto.TLAccountInstallWallPaper) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.installWallPaper - metadata: {%s}", c.MD)
+	return c.AccountInstallWallPaper(request)
 }
 
-// AccountResetWallPapers is not served: account.resetWallPapers#bb3b9804 = Bool;
+// AccountResetWallPapers
+// account.resetWallPapers#bb3b9804 = Bool;
 func (s *Service) AccountResetWallPapers(ctx context.Context, request *mtproto.TLAccountResetWallPapers) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.resetWallPapers - metadata: {%s}", c.MD)
+	return c.AccountResetWallPapers(request)
 }
 
 // AccountGetMultiWallPapers
@@ -664,9 +697,12 @@ func (s *Service) AccountGetMultiWallPapers(ctx context.Context, request *mtprot
 	return c.AccountGetMultiWallPapers(request)
 }
 
-// MessagesSetChatWallPaper is not served: messages.setChatWallPaper#8ffacae1 flags:# for_both:flags.3?true revert:flags.4?true peer:InputPeer wallpaper:flags.0?InputWallPaper settings:flags.2?WallPaperSettings id:flags.1?int = Updates;
+// MessagesSetChatWallPaper
+// messages.setChatWallPaper#8ffacae1 flags:# for_both:flags.3?true revert:flags.4?true peer:InputPeer wallpaper:flags.0?InputWallPaper settings:flags.2?WallPaperSettings id:flags.1?int = Updates;
 func (s *Service) MessagesSetChatWallPaper(ctx context.Context, request *mtproto.TLMessagesSetChatWallPaper) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.setChatWallPaper - metadata: {%s}", c.MD)
+	return c.MessagesSetChatWallPaper(request)
 }
 
 // mtproto.RPCTimezones

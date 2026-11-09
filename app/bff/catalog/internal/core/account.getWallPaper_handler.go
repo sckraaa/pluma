@@ -23,8 +23,8 @@ import (
 // AccountGetWallPaper
 // account.getWallPaper#fc8ddbea wallpaper:InputWallPaper = WallPaper;
 //
-// A wallpaper of the catalog by its slug or id (wallpaperKey); one it does
-// not have is WALLPAPER_INVALID.
+// A wallpaper of the catalog by its slug or id (wallpaperKey), or an uploaded
+// one; one neither has is WALLPAPER_INVALID.
 func (c *CatalogCore) AccountGetWallPaper(in *mtproto.TLAccountGetWallPaper) (*mtproto.WallPaper, error) {
 	return c.wallPaper(in.GetWallpaper())
 }
@@ -39,7 +39,17 @@ func (c *CatalogCore) wallPaper(ask *mtproto.InputWallPaper) (*mtproto.WallPaper
 	if err != nil {
 		return nil, err
 	}
-	if !found || ask.GetPredicateName() == mtproto.Predicate_inputWallPaper && wallpaper.GetAccessHash() != ask.GetAccessHash() {
+	if !found {
+		uploaded, err := c.resolveUploaded(ask)
+		if err != nil {
+			return nil, err
+		}
+		if uploaded == nil {
+			return nil, mtproto.ErrWallpaperInvalid
+		}
+		return uploaded, nil
+	}
+	if ask.GetPredicateName() == mtproto.Predicate_inputWallPaper && wallpaper.GetAccessHash() != ask.GetAccessHash() {
 		return nil, mtproto.ErrWallpaperInvalid
 	}
 	return wallpaper, nil

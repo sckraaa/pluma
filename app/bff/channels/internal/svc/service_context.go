@@ -17,6 +17,7 @@ package svc
 
 import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/channels/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
@@ -24,6 +25,7 @@ import (
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
+	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -36,6 +38,8 @@ type ServiceContext struct {
 	Media   media_client.MediaClient
 	Auth    authsession_client.AuthsessionClient
 	Msg     msg_client.MsgClient
+	// Look reads the wallpaper and the chat theme of a channel (task 065).
+	Look *appearance.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -48,5 +52,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Media:   media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 		Auth:    authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 		Msg:     msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
+		Look:    appearance.NewStore(sqlx.NewMySQL(&c.Mysql), nil, ""),
 	}
 }
