@@ -378,18 +378,15 @@ func (g *generator) addLayer(layer int, items []item) error {
 		if generic && !g.knownID(key, it.id) {
 			continue // the invoke* wrappers are hand-written; only their table entries come from here
 		}
-		switch {
-		case g.table[key] == nil:
+		if g.table[key] == nil {
 			if err := g.addConstructor(key, it); err != nil {
 				return err
 			}
-		default:
-			if !g.knownID(key, it.id) {
-				if err := g.addVersion(key, it); err != nil {
-					return err
-				}
-				g.stats.changed++
+		} else if !g.knownID(key, it.id) {
+			if err := g.addVersion(key, it); err != nil {
+				return err
 			}
+			g.stats.changed++
 		}
 		if g.table[key] == nil {
 			g.table[key] = map[int]uint32{}
@@ -406,8 +403,6 @@ func hex32(id uint32) string { return fmt.Sprintf("0x%x", id) }
 func tlName(key string) string   { return "TL" + goCamel("_" + key)[1:] }
 func toName(key string) string   { return "To_" + goCamel("_" + key)[1:] }
 func makeName(key string) string { return "Make" + tlName(key) }
-
-func baseGo(tl string) string { return goCamel(protoTypeName(tl)) }
 
 // knownID says whether an earlier layer already gave the constructor this id.
 func (g *generator) knownID(key string, id uint32) bool {
@@ -994,7 +989,7 @@ func (g *generator) encodeCase(it *item, fm fieldMap, union bool) string {
 	fmt.Fprintf(&b, "\tcase %s:\n\t\tx.UInt(%s)\n\n", hex32(it.id), hex32(it.id))
 	words := flagWords(it)
 	for _, w := range words {
-		b.WriteString(fmt.Sprintf("\t\tvar get%s = func() uint32 {\n\t\t\tvar flags uint32 = 0\n\n", upperFirst(w)))
+		fmt.Fprintf(&b, "\t\tvar get%s = func() uint32 {\n\t\t\tvar flags uint32 = 0\n\n", upperFirst(w))
 		for i := range it.fields {
 			f := &it.fields[i]
 			if f.flagWord != w {
@@ -1245,7 +1240,7 @@ func (g *generator) save(dir string) error {
 		{"schema.tl.sync_service.proto", g.service},
 		{"codec_schema.tl.pb.go", g.codec},
 	} {
-		if err := os.WriteFile(filepath.Join(dir, f.name), []byte(f.text), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, f.name), []byte(f.text), 0o644); err != nil { //nolint:gosec // G306: generated sources of the repository
 			return err
 		}
 	}
