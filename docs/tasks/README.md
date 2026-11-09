@@ -66,14 +66,14 @@
 | [038](038-channel-create-and-dialogs.md) | Каналы: создание, `getChannels`, `getFullChannel`, диалоги | in progress (сервер выкачен 2026-11-04; проверка в клиентах) |
 | [039](039-channel-send-and-history.md) | Каналы: отправка, история, `channels.getMessages` | done (сервер) |
 | [040](040-channel-difference.md) | Каналы: `updates.getChannelDifference` и `updateChannelTooLong` | done (сервер) |
-| [041](041-channel-membership-and-invites.md) | Каналы: участники и приглашения | in progress (нет заявок на вступление) |
+| [041](041-channel-membership-and-invites.md) | Каналы: участники и приглашения | in progress (сервер готов; ждёт проверки в клиентах) |
 | [042](042-channel-rights.md) | Каналы: права админов, баны, права по умолчанию | in progress (выкачено, ждёт проверки в клиентах) |
-| [043](043-channel-edit-delete-pin-read.md) | Каналы: правка, удаление, закрепление, прочтение | in progress (нет закрепления и `readMessageContents`) |
+| [043](043-channel-edit-delete-pin-read.md) | Каналы: правка, удаление, закрепление, прочтение | in progress (сервер готов; ждёт проверки в клиентах) |
 | [044](044-channel-metadata-and-usernames.md) | Каналы: название, фото, настройки, реакции, публичные имена | in progress (нет фото канала, настроек и реакций) |
-| [045](045-channel-slow-mode.md) | Супергруппы: медленный режим | todo |
-| [046](046-broadcast-channel-specifics.md) | Каналы-трансляции: просмотры, подписи, ссылки на посты | todo |
+| [045](045-channel-slow-mode.md) | Супергруппы: медленный режим | in progress (сервер готов; ждёт проверки в клиентах) |
+| [046](046-broadcast-channel-specifics.md) | Каналы-трансляции: просмотры, подписи, ссылки на посты | in progress (сервер готов; ждёт проверки в клиентах) |
 | [047](047-group-to-supergroup-migration.md) | Переход базовой группы в супергруппу | in progress (сервер готов) |
-| [048](048-channel-discussion-and-threads.md) | Каналы: группа обсуждения и комментарии | in progress (сервер готов) |
+| [048](048-channel-discussion-and-threads.md) | Каналы: группа обсуждения и комментарии | in progress (сервер готов; ждёт проверки в клиентах) |
 | [049](049-channels-conformance-and-client-pass.md) | Каналы: сравнительные тесты и проход по клиентам | todo |
 | [050](050-chat-archive.md) | Архив чатов: перенос, автоархив, возврат из архива | done |
 | [051](051-public-photo.md) | Фото «для всех» и личное фото контакта | done |
@@ -83,8 +83,13 @@
 | [055](055-channel-fixes.md) | Каналы после проверки владельцем | done |
 | [056](056-memory-limits.md) | Инцидент 05.11: сеть сервера и потолки памяти | done |
 | [057](057-dfs-memory.md) | dfs: файлы не держатся в памяти, части загрузок не в Redis | done |
-| [058](058-premium-stickers.md) | Премиум-стикеры и эмодзи без Premium | todo |
+| [058](058-premium-stickers.md) | Премиум-стикеры и эмодзи без Premium | in progress (патчи клиентов на ветках, не выпущены) |
 | [059](059-ios-camera-crash.md) | iOS: вылет при открытии камеры из скрепки | in progress (причина найдена, pluma-ios PR #3) |
+| [060](060-forums-and-topics.md) | Форумы и темы | in progress (сервер готов; ждёт проверки в клиентах) |
+| [061](061-scheduled-messages.md) | Отложенные сообщения | in progress (сервер готов; ждёт проверки в клиентах) |
+| [062](062-polls-and-checklists.md) | Опросы и чек-листы | in progress (сервер готов; ждёт проверки в клиентах) |
+| [063](063-ttl-drafts-archive.md) | Автоудаление, черновики, архив | in progress (сервер готов; ждёт проверки в клиентах) |
+| [064](064-shared-folders.md) | Общие папки | in progress (сервер готов; ждёт проверки в клиентах) |
 
 Порядок этапа 0. Параллельно можно вести две линии — они не пересекаются по файлам:
 - **сервер:** 001 → 005 → 002 → 003 → 004 → 011, 013 → 014 → 015 → 010 → 008 → 009 → 007;

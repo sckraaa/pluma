@@ -1,19 +1,19 @@
 {
   "layer": "228",
   "total": 844,
-  "ok": 268,
-  "partial": 18,
+  "ok": 320,
+  "partial": 14,
   "areas": [
     {
       "key": "messages",
       "total": 202,
-      "ok": 88,
-      "partial": 12
+      "ok": 114,
+      "partial": 8
     },
     {
       "key": "channels",
       "total": 71,
-      "ok": 28,
+      "ok": 42,
       "partial": 1
     },
     {
@@ -55,7 +55,7 @@
     {
       "key": "folders",
       "total": 27,
-      "ok": 6,
+      "ok": 18,
       "partial": 0
     },
     {
