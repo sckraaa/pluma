@@ -60,11 +60,14 @@ func (d *Dao) SetTopicNotifySettings(ctx context.Context, id, channelId int64, t
 }
 
 // GetTopicNotifySettings are id's settings for a topic, empty when it has
-// none.
+// none or the channel is no forum now: push asks General about every message
+// of a supergroup, and the settings of a forum turned off are not the
+// group's. The row stays for a forum turned on again.
 func (d *Dao) GetTopicNotifySettings(ctx context.Context, id, channelId int64, topMsgId int32) (*mtproto.PeerNotifySettings, error) {
 	var rows []userpb.TopicNotifyRow
 	if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-		"SELECT "+userpb.TopicNotifyColumns+" FROM user_topic_notify_settings WHERE user_id = ? AND channel_id = ? AND top_msg_id = ?", id, channelId, topMsgId); err != nil {
+		"SELECT "+userpb.TopicNotifyColumns+" FROM user_topic_notify_settings WHERE user_id = ? AND channel_id = ? AND top_msg_id = ?"+
+			" AND EXISTS (SELECT 1 FROM channels c WHERE c.id = user_topic_notify_settings.channel_id AND c.forum = 1)", id, channelId, topMsgId); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
