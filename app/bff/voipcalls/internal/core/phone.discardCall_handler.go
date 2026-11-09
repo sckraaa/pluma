@@ -16,6 +16,8 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/phonecalls"
 )
@@ -36,12 +38,27 @@ func (c *VoipCallsCore) PhoneDiscardCall(in *mtproto.TLPhoneDiscardCall) (*mtpro
 	if role == phonecalls.Admin && call.AdminAuthKeyId != c.MD.PermAuthKeyId {
 		return nil, mtproto.ErrCallPeerInvalid
 	}
-	wasRequested := call.State == phonecalls.StateRequested
-	if call.State != phonecalls.StateDiscarded {
-		updated, won, err := c.svcCtx.Dao.Store.Discard(c.ctx, call.Id, phonecalls.ReasonOf(in.GetReason()))
+	if call.State != phonecalls.StateDiscarded && role == phonecalls.Participant &&
+		in.GetReason().GetPredicateName() == mtproto.Predicate_phoneCallDiscardReasonBusy {
+		repeated, err := c.busyOfThisCall(call)
 		if err != nil {
 			c.Logger.Errorf("phone.discardCall - error: %v", err)
 			return nil, err
+		}
+		if repeated {
+			return c.noUpdates(), nil
+		}
+	}
+	wasRequested := call.State == phonecalls.StateRequested
+	if call.State != phonecalls.StateDiscarded {
+		updated, won, err := c.discard(call.Id, role, in)
+		if err != nil {
+			c.Logger.Errorf("phone.discardCall - error: %v", err)
+			return nil, err
+		}
+		if !won && updated.State != phonecalls.StateDiscarded && role == phonecalls.Participant &&
+			updated.ParticipantAuthKeyId != c.MD.PermAuthKeyId {
+			return nil, mtproto.ErrCallAlreadyAccepted
 		}
 		call = updated
 		if won {
@@ -53,4 +70,41 @@ func (c *VoipCallsCore) PhoneDiscardCall(in *mtproto.TLPhoneDiscardCall) (*mtpro
 		other = call.AdminId
 	}
 	return c.phoneCallUpdates(c.MD.UserId, call.TL(role, nil), other), nil
+}
+
+// discard ends the call for the side that asked: a device of the participant
+// loses to one that accepted meanwhile.
+func (c *VoipCallsCore) discard(id int64, role phonecalls.Role, in *mtproto.TLPhoneDiscardCall) (*phonecalls.Call, bool, error) {
+	reason := phonecalls.ReasonOf(in.GetReason())
+	if role == phonecalls.Participant {
+		return c.svcCtx.Dao.Store.DiscardAsParticipant(c.ctx, id, c.MD.PermAuthKeyId, reason, in.GetVideo())
+	}
+	return c.svcCtx.Dao.Store.Discard(c.ctx, id, reason, in.GetVideo())
+}
+
+// busyOfThisCall tells whether a Busy from this device of the participant is
+// about the call itself: a device that answered it cannot be busy with
+// something else, and Android declines any repeated phoneCallRequested
+// (Delivery.Repeated).
+func (c *VoipCallsCore) busyOfThisCall(call *phonecalls.Call) (bool, error) {
+	if call.ParticipantAuthKeyId == c.MD.PermAuthKeyId {
+		return true, nil
+	}
+	d, err := c.svcCtx.Dao.Store.DeliveryOf(c.ctx, call.Id, c.MD.PermAuthKeyId)
+	if err != nil {
+		return false, err
+	}
+	return d.Repeated(), nil
+}
+
+// noUpdates is the answer that changes nothing: Android applies the answer
+// of its automatic Busy (MessagesController.java:20390-20394), and a
+// phoneCallDiscarded in it would end the call on the device.
+func (c *VoipCallsCore) noUpdates() *mtproto.Updates {
+	return mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{},
+		Users:   []*mtproto.User{},
+		Chats:   []*mtproto.Chat{},
+		Date:    int32(time.Now().Unix()),
+	}).To_Updates()
 }

@@ -101,29 +101,86 @@ func (c *VoipCallsCore) phoneCallUpdates(viewer int64, phoneCall *mtproto.PhoneC
 	}).To_Updates()
 }
 
-// toAuth pushes updates to one device of userId: the one bound to the call.
-// A device that is offline right now loses them, as a lost connection would
-// lose any other update; the clients have timers for that.
-func (c *VoipCallsCore) toAuth(userId, authKeyId int64, updates *mtproto.Updates) {
+// online returns the gateways of the devices of userId that are connected
+// now, by authorization. A failed lookup reads as none: the device is then
+// told by the sweep.
+func (c *VoipCallsCore) online(userId int64) map[int64]string {
 	list, err := c.svcCtx.Dao.StatusClient.StatusGetUserOnlineSessions(c.ctx, &statuspb.TLStatusGetUserOnlineSessions{UserId: userId})
 	if err != nil {
 		c.Logger.Errorf("calls: online sessions of user %d: %v", userId, err)
+		return nil
+	}
+	out := make(map[int64]string, len(list.GetUserSessions()))
+	for _, sess := range list.GetUserSessions() {
+		out[sess.GetAuthKeyId()] = sess.GetGateway()
+		if sess.GetPermAuthKeyId() != 0 {
+			out[sess.GetPermAuthKeyId()] = sess.GetGateway()
+		}
+	}
+	return out
+}
+
+// pushTo sends updates to one device through its gateway.
+func (c *VoipCallsCore) pushTo(userId, authKeyId int64, gateway string, updates *mtproto.Updates) bool {
+	_, err := c.svcCtx.Dao.SyncClient.SyncUpdatesMe(c.ctx, &syncpb.TLSyncUpdatesMe{
+		UserId:        userId,
+		PermAuthKeyId: authKeyId,
+		ServerId:      &wrapperspb.StringValue{Value: gateway},
+		Updates:       updates,
+	})
+	if err != nil {
+		c.Logger.Errorf("calls: push to user %d: %v", userId, err)
+	}
+	return err == nil
+}
+
+// toAuth pushes a step of the key exchange or the end of the call to one
+// device of userId: the one bound to the call. An update of a call has no
+// pts, so nothing brings it back: a device that is not connected right now
+// is told by the sweep when it returns, with the state of the call by then.
+// Each such step is sent once, and a repeat could end the call on the device
+// (Store.ClaimMissed).
+func (c *VoipCallsCore) toAuth(callId, userId, authKeyId int64, updates *mtproto.Updates) {
+	if gateway, ok := c.online(userId)[authKeyId]; ok && c.pushTo(userId, authKeyId, gateway, updates) {
 		return
 	}
-	for _, sess := range list.GetUserSessions() {
-		if sess.GetAuthKeyId() != authKeyId && sess.GetPermAuthKeyId() != authKeyId {
-			continue
-		}
-		_, err := c.svcCtx.Dao.SyncClient.SyncUpdatesMe(c.ctx, &syncpb.TLSyncUpdatesMe{
-			UserId:        userId,
-			PermAuthKeyId: authKeyId,
-			ServerId:      &wrapperspb.StringValue{Value: sess.GetGateway()},
-			Updates:       updates,
-		})
-		if err != nil {
-			c.Logger.Errorf("calls: push to user %d: %v", userId, err)
+	c.markMissed(callId, authKeyId)
+}
+
+// toAuthIfOnline pushes what is only useful right now: a lost phoneCallWaiting
+// costs the ringback tone, and a replay of the state could repeat a step the
+// device already took.
+func (c *VoipCallsCore) toAuthIfOnline(userId, authKeyId int64, updates *mtproto.Updates) {
+	if gateway, ok := c.online(userId)[authKeyId]; ok {
+		c.pushTo(userId, authKeyId, gateway, updates)
+	}
+}
+
+func (c *VoipCallsCore) markMissed(callId int64, authKeyIds ...int64) {
+	if err := c.svcCtx.Dao.Store.MarkMissed(c.ctx, callId, authKeyIds...); err != nil {
+		c.Logger.Errorf("calls: missed updates of call %d: %v", callId, err)
+	}
+}
+
+// markRungOffline records the devices that ring for the call and are not
+// connected: the fan-out that tells the others does not reach them, and
+// Android and iOS have no timer for a call that rings (VoIPService.java
+// schedules none for STATE_WAITING_INCOMING, CallSessionManager.swift ends
+// .ringing only on phoneCallDiscarded). except did the step itself.
+func (c *VoipCallsCore) markRungOffline(call *phonecalls.Call, except int64) {
+	rung, err := c.svcCtx.Dao.Store.Rung(c.ctx, call.Id)
+	if err != nil {
+		c.Logger.Errorf("calls: devices of call %d: %v", call.Id, err)
+		return
+	}
+	online := c.online(call.ParticipantId)
+	missed := make([]int64, 0, len(rung))
+	for _, k := range rung {
+		if _, ok := online[k]; !ok && k != except {
+			missed = append(missed, k)
 		}
 	}
+	c.markMissed(call.Id, missed...)
 }
 
 // otherAuth is the device of the other side of call for role.
@@ -147,7 +204,7 @@ func (c *VoipCallsCore) finish(call *phonecalls.Call, wasRequested bool, by phon
 	}
 	// The admin's device: the one bound to the call.
 	if by != phonecalls.Admin {
-		c.toAuth(call.AdminId, call.AdminAuthKeyId, discarded(phonecalls.Admin))
+		c.toAuth(call.Id, call.AdminId, call.AdminAuthKeyId, discarded(phonecalls.Admin))
 	}
 	switch {
 	case wasRequested:
@@ -158,8 +215,9 @@ func (c *VoipCallsCore) finish(call *phonecalls.Call, wasRequested bool, by phon
 		} else {
 			c.syncAll(call.ParticipantId, discarded(phonecalls.Participant))
 		}
+		c.markRungOffline(call, byAuth)
 	case by != phonecalls.Participant:
-		c.toAuth(call.ParticipantId, call.ParticipantAuthKeyId, discarded(phonecalls.Participant))
+		c.toAuth(call.Id, call.ParticipantId, call.ParticipantAuthKeyId, discarded(phonecalls.Participant))
 	}
 	c.postMessage(call)
 }

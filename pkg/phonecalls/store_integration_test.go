@@ -114,10 +114,10 @@ func TestFlowAndDuration(t *testing.T) {
 	if c, won, err := s.Confirm(ctx, created.Id, []byte("ga"), 9, created.AdminProtocol); err != nil || !won || c.State != StateActive {
 		t.Fatalf("confirm: %v %v", won, err)
 	}
-	if c, won, err := s.Discard(ctx, created.Id, ReasonHangup); err != nil || !won || c.Duration < 0 || c.EndDate == 0 {
+	if c, won, err := s.Discard(ctx, created.Id, ReasonHangup, false); err != nil || !won || c.Duration < 0 || c.EndDate == 0 {
 		t.Fatalf("discard: %v %v", won, err)
 	}
-	if _, won, err := s.Discard(ctx, created.Id, ReasonMissed); err != nil || won {
+	if _, won, err := s.Discard(ctx, created.Id, ReasonMissed, false); err != nil || won {
 		t.Fatalf("second discard won: %v", err)
 	}
 }
@@ -170,7 +170,7 @@ func TestDueAndUnposted(t *testing.T) {
 	if !found {
 		t.Fatal("expired call not due")
 	}
-	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed); err != nil {
+	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed, false); err != nil {
 		t.Fatal(err)
 	}
 	list, err := s.Unposted(ctx, time.Now().Add(time.Minute), 100)
@@ -207,7 +207,7 @@ func TestClaimRinging(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.MarkDelivered(ctx, created.Id, 5); err != nil {
+	if err := s.MarkOffered(ctx, created.Id, 5); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := s.ClaimRinging(ctx, b, 5); err != nil || len(got) != 0 {
@@ -220,7 +220,20 @@ func TestClaimRinging(t *testing.T) {
 	if got, err := s.ClaimRinging(ctx, b, 6); err != nil || len(got) != 0 {
 		t.Fatalf("offline device again: %v %v", got, err)
 	}
-	if _, _, err := s.Discard(ctx, created.Id, ReasonHangup); err != nil {
+	// Neither offer was confirmed: both come again later, the answer or the
+	// live update may have been lost. A device that confirmed does not.
+	if err := s.MarkReceived(ctx, created.Id, 6); err != nil {
+		t.Fatal(err)
+	}
+	s.now = func() time.Time { return time.Now().Add(ReofferAfter + time.Second) }
+	if got, err := s.ClaimRinging(ctx, b, 5); err != nil || len(got) != 1 {
+		t.Fatalf("unconfirmed device: %v %v", got, err)
+	}
+	if got, err := s.ClaimRinging(ctx, b, 6); err != nil || len(got) != 0 {
+		t.Fatalf("confirmed device: %v %v", got, err)
+	}
+	s.now = time.Now
+	if _, _, err := s.Discard(ctx, created.Id, ReasonHangup, false); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := s.ClaimRinging(ctx, b, 7); err != nil || len(got) != 0 {
@@ -235,10 +248,10 @@ func TestPurge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.MarkDelivered(ctx, created.Id, 5); err != nil {
+	if err := s.MarkOffered(ctx, created.Id, 5); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed); err != nil {
+	if _, _, err := s.Discard(ctx, created.Id, ReasonMissed, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.MarkPosted(ctx, created.Id); err != nil {
@@ -250,5 +263,216 @@ func TestPurge(t *testing.T) {
 	}
 	if _, err := s.Get(ctx, created.Id); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("after purge: %v", err)
+	}
+}
+
+func TestDeviceThatDeclinesLosesToTheOneThatAccepted(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	created, _, err := s.Create(ctx, newCall(a, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, won, err := s.Accept(ctx, created.Id, 21, []byte{1}, created.AdminProtocol); err != nil || !won {
+		t.Fatalf("accept: %v %v", won, err)
+	}
+	got, won, err := s.DiscardAsParticipant(ctx, created.Id, 22, ReasonHangup, false)
+	if err != nil || won || got.State != StateAccepted {
+		t.Fatalf("the other device: %+v %v %v", got, won, err)
+	}
+	if got, won, err = s.DiscardAsParticipant(ctx, created.Id, 21, ReasonHangup, false); err != nil || !won || got.State != StateDiscarded {
+		t.Fatalf("the device that accepted: %+v %v %v", got, won, err)
+	}
+}
+
+func TestDiscardKeepsVideo(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	created, _, err := s.Create(ctx, newCall(a, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, won, err := s.Discard(ctx, created.Id, ReasonHangup, true); err != nil || !won || !got.Video {
+		t.Fatalf("voice call that ended with a camera on: %+v %v %v", got, won, err)
+	}
+}
+
+func TestExpireRechecks(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	created, _, err := s.Create(ctx, newCall(a, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The sweep read the call in Requested; it moved on and has a new deadline.
+	if _, won, err := s.Accept(ctx, created.Id, 21, []byte{1}, created.AdminProtocol); err != nil || !won {
+		t.Fatal(won, err)
+	}
+	later := time.Now().Add(ReceiveTimeout + Grace + time.Second)
+	s.now = func() time.Time { return later }
+	if got, won, err := s.Expire(ctx, created.Id, StateRequested, ReasonMissed); err != nil || won || got.State != StateAccepted {
+		t.Fatalf("a call that moved on: %+v %v %v", got, won, err)
+	}
+	s.now = time.Now
+	if got, won, err := s.Expire(ctx, created.Id, StateAccepted, ReasonDisconnect); err != nil || won || got.State != StateAccepted {
+		t.Fatalf("a deadline not reached: %+v %v %v", got, won, err)
+	}
+	s.now = func() time.Time { return time.Now().Add(ConnectTimeout + Grace + time.Second) }
+	if got, won, err := s.Expire(ctx, created.Id, StateAccepted, ReasonDisconnect); err != nil || !won || got.State != StateDiscarded {
+		t.Fatalf("expired: %+v %v %v", got, won, err)
+	}
+}
+
+func TestDeliveryRepeated(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	created, _, err := s.Create(ctx, newCall(a, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d, err := s.DeliveryOf(ctx, created.Id, 5); err != nil || d != nil || d.Repeated() {
+		t.Fatalf("never offered: %+v %v", d, err)
+	}
+	if err := s.MarkOffered(ctx, created.Id, 5); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := s.DeliveryOf(ctx, created.Id, 5); err != nil || d.Repeated() {
+		t.Fatalf("one live offer: %+v %v", d, err)
+	}
+	if err := s.MarkReceived(ctx, created.Id, 5); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := s.DeliveryOf(ctx, created.Id, 5); err != nil || !d.Repeated() {
+		t.Fatalf("confirmed: %+v %v", d, err)
+	}
+	// Offered by a difference: a live update may have crossed it.
+	if got, err := s.ClaimRinging(ctx, b, 6); err != nil || len(got) != 1 {
+		t.Fatalf("difference: %v %v", got, err)
+	}
+	if d, err := s.DeliveryOf(ctx, created.Id, 6); err != nil || !d.Repeated() {
+		t.Fatalf("offer of a difference: %+v %v", d, err)
+	}
+}
+
+func TestUnconfirmedOffers(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	created, _, err := s.Create(ctx, newCall(a, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkOffered(ctx, created.Id, 5); err != nil {
+		t.Fatal(err)
+	}
+	has := func(list []Device) bool {
+		for _, d := range list {
+			if d.CallId == created.Id && d.AuthKeyId == 5 {
+				return true
+			}
+		}
+		return false
+	}
+	if got, err := s.Unconfirmed(ctx, 1000); err != nil || has(got) {
+		t.Fatalf("too early: %v %v", got, err)
+	}
+	dev := Device{CallId: created.Id, AuthKeyId: 5}
+	base := time.Now()
+	for i := 1; i < maxSweepOffers; i++ {
+		step := time.Duration(i) * (ReofferAfter + time.Second)
+		s.now = func() time.Time { return base.Add(step) }
+		if got, err := s.Unconfirmed(ctx, 1000); err != nil || !has(got) {
+			t.Fatalf("offer %d: %v %v", i, got, err)
+		}
+		if ok, err := s.ClaimUnconfirmed(ctx, dev); err != nil || !ok {
+			t.Fatalf("claim %d: %v %v", i, ok, err)
+		}
+		if ok, err := s.ClaimUnconfirmed(ctx, dev); err != nil || ok {
+			t.Fatalf("second claim %d: %v %v", i, ok, err)
+		}
+	}
+	step := time.Duration(maxSweepOffers) * (ReofferAfter + time.Second)
+	s.now = func() time.Time { return base.Add(step) }
+	if got, err := s.Unconfirmed(ctx, 1000); err != nil || has(got) {
+		t.Fatalf("over the limit: %v %v", got, err)
+	}
+	s.now = time.Now
+	if rung, err := s.Rung(ctx, created.Id); err != nil || len(rung) != 1 || rung[0] != 5 {
+		t.Fatalf("rung: %v %v", rung, err)
+	}
+}
+
+func TestMissed(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	created, _, err := s.Create(ctx, newCall(a, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dev := Device{CallId: created.Id, AuthKeyId: created.AdminAuthKeyId}
+	has := func() bool {
+		got, err := s.Missed(ctx, 1000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range got {
+			if d == dev {
+				return true
+			}
+		}
+		return false
+	}
+	if err := s.MarkMissed(ctx, created.Id, dev.AuthKeyId); err != nil {
+		t.Fatal(err)
+	}
+	if !has() {
+		t.Fatal("not listed")
+	}
+	if ok, err := s.ClaimMissed(ctx, dev); err != nil || !ok {
+		t.Fatalf("claim: %v %v", ok, err)
+	}
+	if ok, err := s.ClaimMissed(ctx, dev); err != nil || ok {
+		t.Fatalf("second claim: %v %v", ok, err)
+	}
+	// The record of the caller's device does not make it a ringing one.
+	if rung, err := s.Rung(ctx, created.Id); err != nil || len(rung) != 0 {
+		t.Fatalf("rung: %v %v", rung, err)
+	}
+	if err := s.MarkMissed(ctx, created.Id, dev.AuthKeyId); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Discard(ctx, created.Id, ReasonHangup, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DropMissed(ctx, time.Now().Add(-MissedKeep)); err != nil {
+		t.Fatal(err)
+	}
+	if !has() {
+		t.Fatal("dropped too early")
+	}
+	if err := s.DropMissed(ctx, time.Now().Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if has() {
+		t.Fatal("not dropped")
+	}
+}
+
+func TestRecentCalls(t *testing.T) {
+	s, ctx := itStore(), context.Background()
+	a, b := itUserIDs()
+	since := time.Now().Add(-time.Minute)
+	if total, peer, err := s.RecentCalls(ctx, a, b, since); err != nil || total != 0 || peer != 0 {
+		t.Fatalf("none: %d %d %v", total, peer, err)
+	}
+	for _, to := range []int64{b, b, b + 1} {
+		if _, _, err := s.Create(ctx, newCall(a, to)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if total, peer, err := s.RecentCalls(ctx, a, b, since); err != nil || total != 3 || peer != 2 {
+		t.Fatalf("three: %d %d %v", total, peer, err)
+	}
+	if total, _, err := s.RecentCalls(ctx, a, b, time.Now().Add(time.Hour)); err != nil || total != 0 {
+		t.Fatalf("outside the window: %d %v", total, err)
 	}
 }

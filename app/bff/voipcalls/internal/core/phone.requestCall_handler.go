@@ -112,24 +112,27 @@ func (c *VoipCallsCore) PhoneRequestCall(in *mtproto.TLPhoneRequestCall) (*mtpro
 	}).To_Phone_PhoneCall(), nil
 }
 
-// ring records which devices of the callee the live update reaches, then
+// ring records which devices of the callee the live update goes to, then
 // sends it to all of them; the others learn of the call through a push and
 // updates.getDifference. Android declines a second phoneCallRequested as
-// busy (MessagesController.java:20390), hence the bookkeeping.
+// busy (MessagesController.java:20377), hence the bookkeeping. The record is
+// not a proof that the device got the call, only phone.receivedCall is: an
+// offer without it comes again (Sweeper, Store.ClaimRinging).
 func (c *VoipCallsCore) ring(call *phonecalls.Call) {
+	keys := make([]int64, 0, 4)
 	sessions, err := c.svcCtx.Dao.StatusClient.StatusGetUserOnlineSessions(c.ctx, &statuspb.TLStatusGetUserOnlineSessions{UserId: call.ParticipantId})
 	if err != nil {
 		c.Logger.Errorf("calls: online sessions of user %d: %v", call.ParticipantId, err)
-	} else {
-		for _, s := range sessions.GetUserSessions() {
-			key := s.GetAuthKeyId()
-			if s.GetPermAuthKeyId() != 0 {
-				key = s.GetPermAuthKeyId()
-			}
-			if err := c.svcCtx.Dao.Store.MarkDelivered(c.ctx, call.Id, key); err != nil {
-				c.Logger.Errorf("calls: delivery of call %d: %v", call.Id, err)
-			}
+	}
+	for _, s := range sessions.GetUserSessions() {
+		key := s.GetAuthKeyId()
+		if s.GetPermAuthKeyId() != 0 {
+			key = s.GetPermAuthKeyId()
 		}
+		keys = append(keys, key)
+	}
+	if err := c.svcCtx.Dao.Store.MarkOffered(c.ctx, call.Id, keys...); err != nil {
+		c.Logger.Errorf("calls: delivery of call %d: %v", call.Id, err)
 	}
 	c.syncAll(call.ParticipantId, c.phoneCallUpdates(call.ParticipantId, call.TL(phonecalls.Participant, nil), call.AdminId))
 }

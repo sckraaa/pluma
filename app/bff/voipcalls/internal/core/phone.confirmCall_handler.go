@@ -63,7 +63,7 @@ func (c *VoipCallsCore) PhoneConfirmCall(in *mtproto.TLPhoneConfirmCall) (*mtpro
 	conns := c.connections(call)
 	if len(conns) == 0 {
 		c.Logger.Errorf("phone.confirmCall - no ICE server of call %d resolves", call.Id)
-		if ended, won, err := c.svcCtx.Dao.Store.Discard(c.ctx, call.Id, phonecalls.ReasonDisconnect); err != nil {
+		if ended, won, err := c.svcCtx.Dao.Store.Discard(c.ctx, call.Id, phonecalls.ReasonDisconnect, false); err != nil {
 			c.Logger.Errorf("phone.confirmCall - error: %v", err)
 		} else if won {
 			c.finish(ended, false, phonecalls.Admin, c.MD.PermAuthKeyId)
@@ -86,7 +86,7 @@ func (c *VoipCallsCore) PhoneConfirmCall(in *mtproto.TLPhoneConfirmCall) (*mtpro
 		return nil, mtproto.ErrCallPeerInvalid
 	}
 	if won {
-		c.toAuth(updated.ParticipantId, updated.ParticipantAuthKeyId,
+		c.toAuth(updated.Id, updated.ParticipantId, updated.ParticipantAuthKeyId,
 			c.phoneCallUpdates(updated.ParticipantId, updated.TL(phonecalls.Participant, conns), updated.AdminId))
 	}
 	return c.activeAnswer(updated, conns), nil

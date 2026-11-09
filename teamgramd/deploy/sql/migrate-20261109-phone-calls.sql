@@ -39,11 +39,19 @@ CREATE TABLE IF NOT EXISTS `phone_calls` (
   KEY `idx_posted` (`state`, `message_posted`, `end_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- An authorization named here was told about the ringing call: the live
--- update or updates.getDifference. Android declines a second
--- phoneCallRequested as busy, so a call is shown once per authorization.
+-- What is known about one authorization and one call: the offers of the
+-- ringing call (the live update and updates.getDifference; Android declines
+-- a second phoneCallRequested as busy), its phone.receivedCall, and an update
+-- that did not reach the device, which the sweep sends when it is back.
 CREATE TABLE IF NOT EXISTS `phone_call_deliveries` (
   `call_id` bigint NOT NULL,
   `auth_key_id` bigint NOT NULL,
-  PRIMARY KEY (`call_id`, `auth_key_id`)
+  `offers` int NOT NULL DEFAULT 0 COMMENT 'phoneCallRequested sent to the device',
+  `offered_at` int NOT NULL DEFAULT 0,
+  `live` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'the first offer was the live update',
+  `received` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'the device sent phone.receivedCall',
+  `missed` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'an update of the call did not reach the device',
+  PRIMARY KEY (`call_id`, `auth_key_id`),
+  KEY `idx_unconfirmed` (`received`, `offered_at`),
+  KEY `idx_missed` (`missed`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

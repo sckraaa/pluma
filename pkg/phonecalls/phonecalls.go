@@ -62,6 +62,16 @@ const (
 	// MaxActive bounds a call both of whose devices were lost: nothing else
 	// ends it. It is also how long the TURN credentials of a call live.
 	MaxActive = 48 * time.Hour
+	// ReofferAfter is how long a device that was offered a ringing call may
+	// take to confirm it with phone.receivedCall, which the clients send as
+	// soon as they start ringing.
+	ReofferAfter = 5 * time.Second
+	// maxSweepOffers bounds the offers of a call to a device that is listed
+	// as online and does not confirm: it may not really be connected.
+	maxSweepOffers = 3
+	// MissedKeep is how long after a call ended a device that returns still
+	// hears about it.
+	MissedKeep = RingTimeout + Grace
 )
 
 // Protocol is what a client said about its call library (phoneCallProtocol).
@@ -273,6 +283,22 @@ func int32Value(v int32) *wrapperspb.Int32Value {
 		return nil
 	}
 	return &wrapperspb.Int32Value{Value: v}
+}
+
+// ViewOf returns who authKeyId is in the call and the call as that device
+// must see it: a device of the participant that did not accept, however the
+// call went on, sees it end without a reason (tdesktop calls_call.cpp:849,
+// "ended by another device").
+func (c *Call) ViewOf(authKeyId int64) (Role, *Call) {
+	if authKeyId == c.AdminAuthKeyId {
+		return Admin, c
+	}
+	if authKeyId == c.ParticipantAuthKeyId || c.ParticipantAuthKeyId == 0 {
+		return Participant, c
+	}
+	lost := *c
+	lost.State, lost.Reason, lost.Duration = StateDiscarded, ReasonNone, 0
+	return Participant, &lost
 }
 
 // RequestedUpdate is the update that makes a device ring.

@@ -63,7 +63,8 @@ func (c *VoipCallsCore) PhoneAcceptCall(in *mtproto.TLPhoneAcceptCall) (*mtproto
 		losers.State, losers.Reason, losers.Duration = phonecalls.StateDiscarded, phonecalls.ReasonNone, 0
 		c.syncNotMe(updated.ParticipantId, c.MD.PermAuthKeyId,
 			c.phoneCallUpdates(updated.ParticipantId, losers.TL(phonecalls.Participant, nil), updated.AdminId))
-		c.toAuth(updated.AdminId, updated.AdminAuthKeyId,
+		c.markRungOffline(updated, c.MD.PermAuthKeyId)
+		c.toAuth(updated.Id, updated.AdminId, updated.AdminAuthKeyId,
 			c.phoneCallUpdates(updated.AdminId, updated.TL(phonecalls.Admin, nil), updated.ParticipantId))
 	}
 	// tdesktop requires phoneCallWaiting in the answer (calls_call.cpp:498).

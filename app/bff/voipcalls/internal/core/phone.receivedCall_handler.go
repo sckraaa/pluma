@@ -34,7 +34,9 @@ func (c *VoipCallsCore) PhoneReceivedCall(in *mtproto.TLPhoneReceivedCall) (*mtp
 	if call.State == phonecalls.StateDiscarded {
 		return nil, mtproto.ErrCallAlreadyDeclined
 	}
-	if err := c.svcCtx.Dao.Store.MarkDelivered(c.ctx, call.Id, c.MD.PermAuthKeyId); err != nil {
+	// First the record, then the state: an accept that follows sees this
+	// device among those that ring, one that came before is seen below.
+	if err := c.svcCtx.Dao.Store.MarkReceived(c.ctx, call.Id, c.MD.PermAuthKeyId); err != nil {
 		c.Logger.Errorf("phone.receivedCall - error: %v", err)
 	}
 	updated, changed, err := c.svcCtx.Dao.Store.Received(c.ctx, call.Id)
@@ -42,8 +44,16 @@ func (c *VoipCallsCore) PhoneReceivedCall(in *mtproto.TLPhoneReceivedCall) (*mtp
 		c.Logger.Errorf("phone.receivedCall - error: %v", err)
 		return nil, err
 	}
+	// Answered or ended elsewhere: a device woken by a push rings from the
+	// payload and no update will stop it, an error ends the ringing
+	// (Telegram-iOS CallSessionManager.swift:759-773, Android
+	// VoIPService.java:1212-1216). core.telegram.org/method/phone.receivedCall
+	// has only this error for it.
+	if updated.State != phonecalls.StateRequested && updated.ParticipantAuthKeyId != c.MD.PermAuthKeyId {
+		return nil, mtproto.ErrCallAlreadyDeclined
+	}
 	if changed {
-		c.toAuth(updated.AdminId, updated.AdminAuthKeyId,
+		c.toAuthIfOnline(updated.AdminId, updated.AdminAuthKeyId,
 			c.phoneCallUpdates(updated.AdminId, updated.TL(phonecalls.Admin, nil), updated.ParticipantId))
 	}
 	return mtproto.BoolTrue, nil

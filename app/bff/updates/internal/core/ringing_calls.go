@@ -17,12 +17,13 @@ package core
 
 import "github.com/teamgram/proto/mtproto"
 
-// ringingCalls returns the calls ringing for this authorization that it has
-// not heard of (task 068), once: the difference is the only way a device
-// woken by a push learns of a call on Android, and a second
-// phoneCallRequested makes Android decline it as busy
-// (MessagesController.java:20390). Losing the read must not lose the
-// difference: the device still has the update of the call on its way.
+// ringingCalls returns the calls ringing for this authorization that it does
+// not hold (task 068): the difference is the only way a device woken by a
+// push learns of a call on Android. An offer that phone.receivedCall did not
+// confirm comes again later; a second phoneCallRequested makes Android
+// decline it as busy (MessagesController.java:20377), so the server does not
+// take that for an answer (phonecalls.Delivery.Repeated). A failure keeps
+// what was claimed: those calls are not offered again for a while.
 func (c *UpdatesCore) ringingCalls() []*mtproto.Update {
 	if c.svcCtx.Dao.Calls == nil {
 		return nil
@@ -30,7 +31,6 @@ func (c *UpdatesCore) ringingCalls() []*mtproto.Update {
 	calls, err := c.svcCtx.Dao.Calls.ClaimRinging(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId)
 	if err != nil {
 		c.Logger.Errorf("updates.getDifference - calls of user %d: %v", c.MD.UserId, err)
-		return nil
 	}
 	out := make([]*mtproto.Update, 0, len(calls))
 	for _, call := range calls {

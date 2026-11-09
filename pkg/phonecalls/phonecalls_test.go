@@ -139,3 +139,23 @@ func TestTimeoutsMatchClientConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestViewOf(t *testing.T) {
+	c := &Call{Id: 1, AdminId: 10, ParticipantId: 20, AdminAuthKeyId: 100, ParticipantAuthKeyId: 200, State: StateAccepted, Reason: ReasonNone}
+	if role, v := c.ViewOf(100); role != Admin || v.State != StateAccepted {
+		t.Fatalf("admin: %v %+v", role, v)
+	}
+	if role, v := c.ViewOf(200); role != Participant || v.State != StateAccepted {
+		t.Fatalf("the device that accepted: %v %+v", role, v)
+	}
+	if role, v := c.ViewOf(300); role != Participant || v.State != StateDiscarded || v.Reason != ReasonNone {
+		t.Fatalf("another device: %v %+v", role, v)
+	}
+	if c.State != StateAccepted {
+		t.Fatal("the call itself changed")
+	}
+	ended := &Call{AdminAuthKeyId: 100, State: StateDiscarded, Reason: ReasonMissed}
+	if _, v := ended.ViewOf(300); v.Reason != ReasonMissed {
+		t.Fatalf("a call nobody accepted keeps its reason: %+v", v)
+	}
+}

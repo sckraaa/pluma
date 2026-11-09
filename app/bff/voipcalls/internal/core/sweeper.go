@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/voipcalls/internal/svc"
 	"github.com/teamgram/teamgram-server/pkg/phonecalls"
 
@@ -90,7 +91,7 @@ func (s *Sweeper) pass(ctx context.Context) {
 	}
 	for _, call := range due {
 		wasRequested := call.State == phonecalls.StateRequested
-		updated, won, err := s.svcCtx.Dao.Store.Discard(ctx, call.Id, expiryReason(call.State))
+		updated, won, err := s.svcCtx.Dao.Store.Expire(ctx, call.Id, call.State, expiryReason(call.State))
 		if err != nil {
 			logx.WithContext(ctx).Errorf("calls: end call %d: %v", call.Id, err)
 			continue
@@ -99,6 +100,7 @@ func (s *Sweeper) pass(ctx context.Context) {
 			c.finish(updated, wasRequested, 0, 0)
 		}
 	}
+	c.redeliver(ctx)
 	lost, err := s.svcCtx.Dao.Store.Unposted(ctx, time.Now().Add(-5*time.Second), sweepBatch)
 	if err != nil {
 		logx.WithContext(ctx).Errorf("calls: unposted calls: %v", err)
@@ -117,5 +119,91 @@ func (s *Sweeper) pass(ctx context.Context) {
 	}
 	if _, err := s.svcCtx.Dao.Store.Purge(ctx, time.Now().Add(-keepEnded), sweepBatch); err != nil {
 		logx.WithContext(ctx).Errorf("calls: purge: %v", err)
+	}
+}
+
+// redeliver repeats what the devices that are connected now did not get: the
+// state of a call they missed, and the ringing call a device did not confirm
+// with phone.receivedCall. A device that is not back stays listed.
+func (c *VoipCallsCore) redeliver(ctx context.Context) {
+	if err := c.svcCtx.Dao.Store.DropMissed(ctx, time.Now().Add(-phonecalls.MissedKeep)); err != nil {
+		c.Logger.Errorf("calls: missed updates: %v", err)
+	}
+	seen := make(map[int64]map[int64]string)
+	gateway := func(userId, authKeyId int64) (string, bool) {
+		online, ok := seen[userId]
+		if !ok {
+			online = c.online(userId)
+			seen[userId] = online
+		}
+		g, ok := online[authKeyId]
+		return g, ok
+	}
+	missed, err := c.svcCtx.Dao.Store.Missed(ctx, sweepBatch)
+	if err != nil {
+		c.Logger.Errorf("calls: missed updates: %v", err)
+	}
+	for _, d := range missed {
+		c.redeliverMissed(ctx, d, gateway)
+	}
+	offers, err := c.svcCtx.Dao.Store.Unconfirmed(ctx, sweepBatch)
+	if err != nil {
+		c.Logger.Errorf("calls: unconfirmed calls: %v", err)
+	}
+	for _, d := range offers {
+		c.reoffer(ctx, d, gateway)
+	}
+}
+
+func (c *VoipCallsCore) redeliverMissed(ctx context.Context, d phonecalls.Device, gateway func(userId, authKeyId int64) (string, bool)) {
+	call, err := c.svcCtx.Dao.Store.Get(ctx, d.CallId)
+	if err != nil {
+		c.Logger.Errorf("calls: call %d: %v", d.CallId, err)
+		return
+	}
+	role, view := call.ViewOf(d.AuthKeyId)
+	viewer, other := call.ParticipantId, call.AdminId
+	if role == phonecalls.Admin {
+		viewer, other = other, viewer
+	}
+	g, ok := gateway(viewer, d.AuthKeyId)
+	if !ok {
+		return
+	}
+	var conns []*mtproto.PhoneConnection
+	if view.State == phonecalls.StateActive {
+		// Telegram-iOS takes connections.first! of phoneCall: without a
+		// server the device waits for the next pass.
+		if conns = c.connections(call); len(conns) == 0 {
+			return
+		}
+	}
+	claimed, err := c.svcCtx.Dao.Store.ClaimMissed(ctx, d)
+	if err != nil {
+		c.Logger.Errorf("calls: missed update of call %d: %v", d.CallId, err)
+		return
+	}
+	if claimed && !c.pushTo(viewer, d.AuthKeyId, g, c.phoneCallUpdates(viewer, view.TL(role, conns), other)) {
+		c.markMissed(d.CallId, d.AuthKeyId)
+	}
+}
+
+func (c *VoipCallsCore) reoffer(ctx context.Context, d phonecalls.Device, gateway func(userId, authKeyId int64) (string, bool)) {
+	call, err := c.svcCtx.Dao.Store.Get(ctx, d.CallId)
+	if err != nil {
+		c.Logger.Errorf("calls: call %d: %v", d.CallId, err)
+		return
+	}
+	g, ok := gateway(call.ParticipantId, d.AuthKeyId)
+	if !ok {
+		return
+	}
+	claimed, err := c.svcCtx.Dao.Store.ClaimUnconfirmed(ctx, d)
+	if err != nil {
+		c.Logger.Errorf("calls: offer of call %d: %v", d.CallId, err)
+		return
+	}
+	if claimed {
+		c.pushTo(call.ParticipantId, d.AuthKeyId, g, c.phoneCallUpdates(call.ParticipantId, call.TL(phonecalls.Participant, nil), call.AdminId))
 	}
 }

@@ -40,7 +40,7 @@ func (c *VoipCallsCore) PhoneSendSignalingData(in *mtproto.TLPhoneSendSignalingD
 		return nil, errCallNotActive
 	}
 	userId, auth := otherAuth(call, role)
-	c.toAuth(userId, auth, mtproto.MakeTLUpdates(&mtproto.Updates{
+	c.toAuthIfOnline(userId, auth, mtproto.MakeTLUpdates(&mtproto.Updates{
 		Updates: []*mtproto.Update{mtproto.MakeTLUpdatePhoneCallSignalingData(&mtproto.Update{
 			PhoneCallId:    call.Id,
 			Data_FLAGBYTES: in.GetData(),
