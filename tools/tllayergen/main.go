@@ -375,8 +375,8 @@ func (g *generator) addLayer(layer int, items []item) error {
 				generic = true
 			}
 		}
-		if generic {
-			continue // invokeWithLayer and initConnection are hand-written, not in these tables
+		if generic && !g.knownID(key, it.id) {
+			continue // the invoke* wrappers are hand-written; only their table entries come from here
 		}
 		switch {
 		case g.table[key] == nil:

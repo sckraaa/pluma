@@ -87,6 +87,26 @@ func TestResultProto(t *testing.T) {
 	}
 }
 
+// The invoke* wrappers have no generated code but do have table entries: a
+// client takes their constructor for its layer from there.
+func TestGenericWrapperGetsLayerEntry(t *testing.T) {
+	const id = 0xaca9fd2e
+	g := &generator{table: map[string]map[int]uint32{"invokeWithTakeout": {231: id}}, byID: map[uint32]string{id: "invokeWithTakeout"}}
+	items, err := parseSchema("---functions---\ninvokeWithTakeout#aca9fd2e {X:Type} takeout_id:long query:!X = X;\ninvokeWithNothing#aca9fd2f {X:Type} query:!X = X;\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := g.addLayer(233, items); err != nil {
+		t.Fatal(err)
+	}
+	if g.table["invokeWithTakeout"][233] != id {
+		t.Fatalf("table: %v", g.table["invokeWithTakeout"])
+	}
+	if g.table["invokeWithNothing"] != nil {
+		t.Fatalf("an unknown wrapper was added: %v", g.table)
+	}
+}
+
 func TestEncodeCaseHandlesFlagWords(t *testing.T) {
 	g := &generator{}
 	it := item{id: 0xdeadbeef, fields: []field{
