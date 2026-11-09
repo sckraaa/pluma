@@ -56,8 +56,10 @@ func NewAuthSignLogic(store PhoneCodeStore, codes *logincode.Service) *AuthLogic
 
 // DoSendChangePhoneCode starts a change to phoneNumber, which must have
 // passed Codes.CheckSendCode. The new number has no sessions to deliver a
-// code to, so the answer is auth.sentCodeTypeSms and the administrator
-// issues the code (pluma-admin login-code <new phone>).
+// code to: the code goes to the Telegram account of that number, if the
+// sender is deployed and takes it (auth.sentCodeTypeApp; ADR 0042), else
+// the answer is auth.sentCodeTypeSms and the administrator issues the code
+// (pluma-admin login-code <new phone>).
 func (m *AuthLogic) DoSendChangePhoneCode(ctx context.Context,
 	authKeyId int64,
 	sessionId int64,
@@ -84,6 +86,9 @@ func (m *AuthLogic) DoSendChangePhoneCode(ctx context.Context,
 	}
 	if _, err = m.Codes.Issue(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp, false); err != nil {
 		return nil, err
+	}
+	if m.Codes.DeliverByTelegram(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp) {
+		codeData.SentCodeType = model.SentCodeTypeApp
 	}
 	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
 		m.Codes.Cancel(ctx, phoneNumber, codeData.PhoneCodeHash)

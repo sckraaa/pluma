@@ -48,3 +48,4 @@
 | [0041](0041-bots-core.md) | Боты на уровне MTProto: обычные аккаунты, токены только хэшем, управление через `pluma-admin` | proposed |
 | [0040](0040-moderation-panel.md) | Модерация: очередь жалоб, ограничения, панель только в tailnet (`tailscale serve`, ключи доступа, шаги решений) | proposed |
 | [0041](0041-premium-and-boosts-for-everyone.md) | Все функции Premium и бустов доступны всем | accepted (2026-11-09) |
+| [0042](0042-login-codes-through-tdlib.md) | Коды входа пишет настоящий аккаунт Telegram: отдельный сервис на TDLib, запасной путь — администратор | proposed |

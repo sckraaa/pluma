@@ -15,6 +15,15 @@ alerting:
         - targets: ["alertmanager:9093"]
 
 scrape_configs:
+  # The optional service of login codes (docker-compose.codes.yaml, task
+  # 073): by DNS, so that a server without it has no target and no ServiceDown.
+  - job_name: ops.codes
+    dns_sd_configs:
+      - names: ["codes"]
+        type: A
+        port: 9378
+        refresh_interval: 60s
+
   - job_name: prometheus
     scrape_interval: 5s  #global catch time
     static_configs:

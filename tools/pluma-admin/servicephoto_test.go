@@ -144,6 +144,8 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("LOGIN_CODE_HMAC_KEY", testHmacKey)
 	t.Setenv("LOGIN_REVIEW_PHONE", "")
 	t.Setenv("LOGIN_REVIEW_CODE", "")
+	t.Setenv("LOGIN_CODES_SENDER_URL", "")
+	t.Setenv("LOGIN_CODES_SENDER_TOKEN", "")
 	t.Setenv("TELEGRAM_API_ID", "")
 	t.Setenv("TELEGRAM_API_HASH", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")

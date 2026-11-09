@@ -43,6 +43,10 @@ LoginCode:
   HmacKey: "${LOGIN_CODE_HMAC_KEY}"
   ReviewPhone: "${LOGIN_REVIEW_PHONE}"
   ReviewCode: "${LOGIN_REVIEW_CODE}"
+  # The service that writes codes from a Telegram account
+  # (docs/ops/login-codes.md); no URL: no such service.
+  SenderURL: "${LOGIN_CODES_SENDER_URL}"
+  SenderToken: "${LOGIN_CODES_SENDER_TOKEN}"
 
 # The bot that fetches sticker and emoji sets from Telegram when a user asks
 # for one the server lacks (task 030, docs/ops/catalog.md); all three

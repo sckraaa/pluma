@@ -286,17 +286,17 @@ func TestResendCodeFallsBackToAdministrator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resent, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash)
+	resent, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := resent.ToAuthSentCode(); got.GetType().GetPredicateName() != mtproto.Predicate_auth_sentCodeTypeSms || got.GetNextType() != nil || got.GetPhoneCodeHash() != codeData.PhoneCodeHash {
 		t.Fatalf("resend answered %v", got)
 	}
-	if _, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash); rpcMessage(err) != "SEND_CODE_UNAVAILABLE" {
+	if _, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, ""); rpcMessage(err) != "SEND_CODE_UNAVAILABLE" {
 		t.Fatalf("second resend: %v", err)
 	}
-	if _, err := m.DoAuthReSendCode(ctx, authKeyId, phone, "bogus"); rpcMessage(err) != "PHONE_CODE_INVALID" {
+	if _, err := m.DoAuthReSendCode(ctx, authKeyId, phone, "bogus", ""); rpcMessage(err) != "PHONE_CODE_INVALID" {
 		t.Fatalf("resend with another hash: %v", err)
 	}
 	// The administrator's code works for the same phone_code_hash.
@@ -355,5 +355,112 @@ func TestAllowlistRejection(t *testing.T) {
 	}
 	if err := m.Codes.CheckSendCode(ctx, phone, authKeyId, "203.0.113.9"); err != nil {
 		t.Fatalf("allowed phone: %v", err)
+	}
+}
+
+// fakeSender plays the service of the Telegram account (pkg/logincode.Sender).
+type fakeSender struct {
+	result logincode.SendResult
+	codes  []string
+}
+
+func (f *fakeSender) Send(_ context.Context, _, code string) (logincode.SendResult, error) {
+	f.codes = append(f.codes, code)
+	return f.result, nil
+}
+
+func TestSendCodeThroughTelegramAccount(t *testing.T) {
+	ctx := context.Background()
+	m, _ := newLogic(t)
+	s := &fakeSender{result: logincode.SendSent}
+	m.Codes.SetSender(s)
+
+	codeData, err := m.DoAuthSendCode(ctx, authKeyId, 7, phone, 0, "203.0.113.5", &fakeDelivery{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sent := codeData.ToAuthSentCode()
+	if got := sent.GetType().GetPredicateName(); got != mtproto.Predicate_auth_sentCodeTypeApp {
+		t.Fatalf("type %s", got)
+	}
+	if sent.GetNextType().GetPredicateName() != mtproto.Predicate_auth_codeTypeSms || sent.GetTimeout() != nil {
+		t.Fatalf("next %v, timeout %v", sent.GetNextType(), sent.GetTimeout())
+	}
+	if len(s.codes) != 1 {
+		t.Fatalf("sent %d codes", len(s.codes))
+	}
+	if _, err := m.DoAuthSignIn(ctx, authKeyId, phone, s.codes[0], codeData.PhoneCodeHash, "203.0.113.5"); err != nil {
+		t.Fatalf("the code written does not sign in: %v", err)
+	}
+}
+
+func TestSendCodeRefusedByTelegramFallsBack(t *testing.T) {
+	ctx := context.Background()
+	m, _ := newLogic(t)
+	m.Codes.SetSender(&fakeSender{result: logincode.SendNoTelegram})
+
+	codeData, err := m.DoAuthSendCode(ctx, authKeyId, 7, phone, 0, "203.0.113.5", &fakeDelivery{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sent := codeData.ToAuthSentCode()
+	if got := sent.GetType().GetPredicateName(); got != mtproto.Predicate_auth_sentCodeTypeSms || sent.GetNextType() != nil {
+		t.Fatalf("type %s, next %v", got, sent.GetNextType())
+	}
+	r, err := m.Codes.Reissue(ctx, phone, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.DoAuthSignIn(ctx, authKeyId, phone, r.Code, codeData.PhoneCodeHash, "203.0.113.5"); err != nil {
+		t.Fatalf("the administrator's code does not sign in: %v", err)
+	}
+}
+
+func TestResendAfterTelegramGoesToAdministrator(t *testing.T) {
+	ctx := context.Background()
+	m, _ := newLogic(t)
+	s := &fakeSender{result: logincode.SendSent}
+	m.Codes.SetSender(s)
+	codeData, err := m.DoAuthSendCode(ctx, authKeyId, 7, phone, 0, "203.0.113.5", &fakeDelivery{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resent, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, "203.0.113.5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resent.ToAuthSentCode().GetType().GetPredicateName(); got != mtproto.Predicate_auth_sentCodeTypeSms {
+		t.Fatalf("type %s", got)
+	}
+	if len(s.codes) != 1 {
+		t.Fatalf("the sender was asked %d times", len(s.codes))
+	}
+}
+
+func TestResendOfInAppCodeTriesTelegramOnce(t *testing.T) {
+	ctx := context.Background()
+	m, _ := newLogic(t)
+	s := &fakeSender{result: logincode.SendSent}
+	m.Codes.SetSender(s)
+	codeData, err := m.DoAuthSendCode(ctx, authKeyId, 7, phone, userId, "203.0.113.5", &fakeDelivery{others: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.codes) != 0 {
+		t.Fatal("the account wrote while the app could be used")
+	}
+	resent, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, "203.0.113.5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resent.ToAuthSentCode().GetType().GetPredicateName(); got != mtproto.Predicate_auth_sentCodeTypeApp || len(s.codes) != 1 {
+		t.Fatalf("type %s, codes %d", got, len(s.codes))
+	}
+	resent, err = m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, "203.0.113.5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resent.ToAuthSentCode().GetType().GetPredicateName(); got != mtproto.Predicate_auth_sentCodeTypeSms || len(s.codes) != 1 {
+		t.Fatalf("second resend: type %s, codes %d", got, len(s.codes))
 	}
 }

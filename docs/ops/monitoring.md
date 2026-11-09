@@ -41,3 +41,13 @@
 | пуш от healthchecks.io «Pluma is down» | сервер, Prometheus или Alertmanager не работают: зайти на сервер; если он недоступен — у хостера |
 
 Алерты без срочности (warning) повторяются раз в 4 часа, critical — раз в час, пока не починено. На время плановых работ — Silence в Alertmanager.
+
+## Коды входа через аккаунт Telegram
+Правила — `teamgramd/deploy/prometheus/server/rules/codes.yml`, цель — `ops.codes` по DNS: где сервис не развёрнут, цели нет и ничего не срабатывает. Что делать по каждому алерту — `docs/ops/login-codes.md`.
+
+| Алерт | Что значит |
+|---|---|
+| `LoginCodesSessionGone` | у аккаунта нет сессии: Telegram её завершил или вход ещё не делали. Коды идут только через администратора |
+| `LoginCodesAccountLimited` | Telegram ограничил аккаунт (ожидание или `PEER_FLOOD`) |
+| `LoginCodesSenderUnreachable` | bff не достучался до сервиса |
+| `LoginCodesContactsNotRemoved` | импортированные контакты не удаляются |

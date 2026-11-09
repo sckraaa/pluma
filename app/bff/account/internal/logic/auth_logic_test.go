@@ -105,3 +105,40 @@ func TestChangePhoneRequiresCode(t *testing.T) {
 		t.Fatalf("code reused: %v", err)
 	}
 }
+
+type fakeSender struct{ codes []string }
+
+func (f *fakeSender) Send(_ context.Context, _, code string) (logincode.SendResult, error) {
+	f.codes = append(f.codes, code)
+	return logincode.SendSent, nil
+}
+
+func TestChangePhoneThroughTelegramAccount(t *testing.T) {
+	ctx := context.Background()
+	mr := miniredis.RunT(t)
+	codes, err := logincode.NewService(logincode.Config{HmacKey: strings.Repeat("k", 32)}, allowlist{newPhone: true}, kv.NewStore(kv.KvConf{cache.NodeConf{
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
+		Weight:    100,
+	}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sender := &fakeSender{}
+	codes.SetSender(sender)
+	store := memStore{}
+	m := NewAuthSignLogic(store, codes)
+
+	codeData, err := m.DoSendChangePhoneCode(ctx, 1, 2, newPhone, "203.0.113.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := codeData.ToAuthSentCode().GetType().GetPredicateName(); got != mtproto.Predicate_auth_sentCodeTypeApp {
+		t.Fatalf("sent code type %s", got)
+	}
+	if len(sender.codes) != 1 {
+		t.Fatalf("sent %d codes", len(sender.codes))
+	}
+	if err := m.DoChangePhone(ctx, 1, newPhone, sender.codes[0], codeData.PhoneCodeHash, "203.0.113.1"); err != nil {
+		t.Fatalf("the code written does not work: %v", err)
+	}
+}

@@ -43,6 +43,10 @@ LoginCode:
   HmacKey: "${LOGIN_CODE_HMAC_KEY}"
   ReviewPhone: "${LOGIN_REVIEW_PHONE}"
   ReviewCode: "${LOGIN_REVIEW_CODE}"
+  # The service that writes codes from a Telegram account
+  # (docs/ops/login-codes.md); no URL: no such service.
+  SenderURL: "${LOGIN_CODES_SENDER_URL}"
+  SenderToken: "${LOGIN_CODES_SENDER_TOKEN}"
 
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
