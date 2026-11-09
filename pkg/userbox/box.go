@@ -275,7 +275,10 @@ func (b *Box) result() *Result {
 // updateTheme is the whole theme, so a replay in order ends the same.
 func SeqUpdate(predicate string) bool {
 	switch predicate {
-	case mtproto.Predicate_updateNotifySettings,
+	case mtproto.Predicate_updateBotCallbackQuery,
+		mtproto.Predicate_updateInlineBotCallbackQuery,
+		mtproto.Predicate_updateBotInlineQuery,
+		mtproto.Predicate_updateNotifySettings,
 		mtproto.Predicate_updateDialogPinned,
 		mtproto.Predicate_updatePinnedDialogs,
 		mtproto.Predicate_updateDialogFilter,

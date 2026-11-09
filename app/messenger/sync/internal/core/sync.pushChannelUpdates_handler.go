@@ -16,6 +16,7 @@
 package core
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/botprivacy"
 	"slices"
 	"time"
 
@@ -65,6 +66,9 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	now := int32(time.Now().Unix())
 	for _, member := range members.GetDatas() {
 		updates := c.channelView(in, member, mc.ToChat(member, now), users.GetUserListByIdList(member, h.UserIdList...))
+		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member)); updates == nil {
+			continue
+		}
 		if member == in.FromId {
 			_, err = c.SyncUpdatesNotMe(&sync.TLSyncUpdatesNotMe{UserId: member, PermAuthKeyId: in.FromAuthKeyId, Updates: updates})
 		} else {
@@ -105,5 +109,33 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 	}
 	updates.Chats = []*mtproto.Chat{channel}
 	updates.Users = users
+	return updates
+}
+
+// forBot is what of updates the member gets when it is a bot in privacy mode
+// of a supergroup: nil when no update remains (pkg/botprivacy; a broadcast
+// channel's posts reach all its bots). mentioned tells replies to the bot.
+func forBot(updates *mtproto.Updates, mc *channelpb.MutableChannel, users *mtproto.MutableUsers, member int64, mentioned bool) *mtproto.Updates {
+	u, ok := users.GetImmutableUser(member)
+	if !ok || !u.IsBot() || mc.GetChannel().GetBroadcast() {
+		return updates
+	}
+	p, _ := mc.GetParticipant(member)
+	bot := botprivacy.Bot{
+		Id:       member,
+		Username: u.Username(),
+		ReadsAll: u.BotChatHistory() || p.GetRole() == channelpb.RoleCreator || p.GetRole() == channelpb.RoleAdmin,
+	}
+	kept := updates.GetUpdates()[:0]
+	for _, up := range updates.GetUpdates() {
+		if m := up.GetMessage_MESSAGE(); m != nil && !botprivacy.Visible(bot, m, mentioned) {
+			continue
+		}
+		kept = append(kept, up)
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	updates.Updates = kept
 	return updates
 }

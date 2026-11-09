@@ -10,6 +10,7 @@
 package core
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/botprivacy"
 	"math/rand"
 	"time"
 
@@ -489,12 +490,19 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 				return err
 			}
 			for _, userId := range recipients {
+				boxList, err := botCopy(b, chat, users.users, userId, boxes)
+				if err != nil {
+					return err
+				}
+				if len(boxList) == 0 {
+					continue
+				}
 				if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
 					UserId:   userId,
 					FromId:   fromUserId,
 					PeerType: mtproto.PEER_CHAT,
 					PeerId:   peerChatId,
-					BoxList:  boxes,
+					BoxList:  boxList,
 					Users:    users.For(userId),
 					Chats:    []*mtproto.Chat{chat.ToUnsafeChat(userId)},
 				}); err != nil {
@@ -526,4 +534,29 @@ func isVoiceOrRound(m *mtproto.Message) bool {
 		}
 	}
 	return false
+}
+
+// botCopy is the part of boxes the member userId gets: all of it, except for
+// a bot in privacy mode that is no admin of the chat (pkg/botprivacy).
+func botCopy(b *userbox.Box, chat *mtproto.MutableChat, users *mtproto.MutableUsers, userId int64, boxes []*mtproto.MessageBox) ([]*mtproto.MessageBox, error) {
+	p, ok := chat.GetImmutableChatParticipant(userId)
+	if !ok || !p.IsBot {
+		return boxes, nil
+	}
+	u, ok := users.GetImmutableUser(userId)
+	if !ok {
+		return boxes, nil
+	}
+	bot := botprivacy.Bot{Id: userId, Username: u.Username(), ReadsAll: u.BotChatHistory() || p.IsChatMemberAdmin() || p.IsChatMemberCreator()}
+	out := make([]*mtproto.MessageBox, 0, len(boxes))
+	for _, box := range boxes {
+		author, err := dao.RepliedAuthor(b, box.GetMessage())
+		if err != nil {
+			return nil, err
+		}
+		if botprivacy.Visible(bot, box.GetMessage(), author == userId) {
+			out = append(out, box)
+		}
+	}
+	return out, nil
 }

@@ -64,6 +64,12 @@ func Pick(h *mtproto.IDListHelper, selfId int64, updates ...*mtproto.Update) {
 	}
 	for _, u := range updates {
 		switch u.GetPredicateName() {
+		case mtproto.Predicate_updateBotInlineQuery,
+			mtproto.Predicate_updateInlineBotCallbackQuery:
+			users(u.GetUserId())
+		case mtproto.Predicate_updateBotCallbackQuery:
+			users(u.GetUserId())
+			h.PickByPeer(u.GetPeer_PEER())
 		case mtproto.Predicate_updateNotifySettings:
 			if p := u.GetPeer_NOTIFYPEER().GetPeer(); p != nil {
 				h.PickByPeer(p)

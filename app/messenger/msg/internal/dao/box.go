@@ -155,17 +155,16 @@ func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.
 	return sync_client.EmitSeqUpdate(b, d.Topics.Sync, u, users, chats)
 }
 
-// EmitPushUpdates adds a push of updates to all of userId's devices, or to
-// the bot gateway when userId is a bot (nothing when bots are not served).
+// EmitPushUpdates adds a push of updates to all of userId's devices, or, for
+// a bot when BotSync is set, to the gateway of bots. Bots are ordinary
+// MTProto clients without BotSync (task 070, ADR 0041): they get the same
+// updates and getDifference as users.
 func (d *Dao) EmitPushUpdates(b *userbox.Box, userId int64, isBot bool, updates *mtproto.Updates) error {
 	var (
 		ev  userbox.Event
 		err error
 	)
-	if isBot {
-		if d.Topics.BotSync == "" {
-			return nil
-		}
+	if isBot && d.Topics.BotSync != "" {
 		ev, err = newEvent(d.Topics.BotSync, &sync.TLSyncPushBotUpdates{UserId: userId, Updates: updates})
 	} else {
 		ev, err = newEvent(d.Topics.Sync, &sync.TLSyncPushUpdates{UserId: userId, Updates: updates})

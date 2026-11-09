@@ -153,6 +153,24 @@ func replyCopy(b *userbox.Box, fromId int64, did mtproto.DialogID, fromMessageId
 	return &rows[0], nil
 }
 
+// RepliedAuthor returns who sent the message of b's account that m, one of
+// its own messages, replies to in the same chat, 0 for no such reply.
+func RepliedAuthor(b *userbox.Box, m *mtproto.Message) (int64, error) {
+	if m.GetReplyTo().GetPredicateName() != mtproto.Predicate_messageReplyHeader || m.GetReplyTo().GetReplyFrom() != nil {
+		return 0, nil
+	}
+	id := m.GetReplyTo().GetFixedReplyToMsgId()
+	if id == 0 {
+		return 0, nil
+	}
+	var rows []int64
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT sender_user_id FROM messages WHERE user_id = ? AND user_message_box_id = ? AND deleted = 0 LIMIT 1", b.UserId(), id); err != nil || len(rows) == 0 {
+		return 0, err
+	}
+	return rows[0], nil
+}
+
 // dialogMessageIds returns up to limit ids of the dialog's messages that are
 // not deleted, newest first.
 func dialogMessageIds(b *userbox.Box, peer boxPeer, limit int) ([]int32, error) {
