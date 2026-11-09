@@ -16,8 +16,9 @@
 package core
 
 import (
+	"encoding/binary"
 	"errors"
-	"math/rand"
+	"hash/fnv"
 	"regexp"
 	"time"
 
@@ -31,6 +32,29 @@ import (
 const maxStartParam = 64
 
 var startParamRe = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
+// addRetryWindow is how long, in seconds, messages.startBot of the user who
+// added a bot takes the addition for its own unfinished one.
+const addRetryWindow = 300
+
+// addedJustNow tells whether c's user added the bot to the chat moments ago.
+func (c *BotsCore) addedJustNow(chat *mtproto.MutableChat, botId int64) bool {
+	p, ok := chat.GetImmutableChatParticipant(botId)
+	return ok && p.GetInviterUserId() == c.MD.UserId && time.Now().Unix()-p.GetInvitedAt() < addRetryWindow
+}
+
+// additionRandomId is the random_id of the service message of this addition
+// of the bot: the same for a repeat, another when the bot is added again.
+func additionRandomId(chat *mtproto.MutableChat, botId int64) int64 {
+	p, _ := chat.GetImmutableChatParticipant(botId)
+	h := fnv.New64a()
+	var b [8 * 3]byte
+	binary.BigEndian.PutUint64(b[:8], uint64(chat.GetChat().GetId()))
+	binary.BigEndian.PutUint64(b[8:16], uint64(botId))
+	binary.BigEndian.PutUint64(b[16:], uint64(p.GetInvitedAt()))
+	_, _ = h.Write(b[:])
+	return int64(h.Sum64() >> 1)
+}
 
 // MessagesStartBot
 // messages.startBot#e6df7378 bot:InputUser peer:InputPeer random_id:long start_param:string = Updates;
@@ -128,12 +152,19 @@ func (c *BotsCore) addBot(peer *mtproto.PeerUtil, botId int64) (*mtproto.Updates
 		IsBot:     true,
 	})
 	if errors.Is(err, mtproto.ErrUserAlreadyParticipant) {
-		return nil, nil
-	}
-	if err != nil {
+		if chat, err = c.svcCtx.Chat.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: peer.PeerId}); err != nil {
+			return nil, err
+		}
+		if !c.addedJustNow(chat, botId) {
+			return nil, nil
+		}
+	} else if err != nil {
 		return nil, err
 	}
 	// The service message of the addition, as messages.addChatUser sends it.
+	// The addition and the message are two transactions: a repeat of a
+	// request whose message was lost sends it now, and one whose message
+	// was sent gets that one back by its random_id (dao.SentBefore).
 	return c.svcCtx.MsgSendMessageV2(c.ctx, &msgpb.TLMsgSendMessageV2{
 		UserId:    c.MD.UserId,
 		AuthKeyId: c.MD.PermAuthKeyId,
@@ -141,7 +172,7 @@ func (c *BotsCore) addBot(peer *mtproto.PeerUtil, botId int64) (*mtproto.Updates
 		PeerId:    peer.PeerId,
 		Message: []*msgpb.OutboxMessage{msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
 			NoWebpage: true,
-			RandomId:  rand.Int63(),
+			RandomId:  additionRandomId(chat, botId),
 			Message:   chat.MakeMessageService(c.MD.UserId, mtproto.MakeMessageActionChatAddUser(botId)),
 		}).To_OutboxMessage()},
 	})
