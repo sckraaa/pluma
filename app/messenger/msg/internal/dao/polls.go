@@ -434,8 +434,8 @@ func (d *Dao) ReadPollVotes(b *userbox.Box, peerType int32, peerId int64, topMsg
 	where := "creator_user_id = ? AND has_unread = 1 AND peer_type = ? AND peer_id = ?"
 	args := []any{b.UserId(), peerType, peerId}
 	if topMsgId != 0 && peerType == mtproto.PEER_CHANNEL {
-		where += " AND message_id IN (SELECT id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ?)"
-		args = append(args, peerId, topMsgId)
+		where += " AND message_id IN (SELECT m.id FROM channel_messages m JOIN channels c ON c.id = m.channel_id WHERE m.channel_id = ? AND IF(c.forum, m.topic_id = ?, m.reply_top_id = ?))"
+		args = append(args, peerId, channelbox.TopicColumn(topMsgId), topMsgId)
 	}
 	_, err := b.Tx().Exec("UPDATE polls SET has_unread = 0 WHERE "+where, args...)
 	return err

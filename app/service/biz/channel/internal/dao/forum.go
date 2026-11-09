@@ -26,6 +26,8 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -253,11 +255,42 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool) (
 		if err = EnsureGeneralTopic(b, channelId); err != nil {
 			return nil, err
 		}
+	} else if r.Forum {
+		if err = keepTopicReads(b, channelId); err != nil {
+			return nil, err
+		}
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET forum = ?, forum_tabs = ?, version = version + 1 WHERE id = ?", enabled, tabs, channelId); err != nil {
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// keepTopicReads moves what the members read in topics of the forum, about
+// to be turned off, into the read mark of their dialogs: without topics only
+// that mark counts. It goes as far as everything before it is read, so no
+// unread message becomes read; a message read in a topic past the first
+// unread one of another topic counts as unread again. The channel is
+// locked: dialogs are changed under it, as a send changes the sender's.
+// What Telegram does here is not documented (UNVERIFIED).
+func keepTopicReads(b *userbox.Box, channelId int64) error {
+	var members []int64
+	if err := b.Tx().QueryRowsPartial(&members,
+		"SELECT DISTINCT user_id FROM channel_thread_reads WHERE channel_id = ?", channelId); err != nil || len(members) == 0 {
+		return err
+	}
+	if _, err := b.Tx().Exec("UPDATE dialogs g SET g.read_inbox_max_id = GREATEST(g.read_inbox_max_id, COALESCE(("+
+		"SELECT MIN(m.id) - 1 FROM channel_messages m LEFT JOIN channel_thread_reads t ON t.user_id = g.user_id AND t.channel_id = m.channel_id AND t.top_id = IF(m.topic_id = 0, 1, m.topic_id)"+
+		" WHERE m.channel_id = ? AND m.deleted = 0 AND m.sender_user_id <> g.user_id AND m.id > GREATEST(g.read_inbox_max_id, COALESCE(t.read_max_id, 0))"+
+		"), (SELECT top_message FROM channels WHERE id = ?)))"+
+		" WHERE g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 AND g.user_id IN (SELECT user_id FROM channel_thread_reads WHERE channel_id = ?)",
+		channelId, channelId, mtproto.PEER_CHANNEL, channelId, channelId); err != nil {
+		return err
+	}
+	for _, id := range members {
+		b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(id, mtproto.PEER_CHANNEL, channelId))
+	}
+	return nil
 }
 
 // ToggleViewForumAsMessages sets whether b's owner reads the forum as one
@@ -602,12 +635,15 @@ func (d *Dao) DeleteTopicHistory(b *userbox.Box, channelId int64, topicId int32)
 	if _, err = b.Tx().Exec("UPDATE channel_forum_topics SET deleted = 1, pinned_order = 0 WHERE channel_id = ? AND topic_id = ?", channelId, topicId); err != nil {
 		return nil, false, err
 	}
+	if _, err = b.Tx().Exec("DELETE FROM user_topic_notify_settings WHERE channel_id = ? AND top_msg_id = ?", channelId, topicId); err != nil {
+		return nil, false, err
+	}
 	_, err = b.Tx().Exec("DELETE FROM channel_thread_reads WHERE channel_id = ? AND top_id = ?", channelId, topicId)
 	return del, false, err
 }
 
 // topicsOf returns those of ids that are topics of the channel other than
-// General.
+// General. In a forum that was turned off they are ordinary messages.
 func topicsOf(b *userbox.Box, channelId int64, ids []int32) ([]int32, error) {
 	if len(ids) == 0 {
 		return nil, nil
@@ -617,7 +653,7 @@ func topicsOf(b *userbox.Box, channelId int64, ids []int32) ([]int32, error) {
 		args = append(args, id)
 	}
 	var out []int32
-	err := b.Tx().QueryRowsPartial(&out, "SELECT topic_id FROM channel_forum_topics WHERE channel_id = ? AND topic_id > 1 AND topic_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")", args...)
+	err := b.Tx().QueryRowsPartial(&out, "SELECT t.topic_id FROM channel_forum_topics t JOIN channels c ON c.id = t.channel_id AND c.forum = 1 WHERE t.channel_id = ? AND t.topic_id > 1 AND t.topic_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")", args...)
 	return out, err
 }
 
@@ -792,7 +828,8 @@ func (d *Dao) UnpinAllTopic(b *userbox.Box, channelId int64, topicId int32) (*mt
 
 // topicCounts is what a page of topics needs of selfId and the messages.
 type topicCounts struct {
-	floor, unread, mentions, top, outbox map[int32]int32
+	floor, unread, mentions, top, outbox, reactions, pollVotes map[int32]int32
+	notify                                                     map[int32]*mtproto.PeerNotifySettings
 }
 
 func topicIn(ids []int32) (string, []any) {
@@ -806,7 +843,7 @@ func topicIn(ids []int32) (string, []any) {
 // countTopics reads, for the topics rows of the channel, how far selfId read
 // each, what it has not read and the newest message.
 func (d *Dao) countTopics(ctx context.Context, selfId, channelId int64, availableMinId int32, rows []topicRow) (*topicCounts, error) {
-	out := &topicCounts{floor: map[int32]int32{}, unread: map[int32]int32{}, mentions: map[int32]int32{}, top: map[int32]int32{}, outbox: map[int32]int32{}}
+	out := &topicCounts{reactions: map[int32]int32{}, pollVotes: map[int32]int32{}, notify: map[int32]*mtproto.PeerNotifySettings{}, floor: map[int32]int32{}, unread: map[int32]int32{}, mentions: map[int32]int32{}, top: map[int32]int32{}, outbox: map[int32]int32{}}
 	if len(rows) == 0 {
 		return out, nil
 	}
@@ -886,6 +923,37 @@ func (d *Dao) countTopics(ctx context.Context, selfId, channelId int64, availabl
 	for _, c := range mentions {
 		out.mentions[asTopic(c.Topic)] = c.N
 	}
+	var reactionCounts []count
+	if err := d.Mysql.QueryRowsPartial(ctx, &reactionCounts,
+		"SELECT m.topic_id AS topic, COUNT(DISTINCT r.message_id) AS n FROM channel_message_reactions r"+
+			" JOIN channel_messages m ON m.channel_id = r.channel_id AND m.id = r.message_id AND m.deleted = 0"+
+			" WHERE r.channel_id = ? AND r.unread = 1 AND m.sender_user_id = ? AND r.message_id >= ? AND m.topic_id IN "+columnsIn+" GROUP BY m.topic_id",
+		append([]any{channelId, selfId, availableMinId}, columnArgs...)...); err != nil {
+		return nil, err
+	}
+	for _, c := range reactionCounts {
+		out.reactions[asTopic(c.Topic)] = c.N
+	}
+	var voteCounts []count
+	if err := d.Mysql.QueryRowsPartial(ctx, &voteCounts,
+		"SELECT m.topic_id AS topic, COUNT(*) AS n FROM polls p"+
+			" JOIN channel_messages m ON m.channel_id = p.peer_id AND m.id = p.message_id AND m.deleted = 0"+
+			" WHERE p.creator_user_id = ? AND p.has_unread = 1 AND p.peer_type = ? AND p.peer_id = ? AND m.topic_id IN "+columnsIn+" GROUP BY m.topic_id",
+		append([]any{selfId, mtproto.PEER_CHANNEL, channelId}, columnArgs...)...); err != nil {
+		return nil, err
+	}
+	for _, c := range voteCounts {
+		out.pollVotes[asTopic(c.Topic)] = c.N
+	}
+	var settings []userpb.TopicNotifyRow
+	if err := d.Mysql.QueryRowsPartial(ctx, &settings,
+		"SELECT "+userpb.TopicNotifyColumns+" FROM user_topic_notify_settings WHERE user_id = ? AND channel_id = ? AND top_msg_id IN "+idsIn,
+		append([]any{selfId, channelId}, idArgs...)...); err != nil {
+		return nil, err
+	}
+	for i := range settings {
+		out.notify[settings[i].TopMsgId] = settings[i].Settings()
+	}
 	var others []count
 	if err := d.Mysql.QueryRowsPartial(ctx, &others,
 		"SELECT top_id AS topic, MAX(read_max_id) AS n FROM channel_thread_reads WHERE channel_id = ? AND user_id <> ? AND top_id IN "+idsIn+" GROUP BY top_id",
@@ -907,8 +975,8 @@ func (d *Dao) countTopics(ctx context.Context, selfId, channelId int64, availabl
 	return out, nil
 }
 
-// viewTopic is the forumTopic of r as selfId sees it. Per-topic
-// notifications are not kept: the settings are the empty ones, default.
+// viewTopic is the forumTopic of r as selfId sees it. Without settings of
+// its own for the topic they are the empty ones: the forum's apply.
 func viewTopic(channelId, selfId int64, r *topicRow, c *topicCounts) *mtproto.ForumTopic {
 	t := &mtproto.ForumTopic{
 		Id:              r.TopicId,
@@ -929,6 +997,11 @@ func viewTopic(channelId, selfId int64, r *topicRow, c *topicCounts) *mtproto.Fo
 		NotifySettings:  mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{}).To_PeerNotifySettings(),
 	}
 	t.UnreadMentionsCount = c.mentions[r.TopicId]
+	t.UnreadReactionsCount = c.reactions[r.TopicId]
+	t.UnreadPollVotesCount = c.pollVotes[r.TopicId]
+	if s := c.notify[r.TopicId]; s != nil {
+		t.NotifySettings = s
+	}
 	if r.IconEmojiId != 0 {
 		t.IconEmojiId = wrapperspb.Int64(r.IconEmojiId)
 	}

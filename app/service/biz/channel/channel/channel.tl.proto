@@ -177,6 +177,12 @@ enum TLConstructor {
   CRC32_channel_editBanned = -1457424068;
   // pluma: task 042
   CRC32_channel_editDefaultBannedRights = 1263700059;
+  // pluma: task 067
+  CRC32_channel_expireMessages = 1530267177;
+  // pluma: task 067
+  CRC32_channel_getUnreadReactions = -793086366;
+  // pluma: task 067
+  CRC32_channel_readReactions = 2058932457;
 }
 
 
@@ -1267,6 +1273,47 @@ message TL_channel_searchAcross {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.expireMessages channel_id:long now:long = Int32;
+// Deletes up to one portion of the channel's messages whose auto-delete period
+// ended at now, and answers how many it deleted.
+// (task 067)
+message TL_channel_expireMessages {
+  TLConstructor constructor = 1;
+  int64 channel_id = 3;
+  int64 now = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getUnreadReactions self_id:long channel_id:long top_msg_id:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// The messages of self_id in the channel with reactions it has not seen,
+// of the topic top_msg_id unless it is 0 (messages.getUnreadReactions).
+// (task 067)
+message TL_channel_getUnreadReactions {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 top_msg_id = 5;
+  int32 offset_id = 6;
+  int32 add_offset = 7;
+  int32 limit = 8;
+  int32 max_id = 9;
+  int32 min_id = 10;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.readReactions self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+// self_id has seen the reactions to its messages of the channel, of the
+// topic top_msg_id unless it is 0 (messages.readReactions).
+// (task 067)
+message TL_channel_readReactions {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 top_msg_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -1440,4 +1487,10 @@ service RPCChannel {
   rpc channel_editBanned(TL_channel_editBanned) returns (mtproto.Updates) {}
   // pluma: task 042
   rpc channel_editDefaultBannedRights(TL_channel_editDefaultBannedRights) returns (mtproto.Updates) {}
+  // pluma: task 067
+  rpc channel_expireMessages(TL_channel_expireMessages) returns (mtproto.Int32) {}
+  // pluma: task 067
+  rpc channel_getUnreadReactions(TL_channel_getUnreadReactions) returns (mtproto.messages_Messages) {}
+  // pluma: task 067
+  rpc channel_readReactions(TL_channel_readReactions) returns (mtproto.messages_AffectedHistory) {}
 }

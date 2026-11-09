@@ -101,6 +101,9 @@ type ChannelClient interface {
 	ChannelEditAdmin(ctx context.Context, in *channel.TLChannelEditAdmin) (*mtproto.Updates, error)
 	ChannelEditBanned(ctx context.Context, in *channel.TLChannelEditBanned) (*mtproto.Updates, error)
 	ChannelEditDefaultBannedRights(ctx context.Context, in *channel.TLChannelEditDefaultBannedRights) (*mtproto.Updates, error)
+	ChannelExpireMessages(ctx context.Context, in *channel.TLChannelExpireMessages) (*mtproto.Int32, error)
+	ChannelGetUnreadReactions(ctx context.Context, in *channel.TLChannelGetUnreadReactions) (*mtproto.Messages_Messages, error)
+	ChannelReadReactions(ctx context.Context, in *channel.TLChannelReadReactions) (*mtproto.Messages_AffectedHistory, error)
 }
 
 type defaultChannelClient struct {
@@ -936,4 +939,37 @@ func (m *defaultChannelClient) ChannelSearchAcross(ctx context.Context, in *chan
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSearchAcross(ctx, in)
+}
+
+// ChannelExpireMessages
+// channel.expireMessages channel_id:long now:long = Int32;
+func (m *defaultChannelClient) ChannelExpireMessages(ctx context.Context, in *channel.TLChannelExpireMessages) (*mtproto.Int32, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelExpireMessages(ctx, in)
+}
+
+// ChannelGetUnreadReactions
+// channel.getUnreadReactions self_id:long channel_id:long top_msg_id:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (m *defaultChannelClient) ChannelGetUnreadReactions(ctx context.Context, in *channel.TLChannelGetUnreadReactions) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetUnreadReactions(ctx, in)
+}
+
+// ChannelReadReactions
+// channel.readReactions self_id:long perm_auth_key_id:long channel_id:long top_msg_id:int = messages.AffectedHistory;
+func (m *defaultChannelClient) ChannelReadReactions(ctx context.Context, in *channel.TLChannelReadReactions) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReadReactions(ctx, in)
 }

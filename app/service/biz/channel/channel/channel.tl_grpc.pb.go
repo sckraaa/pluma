@@ -111,6 +111,9 @@ const (
 	RPCChannel_ChannelEditAdmin_FullMethodName                        = "/channel.RPCChannel/channel_editAdmin"
 	RPCChannel_ChannelEditBanned_FullMethodName                       = "/channel.RPCChannel/channel_editBanned"
 	RPCChannel_ChannelEditDefaultBannedRights_FullMethodName          = "/channel.RPCChannel/channel_editDefaultBannedRights"
+	RPCChannel_ChannelExpireMessages_FullMethodName                   = "/channel.RPCChannel/channel_expireMessages"
+	RPCChannel_ChannelGetUnreadReactions_FullMethodName               = "/channel.RPCChannel/channel_getUnreadReactions"
+	RPCChannel_ChannelReadReactions_FullMethodName                    = "/channel.RPCChannel/channel_readReactions"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -265,6 +268,12 @@ type RPCChannelClient interface {
 	ChannelEditBanned(ctx context.Context, in *TLChannelEditBanned, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 042
 	ChannelEditDefaultBannedRights(ctx context.Context, in *TLChannelEditDefaultBannedRights, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 067
+	ChannelExpireMessages(ctx context.Context, in *TLChannelExpireMessages, opts ...grpc.CallOption) (*mtproto.Int32, error)
+	// pluma: task 067
+	ChannelGetUnreadReactions(ctx context.Context, in *TLChannelGetUnreadReactions, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
+	// pluma: task 067
+	ChannelReadReactions(ctx context.Context, in *TLChannelReadReactions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 }
 
 type rPCChannelClient struct {
@@ -1025,6 +1034,36 @@ func (c *rPCChannelClient) ChannelEditDefaultBannedRights(ctx context.Context, i
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelExpireMessages(ctx context.Context, in *TLChannelExpireMessages, opts ...grpc.CallOption) (*mtproto.Int32, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Int32)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelExpireMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetUnreadReactions(ctx context.Context, in *TLChannelGetUnreadReactions, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetUnreadReactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelReadReactions(ctx context.Context, in *TLChannelReadReactions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelReadReactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -1177,6 +1216,12 @@ type RPCChannelServer interface {
 	ChannelEditBanned(context.Context, *TLChannelEditBanned) (*mtproto.Updates, error)
 	// pluma: task 042
 	ChannelEditDefaultBannedRights(context.Context, *TLChannelEditDefaultBannedRights) (*mtproto.Updates, error)
+	// pluma: task 067
+	ChannelExpireMessages(context.Context, *TLChannelExpireMessages) (*mtproto.Int32, error)
+	// pluma: task 067
+	ChannelGetUnreadReactions(context.Context, *TLChannelGetUnreadReactions) (*mtproto.Messages_Messages, error)
+	// pluma: task 067
+	ChannelReadReactions(context.Context, *TLChannelReadReactions) (*mtproto.Messages_AffectedHistory, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -1410,6 +1455,15 @@ func (UnimplementedRPCChannelServer) ChannelEditBanned(context.Context, *TLChann
 }
 func (UnimplementedRPCChannelServer) ChannelEditDefaultBannedRights(context.Context, *TLChannelEditDefaultBannedRights) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditDefaultBannedRights not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelExpireMessages(context.Context, *TLChannelExpireMessages) (*mtproto.Int32, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelExpireMessages not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetUnreadReactions(context.Context, *TLChannelGetUnreadReactions) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetUnreadReactions not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelReadReactions(context.Context, *TLChannelReadReactions) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelReadReactions not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -2781,6 +2835,60 @@ func _RPCChannel_ChannelEditDefaultBannedRights_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelExpireMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelExpireMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelExpireMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelExpireMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelExpireMessages(ctx, req.(*TLChannelExpireMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetUnreadReactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetUnreadReactions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetUnreadReactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetUnreadReactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetUnreadReactions(ctx, req.(*TLChannelGetUnreadReactions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelReadReactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelReadReactions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelReadReactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelReadReactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelReadReactions(ctx, req.(*TLChannelReadReactions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3087,6 +3195,18 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_editDefaultBannedRights",
 			Handler:    _RPCChannel_ChannelEditDefaultBannedRights_Handler,
+		},
+		{
+			MethodName: "channel_expireMessages",
+			Handler:    _RPCChannel_ChannelExpireMessages_Handler,
+		},
+		{
+			MethodName: "channel_getUnreadReactions",
+			Handler:    _RPCChannel_ChannelGetUnreadReactions_Handler,
+		},
+		{
+			MethodName: "channel_readReactions",
+			Handler:    _RPCChannel_ChannelReadReactions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

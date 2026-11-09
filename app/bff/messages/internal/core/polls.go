@@ -25,6 +25,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -320,8 +321,9 @@ func (c *MessagesCore) MessagesGetUnreadPollVotes(in *mtproto.TLMessagesGetUnrea
 	where := "creator_user_id = ? AND has_unread = 1 AND peer_type = ? AND peer_id = ?"
 	args := []any{c.MD.UserId, peer.PeerType, peer.PeerId}
 	if top := in.GetTopMsgId().GetValue(); top != 0 && peer.PeerType == mtproto.PEER_CHANNEL {
-		where += " AND message_id IN (SELECT id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ?)"
-		args = append(args, peer.PeerId, top)
+		// A topic of a forum, a thread of replies elsewhere (task 067).
+		where += " AND message_id IN (SELECT m.id FROM channel_messages m JOIN channels c ON c.id = m.channel_id WHERE m.channel_id = ? AND IF(c.forum, m.topic_id = ?, m.reply_top_id = ?))"
+		args = append(args, peer.PeerId, channelbox.TopicColumn(top), top)
 	}
 	var ids []int32
 	if err := c.svcCtx.Reactions.QueryRowsPartial(c.ctx, &ids, "SELECT message_id FROM polls WHERE "+where+" ORDER BY message_id DESC", args...); err != nil {

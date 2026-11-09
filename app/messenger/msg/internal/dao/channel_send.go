@@ -677,6 +677,21 @@ func postCopy(b *userbox.Box, group *channelbox.Channel, channelId int64, post *
 	return ChannelSent{Message: m, Pts: group.Pts()}, nil
 }
 
+// serviceMoved is movedTo for a service message without a topic: in a forum
+// it goes to General, and the read mark of the dialog, which every topic
+// counts from, stays (task 067).
+func serviceMoved(b *userbox.Box, channelId int64, last int32) error {
+	var forum []bool
+	if err := b.Tx().QueryRowsPartial(&forum, "SELECT forum FROM channels WHERE id = ?", channelId); err != nil {
+		return err
+	}
+	if len(forum) > 0 && forum[0] {
+		b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), mtproto.PEER_CHANNEL, channelId))
+		return channelbox.ForumMoved(b, channelId, channelbox.GeneralTopicId, last)
+	}
+	return movedTo(b, channelId, last)
+}
+
 // movedTo moves the channel's top message to last, b's owner's message, and
 // the owner's dialog with it, read.
 func movedTo(b *userbox.Box, channelId int64, last int32) error {

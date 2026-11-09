@@ -31,10 +31,23 @@ func (c *NotificationCore) AccountGetNotifySettings(in *mtproto.TLAccountGetNoti
 		settings *mtproto.PeerNotifySettings
 	)
 
-	// The settings of one topic are not kept: its forum's apply (task 060),
-	// as an answer of default ones (empty) says to the clients.
+	// The settings of one topic of a forum (tdesktop apiwrap.cpp:1975).
 	if in.GetPeer().GetPredicateName() == mtproto.Predicate_inputNotifyForumTopic {
-		return mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{}).To_PeerNotifySettings(), nil
+		channelId, err := c.forumOf(in.GetPeer())
+		if err != nil {
+			c.Logger.Errorf("account.getNotifySettings - error: %v", err)
+			return nil, err
+		}
+		settings, err := c.svcCtx.Dao.UserClient.UserGetTopicNotifySettings(c.ctx, &userpb.TLUserGetTopicNotifySettings{
+			UserId:    c.MD.UserId,
+			ChannelId: channelId,
+			TopMsgId:  in.GetPeer().GetTopMsgId(),
+		})
+		if err != nil {
+			c.Logger.Errorf("account.getNotifySettings - error: %v", err)
+			return nil, err
+		}
+		return settings, nil
 	}
 
 	peer := mtproto.FromInputNotifyPeer(c.MD.UserId, in.Peer)
@@ -65,4 +78,21 @@ func (c *NotificationCore) AccountGetNotifySettings(in *mtproto.TLAccountGetNoti
 	}
 
 	return settings, err
+}
+
+// forumOf is the channel of an inputNotifyForumTopic, one the account may
+// read: a peer that is not one is PEER_ID_INVALID.
+func (c *NotificationCore) forumOf(in *mtproto.InputNotifyPeer) (int64, error) {
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
+	if peer.PeerType != mtproto.PEER_CHANNEL || c.svcCtx.Plugin == nil {
+		return 0, mtproto.ErrPeerIdInvalid
+	}
+	channel, err := c.svcCtx.Plugin.GetChannelById(c.ctx, c.MD.UserId, peer.PeerId)
+	if err != nil {
+		return 0, err
+	}
+	if channel.GetPredicateName() == mtproto.Predicate_channelForbidden {
+		return 0, mtproto.ErrChannelPrivate
+	}
+	return peer.PeerId, nil
 }

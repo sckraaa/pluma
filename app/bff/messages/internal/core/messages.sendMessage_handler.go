@@ -176,7 +176,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 				NoWebpage:    in.NoWebpage,
 				Background:   in.Background,
 				RandomId:     in.RandomId,
-				Message:      outMessage,
+				Message:      withRepeatPeriod(outMessage, in.ScheduleDate, in.GetScheduleRepeatPeriod()),
 				ScheduleDate: in.ScheduleDate,
 			}).To_OutboxMessage(),
 		},

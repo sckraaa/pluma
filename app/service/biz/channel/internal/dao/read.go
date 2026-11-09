@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -164,6 +165,29 @@ func (d *Dao) ReadMentions(b *userbox.Box, channelId int64) error {
 	return d.EmitSeqUpdate(b, u, nil, nil)
 }
 
+// ReadReactions marks seen the reactions to b's owner's messages of the
+// channel, of the topic topicId unless it is 0: the dialog's and the topic's
+// counters are counted from these rows. Nothing is journaled, as for a
+// private chat (msg ReadReactions, task 053): the other devices read the
+// counters again with the dialogs.
+func (d *Dao) ReadReactions(b *userbox.Box, channelId int64, topicId int32) error {
+	if err := readerIn(b, channelId); err != nil {
+		return err
+	}
+	query := "UPDATE channel_message_reactions r JOIN channel_messages m ON m.channel_id = r.channel_id AND m.id = r.message_id" +
+		" SET r.unread = 0 WHERE r.channel_id = ? AND r.unread = 1 AND m.sender_user_id = ?"
+	args := []any{channelId, b.UserId()}
+	if topicId != 0 {
+		query += " AND m.topic_id = ?"
+		args = append(args, channelbox.TopicColumn(topicId))
+	}
+	if _, err := b.Tx().Exec(query, args...); err != nil {
+		return err
+	}
+	InvalidateDialog(b, channelId)
+	return nil
+}
+
 // readerIn checks that b's owner is in the channel with its dialog, locked:
 // CHANNEL_PRIVATE otherwise.
 func readerIn(b *userbox.Box, channelId int64) error {
@@ -218,6 +242,13 @@ func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
 	}
 	args = append([]any{channelId, b.UserId()}, args[1:]...)
 	if _, err := b.Tx().Exec("UPDATE channel_message_mentions SET `read` = 1 WHERE channel_id = ? AND user_id = ? AND `read` = 0 AND message_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		args...); err != nil {
+		return err
+	}
+	// Its messages among them: the reactions to them are seen, as for a
+	// private chat (msg readOwnReactions, task 053).
+	if _, err := b.Tx().Exec("UPDATE channel_message_reactions r JOIN channel_messages m ON m.channel_id = r.channel_id AND m.id = r.message_id"+
+		" SET r.unread = 0 WHERE r.channel_id = ? AND r.unread = 1 AND m.sender_user_id = ? AND r.message_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
 		args...); err != nil {
 		return err
 	}

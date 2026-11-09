@@ -139,6 +139,12 @@ const (
 	// pluma: task 051
 	Predicate_user_setContactPersonalPhoto = "user_setContactPersonalPhoto"
 	Predicate_user_addSuggestedPhoto       = "user_addSuggestedPhoto"
+	// pluma: task 067
+	Predicate_user_setTopicNotifySettings = "user_setTopicNotifySettings"
+	// pluma: task 067
+	Predicate_user_getTopicNotifySettings = "user_getTopicNotifySettings"
+	// pluma: task 067
+	Predicate_user_getTopicNotifyExceptions = "user_getTopicNotifyExceptions"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -622,6 +628,18 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 649527691, // 0x26b7018b
 
 	},
+	Predicate_user_setTopicNotifySettings: { // pluma: task 067
+		0: 381358547, // 0x16bb11d3
+
+	},
+	Predicate_user_getTopicNotifySettings: { // pluma: task 067
+		0: 1032369295, // 0x3d88b48f
+
+	},
+	Predicate_user_getTopicNotifyExceptions: { // pluma: task 067
+		0: -852948814, // 0xcd2908b2
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -745,6 +763,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1683643787: Predicate_user_getStatusWatchers,             // 0x9ba5a275 pluma: task 032
 	342634673:   Predicate_user_setContactPersonalPhoto,       // 0x146c30b1 pluma: task 051
 	649527691:   Predicate_user_addSuggestedPhoto,             // 0x26b7018b pluma: task 051
+	381358547:   Predicate_user_setTopicNotifySettings,        // 0x16bb11d3 pluma: task 067
+	1032369295:  Predicate_user_getTopicNotifySettings,        // 0x3d88b48f pluma: task 067
+	-852948814:  Predicate_user_getTopicNotifyExceptions,      // 0xcd2908b2 pluma: task 067
 
 }
 

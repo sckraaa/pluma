@@ -17,12 +17,10 @@ package dao
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/historyttl"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -220,80 +218,15 @@ func (d *Dao) expireBox(ctx context.Context, userId, now int64) (int, error) {
 	return n, err
 }
 
-// expireChannel deletes up to a portion of the channel's messages due at
-// now, in the transaction of its creator's box, which only takes the lock:
-// no user does this, and channelbox has no transaction of its own (ADR
-// 0034). One row of the channel's journal, updateDeleteChannelMessages,
-// tells the members.
+// expireChannel asks biz channel to delete up to a portion of the channel's
+// messages due at now: the deletion of a channel's messages is that
+// service's, with what goes with them (channel.expireMessages, task 067).
 func (d *Dao) expireChannel(ctx context.Context, channelId, now int64) (int, error) {
-	var creators []struct {
-		CreatorUserId int64 `db:"creator_user_id"`
-		Deleted       bool  `db:"deleted"`
-	}
-	if err := d.Mysql.DB.QueryRowsPartial(ctx, &creators, "SELECT creator_user_id, deleted FROM channels WHERE id = ?", channelId); err != nil {
-		return 0, err
-	}
-	if len(creators) == 0 || creators[0].Deleted {
-		_, err := d.Mysql.DB.Exec(ctx, "DELETE FROM channel_message_expiry WHERE channel_id = ?", channelId)
-		return 0, err
-	}
 	cctx, cancel := context.WithTimeout(ctx, MaxBoxOpTime)
 	defer cancel()
-	n := 0
-	_, err := d.RunBox(cctx, creators[0].CreatorUserId, nil, func(b *userbox.Box) error {
-		ch, err := channelbox.Open(b, channelId)
-		if err != nil {
-			if errors.Is(err, channelbox.ErrNoChannel) {
-				return nil
-			}
-			return err
-		}
-		var ids []int32
-		if err = b.Tx().QueryRowsPartial(&ids,
-			"SELECT message_id FROM channel_message_expiry WHERE channel_id = ? AND expire_at <= ? ORDER BY channel_id, message_id LIMIT ? FOR UPDATE",
-			channelId, now, maxPortion); err != nil || len(ids) == 0 {
-			return err
-		}
-		in := "(?" + strings.Repeat(", ?", len(ids)-1) + ")"
-		args := make([]any, 0, len(ids)+1)
-		args = append(args, channelId)
-		for _, id := range ids {
-			args = append(args, id)
-		}
-		var alive []int32
-		if err = b.Tx().QueryRowsPartial(&alive, "SELECT id FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN "+in+" ORDER BY id FOR UPDATE", args...); err != nil {
-			return err
-		}
-		if _, err = b.Tx().Exec("DELETE FROM channel_message_expiry WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
-			return err
-		}
-		if len(alive) == 0 {
-			return nil
-		}
-		n = len(alive)
-		in = "(?" + strings.Repeat(", ?", len(alive)-1) + ")"
-		args = args[:1]
-		for _, id := range alive {
-			args = append(args, id)
-		}
-		if _, err = b.Tx().Exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id IN "+in, args...); err != nil {
-			return err
-		}
-		if _, err = b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
-			return err
-		}
-		// The top message is read again, among the messages left.
-		if _, err = b.Tx().Exec("UPDATE channels SET top_message = (SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND deleted = 0) WHERE id = ?", channelId, channelId); err != nil {
-			return err
-		}
-		count := int32(len(alive))
-		ch.AddPtsUpdate(mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{ChannelId: channelId, Messages: alive}).To_Update(), count)
-		return d.EmitChannelUpdatesPush(b, channelId, 0, mtproto.MakeTLUpdateDeleteChannelMessages(&mtproto.Update{
-			ChannelId: channelId,
-			Messages:  alive,
-			Pts_INT32: ch.Pts(),
-			PtsCount:  count,
-		}).To_Update())
-	})
-	return n, err
+	n, err := d.ChannelClient.ChannelExpireMessages(cctx, &channelpb.TLChannelExpireMessages{ChannelId: channelId, Now: now})
+	if err != nil {
+		return 0, err
+	}
+	return int(n.GetV()), nil
 }

@@ -158,4 +158,10 @@ const (
 	CRC32_channel_editBanned TLConstructor = -1457424068 // 0xa921793c
 	// pluma: task 042
 	CRC32_channel_editDefaultBannedRights TLConstructor = 1263700059 // 0x4b52885b
+	// pluma: task 067
+	CRC32_channel_expireMessages TLConstructor = 1530267177 // 0x5b360629
+	// pluma: task 067
+	CRC32_channel_getUnreadReactions TLConstructor = -793086366 // 0xd0ba7662
+	// pluma: task 067
+	CRC32_channel_readReactions TLConstructor = 2058932457 // 0x7ab8d0e9
 )

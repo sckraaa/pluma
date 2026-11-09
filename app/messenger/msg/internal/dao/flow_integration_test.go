@@ -1550,3 +1550,15 @@ func TestPinnedDialogsWithDeletes(t *testing.T) {
 		}
 	}
 }
+
+func (noChannels) ChannelExpireMessages(context.Context, *channelpb.TLChannelExpireMessages) (*mtproto.Int32, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetUnreadReactions(context.Context, *channelpb.TLChannelGetUnreadReactions) (*mtproto.Messages_Messages, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelReadReactions(context.Context, *channelpb.TLChannelReadReactions) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, mtproto.ErrChannelInvalid
+}

@@ -46,6 +46,9 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 		c.Logger.Errorf("chat.importChatInvite - error: %v", err)
 		return nil, err
 	}
+	if invite.MigratedToId != 0 {
+		return nil, mtproto.ErrMigratedToChannel
+	}
 
 	// The joiner gets the members, the users of which are looked up; a
 	// requester is no admin and gets nothing.

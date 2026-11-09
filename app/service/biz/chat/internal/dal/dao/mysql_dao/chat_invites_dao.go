@@ -139,13 +139,13 @@ func (dao *ChatInvitesDAO) SelectListByAdminIdWithCB(ctx context.Context, chatId
 }
 
 // SelectByLink
-// select id, chat_id, admin_id, link, permanent, revoked, request_needed, start_date, expire_date, usage_limit, usage2, requested, title, date2 from chat_invites where link = :link
+// select id, chat_id, admin_id, link, permanent, revoked, request_needed, start_date, expire_date, usage_limit, usage2, requested, title, date2, migrated_to_id from chat_invites where link = :link
 func (dao *ChatInvitesDAO) SelectByLink(ctx context.Context, link string) (rValue *dataobject.ChatInvitesDO, err error) {
 	var (
 		query string
 		do    = &dataobject.ChatInvitesDO{}
 	)
-	query = "select id, chat_id, admin_id, link, permanent, revoked, request_needed, start_date, expire_date, usage_limit, usage2, requested, title, date2 from chat_invites where link = ?"
+	query = "select id, chat_id, admin_id, link, permanent, revoked, request_needed, start_date, expire_date, usage_limit, usage2, requested, title, date2, migrated_to_id from chat_invites where link = ?"
 
 	err = dao.db.QueryRowPartial(ctx, do, query, link)
 

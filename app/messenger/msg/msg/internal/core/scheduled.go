@@ -17,6 +17,7 @@ package core
 
 import (
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -50,6 +51,32 @@ const (
 	// scheduledBatch bounds what one tick of the worker reads.
 	scheduledBatch = 200
 )
+
+// scheduleRepeatPeriods are the values schedule_repeat_period may take
+// (core.telegram.org/api/scheduled-messages: daily to yearly, Android
+// AlertsCreator repeat picker: 1, 7, 14, 30, 91, 182 and 365 days).
+var scheduleRepeatPeriods = []int32{86400, 7 * 86400, 14 * 86400, 30 * 86400, 91 * 86400, 182 * 86400, 365 * 86400}
+
+// repeatPeriodOf is the schedule_repeat_period of a send, 0 for none, and
+// checks it: one of the allowed values, a single message
+// (core.telegram.org/api/scheduled-messages: "can only be used when
+// sending/forwarding a single message") with a real date. The documentation
+// names no error for a wrong value; UNVERIFIED which Telegram answers.
+func repeatPeriodOf(list []*msg.OutboxMessage, date int32) (int32, error) {
+	var period int32
+	for _, o := range list {
+		if v := o.GetMessage().GetScheduleRepeatPeriod().GetValue(); v != 0 {
+			period = v
+		}
+	}
+	switch {
+	case period == 0:
+		return 0, nil
+	case len(list) != 1 || date == dao.ScheduleWhenOnline || !slices.Contains(scheduleRepeatPeriods, period):
+		return 0, mtproto.ErrScheduleDateInvalid
+	}
+	return period, nil
+}
 
 // sendOptions change a send on behalf of a schedule queue.
 type sendOptions struct {
@@ -178,6 +205,10 @@ func (c *MsgCore) channelChats(channelId int64, viewers []int64) (func(int64) []
 // them right away when the date is near or the peer is online already.
 func (c *MsgCore) scheduleMessages(in *msg.TLMsgSendMessageV2, date int32) (*mtproto.Updates, error) {
 	now := int64(int32(time.Now().Unix()))
+	repeat, err := repeatPeriodOf(in.GetMessage(), date)
+	if err != nil {
+		return nil, err
+	}
 	switch {
 	case date == dao.ScheduleWhenOnline:
 		online, err := c.peerOnline(in.UserId, in.PeerType, in.PeerId)
@@ -189,7 +220,9 @@ func (c *MsgCore) scheduleMessages(in *msg.TLMsgSendMessageV2, date int32) (*mtp
 		}
 	case date < 0:
 		return nil, mtproto.ErrScheduleDateInvalid
-	case int64(date) < now+scheduleMinAhead:
+	case int64(date) < now+scheduleMinAhead && repeat == 0:
+		// A repeating message stays in the queue, which the worker empties
+		// on its next tick: only a delivery schedules the next one.
 		return c.send(in, sendOptions{})
 	case int64(date) > now+scheduleMaxAhead:
 		return nil, mtproto.ErrScheduleDateTooLate
@@ -201,6 +234,11 @@ func (c *MsgCore) scheduleMessages(in *msg.TLMsgSendMessageV2, date int32) (*mtp
 	}
 	if u, ok := users.GetImmutableUser(in.UserId); ok && u.IsBot() {
 		return nil, mtproto.ErrScheduleBotNotAllowed
+	} else if ok && repeat != 0 && !u.Premium() {
+		// "Premium users can send repeating scheduled messages"
+		// (core.telegram.org/api/scheduled-messages); the clients do not
+		// offer it to others (tdesktop history_view_schedule_box.cpp:358-383).
+		return nil, mtproto.ErrPremiumAccountRequired
 	}
 
 	switch in.PeerType {
@@ -594,6 +632,20 @@ func (c *MsgCore) editScheduled(in *msg.TLMsgEditMessageV2, id int32) (*mtproto.
 		return nil, mtproto.ErrScheduleDateTooLate
 	}
 
+	repeat, err := repeatPeriodOf([]*msg.OutboxMessage{in.NewMessage}, date)
+	if err != nil {
+		return nil, err
+	}
+	if repeat != 0 {
+		users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: []int64{in.UserId}, To: []int64{in.UserId}})
+		if err != nil {
+			return nil, err
+		}
+		if u, ok := users.GetImmutableUser(in.UserId); ok && !u.Premium() {
+			return nil, mtproto.ErrPremiumAccountRequired
+		}
+	}
+
 	edit := plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, in.NewMessage.Message, in.UserId, in.NewMessage.NoWebpage, func() bool { return false })
 
 	peerType, peerId := selfPeer(in.UserId, in.PeerType, in.PeerId)
@@ -828,10 +880,15 @@ func (c *MsgCore) deliverScheduled(rows []*dao.ScheduledRow, authKeyId int64, fr
 	}
 	outBox := make([]*msg.OutboxMessage, len(rows))
 	now := int32(time.Now().Unix())
+	var next *dao.Outgoing
 	for i, r := range rows {
 		m, err := r.Message()
 		if err != nil {
 			return nil, err
+		}
+		if m.GetScheduleRepeatPeriod().GetValue() != 0 {
+			next = &dao.Outgoing{Message: proto.Clone(m).(*mtproto.Message)}
+			m.ScheduleRepeatPeriod = nil
 		}
 		m.Id = 0
 		m.Date = now
@@ -840,7 +897,10 @@ func (c *MsgCore) deliverScheduled(rows []*dao.ScheduledRow, authKeyId int64, fr
 	}
 
 	v := queueView{peer: queuePeer(peerType, peerId), audience: audience, users: noUsers, chats: noChats}
-	var deleted *mtproto.Update
+	var (
+		deleted *mtproto.Update
+		again   *mtproto.Message
+	)
 	in := &msg.TLMsgSendMessageV2{UserId: senderId, AuthKeyId: authKeyId, PeerType: peerType, PeerId: peerId, Message: outBox}
 	updates, err := c.send(in, sendOptions{
 		queued:        true,
@@ -850,7 +910,15 @@ func (c *MsgCore) deliverScheduled(rows []*dao.ScheduledRow, authKeyId int64, fr
 				return err
 			}
 			deleted = dao.DeleteScheduledUpdate(v.peer, ids, sent)
-			return c.emitScheduled(b, senderId, authKeyId, v, func(int64) []*mtproto.Update { return []*mtproto.Update{deleted} })
+			if err := c.emitScheduled(b, senderId, authKeyId, v, func(int64) []*mtproto.Update { return []*mtproto.Update{deleted} }); err != nil {
+				return err
+			}
+			if next == nil {
+				return nil
+			}
+			var err error
+			again, err = c.scheduleNext(b, q, senderId, authKeyId, *next, v)
+			return err
 		},
 	})
 	if err != nil {
@@ -864,7 +932,32 @@ func (c *MsgCore) deliverScheduled(rows []*dao.ScheduledRow, authKeyId int64, fr
 		}
 	}
 	updates.Updates = append(reply, deleted)
+	if again != nil {
+		updates.Updates = append(updates.Updates, dao.NewScheduledUpdates([]*mtproto.Message{viewScheduled(again, senderId, senderId)})...)
+	}
 	return updates, nil
+}
+
+// scheduleNext puts a repeating message back in its queue, in the
+// transaction of the send that just took it off: the next date is "the
+// current time plus schedule_repeat_period", with "all the same updates as
+// above, as if we had re-invoked sendMessage" (core.telegram.org/api/
+// scheduled-messages), so a new queue id and updateNewScheduledMessage. A
+// crash can neither lose the series nor send a message twice. It returns
+// the message as it now waits.
+func (c *MsgCore) scheduleNext(b *userbox.Box, q dao.ScheduledQueue, senderId, authKeyId int64, next dao.Outgoing, v queueView) (*mtproto.Message, error) {
+	date := int32(b.Date()) + next.Message.GetScheduleRepeatPeriod().GetValue()
+	rows, err := c.svcCtx.Dao.InsertScheduled(b, q, date, []dao.Outgoing{next})
+	if err != nil {
+		return nil, err
+	}
+	m, err := rows[0].Message()
+	if err != nil {
+		return nil, err
+	}
+	return m, c.emitScheduled(b, senderId, authKeyId, v, func(viewer int64) []*mtproto.Update {
+		return dao.NewScheduledUpdates([]*mtproto.Message{viewScheduled(m, senderId, viewer)})
+	})
 }
 
 // permanentSendError tells an error no later attempt can change: the sender

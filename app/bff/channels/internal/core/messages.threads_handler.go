@@ -78,6 +78,11 @@ func (c *ChannelsCore) MessagesGetReplies(in *mtproto.TLMessagesGetReplies) (*mt
 	}
 	h := mtproto.NewIDListHelper(c.MD.UserId)
 	h.PickByMessages(r.GetMessages()...)
+	// The page of a topic carries its topic, by whose creator the clients
+	// read the owner (tdesktop Data::ForumTopic::applyTopic).
+	for _, t := range r.GetTopics() {
+		h.PickByPeer(t.GetFromId())
+	}
 	h.AppendChannels(mc.GetChannel().GetId())
 	if r.Users, r.Chats, err = c.peers(h); err != nil {
 		return nil, err

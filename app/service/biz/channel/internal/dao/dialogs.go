@@ -54,6 +54,12 @@ func unreadQuery(selfId, channelId int64, forum bool, read, availableMinId int32
 		[]any{channelId, read, availableMinId, selfId}
 }
 
+// unreadReactionsQuery counts the messages of a user in a channel, from an
+// id on, with reactions of others it has not seen (task 067).
+const unreadReactionsQuery = "SELECT COUNT(DISTINCT r.message_id) FROM channel_message_reactions r" +
+	" JOIN channel_messages m ON m.channel_id = r.channel_id AND m.id = r.message_id AND m.deleted = 0" +
+	" WHERE r.channel_id = ? AND r.unread = 1 AND m.sender_user_id = ? AND r.message_id >= ?"
+
 // ChannelDialogs returns the dialogs of selfId with the channels idList that
 // it has, with what the channel gives them: pts, top_message,
 // read_inbox_max_id, read_outbox_max_id, unread_count,
@@ -75,7 +81,7 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 			continue
 		}
 		r := rows[0]
-		var unread, mentions, outbox []int32
+		var unread, mentions, outbox, reactions []int32
 		query, args := unreadQuery(selfId, id, r.Forum, r.ReadInboxMaxId, r.AvailableMinId)
 		if err := d.Mysql.QueryRowsPartial(ctx, &unread, query, args...); err != nil {
 			return nil, err
@@ -83,6 +89,9 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 		if err := d.Mysql.QueryRowsPartial(ctx, &mentions,
 			"SELECT COUNT(*) FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0 AND message_id >= ?",
 			id, selfId, r.AvailableMinId); err != nil {
+			return nil, err
+		}
+		if err := d.Mysql.QueryRowsPartial(ctx, &reactions, unreadReactionsQuery, id, selfId, r.AvailableMinId); err != nil {
 			return nil, err
 		}
 		// What the others read of the channel: the outbox of the viewer
@@ -100,15 +109,16 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 			top = 0
 		}
 		out = append(out, mtproto.MakeTLDialog(&mtproto.Dialog{
-			Peer:                mtproto.MakePeerChannel(id),
-			TopMessage:          top,
-			ReadInboxMaxId:      r.ReadInboxMaxId,
-			ReadOutboxMaxId:     first(outbox),
-			UnreadCount:         first(unread),
-			UnreadMentionsCount: first(mentions),
-			Pts:                 mtproto.MakeFlagsInt32(r.Pts),
-			ViewForumAsMessages: r.ViewAsMessages,
-			TtlPeriod:           mtproto.MakeFlagsInt32(r.TtlPeriod),
+			Peer:                 mtproto.MakePeerChannel(id),
+			TopMessage:           top,
+			ReadInboxMaxId:       r.ReadInboxMaxId,
+			ReadOutboxMaxId:      first(outbox),
+			UnreadCount:          first(unread),
+			UnreadMentionsCount:  first(mentions),
+			UnreadReactionsCount: first(reactions),
+			Pts:                  mtproto.MakeFlagsInt32(r.Pts),
+			ViewForumAsMessages:  r.ViewAsMessages,
+			TtlPeriod:            mtproto.MakeFlagsInt32(r.TtlPeriod),
 		}).To_Dialog())
 	}
 	return out, nil

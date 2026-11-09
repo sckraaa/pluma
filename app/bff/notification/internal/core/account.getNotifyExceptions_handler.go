@@ -27,6 +27,22 @@ import (
 // AccountGetNotifyExceptions
 // account.getNotifyExceptions#53577479 flags:# compare_sound:flags.1?true peer:flags.0?InputNotifyPeer = Updates;
 func (c *NotificationCore) AccountGetNotifyExceptions(in *mtproto.TLAccountGetNotifyExceptions) (*mtproto.Updates, error) {
+	// A forum as the peer: the exceptions of its topics (iOS
+	// ForumChannels.swift:1345-1363 reads notifyForumTopic from the answer).
+	if in.GetPeer().GetPredicateName() == mtproto.Predicate_inputNotifyPeer {
+		if peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer().GetPeer()); peer.PeerType == mtproto.PEER_CHANNEL {
+			updates, err := c.svcCtx.Dao.UserClient.UserGetTopicNotifyExceptions(c.ctx, &userpb.TLUserGetTopicNotifyExceptions{
+				UserId:    c.MD.UserId,
+				ChannelId: peer.PeerId,
+			})
+			if err != nil {
+				c.Logger.Errorf("account.getNotifyExceptions - error: %v", err)
+				return nil, err
+			}
+			return updates, nil
+		}
+	}
+
 	// compare_sound
 
 	settings, err := c.svcCtx.Dao.UserClient.UserGetAllNotifySettings(c.ctx, &userpb.TLUserGetAllNotifySettings{

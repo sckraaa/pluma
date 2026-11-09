@@ -38,7 +38,7 @@ func (c *MsgCore) sendChannelReaction(in *msg.TLMsgSendReaction, keys []string) 
 		if r, err = c.svcCtx.Dao.SetChannelReactions(b, in.PeerId, in.MsgId, keys, mtproto.FromBool(in.Big)); err != nil || !r.Changed {
 			return err
 		}
-		return c.svcCtx.Dao.EmitChannelUpdatesPush(b, in.PeerId, in.AuthKeyId, dao.ChannelReactionsUpdate(0, in.PeerId, in.MsgId, r))
+		return c.svcCtx.Dao.EmitChannelReactionsPush(b, in.PeerId, in.AuthKeyId, in.MsgId, r)
 	}); err != nil {
 		return nil, err
 	}

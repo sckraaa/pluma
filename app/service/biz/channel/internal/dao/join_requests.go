@@ -351,6 +351,8 @@ type Importer struct {
 	UserId     int64 `db:"user_id"`
 	Date       int64 `db:"date2"`
 	ApprovedBy int64 `db:"approved_by"`
+	// ViaChatlist: by the invite link a shared folder made for the channel.
+	ViaChatlist bool `db:"via_chatlist"`
 }
 
 // ImportersMax is the most importers of one page.
@@ -393,7 +395,7 @@ func (d *Dao) Importers(ctx context.Context, channelId int64, requested bool, li
 	}
 	var rows []Importer
 	err := d.Mysql.QueryRowsPartial(ctx, &rows,
-		"SELECT r.user_id, r.date2, "+approvedBy+from+" ORDER BY r.date2 DESC, r.user_id DESC LIMIT ?", append(args, limit)...)
+		"SELECT r.user_id, r.date2, EXISTS(SELECT 1 FROM chatlist_invite_peers cp WHERE cp.link = r.link AND r.link <> '') AS via_chatlist, "+approvedBy+from+" ORDER BY r.date2 DESC, r.user_id DESC LIMIT ?", append(args, limit)...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -404,9 +406,10 @@ func (d *Dao) Importers(ctx context.Context, channelId int64, requested bool, li
 const LeftChannelsMax = 100
 
 // LeftChannels is a page of the channels userId left (not those it was
-// kicked from), with their count.
+// kicked from), with their count. A row left without a join date is that of
+// a commenter never in the group, kept for its slow mode (recordSlowmode).
 func (d *Dao) LeftChannels(ctx context.Context, userId int64, offset int32) ([]int64, int32, error) {
-	const from = " FROM channel_participants p JOIN channels c ON c.id = p.channel_id WHERE p.user_id = ? AND p.state = 1 AND c.deleted = 0"
+	const from = " FROM channel_participants p JOIN channels c ON c.id = p.channel_id WHERE p.user_id = ? AND p.state = 1 AND p.date > 0 AND c.deleted = 0"
 	var count []int32
 	if err := d.Mysql.QueryRowsPartial(ctx, &count, "SELECT COUNT(*)"+from, userId); err != nil {
 		return nil, 0, err

@@ -182,7 +182,7 @@ func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*
 			NoWebpage:    in.NoWebpage,
 			Background:   false,
 			RandomId:     0,
-			Message:      outMessage,
+			Message:      withRepeatPeriod(outMessage, in.ScheduleDate, in.GetScheduleRepeatPeriod()),
 			ScheduleDate: in.ScheduleDate,
 		}).To_OutboxMessage(),
 		DstMessage: dstMessage,

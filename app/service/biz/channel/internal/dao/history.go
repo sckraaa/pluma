@@ -117,6 +117,9 @@ type SearchQuery struct {
 	ThreadTop int32
 	// Topic keeps the messages of this topic of a forum (task 060).
 	Topic int32
+	// UnreadReactionsOf keeps the messages of this user with reactions it
+	// has not seen (task 067).
+	UnreadReactionsOf int64
 }
 
 // SearchMax is the most messages of one page of a search
@@ -154,6 +157,10 @@ func (q SearchQuery) pageQuery(selfId, channelId int64) pageQuery {
 	}
 	if q.UnreadMentionsOf != 0 {
 		w.And("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)
+	}
+	if q.UnreadReactionsOf != 0 {
+		w.And("sender_user_id = ?", q.UnreadReactionsOf)
+		w.And("id IN (SELECT message_id FROM channel_message_reactions WHERE channel_id = ? AND unread = 1)", channelId)
 	}
 	if q.MediaType == msgsearch.KindMyMentions {
 		w.And("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ?)", channelId, selfId)

@@ -132,6 +132,9 @@ type UserClient interface {
 	UserGetStatusWatchers(ctx context.Context, in *user.TLUserGetStatusWatchers) (*user.Vector_Long, error)
 	UserSetContactPersonalPhoto(ctx context.Context, in *user.TLUserSetContactPersonalPhoto) (*mtproto.User, error)
 	UserAddSuggestedPhoto(ctx context.Context, in *user.TLUserAddSuggestedPhoto) (*mtproto.Bool, error)
+	UserSetTopicNotifySettings(ctx context.Context, in *user.TLUserSetTopicNotifySettings) (*mtproto.Bool, error)
+	UserGetTopicNotifySettings(ctx context.Context, in *user.TLUserGetTopicNotifySettings) (*mtproto.PeerNotifySettings, error)
+	UserGetTopicNotifyExceptions(ctx context.Context, in *user.TLUserGetTopicNotifyExceptions) (*mtproto.Updates, error)
 }
 
 type defaultUserClient struct {
@@ -1341,4 +1344,37 @@ func (m *defaultUserClient) UserAddSuggestedPhoto(ctx context.Context, in *user.
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserAddSuggestedPhoto(ctx, in)
+}
+
+// UserSetTopicNotifySettings
+// user.setTopicNotifySettings user_id:long channel_id:long top_msg_id:int settings:PeerNotifySettings = Bool;
+func (m *defaultUserClient) UserSetTopicNotifySettings(ctx context.Context, in *user.TLUserSetTopicNotifySettings) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserSetTopicNotifySettings(ctx, in)
+}
+
+// UserGetTopicNotifySettings
+// user.getTopicNotifySettings user_id:long channel_id:long top_msg_id:int = PeerNotifySettings;
+func (m *defaultUserClient) UserGetTopicNotifySettings(ctx context.Context, in *user.TLUserGetTopicNotifySettings) (*mtproto.PeerNotifySettings, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserGetTopicNotifySettings(ctx, in)
+}
+
+// UserGetTopicNotifyExceptions
+// user.getTopicNotifyExceptions user_id:long channel_id:long = Updates;
+func (m *defaultUserClient) UserGetTopicNotifyExceptions(ctx context.Context, in *user.TLUserGetTopicNotifyExceptions) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserGetTopicNotifyExceptions(ctx, in)
 }

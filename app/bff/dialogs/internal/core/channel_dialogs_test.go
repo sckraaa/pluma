@@ -45,7 +45,7 @@ func TestFillChannelDialogsPeriod(t *testing.T) {
 		ctx: context.Background(),
 		MD:  &metadata.RpcMetadata{UserId: 1},
 		svcCtx: &svc.ServiceContext{Dao: &dao.Dao{Channel: &fakeChannelDialogs{dialogs: []*mtproto.Dialog{
-			mtproto.MakeTLDialog(&mtproto.Dialog{Peer: peer, TtlPeriod: mtproto.MakeFlagsInt32(86400)}).To_Dialog(),
+			mtproto.MakeTLDialog(&mtproto.Dialog{Peer: peer, TtlPeriod: mtproto.MakeFlagsInt32(86400), UnreadReactionsCount: 3}).To_Dialog(),
 		}}}},
 	}
 	list := dialog.DialogExtList{{Dialog: mtproto.MakeTLDialog(&mtproto.Dialog{Peer: peer}).To_Dialog()}}
@@ -54,5 +54,8 @@ func TestFillChannelDialogsPeriod(t *testing.T) {
 	}
 	if got := list[0].Dialog.GetTtlPeriod().GetValue(); got != 86400 {
 		t.Errorf("ttl_period %d", got)
+	}
+	if got := list[0].Dialog.GetUnreadReactionsCount(); got != 3 {
+		t.Errorf("unread_reactions_count %d", got)
 	}
 }

@@ -155,7 +155,7 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 				NoWebpage:    true,
 				Background:   in.Background,
 				RandomId:     in.RandomId,
-				Message:      outMessage,
+				Message:      withRepeatPeriod(outMessage, in.ScheduleDate, in.GetScheduleRepeatPeriod()),
 				ScheduleDate: in.ScheduleDate,
 			}).To_OutboxMessage(),
 		},
