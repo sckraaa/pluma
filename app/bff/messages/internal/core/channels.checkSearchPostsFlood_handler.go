@@ -19,14 +19,19 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/msgsearch"
 )
 
 // ChannelsCheckSearchPostsFlood
 // channels.checkSearchPostsFlood#22567115 flags:# query:flags.0?string = SearchPostsFlood;
 func (c *MessagesCore) ChannelsCheckSearchPostsFlood(in *mtproto.TLChannelsCheckSearchPostsFlood) (*mtproto.SearchPostsFlood, error) {
-	// TODO: not impl
-	c.Logger.Errorf("channels.checkSearchPostsFlood blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	r, err := msgsearch.PostsFlood(c.ctx, c.svcCtx.Search, c.MD.UserId, in.GetQuery().GetValue(), time.Now())
+	if err != nil {
+		c.Logger.Errorf("channels.checkSearchPostsFlood - error: %v", err)
+		return nil, err
+	}
+	return r, nil
 }

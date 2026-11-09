@@ -19,13 +19,16 @@
 package core
 
 import (
-	"github.com/teamgram/teamgram-server/pkg/reactions"
 	"math"
+	"slices"
 
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/msgsearch"
+	"github.com/teamgram/teamgram-server/pkg/reactions"
 )
 
 // MessagesSearch
@@ -38,332 +41,149 @@ func (c *MessagesCore) MessagesSearch(in *mtproto.TLMessagesSearch) (*mtproto.Me
 		return nil, err
 	}
 
-	var (
-		rValues  *mtproto.Messages_Messages
-		offsetId = in.OffsetId
-		limit    = in.Limit
-		boxList  *mtproto.MessageBoxList
-		err      error
-		fromId   *mtproto.PeerUtil
-	)
-
-	if offsetId == 0 {
-		offsetId = math.MaxInt32
-	}
-
-	if limit > 50 {
-		limit = 50
-	}
-
+	limit := min(max(in.Limit, 0), msgsearch.MaxLimit)
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	if peer.IsChannel() {
-		return c.searchChannel(in, peer.PeerId, offsetId, limit)
+		return c.searchChannel(in, peer.PeerId, limit)
 	}
 
-	if in.GetFromId() != nil {
-		// 1. peer must chat and channel
-		if !peer.IsChatOrChannel() {
-			err = mtproto.ErrPeerIdInvalid
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return nil, err
-		}
-
-		fromId = mtproto.FromInputPeer2(c.MD.UserId, in.FromId)
-		// 2. fromId must user
-		if !fromId.IsUser() {
-			err = mtproto.ErrFromPeerInvalid
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return nil, err
-		}
-
-		// TODO: check user was deleted?
-		// 400	INPUT_USER_DEACTIVATED	The specified user was deleted.
-	}
-
-	rValues = mtproto.MakeTLMessagesMessages(&mtproto.Messages_Messages{
-		Messages: []*mtproto.Message{},
-		Chats:    []*mtproto.Chat{},
-		Users:    []*mtproto.User{},
-	}).To_Messages_Messages()
-
-	if len(in.SavedReaction) > 0 {
-		// The tags of Saved Messages (task 053).
-		if boxList, err = c.searchTagged(in, peer, offsetId, limit); err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return nil, err
-		}
-		return c.searchResult(rValues, boxList), nil
-	}
-	if in.SavedPeerId != nil {
-		// TODO: not impl
-		return rValues, nil
-	}
-
-	filterType := mtproto.FromMessagesFilter(in.Filter)
-	switch filterType {
-	case mtproto.FilterPhotos:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_PHOTOS_ONLY,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterVideo:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_VIDEOS_ONLY,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterPhotoVideo:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_PHOTOVIDEO,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterDocument:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_FILE,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterUrl:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_URL,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterGif:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_GIF,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterVoice:
-		c.Logger.Errorf("messages.search - invalid filter: %s", in.GetFilter().GetPredicateName())
-		return rValues, nil
-	case mtproto.FilterMusic:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_MUSIC,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterChatPhotos:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_CHAT_PHOTO,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterPhoneCalls:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_PHONE_CALL,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterRoundVoice:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByMediaType(c.ctx, &message.TLMessageSearchByMediaType{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mtproto.MEDIA_AUDIO,
-			Offset:    offsetId,
-			Limit:     limit,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterRoundVideo:
-		c.Logger.Errorf("messages.search - invalid filter: %s", in.GetFilter().GetPredicateName())
-		return rValues, nil
-	case mtproto.FilterMyMentions:
-		c.Logger.Errorf("messages.search - invalid filter: %s", in.GetFilter().GetPredicateName())
-		return rValues, nil
-	case mtproto.FilterGeo:
-		c.Logger.Errorf("messages.search - invalid filter: %s", in.GetFilter().GetPredicateName())
-		return rValues, nil
-	case mtproto.FilterContacts:
-		c.Logger.Errorf("messages.search - invalid filter: %s", in.GetFilter().GetPredicateName())
-		return rValues, nil
-	case mtproto.FilterPinned:
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchByPinned(c.ctx, &message.TLMessageSearchByPinned{
-			UserId:   c.MD.UserId,
-			PeerType: peer.PeerType,
-			PeerId:   peer.PeerId,
-		})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-	case mtproto.FilterEmpty:
-		/*
-			{
-			    "constructor": "CRC32_messages_search",
-			    "peer": {
-			        "predicate_name": "inputPeerUser",
-			        "constructor": "CRC32_inputPeerUser",
-			        "user_id": "136817694",
-			        "access_hash": "9217169765117357414"
-			    },
-			    "q": "1",
-			    "filter": {
-			        "predicate_name": "inputMessagesFilterEmpty",
-			        "constructor": "CRC32_inputMessagesFilterEmpty"
-			    },
-			    "limit": 21
-			}
-		*/
-		if fromId == nil && in.Q == "" {
-			err = mtproto.ErrSearchQueryEmpty
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return nil, err
-		}
-
-		var (
-			fId int64
-		)
-		if fromId != nil {
-			fId = fromId.PeerId
-		}
-
-		boxList, err = c.svcCtx.Dao.MessageClient.MessageSearchV2(
-			c.ctx,
-			&message.TLMessageSearchV2{
-				UserId:    c.MD.UserId,
-				PeerType:  peer.PeerType,
-				PeerId:    peer.PeerId,
-				Q:         in.Q,
-				FromId:    fId,
-				MinDate:   in.MinDate,
-				MaxDate:   in.MaxDate,
-				OffsetId:  offsetId,
-				AddOffset: in.AddOffset,
-				Limit:     limit,
-				MaxId:     in.MaxId,
-				MinId:     in.MinId,
-				Hash:      in.Hash,
-			})
-		if err != nil {
-			c.Logger.Errorf("messages.search - error: %v", err)
-			return rValues, nil
-		}
-
-		if boxList.Count > 0 {
-			rValues.Count = boxList.Count
-			rValues.PredicateName = mtproto.Predicate_messages_messagesSlice
-		}
-	default:
-		err = mtproto.ErrInputFilterInvalid
+	kind, ok := msgsearch.KindOf(in.Filter)
+	if !ok {
+		err := mtproto.ErrInputFilterInvalid
 		c.Logger.Errorf("messages.search - error: %v", err)
 		return nil, err
 	}
 
-	// A page of a media list that is not all of it is messages.messagesSlice
-	// with the count of all: Android's media viewer shows "N of M" and
-	// pages by it (MediaDataController.processLoadedMedia, res.count).
-	if mType, ok := searchMediaType(filterType); ok {
-		n, err := c.svcCtx.Dao.MessageClient.MessageGetSearchCounter(c.ctx, &message.TLMessageGetSearchCounter{
-			UserId:    c.MD.UserId,
-			PeerType:  peer.PeerType,
-			PeerId:    peer.PeerId,
-			MediaType: mType,
-		})
-		if err != nil {
+	var (
+		fromId int64
+		err    error
+	)
+	if in.GetFromId() != nil {
+		from := mtproto.FromInputPeer2(c.MD.UserId, in.FromId)
+		switch from.PeerType {
+		case mtproto.PEER_USER, mtproto.PEER_SELF:
+			fromId = from.PeerId
+		case mtproto.PEER_CHANNEL:
+			// A channel never writes into a box; nothing can match.
+			return emptyMessages(), nil
+		default:
+			err = mtproto.ErrFromPeerInvalid
 			c.Logger.Errorf("messages.search - error: %v", err)
-		} else if int(n.GetV()) > len(boxList.GetBoxList()) {
-			rValues.Count = n.GetV()
-			rValues.PredicateName = mtproto.Predicate_messages_messagesSlice
+			return nil, err
 		}
 	}
 
-	return c.searchResult(rValues, boxList), nil
+	if len(in.SavedReaction) > 0 {
+		// The tags of Saved Messages (task 053).
+		offsetId := in.OffsetId
+		if offsetId == 0 {
+			offsetId = math.MaxInt32
+		}
+		boxList, err := c.searchTagged(in, peer, offsetId, limit)
+		if err != nil {
+			c.Logger.Errorf("messages.search - error: %v", err)
+			return nil, err
+		}
+		return c.searchResult(emptyMessages(), boxList), nil
+	}
+
+	if kind == msgsearch.KindEmpty && in.Q == "" && fromId == 0 && in.SavedPeerId == nil {
+		err = mtproto.ErrSearchQueryEmpty
+		c.Logger.Errorf("messages.search - error: %v", err)
+		return nil, err
+	}
+	if in.GetTopMsgId() != nil {
+		// Only a channel has threads: a user's box has none to look in.
+		return emptyMessages(), nil
+	}
+
+	q := msgsearch.BoxQuery{
+		UserId: c.MD.UserId, PeerType: peer.PeerType, PeerId: peer.PeerId,
+		Q: in.Q, Kind: kind, FromId: fromId, MinDate: in.MinDate, MaxDate: in.MaxDate,
+	}
+	if in.SavedPeerId != nil {
+		saved := mtproto.FromInputPeer2(c.MD.UserId, in.SavedPeerId)
+		if saved.PeerType == mtproto.PEER_SELF {
+			saved = mtproto.MakePeerUtil(mtproto.PEER_USER, c.MD.UserId)
+		}
+		q.HasSaved, q.SavedPeerType, q.SavedPeerId = true, saved.PeerType, saved.PeerId
+	}
+	ids, count, err := msgsearch.SearchBox(c.ctx, c.svcCtx.Search, q, msgsearch.Page{
+		OffsetId: in.OffsetId, AddOffset: in.AddOffset, Limit: limit, MaxId: in.MaxId, MinId: in.MinId,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.search - error: %v", err)
+		return nil, err
+	}
+	r, err := c.boxPage(ids, count)
+	if err != nil {
+		c.Logger.Errorf("messages.search - error: %v", err)
+		return nil, err
+	}
+	return r, c.fillMessagesPeers(r)
 }
 
-// searchMediaType is the media type message.getSearchCounter counts for a
-// filter of the dialog's media lists.
-func searchMediaType(filter mtproto.MessagesFilterType) (int32, bool) {
-	switch filter {
-	case mtproto.FilterPhotos:
-		return mtproto.MEDIA_PHOTOS_ONLY, true
-	case mtproto.FilterVideo:
-		return mtproto.MEDIA_VIDEOS_ONLY, true
-	case mtproto.FilterPhotoVideo:
-		return mtproto.MEDIA_PHOTOVIDEO, true
-	case mtproto.FilterDocument:
-		return mtproto.MEDIA_FILE, true
-	case mtproto.FilterUrl:
-		return mtproto.MEDIA_URL, true
-	case mtproto.FilterGif:
-		return mtproto.MEDIA_GIF, true
-	case mtproto.FilterMusic:
-		return mtproto.MEDIA_MUSIC, true
-	case mtproto.FilterChatPhotos:
-		return mtproto.MEDIA_CHAT_PHOTO, true
-	case mtproto.FilterRoundVoice:
-		return mtproto.MEDIA_AUDIO, true
+func emptyMessages() *mtproto.Messages_Messages {
+	return mtproto.MakeTLMessagesMessages(&mtproto.Messages_Messages{
+		Messages: []*mtproto.Message{},
+		Chats:    []*mtproto.Chat{},
+		Users:    []*mtproto.User{},
+	}).To_Messages_Messages()
+}
+
+// boxPage is the box messages ids of the account as messages, newest
+// first, messagesSlice with the count when they are not all that matched.
+func (c *MessagesCore) boxPage(ids []int32, count int32) (*mtproto.Messages_Messages, error) {
+	r := emptyMessages()
+	if int(count) > len(ids) {
+		r.PredicateName = mtproto.Predicate_messages_messagesSlice
+		r.Count = count
 	}
-	return 0, false
+	if len(ids) == 0 {
+		return r, nil
+	}
+	boxes, err := c.svcCtx.Dao.MessageClient.MessageGetUserMessageList(c.ctx, &message.TLMessageGetUserMessageList{UserId: c.MD.UserId, IdList: ids})
+	if err != nil {
+		return nil, err
+	}
+	list := mtproto.MakeTLMessageBoxList(&mtproto.MessageBoxList{BoxList: boxes.GetDatas()}).To_MessageBoxList()
+	list.Visit(c.MD.UserId,
+		func(messages []*mtproto.Message) { r.Messages = messages },
+		func([]int64) {}, func([]int64) {}, func([]int64) {})
+	slices.SortFunc(r.Messages, func(a, b *mtproto.Message) int { return int(b.GetId()) - int(a.GetId()) })
+	return r, nil
+}
+
+// fillMessagesPeers adds to r the users and chats of its messages.
+func (c *MessagesCore) fillMessagesPeers(r *mtproto.Messages_Messages) error {
+	h := mtproto.NewIDListHelper(c.MD.UserId)
+	h.PickByMessages(r.GetMessages()...)
+	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsersV2(c.ctx, &userpb.TLUserGetMutableUsersV2{
+		Id:      h.UserIdList,
+		Privacy: true,
+		HasTo:   true,
+		To:      []int64{c.MD.UserId},
+	})
+	if err != nil {
+		return err
+	}
+	r.Users = users.GetUserListByIdList(c.MD.UserId, h.UserIdList...)
+	r.Chats = []*mtproto.Chat{}
+	if len(h.ChatIdList) > 0 {
+		chats, err := c.svcCtx.Dao.ChatClient.Client().ChatGetChatListByIdList(c.ctx, &chatpb.TLChatGetChatListByIdList{IdList: h.ChatIdList})
+		if err != nil {
+			return err
+		}
+		r.Chats = chats.GetChatListByIdList(c.MD.UserId, h.ChatIdList...)
+	}
+	if len(h.ChannelIdList) > 0 {
+		channels, err := c.svcCtx.Dao.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: h.ChannelIdList})
+		if err != nil {
+			return err
+		}
+		r.Chats = append(r.Chats, channels.GetChannelListByIdList(c.MD.UserId)...)
+	}
+	return nil
 }
 
 // searchResult fills rValues with the messages of boxList as the account sees

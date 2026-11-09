@@ -127,6 +127,14 @@ enum TLConstructor {
   CRC32_channel_getForumTopicsByID = 1892057379;
   // pluma: task 060
   CRC32_channel_searchTopic = -2126242873;
+  // pluma: task 066
+  CRC32_channel_searchCount = 622787338;
+  // pluma: task 066
+  CRC32_channel_searchCalendar = -16614681;
+  // pluma: task 066
+  CRC32_channel_searchPositions = -1144250748;
+  // pluma: task 066
+  CRC32_channel_searchAcross = -1564360787;
   // pluma: task 060
   CRC32_channel_readTopicMentions = -701570663;
   // pluma: task 060
@@ -1194,6 +1202,71 @@ message TL_channel_setChatTheme {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int = int;
+// How many messages of a kind (msgsearch) self_id sees in the channel, or
+// in the thread or topic top_msg_id when it is not 0.
+// (task 066)
+message TL_channel_searchCount {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 top_msg_id = 5;
+  int32 media_type = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int = messages.SearchResultsCalendar;
+// The days of the messages of a kind of the channel (messages.getSearchResultsCalendar).
+// (task 066)
+message TL_channel_searchCalendar {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 media_type = 5;
+  int32 offset_id = 6;
+  int32 offset_date = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int = messages.SearchResultsPositions;
+// Sparse positions of the messages of a kind of the channel (messages.getSearchResultsPositions).
+// (task 066)
+message TL_channel_searchPositions {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 media_type = 5;
+  int32 offset_id = 6;
+  int32 limit = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.searchAcross self_id:long public_only:Bool broadcasts_only:Bool groups_only:Bool community_id:long folder_mode:int folder_channels:Vector<long> q:string media_type:int min_date:int max_date:int offset_rate:int offset_channel_id:long offset_id:int limit:int = messages.Messages;
+// Messages of the channels of self_id, or of all public channels with
+// public_only (channels.searchPosts), newest first; folder_mode 1 keeps,
+// 2 leaves out folder_channels; offset_channel_id 0 with offset_rate says
+// the cursor is not in a channel.
+// (task 066)
+message TL_channel_searchAcross {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  mtproto.Bool public_only = 4;
+  mtproto.Bool broadcasts_only = 5;
+  mtproto.Bool groups_only = 6;
+  int64 community_id = 7;
+  int32 folder_mode = 8;
+  repeated int64 folder_channels = 9;
+  string q = 10;
+  int32 media_type = 11;
+  int32 min_date = 12;
+  int32 max_date = 13;
+  int32 offset_rate = 14;
+  int64 offset_channel_id = 15;
+  int32 offset_id = 16;
+  int32 limit = 17;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -1317,6 +1390,14 @@ service RPCChannel {
   rpc channel_getForumTopicsByID(TL_channel_getForumTopicsByID) returns (mtproto.messages_ForumTopics) {}
   // pluma: task 060
   rpc channel_searchTopic(TL_channel_searchTopic) returns (mtproto.messages_Messages) {}
+  // pluma: task 066
+  rpc channel_searchCount(TL_channel_searchCount) returns (mtproto.Int32) {}
+  // pluma: task 066
+  rpc channel_searchCalendar(TL_channel_searchCalendar) returns (mtproto.messages_SearchResultsCalendar) {}
+  // pluma: task 066
+  rpc channel_searchPositions(TL_channel_searchPositions) returns (mtproto.messages_SearchResultsPositions) {}
+  // pluma: task 066
+  rpc channel_searchAcross(TL_channel_searchAcross) returns (mtproto.messages_Messages) {}
   // pluma: task 060
   rpc channel_readTopicMentions(TL_channel_readTopicMentions) returns (mtproto.messages_AffectedHistory) {}
   // pluma: task 060

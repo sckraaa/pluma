@@ -200,18 +200,8 @@ func (c *ChannelCore) ChannelSearchTopic(in *channel.TLChannelSearchTopic) (*mtp
 	if mtproto.FromBool(in.UnreadMentions) {
 		q.UnreadMentionsOf = in.SelfId
 	}
-	forum, err := c.svcCtx.Dao.IsForum(c.ctx, in.ChannelId)
-	if err != nil {
+	if err := c.applyTop(in.ChannelId, in.TopMsgId, &q); err != nil {
 		return nil, err
-	}
-	if forum {
-		q.Topic = in.TopMsgId
-	} else {
-		t, err := c.svcCtx.Dao.ThreadOf(c.ctx, in.ChannelId, in.TopMsgId)
-		if err != nil {
-			return nil, err
-		}
-		q.ThreadTop = t.TopId
 	}
 	r, err := c.search(in.SelfId, in.ChannelId, q, in.OffsetId, in.AddOffset, in.Limit, in.MaxId, in.MinId)
 	if err != nil {

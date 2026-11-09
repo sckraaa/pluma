@@ -86,6 +86,10 @@ const (
 	RPCChannel_ChannelGetForumTopics_FullMethodName                   = "/channel.RPCChannel/channel_getForumTopics"
 	RPCChannel_ChannelGetForumTopicsByID_FullMethodName               = "/channel.RPCChannel/channel_getForumTopicsByID"
 	RPCChannel_ChannelSearchTopic_FullMethodName                      = "/channel.RPCChannel/channel_searchTopic"
+	RPCChannel_ChannelSearchCount_FullMethodName                      = "/channel.RPCChannel/channel_searchCount"
+	RPCChannel_ChannelSearchCalendar_FullMethodName                   = "/channel.RPCChannel/channel_searchCalendar"
+	RPCChannel_ChannelSearchPositions_FullMethodName                  = "/channel.RPCChannel/channel_searchPositions"
+	RPCChannel_ChannelSearchAcross_FullMethodName                     = "/channel.RPCChannel/channel_searchAcross"
 	RPCChannel_ChannelReadTopicMentions_FullMethodName                = "/channel.RPCChannel/channel_readTopicMentions"
 	RPCChannel_ChannelUnpinAllTopicMessages_FullMethodName            = "/channel.RPCChannel/channel_unpinAllTopicMessages"
 	RPCChannel_ChannelSetHistoryTTL_FullMethodName                    = "/channel.RPCChannel/channel_setHistoryTTL"
@@ -211,6 +215,14 @@ type RPCChannelClient interface {
 	ChannelGetForumTopicsByID(ctx context.Context, in *TLChannelGetForumTopicsByID, opts ...grpc.CallOption) (*mtproto.Messages_ForumTopics, error)
 	// pluma: task 060
 	ChannelSearchTopic(ctx context.Context, in *TLChannelSearchTopic, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
+	// pluma: task 066
+	ChannelSearchCount(ctx context.Context, in *TLChannelSearchCount, opts ...grpc.CallOption) (*mtproto.Int32, error)
+	// pluma: task 066
+	ChannelSearchCalendar(ctx context.Context, in *TLChannelSearchCalendar, opts ...grpc.CallOption) (*mtproto.Messages_SearchResultsCalendar, error)
+	// pluma: task 066
+	ChannelSearchPositions(ctx context.Context, in *TLChannelSearchPositions, opts ...grpc.CallOption) (*mtproto.Messages_SearchResultsPositions, error)
+	// pluma: task 066
+	ChannelSearchAcross(ctx context.Context, in *TLChannelSearchAcross, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
 	// pluma: task 060
 	ChannelReadTopicMentions(ctx context.Context, in *TLChannelReadTopicMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 060
@@ -763,6 +775,46 @@ func (c *rPCChannelClient) ChannelSearchTopic(ctx context.Context, in *TLChannel
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelSearchCount(ctx context.Context, in *TLChannelSearchCount, opts ...grpc.CallOption) (*mtproto.Int32, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Int32)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSearchCount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSearchCalendar(ctx context.Context, in *TLChannelSearchCalendar, opts ...grpc.CallOption) (*mtproto.Messages_SearchResultsCalendar, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_SearchResultsCalendar)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSearchCalendar_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSearchPositions(ctx context.Context, in *TLChannelSearchPositions, opts ...grpc.CallOption) (*mtproto.Messages_SearchResultsPositions, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_SearchResultsPositions)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSearchPositions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSearchAcross(ctx context.Context, in *TLChannelSearchAcross, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSearchAcross_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelReadTopicMentions(ctx context.Context, in *TLChannelReadTopicMentions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Messages_AffectedHistory)
@@ -1075,6 +1127,14 @@ type RPCChannelServer interface {
 	ChannelGetForumTopicsByID(context.Context, *TLChannelGetForumTopicsByID) (*mtproto.Messages_ForumTopics, error)
 	// pluma: task 060
 	ChannelSearchTopic(context.Context, *TLChannelSearchTopic) (*mtproto.Messages_Messages, error)
+	// pluma: task 066
+	ChannelSearchCount(context.Context, *TLChannelSearchCount) (*mtproto.Int32, error)
+	// pluma: task 066
+	ChannelSearchCalendar(context.Context, *TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error)
+	// pluma: task 066
+	ChannelSearchPositions(context.Context, *TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error)
+	// pluma: task 066
+	ChannelSearchAcross(context.Context, *TLChannelSearchAcross) (*mtproto.Messages_Messages, error)
 	// pluma: task 060
 	ChannelReadTopicMentions(context.Context, *TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 060
@@ -1275,6 +1335,18 @@ func (UnimplementedRPCChannelServer) ChannelGetForumTopicsByID(context.Context, 
 }
 func (UnimplementedRPCChannelServer) ChannelSearchTopic(context.Context, *TLChannelSearchTopic) (*mtproto.Messages_Messages, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelSearchTopic not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSearchCount(context.Context, *TLChannelSearchCount) (*mtproto.Int32, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSearchCount not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSearchCalendar(context.Context, *TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSearchCalendar not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSearchPositions(context.Context, *TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSearchPositions not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSearchAcross(context.Context, *TLChannelSearchAcross) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSearchAcross not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelReadTopicMentions(context.Context, *TLChannelReadTopicMentions) (*mtproto.Messages_AffectedHistory, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelReadTopicMentions not implemented")
@@ -2259,6 +2331,78 @@ func _RPCChannel_ChannelSearchTopic_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelSearchCount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSearchCount)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSearchCount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSearchCount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSearchCount(ctx, req.(*TLChannelSearchCount))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSearchCalendar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSearchCalendar)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSearchCalendar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSearchCalendar_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSearchCalendar(ctx, req.(*TLChannelSearchCalendar))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSearchPositions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSearchPositions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSearchPositions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSearchPositions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSearchPositions(ctx, req.(*TLChannelSearchPositions))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSearchAcross_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSearchAcross)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSearchAcross(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSearchAcross_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSearchAcross(ctx, req.(*TLChannelSearchAcross))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelReadTopicMentions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelReadTopicMentions)
 	if err := dec(in); err != nil {
@@ -2843,6 +2987,22 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_searchTopic",
 			Handler:    _RPCChannel_ChannelSearchTopic_Handler,
+		},
+		{
+			MethodName: "channel_searchCount",
+			Handler:    _RPCChannel_ChannelSearchCount_Handler,
+		},
+		{
+			MethodName: "channel_searchCalendar",
+			Handler:    _RPCChannel_ChannelSearchCalendar_Handler,
+		},
+		{
+			MethodName: "channel_searchPositions",
+			Handler:    _RPCChannel_ChannelSearchPositions_Handler,
+		},
+		{
+			MethodName: "channel_searchAcross",
+			Handler:    _RPCChannel_ChannelSearchAcross_Handler,
 		},
 		{
 			MethodName: "channel_readTopicMentions",

@@ -291,6 +291,26 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -2126242873,
 		}
 	},
+	622787338: func() mtproto.TLObject { // 0x251efb0a pluma: task 066
+		return &TLChannelSearchCount{
+			Constructor: 622787338,
+		}
+	},
+	-16614681: func() mtproto.TLObject { // 0xff027ae7 pluma: task 066
+		return &TLChannelSearchCalendar{
+			Constructor: -16614681,
+		}
+	},
+	-1144250748: func() mtproto.TLObject { // 0xbbcc1e84 pluma: task 066
+		return &TLChannelSearchPositions{
+			Constructor: -1144250748,
+		}
+	},
+	-1564360787: func() mtproto.TLObject { // 0xa2c1bfad pluma: task 066
+		return &TLChannelSearchAcross{
+			Constructor: -1564360787,
+		}
+	},
 	-701570663: func() mtproto.TLObject { // 0xd62ee199 pluma: task 060
 		return &TLChannelReadTopicMentions{
 			Constructor: -701570663,
@@ -4484,4 +4504,208 @@ func (m *TLChannelSetChatTheme) Decode(dBuf *mtproto.DecodeBuf) error {
 		// log.Errorf("")
 	}
 	return dBuf.GetError()
+}
+
+// TLChannelSearchCount (pluma: task 066)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSearchCount) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x251efb0a:
+		x.UInt(0x251efb0a)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetTopMsgId())
+		x.Int(m.GetMediaType())
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
+
+	return nil
+}
+
+func (m *TLChannelSearchCount) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSearchCount) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x251efb0a:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.TopMsgId = dBuf.Int()
+		m.MediaType = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
+}
+
+// TLChannelSearchCalendar (pluma: task 066)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSearchCalendar) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xff027ae7:
+		x.UInt(0xff027ae7)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetMediaType())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetOffsetDate())
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
+
+	return nil
+}
+
+func (m *TLChannelSearchCalendar) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSearchCalendar) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xff027ae7:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.MediaType = dBuf.Int()
+		m.OffsetId = dBuf.Int()
+		m.OffsetDate = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
+}
+
+// TLChannelSearchPositions (pluma: task 066)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSearchPositions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xbbcc1e84:
+		x.UInt(0xbbcc1e84)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetMediaType())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetLimit())
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
+
+	return nil
+}
+
+func (m *TLChannelSearchPositions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSearchPositions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xbbcc1e84:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.MediaType = dBuf.Int()
+		m.OffsetId = dBuf.Int()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
+}
+
+// TLChannelSearchAcross (pluma: task 066)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSearchAcross) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xa2c1bfad:
+		x.UInt(0xa2c1bfad)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		m.GetPublicOnly().Encode(x, layer)
+		m.GetBroadcastsOnly().Encode(x, layer)
+		m.GetGroupsOnly().Encode(x, layer)
+		x.Long(m.GetCommunityId())
+		x.Int(m.GetFolderMode())
+		x.VectorLong(m.GetFolderChannels())
+		x.String(m.GetQ())
+		x.Int(m.GetMediaType())
+		x.Int(m.GetMinDate())
+		x.Int(m.GetMaxDate())
+		x.Int(m.GetOffsetRate())
+		x.Long(m.GetOffsetChannelId())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetLimit())
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
+
+	return nil
+}
+
+func (m *TLChannelSearchAcross) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSearchAcross) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xa2c1bfad:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m1 := &mtproto.Bool{}
+		m1.Decode(dBuf)
+		m.PublicOnly = m1
+		m2 := &mtproto.Bool{}
+		m2.Decode(dBuf)
+		m.BroadcastsOnly = m2
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.GroupsOnly = m3
+		m.CommunityId = dBuf.Long()
+		m.FolderMode = dBuf.Int()
+		m.FolderChannels = dBuf.VectorLong()
+		m.Q = dBuf.String()
+		m.MediaType = dBuf.Int()
+		m.MinDate = dBuf.Int()
+		m.MaxDate = dBuf.Int()
+		m.OffsetRate = dBuf.Int()
+		m.OffsetChannelId = dBuf.Long()
+		m.OffsetId = dBuf.Int()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
+	}
 }

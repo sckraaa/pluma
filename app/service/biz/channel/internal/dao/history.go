@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/msgsearch"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 
@@ -101,8 +102,8 @@ func (d *Dao) History(ctx context.Context, selfId, channelId int64, offsetId, of
 }
 
 // SearchQuery is what a search of a channel asks for, every part optional:
-// the text, the author, a kind of message (mtproto.MEDIA_*, MEDIA_EMPTY for
-// any) and the dates.
+// the text, the author (a user, or -id of a channel), a kind of message
+// (msgsearch: mtproto.MEDIA_*, MEDIA_EMPTY for any) and the dates.
 type SearchQuery struct {
 	Q                string
 	FromId           int64
@@ -128,46 +129,38 @@ const SearchMax = 100
 // MEDIA_PHOTOVIDEO, as the media lists of the clients ask. Service messages
 // are left out but for the photo's changes (MEDIA_CHAT_PHOTO).
 func (d *Dao) Search(ctx context.Context, selfId, channelId int64, q SearchQuery, offsetId, addOffset, limit, maxId, minId int32) ([]*mtproto.Message, int32, error) {
-	var pq pageQuery
-	add := func(cond string, args ...any) {
-		pq.where += " AND " + cond
-		pq.args = append(pq.args, args...)
-	}
-	if q.Q != "" {
-		add("message LIKE ? ESCAPE '!'", "%"+likeEscaper.Replace(q.Q)+"%")
-	}
-	if q.FromId != 0 {
-		add("sender_user_id = ?", q.FromId)
+	return d.page(ctx, selfId, channelId, q.pageQuery(selfId, channelId), offsetId, 0, addOffset, min(limit, SearchMax), maxId, minId)
+}
+
+// pageQuery narrows a page of channelId to what q asks for selfId.
+func (q SearchQuery) pageQuery(selfId, channelId int64) pageQuery {
+	var w msgsearch.Where
+	cols := msgsearch.Columns{}
+	cols.Text(&w, q.MediaType, q.Q)
+	switch {
+	case q.FromId > 0:
+		// An unsigned post of a channel names nobody, whoever wrote it.
+		w.And("sender_user_id = ?", q.FromId)
+		w.And("JSON_EXTRACT(message_data, '$.from_id.user_id') = ?", q.FromId)
+	case q.FromId < 0:
+		// A channel as the sender (the post copies of a discussion group).
+		w.And("JSON_EXTRACT(message_data, '$.from_id.channel_id') = ?", -q.FromId)
 	}
 	if q.ThreadTop != 0 {
-		add("reply_top_id = ?", q.ThreadTop)
+		w.And("reply_top_id = ?", q.ThreadTop)
 	}
 	if q.Topic != 0 {
-		add("topic_id = ?", channelbox.TopicColumn(q.Topic))
+		w.And("topic_id = ?", channelbox.TopicColumn(q.Topic))
 	}
 	if q.UnreadMentionsOf != 0 {
-		add("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)
+		w.And("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)
 	}
-	// Service messages are found only as changes of the photo.
-	if q.MediaType != mtproto.MEDIA_CHAT_PHOTO {
-		add("JSON_UNQUOTE(JSON_EXTRACT(message_data, '$.predicate_name')) = ?", mtproto.Predicate_message)
+	if q.MediaType == msgsearch.KindMyMentions {
+		w.And("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ?)", channelId, selfId)
 	}
-	switch q.MediaType {
-	case mtproto.MEDIA_EMPTY:
-	case mtproto.MEDIA_PINNED:
-		add("pinned = 1")
-	case mtproto.MEDIA_PHOTOVIDEO:
-		add("message_filter_type IN (?, ?)", mtproto.MEDIA_PHOTOS_ONLY, mtproto.MEDIA_VIDEOS_ONLY)
-	default:
-		add("message_filter_type = ?", q.MediaType)
-	}
-	if q.MinDate > 0 {
-		add("date2 >= ?", q.MinDate)
-	}
-	if q.MaxDate > 0 {
-		add("date2 <= ?", q.MaxDate)
-	}
-	return d.page(ctx, selfId, channelId, pq, offsetId, 0, addOffset, min(limit, SearchMax), maxId, minId)
+	cols.Kind(&w, q.MediaType)
+	cols.Dates(&w, q.MinDate, q.MaxDate)
+	return pageQuery{where: w.SQL, args: w.Args}
 }
 
 // likeEscaper escapes the wildcards of LIKE with '!'.

@@ -107,6 +107,14 @@ const (
 	Predicate_channel_getForumTopicsByID = "channel_getForumTopicsByID"
 	// pluma: task 060
 	Predicate_channel_searchTopic = "channel_searchTopic"
+	// pluma: task 066
+	Predicate_channel_searchCount = "channel_searchCount"
+	// pluma: task 066
+	Predicate_channel_searchCalendar = "channel_searchCalendar"
+	// pluma: task 066
+	Predicate_channel_searchPositions = "channel_searchPositions"
+	// pluma: task 066
+	Predicate_channel_searchAcross = "channel_searchAcross"
 	// pluma: task 060
 	Predicate_channel_readTopicMentions = "channel_readTopicMentions"
 	// pluma: task 060
@@ -359,6 +367,22 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -2126242873, // 0x81441bc7
 
 	},
+	Predicate_channel_searchCount: { // pluma: task 066
+		0: 622787338, // 0x251efb0a
+
+	},
+	Predicate_channel_searchCalendar: { // pluma: task 066
+		0: -16614681, // 0xff027ae7
+
+	},
+	Predicate_channel_searchPositions: { // pluma: task 066
+		0: -1144250748, // 0xbbcc1e84
+
+	},
+	Predicate_channel_searchAcross: { // pluma: task 066
+		0: -1564360787, // 0xa2c1bfad
+
+	},
 	Predicate_channel_readTopicMentions: { // pluma: task 060
 		0: -701570663, // 0xd62ee199
 
@@ -521,6 +545,10 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-553446363:  Predicate_channel_getForumTopics,                   // 0xdf031425 pluma: task 060
 	1892057379:  Predicate_channel_getForumTopicsByID,               // 0x70c68123 pluma: task 060
 	-2126242873: Predicate_channel_searchTopic,                      // 0x81441bc7 pluma: task 060
+	622787338: Predicate_channel_searchCount, // 0x251efb0a pluma: task 066
+	-16614681: Predicate_channel_searchCalendar, // 0xff027ae7 pluma: task 066
+	-1144250748: Predicate_channel_searchPositions, // 0xbbcc1e84 pluma: task 066
+	-1564360787: Predicate_channel_searchAcross, // 0xa2c1bfad pluma: task 066
 	-701570663:  Predicate_channel_readTopicMentions,                // 0xd62ee199 pluma: task 060
 	-1405087645: Predicate_channel_unpinAllTopicMessages,            // 0xac401063 pluma: task 060
 }
