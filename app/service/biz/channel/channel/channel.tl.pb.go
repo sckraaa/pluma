@@ -449,6 +449,8 @@ type ImmutableChannel struct {
 	SignatureProfiles bool `protobuf:"varint,35,opt,name=signature_profiles,json=signatureProfiles,proto3" json:"signature_profiles,omitempty"`
 	// pluma: task 060: flags.15, the tabbed layout of a forum.
 	ForumTabs bool `protobuf:"varint,40,opt,name=forum_tabs,json=forumTabs,proto3" json:"forum_tabs,omitempty"`
+	// pluma: task 074: flags2.23, the topics of a forum in a sidebar (layer 233).
+	ForumSidebar bool `protobuf:"varint,42,opt,name=forum_sidebar,json=forumSidebar,proto3" json:"forum_sidebar,omitempty"`
 	// pluma: task 072: flags.16, blocked by the owner of the server (the
 	// members see it restricted; channel.setBlocked).
 	Blocked       bool `protobuf:"varint,41,opt,name=blocked,proto3" json:"blocked,omitempty"`
@@ -734,6 +736,13 @@ func (x *ImmutableChannel) GetSignatureProfiles() bool {
 func (x *ImmutableChannel) GetForumTabs() bool {
 	if x != nil {
 		return x.ForumTabs
+	}
+	return false
+}
+
+func (x *ImmutableChannel) GetForumSidebar() bool {
+	if x != nil {
+		return x.ForumSidebar
 	}
 	return false
 }
@@ -5776,6 +5785,7 @@ type TLChannelToggleForum struct {
 	ChannelId     int64                  `protobuf:"varint,5,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
 	Enabled       *mtproto.Bool          `protobuf:"bytes,6,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	Tabs          *mtproto.Bool          `protobuf:"bytes,7,opt,name=tabs,proto3" json:"tabs,omitempty"`
+	Sidebar       *mtproto.Bool          `protobuf:"bytes,8,opt,name=sidebar,proto3" json:"sidebar,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5848,6 +5858,13 @@ func (x *TLChannelToggleForum) GetEnabled() *mtproto.Bool {
 func (x *TLChannelToggleForum) GetTabs() *mtproto.Bool {
 	if x != nil {
 		return x.Tabs
+	}
+	return nil
+}
+
+func (x *TLChannelToggleForum) GetSidebar() *mtproto.Bool {
+	if x != nil {
+		return x.Sidebar
 	}
 	return nil
 }
@@ -8095,7 +8112,7 @@ var File_channel_tl_proto protoreflect.FileDescriptor
 
 const file_channel_tl_proto_rawDesc = "" +
 	"\n" +
-	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xbe\n" +
+	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xe3\n" +
 	"\n" +
 	"\x10ImmutableChannel\x12%\n" +
 	"\x0epredicate_name\x18\x01 \x01(\tR\rpredicateName\x128\n" +
@@ -8142,7 +8159,8 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x13available_reactions\x18\" \x03(\tR\x12availableReactions\x12-\n" +
 	"\x12signature_profiles\x18# \x01(\bR\x11signatureProfiles\x12\x1d\n" +
 	"\n" +
-	"forum_tabs\x18( \x01(\bR\tforumTabs\x12\x18\n" +
+	"forum_tabs\x18( \x01(\bR\tforumTabs\x12#\n" +
+	"\rforum_sidebar\x18* \x01(\bR\fforumSidebar\x12\x18\n" +
 	"\ablocked\x18) \x01(\bR\ablocked\"F\n" +
 	"\x13TL_immutableChannel\x12/\n" +
 	"\x05data2\x18\x01 \x01(\v2\x19.channel.ImmutableChannelR\x05data2\"\xa5\x04\n" +
@@ -8599,7 +8617,7 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x1aTL_channel_getLeftChannels\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x16\n" +
-	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xff\x01\n" +
+	"\x06offset\x18\x04 \x01(\x05R\x06offset\"\xa8\x02\n" +
 	"\x16TL_channel_toggleForum\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
@@ -8607,7 +8625,8 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\n" +
 	"channel_id\x18\x05 \x01(\x03R\tchannelId\x12'\n" +
 	"\aenabled\x18\x06 \x01(\v2\r.mtproto.BoolR\aenabled\x12!\n" +
-	"\x04tabs\x18\a \x01(\v2\r.mtproto.BoolR\x04tabs\"\xea\x01\n" +
+	"\x04tabs\x18\a \x01(\v2\r.mtproto.BoolR\x04tabs\x12'\n" +
+	"\asidebar\x18\b \x01(\v2\r.mtproto.BoolR\asidebar\"\xea\x01\n" +
 	"$TL_channel_toggleViewForumAsMessages\x128\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x17\n" +
 	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12'\n" +
@@ -9215,206 +9234,207 @@ var file_channel_tl_proto_depIdxs = []int32{
 	0,   // 83: channel.TL_channel_toggleForum.constructor:type_name -> channel.TLConstructor
 	91,  // 84: channel.TL_channel_toggleForum.enabled:type_name -> mtproto.Bool
 	91,  // 85: channel.TL_channel_toggleForum.tabs:type_name -> mtproto.Bool
-	0,   // 86: channel.TL_channel_toggleViewForumAsMessages.constructor:type_name -> channel.TLConstructor
-	91,  // 87: channel.TL_channel_toggleViewForumAsMessages.enabled:type_name -> mtproto.Bool
-	0,   // 88: channel.TL_channel_createForumTopic.constructor:type_name -> channel.TLConstructor
-	91,  // 89: channel.TL_channel_createForumTopic.title_missing:type_name -> mtproto.Bool
-	0,   // 90: channel.TL_channel_editForumTopic.constructor:type_name -> channel.TLConstructor
-	91,  // 91: channel.TL_channel_editForumTopic.closed:type_name -> mtproto.Bool
-	91,  // 92: channel.TL_channel_editForumTopic.hidden:type_name -> mtproto.Bool
-	0,   // 93: channel.TL_channel_updatePinnedForumTopic.constructor:type_name -> channel.TLConstructor
-	91,  // 94: channel.TL_channel_updatePinnedForumTopic.pinned:type_name -> mtproto.Bool
-	0,   // 95: channel.TL_channel_reorderPinnedForumTopics.constructor:type_name -> channel.TLConstructor
-	91,  // 96: channel.TL_channel_reorderPinnedForumTopics.force:type_name -> mtproto.Bool
-	0,   // 97: channel.TL_channel_deleteTopicHistory.constructor:type_name -> channel.TLConstructor
-	0,   // 98: channel.TL_channel_getForumTopics.constructor:type_name -> channel.TLConstructor
-	0,   // 99: channel.TL_channel_getForumTopicsByID.constructor:type_name -> channel.TLConstructor
-	0,   // 100: channel.TL_channel_searchTopic.constructor:type_name -> channel.TLConstructor
-	91,  // 101: channel.TL_channel_searchTopic.unread_mentions:type_name -> mtproto.Bool
-	0,   // 102: channel.TL_channel_readTopicMentions.constructor:type_name -> channel.TLConstructor
-	0,   // 103: channel.TL_channel_unpinAllTopicMessages.constructor:type_name -> channel.TLConstructor
-	0,   // 104: channel.TL_channel_setHistoryTTL.constructor:type_name -> channel.TLConstructor
-	0,   // 105: channel.TL_channel_setChatWallpaper.constructor:type_name -> channel.TLConstructor
-	92,  // 106: channel.TL_channel_setChatWallpaper.wallpaper:type_name -> mtproto.WallPaper
-	0,   // 107: channel.TL_channel_setChatTheme.constructor:type_name -> channel.TLConstructor
-	0,   // 108: channel.TL_channel_searchCount.constructor:type_name -> channel.TLConstructor
-	0,   // 109: channel.TL_channel_searchCalendar.constructor:type_name -> channel.TLConstructor
-	0,   // 110: channel.TL_channel_searchPositions.constructor:type_name -> channel.TLConstructor
-	0,   // 111: channel.TL_channel_searchAcross.constructor:type_name -> channel.TLConstructor
-	91,  // 112: channel.TL_channel_searchAcross.public_only:type_name -> mtproto.Bool
-	91,  // 113: channel.TL_channel_searchAcross.broadcasts_only:type_name -> mtproto.Bool
-	91,  // 114: channel.TL_channel_searchAcross.groups_only:type_name -> mtproto.Bool
-	0,   // 115: channel.TL_channel_expireMessages.constructor:type_name -> channel.TLConstructor
-	0,   // 116: channel.TL_channel_getUnreadReactions.constructor:type_name -> channel.TLConstructor
-	0,   // 117: channel.TL_channel_readReactions.constructor:type_name -> channel.TLConstructor
-	0,   // 118: channel.TL_channel_setBlocked.constructor:type_name -> channel.TLConstructor
-	91,  // 119: channel.TL_channel_setBlocked.blocked:type_name -> mtproto.Bool
-	93,  // 120: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
-	94,  // 121: channel.Vector_Message.datas:type_name -> mtproto.Message
-	5,   // 122: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
-	7,   // 123: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
-	8,   // 124: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
-	9,   // 125: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
-	10,  // 126: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
-	11,  // 127: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
-	12,  // 128: channel.RPCChannel.channel_getMemberIdList:input_type -> channel.TL_channel_getMemberIdList
-	13,  // 129: channel.RPCChannel.channel_getHistory:input_type -> channel.TL_channel_getHistory
-	14,  // 130: channel.RPCChannel.channel_getMessages:input_type -> channel.TL_channel_getMessages
-	15,  // 131: channel.RPCChannel.channel_getChannelDifference:input_type -> channel.TL_channel_getChannelDifference
-	16,  // 132: channel.RPCChannel.channel_joinChannel:input_type -> channel.TL_channel_joinChannel
-	17,  // 133: channel.RPCChannel.channel_leaveChannel:input_type -> channel.TL_channel_leaveChannel
-	18,  // 134: channel.RPCChannel.channel_checkChatInvite:input_type -> channel.TL_channel_checkChatInvite
-	19,  // 135: channel.RPCChannel.channel_getParticipants:input_type -> channel.TL_channel_getParticipants
-	20,  // 136: channel.RPCChannel.channel_readHistory:input_type -> channel.TL_channel_readHistory
-	21,  // 137: channel.RPCChannel.channel_deleteMessages:input_type -> channel.TL_channel_deleteMessages
-	22,  // 138: channel.RPCChannel.channel_inviteToChannel:input_type -> channel.TL_channel_inviteToChannel
-	23,  // 139: channel.RPCChannel.channel_editTitle:input_type -> channel.TL_channel_editTitle
-	24,  // 140: channel.RPCChannel.channel_editAbout:input_type -> channel.TL_channel_editAbout
-	25,  // 141: channel.RPCChannel.channel_checkUsername:input_type -> channel.TL_channel_checkUsername
-	26,  // 142: channel.RPCChannel.channel_updateUsername:input_type -> channel.TL_channel_updateUsername
-	27,  // 143: channel.RPCChannel.channel_getAdminedPublicChannels:input_type -> channel.TL_channel_getAdminedPublicChannels
-	28,  // 144: channel.RPCChannel.channel_deleteChannel:input_type -> channel.TL_channel_deleteChannel
-	85,  // 145: channel.RPCChannel.channel_setBlocked:input_type -> channel.TL_channel_setBlocked
-	45,  // 146: channel.RPCChannel.channel_incrementMessageViews:input_type -> channel.TL_channel_incrementMessageViews
-	46,  // 147: channel.RPCChannel.channel_addMessageForwards:input_type -> channel.TL_channel_addMessageForwards
-	47,  // 148: channel.RPCChannel.channel_deleteHistory:input_type -> channel.TL_channel_deleteHistory
-	48,  // 149: channel.RPCChannel.channel_deleteParticipantHistory:input_type -> channel.TL_channel_deleteParticipantHistory
-	49,  // 150: channel.RPCChannel.channel_toggleSignatures:input_type -> channel.TL_channel_toggleSignatures
-	50,  // 151: channel.RPCChannel.channel_toggleSlowMode:input_type -> channel.TL_channel_toggleSlowMode
-	51,  // 152: channel.RPCChannel.channel_toggleJoinRequest:input_type -> channel.TL_channel_toggleJoinRequest
-	52,  // 153: channel.RPCChannel.channel_exportChatInvite:input_type -> channel.TL_channel_exportChatInvite
-	53,  // 154: channel.RPCChannel.channel_getExportedChatInvite:input_type -> channel.TL_channel_getExportedChatInvite
-	54,  // 155: channel.RPCChannel.channel_getExportedChatInvites:input_type -> channel.TL_channel_getExportedChatInvites
-	55,  // 156: channel.RPCChannel.channel_editExportedChatInvite:input_type -> channel.TL_channel_editExportedChatInvite
-	56,  // 157: channel.RPCChannel.channel_deleteExportedChatInvite:input_type -> channel.TL_channel_deleteExportedChatInvite
-	57,  // 158: channel.RPCChannel.channel_deleteRevokedExportedChatInvites:input_type -> channel.TL_channel_deleteRevokedExportedChatInvites
-	58,  // 159: channel.RPCChannel.channel_getAdminsWithInvites:input_type -> channel.TL_channel_getAdminsWithInvites
-	59,  // 160: channel.RPCChannel.channel_getChatInviteImporters:input_type -> channel.TL_channel_getChatInviteImporters
-	60,  // 161: channel.RPCChannel.channel_hideChatJoinRequests:input_type -> channel.TL_channel_hideChatJoinRequests
-	61,  // 162: channel.RPCChannel.channel_getPendingJoinRequests:input_type -> channel.TL_channel_getPendingJoinRequests
-	62,  // 163: channel.RPCChannel.channel_getLeftChannels:input_type -> channel.TL_channel_getLeftChannels
-	63,  // 164: channel.RPCChannel.channel_toggleForum:input_type -> channel.TL_channel_toggleForum
-	64,  // 165: channel.RPCChannel.channel_toggleViewForumAsMessages:input_type -> channel.TL_channel_toggleViewForumAsMessages
-	65,  // 166: channel.RPCChannel.channel_createForumTopic:input_type -> channel.TL_channel_createForumTopic
-	66,  // 167: channel.RPCChannel.channel_editForumTopic:input_type -> channel.TL_channel_editForumTopic
-	67,  // 168: channel.RPCChannel.channel_updatePinnedForumTopic:input_type -> channel.TL_channel_updatePinnedForumTopic
-	68,  // 169: channel.RPCChannel.channel_reorderPinnedForumTopics:input_type -> channel.TL_channel_reorderPinnedForumTopics
-	69,  // 170: channel.RPCChannel.channel_deleteTopicHistory:input_type -> channel.TL_channel_deleteTopicHistory
-	70,  // 171: channel.RPCChannel.channel_getForumTopics:input_type -> channel.TL_channel_getForumTopics
-	71,  // 172: channel.RPCChannel.channel_getForumTopicsByID:input_type -> channel.TL_channel_getForumTopicsByID
-	72,  // 173: channel.RPCChannel.channel_searchTopic:input_type -> channel.TL_channel_searchTopic
-	78,  // 174: channel.RPCChannel.channel_searchCount:input_type -> channel.TL_channel_searchCount
-	79,  // 175: channel.RPCChannel.channel_searchCalendar:input_type -> channel.TL_channel_searchCalendar
-	80,  // 176: channel.RPCChannel.channel_searchPositions:input_type -> channel.TL_channel_searchPositions
-	81,  // 177: channel.RPCChannel.channel_searchAcross:input_type -> channel.TL_channel_searchAcross
-	73,  // 178: channel.RPCChannel.channel_readTopicMentions:input_type -> channel.TL_channel_readTopicMentions
-	74,  // 179: channel.RPCChannel.channel_unpinAllTopicMessages:input_type -> channel.TL_channel_unpinAllTopicMessages
-	75,  // 180: channel.RPCChannel.channel_setHistoryTTL:input_type -> channel.TL_channel_setHistoryTTL
-	76,  // 181: channel.RPCChannel.channel_setChatWallpaper:input_type -> channel.TL_channel_setChatWallpaper
-	77,  // 182: channel.RPCChannel.channel_setChatTheme:input_type -> channel.TL_channel_setChatTheme
-	43,  // 183: channel.RPCChannel.channel_toggleSetting:input_type -> channel.TL_channel_toggleSetting
-	44,  // 184: channel.RPCChannel.channel_setAvailableReactions:input_type -> channel.TL_channel_setAvailableReactions
-	38,  // 185: channel.RPCChannel.channel_setDiscussionGroup:input_type -> channel.TL_channel_setDiscussionGroup
-	39,  // 186: channel.RPCChannel.channel_getGroupsForDiscussion:input_type -> channel.TL_channel_getGroupsForDiscussion
-	40,  // 187: channel.RPCChannel.channel_getDiscussionMessage:input_type -> channel.TL_channel_getDiscussionMessage
-	41,  // 188: channel.RPCChannel.channel_getReplies:input_type -> channel.TL_channel_getReplies
-	42,  // 189: channel.RPCChannel.channel_readDiscussion:input_type -> channel.TL_channel_readDiscussion
-	37,  // 190: channel.RPCChannel.channel_editPhoto:input_type -> channel.TL_channel_editPhoto
-	35,  // 191: channel.RPCChannel.channel_readMentions:input_type -> channel.TL_channel_readMentions
-	36,  // 192: channel.RPCChannel.channel_getUnreadMentions:input_type -> channel.TL_channel_getUnreadMentions
-	34,  // 193: channel.RPCChannel.channel_readMessageContents:input_type -> channel.TL_channel_readMessageContents
-	33,  // 194: channel.RPCChannel.channel_search:input_type -> channel.TL_channel_search
-	32,  // 195: channel.RPCChannel.channel_editCreator:input_type -> channel.TL_channel_editCreator
-	29,  // 196: channel.RPCChannel.channel_editAdmin:input_type -> channel.TL_channel_editAdmin
-	30,  // 197: channel.RPCChannel.channel_editBanned:input_type -> channel.TL_channel_editBanned
-	31,  // 198: channel.RPCChannel.channel_editDefaultBannedRights:input_type -> channel.TL_channel_editDefaultBannedRights
-	82,  // 199: channel.RPCChannel.channel_expireMessages:input_type -> channel.TL_channel_expireMessages
-	83,  // 200: channel.RPCChannel.channel_getUnreadReactions:input_type -> channel.TL_channel_getUnreadReactions
-	84,  // 201: channel.RPCChannel.channel_readReactions:input_type -> channel.TL_channel_readReactions
-	5,   // 202: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
-	89,  // 203: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
-	95,  // 204: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
-	87,  // 205: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
-	88,  // 206: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
-	86,  // 207: channel.RPCChannel.channel_getMemberIdList:output_type -> channel.Vector_Long
-	96,  // 208: channel.RPCChannel.channel_getHistory:output_type -> mtproto.messages_Messages
-	88,  // 209: channel.RPCChannel.channel_getMessages:output_type -> channel.Vector_Message
-	97,  // 210: channel.RPCChannel.channel_getChannelDifference:output_type -> mtproto.updates_ChannelDifference
-	95,  // 211: channel.RPCChannel.channel_joinChannel:output_type -> mtproto.Updates
-	95,  // 212: channel.RPCChannel.channel_leaveChannel:output_type -> mtproto.Updates
-	98,  // 213: channel.RPCChannel.channel_checkChatInvite:output_type -> mtproto.ChatInvite
-	99,  // 214: channel.RPCChannel.channel_getParticipants:output_type -> mtproto.channels_ChannelParticipants
-	91,  // 215: channel.RPCChannel.channel_readHistory:output_type -> mtproto.Bool
-	100, // 216: channel.RPCChannel.channel_deleteMessages:output_type -> mtproto.messages_AffectedMessages
-	95,  // 217: channel.RPCChannel.channel_inviteToChannel:output_type -> mtproto.Updates
-	95,  // 218: channel.RPCChannel.channel_editTitle:output_type -> mtproto.Updates
-	91,  // 219: channel.RPCChannel.channel_editAbout:output_type -> mtproto.Bool
-	91,  // 220: channel.RPCChannel.channel_checkUsername:output_type -> mtproto.Bool
-	91,  // 221: channel.RPCChannel.channel_updateUsername:output_type -> mtproto.Bool
-	86,  // 222: channel.RPCChannel.channel_getAdminedPublicChannels:output_type -> channel.Vector_Long
-	95,  // 223: channel.RPCChannel.channel_deleteChannel:output_type -> mtproto.Updates
-	91,  // 224: channel.RPCChannel.channel_setBlocked:output_type -> mtproto.Bool
-	91,  // 225: channel.RPCChannel.channel_incrementMessageViews:output_type -> mtproto.Bool
-	91,  // 226: channel.RPCChannel.channel_addMessageForwards:output_type -> mtproto.Bool
-	95,  // 227: channel.RPCChannel.channel_deleteHistory:output_type -> mtproto.Updates
-	101, // 228: channel.RPCChannel.channel_deleteParticipantHistory:output_type -> mtproto.messages_AffectedHistory
-	95,  // 229: channel.RPCChannel.channel_toggleSignatures:output_type -> mtproto.Updates
-	95,  // 230: channel.RPCChannel.channel_toggleSlowMode:output_type -> mtproto.Updates
-	95,  // 231: channel.RPCChannel.channel_toggleJoinRequest:output_type -> mtproto.Updates
-	102, // 232: channel.RPCChannel.channel_exportChatInvite:output_type -> mtproto.ExportedChatInvite
-	102, // 233: channel.RPCChannel.channel_getExportedChatInvite:output_type -> mtproto.ExportedChatInvite
-	103, // 234: channel.RPCChannel.channel_getExportedChatInvites:output_type -> mtproto.messages_ExportedChatInvites
-	104, // 235: channel.RPCChannel.channel_editExportedChatInvite:output_type -> mtproto.messages_ExportedChatInvite
-	91,  // 236: channel.RPCChannel.channel_deleteExportedChatInvite:output_type -> mtproto.Bool
-	91,  // 237: channel.RPCChannel.channel_deleteRevokedExportedChatInvites:output_type -> mtproto.Bool
-	105, // 238: channel.RPCChannel.channel_getAdminsWithInvites:output_type -> mtproto.messages_ChatAdminsWithInvites
-	106, // 239: channel.RPCChannel.channel_getChatInviteImporters:output_type -> mtproto.messages_ChatInviteImporters
-	95,  // 240: channel.RPCChannel.channel_hideChatJoinRequests:output_type -> mtproto.Updates
-	107, // 241: channel.RPCChannel.channel_getPendingJoinRequests:output_type -> mtproto.Update
-	108, // 242: channel.RPCChannel.channel_getLeftChannels:output_type -> mtproto.messages_Chats
-	95,  // 243: channel.RPCChannel.channel_toggleForum:output_type -> mtproto.Updates
-	95,  // 244: channel.RPCChannel.channel_toggleViewForumAsMessages:output_type -> mtproto.Updates
-	95,  // 245: channel.RPCChannel.channel_createForumTopic:output_type -> mtproto.Updates
-	95,  // 246: channel.RPCChannel.channel_editForumTopic:output_type -> mtproto.Updates
-	95,  // 247: channel.RPCChannel.channel_updatePinnedForumTopic:output_type -> mtproto.Updates
-	95,  // 248: channel.RPCChannel.channel_reorderPinnedForumTopics:output_type -> mtproto.Updates
-	101, // 249: channel.RPCChannel.channel_deleteTopicHistory:output_type -> mtproto.messages_AffectedHistory
-	109, // 250: channel.RPCChannel.channel_getForumTopics:output_type -> mtproto.messages_ForumTopics
-	109, // 251: channel.RPCChannel.channel_getForumTopicsByID:output_type -> mtproto.messages_ForumTopics
-	96,  // 252: channel.RPCChannel.channel_searchTopic:output_type -> mtproto.messages_Messages
-	110, // 253: channel.RPCChannel.channel_searchCount:output_type -> mtproto.Int32
-	111, // 254: channel.RPCChannel.channel_searchCalendar:output_type -> mtproto.messages_SearchResultsCalendar
-	112, // 255: channel.RPCChannel.channel_searchPositions:output_type -> mtproto.messages_SearchResultsPositions
-	96,  // 256: channel.RPCChannel.channel_searchAcross:output_type -> mtproto.messages_Messages
-	101, // 257: channel.RPCChannel.channel_readTopicMentions:output_type -> mtproto.messages_AffectedHistory
-	101, // 258: channel.RPCChannel.channel_unpinAllTopicMessages:output_type -> mtproto.messages_AffectedHistory
-	95,  // 259: channel.RPCChannel.channel_setHistoryTTL:output_type -> mtproto.Updates
-	95,  // 260: channel.RPCChannel.channel_setChatWallpaper:output_type -> mtproto.Updates
-	95,  // 261: channel.RPCChannel.channel_setChatTheme:output_type -> mtproto.Updates
-	95,  // 262: channel.RPCChannel.channel_toggleSetting:output_type -> mtproto.Updates
-	95,  // 263: channel.RPCChannel.channel_setAvailableReactions:output_type -> mtproto.Updates
-	91,  // 264: channel.RPCChannel.channel_setDiscussionGroup:output_type -> mtproto.Bool
-	86,  // 265: channel.RPCChannel.channel_getGroupsForDiscussion:output_type -> channel.Vector_Long
-	113, // 266: channel.RPCChannel.channel_getDiscussionMessage:output_type -> mtproto.messages_DiscussionMessage
-	96,  // 267: channel.RPCChannel.channel_getReplies:output_type -> mtproto.messages_Messages
-	91,  // 268: channel.RPCChannel.channel_readDiscussion:output_type -> mtproto.Bool
-	95,  // 269: channel.RPCChannel.channel_editPhoto:output_type -> mtproto.Updates
-	101, // 270: channel.RPCChannel.channel_readMentions:output_type -> mtproto.messages_AffectedHistory
-	96,  // 271: channel.RPCChannel.channel_getUnreadMentions:output_type -> mtproto.messages_Messages
-	91,  // 272: channel.RPCChannel.channel_readMessageContents:output_type -> mtproto.Bool
-	96,  // 273: channel.RPCChannel.channel_search:output_type -> mtproto.messages_Messages
-	95,  // 274: channel.RPCChannel.channel_editCreator:output_type -> mtproto.Updates
-	95,  // 275: channel.RPCChannel.channel_editAdmin:output_type -> mtproto.Updates
-	95,  // 276: channel.RPCChannel.channel_editBanned:output_type -> mtproto.Updates
-	95,  // 277: channel.RPCChannel.channel_editDefaultBannedRights:output_type -> mtproto.Updates
-	110, // 278: channel.RPCChannel.channel_expireMessages:output_type -> mtproto.Int32
-	96,  // 279: channel.RPCChannel.channel_getUnreadReactions:output_type -> mtproto.messages_Messages
-	101, // 280: channel.RPCChannel.channel_readReactions:output_type -> mtproto.messages_AffectedHistory
-	202, // [202:281] is the sub-list for method output_type
-	123, // [123:202] is the sub-list for method input_type
-	123, // [123:123] is the sub-list for extension type_name
-	123, // [123:123] is the sub-list for extension extendee
-	0,   // [0:123] is the sub-list for field type_name
+	91,  // 86: channel.TL_channel_toggleForum.sidebar:type_name -> mtproto.Bool
+	0,   // 87: channel.TL_channel_toggleViewForumAsMessages.constructor:type_name -> channel.TLConstructor
+	91,  // 88: channel.TL_channel_toggleViewForumAsMessages.enabled:type_name -> mtproto.Bool
+	0,   // 89: channel.TL_channel_createForumTopic.constructor:type_name -> channel.TLConstructor
+	91,  // 90: channel.TL_channel_createForumTopic.title_missing:type_name -> mtproto.Bool
+	0,   // 91: channel.TL_channel_editForumTopic.constructor:type_name -> channel.TLConstructor
+	91,  // 92: channel.TL_channel_editForumTopic.closed:type_name -> mtproto.Bool
+	91,  // 93: channel.TL_channel_editForumTopic.hidden:type_name -> mtproto.Bool
+	0,   // 94: channel.TL_channel_updatePinnedForumTopic.constructor:type_name -> channel.TLConstructor
+	91,  // 95: channel.TL_channel_updatePinnedForumTopic.pinned:type_name -> mtproto.Bool
+	0,   // 96: channel.TL_channel_reorderPinnedForumTopics.constructor:type_name -> channel.TLConstructor
+	91,  // 97: channel.TL_channel_reorderPinnedForumTopics.force:type_name -> mtproto.Bool
+	0,   // 98: channel.TL_channel_deleteTopicHistory.constructor:type_name -> channel.TLConstructor
+	0,   // 99: channel.TL_channel_getForumTopics.constructor:type_name -> channel.TLConstructor
+	0,   // 100: channel.TL_channel_getForumTopicsByID.constructor:type_name -> channel.TLConstructor
+	0,   // 101: channel.TL_channel_searchTopic.constructor:type_name -> channel.TLConstructor
+	91,  // 102: channel.TL_channel_searchTopic.unread_mentions:type_name -> mtproto.Bool
+	0,   // 103: channel.TL_channel_readTopicMentions.constructor:type_name -> channel.TLConstructor
+	0,   // 104: channel.TL_channel_unpinAllTopicMessages.constructor:type_name -> channel.TLConstructor
+	0,   // 105: channel.TL_channel_setHistoryTTL.constructor:type_name -> channel.TLConstructor
+	0,   // 106: channel.TL_channel_setChatWallpaper.constructor:type_name -> channel.TLConstructor
+	92,  // 107: channel.TL_channel_setChatWallpaper.wallpaper:type_name -> mtproto.WallPaper
+	0,   // 108: channel.TL_channel_setChatTheme.constructor:type_name -> channel.TLConstructor
+	0,   // 109: channel.TL_channel_searchCount.constructor:type_name -> channel.TLConstructor
+	0,   // 110: channel.TL_channel_searchCalendar.constructor:type_name -> channel.TLConstructor
+	0,   // 111: channel.TL_channel_searchPositions.constructor:type_name -> channel.TLConstructor
+	0,   // 112: channel.TL_channel_searchAcross.constructor:type_name -> channel.TLConstructor
+	91,  // 113: channel.TL_channel_searchAcross.public_only:type_name -> mtproto.Bool
+	91,  // 114: channel.TL_channel_searchAcross.broadcasts_only:type_name -> mtproto.Bool
+	91,  // 115: channel.TL_channel_searchAcross.groups_only:type_name -> mtproto.Bool
+	0,   // 116: channel.TL_channel_expireMessages.constructor:type_name -> channel.TLConstructor
+	0,   // 117: channel.TL_channel_getUnreadReactions.constructor:type_name -> channel.TLConstructor
+	0,   // 118: channel.TL_channel_readReactions.constructor:type_name -> channel.TLConstructor
+	0,   // 119: channel.TL_channel_setBlocked.constructor:type_name -> channel.TLConstructor
+	91,  // 120: channel.TL_channel_setBlocked.blocked:type_name -> mtproto.Bool
+	93,  // 121: channel.Vector_Dialog.datas:type_name -> mtproto.Dialog
+	94,  // 122: channel.Vector_Message.datas:type_name -> mtproto.Message
+	5,   // 123: channel.Vector_MutableChannel.datas:type_name -> channel.MutableChannel
+	7,   // 124: channel.RPCChannel.channel_getMutableChannel:input_type -> channel.TL_channel_getMutableChannel
+	8,   // 125: channel.RPCChannel.channel_getChannelListByIdList:input_type -> channel.TL_channel_getChannelListByIdList
+	9,   // 126: channel.RPCChannel.channel_createChannel:input_type -> channel.TL_channel_createChannel
+	10,  // 127: channel.RPCChannel.channel_getChannelDialogs:input_type -> channel.TL_channel_getChannelDialogs
+	11,  // 128: channel.RPCChannel.channel_getTopMessages:input_type -> channel.TL_channel_getTopMessages
+	12,  // 129: channel.RPCChannel.channel_getMemberIdList:input_type -> channel.TL_channel_getMemberIdList
+	13,  // 130: channel.RPCChannel.channel_getHistory:input_type -> channel.TL_channel_getHistory
+	14,  // 131: channel.RPCChannel.channel_getMessages:input_type -> channel.TL_channel_getMessages
+	15,  // 132: channel.RPCChannel.channel_getChannelDifference:input_type -> channel.TL_channel_getChannelDifference
+	16,  // 133: channel.RPCChannel.channel_joinChannel:input_type -> channel.TL_channel_joinChannel
+	17,  // 134: channel.RPCChannel.channel_leaveChannel:input_type -> channel.TL_channel_leaveChannel
+	18,  // 135: channel.RPCChannel.channel_checkChatInvite:input_type -> channel.TL_channel_checkChatInvite
+	19,  // 136: channel.RPCChannel.channel_getParticipants:input_type -> channel.TL_channel_getParticipants
+	20,  // 137: channel.RPCChannel.channel_readHistory:input_type -> channel.TL_channel_readHistory
+	21,  // 138: channel.RPCChannel.channel_deleteMessages:input_type -> channel.TL_channel_deleteMessages
+	22,  // 139: channel.RPCChannel.channel_inviteToChannel:input_type -> channel.TL_channel_inviteToChannel
+	23,  // 140: channel.RPCChannel.channel_editTitle:input_type -> channel.TL_channel_editTitle
+	24,  // 141: channel.RPCChannel.channel_editAbout:input_type -> channel.TL_channel_editAbout
+	25,  // 142: channel.RPCChannel.channel_checkUsername:input_type -> channel.TL_channel_checkUsername
+	26,  // 143: channel.RPCChannel.channel_updateUsername:input_type -> channel.TL_channel_updateUsername
+	27,  // 144: channel.RPCChannel.channel_getAdminedPublicChannels:input_type -> channel.TL_channel_getAdminedPublicChannels
+	28,  // 145: channel.RPCChannel.channel_deleteChannel:input_type -> channel.TL_channel_deleteChannel
+	85,  // 146: channel.RPCChannel.channel_setBlocked:input_type -> channel.TL_channel_setBlocked
+	45,  // 147: channel.RPCChannel.channel_incrementMessageViews:input_type -> channel.TL_channel_incrementMessageViews
+	46,  // 148: channel.RPCChannel.channel_addMessageForwards:input_type -> channel.TL_channel_addMessageForwards
+	47,  // 149: channel.RPCChannel.channel_deleteHistory:input_type -> channel.TL_channel_deleteHistory
+	48,  // 150: channel.RPCChannel.channel_deleteParticipantHistory:input_type -> channel.TL_channel_deleteParticipantHistory
+	49,  // 151: channel.RPCChannel.channel_toggleSignatures:input_type -> channel.TL_channel_toggleSignatures
+	50,  // 152: channel.RPCChannel.channel_toggleSlowMode:input_type -> channel.TL_channel_toggleSlowMode
+	51,  // 153: channel.RPCChannel.channel_toggleJoinRequest:input_type -> channel.TL_channel_toggleJoinRequest
+	52,  // 154: channel.RPCChannel.channel_exportChatInvite:input_type -> channel.TL_channel_exportChatInvite
+	53,  // 155: channel.RPCChannel.channel_getExportedChatInvite:input_type -> channel.TL_channel_getExportedChatInvite
+	54,  // 156: channel.RPCChannel.channel_getExportedChatInvites:input_type -> channel.TL_channel_getExportedChatInvites
+	55,  // 157: channel.RPCChannel.channel_editExportedChatInvite:input_type -> channel.TL_channel_editExportedChatInvite
+	56,  // 158: channel.RPCChannel.channel_deleteExportedChatInvite:input_type -> channel.TL_channel_deleteExportedChatInvite
+	57,  // 159: channel.RPCChannel.channel_deleteRevokedExportedChatInvites:input_type -> channel.TL_channel_deleteRevokedExportedChatInvites
+	58,  // 160: channel.RPCChannel.channel_getAdminsWithInvites:input_type -> channel.TL_channel_getAdminsWithInvites
+	59,  // 161: channel.RPCChannel.channel_getChatInviteImporters:input_type -> channel.TL_channel_getChatInviteImporters
+	60,  // 162: channel.RPCChannel.channel_hideChatJoinRequests:input_type -> channel.TL_channel_hideChatJoinRequests
+	61,  // 163: channel.RPCChannel.channel_getPendingJoinRequests:input_type -> channel.TL_channel_getPendingJoinRequests
+	62,  // 164: channel.RPCChannel.channel_getLeftChannels:input_type -> channel.TL_channel_getLeftChannels
+	63,  // 165: channel.RPCChannel.channel_toggleForum:input_type -> channel.TL_channel_toggleForum
+	64,  // 166: channel.RPCChannel.channel_toggleViewForumAsMessages:input_type -> channel.TL_channel_toggleViewForumAsMessages
+	65,  // 167: channel.RPCChannel.channel_createForumTopic:input_type -> channel.TL_channel_createForumTopic
+	66,  // 168: channel.RPCChannel.channel_editForumTopic:input_type -> channel.TL_channel_editForumTopic
+	67,  // 169: channel.RPCChannel.channel_updatePinnedForumTopic:input_type -> channel.TL_channel_updatePinnedForumTopic
+	68,  // 170: channel.RPCChannel.channel_reorderPinnedForumTopics:input_type -> channel.TL_channel_reorderPinnedForumTopics
+	69,  // 171: channel.RPCChannel.channel_deleteTopicHistory:input_type -> channel.TL_channel_deleteTopicHistory
+	70,  // 172: channel.RPCChannel.channel_getForumTopics:input_type -> channel.TL_channel_getForumTopics
+	71,  // 173: channel.RPCChannel.channel_getForumTopicsByID:input_type -> channel.TL_channel_getForumTopicsByID
+	72,  // 174: channel.RPCChannel.channel_searchTopic:input_type -> channel.TL_channel_searchTopic
+	78,  // 175: channel.RPCChannel.channel_searchCount:input_type -> channel.TL_channel_searchCount
+	79,  // 176: channel.RPCChannel.channel_searchCalendar:input_type -> channel.TL_channel_searchCalendar
+	80,  // 177: channel.RPCChannel.channel_searchPositions:input_type -> channel.TL_channel_searchPositions
+	81,  // 178: channel.RPCChannel.channel_searchAcross:input_type -> channel.TL_channel_searchAcross
+	73,  // 179: channel.RPCChannel.channel_readTopicMentions:input_type -> channel.TL_channel_readTopicMentions
+	74,  // 180: channel.RPCChannel.channel_unpinAllTopicMessages:input_type -> channel.TL_channel_unpinAllTopicMessages
+	75,  // 181: channel.RPCChannel.channel_setHistoryTTL:input_type -> channel.TL_channel_setHistoryTTL
+	76,  // 182: channel.RPCChannel.channel_setChatWallpaper:input_type -> channel.TL_channel_setChatWallpaper
+	77,  // 183: channel.RPCChannel.channel_setChatTheme:input_type -> channel.TL_channel_setChatTheme
+	43,  // 184: channel.RPCChannel.channel_toggleSetting:input_type -> channel.TL_channel_toggleSetting
+	44,  // 185: channel.RPCChannel.channel_setAvailableReactions:input_type -> channel.TL_channel_setAvailableReactions
+	38,  // 186: channel.RPCChannel.channel_setDiscussionGroup:input_type -> channel.TL_channel_setDiscussionGroup
+	39,  // 187: channel.RPCChannel.channel_getGroupsForDiscussion:input_type -> channel.TL_channel_getGroupsForDiscussion
+	40,  // 188: channel.RPCChannel.channel_getDiscussionMessage:input_type -> channel.TL_channel_getDiscussionMessage
+	41,  // 189: channel.RPCChannel.channel_getReplies:input_type -> channel.TL_channel_getReplies
+	42,  // 190: channel.RPCChannel.channel_readDiscussion:input_type -> channel.TL_channel_readDiscussion
+	37,  // 191: channel.RPCChannel.channel_editPhoto:input_type -> channel.TL_channel_editPhoto
+	35,  // 192: channel.RPCChannel.channel_readMentions:input_type -> channel.TL_channel_readMentions
+	36,  // 193: channel.RPCChannel.channel_getUnreadMentions:input_type -> channel.TL_channel_getUnreadMentions
+	34,  // 194: channel.RPCChannel.channel_readMessageContents:input_type -> channel.TL_channel_readMessageContents
+	33,  // 195: channel.RPCChannel.channel_search:input_type -> channel.TL_channel_search
+	32,  // 196: channel.RPCChannel.channel_editCreator:input_type -> channel.TL_channel_editCreator
+	29,  // 197: channel.RPCChannel.channel_editAdmin:input_type -> channel.TL_channel_editAdmin
+	30,  // 198: channel.RPCChannel.channel_editBanned:input_type -> channel.TL_channel_editBanned
+	31,  // 199: channel.RPCChannel.channel_editDefaultBannedRights:input_type -> channel.TL_channel_editDefaultBannedRights
+	82,  // 200: channel.RPCChannel.channel_expireMessages:input_type -> channel.TL_channel_expireMessages
+	83,  // 201: channel.RPCChannel.channel_getUnreadReactions:input_type -> channel.TL_channel_getUnreadReactions
+	84,  // 202: channel.RPCChannel.channel_readReactions:input_type -> channel.TL_channel_readReactions
+	5,   // 203: channel.RPCChannel.channel_getMutableChannel:output_type -> channel.MutableChannel
+	89,  // 204: channel.RPCChannel.channel_getChannelListByIdList:output_type -> channel.Vector_MutableChannel
+	95,  // 205: channel.RPCChannel.channel_createChannel:output_type -> mtproto.Updates
+	87,  // 206: channel.RPCChannel.channel_getChannelDialogs:output_type -> channel.Vector_Dialog
+	88,  // 207: channel.RPCChannel.channel_getTopMessages:output_type -> channel.Vector_Message
+	86,  // 208: channel.RPCChannel.channel_getMemberIdList:output_type -> channel.Vector_Long
+	96,  // 209: channel.RPCChannel.channel_getHistory:output_type -> mtproto.messages_Messages
+	88,  // 210: channel.RPCChannel.channel_getMessages:output_type -> channel.Vector_Message
+	97,  // 211: channel.RPCChannel.channel_getChannelDifference:output_type -> mtproto.updates_ChannelDifference
+	95,  // 212: channel.RPCChannel.channel_joinChannel:output_type -> mtproto.Updates
+	95,  // 213: channel.RPCChannel.channel_leaveChannel:output_type -> mtproto.Updates
+	98,  // 214: channel.RPCChannel.channel_checkChatInvite:output_type -> mtproto.ChatInvite
+	99,  // 215: channel.RPCChannel.channel_getParticipants:output_type -> mtproto.channels_ChannelParticipants
+	91,  // 216: channel.RPCChannel.channel_readHistory:output_type -> mtproto.Bool
+	100, // 217: channel.RPCChannel.channel_deleteMessages:output_type -> mtproto.messages_AffectedMessages
+	95,  // 218: channel.RPCChannel.channel_inviteToChannel:output_type -> mtproto.Updates
+	95,  // 219: channel.RPCChannel.channel_editTitle:output_type -> mtproto.Updates
+	91,  // 220: channel.RPCChannel.channel_editAbout:output_type -> mtproto.Bool
+	91,  // 221: channel.RPCChannel.channel_checkUsername:output_type -> mtproto.Bool
+	91,  // 222: channel.RPCChannel.channel_updateUsername:output_type -> mtproto.Bool
+	86,  // 223: channel.RPCChannel.channel_getAdminedPublicChannels:output_type -> channel.Vector_Long
+	95,  // 224: channel.RPCChannel.channel_deleteChannel:output_type -> mtproto.Updates
+	91,  // 225: channel.RPCChannel.channel_setBlocked:output_type -> mtproto.Bool
+	91,  // 226: channel.RPCChannel.channel_incrementMessageViews:output_type -> mtproto.Bool
+	91,  // 227: channel.RPCChannel.channel_addMessageForwards:output_type -> mtproto.Bool
+	95,  // 228: channel.RPCChannel.channel_deleteHistory:output_type -> mtproto.Updates
+	101, // 229: channel.RPCChannel.channel_deleteParticipantHistory:output_type -> mtproto.messages_AffectedHistory
+	95,  // 230: channel.RPCChannel.channel_toggleSignatures:output_type -> mtproto.Updates
+	95,  // 231: channel.RPCChannel.channel_toggleSlowMode:output_type -> mtproto.Updates
+	95,  // 232: channel.RPCChannel.channel_toggleJoinRequest:output_type -> mtproto.Updates
+	102, // 233: channel.RPCChannel.channel_exportChatInvite:output_type -> mtproto.ExportedChatInvite
+	102, // 234: channel.RPCChannel.channel_getExportedChatInvite:output_type -> mtproto.ExportedChatInvite
+	103, // 235: channel.RPCChannel.channel_getExportedChatInvites:output_type -> mtproto.messages_ExportedChatInvites
+	104, // 236: channel.RPCChannel.channel_editExportedChatInvite:output_type -> mtproto.messages_ExportedChatInvite
+	91,  // 237: channel.RPCChannel.channel_deleteExportedChatInvite:output_type -> mtproto.Bool
+	91,  // 238: channel.RPCChannel.channel_deleteRevokedExportedChatInvites:output_type -> mtproto.Bool
+	105, // 239: channel.RPCChannel.channel_getAdminsWithInvites:output_type -> mtproto.messages_ChatAdminsWithInvites
+	106, // 240: channel.RPCChannel.channel_getChatInviteImporters:output_type -> mtproto.messages_ChatInviteImporters
+	95,  // 241: channel.RPCChannel.channel_hideChatJoinRequests:output_type -> mtproto.Updates
+	107, // 242: channel.RPCChannel.channel_getPendingJoinRequests:output_type -> mtproto.Update
+	108, // 243: channel.RPCChannel.channel_getLeftChannels:output_type -> mtproto.messages_Chats
+	95,  // 244: channel.RPCChannel.channel_toggleForum:output_type -> mtproto.Updates
+	95,  // 245: channel.RPCChannel.channel_toggleViewForumAsMessages:output_type -> mtproto.Updates
+	95,  // 246: channel.RPCChannel.channel_createForumTopic:output_type -> mtproto.Updates
+	95,  // 247: channel.RPCChannel.channel_editForumTopic:output_type -> mtproto.Updates
+	95,  // 248: channel.RPCChannel.channel_updatePinnedForumTopic:output_type -> mtproto.Updates
+	95,  // 249: channel.RPCChannel.channel_reorderPinnedForumTopics:output_type -> mtproto.Updates
+	101, // 250: channel.RPCChannel.channel_deleteTopicHistory:output_type -> mtproto.messages_AffectedHistory
+	109, // 251: channel.RPCChannel.channel_getForumTopics:output_type -> mtproto.messages_ForumTopics
+	109, // 252: channel.RPCChannel.channel_getForumTopicsByID:output_type -> mtproto.messages_ForumTopics
+	96,  // 253: channel.RPCChannel.channel_searchTopic:output_type -> mtproto.messages_Messages
+	110, // 254: channel.RPCChannel.channel_searchCount:output_type -> mtproto.Int32
+	111, // 255: channel.RPCChannel.channel_searchCalendar:output_type -> mtproto.messages_SearchResultsCalendar
+	112, // 256: channel.RPCChannel.channel_searchPositions:output_type -> mtproto.messages_SearchResultsPositions
+	96,  // 257: channel.RPCChannel.channel_searchAcross:output_type -> mtproto.messages_Messages
+	101, // 258: channel.RPCChannel.channel_readTopicMentions:output_type -> mtproto.messages_AffectedHistory
+	101, // 259: channel.RPCChannel.channel_unpinAllTopicMessages:output_type -> mtproto.messages_AffectedHistory
+	95,  // 260: channel.RPCChannel.channel_setHistoryTTL:output_type -> mtproto.Updates
+	95,  // 261: channel.RPCChannel.channel_setChatWallpaper:output_type -> mtproto.Updates
+	95,  // 262: channel.RPCChannel.channel_setChatTheme:output_type -> mtproto.Updates
+	95,  // 263: channel.RPCChannel.channel_toggleSetting:output_type -> mtproto.Updates
+	95,  // 264: channel.RPCChannel.channel_setAvailableReactions:output_type -> mtproto.Updates
+	91,  // 265: channel.RPCChannel.channel_setDiscussionGroup:output_type -> mtproto.Bool
+	86,  // 266: channel.RPCChannel.channel_getGroupsForDiscussion:output_type -> channel.Vector_Long
+	113, // 267: channel.RPCChannel.channel_getDiscussionMessage:output_type -> mtproto.messages_DiscussionMessage
+	96,  // 268: channel.RPCChannel.channel_getReplies:output_type -> mtproto.messages_Messages
+	91,  // 269: channel.RPCChannel.channel_readDiscussion:output_type -> mtproto.Bool
+	95,  // 270: channel.RPCChannel.channel_editPhoto:output_type -> mtproto.Updates
+	101, // 271: channel.RPCChannel.channel_readMentions:output_type -> mtproto.messages_AffectedHistory
+	96,  // 272: channel.RPCChannel.channel_getUnreadMentions:output_type -> mtproto.messages_Messages
+	91,  // 273: channel.RPCChannel.channel_readMessageContents:output_type -> mtproto.Bool
+	96,  // 274: channel.RPCChannel.channel_search:output_type -> mtproto.messages_Messages
+	95,  // 275: channel.RPCChannel.channel_editCreator:output_type -> mtproto.Updates
+	95,  // 276: channel.RPCChannel.channel_editAdmin:output_type -> mtproto.Updates
+	95,  // 277: channel.RPCChannel.channel_editBanned:output_type -> mtproto.Updates
+	95,  // 278: channel.RPCChannel.channel_editDefaultBannedRights:output_type -> mtproto.Updates
+	110, // 279: channel.RPCChannel.channel_expireMessages:output_type -> mtproto.Int32
+	96,  // 280: channel.RPCChannel.channel_getUnreadReactions:output_type -> mtproto.messages_Messages
+	101, // 281: channel.RPCChannel.channel_readReactions:output_type -> mtproto.messages_AffectedHistory
+	203, // [203:282] is the sub-list for method output_type
+	124, // [124:203] is the sub-list for method input_type
+	124, // [124:124] is the sub-list for extension type_name
+	124, // [124:124] is the sub-list for extension extendee
+	0,   // [0:124] is the sub-list for field type_name
 }
 
 func init() { file_channel_tl_proto_init() }

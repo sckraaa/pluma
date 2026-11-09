@@ -253,6 +253,7 @@ func (m *ImmutableChannel) base() *mtproto.Chat {
 		Noforwards:        m.GetNoforwards(),
 		Forum:             m.GetForum(),
 		ForumTabs:         m.GetForumTabs(),
+		ForumSidebar:      m.GetForumSidebar(),
 		JoinToSend:        m.GetJoinToSend(),
 		JoinRequest:       m.GetJoinRequest(),
 		// The writers set the slow mode of supergroups only.

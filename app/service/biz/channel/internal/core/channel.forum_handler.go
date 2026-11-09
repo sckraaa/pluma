@@ -27,14 +27,14 @@ import (
 )
 
 // ChannelToggleForum
-// channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
+// channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool sidebar:Bool = Updates;
 //
 // self_id turns the forum on or off (dao.ToggleForum); the members load the
 // channel again. The clients process the answer as Updates
 // (Android MessagesController.toggleChannelForum).
 func (c *ChannelCore) ChannelToggleForum(in *channel.TLChannelToggleForum) (*mtproto.Updates, error) {
 	return c.editRights("channel.toggleForum", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
-		return c.svcCtx.Dao.ToggleForum(b, in.ChannelId, mtproto.FromBool(in.Enabled), mtproto.FromBool(in.Tabs))
+		return c.svcCtx.Dao.ToggleForum(b, in.ChannelId, mtproto.FromBool(in.Enabled), mtproto.FromBool(in.Tabs), mtproto.FromBool(in.Sidebar))
 	})
 }
 

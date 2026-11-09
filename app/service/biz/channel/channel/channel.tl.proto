@@ -233,6 +233,8 @@ message ImmutableChannel {
     bool signature_profiles = 35;
     // pluma: task 060: flags.15, the tabbed layout of a forum.
     bool forum_tabs = 40;
+    // pluma: task 074: flags2.23, the topics of a forum in a sidebar (layer 233).
+    bool forum_sidebar = 42;
     // pluma: task 072: flags.16, blocked by the owner of the server (the
     // members see it restricted; channel.setBlocked).
     bool blocked = 41;
@@ -1017,6 +1019,7 @@ message TL_channel_toggleForum {
   int64 channel_id = 5;
   mtproto.Bool enabled = 6;
   mtproto.Bool tabs = 7;
+    mtproto.Bool sidebar = 8;
 }
 
 //--------------------------------------------------------------------------------------------

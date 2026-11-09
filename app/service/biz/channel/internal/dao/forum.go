@@ -218,7 +218,7 @@ func topicTitle(title string) (string, error) {
 // broadcast channel, CHAT_DISCUSSION_UNALLOWED for a discussion group,
 // CHAT_NOT_MODIFIED for what it is already. Messages keep their topics
 // when the forum goes off and find them again when it comes back.
-func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool) (*ChannelChange, error) {
+func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs, sidebar bool) (*ChannelChange, error) {
 	if _, err := openChannel(b, channelId); err != nil {
 		return nil, err
 	}
@@ -234,8 +234,9 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool) (
 		Linked    int64 `db:"linked_chat_id"`
 		Forum     bool  `db:"forum"`
 		Tabs      bool  `db:"forum_tabs"`
+		Sidebar   bool  `db:"forum_sidebar"`
 	}
-	if err = b.Tx().QueryRowsPartial(&rows, "SELECT megagroup, linked_chat_id, forum, forum_tabs FROM channels WHERE id = ?", channelId); err != nil {
+	if err = b.Tx().QueryRowsPartial(&rows, "SELECT megagroup, linked_chat_id, forum, forum_tabs, forum_sidebar FROM channels WHERE id = ?", channelId); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 || !rows[0].Megagroup {
@@ -246,9 +247,9 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool) (
 	case enabled && r.Linked != 0:
 		return nil, mtproto.ErrChatDiscussionUnallowed
 	case !enabled:
-		tabs = false
+		tabs, sidebar = false, false
 	}
-	if r.Forum == enabled && r.Tabs == tabs {
+	if r.Forum == enabled && r.Tabs == tabs && r.Sidebar == sidebar {
 		return nil, mtproto.ErrChatNotModified
 	}
 	if enabled {
@@ -260,7 +261,7 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool) (
 			return nil, err
 		}
 	}
-	if _, err = b.Tx().Exec("UPDATE channels SET forum = ?, forum_tabs = ?, version = version + 1 WHERE id = ?", enabled, tabs, channelId); err != nil {
+	if _, err = b.Tx().Exec("UPDATE channels SET forum = ?, forum_tabs = ?, forum_sidebar = ?, version = version + 1 WHERE id = ?", enabled, tabs, sidebar, channelId); err != nil {
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil

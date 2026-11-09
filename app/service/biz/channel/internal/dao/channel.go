@@ -207,6 +207,7 @@ func makeChannel(do *dataobject.ChannelsDO, username string) *channel.ImmutableC
 		Megagroup:           do.Megagroup,
 		Forum:               do.Forum,
 		ForumTabs:           do.ForumTabs,
+		ForumSidebar:        do.ForumSidebar,
 		Signatures:          do.Signatures,
 		SignatureProfiles:   do.SignatureProfiles,
 		Noforwards:          do.Noforwards,

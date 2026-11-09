@@ -28,6 +28,7 @@ import (
 // are served by the same code, as the schema still has them.
 
 // ChannelsToggleForum
+// channels.toggleForum#a2952b54 channel:InputChannel enabled:Bool tabs:Bool sidebar:Bool = Updates;
 // channels.toggleForum#3ff75734 channel:InputChannel enabled:Bool tabs:Bool = Updates;
 func (c *ChannelsCore) ChannelsToggleForum(in *mtproto.TLChannelsToggleForum) (*mtproto.Updates, error) {
 	mc, err := c.mutableChannel(in.Channel)
@@ -36,7 +37,7 @@ func (c *ChannelsCore) ChannelsToggleForum(in *mtproto.TLChannelsToggleForum) (*
 	}
 	return c.svcCtx.Channel.ChannelToggleForum(c.ctx, &channelpb.TLChannelToggleForum{
 		SelfId: c.MD.UserId, PermAuthKeyId: c.MD.PermAuthKeyId, ChannelId: mc.GetChannel().GetId(),
-		Enabled: in.Enabled, Tabs: mtproto.ToBool(mtproto.FromBool(in.Tabs)),
+		Enabled: in.Enabled, Tabs: mtproto.ToBool(mtproto.FromBool(in.Tabs)), Sidebar: mtproto.ToBool(mtproto.FromBool(in.Sidebar)),
 	})
 }
 
