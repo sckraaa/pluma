@@ -1,8 +1,8 @@
 # 073. Коды входа: Telegram и, возможно, SMS
 
-- Статус: todo (решение владельца 2026-11-09)
+- Статус: done (сервер; настоящая доставка не проверена: нет входа аккаунта по QR)
 - Зависит от: —
-- ADR: новый (канал доставки, стоимость, приватность номера).
+- ADR: 0042.
 
 ## Цель
 Сейчас регистрация закрыта: номер добавляют в список, код читают через `pluma-admin`. Нужна настоящая доставка кодов, чтобы регистрация могла быть открытой.
@@ -32,3 +32,35 @@ Telegram Gateway отпал: минимальное пополнение 100 $. 
 - `TESTING-BACKLOG`: сценарии входа.
 
 ## Результат
+Сервер коды писать готов, но ни один реальный код ещё не ушёл: **настоящую доставку нельзя проверить, пока владелец не войдёт в аккаунт по QR** (и не заведёт сам аккаунт). Сервис `app/ops/codes` держит сессию TDLib в своём томе, очередь с паузами, лимиты на номер и на аккаунт. bff сначала пробует код в приложении Pluma, затем аккаунт Telegram, затем прежний путь через администратора. Сервис необязательный: без `LOGIN_CODES_SENDER_URL` поведение прежнее. Проверено модулями с подставным TDLib и подставным отправителем; образ не собирался, интеграционные и сквозные тесты — в общем прогоне партии.
+
+**Что сделано**
+- `app/ops/codes` — сервис: `serve`, `login` (QR в терминал, пароль 2FA без эха), `healthcheck`. Внутренний API: `POST /v1/send`, `GET /v1/state` (для панели), `/metrics`, `/healthz`. `internal/account` — TDLib, `internal/sender` — очередь, `internal/tdjson` — обвязка над `libtdjson` (собирается только с тегом `tdlib`, в образе).
+- `teamgramd/deploy/codes/Dockerfile`, `docker-compose.codes.yaml` (256 МБ, том `codes_data`, порт `127.0.0.1:9378`), `pluma-codes` в CI образов.
+- `pkg/logincode`: интерфейс `Sender`, HTTP-клиент, `Service.DeliverByTelegram`, правило `TelegramCodePerIP`, `Service.RegistrationOpen(ctx)`, таблица `registration_settings` (`migrate-20261109-login-codes.sql`).
+- `auth.sendCode`, `auth.resendCode`, `account.sendChangePhoneCode` пробуют аккаунт; метрика `login_code_sender_total`, правила `rules/codes.yml`, цель `ops.codes`.
+- Документы: `docs/ops/login-codes.md`, ADR 0042, раздел в `monitoring.md`, строка в `security-setup.md`, `TESTING-BACKLOG`.
+
+**Источники**
+- TDLib: коммит `c0a540074fa449094340f76a3ea56f7096e0ad4c` (2026-11-08, версия 1.8.69 по `CMakeLists.txt`), лицензия Boost 1.0 (`LICENSE_1_0.txt`), официальный `tdlib/td`, не tdlight (форк не нужен: нужен только JSON-интерфейс и эти методы).
+- `td/generate/scheme/td_api.tl` этого коммита: `importContacts contacts:vector<importedContact>`, в ответе `importedContacts.user_ids` стоит 0, если номер не зарегистрирован; `removeContacts user_ids:vector<int53>`; `createPrivateChat user_id:int53 force:Bool`; `sendMessage … input_message_content`; `updateMessageSendSucceeded` и `updateMessageSendFailed` с `old_message_id`; `requestQrCodeAuthentication other_user_ids`; `authorizationStateWaitOtherDeviceConfirmation link` («the link will be updated frequently»); `authorizationStateWaitPassword`, `checkAuthenticationPassword`; `authorizationStateClosed` («one must create a new instance»); `setTdlibParameters` (ошибка 401 при неверном ключе базы).
+- `searchUserByPhoneNumber` отброшен: «Returns a 404 error if the user can't be found», задача владельца — `importContacts`.
+- Ошибки TDLib: ожидание — код 429 с текстом `Too Many Requests: retry after N` (`td/telegram/Global.cpp`, `get_retry_after`), `contacts.importContacts`, вернувшая все контакты в `retry_contacts`, TDLib отдаёт как `retry after 3600` (`UserManager.cpp`, `ImportContactsQuery`), `USER_IS_BLOCKED` доходит как есть (`MessagesManager.cpp`, `on_send_message_fail`).
+- `td_json_client.h`: клиент не шлёт обновления до первого запроса; один поток `td_receive`.
+- Память сборки: генератор инструкций `tdlib.github.io/td/build.html` предлагает особый режим для машин с памятью меньше 4 ГБ. Память в работе в документации не указана; 256 МБ — оценка, измерить после входа (`docker stats`).
+- Условия API: core.telegram.org/api/terms, п. 1.4. Аккаунт свой, сообщения — по запросу самого человека; риск ограничений остаётся.
+- Что показывают клиенты, тип `auth.sentCodeTypeApp`: Android — `LoginActivity.java` 1898 (`AUTH_TYPE_MESSAGE`), строки `SentAppCodeTitle` и `SentAppCodeWithPhone`, ссылка «не пришёл код» при `next_type` sms (4430–4438). iOS — `.otherSession`, `Login.CodeSentInternal` (`AuthorizationSequenceCodeEntryControllerNode.swift`). Desktop — `intro_step.cpp` 365 (`codeByTelegram`), `lng_code_from_telegram` и кнопка `lng_code_no_telegram` (`intro_code.cpp` 73–105). Web K — `AuthCodeCard.tsx` 508 (`Login.Code.SentInApp`), `next_type` — повторный запрос (`sentCode.ts` 99).
+
+**Решения, требующие подтверждения**
+- Порядок: код в приложении Pluma (если есть другая сессия), затем аккаунт Telegram, затем администратор. Так аккаунт пишет меньше людям и реже рискует ограничением, а входить заново можно тем же кодом из приложения.
+- Тип ответа при доставке через Telegram — `auth.sentCodeTypeApp`, `next_type` sms: единственный тип, у которого во всех четырёх клиентах есть «не пришёл код» и без таймера. Переход работает без патчей клиентов.
+- **Текст на экране кода нужно решить.** `Telegram` в строках клиентов заменён на `Pluma`, поэтому экран говорит «проверьте сообщения в Pluma», хотя код в Telegram. Варианты: оставить как есть (люди свои, им скажут) или исключить ключи `SentAppCodeTitle`, `SentAppCode`, `SentAppCodeWithPhone`, `Login.CodeSentInternal`, `lng_code_from_telegram`, `Login.Code.SentInApp` из переименования, но тогда при коде в другой сессии Pluma написано будет «Telegram». В этой задаче не менялось (сервер, клиенты отдельно).
+- Смена номера при доставке через Telegram отвечает `App` без `next_type`.
+- Лимиты аккаунта (`sender.DefaultLimits`): пауза 5–10 с, 3 в час и 8 в сутки на номер, 30 в час и 120 в сутки всего, после `PEER_FLOOD` — 24 часа. Подобраны с запасом, данных о реальных порогах Telegram нет.
+
+**Открытые вопросы и что не проверено**
+- Настоящая доставка, вход по QR и сама сборка образа не выполнялись (нужен аккаунт и QR; образ не собирался по условиям задачи). Привязка cgo скомпилирована и слинкована с заглушкой `libtdjson` и настоящим заголовком `td_json_client.h` этого коммита.
+- Текст ошибки `PEER_FLOOD` на отправке не подтверждён чтением документации (в списке `messages.sendMessage` его нет, TDLib не обрабатывает его особо): код только не полагается на него, неизвестные ошибки дают «недоступно», код уходит администратору.
+- Смена номера на iOS с типом `App` по исходникам не проверена; Desktop смену номера не реализует (метод есть только в `api.tl`).
+- Включение открытой регистрации — задача 072; здесь только `RegistrationOpen` и таблица, по умолчанию регистрация по списку.
+- Telegram Gateway и SMS: решением владельца отпали, цены и условия не исследовались. Проверка бота через Bot API не понадобилась: бот не пишет по номеру.

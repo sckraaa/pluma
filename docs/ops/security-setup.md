@@ -58,6 +58,7 @@ openssl rand -hex 24   # по одному значению на каждый п
 | `SERVER_RSA_KEY_FILE` | путь к ключу на хосте, по умолчанию `./secrets/server_pkcs1.key` |
 | `SERVER_RSA_KEY_FINGERPRINT` | fingerprint из `genserverkey` |
 | `LOGIN_CODE_HMAC_KEY` | ключ HMAC для хранения кодов входа (`openssl rand -hex 32`, не короче 32 символов), см. раздел 7 |
+| `LOGIN_CODES_SENDER_URL`, `LOGIN_CODES_SENDER_TOKEN`, `LOGIN_CODES_DB_KEY` | необязательный сервис кодов через аккаунт Telegram (`docker-compose.codes.yaml`, `docs/ops/login-codes.md`): адрес и токен внутреннего API, ключ шифрования базы TDLib; `openssl rand -hex 32` |
 | `LOGIN_REVIEW_PHONE`, `LOGIN_REVIEW_CODE` | необязательный аккаунт с постоянным кодом для ревьюеров App Store: номер цифрами без `+` и код из 6 цифр (`openssl rand -hex 3` не годится — только цифры); оба пустые — такого аккаунта нет. См. раздел 7 |
 | `PUSH_SECRET_ENCRYPTION_KEY` | ключ AES-256-GCM, которым bff и push хранят ключи шифрования push-устройств (`push_devices.secret`; `openssl rand -hex 32`); отдельный от `AUTH_KEY_ENCRYPTION_KEY`, чтобы bff не мог открыть ключи MTProto; без него bff не стартует |
 | `AUTH_KEY_ENCRYPTION_KEY` | ключ AES-256-GCM, которым authsession шифрует ключи MTProto в `auth_keys` и в Redis (`openssl rand -hex 32`, ровно 64 hex-символа); без него authsession не стартует, см. раздел 4 |
