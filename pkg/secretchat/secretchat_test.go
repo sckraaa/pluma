@@ -152,3 +152,15 @@ func TestDifferenceEmpty(t *testing.T) {
 		t.Error("messages at qts -1")
 	}
 }
+
+func TestMarksState(t *testing.T) {
+	if !(&Difference{}).MarksState() {
+		t.Error("the last page marks the state")
+	}
+	if (&Difference{More: true}).MarksState() {
+		t.Error("a page with more after it")
+	}
+	if (&Difference{onlyQueue: true}).MarksState() {
+		t.Error("a difference without the changes of the chats")
+	}
+}

@@ -137,7 +137,8 @@ func (c *UpdatesCore) UpdatesGetDifference(in *mtproto.TLUpdatesGetDifference) (
 // withSecretChats adds to the difference d the page of the queue and the
 // changes of the chats, the qts of the state being the page's. An unfinished
 // queue makes it a differenceSlice, as a long box does: the client asks
-// again from the qts it was given. A finished one marks the state given.
+// again from the qts it was given. A finished one that carried the changes
+// marks the state given.
 func (c *UpdatesCore) withSecretChats(d *mtproto.Updates_Difference, s *secretchat.Difference) *mtproto.Updates_Difference {
 	me := c.device()
 	for _, m := range s.Messages {
@@ -162,8 +163,10 @@ func (c *UpdatesCore) withSecretChats(d *mtproto.Updates_Difference, s *secretch
 		}).To_Updates_Difference()
 	default:
 		d.State.Qts = s.Qts
-		if err := c.svcCtx.Dao.SecretChats.MarkDifference(c.ctx, me); err != nil {
-			c.Logger.Errorf("updates.getDifference - state of user %d: %v", c.MD.UserId, err)
+		if s.MarksState() {
+			if err := c.svcCtx.Dao.SecretChats.MarkDifference(c.ctx, me); err != nil {
+				c.Logger.Errorf("updates.getDifference - state of user %d: %v", c.MD.UserId, err)
+			}
 		}
 	}
 	return d

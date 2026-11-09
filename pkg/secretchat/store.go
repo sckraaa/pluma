@@ -561,7 +561,14 @@ type Difference struct {
 	Updates  []*DifferenceUpdate // updateEncryption and updateEncryptedMessagesRead
 	Qts      int32               // the state's qts after this page
 	More     bool                // more messages after this page
+
+	onlyQueue bool
 }
+
+// MarksState tells whether the client has now had everything of the updates
+// without qts, so that the cursor of the device may move: the last page of a
+// difference that carried them.
+func (d *Difference) MarksState() bool { return !d.More && !d.onlyQueue }
 
 // DifferenceUpdate is an update without qts of the difference.
 type DifferenceUpdate struct {
@@ -609,7 +616,7 @@ func (s *Store) Difference(ctx context.Context, in DifferenceInput) (*Difference
 	}
 	var (
 		qts, given int32
-		d          = new(Difference)
+		d          = &Difference{onlyQueue: in.OnlyQueue}
 	)
 	err := s.db.QueryRowContext(ctx, "SELECT qts, state_given_at FROM encrypted_chat_devices WHERE auth_key_id = ? AND user_id = ?", in.Device.AuthKey, in.Device.UserId).Scan(&qts, &given)
 	switch {
