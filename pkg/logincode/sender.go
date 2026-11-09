@@ -122,6 +122,14 @@ func (s *Service) DeliverByTelegram(ctx context.Context, phone, phoneCodeHash, c
 	if s.sender == nil || (s.reviewPhone != "" && phone == s.reviewPhone) {
 		return false
 	}
+	// A request already over (out of checks, cancelled) takes no code, and
+	// the account's budget is not spent on one.
+	if _, ok, err := s.store.get(ctx, phoneCodeHash); err != nil || !ok {
+		if err != nil {
+			logx.WithContext(ctx).Errorf("login code store: %v", err)
+		}
+		return false
+	}
 	// Bounds what one address can make the account do when registration is
 	// open: the account's own limits are per phone and in total.
 	if ip := ipSubject(clientIp); ip != "" {
@@ -155,15 +163,17 @@ func (s *Service) DeliverByTelegram(ctx context.Context, phone, phoneCodeHash, c
 	return true
 }
 
-// ErrSenderMisconfigured is returned for a URL without a token or a token without a URL.
-var ErrSenderMisconfigured = errors.New("logincode: LOGIN_CODES_SENDER_URL and LOGIN_CODES_SENDER_TOKEN must be set together (docs/ops/login-codes.md)")
+// ErrSenderMisconfigured is returned for a URL without a token.
+var ErrSenderMisconfigured = errors.New("logincode: LOGIN_CODES_SENDER_URL needs LOGIN_CODES_SENDER_TOKEN (docs/ops/login-codes.md)")
 
-// senderFromConfig returns the Sender of the config, nil if none is set.
+// senderFromConfig returns the Sender of the config, nil if no URL is set. A
+// token without a URL is normal: the service reads the same variable, and
+// bff is pointed at it only after its first login (docs/ops/login-codes.md).
 func senderFromConfig(c Config) (Sender, error) {
-	if c.SenderURL == "" && c.SenderToken == "" {
+	if c.SenderURL == "" {
 		return nil, nil
 	}
-	if c.SenderURL == "" || c.SenderToken == "" {
+	if c.SenderToken == "" {
 		return nil, ErrSenderMisconfigured
 	}
 	return newHTTPSender(c.SenderURL, c.SenderToken)

@@ -44,7 +44,7 @@ LoginCode:
   ReviewPhone: "${LOGIN_REVIEW_PHONE}"
   ReviewCode: "${LOGIN_REVIEW_CODE}"
   # The service that writes codes from a Telegram account
-  # (docs/ops/login-codes.md); both empty: no such service.
+  # (docs/ops/login-codes.md); no URL: no such service.
   SenderURL: "${LOGIN_CODES_SENDER_URL}"
   SenderToken: "${LOGIN_CODES_SENDER_TOKEN}"
 

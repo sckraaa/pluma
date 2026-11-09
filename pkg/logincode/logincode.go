@@ -62,7 +62,7 @@ type Config struct {
 	ReviewCode  string
 	// SenderURL and SenderToken reach the service that writes codes from a
 	// real Telegram account (app/ops/codes, docs/ops/login-codes.md):
-	// ${LOGIN_CODES_SENDER_URL}, ${LOGIN_CODES_SENDER_TOKEN}. Both empty: no
+	// ${LOGIN_CODES_SENDER_URL}, ${LOGIN_CODES_SENDER_TOKEN}. No URL: no
 	// such service, codes come in the app or from the administrator.
 	SenderURL   string `json:",optional"`
 	SenderToken string `json:",optional"`

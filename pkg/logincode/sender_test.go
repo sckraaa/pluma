@@ -93,6 +93,29 @@ func TestDeliverByTelegramRefusedLeavesNoCode(t *testing.T) {
 	}
 }
 
+func TestDeliverByTelegramSkipsARequestOutOfChecks(t *testing.T) {
+	ctx := context.Background()
+	s, _, _ := testService(t, sendPhone)
+	f := &fakeSender{result: SendSent}
+	s.SetSender(f)
+	code := issueRequest(t, s, true)
+	wrong := "111111"
+	if code == wrong {
+		wrong = "222222"
+	}
+	for range MaxAttempts {
+		if err := s.Verify(ctx, sendPhone, sendHash, wrong, sendIP); err == nil {
+			t.Fatal("a wrong code was accepted")
+		}
+	}
+	if s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP) {
+		t.Fatal("reported as delivered")
+	}
+	if len(f.codes) != 0 {
+		t.Fatalf("the account wrote %d codes", len(f.codes))
+	}
+}
+
 func TestDeliverByTelegramRefusedKeepsTheEarlierCode(t *testing.T) {
 	ctx := context.Background()
 	s, _, _ := testService(t, sendPhone)
@@ -212,8 +235,8 @@ func TestSenderConfig(t *testing.T) {
 	if _, err := senderFromConfig(Config{SenderURL: "http://codes:9378"}); !errors.Is(err, ErrSenderMisconfigured) {
 		t.Fatalf("no token: %v", err)
 	}
-	if _, err := senderFromConfig(Config{SenderToken: testKey}); !errors.Is(err, ErrSenderMisconfigured) {
-		t.Fatalf("no url: %v", err)
+	if s, err := senderFromConfig(Config{SenderToken: testKey}); s != nil || err != nil {
+		t.Fatalf("token before the url: %v, %v", s, err)
 	}
 	if _, err := senderFromConfig(Config{SenderURL: "http://codes:9378", SenderToken: "short"}); err == nil {
 		t.Fatal("a short token was accepted")
