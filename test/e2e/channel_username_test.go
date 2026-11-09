@@ -115,8 +115,8 @@ func TestChannelUsername(t *testing.T) {
 		To_Premium_BoostsStatus() *mtproto.Premium_BoostsStatus
 	}).To_Premium_BoostsStatus(); s.GetBoosts() != 0 || s.GetBoostUrl() == "" || s.GetNextLevelBoosts().GetValue() <= s.GetCurrentLevelBoosts() {
 		t.Errorf("boosts %d, url %q, next level %v: Android takes no next level for the highest", s.GetBoosts(), s.GetBoostUrl(), s.GetNextLevelBoosts())
-	} else if s.GetLevel() != 100 {
-		t.Errorf("level %d: the custom reactions of a channel are limited by it (ADR 0041)", s.GetLevel())
+	} else if s.GetLevel() != 0 {
+		t.Errorf("level %d: a channel without boosts has none (ADR 0041)", s.GetLevel())
 	}
 	if _, err = bob.c.Invoke(ctx, &mtproto.TLPremiumGetMyBoosts{Constructor: bob.c.Constructor(mtproto.Predicate_premium_getMyBoosts)}); err != nil {
 		t.Errorf("premium.getMyBoosts: %v", err)
