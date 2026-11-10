@@ -21,7 +21,6 @@ runs:
         key: ffmpeg-debs-${{ runner.arch }}-${{ steps.image.outputs.version }}
 
     - name: Install ffmpeg
-      timeout-minutes: 25
       shell: bash
       run: |
         if compgen -G ~/ffmpeg-debs/'*.deb' >/dev/null && sudo dpkg -i ~/ffmpeg-debs/*.deb >/dev/null; then

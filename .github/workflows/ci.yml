@@ -121,6 +121,7 @@ jobs:
       # dfs and pkg/goffmpeg tests run the ffmpeg/ffprobe binaries; without
       # them they would skip.
       - name: Install ffmpeg
+        timeout-minutes: 25
         uses: ./.github/actions/ffmpeg
 
       - name: Unit tests
@@ -158,6 +159,7 @@ jobs:
       # dfs and pkg/goffmpeg tests run the ffmpeg/ffprobe binaries; without
       # them they would skip.
       - name: Install ffmpeg
+        timeout-minutes: 25
         uses: ./.github/actions/ffmpeg
 
       - name: Race tests
