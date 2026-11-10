@@ -1,0 +1,32 @@
+# ffmpeg with libx264, as in the production image. The packages Ubuntu's
+# mirror sent are kept per runner image: the mirror once hung for the whole job
+# timeout and once crawled at a few dozen KB/s, so only a new image downloads
+# them again. Two jobs may download at once on a new image; the second save
+# finds the key taken and changes nothing.
+name: ffmpeg
+description: Installs ffmpeg from the packages kept in the cache
+runs:
+  using: composite
+  steps:
+    - name: Runner image
+      id: image
+      shell: bash
+      run: echo "version=${ImageOS:?}-${ImageVersion:?}" >>"$GITHUB_OUTPUT"
+
+    - name: Restore ffmpeg packages
+      id: ffmpeg-debs
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/ffmpeg-debs
+        key: ffmpeg-debs-${{ runner.arch }}-${{ steps.image.outputs.version }}
+
+    - name: Install ffmpeg
+      shell: bash
+      run: '"$GITHUB_ACTION_PATH/install.sh"'
+
+    - name: Save ffmpeg packages
+      if: steps.ffmpeg-debs.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/ffmpeg-debs
+        key: ffmpeg-debs-${{ runner.arch }}-${{ steps.image.outputs.version }}

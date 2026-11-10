@@ -2,20 +2,19 @@
 # commit (docs/ops/deployment.md): the teamgram services (Dockerfile),
 # alertpush, backup and iosinstall. A server names the commit it runs in its .env and
 # only pulls; nothing is built on it. linux/amd64 only, the architecture of
-# the server.
+# the server. CI calls it for a push to master once everything has passed; a
+# manual run builds the commit it is started on. The layers are kept in the
+# GitHub Actions cache, each image's apart: TDLib, the long part of
+# pluma-codes, is rebuilt only when its commit changes. A cache that cannot
+# be written costs time, not the image.
 name: images
 
 on:
-  push:
-    branches: [master]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: images-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
   image:
@@ -55,6 +54,10 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
+          # max keeps the layers of the stages too, which is what TDLib is;
+          # the stages of the other images change with every commit.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ matrix.name == 'pluma-codes' && 'max' || 'min' }},ignore-error=true
           tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
