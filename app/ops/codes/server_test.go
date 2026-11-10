@@ -26,6 +26,8 @@ func (f *fakeQueue) Submit(_ context.Context, phone, code string, wait time.Dura
 	return f.result
 }
 
+func (f *fakeQueue) Account() string { return "pluma_codes" }
+
 func (f *fakeQueue) State() sender.State {
 	return sender.State{Session: sender.SessionNoSession, QueueLength: 2}
 }
@@ -90,6 +92,27 @@ func TestSendAndState(t *testing.T) {
 	var st sender.State
 	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil || st.Session != sender.SessionNoSession || st.QueueLength != 2 {
 		t.Fatalf("state %q, %v", w.Body.String(), err)
+	}
+}
+
+// The username of the account goes with a code on its way only: the app
+// opens that chat to read the code.
+func TestSendNamesTheAccountOfADeliveredCode(t *testing.T) {
+	for _, tt := range []struct {
+		result sender.Result
+		want   string
+	}{
+		{sender.Sent, "pluma_codes"},
+		{sender.Queued, "pluma_codes"},
+		{sender.NoTelegram, ""},
+		{sender.Unavailable, ""},
+	} {
+		h := newHandler(&fakeQueue{result: tt.result}, apiToken)
+		w := request(h, "POST", "/v1/send", apiToken, `{"phone":"79991234567","code":"123456"}`)
+		var got sendResponse
+		if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || got.Account != tt.want {
+			t.Errorf("%s: %q, %v", tt.result, w.Body.String(), err)
+		}
 	}
 }
 

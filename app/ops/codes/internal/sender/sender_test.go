@@ -32,6 +32,8 @@ func newFake() *fakeMessenger {
 	return &fakeMessenger{session: SessionReady, result: Delivery{Result: Sent, UserID: 5}}
 }
 
+func (f *fakeMessenger) Username() string { return "pluma_codes" }
+
 func (f *fakeMessenger) Session() string {
 	f.mu.Lock()
 	defer f.mu.Unlock()
