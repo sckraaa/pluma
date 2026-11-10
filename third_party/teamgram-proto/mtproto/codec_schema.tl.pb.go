@@ -37757,10 +37757,10 @@ func (m *TLChannel) Encode(x *EncodeBuf, layer int32) error {
 			if m.GetUsernames() != nil {
 				flags |= 1 << 0
 			}
-			if m.GetStoriesMaxId() != nil {
+			if m.GetStoriesMaxId_FLAGRECENTSTORY() != nil {
 				flags |= 1 << 4
 			}
-			if m.GetColor_PEERCOLOR() != nil {
+			if m.GetColor_FLAGPEERCOLOR() != nil {
 				flags |= 1 << 7
 			}
 			if m.GetProfileColor() != nil {
@@ -37873,14 +37873,14 @@ func (m *TLChannel) Encode(x *EncodeBuf, layer int32) error {
 			}
 		}
 
-		if m.GetStoriesMaxId() != nil {
-			if err := m.GetStoriesMaxId().Encode(x, layer); err != nil {
+		if m.GetStoriesMaxId_FLAGRECENTSTORY() != nil {
+			if err := m.GetStoriesMaxId_FLAGRECENTSTORY().Encode(x, layer); err != nil {
 				return err
 			}
 		}
 
-		if m.GetColor_PEERCOLOR() != nil {
-			if err := m.GetColor_PEERCOLOR().Encode(x, layer); err != nil {
+		if m.GetColor_FLAGPEERCOLOR() != nil {
+			if err := m.GetColor_FLAGPEERCOLOR().Encode(x, layer); err != nil {
 				return err
 			}
 		}
@@ -40924,12 +40924,12 @@ func (m *TLChannel) Decode(dBuf *DecodeBuf) error {
 		if (flags2 & (1 << 4)) != 0 {
 			m43 := &RecentStory{}
 			m43.Decode(dBuf)
-			m.SetStoriesMaxId(m43)
+			m.SetStoriesMaxId_FLAGRECENTSTORY(m43)
 		}
 		if (flags2 & (1 << 7)) != 0 {
 			m44 := &PeerColor{}
 			m44.Decode(dBuf)
-			m.SetColor_PEERCOLOR(m44)
+			m.SetColor_FLAGPEERCOLOR(m44)
 		}
 		if (flags2 & (1 << 8)) != 0 {
 			m45 := &PeerColor{}
@@ -45428,7 +45428,7 @@ func (m *TLChannelFull) Encode(x *EncodeBuf, layer int32) error {
 			if m.GetDefaultSendAs() != nil {
 				flags |= 1 << 29
 			}
-			if m.GetAvailableReactions() != nil {
+			if m.GetAvailableReactions_FLAGCHATREACTIONS() != nil {
 				flags |= 1 << 30
 			}
 
@@ -45662,8 +45662,8 @@ func (m *TLChannelFull) Encode(x *EncodeBuf, layer int32) error {
 			}
 		}
 
-		if m.GetAvailableReactions() != nil {
-			if err := m.GetAvailableReactions().Encode(x, layer); err != nil {
+		if m.GetAvailableReactions_FLAGCHATREACTIONS() != nil {
+			if err := m.GetAvailableReactions_FLAGCHATREACTIONS().Encode(x, layer); err != nil {
 				return err
 			}
 		}
@@ -50011,7 +50011,7 @@ func (m *TLChannelFull) Decode(dBuf *DecodeBuf) error {
 		if (flags & (1 << 30)) != 0 {
 			m58 := &ChatReactions{}
 			m58.Decode(dBuf)
-			m.SetAvailableReactions(m58)
+			m.SetAvailableReactions_FLAGCHATREACTIONS(m58)
 		}
 		if (flags2 & (1 << 13)) != 0 {
 			m.SetReactionsLimit(&wrapperspb.Int32Value{Value: dBuf.Int()})
@@ -74495,9 +74495,6 @@ func (m *TLGlobalPrivacySettings) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 6
 			}
 
-			if m.GetArchiveAndMuteNewNoncontactPeers() == true {
-				flags |= 1 << 0
-			}
 			return flags
 		}
 
@@ -74622,9 +74619,6 @@ func (m *TLGlobalPrivacySettings) Decode(dBuf *DecodeBuf) error {
 	case 0xfe41b34f:
 		var flags = dBuf.UInt()
 		_ = flags
-		if (flags & (1 << 0)) != 0 {
-			m.SetArchiveAndMuteNewNoncontactPeers(true)
-		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetArchiveAndMuteNewNoncontactPeers_FLAGBOOLEAN(true)
 		}
@@ -131607,9 +131601,6 @@ func (m *TLMessageActionGiveawayResults) Encode(x *EncodeBuf, layer int32) error
 				flags |= 1 << 0
 			}
 
-			if m.GetStars() == true {
-				flags |= 1 << 0
-			}
 			return flags
 		}
 
@@ -131642,9 +131633,6 @@ func (m *TLMessageActionGiveawayResults) Decode(dBuf *DecodeBuf) error {
 	case 0x87e2f155:
 		var flags = dBuf.UInt()
 		_ = flags
-		if (flags & (1 << 0)) != 0 {
-			m.SetStars(true)
-		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetStars_FLAGBOOLEAN(true)
 		}
@@ -141061,9 +141049,6 @@ func (m *TLMessageMediaDocument) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 2
 			}
 
-			if m.GetVideo() == true {
-				flags |= 1 << 6
-			}
 			return flags
 		}
 
@@ -141283,9 +141268,6 @@ func (m *TLMessageMediaDocument) Decode(dBuf *DecodeBuf) error {
 	case 0x52d8ccd9:
 		var flags = dBuf.UInt()
 		_ = flags
-		if (flags & (1 << 6)) != 0 {
-			m.SetVideo(true)
-		}
 		if (flags & (1 << 3)) != 0 {
 			m.SetNopremium(true)
 		}
@@ -252142,9 +252124,6 @@ func (m *TLUpdatePeerBlocked) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 1
 			}
 
-			if m.GetBlocked() == true {
-				flags |= 1 << 0
-			}
 			return flags
 		}
 
@@ -252184,9 +252163,6 @@ func (m *TLUpdatePeerBlocked) Decode(dBuf *DecodeBuf) error {
 	case 0xebe07752:
 		var flags = dBuf.UInt()
 		_ = flags
-		if (flags & (1 << 0)) != 0 {
-			m.SetBlocked(true)
-		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetBlocked_FLAGBOOLEAN(true)
 		}
@@ -257530,9 +257506,6 @@ func (m *TLUpdateMonoForumNoPaidException) Encode(x *EncodeBuf, layer int32) err
 				flags |= 1 << 0
 			}
 
-			if m.GetException() == true {
-				flags |= 1 << 0
-			}
 			return flags
 		}
 
@@ -257560,9 +257533,6 @@ func (m *TLUpdateMonoForumNoPaidException) Decode(dBuf *DecodeBuf) error {
 	case 0x9f812b08:
 		var flags = dBuf.UInt()
 		_ = flags
-		if (flags & (1 << 0)) != 0 {
-			m.SetException(true)
-		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetException_FLAGBOOLEAN(true)
 		}
@@ -258848,9 +258818,6 @@ func (m *TLUpdateWebBrowserSettings) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 1
 			}
 
-			if m.GetOpenExternalBrowser() == true {
-				flags |= 1 << 0
-			}
 			return flags
 		}
 
@@ -258874,9 +258841,6 @@ func (m *TLUpdateWebBrowserSettings) Decode(dBuf *DecodeBuf) error {
 	case 0xc39a2ade:
 		var flags = dBuf.UInt()
 		_ = flags
-		if (flags & (1 << 0)) != 0 {
-			m.SetOpenExternalBrowser(true)
-		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetOpenExternalBrowser_FLAGBOOLEAN(true)
 		}
@@ -270577,7 +270541,7 @@ func (m *TLUserFull) Encode(x *EncodeBuf, layer int32) error {
 			if m.GetWallpaper() != nil {
 				flags |= 1 << 24
 			}
-			if m.GetStories() != nil {
+			if m.GetStories_FLAGPEERSTORIES() != nil {
 				flags |= 1 << 25
 			}
 
@@ -270756,8 +270720,8 @@ func (m *TLUserFull) Encode(x *EncodeBuf, layer int32) error {
 			}
 		}
 
-		if m.GetStories() != nil {
-			if err := m.GetStories().Encode(x, layer); err != nil {
+		if m.GetStories_FLAGPEERSTORIES() != nil {
+			if err := m.GetStories_FLAGPEERSTORIES().Encode(x, layer); err != nil {
 				return err
 			}
 		}
@@ -276402,7 +276366,7 @@ func (m *TLUserFull) Decode(dBuf *DecodeBuf) error {
 		if (flags & (1 << 25)) != 0 {
 			m39 := &PeerStories{}
 			m39.Decode(dBuf)
-			m.SetStories(m39)
+			m.SetStories_FLAGPEERSTORIES(m39)
 		}
 		if (flags2 & (1 << 0)) != 0 {
 			m40 := &BusinessWorkHours{}
@@ -288213,9 +288177,6 @@ func (m *TLWebPageAttributeStickerSet) Encode(x *EncodeBuf, layer int32) error {
 				flags |= 1 << 1
 			}
 
-			if m.GetTextColor() == true {
-				flags |= 1 << 1
-			}
 			return flags
 		}
 
@@ -288256,9 +288217,6 @@ func (m *TLWebPageAttributeStickerSet) Decode(dBuf *DecodeBuf) error {
 	case 0x50cc03d3:
 		var flags = dBuf.UInt()
 		_ = flags
-		if (flags & (1 << 1)) != 0 {
-			m.SetTextColor(true)
-		}
 		if (flags & (1 << 0)) != 0 {
 			m.SetEmojis(true)
 		}
@@ -356510,20 +356468,11 @@ func (m *Vector_PredefinedUser) Decode(dBuf *DecodeBuf) error {
 func (m *Vector_PredefinedUser) CalcByteSize(layer int32) int {
 	return 0
 }
-func (m *TLChannel) SetColor_PEERCOLOR(v *PeerColor) { m.Data2.Color_PEERCOLOR = v }
-func (m *TLChannel) GetColor_PEERCOLOR() *PeerColor  { return m.Data2.Color_PEERCOLOR }
-
 func (m *TLChannel) SetInNews(v bool) { m.Data2.InNews = v }
 func (m *TLChannel) GetInNews() bool  { return m.Data2.InNews }
 
 func (m *TLChannel) SetPinnedMsgId(v *wrapperspb.Int32Value) { m.Data2.PinnedMsgId = v }
 func (m *TLChannel) GetPinnedMsgId() *wrapperspb.Int32Value  { return m.Data2.PinnedMsgId }
-
-func (m *TLChannel) SetStoriesMaxId(v *RecentStory) { m.Data2.StoriesMaxId = v }
-func (m *TLChannel) GetStoriesMaxId() *RecentStory  { return m.Data2.StoriesMaxId }
-
-func (m *TLChannelFull) SetAvailableReactions(v *ChatReactions) { m.Data2.AvailableReactions = v }
-func (m *TLChannelFull) GetAvailableReactions() *ChatReactions  { return m.Data2.AvailableReactions }
 
 func (m *TLChannelFull) SetShareTheme(v *ShareTheme) { m.Data2.ShareTheme = v }
 func (m *TLChannelFull) GetShareTheme() *ShareTheme  { return m.Data2.ShareTheme }
@@ -356536,9 +356485,6 @@ func (m *TLMessageReplyHeader) GetQuoteRich() []*RichText  { return m.Data2.Quot
 
 func (m *TLUserFull) SetShareTheme(v *ShareTheme) { m.Data2.ShareTheme = v }
 func (m *TLUserFull) GetShareTheme() *ShareTheme  { return m.Data2.ShareTheme }
-
-func (m *TLUserFull) SetStories(v *PeerStories) { m.Data2.Stories = v }
-func (m *TLUserFull) GetStories() *PeerStories  { return m.Data2.Stories }
 
 func (m *TLUserFull) SetWalletCard(v *Wallet_Card) { m.Data2.WalletCard = v }
 func (m *TLUserFull) GetWalletCard() *Wallet_Card  { return m.Data2.WalletCard }
@@ -361550,32 +361496,5 @@ func (m *TLMessagesGetTranscriptionLangs) Decode(dBuf *DecodeBuf) error {
 func (m *TLChannel) SetForumSidebar(v bool) { m.Data2.ForumSidebar = v }
 func (m *TLChannel) GetForumSidebar() bool  { return m.Data2.ForumSidebar }
 
-func (m *TLGlobalPrivacySettings) SetArchiveAndMuteNewNoncontactPeers(v bool) {
-	m.Data2.ArchiveAndMuteNewNoncontactPeers = v
-}
-func (m *TLGlobalPrivacySettings) GetArchiveAndMuteNewNoncontactPeers() bool {
-	return m.Data2.ArchiveAndMuteNewNoncontactPeers
-}
-
-func (m *TLMessageActionGiveawayResults) SetStars(v bool) { m.Data2.Stars = v }
-func (m *TLMessageActionGiveawayResults) GetStars() bool  { return m.Data2.Stars }
-
-func (m *TLMessageMediaDocument) SetVideo(v bool) { m.Data2.Video = v }
-func (m *TLMessageMediaDocument) GetVideo() bool  { return m.Data2.Video }
-
-func (m *TLUpdateMonoForumNoPaidException) SetException(v bool) { m.Data2.Exception = v }
-func (m *TLUpdateMonoForumNoPaidException) GetException() bool  { return m.Data2.Exception }
-
-func (m *TLUpdatePeerBlocked) SetBlocked(v bool) { m.Data2.Blocked = v }
-func (m *TLUpdatePeerBlocked) GetBlocked() bool  { return m.Data2.Blocked }
-
-func (m *TLUpdateWebBrowserSettings) SetOpenExternalBrowser(v bool) { m.Data2.OpenExternalBrowser = v }
-func (m *TLUpdateWebBrowserSettings) GetOpenExternalBrowser() bool {
-	return m.Data2.OpenExternalBrowser
-}
-
 func (m *TLUser) SetBotForumSidebar(v bool) { m.Data2.BotForumSidebar = v }
 func (m *TLUser) GetBotForumSidebar() bool  { return m.Data2.BotForumSidebar }
-
-func (m *TLWebPageAttributeStickerSet) SetTextColor(v bool) { m.Data2.TextColor = v }
-func (m *TLWebPageAttributeStickerSet) GetTextColor() bool  { return m.Data2.TextColor }
