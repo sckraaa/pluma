@@ -2,35 +2,22 @@
 # commit (docs/ops/deployment.md): the teamgram services (Dockerfile),
 # alertpush, backup and iosinstall. A server names the commit it runs in its .env and
 # only pulls; nothing is built on it. linux/amd64 only, the architecture of
-# the server. A push to master gets its images once CI has passed on it; a
+# the server. CI calls it for a push to master once everything has passed; a
 # manual run builds the commit it is started on. The layers are kept in the
 # GitHub Actions cache, each image's apart: TDLib, the long part of
-# pluma-codes, is rebuilt only when its commit changes.
+# pluma-codes, is rebuilt only when its commit changes. A cache that cannot
+# be written costs time, not the image.
 name: images
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [master]
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: images-${{ github.ref }}
-  cancel-in-progress: false
-
-env:
-  # On workflow_run, github.sha is the head of master, not the commit CI passed.
-  COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
-
 jobs:
   image:
-    if: >-
-      github.event_name == 'workflow_dispatch'
-      || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     permissions:
@@ -53,7 +40,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.COMMIT }}
           persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
@@ -71,8 +57,8 @@ jobs:
           # max keeps the layers of the stages too, which is what TDLib is;
           # the stages of the other images change with every commit.
           cache-from: type=gha,scope=${{ matrix.name }}
-          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ matrix.name == 'pluma-codes' && 'max' || 'min' }}
-          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ env.COMMIT }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=${{ matrix.name == 'pluma-codes' && 'max' || 'min' }},ignore-error=true
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            org.opencontainers.image.revision=${{ env.COMMIT }}
+            org.opencontainers.image.revision=${{ github.sha }}

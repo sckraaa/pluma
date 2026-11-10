@@ -4,7 +4,8 @@
 # tests on real MySQL/Redis/Kafka (`make test-integration`) and the end-to-end
 # test of the docker compose stack (`make e2e`) run as jobs of their own. A
 # change of documentation alone runs nothing; the API coverage matrix is
-# generated and checked, so it is not counted as documentation.
+# generated and checked and a test reads docs/ops/app-config.md, so they are
+# not counted as documentation. A push to master that passes builds its images.
 # Tool versions are pinned in the Makefile; actions are pinned by commit SHA.
 # Updates of everything pinned come as Dependabot pull requests
 # (.github/dependabot.yml); the weekly run catches vulnerabilities published
@@ -20,12 +21,14 @@ on:
       - "!docs/**"
       - "!**.md"
       - "docs/project/api-coverage.*"
+      - "docs/ops/app-config.md"
   pull_request:
     paths:
       - "**"
       - "!docs/**"
       - "!**.md"
       - "docs/project/api-coverage.*"
+      - "docs/ops/app-config.md"
   schedule:
     - cron: "17 4 * * 1" # Mondays 04:17 UTC
   workflow_dispatch:
@@ -275,3 +278,12 @@ jobs:
           path: .e2e/logs/
           if-no-files-found: ignore
           retention-days: 14
+
+  images:
+    name: Images
+    needs: [ci, test, race, lint, integration, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/images.yml
