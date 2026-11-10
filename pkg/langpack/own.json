@@ -280,6 +280,30 @@
     }
   },
   "webk": {
+    "Pluma.Code.AskAdministrator": {
+      "ar": "اسأل المسؤول",
+      "de": "Frag den Administrator",
+      "en": "Ask the administrator",
+      "es": "Pregunta al administrador",
+      "it": "Chiedi all'amministratore",
+      "ko": "관리자에게 문의하세요",
+      "nl": "Vraag de beheerder",
+      "pt-br": "Fale com o administrador",
+      "ru": "Код у администратора",
+      "uk": "Код в адміністратора"
+    },
+    "Pluma.Code.AskAdministratorText": {
+      "ar": "اطلب رمزك من مسؤول Pluma وأدخله هنا.",
+      "de": "Bitte den Pluma-Administrator um deinen Code und gib ihn hier ein.",
+      "en": "Ask the Pluma administrator for your code and enter it here.",
+      "es": "Pide tu código al administrador de Pluma e introdúcelo aquí.",
+      "it": "Chiedi il tuo codice all'amministratore di Pluma e inseriscilo qui.",
+      "ko": "Pluma 관리자에게 코드를 요청해 여기에 입력하세요.",
+      "nl": "Vraag de beheerder van Pluma om je code en voer die hier in.",
+      "pt-br": "Peça seu código ao administrador do Pluma e digite-o aqui.",
+      "ru": "Попросите код у администратора Pluma и введите его здесь.",
+      "uk": "Попросіть код в адміністратора Pluma й введіть його тут."
+    },
     "Pluma.Code.NotDelivered": {
       "ar": "**لم يصل الرمز إلى تيليجرام**\nلم يصل رمز **%s** إلى تيليجرام الخاص بك. اسمح لتيليجرام بالعثور عليك برقمك: **الإعدادات ← الخصوصية والأمان ← رقم الهاتف ← من يمكنهم إيجادي برقم هاتفي؟ ← الجميع**.\n\nليس لديك تيليجرام؟ اطلب الرمز من المسؤول وأدخله هنا.",
       "de": "**Der Code kam nicht in Telegram an**\nDer Code für **%s** kam nicht in deinem Telegram an. Erlaube Telegram, dich über deine Nummer zu finden: **Einstellungen → Privatsphäre und Sicherheit → Telefonnummer → Wer darf mich unter meiner Nummer finden? → Jeder**.\n\nKein Telegram? Bitte den Administrator um den Code und gib ihn hier ein.",
