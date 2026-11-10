@@ -93,7 +93,9 @@ func main() {
 	// permissions of checked-in files.
 	check(os.MkdirAll(filepath.Dir(*out), 0o755))                    //nolint:gosec // G301: a repository directory
 	check(os.WriteFile(*out, []byte(render(methods, layer)), 0o644)) //nolint:gosec // G306: a checked-in document
-	progress, err := renderProgress(methods, layer)
+	notNeeded, err := loadNotNeeded(registryFile)
+	check(err)
+	progress, err := renderProgress(methods, layer, notNeeded)
 	check(err)
 	check(os.WriteFile(*jsonOut, progress, 0o644)) //nolint:gosec // G306: a checked-in document, served publicly
 	fmt.Print(renderSummary(methods, layer))
@@ -477,9 +479,42 @@ type progressArea struct {
 	progressCounts
 }
 
-// renderProgress is the public progress: the methods of the layer, how many
-// are implemented and partly implemented, overall and by area.
-func renderProgress(ms []*method, layer string) ([]byte, error) {
+// registryFile holds the decision on every gap of the schema.
+const registryFile = "docs/project/feature-registry.json"
+
+var registryMethod = regexp.MustCompile(`[a-z]+\.[A-Za-z0-9_]+`)
+
+// loadNotNeeded returns the methods the registry decided Pluma does not need
+// (ads, payments, Passport and the like).
+func loadNotNeeded(path string) (map[string]bool, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var items []struct {
+		Name     string `json:"name"`
+		Decision string `json:"decision"`
+	}
+	if err = json.Unmarshal(data, &items); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	out := map[string]bool{}
+	for _, it := range items {
+		if it.Decision != "not_needed" {
+			continue
+		}
+		for _, n := range registryMethod.FindAllString(it.Name, -1) {
+			out[constructorSuffix.ReplaceAllString(n, "")] = true
+		}
+	}
+	return out, nil
+}
+
+// renderProgress is the public progress: the methods of the layer Pluma is
+// to have, how many are implemented and partly implemented, overall and by
+// area. A method not done that the registry decided is not needed does not
+// count: it is no work left.
+func renderProgress(ms []*method, layer string, notNeeded map[string]bool) ([]byte, error) {
 	// One entry per method name, of the best status of its versions.
 	byName := map[string]*method{}
 	var names []string
@@ -508,6 +543,9 @@ func renderProgress(ms []*method, layer string) ([]byte, error) {
 	byArea := map[string]*progressCounts{}
 	for _, name := range names {
 		m := byName[name]
+		if m.Status != "ok" && notNeeded[name] {
+			continue
+		}
 		key := areaOf(m.TLName, m.NS)
 		if byArea[key] == nil {
 			byArea[key] = &progressCounts{}
