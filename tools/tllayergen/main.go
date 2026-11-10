@@ -647,18 +647,24 @@ func (g *generator) mapFields(msgName string, pm *protoMessage, it *item, union 
 	return fm, nil
 }
 
+// suffixOf is the suffix mtprotoc gives a field whose name is taken by a field
+// of another type: FLAG for any conditional field, then the type, BOOLEAN for a
+// true flag (available_reactions_FLAGCHATREACTIONS, blocked_FLAGBOOLEAN,
+// available_reactions_FLAGVECTORSTRING, data_DATAJSON in the vendored protos).
 func suffixOf(f *field) string {
 	var s string
 	switch {
 	case f.vector:
 		s = "VECTOR" + strings.ToUpper(strings.ReplaceAll(primitiveProto(f.typ), ".", ""))
+	case f.typ == "true":
+		s = "BOOLEAN"
 	case isPrimitive(f.typ):
 		s = strings.ToUpper(primitiveProto(f.typ))
-		if f.flagWord != "" {
-			s = "FLAG" + s
-		}
 	default:
 		s = strings.ToUpper(strings.ReplaceAll(protoTypeName(f.typ), "_", ""))
+	}
+	if f.flagWord != "" {
+		s = "FLAG" + s
 	}
 	return "_" + s
 }

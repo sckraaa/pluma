@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -119,6 +122,117 @@ func TestEncodeCaseHandlesFlagWords(t *testing.T) {
 	for _, want := range []string{"case 0xdeadbeef:", "x.UInt(0xdeadbeef)", "m.GetA() == true", "x.UInt(getFlags())", "m.GetN().Value", "flags |= 1 << 2"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in\n%s", want, got)
+		}
+	}
+}
+
+// A conditional field whose name upstream already suffixed is the same field
+// for a new constructor, not a new one: channelFull of layer 233 must encode
+// the available_reactions the handlers fill.
+func TestMapFieldsFindsSuffixedUpstreamField(t *testing.T) {
+	src := "message ChatFull {\n" +
+		"  string predicate_name = 1;\n" +
+		"  TLConstructor constructor = 2;\n" +
+		"  ChatReactions available_reactions_FLAGCHATREACTIONS = 21;\n" +
+		"  repeated string available_reactions_FLAGVECTORSTRING = 73;\n" +
+		"  bool blocked_FLAGBOOLEAN = 30;\n" +
+		"  Bool blocked_BOOL = 31;\n" +
+		"  PeerStories stories_FLAGPEERSTORIES = 40;\n" +
+		"}\n"
+	pm := &protoMessage{source: &src, fields: []protoField{
+		{typ: "string", name: "predicate_name", number: 1},
+		{typ: "TLConstructor", name: "constructor", number: 2},
+		{typ: "ChatReactions", name: "available_reactions_FLAGCHATREACTIONS", number: 21},
+		{repeated: true, typ: "string", name: "available_reactions_FLAGVECTORSTRING", number: 73},
+		{typ: "bool", name: "blocked_FLAGBOOLEAN", number: 30},
+		{typ: "Bool", name: "blocked_BOOL", number: 31},
+		{typ: "PeerStories", name: "stories_FLAGPEERSTORIES", number: 40},
+	}}
+	it := item{fields: []field{
+		{name: "flags", typ: "#"},
+		{name: "blocked", typ: "true", flagWord: "flags", flagBit: 22},
+		{name: "available_reactions", typ: "ChatReactions", flagWord: "flags", flagBit: 30},
+		{name: "stories", typ: "PeerStories", flagWord: "flags2", flagBit: 4},
+		{name: "reactions_limit", typ: "int", flagWord: "flags2", flagBit: 13},
+	}}
+	before := src
+	fm, err := (&generator{}).mapFields("ChatFull", pm, &it, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for tl, want := range map[string]string{
+		"blocked":             "blocked_FLAGBOOLEAN",
+		"available_reactions": "available_reactions_FLAGCHATREACTIONS",
+		"stories":             "stories_FLAGPEERSTORIES",
+		"reactions_limit":     "reactions_limit",
+	} {
+		if got := fm[tl].name; got != want {
+			t.Errorf("%s: %s, want %s", tl, got, want)
+		}
+	}
+	if added := strings.TrimPrefix(src, before[:len(before)-2]); added != "  google.protobuf.Int32Value reactions_limit = 74;\n}\n" {
+		t.Errorf("added %q", added)
+	}
+}
+
+func TestSuffixOf(t *testing.T) {
+	for _, c := range []struct {
+		f    field
+		want string
+	}{
+		{field{typ: "true", flagWord: "flags"}, "_FLAGBOOLEAN"},
+		{field{typ: "Bool"}, "_BOOL"},
+		{field{typ: "Bool", flagWord: "flags"}, "_FLAGBOOL"},
+		{field{typ: "long"}, "_INT64"},
+		{field{typ: "int", flagWord: "flags"}, "_FLAGINT32"},
+		{field{typ: "bytes", flagWord: "flags"}, "_FLAGBYTES"},
+		{field{typ: "PeerColor", flagWord: "flags2"}, "_FLAGPEERCOLOR"},
+		{field{typ: "DataJSON"}, "_DATAJSON"},
+		{field{typ: "string", vector: true, flagWord: "flags"}, "_FLAGVECTORSTRING"},
+		{field{typ: "KeyboardButtonRow", vector: true}, "_VECTORKEYBOARDBUTTONROW"},
+	} {
+		if got := suffixOf(&c.f); got != c.want {
+			t.Errorf("%+v: %s, want %s", c.f, got, c.want)
+		}
+	}
+}
+
+// Two fields of one message with the same base name and the same type are
+// either upstream's own (mtprotoc keeps the first name, as with title and
+// title_STRING) or a field the generator failed to find and made again, which
+// the handlers never fill. A new pair needs a look before it joins the list.
+func TestNoNewSameTypeFieldPairs(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join("..", "..", "third_party", "teamgram-proto", "mtproto", "schema.tl.sync.proto"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	known := map[string]bool{
+		"Chat.color google.protobuf.Int32Value":    true, // upstream
+		"DialogFilter.title string":                true,
+		"Document.size2 int64":                     true,
+		"DocumentAttribute.duration double":        true,
+		"MessageAction.title string":               true,
+		"MessagePeerReaction.reaction string":      true,
+		"MessageReplyHeader.reply_to_msg_id int32": true,
+		"Poll.question string":                     true,
+		"PollAnswer.text string":                   true,
+		"ReactionCount.reaction string":            true,
+		"User.color google.protobuf.Int32Value":    true,
+		"Update.data bytes":                        true, // data:bytes of the widget queries of layer 233 beside data_FLAGBYTES
+	}
+	message := regexp.MustCompile(`(?s)\nmessage (\w+) \{\n(.*?)\n\}`)
+	fieldRe := regexp.MustCompile(`(?m)^\s*(repeated\s+)?([\w.]+)\s+(\w+)\s*=\s*\d+;`)
+	suffix := regexp.MustCompile(`_[A-Z0-9]+$`)
+	for _, m := range message.FindAllStringSubmatch(string(src), -1) {
+		seen := map[string]string{}
+		for _, f := range fieldRe.FindAllStringSubmatch(m[2], -1) {
+			base := suffix.ReplaceAllString(f[3], "")
+			key := base + " " + f[1] + f[2]
+			pair := m[1] + "." + key
+			if other, ok := seen[key]; ok && !known[pair] {
+				t.Errorf("%s: %s and %s have one base name and one type", m[1], other, f[3])
+			}
+			seen[key] = f[3]
 		}
 	}
 }
