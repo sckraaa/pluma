@@ -34,10 +34,13 @@ import (
 
 var fakeCodesAddr = os.Getenv("PLUMA_E2E_FAKECODES")
 
+// senderPhone is phone as bff gives it to the sender: digits only.
+func senderPhone(phone string) string { return strings.TrimPrefix(phone, "+") }
+
 // codesAnswer makes test/e2e/fakecodes answer result for phone.
 func codesAnswer(t *testing.T, phone, result string) {
 	t.Helper()
-	resp, err := http.Post("http://"+fakeCodesAddr+"/e2e/result?phone="+url.QueryEscape(phone)+"&result="+result, "", nil)
+	resp, err := http.Post("http://"+fakeCodesAddr+"/e2e/result?phone="+senderPhone(phone)+"&result="+result, "", nil)
 	if err != nil {
 		t.Fatalf("fakecodes: %v", err)
 	}
@@ -50,7 +53,7 @@ func codesAnswer(t *testing.T, phone, result string) {
 // codesWritten are the codes fakecodes "wrote" to phone's Telegram.
 func codesWritten(t *testing.T, phone string) []string {
 	t.Helper()
-	resp, err := http.Get("http://" + fakeCodesAddr + "/e2e/codes?phone=" + url.QueryEscape(phone))
+	resp, err := http.Get("http://" + fakeCodesAddr + "/e2e/codes?phone=" + url.QueryEscape(senderPhone(phone)))
 	if err != nil {
 		t.Fatalf("fakecodes: %v", err)
 	}

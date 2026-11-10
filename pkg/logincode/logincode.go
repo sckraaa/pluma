@@ -332,10 +332,10 @@ func (s *Service) Verify(ctx context.Context, phone, phoneCodeHash, code, client
 		return err
 	}
 
-	matches := func(hmac string, expiresAt int64) bool {
-		return live(hmac, expiresAt, now) && s.hasher.Verify(phoneCodeHash, phone, code, hmac)
-	}
-	if v.Phone != phone || !wellFormed(code) || !(matches(v.Hmac, v.ExpiresAt) || matches(v.AdminHmac, v.AdminExpiresAt)) {
+	matches := v.Phone == phone && wellFormed(code) &&
+		(live(v.Hmac, v.ExpiresAt, now) && s.hasher.Verify(phoneCodeHash, phone, code, v.Hmac) ||
+			live(v.AdminHmac, v.AdminExpiresAt, now) && s.hasher.Verify(phoneCodeHash, phone, code, v.AdminHmac))
+	if !matches {
 		if v.Attempts >= MaxAttempts {
 			// That was the last check: the request is over.
 			s.drop(ctx, v.Phone, phoneCodeHash)

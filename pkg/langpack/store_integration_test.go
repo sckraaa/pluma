@@ -53,6 +53,8 @@ func TestMain(m *testing.M) {
 	itDB = db
 	conf := db.Config()
 	itStore = NewStore(sqlx.NewMySQL(&conf))
+	// Telegram's strings only: the tests of Pluma's own ones set theirs.
+	ownStrings = map[string]map[string]map[string]string{}
 	code := m.Run()
 	_ = db.Terminate(ctx)
 	os.Exit(code)

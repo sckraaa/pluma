@@ -47,7 +47,7 @@ func stack(t *testing.T, args ...string) {
 // restore starts what a test stopped and waits until the stack serves. A
 // container that was stopped or recreated gets a new ephemeral host port:
 // new clients use the current one of the gateway, the push tests that of
-// fakepush.
+// fakepush, the login code test that of fakecodes.
 func restore(t *testing.T) {
 	t.Helper()
 	out, err := exec.Command(runScript, "wait").CombinedOutput()
@@ -68,6 +68,15 @@ func restore(t *testing.T) {
 		}
 		if addr := strings.TrimSpace(string(out)); addr != "" {
 			fakePushAddr = addr
+		}
+	}
+	if fakeCodesAddr != "" {
+		out, err = exec.Command(runScript, "compose", "port", "fakecodes", "8080").Output()
+		if err != nil {
+			t.Fatalf("fakecodes port: %v", err)
+		}
+		if addr := strings.TrimSpace(string(out)); addr != "" {
+			fakeCodesAddr = addr
 		}
 	}
 }
