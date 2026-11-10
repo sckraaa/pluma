@@ -7,13 +7,13 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 392, partial 12, blocked 106, notimpl 4, fake 1, missing 415 (ok = 42.2%); with a conformance scenario 9
+    layer 233: 930 methods — ok 393, partial 12, blocked 105, notimpl 4, fake 1, missing 415 (ok = 42.3%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
 | account | 132 | 63 | 2 | 29 | 0 | 1 | 37 | 0 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| auth | 31 | 17 | 0 | 13 | 1 | 0 | 0 | 2 |
+| auth | 31 | 18 | 0 | 12 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | bots | 41 | 9 | 0 | 0 | 0 | 0 | 32 | 0 |
 | channels | 74 | 48 | 1 | 15 | 0 | 0 | 10 | 0 |
@@ -217,7 +217,7 @@
 | `auth.initPasskeyLogin` | blocked |  | app/bff/passkey/internal/core/auth.initPasskeyLogin_handler.go:27 |
 | `auth.logOut` | ok |  | app/bff/authorization/internal/core/auth.logOut_handler.go:29 |
 | `auth.recoverPassword` | ok |  | app/bff/authorization/internal/core/auth.recoverPassword_handler.go:30 |
-| `auth.reportMissingCode` | blocked |  | app/bff/authorization/internal/core/auth.reportMissingCode_handler.go:27 |
+| `auth.reportMissingCode` | ok |  | app/bff/authorization/internal/core/auth.reportMissingCode_handler.go:30 |
 | `auth.requestFirebaseSms` | blocked |  | app/bff/authorization/internal/core/auth.requestFirebaseSms_handler.go:27 |
 | `auth.requestPasswordRecovery` | ok |  | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:34 |
 | `auth.resendCode` | ok |  | app/bff/authorization/internal/core/auth.resendCode_handler.go:47 |
