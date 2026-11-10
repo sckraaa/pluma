@@ -4029,7 +4029,7 @@
   "used_by": "A: ui/TwoStepVerificationSetupActivity.java:1811; I: Auth/ConfirmTwoStepRecoveryEmail.swift:53; D: api/api_cloud_password.cpp:120; W: lib/appManagers/passwordManager.ts:112",
   "decision": "implement",
   "priority": "rare",
-  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Группа почты, см. account.confirmPasswordEmail."
+  "why": "Решение владельца 2026-11-11: почта нужна, отправка через Resend (RESEND_API_KEY в .env сервера). Группа почты, см. account.confirmPasswordEmail."
  },
  {
   "name": "account.confirmPasswordEmail",
@@ -4038,7 +4038,7 @@
   "used_by": "A: ui/TwoStepVerificationSetupActivity.java:1520; I: TelegramEngine/Auth/ConfirmTwoStepRecoveryEmail.swift:16; D: api/api_cloud_password.cpp:358; W: lib/appManagers/passwordManager.ts:90",
   "decision": "implement",
   "priority": "rare",
-  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Нужна отправка почты, её на сервере нет: account.updatePasswordSettings отвечает EMAIL_INVALID (account.updatePasswordSettings_handler.go:34). Почтовый провайдер и домен решает владелец. Без почты потерянный облачный пароль нельзя восстановить письмом, как в Telegram."
+  "why": "Решение владельца 2026-11-11: почта нужна, отправка через Resend (RESEND_API_KEY в .env сервера). Нужна отправка почты, её на сервере нет: account.updatePasswordSettings отвечает EMAIL_INVALID (account.updatePasswordSettings_handler.go:34). Почтовый провайдер и домен решает владелец. Без почты потерянный облачный пароль нельзя восстановить письмом, как в Telegram."
  },
  {
   "name": "account.resendPasswordEmail",
@@ -4047,7 +4047,7 @@
   "used_by": "A: ui/TwoStepVerificationSetupActivity.java:1098; I: Auth/ConfirmTwoStepRecoveryEmail.swift:38; D: api/api_cloud_password.cpp:378; W: lib/appManagers/passwordManager.ts:108",
   "decision": "implement",
   "priority": "rare",
-  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Группа почты, см. account.confirmPasswordEmail."
+  "why": "Решение владельца 2026-11-11: почта нужна, отправка через Resend (RESEND_API_KEY в .env сервера). Группа почты, см. account.confirmPasswordEmail."
  },
  {
   "name": "help.getSupport",
@@ -4155,7 +4155,7 @@
   "used_by": "A: ui/LoginActivity.java:6424, ui/PassportActivity.java:5729; I: Authorization.swift:774, SecureId/VerifySecureIdValue.swift:77; D: intro/intro_email.cpp:128, api/api_cloud_password.cpp:544; W: lib/appManagers/appAccountManager.ts:524",
   "decision": "implement",
   "priority": "rare",
-  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Нужна отправка почты, см. account.confirmPasswordEmail. Сейчас недостижимо при входе: auth_logic.go выставляет только типы кода App и Sms."
+  "why": "Решение владельца 2026-11-11: почта нужна, отправка через Resend (RESEND_API_KEY в .env сервера). Нужна отправка почты, см. account.confirmPasswordEmail. Сейчас недостижимо при входе: auth_logic.go выставляет только типы кода App и Sms."
  },
  {
   "name": "account.sendVerifyPhoneCode",
@@ -4191,7 +4191,7 @@
   "used_by": "A: ui/LoginActivity.java:6675; I: Authorization.swift:965; D: нет; W: lib/appManagers/appAccountManager.ts:484",
   "decision": "implement",
   "priority": "rare",
-  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Группа почты; достижимо только при входе с кодом на почту, которого сервер не выдаёт."
+  "why": "Решение владельца 2026-11-11: почта нужна, отправка через Resend (RESEND_API_KEY в .env сервера). Группа почты; достижимо только при входе с кодом на почту, которого сервер не выдаёт."
  },
  {
   "name": "help.acceptTermsOfService",
