@@ -4027,36 +4027,36 @@
   "group": "account",
   "feature": "Отменить привязку почты восстановления",
   "used_by": "A: ui/TwoStepVerificationSetupActivity.java:1811; I: Auth/ConfirmTwoStepRecoveryEmail.swift:53; D: api/api_cloud_password.cpp:120; W: lib/appManagers/passwordManager.ts:112",
-  "decision": "unclear",
-  "priority": "normal",
-  "why": "Группа почты, см. account.confirmPasswordEmail."
+  "decision": "implement",
+  "priority": "rare",
+  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Группа почты, см. account.confirmPasswordEmail."
  },
  {
   "name": "account.confirmPasswordEmail",
   "group": "account",
   "feature": "Подтвердить почту восстановления облачного пароля",
   "used_by": "A: ui/TwoStepVerificationSetupActivity.java:1520; I: TelegramEngine/Auth/ConfirmTwoStepRecoveryEmail.swift:16; D: api/api_cloud_password.cpp:358; W: lib/appManagers/passwordManager.ts:90",
-  "decision": "unclear",
-  "priority": "normal",
-  "why": "Нужна отправка почты, её на сервере нет: account.updatePasswordSettings отвечает EMAIL_INVALID (account.updatePasswordSettings_handler.go:34). Почтовый провайдер и домен решает владелец. Без почты потерянный облачный пароль нельзя восстановить письмом, как в Telegram."
+  "decision": "implement",
+  "priority": "rare",
+  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Нужна отправка почты, её на сервере нет: account.updatePasswordSettings отвечает EMAIL_INVALID (account.updatePasswordSettings_handler.go:34). Почтовый провайдер и домен решает владелец. Без почты потерянный облачный пароль нельзя восстановить письмом, как в Telegram."
  },
  {
   "name": "account.resendPasswordEmail",
   "group": "account",
   "feature": "Отправить письмо подтверждения ещё раз",
   "used_by": "A: ui/TwoStepVerificationSetupActivity.java:1098; I: Auth/ConfirmTwoStepRecoveryEmail.swift:38; D: api/api_cloud_password.cpp:378; W: lib/appManagers/passwordManager.ts:108",
-  "decision": "unclear",
-  "priority": "normal",
-  "why": "Группа почты, см. account.confirmPasswordEmail."
+  "decision": "implement",
+  "priority": "rare",
+  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Группа почты, см. account.confirmPasswordEmail."
  },
  {
   "name": "help.getSupport",
   "group": "account",
   "feature": "«Задать вопрос» в настройках",
   "used_by": "A: ui/Components/AlertsCreator.java:1979; I: Peers/SupportPeerId.swift:10; D: settings/sections/settings_main.cpp:1238; W: lib/appManagers/appUsersManager.ts:1395",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "Нужен аккаунт поддержки, отдельный от 777000; кто им будет — вопрос владельцу (задача 020, пункт 7, не закрыт)."
+  "why": "Решение владельца 2026-11-11: аккаунт поддержки — @support. Нужен аккаунт поддержки, отдельный от 777000; кто им будет — вопрос владельцу (задача 020, пункт 7, не закрыт)."
  },
  {
   "name": "channels.toggleAntiSpam",
@@ -4099,126 +4099,126 @@
   "group": "account",
   "feature": "Telegram Passport: передать документы сервису",
   "used_by": "A: ui/PassportActivity.java:2259; I: TelegramEngine/SecureId/GrantSecureIdAccess.swift:335; D: passport/passport_form_controller.cpp:739; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Passport вызывается клиентами, но это собственный продукт Telegram для внешних сервисов. Владельцу решить, входит ли он в запрет на сервисы Telegram. Решение одно на всю группу Passport."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Passport вызывается клиентами, но это собственный продукт Telegram для внешних сервисов. Владельцу решить, входит ли он в запрет на сервисы Telegram. Решение одно на всю группу Passport."
  },
  {
   "name": "account.deleteSecureValue",
   "group": "account",
   "feature": "Telegram Passport: удалить документ",
   "used_by": "A: ui/PassportActivity.java:2458; I: SecureId/SaveSecureIdValue.swift:265; D: passport/passport_form_controller.cpp:1947; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Группа Passport, см. account.acceptAuthorization."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Группа Passport, см. account.acceptAuthorization."
  },
  {
   "name": "account.getAllSecureValues",
   "group": "account",
   "feature": "Telegram Passport: список сохранённых документов",
   "used_by": "A: ui/PassportActivity.java:1896; I: SecureId/SaveSecureIdValue.swift:290; D: нет; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Группа Passport, см. account.acceptAuthorization."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Группа Passport, см. account.acceptAuthorization."
  },
  {
   "name": "account.getAuthorizationForm",
   "group": "account",
   "feature": "Telegram Passport: форма запроса документов",
   "used_by": "A: ui/LaunchActivity.java:5265, ui/ExternalActionActivity.java:314; I: SecureId/RequestSecureIdForm.swift:257; D: passport/passport_form_controller.cpp:2373; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Группа Passport, см. account.acceptAuthorization."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Группа Passport, см. account.acceptAuthorization."
  },
  {
   "name": "account.getBotBusinessConnection",
   "group": "account",
   "feature": "Бот запрашивает своё Business-подключение; человек не видит",
   "used_by": "none found (A, I, D, W)",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Официальные клиенты не вызывают, но боты у нас аккаунты MTProto (ADR 0043) и библиотека бота может вызвать. Решить при проектировании Business-ботов."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Официальные клиенты не вызывают, но боты у нас аккаунты MTProto (ADR 0043) и библиотека бота может вызвать. Решить при проектировании Business-ботов."
  },
  {
   "name": "account.saveSecureValue",
   "group": "account",
   "feature": "Telegram Passport: сохранить документ",
   "used_by": "A: ui/PassportActivity.java:5635; I: SecureId/SaveSecureIdValue.swift:226; D: passport/passport_form_controller.cpp:2094; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Группа Passport, см. account.acceptAuthorization."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Группа Passport, см. account.acceptAuthorization."
  },
  {
   "name": "account.sendVerifyEmailCode",
   "group": "account",
   "feature": "Код на почту для входа по e-mail",
   "used_by": "A: ui/LoginActivity.java:6424, ui/PassportActivity.java:5729; I: Authorization.swift:774, SecureId/VerifySecureIdValue.swift:77; D: intro/intro_email.cpp:128, api/api_cloud_password.cpp:544; W: lib/appManagers/appAccountManager.ts:524",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "rare",
-  "why": "Нужна отправка почты, см. account.confirmPasswordEmail. Сейчас недостижимо при входе: auth_logic.go выставляет только типы кода App и Sms."
+  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Нужна отправка почты, см. account.confirmPasswordEmail. Сейчас недостижимо при входе: auth_logic.go выставляет только типы кода App и Sms."
  },
  {
   "name": "account.sendVerifyPhoneCode",
   "group": "account",
   "feature": "Telegram Passport: подтвердить телефон",
   "used_by": "A: ui/PassportActivity.java:6306; I: SecureId/VerifySecureIdValue.swift:22; D: passport/passport_form_controller.cpp:2167; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Вызывается только из Passport, см. account.acceptAuthorization."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Вызывается только из Passport, см. account.acceptAuthorization."
  },
  {
   "name": "account.verifyEmail (обе версии)",
   "group": "account",
   "feature": "Ввести код с почты",
   "used_by": "A: ui/LoginActivity.java:6381; I: Authorization.swift:856, 893; D: intro/intro_code.cpp:389, passport/passport_form_controller.cpp:1716, api/api_cloud_password.cpp:559; W: lib/appManagers/appAccountManager.ts:528",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Группа почты, см. account.sendVerifyEmailCode."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Группа почты, см. account.sendVerifyEmailCode."
  },
  {
   "name": "account.verifyPhone",
   "group": "account",
   "feature": "Telegram Passport: ввести код с телефона",
   "used_by": "A: ui/PassportActivity.java:7830; I: SecureId/VerifySecureIdValue.swift:47; D: passport/passport_form_controller.cpp:1698; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Вызывается только из Passport, см. account.acceptAuthorization."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Вызывается только из Passport, см. account.acceptAuthorization."
  },
  {
   "name": "auth.resetLoginEmail",
   "group": "account",
   "feature": "Сбросить почту для входа",
   "used_by": "A: ui/LoginActivity.java:6675; I: Authorization.swift:965; D: нет; W: lib/appManagers/appAccountManager.ts:484",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "rare",
-  "why": "Группа почты; достижимо только при входе с кодом на почту, которого сервер не выдаёт."
+  "why": "Решение владельца 2026-11-11: почта нужна, позже: владелец создаст ящик. Группа почты; достижимо только при входе с кодом на почту, которого сервер не выдаёт."
  },
  {
   "name": "help.acceptTermsOfService",
   "group": "account",
   "feature": "Принять условия использования",
   "used_by": "A: ui/Components/TermsOfServiceView.java:172; I: AccountData/TermsOfService.swift:39; D: apiwrap.cpp:407; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Нужен, только если появятся свои условия, см. help.getTermsOfServiceUpdate."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: своих условий использования не будет. Нужен, только если появятся свои условия, см. help.getTermsOfServiceUpdate."
  },
  {
   "name": "help.getPassportConfig",
   "group": "account",
   "feature": "Telegram Passport: справочник стран и языков",
   "used_by": "A: ui/PassportActivity.java:894; I: SecureId/SecureIdConfiguration.swift:18; D: passport/passport_form_controller.cpp:1255; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Группа Passport, см. account.acceptAuthorization."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: Passport не нужен. Группа Passport, см. account.acceptAuthorization."
  },
  {
   "name": "help.getTermsOfServiceUpdate",
   "group": "account",
   "feature": "Окно новых условий использования",
   "used_by": "A: messenger/MessagesController.java:10868; I: AccountData/TermsOfService.swift:50; D: apiwrap.cpp:372; W: нет",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Обработчик уже отвечает пустым обновлением, клиенты этим довольны; blocked дала строка в логе. Будут ли у Pluma свои условия — решение владельца."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: своих условий использования не будет. Обработчик уже отвечает пустым обновлением, клиенты этим довольны; blocked дала строка в логе. Будут ли у Pluma свои условия — решение владельца."
  },
  {
   "name": "bots.setJoinChatResults",
@@ -4288,81 +4288,81 @@
   "group": "media",
   "feature": "Create a tone",
   "used_by": "A AIEditorAlert.java:2137; I Translate.swift:1032; D data_ai_compose_tones.cpp:111; W aiTonesManager.ts:123",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Depends on the AI backend decision."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
  },
  {
   "name": "aicompose.deleteTone",
   "group": "media",
   "feature": "Delete a tone",
   "used_by": "A AIEditorAlert.java:264; I Translate.swift:1136; D data_ai_compose_tones.cpp:216; W aiTonesManager.ts:183",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Depends on the AI backend decision."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
  },
  {
   "name": "aicompose.getTone",
   "group": "media",
   "feature": "Open a shared tone",
   "used_by": "A LinkManager.java:1432; I Translate.swift:1207; D data_ai_compose_tones.cpp:237; W aiTonesManager.ts:295",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Depends on the AI backend decision."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
  },
  {
   "name": "aicompose.getToneExample",
   "group": "media",
   "feature": "Preview of a tone",
   "used_by": "A AIEditorAlert.java:2557; I Translate.swift:1006; D data_ai_compose_tones.cpp:271; W aiTonesManager.ts:311",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Depends on the AI backend decision."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
  },
  {
   "name": "aicompose.getTones",
   "group": "media",
   "feature": "Tone list in the AI message editor",
   "used_by": "A AiTonesController.java:38; I Translate.swift:1264; D data_ai_compose_tones.cpp:42; W aiTonesManager.ts:105",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Tones are useless without messages.composeMessageWithAI, which needs an AI model backend: the owner's choice of provider and money."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Tones are useless without messages.composeMessageWithAI, which needs an AI model backend: the owner's choice of provider and money."
  },
  {
   "name": "aicompose.saveTone",
   "group": "media",
   "feature": "Save someone else's tone",
   "used_by": "A AIEditorAlert.java:2445; I Translate.swift:1153; D data_ai_compose_tones.cpp:189; W aiTonesManager.ts:166",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Depends on the AI backend decision."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
  },
  {
   "name": "aicompose.updateTone",
   "group": "media",
   "feature": "Edit a tone",
   "used_by": "A AIEditorAlert.java:2113; I Translate.swift:1068; D data_ai_compose_tones.cpp:145; W aiTonesManager.ts:141",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Depends on the AI backend decision."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Depends on the AI backend decision."
  },
  {
   "name": "messages.composeMessageWithAI",
   "group": "messages-a",
   "feature": "AI editor: rewrite, proofread, change the tone of a typed message",
   "used_by": "Android ui/Components/AIEditorAlert.java:1249; iOS Translate.swift:100; Desktop api/api_compose_with_ai.cpp:65; Web covered by tests/aiTonesRichMessage.test.ts:26",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "A Premium feature (Android AIEditorAlert.java:576), so ADR 0041 would open it, but it needs a language model that Pluma does not have. The owner decides: connect an external model, or leave the editor off. Decide together with the aicompose namespace."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. A Premium feature (Android AIEditorAlert.java:576), so ADR 0041 would open it, but it needs a language model that Pluma does not have. The owner decides: connect an external model, or leave the editor off. Decide together with the aicompose namespace."
  },
  {
   "name": "messages.composeRichMessageWithAI",
   "group": "messages-a",
   "feature": "AI editor for rich (formatted long) messages",
   "used_by": "Android ui/Components/AIEditorAlert.java:1374; iOS Translate.swift:153; Desktop boxes/create_ai_box.cpp:613; Web tests/aiTonesRichMessage.test.ts:103",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Same owner question as composeMessageWithAI; also depends on rich messages being served."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Same owner question as composeMessageWithAI; also depends on rich messages being served."
  },
  {
   "name": "messages.reportMusicListen",
@@ -4387,9 +4387,9 @@
   "group": "media",
   "feature": "note on this list, not a method",
   "used_by": "A=Android TMessagesProj, I=iOS TelegramCore, D=tdesktop, W=tweb; file:line is the first non-test call site in reference-src-new",
-  "decision": "unclear",
+  "decision": "not_needed",
   "priority": "none",
-  "why": "Covers phone, stories, payments, aicompose, biz, communities, ephemeral, fragment, predefined, smsjobs, toncenter, wallet, plus stats, stickers, premium, upload, users. NOT covered here: account, auth, bots, channels, contacts, help, messages, assumed to be other steps of this run; if not, they still need a pass. Call sites are from grep; the 'what the person sees' text comes from reading code only for some methods and otherwise from the method name and call site."
+  "why": "Решение владельца 2026-11-11: ИИ-редактор убрать из клиентов. Covers phone, stories, payments, aicompose, biz, communities, ephemeral, fragment, predefined, smsjobs, toncenter, wallet, plus stats, stickers, premium, upload, users. NOT covered here: account, auth, bots, channels, contacts, help, messages, assumed to be other steps of this run; if not, they still need a pass. Call sites are from grep; the 'what the person sees' text comes from reading code only for some methods and otherwise from the method name and call site."
  },
  {
   "name": "account.addNoPaidMessagesException",
