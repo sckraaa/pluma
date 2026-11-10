@@ -87,7 +87,9 @@ func (m *AuthLogic) DoSendChangePhoneCode(ctx context.Context,
 	if _, err = m.Codes.Issue(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp, false); err != nil {
 		return nil, err
 	}
-	if m.Codes.DeliverByTelegram(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp) {
+	// The change of phone keeps sentCodeTypeApp: the screens of task 076
+	// cover the login, the change-number screens of the apps are not checked.
+	if _, ok := m.Codes.DeliverByTelegram(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp); ok {
 		codeData.SentCodeType = model.SentCodeTypeApp
 	}
 	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {

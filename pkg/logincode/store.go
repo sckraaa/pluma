@@ -13,7 +13,7 @@ import (
 // Redis layout. Every operation touches a single key (Lua scripts included),
 // so it works with a go-zero kv cluster as well as with a single node.
 //
-//	login_code_<phone_code_hash>     hash {phone, hmac, expires_at, attempts, created_at, ip}
+//	login_code_<phone_code_hash>     hash {phone, hmac, expires_at, admin_hmac, admin_expires_at, attempts, created_at, ip}
 //	login_code_requests_<phone>      hash {phone_code_hash: created_at} of the pending requests
 //
 // Both keys live TransactionTTL (the requests hash from its latest request;
@@ -26,15 +26,25 @@ const (
 func secretKey(phoneCodeHash string) string { return secretKeyPrefix + phoneCodeHash }
 func requestsKey(phone string) string       { return requestsKeyPrefix + phone }
 
-// secret is the stored state of one issued code.
+// secret is the stored state of one request and its codes. A request has
+// two slots: the code of the app or of the person's Telegram (Hmac), and the
+// administrator's (AdminHmac). Either one is accepted, so a code the
+// administrator gave out stays valid when the person asks Telegram again,
+// and the other way round.
 type secret struct {
-	Phone     string
-	Hmac      string
-	ExpiresAt int64 // unix seconds
-	Attempts  int64
-	CreatedAt int64 // unix seconds, when the code was requested
-	ClientIp  string
+	Phone          string
+	Hmac           string
+	ExpiresAt      int64 // unix seconds
+	AdminHmac      string
+	AdminExpiresAt int64 // unix seconds
+	Attempts       int64
+	CreatedAt      int64 // unix seconds, when the code was requested
+	ClientIp       string
 }
+
+// live reports whether the slot holds a code that can still be matched at
+// unix time now.
+func live(hmac string, expiresAt, now int64) bool { return hmac != "" && now <= expiresAt }
 
 const (
 	// KEYS[1] secret; ARGV phone, hmac, expires_at, created_at, ip, ttl seconds.
@@ -45,26 +55,29 @@ redis.call('EXPIRE', KEYS[1], ARGV[6])
 return 1`
 
 	// KEYS[1] secret; ARGV now (unix seconds). Counts one check of the code
-	// and returns {attempts, hmac, expires_at, phone}, or {-1} if there is no
-	// such request. The counter is incremented before the caller compares the
-	// code, so concurrent requests never get more than MaxAttempts
-	// comparisons. Only a live code is counted: a request still waiting for
-	// the administrator (empty hmac) or whose code expired cannot be matched,
-	// so a check of it uses up nothing.
+	// and returns {attempts, hmac, expires_at, phone, admin_hmac,
+	// admin_expires_at}, or {-1} if there is no such request. The counter is
+	// incremented before the caller compares the code, so concurrent requests
+	// never get more than MaxAttempts comparisons. Only a check that can
+	// match is counted: a request without a live code in either slot
+	// (waiting for the administrator, or its codes expired) uses up nothing.
 	attemptScript = `
-if redis.call('EXISTS', KEYS[1]) == 0 then return {-1, '', '0', ''} end
-local v = redis.call('HMGET', KEYS[1], 'hmac', 'expires_at', 'phone', 'attempts')
+if redis.call('EXISTS', KEYS[1]) == 0 then return {-1, '', '0', '', '', '0'} end
+local v = redis.call('HMGET', KEYS[1], 'hmac', 'expires_at', 'phone', 'attempts', 'admin_hmac', 'admin_expires_at')
+local now = tonumber(ARGV[1])
 local n = tonumber(v[4] or '0') or 0
-if v[1] and v[1] ~= '' and (tonumber(v[2] or '0') or 0) >= tonumber(ARGV[1]) then
+local function live(h, e) return h and h ~= '' and (tonumber(e or '0') or 0) >= now end
+if live(v[1], v[2]) or live(v[5], v[6]) then
   n = redis.call('HINCRBY', KEYS[1], 'attempts', 1)
 end
-return {n, v[1] or '', v[2] or '0', v[3] or ''}`
+return {n, v[1] or '', v[2] or '0', v[3] or '', v[5] or '', v[6] or '0'}`
 
-	// KEYS[1] secret; ARGV hmac, expires_at. Replaces the code of a pending
-	// request; the attempt counter is kept.
+	// KEYS[1] secret; ARGV slot field, its expiry field, hmac, expires_at.
+	// Replaces the code in one slot of a pending request; the attempt counter
+	// and the other slot are kept.
 	replaceScript = `
 if redis.call('EXISTS', KEYS[1]) == 0 then return 0 end
-redis.call('HSET', KEYS[1], 'hmac', ARGV[1], 'expires_at', ARGV[2])
+redis.call('HSET', KEYS[1], ARGV[1], ARGV[3], ARGV[2], ARGV[4])
 return 1`
 
 	// KEYS[1] requests; ARGV phone_code_hash, created_at, ttl seconds. Adds a
@@ -105,7 +118,7 @@ func (s *Store) attempt(ctx context.Context, phoneCodeHash string, now int64) (v
 		return v, false, err
 	}
 	a, isList := r.([]any)
-	if !isList || len(a) != 4 {
+	if !isList || len(a) != 6 {
 		return v, false, fmt.Errorf("login code attempt: unexpected reply %T", r)
 	}
 	if v.Attempts, err = toInt64(a[0]); err != nil {
@@ -119,11 +132,26 @@ func (s *Store) attempt(ctx context.Context, phoneCodeHash string, now int64) (v
 		return v, false, err
 	}
 	v.Phone, _ = a[3].(string)
+	v.AdminHmac, _ = a[4].(string)
+	if v.AdminExpiresAt, err = toInt64(a[5]); err != nil {
+		return v, false, err
+	}
 	return v, true, nil
 }
 
+// replace puts a new code of the app or of the person's Telegram into a
+// pending request; ok is false if there is no such request.
 func (s *Store) replace(ctx context.Context, phoneCodeHash, hmac string, expiresAt int64) (bool, error) {
-	r, err := s.kv.EvalCtx(ctx, replaceScript, secretKey(phoneCodeHash), hmac, expiresAt)
+	return s.replaceSlot(ctx, phoneCodeHash, "hmac", "expires_at", hmac, expiresAt)
+}
+
+// replaceAdmin puts the administrator's code into a pending request.
+func (s *Store) replaceAdmin(ctx context.Context, phoneCodeHash, hmac string, expiresAt int64) (bool, error) {
+	return s.replaceSlot(ctx, phoneCodeHash, "admin_hmac", "admin_expires_at", hmac, expiresAt)
+}
+
+func (s *Store) replaceSlot(ctx context.Context, phoneCodeHash, field, expiresField, hmac string, expiresAt int64) (bool, error) {
+	r, err := s.kv.EvalCtx(ctx, replaceScript, secretKey(phoneCodeHash), field, expiresField, hmac, expiresAt)
 	if err != nil {
 		return false, err
 	}
@@ -139,8 +167,10 @@ func (s *Store) get(ctx context.Context, phoneCodeHash string) (v secret, ok boo
 	}
 	v.Phone = m["phone"]
 	v.Hmac = m["hmac"]
+	v.AdminHmac = m["admin_hmac"]
 	v.ClientIp = m["ip"]
 	v.ExpiresAt, _ = strconv.ParseInt(m["expires_at"], 10, 64)
+	v.AdminExpiresAt, _ = strconv.ParseInt(m["admin_expires_at"], 10, 64)
 	v.Attempts, _ = strconv.ParseInt(m["attempts"], 10, 64)
 	v.CreatedAt, _ = strconv.ParseInt(m["created_at"], 10, 64)
 	return v, true, nil

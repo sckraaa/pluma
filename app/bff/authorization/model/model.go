@@ -41,22 +41,46 @@ type PhoneCodeTransaction struct {
 	NextCodeType          int    `json:"next_code_type"`
 	State                 int    `json:"state"`
 	// TelegramTried: the code of this request was already offered to the
-	// user's Telegram account (logincode.Service.DeliverByTelegram).
+	// user's Telegram account (logincode.Service.DeliverByTelegram). Kept for
+	// the change of phone; a login counts TelegramAttempts.
 	TelegramTried bool `json:"telegram_tried,omitempty"`
+	// TelegramAttempts counts the deliveries of this login request through
+	// the person's Telegram (task 076).
+	TelegramAttempts int `json:"telegram_attempts,omitempty"`
+	// TelegramAccount is the username of the Telegram account that wrote the
+	// code: the login screen opens the chat with it.
+	TelegramAccount string `json:"telegram_account,omitempty"`
 }
+
+// fallbackTimeout is how long the apps count down before "Send again" on
+// the screen of a code that did not reach Telegram: time to change the
+// privacy setting in Telegram.
+const fallbackTimeout = 30
 
 // ToAuthSentCode returns the auth.sentCode for the request.
 func (m *PhoneCodeTransaction) ToAuthSentCode() *mtproto.Auth_SentCode {
 	authSentCode := mtproto.MakeTLAuthSentCode(&mtproto.Auth_SentCode{
-		Type:          makeAuthSentCodeType(m.SentCodeType, logincode.Length, m.FlashCallPattern),
+		Type:          makeAuthSentCodeType(m.SentCodeType, logincode.Length, m.FlashCallPattern, m.telegramChatURL()),
 		PhoneCodeHash: m.PhoneCodeHash,
 		NextType:      makeAuthCodeType(m.NextCodeType),
 		Timeout:       nil,
 	}).To_Auth_SentCode()
 	// timeout only means something when auth.resendCode can switch to
-	// next_type; the in-app code (sentCodeTypeApp) offers that at any time.
-	if authSentCode.NextType != nil && m.SentCodeType != SentCodeTypeApp {
-		authSentCode.Timeout = &wrapperspb.Int32Value{Value: 60}
+	// next_type. A code in the app or in Telegram offers that at once ("Didn't
+	// get the code?"); the screen of a code that did not reach Telegram counts
+	// down before "Send again".
+	if authSentCode.NextType != nil && m.SentCodeType == SentCodeTypeSms {
+		authSentCode.Timeout = &wrapperspb.Int32Value{Value: fallbackTimeout}
 	}
 	return authSentCode
+}
+
+// telegramChatURL is the link of the login screen's button to the chat with
+// the account that wrote the code, "" without one (the apps then show no
+// button). The username is checked by logincode (DeliverByTelegram).
+func (m *PhoneCodeTransaction) telegramChatURL() string {
+	if m.TelegramAccount == "" {
+		return ""
+	}
+	return "tg://resolve?domain=" + m.TelegramAccount
 }
