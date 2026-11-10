@@ -17,8 +17,6 @@ package dao
 
 import (
 	"math"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
@@ -130,24 +128,7 @@ func (a *actor) editableAdmin(t *targetRow, selfId int64, now int64) bool {
 	return a.p.Role == channelperm.RoleCreator || t.PromotedBy == selfId
 }
 
-// checkRank checks an admin rank: at most RankMax characters, no emoji
-// (ADMIN_RANK_INVALID, ADMIN_RANK_EMOJI_NOT_ALLOWED,
-// core.telegram.org/method/channels.editAdmin).
-func checkRank(rank string) error {
-	if !utf8.ValidString(rank) || utf8.RuneCountInString(rank) > RankMax {
-		return mtproto.ErrAdminRankInvalid
-	}
-	for _, r := range rank {
-		// Emoji are symbols (So); their skin tones are modifiers.
-		if unicode.Is(unicode.So, r) || r >= 0x1F3FB && r <= 0x1F3FF {
-			return mtproto.ErrAdminRankEmojiNotAllowed
-		}
-		if unicode.IsControl(r) {
-			return mtproto.ErrAdminRankInvalid
-		}
-	}
-	return nil
-}
+func checkRank(rank string) error { return channelperm.CheckRank(rank) }
 
 // EditAdmin gives userId the admin rights rights in the channel, or takes
 // them away with rights 0; rank is its title, kept as it is when keepRank.

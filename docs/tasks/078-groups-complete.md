@@ -19,7 +19,10 @@
 - **Прочее** `channels.getMessageAuthor`, `getInactiveChannels`, `toggleAntiSpam`, `toggleAutotranslation`, `getChannelRecommendations`.
 
 ## В процессе
-Начато с тегов участников: чтение клиентов и путей чтения сообщений.
+Теги участников:
+- базовые группы: права по клиентам (`canEditChatParticipantRank`), проверка длины и эмодзи (`channelperm.CheckRank`), `from_rank` ставится при отправке, как `post_author` (Android обновляет видимые сообщения локально; что делает Telegram со старыми сообщениями, снаружи не проверено);
+- `updateChatParticipantRank` пока не шлётся: в слое 228 такого типа нет, `Encode` вернёт ошибку; нужна отправка по слою;
+- супергруппы: нужен RPC `channel.editParticipantRank` (protoc + правка `class_name_registers`, `codec_schema`, `rpc_client_registers`, `channel_client`, `service_impl`, как в коммите eb4d42c56), `rank` в `channelParticipant` и `channelParticipantSelf`, `from_rank` в `SendChannel`.
 
 ## Результат
 _Заполняется по завершении._
