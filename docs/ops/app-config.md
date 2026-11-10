@@ -40,6 +40,7 @@
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
+| `voip_enable_stun_marking` | `false` | I | Метка STUN Telegram в звонках: нашему coturn она не нужна (`docs/tasks/077-research/network.md`). |
 | `premium_purchase_blocked` | `true` | A D W | Оплаты нет (ADR 0041): клиенты скрывают покупку Premium. По умолчанию у Android `false`, у tdesktop `true`. |
 | `premium_promo_order` | `["more_upload", "double_limits", "folder_tags", "message_privacy", "profile_badge"]` | A W | Экран Premium показывает только перечисленное. Реализовано: файлы 4 ГБ, лимиты папок и других возможностей (задача 025), теги папок, «только контакты и Premium», значок у имени. |
 | `premium_gift_attach_menu_icon` | `false` | A | Подарка Premium нет. |

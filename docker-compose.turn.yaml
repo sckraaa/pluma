@@ -1,0 +1,25 @@
+# STUN and TURN of 1:1 calls (task 077, docs/ops/calls.md). With the network
+# of the host: behind Docker's NAT a call relayed on both ends through this
+# node would reach it from the bridge's address, and its permission for the
+# public address would not match. Added to the services command after the
+# other compose files:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.turn.yaml up -d turn
+services:
+  turn:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    image: coturn/coturn:4.18.0 sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3@
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./teamgramd/deploy/turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --listening-ip=${TURN_PUBLIC_IPV4:?set TURN_PUBLIC_IPV4 in .env (teamgramd/deploy/turn/setup.sh)}
+      - --relay-ip=${TURN_PUBLIC_IPV4}
+      - --external-ip=${TURN_PUBLIC_IPV4}
+      - --static-auth-secret=${CALLS_TURN_SECRET:?set CALLS_TURN_SECRET in .env (teamgramd/deploy/turn/setup.sh)}
+    stop_grace_period: 10s
