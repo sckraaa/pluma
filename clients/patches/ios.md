@@ -570,6 +570,19 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Не правится.** Воспроизведение у получателя (`ChatMessageAnimatedStickerItemNode.swift:1688, 2591`: только если нет `nopremium`) и кастомные эмодзи (вопрос владельцу в брифе).
 - **Как проверяется.** `verify_premium_stickers`: каждое новое место, функция только `return true`, счётчики вызовов по файлам, `searchEmoji` без правки. Тесты `PremiumStickersTest` (применение, порча каждого места, чужой вызов, изменённый апстрим). `patch_test.py` со `./upstream`: 60 тестов, OK, 0 пропусков. Сборка Bazel и проверка на устройстве не делались.
 
+### I-117. Нет ИИ-редактора сообщений (задача 079)
+- **Статус.** Ветка `task/079-remove-ai-editor` pluma-ios, не закоммичено, не влито (2026-11-11).
+- **Что и зачем.** Решение владельца 2026-11-11 (задача 079): у Pluma нет языковой модели, поэтому ИИ-редактор сообщений (переписать, исправить, сменить стиль, перевести набранный текст; `messages.composeMessageWithAI`, `messages.composeRichMessageWithAI`, `aicompose.*`) не предлагается ни в одном клиенте. Сервер их не обслуживает: `messages.composeRichMessageWithAI` отвечает `ErrEnterpriseIsBlocked` (`app/bff/messages/internal/core/messages.composeRichMessageWithAI_handler.go`), а служба `RPCAiComposeTone` (`messages.composeMessageWithAI`, `aicompose.*`) не маршрутизирована в `session.yaml`, и прокси отвечает `ERR_ENTERPRISE_IS_BLOCKED`. В iOS это `TextProcessingScreen` в режимах `edit` и `generate`.
+- **Где** (`NO_AI_EDITOR_EDITS`, `patch_no_ai_editor()` в `ci/patch.py`; апстрим 12.9.2, `6ad963e5`):
+  - `Chat/ChatTextInputPanelNode.swift`: условие видимости кнопки ИИ — `if false && self.isAIEnabled, …` (как правки задачи 071). `isAIEnabled` остаётся: от него же в апстриме зависит кнопка «развернуть» поле (`isExpandInputEnabled`), она сохраняется;
+  - `AttachmentUI/AttachmentPanel.swift`, `LegacyMessageInputPanel.swift`: убран блок, включавший `isAIEnabled` у подписи (тот же блок апстрим пропускает при `ios_disable_ai_chat` / `ios_disable_ai_attach` = 1);
+  - `RichTextAttachmentScreen.swift`: кнопка ИИ создаётся, но не добавляется на экран (`let _ = aiButtonSize`), панель действий начинается от края и берёт её место.
+- **Апстрим без правки.** Кнопка ИИ в поле чата с трёх строк текста, в подписи вложения и в старой панели подписи медиа, кроме секретных чатов; в редакторе rich — всегда (генерация и правка выделения).
+- **Как проверяется.** `verify_no_ai_editor`: правки на месте; `isAIEnabled = true` больше нет в `AttachmentPanel` и `LegacyMessageInputPanel`, `self.aiButton.view` не встречается в `RichTextAttachmentScreen`, `isAIButtonVisible = true` в поле чата одна. `NoAiEditorTest`; порча каждого якоря в `DAMAGE` на настоящем апстриме (`UpstreamTest`). Пути — в `UPSTREAM_PATHS`.
+- **Осталось (сознательно).** Режим `translate` того же экрана (перевод сообщений, био, галереи, Instant View): это перевод, он выключен сервером до поставщика (задача 027). Важно для 027: в 12.9.2 этот экран переводит через `messages.composeMessageWithAI` с `translate_to_lang` (`TextProcessingTranslateContentComponent.swift:240`, `Translate.swift:918`), и в нём же вкладки стилей и «эмодзи» — их придётся решать вместе с переводом. Ссылки на стиль (`OpenResolvedUrl.swift:2069`) — сервер ответит ошибкой. Экран Premium: `ai_compose` нет в `premium_promo_order`.
+- **Не проверено.** Сборка Bazel (модули собираются с `-warnings-as-errors`; форма `false && …` та же, что у собранных правок 071) и устройство.
+
+
 ## Аккаунты и вход (задача 080)
 
 ### I-116. Очистка папок аккаунтов при запуске не трогает идущий вход

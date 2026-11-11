@@ -508,6 +508,19 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Не правится.** Эффект у получателя (`history_view_sticker.cpp:140`: нет `nopremium` от сервера) и кастомные эмодзи (вопрос владельцу в брифе).
 - **Как проверяется.** `UpstreamTest.test_premium_stickers` и порча каждой правки в `DAMAGE` (патч падает с именем файла). `ci/patch_test.py` со `./upstream`: 51 тест, OK. Компиляция (Qt/CMake) и проверка в клиенте не делались.
 
+### D-091. Нет ИИ-редактора сообщений (задача 079)
+- **Статус.** Ветка `task/079-remove-ai-editor` pluma-desktop, не закоммичено, не влито (2026-11-11).
+- **Что и зачем.** Решение владельца 2026-11-11 (задача 079): у Pluma нет языковой модели, поэтому ИИ-редактор сообщений (переписать, исправить, сменить стиль, перевести набранный текст; `messages.composeMessageWithAI`, `messages.composeRichMessageWithAI`, `aicompose.*`) не предлагается ни в одном клиенте. Сервер их не обслуживает: `messages.composeRichMessageWithAI` отвечает `ErrEnterpriseIsBlocked` (`app/bff/messages/internal/core/messages.composeRichMessageWithAI_handler.go`), а служба `RPCAiComposeTone` (`messages.composeMessageWithAI`, `aicompose.*`) не маршрутизирована в `session.yaml`, и прокси отвечает `ERR_ENTERPRISE_IS_BLOCKED`. В tdesktop это `ComposeAiBox` и `CreateAiBox`.
+- **Где** (`NO_AI_EDITOR_EDITS`, `no_ai_editor()` в `ci/patch.py`; апстрим v7.4.1, `157f5cfc`):
+  - `ui/controls/compose_ai_button_factory.cpp`, `HasEnoughLinesForAi`: `if (true // pluma … || HideAiButtonOption.value() || …)` → всегда false. От неё зависят все кнопки ИИ полей ввода: чат (`history_widget.cpp`), поля других разделов (`history_view_compose_controls.cpp`), подписи файлов, GIF и правки подписи (`SetupCaptionAiButton`, `send_files_box.cpp`). Апстрим делает то же опцией `hide-ai-button` или при пустом списке тонов;
+  - `iv/editor/iv_editor_box.cpp`: таблетка ИИ редактора rich не создаётся (`if (false // pluma … && …)`), как при опции `hide-ai-button`;
+  - `settings/sections/settings_shortcuts.cpp`: строка «Apply AI style to text» (`ComposeAiApplyInPlace`) убрана из списка сочетаний: стиль для неё выбирается только в редакторе.
+- **Апстрим без правки.** Кнопка ИИ появляется с трёх строк текста, если сервер отдал список тонов (`aicompose.getTones`); сервер Pluma его не отдаёт, так что в полях ввода кнопки и раньше не было, но это зависело от сервера. Таблетка ИИ в редакторе rich видна всегда.
+- **Как проверяется.** `verify_no_ai_editor`: правки на месте; `Ui::HasEnoughLinesForAi(` вызывается по разу в `history_widget.cpp`, `history_view_compose_controls.cpp`, `send_files_box.cpp`, в фабрике одна проверка; в редакторе rich одно создание таблетки, два `ShowComposeAiBox(`, один `ShowCreateAiBox(`. `NoAiEditorTest`; порча каждого якоря в `DAMAGE` на настоящем апстриме (`UpstreamTest`, 28 тестов OK); файлы — в `lf_only`.
+- **Осталось (сознательно).** Опция «Hide AI button» в экспериментальных настройках (ничего не меняет); команда `ai_compose_apply`, если пользователь сам впишет её в `shortcuts-custom.json`, покажет подсказку, что стиль не привязан; ссылки на стиль (`local_url_handlers.cpp`) — ошибка сервера. Экран Premium: `ai_compose` нет в `premium_promo_order`.
+- **Не проверено.** Компиляция и окно клиента (CI после пуша).
+
+
 ## Медиа
 
 Правок поведения медиа нет. Связанное с медиа: текст кольца вокруг записываемого кружка (D-013, `round_video_recorder.cpp`), фильтр файлов «Pluma sticker (*.tgs)» (D-013, `mime_type.cpp`), аватары HTML-экспорта (D-028). Папка загрузок называется по `AppName` — «Pluma» (задача 020, сверка клиентов).
