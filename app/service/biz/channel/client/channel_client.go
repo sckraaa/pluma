@@ -52,6 +52,7 @@ type ChannelClient interface {
 	ChannelEditParticipantRank(ctx context.Context, in *channel.TLChannelEditParticipantRank) (*mtproto.Updates, error)
 	ChannelGetReadParticipants(ctx context.Context, in *channel.TLChannelGetReadParticipants) (*channel.Vector_ReadParticipantDate, error)
 	ChannelGetAdminLog(ctx context.Context, in *channel.TLChannelGetAdminLog) (*channel.Vector_ChannelAdminLogEvent, error)
+	ChannelSetStickerSet(ctx context.Context, in *channel.TLChannelSetStickerSet) (*mtproto.Updates, error)
 	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error)
@@ -1020,4 +1021,15 @@ func (m *defaultChannelClient) ChannelGetAdminLog(ctx context.Context, in *chann
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetAdminLog(ctx, in)
+}
+
+// ChannelSetStickerSet
+// channel.setStickerSet self_id:long perm_auth_key_id:long channel_id:long emoji:Bool set_id:long access_hash:long = Updates;
+func (m *defaultChannelClient) ChannelSetStickerSet(ctx context.Context, in *channel.TLChannelSetStickerSet) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetStickerSet(ctx, in)
 }

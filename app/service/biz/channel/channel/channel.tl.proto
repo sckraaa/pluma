@@ -181,6 +181,8 @@ enum TLConstructor {
   CRC32_channel_getReadParticipants = 210006620;
   // pluma: task 078
   CRC32_channel_getAdminLog = 1139340211;
+  // pluma: task 078
+  CRC32_channel_setStickerSet = -1460527570;
   // pluma: task 042
   CRC32_channel_editBanned = -1457424068;
   // pluma: task 042
@@ -600,6 +602,20 @@ message TL_channel_getAdminLog {
   int64 max_id = 8;
   int64 min_id = 9;
   int32 limit = 10;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.setStickerSet self_id:long perm_auth_key_id:long channel_id:long emoji:Bool set_id:long access_hash:long = Updates;
+// The sticker set or, with emoji, the emoji set of a supergroup; set_id 0
+// for none (task 078).
+message TL_channel_setStickerSet {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool emoji = 6;
+  int64 set_id = 7;
+  int64 access_hash = 8;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1563,6 +1579,8 @@ service RPCChannel {
   rpc channel_getReadParticipants(TL_channel_getReadParticipants) returns (Vector_ReadParticipantDate) {}
   // pluma: task 078
   rpc channel_getAdminLog(TL_channel_getAdminLog) returns (Vector_ChannelAdminLogEvent) {}
+  // pluma: task 078
+  rpc channel_setStickerSet(TL_channel_setStickerSet) returns (mtproto.Updates) {}
   // pluma: task 042
   rpc channel_editBanned(TL_channel_editBanned) returns (mtproto.Updates) {}
   // pluma: task 042

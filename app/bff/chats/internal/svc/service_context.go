@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/channelsets"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -31,6 +32,8 @@ type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
 	Twofa *twofa.Service
+	// Sets are the sticker and emoji sets of supergroups (task 078).
+	Sets *channelsets.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -38,6 +41,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Config: c,
 		Dao:    dao.New(c),
 		Twofa:  twofa.MustNewService(c.Mysql, c.KV),
+		Sets:   channelsets.New(sqlx.NewMySQL(&c.Mysql)),
 		Bots:   botstore.New(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

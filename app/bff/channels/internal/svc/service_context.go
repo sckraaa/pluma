@@ -27,6 +27,7 @@ import (
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/channelsets"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -42,6 +43,8 @@ type ServiceContext struct {
 	Msg     msg_client.MsgClient
 	// Look reads the wallpaper and the chat theme of a channel (task 065).
 	Look *appearance.Store
+	// Sets are the sticker and emoji sets of supergroups (task 078).
+	Sets *channelsets.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -56,5 +59,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Msg:     msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 		Look:    appearance.NewStore(sqlx.NewMySQL(&c.Mysql), nil, ""),
 		Bots:    botstore.New(sqlx.NewMySQL(&c.Mysql)),
+		Sets:    channelsets.New(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

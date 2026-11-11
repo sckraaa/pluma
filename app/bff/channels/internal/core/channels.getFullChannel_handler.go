@@ -104,6 +104,15 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		}
 	}
 	full.AvailableMinId = availableMinId(me)
+	if ch.GetMegagroup() {
+		// The sets the group chose (task 078); an admin who may change its
+		// info may choose them (boost levels do not apply, ADR 0041).
+		if full.Stickerset, full.Emojiset, err = c.svcCtx.Sets.Of(c.ctx, ch.GetId()); err != nil {
+			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+			return nil, err
+		}
+		full.CanSetStickers = admin && ch.Can(me, channelperm.ChangeInfo, int32(time.Now().Unix())) == nil
+	}
 	if full.BotInfo, err = c.channelBotInfo(ch.GetId(), admin); err != nil {
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err

@@ -20,13 +20,38 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 )
 
 // ChannelsSetEmojiStickers
 // channels.setEmojiStickers#3cd930b7 channel:InputChannel stickerset:InputStickerSet = Bool;
+//
+// The emoji set of a supergroup, from the catalog (pkg/channelsets); biz
+// channel.setStickerSet checks the right and keeps the change. Boost levels
+// do not apply (ADR 0041).
 func (c *ChatsCore) ChannelsSetEmojiStickers(in *mtproto.TLChannelsSetEmojiStickers) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("channels.setEmojiStickers blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	channelId := in.GetChannel().GetChannelId()
+	if channelId == 0 {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	set, err := c.svcCtx.Sets.Resolve(c.ctx, in.GetStickerset())
+	if err != nil {
+		return nil, err
+	}
+	var id, hash int64
+	if set != nil {
+		id, hash = set.ID, set.AccessHash
+	}
+	if _, err = c.svcCtx.Dao.Channel.ChannelSetStickerSet(c.ctx, &channelpb.TLChannelSetStickerSet{
+		SelfId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		ChannelId:     channelId,
+		Emoji:         mtproto.BoolTrue,
+		SetId:         id,
+		AccessHash:    hash,
+	}); err != nil {
+		c.Logger.Errorf("channels.setEmojiStickers - error: %v", err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }

@@ -321,3 +321,49 @@ func TestAdminLog(t *testing.T) {
 		t.Error("a member read the recent actions")
 	}
 }
+
+// catalogGroupStickers: a supergroup takes a sticker set of the catalog
+// (TestCatalog has imported it), and its full channel names the set.
+func catalogGroupStickers(ctx context.Context, t *testing.T, alice *user) {
+	t.Helper()
+	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("stickers %d", randomID()), true)
+	input := &mtproto.InputChannel{
+		Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel),
+		ChannelId:   ch.GetId(),
+		AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
+	}
+	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetStickerSet{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_getStickerSet),
+		Stickerset:  &mtproto.InputStickerSet{Constructor: alice.c.Constructor(mtproto.Predicate_inputStickerSetAnimatedEmoji)},
+	})
+	if err != nil {
+		t.Fatalf("messages.getStickerSet: %v", err)
+	}
+	set := o.(interface {
+		To_Messages_StickerSet() *mtproto.Messages_StickerSet
+	}).To_Messages_StickerSet().GetSet()
+	if _, err = alice.c.Invoke(ctx, &mtproto.TLChannelsSetStickers{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_setStickers),
+		Channel:     input,
+		Stickerset: &mtproto.InputStickerSet{
+			Constructor: alice.c.Constructor(mtproto.Predicate_inputStickerSetID),
+			Id:          set.GetId(),
+			AccessHash:  set.GetAccessHash(),
+		},
+	}); err != nil {
+		t.Fatalf("channels.setStickers: %v", err)
+	}
+	o, err = alice.c.Invoke(ctx, &mtproto.TLChannelsGetFullChannel{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_getFullChannel),
+		Channel:     input,
+	})
+	if err != nil {
+		t.Fatalf("channels.getFullChannel: %v", err)
+	}
+	full := o.(interface {
+		To_Messages_ChatFull() *mtproto.Messages_ChatFull
+	}).To_Messages_ChatFull().GetFullChat()
+	if full.GetStickerset().GetId() != set.GetId() || !full.GetCanSetStickers() {
+		t.Errorf("full channel: set %d, can set %v; want %d, true", full.GetStickerset().GetId(), full.GetCanSetStickers(), set.GetId())
+	}
+}

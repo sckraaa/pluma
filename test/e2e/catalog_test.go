@@ -94,6 +94,7 @@ func TestCatalog(t *testing.T) {
 	catalogImport(ctx, t, u)
 	catalogInstall(ctx, t, u, laptop)
 	catalogPremiumSticker(ctx, t, u)
+	catalogGroupStickers(ctx, t, u)
 }
 
 // catalogPremiumSticker sends the premium sticker of the collection (task
