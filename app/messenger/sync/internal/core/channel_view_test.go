@@ -61,3 +61,26 @@ func TestChannelViewSentAs(t *testing.T) {
 		t.Error("another member sees the message as its own")
 	}
 }
+
+// TestChannelViewSentAsChangedByAnother: a message written as a channel that
+// another member changes, by ticking an item of its checklist, stays out
+// for its author (author_id) and is not out for the member who changed it.
+func TestChannelViewSentAsChangedByAnother(t *testing.T) {
+	const author, ticker = int64(1), int64(2)
+	in := &sync.TLSyncPushChannelUpdates{
+		ChannelId: 5, FromId: ticker, AuthorId: author,
+		Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{
+			Message_MESSAGE: mtproto.MakeTLMessage(&mtproto.Message{Id: 9, PeerId: mtproto.MakePeerChannel(5), FromId: mtproto.MakePeerChannel(6), Out: true}).To_Message(),
+		}).To_Update()),
+	}
+	out := func(member int64) bool {
+		u := (&SyncCore{}).channelView(in, member, nil, nil)
+		return u.GetUpdates()[0].GetMessage_MESSAGE().GetOut()
+	}
+	if !out(author) {
+		t.Error("the author's devices see the message as another's")
+	}
+	if out(ticker) {
+		t.Error("the member who ticked sees the message as its own")
+	}
+}

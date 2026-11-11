@@ -29,6 +29,7 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
+	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/replyheader"
 
 	"github.com/zeromicro/go-zero/core/contextx"
@@ -404,12 +405,21 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		return nil, mtproto.ErrResultIdInvalid
 	}
 
+	// The peer the message comes from: send_as decides it as for
+	// messages.sendMessage (pkg/sendas), and msg checks it again with the
+	// channel locked (task 081).
+	from, err := c.svcCtx.SendAs.From(c.ctx, c.MD.UserId, peer, in.GetSendAs())
+	if err != nil {
+		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
+		return nil, err
+	}
+
 	out, err := outOfResult(result)
 	if err != nil {
 		return nil, err
 	}
 	out.Date = int32(time.Now().Unix())
-	out.FromId = mtproto.MakePeerUser(c.MD.UserId)
+	out.FromId = from
 	out.PeerId = peer.ToPeer()
 	if peer.IsSelfUser(c.MD.UserId) {
 		// The sub-chat of Saved Messages, as messages.sendMessage writes it.
@@ -446,11 +456,41 @@ func (c *BotsCore) MessagesSendInlineBotResult(in *mtproto.TLMessagesSendInlineB
 		c.Logger.Errorf("messages.sendInlineBotResult - error: %v", err)
 		return nil, err
 	}
+	c.addRecentSticker(out.GetMedia())
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() { c.clearDraft(ctx, peer, in.GetReplyTo().GetTopMsgId().GetValue()) })
 	}
 	return updates, nil
+}
+
+// sentSticker is the sticker a message of an inline result sent, 0 for
+// none.
+func sentSticker(media *mtproto.MessageMedia) int64 {
+	if media.GetPredicateName() != mtproto.Predicate_messageMediaDocument || stickerlists.StickerAttribute(media.GetDocument()) == nil {
+		return 0
+	}
+	return media.GetDocument().GetId()
+}
+
+// addRecentSticker puts the sticker an inline result sent at the top of the
+// account's recent stickers, as messages.sendMedia does for one sent by
+// itself (task 081): Android and iOS put every sticker message the account
+// sends, whatever method sent it, at the top of their own list
+// (MessagesController.updateInterfaceWithMessages, MessagesController.java:
+// 22010; SendMessagesHelper.java:9071; iOS StateReplay+Messages.swift:
+// 201-218), and take the server's list when its hash differs, so the list
+// keeps the sticker only if the server adds it too. The message is sent
+// by then: a failure is logged, the sticker is only missing from the list.
+func (c *BotsCore) addRecentSticker(media *mtproto.MessageMedia) {
+	if c.MD.IsBot {
+		return
+	}
+	if id := sentSticker(media); id != 0 {
+		if err := c.svcCtx.StickerLists.Add(c.ctx, c.MD.UserId, stickerlists.Recent, id); err != nil {
+			c.Logger.Errorf("recent stickers - sticker %d: %v", id, err)
+		}
+	}
 }
 
 // clearDraft removes the draft of the chat (clear_draft), as sendMessage does.

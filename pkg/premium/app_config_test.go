@@ -65,3 +65,25 @@ func TestAppConfigOpensEverything(t *testing.T) {
 		t.Errorf("upload_max_fileparts_default is %v, want the parts of 4 GB", config["upload_max_fileparts_default"])
 	}
 }
+
+// The limits the server keeps are the ones the clients read from the app
+// config, so that a client never shows more or fewer than it gets.
+func TestLimitsMatchAppConfig(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "teamgramd", "bin", "app_config.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var config map[string]any
+	if err = json.Unmarshal(data, &config); err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]int{
+		"channels_limit_premium":             ChannelsLimit,
+		"channels_public_limit_premium":      PublicChannelsLimit,
+		"recommended_channels_limit_premium": RecommendedChannelsLimit,
+	} {
+		if config[key] != float64(want) {
+			t.Errorf("%s is %v, the server keeps %d", key, config[key], want)
+		}
+	}
+}

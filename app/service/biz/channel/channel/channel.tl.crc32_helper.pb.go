@@ -104,6 +104,8 @@ const (
 	CRC32_channel_getPendingJoinRequests TLConstructor = 2040559942 // 0x79a07946
 	// pluma: task 041
 	CRC32_channel_getLeftChannels TLConstructor = -2063367371 // 0x85038335
+	// pluma: task 081
+	CRC32_channel_getChannelRecommendations TLConstructor = -870956007 // 0xcc164419
 	// pluma: task 060
 	CRC32_channel_toggleForum TLConstructor = 1073186003 // 0x3ff784d3
 	// pluma: task 060

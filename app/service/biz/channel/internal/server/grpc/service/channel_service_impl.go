@@ -1227,3 +1227,17 @@ func (s *Service) ChannelEditUsernames(ctx context.Context, request *channel.TLC
 
 	return r, nil
 }
+
+// ChannelGetChannelRecommendations
+// channel.getChannelRecommendations self_id:long channel_id:long = messages.Chats;
+func (s *Service) ChannelGetChannelRecommendations(ctx context.Context, request *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getChannelRecommendations - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetChannelRecommendations(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

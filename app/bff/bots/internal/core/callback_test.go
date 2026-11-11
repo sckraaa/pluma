@@ -18,6 +18,7 @@ package core
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,6 +32,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -162,17 +165,99 @@ func (s *sentMessages) MsgSendMessageV2(_ context.Context, in *msgpb.TLMsgSendMe
 	return mtproto.MakeEmptyUpdates(), nil
 }
 
-// inlineCore is a core with the answer of query 5, one article "a".
+// inlineCore is a core with the answer of query 5: an article "a" and a
+// sticker "s" (document 7). Without SendAs of its own the account may write
+// as no channel.
 func inlineCore(t *testing.T, d *dao.Dao, user, bot int64) *BotsCore {
 	t.Helper()
 	data, err := jsonx.Marshal(&dao.InlineAnswer{Bot: bot, Results: []*mtproto.BotInlineResult{
 		mtproto.MakeTLBotInlineResult(&mtproto.BotInlineResult{Id: "a", Type: "article", SendMessage: mtproto.MakeTLBotInlineMessageText(&mtproto.BotInlineMessage{Message: "hi"}).To_BotInlineMessage()}).To_BotInlineResult(),
+		mtproto.MakeTLBotInlineMediaResult(&mtproto.BotInlineResult{
+			Id: "s", Type: "sticker",
+			Document: mtproto.MakeTLDocument(&mtproto.Document{
+				Id: 7, AccessHash: 8, MimeType: "image/webp",
+				Attributes: []*mtproto.DocumentAttribute{mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{Alt: "😺"}).To_DocumentAttribute()},
+			}).To_Document(),
+			SendMessage: mtproto.MakeTLBotInlineMessageMediaAuto(&mtproto.BotInlineMessage{}).To_BotInlineMessage(),
+		}).To_BotInlineResult(),
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	d.KV = &memoryKV{values: map[string]string{"bot_inline_answer:5": string(data)}}
+	if d.SendAs == nil {
+		d.SendAs = sendAsChannels{}
+	}
 	return testCore(d, user)
+}
+
+// sendAsChannels lets the account write to supergroup 70 as the channels
+// of allowed alone.
+type sendAsChannels struct{ allowed []int64 }
+
+func (s sendAsChannels) From(_ context.Context, userId int64, peer *mtproto.PeerUtil, sendAs *mtproto.InputPeer) (*mtproto.Peer, error) {
+	return sendas.From(userId, peer, sendAs, func(channelId int64, as *mtproto.Peer) error {
+		if channelId == 70 && slices.Contains(s.allowed, as.GetChannelId()) {
+			return nil
+		}
+		return mtproto.ErrSendAsPeerInvalid
+	})
+}
+
+// recentStickers records the stickers added to the recent ones.
+type recentStickers struct{ added []int64 }
+
+func (r *recentStickers) Add(_ context.Context, _ int64, list stickerlists.List, id int64) error {
+	if list != stickerlists.Recent {
+		return errors.New("not the recent stickers")
+	}
+	r.added = append(r.added, id)
+	return nil
+}
+
+// A result sent to a supergroup comes from the channel the account chose
+// with send_as, where it may write as it, as messages.sendMessage does;
+// another channel is SEND_AS_PEER_INVALID and nothing is sent.
+func TestSendInlineResultAs(t *testing.T) {
+	const user, bot, group, mine, other = int64(10), int64(20), int64(70), int64(80), int64(90)
+	sent := &sentMessages{}
+	c := inlineCore(t, &dao.Dao{MsgClient: sent, SendAs: sendAsChannels{allowed: []int64{mine}}}, user, bot)
+	send := func(as int64) error {
+		_, err := c.MessagesSendInlineBotResult(&mtproto.TLMessagesSendInlineBotResult{
+			Peer:     mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: group}).To_InputPeer(),
+			RandomId: 1, QueryId: 5, Id: "a",
+			SendAs: mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: as}).To_InputPeer(),
+		})
+		return err
+	}
+	if err := send(mine); err != nil {
+		t.Fatal(err)
+	}
+	if from := sent.got.GetMessage()[0].GetMessage().GetFromId(); from.GetChannelId() != mine {
+		t.Fatalf("from_id %v, want channel %d", from, mine)
+	}
+	sent.got = nil
+	if err := send(other); !errors.Is(err, mtproto.ErrSendAsPeerInvalid) || sent.got != nil {
+		t.Fatalf("another channel: %v, sent %v", err, sent.got)
+	}
+}
+
+// A sticker an inline result sends goes to the account's recent stickers;
+// an article does not.
+func TestSendInlineStickerIsRecent(t *testing.T) {
+	const user, bot = int64(10), int64(20)
+	recent := &recentStickers{}
+	c := inlineCore(t, &dao.Dao{MsgClient: &sentMessages{}, StickerLists: recent}, user, bot)
+	for _, id := range []string{"a", "s"} {
+		if _, err := c.MessagesSendInlineBotResult(&mtproto.TLMessagesSendInlineBotResult{
+			Peer: mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: bot}).To_InputPeer(), RandomId: 1, QueryId: 5, Id: id,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if !slices.Equal(recent.added, []int64{7}) {
+		t.Fatalf("recent stickers %v, want [7]", recent.added)
+	}
 }
 
 // A result chosen in Saved Messages (inputPeerSelf) goes to msg as the chat

@@ -17,43 +17,20 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 )
 
 // sendAsPeer is the peer of a send_as: the account itself or a channel,
 // SEND_AS_PEER_INVALID for any other.
 func (c *MessagesCore) sendAsPeer(in *mtproto.InputPeer) (*mtproto.Peer, error) {
-	p := mtproto.FromInputPeer2(c.MD.UserId, in)
-	switch {
-	case p.IsSelfUser(c.MD.UserId):
-		return mtproto.MakePeerUser(c.MD.UserId), nil
-	case p.IsChannel():
-		return mtproto.MakePeerChannel(p.PeerId), nil
-	}
-	return nil, mtproto.ErrSendAsPeerInvalid
+	return sendas.AsPeer(c.MD.UserId, in)
 }
 
 // sendFrom is the from_id of the messages the account sends to peer with
-// send_as (task 079): itself without one, or the peer of channels.getSendAs
-// it chose, which it may write as now (SEND_AS_PEER_INVALID otherwise).
-// msg checks it again when the messages go out, with the channel locked: a
-// scheduled message as well.
+// send_as (task 079, sendas.From): itself without one, or the peer of
+// channels.getSendAs it chose, which it may write as now
+// (SEND_AS_PEER_INVALID otherwise). msg checks it again when the messages
+// go out, with the channel locked: a scheduled message as well.
 func (c *MessagesCore) sendFrom(peer *mtproto.PeerUtil, sendAs *mtproto.InputPeer) (*mtproto.Peer, error) {
-	self := mtproto.MakePeerUser(c.MD.UserId)
-	if sendAs == nil || sendAs.GetPredicateName() == mtproto.Predicate_inputPeerEmpty {
-		return self, nil
-	}
-	as, err := c.sendAsPeer(sendAs)
-	if err != nil {
-		return nil, err
-	}
-	if as.GetUserId() != 0 {
-		return self, nil
-	}
-	if !peer.IsChannel() {
-		return nil, mtproto.ErrSendAsPeerInvalid
-	}
-	if err = c.svcCtx.SendAs.Check(c.ctx, c.MD.UserId, peer.PeerId, as); err != nil {
-		return nil, err
-	}
-	return as, nil
+	return c.svcCtx.SendAs.From(c.ctx, c.MD.UserId, peer, sendAs)
 }

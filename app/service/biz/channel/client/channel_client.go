@@ -74,6 +74,7 @@ type ChannelClient interface {
 	ChannelHideChatJoinRequests(ctx context.Context, in *channel.TLChannelHideChatJoinRequests) (*mtproto.Updates, error)
 	ChannelGetPendingJoinRequests(ctx context.Context, in *channel.TLChannelGetPendingJoinRequests) (*mtproto.Update, error)
 	ChannelGetLeftChannels(ctx context.Context, in *channel.TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error)
+	ChannelGetChannelRecommendations(ctx context.Context, in *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error)
 	ChannelToggleForum(ctx context.Context, in *channel.TLChannelToggleForum) (*mtproto.Updates, error)
 	ChannelToggleViewForumAsMessages(ctx context.Context, in *channel.TLChannelToggleViewForumAsMessages) (*mtproto.Updates, error)
 	ChannelCreateForumTopic(ctx context.Context, in *channel.TLChannelCreateForumTopic) (*mtproto.Updates, error)
@@ -1068,4 +1069,15 @@ func (m *defaultChannelClient) ChannelEditUsernames(ctx context.Context, in *cha
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelEditUsernames(ctx, in)
+}
+
+// ChannelGetChannelRecommendations
+// channel.getChannelRecommendations self_id:long channel_id:long = messages.Chats;
+func (m *defaultChannelClient) ChannelGetChannelRecommendations(ctx context.Context, in *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetChannelRecommendations(ctx, in)
 }
