@@ -222,6 +222,7 @@ func makeChannel(do *dataobject.ChannelsDO, names []dataobject.ChannelUsernameDO
 	return channel.MakeTLImmutableChannel(&channel.ImmutableChannel{
 		Broadcast:           do.Broadcast,
 		Megagroup:           do.Megagroup,
+		Gigagroup:           do.Gigagroup,
 		Forum:               do.Forum,
 		ForumTabs:           do.ForumTabs,
 		ForumSidebar:        do.ForumSidebar,

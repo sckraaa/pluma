@@ -267,6 +267,26 @@ func TestSignatureProfilesView(t *testing.T) {
 	}
 }
 
+// TestGigagroupView: a broadcast group is a supergroup with gigagroup, in
+// the full and the min channel (tdesktop applies it from a min one,
+// data_session.cpp:1110-1116), and channelperm reads it.
+func TestGigagroupView(t *testing.T) {
+	ch := testChannel("pub")
+	ch.Gigagroup = true
+	for _, got := range []*mtproto.Chat{ch.ToChat(participant(RoleMember, StateIn, 0, 0, 0), viewNow), ch.ToMinChat()} {
+		if !got.GetGigagroup() || !got.GetMegagroup() {
+			t.Errorf("channel: %v", got)
+		}
+		x := mtproto.NewEncodeBuf(512)
+		if err := got.Encode(x, 228); err != nil {
+			t.Fatalf("encode: %v", err)
+		}
+	}
+	if !ch.Perm().Gigagroup {
+		t.Error("channelperm does not read gigagroup")
+	}
+}
+
 func TestToChatDeleted(t *testing.T) {
 	ch := testChannel("pub")
 	ch.Deleted = true
@@ -320,7 +340,7 @@ func TestCodecRoundTrip(t *testing.T) {
 		Channel:      MakeTLImmutableChannel(testChannel("pub")).To_ImmutableChannel(),
 		Participants: []*ImmutableChannelParticipant{MakeTLImmutableChannelParticipant(participant(RoleAdmin, StateIn, 3, 0, 0)).To_ImmutableChannelParticipant()},
 	}).To_MutableChannel()
-	in.Channel.Forum, in.Channel.Deleted = true, true
+	in.Channel.Forum, in.Channel.Deleted, in.Channel.Gigagroup = true, true, true
 	in.Participants[0].Rank = "boss"
 	x := mtproto.NewEncodeBuf(512)
 	if err := in.Encode(x, 228); err != nil {
@@ -331,7 +351,7 @@ func TestCodecRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	c, p := out.GetChannel(), out.GetParticipants()
-	if c.GetId() != 100 || c.GetUsername() != "pub" || !c.GetForum() || !c.GetDeleted() || !c.GetMegagroup() || c.GetBroadcast() ||
+	if c.GetId() != 100 || c.GetUsername() != "pub" || !c.GetForum() || !c.GetDeleted() || !c.GetGigagroup() || !c.GetMegagroup() || c.GetBroadcast() ||
 		c.GetDefaultBannedRights() != mtproto.BANNED_SEND_POLLS || c.GetDate() != viewCreated || c.GetSlowmodeSeconds() != 30 {
 		t.Errorf("channel %v", c)
 	}

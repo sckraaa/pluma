@@ -163,7 +163,7 @@ func ScheduledHash(rows []*ScheduledRow) int64 {
 func (d *Dao) channelMember(ctx context.Context, userId, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := d.Mysql.DB.QueryRowsPartial(ctx, &rows,
-		"SELECT c.broadcast, c.deleted, c.blocked, c.default_banned_rights, c.signatures, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+		"SELECT c.broadcast, c.gigagroup, c.deleted, c.blocked, c.default_banned_rights, c.signatures, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
 			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
 		channelperm.StateLeft, userId, channelId); err != nil {
@@ -174,7 +174,7 @@ func (d *Dao) channelMember(ctx context.Context, userId, channelId int64) (*send
 	}
 	r := rows[0]
 	return &sender{
-		ch: channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights, Blocked: r.Blocked},
+		ch: channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil

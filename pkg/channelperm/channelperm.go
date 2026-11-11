@@ -24,7 +24,10 @@
 //   - the creator may do everything;
 //   - an admin does what their admin_rights allow; the restrictions of
 //     members, default or their own, do not apply to admins;
-//   - in a broadcast channel a member does nothing but read;
+//   - in a broadcast channel a member does nothing but read, and so in a
+//     broadcast group (gigagroup), a supergroup where only admins write
+//     (core.telegram.org/api/channel#gigagroups); its admins act as those
+//     of a supergroup (Android ChatObject.java:2354);
 //   - in a supergroup a member does what neither the channel's default
 //     restrictions nor their own restriction in effect forbid; a set flag of
 //     chatBannedRights forbids, send_media forbids every kind of media, and
@@ -71,9 +74,21 @@ const BannedMask = mtproto.BANNED_VIEW_MESSAGES | mtproto.BANNED_SEND_MESSAGES |
 	mtproto.BANNED_SEND_ROUNDVIDEOS | mtproto.BANNED_SEND_AUDIOS | mtproto.BANNED_SEND_VOICES | mtproto.BANNED_SEND_DOCS |
 	mtproto.BANNED_SEND_PLAIN | mtproto.BANNED_EDIT_RANK | mtproto.BANNED_SEND_REACTIONS
 
+// SendBanned are the restrictions of every kind of message: the flag of
+// each kind tdesktop counts as sending (AllSendRestrictionsList,
+// data/data_chat_participant_status.h:127-141), with send_messages and
+// send_media.
+const SendBanned = mtproto.BANNED_SEND_MESSAGES | mtproto.BANNED_SEND_MEDIA | mtproto.BANNED_SEND_STICKERS |
+	mtproto.BANNED_SEND_GIFS | mtproto.BANNED_SEND_GAMES | mtproto.BANNED_SEND_INLINE |
+	mtproto.BANNED_SEND_POLLS | mtproto.BANNED_SEND_PHOTOS | mtproto.BANNED_SEND_VIDEOS | mtproto.BANNED_SEND_ROUNDVIDEOS |
+	mtproto.BANNED_SEND_AUDIOS | mtproto.BANNED_SEND_VOICES | mtproto.BANNED_SEND_DOCS | mtproto.BANNED_SEND_PLAIN
+
 // Channel is what Can reads of a channel.
 type Channel struct {
 	Broadcast bool
+	// Gigagroup: a supergroup turned into a broadcast group, whose members
+	// only read.
+	Gigagroup bool
 	// Default is default_banned_rights: the restrictions of every member.
 	Default int32
 	// Blocked: the owner of the server blocked the channel (the panel,
@@ -188,7 +203,7 @@ func Can(ch Channel, p Participant, a Action, now int32) error {
 	case RoleAdmin:
 		return canAdmin(ch, p, a)
 	}
-	if ch.Broadcast {
+	if ch.Broadcast || ch.Gigagroup {
 		if _, send := sendBits[a]; send {
 			return mtproto.ErrChatWriteForbidden
 		}

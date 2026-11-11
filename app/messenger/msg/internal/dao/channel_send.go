@@ -47,6 +47,7 @@ type ChannelSent struct {
 
 type senderRow struct {
 	Broadcast           bool   `db:"broadcast"`
+	Gigagroup           bool   `db:"gigagroup"`
 	Deleted             bool   `db:"deleted"`
 	Blocked             bool   `db:"blocked"`
 	DefaultBannedRights int32  `db:"default_banned_rights"`
@@ -135,7 +136,7 @@ func (s *sender) sendAs(b *userbox.Box, channelId int64, as *mtproto.Peer) (int6
 func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+		"SELECT c.broadcast, c.gigagroup, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
 			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date,"+
 			" COALESCE(p.last_send_date, 0) AS last_send_date, COALESCE(p.`rank`, '') AS `rank`"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
@@ -158,7 +159,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 			return nil, mtproto.ErrChannelPrivate
 		}
 		return &sender{
-			ch:    channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights, Blocked: r.Blocked},
+			ch:    channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked},
 			p:     channelperm.Participant{Role: channelperm.RoleMember, State: channelperm.StateIn},
 			guest: true,
 
@@ -173,7 +174,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 		slowmodeSeconds:   r.SlowmodeSeconds,
 		lastSend:          r.LastSendDate,
 		forum:             r.Forum,
-		ch:                channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights, Blocked: r.Blocked},
+		ch:                channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil

@@ -27,9 +27,16 @@ import (
 //
 // self_id turns a setting of the channel on or off (dao.ToggleSetting);
 // the members load the channel again. The answer holds updateChannel and
-// the channel.
+// the channel. A broadcast group only comes on, and for good
+// (dao.ConvertToGigagroup).
 func (c *ChannelCore) ChannelToggleSetting(in *channel.TLChannelToggleSetting) (*mtproto.Updates, error) {
 	return c.editRights("channel.toggleSetting", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		if in.Setting == channel.SettingGigagroup {
+			if !mtproto.FromBool(in.Enabled) {
+				return nil, mtproto.ErrInputRequestInvalid
+			}
+			return c.svcCtx.Dao.ConvertToGigagroup(b, in.ChannelId)
+		}
 		return c.svcCtx.Dao.ToggleSetting(b, in.ChannelId, in.Setting, mtproto.FromBool(in.Enabled))
 	})
 }

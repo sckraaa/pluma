@@ -98,6 +98,26 @@ func TestBroadcastMember(t *testing.T) {
 	}
 }
 
+// A member of a broadcast group only reads, whatever the default
+// restrictions say; its admins send without post_messages, as in a
+// supergroup, and do what their rights allow.
+func TestGigagroup(t *testing.T) {
+	giga := Channel{Gigagroup: true}
+	for _, a := range allActions {
+		want := mtproto.ErrChatAdminRequired
+		if _, send := sendBits[a]; send {
+			want = mtproto.ErrChatWriteForbidden
+		}
+		check(t, "gigagroup member", Can(giga, member, a, now), want)
+		check(t, "gigagroup creator", Can(giga, creator, a, now), nil)
+	}
+	for a := range sendBits {
+		check(t, "gigagroup admin", Can(giga, admin(mtproto.ADMIN_BAN_USERS), a, now), nil)
+	}
+	check(t, "gigagroup admin's right", Can(giga, admin(mtproto.ADMIN_BAN_USERS), BanUsers, now), nil)
+	check(t, "gigagroup admin without the right", Can(giga, admin(mtproto.ADMIN_BAN_USERS), InviteUsers, now), mtproto.ErrChatAdminRequired)
+}
+
 // A member of a supergroup does what no restriction forbids; each flag of
 // chatBannedRights forbids its action with its own error, send_messages
 // every message, send_media every kind of media; the default restrictions

@@ -29,7 +29,16 @@ const (
 	// SettingJoinToSend asks the commenters of a discussion group to join it
 	// first (channels.toggleJoinToSend).
 	SettingJoinToSend int32 = 5
+	// SettingGigagroup turns a supergroup into a broadcast group for good
+	// (channels.convertToGigagroup): only on, by its creator.
+	SettingGigagroup int32 = 6
 )
+
+// MembersMax is the most members of a supergroup or channel: the
+// megagroup_size_max help.getConfig gives (teamgramd/bin/config.json), as
+// Telegram's (core.telegram.org/api/config: 200000). The clients offer a
+// broadcast group from 1000 under it.
+const MembersMax = 200000
 
 // The values channel.editExportedChatInvite gives (fields).
 const (
