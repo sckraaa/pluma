@@ -1283,3 +1283,45 @@ func (s *Service) ChannelGetChannelRecommendations(ctx context.Context, request 
 
 	return r, nil
 }
+
+// ChannelSetUserHidden
+// channel.setUserHidden user_id:long hidden:Bool = Int32;
+func (s *Service) ChannelSetUserHidden(ctx context.Context, request *channel.TLChannelSetUserHidden) (*mtproto.Int32, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setUserHidden - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetUserHidden(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelLeaveHidden
+// channel.leaveHidden user_id:long channel_id:long = Bool;
+func (s *Service) ChannelLeaveHidden(ctx context.Context, request *channel.TLChannelLeaveHidden) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.leaveHidden - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelLeaveHidden(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelJoinHidden
+// channel.joinHidden user_id:long channel_id:long = Bool;
+func (s *Service) ChannelJoinHidden(ctx context.Context, request *channel.TLChannelJoinHidden) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.joinHidden - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelJoinHidden(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

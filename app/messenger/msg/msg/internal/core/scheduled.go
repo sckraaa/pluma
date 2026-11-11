@@ -384,6 +384,9 @@ func (c *MsgCore) scheduleChannel(in *msg.TLMsgSendMessageV2, date int32) (*mtpr
 	if err != nil {
 		return nil, err
 	}
+	if err = c.ghostJoins(in.UserId, in.PeerId); err != nil {
+		return nil, err
+	}
 	check := func(b *userbox.Box) error {
 		return c.svcCtx.Dao.CheckChannelSchedule(b, in.PeerId, in.GetMessage())
 	}

@@ -32,7 +32,9 @@ import (
 // messages.getOnlines#6e2be050 peer:InputPeer = ChatOnlines;
 //
 // How many members of a group or a channel are online now, for a member of
-// it (Android MessagesController.java:10788 polls it for the header).
+// it (Android MessagesController.java:10788 polls it for the header). The
+// support ghost (ADR 0048) is counted by itself alone: to the others it is
+// no member.
 func (c *DialogsCore) MessagesGetOnlines(in *mtproto.TLMessagesGetOnlines) (*mtproto.ChatOnlines, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
 	var (
@@ -60,6 +62,11 @@ func (c *DialogsCore) MessagesGetOnlines(in *mtproto.TLMessagesGetOnlines) (*mtp
 	if !slices.Contains(members, c.MD.UserId) {
 		return nil, denied
 	}
+	members, err := c.shownMembers(peer, members)
+	if err != nil {
+		c.Logger.Errorf("messages.getOnlines - error: %v", err)
+		return nil, err
+	}
 	seen, err := c.svcCtx.Dao.UserClient.UserGetLastSeens(c.ctx, &userpb.TLUserGetLastSeens{Id: members})
 	if err != nil {
 		c.Logger.Errorf("messages.getOnlines - error: %v", err)
@@ -68,6 +75,31 @@ func (c *DialogsCore) MessagesGetOnlines(in *mtproto.TLMessagesGetOnlines) (*mtp
 	return mtproto.MakeTLChatOnlines(&mtproto.ChatOnlines{
 		Onlines: countOnline(seen.GetDatas(), time.Now().Unix()),
 	}).To_ChatOnlines(), nil
+}
+
+// shownMembers are members without the hidden ones but the viewer itself
+// (ADR 0048). A ghost is hidden in supergroups and channels only.
+func (c *DialogsCore) shownMembers(peer *mtproto.PeerUtil, members []int64) ([]int64, error) {
+	if !peer.IsChannel() {
+		return members, nil
+	}
+	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: members})
+	if err != nil {
+		return nil, err
+	}
+	hidden := map[int64]bool{}
+	for _, p := range mc.GetParticipants() {
+		if p.GetHidden() {
+			hidden[p.GetUserId()] = true
+		}
+	}
+	out := make([]int64, 0, len(members))
+	for _, id := range members {
+		if !hidden[id] || id == c.MD.UserId {
+			out = append(out, id)
+		}
+	}
+	return out, nil
 }
 
 // countOnline counts those still within their online window (lastSeenAt is

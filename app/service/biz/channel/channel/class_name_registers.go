@@ -105,6 +105,12 @@ const (
 	Predicate_channel_getLeftChannels = "channel_getLeftChannels"
 	// pluma: task 081
 	Predicate_channel_getChannelRecommendations = "channel_getChannelRecommendations"
+	// pluma: task 080
+	Predicate_channel_joinHidden = "channel_joinHidden"
+	// pluma: task 080
+	Predicate_channel_leaveHidden = "channel_leaveHidden"
+	// pluma: task 080
+	Predicate_channel_setUserHidden = "channel_setUserHidden"
 	// pluma: task 060
 	Predicate_channel_toggleForum = "channel_toggleForum"
 	// pluma: task 060
@@ -385,6 +391,15 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	Predicate_channel_getChannelRecommendations: { // pluma: task 081
 		0: -870956007, // 0xcc164419
 	},
+	Predicate_channel_joinHidden: { // pluma: task 080
+		0: -1244916636, // 0xb5cc1464
+	},
+	Predicate_channel_leaveHidden: { // pluma: task 080
+		0: -858110575, // 0xccda4591
+	},
+	Predicate_channel_setUserHidden: { // pluma: task 080
+		0: -1975507290, // 0x8a4026a6
+	},
 	Predicate_channel_toggleForum: { // pluma: task 060
 		0: 1073186003, // 0x3ff784d3
 
@@ -622,6 +637,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	2040559942:  Predicate_channel_getPendingJoinRequests,           // 0x79a07946 pluma: task 041
 	-2063367371: Predicate_channel_getLeftChannels,                  // 0x85038335 pluma: task 041
 	-870956007:  Predicate_channel_getChannelRecommendations,        // 0xcc164419 pluma: task 081
+	-1244916636: Predicate_channel_joinHidden,                       // 0xb5cc1464 pluma: task 080
+	-858110575:  Predicate_channel_leaveHidden,                      // 0xccda4591 pluma: task 080
+	-1975507290: Predicate_channel_setUserHidden,                    // 0x8a4026a6 pluma: task 080
 	1532314294:  Predicate_channel_createChannel,                    // 0x5b5542b6 pluma: task 038
 	1073186003:  Predicate_channel_toggleForum,                      // 0x3ff784d3 pluma: task 060
 	-1875771675: Predicate_channel_toggleViewForumAsMessages,        // 0x9031fee5 pluma: task 060

@@ -17,6 +17,7 @@ package dao
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/teamgram/proto/mtproto"
@@ -24,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -254,8 +256,18 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 	}
 	top := c.TopMessage
 	var drop []int64
+	// A ghost files no request (ADR 0048, p. 2c); one it filed before it
+	// was a ghost goes unanswered, as an approval would show it joining.
+	requesters := make([]int64, 0, len(rows))
 	for _, r := range rows {
-		if r.Gone {
+		requesters = append(requesters, r.UserId)
+	}
+	ghosts, err := ghost.Ghosts(b.Tx(), requesters)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		if r.Gone || slices.Contains(ghosts, r.UserId) {
 			drop = append(drop, r.UserId)
 			continue
 		}
@@ -301,7 +313,7 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 			availableMinId = change.Message.GetId()
 		}
 		if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, inviter_user_id, available_min_id, `date`) VALUES (?, ?, 0, 0, ?, ?, ?)"+
-			" ON DUPLICATE KEY UPDATE role = 0, state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0,"+
+			" ON DUPLICATE KEY UPDATE role = 0, state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0, hidden = 0,"+
 			" inviter_user_id = VALUES(inviter_user_id), available_min_id = VALUES(available_min_id), `date` = VALUES(`date`)",
 			channelId, r.UserId, b.UserId(), availableMinId, b.Date()); err != nil {
 			return err

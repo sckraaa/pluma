@@ -32,6 +32,9 @@ import (
 // updateMessageReactions by push, min, as every member sees it; the reply
 // holds it as the user sees it, with the channel and the reacting users.
 func (c *MsgCore) sendChannelReaction(in *msg.TLMsgSendReaction, keys []string) (*mtproto.Updates, error) {
+	if err := c.ghostJoins(in.UserId, in.PeerId); err != nil {
+		return nil, err
+	}
 	var r *dao.ChannelReactions
 	if _, err := c.svcCtx.Dao.RunBox(c.ctx, in.UserId, nil, func(b *userbox.Box) error {
 		var err error

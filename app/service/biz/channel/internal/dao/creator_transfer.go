@@ -57,9 +57,10 @@ const (
 // written in: the join), then the lowest id. The admins come first as
 // those the owner trusted with the channel: tdesktop lists them first
 // where the owner picks another one (select_future_owner_box.cpp,
-// ParticipantType::Admins, "promoted"/"joined" dates).
+// ParticipantType::Admins, "promoted"/"joined" dates). A hidden member (a
+// ghost, ADR 0048) is never one: the owner is shown to all.
 const futureCreatorQuery = "SELECT p.user_id FROM channel_participants p JOIN users u ON u.id = p.user_id" +
-	" WHERE p.channel_id = ? AND p.state = 0 AND p.role <> 2 AND p.user_id <> ? AND u.deleted = 0 AND u.is_bot = 0" +
+	" WHERE p.channel_id = ? AND p.state = 0 AND p.hidden = 0 AND p.role <> 2 AND p.user_id <> ? AND u.deleted = 0 AND u.is_bot = 0" +
 	" AND NOT (p.banned_rights <> 0 AND (p.until_date = 0 OR p.until_date = 2147483647 OR p.until_date > ?))" +
 	" ORDER BY p.role = 1 DESC, p.`date`, p.user_id LIMIT 1"
 
@@ -252,7 +253,7 @@ func (d *Dao) transferCreator(ctx context.Context, t creatorTransfer, now int64)
 		var fit []int64
 		if err = b.Tx().QueryRowsPartial(&fit,
 			"SELECT p.user_id FROM channel_participants p JOIN users u ON u.id = p.user_id"+
-				" WHERE p.channel_id = ? AND p.user_id = ? AND p.state = 0 AND u.deleted = 0 AND u.is_bot = 0"+
+				" WHERE p.channel_id = ? AND p.user_id = ? AND p.state = 0 AND p.hidden = 0 AND u.deleted = 0 AND u.is_bot = 0"+
 				" AND NOT (p.banned_rights <> 0 AND (p.until_date = 0 OR p.until_date = 2147483647 OR p.until_date > ?))",
 			t.ChannelId, t.ToUserId, b.Date()); err != nil {
 			return err

@@ -96,9 +96,11 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 		}
 		// What the others read of the channel: the outbox of the viewer
 		// is read up to the furthest of them (ADR 0034, p. 1; UNVERIFIED
-		// against Telegram, U5).
+		// against Telegram, U5). A ghost's read is not one of them (ADR
+		// 0048, p. 5).
 		if err := d.Mysql.QueryRowsPartial(ctx, &outbox,
-			"SELECT COALESCE(MAX(read_inbox_max_id), 0) FROM dialogs WHERE peer_type = ? AND peer_id = ? AND user_id <> ? AND deleted = 0",
+			"SELECT COALESCE(MAX(g.read_inbox_max_id), 0) FROM dialogs g WHERE g.peer_type = ? AND g.peer_id = ? AND g.user_id <> ? AND g.deleted = 0"+
+				" AND NOT EXISTS (SELECT 1 FROM channel_participants p WHERE p.channel_id = g.peer_id AND p.user_id = g.user_id AND p.hidden = 1)",
 			mtproto.PEER_CHANNEL, id, selfId); err != nil {
 			return nil, err
 		}

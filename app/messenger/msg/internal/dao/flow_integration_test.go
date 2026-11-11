@@ -125,7 +125,10 @@ func (s snowflake) NextIds(ctx context.Context, n int) ([]int64, error) {
 // missing: users biz leaves out of a look-up, as after a failed load.
 type fakeUsers struct {
 	user_client.UserClient
-	mu          sync.Mutex
+	mu sync.Mutex
+	// muted are the chats muted for a user (user.setNotifySettings with
+	// mute_until), [user, peer id].
+	muted       map[[2]int64]bool
 	blocked     map[[2]int64]bool
 	premium     map[int64]bool
 	premiumOnly map[int64]bool
@@ -577,6 +580,18 @@ func (noChannels) ChannelGetLeftChannels(context.Context, *channelpb.TLChannelGe
 }
 
 func (noChannels) ChannelGetChannelRecommendations(context.Context, *channelpb.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelJoinHidden(context.Context, *channelpb.TLChannelJoinHidden) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelLeaveHidden(context.Context, *channelpb.TLChannelLeaveHidden) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSetUserHidden(context.Context, *channelpb.TLChannelSetUserHidden) (*mtproto.Int32, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
 

@@ -6,7 +6,7 @@
 // services (the constructor ids are the CRC32 of these lines):
 //
 // immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true signature_profiles:flags.10?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long available_reactions_type:int available_reactions:Vector<string> = ImmutableChannel;
-// immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long last_send_date:long = ImmutableChannelParticipant;
+// immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long last_send_date:long hidden:Bool = ImmutableChannelParticipant;
 // mutableChannel channel:ImmutableChannel participants:Vector<ImmutableChannelParticipant> = MutableChannel;
 //
 // ---functions---
@@ -78,6 +78,9 @@ const (
 	RPCChannel_ChannelGetPendingJoinRequests_FullMethodName           = "/channel.RPCChannel/channel_getPendingJoinRequests"
 	RPCChannel_ChannelGetLeftChannels_FullMethodName                  = "/channel.RPCChannel/channel_getLeftChannels"
 	RPCChannel_ChannelGetChannelRecommendations_FullMethodName        = "/channel.RPCChannel/channel_getChannelRecommendations"
+	RPCChannel_ChannelJoinHidden_FullMethodName                       = "/channel.RPCChannel/channel_joinHidden"
+	RPCChannel_ChannelLeaveHidden_FullMethodName                      = "/channel.RPCChannel/channel_leaveHidden"
+	RPCChannel_ChannelSetUserHidden_FullMethodName                    = "/channel.RPCChannel/channel_setUserHidden"
 	RPCChannel_ChannelToggleForum_FullMethodName                      = "/channel.RPCChannel/channel_toggleForum"
 	RPCChannel_ChannelToggleViewForumAsMessages_FullMethodName        = "/channel.RPCChannel/channel_toggleViewForumAsMessages"
 	RPCChannel_ChannelCreateForumTopic_FullMethodName                 = "/channel.RPCChannel/channel_createForumTopic"
@@ -214,6 +217,12 @@ type RPCChannelClient interface {
 	ChannelGetLeftChannels(ctx context.Context, in *TLChannelGetLeftChannels, opts ...grpc.CallOption) (*mtproto.Messages_Chats, error)
 	// pluma: task 081
 	ChannelGetChannelRecommendations(ctx context.Context, in *TLChannelGetChannelRecommendations, opts ...grpc.CallOption) (*mtproto.Messages_Chats, error)
+	// pluma: task 080
+	ChannelJoinHidden(ctx context.Context, in *TLChannelJoinHidden, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 080
+	ChannelLeaveHidden(ctx context.Context, in *TLChannelLeaveHidden, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 080
+	ChannelSetUserHidden(ctx context.Context, in *TLChannelSetUserHidden, opts ...grpc.CallOption) (*mtproto.Int32, error)
 	// pluma: task 060
 	ChannelToggleForum(ctx context.Context, in *TLChannelToggleForum, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 060
@@ -734,6 +743,36 @@ func (c *rPCChannelClient) ChannelGetChannelRecommendations(ctx context.Context,
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Messages_Chats)
 	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetChannelRecommendations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelJoinHidden(ctx context.Context, in *TLChannelJoinHidden, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelJoinHidden_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelLeaveHidden(ctx context.Context, in *TLChannelLeaveHidden, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelLeaveHidden_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelSetUserHidden(ctx context.Context, in *TLChannelSetUserHidden, opts ...grpc.CallOption) (*mtproto.Int32, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Int32)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetUserHidden_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1306,6 +1345,12 @@ type RPCChannelServer interface {
 	ChannelGetLeftChannels(context.Context, *TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error)
 	// pluma: task 081
 	ChannelGetChannelRecommendations(context.Context, *TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error)
+	// pluma: task 080
+	ChannelJoinHidden(context.Context, *TLChannelJoinHidden) (*mtproto.Bool, error)
+	// pluma: task 080
+	ChannelLeaveHidden(context.Context, *TLChannelLeaveHidden) (*mtproto.Bool, error)
+	// pluma: task 080
+	ChannelSetUserHidden(context.Context, *TLChannelSetUserHidden) (*mtproto.Int32, error)
 	// pluma: task 060
 	ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error)
 	// pluma: task 060
@@ -1536,6 +1581,15 @@ func (UnimplementedRPCChannelServer) ChannelGetLeftChannels(context.Context, *TL
 }
 func (UnimplementedRPCChannelServer) ChannelGetChannelRecommendations(context.Context, *TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetChannelRecommendations not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelJoinHidden(context.Context, *TLChannelJoinHidden) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelJoinHidden not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelLeaveHidden(context.Context, *TLChannelLeaveHidden) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelLeaveHidden not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelSetUserHidden(context.Context, *TLChannelSetUserHidden) (*mtproto.Int32, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetUserHidden not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleForum not implemented")
@@ -2453,6 +2507,60 @@ func _RPCChannel_ChannelGetChannelRecommendations_Handler(srv interface{}, ctx c
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCChannelServer).ChannelGetChannelRecommendations(ctx, req.(*TLChannelGetChannelRecommendations))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelJoinHidden_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelJoinHidden)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelJoinHidden(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelJoinHidden_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelJoinHidden(ctx, req.(*TLChannelJoinHidden))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelLeaveHidden_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelLeaveHidden)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelLeaveHidden(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelLeaveHidden_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelLeaveHidden(ctx, req.(*TLChannelLeaveHidden))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelSetUserHidden_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelSetUserHidden)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelSetUserHidden(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelSetUserHidden_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelSetUserHidden(ctx, req.(*TLChannelSetUserHidden))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3495,6 +3603,18 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_getChannelRecommendations",
 			Handler:    _RPCChannel_ChannelGetChannelRecommendations_Handler,
+		},
+		{
+			MethodName: "channel_joinHidden",
+			Handler:    _RPCChannel_ChannelJoinHidden_Handler,
+		},
+		{
+			MethodName: "channel_leaveHidden",
+			Handler:    _RPCChannel_ChannelLeaveHidden_Handler,
+		},
+		{
+			MethodName: "channel_setUserHidden",
+			Handler:    _RPCChannel_ChannelSetUserHidden_Handler,
 		},
 		{
 			MethodName: "channel_toggleForum",

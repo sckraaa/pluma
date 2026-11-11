@@ -156,6 +156,9 @@ func (c *MsgCore) channelTodoOp(userId, authKeyId, channelId int64, msgId int32,
 		authorId int64
 		randId   = rand.Int64() //nolint:gosec // random_id of a service message
 	)
+	if err := c.ghostJoins(userId, channelId); err != nil {
+		return nil, err
+	}
 	if _, err := c.svcCtx.Dao.RunBox(c.ctx, userId, nil, func(b *userbox.Box) error {
 		ref, err := c.svcCtx.Dao.ChannelTodoRefOf(b, channelId, msgId)
 		if err != nil {
