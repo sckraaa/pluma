@@ -16,6 +16,7 @@
 package dao
 
 import (
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"math"
 
@@ -293,6 +294,11 @@ func (d *Dao) EditAdmin(b *userbox.Box, channelId, userId int64, rights int32, r
 		if _, err = b.Tx().Exec("UPDATE channels SET admins_count = GREATEST(admins_count - 1, 0) WHERE id = ?", channelId); err != nil {
 			return nil, err
 		}
+		next := *t
+		next.Role, next.AdminRights, next.Rank, next.PromotedBy = channelperm.RoleMember, 0, "", 0
+		if err = logParticipant(b, channelId, userId, t, &next, true); err != nil {
+			return nil, err
+		}
 		return change, nil
 	}
 	promotedBy := t.PromotedBy
@@ -307,6 +313,12 @@ func (d *Dao) EditAdmin(b *userbox.Box, channelId, userId int64, rights int32, r
 		if _, err = b.Tx().Exec("UPDATE channels SET admins_count = admins_count + 1 WHERE id = ?", channelId); err != nil {
 			return nil, err
 		}
+	}
+	next := *t
+	next.Role, next.AdminRights, next.Rank, next.PromotedBy = channelperm.RoleAdmin, rights, rank, promotedBy
+	next.BannedRights, next.UntilDate = 0, 0
+	if err = logParticipant(b, channelId, userId, t, &next, true); err != nil {
+		return nil, err
 	}
 	return change, nil
 }
@@ -409,7 +421,50 @@ func (d *Dao) EditBanned(b *userbox.Box, channelId, userId int64, rights, until 
 			return nil, err
 		}
 	}
+	var next targetRow
+	if t != nil {
+		next = *t
+	}
+	switch {
+	case rights&mtproto.BANNED_VIEW_MESSAGES != 0:
+		next.State, next.BannedRights, next.UntilDate = channelperm.StateKicked, rights, channelperm.UntilDate(until, int32(now))
+		next.Role, next.AdminRights, next.Rank = channelperm.RoleMember, 0, ""
+	case rights == 0:
+		if next.State == channelperm.StateKicked {
+			next.State = channelperm.StateLeft
+		}
+		next.BannedRights, next.UntilDate = 0, 0
+	default:
+		next.BannedRights, next.UntilDate = rights, channelperm.UntilDate(until, int32(now))
+		next.Role, next.AdminRights, next.Rank = channelperm.RoleMember, 0, ""
+	}
+	if err = logParticipant(b, channelId, userId, t, &next, false); err != nil {
+		return nil, err
+	}
 	return change, nil
+}
+
+// logParticipant records a change of rights of userId in the recent actions:
+// ParticipantToggleAdmin for admin rights, ParticipantToggleBan for a
+// restriction, its row before (nil: none) and after, as the creator sees
+// them.
+func logParticipant(b *userbox.Box, channelId, userId int64, prev, next *targetRow, admin bool) error {
+	now := int32(b.Date())
+	viewer := &channel.ImmutableChannelParticipant{Role: channel.RoleCreator, State: channel.StateIn}
+	view := func(t *targetRow) *mtproto.ChannelParticipant {
+		p := &channel.ImmutableChannelParticipant{ChannelId: channelId, UserId: userId, State: channel.StateLeft}
+		if t != nil {
+			p.Role, p.State, p.AdminRights, p.Rank = t.Role, t.State, t.AdminRights, t.Rank
+			p.BannedRights, p.UntilDate, p.PromotedBy = t.BannedRights, t.UntilDate, t.PromotedBy
+		}
+		return p.ToChannelParticipant(viewer, now)
+	}
+	a := &mtproto.ChannelAdminLogEventAction{PrevParticipant: view(prev), NewParticipant: view(next)}
+	action := mtproto.MakeTLChannelAdminLogEventActionParticipantToggleBan(a).To_ChannelAdminLogEventAction()
+	if admin {
+		action = mtproto.MakeTLChannelAdminLogEventActionParticipantToggleAdmin(a).To_ChannelAdminLogEventAction()
+	}
+	return adminlog.Write(b, channelId, action, "")
 }
 
 // kick takes userId out of the channel and keeps it out until until: its
