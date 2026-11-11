@@ -103,4 +103,5 @@ BFFProxyClients:
     "/mtproto.RPCAccount": "bff.bff"
     "/mtproto.RPCPhotos": "bff.bff"
     "/mtproto.RPCUsernames": "bff.bff"
+    "/mtproto.RPCSavedMessageDialogs": "bff.bff"
     #"/mtproto.RPCTranslate": "bff.bff"

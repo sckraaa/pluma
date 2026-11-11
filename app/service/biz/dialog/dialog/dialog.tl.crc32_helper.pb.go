@@ -57,6 +57,8 @@ const (
 	CRC32_dialog_setChatWallpaper                  TLConstructor = -1252926702 // 0xb551db12
 	// pluma: task 063
 	CRC32_dialog_saveThreadDraft TLConstructor = -416704029 // 0xe72999e3
+	// pluma: task 079
+	CRC32_dialog_getSavedDialogsByIdList TLConstructor = 823234209 // 0x31118ea1
 	// pluma: task 064
 	CRC32_chatlistInviteExt           TLConstructor = 845724500   // 0x3268bb54
 	CRC32_dialog_exportChatlistInvite TLConstructor = -342736050  // 0xeb92434e

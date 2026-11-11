@@ -82,6 +82,8 @@ enum TLConstructor {
   CRC32_dialog_setChatWallpaper = -1252926702;
   // pluma: task 063
   CRC32_dialog_saveThreadDraft = -416704029;
+  // pluma: task 079
+  CRC32_dialog_getSavedDialogsByIdList = 823234209;
 }
 
 // DialogExt <--
@@ -453,6 +455,16 @@ message TL_dialog_getPinnedSavedDialogs {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: dialog.getSavedDialogsByIdList user_id:long id_list:Vector<PeerUtil> = SavedDialogList;
+// The sub-chats of Saved Messages named by id_list that have messages, in
+// the order of id_list (messages.getSavedDialogsByID, task 079).
+message TL_dialog_getSavedDialogsByIdList {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  repeated mtproto.PeerUtil id_list = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 message TL_dialog_toggleSavedDialogPin {
   TLConstructor constructor = 1;
   int64 user_id = 3;
@@ -709,6 +721,9 @@ service RPCDialog {
   rpc dialog_getSavedDialogs(TL_dialog_getSavedDialogs)
       returns (SavedDialogList) {}
   rpc dialog_getPinnedSavedDialogs(TL_dialog_getPinnedSavedDialogs)
+      returns (SavedDialogList) {}
+  // pluma: task 079
+  rpc dialog_getSavedDialogsByIdList(TL_dialog_getSavedDialogsByIdList)
       returns (SavedDialogList) {}
   rpc dialog_toggleSavedDialogPin(TL_dialog_toggleSavedDialogPin)
       returns (mtproto.Bool) {}

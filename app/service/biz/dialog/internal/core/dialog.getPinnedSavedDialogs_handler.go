@@ -35,12 +35,15 @@ func (c *DialogCore) DialogGetPinnedSavedDialogs(in *dialog.TLDialogGetPinnedSav
 		}).To_SavedDialogList()
 	)
 
-	c.svcCtx.Dao.SavedDialogsDAO.SelectPinnedDialogsWithCB(
+	if _, err := c.svcCtx.Dao.SavedDialogsDAO.SelectPinnedDialogsWithCB(
 		c.ctx,
 		meId,
 		func(sz, i int, v *dataobject.SavedDialogsDO) {
 			dList.Dialogs = append(dList.Dialogs, c.svcCtx.Dao.MakeSavedDialog(v))
-		})
+		}); err != nil {
+		c.Logger.Errorf("dialog.getPinnedSavedDialogs - error: %v", err)
+		return nil, err
+	}
 	dList.Count = int32(len(dList.Dialogs))
 
 	return dList, nil

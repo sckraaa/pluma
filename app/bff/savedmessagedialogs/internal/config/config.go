@@ -32,5 +32,7 @@ type Config struct {
 	SyncClient    sync_client.OutboxConf
 	MessageClient zrpc.RpcClientConf
 	MsgClient     zrpc.RpcClientConf
-	// ChannelClient zrpc.RpcClientConf
+	// ChannelClient gives the sub-chats of channels and supergroups their
+	// chats (task 079).
+	ChannelClient zrpc.RpcClientConf
 }

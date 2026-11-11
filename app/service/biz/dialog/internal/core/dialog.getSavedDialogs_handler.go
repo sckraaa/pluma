@@ -49,14 +49,17 @@ func (c *DialogCore) DialogGetSavedDialogs(in *dialog.TLDialogGetSavedDialogs) (
 	}
 
 	if excludePinned {
-		c.svcCtx.Dao.SavedDialogsDAO.SelectExcludePinnedDialogsWithCB(
+		if _, err := c.svcCtx.Dao.SavedDialogsDAO.SelectExcludePinnedDialogsWithCB(
 			c.ctx,
 			meId,
 			offsetId,
 			limit,
 			func(sz, i int, v *dataobject.SavedDialogsDO) {
 				dList.Dialogs = append(dList.Dialogs, c.svcCtx.Dao.MakeSavedDialog(v))
-			})
+			}); err != nil {
+			c.Logger.Errorf("dialog.getSavedDialogs - error: %v", err)
+			return nil, err
+		}
 		dList.Count = int32(c.svcCtx.Dao.CommonDAO.CalcSize(
 			c.ctx,
 			"saved_dialogs",
@@ -66,14 +69,17 @@ func (c *DialogCore) DialogGetSavedDialogs(in *dialog.TLDialogGetSavedDialogs) (
 				"deleted": 0,
 			}))
 	} else {
-		c.svcCtx.Dao.SavedDialogsDAO.SelectDialogsWithCB(
+		if _, err := c.svcCtx.Dao.SavedDialogsDAO.SelectDialogsWithCB(
 			c.ctx,
 			meId,
 			offsetId,
 			limit,
 			func(sz, i int, v *dataobject.SavedDialogsDO) {
 				dList.Dialogs = append(dList.Dialogs, c.svcCtx.Dao.MakeSavedDialog(v))
-			})
+			}); err != nil {
+			c.Logger.Errorf("dialog.getSavedDialogs - error: %v", err)
+			return nil, err
+		}
 		dList.Count = int32(c.svcCtx.Dao.CommonDAO.CalcSize(
 			c.ctx,
 			"saved_dialogs",

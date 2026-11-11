@@ -19,12 +19,8 @@
 package core
 
 import (
-	"slices"
-
 	"github.com/teamgram/proto/mtproto"
-	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
 // MessagesToggleSavedDialogPin
@@ -32,23 +28,23 @@ import (
 func (c *SavedMessageDialogsCore) MessagesToggleSavedDialogPin(in *mtproto.TLMessagesToggleSavedDialogPin) (*mtproto.Bool, error) {
 	var (
 		peer *mtproto.PeerUtil
+		err  error
 	)
 
 	switch in.GetPeer().GetPredicateName() {
 	case mtproto.Predicate_inputDialogPeer:
-		peer = mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer().GetPeer())
+		if peer, err = c.savedPeer(in.GetPeer().GetPeer()); err != nil {
+			c.Logger.Errorf("messages.toggleSavedDialogPin - error: %v", err)
+			return nil, err
+		}
 	case mtproto.Predicate_inputDialogPeerFolder:
 		// error
 		c.Logger.Errorf("messages.toggleSavedDialogPin - error: client not send inputDialogPeerFolder: %v", in.GetPeer())
 		return mtproto.BoolFalse, nil
 	default:
-		err := mtproto.ErrInputConstructorInvalid
+		err = mtproto.ErrInputConstructorInvalid
 		c.Logger.Errorf("messages.toggleSavedDialogPin - error: %v", err)
 		return nil, err
-	}
-	// The owner's own notes are the dialog with the user, as msg keeps it.
-	if peer.PeerType == mtproto.PEER_SELF {
-		peer.PeerType = mtproto.PEER_USER
 	}
 
 	// biz pushes updateSavedDialogPinned with seq to every device of the
@@ -56,7 +52,7 @@ func (c *SavedMessageDialogsCore) MessagesToggleSavedDialogPin(in *mtproto.TLMes
 	// the peer goes with it.
 	h := mtproto.NewIDListHelper()
 	h.PickByPeerUtil(peer.PeerType, peer.PeerId)
-	users, chats, err := c.pinPeers(h)
+	users, chats, err := c.peers(h)
 	if err != nil {
 		c.Logger.Errorf("messages.toggleSavedDialogPin - error: %v", err)
 		return nil, err
@@ -71,37 +67,8 @@ func (c *SavedMessageDialogsCore) MessagesToggleSavedDialogPin(in *mtproto.TLMes
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.toggleSavedDialogPin - error: %v", err)
-		return mtproto.BoolFalse, nil
+		return nil, err
 	}
 
 	return mtproto.BoolTrue, nil
-}
-
-// pinPeers returns the users and chats of h as the account sees them: the
-// peers an update of pins names, for its push with seq (ADR 0020).
-// Channels are not served.
-func (c *SavedMessageDialogsCore) pinPeers(h *mtproto.IDListHelper) (users []*mtproto.User, chats []*mtproto.Chat, err error) {
-	h.Visit(
-		func(userIdList []int64) {
-			// The account is in the request: the others are seen as it sees them.
-			id := userIdList
-			if !slices.Contains(id, c.MD.UserId) {
-				id = append([]int64{c.MD.UserId}, id...)
-			}
-			var r *userpb.Vector_ImmutableUser
-			if r, err = c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: id}); err == nil {
-				users = r.GetUserListByIdList(c.MD.UserId, userIdList...)
-			}
-		},
-		func(chatIdList []int64) {
-			if err != nil {
-				return
-			}
-			var r *chatpb.Vector_MutableChat
-			if r, err = c.svcCtx.Dao.ChatClient.ChatGetChatListByIdList(c.ctx, &chatpb.TLChatGetChatListByIdList{IdList: chatIdList}); err == nil {
-				chats = r.GetChatListByIdList(c.MD.UserId, chatIdList...)
-			}
-		},
-		nil)
-	return users, chats, err
 }
