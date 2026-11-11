@@ -317,7 +317,11 @@ func (d *Dao) DeleteParticipantReactions(b *userbox.Box, channelId, participantI
 		if err != nil {
 			return nil, err
 		}
-		if n, _ := r.RowsAffected(); n == 0 {
+		n, err := r.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
 			continue
 		}
 		var msgs []struct {

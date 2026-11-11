@@ -292,7 +292,7 @@ func (d *Dao) ReadParticipants(ctx context.Context, selfId, channelId int64, msg
 		State             int32 `db:"state"`
 	}
 	if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-		"SELECT c.broadcast, c.participants_count, m.sender_user_id, m.date, p.state FROM channels c"+
+		"SELECT c.broadcast, c.participants_count, m.sender_user_id, m.date2 AS `date`, p.state FROM channels c"+
 			" JOIN channel_messages m ON m.channel_id = c.id AND m.id = ? AND m.deleted = 0"+
 			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ?"+
 			" WHERE c.id = ? AND c.deleted = 0",
