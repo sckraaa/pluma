@@ -17,6 +17,7 @@ package core
 
 import (
 	"errors"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"slices"
 	"time"
 
@@ -39,8 +40,16 @@ func (c *ChatsCore) readParticipants(inPeer *mtproto.InputPeer, msgId int32) ([]
 	switch peer.PeerType {
 	case mtproto.PEER_CHAT:
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("messages.getMessageReadParticipants blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		r, err := c.svcCtx.Dao.Channel.ChannelGetReadParticipants(c.ctx, &channelpb.TLChannelGetReadParticipants{
+			SelfId:    c.MD.UserId,
+			ChannelId: peer.PeerId,
+			MsgId:     msgId,
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.getMessageReadParticipants - error: %v", err)
+			return nil, err
+		}
+		return r.GetDatas(), nil
 	default:
 		return nil, mtproto.ErrPeerIdInvalid
 	}

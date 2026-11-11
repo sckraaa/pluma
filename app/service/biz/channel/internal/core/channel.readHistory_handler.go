@@ -20,6 +20,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
+	"time"
 )
 
 // ChannelReadHistory
@@ -35,6 +36,19 @@ func (c *ChannelCore) ChannelReadHistory(in *channel.TLChannelReadHistory) (*mtp
 		return nil, c.membershipError("channel.readHistory", err)
 	}
 	return mtproto.BoolTrue, nil
+}
+
+// ChannelGetReadParticipants
+// channel.getReadParticipants self_id:long channel_id:long msg_id:int = Vector<ReadParticipantDate>;
+//
+// Who read a message of self_id in a supergroup and when (dao.ReadParticipants).
+func (c *ChannelCore) ChannelGetReadParticipants(in *channel.TLChannelGetReadParticipants) (*channel.Vector_ReadParticipantDate, error) {
+	r, err := c.svcCtx.Dao.ReadParticipants(c.ctx, in.SelfId, in.ChannelId, in.MsgId, time.Now().Unix())
+	if err != nil {
+		c.Logger.Errorf("channel.getReadParticipants - error: %v", err)
+		return nil, err
+	}
+	return &channel.Vector_ReadParticipantDate{Datas: r}, nil
 }
 
 // ChannelReadMessageContents

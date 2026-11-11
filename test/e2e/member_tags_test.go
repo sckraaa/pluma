@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
 func editRank(ctx context.Context, u *user, peer, participant *mtproto.InputPeer, rank string) error {
@@ -125,4 +126,65 @@ func TestMemberTagSupergroup(t *testing.T) {
 		}
 		return true
 	})
+}
+
+// In a supergroup the sender sees who read its message: Bob reads, Alice
+// gets him with the date of his read.
+func TestSupergroupReadParticipants(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("reads %d", randomID()), true)
+	input := func(u *user) *mtproto.InputChannel {
+		return &mtproto.InputChannel{
+			Constructor: u.c.Constructor(mtproto.Predicate_inputChannel),
+			ChannelId:   ch.GetId(),
+			AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
+		}
+	}
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsInviteToChannelC9E33D54{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_inviteToChannelC9E33D54),
+		Channel:     input(alice),
+		Users:       []*mtproto.InputUser{inputUserOf(ctx, t, alice, bob)},
+	}); err != nil {
+		t.Fatalf("channels.inviteToChannel: %v", err)
+	}
+	peer := &mtproto.InputPeer{
+		Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerChannel),
+		ChannelId:   ch.GetId(),
+		AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
+	}
+	before := int32(time.Now().Unix())
+	sent := sendMessageID(ctx, t, alice, peer, "read me", randomID())
+	if _, err := bob.c.Invoke(ctx, &mtproto.TLChannelsReadHistory{
+		Constructor: bob.c.Constructor(mtproto.Predicate_channels_readHistory),
+		Channel:     input(bob),
+		MaxId:       sent,
+	}); err != nil {
+		t.Fatalf("channels.readHistory: %v", err)
+	}
+	raw, err := alice.c.InvokeRaw(ctx, &mtproto.TLMessagesGetMessageReadParticipants31C1C44F{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_getMessageReadParticipants31C1C44F),
+		Peer:        peer,
+		MsgId:       sent,
+	})
+	if err != nil {
+		t.Fatalf("messages.getMessageReadParticipants: %v", err)
+	}
+	list, err := mtclient.DecodeVector(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("readers %v: want Bob", list)
+	}
+	r := list[0].(interface {
+		To_ReadParticipantDate() *mtproto.ReadParticipantDate
+	}).To_ReadParticipantDate()
+	if r.GetUserId() != bob.self.GetId() || r.GetDate() < before {
+		t.Errorf("reader %d at %d: want Bob at or after %d", r.GetUserId(), r.GetDate(), before)
+	}
 }

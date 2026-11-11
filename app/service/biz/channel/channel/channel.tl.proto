@@ -177,6 +177,8 @@ enum TLConstructor {
   CRC32_channel_editAdmin = 1274612374;
   // pluma: task 078
   CRC32_channel_editParticipantRank = -86486467;
+  // pluma: task 078
+  CRC32_channel_getReadParticipants = 210006620;
   // pluma: task 042
   CRC32_channel_editBanned = -1457424068;
   // pluma: task 042
@@ -571,6 +573,16 @@ message TL_channel_editParticipantRank {
   int64 channel_id = 5;
   int64 user_id = 6;
   string rank = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getReadParticipants self_id:long channel_id:long msg_id:int = Vector<ReadParticipantDate>;
+// Who read a message of self_id in a supergroup, and when (task 078).
+message TL_channel_getReadParticipants {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 msg_id = 5;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1363,6 +1375,11 @@ message Vector_Message {
     repeated mtproto.Message datas = 1;
 }
 
+// pluma: task 078
+message Vector_ReadParticipantDate {
+    repeated mtproto.ReadParticipantDate datas = 1;
+}
+
 message Vector_MutableChannel {
     repeated MutableChannel datas = 1;
 }
@@ -1520,6 +1537,8 @@ service RPCChannel {
   rpc channel_editAdmin(TL_channel_editAdmin) returns (mtproto.Updates) {}
   // pluma: task 078
   rpc channel_editParticipantRank(TL_channel_editParticipantRank) returns (mtproto.Updates) {}
+  // pluma: task 078
+  rpc channel_getReadParticipants(TL_channel_getReadParticipants) returns (Vector_ReadParticipantDate) {}
   // pluma: task 042
   rpc channel_editBanned(TL_channel_editBanned) returns (mtproto.Updates) {}
   // pluma: task 042

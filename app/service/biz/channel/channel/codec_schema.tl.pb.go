@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	210006620: func() mtproto.TLObject { // 0xc84725c pluma: task 078
+		return &TLChannelGetReadParticipants{
+			Constructor: 210006620,
+		}
+	},
 	-86486467: func() mtproto.TLObject { // 0xfad8523d pluma: task 078
 		return &TLChannelEditParticipantRank{
 			Constructor: -86486467,
@@ -4961,4 +4966,84 @@ func (m *TLChannelEditParticipantRank) Decode(dBuf *mtproto.DecodeBuf) error {
 		// log.Errorf("")
 	}
 	return dBuf.GetError()
+}
+
+// TLChannelGetReadParticipants (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetReadParticipants) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xc84725c:
+		x.UInt(0xc84725c)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetReadParticipants) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetReadParticipants) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xc84725c:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.MsgId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// Vector_ReadParticipantDate (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *Vector_ReadParticipantDate) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.Datas)))
+	for _, v := range m.Datas {
+		if err := v.Encode(x, layer); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Vector_ReadParticipantDate) Decode(dBuf *mtproto.DecodeBuf) error {
+	if c := dBuf.Int(); c != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid CRC32_vector: %d", c)
+	}
+	l1 := dBuf.Int()
+	if vectorTooLong(dBuf, l1) {
+		return fmt.Errorf("invalid vector length: %d", l1)
+	}
+	m.Datas = make([]*mtproto.ReadParticipantDate, l1)
+	for i := int32(0); i < l1; i++ {
+		m.Datas[i] = new(mtproto.ReadParticipantDate)
+		if err := m.Datas[i].Decode(dBuf); err != nil {
+			return err
+		}
+	}
+
+	return dBuf.GetError()
+}
+
+func (m *Vector_ReadParticipantDate) CalcByteSize(layer int32) int {
+	return 0
 }
