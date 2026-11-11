@@ -541,9 +541,95 @@ func TestSendAgainIsBounded(t *testing.T) {
 	}
 }
 
-// A code in the app: "Didn't get the code?" leads to the screen of a code
-// that did not reach Telegram, from which "Send again" tries Telegram.
-func TestResendOfInAppCode(t *testing.T) {
+// A code in the app (an old install's session still counts as one): "Didn't
+// get the code?" writes it to the person's Telegram at once, as
+// auth.resendCode sends by the next type; from there the screens go on as
+// for a code that went to Telegram first.
+func TestResendOfInAppCodeGoesThroughTelegram(t *testing.T) {
+	ctx := context.Background()
+	m, _ := newLogic(t)
+	s := &fakeSender{result: logincode.SendSent, account: "pluma_codes"}
+	m.Codes.SetSender(s)
+	d := &fakeDelivery{others: true}
+	codeData, err := m.DoAuthSendCode(ctx, authKeyId, 7, phone, userId, clientIP, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sent := codeData.ToAuthSentCode()
+	if typeOf(codeData) != mtproto.Predicate_auth_sentCodeTypeApp || len(s.codes) != 0 || len(d.delivered) != 1 {
+		t.Fatal("the account wrote while the app could be used")
+	}
+	if sent.GetNextType().GetPredicateName() != mtproto.Predicate_auth_codeTypeSms || sent.GetTimeout() != nil {
+		t.Fatalf("app: next %v, timeout %v", sent.GetNextType(), sent.GetTimeout())
+	}
+
+	resent, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resent.ToAuthSentCode()
+	if got.GetType().GetPredicateName() != mtproto.Predicate_auth_sentCodeTypeFragmentSms || len(s.codes) != 1 {
+		t.Fatalf("didn't get the code: type %s, codes %d", got.GetType().GetPredicateName(), len(s.codes))
+	}
+	if got.GetType().GetUrl() != "tg://resolve?domain=pluma_codes" || got.GetNextType().GetPredicateName() != mtproto.Predicate_auth_codeTypeSms {
+		t.Fatalf("didn't get the code: %v", got)
+	}
+
+	// "Didn't get the code?" of the code in Telegram: the screen of a code
+	// that did not reach it, nothing written again; then "Send again".
+	if resent, err = m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP); err != nil {
+		t.Fatal(err)
+	}
+	if typeOf(resent) != mtproto.Predicate_auth_sentCodeTypeSms || len(s.codes) != 1 {
+		t.Fatalf("fallback: type %s, codes %d", typeOf(resent), len(s.codes))
+	}
+	if resent, err = m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP); err != nil {
+		t.Fatal(err)
+	}
+	if typeOf(resent) != mtproto.Predicate_auth_sentCodeTypeFragmentSms || len(s.codes) != 2 {
+		t.Fatalf("send again: type %s, codes %d", typeOf(resent), len(s.codes))
+	}
+	if _, err := m.DoAuthSignIn(ctx, authKeyId, phone, s.codes[1], codeData.PhoneCodeHash, clientIP); err != nil {
+		t.Fatalf("the code in Telegram does not sign in: %v", err)
+	}
+}
+
+// A code in the app of a person whom Telegram does not find: "Didn't get the
+// code?" tries Telegram and lands on the screen of a code that did not reach
+// it, with "Send again" after the countdown.
+func TestResendOfInAppCodeNotFoundInTelegram(t *testing.T) {
+	ctx := context.Background()
+	m, _ := newLogic(t)
+	s := &fakeSender{result: logincode.SendNoTelegram}
+	m.Codes.SetSender(s)
+	codeData, err := m.DoAuthSendCode(ctx, authKeyId, 7, phone, userId, clientIP, &fakeDelivery{others: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resent, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resent.ToAuthSentCode()
+	if got.GetType().GetPredicateName() != mtproto.Predicate_auth_sentCodeTypeSms || len(s.codes) != 1 {
+		t.Fatalf("type %s, attempts %d", got.GetType().GetPredicateName(), len(s.codes))
+	}
+	if got.GetNextType().GetPredicateName() != mtproto.Predicate_auth_codeTypeSms || got.GetTimeout().GetValue() != 30 {
+		t.Fatalf("next %v, timeout %v", got.GetNextType(), got.GetTimeout())
+	}
+	s.result, s.account = logincode.SendSent, "pluma_codes"
+	if resent, err = m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP); err != nil {
+		t.Fatal(err)
+	}
+	if typeOf(resent) != mtproto.Predicate_auth_sentCodeTypeFragmentSms || len(s.codes) != 2 {
+		t.Fatalf("send again: type %s, codes %d", typeOf(resent), len(s.codes))
+	}
+}
+
+// Only a resend that writes a code counts under the code request limits; one
+// that moves the app to the screen of a code that did not reach Telegram
+// passes with the budget spent, and a delivery over it changes nothing.
+func TestResendLimitsCountDeliveriesOnly(t *testing.T) {
 	ctx := context.Background()
 	m, _ := newLogic(t)
 	s := &fakeSender{result: logincode.SendSent, account: "pluma_codes"}
@@ -552,22 +638,48 @@ func TestResendOfInAppCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if typeOf(codeData) != mtproto.Predicate_auth_sentCodeTypeApp || len(s.codes) != 0 {
-		t.Fatal("the account wrote while the app could be used")
+	// The other requests of this phone from this address this hour, from
+	// other devices: one delivery short of the per-address budget.
+	for i := int64(1); i < logincode.SendCodePerPhoneIP.Limit; i++ {
+		if err := m.Codes.CheckSendCode(ctx, phone, authKeyId+i, clientIP); err != nil {
+			t.Fatalf("request %d: %v", i, err)
+		}
 	}
-	resent, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP)
-	if err != nil {
+	// "Didn't get the code?" of the app: the last delivery of the budget.
+	if codeData, err = m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP); err != nil {
 		t.Fatal(err)
 	}
-	if got := typeOf(resent); got != mtproto.Predicate_auth_sentCodeTypeSms || len(s.codes) != 0 {
-		t.Fatalf("type %s, codes %d", got, len(s.codes))
+	if typeOf(codeData) != mtproto.Predicate_auth_sentCodeTypeFragmentSms || len(s.codes) != 1 {
+		t.Fatalf("type %s, codes %d", typeOf(codeData), len(s.codes))
 	}
-	resent, err = m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP)
-	if err != nil {
-		t.Fatal(err)
+	// Screen moves are free, as are any number of checks of the phone.
+	for i := 0; i < 3; i++ {
+		if err := m.Codes.CheckPhone(ctx, phone, authKeyId, clientIP); err != nil {
+			t.Fatalf("lookup %d: %v", i, err)
+		}
 	}
-	if got := typeOf(resent); got != mtproto.Predicate_auth_sentCodeTypeFragmentSms || len(s.codes) != 1 {
-		t.Fatalf("send again: type %s, codes %d", got, len(s.codes))
+	if codeData, err = m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP); err != nil {
+		t.Fatalf("didn't get the code in Telegram: %v", err)
+	}
+	if typeOf(codeData) != mtproto.Predicate_auth_sentCodeTypeSms {
+		t.Fatalf("type %s", typeOf(codeData))
+	}
+	// "Send again" over the budget: FLOOD_WAIT, nothing written, the screen
+	// and its attempts as they were.
+	before := *codeData
+	if _, err := m.DoAuthReSendCode(ctx, authKeyId, phone, codeData.PhoneCodeHash, clientIP); !strings.HasPrefix(rpcMessage(err), "FLOOD_WAIT_") {
+		t.Fatalf("send again over the budget: %v", err)
+	}
+	after, err := m.store.GetCachePhoneCode(ctx, authKeyId, phone)
+	if err != nil || after == nil {
+		t.Fatalf("request: %v %v", after, err)
+	}
+	if len(s.codes) != 1 || after.SentCodeType != before.SentCodeType || after.NextCodeType != before.NextCodeType || after.TelegramAttempts != before.TelegramAttempts {
+		t.Fatalf("a refused delivery changed the request: codes %d, %+v", len(s.codes), after)
+	}
+	// The code in Telegram still signs in.
+	if _, err := m.DoAuthSignIn(ctx, authKeyId, phone, s.codes[0], codeData.PhoneCodeHash, clientIP); err != nil {
+		t.Fatalf("signIn: %v", err)
 	}
 }
 

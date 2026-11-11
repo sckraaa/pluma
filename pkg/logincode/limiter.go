@@ -31,13 +31,19 @@ type Rule struct {
 // allowlist, a wrong code, an unknown phone_code_hash) or are far above what
 // a group of 100 needs. Successful requests are refunded (see Service.reserve).
 var (
-	// Code requests: auth.sendCode, auth.resendCode, account.sendChangePhoneCode.
+	// Code requests that send a code: auth.sendCode,
+	// account.sendChangePhoneCode, and an auth.resendCode that writes to the
+	// person's Telegram (ReserveSend); a resend that only moves the app to
+	// another screen of the same code is not counted.
 	//
 	// Per phone, two budgets: one per requesting address (the owner's own
 	// devices) and a total. A stranger who knows the phone can exhaust only
 	// the total, and needs SendCodePerPhone.Limit / SendCodePerPhoneIP.Limit
-	// addresses an hour to do it; pluma-admin login-unblock clears it.
-	SendCodePerPhoneIP = Rule{Name: "send_code_phone_ip", Limit: 5, Window: time.Hour}
+	// addresses an hour to do it; pluma-admin login-unblock clears it. Per
+	// address it fits two whole logins of a person whose Telegram did not
+	// find them at first: auth.sendCode, "Didn't get the code?" and two "Send
+	// again" each (ADR 0044).
+	SendCodePerPhoneIP = Rule{Name: "send_code_phone_ip", Limit: 8, Window: time.Hour}
 	SendCodePerPhone   = Rule{Name: "send_code_phone", Limit: 20, Window: time.Hour}
 	SendCodePerAuthKey = Rule{Name: "send_code_key", Limit: 10, Window: time.Hour}
 	// All code requests from one address: bounds the codes (and messages
@@ -53,8 +59,8 @@ var (
 	// enumerated quickly, and members behind one NAT never hit it.
 	PhoneProbePerIP = Rule{Name: "phone_probe_ip", Limit: 30, Window: time.Hour}
 	// Allowlist lookups by the methods that take a phone without requesting a
-	// code (auth.signIn, auth.signUp, auth.cancelCode, account.changePhone),
-	// per auth key (one device).
+	// code (auth.signIn, auth.signUp, auth.cancelCode, account.changePhone,
+	// auth.resendCode), per auth key (one device).
 	PhoneLookupPerAuthKey = Rule{Name: "phone_lookup_key", Limit: 30, Window: time.Hour}
 
 	// Code checks: auth.signIn, account.changePhone. The per-phone limits
