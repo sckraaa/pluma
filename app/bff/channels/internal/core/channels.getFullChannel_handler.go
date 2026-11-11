@@ -62,6 +62,9 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	ch := mc.GetChannel()
 	me, _ := mc.GetParticipant(c.MD.UserId)
 	admin := me.Member() && (me.GetRole() == channelpb.RoleCreator || me.GetRole() == channelpb.RoleAdmin)
+	// The owner who left keeps its row until its next owner takes the
+	// channel (task 078) but manages nothing while away.
+	creator := me.Member() && me.GetRole() == channelpb.RoleCreator
 
 	full := &mtproto.ChatFull{
 		Id:                  ch.GetId(),
@@ -71,8 +74,8 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		BotInfo:             []*mtproto.BotInfo{},
 		CanViewParticipants: ch.GetMegagroup() && !ch.GetParticipantsHidden() || admin,
 		ParticipantsHidden:  ch.GetParticipantsHidden(),
-		CanSetUsername:      me.GetRole() == channelpb.RoleCreator,
-		CanDeleteChannel:    me.GetRole() == channelpb.RoleCreator,
+		CanSetUsername:      creator,
+		CanDeleteChannel:    creator,
 		HiddenPrehistory:    ch.GetHiddenPrehistory(),
 		Pts:                 ch.GetPts(),
 		// The reactions the members may use (task 044); a channel that never
@@ -104,6 +107,9 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		}
 	}
 	full.AvailableMinId = availableMinId(me)
+	// The tab its profile opens on (task 078, channels.setMainProfileTab);
+	// none leaves it to the clients.
+	full.MainTab = mtproto.ToProfileTabByType(ch.GetMainTab())
 	if ch.GetMegagroup() {
 		// The sets the group chose (task 078); an admin who may change its
 		// info may choose them (boost levels do not apply, ADR 0041).

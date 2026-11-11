@@ -204,6 +204,10 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 	case c.Blocked, p != nil && p.Kicked(int32(b.Date())):
 		return nil, mtproto.ErrChannelPrivate
 	}
+	// The owner who left comes back by itself, to a private channel as
+	// well and without a request (core.telegram.org/api/channel: the
+	// next owner takes it "if they don't rejoin").
+	owner := me != nil && me.Role == channel.RoleCreator
 
 	var (
 		inviter int64
@@ -224,10 +228,16 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		}
 		inviter = inv.AdminId
 		ask = inv.RequestNeeded
-	} else if !c.Public {
+	} else if !owner && !c.Public {
 		return nil, mtproto.ErrChannelPrivate
 	} else {
 		ask = c.JoinRequest
+	}
+	if owner {
+		ask = false
+		if err = cancelCreatorTransfer(b, channelId); err != nil {
+			return nil, err
+		}
 	}
 
 	var joined []int64
@@ -279,7 +289,7 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		availableMinId = change.Message.GetId()
 	}
 	role := channel.RoleMember
-	if me != nil && me.Role == channel.RoleCreator {
+	if owner {
 		role = channel.RoleCreator
 	}
 	if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, inviter_user_id, available_min_id, `date`) VALUES (?, ?, ?, 0, ?, ?, ?)"+
@@ -288,7 +298,12 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		channelId, b.UserId(), role, inviter, availableMinId, b.Date()); err != nil {
 		return nil, err
 	}
-	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + 1, top_message = ? WHERE id = ?", top, channelId); err != nil {
+	// The owner counts among the admins again (Leave).
+	admins := 0
+	if owner {
+		admins = 1
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + 1, admins_count = admins_count + ?, top_message = ? WHERE id = ?", admins, top, channelId); err != nil {
 		return nil, err
 	}
 	change.Self = channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
@@ -314,8 +329,10 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 }
 
 // Leave takes b's owner out of the channel: USER_NOT_PARTICIPANT for one
-// not in it, USER_CREATOR for its creator (core.telegram.org/method/
-// channels.leaveChannel). Its dialog goes, as the clients drop it.
+// not in it. Its dialog goes, as the clients drop it. The owner leaves as
+// the clients let it (core.telegram.org/api/channel, "Leaving
+// groups/channels"): its row stays the creator's, left, and the channel
+// goes to its next owner later (leaveAsCreator) unless it comes back.
 func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 	ch, err := openChannel(b, channelId)
 	if err != nil {
@@ -325,12 +342,10 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch {
-	case !me.participant().Member():
+	if !me.participant().Member() {
 		return nil, mtproto.ErrUserNotParticipant
-	case me.Role == channel.RoleCreator:
-		return nil, mtproto.ErrUserCreator
 	}
+	creator := me.Role == channel.RoleCreator
 	change := &ChannelChange{ChannelId: channelId}
 	if !c.Broadcast {
 		action := mtproto.MakeTLMessageActionChatDeleteUser(&mtproto.MessageAction{UserId: b.UserId()}).To_MessageAction()
@@ -342,22 +357,35 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 		}
 	}
 	// A restricted member leaves its restriction behind: a left row has
-	// none (channels.editBanned, 042, restricts members only).
-	if _, err = b.Tx().Exec("UPDATE channel_participants SET state = ?, role = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0 WHERE channel_id = ? AND user_id = ?",
-		channel.StateLeft, channelId, b.UserId()); err != nil {
+	// none (channels.editBanned, 042, restricts members only). The owner's
+	// row keeps its role: it comes back as the owner (Join).
+	role := channel.RoleMember
+	if creator {
+		role = channel.RoleCreator
+	}
+	if _, err = b.Tx().Exec("UPDATE channel_participants SET state = ?, role = ?, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0 WHERE channel_id = ? AND user_id = ?",
+		channel.StateLeft, role, channelId, b.UserId()); err != nil {
 		return nil, err
 	}
+	// The creator counts among the admins (channel.createChannel), while
+	// it is in the channel.
 	admins := 0
-	if me.Role == channel.RoleAdmin {
+	if me.Role == channel.RoleAdmin || creator {
 		admins = 1
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = GREATEST(participants_count - 1, 0), admins_count = GREATEST(admins_count - ?, 0) WHERE id = ?",
 		admins, channelId); err != nil {
 		return nil, err
 	}
+	if creator {
+		if err = leaveAsCreator(b, ch, change, c.Broadcast); err != nil {
+			return nil, err
+		}
+	}
 	change.Self = channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
 		ChannelId: channelId,
 		UserId:    b.UserId(),
+		Role:      role,
 		State:     channel.StateLeft,
 		Date:      b.Date(),
 	}).To_ImmutableChannelParticipant()

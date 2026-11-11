@@ -165,6 +165,11 @@ func (m *IDListHelper) PickByMessageAction(action *MessageAction) {
 	case Predicate_messageActionInviteToGroupCall:
 		// messageActionInviteToGroupCall#76b9f11a call:InputGroupCall users:Vector<int> = MessageAction;
 		m.AppendUsers(action.Users...)
+	case Predicate_messageActionNewCreatorPending, Predicate_messageActionChangeCreator:
+		// pluma: the next owner of a supergroup whose owner left (task 078):
+		// messageActionNewCreatorPending#b07ed085 new_creator_id:long,
+		// messageActionChangeCreator#e188503b new_creator_id:long.
+		m.AppendUsers(action.NewCreatorId)
 	}
 }
 

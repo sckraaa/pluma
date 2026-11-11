@@ -179,6 +179,12 @@ const (
 	Predicate_channel_getUnreadReactions = "channel_getUnreadReactions"
 	// pluma: task 067
 	Predicate_channel_readReactions = "channel_readReactions"
+	// pluma: task 078
+	Predicate_channel_getFutureCreator = "channel_getFutureCreator"
+	// pluma: task 078
+	Predicate_channel_getInactiveChannels = "channel_getInactiveChannels"
+	// pluma: task 078
+	Predicate_channel_setMainProfileTab = "channel_setMainProfileTab"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -526,6 +532,15 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 2058932457, // 0x7ab8d0e9
 
 	},
+	Predicate_channel_getFutureCreator: { // pluma: task 078
+		0: -223894021, // 0xf2a7a5fb
+	},
+	Predicate_channel_getInactiveChannels: { // pluma: task 078
+		0: -744665876, // 0xd39d4cec
+	},
+	Predicate_channel_setMainProfileTab: { // pluma: task 078
+		0: 1898100990, // 0x7122b8fe
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -621,6 +636,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1530267177:  Predicate_channel_expireMessages,                   // 0x5b360629 pluma: task 067
 	-793086366:  Predicate_channel_getUnreadReactions,               // 0xd0ba7662 pluma: task 067
 	2058932457:  Predicate_channel_readReactions,                    // 0x7ab8d0e9 pluma: task 067
+	-223894021:  Predicate_channel_getFutureCreator,                 // 0xf2a7a5fb pluma: task 078
+	-744665876:  Predicate_channel_getInactiveChannels,              // 0xd39d4cec pluma: task 078
+	1898100990:  Predicate_channel_setMainProfileTab,                // 0x7122b8fe pluma: task 078
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

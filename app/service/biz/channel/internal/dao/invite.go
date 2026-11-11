@@ -142,11 +142,16 @@ func (d *Dao) writeMembers(b *userbox.Box, ch *channelbox.Channel, c *memberChan
 	if c.HiddenPrehistory && !c.Broadcast {
 		availableMinId = change.Message.GetId()
 	}
+	// The owner who left comes back as the owner (task 078, Join).
+	owners, err := ownerAddedBack(b, channelId, users)
+	if err != nil {
+		return err
+	}
 	for _, id := range users {
 		if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, inviter_user_id, available_min_id, `date`) VALUES (?, ?, 0, 0, ?, ?, ?)"+
-			" ON DUPLICATE KEY UPDATE role = 0, state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0,"+
+			" ON DUPLICATE KEY UPDATE role = IF(role = ?, role, 0), state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0,"+
 			" inviter_user_id = VALUES(inviter_user_id), available_min_id = VALUES(available_min_id), `date` = VALUES(`date`)",
-			channelId, id, b.UserId(), availableMinId, b.Date()); err != nil {
+			channelId, id, b.UserId(), availableMinId, b.Date(), channelperm.RoleCreator); err != nil {
 			return err
 		}
 		ev := &inbox.TLInboxChannelInvitedToInbox{UserId: id, FromId: b.UserId(), ChannelId: channelId}
@@ -156,7 +161,7 @@ func (d *Dao) writeMembers(b *userbox.Box, ch *channelbox.Channel, c *memberChan
 		}
 		b.Emit(userbox.Event{Topic: d.Topics.Inbox, Recipient: id, Method: string(proto.MessageName(ev)), Data: data})
 	}
-	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + ? WHERE id = ?", len(users), channelId); err != nil {
+	if _, err = b.Tx().Exec("UPDATE channels SET participants_count = participants_count + ?, admins_count = admins_count + ? WHERE id = ?", len(users), owners, channelId); err != nil {
 		return err
 	}
 	return d.dropRequests(b, channelId, users...)

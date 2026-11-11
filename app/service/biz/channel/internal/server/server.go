@@ -19,6 +19,7 @@ import (
 	"flag"
 
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/config"
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/core"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/server/grpc"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/svc"
 
@@ -31,6 +32,9 @@ var configFile = flag.String("f", "etc/channel.yaml", "the config file")
 
 type Server struct {
 	grpcSrv *zrpc.RpcServer
+	// transfers hands the channels of owners who left to their next
+	// owners (task 078).
+	transfers *core.TransferWorker
 }
 
 func New() *Server {
@@ -45,10 +49,12 @@ func (s *Server) Initialize() error {
 	logx.Infof("loaded config %s", *configFile)
 	ctx := svc.NewServiceContext(c)
 	s.grpcSrv = grpc.New(ctx, c.RpcServerConf)
+	s.transfers = core.NewTransferWorker(ctx.Dao)
 
 	go func() {
 		go s.grpcSrv.Start()
 	}()
+	s.transfers.Start()
 	return nil
 }
 
@@ -56,5 +62,6 @@ func (s *Server) RunLoop() {
 }
 
 func (s *Server) Destroy() {
+	s.transfers.Stop()
 	s.grpcSrv.Stop()
 }

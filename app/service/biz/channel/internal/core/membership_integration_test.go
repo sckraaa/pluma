@@ -90,8 +90,8 @@ func wantErr(t *testing.T, what string, err, want error) {
 
 // TestJoinLeave: a public supergroup is joined by itself, a private one by
 // its link only; the join writes the service message, the dialog and the
-// count; repeating it is USER_ALREADY_PARTICIPANT; leaving undoes it and
-// the creator may not leave.
+// count; repeating it is USER_ALREADY_PARTICIPANT; leaving undoes it (the
+// creator's leave is TestCreatorLeaves).
 func TestJoinLeave(t *testing.T) {
 	f := newDiffFixture(t)
 	creator, bob := f.user("Creator"), f.user("Bob")
@@ -135,8 +135,6 @@ func TestJoinLeave(t *testing.T) {
 		t.Errorf("updateChannel journaled %d times for the join, want once", n)
 	}
 
-	_, err = f.leave(creator, id)
-	wantErr(t, "the creator leaves", err, mtproto.ErrUserCreator)
 	r, err = f.leave(bob, id)
 	if err != nil {
 		t.Fatal(err)

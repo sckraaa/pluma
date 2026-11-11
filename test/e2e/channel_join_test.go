@@ -171,11 +171,18 @@ func TestChannelJoin(t *testing.T) {
 		if _, err = channelDifference(ctx, bob, ch, hash, 1, 10); !mtclient.IsRPCError(err, "CHANNEL_PRIVATE") {
 			t.Errorf("the difference after leaving: %v, want CHANNEL_PRIVATE", err)
 		}
-		if _, err = alice.c.Invoke(ctx, &mtproto.TLChannelsLeaveChannel{
+		// The owner alone leaves it with nobody to take it (task 078) and
+		// still sees it, left, to come back to.
+		o, err = alice.c.Invoke(ctx, &mtproto.TLChannelsLeaveChannel{
 			Constructor: alice.c.Constructor(mtproto.Predicate_channels_leaveChannel),
 			Channel:     input(alice),
-		}); !mtclient.IsRPCError(err, "USER_CREATOR") {
-			t.Errorf("the creator leaves: %v, want USER_CREATOR", err)
+		})
+		if err != nil {
+			t.Fatalf("the creator leaves: %v", err)
+		}
+		if chats := o.(interface{ To_Updates() *mtproto.Updates }).To_Updates().GetChats(); len(chats) != 1 ||
+			chats[0].GetPredicateName() != mtproto.Predicate_channel || !chats[0].GetLeft() {
+			t.Errorf("the private channel to its owner after leaving: %v", chats)
 		}
 	}
 }

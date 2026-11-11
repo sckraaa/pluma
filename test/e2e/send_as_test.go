@@ -53,15 +53,6 @@ func getSendAs(ctx context.Context, t *testing.T, u *user, peer *mtproto.InputPe
 	return out
 }
 
-func hasChat(chats []*mtproto.Chat, id int64) bool {
-	for _, c := range chats {
-		if c.GetId() == id {
-			return true
-		}
-	}
-	return false
-}
-
 func sendAsText(ctx context.Context, u *user, peer, as *mtproto.InputPeer, text string) (*mtproto.Updates, error) {
 	o, err := u.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
 		Constructor: u.c.Constructor(mtproto.Predicate_messages_sendMessage),

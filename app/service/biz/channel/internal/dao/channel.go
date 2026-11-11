@@ -258,6 +258,7 @@ func makeChannel(do *dataobject.ChannelsDO, names []dataobject.ChannelUsernameDO
 		ProfileColor:        channel.MakePeerColor(do.ProfileColor, do.ProfileColorBackgroundEmojiId),
 		EmojiStatus:         channel.MakeEmojiStatus(do.EmojiStatusDocumentId, do.EmojiStatusUntil),
 		Usernames:           usernames,
+		MainTab:             do.MainTab,
 	}).To_ImmutableChannel()
 }
 

@@ -34,13 +34,3 @@ func (c *ChannelsCore) MessagesGetPersonalChannelHistory(in *mtproto.TLMessagesG
 func (c *ChannelsCore) ChannelsEditLocation(in *mtproto.TLChannelsEditLocation) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
-
-// ChannelsGetInactiveChannels is not served yet: channels.getInactiveChannels#11e831ee.
-func (c *ChannelsCore) ChannelsGetInactiveChannels(in *mtproto.TLChannelsGetInactiveChannels) (*mtproto.Messages_InactiveChats, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// ChannelsGetFutureCreatorAfterLeave is not served yet: channels.getFutureCreatorAfterLeave#a00918af.
-func (c *ChannelsCore) ChannelsGetFutureCreatorAfterLeave(in *mtproto.TLChannelsGetFutureCreatorAfterLeave) (*mtproto.User, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}

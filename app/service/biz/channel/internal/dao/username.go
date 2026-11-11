@@ -50,8 +50,13 @@ func usernameEditor(b *userbox.Box, channelId int64) error {
 	var rows []struct {
 		Creator int64 `db:"creator_user_id"`
 		Blocked bool  `db:"blocked"`
+		// In is whether the creator is in the channel: one who left keeps
+		// it until its next owner takes it (task 078) but edits nothing.
+		In bool `db:"in_channel"`
 	}
-	if err := b.Tx().QueryRowsPartial(&rows, "SELECT creator_user_id, blocked FROM channels WHERE id = ? AND deleted = 0", channelId); err != nil {
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT c.creator_user_id, c.blocked, EXISTS(SELECT 1 FROM channel_participants p WHERE p.channel_id = c.id AND p.user_id = c.creator_user_id AND p.state = 0) AS in_channel"+
+			" FROM channels c WHERE c.id = ? AND c.deleted = 0", channelId); err != nil {
 		return err
 	}
 	switch {
@@ -59,7 +64,7 @@ func usernameEditor(b *userbox.Box, channelId int64) error {
 		return mtproto.ErrChannelInvalid
 	case rows[0].Blocked:
 		return mtproto.ErrChannelPrivate
-	case rows[0].Creator != b.UserId():
+	case rows[0].Creator != b.UserId() || !rows[0].In:
 		return mtproto.ErrChatAdminRequired
 	}
 	return nil

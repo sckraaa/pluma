@@ -48,37 +48,9 @@ func (c *ChatCore) ChatEditChatCreator(in *chat.TLChatEditChatCreator) (*mtproto
 		case target == nil:
 			return mtproto.ErrUserIdInvalid
 		}
-		d := t.c.svcCtx.Dao
-		if _, err := d.ChatParticipantsDAO.UpdateParticipantTypeTx(b.Tx(), mtproto.ChatMemberCreator, target.Id); err != nil {
+		if err := t.handTo(b, me, target, mtproto.ChatMemberAdmin); err != nil {
 			return err
 		}
-		if _, err := d.ChatParticipantsDAO.UpdateParticipantTypeTx(b.Tx(), mtproto.ChatMemberAdmin, me.Id); err != nil {
-			return err
-		}
-		if _, err := b.Tx().Exec("UPDATE chats SET creator_user_id = ? WHERE id = ?", in.UserId, in.ChatId); err != nil {
-			return err
-		}
-		if target.Link == "" {
-			// The creator, as an admin, has its permanent link.
-			link := chat.GenChatInviteHash()
-			if _, err := d.ChatParticipantsDAO.UpdateLinkTx(b.Tx(), link, in.ChatId, in.UserId); err != nil {
-				return err
-			}
-			if _, _, err := d.ChatInvitesDAO.InsertTx(b.Tx(), &dataobject.ChatInvitesDO{
-				ChatId:    in.ChatId,
-				AdminId:   in.UserId,
-				Link:      link,
-				Permanent: true,
-				Date2:     t.now,
-			}); err != nil {
-				return err
-			}
-			target.Link = link
-		}
-		target.ParticipantType = mtproto.ChatMemberCreator
-		me.ParticipantType = mtproto.ChatMemberAdmin
-		me.AdminRights = mtproto.MakeDefaultChatAdminRights()
-		t.Chat.Creator = in.UserId
 		t.changed(b, in.SelfId, in.UserId)
 		if err := t.bumpVersion(b); err != nil {
 			return err
@@ -90,4 +62,46 @@ func (c *ChatCore) ChatEditChatCreator(in *chat.TLChatEditChatCreator) (*mtproto
 		return nil, err
 	}
 	return chat2, nil
+}
+
+// handTo makes target the creator of the chat, and me, its creator, a
+// participant of type oldType: an admin when it hands the chat over
+// (chat.editChatCreator), a member when it leaves (chat.deleteChatUser).
+// The new creator gets the permanent link the creator has, as an admin.
+func (t *chatTx) handTo(b *userbox.Box, me, target *mtproto.ImmutableChatParticipant, oldType int32) error {
+	d := t.c.svcCtx.Dao
+	if _, err := d.ChatParticipantsDAO.UpdateParticipantTypeTx(b.Tx(), mtproto.ChatMemberCreator, target.Id); err != nil {
+		return err
+	}
+	if _, err := d.ChatParticipantsDAO.UpdateParticipantTypeTx(b.Tx(), oldType, me.Id); err != nil {
+		return err
+	}
+	if _, err := b.Tx().Exec("UPDATE chats SET creator_user_id = ? WHERE id = ?", target.UserId, t.Chat.Id); err != nil {
+		return err
+	}
+	if target.Link == "" {
+		// The creator, as an admin, has its permanent link.
+		link := chat.GenChatInviteHash()
+		if _, err := d.ChatParticipantsDAO.UpdateLinkTx(b.Tx(), link, t.Chat.Id, target.UserId); err != nil {
+			return err
+		}
+		if _, _, err := d.ChatInvitesDAO.InsertTx(b.Tx(), &dataobject.ChatInvitesDO{
+			ChatId:    t.Chat.Id,
+			AdminId:   target.UserId,
+			Link:      link,
+			Permanent: true,
+			Date2:     t.now,
+		}); err != nil {
+			return err
+		}
+		target.Link = link
+	}
+	target.ParticipantType = mtproto.ChatMemberCreator
+	me.ParticipantType = oldType
+	me.AdminRights = nil
+	if oldType == mtproto.ChatMemberAdmin {
+		me.AdminRights = mtproto.MakeDefaultChatAdminRights()
+	}
+	t.Chat.Creator = target.UserId
+	return nil
 }
