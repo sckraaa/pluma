@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -87,5 +88,30 @@ func TestProgressLeavesOutNotNeeded(t *testing.T) {
 	}
 	if got.Total != 2 || got.Ok != 1 {
 		t.Errorf("total %d, ok %d; want 2 and 1", got.Total, got.Ok)
+	}
+}
+
+// Payments and Telegram Business count under "other", and group calls apart
+// from calls one to one.
+func TestProgressAreas(t *testing.T) {
+	for tl, want := range map[string]string{
+		"payments.getStarsStatus":         "other",
+		"account.updateBusinessWorkHours": "other",
+		"account.getConnectedBots":        "other",
+		"messages.getQuickReplies":        "other",
+		"phone.requestCall":               "calls",
+		"phone.getCallConfig":             "calls",
+		"phone.joinGroupCall":             "groupcalls",
+		"phone.joinGroupCallPresentation": "groupcalls",
+		"phone.createConferenceCall":      "groupcalls",
+		"phone.getGroupParticipants":      "groupcalls",
+		"phone.saveDefaultSendAs":         "groupcalls",
+		"account.updateProfile":           "account",
+		"messages.sendMessage":            "messages",
+	} {
+		ns, _, _ := strings.Cut(tl, ".")
+		if got := areaOf(tl, ns); got != want {
+			t.Errorf("%s: area %q, want %q", tl, got, want)
+		}
 	}
 }

@@ -6,7 +6,7 @@
   "areas": [
     {
       "key": "messages",
-      "total": 195,
+      "total": 188,
       "ok": 148,
       "partial": 1
     },
@@ -24,7 +24,7 @@
     },
     {
       "key": "account",
-      "total": 129,
+      "total": 115,
       "ok": 81,
       "partial": 2
     },
@@ -42,8 +42,14 @@
     },
     {
       "key": "calls",
-      "total": 42,
+      "total": 10,
       "ok": 10,
+      "partial": 0
+    },
+    {
+      "key": "groupcalls",
+      "total": 32,
+      "ok": 0,
       "partial": 0
     },
     {
@@ -65,16 +71,10 @@
       "partial": 0
     },
     {
-      "key": "payments",
-      "total": 7,
-      "ok": 2,
-      "partial": 1
-    },
-    {
       "key": "other",
-      "total": 39,
-      "ok": 18,
-      "partial": 1
+      "total": 67,
+      "ok": 20,
+      "partial": 2
     }
   ]
 }

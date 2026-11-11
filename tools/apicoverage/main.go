@@ -423,12 +423,16 @@ func render(ms []*method, layer string) string {
 // serve another part go to it by name (the stickers and emoji a user sees
 // are messages.getStickerSet and the like, stickers.* only makes sets; the
 // folders are messages.*DialogFilter*). A method of no area counts under
-// "other".
+// "other": so do payments, which Pluma does not have (what is left of them
+// are the calls clients make in the background), and Telegram Business,
+// by the owner's decision of 2026-11-11. Calls one to one and group calls
+// are two parts: the first are done whatever the state of the second.
 var areas = []struct {
 	key     string
 	ns      []string
 	methods *regexp.Regexp // of TL names, before the namespaces
 }{
+	{"other", nil, regexp.MustCompile(`^(account\.\w*(Business|ConnectedBot)|messages\.\w*QuickRepl)`)},
 	{"messages", []string{"messages"}, nil},
 	{"channels", []string{"channels"}, nil},
 	{"contacts", []string{"contacts", "users"}, nil},
@@ -436,10 +440,10 @@ var areas = []struct {
 	{"media", []string{"photos", "upload"}, nil},
 	{"stickers", []string{"stickers"}, regexp.MustCompile(`^messages\.\w*(Sticker|CustomEmoji|EmojiGroups|EmojiKeywords|EmojiURL)`)},
 	{"calls", []string{"phone"}, nil},
+	{"groupcalls", nil, regexp.MustCompile(`^phone\.(\w*(GroupCall|Conference|GroupParticipants)|saveDefaultSendAs)`)},
 	{"stories", []string{"stories"}, nil},
 	{"folders", []string{"folders", "chatlists", "communities"}, regexp.MustCompile(`^messages\.\w*DialogFilter`)},
 	{"bots", []string{"bots"}, regexp.MustCompile(`^messages\.\w*(Bot|InlineQuery|WebView|WebApp|AttachMenu)`)},
-	{"payments", []string{"payments", "premium", "fragment"}, nil},
 }
 
 // constructorSuffix ends the name of a method the schema has in more than
@@ -559,7 +563,7 @@ func renderProgress(ms []*method, layer string, notNeeded map[string]bool) ([]by
 		Areas []progressArea `json:"areas"`
 	}{Layer: layer, progressCounts: all}
 	for _, a := range areas {
-		if c := byArea[a.key]; c != nil {
+		if c := byArea[a.key]; c != nil && a.key != "other" {
 			out.Areas = append(out.Areas, progressArea{Key: a.key, progressCounts: *c})
 		}
 	}
