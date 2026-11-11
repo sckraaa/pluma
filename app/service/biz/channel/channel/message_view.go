@@ -22,12 +22,32 @@ import (
 )
 
 // ViewMessage is a message of a channel, stored once for all (ADR 0034,
-// p. 1), as viewer sees it: out when the viewer sent it. The stored message
-// is not changed.
+// p. 1), as viewer sees it: out when the viewer sent it, mentioned when its
+// text mentions the viewer ("Incoming messages mentioning the current user
+// will have the mentioned flag set", core.telegram.org/api/mentions). The
+// stored message is not changed.
 func ViewMessage(stored *mtproto.Message, viewer int64) *mtproto.Message {
 	m := proto.Clone(stored).(*mtproto.Message)
 	m.Out = m.GetFromId().GetUserId() == viewer && viewer != 0
+	m.Mentioned = !m.Out && mentions(m, viewer)
 	return m
+}
+
+// mentions tells whether an entity of m names viewer: an @username the
+// server resolved (messageEntityMention) or a mention by name.
+func mentions(m *mtproto.Message, viewer int64) bool {
+	if viewer == 0 {
+		return false
+	}
+	for _, e := range m.GetEntities() {
+		switch e.GetPredicateName() {
+		case mtproto.Predicate_messageEntityMention, mtproto.Predicate_messageEntityMentionName:
+			if e.GetUserId_INT64() == viewer {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // SentAs tells whether m was written by a member of a supergroup as a

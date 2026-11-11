@@ -71,3 +71,27 @@ func TestViewSentMessage(t *testing.T) {
 		t.Error("a message from the viewer itself is not out")
 	}
 }
+
+// TestViewMentioned: a message is mentioned for the user its @username or
+// mention by name resolves to, and for no one else, the author included.
+func TestViewMentioned(t *testing.T) {
+	stored := mtproto.MakeTLMessage(&mtproto.Message{
+		FromId: mtproto.MakePeerUser(1),
+		Entities: []*mtproto.MessageEntity{
+			mtproto.MakeTLMessageEntityMention(&mtproto.MessageEntity{Offset: 0, Length: 6, UserId_INT64: 2}).To_MessageEntity(),
+			mtproto.MakeTLMessageEntityMentionName(&mtproto.MessageEntity{Offset: 7, Length: 5, UserId_INT64: 3}).To_MessageEntity(),
+			mtproto.MakeTLMessageEntityMention(&mtproto.MessageEntity{Offset: 13, Length: 6}).To_MessageEntity(),
+		},
+	}).To_Message()
+	for _, c := range []struct {
+		viewer int64
+		want   bool
+	}{{2, true}, {3, true}, {4, false}, {0, false}, {1, false}} {
+		if got := ViewMessage(stored, c.viewer).GetMentioned(); got != c.want {
+			t.Errorf("viewer %d: mentioned %v, want %v", c.viewer, got, c.want)
+		}
+	}
+	if stored.GetMentioned() {
+		t.Error("the stored message changed")
+	}
+}
