@@ -22,6 +22,7 @@
 
 ## Сделано
 - Этап 1, код: сервис `turn`, скрипт `setup.sh`; `voip_enable_stun_marking: false` (iOS, исследование `network.md`).
+- Этап 2, сервер (ветка `task/080-call-parameters`): каждый активный `phoneCall` (ответ `phone.confirmCall`, обновление второй стороне, повтор устройству, вернувшемуся в сеть) несёт `custom_parameters` с параметрами качества — одинаково обеим сторонам. Набор задаёт `CALLS_QUALITY`: пусто/`pluma` — значения Pluma, `stock` — без параметров (как Telegram), плюс изменения `ключ=значение` для A/B по одному параметру; неверное значение останавливает `bff` при старте. Ключи и значения Pluma: `audio_ptime_ms` 20 (сток 60), `audio_min_bitrate_kbps`/`audio_max_bitrate_kbps` 16/48 (сток 32 фиксированно), `audio_jitter_min_ms` 20 (сток 50), `audio_rnnoise` true (сток нет), `video_max_bitrate_kbps` 2500 (сток 1000×1024 бит/с), `screen_max_bitrate_kbps` 4000 (сток без потолка), `start_bitrate_kbps` 600 (сток 300), `video_fps` 30 (iOS 25), `screen_fps` 30 (Desktop 24), `screen_max_size_px` 1920 (Desktop 1280, Android ~1000). Таблица со стоком и источниками — `docs/ops/calls.md`. Код: `pkg/phonecalls/parameters.go`, `phonecalls.Media` в `Call.TL`; тесты: unit `pkg/phonecalls/parameters_test.go`, e2e `TestCallRoundTrip`. Это контракт с патчем tgcalls: клиенты должны читать ровно эти ключи (целые — числа JSON, флаг — boolean JSON, кбит/с = 1000 бит/с).
 
 ## Результат
 _Заполняется по завершении._

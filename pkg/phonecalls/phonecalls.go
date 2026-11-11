@@ -227,11 +227,20 @@ func TLReason(r Reason) *mtproto.PhoneCallDiscardReason {
 	return nil
 }
 
+// Media is what an active call gives the call library of the clients
+// besides the keys.
+type Media struct {
+	Connections []*mtproto.PhoneConnection
+	// Parameters is the JSON of custom_parameters (CustomParameters), ""
+	// for none.
+	Parameters string
+}
+
 // TL returns the call as it is shown to role: the participant sees the
 // admin's request and then waits, the admin waits and then sees the answer,
 // each gets the key material of the other (core.telegram.org/api/end-to-end/
-// voice-calls). conns are the connections of an active call.
-func (c *Call) TL(role Role, conns []*mtproto.PhoneConnection) *mtproto.PhoneCall {
+// voice-calls). m is the media of an active call; both sides get the same.
+func (c *Call) TL(role Role, m *Media) *mtproto.PhoneCall {
 	p := &mtproto.PhoneCall{
 		Id:            c.Id,
 		Video:         c.Video,
@@ -252,7 +261,12 @@ func (c *Call) TL(role Role, conns []*mtproto.PhoneConnection) *mtproto.PhoneCal
 		p.KeyFingerprint = c.KeyFingerprint
 		p.Protocol = c.ConfirmProtocol.TL()
 		p.StartDate = c.StartDate
-		p.Connections = conns
+		if m != nil {
+			p.Connections = m.Connections
+			if m.Parameters != "" {
+				p.CustomParameters = mtproto.MakeTLDataJSON(&mtproto.DataJSON{Data: m.Parameters}).To_DataJSON()
+			}
+		}
 		if role == Admin {
 			p.GAOrB = c.GB
 		} else {

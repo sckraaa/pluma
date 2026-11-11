@@ -289,6 +289,7 @@ func TestLoadsOutboxConfig(t *testing.T) {
 	t.Setenv("PLUMA_RELEASES_URL", "")
 	t.Setenv("CALLS_ICE_SERVERS", "")
 	t.Setenv("CALLS_TURN_SECRET", "")
+	t.Setenv("CALLS_QUALITY", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c outboxConfig
@@ -316,6 +317,7 @@ func TestLoadsPasswordConfig(t *testing.T) {
 	t.Setenv("PLUMA_RELEASES_URL", "")
 	t.Setenv("CALLS_ICE_SERVERS", "")
 	t.Setenv("CALLS_TURN_SECRET", "")
+	t.Setenv("CALLS_QUALITY", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c passwordConfig
@@ -343,6 +345,7 @@ func TestLoadsBffConfig(t *testing.T) {
 	t.Setenv("PLUMA_RELEASES_URL", "")
 	t.Setenv("CALLS_ICE_SERVERS", "")
 	t.Setenv("CALLS_TURN_SECRET", "")
+	t.Setenv("CALLS_QUALITY", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c config

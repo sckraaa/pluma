@@ -84,11 +84,18 @@ func TestViews(t *testing.T) {
 	}
 	c.State, c.StartDate = StateActive, 1010
 	conns := []*mtproto.PhoneConnection{mtproto.MakeTLPhoneConnectionWebrtc(&mtproto.PhoneConnection{Id: 1}).To_PhoneConnection()}
-	if p := c.TL(Admin, conns); p.GetPredicateName() != mtproto.Predicate_phoneCall || string(p.GetGAOrB()) != "b" || len(p.GetConnections()) != 1 {
+	m := &Media{Connections: conns, Parameters: `{"audio_ptime_ms":20}`}
+	if p := c.TL(Admin, m); p.GetPredicateName() != mtproto.Predicate_phoneCall || string(p.GetGAOrB()) != "b" || len(p.GetConnections()) != 1 ||
+		p.GetCustomParameters().GetData() != `{"audio_ptime_ms":20}` {
 		t.Fatalf("admin while active: %v", p)
 	}
-	if p := c.TL(Participant, conns); string(p.GetGAOrB()) != "a" || p.GetKeyFingerprint() != 9 || p.GetStartDate() != 1010 {
+	if p := c.TL(Participant, m); string(p.GetGAOrB()) != "a" || p.GetKeyFingerprint() != 9 || p.GetStartDate() != 1010 ||
+		p.GetCustomParameters().GetData() != `{"audio_ptime_ms":20}` {
 		t.Fatalf("participant while active: %v", p)
+	}
+	// Without parameters (the stock profile) the field is absent.
+	if p := c.TL(Admin, &Media{Connections: conns}); p.GetCustomParameters() != nil {
+		t.Fatalf("custom_parameters without parameters: %v", p.GetCustomParameters())
 	}
 	c.State, c.Reason, c.Duration = StateDiscarded, ReasonHangup, 42
 	p = c.TL(Admin, nil)

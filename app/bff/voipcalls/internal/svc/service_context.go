@@ -20,6 +20,7 @@ import (
 
 	"github.com/teamgram/teamgram-server/app/bff/voipcalls/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/voipcalls/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/phonecalls"
 	"github.com/teamgram/teamgram-server/pkg/phonecalls/ice"
 )
 
@@ -27,6 +28,8 @@ type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
 	Ice *ice.Servers
+	// CallParameters is the custom_parameters of every call, "" for none.
+	CallParameters string
 }
 
 // NewServiceContext loads the config: wrong ICE servers stop the service.
@@ -35,5 +38,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	if err != nil {
 		panic(fmt.Errorf("voipcalls: Calls.IceServers: %w", err))
 	}
-	return &ServiceContext{Config: c, Dao: dao.New(c), Ice: servers}
+	params, err := phonecalls.CustomParameters(c.Calls.Quality)
+	if err != nil {
+		panic(fmt.Errorf("voipcalls: Calls.Quality: %w", err))
+	}
+	return &ServiceContext{Config: c, Dao: dao.New(c), Ice: servers, CallParameters: params}
 }

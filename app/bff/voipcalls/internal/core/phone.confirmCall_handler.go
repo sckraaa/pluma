@@ -44,8 +44,8 @@ func (c *VoipCallsCore) PhoneConfirmCall(in *mtproto.TLPhoneConfirmCall) (*mtpro
 	case phonecalls.StateActive:
 		// A repeat of the same confirmation.
 		if call.KeyFingerprint == in.GetKeyFingerprint() {
-			if conns := c.connections(call); len(conns) > 0 {
-				return c.activeAnswer(call, conns), nil
+			if m := c.media(call); len(m.Connections) > 0 {
+				return c.activeAnswer(call, m), nil
 			}
 			return nil, errCallNotActive
 		}
@@ -60,8 +60,8 @@ func (c *VoipCallsCore) PhoneConfirmCall(in *mtproto.TLPhoneConfirmCall) (*mtpro
 	// Telegram-iOS takes connections.first! of phoneCall
 	// (CallSessionManager.swift:1226): with no server reachable the call
 	// cannot go on.
-	conns := c.connections(call)
-	if len(conns) == 0 {
+	m := c.media(call)
+	if len(m.Connections) == 0 {
 		c.Logger.Errorf("phone.confirmCall - no ICE server of call %d resolves", call.Id)
 		if ended, won, err := c.svcCtx.Dao.Store.Discard(c.ctx, call.Id, phonecalls.ReasonDisconnect, false); err != nil {
 			c.Logger.Errorf("phone.confirmCall - error: %v", err)
@@ -87,18 +87,23 @@ func (c *VoipCallsCore) PhoneConfirmCall(in *mtproto.TLPhoneConfirmCall) (*mtpro
 	}
 	if won {
 		c.toAuth(updated.Id, updated.ParticipantId, updated.ParticipantAuthKeyId,
-			c.phoneCallUpdates(updated.ParticipantId, updated.TL(phonecalls.Participant, conns), updated.AdminId))
+			c.phoneCallUpdates(updated.ParticipantId, updated.TL(phonecalls.Participant, m), updated.AdminId))
 	}
-	return c.activeAnswer(updated, conns), nil
+	return c.activeAnswer(updated, m), nil
 }
 
-func (c *VoipCallsCore) connections(call *phonecalls.Call) []*mtproto.PhoneConnection {
-	return c.svcCtx.Ice.Connections(c.ctx, call.Id, phonecalls.MaxActive)
+// media is what both sides of an active call get for their call library:
+// the connections of the call and the parameters of Calls.Quality.
+func (c *VoipCallsCore) media(call *phonecalls.Call) *phonecalls.Media {
+	return &phonecalls.Media{
+		Connections: c.svcCtx.Ice.Connections(c.ctx, call.Id, phonecalls.MaxActive),
+		Parameters:  c.svcCtx.CallParameters,
+	}
 }
 
-func (c *VoipCallsCore) activeAnswer(call *phonecalls.Call, conns []*mtproto.PhoneConnection) *mtproto.Phone_PhoneCall {
+func (c *VoipCallsCore) activeAnswer(call *phonecalls.Call, m *phonecalls.Media) *mtproto.Phone_PhoneCall {
 	return mtproto.MakeTLPhonePhoneCall(&mtproto.Phone_PhoneCall{
-		PhoneCall: call.TL(phonecalls.Admin, conns),
+		PhoneCall: call.TL(phonecalls.Admin, m),
 		Users:     c.usersOf(c.MD.UserId, call.ParticipantId),
 	}).To_Phone_PhoneCall()
 }
