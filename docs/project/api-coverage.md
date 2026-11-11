@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 396, partial 11, blocked 104, notimpl 3, fake 1, missing 415 (ok = 42.6%); with a conformance scenario 9
+    layer 233: 930 methods — ok 398, partial 11, blocked 104, notimpl 3, fake 1, missing 413 (ok = 42.8%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 283 | 176 | 5 | 17 | 2 | 0 | 83 | 3 |
+| messages | 283 | 178 | 5 | 17 | 2 | 0 | 81 | 3 |
 | payments | 81 | 0 | 1 | 4 | 0 | 0 | 76 | 0 |
 | phone | 45 | 10 | 0 | 0 | 0 | 0 | 35 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -526,8 +526,8 @@
 | `messages.deleteFactCheck` | missing |  |  |
 | `messages.deleteHistory` | ok |  | app/bff/messages/internal/core/messages.deleteHistory_handler.go:28 |
 | `messages.deleteMessages` | ok | yes | app/bff/messages/internal/core/messages.deleteMessages_handler.go:28 |
-| `messages.deleteParticipantReaction` | missing |  |  |
-| `messages.deleteParticipantReactions` | missing |  |  |
+| `messages.deleteParticipantReaction` | ok |  | app/bff/catalog/internal/core/messages.deleteParticipantReactions_handler.go:41 |
+| `messages.deleteParticipantReactions` | ok |  | app/bff/catalog/internal/core/messages.deleteParticipantReactions_handler.go:29 |
 | `messages.deletePhoneCallHistory` | ok |  | app/bff/voipcalls/internal/core/messages.deletePhoneCallHistory_handler.go:24 |
 | `messages.deletePollAnswer` | ok |  | app/bff/messages/internal/core/polls.go:282 |
 | `messages.deleteQuickReplyMessages` | missing |  |  |

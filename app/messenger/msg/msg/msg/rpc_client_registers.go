@@ -44,6 +44,8 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMsgEditPeerFolders": {"/mtproto.RPCMsg/msg_editPeerFolders", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 053
 	"TLMsgSendReaction": {"/mtproto.RPCMsg/msg_sendReaction", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 078
+	"TLMsgDeleteParticipantReactions": {"/mtproto.RPCMsg/msg_deleteParticipantReactions", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 053
 	"TLMsgReadReactions": {"/mtproto.RPCMsg/msg_readReactions", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
 	// pluma: task 053

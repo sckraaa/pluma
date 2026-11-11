@@ -352,6 +352,10 @@ func (noChannels) ChannelEditParticipantRank(context.Context, *channelpb.TLChann
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelGetReadParticipants(context.Context, *channelpb.TLChannelGetReadParticipants) (*channelpb.Vector_ReadParticipantDate, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelSearch(context.Context, *channelpb.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

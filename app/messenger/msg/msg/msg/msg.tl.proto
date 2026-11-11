@@ -41,6 +41,8 @@ enum TLConstructor {
   CRC32_msg_editPeerFolders = -2047878569;
   // pluma: task 053
   CRC32_msg_sendReaction = 1297458671;
+  // pluma: task 078
+  CRC32_msg_deleteParticipantReactions = 481293738;
   // pluma: task 053
   CRC32_msg_readReactions = -91564461;
   // pluma: task 053
@@ -292,6 +294,19 @@ message TL_msg_sendReaction {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: msg.deleteParticipantReactions user_id:long auth_key_id:long channel_id:long participant_id:long msg_id:int = Updates;
+// An admin takes away the reactions of participant_id in a supergroup: to
+// message msg_id, or to all its messages when 0 (task 078).
+message TL_msg_deleteParticipantReactions {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 participant_id = 6;
+  int32 msg_id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
 // pluma: msg.readReactions user_id:long auth_key_id:long peer_type:int peer_id:long = messages.AffectedHistory;
 // Marks the reactions to the user's messages of the dialog seen (task 053).
 message TL_msg_readReactions {
@@ -532,6 +547,8 @@ service RPCMsg {
   rpc msg_editPeerFolders(TL_msg_editPeerFolders) returns (mtproto.Updates) {}
   // pluma: task 053
   rpc msg_sendReaction(TL_msg_sendReaction) returns (mtproto.Updates) {}
+  // pluma: task 078
+  rpc msg_deleteParticipantReactions(TL_msg_deleteParticipantReactions) returns (mtproto.Updates) {}
   // pluma: task 053
   rpc msg_readReactions(TL_msg_readReactions) returns (mtproto.messages_AffectedHistory) {}
   // pluma: task 053

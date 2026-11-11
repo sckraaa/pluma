@@ -32,6 +32,8 @@ const (
 	Predicate_msg_editPeerFolders = "msg_editPeerFolders"
 	// pluma: task 053
 	Predicate_msg_sendReaction = "msg_sendReaction"
+	// pluma: task 078
+	Predicate_msg_deleteParticipantReactions = "msg_deleteParticipantReactions"
 	// pluma: task 053
 	Predicate_msg_readReactions = "msg_readReactions"
 	// pluma: task 053
@@ -125,6 +127,9 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -2047878569, // 0x85efda57
 
 	},
+	Predicate_msg_deleteParticipantReactions: { // pluma: task 078
+		0: 481293738, // 0x1caff5aa
+	},
 	Predicate_msg_sendReaction: { // pluma: task 053
 		0: 1297458671, // 0x4d55a5ef
 
@@ -194,18 +199,19 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-2133492186: Predicate_msg_deleteHistoryRange,     // 0x80d57e26
 	-2047878569: Predicate_msg_editPeerFolders,        // 0x85efda57 pluma: task 050
 
-	1297458671:  Predicate_msg_sendReaction,           // 0x4d55a5ef pluma: task 053
-	-91564461:   Predicate_msg_readReactions,          // 0xfa8ad653 pluma: task 053
-	-1806534101: Predicate_msg_updateSavedReactionTag, // 0x94527a2b pluma: task 053
-	1705671888:  Predicate_msg_migrateChat,            // 0x65aa7cd0 pluma: task 047
-	764721422:   Predicate_msg_sendVote,               // 0x2d94b90e pluma: task 062
-	512196319:   Predicate_msg_closePoll,              // 0x1e877edf pluma: task 062
-	660503693:   Predicate_msg_addPollAnswer,          // 0x275e7c8d pluma: task 062
-	871616521:   Predicate_msg_deletePollAnswer,       // 0x33f3d009 pluma: task 062
-	574587703:   Predicate_msg_readPollVotes,          // 0x223f8337 pluma: task 062
-	2077104412:  Predicate_msg_toggleTodoCompleted,    // 0x7bce191c pluma: task 062
-	1736696679:  Predicate_msg_appendTodoList,         // 0x6783e367 pluma: task 062
-	1650536534:  Predicate_msg_editTodoList,           // 0x62613056 pluma: task 062
+	1297458671:  Predicate_msg_sendReaction,               // 0x4d55a5ef pluma: task 053
+	481293738:   Predicate_msg_deleteParticipantReactions, // 0x1caff5aa pluma: task 078
+	-91564461:   Predicate_msg_readReactions,              // 0xfa8ad653 pluma: task 053
+	-1806534101: Predicate_msg_updateSavedReactionTag,     // 0x94527a2b pluma: task 053
+	1705671888:  Predicate_msg_migrateChat,                // 0x65aa7cd0 pluma: task 047
+	764721422:   Predicate_msg_sendVote,                   // 0x2d94b90e pluma: task 062
+	512196319:   Predicate_msg_closePoll,                  // 0x1e877edf pluma: task 062
+	660503693:   Predicate_msg_addPollAnswer,              // 0x275e7c8d pluma: task 062
+	871616521:   Predicate_msg_deletePollAnswer,           // 0x33f3d009 pluma: task 062
+	574587703:   Predicate_msg_readPollVotes,              // 0x223f8337 pluma: task 062
+	2077104412:  Predicate_msg_toggleTodoCompleted,        // 0x7bce191c pluma: task 062
+	1736696679:  Predicate_msg_appendTodoList,             // 0x6783e367 pluma: task 062
+	1650536534:  Predicate_msg_editTodoList,               // 0x62613056 pluma: task 062
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

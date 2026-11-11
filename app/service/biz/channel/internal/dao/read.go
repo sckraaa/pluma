@@ -16,6 +16,9 @@
 package dao
 
 import (
+	"context"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/readmarks"
 	"slices"
 	"strings"
 
@@ -73,6 +76,17 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 	if r.Broadcast {
 		// The posts of a channel show views, not reads.
 		return nil
+	}
+	// When the owner read up to maxId, for the senders' "read by" list
+	// (messages.getMessageReadParticipants); kept as long as the clients
+	// ask for it.
+	if _, err = b.Tx().Exec("INSERT IGNORE INTO channel_read_marks (channel_id, user_id, max_id, read_at) VALUES (?, ?, ?, ?)",
+		channelId, b.UserId(), maxId, b.Date()); err != nil {
+		return err
+	}
+	if _, err = b.Tx().Exec("DELETE FROM channel_read_marks WHERE channel_id = ? AND user_id = ? AND read_at < ?",
+		channelId, b.UserId(), b.Date()-readmarks.KeepPeriod); err != nil {
+		return err
 	}
 	var authors []int64
 	if err = b.Tx().QueryRowsPartial(&authors,
@@ -261,4 +275,54 @@ func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
 	InvalidateDialog(b, channelId)
 	u := mtproto.MakeTLUpdateChannelReadMessagesContents(&mtproto.Update{ChannelId: channelId, Messages: found}).To_Update()
 	return d.EmitSeqUpdate(b, u, nil, nil)
+}
+
+// ReadParticipants are the members who read the message msgId of selfId in
+// a supergroup, with the date each read it, the latest first: kept for
+// messages of the last readmarks.ChatExpirePeriod in groups of up to
+// readmarks.ChatSizeThreshold members (core.telegram.org/api/config), as in
+// a basic group. Members who left are not listed, nor reads before the
+// dates were kept.
+func (d *Dao) ReadParticipants(ctx context.Context, selfId, channelId int64, msgId int32, now int64) ([]*mtproto.ReadParticipantDate, error) {
+	var rows []struct {
+		Broadcast         bool  `db:"broadcast"`
+		ParticipantsCount int32 `db:"participants_count"`
+		SenderUserId      int64 `db:"sender_user_id"`
+		Date              int64 `db:"date"`
+		State             int32 `db:"state"`
+	}
+	if err := d.Mysql.QueryRowsPartial(ctx, &rows,
+		"SELECT c.broadcast, c.participants_count, m.sender_user_id, m.date2 AS `date`, p.state FROM channels c"+
+			" JOIN channel_messages m ON m.channel_id = c.id AND m.id = ? AND m.deleted = 0"+
+			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ?"+
+			" WHERE c.id = ? AND c.deleted = 0",
+		msgId, selfId, channelId); err != nil {
+		return nil, err
+	}
+	switch {
+	case len(rows) == 0 || rows[0].State != channelperm.StateIn:
+		return nil, mtproto.ErrMsgIdInvalid
+	case rows[0].Broadcast || rows[0].SenderUserId != selfId:
+		return nil, mtproto.ErrMsgIdInvalid
+	case rows[0].ParticipantsCount > readmarks.ChatSizeThreshold:
+		return nil, mtproto.ErrChatTooBig
+	case readmarks.TooOld(rows[0].Date, now, readmarks.ChatExpirePeriod):
+		return nil, mtproto.ErrMsgTooOld
+	}
+	var readers []struct {
+		UserId int64 `db:"user_id"`
+		ReadAt int64 `db:"read_at"`
+	}
+	if err := d.Mysql.QueryRowsPartial(ctx, &readers,
+		"SELECT r.user_id, MIN(r.read_at) AS read_at FROM channel_read_marks r"+
+			" JOIN channel_participants p ON p.channel_id = r.channel_id AND p.user_id = r.user_id AND p.state = ?"+
+			" WHERE r.channel_id = ? AND r.max_id >= ? AND r.user_id <> ? GROUP BY r.user_id ORDER BY read_at DESC",
+		channelperm.StateIn, channelId, msgId, selfId); err != nil {
+		return nil, err
+	}
+	out := make([]*mtproto.ReadParticipantDate, 0, len(readers))
+	for _, r := range readers {
+		out = append(out, mtproto.MakeTLReadParticipantDate(&mtproto.ReadParticipantDate{UserId: r.UserId, Date: int32(r.ReadAt)}).To_ReadParticipantDate())
+	}
+	return out, nil
 }

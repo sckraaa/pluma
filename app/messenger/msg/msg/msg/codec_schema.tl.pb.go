@@ -116,6 +116,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -2047878569,
 		}
 	},
+	481293738: func() mtproto.TLObject { // 0x1caff5aa pluma: task 078
+		return &TLMsgDeleteParticipantReactions{
+			Constructor: 481293738,
+		}
+	},
 	1297458671: func() mtproto.TLObject { // 0x4d55a5ef pluma: task 053
 		return &TLMsgSendReaction{
 			Constructor: 1297458671,
@@ -2272,6 +2277,52 @@ func (m *TLMsgEditTodoList) Decode(dBuf *mtproto.DecodeBuf) error {
 		m5 := &mtproto.TodoList{}
 		m5.Decode(dBuf)
 		m.Todo = m5
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLMsgDeleteParticipantReactions (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLMsgDeleteParticipantReactions) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x1caff5aa:
+		x.UInt(0x1caff5aa)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetParticipantId())
+		x.Int(m.GetMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLMsgDeleteParticipantReactions) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLMsgDeleteParticipantReactions) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x1caff5aa:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.AuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.ParticipantId = dBuf.Long()
+		m.MsgId = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

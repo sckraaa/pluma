@@ -38,6 +38,7 @@ type MsgClient interface {
 	MsgDeleteHistoryRange(ctx context.Context, in *msg.TLMsgDeleteHistoryRange) (*mtproto.Messages_AffectedHistory, error)
 	MsgEditPeerFolders(ctx context.Context, in *msg.TLMsgEditPeerFolders) (*mtproto.Updates, error)
 	MsgSendReaction(ctx context.Context, in *msg.TLMsgSendReaction) (*mtproto.Updates, error)
+	MsgDeleteParticipantReactions(ctx context.Context, in *msg.TLMsgDeleteParticipantReactions) (*mtproto.Updates, error)
 	MsgReadReactions(ctx context.Context, in *msg.TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
 	MsgUpdateSavedReactionTag(ctx context.Context, in *msg.TLMsgUpdateSavedReactionTag) (*mtproto.Bool, error)
 	MsgSendVote(ctx context.Context, in *msg.TLMsgSendVote) (*mtproto.Updates, error)
@@ -229,6 +230,17 @@ func (m *defaultMsgClient) MsgSendReaction(ctx context.Context, in *msg.TLMsgSen
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgSendReaction(ctx, in)
+}
+
+// MsgDeleteParticipantReactions
+// msg.deleteParticipantReactions user_id:long auth_key_id:long channel_id:long participant_id:long msg_id:int = Updates;
+func (m *defaultMsgClient) MsgDeleteParticipantReactions(ctx context.Context, in *msg.TLMsgDeleteParticipantReactions) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgDeleteParticipantReactions(ctx, in)
 }
 
 // MsgReadReactions

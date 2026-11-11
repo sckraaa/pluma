@@ -50,6 +50,7 @@ type ChannelClient interface {
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
 	ChannelSetBlocked(ctx context.Context, in *channel.TLChannelSetBlocked) (*mtproto.Bool, error)
 	ChannelEditParticipantRank(ctx context.Context, in *channel.TLChannelEditParticipantRank) (*mtproto.Updates, error)
+	ChannelGetReadParticipants(ctx context.Context, in *channel.TLChannelGetReadParticipants) (*channel.Vector_ReadParticipantDate, error)
 	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error)
@@ -996,4 +997,15 @@ func (m *defaultChannelClient) ChannelEditParticipantRank(ctx context.Context, i
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelEditParticipantRank(ctx, in)
+}
+
+// ChannelGetReadParticipants
+// channel.getReadParticipants self_id:long channel_id:long msg_id:int = Vector<ReadParticipantDate>;
+func (m *defaultChannelClient) ChannelGetReadParticipants(ctx context.Context, in *channel.TLChannelGetReadParticipants) (*channel.Vector_ReadParticipantDate, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetReadParticipants(ctx, in)
 }

@@ -1143,3 +1143,17 @@ func (s *Service) ChannelEditParticipantRank(ctx context.Context, request *chann
 
 	return r, nil
 }
+
+// ChannelGetReadParticipants
+// channel.getReadParticipants self_id:long channel_id:long msg_id:int = Vector<ReadParticipantDate>;
+func (s *Service) ChannelGetReadParticipants(ctx context.Context, request *channel.TLChannelGetReadParticipants) (*channel.Vector_ReadParticipantDate, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getReadParticipants - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetReadParticipants(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
