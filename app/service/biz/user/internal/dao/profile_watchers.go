@@ -19,6 +19,7 @@ import (
 	"context"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -82,7 +83,13 @@ const statusWatchersQuery = profileWatchersSelect +
 // StatusWatchers returns the users who see the online status of the user
 // id, if its privacy lets them: the users who have it as a contact, those
 // with a private dialog with it and the members of its basic groups.
+//
+// The support ghost has none (ADR 0048): nobody sees when it is online, so
+// nobody is told.
 func (d *Dao) StatusWatchers(ctx context.Context, id int64) ([]int64, error) {
+	if hidden, err := ghost.IsGhost(ghost.OnDB(ctx, d.DB), id); err != nil || hidden {
+		return nil, err
+	}
 	var ids []int64
 	err := d.DB.QueryRowsPartial(ctx, &ids, statusWatchersQuery,
 		id, id, mtproto.PEER_USER, id, id,
