@@ -124,8 +124,11 @@ func TestChannelJoinDialog(t *testing.T) {
 
 			// Android learns of the new channel from updateChannel and asks
 			// for its difference from pts 1 with limit 1; it makes the dialog
-			// from the answer's messages, or from channelDifferenceTooLong
-			// (MessagesController.java:16532-16541, 16672-16754 at aac1efcb).
+			// only from channelDifferenceTooLong (MessagesController.java:
+			// 16531-16541, MessagesStorage.java:11328-11333 at aac1efcb). A
+			// page from pts 1 put the channel's creation at the top of the new
+			// dialog, and the channel fell out of the chat list (the owner's
+			// report of 11.11).
 			o, err = bob.c.Invoke(ctx, &mtproto.TLUpdatesGetChannelDifference{
 				Constructor: bob.c.Constructor(mtproto.Predicate_updates_getChannelDifference),
 				Force:       true,
@@ -140,10 +143,16 @@ func TestChannelJoinDialog(t *testing.T) {
 			d := o.(interface {
 				To_Updates_ChannelDifference() *mtproto.Updates_ChannelDifference
 			}).To_Updates_ChannelDifference()
-			t.Logf("the difference from pts 1: %s, %d new messages, %d messages, %d other updates, final %v",
-				d.GetPredicateName(), len(d.GetNewMessages()), len(d.GetMessages()), len(d.GetOtherUpdates()), d.GetFinal())
-			if d.GetPredicateName() != mtproto.Predicate_updates_channelDifferenceTooLong && len(d.GetNewMessages()) == 0 {
-				t.Errorf("the difference from pts 1 gives Android nothing to make the dialog of")
+			// The updates before the join are not in Bob's box: the dialog
+			// as it is, which Android makes the chat list's row of.
+			if d.GetPredicateName() != mtproto.Predicate_updates_channelDifferenceTooLong {
+				t.Fatalf("the difference from pts 1 after joining: %s, want channelDifferenceTooLong", d.GetPredicateName())
+			}
+			if d.GetDialog().GetPeer().GetChannelId() != ch.GetId() || !d.GetFinal() {
+				t.Errorf("channelDifferenceTooLong: dialog %v, final %v", d.GetDialog(), d.GetFinal())
+			}
+			if c.posts && len(d.GetMessages()) == 0 {
+				t.Error("channelDifferenceTooLong without the channel's last messages")
 			}
 		})
 	}

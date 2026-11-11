@@ -51,6 +51,7 @@ type viewer struct {
 	member         bool
 	broadcast      bool
 	availableMinId int32
+	joined         int64 // when a member joined (unix time), 0 for anyone else
 }
 
 // viewerOf reads what userId may see of channelId: a member, anyone not
@@ -75,7 +76,7 @@ func (d *Dao) viewerFor(ctx context.Context, userId, channelId int64, forDiffere
 	p, _ := mc.GetParticipant(userId)
 	broadcast := mc.GetChannel().GetBroadcast()
 	if p.Member() {
-		return viewer{canRead: true, member: true, broadcast: broadcast, availableMinId: p.GetAvailableMinId()}, nil
+		return viewer{canRead: true, member: true, broadcast: broadcast, availableMinId: p.GetAvailableMinId(), joined: int64(p.GetDate())}, nil
 	}
 	// A public channel, or the discussion group of a channel the user is
 	// in (task 048).
