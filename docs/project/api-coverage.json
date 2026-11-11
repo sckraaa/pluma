@@ -1,19 +1,19 @@
 {
   "layer": "233",
   "total": 677,
-  "ok": 392,
-  "partial": 9,
+  "ok": 406,
+  "partial": 6,
   "areas": [
     {
       "key": "messages",
       "total": 195,
-      "ok": 142,
-      "partial": 4
+      "ok": 147,
+      "partial": 1
     },
     {
       "key": "channels",
       "total": 66,
-      "ok": 48,
+      "ok": 54,
       "partial": 1
     },
     {
@@ -37,7 +37,7 @@
     {
       "key": "stickers",
       "total": 40,
-      "ok": 21,
+      "ok": 24,
       "partial": 0
     },
     {
