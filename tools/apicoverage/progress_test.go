@@ -24,7 +24,7 @@ func TestRenderProgress(t *testing.T) {
 		{TLName: "contacts.block", NS: "contacts", Status: "blocked"},
 		{TLName: "smsjobs.join", NS: "smsjobs", Status: "missing"},
 	}
-	b, err := renderProgress(ms, "228")
+	b, err := renderProgress(ms, "228", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,5 +64,28 @@ func TestRenderProgress(t *testing.T) {
 	}
 	if got.Areas[len(got.Areas)-1].Key != "other" {
 		t.Errorf("other is not last: %+v", got.Areas)
+	}
+}
+
+// What the registry decided is not needed leaves the count, unless it is done.
+func TestProgressLeavesOutNotNeeded(t *testing.T) {
+	ms := []*method{
+		{TLName: "payments.getForm", NS: "payments", Status: "missing"},
+		{TLName: "payments.getDone", NS: "payments", Status: "ok"},
+		{TLName: "messages.getOnlines", NS: "messages", Status: "missing"},
+	}
+	b, err := renderProgress(ms, "233", map[string]bool{"payments.getForm": true, "payments.getDone": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Total int `json:"total"`
+		Ok    int `json:"ok"`
+	}
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Total != 2 || got.Ok != 1 {
+		t.Errorf("total %d, ok %d; want 2 and 1", got.Total, got.Ok)
 	}
 }
