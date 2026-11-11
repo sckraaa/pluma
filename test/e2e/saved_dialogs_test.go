@@ -200,12 +200,3 @@ func hasSavedPeer(dialogs []*mtproto.SavedDialog, channelId, userId int64) bool 
 	}
 	return false
 }
-
-func hasChat(chats []*mtproto.Chat, id int64) bool {
-	for _, c := range chats {
-		if c.GetId() == id {
-			return true
-		}
-	}
-	return false
-}
