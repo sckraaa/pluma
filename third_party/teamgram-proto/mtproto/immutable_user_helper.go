@@ -211,7 +211,16 @@ func (m *ImmutableUser) Premium() bool {
 // Premium users may write to the user: the user's setting, which works
 // while the user has Premium (pluma: task 014).
 func (m *ImmutableUser) ContactRequirePremium() bool {
-	return m.User.GetNewNoncontactPeersRequirePremium() && m.Premium()
+	return m.User.GetNewNoncontactPeersRequirePremium() && m.Premium() && !m.Ghost()
+}
+
+// pluma: Ghost tells the support ghost (users.ghost, ADR 0048): its phone
+// goes to nobody but itself, not even to one who keeps the number, nobody
+// finds it by the number or adds it to a chat (it comes in hidden when
+// mentioned), and none of its settings closes its private chats to anyone
+// (who may write to it, voice and video messages).
+func (m *ImmutableUser) Ghost() bool {
+	return m.User.GetGhost()
 }
 
 func (m *ImmutableUser) AttachMenuEnabled() bool {
@@ -323,6 +332,9 @@ func (m *ImmutableUser) CheckReverseContact(cId int64) (bool, bool) {
 // lng_edit_privacy_phone_number_warning). A contact added without the number
 // (from a profile) does not show it.
 func (m *ImmutableUser) keepsNumber(c *ContactData) bool {
+	if m.Ghost() {
+		return false
+	}
 	digits := func(s string) string {
 		return strings.Map(func(r rune) rune {
 			if r >= '0' && r <= '9' {
@@ -373,6 +385,15 @@ func (m *ImmutableUser) CheckPrivacyFor(keyType int, viewer *ImmutableUser) bool
 }
 
 func (m *ImmutableUser) checkPrivacy(keyType int, v PrivacyViewer) bool {
+	// pluma: the ghost's own rules do not count here (Ghost).
+	if m.Ghost() {
+		switch keyType {
+		case PHONE_NUMBER, ADDED_BY_PHONE, CHAT_INVITE:
+			return false
+		case VOICE_MESSAGES:
+			return true
+		}
+	}
 	for _, k := range m.KeysPrivacyRules {
 		if k.Key == int32(keyType) {
 			return EvaluatePrivacy(k.Rules, v)

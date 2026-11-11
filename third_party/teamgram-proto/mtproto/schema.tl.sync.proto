@@ -3880,6 +3880,9 @@ message ImmutableChatParticipant {
   int64 date = 15;
   bool is_bot = 16;
   string rank = 17;
+  // pluma: the row of a ghost (ADR 0048): a member of the basic group left
+  // out of what the other members are shown.
+  bool hidden = 18;
 }
 
 // TL_immutableChatParticipant
@@ -14962,6 +14965,9 @@ message UserData {
   // pluma: the public photo (photos.uploadProfilePhoto with fallback), shown
   // to the users the privacy of the profile photo hides the main photo from.
   Photo fallback_photo = 37;
+  // pluma: the account is the support ghost (users.ghost, ADR 0048): its
+  // phone is shown to nobody but itself, and anyone may write to it.
+  bool ghost = 38;
 }
 
 // TL_userData

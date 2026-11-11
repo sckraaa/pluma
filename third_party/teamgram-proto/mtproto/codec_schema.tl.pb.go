@@ -81955,6 +81955,10 @@ func (m *TLImmutableChatParticipant) GetIsBot() bool  { return m.Data2.IsBot }
 func (m *TLImmutableChatParticipant) SetRank(v string) { m.Data2.Rank = v }
 func (m *TLImmutableChatParticipant) GetRank() string  { return m.Data2.Rank }
 
+// pluma: hidden, the row of a ghost (ADR 0048)
+func (m *TLImmutableChatParticipant) SetHidden(v bool) { m.Data2.Hidden = v }
+func (m *TLImmutableChatParticipant) GetHidden() bool  { return m.Data2.Hidden }
+
 func (m *TLImmutableChatParticipant) GetPredicateName() string {
 	return Predicate_immutableChatParticipant
 }
@@ -81971,6 +81975,9 @@ func (m *TLImmutableChatParticipant) Encode(x *EncodeBuf, layer int32) error {
 
 			if m.GetIsBot() == true {
 				flags |= 1 << 0
+			}
+			if m.GetHidden() == true { // pluma: hidden
+				flags |= 1 << 1
 			}
 
 			return flags
@@ -82033,6 +82040,9 @@ func (m *TLImmutableChatParticipant) Decode(dBuf *DecodeBuf) error {
 			m.SetIsBot(true)
 		}
 		m.SetRank(dBuf.String())
+		if (flags & (1 << 1)) != 0 { // pluma: hidden
+			m.SetHidden(true)
+		}
 		return dBuf.GetError()
 
 	default:
@@ -269778,6 +269788,10 @@ func (m *TLUserData) GetNewNoncontactPeersRequirePremium() bool {
 	return m.Data2.NewNoncontactPeersRequirePremium
 }
 
+// pluma: ghost, the support ghost (ADR 0048)
+func (m *TLUserData) SetGhost(v bool) { m.Data2.Ghost = v }
+func (m *TLUserData) GetGhost() bool  { return m.Data2.Ghost }
+
 func (m *TLUserData) GetPredicateName() string {
 	return Predicate_userData
 }
@@ -269854,6 +269868,9 @@ func (m *TLUserData) Encode(x *EncodeBuf, layer int32) error {
 			}
 			if m.GetNewNoncontactPeersRequirePremium() == true { // pluma: new_noncontact_peers_require_premium
 				flags |= 1 << 20
+			}
+			if m.GetGhost() == true { // pluma: ghost
+				flags |= 1 << 21
 			}
 
 			return flags
@@ -270096,6 +270113,9 @@ func (m *TLUserData) Decode(dBuf *DecodeBuf) error {
 		}
 		if (flags & (1 << 20)) != 0 { // pluma: new_noncontact_peers_require_premium
 			m.SetNewNoncontactPeersRequirePremium(true)
+		}
+		if (flags & (1 << 21)) != 0 { // pluma: ghost
+			m.SetGhost(true)
 		}
 		return dBuf.GetError()
 
