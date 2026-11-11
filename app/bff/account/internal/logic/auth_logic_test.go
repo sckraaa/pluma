@@ -108,9 +108,9 @@ func TestChangePhoneRequiresCode(t *testing.T) {
 
 type fakeSender struct{ codes []string }
 
-func (f *fakeSender) Send(_ context.Context, _, code string) (logincode.SendResult, error) {
+func (f *fakeSender) Send(_ context.Context, _, code string) (logincode.SendReply, error) {
 	f.codes = append(f.codes, code)
-	return logincode.SendSent, nil
+	return logincode.SendReply{Result: logincode.SendSent}, nil
 }
 
 func TestChangePhoneThroughTelegramAccount(t *testing.T) {

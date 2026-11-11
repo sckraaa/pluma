@@ -53,6 +53,8 @@ func TestMain(m *testing.M) {
 	itDB = db
 	conf := db.Config()
 	itStore = NewStore(sqlx.NewMySQL(&conf))
+	// Telegram's strings only: the tests of Pluma's own ones set theirs.
+	ownStrings = map[string]map[string]map[string]string{}
 	code := m.Run()
 	_ = db.Terminate(ctx)
 	os.Exit(code)
@@ -365,5 +367,38 @@ func TestConfigVersions(t *testing.T) {
 	}
 	if _, _, err = itStore.Read(ctx, "macos", "xx", 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Read of an unknown language: %v", err)
+	}
+}
+
+// Pluma's own strings join each import of their pack as they are: "Telegram"
+// in them stays, they keep their version while unchanged, and a key Telegram
+// also has stops the import.
+func TestImportOwnStrings(t *testing.T) {
+	ctx := context.Background()
+	withOwn(t, `{"tdesktop": {"lng_pluma_test_title": {"en": "Check Telegram", "ru": "Проверьте Telegram"}}}`)
+	r := mustImport(t, snapshotOf("tdesktop", "ru", 5, String{Key: "lng_intro", Value: "Добро пожаловать в Telegram"}))
+	if len(r.Leftovers) != 0 || len(r.OwnMissing) != 0 {
+		t.Fatalf("leftovers %v, missing %v", r.Leftovers, r.OwnMissing)
+	}
+	got, err := itStore.StringsByKey(ctx, "tdesktop", "ru", []string{"lng_pluma_test_title", "lng_intro"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := got["lng_pluma_test_title"]; s == nil || s.Value != "Проверьте Telegram" {
+		t.Fatalf("own string %+v", s)
+	}
+	if s := got["lng_intro"]; s == nil || s.Value != "Добро пожаловать в Pluma" {
+		t.Fatalf("Telegram's string %+v", s)
+	}
+	again := mustImport(t, snapshotOf("tdesktop", "ru", 5, String{Key: "lng_intro", Value: "Добро пожаловать в Telegram"}))
+	if again.Version != r.Version || again.Changes() != 0 {
+		t.Fatalf("a second import changed %d strings, version %d -> %d", again.Changes(), r.Version, again.Version)
+	}
+	de := mustImport(t, snapshotOf("tdesktop", "de", 5, String{Key: "lng_intro", Value: "Willkommen"}))
+	if fmt.Sprint(de.OwnMissing) != "[lng_pluma_test_title]" {
+		t.Fatalf("missing %v", de.OwnMissing)
+	}
+	if _, err := itStore.Import(ctx, snapshotOf("tdesktop", "ru", 6, String{Key: "lng_pluma_test_title", Value: "x"})); err == nil {
+		t.Fatal("a key of Telegram's that Pluma also has was imported")
 	}
 }

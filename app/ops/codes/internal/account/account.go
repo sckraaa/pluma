@@ -105,6 +105,8 @@ type Account struct {
 
 	closing  bool
 	closedCh chan struct{}
+
+	username string // the account's active username, "" if unknown or none
 }
 
 // New returns an Account that serves codes (login nil) or walks the operator
@@ -127,6 +129,46 @@ func (a *Account) Session() string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.session
+}
+
+// Username returns the account's public username, "" until it is known or
+// if it has none.
+func (a *Account) Username() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.username
+}
+
+// loadUsername asks TDLib for the account's username (getMe: user.usernames,
+// td_api.tl). Its failure leaves the previous value: the login screens then
+// only miss the button to the chat.
+func (a *Account) loadUsername() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	raw, err := a.call(ctx, map[string]any{"@type": "getMe"})
+	if err != nil {
+		log.Printf("account: getMe: %v", err)
+		return
+	}
+	var me struct {
+		Usernames *struct {
+			Active []string `json:"active_usernames"`
+		} `json:"usernames"`
+	}
+	if err := json.Unmarshal(raw, &me); err != nil {
+		log.Printf("account: getMe: an unreadable answer")
+		return
+	}
+	name := ""
+	if me.Usernames != nil && len(me.Usernames.Active) > 0 {
+		name = me.Usernames.Active[0]
+	}
+	a.mu.Lock()
+	a.username = name
+	a.mu.Unlock()
+	if name == "" {
+		log.Printf("account: the account has no username, the apps get no button to its chat")
+	}
 }
 
 func (a *Account) setSession(s string) {
@@ -342,6 +384,7 @@ func (a *Account) onAuthorizationState(raw json.RawMessage) {
 		}
 	case "authorizationStateReady":
 		a.setSession(sender.SessionReady)
+		go a.loadUsername()
 		if a.login != nil {
 			a.finishLogin(nil)
 		}

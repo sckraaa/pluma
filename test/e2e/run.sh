@@ -55,7 +55,7 @@ FAKEPUSH_URL=http://fakepush:8080
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
-SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush "${TEAMGRAM_SERVICES[@]}")
+SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick).
@@ -123,6 +123,8 @@ GRAFANA_ADMIN_PASSWORD=$(secret 24)
 CALLS_ICE_SERVERS=198.51.100.7:3478:stun+turn
 CALLS_TURN_SECRET=$(secret 32)
 LOGIN_CODE_HMAC_KEY=$(secret 32)
+LOGIN_CODES_SENDER_URL=http://fakecodes:8080
+LOGIN_CODES_SENDER_TOKEN=$(secret 32)
 AUTH_KEY_ENCRYPTION_KEY=$(secret 32)
 PUSH_SECRET_ENCRYPTION_KEY=$(secret 32)
 NTFY_TOPIC=$(secret 16)
@@ -258,6 +260,7 @@ cmd_test() {
 		# shellcheck disable=SC2086 # E2E_GOTEST_FLAGS is a list of flags
 		PLUMA_E2E_ADDR=$addr \
 			PLUMA_E2E_FAKEPUSH=$(compose port fakepush 8080) \
+			PLUMA_E2E_FAKECODES=$(compose port fakecodes 8080) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 20m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
@@ -281,7 +284,7 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" pluma-backup:local pluma-e2e-fakepush:local >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" pluma-backup:local pluma-e2e-fakepush:local pluma-e2e-fakecodes:local >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs

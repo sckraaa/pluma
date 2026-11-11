@@ -201,6 +201,9 @@ func printImport(w io.Writer, r *langpack.ImportResult, keys bool) {
 		fmt.Fprintf(w, "%s/%s: version %d -> %d: %d added, %d changed, %d deleted, %d unchanged\n",
 			r.LangPack, r.LangCode, r.OldVersion, r.Version, r.Added, r.Changed, r.Deleted, r.Unchanged)
 	}
+	if len(r.OwnMissing) > 0 {
+		fmt.Fprintf(w, "  %d of Pluma's own string(s) in English, no translation: %s\n", len(r.OwnMissing), strings.Join(r.OwnMissing, ", "))
+	}
 	if len(r.Leftovers) == 0 {
 		return
 	}
