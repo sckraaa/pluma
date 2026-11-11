@@ -421,6 +421,9 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		}
 		m.Id = ch.NextMessageId()
 		m.Out = false
+		// Unread contents are each viewer's (channelcontents), never of the
+		// one copy: a forward brings the flag of its source.
+		m.MediaUnread = false
 		m.PeerId = mtproto.MakePeerChannel(channelId)
 		m.Date = int32(b.Date())
 		if polls.IsNew(m.Media) {

@@ -17,6 +17,7 @@ package core
 
 import (
 	"github.com/teamgram/teamgram-server/pkg/botprivacy"
+	"github.com/teamgram/teamgram-server/pkg/channelcontents"
 	"slices"
 	"time"
 
@@ -77,13 +78,27 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 		}
 		others = append(others, other)
 	}
+	// The unread contents of the messages, of every member (task 080): an
+	// edit keeps a played voice message played for the one who played it.
+	var messages []*mtproto.Message
+	for _, u := range in.GetUpdates().GetUpdates() {
+		if m := u.GetMessage_MESSAGE(); m != nil {
+			messages = append(messages, m)
+		}
+	}
+	contents := &channelcontents.State{}
+	if len(messages) > 0 {
+		if contents, err = channelcontents.LoadAll(c.ctx, c.svcCtx.Dao.Mysql, in.ChannelId, messages); err != nil {
+			return err
+		}
+	}
 	now := int32(time.Now().Unix())
 	for _, member := range members.GetDatas() {
 		chats := []*mtproto.Chat{mc.ToChat(member, now)}
 		for _, other := range others {
 			chats = append(chats, other.ToChat(member, now))
 		}
-		updates := c.channelView(in, member, chats, users.GetUserListByIdList(member, h.UserIdList...))
+		updates := c.channelView(in, member, contents, chats, users.GetUserListByIdList(member, h.UserIdList...))
 		repliesTo := func(m *mtproto.Message) bool { return c.repliesTo(in.ChannelId, member, m) }
 		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member), repliesTo); updates == nil {
 			continue
@@ -100,8 +115,9 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	return nil
 }
 
-// channelView is the updates of in as member sees them.
-func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, chats []*mtproto.Chat, users []*mtproto.User) *mtproto.Updates {
+// channelView is the updates of in as member sees them, with the unread
+// contents of its messages as member has them (contents).
+func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, contents *channelcontents.State, chats []*mtproto.Chat, users []*mtproto.User) *mtproto.Updates {
 	updates := proto.Clone(in.GetUpdates()).(*mtproto.Updates)
 	mentioned := slices.Contains(in.GetMentioned(), member)
 	for _, u := range updates.GetUpdates() {
@@ -125,6 +141,16 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 		if member != in.GetFromId() {
 			m.FromScheduled = false
 		}
+		// A voice or round video message is unread for every member but
+		// its author until each plays it; a mention until it is read. The
+		// author is the stored one where it was read: a post loses its
+		// comments by the push of whoever deleted its copy in the
+		// discussion group (postCommentsOff).
+		own := member == pushAuthor(in)
+		if author, ok := contents.Author(m.GetId()); ok {
+			own = author == member
+		}
+		contents.View(m, member, own, true)
 		if mentioned && !m.Out {
 			m.Mentioned = true
 			m.MediaUnread = true
