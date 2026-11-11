@@ -107,7 +107,8 @@ func TestUserVerify(t *testing.T) {
 	}
 
 	getState(ctx, t, bob)
-	if out := admin(t, "user", "verify", "@"+name, "on"); !strings.Contains(out, fmt.Sprintf("user %d (@%s, Alice) is verified now", alice.self.GetId(), name)) {
+	shown := strings.TrimSpace(alice.self.GetFirstName().GetValue() + " " + alice.self.GetLastName().GetValue())
+	if out := admin(t, "user", "verify", "@"+name, "on"); !strings.Contains(out, fmt.Sprintf("user %d (@%s, %s) is verified now", alice.self.GetId(), name, shown)) {
 		t.Fatalf("user verify on: %q", out)
 	}
 	check(true)
