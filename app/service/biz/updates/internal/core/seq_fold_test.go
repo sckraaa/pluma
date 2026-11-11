@@ -215,6 +215,10 @@ func TestSeqFold(t *testing.T) {
 		{"saved GIFs: one reload, at the place of the last",
 			[]*mtproto.Update{mtproto.MakeTLUpdateSavedGifs(nil).To_Update(), userName(7, "Ann"), mtproto.MakeTLUpdateSavedGifs(nil).To_Update()},
 			"UserName(7:Ann) SavedGifs"},
+		{"recent and faved stickers: one reload of each, at the place of its last",
+			[]*mtproto.Update{mtproto.MakeTLUpdateRecentStickers(nil).To_Update(), mtproto.MakeTLUpdateFavedStickers(nil).To_Update(),
+				userName(7, "Ann"), mtproto.MakeTLUpdateRecentStickers(nil).To_Update()},
+			"FavedStickers UserName(7:Ann) RecentStickers"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := describeSeq(foldSeq(c.updates...)); got != c.want {
