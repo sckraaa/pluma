@@ -20,12 +20,19 @@ package ffmpegutil
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
+	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
+	"github.com/teamgram/teamgram-server/pkg/goffmpeg/ffmpeg"
 	"github.com/teamgram/teamgram-server/pkg/goffmpeg/models"
 	"github.com/teamgram/teamgram-server/pkg/goffmpeg/transcoder"
 	"github.com/teamgram/teamgram-server/pkg/goffmpeg/utils"
@@ -365,4 +372,117 @@ func (u *FFmpegUtil) ConvertPngToMp4ByPipe(filePath string, dstW, dstH int) (byt
 		// mf.SetBufferSize(218)
 		mf.SetFrameRate(30)
 	})
+}
+
+// audioTimeout bounds one ffprobe or ffmpeg run on a notification sound: a
+// file of at most a hundred kilobytes takes a fraction of a second.
+const audioTimeout = 20 * time.Second
+
+// audioFormats are the containers a notification sound may come in: MP3
+// and Ogg (core.telegram.org/api/ringtones). ffprobe and ffmpeg are told
+// to try no other demuxer and no protocol but a local file, so a file made
+// to look like a playlist cannot make them read anything else.
+const audioFormats = "mp3,ogg"
+
+// AudioInfo is what ProbeAudio found in a file.
+type AudioInfo struct {
+	// Format is "mp3" or "ogg".
+	Format string
+	// Duration is the length of the sound in seconds.
+	Duration float64
+}
+
+// ErrNotAudio is returned by ProbeAudio and ToMP3 for a file that is not
+// an MP3 or Ogg sound.
+var ErrNotAudio = errors.New("ffmpegutil: not an MP3 or Ogg sound")
+
+// ProbeAudio reads the container and the duration of the sound in the
+// local file path. A file that is no MP3 or Ogg, has no audio stream, has
+// a video stream that is not a cover picture or has no duration is
+// ErrNotAudio.
+func (u *FFmpegUtil) ProbeAudio(ctx context.Context, path string) (*AudioInfo, error) {
+	cfg, err := ffmpeg.Configure()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, audioTimeout)
+	defer cancel()
+	var out, errb bytes.Buffer
+	//nolint:gosec // G204: the ffprobe found on this host, a file of ours
+	cmd := exec.CommandContext(ctx, cfg.FfprobeBin, "-v", "error",
+		"-protocol_whitelist", "file", "-format_whitelist", audioFormats,
+		"-print_format", "json", "-show_format", "-show_streams", "-i", path)
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if err = cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		// ffprobe exits with an error for a file it cannot open as one of
+		// the formats: the file is not a sound.
+		return nil, fmt.Errorf("%w: %s", ErrNotAudio, firstLine(errb.String()))
+	}
+	var md models.Metadata
+	if err = json.Unmarshal(out.Bytes(), &md); err != nil {
+		return nil, fmt.Errorf("ffmpegutil: the answer of ffprobe: %w", err)
+	}
+	info := &AudioInfo{}
+	switch md.Format.FormatName {
+	case "mp3", "ogg":
+		info.Format = md.Format.FormatName
+	default:
+		return nil, fmt.Errorf("%w: format %q", ErrNotAudio, md.Format.FormatName)
+	}
+	audio := false
+	for _, s := range md.Streams {
+		switch s.CodecType {
+		case "audio":
+			audio = true
+		case "video":
+			// The cover of an MP3 is a video stream of one picture.
+			if s.CodecName != "mjpeg" && s.CodecName != "png" {
+				return nil, fmt.Errorf("%w: a %s video stream", ErrNotAudio, s.CodecName)
+			}
+		}
+	}
+	if !audio {
+		return nil, fmt.Errorf("%w: no audio stream", ErrNotAudio)
+	}
+	info.Duration, err = strconv.ParseFloat(md.Format.Duration, 64)
+	if err != nil || info.Duration <= 0 || math.IsNaN(info.Duration) || math.IsInf(info.Duration, 0) {
+		return nil, fmt.Errorf("%w: duration %q", ErrNotAudio, md.Format.Duration)
+	}
+	return info, nil
+}
+
+// ToMP3 converts the sound in the local file path to MP3 at 128 kbit/s,
+// without its tags and cover, and returns the file.
+func (u *FFmpegUtil) ToMP3(ctx context.Context, path string) ([]byte, error) {
+	cfg, err := ffmpeg.Configure()
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, audioTimeout)
+	defer cancel()
+	var out, errb bytes.Buffer
+	//nolint:gosec // G204: the ffmpeg found on this host, a file of ours
+	cmd := exec.CommandContext(ctx, cfg.FfmpegBin, "-v", "error", "-nostdin",
+		"-protocol_whitelist", "file,pipe", "-format_whitelist", audioFormats, "-i", path,
+		"-vn", "-map_metadata", "-1", "-c:a", "libmp3lame", "-b:a", "128k", "-f", "mp3", "pipe:1")
+	cmd.Stdout, cmd.Stderr = &out, &errb
+	if err = cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("%w: %s", ErrNotAudio, firstLine(errb.String()))
+	}
+	if out.Len() == 0 {
+		return nil, fmt.Errorf("%w: nothing converted", ErrNotAudio)
+	}
+	return out.Bytes(), nil
+}
+
+// firstLine is the first line of what a tool wrote, for an error.
+func firstLine(s string) string {
+	s, _, _ = strings.Cut(strings.TrimSpace(s), "\n")
+	return s
 }

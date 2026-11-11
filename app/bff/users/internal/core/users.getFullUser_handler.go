@@ -172,6 +172,16 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 	if user.CheckPrivacyFor(mtproto.BIRTHDAY, me) {
 		userFull.Birthday = user.Birthday()
 	}
+	// My private note on the contact (task 084): "Notes for contacts are
+	// only visible to you and appear on the user's profile under their bio"
+	// (core.telegram.org/api/contacts); tdesktop takes it from here
+	// (data_user.cpp:1114-1120).
+	if peerId != c.MD.UserId && user.ContactRowOf(me) != nil && c.svcCtx.Dao.Notes != nil {
+		if userFull.Note, err = c.svcCtx.Dao.Notes.Get(c.ctx, c.MD.UserId, peerId); err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
+	}
 	if user.CheckPrivacyFor(mtproto.SAVED_MUSIC, me) {
 		userFull.SavedMusic = user.GetUser().GetSavedMusic()
 	}

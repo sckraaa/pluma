@@ -20,13 +20,27 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/env2"
 )
 
 // HelpGetInviteText
 // help.getInviteText#4d392343 = help.InviteText;
+//
+// What a user sends to invite a friend. Only Android asks, and it takes
+// the message as the link of its own invitation: it keeps it as
+// "invitelink" and puts it in place of the link of the strings InviteText2
+// and InviteTextNum of its language pack, which already say the rest in
+// the user's language (ContactsController.java:351-385; without an answer
+// the link is telegram.org/dl). So the message is the address where the
+// application is downloaded, the site of the link host, and nothing else:
+// a sentence here would be repeated inside the client's own sentence.
 func (c *ConfigurationCore) HelpGetInviteText(in *mtproto.TLHelpGetInviteText) (*mtproto.Help_InviteText, error) {
-	// TODO: not impl
-	c.Logger.Errorf("help.getInviteText blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	return mtproto.MakeTLHelpInviteText(&mtproto.Help_InviteText{
+		Message: InviteLink(),
+	}).To_Help_InviteText(), nil
+}
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+// InviteLink is the address an invitation leads to.
+func InviteLink() string {
+	return "https://" + env2.TDotMe
 }

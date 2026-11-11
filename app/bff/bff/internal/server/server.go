@@ -309,17 +309,19 @@ func (s *Server) Initialize() error {
 			}))
 
 		// contacts_helper
-		mtproto.RegisterRPCContactsServer(
-			grpcServer,
-			contacts_helper.New(
-				contacts_helper.Config{
-					RpcServerConf: c.RpcServerConf,
-					UserClient:    c.BizServiceClient,
-					ChatClient:    c.BizServiceClient,
-					SyncClient:    syncClient,
-					ChannelClient: c.BizServiceClient,
-				},
-				nil))
+		contacts := contacts_helper.New(
+			contacts_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				UserClient:    c.BizServiceClient,
+				ChatClient:    c.BizServiceClient,
+				SyncClient:    syncClient,
+				ChannelClient: c.BizServiceClient,
+				Mysql:         c.Mysql,
+			},
+			nil)
+		mtproto.RegisterRPCContactsServer(grpcServer, contacts)
+		// The temporary links to a profile (task 084).
+		mtproto.RegisterRPCProfileLinksServer(grpcServer, contacts)
 
 		// dialogs_helper
 		mtproto.RegisterRPCDialogsServer(
@@ -382,6 +384,7 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCEmojiCategoriesServer(grpcServer, catalog)
 		mtproto.RegisterRPCEmojiStatusServer(grpcServer, catalog)
 		mtproto.RegisterRPCAccentColorsServer(grpcServer, catalog)
+		mtproto.RegisterRPCRingtoneServer(grpcServer, catalog)
 		mtproto.RegisterRPCThemesServer(grpcServer, catalog)
 		mtproto.RegisterRPCWallpapersServer(grpcServer, catalog)
 		mtproto.RegisterRPCTimezonesServer(grpcServer, catalog)
@@ -459,6 +462,7 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			autodownload_helper.New(autodownload_helper.Config{
 				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
 			}))
 
 		// messages_helper

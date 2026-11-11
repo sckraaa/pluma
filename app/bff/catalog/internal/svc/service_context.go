@@ -37,7 +37,9 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/catalog/importer"
 	"github.com/teamgram/teamgram-server/pkg/catalog/installed"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
+	"github.com/teamgram/teamgram-server/pkg/emojistatus"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
+	"github.com/teamgram/teamgram-server/pkg/ringtones/saved"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -100,6 +102,19 @@ type Appearance interface {
 	SavedThemes(ctx context.Context, userID int64) ([]appearance.SavedTheme, error)
 }
 
+// EmojiStatuses are the emoji statuses an account used lately (task 084).
+type EmojiStatuses interface {
+	Recent(ctx context.Context, userID int64) ([]emojistatus.Entry, error)
+	Clear(ctx context.Context, userID int64) error
+}
+
+// Ringtones are the notification sounds an account saved (task 084).
+type Ringtones interface {
+	Saved(ctx context.Context, userID int64) ([]saved.Entry, error)
+	Save(ctx context.Context, userID, documentID int64) error
+	Unsave(ctx context.Context, userID, documentID int64) error
+}
+
 type ServiceContext struct {
 	Config    config.Config
 	Catalog   Catalog
@@ -121,6 +136,10 @@ type ServiceContext struct {
 	// Wallpapers and themes (task 065).
 	Dialog     dialog_client.DialogClient
 	Appearance Appearance
+
+	// The look of an account and its notification sounds (task 084).
+	EmojiStatuses EmojiStatuses
+	Ringtones     Ringtones
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -149,6 +168,9 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Appearance: appearance.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
 
 		StickerLists: stickerlists.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
+
+		EmojiStatuses: emojistatus.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
+		Ringtones:     saved.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
 	}
 	bot, err := tgbot.FromSettings(c.TelegramBot)
 	if err != nil {

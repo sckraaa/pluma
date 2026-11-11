@@ -20,14 +20,36 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 )
 
 // MediaUploadRingtoneFile
-// media.uploadRingtoneFile flags:# owner_id:long file:InputFile mime_type:string file_name:string = Document;
+// media.uploadRingtoneFile owner_id:long file:InputFile mime_type:string file_name:string = Document;
+//
+// The document of a notification sound from an uploaded file
+// (account.uploadRingtone): dfs checks and stores the sound, always as
+// MP3; the document is kept as any other, so it is found by its id later.
 func (c *MediaCore) MediaUploadRingtoneFile(in *media.TLMediaUploadRingtoneFile) (*mtproto.Document, error) {
-	// TODO: not impl
-	c.Logger.Errorf("media.uploadRingtoneFile blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	document, err := c.svcCtx.Dao.DfsClient.DfsUploadRingtoneFile(c.ctx, &dfs.TLDfsUploadRingtoneFile{
+		Creator:  in.GetOwnerId(),
+		File:     in.GetFile(),
+		MimeType: in.GetMimeType(),
+		FileName: in.GetFileName(),
+	})
+	if err != nil {
+		c.Logger.Errorf("media.uploadRingtoneFile - error: %v", err)
+		return nil, err
+	}
+	fileName := ""
+	for _, a := range document.GetAttributes() {
+		if a.GetPredicateName() == mtproto.Predicate_documentAttributeFilename {
+			fileName = a.GetFileName()
+		}
+	}
+	if err = saveDocument(c, fileName, document); err != nil {
+		c.Logger.Errorf("media.uploadRingtoneFile - error: %v", err)
+		return nil, err
+	}
+	return document, nil
 }

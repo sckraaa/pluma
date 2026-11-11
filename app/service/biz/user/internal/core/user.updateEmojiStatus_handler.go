@@ -26,11 +26,9 @@ import (
 // UserUpdateEmojiStatus
 // user.updateEmojiStatus user_id:long emoji_status_document_id:long emoji_status_until:int = Bool;
 func (c *UserCore) UserUpdateEmojiStatus(in *user.TLUserUpdateEmojiStatus) (*mtproto.Bool, error) {
-	rB := c.svcCtx.Dao.UpdateUserEmojiStatus(
-		c.ctx,
-		in.UserId,
-		in.EmojiStatusDocumentId,
-		in.EmojiStatusUntil)
-
-	return mtproto.ToBool(rB), nil
+	if err := c.svcCtx.Dao.UpdateEmojiStatus(c.ctx, in.GetUserId(), in.GetEmojiStatusDocumentId(), in.GetEmojiStatusUntil()); err != nil {
+		c.Logger.Errorf("user.updateEmojiStatus - user %d: %v", in.GetUserId(), err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }

@@ -19,97 +19,173 @@
 package core
 
 import (
+	"bytes"
+	"crypto/rand"
+	"encoding/binary"
+	"errors"
 	"fmt"
-	"math/rand"
+	"math"
+	"os"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
-	"github.com/teamgram/teamgram-server/app/service/dfs/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/ffmpegutil"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/model"
+	"github.com/teamgram/teamgram-server/pkg/ringtones"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // DfsUploadRingtoneFile
 // dfs.uploadRingtoneFile creator:long file:InputFile mime_type:string file_name:string = Document;
+//
+// A notification sound from an uploaded file (account.uploadRingtone): an
+// MP3 or Ogg sound of at most ringtones.SizeMax bytes and
+// ringtones.DurationMax seconds. What the file is comes from the file, not
+// from mime_type: iOS says audio/mpeg for every sound it uploads
+// (NotificationSoundList.swift:313). The document is always MP3: an MP3 is
+// kept as sent, an Ogg sound is converted ("if the notification sound is
+// already in MP3 format ... otherwise, it will be automatically converted",
+// core.telegram.org/method/account.saveRingtone), because iOS plays a cloud
+// sound from a file named <id>.mp3 (NotificationService.swift:1321-1322).
+//
+// The errors are the ones tdesktop tells apart (ringtones_box.cpp:213-227):
+// RINGTONE_SIZE_TOO_BIG, RINGTONE_DURATION_TOO_LONG and, for a file that is
+// no sound of these formats, RINGTONE_MIME_INVALID.
 func (c *DfsCore) DfsUploadRingtoneFile(in *dfs.TLDfsUploadRingtoneFile) (*mtproto.Document, error) {
-	var (
-		err error
-
-		file       = in.GetFile()
-		ext        = model.GetFileExtName(file.GetName())
-		extType    = model.GetStorageFileTypeConstructor(ext)
-		accessHash = int64(extType)<<32 | int64(rand.Uint32())
-		creatorId  = in.GetCreator()
-	)
-
-	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
-	if err != nil {
+	file := in.GetFile()
+	if file == nil {
+		err := mtproto.ErrInputRequestInvalid
+		c.Logger.Errorf("dfs.uploadRingtoneFile - error: %v", err)
 		return nil, err
 	}
-
-	// upload file
-	if file == nil {
-		c.Logger.Errorf("dfs.uploadRingtoneFile - ErrInputRequestInvalid")
-		return nil, mtproto.ErrInputRequestInvalid
+	if !strings.HasPrefix(in.GetMimeType(), "audio/") {
+		err := ringtones.ErrMimeInvalid
+		c.Logger.Errorf("dfs.uploadRingtoneFile - mime type %q: %v", in.GetMimeType(), err)
+		return nil, err
 	}
-
-	if err = model.CheckFileParts(file.Parts); err != nil {
+	if err := model.CheckFileParts(file.GetParts()); err != nil {
 		c.Logger.Errorf("dfs.uploadRingtoneFile - %v", err)
 		return nil, err
 	}
-
-	// duration
-	tmpFileName := fmt.Sprintf("http://127.0.0.1:11701/dfs/file/%d_%d.mp3", creatorId, file.GetId_INT64())
-	md, err := c.svcCtx.FFmpegUtil.GetMetadata(tmpFileName)
+	creatorId := in.GetCreator()
+	fr, err := c.svcCtx.Dao.OpenFile(c.ctx, creatorId, file.GetId_INT64(), file.GetParts())
 	if err != nil {
-		c.Logger.Errorf("dfs.uploadRingtoneFile - error: %v", err)
+		c.Logger.Errorf("dfs.uploadRingtoneFile - open the file: %v", err)
 		return nil, err
 	}
-	duration := ffmpegutil.GetDuration(md)
-	if duration > 5 {
-		//
-	}
-
-	fr, err := c.svcCtx.Dao.OpenFile(c.ctx, creatorId, file.Id_INT64, file.GetParts())
-	if err != nil {
-		c.Logger.Errorf("dfs.uploadRingtoneFile - error: %v", err)
+	if fr.Size() > ringtones.SizeMax {
+		err = ringtones.ErrSizeTooBig
+		c.Logger.Errorf("dfs.uploadRingtoneFile - %d bytes: %v", fr.Size(), err)
 		return nil, err
 	}
-	fileInfo := fr.DfsFileInfo
-	c.svcCtx.Dao.SetCacheFileInfo(c.ctx, documentId, fileInfo)
-	c.svcCtx.Dao.PersistParts(c.ctx, dao.StoreDocument, fmt.Sprintf("%d.dat", documentId), documentId, fr)
+	data, err := fr.ReadAll(c.ctx)
+	if err != nil {
+		c.Logger.Errorf("dfs.uploadRingtoneFile - read the file: %v", err)
+		return nil, err
+	}
 
-	// build document
-	document := mtproto.MakeTLDocument(&mtproto.Document{
+	// ffprobe and ffmpeg read the sound from a file of ours: from a pipe
+	// they cannot tell how long an Ogg sound is.
+	tmp, err := os.CreateTemp("", "ringtone-*")
+	if err != nil {
+		c.Logger.Errorf("dfs.uploadRingtoneFile - a temporary file: %v", err)
+		return nil, err
+	}
+	defer os.Remove(tmp.Name())
+	_, err = tmp.Write(data)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		c.Logger.Errorf("dfs.uploadRingtoneFile - a temporary file: %v", err)
+		return nil, err
+	}
+
+	info, err := c.svcCtx.FFmpegUtil.ProbeAudio(c.ctx, tmp.Name())
+	if err != nil {
+		c.Logger.Errorf("dfs.uploadRingtoneFile - probe: %v", err)
+		if errors.Is(err, ffmpegutil.ErrNotAudio) {
+			err = ringtones.ErrMimeInvalid
+		}
+		return nil, err
+	}
+	// A sound of 5.05 seconds is one of 5: encoders pad the last frame.
+	const padding = 0.25
+	duration := int32(math.Round(info.Duration))
+	if info.Duration > ringtones.DurationMax+padding {
+		err = ringtones.ErrDurationTooLong
+		c.Logger.Errorf("dfs.uploadRingtoneFile - %.2f seconds: %v", info.Duration, err)
+		return nil, err
+	}
+	fileName := path.Base(strings.ReplaceAll(in.GetFileName(), "\\", "/"))
+	if fileName == "." || fileName == "/" {
+		fileName = ""
+	}
+	title := strings.TrimSuffix(fileName, path.Ext(fileName))
+	if info.Format != "mp3" {
+		if data, err = c.svcCtx.FFmpegUtil.ToMP3(c.ctx, tmp.Name()); err != nil {
+			c.Logger.Errorf("dfs.uploadRingtoneFile - convert: %v", err)
+			if errors.Is(err, ffmpegutil.ErrNotAudio) {
+				err = ringtones.ErrMimeInvalid
+			}
+			return nil, err
+		}
+		if len(data) > ringtones.SizeMax {
+			err = ringtones.ErrSizeTooBig
+			c.Logger.Errorf("dfs.uploadRingtoneFile - %d bytes converted: %v", len(data), err)
+			return nil, err
+		}
+		fileName = title + ".mp3"
+	}
+
+	documentId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
+	if err != nil {
+		c.Logger.Errorf("dfs.uploadRingtoneFile - an id: %v", err)
+		return nil, err
+	}
+	var secret [4]byte
+	if _, err = rand.Read(secret[:]); err != nil {
+		return nil, err
+	}
+	accessHash := int64(model.GetStorageFileTypeConstructor(".mp3"))<<32 | int64(binary.LittleEndian.Uint32(secret[:]))
+	size := int64(len(data))
+	if _, err = c.svcCtx.Dao.PutDocumentFile(c.ctx, fmt.Sprintf("%d.dat", documentId), bytes.NewReader(data), size); err != nil {
+		c.Logger.Errorf("dfs.uploadRingtoneFile - store the file: %v", err)
+		return nil, err
+	}
+	// The sound is stored for good; parts not dropped still expire.
+	if err = c.svcCtx.Dao.DropFile(c.ctx, creatorId, file.GetId_INT64()); err != nil {
+		c.Logger.Errorf("dfs.uploadRingtoneFile - drop the parts of %d: %v", file.GetId_INT64(), err)
+	}
+
+	audio := &mtproto.DocumentAttribute{
+		Duration:         float64(duration),
+		Duration_INT32:   duration,
+		Duration_FLOAT64: float64(duration),
+	}
+	if title != "" {
+		audio.Title = wrapperspb.String(title)
+	}
+	attributes := []*mtproto.DocumentAttribute{mtproto.MakeTLDocumentAttributeAudio(audio).To_DocumentAttribute()}
+	if fileName != "" {
+		attributes = append(attributes, mtproto.MakeTLDocumentAttributeFilename(&mtproto.DocumentAttribute{
+			FileName: fileName,
+		}).To_DocumentAttribute())
+	}
+	return mtproto.MakeTLDocument(&mtproto.Document{
 		Id:            documentId,
 		AccessHash:    accessHash,
-		FileReference: []byte{}, // TODO(@benqi): gen file_reference
+		FileReference: []byte{},
 		Date:          int32(time.Now().Unix()),
-		MimeType:      in.GetMimeType(),
-		Size2:         fileInfo.GetFileSize(),
-		Size2_INT32:   int32(fileInfo.GetFileSize()),
-		Size2_INT64:   fileInfo.GetFileSize(),
-		Thumbs:        nil,
-		VideoThumbs:   nil,
+		MimeType:      ringtones.MimeMP3,
+		Size2:         size,
+		Size2_INT32:   int32(size),
+		Size2_INT64:   size,
 		DcId:          1,
-		Attributes: []*mtproto.DocumentAttribute{
-			mtproto.MakeTLDocumentAttributeAudio(&mtproto.DocumentAttribute{
-				Voice:            false,
-				Duration:         float64(duration),
-				Duration_INT32:   int32(duration),
-				Duration_FLOAT64: float64(duration),
-				Title:            &wrapperspb.StringValue{Value: in.GetFileName()},
-				Performer:        &wrapperspb.StringValue{Value: ""}, // TODO:
-				Waveform:         nil,
-			}).To_DocumentAttribute(),
-			mtproto.MakeTLDocumentAttributeFilename(&mtproto.DocumentAttribute{
-				FileName: in.GetFileName(),
-			}).To_DocumentAttribute(),
-		},
-	}).To_Document()
-
-	return document, nil
+		Attributes:    attributes,
+	}).To_Document(), nil
 }

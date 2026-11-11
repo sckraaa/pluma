@@ -24,7 +24,9 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/emojistatus"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"google.golang.org/protobuf/proto"
@@ -54,9 +56,21 @@ type selfRow struct {
 	Verified bool `db:"verified"`
 	// Ghost is the support ghost's flag (SetGhost, ADR 0048).
 	Ghost bool `db:"ghost"`
+	// The look of the account (task 084): the color of its name and of
+	// its profile, user.NoColor for none, each with its pattern of custom
+	// emoji (0 for none), and its emoji status (0 for none) with its end
+	// (0 for no end).
+	Color                         int32 `db:"color"`
+	ColorBackgroundEmojiId        int64 `db:"color_background_emoji_id"`
+	ProfileColor                  int32 `db:"profile_color"`
+	ProfileColorBackgroundEmojiId int64 `db:"profile_color_background_emoji_id"`
+	EmojiStatusDocumentId         int64 `db:"emoji_status_document_id"`
+	EmojiStatusUntil              int32 `db:"emoji_status_until"`
 }
 
-const selfRowQuery = "SELECT first_name, last_name, username, photo_id, fallback_photo_id, verified, ghost FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
+const selfRowQuery = "SELECT first_name, last_name, username, photo_id, fallback_photo_id, verified, ghost," +
+	" color, color_background_emoji_id, profile_color, profile_color_background_emoji_id, emoji_status_document_id, emoji_status_until" +
+	" FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
 
 // selfAttempts bounds the box transactions of one change of the account:
 // one more is run for each photo the transaction found main and the
@@ -74,8 +88,9 @@ func (e *needPhotoError) Error() string {
 // changeSelf runs change as a box transaction of the account id. change
 // writes through b.Tx() and sets row to what it wrote, or returns false
 // before any write when nothing changes. When it changed something, every
-// device of the account gets the update update (updateUserName or
-// updateUser) with seq, and the account as it sees itself: the row as
+// device of the account gets the update update (updateUserName,
+// updateUser or updateUserEmojiStatus) with seq, and the account as it
+// sees itself: the row as
 // written, the photo of its photo_id from photos (loaded before the
 // transaction, with the cached photo of the account added), the usernames
 // read in the transaction and the rest from the cache. The users who see
@@ -135,6 +150,12 @@ func (d *Dao) changeSelf(ctx context.Context, id int64, update string, photos ma
 				}).To_Update()
 			case mtproto.Predicate_updateUser:
 				u = mtproto.MakeTLUpdateUser(&mtproto.Update{UserId: id}).To_Update()
+			case mtproto.Predicate_updateUserEmojiStatus:
+				status := user.MakeEmojiStatus(row.EmojiStatusDocumentId, row.EmojiStatusUntil)
+				if status == nil {
+					status = mtproto.MakeTLEmojiStatusEmpty(nil).To_EmojiStatus()
+				}
+				u = mtproto.MakeTLUpdateUserEmojiStatus(&mtproto.Update{UserId: id, EmojiStatus: status}).To_Update()
 			default:
 				return fmt.Errorf("user: %s is not an update of the account itself", update)
 			}
@@ -200,7 +221,86 @@ func selfUser(me *mtproto.ImmutableUser, row selfRow, usernames []*mtproto.Usern
 	u.ProfilePhoto = photo
 	u.Verified = row.Verified
 	u.Ghost = row.Ghost
+	u.Color = user.MakePeerColor(row.Color, row.ColorBackgroundEmojiId)
+	u.ProfileColor = user.MakePeerColor(row.ProfileColor, row.ProfileColorBackgroundEmojiId)
+	u.EmojiStatus = user.MakeEmojiStatus(row.EmojiStatusDocumentId, row.EmojiStatusUntil)
 	return view.ToSelfUser()
+}
+
+// UpdateEmojiStatus sets the emoji status of the account id: the custom
+// emoji documentId until the date until (0 for no end), or none with
+// documentId 0. An end that has passed is no status. Its devices and the
+// users who see the account get updateUserEmojiStatus with seq ("other
+// users will receive an updateUserEmojiStatus",
+// core.telegram.org/api/emoji-status; Android MessagesController.java:20042
+// and tdesktop api_updates.cpp:2862 set the status of the user from it). A
+// status set joins the recent statuses of the account in the same
+// transaction (emojistatus.Use), and the devices are told to load them
+// again. The same status changes nothing. The caller checks that the
+// document is a custom emoji.
+func (d *Dao) UpdateEmojiStatus(ctx context.Context, id, documentId int64, until int32) error {
+	if documentId == 0 {
+		until = 0
+	}
+	_, _, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUserEmojiStatus, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
+		if until != 0 && int64(until) <= b.Date() {
+			documentId, until = 0, 0
+		}
+		if row.EmojiStatusDocumentId == documentId && row.EmojiStatusUntil == until {
+			return false, nil
+		}
+		if _, err := d.UsersDAO.UpdateEmojiStatusTx(b.Tx(), documentId, until, id); err != nil {
+			return false, err
+		}
+		row.EmojiStatusDocumentId, row.EmojiStatusUntil = documentId, until
+		if documentId != 0 {
+			listed, err := emojistatus.Use(b, documentId)
+			if err != nil {
+				return false, err
+			}
+			if listed {
+				if err = d.EmitSeqUpdate(b, emojistatus.Changed(), nil, nil); err != nil {
+					return false, err
+				}
+			}
+		}
+		return true, nil
+	})
+	return err
+}
+
+// UpdateColor sets the color of the name of the account id or, with
+// forProfile, of its profile, with its pattern of custom emoji: color
+// user.NoColor and emojiId 0 are none. Its devices and the users who see
+// the account get updateUser with seq and the account with its colors: the
+// clients take them from the user (tdesktop data_session.cpp:905-911
+// applies user.color and user.profile_color of every user it gets). The same color
+// changes nothing. The caller checks that the color and the emoji exist.
+func (d *Dao) UpdateColor(ctx context.Context, id int64, forProfile bool, color int32, emojiId int64) error {
+	if color < 0 {
+		color = user.NoColor
+	}
+	_, _, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUser, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
+		if forProfile {
+			if row.ProfileColor == color && row.ProfileColorBackgroundEmojiId == emojiId {
+				return false, nil
+			}
+			if _, err := d.UsersDAO.UpdateProfileColorTx(b.Tx(), color, emojiId, id); err != nil {
+				return false, err
+			}
+			row.ProfileColor, row.ProfileColorBackgroundEmojiId = color, emojiId
+			return true, nil
+		}
+		if row.Color == color && row.ColorBackgroundEmojiId == emojiId {
+			return false, nil
+		}
+		if _, err := d.UsersDAO.UpdateColorTx(b.Tx(), color, emojiId, id); err != nil {
+			return false, err
+		}
+		row.Color, row.ColorBackgroundEmojiId = color, emojiId
+		return true, nil
+	})
+	return err
 }
 
 // UpdateVerified sets or clears the verification badge of the account id

@@ -29,6 +29,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/contactnotes"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -124,7 +125,7 @@ func (d *Dao) GetUserContactListByIdList(ctx context.Context, id int64, contactI
 // DeleteContact removes contactId from the box owner's contacts, in b's
 // transaction, with the mutuality of the contact's row pointing back. It
 // tells whether there was a contact to remove; without one it writes
-// nothing. The cache entries are ContactCacheKeys.
+// nothing. The owner's note on the contact is removed with it. The cache entries are ContactCacheKeys.
 func (d *Dao) DeleteContact(b *userbox.Box, contactId int64) (bool, error) {
 	rows, err := ContactRows(b, []int64{contactId})
 	if err != nil {
@@ -137,6 +138,11 @@ func (d *Dao) DeleteContact(b *userbox.Box, contactId int64) (bool, error) {
 		return false, err
 	}
 	if _, err = d.UserContactsDAO.UpdateMutualTx(b.Tx(), false, contactId, b.UserId()); err != nil {
+		return false, err
+	}
+	// The private note on the contact goes with it (task 084): a note is
+	// kept on contacts only (CONTACT_MISSING of contacts.updateContactNote).
+	if err = contactnotes.DeleteTx(b.Tx(), b.UserId(), contactId); err != nil {
 		return false, err
 	}
 	return true, nil

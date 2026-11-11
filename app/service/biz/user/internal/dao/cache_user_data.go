@@ -125,29 +125,6 @@ func (d *Dao) GetCacheUserData(ctx context.Context, id int64) *CacheUserData {
 	return cacheUserData
 }
 
-func makeEmojiStatus(documentId int64, until int32) *mtproto.EmojiStatus {
-	if documentId == 0 {
-		return nil
-	} else {
-		return mtproto.MakeTLEmojiStatus(&mtproto.EmojiStatus{
-			DocumentId:      documentId,
-			Until_INT32:     until,
-			Until_FLAGINT32: mtproto.MakeFlagsInt32(until),
-		}).To_EmojiStatus()
-	}
-}
-
-func makePeerColor(color int32, backgroundEmojiId int64) *mtproto.PeerColor {
-	if color == 0 && backgroundEmojiId == 0 {
-		return nil
-	}
-
-	return mtproto.MakeTLPeerColor(&mtproto.PeerColor{
-		Color:                       mtproto.MakeFlagsInt32(color),
-		BackgroundEmojiId_FLAGINT64: mtproto.MakeFlagsInt64(backgroundEmojiId),
-	}).To_PeerColor()
-}
-
 func getUsernames(usernames string) []*mtproto.Username {
 	if usernames == "" {
 		return nil
@@ -210,11 +187,11 @@ func (d *Dao) MakeUserDataByDO(userDO *dataobject.UsersDO) *mtproto.UserData {
 		ContactsVersion:    1,
 		PrivaciesVersion:   1,
 		Premium:            userDO.Premium,
-		EmojiStatus:        makeEmojiStatus(userDO.EmojiStatusDocumentId, userDO.EmojiStatusUntil),
+		EmojiStatus:        user.MakeEmojiStatus(userDO.EmojiStatusDocumentId, userDO.EmojiStatusUntil),
 		StoriesUnavailable: true,
 		StoriesMaxId:       userDO.StoriesMaxId,
-		Color:              makePeerColor(userDO.Color, userDO.ColorBackgroundEmojiId),
-		ProfileColor:       makePeerColor(userDO.ProfileColor, userDO.ProfileColorBackgroundEmojiId),
+		Color:              user.MakePeerColor(userDO.Color, userDO.ColorBackgroundEmojiId),
+		ProfileColor:       user.MakePeerColor(userDO.ProfileColor, userDO.ProfileColorBackgroundEmojiId),
 		Birthday:           userDO.Birthday,
 		PersonalChannelId:  userDO.PersonalChannelId,
 		PremiumExpireDate:  mtproto.MakeFlagsInt64(userDO.PremiumExpireDate),

@@ -83,6 +83,10 @@
     "reactions_user_max_premium": 3,
     "reactions_uniq_max": 11,
     "reactions_in_chat_max": 100,
+    "ringtone_size_max": 102400,
+    "ringtone_duration_max": 5,
+    "ringtone_saved_count_max": 100,
+    "contact_note_length_limit": 128,
 
     "stories_posting": "disabled",
     "translations_manual_enabled": "disabled",

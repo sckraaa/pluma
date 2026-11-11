@@ -19,14 +19,35 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/autodownload"
 )
 
 // AccountSaveAutoDownloadSettings
 // account.saveAutoDownloadSettings#76f36233 flags:# low:flags.0?true high:flags.1?true settings:AutoDownloadSettings = Bool;
+//
+// What the account uses for auto-download under one of the three names:
+// low, high, or medium without a flag. It is kept for the account
+// (pkg/autodownload says why it is not given back as a preset); low and
+// high together name nothing and are refused.
 func (c *AutoDownloadCore) AccountSaveAutoDownloadSettings(in *mtproto.TLAccountSaveAutoDownloadSettings) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.saveAutoDownloadSettings blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
+	if in.GetSettings() == nil || (in.GetLow() && in.GetHigh()) {
+		err := mtproto.ErrInputRequestInvalid
+		c.Logger.Errorf("account.saveAutoDownloadSettings - error: %v", err)
+		return nil, err
+	}
+	preset := autodownload.Medium
+	switch {
+	case in.GetLow():
+		preset = autodownload.Low
+	case in.GetHigh():
+		preset = autodownload.High
+	}
+	if err := c.svcCtx.Saved.Save(c.ctx, c.MD.UserId, preset, autodownload.FromTL(in.GetSettings()), time.Now().Unix()); err != nil {
+		c.Logger.Errorf("account.saveAutoDownloadSettings - error: %v", err)
+		return nil, err
+	}
 	return mtproto.BoolTrue, nil
 }
