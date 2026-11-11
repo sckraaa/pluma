@@ -969,7 +969,7 @@
   "used_by": "A: messenger/ringtone/RingtoneDataStore.java:60; I: Peers/NotificationSoundList.swift:172; D: apiwrap.cpp:3071, api/api_ringtones.cpp:130; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают три клиента, запрета нет."
+  "why": "Сделано задачей 084 (ADR 0052)."
  },
  {
   "name": "account.getUniqueGiftChatThemes",
@@ -1041,7 +1041,7 @@
   "used_by": "A: messenger/DownloadController.java:1068; I: State/ManagedAutodownloadSettingsUpdates.swift:42; D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Android и iOS отправляют настройки; сейчас 400 и настройка на сервере не сохраняется."
+  "why": "Сделано задачей 084 (ADR 0052): сохраняется по аккаунту; пресеты account.getAutoDownloadSettings от этого не меняются — клиенты заменяют ими свои базовые пресеты."
  },
  {
   "name": "account.saveRingtone",
@@ -1050,7 +1050,7 @@
   "used_by": "A: ui/NotificationsSoundActivity.java:330, messenger/MediaDataController.java:8814; I: Peers/NotificationSoundList.swift:274; D: api/api_toggling_media.cpp:136; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа мелодий."
+  "why": "Сделано задачей 084 (ADR 0052) для MP3-документов; документ другого формата из чата (голосовое) не конвертируется — RINGTONE_INVALID."
  },
  {
   "name": "account.toggleConnectedBotPaused",
@@ -1122,7 +1122,7 @@
   "used_by": "A: ui/PeerColorActivity.java:1971; I: AccountData/UpdateAccountPeerName.swift:85; D: boxes/peers/edit_peer_color_box.cpp:573; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Функция Premium, открыта всем (ADR 0041). По задаче 071 строка видна в клиентах, а сервер её не обслуживает."
+  "why": "Сделано задачей 084 (ADR 0052): цвет имени и профиля с узором, updateUser устройствам и тем, кто видит аккаунт. Коллекционные цвета — COLOR_INVALID (подарков нет)."
  },
  {
   "name": "account.updateConnectedBot",
@@ -1140,7 +1140,7 @@
   "used_by": "A: messenger/MessagesController.java:2579, ui/bots/SetupEmojiStatusSheet.java:141; I: AccountData/TelegramEngineAccountData.swift:19; D: data/data_emoji_statuses.cpp:535; W: lib/appManagers/appUsersManager.ts:1624",
   "decision": "implement",
   "priority": "normal",
-  "why": "Функция Premium, ADR 0041. Вход скрыт патчами задачи 071; вернуть вместе с реализацией."
+  "why": "Сделано задачей 084 (ADR 0052): статус с сроком, updateUserEmojiStatus устройствам и тем, кто видит аккаунт, список недавних. Коллекционные — COLLECTIBLE_INVALID."
  },
  {
   "name": "account.updateWebBrowserSettings",
@@ -1158,7 +1158,7 @@
   "used_by": "A: messenger/ringtone/RingtoneUploader.java:39; I: Peers/NotificationSoundList.swift:313; D: api/api_ringtones.cpp:109; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа мелодий."
+  "why": "Сделано задачей 084 (ADR 0052): MP3 и Ogg, Ogg конвертируется в MP3, загрузка сразу сохраняет мелодию."
  },
  {
   "name": "auth.finishPasskeyLogin",
@@ -1185,7 +1185,7 @@
   "used_by": "A: messenger/MessagesController.java:23611; I: Peers/ContactToken.swift:23; D: info/profile/info_profile_qr_link.cpp:197; W: lib/appManagers/appUsersManager.ts:441",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают все четыре клиента."
+  "why": "Сделано задачей 084 (ADR 0052): ссылка pluma.chat/contact/<токен> на 5 минут."
  },
  {
   "name": "contacts.importContactToken",
@@ -1194,7 +1194,7 @@
   "used_by": "A: ui/LaunchActivity.java:4006; I: Peers/ContactToken.swift:7; D: window/window_session_controller_contact.cpp:28; W: lib/appManagers/appUsersManager.ts:455",
   "decision": "implement",
   "priority": "normal",
-  "why": "Пара к exportContactToken."
+  "why": "Сделано задачей 084 (ADR 0052): отдаёт пользователя по живому токену, в контакты не добавляет."
  },
  {
   "name": "contacts.updateContactNote",
@@ -1203,7 +1203,7 @@
   "used_by": "A: ui/ProfileActivity.java:16247 (TL_updateContactNote); I: Contacts/UpdateContactName.swift:38; D: info/profile/info_profile_actions.cpp:792; W: lib/appManagers/appProfileManager.ts:1910",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают все четыре клиента."
+  "why": "Сделано задачей 084 (ADR 0052): заметка в userFull.note, также из contacts.addContact."
  },
  {
   "name": "help.getDeepLinkInfo",
@@ -1221,7 +1221,7 @@
   "used_by": "A: messenger/ContactsController.java:357; I, D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Без ответа Android подставляет https://telegram.org/dl (ContactsController.java:378). Нужна ссылка на загрузку Pluma."
+  "why": "Сделано задачей 084: отдаёт адрес сайта, Android подставляет его в свою строку приглашения."
  },
  {
   "name": "upload.getWebFile",
@@ -1239,7 +1239,7 @@
   "used_by": "A: ui/ContactAddActivity.java:483; I: Peers/SuggestBirthday.swift:18; D: core/local_url_handlers.cpp:1057; W: lib/appManagers/appProfileManager.ts:1895",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают все четыре клиента."
+  "why": "Сделано задачей 084 (ADR 0052): служебное сообщение messageActionSuggestBirthday."
  },
  {
   "name": "bots.allowSendMessage",
@@ -1851,7 +1851,7 @@
   "used_by": "td api/api_updates.cpp:2862; an messenger/MessagesController.java:19095; ios State/Sync/UpdateInterpreter.swift:280; web lib/appManagers/appGiftsManager.ts:146",
   "decision": "implement",
   "priority": "normal",
-  "why": "Premium for everyone; account.updateEmojiStatus missing."
+  "why": "Сделано задачей 084 вместе с account.updateEmojiStatus."
  },
  {
   "name": "updateUserPhone",
@@ -2499,7 +2499,7 @@
   "used_by": "A ContactAddActivity.java:483; I SuggestBirthday.swift:18; D local_url_handlers.cpp:1057; W appProfileManager.ts:1895",
   "decision": "implement",
   "priority": "normal",
-  "why": "All four clients; no payment involved."
+  "why": "Сделано задачей 084 (ADR 0052): служебное сообщение messageActionSuggestBirthday."
  },
  {
   "name": "messages.acceptUrlAuth",
@@ -2922,7 +2922,7 @@
   "used_by": "A: ui/SelectAnimatedEmojiDialog.java:1212; I, D, W: нет",
   "decision": "implement",
   "priority": "rare",
-  "why": "Идёт вместе с account.updateEmojiStatus."
+  "why": "Сделано задачей 084 вместе с account.updateEmojiStatus."
  },
  {
   "name": "account.getCollectibleEmojiStatuses",
@@ -2931,7 +2931,7 @@
   "used_by": "I: State/ManagedRecentStickers.swift:334; D: data/data_emoji_statuses.cpp:435; A, W: нет",
   "decision": "implement",
   "priority": "rare",
-  "why": "Клиенты спрашивают сами. Покупок нет, поэтому честный ответ — пустой список, а не ошибка."
+  "why": "Сделано задачей 084: подарков нет, ответ — пустой список."
  },
  {
   "name": "account.getNotifyExceptions",
@@ -2940,7 +2940,7 @@
   "used_by": "A: ui/TopicsFragment.java:2720; I: TelegramEngine/Peers/NotificationExceptionsList.swift:29, ForumChannels.swift:1345; D: data/notify/data_notify_settings.cpp:670; W: есть (tests/notifyExceptions.test.ts:102)",
   "decision": "implement",
   "priority": "rare",
-  "why": "Метод работает; partial дал пустой комментарий TODO. Остаётся один недочёт: флаг compare_sound не применяется (в обработчике только комментарий // compare_sound)."
+  "why": "Сделано задачей 084: категории (пользователи, группы, каналы) и compare_sound по сохранённому звуку. Звук чата (NotificationSound) и настройки историй сервер пока не хранит — это пробел account.updateNotifySettings."
  },
  {
   "name": "account.getWebAuthorizations",
