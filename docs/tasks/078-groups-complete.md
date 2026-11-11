@@ -25,7 +25,8 @@
 - супергруппы: нужен RPC `channel.editParticipantRank` (protoc + правка `class_name_registers`, `codec_schema`, `rpc_client_registers`, `channel_client`, `service_impl`, как в коммите eb4d42c56), `rank` в `channelParticipant` и `channelParticipantSelf`, `from_rank` в `SendChannel`.
 
 Готово кодом: теги (базовые группы и супергруппы, e2e), `messages.getOnlines`, `messages.sendScreenshotNotification`.
-Дальше по порядку: `hideAllChatJoinRequests` для базовых групп, `deleteParticipantReaction(s)`, `getFutureChatCreatorAfterLeave`, передача владения базовой группой, «кто прочитал» в супергруппе, `getAdminLog`, `getSendAs`, стикеры группы, адреса и оформление.
+Готово кодом также: `hideAllChatJoinRequests` для базовых групп.
+Дальше по порядку: `deleteParticipantReaction(s)`, `getFutureChatCreatorAfterLeave`, передача владения базовой группой, «кто прочитал» в супергруппе, `getAdminLog`, `getSendAs`, стикеры группы, адреса и оформление.
 
 ## Результат
 _Заполняется по завершении._

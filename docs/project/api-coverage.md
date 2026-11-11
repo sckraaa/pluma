@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 394, partial 12, blocked 105, notimpl 3, fake 1, missing 415 (ok = 42.4%); with a conformance scenario 9
+    layer 233: 930 methods — ok 395, partial 11, blocked 105, notimpl 3, fake 1, missing 415 (ok = 42.5%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 283 | 175 | 6 | 17 | 2 | 0 | 83 | 3 |
+| messages | 283 | 176 | 5 | 17 | 2 | 0 | 83 | 3 |
 | payments | 81 | 0 | 1 | 4 | 0 | 0 | 76 | 0 |
 | phone | 45 | 10 | 0 | 0 | 0 | 0 | 35 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -661,7 +661,7 @@
 | `messages.getWebPagePreview570D6F6F` | ok |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:37 |
 | `messages.getWebPagePreview8B68B0CC` | blocked |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:65 |
 | `messages.getWidgetPublicData` | missing |  |  |
-| `messages.hideAllChatJoinRequests` | partial |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:30 |
+| `messages.hideAllChatJoinRequests` | ok |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:32 |
 | `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:42 |
 | `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
 | `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:31 |
