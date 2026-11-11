@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	-1460527570: func() mtproto.TLObject { // 0xa8f21e2e pluma: task 078
+		return &TLChannelSetStickerSet{
+			Constructor: -1460527570,
+		}
+	},
 	1139340211: func() mtproto.TLObject { // 0x43e8f3b3 pluma: task 078
 		return &TLChannelGetAdminLog{
 			Constructor: 1139340211,
@@ -5141,4 +5146,54 @@ func (m *Vector_ChannelAdminLogEvent) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *Vector_ChannelAdminLogEvent) CalcByteSize(layer int32) int {
 	return 0
+}
+
+// TLChannelSetStickerSet (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSetStickerSet) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xa8f21e2e:
+		x.UInt(0xa8f21e2e)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetEmoji().Encode(x, layer)
+		x.Long(m.GetSetId())
+		x.Long(m.GetAccessHash())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSetStickerSet) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSetStickerSet) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xa8f21e2e:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m1 := &mtproto.Bool{}
+		m1.Decode(dBuf)
+		m.Emoji = m1
+		m.SetId = dBuf.Long()
+		m.AccessHash = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
 }

@@ -521,3 +521,17 @@ func (s *Service) ChatSetBlocked(ctx context.Context, request *chat.TLChatSetBlo
 
 	return r, err
 }
+
+// ChatEditChatCreator
+// chat.editChatCreator self_id:long chat_id:long user_id:long = MutableChat;
+func (s *Service) ChatEditChatCreator(ctx context.Context, request *chat.TLChatEditChatCreator) (*mtproto.MutableChat, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("chat.editChatCreator - metadata: {%s}", c.MD)
+
+	r, err := c.ChatEditChatCreator(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

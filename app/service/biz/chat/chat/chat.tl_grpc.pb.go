@@ -39,6 +39,7 @@ const (
 	RPCChat_ChatEditChatAbout_FullMethodName                    = "/chat.RPCChat/chat_editChatAbout"
 	RPCChat_ChatEditChatPhoto_FullMethodName                    = "/chat.RPCChat/chat_editChatPhoto"
 	RPCChat_ChatEditChatAdmin_FullMethodName                    = "/chat.RPCChat/chat_editChatAdmin"
+	RPCChat_ChatEditChatCreator_FullMethodName                  = "/chat.RPCChat/chat_editChatCreator"
 	RPCChat_ChatEditChatDefaultBannedRights_FullMethodName      = "/chat.RPCChat/chat_editChatDefaultBannedRights"
 	RPCChat_ChatAddChatUser_FullMethodName                      = "/chat.RPCChat/chat_addChatUser"
 	RPCChat_ChatGetMutableChatByLink_FullMethodName             = "/chat.RPCChat/chat_getMutableChatByLink"
@@ -81,6 +82,8 @@ type RPCChatClient interface {
 	ChatEditChatAbout(ctx context.Context, in *TLChatEditChatAbout, opts ...grpc.CallOption) (*mtproto.MutableChat, error)
 	ChatEditChatPhoto(ctx context.Context, in *TLChatEditChatPhoto, opts ...grpc.CallOption) (*mtproto.MutableChat, error)
 	ChatEditChatAdmin(ctx context.Context, in *TLChatEditChatAdmin, opts ...grpc.CallOption) (*mtproto.MutableChat, error)
+	// pluma: task 078
+	ChatEditChatCreator(ctx context.Context, in *TLChatEditChatCreator, opts ...grpc.CallOption) (*mtproto.MutableChat, error)
 	ChatEditChatDefaultBannedRights(ctx context.Context, in *TLChatEditChatDefaultBannedRights, opts ...grpc.CallOption) (*mtproto.MutableChat, error)
 	ChatAddChatUser(ctx context.Context, in *TLChatAddChatUser, opts ...grpc.CallOption) (*mtproto.MutableChat, error)
 	ChatGetMutableChatByLink(ctx context.Context, in *TLChatGetMutableChatByLink, opts ...grpc.CallOption) (*mtproto.MutableChat, error)
@@ -212,6 +215,16 @@ func (c *rPCChatClient) ChatEditChatAdmin(ctx context.Context, in *TLChatEditCha
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.MutableChat)
 	err := c.cc.Invoke(ctx, RPCChat_ChatEditChatAdmin_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChatClient) ChatEditChatCreator(ctx context.Context, in *TLChatEditChatCreator, opts ...grpc.CallOption) (*mtproto.MutableChat, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.MutableChat)
+	err := c.cc.Invoke(ctx, RPCChat_ChatEditChatCreator_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -492,6 +505,8 @@ type RPCChatServer interface {
 	ChatEditChatAbout(context.Context, *TLChatEditChatAbout) (*mtproto.MutableChat, error)
 	ChatEditChatPhoto(context.Context, *TLChatEditChatPhoto) (*mtproto.MutableChat, error)
 	ChatEditChatAdmin(context.Context, *TLChatEditChatAdmin) (*mtproto.MutableChat, error)
+	// pluma: task 078
+	ChatEditChatCreator(context.Context, *TLChatEditChatCreator) (*mtproto.MutableChat, error)
 	ChatEditChatDefaultBannedRights(context.Context, *TLChatEditChatDefaultBannedRights) (*mtproto.MutableChat, error)
 	ChatAddChatUser(context.Context, *TLChatAddChatUser) (*mtproto.MutableChat, error)
 	ChatGetMutableChatByLink(context.Context, *TLChatGetMutableChatByLink) (*mtproto.MutableChat, error)
@@ -557,6 +572,9 @@ func (UnimplementedRPCChatServer) ChatEditChatPhoto(context.Context, *TLChatEdit
 }
 func (UnimplementedRPCChatServer) ChatEditChatAdmin(context.Context, *TLChatEditChatAdmin) (*mtproto.MutableChat, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChatEditChatAdmin not implemented")
+}
+func (UnimplementedRPCChatServer) ChatEditChatCreator(context.Context, *TLChatEditChatCreator) (*mtproto.MutableChat, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChatEditChatCreator not implemented")
 }
 func (UnimplementedRPCChatServer) ChatEditChatDefaultBannedRights(context.Context, *TLChatEditChatDefaultBannedRights) (*mtproto.MutableChat, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChatEditChatDefaultBannedRights not implemented")
@@ -832,6 +850,24 @@ func _RPCChat_ChatEditChatAdmin_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCChatServer).ChatEditChatAdmin(ctx, req.(*TLChatEditChatAdmin))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChat_ChatEditChatCreator_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChatEditChatCreator)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChatServer).ChatEditChatCreator(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChat_ChatEditChatCreator_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChatServer).ChatEditChatCreator(ctx, req.(*TLChatEditChatCreator))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1350,6 +1386,10 @@ var RPCChat_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "chat_editChatAdmin",
 			Handler:    _RPCChat_ChatEditChatAdmin_Handler,
+		},
+		{
+			MethodName: "chat_editChatCreator",
+			Handler:    _RPCChat_ChatEditChatCreator_Handler,
 		},
 		{
 			MethodName: "chat_editChatDefaultBannedRights",

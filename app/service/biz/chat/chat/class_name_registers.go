@@ -11,22 +11,24 @@
 package chat
 
 const (
-	Predicate_chatInviteAlready                     = "chatInviteAlready"
-	Predicate_chatInvite                            = "chatInvite"
-	Predicate_chatInvitePeek                        = "chatInvitePeek"
-	Predicate_userChatIdList                        = "userChatIdList"
-	Predicate_recentChatInviteRequesters            = "recentChatInviteRequesters"
-	Predicate_chatInviteImported                    = "chatInviteImported"
-	Predicate_chat_getMutableChat                   = "chat_getMutableChat"
-	Predicate_chat_getChatListByIdList              = "chat_getChatListByIdList"
-	Predicate_chat_getChatBySelfId                  = "chat_getChatBySelfId"
-	Predicate_chat_createChat2                      = "chat_createChat2"
-	Predicate_chat_deleteChat                       = "chat_deleteChat"
-	Predicate_chat_deleteChatUser                   = "chat_deleteChatUser"
-	Predicate_chat_editChatTitle                    = "chat_editChatTitle"
-	Predicate_chat_editChatAbout                    = "chat_editChatAbout"
-	Predicate_chat_editChatPhoto                    = "chat_editChatPhoto"
-	Predicate_chat_editChatAdmin                    = "chat_editChatAdmin"
+	Predicate_chatInviteAlready          = "chatInviteAlready"
+	Predicate_chatInvite                 = "chatInvite"
+	Predicate_chatInvitePeek             = "chatInvitePeek"
+	Predicate_userChatIdList             = "userChatIdList"
+	Predicate_recentChatInviteRequesters = "recentChatInviteRequesters"
+	Predicate_chatInviteImported         = "chatInviteImported"
+	Predicate_chat_getMutableChat        = "chat_getMutableChat"
+	Predicate_chat_getChatListByIdList   = "chat_getChatListByIdList"
+	Predicate_chat_getChatBySelfId       = "chat_getChatBySelfId"
+	Predicate_chat_createChat2           = "chat_createChat2"
+	Predicate_chat_deleteChat            = "chat_deleteChat"
+	Predicate_chat_deleteChatUser        = "chat_deleteChatUser"
+	Predicate_chat_editChatTitle         = "chat_editChatTitle"
+	Predicate_chat_editChatAbout         = "chat_editChatAbout"
+	Predicate_chat_editChatPhoto         = "chat_editChatPhoto"
+	Predicate_chat_editChatAdmin         = "chat_editChatAdmin"
+	// pluma: task 078
+	Predicate_chat_editChatCreator                  = "chat_editChatCreator"
 	Predicate_chat_editChatDefaultBannedRights      = "chat_editChatDefaultBannedRights"
 	Predicate_chat_addChatUser                      = "chat_addChatUser"
 	Predicate_chat_getMutableChatByLink             = "chat_getMutableChatByLink"
@@ -116,6 +118,9 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	Predicate_chat_editChatPhoto: {
 		0: 1170384488, // 0x45c2a668
 
+	},
+	Predicate_chat_editChatCreator: { // pluma: task 078
+		0: -415058125, // 0xe742b733
 	},
 	Predicate_chat_editChatAdmin: {
 		0: 419816940, // 0x1905e5ec
@@ -244,6 +249,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1551072376:  Predicate_chat_editChatAbout,                    // 0x5c737c78
 	1170384488:  Predicate_chat_editChatPhoto,                    // 0x45c2a668
 	419816940:   Predicate_chat_editChatAdmin,                    // 0x1905e5ec
+	-415058125:  Predicate_chat_editChatCreator,                  // 0xe742b733 pluma: task 078
 	1513399943:  Predicate_chat_editChatDefaultBannedRights,      // 0x5a34a687
 	-447397528:  Predicate_chat_addChatUser,                      // 0xe5554168
 	-1570363509: Predicate_chat_getMutableChatByLink,             // 0xa266278b

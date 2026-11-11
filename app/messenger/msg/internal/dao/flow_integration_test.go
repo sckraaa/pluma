@@ -360,6 +360,10 @@ func (noChannels) ChannelGetAdminLog(context.Context, *channelpb.TLChannelGetAdm
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelSetStickerSet(context.Context, *channelpb.TLChannelSetStickerSet) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelSearch(context.Context, *channelpb.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

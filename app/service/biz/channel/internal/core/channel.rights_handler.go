@@ -48,6 +48,17 @@ func (c *ChannelCore) ChannelEditParticipantRank(in *channel.TLChannelEditPartic
 	})
 }
 
+// ChannelSetStickerSet
+// channel.setStickerSet self_id:long perm_auth_key_id:long channel_id:long emoji:Bool set_id:long access_hash:long = Updates;
+//
+// self_id chooses the sticker set or the emoji set of a supergroup
+// (dao.SetStickerSet); the members load the channel again.
+func (c *ChannelCore) ChannelSetStickerSet(in *channel.TLChannelSetStickerSet) (*mtproto.Updates, error) {
+	return c.editRights("channel.setStickerSet", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.SetStickerSet(b, in.ChannelId, mtproto.FromBool(in.Emoji), in.SetId, in.AccessHash)
+	})
+}
+
 // ChannelEditBanned
 // channel.editBanned self_id:long perm_auth_key_id:long channel_id:long user_id:long banned_rights:int until_date:int = Updates;
 //

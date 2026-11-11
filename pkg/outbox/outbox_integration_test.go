@@ -490,7 +490,28 @@ func TestRelayKafkaRestart(t *testing.T) {
 	eventually(t, 90*time.Second, "backlog published", func() bool { return countRows(t, db, "recipient_id = ?", recipient) == 0 })
 	t.Logf("backlog of 20 published %v after the broker started", time.Since(started).Round(100*time.Millisecond))
 	tr := readTopics(t, "Sync-T")
-	eventually(t, 30*time.Second, "copies in the topic", func() bool { return len(tr.of(strconv.FormatInt(recipient, 10))) == 20 })
+	// A round whose answers were lost while the broker came back is
+	// published again under a new producer epoch (ADR 0012: at least once,
+	// the consumer applies an event once): every event is there, some may be
+	// twice.
+	key := strconv.FormatInt(recipient, 10)
+	distinct := func() int {
+		ids := map[int64]bool{}
+		for _, r := range tr.of(key) {
+			ids[r.eventId] = true
+		}
+		return len(ids)
+	}
+	deadline := time.Now().Add(30 * time.Second)
+	for distinct() < 20 && time.Now().Before(deadline) {
+		time.Sleep(100 * time.Millisecond)
+	}
+	if n := distinct(); n != 20 {
+		t.Fatalf("copies in the topic: %d records of %d events, want 20 events", len(tr.of(key)), n)
+	}
+	if n := len(tr.of(key)); n > 20 {
+		t.Logf("%d copies of 20 events: published again after the restart", n)
+	}
 }
 
 // A row the broker refuses for good among ordinary ones: the others are

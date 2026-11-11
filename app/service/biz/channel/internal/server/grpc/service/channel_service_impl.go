@@ -1171,3 +1171,17 @@ func (s *Service) ChannelGetAdminLog(ctx context.Context, request *channel.TLCha
 
 	return r, nil
 }
+
+// ChannelSetStickerSet
+// channel.setStickerSet self_id:long perm_auth_key_id:long channel_id:long emoji:Bool set_id:long access_hash:long = Updates;
+func (s *Service) ChannelSetStickerSet(ctx context.Context, request *channel.TLChannelSetStickerSet) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setStickerSet - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetStickerSet(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

@@ -18,6 +18,7 @@ package dao
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -243,6 +244,67 @@ func (d *Dao) SetBlocked(b *userbox.Box, channelId int64, blocked bool) (*Channe
 	}
 	n, err := r.RowsAffected()
 	if err != nil || n == 0 {
+		return nil, err
+	}
+	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// SetStickerSet gives a supergroup its sticker set or, with emoji, its emoji
+// set: setId 0 for none. For those who may change its info (ChangeInfo),
+// CHAT_NOT_MODIFIED for the set it has; the recent actions keep the change.
+func (d *Dao) SetStickerSet(b *userbox.Box, channelId int64, emoji bool, setId, accessHash int64) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if a.ch.Broadcast {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	if err = a.can(channelperm.ChangeInfo, b.Date()); err != nil {
+		return nil, err
+	}
+	var prev []struct {
+		SetId      int64 `db:"set_id"`
+		AccessHash int64 `db:"access_hash"`
+	}
+	if err = b.Tx().QueryRowsPartial(&prev, "SELECT set_id, access_hash FROM channel_sticker_sets WHERE channel_id = ? AND emoji = ? FOR UPDATE",
+		channelId, emoji); err != nil {
+		return nil, err
+	}
+	var prevId, prevHash int64
+	if len(prev) > 0 {
+		prevId, prevHash = prev[0].SetId, prev[0].AccessHash
+	}
+	if prevId == setId {
+		return nil, mtproto.ErrChatNotModified
+	}
+	if setId == 0 {
+		_, err = b.Tx().Exec("DELETE FROM channel_sticker_sets WHERE channel_id = ? AND emoji = ?", channelId, emoji)
+	} else {
+		_, err = b.Tx().Exec("INSERT INTO channel_sticker_sets (channel_id, emoji, set_id, access_hash) VALUES (?, ?, ?, ?)"+
+			" ON DUPLICATE KEY UPDATE set_id = VALUES(set_id), access_hash = VALUES(access_hash)", channelId, emoji, setId, accessHash)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err = b.Tx().Exec("UPDATE channels SET version = version + 1 WHERE id = ?", channelId); err != nil {
+		return nil, err
+	}
+	input := func(id, hash int64) *mtproto.InputStickerSet {
+		if id == 0 {
+			return mtproto.MakeTLInputStickerSetEmpty(nil).To_InputStickerSet()
+		}
+		return mtproto.MakeTLInputStickerSetID(&mtproto.InputStickerSet{Id: id, AccessHash: hash}).To_InputStickerSet()
+	}
+	a2 := &mtproto.ChannelAdminLogEventAction{PrevStickerset: input(prevId, prevHash), NewStickerset: input(setId, accessHash)}
+	action := mtproto.MakeTLChannelAdminLogEventActionChangeStickerSet(a2).To_ChannelAdminLogEventAction()
+	if emoji {
+		action = mtproto.MakeTLChannelAdminLogEventActionChangeEmojiStickerSet(a2).To_ChannelAdminLogEventAction()
+	}
+	if err = adminlog.Write(b, channelId, action, ""); err != nil {
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil

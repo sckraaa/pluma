@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 399, partial 11, blocked 103, notimpl 3, fake 1, missing 413 (ok = 42.9%); with a conformance scenario 9
+    layer 233: 930 methods — ok 402, partial 10, blocked 101, notimpl 3, fake 1, missing 413 (ok = 43.2%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | auth | 31 | 18 | 0 | 12 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | bots | 41 | 9 | 0 | 0 | 0 | 0 | 32 | 0 |
-| channels | 74 | 49 | 1 | 14 | 0 | 0 | 10 | 0 |
+| channels | 74 | 51 | 1 | 12 | 0 | 0 | 10 | 0 |
 | chatlists | 11 | 11 | 0 | 0 | 0 | 0 | 0 | 0 |
 | communities | 9 | 0 | 0 | 0 | 0 | 0 | 9 | 0 |
 | contacts | 31 | 23 | 0 | 2 | 0 | 0 | 6 | 0 |
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 283 | 178 | 5 | 17 | 2 | 0 | 81 | 3 |
+| messages | 283 | 179 | 4 | 17 | 2 | 0 | 81 | 3 |
 | payments | 81 | 0 | 1 | 4 | 0 | 0 | 76 | 0 |
 | phone | 45 | 10 | 0 | 0 | 0 | 0 | 35 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -301,7 +301,7 @@
 | `channels.editBanned` | ok |  | app/bff/channels/internal/core/channels.editRights_handler.go:70 |
 | `channels.editCreator` | ok |  | app/bff/channels/internal/core/channels.editRights_handler.go:111 |
 | `channels.editForumTopic` | ok |  | app/bff/channels/internal/core/channels.forum_handler.go:95 |
-| `channels.editLocation` | blocked |  | app/bff/channels/internal/core/not_served.go:39 |
+| `channels.editLocation` | blocked |  | app/bff/channels/internal/core/not_served.go:34 |
 | `channels.editPhoto` | ok |  | app/bff/channels/internal/core/channels.editPhoto_handler.go:30 |
 | `channels.editTitle` | ok |  | app/bff/channels/internal/core/channels.editTitle_handler.go:30 |
 | `channels.exportMessageLink` | ok |  | app/bff/channels/internal/core/channels.exportMessageLink_handler.go:35 |
@@ -312,9 +312,9 @@
 | `channels.getForumTopics` | ok |  | app/bff/channels/internal/core/channels.forum_handler.go:218 |
 | `channels.getForumTopicsByID` | ok |  | app/bff/channels/internal/core/channels.forum_handler.go:249 |
 | `channels.getFullChannel` | ok |  | app/bff/channels/internal/core/channels.getFullChannel_handler.go:54 |
-| `channels.getFutureCreatorAfterLeave` | blocked |  | app/bff/channels/internal/core/not_served.go:49 |
+| `channels.getFutureCreatorAfterLeave` | blocked |  | app/bff/channels/internal/core/not_served.go:44 |
 | `channels.getGroupsForDiscussion` | ok |  | app/bff/channels/internal/core/channels.discussion_handler.go:72 |
-| `channels.getInactiveChannels` | blocked |  | app/bff/channels/internal/core/not_served.go:44 |
+| `channels.getInactiveChannels` | blocked |  | app/bff/channels/internal/core/not_served.go:39 |
 | `channels.getLeftChannels` | ok |  | app/bff/channels/internal/core/channels.getLeftChannels_handler.go:34 |
 | `channels.getMessageAuthor` | blocked |  | app/bff/savedmessagedialogs/internal/core/channels.getMessageAuthor_handler.go:27 |
 | `channels.getMessages` | ok |  | app/bff/channels/internal/core/channels.getMessages_handler.go:37 |
@@ -338,9 +338,9 @@
 | `channels.searchPosts` | ok |  | app/bff/messages/internal/core/channels.searchPosts_handler.go:27 |
 | `channels.setBoostsToUnblockRestrictions` | blocked |  | app/bff/channels/internal/core/boosts.go:86 |
 | `channels.setDiscussionGroup` | ok |  | app/bff/channels/internal/core/channels.discussion_handler.go:32 |
-| `channels.setEmojiStickers` | blocked |  | app/bff/chats/internal/core/channels.setEmojiStickers_handler.go:27 |
+| `channels.setEmojiStickers` | ok |  | app/bff/chats/internal/core/channels.setEmojiStickers_handler.go:32 |
 | `channels.setMainProfileTab` | blocked |  | app/bff/userchannelprofiles/internal/core/channels.setMainProfileTab_handler.go:27 |
-| `channels.setStickers` | blocked |  | app/bff/channels/internal/core/not_served.go:34 |
+| `channels.setStickers` | ok |  | app/bff/channels/internal/core/channels.setStickers_handler.go:28 |
 | `channels.toggleAntiSpam` | missing |  |  |
 | `channels.toggleAutotranslation` | missing |  |  |
 | `channels.toggleForum` | ok |  | app/bff/channels/internal/core/channels.forum_handler.go:33 |
@@ -539,7 +539,7 @@
 | `messages.discardEncryption` | ok |  | app/bff/secretchats/internal/core/messages.discardEncryption_handler.go:25 |
 | `messages.editChatAbout` | ok |  | app/bff/chats/internal/core/messages.editChatAbout_handler.go:35 |
 | `messages.editChatAdmin` | ok |  | app/bff/chats/internal/core/messages.editChatAdmin_handler.go:31 |
-| `messages.editChatCreator` | partial |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:43 |
+| `messages.editChatCreator` | ok |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:43 |
 | `messages.editChatDefaultBannedRights` | ok |  | app/bff/chats/internal/core/messages.editChatDefaultBannedRights_handler.go:36 |
 | `messages.editChatParticipantRank` | ok |  | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:33 |
 | `messages.editChatPhoto` | ok |  | app/bff/chats/internal/core/messages.editChatPhoto_handler.go:32 |
