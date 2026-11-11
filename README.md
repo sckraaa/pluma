@@ -62,7 +62,7 @@ For running the server from source (Go build), follow the step-by-step guides:
 - **[Manual installation (Linux)](docs/install-manual-linux.md)** — CentOS, Fedora, Ubuntu/Debian
 - **[Manual installation (macOS)](docs/install-manual-macos.md)** — Intel and Apple Silicon
 
-Requires Go 1.27 (`go.mod` pins `toolchain go1.27.3`; Go 1.21+ downloads it automatically with `GOTOOLCHAIN=auto`). You must install and configure dependencies (MySQL, Redis, etcd, Kafka, MinIO, FFmpeg), initialize the database and MinIO, then build and run.
+Requires Go 1.27 (`go.mod` pins `toolchain go1.27.4`; Go 1.21+ downloads it automatically with `GOTOOLCHAIN=auto`). You must install and configure dependencies (MySQL, Redis, etcd, Kafka, MinIO, FFmpeg), initialize the database and MinIO, then build and run.
 
 ---
 

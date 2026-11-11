@@ -65,7 +65,7 @@
 - **[手动安装（Linux）](docs/install-manual-linux-zh.md)** — CentOS、Fedora、Ubuntu/Debian
 - **[手动安装（macOS）](docs/install-manual-macos-zh.md)** — Intel 与 Apple Silicon
 
-需要 Go 1.27（`go.mod` 固定 `toolchain go1.27.3`；Go 1.21+ 在 `GOTOOLCHAIN=auto` 时会自动下载）。需自行安装并配置依赖（MySQL、Redis、etcd、Kafka、MinIO、FFmpeg），初始化数据库与 MinIO，再编译并运行。
+需要 Go 1.27（`go.mod` 固定 `toolchain go1.27.4`；Go 1.21+ 在 `GOTOOLCHAIN=auto` 时会自动下载）。需自行安装并配置依赖（MySQL、Redis、etcd、Kafka、MinIO、FFmpeg），初始化数据库与 MinIO，再编译并运行。
 
 ---
 
