@@ -588,6 +588,19 @@
 - **Не правится.** Эффекты отправки (`sendContextMenu.ts:118`) и кастомные эмодзи (вопрос владельцу в брифе). Эффект у получателя играет `wrappers/sticker.ts:742` без проверки Premium.
 - **Как проверяется.** `verify_premium_stickers` (функция `true`, вызовы только в пяти гейтах, каждый гейт), `test_premium_stickers`, `test_premium_stickers_verify`, порча каждого гейта в `DAMAGE`. `ci/patch_test.py` со `./upstream`: 35 тестов, OK. Сборка и проверка в браузере не делались.
 
+### W-073. Нет ИИ-редактора сообщений (задача 079)
+- **Статус.** Ветка `task/079-remove-ai-editor` pluma-web, не закоммичено, не влито (2026-11-11).
+- **Что и зачем.** Решение владельца 2026-11-11 (задача 079): у Pluma нет языковой модели, поэтому ИИ-редактор сообщений (переписать, исправить, сменить стиль, перевести набранный текст; `messages.composeMessageWithAI`, `messages.composeRichMessageWithAI`, `aicompose.*`) не предлагается ни в одном клиенте. Сервер их не обслуживает: `messages.composeRichMessageWithAI` отвечает `ErrEnterpriseIsBlocked` (`app/bff/messages/internal/core/messages.composeRichMessageWithAI_handler.go`), а служба `RPCAiComposeTone` (`messages.composeMessageWithAI`, `aicompose.*`) не маршрутизирована в `session.yaml`, и прокси отвечает `ERR_ENTERPRISE_IS_BLOCKED`. В tweb это `aiEditorPopup` и `createWithAiPopup`.
+- **Где** (`NO_AI_EDITOR_EDITS`, `no_ai_editor()` в `ci/patch.py`; апстрим `aa74832e`):
+  - `components/chat/input.ts`: поле сообщения (`RichMessageInput`) не получает `ai: this.getAiEditorContext()`, поэтому не создаёт кнопку ИИ, а кнопка ИИ его панели инструментов скрыта (`aiButton.hidden = !this.options.onAi`);
+  - `components/popups/newMedia.tsx`: подпись в окне отправки медиа (`InputFieldMessage`) не получает `ai`, кнопки нет;
+  - `components/chat/markupTooltip.ts`: `aiAvailable = false`, кнопка ИИ всплывающей панели форматирования и разделитель скрыты (она нажимала ту же кнопку поля).
+- **Апстрим без правки.** Кнопка ИИ появляется в поле от 72 px высоты и в подписи медиа, во всплывающей панели форматирования — всегда.
+- **Как проверяется.** `verify_no_ai_editor(sources)`: правки на месте; по всем исходникам без комментариев вызовов `.getAiEditorContext(` и `createAiEditorContext(` — только определение в `input.ts` и сама функция, `useAiEditorButton(` / `<AiEditorButton` — только в `richMessageInput/ai.tsx`, `index.tsx`, `aiButton.tsx`, `inputFieldMessage.tsx`. `NoAiEditorTest`; порча каждого якоря в `DAMAGE` на настоящем апстриме (`UpstreamTest`).
+- **Осталось (сознательно).** Меню отправки «отправить как есть / выключить стиль» появляется только при сохранённом стиле, а сохранить его можно только в редакторе. Ссылки на стиль (`internalLinkProcessor.ts`, `viewTonePopup`) — ошибка сервера. Окно перевода — задача 027.
+- **Не проверено.** `pnpm run typecheck`, сборка vite и браузер (CI после пуша).
+
+
 ## Медиа
 
 ### W-048. «Добавить» в наборе стикеров, открытом по ссылке (снято в задаче 074)
