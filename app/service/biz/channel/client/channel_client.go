@@ -49,6 +49,7 @@ type ChannelClient interface {
 	ChannelGetAdminedPublicChannels(ctx context.Context, in *channel.TLChannelGetAdminedPublicChannels) (*channel.Vector_Long, error)
 	ChannelDeleteChannel(ctx context.Context, in *channel.TLChannelDeleteChannel) (*mtproto.Updates, error)
 	ChannelSetBlocked(ctx context.Context, in *channel.TLChannelSetBlocked) (*mtproto.Bool, error)
+	ChannelEditParticipantRank(ctx context.Context, in *channel.TLChannelEditParticipantRank) (*mtproto.Updates, error)
 	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error)
@@ -984,4 +985,15 @@ func (m *defaultChannelClient) ChannelSetBlocked(ctx context.Context, in *channe
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetBlocked(ctx, in)
+}
+
+// ChannelEditParticipantRank
+// channel.editParticipantRank self_id:long perm_auth_key_id:long channel_id:long user_id:long rank:string = Updates;
+func (m *defaultChannelClient) ChannelEditParticipantRank(ctx context.Context, in *channel.TLChannelEditParticipantRank) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditParticipantRank(ctx, in)
 }

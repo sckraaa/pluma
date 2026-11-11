@@ -1129,3 +1129,17 @@ func (s *Service) ChannelSetBlocked(ctx context.Context, request *channel.TLChan
 
 	return r, err
 }
+
+// ChannelEditParticipantRank
+// channel.editParticipantRank self_id:long perm_auth_key_id:long channel_id:long user_id:long rank:string = Updates;
+func (s *Service) ChannelEditParticipantRank(ctx context.Context, request *channel.TLChannelEditParticipantRank) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editParticipantRank - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditParticipantRank(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

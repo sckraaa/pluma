@@ -11,6 +11,7 @@ package core
 
 import (
 	"github.com/teamgram/teamgram-server/pkg/botprivacy"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	"math/rand"
 	"time"
 
@@ -426,6 +427,14 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		return nil, mtproto.ErrChatWriteForbidden
 	} else if opt.queued && !p.IsChatMemberStateNormal() {
 		return nil, mtproto.ErrChatWriteForbidden
+	}
+
+	// The sender's member tag goes with the message, as post_author does
+	// (Android ChatMessageCell.java:15999, tdesktop history_item.cpp:2822).
+	if p, _ := chat.GetImmutableChatParticipant(fromUserId); p.GetRank() != "" {
+		for _, outBox := range outBoxList {
+			outBox.Message.FromRank = wrapperspb.String(p.GetRank())
+		}
 	}
 
 	hasBot := func() bool {

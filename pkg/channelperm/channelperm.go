@@ -33,6 +33,8 @@ package channelperm
 
 import (
 	"math"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/teamgram/proto/mtproto"
 	"google.golang.org/grpc/status"
@@ -273,4 +275,27 @@ func Grantable(ch Channel, p Participant, now int32) int32 {
 		return AdminMask
 	}
 	return p.AdminRights & AdminMask
+}
+
+// RankLimit is the longest admin title or member tag, in characters (Android
+// TagEditCell.java:158).
+const RankLimit = 16
+
+// CheckRank checks an admin title or a member tag: at most RankLimit
+// characters, no emoji (ADMIN_RANK_INVALID, ADMIN_RANK_EMOJI_NOT_ALLOWED,
+// core.telegram.org/method/channels.editAdmin).
+func CheckRank(rank string) error {
+	if !utf8.ValidString(rank) || utf8.RuneCountInString(rank) > RankLimit {
+		return mtproto.ErrAdminRankInvalid
+	}
+	for _, r := range rank {
+		// Emoji are symbols (So); their skin tones are modifiers.
+		if unicode.Is(unicode.So, r) || r >= 0x1F3FB && r <= 0x1F3FF {
+			return mtproto.ErrAdminRankEmojiNotAllowed
+		}
+		if unicode.IsControl(r) {
+			return mtproto.ErrAdminRankInvalid
+		}
+	}
+	return nil
 }
