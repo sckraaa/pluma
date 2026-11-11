@@ -58,6 +58,7 @@ var served = map[string]bool{
 	"ChannelsToggleSlowMode":           true,
 	"ChannelsTogglePreHistoryHidden":   true,
 	"ChannelsToggleParticipantsHidden": true,
+	"ChannelsGetAdminLog":              true,
 }
 
 // Every method of the service not served yet answers ERR_ENTERPRISE_IS_BLOCKED
