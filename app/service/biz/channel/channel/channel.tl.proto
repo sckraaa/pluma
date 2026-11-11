@@ -278,6 +278,9 @@ message ImmutableChannel {
     // pluma: task 078: the tab its profile opens on (channelFull.main_tab),
     // as mtproto.ProfileTabType* numbers it; 0 for none.
     int32 main_tab = 47;
+    // pluma: task 080: flags.17, a supergroup turned into a broadcast group
+    // (channels.convertToGigagroup): only its admins write.
+    bool gigagroup = 48;
 }
 
 message TL_immutableChannel {

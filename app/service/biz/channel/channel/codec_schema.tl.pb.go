@@ -623,6 +623,9 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 				if d.GetBlocked() {
 					flags |= 1 << 16
 				}
+				if d.GetGigagroup() {
+					flags |= 1 << 17
+				}
 				if d.GetSignatures() {
 					flags |= 1 << 3
 				}
@@ -707,6 +710,7 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.Forum = (flags & (1 << 2)) != 0
 			d.ForumTabs = (flags & (1 << 15)) != 0
 			d.Blocked = (flags & (1 << 16)) != 0
+			d.Gigagroup = (flags & (1 << 17)) != 0
 			d.Signatures = (flags & (1 << 3)) != 0
 			d.Noforwards = (flags & (1 << 4)) != 0
 			d.JoinToSend = (flags & (1 << 5)) != 0

@@ -46,6 +46,7 @@ const RankMax = 16
 
 type actorRow struct {
 	Broadcast           bool  `db:"broadcast"`
+	Gigagroup           bool  `db:"gigagroup"`
 	Blocked             bool  `db:"blocked"`
 	DefaultBannedRights int32 `db:"default_banned_rights"`
 	Role                int32 `db:"role"`
@@ -70,7 +71,7 @@ func (a *actor) can(act channelperm.Action, now int64) error {
 func rightsActor(b *userbox.Box, channelId int64) (*actor, error) {
 	var rows []actorRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.blocked, c.default_banned_rights, p.role, p.state, p.admin_rights, p.banned_rights, p.until_date"+
+		"SELECT c.broadcast, c.gigagroup, c.blocked, c.default_banned_rights, p.role, p.state, p.admin_rights, p.banned_rights, p.until_date"+
 			" FROM channels c JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ? AND c.deleted = 0",
 		b.UserId(), channelId); err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func rightsActor(b *userbox.Box, channelId int64) (*actor, error) {
 	}
 	r := rows[0]
 	return &actor{
-		ch: channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights, Blocked: r.Blocked},
+		ch: channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil
@@ -526,7 +527,10 @@ func (d *Dao) kick(b *userbox.Box, ch *channelbox.Channel, a *actor, change *Cha
 
 // EditDefaultBannedRights sets the restrictions of every member of a
 // supergroup, by one with ban_users (CHAT_ADMIN_REQUIRED). A broadcast
-// channel has none (CHANNEL_INVALID); view_messages is not a default
+// channel has none (CHANNEL_INVALID), nor has a broadcast group, whose
+// members only read and whose permissions the clients do not offer
+// (tdesktop ChannelData::canEditPermissions, data_channel.cpp:801-805;
+// Telegram's error for it is not verified); view_messages is not a default
 // (BANNED_RIGHTS_INVALID); the rights it has are CHAT_NOT_MODIFIED
 // (core.telegram.org/method/messages.editChatDefaultBannedRights). The
 // channel's version grows, as the clients compare it.
@@ -539,7 +543,7 @@ func (d *Dao) EditDefaultBannedRights(b *userbox.Box, channelId int64, rights in
 		return nil, err
 	}
 	switch {
-	case a.ch.Broadcast:
+	case a.ch.Broadcast, a.ch.Gigagroup:
 		return nil, mtproto.ErrChannelInvalid
 	case rights&^channelperm.BannedMask != 0, rights&mtproto.BANNED_VIEW_MESSAGES != 0:
 		return nil, mtproto.ErrBannedRightsInvalid

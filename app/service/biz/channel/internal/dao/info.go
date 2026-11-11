@@ -37,6 +37,7 @@ type infoRow struct {
 	PhotoId             int64  `db:"photo_id"`
 	About               string `db:"about"`
 	Broadcast           bool   `db:"broadcast"`
+	Gigagroup           bool   `db:"gigagroup"`
 	Blocked             bool   `db:"blocked"`
 	DefaultBannedRights int32  `db:"default_banned_rights"`
 	Role                int32  `db:"role"`
@@ -55,7 +56,7 @@ type infoRow struct {
 func infoEditor(b *userbox.Box, channelId int64) (*infoRow, error) {
 	var rows []infoRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.title, c.photo_id, c.about, c.broadcast, c.blocked, c.default_banned_rights, p.role, p.state, p.admin_rights, p.banned_rights, p.until_date"+
+		"SELECT c.title, c.photo_id, c.about, c.broadcast, c.gigagroup, c.blocked, c.default_banned_rights, p.role, p.state, p.admin_rights, p.banned_rights, p.until_date"+
 			" FROM channels c JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ? AND c.deleted = 0",
 		b.UserId(), channelId); err != nil {
 		return nil, err
@@ -64,7 +65,7 @@ func infoEditor(b *userbox.Box, channelId int64) (*infoRow, error) {
 		return nil, mtproto.ErrChannelPrivate
 	}
 	r := &rows[0]
-	ch := channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights, Blocked: r.Blocked}
+	ch := channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked}
 	p := channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights, BannedRights: r.BannedRights, UntilDate: r.UntilDate}
 	if err := channelperm.Can(ch, p, channelperm.ChangeInfo, int32(b.Date())); err != nil {
 		return nil, err

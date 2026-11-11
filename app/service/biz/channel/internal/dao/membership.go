@@ -40,7 +40,7 @@ import (
 const (
 	// MembersMax is the most members of a supergroup or channel
 	// (megagroup_size_max, core.telegram.org/api/config: 200000).
-	MembersMax = 200000
+	MembersMax = channel.MembersMax
 )
 
 // ChannelChange is what a change of a channel wrote: its service message

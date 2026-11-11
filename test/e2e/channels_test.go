@@ -43,9 +43,10 @@ func TestChannelsNotServed(t *testing.T) {
 		AccessHash:  1,
 	}
 	for name, req := range map[string]mtproto.TLObject{
-		"channels.convertToGigagroup": &mtproto.TLChannelsConvertToGigagroup{
-			Constructor: alice.c.Constructor(mtproto.Predicate_channels_convertToGigagroup),
+		"channels.editLocation": &mtproto.TLChannelsEditLocation{
+			Constructor: alice.c.Constructor(mtproto.Predicate_channels_editLocation),
 			Channel:     channel,
+			GeoPoint:    &mtproto.InputGeoPoint{Constructor: alice.c.Constructor(mtproto.Predicate_inputGeoPointEmpty)},
 		},
 		"channels.toggleAntiSpam": &mtproto.TLChannelsToggleAntiSpam{
 			Constructor: alice.c.Constructor(mtproto.Predicate_channels_toggleAntiSpam),

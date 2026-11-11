@@ -521,7 +521,10 @@ type ImmutableChannel struct {
 	Usernames []*mtproto.Username `protobuf:"bytes,46,rep,name=usernames,proto3" json:"usernames,omitempty"`
 	// pluma: task 078: the tab its profile opens on (channelFull.main_tab),
 	// as mtproto.ProfileTabType* numbers it; 0 for none.
-	MainTab       int32 `protobuf:"varint,47,opt,name=main_tab,json=mainTab,proto3" json:"main_tab,omitempty"`
+	MainTab int32 `protobuf:"varint,47,opt,name=main_tab,json=mainTab,proto3" json:"main_tab,omitempty"`
+	// pluma: task 080: flags.17, a supergroup turned into a broadcast group
+	// (channels.convertToGigagroup): only its admins write.
+	Gigagroup     bool `protobuf:"varint,48,opt,name=gigagroup,proto3" json:"gigagroup,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -855,6 +858,13 @@ func (x *ImmutableChannel) GetMainTab() int32 {
 		return x.MainTab
 	}
 	return 0
+}
+
+func (x *ImmutableChannel) GetGigagroup() bool {
+	if x != nil {
+		return x.Gigagroup
+	}
+	return false
 }
 
 type TLImmutableChannel struct {
@@ -9435,7 +9445,7 @@ var File_channel_tl_proto protoreflect.FileDescriptor
 
 const file_channel_tl_proto_rawDesc = "" +
 	"\n" +
-	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xcb\f\n" +
+	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xe9\f\n" +
 	"\x10ImmutableChannel\x12%\n" +
 	"\x0epredicate_name\x18\x01 \x01(\tR\rpredicateName\x128\n" +
 	"\vconstructor\x18\x02 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x1c\n" +
@@ -9488,7 +9498,8 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\rprofile_color\x18, \x01(\v2\x12.mtproto.PeerColorR\fprofileColor\x127\n" +
 	"\femoji_status\x18- \x01(\v2\x14.mtproto.EmojiStatusR\vemojiStatus\x12/\n" +
 	"\tusernames\x18. \x03(\v2\x11.mtproto.UsernameR\tusernames\x12\x19\n" +
-	"\bmain_tab\x18/ \x01(\x05R\amainTab\"F\n" +
+	"\bmain_tab\x18/ \x01(\x05R\amainTab\x12\x1c\n" +
+	"\tgigagroup\x180 \x01(\bR\tgigagroup\"F\n" +
 	"\x13TL_immutableChannel\x12/\n" +
 	"\x05data2\x18\x01 \x01(\v2\x19.channel.ImmutableChannelR\x05data2\"\xbd\x04\n" +
 	"\x1bImmutableChannelParticipant\x12%\n" +

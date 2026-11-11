@@ -218,8 +218,12 @@ func topicTitle(title string) (string, error) {
 // the list. Errors as Telegram's (core.telegram.org/method/
 // channels.toggleForum): CHAT_ADMIN_REQUIRED, CHANNEL_INVALID for a
 // broadcast channel, CHAT_DISCUSSION_UNALLOWED for a discussion group,
-// CHAT_NOT_MODIFIED for what it is already. Messages keep their topics
-// when the forum goes off and find them again when it comes back.
+// CHAT_NOT_MODIFIED for what it is already. A broadcast group gets no
+// forum, as a forum is not converted into one (FORUM_ENABLED) and the
+// clients do not offer it (tdesktop edit_peer_info_box.cpp:1553-1557):
+// CHANNEL_INVALID, Telegram's error for it not verified. Messages keep
+// their topics when the forum goes off and find them again when it comes
+// back.
 //
 // sidebar is nil from a client of a layer before 233, whose request does not
 // have it: such a client cannot mean to change it and it stays.
@@ -249,6 +253,8 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool, s
 	}
 	r := rows[0]
 	switch {
+	case enabled && a.ch.Gigagroup:
+		return nil, mtproto.ErrChannelInvalid
 	case enabled && r.Linked != 0:
 		return nil, mtproto.ErrChatDiscussionUnallowed
 	}
