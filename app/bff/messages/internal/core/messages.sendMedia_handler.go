@@ -61,6 +61,12 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		c.Logger.Errorf("messages.sendMedia: %v", err)
 		return nil, err
 	}
+	// The peer the messages come from (send_as, task 079).
+	from, err := c.sendFrom(peer, in.GetSendAs())
+	if err != nil {
+		c.Logger.Errorf("messages.sendMedia - error: %v", err)
+		return nil, err
+	}
 
 	replyMarkup, err := c.botMarkup(in.ReplyMarkup)
 	if err != nil {
@@ -81,7 +87,7 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		Noforwards:           in.Noforwards,
 		InvertMedia:          in.InvertMedia,
 		Id:                   0,
-		FromId:               mtproto.MakePeerUser(c.MD.UserId),
+		FromId:               from,
 		PeerId:               peer.ToPeer(),
 		SavedPeerId:          nil,
 		FwdFrom:              nil,

@@ -16,6 +16,7 @@
 package core
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -107,10 +108,14 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	if err != nil {
 		return nil, err
 	}
+	chats, err := c.sentChats(fromUserId, channelId, mc, h)
+	if err != nil {
+		return nil, err
+	}
 	return mtproto.MakeTLUpdates(&mtproto.Updates{
 		Updates: updates,
 		Users:   users.GetUserListByIdList(fromUserId, h.UserIdList...),
-		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
+		Chats:   chats,
 		Date:    int32(time.Now().Unix()),
 	}).To_Updates(), nil
 }
@@ -158,19 +163,41 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 	if err != nil {
 		return nil, err
 	}
-	shown := channelpb.ViewMessage(edited.Message, fromUserId)
+	// A message of a supergroup is edited by its author alone; a post is
+	// never written as another (dao.EditChannel).
+	shown := channelpb.ViewSentMessage(edited.Message, fromUserId, true)
 	h := mtproto.NewIDListHelper(fromUserId)
 	h.PickByMessage(shown)
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: h.UserIdList, To: []int64{fromUserId}})
 	if err != nil {
 		return nil, err
 	}
+	chats, err := c.sentChats(fromUserId, channelId, mc, h)
+	if err != nil {
+		return nil, err
+	}
 	return mtproto.MakeTLUpdates(&mtproto.Updates{
 		Updates: []*mtproto.Update{mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: edited.Pts, PtsCount: 1}).To_Update()},
 		Users:   users.GetUserListByIdList(fromUserId, h.UserIdList...),
-		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
+		Chats:   chats,
 		Date:    int32(time.Now().Unix()),
 	}).To_Updates(), nil
+}
+
+// sentChats are the chats of an answer about messages of channelId to
+// userId: the channel and the other channels h found in the messages, the
+// ones they came from (send_as, task 079).
+func (c *MsgCore) sentChats(userId, channelId int64, mc *channelpb.MutableChannel, h *mtproto.IDListHelper) ([]*mtproto.Chat, error) {
+	chats := []*mtproto.Chat{mc.ToChat(userId, int32(time.Now().Unix()))}
+	others := slices.DeleteFunc(slices.Clone(h.ChannelIdList), func(id int64) bool { return id == channelId })
+	if len(others) == 0 {
+		return chats, nil
+	}
+	list, err := c.svcCtx.Dao.ChannelClient.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: userId, IdList: others})
+	if err != nil {
+		return nil, err
+	}
+	return append(chats, list.GetChannelListByIdList(userId)...), nil
 }
 
 // authorName is the name a signed post shows: the user's first and last

@@ -47,6 +47,8 @@ type channelFold struct {
 	updates     *list.List
 	deletes     *list.Element
 	messageIds  []*mtproto.Update
+	// own are the messages of the range the viewer wrote (setOwn).
+	own map[int32]int64
 }
 
 func newChannelFold(viewer int64, availableMinId, pts int32) *channelFold {
@@ -83,7 +85,7 @@ func (f *channelFold) add(u *mtproto.Update) {
 			if e, ok := f.edits[m.GetId()]; ok {
 				f.updates.Remove(e)
 			}
-			u.Message_MESSAGE = channel.ViewMessage(m, f.viewer)
+			u.Message_MESSAGE = m
 			f.edits[m.GetId()] = f.push(u)
 		}
 	case mtproto.Predicate_updateDeleteChannelMessages:
@@ -131,12 +133,25 @@ func (f *channelFold) newMessageIds() []int32 {
 	return ids
 }
 
-// addMessageIds adds updateMessageID of the new messages the viewer sent:
-// randomIds maps their ids to their random_id. Android binds its pending
-// copy to the server's message by it (MessagesController.java:16630-16667).
-func (f *channelFold) addMessageIds(randomIds map[int32]int64) {
+// viewedIds are the ids of the new and the edited messages, the ones
+// whose view setOwn needs.
+func (f *channelFold) viewedIds() []int32 {
+	ids := f.newMessageIds()
+	for id := range f.edits {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// setOwn tells the fold the messages the viewer wrote: own maps their ids
+// to their random_id (0 for none). A message written as a channel is out
+// for its author alone (channel.ViewSentMessage); the new ones it sent
+// with a random_id get updateMessageID, by which Android binds its pending
+// copy to the server's message (MessagesController.java:16630-16667).
+func (f *channelFold) setOwn(own map[int32]int64) {
+	f.own = own
 	for _, id := range f.newMessageIds() {
-		if r := randomIds[id]; r != 0 {
+		if r := own[id]; r != 0 {
 			f.messageIds = append(f.messageIds, mtproto.MakeTLUpdateMessageID(&mtproto.Update{Id_INT32: id, RandomId: r}).To_Update())
 		}
 	}
@@ -146,9 +161,15 @@ func (f *channelFold) addMessageIds(randomIds map[int32]int64) {
 func (f *channelFold) messages() []*mtproto.Message {
 	out := make([]*mtproto.Message, 0, len(f.newMessages))
 	for _, id := range f.newMessageIds() {
-		out = append(out, channel.ViewMessage(f.newMessages[id], f.viewer))
+		out = append(out, f.view(f.newMessages[id]))
 	}
 	return out
+}
+
+// view is m as the viewer sees it.
+func (f *channelFold) view(m *mtproto.Message) *mtproto.Message {
+	_, own := f.own[m.GetId()]
+	return channel.ViewSentMessage(m, f.viewer, own)
 }
 
 // otherUpdates are other_updates.
@@ -156,7 +177,11 @@ func (f *channelFold) otherUpdates() []*mtproto.Update {
 	out := make([]*mtproto.Update, 0, len(f.messageIds)+f.updates.Len())
 	out = append(out, f.messageIds...)
 	for e := f.updates.Front(); e != nil; e = e.Next() {
-		out = append(out, e.Value.(*mtproto.Update))
+		u := e.Value.(*mtproto.Update)
+		if u.PredicateName == mtproto.Predicate_updateEditChannelMessage {
+			u.Message_MESSAGE = f.view(u.GetMessage_MESSAGE())
+		}
+		out = append(out, u)
 	}
 	return out
 }

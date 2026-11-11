@@ -167,7 +167,7 @@ func TestFoldMessageIds(t *testing.T) {
 	f.add(foldNew(6, foldViewer, "b", 42))
 	f.add(foldNew(5, foldViewer, "a", 43))
 	f.add(foldNew(7, foldOther, "c", 44))
-	f.addMessageIds(map[int32]int64{5: 55, 6: 66})
+	f.setOwn(map[int32]int64{5: 55, 6: 66})
 
 	other := f.otherUpdates()
 	want := []string{mtproto.Predicate_updateMessageID, mtproto.Predicate_updateMessageID, mtproto.Predicate_updateDeleteChannelMessages}
@@ -176,5 +176,43 @@ func TestFoldMessageIds(t *testing.T) {
 	}
 	if other[0].GetId_INT32() != 5 || other[0].GetRandomId() != 55 || other[1].GetId_INT32() != 6 || other[1].GetRandomId() != 66 {
 		t.Errorf("message ids %v", other[:2])
+	}
+}
+
+// TestFoldSentAs: a message written as a channel (send_as) is out for its
+// author alone, new or edited, and for nobody without setOwn.
+func TestFoldSentAs(t *testing.T) {
+	sentAs := func(u *mtproto.Update) *mtproto.Update {
+		u.GetMessage_MESSAGE().FromId = mtproto.MakePeerChannel(foldChannel + 1)
+		return u
+	}
+	f := newChannelFold(foldViewer, 0, 30)
+	f.add(foldEdit(3, foldViewer, "old", 21))
+	f.add(sentAs(foldEdit(4, foldViewer, "old as", 22)))
+	f.add(sentAs(foldNew(25, foldViewer, "mine", 23)))
+	f.add(sentAs(foldNew(26, foldOther, "theirs", 24)))
+	if ids := f.viewedIds(); !slices.Equal(slices.Sorted(slices.Values(ids)), []int32{3, 4, 25, 26}) {
+		t.Fatalf("viewed ids %v, want [3 4 25 26]", ids)
+	}
+	f.setOwn(map[int32]int64{4: 0, 25: 0})
+
+	got := f.messages()
+	if !got[0].GetOut() || got[1].GetOut() {
+		t.Errorf("out of 25, 26: %v, %v; want the viewer's own only", got[0].GetOut(), got[1].GetOut())
+	}
+	other := f.otherUpdates()
+	if len(other) != 2 {
+		t.Fatalf("other_updates %v: no updateMessageID without a random_id", names(other))
+	}
+	// Message 3 comes from the viewer itself, 4 as a channel.
+	if !other[0].GetMessage_MESSAGE().GetOut() || !other[1].GetMessage_MESSAGE().GetOut() {
+		t.Errorf("out of the edits of 3, 4: %v, %v", other[0].GetMessage_MESSAGE().GetOut(), other[1].GetMessage_MESSAGE().GetOut())
+	}
+
+	f = newChannelFold(foldViewer, 0, 30)
+	f.add(sentAs(foldNew(25, foldViewer, "mine", 23)))
+	f.setOwn(map[int32]int64{})
+	if f.messages()[0].GetOut() {
+		t.Error("a message written as a channel is out for one who did not write it")
 	}
 }

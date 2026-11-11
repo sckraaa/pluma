@@ -50,6 +50,13 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 		c.Logger.Errorf("message empty: %v", err)
 		return nil, err
 	}
+	// The peer the messages come from (send_as, task 079).
+	from, err := c.sendFrom(peer, in.GetSendAs())
+	if err != nil {
+		c.Logger.Errorf("messages.sendMessage - error: %v", err)
+		return nil, err
+	}
+
 	// TODO(@benqi): calc utf16len(message)
 	//else if len(request.Message) > 4000 {
 	//	err = mtproto.ErrMessageTooLong
@@ -94,7 +101,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 		Noforwards:           in.Noforwards,
 		InvertMedia:          in.InvertMedia,
 		Id:                   0,
-		FromId:               mtproto.MakePeerUser(c.MD.UserId),
+		FromId:               from,
 		PeerId:               peer.ToPeer(),
 		SavedPeerId:          nil,
 		FwdFrom:              nil,

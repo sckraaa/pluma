@@ -84,8 +84,9 @@ func (d *Dao) viewerFor(ctx context.Context, userId, channelId int64, forDiffere
 }
 
 type messageRow struct {
-	Id          int32  `db:"id"`
-	MessageData string `db:"message_data"`
+	Id           int32  `db:"id"`
+	SenderUserId int64  `db:"sender_user_id"`
+	MessageData  string `db:"message_data"`
 }
 
 func decode(rows []messageRow, channelId, selfId int64) ([]*mtproto.Message, error) {
@@ -95,7 +96,7 @@ func decode(rows []messageRow, channelId, selfId int64) ([]*mtproto.Message, err
 		if err := jsonx.UnmarshalFromString(r.MessageData, &m); err != nil {
 			return nil, fmt.Errorf("channel: message %d of channel %d: %w", r.Id, channelId, err)
 		}
-		out = append(out, channel.ViewMessage(&m, selfId))
+		out = append(out, channel.ViewSentMessage(&m, selfId, r.SenderUserId == selfId))
 	}
 	return out, nil
 }
@@ -216,7 +217,7 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if addOffset < 0 {
 		var newer []messageRow
 		if err = d.Mysql.QueryRowsPartial(ctx, &newer,
-			"SELECT id, message_data FROM channel_messages WHERE "+where+" AND id >= ? ORDER BY id LIMIT ?",
+			"SELECT id, sender_user_id, message_data FROM channel_messages WHERE "+where+" AND id >= ? ORDER BY id LIMIT ?",
 			append(slices.Clone(args), offsetId, -addOffset)...); err != nil {
 			return nil, 0, err
 		}
@@ -226,7 +227,7 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if rest := limit - int32(len(rows)); rest > 0 {
 		var older []messageRow
 		if err = d.Mysql.QueryRowsPartial(ctx, &older,
-			"SELECT id, message_data FROM channel_messages WHERE "+where+" AND id < ? AND date2 < ? ORDER BY id DESC LIMIT ? OFFSET ?",
+			"SELECT id, sender_user_id, message_data FROM channel_messages WHERE "+where+" AND id < ? AND date2 < ? ORDER BY id DESC LIMIT ? OFFSET ?",
 			append(slices.Clone(args), offsetId, offsetDate, rest, max(addOffset, 0))...); err != nil {
 			return nil, 0, err
 		}
@@ -273,7 +274,7 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 	}
 	var rows []messageRow
 	if err = d.Mysql.QueryRowsPartial(ctx, &rows,
-		"SELECT id, message_data FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id >= ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		"SELECT id, sender_user_id, message_data FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id >= ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
 		args...); err != nil {
 		return nil, err
 	}

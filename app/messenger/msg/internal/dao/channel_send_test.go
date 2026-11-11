@@ -66,3 +66,28 @@ func TestReplyStandsAlone(t *testing.T) {
 		}
 	}
 }
+
+// An anonymous admin writes as the group whatever user it names; anyone
+// else writes as itself without a channel.
+func TestSendAsAnonymous(t *testing.T) {
+	const group = int64(100)
+	admin := func(rights int32, guest bool) *sender {
+		return &sender{p: channelperm.Participant{Role: channelperm.RoleAdmin, State: channelperm.StateIn, AdminRights: rights}, guest: guest}
+	}
+	for _, c := range []struct {
+		name string
+		s    *sender
+		as   *mtproto.Peer
+		want int64
+	}{
+		{"anonymous admin, no send_as", admin(mtproto.ADMIN_ANONYMOUS, false), nil, group},
+		{"anonymous admin as itself", admin(mtproto.ADMIN_ANONYMOUS, false), mtproto.MakePeerUser(7), group},
+		{"admin", admin(mtproto.ADMIN_CHANGE_INFO, false), nil, 0},
+		{"member", &sender{p: channelperm.Participant{Role: channelperm.RoleMember, State: channelperm.StateIn, AdminRights: mtproto.ADMIN_ANONYMOUS}}, nil, 0},
+		{"guest", admin(mtproto.ADMIN_ANONYMOUS, true), mtproto.MakePeerUser(7), 0},
+	} {
+		if got, err := c.s.sendAs(nil, group, c.as); err != nil || got != c.want {
+			t.Errorf("%s: %d, %v; want %d", c.name, got, err, c.want)
+		}
+	}
+}

@@ -81,7 +81,7 @@ type randomIdRow struct {
 }
 
 // OwnRandomIds maps the messages of ids that selfId sent to the channel to
-// their random_id.
+// their random_id, 0 for one sent without.
 func (d *Dao) OwnRandomIds(ctx context.Context, selfId, channelId int64, ids []int32) (map[int32]int64, error) {
 	out := map[int32]int64{}
 	if len(ids) == 0 {
@@ -93,7 +93,7 @@ func (d *Dao) OwnRandomIds(ctx context.Context, selfId, channelId int64, ids []i
 	}
 	var rows []randomIdRow
 	if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-		"SELECT id, random_id FROM channel_messages WHERE channel_id = ? AND sender_user_id = ? AND random_id <> 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		"SELECT id, random_id FROM channel_messages WHERE channel_id = ? AND sender_user_id = ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
 		args...); err != nil {
 		return nil, err
 	}

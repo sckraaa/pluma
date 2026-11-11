@@ -84,6 +84,13 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 	if err != nil {
 		return nil, err
 	}
+	// The peer the messages come from (send_as, task 079).
+	from, err := c.sendFrom(peer, in.GetSendAs())
+	if err != nil {
+		c.Logger.Errorf("messages.sendMultiMedia - error: %v", err)
+		return nil, err
+	}
+
 	//, &idgen.TLIdgenNextId{
 	//	Constructor:          0,
 	//	XXX_NoUnkeyedLiteral: struct{}{},
@@ -125,7 +132,7 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 			Noforwards:           in.Noforwards,
 			InvertMedia:          in.InvertMedia,
 			Id:                   0,
-			FromId:               mtproto.MakePeerUser(c.MD.UserId),
+			FromId:               from,
 			PeerId:               peer.ToPeer(),
 			SavedPeerId:          nil,
 			FwdFrom:              nil,

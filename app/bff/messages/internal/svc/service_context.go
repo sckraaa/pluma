@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/messages/plugin"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/webpage"
 )
 
@@ -39,6 +40,8 @@ type ServiceContext struct {
 	// Search reads the boxes of users for messages.search and keeps the
 	// quota of channels.searchPosts (task 066).
 	Search *sqlx.DB
+	// SendAs decides as whom the account writes to a supergroup (task 079).
+	SendAs *sendas.Store
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
@@ -50,6 +53,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceCo
 		Plugin:    plugin,
 		Reactions: db,
 		Search:    db,
+		SendAs:    sendas.New(db),
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

@@ -40,3 +40,24 @@ func TestChannelViewUnreadReactions(t *testing.T) {
 		t.Error("another member sees the unread mark")
 	}
 }
+
+// TestChannelViewSentAs: a message written as a channel is out for its
+// author, the member who sent it, and for nobody else.
+func TestChannelViewSentAs(t *testing.T) {
+	in := &sync.TLSyncPushChannelUpdates{
+		ChannelId: 5, FromId: 1,
+		Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{
+			Message_MESSAGE: mtproto.MakeTLMessage(&mtproto.Message{Id: 9, PeerId: mtproto.MakePeerChannel(5), FromId: mtproto.MakePeerChannel(6)}).To_Message(),
+		}).To_Update()),
+	}
+	out := func(member int64) bool {
+		u := (&SyncCore{}).channelView(in, member, nil, nil)
+		return u.GetUpdates()[0].GetMessage_MESSAGE().GetOut()
+	}
+	if !out(1) {
+		t.Error("the author's devices see the message as another's")
+	}
+	if out(2) {
+		t.Error("another member sees the message as its own")
+	}
+}

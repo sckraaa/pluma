@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/channelsets"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -45,6 +46,9 @@ type ServiceContext struct {
 	Look *appearance.Store
 	// Sets are the sticker and emoji sets of supergroups (task 078).
 	Sets *channelsets.Store
+	// SendAs keeps the default peer of channelFull.default_send_as
+	// (task 079).
+	SendAs *sendas.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -60,5 +64,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Look:    appearance.NewStore(sqlx.NewMySQL(&c.Mysql), nil, ""),
 		Bots:    botstore.New(sqlx.NewMySQL(&c.Mysql)),
 		Sets:    channelsets.New(sqlx.NewMySQL(&c.Mysql)),
+		SendAs:  sendas.New(sqlx.NewMySQL(&c.Mysql)),
 	}
 }
