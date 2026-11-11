@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/env2"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -199,11 +200,34 @@ func (d *Dao) ExportInvite(b *userbox.Box, channelId int64, legacy, requestNeede
 	}
 	if legacy {
 		r.ExpireDate, r.UsageLimit, r.Title = 0, 0, ""
+		var replaced []InviteRow
+		if err := b.Tx().QueryRowsPartial(&replaced, "SELECT "+inviteRowColumns+" FROM chat_invites i WHERE i.chat_id = ? AND i.admin_id = ? AND i.permanent = 1 AND i.revoked = 0",
+			channelId, b.UserId()); err != nil {
+			return nil, err
+		}
 		if _, err := b.Tx().Exec("UPDATE chat_invites SET revoked = 1 WHERE chat_id = ? AND admin_id = ? AND permanent = 1 AND revoked = 0", channelId, b.UserId()); err != nil {
 			return nil, err
 		}
+		for i := range replaced {
+			replaced[i].Revoked = true
+			if err := logInvite(b, channelId, false, &replaced[i]); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return r, insertInvite(b, channelId, r)
+}
+
+// logInvite writes the recent action of the link r revoked or, with
+// deleted, deleted; a link made is not one (the schema has no action for
+// it). Its title is what a search finds it by.
+func logInvite(b *userbox.Box, channelId int64, deleted bool, r *InviteRow) error {
+	a := &mtproto.ChannelAdminLogEventAction{Invite: r.Exported()}
+	action := mtproto.MakeTLChannelAdminLogEventActionExportedInviteRevoke(a).To_ChannelAdminLogEventAction()
+	if deleted {
+		action = mtproto.MakeTLChannelAdminLogEventActionExportedInviteDelete(a).To_ChannelAdminLogEventAction()
+	}
+	return adminlog.Write(b, channelId, action, r.Title)
 }
 
 // InviteEdit is what messages.editExportedChatInvite changes: the fields of
@@ -249,6 +273,9 @@ func (d *Dao) EditInvite(b *userbox.Box, channelId int64, link string, e InviteE
 			return nil, nil, err
 		}
 		row.Revoked = true
+		if err = logInvite(b, channelId, false, row); err != nil {
+			return nil, nil, err
+		}
 		if !row.Permanent {
 			return row, nil, nil
 		}
@@ -292,7 +319,19 @@ func (d *Dao) EditInvite(b *userbox.Box, channelId int64, link string, e InviteE
 		expire, limit, request, title, b.Date(), link); err != nil {
 		return nil, nil, err
 	}
+	prev := *row
 	row.ExpireDate, row.UsageLimit, row.RequestNeeded, row.Title, row.StartDate = int64(expire), limit, request, title, b.Date()
+	// An edit that changes none of the fields the clients compare
+	// (tdesktop history_admin_log_item.cpp GenerateInviteLinkChangeText)
+	// leaves nothing to show.
+	if prev.ExpireDate == row.ExpireDate && prev.UsageLimit == row.UsageLimit && prev.RequestNeeded == row.RequestNeeded && prev.Title == row.Title {
+		return row, nil, nil
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionExportedInviteEdit(&mtproto.ChannelAdminLogEventAction{
+		PrevInvite: prev.Exported(), NewInvite: row.Exported(),
+	}).To_ChannelAdminLogEventAction(), row.Title); err != nil {
+		return nil, nil, err
+	}
 	return row, nil, nil
 }
 
@@ -337,6 +376,9 @@ func (d *Dao) DeleteInvite(b *userbox.Box, channelId int64, link string) error {
 	if err = a.linksOf(b.UserId(), row.AdminId); err != nil {
 		return err
 	}
+	if err = logInvite(b, channelId, true, row); err != nil {
+		return err
+	}
 	return deleteLinks(b, channelId, []string{link})
 }
 
@@ -352,9 +394,16 @@ func (d *Dao) DeleteRevokedInvites(b *userbox.Box, channelId, adminId int64) err
 	if err = a.linksOf(b.UserId(), adminId); err != nil {
 		return err
 	}
-	var links []string
-	if err = b.Tx().QueryRowsPartial(&links, "SELECT link FROM chat_invites WHERE chat_id = ? AND admin_id = ? AND revoked = 1", channelId, adminId); err != nil {
+	var rows []InviteRow
+	if err = b.Tx().QueryRowsPartial(&rows, "SELECT "+inviteRowColumns+" FROM chat_invites i WHERE i.chat_id = ? AND i.admin_id = ? AND i.revoked = 1", channelId, adminId); err != nil {
 		return err
+	}
+	links := make([]string, 0, len(rows))
+	for i := range rows {
+		if err = logInvite(b, channelId, true, &rows[i]); err != nil {
+			return err
+		}
+		links = append(links, rows[i].Link)
 	}
 	return deleteLinks(b, channelId, links)
 }

@@ -16,6 +16,8 @@
 package dao
 
 import (
+	"database/sql"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
@@ -24,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
+	"google.golang.org/protobuf/proto"
 )
 
 // The settings of a channel (task 044): each a flag of the channel's row,
@@ -113,7 +116,25 @@ func (d *Dao) ToggleSetting(b *userbox.Box, channelId int64, setting int32, enab
 	if _, err = b.Tx().Exec("UPDATE channels SET `"+column+"` = ?, version = version + 1 WHERE id = ?", enabled, channelId); err != nil {
 		return nil, err
 	}
+	if action := settingLogged(setting, enabled); action != nil {
+		if err = adminlog.Write(b, channelId, action, ""); err != nil {
+			return nil, err
+		}
+	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// settingLogged is the recent action of a setting turned on or off; nil for
+// the members hidden and joining to send, which the schema has none for.
+func settingLogged(setting int32, enabled bool) *mtproto.ChannelAdminLogEventAction {
+	a := &mtproto.ChannelAdminLogEventAction{NewValue_BOOL: mtproto.ToBool(enabled)}
+	switch setting {
+	case channel.SettingPrehistoryHidden:
+		return mtproto.MakeTLChannelAdminLogEventActionTogglePreHistoryHidden(a).To_ChannelAdminLogEventAction()
+	case channel.SettingNoforwards:
+		return mtproto.MakeTLChannelAdminLogEventActionToggleNoForwards(a).To_ChannelAdminLogEventAction()
+	}
+	return nil
 }
 
 // ToggleSignatures signs the posts of a broadcast channel with their authors
@@ -151,6 +172,23 @@ func (d *Dao) ToggleSignatures(b *userbox.Box, channelId int64, enabled, profile
 	if _, err = b.Tx().Exec("UPDATE channels SET signatures = ?, signature_profiles = ?, version = version + 1 WHERE id = ?",
 		enabled, profiles, channelId); err != nil {
 		return nil, err
+	}
+	// One action per flag that changed, as the clients show each alone
+	// (tdesktop history_admin_log_item.cpp createToggleSignatures,
+	// createToggleSignatureProfiles).
+	if rows[0].Signatures != enabled {
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionToggleSignatures(&mtproto.ChannelAdminLogEventAction{
+			NewValue_BOOL: mtproto.ToBool(enabled),
+		}).To_ChannelAdminLogEventAction(), ""); err != nil {
+			return nil, err
+		}
+	}
+	if rows[0].SignatureProfiles != profiles {
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionToggleSignatureProfiles(&mtproto.ChannelAdminLogEventAction{
+			NewValue_BOOL: mtproto.ToBool(profiles),
+		}).To_ChannelAdminLogEventAction(), ""); err != nil {
+			return nil, err
+		}
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }
@@ -192,6 +230,11 @@ func (d *Dao) ToggleSlowMode(b *userbox.Box, channelId int64, seconds int32) (*C
 	if _, err = b.Tx().Exec("UPDATE channels SET slowmode_seconds = ?, version = version + 1 WHERE id = ?", seconds, channelId); err != nil {
 		return nil, err
 	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionToggleSlowMode(&mtproto.ChannelAdminLogEventAction{
+		PrevValue_INT32: current[0], NewValue_INT32: seconds,
+	}).To_ChannelAdminLogEventAction(), ""); err != nil {
+		return nil, err
+	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }
 
@@ -216,6 +259,22 @@ func (d *Dao) SetAvailableReactions(b *userbox.Box, channelId int64, t int32, li
 	if err = a.can(channelperm.ChangeInfo, b.Date()); err != nil {
 		return nil, err
 	}
+	var prev []struct {
+		Type int32          `db:"available_reactions_type"`
+		List sql.NullString `db:"available_reactions"`
+	}
+	if err = b.Tx().QueryRowsPartial(&prev, "SELECT available_reactions_type, available_reactions FROM channels WHERE id = ?", channelId); err != nil {
+		return nil, err
+	}
+	if len(prev) == 0 {
+		return nil, mtproto.ErrChannelInvalid
+	}
+	var prevList []string
+	if prev[0].List.Valid {
+		if err = jsonx.UnmarshalFromString(prev[0].List.String, &prevList); err != nil {
+			return nil, err
+		}
+	}
 	var data any
 	if list != nil {
 		s, err := jsonx.MarshalToString(list)
@@ -228,7 +287,24 @@ func (d *Dao) SetAvailableReactions(b *userbox.Box, channelId int64, t int32, li
 		t, data, channelId); err != nil {
 		return nil, err
 	}
+	before, after := logReactions(prev[0].Type, prevList), logReactions(t, list)
+	if !proto.Equal(before, after) {
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeAvailableReactions(&mtproto.ChannelAdminLogEventAction{
+			PrevValue_CHATREACTIONS: before, NewValue_CHATREACTIONS: after,
+		}).To_ChannelAdminLogEventAction(), ""); err != nil {
+			return nil, err
+		}
+	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// logReactions are the reactions of a channel as its full channel shows
+// them: the standard ones until it chooses (channels.getFullChannel).
+func logReactions(t int32, list []string) *mtproto.ChatReactions {
+	if t == mtproto.ChatReactionsTypeNotDefined {
+		t = mtproto.ChatReactionsTypeAllNoAllowCustom
+	}
+	return mtproto.FromChatReactions(t, list)
 }
 
 // SetBlocked blocks the channel or unblocks it for the owner of the server

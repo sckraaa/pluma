@@ -23,6 +23,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
@@ -159,6 +160,25 @@ func (d *Dao) SetDiscussionGroup(b *userbox.Box, channelId, groupId int64) ([]in
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET linked_chat_id = ? WHERE id = ?", groupId, channelId); err != nil {
 		return nil, err
+	}
+	// Each channel whose link changed keeps it in its recent actions, those
+	// unlinked on the way too: the clients show a change and a removal
+	// from the new value (tdesktop history_admin_log_item.cpp
+	// createChangeLinkedChat, Android MessageObject.java EventLogChangedLinked*).
+	type linkChange struct{ channelId, prev, next int64 }
+	links := []linkChange{{channelId, ch.Linked, groupId}, {ch.Linked, channelId, 0}}
+	if groupId != 0 {
+		links = append(links, linkChange{groupId, rows[groupId].Linked, channelId}, linkChange{rows[groupId].Linked, groupId, 0})
+	}
+	for _, l := range links {
+		if l.channelId == 0 {
+			continue
+		}
+		if err = adminlog.Write(b, l.channelId, mtproto.MakeTLChannelAdminLogEventActionChangeLinkedChat(&mtproto.ChannelAdminLogEventAction{
+			PrevValue_INT64: l.prev, NewValue_INT64: l.next,
+		}).To_ChannelAdminLogEventAction(), ""); err != nil {
+			return nil, err
+		}
 	}
 	return slices.Compact(slices.Sorted(slices.Values(changed))), nil
 }
