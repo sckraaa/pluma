@@ -51,6 +51,7 @@ type ChannelClient interface {
 	ChannelSetBlocked(ctx context.Context, in *channel.TLChannelSetBlocked) (*mtproto.Bool, error)
 	ChannelEditParticipantRank(ctx context.Context, in *channel.TLChannelEditParticipantRank) (*mtproto.Updates, error)
 	ChannelGetReadParticipants(ctx context.Context, in *channel.TLChannelGetReadParticipants) (*channel.Vector_ReadParticipantDate, error)
+	ChannelGetAdminLog(ctx context.Context, in *channel.TLChannelGetAdminLog) (*channel.Vector_ChannelAdminLogEvent, error)
 	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error)
@@ -1008,4 +1009,15 @@ func (m *defaultChannelClient) ChannelGetReadParticipants(ctx context.Context, i
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetReadParticipants(ctx, in)
+}
+
+// ChannelGetAdminLog
+// channel.getAdminLog self_id:long channel_id:long q:string filter:long admins:Vector<long> max_id:long min_id:long limit:int = Vector<ChannelAdminLogEvent>;
+func (m *defaultChannelClient) ChannelGetAdminLog(ctx context.Context, in *channel.TLChannelGetAdminLog) (*channel.Vector_ChannelAdminLogEvent, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetAdminLog(ctx, in)
 }

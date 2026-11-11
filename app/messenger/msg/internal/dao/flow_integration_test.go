@@ -356,6 +356,10 @@ func (noChannels) ChannelGetReadParticipants(context.Context, *channelpb.TLChann
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelGetAdminLog(context.Context, *channelpb.TLChannelGetAdminLog) (*channelpb.Vector_ChannelAdminLogEvent, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelSearch(context.Context, *channelpb.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

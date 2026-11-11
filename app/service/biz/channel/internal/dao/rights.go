@@ -16,6 +16,7 @@
 package dao
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"math"
 
 	"github.com/teamgram/proto/mtproto"
@@ -164,6 +165,11 @@ func (d *Dao) EditParticipantRank(b *userbox.Box, channelId, userId int64, rank 
 		return nil, mtproto.ErrChatNotModified
 	}
 	if _, err = b.Tx().Exec("UPDATE channel_participants SET `rank` = ? WHERE channel_id = ? AND user_id = ?", rank, channelId, userId); err != nil {
+		return nil, err
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionParticipantEditRank(&mtproto.ChannelAdminLogEventAction{
+		UserId: userId, PrevRank: t.Rank, NewRank: rank,
+	}).To_ChannelAdminLogEventAction(), rank); err != nil {
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
@@ -471,6 +477,12 @@ func (d *Dao) EditDefaultBannedRights(b *userbox.Box, channelId int64, rights in
 		return nil, mtproto.ErrChatNotModified
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET default_banned_rights = ?, version = version + 1 WHERE id = ?", rights, channelId); err != nil {
+		return nil, err
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionDefaultBannedRights(&mtproto.ChannelAdminLogEventAction{
+		PrevBannedRights: mtproto.BannedRights(a.ch.Default).ToChatBannedRights(),
+		NewBannedRights:  mtproto.BannedRights(rights).ToChatBannedRights(),
+	}).To_ChannelAdminLogEventAction(), ""); err != nil {
 		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil

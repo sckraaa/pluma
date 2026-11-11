@@ -58,6 +58,8 @@ const (
 	CRC32_channel_editParticipantRank TLConstructor = -86486467 // 0xfad8523d
 	// pluma: task 078
 	CRC32_channel_getReadParticipants TLConstructor = 210006620 // 0xc84725c
+	// pluma: task 078
+	CRC32_channel_getAdminLog TLConstructor = 1139340211 // 0x43e8f3b3
 	// pluma: task 046
 	CRC32_channel_incrementMessageViews TLConstructor = 1668730682 // 0x6376cf3a
 	// pluma: task 046

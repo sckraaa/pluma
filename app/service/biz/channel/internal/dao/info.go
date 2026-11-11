@@ -17,6 +17,7 @@ package dao
 
 import (
 	"fmt"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/appearance"
@@ -91,6 +92,11 @@ func (d *Dao) EditTitle(b *userbox.Box, channelId int64, title string) (*Channel
 		return nil, err
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET title = ?, top_message = ? WHERE id = ?", title, change.Message.GetId(), channelId); err != nil {
+		return nil, err
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeTitle(&mtproto.ChannelAdminLogEventAction{
+		PrevValue_STRING: r.Title, NewValue_STRING: title,
+	}).To_ChannelAdminLogEventAction(), title); err != nil {
 		return nil, err
 	}
 	return change, nil
@@ -226,6 +232,11 @@ func (d *Dao) EditAbout(b *userbox.Box, channelId int64, about string) (*Channel
 	if _, err = b.Tx().Exec("UPDATE channels SET about = ? WHERE id = ?", about, channelId); err != nil {
 		return nil, err
 	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeAbout(&mtproto.ChannelAdminLogEventAction{
+		PrevValue_STRING: r.About, NewValue_STRING: about,
+	}).To_ChannelAdminLogEventAction(), about); err != nil {
+		return nil, err
+	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }
 
@@ -257,6 +268,16 @@ func (d *Dao) EditPhoto(b *userbox.Box, channelId int64, photo *mtproto.Photo) (
 		return nil, err
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET photo_id = ?, top_message = ? WHERE id = ?", photoId, change.Message.GetId(), channelId); err != nil {
+		return nil, err
+	}
+	// The photo before is known by its id only: the log shows the new one.
+	newPhoto := photo
+	if newPhoto == nil {
+		newPhoto = mtproto.MakeTLPhotoEmpty(nil).To_Photo()
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangePhoto(&mtproto.ChannelAdminLogEventAction{
+		PrevPhoto: mtproto.MakeTLPhotoEmpty(nil).To_Photo(), NewPhoto: newPhoto,
+	}).To_ChannelAdminLogEventAction(), ""); err != nil {
 		return nil, err
 	}
 	return change, nil

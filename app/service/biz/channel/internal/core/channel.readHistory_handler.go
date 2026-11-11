@@ -51,6 +51,19 @@ func (c *ChannelCore) ChannelGetReadParticipants(in *channel.TLChannelGetReadPar
 	return &channel.Vector_ReadParticipantDate{Datas: r}, nil
 }
 
+// ChannelGetAdminLog
+// channel.getAdminLog self_id:long channel_id:long q:string filter:long admins:Vector<long> max_id:long min_id:long limit:int = Vector<ChannelAdminLogEvent>;
+//
+// The recent actions of the channel, for its admins (dao.AdminLog).
+func (c *ChannelCore) ChannelGetAdminLog(in *channel.TLChannelGetAdminLog) (*channel.Vector_ChannelAdminLogEvent, error) {
+	r, err := c.svcCtx.Dao.AdminLog(c.ctx, in.SelfId, in.ChannelId, in.Q, in.Filter, in.Admins, in.MaxId, in.MinId, in.Limit, time.Now().Unix())
+	if err != nil {
+		c.Logger.Errorf("channel.getAdminLog - error: %v", err)
+		return nil, err
+	}
+	return &channel.Vector_ChannelAdminLogEvent{Datas: r}, nil
+}
+
 // ChannelReadMessageContents
 // channel.readMessageContents self_id:long perm_auth_key_id:long channel_id:long id:Vector<int> = Bool;
 //

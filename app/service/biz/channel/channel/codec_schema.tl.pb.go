@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	1139340211: func() mtproto.TLObject { // 0x43e8f3b3 pluma: task 078
+		return &TLChannelGetAdminLog{
+			Constructor: 1139340211,
+		}
+	},
 	210006620: func() mtproto.TLObject { // 0xc84725c pluma: task 078
 		return &TLChannelGetReadParticipants{
 			Constructor: 210006620,
@@ -5045,5 +5050,95 @@ func (m *Vector_ReadParticipantDate) Decode(dBuf *mtproto.DecodeBuf) error {
 }
 
 func (m *Vector_ReadParticipantDate) CalcByteSize(layer int32) int {
+	return 0
+}
+
+// TLChannelGetAdminLog (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelGetAdminLog) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x43e8f3b3:
+		x.UInt(0x43e8f3b3)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.String(m.GetQ())
+		x.Long(m.GetFilter())
+		x.VectorLong(m.GetAdmins())
+		x.Long(m.GetMaxId())
+		x.Long(m.GetMinId())
+		x.Int(m.GetLimit())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetAdminLog) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetAdminLog) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x43e8f3b3:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Q = dBuf.String()
+		m.Filter = dBuf.Long()
+		m.Admins = dBuf.VectorLong()
+		m.MaxId = dBuf.Long()
+		m.MinId = dBuf.Long()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// Vector_ChannelAdminLogEvent (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *Vector_ChannelAdminLogEvent) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	x.Int(int32(mtproto.CRC32_vector))
+	x.Int(int32(len(m.Datas)))
+	for _, v := range m.Datas {
+		if err := v.Encode(x, layer); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Vector_ChannelAdminLogEvent) Decode(dBuf *mtproto.DecodeBuf) error {
+	if c := dBuf.Int(); c != int32(mtproto.CRC32_vector) {
+		return fmt.Errorf("invalid CRC32_vector: %d", c)
+	}
+	l1 := dBuf.Int()
+	if vectorTooLong(dBuf, l1) {
+		return fmt.Errorf("invalid vector length: %d", l1)
+	}
+	m.Datas = make([]*mtproto.ChannelAdminLogEvent, l1)
+	for i := int32(0); i < l1; i++ {
+		m.Datas[i] = new(mtproto.ChannelAdminLogEvent)
+		if err := m.Datas[i].Decode(dBuf); err != nil {
+			return err
+		}
+	}
+
+	return dBuf.GetError()
+}
+
+func (m *Vector_ChannelAdminLogEvent) CalcByteSize(layer int32) int {
 	return 0
 }
