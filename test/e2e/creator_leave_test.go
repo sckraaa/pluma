@@ -84,10 +84,7 @@ func TestCreatorLeavesSupergroup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	phones := testPhones(t, 2)
-	// channels.getFutureCreatorAfterLeave is a method of layer 228, which
-	// Android 12.9.1 sends (TLRPC.java:70127 at aac1efcb); layer 233 has
-	// only messages.getFutureChatCreatorAfterLeave.
-	alice := loginAtLayer(ctx, t, phones[0], "Alice", 228)
+	alice := login(ctx, t, phones[0], "Alice")
 	bob := login(ctx, t, phones[1], "Bob")
 	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("leave %d", randomID()), true)
 	hash := ch.GetAccessHash_FLAGINT64().GetValue()
@@ -105,8 +102,12 @@ func TestCreatorLeavesSupergroup(t *testing.T) {
 		t.Fatalf("channels.inviteToChannel: %v", err)
 	}
 
+	// Android sends channels.getFutureCreatorAfterLeave#a00918af at layer
+	// 233 too (TLRPC.java:71508 at 7be672ea, 13.2.1), though the layer's
+	// schema of tdesktop lists only messages.getFutureChatCreatorAfterLeave,
+	// and so the test client's table of layer 233 lacks it.
 	o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsGetFutureCreatorAfterLeave{
-		Constructor: alice.c.Constructor(mtproto.Predicate_channels_getFutureCreatorAfterLeave),
+		Constructor: mtproto.CRC32_channels_getFutureCreatorAfterLeave,
 		Channel:     input(alice),
 	})
 	if err != nil {
