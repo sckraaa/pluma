@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
@@ -60,6 +61,7 @@ func (d *Dao) GetMutableChannel(ctx context.Context, channelId int64, idList []i
 // withLinkedReaders adds to participants, for each user of ids that is not
 // in the discussion group ch but in its channel, a participant in
 // StateLinked: the user reads the group through the channel (task 048).
+// A ghost reads the discussion of a public channel as well (ADR 0048, p. 3).
 // A user kicked from the group stays kicked.
 func (d *Dao) withLinkedReaders(ctx context.Context, ch *channel.ImmutableChannel, ids []int64, participants []*channel.ImmutableChannelParticipant) ([]*channel.ImmutableChannelParticipant, error) {
 	if !ch.GetMegagroup() || ch.GetLinkedChatId() == 0 || len(ids) == 0 {
@@ -90,6 +92,11 @@ func (d *Dao) withLinkedReaders(ctx context.Context, ch *channel.ImmutableChanne
 		args...); err != nil {
 		return nil, fmt.Errorf("channel %d: readers through %d: %w", ch.GetId(), ch.GetLinkedChatId(), err)
 	}
+	ghosts, err := d.publicDiscussionGhosts(ctx, ch, outside, readers)
+	if err != nil {
+		return nil, err
+	}
+	readers = append(readers, ghosts...)
 	for _, id := range readers {
 		linked := channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
 			ChannelId: ch.GetId(), UserId: id, State: channel.StateLinked,
@@ -104,6 +111,35 @@ func (d *Dao) withLinkedReaders(ctx context.Context, ch *channel.ImmutableChanne
 		}
 	}
 	return participants, nil
+}
+
+// publicDiscussionGhosts are the ghosts of ids, other than those of
+// readers, when the channel the group ch discusses is public.
+func (d *Dao) publicDiscussionGhosts(ctx context.Context, ch *channel.ImmutableChannel, ids, readers []int64) ([]int64, error) {
+	var rest []int64
+	for _, id := range ids {
+		if !slices.Contains(readers, id) {
+			rest = append(rest, id)
+		}
+	}
+	if len(rest) == 0 {
+		return nil, nil
+	}
+	ghosts, err := ghost.Ghosts(ghost.OnDB(ctx, d.Mysql.DB), rest)
+	if err != nil || len(ghosts) == 0 {
+		return nil, err
+	}
+	var public []bool
+	if err = d.Mysql.QueryRowsPartial(ctx, &public,
+		"SELECT EXISTS (SELECT 1 FROM channels b JOIN username u ON u.peer_type = ? AND u.peer_id = b.id AND u.editable = 1"+
+			" WHERE b.id = ? AND b.broadcast = 1 AND b.deleted = 0 AND b.linked_chat_id = ?)",
+		mtproto.PEER_CHANNEL, ch.GetLinkedChatId(), ch.GetId()); err != nil {
+		return nil, fmt.Errorf("channel %d: is %d public: %w", ch.GetId(), ch.GetLinkedChatId(), err)
+	}
+	if len(public) == 0 || !public[0] {
+		return nil, nil
+	}
+	return ghosts, nil
 }
 
 // GetChannelListByIdList returns the channels of idList that exist, in its
@@ -278,5 +314,6 @@ func makeParticipant(do *dataobject.ChannelParticipantsDO) *channel.ImmutableCha
 		AvailableMinId: do.AvailableMinId,
 		LastSendDate:   do.LastSendDate,
 		Date:           do.Date,
+		Hidden:         do.Hidden,
 	}).To_ImmutableChannelParticipant()
 }

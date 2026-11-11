@@ -81,6 +81,7 @@ func (d *Dao) MakeImmutableChatParticipant(chatParticipantsDO *dataobject.ChatPa
 		Date:            chatParticipantsDO.Date2,
 		IsBot:           chatParticipantsDO.IsBot,
 		Rank:            chatParticipantsDO.Rank2,
+		Hidden:          chatParticipantsDO.Hidden,
 	}).To_ImmutableChatParticipant()
 
 	if participant.ParticipantType == mtproto.ChatMemberAdmin {

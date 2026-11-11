@@ -1585,3 +1585,17 @@ func (s *Service) UserGetTopicNotifyExceptions(ctx context.Context, request *use
 
 	return r, err
 }
+
+// UserSetGhost
+// user.setGhost user_id:long ghost:Bool = Bool;
+func (s *Service) UserSetGhost(ctx context.Context, request *user.TLUserSetGhost) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.setGhost - metadata: {%s}", c.MD)
+
+	r, err := c.UserSetGhost(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

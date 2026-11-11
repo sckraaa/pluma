@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -93,6 +94,8 @@ type targetRow struct {
 	BannedRights int32  `db:"banned_rights"`
 	UntilDate    int32  `db:"until_date"`
 	PromotedBy   int64  `db:"promoted_by"`
+	// Hidden: the row of a ghost (ADR 0048).
+	Hidden bool `db:"hidden"`
 }
 
 // rightsTarget reads the row of userId in the channel, locked; nil when it
@@ -100,7 +103,7 @@ type targetRow struct {
 func rightsTarget(b *userbox.Box, channelId, userId int64) (*targetRow, error) {
 	var rows []targetRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT role, state, admin_rights, `rank`, banned_rights, until_date, promoted_by FROM channel_participants WHERE channel_id = ? AND user_id = ? FOR UPDATE",
+		"SELECT role, state, admin_rights, `rank`, banned_rights, until_date, promoted_by, hidden FROM channel_participants WHERE channel_id = ? AND user_id = ? FOR UPDATE",
 		channelId, userId); err != nil {
 		return nil, err
 	}
@@ -257,7 +260,19 @@ func (d *Dao) EditAdmin(b *userbox.Box, channelId, userId int64, rights int32, r
 	if err = a.can(channelperm.AddAdmins, now); err != nil {
 		return nil, err
 	}
-	joins := !t.in()
+	// A ghost is no admin: an admin is shown to every member (ADR 0048,
+	// p. 2), which is what the clients say for a user who cannot be added
+	// (Android AlertsCreator.java:430-447).
+	hidden, err := ghost.IsGhost(b.Tx(), userId)
+	if err != nil {
+		return nil, err
+	}
+	if hidden && rights != 0 {
+		return nil, mtproto.ErrUserPrivacyRestricted
+	}
+	// A ghost's hidden row is as no row (ADR 0048): taking rights it has
+	// none of tells nobody it is in.
+	joins := !t.in() || t.Hidden
 	switch {
 	case t != nil && t.Role == channelperm.RoleCreator:
 		return nil, mtproto.ErrUserCreator
@@ -395,7 +410,10 @@ func (d *Dao) EditBanned(b *userbox.Box, channelId, userId int64, rights, until 
 		}
 	case rights == 0:
 		switch {
-		case t == nil || t.State == channelperm.StateLeft:
+		case t == nil || t.State == channelperm.StateLeft,
+			t.Hidden && t.in() && t.BannedRights == 0:
+			// Nothing to lift; a ghost's hidden row unrestricted is
+			// as no row (ADR 0048): no recent action shows it in.
 			return change, nil
 		case t.State == channelperm.StateKicked:
 			_, err = b.Tx().Exec("UPDATE channel_participants SET state = ?, banned_rights = 0, until_date = 0, kicked_by = 0 WHERE channel_id = ? AND user_id = ?",
@@ -470,9 +488,10 @@ func logParticipant(b *userbox.Box, channelId, userId int64, prev, next *targetR
 // kick takes userId out of the channel and keeps it out until until: its
 // row is kicked, a member leaves the count, a supergroup gets the service
 // message of its removal, and the user's box drops the dialog by
-// inbox.channelKickedToInbox.
+// inbox.channelKickedToInbox. A hidden member (a ghost, ADR 0048) was never
+// counted nor shown: it goes without the message, its row stays hidden.
 func (d *Dao) kick(b *userbox.Box, ch *channelbox.Channel, a *actor, change *ChannelChange, channelId, userId int64, t *targetRow, rights, until int32) error {
-	if t.in() {
+	if t.in() && !t.Hidden {
 		if !a.ch.Broadcast {
 			action := mtproto.MakeTLMessageActionChatDeleteUser(&mtproto.MessageAction{UserId: userId}).To_MessageAction()
 			var err error
@@ -549,8 +568,10 @@ func (d *Dao) EditDefaultBannedRights(b *userbox.Box, channelId int64, rights in
 // (core.telegram.org/method/channels.editCreator, messages.editChatCreator).
 // The caller has checked the 2FA password. CHAT_ADMIN_REQUIRED for one
 // not the creator, CHAT_NOT_MODIFIED for itself, USER_ID_INVALID for a
-// user not in the channel; CHANNELS_ADMIN_PUBLIC_TOO_MUCH when the channel
-// is public and the user owns PublicChannelsLimit public channels.
+// user not in the channel (a hidden member, a ghost, is in no list the
+// creator sees: ADR 0048); USER_PRIVACY_RESTRICTED for a ghost, who owns no
+// chat; CHANNELS_ADMIN_PUBLIC_TOO_MUCH when the channel is public and the
+// user owns PublicChannelsLimit public channels.
 func (d *Dao) EditCreator(b *userbox.Box, channelId, userId int64) (*ChannelChange, error) {
 	if _, err := openChannel(b, channelId); err != nil {
 		return nil, err
@@ -569,8 +590,15 @@ func (d *Dao) EditCreator(b *userbox.Box, channelId, userId int64) (*ChannelChan
 	if err != nil {
 		return nil, err
 	}
-	if !t.in() {
+	if !t.in() || t.Hidden {
 		return nil, mtproto.ErrUserIdInvalid
+	}
+	hidden, err := ghost.IsGhost(b.Tx(), userId)
+	if err != nil {
+		return nil, err
+	}
+	if hidden {
+		return nil, mtproto.ErrUserPrivacyRestricted
 	}
 	name, err := channelUsername(b.Tx(), channelId)
 	if err != nil {

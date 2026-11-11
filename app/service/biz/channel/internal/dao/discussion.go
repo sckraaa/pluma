@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -471,12 +472,14 @@ func (d *Dao) ThreadRead(ctx context.Context, userId int64, t *Thread) (readMax,
 // its newest reply someone else read, 0 for none
 // (messages.discussionMessage.read_outbox_max_id, which the clients keep
 // as the thread's read mark of outgoing messages: tdesktop
-// window_session_controller.cpp:1312-1315).
+// window_session_controller.cpp:1312-1315). A ghost's read is none of them
+// (ADR 0048, p. 5).
 func (d *Dao) ThreadOutboxRead(ctx context.Context, userId int64, t *Thread) (int32, error) {
 	var outbox []int32
 	if err := d.Mysql.QueryRowsPartial(ctx, &outbox,
 		"SELECT COALESCE(MAX(m.id), 0) FROM channel_messages m WHERE m.channel_id = ? AND m.reply_top_id = ? AND m.sender_user_id = ? AND m.deleted = 0"+
-			" AND m.id <= (SELECT COALESCE(MAX(r.read_max_id), 0) FROM channel_thread_reads r WHERE r.channel_id = ? AND r.top_id = ? AND r.user_id <> ?)",
+			" AND m.id <= (SELECT COALESCE(MAX(r.read_max_id), 0) FROM channel_thread_reads r WHERE r.channel_id = ? AND r.top_id = ? AND r.user_id <> ?"+
+			" AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = r.user_id AND u.ghost = 1))",
 		t.GroupId, t.TopId, userId, t.GroupId, t.TopId, userId); err != nil {
 		return 0, err
 	}
@@ -493,7 +496,8 @@ func (d *Dao) ThreadOutboxRead(ctx context.Context, userId int64, t *Thread) (in
 // (core.telegram.org/constructor/updateReadChannelDiscussionInbox,
 // updateReadChannelDiscussionOutbox; tdesktop api_updates.cpp:2508-2538,
 // Android MessagesController.java:20522-20533). A read that moves nothing
-// writes nothing.
+// writes nothing. A ghost's read (ADR 0048, p. 5) is its own: the authors
+// learn nothing of it.
 func (d *Dao) ReadThread(b *userbox.Box, t *Thread, readMax int32) error {
 	readMax = min(readMax, max(t.MaxId, t.TopId))
 	var reads []int32
@@ -516,6 +520,9 @@ func (d *Dao) ReadThread(b *userbox.Box, t *Thread, readMax int32) error {
 		inbox.BroadcastPost = mtproto.MakeFlagsInt32(t.PostId)
 	}
 	if err := d.EmitSeqUpdate(b, mtproto.MakeTLUpdateReadChannelDiscussionInbox(inbox).To_Update(), nil, nil); err != nil {
+		return err
+	}
+	if hidden, err := ghost.IsGhost(b.Tx(), b.UserId()); err != nil || hidden {
 		return err
 	}
 	var authors []struct {

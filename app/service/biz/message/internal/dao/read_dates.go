@@ -55,7 +55,7 @@ func (d *Dao) Readers(ctx context.Context, userId int64, peerType int32, peerId 
 	case mtproto.PEER_CHAT:
 		err = d.DB.QueryRowsPartial(ctx, &readers,
 			"SELECT c.user_id, COALESCE(MIN(r.read_outbox_max_date), 0) AS date FROM messages s"+
-				" JOIN chat_participants p ON p.chat_id = ? AND p.user_id <> s.user_id"+
+				" JOIN chat_participants p ON p.chat_id = ? AND p.user_id <> s.user_id AND p.hidden = 0"+
 				" JOIN messages c ON c.user_id = p.user_id AND c.dialog_message_id = s.dialog_message_id"+
 				" JOIN dialogs rd ON rd.user_id = c.user_id AND rd.peer_type = ? AND rd.peer_id = ? AND rd.read_inbox_max_id >= c.user_message_box_id"+
 				" LEFT JOIN message_read_outbox r ON r.user_id = s.user_id AND r.peer_dialog_id = ? AND r.read_user_id = c.user_id"+

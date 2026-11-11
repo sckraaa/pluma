@@ -22,6 +22,9 @@
 //	pluma-admin [-f bff.yaml] bot token <username>
 //	pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off]
 //	pluma-admin [-f bff.yaml] service-photo [image]
+//	pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off
+//	pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <chat>
+//	pluma-admin [-f bff.yaml] ghost list <@username|user id>
 //	pluma-admin [-f bff.yaml] user verify <@username|user id> on|off
 //	pluma-admin langpack fetch -out <dir> [-pack <packs>] [-lang <langs>] [-api-id <id>]
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
@@ -72,6 +75,13 @@
 // account (777000, "Pluma"), Pluma's by default, the way a client sets its
 // own: the account's chats get updateUser. It talks to dfs, media and biz,
 // so it runs in the bff container.
+//
+// ghost makes an account the support ghost (task 080, ADR 0048): it takes
+// part in supergroups and channels without being seen among their members,
+// and a mention brings it into a chat. set turns it on or off, its existing
+// memberships with it; join and leave take it into a chat nobody called it
+// to, named by its link, @name or id; list prints where it is hidden. It
+// talks to biz, so it runs in the bff container. See docs/ops/support-ghost.md.
 //
 // user verify sets or clears the verification badge of an account, the check
 // the clients draw next to its name (users.verified). The user service
@@ -191,6 +201,9 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] bot token <username>   (replaces the token)
   pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off]
   pluma-admin [-f bff.yaml] service-photo [image]   (the service account's photo; Pluma's by default)
+  pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off   (the support ghost: in chats, unseen)
+  pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <t.me link|@name|chat id>
+  pluma-admin [-f bff.yaml] ghost list <@username|user id>
   pluma-admin [-f bff.yaml] user verify <@username|user id> on|off   (the verification badge)
   pluma-admin langpack fetch -out <dir> [-pack android,ios,...] [-lang ru,...] [-api-id <id>]   (from Telegram; $TELEGRAM_API_ID)
   pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
@@ -262,6 +275,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return pushCommand(args, configFile, stdout)
 	case "service-photo":
 		return servicePhotoCommand(args, configFile, stdout)
+	case "ghost":
+		return ghostCommand(args, configFile, stdout)
 	case "user":
 		return userCommand(args, configFile, stdout)
 	case "langpack":

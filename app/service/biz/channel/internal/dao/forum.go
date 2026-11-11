@@ -31,6 +31,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -759,7 +760,8 @@ func refreshTopicTops(b *userbox.Box, channelId int64, topics []int32) error {
 // MessagesController.java:14501-14508, tdesktop data_replies_list.cpp:1008).
 // Its mentions in the topic up to it are read. Its devices get
 // updateReadChannelDiscussionInbox with seq, and the authors of what it
-// read updateReadChannelDiscussionOutbox. Reading the whole channel
+// read updateReadChannelDiscussionOutbox, unless it is a ghost (ADR 0048,
+// p. 5), whose reads nobody sees. Reading the whole channel
 // (channels.readHistory) also counts for its topics, see topicReadFloor.
 func (d *Dao) ReadTopic(b *userbox.Box, channelId int64, topicId, maxId int32) error {
 	if err := readerIn(b, channelId); err != nil {
@@ -795,6 +797,9 @@ func (d *Dao) ReadTopic(b *userbox.Box, channelId int64, topicId, maxId int32) e
 	if err = d.EmitSeqUpdate(b, mtproto.MakeTLUpdateReadChannelDiscussionInbox(&mtproto.Update{
 		ChannelId: channelId, TopMsgId_INT32: topicId, ReadMaxId: maxId,
 	}).To_Update(), nil, nil); err != nil {
+		return err
+	}
+	if hidden, err := ghost.IsGhost(b.Tx(), b.UserId()); err != nil || hidden {
 		return err
 	}
 	var authors []int64
@@ -1031,15 +1036,19 @@ func (d *Dao) countTopics(ctx context.Context, selfId, channelId int64, availabl
 	for i := range settings {
 		out.notify[settings[i].TopMsgId] = settings[i].Settings()
 	}
+	// What the others read of each topic; a ghost's read is none of it
+	// (ADR 0048, p. 5).
 	var others []count
 	if err := d.Mysql.QueryRowsPartial(ctx, &others,
-		"SELECT top_id AS topic, MAX(read_max_id) AS n FROM channel_thread_reads WHERE channel_id = ? AND user_id <> ? AND top_id IN "+idsIn+" GROUP BY top_id",
+		"SELECT r.top_id AS topic, MAX(r.read_max_id) AS n FROM channel_thread_reads r WHERE r.channel_id = ? AND r.user_id <> ? AND r.top_id IN "+idsIn+
+			" AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = r.user_id AND u.ghost = 1) GROUP BY r.top_id",
 		append([]any{channelId, selfId}, idArgs...)...); err != nil {
 		return nil, err
 	}
 	var dialogsOut []int32
 	if err := d.Mysql.QueryRowsPartial(ctx, &dialogsOut,
-		"SELECT COALESCE(MAX(read_inbox_max_id), 0) FROM dialogs WHERE peer_type = ? AND peer_id = ? AND user_id <> ? AND deleted = 0",
+		"SELECT COALESCE(MAX(g.read_inbox_max_id), 0) FROM dialogs g WHERE g.peer_type = ? AND g.peer_id = ? AND g.user_id <> ? AND g.deleted = 0"+
+			" AND NOT EXISTS (SELECT 1 FROM channel_participants p WHERE p.channel_id = g.peer_id AND p.user_id = g.user_id AND p.hidden = 1)",
 		mtproto.PEER_CHANNEL, channelId, selfId); err != nil {
 		return nil, err
 	}

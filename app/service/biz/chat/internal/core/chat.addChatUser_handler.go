@@ -12,6 +12,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -20,7 +21,10 @@ import (
 //
 // The inviter adds the user in its box transaction with the chat locked
 // (ADR 0021); inviter 0 is the server's admin, who acts as the creator.
-// Every member, the new one included, gets the members with seq.
+// Every member, the new one included, gets the members with seq. The
+// support ghost (ADR 0048) is added by nobody: USER_PRIVACY_RESTRICTED, as
+// the clients know it of one who may not be added (Android
+// AlertsCreator.java:430-447).
 func (c *ChatCore) ChatAddChatUser(in *chat.TLChatAddChatUser) (*mtproto.MutableChat, error) {
 	inviterId, checkInviter := in.InviterId, true
 	if inviterId == 0 {
@@ -33,6 +37,12 @@ func (c *ChatCore) ChatAddChatUser(in *chat.TLChatAddChatUser) (*mtproto.Mutable
 	}
 
 	chat2, err := c.changeMembers(inviterId, in.ChatId, []int64{in.UserId}, func(b *userbox.Box, t *chatTx) error {
+		if hidden, err := ghost.IsGhost(b.Tx(), in.UserId); err != nil || hidden {
+			if err == nil {
+				err = mtproto.ErrUserPrivacyRestricted
+			}
+			return err
+		}
 		if err := t.addMember(b, inviterId, in.UserId, in.GetIsBot(), checkInviter); err != nil {
 			return err
 		}

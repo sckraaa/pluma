@@ -40,6 +40,10 @@ enum TLConstructor {
   CRC32_inbox_channelDeletedToInbox = 723491564;
   // pluma: task 042
   CRC32_inbox_channelKickedToInbox = -1982245271;
+  // pluma: task 080
+  CRC32_inbox_channelJoinedHiddenToInbox = -1548352621;
+  // pluma: task 080
+  CRC32_inbox_chatHistoryToInbox = 1284828188;
 }
 
 // Every event is addressed to one user, user_id: it changes that user's box
@@ -216,6 +220,42 @@ message TL_inbox_channelInvitedToInbox {
   int64 user_id = 3;
   int64 from_id = 4;
   int64 channel_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: inbox.channelJoinedHiddenToInbox user_id:long from_id:long channel_id:long read_max_id:int = Void;
+// The ghost user_id joined the channel channel_id hidden (task 080, ADR
+// 0048): from_id mentioned it, or 0 when the ghost came in by itself (its
+// message or reaction, pluma-admin). The row is written; the recipient's
+// box gets the dialog with the channel, read up to read_max_id (what was
+// there before the mention, which stays unread), and updateChannel with
+// seq.
+message TL_inbox_channelJoinedHiddenToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int64 channel_id = 5;
+  int32 read_max_id = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: inbox.chatHistoryToInbox user_id:long from_id:long chat_id:long mention:Bool skip:Vector<long> = Void;
+// The ghost user_id joined the basic group chat_id hidden (task 080, ADR
+// 0048, p. 4) in the box transaction of from_id: the member who mentioned
+// it (mention), or the creator of the group in whose name the ghost came
+// in by an invite link or by pluma-admin. The recipient's box gets a copy
+// of the whole history of the group, in portions, and the dialog read up
+// to its last copy. skip are the dialog_message_ids of the messages of the
+// same transaction (the mention), which come by their own events after this
+// one and stay unread. A group the ghost was mentioned into is muted for
+// it.
+message TL_inbox_chatHistoryToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int64 chat_id = 5;
+  bool mention = 6;
+  repeated int64 skip = 7;
 }
 
 //--------------------------------------------------------------------------------------------

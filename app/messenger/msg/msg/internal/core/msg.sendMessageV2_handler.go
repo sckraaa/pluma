@@ -11,8 +11,10 @@ package core
 
 import (
 	"github.com/teamgram/teamgram-server/pkg/botprivacy"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 	"math/rand"
+	"slices"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -461,6 +463,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		return nil, err
 	}
 	recipients := withRemoved(chatRecipients(chat, fromUserId, true), chat, fromUserId, outBoxList)
+	outside := mentionedOutside(chat, outBoxList)
 
 	var rUpdates *mtproto.Updates
 	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId,
@@ -489,6 +492,12 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 				return err
 			}
 			reply(boxes)
+			// A ghost the messages mention comes in hidden and gets them
+			// after the group's history (ADR 0048, p. 2a).
+			joined, err := c.svcCtx.Dao.MentionedGhostsJoinChat(b, peerChatId, outside, boxes)
+			if err != nil {
+				return err
+			}
 			if changed {
 				u, err := c.svcCtx.Dao.SetPeerTTL(b, mtproto.PEER_CHAT, peerChatId, period,
 					users.For(fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)})
@@ -502,13 +511,17 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 				mtproto.MakeUpdatesByUpdatesUsersChats(users.For(fromUserId), []*mtproto.Chat{chat.ToUnsafeChat(fromUserId)}, newMessageUpdates(boxes)...)); err != nil {
 				return err
 			}
-			for _, userId := range recipients {
+			for _, userId := range append(slices.Clip(recipients), joined...) {
 				boxList, err := botCopy(b, chat, users.users, userId, boxes)
 				if err != nil {
 					return err
 				}
 				if len(boxList) == 0 {
 					continue
+				}
+				view := chat.ToUnsafeChat(userId)
+				if slices.Contains(joined, userId) {
+					view = hiddenMemberView(chat, userId)
 				}
 				if err = c.svcCtx.Dao.EmitInbox(b, &inbox.TLInboxSendUserMessageToInboxV2{
 					UserId:   userId,
@@ -517,7 +530,7 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 					PeerId:   peerChatId,
 					BoxList:  boxList,
 					Users:    users.For(userId),
-					Chats:    []*mtproto.Chat{chat.ToUnsafeChat(userId)},
+					Chats:    []*mtproto.Chat{view},
 				}); err != nil {
 					return err
 				}
@@ -528,6 +541,47 @@ func (c *MsgCore) sendChatMessages(fromUserId, fromAuthKeyId, peerChatId int64, 
 		return nil, err
 	}
 	return rUpdates, nil
+}
+
+// mentionedOutside returns the users the messages mention by an entity (a
+// mention the plugin resolved, a mention by name) who are not members of
+// chat now, by ascending id: a ghost among them joins the group hidden
+// (dao.MentionedGhostsJoinChat).
+func mentionedOutside(chat *mtproto.MutableChat, outBoxList []*msg.OutboxMessage) []int64 {
+	var ids []int64
+	for _, outBox := range outBoxList {
+		for _, e := range outBox.GetMessage().GetEntities() {
+			id := e.GetUserId_INT64()
+			if id == 0 || slices.Contains(ids, id) {
+				continue
+			}
+			if p, ok := chat.GetImmutableChatParticipant(id); ok && p.IsChatMemberStateNormal() {
+				continue
+			}
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+// hiddenMemberView is chat as userId, a ghost the send has just brought in
+// hidden, sees it: a member, the others as they were.
+func hiddenMemberView(chat *mtproto.MutableChat, userId int64) *mtproto.Chat {
+	view := proto.Clone(chat).(*mtproto.MutableChat)
+	if p, ok := view.GetImmutableChatParticipant(userId); ok {
+		p.State, p.ParticipantType, p.Hidden = mtproto.ChatMemberStateNormal, mtproto.ChatMemberNormal, true
+		p.AdminRights, p.KickedAt, p.LeftAt = nil, 0, 0
+	} else {
+		view.ChatParticipants = append(view.ChatParticipants, mtproto.MakeTLImmutableChatParticipant(&mtproto.ImmutableChatParticipant{
+			ChatId:          chat.Id(),
+			UserId:          userId,
+			State:           mtproto.ChatMemberStateNormal,
+			ParticipantType: mtproto.ChatMemberNormal,
+			Hidden:          true,
+		}).To_ImmutableChatParticipant())
+	}
+	return view.ToUnsafeChat(userId)
 }
 
 // isVoiceOrRound tells a voice message or a round video message: the media

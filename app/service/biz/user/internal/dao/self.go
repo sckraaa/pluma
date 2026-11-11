@@ -52,9 +52,11 @@ type selfRow struct {
 	// Verified is the verification badge, set by the administrator
 	// (UpdateVerified).
 	Verified bool `db:"verified"`
+	// Ghost is the support ghost's flag (SetGhost, ADR 0048).
+	Ghost bool `db:"ghost"`
 }
 
-const selfRowQuery = "SELECT first_name, last_name, username, photo_id, fallback_photo_id, verified FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
+const selfRowQuery = "SELECT first_name, last_name, username, photo_id, fallback_photo_id, verified, ghost FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
 
 // selfAttempts bounds the box transactions of one change of the account:
 // one more is run for each photo the transaction found main and the
@@ -197,6 +199,7 @@ func selfUser(me *mtproto.ImmutableUser, row selfRow, usernames []*mtproto.Usern
 	u.Usernames = usernames
 	u.ProfilePhoto = photo
 	u.Verified = row.Verified
+	u.Ghost = row.Ghost
 	return view.ToSelfUser()
 }
 
@@ -214,6 +217,26 @@ func (d *Dao) UpdateVerified(ctx context.Context, id int64, verified bool) (bool
 			return false, err
 		}
 		row.Verified = verified
+		return true, nil
+	})
+	return changed, err
+}
+
+// SetGhost makes the account id the support ghost or an ordinary account
+// again (users.ghost, ADR 0048): the services that read the flag from the
+// table (pkg/ghost) see it at once, the cached user is dropped, and the
+// account's devices and the users who see it get updateUser with seq, so
+// that a client which kept the account's phone fetches the account without
+// it. It tells whether the flag changed.
+func (d *Dao) SetGhost(ctx context.Context, id int64, ghost bool) (bool, error) {
+	_, changed, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUser, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
+		if row.Ghost == ghost {
+			return false, nil
+		}
+		if _, err := b.Tx().Exec("UPDATE users SET ghost = ? WHERE id = ?", ghost, id); err != nil {
+			return false, err
+		}
+		row.Ghost = ghost
 		return true, nil
 	})
 	return changed, err

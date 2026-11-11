@@ -221,6 +221,7 @@ func (d *Dao) MakeUserDataByDO(userDO *dataobject.UsersDO) *mtproto.UserData {
 		SavedMusic:         nil,
 		MainTab:            mtproto.ToProfileTabByType(userDO.MainTab),
 		Usernames:          nil,
+		Ghost:              userDO.Ghost,
 	}).To_UserData()
 
 	return userData

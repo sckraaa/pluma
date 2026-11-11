@@ -65,6 +65,12 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChatHideChatJoinRequests":          {"/mtproto.RPCChat/chat_hideChatJoinRequests", func() interface{} { return new(RecentChatInviteRequesters) }},
 	"TLChatImportChatInvite2":             {"/mtproto.RPCChat/chat_importChatInvite2", func() interface{} { return new(ChatInviteImported) }},
 	"TLChatEditChatParticipantRank":       {"/mtproto.RPCChat/chat_editChatParticipantRank", func() interface{} { return new(mtproto.MutableChat) }},
+	// pluma: task 080
+	"TLChatJoinHidden": {"/mtproto.RPCChat/chat_joinHidden", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 080
+	"TLChatLeaveHidden": {"/mtproto.RPCChat/chat_leaveHidden", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 080
+	"TLChatSetUserHidden": {"/mtproto.RPCChat/chat_setUserHidden", func() interface{} { return new(mtproto.Int32) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

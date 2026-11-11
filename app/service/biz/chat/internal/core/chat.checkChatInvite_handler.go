@@ -89,7 +89,7 @@ func (c *ChatCore) ChatCheckChatInvite(in *chat.TLChatCheckChatInvite) (*chat.Ch
 			About:             mtproto.MakeFlagsString(mChat.About()),
 			Photo:             mChat.Photo(),
 			ParticipantsCount: mChat.Chat.ParticipantsCount,
-			Participants:      mChat.ParticipantIdList(),
+			Participants:      shownParticipants(mChat),
 		}).To_ChatInviteExt()
 
 		return rValue, nil
@@ -98,4 +98,17 @@ func (c *ChatCore) ChatCheckChatInvite(in *chat.TLChatCheckChatInvite) (*chat.Ch
 			Chat: mChat,
 		}).To_ChatInviteExt(), nil
 	}
+}
+
+// shownParticipants are the members of c the others see: the hidden ones
+// (the ghost, ADR 0048) left out.
+func shownParticipants(c *mtproto.MutableChat) []int64 {
+	var ids []int64
+	c.Walk(func(userId int64, p *mtproto.ImmutableChatParticipant) error {
+		if p.IsChatMemberStateNormal() && !p.Hidden {
+			ids = append(ids, userId)
+		}
+		return nil
+	})
+	return ids
 }

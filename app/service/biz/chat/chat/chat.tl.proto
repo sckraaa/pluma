@@ -66,6 +66,12 @@ enum TLConstructor {
     CRC32_chat_hideChatJoinRequests = 1051012305;
     CRC32_chat_importChatInvite2 = -589742657;
     CRC32_chat_editChatParticipantRank = 2075490336;
+    // pluma: task 080
+    CRC32_chat_joinHidden = 155563430;
+    // pluma: task 080
+    CRC32_chat_leaveHidden = 1492368753;
+    // pluma: task 080
+    CRC32_chat_setUserHidden = -1113214184;
 }
 
 
@@ -458,6 +464,39 @@ message TL_chat_setBlocked {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: chat.joinHidden user_id:long chat_id:long = Bool;
+// The ghost user_id joins the basic group hidden (ADR 0048, pluma-admin
+// ghost join) and gets its whole history: true when it joined, false when
+// it was in. (task 080)
+message TL_chat_joinHidden {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 chat_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: chat.leaveHidden user_id:long chat_id:long = Bool;
+// The ghost user_id leaves the basic group where it is hidden (pluma-admin
+// ghost leave): true when it was in. (task 080)
+message TL_chat_leaveHidden {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 chat_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: chat.setUserHidden user_id:long hidden:Bool = Int32;
+// The rows of user_id where it is a plain member of a basic group become
+// hidden or shown, as its account became a ghost or stopped being one
+// (pluma-admin ghost set); the number of members of each group follows.
+// The number of groups changed. (task 080)
+message TL_chat_setUserHidden {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  mtproto.Bool hidden = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 message Vector_MutableChat {
     repeated mtproto.MutableChat datas = 1;
@@ -522,5 +561,11 @@ service RPCChat {
  rpc chat_hideChatJoinRequests(TL_chat_hideChatJoinRequests) returns (RecentChatInviteRequesters) {}
  rpc chat_importChatInvite2(TL_chat_importChatInvite2) returns (ChatInviteImported) {}
  rpc chat_editChatParticipantRank(TL_chat_editChatParticipantRank) returns (mtproto.MutableChat) {}
+  // pluma: task 080
+  rpc chat_joinHidden(TL_chat_joinHidden) returns (mtproto.Bool) {}
+  // pluma: task 080
+  rpc chat_leaveHidden(TL_chat_leaveHidden) returns (mtproto.Bool) {}
+  // pluma: task 080
+  rpc chat_setUserHidden(TL_chat_setUserHidden) returns (mtproto.Int32) {}
 }
 

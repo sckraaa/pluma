@@ -246,6 +246,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 2075490336,
 		}
 	},
+	155563430: func() mtproto.TLObject { // 0x0945b5a6 pluma: task 080
+		return &TLChatJoinHidden{
+			Constructor: 155563430,
+		}
+	},
+	1492368753: func() mtproto.TLObject { // 0x58f3bd71 pluma: task 080
+		return &TLChatLeaveHidden{
+			Constructor: 1492368753,
+		}
+	},
+	-1113214184: func() mtproto.TLObject { // 0xbda5b318 pluma: task 080
+		return &TLChatSetUserHidden{
+			Constructor: -1113214184,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -2978,6 +2993,128 @@ func (m *TLChatEditChatCreator) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.SelfId = dBuf.Long()
 		m.ChatId = dBuf.Long()
 		m.UserId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChatJoinHidden (pluma: task 080)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChatJoinHidden) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x0945b5a6:
+		x.UInt(0x0945b5a6)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChatId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChatJoinHidden) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChatJoinHidden) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x0945b5a6:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ChatId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChatLeaveHidden (pluma: task 080)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChatLeaveHidden) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x58f3bd71:
+		x.UInt(0x58f3bd71)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChatId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChatLeaveHidden) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChatLeaveHidden) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x58f3bd71:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ChatId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChatSetUserHidden (pluma: task 080)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChatSetUserHidden) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xbda5b318:
+		x.UInt(0xbda5b318)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		m.GetHidden().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChatSetUserHidden) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChatSetUserHidden) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xbda5b318:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Hidden = m4
 		return dBuf.GetError()
 
 	default:

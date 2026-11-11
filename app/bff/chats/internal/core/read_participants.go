@@ -81,7 +81,17 @@ func (c *ChatsCore) readParticipants(inPeer *mtproto.InputPeer, msgId int32) ([]
 	if !slices.Contains(members.GetDatas(), c.MD.UserId) {
 		return nil, mtproto.ErrPeerIdInvalid
 	}
-	if len(members.GetDatas()) > readmarks.ChatSizeThreshold {
+	// The size the clients compare with the threshold is participants_count,
+	// which leaves out the hidden support ghost (ADR 0048): counting it here
+	// would refuse a group the clients offer the list in, and tell it is in.
+	chat, err := c.svcCtx.Dao.ChatClient.Client().ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{
+		ChatId: peer.PeerId,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.getMessageReadParticipants - error: %v", err)
+		return nil, err
+	}
+	if chat.ParticipantsCount() > readmarks.ChatSizeThreshold {
 		return nil, mtproto.ErrChatTooBig
 	}
 

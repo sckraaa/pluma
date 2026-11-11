@@ -160,7 +160,9 @@ func (c *UserCore) importTargets(userId int64, entries []*importEntry) (map[stri
 	for _, data := range datas {
 		owner := data.GetUserData().GetId()
 		phone, ok := byId[owner]
-		if !ok {
+		if !ok || data.GetUserData().GetGhost() {
+			// Nobody finds the support ghost by its number (ADR 0048): to
+			// the importer it is a number without an account.
 			continue
 		}
 		rules, err := c.svcCtx.Dao.GetUserPrivacyRules(c.ctx, owner, mtproto.ADDED_BY_PHONE)

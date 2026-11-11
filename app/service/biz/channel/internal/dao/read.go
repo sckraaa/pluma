@@ -49,6 +49,8 @@ type readRow struct {
 	Broadcast      bool  `db:"broadcast"`
 	Forum          bool  `db:"forum"`
 	AvailableMinId int32 `db:"available_min_id"`
+	// Hidden: the reader is a ghost (ADR 0048), whose reads nobody sees.
+	Hidden bool `db:"hidden"`
 }
 
 // Read marks the channel read by b's owner up to maxId (0 or above the
@@ -75,8 +77,9 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 	if err = d.moveRead(b, channelId, maxId, r); err != nil {
 		return err
 	}
-	if r.Broadcast {
-		// The posts of a channel show views, not reads.
+	if r.Broadcast || r.Hidden {
+		// The posts of a channel show views, not reads; a ghost's read
+		// is its own (ADR 0048, p. 5): no "read by", no read outbox.
 		return nil
 	}
 	// When the owner read up to maxId, for the senders' "read by" list
@@ -115,7 +118,7 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 func readerRow(b *userbox.Box, channelId int64) (*readRow, error) {
 	var rows []readRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, c.forum, COALESCE(p.available_min_id, 0) AS available_min_id"+
+		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, c.forum, COALESCE(p.available_min_id, 0) AS available_min_id, p.hidden"+
 			" FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
 			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state <> 1"+
 			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
@@ -284,7 +287,7 @@ func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
 // messages of the last readmarks.ChatExpirePeriod in groups of up to
 // readmarks.ChatSizeThreshold members (core.telegram.org/api/config), as in
 // a basic group. Members who left are not listed, nor reads before the
-// dates were kept.
+// dates were kept, nor a ghost (ADR 0048), which keeps none.
 func (d *Dao) ReadParticipants(ctx context.Context, selfId, channelId int64, msgId int32, now int64) ([]*mtproto.ReadParticipantDate, error) {
 	var rows []struct {
 		Broadcast         bool  `db:"broadcast"`
@@ -317,7 +320,7 @@ func (d *Dao) ReadParticipants(ctx context.Context, selfId, channelId int64, msg
 	}
 	if err := d.Mysql.QueryRowsPartial(ctx, &readers,
 		"SELECT r.user_id, MIN(r.read_at) AS read_at FROM channel_read_marks r"+
-			" JOIN channel_participants p ON p.channel_id = r.channel_id AND p.user_id = r.user_id AND p.state = ?"+
+			" JOIN channel_participants p ON p.channel_id = r.channel_id AND p.user_id = r.user_id AND p.state = ? AND p.hidden = 0"+
 			" WHERE r.channel_id = ? AND r.max_id >= ? AND r.user_id <> ? GROUP BY r.user_id ORDER BY read_at DESC",
 		channelperm.StateIn, channelId, msgId, selfId); err != nil {
 		return nil, err

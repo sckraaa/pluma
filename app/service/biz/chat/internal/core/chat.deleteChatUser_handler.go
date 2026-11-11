@@ -27,6 +27,8 @@ import (
 // removed user the forbidden list. The creator who leaves hands the chat
 // to its next creator at once (leaveAsCreator), as Telegram does with a
 // basic group (core.telegram.org/api/channel, "Leaving groups/channels").
+// A hidden member (the ghost, ADR 0048) who leaves or is removed changes
+// nothing the others see.
 func (c *ChatCore) ChatDeleteChatUser(in *chat.TLChatDeleteChatUser) (*mtproto.MutableChat, error) {
 	operatorId := in.OperatorId
 	if operatorId == 0 {
@@ -58,6 +60,9 @@ func (c *ChatCore) ChatDeleteChatUser(in *chat.TLChatDeleteChatUser) (*mtproto.M
 		d := t.c.svcCtx.Dao
 		if kicked {
 			removed := t.participant(in.DeleteUserId)
+			if out, err := t.kickAbsentGhost(b, me, removed, in.DeleteUserId); err != nil || out {
+				return err
+			}
 			switch {
 			case !me.CanAdminBanUsers():
 				return mtproto.ErrChatAdminRequired
@@ -95,6 +100,12 @@ func (c *ChatCore) ChatDeleteChatUser(in *chat.TLChatDeleteChatUser) (*mtproto.M
 			return err
 		}
 		t.changed(b, in.DeleteUserId)
+		if p := t.participant(in.DeleteUserId); p.GetHidden() {
+			// The others never saw the ghost come (ADR 0048): their list,
+			// its version and the number of members stay; bff sends no
+			// service message.
+			return t.tell(b, []int64{in.DeleteUserId}, t.forbiddenUpdate())
+		}
 		if err := t.writeCount(b); err != nil {
 			return err
 		}

@@ -82,6 +82,10 @@ func (c *ChatInvitesCore) MessagesImportChatInviteDE91436E(in *mtproto.TLMessage
 		// updatePendingJoinRequests with seq in its transaction (ADR 0021).
 		c.Logger.Infof("messages.importChatInvite - reply: %v", mtproto.ErrInviteRequestSent)
 		return nil, mtproto.ErrInviteRequestSent
+	} else if hiddenMember(mChat, c.MD.UserId) {
+		return mtproto.MakeTLMessagesChatInviteJoinResultOk(&mtproto.Messages_ChatInviteJoinResult{
+			Updates: hiddenJoinUpdates(mChat, c.MD.UserId),
+		}).To_Messages_ChatInviteJoinResult(), nil
 	} else {
 		// TODO: found link
 		rUpdates, err := c.svcCtx.Dao.MsgClient.MsgSendMessageV2(

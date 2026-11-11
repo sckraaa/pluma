@@ -62,6 +62,24 @@ func (m *readMessages) MessageGetOutboxReadDate(_ context.Context, in *message.T
 type readMembers struct {
 	chat_client.ChatClient
 	members []int64
+	// hidden are members left out of participants_count (the support
+	// ghost, ADR 0048).
+	hidden map[int64]bool
+}
+
+func (c *readMembers) ChatGetMutableChat(_ context.Context, in *chatpb.TLChatGetMutableChat) (*mtproto.MutableChat, error) {
+	if in.ChatId != readChat {
+		return nil, mtproto.ErrChatIdInvalid
+	}
+	var shown int32
+	for _, id := range c.members {
+		if !c.hidden[id] {
+			shown++
+		}
+	}
+	return mtproto.MakeTLMutableChat(&mtproto.MutableChat{
+		Chat: mtproto.MakeTLImmutableChat(&mtproto.ImmutableChat{Id: readChat, ParticipantsCount: shown}).To_ImmutableChat(),
+	}).To_MutableChat(), nil
 }
 
 func (c *readMembers) ChatGetChatParticipantIdList(_ context.Context, in *chatpb.TLChatGetChatParticipantIdList) (*chatpb.Vector_Long, error) {
@@ -151,5 +169,24 @@ func TestReadParticipantsRefused(t *testing.T) {
 				t.Errorf("asked for the dates: %+v", m.asked)
 			}
 		})
+	}
+}
+
+// A group of exactly the threshold's size with the hidden support ghost
+// besides (ADR 0048) gets its list, as one without the ghost does: the
+// answer does not tell the ghost is in.
+func TestReadParticipantsHiddenGhostNotCounted(t *testing.T) {
+	m, c := readGroup()
+	for i := range readmarks.ChatSizeThreshold - len(c.members) {
+		c.members = append(c.members, int64(1000+i))
+	}
+	c.members = append(c.members, 99)
+	c.hidden = map[int64]bool{99: true}
+	readers, err := readCore(m, c).readParticipants(chatPeer(readChat), readMsgId)
+	if err != nil {
+		t.Fatalf("error %v, want the list", err)
+	}
+	if len(readers) != 1 || readers[0].GetUserId() != 8 {
+		t.Errorf("readers %v, want 8", readers)
 	}
 }

@@ -12,7 +12,6 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/mediaerr"
@@ -133,13 +132,9 @@ func GetMessageMedia(ctx context.Context, d MediaHelper, userId, ownerId int64, 
 			UserId:      0,
 		}).To_MessageMedia()
 
-		phoneNumber, err := phonenumber.CheckAndGetPhoneNumber(contact.GetPhoneNumber())
-		if err == nil {
-			cId, _ := d.UserGetUserIdByPhone(ctx, &userpb.TLUserGetUserIdByPhone{
-				Phone: phoneNumber,
-			})
-			if cId != nil {
-				messageMedia.UserId = cId.GetV()
+		if phoneNumber, err2 := phonenumber.CheckAndGetPhoneNumber(contact.GetPhoneNumber()); err2 == nil {
+			if messageMedia.UserId, err = user_client.ContactCardUserId(ctx, d, userId, phoneNumber); err != nil {
+				return
 			}
 		}
 	case mtproto.Predicate_inputMediaUploadedDocument:

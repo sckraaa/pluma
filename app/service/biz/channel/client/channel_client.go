@@ -116,6 +116,9 @@ type ChannelClient interface {
 	ChannelGetInactiveChannels(ctx context.Context, in *channel.TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error)
 	ChannelSetMainProfileTab(ctx context.Context, in *channel.TLChannelSetMainProfileTab) (*mtproto.Bool, error)
 	ChannelGetChannelRecommendations(ctx context.Context, in *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error)
+	ChannelJoinHidden(ctx context.Context, in *channel.TLChannelJoinHidden) (*mtproto.Bool, error)
+	ChannelLeaveHidden(ctx context.Context, in *channel.TLChannelLeaveHidden) (*mtproto.Bool, error)
+	ChannelSetUserHidden(ctx context.Context, in *channel.TLChannelSetUserHidden) (*mtproto.Int32, error)
 }
 
 type defaultChannelClient struct {
@@ -1116,4 +1119,37 @@ func (m *defaultChannelClient) ChannelGetChannelRecommendations(ctx context.Cont
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelGetChannelRecommendations(ctx, in)
+}
+
+// ChannelSetUserHidden
+// channel.setUserHidden user_id:long hidden:Bool = Int32;
+func (m *defaultChannelClient) ChannelSetUserHidden(ctx context.Context, in *channel.TLChannelSetUserHidden) (*mtproto.Int32, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetUserHidden(ctx, in)
+}
+
+// ChannelLeaveHidden
+// channel.leaveHidden user_id:long channel_id:long = Bool;
+func (m *defaultChannelClient) ChannelLeaveHidden(ctx context.Context, in *channel.TLChannelLeaveHidden) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelLeaveHidden(ctx, in)
+}
+
+// ChannelJoinHidden
+// channel.joinHidden user_id:long channel_id:long = Bool;
+func (m *defaultChannelClient) ChannelJoinHidden(ctx context.Context, in *channel.TLChannelJoinHidden) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelJoinHidden(ctx, in)
 }

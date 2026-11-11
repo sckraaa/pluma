@@ -535,3 +535,45 @@ func (s *Service) ChatEditChatCreator(ctx context.Context, request *chat.TLChatE
 
 	return r, nil
 }
+
+// ChatJoinHidden
+// chat.joinHidden user_id:long chat_id:long = Bool;
+func (s *Service) ChatJoinHidden(ctx context.Context, request *chat.TLChatJoinHidden) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("chat.joinHidden - metadata: {%s}", c.MD)
+
+	r, err := c.ChatJoinHidden(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChatLeaveHidden
+// chat.leaveHidden user_id:long chat_id:long = Bool;
+func (s *Service) ChatLeaveHidden(ctx context.Context, request *chat.TLChatLeaveHidden) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("chat.leaveHidden - metadata: {%s}", c.MD)
+
+	r, err := c.ChatLeaveHidden(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChatSetUserHidden
+// chat.setUserHidden user_id:long hidden:Bool = Int32;
+func (s *Service) ChatSetUserHidden(ctx context.Context, request *chat.TLChatSetUserHidden) (*mtproto.Int32, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("chat.setUserHidden - metadata: {%s}", c.MD)
+
+	r, err := c.ChatSetUserHidden(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

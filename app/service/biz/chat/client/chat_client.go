@@ -60,6 +60,9 @@ type ChatClient interface {
 	ChatHideChatJoinRequests(ctx context.Context, in *chat.TLChatHideChatJoinRequests) (*chat.RecentChatInviteRequesters, error)
 	ChatImportChatInvite2(ctx context.Context, in *chat.TLChatImportChatInvite2) (*chat.ChatInviteImported, error)
 	ChatEditChatParticipantRank(ctx context.Context, in *chat.TLChatEditChatParticipantRank) (*mtproto.MutableChat, error)
+	ChatJoinHidden(ctx context.Context, in *chat.TLChatJoinHidden) (*mtproto.Bool, error)
+	ChatLeaveHidden(ctx context.Context, in *chat.TLChatLeaveHidden) (*mtproto.Bool, error)
+	ChatSetUserHidden(ctx context.Context, in *chat.TLChatSetUserHidden) (*mtproto.Int32, error)
 }
 
 type defaultChatClient struct {
@@ -477,4 +480,37 @@ func (m *defaultChatClient) ChatSetBlocked(ctx context.Context, in *chat.TLChatS
 	}
 	client := chat.NewRPCChatClient(m.cli.Conn())
 	return client.ChatSetBlocked(ctx, in)
+}
+
+// ChatJoinHidden
+// chat.joinHidden user_id:long chat_id:long = Bool;
+func (m *defaultChatClient) ChatJoinHidden(ctx context.Context, in *chat.TLChatJoinHidden) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := chat.NewRPCChatClient(m.cli.Conn())
+	return client.ChatJoinHidden(ctx, in)
+}
+
+// ChatLeaveHidden
+// chat.leaveHidden user_id:long chat_id:long = Bool;
+func (m *defaultChatClient) ChatLeaveHidden(ctx context.Context, in *chat.TLChatLeaveHidden) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := chat.NewRPCChatClient(m.cli.Conn())
+	return client.ChatLeaveHidden(ctx, in)
+}
+
+// ChatSetUserHidden
+// chat.setUserHidden user_id:long hidden:Bool = Int32;
+func (m *defaultChatClient) ChatSetUserHidden(ctx context.Context, in *chat.TLChatSetUserHidden) (*mtproto.Int32, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := chat.NewRPCChatClient(m.cli.Conn())
+	return client.ChatSetUserHidden(ctx, in)
 }

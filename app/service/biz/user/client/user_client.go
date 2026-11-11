@@ -135,6 +135,7 @@ type UserClient interface {
 	UserSetTopicNotifySettings(ctx context.Context, in *user.TLUserSetTopicNotifySettings) (*mtproto.Bool, error)
 	UserGetTopicNotifySettings(ctx context.Context, in *user.TLUserGetTopicNotifySettings) (*mtproto.PeerNotifySettings, error)
 	UserGetTopicNotifyExceptions(ctx context.Context, in *user.TLUserGetTopicNotifyExceptions) (*mtproto.Updates, error)
+	UserSetGhost(ctx context.Context, in *user.TLUserSetGhost) (*mtproto.Bool, error)
 }
 
 type defaultUserClient struct {
@@ -1377,4 +1378,15 @@ func (m *defaultUserClient) UserGetTopicNotifyExceptions(ctx context.Context, in
 	}
 	client := user.NewRPCUserClient(m.cli.Conn())
 	return client.UserGetTopicNotifyExceptions(ctx, in)
+}
+
+// UserSetGhost
+// user.setGhost user_id:long ghost:Bool = Bool;
+func (m *defaultUserClient) UserSetGhost(ctx context.Context, in *user.TLUserSetGhost) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := user.NewRPCUserClient(m.cli.Conn())
+	return client.UserSetGhost(ctx, in)
 }

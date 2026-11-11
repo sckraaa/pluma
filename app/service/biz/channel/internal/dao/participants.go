@@ -32,7 +32,7 @@ const ParticipantsMax = 200
 // participantsColumns are those of makeParticipant, of channel_participants
 // p.
 const participantsColumns = "p.channel_id, p.user_id, p.role, p.state, p.admin_rights, p.`rank`, p.banned_rights, p.until_date," +
-	" p.inviter_user_id, p.promoted_by, p.kicked_by, p.available_min_id, p.`date`"
+	" p.inviter_user_id, p.promoted_by, p.kicked_by, p.available_min_id, p.`date`, p.hidden"
 
 // ErrUnknownFilter: a channelParticipantsFilter Participants does not know.
 var ErrUnknownFilter = fmt.Errorf("channel: unknown participants filter")
@@ -43,7 +43,10 @@ var ErrUnknownFilter = fmt.Errorf("channel: unknown participants filter")
 // (ImmutableChannelParticipant.Member); kicked are those kicked whose ban
 // runs, banned (restricted) the members whose restriction runs
 // (channelperm.Restricted); q matches the beginning of a name or the
-// username.
+// username. The hidden rows of a ghost (ADR 0048) are left out of every
+// list of members but the ghost's own; the kicked and the restricted lists
+// show a ghost an admin banned or restricted, as the admin did it (and as
+// kicked_count and banned_count count it).
 func participantsWhere(filter, q string, selfId int64, now int32) (string, []any, error) {
 	const (
 		member = "p.state = 0"
@@ -73,6 +76,10 @@ func participantsWhere(filter, q string, selfId int64, now int32) (string, []any
 			[]any{selfId}
 	default:
 		return "", nil, fmt.Errorf("%w: %q", ErrUnknownFilter, filter)
+	}
+	if filter != mtproto.Predicate_channelParticipantsKicked && filter != mtproto.Predicate_channelParticipantsBanned {
+		where += " AND (p.hidden = 0 OR p.user_id = ?)"
+		args = append(args, selfId)
 	}
 	if q = strings.TrimSpace(q); q != "" {
 		like := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(q) + "%"

@@ -64,6 +64,9 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	if err != nil {
 		return nil, err
 	}
+	if err = c.ghostJoins(fromUserId, channelId); err != nil {
+		return nil, err
+	}
 	var sent []dao.ChannelSent
 	_, err = c.svcCtx.Dao.RunBox(c.ctx, fromUserId, nil, func(b *userbox.Box) error {
 		before, err := c.svcCtx.Dao.ChannelSentBefore(b, channelId, randomIds)
@@ -130,6 +133,25 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 		Chats:   chats,
 		Date:    int32(time.Now().Unix()),
 	}).To_Updates(), nil
+}
+
+// ghostJoins makes userId, when it is the support ghost (ADR 0048) and not
+// in the channel it writes to (a message, a reaction, a vote), a hidden
+// member of it first, where it may read it without a row (a public chat,
+// the comments of a public channel): it comments and reacts without
+// subscribing, and the replies to what it wrote reach it as a member's.
+// biz channel joins it in a box transaction of its own (channel.joinHidden:
+// the row, the dialog read up to the last message, updateChannel with seq
+// for its devices; nobody else learns of it), before the write's: a
+// transaction calls no service, and a box takes no inbox event it emits
+// itself. A write that fails afterwards leaves the ghost in, unseen.
+func (c *MsgCore) ghostJoins(userId, channelId int64) error {
+	may, err := c.svcCtx.Dao.GhostMayJoin(c.ctx, userId, channelId)
+	if err != nil || !may {
+		return err
+	}
+	_, err = c.svcCtx.Dao.ChannelClient.ChannelJoinHidden(c.ctx, &channelpb.TLChannelJoinHidden{UserId: userId, ChannelId: channelId})
+	return err
 }
 
 // channelSentIds are the ids of sent, in order.

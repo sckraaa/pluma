@@ -28,4 +28,5 @@ type ChatParticipantsDO struct {
 	State                          int32  `db:"state" json:"state"`
 	Date2                          int64  `db:"date2" json:"date2"`
 	Rank2                          string `db:"rank2" json:"rank2"`
+	Hidden                         bool   `db:"hidden" json:"hidden"`
 }
