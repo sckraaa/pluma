@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/mtclient"
 )
 
 // TestPhoneOfKeptNumber: Alice shows her number to nobody; Bob, who keeps
@@ -56,18 +57,18 @@ func TestPhoneOfKeptNumber(t *testing.T) {
 
 	phoneOf := func(u *user) string {
 		t.Helper()
-		o, err := u.c.Invoke(ctx, &mtproto.TLUsersGetUsers{
+		raw, err := u.c.InvokeRaw(ctx, &mtproto.TLUsersGetUsers{
 			Constructor: u.c.Constructor(mtproto.Predicate_users_getUsers),
 			Id:          []*mtproto.InputUser{inputUserOf(ctx, t, u, alice)},
 		})
 		if err != nil {
 			t.Fatalf("users.getUsers: %v", err)
 		}
-		us := o.(interface{ To_Vector_User() *mtproto.Vector_User }).To_Vector_User().GetDatas()
-		if len(us) != 1 {
-			t.Fatalf("users.getUsers: %d users", len(us))
+		us, err := mtclient.DecodeVector(raw)
+		if err != nil || len(us) != 1 {
+			t.Fatalf("users.getUsers: %d users, %v", len(us), err)
 		}
-		return us[0].GetPhone().GetValue()
+		return us[0].(interface{ To_User() *mtproto.User }).To_User().GetPhone().GetValue()
 	}
 	if got := phoneOf(bob); got != number {
 		t.Errorf("Bob, who keeps the number: phone %q, want %q", got, number)
