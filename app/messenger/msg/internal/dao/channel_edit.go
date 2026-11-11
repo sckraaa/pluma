@@ -18,6 +18,7 @@ package dao
 import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -131,6 +132,14 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 		m.Views, m.Forwards = wrapperspb.Int32(rows[0].Views), wrapperspb.Int32(rows[0].Forwards)
 	}
 	ch.AddPtsUpdate(mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: m}).To_Update(), 1)
+	// The recent actions keep an edit of another's message and of a post.
+	if !own || s.ch.Broadcast {
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionEditMessage(&mtproto.ChannelAdminLogEventAction{
+			PrevMessage: stored, NewMessage: m,
+		}).To_ChannelAdminLogEventAction(), m.GetMessage()); err != nil {
+			return nil, err
+		}
+	}
 	data, err := jsonx.MarshalToString(m)
 	if err != nil {
 		return nil, err
