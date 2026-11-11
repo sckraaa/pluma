@@ -21,6 +21,7 @@ package config
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
+	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -48,6 +49,11 @@ type Config struct {
 	// https://pluma.chat (task 054): /dl/ of it serves them. Empty: no
 	// update is offered and the desktop app keeps its own update prefix.
 	ReleasesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
+	// itself (task 085): the secret of its tickets and the status address
+	// of the install service. Without the secret such a build is offered
+	// the site's install page.
+	IOSUpdate iosupdate.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// The bot that fetches sticker sets from Telegram on demand (task 030);
 	// none if empty.
 	TelegramBot tgbot.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s

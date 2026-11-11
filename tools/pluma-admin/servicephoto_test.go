@@ -150,6 +150,7 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("TELEGRAM_API_HASH", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("PLUMA_RELEASES_URL", "")
+	t.Setenv("PLUMA_IOS_UPDATE_SECRET", "")
 	t.Setenv("CALLS_ICE_SERVERS", "")
 	t.Setenv("CALLS_TURN_SECRET", "")
 	t.Setenv("CALLS_QUALITY", "")

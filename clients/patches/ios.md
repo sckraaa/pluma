@@ -886,6 +886,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### I-100. Экран обновления открывает `url`
 
 - **Где.** `submodules/TelegramUpdateUI/Sources/UpdateInfoController.swift:117-119`: кнопка «Обновить» открывает `appUpdateInfo.url` через `applicationBindings.openUrl`, без `url` — `openAppStorePage`, с 2026-11-09 (`8b45518`) это сайт (I-111).
+- **С 2026-11-11 (задача 085, сервер).** `url` может быть ссылкой `itms-services://?action=download-manifest&url=…`: установка новой сборки запускается прямо из приложения. Патч не менялся: `openUrl` передаёт ссылку с непустой схемой в `UIApplication.shared.open` (`AppDelegate.swift:845-859`, `release-13.2`, `24638bc69b`). Ссылка для сессии и сборки постоянна в пределах суток UTC, потому что `AppUpdateInfo` сравнивается вместе с `url` (I-099; `ApplicationContext.swift:589-599`). Дополнение к ADR 0035 от 2026-11-11, `docs/ops/ios-install.md`.
 
 ### I-101. Признак `adhoc` в `app_version`
 

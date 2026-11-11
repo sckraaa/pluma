@@ -61,6 +61,14 @@ TelegramBot:
 # Empty: no update is offered.
 ReleasesURL: "${PLUMA_RELEASES_URL}"
 
+# The update of the iPhone app from the app itself (task 085,
+# docs/ops/ios-install.md): the secret of the update tickets, the same the
+# install service gets, and where that service tells which build it gives.
+# Empty secret: an Ad Hoc build is offered the site's install page.
+IOSUpdate:
+  Secret: "${PLUMA_IOS_UPDATE_SECRET}"
+  StatusURL: "http://iosinstall:9098/internal/update"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 

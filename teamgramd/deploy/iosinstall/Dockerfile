@@ -6,6 +6,9 @@ FROM golang:1.27.4-trixie@sha256:b54b2639de8c1bfe538ec5ffc45f29b1932235ac5f6d63c
 WORKDIR /src
 COPY go.mod ./
 COPY app/ops/iosinstall ./app/ops/iosinstall
+# The update tickets it shares with the bff; standard library only, as the
+# service itself.
+COPY pkg/iosupdate ./pkg/iosupdate
 RUN CGO_ENABLED=0 go build -mod=mod -trimpath -ldflags="-s -w" -o /iosinstall ./app/ops/iosinstall
 # rcodesign 0.29.0 (indygreg/apple-platform-rs, release apple-codesign/0.29.0),
 # a static musl build; its SHA-256 is the release's .sha256.

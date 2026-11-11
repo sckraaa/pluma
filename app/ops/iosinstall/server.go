@@ -33,6 +33,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 )
 
 // The site's hidden page leads a person through it (pluma.chat/iphone):
@@ -45,6 +47,10 @@ import (
 //  3. GET  /ios/adhoc/status    "waiting" until the IPA is signed for the
 //     device, then the itms-services link, the version and the build number.
 //  4. GET  /ios/adhoc/manifest  and /ios/adhoc/app.ipa, by the token.
+//
+// An installed build updates from the app itself (task 085, update.go):
+// help.getAppUpdate gives it the itms-services link of the same manifest
+// with an update ticket in place of the token.
 //
 // CI uploads every signed ad hoc build: POST /ios/adhoc/upload.
 
@@ -60,6 +66,9 @@ type server struct {
 	signer *signer
 	now    func() time.Time
 	verify func(der []byte) ([]byte, error)
+	// current is the build of the current release of the iPhone app
+	// (update.go); false when it is not known.
+	current func() (int32, bool)
 
 	mu         sync.Mutex
 	challenges map[string]time.Time
@@ -73,6 +82,7 @@ func newServer(cfg config, st *store, sg *signer) *server {
 		signer:     sg,
 		now:        time.Now,
 		verify:     verifyDeviceSignature,
+		current:    newCurrentRelease(cfg.releasesURL).build,
 		challenges: map[string]time.Time{},
 		perAddress: map[string][]time.Time{},
 	}
@@ -86,6 +96,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /ios/adhoc/manifest", s.manifest)
 	mux.HandleFunc("GET /ios/adhoc/app.ipa", s.ipa)
 	mux.HandleFunc("POST /ios/adhoc/upload", s.upload)
+	// Not under /ios/adhoc/: Caddy does not proxy it.
+	mux.HandleFunc("GET "+iosupdate.StatusPath, s.updateStatus)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	return mux
 }
@@ -360,10 +372,15 @@ func (s *server) status(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) manifest(w http.ResponseWriter, r *http.Request) {
-	d, st, ok := s.device(r)
-	if !ok || !st.ready(d) {
+	st, credential, ok := s.served(r)
+	if !ok {
 		http.Error(w, "not ready", http.StatusNotFound)
 		return
+	}
+	if credential.subject != nil {
+		// The session, never the ticket: one session from many addresses is
+		// a ticket that went around.
+		s.signer.logf("iosinstall: an update from the app for %s, session %x", clientAddress(r), credential.subject)
 	}
 	app := ""
 	for _, b := range st.Build.Bundles {
@@ -386,7 +403,7 @@ func (s *server) manifest(w http.ResponseWriter, r *http.Request) {
 					<key>kind</key>
 					<string>software-package</string>
 					<key>url</key>
-					<string>`+xmlEscape(s.cfg.publicURL+"/ios/adhoc/app.ipa?t="+url.QueryEscape(d.Token))+`</string>
+					<string>`+xmlEscape(s.cfg.publicURL+"/ios/adhoc/app.ipa?"+credential.query.Encode())+`</string>
 				</dict>
 			</array>
 			<key>metadata</key>
@@ -408,8 +425,8 @@ func (s *server) manifest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) ipa(w http.ResponseWriter, r *http.Request) {
-	d, st, ok := s.device(r)
-	if !ok || !st.ready(d) {
+	st, _, ok := s.served(r)
+	if !ok {
 		http.Error(w, "not ready", http.StatusNotFound)
 		return
 	}
