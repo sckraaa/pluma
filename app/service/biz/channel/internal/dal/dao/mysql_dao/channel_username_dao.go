@@ -36,13 +36,16 @@ func NewChannelUsernameDAO(db *sqlx.DB) *ChannelUsernameDAO {
 }
 
 // SelectListByChannelIdList
-// select peer_id, username from username where peer_type = 4 and peer_id in (:idList) and editable = 1
+// select peer_id, username, editable, active from username where peer_type = 4 and peer_id in (:idList) order by order2, id
+//
+// Every username of the channels of idList, each channel's in the order
+// channels.reorderUsernames gave them.
 func (dao *ChannelUsernameDAO) SelectListByChannelIdList(ctx context.Context, idList []int64) ([]dataobject.ChannelUsernameDO, error) {
 	if len(idList) == 0 {
 		return []dataobject.ChannelUsernameDO{}, nil
 	}
 	var values []dataobject.ChannelUsernameDO
-	query := "select peer_id, username from username where peer_type = 4 and peer_id in (" + placeholders(len(idList)) + ") and editable = 1"
+	query := "select peer_id, username, editable, active from username where peer_type = 4 and peer_id in (" + placeholders(len(idList)) + ") order by order2, id"
 	if err := dao.db.QueryRowsPartial(ctx, &values, query, int64Args(idList)...); err != nil {
 		return nil, err
 	}

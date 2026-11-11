@@ -156,6 +156,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1460527570,
 		}
 	},
+	-1450249355: func() mtproto.TLObject { // 0xa98ef375 pluma: task 078
+		return &TLChannelUpdateColor{
+			Constructor: -1450249355,
+		}
+	},
+	-1163138113: func() mtproto.TLObject { // 0xbaabebbf pluma: task 078
+		return &TLChannelUpdateEmojiStatus{
+			Constructor: -1163138113,
+		}
+	},
+	-823010727: func() mtproto.TLObject { // 0xcef1da59 pluma: task 078
+		return &TLChannelEditUsernames{
+			Constructor: -823010727,
+		}
+	},
 	1139340211: func() mtproto.TLObject { // 0x43e8f3b3 pluma: task 078
 		return &TLChannelGetAdminLog{
 			Constructor: 1139340211,
@@ -5190,6 +5205,154 @@ func (m *TLChannelSetStickerSet) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.Emoji = m1
 		m.SetId = dBuf.Long()
 		m.AccessHash = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelUpdateColor (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelUpdateColor) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xa98ef375:
+		x.UInt(0xa98ef375)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		m.GetForProfile().Encode(x, layer)
+		x.Int(m.GetColor())
+		x.Long(m.GetBackgroundEmojiId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelUpdateColor) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelUpdateColor) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xa98ef375:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m1 := &mtproto.Bool{}
+		m1.Decode(dBuf)
+		m.ForProfile = m1
+		m.Color = dBuf.Int()
+		m.BackgroundEmojiId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelUpdateEmojiStatus (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelUpdateEmojiStatus) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xbaabebbf:
+		x.UInt(0xbaabebbf)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetDocumentId())
+		x.Int(m.GetUntil())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelUpdateEmojiStatus) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelUpdateEmojiStatus) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xbaabebbf:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.DocumentId = dBuf.Long()
+		m.Until = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditUsernames (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditUsernames) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xcef1da59:
+		x.UInt(0xcef1da59)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetAction())
+		x.String(m.GetUsername())
+		m.GetActive().Encode(x, layer)
+		x.VectorString(m.GetOrder())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditUsernames) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditUsernames) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xcef1da59:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Action = dBuf.Int()
+		m.Username = dBuf.String()
+		m1 := &mtproto.Bool{}
+		m1.Decode(dBuf)
+		m.Active = m1
+		m.Order = dBuf.VectorString()
 		return dBuf.GetError()
 
 	default:

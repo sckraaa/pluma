@@ -62,6 +62,12 @@ const (
 	CRC32_channel_getAdminLog TLConstructor = 1139340211 // 0x43e8f3b3
 	// pluma: task 078
 	CRC32_channel_setStickerSet TLConstructor = -1460527570 // 0xa8f21e2e
+	// pluma: task 078
+	CRC32_channel_updateColor TLConstructor = -1450249355 // 0xa98ef375
+	// pluma: task 078
+	CRC32_channel_updateEmojiStatus TLConstructor = -1163138113 // 0xbaabebbf
+	// pluma: task 078
+	CRC32_channel_editUsernames TLConstructor = -823010727 // 0xcef1da59
 	// pluma: task 046
 	CRC32_channel_incrementMessageViews TLConstructor = 1668730682 // 0x6376cf3a
 	// pluma: task 046

@@ -263,9 +263,21 @@ func (m *ImmutableChannel) base() *mtproto.Chat {
 		// history_item.cpp:4044-4051, Android MessageObject.java:9542-9549).
 		SignatureProfiles:   m.GetSignatureProfiles(),
 		DefaultBannedRights: bannedRights(m.GetDefaultBannedRights(), 0),
+		// How it looks (task 078): a min channel carries them too, since
+		// tdesktop applies them from a min channel as well and clears what
+		// is left out (data_session.cpp:1073-1077, 1229-1237).
+		Color_FLAGPEERCOLOR: m.GetColor(),
+		ProfileColor:        m.GetProfileColor(),
+		EmojiStatus:         m.GetEmojiStatus(),
 	}
 	if m.Public() {
 		c.Username = wrapperspb.String(m.GetUsername())
+	}
+	// Every username, when there are more than the editable one: the
+	// clients take the list over username (tdesktop data_session.cpp:
+	// 1099-1105).
+	if len(m.GetUsernames()) > 1 {
+		c.Usernames = m.GetUsernames()
 	}
 	return c
 }

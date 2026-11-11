@@ -55,6 +55,14 @@ type ChannelsDO struct {
 	ParticipantsHidden     bool           `db:"participants_hidden" json:"participants_hidden"`
 	Deleted                bool           `db:"deleted" json:"deleted"`
 	Blocked                bool           `db:"blocked" json:"blocked"`
-	Version                int32          `db:"version" json:"version"`
-	Date                   int64          `db:"date" json:"date"`
+	// How it looks (channels.updateColor, channels.updateEmojiStatus): a
+	// color of -1 is none, a document id of 0 no emoji.
+	Color                         int32 `db:"color" json:"color"`
+	ColorBackgroundEmojiId        int64 `db:"color_background_emoji_id" json:"color_background_emoji_id"`
+	ProfileColor                  int32 `db:"profile_color" json:"profile_color"`
+	ProfileColorBackgroundEmojiId int64 `db:"profile_color_background_emoji_id" json:"profile_color_background_emoji_id"`
+	EmojiStatusDocumentId         int64 `db:"emoji_status_document_id" json:"emoji_status_document_id"`
+	EmojiStatusUntil              int32 `db:"emoji_status_until" json:"emoji_status_until"`
+	Version                       int32 `db:"version" json:"version"`
+	Date                          int64 `db:"date" json:"date"`
 }

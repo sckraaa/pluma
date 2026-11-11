@@ -114,6 +114,9 @@ const (
 	RPCChannel_ChannelGetReadParticipants_FullMethodName              = "/channel.RPCChannel/channel_getReadParticipants"
 	RPCChannel_ChannelGetAdminLog_FullMethodName                      = "/channel.RPCChannel/channel_getAdminLog"
 	RPCChannel_ChannelSetStickerSet_FullMethodName                    = "/channel.RPCChannel/channel_setStickerSet"
+	RPCChannel_ChannelUpdateColor_FullMethodName                      = "/channel.RPCChannel/channel_updateColor"
+	RPCChannel_ChannelUpdateEmojiStatus_FullMethodName                = "/channel.RPCChannel/channel_updateEmojiStatus"
+	RPCChannel_ChannelEditUsernames_FullMethodName                    = "/channel.RPCChannel/channel_editUsernames"
 	RPCChannel_ChannelEditBanned_FullMethodName                       = "/channel.RPCChannel/channel_editBanned"
 	RPCChannel_ChannelEditDefaultBannedRights_FullMethodName          = "/channel.RPCChannel/channel_editDefaultBannedRights"
 	RPCChannel_ChannelExpireMessages_FullMethodName                   = "/channel.RPCChannel/channel_expireMessages"
@@ -279,6 +282,12 @@ type RPCChannelClient interface {
 	ChannelGetAdminLog(ctx context.Context, in *TLChannelGetAdminLog, opts ...grpc.CallOption) (*Vector_ChannelAdminLogEvent, error)
 	// pluma: task 078
 	ChannelSetStickerSet(ctx context.Context, in *TLChannelSetStickerSet, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelUpdateColor(ctx context.Context, in *TLChannelUpdateColor, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelUpdateEmojiStatus(ctx context.Context, in *TLChannelUpdateEmojiStatus, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelEditUsernames(ctx context.Context, in *TLChannelEditUsernames, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 042
 	ChannelEditBanned(ctx context.Context, in *TLChannelEditBanned, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 042
@@ -1079,6 +1088,36 @@ func (c *rPCChannelClient) ChannelSetStickerSet(ctx context.Context, in *TLChann
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelUpdateColor(ctx context.Context, in *TLChannelUpdateColor, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelUpdateColor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelUpdateEmojiStatus(ctx context.Context, in *TLChannelUpdateEmojiStatus, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelUpdateEmojiStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelEditUsernames(ctx context.Context, in *TLChannelEditUsernames, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelEditUsernames_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelEditBanned(ctx context.Context, in *TLChannelEditBanned, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -1287,6 +1326,12 @@ type RPCChannelServer interface {
 	ChannelGetAdminLog(context.Context, *TLChannelGetAdminLog) (*Vector_ChannelAdminLogEvent, error)
 	// pluma: task 078
 	ChannelSetStickerSet(context.Context, *TLChannelSetStickerSet) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelUpdateColor(context.Context, *TLChannelUpdateColor) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelUpdateEmojiStatus(context.Context, *TLChannelUpdateEmojiStatus) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelEditUsernames(context.Context, *TLChannelEditUsernames) (*mtproto.Bool, error)
 	// pluma: task 042
 	ChannelEditBanned(context.Context, *TLChannelEditBanned) (*mtproto.Updates, error)
 	// pluma: task 042
@@ -1539,6 +1584,15 @@ func (UnimplementedRPCChannelServer) ChannelGetAdminLog(context.Context, *TLChan
 }
 func (UnimplementedRPCChannelServer) ChannelSetStickerSet(context.Context, *TLChannelSetStickerSet) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetStickerSet not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelUpdateColor(context.Context, *TLChannelUpdateColor) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelUpdateColor not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelUpdateEmojiStatus(context.Context, *TLChannelUpdateEmojiStatus) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelUpdateEmojiStatus not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelEditUsernames(context.Context, *TLChannelEditUsernames) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditUsernames not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelEditBanned(context.Context, *TLChannelEditBanned) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditBanned not implemented")
@@ -2979,6 +3033,60 @@ func _RPCChannel_ChannelSetStickerSet_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelUpdateColor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelUpdateColor)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelUpdateColor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelUpdateColor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelUpdateColor(ctx, req.(*TLChannelUpdateColor))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelUpdateEmojiStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelUpdateEmojiStatus)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelUpdateEmojiStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelUpdateEmojiStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelUpdateEmojiStatus(ctx, req.(*TLChannelUpdateEmojiStatus))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelEditUsernames_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelEditUsernames)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelEditUsernames(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelEditUsernames_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelEditUsernames(ctx, req.(*TLChannelEditUsernames))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelEditBanned_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelEditBanned)
 	if err := dec(in); err != nil {
@@ -3387,6 +3495,18 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_setStickerSet",
 			Handler:    _RPCChannel_ChannelSetStickerSet_Handler,
+		},
+		{
+			MethodName: "channel_updateColor",
+			Handler:    _RPCChannel_ChannelUpdateColor_Handler,
+		},
+		{
+			MethodName: "channel_updateEmojiStatus",
+			Handler:    _RPCChannel_ChannelUpdateEmojiStatus_Handler,
+		},
+		{
+			MethodName: "channel_editUsernames",
+			Handler:    _RPCChannel_ChannelEditUsernames_Handler,
 		},
 		{
 			MethodName: "channel_editBanned",
