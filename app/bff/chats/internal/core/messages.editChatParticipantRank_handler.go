@@ -19,6 +19,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -35,15 +36,32 @@ func (c *ChatsCore) MessagesEditChatParticipantRank(in *mtproto.TLMessagesEditCh
 		participant = mtproto.FromInputPeer2(c.MD.UserId, in.Participant)
 	)
 
-	if !peer.IsChat() {
-		err := mtproto.ErrPeerIdInvalid
-		c.Logger.Errorf("messages.editChatParticipantRank - invalid peer, err: %v", err)
+	if !participant.IsUser() && participant.PeerType != mtproto.PEER_SELF {
+		err := mtproto.ErrUserIdInvalid
+		c.Logger.Errorf("messages.editChatParticipantRank - invalid participant, err: %v", err)
 		return nil, err
 	}
 
-	if !participant.IsUser() {
-		err := mtproto.ErrUserIdInvalid
-		c.Logger.Errorf("messages.editChatParticipantRank - invalid participant, err: %v", err)
+	if peer.IsChannel() {
+		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
+		if err != nil {
+			return nil, err
+		}
+		if mc.GetChannel().GetAccessHash() != peer.AccessHash {
+			return nil, mtproto.ErrChannelInvalid
+		}
+		return c.svcCtx.Dao.Channel.ChannelEditParticipantRank(c.ctx, &channelpb.TLChannelEditParticipantRank{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     peer.PeerId,
+			UserId:        participant.PeerId,
+			Rank:          in.Rank,
+		})
+	}
+
+	if !peer.IsChat() {
+		err := mtproto.ErrPeerIdInvalid
+		c.Logger.Errorf("messages.editChatParticipantRank - invalid peer, err: %v", err)
 		return nil, err
 	}
 

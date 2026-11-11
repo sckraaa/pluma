@@ -7,13 +7,13 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 392, partial 12, blocked 106, notimpl 4, fake 1, missing 415 (ok = 42.2%); with a conformance scenario 9
+    layer 233: 930 methods — ok 396, partial 11, blocked 104, notimpl 3, fake 1, missing 415 (ok = 42.6%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
 | account | 132 | 63 | 2 | 29 | 0 | 1 | 37 | 0 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
-| auth | 31 | 17 | 0 | 13 | 1 | 0 | 0 | 2 |
+| auth | 31 | 18 | 0 | 12 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | bots | 41 | 9 | 0 | 0 | 0 | 0 | 32 | 0 |
 | channels | 74 | 48 | 1 | 15 | 0 | 0 | 10 | 0 |
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 283 | 173 | 6 | 18 | 3 | 0 | 83 | 3 |
+| messages | 283 | 176 | 5 | 17 | 2 | 0 | 83 | 3 |
 | payments | 81 | 0 | 1 | 4 | 0 | 0 | 76 | 0 |
 | phone | 45 | 10 | 0 | 0 | 0 | 0 | 35 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -217,7 +217,7 @@
 | `auth.initPasskeyLogin` | blocked |  | app/bff/passkey/internal/core/auth.initPasskeyLogin_handler.go:27 |
 | `auth.logOut` | ok |  | app/bff/authorization/internal/core/auth.logOut_handler.go:29 |
 | `auth.recoverPassword` | ok |  | app/bff/authorization/internal/core/auth.recoverPassword_handler.go:30 |
-| `auth.reportMissingCode` | blocked |  | app/bff/authorization/internal/core/auth.reportMissingCode_handler.go:27 |
+| `auth.reportMissingCode` | ok |  | app/bff/authorization/internal/core/auth.reportMissingCode_handler.go:30 |
 | `auth.requestFirebaseSms` | blocked |  | app/bff/authorization/internal/core/auth.requestFirebaseSms_handler.go:27 |
 | `auth.requestPasswordRecovery` | ok |  | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:34 |
 | `auth.resendCode` | ok |  | app/bff/authorization/internal/core/auth.resendCode_handler.go:47 |
@@ -541,7 +541,7 @@
 | `messages.editChatAdmin` | ok |  | app/bff/chats/internal/core/messages.editChatAdmin_handler.go:31 |
 | `messages.editChatCreator` | partial |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:43 |
 | `messages.editChatDefaultBannedRights` | ok |  | app/bff/chats/internal/core/messages.editChatDefaultBannedRights_handler.go:36 |
-| `messages.editChatParticipantRank` | ok |  | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:32 |
+| `messages.editChatParticipantRank` | ok |  | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:33 |
 | `messages.editChatPhoto` | ok |  | app/bff/chats/internal/core/messages.editChatPhoto_handler.go:32 |
 | `messages.editChatTitle` | ok |  | app/bff/chats/internal/core/messages.editChatTitle_handler.go:31 |
 | `messages.editExportedChatInvite` | ok |  | app/bff/chatinvites/internal/core/messages.editExportedChatInvite_handler.go:29 |
@@ -617,7 +617,7 @@
 | `messages.getMessagesViews` | ok |  | app/bff/messages/internal/core/messages.getMessagesViews_handler.go:58 |
 | `messages.getMyStickers` | missing |  |  |
 | `messages.getOldFeaturedStickers` | ok |  | app/bff/catalog/internal/core/messages.getOldFeaturedStickers_handler.go:27 |
-| `messages.getOnlines` | notimpl |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:27 |
+| `messages.getOnlines` | ok |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:36 |
 | `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:41 |
 | `messages.getPaidReactionPrivacy` | missing |  |  |
 | `messages.getPeerDialogs` | ok |  | app/bff/dialogs/internal/core/messages.getPeerDialogs_handler.go:78 |
@@ -661,7 +661,7 @@
 | `messages.getWebPagePreview570D6F6F` | ok |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:37 |
 | `messages.getWebPagePreview8B68B0CC` | blocked |  | app/bff/webpage/internal/core/messages.getWebPagePreview_handler.go:65 |
 | `messages.getWidgetPublicData` | missing |  |  |
-| `messages.hideAllChatJoinRequests` | partial |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:30 |
+| `messages.hideAllChatJoinRequests` | ok |  | app/bff/chatinvites/internal/core/messages.hideAllChatJoinRequests_handler.go:32 |
 | `messages.hideChatJoinRequest` | ok |  | app/bff/chatinvites/internal/core/messages.hideChatJoinRequest_handler.go:42 |
 | `messages.hidePeerSettingsBar` | ok |  | app/bff/dialogs/internal/core/messages.hidePeerSettingsBar_handler.go:34 |
 | `messages.importChatInvite6C50051C` | ok |  | app/bff/chatinvites/internal/core/messages.importChatInvite6C50051C_handler.go:31 |
@@ -732,7 +732,7 @@
 | `messages.sendQuickReplyMessages` | missing |  |  |
 | `messages.sendReaction` | ok |  | app/bff/catalog/internal/core/messages.sendReaction_handler.go:34 |
 | `messages.sendScheduledMessages` | ok |  | app/bff/scheduledmessages/internal/core/messages.sendScheduledMessages_handler.go:25 |
-| `messages.sendScreenshotNotification` | blocked |  | app/bff/dialogs/internal/core/messages.sendScreenshotNotification_handler.go:27 |
+| `messages.sendScreenshotNotification` | ok |  | app/bff/dialogs/internal/core/messages.sendScreenshotNotification_handler.go:35 |
 | `messages.sendVote` | ok |  | app/bff/messages/internal/core/polls.go:169 |
 | `messages.sendWebViewData` | missing |  |  |
 | `messages.sendWebViewResultMessage` | missing |  |  |

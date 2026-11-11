@@ -24,9 +24,27 @@ import (
 
 // AuthReportMissingCode
 // auth.reportMissingCode#cb9deff6 phone_number:string phone_code_hash:string mnc:string = Bool;
+//
+// Apps of before task 076 send it from "Didn't get the code?"; the report is
+// counted for the administrator, who issues the code from the panel.
 func (c *AuthorizationCore) AuthReportMissingCode(in *mtproto.TLAuthReportMissingCode) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("auth.reportMissingCode blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if in.PhoneCodeHash == "" {
+		err := mtproto.ErrPhoneCodeHashEmpty
+		c.Logger.Errorf("auth.reportMissingCode - error: %v", err)
+		return nil, err
+	}
+	_, phoneNumber, err := checkPhoneNumberInvalid(in.GetPhoneNumber())
+	if err != nil {
+		c.Logger.Errorf("auth.reportMissingCode - error: %v", err)
+		return nil, mtproto.ErrPhoneNumberInvalid
+	}
+	if err = c.svcCtx.AuthLogic.Codes.CheckPhone(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
+		c.Logger.Errorf("auth.reportMissingCode - error: %v", err)
+		return nil, err
+	}
+	if err = c.svcCtx.AuthLogic.DoAuthReportMissingCode(c.ctx, c.MD.PermAuthKeyId, phoneNumber, in.PhoneCodeHash); err != nil {
+		c.Logger.Errorf("auth.reportMissingCode - error: %v", err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }

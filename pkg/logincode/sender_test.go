@@ -12,16 +12,23 @@ import (
 )
 
 type fakeSender struct {
-	result SendResult
-	err    error
-	phones []string
-	codes  []string
+	result  SendResult
+	account string
+	err     error
+	phones  []string
+	codes   []string
 }
 
-func (f *fakeSender) Send(_ context.Context, phone, code string) (SendResult, error) {
+func (f *fakeSender) Send(_ context.Context, phone, code string) (SendReply, error) {
 	f.phones = append(f.phones, phone)
 	f.codes = append(f.codes, code)
-	return f.result, f.err
+	return SendReply{Result: f.result, Account: f.account}, f.err
+}
+
+// delivered is DeliverByTelegram's ok.
+func delivered(ctx context.Context, s *Service) bool {
+	_, ok := s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP)
+	return ok
 }
 
 const (
@@ -47,7 +54,7 @@ func TestDeliverByTelegramStoresTheCodeItWrote(t *testing.T) {
 			f := &fakeSender{result: result}
 			s.SetSender(f)
 			issueRequest(t, s, false)
-			if !s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP) {
+			if !delivered(ctx, s) {
 				t.Fatal("not delivered")
 			}
 			if len(f.codes) != 1 || !wellFormed(f.codes[0]) || f.phones[0] != sendPhone {
@@ -76,7 +83,7 @@ func TestDeliverByTelegramRefusedLeavesNoCode(t *testing.T) {
 			s, _, _ := testService(t, sendPhone)
 			s.SetSender(tt.f)
 			issueRequest(t, s, false)
-			if s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP) {
+			if delivered(ctx, s) {
 				t.Fatal("reported as delivered")
 			}
 			list, err := s.Pending(ctx, sendPhone)
@@ -108,7 +115,7 @@ func TestDeliverByTelegramSkipsARequestOutOfChecks(t *testing.T) {
 			t.Fatal("a wrong code was accepted")
 		}
 	}
-	if s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP) {
+	if delivered(ctx, s) {
 		t.Fatal("reported as delivered")
 	}
 	if len(f.codes) != 0 {
@@ -121,7 +128,7 @@ func TestDeliverByTelegramRefusedKeepsTheEarlierCode(t *testing.T) {
 	s, _, _ := testService(t, sendPhone)
 	s.SetSender(&fakeSender{result: SendUnavailable})
 	code := issueRequest(t, s, true)
-	if s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP) {
+	if delivered(ctx, s) {
 		t.Fatal("reported as delivered")
 	}
 	if err := s.Verify(ctx, sendPhone, sendHash, code, sendIP); err != nil {
@@ -138,7 +145,7 @@ func TestDeliverByTelegramNeverForTheReviewPhone(t *testing.T) {
 	}
 	f := &fakeSender{result: SendSent}
 	s.SetSender(f)
-	if s.DeliverByTelegram(context.Background(), sendPhone, sendHash, sendIP) {
+	if delivered(context.Background(), s) {
 		t.Fatal("delivered")
 	}
 	if len(f.codes) != 0 {
@@ -148,7 +155,7 @@ func TestDeliverByTelegramNeverForTheReviewPhone(t *testing.T) {
 
 func TestDeliverByTelegramWithoutSender(t *testing.T) {
 	s, _, _ := testService(t, sendPhone)
-	if s.DeliverByTelegram(context.Background(), sendPhone, sendHash, sendIP) {
+	if delivered(context.Background(), s) {
 		t.Fatal("delivered with no sender")
 	}
 }
@@ -160,12 +167,12 @@ func TestDeliverByTelegramPerAddressLimit(t *testing.T) {
 	s.SetSender(f)
 	issueRequest(t, s, false)
 	for range TelegramCodePerIP.Limit {
-		if !s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP) {
+		if !delivered(ctx, s) {
 			t.Fatal("refused under the limit")
 		}
 	}
 	before := len(f.codes)
-	if s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP) {
+	if delivered(ctx, s) {
 		t.Fatal("delivered over the limit")
 	}
 	if len(f.codes) != before {
@@ -187,7 +194,7 @@ func TestHTTPSenderContract(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
 			t.Error(err)
 		}
-		_, _ = w.Write([]byte(`{"result":"sent"}`))
+		_, _ = w.Write([]byte(`{"result":"sent","account":"pluma_codes"}`))
 	}))
 	defer srv.Close()
 
@@ -195,9 +202,9 @@ func TestHTTPSenderContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := s.Send(context.Background(), sendPhone, "123456")
-	if err != nil || result != SendSent {
-		t.Fatalf("%s, %v", result, err)
+	reply, err := s.Send(context.Background(), sendPhone, "123456")
+	if err != nil || reply.Result != SendSent || reply.Account != "pluma_codes" {
+		t.Fatalf("%+v, %v", reply, err)
 	}
 	if got.Phone != sendPhone || got.Code != "123456" || got.WaitMs != senderWait.Milliseconds() {
 		t.Fatalf("request %+v", got)
@@ -287,5 +294,90 @@ func TestListedPhoneDoesNotAskTheSwitch(t *testing.T) {
 	s.SetRegistrationSwitch(fakeSwitch{err: errors.New("mysql down")})
 	if err := s.CheckAllowed(context.Background(), sendPhone); err != nil {
 		t.Fatalf("a listed phone depends on the switch: %v", err)
+	}
+}
+
+// The username of the account comes back for the login screen's button to
+// its chat, only in a form a tg:// link can carry.
+func TestDeliverByTelegramNamesTheAccount(t *testing.T) {
+	ctx := context.Background()
+	for _, tt := range []struct{ account, want string }{
+		{"pluma_codes", "pluma_codes"},
+		{"", ""},
+		{"bad&name=1", ""},
+		{"1digitfirst", ""},
+	} {
+		s, _, _ := testService(t, sendPhone)
+		s.SetSender(&fakeSender{result: SendSent, account: tt.account})
+		issueRequest(t, s, false)
+		got, ok := s.DeliverByTelegram(ctx, sendPhone, sendHash, sendIP)
+		if !ok || got != tt.want {
+			t.Errorf("%q: %q, %v", tt.account, got, ok)
+		}
+	}
+}
+
+// The administrator's code and a later code in the person's Telegram live in
+// slots of their own: the second does not cancel the first, nor the other
+// way round, and the checks are counted once for both.
+func TestAdministratorCodeSurvivesTelegramDelivery(t *testing.T) {
+	ctx := context.Background()
+	s, _, _ := testService(t, sendPhone)
+	f := &fakeSender{result: SendSent}
+	s.SetSender(f)
+	issueRequest(t, s, false)
+	admin, err := s.Reissue(ctx, sendPhone, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !delivered(ctx, s) {
+		t.Fatal("not delivered")
+	}
+	if err := s.Verify(ctx, sendPhone, sendHash, admin.Code, sendIP); err != nil {
+		t.Fatalf("the administrator's code stopped working: %v", err)
+	}
+}
+
+func TestTelegramCodeSurvivesAdministratorCode(t *testing.T) {
+	ctx := context.Background()
+	s, _, _ := testService(t, sendPhone)
+	f := &fakeSender{result: SendSent}
+	s.SetSender(f)
+	issueRequest(t, s, false)
+	if !delivered(ctx, s) {
+		t.Fatal("not delivered")
+	}
+	if _, err := s.Reissue(ctx, sendPhone, ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Verify(ctx, sendPhone, sendHash, f.codes[0], sendIP); err != nil {
+		t.Fatalf("the code in Telegram stopped working: %v", err)
+	}
+}
+
+func TestTwoSlotsShareTheChecks(t *testing.T) {
+	ctx := context.Background()
+	s, _, _ := testService(t, sendPhone)
+	f := &fakeSender{result: SendSent}
+	s.SetSender(f)
+	issueRequest(t, s, false)
+	admin, err := s.Reissue(ctx, sendPhone, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !delivered(ctx, s) {
+		t.Fatal("not delivered")
+	}
+	wrong := "000000"
+	for wrong == admin.Code || wrong == f.codes[0] {
+		wrong = "999999"
+	}
+	for range MaxAttempts {
+		if err := s.Verify(ctx, sendPhone, sendHash, wrong, sendIP); err == nil {
+			t.Fatal("a wrong code was accepted")
+		}
+	}
+	if err := s.Verify(ctx, sendPhone, sendHash, admin.Code, sendIP); err == nil {
+		t.Fatal("a check beyond MaxAttempts passed")
 	}
 }

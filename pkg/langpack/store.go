@@ -347,6 +347,9 @@ type ImportResult struct {
 	// replacement: key -> the words (Leftovers). Keys kept on purpose
 	// (keepKeys) are not listed.
 	Leftovers map[string][]string
+	// OwnMissing are Pluma's own strings (own.go) without a text in this
+	// language: they got the English one.
+	OwnMissing []string
 }
 
 // Changes is the number of strings the import changed.
@@ -373,6 +376,21 @@ func (s *Store) Import(ctx context.Context, snap *Snapshot) (*ImportResult, erro
 		if words := leftoverWords(&rendered); len(words) > 0 {
 			res.Leftovers[up.Key] = words
 		}
+	}
+	// Pluma's own strings join every import of their pack, as they are.
+	own, missing := ownFor(pack, lang)
+	if len(own) > 0 {
+		inSnapshot := make(map[string]bool, len(snap.Strings))
+		for i := range snap.Strings {
+			inSnapshot[snap.Strings[i].Key] = true
+		}
+		for i := range own {
+			if inSnapshot[own[i].Key] {
+				return nil, fmt.Errorf("langpack: %s/%s: Telegram has the key %q of Pluma's own strings", pack, lang, own[i].Key)
+			}
+			incoming = append(incoming, pendingString{s: &own[i], upstream: &own[i]})
+		}
+		res.OwnMissing = missing
 	}
 
 	err := s.db.Transact(ctx, func(tx *sqlx.Tx) error {

@@ -42,6 +42,7 @@ var (
 type submitter interface {
 	Submit(ctx context.Context, phone, code string, wait time.Duration) sender.Result
 	State() sender.State
+	Account() string
 }
 
 type sendRequest struct {
@@ -52,6 +53,9 @@ type sendRequest struct {
 
 type sendResponse struct {
 	Result sender.Result `json:"result"`
+	// Account is the username of the account that writes the code, given
+	// with a code on its way: the app's login screen opens the chat with it.
+	Account string `json:"account,omitempty"`
 }
 
 // newHandler is the internal API. /v1/* needs the bearer token, the rest
@@ -92,7 +96,11 @@ func newHandler(q submitter, token string) http.Handler {
 		if wait < 0 || wait > maxWait {
 			wait = maxWait
 		}
-		writeJSON(w, sendResponse{Result: q.Submit(r.Context(), req.Phone, req.Code, wait)})
+		resp := sendResponse{Result: q.Submit(r.Context(), req.Phone, req.Code, wait)}
+		if resp.Result == sender.Sent || resp.Result == sender.Queued {
+			resp.Account = q.Account()
+		}
+		writeJSON(w, resp)
 	}))
 	return mux
 }

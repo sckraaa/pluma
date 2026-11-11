@@ -37,6 +37,17 @@ func (c *ChannelCore) ChannelEditAdmin(in *channel.TLChannelEditAdmin) (*mtproto
 	})
 }
 
+// ChannelEditParticipantRank
+// channel.editParticipantRank self_id:long perm_auth_key_id:long channel_id:long user_id:long rank:string = Updates;
+//
+// self_id sets the member tag of user_id (dao.EditParticipantRank); the
+// members load the channel again.
+func (c *ChannelCore) ChannelEditParticipantRank(in *channel.TLChannelEditParticipantRank) (*mtproto.Updates, error) {
+	return c.editRights("channel.editParticipantRank", in.SelfId, in.PermAuthKeyId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.EditParticipantRank(b, in.ChannelId, in.UserId, in.Rank)
+	})
+}
+
 // ChannelEditBanned
 // channel.editBanned self_id:long perm_auth_key_id:long channel_id:long user_id:long banned_rights:int until_date:int = Updates;
 //

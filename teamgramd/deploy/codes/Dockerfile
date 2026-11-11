@@ -4,7 +4,7 @@
 # TDLib is built from the commit below (official tdlib/td, whose td_api.tl was
 # read for this service; license BSL-1.0). It compiles for a long time and
 # needs several GB of memory; the layer is cached until this commit changes.
-FROM golang:1.27.3-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS tdlib
+FROM golang:1.27.4-trixie@sha256:b54b2639de8c1bfe538ec5ffc45f29b1932235ac5f6d63c059853646677112d9 AS tdlib
 ARG TD_COMMIT=c0a540074fa449094340f76a3ea56f7096e0ad4c
 RUN apt-get update -y \
  && apt-get install -y --no-install-recommends cmake gperf libssl-dev zlib1g-dev \
@@ -15,7 +15,7 @@ RUN apt-get update -y \
  && cmake --build build --target install -j2 \
  && rm -rf /td
 
-FROM golang:1.27.3-trixie@sha256:fbb7ae40b62ff8afe31662df570d39b4f5052ac32b90dae8e60d7657a20a74f4 AS builder
+FROM golang:1.27.4-trixie@sha256:b54b2639de8c1bfe538ec5ffc45f29b1932235ac5f6d63c059853646677112d9 AS builder
 RUN apt-get update -y && apt-get install -y --no-install-recommends libssl-dev zlib1g-dev
 COPY --from=tdlib /usr/local/ /usr/local/
 RUN ldconfig

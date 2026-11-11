@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/metric"
 )
 
 // PhoneCodeStore keeps login requests (model.PhoneCodeTransaction) by auth
@@ -72,11 +73,13 @@ func NewAuthSignLogic(store PhoneCodeStore, codes *logincode.Service) *AuthLogic
 // Codes.CheckSendCode.
 //
 // The code goes to the user's other authorized sessions when there are any
-// (auth.sentCodeTypeApp). Otherwise to the user's own Telegram account, if
-// the sender is deployed and takes it (also auth.sentCodeTypeApp: every
-// client then offers the next_type as "did not get the code"; ADR 0044).
-// Failing that the answer is auth.sentCodeTypeSms and nothing is sent: the
-// administrator issues the code (pluma-admin login-code).
+// (auth.sentCodeTypeApp). Otherwise to the person's own Telegram account, if
+// the sender is deployed and takes it: auth.sentCodeTypeFragmentSms, whose
+// screen the apps show as "Check Telegram" with a button to the chat of the
+// account that wrote it (task 076, ADR 0044). Failing that the answer is
+// auth.sentCodeTypeSms, the screen of a code that did not reach Telegram:
+// the administrator issues the code (pluma-admin login-code), and "Send
+// again" tries Telegram anew (DoAuthReSendCode).
 func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	authKeyId int64,
 	sessionId int64,
@@ -115,7 +118,8 @@ func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	}
 	if toApp {
 		codeData.SentCodeType = model.SentCodeTypeApp
-		// auth.resendCode falls back to the administrator ("send as SMS").
+		// "Didn't get the code?": the screen of a code that did not reach
+		// Telegram, with the administrator and "Send again".
 		codeData.NextCodeType = model.CodeTypeSms
 	}
 
@@ -123,11 +127,8 @@ func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-	if !toApp && m.Codes.DeliverByTelegram(ctx, phoneNumber, codeData.PhoneCodeHash, clientIp) {
-		codeData.TelegramTried = true
-		codeData.SentCodeType = model.SentCodeTypeApp
-		// auth.resendCode then falls back to the administrator.
-		codeData.NextCodeType = model.CodeTypeSms
+	if !toApp {
+		m.tryTelegram(ctx, codeData, clientIp)
 	}
 	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
 		m.Codes.Cancel(ctx, phoneNumber, codeData.PhoneCodeHash)
@@ -139,10 +140,46 @@ func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	return codeData, nil
 }
 
-// DoAuthReSendCode moves a request that offered the next_type on: to the
-// user's Telegram account the first time, if the sender takes the code, and
-// then to the administrator path (auth.sentCodeTypeSms, no next type). The
-// phone must have passed Codes.CheckSendCode.
+// maxTelegramAttempts bounds the deliveries of one login request through
+// the person's Telegram: the first one and the "Send again" of the screen of
+// a code that did not reach it. The account's own limits per phone stay.
+const maxTelegramAttempts = 4
+
+// tryTelegram offers the code of the request to the person's Telegram and
+// sets what the apps show: "Check Telegram" (FragmentSms) if the sender took
+// it, else the screen of a code that did not reach Telegram (Sms), with
+// "Send again" while another attempt is possible.
+func (m *AuthLogic) tryTelegram(ctx context.Context, codeData *model.PhoneCodeTransaction, clientIp string) {
+	if m.Codes.TelegramAvailable(codeData.PhoneNumber) {
+		codeData.TelegramAttempts++
+		if account, ok := m.Codes.DeliverByTelegram(ctx, codeData.PhoneNumber, codeData.PhoneCodeHash, clientIp); ok {
+			codeData.SentCodeType = model.SentCodeTypeFragmentSms
+			codeData.TelegramAccount = account
+			// "Didn't get the code?" leads to the screen below.
+			codeData.NextCodeType = model.CodeTypeSms
+			return
+		}
+	}
+	m.toFallback(codeData)
+}
+
+// toFallback sets the screen of a code that did not reach Telegram: the
+// administrator's code is entered there, and "Send again" (next_type sms)
+// tries Telegram once more while it can.
+func (m *AuthLogic) toFallback(codeData *model.PhoneCodeTransaction) {
+	codeData.SentCodeType = model.SentCodeTypeSms
+	codeData.NextCodeType = model.CodeTypeNone
+	if m.Codes.TelegramAvailable(codeData.PhoneNumber) && codeData.TelegramAttempts < maxTelegramAttempts {
+		codeData.NextCodeType = model.CodeTypeSms
+	}
+}
+
+// DoAuthReSendCode moves a request that offered the next_type on. From a code
+// in the app or in Telegram ("Didn't get the code?") to the screen of a code
+// that did not reach Telegram, without a new delivery: the code sent stays
+// valid, and the administrator can issue one. From that screen ("Send
+// again", after the person allowed Telegram to find them by number) to a new
+// delivery through Telegram. The phone must have passed Codes.CheckSendCode.
 func (m *AuthLogic) DoAuthReSendCode(ctx context.Context,
 	authKeyId int64,
 	phoneNumber, phoneCodeHash, clientIp string) (*model.PhoneCodeTransaction, error) {
@@ -158,24 +195,48 @@ func (m *AuthLogic) DoAuthReSendCode(ctx context.Context,
 		return nil, mtproto.ErrSendCodeUnavailable
 	}
 
-	if !codeData.TelegramTried {
-		codeData.TelegramTried = true
-		if m.Codes.DeliverByTelegram(ctx, phoneNumber, phoneCodeHash, clientIp) {
-			codeData.SentCodeType = model.SentCodeTypeApp
-			codeData.NextCodeType = model.CodeTypeSms
-			if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
-				return nil, mtproto.ErrInternalServerError
-			}
-			return codeData, nil
-		}
+	if codeData.SentCodeType == model.SentCodeTypeSms {
+		m.tryTelegram(ctx, codeData, clientIp)
+	} else {
+		m.toFallback(codeData)
 	}
-
-	codeData.SentCodeType = model.SentCodeTypeSms
-	codeData.NextCodeType = model.CodeTypeNone
 	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {
 		return nil, mtproto.ErrInternalServerError
 	}
 	return codeData, nil
+}
+
+// DoAuthReportMissingCode records that the person did not get the code of
+// the request phoneCodeHash (auth.reportMissingCode, which apps of before
+// task 076 send from "Didn't get the code?"). It is counted for the
+// administrator: the code itself is issued from the panel.
+func (m *AuthLogic) DoAuthReportMissingCode(ctx context.Context, authKeyId int64, phoneNumber, phoneCodeHash string) error {
+	codeData, err := m.getPhoneCode(ctx, authKeyId, phoneNumber, phoneCodeHash)
+	if err != nil {
+		return err
+	}
+	metricMissingCode.Inc(codeTypeName(codeData.SentCodeType))
+	logx.WithContext(ctx).Infof("login code: the person reports a missing code (%s)", codeTypeName(codeData.SentCodeType))
+	return nil
+}
+
+var metricMissingCode = metric.NewCounterVec(&metric.CounterVecOpts{
+	Namespace: "login_code",
+	Name:      "missing_total",
+	Help:      "Codes the person reported as not received (auth.reportMissingCode), by the way the code went.",
+	Labels:    []string{"delivery"},
+})
+
+// codeTypeName names the way a code went, for metrics and logs.
+func codeTypeName(sentCodeType int) string {
+	switch sentCodeType {
+	case model.SentCodeTypeApp:
+		return "app"
+	case model.SentCodeTypeFragmentSms:
+		return "telegram"
+	default:
+		return "administrator"
+	}
 }
 
 // DoAuthCancelCode drops the request phoneCodeHash of authKeyId, if it is

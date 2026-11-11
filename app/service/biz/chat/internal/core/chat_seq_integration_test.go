@@ -487,7 +487,7 @@ func TestFanOutOf200(t *testing.T) {
 	wantErr(t, "a member over the limit", err, mtproto.ErrUsersTooMuch)
 	expect(t, &mark, "refused")
 
-	rank := strings.Repeat("𝄞", 16)
+	rank := strings.Repeat("𝐀", 16)
 	if _, err = cc.ChatEditChatParticipantRank(&chat.TLChatEditChatParticipantRank{SelfId: a, ChatId: id, Participant: members[0], Rank: rank}); err != nil {
 		t.Fatal(err)
 	}

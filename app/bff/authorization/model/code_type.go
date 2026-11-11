@@ -107,7 +107,7 @@ func makeAuthCodeType(codeType int) *mtproto.Auth_CodeType {
 // SentCodeTypeFirebaseSms        = 9
 // SentCodeTypeSmsWord            = 10
 // SentCodeTypeSmsPhrase          = 11
-func makeAuthSentCodeType(codeType, codeLength int, pattern string) (authSentCodeType *mtproto.Auth_SentCodeType) {
+func makeAuthSentCodeType(codeType, codeLength int, pattern, url string) (authSentCodeType *mtproto.Auth_SentCodeType) {
 	switch codeType {
 	case SentCodeTypeApp:
 		authSentCodeType = mtproto.MakeTLAuthSentCodeTypeApp(&mtproto.Auth_SentCodeType{
@@ -132,6 +132,14 @@ func makeAuthSentCodeType(codeType, codeLength int, pattern string) (authSentCod
 		authSentCodeType = mtproto.MakeTLAuthSentCodeTypeSetUpEmailRequired(&mtproto.Auth_SentCodeType{
 			AppleSigninAllowed:  false,
 			GoogleSigninAllowed: false,
+		}).To_Auth_SentCodeType()
+	case SentCodeTypeFragmentSms:
+		// A code in the person's own Telegram (task 076): the apps show the
+		// Fragment screen's layout with their own texts, its button opens url,
+		// the chat with the account that wrote the code.
+		authSentCodeType = mtproto.MakeTLAuthSentCodeTypeFragmentSms(&mtproto.Auth_SentCodeType{
+			Url:    url,
+			Length: int32(codeLength),
 		}).To_Auth_SentCodeType()
 	case SentCodeTypeFirebaseSms:
 	case SentCodeTypeSmsWord:

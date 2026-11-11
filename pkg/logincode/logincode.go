@@ -311,10 +311,10 @@ func (s *Service) Verify(ctx context.Context, phone, phoneCodeHash, code, client
 		return mtproto.ErrInternalServerError
 	case !ok:
 		return mtproto.ErrPhoneCodeExpired
-	case v.Hmac == "":
+	case v.Hmac == "" && v.AdminHmac == "":
 		// Waiting for the administrator: there is no code to match yet.
 		return mtproto.ErrPhoneCodeInvalid
-	case now > v.ExpiresAt:
+	case !live(v.Hmac, v.ExpiresAt, now) && !live(v.AdminHmac, v.AdminExpiresAt, now):
 		// Kept, not counted: the administrator can still issue a new code
 		// for this request.
 		return mtproto.ErrPhoneCodeExpired
@@ -332,7 +332,10 @@ func (s *Service) Verify(ctx context.Context, phone, phoneCodeHash, code, client
 		return err
 	}
 
-	if v.Phone != phone || !wellFormed(code) || !s.hasher.Verify(phoneCodeHash, phone, code, v.Hmac) {
+	matches := v.Phone == phone && wellFormed(code) &&
+		(live(v.Hmac, v.ExpiresAt, now) && s.hasher.Verify(phoneCodeHash, phone, code, v.Hmac) ||
+			live(v.AdminHmac, v.AdminExpiresAt, now) && s.hasher.Verify(phoneCodeHash, phone, code, v.AdminHmac))
+	if !matches {
 		if v.Attempts >= MaxAttempts {
 			// That was the last check: the request is over.
 			s.drop(ctx, v.Phone, phoneCodeHash)
@@ -413,7 +416,7 @@ func (s *Service) Pending(ctx context.Context, phone string) ([]PendingRequest, 
 			EndsAt:        time.Unix(v.CreatedAt, 0).Add(TransactionTTL),
 			ClientIp:      v.ClientIp,
 			Attempts:      v.Attempts,
-			HasCode:       v.Hmac != "",
+			HasCode:       v.Hmac != "" || v.AdminHmac != "",
 			phoneCodeHash: h,
 		})
 	}
@@ -458,9 +461,11 @@ type Reissued struct {
 
 // Reissue generates a fresh code for the pending request requestId of phone
 // (a PendingRequest.Id or a longer prefix of its phone_code_hash) and stores
-// its HMAC in place of the previous code; the attempt counter is kept. With
-// requestId "" the phone must have exactly one pending request. It is the
-// administrator's delivery path (tools/pluma-admin).
+// its HMAC in place of the administrator's previous code; the attempt counter
+// is kept. With requestId "" the phone must have exactly one pending request.
+// It is the administrator's delivery path (tools/pluma-admin, the panel). The
+// code has a slot of its own: a code that reaches the person's Telegram later
+// does not cancel it, nor it that one.
 //
 // The code expires CodeTTL from now, but never after its request: a request
 // with less than ReissueMinTime left (ErrRequestEnding) or without checks
@@ -499,7 +504,7 @@ func (s *Service) Reissue(ctx context.Context, phone, requestId string) (*Reissu
 	if expiresAt.After(r.EndsAt) {
 		expiresAt = r.EndsAt
 	}
-	ok, err := s.store.replace(ctx, r.phoneCodeHash, s.hasher.Sum(r.phoneCodeHash, phone, code), expiresAt.Unix())
+	ok, err := s.store.replaceAdmin(ctx, r.phoneCodeHash, s.hasher.Sum(r.phoneCodeHash, phone, code), expiresAt.Unix())
 	if err != nil {
 		return nil, err
 	}

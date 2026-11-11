@@ -2,7 +2,7 @@ module github.com/teamgram/teamgram-server
 
 go 1.27.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/IBM/sarama v1.43.2

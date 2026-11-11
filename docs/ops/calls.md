@@ -15,21 +15,17 @@
 
 ## coturn
 
-Минимальная настройка `turnserver.conf` (ADR 0004: один узел в ЕС рядом с основным сервером):
+Сервис `turn` (`docker-compose.turn.yaml`, настройки `teamgramd/deploy/turn/turnserver.conf`), сеть хоста: за NAT Docker звонок, идущий через этот узел с обеих сторон, не прошёл бы (клиенты соединяют реле с реле). ADR 0004: один узел в ЕС рядом с основным сервером.
 
-```
-use-auth-secret
-static-auth-secret=<значение CALLS_TURN_SECRET>
-realm=pluma.chat
-listening-port=3478
-min-port=49152
-max-port=65535
-external-ip=<публичный адрес>
-fingerprint
-no-tcp-relay
+Один раз на сервере, от root, в каталоге с `.env`:
+
+```bash
+teamgramd/deploy/turn/setup.sh <публичный IPv4 узла>
 ```
 
-Логин выдаётся на звонок: `<время истечения>:<id звонка>`, пароль — base64(HMAC-SHA1(secret, логин)), срок 48 часов (максимум длины звонка, `pkg/phonecalls.MaxActive`). Открыть на файрволе: 3478 UDP/TCP и диапазон `min-port`–`max-port` UDP.
+Скрипт создаёт `CALLS_TURN_SECRET`, если его нет (не печатая), записывает `TURN_PUBLIC_IPV4` и `CALLS_ICE_SERVERS` и открывает в `ufw` 3478 UDP/TCP и 49160–49659 UDP. Файрвол провайдера, если он есть, настраивается отдельно. Затем поднять `turn` и пересоздать `bff`.
+
+Логин выдаётся на звонок: `<время истечения>:<id звонка>`, пароль — base64(HMAC-SHA1(secret, логин)), срок 48 часов (максимум длины звонка, `pkg/phonecalls.MaxActive`).
 
 ## Что происходит
 

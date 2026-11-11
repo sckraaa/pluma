@@ -175,6 +175,8 @@ enum TLConstructor {
   CRC32_channel_editCreator = 860909233;
   // pluma: task 042
   CRC32_channel_editAdmin = 1274612374;
+  // pluma: task 078
+  CRC32_channel_editParticipantRank = -86486467;
   // pluma: task 042
   CRC32_channel_editBanned = -1457424068;
   // pluma: task 042
@@ -557,6 +559,18 @@ message TL_channel_editAdmin {
   int32 admin_rights = 7;
   string rank = 8;
   mtproto.Bool keep_rank = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.editParticipantRank self_id:long perm_auth_key_id:long channel_id:long user_id:long rank:string = Updates;
+// The member tag of user_id in a supergroup (task 078).
+message TL_channel_editParticipantRank {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 user_id = 6;
+  string rank = 7;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1504,6 +1518,8 @@ service RPCChannel {
   rpc channel_editCreator(TL_channel_editCreator) returns (mtproto.Updates) {}
   // pluma: task 042
   rpc channel_editAdmin(TL_channel_editAdmin) returns (mtproto.Updates) {}
+  // pluma: task 078
+  rpc channel_editParticipantRank(TL_channel_editParticipantRank) returns (mtproto.Updates) {}
   // pluma: task 042
   rpc channel_editBanned(TL_channel_editBanned) returns (mtproto.Updates) {}
   // pluma: task 042

@@ -89,6 +89,10 @@ type Delivery struct {
 type Messenger interface {
 	// Session returns one of the Session* states.
 	Session() string
+	// Username is the account's public username, "" until it is known or
+	// if it has none. The login screens of the apps open the chat with the
+	// account by it (task 076).
+	Username() string
 	// Deliver imports the contact and sends it text.
 	Deliver(ctx context.Context, phone, text string) Delivery
 	// RemoveContacts removes imported contacts.
@@ -165,6 +169,8 @@ type State struct {
 	SentLastHour     int    `json:"sent_last_hour"`
 	SentLastDay      int    `json:"sent_last_day"`
 	ContactsToRemove int    `json:"contacts_to_remove"`
+	// Account is the account's username, "" if unknown or none.
+	Account string `json:"account,omitempty"`
 }
 
 // Open loads the state file at path (or starts a new one). An unreadable file
@@ -461,6 +467,7 @@ func (q *Queue) State() State {
 		SentLastHour:     countSince(q.st.Sends, now-3600),
 		SentLastDay:      countSince(q.st.Sends, now-24*3600),
 		ContactsToRemove: len(q.st.ToRemove),
+		Account:          q.account.Username(),
 	}
 	if q.st.NotBefore > now {
 		st.LimitedUntil = q.st.NotBefore
@@ -468,6 +475,9 @@ func (q *Queue) State() State {
 	st.Sendable = session == SessionReady && st.LimitedUntil == 0
 	return st
 }
+
+// Account is the account's username, "" if unknown or none.
+func (q *Queue) Account() string { return q.account.Username() }
 
 // publish refreshes the gauges from the state.
 func (q *Queue) publish() {

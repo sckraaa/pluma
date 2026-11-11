@@ -3,6 +3,7 @@ package account
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -185,8 +186,38 @@ func TestDeliverSendsThroughContactAndChat(t *testing.T) {
 	if got.Result != sender.Sent || got.UserID != 77 {
 		t.Fatalf("delivery %+v", got)
 	}
-	if want := []string{"getOption", "setTdlibParameters", "importContacts", "createPrivateChat", "sendMessage"}; strings.Join(f.methods(), ",") != strings.Join(want, ",") {
+	// getMe runs on its own when the session is ready, at no fixed point.
+	var methods []string
+	for _, m := range f.methods() {
+		if m != "getMe" {
+			methods = append(methods, m)
+		}
+	}
+	if want := []string{"getOption", "setTdlibParameters", "importContacts", "createPrivateChat", "sendMessage"}; strings.Join(methods, ",") != strings.Join(want, ",") {
 		t.Fatalf("methods %v", f.methods())
+	}
+}
+
+func TestUsernameComesFromGetMe(t *testing.T) {
+	for _, tt := range []struct{ answer, want string }{
+		{`{"@type":"user","id":1,"usernames":{"@type":"usernames","active_usernames":["pluma_codes","second"],"editable_username":"pluma_codes"}}`, "pluma_codes"},
+		{`{"@type":"user","id":1}`, ""},
+	} {
+		f := readyLib(func(req map[string]any) []string {
+			if req["@type"] == "getMe" {
+				return []string{answer(req, tt.answer)}
+			}
+			return nil
+		})
+		acc, _ := run(t, f, nil)
+		waitSession(t, acc, sender.SessionReady)
+		deadline := time.Now().Add(3 * time.Second)
+		for (!slices.Contains(f.methods(), "getMe") || acc.Username() != tt.want) && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if got := acc.Username(); got != tt.want {
+			t.Errorf("username %q, want %q", got, tt.want)
+		}
 	}
 }
 
