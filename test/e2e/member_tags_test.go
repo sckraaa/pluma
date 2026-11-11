@@ -158,6 +158,9 @@ func TestSupergroupReadParticipants(t *testing.T) {
 		ChannelId:   ch.GetId(),
 		AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
 	}
+	// A member added reads from the second of its addition on: the message
+	// comes a second later.
+	time.Sleep(1100 * time.Millisecond)
 	before := int32(time.Now().Unix())
 	sent := sendMessageID(ctx, t, alice, peer, "read me", randomID())
 	// Bob's box has the dialog once the message reached it: its join came
