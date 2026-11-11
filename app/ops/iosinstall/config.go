@@ -22,6 +22,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 )
 
 type config struct {
@@ -34,6 +36,12 @@ type config struct {
 	dataDir, rcodesign        string
 	listen                    string
 	perAddressDay, devicesDay int
+	// updateSecret signs the update tickets of help.getAppUpdate
+	// (pkg/iosupdate); the bff holds the same. Empty: no ticket is taken.
+	updateSecret string
+	// releasesURL is releases.json of the releases service, which names
+	// the current release of the iPhone app.
+	releasesURL string
 }
 
 func configFromEnv(getenv func(string) string) (config, error) {
@@ -49,6 +57,8 @@ func configFromEnv(getenv func(string) string) (config, error) {
 		dataDir:         or(getenv("DATA_DIR"), "/data"),
 		rcodesign:       or(getenv("RCODESIGN"), "/usr/local/bin/rcodesign"),
 		listen:          or(getenv("LISTEN"), ":9098"),
+		updateSecret:    getenv("UPDATE_TICKET_SECRET"),
+		releasesURL:     or(getenv("RELEASES_JSON_URL"), "http://releases:9097/dl/releases.json"),
 	}
 	u, err := url.Parse(c.publicURL)
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.Path != "" {
@@ -72,6 +82,12 @@ func configFromEnv(getenv func(string) string) (config, error) {
 	c.uploadToken = strings.TrimSpace(string(tok))
 	if len(c.uploadToken) < 32 {
 		return c, errors.New("UPLOAD_TOKEN_FILE: a random token of at least 32 characters is required")
+	}
+	if c.updateSecret != "" && !iosupdate.ValidSecret(c.updateSecret) {
+		return c, fmt.Errorf("UPDATE_TICKET_SECRET: a random secret of at least %d characters is required", iosupdate.MinSecret)
+	}
+	if u, err := url.Parse(c.releasesURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return c, errors.New("RELEASES_JSON_URL must be the address of releases.json of the releases service")
 	}
 	if c.perAddressDay, err = positive(getenv("LIMIT_ADDRESS_DAY"), 5); err != nil {
 		return c, fmt.Errorf("LIMIT_ADDRESS_DAY: %w", err)
