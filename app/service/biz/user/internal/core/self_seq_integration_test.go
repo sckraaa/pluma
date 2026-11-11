@@ -430,3 +430,73 @@ func TestProfilePhotoOwnership(t *testing.T) {
 		t.Errorf("v's photo is in %d galleries", n)
 	}
 }
+
+// The verification badge (pluma-admin user verify): the cached account
+// carries it at once, the account's devices get updateUser with the
+// account as it sees itself, verified, and the users who see it get
+// updateUser too; the same value changes nothing, an unknown account is
+// USER_ID_INVALID.
+func TestVerifiedWithSeq(t *testing.T) {
+	c := userCore(t)
+	u, _ := newUser(t, "Sam")
+	ann, _ := newUser(t, "Ann") // has Sam as a contact
+	if _, err := itRaw.Exec("INSERT INTO user_contacts (owner_user_id, contact_user_id, contact_first_name, is_deleted, date2) VALUES (?, ?, 'S.', 0, 1)",
+		ann, u); err != nil {
+		t.Fatal(err)
+	}
+	// The account is in the cache before the change, as on a running server.
+	if me, err := c.svcCtx.Dao.GetImmutableUser(c.ctx, u, false); err != nil {
+		t.Fatal(err)
+	} else if me.Verified() {
+		t.Fatal("verified before the change")
+	}
+
+	set := func(v, want bool) {
+		t.Helper()
+		r, err := c.UserUpdateVerified(&user.TLUserUpdateVerified{UserId: u, Verified: mtproto.ToBool(v)})
+		if err != nil || mtproto.FromBool(r) != want {
+			t.Fatalf("verified %v: %v, %v; want changed %v", v, r, err, want)
+		}
+	}
+	served := func() bool {
+		t.Helper()
+		me, err := c.svcCtx.Dao.GetImmutableUser(c.ctx, u, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return me.Verified()
+	}
+	set(true, true)
+	if !served() {
+		t.Fatal("served unverified after the change: a stale cache")
+	}
+	set(true, false) // changes nothing
+	set(false, true)
+	if served() {
+		t.Fatal("served verified after the badge was cleared: a stale cache")
+	}
+
+	// The account's own pushes carry it as it sees itself, with the badge
+	// as set; each change reached Ann, its contact, as well.
+	var desc []string
+	for _, p := range seqContainers(t, u) {
+		if len(p.GetUpdates()) != 1 || len(p.GetUsers()) != 1 || p.GetUsers()[0].GetId() != u || !p.GetUsers()[0].GetSelf() {
+			t.Fatalf("push of seq %d: %v", p.GetSeq(), p)
+		}
+		desc = append(desc, fmt.Sprintf("%s:%d:%v", p.GetUpdates()[0].GetPredicateName(), p.GetUpdates()[0].GetUserId(), p.GetUsers()[0].GetVerified()))
+	}
+	if want := fmt.Sprintf("[updateUser:%d:true updateUser:%d:false]", u, u); fmt.Sprint(desc) != want {
+		t.Errorf("pushes %v, want %s", desc, want)
+	}
+	want := []string{"self updateUser", fmt.Sprintf("%d updateUser", ann), "self updateUser", fmt.Sprintf("%d updateUser", ann)}
+	if got := watcherEvents(t, u); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("events\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if s := stateSeq(t, u); s != userbox.BaseSeq+2 {
+		t.Errorf("seq %d after two changes", s)
+	}
+
+	if _, err := c.UserUpdateVerified(&user.TLUserUpdateVerified{UserId: 1 << 40, Verified: mtproto.BoolTrue}); !errors.Is(err, mtproto.ErrUserIdInvalid) {
+		t.Errorf("an unknown account: %v, want USER_ID_INVALID", err)
+	}
+}
