@@ -219,14 +219,20 @@ func (s *Service) MessagesGetRecentStickers(ctx context.Context, request *mtprot
 	return c.MessagesGetRecentStickers(request)
 }
 
-// MessagesSaveRecentSticker is not served: messages.saveRecentSticker#392718f8 flags:# attached:flags.0?true id:InputDocument unsave:Bool = Bool;
+// MessagesSaveRecentSticker
+// messages.saveRecentSticker#392718f8 flags:# attached:flags.0?true id:InputDocument unsave:Bool = Bool;
 func (s *Service) MessagesSaveRecentSticker(ctx context.Context, request *mtproto.TLMessagesSaveRecentSticker) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.saveRecentSticker - metadata: {%s}", c.MD)
+	return c.MessagesSaveRecentSticker(request)
 }
 
-// MessagesClearRecentStickers is not served: messages.clearRecentStickers#8999602d flags:# attached:flags.0?true = Bool;
+// MessagesClearRecentStickers
+// messages.clearRecentStickers#8999602d flags:# attached:flags.0?true = Bool;
 func (s *Service) MessagesClearRecentStickers(ctx context.Context, request *mtproto.TLMessagesClearRecentStickers) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.clearRecentStickers - metadata: {%s}", c.MD)
+	return c.MessagesClearRecentStickers(request)
 }
 
 // MessagesGetArchivedStickers
@@ -258,9 +264,12 @@ func (s *Service) MessagesGetFavedStickers(ctx context.Context, request *mtproto
 	return c.MessagesGetFavedStickers(request)
 }
 
-// MessagesFaveSticker is not served: messages.faveSticker#b9ffc55b id:InputDocument unfave:Bool = Bool;
+// MessagesFaveSticker
+// messages.faveSticker#b9ffc55b id:InputDocument unfave:Bool = Bool;
 func (s *Service) MessagesFaveSticker(ctx context.Context, request *mtproto.TLMessagesFaveSticker) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.faveSticker - metadata: {%s}", c.MD)
+	return c.MessagesFaveSticker(request)
 }
 
 // MessagesSearchStickerSets is not served: messages.searchStickerSets#35705b8a flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
@@ -515,9 +524,12 @@ func (s *Service) AccountGetCollectibleEmojiStatuses(ctx context.Context, reques
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsUpdateEmojiStatus is not served: channels.updateEmojiStatus#f0d3e6a8 channel:InputChannel emoji_status:EmojiStatus = Updates;
+// ChannelsUpdateEmojiStatus
+// channels.updateEmojiStatus#f0d3e6a8 channel:InputChannel emoji_status:EmojiStatus = Updates;
 func (s *Service) ChannelsUpdateEmojiStatus(ctx context.Context, request *mtproto.TLChannelsUpdateEmojiStatus) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channels.updateEmojiStatus - metadata: {%s}", c.MD)
+	return c.ChannelsUpdateEmojiStatus(request)
 }
 
 // BotsUpdateUserEmojiStatus is not served: bots.updateUserEmojiStatus#ed9f30c5 user_id:InputUser emoji_status:EmojiStatus = Bool;
@@ -561,9 +573,12 @@ func (s *Service) HelpGetPeerProfileColors(ctx context.Context, request *mtproto
 	return c.HelpGetPeerProfileColors(request)
 }
 
-// ChannelsUpdateColor is not served: channels.updateColor#d8aa3671 flags:# for_profile:flags.1?true channel:InputChannel color:flags.2?int background_emoji_id:flags.0?long = Updates;
+// ChannelsUpdateColor
+// channels.updateColor#d8aa3671 flags:# for_profile:flags.1?true channel:InputChannel color:flags.2?int background_emoji_id:flags.0?long = Updates;
 func (s *Service) ChannelsUpdateColor(ctx context.Context, request *mtproto.TLChannelsUpdateColor) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channels.updateColor - metadata: {%s}", c.MD)
+	return c.ChannelsUpdateColor(request)
 }
 
 // mtproto.RPCThemes

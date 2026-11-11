@@ -92,7 +92,14 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		return nil, err
 	}
 
-	fwdOutboxList, err := c.makeForwardMessages(fromPeer, toPeer, saved, in)
+	// The peer the forwards come from (send_as, task 079).
+	from, err := c.sendFrom(toPeer, in.GetSendAs())
+	if err != nil {
+		c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+		return nil, err
+	}
+
+	fwdOutboxList, err := c.makeForwardMessages(fromPeer, toPeer, saved, from, in)
 	if err != nil {
 		c.Logger.Errorf("messages.forwardMessages#708e0195 - error: %v", err)
 		return nil, err
@@ -161,6 +168,7 @@ func (c *MessagesCore) checkForwardPrivacy(authorId, forwarderId int64) (bool, e
 func (c *MessagesCore) makeForwardMessages(
 	fromPeer, toPeer *mtproto.PeerUtil,
 	saved bool,
+	from *mtproto.Peer,
 	request *mtproto.TLMessagesForwardMessages) ([]*msgpb.OutboxMessage, error) {
 
 	var (
@@ -312,7 +320,7 @@ func (c *MessagesCore) makeForwardMessages(
 
 		// TODO(@benqi): make message, ref sendMessage
 		m.PeerId = toPeer.ToPeer()
-		m.FromId = mtproto.MakePeerUser(c.MD.UserId)
+		m.FromId = from
 		m.Date = now
 		m.Silent = request.Silent
 		m.Post = false
@@ -364,6 +372,12 @@ func (c *MessagesCore) forwardOrigin(box *mtproto.MessageBox) (*mtproto.MessageF
 	fwdFrom := mtproto.MakeTLMessageFwdHeader(&mtproto.MessageFwdHeader{
 		Date: box.GetMessage().GetDate(),
 	}).To_MessageFwdHeader()
+	// A message written as a channel or as the group (send_as, task 079)
+	// comes from it, and names no account.
+	if as := box.GetMessage().GetFromId(); as.GetPredicateName() == mtproto.Predicate_peerChannel {
+		fwdFrom.FromId = as
+		return fwdFrom, nil
+	}
 	fromId := box.SenderUserId
 	linked, err := c.checkForwardPrivacy(fromId, c.MD.UserId)
 	if err != nil {

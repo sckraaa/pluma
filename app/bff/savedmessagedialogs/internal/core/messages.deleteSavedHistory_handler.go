@@ -28,37 +28,27 @@ import (
 //
 // It deletes the sub-chat of Saved Messages with peer: up to max_id when
 // above 0, within min_date and max_date when given, a portion at a time
-// (offset above 0 asks the client to repeat the call). The sub-chat leaves
-// messages.getSavedDialogs with its last message. parent_peer names the
-// monoforum of a channel, and channels are not served yet.
+// (offset above 0 asks the client to repeat the call). The peer is a user,
+// the account itself ("My notes"), a chat, or a channel the posts or the
+// supergroup messages were saved from. The sub-chat leaves
+// messages.getSavedDialogs with its last message.
 func (c *SavedMessageDialogsCore) MessagesDeleteSavedHistory(in *mtproto.TLMessagesDeleteSavedHistory) (*mtproto.Messages_AffectedHistory, error) {
-	if in.GetParentPeer() != nil {
-		c.Logger.Errorf("messages.deleteSavedHistory blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
-	}
-	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
-	switch peer.PeerType {
-	case mtproto.PEER_SELF, mtproto.PEER_USER, mtproto.PEER_CHAT:
-	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("messages.deleteSavedHistory blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
-	default:
-		err := mtproto.ErrPeerIdInvalid
+	if err := c.checkParentPeer(in.GetParentPeer()); err != nil {
 		c.Logger.Errorf("messages.deleteSavedHistory - error: %v", err)
 		return nil, err
 	}
-	savedType, savedId := peer.PeerType, peer.PeerId
-	if savedType == mtproto.PEER_SELF {
-		// "My notes": the sub-chat of the user's own messages.
-		savedType, savedId = mtproto.PEER_USER, c.MD.UserId
+	saved, err := c.savedPeer(in.GetPeer())
+	if err != nil {
+		c.Logger.Errorf("messages.deleteSavedHistory - error: %v", err)
+		return nil, err
 	}
 	affectedHistory, err := c.svcCtx.Dao.MsgClient.MsgDeleteHistoryRange(c.ctx, &msgpb.TLMsgDeleteHistoryRange{
 		UserId:        c.MD.UserId,
 		AuthKeyId:     c.MD.PermAuthKeyId,
 		PeerType:      mtproto.PEER_USER,
 		PeerId:        c.MD.UserId,
-		SavedPeerType: savedType,
-		SavedPeerId:   savedId,
+		SavedPeerType: saved.PeerType,
+		SavedPeerId:   saved.PeerId,
 		MaxId:         in.MaxId,
 		MinDate:       in.GetMinDate().GetValue(),
 		MaxDate:       in.GetMaxDate().GetValue(),

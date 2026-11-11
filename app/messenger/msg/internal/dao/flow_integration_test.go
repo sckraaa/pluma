@@ -364,6 +364,30 @@ func (noChannels) ChannelSetStickerSet(context.Context, *channelpb.TLChannelSetS
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelGetFutureCreator(context.Context, *channelpb.TLChannelGetFutureCreator) (*mtproto.Int64, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetInactiveChannels(context.Context, *channelpb.TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSetMainProfileTab(context.Context, *channelpb.TLChannelSetMainProfileTab) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelUpdateColor(context.Context, *channelpb.TLChannelUpdateColor) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelUpdateEmojiStatus(context.Context, *channelpb.TLChannelUpdateEmojiStatus) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelEditUsernames(context.Context, *channelpb.TLChannelEditUsernames) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelSearch(context.Context, *channelpb.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
@@ -549,6 +573,10 @@ func (noChannels) ChannelGetPendingJoinRequests(context.Context, *channelpb.TLCh
 }
 
 func (noChannels) ChannelGetLeftChannels(context.Context, *channelpb.TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetChannelRecommendations(context.Context, *channelpb.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
 

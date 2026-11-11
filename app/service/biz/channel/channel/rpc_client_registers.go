@@ -71,6 +71,12 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetAdminLog": {"/mtproto.RPCChannel/channel_getAdminLog", func() interface{} { return new(Vector_ChannelAdminLogEvent) }},
 	// pluma: task 078
 	"TLChannelSetStickerSet": {"/mtproto.RPCChannel/channel_setStickerSet", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 078
+	"TLChannelUpdateColor": {"/mtproto.RPCChannel/channel_updateColor", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 078
+	"TLChannelUpdateEmojiStatus": {"/mtproto.RPCChannel/channel_updateEmojiStatus", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 078
+	"TLChannelEditUsernames": {"/mtproto.RPCChannel/channel_editUsernames", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 046
 	"TLChannelIncrementMessageViews": {"/mtproto.RPCChannel/channel_incrementMessageViews", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 046
@@ -107,6 +113,8 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetPendingJoinRequests": {"/mtproto.RPCChannel/channel_getPendingJoinRequests", func() interface{} { return new(mtproto.Update) }},
 	// pluma: task 041
 	"TLChannelGetLeftChannels": {"/mtproto.RPCChannel/channel_getLeftChannels", func() interface{} { return new(mtproto.Messages_Chats) }},
+	// pluma: task 081
+	"TLChannelGetChannelRecommendations": {"/mtproto.RPCChannel/channel_getChannelRecommendations", func() interface{} { return new(mtproto.Messages_Chats) }},
 	// pluma: task 060
 	"TLChannelToggleForum": {"/mtproto.RPCChannel/channel_toggleForum", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 060
@@ -183,6 +191,12 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetUnreadReactions": {"/mtproto.RPCChannel/channel_getUnreadReactions", func() interface{} { return new(mtproto.Messages_Messages) }},
 	// pluma: task 067
 	"TLChannelReadReactions": {"/mtproto.RPCChannel/channel_readReactions", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	// pluma: task 078
+	"TLChannelGetFutureCreator": {"/mtproto.RPCChannel/channel_getFutureCreator", func() interface{} { return new(mtproto.Int64) }},
+	// pluma: task 078
+	"TLChannelGetInactiveChannels": {"/mtproto.RPCChannel/channel_getInactiveChannels", func() interface{} { return new(mtproto.Messages_InactiveChats) }},
+	// pluma: task 078
+	"TLChannelSetMainProfileTab": {"/mtproto.RPCChannel/channel_setMainProfileTab", func() interface{} { return new(mtproto.Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

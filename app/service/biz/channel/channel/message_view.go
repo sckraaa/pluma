@@ -22,11 +22,51 @@ import (
 )
 
 // ViewMessage is a message of a channel, stored once for all (ADR 0034,
-// p. 1), as viewer sees it: out when the viewer sent it. The stored message
-// is not changed.
+// p. 1), as viewer sees it: out when the viewer sent it, mentioned when its
+// text mentions the viewer ("Incoming messages mentioning the current user
+// will have the mentioned flag set", core.telegram.org/api/mentions). The
+// stored message is not changed.
 func ViewMessage(stored *mtproto.Message, viewer int64) *mtproto.Message {
 	m := proto.Clone(stored).(*mtproto.Message)
 	m.Out = m.GetFromId().GetUserId() == viewer && viewer != 0
+	m.Mentioned = !m.Out && mentions(m, viewer)
+	return m
+}
+
+// mentions tells whether an entity of m names viewer: an @username the
+// server resolved (messageEntityMention) or a mention by name.
+func mentions(m *mtproto.Message, viewer int64) bool {
+	if viewer == 0 {
+		return false
+	}
+	for _, e := range m.GetEntities() {
+		switch e.GetPredicateName() {
+		case mtproto.Predicate_messageEntityMention, mtproto.Predicate_messageEntityMentionName:
+			if e.GetUserId_INT64() == viewer {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// SentAs tells whether m was written by a member of a supergroup as a
+// channel or as the group (send_as, task 079): it comes from a channel and
+// is no post, nor the automatic copy of a post in its discussion group,
+// whose fwd_from keeps the post (saved_from_peer).
+func SentAs(m *mtproto.Message) bool {
+	return m.GetFromId().GetPredicateName() == mtproto.Predicate_peerChannel && !m.GetPost() && m.GetFwdFrom().GetSavedFromPeer() == nil
+}
+
+// ViewSentMessage is ViewMessage for a viewer who knows whether it wrote
+// stored (sentByViewer): a message it wrote as a channel is out for it as
+// well, as the clients draw their own (Android MessageObject.isOutOwner,
+// MessageObject.java:9901: out with a channel's from_id in a supergroup).
+func ViewSentMessage(stored *mtproto.Message, viewer int64, sentByViewer bool) *mtproto.Message {
+	m := ViewMessage(stored, viewer)
+	if sentByViewer && viewer != 0 && SentAs(m) {
+		m.Out = true
+	}
 	return m
 }
 

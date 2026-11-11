@@ -62,6 +62,9 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	ch := mc.GetChannel()
 	me, _ := mc.GetParticipant(c.MD.UserId)
 	admin := me.Member() && (me.GetRole() == channelpb.RoleCreator || me.GetRole() == channelpb.RoleAdmin)
+	// The owner who left keeps its row until its next owner takes the
+	// channel (task 078) but manages nothing while away.
+	creator := me.Member() && me.GetRole() == channelpb.RoleCreator
 
 	full := &mtproto.ChatFull{
 		Id:                  ch.GetId(),
@@ -71,8 +74,8 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		BotInfo:             []*mtproto.BotInfo{},
 		CanViewParticipants: ch.GetMegagroup() && !ch.GetParticipantsHidden() || admin,
 		ParticipantsHidden:  ch.GetParticipantsHidden(),
-		CanSetUsername:      me.GetRole() == channelpb.RoleCreator,
-		CanDeleteChannel:    me.GetRole() == channelpb.RoleCreator,
+		CanSetUsername:      creator,
+		CanDeleteChannel:    creator,
 		HiddenPrehistory:    ch.GetHiddenPrehistory(),
 		Pts:                 ch.GetPts(),
 		// The reactions the members may use (task 044); a channel that never
@@ -104,6 +107,9 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		}
 	}
 	full.AvailableMinId = availableMinId(me)
+	// The tab its profile opens on (task 078, channels.setMainProfileTab);
+	// none leaves it to the clients.
+	full.MainTab = mtproto.ToProfileTabByType(ch.GetMainTab())
 	if ch.GetMegagroup() {
 		// The sets the group chose (task 078); an admin who may change its
 		// info may choose them (boost levels do not apply, ADR 0041).
@@ -112,6 +118,12 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 			return nil, err
 		}
 		full.CanSetStickers = admin && ch.Can(me, channelperm.ChangeInfo, int32(time.Now().Unix())) == nil
+		// The peer the account chose to write as (task 079); the clients
+		// fall back to their default without it.
+		if full.DefaultSendAs, err = c.svcCtx.SendAs.Default(c.ctx, c.MD.UserId, ch.GetId()); err != nil {
+			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+			return nil, err
+		}
 	}
 	if full.BotInfo, err = c.channelBotInfo(ch.GetId(), admin); err != nil {
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
@@ -211,8 +223,15 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		return nil, err
 	}
 	chats := []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))}
+	var others []int64
 	if linked := ch.GetLinkedChatId(); linked != 0 {
-		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: []int64{linked}})
+		others = append(others, linked)
+	}
+	if as := full.DefaultSendAs.GetChannelId(); as != 0 && as != ch.GetId() && !slices.Contains(others, as) {
+		others = append(others, as)
+	}
+	if len(others) > 0 {
+		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: others})
 		if err != nil {
 			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 			return nil, err

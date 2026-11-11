@@ -16,6 +16,7 @@
 package core
 
 import (
+	"slices"
 	"strings"
 	"time"
 
@@ -45,6 +46,18 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	author, err := c.authorName(fromUserId)
 	if err != nil {
 		return nil, err
+	}
+	if !opt.queued {
+		// The links, mentions, hashtags and bot commands of the text and the
+		// card of its first link, as a message to a user or a chat gets them
+		// (plugin.RemakeMessage): the clients show only the entities a
+		// message carries once it comes from the server, and a mention's
+		// user is the one the message notifies. A queued message got them
+		// when it was scheduled.
+		hasBot := c.channelHasBots(channelId)
+		for _, outBox := range outBoxList {
+			outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
+		}
 	}
 	// The snowflake of each message is the id of a new poll in it.
 	outgoing, err := c.outgoing(outBoxList)
@@ -107,10 +120,14 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	if err != nil {
 		return nil, err
 	}
+	chats, err := c.sentChats(fromUserId, channelId, mc, h)
+	if err != nil {
+		return nil, err
+	}
 	return mtproto.MakeTLUpdates(&mtproto.Updates{
 		Updates: updates,
 		Users:   users.GetUserListByIdList(fromUserId, h.UserIdList...),
-		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
+		Chats:   chats,
 		Date:    int32(time.Now().Unix()),
 	}).To_Updates(), nil
 }
@@ -158,19 +175,41 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 	if err != nil {
 		return nil, err
 	}
-	shown := channelpb.ViewMessage(edited.Message, fromUserId)
+	// A message of a supergroup is edited by its author alone; a post is
+	// never written as another (dao.EditChannel).
+	shown := channelpb.ViewSentMessage(edited.Message, fromUserId, true)
 	h := mtproto.NewIDListHelper(fromUserId)
 	h.PickByMessage(shown)
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: h.UserIdList, To: []int64{fromUserId}})
 	if err != nil {
 		return nil, err
 	}
+	chats, err := c.sentChats(fromUserId, channelId, mc, h)
+	if err != nil {
+		return nil, err
+	}
 	return mtproto.MakeTLUpdates(&mtproto.Updates{
 		Updates: []*mtproto.Update{mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: edited.Pts, PtsCount: 1}).To_Update()},
 		Users:   users.GetUserListByIdList(fromUserId, h.UserIdList...),
-		Chats:   []*mtproto.Chat{mc.ToChat(fromUserId, int32(time.Now().Unix()))},
+		Chats:   chats,
 		Date:    int32(time.Now().Unix()),
 	}).To_Updates(), nil
+}
+
+// sentChats are the chats of an answer about messages of channelId to
+// userId: the channel and the other channels h found in the messages, the
+// ones they came from (send_as, task 079).
+func (c *MsgCore) sentChats(userId, channelId int64, mc *channelpb.MutableChannel, h *mtproto.IDListHelper) ([]*mtproto.Chat, error) {
+	chats := []*mtproto.Chat{mc.ToChat(userId, int32(time.Now().Unix()))}
+	others := slices.DeleteFunc(slices.Clone(h.ChannelIdList), func(id int64) bool { return id == channelId })
+	if len(others) == 0 {
+		return chats, nil
+	}
+	list, err := c.svcCtx.Dao.ChannelClient.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: userId, IdList: others})
+	if err != nil {
+		return nil, err
+	}
+	return append(chats, list.GetChannelListByIdList(userId)...), nil
 }
 
 // authorName is the name a signed post shows: the user's first and last
@@ -185,4 +224,24 @@ func (c *MsgCore) authorName(userId int64) (string, error) {
 		return "", nil
 	}
 	return strings.TrimSpace(u.FirstName() + " " + u.LastName()), nil
+}
+
+// channelHasBots is whether channelId has a bot among its members, read at
+// most once per send. A failed read is logged and counts as none: the
+// message goes, its commands as plain text.
+func (c *MsgCore) channelHasBots(channelId int64) func() bool {
+	var (
+		read bool
+		has  bool
+	)
+	return func() bool {
+		if !read {
+			read = true
+			var err error
+			if has, err = c.svcCtx.Dao.ChannelHasBots(c.ctx, channelId); err != nil {
+				c.Logger.Errorf("msg.sendMessageV2 - bots of channel %d: %v", channelId, err)
+			}
+		}
+		return has
+	}
 }

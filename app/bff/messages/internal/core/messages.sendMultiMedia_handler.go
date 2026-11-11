@@ -84,6 +84,13 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 	if err != nil {
 		return nil, err
 	}
+	// The peer the messages come from (send_as, task 079).
+	from, err := c.sendFrom(peer, in.GetSendAs())
+	if err != nil {
+		c.Logger.Errorf("messages.sendMultiMedia - error: %v", err)
+		return nil, err
+	}
+
 	//, &idgen.TLIdgenNextId{
 	//	Constructor:          0,
 	//	XXX_NoUnkeyedLiteral: struct{}{},
@@ -98,6 +105,8 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 		return nil, err
 	}
 	outboxMultiMedia := make([]*msgpb.OutboxMessage, 0, len(in.MultiMedia))
+	// The media of each message, for the recent stickers once sent.
+	sentMedia := make([]*mtproto.MessageMedia, 0, len(in.MultiMedia))
 	for _, media := range in.MultiMedia {
 		/*
 			inputSingleMedia
@@ -125,7 +134,7 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 			Noforwards:           in.Noforwards,
 			InvertMedia:          in.InvertMedia,
 			Id:                   0,
-			FromId:               mtproto.MakePeerUser(c.MD.UserId),
+			FromId:               from,
 			PeerId:               peer.ToPeer(),
 			SavedPeerId:          nil,
 			FwdFrom:              nil,
@@ -188,6 +197,7 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 		//
 		//	return hasBot
 		//})
+		sentMedia = append(sentMedia, outMessage.Media)
 		outboxMultiMedia = append(outboxMultiMedia, msgpb.MakeTLOutboxMessage(&msgpb.OutboxMessage{
 			NoWebpage:    true,
 			Background:   in.Background,
@@ -210,6 +220,13 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 	if err != nil {
 		c.Logger.Errorf("messages.sendMedia#c8f16791 - error: %v", err)
 		return nil, err
+	}
+	// The stickers of an album are recent ones as those of messages.sendMedia
+	// (task 081), in the order of the album: the last on top, as Android
+	// and iOS order them by message (MessagesController.java:22010,
+	// StateReplay+Finalize.swift:257-266).
+	for i, media := range in.MultiMedia {
+		c.addRecentStickers(media.GetMedia(), sentMedia[i])
 	}
 
 	if in.ClearDraft {

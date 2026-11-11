@@ -60,6 +60,10 @@ var served = map[string]bool{
 	"ChannelsToggleParticipantsHidden": true,
 	"ChannelsGetAdminLog":              true,
 	"ChannelsSetStickers":              true,
+
+	// Task 078: the owner who leaves, the channels to leave at the limit.
+	"ChannelsGetFutureCreatorAfterLeave": true,
+	"ChannelsGetInactiveChannels":        true,
 }
 
 // Every method of the service not served yet answers ERR_ENTERPRISE_IS_BLOCKED

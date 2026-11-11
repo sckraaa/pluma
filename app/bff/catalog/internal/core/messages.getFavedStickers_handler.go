@@ -17,12 +17,30 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 )
 
 // MessagesGetFavedStickers
 // messages.getFavedStickers#4f1aaa9 hash:long = messages.FavedStickers;
 //
-// The stickers the account faved: none until stage 2 keeps them.
+// The stickers the account faved, the last faved first, with the packs of
+// their emoji; a hash equal to theirs is favedStickersNotModified.
 func (c *CatalogCore) MessagesGetFavedStickers(in *mtproto.TLMessagesGetFavedStickers) (*mtproto.Messages_FavedStickers, error) {
-	return mtproto.MakeTLMessagesFavedStickers(&mtproto.Messages_FavedStickers{Packs: []*mtproto.StickerPack{}, Stickers: []*mtproto.Document{}}).To_Messages_FavedStickers(), nil
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("messages.getFavedStickers - error: %v", err)
+		return nil, err
+	}
+	l, same, err := c.stickerList("messages.getFavedStickers", stickerlists.Faved, in.GetHash())
+	if err != nil {
+		return nil, err
+	}
+	if same {
+		return mtproto.MakeTLMessagesFavedStickersNotModified(nil).To_Messages_FavedStickers(), nil
+	}
+	return mtproto.MakeTLMessagesFavedStickers(&mtproto.Messages_FavedStickers{
+		Hash:     l.hash,
+		Packs:    l.packs,
+		Stickers: l.stickers,
+	}).To_Messages_FavedStickers(), nil
 }

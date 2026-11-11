@@ -51,9 +51,9 @@ const (
 //
 //   - pts at or above S: channelDifferenceEmpty with S (a client ahead of
 //     the channel, restored from a backup, takes the channel's pts);
-//   - rows from pts on are gone from the journal (JournalWindow), or pts is
-//     below the first pts: channelDifferenceTooLong with the dialog and the
-//     last messages;
+//   - rows from pts on are gone from the journal (JournalWindow), pts is
+//     below the first pts, or a member asks from before it joined:
+//     channelDifferenceTooLong with the dialog and the last messages;
 //   - more rows than limit: a slice of them, not final, with the pts of its
 //     last row, so that the client always moves forward;
 //   - otherwise the rows folded up to S, final.
@@ -88,6 +88,25 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 		}).To_Updates_ChannelDifference(), nil
 	}
 
+	// The updates before a member joined are not in its box: a pts from
+	// before the join gets channelDifferenceTooLong, as one the journal no
+	// longer holds (core.telegram.org/constructor/updates.channelDifferenceTooLong).
+	// Android asks a channel it has just joined for its difference from
+	// pts 1 with limit 1 and makes the dialog of it only from that answer
+	// (MessagesController.java:16531-16541, MessagesStorage.java:11328-11333
+	// at aac1efcb); a page from pts 1 put the channel's creation, long ago,
+	// at the top of the new dialog, below the chat list's loaded page.
+	if v.Member && v.Joined > 0 {
+		joined, err := c.svcCtx.Dao.PtsBefore(c.ctx, in.ChannelId, v.Joined)
+		if err != nil {
+			c.Logger.Errorf("channel.getChannelDifference - pts of channel %d at the join of %d: %v", in.ChannelId, in.SelfId, err)
+			return nil, err
+		}
+		if in.Pts < joined {
+			return c.tooLong(in, v, timeout, limit)
+		}
+	}
+
 	// One row more than the limit tells whether this is the last page.
 	rows, err := c.svcCtx.Dao.Journal(c.ctx, in.ChannelId, in.Pts, s, limit+1)
 	if err != nil {
@@ -116,12 +135,12 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 		}
 		f.add(u)
 	}
-	randomIds, err := c.svcCtx.Dao.OwnRandomIds(c.ctx, in.SelfId, in.ChannelId, f.newMessageIds())
+	own, err := c.svcCtx.Dao.OwnRandomIds(c.ctx, in.SelfId, in.ChannelId, f.viewedIds())
 	if err != nil {
 		c.Logger.Errorf("channel.getChannelDifference - random ids of channel %d: %v", in.ChannelId, err)
 		return nil, err
 	}
-	f.addMessageIds(randomIds)
+	f.setOwn(own)
 
 	// Each message with a poll carries the results as they are now, for
 	// this viewer.

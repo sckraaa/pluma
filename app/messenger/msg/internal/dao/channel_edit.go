@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -205,10 +206,12 @@ func postReplies(b *userbox.Box, groupId int64, copyId, pts int32) (*mtproto.Mes
 		groupId, copyId); err != nil {
 		return nil, err
 	}
-	var repliers []int64
+	// The authors as the comments show them: one who wrote as a channel
+	// is that channel (task 079).
+	var repliers []sendas.AuthorRow
 	if err := b.Tx().QueryRowsPartial(&repliers,
-		"SELECT sender_user_id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0"+
-			" GROUP BY sender_user_id ORDER BY MAX(id) DESC LIMIT ?", groupId, copyId, repliersMax); err != nil {
+		"SELECT sender_user_id, send_as_id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0"+
+			" GROUP BY sender_user_id, send_as_id ORDER BY MAX(id) DESC LIMIT ?", groupId, copyId, repliersMax); err != nil {
 		return nil, err
 	}
 	r := &mtproto.MessageReplies{
@@ -218,8 +221,8 @@ func postReplies(b *userbox.Box, groupId int64, copyId, pts int32) (*mtproto.Mes
 		ChannelId:      mtproto.MakeFlagsInt64(groupId),
 		RecentRepliers: []*mtproto.Peer{},
 	}
-	for _, id := range repliers {
-		r.RecentRepliers = append(r.RecentRepliers, mtproto.MakePeerUser(id))
+	for _, a := range repliers {
+		r.RecentRepliers = append(r.RecentRepliers, a.Peer())
 	}
 	if counts[0].MaxId != 0 {
 		r.MaxId = mtproto.MakeFlagsInt32(counts[0].MaxId)

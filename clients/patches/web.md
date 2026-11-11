@@ -505,6 +505,19 @@
 - **Проверка:** `test_patch`, `DAMAGE` (четвёртый градиент `premium`, `background-gradient-peer`).
 - **Коммиты:** `e9a6865`.
 
+### W-074. Значок верификации в цветах Pluma (задача 080)
+- **Что и зачем:** аккаунт Pluma (@support) получает `user.verified`, и значок рядом с его именем должен быть «как у Telegram, только в цветах Плюмы» (владелец, задача 080). Форма розетки — Telegram, меняются только цвета: розетка — акцент темы (шалфей `#5B7A5E` в светлой, `#9DBB9F` в тёмной), галочка — цвет «на акценте» (`--on-primary-color`, W-027): белая на светлой теме, `#131513` на светлом шалфее тёмной, как у кнопок (W-036).
+- **Апстрим:** значок рисует один `generateVerifiedIcon.ts` (через `generateTitleIcons` и строку верификации профиля): два `<use>` на символы `index.html` — квадрат `#verified-icon-check` (`M8 8H18V18H8V8Z`) под розеткой `#verified-icon-background`, из которой галочка вырезана (`evenodd`), так что галочка — это квадрат, видный сквозь вырез. Цвета — `src/scss/base.scss`: `&-check { fill: #fff; }`, `&-background { fill: var(--primary-color); }`. Отсюда шалфей розетки в темах Pluma был и без правки (W-026); белая галочка на светлом шалфее тёмной темы не читалась. Выбранный чат (W-037 уже переводит его `fill: #fff !important` на `--on-primary-color`) и шапка профиля поверх фото выворачивают розетку и прячут галочку — это остаётся как у апстрима. Строка верификации в профиле (`.profile-bot-verification`) рисует розетку серым цветом текста (`fill: currentColor`) с белой галочкой.
+- **Где:** `VERIFIED_BADGE` и `VERIFIED_BADGE_SHAPE` в `ci/patch.py`, вызов в `rebrand()` после W-037.
+  - `src/scss/base.scss`, `replace` всего правила `.verified-icon { &-svg …; &-check { fill: #fff; } &-background { fill: var(--primary-color); } }` → `&-check { fill: var(--on-primary-color); }`.
+  - `src/scss/partials/_profile.scss`, `replace` `    .verified-icon {\n      &-background {\n        fill: currentColor;\n      }\n    }\n` (строка верификации) — добавлено `&-check { fill: #fff; }`: серая розетка — не акцентная заливка, галочка остаётся белой, как у апстрима (тот же приём, что W-042).
+  - `expect` того, на чём держатся цвета: в `generateVerifiedIcon.ts` классы `verified-icon-background`/`verified-icon-check` у двух `<use>` и порядок `svg.append(use2, use);`, в `index.html` — квадрат `#verified-icon-check`. Если апстрим перерисует значок (галочка поверх розетки, другие классы), сборка упадёт.
+- **Места показа:** все через этот компонент и эти правила — список чатов, шапка чата, профиль, списки участников, поиск, упоминания, приглашение в чат (`joinChatInvite`), похожие каналы. Отдельной картинки значок не рисует: `public/assets/img/icon-verified.svg` (синий `#33a8e5`) в коде апстрима не используется (`grep` по `src/` и `index.html` пуст), поэтому не перекрашивается.
+- **Темы:** *Day*, *Dark Blue* и выбранные пользователем акценты остаются как у апстрима (W-038): розетка в них — их акцент, галочка — `--on-primary-color`, который тема считает от яркости акцента.
+- **Проверка:** `verify_verified_badge` — оба правила на месте, и ни в одном `.scss` нет белой галочки (`&-check { fill: #fff|white }`), кроме строки профиля. `test_verified_badge` (правила, выбранный чат, откат каждой правки и лишняя белая галочка в `_chatBubble.scss` роняют `verify`; без правки тест падает), `DAMAGE` (оба правила, классы `<use>`, порядок слоёв, путь символа галочки). Полный прогон `ci/*_test.py` на закреплённом `aa74832e`: 44 теста, OK.
+- **Не проверено:** вид в браузере (сборка на этой машине не запускается); проверить в списке чатов, шапке и профиле @support в светлой и тёмной темах.
+- **Коммиты:** — (ветка `task/080-verified-badge` в `pluma-web`, не закоммичено).
+
 ## Premium и платные функции
 
 Контекст: Pluma не продаёт Premium и подарки. Сервер ставит `premium_purchase_blocked` в `help.getAppConfig` (задачи 014, 015). Решение владельца по баннеру — вариант А (бриф 020, пункт про баннер дня рождения). Всё в этом разделе есть **только на ветке `task/020-parity-fixes`** (`cb01766`, 2026-10-31).
@@ -587,6 +600,19 @@
   - `src/components/wrappers/sticker.ts:194` — значок замка.
 - **Не правится.** Эффекты отправки (`sendContextMenu.ts:118`) и кастомные эмодзи (вопрос владельцу в брифе). Эффект у получателя играет `wrappers/sticker.ts:742` без проверки Premium.
 - **Как проверяется.** `verify_premium_stickers` (функция `true`, вызовы только в пяти гейтах, каждый гейт), `test_premium_stickers`, `test_premium_stickers_verify`, порча каждого гейта в `DAMAGE`. `ci/patch_test.py` со `./upstream`: 35 тестов, OK. Сборка и проверка в браузере не делались.
+
+### W-073. Нет ИИ-редактора сообщений (задача 079)
+- **Статус.** Ветка `task/079-remove-ai-editor` pluma-web, не закоммичено, не влито (2026-11-11).
+- **Что и зачем.** Решение владельца 2026-11-11 (задача 079): у Pluma нет языковой модели, поэтому ИИ-редактор сообщений (переписать, исправить, сменить стиль, перевести набранный текст; `messages.composeMessageWithAI`, `messages.composeRichMessageWithAI`, `aicompose.*`) не предлагается ни в одном клиенте. Сервер их не обслуживает: `messages.composeRichMessageWithAI` отвечает `ErrEnterpriseIsBlocked` (`app/bff/messages/internal/core/messages.composeRichMessageWithAI_handler.go`), а служба `RPCAiComposeTone` (`messages.composeMessageWithAI`, `aicompose.*`) не маршрутизирована в `session.yaml`, и прокси отвечает `ERR_ENTERPRISE_IS_BLOCKED`. В tweb это `aiEditorPopup` и `createWithAiPopup`.
+- **Где** (`NO_AI_EDITOR_EDITS`, `no_ai_editor()` в `ci/patch.py`; апстрим `aa74832e`):
+  - `components/chat/input.ts`: поле сообщения (`RichMessageInput`) не получает `ai: this.getAiEditorContext()`, поэтому не создаёт кнопку ИИ, а кнопка ИИ его панели инструментов скрыта (`aiButton.hidden = !this.options.onAi`);
+  - `components/popups/newMedia.tsx`: подпись в окне отправки медиа (`InputFieldMessage`) не получает `ai`, кнопки нет;
+  - `components/chat/markupTooltip.ts`: `aiAvailable = false`, кнопка ИИ всплывающей панели форматирования и разделитель скрыты (она нажимала ту же кнопку поля).
+- **Апстрим без правки.** Кнопка ИИ появляется в поле от 72 px высоты и в подписи медиа, во всплывающей панели форматирования — всегда.
+- **Как проверяется.** `verify_no_ai_editor(sources)`: правки на месте; по всем исходникам без комментариев вызовов `.getAiEditorContext(` и `createAiEditorContext(` — только определение в `input.ts` и сама функция, `useAiEditorButton(` / `<AiEditorButton` — только в `richMessageInput/ai.tsx`, `index.tsx`, `aiButton.tsx`, `inputFieldMessage.tsx`. `NoAiEditorTest`; порча каждого якоря в `DAMAGE` на настоящем апстриме (`UpstreamTest`).
+- **Осталось (сознательно).** Меню отправки «отправить как есть / выключить стиль» появляется только при сохранённом стиле, а сохранить его можно только в редакторе. Ссылки на стиль (`internalLinkProcessor.ts`, `viewTonePopup`) — ошибка сервера. Окно перевода — задача 027.
+- **Не проверено.** `pnpm run typecheck`, сборка vite и браузер (CI после пуша).
+
 
 ## Медиа
 

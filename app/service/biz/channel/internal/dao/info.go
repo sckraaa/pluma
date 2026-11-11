@@ -16,6 +16,7 @@
 package dao
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 
@@ -133,6 +134,11 @@ func (d *Dao) SetHistoryTTL(b *userbox.Box, channelId int64, period int32) (*Cha
 	if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", change.Message.GetId(), channelId); err != nil {
 		return nil, err
 	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeHistoryTTL(&mtproto.ChannelAdminLogEventAction{
+		PrevValue_INT32: current, NewValue_INT32: period,
+	}).To_ChannelAdminLogEventAction(), ""); err != nil {
+		return nil, err
+	}
 	return change, nil
 }
 
@@ -152,14 +158,38 @@ func (d *Dao) SetChatWallpaper(b *userbox.Box, channelId int64, w *mtproto.WallP
 	if err != nil {
 		return nil, err
 	}
-	var data []byte
+	var data, prevData []byte
 	if w != nil {
 		if data, err = proto.Marshal(w); err != nil {
 			return nil, fmt.Errorf("channel: encode a wallpaper: %w", err)
 		}
 	}
+	var prev []struct {
+		Wallpaper []byte `db:"wallpaper"`
+	}
+	if err = b.Tx().QueryRowsPartial(&prev, "SELECT wallpaper FROM channels WHERE id = ?", channelId); err != nil {
+		return nil, err
+	}
+	if len(prev) > 0 {
+		prevData = prev[0].Wallpaper
+	}
 	if _, err = b.Tx().Exec("UPDATE channels SET wallpaper = ? WHERE id = ?", data, channelId); err != nil {
 		return nil, err
+	}
+	if !bytes.Equal(prevData, data) {
+		before, err := logWallpaper(prevData)
+		if err != nil {
+			return nil, err
+		}
+		after, err := logWallpaper(data)
+		if err != nil {
+			return nil, err
+		}
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeWallpaper(&mtproto.ChannelAdminLogEventAction{
+			PrevValue_WALLPAPER: before, NewValue_WALLPAPER: after,
+		}).To_ChannelAdminLogEventAction(), ""); err != nil {
+			return nil, err
+		}
 	}
 	change := &ChannelChange{
 		ChannelId: channelId,
@@ -176,6 +206,20 @@ func (d *Dao) SetChatWallpaper(b *userbox.Box, channelId int64, w *mtproto.WallP
 		return nil, err
 	}
 	return change, nil
+}
+
+// logWallpaper is a stored wallpaper as the recent actions show it: none is
+// wallPaperNoFile with id 0 and no settings, which Android takes for a
+// wallpaper taken away (MessageObject.java, EventLogRemovedWallpaper).
+func logWallpaper(data []byte) (*mtproto.WallPaper, error) {
+	if len(data) == 0 {
+		return mtproto.MakeTLWallPaperNoFile(&mtproto.WallPaper{}).To_WallPaper(), nil
+	}
+	w := &mtproto.WallPaper{}
+	if err := proto.Unmarshal(data, w); err != nil {
+		return nil, fmt.Errorf("channel: decode a wallpaper: %w", err)
+	}
+	return w, nil
 }
 
 // SetChatTheme gives the channel a chat theme, "" for none: the service

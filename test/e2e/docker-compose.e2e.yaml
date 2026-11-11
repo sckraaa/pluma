@@ -103,7 +103,7 @@ services:
     build:
       context: .
       dockerfile: test/e2e/fakepush/Dockerfile
-    image: pluma-e2e-fakepush:local
+    image: ${E2E_FAKEPUSH_IMAGE:-pluma-e2e-fakepush:local}
     ports:
       - "127.0.0.1::8080"
     networks:
@@ -117,7 +117,7 @@ services:
     build:
       context: .
       dockerfile: test/e2e/fakecodes/Dockerfile
-    image: pluma-e2e-fakecodes:local
+    image: ${E2E_FAKECODES_IMAGE:-pluma-e2e-fakecodes:local}
     environment:
       CODES_API_TOKEN: ${LOGIN_CODES_SENDER_TOKEN:?run test/e2e/run.sh up}
     ports:

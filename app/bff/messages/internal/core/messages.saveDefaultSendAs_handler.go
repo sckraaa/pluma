@@ -24,9 +24,25 @@ import (
 
 // MessagesSaveDefaultSendAs
 // messages.saveDefaultSendAs#ccfddf96 peer:InputPeer send_as:InputPeer = Bool;
+//
+// Remembers the peer the account writes to a supergroup as (task 079), one
+// of channels.getSendAs; channelFull.default_send_as gives it back.
+// SEND_AS_PEER_INVALID for another
+// (core.telegram.org/method/messages.saveDefaultSendAs).
 func (c *MessagesCore) MessagesSaveDefaultSendAs(in *mtproto.TLMessagesSaveDefaultSendAs) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("messages.saveDefaultSendAs blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer())
+	if !peer.IsChannel() {
+		c.Logger.Errorf("messages.saveDefaultSendAs - invalid peer: %v", in.GetPeer())
+		return nil, mtproto.ErrPeerIdInvalid
+	}
+	as, err := c.sendAsPeer(in.GetSendAs())
+	if err != nil {
+		c.Logger.Errorf("messages.saveDefaultSendAs - error: %v", err)
+		return nil, err
+	}
+	if err = c.svcCtx.SendAs.SaveDefault(c.ctx, c.MD.UserId, peer.PeerId, as); err != nil {
+		c.Logger.Errorf("messages.saveDefaultSendAs - error: %v", err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }

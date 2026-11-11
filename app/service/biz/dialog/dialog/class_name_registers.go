@@ -56,6 +56,8 @@ const (
 	Predicate_dialog_setChatWallpaper                  = "dialog_setChatWallpaper"
 	// pluma: task 063
 	Predicate_dialog_saveThreadDraft = "dialog_saveThreadDraft"
+	// pluma: task 079
+	Predicate_dialog_getSavedDialogsByIdList = "dialog_getSavedDialogsByIdList"
 	// pluma: task 064
 	Predicate_chatlistInviteExt           = "chatlistInviteExt"
 	Predicate_dialog_exportChatlistInvite = "dialog_exportChatlistInvite"
@@ -276,6 +278,9 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -416704029, // 0xe72999e3
 
 	},
+	Predicate_dialog_getSavedDialogsByIdList: { // pluma: task 079
+		0: 823234209, // 0x31118ea1
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -331,6 +336,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-2122372205: Predicate_dialog_hideChatlistUpdates,               // 0x817f2b93 pluma: task 064
 	-1252926702: Predicate_dialog_setChatWallpaper,                  // 0xb551db12
 	-416704029:  Predicate_dialog_saveThreadDraft,                   // 0xe72999e3 pluma: task 063
+	823234209:   Predicate_dialog_getSavedDialogsByIdList,           // 0x31118ea1 pluma: task 079
 
 }
 

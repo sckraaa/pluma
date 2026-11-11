@@ -109,6 +109,8 @@ enum TLConstructor {
   CRC32_channel_getPendingJoinRequests = 2040559942;
   // pluma: task 041
   CRC32_channel_getLeftChannels = -2063367371;
+  // pluma: task 081
+  CRC32_channel_getChannelRecommendations = -870956007;
   // pluma: task 060
   CRC32_channel_toggleForum = 1073186003;
   // pluma: task 060
@@ -183,6 +185,12 @@ enum TLConstructor {
   CRC32_channel_getAdminLog = 1139340211;
   // pluma: task 078
   CRC32_channel_setStickerSet = -1460527570;
+  // pluma: task 078
+  CRC32_channel_updateColor = -1450249355;
+  // pluma: task 078
+  CRC32_channel_updateEmojiStatus = -1163138113;
+  // pluma: task 078
+  CRC32_channel_editUsernames = -823010727;
   // pluma: task 042
   CRC32_channel_editBanned = -1457424068;
   // pluma: task 042
@@ -193,6 +201,12 @@ enum TLConstructor {
   CRC32_channel_getUnreadReactions = -793086366;
   // pluma: task 067
   CRC32_channel_readReactions = 2058932457;
+  // pluma: task 078
+  CRC32_channel_getFutureCreator = -223894021;
+  // pluma: task 078
+  CRC32_channel_getInactiveChannels = -744665876;
+  // pluma: task 078
+  CRC32_channel_setMainProfileTab = 1898100990;
 }
 
 
@@ -246,6 +260,18 @@ message ImmutableChannel {
     // pluma: task 072: flags.16, blocked by the owner of the server (the
     // members see it restricted; channel.setBlocked).
     bool blocked = 41;
+    // pluma: task 078: how the channel looks (channels.updateColor,
+    // channels.updateEmojiStatus): the color of its name and of its
+    // profile, nil for none, and its emoji status, nil for none.
+    mtproto.PeerColor color = 43;
+    mtproto.PeerColor profile_color = 44;
+    mtproto.EmojiStatus emoji_status = 45;
+    // pluma: task 078: every username of the channel, in its order, when it
+    // has more than one (channel.usernames); username is the editable one.
+    repeated mtproto.Username usernames = 46;
+    // pluma: task 078: the tab its profile opens on (channelFull.main_tab),
+    // as mtproto.ProfileTabType* numbers it; 0 for none.
+    int32 main_tab = 47;
 }
 
 message TL_immutableChannel {
@@ -616,6 +642,49 @@ message TL_channel_setStickerSet {
   mtproto.Bool emoji = 6;
   int64 set_id = 7;
   int64 access_hash = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.updateColor self_id:long perm_auth_key_id:long channel_id:long for_profile:Bool color:int background_emoji_id:long = Updates;
+// The color of the channel's name or, with for_profile, of its profile:
+// color -1 for none, background_emoji_id 0 for no pattern (task 078).
+message TL_channel_updateColor {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool for_profile = 6;
+  int32 color = 7;
+  int64 background_emoji_id = 8;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.updateEmojiStatus self_id:long perm_auth_key_id:long channel_id:long document_id:long until:int = Updates;
+// The emoji status of the channel: document_id 0 for none, until 0 for no
+// end (task 078).
+message TL_channel_updateEmojiStatus {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 document_id = 6;
+  int32 until = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.editUsernames self_id:long perm_auth_key_id:long channel_id:long action:int username:string active:Bool order:Vector<string> = Bool;
+// The usernames of the channel (task 078), by action (UsernamesToggle,
+// UsernamesReorder, UsernamesDeactivateAll): username and active for a
+// toggle, order for a reorder.
+message TL_channel_editUsernames {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int32 action = 6;
+  string username = 7;
+  mtproto.Bool active = 8;
+  repeated string order = 9;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1068,6 +1137,17 @@ message TL_channel_getLeftChannels {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.getChannelRecommendations self_id:long channel_id:long = messages.Chats;
+// The public channels recommended to self_id: those similar to channel_id,
+// or for the account with channel_id 0 (channels.getChannelRecommendations,
+// ADR 0047). (task 081)
+message TL_channel_getChannelRecommendations {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // pluma: channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
 // self_id turns the channel's forum on or off (channels.toggleForum); tabs: the tabbed layout.
 // (task 060)
@@ -1381,6 +1461,37 @@ message TL_channel_readReactions {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.getFutureCreator self_id:long channel_id:long = Int64;
+// Who becomes the owner of the channel if self_id, its owner, leaves it; 0
+// for nobody (task 078).
+message TL_channel_getFutureCreator {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getInactiveChannels self_id:long limit:int = messages.InactiveChats;
+// The channels and supergroups of self_id, the least active first, with
+// the date of its last activity in each (task 078).
+message TL_channel_getInactiveChannels {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int32 limit = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.setMainProfileTab self_id:long perm_auth_key_id:long channel_id:long tab:ProfileTab = Bool;
+// The tab the channel's profile opens on (task 078).
+message TL_channel_setMainProfileTab {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.ProfileTab tab = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // pluma: channel.setBlocked channel_id:long blocked:Bool = Bool;
 // The owner of the server blocks a channel or a supergroup, or unblocks it
 // (the panel, docs/ops/admin-panel.md).
@@ -1507,6 +1618,8 @@ service RPCChannel {
   rpc channel_getPendingJoinRequests(TL_channel_getPendingJoinRequests) returns (mtproto.Update) {}
   // pluma: task 041
   rpc channel_getLeftChannels(TL_channel_getLeftChannels) returns (mtproto.messages_Chats) {}
+  // pluma: task 081
+  rpc channel_getChannelRecommendations(TL_channel_getChannelRecommendations) returns (mtproto.messages_Chats) {}
   // pluma: task 060
   rpc channel_toggleForum(TL_channel_toggleForum) returns (mtproto.Updates) {}
   // pluma: task 060
@@ -1581,6 +1694,12 @@ service RPCChannel {
   rpc channel_getAdminLog(TL_channel_getAdminLog) returns (Vector_ChannelAdminLogEvent) {}
   // pluma: task 078
   rpc channel_setStickerSet(TL_channel_setStickerSet) returns (mtproto.Updates) {}
+  // pluma: task 078
+  rpc channel_updateColor(TL_channel_updateColor) returns (mtproto.Updates) {}
+  // pluma: task 078
+  rpc channel_updateEmojiStatus(TL_channel_updateEmojiStatus) returns (mtproto.Updates) {}
+  // pluma: task 078
+  rpc channel_editUsernames(TL_channel_editUsernames) returns (mtproto.Bool) {}
   // pluma: task 042
   rpc channel_editBanned(TL_channel_editBanned) returns (mtproto.Updates) {}
   // pluma: task 042
@@ -1591,4 +1710,10 @@ service RPCChannel {
   rpc channel_getUnreadReactions(TL_channel_getUnreadReactions) returns (mtproto.messages_Messages) {}
   // pluma: task 067
   rpc channel_readReactions(TL_channel_readReactions) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 078
+  rpc channel_getFutureCreator(TL_channel_getFutureCreator) returns (mtproto.Int64) {}
+  // pluma: task 078
+  rpc channel_getInactiveChannels(TL_channel_getInactiveChannels) returns (mtproto.messages_InactiveChats) {}
+  // pluma: task 078
+  rpc channel_setMainProfileTab(TL_channel_setMainProfileTab) returns (mtproto.Bool) {}
 }

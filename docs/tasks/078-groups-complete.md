@@ -30,7 +30,11 @@
 Журнал действий (`channels.getAdminLog`, `pkg/adminlog`, 48 часов): пишутся название, описание, фото, адрес, вход, выход, тег, общие запреты, админы, ограничения и баны, правки и удаления чужих сообщений и постов, закрепы; следующие — медленный режим, подписи, реакции, ссылки-приглашения, темы.
 Передача владения обычной группой (`chat.editChatCreator`, как в tdesktop).
 Наборы стикеров и эмодзи группы (`pkg/channelsets`, таблица `channel_sticker_sets`, из каталога 024).
-Дальше по порядку: `getFutureChatCreatorAfterLeave`, `getSendAs`, адреса и оформление.
+Выход владельца (`messages.getFutureChatCreatorAfterLeave`, `channels.getFutureCreatorAfterLeave`): преемник — участник, не бот, не удалённый, не ограниченный; сначала админы, среди них дольше всех в группе, затем меньший id (Telegram правило не публикует; порядок как в списке tdesktop `select_future_owner_box.cpp`). Базовая группа переходит к нему сразу при выходе (`chat.deleteChatUser`), супергруппа и канал — через 7 дней (таблица `channel_creator_transfers`, миграция `migrate-20261112-channel-creator-transfers.sql`, обработчик в biz раз в минуту); в супергруппе `messageActionNewCreatorPending` при выходе и `messageActionChangeCreator` при передаче от имени старого владельца; вернувшийся владелец (сам, и в частный канал, или добавленный админом через `channels.inviteToChannel`) отменяет передачу; пока его нет, он не меняет адреса и не видит права владельца в `channelFull`. Когда преемника нет — ответ `PARTICIPANT_ID_INVALID` (все клиенты на ошибку просто выходят; `userEmpty` iOS показал бы без имени). Не сделано: уведомление от 777000 со ссылкой для возврата (текст Telegram неизвестен).
+`channels.getInactiveChannels`: каналы и супергруппы, менее активные первыми, до 100; дата — позднейшее из вступления, своего последнего сообщения и прочтения (в супергруппах).
+`channels.setMainProfileTab`: `channels.main_tab` (миграция `migrate-20261112-channel-main-tab.sql`), для тех, кто меняет информацию; `channelFull.main_tab`.
+`channels.getMessageAuthor` не обслуживается: все четыре клиента зовут его только в личных сообщениях канала (monoforum, `canLookupMessageAuthor` в tdesktop, Android `isMonoForum`), которых в Pluma нет.
+Дальше по порядку: `getSendAs`, адреса и оформление.
 
 ## Результат
 _Заполняется по завершении._

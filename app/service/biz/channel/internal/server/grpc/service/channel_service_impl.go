@@ -1185,3 +1185,101 @@ func (s *Service) ChannelSetStickerSet(ctx context.Context, request *channel.TLC
 
 	return r, nil
 }
+
+// ChannelUpdateColor
+// channel.updateColor self_id:long perm_auth_key_id:long channel_id:long for_profile:Bool color:int background_emoji_id:long = Updates;
+func (s *Service) ChannelUpdateColor(ctx context.Context, request *channel.TLChannelUpdateColor) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.updateColor - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUpdateColor(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelUpdateEmojiStatus
+// channel.updateEmojiStatus self_id:long perm_auth_key_id:long channel_id:long document_id:long until:int = Updates;
+func (s *Service) ChannelUpdateEmojiStatus(ctx context.Context, request *channel.TLChannelUpdateEmojiStatus) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.updateEmojiStatus - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUpdateEmojiStatus(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelEditUsernames
+// channel.editUsernames self_id:long perm_auth_key_id:long channel_id:long action:int username:string active:Bool order:Vector<string> = Bool;
+func (s *Service) ChannelEditUsernames(ctx context.Context, request *channel.TLChannelEditUsernames) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editUsernames - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditUsernames(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetFutureCreator
+// channel.getFutureCreator self_id:long channel_id:long = Int64;
+func (s *Service) ChannelGetFutureCreator(ctx context.Context, request *channel.TLChannelGetFutureCreator) (*mtproto.Int64, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getFutureCreator - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetFutureCreator(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetInactiveChannels
+// channel.getInactiveChannels self_id:long limit:int = messages.InactiveChats;
+func (s *Service) ChannelGetInactiveChannels(ctx context.Context, request *channel.TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getInactiveChannels - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetInactiveChannels(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelSetMainProfileTab
+// channel.setMainProfileTab self_id:long perm_auth_key_id:long channel_id:long tab:ProfileTab = Bool;
+func (s *Service) ChannelSetMainProfileTab(ctx context.Context, request *channel.TLChannelSetMainProfileTab) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.setMainProfileTab - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelSetMainProfileTab(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetChannelRecommendations
+// channel.getChannelRecommendations self_id:long channel_id:long = messages.Chats;
+func (s *Service) ChannelGetChannelRecommendations(ctx context.Context, request *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getChannelRecommendations - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetChannelRecommendations(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

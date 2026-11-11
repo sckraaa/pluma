@@ -22,7 +22,28 @@ import (
 // MessagesGetRecentStickers
 // messages.getRecentStickers#9da9403b flags:# attached:flags.0?true hash:long = messages.RecentStickers;
 //
-// The stickers the account sent lately: none until stage 2 keeps them.
+// The stickers the account sent lately, or with attached those it attached
+// to photos and videos, the last used first, with the date each was used
+// and the packs of their emoji; a hash equal to theirs is
+// recentStickersNotModified. Telegram Desktop takes the dates only when
+// there is one for each sticker (Stickers::specialSetReceived).
 func (c *CatalogCore) MessagesGetRecentStickers(in *mtproto.TLMessagesGetRecentStickers) (*mtproto.Messages_RecentStickers, error) {
-	return mtproto.MakeTLMessagesRecentStickers(&mtproto.Messages_RecentStickers{Packs: []*mtproto.StickerPack{}, Stickers: []*mtproto.Document{}, Dates: []int32{}}).To_Messages_RecentStickers(), nil
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("messages.getRecentStickers - error: %v", err)
+		return nil, err
+	}
+	l, same, err := c.stickerList("messages.getRecentStickers", recentList(in.GetAttached()), in.GetHash())
+	if err != nil {
+		return nil, err
+	}
+	if same {
+		return mtproto.MakeTLMessagesRecentStickersNotModified(nil).To_Messages_RecentStickers(), nil
+	}
+	return mtproto.MakeTLMessagesRecentStickers(&mtproto.Messages_RecentStickers{
+		Hash:     l.hash,
+		Packs:    l.packs,
+		Stickers: l.stickers,
+		Dates:    l.dates,
+	}).To_Messages_RecentStickers(), nil
 }

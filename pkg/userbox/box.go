@@ -273,6 +273,7 @@ func (b *Box) result() *Result {
 // sets.
 // The wallpaper of a chat (task 065) is the whole state each time, and
 // updateTheme is the whole theme, so a replay in order ends the same.
+// The recent and the faved stickers (task 079) are "load the list again".
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateBotCallbackQuery,
@@ -312,7 +313,9 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateSavedReactionTags,
 		mtproto.Predicate_updateNewStickerSet,
 		mtproto.Predicate_updateStickerSets,
-		mtproto.Predicate_updateStickerSetsOrder:
+		mtproto.Predicate_updateStickerSetsOrder,
+		mtproto.Predicate_updateRecentStickers,
+		mtproto.Predicate_updateFavedStickers:
 		return true
 	}
 	return false

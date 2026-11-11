@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
@@ -150,15 +151,17 @@ func (c *MsgCore) todoOp(userId, authKeyId int64, peerType int32, peerId int64, 
 
 func (c *MsgCore) channelTodoOp(userId, authKeyId, channelId int64, msgId int32, op todoOpFn) (*mtproto.Updates, error) {
 	var (
-		change  *dao.TodoChange
-		service *dao.ChannelSent
-		randId  = rand.Int64() //nolint:gosec // random_id of a service message
+		change   *dao.TodoChange
+		service  *dao.ChannelSent
+		authorId int64
+		randId   = rand.Int64() //nolint:gosec // random_id of a service message
 	)
 	if _, err := c.svcCtx.Dao.RunBox(c.ctx, userId, nil, func(b *userbox.Box) error {
 		ref, err := c.svcCtx.Dao.ChannelTodoRefOf(b, channelId, msgId)
 		if err != nil {
 			return err
 		}
+		authorId = ref.AuthorId
 		if change, err = op(b, ref); err != nil || change == nil {
 			return err
 		}
@@ -169,13 +172,16 @@ func (c *MsgCore) channelTodoOp(userId, authKeyId, channelId int64, msgId int32,
 			}
 			updates = append(updates, mtproto.MakeTLUpdateNewChannelMessage(&mtproto.Update{Message_MESSAGE: service.Message, Pts_INT32: service.Pts, PtsCount: 1}).To_Update())
 		}
-		return c.svcCtx.Dao.EmitChannelUpdatesPush(b, channelId, authKeyId, updates...)
+		// The checklist stays the author's: one written as a channel is out
+		// for the author's devices, not for those of who ticked it.
+		return c.svcCtx.Dao.EmitChannelAuthoredPush(b, channelId, authKeyId, ref.AuthorId, updates...)
 	}); err != nil {
 		return nil, err
 	}
 	var update *mtproto.Update
 	if change != nil {
-		update = mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: change.Message, Pts_INT32: change.Pts, PtsCount: 1}).To_Update()
+		shown := channelpb.ViewSentMessage(change.Message, userId, authorId == userId)
+		update = mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{Message_MESSAGE: shown, Pts_INT32: change.Pts, PtsCount: 1}).To_Update()
 	}
 	return c.channelTodoReply(userId, channelId, update, service, randId)
 }

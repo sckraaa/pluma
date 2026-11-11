@@ -150,6 +150,11 @@ func (c *MessagesCore) MessagesGetMessageEditData(in *mtproto.TLMessagesGetMessa
 // post for posts (msg allows them their own; the post has no author here
 // to tell). caption is set for a message with media whose caption may be
 // edited (core.telegram.org/constructor/messages.messageEditData).
+//
+// A subscriber of the channel comments in its discussion group without
+// joining it, and edits those comments as msg allows him (dao.discussionGuest):
+// the group reads him as linked to it (channel.StateLinked) and lets him
+// write while it does not ask commenters to join (join_to_send).
 func (c *MessagesCore) channelEditData(peer *mtproto.PeerUtil, id int32) (*mtproto.Messages_MessageEditData, error) {
 	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
 	if err != nil {
@@ -169,14 +174,14 @@ func (c *MessagesCore) channelEditData(peer *mtproto.PeerUtil, id int32) (*mtpro
 	me, _ := mc.GetParticipant(c.MD.UserId)
 	rights := mtproto.AdminRights(me.GetAdminRights())
 	switch {
-	case !me.Member():
+	case !me.Member() && !commenter(mc, me):
 		return nil, mtproto.ErrChannelPrivate
 	case !mc.GetChannel().GetBroadcast():
 		if m.GetFromId().GetUserId() != c.MD.UserId {
 			return nil, mtproto.ErrMessageAuthorRequired
 		}
-	case me.GetRole() == channelpb.RoleCreator:
-	case me.GetRole() == channelpb.RoleAdmin && (rights.CanEditMessages() || rights.CanPostMessages()):
+	case me.Member() && me.GetRole() == channelpb.RoleCreator:
+	case me.Member() && me.GetRole() == channelpb.RoleAdmin && (rights.CanEditMessages() || rights.CanPostMessages()):
 	default:
 		return nil, mtproto.ErrChatAdminRequired
 	}
@@ -184,4 +189,11 @@ func (c *MessagesCore) channelEditData(peer *mtproto.PeerUtil, id int32) (*mtpro
 	return mtproto.MakeTLMessagesMessageEditData(&mtproto.Messages_MessageEditData{
 		Caption: media != "" && media != mtproto.Predicate_messageMediaEmpty && media != mtproto.Predicate_messageMediaWebPage,
 	}).To_Messages_MessageEditData(), nil
+}
+
+// commenter tells whether me, not a member of the supergroup mc, writes to
+// it as a subscriber of the channel it discusses: the rule of msg's
+// dao.discussionGuest for sending and editing there.
+func commenter(mc *channelpb.MutableChannel, me *channelpb.ImmutableChannelParticipant) bool {
+	return me.GetState() == channelpb.StateLinked && !mc.GetChannel().GetBroadcast() && !mc.GetChannel().GetJoinToSend()
 }

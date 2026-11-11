@@ -28,7 +28,7 @@ import (
 )
 
 // SyncPushChannelUpdates
-// sync.pushChannelUpdates channel_id:long from_id:long from_auth_key_id:long mentioned:Vector<long> updates:Updates = Void;
+// sync.pushChannelUpdates channel_id:long from_id:long from_auth_key_id:long mentioned:Vector<long> updates:Updates author_id:long = Void;
 //
 // The updates of a channel go to the members in it now (task 039, ADR 0034,
 // p. 5), each in its own view: its messages out, mentioned where it is
@@ -63,9 +63,27 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	if err != nil {
 		return err
 	}
+	// The other channels of the messages, the ones members wrote as
+	// (send_as, task 079) and the one a post copy comes from, as each
+	// member sees them.
+	var others []*channelpb.MutableChannel
+	for _, id := range h.ChannelIdList {
+		if id == in.ChannelId {
+			continue
+		}
+		other, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: id, Id: members.GetDatas()})
+		if err != nil {
+			return err
+		}
+		others = append(others, other)
+	}
 	now := int32(time.Now().Unix())
 	for _, member := range members.GetDatas() {
-		updates := c.channelView(in, member, mc.ToChat(member, now), users.GetUserListByIdList(member, h.UserIdList...))
+		chats := []*mtproto.Chat{mc.ToChat(member, now)}
+		for _, other := range others {
+			chats = append(chats, other.ToChat(member, now))
+		}
+		updates := c.channelView(in, member, chats, users.GetUserListByIdList(member, h.UserIdList...))
 		repliesTo := func(m *mtproto.Message) bool { return c.repliesTo(in.ChannelId, member, m) }
 		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member), repliesTo); updates == nil {
 			continue
@@ -83,7 +101,7 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 }
 
 // channelView is the updates of in as member sees them.
-func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, channel *mtproto.Chat, users []*mtproto.User) *mtproto.Updates {
+func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, chats []*mtproto.Chat, users []*mtproto.User) *mtproto.Updates {
 	updates := proto.Clone(in.GetUpdates()).(*mtproto.Updates)
 	mentioned := slices.Contains(in.GetMentioned(), member)
 	for _, u := range updates.GetUpdates() {
@@ -98,7 +116,11 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 		if m == nil {
 			continue
 		}
-		m.Out = m.GetFromId().GetUserId() == member
+		// A message written as a channel is out for its author, who sends
+		// it and is the one to edit it in a supergroup (task 079), also
+		// when another member changes it, as by ticking an item of its
+		// checklist (author_id, task 081).
+		m.Out = m.GetFromId().GetUserId() == member || member == pushAuthor(in) && channelpb.SentAs(m)
 		// A scheduled post tells its sender only that it went out (task 061).
 		if member != in.GetFromId() {
 			m.FromScheduled = false
@@ -108,9 +130,18 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 			m.MediaUnread = true
 		}
 	}
-	updates.Chats = []*mtproto.Chat{channel}
+	updates.Chats = chats
 	updates.Users = users
 	return updates
+}
+
+// pushAuthor is who wrote the messages of in written as a channel: author_id,
+// or from_id without it.
+func pushAuthor(in *sync.TLSyncPushChannelUpdates) int64 {
+	if in.GetAuthorId() != 0 {
+		return in.GetAuthorId()
+	}
+	return in.GetFromId()
 }
 
 // repliesTo tells whether m replies to a message member sent. A failure of

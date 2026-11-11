@@ -407,6 +407,8 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCBoostsServer(grpcServer, channels)
 		// channels.getLeftChannels, of the takeout API (task 041).
 		mtproto.RegisterRPCTakeoutServer(grpcServer, channels)
+		// channels.getChannelRecommendations, similar channels (task 081).
+		mtproto.RegisterRPCChannelRecommendationsServer(grpcServer, channels)
 		// The threads of replies: comments of channel posts (task 048).
 		mtproto.RegisterRPCMessageThreadsServer(grpcServer, channels)
 		// The forums and topics of supergroups (task 060).
@@ -553,15 +555,16 @@ func (s *Server) Initialize() error {
 			}))
 
 		// usernames_helper
-		mtproto.RegisterRPCUsernamesServer(
-			grpcServer,
-			usernames_helper.New(usernames_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				UserClient:    c.BizServiceClient,
-				ChatClient:    c.BizServiceClient,
-				SyncClient:    syncClient,
-				ChannelClient: c.BizServiceClient,
-			}, nil))
+		usernames := usernames_helper.New(usernames_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			UserClient:    c.BizServiceClient,
+			ChatClient:    c.BizServiceClient,
+			SyncClient:    syncClient,
+			ChannelClient: c.BizServiceClient,
+		}, nil)
+		mtproto.RegisterRPCUsernamesServer(grpcServer, usernames)
+		// The usernames beside the editable one (task 078).
+		mtproto.RegisterRPCFragmentServer(grpcServer, usernames)
 
 		// privacysettingshelper
 		mtproto.RegisterRPCPrivacySettingsServer(
@@ -587,6 +590,7 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 				MessageClient: c.BizServiceClient,
 				MsgClient:     c.MsgClient,
+				ChannelClient: c.BizServiceClient,
 			}))
 
 		// userchannelprofileshelper
@@ -599,6 +603,7 @@ func (s *Server) Initialize() error {
 				MsgClient:     c.MsgClient,
 				SyncClient:    syncClient,
 				KV:            c.KV,
+				ChannelClient: c.BizServiceClient,
 			}))
 
 		mtproto.RegisterRPCPasskeyServer(

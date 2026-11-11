@@ -50,6 +50,9 @@ var configFile = flag.String("f", "etc/biz.yaml", "the config file")
 type Server struct {
 	grpcSrv *zrpc.RpcServer
 	workers *user_helper.Workers
+	// transfers hands the channels of owners who left to their next
+	// owners (task 078).
+	transfers *channel_helper.TransferWorker
 }
 
 func New() *Server {
@@ -86,6 +89,16 @@ func (s *Server) Initialize() error {
 		Topics:        c.Topics,
 	})
 	s.workers = workers
+	// channel hands the channels of owners who left to their next owners
+	// by its worker (task 078).
+	channelService, transfers := channel_helper.New(channel_helper.Config{
+		RpcServerConf: c.RpcServerConf,
+		Mysql:         c.Mysql,
+		Cache:         c.Cache,
+		MediaClient:   c.MediaClient,
+		Topics:        channel_helper.Topics{Sync: c.Topics.Sync, Inbox: c.Topics.Inbox},
+	})
+	s.transfers = transfers
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
 		// chat_helper: a change of a basic group writes the updates with seq
@@ -106,15 +119,7 @@ func (s *Server) Initialize() error {
 
 		// channel_helper: reads of channels and their participants (ADR
 		// 0034).
-		channel.RegisterRPCChannelServer(
-			grpcServer,
-			channel_helper.New(channel_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				Mysql:         c.Mysql,
-				Cache:         c.Cache,
-				MediaClient:   c.MediaClient,
-				Topics:        channel_helper.Topics{Sync: c.Topics.Sync, Inbox: c.Topics.Inbox},
-			}))
+		channel.RegisterRPCChannelServer(grpcServer, channelService)
 
 		// code_helper
 		code.RegisterRPCCodeServer(
@@ -165,6 +170,7 @@ func (s *Server) Initialize() error {
 		s.grpcSrv.Start()
 	}()
 	s.workers.Start()
+	s.transfers.Start()
 	return nil
 }
 
@@ -179,6 +185,9 @@ func (s *Server) Destroy() {
 		defer close(done)
 		if s.workers != nil {
 			s.workers.Stop()
+		}
+		if s.transfers != nil {
+			s.transfers.Stop()
 		}
 	}()
 	s.grpcSrv.Stop()

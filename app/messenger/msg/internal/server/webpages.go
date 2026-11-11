@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/config"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
@@ -36,9 +37,10 @@ import (
 const sendWait = 4 * time.Second
 
 // msgPlugin is the plugin of the msg service: the cards of links from
-// pkg/webpage (task 023).
+// pkg/webpage (task 023) and the users of a text's @usernames.
 type msgPlugin struct {
 	pages *webpage.Service
+	users user_client.UserClient
 }
 
 func newMsgPlugin(c config.Config) *msgPlugin {
@@ -47,15 +49,25 @@ func newMsgPlugin(c config.Config) *msgPlugin {
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 		}),
+		users: user_client.NewUserClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
 	}
 }
 
-// UsernameResolveUsername resolves no @username of a message, as the msg
-// service did with no plugin before task 023. Resolving them would mark a
-// message mentioned for the user it names (mtproto.CheckHasMention): a
-// change of its own.
-func (p *msgPlugin) UsernameResolveUsername(context.Context, *user.TLUserResolveUsername) (*mtproto.Peer, error) {
-	return nil, nil
+// UsernameResolveUsername resolves an @username of a message to the peer it
+// names, nil for a name nobody holds. The entity of an @username is made on
+// the server, and an incoming message that mentions the account has the
+// mentioned flag (core.telegram.org/api/mentions): the messageEntityMention
+// of a user carries the user, and the message is marked mentioned for that
+// user (mtproto.CheckHasMention). An error leaves the name unresolved: the
+// entity stays, the message goes.
+func (p *msgPlugin) UsernameResolveUsername(ctx context.Context, in *user.TLUserResolveUsername) (*mtproto.Peer, error) {
+	peer, err := p.users.UserResolveUsername(ctx, in)
+	if err != nil {
+		// USERNAME_NOT_OCCUPIED for most: a name in a text is not always
+		// someone's. The mention stays an entity without a user.
+		return nil, nil //nolint:nilerr // an unresolved name is no error of the send
+	}
+	return peer, nil
 }
 
 // GetWebpagePreview returns the card of a message's link, nil if the page

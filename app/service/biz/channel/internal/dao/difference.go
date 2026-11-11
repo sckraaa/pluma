@@ -33,19 +33,35 @@ type Viewer struct {
 	CanRead        bool  // a member, or anyone not kicked from a public channel
 	Member         bool  // in the channel now
 	AvailableMinId int32 // the first message it sees
+	Joined         int64 // when a member joined (unix time), 0 for anyone else
 }
 
 // ViewerOf reads what userId may see of channelId (viewerOf).
 func (d *Dao) ViewerOf(ctx context.Context, userId, channelId int64) (Viewer, error) {
 	v, err := d.viewerOf(ctx, userId, channelId)
-	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId}, err
+	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId, Joined: v.joined}, err
 }
 
 // ViewerOfCatchUp is ViewerOf for updates.getChannelDifference, which goes on
 // while the channel is blocked (viewerFor).
 func (d *Dao) ViewerOfCatchUp(ctx context.Context, userId, channelId int64) (Viewer, error) {
 	v, err := d.viewerFor(ctx, userId, channelId, true)
-	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId}, err
+	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId, Joined: v.joined}, err
+}
+
+// PtsBefore is the pts the channel's box had before the second date (unix
+// time) began: that of the last journal row written earlier, 0 when the
+// journal keeps none that old. The journal's dates are seconds: a row of
+// that very second may come after an event of it, and counts as later.
+func (d *Dao) PtsBefore(ctx context.Context, channelId, date int64) (int32, error) {
+	var pts []int32
+	err := d.Mysql.QueryRowsPartial(ctx, &pts,
+		"SELECT pts FROM channel_pts_updates WHERE channel_id = ? AND date2 < ? ORDER BY pts DESC LIMIT 1",
+		channelId, date)
+	if len(pts) == 0 {
+		return 0, err
+	}
+	return pts[0], err
 }
 
 // ChannelPts is the committed pts of the channel's box; ErrChannelInvalid
@@ -81,7 +97,7 @@ type randomIdRow struct {
 }
 
 // OwnRandomIds maps the messages of ids that selfId sent to the channel to
-// their random_id.
+// their random_id, 0 for one sent without.
 func (d *Dao) OwnRandomIds(ctx context.Context, selfId, channelId int64, ids []int32) (map[int32]int64, error) {
 	out := map[int32]int64{}
 	if len(ids) == 0 {
@@ -93,7 +109,7 @@ func (d *Dao) OwnRandomIds(ctx context.Context, selfId, channelId int64, ids []i
 	}
 	var rows []randomIdRow
 	if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-		"SELECT id, random_id FROM channel_messages WHERE channel_id = ? AND sender_user_id = ? AND random_id <> 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		"SELECT id, random_id FROM channel_messages WHERE channel_id = ? AND sender_user_id = ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
 		args...); err != nil {
 		return nil, err
 	}

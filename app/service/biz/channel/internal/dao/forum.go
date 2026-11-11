@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -272,7 +273,43 @@ func (d *Dao) ToggleForum(b *userbox.Box, channelId int64, enabled, tabs bool, s
 	if _, err = b.Tx().Exec("UPDATE channels SET forum = ?, forum_tabs = ?, forum_sidebar = ?, version = version + 1 WHERE id = ?", enabled, tabs, withSidebar, channelId); err != nil {
 		return nil, err
 	}
+	// The layout of the topics has no action of its own: only the forum
+	// turned on or off is kept.
+	if r.Forum != enabled {
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionToggleForum(&mtproto.ChannelAdminLogEventAction{
+			NewValue_BOOL: mtproto.ToBool(enabled),
+		}).To_ChannelAdminLogEventAction(), ""); err != nil {
+			return nil, err
+		}
+	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// logTopic is the topic of r as the recent actions keep it: the same for
+// every admin who reads them, so without the counts and settings of one
+// reader (forumTopic has them all required; the clients read the id,
+// title, icon and the closed, hidden and pinned flags of it: tdesktop
+// history_admin_log_item.cpp GenerateTopicLink, Android
+// ForumUtilities.getTopicSpannedName).
+func logTopic(channelId int64, r *topicRow) *mtproto.ForumTopic {
+	t := &mtproto.ForumTopic{
+		Id:             r.TopicId,
+		Closed:         r.Closed,
+		Pinned:         r.PinnedOrder > 0,
+		Hidden:         r.Hidden,
+		TitleMissing:   r.TitleMissing,
+		Date:           int32(r.Date),
+		Peer:           mtproto.MakePeerChannel(channelId),
+		Title:          r.Title,
+		IconColor:      r.IconColor,
+		TopMessage:     r.TopMessage,
+		FromId:         mtproto.MakePeerUser(r.CreatorUserId),
+		NotifySettings: mtproto.MakeTLPeerNotifySettings(&mtproto.PeerNotifySettings{}).To_PeerNotifySettings(),
+	}
+	if r.IconEmojiId != 0 {
+		t.IconEmojiId = wrapperspb.Int64(r.IconEmojiId)
+	}
+	return mtproto.MakeTLForumTopic(t).To_ForumTopic()
 }
 
 // keepTopicReads moves what the members read in topics of the forum, about
@@ -385,6 +422,12 @@ func (d *Dao) CreateForumTopic(b *userbox.Box, channelId int64, title string, co
 		channelId, m.Id, b.UserId(), title, titleMissing, color, emojiId, b.Date(), m.Id); err != nil {
 		return nil, err
 	}
+	created := &topicRow{TopicId: m.Id, CreatorUserId: b.UserId(), Title: title, TitleMissing: titleMissing, IconColor: color, IconEmojiId: emojiId, Date: b.Date(), TopMessage: m.Id}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionCreateTopic(&mtproto.ChannelAdminLogEventAction{
+		Topic: logTopic(channelId, created),
+	}).To_ChannelAdminLogEventAction(), title); err != nil {
+		return nil, err
+	}
 	return &TopicChange{ChannelChange: ChannelChange{ChannelId: channelId, Message: m, Pts: pts}, RandomId: randomId}, nil
 }
 
@@ -417,6 +460,7 @@ func (d *Dao) EditForumTopic(b *userbox.Box, channelId int64, topicId int32, e T
 	if err != nil {
 		return nil, err
 	}
+	prev := *t
 	my := t.CreatorUserId == b.UserId() && topicId != channelbox.GeneralTopicId
 	switch {
 	case e.Fields&channel.TopicFieldHidden != 0:
@@ -461,6 +505,12 @@ func (d *Dao) EditForumTopic(b *userbox.Box, channelId int64, topicId int32, e T
 	}
 	m, pts, err := addTopicService(b, ch, channelId, topicId, mtproto.MakeTLMessageActionTopicEdit(action).To_MessageAction(), 0)
 	if err != nil {
+		return nil, err
+	}
+	t.TopMessage = max(t.TopMessage, m.Id)
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionEditTopic(&mtproto.ChannelAdminLogEventAction{
+		PrevTopic: logTopic(channelId, &prev), NewTopic: logTopic(channelId, t),
+	}).To_ChannelAdminLogEventAction(), t.Title); err != nil {
 		return nil, err
 	}
 	return &TopicChange{ChannelChange: ChannelChange{ChannelId: channelId, Message: m, Pts: pts}}, nil
@@ -519,6 +569,19 @@ func (d *Dao) UpdatePinnedForumTopic(b *userbox.Box, channelId int64, topicId in
 		order = slices.Insert(order, 0, topicId)
 	}
 	if err = writePinned(b, channelId, order); err != nil {
+		return nil, err
+	}
+	// Pinned, the topic is the new one; unpinned, the one before, as
+	// tdesktop (history_admin_log_item.cpp createPinTopic) and Web
+	// (logEntriesResolver.tsx channelAdminLogEventActionPinTopic) read it.
+	logged := &mtproto.ChannelAdminLogEventAction{}
+	if pinned {
+		t.PinnedOrder = int32(len(order))
+		logged.NewTopic = logTopic(channelId, t)
+	} else {
+		logged.PrevTopic = logTopic(channelId, t)
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionPinTopic(logged).To_ChannelAdminLogEventAction(), t.Title); err != nil {
 		return nil, err
 	}
 	u := mtproto.MakeTLUpdatePinnedForumTopic(&mtproto.Update{Pinned: pinned, Peer_PEER: mtproto.MakePeerChannel(channelId), TopicId_INT32: topicId}).To_Update()
@@ -642,6 +705,11 @@ func (d *Dao) DeleteTopicHistory(b *userbox.Box, channelId int64, topicId int32)
 		return del, true, refreshTopicTops(b, channelId, []int32{topicId})
 	}
 	if _, err = b.Tx().Exec("UPDATE channel_forum_topics SET deleted = 1, pinned_order = 0 WHERE channel_id = ? AND topic_id = ?", channelId, topicId); err != nil {
+		return nil, false, err
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionDeleteTopic(&mtproto.ChannelAdminLogEventAction{
+		Topic: logTopic(channelId, t),
+	}).To_ChannelAdminLogEventAction(), t.Title); err != nil {
 		return nil, false, err
 	}
 	if _, err = b.Tx().Exec("DELETE FROM user_topic_notify_settings WHERE channel_id = ? AND top_msg_id = ?", channelId, topicId); err != nil {

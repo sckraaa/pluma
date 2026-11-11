@@ -62,6 +62,12 @@ const (
 	CRC32_channel_getAdminLog TLConstructor = 1139340211 // 0x43e8f3b3
 	// pluma: task 078
 	CRC32_channel_setStickerSet TLConstructor = -1460527570 // 0xa8f21e2e
+	// pluma: task 078
+	CRC32_channel_updateColor TLConstructor = -1450249355 // 0xa98ef375
+	// pluma: task 078
+	CRC32_channel_updateEmojiStatus TLConstructor = -1163138113 // 0xbaabebbf
+	// pluma: task 078
+	CRC32_channel_editUsernames TLConstructor = -823010727 // 0xcef1da59
 	// pluma: task 046
 	CRC32_channel_incrementMessageViews TLConstructor = 1668730682 // 0x6376cf3a
 	// pluma: task 046
@@ -98,6 +104,8 @@ const (
 	CRC32_channel_getPendingJoinRequests TLConstructor = 2040559942 // 0x79a07946
 	// pluma: task 041
 	CRC32_channel_getLeftChannels TLConstructor = -2063367371 // 0x85038335
+	// pluma: task 081
+	CRC32_channel_getChannelRecommendations TLConstructor = -870956007 // 0xcc164419
 	// pluma: task 060
 	CRC32_channel_toggleForum TLConstructor = 1073186003 // 0x3ff784d3
 	// pluma: task 060
@@ -174,4 +182,10 @@ const (
 	CRC32_channel_getUnreadReactions TLConstructor = -793086366 // 0xd0ba7662
 	// pluma: task 067
 	CRC32_channel_readReactions TLConstructor = 2058932457 // 0x7ab8d0e9
+	// pluma: task 078
+	CRC32_channel_getFutureCreator TLConstructor = -223894021 // 0xf2a7a5fb
+	// pluma: task 078
+	CRC32_channel_getInactiveChannels TLConstructor = -744665876 // 0xd39d4cec
+	// pluma: task 078
+	CRC32_channel_setMainProfileTab TLConstructor = 1898100990 // 0x7122b8fe
 )

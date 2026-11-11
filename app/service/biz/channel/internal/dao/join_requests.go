@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/premium"
@@ -310,6 +311,9 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 				return err
 			}
 		}
+		if err = logApproved(b, channelId, r); err != nil {
+			return err
+		}
 		ev := &inbox.TLInboxChannelInvitedToInbox{UserId: r.UserId, FromId: b.UserId(), ChannelId: channelId}
 		data, err := jsonx.Marshal(ev)
 		if err != nil {
@@ -325,6 +329,28 @@ func (d *Dao) approve(b *userbox.Box, ch *channelbox.Channel, channelId int64, r
 		}
 	}
 	return d.dropRequests(b, channelId, drop...)
+}
+
+// logApproved writes the recent action of the request r approved by b's
+// owner: the action is the user's who joined, with the link it asked
+// through, chatInvitePublicJoinRequests for a public channel's request or a
+// link deleted since (tdesktop history_admin_log_item.cpp
+// createParticipantJoinByRequest, Android MessageObject.java
+// JoinedViaRequestApproved).
+func logApproved(b *userbox.Box, channelId int64, r requestRow) error {
+	invite := mtproto.MakeTLChatInvitePublicJoinRequests(nil).To_ExportedChatInvite()
+	if r.Link != "" {
+		inv, err := lockedInvite(b, channelId, r.Link)
+		if err != nil {
+			return err
+		}
+		if inv != nil {
+			invite = inv.Exported()
+		}
+	}
+	return adminlog.WriteBy(b, channelId, r.UserId, mtproto.MakeTLChannelAdminLogEventActionParticipantJoinByRequest(&mtproto.ChannelAdminLogEventAction{
+		Invite: invite, ApprovedBy: b.UserId(),
+	}).To_ChannelAdminLogEventAction(), "")
 }
 
 // recordInviteUse records that userId joined by link (approved by

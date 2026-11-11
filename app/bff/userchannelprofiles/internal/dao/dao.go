@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/userchannelprofiles/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 )
@@ -32,6 +33,8 @@ type Dao struct {
 	user_client.UserClient
 	sync_client.SyncClient
 	msg_client.MsgClient
+	// Channel changes channels (task 078).
+	Channel channel_client.ChannelClient
 }
 
 func New(c config.Config) *Dao {
@@ -40,5 +43,6 @@ func New(c config.Config) *Dao {
 		UserClient:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		SyncClient:  sync_client.MustNewSyncOutboxClient(c.SyncClient),
 		MsgClient:   msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
+		Channel:     channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 	}
 }

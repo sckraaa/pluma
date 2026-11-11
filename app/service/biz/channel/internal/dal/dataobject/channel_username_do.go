@@ -15,10 +15,13 @@
 
 package dataobject
 
-// ChannelUsernameDO is the public username of a channel: its editable row
-// of username (peer_type PEER_CHANNEL), which user.updateUsernameByPeer
-// writes.
+// ChannelUsernameDO is a username of a channel: a row of username
+// (peer_type PEER_CHANNEL). The editable one is its public link
+// (channels.updateUsername); the others, when it has them, are listed with
+// it in channel.usernames.
 type ChannelUsernameDO struct {
 	PeerId   int64  `db:"peer_id" json:"peer_id"`
 	Username string `db:"username" json:"username"`
+	Editable bool   `db:"editable" json:"editable"`
+	Active   bool   `db:"active" json:"active"`
 }
