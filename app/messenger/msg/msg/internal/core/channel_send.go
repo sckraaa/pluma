@@ -47,6 +47,18 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	if err != nil {
 		return nil, err
 	}
+	if !opt.queued {
+		// The links, mentions, hashtags and bot commands of the text and the
+		// card of its first link, as a message to a user or a chat gets them
+		// (plugin.RemakeMessage): the clients show only the entities a
+		// message carries once it comes from the server, and a mention's
+		// user is the one the message notifies. A queued message got them
+		// when it was scheduled.
+		hasBot := c.channelHasBots(channelId)
+		for _, outBox := range outBoxList {
+			outBox.Message = plugin.RemakeMessage(c.ctx, c.svcCtx.MsgPlugin, outBox.Message, fromUserId, outBox.NoWebpage, hasBot)
+		}
+	}
 	// The snowflake of each message is the id of a new poll in it.
 	outgoing, err := c.outgoing(outBoxList)
 	if err != nil {
@@ -212,4 +224,24 @@ func (c *MsgCore) authorName(userId int64) (string, error) {
 		return "", nil
 	}
 	return strings.TrimSpace(u.FirstName() + " " + u.LastName()), nil
+}
+
+// channelHasBots is whether channelId has a bot among its members, read at
+// most once per send. A failed read is logged and counts as none: the
+// message goes, its commands as plain text.
+func (c *MsgCore) channelHasBots(channelId int64) func() bool {
+	var (
+		read bool
+		has  bool
+	)
+	return func() bool {
+		if !read {
+			read = true
+			var err error
+			if has, err = c.svcCtx.Dao.ChannelHasBots(c.ctx, channelId); err != nil {
+				c.Logger.Errorf("msg.sendMessageV2 - bots of channel %d: %v", channelId, err)
+			}
+		}
+		return has
+	}
 }
