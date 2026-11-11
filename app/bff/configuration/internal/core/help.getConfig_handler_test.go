@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/svc"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -112,6 +113,11 @@ func TestHelpGetConfigLangPack(t *testing.T) {
 			if got.GetDcTxtDomainName() != core.svcCtx.ClientConfig.GetDcTxtDomainName() || got.GetChatSizeMax() == 0 || got.GetExpires() <= got.GetDate() {
 				t.Fatalf("config not served: dc_txt_domain_name %q, chat_size_max %d, date %d, expires %d",
 					got.GetDcTxtDomainName(), got.GetChatSizeMax(), got.GetDate(), got.GetExpires())
+			}
+			// The clients size supergroups by it and offer a broadcast
+			// group 1000 under it: it is the limit biz channel keeps.
+			if got.GetMegagroupSizeMax() != channelpb.MembersMax {
+				t.Fatalf("megagroup_size_max %d, the members of a supergroup go up to %d", got.GetMegagroupSizeMax(), channelpb.MembersMax)
 			}
 			set, code, v, base := langPackFlag(t, got)
 			if set != c.wantSet || code != c.wantCode || v != c.wantV || base != c.wantBase {

@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -39,7 +40,7 @@ import (
 const (
 	// MembersMax is the most members of a supergroup or channel
 	// (megagroup_size_max, core.telegram.org/api/config: 200000).
-	MembersMax = 200000
+	MembersMax = channel.MembersMax
 )
 
 // ChannelChange is what a change of a channel wrote: its service message
@@ -82,6 +83,8 @@ type memberRow struct {
 	State        int32 `db:"state"`
 	BannedRights int32 `db:"banned_rights"`
 	UntilDate    int32 `db:"until_date"`
+	// Hidden: the row of a ghost (ADR 0048).
+	Hidden bool `db:"hidden"`
 }
 
 // Invite is a row of chat_invites.
@@ -152,7 +155,7 @@ func channelForMember(b *userbox.Box, channelId int64) (*memberChannelRow, *memb
 	}
 	var members []memberRow
 	if err := b.Tx().QueryRowsPartial(&members,
-		"SELECT role, state, banned_rights, until_date FROM channel_participants WHERE channel_id = ? AND user_id = ? FOR UPDATE",
+		"SELECT role, state, banned_rights, until_date, hidden FROM channel_participants WHERE channel_id = ? AND user_id = ? FOR UPDATE",
 		channelId, b.UserId()); err != nil {
 		return nil, nil, err
 	}
@@ -238,6 +241,16 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		if err = cancelCreatorTransfer(b, channelId); err != nil {
 			return nil, err
 		}
+	} else {
+		hidden, err := ghost.IsGhost(b.Tx(), b.UserId())
+		if err != nil {
+			return nil, err
+		}
+		if hidden {
+			// A ghost comes in unseen: no request, no use of the link,
+			// no limits (ADR 0048, p. 2c).
+			return d.joinHidden(b, channelId, c)
+		}
 	}
 
 	var joined []int64
@@ -293,7 +306,7 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		role = channel.RoleCreator
 	}
 	if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, inviter_user_id, available_min_id, `date`) VALUES (?, ?, ?, 0, ?, ?, ?)"+
-		" ON DUPLICATE KEY UPDATE role = VALUES(role), state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0,"+
+		" ON DUPLICATE KEY UPDATE role = VALUES(role), state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0, hidden = 0,"+
 		" inviter_user_id = VALUES(inviter_user_id), available_min_id = VALUES(available_min_id), `date` = VALUES(`date`)",
 		channelId, b.UserId(), role, inviter, availableMinId, b.Date()); err != nil {
 		return nil, err
@@ -330,6 +343,67 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 		return nil, err
 	}
 	return change, nil
+}
+
+// JoinHidden makes the ghost b's owner a hidden member of the channel, by
+// pluma-admin ghost join (ADR 0048, p. 2d): any channel, without a link.
+// The change has no Self when the ghost was in already; CHANNEL_PRIVATE when
+// a ban keeps it out, USER_ID_INVALID for an account that is no ghost.
+func (d *Dao) JoinHidden(b *userbox.Box, channelId int64) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	hidden, err := ghost.IsGhost(b.Tx(), b.UserId())
+	if err != nil {
+		return nil, err
+	}
+	if !hidden {
+		return nil, mtproto.ErrUserIdInvalid
+	}
+	c, err := memberChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	change, err := d.joinHidden(b, channelId, c)
+	if errors.Is(err, mtproto.ErrUserAlreadyParticipant) {
+		return &ChannelChange{ChannelId: channelId}, nil
+	}
+	return change, err
+}
+
+// joinHidden makes the ghost b's owner a hidden member of the channel c,
+// locked: its row (ghost.JoinChannel) and its dialog, read up to the last
+// message. Nothing else changes, so nobody else learns of it: the count,
+// the service message, the recent actions and the invite links stay as
+// they are. A request it filed before goes.
+func (d *Dao) joinHidden(b *userbox.Box, channelId int64, c *memberChannelRow) (*ChannelChange, error) {
+	out, err := ghost.JoinChannel(b.Tx(), channelId, b.UserId(), b.Date())
+	switch {
+	case err != nil:
+		return nil, err
+	case out == ghost.Member:
+		return nil, mtproto.ErrUserAlreadyParticipant
+	case out == ghost.Banned:
+		return nil, mtproto.ErrChannelPrivate
+	}
+	if err = d.dropRequests(b, channelId, b.UserId()); err != nil {
+		return nil, err
+	}
+	if err = upsertDialog(b, channelId, c.TopMessage); err != nil {
+		return nil, err
+	}
+	return &ChannelChange{
+		ChannelId: channelId,
+		Self: channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
+			ChannelId: channelId,
+			UserId:    b.UserId(),
+			Role:      channel.RoleMember,
+			State:     channel.StateIn,
+			Date:      b.Date(),
+			Hidden:    true,
+		}).To_ImmutableChannelParticipant(),
+		Count: c.ParticipantsCount,
+	}, nil
 }
 
 // joinedByLink is the recent action of one joining by the link: the link as
@@ -371,6 +445,9 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 	}
 	if !me.participant().Member() {
 		return nil, mtproto.ErrUserNotParticipant
+	}
+	if me.Hidden {
+		return leaveHidden(b, channelId, c)
 	}
 	creator := me.Role == channel.RoleCreator
 	change := &ChannelChange{ChannelId: channelId}
@@ -426,6 +503,33 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 		return nil, err
 	}
 	return change, nil
+}
+
+// leaveHidden takes the ghost b's owner out of the channel c, locked, where
+// its row is hidden: as nobody saw it come, nobody sees it go. The row is
+// left and the dialog goes; the count, the messages and the recent actions
+// stay.
+func leaveHidden(b *userbox.Box, channelId int64, c *memberChannelRow) (*ChannelChange, error) {
+	if _, err := ghost.LeaveChannel(b.Tx(), channelId, b.UserId()); err != nil {
+		return nil, err
+	}
+	if _, err := b.Tx().Exec("UPDATE dialogs SET deleted = 1 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+		b.UserId(), mtproto.PEER_CHANNEL, channelId); err != nil {
+		return nil, err
+	}
+	InvalidateDialog(b, channelId)
+	return &ChannelChange{
+		ChannelId: channelId,
+		Self: channel.MakeTLImmutableChannelParticipant(&channel.ImmutableChannelParticipant{
+			ChannelId: channelId,
+			UserId:    b.UserId(),
+			Role:      channel.RoleMember,
+			State:     channel.StateLeft,
+			Date:      b.Date(),
+			Hidden:    true,
+		}).To_ImmutableChannelParticipant(),
+		Count: c.ParticipantsCount,
+	}, nil
 }
 
 // addServiceMessage writes a service message of b's owner to the channel:

@@ -69,13 +69,14 @@ func (d *Dao) tellWatchers(b *userbox.Box, id int64, u *mtproto.Update) error {
 
 // statusWatchersQuery adds to the profile watchers the members of the basic
 // groups the user is a member of: their clients count and show who of the
-// members is online (task 032).
+// members is online (task 032). A group where the user is hidden (the
+// ghost, ADR 0048) is none of them: there it is no member to the others.
 const statusWatchersQuery = profileWatchersSelect +
 	" UNION SELECT p2.user_id FROM chat_participants p1" +
 	" JOIN chats c ON c.id = p1.chat_id AND c.deactivated = 0 AND c.migrated_to_id = 0" +
 	" JOIN chat_participants p2 ON p2.chat_id = p1.chat_id AND p2.state = ?" +
 	" JOIN users u ON u.id = p2.user_id" +
-	" WHERE p1.user_id = ? AND p1.state = ? AND p2.user_id <> ? AND u.deleted = 0" +
+	" WHERE p1.user_id = ? AND p1.state = ? AND p1.hidden = 0 AND p2.user_id <> ? AND u.deleted = 0" +
 	" ORDER BY 1"
 
 // StatusWatchers returns the users who see the online status of the user

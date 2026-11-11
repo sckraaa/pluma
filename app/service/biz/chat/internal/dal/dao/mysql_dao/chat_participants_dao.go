@@ -209,13 +209,13 @@ func (dao *ChatParticipantsDAO) InsertOrUpdateTx(tx *sqlx.Tx, do *dataobject.Cha
 }
 
 // SelectList
-// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = :chat_id
+// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = :chat_id
 func (dao *ChatParticipantsDAO) SelectList(ctx context.Context, chatId int64) (rList []dataobject.ChatParticipantsDO, err error) {
 	var (
 		query  string
 		values []dataobject.ChatParticipantsDO
 	)
-	query = "select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = ?"
+	query = "select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = ?"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, chatId)
 
@@ -230,13 +230,13 @@ func (dao *ChatParticipantsDAO) SelectList(ctx context.Context, chatId int64) (r
 }
 
 // SelectListWithCB
-// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = :chat_id
+// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = :chat_id
 func (dao *ChatParticipantsDAO) SelectListWithCB(ctx context.Context, chatId int64, cb func(sz, i int, v *dataobject.ChatParticipantsDO)) (rList []dataobject.ChatParticipantsDO, err error) {
 	var (
 		query  string
 		values []dataobject.ChatParticipantsDO
 	)
-	query = "select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = ?"
+	query = "select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = ?"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, chatId)
 
@@ -295,13 +295,13 @@ func (dao *ChatParticipantsDAO) SelectChatParticipantIdListWithCB(ctx context.Co
 }
 
 // SelectByParticipantId
-// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = :chat_id and user_id = :user_id
+// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = :chat_id and user_id = :user_id
 func (dao *ChatParticipantsDAO) SelectByParticipantId(ctx context.Context, chatId int64, userId int64) (rValue *dataobject.ChatParticipantsDO, err error) {
 	var (
 		query string
 		do    = &dataobject.ChatParticipantsDO{}
 	)
-	query = "select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = ? and user_id = ?"
+	query = "select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = ? and user_id = ?"
 
 	err = dao.db.QueryRowPartial(ctx, do, query, chatId, userId)
 
@@ -321,7 +321,7 @@ func (dao *ChatParticipantsDAO) SelectByParticipantId(ctx context.Context, chatI
 }
 
 // SelectListByParticipantIdList
-// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = :chat_id and user_id in (:idList)
+// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = :chat_id and user_id in (:idList)
 func (dao *ChatParticipantsDAO) SelectListByParticipantIdList(ctx context.Context, chatId int64, idList []int64) (rList []dataobject.ChatParticipantsDO, err error) {
 
 	if len(idList) == 0 {
@@ -333,7 +333,7 @@ func (dao *ChatParticipantsDAO) SelectListByParticipantIdList(ctx context.Contex
 		query  string
 		values []dataobject.ChatParticipantsDO
 	)
-	query = fmt.Sprintf("select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = ? and user_id in (%s)", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = ? and user_id in (%s)", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, chatId)
 
@@ -348,7 +348,7 @@ func (dao *ChatParticipantsDAO) SelectListByParticipantIdList(ctx context.Contex
 }
 
 // SelectListByParticipantIdListWithCB
-// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = :chat_id and user_id in (:idList)
+// select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = :chat_id and user_id in (:idList)
 func (dao *ChatParticipantsDAO) SelectListByParticipantIdListWithCB(ctx context.Context, chatId int64, idList []int64, cb func(sz, i int, v *dataobject.ChatParticipantsDO)) (rList []dataobject.ChatParticipantsDO, err error) {
 
 	if len(idList) == 0 {
@@ -360,7 +360,7 @@ func (dao *ChatParticipantsDAO) SelectListByParticipantIdListWithCB(ctx context.
 		query  string
 		values []dataobject.ChatParticipantsDO
 	)
-	query = fmt.Sprintf("select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2 from chat_participants where chat_id = ? and user_id in (%s)", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden from chat_participants where chat_id = ? and user_id in (%s)", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, chatId)
 
@@ -622,7 +622,7 @@ func (dao *ChatParticipantsDAO) UpdateRankTx(tx *sqlx.Tx, rank2 string, id int64
 }
 
 // SelectUsersChatIdList
-// select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.user_id in (:idList) and chats.id = chat_participants.chat_id and chats.deactivated = 0
+// select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.hidden = 0 and chat_participants.user_id in (:idList) and chats.id = chat_participants.chat_id and chats.deactivated = 0
 func (dao *ChatParticipantsDAO) SelectUsersChatIdList(ctx context.Context, idList []int64) (rList []dataobject.ChatParticipantsDO, err error) {
 	if len(idList) == 0 {
 		rList = []dataobject.ChatParticipantsDO{}
@@ -633,7 +633,7 @@ func (dao *ChatParticipantsDAO) SelectUsersChatIdList(ctx context.Context, idLis
 		query  string
 		values []dataobject.ChatParticipantsDO
 	)
-	query = fmt.Sprintf("select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.user_id in (%s) and chats.id = chat_participants.chat_id and chats.deactivated = 0", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.hidden = 0 and chat_participants.user_id in (%s) and chats.id = chat_participants.chat_id and chats.deactivated = 0", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query)
 
@@ -648,7 +648,7 @@ func (dao *ChatParticipantsDAO) SelectUsersChatIdList(ctx context.Context, idLis
 }
 
 // SelectUsersChatIdListWithCB
-// select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.user_id in (:idList) and chats.id = chat_participants.chat_id and chats.deactivated = 0
+// select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.hidden = 0 and chat_participants.user_id in (:idList) and chats.id = chat_participants.chat_id and chats.deactivated = 0
 func (dao *ChatParticipantsDAO) SelectUsersChatIdListWithCB(ctx context.Context, idList []int64, cb func(sz, i int, v *dataobject.ChatParticipantsDO)) (rList []dataobject.ChatParticipantsDO, err error) {
 	if len(idList) == 0 {
 		rList = []dataobject.ChatParticipantsDO{}
@@ -659,7 +659,7 @@ func (dao *ChatParticipantsDAO) SelectUsersChatIdListWithCB(ctx context.Context,
 		query  string
 		values []dataobject.ChatParticipantsDO
 	)
-	query = fmt.Sprintf("select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.user_id in (%s) and chats.id = chat_participants.chat_id and chats.deactivated = 0", sqlx.InInt64List(idList))
+	query = fmt.Sprintf("select chat_participants.chat_id as chat_id, chat_participants.user_id as user_id from chat_participants, chats where chat_participants.state = 0 and chat_participants.hidden = 0 and chat_participants.user_id in (%s) and chats.id = chat_participants.chat_id and chats.deactivated = 0", sqlx.InInt64List(idList))
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query)
 

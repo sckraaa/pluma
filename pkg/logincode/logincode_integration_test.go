@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -246,6 +247,31 @@ func TestRedisLimiter(t *testing.T) {
 	s.limiter.Refund(ctx, rule, subject)
 	if ok, _ := rds.ExistsCtx(ctx, floodKey(rule, subject)); ok {
 		t.Fatal("Refund created a counter")
+	}
+}
+
+// TestRedisReserveSend: a delivery of auth.resendCode over the per-address
+// budget of a phone is refused, and the hits made before it are taken back.
+func TestRedisReserveSend(t *testing.T) {
+	ctx := context.Background()
+	phone, ip := itPhone(), itIP()
+	s, rds := itService(t, phone)
+	for i := 0; i < int(SendCodePerPhoneIP.Limit); i++ {
+		if err := s.ReserveSend(ctx, phone, 1, ip); err != nil {
+			t.Fatalf("delivery %d: %v", i+1, err)
+		}
+	}
+	if got := rpcMessage(s.ReserveSend(ctx, phone, 1, ip)); !strings.HasPrefix(got, "FLOOD_WAIT_") {
+		t.Fatalf("over the limit: %s", got)
+	}
+	want := strconv.FormatInt(SendCodePerPhoneIP.Limit, 10)
+	for _, c := range []struct {
+		rule    Rule
+		subject string
+	}{{SendCodePerIP, ip}, {SendCodePerAuthKey, "1"}, {SendCodePerPhone, phone}} {
+		if v, _ := rds.GetCtx(ctx, floodKey(c.rule, c.subject)); v != want {
+			t.Fatalf("%s after a refused delivery = %q, want %s", c.rule.Name, v, want)
+		}
 	}
 }
 

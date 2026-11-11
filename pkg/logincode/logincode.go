@@ -175,7 +175,8 @@ func (s *Service) CheckAllowed(ctx context.Context, phone string) error {
 
 // CheckPhone applies the allowlist to a request that names phone without
 // asking for a code (auth.signIn, auth.signUp, auth.cancelCode,
-// account.changePhone), after the lookup limits of the auth key and IP.
+// account.changePhone, and auth.resendCode, whose deliveries ReserveSend
+// counts), after the lookup limits of the auth key and IP.
 func (s *Service) CheckPhone(ctx context.Context, phone string, authKeyId int64, clientIp string) error {
 	if err := s.limiter.Hit(ctx, PhoneLookupPerAuthKey, formatKeyId(authKeyId)); err != nil {
 		return err
@@ -184,7 +185,8 @@ func (s *Service) CheckPhone(ctx context.Context, phone string, authKeyId int64,
 }
 
 // CheckSendCode applies the allowlist and the code request limits to a
-// request for a code for phone. The per-IP and per-auth-key limits come
+// request that always sends a code for phone (auth.sendCode,
+// account.sendChangePhoneCode). The per-IP and per-auth-key limits come
 // first, so they also throttle probing of the allowlist.
 func (s *Service) CheckSendCode(ctx context.Context, phone string, authKeyId int64, clientIp string) error {
 	ip := ipSubject(clientIp)
@@ -201,6 +203,22 @@ func (s *Service) CheckSendCode(ctx context.Context, phone string, authKeyId int
 		return err
 	}
 	return s.limiter.Hit(ctx, SendCodePerPhone, phone)
+}
+
+// ReserveSend counts a new delivery of a code for phone under the code
+// request limits of CheckSendCode, for a request that has already passed the
+// allowlist (CheckPhone) and sends a code only in some of its cases: an
+// auth.resendCode that writes to the person's Telegram. A resend that only
+// moves the app to another screen of the same code spends none of them. On
+// FLOOD_WAIT_X the hits already made are refunded: nothing is sent.
+func (s *Service) ReserveSend(ctx context.Context, phone string, authKeyId int64, clientIp string) error {
+	ip := ipSubject(clientIp)
+	_, err := s.reserve(ctx,
+		limitHit{SendCodePerIP, ip},
+		limitHit{SendCodePerAuthKey, formatKeyId(authKeyId)},
+		limitHit{SendCodePerPhoneIP, phoneIpSubject(phone, ip)},
+		limitHit{SendCodePerPhone, phone})
+	return err
 }
 
 // checkAllowedFrom applies the allowlist to phone asked about from ip,

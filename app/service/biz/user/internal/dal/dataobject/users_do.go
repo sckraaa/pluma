@@ -49,4 +49,5 @@ type UsersDO struct {
 	MainTab                          int32  `db:"main_tab" json:"main_tab"`
 	Deleted                          bool   `db:"deleted" json:"deleted"`
 	DeleteReason                     string `db:"delete_reason" json:"delete_reason"`
+	Ghost                            bool   `db:"ghost" json:"ghost"`
 }

@@ -56,6 +56,12 @@ const (
 	Predicate_chat_hideChatJoinRequests          = "chat_hideChatJoinRequests"
 	Predicate_chat_importChatInvite2             = "chat_importChatInvite2"
 	Predicate_chat_editChatParticipantRank       = "chat_editChatParticipantRank"
+	// pluma: task 080
+	Predicate_chat_joinHidden = "chat_joinHidden"
+	// pluma: task 080
+	Predicate_chat_leaveHidden = "chat_leaveHidden"
+	// pluma: task 080
+	Predicate_chat_setUserHidden = "chat_setUserHidden"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -230,6 +236,18 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: 2075490336, // 0x7bb57820
 
 	},
+	Predicate_chat_joinHidden: { // pluma: task 080
+		0: 155563430, // 0x0945b5a6
+
+	},
+	Predicate_chat_leaveHidden: { // pluma: task 080
+		0: 1492368753, // 0x58f3bd71
+
+	},
+	Predicate_chat_setUserHidden: { // pluma: task 080
+		0: -1113214184, // 0xbda5b318
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -277,6 +295,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-589742657:  Predicate_chat_importChatInvite2,                // 0xdcd93dbf
 	2075490336:  Predicate_chat_editChatParticipantRank,          // 0x7bb57820
 
+	155563430:   Predicate_chat_joinHidden,    // 0x0945b5a6 pluma: task 080
+	1492368753:  Predicate_chat_leaveHidden,   // 0x58f3bd71 pluma: task 080
+	-1113214184: Predicate_chat_setUserHidden, // 0xbda5b318 pluma: task 080
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

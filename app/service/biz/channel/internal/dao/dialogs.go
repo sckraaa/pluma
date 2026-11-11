@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelperm"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
@@ -96,9 +97,11 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 		}
 		// What the others read of the channel: the outbox of the viewer
 		// is read up to the furthest of them (ADR 0034, p. 1; UNVERIFIED
-		// against Telegram, U5).
+		// against Telegram, U5). A ghost's read is not one of them (ADR
+		// 0048, p. 5).
 		if err := d.Mysql.QueryRowsPartial(ctx, &outbox,
-			"SELECT COALESCE(MAX(read_inbox_max_id), 0) FROM dialogs WHERE peer_type = ? AND peer_id = ? AND user_id <> ? AND deleted = 0",
+			"SELECT COALESCE(MAX(g.read_inbox_max_id), 0) FROM dialogs g WHERE g.peer_type = ? AND g.peer_id = ? AND g.user_id <> ? AND g.deleted = 0"+
+				" AND NOT EXISTS (SELECT 1 FROM channel_participants p WHERE p.channel_id = g.peer_id AND p.user_id = g.user_id AND p.hidden = 1)",
 			mtproto.PEER_CHANNEL, id, selfId); err != nil {
 			return nil, err
 		}
@@ -129,6 +132,7 @@ type topMessageRow struct {
 	SenderUserId   int64  `db:"sender_user_id"`
 	MessageData    string `db:"message_data"`
 	AvailableMinId int32  `db:"available_min_id"`
+	Member         bool   `db:"member"`
 	Id             int32  `db:"id"`
 	Views          int32  `db:"views"`
 	Forwards       int32  `db:"forwards"`
@@ -141,11 +145,12 @@ func (d *Dao) TopMessages(ctx context.Context, selfId int64, idList []int64) ([]
 	for _, id := range dedupe(idList) {
 		var rows []topMessageRow
 		if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-			"SELECT m.channel_id, m.id, m.sender_user_id, m.message_data, m.views, m.forwards, COALESCE(p.available_min_id, 0) AS available_min_id"+
+			"SELECT m.channel_id, m.id, m.sender_user_id, m.message_data, m.views, m.forwards, COALESCE(p.available_min_id, 0) AS available_min_id,"+
+				" COALESCE(p.state = ?, 0) AS member"+
 				" FROM channels c JOIN channel_messages m ON m.channel_id = c.id AND m.id = c.top_message AND m.deleted = 0"+
 				" LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ?"+
 				" WHERE c.id = ? AND c.deleted = 0",
-			selfId, id); err != nil {
+			channelperm.StateIn, selfId, id); err != nil {
 			return nil, fmt.Errorf("channel: top message of channel %d: %w", id, err)
 		}
 		if len(rows) == 0 || rows[0].Id < rows[0].AvailableMinId {
@@ -159,7 +164,12 @@ func (d *Dao) TopMessages(ctx context.Context, selfId int64, idList []int64) ([]
 			// The stored copy holds them as they were (task 046).
 			channel.SetPostCounters(&m, rows[0].Views, rows[0].Forwards)
 		}
-		out = append(out, channel.ViewSentMessage(&m, selfId, rows[0].SenderUserId == selfId))
+		own := rows[0].SenderUserId == selfId
+		shown := channel.ViewSentMessage(&m, selfId, own)
+		if err := d.withContents(ctx, id, selfId, rows[0].Member, []messageRow{{Id: rows[0].Id, SenderUserId: rows[0].SenderUserId}}, []*mtproto.Message{shown}); err != nil {
+			return nil, fmt.Errorf("channel: top message of channel %d: %w", id, err)
+		}
+		out = append(out, shown)
 	}
 	return out, nil
 }

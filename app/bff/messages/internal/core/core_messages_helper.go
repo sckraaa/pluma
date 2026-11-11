@@ -14,7 +14,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
-	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	userclient "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/mediaerr"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
@@ -158,13 +158,9 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 			UserId:      0,
 		}).To_MessageMedia()
 
-		phoneNumber, err := phonenumber.CheckAndGetPhoneNumber(contact.GetPhoneNumber())
-		if err == nil {
-			cId, _ := c.svcCtx.Dao.UserClient.UserGetUserIdByPhone(c.ctx, &userpb.TLUserGetUserIdByPhone{
-				Phone: phoneNumber,
-			})
-			if cId != nil {
-				messageMedia.UserId = cId.GetV()
+		if phoneNumber, err2 := phonenumber.CheckAndGetPhoneNumber(contact.GetPhoneNumber()); err2 == nil {
+			if messageMedia.UserId, err = userclient.ContactCardUserId(c.ctx, c.svcCtx.Dao.UserClient, c.MD.UserId, phoneNumber); err != nil {
+				return
 			}
 		}
 	case mtproto.Predicate_inputMediaUploadedDocument:

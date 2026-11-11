@@ -4,6 +4,8 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -100,6 +102,34 @@ func historyCalls(ctx context.Context, t *testing.T, u *user, peer *mtproto.Inpu
 	return out
 }
 
+// checkCallParameters checks that c carries the values of the Pluma
+// profile in custom_parameters, as numbers and booleans, which is how
+// tgcalls reads them.
+func checkCallParameters(t *testing.T, side string, c *mtproto.PhoneCall) {
+	t.Helper()
+	data := c.GetCustomParameters().GetData()
+	var got map[string]any
+	if err := json.Unmarshal([]byte(data), &got); err != nil {
+		t.Fatalf("%s: custom_parameters %q: %v", side, data, err)
+	}
+	want := map[string]any{
+		"audio_ptime_ms":          float64(20),
+		"audio_min_bitrate_kbps":  float64(16),
+		"audio_max_bitrate_kbps":  float64(48),
+		"audio_jitter_min_ms":     float64(20),
+		"audio_rnnoise":           true,
+		"video_max_bitrate_kbps":  float64(2500),
+		"screen_max_bitrate_kbps": float64(4000),
+		"start_bitrate_kbps":      float64(600),
+		"video_fps":               float64(30),
+		"screen_fps":              float64(30),
+		"screen_max_size_px":      float64(1920),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("%s: custom_parameters %s, want %v", side, data, want)
+	}
+}
+
 func TestCallRoundTrip(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -185,6 +215,13 @@ func TestCallRoundTrip(t *testing.T) {
 	bobCall := callOf(ctx, t, bob, call.GetId(), mtproto.Predicate_phoneCall)
 	if string(bobCall.GetGAOrB()) != string(gA) || bobCall.GetKeyFingerprint() != 1234 {
 		t.Fatalf("phoneCall to the participant: %v", bobCall)
+	}
+	// Both sides get the quality parameters of the call: the stand runs
+	// the Pluma profile (CALLS_QUALITY empty, docs/ops/calls.md).
+	checkCallParameters(t, "caller", active)
+	checkCallParameters(t, "callee", bobCall)
+	if active.GetCustomParameters().GetData() != bobCall.GetCustomParameters().GetData() {
+		t.Fatalf("custom_parameters differ: %s and %s", active.GetCustomParameters().GetData(), bobCall.GetCustomParameters().GetData())
 	}
 
 	// Signaling goes to the bound device.

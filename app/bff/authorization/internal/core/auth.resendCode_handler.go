@@ -61,8 +61,11 @@ func (c *AuthorizationCore) AuthResendCode(in *mtproto.TLAuthResendCode) (*mtpro
 		return nil, err
 	}
 
-	// A resend is a code request: same allowlist and flood limits as auth.sendCode.
-	if err = c.svcCtx.AuthLogic.Codes.CheckSendCode(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
+	// The allowlist and the probe limits of every method that names a phone.
+	// The code request limits of auth.sendCode count only a resend that
+	// sends a code (DoAuthReSendCode): one that moves the app to another
+	// screen of the same code sends nothing.
+	if err = c.svcCtx.AuthLogic.Codes.CheckPhone(c.ctx, phoneNumber, c.MD.PermAuthKeyId, c.MD.ClientAddr); err != nil {
 		c.Logger.Errorf("auth.resendCode - error: %v", err)
 		return nil, err
 	}
@@ -127,8 +130,9 @@ func (c *AuthorizationCore) AuthResendCode(in *mtproto.TLAuthResendCode) (*mtpro
 	//    Please wait for a few days before signing up again.</string>
 	//
 
-	// The next_type: the user's Telegram account if not tried yet, else the
-	// administrator ("send as SMS"), pluma-admin login-code issues the code.
+	// The next_type: from a code in the app a delivery through the person's
+	// Telegram, from a code in Telegram the screen of one that did not reach
+	// it, and from that screen another try through Telegram (ADR 0044).
 	codeData, err2 := c.svcCtx.AuthLogic.DoAuthReSendCode(c.ctx,
 		c.MD.PermAuthKeyId,
 		phoneNumber,

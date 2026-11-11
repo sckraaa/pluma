@@ -17,7 +17,7 @@
     "dc_options": [],
     "dc_txt_domain_name": "dc.pluma.chat",
     "chat_size_max": 200,
-    "megagroup_size_max": 100000,
+    "megagroup_size_max": 200000,
     "forwarded_count_max": 100,
     "online_update_period_ms": 30000,
     "offline_blur_timeout_ms": 5000,

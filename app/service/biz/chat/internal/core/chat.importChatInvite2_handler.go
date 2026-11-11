@@ -19,9 +19,12 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -48,6 +51,32 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 	}
 	if invite.MigratedToId != 0 {
 		return nil, mtproto.ErrMigratedToChannel
+	}
+
+	// The support ghost comes in hidden (ADR 0048), with no request, no use
+	// of the link, and the whole history; bff sends no service message.
+	if hidden, err := ghost.IsGhost(ghost.OnDB(c.ctx, c.svcCtx.Dao.Mysql.DB), in.SelfId); err != nil {
+		c.Logger.Errorf("chat.importChatInvite - error: %v", err)
+		return nil, err
+	} else if hidden {
+		res, err := c.joinHiddenAs(invite.ChatId, in.SelfId, func(b *userbox.Box, t *chatTx) error {
+			invite, err := t.c.svcCtx.Dao.InviteByLinkTx(b, in.Hash)
+			if err != nil {
+				return err
+			}
+			return t.usable(b, invite)
+		})
+		switch {
+		case errors.Is(err, mtproto.ErrUserCreator):
+			// Its own group: it comes back seen, as its creator.
+		case err != nil:
+			c.Logger.Errorf("chat.importChatInvite - error: %v", err)
+			return nil, err
+		case !res.joined:
+			return nil, mtproto.ErrUserAlreadyParticipant
+		default:
+			return chat.MakeTLChatInviteImported(&chat.ChatInviteImported{Chat: res.chat}).To_ChatInviteImported(), nil
+		}
 	}
 
 	// The joiner gets the members, the users of which are looked up; a
@@ -85,7 +114,7 @@ func (c *ChatCore) ChatImportChatInvite2(in *chat.TLChatImportChatInvite2) (*cha
 		switch {
 		case t.member(in.SelfId) != nil:
 			return mtproto.ErrUserAlreadyParticipant
-		case len(t.members()) >= maxChatMembers:
+		case t.shown() >= maxChatMembers:
 			return mtproto.ErrUsersTooMuch
 		}
 		pending, err := d.PendingRequestTx(b, t.Chat.Id, in.SelfId)

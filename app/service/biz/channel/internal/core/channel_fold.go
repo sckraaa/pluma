@@ -21,6 +21,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/channelcontents"
 )
 
 // channelFold folds the journal rows of one channel difference, in pts
@@ -49,6 +50,10 @@ type channelFold struct {
 	messageIds  []*mtproto.Update
 	// own are the messages of the range the viewer wrote (setOwn).
 	own map[int32]int64
+	// contents are the viewer's plays and mentions of the messages of the
+	// range, member whether it is in the channel (setContents).
+	contents *channelcontents.State
+	member   bool
 }
 
 func newChannelFold(viewer int64, availableMinId, pts int32) *channelFold {
@@ -157,6 +162,25 @@ func (f *channelFold) setOwn(own map[int32]int64) {
 	}
 }
 
+// viewedMessages are the new and the edited messages as stored, the ones
+// whose unread contents setContents needs.
+func (f *channelFold) viewedMessages() []*mtproto.Message {
+	out := make([]*mtproto.Message, 0, len(f.newMessages)+len(f.edits))
+	for _, id := range f.newMessageIds() {
+		out = append(out, f.newMessages[id])
+	}
+	for _, e := range f.edits {
+		out = append(out, e.Value.(*mtproto.Update).GetMessage_MESSAGE())
+	}
+	return out
+}
+
+// setContents tells the fold the viewer's unread contents of the messages
+// (channelcontents) and whether it is in the channel.
+func (f *channelFold) setContents(s *channelcontents.State, member bool) {
+	f.contents, f.member = s, member
+}
+
 // messages are new_messages as the viewer sees them.
 func (f *channelFold) messages() []*mtproto.Message {
 	out := make([]*mtproto.Message, 0, len(f.newMessages))
@@ -169,7 +193,9 @@ func (f *channelFold) messages() []*mtproto.Message {
 // view is m as the viewer sees it.
 func (f *channelFold) view(m *mtproto.Message) *mtproto.Message {
 	_, own := f.own[m.GetId()]
-	return channel.ViewSentMessage(m, f.viewer, own)
+	shown := channel.ViewSentMessage(m, f.viewer, own)
+	f.contents.View(shown, f.viewer, own, f.member)
+	return shown
 }
 
 // otherUpdates are other_updates.

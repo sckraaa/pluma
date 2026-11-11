@@ -202,9 +202,9 @@ func topicsOfMessages(b *userbox.Box, channelId int64, ids []int32) ([]int32, er
 	return topics, err
 }
 
-// removeMessages deletes out.Ids of the locked channel: the mentions of
-// them go, top_message moves to the last message left, and one row of the
-// journal holds them, pts_count their number.
+// removeMessages deletes out.Ids of the locked channel: the mentions and
+// the plays of them go, top_message moves to the last message left, and one
+// row of the journal holds them, pts_count their number.
 func removeMessages(b *userbox.Box, ch *channelbox.Channel, out *Deleted) error {
 	args := []any{out.ChannelId}
 	for _, id := range out.Ids {
@@ -215,6 +215,9 @@ func removeMessages(b *userbox.Box, ch *channelbox.Channel, out *Deleted) error 
 		return err
 	}
 	if _, err := b.Tx().Exec("DELETE FROM channel_message_mentions WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
+		return err
+	}
+	if _, err := b.Tx().Exec("DELETE FROM channel_contents_read WHERE channel_id = ? AND message_id IN "+in, args...); err != nil {
 		return err
 	}
 	// A deleted poll counts no more among its creator's unread votes.

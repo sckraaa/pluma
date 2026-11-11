@@ -131,6 +131,15 @@ func seqSince(t *testing.T, mark int64) []string {
 			for _, u := range in.GetUpdates() {
 				out = append(out, fmt.Sprintf("%d %s", recipient, describe(u)))
 			}
+		case "inbox.TL_inbox_chatHistoryToInbox":
+			var in inboxpb.TLInboxChatHistoryToInbox
+			if err = jsonx.Unmarshal(payload, &in); err != nil {
+				t.Fatal(err)
+			}
+			if topic != "Inbox-T" || in.GetFromId() != initiator || in.GetUserId() != recipient {
+				t.Fatalf("event to %d of %d on %s: %v", recipient, initiator, topic, &in)
+			}
+			out = append(out, fmt.Sprintf("%d history of %d mention %v", recipient, in.GetChatId(), in.GetMention()))
 		default:
 			t.Errorf("event %s to %d", method, recipient)
 		}

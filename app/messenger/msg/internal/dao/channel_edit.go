@@ -46,9 +46,12 @@ type channelMessageRow struct {
 // discussion group.
 type ChannelEdited struct {
 	Message *mtproto.Message
-	Pts     int32
-	GroupId int64
-	Copy    *ChannelSent
+	// AuthorId wrote the message: in a channel an admin edits another's
+	// post too.
+	AuthorId int64
+	Pts      int32
+	GroupId  int64
+	Copy     *ChannelSent
 }
 
 // EditChannel applies edit to message id of the channel by b's owner. Its
@@ -149,7 +152,7 @@ func (d *Dao) EditChannel(b *userbox.Box, channelId int64, id int32, edit *mtpro
 		data, m.GetMessage(), mtproto.GetMediaType(m), channelId, id); err != nil {
 		return nil, err
 	}
-	out := &ChannelEdited{Message: m, Pts: ch.Pts()}
+	out := &ChannelEdited{Message: m, AuthorId: rows[0].SenderUserId, Pts: ch.Pts()}
 	if copyId != 0 {
 		if out.Copy, err = editPostCopy(b, groupId, copyId, m); err != nil {
 			return nil, err
@@ -267,20 +270,23 @@ func editPostCopy(b *userbox.Box, groupId int64, copyId int32, post *mtproto.Mes
 // copy to the members of the discussion group. The answer to the edit
 // holds the post alone: every device of the editor is told of the copy.
 func (d *Dao) EmitChannelEditPush(b *userbox.Box, channelId, permAuthKeyId int64, e *ChannelEdited) error {
-	if err := d.emitEdit(b, channelId, permAuthKeyId, e.Message, e.Pts); err != nil {
+	if err := d.emitEdit(b, channelId, permAuthKeyId, e.AuthorId, e.Message, e.Pts); err != nil {
 		return err
 	}
 	if e.Copy == nil {
 		return nil
 	}
-	return d.emitEdit(b, e.GroupId, 0, e.Copy.Message, e.Copy.Pts)
+	return d.emitEdit(b, e.GroupId, 0, e.AuthorId, e.Copy.Message, e.Copy.Pts)
 }
 
-func (d *Dao) emitEdit(b *userbox.Box, channelId, permAuthKeyId int64, m *mtproto.Message, pts int32) error {
+// emitEdit pushes the edit of m to the members. author_id names its author,
+// for whom a voice message stays read (sync.pushChannelUpdates, task 080).
+func (d *Dao) emitEdit(b *userbox.Box, channelId, permAuthKeyId, authorId int64, m *mtproto.Message, pts int32) error {
 	in := &sync.TLSyncPushChannelUpdates{
 		ChannelId:     channelId,
 		FromId:        b.UserId(),
 		FromAuthKeyId: permAuthKeyId,
+		AuthorId:      authorId,
 		Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateEditChannelMessage(&mtproto.Update{
 			Message_MESSAGE: m,
 			Pts_INT32:       pts,

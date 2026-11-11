@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/plugin"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/channelcontents"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"google.golang.org/protobuf/proto"
 )
@@ -62,6 +63,9 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	// The snowflake of each message is the id of a new poll in it.
 	outgoing, err := c.outgoing(outBoxList)
 	if err != nil {
+		return nil, err
+	}
+	if err = c.ghostJoins(fromUserId, channelId); err != nil {
 		return nil, err
 	}
 	var sent []dao.ChannelSent
@@ -132,6 +136,25 @@ func (c *MsgCore) sendChannelMessages(fromUserId, fromAuthKeyId, channelId int64
 	}).To_Updates(), nil
 }
 
+// ghostJoins makes userId, when it is the support ghost (ADR 0048) and not
+// in the channel it writes to (a message, a reaction, a vote), a hidden
+// member of it first, where it may read it without a row (a public chat,
+// the comments of a public channel): it comments and reacts without
+// subscribing, and the replies to what it wrote reach it as a member's.
+// biz channel joins it in a box transaction of its own (channel.joinHidden:
+// the row, the dialog read up to the last message, updateChannel with seq
+// for its devices; nobody else learns of it), before the write's: a
+// transaction calls no service, and a box takes no inbox event it emits
+// itself. A write that fails afterwards leaves the ghost in, unseen.
+func (c *MsgCore) ghostJoins(userId, channelId int64) error {
+	may, err := c.svcCtx.Dao.GhostMayJoin(c.ctx, userId, channelId)
+	if err != nil || !may {
+		return err
+	}
+	_, err = c.svcCtx.Dao.ChannelClient.ChannelJoinHidden(c.ctx, &channelpb.TLChannelJoinHidden{UserId: userId, ChannelId: channelId})
+	return err
+}
+
 // channelSentIds are the ids of sent, in order.
 func channelSentIds(sent []dao.ChannelSent) []int32 {
 	ids := make([]int32, len(sent))
@@ -178,6 +201,12 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 	// A message of a supergroup is edited by its author alone; a post is
 	// never written as another (dao.EditChannel).
 	shown := channelpb.ViewSentMessage(edited.Message, fromUserId, true)
+	// An admin who edits another's post has its own unread contents of it.
+	contents, err := channelcontents.Load(c.ctx, c.svcCtx.Dao.Mysql, channelId, fromUserId, []*mtproto.Message{shown})
+	if err != nil {
+		return nil, err
+	}
+	contents.View(shown, fromUserId, edited.AuthorId == fromUserId, true)
 	h := mtproto.NewIDListHelper(fromUserId)
 	h.PickByMessage(shown)
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: h.UserIdList, To: []int64{fromUserId}})

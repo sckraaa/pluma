@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 421, partial 7, blocked 94, notimpl 3, fake 1, missing 404 (ok = 45.3%); with a conformance scenario 9
+    layer 233: 930 methods — ok 422, partial 7, blocked 93, notimpl 3, fake 1, missing 404 (ok = 45.4%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -16,7 +16,7 @@
 | auth | 31 | 18 | 0 | 12 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | bots | 41 | 9 | 0 | 0 | 0 | 0 | 32 | 0 |
-| channels | 74 | 61 | 1 | 8 | 0 | 0 | 4 | 0 |
+| channels | 74 | 62 | 1 | 7 | 0 | 0 | 4 | 0 |
 | chatlists | 11 | 11 | 0 | 0 | 0 | 0 | 0 | 0 |
 | communities | 9 | 0 | 0 | 0 | 0 | 0 | 9 | 0 |
 | contacts | 31 | 23 | 0 | 2 | 0 | 0 | 6 | 0 |
@@ -287,7 +287,7 @@
 | `channels.checkSearchPostsFlood` | ok |  | app/bff/messages/internal/core/channels.checkSearchPostsFlood_handler.go:30 |
 | `channels.checkUsername` | ok |  | app/bff/usernames/internal/core/channels.checkUsername_handler.go:36 |
 | `channels.clickSponsoredMessage` | blocked |  | app/bff/sponsoredmessages/internal/core/channels.clickSponsoredMessage_handler.go:27 |
-| `channels.convertToGigagroup` | blocked |  | app/bff/chats/internal/core/channels.convertToGigagroup_handler.go:27 |
+| `channels.convertToGigagroup` | ok |  | app/bff/chats/internal/core/channels.convertToGigagroup_handler.go:36 |
 | `channels.createChannel` | partial |  | app/bff/channels/internal/core/channels.createChannel_handler.go:51 |
 | `channels.createForumTopic` | ok |  | app/bff/channels/internal/core/channels.forum_handler.go:68 |
 | `channels.deactivateAllUsernames` | ok |  | app/bff/usernames/internal/core/channels.usernames_handler.go:60 |
@@ -318,7 +318,7 @@
 | `channels.getLeftChannels` | ok |  | app/bff/channels/internal/core/channels.getLeftChannels_handler.go:34 |
 | `channels.getMessageAuthor` | blocked |  | app/bff/savedmessagedialogs/internal/core/channels.getMessageAuthor_handler.go:27 |
 | `channels.getMessages` | ok |  | app/bff/channels/internal/core/channels.getMessages_handler.go:37 |
-| `channels.getParticipant` | ok |  | app/bff/channels/internal/core/channels.getParticipant_handler.go:36 |
+| `channels.getParticipant` | ok |  | app/bff/channels/internal/core/channels.getParticipant_handler.go:37 |
 | `channels.getParticipants` | ok |  | app/bff/channels/internal/core/channels.membership_handler.go:138 |
 | `channels.getSendAs` | ok |  | app/bff/messages/internal/core/channels.getSendAs_handler.go:36 |
 | `channels.getSponsoredMessages` | ok |  | app/bff/sponsoredmessages/internal/core/channels.getSponsoredMessages_handler.go:27 |
@@ -617,7 +617,7 @@
 | `messages.getMessagesViews` | ok |  | app/bff/messages/internal/core/messages.getMessagesViews_handler.go:58 |
 | `messages.getMyStickers` | missing |  |  |
 | `messages.getOldFeaturedStickers` | ok |  | app/bff/catalog/internal/core/messages.getOldFeaturedStickers_handler.go:27 |
-| `messages.getOnlines` | ok |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:36 |
+| `messages.getOnlines` | ok |  | app/bff/dialogs/internal/core/messages.getOnlines_handler.go:38 |
 | `messages.getOutboxReadDate` | ok |  | app/bff/messages/internal/core/messages.getOutboxReadDate_handler.go:41 |
 | `messages.getPaidReactionPrivacy` | missing |  |  |
 | `messages.getPeerDialogs` | ok |  | app/bff/dialogs/internal/core/messages.getPeerDialogs_handler.go:78 |

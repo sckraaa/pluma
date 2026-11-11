@@ -6,7 +6,7 @@
  * services (the constructor ids are the CRC32 of these lines):
  *
  * immutableChannel flags:# broadcast:flags.0?true megagroup:flags.1?true forum:flags.2?true signatures:flags.3?true noforwards:flags.4?true join_to_send:flags.5?true join_request:flags.6?true participants_hidden:flags.7?true hidden_prehistory:flags.8?true deleted:flags.9?true signature_profiles:flags.10?true id:long access_hash:long creator_user_id:long title:string about:string photo:Photo username:string participants_count:int admins_count:int kicked_count:int banned_count:int default_banned_rights:int slowmode_seconds:int linked_chat_id:long migrated_from_chat_id:long migrated_from_max_id:int pts:int top_message:int version:int date:long available_reactions_type:int available_reactions:Vector<string> = ImmutableChannel;
- * immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long last_send_date:long = ImmutableChannelParticipant;
+ * immutableChannelParticipant channel_id:long user_id:long role:int state:int admin_rights:int rank:string banned_rights:int until_date:int inviter_user_id:long promoted_by:long kicked_by:long available_min_id:int date:long last_send_date:long hidden:Bool = ImmutableChannelParticipant;
  * mutableChannel channel:ImmutableChannel participants:Vector<ImmutableChannelParticipant> = MutableChannel;
  *
  * ---functions---
@@ -111,6 +111,12 @@ enum TLConstructor {
   CRC32_channel_getLeftChannels = -2063367371;
   // pluma: task 081
   CRC32_channel_getChannelRecommendations = -870956007;
+  // pluma: task 080
+  CRC32_channel_joinHidden = -1244916636;
+  // pluma: task 080
+  CRC32_channel_leaveHidden = -858110575;
+  // pluma: task 080
+  CRC32_channel_setUserHidden = -1975507290;
   // pluma: task 060
   CRC32_channel_toggleForum = 1073186003;
   // pluma: task 060
@@ -272,6 +278,9 @@ message ImmutableChannel {
     // pluma: task 078: the tab its profile opens on (channelFull.main_tab),
     // as mtproto.ProfileTabType* numbers it; 0 for none.
     int32 main_tab = 47;
+    // pluma: task 080: flags.17, a supergroup turned into a broadcast group
+    // (channels.convertToGigagroup): only its admins write.
+    bool gigagroup = 48;
 }
 
 message TL_immutableChannel {
@@ -300,6 +309,9 @@ message ImmutableChannelParticipant {
     int64 date = 15;
     // pluma: task 045, the last message sent under the slow mode.
     int64 last_send_date = 16;
+    // pluma: task 080, the row of a ghost (ADR 0048): a member left out of
+    // what the other members are shown.
+    bool hidden = 17;
 }
 
 message TL_immutableChannelParticipant {
@@ -1148,6 +1160,38 @@ message TL_channel_getChannelRecommendations {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.joinHidden user_id:long channel_id:long = Bool;
+// The ghost user_id joins the channel or supergroup hidden (ADR 0048,
+// pluma-admin ghost join): true when it joined, false when it was in.
+// (task 080)
+message TL_channel_joinHidden {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.leaveHidden user_id:long channel_id:long = Bool;
+// The ghost user_id leaves the channel where it is hidden (pluma-admin
+// ghost leave): true when it was in. (task 080)
+message TL_channel_leaveHidden {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.setUserHidden user_id:long hidden:Bool = Int32;
+// The live rows of user_id become hidden or shown, as its account became a
+// ghost or stopped being one (pluma-admin ghost set); the counters of each
+// channel follow. The number of channels changed. (task 080)
+message TL_channel_setUserHidden {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  mtproto.Bool hidden = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // pluma: channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
 // self_id turns the channel's forum on or off (channels.toggleForum); tabs: the tabbed layout.
 // (task 060)
@@ -1620,6 +1664,12 @@ service RPCChannel {
   rpc channel_getLeftChannels(TL_channel_getLeftChannels) returns (mtproto.messages_Chats) {}
   // pluma: task 081
   rpc channel_getChannelRecommendations(TL_channel_getChannelRecommendations) returns (mtproto.messages_Chats) {}
+  // pluma: task 080
+  rpc channel_joinHidden(TL_channel_joinHidden) returns (mtproto.Bool) {}
+  // pluma: task 080
+  rpc channel_leaveHidden(TL_channel_leaveHidden) returns (mtproto.Bool) {}
+  // pluma: task 080
+  rpc channel_setUserHidden(TL_channel_setUserHidden) returns (mtproto.Int32) {}
   // pluma: task 060
   rpc channel_toggleForum(TL_channel_toggleForum) returns (mtproto.Updates) {}
   // pluma: task 060

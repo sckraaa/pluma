@@ -286,6 +286,21 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -870956007,
 		}
 	},
+	-1244916636: func() mtproto.TLObject { // 0xb5cc1464 pluma: task 080
+		return &TLChannelJoinHidden{
+			Constructor: -1244916636,
+		}
+	},
+	-858110575: func() mtproto.TLObject { // 0xccda4591 pluma: task 080
+		return &TLChannelLeaveHidden{
+			Constructor: -858110575,
+		}
+	},
+	-1975507290: func() mtproto.TLObject { // 0x8a4026a6 pluma: task 080
+		return &TLChannelSetUserHidden{
+			Constructor: -1975507290,
+		}
+	},
 	1073186003: func() mtproto.TLObject { // 0x3ff784d3 pluma: task 060
 		return &TLChannelToggleForum{
 			Constructor: 1073186003,
@@ -608,6 +623,9 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 				if d.GetBlocked() {
 					flags |= 1 << 16
 				}
+				if d.GetGigagroup() {
+					flags |= 1 << 17
+				}
 				if d.GetSignatures() {
 					flags |= 1 << 3
 				}
@@ -692,6 +710,7 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.Forum = (flags & (1 << 2)) != 0
 			d.ForumTabs = (flags & (1 << 15)) != 0
 			d.Blocked = (flags & (1 << 16)) != 0
+			d.Gigagroup = (flags & (1 << 17)) != 0
 			d.Signatures = (flags & (1 << 3)) != 0
 			d.Noforwards = (flags & (1 << 4)) != 0
 			d.JoinToSend = (flags & (1 << 5)) != 0
@@ -824,6 +843,7 @@ func (m *TLImmutableChannelParticipant) Encode(x *mtproto.EncodeBuf, layer int32
 			x.Int(d.GetAvailableMinId())
 			x.Long(d.GetDate())
 			x.Long(d.GetLastSendDate())
+			mtproto.ToBool(d.GetHidden()).Encode(x, layer) // pluma: task 080
 
 			return nil
 		},
@@ -858,6 +878,9 @@ func (m *TLImmutableChannelParticipant) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.AvailableMinId = dBuf.Int()
 			d.Date = dBuf.Long()
 			d.LastSendDate = dBuf.Long()
+			hidden := &mtproto.Bool{} // pluma: task 080
+			hidden.Decode(dBuf)
+			d.Hidden = mtproto.FromBool(hidden)
 			return dBuf.GetError()
 		},
 	}
@@ -5542,6 +5565,128 @@ func (m *TLChannelGetChannelRecommendations) Decode(dBuf *mtproto.DecodeBuf) err
 		// not has flags
 
 		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelSetUserHidden (pluma: task 080)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelSetUserHidden) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x8a4026a6:
+		x.UInt(0x8a4026a6)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		m.GetHidden().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelSetUserHidden) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelSetUserHidden) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x8a4026a6:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m3 := &mtproto.Bool{}
+		m3.Decode(dBuf)
+		m.Hidden = m3
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelLeaveHidden (pluma: task 080)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelLeaveHidden) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xccda4591:
+		x.UInt(0xccda4591)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelLeaveHidden) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelLeaveHidden) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xccda4591:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelJoinHidden (pluma: task 080)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelJoinHidden) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xb5cc1464:
+		x.UInt(0xb5cc1464)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelJoinHidden) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelJoinHidden) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xb5cc1464:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
 		return dBuf.GetError()
 

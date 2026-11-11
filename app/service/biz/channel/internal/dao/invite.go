@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/premium"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -50,7 +51,10 @@ type Invited struct {
 // USER_CHANNELS_TOO_MUCH, as Telegram answers
 // (core.telegram.org/method/channels.inviteToChannel). Each added user's
 // dialog is written in its own box by the event AddMembers emits (ADR 0021).
-// The request to join of one added no longer stands.
+// The request to join of one added no longer stands. A ghost is never added
+// (ADR 0048, p. 2): it would be shown added; one asked alone is
+// USER_PRIVACY_RESTRICTED, as the clients know it of one who may not be
+// added (Android AlertsCreator.java:430-447).
 func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited, error) {
 	ch, err := openChannel(b, channelId)
 	if err != nil {
@@ -74,8 +78,12 @@ func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited
 
 	out := &Invited{ChannelChange: ChannelChange{ChannelId: channelId}}
 	ids = slices.Compact(slices.Sorted(slices.Values(ids)))
+	ghosts, err := ghost.Ghosts(b.Tx(), ids)
+	if err != nil {
+		return nil, err
+	}
 	for _, id := range ids {
-		if id <= 0 || id == b.UserId() {
+		if id <= 0 || id == b.UserId() || slices.Contains(ghosts, id) {
 			continue
 		}
 		var rows []memberRow
@@ -99,6 +107,9 @@ func (d *Dao) AddMembers(b *userbox.Box, channelId int64, ids []int64) (*Invited
 		out.Users = append(out.Users, id)
 	}
 	if len(out.Users) == 0 {
+		if len(ghosts) > 0 && len(ghosts) == len(ids) {
+			return nil, mtproto.ErrUserPrivacyRestricted
+		}
 		return out, nil
 	}
 	if err = d.writeMembers(b, ch, c, channelId, out.Users, &out.ChannelChange); err != nil {
@@ -149,7 +160,7 @@ func (d *Dao) writeMembers(b *userbox.Box, ch *channelbox.Channel, c *memberChan
 	}
 	for _, id := range users {
 		if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, state, inviter_user_id, available_min_id, `date`) VALUES (?, ?, 0, 0, ?, ?, ?)"+
-			" ON DUPLICATE KEY UPDATE role = IF(role = ?, role, 0), state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0,"+
+			" ON DUPLICATE KEY UPDATE role = IF(role = ?, role, 0), state = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0, kicked_by = 0, hidden = 0,"+
 			" inviter_user_id = VALUES(inviter_user_id), available_min_id = VALUES(available_min_id), `date` = VALUES(`date`)",
 			channelId, id, b.UserId(), availableMinId, b.Date(), channelperm.RoleCreator); err != nil {
 			return err

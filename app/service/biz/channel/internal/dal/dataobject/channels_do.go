@@ -68,4 +68,6 @@ type ChannelsDO struct {
 	// The tab its profile opens on (channels.setMainProfileTab), as
 	// mtproto.ProfileTabType* numbers it; 0 for none.
 	MainTab int32 `db:"main_tab" json:"main_tab"`
+	// A supergroup turned into a broadcast group (channels.convertToGigagroup).
+	Gigagroup bool `db:"gigagroup" json:"gigagroup"`
 }

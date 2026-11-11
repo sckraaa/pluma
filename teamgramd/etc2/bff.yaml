@@ -117,3 +117,6 @@ SyncClient:
 Calls:
   IceServers: "${CALLS_ICE_SERVERS}"
   TurnSecret: "${CALLS_TURN_SECRET}"
+  # The quality parameters of a call (task 077): "pluma" when empty, or
+  # "stock", then key=value changes (docs/ops/calls.md).
+  Quality: "${CALLS_QUALITY}"

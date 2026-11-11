@@ -247,6 +247,9 @@ func (c *MsgCore) channelPollOp(userId, authKeyId, channelId int64, msgId int32,
 		service *dao.ChannelSent
 		randId  = rand.Int64() //nolint:gosec // random_id of a service message
 	)
+	if err := c.ghostJoins(userId, channelId); err != nil {
+		return nil, err
+	}
 	if _, err := c.svcCtx.Dao.RunBox(c.ctx, userId, nil, func(b *userbox.Box) error {
 		ref, err := c.svcCtx.Dao.ChannelPollRefOf(b, channelId, msgId, exclusive)
 		if err != nil {

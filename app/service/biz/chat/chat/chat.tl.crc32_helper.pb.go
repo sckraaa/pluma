@@ -57,4 +57,10 @@ const (
 	CRC32_chat_hideChatJoinRequests          TLConstructor = 1051012305 // 0x3ea52cd1
 	CRC32_chat_importChatInvite2             TLConstructor = -589742657 // 0xdcd93dbf
 	CRC32_chat_editChatParticipantRank       TLConstructor = 2075490336 // 0x7bb57820
+	// pluma: task 080
+	CRC32_chat_joinHidden TLConstructor = 155563430 // 0x0945b5a6
+	// pluma: task 080
+	CRC32_chat_leaveHidden TLConstructor = 1492368753 // 0x58f3bd71
+	// pluma: task 080
+	CRC32_chat_setUserHidden TLConstructor = -1113214184 // 0xbda5b318
 )

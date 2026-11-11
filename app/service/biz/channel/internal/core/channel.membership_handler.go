@@ -86,6 +86,56 @@ func (c *ChannelCore) ChannelLeaveChannel(in *channel.TLChannelLeaveChannel) (*m
 	return membershipAnswer(change, view), nil
 }
 
+// ChannelJoinHidden
+// channel.joinHidden user_id:long channel_id:long = Bool;
+//
+// The ghost user_id joins the channel hidden, by pluma-admin ghost join
+// (task 080, ADR 0048, p. 2d): any channel, public or private. As a join by
+// the ghost itself, its box gets the dialog and updateChannel with seq;
+// nobody else learns of it. true when it joined, false when it was in;
+// CHANNEL_PRIVATE when a ban keeps it out, USER_ID_INVALID for an account
+// that is no ghost.
+func (c *ChannelCore) ChannelJoinHidden(in *channel.TLChannelJoinHidden) (*mtproto.Bool, error) {
+	change, _, err := c.membership(in.UserId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.JoinHidden(b, in.ChannelId)
+	}, 0)
+	if err != nil {
+		return nil, c.membershipError("channel.joinHidden", err)
+	}
+	return mtproto.ToBool(change.Self != nil), nil
+}
+
+// ChannelLeaveHidden
+// channel.leaveHidden user_id:long channel_id:long = Bool;
+//
+// The ghost user_id leaves the channel where it is hidden, by pluma-admin
+// ghost leave: its dialog goes, nobody else learns of it. true when it was
+// in hidden.
+func (c *ChannelCore) ChannelLeaveHidden(in *channel.TLChannelLeaveHidden) (*mtproto.Bool, error) {
+	change, _, err := c.membership(in.UserId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
+		return c.svcCtx.Dao.LeaveHidden(b, in.ChannelId)
+	}, 0)
+	if err != nil {
+		return nil, c.membershipError("channel.leaveHidden", err)
+	}
+	return mtproto.ToBool(change.Self != nil), nil
+}
+
+// ChannelSetUserHidden
+// channel.setUserHidden user_id:long hidden:Bool = Int32;
+//
+// The member rows of user_id become hidden (its account became a ghost) or
+// shown (it stopped being one), with the counters of each channel, by
+// pluma-admin ghost set (ADR 0048, p. 9): the number of channels changed.
+func (c *ChannelCore) ChannelSetUserHidden(in *channel.TLChannelSetUserHidden) (*mtproto.Int32, error) {
+	n, err := c.svcCtx.Dao.SetUserHidden(c.ctx, in.UserId, mtproto.FromBool(in.Hidden))
+	if err != nil {
+		c.Logger.Errorf("channel.setUserHidden - error: %v", err)
+		return nil, err
+	}
+	return mtproto.MakeTLInt32(&mtproto.Int32{V: n}).To_Int32(), nil
+}
+
 // membershipError logs an error other than an answer of the method.
 func (c *ChannelCore) membershipError(method string, err error) error {
 	var rpcErr *mtproto.TLRpcError
@@ -117,7 +167,9 @@ func (c *ChannelCore) membership(selfId, channelId int64, fn func(b *userbox.Box
 		if change, err = fn(b); err != nil {
 			return err
 		}
-		if change.Requested {
+		if change.Requested || change.Self == nil {
+			// A request, or nothing changed (a ghost's hidden join or
+			// leave that found it as it was).
 			return nil
 		}
 		after := proto.Clone(mc).(*channel.MutableChannel)

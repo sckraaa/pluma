@@ -17,6 +17,7 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/readmarks"
@@ -26,6 +27,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/channelcontents"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -49,6 +51,8 @@ type readRow struct {
 	Broadcast      bool  `db:"broadcast"`
 	Forum          bool  `db:"forum"`
 	AvailableMinId int32 `db:"available_min_id"`
+	// Hidden: the reader is a ghost (ADR 0048), whose reads nobody sees.
+	Hidden bool `db:"hidden"`
 }
 
 // Read marks the channel read by b's owner up to maxId (0 or above the
@@ -75,8 +79,9 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 	if err = d.moveRead(b, channelId, maxId, r); err != nil {
 		return err
 	}
-	if r.Broadcast {
-		// The posts of a channel show views, not reads.
+	if r.Broadcast || r.Hidden {
+		// The posts of a channel show views, not reads; a ghost's read
+		// is its own (ADR 0048, p. 5): no "read by", no read outbox.
 		return nil
 	}
 	// When the owner read up to maxId, for the senders' "read by" list
@@ -115,7 +120,7 @@ func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
 func readerRow(b *userbox.Box, channelId int64) (*readRow, error) {
 	var rows []readRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, c.forum, COALESCE(p.available_min_id, 0) AS available_min_id"+
+		"SELECT g.read_inbox_max_id, g.folder_id, c.top_message, c.pts, c.broadcast, c.forum, COALESCE(p.available_min_id, 0) AS available_min_id, p.hidden"+
 			" FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+
 			" JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id AND p.state <> 1"+
 			" WHERE g.user_id = ? AND g.peer_type = ? AND g.peer_id = ? AND g.deleted = 0 FOR UPDATE OF g",
@@ -226,7 +231,8 @@ func readerIn(b *userbox.Box, channelId int64) error {
 const ReadContentsMax = 100
 
 // ReadContents marks what b's owner has seen of messages ids of the
-// channel: its mentions among them are read, and its devices get
+// channel: its mentions among them are read, the voice and round video
+// messages among them are played (playedBy), and its devices get
 // updateChannelReadMessagesContents with seq (core.telegram.org/method/
 // channels.readMessageContents). Ids that are not the channel's messages
 // are left out. CHANNEL_PRIVATE when the owner has no dialog with the
@@ -247,14 +253,21 @@ func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
 	for _, id := range ids {
 		args = append(args, id)
 	}
-	var found []int32
-	if err := b.Tx().QueryRowsPartial(&found,
-		"SELECT id FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") ORDER BY id",
+	var rows []messageRow
+	if err := b.Tx().QueryRowsPartial(&rows,
+		"SELECT id, sender_user_id, message_data FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") ORDER BY id",
 		args...); err != nil {
 		return err
 	}
-	if len(found) == 0 {
+	if len(rows) == 0 {
 		return nil
+	}
+	found := make([]int32, 0, len(rows))
+	for _, r := range rows {
+		found = append(found, r.Id)
+	}
+	if err := playedBy(b, channelId, rows); err != nil {
+		return err
 	}
 	args = append([]any{channelId, b.UserId()}, args[1:]...)
 	if _, err := b.Tx().Exec("UPDATE channel_message_mentions SET `read` = 1 WHERE channel_id = ? AND user_id = ? AND `read` = 0 AND message_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
@@ -279,12 +292,37 @@ func (d *Dao) ReadContents(b *userbox.Box, channelId int64, ids []int32) error {
 	return d.EmitSeqUpdate(b, u, nil, nil)
 }
 
+// playedBy records that b's owner played the voice and round video
+// messages among rows that others wrote: they are no longer media_unread for
+// it (channelcontents).
+func playedBy(b *userbox.Box, channelId int64, rows []messageRow) error {
+	var played []any
+	for _, r := range rows {
+		if r.SenderUserId == b.UserId() {
+			continue
+		}
+		var m mtproto.Message
+		if err := jsonx.UnmarshalFromString(r.MessageData, &m); err != nil {
+			return fmt.Errorf("channel: message %d of channel %d: %w", r.Id, channelId, err)
+		}
+		if channelcontents.Consumable(&m) {
+			played = append(played, channelId, b.UserId(), r.Id)
+		}
+	}
+	if len(played) == 0 {
+		return nil
+	}
+	_, err := b.Tx().Exec("INSERT IGNORE INTO channel_contents_read (channel_id, user_id, message_id) VALUES (?, ?, ?)"+
+		strings.Repeat(", (?, ?, ?)", len(played)/3-1), played...)
+	return err
+}
+
 // ReadParticipants are the members who read the message msgId of selfId in
 // a supergroup, with the date each read it, the latest first: kept for
 // messages of the last readmarks.ChatExpirePeriod in groups of up to
 // readmarks.ChatSizeThreshold members (core.telegram.org/api/config), as in
 // a basic group. Members who left are not listed, nor reads before the
-// dates were kept.
+// dates were kept, nor a ghost (ADR 0048), which keeps none.
 func (d *Dao) ReadParticipants(ctx context.Context, selfId, channelId int64, msgId int32, now int64) ([]*mtproto.ReadParticipantDate, error) {
 	var rows []struct {
 		Broadcast         bool  `db:"broadcast"`
@@ -317,7 +355,7 @@ func (d *Dao) ReadParticipants(ctx context.Context, selfId, channelId int64, msg
 	}
 	if err := d.Mysql.QueryRowsPartial(ctx, &readers,
 		"SELECT r.user_id, MIN(r.read_at) AS read_at FROM channel_read_marks r"+
-			" JOIN channel_participants p ON p.channel_id = r.channel_id AND p.user_id = r.user_id AND p.state = ?"+
+			" JOIN channel_participants p ON p.channel_id = r.channel_id AND p.user_id = r.user_id AND p.state = ? AND p.hidden = 0"+
 			" WHERE r.channel_id = ? AND r.max_id >= ? AND r.user_id <> ? GROUP BY r.user_id ORDER BY read_at DESC",
 		channelperm.StateIn, channelId, msgId, selfId); err != nil {
 		return nil, err

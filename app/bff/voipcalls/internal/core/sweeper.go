@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/voipcalls/internal/svc"
 	"github.com/teamgram/teamgram-server/pkg/phonecalls"
 
@@ -170,11 +169,11 @@ func (c *VoipCallsCore) redeliverMissed(ctx context.Context, d phonecalls.Device
 	if !ok {
 		return
 	}
-	var conns []*mtproto.PhoneConnection
+	var m *phonecalls.Media
 	if view.State == phonecalls.StateActive {
 		// Telegram-iOS takes connections.first! of phoneCall: without a
 		// server the device waits for the next pass.
-		if conns = c.connections(call); len(conns) == 0 {
+		if m = c.media(call); len(m.Connections) == 0 {
 			return
 		}
 	}
@@ -183,7 +182,7 @@ func (c *VoipCallsCore) redeliverMissed(ctx context.Context, d phonecalls.Device
 		c.Logger.Errorf("calls: missed update of call %d: %v", d.CallId, err)
 		return
 	}
-	if claimed && !c.pushTo(viewer, d.AuthKeyId, g, c.phoneCallUpdates(viewer, view.TL(role, conns), other)) {
+	if claimed && !c.pushTo(viewer, d.AuthKeyId, g, c.phoneCallUpdates(viewer, view.TL(role, m), other)) {
 		c.markMissed(d.CallId, d.AuthKeyId)
 	}
 }

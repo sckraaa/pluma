@@ -43,11 +43,12 @@ const (
 		" AND EXISTS (SELECT 1 FROM username u WHERE u.peer_type = ? AND u.peer_id = c.id AND u.editable = 1)" +
 		" AND NOT EXISTS (SELECT 1 FROM channel_participants m WHERE m.channel_id = c.id AND m.user_id = ?)"
 	// recommendPeople keeps people who count: not the account, no bots,
-	// no deleted accounts.
-	recommendPeople = " AND q.user_id <> ? AND NOT EXISTS (SELECT 1 FROM users x WHERE x.id = q.user_id AND (x.is_bot = 1 OR x.deleted = 1))"
+	// no deleted accounts, no hidden members (a ghost, ADR 0048), whose
+	// chats would show through what is recommended.
+	recommendPeople = " AND q.hidden = 0 AND q.user_id <> ? AND NOT EXISTS (SELECT 1 FROM users x WHERE x.id = q.user_id AND (x.is_bot = 1 OR x.deleted = 1))"
 	// recommendOverlap counts, for every channel, its readers among the
 	// people of the query given to overlapOf.
-	recommendOverlap = "(SELECT p.channel_id, COUNT(DISTINCT p.user_id) AS overlap FROM channel_participants p WHERE p.state = 0 AND p.user_id IN ("
+	recommendOverlap = "(SELECT p.channel_id, COUNT(DISTINCT p.user_id) AS overlap FROM channel_participants p WHERE p.state = 0 AND p.hidden = 0 AND p.user_id IN ("
 	recommendOrder   = " ORDER BY COALESCE(o.overlap, 0) DESC, c.participants_count DESC, c.id LIMIT ?"
 )
 

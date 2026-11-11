@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -60,8 +61,9 @@ func placeholders(n int) string {
 
 // IncrementViews counts selfId's view of the posts ids of channelId: once
 // per user and post, not for a post of its own (the initial 1 is that
-// view), not for a message of a supergroup, which has no views. A channel
-// selfId may not read is CHANNEL_PRIVATE.
+// view), not for a message of a supergroup, which has no views, and not
+// for a ghost (ADR 0048, p. 5), whose views nobody sees. A channel selfId
+// may not read is CHANNEL_PRIVATE.
 func (d *Dao) IncrementViews(ctx context.Context, selfId, channelId int64, ids []int32) error {
 	v, err := d.viewerOf(ctx, selfId, channelId)
 	if err != nil {
@@ -72,6 +74,9 @@ func (d *Dao) IncrementViews(ctx context.Context, selfId, channelId int64, ids [
 	}
 	if !v.broadcast {
 		return nil
+	}
+	if hidden, err := ghost.IsGhost(ghost.OnDB(ctx, d.Mysql.DB), selfId); err != nil || hidden {
+		return err
 	}
 	ids = countedIds(ids)
 	if len(ids) == 0 {

@@ -22,8 +22,8 @@ import (
 // FutureCreator picks who owns the basic group chat after its creator
 // leaves it (task 078, core.telegram.org/api/channel, "Leaving
 // groups/channels": a basic group goes to that user at once): a member in
-// it now other than the creator, neither a bot nor an account gone (gone
-// tells), the admins before the other members, and among them the one in
+// it now other than the creator, neither a bot, a hidden member (the ghost,
+// ADR 0048) nor an account gone (gone tells), the admins before the other members, and among them the one in
 // the chat the longest (date is the join), then the lowest id. As a
 // supergroup's (biz channel, futureCreatorQuery): the admins first, as
 // tdesktop lists them first where the owner picks another one
@@ -33,7 +33,7 @@ import (
 func FutureCreator(chat *mtproto.MutableChat, gone func(userId int64) bool) int64 {
 	var best *mtproto.ImmutableChatParticipant
 	chat.Walk(func(userId int64, p *mtproto.ImmutableChatParticipant) error {
-		if !p.IsChatMemberStateNormal() || p.IsChatMemberCreator() || p.GetIsBot() || userId == chat.Creator() || gone(userId) {
+		if !p.IsChatMemberStateNormal() || p.IsChatMemberCreator() || p.GetIsBot() || p.GetHidden() || userId == chat.Creator() || gone(userId) {
 			return nil
 		}
 		if best == nil || before(p, best) {

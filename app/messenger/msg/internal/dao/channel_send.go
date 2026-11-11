@@ -16,15 +16,19 @@
 package dao
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/messenger/msg/inbox/inbox"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -47,6 +51,7 @@ type ChannelSent struct {
 
 type senderRow struct {
 	Broadcast           bool   `db:"broadcast"`
+	Gigagroup           bool   `db:"gigagroup"`
 	Deleted             bool   `db:"deleted"`
 	Blocked             bool   `db:"blocked"`
 	DefaultBannedRights int32  `db:"default_banned_rights"`
@@ -135,7 +140,7 @@ func (s *sender) sendAs(b *userbox.Box, channelId int64, as *mtproto.Peer) (int6
 func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+		"SELECT c.broadcast, c.gigagroup, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
 			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date,"+
 			" COALESCE(p.last_send_date, 0) AS last_send_date, COALESCE(p.`rank`, '') AS `rank`"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
@@ -158,7 +163,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 			return nil, mtproto.ErrChannelPrivate
 		}
 		return &sender{
-			ch:    channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights, Blocked: r.Blocked},
+			ch:    channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked},
 			p:     channelperm.Participant{Role: channelperm.RoleMember, State: channelperm.StateIn},
 			guest: true,
 
@@ -173,7 +178,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 		slowmodeSeconds:   r.SlowmodeSeconds,
 		lastSend:          r.LastSendDate,
 		forum:             r.Forum,
-		ch:                channelperm.Channel{Broadcast: r.Broadcast, Default: r.DefaultBannedRights, Blocked: r.Blocked},
+		ch:                channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil
@@ -207,6 +212,53 @@ func openChannel(b *userbox.Box, channelId int64) (*channelbox.Channel, *sender,
 		return nil, nil, err
 	}
 	return ch, s, nil
+}
+
+// GhostMayJoin tells whether userId is a ghost (ADR 0048) without a row in
+// the channel that it may read without being in it (ghost.Readable: a
+// public one, or the discussion of a channel it may read): its message,
+// reaction or vote there makes it a hidden member first (msg core
+// ghostJoins). It reads outside a box transaction.
+func (d *Dao) GhostMayJoin(ctx context.Context, userId, channelId int64) (bool, error) {
+	q := ghost.OnDB(ctx, d.Mysql.DB)
+	hidden, err := ghost.IsGhost(q, userId)
+	if err != nil || !hidden {
+		return false, err
+	}
+	var in []int64
+	if err = q.QueryRowsPartial(&in, "SELECT user_id FROM channel_participants WHERE channel_id = ? AND user_id = ? AND state = ?",
+		channelId, userId, channelperm.StateIn); err != nil || len(in) > 0 {
+		return false, err
+	}
+	return ghost.Readable(q, channelId, userId, time.Now().Unix())
+}
+
+// mentionedGhostsJoin makes the ghosts among mentioned, the users the
+// messages b's owner sent to the channel mention or reply to, hidden
+// members of the channel, locked (ADR 0048, p. 2a): their mention rows are
+// written in this transaction, and once it commits the push of the
+// messages finds them among the members, mentioned. Each gets its dialog by
+// inbox.channelJoinedHiddenToInbox, read up to readMax, the last message
+// before these, so the mention is unread. A ghost banned from the channel
+// stays out.
+func (d *Dao) mentionedGhostsJoin(b *userbox.Box, channelId int64, mentioned []int64, readMax int32) error {
+	ghosts, err := ghost.Ghosts(b.Tx(), mentioned)
+	if err != nil {
+		return err
+	}
+	for _, id := range ghosts {
+		out, err := ghost.JoinChannel(b.Tx(), channelId, id, b.Date())
+		if err != nil {
+			return err
+		}
+		if out != ghost.Joined {
+			continue
+		}
+		if err = d.EmitInbox(b, &inbox.TLInboxChannelJoinedHiddenToInbox{UserId: id, FromId: b.UserId(), ChannelId: channelId, ReadMaxId: readMax}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // checkSend checks that s may send m, each kind of it with its own error
@@ -370,6 +422,9 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		}
 		m.Id = ch.NextMessageId()
 		m.Out = false
+		// Unread contents are each viewer's (channelcontents), never of the
+		// one copy: a forward brings the flag of its source.
+		m.MediaUnread = false
 		m.PeerId = mtproto.MakePeerChannel(channelId)
 		m.Date = int32(b.Date())
 		if polls.IsNew(m.Media) {
@@ -557,6 +612,9 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		err = movedTo(b, channelId, sent[len(sent)-1].Message.Id)
 	}
 	if err != nil {
+		return nil, nil, nil, err
+	}
+	if err = d.mentionedGhostsJoin(b, channelId, mentioned, sent[0].Message.Id-1); err != nil {
 		return nil, nil, nil, err
 	}
 	if disc != nil && len(disc.Copies) > 0 {
@@ -828,22 +886,41 @@ func (d *Dao) InvitedToChannel(b *userbox.Box, channelId int64) (bool, error) {
 	if len(rows) == 0 {
 		return false, nil
 	}
-	top, read := rows[0].Top, min(rows[0].Read, rows[0].Top)
+	return true, showChannelDialog(b, channelId, rows[0].Top, min(rows[0].Read, rows[0].Top))
+}
+
+// JoinedHidden shows the channel in the dialogs of b's owner, a ghost that
+// joined it hidden (inbox.channelJoinedHiddenToInbox, ADR 0048): read up to
+// readMax, what was there before the mention that brought it in, so that
+// the mention and what came after stay unread. It tells whether the owner
+// is in the channel.
+func (d *Dao) JoinedHidden(b *userbox.Box, channelId int64, readMax int32) (bool, error) {
+	var top []int32
+	if err := b.Tx().QueryRowsPartial(&top,
+		"SELECT c.top_message FROM channels c JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? AND p.state = 0 WHERE c.id = ? AND c.deleted = 0",
+		b.UserId(), channelId); err != nil {
+		return false, err
+	}
+	if len(top) == 0 {
+		return false, nil
+	}
+	return true, showChannelDialog(b, channelId, top[0], min(max(readMax, 0), top[0]))
+}
+
+// showChannelDialog writes b's owner's dialog with the channel: its last
+// message top, read up to read at least.
+func showChannelDialog(b *userbox.Box, channelId int64, top, read int32) error {
 	b.InvalidateCache(dialog.GetDialogCacheKeyByPeer(b.UserId(), mtproto.PEER_CHANNEL, channelId))
 	res, err := b.Tx().Exec("UPDATE dialogs SET top_message = ?, read_inbox_max_id = GREATEST(read_inbox_max_id, ?), date2 = ?, deleted = 0 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
 		top, read, b.Date(), b.UserId(), mtproto.PEER_CHANNEL, channelId)
 	if err != nil {
-		return false, err
+		return err
 	}
 	n, err := res.RowsAffected()
-	if err != nil {
-		return false, err
+	if err != nil || n > 0 {
+		return err
 	}
-	if n == 0 {
-		if _, err = b.Tx().Exec("INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, read_inbox_max_id, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, ?, 'null', ?)",
-			b.UserId(), mtproto.PEER_CHANNEL, channelId, mtproto.MakePeerDialogId(mtproto.PEER_CHANNEL, channelId), top, read, b.Date()); err != nil {
-			return false, err
-		}
-	}
-	return true, nil
+	_, err = b.Tx().Exec("INSERT INTO dialogs (user_id, peer_type, peer_id, peer_dialog_id, top_message, read_inbox_max_id, draft_message_data, date2) VALUES (?, ?, ?, ?, ?, ?, 'null', ?)",
+		b.UserId(), mtproto.PEER_CHANNEL, channelId, mtproto.MakePeerDialogId(mtproto.PEER_CHANNEL, channelId), top, read, b.Date())
+	return err
 }

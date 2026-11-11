@@ -31,6 +31,10 @@ type Calls struct {
 	// TurnSecret is the static-auth-secret of coturn; the credentials of a
 	// call are made from it. Required when a server has "turn".
 	TurnSecret string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Quality is the profile of the call parameters, "pluma" (empty) or
+	// "stock", and changes to it: phonecalls.CustomParameters,
+	// docs/ops/calls.md.
+	Quality string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// ClientConfig is the answer to phone.getCallConfig; "{}" if empty.
 	ClientConfig string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

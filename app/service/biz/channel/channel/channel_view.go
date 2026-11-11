@@ -94,7 +94,7 @@ func (p *ImmutableChannelParticipant) Perm() channelperm.Participant {
 
 // Perm is the channel as channelperm reads it.
 func (m *ImmutableChannel) Perm() channelperm.Channel {
-	return channelperm.Channel{Broadcast: m.GetBroadcast(), Default: m.GetDefaultBannedRights(), Blocked: m.GetBlocked()}
+	return channelperm.Channel{Broadcast: m.GetBroadcast(), Gigagroup: m.GetGigagroup(), Default: m.GetDefaultBannedRights(), Blocked: m.GetBlocked()}
 }
 
 // Can answers whether the participant p may do a in the channel at now
@@ -253,6 +253,7 @@ func (m *ImmutableChannel) base() *mtproto.Chat {
 		Photo:             mtproto.MakeChatPhotoByPhoto(m.GetPhoto()),
 		Broadcast:         m.GetBroadcast(),
 		Megagroup:         m.GetMegagroup(),
+		Gigagroup:         m.GetGigagroup(),
 		Noforwards:        m.GetNoforwards(),
 		Forum:             m.GetForum(),
 		ForumTabs:         m.GetForumTabs(),

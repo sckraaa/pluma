@@ -31,8 +31,9 @@ import (
 // (JoinChannel.swift:70-81). Anyone who may read a supergroup may ask
 // about any member; in a channel only its admins ask about others
 // (CHAT_ADMIN_REQUIRED). One not in the channel (never joined or left) is
-// USER_NOT_PARTICIPANT, and so is one kicked to all but admins; a
-// restricted member is channelParticipantBanned to admins.
+// USER_NOT_PARTICIPANT, and so is one kicked to all but admins, and a
+// ghost's hidden row to all but itself and the admins who see it
+// restricted; a restricted member is channelParticipantBanned to admins.
 func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipant) (*mtproto.Channels_ChannelParticipant, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Participant)
 	if peer.PeerType == mtproto.PEER_SELF {
@@ -63,6 +64,7 @@ func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipa
 	}
 	row, ok := mc.GetParticipant(target)
 	me, _ := mc.GetParticipant(c.MD.UserId)
+	now := int32(time.Now().Unix())
 	switch {
 	case !ok, row.GetState() == channelpb.StateLeft, target == c.MD.UserId && !row.Member():
 		return nil, mtproto.ErrUserNotParticipant
@@ -70,8 +72,15 @@ func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipa
 		// Who was kicked is for admins (channelParticipantsKicked):
 		// to a member one kicked is not in the channel.
 		return nil, mtproto.ErrUserNotParticipant
+	case row.GetHidden() && row.Member() && target != c.MD.UserId && (!me.Admin() || !row.Restricted(now)):
+		// The support ghost is in no list of the members (ADR 0048):
+		// asked about as the author of a message, it is one who is not
+		// in the group, which Android and tdesktop go on without
+		// (ChatActivity.java:32257-32266, api_chat_participants.cpp:
+		// 835-845). One an admin restricted is in the restricted list
+		// (channelParticipantsBanned), as one kicked is in the kicked.
+		return nil, mtproto.ErrUserNotParticipant
 	}
-	now := int32(time.Now().Unix())
 	p := row.ToChannelParticipant(me, now)
 	h := mtproto.NewIDListHelper(c.MD.UserId)
 	for _, id := range []int64{c.MD.UserId, target, row.GetInviterUserId(), row.GetPromotedBy(), row.GetKickedBy()} {

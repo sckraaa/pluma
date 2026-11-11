@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/channelcontents"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -141,6 +142,12 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 		return nil, err
 	}
 	f.setOwn(own)
+	contents, err := channelcontents.Load(c.ctx, c.svcCtx.Dao.Mysql, in.ChannelId, in.SelfId, f.viewedMessages())
+	if err != nil {
+		c.Logger.Errorf("channel.getChannelDifference - contents of channel %d: %v", in.ChannelId, err)
+		return nil, err
+	}
+	f.setContents(contents, v.Member)
 
 	// Each message with a poll carries the results as they are now, for
 	// this viewer.

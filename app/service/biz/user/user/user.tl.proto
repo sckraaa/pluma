@@ -151,6 +151,8 @@ enum TLConstructor {
   CRC32_user_getTopicNotifySettings = 1032369295;
   // pluma: task 067
   CRC32_user_getTopicNotifyExceptions = -852948814;
+  // pluma: task 080
+  CRC32_user_setGhost = 2145706849;
 }
 
 // BotInfoData <--
@@ -639,6 +641,18 @@ message TL_user_updateVerified {
   TLConstructor constructor = 1;
   int64 user_id = 3;
   mtproto.Bool verified = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: user.setGhost user_id:long ghost:Bool = Bool;
+// The account becomes the support ghost or stops being one (ADR 0048,
+// pluma-admin ghost set): users.ghost in the account's box transaction, the
+// cached user dropped, updateUser to the account's devices and to those
+// who see it. True when the flag changed. (task 080)
+message TL_user_setGhost {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  mtproto.Bool ghost = 4;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1381,4 +1395,6 @@ service RPCUser {
   rpc user_getTopicNotifySettings(TL_user_getTopicNotifySettings) returns (mtproto.PeerNotifySettings) {}
   // pluma: task 067
   rpc user_getTopicNotifyExceptions(TL_user_getTopicNotifyExceptions) returns (mtproto.Updates) {}
+  // pluma: task 080
+  rpc user_setGhost(TL_user_setGhost) returns (mtproto.Bool) {}
 }

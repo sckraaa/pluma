@@ -1,7 +1,7 @@
 {
   "layer": "233",
   "total": 677,
-  "ok": 411,
+  "ok": 412,
   "partial": 6,
   "areas": [
     {
@@ -13,7 +13,7 @@
     {
       "key": "channels",
       "total": 66,
-      "ok": 58,
+      "ok": 59,
       "partial": 1
     },
     {

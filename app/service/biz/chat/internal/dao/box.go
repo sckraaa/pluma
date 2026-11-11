@@ -17,6 +17,7 @@ package dao
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -25,7 +26,9 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
+	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/protobuf/proto"
 )
 
 // cacheTimeout bounds a deletion of cache keys around a box transaction:
@@ -83,4 +86,26 @@ func (d *Dao) EmitSeqUpdate(b *userbox.Box, u *mtproto.Update, users []*mtproto.
 // built when msg applies it, as to sees them then.
 func (d *Dao) EmitSeqInbox(b *userbox.Box, to int64, updates ...*mtproto.Update) error {
 	return inboxpb.EmitSeqInbox(b, d.Topics.Inbox, to, updates...)
+}
+
+// EmitChatHistory gives the ghost to, which joined the basic group chatId
+// hidden in b's transaction, the group's whole history:
+// inbox.chatHistoryToInbox from b's owner (ADR 0048, p. 4), which may not
+// be the ghost itself. mention mutes the group for the ghost.
+func (d *Dao) EmitChatHistory(b *userbox.Box, to, chatId int64, mention bool) error {
+	if to <= 0 || to == b.UserId() {
+		return fmt.Errorf("%w: the history of chat %d to user %d from %d", userbox.ErrInvalidEvent, chatId, to, b.UserId())
+	}
+	in := &inboxpb.TLInboxChatHistoryToInbox{UserId: to, FromId: b.UserId(), ChatId: chatId, Mention: mention}
+	data, err := jsonx.Marshal(in)
+	if err != nil {
+		return err
+	}
+	b.Emit(userbox.Event{
+		Topic:     d.Topics.Inbox,
+		Recipient: to,
+		Method:    string(proto.MessageName(in)),
+		Data:      data,
+	})
+	return nil
 }

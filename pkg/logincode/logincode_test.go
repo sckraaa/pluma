@@ -673,6 +673,73 @@ func TestCheckSendCode(t *testing.T) {
 	})
 }
 
+// ReserveSend counts a delivery of auth.resendCode under the same budgets as
+// CheckSendCode, and a refused one counts under none of them.
+func TestReserveSend(t *testing.T) {
+	ctx := context.Background()
+	const phone, ip = "79990000001", "10.0.0.1"
+	counter := func(mr *miniredis.Miniredis, rule Rule, subject string) string {
+		v, _ := mr.Get(floodKey(rule, subject))
+		return v
+	}
+
+	t.Run("shares the budgets of CheckSendCode", func(t *testing.T) {
+		s, mr, _ := testService(t, phone)
+		if err := s.CheckSendCode(ctx, phone, 1, ip); err != nil {
+			t.Fatal(err)
+		}
+		for i := 1; i < int(SendCodePerPhoneIP.Limit); i++ {
+			if err := s.ReserveSend(ctx, phone, 1, ip); err != nil {
+				t.Fatalf("delivery %d: %v", i, err)
+			}
+		}
+		n := strconv.FormatInt(SendCodePerPhoneIP.Limit, 10)
+		for _, c := range []struct {
+			rule    Rule
+			subject string
+		}{{SendCodePerIP, ip}, {SendCodePerAuthKey, "1"}, {SendCodePerPhoneIP, phoneIpSubject(phone, ip)}, {SendCodePerPhone, phone}} {
+			if got := counter(mr, c.rule, c.subject); got != n {
+				t.Fatalf("%s = %q, want %s", c.rule.Name, got, n)
+			}
+		}
+
+		err := s.ReserveSend(ctx, phone, 2, ip)
+		if got := rpcMessage(err); !strings.HasPrefix(got, "FLOOD_WAIT_") {
+			t.Fatalf("over the limit: %s", got)
+		}
+		// Refused: the hits before the exceeded rule are taken back.
+		if got := counter(mr, SendCodePerIP, ip); got != n {
+			t.Fatalf("%s after a refused delivery = %q, want %s", SendCodePerIP.Name, got, n)
+		}
+		if got := counter(mr, SendCodePerAuthKey, "2"); got != "" {
+			t.Fatalf("%s of the refused key = %q", SendCodePerAuthKey.Name, got)
+		}
+		if got := counter(mr, SendCodePerPhone, phone); got != n {
+			t.Fatalf("%s after a refused delivery = %q, want %s", SendCodePerPhone.Name, got, n)
+		}
+		// So the owner elsewhere still has the per-phone total.
+		if err := s.ReserveSend(ctx, phone, 3, "192.0.2.50"); err != nil {
+			t.Fatalf("other address: %v", err)
+		}
+	})
+
+	t.Run("CheckPhone spends none of them", func(t *testing.T) {
+		s, mr, _ := testService(t, phone)
+		for i := 0; i < 2*int(SendCodePerPhoneIP.Limit); i++ {
+			if err := s.CheckPhone(ctx, phone, 1, ip); err != nil {
+				t.Fatalf("lookup %d: %v", i, err)
+			}
+		}
+		for _, rule := range []Rule{SendCodePerIP, SendCodePerAuthKey, SendCodePerPhoneIP, SendCodePerPhone} {
+			for _, k := range mr.Keys() {
+				if strings.HasPrefix(k, floodKeyPrefix+rule.Name+"_") {
+					t.Fatalf("CheckPhone counted %s", k)
+				}
+			}
+		}
+	})
+}
+
 func TestCheckPhoneLimitsLookups(t *testing.T) {
 	ctx := context.Background()
 	s, _, _ := testService(t, "79990000001")

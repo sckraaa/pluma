@@ -174,7 +174,18 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		period   int32
 		changed  bool
 	)
+	// A basic group's message the box has already: a ghost's history copy
+	// (CopyChatHistory) took it from another member's box before this
+	// delivery came, which a send that read the chat after the ghost joined
+	// makes. The copy stands.
+	have, err := chatCopies(b, peerType, boxes)
+	if err != nil {
+		return nil, err
+	}
 	for _, src := range boxes {
+		if have[src.GetDialogMessageId()] {
+			continue
+		}
 		id := b.NextMessageId()
 		message := proto.Clone(src.GetMessage()).(*mtproto.Message)
 		message.Out = false
@@ -318,6 +329,29 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		}
 	}
 	return out, nil
+}
+
+// chatCopies returns which messages of boxes, a basic group's, b's box has
+// a copy of, deleted or not.
+func chatCopies(b *userbox.Box, peerType int32, boxes []*mtproto.MessageBox) (map[int64]bool, error) {
+	if peerType != mtproto.PEER_CHAT || len(boxes) == 0 {
+		return nil, nil
+	}
+	args := make([]any, 0, len(boxes)+1)
+	args = append(args, b.UserId())
+	for _, box := range boxes {
+		args = append(args, box.GetDialogMessageId())
+	}
+	var ids []int64
+	if err := b.Tx().QueryRowsPartial(&ids,
+		"SELECT dialog_message_id FROM messages WHERE user_id = ? AND dialog_message_id IN ("+inList(len(boxes))+")", args...); err != nil {
+		return nil, err
+	}
+	have := make(map[int64]bool, len(ids))
+	for _, id := range ids {
+		have[id] = true
+	}
+	return have, nil
 }
 
 // recipientPeer is the dialog of an event's recipient with its initiator

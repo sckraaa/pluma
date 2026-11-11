@@ -34,7 +34,7 @@ func NewChannelParticipantsDAO(db *sqlx.DB) *ChannelParticipantsDAO {
 }
 
 const channelParticipantsColumns = "channel_id, user_id, role, state, admin_rights, `rank`, banned_rights, until_date, " +
-	"inviter_user_id, promoted_by, kicked_by, available_min_id, last_send_date, `date`"
+	"inviter_user_id, promoted_by, kicked_by, available_min_id, last_send_date, `date`, hidden"
 
 // SelectListByUserIdList
 // select <channelParticipantsColumns> from channel_participants where channel_id = :channel_id and user_id in (:idList)

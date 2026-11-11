@@ -243,7 +243,8 @@ func (m *MutableChat) ToChatParticipants(selfId int64) (participants *ChatPartic
 	}).To_ChatParticipants()
 
 	for _, cp := range m.ChatParticipants {
-		if cp.IsChatMemberStateNormal() {
+		// pluma: a hidden row (the ghost, ADR 0048) is shown to itself alone.
+		if cp.IsChatMemberStateNormal() && (!cp.Hidden || cp.UserId == selfId && selfId != 0) {
 			participants.Participants = append(participants.Participants, cp.ToChatParticipant())
 		}
 	}
