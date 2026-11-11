@@ -24,6 +24,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // TestChannelComments (task 048, the owner's reports of 07.11) end to end:
@@ -166,12 +167,41 @@ func TestChannelComments(t *testing.T) {
 		t.Errorf("Bob asks for the group's members: %v", err)
 	}
 
-	if _, err = bob.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
+	o, err = bob.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
 		Constructor: bob.c.Constructor(mtproto.Predicate_messages_sendMessage),
 		Peer:        peerOfChannel(bob, gr), Message: "a comment", RandomId: randomID(),
 		ReplyTo: mtproto.MakeTLInputReplyToMessage(&mtproto.InputReplyTo{ReplyToMsgId: copyId, TopMsgId: mtproto.MakeFlagsInt32(copyId)}).To_InputReplyTo(),
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("the comment: %v", err)
+	}
+	var comment int32
+	for _, u := range o.(interface{ To_Updates() *mtproto.Updates }).To_Updates().GetUpdates() {
+		if u.GetPredicateName() == mtproto.Predicate_updateMessageID {
+			comment = u.GetId_INT32()
+		}
+	}
+	// Bob edits his comment without joining the group: Android asks
+	// messages.getMessageEditData first and refuses on any error (the
+	// owner's report of 11.11: "you can't edit this message").
+	editData := func(id int32) error {
+		_, err := bob.c.Invoke(ctx, &mtproto.TLMessagesGetMessageEditData{
+			Constructor: bob.c.Constructor(mtproto.Predicate_messages_getMessageEditData),
+			Peer:        peerOfChannel(bob, gr), Id: id,
+		})
+		return err
+	}
+	if err = editData(comment); err != nil {
+		t.Errorf("messages.getMessageEditData of Bob's comment: %v", err)
+	}
+	if err = editData(copyId); !mtclient.IsRPCError(err, "MESSAGE_AUTHOR_REQUIRED") {
+		t.Errorf("messages.getMessageEditData of the post's copy by Bob: %v, want MESSAGE_AUTHOR_REQUIRED", err)
+	}
+	if _, err = bob.c.Invoke(ctx, &mtproto.TLMessagesEditMessage{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_editMessage),
+		Peer:        peerOfChannel(bob, gr), Id: comment, Message: wrapperspb.String("a comment, edited"),
+	}); err != nil {
+		t.Errorf("Bob edits his comment: %v", err)
 	}
 
 	o, err = bob.c.Invoke(ctx, &mtproto.TLMessagesGetDialogs{
@@ -218,7 +248,7 @@ func TestChannelComments(t *testing.T) {
 	}
 	if m := o.(interface {
 		To_Messages_Messages() *mtproto.Messages_Messages
-	}).To_Messages_Messages().GetMessages(); len(m) != 1 || m[0].GetMessage() != "a comment" {
+	}).To_Messages_Messages().GetMessages(); len(m) != 1 || m[0].GetMessage() != "a comment, edited" {
 		t.Errorf("the thread: %v", m)
 	}
 
