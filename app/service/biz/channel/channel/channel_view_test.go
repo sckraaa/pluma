@@ -119,6 +119,8 @@ func TestToChat(t *testing.T) {
 		{"restriction over", "", participant(RoleMember, StateIn, 0, mute, earlier), member},
 		{"left a private channel", "", participant(RoleMember, StateLeft, 0, 0, 0),
 			want{predicate: mtproto.Predicate_channelForbidden}},
+		{"the owner who left a private channel", "", participant(RoleCreator, StateLeft, 0, 0, 0),
+			want{predicate: mtproto.Predicate_channel, left: true, bannedRights: -1, date: int32(viewCreated)}},
 		{"left a public channel", "pub", participant(RoleMember, StateLeft, 0, 0, 0),
 			want{predicate: mtproto.Predicate_channel, left: true, bannedRights: -1, date: int32(viewCreated)}},
 		{"kicked for good", "pub", participant(RoleMember, StateKicked, 0, kick, 0),

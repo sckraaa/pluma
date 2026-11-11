@@ -17,17 +17,22 @@ package channel_helper
 
 import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/config"
+	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/core"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/server/grpc/service"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/svc"
 )
 
 type (
-	Config = config.Config
-	Topics = config.Topics
+	Config         = config.Config
+	Topics         = config.Topics
+	TransferWorker = core.TransferWorker
 )
 
 // New returns the channel service: reads of channels and their
-// participants (ADR 0034).
-func New(c Config) *service.Service {
-	return service.New(svc.NewServiceContext(c))
+// participants (ADR 0034), and the worker that hands the channels of
+// owners who left to their next owners (task 078), which the server starts
+// and stops.
+func New(c Config) (*service.Service, *TransferWorker) {
+	ctx := svc.NewServiceContext(c)
+	return service.New(ctx), core.NewTransferWorker(ctx.Dao)
 }

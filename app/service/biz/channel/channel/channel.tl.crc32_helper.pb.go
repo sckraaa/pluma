@@ -180,4 +180,10 @@ const (
 	CRC32_channel_getUnreadReactions TLConstructor = -793086366 // 0xd0ba7662
 	// pluma: task 067
 	CRC32_channel_readReactions TLConstructor = 2058932457 // 0x7ab8d0e9
+	// pluma: task 078
+	CRC32_channel_getFutureCreator TLConstructor = -223894021 // 0xf2a7a5fb
+	// pluma: task 078
+	CRC32_channel_getInactiveChannels TLConstructor = -744665876 // 0xd39d4cec
+	// pluma: task 078
+	CRC32_channel_setMainProfileTab TLConstructor = 1898100990 // 0x7122b8fe
 )

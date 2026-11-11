@@ -112,6 +112,9 @@ type ChannelClient interface {
 	ChannelExpireMessages(ctx context.Context, in *channel.TLChannelExpireMessages) (*mtproto.Int32, error)
 	ChannelGetUnreadReactions(ctx context.Context, in *channel.TLChannelGetUnreadReactions) (*mtproto.Messages_Messages, error)
 	ChannelReadReactions(ctx context.Context, in *channel.TLChannelReadReactions) (*mtproto.Messages_AffectedHistory, error)
+	ChannelGetFutureCreator(ctx context.Context, in *channel.TLChannelGetFutureCreator) (*mtproto.Int64, error)
+	ChannelGetInactiveChannels(ctx context.Context, in *channel.TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error)
+	ChannelSetMainProfileTab(ctx context.Context, in *channel.TLChannelSetMainProfileTab) (*mtproto.Bool, error)
 }
 
 type defaultChannelClient struct {
@@ -1068,4 +1071,37 @@ func (m *defaultChannelClient) ChannelEditUsernames(ctx context.Context, in *cha
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelEditUsernames(ctx, in)
+}
+
+// ChannelGetFutureCreator
+// channel.getFutureCreator self_id:long channel_id:long = Int64;
+func (m *defaultChannelClient) ChannelGetFutureCreator(ctx context.Context, in *channel.TLChannelGetFutureCreator) (*mtproto.Int64, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetFutureCreator(ctx, in)
+}
+
+// ChannelGetInactiveChannels
+// channel.getInactiveChannels self_id:long limit:int = messages.InactiveChats;
+func (m *defaultChannelClient) ChannelGetInactiveChannels(ctx context.Context, in *channel.TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetInactiveChannels(ctx, in)
+}
+
+// ChannelSetMainProfileTab
+// channel.setMainProfileTab self_id:long perm_auth_key_id:long channel_id:long tab:ProfileTab = Bool;
+func (m *defaultChannelClient) ChannelSetMainProfileTab(ctx context.Context, in *channel.TLChannelSetMainProfileTab) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelSetMainProfileTab(ctx, in)
 }

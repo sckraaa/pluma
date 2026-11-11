@@ -180,8 +180,8 @@ func (c *MessagesCore) channelEditData(peer *mtproto.PeerUtil, id int32) (*mtpro
 		if m.GetFromId().GetUserId() != c.MD.UserId {
 			return nil, mtproto.ErrMessageAuthorRequired
 		}
-	case me.GetRole() == channelpb.RoleCreator:
-	case me.GetRole() == channelpb.RoleAdmin && (rights.CanEditMessages() || rights.CanPostMessages()):
+	case me.Member() && me.GetRole() == channelpb.RoleCreator:
+	case me.Member() && me.GetRole() == channelpb.RoleAdmin && (rights.CanEditMessages() || rights.CanPostMessages()):
 	default:
 		return nil, mtproto.ErrChatAdminRequired
 	}

@@ -601,6 +601,7 @@ func (s *Server) Initialize() error {
 				MsgClient:     c.MsgClient,
 				SyncClient:    syncClient,
 				KV:            c.KV,
+				ChannelClient: c.BizServiceClient,
 			}))
 
 		mtproto.RegisterRPCPasskeyServer(

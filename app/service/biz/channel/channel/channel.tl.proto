@@ -199,6 +199,12 @@ enum TLConstructor {
   CRC32_channel_getUnreadReactions = -793086366;
   // pluma: task 067
   CRC32_channel_readReactions = 2058932457;
+  // pluma: task 078
+  CRC32_channel_getFutureCreator = -223894021;
+  // pluma: task 078
+  CRC32_channel_getInactiveChannels = -744665876;
+  // pluma: task 078
+  CRC32_channel_setMainProfileTab = 1898100990;
 }
 
 
@@ -261,6 +267,9 @@ message ImmutableChannel {
     // pluma: task 078: every username of the channel, in its order, when it
     // has more than one (channel.usernames); username is the editable one.
     repeated mtproto.Username usernames = 46;
+    // pluma: task 078: the tab its profile opens on (channelFull.main_tab),
+    // as mtproto.ProfileTabType* numbers it; 0 for none.
+    int32 main_tab = 47;
 }
 
 message TL_immutableChannel {
@@ -1439,6 +1448,37 @@ message TL_channel_readReactions {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.getFutureCreator self_id:long channel_id:long = Int64;
+// Who becomes the owner of the channel if self_id, its owner, leaves it; 0
+// for nobody (task 078).
+message TL_channel_getFutureCreator {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getInactiveChannels self_id:long limit:int = messages.InactiveChats;
+// The channels and supergroups of self_id, the least active first, with
+// the date of its last activity in each (task 078).
+message TL_channel_getInactiveChannels {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int32 limit = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.setMainProfileTab self_id:long perm_auth_key_id:long channel_id:long tab:ProfileTab = Bool;
+// The tab the channel's profile opens on (task 078).
+message TL_channel_setMainProfileTab {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.ProfileTab tab = 6;
+}
+
+//--------------------------------------------------------------------------------------------
 // pluma: channel.setBlocked channel_id:long blocked:Bool = Bool;
 // The owner of the server blocks a channel or a supergroup, or unblocks it
 // (the panel, docs/ops/admin-panel.md).
@@ -1655,4 +1695,10 @@ service RPCChannel {
   rpc channel_getUnreadReactions(TL_channel_getUnreadReactions) returns (mtproto.messages_Messages) {}
   // pluma: task 067
   rpc channel_readReactions(TL_channel_readReactions) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 078
+  rpc channel_getFutureCreator(TL_channel_getFutureCreator) returns (mtproto.Int64) {}
+  // pluma: task 078
+  rpc channel_getInactiveChannels(TL_channel_getInactiveChannels) returns (mtproto.messages_InactiveChats) {}
+  // pluma: task 078
+  rpc channel_setMainProfileTab(TL_channel_setMainProfileTab) returns (mtproto.Bool) {}
 }

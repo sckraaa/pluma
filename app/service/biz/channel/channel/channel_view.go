@@ -156,7 +156,10 @@ func (m *ImmutableChannel) ToChat(p *ImmutableChannelParticipant, now int32) *mt
 		return m.forbidden(p)
 	}
 	member := p != nil && p.Member()
-	if !member && !m.Public() && p.GetState() != StateLinked {
+	// The owner who left still sees a private channel, as left: it may come
+	// back by itself (task 078, Join) until its next owner takes it.
+	owner := p.GetRole() == RoleCreator && p.GetState() == StateLeft
+	if !member && !m.Public() && p.GetState() != StateLinked && !owner {
 		return m.forbidden(nil)
 	}
 

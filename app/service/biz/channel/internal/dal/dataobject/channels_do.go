@@ -65,4 +65,7 @@ type ChannelsDO struct {
 	EmojiStatusUntil              int32 `db:"emoji_status_until" json:"emoji_status_until"`
 	Version                       int32 `db:"version" json:"version"`
 	Date                          int64 `db:"date" json:"date"`
+	// The tab its profile opens on (channels.setMainProfileTab), as
+	// mtproto.ProfileTabType* numbers it; 0 for none.
+	MainTab int32 `db:"main_tab" json:"main_tab"`
 }

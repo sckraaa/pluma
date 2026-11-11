@@ -364,6 +364,18 @@ func (noChannels) ChannelSetStickerSet(context.Context, *channelpb.TLChannelSetS
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelGetFutureCreator(context.Context, *channelpb.TLChannelGetFutureCreator) (*mtproto.Int64, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetInactiveChannels(context.Context, *channelpb.TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelSetMainProfileTab(context.Context, *channelpb.TLChannelSetMainProfileTab) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelUpdateColor(context.Context, *channelpb.TLChannelUpdateColor) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }

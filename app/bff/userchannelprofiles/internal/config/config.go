@@ -31,4 +31,7 @@ type Config struct {
 	MsgClient   zrpc.RpcClientConf // suggested photos (task 051)
 	SyncClient  sync_client.OutboxConf
 	KV          kv.KvConf // online status of every authorization (pkg/presence)
+	// ChannelClient is biz channel: the main tab of a channel's profile
+	// (task 078).
+	ChannelClient zrpc.RpcClientConf
 }

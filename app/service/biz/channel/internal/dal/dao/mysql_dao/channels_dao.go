@@ -48,7 +48,7 @@ const channelsColumns = "id, access_hash, creator_user_id, title, about, photo_i
 	"default_banned_rights, slowmode_seconds, hidden_prehistory, " +
 	"linked_chat_id, migrated_from_chat_id, migrated_from_max_id, noforwards, join_to_send, join_request, participants_hidden, " +
 	"deleted, blocked, version, `date`, available_reactions_type, available_reactions, " +
-	"color, color_background_emoji_id, profile_color, profile_color_background_emoji_id, emoji_status_document_id, emoji_status_until"
+	"color, color_background_emoji_id, profile_color, profile_color_background_emoji_id, emoji_status_document_id, emoji_status_until, main_tab"
 
 // SelectByIdList
 // select <channelsColumns> from channels where id in (:idList)
