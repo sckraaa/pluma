@@ -84,7 +84,10 @@ func TestCreatorLeavesSupergroup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	phones := testPhones(t, 2)
-	alice := login(ctx, t, phones[0], "Alice")
+	// channels.getFutureCreatorAfterLeave is a method of layer 228, which
+	// Android 12.9.1 sends (TLRPC.java:70127 at aac1efcb); layer 233 has
+	// only messages.getFutureChatCreatorAfterLeave.
+	alice := loginAtLayer(ctx, t, phones[0], "Alice", 228)
 	bob := login(ctx, t, phones[1], "Bob")
 	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("leave %d", randomID()), true)
 	hash := ch.GetAccessHash_FLAGINT64().GetValue()
