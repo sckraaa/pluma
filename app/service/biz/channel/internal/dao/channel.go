@@ -259,6 +259,8 @@ func makeChannel(do *dataobject.ChannelsDO, names []dataobject.ChannelUsernameDO
 		Broadcast:           do.Broadcast,
 		Megagroup:           do.Megagroup,
 		Gigagroup:           do.Gigagroup,
+		Antispam:            do.Antispam,
+		Autotranslation:     do.Autotranslation,
 		Forum:               do.Forum,
 		ForumTabs:           do.ForumTabs,
 		ForumSidebar:        do.ForumSidebar,

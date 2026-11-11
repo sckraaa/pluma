@@ -301,6 +301,16 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -1975507290,
 		}
 	},
+	593076387: func() mtproto.TLObject { // 0x2359a0a3 pluma: task 082
+		return &TLChannelAntispamDelete{
+			Constructor: 593076387,
+		}
+	},
+	-784462129: func() mtproto.TLObject { // 0xd13e0ecf pluma: task 082
+		return &TLChannelAntispamFalsePositive{
+			Constructor: -784462129,
+		}
+	},
 	1073186003: func() mtproto.TLObject { // 0x3ff784d3 pluma: task 060
 		return &TLChannelToggleForum{
 			Constructor: 1073186003,
@@ -626,6 +636,12 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 				if d.GetGigagroup() {
 					flags |= 1 << 17
 				}
+				if d.GetAntispam() {
+					flags |= 1 << 18
+				}
+				if d.GetAutotranslation() {
+					flags |= 1 << 19
+				}
 				if d.GetSignatures() {
 					flags |= 1 << 3
 				}
@@ -711,6 +727,8 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.ForumTabs = (flags & (1 << 15)) != 0
 			d.Blocked = (flags & (1 << 16)) != 0
 			d.Gigagroup = (flags & (1 << 17)) != 0
+			d.Antispam = (flags & (1 << 18)) != 0
+			d.Autotranslation = (flags & (1 << 19)) != 0
 			d.Signatures = (flags & (1 << 3)) != 0
 			d.Noforwards = (flags & (1 << 4)) != 0
 			d.JoinToSend = (flags & (1 << 5)) != 0
@@ -5688,6 +5706,96 @@ func (m *TLChannelJoinHidden) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.UserId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelAntispamDelete (pluma: task 082)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelAntispamDelete) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x2359a0a3:
+		x.UInt(0x2359a0a3)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		x.Long(m.GetChannelId())
+
+		x.VectorInt(m.GetId())
+
+		x.Int(m.GetRule())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelAntispamDelete) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelAntispamDelete) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x2359a0a3:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+
+		m.Id = dBuf.VectorInt()
+
+		m.Rule = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelAntispamFalsePositive (pluma: task 082)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelAntispamFalsePositive) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xd13e0ecf:
+		x.UInt(0xd13e0ecf)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetMsgId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelAntispamFalsePositive) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelAntispamFalsePositive) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xd13e0ecf:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.MsgId = dBuf.Int()
 		return dBuf.GetError()
 
 	default:

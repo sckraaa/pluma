@@ -26,12 +26,17 @@ import (
 // The public channels the account created (task 044): Android lists them
 // when the account reaches the limit of public channels, to free the link
 // of one, and reads messages.chats, not a slice (ChannelCreateActivity.java:
-// 1201-1258 at aac1efcb). Geo groups (by_location) do not exist here: none.
-// check_limit answers CHANNELS_ADMIN_PUBLIC_TOO_MUCH at the limit, as
-// Telegram (core.telegram.org/method/channels.getAdminedPublicChannels).
+// 1201-1258 at aac1efcb). Geo groups (by_location) do not exist here (ADR
+// 0050): none, and with check_limit CHANNELS_ADMIN_LOCATED_TOO_MUCH, the
+// limit of geo groups being 0. check_limit answers
+// CHANNELS_ADMIN_PUBLIC_TOO_MUCH at the limit, as Telegram
+// (core.telegram.org/method/channels.getAdminedPublicChannels).
 func (c *ChannelsCore) ChannelsGetAdminedPublicChannels(in *mtproto.TLChannelsGetAdminedPublicChannels) (*mtproto.Messages_Chats, error) {
 	chats := []*mtproto.Chat{}
 	if in.ByLocation {
+		if in.CheckLimit {
+			return nil, mtproto.ErrChannelsAdminLocatedTooMuch
+		}
 		return mtproto.MakeTLMessagesChats(&mtproto.Messages_Chats{Chats: chats}).To_Messages_Chats(), nil
 	}
 	if in.CheckLimit {

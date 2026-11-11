@@ -70,4 +70,8 @@ type ChannelsDO struct {
 	MainTab int32 `db:"main_tab" json:"main_tab"`
 	// A supergroup turned into a broadcast group (channels.convertToGigagroup).
 	Gigagroup bool `db:"gigagroup" json:"gigagroup"`
+	// The antispam of a supergroup is on (channels.toggleAntiSpam).
+	Antispam bool `db:"antispam" json:"antispam"`
+	// A broadcast channel translated for all (channels.toggleAutotranslation).
+	Autotranslation bool `db:"autotranslation" json:"autotranslation"`
 }

@@ -193,9 +193,9 @@ func (s *store) counters(ctx context.Context) (*counters, error) {
 		query string
 		args  []any
 	}{
-		{&c.Users, "SELECT COUNT(*) FROM users WHERE deleted = 0 AND id <> 777000", nil},
+		{&c.Users, "SELECT COUNT(*) FROM users WHERE deleted = 0 AND user_type <> 4", nil},
 		{&c.Online, "SELECT COUNT(*) FROM user_presences WHERE last_seen_at >= ?", []any{time.Now().Unix() - onlineWindow}},
-		{&c.Registrations, "SELECT COUNT(*) FROM users WHERE created_at >= FROM_UNIXTIME(?)", []any{day}},
+		{&c.Registrations, "SELECT COUNT(*) FROM users WHERE created_at >= FROM_UNIXTIME(?) AND user_type <> 4", []any{day}},
 		// A message counted once: the box of its sender.
 		{&c.Messages, "SELECT COUNT(*) FROM messages WHERE date2 >= ? AND sender_user_id = user_id", []any{day}},
 		{&c.OpenReports, "SELECT COUNT(*) FROM moderation_reports WHERE status = 0", nil},

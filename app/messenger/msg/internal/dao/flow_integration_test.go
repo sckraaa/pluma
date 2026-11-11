@@ -595,6 +595,14 @@ func (noChannels) ChannelSetUserHidden(context.Context, *channelpb.TLChannelSetU
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelAntispamDelete(context.Context, *channelpb.TLChannelAntispamDelete) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelAntispamFalsePositive(context.Context, *channelpb.TLChannelAntispamFalsePositive) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]

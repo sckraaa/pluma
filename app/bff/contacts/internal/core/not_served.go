@@ -1,4 +1,4 @@
-// Copyright 2022 Teamgram Authors
+// Copyright 2026 The Pluma Authors
 //  All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,9 +12,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
-// Author: teamgramio (teamgram.io@gmail.com)
-//
 
 package core
 
@@ -22,11 +19,13 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-// ContactsGetLocated
-// contacts.getLocated#d348bc44 flags:# background:flags.1?true geo_point:InputGeoPoint self_expires:flags.0?int = Updates;
-func (c *ContactsCore) ContactsGetLocated(in *mtproto.TLContactsGetLocated) (*mtproto.Updates, error) {
-	// TODO: not impl
-	c.Logger.Errorf("contacts.getLocated blocked, License key from https://teamgram.net required to unlock enterprise features.")
+// The methods of contacts the server does not serve: each answers
+// ERR_ENTERPRISE_IS_BLOCKED (400), which the clients do not retry.
 
-	return mtproto.MakeEmptyUpdates(), nil
+// ContactsGetLocated is not served: contacts.getLocated#d348bc44, the people
+// and geo groups nearby. Pluma has none (ADR 0050): none of the pinned
+// clients calls it since Android dropped PeopleNearbyActivity in 11.1.1, and
+// the point it carries is neither kept nor logged.
+func (c *ContactsCore) ContactsGetLocated(in *mtproto.TLContactsGetLocated) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrEnterpriseIsBlocked
 }

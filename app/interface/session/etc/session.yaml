@@ -66,6 +66,8 @@ BFFProxyClients:
     "/mtproto.RPCBoosts": "bff.bff"
     "/mtproto.RPCTakeout": "bff.bff"
     "/mtproto.RPCChannelRecommendations": "bff.bff"
+    "/mtproto.RPCAntiSpam": "bff.bff"
+    "/mtproto.RPCTranslation": "bff.bff"
     #"/mtproto.RPCChats": "bff.bff"
     "/mtproto.RPCDeepLinks": "bff.bff"
     "/mtproto.RPCFiles": "bff.bff"

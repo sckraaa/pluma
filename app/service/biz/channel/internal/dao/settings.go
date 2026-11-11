@@ -21,6 +21,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
+	"github.com/teamgram/teamgram-server/pkg/antispam"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -44,6 +45,8 @@ var settingColumns = map[int32]string{
 	channel.SettingParticipantsHidden: "participants_hidden",
 	channel.SettingNoforwards:         "noforwards",
 	channel.SettingJoinToSend:         "join_to_send",
+	channel.SettingAntispam:           "antispam",
+	channel.SettingAutotranslation:    "autotranslation",
 }
 
 type settingsRow struct {
@@ -54,6 +57,8 @@ type settingsRow struct {
 	ParticipantsHidden bool  `db:"participants_hidden"`
 	Noforwards         bool  `db:"noforwards"`
 	JoinToSend         bool  `db:"join_to_send"`
+	Antispam           bool  `db:"antispam"`
+	Autotranslation    bool  `db:"autotranslation"`
 }
 
 func (r *settingsRow) value(setting int32) bool {
@@ -64,8 +69,24 @@ func (r *settingsRow) value(setting int32) bool {
 		return r.ParticipantsHidden
 	case channel.SettingNoforwards:
 		return r.Noforwards
+	case channel.SettingAntispam:
+		return r.Antispam
+	case channel.SettingAutotranslation:
+		return r.Autotranslation
 	}
 	return r.JoinToSend
+}
+
+// settingRight is what one changes setting by: the info of the channel,
+// or, for the antispam, the deletion of others' messages, which the clients
+// show its switch to (Android ChatUsersActivity.java:1064-1090,
+// ACTION_DELETE_MESSAGES; iOS ChannelAdminsController.swift:506,
+// deleteAllMessages).
+func settingRight(setting int32) channelperm.Action {
+	if setting == channel.SettingAntispam {
+		return channelperm.DeleteOthers
+	}
+	return channelperm.ChangeInfo
 }
 
 // ToggleSetting turns setting of the channel on or off by b's owner.
@@ -76,6 +97,13 @@ func (r *settingsRow) value(setting int32) bool {
 // CHAT_LINK_EXISTS for hiding the history of a discussion group, whose
 // commenters read it; PARTICIPANTS_TOO_FEW for hiding the members of a
 // group of fewer than HiddenMembersMin.
+//
+// The antispam (task 082) is a supergroup's, the autotranslation a broadcast
+// channel's (CHANNEL_INVALID otherwise, as both methods name it); the
+// antispam comes on in a group of antispam.MembersMin members, whose
+// clients lock the switch below that (PARTICIPANTS_TOO_FEW, the error of
+// the members hidden below theirs: the documentation names none) and goes
+// off in any.
 func (d *Dao) ToggleSetting(b *userbox.Box, channelId int64, setting int32, enabled bool) (*ChannelChange, error) {
 	column, ok := settingColumns[setting]
 	if !ok {
@@ -88,12 +116,12 @@ func (d *Dao) ToggleSetting(b *userbox.Box, channelId int64, setting int32, enab
 	if err != nil {
 		return nil, err
 	}
-	if err = a.can(channelperm.ChangeInfo, b.Date()); err != nil {
+	if err = a.can(settingRight(setting), b.Date()); err != nil {
 		return nil, err
 	}
 	var rows []settingsRow
 	if err = b.Tx().QueryRowsPartial(&rows,
-		"SELECT broadcast, linked_chat_id, participants_count, hidden_prehistory, participants_hidden, noforwards, join_to_send FROM channels WHERE id = ?",
+		"SELECT broadcast, linked_chat_id, participants_count, hidden_prehistory, participants_hidden, noforwards, join_to_send, antispam, autotranslation FROM channels WHERE id = ?",
 		channelId); err != nil {
 		return nil, err
 	}
@@ -104,13 +132,16 @@ func (d *Dao) ToggleSetting(b *userbox.Box, channelId int64, setting int32, enab
 	switch {
 	case setting == channel.SettingPrehistoryHidden && r.Broadcast,
 		setting == channel.SettingParticipantsHidden && r.Broadcast,
-		setting == channel.SettingJoinToSend && (r.Broadcast || r.Linked == 0):
+		setting == channel.SettingJoinToSend && (r.Broadcast || r.Linked == 0),
+		setting == channel.SettingAntispam && r.Broadcast,
+		setting == channel.SettingAutotranslation && !r.Broadcast:
 		return nil, mtproto.ErrChannelInvalid
 	case r.value(setting) == enabled:
 		return nil, mtproto.ErrChatNotModified
 	case setting == channel.SettingPrehistoryHidden && enabled && r.Linked != 0:
 		return nil, mtproto.ErrChatLinkExists
-	case setting == channel.SettingParticipantsHidden && enabled && r.ParticipantsCount < HiddenMembersMin:
+	case setting == channel.SettingParticipantsHidden && enabled && r.ParticipantsCount < HiddenMembersMin,
+		setting == channel.SettingAntispam && enabled && r.ParticipantsCount < antispam.MembersMin:
 		return nil, mtproto.ErrParticipantsTooFew
 	}
 	if _, err = b.Tx().Exec("UPDATE channels SET `"+column+"` = ?, version = version + 1 WHERE id = ?", enabled, channelId); err != nil {
@@ -133,6 +164,10 @@ func settingLogged(setting int32, enabled bool) *mtproto.ChannelAdminLogEventAct
 		return mtproto.MakeTLChannelAdminLogEventActionTogglePreHistoryHidden(a).To_ChannelAdminLogEventAction()
 	case channel.SettingNoforwards:
 		return mtproto.MakeTLChannelAdminLogEventActionToggleNoForwards(a).To_ChannelAdminLogEventAction()
+	case channel.SettingAntispam:
+		return mtproto.MakeTLChannelAdminLogEventActionToggleAntiSpam(a).To_ChannelAdminLogEventAction()
+	case channel.SettingAutotranslation:
+		return mtproto.MakeTLChannelAdminLogEventActionToggleAutotranslation(a).To_ChannelAdminLogEventAction()
 	}
 	return nil
 }

@@ -77,7 +77,11 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		CanSetUsername:      creator,
 		CanDeleteChannel:    creator,
 		HiddenPrehistory:    ch.GetHiddenPrehistory(),
-		Pts:                 ch.GetPts(),
+		// The antispam of the group (task 082): the clients show the
+		// switch by it and add the antispam account to the admins of the
+		// recent actions' filter.
+		Antispam: ch.GetMegagroup() && ch.GetAntispam(),
+		Pts:      ch.GetPts(),
 		// The reactions the members may use (task 044); a channel that never
 		// chose has the standard ones.
 		AvailableReactions_FLAGCHATREACTIONS: availableReactions(ch),

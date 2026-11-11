@@ -66,6 +66,8 @@ type senderRow struct {
 	LastSendDate        int64  `db:"last_send_date"`
 	Rank                string `db:"rank"`
 	Forum               bool   `db:"forum"`
+	Antispam            bool   `db:"antispam"`
+	Joined              int64  `db:"joined"`
 }
 
 // sender is b's owner as a participant of a channel, for channelperm.
@@ -91,6 +93,10 @@ type sender struct {
 	// sendAsPeers: whom the owner may write as (task 079), read when a
 	// message asks for one.
 	sendAsPeers []*mtproto.Peer
+	// antispam: the group's antispam is on (task 082); joined: when the
+	// owner joined it.
+	antispam bool
+	joined   int64
 }
 
 // anonymous tells whether the owner is an admin of the supergroup with the
@@ -140,8 +146,8 @@ func (s *sender) sendAs(b *userbox.Box, channelId int64, as *mtproto.Peer) (int6
 func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.gigagroup, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
-			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date,"+
+		"SELECT c.broadcast, c.gigagroup, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, c.antispam, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date, COALESCE(p.`date`, 0) AS joined,"+
 			" COALESCE(p.last_send_date, 0) AS last_send_date, COALESCE(p.`rank`, '') AS `rank`"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
 		channelperm.StateLeft, b.UserId(), channelId); err != nil {
@@ -169,6 +175,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 
 			slowmodeSeconds: r.SlowmodeSeconds,
 			lastSend:        r.LastSendDate,
+			antispam:        r.Antispam,
 		}, nil
 	}
 	return &sender{
@@ -178,6 +185,8 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 		slowmodeSeconds:   r.SlowmodeSeconds,
 		lastSend:          r.LastSendDate,
 		forum:             r.Forum,
+		antispam:          r.Antispam,
+		joined:            r.Joined,
 		ch:                channelperm.Channel{Broadcast: r.Broadcast, Gigagroup: r.Gigagroup, Default: r.DefaultBannedRights, Blocked: r.Blocked},
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
@@ -616,6 +625,11 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 	}
 	if err = d.mentionedGhostsJoin(b, channelId, mentioned, sent[0].Message.Id-1); err != nil {
 		return nil, nil, nil, err
+	}
+	if !s.ch.Broadcast {
+		if err = d.antispamCheck(b, channelId, s, sent); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 	if disc != nil && len(disc.Copies) > 0 {
 		if _, err = b.Tx().Exec("UPDATE channels SET top_message = ? WHERE id = ?", disc.Copies[len(disc.Copies)-1].Message.Id, disc.GroupId); err != nil {

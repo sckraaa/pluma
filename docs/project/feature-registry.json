@@ -1527,7 +1527,7 @@
   "used_by": "td data/data_session.cpp:1190; an ui/ChatActivity.java:9904; ios ApiUtils/ApiGroupOrChannel.swift:185; web hooks/usePeerTranslation.ts:43",
   "decision": "implement",
   "priority": "normal",
-  "why": "toggleAutotranslation in brief 078."
+  "why": "Сделано задачей 082 (ADR 0050), отдаётся и в min-канале."
  },
  {
   "name": "channel.pinned_msg_id",
@@ -1563,7 +1563,7 @@
   "used_by": "td history/admin_log/history_admin_log_item.cpp:881; an ui/ChannelAdminLogActivity.java:1659; ios TelegramEngine/Peers/ChannelAdminEventLogs.swift:417",
   "decision": "implement",
   "priority": "normal",
-  "why": "With toggleAntiSpam."
+  "why": "Сделано задачей 082 вместе с toggleAntiSpam."
  },
  {
   "name": "channelAdminLogEventActionToggleAutotranslation",
@@ -1572,7 +1572,7 @@
   "used_by": "td history/admin_log/history_admin_log_item.cpp:888; an messenger/MessageObject.java:3128; ios TelegramEngine/Peers/ChannelAdminEventLogs.swift:485",
   "decision": "implement",
   "priority": "normal",
-  "why": "With toggleAutotranslation."
+  "why": "Сделано задачей 082 вместе с toggleAutotranslation."
  },
  {
   "name": "channelFull.antispam",
@@ -1581,7 +1581,7 @@
   "used_by": "td data/data_channel.cpp:1391; an ui/ChatUsersActivity.java:1066; ios TelegramEngine/Peers/UpdateCachedPeerData.swift:725; web components/sidebarRight/tabs/chatAdministratorsSource.ts:43",
   "decision": "implement",
   "priority": "normal",
-  "why": "toggleAntiSpam in brief 078."
+  "why": "Сделано задачей 082 (ADR 0050)."
  },
  {
   "name": "channelFull.blocked",
@@ -3188,11 +3188,11 @@
  {
   "name": "channels.createChannel",
   "group": "channels",
-  "feature": "Создание канала или группы: не работают ветки импорта истории и группы с геоточкой",
+  "feature": "Создание канала или группы: не работает ветка импорта истории (геогрупп нет, ADR 0050)",
   "used_by": "android messenger/MessagesController.java:15131 (for_import там же :15134); ios Peers/ChannelCreation.swift:50 (импорт: ShareExtensionContext.swift:1076,1312); tdesktop boxes/add_contact_box.cpp:852; tweb lib/appManagers/appChatsManager.ts:687. Handler: app/bff/channels/internal/core/channels.createChannel_handler.go:51",
   "decision": "implement",
   "priority": "rare",
-  "why": "Обычное создание работает. for_import нужен вместе с messages.initHistoryImport (missing) для импорта чатов. Ветка geo_point идёт по решению channels.editLocation."
+  "why": "Обычное создание работает. for_import нужен вместе с messages.initHistoryImport (missing) для импорта чатов. Ветка geo_point отвечает CHANNELS_ADMIN_LOCATED_TOO_MUCH: геогрупп нет (ADR 0050)."
  },
  {
   "name": "channels.updatePaidMessagesPrice",
@@ -3271,9 +3271,9 @@
   "group": "fields",
   "feature": "Location-based group",
   "used_by": "an ui/ChatEditActivity.java:876, ui/CallLogActivity.java:635; td data/data_channel.cpp:1392, history/admin_log/history_admin_log_item.cpp:853; ios ApiUtils/ApiGroupOrChannel.swift:158",
-  "decision": "implement",
-  "priority": "rare",
-  "why": "Free, but niche."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "ADR 0050: геогрупп нет, поля не отдаются, событие не пишется; без can_set_location Android не показывает пункт «Адрес»."
  },
  {
   "name": "channel.linked_community_id, user.linked_community_id, chatAdminRights.manage_linked_peers, chatBannedRights.manage_linked_peers",
@@ -4063,18 +4063,18 @@
   "group": "channels",
   "feature": "Переключатель агрессивного антиспама в настройках группы",
   "used_by": "android ui/ChatUsersActivity.java:1071 (строка :538, порог telegramAntispamGroupSizeMin :1066); ios Peers/AntiSpam.swift:10; tdesktop menu/menu_antispam_validator.cpp:107",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "Сам флаг прост, но переключатель без работающего детектора спама был бы поддельным (запрет на фиктивную функцию в CLAUDE.md). Вопрос владельцу: делать свой детектор или скрыть настройку. В брифе 078."
+  "why": "Сделано задачей 082 (ADR 0050): свой антиспам на правилах (pkg/antispam), удаляет спам от служебного аккаунта telegram_antispam_user_id и пишет это в «Недавние действия», как ждут клиенты. Порог включения 10 участников вместо 100 у Telegram — на подтверждение владельцу."
  },
  {
   "name": "channels.toggleAutotranslation",
   "group": "channels",
   "feature": "Автоперевод постов канала",
   "used_by": "android ui/ChatEditActivity.java:1002; ios Peers/AutoTranslate.swift:10; tdesktop boxes/peers/edit_peer_info_box.cpp:2927",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "Настройка имеет смысл только при работающем messages.translateText (missing), а тому нужен поставщик перевода: выбор и деньги за владельцем. В брифе 078."
+  "why": "Флаг канала сделан задачей 082 (ADR 0050): переключатель виден во всех клиентах и без метода ломал сохранение карточки канала в tdesktop. Сам перевод — задача 027 (messages.translateText), поставщик — решение владельца."
  },
  {
   "name": "updateTranscribedAudio",
@@ -4234,18 +4234,18 @@
   "group": "channels",
   "feature": "Адрес группы на карте",
   "used_by": "android ui/LocationActivity.java:946 (строка настроек показывается по info.can_set_location, ui/ChatEditActivity.java:876); ios, tdesktop, tweb не вызывают",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Вызывает только Android и только если сервер прислал can_set_location; в текущих исходниках нет экрана «Люди рядом», contacts.getLocated заблокирован. Нужно решить, существуют ли геогруппы как функция; в Telegram сейчас не проверено."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "ADR 0050: геогрупп нет — «Люди рядом» удалены из клиентов (Android 11.1.1, коммит 3d718c8d), создать геогруппу нельзя ни в одном закреплённом клиенте, can_set_location сервер не ставит. Метод отвечает MEGAGROUP_GEO_REQUIRED после проверок канала и прав."
  },
  {
   "name": "channels.reportAntiSpamFalsePositive",
   "group": "channels",
   "feature": "Сообщить, что антиспам удалил сообщение зря",
   "used_by": "android ui/ChannelAdminLogActivity.java:2297; ios Peers/AntiSpam.swift:22; tdesktop menu/menu_antispam_validator.cpp:185",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "rare",
-  "why": "Идёт за channels.toggleAntiSpam; без детектора спама сообщать не о чем."
+  "why": "Сделано задачей 082 (ADR 0050): сообщение не восстанавливается (клиенты пишут, что жалобу рассмотрят модераторы), отправитель исключается из проверки в этой группе, жалоба уходит в очередь модерации (вид 6)."
  },
  {
   "name": "channel.in_news",
@@ -4623,7 +4623,7 @@
   "used_by": "W: только обёртка lib/appManagers/appUsersManager.ts:1431, её никто не вызывает; A, I, D: нет",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Фактически никто не вызывает."
+  "why": "ADR 0050: «Люди рядом» удалены из клиентов (Android 11.1.1, коммит 3d718c8d), ни один закреплённый клиент не вызывает. Отвечает ERR_ENTERPRISE_IS_BLOCKED, геоточка не сохраняется и не пишется в лог."
  },
  {
   "name": "contacts.importNoPaidMessagesToken",

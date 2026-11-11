@@ -45,40 +45,13 @@ func fromIdOf(m *mtproto.Message, reporter int64) int64 {
 	return 0
 }
 
-// mediaOf is what the panel needs to show the media of a message.
-func mediaOf(m *mtproto.MessageMedia) *moderation.SnapshotMedia {
-	if m == nil {
-		return nil
-	}
-	s := &moderation.SnapshotMedia{Kind: m.GetPredicateName()}
-	if p := m.GetPhoto_FLAGPHOTO(); p != nil && p.GetId() != 0 {
-		s.PhotoId = p.GetId()
-		s.AccessHash = p.GetAccessHash()
-		s.FileRef = p.GetFileReference()
-		s.Mime = "image/jpeg"
-		var best int32
-		for _, size := range p.GetSizes() {
-			if area := size.GetW() * size.GetH(); area > best {
-				best, s.ThumbSize = area, size.GetType()
-			}
-		}
-	}
-	if d := m.GetDocument(); d != nil && d.GetId() != 0 {
-		s.DocumentId = d.GetId()
-		s.AccessHash = d.GetAccessHash()
-		s.FileRef = d.GetFileReference()
-		s.Mime = d.GetMimeType()
-	}
-	return s
-}
-
 func snapshotMessage(m *mtproto.Message, reporter int64) moderation.SnapshotMessage {
 	return moderation.SnapshotMessage{
 		Id:     m.GetId(),
 		Date:   m.GetDate(),
 		FromId: fromIdOf(m, reporter),
 		Text:   m.GetMessage(),
-		Media:  mediaOf(m.GetMedia()),
+		Media:  moderation.MediaOf(m.GetMedia()),
 	}
 }
 

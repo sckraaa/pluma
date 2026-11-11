@@ -32,6 +32,13 @@ const (
 	// SettingGigagroup turns a supergroup into a broadcast group for good
 	// (channels.convertToGigagroup): only on, by its creator.
 	SettingGigagroup int32 = 6
+	// SettingAntispam turns the antispam of a supergroup on and off
+	// (channels.toggleAntiSpam, task 082), by one who may delete the
+	// messages of others.
+	SettingAntispam int32 = 7
+	// SettingAutotranslation translates a broadcast channel for all its
+	// subscribers (channels.toggleAutotranslation, task 082).
+	SettingAutotranslation int32 = 8
 )
 
 // MembersMax is the most members of a supergroup or channel: the
