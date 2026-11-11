@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/channelcontents"
 	"github.com/teamgram/teamgram-server/pkg/msgsearch"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
@@ -100,6 +101,20 @@ func decode(rows []messageRow, channelId, selfId int64) ([]*mtproto.Message, err
 		out = append(out, channel.ViewSentMessage(&m, selfId, r.SenderUserId == selfId))
 	}
 	return out, nil
+}
+
+// withContents sets the unread contents of messages, decoded from rows in
+// their order, as selfId sees them (channelcontents): its mentions, the
+// voice and round video messages it has not played.
+func (d *Dao) withContents(ctx context.Context, channelId, selfId int64, member bool, rows []messageRow, messages []*mtproto.Message) error {
+	s, err := channelcontents.Load(ctx, d.Mysql, channelId, selfId, messages)
+	if err != nil {
+		return err
+	}
+	for i, m := range messages {
+		s.View(m, selfId, rows[i].SenderUserId == selfId, member)
+	}
+	return nil
 }
 
 // History is a page of channelId's history as selfId sees it, newest first,
@@ -244,6 +259,9 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if err != nil {
 		return nil, 0, err
 	}
+	if err = d.withContents(ctx, channelId, selfId, v.member, rows, messages); err != nil {
+		return nil, 0, err
+	}
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
 		return nil, 0, err
 	}
@@ -282,6 +300,9 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 	slices.SortFunc(rows, func(a, b messageRow) int { return slices.Index(ids, a.Id) - slices.Index(ids, b.Id) })
 	messages, err := decode(rows, channelId, selfId)
 	if err != nil {
+		return nil, err
+	}
+	if err = d.withContents(ctx, channelId, selfId, v.member, rows, messages); err != nil {
 		return nil, err
 	}
 	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {

@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/plugin"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/channelcontents"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"google.golang.org/protobuf/proto"
 )
@@ -178,6 +179,12 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 	// A message of a supergroup is edited by its author alone; a post is
 	// never written as another (dao.EditChannel).
 	shown := channelpb.ViewSentMessage(edited.Message, fromUserId, true)
+	// An admin who edits another's post has its own unread contents of it.
+	contents, err := channelcontents.Load(c.ctx, c.svcCtx.Dao.Mysql, channelId, fromUserId, []*mtproto.Message{shown})
+	if err != nil {
+		return nil, err
+	}
+	contents.View(shown, fromUserId, edited.AuthorId == fromUserId, true)
 	h := mtproto.NewIDListHelper(fromUserId)
 	h.PickByMessage(shown)
 	users, err := c.svcCtx.Dao.UserClient.UserGetMutableUsers(c.ctx, &userpb.TLUserGetMutableUsers{Id: h.UserIdList, To: []int64{fromUserId}})
