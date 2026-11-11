@@ -141,3 +141,43 @@ func TestHiddenParticipants(t *testing.T) {
 		t.Errorf("the ghost's chat %+v", v)
 	}
 }
+
+// pluma: TestGhostIsSupport: the support ghost is a support account with no
+// last seen to anyone but itself; another user keeps its status.
+func TestGhostIsSupport(t *testing.T) {
+	const viewerId, ownerId = 2, 1
+	owner := func(ghost bool) *ImmutableUser {
+		return MakeTLImmutableUser(&ImmutableUser{
+			User: MakeTLUserData(&UserData{Id: ownerId, Ghost: ghost}).To_UserData(),
+			KeysPrivacyRules: []*PrivacyKeyRules{
+				MakeTLPrivacyKeyRules(&PrivacyKeyRules{Key: STATUS_TIMESTAMP, Rules: []*PrivacyRule{allowAll()}}).To_PrivacyKeyRules(),
+			},
+			LastSeenAt: 1794400000,
+		}).To_ImmutableUser()
+	}
+	viewer := MakeTLImmutableUser(&ImmutableUser{
+		User: MakeTLUserData(&UserData{Id: viewerId}).To_UserData(),
+		KeysPrivacyRules: []*PrivacyKeyRules{
+			MakeTLPrivacyKeyRules(&PrivacyKeyRules{Key: STATUS_TIMESTAMP, Rules: []*PrivacyRule{allowAll()}}).To_PrivacyKeyRules(),
+		},
+	}).To_ImmutableUser()
+	for _, ghost := range []bool{false, true} {
+		o := owner(ghost)
+		for path, u := range map[string]*User{
+			"ToUnsafeUser": o.ToUnsafeUser(viewer),
+			"ToUserFor":    o.ToUserFor(viewer),
+			"ToUser":       o.ToUser(viewerId),
+		} {
+			if u.GetSupport() != ghost {
+				t.Errorf("ghost %v, %s: support %v", ghost, path, u.GetSupport())
+			}
+			if (u.GetStatus() == nil) != ghost {
+				t.Errorf("ghost %v, %s: status %v", ghost, path, u.GetStatus())
+			}
+		}
+		if o.ToSelfUser().GetStatus() == nil && ghost {
+			// The account itself keeps its own status.
+			t.Errorf("the ghost's own status is gone")
+		}
+	}
+}
