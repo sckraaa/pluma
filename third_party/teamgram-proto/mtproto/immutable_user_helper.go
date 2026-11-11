@@ -19,6 +19,8 @@
 package mtproto
 
 import (
+	"strings"
+
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -314,6 +316,25 @@ func (m *ImmutableUser) CheckReverseContact(cId int64) (bool, bool) {
 	return false, false
 }
 
+// pluma: keepsNumber tells whether c, the viewer's contact entry of m, keeps
+// m's own phone number. Such a viewer sees the number whatever m's privacy:
+// "Users who have your number saved in their contacts will also see it on
+// Telegram" (Android strings.xml PrivacyPhoneInfo, tdesktop lang.strings
+// lng_edit_privacy_phone_number_warning). A contact added without the number
+// (from a profile) does not show it.
+func (m *ImmutableUser) keepsNumber(c *ContactData) bool {
+	digits := func(s string) string {
+		return strings.Map(func(r rune) rune {
+			if r >= '0' && r <= '9' {
+				return r
+			}
+			return -1
+		}, s)
+	}
+	saved := digits(c.GetPhone().GetValue())
+	return saved != "" && saved == digits(m.Phone())
+}
+
 func (m *ImmutableUser) GetReverseContactData(cId int64) *ContactData {
 	// TODO: sort.Search
 	for _, c := range m.ReverseContacts {
@@ -480,8 +501,8 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 		}
 	}
 
-	// phone
-	if m.CheckPrivacyFor(PHONE_NUMBER, selfUser) {
+	// phone (pluma: also to one who keeps the number in its contacts)
+	if m.CheckPrivacyFor(PHONE_NUMBER, selfUser) || m.keepsNumber(row) {
 		user.Phone = MakeFlagsString(m.Phone())
 	}
 
@@ -734,8 +755,8 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 		user.StoriesMaxId_FLAGRECENTSTORY = m.StoriesMaxId_FLAGRECENTSTORY()
 	}
 
-	// phone
-	if m.checkPrivacyOf(PHONE_NUMBER, selfUserId, viewer) {
+	// phone (pluma: also to one who keeps the number in its contacts)
+	if m.checkPrivacyOf(PHONE_NUMBER, selfUserId, viewer) || m.keepsNumber(reverseContact) {
 		user.Phone = MakeFlagsString(m.Phone())
 	}
 
