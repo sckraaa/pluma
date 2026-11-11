@@ -4,7 +4,7 @@ go 1.27.0
 
 // pluma: Go 1.27 and dependency versions raised to the root module's selection
 // (govulncheck fixes in x/net, x/crypto, x/text, grpc).
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/stretchr/testify v1.9.0
