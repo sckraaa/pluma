@@ -36,8 +36,8 @@ func editRank(ctx context.Context, u *user, peer, participant *mtproto.InputPeer
 	return err
 }
 
-// A member sets its own tag in a basic group; the next message carries it, a
-// tag on another member is refused, and the creator may set one.
+// The creator sets a tag in a basic group and the next message carries it;
+// a member may not set one while the group forbids it.
 func TestMemberTagBasicGroup(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -49,16 +49,18 @@ func TestMemberTagBasicGroup(t *testing.T) {
 	chatId := createChat(ctx, t, alice, fmt.Sprintf("tags %d", randomID()), bob, carol)
 	getState(ctx, t, alice)
 
-	if err := editRank(ctx, bob, chatPeer(bob, chatId), userPeer(bob.c, bob), "Tester"); err != nil {
-		t.Fatalf("own tag: %v", err)
+	// A new group forbids a member its own tag (edit_rank of its default
+	// rights); the creator may set anyone's.
+	if err := editRank(ctx, bob, chatPeer(bob, chatId), userPeer(bob.c, bob), "Mine"); err == nil {
+		t.Error("a member set its own tag though the group forbids it")
 	}
 	if err := editRank(ctx, bob, chatPeer(bob, chatId), userPeer(bob.c, carol), "No"); err == nil {
 		t.Error("a member set the tag of another member")
 	}
-	if err := editRank(ctx, alice, chatPeer(alice, chatId), userPeer(alice.c, carol), "Guest"); err != nil {
-		t.Errorf("creator's tag on a member: %v", err)
+	if err := editRank(ctx, alice, chatPeer(alice, chatId), userPeer(alice.c, bob), "Tester"); err != nil {
+		t.Fatalf("creator's tag on a member: %v", err)
 	}
-	if err := editRank(ctx, bob, chatPeer(bob, chatId), userPeer(bob.c, bob), "seventeen letters"); err == nil {
+	if err := editRank(ctx, alice, chatPeer(alice, chatId), userPeer(alice.c, carol), "seventeen letters"); err == nil {
 		t.Error("a tag over 16 characters passed")
 	}
 
