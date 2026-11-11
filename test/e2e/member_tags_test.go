@@ -88,7 +88,7 @@ func TestMemberTagSupergroup(t *testing.T) {
 	input := &mtproto.InputChannel{
 		Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel),
 		ChannelId:   ch.GetId(),
-		AccessHash:  ch.GetAccessHash().GetValue(),
+		AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
 	}
 	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsInviteToChannelC9E33D54{
 		Constructor: alice.c.Constructor(mtproto.Predicate_channels_inviteToChannelC9E33D54),
@@ -101,7 +101,7 @@ func TestMemberTagSupergroup(t *testing.T) {
 		return &mtproto.InputPeer{
 			Constructor: u.c.Constructor(mtproto.Predicate_inputPeerChannel),
 			ChannelId:   ch.GetId(),
-			AccessHash:  ch.GetAccessHash().GetValue(),
+			AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
 		}
 	}
 	getState(ctx, t, alice)
