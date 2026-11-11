@@ -82,7 +82,7 @@
 // memberships with it; join and leave take it into a chat nobody called it
 // to, named by its link, @name or id; list prints where it is hidden. It
 // talks to biz, so it runs in the bff container. See docs/ops/support-ghost.md.
-
+//
 // user verify sets or clears the verification badge of an account, the check
 // the clients draw next to its name (users.verified). The user service
 // changes it and sends updateUser to the account's devices and to the users
