@@ -112,6 +112,12 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 			return nil, err
 		}
 		full.CanSetStickers = admin && ch.Can(me, channelperm.ChangeInfo, int32(time.Now().Unix())) == nil
+		// The peer the account chose to write as (task 079); the clients
+		// fall back to their default without it.
+		if full.DefaultSendAs, err = c.svcCtx.SendAs.Default(c.ctx, c.MD.UserId, ch.GetId()); err != nil {
+			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+			return nil, err
+		}
 	}
 	if full.BotInfo, err = c.channelBotInfo(ch.GetId(), admin); err != nil {
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
@@ -211,8 +217,15 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		return nil, err
 	}
 	chats := []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))}
+	var others []int64
 	if linked := ch.GetLinkedChatId(); linked != 0 {
-		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: []int64{linked}})
+		others = append(others, linked)
+	}
+	if as := full.DefaultSendAs.GetChannelId(); as != 0 && as != ch.GetId() && !slices.Contains(others, as) {
+		others = append(others, as)
+	}
+	if len(others) > 0 {
+		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: others})
 		if err != nil {
 			c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 			return nil, err

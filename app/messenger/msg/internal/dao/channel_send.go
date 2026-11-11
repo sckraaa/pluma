@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/polls"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -82,10 +83,49 @@ type sender struct {
 	lastSend        int64
 	// forum: its messages are in topics (task 060).
 	forum bool
+	// sendAsPeers: whom the owner may write as (task 079), read when a
+	// message asks for one.
+	sendAsPeers []*mtproto.Peer
+}
+
+// anonymous tells whether the owner is an admin of the supergroup with the
+// anonymous right, whose first peer is the group (pkg/sendas.Choices).
+func (s *sender) anonymous() bool {
+	return !s.guest && s.p.State == channelperm.StateIn &&
+		(s.p.Role == channelperm.RoleAdmin || s.p.Role == channelperm.RoleCreator) &&
+		s.p.AdminRights&mtproto.ADMIN_ANONYMOUS != 0
 }
 
 func (s *sender) can(a channelperm.Action, now int64) error {
 	return channelperm.Can(s.ch, s.p, a, int32(now))
+}
+
+// sendAs is the channel b's owner writes a message to the supergroup
+// channelId as, from the from_id the send asked for (send_as): 0 for the
+// owner itself, or the group (always, for an anonymous admin) or one of the
+// owner's channels, which it may write as now (pkg/sendas; SEND_AS_PEER_INVALID otherwise). The peers are
+// read once a send, with the channel locked.
+func (s *sender) sendAs(b *userbox.Box, channelId int64, as *mtproto.Peer) (int64, error) {
+	if as.GetPredicateName() != mtproto.Predicate_peerChannel {
+		// An anonymous admin writes as the group, which is also what
+		// tdesktop falls back to for one (SendAsPeers::ResolveChosen,
+		// send_as_peers.cpp:131-133): it is never shown as itself.
+		if s.anonymous() {
+			return channelId, nil
+		}
+		return 0, nil
+	}
+	if s.sendAsPeers == nil {
+		peers, err := sendas.Peers(b.Tx(), b.UserId(), channelId)
+		if err != nil {
+			return 0, err
+		}
+		s.sendAsPeers = peers
+	}
+	if !sendas.Allowed(s.sendAsPeers, as) {
+		return 0, mtproto.ErrSendAsPeerInvalid
+	}
+	return as.GetChannelId(), nil
 }
 
 // channelSender reads b's owner as a participant of the channel. It is
@@ -320,6 +360,7 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 	}
 	var lastTopic int32
 	for _, o := range outgoing {
+		var sendAs int64
 		m := proto.Clone(o.Message).(*mtproto.Message)
 		// from_scheduled is the sender's alone, pushed by flagFromScheduled;
 		// the one copy of the message does not hold it.
@@ -357,12 +398,30 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 				m.FromId = mtproto.MakePeerUser(b.UserId())
 			}
 		} else {
-			m.FromId = mtproto.MakePeerUser(b.UserId())
-			// The sender's member tag goes with the message, as post_author
-			// does (Android ChatMessageCell.java:15999).
+			if sendAs, err = s.sendAs(b, channelId, o.Message.GetFromId()); err != nil {
+				return nil, nil, nil, err
+			}
 			m.FromRank = nil
-			if s.rank != "" {
-				m.FromRank = wrapperspb.String(s.rank)
+			switch {
+			case sendAs == channelId:
+				// The group itself, for an anonymous admin, signed with
+				// the admin's title (Android ChatMessageCell.java:15993).
+				m.FromId = mtproto.MakePeerChannel(sendAs)
+				m.PostAuthor = nil
+				if s.rank != "" {
+					m.PostAuthor = wrapperspb.String(s.rank)
+				}
+			case sendAs != 0:
+				// One of the member's channels (task 079).
+				m.FromId = mtproto.MakePeerChannel(sendAs)
+				m.PostAuthor = nil
+			default:
+				m.FromId = mtproto.MakePeerUser(b.UserId())
+				// The sender's member tag goes with the message, as
+				// post_author does (Android ChatMessageCell.java:15999).
+				if s.rank != "" {
+					m.FromRank = wrapperspb.String(s.rank)
+				}
 			}
 		}
 		if s.ch.Broadcast {
@@ -457,8 +516,8 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, message, reply_top_id, topic_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			channelId, m.Id, b.UserId(), o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, channelbox.TopicColumn(topicId), b.Date()); err != nil {
+		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, send_as_id, random_id, pts, message_filter_type, message_data, message, reply_top_id, topic_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			channelId, m.Id, b.UserId(), sendAs, o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, channelbox.TopicColumn(topicId), b.Date()); err != nil {
 			return nil, nil, nil, err
 		}
 		for _, id := range who {

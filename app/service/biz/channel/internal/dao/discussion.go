@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -355,7 +356,7 @@ type Thread struct {
 	// of the newest ones.
 	MaxId    int32
 	Count    int32
-	Repliers []int64
+	Repliers []sendas.AuthorRow
 	// Pts is messageReplies.replies_pts: the pts of the post's channel when
 	// counted.
 	Pts int32
@@ -423,9 +424,10 @@ func (d *Dao) threadCounts(ctx context.Context, t *Thread) error {
 		return err
 	}
 	t.Count, t.MaxId = counts[0].Count, counts[0].MaxId
+	// One who wrote as a channel is that channel (task 079).
 	return d.Mysql.QueryRowsPartial(ctx, &t.Repliers,
-		"SELECT sender_user_id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0"+
-			" GROUP BY sender_user_id ORDER BY MAX(id) DESC LIMIT ?", t.GroupId, t.TopId, RepliersMax)
+		"SELECT sender_user_id, send_as_id FROM channel_messages WHERE channel_id = ? AND reply_top_id = ? AND deleted = 0"+
+			" GROUP BY sender_user_id, send_as_id ORDER BY MAX(id) DESC LIMIT ?", t.GroupId, t.TopId, RepliersMax)
 }
 
 // ThreadRead is how far userId read the thread, 0 for not at all.
@@ -594,8 +596,8 @@ func MessageReplies(t *Thread, readMax int32) *mtproto.MessageReplies {
 		ChannelId:      mtproto.MakeFlagsInt64(t.GroupId),
 		RecentRepliers: []*mtproto.Peer{},
 	}
-	for _, id := range t.Repliers {
-		r.RecentRepliers = append(r.RecentRepliers, mtproto.MakePeerUser(id))
+	for _, a := range t.Repliers {
+		r.RecentRepliers = append(r.RecentRepliers, a.Peer())
 	}
 	if t.MaxId != 0 {
 		r.MaxId = mtproto.MakeFlagsInt32(t.MaxId)

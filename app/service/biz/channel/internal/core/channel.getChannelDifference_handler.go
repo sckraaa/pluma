@@ -116,12 +116,12 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 		}
 		f.add(u)
 	}
-	randomIds, err := c.svcCtx.Dao.OwnRandomIds(c.ctx, in.SelfId, in.ChannelId, f.newMessageIds())
+	own, err := c.svcCtx.Dao.OwnRandomIds(c.ctx, in.SelfId, in.ChannelId, f.viewedIds())
 	if err != nil {
 		c.Logger.Errorf("channel.getChannelDifference - random ids of channel %d: %v", in.ChannelId, err)
 		return nil, err
 	}
-	f.addMessageIds(randomIds)
+	f.setOwn(own)
 
 	// Each message with a poll carries the results as they are now, for
 	// this viewer.

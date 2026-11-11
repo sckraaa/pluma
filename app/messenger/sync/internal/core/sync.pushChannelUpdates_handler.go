@@ -63,9 +63,27 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	if err != nil {
 		return err
 	}
+	// The other channels of the messages, the ones members wrote as
+	// (send_as, task 079) and the one a post copy comes from, as each
+	// member sees them.
+	var others []*channelpb.MutableChannel
+	for _, id := range h.ChannelIdList {
+		if id == in.ChannelId {
+			continue
+		}
+		other, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: id, Id: members.GetDatas()})
+		if err != nil {
+			return err
+		}
+		others = append(others, other)
+	}
 	now := int32(time.Now().Unix())
 	for _, member := range members.GetDatas() {
-		updates := c.channelView(in, member, mc.ToChat(member, now), users.GetUserListByIdList(member, h.UserIdList...))
+		chats := []*mtproto.Chat{mc.ToChat(member, now)}
+		for _, other := range others {
+			chats = append(chats, other.ToChat(member, now))
+		}
+		updates := c.channelView(in, member, chats, users.GetUserListByIdList(member, h.UserIdList...))
 		repliesTo := func(m *mtproto.Message) bool { return c.repliesTo(in.ChannelId, member, m) }
 		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member), repliesTo); updates == nil {
 			continue
@@ -83,7 +101,7 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 }
 
 // channelView is the updates of in as member sees them.
-func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, channel *mtproto.Chat, users []*mtproto.User) *mtproto.Updates {
+func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, chats []*mtproto.Chat, users []*mtproto.User) *mtproto.Updates {
 	updates := proto.Clone(in.GetUpdates()).(*mtproto.Updates)
 	mentioned := slices.Contains(in.GetMentioned(), member)
 	for _, u := range updates.GetUpdates() {
@@ -98,7 +116,9 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 		if m == nil {
 			continue
 		}
-		m.Out = m.GetFromId().GetUserId() == member
+		// A message written as a channel is out for its author, who sends
+		// it and is the one to edit it in a supergroup (task 079).
+		m.Out = m.GetFromId().GetUserId() == member || member == in.GetFromId() && channelpb.SentAs(m)
 		// A scheduled post tells its sender only that it went out (task 061).
 		if member != in.GetFromId() {
 			m.FromScheduled = false
@@ -108,7 +128,7 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 			m.MediaUnread = true
 		}
 	}
-	updates.Chats = []*mtproto.Chat{channel}
+	updates.Chats = chats
 	updates.Users = users
 	return updates
 }
