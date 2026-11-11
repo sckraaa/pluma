@@ -178,6 +178,7 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 	}
 
 	c.attachPollReply(rUpdate)
+	c.addRecentStickers(in.Media, outMessage.Media)
 
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)

@@ -19,15 +19,27 @@
 package svc
 
 import (
+	"context"
+
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/messages/plugin"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
+	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"github.com/teamgram/teamgram-server/pkg/webpage"
+	"github.com/zeromicro/go-zero/core/logx"
 )
+
+// StickerLists is where a sticker the account sends becomes a recent one
+// (stickerlists.Store, task 079).
+type StickerLists interface {
+	Add(ctx context.Context, userID int64, list stickerlists.List, documentID int64) error
+}
 
 type ServiceContext struct {
 	Config config.Config
@@ -42,18 +54,28 @@ type ServiceContext struct {
 	Search *sqlx.DB
 	// SendAs decides as whom the account writes to a supergroup (task 079).
 	SendAs *sendas.Store
+	// StickerLists keeps the recent stickers (task 079).
+	StickerLists StickerLists
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
 	d := dao.New(c)
 	db := sqlx.NewMySQL(&c.Mysql)
+	if err := outbox.Register(outbox.Topics{Push: []string{c.SyncClient.Topic}}); err != nil {
+		logx.Must(err)
+	}
+	boxDB, err := userbox.Open(c.Mysql.DSN)
+	if err != nil {
+		logx.Must(err)
+	}
 	return &ServiceContext{
-		Config:    c,
-		Dao:       d,
-		Plugin:    plugin,
-		Reactions: db,
-		Search:    db,
-		SendAs:    sendas.New(db),
+		Config:       c,
+		Dao:          d,
+		Plugin:       plugin,
+		Reactions:    db,
+		Search:       db,
+		SendAs:       sendas.New(db),
+		StickerLists: stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

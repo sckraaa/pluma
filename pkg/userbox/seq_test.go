@@ -118,6 +118,8 @@ func TestSeqUpdate(t *testing.T) {
 		mtproto.Predicate_updatePendingJoinRequests,
 		mtproto.Predicate_updateNewAuthorization,
 		mtproto.Predicate_updateReadChannelDiscussionInbox,
+		mtproto.Predicate_updateRecentStickers,
+		mtproto.Predicate_updateFavedStickers,
 	} {
 		if !SeqUpdate(p) {
 			t.Errorf("%s goes without seq", p)

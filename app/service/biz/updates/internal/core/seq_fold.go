@@ -30,7 +30,8 @@ import (
 //     a peer's block or settings bar, a dialog's unread mark, the order of
 //     filters, a basic group's members, the group itself, its default
 //     rights, a peer's join requests, the saved GIFs (reload them), the
-//     reactions to one message, the tags of Saved Messages (reload them),
+//     recent and the faved stickers (reload them), the reactions to one
+//     message, the tags of Saved Messages (reload them),
 //     one channel (reload it), the read state of one channel:
 //     the last update of each, at its place in the journal (each a full
 //     state, ADR 0021);
@@ -141,6 +142,10 @@ func seqKey(u *mtproto.Update) string {
 		return "new_authorization:" + strconv.FormatInt(u.GetHash(), 10)
 	case mtproto.Predicate_updateSavedGifs:
 		return "saved_gifs"
+	case mtproto.Predicate_updateRecentStickers:
+		return "recent_stickers"
+	case mtproto.Predicate_updateFavedStickers:
+		return "faved_stickers"
 	case mtproto.Predicate_updateMessageReactions:
 		return "reactions:" + peerKey(u.GetPeer_PEER()) + "/" + strconv.Itoa(int(u.GetMsgId_INT32()))
 	case mtproto.Predicate_updateMessagePoll:

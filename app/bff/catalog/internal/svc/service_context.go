@@ -36,6 +36,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/catalog/demand"
 	"github.com/teamgram/teamgram-server/pkg/catalog/importer"
 	"github.com/teamgram/teamgram-server/pkg/catalog/installed"
+	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -64,6 +65,15 @@ type Installed interface {
 	Install(ctx context.Context, userID int64, kind installed.Kind, setID int64, archived bool, newSet func(installedAt int64) *mtproto.Update) error
 	Toggle(ctx context.Context, userID int64, action installed.Action, sets []installed.Ref) error
 	Reorder(ctx context.Context, userID int64, kind installed.Kind, order []int64) ([]int64, error)
+}
+
+// StickerLists is the recent and the faved stickers of accounts
+// (stickerlists.Store).
+type StickerLists interface {
+	Entries(ctx context.Context, userID int64, list stickerlists.List) ([]stickerlists.Entry, error)
+	Add(ctx context.Context, userID int64, list stickerlists.List, documentID int64) error
+	Remove(ctx context.Context, userID int64, list stickerlists.List, documentID int64) error
+	Clear(ctx context.Context, userID int64, list stickerlists.List) error
 }
 
 // Appearance is what accounts upload and choose for the look of their chats
@@ -96,6 +106,9 @@ type ServiceContext struct {
 	Media     media_client.MediaClient
 	Demand    Demand // nil without a bot
 	Installed Installed
+
+	// The recent and the faved stickers (task 079).
+	StickerLists StickerLists
 
 	// The reactions to messages (task 053).
 	Msg       msg_client.MsgClient
@@ -134,6 +147,8 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 		Dialog:     dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
 		Appearance: appearance.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
+
+		StickerLists: stickerlists.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
 	}
 	bot, err := tgbot.FromSettings(c.TelegramBot)
 	if err != nil {
