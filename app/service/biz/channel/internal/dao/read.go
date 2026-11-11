@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
+	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -381,14 +382,26 @@ func (d *Dao) AdminLog(ctx context.Context, selfId, channelId int64, q string, f
 		return nil, err
 	}
 	out := make([]*mtproto.ChannelAdminLogEvent, 0, len(rows))
+	var messages []*mtproto.Message
 	for _, r := range rows {
 		action, err := adminlog.Decode(r.Action)
 		if err != nil {
 			return nil, err
 		}
+		for _, m := range []*mtproto.Message{action.GetMessage(), action.GetPrevMessage(), action.GetNewMessage()} {
+			if m != nil {
+				messages = append(messages, m)
+			}
+		}
 		out = append(out, mtproto.MakeTLChannelAdminLogEvent(&mtproto.ChannelAdminLogEvent{
 			Id: r.Id, Date: int32(r.Date), UserId: r.UserId, Action: action,
 		}).To_ChannelAdminLogEvent())
+	}
+	// A message keeps the definition of its poll only: the poll and its
+	// results are read now, as the history reads them (a stopped poll shows
+	// closed).
+	if err := polls.AttachMessages(ctx, d.Mysql, selfId, messages...); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

@@ -16,6 +16,7 @@
 package core
 
 import (
+	"slices"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -28,19 +29,21 @@ import (
 // channels.getAdminLog#33ddf480 flags:# channel:InputChannel q:string events_filter:flags.0?ChannelAdminLogEventsFilter admins:flags.1?Vector<InputUser> max_id:long min_id:long limit:int = channels.AdminLogResults;
 //
 // The recent actions of the last 48 hours, for an admin (biz
-// channel.getAdminLog, pkg/adminlog), with the users they name.
+// channel.getAdminLog, pkg/adminlog), with the users and the linked chats
+// they name.
 func (c *ChannelsCore) ChannelsGetAdminLog(in *mtproto.TLChannelsGetAdminLog) (*mtproto.Channels_AdminLogResults, error) {
 	mc, err := c.mutableChannel(in.Channel)
 	if err != nil {
 		return nil, err
 	}
+	channelId := mc.GetChannel().GetId()
 	var admins []int64
 	for _, u := range in.GetAdmins() {
 		admins = append(admins, mtproto.FromInputUser(c.MD.UserId, u).PeerId)
 	}
 	r, err := c.svcCtx.Channel.ChannelGetAdminLog(c.ctx, &channelpb.TLChannelGetAdminLog{
 		SelfId:    c.MD.UserId,
-		ChannelId: mc.GetChannel().GetId(),
+		ChannelId: channelId,
 		Q:         in.GetQ(),
 		Filter:    adminlog.Mask(in.GetEventsFilter()),
 		Admins:    admins,
@@ -53,9 +56,30 @@ func (c *ChannelsCore) ChannelsGetAdminLog(in *mtproto.TLChannelsGetAdminLog) (*
 		return nil, err
 	}
 	h := mtproto.NewIDListHelper(c.MD.UserId)
+	var linked []int64
 	for _, e := range r.GetDatas() {
 		a := e.GetAction()
-		h.AppendUsers(e.GetUserId(), a.GetUserId())
+		h.AppendUsers(e.GetUserId(), a.GetUserId(), a.GetApprovedBy())
+		for _, inv := range []*mtproto.ExportedChatInvite{a.GetInvite(), a.GetPrevInvite(), a.GetNewInvite()} {
+			if inv != nil {
+				h.AppendUsers(inv.GetAdminId())
+			}
+		}
+		for _, t := range []*mtproto.ForumTopic{a.GetTopic(), a.GetPrevTopic(), a.GetNewTopic()} {
+			if t != nil {
+				h.PickByPeer(t.GetFromId())
+			}
+		}
+		// The linked chat is named by its id: the clients find it among
+		// the chats (tdesktop history_admin_log_item.cpp createChangeLinkedChat
+		// reads it as removed when it is not loaded).
+		if a.GetPredicateName() == mtproto.Predicate_channelAdminLogEventActionChangeLinkedChat {
+			for _, id := range []int64{a.GetPrevValue_INT64(), a.GetNewValue_INT64()} {
+				if id != 0 && id != channelId && !slices.Contains(linked, id) {
+					linked = append(linked, id)
+				}
+			}
+		}
 		for _, p := range []*mtproto.ChannelParticipant{a.GetParticipant_CHANNELPARTICIPANT(), a.GetPrevParticipant(), a.GetNewParticipant()} {
 			if p == nil {
 				continue
@@ -77,9 +101,18 @@ func (c *ChannelsCore) ChannelsGetAdminLog(in *mtproto.TLChannelsGetAdminLog) (*
 	if err != nil {
 		return nil, err
 	}
+	chats := []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))}
+	if len(linked) > 0 {
+		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: linked})
+		if err != nil {
+			c.Logger.Errorf("channels.getAdminLog - error: %v", err)
+			return nil, err
+		}
+		chats = append(chats, l.GetChannelListByIdList(c.MD.UserId)...)
+	}
 	return mtproto.MakeTLChannelsAdminLogResults(&mtproto.Channels_AdminLogResults{
 		Events: r.GetDatas(),
-		Chats:  []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))},
+		Chats:  chats,
 		Users:  users.GetUserListByIdList(c.MD.UserId, h.UserIdList...),
 	}).To_Channels_AdminLogResults(), nil
 }

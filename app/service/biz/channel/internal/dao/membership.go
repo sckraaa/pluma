@@ -320,12 +320,39 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 	if err = upsertDialog(b, channelId, top); err != nil {
 		return nil, err
 	}
-	if !ask {
-		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionParticipantJoin(nil).To_ChannelAdminLogEventAction(), ""); err != nil {
+	joinLog := mtproto.MakeTLChannelAdminLogEventActionParticipantJoin(nil).To_ChannelAdminLogEventAction()
+	if link != "" {
+		if joinLog, err = joinedByLink(b, channelId, link); err != nil {
 			return nil, err
 		}
 	}
+	if err = adminlog.Write(b, channelId, joinLog, ""); err != nil {
+		return nil, err
+	}
 	return change, nil
+}
+
+// joinedByLink is the recent action of one joining by the link: the link as
+// it is with this join counted, and via_chatlist for the link a shared
+// folder made for the channel (as messages.getChatInviteImporters marks its
+// importers; tdesktop history_admin_log_item.cpp createParticipantJoinByInvite
+// tells the two apart).
+func joinedByLink(b *userbox.Box, channelId int64, link string) (*mtproto.ChannelAdminLogEventAction, error) {
+	inv, err := lockedInvite(b, channelId, link)
+	if err != nil {
+		return nil, err
+	}
+	if inv == nil {
+		return nil, mtproto.ErrInviteHashInvalid
+	}
+	var chatlist []bool
+	if err = b.Tx().QueryRowsPartial(&chatlist, "SELECT EXISTS(SELECT 1 FROM chatlist_invite_peers WHERE link = ?)", link); err != nil {
+		return nil, err
+	}
+	return mtproto.MakeTLChannelAdminLogEventActionParticipantJoinByInvite(&mtproto.ChannelAdminLogEventAction{
+		ViaChatlist: len(chatlist) > 0 && chatlist[0],
+		Invite:      inv.Exported(),
+	}).To_ChannelAdminLogEventAction(), nil
 }
 
 // Leave takes b's owner out of the channel: USER_NOT_PARTICIPANT for one

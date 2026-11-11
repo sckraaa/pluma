@@ -23,6 +23,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/internal/dal/dataobject"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/polls"
@@ -313,6 +314,16 @@ func (d *Dao) ClosePoll(b *userbox.Box, ref *PollRef) (*PollChange, error) {
 	}
 	if err := closeRecord(b, ref.Rec); err != nil {
 		return nil, err
+	}
+	// The recent actions keep a poll stopped as they keep an edit: of
+	// another's message, or of a post (EditChannel). The poll is read with
+	// the log, so the message is as stored.
+	if ref.Channel != nil && (ref.AuthorId != b.UserId() || ref.Broadcast) {
+		if err := adminlog.Write(b, ref.Peer.PeerId, mtproto.MakeTLChannelAdminLogEventActionStopPoll(&mtproto.ChannelAdminLogEventAction{
+			Message: ref.Message,
+		}).To_ChannelAdminLogEventAction(), ref.Message.GetMessage()); err != nil {
+			return nil, err
+		}
 	}
 	return &PollChange{Changed: true, WithPoll: true}, nil
 }

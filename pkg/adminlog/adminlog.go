@@ -77,6 +77,14 @@ func Mask(f *mtproto.ChannelAdminLogEventsFilter) int64 {
 }
 
 // kindOf is the kind of an action, as the clients file it under the filter.
+// The kinds follow the flags of channelAdminLogEventsFilter: info is the
+// description, linked chat, location, photo, sticker sets, title, usernames,
+// slow mode and the auto-delete period; settings are the invites, the hidden
+// history, signatures, default rights and the forum switch
+// (core.telegram.org/constructor/channelAdminLogEventsFilter). The look of
+// the channel (colors, emoji status, wallpaper) goes with its info, and the
+// reactions and copy protection with its settings: the page names neither.
+// A stopped poll is a change of a message, as an edit is.
 func kindOf(a *mtproto.ChannelAdminLogEventAction) int64 {
 	switch a.GetPredicateName() {
 	case mtproto.Predicate_channelAdminLogEventActionParticipantJoin,
@@ -96,11 +104,32 @@ func kindOf(a *mtproto.ChannelAdminLogEventAction) int64 {
 	case mtproto.Predicate_channelAdminLogEventActionChangeTitle,
 		mtproto.Predicate_channelAdminLogEventActionChangeAbout,
 		mtproto.Predicate_channelAdminLogEventActionChangeUsername,
-		mtproto.Predicate_channelAdminLogEventActionChangePhoto:
+		mtproto.Predicate_channelAdminLogEventActionChangeUsernames,
+		mtproto.Predicate_channelAdminLogEventActionChangePhoto,
+		mtproto.Predicate_channelAdminLogEventActionChangeStickerSet,
+		mtproto.Predicate_channelAdminLogEventActionChangeEmojiStickerSet,
+		mtproto.Predicate_channelAdminLogEventActionChangeLinkedChat,
+		mtproto.Predicate_channelAdminLogEventActionChangeLocation,
+		mtproto.Predicate_channelAdminLogEventActionToggleSlowMode,
+		mtproto.Predicate_channelAdminLogEventActionChangeHistoryTTL,
+		mtproto.Predicate_channelAdminLogEventActionChangePeerColor,
+		mtproto.Predicate_channelAdminLogEventActionChangeProfilePeerColor,
+		mtproto.Predicate_channelAdminLogEventActionChangeEmojiStatus,
+		mtproto.Predicate_channelAdminLogEventActionChangeWallpaper:
 		return Info
+	case mtproto.Predicate_channelAdminLogEventActionExportedInviteEdit,
+		mtproto.Predicate_channelAdminLogEventActionExportedInviteRevoke,
+		mtproto.Predicate_channelAdminLogEventActionExportedInviteDelete:
+		return Invites
+	case mtproto.Predicate_channelAdminLogEventActionCreateTopic,
+		mtproto.Predicate_channelAdminLogEventActionEditTopic,
+		mtproto.Predicate_channelAdminLogEventActionDeleteTopic,
+		mtproto.Predicate_channelAdminLogEventActionPinTopic:
+		return Forums
 	case mtproto.Predicate_channelAdminLogEventActionUpdatePinned:
 		return Pinned
-	case mtproto.Predicate_channelAdminLogEventActionEditMessage:
+	case mtproto.Predicate_channelAdminLogEventActionEditMessage,
+		mtproto.Predicate_channelAdminLogEventActionStopPoll:
 		return Edit
 	case mtproto.Predicate_channelAdminLogEventActionDeleteMessage:
 		return Delete
@@ -112,6 +141,15 @@ func kindOf(a *mtproto.ChannelAdminLogEventAction) int64 {
 // Write records action, made by b's owner in the channel, and drops the
 // channel's actions older than Keep. text is what a search finds it by.
 func Write(b *userbox.Box, channelId int64, action *mtproto.ChannelAdminLogEventAction, text string) error {
+	return WriteBy(b, channelId, b.UserId(), action, text)
+}
+
+// WriteBy is Write of an action the log names userId for, in b's
+// transaction: one joining by a request that b's owner approves
+// (channelAdminLogEventActionParticipantJoinByRequest names the admin as
+// approved_by; tdesktop history_admin_log_item.cpp createParticipantJoinByRequest
+// shows the event's user as the one who joined).
+func WriteBy(b *userbox.Box, channelId, userId int64, action *mtproto.ChannelAdminLogEventAction, text string) error {
 	data, err := marshal(action)
 	if err != nil {
 		return err
@@ -120,7 +158,7 @@ func Write(b *userbox.Box, channelId int64, action *mtproto.ChannelAdminLogEvent
 		text = text[:512]
 	}
 	if _, err = b.Tx().Exec("INSERT INTO channel_admin_log (channel_id, user_id, `date`, kind, `text`, action) VALUES (?, ?, ?, ?, ?, ?)",
-		channelId, b.UserId(), b.Date(), kindOf(action), text, data); err != nil {
+		channelId, userId, b.Date(), kindOf(action), text, data); err != nil {
 		return err
 	}
 	_, err = b.Tx().Exec("DELETE FROM channel_admin_log WHERE channel_id = ? AND `date` < ?", channelId, b.Date()-Keep)
