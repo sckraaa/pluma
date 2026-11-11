@@ -99,7 +99,7 @@ func TestEditChatCreatorChecksPassword(t *testing.T) {
 	if got := edit(proof("guess")); got != "PASSWORD_HASH_INVALID" {
 		t.Fatalf("a wrong password: %s", got)
 	}
-	if got := edit(proof("pw")); got != "ERR_ENTERPRISE_IS_BLOCKED" {
+	if got := edit(proof("pw")); got != "PEER_ID_INVALID" {
 		t.Fatalf("the right password: %s", got)
 	}
 }

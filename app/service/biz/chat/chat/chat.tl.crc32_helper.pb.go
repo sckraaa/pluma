@@ -11,23 +11,25 @@
 package chat
 
 const (
-	CRC32_UNKNOWN                               TLConstructor = 0
-	CRC32_chatInviteAlready                     TLConstructor = -1542554274 // 0xa40e7d5e
-	CRC32_chatInvite                            TLConstructor = -613035609  // 0xdb75d1a7
-	CRC32_chatInvitePeek                        TLConstructor = -1394351506 // 0xace3e26e
-	CRC32_userChatIdList                        TLConstructor = 1342599716  // 0x50067224
-	CRC32_recentChatInviteRequesters            TLConstructor = 476986452   // 0x1c6e3c54
-	CRC32_chatInviteImported                    TLConstructor = 1913672182  // 0x721051f6
-	CRC32_chat_getMutableChat                   TLConstructor = 741090770   // 0x2c2c25d2
-	CRC32_chat_getChatListByIdList              TLConstructor = -415173319  // 0xe740f539
-	CRC32_chat_getChatBySelfId                  TLConstructor = 1236736584  // 0x49b71a48
-	CRC32_chat_createChat2                      TLConstructor = -317215499  // 0xed17acf5
-	CRC32_chat_deleteChat                       TLConstructor = 1829891102  // 0x6d11ec1e
-	CRC32_chat_deleteChatUser                   TLConstructor = 187109333   // 0xb270fd5
-	CRC32_chat_editChatTitle                    TLConstructor = -1782210905 // 0x95c59ea7
-	CRC32_chat_editChatAbout                    TLConstructor = 1551072376  // 0x5c737c78
-	CRC32_chat_editChatPhoto                    TLConstructor = 1170384488  // 0x45c2a668
-	CRC32_chat_editChatAdmin                    TLConstructor = 419816940   // 0x1905e5ec
+	CRC32_UNKNOWN                    TLConstructor = 0
+	CRC32_chatInviteAlready          TLConstructor = -1542554274 // 0xa40e7d5e
+	CRC32_chatInvite                 TLConstructor = -613035609  // 0xdb75d1a7
+	CRC32_chatInvitePeek             TLConstructor = -1394351506 // 0xace3e26e
+	CRC32_userChatIdList             TLConstructor = 1342599716  // 0x50067224
+	CRC32_recentChatInviteRequesters TLConstructor = 476986452   // 0x1c6e3c54
+	CRC32_chatInviteImported         TLConstructor = 1913672182  // 0x721051f6
+	CRC32_chat_getMutableChat        TLConstructor = 741090770   // 0x2c2c25d2
+	CRC32_chat_getChatListByIdList   TLConstructor = -415173319  // 0xe740f539
+	CRC32_chat_getChatBySelfId       TLConstructor = 1236736584  // 0x49b71a48
+	CRC32_chat_createChat2           TLConstructor = -317215499  // 0xed17acf5
+	CRC32_chat_deleteChat            TLConstructor = 1829891102  // 0x6d11ec1e
+	CRC32_chat_deleteChatUser        TLConstructor = 187109333   // 0xb270fd5
+	CRC32_chat_editChatTitle         TLConstructor = -1782210905 // 0x95c59ea7
+	CRC32_chat_editChatAbout         TLConstructor = 1551072376  // 0x5c737c78
+	CRC32_chat_editChatPhoto         TLConstructor = 1170384488  // 0x45c2a668
+	CRC32_chat_editChatAdmin         TLConstructor = 419816940   // 0x1905e5ec
+	// pluma: task 078
+	CRC32_chat_editChatCreator                  TLConstructor = -415058125  // 0xe742b733
 	CRC32_chat_editChatDefaultBannedRights      TLConstructor = 1513399943  // 0x5a34a687
 	CRC32_chat_addChatUser                      TLConstructor = -447397528  // 0xe5554168
 	CRC32_chat_getMutableChatByLink             TLConstructor = -1570363509 // 0xa266278b

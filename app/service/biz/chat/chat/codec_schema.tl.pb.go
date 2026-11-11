@@ -106,6 +106,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: 1170384488,
 		}
 	},
+	-415058125: func() mtproto.TLObject { // 0xe742b733 pluma: task 078
+		return &TLChatEditChatCreator{
+			Constructor: -415058125,
+		}
+	},
 	419816940: func() mtproto.TLObject { // 0x1905e5ec
 		return &TLChatEditChatAdmin{
 			Constructor: 419816940,
@@ -2931,6 +2936,48 @@ func (m *TLChatSetBlocked) Decode(dBuf *mtproto.DecodeBuf) error {
 		m1 := &mtproto.Bool{}
 		m1.Decode(dBuf)
 		m.Blocked = m1
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChatEditChatCreator (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChatEditChatCreator) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xe742b733:
+		x.UInt(0xe742b733)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChatId())
+		x.Long(m.GetUserId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChatEditChatCreator) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChatEditChatCreator) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xe742b733:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChatId = dBuf.Long()
+		m.UserId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:

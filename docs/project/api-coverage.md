@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 399, partial 11, blocked 103, notimpl 3, fake 1, missing 413 (ok = 42.9%); with a conformance scenario 9
+    layer 233: 930 methods — ok 400, partial 10, blocked 103, notimpl 3, fake 1, missing 413 (ok = 43.0%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -25,7 +25,7 @@
 | fragment | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
 | help | 28 | 11 | 1 | 11 | 0 | 0 | 5 | 2 |
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
-| messages | 283 | 178 | 5 | 17 | 2 | 0 | 81 | 3 |
+| messages | 283 | 179 | 4 | 17 | 2 | 0 | 81 | 3 |
 | payments | 81 | 0 | 1 | 4 | 0 | 0 | 76 | 0 |
 | phone | 45 | 10 | 0 | 0 | 0 | 0 | 35 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -539,7 +539,7 @@
 | `messages.discardEncryption` | ok |  | app/bff/secretchats/internal/core/messages.discardEncryption_handler.go:25 |
 | `messages.editChatAbout` | ok |  | app/bff/chats/internal/core/messages.editChatAbout_handler.go:35 |
 | `messages.editChatAdmin` | ok |  | app/bff/chats/internal/core/messages.editChatAdmin_handler.go:31 |
-| `messages.editChatCreator` | partial |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:43 |
+| `messages.editChatCreator` | ok |  | app/bff/chats/internal/core/messages.editChatCreator_handler.go:43 |
 | `messages.editChatDefaultBannedRights` | ok |  | app/bff/chats/internal/core/messages.editChatDefaultBannedRights_handler.go:36 |
 | `messages.editChatParticipantRank` | ok |  | app/bff/chats/internal/core/messages.editChatParticipantRank_handler.go:33 |
 | `messages.editChatPhoto` | ok |  | app/bff/chats/internal/core/messages.editChatPhoto_handler.go:32 |

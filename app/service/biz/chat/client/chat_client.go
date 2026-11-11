@@ -33,6 +33,7 @@ type ChatClient interface {
 	ChatEditChatAbout(ctx context.Context, in *chat.TLChatEditChatAbout) (*mtproto.MutableChat, error)
 	ChatEditChatPhoto(ctx context.Context, in *chat.TLChatEditChatPhoto) (*mtproto.MutableChat, error)
 	ChatEditChatAdmin(ctx context.Context, in *chat.TLChatEditChatAdmin) (*mtproto.MutableChat, error)
+	ChatEditChatCreator(ctx context.Context, in *chat.TLChatEditChatCreator) (*mtproto.MutableChat, error)
 	ChatEditChatDefaultBannedRights(ctx context.Context, in *chat.TLChatEditChatDefaultBannedRights) (*mtproto.MutableChat, error)
 	ChatAddChatUser(ctx context.Context, in *chat.TLChatAddChatUser) (*mtproto.MutableChat, error)
 	ChatGetMutableChatByLink(ctx context.Context, in *chat.TLChatGetMutableChatByLink) (*mtproto.MutableChat, error)
@@ -179,6 +180,17 @@ func (m *defaultChatClient) ChatEditChatAdmin(ctx context.Context, in *chat.TLCh
 	}
 	client := chat.NewRPCChatClient(m.cli.Conn())
 	return client.ChatEditChatAdmin(ctx, in)
+}
+
+// ChatEditChatCreator
+// chat.editChatCreator self_id:long chat_id:long user_id:long = MutableChat;
+func (m *defaultChatClient) ChatEditChatCreator(ctx context.Context, in *chat.TLChatEditChatCreator) (*mtproto.MutableChat, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := chat.NewRPCChatClient(m.cli.Conn())
+	return client.ChatEditChatCreator(ctx, in)
 }
 
 // ChatEditChatDefaultBannedRights

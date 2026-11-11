@@ -19,6 +19,7 @@ package core
 
 import (
 	"errors"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
@@ -38,8 +39,7 @@ import (
 // FLOOD_WAIT_X past the limits. iOS probes so with inputPeerEmpty
 // (ChannelOwnershipTransfer.swift:36-41). A channel or supergroup goes to
 // its new owner (task 042, biz channel.editCreator, as channels.editCreator);
-// a basic group's transfer is not served (an upstream enterprise feature,
-// ERR_ENTERPRISE_IS_BLOCKED).
+// a basic group to its new creator (chat.editChatCreator, task 078).
 func (c *ChatsCore) MessagesEditChatCreator(in *mtproto.TLMessagesEditChatCreator) (*mtproto.Updates, error) {
 	if c.MD.UserId == 0 {
 		return nil, mtproto.ErrAuthKeyUnregistered
@@ -56,8 +56,11 @@ func (c *ChatsCore) MessagesEditChatCreator(in *mtproto.TLMessagesEditChatCreato
 		return nil, err
 	}
 
+	if in.GetPeer().GetPredicateName() == mtproto.Predicate_inputPeerChat {
+		return c.editChatCreator(in)
+	}
 	if in.GetPeer().GetPredicateName() != mtproto.Predicate_inputPeerChannel {
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		return nil, mtproto.ErrPeerIdInvalid
 	}
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
@@ -86,4 +89,25 @@ func (c *ChatsCore) MessagesEditChatCreator(in *mtproto.TLMessagesEditChatCreato
 		ChannelId:     peer.PeerId,
 		UserId:        user.PeerId,
 	})
+}
+
+// editChatCreator hands a basic group to a member of it.
+func (c *ChatsCore) editChatCreator(in *mtproto.TLMessagesEditChatCreator) (*mtproto.Updates, error) {
+	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
+	user := mtproto.FromInputUser(c.MD.UserId, in.UserId)
+	if user.PeerType != mtproto.PEER_USER {
+		return nil, mtproto.ErrUserIdInvalid
+	}
+	chat, err := c.svcCtx.Dao.ChatClient.Client().ChatEditChatCreator(c.ctx, &chatpb.TLChatEditChatCreator{
+		SelfId: c.MD.UserId,
+		ChatId: peer.PeerId,
+		UserId: user.PeerId,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.editChatCreator - error: %v", err)
+		return nil, err
+	}
+	return mtproto.MakeUpdatesByUpdatesChats(
+		[]*mtproto.Chat{chat.ToUnsafeChat(c.MD.UserId)},
+		mtproto.MakeTLUpdateChat(&mtproto.Update{ChatId_INT64: peer.PeerId}).To_Update()), nil
 }

@@ -26,16 +26,18 @@ type RPCContextTuple struct {
 }
 
 var rpcContextRegisters = map[string]RPCContextTuple{
-	"TLChatGetMutableChat":                   {"/mtproto.RPCChat/chat_getMutableChat", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatGetChatListByIdList":              {"/mtproto.RPCChat/chat_getChatListByIdList", func() interface{} { return new(Vector_MutableChat) }},
-	"TLChatGetChatBySelfId":                  {"/mtproto.RPCChat/chat_getChatBySelfId", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatCreateChat2":                      {"/mtproto.RPCChat/chat_createChat2", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatDeleteChat":                       {"/mtproto.RPCChat/chat_deleteChat", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatDeleteChatUser":                   {"/mtproto.RPCChat/chat_deleteChatUser", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatEditChatTitle":                    {"/mtproto.RPCChat/chat_editChatTitle", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatEditChatAbout":                    {"/mtproto.RPCChat/chat_editChatAbout", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatEditChatPhoto":                    {"/mtproto.RPCChat/chat_editChatPhoto", func() interface{} { return new(mtproto.MutableChat) }},
-	"TLChatEditChatAdmin":                    {"/mtproto.RPCChat/chat_editChatAdmin", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatGetMutableChat":      {"/mtproto.RPCChat/chat_getMutableChat", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatGetChatListByIdList": {"/mtproto.RPCChat/chat_getChatListByIdList", func() interface{} { return new(Vector_MutableChat) }},
+	"TLChatGetChatBySelfId":     {"/mtproto.RPCChat/chat_getChatBySelfId", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatCreateChat2":         {"/mtproto.RPCChat/chat_createChat2", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatDeleteChat":          {"/mtproto.RPCChat/chat_deleteChat", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatDeleteChatUser":      {"/mtproto.RPCChat/chat_deleteChatUser", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatEditChatTitle":       {"/mtproto.RPCChat/chat_editChatTitle", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatEditChatAbout":       {"/mtproto.RPCChat/chat_editChatAbout", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatEditChatPhoto":       {"/mtproto.RPCChat/chat_editChatPhoto", func() interface{} { return new(mtproto.MutableChat) }},
+	"TLChatEditChatAdmin":       {"/mtproto.RPCChat/chat_editChatAdmin", func() interface{} { return new(mtproto.MutableChat) }},
+	// pluma: task 078
+	"TLChatEditChatCreator":                  {"/mtproto.RPCChat/chat_editChatCreator", func() interface{} { return new(mtproto.MutableChat) }},
 	"TLChatEditChatDefaultBannedRights":      {"/mtproto.RPCChat/chat_editChatDefaultBannedRights", func() interface{} { return new(mtproto.MutableChat) }},
 	"TLChatAddChatUser":                      {"/mtproto.RPCChat/chat_addChatUser", func() interface{} { return new(mtproto.MutableChat) }},
 	"TLChatGetMutableChatByLink":             {"/mtproto.RPCChat/chat_getMutableChatByLink", func() interface{} { return new(mtproto.MutableChat) }},

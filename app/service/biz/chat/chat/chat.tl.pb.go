@@ -35,23 +35,25 @@ const (
 type TLConstructor int32
 
 const (
-	TLConstructor_CRC32_UNKNOWN                               TLConstructor = 0
-	TLConstructor_CRC32_chatInviteAlready                     TLConstructor = -1542554274
-	TLConstructor_CRC32_chatInvite                            TLConstructor = -613035609
-	TLConstructor_CRC32_chatInvitePeek                        TLConstructor = -1394351506
-	TLConstructor_CRC32_userChatIdList                        TLConstructor = 1342599716
-	TLConstructor_CRC32_recentChatInviteRequesters            TLConstructor = 476986452
-	TLConstructor_CRC32_chatInviteImported                    TLConstructor = 1913672182
-	TLConstructor_CRC32_chat_getMutableChat                   TLConstructor = 741090770
-	TLConstructor_CRC32_chat_getChatListByIdList              TLConstructor = -415173319
-	TLConstructor_CRC32_chat_getChatBySelfId                  TLConstructor = 1236736584
-	TLConstructor_CRC32_chat_createChat2                      TLConstructor = -317215499
-	TLConstructor_CRC32_chat_deleteChat                       TLConstructor = 1829891102
-	TLConstructor_CRC32_chat_deleteChatUser                   TLConstructor = 187109333
-	TLConstructor_CRC32_chat_editChatTitle                    TLConstructor = -1782210905
-	TLConstructor_CRC32_chat_editChatAbout                    TLConstructor = 1551072376
-	TLConstructor_CRC32_chat_editChatPhoto                    TLConstructor = 1170384488
-	TLConstructor_CRC32_chat_editChatAdmin                    TLConstructor = 419816940
+	TLConstructor_CRC32_UNKNOWN                    TLConstructor = 0
+	TLConstructor_CRC32_chatInviteAlready          TLConstructor = -1542554274
+	TLConstructor_CRC32_chatInvite                 TLConstructor = -613035609
+	TLConstructor_CRC32_chatInvitePeek             TLConstructor = -1394351506
+	TLConstructor_CRC32_userChatIdList             TLConstructor = 1342599716
+	TLConstructor_CRC32_recentChatInviteRequesters TLConstructor = 476986452
+	TLConstructor_CRC32_chatInviteImported         TLConstructor = 1913672182
+	TLConstructor_CRC32_chat_getMutableChat        TLConstructor = 741090770
+	TLConstructor_CRC32_chat_getChatListByIdList   TLConstructor = -415173319
+	TLConstructor_CRC32_chat_getChatBySelfId       TLConstructor = 1236736584
+	TLConstructor_CRC32_chat_createChat2           TLConstructor = -317215499
+	TLConstructor_CRC32_chat_deleteChat            TLConstructor = 1829891102
+	TLConstructor_CRC32_chat_deleteChatUser        TLConstructor = 187109333
+	TLConstructor_CRC32_chat_editChatTitle         TLConstructor = -1782210905
+	TLConstructor_CRC32_chat_editChatAbout         TLConstructor = 1551072376
+	TLConstructor_CRC32_chat_editChatPhoto         TLConstructor = 1170384488
+	TLConstructor_CRC32_chat_editChatAdmin         TLConstructor = 419816940
+	// pluma: task 078
+	TLConstructor_CRC32_chat_editChatCreator                  TLConstructor = -415058125
 	TLConstructor_CRC32_chat_editChatDefaultBannedRights      TLConstructor = 1513399943
 	TLConstructor_CRC32_chat_addChatUser                      TLConstructor = -447397528
 	TLConstructor_CRC32_chat_getMutableChatByLink             TLConstructor = -1570363509
@@ -101,6 +103,7 @@ var (
 		1551072376:  "CRC32_chat_editChatAbout",
 		1170384488:  "CRC32_chat_editChatPhoto",
 		419816940:   "CRC32_chat_editChatAdmin",
+		-415058125:  "CRC32_chat_editChatCreator",
 		1513399943:  "CRC32_chat_editChatDefaultBannedRights",
 		-447397528:  "CRC32_chat_addChatUser",
 		-1570363509: "CRC32_chat_getMutableChatByLink",
@@ -146,6 +149,7 @@ var (
 		"CRC32_chat_editChatAbout":                    1551072376,
 		"CRC32_chat_editChatPhoto":                    1170384488,
 		"CRC32_chat_editChatAdmin":                    419816940,
+		"CRC32_chat_editChatCreator":                  -415058125,
 		"CRC32_chat_editChatDefaultBannedRights":      1513399943,
 		"CRC32_chat_addChatUser":                      -447397528,
 		"CRC32_chat_getMutableChatByLink":             -1570363509,
@@ -1394,6 +1398,76 @@ func (x *TLChatEditChatPhoto) GetChatPhoto() *mtproto.Photo {
 }
 
 // --------------------------------------------------------------------------------------------
+// pluma: chat.editChatCreator self_id:long chat_id:long user_id:long = MutableChat;
+// The creator hands the group to user_id (task 078).
+type TLChatEditChatCreator struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Constructor   TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=chat.TLConstructor" json:"constructor,omitempty"`
+	SelfId        int64                  `protobuf:"varint,3,opt,name=self_id,json=selfId,proto3" json:"self_id,omitempty"`
+	ChatId        int64                  `protobuf:"varint,4,opt,name=chat_id,json=chatId,proto3" json:"chat_id,omitempty"`
+	UserId        int64                  `protobuf:"varint,5,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TLChatEditChatCreator) Reset() {
+	*x = TLChatEditChatCreator{}
+	mi := &file_chat_tl_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TLChatEditChatCreator) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TLChatEditChatCreator) ProtoMessage() {}
+
+func (x *TLChatEditChatCreator) ProtoReflect() protoreflect.Message {
+	mi := &file_chat_tl_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TLChatEditChatCreator.ProtoReflect.Descriptor instead.
+func (*TLChatEditChatCreator) Descriptor() ([]byte, []int) {
+	return file_chat_tl_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *TLChatEditChatCreator) GetConstructor() TLConstructor {
+	if x != nil {
+		return x.Constructor
+	}
+	return TLConstructor_CRC32_UNKNOWN
+}
+
+func (x *TLChatEditChatCreator) GetSelfId() int64 {
+	if x != nil {
+		return x.SelfId
+	}
+	return 0
+}
+
+func (x *TLChatEditChatCreator) GetChatId() int64 {
+	if x != nil {
+		return x.ChatId
+	}
+	return 0
+}
+
+func (x *TLChatEditChatCreator) GetUserId() int64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
 type TLChatEditChatAdmin struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Constructor     TLConstructor          `protobuf:"varint,1,opt,name=constructor,proto3,enum=chat.TLConstructor" json:"constructor,omitempty"`
@@ -1407,7 +1481,7 @@ type TLChatEditChatAdmin struct {
 
 func (x *TLChatEditChatAdmin) Reset() {
 	*x = TLChatEditChatAdmin{}
-	mi := &file_chat_tl_proto_msgTypes[19]
+	mi := &file_chat_tl_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1419,7 +1493,7 @@ func (x *TLChatEditChatAdmin) String() string {
 func (*TLChatEditChatAdmin) ProtoMessage() {}
 
 func (x *TLChatEditChatAdmin) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[19]
+	mi := &file_chat_tl_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1432,7 +1506,7 @@ func (x *TLChatEditChatAdmin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatEditChatAdmin.ProtoReflect.Descriptor instead.
 func (*TLChatEditChatAdmin) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{19}
+	return file_chat_tl_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TLChatEditChatAdmin) GetConstructor() TLConstructor {
@@ -1483,7 +1557,7 @@ type TLChatEditChatDefaultBannedRights struct {
 
 func (x *TLChatEditChatDefaultBannedRights) Reset() {
 	*x = TLChatEditChatDefaultBannedRights{}
-	mi := &file_chat_tl_proto_msgTypes[20]
+	mi := &file_chat_tl_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1495,7 +1569,7 @@ func (x *TLChatEditChatDefaultBannedRights) String() string {
 func (*TLChatEditChatDefaultBannedRights) ProtoMessage() {}
 
 func (x *TLChatEditChatDefaultBannedRights) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[20]
+	mi := &file_chat_tl_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1508,7 +1582,7 @@ func (x *TLChatEditChatDefaultBannedRights) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use TLChatEditChatDefaultBannedRights.ProtoReflect.Descriptor instead.
 func (*TLChatEditChatDefaultBannedRights) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{20}
+	return file_chat_tl_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *TLChatEditChatDefaultBannedRights) GetConstructor() TLConstructor {
@@ -1553,7 +1627,7 @@ type TLChatAddChatUser struct {
 
 func (x *TLChatAddChatUser) Reset() {
 	*x = TLChatAddChatUser{}
-	mi := &file_chat_tl_proto_msgTypes[21]
+	mi := &file_chat_tl_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1565,7 +1639,7 @@ func (x *TLChatAddChatUser) String() string {
 func (*TLChatAddChatUser) ProtoMessage() {}
 
 func (x *TLChatAddChatUser) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[21]
+	mi := &file_chat_tl_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1578,7 +1652,7 @@ func (x *TLChatAddChatUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatAddChatUser.ProtoReflect.Descriptor instead.
 func (*TLChatAddChatUser) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{21}
+	return file_chat_tl_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *TLChatAddChatUser) GetConstructor() TLConstructor {
@@ -1627,7 +1701,7 @@ type TLChatGetMutableChatByLink struct {
 
 func (x *TLChatGetMutableChatByLink) Reset() {
 	*x = TLChatGetMutableChatByLink{}
-	mi := &file_chat_tl_proto_msgTypes[22]
+	mi := &file_chat_tl_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1639,7 +1713,7 @@ func (x *TLChatGetMutableChatByLink) String() string {
 func (*TLChatGetMutableChatByLink) ProtoMessage() {}
 
 func (x *TLChatGetMutableChatByLink) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[22]
+	mi := &file_chat_tl_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1652,7 +1726,7 @@ func (x *TLChatGetMutableChatByLink) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetMutableChatByLink.ProtoReflect.Descriptor instead.
 func (*TLChatGetMutableChatByLink) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{22}
+	return file_chat_tl_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *TLChatGetMutableChatByLink) GetConstructor() TLConstructor {
@@ -1682,7 +1756,7 @@ type TLChatToggleNoForwards struct {
 
 func (x *TLChatToggleNoForwards) Reset() {
 	*x = TLChatToggleNoForwards{}
-	mi := &file_chat_tl_proto_msgTypes[23]
+	mi := &file_chat_tl_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1694,7 +1768,7 @@ func (x *TLChatToggleNoForwards) String() string {
 func (*TLChatToggleNoForwards) ProtoMessage() {}
 
 func (x *TLChatToggleNoForwards) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[23]
+	mi := &file_chat_tl_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1707,7 +1781,7 @@ func (x *TLChatToggleNoForwards) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatToggleNoForwards.ProtoReflect.Descriptor instead.
 func (*TLChatToggleNoForwards) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{23}
+	return file_chat_tl_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *TLChatToggleNoForwards) GetConstructor() TLConstructor {
@@ -1751,7 +1825,7 @@ type TLChatMigratedToChannel struct {
 
 func (x *TLChatMigratedToChannel) Reset() {
 	*x = TLChatMigratedToChannel{}
-	mi := &file_chat_tl_proto_msgTypes[24]
+	mi := &file_chat_tl_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1763,7 +1837,7 @@ func (x *TLChatMigratedToChannel) String() string {
 func (*TLChatMigratedToChannel) ProtoMessage() {}
 
 func (x *TLChatMigratedToChannel) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[24]
+	mi := &file_chat_tl_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1776,7 +1850,7 @@ func (x *TLChatMigratedToChannel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatMigratedToChannel.ProtoReflect.Descriptor instead.
 func (*TLChatMigratedToChannel) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{24}
+	return file_chat_tl_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *TLChatMigratedToChannel) GetConstructor() TLConstructor {
@@ -1818,7 +1892,7 @@ type TLChatGetChatParticipantIdList struct {
 
 func (x *TLChatGetChatParticipantIdList) Reset() {
 	*x = TLChatGetChatParticipantIdList{}
-	mi := &file_chat_tl_proto_msgTypes[25]
+	mi := &file_chat_tl_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1830,7 +1904,7 @@ func (x *TLChatGetChatParticipantIdList) String() string {
 func (*TLChatGetChatParticipantIdList) ProtoMessage() {}
 
 func (x *TLChatGetChatParticipantIdList) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[25]
+	mi := &file_chat_tl_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1843,7 +1917,7 @@ func (x *TLChatGetChatParticipantIdList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetChatParticipantIdList.ProtoReflect.Descriptor instead.
 func (*TLChatGetChatParticipantIdList) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{25}
+	return file_chat_tl_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *TLChatGetChatParticipantIdList) GetConstructor() TLConstructor {
@@ -1871,7 +1945,7 @@ type TLChatGetUsersChatIdList struct {
 
 func (x *TLChatGetUsersChatIdList) Reset() {
 	*x = TLChatGetUsersChatIdList{}
-	mi := &file_chat_tl_proto_msgTypes[26]
+	mi := &file_chat_tl_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1883,7 +1957,7 @@ func (x *TLChatGetUsersChatIdList) String() string {
 func (*TLChatGetUsersChatIdList) ProtoMessage() {}
 
 func (x *TLChatGetUsersChatIdList) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[26]
+	mi := &file_chat_tl_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1896,7 +1970,7 @@ func (x *TLChatGetUsersChatIdList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetUsersChatIdList.ProtoReflect.Descriptor instead.
 func (*TLChatGetUsersChatIdList) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{26}
+	return file_chat_tl_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *TLChatGetUsersChatIdList) GetConstructor() TLConstructor {
@@ -1925,7 +1999,7 @@ type TLChatGetMyChatList struct {
 
 func (x *TLChatGetMyChatList) Reset() {
 	*x = TLChatGetMyChatList{}
-	mi := &file_chat_tl_proto_msgTypes[27]
+	mi := &file_chat_tl_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1937,7 +2011,7 @@ func (x *TLChatGetMyChatList) String() string {
 func (*TLChatGetMyChatList) ProtoMessage() {}
 
 func (x *TLChatGetMyChatList) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[27]
+	mi := &file_chat_tl_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1950,7 +2024,7 @@ func (x *TLChatGetMyChatList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetMyChatList.ProtoReflect.Descriptor instead.
 func (*TLChatGetMyChatList) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{27}
+	return file_chat_tl_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *TLChatGetMyChatList) GetConstructor() TLConstructor {
@@ -1991,7 +2065,7 @@ type TLChatExportChatInvite struct {
 
 func (x *TLChatExportChatInvite) Reset() {
 	*x = TLChatExportChatInvite{}
-	mi := &file_chat_tl_proto_msgTypes[28]
+	mi := &file_chat_tl_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2003,7 +2077,7 @@ func (x *TLChatExportChatInvite) String() string {
 func (*TLChatExportChatInvite) ProtoMessage() {}
 
 func (x *TLChatExportChatInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[28]
+	mi := &file_chat_tl_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2016,7 +2090,7 @@ func (x *TLChatExportChatInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatExportChatInvite.ProtoReflect.Descriptor instead.
 func (*TLChatExportChatInvite) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{28}
+	return file_chat_tl_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *TLChatExportChatInvite) GetConstructor() TLConstructor {
@@ -2087,7 +2161,7 @@ type TLChatGetAdminsWithInvites struct {
 
 func (x *TLChatGetAdminsWithInvites) Reset() {
 	*x = TLChatGetAdminsWithInvites{}
-	mi := &file_chat_tl_proto_msgTypes[29]
+	mi := &file_chat_tl_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2099,7 +2173,7 @@ func (x *TLChatGetAdminsWithInvites) String() string {
 func (*TLChatGetAdminsWithInvites) ProtoMessage() {}
 
 func (x *TLChatGetAdminsWithInvites) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[29]
+	mi := &file_chat_tl_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2112,7 +2186,7 @@ func (x *TLChatGetAdminsWithInvites) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetAdminsWithInvites.ProtoReflect.Descriptor instead.
 func (*TLChatGetAdminsWithInvites) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{29}
+	return file_chat_tl_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *TLChatGetAdminsWithInvites) GetConstructor() TLConstructor {
@@ -2148,7 +2222,7 @@ type TLChatGetExportedChatInvite struct {
 
 func (x *TLChatGetExportedChatInvite) Reset() {
 	*x = TLChatGetExportedChatInvite{}
-	mi := &file_chat_tl_proto_msgTypes[30]
+	mi := &file_chat_tl_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2160,7 +2234,7 @@ func (x *TLChatGetExportedChatInvite) String() string {
 func (*TLChatGetExportedChatInvite) ProtoMessage() {}
 
 func (x *TLChatGetExportedChatInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[30]
+	mi := &file_chat_tl_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2173,7 +2247,7 @@ func (x *TLChatGetExportedChatInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetExportedChatInvite.ProtoReflect.Descriptor instead.
 func (*TLChatGetExportedChatInvite) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{30}
+	return file_chat_tl_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *TLChatGetExportedChatInvite) GetConstructor() TLConstructor {
@@ -2213,7 +2287,7 @@ type TLChatGetExportedChatInvites struct {
 
 func (x *TLChatGetExportedChatInvites) Reset() {
 	*x = TLChatGetExportedChatInvites{}
-	mi := &file_chat_tl_proto_msgTypes[31]
+	mi := &file_chat_tl_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2225,7 +2299,7 @@ func (x *TLChatGetExportedChatInvites) String() string {
 func (*TLChatGetExportedChatInvites) ProtoMessage() {}
 
 func (x *TLChatGetExportedChatInvites) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[31]
+	mi := &file_chat_tl_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2238,7 +2312,7 @@ func (x *TLChatGetExportedChatInvites) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetExportedChatInvites.ProtoReflect.Descriptor instead.
 func (*TLChatGetExportedChatInvites) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{31}
+	return file_chat_tl_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *TLChatGetExportedChatInvites) GetConstructor() TLConstructor {
@@ -2302,7 +2376,7 @@ type TLChatCheckChatInvite struct {
 
 func (x *TLChatCheckChatInvite) Reset() {
 	*x = TLChatCheckChatInvite{}
-	mi := &file_chat_tl_proto_msgTypes[32]
+	mi := &file_chat_tl_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2314,7 +2388,7 @@ func (x *TLChatCheckChatInvite) String() string {
 func (*TLChatCheckChatInvite) ProtoMessage() {}
 
 func (x *TLChatCheckChatInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[32]
+	mi := &file_chat_tl_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2327,7 +2401,7 @@ func (x *TLChatCheckChatInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatCheckChatInvite.ProtoReflect.Descriptor instead.
 func (*TLChatCheckChatInvite) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{32}
+	return file_chat_tl_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *TLChatCheckChatInvite) GetConstructor() TLConstructor {
@@ -2363,7 +2437,7 @@ type TLChatImportChatInvite struct {
 
 func (x *TLChatImportChatInvite) Reset() {
 	*x = TLChatImportChatInvite{}
-	mi := &file_chat_tl_proto_msgTypes[33]
+	mi := &file_chat_tl_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2375,7 +2449,7 @@ func (x *TLChatImportChatInvite) String() string {
 func (*TLChatImportChatInvite) ProtoMessage() {}
 
 func (x *TLChatImportChatInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[33]
+	mi := &file_chat_tl_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2388,7 +2462,7 @@ func (x *TLChatImportChatInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatImportChatInvite.ProtoReflect.Descriptor instead.
 func (*TLChatImportChatInvite) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{33}
+	return file_chat_tl_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *TLChatImportChatInvite) GetConstructor() TLConstructor {
@@ -2430,7 +2504,7 @@ type TLChatGetChatInviteImporters struct {
 
 func (x *TLChatGetChatInviteImporters) Reset() {
 	*x = TLChatGetChatInviteImporters{}
-	mi := &file_chat_tl_proto_msgTypes[34]
+	mi := &file_chat_tl_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2442,7 +2516,7 @@ func (x *TLChatGetChatInviteImporters) String() string {
 func (*TLChatGetChatInviteImporters) ProtoMessage() {}
 
 func (x *TLChatGetChatInviteImporters) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[34]
+	mi := &file_chat_tl_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2455,7 +2529,7 @@ func (x *TLChatGetChatInviteImporters) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatGetChatInviteImporters.ProtoReflect.Descriptor instead.
 func (*TLChatGetChatInviteImporters) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{34}
+	return file_chat_tl_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *TLChatGetChatInviteImporters) GetConstructor() TLConstructor {
@@ -2534,7 +2608,7 @@ type TLChatDeleteExportedChatInvite struct {
 
 func (x *TLChatDeleteExportedChatInvite) Reset() {
 	*x = TLChatDeleteExportedChatInvite{}
-	mi := &file_chat_tl_proto_msgTypes[35]
+	mi := &file_chat_tl_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2546,7 +2620,7 @@ func (x *TLChatDeleteExportedChatInvite) String() string {
 func (*TLChatDeleteExportedChatInvite) ProtoMessage() {}
 
 func (x *TLChatDeleteExportedChatInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[35]
+	mi := &file_chat_tl_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2559,7 +2633,7 @@ func (x *TLChatDeleteExportedChatInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatDeleteExportedChatInvite.ProtoReflect.Descriptor instead.
 func (*TLChatDeleteExportedChatInvite) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{35}
+	return file_chat_tl_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *TLChatDeleteExportedChatInvite) GetConstructor() TLConstructor {
@@ -2603,7 +2677,7 @@ type TLChatDeleteRevokedExportedChatInvites struct {
 
 func (x *TLChatDeleteRevokedExportedChatInvites) Reset() {
 	*x = TLChatDeleteRevokedExportedChatInvites{}
-	mi := &file_chat_tl_proto_msgTypes[36]
+	mi := &file_chat_tl_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2615,7 +2689,7 @@ func (x *TLChatDeleteRevokedExportedChatInvites) String() string {
 func (*TLChatDeleteRevokedExportedChatInvites) ProtoMessage() {}
 
 func (x *TLChatDeleteRevokedExportedChatInvites) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[36]
+	mi := &file_chat_tl_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2628,7 +2702,7 @@ func (x *TLChatDeleteRevokedExportedChatInvites) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use TLChatDeleteRevokedExportedChatInvites.ProtoReflect.Descriptor instead.
 func (*TLChatDeleteRevokedExportedChatInvites) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{36}
+	return file_chat_tl_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *TLChatDeleteRevokedExportedChatInvites) GetConstructor() TLConstructor {
@@ -2677,7 +2751,7 @@ type TLChatEditExportedChatInvite struct {
 
 func (x *TLChatEditExportedChatInvite) Reset() {
 	*x = TLChatEditExportedChatInvite{}
-	mi := &file_chat_tl_proto_msgTypes[37]
+	mi := &file_chat_tl_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2689,7 +2763,7 @@ func (x *TLChatEditExportedChatInvite) String() string {
 func (*TLChatEditExportedChatInvite) ProtoMessage() {}
 
 func (x *TLChatEditExportedChatInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[37]
+	mi := &file_chat_tl_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2702,7 +2776,7 @@ func (x *TLChatEditExportedChatInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatEditExportedChatInvite.ProtoReflect.Descriptor instead.
 func (*TLChatEditExportedChatInvite) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{37}
+	return file_chat_tl_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *TLChatEditExportedChatInvite) GetConstructor() TLConstructor {
@@ -2782,7 +2856,7 @@ type TLChatSetChatAvailableReactions struct {
 
 func (x *TLChatSetChatAvailableReactions) Reset() {
 	*x = TLChatSetChatAvailableReactions{}
-	mi := &file_chat_tl_proto_msgTypes[38]
+	mi := &file_chat_tl_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2794,7 +2868,7 @@ func (x *TLChatSetChatAvailableReactions) String() string {
 func (*TLChatSetChatAvailableReactions) ProtoMessage() {}
 
 func (x *TLChatSetChatAvailableReactions) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[38]
+	mi := &file_chat_tl_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2807,7 +2881,7 @@ func (x *TLChatSetChatAvailableReactions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatSetChatAvailableReactions.ProtoReflect.Descriptor instead.
 func (*TLChatSetChatAvailableReactions) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{38}
+	return file_chat_tl_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TLChatSetChatAvailableReactions) GetConstructor() TLConstructor {
@@ -2858,7 +2932,7 @@ type TLChatSetHistoryTTL struct {
 
 func (x *TLChatSetHistoryTTL) Reset() {
 	*x = TLChatSetHistoryTTL{}
-	mi := &file_chat_tl_proto_msgTypes[39]
+	mi := &file_chat_tl_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2870,7 +2944,7 @@ func (x *TLChatSetHistoryTTL) String() string {
 func (*TLChatSetHistoryTTL) ProtoMessage() {}
 
 func (x *TLChatSetHistoryTTL) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[39]
+	mi := &file_chat_tl_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2883,7 +2957,7 @@ func (x *TLChatSetHistoryTTL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatSetHistoryTTL.ProtoReflect.Descriptor instead.
 func (*TLChatSetHistoryTTL) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{39}
+	return file_chat_tl_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *TLChatSetHistoryTTL) GetConstructor() TLConstructor {
@@ -2928,7 +3002,7 @@ type TLChatSearch struct {
 
 func (x *TLChatSearch) Reset() {
 	*x = TLChatSearch{}
-	mi := &file_chat_tl_proto_msgTypes[40]
+	mi := &file_chat_tl_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2940,7 +3014,7 @@ func (x *TLChatSearch) String() string {
 func (*TLChatSearch) ProtoMessage() {}
 
 func (x *TLChatSearch) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[40]
+	mi := &file_chat_tl_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2953,7 +3027,7 @@ func (x *TLChatSearch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatSearch.ProtoReflect.Descriptor instead.
 func (*TLChatSearch) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{40}
+	return file_chat_tl_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TLChatSearch) GetConstructor() TLConstructor {
@@ -3003,7 +3077,7 @@ type TLChatGetRecentChatInviteRequesters struct {
 
 func (x *TLChatGetRecentChatInviteRequesters) Reset() {
 	*x = TLChatGetRecentChatInviteRequesters{}
-	mi := &file_chat_tl_proto_msgTypes[41]
+	mi := &file_chat_tl_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3015,7 +3089,7 @@ func (x *TLChatGetRecentChatInviteRequesters) String() string {
 func (*TLChatGetRecentChatInviteRequesters) ProtoMessage() {}
 
 func (x *TLChatGetRecentChatInviteRequesters) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[41]
+	mi := &file_chat_tl_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3028,7 +3102,7 @@ func (x *TLChatGetRecentChatInviteRequesters) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use TLChatGetRecentChatInviteRequesters.ProtoReflect.Descriptor instead.
 func (*TLChatGetRecentChatInviteRequesters) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{41}
+	return file_chat_tl_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *TLChatGetRecentChatInviteRequesters) GetConstructor() TLConstructor {
@@ -3067,7 +3141,7 @@ type TLChatHideChatJoinRequests struct {
 
 func (x *TLChatHideChatJoinRequests) Reset() {
 	*x = TLChatHideChatJoinRequests{}
-	mi := &file_chat_tl_proto_msgTypes[42]
+	mi := &file_chat_tl_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3079,7 +3153,7 @@ func (x *TLChatHideChatJoinRequests) String() string {
 func (*TLChatHideChatJoinRequests) ProtoMessage() {}
 
 func (x *TLChatHideChatJoinRequests) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[42]
+	mi := &file_chat_tl_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3092,7 +3166,7 @@ func (x *TLChatHideChatJoinRequests) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatHideChatJoinRequests.ProtoReflect.Descriptor instead.
 func (*TLChatHideChatJoinRequests) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{42}
+	return file_chat_tl_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *TLChatHideChatJoinRequests) GetConstructor() TLConstructor {
@@ -3149,7 +3223,7 @@ type TLChatImportChatInvite2 struct {
 
 func (x *TLChatImportChatInvite2) Reset() {
 	*x = TLChatImportChatInvite2{}
-	mi := &file_chat_tl_proto_msgTypes[43]
+	mi := &file_chat_tl_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3161,7 +3235,7 @@ func (x *TLChatImportChatInvite2) String() string {
 func (*TLChatImportChatInvite2) ProtoMessage() {}
 
 func (x *TLChatImportChatInvite2) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[43]
+	mi := &file_chat_tl_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3174,7 +3248,7 @@ func (x *TLChatImportChatInvite2) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatImportChatInvite2.ProtoReflect.Descriptor instead.
 func (*TLChatImportChatInvite2) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{43}
+	return file_chat_tl_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *TLChatImportChatInvite2) GetConstructor() TLConstructor {
@@ -3212,7 +3286,7 @@ type TLChatEditChatParticipantRank struct {
 
 func (x *TLChatEditChatParticipantRank) Reset() {
 	*x = TLChatEditChatParticipantRank{}
-	mi := &file_chat_tl_proto_msgTypes[44]
+	mi := &file_chat_tl_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3224,7 +3298,7 @@ func (x *TLChatEditChatParticipantRank) String() string {
 func (*TLChatEditChatParticipantRank) ProtoMessage() {}
 
 func (x *TLChatEditChatParticipantRank) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[44]
+	mi := &file_chat_tl_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3237,7 +3311,7 @@ func (x *TLChatEditChatParticipantRank) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatEditChatParticipantRank.ProtoReflect.Descriptor instead.
 func (*TLChatEditChatParticipantRank) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{44}
+	return file_chat_tl_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *TLChatEditChatParticipantRank) GetConstructor() TLConstructor {
@@ -3291,7 +3365,7 @@ type TLChatSetBlocked struct {
 
 func (x *TLChatSetBlocked) Reset() {
 	*x = TLChatSetBlocked{}
-	mi := &file_chat_tl_proto_msgTypes[45]
+	mi := &file_chat_tl_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3303,7 +3377,7 @@ func (x *TLChatSetBlocked) String() string {
 func (*TLChatSetBlocked) ProtoMessage() {}
 
 func (x *TLChatSetBlocked) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[45]
+	mi := &file_chat_tl_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3316,7 +3390,7 @@ func (x *TLChatSetBlocked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TLChatSetBlocked.ProtoReflect.Descriptor instead.
 func (*TLChatSetBlocked) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{45}
+	return file_chat_tl_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *TLChatSetBlocked) GetConstructor() TLConstructor {
@@ -3351,7 +3425,7 @@ type Vector_MutableChat struct {
 
 func (x *Vector_MutableChat) Reset() {
 	*x = Vector_MutableChat{}
-	mi := &file_chat_tl_proto_msgTypes[46]
+	mi := &file_chat_tl_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3363,7 +3437,7 @@ func (x *Vector_MutableChat) String() string {
 func (*Vector_MutableChat) ProtoMessage() {}
 
 func (x *Vector_MutableChat) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[46]
+	mi := &file_chat_tl_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3376,7 +3450,7 @@ func (x *Vector_MutableChat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_MutableChat.ProtoReflect.Descriptor instead.
 func (*Vector_MutableChat) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{46}
+	return file_chat_tl_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *Vector_MutableChat) GetDatas() []*mtproto.MutableChat {
@@ -3395,7 +3469,7 @@ type Vector_Long struct {
 
 func (x *Vector_Long) Reset() {
 	*x = Vector_Long{}
-	mi := &file_chat_tl_proto_msgTypes[47]
+	mi := &file_chat_tl_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3407,7 +3481,7 @@ func (x *Vector_Long) String() string {
 func (*Vector_Long) ProtoMessage() {}
 
 func (x *Vector_Long) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[47]
+	mi := &file_chat_tl_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3420,7 +3494,7 @@ func (x *Vector_Long) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_Long.ProtoReflect.Descriptor instead.
 func (*Vector_Long) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{47}
+	return file_chat_tl_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *Vector_Long) GetDatas() []int64 {
@@ -3439,7 +3513,7 @@ type Vector_UserChatIdList struct {
 
 func (x *Vector_UserChatIdList) Reset() {
 	*x = Vector_UserChatIdList{}
-	mi := &file_chat_tl_proto_msgTypes[48]
+	mi := &file_chat_tl_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3451,7 +3525,7 @@ func (x *Vector_UserChatIdList) String() string {
 func (*Vector_UserChatIdList) ProtoMessage() {}
 
 func (x *Vector_UserChatIdList) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[48]
+	mi := &file_chat_tl_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3464,7 +3538,7 @@ func (x *Vector_UserChatIdList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_UserChatIdList.ProtoReflect.Descriptor instead.
 func (*Vector_UserChatIdList) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{48}
+	return file_chat_tl_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *Vector_UserChatIdList) GetDatas() []*UserChatIdList {
@@ -3483,7 +3557,7 @@ type Vector_ChatAdminWithInvites struct {
 
 func (x *Vector_ChatAdminWithInvites) Reset() {
 	*x = Vector_ChatAdminWithInvites{}
-	mi := &file_chat_tl_proto_msgTypes[49]
+	mi := &file_chat_tl_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3495,7 +3569,7 @@ func (x *Vector_ChatAdminWithInvites) String() string {
 func (*Vector_ChatAdminWithInvites) ProtoMessage() {}
 
 func (x *Vector_ChatAdminWithInvites) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[49]
+	mi := &file_chat_tl_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3508,7 +3582,7 @@ func (x *Vector_ChatAdminWithInvites) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_ChatAdminWithInvites.ProtoReflect.Descriptor instead.
 func (*Vector_ChatAdminWithInvites) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{49}
+	return file_chat_tl_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *Vector_ChatAdminWithInvites) GetDatas() []*mtproto.ChatAdminWithInvites {
@@ -3527,7 +3601,7 @@ type Vector_ExportedChatInvite struct {
 
 func (x *Vector_ExportedChatInvite) Reset() {
 	*x = Vector_ExportedChatInvite{}
-	mi := &file_chat_tl_proto_msgTypes[50]
+	mi := &file_chat_tl_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3539,7 +3613,7 @@ func (x *Vector_ExportedChatInvite) String() string {
 func (*Vector_ExportedChatInvite) ProtoMessage() {}
 
 func (x *Vector_ExportedChatInvite) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[50]
+	mi := &file_chat_tl_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3552,7 +3626,7 @@ func (x *Vector_ExportedChatInvite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_ExportedChatInvite.ProtoReflect.Descriptor instead.
 func (*Vector_ExportedChatInvite) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{50}
+	return file_chat_tl_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *Vector_ExportedChatInvite) GetDatas() []*mtproto.ExportedChatInvite {
@@ -3571,7 +3645,7 @@ type Vector_ChatInviteImporter struct {
 
 func (x *Vector_ChatInviteImporter) Reset() {
 	*x = Vector_ChatInviteImporter{}
-	mi := &file_chat_tl_proto_msgTypes[51]
+	mi := &file_chat_tl_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3583,7 +3657,7 @@ func (x *Vector_ChatInviteImporter) String() string {
 func (*Vector_ChatInviteImporter) ProtoMessage() {}
 
 func (x *Vector_ChatInviteImporter) ProtoReflect() protoreflect.Message {
-	mi := &file_chat_tl_proto_msgTypes[51]
+	mi := &file_chat_tl_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3596,7 +3670,7 @@ func (x *Vector_ChatInviteImporter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Vector_ChatInviteImporter.ProtoReflect.Descriptor instead.
 func (*Vector_ChatInviteImporter) Descriptor() ([]byte, []int) {
-	return file_chat_tl_proto_rawDescGZIP(), []int{51}
+	return file_chat_tl_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *Vector_ChatInviteImporter) GetDatas() []*mtproto.ChatInviteImporter {
@@ -3703,7 +3777,12 @@ const file_chat_tl_proto_rawDesc = "" +
 	"\fedit_user_id\x18\x04 \x01(\x03R\n" +
 	"editUserId\x12-\n" +
 	"\n" +
-	"chat_photo\x18\x05 \x01(\v2\x0e.mtproto.PhotoR\tchatPhoto\"\xdf\x01\n" +
+	"chat_photo\x18\x05 \x01(\v2\x0e.mtproto.PhotoR\tchatPhoto\"\x9b\x01\n" +
+	"\x17TL_chat_editChatCreator\x125\n" +
+	"\vconstructor\x18\x01 \x01(\x0e2\x13.chat.TLConstructorR\vconstructor\x12\x17\n" +
+	"\aself_id\x18\x03 \x01(\x03R\x06selfId\x12\x17\n" +
+	"\achat_id\x18\x04 \x01(\x03R\x06chatId\x12\x17\n" +
+	"\auser_id\x18\x05 \x01(\x03R\x06userId\"\xdf\x01\n" +
 	"\x15TL_chat_editChatAdmin\x125\n" +
 	"\vconstructor\x18\x01 \x01(\x0e2\x13.chat.TLConstructorR\vconstructor\x12\x17\n" +
 	"\achat_id\x18\x03 \x01(\x03R\x06chatId\x12\x1f\n" +
@@ -3877,7 +3956,7 @@ const file_chat_tl_proto_rawDesc = "" +
 	"\x19Vector_ExportedChatInvite\x121\n" +
 	"\x05datas\x18\x01 \x03(\v2\x1b.mtproto.ExportedChatInviteR\x05datas\"N\n" +
 	"\x19Vector_ChatInviteImporter\x121\n" +
-	"\x05datas\x18\x01 \x03(\v2\x1b.mtproto.ChatInviteImporterR\x05datas*\xb5\r\n" +
+	"\x05datas\x18\x01 \x03(\v2\x1b.mtproto.ChatInviteImporterR\x05datas*\xde\r\n" +
 	"\rTLConstructor\x12\x11\n" +
 	"\rCRC32_UNKNOWN\x10\x00\x12$\n" +
 	"\x17CRC32_chatInviteAlready\x10\xde\xfa\xb9\xa0\xfa\xff\xff\xff\xff\x01\x12\x1d\n" +
@@ -3895,7 +3974,8 @@ const file_chat_tl_proto_rawDesc = "" +
 	"\x18CRC32_chat_editChatTitle\x10\xa7\xbd\x96\xae\xf9\xff\xff\xff\xff\x01\x12 \n" +
 	"\x18CRC32_chat_editChatAbout\x10\xf8\xf8\xcd\xe3\x05\x12 \n" +
 	"\x18CRC32_chat_editChatPhoto\x10\xe8̊\xae\x04\x12 \n" +
-	"\x18CRC32_chat_editChatAdmin\x10\xec˗\xc8\x01\x12.\n" +
+	"\x18CRC32_chat_editChatAdmin\x10\xec˗\xc8\x01\x12'\n" +
+	"\x1aCRC32_chat_editChatCreator\x10\xb3\ue2ba\xfe\xff\xff\xff\xff\x01\x12.\n" +
 	"&CRC32_chat_editChatDefaultBannedRights\x10\x87\xcd\xd2\xd1\x05\x12#\n" +
 	"\x16CRC32_chat_addChatUser\x10\xe8\x82ժ\xfe\xff\xff\xff\xff\x01\x12,\n" +
 	"\x1fCRC32_chat_getMutableChatByLink\x10\x8bϘ\x93\xfa\xff\xff\xff\xff\x01\x12(\n" +
@@ -3921,7 +4001,7 @@ const file_chat_tl_proto_rawDesc = "" +
 	"(CRC32_chat_getRecentChatInviteRequesters\x10\x98\xa1\xf0\xf6\xff\xff\xff\xff\xff\x01\x12'\n" +
 	"\x1fCRC32_chat_hideChatJoinRequests\x10\xd1ٔ\xf5\x03\x12)\n" +
 	"\x1cCRC32_chat_importChatInvite2\x10\xbf\xfb\xe4\xe6\xfd\xff\xff\xff\xff\x01\x12*\n" +
-	"\"CRC32_chat_editChatParticipantRank\x10\xa0\xf0\xd5\xdd\a2\xac\x18\n" +
+	"\"CRC32_chat_editChatParticipantRank\x10\xa0\xf0\xd5\xdd\a2\xfb\x18\n" +
 	"\aRPCChat\x12K\n" +
 	"\x13chat_getMutableChat\x12\x1c.chat.TL_chat_getMutableChat\x1a\x14.mtproto.MutableChat\"\x00\x12Y\n" +
 	"\x18chat_getChatListByIdList\x12!.chat.TL_chat_getChatListByIdList\x1a\x18.chat.Vector_MutableChat\"\x00\x12M\n" +
@@ -3932,7 +4012,8 @@ const file_chat_tl_proto_rawDesc = "" +
 	"\x12chat_editChatTitle\x12\x1b.chat.TL_chat_editChatTitle\x1a\x14.mtproto.MutableChat\"\x00\x12I\n" +
 	"\x12chat_editChatAbout\x12\x1b.chat.TL_chat_editChatAbout\x1a\x14.mtproto.MutableChat\"\x00\x12I\n" +
 	"\x12chat_editChatPhoto\x12\x1b.chat.TL_chat_editChatPhoto\x1a\x14.mtproto.MutableChat\"\x00\x12I\n" +
-	"\x12chat_editChatAdmin\x12\x1b.chat.TL_chat_editChatAdmin\x1a\x14.mtproto.MutableChat\"\x00\x12e\n" +
+	"\x12chat_editChatAdmin\x12\x1b.chat.TL_chat_editChatAdmin\x1a\x14.mtproto.MutableChat\"\x00\x12M\n" +
+	"\x14chat_editChatCreator\x12\x1d.chat.TL_chat_editChatCreator\x1a\x14.mtproto.MutableChat\"\x00\x12e\n" +
 	" chat_editChatDefaultBannedRights\x12).chat.TL_chat_editChatDefaultBannedRights\x1a\x14.mtproto.MutableChat\"\x00\x12E\n" +
 	"\x10chat_addChatUser\x12\x19.chat.TL_chat_addChatUser\x1a\x14.mtproto.MutableChat\"\x00\x12W\n" +
 	"\x19chat_getMutableChatByLink\x12\".chat.TL_chat_getMutableChatByLink\x1a\x14.mtproto.MutableChat\"\x00\x12O\n" +
@@ -3973,7 +4054,7 @@ func file_chat_tl_proto_rawDescGZIP() []byte {
 }
 
 var file_chat_tl_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chat_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
+var file_chat_tl_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
 var file_chat_tl_proto_goTypes = []any{
 	(TLConstructor)(0),                             // 0: chat.TLConstructor
 	(*ChatInviteExt)(nil),                          // 1: chat.ChatInviteExt
@@ -3995,60 +4076,61 @@ var file_chat_tl_proto_goTypes = []any{
 	(*TLChatEditChatTitle)(nil),                    // 17: chat.TL_chat_editChatTitle
 	(*TLChatEditChatAbout)(nil),                    // 18: chat.TL_chat_editChatAbout
 	(*TLChatEditChatPhoto)(nil),                    // 19: chat.TL_chat_editChatPhoto
-	(*TLChatEditChatAdmin)(nil),                    // 20: chat.TL_chat_editChatAdmin
-	(*TLChatEditChatDefaultBannedRights)(nil),      // 21: chat.TL_chat_editChatDefaultBannedRights
-	(*TLChatAddChatUser)(nil),                      // 22: chat.TL_chat_addChatUser
-	(*TLChatGetMutableChatByLink)(nil),             // 23: chat.TL_chat_getMutableChatByLink
-	(*TLChatToggleNoForwards)(nil),                 // 24: chat.TL_chat_toggleNoForwards
-	(*TLChatMigratedToChannel)(nil),                // 25: chat.TL_chat_migratedToChannel
-	(*TLChatGetChatParticipantIdList)(nil),         // 26: chat.TL_chat_getChatParticipantIdList
-	(*TLChatGetUsersChatIdList)(nil),               // 27: chat.TL_chat_getUsersChatIdList
-	(*TLChatGetMyChatList)(nil),                    // 28: chat.TL_chat_getMyChatList
-	(*TLChatExportChatInvite)(nil),                 // 29: chat.TL_chat_exportChatInvite
-	(*TLChatGetAdminsWithInvites)(nil),             // 30: chat.TL_chat_getAdminsWithInvites
-	(*TLChatGetExportedChatInvite)(nil),            // 31: chat.TL_chat_getExportedChatInvite
-	(*TLChatGetExportedChatInvites)(nil),           // 32: chat.TL_chat_getExportedChatInvites
-	(*TLChatCheckChatInvite)(nil),                  // 33: chat.TL_chat_checkChatInvite
-	(*TLChatImportChatInvite)(nil),                 // 34: chat.TL_chat_importChatInvite
-	(*TLChatGetChatInviteImporters)(nil),           // 35: chat.TL_chat_getChatInviteImporters
-	(*TLChatDeleteExportedChatInvite)(nil),         // 36: chat.TL_chat_deleteExportedChatInvite
-	(*TLChatDeleteRevokedExportedChatInvites)(nil), // 37: chat.TL_chat_deleteRevokedExportedChatInvites
-	(*TLChatEditExportedChatInvite)(nil),           // 38: chat.TL_chat_editExportedChatInvite
-	(*TLChatSetChatAvailableReactions)(nil),        // 39: chat.TL_chat_setChatAvailableReactions
-	(*TLChatSetHistoryTTL)(nil),                    // 40: chat.TL_chat_setHistoryTTL
-	(*TLChatSearch)(nil),                           // 41: chat.TL_chat_search
-	(*TLChatGetRecentChatInviteRequesters)(nil),    // 42: chat.TL_chat_getRecentChatInviteRequesters
-	(*TLChatHideChatJoinRequests)(nil),             // 43: chat.TL_chat_hideChatJoinRequests
-	(*TLChatImportChatInvite2)(nil),                // 44: chat.TL_chat_importChatInvite2
-	(*TLChatEditChatParticipantRank)(nil),          // 45: chat.TL_chat_editChatParticipantRank
-	(*TLChatSetBlocked)(nil),                       // 46: chat.TL_chat_setBlocked
-	(*Vector_MutableChat)(nil),                     // 47: chat.Vector_MutableChat
-	(*Vector_Long)(nil),                            // 48: chat.Vector_Long
-	(*Vector_UserChatIdList)(nil),                  // 49: chat.Vector_UserChatIdList
-	(*Vector_ChatAdminWithInvites)(nil),            // 50: chat.Vector_ChatAdminWithInvites
-	(*Vector_ExportedChatInvite)(nil),              // 51: chat.Vector_ExportedChatInvite
-	(*Vector_ChatInviteImporter)(nil),              // 52: chat.Vector_ChatInviteImporter
-	(*mtproto.MutableChat)(nil),                    // 53: mtproto.MutableChat
-	(*wrapperspb.StringValue)(nil),                 // 54: google.protobuf.StringValue
-	(*mtproto.Photo)(nil),                          // 55: mtproto.Photo
-	(*wrapperspb.Int32Value)(nil),                  // 56: google.protobuf.Int32Value
-	(*mtproto.Bool)(nil),                           // 57: mtproto.Bool
-	(*mtproto.ChatBannedRights)(nil),               // 58: mtproto.ChatBannedRights
-	(*wrapperspb.Int64Value)(nil),                  // 59: google.protobuf.Int64Value
-	(*mtproto.ChatAdminWithInvites)(nil),           // 60: mtproto.ChatAdminWithInvites
-	(*mtproto.ExportedChatInvite)(nil),             // 61: mtproto.ExportedChatInvite
-	(*mtproto.ChatInviteImporter)(nil),             // 62: mtproto.ChatInviteImporter
+	(*TLChatEditChatCreator)(nil),                  // 20: chat.TL_chat_editChatCreator
+	(*TLChatEditChatAdmin)(nil),                    // 21: chat.TL_chat_editChatAdmin
+	(*TLChatEditChatDefaultBannedRights)(nil),      // 22: chat.TL_chat_editChatDefaultBannedRights
+	(*TLChatAddChatUser)(nil),                      // 23: chat.TL_chat_addChatUser
+	(*TLChatGetMutableChatByLink)(nil),             // 24: chat.TL_chat_getMutableChatByLink
+	(*TLChatToggleNoForwards)(nil),                 // 25: chat.TL_chat_toggleNoForwards
+	(*TLChatMigratedToChannel)(nil),                // 26: chat.TL_chat_migratedToChannel
+	(*TLChatGetChatParticipantIdList)(nil),         // 27: chat.TL_chat_getChatParticipantIdList
+	(*TLChatGetUsersChatIdList)(nil),               // 28: chat.TL_chat_getUsersChatIdList
+	(*TLChatGetMyChatList)(nil),                    // 29: chat.TL_chat_getMyChatList
+	(*TLChatExportChatInvite)(nil),                 // 30: chat.TL_chat_exportChatInvite
+	(*TLChatGetAdminsWithInvites)(nil),             // 31: chat.TL_chat_getAdminsWithInvites
+	(*TLChatGetExportedChatInvite)(nil),            // 32: chat.TL_chat_getExportedChatInvite
+	(*TLChatGetExportedChatInvites)(nil),           // 33: chat.TL_chat_getExportedChatInvites
+	(*TLChatCheckChatInvite)(nil),                  // 34: chat.TL_chat_checkChatInvite
+	(*TLChatImportChatInvite)(nil),                 // 35: chat.TL_chat_importChatInvite
+	(*TLChatGetChatInviteImporters)(nil),           // 36: chat.TL_chat_getChatInviteImporters
+	(*TLChatDeleteExportedChatInvite)(nil),         // 37: chat.TL_chat_deleteExportedChatInvite
+	(*TLChatDeleteRevokedExportedChatInvites)(nil), // 38: chat.TL_chat_deleteRevokedExportedChatInvites
+	(*TLChatEditExportedChatInvite)(nil),           // 39: chat.TL_chat_editExportedChatInvite
+	(*TLChatSetChatAvailableReactions)(nil),        // 40: chat.TL_chat_setChatAvailableReactions
+	(*TLChatSetHistoryTTL)(nil),                    // 41: chat.TL_chat_setHistoryTTL
+	(*TLChatSearch)(nil),                           // 42: chat.TL_chat_search
+	(*TLChatGetRecentChatInviteRequesters)(nil),    // 43: chat.TL_chat_getRecentChatInviteRequesters
+	(*TLChatHideChatJoinRequests)(nil),             // 44: chat.TL_chat_hideChatJoinRequests
+	(*TLChatImportChatInvite2)(nil),                // 45: chat.TL_chat_importChatInvite2
+	(*TLChatEditChatParticipantRank)(nil),          // 46: chat.TL_chat_editChatParticipantRank
+	(*TLChatSetBlocked)(nil),                       // 47: chat.TL_chat_setBlocked
+	(*Vector_MutableChat)(nil),                     // 48: chat.Vector_MutableChat
+	(*Vector_Long)(nil),                            // 49: chat.Vector_Long
+	(*Vector_UserChatIdList)(nil),                  // 50: chat.Vector_UserChatIdList
+	(*Vector_ChatAdminWithInvites)(nil),            // 51: chat.Vector_ChatAdminWithInvites
+	(*Vector_ExportedChatInvite)(nil),              // 52: chat.Vector_ExportedChatInvite
+	(*Vector_ChatInviteImporter)(nil),              // 53: chat.Vector_ChatInviteImporter
+	(*mtproto.MutableChat)(nil),                    // 54: mtproto.MutableChat
+	(*wrapperspb.StringValue)(nil),                 // 55: google.protobuf.StringValue
+	(*mtproto.Photo)(nil),                          // 56: mtproto.Photo
+	(*wrapperspb.Int32Value)(nil),                  // 57: google.protobuf.Int32Value
+	(*mtproto.Bool)(nil),                           // 58: mtproto.Bool
+	(*mtproto.ChatBannedRights)(nil),               // 59: mtproto.ChatBannedRights
+	(*wrapperspb.Int64Value)(nil),                  // 60: google.protobuf.Int64Value
+	(*mtproto.ChatAdminWithInvites)(nil),           // 61: mtproto.ChatAdminWithInvites
+	(*mtproto.ExportedChatInvite)(nil),             // 62: mtproto.ExportedChatInvite
+	(*mtproto.ChatInviteImporter)(nil),             // 63: mtproto.ChatInviteImporter
 }
 var file_chat_tl_proto_depIdxs = []int32{
 	0,   // 0: chat.ChatInviteExt.constructor:type_name -> chat.TLConstructor
-	53,  // 1: chat.ChatInviteExt.chat:type_name -> mtproto.MutableChat
-	54,  // 2: chat.ChatInviteExt.about:type_name -> google.protobuf.StringValue
-	55,  // 3: chat.ChatInviteExt.photo:type_name -> mtproto.Photo
+	54,  // 1: chat.ChatInviteExt.chat:type_name -> mtproto.MutableChat
+	55,  // 2: chat.ChatInviteExt.about:type_name -> google.protobuf.StringValue
+	56,  // 3: chat.ChatInviteExt.photo:type_name -> mtproto.Photo
 	1,   // 4: chat.TL_chatInviteAlready.data2:type_name -> chat.ChatInviteExt
 	1,   // 5: chat.TL_chatInvite.data2:type_name -> chat.ChatInviteExt
 	1,   // 6: chat.TL_chatInvitePeek.data2:type_name -> chat.ChatInviteExt
 	0,   // 7: chat.ChatInviteImported.constructor:type_name -> chat.TLConstructor
-	53,  // 8: chat.ChatInviteImported.chat:type_name -> mtproto.MutableChat
+	54,  // 8: chat.ChatInviteImported.chat:type_name -> mtproto.MutableChat
 	7,   // 9: chat.ChatInviteImported.requesters:type_name -> chat.RecentChatInviteRequesters
 	5,   // 10: chat.TL_chatInviteImported.data2:type_name -> chat.ChatInviteImported
 	0,   // 11: chat.RecentChatInviteRequesters.constructor:type_name -> chat.TLConstructor
@@ -4059,141 +4141,144 @@ var file_chat_tl_proto_depIdxs = []int32{
 	0,   // 16: chat.TL_chat_getChatListByIdList.constructor:type_name -> chat.TLConstructor
 	0,   // 17: chat.TL_chat_getChatBySelfId.constructor:type_name -> chat.TLConstructor
 	0,   // 18: chat.TL_chat_createChat2.constructor:type_name -> chat.TLConstructor
-	56,  // 19: chat.TL_chat_createChat2.ttl_period:type_name -> google.protobuf.Int32Value
+	57,  // 19: chat.TL_chat_createChat2.ttl_period:type_name -> google.protobuf.Int32Value
 	0,   // 20: chat.TL_chat_deleteChat.constructor:type_name -> chat.TLConstructor
 	0,   // 21: chat.TL_chat_deleteChatUser.constructor:type_name -> chat.TLConstructor
 	0,   // 22: chat.TL_chat_editChatTitle.constructor:type_name -> chat.TLConstructor
 	0,   // 23: chat.TL_chat_editChatAbout.constructor:type_name -> chat.TLConstructor
 	0,   // 24: chat.TL_chat_editChatPhoto.constructor:type_name -> chat.TLConstructor
-	55,  // 25: chat.TL_chat_editChatPhoto.chat_photo:type_name -> mtproto.Photo
-	0,   // 26: chat.TL_chat_editChatAdmin.constructor:type_name -> chat.TLConstructor
-	57,  // 27: chat.TL_chat_editChatAdmin.is_admin:type_name -> mtproto.Bool
-	0,   // 28: chat.TL_chat_editChatDefaultBannedRights.constructor:type_name -> chat.TLConstructor
-	58,  // 29: chat.TL_chat_editChatDefaultBannedRights.banned_rights:type_name -> mtproto.ChatBannedRights
-	0,   // 30: chat.TL_chat_addChatUser.constructor:type_name -> chat.TLConstructor
-	0,   // 31: chat.TL_chat_getMutableChatByLink.constructor:type_name -> chat.TLConstructor
-	0,   // 32: chat.TL_chat_toggleNoForwards.constructor:type_name -> chat.TLConstructor
-	57,  // 33: chat.TL_chat_toggleNoForwards.enabled:type_name -> mtproto.Bool
-	0,   // 34: chat.TL_chat_migratedToChannel.constructor:type_name -> chat.TLConstructor
-	53,  // 35: chat.TL_chat_migratedToChannel.chat:type_name -> mtproto.MutableChat
-	0,   // 36: chat.TL_chat_getChatParticipantIdList.constructor:type_name -> chat.TLConstructor
-	0,   // 37: chat.TL_chat_getUsersChatIdList.constructor:type_name -> chat.TLConstructor
-	0,   // 38: chat.TL_chat_getMyChatList.constructor:type_name -> chat.TLConstructor
-	57,  // 39: chat.TL_chat_getMyChatList.is_creator:type_name -> mtproto.Bool
-	0,   // 40: chat.TL_chat_exportChatInvite.constructor:type_name -> chat.TLConstructor
-	56,  // 41: chat.TL_chat_exportChatInvite.expire_date:type_name -> google.protobuf.Int32Value
-	56,  // 42: chat.TL_chat_exportChatInvite.usage_limit:type_name -> google.protobuf.Int32Value
-	54,  // 43: chat.TL_chat_exportChatInvite.title:type_name -> google.protobuf.StringValue
-	0,   // 44: chat.TL_chat_getAdminsWithInvites.constructor:type_name -> chat.TLConstructor
-	0,   // 45: chat.TL_chat_getExportedChatInvite.constructor:type_name -> chat.TLConstructor
-	0,   // 46: chat.TL_chat_getExportedChatInvites.constructor:type_name -> chat.TLConstructor
-	56,  // 47: chat.TL_chat_getExportedChatInvites.offset_date:type_name -> google.protobuf.Int32Value
-	54,  // 48: chat.TL_chat_getExportedChatInvites.offset_link:type_name -> google.protobuf.StringValue
-	0,   // 49: chat.TL_chat_checkChatInvite.constructor:type_name -> chat.TLConstructor
-	0,   // 50: chat.TL_chat_importChatInvite.constructor:type_name -> chat.TLConstructor
-	0,   // 51: chat.TL_chat_getChatInviteImporters.constructor:type_name -> chat.TLConstructor
-	54,  // 52: chat.TL_chat_getChatInviteImporters.link:type_name -> google.protobuf.StringValue
-	54,  // 53: chat.TL_chat_getChatInviteImporters.q:type_name -> google.protobuf.StringValue
-	0,   // 54: chat.TL_chat_deleteExportedChatInvite.constructor:type_name -> chat.TLConstructor
-	0,   // 55: chat.TL_chat_deleteRevokedExportedChatInvites.constructor:type_name -> chat.TLConstructor
-	0,   // 56: chat.TL_chat_editExportedChatInvite.constructor:type_name -> chat.TLConstructor
-	56,  // 57: chat.TL_chat_editExportedChatInvite.expire_date:type_name -> google.protobuf.Int32Value
-	56,  // 58: chat.TL_chat_editExportedChatInvite.usage_limit:type_name -> google.protobuf.Int32Value
-	57,  // 59: chat.TL_chat_editExportedChatInvite.request_needed:type_name -> mtproto.Bool
-	54,  // 60: chat.TL_chat_editExportedChatInvite.title:type_name -> google.protobuf.StringValue
-	0,   // 61: chat.TL_chat_setChatAvailableReactions.constructor:type_name -> chat.TLConstructor
-	0,   // 62: chat.TL_chat_setHistoryTTL.constructor:type_name -> chat.TLConstructor
-	0,   // 63: chat.TL_chat_search.constructor:type_name -> chat.TLConstructor
-	0,   // 64: chat.TL_chat_getRecentChatInviteRequesters.constructor:type_name -> chat.TLConstructor
-	0,   // 65: chat.TL_chat_hideChatJoinRequests.constructor:type_name -> chat.TLConstructor
-	54,  // 66: chat.TL_chat_hideChatJoinRequests.link:type_name -> google.protobuf.StringValue
-	59,  // 67: chat.TL_chat_hideChatJoinRequests.user_id:type_name -> google.protobuf.Int64Value
-	0,   // 68: chat.TL_chat_importChatInvite2.constructor:type_name -> chat.TLConstructor
-	0,   // 69: chat.TL_chat_editChatParticipantRank.constructor:type_name -> chat.TLConstructor
-	0,   // 70: chat.TL_chat_setBlocked.constructor:type_name -> chat.TLConstructor
-	57,  // 71: chat.TL_chat_setBlocked.blocked:type_name -> mtproto.Bool
-	53,  // 72: chat.Vector_MutableChat.datas:type_name -> mtproto.MutableChat
-	9,   // 73: chat.Vector_UserChatIdList.datas:type_name -> chat.UserChatIdList
-	60,  // 74: chat.Vector_ChatAdminWithInvites.datas:type_name -> mtproto.ChatAdminWithInvites
-	61,  // 75: chat.Vector_ExportedChatInvite.datas:type_name -> mtproto.ExportedChatInvite
-	62,  // 76: chat.Vector_ChatInviteImporter.datas:type_name -> mtproto.ChatInviteImporter
-	11,  // 77: chat.RPCChat.chat_getMutableChat:input_type -> chat.TL_chat_getMutableChat
-	12,  // 78: chat.RPCChat.chat_getChatListByIdList:input_type -> chat.TL_chat_getChatListByIdList
-	13,  // 79: chat.RPCChat.chat_getChatBySelfId:input_type -> chat.TL_chat_getChatBySelfId
-	14,  // 80: chat.RPCChat.chat_createChat2:input_type -> chat.TL_chat_createChat2
-	15,  // 81: chat.RPCChat.chat_deleteChat:input_type -> chat.TL_chat_deleteChat
-	16,  // 82: chat.RPCChat.chat_deleteChatUser:input_type -> chat.TL_chat_deleteChatUser
-	17,  // 83: chat.RPCChat.chat_editChatTitle:input_type -> chat.TL_chat_editChatTitle
-	18,  // 84: chat.RPCChat.chat_editChatAbout:input_type -> chat.TL_chat_editChatAbout
-	19,  // 85: chat.RPCChat.chat_editChatPhoto:input_type -> chat.TL_chat_editChatPhoto
-	20,  // 86: chat.RPCChat.chat_editChatAdmin:input_type -> chat.TL_chat_editChatAdmin
-	21,  // 87: chat.RPCChat.chat_editChatDefaultBannedRights:input_type -> chat.TL_chat_editChatDefaultBannedRights
-	22,  // 88: chat.RPCChat.chat_addChatUser:input_type -> chat.TL_chat_addChatUser
-	23,  // 89: chat.RPCChat.chat_getMutableChatByLink:input_type -> chat.TL_chat_getMutableChatByLink
-	24,  // 90: chat.RPCChat.chat_toggleNoForwards:input_type -> chat.TL_chat_toggleNoForwards
-	25,  // 91: chat.RPCChat.chat_migratedToChannel:input_type -> chat.TL_chat_migratedToChannel
-	26,  // 92: chat.RPCChat.chat_getChatParticipantIdList:input_type -> chat.TL_chat_getChatParticipantIdList
-	27,  // 93: chat.RPCChat.chat_getUsersChatIdList:input_type -> chat.TL_chat_getUsersChatIdList
-	28,  // 94: chat.RPCChat.chat_getMyChatList:input_type -> chat.TL_chat_getMyChatList
-	29,  // 95: chat.RPCChat.chat_exportChatInvite:input_type -> chat.TL_chat_exportChatInvite
-	30,  // 96: chat.RPCChat.chat_getAdminsWithInvites:input_type -> chat.TL_chat_getAdminsWithInvites
-	31,  // 97: chat.RPCChat.chat_getExportedChatInvite:input_type -> chat.TL_chat_getExportedChatInvite
-	32,  // 98: chat.RPCChat.chat_getExportedChatInvites:input_type -> chat.TL_chat_getExportedChatInvites
-	33,  // 99: chat.RPCChat.chat_checkChatInvite:input_type -> chat.TL_chat_checkChatInvite
-	34,  // 100: chat.RPCChat.chat_importChatInvite:input_type -> chat.TL_chat_importChatInvite
-	35,  // 101: chat.RPCChat.chat_getChatInviteImporters:input_type -> chat.TL_chat_getChatInviteImporters
-	36,  // 102: chat.RPCChat.chat_deleteExportedChatInvite:input_type -> chat.TL_chat_deleteExportedChatInvite
-	37,  // 103: chat.RPCChat.chat_deleteRevokedExportedChatInvites:input_type -> chat.TL_chat_deleteRevokedExportedChatInvites
-	38,  // 104: chat.RPCChat.chat_editExportedChatInvite:input_type -> chat.TL_chat_editExportedChatInvite
-	39,  // 105: chat.RPCChat.chat_setChatAvailableReactions:input_type -> chat.TL_chat_setChatAvailableReactions
-	40,  // 106: chat.RPCChat.chat_setHistoryTTL:input_type -> chat.TL_chat_setHistoryTTL
-	46,  // 107: chat.RPCChat.chat_setBlocked:input_type -> chat.TL_chat_setBlocked
-	41,  // 108: chat.RPCChat.chat_search:input_type -> chat.TL_chat_search
-	42,  // 109: chat.RPCChat.chat_getRecentChatInviteRequesters:input_type -> chat.TL_chat_getRecentChatInviteRequesters
-	43,  // 110: chat.RPCChat.chat_hideChatJoinRequests:input_type -> chat.TL_chat_hideChatJoinRequests
-	44,  // 111: chat.RPCChat.chat_importChatInvite2:input_type -> chat.TL_chat_importChatInvite2
-	45,  // 112: chat.RPCChat.chat_editChatParticipantRank:input_type -> chat.TL_chat_editChatParticipantRank
-	53,  // 113: chat.RPCChat.chat_getMutableChat:output_type -> mtproto.MutableChat
-	47,  // 114: chat.RPCChat.chat_getChatListByIdList:output_type -> chat.Vector_MutableChat
-	53,  // 115: chat.RPCChat.chat_getChatBySelfId:output_type -> mtproto.MutableChat
-	53,  // 116: chat.RPCChat.chat_createChat2:output_type -> mtproto.MutableChat
-	53,  // 117: chat.RPCChat.chat_deleteChat:output_type -> mtproto.MutableChat
-	53,  // 118: chat.RPCChat.chat_deleteChatUser:output_type -> mtproto.MutableChat
-	53,  // 119: chat.RPCChat.chat_editChatTitle:output_type -> mtproto.MutableChat
-	53,  // 120: chat.RPCChat.chat_editChatAbout:output_type -> mtproto.MutableChat
-	53,  // 121: chat.RPCChat.chat_editChatPhoto:output_type -> mtproto.MutableChat
-	53,  // 122: chat.RPCChat.chat_editChatAdmin:output_type -> mtproto.MutableChat
-	53,  // 123: chat.RPCChat.chat_editChatDefaultBannedRights:output_type -> mtproto.MutableChat
-	53,  // 124: chat.RPCChat.chat_addChatUser:output_type -> mtproto.MutableChat
-	53,  // 125: chat.RPCChat.chat_getMutableChatByLink:output_type -> mtproto.MutableChat
-	53,  // 126: chat.RPCChat.chat_toggleNoForwards:output_type -> mtproto.MutableChat
-	57,  // 127: chat.RPCChat.chat_migratedToChannel:output_type -> mtproto.Bool
-	48,  // 128: chat.RPCChat.chat_getChatParticipantIdList:output_type -> chat.Vector_Long
-	49,  // 129: chat.RPCChat.chat_getUsersChatIdList:output_type -> chat.Vector_UserChatIdList
-	47,  // 130: chat.RPCChat.chat_getMyChatList:output_type -> chat.Vector_MutableChat
-	61,  // 131: chat.RPCChat.chat_exportChatInvite:output_type -> mtproto.ExportedChatInvite
-	50,  // 132: chat.RPCChat.chat_getAdminsWithInvites:output_type -> chat.Vector_ChatAdminWithInvites
-	61,  // 133: chat.RPCChat.chat_getExportedChatInvite:output_type -> mtproto.ExportedChatInvite
-	51,  // 134: chat.RPCChat.chat_getExportedChatInvites:output_type -> chat.Vector_ExportedChatInvite
-	1,   // 135: chat.RPCChat.chat_checkChatInvite:output_type -> chat.ChatInviteExt
-	53,  // 136: chat.RPCChat.chat_importChatInvite:output_type -> mtproto.MutableChat
-	52,  // 137: chat.RPCChat.chat_getChatInviteImporters:output_type -> chat.Vector_ChatInviteImporter
-	57,  // 138: chat.RPCChat.chat_deleteExportedChatInvite:output_type -> mtproto.Bool
-	57,  // 139: chat.RPCChat.chat_deleteRevokedExportedChatInvites:output_type -> mtproto.Bool
-	51,  // 140: chat.RPCChat.chat_editExportedChatInvite:output_type -> chat.Vector_ExportedChatInvite
-	53,  // 141: chat.RPCChat.chat_setChatAvailableReactions:output_type -> mtproto.MutableChat
-	53,  // 142: chat.RPCChat.chat_setHistoryTTL:output_type -> mtproto.MutableChat
-	57,  // 143: chat.RPCChat.chat_setBlocked:output_type -> mtproto.Bool
-	47,  // 144: chat.RPCChat.chat_search:output_type -> chat.Vector_MutableChat
-	7,   // 145: chat.RPCChat.chat_getRecentChatInviteRequesters:output_type -> chat.RecentChatInviteRequesters
-	7,   // 146: chat.RPCChat.chat_hideChatJoinRequests:output_type -> chat.RecentChatInviteRequesters
-	5,   // 147: chat.RPCChat.chat_importChatInvite2:output_type -> chat.ChatInviteImported
-	53,  // 148: chat.RPCChat.chat_editChatParticipantRank:output_type -> mtproto.MutableChat
-	113, // [113:149] is the sub-list for method output_type
-	77,  // [77:113] is the sub-list for method input_type
-	77,  // [77:77] is the sub-list for extension type_name
-	77,  // [77:77] is the sub-list for extension extendee
-	0,   // [0:77] is the sub-list for field type_name
+	56,  // 25: chat.TL_chat_editChatPhoto.chat_photo:type_name -> mtproto.Photo
+	0,   // 26: chat.TL_chat_editChatCreator.constructor:type_name -> chat.TLConstructor
+	0,   // 27: chat.TL_chat_editChatAdmin.constructor:type_name -> chat.TLConstructor
+	58,  // 28: chat.TL_chat_editChatAdmin.is_admin:type_name -> mtproto.Bool
+	0,   // 29: chat.TL_chat_editChatDefaultBannedRights.constructor:type_name -> chat.TLConstructor
+	59,  // 30: chat.TL_chat_editChatDefaultBannedRights.banned_rights:type_name -> mtproto.ChatBannedRights
+	0,   // 31: chat.TL_chat_addChatUser.constructor:type_name -> chat.TLConstructor
+	0,   // 32: chat.TL_chat_getMutableChatByLink.constructor:type_name -> chat.TLConstructor
+	0,   // 33: chat.TL_chat_toggleNoForwards.constructor:type_name -> chat.TLConstructor
+	58,  // 34: chat.TL_chat_toggleNoForwards.enabled:type_name -> mtproto.Bool
+	0,   // 35: chat.TL_chat_migratedToChannel.constructor:type_name -> chat.TLConstructor
+	54,  // 36: chat.TL_chat_migratedToChannel.chat:type_name -> mtproto.MutableChat
+	0,   // 37: chat.TL_chat_getChatParticipantIdList.constructor:type_name -> chat.TLConstructor
+	0,   // 38: chat.TL_chat_getUsersChatIdList.constructor:type_name -> chat.TLConstructor
+	0,   // 39: chat.TL_chat_getMyChatList.constructor:type_name -> chat.TLConstructor
+	58,  // 40: chat.TL_chat_getMyChatList.is_creator:type_name -> mtproto.Bool
+	0,   // 41: chat.TL_chat_exportChatInvite.constructor:type_name -> chat.TLConstructor
+	57,  // 42: chat.TL_chat_exportChatInvite.expire_date:type_name -> google.protobuf.Int32Value
+	57,  // 43: chat.TL_chat_exportChatInvite.usage_limit:type_name -> google.protobuf.Int32Value
+	55,  // 44: chat.TL_chat_exportChatInvite.title:type_name -> google.protobuf.StringValue
+	0,   // 45: chat.TL_chat_getAdminsWithInvites.constructor:type_name -> chat.TLConstructor
+	0,   // 46: chat.TL_chat_getExportedChatInvite.constructor:type_name -> chat.TLConstructor
+	0,   // 47: chat.TL_chat_getExportedChatInvites.constructor:type_name -> chat.TLConstructor
+	57,  // 48: chat.TL_chat_getExportedChatInvites.offset_date:type_name -> google.protobuf.Int32Value
+	55,  // 49: chat.TL_chat_getExportedChatInvites.offset_link:type_name -> google.protobuf.StringValue
+	0,   // 50: chat.TL_chat_checkChatInvite.constructor:type_name -> chat.TLConstructor
+	0,   // 51: chat.TL_chat_importChatInvite.constructor:type_name -> chat.TLConstructor
+	0,   // 52: chat.TL_chat_getChatInviteImporters.constructor:type_name -> chat.TLConstructor
+	55,  // 53: chat.TL_chat_getChatInviteImporters.link:type_name -> google.protobuf.StringValue
+	55,  // 54: chat.TL_chat_getChatInviteImporters.q:type_name -> google.protobuf.StringValue
+	0,   // 55: chat.TL_chat_deleteExportedChatInvite.constructor:type_name -> chat.TLConstructor
+	0,   // 56: chat.TL_chat_deleteRevokedExportedChatInvites.constructor:type_name -> chat.TLConstructor
+	0,   // 57: chat.TL_chat_editExportedChatInvite.constructor:type_name -> chat.TLConstructor
+	57,  // 58: chat.TL_chat_editExportedChatInvite.expire_date:type_name -> google.protobuf.Int32Value
+	57,  // 59: chat.TL_chat_editExportedChatInvite.usage_limit:type_name -> google.protobuf.Int32Value
+	58,  // 60: chat.TL_chat_editExportedChatInvite.request_needed:type_name -> mtproto.Bool
+	55,  // 61: chat.TL_chat_editExportedChatInvite.title:type_name -> google.protobuf.StringValue
+	0,   // 62: chat.TL_chat_setChatAvailableReactions.constructor:type_name -> chat.TLConstructor
+	0,   // 63: chat.TL_chat_setHistoryTTL.constructor:type_name -> chat.TLConstructor
+	0,   // 64: chat.TL_chat_search.constructor:type_name -> chat.TLConstructor
+	0,   // 65: chat.TL_chat_getRecentChatInviteRequesters.constructor:type_name -> chat.TLConstructor
+	0,   // 66: chat.TL_chat_hideChatJoinRequests.constructor:type_name -> chat.TLConstructor
+	55,  // 67: chat.TL_chat_hideChatJoinRequests.link:type_name -> google.protobuf.StringValue
+	60,  // 68: chat.TL_chat_hideChatJoinRequests.user_id:type_name -> google.protobuf.Int64Value
+	0,   // 69: chat.TL_chat_importChatInvite2.constructor:type_name -> chat.TLConstructor
+	0,   // 70: chat.TL_chat_editChatParticipantRank.constructor:type_name -> chat.TLConstructor
+	0,   // 71: chat.TL_chat_setBlocked.constructor:type_name -> chat.TLConstructor
+	58,  // 72: chat.TL_chat_setBlocked.blocked:type_name -> mtproto.Bool
+	54,  // 73: chat.Vector_MutableChat.datas:type_name -> mtproto.MutableChat
+	9,   // 74: chat.Vector_UserChatIdList.datas:type_name -> chat.UserChatIdList
+	61,  // 75: chat.Vector_ChatAdminWithInvites.datas:type_name -> mtproto.ChatAdminWithInvites
+	62,  // 76: chat.Vector_ExportedChatInvite.datas:type_name -> mtproto.ExportedChatInvite
+	63,  // 77: chat.Vector_ChatInviteImporter.datas:type_name -> mtproto.ChatInviteImporter
+	11,  // 78: chat.RPCChat.chat_getMutableChat:input_type -> chat.TL_chat_getMutableChat
+	12,  // 79: chat.RPCChat.chat_getChatListByIdList:input_type -> chat.TL_chat_getChatListByIdList
+	13,  // 80: chat.RPCChat.chat_getChatBySelfId:input_type -> chat.TL_chat_getChatBySelfId
+	14,  // 81: chat.RPCChat.chat_createChat2:input_type -> chat.TL_chat_createChat2
+	15,  // 82: chat.RPCChat.chat_deleteChat:input_type -> chat.TL_chat_deleteChat
+	16,  // 83: chat.RPCChat.chat_deleteChatUser:input_type -> chat.TL_chat_deleteChatUser
+	17,  // 84: chat.RPCChat.chat_editChatTitle:input_type -> chat.TL_chat_editChatTitle
+	18,  // 85: chat.RPCChat.chat_editChatAbout:input_type -> chat.TL_chat_editChatAbout
+	19,  // 86: chat.RPCChat.chat_editChatPhoto:input_type -> chat.TL_chat_editChatPhoto
+	21,  // 87: chat.RPCChat.chat_editChatAdmin:input_type -> chat.TL_chat_editChatAdmin
+	20,  // 88: chat.RPCChat.chat_editChatCreator:input_type -> chat.TL_chat_editChatCreator
+	22,  // 89: chat.RPCChat.chat_editChatDefaultBannedRights:input_type -> chat.TL_chat_editChatDefaultBannedRights
+	23,  // 90: chat.RPCChat.chat_addChatUser:input_type -> chat.TL_chat_addChatUser
+	24,  // 91: chat.RPCChat.chat_getMutableChatByLink:input_type -> chat.TL_chat_getMutableChatByLink
+	25,  // 92: chat.RPCChat.chat_toggleNoForwards:input_type -> chat.TL_chat_toggleNoForwards
+	26,  // 93: chat.RPCChat.chat_migratedToChannel:input_type -> chat.TL_chat_migratedToChannel
+	27,  // 94: chat.RPCChat.chat_getChatParticipantIdList:input_type -> chat.TL_chat_getChatParticipantIdList
+	28,  // 95: chat.RPCChat.chat_getUsersChatIdList:input_type -> chat.TL_chat_getUsersChatIdList
+	29,  // 96: chat.RPCChat.chat_getMyChatList:input_type -> chat.TL_chat_getMyChatList
+	30,  // 97: chat.RPCChat.chat_exportChatInvite:input_type -> chat.TL_chat_exportChatInvite
+	31,  // 98: chat.RPCChat.chat_getAdminsWithInvites:input_type -> chat.TL_chat_getAdminsWithInvites
+	32,  // 99: chat.RPCChat.chat_getExportedChatInvite:input_type -> chat.TL_chat_getExportedChatInvite
+	33,  // 100: chat.RPCChat.chat_getExportedChatInvites:input_type -> chat.TL_chat_getExportedChatInvites
+	34,  // 101: chat.RPCChat.chat_checkChatInvite:input_type -> chat.TL_chat_checkChatInvite
+	35,  // 102: chat.RPCChat.chat_importChatInvite:input_type -> chat.TL_chat_importChatInvite
+	36,  // 103: chat.RPCChat.chat_getChatInviteImporters:input_type -> chat.TL_chat_getChatInviteImporters
+	37,  // 104: chat.RPCChat.chat_deleteExportedChatInvite:input_type -> chat.TL_chat_deleteExportedChatInvite
+	38,  // 105: chat.RPCChat.chat_deleteRevokedExportedChatInvites:input_type -> chat.TL_chat_deleteRevokedExportedChatInvites
+	39,  // 106: chat.RPCChat.chat_editExportedChatInvite:input_type -> chat.TL_chat_editExportedChatInvite
+	40,  // 107: chat.RPCChat.chat_setChatAvailableReactions:input_type -> chat.TL_chat_setChatAvailableReactions
+	41,  // 108: chat.RPCChat.chat_setHistoryTTL:input_type -> chat.TL_chat_setHistoryTTL
+	47,  // 109: chat.RPCChat.chat_setBlocked:input_type -> chat.TL_chat_setBlocked
+	42,  // 110: chat.RPCChat.chat_search:input_type -> chat.TL_chat_search
+	43,  // 111: chat.RPCChat.chat_getRecentChatInviteRequesters:input_type -> chat.TL_chat_getRecentChatInviteRequesters
+	44,  // 112: chat.RPCChat.chat_hideChatJoinRequests:input_type -> chat.TL_chat_hideChatJoinRequests
+	45,  // 113: chat.RPCChat.chat_importChatInvite2:input_type -> chat.TL_chat_importChatInvite2
+	46,  // 114: chat.RPCChat.chat_editChatParticipantRank:input_type -> chat.TL_chat_editChatParticipantRank
+	54,  // 115: chat.RPCChat.chat_getMutableChat:output_type -> mtproto.MutableChat
+	48,  // 116: chat.RPCChat.chat_getChatListByIdList:output_type -> chat.Vector_MutableChat
+	54,  // 117: chat.RPCChat.chat_getChatBySelfId:output_type -> mtproto.MutableChat
+	54,  // 118: chat.RPCChat.chat_createChat2:output_type -> mtproto.MutableChat
+	54,  // 119: chat.RPCChat.chat_deleteChat:output_type -> mtproto.MutableChat
+	54,  // 120: chat.RPCChat.chat_deleteChatUser:output_type -> mtproto.MutableChat
+	54,  // 121: chat.RPCChat.chat_editChatTitle:output_type -> mtproto.MutableChat
+	54,  // 122: chat.RPCChat.chat_editChatAbout:output_type -> mtproto.MutableChat
+	54,  // 123: chat.RPCChat.chat_editChatPhoto:output_type -> mtproto.MutableChat
+	54,  // 124: chat.RPCChat.chat_editChatAdmin:output_type -> mtproto.MutableChat
+	54,  // 125: chat.RPCChat.chat_editChatCreator:output_type -> mtproto.MutableChat
+	54,  // 126: chat.RPCChat.chat_editChatDefaultBannedRights:output_type -> mtproto.MutableChat
+	54,  // 127: chat.RPCChat.chat_addChatUser:output_type -> mtproto.MutableChat
+	54,  // 128: chat.RPCChat.chat_getMutableChatByLink:output_type -> mtproto.MutableChat
+	54,  // 129: chat.RPCChat.chat_toggleNoForwards:output_type -> mtproto.MutableChat
+	58,  // 130: chat.RPCChat.chat_migratedToChannel:output_type -> mtproto.Bool
+	49,  // 131: chat.RPCChat.chat_getChatParticipantIdList:output_type -> chat.Vector_Long
+	50,  // 132: chat.RPCChat.chat_getUsersChatIdList:output_type -> chat.Vector_UserChatIdList
+	48,  // 133: chat.RPCChat.chat_getMyChatList:output_type -> chat.Vector_MutableChat
+	62,  // 134: chat.RPCChat.chat_exportChatInvite:output_type -> mtproto.ExportedChatInvite
+	51,  // 135: chat.RPCChat.chat_getAdminsWithInvites:output_type -> chat.Vector_ChatAdminWithInvites
+	62,  // 136: chat.RPCChat.chat_getExportedChatInvite:output_type -> mtproto.ExportedChatInvite
+	52,  // 137: chat.RPCChat.chat_getExportedChatInvites:output_type -> chat.Vector_ExportedChatInvite
+	1,   // 138: chat.RPCChat.chat_checkChatInvite:output_type -> chat.ChatInviteExt
+	54,  // 139: chat.RPCChat.chat_importChatInvite:output_type -> mtproto.MutableChat
+	53,  // 140: chat.RPCChat.chat_getChatInviteImporters:output_type -> chat.Vector_ChatInviteImporter
+	58,  // 141: chat.RPCChat.chat_deleteExportedChatInvite:output_type -> mtproto.Bool
+	58,  // 142: chat.RPCChat.chat_deleteRevokedExportedChatInvites:output_type -> mtproto.Bool
+	52,  // 143: chat.RPCChat.chat_editExportedChatInvite:output_type -> chat.Vector_ExportedChatInvite
+	54,  // 144: chat.RPCChat.chat_setChatAvailableReactions:output_type -> mtproto.MutableChat
+	54,  // 145: chat.RPCChat.chat_setHistoryTTL:output_type -> mtproto.MutableChat
+	58,  // 146: chat.RPCChat.chat_setBlocked:output_type -> mtproto.Bool
+	48,  // 147: chat.RPCChat.chat_search:output_type -> chat.Vector_MutableChat
+	7,   // 148: chat.RPCChat.chat_getRecentChatInviteRequesters:output_type -> chat.RecentChatInviteRequesters
+	7,   // 149: chat.RPCChat.chat_hideChatJoinRequests:output_type -> chat.RecentChatInviteRequesters
+	5,   // 150: chat.RPCChat.chat_importChatInvite2:output_type -> chat.ChatInviteImported
+	54,  // 151: chat.RPCChat.chat_editChatParticipantRank:output_type -> mtproto.MutableChat
+	115, // [115:152] is the sub-list for method output_type
+	78,  // [78:115] is the sub-list for method input_type
+	78,  // [78:78] is the sub-list for extension type_name
+	78,  // [78:78] is the sub-list for extension extendee
+	0,   // [0:78] is the sub-list for field type_name
 }
 
 func init() { file_chat_tl_proto_init() }
@@ -4207,7 +4292,7 @@ func file_chat_tl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chat_tl_proto_rawDesc), len(file_chat_tl_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   52,
+			NumMessages:   53,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
