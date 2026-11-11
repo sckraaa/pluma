@@ -123,10 +123,14 @@ func TestChannelComments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("updates.getChannelDifference: %v", err)
 	}
+	// Bob joined after the channel was made: from pts 1 the answer is the
+	// new messages, or channelDifferenceTooLong with the last ones when the
+	// join came a second later (the updates before a join are not his).
 	var inDifference bool
-	for _, m := range o.(interface {
+	diff := o.(interface {
 		To_Updates_ChannelDifference() *mtproto.Updates_ChannelDifference
-	}).To_Updates_ChannelDifference().GetNewMessages() {
+	}).To_Updates_ChannelDifference()
+	for _, m := range append(diff.GetNewMessages(), diff.GetMessages()...) {
 		inDifference = inDifference || m.GetId() == post && m.GetReplies().GetComments()
 	}
 	if !inDifference {

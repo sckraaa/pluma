@@ -77,3 +77,44 @@ func TestPhoneOfKeptNumber(t *testing.T) {
 		t.Errorf("Carol, who does not: phone %q, want none", got)
 	}
 }
+
+// TestPhoneForContacts: Alice shows her number to her contacts. Bob, whom
+// she has as a contact, sees it in users.getUsers and users.getFullUser,
+// whether she added him before or after she set the rule; Carol,
+// whom she has not, does not (the owner's report of 11.11).
+func TestPhoneForContacts(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 4)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	carol := login(ctx, t, phones[2], "Carol")
+	dan := login(ctx, t, phones[3], "Dan")
+	number := strings.TrimPrefix(alice.phone, "+")
+
+	// Dan is her contact before the rule, Bob after it.
+	importContacts(ctx, t, alice, phoneContact(alice.c, 1, strings.TrimPrefix(dan.phone, "+"), "Dan", ""))
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLAccountSetPrivacy{
+		Constructor: alice.c.Constructor(mtproto.Predicate_account_setPrivacy),
+		Key:         &mtproto.InputPrivacyKey{Constructor: alice.c.Constructor(mtproto.Predicate_inputPrivacyKeyPhoneNumber)},
+		Rules:       []*mtproto.InputPrivacyRule{{Constructor: alice.c.Constructor(mtproto.Predicate_inputPrivacyValueAllowContacts)}},
+	}); err != nil {
+		t.Fatalf("account.setPrivacy: %v", err)
+	}
+	importContacts(ctx, t, alice, phoneContact(alice.c, 2, strings.TrimPrefix(bob.phone, "+"), "Bob", ""))
+
+	for _, c := range []struct {
+		u    *user
+		want string
+	}{{dan, number}, {bob, number}, {carol, ""}} {
+		who := c.u.self.GetFirstName().GetValue()
+		in := inputUserOf(ctx, t, c.u, alice)
+		if got := getUser(ctx, t, c.u, in).GetPhone().GetValue(); got != c.want {
+			t.Errorf("%s, users.getUsers: phone %q, want %q", who, got, c.want)
+		}
+		if _, u := fullUser(ctx, t, c.u, in); u.GetPhone().GetValue() != c.want {
+			t.Errorf("%s, users.getFullUser: phone %q, want %q", who, u.GetPhone().GetValue(), c.want)
+		}
+	}
+}

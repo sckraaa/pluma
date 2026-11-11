@@ -61,4 +61,10 @@ func TestStatusWatchers(t *testing.T) {
 		t.Fatalf("watchers %v, want %v: Ann %d, Bob %d, Cat %d; not Dan %d, Eve %d, Fay %d, Gus %d, Hal %d",
 			got, want, ann, bob, cat, dan, eve, fay, gus, hal)
 	}
+
+	// The support ghost has no watchers: nobody is told when it is online.
+	exec("UPDATE users SET ghost = 1 WHERE id = ?", me)
+	if r, err = c.UserGetStatusWatchers(&user.TLUserGetStatusWatchers{UserId: me}); err != nil || len(r.GetDatas()) != 0 {
+		t.Fatalf("watchers of a ghost: %v, %v", r.GetDatas(), err)
+	}
 }

@@ -179,8 +179,12 @@ func (m *ImmutableUser) SetVerified(v bool) {
 	m.User.Verified = v
 }
 
+// pluma: the support ghost is a support account to everyone: the clients
+// write "support" where a user's last seen goes (Android
+// ChatAvatarContainer.java:1239, tdesktop data_peer_values.cpp:57-58, Web K
+// getUserStatusString.ts:34 at the 13.2 pins).
 func (m *ImmutableUser) Support() bool {
-	return m.User.Support
+	return m.User.Support || m.Ghost()
 }
 
 func (m *ImmutableUser) Scam() bool {
@@ -410,6 +414,10 @@ func (m *ImmutableUser) checkPrivacy(keyType int, v PrivacyViewer) bool {
 func (m *ImmutableUser) StatusFor(viewer *ImmutableUser) *UserStatus {
 	if m.Id() == viewer.Id() {
 		return MakeUserStatus(m.LastSeenAt, true)
+	}
+	// pluma: nobody sees when the support ghost was online.
+	if m.Ghost() {
+		return nil
 	}
 	ownerAllows := m.CheckPrivacyFor(STATUS_TIMESTAMP, viewer)
 	viewerAllows := viewer.Premium() || viewer.CheckPrivacy(STATUS_TIMESTAMP, m.Id())
@@ -789,6 +797,10 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 		user.Status = m.StatusFor(viewer)
 	} else {
 		user.Status = MakeUserStatus(m.LastSeenAt, m.CheckPrivacy(STATUS_TIMESTAMP, selfUserId))
+		// pluma: nobody sees when the support ghost was online.
+		if m.Ghost() && m.Id() != selfUserId {
+			user.Status = nil
+		}
 	}
 
 	// TODO: check stories_unavailable
