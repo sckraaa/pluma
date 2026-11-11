@@ -226,3 +226,12 @@ func TestSendAsChannel(t *testing.T) {
 		t.Errorf("the group as the default of an admin who is not anonymous: %v, want SEND_AS_PEER_INVALID", err)
 	}
 }
+
+func hasChat(chats []*mtproto.Chat, id int64) bool {
+	for _, c := range chats {
+		if c.GetId() == id {
+			return true
+		}
+	}
+	return false
+}
