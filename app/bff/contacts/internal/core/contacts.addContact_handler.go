@@ -19,6 +19,8 @@
 package core
 
 import (
+	"time"
+
 	"github.com/teamgram/proto/mtproto"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
@@ -91,6 +93,18 @@ func (c *ContactsCore) ContactsAddContact(in *mtproto.TLContactsAddContact) (*mt
 		return nil, err
 	}
 	cUser.MutualContact = mtproto.FromBool(mutual)
+
+	// The private note sent with the contact (contacts.addContact note,
+	// core.telegram.org/api/contacts): kept once the user is a contact.
+	// tdesktop always sends it, empty to remove the note
+	// (edit_contact_box.cpp:90-104); a request without one leaves the note
+	// that is kept.
+	if in.GetNote() != nil {
+		if err = c.svcCtx.Dao.Notes.Set(c.ctx, c.MD.UserId, id.PeerId, in.GetNote(), time.Now().Unix()); err != nil {
+			c.Logger.Errorf("contacts.addContact - the note: %v", err)
+			return nil, err
+		}
+	}
 
 	me, _ := users.GetUnsafeUserSelf(c.MD.UserId)
 

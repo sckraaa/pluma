@@ -232,31 +232,6 @@ func (d *Dao) GetImmutableUser(ctx context.Context, id int64, privacy bool, cont
 	return immutableUser, nil
 }
 
-func (d *Dao) UpdateUserEmojiStatus(ctx context.Context, id int64, emojiStatusDocumentId int64, emojiStatusUntil int32) bool {
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			rowsAffected, err := d.UsersDAO.UpdateEmojiStatus(
-				ctx,
-				emojiStatusDocumentId,
-				emojiStatusUntil,
-				id)
-
-			if err != nil {
-				return 0, 0, err
-			}
-
-			return 0, rowsAffected, nil
-		},
-		genCacheUserDataCacheKey(id))
-	if err != nil {
-		logx.WithContext(ctx).Errorf("updateUserEmojiStatus - error: %v", err)
-		return false
-	}
-
-	return true
-}
-
 func (d *Dao) DeleteUser(ctx context.Context, id int64, phoneNumber string, reason string) bool {
 	_, _, err := d.CachedConn.Exec(
 		ctx,
@@ -374,36 +349,6 @@ func (d *Dao) UpdateStoriesMaxId(ctx context.Context, id int64, maxId int32) boo
 		genCacheUserDataCacheKey(id))
 	if err != nil {
 		logx.WithContext(ctx).Errorf("updateStoriesMaxId - error: %v", err)
-		return false
-	}
-
-	return true
-}
-
-func (d *Dao) UpdateColor(ctx context.Context, id int64, forProfile bool, color int32, backgroundEmojiId int64) bool {
-	_, _, err := d.CachedConn.Exec(
-		ctx,
-		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
-			var (
-				err          error
-				rowsAffected int64
-			)
-
-			if forProfile {
-				rowsAffected, err = d.UsersDAO.UpdateProfileColor(ctx, color, backgroundEmojiId, id)
-			} else {
-				rowsAffected, err = d.UsersDAO.UpdateColor(ctx, color, backgroundEmojiId, id)
-			}
-
-			if err != nil {
-				return 0, 0, err
-			}
-
-			return 0, rowsAffected, nil
-		},
-		genCacheUserDataCacheKey(id))
-	if err != nil {
-		logx.WithContext(ctx).Errorf("updateColor - error: %v", err)
 		return false
 	}
 

@@ -477,9 +477,12 @@ func (s *Service) MessagesGetEmojiStickerGroups(ctx context.Context, request *mt
 
 // mtproto.RPCEmojiStatus
 
-// AccountUpdateEmojiStatus is not served: account.updateEmojiStatus#fbd3de6b emoji_status:EmojiStatus = Bool;
+// AccountUpdateEmojiStatus
+// account.updateEmojiStatus#fbd3de6b emoji_status:EmojiStatus = Bool;
 func (s *Service) AccountUpdateEmojiStatus(ctx context.Context, request *mtproto.TLAccountUpdateEmojiStatus) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.updateEmojiStatus - metadata: {%s}", c.MD)
+	return c.AccountUpdateEmojiStatus(request)
 }
 
 // AccountGetDefaultEmojiStatuses
@@ -498,9 +501,12 @@ func (s *Service) AccountGetRecentEmojiStatuses(ctx context.Context, request *mt
 	return c.AccountGetRecentEmojiStatuses(request)
 }
 
-// AccountClearRecentEmojiStatuses is not served: account.clearRecentEmojiStatuses#18201aae = Bool;
+// AccountClearRecentEmojiStatuses
+// account.clearRecentEmojiStatuses#18201aae = Bool;
 func (s *Service) AccountClearRecentEmojiStatuses(ctx context.Context, request *mtproto.TLAccountClearRecentEmojiStatuses) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.clearRecentEmojiStatuses - metadata: {%s}", c.MD)
+	return c.AccountClearRecentEmojiStatuses(request)
 }
 
 // AccountGetChannelDefaultEmojiStatuses
@@ -519,9 +525,12 @@ func (s *Service) AccountGetChannelRestrictedStatusEmojis(ctx context.Context, r
 	return c.AccountGetChannelRestrictedStatusEmojis(request)
 }
 
-// AccountGetCollectibleEmojiStatuses is not served: account.getCollectibleEmojiStatuses#2e7b4543 hash:long = account.EmojiStatuses;
+// AccountGetCollectibleEmojiStatuses
+// account.getCollectibleEmojiStatuses#2e7b4543 hash:long = account.EmojiStatuses;
 func (s *Service) AccountGetCollectibleEmojiStatuses(ctx context.Context, request *mtproto.TLAccountGetCollectibleEmojiStatuses) (*mtproto.Account_EmojiStatuses, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.getCollectibleEmojiStatuses - metadata: {%s}", c.MD)
+	return c.AccountGetCollectibleEmojiStatuses(request)
 }
 
 // ChannelsUpdateEmojiStatus
@@ -544,9 +553,12 @@ func (s *Service) BotsToggleUserEmojiStatusPermission(ctx context.Context, reque
 
 // mtproto.RPCAccentColors
 
-// AccountUpdateColor is not served: account.updateColor#684d214e flags:# for_profile:flags.1?true color:flags.2?PeerColor = Bool;
+// AccountUpdateColor
+// account.updateColor#684d214e flags:# for_profile:flags.1?true color:flags.2?PeerColor = Bool;
 func (s *Service) AccountUpdateColor(ctx context.Context, request *mtproto.TLAccountUpdateColor) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.updateColor - metadata: {%s}", c.MD)
+	return c.AccountUpdateColor(request)
 }
 
 // AccountGetDefaultBackgroundEmojis
@@ -579,6 +591,32 @@ func (s *Service) ChannelsUpdateColor(ctx context.Context, request *mtproto.TLCh
 	c := core.New(ctx, s.svcCtx)
 	c.Logger.Debugf("channels.updateColor - metadata: {%s}", c.MD)
 	return c.ChannelsUpdateColor(request)
+}
+
+// mtproto.RPCRingtone
+
+// AccountGetSavedRingtones
+// account.getSavedRingtones#e1902288 hash:long = account.SavedRingtones;
+func (s *Service) AccountGetSavedRingtones(ctx context.Context, request *mtproto.TLAccountGetSavedRingtones) (*mtproto.Account_SavedRingtones, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.getSavedRingtones - metadata: {%s}", c.MD)
+	return c.AccountGetSavedRingtones(request)
+}
+
+// AccountSaveRingtone
+// account.saveRingtone#3dea5b03 id:InputDocument unsave:Bool = account.SavedRingtone;
+func (s *Service) AccountSaveRingtone(ctx context.Context, request *mtproto.TLAccountSaveRingtone) (*mtproto.Account_SavedRingtone, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.saveRingtone - metadata: {%s}", c.MD)
+	return c.AccountSaveRingtone(request)
+}
+
+// AccountUploadRingtone
+// account.uploadRingtone#831a83a2 file:InputFile file_name:string mime_type:string = Document;
+func (s *Service) AccountUploadRingtone(ctx context.Context, request *mtproto.TLAccountUploadRingtone) (*mtproto.Document, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.uploadRingtone - metadata: {%s}", c.MD)
+	return c.AccountUploadRingtone(request)
 }
 
 // mtproto.RPCThemes

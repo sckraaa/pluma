@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/autodownload"
 )
 
 // TestAutoDownloadVideoUploadMaxBitrate checks the video upload quality the
@@ -68,6 +69,9 @@ func TestAutoDownloadVideoUploadMaxBitrate(t *testing.T) {
 func TestVideoUploadPresets(t *testing.T) {
 	ios := func(v int) int { return v * 5 / 100 }
 	android := func(v, steps int) int { return int(math.Round(float64(v)/(100/float64(steps)))) - 1 }
+	presets := autodownload.Presets()
+	videoUploadMaxBitrateMedium := int(presets[autodownload.Medium].VideoUploadMaxbitrate)
+	videoUploadMaxBitrateHigh := int(presets[autodownload.High].VideoUploadMaxbitrate)
 	if got := ios(videoUploadMaxBitrateMedium); got != 4 {
 		t.Errorf("iOS on mobile data: preset %d, want 4 (720p)", got)
 	}

@@ -20,6 +20,7 @@ package mtproto
 
 import (
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -253,8 +254,15 @@ func (m *ImmutableUser) BotHasMainApp() bool {
 	return m.User.Bot.GetBotHasMainApp()
 }
 
+// pluma: EmojiStatus is the emoji status of the user while it lasts: one
+// whose until has passed reads as none (task 084), wherever the user was
+// loaded from, so a cached user does not keep a status that ended.
 func (m *ImmutableUser) EmojiStatus() *EmojiStatus {
-	return m.User.EmojiStatus
+	s := m.User.EmojiStatus
+	if until := s.GetUntil_FLAGINT32().GetValue(); until != 0 && int64(until) <= time.Now().Unix() {
+		return nil
+	}
+	return s
 }
 
 func (m *ImmutableUser) StoriesMaxId() *wrapperspb.Int32Value {

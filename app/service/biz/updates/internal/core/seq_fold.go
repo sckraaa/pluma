@@ -146,6 +146,12 @@ func seqKey(u *mtproto.Update) string {
 		return "recent_stickers"
 	case mtproto.Predicate_updateFavedStickers:
 		return "faved_stickers"
+	case mtproto.Predicate_updateUserEmojiStatus:
+		return "emoji_status:" + strconv.FormatInt(u.GetUserId(), 10)
+	case mtproto.Predicate_updateRecentEmojiStatuses:
+		return "recent_emoji_statuses"
+	case mtproto.Predicate_updateSavedRingtones:
+		return "saved_ringtones"
 	case mtproto.Predicate_updateMessageReactions:
 		return "reactions:" + peerKey(u.GetPeer_PEER()) + "/" + strconv.Itoa(int(u.GetMsgId_INT32()))
 	case mtproto.Predicate_updateMessagePoll:
