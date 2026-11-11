@@ -138,6 +138,7 @@ func TestSupergroupReadParticipants(t *testing.T) {
 	alice := login(ctx, t, phones[0], "Alice")
 	bob := login(ctx, t, phones[1], "Bob")
 	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("reads %d", randomID()), true)
+	getState(ctx, t, bob)
 	input := func(u *user) *mtproto.InputChannel {
 		return &mtproto.InputChannel{
 			Constructor: u.c.Constructor(mtproto.Predicate_inputChannel),
@@ -159,6 +160,11 @@ func TestSupergroupReadParticipants(t *testing.T) {
 	}
 	before := int32(time.Now().Unix())
 	sent := sendMessageID(ctx, t, alice, peer, "read me", randomID())
+	// Bob's box has the dialog once the message reached it: its join came
+	// first.
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateNewChannelMessage, func(u *mtproto.Update) bool {
+		return u.GetMessage_MESSAGE().GetMessage() == "read me"
+	})
 	if _, err := bob.c.Invoke(ctx, &mtproto.TLChannelsReadHistory{
 		Constructor: bob.c.Constructor(mtproto.Predicate_channels_readHistory),
 		Channel:     input(bob),
