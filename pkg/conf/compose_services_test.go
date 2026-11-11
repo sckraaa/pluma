@@ -312,6 +312,9 @@ var optionalVars = map[string]bool{
 	// The site of the client releases (task 054): bff offers no app
 	// updates and no desktop update prefix when empty.
 	"PLUMA_RELEASES_URL": true,
+	// The update of the iPhone app from the app (task 085): bff offers the
+	// site's install page when empty.
+	"PLUMA_IOS_UPDATE_SECRET": true,
 	// The servers of one-to-one calls (task 068): calls are off when empty.
 	"CALLS_ICE_SERVERS": true,
 	"CALLS_TURN_SECRET": true,

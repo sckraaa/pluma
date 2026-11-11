@@ -20,6 +20,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -34,4 +35,7 @@ type Config struct {
 	// the update prefix of the desktop app (help.getConfig) and the install
 	// page of the iPhone app.
 	ReleasesURL string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// IOSUpdate lets an Ad Hoc build of the iPhone app update from the app
+	// (task 085); off without its secret.
+	IOSUpdate iosupdate.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

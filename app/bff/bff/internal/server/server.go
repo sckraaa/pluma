@@ -177,6 +177,7 @@ func (s *Server) Initialize() error {
 			AuthsessionClient: c.AuthSessionClient,
 			MediaClient:       c.MediaClient,
 			ReleasesURL:       c.ReleasesURL,
+			IOSUpdate:         c.IOSUpdate,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)
