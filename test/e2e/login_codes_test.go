@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -173,5 +174,87 @@ func TestLoginCodeThroughTelegram(t *testing.T) {
 	}
 	if _, ok := o.(*mtproto.TLAuthAuthorizationSignUpRequired); !ok {
 		t.Fatalf("auth.signIn returned %T, want a sign-up for a new phone", o)
+	}
+}
+
+// A code in the person's other session that did not come (an old install's
+// session still counts as one): "Didn't get the code?" writes the code to the
+// person's Telegram at once; from there "Didn't get the code?" and "Send
+// again" go on as for a code that went to Telegram first. Only the requests
+// that write a code count under the per-address code limit
+// (logincode.SendCodePerPhoneIP), so two whole rounds of it from one address,
+// as after a reinstall and a failed sign-in, are not answered FLOOD_WAIT.
+func TestLoginCodeResendFromApp(t *testing.T) {
+	if fakeCodesAddr == "" {
+		t.Skip("PLUMA_E2E_FAKECODES is not set: the stand has no code sender")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	phone := testPhones(t, 1)[0]
+	resetLoginsPerAddress(t)
+	login(ctx, t, phone, "Owner")
+	codesAnswer(t, phone, "sent")
+
+	written := len(codesWritten(t, phone))
+	for round := 1; round <= 2; round++ {
+		c, err := mtclient.Dial(ctx, config(t, fmt.Sprintf("e2e reinstall %d", round)))
+		if err != nil {
+			t.Fatalf("round %d: connect: %v", round, err)
+		}
+		closeChecked(t, fmt.Sprintf("reinstall %d", round), c)
+
+		o, err := c.Invoke(ctx, &mtproto.TLAuthSendCode{
+			Constructor: c.Constructor(mtproto.Predicate_auth_sendCode),
+			PhoneNumber: phone,
+			ApiId:       1,
+			ApiHash:     "e2e",
+			Settings:    &mtproto.CodeSettings{Constructor: c.Constructor(mtproto.Predicate_codeSettings)},
+		})
+		sent := sentCodeOf(t, o, err, fmt.Sprintf("round %d: auth.sendCode", round))
+		if sent.GetType().GetPredicateName() != mtproto.Predicate_auth_sentCodeTypeApp ||
+			sent.GetNextType().GetPredicateName() != mtproto.Predicate_auth_codeTypeSms || sent.GetTimeout() != nil {
+			t.Fatalf("round %d: a code in the other session: %v", round, sent)
+		}
+		if n := len(codesWritten(t, phone)); n != written {
+			t.Fatalf("round %d: the account wrote while the other session could be used", round)
+		}
+		hash := sent.GetPhoneCodeHash()
+		resend := func(step string, want string, writes int) {
+			t.Helper()
+			o, err := c.Invoke(ctx, &mtproto.TLAuthResendCode{
+				Constructor:   c.Constructor(mtproto.Predicate_auth_resendCode),
+				PhoneNumber:   phone,
+				PhoneCodeHash: hash,
+			})
+			got := sentCodeOf(t, o, err, fmt.Sprintf("round %d: %s", round, step))
+			if got.GetType().GetPredicateName() != want {
+				t.Fatalf("round %d: %s: %s, want %s", round, step, got.GetType().GetPredicateName(), want)
+			}
+			written += writes
+			if n := len(codesWritten(t, phone)); n != written {
+				t.Fatalf("round %d: %s: the account wrote %d codes, want %d", round, step, n, written)
+			}
+		}
+		resend("didn't get the code in the app", mtproto.Predicate_auth_sentCodeTypeFragmentSms, 1)
+		resend("didn't get the code in Telegram", mtproto.Predicate_auth_sentCodeTypeSms, 0)
+		resend("send again", mtproto.Predicate_auth_sentCodeTypeFragmentSms, 1)
+		if round == 1 {
+			// The sign-in did not go through: the person starts over.
+			continue
+		}
+
+		codes := codesWritten(t, phone)
+		o, err = c.Invoke(ctx, &mtproto.TLAuthSignIn{
+			Constructor:          c.Constructor(mtproto.Predicate_auth_signIn),
+			PhoneNumber:          phone,
+			PhoneCodeHash:        hash,
+			PhoneCode_FLAGSTRING: mtproto.MakeFlagsString(codes[len(codes)-1]),
+		})
+		if err != nil {
+			t.Fatalf("auth.signIn with the code in Telegram: %v", err)
+		}
+		if _, ok := o.(*mtproto.TLAuthAuthorization); !ok {
+			t.Fatalf("auth.signIn returned %T, want auth.authorization", o)
+		}
 	}
 }

@@ -118,8 +118,12 @@ func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 	}
 	if toApp {
 		codeData.SentCodeType = model.SentCodeTypeApp
-		// "Didn't get the code?": the screen of a code that did not reach
-		// Telegram, with the administrator and "Send again".
+		// "Didn't get the code?": a delivery through Telegram
+		// (DoAuthReSendCode). The type stays codeTypeSms, not
+		// codeTypeFragmentSms: the patched apps take a next type of SMS on
+		// this screen for "Didn't get the code?", while for a Fragment one
+		// Android and Web K would offer upstream's "Get a code via Fragment"
+		// (ADR 0044).
 		codeData.NextCodeType = model.CodeTypeSms
 	}
 
@@ -141,8 +145,9 @@ func (m *AuthLogic) DoAuthSendCode(ctx context.Context,
 }
 
 // maxTelegramAttempts bounds the deliveries of one login request through
-// the person's Telegram: the first one and the "Send again" of the screen of
-// a code that did not reach it. The account's own limits per phone stay.
+// the person's Telegram: the first one (auth.sendCode, or "Didn't get the
+// code?" of a code in the app) and the "Send again" of the screen of a code
+// that did not reach it. The account's own limits per phone stay.
 const maxTelegramAttempts = 4
 
 // tryTelegram offers the code of the request to the person's Telegram and
@@ -174,12 +179,23 @@ func (m *AuthLogic) toFallback(codeData *model.PhoneCodeTransaction) {
 	}
 }
 
-// DoAuthReSendCode moves a request that offered the next_type on. From a code
-// in the app or in Telegram ("Didn't get the code?") to the screen of a code
-// that did not reach Telegram, without a new delivery: the code sent stays
-// valid, and the administrator can issue one. From that screen ("Send
-// again", after the person allowed Telegram to find them by number) to a new
-// delivery through Telegram. The phone must have passed Codes.CheckSendCode.
+// DoAuthReSendCode moves a request that offered the next_type on, as
+// auth.resendCode sends the code by the next_type of the previous answer
+// ("Resend the login code via another medium", the type "determined by the
+// return value of the previous auth.sendCode/auth.resendCode":
+// core.telegram.org/method/auth.resendCode, core.telegram.org/api/auth):
+//   - from a code in the app ("Didn't get the code?") to a delivery through
+//     the person's Telegram at once: "Check Telegram", or the screen of a
+//     code that did not reach Telegram if it failed;
+//   - from a code in Telegram ("Didn't get the code?") to the screen of a
+//     code that did not reach Telegram, without a new delivery: the code
+//     sent stays valid, and the administrator can issue one;
+//   - from that screen ("Send again", after the person allowed Telegram to
+//     find them by number) to a new delivery through Telegram.
+//
+// The phone must have passed Codes.CheckPhone. A delivery counts under the
+// code request limits (Codes.ReserveSend) before it is made; a move of the
+// screen does not.
 func (m *AuthLogic) DoAuthReSendCode(ctx context.Context,
 	authKeyId int64,
 	phoneNumber, phoneCodeHash, clientIp string) (*model.PhoneCodeTransaction, error) {
@@ -195,9 +211,16 @@ func (m *AuthLogic) DoAuthReSendCode(ctx context.Context,
 		return nil, mtproto.ErrSendCodeUnavailable
 	}
 
-	if codeData.SentCodeType == model.SentCodeTypeSms {
+	switch {
+	case codeData.SentCodeType == model.SentCodeTypeFragmentSms:
+		m.toFallback(codeData)
+	case m.Codes.TelegramAvailable(phoneNumber):
+		if err = m.Codes.ReserveSend(ctx, phoneNumber, authKeyId, clientIp); err != nil {
+			return nil, err
+		}
 		m.tryTelegram(ctx, codeData, clientIp)
-	} else {
+	default:
+		// No way through Telegram: the administrator's screen.
 		m.toFallback(codeData)
 	}
 	if err = m.store.PutCachePhoneCode(ctx, authKeyId, phoneNumber, codeData); err != nil {

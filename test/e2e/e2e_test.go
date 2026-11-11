@@ -95,7 +95,7 @@ func admin(t *testing.T, args ...string) string {
 var loginCodeRe = regexp.MustCompile(`Login code for \+\d+: (\d+)`)
 
 // phonesTaken are the numbers the tests of this run have: a number belongs
-// to one test, so that its login limits (pkg/logincode: 5 codes an hour from
+// to one test, so that its login limits (pkg/logincode: 8 codes an hour from
 // one address) are that test's own.
 var (
 	phonesMu    sync.Mutex
