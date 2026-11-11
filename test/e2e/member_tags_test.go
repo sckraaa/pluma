@@ -188,3 +188,64 @@ func TestSupergroupReadParticipants(t *testing.T) {
 		t.Errorf("reader %d at %d: want Bob at or after %d", r.GetUserId(), r.GetDate(), before)
 	}
 }
+
+// An admin takes away a member's reaction in a supergroup; a member may not.
+func TestDeleteParticipantReaction(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("reactions %d", randomID()), true)
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsInviteToChannelC9E33D54{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_inviteToChannelC9E33D54),
+		Channel: &mtproto.InputChannel{
+			Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel),
+			ChannelId:   ch.GetId(),
+			AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
+		},
+		Users: []*mtproto.InputUser{inputUserOf(ctx, t, alice, bob)},
+	}); err != nil {
+		t.Fatalf("channels.inviteToChannel: %v", err)
+	}
+	peer := func(u *user) *mtproto.InputPeer {
+		return &mtproto.InputPeer{
+			Constructor: u.c.Constructor(mtproto.Predicate_inputPeerChannel),
+			ChannelId:   ch.GetId(),
+			AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
+		}
+	}
+	msgId := sendMessageID(ctx, t, alice, peer(alice), "react to me", randomID())
+	if _, err := bob.c.Invoke(ctx, &mtproto.TLMessagesSendReaction{
+		Constructor:                 bob.c.Constructor(mtproto.Predicate_messages_sendReaction),
+		Peer:                        peer(bob),
+		MsgId:                       msgId,
+		Reaction_FLAGVECTORREACTION: []*mtproto.Reaction{{Constructor: bob.c.Constructor(mtproto.Predicate_reactionEmoji), Emoticon: "👍"}},
+	}); err != nil {
+		t.Fatalf("messages.sendReaction: %v", err)
+	}
+	if _, err := bob.c.Invoke(ctx, &mtproto.TLMessagesDeleteParticipantReaction{
+		Constructor: bob.c.Constructor(mtproto.Predicate_messages_deleteParticipantReaction),
+		Peer:        peer(bob),
+		MsgId:       msgId,
+		Participant: userPeer(bob.c, alice),
+	}); err == nil {
+		t.Error("a member took away a reaction")
+	}
+	o, err := alice.c.Invoke(ctx, &mtproto.TLMessagesDeleteParticipantReaction{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_deleteParticipantReaction),
+		Peer:        peer(alice),
+		MsgId:       msgId,
+		Participant: userPeer(alice.c, bob),
+	})
+	if err != nil {
+		t.Fatalf("messages.deleteParticipantReaction: %v", err)
+	}
+	r := o.(interface{ To_Updates() *mtproto.Updates }).To_Updates()
+	for _, u := range r.GetUpdates() {
+		if u.GetPredicateName() == mtproto.Predicate_updateMessageReactions && len(u.GetReactions_MESSAGEREACTIONS().GetResults()) != 0 {
+			t.Errorf("reactions left: %v", u.GetReactions_MESSAGEREACTIONS().GetResults())
+		}
+	}
+}

@@ -29,37 +29,38 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	RPCMsg_MsgPushUserMessage_FullMethodName         = "/msg.RPCMsg/msg_pushUserMessage"
-	RPCMsg_MsgReadMessageContents_FullMethodName     = "/msg.RPCMsg/msg_readMessageContents"
-	RPCMsg_MsgSendMessageV2_FullMethodName           = "/msg.RPCMsg/msg_sendMessageV2"
-	RPCMsg_MsgEditMessageV2_FullMethodName           = "/msg.RPCMsg/msg_editMessageV2"
-	RPCMsg_MsgDeleteMessages_FullMethodName          = "/msg.RPCMsg/msg_deleteMessages"
-	RPCMsg_MsgDeleteHistory_FullMethodName           = "/msg.RPCMsg/msg_deleteHistory"
-	RPCMsg_MsgDeletePhoneCallHistory_FullMethodName  = "/msg.RPCMsg/msg_deletePhoneCallHistory"
-	RPCMsg_MsgDeleteChatHistory_FullMethodName       = "/msg.RPCMsg/msg_deleteChatHistory"
-	RPCMsg_MsgReadHistoryV2_FullMethodName           = "/msg.RPCMsg/msg_readHistoryV2"
-	RPCMsg_MsgUpdatePinnedMessage_FullMethodName     = "/msg.RPCMsg/msg_updatePinnedMessage"
-	RPCMsg_MsgUnpinAllMessages_FullMethodName        = "/msg.RPCMsg/msg_unpinAllMessages"
-	RPCMsg_MsgReadMentions_FullMethodName            = "/msg.RPCMsg/msg_readMentions"
-	RPCMsg_MsgDeleteHistoryRange_FullMethodName      = "/msg.RPCMsg/msg_deleteHistoryRange"
-	RPCMsg_MsgEditPeerFolders_FullMethodName         = "/msg.RPCMsg/msg_editPeerFolders"
-	RPCMsg_MsgSendReaction_FullMethodName            = "/msg.RPCMsg/msg_sendReaction"
-	RPCMsg_MsgReadReactions_FullMethodName           = "/msg.RPCMsg/msg_readReactions"
-	RPCMsg_MsgUpdateSavedReactionTag_FullMethodName  = "/msg.RPCMsg/msg_updateSavedReactionTag"
-	RPCMsg_MsgMigrateChat_FullMethodName             = "/msg.RPCMsg/msg_migrateChat"
-	RPCMsg_MsgGetScheduledHistory_FullMethodName     = "/msg.RPCMsg/msg_getScheduledHistory"
-	RPCMsg_MsgGetScheduledMessages_FullMethodName    = "/msg.RPCMsg/msg_getScheduledMessages"
-	RPCMsg_MsgSendScheduledMessages_FullMethodName   = "/msg.RPCMsg/msg_sendScheduledMessages"
-	RPCMsg_MsgDeleteScheduledMessages_FullMethodName = "/msg.RPCMsg/msg_deleteScheduledMessages"
-	RPCMsg_MsgHasScheduled_FullMethodName            = "/msg.RPCMsg/msg_hasScheduled"
-	RPCMsg_MsgSendVote_FullMethodName                = "/msg.RPCMsg/msg_sendVote"
-	RPCMsg_MsgClosePoll_FullMethodName               = "/msg.RPCMsg/msg_closePoll"
-	RPCMsg_MsgAddPollAnswer_FullMethodName           = "/msg.RPCMsg/msg_addPollAnswer"
-	RPCMsg_MsgDeletePollAnswer_FullMethodName        = "/msg.RPCMsg/msg_deletePollAnswer"
-	RPCMsg_MsgReadPollVotes_FullMethodName           = "/msg.RPCMsg/msg_readPollVotes"
-	RPCMsg_MsgToggleTodoCompleted_FullMethodName     = "/msg.RPCMsg/msg_toggleTodoCompleted"
-	RPCMsg_MsgAppendTodoList_FullMethodName          = "/msg.RPCMsg/msg_appendTodoList"
-	RPCMsg_MsgEditTodoList_FullMethodName            = "/msg.RPCMsg/msg_editTodoList"
+	RPCMsg_MsgPushUserMessage_FullMethodName            = "/msg.RPCMsg/msg_pushUserMessage"
+	RPCMsg_MsgReadMessageContents_FullMethodName        = "/msg.RPCMsg/msg_readMessageContents"
+	RPCMsg_MsgSendMessageV2_FullMethodName              = "/msg.RPCMsg/msg_sendMessageV2"
+	RPCMsg_MsgEditMessageV2_FullMethodName              = "/msg.RPCMsg/msg_editMessageV2"
+	RPCMsg_MsgDeleteMessages_FullMethodName             = "/msg.RPCMsg/msg_deleteMessages"
+	RPCMsg_MsgDeleteHistory_FullMethodName              = "/msg.RPCMsg/msg_deleteHistory"
+	RPCMsg_MsgDeletePhoneCallHistory_FullMethodName     = "/msg.RPCMsg/msg_deletePhoneCallHistory"
+	RPCMsg_MsgDeleteChatHistory_FullMethodName          = "/msg.RPCMsg/msg_deleteChatHistory"
+	RPCMsg_MsgReadHistoryV2_FullMethodName              = "/msg.RPCMsg/msg_readHistoryV2"
+	RPCMsg_MsgUpdatePinnedMessage_FullMethodName        = "/msg.RPCMsg/msg_updatePinnedMessage"
+	RPCMsg_MsgUnpinAllMessages_FullMethodName           = "/msg.RPCMsg/msg_unpinAllMessages"
+	RPCMsg_MsgReadMentions_FullMethodName               = "/msg.RPCMsg/msg_readMentions"
+	RPCMsg_MsgDeleteHistoryRange_FullMethodName         = "/msg.RPCMsg/msg_deleteHistoryRange"
+	RPCMsg_MsgEditPeerFolders_FullMethodName            = "/msg.RPCMsg/msg_editPeerFolders"
+	RPCMsg_MsgSendReaction_FullMethodName               = "/msg.RPCMsg/msg_sendReaction"
+	RPCMsg_MsgDeleteParticipantReactions_FullMethodName = "/msg.RPCMsg/msg_deleteParticipantReactions"
+	RPCMsg_MsgReadReactions_FullMethodName              = "/msg.RPCMsg/msg_readReactions"
+	RPCMsg_MsgUpdateSavedReactionTag_FullMethodName     = "/msg.RPCMsg/msg_updateSavedReactionTag"
+	RPCMsg_MsgMigrateChat_FullMethodName                = "/msg.RPCMsg/msg_migrateChat"
+	RPCMsg_MsgGetScheduledHistory_FullMethodName        = "/msg.RPCMsg/msg_getScheduledHistory"
+	RPCMsg_MsgGetScheduledMessages_FullMethodName       = "/msg.RPCMsg/msg_getScheduledMessages"
+	RPCMsg_MsgSendScheduledMessages_FullMethodName      = "/msg.RPCMsg/msg_sendScheduledMessages"
+	RPCMsg_MsgDeleteScheduledMessages_FullMethodName    = "/msg.RPCMsg/msg_deleteScheduledMessages"
+	RPCMsg_MsgHasScheduled_FullMethodName               = "/msg.RPCMsg/msg_hasScheduled"
+	RPCMsg_MsgSendVote_FullMethodName                   = "/msg.RPCMsg/msg_sendVote"
+	RPCMsg_MsgClosePoll_FullMethodName                  = "/msg.RPCMsg/msg_closePoll"
+	RPCMsg_MsgAddPollAnswer_FullMethodName              = "/msg.RPCMsg/msg_addPollAnswer"
+	RPCMsg_MsgDeletePollAnswer_FullMethodName           = "/msg.RPCMsg/msg_deletePollAnswer"
+	RPCMsg_MsgReadPollVotes_FullMethodName              = "/msg.RPCMsg/msg_readPollVotes"
+	RPCMsg_MsgToggleTodoCompleted_FullMethodName        = "/msg.RPCMsg/msg_toggleTodoCompleted"
+	RPCMsg_MsgAppendTodoList_FullMethodName             = "/msg.RPCMsg/msg_appendTodoList"
+	RPCMsg_MsgEditTodoList_FullMethodName               = "/msg.RPCMsg/msg_editTodoList"
 )
 
 // RPCMsgClient is the client API for RPCMsg service.
@@ -83,6 +84,8 @@ type RPCMsgClient interface {
 	MsgEditPeerFolders(ctx context.Context, in *TLMsgEditPeerFolders, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 053
 	MsgSendReaction(ctx context.Context, in *TLMsgSendReaction, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 078
+	MsgDeleteParticipantReactions(ctx context.Context, in *TLMsgDeleteParticipantReactions, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 053
 	MsgReadReactions(ctx context.Context, in *TLMsgReadReactions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 053
@@ -275,6 +278,16 @@ func (c *rPCMsgClient) MsgSendReaction(ctx context.Context, in *TLMsgSendReactio
 	return out, nil
 }
 
+func (c *rPCMsgClient) MsgDeleteParticipantReactions(ctx context.Context, in *TLMsgDeleteParticipantReactions, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgDeleteParticipantReactions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCMsgClient) MsgReadReactions(ctx context.Context, in *TLMsgReadReactions, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Messages_AffectedHistory)
@@ -456,6 +469,8 @@ type RPCMsgServer interface {
 	MsgEditPeerFolders(context.Context, *TLMsgEditPeerFolders) (*mtproto.Updates, error)
 	// pluma: task 053
 	MsgSendReaction(context.Context, *TLMsgSendReaction) (*mtproto.Updates, error)
+	// pluma: task 078
+	MsgDeleteParticipantReactions(context.Context, *TLMsgDeleteParticipantReactions) (*mtproto.Updates, error)
 	// pluma: task 053
 	MsgReadReactions(context.Context, *TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error)
 	// pluma: task 053
@@ -541,6 +556,9 @@ func (UnimplementedRPCMsgServer) MsgEditPeerFolders(context.Context, *TLMsgEditP
 }
 func (UnimplementedRPCMsgServer) MsgSendReaction(context.Context, *TLMsgSendReaction) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgSendReaction not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgDeleteParticipantReactions(context.Context, *TLMsgDeleteParticipantReactions) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgDeleteParticipantReactions not implemented")
 }
 func (UnimplementedRPCMsgServer) MsgReadReactions(context.Context, *TLMsgReadReactions) (*mtproto.Messages_AffectedHistory, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgReadReactions not implemented")
@@ -876,6 +894,24 @@ func _RPCMsg_MsgSendReaction_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCMsgServer).MsgSendReaction(ctx, req.(*TLMsgSendReaction))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgDeleteParticipantReactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgDeleteParticipantReactions)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgDeleteParticipantReactions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgDeleteParticipantReactions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgDeleteParticipantReactions(ctx, req.(*TLMsgDeleteParticipantReactions))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1234,6 +1270,10 @@ var RPCMsg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "msg_sendReaction",
 			Handler:    _RPCMsg_MsgSendReaction_Handler,
+		},
+		{
+			MethodName: "msg_deleteParticipantReactions",
+			Handler:    _RPCMsg_MsgDeleteParticipantReactions_Handler,
 		},
 		{
 			MethodName: "msg_readReactions",

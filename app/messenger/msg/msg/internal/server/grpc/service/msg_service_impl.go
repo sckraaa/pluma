@@ -451,3 +451,17 @@ func (s *Service) MsgEditTodoList(ctx context.Context, request *msg.TLMsgEditTod
 
 	return r, err
 }
+
+// MsgDeleteParticipantReactions
+// msg.deleteParticipantReactions user_id:long auth_key_id:long channel_id:long participant_id:long msg_id:int = Updates;
+func (s *Service) MsgDeleteParticipantReactions(ctx context.Context, request *msg.TLMsgDeleteParticipantReactions) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.deleteParticipantReactions - metadata: {%s}", c.MD)
+
+	r, err := c.MsgDeleteParticipantReactions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

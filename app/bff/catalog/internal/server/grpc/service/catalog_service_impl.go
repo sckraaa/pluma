@@ -132,14 +132,20 @@ func (s *Service) MessagesGetPaidReactionPrivacy(ctx context.Context, request *m
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesDeleteParticipantReactions is not served: messages.deleteParticipantReactions#a0b80cf8 peer:InputPeer participant:InputPeer = Bool;
+// MessagesDeleteParticipantReactions
+// messages.deleteParticipantReactions#a0b80cf8 peer:InputPeer participant:InputPeer = Bool;
 func (s *Service) MessagesDeleteParticipantReactions(ctx context.Context, request *mtproto.TLMessagesDeleteParticipantReactions) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.deleteParticipantReactions - metadata: {%s}", c.MD)
+	return c.MessagesDeleteParticipantReactions(request)
 }
 
-// MessagesDeleteParticipantReaction is not served: messages.deleteParticipantReaction#e3b7f82c peer:InputPeer msg_id:int participant:InputPeer = Updates;
+// MessagesDeleteParticipantReaction
+// messages.deleteParticipantReaction#e3b7f82c peer:InputPeer msg_id:int participant:InputPeer = Updates;
 func (s *Service) MessagesDeleteParticipantReaction(ctx context.Context, request *mtproto.TLMessagesDeleteParticipantReaction) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.deleteParticipantReaction - metadata: {%s}", c.MD)
+	return c.MessagesDeleteParticipantReaction(request)
 }
 
 // mtproto.RPCStickers

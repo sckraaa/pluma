@@ -275,3 +275,67 @@ func channelAllows(b *userbox.Box, channelId int64, keys []string) error {
 	}
 	return nil
 }
+
+// MessageReactions are the reactions to a message after a change.
+type MessageReactions struct {
+	MsgId     int32
+	Reactions *ChannelReactions
+}
+
+// participantReactionsMax bounds the messages one call clears.
+const participantReactionsMax = 1000
+
+// DeleteParticipantReactions takes away the reactions of participantId in a
+// supergroup, on message msgId or, when 0, on all its messages: for an admin
+// who may delete the messages of others (CHAT_ADMIN_REQUIRED otherwise),
+// as the clients offer it (Android MessagesController.java:9632-9641,
+// tdesktop apiwrap.cpp:1563-1580). It returns the reactions of each message
+// that changed.
+func (d *Dao) DeleteParticipantReactions(b *userbox.Box, channelId, participantId int64, msgId int32) ([]MessageReactions, error) {
+	_, s, err := openChannel(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if s.ch.Broadcast {
+		return nil, mtproto.ErrChatAdminRequired
+	}
+	if err = s.can(channelperm.DeleteOthers, b.Date()); err != nil {
+		return nil, mtproto.ErrChatAdminRequired
+	}
+	var ids []int32
+	if msgId != 0 {
+		ids = []int32{msgId}
+	} else if err = b.Tx().QueryRowsPartial(&ids,
+		"SELECT DISTINCT message_id FROM channel_message_reactions WHERE channel_id = ? AND user_id = ? LIMIT ?",
+		channelId, participantId, participantReactionsMax); err != nil {
+		return nil, err
+	}
+	var out []MessageReactions
+	for _, id := range ids {
+		r, err := b.Tx().Exec("DELETE FROM channel_message_reactions WHERE channel_id = ? AND message_id = ? AND user_id = ?",
+			channelId, id, participantId)
+		if err != nil {
+			return nil, err
+		}
+		if n, _ := r.RowsAffected(); n == 0 {
+			continue
+		}
+		var msgs []struct {
+			SenderUserId int64 `db:"sender_user_id"`
+			TopicId      int32 `db:"topic_id"`
+		}
+		if err = b.Tx().QueryRowsPartial(&msgs, "SELECT sender_user_id, topic_id FROM channel_messages WHERE channel_id = ? AND id = ?",
+			channelId, id); err != nil {
+			return nil, err
+		}
+		cr := &ChannelReactions{Changed: true}
+		if len(msgs) > 0 {
+			cr.AuthorId, cr.TopicId = msgs[0].SenderUserId, msgs[0].TopicId
+		}
+		if cr.Rows, err = channelReactionRows(b, channelId, id); err != nil {
+			return nil, err
+		}
+		out = append(out, MessageReactions{MsgId: id, Reactions: cr})
+	}
+	return out, nil
+}

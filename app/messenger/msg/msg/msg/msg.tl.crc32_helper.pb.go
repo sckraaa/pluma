@@ -33,6 +33,8 @@ const (
 	CRC32_msg_editPeerFolders TLConstructor = -2047878569 // 0x85efda57
 	// pluma: task 053
 	CRC32_msg_sendReaction TLConstructor = 1297458671 // 0x4d55a5ef
+	// pluma: task 078
+	CRC32_msg_deleteParticipantReactions TLConstructor = 481293738 // 0x1caff5aa
 	// pluma: task 053
 	CRC32_msg_readReactions TLConstructor = -91564461 // 0xfa8ad653
 	// pluma: task 053

@@ -26,7 +26,8 @@
 
 Готово кодом: теги (базовые группы и супергруппы, e2e), `messages.getOnlines`, `messages.sendScreenshotNotification`.
 Готово кодом также: `hideAllChatJoinRequests` для базовых групп; «кто прочитал» в супергруппах (таблица `channel_read_marks`, миграция `migrate-20261111-channel-read-marks.sql`; прочтения до выката не видны).
-Дальше по порядку: `deleteParticipantReaction(s)`, `getFutureChatCreatorAfterLeave`, передача владения базовой группой, `getAdminLog`, `getSendAs`, стикеры группы, адреса и оформление.
+Готово также: `deleteParticipantReaction(s)` в супергруппах (в базовых группах реакции лежат в ящике каждого участника, не обслуживается).
+Дальше по порядку: `getFutureChatCreatorAfterLeave`, передача владения базовой группой, `getAdminLog`, `getSendAs`, стикеры группы, адреса и оформление.
 
 ## Результат
 _Заполняется по завершении._
