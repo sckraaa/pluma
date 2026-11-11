@@ -112,6 +112,10 @@ const (
 	CRC32_channel_leaveHidden TLConstructor = -858110575 // 0xccda4591
 	// pluma: task 080
 	CRC32_channel_setUserHidden TLConstructor = -1975507290 // 0x8a4026a6
+	// pluma: task 082
+	CRC32_channel_antispamDelete TLConstructor = 593076387 // 0x2359a0a3
+	// pluma: task 082
+	CRC32_channel_antispamFalsePositive TLConstructor = -784462129 // 0xd13e0ecf
 	// pluma: task 060
 	CRC32_channel_toggleForum TLConstructor = 1073186003 // 0x3ff784d3
 	// pluma: task 060

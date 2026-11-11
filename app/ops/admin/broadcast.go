@@ -91,7 +91,7 @@ func (s *store) recipientsAfter(ctx context.Context, audience string, audienceId
 	case audienceAll:
 		var rows []int64
 		err := s.db.QueryRowsPartial(ctx, &rows,
-			"SELECT id FROM users WHERE id > ? AND deleted = 0 AND is_bot = 0 AND id <> 777000 ORDER BY id LIMIT ?", cursor, limit)
+			"SELECT id FROM users WHERE id > ? AND deleted = 0 AND is_bot = 0 AND user_type <> 4 ORDER BY id LIMIT ?", cursor, limit)
 		return rows, err
 	case audienceChannel:
 		var rows []int64
@@ -116,7 +116,7 @@ func (s *store) countRecipients(ctx context.Context, audience string, audienceId
 	var n int64
 	switch audience {
 	case audienceAll:
-		err := s.db.QueryRow(ctx, &n, "SELECT COUNT(*) FROM users WHERE deleted = 0 AND is_bot = 0 AND id <> 777000")
+		err := s.db.QueryRow(ctx, &n, "SELECT COUNT(*) FROM users WHERE deleted = 0 AND is_bot = 0 AND user_type <> 4")
 		return n, err
 	case audienceChannel:
 		err := s.db.QueryRow(ctx, &n,

@@ -111,6 +111,10 @@ const (
 	Predicate_channel_leaveHidden = "channel_leaveHidden"
 	// pluma: task 080
 	Predicate_channel_setUserHidden = "channel_setUserHidden"
+	// pluma: task 082
+	Predicate_channel_antispamDelete = "channel_antispamDelete"
+	// pluma: task 082
+	Predicate_channel_antispamFalsePositive = "channel_antispamFalsePositive"
 	// pluma: task 060
 	Predicate_channel_toggleForum = "channel_toggleForum"
 	// pluma: task 060
@@ -400,6 +404,12 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	Predicate_channel_setUserHidden: { // pluma: task 080
 		0: -1975507290, // 0x8a4026a6
 	},
+	Predicate_channel_antispamDelete: { // pluma: task 082
+		0: 593076387, // 0x2359a0a3
+	},
+	Predicate_channel_antispamFalsePositive: { // pluma: task 082
+		0: -784462129, // 0xd13e0ecf
+	},
 	Predicate_channel_toggleForum: { // pluma: task 060
 		0: 1073186003, // 0x3ff784d3
 
@@ -640,6 +650,8 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-1244916636: Predicate_channel_joinHidden,                       // 0xb5cc1464 pluma: task 080
 	-858110575:  Predicate_channel_leaveHidden,                      // 0xccda4591 pluma: task 080
 	-1975507290: Predicate_channel_setUserHidden,                    // 0x8a4026a6 pluma: task 080
+	593076387:   Predicate_channel_antispamDelete,                   // 0x2359a0a3 pluma: task 082
+	-784462129:  Predicate_channel_antispamFalsePositive,            // 0xd13e0ecf pluma: task 082
 	1532314294:  Predicate_channel_createChannel,                    // 0x5b5542b6 pluma: task 038
 	1073186003:  Predicate_channel_toggleForum,                      // 0x3ff784d3 pluma: task 060
 	-1875771675: Predicate_channel_toggleViewForumAsMessages,        // 0x9031fee5 pluma: task 060

@@ -287,6 +287,22 @@ func TestGigagroupView(t *testing.T) {
 	}
 }
 
+// TestAutotranslationView: a channel translated for all says so in the
+// full and the min channel (flags2.15).
+func TestAutotranslationView(t *testing.T) {
+	ch := testChannel("pub")
+	ch.Megagroup, ch.Broadcast, ch.Autotranslation = false, true, true
+	for _, got := range []*mtproto.Chat{ch.ToChat(participant(RoleMember, StateIn, 0, 0, 0), viewNow), ch.ToMinChat()} {
+		if !got.GetAutotranslation() {
+			t.Errorf("channel: %v", got)
+		}
+		x := mtproto.NewEncodeBuf(512)
+		if err := got.Encode(x, 228); err != nil {
+			t.Fatalf("encode: %v", err)
+		}
+	}
+}
+
 func TestToChatDeleted(t *testing.T) {
 	ch := testChannel("pub")
 	ch.Deleted = true
@@ -341,6 +357,7 @@ func TestCodecRoundTrip(t *testing.T) {
 		Participants: []*ImmutableChannelParticipant{MakeTLImmutableChannelParticipant(participant(RoleAdmin, StateIn, 3, 0, 0)).To_ImmutableChannelParticipant()},
 	}).To_MutableChannel()
 	in.Channel.Forum, in.Channel.Deleted, in.Channel.Gigagroup = true, true, true
+	in.Channel.Antispam, in.Channel.Autotranslation = true, true
 	in.Participants[0].Rank = "boss"
 	x := mtproto.NewEncodeBuf(512)
 	if err := in.Encode(x, 228); err != nil {
@@ -352,6 +369,7 @@ func TestCodecRoundTrip(t *testing.T) {
 	}
 	c, p := out.GetChannel(), out.GetParticipants()
 	if c.GetId() != 100 || c.GetUsername() != "pub" || !c.GetForum() || !c.GetDeleted() || !c.GetGigagroup() || !c.GetMegagroup() || c.GetBroadcast() ||
+		!c.GetAntispam() || !c.GetAutotranslation() ||
 		c.GetDefaultBannedRights() != mtproto.BANNED_SEND_POLLS || c.GetDate() != viewCreated || c.GetSlowmodeSeconds() != 30 {
 		t.Errorf("channel %v", c)
 	}

@@ -117,6 +117,10 @@ enum TLConstructor {
   CRC32_channel_leaveHidden = -858110575;
   // pluma: task 080
   CRC32_channel_setUserHidden = -1975507290;
+  // pluma: task 082
+  CRC32_channel_antispamDelete = 593076387;
+  // pluma: task 082
+  CRC32_channel_antispamFalsePositive = -784462129;
   // pluma: task 060
   CRC32_channel_toggleForum = 1073186003;
   // pluma: task 060
@@ -281,6 +285,12 @@ message ImmutableChannel {
     // pluma: task 080: flags.17, a supergroup turned into a broadcast group
     // (channels.convertToGigagroup): only its admins write.
     bool gigagroup = 48;
+    // pluma: task 082: the antispam of a supergroup is on
+    // (channels.toggleAntiSpam, channelFull.antispam).
+    bool antispam = 49;
+    // pluma: task 082: flags2.15, a broadcast channel translated for all
+    // (channels.toggleAutotranslation, channel.autotranslation).
+    bool autotranslation = 50;
 }
 
 message TL_immutableChannel {
@@ -1192,6 +1202,31 @@ message TL_channel_setUserHidden {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.antispamDelete user_id:long channel_id:long id:Vector<int> rule:int = Bool;
+// The antispam deletes the messages id of user_id in the supergroup
+// channel_id, which broke rule (pkg/antispam), as the antispam account; in
+// user_id's box, and again without harm. (task 082)
+message TL_channel_antispamDelete {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 channel_id = 4;
+  repeated int32 id = 5;
+  int32 rule = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.antispamFalsePositive self_id:long channel_id:long msg_id:int = Bool;
+// self_id, an admin of the supergroup, reports that the antispam deleted
+// msg_id wrongly (channels.reportAntiSpamFalsePositive): false for a
+// message it did not delete. (task 082)
+message TL_channel_antispamFalsePositive {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 msg_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
 // pluma: channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
 // self_id turns the channel's forum on or off (channels.toggleForum); tabs: the tabbed layout.
 // (task 060)
@@ -1670,6 +1705,10 @@ service RPCChannel {
   rpc channel_leaveHidden(TL_channel_leaveHidden) returns (mtproto.Bool) {}
   // pluma: task 080
   rpc channel_setUserHidden(TL_channel_setUserHidden) returns (mtproto.Int32) {}
+  // pluma: task 082
+  rpc channel_antispamDelete(TL_channel_antispamDelete) returns (mtproto.Bool) {}
+  // pluma: task 082
+  rpc channel_antispamFalsePositive(TL_channel_antispamFalsePositive) returns (mtproto.Bool) {}
   // pluma: task 060
   rpc channel_toggleForum(TL_channel_toggleForum) returns (mtproto.Updates) {}
   // pluma: task 060

@@ -44,6 +44,8 @@ enum TLConstructor {
   CRC32_inbox_channelJoinedHiddenToInbox = -1548352621;
   // pluma: task 080
   CRC32_inbox_chatHistoryToInbox = 1284828188;
+  // pluma: task 082
+  CRC32_inbox_channelAntispamToInbox = 1763452259;
 }
 
 // Every event is addressed to one user, user_id: it changes that user's box
@@ -256,6 +258,23 @@ message TL_inbox_chatHistoryToInbox {
   int64 chat_id = 5;
   bool mention = 6;
   repeated int64 skip = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: inbox.channelAntispamToInbox user_id:long from_id:long channel_id:long ids:Vector<int> rule:int = Void;
+// The antispam (task 082, ADR 0050) judged the messages ids that from_id
+// sent to the supergroup channel_id spam by rule (pkg/antispam), in the
+// send's transaction. The event goes to the antispam account, user_id
+// (antispam.UserId), whose lane runs the deletions one by one: its
+// consumer deletes them in from_id's box (channel.antispamDelete) and the
+// recipient's box only takes the event.
+message TL_inbox_channelAntispamToInbox {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 from_id = 4;
+  int64 channel_id = 5;
+  repeated int32 ids = 6;
+  int32 rule = 7;
 }
 
 //--------------------------------------------------------------------------------------------

@@ -47,9 +47,14 @@ func createdChannel(r *mtproto.Updates) int64 {
 //
 // A channel or a supergroup of the account (task 038); biz channel makes it
 // in one transaction and answers it as the clients take it, the account
-// added to users. Imports and geo groups are not served yet.
+// added to users. Imports are not served yet. Geo groups do not exist here
+// (ADR 0050): a geo point is Telegram's answer at the limit of geo groups,
+// which is 0.
 func (c *ChannelsCore) ChannelsCreateChannel(in *mtproto.TLChannelsCreateChannel) (*mtproto.Updates, error) {
-	if in.ForImport || in.GeoPoint != nil {
+	if in.GeoPoint != nil {
+		return nil, mtproto.ErrChannelsAdminLocatedTooMuch
+	}
+	if in.ForImport {
 		return nil, mtproto.ErrEnterpriseIsBlocked
 	}
 	title := strings.TrimSpace(in.Title)

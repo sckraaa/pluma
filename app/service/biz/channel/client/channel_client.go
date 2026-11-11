@@ -119,6 +119,8 @@ type ChannelClient interface {
 	ChannelJoinHidden(ctx context.Context, in *channel.TLChannelJoinHidden) (*mtproto.Bool, error)
 	ChannelLeaveHidden(ctx context.Context, in *channel.TLChannelLeaveHidden) (*mtproto.Bool, error)
 	ChannelSetUserHidden(ctx context.Context, in *channel.TLChannelSetUserHidden) (*mtproto.Int32, error)
+	ChannelAntispamDelete(ctx context.Context, in *channel.TLChannelAntispamDelete) (*mtproto.Bool, error)
+	ChannelAntispamFalsePositive(ctx context.Context, in *channel.TLChannelAntispamFalsePositive) (*mtproto.Bool, error)
 }
 
 type defaultChannelClient struct {
@@ -1152,4 +1154,26 @@ func (m *defaultChannelClient) ChannelJoinHidden(ctx context.Context, in *channe
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelJoinHidden(ctx, in)
+}
+
+// ChannelAntispamDelete
+// channel.antispamDelete user_id:long channel_id:long id:Vector<int> rule:int = Bool;
+func (m *defaultChannelClient) ChannelAntispamDelete(ctx context.Context, in *channel.TLChannelAntispamDelete) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelAntispamDelete(ctx, in)
+}
+
+// ChannelAntispamFalsePositive
+// channel.antispamFalsePositive self_id:long channel_id:long msg_id:int = Bool;
+func (m *defaultChannelClient) ChannelAntispamFalsePositive(ctx context.Context, in *channel.TLChannelAntispamFalsePositive) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelAntispamFalsePositive(ctx, in)
 }

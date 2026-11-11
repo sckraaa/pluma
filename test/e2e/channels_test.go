@@ -30,28 +30,23 @@ import (
 // Methods of channels not served yet answer ERR_ENTERPRISE_IS_BLOCKED
 // (400) through the session's routing, never an internal error, which the
 // clients' transports retry without end: those of RPCChannels from the bff
-// module channels, those the schema puts in other services (anti-spam here)
-// from the proxy.
+// module channels, those of services the session does not route (fact
+// checks here) from the proxy.
 func TestChannelsNotServed(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 	alice := login(ctx, t, testPhones(t, 1)[0], "Alice")
-	channel := &mtproto.InputChannel{
-		Constructor: alice.c.Constructor(mtproto.Predicate_inputChannel),
-		ChannelId:   1,
-		AccessHash:  1,
-	}
 	for name, req := range map[string]mtproto.TLObject{
-		"channels.editLocation": &mtproto.TLChannelsEditLocation{
-			Constructor: alice.c.Constructor(mtproto.Predicate_channels_editLocation),
-			Channel:     channel,
-			GeoPoint:    &mtproto.InputGeoPoint{Constructor: alice.c.Constructor(mtproto.Predicate_inputGeoPointEmpty)},
+		"messages.getPersonalChannelHistory": &mtproto.TLMessagesGetPersonalChannelHistory{
+			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getPersonalChannelHistory),
+			UserId:      &mtproto.InputUser{Constructor: alice.c.Constructor(mtproto.Predicate_inputUserSelf)},
+			Limit:       10,
 		},
-		"channels.toggleAntiSpam": &mtproto.TLChannelsToggleAntiSpam{
-			Constructor: alice.c.Constructor(mtproto.Predicate_channels_toggleAntiSpam),
-			Channel:     channel,
-			Enabled:     mtproto.BoolTrue,
+		"messages.getFactCheck": &mtproto.TLMessagesGetFactCheck{
+			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getFactCheck),
+			Peer:        &mtproto.InputPeer{Constructor: alice.c.Constructor(mtproto.Predicate_inputPeerSelf)},
+			MsgId:       []int32{1},
 		},
 	} {
 		if _, err := alice.c.Invoke(ctx, req); !mtclient.IsRPCError(err, "ERR_ENTERPRISE_IS_BLOCKED") {

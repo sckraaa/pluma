@@ -254,12 +254,15 @@ func (m *ImmutableChannel) base() *mtproto.Chat {
 		Broadcast:         m.GetBroadcast(),
 		Megagroup:         m.GetMegagroup(),
 		Gigagroup:         m.GetGigagroup(),
-		Noforwards:        m.GetNoforwards(),
-		Forum:             m.GetForum(),
-		ForumTabs:         m.GetForumTabs(),
-		ForumSidebar:      m.GetForumSidebar(),
-		JoinToSend:        m.GetJoinToSend(),
-		JoinRequest:       m.GetJoinRequest(),
+		// A min channel carries it, as the other flags of what the channel
+		// is (core.telegram.org/constructor/channel, flags2.15).
+		Autotranslation: m.GetAutotranslation(),
+		Noforwards:      m.GetNoforwards(),
+		Forum:           m.GetForum(),
+		ForumTabs:       m.GetForumTabs(),
+		ForumSidebar:    m.GetForumSidebar(),
+		JoinToSend:      m.GetJoinToSend(),
+		JoinRequest:     m.GetJoinRequest(),
 		// The writers set the slow mode of supergroups only.
 		SlowmodeEnabled: m.GetSlowmodeSeconds() > 0,
 		// A min channel carries it (core.telegram.org/constructor/channel):

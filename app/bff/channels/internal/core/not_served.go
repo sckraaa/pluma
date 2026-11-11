@@ -30,7 +30,17 @@ func (c *ChannelsCore) MessagesGetPersonalChannelHistory(in *mtproto.TLMessagesG
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsEditLocation is not served yet: channels.editLocation#58e63f6d.
-func (c *ChannelsCore) ChannelsEditLocation(in *mtproto.TLChannelsEditLocation) (*mtproto.Bool, error) {
+// MessagesTranslateText is not served yet: messages.translateText#a5eec345.
+// The server translates nothing until task 027 chooses how (ADR 0050); the
+// clients offer no translation while translations_manual_enabled is
+// disabled.
+func (c *ChannelsCore) MessagesTranslateText(in *mtproto.TLMessagesTranslateText) (*mtproto.Messages_TranslatedText, error) {
+	return nil, mtproto.ErrEnterpriseIsBlocked
+}
+
+// MessagesTogglePeerTranslations is not served yet:
+// messages.togglePeerTranslations#e47cb579, the translation bar of a chat,
+// which the clients show only with translation on (task 027).
+func (c *ChannelsCore) MessagesTogglePeerTranslations(in *mtproto.TLMessagesTogglePeerTranslations) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }

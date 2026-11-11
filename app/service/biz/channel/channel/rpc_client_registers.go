@@ -121,6 +121,10 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelLeaveHidden": {"/mtproto.RPCChannel/channel_leaveHidden", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 080
 	"TLChannelSetUserHidden": {"/mtproto.RPCChannel/channel_setUserHidden", func() interface{} { return new(mtproto.Int32) }},
+	// pluma: task 082
+	"TLChannelAntispamDelete": {"/mtproto.RPCChannel/channel_antispamDelete", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 082
+	"TLChannelAntispamFalsePositive": {"/mtproto.RPCChannel/channel_antispamFalsePositive", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 060
 	"TLChannelToggleForum": {"/mtproto.RPCChannel/channel_toggleForum", func() interface{} { return new(mtproto.Updates) }},
 	// pluma: task 060

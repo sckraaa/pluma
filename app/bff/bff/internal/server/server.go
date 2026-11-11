@@ -413,6 +413,10 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCMessageThreadsServer(grpcServer, channels)
 		// The forums and topics of supergroups (task 060).
 		mtproto.RegisterRPCForumsServer(grpcServer, channels)
+		// The antispam of supergroups and the autotranslation of channels
+		// (task 082); the translation of texts is not served yet (task 027).
+		mtproto.RegisterRPCAntiSpamServer(grpcServer, channels)
+		mtproto.RegisterRPCTranslationServer(grpcServer, channels)
 
 		// stories_helper: the stories (none yet, the list answers so).
 		mtproto.RegisterRPCStoriesServer(

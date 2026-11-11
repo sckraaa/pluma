@@ -1325,3 +1325,31 @@ func (s *Service) ChannelJoinHidden(ctx context.Context, request *channel.TLChan
 
 	return r, nil
 }
+
+// ChannelAntispamDelete
+// channel.antispamDelete user_id:long channel_id:long id:Vector<int> rule:int = Bool;
+func (s *Service) ChannelAntispamDelete(ctx context.Context, request *channel.TLChannelAntispamDelete) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.antispamDelete - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelAntispamDelete(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelAntispamFalsePositive
+// channel.antispamFalsePositive self_id:long channel_id:long msg_id:int = Bool;
+func (s *Service) ChannelAntispamFalsePositive(ctx context.Context, request *channel.TLChannelAntispamFalsePositive) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.antispamFalsePositive - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelAntispamFalsePositive(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

@@ -17,6 +17,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"slices"
 	"strconv"
@@ -322,6 +323,15 @@ func TestGetContactSignUpNotificationIsSilent(t *testing.T) {
 		if err != nil || mtproto.FromBool(r) == on {
 			t.Errorf("notifications on %v: %v, %v", on, r, err)
 		}
+	}
+}
+
+// People nearby do not exist (ADR 0050): contacts.getLocated is not served,
+// with the answer the clients do not retry.
+func TestGetLocatedNotServed(t *testing.T) {
+	c := newCore(&fakeUsers{}, nil, nil, nil)
+	if _, err := c.ContactsGetLocated(&mtproto.TLContactsGetLocated{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Errorf("contacts.getLocated: %v, want ERR_ENTERPRISE_IS_BLOCKED", err)
 	}
 }
 

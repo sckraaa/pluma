@@ -35,6 +35,9 @@
 
     "authorization_autoconfirm_period": 604800,
 
+    "telegram_antispam_user_id": "1000001",
+    "telegram_antispam_group_size_min": 10,
+
     "dialog_filters_enabled": true,
     "dialog_filters_limit_default": 30,
     "dialog_filters_limit_premium": 30,

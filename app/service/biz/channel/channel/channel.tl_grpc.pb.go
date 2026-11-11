@@ -81,6 +81,8 @@ const (
 	RPCChannel_ChannelJoinHidden_FullMethodName                       = "/channel.RPCChannel/channel_joinHidden"
 	RPCChannel_ChannelLeaveHidden_FullMethodName                      = "/channel.RPCChannel/channel_leaveHidden"
 	RPCChannel_ChannelSetUserHidden_FullMethodName                    = "/channel.RPCChannel/channel_setUserHidden"
+	RPCChannel_ChannelAntispamDelete_FullMethodName                   = "/channel.RPCChannel/channel_antispamDelete"
+	RPCChannel_ChannelAntispamFalsePositive_FullMethodName            = "/channel.RPCChannel/channel_antispamFalsePositive"
 	RPCChannel_ChannelToggleForum_FullMethodName                      = "/channel.RPCChannel/channel_toggleForum"
 	RPCChannel_ChannelToggleViewForumAsMessages_FullMethodName        = "/channel.RPCChannel/channel_toggleViewForumAsMessages"
 	RPCChannel_ChannelCreateForumTopic_FullMethodName                 = "/channel.RPCChannel/channel_createForumTopic"
@@ -223,6 +225,10 @@ type RPCChannelClient interface {
 	ChannelLeaveHidden(ctx context.Context, in *TLChannelLeaveHidden, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 080
 	ChannelSetUserHidden(ctx context.Context, in *TLChannelSetUserHidden, opts ...grpc.CallOption) (*mtproto.Int32, error)
+	// pluma: task 082
+	ChannelAntispamDelete(ctx context.Context, in *TLChannelAntispamDelete, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 082
+	ChannelAntispamFalsePositive(ctx context.Context, in *TLChannelAntispamFalsePositive, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 060
 	ChannelToggleForum(ctx context.Context, in *TLChannelToggleForum, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 060
@@ -773,6 +779,26 @@ func (c *rPCChannelClient) ChannelSetUserHidden(ctx context.Context, in *TLChann
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Int32)
 	err := c.cc.Invoke(ctx, RPCChannel_ChannelSetUserHidden_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelAntispamDelete(ctx context.Context, in *TLChannelAntispamDelete, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelAntispamDelete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelAntispamFalsePositive(ctx context.Context, in *TLChannelAntispamFalsePositive, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelAntispamFalsePositive_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1351,6 +1377,10 @@ type RPCChannelServer interface {
 	ChannelLeaveHidden(context.Context, *TLChannelLeaveHidden) (*mtproto.Bool, error)
 	// pluma: task 080
 	ChannelSetUserHidden(context.Context, *TLChannelSetUserHidden) (*mtproto.Int32, error)
+	// pluma: task 082
+	ChannelAntispamDelete(context.Context, *TLChannelAntispamDelete) (*mtproto.Bool, error)
+	// pluma: task 082
+	ChannelAntispamFalsePositive(context.Context, *TLChannelAntispamFalsePositive) (*mtproto.Bool, error)
 	// pluma: task 060
 	ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error)
 	// pluma: task 060
@@ -1590,6 +1620,12 @@ func (UnimplementedRPCChannelServer) ChannelLeaveHidden(context.Context, *TLChan
 }
 func (UnimplementedRPCChannelServer) ChannelSetUserHidden(context.Context, *TLChannelSetUserHidden) (*mtproto.Int32, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetUserHidden not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelAntispamDelete(context.Context, *TLChannelAntispamDelete) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelAntispamDelete not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelAntispamFalsePositive(context.Context, *TLChannelAntispamFalsePositive) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelAntispamFalsePositive not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleForum not implemented")
@@ -2561,6 +2597,42 @@ func _RPCChannel_ChannelSetUserHidden_Handler(srv interface{}, ctx context.Conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCChannelServer).ChannelSetUserHidden(ctx, req.(*TLChannelSetUserHidden))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelAntispamDelete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelAntispamDelete)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelAntispamDelete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelAntispamDelete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelAntispamDelete(ctx, req.(*TLChannelAntispamDelete))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelAntispamFalsePositive_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelAntispamFalsePositive)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelAntispamFalsePositive(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelAntispamFalsePositive_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelAntispamFalsePositive(ctx, req.(*TLChannelAntispamFalsePositive))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3615,6 +3687,14 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_setUserHidden",
 			Handler:    _RPCChannel_ChannelSetUserHidden_Handler,
+		},
+		{
+			MethodName: "channel_antispamDelete",
+			Handler:    _RPCChannel_ChannelAntispamDelete_Handler,
+		},
+		{
+			MethodName: "channel_antispamFalsePositive",
+			Handler:    _RPCChannel_ChannelAntispamFalsePositive_Handler,
 		},
 		{
 			MethodName: "channel_toggleForum",
