@@ -53,6 +53,8 @@ const (
 	Predicate_channel_deleteChannel = "channel_deleteChannel"
 	// pluma: task 072
 	Predicate_channel_setBlocked = "channel_setBlocked"
+	// pluma: task 078
+	Predicate_channel_editParticipantRank = "channel_editParticipantRank"
 	// pluma: task 046
 	Predicate_channel_incrementMessageViews = "channel_incrementMessageViews"
 	// pluma: task 046
@@ -262,6 +264,9 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	Predicate_channel_deleteChannel: { // pluma: task 055
 		0: -979916526, // 0xc597a912
 
+	},
+	Predicate_channel_editParticipantRank: { // pluma: task 078
+		0: -86486467, // 0xfad8523d
 	},
 	Predicate_channel_setBlocked: { // pluma: task 072
 		0: -63031132, // 0xfc3e38a4
@@ -520,6 +525,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-2083237595: Predicate_channel_getAdminedPublicChannels,         // 0x83d45125 pluma: task 044
 	-979916526:  Predicate_channel_deleteChannel,                    // 0xc597a912 pluma: task 055
 	-63031132:   Predicate_channel_setBlocked,                       // 0xfc3e38a4 pluma: task 072
+	-86486467:   Predicate_channel_editParticipantRank,              // 0xfad8523d pluma: task 078
 	1668730682:  Predicate_channel_incrementMessageViews,            // 0x6376cf3a pluma: task 046
 	-1892777199: Predicate_channel_addMessageForwards,               // 0x8f2e8311 pluma: task 046
 	-1441587995: Predicate_channel_deleteHistory,                    // 0xaa131ce5 pluma: task 043

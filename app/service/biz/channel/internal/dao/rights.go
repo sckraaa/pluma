@@ -130,6 +130,68 @@ func (a *actor) editableAdmin(t *targetRow, selfId int64, now int64) bool {
 
 func checkRank(rank string) error { return channelperm.CheckRank(rank) }
 
+// EditParticipantRank sets the member tag of userId in a supergroup, as the
+// clients offer it (Android ProfileActivity.java:7250-7257, ChatObject.
+// canManageMyTag; tdesktop PeerData::canManageRanks): the creator anyone's; a
+// member its own unless it is forbidden, by the group or by its own
+// restriction; an admin with manage_ranks a member's and an admin's it
+// promoted; every admin its own. A broadcast channel has no tags.
+func (d *Dao) EditParticipantRank(b *userbox.Box, channelId, userId int64, rank string) (*ChannelChange, error) {
+	if _, err := openChannel(b, channelId); err != nil {
+		return nil, err
+	}
+	a, err := rightsActor(b, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if a.ch.Broadcast {
+		return nil, mtproto.ErrChatAdminRequired
+	}
+	if err = checkRank(rank); err != nil {
+		return nil, err
+	}
+	t, err := rightsTarget(b, channelId, userId)
+	if err != nil {
+		return nil, err
+	}
+	if !t.in() {
+		return nil, mtproto.ErrUserNotParticipant
+	}
+	if !a.canEditRank(t, userId == b.UserId(), b.UserId(), b.Date()) {
+		return nil, mtproto.ErrChatAdminRequired
+	}
+	if t.Rank == rank {
+		return nil, mtproto.ErrChatNotModified
+	}
+	if _, err = b.Tx().Exec("UPDATE channel_participants SET `rank` = ? WHERE channel_id = ? AND user_id = ?", rank, channelId, userId); err != nil {
+		return nil, err
+	}
+	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
+}
+
+// canEditRank tells whether a may set the tag of t, which is its own when self.
+func (a *actor) canEditRank(t *targetRow, self bool, selfId, now int64) bool {
+	if a.p.Role == channelperm.RoleCreator {
+		return true
+	}
+	if self {
+		return a.p.Role == channelperm.RoleAdmin || !a.rankForbidden(now)
+	}
+	manages := a.p.Role == channelperm.RoleAdmin && a.p.AdminRights&mtproto.ADMIN_MANAGE_RANKS != 0
+	if !manages || t.Role == channelperm.RoleCreator {
+		return false
+	}
+	return t.Role != channelperm.RoleAdmin || t.PromotedBy == selfId
+}
+
+// rankForbidden tells whether a member may not change its own tag at now.
+func (a *actor) rankForbidden(now int64) bool {
+	if a.ch.Default&mtproto.BANNED_EDIT_RANK != 0 {
+		return true
+	}
+	return a.p.BannedRights&mtproto.BANNED_EDIT_RANK != 0 && (a.p.UntilDate == 0 || a.p.UntilDate == math.MaxInt32 || now < int64(a.p.UntilDate))
+}
+
 // EditAdmin gives userId the admin rights rights in the channel, or takes
 // them away with rights 0; rank is its title, kept as it is when keepRank.
 // The rules (core.telegram.org/api/rights, method/channels.editAdmin):

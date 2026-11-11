@@ -45,20 +45,21 @@ type ChannelSent struct {
 }
 
 type senderRow struct {
-	Broadcast           bool  `db:"broadcast"`
-	Deleted             bool  `db:"deleted"`
-	Blocked             bool  `db:"blocked"`
-	DefaultBannedRights int32 `db:"default_banned_rights"`
-	Role                int32 `db:"role"`
-	State               int32 `db:"state"`
-	AdminRights         int32 `db:"admin_rights"`
-	BannedRights        int32 `db:"banned_rights"`
-	UntilDate           int32 `db:"until_date"`
-	Signatures          bool  `db:"signatures"`
-	SignatureProfiles   bool  `db:"signature_profiles"`
-	SlowmodeSeconds     int32 `db:"slowmode_seconds"`
-	LastSendDate        int64 `db:"last_send_date"`
-	Forum               bool  `db:"forum"`
+	Broadcast           bool   `db:"broadcast"`
+	Deleted             bool   `db:"deleted"`
+	Blocked             bool   `db:"blocked"`
+	DefaultBannedRights int32  `db:"default_banned_rights"`
+	Role                int32  `db:"role"`
+	State               int32  `db:"state"`
+	AdminRights         int32  `db:"admin_rights"`
+	BannedRights        int32  `db:"banned_rights"`
+	UntilDate           int32  `db:"until_date"`
+	Signatures          bool   `db:"signatures"`
+	SignatureProfiles   bool   `db:"signature_profiles"`
+	SlowmodeSeconds     int32  `db:"slowmode_seconds"`
+	LastSendDate        int64  `db:"last_send_date"`
+	Rank                string `db:"rank"`
+	Forum               bool   `db:"forum"`
 }
 
 // sender is b's owner as a participant of a channel, for channelperm.
@@ -69,6 +70,8 @@ type sender struct {
 	// its channel (task 048); a member with the group's default rights,
 	// without the group in its dialogs.
 	guest bool
+	// rank: the sender's member tag (task 078).
+	rank string
 	// signatures: the channel signs its posts with their authors (task 044).
 	signatures bool
 	// signatureProfiles: the signature links to the author (task 045).
@@ -94,7 +97,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	if err := b.Tx().QueryRowsPartial(&rows,
 		"SELECT c.broadcast, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
 			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date,"+
-			" COALESCE(p.last_send_date, 0) AS last_send_date"+
+			" COALESCE(p.last_send_date, 0) AS last_send_date, COALESCE(p.`rank`, '') AS `rank`"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
 		channelperm.StateLeft, b.UserId(), channelId); err != nil {
 		return nil, err
@@ -124,6 +127,7 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 		}, nil
 	}
 	return &sender{
+		rank:              r.Rank,
 		signatures:        r.Signatures,
 		signatureProfiles: r.SignatureProfiles,
 		slowmodeSeconds:   r.SlowmodeSeconds,
@@ -354,6 +358,12 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			}
 		} else {
 			m.FromId = mtproto.MakePeerUser(b.UserId())
+			// The sender's member tag goes with the message, as post_author
+			// does (Android ChatMessageCell.java:15999).
+			m.FromRank = nil
+			if s.rank != "" {
+				m.FromRank = wrapperspb.String(s.rank)
+			}
 		}
 		if s.ch.Broadcast {
 			// A post starts with its author's view (task 046): the clients

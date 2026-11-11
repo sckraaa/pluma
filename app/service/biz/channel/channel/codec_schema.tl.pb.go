@@ -151,6 +151,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -979916526,
 		}
 	},
+	-86486467: func() mtproto.TLObject { // 0xfad8523d pluma: task 078
+		return &TLChannelEditParticipantRank{
+			Constructor: -86486467,
+		}
+	},
 	-63031132: func() mtproto.TLObject { // 0xfc3e38a4 pluma: task 072
 		return &TLChannelSetBlocked{
 			Constructor: -63031132,
@@ -4904,6 +4909,52 @@ func (m *TLChannelSetBlocked) Decode(dBuf *mtproto.DecodeBuf) error {
 		m1 := &mtproto.Bool{}
 		m1.Decode(dBuf)
 		m.Blocked = m1
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLChannelEditParticipantRank (pluma: task 078)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLChannelEditParticipantRank) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xfad8523d:
+		x.UInt(0xfad8523d)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetUserId())
+		x.String(m.GetRank())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelEditParticipantRank) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelEditParticipantRank) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xfad8523d:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.UserId = dBuf.Long()
+		m.Rank = dBuf.String()
 		return dBuf.GetError()
 
 	default:

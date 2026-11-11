@@ -110,6 +110,7 @@ const (
 	RPCChannel_ChannelSearch_FullMethodName                           = "/channel.RPCChannel/channel_search"
 	RPCChannel_ChannelEditCreator_FullMethodName                      = "/channel.RPCChannel/channel_editCreator"
 	RPCChannel_ChannelEditAdmin_FullMethodName                        = "/channel.RPCChannel/channel_editAdmin"
+	RPCChannel_ChannelEditParticipantRank_FullMethodName              = "/channel.RPCChannel/channel_editParticipantRank"
 	RPCChannel_ChannelEditBanned_FullMethodName                       = "/channel.RPCChannel/channel_editBanned"
 	RPCChannel_ChannelEditDefaultBannedRights_FullMethodName          = "/channel.RPCChannel/channel_editDefaultBannedRights"
 	RPCChannel_ChannelExpireMessages_FullMethodName                   = "/channel.RPCChannel/channel_expireMessages"
@@ -267,6 +268,8 @@ type RPCChannelClient interface {
 	ChannelEditCreator(ctx context.Context, in *TLChannelEditCreator, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 042
 	ChannelEditAdmin(ctx context.Context, in *TLChannelEditAdmin, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelEditParticipantRank(ctx context.Context, in *TLChannelEditParticipantRank, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 042
 	ChannelEditBanned(ctx context.Context, in *TLChannelEditBanned, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 042
@@ -1027,6 +1030,16 @@ func (c *rPCChannelClient) ChannelEditAdmin(ctx context.Context, in *TLChannelEd
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelEditParticipantRank(ctx context.Context, in *TLChannelEditParticipantRank, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelEditParticipantRank_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *rPCChannelClient) ChannelEditBanned(ctx context.Context, in *TLChannelEditBanned, opts ...grpc.CallOption) (*mtproto.Updates, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Updates)
@@ -1227,6 +1240,8 @@ type RPCChannelServer interface {
 	ChannelEditCreator(context.Context, *TLChannelEditCreator) (*mtproto.Updates, error)
 	// pluma: task 042
 	ChannelEditAdmin(context.Context, *TLChannelEditAdmin) (*mtproto.Updates, error)
+	// pluma: task 078
+	ChannelEditParticipantRank(context.Context, *TLChannelEditParticipantRank) (*mtproto.Updates, error)
 	// pluma: task 042
 	ChannelEditBanned(context.Context, *TLChannelEditBanned) (*mtproto.Updates, error)
 	// pluma: task 042
@@ -1467,6 +1482,9 @@ func (UnimplementedRPCChannelServer) ChannelEditCreator(context.Context, *TLChan
 }
 func (UnimplementedRPCChannelServer) ChannelEditAdmin(context.Context, *TLChannelEditAdmin) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditAdmin not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelEditParticipantRank(context.Context, *TLChannelEditParticipantRank) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditParticipantRank not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelEditBanned(context.Context, *TLChannelEditBanned) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelEditBanned not implemented")
@@ -2835,6 +2853,24 @@ func _RPCChannel_ChannelEditAdmin_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelEditParticipantRank_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelEditParticipantRank)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelEditParticipantRank(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelEditParticipantRank_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelEditParticipantRank(ctx, req.(*TLChannelEditParticipantRank))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _RPCChannel_ChannelEditBanned_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(TLChannelEditBanned)
 	if err := dec(in); err != nil {
@@ -3227,6 +3263,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_editAdmin",
 			Handler:    _RPCChannel_ChannelEditAdmin_Handler,
+		},
+		{
+			MethodName: "channel_editParticipantRank",
+			Handler:    _RPCChannel_ChannelEditParticipantRank_Handler,
 		},
 		{
 			MethodName: "channel_editBanned",

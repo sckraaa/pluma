@@ -68,17 +68,20 @@ func (p *ImmutableChannelParticipant) ToChannelParticipant(viewer *ImmutableChan
 			KickedBy:     p.GetKickedBy(),
 			Date:         int32(p.GetDate()),
 			BannedRights: chatBannedRights(p.GetBannedRights(), p.GetUntilDate()),
+			Rank:         mtproto.MakeFlagsString(p.GetRank()),
 		}).To_ChannelParticipant()
 	case userId == viewer.GetUserId():
 		return mtproto.MakeTLChannelParticipantSelf(&mtproto.ChannelParticipant{
 			UserId:          userId,
 			InviterId_INT64: p.GetInviterUserId(),
 			Date:            int32(p.GetDate()),
+			Rank:            mtproto.MakeFlagsString(p.GetRank()),
 		}).To_ChannelParticipant()
 	default:
 		return mtproto.MakeTLChannelParticipant(&mtproto.ChannelParticipant{
 			UserId: userId,
 			Date:   int32(p.GetDate()),
+			Rank:   mtproto.MakeFlagsString(p.GetRank()),
 		}).To_ChannelParticipant()
 	}
 }

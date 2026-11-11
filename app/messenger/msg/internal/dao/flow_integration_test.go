@@ -348,6 +348,10 @@ func (noChannels) ChannelEditCreator(context.Context, *channelpb.TLChannelEditCr
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelEditParticipantRank(context.Context, *channelpb.TLChannelEditParticipantRank) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelSearch(context.Context, *channelpb.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
