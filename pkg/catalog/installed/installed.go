@@ -294,6 +294,59 @@ func (s *Store) Reorder(ctx context.Context, userID int64, kind Kind, order []in
 	return stored, err
 }
 
+// Holders returns the accounts that have set, installed or archived.
+func (s *Store) Holders(ctx context.Context, setID int64) ([]int64, error) {
+	var rows []struct {
+		UserID int64 `db:"user_id"`
+	}
+	if err := s.db.QueryRowsPartial(ctx, &rows, "SELECT user_id FROM user_sticker_sets WHERE set_id = ? ORDER BY user_id", setID); err != nil {
+		return nil, err
+	}
+	out := make([]int64, len(rows))
+	for i, r := range rows {
+		out[i] = r.UserID
+	}
+	return out, nil
+}
+
+// Changed tells every device of the accounts that have set, a set of kind
+// whose stickers or title changed (task 084), to load the sets of the kind
+// again (updateStickerSets): a client then finds the set's new hash in the
+// list and loads the set. An account that could not be told is told by the
+// hash the next time it loads its sets; the error names the first failure.
+func (s *Store) Changed(ctx context.Context, setID int64, kind Kind) error {
+	holders, err := s.Holders(ctx, setID)
+	if err != nil {
+		return err
+	}
+	var first error
+	for _, userID := range holders {
+		err := s.run(ctx, userID, func(b *userbox.Box) error { return s.emit(b, setsChanged(kind)) })
+		if err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
+// Drop takes set, a set of kind that is no more (task 084), from every
+// account that has it, and tells their devices to load the sets of the
+// kind again.
+func (s *Store) Drop(ctx context.Context, setID int64, kind Kind) error {
+	holders, err := s.Holders(ctx, setID)
+	if err != nil {
+		return err
+	}
+	var first error
+	for _, userID := range holders {
+		err := s.Toggle(ctx, userID, Uninstall, []Ref{{SetID: setID, Kind: kind}})
+		if err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
 // setsChanged tells the other devices to load the sets of kind again.
 func setsChanged(kind Kind) *mtproto.Update {
 	return mtproto.MakeTLUpdateStickerSets(&mtproto.Update{Masks: kind == Masks, Emojis: kind == Emojis}).To_Update()

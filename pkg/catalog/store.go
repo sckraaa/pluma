@@ -55,6 +55,12 @@ type Set struct {
 	Kind       string // "" for a set clients ask for only by id or name
 	Hash       int32
 	Data       []byte
+	// OwnerID is the account that made the set (task 084), 0 for a set of
+	// the catalog or one fetched on demand.
+	OwnerID int64
+	// ThumbDocumentID is the document of the set's own thumbnail
+	// (inputStickerSetThumb), 0 for none.
+	ThumbDocumentID int64
 }
 
 type answerRow struct {
@@ -69,10 +75,13 @@ type setRow struct {
 	Kind       sql.NullString `db:"kind"`
 	Hash       int32          `db:"hash"`
 	Data       []byte         `db:"data"`
+	OwnerID    int64          `db:"owner_id"`
+	ThumbID    int64          `db:"thumb_document_id"`
 }
 
 func (r setRow) set() *Set {
-	return &Set{ID: r.SetID, AccessHash: r.AccessHash, ShortName: r.ShortName, Kind: r.Kind.String, Hash: r.Hash, Data: r.Data}
+	return &Set{ID: r.SetID, AccessHash: r.AccessHash, ShortName: r.ShortName, Kind: r.Kind.String, Hash: r.Hash, Data: r.Data,
+		OwnerID: r.OwnerID, ThumbDocumentID: r.ThumbID}
 }
 
 // Answer returns the stored answer of method for arg ("" for none), nil if
@@ -89,7 +98,39 @@ func (s *Store) Answer(ctx context.Context, method, arg string) (*Answer, error)
 	return &Answer{Hash: rows[0].Hash, Data: rows[0].Data}, nil
 }
 
-const setColumns = "set_id, access_hash, short_name, kind, hash, data"
+// AnswerHash returns the hash of the stored answer of method for arg
+// without its data, false if the catalog has none.
+func (s *Store) AnswerHash(ctx context.Context, method, arg string) (int64, bool, error) {
+	var rows []struct {
+		Hash int64 `db:"hash"`
+	}
+	if err := s.db.QueryRowsPartial(ctx, &rows,
+		"SELECT hash FROM catalog_answers WHERE method = ? AND arg = ?", method, arg); err != nil {
+		return 0, false, err
+	}
+	if len(rows) == 0 {
+		return 0, false, nil
+	}
+	return rows[0].Hash, true, nil
+}
+
+// SetVersion is a stored set without its data: what tells that it changed.
+type SetVersion struct {
+	ID         int64 `db:"set_id"`
+	Hash       int32 `db:"hash"`
+	ImportedAt int64 `db:"imported_at"`
+}
+
+// SetVersions returns every stored set clients ask for by id or name (not
+// those asked for by kind: the animated emoji, the dice and the like),
+// without their data.
+func (s *Store) SetVersions(ctx context.Context) ([]SetVersion, error) {
+	var rows []SetVersion
+	err := s.db.QueryRowsPartial(ctx, &rows, "SELECT set_id, hash, imported_at FROM catalog_sticker_sets WHERE kind IS NULL")
+	return rows, err
+}
+
+const setColumns = "set_id, access_hash, short_name, kind, hash, data, owner_id, thumb_document_id"
 
 func (s *Store) set(ctx context.Context, where string, arg any) (*Set, error) {
 	var rows []setRow
@@ -141,14 +182,19 @@ func (s *Store) DocumentID(ctx context.Context, key [32]byte) (int64, error) {
 }
 
 // CatalogDocuments returns those of ids that are documents of the
-// catalog, in the order of ids, each once.
+// catalog or stickers of a set a user made (task 084; one taken out of its
+// set too: messages keep showing it), in the order of ids, each once.
 func (s *Store) CatalogDocuments(ctx context.Context, ids []int64) ([]int64, error) {
 	if len(ids) == 0 {
 		return []int64{}, nil
 	}
-	query, args := "SELECT document_id FROM catalog_documents WHERE document_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")", make([]any, len(ids))
-	for i, id := range ids {
-		args[i] = id
+	in := "(?" + strings.Repeat(", ?", len(ids)-1) + ")"
+	query, args := "SELECT document_id FROM catalog_documents WHERE document_id IN "+in+
+		" UNION SELECT document_id FROM user_sticker_set_documents WHERE document_id IN "+in, make([]any, 0, 2*len(ids))
+	for range 2 {
+		for _, id := range ids {
+			args = append(args, id)
+		}
 	}
 	var rows []struct {
 		DocumentID int64 `db:"document_id"`
@@ -214,12 +260,20 @@ func (s *Store) IDFor(ctx context.Context, kind, name string, newID func() (int6
 }
 
 // PutSet stores a set fetched on demand (task 030) beside the catalog's:
-// a new import of the catalog keeps it. A set stored again is replaced.
+// a new import of the catalog keeps it. A set stored again is replaced,
+// but one a user made under that name (task 084), which stays as it is.
 func (s *Store) PutSet(ctx context.Context, set *Set, now int64) error {
 	_, err := s.db.Exec(ctx, "INSERT INTO catalog_sticker_sets (set_id, access_hash, short_name, source, hash, data, imported_at) VALUES (?, ?, ?, 'demand', ?, ?, ?)"+
-		" ON DUPLICATE KEY UPDATE access_hash = VALUES(access_hash), hash = VALUES(hash), data = VALUES(data), imported_at = VALUES(imported_at)",
+		" ON DUPLICATE KEY UPDATE "+keepUserSet("access_hash")+", "+keepUserSet("hash")+", "+keepUserSet("data")+", "+keepUserSet("imported_at"),
 		set.ID, set.AccessHash, set.ShortName, set.Hash, set.Data, now)
 	return err
+}
+
+// keepUserSet is the assignment of column in an upsert of a set that leaves
+// a set a user made as it is: a set of the catalog or of Telegram that has
+// its short name does not take its place.
+func keepUserSet(column string) string {
+	return column + " = IF(source = 'user', " + column + ", VALUES(" + column + "))"
 }
 
 // Catalog is a whole catalog to store at once.
@@ -238,7 +292,9 @@ var ErrEmptyCatalog = errors.New("catalog: nothing to store")
 // sets c no longer has are removed, but for a set an account installed
 // (user_sticker_sets, task 030): it stays as one fetched on demand, without
 // a kind, so the account keeps it as Telegram keeps a set that left its
-// lists. A set keeps its id by short name.
+// lists. A set keeps its id by short name. The sets users made (task 084)
+// stay as they are, and keep their short names: a set of c named as one of
+// them is not stored.
 func (s *Store) Replace(ctx context.Context, c *Catalog) error {
 	if len(c.Answers) == 0 {
 		return ErrEmptyCatalog
@@ -268,7 +324,10 @@ func (s *Store) Replace(ctx context.Context, c *Catalog) error {
 				kind = set.Kind
 			}
 			if _, result.Err = tx.Exec("INSERT INTO catalog_sticker_sets (set_id, access_hash, short_name, kind, source, hash, data, imported_at) VALUES (?, ?, ?, ?, 'catalog', ?, ?, ?)"+
-				" ON DUPLICATE KEY UPDATE access_hash = VALUES(access_hash), kind = VALUES(kind), source = 'catalog', hash = VALUES(hash), data = VALUES(data), imported_at = VALUES(imported_at)",
+				// source goes last: the columns before it are assigned by
+				// what it was.
+				" ON DUPLICATE KEY UPDATE "+keepUserSet("access_hash")+", "+keepUserSet("kind")+", "+keepUserSet("hash")+", "+keepUserSet("data")+", "+
+				keepUserSet("imported_at")+", source = IF(source = 'user', source, 'catalog')",
 				set.ID, set.AccessHash, set.ShortName, kind, set.Hash, set.Data, c.Now); result.Err != nil {
 				return
 			}

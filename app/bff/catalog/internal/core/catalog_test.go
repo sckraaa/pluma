@@ -318,6 +318,11 @@ type memInstalled struct {
 	updates []*mtproto.Update
 	toggled []installed.Ref
 	action  installed.Action
+
+	// The sets users make and the trending sets seen (task 084).
+	changed, dropped         []installed.Ref
+	read                     map[int64][]int64
+	readStickers, readEmojis []int64
 }
 
 func (m *memInstalled) Installed(_ context.Context, user int64, kind installed.Kind) ([]installed.Entry, error) {

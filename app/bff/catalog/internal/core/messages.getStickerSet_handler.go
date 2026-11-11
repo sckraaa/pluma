@@ -37,23 +37,5 @@ func (c *CatalogCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet)
 	if notModified(int64(in.GetHash()), int64(set.Hash)) {
 		return mtproto.MakeTLMessagesStickerSetNotModified(nil).To_Messages_StickerSet(), nil
 	}
-	ms, err := c.decodeSet("messages.getStickerSet", set)
-	if err != nil {
-		return nil, err
-	}
-	e, err := c.svcCtx.Installed.Entry(c.ctx, c.MD.UserId, set.ID)
-	if err != nil {
-		c.Logger.Errorf("messages.getStickerSet - the account's sets: %v", err)
-		return nil, err
-	}
-	switch {
-	case e == nil:
-		return ms, nil
-	case e.ArchivedAt > 0:
-		out := asInstalled(ms, e.InstalledAt)
-		out.Set.Archived = true
-		return out, nil
-	default:
-		return asInstalled(ms, e.InstalledAt), nil
-	}
+	return c.viewOf("messages.getStickerSet", set)
 }

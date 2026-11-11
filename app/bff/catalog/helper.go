@@ -20,9 +20,15 @@
 package catalog_helper
 
 import (
+	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/catalog/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/catalog/internal/server/grpc/service"
 	"github.com/teamgram/teamgram-server/app/bff/catalog/internal/svc"
+	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
+	"github.com/teamgram/teamgram-server/pkg/catalog"
+	"github.com/teamgram/teamgram-server/pkg/catalog/usersets"
+	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type (
@@ -31,4 +37,14 @@ type (
 
 func New(c Config) *service.Service {
 	return service.New(svc.NewServiceContext(c))
+}
+
+// SetThumbFiles finds the files of the thumbnails of sets for upload.getFile
+// (the plugin of app/bff/files): the sets users make have their own (task
+// 084).
+func SetThumbFiles(mysql sqlx.Config, mediaClient zrpc.RpcClientConf) usersets.ThumbFiles {
+	return usersets.ThumbFiles{
+		Sets:  catalog.NewStore(sqlx.NewMySQL(&mysql)),
+		Media: media_client.NewMediaClient(rpcx.GetCachedRpcClient(mediaClient)),
+	}
 }

@@ -206,9 +206,12 @@ func (s *Service) MessagesGetFeaturedStickers(ctx context.Context, request *mtpr
 	return c.MessagesGetFeaturedStickers(request)
 }
 
-// MessagesReadFeaturedStickers is not served: messages.readFeaturedStickers#5b118126 id:Vector<long> = Bool;
+// MessagesReadFeaturedStickers
+// messages.readFeaturedStickers#5b118126 id:Vector<long> = Bool;
 func (s *Service) MessagesReadFeaturedStickers(ctx context.Context, request *mtproto.TLMessagesReadFeaturedStickers) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.readFeaturedStickers - metadata: {%s}", c.MD)
+	return c.MessagesReadFeaturedStickers(request)
 }
 
 // MessagesGetRecentStickers
@@ -251,9 +254,12 @@ func (s *Service) MessagesGetMaskStickers(ctx context.Context, request *mtproto.
 	return c.MessagesGetMaskStickers(request)
 }
 
-// MessagesGetAttachedStickers is not served: messages.getAttachedStickers#cc5b67cc media:InputStickeredMedia = Vector<StickerSetCovered>;
+// MessagesGetAttachedStickers
+// messages.getAttachedStickers#cc5b67cc media:InputStickeredMedia = Vector<StickerSetCovered>;
 func (s *Service) MessagesGetAttachedStickers(ctx context.Context, request *mtproto.TLMessagesGetAttachedStickers) (*mtproto.Vector_StickerSetCovered, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getAttachedStickers - metadata: {%s}", c.MD)
+	return c.MessagesGetAttachedStickers(request)
 }
 
 // MessagesGetFavedStickers
@@ -272,9 +278,12 @@ func (s *Service) MessagesFaveSticker(ctx context.Context, request *mtproto.TLMe
 	return c.MessagesFaveSticker(request)
 }
 
-// MessagesSearchStickerSets is not served: messages.searchStickerSets#35705b8a flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
+// MessagesSearchStickerSets
+// messages.searchStickerSets#35705b8a flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
 func (s *Service) MessagesSearchStickerSets(ctx context.Context, request *mtproto.TLMessagesSearchStickerSets) (*mtproto.Messages_FoundStickerSets, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.searchStickerSets - metadata: {%s}", c.MD)
+	return c.MessagesSearchStickerSets(request)
 }
 
 // MessagesToggleStickerSets
@@ -293,74 +302,116 @@ func (s *Service) MessagesGetOldFeaturedStickers(ctx context.Context, request *m
 	return c.MessagesGetOldFeaturedStickers(request)
 }
 
-// MessagesSearchEmojiStickerSets is not served: messages.searchEmojiStickerSets#92b4494c flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
+// MessagesSearchEmojiStickerSets
+// messages.searchEmojiStickerSets#92b4494c flags:# exclude_featured:flags.0?true q:string hash:long = messages.FoundStickerSets;
 func (s *Service) MessagesSearchEmojiStickerSets(ctx context.Context, request *mtproto.TLMessagesSearchEmojiStickerSets) (*mtproto.Messages_FoundStickerSets, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.searchEmojiStickerSets - metadata: {%s}", c.MD)
+	return c.MessagesSearchEmojiStickerSets(request)
 }
 
-// MessagesGetMyStickers is not served: messages.getMyStickers#d0b5e1fc offset_id:long limit:int = messages.MyStickers;
+// MessagesGetMyStickers
+// messages.getMyStickers#d0b5e1fc offset_id:long limit:int = messages.MyStickers;
 func (s *Service) MessagesGetMyStickers(ctx context.Context, request *mtproto.TLMessagesGetMyStickers) (*mtproto.Messages_MyStickers, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getMyStickers - metadata: {%s}", c.MD)
+	return c.MessagesGetMyStickers(request)
 }
 
-// MessagesSearchStickers is not served: messages.searchStickers#29b1c66a flags:# emojis:flags.0?true q:string emoticon:string lang_code:Vector<string> offset:int limit:int hash:long = messages.FoundStickers;
+// MessagesSearchStickers
+// messages.searchStickers#29b1c66a flags:# emojis:flags.0?true q:string emoticon:string lang_code:Vector<string> offset:int limit:int hash:long = messages.FoundStickers;
 func (s *Service) MessagesSearchStickers(ctx context.Context, request *mtproto.TLMessagesSearchStickers) (*mtproto.Messages_FoundStickers, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.searchStickers - metadata: {%s}", c.MD)
+	return c.MessagesSearchStickers(request)
 }
 
-// StickersCreateStickerSet is not served: stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
+// StickersCreateStickerSet
+// stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true emojis:flags.5?true text_color:flags.6?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 func (s *Service) StickersCreateStickerSet(ctx context.Context, request *mtproto.TLStickersCreateStickerSet) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.createStickerSet - metadata: {%s}", c.MD)
+	return c.StickersCreateStickerSet(request)
 }
 
-// StickersRemoveStickerFromSet is not served: stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
+// StickersRemoveStickerFromSet
+// stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
 func (s *Service) StickersRemoveStickerFromSet(ctx context.Context, request *mtproto.TLStickersRemoveStickerFromSet) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.removeStickerFromSet - metadata: {%s}", c.MD)
+	return c.StickersRemoveStickerFromSet(request)
 }
 
-// StickersChangeStickerPosition is not served: stickers.changeStickerPosition#ffb6d4ca sticker:InputDocument position:int = messages.StickerSet;
+// StickersChangeStickerPosition
+// stickers.changeStickerPosition#ffb6d4ca sticker:InputDocument position:int = messages.StickerSet;
 func (s *Service) StickersChangeStickerPosition(ctx context.Context, request *mtproto.TLStickersChangeStickerPosition) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.changeStickerPosition - metadata: {%s}", c.MD)
+	return c.StickersChangeStickerPosition(request)
 }
 
-// StickersAddStickerToSet is not served: stickers.addStickerToSet#8653febe stickerset:InputStickerSet sticker:InputStickerSetItem = messages.StickerSet;
+// StickersAddStickerToSet
+// stickers.addStickerToSet#8653febe stickerset:InputStickerSet sticker:InputStickerSetItem = messages.StickerSet;
 func (s *Service) StickersAddStickerToSet(ctx context.Context, request *mtproto.TLStickersAddStickerToSet) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.addStickerToSet - metadata: {%s}", c.MD)
+	return c.StickersAddStickerToSet(request)
 }
 
-// StickersSetStickerSetThumb is not served: stickers.setStickerSetThumb#a76a5392 flags:# stickerset:InputStickerSet thumb:flags.0?InputDocument thumb_document_id:flags.1?long = messages.StickerSet;
+// StickersSetStickerSetThumb
+// stickers.setStickerSetThumb#a76a5392 flags:# stickerset:InputStickerSet thumb:flags.0?InputDocument thumb_document_id:flags.1?long = messages.StickerSet;
 func (s *Service) StickersSetStickerSetThumb(ctx context.Context, request *mtproto.TLStickersSetStickerSetThumb) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.setStickerSetThumb - metadata: {%s}", c.MD)
+	return c.StickersSetStickerSetThumb(request)
 }
 
-// StickersCheckShortName is not served: stickers.checkShortName#284b3639 short_name:string = Bool;
+// StickersCheckShortName
+// stickers.checkShortName#284b3639 short_name:string = Bool;
 func (s *Service) StickersCheckShortName(ctx context.Context, request *mtproto.TLStickersCheckShortName) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.checkShortName - metadata: {%s}", c.MD)
+	return c.StickersCheckShortName(request)
 }
 
-// StickersSuggestShortName is not served: stickers.suggestShortName#4dafc503 title:string = stickers.SuggestedShortName;
+// StickersSuggestShortName
+// stickers.suggestShortName#4dafc503 title:string = stickers.SuggestedShortName;
 func (s *Service) StickersSuggestShortName(ctx context.Context, request *mtproto.TLStickersSuggestShortName) (*mtproto.Stickers_SuggestedShortName, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.suggestShortName - metadata: {%s}", c.MD)
+	return c.StickersSuggestShortName(request)
 }
 
-// StickersChangeSticker is not served: stickers.changeSticker#f5537ebc flags:# sticker:InputDocument emoji:flags.0?string mask_coords:flags.1?MaskCoords keywords:flags.2?string = messages.StickerSet;
+// StickersChangeSticker
+// stickers.changeSticker#f5537ebc flags:# sticker:InputDocument emoji:flags.0?string mask_coords:flags.1?MaskCoords keywords:flags.2?string = messages.StickerSet;
 func (s *Service) StickersChangeSticker(ctx context.Context, request *mtproto.TLStickersChangeSticker) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.changeSticker - metadata: {%s}", c.MD)
+	return c.StickersChangeSticker(request)
 }
 
-// StickersRenameStickerSet is not served: stickers.renameStickerSet#124b1c00 stickerset:InputStickerSet title:string = messages.StickerSet;
+// StickersRenameStickerSet
+// stickers.renameStickerSet#124b1c00 stickerset:InputStickerSet title:string = messages.StickerSet;
 func (s *Service) StickersRenameStickerSet(ctx context.Context, request *mtproto.TLStickersRenameStickerSet) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.renameStickerSet - metadata: {%s}", c.MD)
+	return c.StickersRenameStickerSet(request)
 }
 
-// StickersDeleteStickerSet is not served: stickers.deleteStickerSet#87704394 stickerset:InputStickerSet = Bool;
+// StickersDeleteStickerSet
+// stickers.deleteStickerSet#87704394 stickerset:InputStickerSet = Bool;
 func (s *Service) StickersDeleteStickerSet(ctx context.Context, request *mtproto.TLStickersDeleteStickerSet) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.deleteStickerSet - metadata: {%s}", c.MD)
+	return c.StickersDeleteStickerSet(request)
 }
 
-// StickersReplaceSticker is not served: stickers.replaceSticker#4696459a sticker:InputDocument new_sticker:InputStickerSetItem = messages.StickerSet;
+// StickersReplaceSticker
+// stickers.replaceSticker#4696459a sticker:InputDocument new_sticker:InputStickerSetItem = messages.StickerSet;
 func (s *Service) StickersReplaceSticker(ctx context.Context, request *mtproto.TLStickersReplaceSticker) (*mtproto.Messages_StickerSet, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stickers.replaceSticker - metadata: {%s}", c.MD)
+	return c.StickersReplaceSticker(request)
 }
 
 // mtproto.RPCCustomEmojis
@@ -405,9 +456,12 @@ func (s *Service) MessagesGetFeaturedEmojiStickers(ctx context.Context, request 
 	return c.MessagesGetFeaturedEmojiStickers(request)
 }
 
-// MessagesSearchCustomEmoji is not served: messages.searchCustomEmoji#2c11c0d7 emoticon:string hash:long = EmojiList;
+// MessagesSearchCustomEmoji
+// messages.searchCustomEmoji#2c11c0d7 emoticon:string hash:long = EmojiList;
 func (s *Service) MessagesSearchCustomEmoji(ctx context.Context, request *mtproto.TLMessagesSearchCustomEmoji) (*mtproto.EmojiList, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.searchCustomEmoji - metadata: {%s}", c.MD)
+	return c.MessagesSearchCustomEmoji(request)
 }
 
 // mtproto.RPCEmoji

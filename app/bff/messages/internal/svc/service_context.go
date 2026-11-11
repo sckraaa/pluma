@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/messages/plugin"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
@@ -56,6 +57,9 @@ type ServiceContext struct {
 	SendAs *sendas.Store
 	// StickerLists keeps the recent stickers (task 079).
 	StickerLists StickerLists
+	// Attached keeps the stickers put on uploaded photos and videos (task
+	// 084); nil: none are kept.
+	Attached *attached.Store
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
@@ -76,6 +80,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceCo
 		Search:       db,
 		SendAs:       sendas.New(db),
 		StickerLists: stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
+		Attached:     attached.NewStore(db),
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

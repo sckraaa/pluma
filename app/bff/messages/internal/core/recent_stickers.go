@@ -84,3 +84,17 @@ func (c *MessagesCore) addRecentStickers(in *mtproto.InputMedia, media *mtproto.
 		}
 	}
 }
+
+// markAttachedStickers records the stickers the account put on a photo or
+// a video it uploads, and marks media that has them (attached.Store.Mark,
+// task 084): clients then offer the sets of those stickers
+// (messages.getAttachedStickers). The media is made by then, so a failure
+// is logged, not answered: the media only goes without the mark.
+func (c *MessagesCore) markAttachedStickers(in *mtproto.InputMedia, media *mtproto.MessageMedia) {
+	if c.svcCtx.Attached == nil || media == nil {
+		return
+	}
+	if err := c.svcCtx.Attached.Mark(c.ctx, c.svcCtx.Dao.MediaClient, in, media); err != nil {
+		c.Logger.Errorf("attached stickers - error: %v", err)
+	}
+}

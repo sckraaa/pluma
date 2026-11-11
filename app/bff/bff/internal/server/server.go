@@ -283,7 +283,7 @@ func (s *Server) Initialize() error {
 				DfsClient:     c.DfsClient,
 				UserClient:    c.BizServiceClient,
 				MediaClient:   c.MediaClient,
-			}, nil, nil))
+			}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil)) // the thumbnails of the sets users make (task 084)
 
 		// passport_helper
 		mtproto.RegisterRPCPassportServer(
