@@ -19,9 +19,11 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/files/plugin"
+	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 )
 
 type ServiceContext struct {
@@ -29,13 +31,17 @@ type ServiceContext struct {
 	*dao.Dao
 	Plugin1 plugin.ThumbFilesPlugin
 	Plugin2 plugin.StreamFilesPlugin
+	// Attached keeps the stickers put on uploaded photos and videos (task
+	// 084); nil: none are kept.
+	Attached *attached.Store
 }
 
 func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *ServiceContext {
 	return &ServiceContext{
-		Config:  c,
-		Dao:     dao.New(c),
-		Plugin1: plugin1,
-		Plugin2: plugin2,
+		Config:   c,
+		Dao:      dao.New(c),
+		Plugin1:  plugin1,
+		Plugin2:  plugin2,
+		Attached: attached.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

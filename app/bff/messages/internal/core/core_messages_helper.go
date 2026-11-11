@@ -315,6 +315,9 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 		err = mtproto.ErrMediaInvalid
 	}
 
+	if err == nil {
+		c.markAttachedStickers(media, messageMedia)
+	}
 	return
 }
 

@@ -277,6 +277,7 @@ func (b *Box) result() *Result {
 // The emoji status of a user (task 084) is its whole state each time; the
 // recent emoji statuses and the saved notification sounds are "load the
 // list again".
+// The trending sets read (task 084) are "all of them are read".
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateBotCallbackQuery,
@@ -321,7 +322,9 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateFavedStickers,
 		mtproto.Predicate_updateUserEmojiStatus,
 		mtproto.Predicate_updateRecentEmojiStatuses,
-		mtproto.Predicate_updateSavedRingtones:
+		mtproto.Predicate_updateSavedRingtones,
+		mtproto.Predicate_updateReadFeaturedStickers,
+		mtproto.Predicate_updateReadFeaturedEmojiStickers:
 		return true
 	}
 	return false

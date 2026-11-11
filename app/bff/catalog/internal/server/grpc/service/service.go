@@ -22,8 +22,9 @@ import (
 // Service serves the services of the catalog (task 024): mtproto.RPCReactions,
 // RPCStickers, RPCCustomEmojis, RPCEmoji, RPCEmojiCategories, RPCEmojiStatus,
 // RPCAccentColors, RPCThemes, RPCWallpapers, RPCTimezones, RPCMessageEffects
-// and RPCSavedMessageTags. Their methods that are not the catalog's answer
-// ErrEnterpriseIsBlocked, as before they were routed here.
+// and RPCSavedMessageTags, and with RPCStickers the sets users make and the
+// search of sets and stickers (task 084). Their methods that are not
+// served answer ErrEnterpriseIsBlocked, as before they were routed here.
 type Service struct {
 	svcCtx *svc.ServiceContext
 }

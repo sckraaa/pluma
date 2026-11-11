@@ -84,11 +84,11 @@ func TestCatalog(t *testing.T) {
 	}); fresh && !mtclient.IsRPCError(err, "STICKERSET_INVALID") {
 		t.Errorf("messages.getStickerSet of an empty catalog: %v", err)
 	}
-	if _, err := u.c.Invoke(ctx, &mtproto.TLStickersCheckShortName{
-		Constructor: u.c.Constructor(mtproto.Predicate_stickers_checkShortName),
-		ShortName:   "pluma",
+	if _, err := u.c.Invoke(ctx, &mtproto.TLMessagesGetEmojiURL{
+		Constructor: u.c.Constructor(mtproto.Predicate_messages_getEmojiURL),
+		LangCode:    "en",
 	}); !mtclient.IsRPCError(err, "ERR_ENTERPRISE_IS_BLOCKED") {
-		t.Errorf("stickers.checkShortName: %v", err)
+		t.Errorf("messages.getEmojiURL: %v", err)
 	}
 
 	catalogImport(ctx, t, u)

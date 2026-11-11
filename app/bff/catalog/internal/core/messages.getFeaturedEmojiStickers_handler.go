@@ -32,8 +32,12 @@ func (c *CatalogCore) MessagesGetFeaturedEmojiStickers(in *mtproto.TLMessagesGet
 	if !found {
 		return emptyFeatured(), nil
 	}
+	if hash, err = c.featuredFor("messages.getFeaturedEmojiStickers", answer, hash); err != nil {
+		return nil, err
+	}
 	if notModified(in.GetHash(), hash) {
 		return featuredNotModified(answer), nil
 	}
+	answer.Hash = hash
 	return answer, nil
 }
