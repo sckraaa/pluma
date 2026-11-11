@@ -18,6 +18,7 @@ package dao
 import (
 	"context"
 	"errors"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
@@ -304,6 +305,11 @@ func (d *Dao) Join(b *userbox.Box, channelId int64, link string) (*ChannelChange
 	if err = upsertDialog(b, channelId, top); err != nil {
 		return nil, err
 	}
+	if !ask {
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionParticipantJoin(nil).To_ChannelAdminLogEventAction(), ""); err != nil {
+			return nil, err
+		}
+	}
 	return change, nil
 }
 
@@ -361,6 +367,9 @@ func (d *Dao) Leave(b *userbox.Box, channelId int64) (*ChannelChange, error) {
 		return nil, err
 	}
 	InvalidateDialog(b, channelId)
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionParticipantLeave(nil).To_ChannelAdminLogEventAction(), ""); err != nil {
+		return nil, err
+	}
 	return change, nil
 }
 

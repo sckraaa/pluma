@@ -19,6 +19,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
@@ -98,6 +99,13 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 		Messages:  []int32{id},
 	}).To_Update()}
 	ch.AddPtsUpdate(out.Update, 1)
+	pinned := proto.Clone(m).(*mtproto.Message)
+	pinned.Pinned = !unpin
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionUpdatePinned(&mtproto.ChannelAdminLogEventAction{
+		Message: pinned,
+	}).To_ChannelAdminLogEventAction(), m.GetMessage()); err != nil {
+		return nil, err
+	}
 	if unpin {
 		return out, nil
 	}

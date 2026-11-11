@@ -179,6 +179,8 @@ enum TLConstructor {
   CRC32_channel_editParticipantRank = -86486467;
   // pluma: task 078
   CRC32_channel_getReadParticipants = 210006620;
+  // pluma: task 078
+  CRC32_channel_getAdminLog = 1139340211;
   // pluma: task 042
   CRC32_channel_editBanned = -1457424068;
   // pluma: task 042
@@ -583,6 +585,21 @@ message TL_channel_getReadParticipants {
   int64 self_id = 3;
   int64 channel_id = 4;
   int32 msg_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getAdminLog self_id:long channel_id:long q:string filter:long admins:Vector<long> max_id:long min_id:long limit:int = Vector<ChannelAdminLogEvent>;
+// The recent actions of a channel for an admin (task 078, pkg/adminlog).
+message TL_channel_getAdminLog {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  string q = 5;
+  int64 filter = 6;
+  repeated int64 admins = 7;
+  int64 max_id = 8;
+  int64 min_id = 9;
+  int32 limit = 10;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1380,6 +1397,11 @@ message Vector_ReadParticipantDate {
     repeated mtproto.ReadParticipantDate datas = 1;
 }
 
+// pluma: task 078
+message Vector_ChannelAdminLogEvent {
+    repeated mtproto.ChannelAdminLogEvent datas = 1;
+}
+
 message Vector_MutableChannel {
     repeated MutableChannel datas = 1;
 }
@@ -1539,6 +1561,8 @@ service RPCChannel {
   rpc channel_editParticipantRank(TL_channel_editParticipantRank) returns (mtproto.Updates) {}
   // pluma: task 078
   rpc channel_getReadParticipants(TL_channel_getReadParticipants) returns (Vector_ReadParticipantDate) {}
+  // pluma: task 078
+  rpc channel_getAdminLog(TL_channel_getAdminLog) returns (Vector_ChannelAdminLogEvent) {}
   // pluma: task 042
   rpc channel_editBanned(TL_channel_editBanned) returns (mtproto.Updates) {}
   // pluma: task 042

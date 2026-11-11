@@ -17,6 +17,7 @@ package dao
 
 import (
 	"context"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/readmarks"
 	"slices"
@@ -323,6 +324,71 @@ func (d *Dao) ReadParticipants(ctx context.Context, selfId, channelId int64, msg
 	out := make([]*mtproto.ReadParticipantDate, 0, len(readers))
 	for _, r := range readers {
 		out = append(out, mtproto.MakeTLReadParticipantDate(&mtproto.ReadParticipantDate{UserId: r.UserId, Date: int32(r.ReadAt)}).To_ReadParticipantDate())
+	}
+	return out, nil
+}
+
+// adminLogMax is the most actions one page holds.
+const adminLogMax = 100
+
+// AdminLog is a page of the recent actions of the channel, the newest first,
+// for one of its admins (CHAT_ADMIN_REQUIRED otherwise): those of the kinds
+// filter asks for, by admins when given, matching q, with ids in
+// (minId, maxId) when they are given.
+func (d *Dao) AdminLog(ctx context.Context, selfId, channelId int64, q string, filter int64, admins []int64, maxId, minId int64, limit int32, now int64) ([]*mtproto.ChannelAdminLogEvent, error) {
+	var me []struct {
+		Role  int32 `db:"role"`
+		State int32 `db:"state"`
+	}
+	if err := d.Mysql.QueryRowsPartial(ctx, &me, "SELECT role, state FROM channel_participants WHERE channel_id = ? AND user_id = ?", channelId, selfId); err != nil {
+		return nil, err
+	}
+	if len(me) == 0 || me[0].State != channelperm.StateIn || me[0].Role == channelperm.RoleMember {
+		return nil, mtproto.ErrChatAdminRequired
+	}
+	if limit <= 0 || limit > adminLogMax {
+		limit = adminLogMax
+	}
+	query := "SELECT id, user_id, `date`, action FROM channel_admin_log WHERE channel_id = ? AND `date` >= ? AND (kind & ?) <> 0"
+	args := []any{channelId, now - adminlog.Keep, filter}
+	if maxId > 0 {
+		query += " AND id < ?"
+		args = append(args, maxId)
+	}
+	if minId > 0 {
+		query += " AND id > ?"
+		args = append(args, minId)
+	}
+	if q != "" {
+		query += " AND `text` LIKE ?"
+		args = append(args, "%"+strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(q)+"%")
+	}
+	if len(admins) > 0 {
+		query += " AND user_id IN (?" + strings.Repeat(", ?", len(admins)-1) + ")"
+		for _, a := range admins {
+			args = append(args, a)
+		}
+	}
+	query += " ORDER BY id DESC LIMIT ?"
+	args = append(args, limit)
+	var rows []struct {
+		Id     int64  `db:"id"`
+		UserId int64  `db:"user_id"`
+		Date   int64  `db:"date"`
+		Action []byte `db:"action"`
+	}
+	if err := d.Mysql.QueryRowsPartial(ctx, &rows, query, args...); err != nil {
+		return nil, err
+	}
+	out := make([]*mtproto.ChannelAdminLogEvent, 0, len(rows))
+	for _, r := range rows {
+		action, err := adminlog.Decode(r.Action)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, mtproto.MakeTLChannelAdminLogEvent(&mtproto.ChannelAdminLogEvent{
+			Id: r.Id, Date: int32(r.Date), UserId: r.UserId, Action: action,
+		}).To_ChannelAdminLogEvent())
 	}
 	return out, nil
 }

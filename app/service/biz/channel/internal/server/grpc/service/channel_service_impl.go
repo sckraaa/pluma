@@ -1157,3 +1157,17 @@ func (s *Service) ChannelGetReadParticipants(ctx context.Context, request *chann
 
 	return r, nil
 }
+
+// ChannelGetAdminLog
+// channel.getAdminLog self_id:long channel_id:long q:string filter:long admins:Vector<long> max_id:long min_id:long limit:int = Vector<ChannelAdminLogEvent>;
+func (s *Service) ChannelGetAdminLog(ctx context.Context, request *channel.TLChannelGetAdminLog) (*channel.Vector_ChannelAdminLogEvent, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getAdminLog - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetAdminLog(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

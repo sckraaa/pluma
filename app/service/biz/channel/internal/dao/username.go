@@ -17,6 +17,7 @@ package dao
 
 import (
 	"context"
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
@@ -206,6 +207,11 @@ func (d *Dao) UpdateUsername(b *userbox.Box, channelId int64, username string) (
 		} else if n == 0 {
 			return nil, mtproto.ErrUsernameOccupied
 		}
+	}
+	if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionChangeUsername(&mtproto.ChannelAdminLogEventAction{
+		PrevValue_STRING: current, NewValue_STRING: username,
+	}).To_ChannelAdminLogEventAction(), username); err != nil {
+		return nil, err
 	}
 	return &ChannelChange{ChannelId: channelId, Reload: true}, nil
 }

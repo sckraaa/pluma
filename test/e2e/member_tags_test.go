@@ -138,6 +138,7 @@ func TestSupergroupReadParticipants(t *testing.T) {
 	alice := login(ctx, t, phones[0], "Alice")
 	bob := login(ctx, t, phones[1], "Bob")
 	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("reads %d", randomID()), true)
+	getState(ctx, t, bob)
 	input := func(u *user) *mtproto.InputChannel {
 		return &mtproto.InputChannel{
 			Constructor: u.c.Constructor(mtproto.Predicate_inputChannel),
@@ -159,6 +160,11 @@ func TestSupergroupReadParticipants(t *testing.T) {
 	}
 	before := int32(time.Now().Unix())
 	sent := sendMessageID(ctx, t, alice, peer, "read me", randomID())
+	// Bob's box has the dialog once the message reached it: its join came
+	// first.
+	waitUpdate(ctx, t, bob, mtproto.Predicate_updateNewChannelMessage, func(u *mtproto.Update) bool {
+		return u.GetMessage_MESSAGE().GetMessage() == "read me"
+	})
 	if _, err := bob.c.Invoke(ctx, &mtproto.TLChannelsReadHistory{
 		Constructor: bob.c.Constructor(mtproto.Predicate_channels_readHistory),
 		Channel:     input(bob),
@@ -247,5 +253,68 @@ func TestDeleteParticipantReaction(t *testing.T) {
 		if u.GetPredicateName() == mtproto.Predicate_updateMessageReactions && len(u.GetReactions_MESSAGEREACTIONS().GetResults()) != 0 {
 			t.Errorf("reactions left: %v", u.GetReactions_MESSAGEREACTIONS().GetResults())
 		}
+	}
+}
+
+// The recent actions of a supergroup: a new title is there for its admins,
+// and a member may not read them.
+func TestAdminLog(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 2)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	_, ch := createChannel(ctx, t, alice, fmt.Sprintf("log %d", randomID()), true)
+	input := func(u *user) *mtproto.InputChannel {
+		return &mtproto.InputChannel{
+			Constructor: u.c.Constructor(mtproto.Predicate_inputChannel),
+			ChannelId:   ch.GetId(),
+			AccessHash:  ch.GetAccessHash_FLAGINT64().GetValue(),
+		}
+	}
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsInviteToChannelC9E33D54{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_inviteToChannelC9E33D54),
+		Channel:     input(alice),
+		Users:       []*mtproto.InputUser{inputUserOf(ctx, t, alice, bob)},
+	}); err != nil {
+		t.Fatalf("channels.inviteToChannel: %v", err)
+	}
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLChannelsEditTitle{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_editTitle),
+		Channel:     input(alice),
+		Title:       "renamed",
+	}); err != nil {
+		t.Fatalf("channels.editTitle: %v", err)
+	}
+	getLog := func(u *user) (*mtproto.Channels_AdminLogResults, error) {
+		o, err := u.c.Invoke(ctx, &mtproto.TLChannelsGetAdminLog{
+			Constructor: u.c.Constructor(mtproto.Predicate_channels_getAdminLog),
+			Channel:     input(u),
+			Limit:       20,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return o.(interface {
+			To_Channels_AdminLogResults() *mtproto.Channels_AdminLogResults
+		}).To_Channels_AdminLogResults(), nil
+	}
+	r, err := getLog(alice)
+	if err != nil {
+		t.Fatalf("channels.getAdminLog: %v", err)
+	}
+	found := false
+	for _, e := range r.GetEvents() {
+		a := e.GetAction()
+		if a.GetPredicateName() == mtproto.Predicate_channelAdminLogEventActionChangeTitle && a.GetNewValue_STRING() == "renamed" && e.GetUserId() == alice.self.GetId() {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("no new title in the log: %v", r.GetEvents())
+	}
+	if _, err := getLog(bob); err == nil {
+		t.Error("a member read the recent actions")
 	}
 }

@@ -16,6 +16,7 @@
 package dao
 
 import (
+	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"slices"
 	"strings"
 
@@ -34,8 +35,9 @@ import (
 const DeleteMax = 100
 
 type deleteRow struct {
-	Id           int32 `db:"id"`
-	SenderUserId int64 `db:"sender_user_id"`
+	Id           int32  `db:"id"`
+	SenderUserId int64  `db:"sender_user_id"`
+	MessageData  string `db:"message_data"`
 }
 
 // Deleted is what Delete wrote: the ids deleted and the pts of the row of
@@ -123,7 +125,7 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32, byServer bool
 	}
 	var rows []deleteRow
 	if err = b.Tx().QueryRowsPartial(&rows,
-		"SELECT id, sender_user_id FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") FOR UPDATE",
+		"SELECT id, sender_user_id, COALESCE(message_data, '') AS message_data FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+") FOR UPDATE",
 		args...); err != nil {
 		return nil, err
 	}
@@ -136,7 +138,27 @@ func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32, byServer bool
 		}
 		out.Ids = append(out.Ids, r.Id)
 	}
-	return deleteRows(b, ch, channelId, out.Ids)
+	deleted, err := deleteRows(b, ch, channelId, out.Ids)
+	if err != nil || byServer {
+		return deleted, err
+	}
+	// The recent actions keep the messages of others an admin deleted, and
+	// the posts of a broadcast channel.
+	for _, r := range rows {
+		if !slices.Contains(out.Ids, r.Id) || r.SenderUserId == b.UserId() && !a.ch.Broadcast || r.MessageData == "" {
+			continue
+		}
+		var m *mtproto.Message
+		if err = jsonx.UnmarshalFromString(r.MessageData, &m); err != nil {
+			return nil, err
+		}
+		if err = adminlog.Write(b, channelId, mtproto.MakeTLChannelAdminLogEventActionDeleteMessage(&mtproto.ChannelAdminLogEventAction{
+			Message: m,
+		}).To_ChannelAdminLogEventAction(), m.GetMessage()); err != nil {
+			return nil, err
+		}
+	}
+	return deleted, nil
 }
 
 // deleteRows deletes for everyone the messages ids, which exist and are not

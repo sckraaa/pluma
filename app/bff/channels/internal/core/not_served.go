@@ -30,11 +30,6 @@ func (c *ChannelsCore) MessagesGetPersonalChannelHistory(in *mtproto.TLMessagesG
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsGetAdminLog is not served yet: channels.getAdminLog#33ddf480.
-func (c *ChannelsCore) ChannelsGetAdminLog(in *mtproto.TLChannelsGetAdminLog) (*mtproto.Channels_AdminLogResults, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // ChannelsSetStickers is not served yet: channels.setStickers#ea8ca4f9.
 func (c *ChannelsCore) ChannelsSetStickers(in *mtproto.TLChannelsSetStickers) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
