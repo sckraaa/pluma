@@ -440,6 +440,20 @@ func (s *Service) DialogGetPinnedSavedDialogs(ctx context.Context, request *dial
 	return r, err
 }
 
+// DialogGetSavedDialogsByIdList
+// dialog.getSavedDialogsByIdList user_id:long id_list:Vector<PeerUtil> = SavedDialogList;
+func (s *Service) DialogGetSavedDialogsByIdList(ctx context.Context, request *dialog.TLDialogGetSavedDialogsByIdList) (*dialog.SavedDialogList, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("dialog.getSavedDialogsByIdList - metadata: {%s}", c.MD)
+
+	r, err := c.DialogGetSavedDialogsByIdList(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
 // DialogToggleSavedDialogPin
 // dialog.toggleSavedDialogPin user_id:long peer:PeerUtil pinned:Bool = Bool;
 func (s *Service) DialogToggleSavedDialogPin(ctx context.Context, request *dialog.TLDialogToggleSavedDialogPin) (*mtproto.Bool, error) {

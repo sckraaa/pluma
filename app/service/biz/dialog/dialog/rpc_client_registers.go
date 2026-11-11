@@ -65,6 +65,8 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLDialogSetChatWallpaper":                  {"/mtproto.RPCDialog/dialog_setChatWallpaper", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 063
 	"TLDialogSaveThreadDraft": {"/mtproto.RPCDialog/dialog_saveThreadDraft", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 079
+	"TLDialogGetSavedDialogsByIdList": {"/mtproto.RPCDialog/dialog_getSavedDialogsByIdList", func() interface{} { return new(SavedDialogList) }},
 	// pluma: task 064
 	"TLDialogExportChatlistInvite": {"/mtproto.RPCDialog/dialog_exportChatlistInvite", func() interface{} { return new(mtproto.Chatlists_ExportedChatlistInvite) }},
 	// pluma: task 064

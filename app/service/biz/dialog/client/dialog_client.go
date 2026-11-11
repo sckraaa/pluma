@@ -52,6 +52,7 @@ type DialogClient interface {
 	DialogGetMyDialogsData(ctx context.Context, in *dialog.TLDialogGetMyDialogsData) (*dialog.DialogsData, error)
 	DialogGetSavedDialogs(ctx context.Context, in *dialog.TLDialogGetSavedDialogs) (*dialog.SavedDialogList, error)
 	DialogGetPinnedSavedDialogs(ctx context.Context, in *dialog.TLDialogGetPinnedSavedDialogs) (*dialog.SavedDialogList, error)
+	DialogGetSavedDialogsByIdList(ctx context.Context, in *dialog.TLDialogGetSavedDialogsByIdList) (*dialog.SavedDialogList, error)
 	DialogToggleSavedDialogPin(ctx context.Context, in *dialog.TLDialogToggleSavedDialogPin) (*mtproto.Bool, error)
 	DialogReorderPinnedSavedDialogs(ctx context.Context, in *dialog.TLDialogReorderPinnedSavedDialogs) (*mtproto.Bool, error)
 	DialogGetDialogFilter(ctx context.Context, in *dialog.TLDialogGetDialogFilter) (*dialog.DialogFilterExt, error)
@@ -397,6 +398,17 @@ func (m *defaultDialogClient) DialogGetPinnedSavedDialogs(ctx context.Context, i
 	}
 	client := dialog.NewRPCDialogClient(m.cli.Conn())
 	return client.DialogGetPinnedSavedDialogs(ctx, in)
+}
+
+// DialogGetSavedDialogsByIdList
+// dialog.getSavedDialogsByIdList user_id:long id_list:Vector<PeerUtil> = SavedDialogList;
+func (m *defaultDialogClient) DialogGetSavedDialogsByIdList(ctx context.Context, in *dialog.TLDialogGetSavedDialogsByIdList) (*dialog.SavedDialogList, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := dialog.NewRPCDialogClient(m.cli.Conn())
+	return client.DialogGetSavedDialogsByIdList(ctx, in)
 }
 
 // DialogToggleSavedDialogPin

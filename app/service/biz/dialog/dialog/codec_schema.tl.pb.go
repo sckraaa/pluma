@@ -291,6 +291,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -416704029,
 		}
 	},
+	823234209: func() mtproto.TLObject { // 0x31118ea1 pluma: task 079
+		return &TLDialogGetSavedDialogsByIdList{
+			Constructor: 823234209,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -3550,6 +3555,63 @@ func (m *TLChatlistInviteExt) Decode(dBuf *mtproto.DecodeBuf) error {
 	for i := int32(0); i < l8; i++ {
 		v.MyPeers[i] = &mtproto.Peer{}
 		v.MyPeers[i].Decode(dBuf)
+	}
+	return dBuf.GetError()
+}
+
+// TLDialogGetSavedDialogsByIdList (pluma: task 079)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLDialogGetSavedDialogsByIdList) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x31118ea1:
+		x.UInt(0x31118ea1)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetIdList())))
+		for _, v := range m.GetIdList() {
+			v.Encode(x, layer)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLDialogGetSavedDialogsByIdList) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLDialogGetSavedDialogsByIdList) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x31118ea1:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+
+		c2 := dBuf.Int()
+		if c2 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 2, c2)
+		}
+		l2 := dBuf.Int()
+		v2 := make([]*mtproto.PeerUtil, l2)
+		for i := int32(0); i < l2; i++ {
+			v2[i] = &mtproto.PeerUtil{}
+			v2[i].Decode(dBuf)
+		}
+		m.IdList = v2
+
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
 	}
 	return dBuf.GetError()
 }
