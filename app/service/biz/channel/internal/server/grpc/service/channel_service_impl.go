@@ -1185,3 +1185,45 @@ func (s *Service) ChannelSetStickerSet(ctx context.Context, request *channel.TLC
 
 	return r, nil
 }
+
+// ChannelUpdateColor
+// channel.updateColor self_id:long perm_auth_key_id:long channel_id:long for_profile:Bool color:int background_emoji_id:long = Updates;
+func (s *Service) ChannelUpdateColor(ctx context.Context, request *channel.TLChannelUpdateColor) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.updateColor - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUpdateColor(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelUpdateEmojiStatus
+// channel.updateEmojiStatus self_id:long perm_auth_key_id:long channel_id:long document_id:long until:int = Updates;
+func (s *Service) ChannelUpdateEmojiStatus(ctx context.Context, request *channel.TLChannelUpdateEmojiStatus) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.updateEmojiStatus - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUpdateEmojiStatus(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelEditUsernames
+// channel.editUsernames self_id:long perm_auth_key_id:long channel_id:long action:int username:string active:Bool order:Vector<string> = Bool;
+func (s *Service) ChannelEditUsernames(ctx context.Context, request *channel.TLChannelEditUsernames) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.editUsernames - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelEditUsernames(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

@@ -71,6 +71,12 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetAdminLog": {"/mtproto.RPCChannel/channel_getAdminLog", func() interface{} { return new(Vector_ChannelAdminLogEvent) }},
 	// pluma: task 078
 	"TLChannelSetStickerSet": {"/mtproto.RPCChannel/channel_setStickerSet", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 078
+	"TLChannelUpdateColor": {"/mtproto.RPCChannel/channel_updateColor", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 078
+	"TLChannelUpdateEmojiStatus": {"/mtproto.RPCChannel/channel_updateEmojiStatus", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 078
+	"TLChannelEditUsernames": {"/mtproto.RPCChannel/channel_editUsernames", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 046
 	"TLChannelIncrementMessageViews": {"/mtproto.RPCChannel/channel_incrementMessageViews", func() interface{} { return new(mtproto.Bool) }},
 	// pluma: task 046

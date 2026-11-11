@@ -53,6 +53,9 @@ type ChannelClient interface {
 	ChannelGetReadParticipants(ctx context.Context, in *channel.TLChannelGetReadParticipants) (*channel.Vector_ReadParticipantDate, error)
 	ChannelGetAdminLog(ctx context.Context, in *channel.TLChannelGetAdminLog) (*channel.Vector_ChannelAdminLogEvent, error)
 	ChannelSetStickerSet(ctx context.Context, in *channel.TLChannelSetStickerSet) (*mtproto.Updates, error)
+	ChannelUpdateColor(ctx context.Context, in *channel.TLChannelUpdateColor) (*mtproto.Updates, error)
+	ChannelUpdateEmojiStatus(ctx context.Context, in *channel.TLChannelUpdateEmojiStatus) (*mtproto.Updates, error)
+	ChannelEditUsernames(ctx context.Context, in *channel.TLChannelEditUsernames) (*mtproto.Bool, error)
 	ChannelIncrementMessageViews(ctx context.Context, in *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error)
 	ChannelAddMessageForwards(ctx context.Context, in *channel.TLChannelAddMessageForwards) (*mtproto.Bool, error)
 	ChannelDeleteHistory(ctx context.Context, in *channel.TLChannelDeleteHistory) (*mtproto.Updates, error)
@@ -1032,4 +1035,37 @@ func (m *defaultChannelClient) ChannelSetStickerSet(ctx context.Context, in *cha
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetStickerSet(ctx, in)
+}
+
+// ChannelUpdateColor
+// channel.updateColor self_id:long perm_auth_key_id:long channel_id:long for_profile:Bool color:int background_emoji_id:long = Updates;
+func (m *defaultChannelClient) ChannelUpdateColor(ctx context.Context, in *channel.TLChannelUpdateColor) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelUpdateColor(ctx, in)
+}
+
+// ChannelUpdateEmojiStatus
+// channel.updateEmojiStatus self_id:long perm_auth_key_id:long channel_id:long document_id:long until:int = Updates;
+func (m *defaultChannelClient) ChannelUpdateEmojiStatus(ctx context.Context, in *channel.TLChannelUpdateEmojiStatus) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelUpdateEmojiStatus(ctx, in)
+}
+
+// ChannelEditUsernames
+// channel.editUsernames self_id:long perm_auth_key_id:long channel_id:long action:int username:string active:Bool order:Vector<string> = Bool;
+func (m *defaultChannelClient) ChannelEditUsernames(ctx context.Context, in *channel.TLChannelEditUsernames) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelEditUsernames(ctx, in)
 }

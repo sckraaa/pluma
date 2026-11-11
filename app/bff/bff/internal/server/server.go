@@ -553,15 +553,16 @@ func (s *Server) Initialize() error {
 			}))
 
 		// usernames_helper
-		mtproto.RegisterRPCUsernamesServer(
-			grpcServer,
-			usernames_helper.New(usernames_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-				UserClient:    c.BizServiceClient,
-				ChatClient:    c.BizServiceClient,
-				SyncClient:    syncClient,
-				ChannelClient: c.BizServiceClient,
-			}, nil))
+		usernames := usernames_helper.New(usernames_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			UserClient:    c.BizServiceClient,
+			ChatClient:    c.BizServiceClient,
+			SyncClient:    syncClient,
+			ChannelClient: c.BizServiceClient,
+		}, nil)
+		mtproto.RegisterRPCUsernamesServer(grpcServer, usernames)
+		// The usernames beside the editable one (task 078).
+		mtproto.RegisterRPCFragmentServer(grpcServer, usernames)
 
 		// privacysettingshelper
 		mtproto.RegisterRPCPrivacySettingsServer(

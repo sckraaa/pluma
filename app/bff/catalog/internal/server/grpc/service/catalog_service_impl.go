@@ -515,9 +515,12 @@ func (s *Service) AccountGetCollectibleEmojiStatuses(ctx context.Context, reques
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// ChannelsUpdateEmojiStatus is not served: channels.updateEmojiStatus#f0d3e6a8 channel:InputChannel emoji_status:EmojiStatus = Updates;
+// ChannelsUpdateEmojiStatus
+// channels.updateEmojiStatus#f0d3e6a8 channel:InputChannel emoji_status:EmojiStatus = Updates;
 func (s *Service) ChannelsUpdateEmojiStatus(ctx context.Context, request *mtproto.TLChannelsUpdateEmojiStatus) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channels.updateEmojiStatus - metadata: {%s}", c.MD)
+	return c.ChannelsUpdateEmojiStatus(request)
 }
 
 // BotsUpdateUserEmojiStatus is not served: bots.updateUserEmojiStatus#ed9f30c5 user_id:InputUser emoji_status:EmojiStatus = Bool;
@@ -561,9 +564,12 @@ func (s *Service) HelpGetPeerProfileColors(ctx context.Context, request *mtproto
 	return c.HelpGetPeerProfileColors(request)
 }
 
-// ChannelsUpdateColor is not served: channels.updateColor#d8aa3671 flags:# for_profile:flags.1?true channel:InputChannel color:flags.2?int background_emoji_id:flags.0?long = Updates;
+// ChannelsUpdateColor
+// channels.updateColor#d8aa3671 flags:# for_profile:flags.1?true channel:InputChannel color:flags.2?int background_emoji_id:flags.0?long = Updates;
 func (s *Service) ChannelsUpdateColor(ctx context.Context, request *mtproto.TLChannelsUpdateColor) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channels.updateColor - metadata: {%s}", c.MD)
+	return c.ChannelsUpdateColor(request)
 }
 
 // mtproto.RPCThemes

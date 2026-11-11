@@ -160,9 +160,9 @@ func (d *Dao) getChannels(ctx context.Context, idList []int64) ([]*channel.Immut
 	if err != nil {
 		return nil, fmt.Errorf("usernames of channels %v: %w", found, err)
 	}
-	usernames := make(map[int64]string, len(names))
+	usernames := make(map[int64][]dataobject.ChannelUsernameDO, len(found))
 	for _, n := range names {
-		usernames[n.PeerId] = n.Username
+		usernames[n.PeerId] = append(usernames[n.PeerId], n)
 	}
 
 	byId := make(map[int64]*channel.ImmutableChannel, len(dos))
@@ -201,7 +201,24 @@ func uniqueIds(idList []int64) []int64 {
 	return out
 }
 
-func makeChannel(do *dataobject.ChannelsDO, username string) *channel.ImmutableChannel {
+// makeChannel is the channel of its row and its rows of username, in their
+// order: the editable one is its public link, and with others they are all
+// listed (channel.usernames).
+func makeChannel(do *dataobject.ChannelsDO, names []dataobject.ChannelUsernameDO) *channel.ImmutableChannel {
+	var (
+		username  string
+		usernames []*mtproto.Username
+	)
+	for _, n := range names {
+		if n.Editable {
+			username = n.Username
+		}
+		usernames = append(usernames, mtproto.MakeTLUsername(&mtproto.Username{
+			Editable: n.Editable,
+			Active:   n.Active,
+			Username: n.Username,
+		}).To_Username())
+	}
 	return channel.MakeTLImmutableChannel(&channel.ImmutableChannel{
 		Broadcast:           do.Broadcast,
 		Megagroup:           do.Megagroup,
@@ -237,6 +254,10 @@ func makeChannel(do *dataobject.ChannelsDO, username string) *channel.ImmutableC
 		TopMessage:          do.TopMessage,
 		Version:             do.Version,
 		Date:                do.Date,
+		Color:               channel.MakePeerColor(do.Color, do.ColorBackgroundEmojiId),
+		ProfileColor:        channel.MakePeerColor(do.ProfileColor, do.ProfileColorBackgroundEmojiId),
+		EmojiStatus:         channel.MakeEmojiStatus(do.EmojiStatusDocumentId, do.EmojiStatusUntil),
+		Usernames:           usernames,
 	}).To_ImmutableChannel()
 }
 

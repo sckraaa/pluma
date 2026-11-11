@@ -61,6 +61,12 @@ const (
 	Predicate_channel_getAdminLog = "channel_getAdminLog"
 	// pluma: task 078
 	Predicate_channel_setStickerSet = "channel_setStickerSet"
+	// pluma: task 078
+	Predicate_channel_updateColor = "channel_updateColor"
+	// pluma: task 078
+	Predicate_channel_updateEmojiStatus = "channel_updateEmojiStatus"
+	// pluma: task 078
+	Predicate_channel_editUsernames = "channel_editUsernames"
 	// pluma: task 046
 	Predicate_channel_incrementMessageViews = "channel_incrementMessageViews"
 	// pluma: task 046
@@ -273,6 +279,15 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	},
 	Predicate_channel_setStickerSet: { // pluma: task 078
 		0: -1460527570, // 0xa8f21e2e
+	},
+	Predicate_channel_updateColor: { // pluma: task 078
+		0: -1450249355, // 0xa98ef375
+	},
+	Predicate_channel_updateEmojiStatus: { // pluma: task 078
+		0: -1163138113, // 0xbaabebbf
+	},
+	Predicate_channel_editUsernames: { // pluma: task 078
+		0: -823010727, // 0xcef1da59
 	},
 	Predicate_channel_getAdminLog: { // pluma: task 078
 		0: 1139340211, // 0x43e8f3b3
@@ -544,6 +559,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	210006620:   Predicate_channel_getReadParticipants,              // 0xc84725c pluma: task 078
 	1139340211:  Predicate_channel_getAdminLog,                      // 0x43e8f3b3 pluma: task 078
 	-1460527570: Predicate_channel_setStickerSet,                    // 0xa8f21e2e pluma: task 078
+	-1450249355: Predicate_channel_updateColor,                      // 0xa98ef375 pluma: task 078
+	-1163138113: Predicate_channel_updateEmojiStatus,                // 0xbaabebbf pluma: task 078
+	-823010727:  Predicate_channel_editUsernames,                    // 0xcef1da59 pluma: task 078
 	1668730682:  Predicate_channel_incrementMessageViews,            // 0x6376cf3a pluma: task 046
 	-1892777199: Predicate_channel_addMessageForwards,               // 0x8f2e8311 pluma: task 046
 	-1441587995: Predicate_channel_deleteHistory,                    // 0xaa131ce5 pluma: task 043

@@ -69,6 +69,7 @@ BFFProxyClients:
     "/mtproto.RPCEmojiCategories": "bff.bff"
     "/mtproto.RPCEmojiStatus": "bff.bff"
     "/mtproto.RPCAccentColors": "bff.bff"
+    "/mtproto.RPCFragment": "bff.bff"
     "/mtproto.RPCThemes": "bff.bff"
     "/mtproto.RPCWallpapers": "bff.bff"
     "/mtproto.RPCTimezones": "bff.bff"
