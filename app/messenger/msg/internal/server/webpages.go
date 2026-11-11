@@ -63,7 +63,9 @@ func newMsgPlugin(c config.Config) *msgPlugin {
 func (p *msgPlugin) UsernameResolveUsername(ctx context.Context, in *user.TLUserResolveUsername) (*mtproto.Peer, error) {
 	peer, err := p.users.UserResolveUsername(ctx, in)
 	if err != nil {
-		return nil, nil
+		// USERNAME_NOT_OCCUPIED for most: a name in a text is not always
+		// someone's. The mention stays an entity without a user.
+		return nil, nil //nolint:nilerr // an unresolved name is no error of the send
 	}
 	return peer, nil
 }

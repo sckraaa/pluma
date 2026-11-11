@@ -97,7 +97,7 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 	// at aac1efcb); a page from pts 1 put the channel's creation, long ago,
 	// at the top of the new dialog, below the chat list's loaded page.
 	if v.Member && v.Joined > 0 {
-		joined, err := c.svcCtx.Dao.PtsAt(c.ctx, in.ChannelId, v.Joined)
+		joined, err := c.svcCtx.Dao.PtsBefore(c.ctx, in.ChannelId, v.Joined)
 		if err != nil {
 			c.Logger.Errorf("channel.getChannelDifference - pts of channel %d at the join of %d: %v", in.ChannelId, in.SelfId, err)
 			return nil, err

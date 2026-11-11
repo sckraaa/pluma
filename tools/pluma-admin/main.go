@@ -25,6 +25,7 @@
 //	pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off
 //	pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <chat>
 //	pluma-admin [-f bff.yaml] ghost list <@username|user id>
+//	pluma-admin [-f bff.yaml] user verify <@username|user id> on|off
 //	pluma-admin langpack fetch -out <dir> [-pack <packs>] [-lang <langs>] [-api-id <id>]
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
 //	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
@@ -81,6 +82,11 @@
 // memberships with it; join and leave take it into a chat nobody called it
 // to, named by its link, @name or id; list prints where it is hidden. It
 // talks to biz, so it runs in the bff container. See docs/ops/support-ghost.md.
+
+// user verify sets or clears the verification badge of an account, the check
+// the clients draw next to its name (users.verified). The user service
+// changes it and sends updateUser to the account's devices and to the users
+// who see it, so it runs in the bff container like service-photo.
 //
 // langpack maintains the language packs of the clients (task 021, ADR 0025;
 // docs/ops/langpacks.md): fetch reads every language of the platform packs
@@ -198,6 +204,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] ghost set <@username|user id> on|off   (the support ghost: in chats, unseen)
   pluma-admin [-f bff.yaml] ghost join|leave <@username|user id> <t.me link|@name|chat id>
   pluma-admin [-f bff.yaml] ghost list <@username|user id>
+  pluma-admin [-f bff.yaml] user verify <@username|user id> on|off   (the verification badge)
   pluma-admin langpack fetch -out <dir> [-pack android,ios,...] [-lang ru,...] [-api-id <id>]   (from Telegram; $TELEGRAM_API_ID)
   pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
   pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
@@ -270,6 +277,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return servicePhotoCommand(args, configFile, stdout)
 	case "ghost":
 		return ghostCommand(args, configFile, stdout)
+	case "user":
+		return userCommand(args, configFile, stdout)
 	case "langpack":
 		return langpackCommand(args, configFile, stdout)
 	case "catalog":

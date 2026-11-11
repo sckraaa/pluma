@@ -49,12 +49,14 @@ func (d *Dao) ViewerOfCatchUp(ctx context.Context, userId, channelId int64) (Vie
 	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId, Joined: v.joined}, err
 }
 
-// PtsAt is the pts the channel's box had at date (unix time): that of the
-// last journal row written by then, 0 when the journal keeps none that old.
-func (d *Dao) PtsAt(ctx context.Context, channelId, date int64) (int32, error) {
+// PtsBefore is the pts the channel's box had before the second date (unix
+// time) began: that of the last journal row written earlier, 0 when the
+// journal keeps none that old. The journal's dates are seconds: a row of
+// that very second may come after an event of it, and counts as later.
+func (d *Dao) PtsBefore(ctx context.Context, channelId, date int64) (int32, error) {
 	var pts []int32
 	err := d.Mysql.QueryRowsPartial(ctx, &pts,
-		"SELECT pts FROM channel_pts_updates WHERE channel_id = ? AND date2 <= ? ORDER BY pts DESC LIMIT 1",
+		"SELECT pts FROM channel_pts_updates WHERE channel_id = ? AND date2 < ? ORDER BY pts DESC LIMIT 1",
 		channelId, date)
 	if len(pts) == 0 {
 		return 0, err

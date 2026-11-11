@@ -124,7 +124,7 @@ const TransferInterval = time.Minute
 
 // NewTransferWorker returns the worker of d.
 func NewTransferWorker(d *dao.Dao) *TransferWorker {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // kept in the worker, called by Stop
 	return &TransferWorker{dao: d, ctx: ctx, cancel: cancel, done: make(chan struct{})}
 }
 

@@ -16,15 +16,17 @@ import (
 
 // UserUpdateVerified
 // user.updateVerified user_id:long verified:Bool = Bool;
+//
+// Sets or clears the verification badge of the account (pluma-admin user
+// verify). The change and updateUser to the account's devices and to the
+// users who see it are one box transaction (Dao.UpdateVerified). It returns
+// whether the flag changed; an unknown or deleted account is
+// USER_ID_INVALID.
 func (c *UserCore) UserUpdateVerified(in *user.TLUserUpdateVerified) (*mtproto.Bool, error) {
-	rowsAffected, err := c.svcCtx.Dao.UsersDAO.UpdateUser(c.ctx, map[string]interface{}{
-		"verified": mtproto.FromBool(in.Verified),
-	}, in.UserId)
-
+	changed, err := c.svcCtx.Dao.UpdateVerified(c.ctx, in.GetUserId(), mtproto.FromBool(in.GetVerified()))
 	if err != nil {
-		c.Logger.Errorf("user.updateVerified - error: %v", err)
-		return mtproto.BoolFalse, nil
+		c.Logger.Errorf("user.updateVerified - user %d: %v", in.GetUserId(), err)
+		return nil, err
 	}
-
-	return mtproto.ToBool(rowsAffected != 0), nil
+	return mtproto.ToBool(changed), nil
 }

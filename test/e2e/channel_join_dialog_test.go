@@ -61,6 +61,9 @@ func TestChannelJoinDialog(t *testing.T) {
 			if c.posts {
 				sendMessageID(ctx, t, alice, peerOf(alice), "a post before Bob", randomID())
 			}
+			// The channel is older than Bob's join: the journal keeps seconds,
+			// and a row of the second of the join counts as after it.
+			time.Sleep(1100 * time.Millisecond)
 			if c.link {
 				if _, err := bob.c.Invoke(ctx, &mtproto.TLMessagesImportChatInviteDE91436E{
 					Constructor: bob.c.Constructor(mtproto.Predicate_messages_importChatInviteDE91436E),

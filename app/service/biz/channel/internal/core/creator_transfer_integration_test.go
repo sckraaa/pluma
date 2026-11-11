@@ -46,6 +46,9 @@ func (f *diffFixture) transfer(channelId int64) (to, due int64) {
 			f.t.Fatal(err)
 		}
 	}
+	if err = rows.Err(); err != nil {
+		f.t.Fatal(err)
+	}
 	return
 }
 

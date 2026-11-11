@@ -102,8 +102,12 @@ func TestCreatorLeavesSupergroup(t *testing.T) {
 		t.Fatalf("channels.inviteToChannel: %v", err)
 	}
 
+	// Android sends channels.getFutureCreatorAfterLeave#a00918af at layer
+	// 233 too (TLRPC.java:71508 at 7be672ea, 13.2.1), though the layer's
+	// schema of tdesktop lists only messages.getFutureChatCreatorAfterLeave,
+	// and so the test client's table of layer 233 lacks it.
 	o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsGetFutureCreatorAfterLeave{
-		Constructor: alice.c.Constructor(mtproto.Predicate_channels_getFutureCreatorAfterLeave),
+		Constructor: mtproto.CRC32_channels_getFutureCreatorAfterLeave,
 		Channel:     input(alice),
 	})
 	if err != nil {
@@ -131,14 +135,19 @@ func TestCreatorLeavesSupergroup(t *testing.T) {
 		return a.GetPredicateName() == mtproto.Predicate_messageActionNewCreatorPending && a.GetNewCreatorId() == bob.self.GetId()
 	})
 
-	o, err = alice.c.Invoke(ctx, &mtproto.TLChannelsJoinChannel24B524C5{
-		Constructor: alice.c.Constructor(mtproto.Predicate_channels_joinChannel24B524C5),
+	// What a client of layer 233 sends to join (channels.joinChannel#7f6a1e22,
+	// the updates in chatInviteJoinResultOk).
+	o, err = alice.c.Invoke(ctx, &mtproto.TLChannelsJoinChannel7F6A1E22{
+		Constructor: alice.c.Constructor(mtproto.Predicate_channels_joinChannel7F6A1E22),
 		Channel:     input(alice),
 	})
 	if err != nil {
 		t.Fatalf("the owner comes back: %v", err)
 	}
-	if chats := o.(interface{ To_Updates() *mtproto.Updates }).To_Updates().GetChats(); len(chats) != 1 || !chats[0].GetCreator() || chats[0].GetLeft() {
+	joined := o.(interface {
+		To_Messages_ChatInviteJoinResult() *mtproto.Messages_ChatInviteJoinResult
+	}).To_Messages_ChatInviteJoinResult().GetUpdates()
+	if chats := joined.GetChats(); len(chats) != 1 || !chats[0].GetCreator() || chats[0].GetLeft() {
 		t.Errorf("the group to its owner back: %v", chats)
 	}
 	if next, err := futureCreator(ctx, alice, peer(alice)); err != nil || next.GetId() != bob.self.GetId() {

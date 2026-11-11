@@ -49,9 +49,12 @@ type selfRow struct {
 	// FallbackPhotoId is the public photo (task 051): not in the account's
 	// own user, so the push does not carry it.
 	FallbackPhotoId int64 `db:"fallback_photo_id"`
+	// Verified is the verification badge, set by the administrator
+	// (UpdateVerified).
+	Verified bool `db:"verified"`
 }
 
-const selfRowQuery = "SELECT first_name, last_name, username, photo_id, fallback_photo_id FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
+const selfRowQuery = "SELECT first_name, last_name, username, photo_id, fallback_photo_id, verified FROM users WHERE id = ? AND deleted = 0 FOR UPDATE"
 
 // selfAttempts bounds the box transactions of one change of the account:
 // one more is run for each photo the transaction found main and the
@@ -193,7 +196,27 @@ func selfUser(me *mtproto.ImmutableUser, row selfRow, usernames []*mtproto.Usern
 	u.Username = row.Username
 	u.Usernames = usernames
 	u.ProfilePhoto = photo
+	u.Verified = row.Verified
 	return view.ToSelfUser()
+}
+
+// UpdateVerified sets or clears the verification badge of the account id
+// (user.verified). Its devices get updateUser with seq (ADR 0020) and the
+// users who see the account get it as well (tellWatchers): the clients take
+// the flag from the user that comes with the update or fetch the account
+// again. The same value changes nothing; it returns whether it changed.
+func (d *Dao) UpdateVerified(ctx context.Context, id int64, verified bool) (bool, error) {
+	_, changed, err := d.changeSelf(ctx, id, mtproto.Predicate_updateUser, nil, func(b *userbox.Box, row *selfRow) (bool, error) {
+		if row.Verified == verified {
+			return false, nil
+		}
+		if _, err := b.Tx().Exec("UPDATE users SET verified = ? WHERE id = ?", verified, id); err != nil {
+			return false, err
+		}
+		row.Verified = verified
+		return true, nil
+	})
+	return changed, err
 }
 
 // UpdateFirstAndLastName sets the name of the account id; its devices get
