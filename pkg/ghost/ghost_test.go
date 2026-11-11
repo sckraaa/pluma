@@ -74,3 +74,16 @@ func TestJoinChannelQuery(t *testing.T) {
 		t.Error("joinChannelQuery resets the last send under the slow mode")
 	}
 }
+
+// TestJoinChatQuery: a hidden join of a basic group is a plain member with
+// no rank, hidden, back in after a leave or a removal.
+func TestJoinChatQuery(t *testing.T) {
+	for _, part := range []string{"hidden = 1", "kicked_at = 0", "left_at = 0", "rank2 = ''", "inviter_user_id = 0"} {
+		if !strings.Contains(joinChatQuery, part) {
+			t.Errorf("joinChatQuery lacks %q", part)
+		}
+	}
+	if strings.Contains(joinChatQuery, "participant_count") || strings.Contains(joinChatQuery, "version") {
+		t.Error("joinChatQuery changes the chat")
+	}
+}

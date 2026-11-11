@@ -646,6 +646,11 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -852948814,
 		}
 	},
+	2145706849: func() mtproto.TLObject { // 0x7fe4e361 pluma: task 080
+		return &TLUserSetGhost{
+			Constructor: 2145706849,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -7238,6 +7243,48 @@ func (m *TLUserGetTopicNotifyExceptions) Decode(dBuf *mtproto.DecodeBuf) error {
 
 		m.UserId = dBuf.Long()
 		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+// TLUserSetGhost (pluma: task 080)
+///////////////////////////////////////////////////////////////////////////////
+
+func (m *TLUserSetGhost) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x7fe4e361:
+		x.UInt(0x7fe4e361)
+
+		// no flags
+
+		x.Long(m.GetUserId())
+		m.GetGhost().Encode(x, layer)
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLUserSetGhost) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLUserSetGhost) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x7fe4e361:
+
+		// not has flags
+
+		m.UserId = dBuf.Long()
+		m4 := &mtproto.Bool{}
+		m4.Decode(dBuf)
+		m.Ghost = m4
 		return dBuf.GetError()
 
 	default:

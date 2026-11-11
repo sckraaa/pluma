@@ -33,8 +33,8 @@ func futureMember(userId int64, kind, state int32, date int64, bot bool) *mtprot
 }
 
 // The next creator of a basic group: an admin before a member, the oldest
-// first, the lowest id on a tie; never the creator, a bot, one gone or one
-// who left.
+// first, the lowest id on a tie; never the creator, a bot, one gone, one
+// who left or a hidden member.
 func TestFutureCreator(t *testing.T) {
 	const (
 		normal = mtproto.ChatMemberStateNormal
@@ -65,6 +65,9 @@ func TestFutureCreator(t *testing.T) {
 		{"not one gone", futureChat(1,
 			futureMember(2, mtproto.ChatMemberNormal, normal, 20, false),
 			futureMember(3, mtproto.ChatMemberNormal, normal, 30, false)), func(id int64) bool { return id == 2 }, 3},
+		{"not a hidden member (the ghost)", futureChat(1,
+			&mtproto.ImmutableChatParticipant{UserId: 2, State: normal, Date: 5, Hidden: true},
+			futureMember(3, mtproto.ChatMemberNormal, normal, 30, false)), none, 3},
 	}
 	for _, tc := range cases {
 		if got := FutureCreator(tc.chat, tc.gone); got != tc.want {

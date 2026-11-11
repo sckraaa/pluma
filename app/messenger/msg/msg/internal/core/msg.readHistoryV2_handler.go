@@ -31,7 +31,8 @@ import (
 //
 // The dialog is read in one box transaction: read_inbox_max_id only grows
 // and unread_count is counted from the messages under the box lock. The
-// senders of the messages read learn it with inbox events.
+// senders of the messages read learn it with inbox events, unless the
+// reader is a hidden member of the basic group (ADR 0048).
 func (c *MsgCore) MsgReadHistoryV2(in *msg.TLMsgReadHistoryV2) (*mtproto.Messages_AffectedMessages, error) {
 	peerType, peerId := selfPeer(in.UserId, in.PeerType, in.PeerId)
 	if peerType != mtproto.PEER_USER && peerType != mtproto.PEER_CHAT {
@@ -52,6 +53,10 @@ func (c *MsgCore) MsgReadHistoryV2(in *msg.TLMsgReadHistoryV2) (*mtproto.Message
 				return err
 			}
 			if err = c.svcCtx.Dao.EmitUpdatesNotMe(b, in.UserId, in.AuthKeyId, mtproto.MakeUpdatesByUpdates(read.Update)); err != nil {
+				return err
+			}
+			// A ghost's read is its own (ADR 0048): the senders see none.
+			if hidden, err := c.svcCtx.Dao.HiddenInChat(b, peerType, peerId); err != nil || hidden {
 				return err
 			}
 			for _, s := range read.Senders {

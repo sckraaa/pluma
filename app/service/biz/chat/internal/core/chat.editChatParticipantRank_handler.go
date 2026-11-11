@@ -40,7 +40,9 @@ func (c *ChatCore) ChatEditChatParticipantRank(in *chat.TLChatEditChatParticipan
 		switch {
 		case me == nil:
 			return mtproto.ErrUserNotParticipant
-		case participant == nil:
+		case participant == nil, participant.GetHidden():
+			// The ghost (ADR 0048) has no tag: in the chat or not, it is
+			// no member the others see.
 			return mtproto.ErrPeerIdInvalid
 		case !canEditChatParticipantRank(me, participant, t.Chat.DefaultBannedRights):
 			return mtproto.ErrChatAdminRequired

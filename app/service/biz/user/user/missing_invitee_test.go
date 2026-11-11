@@ -55,10 +55,17 @@ func TestMissingInvitee(t *testing.T) {
 		{"contacts and Premium users", inviteUser(2, false, contacts, premium), true, true},
 		// The inviter is named in the exceptions: Premium would not help.
 		{"Premium users, but not the inviter", inviteUser(2, false, contacts, premium, notMe), true, false},
+		// The support ghost is added by nobody (ADR 0048).
+		{"the ghost, whatever its rules", ghostInvitee(inviteUser(2, false, everybody, premium)), true, false},
 	} {
 		m := MissingInvitee(inviter, tc.invitee)
 		if (m != nil) != tc.missing || m.GetPremiumWouldAllowInvite() != tc.wouldAllow {
 			t.Errorf("%s: %v, want missing %v, premium_would_allow_invite %v", tc.name, m, tc.missing, tc.wouldAllow)
 		}
 	}
+}
+
+func ghostInvitee(u *mtproto.ImmutableUser) *mtproto.ImmutableUser {
+	u.User.Ghost = true
+	return u
 }

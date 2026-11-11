@@ -73,7 +73,7 @@ type migrateChatRow struct {
 //
 // The supergroup takes the group's title, description, photo, default
 // restrictions and auto-delete period; the creator is its creator, the admins its admins with
-// MigrateAdminRights, the others members. migrated_from_max_id is the
+// MigrateAdminRights, the others members; a hidden member stays hidden. migrated_from_max_id is the
 // newest message of the group in any member's box: the ids of a basic
 // group are each member's own, and every member's history of the group
 // ends below it. The group's invite links become the supergroup's.
@@ -141,12 +141,18 @@ func (d *Dao) MigrateChat(b *userbox.Box, chat *mtproto.MutableChat, dialogMessa
 		case p.IsChatMemberAdmin() || p.IsChatMemberCreator():
 			role, rights = channelperm.RoleAdmin, MigrateAdminRights
 		}
+		// A hidden member (the ghost, ADR 0048) stays hidden in the
+		// supergroup, out of its counters, with the whole history (its
+		// available_min_id is 0, as every migrated member's).
+		hidden := p.GetHidden() && role == channelperm.RoleMember
 		if role != channelperm.RoleMember {
 			admins++
 		}
-		count++
-		if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, admin_rights, `rank`, inviter_user_id, promoted_by, `date`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-			out.ChannelId, p.UserId, role, rights, p.GetRank(), p.GetInviterUserId(), promotedBy(role, b.UserId()), b.Date()); err != nil {
+		if !hidden {
+			count++
+		}
+		if _, err = b.Tx().Exec("INSERT INTO channel_participants (channel_id, user_id, role, admin_rights, `rank`, inviter_user_id, promoted_by, hidden, `date`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			out.ChannelId, p.UserId, role, rights, p.GetRank(), p.GetInviterUserId(), promotedBy(role, b.UserId()), hidden, b.Date()); err != nil {
 			return nil, err
 		}
 	}

@@ -40,7 +40,7 @@
     <operation name="SelectList" result_set="list">
         <sql>
             SELECT
-                id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2
+                id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden
             FROM
                 chat_participants
             WHERE
@@ -62,7 +62,7 @@
     <operation name="SelectByParticipantId">
         <sql>
             SELECT
-                id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2
+                id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden
             FROM
                 chat_participants
             WHERE
@@ -76,7 +76,7 @@
         </params>
         <sql>
             SELECT
-                id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2
+                id, chat_id, user_id, participant_type, link, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden
             FROM
                 chat_participants
             WHERE
@@ -149,7 +149,7 @@
             FROM
                 chat_participants, chats
             WHERE
-                chat_participants.state = 0 AND chat_participants.user_id IN (:idList) AND chats.id = chat_participants.chat_id AND chats.deactivated = 0
+                chat_participants.state = 0 AND chat_participants.hidden = 0 AND chat_participants.user_id IN (:idList) AND chats.id = chat_participants.chat_id AND chats.deactivated = 0
         </sql>
     </operation>
 

@@ -31,13 +31,18 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 // The support ghost (task 080, ADR 0048): an account that takes part in
-// supergroups and channels without being seen among their members.
+// basic groups, supergroups and channels without being seen among their
+// members.
 //
 //	ghost set <@username|user id> on|off   the account becomes a ghost, or stops
 //	ghost join <account> <chat>            hidden into a chat nobody called it to
@@ -49,8 +54,8 @@ import (
 // named by @username or id, never by phone, and so is it in the output.
 
 // ghostConfig is the part of the bff config the command needs: the
-// database to find the account and the chats, biz (its channel service)
-// to change them.
+// database to find the account and the chats, biz (its user, chat and
+// channel services) to change them.
 type ghostConfig struct {
 	Mysql            sqlx.Config
 	BizServiceClient zrpc.RpcClientConf
@@ -80,19 +85,29 @@ func (a ghostAccount) String() string {
 	return s
 }
 
-// ghostChat is a supergroup or channel as the command names it.
+// ghostChat is a basic group, supergroup or channel as the command names
+// it.
 type ghostChat struct {
 	Id        int64  `db:"id"`
 	Title     string `db:"title"`
 	Broadcast bool   `db:"broadcast"`
+	// Basic: a basic group (biz chat), not a channel (biz channel).
+	Basic bool `db:"basic"`
+}
+
+// kind names what the chat is.
+func (c ghostChat) kind() string {
+	switch {
+	case c.Basic:
+		return "group"
+	case c.Broadcast:
+		return "channel"
+	}
+	return "supergroup"
 }
 
 func (c ghostChat) String() string {
-	kind := "supergroup"
-	if c.Broadcast {
-		kind = "channel"
-	}
-	return fmt.Sprintf("%s %d %q", kind, c.Id, c.Title)
+	return fmt.Sprintf("%s %d %q", c.kind(), c.Id, c.Title)
 }
 
 // chatRef is how a chat was named: an id, a public username or the hash of
@@ -107,7 +122,7 @@ type chatRef struct {
 type ghostStore interface {
 	// Account returns nil for no such account.
 	Account(ctx context.Context, ref string) (*ghostAccount, error)
-	// Chat returns nil for no such supergroup or channel.
+	// Chat returns nil for no such chat.
 	Chat(ctx context.Context, ref chatRef) (*ghostChat, error)
 	// SetGhost writes the account's flag and tells whether it changed.
 	SetGhost(ctx context.Context, userId int64, ghost bool) (bool, error)
@@ -117,8 +132,8 @@ type ghostStore interface {
 	// Visible counts the chats where the account is an admin or the
 	// owner, whose rows stay shown.
 	Visible(ctx context.Context, userId int64) (int, error)
-	Join(ctx context.Context, userId, chatId int64) (bool, error)
-	Leave(ctx context.Context, userId, chatId int64) (bool, error)
+	Join(ctx context.Context, userId int64, chat *ghostChat) (bool, error)
+	Leave(ctx context.Context, userId int64, chat *ghostChat) (bool, error)
 	Hidden(ctx context.Context, userId int64) ([]ghostChat, error)
 }
 
@@ -130,9 +145,12 @@ func ghostCommand(args []string, configFile string, stdout io.Writer) error {
 	if err := conf.Load(configFile, &c); err != nil {
 		return fmt.Errorf("config %s: %w", configFile, err)
 	}
+	biz := rpcx.GetCachedRpcClient(c.BizServiceClient)
 	store := &dbGhosts{
 		db:      sqlx.NewMySQL(&c.Mysql),
-		channel: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.BizServiceClient)),
+		user:    user_client.NewUserClient(biz),
+		chat:    chat_client.NewChatClient(biz),
+		channel: channel_client.NewChannelClient(biz),
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -179,11 +197,7 @@ func runGhost(ctx context.Context, store ghostStore, args []string, stdout io.Wr
 		tw := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
 		fmt.Fprintln(tw, "ID\tKIND\tTITLE")
 		for _, c := range chats {
-			kind := "supergroup"
-			if c.Broadcast {
-				kind = "channel"
-			}
-			fmt.Fprintf(tw, "%d\t%s\t%s\n", c.Id, kind, c.Title)
+			fmt.Fprintf(tw, "%d\t%s\t%s\n", c.Id, c.kind(), c.Title)
 		}
 		return tw.Flush()
 	}
@@ -199,10 +213,10 @@ func runGhost(ctx context.Context, store ghostStore, args []string, stdout io.Wr
 		return err
 	}
 	if chat == nil {
-		return fmt.Errorf("no supergroup or channel %s (basic groups are not served)", args[3])
+		return fmt.Errorf("no chat %s", args[3])
 	}
 	if sub == "join" {
-		joined, err := store.Join(ctx, a.Id, chat.Id)
+		joined, err := store.Join(ctx, a.Id, chat)
 		if err != nil {
 			return err
 		}
@@ -213,7 +227,7 @@ func runGhost(ctx context.Context, store ghostStore, args []string, stdout io.Wr
 		fmt.Fprintf(stdout, "%s joined %s hidden; its devices show the chat, nobody else sees it.\n", a, chat)
 		return nil
 	}
-	left, err := store.Leave(ctx, a.Id, chat.Id)
+	left, err := store.Leave(ctx, a.Id, chat)
 	if err != nil {
 		return err
 	}
@@ -339,9 +353,11 @@ func usernameRef(name string) (chatRef, error) {
 	return chatRef{Username: name}, nil
 }
 
-// dbGhosts is ghostStore over the database and biz channel.
+// dbGhosts is ghostStore over the database and biz.
 type dbGhosts struct {
 	db      *sqlx.DB
+	user    user_client.UserClient
+	chat    chat_client.ChatClient
 	channel channel_client.ChannelClient
 }
 
@@ -381,8 +397,14 @@ func (s *dbGhosts) Chat(ctx context.Context, ref chatRef) (*ghostChat, error) {
 		rows []ghostChat
 		err  error
 	)
-	const columns = "SELECT c.id, c.title, c.broadcast FROM channels c "
+	const (
+		columns = "SELECT c.id, c.title, c.broadcast FROM channels c "
+		// A basic group that is moved to a supergroup or deleted is none.
+		basic = "SELECT c.id, c.title, 1 AS basic FROM chats c "
+	)
 	switch {
+	case ref.Id != 0 && mtproto.ChatIdIsChat(ref.Id):
+		err = s.db.QueryRowsPartial(ctx, &rows, basic+"WHERE c.id = ? AND c.deactivated = 0", ref.Id)
 	case ref.Id != 0:
 		err = s.db.QueryRowsPartial(ctx, &rows, columns+"WHERE c.id = ? AND c.deleted = 0", ref.Id)
 	case ref.Username != "":
@@ -390,6 +412,9 @@ func (s *dbGhosts) Chat(ctx context.Context, ref chatRef) (*ghostChat, error) {
 			mtproto.PEER_CHANNEL, ref.Username)
 	default:
 		err = s.db.QueryRowsPartial(ctx, &rows, columns+"JOIN chat_invites i ON i.chat_id = c.id WHERE i.link = ? AND c.deleted = 0", ref.Invite)
+		if err == nil && len(rows) == 0 {
+			err = s.db.QueryRowsPartial(ctx, &rows, basic+"JOIN chat_invites i ON i.chat_id = c.id WHERE i.link = ? AND c.deactivated = 0", ref.Invite)
+		}
 	}
 	if err != nil || len(rows) == 0 {
 		return nil, err
@@ -397,13 +422,15 @@ func (s *dbGhosts) Chat(ctx context.Context, ref chatRef) (*ghostChat, error) {
 	return &rows[0], nil
 }
 
+// SetGhost changes the flag through the user service, which owns the
+// cached user: the account's phone and privacy follow it there
+// (user.setGhost).
 func (s *dbGhosts) SetGhost(ctx context.Context, userId int64, ghost bool) (bool, error) {
-	r, err := s.db.Exec(ctx, "UPDATE users SET ghost = ? WHERE id = ? AND ghost <> ?", ghost, userId, ghost)
+	r, err := s.user.UserSetGhost(ctx, &userpb.TLUserSetGhost{UserId: userId, Ghost: mtproto.ToBool(ghost)})
 	if err != nil {
 		return false, err
 	}
-	n, err := r.RowsAffected()
-	return n > 0, err
+	return mtproto.FromBool(r), nil
 }
 
 func (s *dbGhosts) SetHidden(ctx context.Context, userId int64, hidden bool) (int32, error) {
@@ -411,27 +438,51 @@ func (s *dbGhosts) SetHidden(ctx context.Context, userId int64, hidden bool) (in
 	if err != nil {
 		return 0, err
 	}
-	return r.GetV(), nil
+	g, err := s.chat.ChatSetUserHidden(ctx, &chatpb.TLChatSetUserHidden{UserId: userId, Hidden: mtproto.ToBool(hidden)})
+	if err != nil {
+		return 0, err
+	}
+	return r.GetV() + g.GetV(), nil
 }
 
 func (s *dbGhosts) Visible(ctx context.Context, userId int64) (int, error) {
 	var n []int
-	if err := s.db.QueryRowsPartial(ctx, &n, "SELECT COUNT(*) FROM channel_participants WHERE user_id = ? AND state = 0 AND role <> 0", userId); err != nil || len(n) == 0 {
+	if err := s.db.QueryRowsPartial(ctx, &n,
+		"SELECT (SELECT COUNT(*) FROM channel_participants WHERE user_id = ? AND state = 0 AND role <> 0)"+
+			" + (SELECT COUNT(*) FROM chat_participants p JOIN chats c ON c.id = p.chat_id AND c.deactivated = 0"+
+			" WHERE p.user_id = ? AND p.state = 0 AND p.participant_type <> ?)",
+		userId, userId, mtproto.ChatMemberNormal); err != nil || len(n) == 0 {
 		return 0, err
 	}
 	return n[0], nil
 }
 
-func (s *dbGhosts) Join(ctx context.Context, userId, chatId int64) (bool, error) {
-	r, err := s.channel.ChannelJoinHidden(ctx, &channel.TLChannelJoinHidden{UserId: userId, ChannelId: chatId})
+func (s *dbGhosts) Join(ctx context.Context, userId int64, chat *ghostChat) (bool, error) {
+	var (
+		r   *mtproto.Bool
+		err error
+	)
+	if chat.Basic {
+		r, err = s.chat.ChatJoinHidden(ctx, &chatpb.TLChatJoinHidden{UserId: userId, ChatId: chat.Id})
+	} else {
+		r, err = s.channel.ChannelJoinHidden(ctx, &channel.TLChannelJoinHidden{UserId: userId, ChannelId: chat.Id})
+	}
 	if err != nil {
 		return false, err
 	}
 	return mtproto.FromBool(r), nil
 }
 
-func (s *dbGhosts) Leave(ctx context.Context, userId, chatId int64) (bool, error) {
-	r, err := s.channel.ChannelLeaveHidden(ctx, &channel.TLChannelLeaveHidden{UserId: userId, ChannelId: chatId})
+func (s *dbGhosts) Leave(ctx context.Context, userId int64, chat *ghostChat) (bool, error) {
+	var (
+		r   *mtproto.Bool
+		err error
+	)
+	if chat.Basic {
+		r, err = s.chat.ChatLeaveHidden(ctx, &chatpb.TLChatLeaveHidden{UserId: userId, ChatId: chat.Id})
+	} else {
+		r, err = s.channel.ChannelLeaveHidden(ctx, &channel.TLChannelLeaveHidden{UserId: userId, ChannelId: chat.Id})
+	}
 	if err != nil {
 		return false, err
 	}
@@ -441,7 +492,9 @@ func (s *dbGhosts) Leave(ctx context.Context, userId, chatId int64) (bool, error
 func (s *dbGhosts) Hidden(ctx context.Context, userId int64) ([]ghostChat, error) {
 	var rows []ghostChat
 	err := s.db.QueryRowsPartial(ctx, &rows,
-		"SELECT c.id, c.title, c.broadcast FROM channel_participants p JOIN channels c ON c.id = p.channel_id"+
-			" WHERE p.user_id = ? AND p.state = 0 AND p.hidden = 1 AND c.deleted = 0 ORDER BY c.id", userId)
+		"SELECT c.id, c.title, c.broadcast, 0 AS basic FROM channel_participants p JOIN channels c ON c.id = p.channel_id"+
+			" WHERE p.user_id = ? AND p.state = 0 AND p.hidden = 1 AND c.deleted = 0"+
+			" UNION ALL SELECT c.id, c.title, 0, 1 FROM chat_participants p JOIN chats c ON c.id = p.chat_id"+
+			" WHERE p.user_id = ? AND p.state = 0 AND p.hidden = 1 AND c.deactivated = 0 ORDER BY 4, 1", userId, userId)
 	return rows, err
 }

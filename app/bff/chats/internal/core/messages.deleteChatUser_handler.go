@@ -65,6 +65,21 @@ func (c *ChatsCore) MessagesDeleteChatUser(in *mtproto.TLMessagesDeleteChatUser)
 		fromId = chat.Creator()
 	}
 
+	if removed, _ := chat.GetImmutableChatParticipant(deleteUser.PeerId); removed.GetHidden() {
+		// The ghost (ADR 0048) left, or an admin removed it: nobody saw it
+		// come, and no service message tells of its going. The operator's
+		// devices learn the list from biz chat with seq; the reply carries
+		// it and the chat.
+		var participants *mtproto.ChatParticipants
+		if fromId == deleteUser.PeerId {
+			participants = mtproto.MakeTLChatParticipantsForbidden(&mtproto.ChatParticipants{ChatId: in.ChatId}).To_ChatParticipants()
+		} else {
+			participants = chat.ToChatParticipants(fromId)
+		}
+		return mtproto.MakeUpdatesByUpdatesUsersChats(nil, []*mtproto.Chat{chat.ToUnsafeChat(fromId)},
+			mtproto.MakeTLUpdateChatParticipants(&mtproto.Update{Participants_CHATPARTICIPANTS: participants}).To_Update()), nil
+	}
+
 	replyUpdates, err := c.svcCtx.Dao.MsgClient.MsgSendMessageV2(
 		c.ctx,
 		&msgpb.TLMsgSendMessageV2{

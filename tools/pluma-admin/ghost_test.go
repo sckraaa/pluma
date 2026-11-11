@@ -40,6 +40,7 @@ func newFakeGhosts() *fakeGhosts {
 		chats: map[chatRef]*ghostChat{
 			{Id: 1001}: group, {Username: "bugs"}: group, {Invite: "AbCd"}: group,
 			{Id: 1002}: {Id: 1002, Title: "News", Broadcast: true},
+			{Id: 77}:   {Id: 77, Title: "Team", Basic: true},
 		},
 		hiddenIn: map[int64]bool{},
 	}
@@ -71,17 +72,17 @@ func (f *fakeGhosts) SetHidden(_ context.Context, _ int64, hidden bool) (int32, 
 
 func (f *fakeGhosts) Visible(context.Context, int64) (int, error) { return f.visible, nil }
 
-func (f *fakeGhosts) Join(_ context.Context, _ int64, chatId int64) (bool, error) {
-	if f.hiddenIn[chatId] {
+func (f *fakeGhosts) Join(_ context.Context, _ int64, chat *ghostChat) (bool, error) {
+	if f.hiddenIn[chat.Id] {
 		return false, nil
 	}
-	f.hiddenIn[chatId] = true
+	f.hiddenIn[chat.Id] = true
 	return true, nil
 }
 
-func (f *fakeGhosts) Leave(_ context.Context, _ int64, chatId int64) (bool, error) {
-	was := f.hiddenIn[chatId]
-	delete(f.hiddenIn, chatId)
+func (f *fakeGhosts) Leave(_ context.Context, _ int64, chat *ghostChat) (bool, error) {
+	was := f.hiddenIn[chat.Id]
+	delete(f.hiddenIn, chat.Id)
 	return was, nil
 }
 
@@ -161,8 +162,14 @@ func TestGhostJoinLeave(t *testing.T) {
 	if out, err = ghost(t, f, "join", "support", "t.me/c/1002/15"); err != nil || !strings.Contains(out, "channel 1002") {
 		t.Errorf("by t.me/c: %q, %v", out, err)
 	}
-	if out, _ = ghost(t, f, "list", "support"); !strings.Contains(out, "Bugs") || !strings.Contains(out, "News") {
+	if out, err = ghost(t, f, "join", "support", "77"); err != nil || !strings.Contains(out, `joined group 77 "Team" hidden`) {
+		t.Errorf("a basic group: %q, %v", out, err)
+	}
+	if out, _ = ghost(t, f, "list", "support"); !strings.Contains(out, "Bugs") || !strings.Contains(out, "News") || !strings.Contains(out, "group") {
 		t.Errorf("list: %q", out)
+	}
+	if out, _ = ghost(t, f, "leave", "support", "77"); !strings.Contains(out, `left group 77 "Team"`) {
+		t.Errorf("leave a basic group: %q", out)
 	}
 	if out, _ = ghost(t, f, "leave", "support", "-1001001"); !strings.Contains(out, "left supergroup 1001") {
 		t.Errorf("leave by a -100 id: %q", out)

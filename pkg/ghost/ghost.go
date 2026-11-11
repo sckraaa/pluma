@@ -21,8 +21,9 @@
 //
 // A hidden join writes the row alone: no counter, no service message, no
 // recent action, no request, no use of an invite link. A ghost sees the
-// whole history of a supergroup or channel it joins (available_min_id 0).
-// A ban still keeps it out.
+// whole history of a supergroup or channel it joins (available_min_id 0);
+// a basic group's history is copied into its box (msg inbox
+// inbox.chatHistoryToInbox). A ban still keeps it out.
 package ghost
 
 import (
@@ -87,6 +88,9 @@ const (
 	Member
 	// Banned: the ghost is kicked and its ban runs; nothing changed.
 	Banned
+	// Closed: the basic group is deleted, moved to a supergroup, or the
+	// ghost created it (JoinChat); nothing changed.
+	Closed
 )
 
 type channelRow struct {
@@ -146,6 +150,91 @@ func LeaveChannel(tx *sqlx.Tx, channelId, userId int64) (bool, error) {
 	n, err := r.RowsAffected()
 	return n > 0, err
 }
+
+// chatRow is the part of a basic group's participant row a hidden join reads.
+type chatRow struct {
+	State int32 `db:"state"`
+}
+
+// chatOpen is the part of a basic group's row a hidden join reads.
+type chatOpen struct {
+	CreatorUserId int64 `db:"creator_user_id"`
+	Deactivated   bool  `db:"deactivated"`
+	MigratedToId  int64 `db:"migrated_to_id"`
+}
+
+// JoinChat makes the ghost userId a hidden member of the basic group chatId
+// at date, in tx, a box transaction that locks the chat's row first, as
+// every change of a basic group does (ADR 0021): a plain member, no admin,
+// no rank, invited by nobody. The number of members and the version of the
+// chat stay as they are: the others' list of members does not change. A
+// ghost an admin removed stays out when kickedStaysOut (a mention does not
+// bring it back; a link or the operator's command does). The caller has
+// checked that userId is a ghost, and drops the chat's cache after commit.
+func JoinChat(tx *sqlx.Tx, chatId, userId, date int64, kickedStaysOut bool) (Outcome, error) {
+	var chats []chatOpen
+	if err := tx.QueryRowsPartial(&chats, "SELECT creator_user_id, deactivated, migrated_to_id FROM chats WHERE id = ? FOR UPDATE", chatId); err != nil {
+		return 0, err
+	}
+	if len(chats) == 0 || chats[0].Deactivated || chats[0].MigratedToId != 0 || chats[0].CreatorUserId == userId {
+		return Closed, nil
+	}
+	var rows []chatRow
+	if err := tx.QueryRowsPartial(&rows, "SELECT state FROM chat_participants WHERE chat_id = ? AND user_id = ? FOR UPDATE", chatId, userId); err != nil {
+		return 0, err
+	}
+	if len(rows) > 0 {
+		switch rows[0].State {
+		case mtproto.ChatMemberStateNormal:
+			return Member, nil
+		case mtproto.ChatMemberStateKicked:
+			if kickedStaysOut {
+				return Banned, nil
+			}
+		case mtproto.ChatMemberStateMigrated, mtproto.ChatMemberStateChatDeleted:
+			return Closed, nil
+		}
+	}
+	if _, err := tx.Exec(joinChatQuery, chatId, userId, mtproto.ChatMemberNormal, date, mtproto.ChatMemberStateNormal, date); err != nil {
+		return 0, err
+	}
+	return Joined, nil
+}
+
+// joinChatQuery writes the hidden row of a ghost joining a basic group.
+const joinChatQuery = "INSERT INTO chat_participants (chat_id, user_id, participant_type, link, inviter_user_id, invited_at, is_bot, state, hidden, date2) VALUES (?, ?, ?, '', 0, ?, 0, ?, 1, ?)" +
+	" ON DUPLICATE KEY UPDATE participant_type = VALUES(participant_type), inviter_user_id = 0, invited_at = VALUES(invited_at), is_bot = 0," +
+	" state = VALUES(state), kicked_at = 0, left_at = 0, hidden = 1, rank2 = '', date2 = VALUES(date2)"
+
+// LeaveChat takes the ghost userId out of the basic group chatId at date,
+// in tx with the chat locked: its hidden row is left, as nobody saw it
+// come. It tells whether the ghost was in.
+func LeaveChat(tx *sqlx.Tx, chatId, userId, date int64) (bool, error) {
+	r, err := tx.Exec("UPDATE chat_participants SET state = ?, left_at = ?, kicked_at = 0 WHERE chat_id = ? AND user_id = ? AND state = ? AND hidden = 1",
+		mtproto.ChatMemberStateLeft, date, chatId, userId, mtproto.ChatMemberStateNormal)
+	if err != nil {
+		return false, err
+	}
+	n, err := r.RowsAffected()
+	return n > 0, err
+}
+
+// KickChat keeps the ghost userId, which is not in the basic group chatId,
+// out of it from date, in tx with the chat locked: an admin removed it
+// without seeing whether it was in, and the removal answers the same either
+// way. Its row is hidden and kicked, as the removal of a hidden member
+// leaves it, so that a mention no longer brings it in (JoinChat with
+// kickedStaysOut); a link or the operator's command still does. The caller
+// has checked that userId is a ghost without a live row.
+func KickChat(tx *sqlx.Tx, chatId, userId, date int64) error {
+	_, err := tx.Exec(kickChatQuery, chatId, userId, mtproto.ChatMemberNormal, date, mtproto.ChatMemberStateKicked, date, date)
+	return err
+}
+
+// kickChatQuery writes the hidden kicked row of a ghost an admin removed
+// from a basic group it was not in.
+const kickChatQuery = "INSERT INTO chat_participants (chat_id, user_id, participant_type, link, inviter_user_id, invited_at, is_bot, state, kicked_at, hidden, date2) VALUES (?, ?, ?, '', 0, ?, 0, ?, ?, 1, ?)" +
+	" ON DUPLICATE KEY UPDATE participant_type = VALUES(participant_type), state = VALUES(state), kicked_at = VALUES(kicked_at), left_at = 0, hidden = 1, rank2 = ''"
 
 // Readable tells whether a ghost without a row may read the supergroup or
 // channel channelId: a public one, or the discussion group of a broadcast

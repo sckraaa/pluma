@@ -45,7 +45,16 @@ func (c *ChatCore) ChatEditChatCreator(in *chat.TLChatEditChatCreator) (*mtproto
 			return mtproto.ErrChatAdminRequired
 		case in.UserId == in.SelfId:
 			return mtproto.ErrChatNotModified
-		case target == nil:
+		case target == nil || target.Hidden:
+			// The creator is seen by all: the ghost is none (ADR 0048),
+			// whether it is in the chat or not.
+			g, err := t.ghostTarget(b, target, in.UserId)
+			if err != nil {
+				return err
+			}
+			if g {
+				return mtproto.ErrUserPrivacyRestricted
+			}
 			return mtproto.ErrUserIdInvalid
 		}
 		if err := t.handTo(b, me, target, mtproto.ChatMemberAdmin); err != nil {

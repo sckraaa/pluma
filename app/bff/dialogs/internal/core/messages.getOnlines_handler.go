@@ -78,19 +78,28 @@ func (c *DialogsCore) MessagesGetOnlines(in *mtproto.TLMessagesGetOnlines) (*mtp
 }
 
 // shownMembers are members without the hidden ones but the viewer itself
-// (ADR 0048). A ghost is hidden in supergroups and channels only.
+// (ADR 0048).
 func (c *DialogsCore) shownMembers(peer *mtproto.PeerUtil, members []int64) ([]int64, error) {
-	if !peer.IsChannel() {
-		return members, nil
-	}
-	mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: members})
-	if err != nil {
-		return nil, err
-	}
 	hidden := map[int64]bool{}
-	for _, p := range mc.GetParticipants() {
-		if p.GetHidden() {
-			hidden[p.GetUserId()] = true
+	if peer.IsChannel() {
+		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: members})
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range mc.GetParticipants() {
+			if p.GetHidden() {
+				hidden[p.GetUserId()] = true
+			}
+		}
+	} else {
+		chat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{ChatId: peer.PeerId})
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range chat.GetChatParticipants() {
+			if p.GetHidden() {
+				hidden[p.GetUserId()] = true
+			}
 		}
 	}
 	out := make([]int64, 0, len(members))

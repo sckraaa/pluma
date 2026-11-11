@@ -49,6 +49,36 @@ func makeGhost(ctx context.Context, t *testing.T, u *user) string {
 	return name
 }
 
+// ghostPeer is the ghost as u finds it, by its username: nobody finds it by
+// its number.
+func ghostPeer(ctx context.Context, t *testing.T, u *user, name string) *mtproto.InputPeer {
+	t.Helper()
+	g := resolveGhost(ctx, t, u, name)
+	return &mtproto.InputPeer{Constructor: u.c.Constructor(mtproto.Predicate_inputPeerUser), UserId: g.GetId(), AccessHash: g.GetAccessHash().GetValue()}
+}
+
+// resolveGhost is the ghost's user as contacts.resolveUsername gives it to u.
+func resolveGhost(ctx context.Context, t *testing.T, u *user, name string) *mtproto.User {
+	t.Helper()
+	o, err := u.c.Invoke(ctx, &mtproto.TLContactsResolveUsername{
+		Constructor: u.c.Constructor(mtproto.Predicate_contacts_resolveUsername),
+		Username:    name,
+	})
+	if err != nil {
+		t.Fatalf("contacts.resolveUsername %s: %v", name, err)
+	}
+	r := o.(interface {
+		To_Contacts_ResolvedPeer() *mtproto.Contacts_ResolvedPeer
+	}).To_Contacts_ResolvedPeer()
+	for _, x := range r.GetUsers() {
+		if x.GetId() == r.GetPeer().GetUserId() {
+			return x
+		}
+	}
+	t.Fatalf("contacts.resolveUsername %s: no user", name)
+	return nil
+}
+
 // memberView is what a member is shown of a supergroup's members.
 type memberView struct {
 	ids        []int64
@@ -155,14 +185,20 @@ func TestSupportGhostMentioned(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("channels.inviteToChannel: %v", err)
 	}
-	// Nobody adds support: it is called in by a mention.
-	_, err := alice.c.Invoke(ctx, &mtproto.TLChannelsInviteToChannelC9E33D54{
+	// Nobody adds support: it is called in by a mention. The answer lists it
+	// as an invitee its privacy keeps out, as the clients know it.
+	o, err := alice.c.Invoke(ctx, &mtproto.TLChannelsInviteToChannelC9E33D54{
 		Constructor: alice.c.Constructor(mtproto.Predicate_channels_inviteToChannelC9E33D54),
 		Channel:     inputOf(alice),
-		Users:       []*mtproto.InputUser{inputUserOf(ctx, t, alice, support)},
+		Users:       []*mtproto.InputUser{inputUserOfPeer(alice.c, ghostPeer(ctx, t, alice, name))},
 	})
-	if !mtclient.IsRPCError(err, "USER_PRIVACY_RESTRICTED") {
-		t.Errorf("support invited: %v, want USER_PRIVACY_RESTRICTED", err)
+	if err != nil {
+		t.Fatalf("channels.inviteToChannel of support: %v", err)
+	}
+	if m := o.(interface {
+		To_Messages_InvitedUsers() *mtproto.Messages_InvitedUsers
+	}).To_Messages_InvitedUsers().GetMissingInvitees(); len(m) != 1 || m[0].GetUserId() != support.self.GetId() || m[0].GetPremiumWouldAllowInvite() {
+		t.Errorf("missing invitees %v, want support", m)
 	}
 	sendMessageID(ctx, t, alice, peer(alice), "the history before", randomID())
 	before := viewOfMembers(ctx, t, bob, inputOf(bob), peer(bob))
@@ -199,7 +235,7 @@ func TestSupportGhostMentioned(t *testing.T) {
 	_, err = bob.c.Invoke(ctx, &mtproto.TLChannelsGetParticipant{
 		Constructor: bob.c.Constructor(mtproto.Predicate_channels_getParticipant),
 		Channel:     inputOf(bob),
-		Participant: peerOf(ctx, t, bob, support),
+		Participant: ghostPeer(ctx, t, bob, name),
 	})
 	if !mtclient.IsRPCError(err, "USER_NOT_PARTICIPANT") {
 		t.Errorf("channels.getParticipant of support to Bob: %v, want USER_NOT_PARTICIPANT", err)

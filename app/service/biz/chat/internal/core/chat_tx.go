@@ -165,10 +165,23 @@ func (t *chatTx) changed(b *userbox.Box, userIds ...int64) {
 	}
 }
 
+// shown counts the members the others see: a hidden row (the ghost, ADR
+// 0048) is not one of them.
+func (t *chatTx) shown() int32 {
+	var n int32
+	t.Walk(func(_ int64, p *mtproto.ImmutableChatParticipant) error {
+		if p.IsChatMemberStateNormal() && !p.Hidden {
+			n++
+		}
+		return nil
+	})
+	return n
+}
+
 // writeCount writes the number of members after a change of the
 // participants, which bumps the version.
 func (t *chatTx) writeCount(b *userbox.Box) error {
-	n := int32(len(t.members()))
+	n := t.shown()
 	if _, err := t.c.svcCtx.Dao.ChatsDAO.UpdateParticipantCountTx(b.Tx(), n, t.Chat.Id); err != nil {
 		return err
 	}
@@ -218,7 +231,7 @@ func (t *chatTx) addMember(b *userbox.Box, inviterId, userId int64, isBot, check
 	switch {
 	case t.member(userId) != nil:
 		return mtproto.ErrUserAlreadyParticipant
-	case len(t.members()) >= maxChatMembers:
+	case t.shown() >= maxChatMembers:
 		return mtproto.ErrUsersTooMuch
 	}
 
@@ -296,9 +309,13 @@ func (t *chatTx) admins() []int64 {
 // (EmitSeqUpdate); every other user gets one inbox event with all of them,
 // whose users and chats msg builds as that user sees them when it applies
 // it (EmitSeqInbox).
+//
+// A hidden member (the ghost, ADR 0048) gets the list of the members with
+// itself in it, which the others' list leaves out (hiddenView).
 func (t *chatTx) tell(b *userbox.Box, to []int64, updates ...*mtproto.Update) error {
 	d := t.c.svcCtx.Dao
 	for _, id := range to {
+		updates := t.hiddenView(id, updates)
 		if id != b.UserId() {
 			if err := d.EmitSeqInbox(b, id, updates...); err != nil {
 				return err
@@ -318,6 +335,26 @@ func (t *chatTx) tell(b *userbox.Box, to []int64, updates ...*mtproto.Update) er
 		}
 	}
 	return nil
+}
+
+// hiddenView is updates as userId sees them: for a hidden member, the list
+// of the members of the chat names it too; anyone else's are updates.
+func (t *chatTx) hiddenView(userId int64, updates []*mtproto.Update) []*mtproto.Update {
+	if p := t.member(userId); p == nil || !p.Hidden {
+		return updates
+	}
+	out := make([]*mtproto.Update, len(updates))
+	for i, u := range updates {
+		out[i] = u
+		if u.GetPredicateName() == mtproto.Predicate_updateChatParticipants &&
+			u.GetParticipants_CHATPARTICIPANTS().GetPredicateName() == mtproto.Predicate_chatParticipants &&
+			u.GetParticipants_CHATPARTICIPANTS().GetChatId() == t.Chat.Id {
+			out[i] = mtproto.MakeTLUpdateChatParticipants(&mtproto.Update{
+				Participants_CHATPARTICIPANTS: t.ToChatParticipants(userId),
+			}).To_Update()
+		}
+	}
+	return out
 }
 
 // tellMembers gives updates with seq to every member of the chat now.

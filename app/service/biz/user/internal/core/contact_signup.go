@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dao"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/svc"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -256,6 +257,16 @@ func deliverSignUp(ctx context.Context, svcCtx *svc.ServiceContext, s dao.Contac
 		if newUser.Deleted() {
 			// The account is gone: the number is free again, and the
 			// phone books keep it for whoever registers it next.
+			done = true
+			return dao.FinishContactSignUp(b)
+		}
+		// The support ghost (ADR 0048) is found by its number by nobody:
+		// made a ghost before its sign-up went out, it reaches no importer.
+		// user.setGhost runs in this same box, so the flag read here is the
+		// one the delivery would follow.
+		if hidden, err := ghost.IsGhost(b.Tx(), s.UserId); err != nil {
+			return err
+		} else if hidden {
 			done = true
 			return dao.FinishContactSignUp(b)
 		}

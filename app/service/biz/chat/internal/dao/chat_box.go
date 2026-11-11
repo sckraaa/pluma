@@ -34,10 +34,11 @@ import (
 
 const (
 	chatColumns        = "id, creator_user_id, access_hash, participant_count, title, about, photo_id, default_banned_rights, migrated_to_id, migrated_to_access_hash, noforwards, available_reactions_type, available_reactions, deactivated, ttl_period, version, `date`"
-	participantColumns = "id, chat_id, user_id, participant_type, link, usage2, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2"
+	participantColumns = "id, chat_id, user_id, participant_type, link, usage2, inviter_user_id, invited_at, kicked_at, left_at, is_bot, state, date2, rank2, hidden"
 
 	lockChatQuery      = "SELECT " + chatColumns + " FROM chats WHERE id = ? FOR UPDATE"
 	participantsQuery  = "SELECT " + participantColumns + " FROM chat_participants WHERE chat_id = ? ORDER BY id"
+	participantQuery   = "SELECT " + participantColumns + " FROM chat_participants WHERE chat_id = ? AND user_id = ?"
 	lastChatOfQuery    = "SELECT " + chatColumns + " FROM chats WHERE creator_user_id = ? ORDER BY `date` DESC LIMIT 1"
 	inviteByLinkQuery  = "SELECT id, chat_id, admin_id, link, permanent, revoked, request_needed, start_date, expire_date, usage_limit, usage2, requested, title, date2 FROM chat_invites WHERE link = ?"
 	linkUsageQuery     = "SELECT COUNT(*) FROM chat_invite_participants WHERE link = ? AND requested = 0"
@@ -88,6 +89,22 @@ func (d *Dao) LockChat(b *userbox.Box, chatId int64) (*LockedChat, error) {
 		c.ChatParticipants = append(c.ChatParticipants, d.MakeImmutableChatParticipant(&rows[i]))
 	}
 	return c, nil
+}
+
+// ParticipantTx reads the participant row of userId in chatId, which the
+// transaction has written.
+func (d *Dao) ParticipantTx(b *userbox.Box, chatId, userId int64) (*mtproto.ImmutableChatParticipant, error) {
+	var do dataobject.ChatParticipantsDO
+	if err := b.Tx().QueryRowPartial(&do, participantQuery, chatId, userId); err != nil {
+		return nil, err
+	}
+	return d.MakeImmutableChatParticipant(&do), nil
+}
+
+// SetHiddenTx hides or shows the participant row id (the ghost, ADR 0048).
+func (d *Dao) SetHiddenTx(b *userbox.Box, id int64, hidden bool) error {
+	_, err := b.Tx().Exec("UPDATE chat_participants SET hidden = ? WHERE id = ?", hidden, id)
+	return err
 }
 
 // LastChatOfTx returns the chat creatorId created last, nil if none.

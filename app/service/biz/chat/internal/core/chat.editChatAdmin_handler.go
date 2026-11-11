@@ -28,6 +28,26 @@ func (c *ChatCore) ChatEditChatAdmin(in *chat.TLChatEditChatAdmin) (*mtproto.Mut
 	chat2, err := c.changeMembers(in.OperatorId, in.ChatId, nil, func(b *userbox.Box, t *chatTx) error {
 		me := t.member(in.OperatorId)
 		target := t.participant(in.EditChatAdminId)
+		if me != nil {
+			// The ghost (ADR 0048) gets the same answer whether it is in
+			// the chat or not: an admin is seen by all, and the ghost is
+			// none, as the clients know of one their privacy keeps out
+			// (Android AlertsCreator.java:430-447); it has no admin right
+			// to take back, as one not in the chat.
+			g, err := t.ghostTarget(b, target, in.EditChatAdminId)
+			if err != nil {
+				return err
+			}
+			switch {
+			case !g:
+			case !me.CanAdminAddAdmins():
+				return mtproto.ErrChatAdminRequired
+			case isAdmin:
+				return mtproto.ErrUserPrivacyRestricted
+			default:
+				return mtproto.ErrUserNotParticipant
+			}
+		}
 		switch {
 		case me == nil, target == nil:
 			return mtproto.ErrUserNotParticipant

@@ -1636,6 +1636,7 @@ TLImmutableChat.Version
 TLImmutableChatParticipant.AdminRights
 TLImmutableChatParticipant.ChatId
 TLImmutableChatParticipant.Date
+TLImmutableChatParticipant.Hidden
 TLImmutableChatParticipant.Id
 TLImmutableChatParticipant.InvitedAt
 TLImmutableChatParticipant.InviterUserId
@@ -5640,6 +5641,7 @@ TLUserData.Deleted
 TLUserData.EmojiStatus
 TLUserData.Fake
 TLUserData.FirstName
+TLUserData.Ghost
 TLUserData.Id
 TLUserData.LastName
 TLUserData.MainTab

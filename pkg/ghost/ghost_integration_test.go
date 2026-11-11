@@ -247,3 +247,105 @@ func TestReadable(t *testing.T) {
 	f.exec("UPDATE channels SET deleted = 1 WHERE id = ?", discussion)
 	check("deleted", discussion, false)
 }
+
+// basicGroup writes a basic group created by alice, with alice in it.
+func (f *fixture) basicGroup(id int64) {
+	f.t.Helper()
+	f.exec("INSERT INTO chats (id, creator_user_id, access_hash, random_id, participant_count, title, version) VALUES (?, ?, 1, 0, 1, 'g', 3)", id, alice)
+	f.exec("INSERT INTO chat_participants (chat_id, user_id, participant_type, state, date2) VALUES (?, ?, ?, 0, 1)", id, alice, mtproto.ChatMemberCreator)
+}
+
+func (f *fixture) joinChat(chatId int64, kickedStaysOut bool) Outcome {
+	f.t.Helper()
+	var out Outcome
+	f.run(func(b *userbox.Box) error {
+		var err error
+		out, err = JoinChat(b.Tx(), chatId, support, b.Date(), kickedStaysOut)
+		return err
+	})
+	return out
+}
+
+type chatMemberRow struct {
+	State           int32  `db:"state"`
+	Hidden          bool   `db:"hidden"`
+	ParticipantType int32  `db:"participant_type"`
+	Rank2           string `db:"rank2"`
+}
+
+func (f *fixture) chatRow(chatId int64) chatMemberRow {
+	f.t.Helper()
+	var rows []chatMemberRow
+	if err := f.db.QueryRowsPartial(f.ctx, &rows, "SELECT state, hidden, participant_type, rank2 FROM chat_participants WHERE chat_id = ? AND user_id = ?", chatId, support); err != nil {
+		f.t.Fatal(err)
+	}
+	if len(rows) == 0 {
+		return chatMemberRow{State: -1}
+	}
+	return rows[0]
+}
+
+// TestJoinChat: the ghost comes into a basic group as a hidden plain member
+// and the group's count and version stay; once in, again changes nothing; a
+// ghost an admin removed stays out of a mention's join but not of the
+// operator's; a moved or deleted group, or one the ghost created, takes
+// nobody; LeaveChat takes it out once.
+func TestJoinChat(t *testing.T) {
+	f := newFixture(t)
+	const group, moved, own = int64(300), int64(301), int64(302)
+	f.basicGroup(group)
+	f.basicGroup(moved)
+	f.exec("UPDATE chats SET migrated_to_id = ? WHERE id = ?", privateGroup, moved)
+	f.exec("INSERT INTO chats (id, creator_user_id, access_hash, random_id, participant_count, title) VALUES (?, ?, 1, 0, 0, 'o')", own, support)
+
+	if out := f.joinChat(group, true); out != Joined {
+		t.Fatalf("join: %v", out)
+	}
+	if r := f.chatRow(group); r.State != mtproto.ChatMemberStateNormal || !r.Hidden || r.ParticipantType != mtproto.ChatMemberNormal {
+		t.Errorf("row %+v", r)
+	}
+	var counts []struct {
+		N int32 `db:"participant_count"`
+		V int32 `db:"version"`
+	}
+	if err := f.db.QueryRowsPartial(f.ctx, &counts, "SELECT participant_count, version FROM chats WHERE id = ?", group); err != nil || counts[0].N != 1 || counts[0].V != 3 {
+		t.Errorf("count and version %+v, %v", counts, err)
+	}
+	if out := f.joinChat(group, true); out != Member {
+		t.Errorf("again: %v", out)
+	}
+
+	f.exec("UPDATE chat_participants SET state = ?, participant_type = ?, rank2 = 'x' WHERE chat_id = ? AND user_id = ?", mtproto.ChatMemberStateKicked, mtproto.ChatMemberAdmin, group, support)
+	if out := f.joinChat(group, true); out != Banned {
+		t.Errorf("removed, by a mention: %v", out)
+	}
+	if out := f.joinChat(group, false); out != Joined {
+		t.Errorf("removed, by the operator: %v", out)
+	}
+	if r := f.chatRow(group); !r.Hidden || r.ParticipantType != mtproto.ChatMemberNormal || r.Rank2 != "" {
+		t.Errorf("back: %+v", r)
+	}
+	for _, id := range []int64{moved, own, 999} {
+		if out := f.joinChat(id, true); out != Closed {
+			t.Errorf("chat %d: %v", id, out)
+		}
+	}
+
+	var left bool
+	f.run(func(b *userbox.Box) error {
+		var err error
+		left, err = LeaveChat(b.Tx(), group, support, b.Date())
+		return err
+	})
+	if !left || f.chatRow(group).State != mtproto.ChatMemberStateLeft {
+		t.Errorf("leave: %v, %+v", left, f.chatRow(group))
+	}
+	f.run(func(b *userbox.Box) error {
+		var err error
+		left, err = LeaveChat(b.Tx(), group, support, b.Date())
+		return err
+	})
+	if left {
+		t.Error("left twice")
+	}
+}

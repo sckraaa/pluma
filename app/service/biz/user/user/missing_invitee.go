@@ -28,7 +28,9 @@ func MissingInvitee(inviter, invitee *mtproto.ImmutableUser) *mtproto.MissingInv
 		return nil
 	}
 	wouldAllow := false
-	if !inviter.Premium() {
+	// The support ghost is added by nobody (ADR 0048): no setting would let
+	// the inviter in.
+	if !inviter.Premium() && !invitee.Ghost() {
 		contact, _ := invitee.CheckContact(inviter.Id())
 		for _, k := range invitee.GetKeysPrivacyRules() {
 			if k.GetKey() == mtproto.CHAT_INVITE {
