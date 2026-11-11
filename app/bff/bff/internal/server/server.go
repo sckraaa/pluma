@@ -407,6 +407,8 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCBoostsServer(grpcServer, channels)
 		// channels.getLeftChannels, of the takeout API (task 041).
 		mtproto.RegisterRPCTakeoutServer(grpcServer, channels)
+		// channels.getChannelRecommendations, similar channels (task 081).
+		mtproto.RegisterRPCChannelRecommendationsServer(grpcServer, channels)
 		// The threads of replies: comments of channel posts (task 048).
 		mtproto.RegisterRPCMessageThreadsServer(grpcServer, channels)
 		// The forums and topics of supergroups (task 060).

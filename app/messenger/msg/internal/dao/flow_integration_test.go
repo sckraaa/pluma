@@ -576,6 +576,10 @@ func (noChannels) ChannelGetLeftChannels(context.Context, *channelpb.TLChannelGe
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelGetChannelRecommendations(context.Context, *channelpb.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 // chat is the basic group chatId with its members; f.mu is held.
 func (f *fakeChats) chat(chatId int64) (*mtproto.MutableChat, error) {
 	members, ok := f.members[chatId]

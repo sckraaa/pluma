@@ -115,6 +115,7 @@ type ChannelClient interface {
 	ChannelGetFutureCreator(ctx context.Context, in *channel.TLChannelGetFutureCreator) (*mtproto.Int64, error)
 	ChannelGetInactiveChannels(ctx context.Context, in *channel.TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error)
 	ChannelSetMainProfileTab(ctx context.Context, in *channel.TLChannelSetMainProfileTab) (*mtproto.Bool, error)
+	ChannelGetChannelRecommendations(ctx context.Context, in *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error)
 }
 
 type defaultChannelClient struct {
@@ -1104,4 +1105,15 @@ func (m *defaultChannelClient) ChannelSetMainProfileTab(ctx context.Context, in 
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelSetMainProfileTab(ctx, in)
+}
+
+// ChannelGetChannelRecommendations
+// channel.getChannelRecommendations self_id:long channel_id:long = messages.Chats;
+func (m *defaultChannelClient) ChannelGetChannelRecommendations(ctx context.Context, in *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetChannelRecommendations(ctx, in)
 }

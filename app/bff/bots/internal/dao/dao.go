@@ -34,12 +34,25 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
+	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 )
+
+// SendAs is the from_id of a send with send_as (sendas.Store.From).
+type SendAs interface {
+	From(ctx context.Context, userId int64, peer *mtproto.PeerUtil, sendAs *mtproto.InputPeer) (*mtproto.Peer, error)
+}
+
+// StickerLists is where a sticker the account sends becomes a recent one
+// (stickerlists.Store).
+type StickerLists interface {
+	Add(ctx context.Context, userID int64, list stickerlists.List, documentID int64) error
+}
 
 // Dao holds the clients the methods use, the store of bots and Redis.
 type Dao struct {
@@ -57,6 +70,13 @@ type Dao struct {
 	db        *sqlx.DB
 	boxDB     *sql.DB
 	syncTopic string
+
+	// SendAs decides as whom the account sends an inline result to a
+	// supergroup (send_as, task 081).
+	SendAs SendAs
+	// StickerLists keeps the recent stickers an inline result sends
+	// (task 081).
+	StickerLists StickerLists
 
 	waitsMu sync.Mutex
 	waits   map[int64]int // requests of a user waiting for bots (EnterWait)
@@ -83,6 +103,8 @@ func New(c config.Config) *Dao {
 		Channel:       channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		Bots:          botstore.New(db),
 		KV:            kv.NewStore(c.KV),
+		SendAs:        sendas.New(db),
+		StickerLists:  stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
 		db:            db,
 		boxDB:         boxDB,
 		syncTopic:     c.SyncClient.Topic,

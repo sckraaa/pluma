@@ -1269,3 +1269,17 @@ func (s *Service) ChannelSetMainProfileTab(ctx context.Context, request *channel
 
 	return r, nil
 }
+
+// ChannelGetChannelRecommendations
+// channel.getChannelRecommendations self_id:long channel_id:long = messages.Chats;
+func (s *Service) ChannelGetChannelRecommendations(ctx context.Context, request *channel.TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getChannelRecommendations - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetChannelRecommendations(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

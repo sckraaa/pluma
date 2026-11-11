@@ -16,6 +16,7 @@
 package sendas
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -104,3 +105,49 @@ func TestAuthor(t *testing.T) {
 		t.Errorf("Author(user, 200) = %v", p)
 	}
 }
+
+// The from_id of a send: the account without send_as or with itself, a
+// channel only where the account may write as it, and only to a channel or
+// a supergroup.
+func TestFrom(t *testing.T) {
+	const channel = int64(200)
+	inChannel := mtproto.MakeTLInputPeerChannel(&mtproto.InputPeer{ChannelId: channel}).To_InputPeer()
+	toGroup := &mtproto.PeerUtil{PeerType: mtproto.PEER_CHANNEL, PeerId: group}
+	toUser := &mtproto.PeerUtil{PeerType: mtproto.PEER_USER, PeerId: 20}
+	allow := func(channelId int64, as *mtproto.Peer) error {
+		if channelId != group || as.GetChannelId() != channel {
+			return errNotAsked
+		}
+		return nil
+	}
+	deny := func(int64, *mtproto.Peer) error { return mtproto.ErrSendAsPeerInvalid }
+	unasked := func(int64, *mtproto.Peer) error { return errNotAsked }
+	for _, c := range []struct {
+		name   string
+		peer   *mtproto.PeerUtil
+		sendAs *mtproto.InputPeer
+		check  func(int64, *mtproto.Peer) error
+		want   int64 // peerIds form
+		err    error
+	}{
+		{"no send_as", toGroup, nil, unasked, user, nil},
+		{"inputPeerEmpty", toGroup, mtproto.MakeTLInputPeerEmpty(nil).To_InputPeer(), unasked, user, nil},
+		{"itself", toGroup, mtproto.MakeTLInputPeerSelf(nil).To_InputPeer(), unasked, user, nil},
+		{"an allowed channel", toGroup, inChannel, allow, -channel, nil},
+		{"a channel not allowed", toGroup, inChannel, deny, 0, mtproto.ErrSendAsPeerInvalid},
+		{"a channel to a user", toUser, inChannel, unasked, 0, mtproto.ErrSendAsPeerInvalid},
+		{"another user", toGroup, mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: 30}).To_InputPeer(), unasked, 0, mtproto.ErrSendAsPeerInvalid},
+	} {
+		got, err := From(user, c.peer, c.sendAs, c.check)
+		if !errors.Is(err, c.err) {
+			t.Errorf("%s: %v, want %v", c.name, err, c.err)
+			continue
+		}
+		if err == nil && peerIds([]*mtproto.Peer{got})[0] != c.want {
+			t.Errorf("%s: from %v, want %d", c.name, got, c.want)
+		}
+	}
+}
+
+// errNotAsked fails a check that should not have been made.
+var errNotAsked = errors.New("checked")

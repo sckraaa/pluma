@@ -199,11 +199,21 @@ func (d *Dao) UnpinAllChannel(b *userbox.Box, channelId int64) (*mtproto.Update,
 // EmitChannelUpdatesPush adds the push of updates of the channel's journal
 // to its members (sync.pushChannelUpdates, keyed by the channel).
 func (d *Dao) EmitChannelUpdatesPush(b *userbox.Box, channelId, permAuthKeyId int64, updates ...*mtproto.Update) error {
+	return d.EmitChannelAuthoredPush(b, channelId, permAuthKeyId, b.UserId(), updates...)
+}
+
+// EmitChannelAuthoredPush is EmitChannelUpdatesPush of a change b's owner
+// makes to messages authorId wrote: a message authorId wrote as a channel
+// stays out for authorId's devices (author_id, task 081).
+func (d *Dao) EmitChannelAuthoredPush(b *userbox.Box, channelId, permAuthKeyId, authorId int64, updates ...*mtproto.Update) error {
 	in := &sync.TLSyncPushChannelUpdates{
 		ChannelId:     channelId,
 		FromId:        b.UserId(),
 		FromAuthKeyId: permAuthKeyId,
 		Updates:       mtproto.MakeUpdatesByUpdates(updates...),
+	}
+	if authorId != b.UserId() {
+		in.AuthorId = authorId
 	}
 	data, err := jsonx.Marshal(in)
 	if err != nil {

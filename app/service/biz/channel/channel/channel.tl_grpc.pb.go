@@ -77,6 +77,7 @@ const (
 	RPCChannel_ChannelHideChatJoinRequests_FullMethodName             = "/channel.RPCChannel/channel_hideChatJoinRequests"
 	RPCChannel_ChannelGetPendingJoinRequests_FullMethodName           = "/channel.RPCChannel/channel_getPendingJoinRequests"
 	RPCChannel_ChannelGetLeftChannels_FullMethodName                  = "/channel.RPCChannel/channel_getLeftChannels"
+	RPCChannel_ChannelGetChannelRecommendations_FullMethodName        = "/channel.RPCChannel/channel_getChannelRecommendations"
 	RPCChannel_ChannelToggleForum_FullMethodName                      = "/channel.RPCChannel/channel_toggleForum"
 	RPCChannel_ChannelToggleViewForumAsMessages_FullMethodName        = "/channel.RPCChannel/channel_toggleViewForumAsMessages"
 	RPCChannel_ChannelCreateForumTopic_FullMethodName                 = "/channel.RPCChannel/channel_createForumTopic"
@@ -211,6 +212,8 @@ type RPCChannelClient interface {
 	ChannelGetPendingJoinRequests(ctx context.Context, in *TLChannelGetPendingJoinRequests, opts ...grpc.CallOption) (*mtproto.Update, error)
 	// pluma: task 041
 	ChannelGetLeftChannels(ctx context.Context, in *TLChannelGetLeftChannels, opts ...grpc.CallOption) (*mtproto.Messages_Chats, error)
+	// pluma: task 081
+	ChannelGetChannelRecommendations(ctx context.Context, in *TLChannelGetChannelRecommendations, opts ...grpc.CallOption) (*mtproto.Messages_Chats, error)
 	// pluma: task 060
 	ChannelToggleForum(ctx context.Context, in *TLChannelToggleForum, opts ...grpc.CallOption) (*mtproto.Updates, error)
 	// pluma: task 060
@@ -721,6 +724,16 @@ func (c *rPCChannelClient) ChannelGetLeftChannels(ctx context.Context, in *TLCha
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(mtproto.Messages_Chats)
 	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetLeftChannels_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetChannelRecommendations(ctx context.Context, in *TLChannelGetChannelRecommendations, opts ...grpc.CallOption) (*mtproto.Messages_Chats, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Chats)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetChannelRecommendations_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1291,6 +1304,8 @@ type RPCChannelServer interface {
 	ChannelGetPendingJoinRequests(context.Context, *TLChannelGetPendingJoinRequests) (*mtproto.Update, error)
 	// pluma: task 041
 	ChannelGetLeftChannels(context.Context, *TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error)
+	// pluma: task 081
+	ChannelGetChannelRecommendations(context.Context, *TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error)
 	// pluma: task 060
 	ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error)
 	// pluma: task 060
@@ -1518,6 +1533,9 @@ func (UnimplementedRPCChannelServer) ChannelGetPendingJoinRequests(context.Conte
 }
 func (UnimplementedRPCChannelServer) ChannelGetLeftChannels(context.Context, *TLChannelGetLeftChannels) (*mtproto.Messages_Chats, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetLeftChannels not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetChannelRecommendations(context.Context, *TLChannelGetChannelRecommendations) (*mtproto.Messages_Chats, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetChannelRecommendations not implemented")
 }
 func (UnimplementedRPCChannelServer) ChannelToggleForum(context.Context, *TLChannelToggleForum) (*mtproto.Updates, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelToggleForum not implemented")
@@ -2417,6 +2435,24 @@ func _RPCChannel_ChannelGetLeftChannels_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCChannelServer).ChannelGetLeftChannels(ctx, req.(*TLChannelGetLeftChannels))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetChannelRecommendations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetChannelRecommendations)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetChannelRecommendations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetChannelRecommendations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetChannelRecommendations(ctx, req.(*TLChannelGetChannelRecommendations))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -3455,6 +3491,10 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_getLeftChannels",
 			Handler:    _RPCChannel_ChannelGetLeftChannels_Handler,
+		},
+		{
+			MethodName: "channel_getChannelRecommendations",
+			Handler:    _RPCChannel_ChannelGetChannelRecommendations_Handler,
 		},
 		{
 			MethodName: "channel_toggleForum",

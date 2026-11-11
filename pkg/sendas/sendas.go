@@ -179,6 +179,46 @@ func Check(q Querier, userId, channelId int64, as *mtproto.Peer) error {
 	return nil
 }
 
+// AsPeer is the peer of a send_as: the account userId itself or a channel,
+// SEND_AS_PEER_INVALID for any other.
+func AsPeer(userId int64, in *mtproto.InputPeer) (*mtproto.Peer, error) {
+	p := mtproto.FromInputPeer2(userId, in)
+	switch {
+	case p.IsSelfUser(userId):
+		return mtproto.MakePeerUser(userId), nil
+	case p.IsChannel():
+		return mtproto.MakePeerChannel(p.PeerId), nil
+	}
+	return nil, mtproto.ErrSendAsPeerInvalid
+}
+
+// From is the from_id of the messages userId sends to peer with sendAs, by
+// whichever method sends them: userId itself without one, or the channel
+// it chose among the peers of channels.getSendAs, which check (Check for
+// the account and the supergroup) allows; SEND_AS_PEER_INVALID for a
+// channel where peer is no supergroup or channel. msg checks it again when
+// the messages go out, with the channel locked.
+func From(userId int64, peer *mtproto.PeerUtil, sendAs *mtproto.InputPeer, check func(channelId int64, as *mtproto.Peer) error) (*mtproto.Peer, error) {
+	self := mtproto.MakePeerUser(userId)
+	if sendAs == nil || sendAs.GetPredicateName() == mtproto.Predicate_inputPeerEmpty {
+		return self, nil
+	}
+	as, err := AsPeer(userId, sendAs)
+	if err != nil {
+		return nil, err
+	}
+	if as.GetUserId() != 0 {
+		return self, nil
+	}
+	if !peer.IsChannel() {
+		return nil, mtproto.ErrSendAsPeerInvalid
+	}
+	if err = check(peer.PeerId, as); err != nil {
+		return nil, err
+	}
+	return as, nil
+}
+
 // discussionGuest tells whether userId, not in the supergroup channelId,
 // may write to it as a member of the broadcast channel it discusses, which
 // does not ask commenters to join (join_to_send).
@@ -222,6 +262,13 @@ func (s *Store) Peers(ctx context.Context, userId, channelId int64) ([]*mtproto.
 // Check is Check outside a transaction.
 func (s *Store) Check(ctx context.Context, userId, channelId int64, as *mtproto.Peer) error {
 	return Check(OnDB(ctx, s.db), userId, channelId, as)
+}
+
+// From is From with Check outside a transaction.
+func (s *Store) From(ctx context.Context, userId int64, peer *mtproto.PeerUtil, sendAs *mtproto.InputPeer) (*mtproto.Peer, error) {
+	return From(userId, peer, sendAs, func(channelId int64, as *mtproto.Peer) error {
+		return s.Check(ctx, userId, channelId, as)
+	})
 }
 
 // SaveDefault remembers as as the default of userId in channelId, one of

@@ -21,4 +21,8 @@ package premium
 const (
 	ChannelsLimit       = 1000 // channels_limit_premium
 	PublicChannelsLimit = 20   // channels_public_limit_premium
+	// RecommendedChannelsLimit is the size of the similar channels; the
+	// clients' own fallback for it is 100 as well (tdesktop
+	// data_premium_limits.cpp:30, tweb config/limitDefaults.ts:36).
+	RecommendedChannelsLimit = 100 // recommended_channels_limit_premium
 )

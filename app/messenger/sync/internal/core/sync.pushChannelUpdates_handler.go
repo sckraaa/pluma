@@ -28,7 +28,7 @@ import (
 )
 
 // SyncPushChannelUpdates
-// sync.pushChannelUpdates channel_id:long from_id:long from_auth_key_id:long mentioned:Vector<long> updates:Updates = Void;
+// sync.pushChannelUpdates channel_id:long from_id:long from_auth_key_id:long mentioned:Vector<long> updates:Updates author_id:long = Void;
 //
 // The updates of a channel go to the members in it now (task 039, ADR 0034,
 // p. 5), each in its own view: its messages out, mentioned where it is
@@ -117,8 +117,10 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 			continue
 		}
 		// A message written as a channel is out for its author, who sends
-		// it and is the one to edit it in a supergroup (task 079).
-		m.Out = m.GetFromId().GetUserId() == member || member == in.GetFromId() && channelpb.SentAs(m)
+		// it and is the one to edit it in a supergroup (task 079), also
+		// when another member changes it, as by ticking an item of its
+		// checklist (author_id, task 081).
+		m.Out = m.GetFromId().GetUserId() == member || member == pushAuthor(in) && channelpb.SentAs(m)
 		// A scheduled post tells its sender only that it went out (task 061).
 		if member != in.GetFromId() {
 			m.FromScheduled = false
@@ -131,6 +133,15 @@ func (c *SyncCore) channelView(in *sync.TLSyncPushChannelUpdates, member int64, 
 	updates.Chats = chats
 	updates.Users = users
 	return updates
+}
+
+// pushAuthor is who wrote the messages of in written as a channel: author_id,
+// or from_id without it.
+func pushAuthor(in *sync.TLSyncPushChannelUpdates) int64 {
+	if in.GetAuthorId() != 0 {
+		return in.GetAuthorId()
+	}
+	return in.GetFromId()
 }
 
 // repliesTo tells whether m replies to a message member sent. A failure of
