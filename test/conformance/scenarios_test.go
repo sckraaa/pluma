@@ -30,6 +30,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -193,7 +194,7 @@ func standTarget(t *testing.T) *target {
 		// test/e2e, in another area code than its numbers: the packages run
 		// at once, and each number has its own login limits.
 		phone: func(t *testing.T) string {
-			p := fmt.Sprintf("+1212555%04d", 100+randomInt(t, 100))
+			p := freePhone(t)
 			if out, err := exec.Command(run, "admin", "allowlist", "add", p, "conformance").CombinedOutput(); err != nil {
 				t.Fatalf("allowlist %s: %v\n%s", p, err, out)
 			}
@@ -208,6 +209,31 @@ var loginCodeRe = regexp.MustCompile(`Login code for \+\d+: (\d+)`)
 
 // standLogin signs up a new user of the stand with the code pluma-admin
 // issues. The login is not a step of the scenario.
+// conformancePhones are the numbers the stand scenarios took: each takes its
+// own, since a number with a code request pending makes pluma-admin
+// login-code ask which request is meant.
+var (
+	conformancePhonesMu sync.Mutex
+	conformancePhones   = map[string]bool{}
+)
+
+// freePhone is a number of +1 212 555 0100..0199 no scenario took yet.
+func freePhone(t *testing.T) string {
+	t.Helper()
+	conformancePhonesMu.Lock()
+	defer conformancePhonesMu.Unlock()
+	if len(conformancePhones) >= 100 {
+		t.Fatal("all 100 conformance phones are taken")
+	}
+	for {
+		p := fmt.Sprintf("+1212555%04d", 100+randomInt(t, 100))
+		if !conformancePhones[p] {
+			conformancePhones[p] = true
+			return p
+		}
+	}
+}
+
 func standLogin(ctx context.Context, t *testing.T, tg *target, run string) *account {
 	t.Helper()
 	phone := tg.phone(t)
