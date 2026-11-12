@@ -171,6 +171,19 @@ func (m *ImmutableChannel) ToChat(p *ImmutableChannelParticipant, now int32) *mt
 	c.Signatures = m.GetSignatures()
 	c.HasLink = m.GetLinkedChatId() != 0
 	c.ParticipantsCount_FLAGINT32 = wrapperspb.Int32(m.GetParticipantsCount())
+	// The stories of the channel (task 084): everyone who sees the channel
+	// sees them, so the newest in the feeds is the same for every viewer,
+	// in the int form of the older layers and as recentStory; without one,
+	// stories_unavailable clears the ring a client still keeps (Desktop
+	// data/data_session.cpp:1150-1155, as for users). Whether they are in
+	// the archive row is the viewer's own.
+	if id := m.GetStoriesMaxId(); id > 0 {
+		c.StoriesMaxId_FLAGINT32 = wrapperspb.Int32(id)
+		c.StoriesMaxId_FLAGRECENTSTORY = mtproto.MakeTLRecentStory(&mtproto.RecentStory{MaxId: wrapperspb.Int32(id)}).To_RecentStory()
+	} else {
+		c.StoriesUnavailable = true
+	}
+	c.StoriesHidden = p.GetStoriesHidden()
 	if !member {
 		c.Left = true
 		c.Date = int32(m.GetDate())

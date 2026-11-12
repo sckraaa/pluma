@@ -804,6 +804,7 @@ func (m *TLImmutableChannel) Encode(x *mtproto.EncodeBuf, layer int32) error {
 			x.Long(d.GetDate())
 			x.Int(d.GetAvailableReactionsType())
 			x.VectorString(d.GetAvailableReactions())
+			x.Int(d.GetStoriesMaxId()) // pluma: task 084
 
 			return nil
 		},
@@ -868,6 +869,7 @@ func (m *TLImmutableChannel) Decode(dBuf *mtproto.DecodeBuf) error {
 			d.Date = dBuf.Long()
 			d.AvailableReactionsType = dBuf.Int()
 			d.AvailableReactions = dBuf.VectorString()
+			d.StoriesMaxId = dBuf.Int() // pluma: task 084
 			return dBuf.GetError()
 		},
 	}
@@ -966,7 +968,8 @@ func (m *TLImmutableChannelParticipant) Encode(x *mtproto.EncodeBuf, layer int32
 			x.Int(d.GetAvailableMinId())
 			x.Long(d.GetDate())
 			x.Long(d.GetLastSendDate())
-			mtproto.ToBool(d.GetHidden()).Encode(x, layer) // pluma: task 080
+			mtproto.ToBool(d.GetHidden()).Encode(x, layer)        // pluma: task 080
+			mtproto.ToBool(d.GetStoriesHidden()).Encode(x, layer) // pluma: task 084
 
 			return nil
 		},
@@ -1004,6 +1007,9 @@ func (m *TLImmutableChannelParticipant) Decode(dBuf *mtproto.DecodeBuf) error {
 			hidden := &mtproto.Bool{} // pluma: task 080
 			hidden.Decode(dBuf)
 			d.Hidden = mtproto.FromBool(hidden)
+			storiesHidden := &mtproto.Bool{} // pluma: task 084
+			storiesHidden.Decode(dBuf)
+			d.StoriesHidden = mtproto.FromBool(storiesHidden)
 			return dBuf.GetError()
 		},
 	}

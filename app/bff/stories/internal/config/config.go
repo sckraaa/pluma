@@ -16,9 +16,22 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
+// Config is what the stories need: their tables (pkg/stories), the
+// services of users and of channels for who sees what, the media service
+// for the photo or the video of a story, msg for the message a mention
+// leaves, and the outbox the updates go through.
 type Config struct {
 	zrpc.RpcServerConf
+	Mysql         sqlx.Config
+	UserClient    zrpc.RpcClientConf
+	ChannelClient zrpc.RpcClientConf
+	MediaClient   zrpc.RpcClientConf
+	MsgClient     zrpc.RpcClientConf
+	SyncClient    sync_client.OutboxConf
 }

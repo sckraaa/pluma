@@ -22,19 +22,58 @@ import (
 // StoriesGetAllStories
 // stories.getAllStories#eeb0d625 flags:# next:flags.1?true hidden:flags.2?true state:flags.0?string = stories.AllStories;
 //
-// Pluma has no stories yet: nobody can post one (stories.sendStory is not
-// served), so the list of every contact's stories, hidden or not, is empty
-// and complete. Without this answer Android keeps has_more of the hidden
-// list and shows "1 Story" in the archive row
-// (StoriesController.getTotalStoriesCount: max(1, count) while has_more).
+// The row of stories above the chats (hidden: the one in the archive). The
+// whole list is one page: with the hundred accounts of a server it stays
+// short, so has_more is never set and a request for the next page gets an
+// empty one. Android keeps has_more of the hidden list while it has no
+// answer and then shows "1 Story" in the archive row
+// (StoriesController.java:1739-1743: max(1, count) while has_more).
+// The state the client sends back answers stories.allStoriesNotModified
+// while nothing of the list changed (StoriesController.java:385-437).
 func (c *StoriesCore) StoriesGetAllStories(in *mtproto.TLStoriesGetAllStories) (*mtproto.Stories_AllStories, error) {
-	return mtproto.MakeTLStoriesAllStories(&mtproto.Stories_AllStories{
+	at := now()
+	stealth, err := c.svcCtx.Dao.Store.Stealth(c.ctx, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("stories.getAllStories - error: %v", err)
+		return nil, err
+	}
+	all, err := c.feed(at)
+	if err != nil {
+		c.Logger.Errorf("stories.getAllStories - error: %v", err)
+		return nil, err
+	}
+	entries := make([]*feedEntry, 0, len(all))
+	for _, e := range all {
+		if e.hidden == in.GetHidden() {
+			entries = append(entries, e)
+		}
+	}
+	list, r, state, err := c.feedAnswer(entries)
+	if err != nil {
+		c.Logger.Errorf("stories.getAllStories - error: %v", err)
+		return nil, err
+	}
+	if in.GetState() != nil && in.GetState().GetValue() == state && !in.GetNext() {
+		return mtproto.MakeTLStoriesAllStoriesNotModified(&mtproto.Stories_AllStories{
+			State:       state,
+			StealthMode: stealthMode(stealth, at),
+		}).To_Stories_AllStories(), nil
+	}
+	answer := &mtproto.Stories_AllStories{
 		HasMore:     false,
-		Count:       0,
-		State:       "",
+		Count:       int32(len(list)),
+		State:       state,
 		PeerStories: []*mtproto.PeerStories{},
 		Chats:       []*mtproto.Chat{},
 		Users:       []*mtproto.User{},
-		StealthMode: mtproto.MakeTLStoriesStealthMode(&mtproto.StoriesStealthMode{}).To_StoriesStealthMode(),
-	}).To_Stories_AllStories(), nil
+		StealthMode: stealthMode(stealth, at),
+	}
+	if !in.GetNext() {
+		answer.PeerStories = list
+		if answer.Users, answer.Chats, err = c.resolve(r); err != nil {
+			c.Logger.Errorf("stories.getAllStories - error: %v", err)
+			return nil, err
+		}
+	}
+	return mtproto.MakeTLStoriesAllStories(answer).To_Stories_AllStories(), nil
 }

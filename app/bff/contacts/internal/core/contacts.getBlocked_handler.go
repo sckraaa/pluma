@@ -25,7 +25,21 @@ import (
 
 // ContactsGetBlocked
 // contacts.getBlocked#9a868f80 flags:# my_stories_from:flags.0?true offset:int limit:int = contacts.Blocked;
+//
+// With my_stories_from it is the blocklist of stories, not the main one.
 func (c *ContactsCore) ContactsGetBlocked(in *mtproto.TLContactsGetBlocked) (*mtproto.Contacts_Blocked, error) {
+	if in.GetMyStoriesFrom() {
+		if c.svcCtx.Stories == nil {
+			c.Logger.Errorf("contacts.getBlocked - error: %v", errStoriesUnavailable)
+			return nil, errStoriesUnavailable
+		}
+		r, err := c.svcCtx.Stories.GetStoriesBlocked(c.ctx, c.MD.UserId, in.GetOffset(), in.GetLimit())
+		if err != nil {
+			c.Logger.Errorf("contacts.getBlocked - error: %v", err)
+			return nil, err
+		}
+		return r, nil
+	}
 	var (
 		limit           = in.Limit
 		contactsBlocked *mtproto.Contacts_Blocked

@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/stories"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -29,7 +30,9 @@ import (
 // privacy becomes the list of the viewers, and of the users themselves,
 // who are members of a live basic group among the chats (mtproto.ResolvePrivacyChats), so the evaluator in
 // the services that show the users needs no membership of its own. The
-// rules of the cache are not changed: users get copies.
+// rules of the stories of a user (mtproto.IsStoryAudience) count the
+// members of supergroups too (stories.ChatMembers, task 084). The rules of
+// the cache are not changed: users get copies.
 //
 // Without viewers nothing is resolved, and when membership cannot be read
 // the rules stay as they are; the evaluator then reads an unresolved chat
@@ -38,20 +41,25 @@ func (d *Dao) resolvePrivacyChats(ctx context.Context, users []*mtproto.Immutabl
 	if len(viewers) == 0 {
 		return
 	}
-	var chats []int64
+	var chats, storyChats []int64
 	for _, u := range users {
 		for _, k := range u.GetKeysPrivacyRules() {
 			for _, r := range k.GetRules() {
-				if isChatRule(r) {
+				if !isChatRule(r) {
+					continue
+				}
+				if mtproto.IsStoryAudience(k) {
+					storyChats = append(storyChats, r.GetChats()...)
+				} else {
 					chats = append(chats, r.GetChats()...)
 				}
 			}
 		}
 	}
-	if len(chats) == 0 {
+	if len(chats) == 0 && len(storyChats) == 0 {
 		return
 	}
-	chats = uniqueIds(chats)
+	chats, storyChats = uniqueIds(chats), uniqueIds(storyChats)
 	// The users shown are subjects too: a viewer's own rules decide whether
 	// the viewer sees their exact last seen (ImmutableUser.StatusFor).
 	for _, u := range users {
@@ -59,6 +67,63 @@ func (d *Dao) resolvePrivacyChats(ctx context.Context, users []*mtproto.Immutabl
 	}
 	viewers = uniqueIds(viewers)
 
+	members, err := d.privacyChatMembers(ctx, chats, viewers)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("resolvePrivacyChats - chats %v: %v", chats, err)
+		return
+	}
+	// The rules of a story name supergroups as well (stories.ChatMembers).
+	storyMembers, err := stories.ChatMembers(ctx, d.DB, storyChats, viewers)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("resolvePrivacyChats - chats of stories %v: %v", storyChats, err)
+		return
+	}
+	resolver := func(members map[int64][]int64) func([]int64) []int64 {
+		return func(list []int64) []int64 {
+			var out []int64
+			for _, c := range list {
+				out = append(out, members[c]...)
+			}
+			return uniqueIds(out)
+		}
+	}
+	of, ofStory := resolver(members), resolver(storyMembers)
+
+	for _, u := range users {
+		keys := u.GetKeysPrivacyRules()
+		var resolved []*mtproto.PrivacyKeyRules
+		for i, k := range keys {
+			if !hasChatRules(k.GetRules()) {
+				if resolved != nil {
+					resolved = append(resolved, k)
+				}
+				continue
+			}
+			if resolved == nil {
+				resolved = append(make([]*mtproto.PrivacyKeyRules, 0, len(keys)), keys[:i]...)
+			}
+			members := of
+			if mtproto.IsStoryAudience(k) {
+				members = ofStory
+			}
+			resolved = append(resolved, mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
+				Key:   k.GetKey(),
+				Rules: mtproto.ResolvePrivacyChats(k.GetRules(), members),
+			}).To_PrivacyKeyRules())
+		}
+		if resolved != nil {
+			u.KeysPrivacyRules = resolved
+		}
+	}
+}
+
+// privacyChatMembers returns which of viewers are members of each of chats,
+// live basic groups (ADR 0031).
+func (d *Dao) privacyChatMembers(ctx context.Context, chats, viewers []int64) (map[int64][]int64, error) {
+	members := make(map[int64][]int64, len(chats))
+	if len(chats) == 0 {
+		return members, nil
+	}
 	type membership struct {
 		ChatId int64 `db:"chat_id"`
 		UserId int64 `db:"user_id"`
@@ -75,43 +140,12 @@ func (d *Dao) resolvePrivacyChats(ctx context.Context, users []*mtproto.Immutabl
 	}
 	args = append(args, mtproto.ChatMemberStateNormal)
 	if err := d.DB.QueryRowsPartial(ctx, &rows, q, args...); err != nil {
-		logx.WithContext(ctx).Errorf("resolvePrivacyChats - chats %v: %v", chats, err)
-		return
+		return nil, err
 	}
-	members := make(map[int64][]int64, len(chats))
 	for _, r := range rows {
 		members[r.ChatId] = append(members[r.ChatId], r.UserId)
 	}
-	of := func(list []int64) []int64 {
-		var out []int64
-		for _, c := range list {
-			out = append(out, members[c]...)
-		}
-		return uniqueIds(out)
-	}
-
-	for _, u := range users {
-		keys := u.GetKeysPrivacyRules()
-		var resolved []*mtproto.PrivacyKeyRules
-		for i, k := range keys {
-			if !hasChatRules(k.GetRules()) {
-				if resolved != nil {
-					resolved = append(resolved, k)
-				}
-				continue
-			}
-			if resolved == nil {
-				resolved = append(make([]*mtproto.PrivacyKeyRules, 0, len(keys)), keys[:i]...)
-			}
-			resolved = append(resolved, mtproto.MakeTLPrivacyKeyRules(&mtproto.PrivacyKeyRules{
-				Key:   k.GetKey(),
-				Rules: mtproto.ResolvePrivacyChats(k.GetRules(), of),
-			}).To_PrivacyKeyRules())
-		}
-		if resolved != nil {
-			u.KeysPrivacyRules = resolved
-		}
-	}
+	return members, nil
 }
 
 // resolveForViewer returns rules with their chat rules resolved for one

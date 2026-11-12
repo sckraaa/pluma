@@ -32,6 +32,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
+	"github.com/teamgram/teamgram-server/pkg/stories"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -58,6 +59,11 @@ type Sync interface {
 	SyncUpdatesMe(ctx context.Context, in *sync.TLSyncUpdatesMe) (*mtproto.Void, error)
 }
 
+// Stories is what the steps need of the stories' tables (pkg/stories.Store).
+type Stories interface {
+	Delete(ctx context.Context, peer stories.Peer, ids []int32, at int32) ([]*stories.Story, error)
+}
+
 // Runner carries out the steps of decisions.
 type Runner struct {
 	DAO         *moderation.DAO
@@ -65,6 +71,8 @@ type Runner struct {
 	Channel     Channel
 	Authsession Authsession
 	Sync        Sync
+	// Stories deletes reported stories (moderation.KindStory).
+	Stories Stories
 }
 
 // Run does the steps of the report's decision that are left. It returns
@@ -132,6 +140,11 @@ func (r *Runner) step(ctx context.Context, report *moderation.Report, snapshot *
 // is where the report found them. In a channel the channel's creator does
 // it, the one member whose rights always allow it (pkg/channelperm).
 func (r *Runner) deleteMessages(ctx context.Context, report *moderation.Report, snapshot *moderation.Snapshot) error {
+	// The ids of a report of stories are stories of the peer, never
+	// messages.
+	if report.Kind == moderation.KindStory {
+		return r.deleteStories(ctx, report, snapshot)
+	}
 	ids := idsToDelete(report, snapshot)
 	if len(ids) == 0 {
 		return nil
@@ -157,6 +170,25 @@ func (r *Runner) deleteMessages(ctx context.Context, report *moderation.Report, 
 		Revoke:   true,
 		Id:       ids,
 	})
+	return err
+}
+
+// deleteStories deletes the reported stories of the report's peer. The
+// stories service learns of it by the mark the deletion leaves
+// (stories.Store.Dirty) and tells the service of users; the feeds of the
+// clients drop the stories at their next read.
+func (r *Runner) deleteStories(ctx context.Context, report *moderation.Report, snapshot *moderation.Snapshot) error {
+	if r.Stories == nil {
+		return fmt.Errorf("report %d: no stories to delete from", report.Id)
+	}
+	ids := make([]int32, 0, len(snapshot.Messages))
+	for _, m := range snapshot.Messages {
+		ids = append(ids, m.Id)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	_, err := r.Stories.Delete(ctx, stories.Peer{Type: report.PeerType, Id: report.PeerId}, ids, int32(time.Now().Unix()))
 	return err
 }
 

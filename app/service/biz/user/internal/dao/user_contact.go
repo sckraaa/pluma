@@ -69,7 +69,9 @@ func parseContactCacheKey(k string) (int64, int64) {
 }
 
 // contactData is the contact row do as the users loaded carry it, with the
-// personal photo its owner set for the contact (task 051).
+// personal photo its owner set for the contact (task 051) and the row of
+// the stories feeds its owner put the contact's stories in (task 084:
+// user.stories_hidden, stories.getAllStories).
 func contactData(do *dataobject.UserContactsDO) *mtproto.ContactData {
 	return mtproto.MakeTLContactData(&mtproto.ContactData{
 		UserId:                do.OwnerUserId,
@@ -79,6 +81,7 @@ func contactData(do *dataobject.UserContactsDO) *mtproto.ContactData {
 		MutualContact:         do.Mutual,
 		Phone:                 mtproto.MakeFlagsString(do.ContactPhone),
 		CloseFriend:           do.CloseFriend,
+		StoriesHidden:         do.StoriesHidden,
 		PersonalPhotoId:       do.PersonalPhotoId,
 		PersonalPhotoHasVideo: do.PersonalPhotoHasVideo,
 	}).To_ContactData()

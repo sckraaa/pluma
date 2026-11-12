@@ -152,11 +152,33 @@
 | `ringtone_saved_count_max` | `100` | I D | Сколько мелодий хранит аккаунт. Сервер проверяет. |
 | `contact_note_length_limit` | `128` | A I D | Длина личной заметки о контакте (задача 084). Сервер обрезает более длинную (`pkg/contactnotes`). |
 
+## Истории
+
+Истории работают (задача 084, ADR 0054). Лимиты — премиальные значения по умолчанию из клиентов (Android `MessagesController.java:1662-1709, 1781`), у всех одинаковые (ADR 0041); сервер проверяет их сам (`pkg/stories`), тест `pkg/stories` держит файл равным константам. Какие значения отдаёт сам Telegram, не сверено.
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `stories_posting` | `"enabled"` | A I | Публикация историй открыта всем. Другие значения: `"premium"`, `"disabled"` (Android `MessagesController.java:23804-23814`). |
+| `stories_entities` | `"enabled"` | A I | Ссылки и форматирование в подписи истории — всем (у Android по умолчанию `"premium"`). |
+| `story_expiring_limit_default` | `100` | A I | Историй в ленте одновременно; сервер отвечает `STORIES_TOO_MUCH`. |
+| `story_expiring_limit_premium` | `100` | A I | То же значение. |
+| `stories_sent_weekly_limit_default` | `70` | A I | Историй за 7 дней; сервер отвечает `STORY_SEND_FLOOD_WEEKLY_<до>`. |
+| `stories_sent_weekly_limit_premium` | `70` | A I | То же значение. |
+| `stories_sent_monthly_limit_default` | `300` | A I | Историй за 30 дней; сервер отвечает `STORY_SEND_FLOOD_MONTHLY_<до>`. |
+| `stories_sent_monthly_limit_premium` | `300` | A I | То же значение. |
+| `story_caption_length_limit_default` | `2048` | A I | Длина подписи истории; сервер отвечает `MEDIA_CAPTION_TOO_LONG`. |
+| `story_caption_length_limit_premium` | `2048` | A I | То же значение. |
+| `stories_suggested_reactions_limit_default` | `5` | A I | Областей-реакций на одной истории. |
+| `stories_suggested_reactions_limit_premium` | `5` | A I | То же значение. |
+| `stories_pinned_to_top_count_max` | `3` | A D W | Историй, закреплённых вверху профиля (`stories.togglePinnedToTop`). |
+| `stories_stealth_past_period` | `300` | A I W | Режим скрытого просмотра: за сколько секунд назад стираются просмотры. |
+| `stories_stealth_future_period` | `1500` | A I W | На сколько секунд вперёд просмотры скрыты. |
+| `stories_stealth_cooldown_period` | `3600` | A I | Через сколько секунд режим можно включить снова. |
+
 ## Выключатели того, чего на сервере нет
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `stories_posting` | `"disabled"` | A | Историй нет (`stories.*`). У Android по умолчанию `"enabled"`. |
 | `translations_manual_enabled` | `"disabled"` | A W | Перевода нет (`messages.translateText`). У Android по умолчанию `"enabled"`. |
 | `translations_auto_enabled` | `"disabled"` | A W | Перевода нет. |
 | `rich_message_posting` | `"disabled"` | A D | Расширенного форматирования нет. У клиентов по умолчанию `"premium"`. |

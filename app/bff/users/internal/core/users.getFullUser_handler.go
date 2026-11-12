@@ -296,18 +296,13 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 
 	// TODO: FolderId:    0,
 
-	// TODO: Stories
-	if c.svcCtx.Dao.StoryPlugin != nil {
+	// The stories of the user (task 084): those in the feeds that the
+	// viewer may open, and whether the profile has any for it; the plugin
+	// applies the rules of each story.
+	if c.svcCtx.Dao.StoryPlugin != nil && !user.IsBot() {
 		userFull.StoriesPinnedAvailable = c.svcCtx.Dao.StoryPlugin.GetStoriesPinnedAvailable(c.ctx, peerId, c.MD.UserId)
 		userFull.BlockedMyStoriesFrom = c.svcCtx.Dao.StoryPlugin.GetBlockedMyStoriesFrom(c.ctx, peerId, c.MD.UserId)
-		// c.Logger.Debugf("getActiveStories: peerId: %s, userId: %s", user, me)
-		if peerId == c.MD.UserId {
-			// c.Logger.Debugf("getActiveStories(peerId == c.MD.UserId): peerId: %d, userId: %d", peerId, c.MD.UserId)
-			userFull.Stories_FLAGPEERSTORIES = c.svcCtx.Dao.StoryPlugin.GetActiveStories(c.ctx, peerId, c.MD.UserId)
-		} else if ok, _ := me.CheckReverseContact(peerId); ok {
-			// c.Logger.Debugf("getActiveStories(ok, _ := user.CheckContact(c.MD.UserId)): peerId: %d, userId: %d", peerId, c.MD.UserId)
-			userFull.Stories_FLAGPEERSTORIES = c.svcCtx.Dao.StoryPlugin.GetActiveStories(c.ctx, peerId, c.MD.UserId)
-		}
+		userFull.Stories_FLAGPEERSTORIES = c.svcCtx.Dao.StoryPlugin.GetActiveStories(c.ctx, peerId, c.MD.UserId)
 	}
 
 	chats := make([]*mtproto.Chat, 0)

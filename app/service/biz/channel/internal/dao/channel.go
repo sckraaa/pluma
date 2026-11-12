@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/monoforum"
+	"github.com/teamgram/teamgram-server/pkg/stories"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
@@ -50,6 +51,21 @@ func (d *Dao) GetMutableChannel(ctx context.Context, channelId int64, idList []i
 	participants := make([]*channel.ImmutableChannelParticipant, 0, len(dos))
 	for i := range dos {
 		participants = append(participants, makeParticipant(&dos[i]))
+	}
+	// Who of them keeps the stories of the channel in the archive row
+	// (task 084); a channel without stories in the feeds shows none.
+	if channels[0].GetStoriesMaxId() > 0 && len(participants) > 0 {
+		ids := make([]int64, 0, len(participants))
+		for _, p := range participants {
+			ids = append(ids, p.GetUserId())
+		}
+		hiding, err := stories.HidingUsers(ctx, d.Mysql.Master(), channelId, ids)
+		if err != nil {
+			return nil, fmt.Errorf("channel %d: hidden stories: %w", channelId, err)
+		}
+		for _, p := range participants {
+			p.StoriesHidden = hiding[p.GetUserId()]
+		}
 	}
 	if participants, err = d.withLinkedReaders(ctx, channels[0], uniqueIds(idList), participants); err != nil {
 		return nil, err
@@ -210,6 +226,20 @@ func (d *Dao) GetChannelListByIdList(ctx context.Context, selfId int64, idList [
 	for i := range dos {
 		mine[dos[i].ChannelId] = makeParticipant(&dos[i])
 	}
+	// The channels whose stories selfId keeps in the archive row (task 084).
+	var withStories []int64
+	for _, c := range channels {
+		if c.GetStoriesMaxId() > 0 && mine[c.Id] != nil {
+			withStories = append(withStories, c.Id)
+		}
+	}
+	hidden, err := stories.HiddenChannels(ctx, d.Mysql.Master(), selfId, withStories)
+	if err != nil {
+		return nil, fmt.Errorf("participant %d: hidden stories: %w", selfId, err)
+	}
+	for id := range hidden {
+		mine[id].StoriesHidden = true
+	}
 	out := make([]*channel.MutableChannel, 0, len(channels))
 	for _, c := range channels {
 		participants := []*channel.ImmutableChannelParticipant{}
@@ -271,9 +301,15 @@ func (d *Dao) getChannels(ctx context.Context, idList []int64) ([]*channel.Immut
 		}
 		byId[c.Id] = c
 	}
+	// The newest story of each in the feeds (task 084, ADR 0054).
+	maxIds, err := stories.ActiveMaxIds(ctx, d.Mysql.Master(), mtproto.PEER_CHANNEL, found, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("stories of channels %v: %w", found, err)
+	}
 	out := make([]*channel.ImmutableChannel, 0, len(byId))
 	for _, id := range idList {
 		if c, ok := byId[id]; ok {
+			c.StoriesMaxId = maxIds[id]
 			out = append(out, c)
 		}
 	}

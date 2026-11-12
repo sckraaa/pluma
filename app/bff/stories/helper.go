@@ -17,14 +17,40 @@ package stories_helper
 
 import (
 	"github.com/teamgram/teamgram-server/app/bff/stories/internal/config"
+	"github.com/teamgram/teamgram-server/app/bff/stories/internal/core"
 	"github.com/teamgram/teamgram-server/app/bff/stories/internal/server/grpc/service"
 	"github.com/teamgram/teamgram-server/app/bff/stories/internal/svc"
 )
 
 type (
 	Config = config.Config
+	// Sweeper takes the stories out of the feeds when their period ends
+	// and finishes what a request left undone.
+	Sweeper = core.Sweeper
 )
 
-func New(c Config) *service.Service {
-	return service.New(svc.NewServiceContext(c))
+// Module is the stories of the server (task 084, ADR 0054) over one set of
+// connections: the stories.* methods, what the other modules need of the
+// stories, and the worker.
+type Module struct {
+	svcCtx *svc.ServiceContext
+	// Service serves mtproto.RPCStories.
+	Service *service.Service
+	// UserStories answers the users and the messages modules.
+	UserStories *UserStories
+}
+
+// New returns the stories over c.
+func New(c Config) *Module {
+	svcCtx := svc.NewServiceContext(c)
+	return &Module{
+		svcCtx:      svcCtx,
+		Service:     service.New(svcCtx),
+		UserStories: &UserStories{svcCtx: svcCtx},
+	}
+}
+
+// StartSweeper starts the worker of the stories; Stop waits for it.
+func (m *Module) StartSweeper() *Sweeper {
+	return core.StartSweeper(m.svcCtx)
 }

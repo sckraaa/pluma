@@ -81,6 +81,7 @@ var configFile = flag.String("f", "etc/bff.yaml", "the config file")
 type Server struct {
 	grpcSrv *zrpc.RpcServer
 	calls   *voipcalls_helper.Sweeper // ends the abandoned calls (task 068)
+	stories *stories_helper.Sweeper   // takes the stories out of the feeds (task 084)
 }
 
 func New() *Server {
@@ -107,6 +108,22 @@ func (s *Server) Initialize() error {
 	syncClient := sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+		storiesConf := stories_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			UserClient:    c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			MediaClient:   c.MediaClient,
+			MsgClient:     c.MsgClient,
+			SyncClient:    syncClient,
+		}
+
+		// The stories (task 084, ADR 0054): the methods, what the other
+		// modules need of them (userFull, the stories a message shares or
+		// replies to) and the worker, over one set of connections.
+		storiesModule := stories_helper.New(storiesConf)
+		userStories := storiesModule.UserStories
+
 		// voipcalls_helper: phone.* of one-to-one calls (task 068).
 		callsConf := voipcalls_helper.Config{
 			RpcServerConf: c.RpcServerConf,
@@ -319,7 +336,9 @@ func (s *Server) Initialize() error {
 				ChannelClient: c.BizServiceClient,
 				Mysql:         c.Mysql,
 			},
-			nil)
+			nil,
+			// The blocklist of stories (task 084).
+			userStories)
 		mtproto.RegisterRPCContactsServer(grpcServer, contacts)
 		// The temporary links to a profile (task 084).
 		mtproto.RegisterRPCProfileLinksServer(grpcServer, contacts)
@@ -425,12 +444,10 @@ func (s *Server) Initialize() error {
 		// paid messages (task 084); the payments themselves are not served.
 		mtproto.RegisterRPCPaidMessageServer(grpcServer, channels)
 
-		// stories_helper: the stories (none yet, the list answers so).
-		mtproto.RegisterRPCStoriesServer(
-			grpcServer,
-			stories_helper.New(stories_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-			}))
+		// stories_helper: the stories of users and channels, and the worker
+		// that takes them out of the feeds.
+		mtproto.RegisterRPCStoriesServer(grpcServer, storiesModule.Service)
+		s.stories = storiesModule.StartSweeper()
 
 		// gifs_helper: the saved GIFs.
 		mtproto.RegisterRPCGifsServer(
@@ -485,7 +502,7 @@ func (s *Server) Initialize() error {
 			Mysql:         c.Mysql,
 			DfsClient:     c.DfsClient,
 			ChannelClient: c.BizServiceClient,
-		}, nil)
+		}, nil, userStories)
 		mtproto.RegisterRPCMessagesServer(grpcServer, messagesService)
 		// pluma: task 062
 		mtproto.RegisterRPCPollsServer(grpcServer, messagesService)
@@ -520,7 +537,8 @@ func (s *Server) Initialize() error {
 					MediaClient:   c.MediaClient,
 					MsgClient:     c.MsgClient,
 				},
-				nil,
+				// The stories of userFull (task 084).
+				userStories,
 				nil,
 				appearance.NewStore(sqlx.NewMySQL(&c.Mysql), nil, "")))
 
@@ -646,6 +664,9 @@ func (s *Server) RunLoop() {
 func (s *Server) Destroy() {
 	if s.calls != nil {
 		s.calls.Stop()
+	}
+	if s.stories != nil {
+		s.stories.Stop()
 	}
 	s.grpcSrv.Stop()
 }

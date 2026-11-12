@@ -21,6 +21,10 @@ type (
 	Config = config.Config
 )
 
-func New(c Config, plugin plugin.ContactsPlugin) *service.Service {
-	return service.New(svc.NewServiceContext(c, plugin))
+// New returns the contacts.* methods; stories serves the blocklist of
+// stories (my_stories_from), nil where the stories are not served.
+func New(c Config, plugin plugin.ContactsPlugin, stories plugin.StoriesBlocklist) *service.Service {
+	ctx := svc.NewServiceContext(c, plugin)
+	ctx.Stories = stories
+	return service.New(ctx)
 }
