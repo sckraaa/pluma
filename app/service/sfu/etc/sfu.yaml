@@ -1,0 +1,46 @@
+# Configuration of the SFU of group calls (ADR 0059). docs/ops/group-calls.md
+# describes the ports, the addresses and the control certificates.
+Log:
+  ServiceName: sfu
+  Mode: console
+  Level: info
+
+Control:
+  # The gRPC control API, served over mutual TLS only.
+  ListenOn: 0.0.0.0:20500
+  CertFile: /opt/sfu/control/server.pem
+  KeyFile: /opt/sfu/control/server-key.pem
+  ClientCAFile: /opt/sfu/control/client-ca.pem
+
+MetricsListenOn: 0.0.0.0:20501
+
+Media:
+  # One UDP port for every client, IPv4 and IPv6.
+  UDPListen: ":20600"
+  # ICE-TCP: the only fallback when UDP is blocked; group calls of the
+  # stock clients have no TURN. 443 is Caddy's on the current server.
+  TCPListen: ":20601"
+  # Where clients reach the SFU.
+  PublicIPs:
+    - 127.0.0.1
+
+# Group and channel calls are not end-to-end encrypted: this node stands in
+# the trusted zone of the core. Conferences (E2E) come in a later stage.
+Plaintext: true
+E2E: false
+
+Limits:
+  MaxParticipants: 100
+  MaxVideos: 30
+  LastN: 5
+  AudioHold: 1500ms
+  UplinkMbps: 0
+  PacketCache: 512
+
+ICE:
+  StartTimeout: 20s
+  ConnectTimeout: 15s
+  DisconnectedTimeout: 5s
+  FailedTimeout: 25s
+  KeepaliveInterval: 2s
+  Renomination: true

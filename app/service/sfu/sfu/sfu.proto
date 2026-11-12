@@ -1,0 +1,171 @@
+// Copyright 2026 The Pluma Authors
+//  All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// The control API of the SFU (ADR 0059 §3). The signalling side (bff) calls
+// it over mutual TLS; the SFU may run on another machine.
+//
+// Regenerate with app/service/sfu/sfu/gen.sh.
+
+syntax = "proto3";
+
+package sfu;
+
+option go_package = "github.com/teamgram/teamgram-server/app/service/sfu/sfu";
+
+// The kind of a participant's connection.
+enum ConnectionKind {
+  // Sound and camera (phone.joinGroupCall).
+  CONNECTION_KIND_MAIN = 0;
+  // A shared screen (phone.joinGroupCallPresentation).
+  CONNECTION_KIND_PRESENTATION = 1;
+}
+
+message CreateRoomRequest {
+  int64 call_id = 1;
+  // An end-to-end encrypted conference. A node takes only the kinds its
+  // configuration allows (plaintext, e2e).
+  bool e2e = 2;
+}
+
+message CreateRoomResponse {
+  // False when the room was already open.
+  bool created = 1;
+}
+
+message CloseRoomRequest {
+  int64 call_id = 1;
+}
+
+message CloseRoomResponse {
+  bool closed = 1;
+}
+
+message JoinRequest {
+  int64 call_id = 1;
+  // The peer id the participant joined as.
+  int64 participant = 2;
+  ConnectionKind kind = 3;
+  // The params JSON of phone.joinGroupCall.
+  bytes params = 4;
+  // Muted by an admin: the sound is not forwarded.
+  bool muted = 5;
+}
+
+message JoinResponse {
+  // The params JSON of updateGroupCallConnection.
+  bytes params = 1;
+  // The connection's id in Colibri messages and in
+  // groupCallParticipantVideo.endpoint.
+  string endpoint = 2;
+  // The SSRCs the connection may send.
+  repeated uint32 sources = 3;
+}
+
+message LeaveRequest {
+  int64 call_id = 1;
+  int64 participant = 2;
+  ConnectionKind kind = 3;
+}
+
+message LeaveResponse {}
+
+message SetMutedRequest {
+  int64 call_id = 1;
+  int64 participant = 2;
+  bool muted = 3;
+}
+
+message SetMutedResponse {}
+
+message SourcesRequest {
+  int64 call_id = 1;
+}
+
+message ConnectionSources {
+  int64 participant = 1;
+  ConnectionKind kind = 2;
+  // The connection is up (ICE and DTLS done).
+  bool connected = 3;
+  repeated uint32 sources = 4;
+  // The main connection is muted (SetMuted): the SFU forwards neither its
+  // sound nor its camera.
+  bool muted = 5;
+}
+
+message SourcesResponse {
+  repeated ConnectionSources connections = 1;
+}
+
+message EventsRequest {}
+
+message SpeakingLevel {
+  int64 participant = 1;
+  // RFC 6464 level, 0 the loudest, 127 silence.
+  uint32 level = 2;
+}
+
+message Event {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    // A connection is up.
+    TYPE_CONNECTED = 1;
+    // A connection ended without Leave.
+    TYPE_DISCONNECTED = 2;
+    // Participants who spoke in the last second.
+    TYPE_SPEAKING = 3;
+    // The largest height anyone watches of a sender's video changed.
+    TYPE_VIDEO_LAYERS = 4;
+  }
+  Type type = 1;
+  int64 call_id = 2;
+  int64 participant = 3;
+  ConnectionKind kind = 4;
+  int64 time_unix_ms = 5;
+  // TYPE_CONNECTED: udp4, udp6, tcp4 or tcp6; the SFU's ICE role; the
+  // time from the join.
+  string network = 6;
+  string role = 7;
+  uint32 connect_ms = 8;
+  // TYPE_DISCONNECTED: no_check, ice, dtls or closed.
+  string reason = 9;
+  // TYPE_SPEAKING.
+  repeated SpeakingLevel levels = 10;
+  // TYPE_VIDEO_LAYERS.
+  int32 ideal_height = 11;
+}
+
+service SFU {
+  // Opens a room; an open room is kept.
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  // Closes a room and its connections.
+  rpc CloseRoom(CloseRoomRequest) returns (CloseRoomResponse);
+  // Connects a participant's connection. NOT_FOUND: no room (create it);
+  // ALREADY_EXISTS: a source is another participant's
+  // (GROUPCALL_SSRC_DUPLICATE_MUCH); INVALID_ARGUMENT: bad params;
+  // RESOURCE_EXHAUSTED: the room is full; FAILED_PRECONDITION: the node
+  // does not take the call's kind.
+  rpc Join(JoinRequest) returns (JoinResponse);
+  // Disconnects a participant's connection. NOT_FOUND: no such room or
+  // connection.
+  rpc Leave(LeaveRequest) returns (LeaveResponse);
+  // Mutes or unmutes a participant on the server: muted, neither his
+  // sound nor his camera is forwarded.
+  rpc SetMuted(SetMutedRequest) returns (SetMutedResponse);
+  // The connections of a room and their sources: what phone.checkGroupCall
+  // answers from.
+  rpc Sources(SourcesRequest) returns (SourcesResponse);
+  // Events of all rooms of the node, from the moment of the call.
+  rpc Events(EventsRequest) returns (stream Event);
+}

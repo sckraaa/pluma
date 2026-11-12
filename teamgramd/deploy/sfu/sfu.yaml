@@ -1,0 +1,48 @@
+# The SFU of group calls in Docker (docker-compose.sfu.yaml, task 093,
+# docs/ops/group-calls.md). Mounted over the image's own configuration.
+Log:
+  ServiceName: sfu
+  Mode: console
+  Level: info
+
+Control:
+  # The gRPC control API, on the network of the services only: bff reaches
+  # it at sfu:20500. Served over mutual TLS only.
+  ListenOn: 0.0.0.0:20500
+  CertFile: /run/secrets/sfu/server.pem
+  KeyFile: /run/secrets/sfu/server-key.pem
+  ClientCAFile: /run/secrets/sfu/client-ca.pem
+
+# Read by Prometheus on the network of the services.
+MetricsListenOn: 0.0.0.0:20501
+
+Media:
+  # The ports inside the container; the published ones are
+  # SFU_UDP_PORT and SFU_TCP_PORT.
+  UDPListen: ":20600"
+  TCPListen: ":20601"
+  PublicIPs:
+    - "${SFU_PUBLIC_IPV4}"
+  PublicUDPPort: ${SFU_UDP_PORT}
+  PublicTCPPort: ${SFU_TCP_PORT}
+
+Plaintext: true
+E2E: false
+
+Limits:
+  MaxParticipants: 100
+  # bff's GroupCalls.VideoLimit and appConfig
+  # groupcall_video_participants_max say the same.
+  MaxVideos: 30
+  LastN: 5
+  AudioHold: 1500ms
+  UplinkMbps: 0
+  PacketCache: 512
+
+ICE:
+  StartTimeout: 20s
+  ConnectTimeout: 15s
+  DisconnectedTimeout: 5s
+  FailedTimeout: 25s
+  KeepaliveInterval: 2s
+  Renomination: true
