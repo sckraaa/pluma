@@ -1,0 +1,47 @@
+# Voice transcription (task 090, ADR 0056, docs/ops/transcription.md). The
+# metrics are bff's (transcribe_*); the engine is optional: when it is not
+# configured nothing is queued and none of these fire.
+groups:
+  - name: stt
+    rules:
+      # The engine cannot be used: nothing answers at STT_URL, or it refuses
+      # the token, the model or the language. The records wait for it
+      # (nothing is failed for it), so this is what tells.
+      - alert: TranscriptionEngineDown
+        expr: sum(increase(transcribe_jobs_total{result="down"}[5m])) > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "The speech engine has been unusable for 5 minutes; voice messages wait for it"
+          description: "docker compose ps stt; docker compose logs --tail 50 stt bff; STT_URL, STT_MODEL, STT_TOKEN, STT_LANGUAGE. docs/ops/transcription.md"
+
+      # Too little free disk for the copy of a record (its size plus 1 GiB):
+      # the records wait, and the disk is the host's, with MySQL on it.
+      - alert: TranscriptionNoDisk
+        expr: sum(increase(transcribe_jobs_total{result="no_room"}[5m])) > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Voice messages wait for free disk on the server"
+          description: "df -h on the host; the bff log has 'waits for free disk' with the sizes. docs/ops/transcription.md"
+
+      # No record is refused for its length: an hour of speech takes a few
+      # minutes of the engine, so only a far longer wait is stuck.
+      - alert: TranscriptionQueueStuck
+        expr: transcribe_oldest_job_seconds > 1800
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "A voice message has waited for its text for more than 30 minutes"
+          description: "The speech engine is down, too slow for the queue, or hangs. docker compose ps stt; docs/ops/transcription.md"
+
+      - alert: TranscriptionFailing
+        expr: |
+          sum(increase(transcribe_jobs_total{result=~"failed|retry|rejected"}[30m])) >= 3
+          and
+          sum(increase(transcribe_jobs_total{result=~"failed|retry|rejected"}[30m]))
+            / clamp_min(sum(increase(transcribe_jobs_total{result=~"failed|retry|rejected|done"}[30m])), 1) > 0.5
+        labels: {severity: warning}
+        annotations:
+          summary: "Most attempts to transcribe voice messages fail"
+          description: "bff cannot reach the engine, the engine refuses the model name or the token, or the records cannot be decoded. docker compose logs bff stt; docs/ops/transcription.md"

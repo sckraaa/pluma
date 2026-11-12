@@ -843,7 +843,7 @@
   "used_by": "Android ui/Components/TranscribeButton.java:690; Desktop api/api_transcribes.cpp:188; iOS TelegramEngine/Messages/Transcription.swift:26; Web lib/appManagers/appMessagesManager.ts:3168",
   "decision": "implement",
   "priority": "core",
-  "why": "Owner decision 2026-10-30 (task 027, status todo): connect speech recognition; Premium for everyone (ADR 0041). Task 071 hid the entry by patch on some clients until this is done. Provider choice is the owner's, with numbers."
+  "why": "Сделан задачей 090 (ADR 0056): текст голосового и кружка от своего сервиса распознавания (GigaAM-v3 за протоколом OpenAI, модель и движок меняются конфигурацией). Premium у всех (ADR 0041): без пробных расшифровок и FLOOD_WAIT. Кнопку в клиентах возвращает снятие патчей A-109, I-109, D-084, W-068."
  },
  {
   "name": "messages.translateRichMessage",
@@ -3912,7 +3912,7 @@
   "used_by": "Android ui/ChatActivity.java:32552; Desktop api/api_transcribes.cpp:46; iOS TelegramEngine/Messages/Transcription.swift:138; Web lib/appManagers/appMessagesManager.ts:3210",
   "decision": "implement",
   "priority": "rare",
-  "why": "Comes with transcribeAudio (task 027, owner decision 2026-10-30 to connect speech recognition). Store the rating against the transcription."
+  "why": "Сделан задачей 090 (ADR 0056): оценка хранится у запроса расшифровки и считается по моделям в transcribe_ratings_total."
  },
  {
   "name": "messages.receivedMessages",
@@ -4081,9 +4081,9 @@
   "group": "fields",
   "feature": "Voice to text",
   "used_by": "td api/api_transcribes.h:52; an messenger/MessagesController.java:19797; ios State/Sync/UpdateInterpreter.swift:254; web lib/appManagers/appMessagesManager.ts:959",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "Premium feature open to all by ADR 0041, but needs a speech model; owner's call."
+  "why": "Сделан задачей 090 (ADR 0056): ровно одно окончательное обновление тому, кому ответили pending, на все его устройства; частичный текст не шлётся."
  },
  {
   "name": "upload.getWebFile",

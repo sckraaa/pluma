@@ -26,6 +26,7 @@
 | etcd | 256m | |
 | alertmanager, geoipupdate | 128m | |
 | alertpush, node-exporter | 64m | |
+| stt (необязательный, `docker-compose.stt.yaml`) | 768m (`STT_MEMORY`) | GigaAM-v3 e2e_rnnt int8: 340 МБ после загрузки, пик 415–435 МБ на записях от 90 с до часа — от длины не зависит (замер 2026-11-12 на машине сборки, `docs/ops/transcription.md`); 2 CPU. Parakeet TDT v3 — `STT_MEMORY=2g` (пик 1,27 ГБ) |
 
 Kafka запускается с кучей 512 МБ (`KAFKA_HEAP_OPTS`) вместо гигабайта по умолчанию.
 

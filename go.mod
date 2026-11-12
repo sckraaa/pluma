@@ -15,6 +15,7 @@ require (
 	github.com/go-sql-driver/mysql v1.10.0
 	github.com/gobwas/httphead v0.1.0
 	github.com/gobwas/ws v1.4.0
+	github.com/k2-fsa/sherpa-onnx-go-linux v1.13.8
 	github.com/minio/minio-go/v7 v7.0.49
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.0

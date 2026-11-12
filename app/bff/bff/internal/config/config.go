@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
+	"github.com/teamgram/teamgram-server/pkg/transcribe"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -57,6 +58,10 @@ type Config struct {
 	// The bot that fetches sticker sets from Telegram on demand (task 030);
 	// none if empty.
 	TelegramBot tgbot.Settings `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
+	// Transcribe is the speech engine of voice transcription and its limits
+	// (task 090, docs/ops/transcription.md); transcription is off without
+	// a URL.
+	Transcribe transcribe.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in

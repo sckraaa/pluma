@@ -67,6 +67,25 @@ const insertQuery = "INSERT INTO mq_outbox (initiator_id, topic, recipient_id, m
 // event is durable and will be delivered; an error means it is not
 // written. It wakes the relays of the process.
 func Insert(ctx context.Context, db *sql.DB, ev userbox.Event) (int64, error) {
+	id, err := insert(ctx, db, ev)
+	if err != nil {
+		return 0, err
+	}
+	Notify()
+	return id, nil
+}
+
+// InsertTx is Insert as a part of the caller's transaction, for a push that
+// must go out if and only if a row of the caller changes with it: the event
+// is written when tx commits and not otherwise. The caller calls Notify
+// after the commit.
+func InsertTx(ctx context.Context, tx *sql.Tx, ev userbox.Event) (int64, error) {
+	return insert(ctx, tx, ev)
+}
+
+func insert(ctx context.Context, db interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}, ev userbox.Event) (int64, error) {
 	if err := userbox.CheckEvent(ev, 0); err != nil {
 		return 0, err
 	}
@@ -74,12 +93,7 @@ func Insert(ctx context.Context, db *sql.DB, ev userbox.Event) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("outbox: insert %s to user %d: %w", ev.Method, ev.Recipient, err)
 	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		return 0, err
-	}
-	Notify()
-	return id, nil
+	return res.LastInsertId()
 }
 
 var waiters = struct {

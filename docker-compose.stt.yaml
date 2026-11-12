@@ -1,0 +1,43 @@
+# The speech recognition service of voice transcription (task 090, ADR 0056,
+# docs/ops/transcription.md): one speech model in memory, one endpoint, the
+# transcription endpoint of the OpenAI API, which bff calls. Not started by
+# default: transcription is off until STT_URL names an engine. Added to the
+# services command after the other compose files:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.stt.yaml up -d stt
+#
+# The model is in the image: another model is another image
+# (PLUMA_STT_IMAGE) and its name in STT_MODEL; any other service with the
+# same endpoint replaces this one through STT_URL alone.
+#
+# The limits are the measured need of GigaAM-v3 e2e_rnnt int8 with room to
+# spare (docs/ops/transcription.md, "Память и CPU"): the model holds about
+# 340 MB, 430 MB at the peak whatever the length of the record (the sound is
+# recognized as it comes), and two threads recognize a minute of speech in
+# about three seconds. Another model may need more: STT_MEMORY and STT_CPUS
+# in .env, never an edit of this file on a server.
+services:
+  stt:
+    mem_limit: ${STT_MEMORY:-768m}
+    memswap_limit: ${STT_MEMORY:-768m}
+    cpus: ${STT_CPUS:-2}
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/stt/Dockerfile
+    image: ${PLUMA_STT_IMAGE:-pluma-stt:local}
+    restart: unless-stopped
+    # Nothing is written: neither the sound nor the text touches a disk.
+    read_only: true
+    environment:
+      # The same token as bff sends; none if empty.
+      STT_API_TOKEN: ${STT_TOKEN:-}
+      STT_THREADS: ${STT_THREADS:-2}
+      # The same language as bff's: what a Whisper model is told; a model
+      # of one language does not start with another.
+      STT_LANGUAGE: ${STT_LANGUAGE:-}
+    # No published port: only bff, on the network of the services, calls it,
+    # and Prometheus reads /metrics there.
+    networks:
+      - teamgram_net
+    stop_grace_period: 30s
