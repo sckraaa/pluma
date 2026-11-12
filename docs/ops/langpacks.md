@@ -90,5 +90,13 @@ systemctl start pluma-langpacks.service && journalctl -u pluma-langpacks.service
 ## Свои строки Pluma (ADR 0046)
 - Тексты патчей клиентов, которых нет у Telegram (например, экраны кода входа, задача 076), лежат в `pkg/langpack/own.json` и добавляются при каждом `import` к пакетам `ios`, `tdesktop`, `webk` без замены «Telegram».
 - **После выката версии, где `own.json` изменился, повторить `import` последнего снимка** (команда выше, без `fetch`): иначе клиенты получат новые строки только со следующим плановым обновлением.
+- Строки Telegram, которым Pluma даёт другой текст (статус аккаунта поддержки «сервисный аккаунт», задача 080), лежат в `pkg/langpack/override.json`: при `import` их текст заменяет текст Telegram в пакетах `android`, `ios`, `tdesktop`, `webk`. Правило то же: после выката версии, где этот файл изменился, повторить `import` последнего снимка:
+  ```bash
+  cd /opt/pluma
+  D=$(ls -1 /opt/pluma/langpacks | tail -1)      # последний снимок
+  docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml run --rm --no-deps \
+    -v /opt/pluma/langpacks:/langpacks bff ./pluma-admin -f ../etc2/bff.yaml langpack import /langpacks/$D
+  ```
+  В выводе у каждого языка четырёх пакетов — «1 changed» (или «1 added», если ключа у Telegram на этом языке не было); повторный запуск — «no changes».
 - Импорт печатает ключи без перевода на язык («in English, no translation»): такой язык показывает английский текст.
 

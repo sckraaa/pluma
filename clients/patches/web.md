@@ -518,6 +518,21 @@
 - **Не проверено:** вид в браузере (сборка на этой машине не запускается); проверить в списке чатов, шапке и профиле @support в светлой и тёмной темах.
 - **Коммиты:** — (ветка `task/080-verified-badge` в `pluma-web`, не закоммичено).
 
+### W-075. Статус аккаунта поддержки: «service account» вместо «support» (задача 080)
+- **Статус.** Ветка `task/080-service-account` репозитория `pluma-web` (от `origin/main` `ac0bf8f`), не закоммичено, не влито, не выпущено (2026-11-11).
+- **Что и зачем.** Решение владельца 2026-11-11: аккаунт поддержки (`@support`, `user.support = true`, без статуса «в сети») там, где у человека «был(а) недавно», показывает «service account» — не «support» Telegram и не «service notifications». Текст — ключ локализации на всех языках, не литерал.
+- **Где** (`SERVICE_ACCOUNT_STRING`, `service_account()` в `ci/patch.py`, вызов в `patch()` после `no_ai_editor`; апстрим `aa74832e`):
+  - `src/lang.ts`, `replace` `  'SupportStatus': 'support',\n` → `  'SupportStatus': 'service account',\n`. Меняется значение существующего ключа; нового ключа и правок кода нет.
+  - `expect` в `src/components/wrappers/getUserStatusString.ts`: `      if(user.pFlags.support) {\n        key = 'SupportStatus';\n        break;\n      }\n` (`SERVICE_ACCOUNT_STATUS`) — то, на чём держится текст.
+- **Остальные языки.** Web K встраивает только английский (`lang.ts`, `langSign.ts`), всё остальное берёт с сервера: `langPack.ts`, `loadLangPack` запрашивает пакет `web` (сервер отдаёт `webk`) на любом языке, включая `en`, и `getLangPackAndApply` кладёт строки сервера после встроенных, так что строка сервера перекрывает встроенную. Поэтому нужна запись на сервере: `pkg/langpack/override.json`, пакет `webk`, ключ `SupportStatus`, 37 языков (таблица — `docs/tasks/080-service-account-strings.md`), и `pluma-admin langpack import` после выката. Без неё пакет сервера вернёт слово Telegram («support» / «поддержка») и на английском.
+- **Кто получает текст.** Ключ читает только `getUserStatusString` (строка 35), после ботов (`user.pFlags.bot` → `Bot`) и до статусов «был(а)…». Аккаунт служебных уведомлений (`SERVICE_PEER_ID`, 777000) идёт раньше, своим ключом `Peer.ServiceNotifications`, и не тронут.
+- **Где рисуется.** Всё через `getUserStatusString`: шапка чата и профиль (`appImManager.ts:4242`, `getUserStatus`; для `support` строка «печатает…» и зелёный «в сети» не показываются — `appImManager.ts:4244`), контакты (`sidebarLeft/contactsList.tsx:352`), выбор людей (`appSelectPeers.tsx:1339`), поиск и участники (`appSearchSuper.ts:2150, 2571`, `sortedUserList.ts:67`), новая группа (`sidebarLeft/tabs/newGroup.tsx:241`), чёрный список (`blockedUsers.tsx:56`, если нет имени пользователя), права участника (`permissionsPeerDialog.ts:33`), списки реакций и окна (`popups/reactedList.tsx:91`, `popups/richButton.tsx:88`).
+- **Апстрим без правки.** «support» во всех этих местах; на других языках — перевод Telegram из пакета сервера.
+- **Проверка.** `verify_service_account(sources)`: в `lang.ts` текст ключа — «service account», старого нет; ветка `support` в `getUserStatusString.ts` на месте; по всем исходникам без комментариев `'SupportStatus'` встречается только в `lang.ts` и `getUserStatusString.ts`, по разу (`SUPPORT_STATUS_USES`). `UpstreamTest.test_service_account` (текст, ветка, строка служебных уведомлений не тронута; возврат «support», другой ключ у статуса и ключ в чужом месте роняют `verify`; упоминание в комментарии — нет; без правки тест падает), четыре порчи в `DAMAGE` (строка `lang.ts`, ключ ветки `support`, ключ у ботов, ключ в `appImManager.ts`).
+- **Если апстрим сдвинет.** Другой текст ключа, статус поддержки другим ключом или `SupportStatus` в новом месте → `PatchError` с именем файла: прочитать новое место и решить, годится ли там «service account».
+- **Не проверено.** `pnpm run typecheck`, сборка и браузер (на этой машине клиент не собирается); сверка с сервером (импорт пакета `webk` с `override.json`).
+- **Коммиты:** — (не закоммичено).
+
 ## Premium и платные функции
 
 Контекст: Pluma не продаёт Premium и подарки. Сервер ставит `premium_purchase_blocked` в `help.getAppConfig` (задачи 014, 015). Решение владельца по баннеру — вариант А (бриф 020, пункт про баннер дня рождения). Всё в этом разделе есть **только на ветке `task/020-parity-fixes`** (`cb01766`, 2026-10-31).

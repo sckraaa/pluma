@@ -4,10 +4,10 @@
 
 | Клиент | Репозиторий | Апстрим (закреплён) | Реестр | Правок |
 |---|---|---|---|---|
-| Android | `sckraaa/pluma-android` (локально `~/pluma-android`) | DrKLO/Telegram 13.2.1, `7be672ea` | [android.md](android.md) | A-001…A-115 |
-| iOS | `sckraaa/pluma-ios` | Telegram-iOS 12.9.2, `6ad963e5` (ветка `task/074-upstream`: 13.2, `24638bc6`) | [ios.md](ios.md) | I-001…I-119 |
-| Desktop | `sckraaa/pluma-desktop` | tdesktop v7.4.1, `157f5cfc` | [desktop.md](desktop.md) | D-001…D-093 |
-| Web | `sckraaa/pluma-web` (локально `~/pluma-web`) | tweb 2.3 (686), `aa74832e` | [web.md](web.md) | W-001…W-074 |
+| Android | `sckraaa/pluma-android` (локально `~/pluma-android`) | DrKLO/Telegram 13.2.1, `7be672ea` | [android.md](android.md) | A-001…A-116 |
+| iOS | `sckraaa/pluma-ios` | Telegram-iOS 12.9.2, `6ad963e5` (ветка `task/074-upstream`: 13.2, `24638bc6`) | [ios.md](ios.md) | I-001…I-120 |
+| Desktop | `sckraaa/pluma-desktop` | tdesktop v7.4.1, `157f5cfc` | [desktop.md](desktop.md) | D-001…D-094 |
+| Web | `sckraaa/pluma-web` (локально `~/pluma-web`) | tweb 2.3 (686), `aa74832e` | [web.md](web.md) | W-001…W-075 |
 
 ## Правила
 - Клиенты меняются только там, где это действительно нужно Pluma:
