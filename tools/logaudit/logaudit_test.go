@@ -73,6 +73,11 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"srp values", `func f(p *mtproto.Account_Password, s *mtproto.Account_PasswordInputSettings) { logx.Infof("%x %x", p.GetSrp_B(), s.GetNewPasswordHash()) }`, []string{"secret", "secret"}},
 		{"srp id ok", `func f(in *mtproto.InputCheckPasswordSRP) { logx.Infof("srp_id %d", in.GetSrpId()) }`, nil},
 		{"token", `func f(in *mtproto.TLInvokeWithReCaptcha) { logx.Infof("%s", in.Token) }`, []string{"secret"}},
+		{"recovery email", `func f(p struct{ Email, EmailUnconfirmed string }) { logx.Infof("%s %s", p.Email, p.EmailUnconfirmed) }`, []string{"secret", "secret"}},
+		{"email getter", `func f(s *mtproto.Account_PasswordSettings) { logx.Infof("%s", s.GetEmail()) }`, []string{"secret"}},
+		{"email pattern", `func f(p *mtproto.Account_Password) error { return fmt.Errorf("pattern %s", p.GetEmailUnconfirmedPattern()) }`, []string{"secret"}},
+		{"mail api key", `func f(c struct{ Mail struct{ ApiKey, From string } }) { logx.Errorf("key %s, mail %+v", c.Mail.ApiKey, c.Mail) }`, []string{"secret", "secret"}},
+		{"email flag ok", `func f(confirmed bool) { logx.Infof("confirmed %v", confirmed) }`, nil},
 		{"config with credentials", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %+v", c.Etcd) }`, []string{"secret"}},
 		{"config hosts ok", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %v", c.Etcd.Hosts) }`, nil},
 		// not findings
