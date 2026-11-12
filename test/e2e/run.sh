@@ -56,12 +56,18 @@ FAKEPUSH_URL=http://fakepush:8080
 BFF_CONFIG=$E2E_DIR/bff.yaml
 FAKESTT_MODEL=e2e-model
 FAKEMAIL_URL=http://fakemail:8080
+# The SFU of group calls (docker-compose.sfu.yaml, task 093): the
+# certificates of its control API, the SFU's and bff's.
+SFU_CERTS=$E2E_DIR/sfu
+GROUPCALLS_CERTS=$E2E_DIR/groupcalls
 
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
-SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt fakemail "${TEAMGRAM_SERVICES[@]}")
+# Services of their own images that must not exit during the run either.
+OWN_SERVICES=(sfu)
+SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt fakemail "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick). The
@@ -75,6 +81,7 @@ export E2E_FAKEPUSH_IMAGE=${E2E_FAKEPUSH_IMAGE:-pluma-e2e-fakepush:$E2E_PROJECT}
 export E2E_FAKECODES_IMAGE=${E2E_FAKECODES_IMAGE:-pluma-e2e-fakecodes:$E2E_PROJECT}
 export E2E_FAKESTT_IMAGE=${E2E_FAKESTT_IMAGE:-pluma-e2e-fakestt:$E2E_PROJECT}
 export E2E_FAKEMAIL_IMAGE=${E2E_FAKEMAIL_IMAGE:-pluma-e2e-fakemail:$E2E_PROJECT}
+export PLUMA_SFU_IMAGE=${PLUMA_SFU_IMAGE:-pluma-e2e-sfu:$E2E_PROJECT}
 # A crash must fail the test, not be hidden by a restart.
 export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
 
@@ -91,6 +98,7 @@ compose() {
 		--env-file "$ENV_FILE" \
 		-f "$ROOT/docker-compose-env.yaml" \
 		-f "$ROOT/docker-compose.yaml" \
+		-f "$ROOT/docker-compose.sfu.yaml" \
 		-f "$ROOT/test/e2e/docker-compose.e2e.yaml" \
 		"$@"
 }
@@ -113,6 +121,8 @@ gen_secrets() {
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE"
 	mkdir -p "$E2E_DIR" && chmod 700 "$E2E_DIR" || return
+	local sfu_port
+	sfu_port=$(free_port) || return
 	local fp keytool=(-out "$KEY_FILE")
 	if [[ -n ${E2E_SERVER_KEY:-} ]]; then
 		install -m 600 "$E2E_SERVER_KEY" "$KEY_FILE" || return
@@ -164,8 +174,50 @@ FCM_CREDENTIALS_FILE=$FCM_CREDENTIALS_FILE
 E2E_PUSH_CONFIG=$PUSH_CONFIG
 E2E_BFF_CONFIG=$BFF_CONFIG
 SERVER_RSA_KEY_FINGERPRINT=$fp
+SFU_PUBLIC_IPV4=127.0.0.1
+SFU_UDP_PORT=$sfu_port
+SFU_TCP_PORT=$sfu_port
+PLUMA_SFU_CERTS=$SFU_CERTS
+PLUMA_GROUPCALLS_CERTS=$GROUPCALLS_CERTS
 EOF
 	)
+}
+
+# free_port prints a port free for both UDP and TCP on this machine. The
+# SFU's media ports are fixed for the run: its answers to joins name the
+# port the clients reach it at, which Docker's ephemeral ports would not
+# give before the SFU starts.
+port_taken() {
+	if command -v ss >/dev/null; then
+		[[ -n $(ss -Hlnu "sport = :$1") || -n $(ss -Hlnt "sport = :$1") ]]
+	else
+		lsof -nP -iUDP:"$1" -iTCP:"$1" >/dev/null 2>&1
+	fi
+}
+
+free_port() {
+	local i p
+	for ((i = 0; i < 50; i++)); do
+		p=$((21000 + RANDOM % 9000))
+		if ! port_taken "$p"; then
+			echo "$p"
+			return
+		fi
+	done
+	log "no free port for the SFU"
+	return 1
+}
+
+# gen_sfu issues the certificates of the SFU's control API for the run. The
+# SFU's image runs as nonroot (uid 65532), which must read its files; they
+# are throwaway and lie in E2E_DIR, which only the owner opens.
+gen_sfu() {
+	if [[ -f $SFU_CERTS/server.pem && -f $GROUPCALLS_CERTS/client.pem ]]; then
+		return
+	fi
+	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
+	"$ROOT/teamgramd/deploy/sfu/control-certs.sh" "$SFU_CERTS" "$GROUPCALLS_CERTS" >/dev/null || return
+	chmod 0755 "$SFU_CERTS" && chmod 0444 "$SFU_CERTS"/*.pem
 }
 
 # gen_push writes the provider keys and the config of the push service:
@@ -217,6 +269,7 @@ cmd_up() {
 	gen_secrets || return
 	gen_push || return
 	gen_bff || return
+	gen_sfu || return
 	log "building the teamgram image"
 	compose build idgen || return
 	log "starting ${SERVICES[*]}"
@@ -229,7 +282,7 @@ cmd_up() {
 # a crash during the tests must fail them.
 check_running() {
 	local exited
-	exited=$(compose ps --all --status exited --format '{{.Service}}' "${TEAMGRAM_SERVICES[@]}") || return
+	exited=$(compose ps --all --status exited --format '{{.Service}}' "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}") || return
 	if [[ -n $exited ]]; then
 		log "services exited during the run: $(tr '\n' ' ' <<<"$exited")"
 		return 1
@@ -323,9 +376,10 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKEMAIL_IMAGE" >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
+	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
 }
 

@@ -1,13 +1,14 @@
 # End-to-end test stack (docs/ops/testing.md): applied on top of
 # docker-compose-env.yaml and docker-compose.yaml by test/e2e/run.sh, which
 # starts only the services listed there (the core: MySQL, Redis, Kafka with
-# its topics, etcd, MinIO, Jaeger and the teamgram services). Elasticsearch, Kibana, filebeat, go-stash and
+# its topics, etcd, MinIO, Jaeger, the teamgram services and the SFU). Elasticsearch, Kibana, filebeat, go-stash and
 # the metrics stack are never started in tests.
 #
 # Everything a test run creates is thrown away with `down -v`: no fixed
-# container names, no host ports except an ephemeral loopback port for the
-# MTProto gateway, no bind-mounted ./data, no fixed subnet, so the test stack
-# can run next to a development stack on the same Docker host. Containers are
+# container names, no host ports except loopback ones (an ephemeral port for
+# the MTProto gateway, a free one run.sh picks for the SFU), no bind-mounted
+# ./data, no fixed subnet, so the test stack can run next to a development
+# stack on the same Docker host. Containers are
 # not restarted: a crash must fail the test, not be hidden by a restart.
 
 services:
@@ -169,6 +170,17 @@ services:
         condition: service_started
       fakemail:
         condition: service_started
+
+  # The SFU of group calls (docker-compose.sfu.yaml): its media ports on the
+  # loopback interface, at the port run.sh picks for the run, which its
+  # answers to joins name (SFU_PUBLIC_IPV4 and SFU_*_PORT in its env file);
+  # the tests' clients reach it there as the official clients reach the
+  # published ports of a server. The control certificates are the run's.
+  sfu:
+    ports: !override
+      - "127.0.0.1:${SFU_UDP_PORT:?run test/e2e/run.sh up}:20600/udp"
+      - "127.0.0.1:${SFU_TCP_PORT:?run test/e2e/run.sh up}:20601/tcp"
+    restart: "no"
 
   push:
     # The config with the endpoints of fakepush, written by run.sh.
