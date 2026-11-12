@@ -631,6 +631,16 @@ ci/lint.sh                                        # shellcheck и actionlint
 
 ## Медиа
 
+### I-121. Расшифровка голосовых и кружков; на просмотре «на один раз» кнопки нет (задача 080)
+- **Статус.** Ветка `task/080-service-account-132` pluma-ios, поверх `3b68e95` (PR 18), не закоммичено (2026-11-12).
+- **Что и зачем.** Решение владельца 2026-11-12: расшифровка без лимитов для всех; голосовые и кружки «на один раз» никогда не расшифровываются — сервер отказывает, клиенты кнопку не показывают. Две правки I-109, скрывавшие кнопку, сняты. Апстрим 13.2 сам не показывает кнопку на сообщениях «на один раз», правки нет — только сторож его условий.
+- **Где** (`TRANSCRIBE_VIEW_ONCE_GATES`, `TRANSCRIBE_BUTTON_SETTERS`, `verify_transcribe_view_once()` в `ci/patch.py`; апстрим 13.2, `24638bc6`), вид правки `expect`:
+  - `ChatMessageInteractiveFileNode.swift:772` — `let isViewOnceMessage = isVoice && arguments.message.minAutoremoveOrClearTimeout == viewOnceTimeout` (1 раз); `:787-790` — сплошной блок `var displayTranscribe = false` / ветка `allNonRegular` / `else if … && !isViewOnceMessage && …` (1 раз); `displayTranscribe = true` — ровно 4 раза, все внутри этого условия (`:793`, `:797`, `:802`, `:804`);
+  - `ChatMessageInteractiveInstantVideoNode.swift:317` — `let isViewOnceMessage = item.message.minAutoremoveOrClearTimeout == viewOnceTimeout` (1 раз); `:872-873` — `var displayTranscribe = false` / `if … && !isViewOnceMessage && …` (1 раз); `displayTranscribe = true` — ровно 3 раза, все внутри условия (`:876`, `:879`, `:883`).
+- **Апстрим без правки.** Кнопка у Premium (флаг ставит сервер всем) на голосовых и кружках, кроме секретных чатов, предпросмотра, неотправленных сообщений и «на один раз». Кнопка строится только при `displayTranscribe` (FileNode `:1007`, `:1304`, `:1366`; InstantVideoNode `:890`, `:960`, `:978`, `:986`). Вызов `transcribeAudio` — только в этих двух узлах (FileNode `:492`, InstantVideoNode `:1945`), других входов нет. `viewOnceTimeout = 0x7fffffff`: `SyncCore_AutoremoveTimeoutMessageAttribute.swift:4`.
+- **Как проверяется.** `verify_transcribe_view_once`; `TranscribeViewOnceTest` (условие или место включения кнопки удалено, повторено, изменено); `PremiumForEveryoneTest.test_transcription_offered` (I-109 не трогает кнопку); порча на настоящем апстриме в `DAMAGE` (`UpstreamTest`): снято `!isViewOnceMessage`, `viewOnceTimeout` → 0, `displayTranscribe` включается до условия или после него. Пути — в `UPSTREAM_PATHS`.
+- **Не проверено.** Сборка Bazel и устройство: кнопка, запрос, текст расшифровки, отсутствие кнопки на «один раз»; что сервер отдаёт медиа «на один раз» с `ttl_seconds = 0x7fffffff`.
+
 ### I-061. Без шрифта Apple SF Camera
 - **Что и зачем.** ITMS-91198: шрифты Apple в бандле нельзя (с 1 октября 2027 такие загрузки отклоняются). SF Camera — шрифт элементов камеры. Без него камера берёт системный шрифт того же веса, как `Font.with` уже делает, когда шрифт не загрузился.
 - **Где.**
@@ -998,13 +1008,13 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Не решено или не сделано.** Миниатюра ночной темы в «Оформлении» с синим пузырём; ободок спидометра «Fast»; значки «Устройств» (`#0079FF`); минимальная iOS 15 (I-084).
 - **Не определено по репозиторию.** Номер задачи сборки `reference` (`05c9e06`) в коммите не указан.
 
-### I-109. Premium для всех: строки покупки, премиум-эмодзи, расшифровка (задача 071)
+### I-109. Premium для всех: строки покупки, премиум-эмодзи (расшифровка возвращена, I-121) (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`091c206`), не влита, не выпущена (2026-11-09).
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). На iOS звезда уже скрыта `isPremiumDisabled`.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `PeerInfoSettingsItems`: строки Premium и Business только при возможности покупки;
   - `EmojiPagerContentSignals`: `isPremiumDisabled = false` (три места), премиум-эмодзи и наборы в клавиатуре;
-  - `ChatMessageInteractiveFileNode`, `ChatMessageInteractiveInstantVideoNode`: кнопка расшифровки выключена.
+  - `ChatMessageInteractiveFileNode`, `ChatMessageInteractiveInstantVideoNode`: правки сняты 2026-11-12 (задача 080, решение владельца): сервер расшифровывает `messages.transcribeAudio` для всех (у всех Premium, ADR 0041), кнопка расшифровки голосовых и кружков показывается как у Premium-пользователя Telegram. Сторож просмотра «на один раз» — I-121.
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
 
 ### I-110. Бустов нет: свои реакции и цвета без уровня, пункт и ссылки убраны (задача 071)

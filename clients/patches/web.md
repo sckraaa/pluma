@@ -537,6 +537,13 @@
 
 Контекст: Pluma не продаёт Premium и подарки. Сервер ставит `premium_purchase_blocked` в `help.getAppConfig` (задачи 014, 015). Решение владельца по баннеру — вариант А (бриф 020, пункт про баннер дня рождения). Всё в этом разделе есть **только на ветке `task/020-parity-fixes`** (`cb01766`, 2026-10-31).
 
+### W-076. Расшифровка голосовых и круглых видео; у «на один раз» кнопки нет (задача 080)
+- **Статус.** Ветка `task/080-service-account` pluma-web, не закоммичено, не влито (2026-11-12).
+- **Что и зачем.** Решение владельца 2026-11-12: расшифровка голосовых и круглых видео доступна всем без ограничений, сервер обслуживает `messages.transcribeAudio`; сообщения «на один раз» не расшифровываются никогда — сервер отказывает, клиенты кнопку не показывают. Правки, прятавшие кнопку (W-068), сняты.
+- **Апстрим без правки** (`aa74832e`). Кнопка голосового — `bubbles.ts:11636` (`canTranscribeVoice: true`) → `wrappers/groupedDocuments.ts:82` → `wrappers/document.ts:153` → `audio.tsx:283`/`audioTranscription.tsx:207`; кнопка круга — `wrapRoundVideoBubble` (`bubbles.ts:12862`, `roundVideoBubble.ts:37`, `:229`). Сообщение «на один раз» (медиа с `ttl_seconds`, `isSelfDestructingMediaMessage`, `bubbles.ts:372`) Web K не показывает: `canSeeMessageMedia.ts:9-15` возвращает `false`, `isDrawnAsService` (`bubbles.ts:386`) рисует его служебной строкой с `wrapMessageForReply` (`bubbles.ts:10163`), ветка `if(isDrawnAsService(message))` (`bubbles.ts:9483`) ставит `returnService = true` (`bubbles.ts:10177`), и `if(returnService)` (`bubbles.ts:10195-10203`) выходит до обёрток голосового и круга; `mediaPeek` такие медиа не открывает (`mediaPeek/index.tsx:153`). Патча, прячущего кнопку, поэтому нет.
+- **Где** (`transcription()`, `verify_transcription()` в `ci/patch.py`): правок нет, только якоря — `TRANSCRIBE_VOICE`, `TRANSCRIBE_ROUND`, `VIEW_ONCE_MEDIA`, `VIEW_ONCE_AS_SERVICE`, `VIEW_ONCE_ORDER` (`VIEW_ONCE_SERVICE_LINE`, `VIEW_ONCE_SERVICE_SET`, `VIEW_ONCE_RETURN`) в `bubbles.ts`, `VIEW_ONCE_HIDDEN` в `canSeeMessageMedia.ts` (вместе с закомментированным исключением для голосовых: раскомментирует апстрим — проверка падает).
+- **Как проверяется.** `verify_transcription`: обе кнопки на месте по одному разу; медиа с `ttl_seconds` скрыто и рисуется служебной строкой; ветка служебной строки, `returnService = true` и `if(returnService)` — по одному разу, по порядку и раньше обеих обёрток. `UpstreamTest.test_transcription` (шесть порч `verify`), семь порч в `DAMAGE`. `ci/patch_test.py` со `./upstream`, CI=1: 51 тест, OK. Сборка, `pnpm run typecheck` и браузер не проверены.
+
 ### W-043. Баннер дней рождения: нажатие открывает чат, а не подарок
 - **Где:** `src/components/sidebarLeft/birthdaySuggestions.tsx`, функция `birthday_banner()`.
   - Сначала `expect` опор: в `src/lang.ts` строки `'SendMessageTitle': 'Send message'` и `'Suggestion.BirthdayContacts.Today': 'Birthday today'`; в `src/components/popups/pickUser.tsx` `export default function showPickUserPopup(options: PopupPickUserOptions) {`; в `src/lib/appImManager.ts` `public async setPeer(options: Partial<ChatSetInnerPeerOptions> = {}, animate?: boolean): Promise<boolean> {`.
@@ -758,18 +765,17 @@
 - `useAppConfig` в W-046 не охранён `expect` (см. замечание в записи).
 - Решение на подтверждение (бриф 020): тёмный цвет имён бирюзового `#53CCC6` на всех платформах.
 
-### W-068. Premium для всех: звезда, кнопка статуса, расшифровка (задача 071)
+### W-068. Premium для всех: звезда, кнопка статуса (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`b34d7f8`), не влита, не выпущена (2026-11-09).
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). Строка Premium в настройках уже закрыта `isPremiumPurchaseBlocked`.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `components/generateTitleIcons.ts`: звезды нет;
   - `components/sidebarLeft/index.ts`: кнопки эмодзи-статуса в шапке нет;
-  - `components/chat/bubbles.ts`: `canTranscribeVoice: false` у голосовых;
-  - `components/chat/bubbles.ts`: вызова `wrapRoundVideoBubble` нет (задача 074): эта обёртка только добавляет кнопку текста к круглому видео и разворачивает его в голосовое, а `messages.transcribeAudio` сервер не обслуживает;
   - `helpers/dom/createStickersContextMenu.ts`: пункта «Set as Status» в меню эмодзи нет (задача 074), `account.updateEmojiStatus` сервер не обслуживает;
   - `components/webApp.tsx`: `web_app_set_emoji_status` сразу отвечает мини-приложению `emoji_status_failed` с `SERVER_ERROR`, без окна согласия; `web_app_request_emoji_status_access` отвечает `cancelled` (`bots.toggleUserEmojiStatusPermission` сервер тоже не обслуживает);
   - `lib/internalLinkProcessor.ts`: ссылка `emoji-status` (из `chats` и `settings`) ничего не открывает; без правки она вела к промо Premium, потому что кнопки в шапке нет.
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (круглое видео), `test_no_way_to_an_emoji_status`.
+- **Снято (задача 080, 2026-11-12).** Правки `components/chat/bubbles.ts`, прятавшие расшифровку (`canTranscribeVoice: false` у голосовых и у документа в превью ссылки, вызов `wrapRoundVideoBubble` под `if(false)`), убраны: сервер обслуживает `messages.transcribeAudio` всем, у всех Premium (ADR 0041). Кнопки голосовых и круглых видео — как у апстрима (W-076).
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_no_way_to_an_emoji_status`.
 
 ### W-069. Бустов нет: пункты меню, ссылка, «Не ограничивать бустеров» (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`18482a0`), не влита, не выпущена (2026-11-09).

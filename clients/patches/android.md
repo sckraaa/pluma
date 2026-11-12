@@ -1089,17 +1089,17 @@
 
 ---
 
-### A-109. Premium для всех: звезда, строки покупки, расшифровка (задача 071)
-- **Статус.** Ветка `task/071-premium-for-everyone` (`7d0df1b`), не влита, не выпущена (2026-11-09).
+### A-109. Premium для всех: звезда, строки покупки (задача 071)
+- **Статус.** Влито в main форка (PR #7, `7d0df1b`). Правка кнопки расшифровки снята в ветке `task/080-service-account` (2026-11-12): не закоммичено, не выпущено.
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). Ненужное от этого убираем, функции флаг открывает сам.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `messenger/MessagesController.isPremiumUser` возвращает `false`: звезды в `DialogCell`, `UserCell`, `ProfileSearchCell`, `DialogStoriesCell`, `DialogsActivity`, заголовке `ChatActivity`, `ProfileActivity`;
   - `ImageReceiver`, `ImageLocation` читают `user.premium`, анимация аватарок остаётся;
   - звезды прямых чтений: `SettingsActivity`, `ChatActivity:19346`, `ChatMessageCell`, `GroupCallUserCell`, `StatusBadgeComponent`, `TableView`;
-  - строки Premium и Business: `SettingsActivity`, `ProfileActivity` — по `premiumPurchaseBlocked`;
-  - кнопка расшифровки (`useTranscribeButton`).
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
-- **При обновлении апстрима.** Новые места со звездой — по `user.premium` и `msg_premium_liststar`.
+  - строки Premium и Business: `SettingsActivity`, `ProfileActivity` — по `premiumPurchaseBlocked`.
+- **Расшифровка голосовых и кружков.** Кнопка снова апстримовская (решение владельца 2026-11-12, задача 080): сервер выполняет `messages.transcribeAudio` для всех с Premium. Правка `false && …` в `useTranscribeButton` (`ChatMessageCell.updateWaveform`) убрана. На сообщениях «на один раз» апстрим кнопку не показывает сам: условие требует `media.ttl_seconds == 0` (`ui/Cells/ChatMessageCell.java:11172`, апстрим `7be672ea`), а у голосового или кружка «на один раз» `ttl_seconds` = `0x7FFFFFFF` (`messenger/MessageObject.java:11524-11530`). Плеер `ui/SecretVoicePlayer.java:316,340,519` рисует тот же `MessageObject` в `ChatMessageCell`. Запрос уходит только по нажатию этой кнопки (`ui/Components/TranscribeButton.java:204-242,690`; касание `ChatMessageCell.java:2836`, доступность `ChatMessageAccessibilityNodeProvider.java:435,1006` — оба закрыты `useTranscribeButton`). Сервер такие медиа расшифровывать отказывается.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`. `verify_transcribe_button`: условие кнопки ровно одно, с `isPremium()` и проверкой `ttl_seconds` в том же операторе, без `false &&`; тест — `TranscribeButtonTest`.
+- **При обновлении апстрима.** Новые места со звездой — по `user.premium` и `msg_premium_liststar`. Изменённое условие `useTranscribeButton` останавливает сборку в `verify_transcribe_button`: перечитать, скрыта ли кнопка на сообщениях «на один раз». Новый вызов `TL_messages_transcribeAudio` вне `TranscribeButton` тоже нужно перечитать.
 
 ### A-110. Бустов нет: свои реакции и цвета без уровня, входы и ссылки убраны (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`b39e60b`, `f791823`), не влита, не выпущена (2026-11-09).
