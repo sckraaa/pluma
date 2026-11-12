@@ -24,8 +24,18 @@ import (
 )
 
 // ContactsUnblock
-// contacts.unblock#bea65d50 id:InputPeer = Bool;
+// contacts.unblock#b550d328 flags:# my_stories_from:flags.0?true id:InputPeer = Bool;
+//
+// With my_stories_from the user leaves the blocklist of stories only; the
+// main blocklist is not touched.
 func (c *ContactsCore) ContactsUnblock(in *mtproto.TLContactsUnblock) (*mtproto.Bool, error) {
+	if in.GetMyStoriesFrom() {
+		if err := c.storiesBlocked(in.GetId(), false); err != nil {
+			c.Logger.Errorf("contacts.unblock - error: %v", err)
+			return nil, err
+		}
+		return mtproto.BoolTrue, nil
+	}
 	var (
 		mUsers    *userpb.Vector_ImmutableUser
 		err       error

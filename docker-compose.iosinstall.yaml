@@ -25,6 +25,11 @@ services:
       SIGN_P12_FILE: /run/secrets/iosinstall/distribution.p12
       SIGN_P12_PASSWORD_FILE: /run/secrets/iosinstall/distribution.p12.password
       UPLOAD_TOKEN_FILE: /run/secrets/iosinstall/upload-token
+      # The update from the app (task 085): the secret of the update tickets,
+      # the same the bff gets; empty: none is taken. The current release is
+      # read from the releases service (docker-compose.releases.yaml).
+      UPDATE_TICKET_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
+      RELEASES_JSON_URL: http://releases:9097/dl/releases.json
     volumes:
       # Files of uid 65532 (the image's nonroot), mode 0400.
       - ${PLUMA_IOSINSTALL_SECRETS:-/opt/pluma/iosinstall}:/run/secrets/iosinstall:ro

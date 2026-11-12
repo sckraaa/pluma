@@ -74,10 +74,18 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       # bff.yaml names the site of the client releases (task 054); empty: none.
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
+      # bff.yaml names the secret of the iPhone update tickets (task 085).
+      PLUMA_IOS_UPDATE_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
       # bff.yaml names the servers of one-to-one calls (task 068); empty: off.
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
+      # bff.yaml names the speech engine of voice transcription (task 090); empty: off.
+      STT_URL: ${STT_URL:-}
+      STT_TOKEN: ${STT_TOKEN:-}
+      STT_MODEL: ${STT_MODEL:-}
+      STT_LANGUAGE: ${STT_LANGUAGE:-}
+      STT_TIMEOUT: ${STT_TIMEOUT:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -274,10 +282,20 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       # The site of the releases of the client apps (task 054); empty: none.
       PLUMA_RELEASES_URL: ${PLUMA_RELEASES_URL:-}
+      # The secret of the update tickets of the iPhone app (task 085), shared
+      # with iosinstall; empty: the update is the site's install page.
+      PLUMA_IOS_UPDATE_SECRET: ${PLUMA_IOS_UPDATE_SECRET:-}
       # The servers of one-to-one calls (task 068); empty: calls are off.
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
+      # The speech engine of voice transcription (task 090,
+      # docs/ops/transcription.md); no URL: transcription is off.
+      STT_URL: ${STT_URL:-}
+      STT_TOKEN: ${STT_TOKEN:-}
+      STT_MODEL: ${STT_MODEL:-}
+      STT_LANGUAGE: ${STT_LANGUAGE:-}
+      STT_TIMEOUT: ${STT_TIMEOUT:-}
     stop_grace_period: 30s
     depends_on:
       sync:

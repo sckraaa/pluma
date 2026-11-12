@@ -140,6 +140,8 @@ func describeSeq(b *differenceBuilder) string {
 			s += fmt.Sprintf("(%d:%d)", u.GetPeer_PEER().GetChatId(), u.GetRequestsPending())
 		case mtproto.Predicate_updateUserName:
 			s += fmt.Sprintf("(%d:%s)", u.GetUserId(), u.GetFirstName())
+		case mtproto.Predicate_updateUserEmojiStatus:
+			s += fmt.Sprintf("(%d:%d)", u.GetUserId(), u.GetEmojiStatus().GetDocumentId())
 		case mtproto.Predicate_updateChannel:
 			s += fmt.Sprintf("(%d)", u.GetChannelId())
 		case mtproto.Predicate_updateReadChannelInbox:
@@ -150,6 +152,15 @@ func describeSeq(b *differenceBuilder) string {
 		us = append(us, s)
 	}
 	return strings.Join(us, " ")
+}
+
+// emojiStatus is the status documentId of a user, none for 0.
+func emojiStatus(userId, documentId int64) *mtproto.Update {
+	status := mtproto.MakeTLEmojiStatusEmpty(nil).To_EmojiStatus()
+	if documentId != 0 {
+		status = mtproto.MakeTLEmojiStatus(&mtproto.EmojiStatus{DocumentId: documentId}).To_EmojiStatus()
+	}
+	return mtproto.MakeTLUpdateUserEmojiStatus(&mtproto.Update{UserId: userId, EmojiStatus: status}).To_Update()
 }
 
 func channelUpdate(id int64) *mtproto.Update {
@@ -219,6 +230,10 @@ func TestSeqFold(t *testing.T) {
 			[]*mtproto.Update{mtproto.MakeTLUpdateRecentStickers(nil).To_Update(), mtproto.MakeTLUpdateFavedStickers(nil).To_Update(),
 				userName(7, "Ann"), mtproto.MakeTLUpdateRecentStickers(nil).To_Update()},
 			"FavedStickers UserName(7:Ann) RecentStickers"},
+		{"the emoji status of each user: the last; its recent statuses and the saved sounds: one reload of each",
+			[]*mtproto.Update{emojiStatus(7, 1), mtproto.MakeTLUpdateRecentEmojiStatuses(nil).To_Update(), mtproto.MakeTLUpdateSavedRingtones(nil).To_Update(),
+				emojiStatus(8, 2), emojiStatus(7, 0), mtproto.MakeTLUpdateRecentEmojiStatuses(nil).To_Update(), mtproto.MakeTLUpdateSavedRingtones(nil).To_Update()},
+			"UserEmojiStatus(8:2) UserEmojiStatus(7:0) RecentEmojiStatuses SavedRingtones"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := describeSeq(foldSeq(c.updates...)); got != c.want {

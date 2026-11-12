@@ -240,6 +240,11 @@ jobs:
             go.sum
             Makefile
 
+      # The transcription tests decode voice and round messages with ffmpeg.
+      - name: Install ffmpeg
+        timeout-minutes: 25
+        uses: ./.github/actions/ffmpeg
+
       - name: Integration tests
         # testcontainers-go starts the containers on the runner's Docker.
         run: make test-integration

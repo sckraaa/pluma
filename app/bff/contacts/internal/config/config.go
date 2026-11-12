@@ -19,6 +19,7 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -30,4 +31,7 @@ type Config struct {
 	SyncClient sync_client.OutboxConf
 	// ChannelClient: the public channels of contacts.search.
 	ChannelClient zrpc.RpcClientConf
+	// Mysql: the private notes on contacts and the temporary links to a
+	// profile (task 084).
+	Mysql sqlx.Config
 }

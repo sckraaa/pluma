@@ -21,6 +21,7 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 )
 
 // MessagesDeleteSavedHistory
@@ -33,9 +34,33 @@ import (
 // supergroup messages were saved from. The sub-chat leaves
 // messages.getSavedDialogs with its last message.
 func (c *SavedMessageDialogsCore) MessagesDeleteSavedHistory(in *mtproto.TLMessagesDeleteSavedHistory) (*mtproto.Messages_AffectedHistory, error) {
-	if err := c.checkParentPeer(in.GetParentPeer()); err != nil {
+	monoforumId, err := c.parentMonoforum(in.GetParentPeer())
+	if err != nil {
 		c.Logger.Errorf("messages.deleteSavedHistory - error: %v", err)
 		return nil, err
+	}
+	if monoforumId != 0 {
+		// A sublist of a monoforum goes for everyone, by an admin of the
+		// channel's direct messages (core.telegram.org/api/monoforum).
+		peerId, err := c.sublistPeer(in.GetPeer())
+		if err != nil {
+			c.Logger.Errorf("messages.deleteSavedHistory - error: %v", err)
+			return nil, err
+		}
+		r, err := c.svcCtx.Dao.Channel.ChannelDeleteSublistHistory(c.ctx, &channelpb.TLChannelDeleteSublistHistory{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     monoforumId,
+			PeerId:        peerId,
+			MaxId:         in.MaxId,
+			MinDate:       in.GetMinDate().GetValue(),
+			MaxDate:       in.GetMaxDate().GetValue(),
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.deleteSavedHistory - sublist %d of %d: %v", peerId, monoforumId, err)
+			return nil, err
+		}
+		return r, nil
 	}
 	saved, err := c.savedPeer(in.GetPeer())
 	if err != nil {

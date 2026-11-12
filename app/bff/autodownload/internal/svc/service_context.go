@@ -19,15 +19,27 @@
 package svc
 
 import (
+	"context"
+
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/autodownload/internal/config"
+	"github.com/teamgram/teamgram-server/pkg/autodownload"
 )
+
+// Saved keeps what the accounts saved as their auto-download settings
+// (pkg/autodownload).
+type Saved interface {
+	Save(ctx context.Context, userID int64, preset autodownload.Preset, settings autodownload.Settings, now int64) error
+}
 
 type ServiceContext struct {
 	Config config.Config
+	Saved  Saved
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config: c,
+		Saved:  autodownload.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

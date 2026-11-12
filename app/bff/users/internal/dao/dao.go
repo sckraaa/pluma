@@ -19,8 +19,11 @@
 package dao
 
 import (
+	"context"
+
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/users/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/users/internal/plugin"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
@@ -29,6 +32,7 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/contactnotes"
 )
 
 type Dao struct {
@@ -41,6 +45,14 @@ type Dao struct {
 	plugin.PersonalChannelPlugin
 	plugin.WallpaperPlugin
 	Bots *botstore.Store
+	// Notes are the private notes of an account on its contacts
+	// (userFull.note, task 084).
+	Notes Notes
+}
+
+// Notes reads the private notes on contacts (pkg/contactnotes).
+type Notes interface {
+	Get(ctx context.Context, userID, contactID int64) (*mtproto.TextWithEntities, error)
 }
 
 func New(c config.Config, plugin1 plugin.StoryPlugin, plugin2 plugin.PersonalChannelPlugin, plugin3 plugin.WallpaperPlugin) *Dao {
@@ -54,5 +66,6 @@ func New(c config.Config, plugin1 plugin.StoryPlugin, plugin2 plugin.PersonalCha
 		PersonalChannelPlugin: plugin2,
 		WallpaperPlugin:       plugin3,
 		Bots:                  botstore.New(sqlx.NewMySQL(&c.Mysql)),
+		Notes:                 contactnotes.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

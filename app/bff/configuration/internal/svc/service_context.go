@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/appconfig"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -45,6 +46,9 @@ type ServiceContext struct {
 	// handlers clone it before filling the per-request fields.
 	ClientConfig *mtproto.TLConfig
 	AppConfig    *appconfig.AppConfig
+	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
+	// app can update to from the app (task 085); nil when that is off.
+	IOSUpdate *iosupdate.Checker
 	*dao.Dao
 }
 
@@ -53,10 +57,16 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	logx.Must(err)
 	appConfig, err := appconfig.Load(appConfigFile)
 	logx.Must(err)
+	logx.Must(c.IOSUpdate.Check())
+	var iosUpdate *iosupdate.Checker
+	if c.IOSUpdate.Enabled() {
+		iosUpdate = iosupdate.NewChecker(c.IOSUpdate.StatusURL)
+	}
 	return &ServiceContext{
 		Config:       c,
 		ClientConfig: clientConfig,
 		AppConfig:    appConfig,
+		IOSUpdate:    iosUpdate,
 		Dao:          dao.New(c),
 	}
 }

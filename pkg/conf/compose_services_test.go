@@ -312,12 +312,22 @@ var optionalVars = map[string]bool{
 	// The site of the client releases (task 054): bff offers no app
 	// updates and no desktop update prefix when empty.
 	"PLUMA_RELEASES_URL": true,
+	// The update of the iPhone app from the app (task 085): bff offers the
+	// site's install page when empty.
+	"PLUMA_IOS_UPDATE_SECRET": true,
 	// The servers of one-to-one calls (task 068): calls are off when empty.
 	"CALLS_ICE_SERVERS": true,
 	"CALLS_TURN_SECRET": true,
 	// The quality parameters of calls (task 077): the Pluma profile when
 	// empty.
 	"CALLS_QUALITY": true,
+	// The speech engine of voice transcription (task 090): transcription
+	// is off when the URL is empty.
+	"STT_URL":      true,
+	"STT_TOKEN":    true,
+	"STT_MODEL":    true,
+	"STT_LANGUAGE": true,
+	"STT_TIMEOUT":  true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

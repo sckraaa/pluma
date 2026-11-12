@@ -31,7 +31,7 @@
 - **Premium и бусты (ADR 0041).** Premium есть у всех: значения `_default` равны значениям `_premium`, все ключи `*_level_min` равны нулю, `premium.getBoostsStatus` отвечает уровнем 0: бустов в Pluma нет, а патчи клиентов снимают зависимость от уровня (свои реакции канала — до `reactions.InChatMax`, цвета) и прячут экраны и ссылки бустов (задача 071). Ключ `premium_purchase_blocked` остаётся `true`: это скрывает покупку.
 - **Чего в файле нет.**
   - Значения Telegram для конкретного пользователя или сессии: `freeze_*`, `call_requests_disabled`, `phone_country_iso2`, `transcribe_audio_trial_cooldown_until`.
-  - Боты и сервисы Telegram: `premium_bot_username`, `premium_invoice_slug`, `telegram_antispam_user_id`, `ton_*`, `stars_*` с суммами, `weather_search_username` и т. п.
+  - Боты и сервисы Telegram: `premium_bot_username`, `premium_invoice_slug`, `ton_*`, `stars_*` с суммами, `weather_search_username` и т. п.
   - Настройки внутренностей клиента (видео-кружки, очереди загрузки, анимации). Здесь подходят значения клиента по умолчанию.
 
 Клиенты в таблицах: A — Android, D — Desktop (tdesktop), W — Web K, I — iOS (указан там, где ключ читает только он).
@@ -147,16 +147,42 @@
 | `reactions_user_max_premium` | `3` | A D W | То же значение; клиенты по умолчанию ждут 3. |
 | `reactions_uniq_max` | `11` | A D W | Разных реакций на одно сообщение, как в Telegram. Android число не применяет и берёт своё 11. |
 | `reactions_in_chat_max` | `100` | A | Реакций, которые группа может разрешить (`messages.setChatAvailableReactions`), как в Telegram. |
+| `ringtone_size_max` | `102400` | A I D | Наибольший файл своей мелодии уведомлений, байт (задача 084). То же значение клиенты берут без ключа; сервер проверяет (`pkg/ringtones`). |
+| `ringtone_duration_max` | `5` | A I D | Наибольшая длительность мелодии, секунд. Сервер проверяет. |
+| `ringtone_saved_count_max` | `100` | I D | Сколько мелодий хранит аккаунт. Сервер проверяет. |
+| `contact_note_length_limit` | `128` | A I D | Длина личной заметки о контакте (задача 084). Сервер обрезает более длинную (`pkg/contactnotes`). |
+
+## Истории
+
+Истории работают (задача 084, ADR 0054). Лимиты — премиальные значения по умолчанию из клиентов (Android `MessagesController.java:1662-1709, 1781`), у всех одинаковые (ADR 0041); сервер проверяет их сам (`pkg/stories`), тест `pkg/stories` держит файл равным константам. Какие значения отдаёт сам Telegram, не сверено.
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `stories_posting` | `"enabled"` | A I | Публикация историй открыта всем. Другие значения: `"premium"`, `"disabled"` (Android `MessagesController.java:23804-23814`). |
+| `stories_entities` | `"enabled"` | A I | Ссылки и форматирование в подписи истории — всем (у Android по умолчанию `"premium"`). |
+| `story_expiring_limit_default` | `100` | A I | Историй в ленте одновременно; сервер отвечает `STORIES_TOO_MUCH`. |
+| `story_expiring_limit_premium` | `100` | A I | То же значение. |
+| `stories_sent_weekly_limit_default` | `70` | A I | Историй за 7 дней; сервер отвечает `STORY_SEND_FLOOD_WEEKLY_<до>`. |
+| `stories_sent_weekly_limit_premium` | `70` | A I | То же значение. |
+| `stories_sent_monthly_limit_default` | `300` | A I | Историй за 30 дней; сервер отвечает `STORY_SEND_FLOOD_MONTHLY_<до>`. |
+| `stories_sent_monthly_limit_premium` | `300` | A I | То же значение. |
+| `story_caption_length_limit_default` | `2048` | A I | Длина подписи истории; сервер отвечает `MEDIA_CAPTION_TOO_LONG`. |
+| `story_caption_length_limit_premium` | `2048` | A I | То же значение. |
+| `stories_suggested_reactions_limit_default` | `5` | A I | Областей-реакций на одной истории. |
+| `stories_suggested_reactions_limit_premium` | `5` | A I | То же значение. |
+| `stories_pinned_to_top_count_max` | `3` | A D W | Историй, закреплённых вверху профиля (`stories.togglePinnedToTop`). |
+| `stories_stealth_past_period` | `300` | A I W | Режим скрытого просмотра: за сколько секунд назад стираются просмотры. |
+| `stories_stealth_future_period` | `1500` | A I W | На сколько секунд вперёд просмотры скрыты. |
+| `stories_stealth_cooldown_period` | `3600` | A I | Через сколько секунд режим можно включить снова. |
 
 ## Выключатели того, чего на сервере нет
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `stories_posting` | `"disabled"` | A | Историй нет (`stories.*`). У Android по умолчанию `"enabled"`. |
 | `translations_manual_enabled` | `"disabled"` | A W | Перевода нет (`messages.translateText`). У Android по умолчанию `"enabled"`. |
 | `translations_auto_enabled` | `"disabled"` | A W | Перевода нет. |
 | `rich_message_posting` | `"disabled"` | A D | Расширенного форматирования нет. У клиентов по умолчанию `"premium"`. |
-| `transcribe_audio_trial_weekly_number` | `0` | A D | Пробной расшифровки голосовых нет (`messages.transcribeAudio`). |
+| `transcribe_audio_trial_weekly_number` | `0` | A D | Пробных расшифровок нет: расшифровка голосовых открыта всем без счётчика (задача 090, ADR 0056, `docs/ops/transcription.md`). Ключа `transcribe_audio_trial_cooldown_until` тоже нет: он блокирует кнопку на iOS. |
 | `settings_display_passkeys` | `false` | A D W | Входа по passkey нет. Отладочные сборки Android по умолчанию его показывают. |
 | `emojies_send_dice` | `[]` | A W | Кубики: наборов стикеров нет (`messages.getStickerSet`), анимации у клиента не будет, а ⚽ и 🎰 сервер разыгрывает неверно. Одиночный эмодзи уходит текстом. |
 
@@ -173,6 +199,13 @@
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
 | `authorization_autoconfirm_period` | `604800` | A D | Через сколько секунд после входа неподтверждённая сессия подтверждается сама (задача 019): клиенты снимают баннер «Это вы?», сервер перестаёт отдавать `unconfirmed` в `account.getAuthorizations`. Должно совпадать с `authsession.AuthorizationAutoconfirmPeriod` (это проверяет тест). Читает и iOS; у Telegram в примере и по умолчанию у клиентов то же значение. |
+
+## Антиспам групп
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `telegram_antispam_user_id` | `"1000001"` | A D | Служебный аккаунт антиспама (задача 082, ADR 0050, `z_pluma-antispam-user.sql`): по нему клиенты узнают в «Недавних действиях» сообщения, удалённые антиспамом, и добавляют его в фильтр админов. Читает и iOS. Строкой: iOS и tdesktop читают ключ только как строку. Должно совпадать с `antispam.UserId` (это проверяет тест). |
+| `telegram_antispam_group_size_min` | `10` | A D W | С какого числа участников админ может включить антиспам; меньше — клиенты блокируют переключатель. У Telegram 100, но на сервере около 100 аккаунтов такой группы может не быть совсем; 10 — решение для подтверждения владельцем. Читает и iOS, причём конфиг антиспама — только при обоих ключах. Должно совпадать с `antispam.MembersMin` (это проверяет тест). |
 
 ## Фоновое соединение (Android)
 

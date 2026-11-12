@@ -115,7 +115,9 @@ func (c *CatalogCore) channelReactionsList(peer *mtproto.PeerUtil, in *mtproto.T
 	if err != nil {
 		return nil, err
 	}
-	if mc.GetChannel().GetBroadcast() {
+	// Nor does a monoforum (task 084): its reactions are counts, so that
+	// the admins behind the channel stay unnamed.
+	if mc.GetChannel().GetBroadcast() || mc.GetChannel().GetMonoforum() {
 		return nil, mtproto.ErrBroadcastForbidden
 	}
 	messages, err := c.svcCtx.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: c.MD.UserId, ChannelId: peer.PeerId, Id: []int32{in.Id}})

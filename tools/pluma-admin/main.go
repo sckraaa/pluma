@@ -31,6 +31,7 @@
 //	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
 //	pluma-admin [-f bff.yaml] catalog import <dir>
 //	pluma-admin [-f bff.yaml] release list|withdraw|restore [<platform> <build>]
+//	pluma-admin [-f bff.yaml] import-chat accounts|map|plan|run|status|abort ...
 //	pluma-admin catalog check <dir>
 //	pluma-admin catalog receive -dir <dir> [-listen :9099]
 //
@@ -96,6 +97,16 @@
 // the database with "Telegram" replaced by "Pluma", one new version per
 // language that changed, and lists what still names Telegram; list prints
 // the stored languages and their versions.
+//
+// import-chat brings a group of Telegram into Pluma from the export
+// Telegram Desktop makes of it, with its files: a new supergroup whose
+// messages are those of the Pluma accounts of the same people, dated as
+// they were and read by everyone (task 083, ADR 0051). map writes the file
+// that tells who is who, for the owner to fill; plan reads the export with
+// it and says what would be imported, writing nothing; run imports, and
+// goes on where it stopped when run again. It talks to dfs, media and biz,
+// so it runs in the bff container with the export mounted. See
+// docs/ops/import-chat.md.
 //
 // From the repo root (services run with teamgramd/etc, secrets in .env):
 //
@@ -211,6 +222,12 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] catalog import <dir>   (a collection of the catalog from Telegram, task 024)
   pluma-admin [-f bff.yaml] release list           (the current release of each client app, task 054)
   pluma-admin [-f bff.yaml] release withdraw|restore <platform> <build>   (roll a release back, or forward again)
+  pluma-admin [-f bff.yaml] import-chat accounts   (the Pluma accounts and their ids)
+  pluma-admin [-f bff.yaml] import-chat map -dir <export> [-out <mapping.json>]   (who of a Telegram export is who in Pluma, to fill)
+  pluma-admin [-f bff.yaml] import-chat plan -dir <export> [-mapping <file>] [-missing-media=skip]   (what would be imported; writes nothing)
+  pluma-admin [-f bff.yaml] import-chat run -dir <export> [-mapping <file>] [-missing-media=skip] (-storage-dir <dir> | -free-bytes <n>) [-batch <n>] [-pause <d>] [-title <t>]
+  pluma-admin [-f bff.yaml] import-chat status [-dir <export> | <import id>]
+  pluma-admin [-f bff.yaml] import-chat abort <import id>   (drops an import that is not finished)
   pluma-admin catalog check <dir>   (decodes a collection, stores nothing)
   pluma-admin catalog receive -dir <dir> [-listen :9099]   (takes a collection; $CATALOG_UPLOAD_TOKEN)
   pluma-admin -f dfs.yaml storage init [-admin <url>] [-wait <duration>]   (GARAGE_ADMIN_TOKEN)
@@ -287,6 +304,8 @@ func dispatch(args []string, configFile string, stdout io.Writer, connect backen
 		return releaseCommand(args, configFile, stdout)
 	case "registration":
 		return registrationCommand(args, configFile, stdout)
+	case "import-chat":
+		return importChatCommand(args, configFile, stdout)
 	}
 	var cmd func(ctx context.Context, list allowlist, codes codeIssuer) error
 	switch {

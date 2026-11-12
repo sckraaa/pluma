@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -85,6 +86,15 @@ type PostCommentsOff struct {
 // acting as the creator, whose decision on a report goes on.
 func (d *Dao) Delete(b *userbox.Box, channelId int64, ids []int32, byServer bool) (*Deleted, error) {
 	ids = slices.DeleteFunc(slices.Compact(slices.Sorted(slices.Values(ids))), func(id int32) bool { return id <= 0 })
+	side, err := monoforum.SideOf(b.Tx(), channelId)
+	if err != nil {
+		return nil, err
+	}
+	if side.Monoforum {
+		// The direct messages of a channel have their own rule of who
+		// deletes what (deleteMonoforum, task 084).
+		return d.deleteMonoforum(b, channelId, side, ids)
+	}
 	links, err := discussionLinks(b, channelId, ids)
 	if err != nil {
 		return nil, err

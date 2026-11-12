@@ -84,3 +84,84 @@ func TestBlockPassesThePeer(t *testing.T) {
 		t.Errorf("unblock with biz down: %v", err)
 	}
 }
+
+// fakeStoriesBlocklist records what the methods ask of the blocklist of
+// stories.
+type fakeStoriesBlocklist struct {
+	calls []string
+}
+
+func (f *fakeStoriesBlocklist) SetStoriesBlocked(_ context.Context, userId int64, peer *mtproto.InputPeer, blocked bool) error {
+	verb := "unhide"
+	if blocked {
+		verb = "hide"
+	}
+	f.calls = append(f.calls, verb+" "+itoa(userId)+" "+itoa(peer.GetUserId()))
+	return nil
+}
+
+func (f *fakeStoriesBlocklist) GetStoriesBlocked(_ context.Context, userId int64, offset, limit int32) (*mtproto.Contacts_Blocked, error) {
+	f.calls = append(f.calls, "list "+itoa(userId))
+	return mtproto.MakeTLContactsBlocked(&mtproto.Contacts_Blocked{
+		Blocked: []*mtproto.PeerBlocked{mtproto.MakeTLPeerBlocked(&mtproto.PeerBlocked{PeerId: mtproto.MakePeerUser(4)}).To_PeerBlocked()},
+		Chats:   []*mtproto.Chat{},
+		Users:   []*mtproto.User{},
+	}).To_Contacts_Blocked(), nil
+}
+
+func (f *fakeStoriesBlocklist) ReplaceStoriesBlocked(_ context.Context, userId int64, peers []*mtproto.InputPeer, limit int32) error {
+	f.calls = append(f.calls, "replace "+itoa(userId)+" "+itoa(int64(len(peers)))+" "+itoa(int64(limit)))
+	return nil
+}
+
+// With my_stories_from the methods of contacts read and change the
+// blocklist of stories, never the main one: "hide my stories from" in the
+// list of viewers of a story must not block the user (Android
+// StoriesController.java:4483-4513).
+func TestMyStoriesFromIsNotTheMainBlocklist(t *testing.T) {
+	users := &fakeUsers{
+		users: map[int64]*mtproto.ImmutableUser{
+			me: immutableUser(me, "Me", "", "", "", nil),
+			3:  immutableUser(3, "C", "", "", "", nil),
+		},
+		blocked: []int64{3},
+	}
+	push := &fakeSync{}
+	c := newCore(users, push, nil, nil)
+	hidden := &fakeStoriesBlocklist{}
+	c.svcCtx.Stories = hidden
+
+	if r, err := c.ContactsBlock(&mtproto.TLContactsBlock{MyStoriesFrom: true, Id: inputPeerUser(3)}); err != nil || !mtproto.FromBool(r) {
+		t.Fatalf("block: %v, %v", r, err)
+	}
+	if r, err := c.ContactsUnblock(&mtproto.TLContactsUnblock{MyStoriesFrom: true, Id: inputPeerUser(3)}); err != nil || !mtproto.FromBool(r) {
+		t.Fatalf("unblock: %v, %v", r, err)
+	}
+	list, err := c.ContactsGetBlocked(&mtproto.TLContactsGetBlocked{MyStoriesFrom: true, Limit: 100})
+	if err != nil || len(list.GetBlocked()) != 1 || list.GetBlocked()[0].GetPeerId().GetUserId() != 4 {
+		t.Fatalf("getBlocked: %v, %v", list, err)
+	}
+	if r, err := c.ContactsSetBlocked(&mtproto.TLContactsSetBlocked{MyStoriesFrom: true, Id: []*mtproto.InputPeer{inputPeerUser(3)}, Limit: 1}); err != nil || !mtproto.FromBool(r) {
+		t.Fatalf("setBlocked: %v, %v", r, err)
+	}
+	want := []string{"hide " + itoa(me) + " 3", "unhide " + itoa(me) + " 3", "list " + itoa(me), "replace " + itoa(me) + " 1 1"}
+	if !reflect.DeepEqual(hidden.calls, want) {
+		t.Errorf("blocklist of stories: %v, want %v", hidden.calls, want)
+	}
+	if len(users.blockCalls) != 0 || len(push.pushed) != 0 {
+		t.Errorf("the main blocklist was touched: %v, %v", users.blockCalls, push.pushed)
+	}
+
+	// Where the stories are not served the list does not exist, and the
+	// main one is still not touched.
+	c.svcCtx.Stories = nil
+	if _, err := c.ContactsBlock(&mtproto.TLContactsBlock{MyStoriesFrom: true, Id: inputPeerUser(3)}); err == nil {
+		t.Errorf("block without the stories")
+	}
+	if _, err := c.ContactsGetBlocked(&mtproto.TLContactsGetBlocked{MyStoriesFrom: true, Limit: 100}); err == nil {
+		t.Errorf("getBlocked without the stories")
+	}
+	if len(users.blockCalls) != 0 {
+		t.Errorf("the main blocklist was touched: %v", users.blockCalls)
+	}
+}

@@ -518,9 +518,31 @@
 - **Не проверено:** вид в браузере (сборка на этой машине не запускается); проверить в списке чатов, шапке и профиле @support в светлой и тёмной темах.
 - **Коммиты:** — (ветка `task/080-verified-badge` в `pluma-web`, не закоммичено).
 
+### W-075. Статус аккаунта поддержки: «service account» вместо «support» (задача 080)
+- **Статус.** Ветка `task/080-service-account` репозитория `pluma-web` (от `origin/main` `ac0bf8f`), не закоммичено, не влито, не выпущено (2026-11-11).
+- **Что и зачем.** Решение владельца 2026-11-11: аккаунт поддержки (`@support`, `user.support = true`, без статуса «в сети») там, где у человека «был(а) недавно», показывает «service account» — не «support» Telegram и не «service notifications». Текст — ключ локализации на всех языках, не литерал.
+- **Где** (`SERVICE_ACCOUNT_STRING`, `service_account()` в `ci/patch.py`, вызов в `patch()` после `no_ai_editor`; апстрим `aa74832e`):
+  - `src/lang.ts`, `replace` `  'SupportStatus': 'support',\n` → `  'SupportStatus': 'service account',\n`. Меняется значение существующего ключа; нового ключа и правок кода нет.
+  - `expect` в `src/components/wrappers/getUserStatusString.ts`: `      if(user.pFlags.support) {\n        key = 'SupportStatus';\n        break;\n      }\n` (`SERVICE_ACCOUNT_STATUS`) — то, на чём держится текст.
+- **Остальные языки.** Web K встраивает только английский (`lang.ts`, `langSign.ts`), всё остальное берёт с сервера: `langPack.ts`, `loadLangPack` запрашивает пакет `web` (сервер отдаёт `webk`) на любом языке, включая `en`, и `getLangPackAndApply` кладёт строки сервера после встроенных, так что строка сервера перекрывает встроенную. Поэтому нужна запись на сервере: `pkg/langpack/override.json`, пакет `webk`, ключ `SupportStatus`, 37 языков (таблица — `docs/tasks/080-service-account-strings.md`), и `pluma-admin langpack import` после выката. Без неё пакет сервера вернёт слово Telegram («support» / «поддержка») и на английском.
+- **Кто получает текст.** Ключ читает только `getUserStatusString` (строка 35), после ботов (`user.pFlags.bot` → `Bot`) и до статусов «был(а)…». Аккаунт служебных уведомлений (`SERVICE_PEER_ID`, 777000) идёт раньше, своим ключом `Peer.ServiceNotifications`, и не тронут.
+- **Где рисуется.** Всё через `getUserStatusString`: шапка чата и профиль (`appImManager.ts:4242`, `getUserStatus`; для `support` строка «печатает…» и зелёный «в сети» не показываются — `appImManager.ts:4244`), контакты (`sidebarLeft/contactsList.tsx:352`), выбор людей (`appSelectPeers.tsx:1339`), поиск и участники (`appSearchSuper.ts:2150, 2571`, `sortedUserList.ts:67`), новая группа (`sidebarLeft/tabs/newGroup.tsx:241`), чёрный список (`blockedUsers.tsx:56`, если нет имени пользователя), права участника (`permissionsPeerDialog.ts:33`), списки реакций и окна (`popups/reactedList.tsx:91`, `popups/richButton.tsx:88`).
+- **Апстрим без правки.** «support» во всех этих местах; на других языках — перевод Telegram из пакета сервера.
+- **Проверка.** `verify_service_account(sources)`: в `lang.ts` текст ключа — «service account», старого нет; ветка `support` в `getUserStatusString.ts` на месте; по всем исходникам без комментариев `'SupportStatus'` встречается только в `lang.ts` и `getUserStatusString.ts`, по разу (`SUPPORT_STATUS_USES`). `UpstreamTest.test_service_account` (текст, ветка, строка служебных уведомлений не тронута; возврат «support», другой ключ у статуса и ключ в чужом месте роняют `verify`; упоминание в комментарии — нет; без правки тест падает), четыре порчи в `DAMAGE` (строка `lang.ts`, ключ ветки `support`, ключ у ботов, ключ в `appImManager.ts`).
+- **Если апстрим сдвинет.** Другой текст ключа, статус поддержки другим ключом или `SupportStatus` в новом месте → `PatchError` с именем файла: прочитать новое место и решить, годится ли там «service account».
+- **Не проверено.** `pnpm run typecheck`, сборка и браузер (на этой машине клиент не собирается); сверка с сервером (импорт пакета `webk` с `override.json`).
+- **Коммиты:** — (не закоммичено).
+
 ## Premium и платные функции
 
 Контекст: Pluma не продаёт Premium и подарки. Сервер ставит `premium_purchase_blocked` в `help.getAppConfig` (задачи 014, 015). Решение владельца по баннеру — вариант А (бриф 020, пункт про баннер дня рождения). Всё в этом разделе есть **только на ветке `task/020-parity-fixes`** (`cb01766`, 2026-10-31).
+
+### W-076. Расшифровка голосовых и круглых видео; у «на один раз» кнопки нет (задача 080)
+- **Статус.** Ветка `task/080-service-account` pluma-web, не закоммичено, не влито (2026-11-12).
+- **Что и зачем.** Решение владельца 2026-11-12: расшифровка голосовых и круглых видео доступна всем без ограничений, сервер обслуживает `messages.transcribeAudio`; сообщения «на один раз» не расшифровываются никогда — сервер отказывает, клиенты кнопку не показывают. Правки, прятавшие кнопку (W-068), сняты.
+- **Апстрим без правки** (`aa74832e`). Кнопка голосового — `bubbles.ts:11636` (`canTranscribeVoice: true`) → `wrappers/groupedDocuments.ts:82` → `wrappers/document.ts:153` → `audio.tsx:283`/`audioTranscription.tsx:207`; кнопка круга — `wrapRoundVideoBubble` (`bubbles.ts:12862`, `roundVideoBubble.ts:37`, `:229`). Сообщение «на один раз» (медиа с `ttl_seconds`, `isSelfDestructingMediaMessage`, `bubbles.ts:372`) Web K не показывает: `canSeeMessageMedia.ts:9-15` возвращает `false`, `isDrawnAsService` (`bubbles.ts:386`) рисует его служебной строкой с `wrapMessageForReply` (`bubbles.ts:10163`), ветка `if(isDrawnAsService(message))` (`bubbles.ts:9483`) ставит `returnService = true` (`bubbles.ts:10177`), и `if(returnService)` (`bubbles.ts:10195-10203`) выходит до обёрток голосового и круга; `mediaPeek` такие медиа не открывает (`mediaPeek/index.tsx:153`). Патча, прячущего кнопку, поэтому нет.
+- **Где** (`transcription()`, `verify_transcription()` в `ci/patch.py`): правок нет, только якоря — `TRANSCRIBE_VOICE`, `TRANSCRIBE_ROUND`, `VIEW_ONCE_MEDIA`, `VIEW_ONCE_AS_SERVICE`, `VIEW_ONCE_ORDER` (`VIEW_ONCE_SERVICE_LINE`, `VIEW_ONCE_SERVICE_SET`, `VIEW_ONCE_RETURN`) в `bubbles.ts`, `VIEW_ONCE_HIDDEN` в `canSeeMessageMedia.ts` (вместе с закомментированным исключением для голосовых: раскомментирует апстрим — проверка падает).
+- **Как проверяется.** `verify_transcription`: обе кнопки на месте по одному разу; медиа с `ttl_seconds` скрыто и рисуется служебной строкой; ветка служебной строки, `returnService = true` и `if(returnService)` — по одному разу, по порядку и раньше обеих обёрток. `UpstreamTest.test_transcription` (шесть порч `verify`), семь порч в `DAMAGE`. `ci/patch_test.py` со `./upstream`, CI=1: 51 тест, OK. Сборка, `pnpm run typecheck` и браузер не проверены.
 
 ### W-043. Баннер дней рождения: нажатие открывает чат, а не подарок
 - **Где:** `src/components/sidebarLeft/birthdaySuggestions.tsx`, функция `birthday_banner()`.
@@ -743,18 +765,17 @@
 - `useAppConfig` в W-046 не охранён `expect` (см. замечание в записи).
 - Решение на подтверждение (бриф 020): тёмный цвет имён бирюзового `#53CCC6` на всех платформах.
 
-### W-068. Premium для всех: звезда, кнопка статуса, расшифровка (задача 071)
+### W-068. Premium для всех: звезда, кнопка статуса (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`b34d7f8`), не влита, не выпущена (2026-11-09).
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). Строка Premium в настройках уже закрыта `isPremiumPurchaseBlocked`.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `components/generateTitleIcons.ts`: звезды нет;
   - `components/sidebarLeft/index.ts`: кнопки эмодзи-статуса в шапке нет;
-  - `components/chat/bubbles.ts`: `canTranscribeVoice: false` у голосовых;
-  - `components/chat/bubbles.ts`: вызова `wrapRoundVideoBubble` нет (задача 074): эта обёртка только добавляет кнопку текста к круглому видео и разворачивает его в голосовое, а `messages.transcribeAudio` сервер не обслуживает;
   - `helpers/dom/createStickersContextMenu.ts`: пункта «Set as Status» в меню эмодзи нет (задача 074), `account.updateEmojiStatus` сервер не обслуживает;
   - `components/webApp.tsx`: `web_app_set_emoji_status` сразу отвечает мини-приложению `emoji_status_failed` с `SERVER_ERROR`, без окна согласия; `web_app_request_emoji_status_access` отвечает `cancelled` (`bots.toggleUserEmojiStatusPermission` сервер тоже не обслуживает);
   - `lib/internalLinkProcessor.ts`: ссылка `emoji-status` (из `chats` и `settings`) ничего не открывает; без правки она вела к промо Premium, потому что кнопки в шапке нет.
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_patch` (круглое видео), `test_no_way_to_an_emoji_status`.
+- **Снято (задача 080, 2026-11-12).** Правки `components/chat/bubbles.ts`, прятавшие расшифровку (`canTranscribeVoice: false` у голосовых и у документа в превью ссылки, вызов `wrapRoundVideoBubble` под `if(false)`), убраны: сервер обслуживает `messages.transcribeAudio` всем, у всех Premium (ADR 0041). Кнопки голосовых и круглых видео — как у апстрима (W-076).
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_no_way_to_an_emoji_status`.
 
 ### W-069. Бустов нет: пункты меню, ссылка, «Не ограничивать бустеров» (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`18482a0`), не влита, не выпущена (2026-11-09).

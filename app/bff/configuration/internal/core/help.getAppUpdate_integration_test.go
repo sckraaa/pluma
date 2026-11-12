@@ -19,8 +19,14 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -34,6 +40,7 @@ import (
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/appreleases"
+	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -135,5 +142,63 @@ func TestHelpGetAppUpdate(t *testing.T) {
 				t.Errorf("document %v", got.GetDocument())
 			}
 		})
+	}
+}
+
+// TestHelpGetAppUpdateFromTheApp: with the update from the app set up
+// (task 085), an iOS build from the site gets the itms-services link of the
+// current build when the install service has it signed, the install page
+// while it has not; a TestFlight build and one that is current get nothing
+// as before.
+func TestHelpGetAppUpdateFromTheApp(t *testing.T) {
+	ctx := context.Background()
+	if err := appreleases.Insert(ctx, itDB, &appreleases.Release{Platform: appreleases.IOS, Version: "12.9.2", Build: 70, NotesEn: "iOS 70",
+		Files: []appreleases.File{}, CreatedAt: time.Now().Unix()}); err != nil {
+		t.Fatal(err)
+	}
+	const secret = "0123456789abcdef0123456789abcdef0123456789abcdef"
+	var signed atomic.Int32
+	install := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(iosupdate.Status{Build: signed.Load(), Manifest: "https://pluma.example/ios/adhoc/manifest"})
+	}))
+	defer install.Close()
+	ask := func(appVersion string) *mtproto.Help_AppUpdate {
+		t.Helper()
+		c := appUpdateCore(apiIdIOS, appVersion, "en")
+		c.svcCtx.Config.IOSUpdate = iosupdate.Settings{Secret: secret, StatusURL: install.URL}
+		// A checker of its own: each request asks the install service.
+		c.svcCtx.IOSUpdate = iosupdate.NewChecker(install.URL)
+		got, err := c.HelpGetAppUpdate(&mtproto.TLHelpGetAppUpdate{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+
+	// The install service has an older build signed: the page.
+	signed.Store(60)
+	if got := ask("12.9.2 (55) adhoc"); got.GetVersion() != "12.9.2 (70)" || got.GetUrl().GetValue() != "https://pluma.example/iphone/install" {
+		t.Errorf("not signed yet: %q %q", got.GetVersion(), got.GetUrl().GetValue())
+	}
+	// Signed: the link, with a ticket of build 70.
+	signed.Store(70)
+	got := ask("12.9.2 (55) adhoc")
+	const prefix = "itms-services://?action=download-manifest&url="
+	link := got.GetUrl().GetValue()
+	if got.GetPredicateName() != mtproto.Predicate_help_appUpdate || got.GetVersion() != "12.9.2 (70)" || got.GetText() != "iOS 70" || !strings.HasPrefix(link, prefix) {
+		t.Fatalf("signed: %s %q, a link %v", got.GetPredicateName(), got.GetVersion(), strings.HasPrefix(link, prefix))
+	}
+	manifest, err := url.QueryUnescape(strings.TrimPrefix(link, prefix))
+	ticket, found := strings.CutPrefix(manifest, "https://pluma.example/ios/adhoc/manifest?u=")
+	if err != nil || !found {
+		t.Fatalf("the manifest's address: %v, of the install service %v", err, found)
+	}
+	if tk, err := iosupdate.Verify([]byte(secret), ticket, time.Now()); err != nil || tk.Build != 70 {
+		t.Fatalf("the ticket: %+v, %v", tk, err)
+	}
+	for _, v := range []string{"12.9.2 (55) ", "12.9.2 (70) adhoc", "12.9.2 (71) adhoc"} {
+		if got := ask(v); got.GetPredicateName() != mtproto.Predicate_help_noAppUpdate {
+			t.Errorf("%q: %s %q", v, got.GetPredicateName(), got.GetUrl().GetValue())
+		}
 	}
 }

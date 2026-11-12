@@ -620,6 +620,24 @@
 - **Не сделано в этом этапе.** Ключи `video_fps` и `screen_fps` (сейчас сервер шлёт 30 — как у Android; A/B по частоте на Android не действует); TURN через TCP/TLS (`network.md`: нужен флаг в трёх клиентах или соглашение о порте и решение о проверке сертификата — в пакете TLS нет корня ISRG); переключатель RNNoise для пользователя в окне звонка; разрешение и частота камеры (у Android уже 1280×720 при 30 кадр/с, 1080p ждёт вопроса об уровне H.264); тайм-ауты ICE и 20 с до разрыва.
 - **История.** Ветка `task/080-call-parameters` репозитория `pluma-android`, 2026-11-11, не закоммичено; задача 077 (этап 2).
 
+### A-116. Сервисный аккаунт вместо «support» (задача 080)
+
+- **Что и зачем.** Аккаунт Плюмы (@support) сервер отдаёт с `user.support` и без статуса «в сети». Там, где у человека пишется «был(а) в сети», у него написано «сервисный аккаунт» — не «support» Telegram и не «Service notifications» (решение владельца, 2026-11-11). Текст — значение ключа `SupportStatus` на всех десяти встроенных языках; имя ключа не меняется.
+- **Где** (`service_account` в `ci/patch.py`).
+  - `res/values/strings.xml`: `    <string name="SupportStatus">support</string>` → `service account`.
+  - Остальные девять `res/values-*/strings.xml` (`ar`, `de`, `es`, `it`, `ko`, `nl`, `pt-rBR`, `ru`, `uk`): ключа у апстрима нет, строка дописывается перед `</resources>`. Таблица `SERVICE_ACCOUNT_STATUS`: `حساب خدمة`, `Dienstkonto`, `cuenta de servicio`, `account di servizio`, `서비스 계정`, `serviceaccount`, `conta de serviço`, `сервисный аккаунт`, `сервісний акаунт` — со строчной, как `online` и `bot`; немецкое существительное с заглавной.
+  - `messenger/LocaleController.java`, начало `formatUserStatus(int currentAccount, TLRPC.User user, boolean[] isOnline, boolean[] madeShorter)`: `if (user != null && user.support) { // pluma: the service account has no last seen` → `return getString(R.string.SupportStatus);`.
+- **Где апстрим пишет ключ (13.2.1, `7be672ea`).** Четыре места, все после `MessagesController.isSupportUser(user)`: шапка чата `ui/Components/ChatAvatarContainer.java:1239`, профиль `ui/ProfileActivity.java:11621` и `ui/ProfileActivity2.java:755`, строка поиска `ui/Cells/ProfileSearchCell.java:650`. Они не правятся: меняется только текст. Таблица `SERVICE_ACCOUNT_USES` держит этот список.
+- **Апстрим без правки.**
+  - В четырёх местах выше — `support`, только по-английски, на любом встроенном языке.
+  - Во всех остальных списках (контакты `UserCell`, участники `ManageChatUserCell`, выбор людей `GroupCreateUserCell`, `ContactAddActivity`, `DialogsAdapter` и др. — 13 вызовов `LocaleController.formatUserStatus` вне четырёх файлов выше) аккаунт без статуса подписан «был(а) очень давно» (`ALongTimeAgo`: `user.status == null`). Правка `formatUserStatus` даёт там тот же текст, что в шапке чата. У официального Telegram в этих списках так же «давно»; правка сделана потому, что решение владельца — про всё место статуса (подтвердить).
+- **Общий ключ.** `MessagesController.isSupportUser` — это `user.support` и список служебных id Telegram (777000, 333000 и др.). В шапке чата и в обоих профилях 777000, 333000 и 42777 раньше получают `ServiceNotifications`, а в `ProfileSearchCell` ветка `isSupportUser` стоит первой: в строке поиска 777000 тоже подписан «сервисный аккаунт» (у апстрима — `support`). Правка `formatUserStatus` смотрит только на `user.support`.
+- **Языковой пакет сервера.** Скачанный пакет главнее встроенных строк (`LocaleController.getStringV2`: сначала `localizationExternal`), поэтому сервер должен отдавать те же слова в ключе `SupportStatus` пакета `android` на всех 37 языках (`pkg/langpack/override.json`: импорт пакета заменяет текст Telegram или добавляет ключ; задача 080). Десять встроенных переводов совпадают с этой таблицей слово в слово. Без этого на языке из пакета вернётся «поддержка» Telegram. Встроенный текст виден до загрузки пакета и на языках без него.
+- **Как проверяется.** `verify_service_account`: в каждом `strings.xml` ровно одна строка ключа с текстом таблицы; правка `formatUserStatus` на месте; `R.string.SupportStatus` встречается только в четырёх файлах апстрима и в `LocaleController`. `ServiceAccountTest` (5 тестов). На копии апстрима `7be672ea` патч и `verify` проходят целиком (без шага звонков: в закреплённой копии нет подмодуля tgcalls); порча (перевод, английский текст, условие `user.support`, новое место с ключом) останавливает `verify_service_account`.
+- **Если апстрим изменит.** Другой английский текст ключа — падение замены; ключ появился в переводе — `upstream has a string SupportStatus; read its text`; новая папка `values-*` — падение со списком папок (нужен перевод); новое место с `R.string.SupportStatus` — падение со списком файлов: прочитать, подходит ли там «сервисный аккаунт»; изменённая сигнатура `formatUserStatus` — падение замены.
+- **Не проверено.** Сборка (Gradle, javac) не запускалась, на устройстве и эмуляторе не смотрелось. Переводы `ar` и `ko` носителем не проверены.
+- **История.** Ветка `task/080-service-account` репозитория `pluma-android`, 2026-11-11, не закоммичено; задача 080.
+
 ---
 
 ## Premium и платные функции
@@ -1071,17 +1089,17 @@
 
 ---
 
-### A-109. Premium для всех: звезда, строки покупки, расшифровка (задача 071)
-- **Статус.** Ветка `task/071-premium-for-everyone` (`7d0df1b`), не влита, не выпущена (2026-11-09).
+### A-109. Premium для всех: звезда, строки покупки (задача 071)
+- **Статус.** Влито в main форка (PR #7, `7d0df1b`). Правка кнопки расшифровки снята в ветке `task/080-service-account` (2026-11-12): не закоммичено, не выпущено.
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). Ненужное от этого убираем, функции флаг открывает сам.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `messenger/MessagesController.isPremiumUser` возвращает `false`: звезды в `DialogCell`, `UserCell`, `ProfileSearchCell`, `DialogStoriesCell`, `DialogsActivity`, заголовке `ChatActivity`, `ProfileActivity`;
   - `ImageReceiver`, `ImageLocation` читают `user.premium`, анимация аватарок остаётся;
   - звезды прямых чтений: `SettingsActivity`, `ChatActivity:19346`, `ChatMessageCell`, `GroupCallUserCell`, `StatusBadgeComponent`, `TableView`;
-  - строки Premium и Business: `SettingsActivity`, `ProfileActivity` — по `premiumPurchaseBlocked`;
-  - кнопка расшифровки (`useTranscribeButton`).
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
-- **При обновлении апстрима.** Новые места со звездой — по `user.premium` и `msg_premium_liststar`.
+  - строки Premium и Business: `SettingsActivity`, `ProfileActivity` — по `premiumPurchaseBlocked`.
+- **Расшифровка голосовых и кружков.** Кнопка снова апстримовская (решение владельца 2026-11-12, задача 080): сервер выполняет `messages.transcribeAudio` для всех с Premium. Правка `false && …` в `useTranscribeButton` (`ChatMessageCell.updateWaveform`) убрана. На сообщениях «на один раз» апстрим кнопку не показывает сам: условие требует `media.ttl_seconds == 0` (`ui/Cells/ChatMessageCell.java:11172`, апстрим `7be672ea`), а у голосового или кружка «на один раз» `ttl_seconds` = `0x7FFFFFFF` (`messenger/MessageObject.java:11524-11530`). Плеер `ui/SecretVoicePlayer.java:316,340,519` рисует тот же `MessageObject` в `ChatMessageCell`. Запрос уходит только по нажатию этой кнопки (`ui/Components/TranscribeButton.java:204-242,690`; касание `ChatMessageCell.java:2836`, доступность `ChatMessageAccessibilityNodeProvider.java:435,1006` — оба закрыты `useTranscribeButton`). Сервер такие медиа расшифровывать отказывается.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`. `verify_transcribe_button`: условие кнопки ровно одно, с `isPremium()` и проверкой `ttl_seconds` в том же операторе, без `false &&`; тест — `TranscribeButtonTest`.
+- **При обновлении апстрима.** Новые места со звездой — по `user.premium` и `msg_premium_liststar`. Изменённое условие `useTranscribeButton` останавливает сборку в `verify_transcribe_button`: перечитать, скрыта ли кнопка на сообщениях «на один раз». Новый вызов `TL_messages_transcribeAudio` вне `TranscribeButton` тоже нужно перечитать.
 
 ### A-110. Бустов нет: свои реакции и цвета без уровня, входы и ссылки убраны (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`b39e60b`, `f791823`), не влита, не выпущена (2026-11-09).

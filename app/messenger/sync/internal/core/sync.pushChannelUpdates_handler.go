@@ -51,6 +51,29 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 	}
 	h := mtproto.NewIDListHelper()
 	h.PickByUpdates(in.GetUpdates().GetUpdates()...)
+	// A monoforum (task 084, ADR 0055): its updates are of sublists, and a
+	// subscriber gets those of its own alone. The messages an update names
+	// by id are told apart by their sublists, read here once; the channel
+	// goes with its monoforum, as the clients read from it what the viewer
+	// is in the monoforum.
+	monoforum := mc.GetChannel().GetMonoforum()
+	sublists := map[int32]int64{}
+	if monoforum {
+		if ids := channelpb.NamedIds(in.GetUpdates().GetUpdates()); len(ids) > 0 {
+			peers, err := c.svcCtx.Dao.Channel.ChannelGetMessageSublists(c.ctx, &channelpb.TLChannelGetMessageSublists{ChannelId: in.ChannelId, Id: ids})
+			if err != nil {
+				return err
+			}
+			for i, peer := range peers.GetDatas() {
+				if i < len(ids) {
+					sublists[ids[i]] = peer
+				}
+			}
+		}
+		if linked := mc.GetChannel().GetLinkedMonoforumId(); linked != 0 && !slices.Contains(h.ChannelIdList, linked) {
+			h.ChannelIdList = append(h.ChannelIdList, linked)
+		}
+	}
 	// The members as well as the users of the messages: each member's view
 	// of the users is made from the member's own row
 	// (MutableUsers.GetUserListByIdList), and without it the member gets no
@@ -99,6 +122,17 @@ func (c *SyncCore) SyncPushChannelUpdates(in *sync.TLSyncPushChannelUpdates) err
 			chats = append(chats, other.ToChat(member, now))
 		}
 		updates := c.channelView(in, member, contents, chats, users.GetUserListByIdList(member, h.UserIdList...))
+		if monoforum {
+			p, _ := mc.GetParticipant(member)
+			if !p.Member() {
+				continue
+			}
+			if !channelpb.SublistAdmin(p) {
+				if updates.Updates = channelpb.SublistView(updates.GetUpdates(), member, sublists); len(updates.Updates) == 0 {
+					continue
+				}
+			}
+		}
 		repliesTo := func(m *mtproto.Message) bool { return c.repliesTo(in.ChannelId, member, m) }
 		if updates = forBot(updates, mc, users, member, slices.Contains(in.GetMentioned(), member), repliesTo); updates == nil {
 			continue

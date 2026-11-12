@@ -57,6 +57,7 @@ import (
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
+	transcription_helper "github.com/teamgram/teamgram-server/app/bff/transcription"
 	twofa_helper "github.com/teamgram/teamgram-server/app/bff/twofa"
 	updates_helper "github.com/teamgram/teamgram-server/app/bff/updates"
 	userchannelprofileshelper "github.com/teamgram/teamgram-server/app/bff/userchannelprofiles"
@@ -81,6 +82,9 @@ var configFile = flag.String("f", "etc/bff.yaml", "the config file")
 type Server struct {
 	grpcSrv *zrpc.RpcServer
 	calls   *voipcalls_helper.Sweeper // ends the abandoned calls (task 068)
+	stories *stories_helper.Sweeper   // takes the stories out of the feeds (task 084)
+	// transcription runs the queue of voice transcription (task 090).
+	transcription *transcription_helper.Worker
 }
 
 func New() *Server {
@@ -107,6 +111,22 @@ func (s *Server) Initialize() error {
 	syncClient := sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}
 
 	s.grpcSrv = zrpc.MustNewServer(c.RpcServerConf, func(grpcServer *grpc.Server) {
+		storiesConf := stories_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			UserClient:    c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			MediaClient:   c.MediaClient,
+			MsgClient:     c.MsgClient,
+			SyncClient:    syncClient,
+		}
+
+		// The stories (task 084, ADR 0054): the methods, what the other
+		// modules need of them (userFull, the stories a message shares or
+		// replies to) and the worker, over one set of connections.
+		storiesModule := stories_helper.New(storiesConf)
+		userStories := storiesModule.UserStories
+
 		// voipcalls_helper: phone.* of one-to-one calls (task 068).
 		callsConf := voipcalls_helper.Config{
 			RpcServerConf: c.RpcServerConf,
@@ -177,6 +197,7 @@ func (s *Server) Initialize() error {
 			AuthsessionClient: c.AuthSessionClient,
 			MediaClient:       c.MediaClient,
 			ReleasesURL:       c.ReleasesURL,
+			IOSUpdate:         c.IOSUpdate,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)
@@ -283,7 +304,7 @@ func (s *Server) Initialize() error {
 				DfsClient:     c.DfsClient,
 				UserClient:    c.BizServiceClient,
 				MediaClient:   c.MediaClient,
-			}, nil, nil))
+			}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil)) // the thumbnails of the sets users make (task 084)
 
 		// passport_helper
 		mtproto.RegisterRPCPassportServer(
@@ -309,17 +330,21 @@ func (s *Server) Initialize() error {
 			}))
 
 		// contacts_helper
-		mtproto.RegisterRPCContactsServer(
-			grpcServer,
-			contacts_helper.New(
-				contacts_helper.Config{
-					RpcServerConf: c.RpcServerConf,
-					UserClient:    c.BizServiceClient,
-					ChatClient:    c.BizServiceClient,
-					SyncClient:    syncClient,
-					ChannelClient: c.BizServiceClient,
-				},
-				nil))
+		contacts := contacts_helper.New(
+			contacts_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+				UserClient:    c.BizServiceClient,
+				ChatClient:    c.BizServiceClient,
+				SyncClient:    syncClient,
+				ChannelClient: c.BizServiceClient,
+				Mysql:         c.Mysql,
+			},
+			nil,
+			// The blocklist of stories (task 084).
+			userStories)
+		mtproto.RegisterRPCContactsServer(grpcServer, contacts)
+		// The temporary links to a profile (task 084).
+		mtproto.RegisterRPCProfileLinksServer(grpcServer, contacts)
 
 		// dialogs_helper
 		mtproto.RegisterRPCDialogsServer(
@@ -382,6 +407,7 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCEmojiCategoriesServer(grpcServer, catalog)
 		mtproto.RegisterRPCEmojiStatusServer(grpcServer, catalog)
 		mtproto.RegisterRPCAccentColorsServer(grpcServer, catalog)
+		mtproto.RegisterRPCRingtoneServer(grpcServer, catalog)
 		mtproto.RegisterRPCThemesServer(grpcServer, catalog)
 		mtproto.RegisterRPCWallpapersServer(grpcServer, catalog)
 		mtproto.RegisterRPCTimezonesServer(grpcServer, catalog)
@@ -413,13 +439,18 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCMessageThreadsServer(grpcServer, channels)
 		// The forums and topics of supergroups (task 060).
 		mtproto.RegisterRPCForumsServer(grpcServer, channels)
+		// The antispam of supergroups and the autotranslation of channels
+		// (task 082); the translation of texts is not served yet (task 027).
+		mtproto.RegisterRPCAntiSpamServer(grpcServer, channels)
+		mtproto.RegisterRPCTranslationServer(grpcServer, channels)
+		// The direct messages of a channel are switched by a method of the
+		// paid messages (task 084); the payments themselves are not served.
+		mtproto.RegisterRPCPaidMessageServer(grpcServer, channels)
 
-		// stories_helper: the stories (none yet, the list answers so).
-		mtproto.RegisterRPCStoriesServer(
-			grpcServer,
-			stories_helper.New(stories_helper.Config{
-				RpcServerConf: c.RpcServerConf,
-			}))
+		// stories_helper: the stories of users and channels, and the worker
+		// that takes them out of the feeds.
+		mtproto.RegisterRPCStoriesServer(grpcServer, storiesModule.Service)
+		s.stories = storiesModule.StartSweeper()
 
 		// gifs_helper: the saved GIFs.
 		mtproto.RegisterRPCGifsServer(
@@ -448,6 +479,7 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 				ChatClient:    c.BizServiceClient,
 				ChannelClient: c.BizServiceClient,
+				Mysql:         c.Mysql,
 			}, nil))
 
 		// autodownload_helper
@@ -455,6 +487,7 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			autodownload_helper.New(autodownload_helper.Config{
 				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
 			}))
 
 		// messages_helper
@@ -472,7 +505,7 @@ func (s *Server) Initialize() error {
 			Mysql:         c.Mysql,
 			DfsClient:     c.DfsClient,
 			ChannelClient: c.BizServiceClient,
-		}, nil)
+		}, nil, userStories)
 		mtproto.RegisterRPCMessagesServer(grpcServer, messagesService)
 		// pluma: task 062
 		mtproto.RegisterRPCPollsServer(grpcServer, messagesService)
@@ -507,7 +540,8 @@ func (s *Server) Initialize() error {
 					MediaClient:   c.MediaClient,
 					MsgClient:     c.MsgClient,
 				},
-				nil,
+				// The stories of userFull (task 084).
+				userStories,
 				nil,
 				appearance.NewStore(sqlx.NewMySQL(&c.Mysql), nil, "")))
 
@@ -617,6 +651,20 @@ func (s *Server) Initialize() error {
 			webbrowserhelper.New(webbrowserhelper.Config{
 				RpcServerConf: c.RpcServerConf,
 			}))
+
+		// transcription_helper: the text of voice messages and round
+		// videos (task 090, ADR 0056).
+		transcription, worker := transcription_helper.New(transcription_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			Transcribe:    c.Transcribe,
+			MessageClient: c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			DfsClient:     c.DfsClient,
+			SyncTopic:     c.SyncClient.Topic,
+		})
+		mtproto.RegisterRPCTranscriptionServer(grpcServer, transcription)
+		s.transcription = worker
 	})
 
 	// logx.Must(err)
@@ -633,6 +681,12 @@ func (s *Server) RunLoop() {
 func (s *Server) Destroy() {
 	if s.calls != nil {
 		s.calls.Stop()
+	}
+	if s.stories != nil {
+		s.stories.Stop()
+	}
+	if s.transcription != nil {
+		s.transcription.Stop()
 	}
 	s.grpcSrv.Stop()
 }

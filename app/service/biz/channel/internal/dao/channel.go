@@ -20,12 +20,15 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
+	"github.com/teamgram/teamgram-server/pkg/stories"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
@@ -49,13 +52,58 @@ func (d *Dao) GetMutableChannel(ctx context.Context, channelId int64, idList []i
 	for i := range dos {
 		participants = append(participants, makeParticipant(&dos[i]))
 	}
+	// Who of them keeps the stories of the channel in the archive row
+	// (task 084); a channel without stories in the feeds shows none.
+	if channels[0].GetStoriesMaxId() > 0 && len(participants) > 0 {
+		ids := make([]int64, 0, len(participants))
+		for _, p := range participants {
+			ids = append(ids, p.GetUserId())
+		}
+		hiding, err := stories.HidingUsers(ctx, d.Mysql.Master(), channelId, ids)
+		if err != nil {
+			return nil, fmt.Errorf("channel %d: hidden stories: %w", channelId, err)
+		}
+		for _, p := range participants {
+			p.StoriesHidden = hiding[p.GetUserId()]
+		}
+	}
 	if participants, err = d.withLinkedReaders(ctx, channels[0], uniqueIds(idList), participants); err != nil {
 		return nil, err
+	}
+	if channels[0].GetMonoforum() {
+		if participants, err = d.monoforumViewers(ctx, channels[0], uniqueIds(idList)); err != nil {
+			return nil, err
+		}
 	}
 	return channel.MakeTLMutableChannel(&channel.MutableChannel{
 		Channel:      channels[0],
 		Participants: participants,
 	}).To_MutableChannel(), nil
+}
+
+// monoforumViewers are the participants of the monoforum ch among ids. It
+// has no rows of its own (pkg/monoforum): an admin of the direct messages
+// of its channel is an admin of it, with the rights it has in the channel,
+// and anyone else who sees the channel is a member. One without access has
+// no row, and the monoforum is channelForbidden to it.
+func (d *Dao) monoforumViewers(ctx context.Context, ch *channel.ImmutableChannel, ids []int64) ([]*channel.ImmutableChannelParticipant, error) {
+	members, err := monoforum.Members(monoforum.OnDB(ctx, d.Mysql.DB), ch.GetLinkedMonoforumId(), ids, time.Now().Unix())
+	if err != nil {
+		return nil, fmt.Errorf("monoforum %d: viewers: %w", ch.GetId(), err)
+	}
+	out := make([]*channel.ImmutableChannelParticipant, 0, len(ids))
+	for _, id := range ids {
+		m := members[id]
+		if !m.Access {
+			continue
+		}
+		p := &channel.ImmutableChannelParticipant{ChannelId: ch.GetId(), UserId: id, State: channel.StateIn, Date: ch.GetDate()}
+		if m.Admin {
+			p.Role, p.AdminRights = channel.RoleAdmin, m.AdminRights
+		}
+		out = append(out, channel.MakeTLImmutableChannelParticipant(p).To_ImmutableChannelParticipant())
+	}
+	return out, nil
 }
 
 // withLinkedReaders adds to participants, for each user of ids that is not
@@ -143,11 +191,28 @@ func (d *Dao) publicDiscussionGhosts(ctx context.Context, ch *channel.ImmutableC
 }
 
 // GetChannelListByIdList returns the channels of idList that exist, in its
-// order, each with the participant row of selfId when it has one.
+// order, each with the participant row of selfId when it has one. After
+// them comes the channel of each monoforum among them, when idList does not
+// name it: the clients read what the viewer is in a monoforum, and its name
+// and photo, from the channel (Android ChatObject.java:1788-1797, tdesktop
+// data_session.cpp:1401-1421), so the two always travel together.
 func (d *Dao) GetChannelListByIdList(ctx context.Context, selfId int64, idList []int64) ([]*channel.MutableChannel, error) {
 	channels, err := d.getChannels(ctx, uniqueIds(idList))
 	if err != nil {
 		return nil, err
+	}
+	var linked []int64
+	for _, c := range channels {
+		if c.GetMonoforum() && c.GetLinkedMonoforumId() != 0 && !slices.Contains(idList, c.GetLinkedMonoforumId()) {
+			linked = append(linked, c.GetLinkedMonoforumId())
+		}
+	}
+	if len(linked) > 0 {
+		more, err := d.getChannels(ctx, uniqueIds(linked))
+		if err != nil {
+			return nil, err
+		}
+		channels = append(channels, more...)
 	}
 	ids := make([]int64, 0, len(channels))
 	for _, c := range channels {
@@ -161,6 +226,20 @@ func (d *Dao) GetChannelListByIdList(ctx context.Context, selfId int64, idList [
 	for i := range dos {
 		mine[dos[i].ChannelId] = makeParticipant(&dos[i])
 	}
+	// The channels whose stories selfId keeps in the archive row (task 084).
+	var withStories []int64
+	for _, c := range channels {
+		if c.GetStoriesMaxId() > 0 && mine[c.Id] != nil {
+			withStories = append(withStories, c.Id)
+		}
+	}
+	hidden, err := stories.HiddenChannels(ctx, d.Mysql.Master(), selfId, withStories)
+	if err != nil {
+		return nil, fmt.Errorf("participant %d: hidden stories: %w", selfId, err)
+	}
+	for id := range hidden {
+		mine[id].StoriesHidden = true
+	}
 	out := make([]*channel.MutableChannel, 0, len(channels))
 	for _, c := range channels {
 		participants := []*channel.ImmutableChannelParticipant{}
@@ -169,6 +248,11 @@ func (d *Dao) GetChannelListByIdList(ctx context.Context, selfId int64, idList [
 		}
 		if participants, err = d.withLinkedReaders(ctx, c, []int64{selfId}, participants); err != nil {
 			return nil, err
+		}
+		if c.GetMonoforum() {
+			if participants, err = d.monoforumViewers(ctx, c, []int64{selfId}); err != nil {
+				return nil, err
+			}
 		}
 		out = append(out, channel.MakeTLMutableChannel(&channel.MutableChannel{
 			Channel:      c,
@@ -217,13 +301,58 @@ func (d *Dao) getChannels(ctx context.Context, idList []int64) ([]*channel.Immut
 		}
 		byId[c.Id] = c
 	}
+	// The newest story of each in the feeds (task 084, ADR 0054).
+	maxIds, err := stories.ActiveMaxIds(ctx, d.Mysql.Master(), mtproto.PEER_CHANNEL, found, time.Now())
+	if err != nil {
+		return nil, fmt.Errorf("stories of channels %v: %w", found, err)
+	}
 	out := make([]*channel.ImmutableChannel, 0, len(byId))
 	for _, id := range idList {
 		if c, ok := byId[id]; ok {
+			c.StoriesMaxId = maxIds[id]
 			out = append(out, c)
 		}
 	}
-	return out, nil
+	return out, d.withMonoforumChannels(ctx, out)
+}
+
+// withMonoforumChannels gives each monoforum of channels what it takes from
+// its channel: the name and the photo, which the clients show for it
+// (Android DialogCell.java:2262-2264, ChatAvatarContainer.java:564), and
+// whether the direct messages are on. A monoforum whose channel is gone has
+// them off.
+func (d *Dao) withMonoforumChannels(ctx context.Context, channels []*channel.ImmutableChannel) error {
+	var ids []int64
+	for _, c := range channels {
+		if c.GetMonoforum() && c.GetLinkedMonoforumId() != 0 {
+			ids = append(ids, c.GetLinkedMonoforumId())
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	// The channels of monoforums are no monoforums: this reads one level.
+	broadcasts, err := d.getChannels(ctx, uniqueIds(ids))
+	if err != nil {
+		return err
+	}
+	byId := make(map[int64]*channel.ImmutableChannel, len(broadcasts))
+	for _, b := range broadcasts {
+		byId[b.GetId()] = b
+	}
+	for _, c := range channels {
+		if !c.GetMonoforum() {
+			continue
+		}
+		b, ok := byId[c.GetLinkedMonoforumId()]
+		if !ok || b.GetDeleted() || b.GetLinkedMonoforumId() != c.GetId() {
+			continue
+		}
+		c.Title, c.Photo = b.GetTitle(), b.GetPhoto()
+		c.BroadcastMessagesAllowed = b.GetBroadcastMessagesAllowed()
+		c.Blocked = c.GetBlocked() || b.GetBlocked()
+	}
+	return nil
 }
 
 // uniqueIds is idList without zeros and repeats, in its order.
@@ -259,6 +388,8 @@ func makeChannel(do *dataobject.ChannelsDO, names []dataobject.ChannelUsernameDO
 		Broadcast:           do.Broadcast,
 		Megagroup:           do.Megagroup,
 		Gigagroup:           do.Gigagroup,
+		Antispam:            do.Antispam,
+		Autotranslation:     do.Autotranslation,
 		Forum:               do.Forum,
 		ForumTabs:           do.ForumTabs,
 		ForumSidebar:        do.ForumSidebar,
@@ -296,6 +427,10 @@ func makeChannel(do *dataobject.ChannelsDO, names []dataobject.ChannelUsernameDO
 		EmojiStatus:         channel.MakeEmojiStatus(do.EmojiStatusDocumentId, do.EmojiStatusUntil),
 		Usernames:           usernames,
 		MainTab:             do.MainTab,
+		Monoforum:           do.Monoforum,
+		LinkedMonoforumId:   do.LinkedMonoforumId,
+		// Of a monoforum it is its channel's (withMonoforumChannels).
+		BroadcastMessagesAllowed: do.BroadcastMessagesAllowed && do.LinkedMonoforumId != 0 && !do.Monoforum,
 	}).To_ImmutableChannel()
 }
 

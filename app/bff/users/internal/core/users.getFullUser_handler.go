@@ -172,6 +172,16 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 	if user.CheckPrivacyFor(mtproto.BIRTHDAY, me) {
 		userFull.Birthday = user.Birthday()
 	}
+	// My private note on the contact (task 084): "Notes for contacts are
+	// only visible to you and appear on the user's profile under their bio"
+	// (core.telegram.org/api/contacts); tdesktop takes it from here
+	// (data_user.cpp:1114-1120).
+	if peerId != c.MD.UserId && user.ContactRowOf(me) != nil && c.svcCtx.Dao.Notes != nil {
+		if userFull.Note, err = c.svcCtx.Dao.Notes.Get(c.ctx, c.MD.UserId, peerId); err != nil {
+			c.Logger.Errorf("users.getFullUser - error: %v", err)
+			return nil, err
+		}
+	}
 	if user.CheckPrivacyFor(mtproto.SAVED_MUSIC, me) {
 		userFull.SavedMusic = user.GetUser().GetSavedMusic()
 	}
@@ -286,18 +296,13 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 
 	// TODO: FolderId:    0,
 
-	// TODO: Stories
-	if c.svcCtx.Dao.StoryPlugin != nil {
+	// The stories of the user (task 084): those in the feeds that the
+	// viewer may open, and whether the profile has any for it; the plugin
+	// applies the rules of each story.
+	if c.svcCtx.Dao.StoryPlugin != nil && !user.IsBot() {
 		userFull.StoriesPinnedAvailable = c.svcCtx.Dao.StoryPlugin.GetStoriesPinnedAvailable(c.ctx, peerId, c.MD.UserId)
 		userFull.BlockedMyStoriesFrom = c.svcCtx.Dao.StoryPlugin.GetBlockedMyStoriesFrom(c.ctx, peerId, c.MD.UserId)
-		// c.Logger.Debugf("getActiveStories: peerId: %s, userId: %s", user, me)
-		if peerId == c.MD.UserId {
-			// c.Logger.Debugf("getActiveStories(peerId == c.MD.UserId): peerId: %d, userId: %d", peerId, c.MD.UserId)
-			userFull.Stories_FLAGPEERSTORIES = c.svcCtx.Dao.StoryPlugin.GetActiveStories(c.ctx, peerId, c.MD.UserId)
-		} else if ok, _ := me.CheckReverseContact(peerId); ok {
-			// c.Logger.Debugf("getActiveStories(ok, _ := user.CheckContact(c.MD.UserId)): peerId: %d, userId: %d", peerId, c.MD.UserId)
-			userFull.Stories_FLAGPEERSTORIES = c.svcCtx.Dao.StoryPlugin.GetActiveStories(c.ctx, peerId, c.MD.UserId)
-		}
+		userFull.Stories_FLAGPEERSTORIES = c.svcCtx.Dao.StoryPlugin.GetActiveStories(c.ctx, peerId, c.MD.UserId)
 	}
 
 	chats := make([]*mtproto.Chat, 0)

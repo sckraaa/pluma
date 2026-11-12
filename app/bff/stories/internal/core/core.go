@@ -17,6 +17,7 @@ package core
 
 import (
 	"context"
+	"time"
 
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/stories/internal/svc"
@@ -38,4 +39,21 @@ func New(ctx context.Context, svcCtx *svc.ServiceContext) *StoriesCore {
 		Logger: logx.WithContext(ctx),
 		MD:     metadata.RpcMetadataFromIncoming(ctx),
 	}
+}
+
+// NewFor is the core of a request made for the user userId by another
+// module of the server (the stories of userFull), which has no metadata of
+// its own to pass.
+func NewFor(ctx context.Context, svcCtx *svc.ServiceContext, userId int64) *StoriesCore {
+	return &StoriesCore{
+		ctx:    ctx,
+		svcCtx: svcCtx,
+		Logger: logx.WithContext(ctx),
+		MD:     &metadata.RpcMetadata{UserId: userId},
+	}
+}
+
+// now is the time of the request, the clock of expire_date.
+func now() int32 {
+	return int32(time.Now().Unix())
 }

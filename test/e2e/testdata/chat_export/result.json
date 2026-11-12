@@ -1,0 +1,243 @@
+{
+ "name": "Import e2e",
+ "type": "private_supergroup",
+ "id": 990000001,
+ "messages": [
+  {
+   "id": 1,
+   "type": "service",
+   "date": "2023-11-14T22:13:20",
+   "date_unixtime": "1700000000",
+   "actor": "Alice A",
+   "actor_id": "user111",
+   "action": "create_channel",
+   "title": "Import e2e",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 2,
+   "type": "message",
+   "date": "2023-11-14T22:14:20",
+   "date_unixtime": "1700000060",
+   "from": "Alice A",
+   "from_id": "user111",
+   "text": "import first",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "import first"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "message",
+   "date": "2023-11-14T22:15:20",
+   "date_unixtime": "1700000120",
+   "from": "Bob B",
+   "from_id": "user222",
+   "photo": "photos/photo_1.jpg",
+   "photo_file_size": 2246,
+   "width": 96,
+   "height": 64,
+   "text": "import photo caption",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "import photo caption"
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "message",
+   "date": "2023-11-14T22:16:20",
+   "date_unixtime": "1700000180",
+   "from": "Alice A",
+   "from_id": "user111",
+   "reply_to_message_id": 2,
+   "file": "voice_messages/audio_1.ogg",
+   "file_size": 3497,
+   "media_type": "voice_message",
+   "mime_type": "audio/ogg",
+   "duration_seconds": 2,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 5,
+   "type": "message",
+   "date": "2023-11-14T22:17:20",
+   "date_unixtime": "1700000240",
+   "from": "Bob B",
+   "from_id": "user222",
+   "file": "round_video_messages/round_1.mp4",
+   "file_size": 7529,
+   "media_type": "video_message",
+   "mime_type": "video/mp4",
+   "duration_seconds": 1,
+   "width": 240,
+   "height": 240,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 6,
+   "type": "message",
+   "date": "2023-11-14T22:18:20",
+   "date_unixtime": "1700000300",
+   "from": "Bob B",
+   "from_id": "user222",
+   "forwarded_from": "Alice A",
+   "forwarded_from_id": "user111",
+   "text": "import forwarded",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "import forwarded"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "type": "message",
+   "date": "2023-11-14T22:19:20",
+   "date_unixtime": "1700000360",
+   "edited": "2023-11-14T22:21:20",
+   "edited_unixtime": "1700000480",
+   "from": "Alice A",
+   "from_id": "user111",
+   "text": "import edited",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "import edited"
+    }
+   ]
+  },
+  {
+   "id": 8,
+   "type": "message",
+   "date": "2023-11-14T22:22:20",
+   "date_unixtime": "1700000540",
+   "from": "Bob B",
+   "from_id": "user222",
+   "poll": {
+    "question": "Import poll?",
+    "closed": false,
+    "total_voters": 2,
+    "answers": [
+     {
+      "text": "Yes",
+      "voters": 2,
+      "chosen": true
+     },
+     {
+      "text": "No",
+      "voters": 0,
+      "chosen": false
+     }
+    ]
+   },
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 9,
+   "type": "message",
+   "date": "2023-11-14T22:23:20",
+   "date_unixtime": "1700000600",
+   "from": "Alice A",
+   "from_id": "user111",
+   "text": "import reacted",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "import reacted"
+    }
+   ],
+   "reactions": [
+    {
+     "type": "emoji",
+     "count": 2,
+     "emoji": "👍",
+     "recent": [
+      {
+       "from": "Bob B",
+       "from_id": "user222",
+       "date": "2023-11-14T22:24:20"
+      },
+      {
+       "from": "Carol C",
+       "from_id": "user333",
+       "date": "2023-11-14T22:25:20"
+      }
+     ]
+    },
+    {
+     "type": "emoji",
+     "count": 3,
+     "emoji": "❤"
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "type": "service",
+   "date": "2023-11-14T22:26:20",
+   "date_unixtime": "1700000780",
+   "actor": "Alice A",
+   "actor_id": "user111",
+   "action": "invite_members",
+   "members": [
+    "Bob B"
+   ],
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 11,
+   "type": "message",
+   "date": "2023-11-14T22:27:20",
+   "date_unixtime": "1700000840",
+   "from": "Carol C",
+   "from_id": "user333",
+   "text": "import from carol",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "import from carol"
+    }
+   ]
+  },
+  {
+   "id": 12,
+   "type": "message",
+   "date": "2023-11-14T22:28:20",
+   "date_unixtime": "1700000900",
+   "from": "Bob B",
+   "from_id": "user222",
+   "reply_to_message_id": 11,
+   "text": [
+    "import mention ",
+    {
+     "type": "mention_name",
+     "text": "Alice",
+     "user_id": 111
+    }
+   ],
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "import mention "
+    },
+    {
+     "type": "mention_name",
+     "text": "Alice",
+     "user_id": 111
+    }
+   ]
+  }
+ ]
+}

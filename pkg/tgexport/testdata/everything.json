@@ -1,0 +1,798 @@
+{
+ "name": "Friends",
+ "type": "private_supergroup",
+ "id": 1234567890,
+ "messages": [
+  {
+   "id": -999999990,
+   "type": "service",
+   "date": "2020-09-13T15:26:40",
+   "date_unixtime": "1600000000",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "create_group",
+   "title": "Friends",
+   "members": [
+    "Ivan Petrov",
+    "Masha"
+   ],
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": -999999989,
+   "type": "message",
+   "date": "2020-09-13T15:27:40",
+   "date_unixtime": "1600000060",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "text": "hello",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "hello"
+    }
+   ]
+  },
+  {
+   "id": -999999988,
+   "type": "message",
+   "date": "2020-09-13T15:28:40",
+   "date_unixtime": "1600000120",
+   "from": "Masha",
+   "from_id": "user222",
+   "text": [
+    "a ",
+    {
+     "type": "bold",
+     "text": "b"
+    }
+   ],
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "a "
+    },
+    {
+     "type": "bold",
+     "text": "b"
+    },
+    {
+     "type": "italic",
+     "text": "i"
+    },
+    {
+     "type": "underline",
+     "text": "u"
+    },
+    {
+     "type": "strikethrough",
+     "text": "s"
+    },
+    {
+     "type": "spoiler",
+     "text": "x"
+    },
+    {
+     "type": "code",
+     "text": "c"
+    },
+    {
+     "type": "pre",
+     "text": "p",
+     "language": "go"
+    },
+    {
+     "type": "blockquote",
+     "text": "q",
+     "collapsed": true
+    },
+    {
+     "type": "text_link",
+     "text": "t",
+     "href": "https://example.org/"
+    },
+    {
+     "type": "link",
+     "text": "https://example.com"
+    },
+    {
+     "type": "email",
+     "text": "a@example.org"
+    },
+    {
+     "type": "phone",
+     "text": "+10000000000"
+    },
+    {
+     "type": "mention",
+     "text": "@masha"
+    },
+    {
+     "type": "hashtag",
+     "text": "#tag"
+    },
+    {
+     "type": "cashtag",
+     "text": "$USD"
+    },
+    {
+     "type": "bot_command",
+     "text": "/start"
+    },
+    {
+     "type": "bank_card",
+     "text": "4242424242424242"
+    },
+    {
+     "type": "plain",
+     "text": " 😀 "
+    },
+    {
+     "type": "mention_name",
+     "text": "Ivan",
+     "user_id": 111
+    },
+    {
+     "type": "mention_name",
+     "text": "Nobody",
+     "user_id": 999
+    },
+    {
+     "type": "custom_emoji",
+     "text": "🔥",
+     "document_id": "stickers/emoji.webp"
+    },
+    {
+     "type": "unknown",
+     "text": "?"
+    }
+   ],
+   "reply_to_message_id": -999999989
+  },
+  {
+   "id": -999999987,
+   "type": "service",
+   "date": "2020-09-13T15:29:40",
+   "date_unixtime": "1600000180",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "migrate_to_supergroup",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 1,
+   "type": "service",
+   "date": "2020-09-13T15:30:40",
+   "date_unixtime": "1600000240",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "migrate_from_group",
+   "title": "Friends",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 2,
+   "type": "message",
+   "date": "2020-09-13T15:31:40",
+   "date_unixtime": "1600000300",
+   "from": "Masha",
+   "from_id": "user222",
+   "photo": "photos/photo_1.jpg",
+   "photo_file_size": 11,
+   "width": 90,
+   "height": 60,
+   "media_spoiler": true,
+   "text": "look",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "look"
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "message",
+   "date": "2020-09-13T15:32:40",
+   "date_unixtime": "1600000360",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "file": "video_files/v.mp4",
+   "file_name": "v.mp4",
+   "file_size": 12,
+   "thumbnail": "video_files/v.mp4_thumb.jpg",
+   "thumbnail_file_size": 3,
+   "media_type": "video_file",
+   "mime_type": "video/mp4",
+   "duration_seconds": 5,
+   "width": 640,
+   "height": 360,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 4,
+   "type": "message",
+   "date": "2020-09-13T15:33:40",
+   "date_unixtime": "1600000420",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "file": "animations/g.mp4",
+   "file_name": "g.mp4",
+   "file_size": 13,
+   "media_type": "animation",
+   "mime_type": "video/mp4",
+   "duration_seconds": 2,
+   "width": 320,
+   "height": 240,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 5,
+   "type": "message",
+   "date": "2020-09-13T15:34:40",
+   "date_unixtime": "1600000480",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "file": "files/doc.pdf",
+   "file_name": "Report.pdf",
+   "file_size": 14,
+   "mime_type": "application/pdf",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 6,
+   "type": "message",
+   "date": "2020-09-13T15:35:40",
+   "date_unixtime": "1600000540",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "file": "files/song.mp3",
+   "file_name": "song.mp3",
+   "file_size": 15,
+   "media_type": "audio_file",
+   "performer": "Band",
+   "title": "Song",
+   "mime_type": "audio/mpeg",
+   "duration_seconds": 180,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 7,
+   "type": "message",
+   "date": "2020-09-13T15:36:40",
+   "date_unixtime": "1600000600",
+   "from": "Masha",
+   "from_id": "user222",
+   "file": "voice_messages/a.ogg",
+   "file_size": 16,
+   "media_type": "voice_message",
+   "mime_type": "audio/ogg",
+   "duration_seconds": 3,
+   "reply_to_message_id": 2,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 8,
+   "type": "message",
+   "date": "2020-09-13T15:37:40",
+   "date_unixtime": "1600000660",
+   "from": "Masha",
+   "from_id": "user222",
+   "file": "round_video_messages/r.mp4",
+   "file_size": 17,
+   "media_type": "video_message",
+   "mime_type": "video/mp4",
+   "duration_seconds": 4,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 9,
+   "type": "message",
+   "date": "2020-09-13T15:38:40",
+   "date_unixtime": "1600000720",
+   "from": "Masha",
+   "from_id": "user222",
+   "file": "stickers/s.webp",
+   "file_size": 18,
+   "media_type": "sticker",
+   "sticker_emoji": "😀",
+   "mime_type": "image/webp",
+   "width": 512,
+   "height": 512,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 10,
+   "type": "message",
+   "date": "2020-09-13T15:39:40",
+   "date_unixtime": "1600000780",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "contact_information": {
+    "first_name": "Oleg",
+    "last_name": "Sidorov",
+    "phone_number": "+7 999 000 00 00"
+   },
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 11,
+   "type": "message",
+   "date": "2020-09-13T15:40:40",
+   "date_unixtime": "1600000840",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "location_information": {
+    "latitude": 55.75,
+    "longitude": 37.61
+   },
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 12,
+   "type": "message",
+   "date": "2020-09-13T15:41:40",
+   "date_unixtime": "1600000900",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "place_name": "Cafe",
+   "address": "Main st. 1",
+   "location_information": {
+    "latitude": 55.7,
+    "longitude": 37.6
+   },
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 13,
+   "type": "message",
+   "date": "2020-09-13T15:42:40",
+   "date_unixtime": "1600000960",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "poll": {
+    "question": "Where?",
+    "closed": false,
+    "total_voters": 2,
+    "answers": [
+     {
+      "text": "Here",
+      "voters": 2,
+      "chosen": true
+     },
+     {
+      "text": [
+       {
+        "type": "plain",
+        "text": "There"
+       }
+      ],
+      "voters": 0,
+      "chosen": false
+     }
+    ]
+   },
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 14,
+   "type": "message",
+   "date": "2020-09-13T15:43:40",
+   "date_unixtime": "1600001020",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "todo_list": {
+    "title": "Trip",
+    "others_can_append": true,
+    "others_can_complete": false,
+    "answers": [
+     {
+      "text": "Tickets",
+      "id": 1
+     },
+     {
+      "text": "Hotel",
+      "id": 2
+     }
+    ]
+   },
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 15,
+   "type": "message",
+   "date": "2020-09-13T15:44:40",
+   "date_unixtime": "1600001080",
+   "from": "Masha",
+   "from_id": "user222",
+   "reply_to_message_id": 5,
+   "reply_to_peer_id": "channel999",
+   "text": "elsewhere",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "elsewhere"
+    }
+   ]
+  },
+  {
+   "id": 16,
+   "type": "message",
+   "date": "2020-09-13T15:45:40",
+   "date_unixtime": "1600001140",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "forwarded_from": "Masha",
+   "forwarded_from_id": "user222",
+   "text": "fwd",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "fwd"
+    }
+   ]
+  },
+  {
+   "id": 17,
+   "type": "message",
+   "date": "2020-09-13T15:46:40",
+   "date_unixtime": "1600001200",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "forwarded_from": "Some Channel",
+   "text": "fwd2",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "fwd2"
+    }
+   ]
+  },
+  {
+   "id": 18,
+   "type": "message",
+   "date": "2020-09-13T15:47:40",
+   "date_unixtime": "1600001260",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "edited": "2020-09-13T16:00:00",
+   "edited_unixtime": "1600001320",
+   "text": "edited",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "edited"
+    }
+   ]
+  },
+  {
+   "id": 19,
+   "type": "service",
+   "date": "2020-09-13T15:49:40",
+   "date_unixtime": "1600001380",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "edit_group_title",
+   "title": "Best friends",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 20,
+   "type": "service",
+   "date": "2020-09-13T15:50:40",
+   "date_unixtime": "1600001440",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "edit_group_photo",
+   "photo": "photos/chat.jpg",
+   "photo_file_size": 19,
+   "width": 640,
+   "height": 640,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 21,
+   "type": "service",
+   "date": "2020-09-13T15:51:40",
+   "date_unixtime": "1600001500",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "delete_group_photo",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 22,
+   "type": "service",
+   "date": "2020-09-13T15:52:40",
+   "date_unixtime": "1600001560",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "invite_members",
+   "members": [
+    "Masha",
+    "Oleg Sidorov"
+   ],
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 23,
+   "type": "service",
+   "date": "2020-09-13T15:53:40",
+   "date_unixtime": "1600001620",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "remove_members",
+   "members": [
+    "Oleg Sidorov"
+   ],
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 24,
+   "type": "service",
+   "date": "2020-09-13T15:54:40",
+   "date_unixtime": "1600001680",
+   "actor": "Masha",
+   "actor_id": "user222",
+   "action": "join_group_by_link",
+   "inviter": "Ivan Petrov",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 25,
+   "type": "service",
+   "date": "2020-09-13T15:55:40",
+   "date_unixtime": "1600001740",
+   "actor": "Masha",
+   "actor_id": "user222",
+   "action": "join_group_by_request",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 26,
+   "type": "service",
+   "date": "2020-09-13T15:56:40",
+   "date_unixtime": "1600001800",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "pin_message",
+   "message_id": 2,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 27,
+   "type": "service",
+   "date": "2020-09-13T15:57:40",
+   "date_unixtime": "1600001860",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "group_call",
+   "duration": 10,
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 28,
+   "type": "unsupported"
+  },
+  {
+   "id": 29,
+   "type": "message",
+   "date": "2020-09-13T15:58:40",
+   "date_unixtime": "1600001920",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "photo": "(File not included. Change data exporting settings to download.)",
+   "photo_file_size": 0,
+   "text": "caption",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "caption"
+    }
+   ]
+  },
+  {
+   "id": 30,
+   "type": "message",
+   "date": "2020-09-13T15:59:40",
+   "date_unixtime": "1600001980",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "file": "(File exceeds maximum size. Change data exporting settings to download.)",
+   "file_name": "big.zip",
+   "file_size": 0,
+   "mime_type": "application/zip",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 31,
+   "type": "message",
+   "date": "2020-09-13T16:00:40",
+   "date_unixtime": "1600002040",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "file": "voice.ogg (File unavailable, please try again later)",
+   "file_size": 0,
+   "media_type": "voice_message",
+   "mime_type": "audio/ogg",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 32,
+   "type": "message",
+   "date": "2020-09-13T16:01:40",
+   "date_unixtime": "1600002100",
+   "from": "Masha",
+   "from_id": "user222",
+   "text": "smile at this",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "smile at this"
+    }
+   ],
+   "reactions": [
+    {
+     "type": "emoji",
+     "count": 3,
+     "emoji": "👍",
+     "recent": [
+      {
+       "from": "Ivan Petrov",
+       "from_id": "user111",
+       "date": "2020-09-13T16:20:00"
+      },
+      {
+       "from": "Stranger",
+       "from_id": "user333",
+       "date": "2020-09-13T16:21:00"
+      }
+     ]
+    },
+    {
+     "type": "emoji",
+     "count": 2,
+     "emoji": "❤"
+    },
+    {
+     "type": "custom_emoji",
+     "count": 1,
+     "document_id": "stickers/emoji.webp"
+    },
+    {
+     "type": "paid",
+     "count": 1
+    }
+   ]
+  },
+  {
+   "id": 34,
+   "type": "message",
+   "date": "2020-09-13T16:03:40",
+   "date_unixtime": "1600002220",
+   "from": null,
+   "from_id": "user444",
+   "text": "ghost",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "ghost"
+    }
+   ]
+  },
+  {
+   "id": 35,
+   "type": "message",
+   "date": "2020-09-13T16:04:40",
+   "date_unixtime": "1600002280",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "game_title": "Game",
+   "game_description": "d",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 36,
+   "type": "message",
+   "date": "2020-09-13T16:05:40",
+   "date_unixtime": "1600002340",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "invoice_information": {
+    "title": "t",
+    "description": "d",
+    "amount": 1,
+    "currency": "USD",
+    "receipt_message_id": ""
+   },
+   "text": "pay",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "pay"
+    }
+   ]
+  },
+  {
+   "id": 37,
+   "type": "message",
+   "date": "2020-09-13T16:06:40",
+   "date_unixtime": "1600002400",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "via_bot": "@gif",
+   "inline_bot_buttons": [
+    [
+     {
+      "type": "url",
+      "text": "Open",
+      "data": "https://example.org"
+     }
+    ]
+   ],
+   "text": "bot",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "bot"
+    }
+   ]
+  },
+  {
+   "id": 38,
+   "type": "service",
+   "date": "2020-09-13T16:07:40",
+   "date_unixtime": "1600002460",
+   "actor": "Ivan Petrov",
+   "actor_id": "user111",
+   "action": "topic_created",
+   "title": "Topic",
+   "text": "",
+   "text_entities": []
+  },
+  {
+   "id": 39,
+   "type": "message",
+   "date": "2020-09-13T16:08:40",
+   "date_unixtime": "1600002520",
+   "from": "Ivan Petrov",
+   "from_id": "user111",
+   "forwarded_from": null,
+   "forwarded_from_id": "user555",
+   "text": "fwd3",
+   "text_entities": [
+    {
+     "type": "plain",
+     "text": "fwd3"
+    }
+   ]
+  }
+ ]
+}

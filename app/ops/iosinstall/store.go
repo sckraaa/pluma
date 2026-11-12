@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -190,6 +191,20 @@ func (st *state) ready(d *Device) bool {
 		}
 	}
 	return false
+}
+
+// signedBuild is the number of the build whose signed IPA is served, the
+// one every registered iPhone gets; false while there is none or the last
+// uploaded build is not signed yet.
+func (st *state) signedBuild() (int32, bool) {
+	if st.Build == nil || st.Signed == nil || st.Signed.Build != st.Build.ID {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(st.Build.Number, 10, 32)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return int32(n), true
 }
 
 func sortedCopy(ids []string) []string {

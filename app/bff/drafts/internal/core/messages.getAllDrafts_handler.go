@@ -23,6 +23,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 )
 
 // MessagesGetAllDrafts
@@ -51,6 +52,24 @@ func (c *DraftsCore) MessagesGetAllDrafts(in *mtproto.TLMessagesGetAllDrafts) (*
 		}).To_Update())
 
 		idHelper.PickByPeer(v.Peer)
+	}
+	// The drafts of an admin in the sublists of monoforums (task 084): each
+	// names its sublist with saved_peer_id.
+	if c.svcCtx.Sublists != nil {
+		sublists, err := monoforum.Drafts(monoforum.OnDB(c.ctx, c.svcCtx.Sublists), c.MD.UserId)
+		if err != nil {
+			c.Logger.Errorf("messages.getAllDrafts - error: %v", err)
+			return nil, err
+		}
+		for _, d := range sublists {
+			rUpdates.PushBackUpdate(mtproto.MakeTLUpdateDraftMessage(&mtproto.Update{
+				Peer_PEER:   mtproto.MakePeerChannel(d.MonoforumId),
+				SavedPeerId: mtproto.MakePeerUser(d.PeerId),
+				Draft:       d.Draft,
+			}).To_Update())
+			idHelper.AppendChannels(d.MonoforumId)
+			idHelper.AppendUsers(d.PeerId)
+		}
 	}
 
 	idHelper.Visit(

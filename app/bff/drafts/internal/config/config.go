@@ -19,6 +19,7 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -31,4 +32,7 @@ type Config struct {
 	ChatClient   zrpc.RpcClientConf
 	// ChannelClient gives the channels the drafts name (task 063).
 	ChannelClient zrpc.RpcClientConf
+	// Mysql keeps the drafts of the sublists of monoforums (task 084,
+	// pkg/monoforum); without it they are not served.
+	Mysql sqlx.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

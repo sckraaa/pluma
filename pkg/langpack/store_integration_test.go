@@ -55,6 +55,7 @@ func TestMain(m *testing.M) {
 	itStore = NewStore(sqlx.NewMySQL(&conf))
 	// Telegram's strings only: the tests of Pluma's own ones set theirs.
 	ownStrings = map[string]map[string]map[string]string{}
+	overrideStrings = map[string]map[string]map[string]string{}
 	code := m.Run()
 	_ = db.Terminate(ctx)
 	os.Exit(code)
@@ -400,5 +401,72 @@ func TestImportOwnStrings(t *testing.T) {
 	}
 	if _, err := itStore.Import(ctx, snapshotOf("tdesktop", "ru", 6, String{Key: "lng_pluma_test_title", Value: "x"})); err == nil {
 		t.Fatal("a key of Telegram's that Pluma also has was imported")
+	}
+}
+
+// The strings Pluma words differently take the place of Telegram's in each
+// import of their pack: Telegram's text stays as the upstream one, a second
+// import changes nothing, a language without the text gets the English one,
+// and a key the snapshot lacks is added.
+func TestImportOverrides(t *testing.T) {
+	ctx := context.Background()
+	withOverride(t, `{"webk": {"SupportStatus": {"en": "service account", "ru": "сервисный аккаунт"}}}`)
+	ru := func(version int32) *Snapshot {
+		return snapshotOf("webk", "ru", version,
+			String{Key: "SupportStatus", Value: "поддержка Telegram"},
+			String{Key: "Login.Title", Value: "Добро пожаловать в Telegram"})
+	}
+	r := mustImport(t, ru(5))
+	if len(r.Leftovers) != 0 || len(r.OwnMissing) != 0 || r.Added != 2 {
+		t.Fatalf("leftovers %v, missing %v, added %d", r.Leftovers, r.OwnMissing, r.Added)
+	}
+	got, err := itStore.StringsByKey(ctx, "webk", "ru", []string{"SupportStatus", "Login.Title"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := got["SupportStatus"]; s == nil || s.Value != "сервисный аккаунт" {
+		t.Fatalf("replaced string %+v", s)
+	}
+	if s := got["Login.Title"]; s == nil || s.Value != "Добро пожаловать в Pluma" {
+		t.Fatalf("Telegram's string %+v", s)
+	}
+	var upstream struct {
+		Value string `db:"upstream_value"`
+	}
+	if err := itStore.db.QueryRowPartial(ctx, &upstream,
+		"SELECT upstream_value FROM langpack_strings WHERE lang_pack = 'webk' AND lang_code = 'ru' AND str_key = 'SupportStatus'"); err != nil {
+		t.Fatal(err)
+	}
+	if upstream.Value != "поддержка Telegram" {
+		t.Fatalf("upstream text %q", upstream.Value)
+	}
+	again := mustImport(t, ru(5))
+	if again.Version != r.Version || again.Changes() != 0 {
+		t.Fatalf("a second import changed %d strings, version %d -> %d", again.Changes(), r.Version, again.Version)
+	}
+
+	de := mustImport(t, snapshotOf("webk", "de", 5, String{Key: "SupportStatus", Value: "Support"}))
+	if fmt.Sprint(de.OwnMissing) != "[SupportStatus]" {
+		t.Fatalf("missing %v", de.OwnMissing)
+	}
+	uk := mustImport(t, snapshotOf("webk", "uk", 5, String{Key: "Login.Title", Value: "Вітаємо"}))
+	if uk.Added != 2 {
+		t.Fatalf("added %d", uk.Added)
+	}
+	for lang := range map[string]bool{"de": true, "uk": true} {
+		got, err := itStore.StringsByKey(ctx, "webk", lang, []string{"SupportStatus"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s := got["SupportStatus"]; s == nil || s.Value != "service account" {
+			t.Fatalf("%s: %+v", lang, s)
+		}
+	}
+
+	// Without the replacement Telegram's text comes back, with a new version.
+	overrideStrings = map[string]map[string]map[string]string{}
+	back := mustImport(t, ru(5))
+	if back.Changed != 1 || back.Version <= r.Version {
+		t.Fatalf("changed %d, version %d -> %d", back.Changed, r.Version, back.Version)
 	}
 }

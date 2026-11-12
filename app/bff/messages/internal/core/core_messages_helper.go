@@ -17,6 +17,7 @@ import (
 	userclient "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/mediaerr"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"google.golang.org/grpc/status"
@@ -276,8 +277,14 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 		}
 	case mtproto.Predicate_inputMediaStory:
 		// inputMediaStory#89fdd778 peer:InputPeer id:int = InputMedia;
-
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		//
+		// pluma: a story shared to a chat (task 084). The message names
+		// the story and carries no copy of it: each reader is shown what
+		// the story lets it see, which the clients ask by its id (Android
+		// StoriesStorage.java:559-641, fillMessagesWithStories).
+		if messageMedia, err = c.storyMedia(media); err != nil {
+			return
+		}
 	case mtproto.Predicate_inputMediaWebPage:
 		// inputMediaWebPage#c21b8849 flags:# force_large_media:flags.0?true force_small_media:flags.1?true optional:flags.2?true url:string = InputMedia;
 		//
@@ -315,6 +322,9 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 		err = mtproto.ErrMediaInvalid
 	}
 
+	if err == nil {
+		c.markAttachedStickers(media, messageMedia)
+	}
 	return
 }
 
@@ -481,4 +491,39 @@ func withRepeatPeriod(m *mtproto.Message, date, period *wrapperspb.Int32Value) *
 		m.ScheduleRepeatPeriod = period
 	}
 	return m
+}
+
+// clearSentDraft clears the draft a message sent to peer came from
+// (clear_draft): of the sublist of a monoforum an admin wrote to (task 084),
+// else of the chat or of its topic (doClearDraft).
+func (c *MessagesCore) clearSentDraft(ctx context.Context, peer *mtproto.PeerUtil, replyTo *mtproto.InputReplyTo) {
+	sublist := sublistPeer(c.MD.UserId, peer, replyTo).GetUserId()
+	if sublist == 0 || c.svcCtx.Sublists == nil {
+		c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer, replyTo.GetTopMsgId().GetValue())
+		return
+	}
+	had, err := monoforum.SaveDraft(ctx, c.svcCtx.Sublists, c.MD.UserId, peer.PeerId, sublist, nil, time.Now().Unix())
+	if err != nil {
+		c.Logger.Errorf("clear draft - sublist %d of %d: %v", sublist, peer.PeerId, err)
+		return
+	}
+	if !had {
+		// No draft of the sublist: the message may have come from the
+		// draft of the chat, which a subscriber has.
+		c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer, 0)
+		return
+	}
+	if _, err = c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(ctx, &sync.TLSyncUpdatesNotMe{
+		UserId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		Updates: mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateDraftMessage(&mtproto.Update{
+			Peer_PEER:   peer.ToPeer(),
+			SavedPeerId: mtproto.MakePeerUser(sublist),
+			Draft: mtproto.MakeTLDraftMessageEmpty(&mtproto.DraftMessage{
+				Date_FLAGINT32: mtproto.MakeFlagsInt32(int32(time.Now().Unix())),
+			}).To_DraftMessage(),
+		}).To_Update()),
+	}); err != nil {
+		c.Logger.Errorf("clear draft - error: %v", err)
+	}
 }

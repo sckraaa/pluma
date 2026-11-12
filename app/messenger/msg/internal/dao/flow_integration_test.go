@@ -379,6 +379,26 @@ func (noChannels) ChannelSetMainProfileTab(context.Context, *channelpb.TLChannel
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelImportCreate(context.Context, *channelpb.TLChannelImportCreate) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportMessages(context.Context, *channelpb.TLChannelImportMessages) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportFinish(context.Context, *channelpb.TLChannelImportFinish) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportGetState(context.Context, *channelpb.TLChannelImportGetState) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportAbort(context.Context, *channelpb.TLChannelImportAbort) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelUpdateColor(context.Context, *channelpb.TLChannelUpdateColor) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
@@ -592,6 +612,50 @@ func (noChannels) ChannelLeaveHidden(context.Context, *channelpb.TLChannelLeaveH
 }
 
 func (noChannels) ChannelSetUserHidden(context.Context, *channelpb.TLChannelSetUserHidden) (*mtproto.Int32, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelAntispamDelete(context.Context, *channelpb.TLChannelAntispamDelete) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelAntispamFalsePositive(context.Context, *channelpb.TLChannelAntispamFalsePositive) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelUpdateDirectMessages(context.Context, *channelpb.TLChannelUpdateDirectMessages) (*mtproto.Updates, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetSublists(context.Context, *channelpb.TLChannelGetSublists) (*mtproto.Messages_SavedDialogs, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetSublistHistory(context.Context, *channelpb.TLChannelGetSublistHistory) (*mtproto.Messages_Messages, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelReadSublist(context.Context, *channelpb.TLChannelReadSublist) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelDeleteSublistHistory(context.Context, *channelpb.TLChannelDeleteSublistHistory) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetMessageAuthor(context.Context, *channelpb.TLChannelGetMessageAuthor) (*mtproto.Int64, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelMarkSublistUnread(context.Context, *channelpb.TLChannelMarkSublistUnread) (*mtproto.Bool, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetSublistUnreadMarks(context.Context, *channelpb.TLChannelGetSublistUnreadMarks) (*channelpb.Vector_Long, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelGetMessageSublists(context.Context, *channelpb.TLChannelGetMessageSublists) (*channelpb.Vector_Long, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
 

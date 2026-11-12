@@ -243,6 +243,14 @@ func (m *IDListHelper) PickByMessage(message *Message) {
 	// peer_id:Peer
 	m.PickByPeer(message.PeerId)
 
+	// pluma: saved_peer_id of a message of a channel is the subscriber whose
+	// chat with the channel it is in (a monoforum's sublist), whom the
+	// admins of the direct messages are shown. In Saved Messages it is the
+	// origin of a saved message, picked by those who list them.
+	if message.GetSavedPeerId() != nil && message.GetPeerId().GetPredicateName() == Predicate_peerChannel {
+		m.PickByPeer(message.GetSavedPeerId())
+	}
+
 	// fwd_from:flags.2?MessageFwdHeader
 	if message.GetFwdFrom() != nil {
 		m.PickByFwdFrom(message.GetFwdFrom())

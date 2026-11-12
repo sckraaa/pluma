@@ -116,11 +116,26 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 	if peer.IsSelfUser(c.MD.UserId) {
 		outMessage.SavedPeerId = peer.ToPeer()
 	}
+	// The sublist of a monoforum, and a post suggested through one.
+	if sp := sublistPeer(c.MD.UserId, peer, in.GetReplyTo()); sp != nil {
+		outMessage.SavedPeerId = sp
+	}
+	if err := withSuggestedPost(outMessage, peer, in.GetSuggestedPost()); err != nil {
+		c.Logger.Errorf("%s - error: %v", "messages.sendMedia", err)
+		return nil, err
+	}
 
 	// Fix ReplyToMsgId
 	if outMessage.ReplyTo, err = c.makeReplyHeader(peer, in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
 		c.Logger.Errorf("messages.sendMedia - error: %v", err)
 		return nil, err
+	}
+	// A reply to a story (task 084).
+	if story, err := c.storyReplyHeader(in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
+		c.Logger.Errorf("messages.sendMedia - error: %v", err)
+		return nil, err
+	} else if story != nil {
+		outMessage.ReplyTo = story
 	}
 
 	if linkChatId > 0 {
@@ -179,11 +194,12 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 
 	c.attachPollReply(rUpdate)
 	c.addRecentStickers(in.Media, outMessage.Media)
+	c.storyShared(in.Media, in.RandomId)
 
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() {
-			c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer, in.GetReplyTo().GetTopMsgId().GetValue())
+			c.clearSentDraft(ctx, peer, in.GetReplyTo())
 		})
 	}
 

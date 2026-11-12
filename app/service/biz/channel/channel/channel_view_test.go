@@ -287,6 +287,22 @@ func TestGigagroupView(t *testing.T) {
 	}
 }
 
+// TestAutotranslationView: a channel translated for all says so in the
+// full and the min channel (flags2.15).
+func TestAutotranslationView(t *testing.T) {
+	ch := testChannel("pub")
+	ch.Megagroup, ch.Broadcast, ch.Autotranslation = false, true, true
+	for _, got := range []*mtproto.Chat{ch.ToChat(participant(RoleMember, StateIn, 0, 0, 0), viewNow), ch.ToMinChat()} {
+		if !got.GetAutotranslation() {
+			t.Errorf("channel: %v", got)
+		}
+		x := mtproto.NewEncodeBuf(512)
+		if err := got.Encode(x, 228); err != nil {
+			t.Fatalf("encode: %v", err)
+		}
+	}
+}
+
 func TestToChatDeleted(t *testing.T) {
 	ch := testChannel("pub")
 	ch.Deleted = true
@@ -341,6 +357,7 @@ func TestCodecRoundTrip(t *testing.T) {
 		Participants: []*ImmutableChannelParticipant{MakeTLImmutableChannelParticipant(participant(RoleAdmin, StateIn, 3, 0, 0)).To_ImmutableChannelParticipant()},
 	}).To_MutableChannel()
 	in.Channel.Forum, in.Channel.Deleted, in.Channel.Gigagroup = true, true, true
+	in.Channel.Antispam, in.Channel.Autotranslation = true, true
 	in.Participants[0].Rank = "boss"
 	x := mtproto.NewEncodeBuf(512)
 	if err := in.Encode(x, 228); err != nil {
@@ -352,6 +369,7 @@ func TestCodecRoundTrip(t *testing.T) {
 	}
 	c, p := out.GetChannel(), out.GetParticipants()
 	if c.GetId() != 100 || c.GetUsername() != "pub" || !c.GetForum() || !c.GetDeleted() || !c.GetGigagroup() || !c.GetMegagroup() || c.GetBroadcast() ||
+		!c.GetAntispam() || !c.GetAutotranslation() ||
 		c.GetDefaultBannedRights() != mtproto.BANNED_SEND_POLLS || c.GetDate() != viewCreated || c.GetSlowmodeSeconds() != 30 {
 		t.Errorf("channel %v", c)
 	}
@@ -404,5 +422,28 @@ func TestToChatBlocked(t *testing.T) {
 	ch.Blocked = false
 	if c := ch.ToChat(participant(RoleCreator, StateIn, 0, 0, 0), int32(viewJoined)); c.GetRestricted() {
 		t.Error("unblocked channel is restricted")
+	}
+}
+
+// The stories of a channel in its object (task 084): the newest one in the
+// feeds, the same for every viewer, in both forms of stories_max_id, and
+// stories_hidden of the viewer's own row. A channel without stories in the
+// feeds carries no stories_max_id and says stories_unavailable.
+func TestToChatStories(t *testing.T) {
+	ch := testChannel("news")
+	ch.StoriesMaxId = 5
+	p := participant(RoleMember, StateIn, 0, 0, 0)
+	p.StoriesHidden = true
+	got := ch.ToChat(p, viewNow)
+	if got.GetStoriesMaxId_FLAGRECENTSTORY().GetMaxId().GetValue() != 5 || got.GetStoriesMaxId_FLAGINT32().GetValue() != 5 || !got.GetStoriesHidden() || got.GetStoriesUnavailable() {
+		t.Errorf("a member who hid the stories: %v / %v, hidden %v", got.GetStoriesMaxId_FLAGRECENTSTORY(), got.GetStoriesMaxId_FLAGINT32(), got.GetStoriesHidden())
+	}
+	// One who never joined the public channel sees the stories too.
+	if got = ch.ToChat(nil, viewNow); got.GetStoriesMaxId_FLAGRECENTSTORY().GetMaxId().GetValue() != 5 || got.GetStoriesHidden() {
+		t.Errorf("a stranger: %v, hidden %v", got.GetStoriesMaxId_FLAGRECENTSTORY(), got.GetStoriesHidden())
+	}
+	ch.StoriesMaxId = 0
+	if got = ch.ToChat(participant(RoleMember, StateIn, 0, 0, 0), viewNow); got.GetStoriesMaxId_FLAGRECENTSTORY() != nil || got.GetStoriesMaxId_FLAGINT32() != nil || !got.GetStoriesUnavailable() {
+		t.Errorf("no stories: %v / %v, unavailable %v", got.GetStoriesMaxId_FLAGRECENTSTORY(), got.GetStoriesMaxId_FLAGINT32(), got.GetStoriesUnavailable())
 	}
 }

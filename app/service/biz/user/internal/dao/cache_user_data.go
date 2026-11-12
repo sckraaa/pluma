@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlc"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
@@ -19,6 +20,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/user/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/stories"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 	"github.com/zeromicro/go-zero/core/logx"
@@ -30,8 +32,10 @@ const (
 	// new_noncontact_peers_require_premium (task 014), .4 the rules of every
 	// privacy key (task 034), .5 the same for accounts that signed up while
 	// .4 cached only three keys for them. The public photo (task 051) needs
-	// none: an entry cached before it has none, as no account had one.
-	cacheUserDataKeyPrefix = "user_data.5"
+	// none: an entry cached before it has none, as no account had one. .6
+	// carries the stories of the user and no longer says stories_unavailable
+	// (task 084).
+	cacheUserDataKeyPrefix = "user_data.6"
 	cachePhoneUserPrefix   = "phone_user.1"
 )
 
@@ -125,29 +129,6 @@ func (d *Dao) GetCacheUserData(ctx context.Context, id int64) *CacheUserData {
 	return cacheUserData
 }
 
-func makeEmojiStatus(documentId int64, until int32) *mtproto.EmojiStatus {
-	if documentId == 0 {
-		return nil
-	} else {
-		return mtproto.MakeTLEmojiStatus(&mtproto.EmojiStatus{
-			DocumentId:      documentId,
-			Until_INT32:     until,
-			Until_FLAGINT32: mtproto.MakeFlagsInt32(until),
-		}).To_EmojiStatus()
-	}
-}
-
-func makePeerColor(color int32, backgroundEmojiId int64) *mtproto.PeerColor {
-	if color == 0 && backgroundEmojiId == 0 {
-		return nil
-	}
-
-	return mtproto.MakeTLPeerColor(&mtproto.PeerColor{
-		Color:                       mtproto.MakeFlagsInt32(color),
-		BackgroundEmojiId_FLAGINT64: mtproto.MakeFlagsInt64(backgroundEmojiId),
-	}).To_PeerColor()
-}
-
 func getUsernames(usernames string) []*mtproto.Username {
 	if usernames == "" {
 		return nil
@@ -186,6 +167,9 @@ func getUsername(usernames string) string {
 	}
 }
 
+// MakeUserDataByDO is the user of its row. stories_unavailable is not set
+// here: the stories of users are served (task 084), and the user objects
+// say it for each viewer, and always for bots, which post none.
 func (d *Dao) MakeUserDataByDO(userDO *dataobject.UsersDO) *mtproto.UserData {
 	userData := mtproto.MakeTLUserData(&mtproto.UserData{
 		Id:                 userDO.Id,
@@ -210,11 +194,11 @@ func (d *Dao) MakeUserDataByDO(userDO *dataobject.UsersDO) *mtproto.UserData {
 		ContactsVersion:    1,
 		PrivaciesVersion:   1,
 		Premium:            userDO.Premium,
-		EmojiStatus:        makeEmojiStatus(userDO.EmojiStatusDocumentId, userDO.EmojiStatusUntil),
-		StoriesUnavailable: true,
+		EmojiStatus:        user.MakeEmojiStatus(userDO.EmojiStatusDocumentId, userDO.EmojiStatusUntil),
+		StoriesUnavailable: false,
 		StoriesMaxId:       userDO.StoriesMaxId,
-		Color:              makePeerColor(userDO.Color, userDO.ColorBackgroundEmojiId),
-		ProfileColor:       makePeerColor(userDO.ProfileColor, userDO.ProfileColorBackgroundEmojiId),
+		Color:              user.MakePeerColor(userDO.Color, userDO.ColorBackgroundEmojiId),
+		ProfileColor:       user.MakePeerColor(userDO.ProfileColor, userDO.ProfileColorBackgroundEmojiId),
 		Birthday:           userDO.Birthday,
 		PersonalChannelId:  userDO.PersonalChannelId,
 		PremiumExpireDate:  mtproto.MakeFlagsInt64(userDO.PremiumExpireDate),
@@ -320,10 +304,14 @@ func (d *Dao) GetNoCacheUserData(ctx context.Context, id int64) (*CacheUserData,
 		return nil, err
 	}
 
-	// TODO
-	// close_friends:Vector<long>
-
-	// stories_hiddens:Vector<long>
+	// The stories of the user that are in the feeds travel with it too
+	// (task 084, ADR 0054): user.stories_max_id of each viewer is read from
+	// their rules. A change of them drops this cache (user.setStoriesMaxId).
+	audiences, err := stories.Audiences(ctx, d.DB, id, time.Now())
+	if err != nil {
+		return nil, err
+	}
+	cacheData.CachesPrivacyKeyRules = append(cacheData.CachesPrivacyKeyRules, audiences...)
 
 	return cacheData, nil
 }

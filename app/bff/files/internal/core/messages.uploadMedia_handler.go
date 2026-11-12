@@ -37,6 +37,14 @@ func (c *FilesCore) MessagesUploadMedia(in *mtproto.TLMessagesUploadMedia) (*mtp
 		c.Logger.Errorf("messages.uploadMedia - error: %v", err)
 		return nil, err
 	}
+	// The stickers put on the photo or the video (task 084): an album is
+	// uploaded here and sent by the ids of what was made. The media is made
+	// by then, so a failure is logged: it only goes without the mark.
+	if c.svcCtx.Attached != nil {
+		if err := c.svcCtx.Attached.Mark(c.ctx, c.svcCtx.Dao.MediaClient, in.GetMedia(), rValue); err != nil {
+			c.Logger.Errorf("messages.uploadMedia - attached stickers: %v", err)
+		}
+	}
 
 	return rValue, nil
 }

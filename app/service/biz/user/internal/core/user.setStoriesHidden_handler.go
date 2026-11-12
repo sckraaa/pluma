@@ -30,7 +30,9 @@ import (
 // UserSetStoriesHidden
 // user.setStoriesHidden user_id:long id:long hidden:Bool = Bool;
 func (c *UserCore) UserSetStoriesHidden(in *user.TLUserSetStoriesHidden) (*mtproto.Bool, error) {
-	c.svcCtx.Dao.CachedConn.Exec(
+	// pluma: a failed write is the request's error (task 084): the client
+	// has already moved the stories, and must not be told it is stored.
+	_, _, err := c.svcCtx.Dao.CachedConn.Exec(
 		c.ctx,
 		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {
 			var (
@@ -45,6 +47,9 @@ func (c *UserCore) UserSetStoriesHidden(in *user.TLUserSetStoriesHidden) (*mtpro
 			return 0, 0, err
 		},
 		dao.GenContactCacheKey(in.UserId, in.Id))
+	if err != nil {
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }

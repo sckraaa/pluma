@@ -46,8 +46,14 @@ func (c *MessagesCore) searchCalendar(in *mtproto.TLMessagesGetSearchResultsCale
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	var r *mtproto.Messages_SearchResultsCalendar
 	if peer.IsChannel() {
+		sublist, ok := c.channelSublist(in.SavedPeerId)
+		if !ok {
+			return mtproto.MakeTLMessagesSearchResultsCalendar(&mtproto.Messages_SearchResultsCalendar{
+				Periods: []*mtproto.SearchResultsCalendarPeriod{}, Messages: []*mtproto.Message{}, Chats: []*mtproto.Chat{}, Users: []*mtproto.User{},
+			}).To_Messages_SearchResultsCalendar(), nil
+		}
 		if r, err = c.svcCtx.Dao.Channel.ChannelSearchCalendar(c.ctx, &channelpb.TLChannelSearchCalendar{
-			SelfId: c.MD.UserId, ChannelId: peer.PeerId, MediaType: kind, OffsetId: in.OffsetId, OffsetDate: in.OffsetDate,
+			SelfId: c.MD.UserId, ChannelId: peer.PeerId, MediaType: kind, OffsetId: in.OffsetId, OffsetDate: in.OffsetDate, SavedPeerId: sublist,
 		}); err != nil {
 			return nil, err
 		}
@@ -121,8 +127,14 @@ func (c *MessagesCore) searchPositions(in *mtproto.TLMessagesGetSearchResultsPos
 	}
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	if peer.IsChannel() {
+		sublist, ok := c.channelSublist(in.SavedPeerId)
+		if !ok {
+			return mtproto.MakeTLMessagesSearchResultsPositions(&mtproto.Messages_SearchResultsPositions{
+				Positions: []*mtproto.SearchResultsPosition{},
+			}).To_Messages_SearchResultsPositions(), nil
+		}
 		return c.svcCtx.Dao.Channel.ChannelSearchPositions(c.ctx, &channelpb.TLChannelSearchPositions{
-			SelfId: c.MD.UserId, ChannelId: peer.PeerId, MediaType: kind, OffsetId: in.OffsetId, Limit: in.Limit,
+			SelfId: c.MD.UserId, ChannelId: peer.PeerId, MediaType: kind, OffsetId: in.OffsetId, Limit: in.Limit, SavedPeerId: sublist,
 		})
 	}
 	q := msgsearch.BoxQuery{UserId: c.MD.UserId, PeerType: peer.PeerType, PeerId: peer.PeerId, Kind: kind}

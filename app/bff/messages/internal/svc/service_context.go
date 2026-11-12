@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/messages/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/messages/plugin"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
@@ -56,9 +57,20 @@ type ServiceContext struct {
 	SendAs *sendas.Store
 	// StickerLists keeps the recent stickers (task 079).
 	StickerLists StickerLists
+	// Attached keeps the stickers put on uploaded photos and videos (task
+	// 084); nil: none are kept.
+	Attached *attached.Store
+
+	// Sublists is the database of the drafts of the sublists of monoforums
+	// (task 084, pkg/monoforum), which a send with clear_draft clears.
+	Sublists *sqlx.DB
+
+	// Stories answers for the stories a message shares or replies to
+	// (task 084); nil when the stories are not served.
+	Stories plugin.StoryPlugin
 }
 
-func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
+func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *ServiceContext {
 	d := dao.New(c)
 	db := sqlx.NewMySQL(&c.Mysql)
 	if err := outbox.Register(outbox.Topics{Push: []string{c.SyncClient.Topic}}); err != nil {
@@ -72,10 +84,13 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceCo
 		Config:       c,
 		Dao:          d,
 		Plugin:       plugin,
+		Stories:      stories,
 		Reactions:    db,
 		Search:       db,
+		Sublists:     db,
 		SendAs:       sendas.New(db),
 		StickerLists: stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
+		Attached:     attached.NewStore(db),
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

@@ -95,7 +95,8 @@ func Pick(h *mtproto.IDListHelper, selfId int64, updates ...*mtproto.Update) {
 			inputPeers(f.GetIncludePeers())
 			inputPeers(f.GetExcludePeers())
 		case mtproto.Predicate_updateUserName,
-			mtproto.Predicate_updateUser:
+			mtproto.Predicate_updateUser,
+			mtproto.Predicate_updateUserEmojiStatus:
 			// The account's own or, from another user's change, that
 			// user's.
 			users(u.GetUserId())

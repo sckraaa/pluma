@@ -61,6 +61,14 @@ TelegramBot:
 # Empty: no update is offered.
 ReleasesURL: "${PLUMA_RELEASES_URL}"
 
+# The update of the iPhone app from the app itself (task 085,
+# docs/ops/ios-install.md): the secret of the update tickets, the same the
+# install service gets, and where that service tells which build it gives.
+# Empty secret: an Ad Hoc build is offered the site's install page.
+IOSUpdate:
+  Secret: "${PLUMA_IOS_UPDATE_SECRET}"
+  StatusURL: "http://iosinstall:9098/internal/update"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 
@@ -120,3 +128,16 @@ Calls:
   # The quality parameters of a call (task 077): "pluma" when empty, or
   # "stock", then key=value changes (docs/ops/calls.md).
   Quality: "${CALLS_QUALITY}"
+
+# Voice transcription (task 090, ADR 0056, docs/ops/transcription.md): the
+# speech engine is a service with POST /v1/audio/transcriptions of the OpenAI
+# API, app/ops/stt or any other. No URL: transcription is off. Nothing a
+# user asks for is refused for its length or number; the settings of the
+# queue (Workers, MaxAttempts, FailedTTL, SyncWait, DeliverDelay) have
+# defaults and are set here when they must differ.
+Transcribe:
+  URL: "${STT_URL}"
+  Token: "${STT_TOKEN}"
+  Model: "${STT_MODEL}"
+  Language: "${STT_LANGUAGE}"
+  Timeout: "${STT_TIMEOUT}"

@@ -30,17 +30,24 @@ import (
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/appearance"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
+	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/demand"
 	"github.com/teamgram/teamgram-server/pkg/catalog/importer"
 	"github.com/teamgram/teamgram-server/pkg/catalog/installed"
+	"github.com/teamgram/teamgram-server/pkg/catalog/search"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
+	"github.com/teamgram/teamgram-server/pkg/catalog/usersets"
+	"github.com/teamgram/teamgram-server/pkg/emojistatus"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
+	"github.com/teamgram/teamgram-server/pkg/ringtones/saved"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/threading"
 )
 
 // Catalog is what the handlers read of the catalog (catalog.Store).
@@ -65,6 +72,48 @@ type Installed interface {
 	Install(ctx context.Context, userID int64, kind installed.Kind, setID int64, archived bool, newSet func(installedAt int64) *mtproto.Update) error
 	Toggle(ctx context.Context, userID int64, action installed.Action, sets []installed.Ref) error
 	Reorder(ctx context.Context, userID int64, kind installed.Kind, order []int64) ([]int64, error)
+	// The sets users make (task 084): the accounts that have one are told
+	// when it changes, and lose it when it is deleted.
+	Changed(ctx context.Context, setID int64, kind installed.Kind) error
+	Drop(ctx context.Context, setID int64, kind installed.Kind) error
+	// The trending sets an account has seen (task 084).
+	FeaturedRead(ctx context.Context, userID int64) (map[int64]bool, error)
+	ReadFeatured(ctx context.Context, userID, exceptAuthKeyID int64, stickers, emojis []int64) error
+}
+
+// UserSets is the sets users make (pkg/catalog/usersets, task 084).
+type UserSets interface {
+	Create(ctx context.Context, owner int64, ms *mtproto.Messages_StickerSet, thumbDocumentID int64, links []usersets.Link, now int64) (*catalog.Set, error)
+	Update(ctx context.Context, id int64, fn func(c *usersets.Change) error) (*catalog.Set, error)
+	Delete(ctx context.Context, id, owner int64) error
+	Owned(ctx context.Context, owner int64) ([]int64, error)
+	Links(ctx context.Context, id int64) ([]usersets.Link, error)
+	SetOf(ctx context.Context, documentID int64) (int64, error)
+	ShortNameTaken(ctx context.Context, name string) (bool, error)
+}
+
+// Documents stores the file of a sticker a user made as a document
+// (importer.RPCDocuments).
+type Documents interface {
+	Import(ctx context.Context, doc *mtproto.Document, file []byte, thumbs map[string][]byte, id int64) (*mtproto.Document, error)
+}
+
+// Files reads the file of a document a sticker is made of (dfs).
+type Files interface {
+	DfsDownloadFile(ctx context.Context, in *dfs.TLDfsDownloadFile) (*mtproto.Upload_File, error)
+}
+
+// Search is the search of sets and stickers (pkg/catalog/search).
+type Search interface {
+	Refresh(ctx context.Context) error
+	Sets(kind installed.Kind, query string, first []int64, excludeFeatured bool) []search.FoundSet
+	Stickers(emojis bool, emoji []string, words []string, first []int64) []int64
+	EmojiFor(ctx context.Context, queryWords, langs []string) ([]string, error)
+}
+
+// Attached is the stickers put on photos and videos (pkg/catalog/attached).
+type Attached interface {
+	Of(ctx context.Context, mediaID int64) ([]int64, error)
 }
 
 // StickerLists is the recent and the faved stickers of accounts
@@ -100,6 +149,19 @@ type Appearance interface {
 	SavedThemes(ctx context.Context, userID int64) ([]appearance.SavedTheme, error)
 }
 
+// EmojiStatuses are the emoji statuses an account used lately (task 084).
+type EmojiStatuses interface {
+	Recent(ctx context.Context, userID int64) ([]emojistatus.Entry, error)
+	Clear(ctx context.Context, userID int64) error
+}
+
+// Ringtones are the notification sounds an account saved (task 084).
+type Ringtones interface {
+	Saved(ctx context.Context, userID int64) ([]saved.Entry, error)
+	Save(ctx context.Context, userID, documentID int64) error
+	Unsave(ctx context.Context, userID, documentID int64) error
+}
+
 type ServiceContext struct {
 	Config    config.Config
 	Catalog   Catalog
@@ -121,11 +183,25 @@ type ServiceContext struct {
 	// Wallpapers and themes (task 065).
 	Dialog     dialog_client.DialogClient
 	Appearance Appearance
+
+	// The look of an account and its notification sounds (task 084).
+	EmojiStatuses EmojiStatuses
+	Ringtones     Ringtones
+
+	// The sets users make, the search of sets and stickers and the
+	// stickers put on photos (task 084).
+	UserSets  UserSets
+	Documents Documents
+	Dfs       Files
+	Search    Search
+	Attached  Attached
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	store := catalog.NewStore(sqlx.NewMySQL(&c.Mysql))
 	media := media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient))
+	dfsClient := dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient))
+	index := search.New(store)
 	if err := outbox.Register(outbox.Topics{Push: []string{c.SyncTopic}}); err != nil {
 		logx.Must(err)
 	}
@@ -149,7 +225,23 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Appearance: appearance.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
 
 		StickerLists: stickerlists.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
+
+		EmojiStatuses: emojistatus.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
+		Ringtones:     saved.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),
+
+		UserSets:  usersets.NewStore(sqlx.NewMySQL(&c.Mysql)),
+		Documents: importer.RPCDocuments{Dfs: dfsClient, Media: media},
+		Dfs:       dfsClient,
+		Search:    index,
+		Attached:  attached.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
+	// The search index is made before the first search asks for it; a
+	// failure here is that search's to report.
+	threading.GoSafe(func() {
+		if err := index.Refresh(context.Background()); err != nil {
+			logx.Errorf("catalog: the search index: %v", err)
+		}
+	})
 	bot, err := tgbot.FromSettings(c.TelegramBot)
 	if err != nil {
 		logx.Must(err)
@@ -158,7 +250,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		s.Demand = demand.New(bot, &importer.Importer{
 			Catalog: store,
 			Documents: importer.RPCDocuments{
-				Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
+				Dfs:   dfsClient,
 				Media: media,
 			},
 			Now: func() int64 { return time.Now().Unix() },

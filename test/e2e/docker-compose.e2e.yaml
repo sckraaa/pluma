@@ -126,6 +126,32 @@ services:
       - teamgram_net
     restart: "no"
 
+  # The speech engine of voice transcription (test/e2e/fakestt): bff sends
+  # it sound as to app/ops/stt; the tests plan its answers and count the
+  # requests on an ephemeral loopback port.
+  fakestt:
+    build:
+      context: .
+      dockerfile: test/e2e/fakestt/Dockerfile
+    image: ${E2E_FAKESTT_IMAGE:-pluma-e2e-fakestt:local}
+    environment:
+      STT_API_TOKEN: ${STT_TOKEN:?run test/e2e/run.sh up}
+      STT_MODEL: ${STT_MODEL:?run test/e2e/run.sh up}
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
+  bff:
+    # The config with the limits of transcription of the tests, written by
+    # run.sh.
+    volumes:
+      - ${E2E_BFF_CONFIG:?run test/e2e/run.sh up}:/app/etc2/bff.yaml:ro
+    depends_on:
+      fakestt:
+        condition: service_started
+
   push:
     # The config with the endpoints of fakepush, written by run.sh.
     volumes:

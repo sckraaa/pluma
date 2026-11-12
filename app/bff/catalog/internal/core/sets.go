@@ -73,5 +73,11 @@ func (c *CatalogCore) decodeSet(method string, set *catalog.Set) (*mtproto.Messa
 		c.Logger.Errorf("%s - a stored set: %v", method, err)
 		return nil, err
 	}
+	// The account that made the set may change it (task 084): the clients
+	// offer that by creator (Android StickersAlert.java:2365, Telegram
+	// Desktop StickersSetFlag::AmCreator, api_stickers_creator.cpp:144).
+	if answer.GetSet() != nil {
+		answer.Set.Creator = set.OwnerID != 0 && set.OwnerID == c.MD.UserId
+	}
 	return answer, nil
 }

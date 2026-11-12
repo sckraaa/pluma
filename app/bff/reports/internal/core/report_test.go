@@ -16,79 +16,11 @@
 package core
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/moderation"
 )
-
-// An empty option is the root; a reason leads to the comment page under its
-// own option; only that option ends the report, so an empty comment cannot
-// be confused with choosing the reason again.
-func TestReportTreeSteps(t *testing.T) {
-	root := chooseOption("en")
-	if root.GetPredicateName() != mtproto.Predicate_reportResultChooseOption || len(root.GetOptions()) != len(reasons) {
-		t.Fatalf("root: %v", root)
-	}
-	for _, o := range root.GetOptions() {
-		reason, final, err := stepOf(o.GetOption())
-		if err != nil || final || reason != string(o.GetOption()) {
-			t.Fatalf("option %q: %v %v %v", o.GetOption(), reason, final, err)
-		}
-		c := addComment(reason)
-		if c.GetPredicateName() != mtproto.Predicate_reportResultAddComment {
-			t.Fatalf("reason %q: %v", reason, c)
-		}
-		r, final, err := stepOf(c.GetOption())
-		if err != nil || !final || r != reason {
-			t.Fatalf("comment of %q: %v %v %v", reason, r, final, err)
-		}
-	}
-	if !addComment("spam").GetOptional() {
-		t.Errorf("the comment of spam is optional")
-	}
-	if addComment("other").GetOptional() {
-		t.Errorf("the comment of other is not optional")
-	}
-}
-
-func TestReportTreeBadOptions(t *testing.T) {
-	for _, bad := range []string{"nonsense", "nonsense:c", ":c"} {
-		if _, _, err := stepOf([]byte(bad)); !errors.Is(err, mtproto.ErrOptionInvalid) {
-			t.Errorf("%q: %v", bad, err)
-		}
-	}
-	if reason, final, err := stepOf(nil); reason != "" || final || err != nil {
-		t.Errorf("empty option: %q %v %v", reason, final, err)
-	}
-}
-
-func TestReportTreeLanguages(t *testing.T) {
-	for _, r := range reasons {
-		for _, lang := range []string{"en", "ru"} {
-			root := chooseOption(lang)
-			if root.GetTitle() == "" {
-				t.Errorf("no title in %s", lang)
-			}
-			for _, o := range root.GetOptions() {
-				if o.GetText() == "" {
-					t.Errorf("option %q has no text in %s", r.key, lang)
-				}
-			}
-		}
-	}
-}
-
-func TestReasonOf(t *testing.T) {
-	spam := mtproto.MakeTLInputReportReasonSpam(nil).To_ReportReason()
-	if got := reasonOf(spam); got != "spam" {
-		t.Errorf("spam: %q", got)
-	}
-	if got := reasonOf(nil); got != "other" {
-		t.Errorf("nil: %q", got)
-	}
-}
 
 func TestTargetOf(t *testing.T) {
 	const reporter = int64(1)

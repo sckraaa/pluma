@@ -229,4 +229,26 @@ func TestBlocksWithSeq(t *testing.T) {
 	if n := len(seqPushes(t, u)); n != 3 || blocked(u) || blocked(other) {
 		t.Errorf("invalid peers: %d pushes", n)
 	}
+
+	// The update says whether the stories are hidden from the peer too:
+	// the clients take it as the whole state of the peer, and would show
+	// the stories again to one blocked after they were hidden from it.
+	if _, err := itRaw.Exec("INSERT INTO story_blocked (user_id, peer_id, `date`) VALUES (?, ?, 1)", u, other); err != nil {
+		t.Fatal(err)
+	}
+	if err := block(other); err != nil {
+		t.Fatal(err)
+	}
+	if err := unblock(other); err != nil {
+		t.Fatal(err)
+	}
+	pushes = seqPushes(t, u)
+	if len(pushes) != 5 {
+		t.Fatalf("pushes %d, want 5", len(pushes))
+	}
+	for _, p := range pushes[3:] {
+		if p.update.GetPeerId().GetUserId() != other || !p.update.GetBlockedMyStoriesFrom() {
+			t.Errorf("push %d about a user the stories are hidden from: %v", p.seq, p.update)
+		}
+	}
 }

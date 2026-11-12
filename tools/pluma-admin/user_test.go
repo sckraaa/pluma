@@ -152,9 +152,15 @@ func TestLoadsUserConfig(t *testing.T) {
 	t.Setenv("TELEGRAM_API_HASH", "")
 	t.Setenv("TELEGRAM_BOT_TOKEN", "")
 	t.Setenv("PLUMA_RELEASES_URL", "")
+	t.Setenv("PLUMA_IOS_UPDATE_SECRET", "")
 	t.Setenv("CALLS_ICE_SERVERS", "")
 	t.Setenv("CALLS_TURN_SECRET", "")
 	t.Setenv("CALLS_QUALITY", "")
+	t.Setenv("STT_URL", "")
+	t.Setenv("STT_TOKEN", "")
+	t.Setenv("STT_MODEL", "")
+	t.Setenv("STT_LANGUAGE", "")
+	t.Setenv("STT_TIMEOUT", "")
 	t.Setenv("PUSH_SECRET_ENCRYPTION_KEY", testHmacKey)
 	for _, f := range []string{"../../teamgramd/etc/bff.yaml", "../../teamgramd/etc2/bff.yaml"} {
 		var c userConfig

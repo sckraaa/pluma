@@ -54,6 +54,33 @@ type channelFold struct {
 	// range, member whether it is in the channel (setContents).
 	contents *channelcontents.State
 	member   bool
+	// sublist is the one sublist of a monoforum the viewer sees (0: every
+	// message), and mine the messages of it among those the journal names
+	// by id (setSublist, task 084).
+	sublist int64
+	mine    map[int32]bool
+}
+
+// setSublist bounds the fold to the sublist of a subscriber of a monoforum:
+// mine are the messages of that sublist among idsNamed of the journal rows.
+// It is called before add.
+func (f *channelFold) setSublist(peerId int64, mine map[int32]bool) {
+	f.sublist, f.mine = peerId, mine
+}
+
+// idsNamed are the ids an update names without their messages: those a
+// subscriber of a monoforum must be told apart by (setSublist).
+func idsNamed(u *mtproto.Update) []int32 {
+	switch u.PredicateName {
+	case mtproto.Predicate_updateDeleteChannelMessages, mtproto.Predicate_updatePinnedChannelMessages:
+		return u.GetMessages()
+	}
+	return nil
+}
+
+// foreign tells whether m is of a sublist the viewer does not see.
+func (f *channelFold) foreign(m *mtproto.Message) bool {
+	return f.sublist != 0 && m.GetSavedPeerId().GetUserId() != f.sublist
 }
 
 func newChannelFold(viewer int64, availableMinId, pts int32) *channelFold {
@@ -69,7 +96,9 @@ func newChannelFold(viewer int64, availableMinId, pts int32) *channelFold {
 
 // visible keeps the ids the viewer sees.
 func (f *channelFold) visible(ids []int32) []int32 {
-	return slices.DeleteFunc(slices.Clone(ids), func(id int32) bool { return id < f.availableMinId })
+	return slices.DeleteFunc(slices.Clone(ids), func(id int32) bool {
+		return id < f.availableMinId || f.sublist != 0 && !f.mine[id]
+	})
 }
 
 // add folds the next journal update in.
@@ -77,12 +106,16 @@ func (f *channelFold) add(u *mtproto.Update) {
 	switch u.PredicateName {
 	case mtproto.Predicate_updateNewChannelMessage:
 		m := u.GetMessage_MESSAGE()
+		if f.foreign(m) {
+			return
+		}
 		if m.GetId() >= f.availableMinId {
 			f.newMessages[m.GetId()] = m
 		}
 	case mtproto.Predicate_updateEditChannelMessage:
 		m := u.GetMessage_MESSAGE()
 		switch {
+		case f.foreign(m):
 		case m.GetId() < f.availableMinId:
 		case f.newMessages[m.GetId()] != nil:
 			f.newMessages[m.GetId()] = m
@@ -115,9 +148,17 @@ func (f *channelFold) add(u *mtproto.Update) {
 			if u.Messages = f.visible(u.GetMessages()); len(u.Messages) == 0 {
 				return
 			}
+		} else if f.sublist != 0 {
+			// It names no message: it could be of another sublist.
+			return
 		}
 		f.push(u)
 	default:
+		if f.sublist != 0 {
+			// Nothing else is journaled; an update of an unknown kind
+			// could be of another sublist.
+			return
+		}
 		f.push(u)
 	}
 }

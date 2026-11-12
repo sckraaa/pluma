@@ -29,6 +29,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/channelsets"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
+	"github.com/teamgram/teamgram-server/pkg/stories"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
@@ -49,6 +50,8 @@ type ServiceContext struct {
 	// SendAs keeps the default peer of channelFull.default_send_as
 	// (task 079).
 	SendAs *sendas.Store
+	// Stories reads the stories of channelFull (task 084).
+	Stories *stories.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -65,5 +68,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Bots:    botstore.New(sqlx.NewMySQL(&c.Mysql)),
 		Sets:    channelsets.New(sqlx.NewMySQL(&c.Mysql)),
 		SendAs:  sendas.New(sqlx.NewMySQL(&c.Mysql)),
+		Stories: stories.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

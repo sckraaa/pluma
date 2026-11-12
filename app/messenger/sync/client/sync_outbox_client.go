@@ -65,19 +65,34 @@ func MustNewSyncOutboxClient(c OutboxConf) SyncClient {
 
 // insert writes in, addressed to recipient (the Kafka key).
 func (m *outboxClient) insert(ctx context.Context, recipient int64, in proto.Message) (*mtproto.Void, error) {
-	data, err := jsonx.Marshal(in)
+	ev, err := event(m.topic, recipient, in)
 	if err != nil {
 		return nil, err
 	}
-	if _, err = outbox.Insert(ctx, m.db, userbox.Event{
-		Topic:     m.topic,
-		Recipient: recipient,
-		Method:    string(proto.MessageName(in)),
-		Data:      data,
-	}); err != nil {
+	if _, err = outbox.Insert(ctx, m.db, ev); err != nil {
 		return nil, err
 	}
 	return mtproto.EmptyVoid, nil
+}
+
+func event(topic string, recipient int64, in proto.Message) (userbox.Event, error) {
+	data, err := jsonx.Marshal(in)
+	if err != nil {
+		return userbox.Event{}, err
+	}
+	return userbox.Event{
+		Topic:     topic,
+		Recipient: recipient,
+		Method:    string(proto.MessageName(in)),
+		Data:      data,
+	}, nil
+}
+
+// PushUpdatesEvent is the event SyncPushUpdates writes for in, for a caller
+// that writes it in a transaction of its own (outbox.InsertTx). topic is
+// the topic of an outbox client of the process, which registered it.
+func PushUpdatesEvent(topic string, in *sync.TLSyncPushUpdates) (userbox.Event, error) {
+	return event(topic, in.GetUserId(), in)
 }
 
 // SyncUpdatesMe

@@ -25,7 +25,17 @@ import (
 
 // ContactsBlock
 // contacts.block#2e2e8734 flags:# my_stories_from:flags.0?true id:InputPeer = Bool;
+//
+// With my_stories_from the user goes on the blocklist of stories only
+// (storiesBlocked): it still writes and calls, and sees no story.
 func (c *ContactsCore) ContactsBlock(in *mtproto.TLContactsBlock) (*mtproto.Bool, error) {
+	if in.GetMyStoriesFrom() {
+		if err := c.storiesBlocked(in.GetId(), true); err != nil {
+			c.Logger.Errorf("contacts.block - error: %v", err)
+			return nil, err
+		}
+		return mtproto.BoolTrue, nil
+	}
 	var (
 		err    error
 		mUsers *userpb.Vector_ImmutableUser

@@ -22,6 +22,7 @@ import (
 	"math"
 
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
@@ -35,9 +36,13 @@ import (
 // updateAllDialogs). The answer is messages.savedDialogs when it holds all
 // of them and messages.savedDialogsSlice with count otherwise.
 func (c *SavedMessageDialogsCore) MessagesGetSavedDialogs(in *mtproto.TLMessagesGetSavedDialogs) (*mtproto.Messages_SavedDialogs, error) {
-	if err := c.checkParentPeer(in.GetParentPeer()); err != nil {
+	monoforumId, err := c.parentMonoforum(in.GetParentPeer())
+	if err != nil {
 		c.Logger.Errorf("messages.getSavedDialogs - error: %v", err)
 		return nil, err
+	}
+	if monoforumId != 0 {
+		return c.getSublists(monoforumId, nil, in.GetOffsetId(), in.GetLimit())
 	}
 
 	limit := in.GetLimit()
@@ -73,6 +78,35 @@ func (c *SavedMessageDialogsCore) MessagesGetSavedDialogs(in *mtproto.TLMessages
 		return mtproto.MakeTLMessagesSavedDialogs(r).To_Messages_SavedDialogs(), nil
 	}
 	return mtproto.MakeTLMessagesSavedDialogsSlice(r).To_Messages_SavedDialogs(), nil
+}
+
+// getSublists is messages.getSavedDialogs and getSavedDialogsByID of a
+// monoforum (task 084): its sublists as monoForumDialog, the one written to
+// last first, a page below the sublist whose last message is offsetId, or
+// those of peers alone. The clients page by the last message of the page
+// (tdesktop data_saved_messages.cpp:298-320, Android
+// TopicsController.java), whose id orders the list. Only the admins of the
+// channel's direct messages list them (CHAT_ADMIN_REQUIRED).
+func (c *SavedMessageDialogsCore) getSublists(monoforumId int64, peers []int64, offsetId, limit int32) (*mtproto.Messages_SavedDialogs, error) {
+	if offsetId == math.MaxInt32 {
+		offsetId = 0
+	}
+	r, err := c.svcCtx.Dao.Channel.ChannelGetSublists(c.ctx, &channelpb.TLChannelGetSublists{
+		SelfId:    c.MD.UserId,
+		ChannelId: monoforumId,
+		Ids:       peers,
+		OffsetId:  offsetId,
+		Limit:     limit,
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.getSavedDialogs - sublists of %d: %v", monoforumId, err)
+		return nil, err
+	}
+	if err = c.fillSublists(r, monoforumId); err != nil {
+		c.Logger.Errorf("messages.getSavedDialogs - sublists of %d: %v", monoforumId, err)
+		return nil, err
+	}
+	return r, nil
 }
 
 // isFirstPage tells a request of the newest sub-chats: no offset, or the

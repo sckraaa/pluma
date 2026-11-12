@@ -34,19 +34,51 @@ type Viewer struct {
 	Member         bool  // in the channel now
 	AvailableMinId int32 // the first message it sees
 	Joined         int64 // when a member joined (unix time), 0 for anyone else
+	// Sublist is the one sublist of a monoforum the viewer sees, its own;
+	// 0 in any other channel and for an admin of the direct messages, who
+	// sees them all (task 084).
+	Sublist int64
+}
+
+func (v viewer) exported() Viewer {
+	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId, Joined: v.joined, Sublist: v.sublist}
 }
 
 // ViewerOf reads what userId may see of channelId (viewerOf).
 func (d *Dao) ViewerOf(ctx context.Context, userId, channelId int64) (Viewer, error) {
 	v, err := d.viewerOf(ctx, userId, channelId)
-	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId, Joined: v.joined}, err
+	return v.exported(), err
 }
 
 // ViewerOfCatchUp is ViewerOf for updates.getChannelDifference, which goes on
 // while the channel is blocked (viewerFor).
 func (d *Dao) ViewerOfCatchUp(ctx context.Context, userId, channelId int64) (Viewer, error) {
 	v, err := d.viewerFor(ctx, userId, channelId, true)
-	return Viewer{CanRead: v.canRead, Member: v.member, AvailableMinId: v.availableMinId, Joined: v.joined}, err
+	return v.exported(), err
+}
+
+// InSublist are the messages of ids that are in the sublist peerId of the
+// monoforum, deleted ones too: what a subscriber is told of an update that
+// names messages by their ids (task 084).
+func (d *Dao) InSublist(ctx context.Context, channelId, peerId int64, ids []int32) (map[int32]bool, error) {
+	out := map[int32]bool{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	args := []any{channelId, peerId}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	var mine []int32
+	if err := d.Mysql.QueryRowsPartial(ctx, &mine,
+		"SELECT id FROM channel_messages WHERE channel_id = ? AND saved_peer_id = ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		args...); err != nil {
+		return nil, err
+	}
+	for _, id := range mine {
+		out[id] = true
+	}
+	return out, nil
 }
 
 // PtsBefore is the pts the channel's box had before the second date (unix
@@ -143,6 +175,16 @@ func (d *Dao) ViewerDialog(ctx context.Context, selfId, channelId int64, v Viewe
 	top := rows[0].TopMessage
 	if top < v.AvailableMinId {
 		top = 0
+	}
+	if v.Sublist != 0 {
+		// A subscriber of a monoforum that has not written yet: its
+		// sublist, which is empty or holds what the channel wrote to it.
+		var own []int32
+		if err = d.Mysql.QueryRowsPartial(ctx, &own,
+			"SELECT COALESCE(MAX(id), 0) FROM channel_messages WHERE channel_id = ? AND saved_peer_id = ? AND deleted = 0", channelId, v.Sublist); err != nil {
+			return nil, err
+		}
+		top = first(own)
 	}
 	return mtproto.MakeTLDialog(&mtproto.Dialog{
 		Peer:           mtproto.MakePeerChannel(channelId),

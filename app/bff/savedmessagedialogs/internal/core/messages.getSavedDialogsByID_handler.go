@@ -32,11 +32,33 @@ import (
 // of a sub-chat (apiwrap.cpp:3005, FileOriginCloudDraft); the other calls of
 // the clients name a monoforum in parent_peer (Desktop
 // data/data_saved_messages.cpp, SavedMessages::requestSomeStale; Android
-// TopicsController.java:544; iOS SyncResolve.swift:100), which is not served.
+// TopicsController.java:544; iOS SyncResolve.swift:100): its sublists of
+// these subscribers, for an admin of the channel's direct messages.
 func (c *SavedMessageDialogsCore) MessagesGetSavedDialogsByID(in *mtproto.TLMessagesGetSavedDialogsByID) (*mtproto.Messages_SavedDialogs, error) {
-	if err := c.checkParentPeer(in.GetParentPeer()); err != nil {
+	monoforumId, err := c.parentMonoforum(in.GetParentPeer())
+	if err != nil {
 		c.Logger.Errorf("messages.getSavedDialogsByID - error: %v", err)
 		return nil, err
+	}
+	if monoforumId != 0 {
+		peers := make([]int64, 0, len(in.GetIds()))
+		for _, id := range in.GetIds() {
+			p, err := c.sublistPeer(id)
+			if err != nil {
+				c.Logger.Errorf("messages.getSavedDialogsByID - error: %v", err)
+				return nil, err
+			}
+			peers = append(peers, p)
+		}
+		if len(peers) == 0 {
+			return mtproto.MakeTLMessagesSavedDialogs(&mtproto.Messages_SavedDialogs{
+				Dialogs:  []*mtproto.SavedDialog{},
+				Messages: []*mtproto.Message{},
+				Chats:    []*mtproto.Chat{},
+				Users:    []*mtproto.User{},
+			}).To_Messages_SavedDialogs(), nil
+		}
+		return c.getSublists(monoforumId, peers, 0, 0)
 	}
 
 	idList := make([]*mtproto.PeerUtil, 0, len(in.GetIds()))

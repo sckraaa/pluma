@@ -40,6 +40,14 @@ const (
 	KindProfilePhoto int8 = 3 // account.reportProfilePhoto
 	KindSpam         int8 = 4 // messages.reportSpam
 	KindChannelSpam  int8 = 5 // channels.reportSpam
+	// KindAntispamFalsePositive: a group's admin says the antispam deleted
+	// a message that was no spam (channels.reportAntiSpamFalsePositive,
+	// task 082); the target is the message's sender.
+	KindAntispamFalsePositive int8 = 6
+	// KindStory: stories.report (task 084). The peer is the owner of the
+	// stories, a user or a channel, and the messages of the snapshot are
+	// the stories: their ids, captions and media.
+	KindStory int8 = 7
 )
 
 // Statuses of a report.
@@ -200,19 +208,38 @@ func (d *DAO) ReportsSince(ctx context.Context, reporter, since int64) (int, err
 // is open keeps its first snapshot and takes the newer comment, if any:
 // clients repeat a request whose answer was lost.
 func (d *DAO) AddReport(ctx context.Context, r *Report, ids []int32, snapshot *Snapshot) error {
+	query, args, err := addReport(r, ids, snapshot)
+	if err != nil {
+		return err
+	}
+	_, err = d.db.Exec(ctx, query, args...)
+	return err
+}
+
+// AddReportTx is AddReport in tx, for a report that goes with the other
+// writes of a transaction or not at all.
+func AddReportTx(tx *sqlx.Tx, r *Report, ids []int32, snapshot *Snapshot) error {
+	query, args, err := addReport(r, ids, snapshot)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(query, args...)
+	return err
+}
+
+func addReport(r *Report, ids []int32, snapshot *Snapshot) (string, []any, error) {
 	data, err := json.Marshal(snapshot)
 	if err != nil {
-		return fmt.Errorf("snapshot: %w", err)
+		return "", nil, fmt.Errorf("snapshot: %w", err)
 	}
 	if r.CreatedAt == 0 {
 		r.CreatedAt = time.Now().Unix()
 	}
-	_, err = d.db.Exec(ctx,
-		"INSERT INTO moderation_reports (reporter_user_id, kind, peer_type, peer_id, target_user_id, reason, comment, snapshot, dedup_key, created_at)"+
-			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"+
+	return "INSERT INTO moderation_reports (reporter_user_id, kind, peer_type, peer_id, target_user_id, reason, comment, snapshot, dedup_key, created_at)" +
+			" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" +
 			" ON DUPLICATE KEY UPDATE comment = IF(VALUES(comment) = '', comment, VALUES(comment))",
-		r.ReporterUserId, r.Kind, r.PeerType, r.PeerId, r.TargetUserId, r.Reason, TruncateComment(r.Comment), string(data), dedupKey(r, ids), r.CreatedAt)
-	return err
+		[]any{r.ReporterUserId, r.Kind, r.PeerType, r.PeerId, r.TargetUserId, r.Reason, TruncateComment(r.Comment), string(data), dedupKey(r, ids), r.CreatedAt},
+		nil
 }
 
 // Restriction returns the active restriction of the user, nil if none.

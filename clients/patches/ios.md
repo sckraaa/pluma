@@ -613,7 +613,33 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Что проверить на устройстве.** Удалить приложение, установить, сразу зарегистрировать новый номер: после имени открывается список чатов.
 - **Не сделано (сознательно).** Вторая возможная причина того же следа — `SqliteValueBox.isEncrypted` считает любую ошибку чтения неверным ключом и удаляет базу (`SqliteValueBox.swift:341-353, 569-610`). Признаков её нет (оба случая — первый запуск после установки), правка не делалась.
 
+### I-120. Сервисный аккаунт вместо «support» (задача 080)
+- **Статус.** Ветка pluma-ios `task/080-service-account` от `origin/main` (12.9.2), не закоммичено (2026-11-11). На `task/074-upstream` (13.2) правка не внесена: якоря всех замен и пять мест ключа сверены с исходниками 13.2 (`24638bc6`), каждый по одному разу; перенос — тем же diff отдельной веткой.
+- **Что и зачем.** Аккаунт поддержки (`@support`) сервер отдаёт с `user.support` и без статуса (ADR 0048). Там, где у человека пишется «был(а) в сети», у него написано «service account» / «сервисный аккаунт» — не «support» Telegram и не «Service notifications» (решение владельца, 2026-11-11; `docs/tasks/080-service-account-strings.md`).
+- **Где** (`patch_service_account` в `ci/patch.py`).
+  - `Telegram/Telegram-iOS/en.lproj/Localizable.strings`: `"Bot.GenericSupportStatus" = "support";` → `"service account"`. Ключ прежний, меняется только текст; строчными, как `bot` и `online`.
+  - `submodules/ContactsPeerItem/Sources/ContactsPeerItem.swift`, ветка `case let .presence(presence, dateTimeFormat):`: между веткой бота и `} else {` + `userPresence = presence` добавлена ветка `user.flags.contains(.isSupport)` с тем же ключом и цветом `itemSecondaryTextColor`. Строка контакта (список контактов, выбор людей) у апстрима поддержку не отличает и без статуса писала бы «был(а) очень давно» (`ContactListNode.swift:183`: `presence ?? .longTimeAgo`).
+  - `submodules/ItemListPeerItem/Sources/ItemListPeerItem.swift`, ветка `case .presence:`: между веткой бота (`string: botStatus`) и `} else if let presence = item.presence {` добавлена такая же ветка `case let .user(user) = item.peer, user.flags.contains(.isSupport)`. Это строка списков настроек: чёрный список, исключения правил приватности, списки участников. Без статуса она писала бы `LastSeen.Offline` («offline», последняя ветка того же `if`).
+- **Где апстрим пишет ключ** (12.9.2 и 13.2, одни и те же пять файлов, не правятся, таблица `SERVICE_ACCOUNT_SITES`): шапка чата `ChatTitleView.swift:628` и `ChatTitleComponent.swift:731`, профиль `PeerInfoData.swift:1269`, шапка редактирования профиля `ItemListAvatarAndNameItem.swift:495`, поиск в списке чатов `ChatListSearchListPaneNode.swift:220`. Везде условие — только `flags.contains(.isSupport)` (в двух последних ещё `!servicePeer`): общего смысла с другими аккаунтами у ключа на iOS нет, 777000 идёт своей веткой.
+- **Языки.** iOS встраивает только английский (`en.lproj`); остальные языки приходят языковым пакетом сервера и главнее встроенного. Поэтому сервер отдаёт те же слова в ключе `Bot.GenericSupportStatus` пакета `ios` на 37 языках: `pkg/langpack/override.json` (ADR 0046, «Дополнение»). Без повторного `pluma-admin langpack import` на сервере не-английский интерфейс покажет перевод Telegram («поддержка»).
+- **Апстрим без правки.** В пяти местах — `support` (и переводы Telegram из пакета); в строке контакта — «был(а) очень давно», в строке списков настроек — «offline».
+- **Как проверяется.** `verify_service_account`: в строках ровно одна запись ключа с новым текстом; ветки в `ContactsPeerItem` и `ItemListPeerItem` по одной (`SERVICE_ACCOUNT_ROWS`); `Bot_GenericSupportStatus` встречается только в пяти файлах таблицы и в этих двух, по одному разу (на полной копии обходятся все исходники). `ServiceAccountTest` (5 тестов), `UpstreamTest.test_service_account`, десять строк `DAMAGE` в `test_damage`. Прогон 2026-11-11 на закреплённом 12.9.2 (`fetch-upstream.sh sparse`): 92 теста, все зелёные; якоря обеих веток есть и в 13.2 (`24638bc6`), по одному.
+- **Если апстрим изменит.** Другой английский текст ключа или ключ убран — падение замены; место с ключом пропало или добавилось — `expect` в патче и `N uses of Bot_GenericSupportStatus` в проверке (посмотреть, кому новое место показывает строку); в `ContactsPeerItem` или `ItemListPeerItem` появилась своя ветка `.isSupport` — падение `expect`, эту правку убрать.
+- **Не покрыто.** Два `PeerListItemComponent` рисуют статус без проверки поддержки, как у апстрима. Строка историй (`Stories/PeerListItemComponent.swift:702-710`) без статуса пишет подзаголовок вызывающего или ничего — чужого статуса там нет. Строка экрана «не удалось добавить в группу» (`SendInviteLinkScreen/PeerListItemComponent.swift:256-261`) без статуса пишет «offline»: поддержка туда попадает, только если её добавляют в группу вручную, а в группы она входит по упоминанию (ADR 0048); правки нет.
+- **Не проверено.** Сборки нет: Swift-ветки в `ContactsPeerItem` и `ItemListPeerItem` не компилировались (каждая повторяет форму соседней ветки бота в том же `if`), на устройстве и в симуляторе не смотрелось.
+- **История.** 2026-11-11, задача 080.
+
 ## Медиа
+
+### I-121. Расшифровка голосовых и кружков; на просмотре «на один раз» кнопки нет (задача 080)
+- **Статус.** Ветка `task/080-service-account-132` pluma-ios, поверх `3b68e95` (PR 18), не закоммичено (2026-11-12).
+- **Что и зачем.** Решение владельца 2026-11-12: расшифровка без лимитов для всех; голосовые и кружки «на один раз» никогда не расшифровываются — сервер отказывает, клиенты кнопку не показывают. Две правки I-109, скрывавшие кнопку, сняты. Апстрим 13.2 сам не показывает кнопку на сообщениях «на один раз», правки нет — только сторож его условий.
+- **Где** (`TRANSCRIBE_VIEW_ONCE_GATES`, `TRANSCRIBE_BUTTON_SETTERS`, `verify_transcribe_view_once()` в `ci/patch.py`; апстрим 13.2, `24638bc6`), вид правки `expect`:
+  - `ChatMessageInteractiveFileNode.swift:772` — `let isViewOnceMessage = isVoice && arguments.message.minAutoremoveOrClearTimeout == viewOnceTimeout` (1 раз); `:787-790` — сплошной блок `var displayTranscribe = false` / ветка `allNonRegular` / `else if … && !isViewOnceMessage && …` (1 раз); `displayTranscribe = true` — ровно 4 раза, все внутри этого условия (`:793`, `:797`, `:802`, `:804`);
+  - `ChatMessageInteractiveInstantVideoNode.swift:317` — `let isViewOnceMessage = item.message.minAutoremoveOrClearTimeout == viewOnceTimeout` (1 раз); `:872-873` — `var displayTranscribe = false` / `if … && !isViewOnceMessage && …` (1 раз); `displayTranscribe = true` — ровно 3 раза, все внутри условия (`:876`, `:879`, `:883`).
+- **Апстрим без правки.** Кнопка у Premium (флаг ставит сервер всем) на голосовых и кружках, кроме секретных чатов, предпросмотра, неотправленных сообщений и «на один раз». Кнопка строится только при `displayTranscribe` (FileNode `:1007`, `:1304`, `:1366`; InstantVideoNode `:890`, `:960`, `:978`, `:986`). Вызов `transcribeAudio` — только в этих двух узлах (FileNode `:492`, InstantVideoNode `:1945`), других входов нет. `viewOnceTimeout = 0x7fffffff`: `SyncCore_AutoremoveTimeoutMessageAttribute.swift:4`.
+- **Как проверяется.** `verify_transcribe_view_once`; `TranscribeViewOnceTest` (условие или место включения кнопки удалено, повторено, изменено); `PremiumForEveryoneTest.test_transcription_offered` (I-109 не трогает кнопку); порча на настоящем апстриме в `DAMAGE` (`UpstreamTest`): снято `!isViewOnceMessage`, `viewOnceTimeout` → 0, `displayTranscribe` включается до условия или после него. Пути — в `UPSTREAM_PATHS`.
+- **Не проверено.** Сборка Bazel и устройство: кнопка, запрос, текст расшифровки, отсутствие кнопки на «один раз»; что сервер отдаёт медиа «на один раз» с `ttl_seconds = 0x7fffffff`.
 
 ### I-061. Без шрифта Apple SF Camera
 - **Что и зачем.** ITMS-91198: шрифты Apple в бандле нельзя (с 1 октября 2027 такие загрузки отклоняются). SF Camera — шрифт элементов камеры. Без него камера берёт системный шрифт того же веса, как `Font.with` уже делает, когда шрифт не загрузился.
@@ -886,6 +912,7 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### I-100. Экран обновления открывает `url`
 
 - **Где.** `submodules/TelegramUpdateUI/Sources/UpdateInfoController.swift:117-119`: кнопка «Обновить» открывает `appUpdateInfo.url` через `applicationBindings.openUrl`, без `url` — `openAppStorePage`, с 2026-11-09 (`8b45518`) это сайт (I-111).
+- **С 2026-11-11 (задача 085, сервер).** `url` может быть ссылкой `itms-services://?action=download-manifest&url=…`: установка новой сборки запускается прямо из приложения. Патч не менялся: `openUrl` передаёт ссылку с непустой схемой в `UIApplication.shared.open` (`AppDelegate.swift:845-859`, `release-13.2`, `24638bc69b`). Ссылка для сессии и сборки постоянна в пределах суток UTC, потому что `AppUpdateInfo` сравнивается вместе с `url` (I-099; `ApplicationContext.swift:589-599`). Дополнение к ADR 0035 от 2026-11-11, `docs/ops/ios-install.md`.
 
 ### I-101. Признак `adhoc` в `app_version`
 
@@ -981,13 +1008,13 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Не решено или не сделано.** Миниатюра ночной темы в «Оформлении» с синим пузырём; ободок спидометра «Fast»; значки «Устройств» (`#0079FF`); минимальная iOS 15 (I-084).
 - **Не определено по репозиторию.** Номер задачи сборки `reference` (`05c9e06`) в коммите не указан.
 
-### I-109. Premium для всех: строки покупки, премиум-эмодзи, расшифровка (задача 071)
+### I-109. Premium для всех: строки покупки, премиум-эмодзи (расшифровка возвращена, I-121) (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`091c206`), не влита, не выпущена (2026-11-09).
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041). На iOS звезда уже скрыта `isPremiumDisabled`.
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `PeerInfoSettingsItems`: строки Premium и Business только при возможности покупки;
   - `EmojiPagerContentSignals`: `isPremiumDisabled = false` (три места), премиум-эмодзи и наборы в клавиатуре;
-  - `ChatMessageInteractiveFileNode`, `ChatMessageInteractiveInstantVideoNode`: кнопка расшифровки выключена.
+  - `ChatMessageInteractiveFileNode`, `ChatMessageInteractiveInstantVideoNode`: правки сняты 2026-11-12 (задача 080, решение владельца): сервер расшифровывает `messages.transcribeAudio` для всех (у всех Premium, ADR 0041), кнопка расшифровки голосовых и кружков показывается как у Premium-пользователя Telegram. Сторож просмотра «на один раз» — I-121.
 - **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`.
 
 ### I-110. Бустов нет: свои реакции и цвета без уровня, пункт и ссылки убраны (задача 071)

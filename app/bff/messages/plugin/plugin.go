@@ -29,3 +29,16 @@ type MessagesPlugin interface {
 	GetMessageMedia(ctx context.Context, userId, ownerId int64, media *mtproto.InputMedia) (*mtproto.MessageMedia, error)
 	// RebuildMessageEntities(ctx context.Context, fromId int64, peer *mtproto.PeerUtil, noWebpage bool, message *mtproto.Message, hasBot bool) (*mtproto.Message, error)
 }
+
+// StoryPlugin is what the messages need of the stories (task 084): whether
+// the sender may put a story into a message.
+type StoryPlugin interface {
+	// CheckStory answers whether the user userId may open the story id of
+	// peer, and with share (the story is sent as the media of a message,
+	// inputMediaStory) whether the story may be shared. The error is the
+	// one the client is answered.
+	CheckStory(ctx context.Context, userId int64, peer *mtproto.PeerUtil, id int32, share bool) error
+	// StoryShared counts the sent message of userId with randomId that
+	// shares the story id of peer, once per message.
+	StoryShared(ctx context.Context, userId int64, peer *mtproto.PeerUtil, id int32, randomId int64) error
+}

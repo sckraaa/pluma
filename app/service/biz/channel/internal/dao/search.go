@@ -33,11 +33,12 @@ func (d *Dao) readableSource(ctx context.Context, selfId, channelId int64, q Sea
 		return msgsearch.Source{}, viewer{}, mtproto.ErrChannelPrivate
 	}
 	pq := q.pageQuery(selfId, channelId)
+	own, ownArgs := v.own("saved_peer_id")
 	return msgsearch.Source{
 		Table: "channel_messages",
 		Id:    "id",
-		Where: "channel_id = ? AND deleted = 0 AND id >= ?" + pq.where,
-		Args:  append([]any{channelId, v.availableMinId}, pq.args...),
+		Where: "channel_id = ? AND deleted = 0 AND id >= ?" + pq.where + own,
+		Args:  append(append([]any{channelId, v.availableMinId}, pq.args...), ownArgs...),
 	}, v, nil
 }
 

@@ -23,6 +23,8 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/channels/internal/svc"
+
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // served are the methods of the service that are served (task 038 on).
@@ -60,6 +62,8 @@ var served = map[string]bool{
 	"ChannelsToggleParticipantsHidden": true,
 	"ChannelsGetAdminLog":              true,
 	"ChannelsSetStickers":              true,
+	// Task 082: geo groups do not exist, with Telegram's answer.
+	"ChannelsEditLocation": true,
 
 	// Task 078: the owner who leaves, the channels to leave at the limit.
 	"ChannelsGetFutureCreatorAfterLeave": true,
@@ -87,5 +91,42 @@ func TestNotServed(t *testing.T) {
 	}
 	if iface.NumMethod() == 0 {
 		t.Fatal("no methods")
+	}
+}
+
+// The methods of the payments for messages answer ERR_ENTERPRISE_IS_BLOCKED:
+// of RPCPaidMessage only the switch of a channel's direct messages is
+// served (task 084).
+func TestPaidMessagesNotServed(t *testing.T) {
+	s := New(&svc.ServiceContext{})
+	ctx := context.Background()
+	if _, err := s.AccountGetPaidMessagesRevenue(ctx, &mtproto.TLAccountGetPaidMessagesRevenue{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Errorf("account.getPaidMessagesRevenue: %v", err)
+	}
+	if _, err := s.AccountToggleNoPaidMessagesException(ctx, &mtproto.TLAccountToggleNoPaidMessagesException{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Errorf("account.toggleNoPaidMessagesException: %v", err)
+	}
+	if _, err := s.AccountAddNoPaidMessagesException(ctx, &mtproto.TLAccountAddNoPaidMessagesException{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Errorf("account.addNoPaidMessagesException: %v", err)
+	}
+}
+
+// Geo groups do not exist (ADR 0050): one is not created and none is listed,
+// with Telegram's answers at a limit of geo groups of 0.
+func TestGeoGroups(t *testing.T) {
+	s := New(&svc.ServiceContext{})
+	ctx := context.Background()
+	point := mtproto.MakeTLInputGeoPoint(&mtproto.InputGeoPoint{Lat: 52.5, Long: 13.4}).To_InputGeoPoint()
+	_, err := s.ChannelsCreateChannel(ctx, &mtproto.TLChannelsCreateChannel{Megagroup: true, Title: "near", GeoPoint: point, Address: wrapperspb.String("street")})
+	if !errors.Is(err, mtproto.ErrChannelsAdminLocatedTooMuch) {
+		t.Errorf("a geo group: %v, want CHANNELS_ADMIN_LOCATED_TOO_MUCH", err)
+	}
+	r, err := s.ChannelsGetAdminedPublicChannels(ctx, &mtproto.TLChannelsGetAdminedPublicChannels{ByLocation: true})
+	if err != nil || len(r.GetChats()) != 0 {
+		t.Errorf("the geo groups: %v, %v", r, err)
+	}
+	_, err = s.ChannelsGetAdminedPublicChannels(ctx, &mtproto.TLChannelsGetAdminedPublicChannels{ByLocation: true, CheckLimit: true})
+	if !errors.Is(err, mtproto.ErrChannelsAdminLocatedTooMuch) {
+		t.Errorf("the limit of geo groups: %v, want CHANNELS_ADMIN_LOCATED_TOO_MUCH", err)
 	}
 }

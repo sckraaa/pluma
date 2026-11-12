@@ -316,6 +316,30 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Решение на подтверждение.** Знак в Day, Night и базах остаётся акцентом этих тем Telegram (синий, бирюзовый), как и весь их акцент; в цвета Pluma он переходит вместе с темой, если её перекрасят.
 - **Коммит.** Ветка `task/080-verified-badge` репозитория `pluma-desktop`, не закоммичено.
 
+### D-094. Статус служебного аккаунта: «service account» вместо «support» (задача 080)
+- **Статус.** Ветка `task/080-service-account` репозитория `pluma-desktop` (от `origin/main` `82c9a55`), не закоммичено, не влито, не выпущено (2026-11-11).
+- **Что и зачем.** Решение владельца 2026-11-11: аккаунт сервера (`@support`, `user.support = true`, без статуса «в сети») там, где у человека «был(а) в сети», показывает «service account» — не «support» Telegram и не «service notifications». Текст — ключ локализации во всех языках, не литерал.
+- **Где** (`service_account()` в `ci/patch.py`; апстрим v7.4.1, `157f5cfc`):
+  - `Telegram/Resources/langs/lang.strings`: `"lng_status_support" = "support";` → `"lng_status_support" = "service account";` (`SERVICE_ACCOUNT_OLD` → `SERVICE_ACCOUNT_NEW`). Это встроенный английский; исходники не правятся.
+  - Остальные языки (и английский пакет тоже: tdesktop запрашивает облачный пакет `en` и на языке по умолчанию — `Instance::cloudLangCode`, `lang_instance.cpp:324`; `CloudManager::requestLangPackDifference`, `lang_cloud_manager.cpp:215`) приходят с сервера: `pkg/langpack/override.json` серверного репозитория, пакет `tdesktop`, ключ `lng_status_support`, 37 языков. Без этой записи на сервере языковой пакет вернёт слово Telegram («поддержка»).
+- **Кто получает текст.** Ключ читает только `Data::OnlineTextSpecial` (`data/data_peer_values.cpp:54`), дважды: для `user->isSupport()` (строка 57) и для `user->isServiceUser()` (строка 67; `PeerData::isServiceUser`, `data_peer.h:295` — пользователь с id, кратным 1000). Оба случая теперь «service account» — согласованно, отдельного ключа нет. Аккаунт служебных уведомлений (`isNotificationsUser`, `lng_status_service_notifications`) не тронут.
+- **Где рисуется.** Всё, что берёт статус через `Data::OnlineText` / `Data::OnlineTextFull`: шапка чата (`history_view_top_bar_widget.cpp:1937`), профиль (`info_profile_status_label.cpp:141`), списки людей (`peer_list_box.cpp:727`), предпросмотр чата (`history_view_chat_preview.cpp:238`), короткая карточка (`prepare_short_info_box.cpp:257`), «Настройки → Информация» (`settings_information.cpp:252`).
+- **Апстрим без правки.** «support» в этих местах; у остальных языков — перевод Telegram из облачного пакета.
+- **Проверка.** `verify_service_account()`: в `lang.strings` ключ один и его текст — «service account»; в исходниках ключ встречается только в двух ветках `OnlineTextSpecial` (`SERVICE_ACCOUNT_USES`), по разу. `ServiceAccountTest` (6 тестов), `UpstreamTest.test_service_account`; три порчи в `DAMAGE` (строка `lang.strings` и обе ветки).
+- **Если апстрим сдвинет.** Другой текст ключа, ключ для другого рода аккаунта или в новом месте → `PatchError` с именем файла: прочитать новое место и решить, годится ли там «service account».
+- **Замечено, не исправлено.** `edit_participant_box.cpp:198, 337` (окно прав участника) берёт `Data::OnlineText(_user->lastseen(), …)` мимо `OnlineTextSpecial`: служебный аккаунт там показал бы «был(а) давно», как и в Telegram. Пользователь Pluma с id, кратным 1000, получит статус «service account» (в апстриме — «support»): выдаёт ли сервер такие id, не проверялось.
+- **Не проверено.** Компиляция и окно клиента; сверка с сервером (импорт пакета с `override.json`).
+
+### D-095. Расшифровка голосовых и кружков — апстрима; не на сообщениях «на один раз» (задача 080)
+- **Статус.** Ветка `task/080-service-account`, не закоммичено, не выпущено (2026-11-12).
+- **Что и зачем.** Сервер расшифровывает голосовые и кружки всем без ограничений (решение владельца 2026-11-12, ADR 0041), поэтому кнопка расшифровки снова как в апстриме (скрытие из D-084 снято). С Premium клиент не ограничивает длину (`history_view_transcribe_button.cpp:381-386`). На сообщениях «на один раз» и самоуничтожающихся кнопки нет: апстрим не создаёт её для медиа с ttl, а у сообщения «на один раз» ttl = `kTimeToLiveSingleView` (`data_media_types.h:211`, из `vttl_seconds`, `history_item.cpp:461`); сервер такие сообщения тоже не расшифровывает.
+- **Где** (`TRANSCRIBE_TTL_CHECKS`, `TRANSCRIBE_BUTTONS` в `ci/patch.py`; только проверка, исходники не правятся):
+  - `history_view_document.cpp:501-511` (`Document::countOptimalSize`): условие целиком, с `(media && media->ttlSeconds())` → `voice->transcribe = nullptr`;
+  - `history_view_gif.cpp:2730-2733` (`Gif::ensureTranscribeButton`): кнопка только при `(!media || !media->ttlSeconds())`;
+  - все места создания `TranscribeButton`: `history_view_document.cpp:516`, `history_view_gif.cpp:2740` и `history_view_message.cpp:7314` (кнопка summary текста, не аудио). Других нет.
+- **Что сломается при обновлении апстрима.** Если апстрим изменит любое из двух условий или место создания кнопки, `transcription()` остановит патч (`expect`), `verify_transcription()` — проверку. Если апстрим создаст кнопку в любом другом исходнике (новая поверхность без условия ttl), `verify_transcription()` остановит проверку с именем файла. Место нужно перечитать и, если кнопка показывается на «на один раз», закрыть правкой.
+- **Как проверяется.** `transcription`, `verify_transcription`, `TranscriptionTest` (в т. ч. `test_another_button`), `UpstreamTest.test_transcribe_button`, порча якорей и мест создания в `DAMAGE`. Сборка и окно клиента не проверены.
+
 ### D-028. Буквенные аватары HTML-экспорта
 - **Что.** В `Telegram/Resources/export_html/css/style.css` правила `.color_blue,\n.userpic4,\n.media_audio_file .fill,\n.media_voice_message .fill { background-color: #4f9cd9; }` и `.color_sea,\n.userpic7,\n.media_location .fill,\n.media_video .fill { background-color: #47bcd1; }` теряют `.userpic4`/`.userpic7`, а после них добавлены `.userpic4 { background-color: #6d8d70; /* pluma */ }` и `.userpic7 { background-color: #44b4ae; /* pluma */ }` — середина градиента Pluma (`export_userpic`). Иконки медиа, делившие правило, остаются цвета Telegram.
 - **Проверка.** `verify_brand()`: `.userpicN` в единственном правиле с этим цветом; `DAMAGE`: `.media_audio .fill`.
@@ -872,23 +896,22 @@ ci/lint.sh                                        # shellcheck и actionlint
 - Вставка `plm://`-ссылки прокси в настройках прокси: регэксп `ExtractLinkCandidates` (`boxes/connection_box.cpp:90`) ищет `tg:\/\/`, которого D-014 не меняет (там нет `tg://` подряд), поэтому `plm://proxy?…` из буфера кандидатом не находится. Не исправлено: к задаче 026 не относится.
 - Пути сайта `pluma.chat`, похожие на юзернейм (`/privacy`, `/download` и т. п.), клиент теперь открывает как юзернейм внутри (как любой путь `t.me`); список зарезервированных путей — в `docs/tasks/026-research/site.md`, п. 3.
 
-### D-084. Premium для всех: звезда, раздел Premium, статус, расшифровка (задача 071)
+### D-084. Premium для всех: звезда, раздел Premium, статус (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`eb3a112`), не влита, не выпущена (2026-11-09).
 - **Что и зачем.** Сервер ставит флаг `premium` всем (ADR 0041).
 - **Где** (`PREMIUM_FOR_EVERYONE_EDITS` в `ci/patch.py`):
   - `Session::premiumBadgesShown` — только режим поддержки: звезды нет (`Badge::setContent`, `unread_badge.cpp`);
   - `BuildPremiumSection` — по `premiumCanBuy`;
-  - `MainMenu::setupSetEmojiStatus` скрывает ссылку статуса: сервер не обслуживает `account.updateEmojiStatus`;
-  - `history_view_document.cpp`: кнопка расшифровки выключена.
+  - `MainMenu::setupSetEmojiStatus` скрывает ссылку статуса: сервер не обслуживает `account.updateEmojiStatus`.
 - **7.4.1 (задача 074), места, которых патч 071 не закрывал.** Там же:
   - `history_view_message.cpp` (`validateFromNameText`): звезда после имени отправителя в группе; место под значок остаётся только для эмодзи-статуса;
   - `settings_privacy_security.cpp` (`AddPrivacyPremiumStar`): звезда на строках приватности;
-  - `history_view_gif.cpp` (`ensureTranscribeButton`): кнопка расшифровки на кружке, сервер не обслуживает `messages.transcribeAudio`;
   - `menu/menu_emoji_status.cpp` (`AddSetAsStatusAction`, новый файл): пункт «поставить статусом» в меню эмодзи;
   - `history_view_compose_controls.cpp` (`refreshSendGiftToggle`, новая копия D-049): кнопка подарка у поля ввода раздела чата — по `premiumCanBuy`;
   - `info_profile_qr_gifts.cpp` (`BrowseShownValue`, новый экран QR): переход в магазин подарков со своего профиля — по `premiumCanBuy`.
+- **Задача 080 (2026-11-12).** Скрытие кнопки расшифровки (`history_view_document.cpp`, `history_view_gif.cpp`) снято: сервер обслуживает `messages.transcribeAudio` всем, у всех Premium (ADR 0041). Кнопка — апстрима, без правок (см. D-095).
 - **Не закрыто.** `dialogs_inner_widget_accessibility.cpp` (3 места): экранный диктор называет любого пользователя словом Premium (`lng_premium`), так как флаг есть у всех; на экране этого нет.
-- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_no_star_store_or_transcription_on_new_surfaces`.
+- **Как проверяется.** `verify_premium_for_everyone`, `PremiumForEveryoneTest`, `test_no_star_or_store_on_new_surfaces`.
 
 ### D-085. Бустов нет: свои реакции и цвета без уровня, пункты и ссылка убраны (задача 071)
 - **Статус.** Ветка `task/071-premium-for-everyone` (`a1b03bc`, `e0c615d`, `ea02704`), не влита, не выпущена (2026-11-09).

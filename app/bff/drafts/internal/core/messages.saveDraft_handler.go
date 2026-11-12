@@ -27,6 +27,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 )
 
 // draftReplyTo is the reply of a request of any layer as the schema of the
@@ -104,6 +105,12 @@ func (c *DraftsCore) MessagesSaveDraft(in *mtproto.TLMessagesSaveDraft) (*mtprot
 	case mtproto.PEER_USER, mtproto.PEER_CHAT, mtproto.PEER_CHANNEL:
 	default:
 		return nil, mtproto.ErrPeerIdInvalid
+	}
+	if sublist, err := c.draftSublist(peer, reply); err != nil {
+		c.Logger.Errorf("messages.saveDraft - error: %v", err)
+		return nil, err
+	} else if sublist != 0 {
+		return c.saveSublistDraft(in, peer, reply, sublist, date)
 	}
 
 	if isEmptyDraft(in, reply) {
@@ -203,4 +210,81 @@ func (c *DraftsCore) channelChats(id ...int64) ([]*mtproto.Chat, error) {
 		return nil, err
 	}
 	return list.GetChannelListByIdList(c.MD.UserId), nil
+}
+
+// draftSublist is the sublist of a monoforum a draft is of: the channel
+// peer is a monoforum, reply names a subscriber with monoforum_peer_id and
+// the account is an admin of the channel's direct messages (task 084;
+// core.telegram.org/api/monoforum: only the admins have drafts by sublist,
+// a subscriber's draft is that of its chat with the monoforum). 0 for any
+// other draft.
+func (c *DraftsCore) draftSublist(peer *mtproto.PeerUtil, reply *mtproto.InputReplyTo) (int64, error) {
+	if c.svcCtx.Sublists == nil || peer.PeerType != mtproto.PEER_CHANNEL || reply.GetMonoforumPeerId() == nil {
+		return 0, nil
+	}
+	sublist := mtproto.FromInputPeer2(c.MD.UserId, reply.GetMonoforumPeerId())
+	if sublist.PeerType != mtproto.PEER_USER || sublist.PeerId == 0 {
+		return 0, nil
+	}
+	q := monoforum.OnDB(c.ctx, c.svcCtx.Sublists)
+	side, err := monoforum.SideOf(q, peer.PeerId)
+	if err != nil || !side.Monoforum {
+		return 0, err
+	}
+	m, err := monoforum.MemberOf(q, side.LinkedId, c.MD.UserId, time.Now().Unix())
+	if err != nil || !m.Admin {
+		return 0, err
+	}
+	return sublist.PeerId, nil
+}
+
+// saveSublistDraft keeps the account's draft in the sublist of a monoforum,
+// or clears it with an empty one, and tells its other devices:
+// updateDraftMessage with saved_peer_id, the sublist
+// (core.telegram.org/api/monoforum).
+func (c *DraftsCore) saveSublistDraft(in *mtproto.TLMessagesSaveDraft, peer *mtproto.PeerUtil, reply *mtproto.InputReplyTo, sublist int64, date int32) (*mtproto.Bool, error) {
+	var (
+		draft  *mtproto.DraftMessage
+		stored *mtproto.DraftMessage
+	)
+	// The sublist is the place of the draft; a reply is its content.
+	if in.GetMessage() == "" && len(in.GetEntities()) == 0 && in.GetMedia() == nil && reply.GetReplyToMsgId() == 0 {
+		draft = mtproto.MakeTLDraftMessageEmpty(&mtproto.DraftMessage{
+			Date_FLAGINT32: mtproto.MakeFlagsInt32(date),
+		}).To_DraftMessage()
+	} else {
+		draft = mtproto.MakeTLDraftMessage(&mtproto.DraftMessage{
+			NoWebpage:     in.GetNoWebpage(),
+			InvertMedia:   in.GetInvertMedia(),
+			ReplyTo:       reply,
+			Message:       in.GetMessage(),
+			Entities:      draftEntities(c.MD.UserId, in.GetEntities()),
+			Media:         in.GetMedia(),
+			Date_INT32:    date,
+			Effect:        in.GetEffect(),
+			SuggestedPost: in.GetSuggestedPost(),
+		}).To_DraftMessage()
+		stored = draft
+	}
+	if _, err := monoforum.SaveDraft(c.ctx, c.svcCtx.Sublists, c.MD.UserId, peer.PeerId, sublist, stored, int64(date)); err != nil {
+		c.Logger.Errorf("messages.saveDraft - sublist %d of %d: %v", sublist, peer.PeerId, err)
+		return nil, err
+	}
+	syncUpdates := mtproto.MakeUpdatesByUpdates(mtproto.MakeTLUpdateDraftMessage(&mtproto.Update{
+		Peer_PEER:   peer.ToPeer(),
+		SavedPeerId: mtproto.MakePeerUser(sublist),
+		Draft:       draft,
+	}).To_Update())
+	if err := c.addDraftPeer(syncUpdates, peer.PeerType, peer.PeerId); err != nil {
+		c.Logger.Errorf("messages.saveDraft - error: %v", err)
+		return nil, err
+	}
+	if _, err := c.svcCtx.Dao.SyncClient.SyncUpdatesNotMe(c.ctx, &sync.TLSyncUpdatesNotMe{
+		UserId:        c.MD.UserId,
+		PermAuthKeyId: c.MD.PermAuthKeyId,
+		Updates:       syncUpdates,
+	}); err != nil {
+		c.Logger.Errorf("messages.saveDraft - error: %v", err)
+	}
+	return mtproto.BoolTrue, nil
 }

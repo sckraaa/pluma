@@ -672,7 +672,7 @@
   "used_by": "A StoriesController.java:4535; I Stories.swift:2040",
   "decision": "implement",
   "priority": "core",
-  "why": "Called before the story editor; limits are Premium level (ADR 0041)."
+  "why": "Сделано задачей 084 (ADR 0054), все три формы; лимиты премиальные (ADR 0041)."
  },
  {
   "name": "stories.deleteStories",
@@ -681,7 +681,7 @@
   "used_by": "A StoriesController.java:1198; I Stories.swift:2083; D data_stories.cpp:2129; W appStoriesManager.ts:840",
   "decision": "implement",
   "priority": "core",
-  "why": "Basic management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getAllReadPeerStories",
@@ -690,7 +690,7 @@
   "used_by": "A StoriesController.java:200; I Stories.swift:3111; D data_stories.cpp:2343; W appStoriesManager.ts:1080",
   "decision": "implement",
   "priority": "core",
-  "why": "Drives the unread ring."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getPeerMaxIDs",
@@ -699,7 +699,7 @@
   "used_by": "A UserListPoller.java:52; I AccountViewTracker.swift:1476; W appStoriesManager.ts:1141",
   "decision": "implement",
   "priority": "core",
-  "why": "Polled while lists are on screen."
+  "why": "Сделано задачей 084 (ADR 0054), обе формы."
  },
  {
   "name": "stories.getPeerStories",
@@ -708,7 +708,7 @@
   "used_by": "A LaunchActivity.java:9327; I StoryListContext.swift:2966; D data_stories.cpp:341; W appStoriesManager.ts:1101",
   "decision": "implement",
   "priority": "core",
-  "why": "Main read path."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoriesByID",
@@ -717,7 +717,7 @@
   "used_by": "A LaunchActivity.java:9200; I Stories.swift:2509; D apiwrap.cpp:2924; W appStoriesManager.ts:863",
   "decision": "implement",
   "priority": "core",
-  "why": "Main read path."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoriesViews",
@@ -726,7 +726,7 @@
   "used_by": "A ViewsForPeerStoriesRequester.java:94; I Stories.swift:2805; D data_stories.cpp:1676; W appStoriesManager.ts:2122",
   "decision": "implement",
   "priority": "core",
-  "why": "Shown on own stories."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoryViewsList",
@@ -735,7 +735,7 @@
   "used_by": "A SelfStoryViewsPage.java:1315; I EngineStoryViewListContext.swift:460; D data_stories.cpp:1596; W appStoriesManager.ts:2006",
   "decision": "implement",
   "priority": "core",
-  "why": "Viewers list; Premium feature, open to all."
+  "why": "Сделано задачей 084 (ADR 0054); зрители хранятся, пока есть история; репосты и пересылки в списке не показаны."
  },
  {
   "name": "stories.incrementStoryViews",
@@ -744,7 +744,7 @@
   "used_by": "A StoriesController.java:3773; I Stories.swift:2126; D data_stories.cpp:1466; W appStoriesManager.ts:1988",
   "decision": "implement",
   "priority": "core",
-  "why": "Viewer counts."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.readStories",
@@ -753,7 +753,7 @@
   "used_by": "A StoriesController.java:1345; I ManagedSynchronizeViewStoriesOperations.swift:125; D data_stories.cpp:1405; W appStoriesManager.ts:1978",
   "decision": "implement",
   "priority": "core",
-  "why": "Read state."
+  "why": "Сделано задачей 084 (ADR 0054); этим же методом считаются просмотры историй из ленты."
  },
  {
   "name": "stories.sendStory",
@@ -762,7 +762,7 @@
   "used_by": "A StoriesController.java:2373; I Stories.swift:1442",
   "decision": "implement",
   "priority": "core",
-  "why": "Stories are a core Telegram feature; now off by stories_posting=disabled."
+  "why": "Сделано задачей 084 (ADR 0054): фото и видео, области, подпись, приватность, срок, профиль, запрет пересылки, репост, музыка; альбомы — отдельно."
  },
  {
   "name": "messages.deleteParticipantReaction",
@@ -825,7 +825,7 @@
   "used_by": "Android messenger/SavedMessagesController.java:221, messenger/TopicsController.java:96; iOS ForumChannels.swift:765; Desktop data/data_saved_messages.cpp:308; Web appMessagesManager.ts:6307, lib/storages/monoforumDialogs.ts:243",
   "decision": "implement",
   "priority": "core",
-  "why": "Partial: the channels callback is an empty TODO (handler line 106), so channels are absent from chats. parent_peer (layer 233 #1e91fc99) is not read at all; it needs channel direct messages."
+  "why": "parent_peer монофорума обслуживается с задачи 084 (ADR 0055): список чатов подписчиков как monoForumDialog. Partial: the channels callback is an empty TODO (handler line 106), so channels are absent from chats. parent_peer (layer 233 #1e91fc99) is not read at all; it needs channel direct messages."
  },
  {
   "name": "messages.saveRecentSticker",
@@ -843,7 +843,7 @@
   "used_by": "Android ui/Components/TranscribeButton.java:690; Desktop api/api_transcribes.cpp:188; iOS TelegramEngine/Messages/Transcription.swift:26; Web lib/appManagers/appMessagesManager.ts:3168",
   "decision": "implement",
   "priority": "core",
-  "why": "Owner decision 2026-10-30 (task 027, status todo): connect speech recognition; Premium for everyone (ADR 0041). Task 071 hid the entry by patch on some clients until this is done. Provider choice is the owner's, with numbers."
+  "why": "Сделан задачей 090 (ADR 0056): текст голосового и кружка от своего сервиса распознавания (GigaAM-v3 за протоколом OpenAI, модель и движок меняются конфигурацией). Premium у всех (ADR 0041): без пробных расшифровок и FLOOD_WAIT. Кнопку в клиентах возвращает снятие патчей A-109, I-109, D-084, W-068."
  },
  {
   "name": "messages.translateRichMessage",
@@ -969,7 +969,7 @@
   "used_by": "A: messenger/ringtone/RingtoneDataStore.java:60; I: Peers/NotificationSoundList.swift:172; D: apiwrap.cpp:3071, api/api_ringtones.cpp:130; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают три клиента, запрета нет."
+  "why": "Сделано задачей 084 (ADR 0052)."
  },
  {
   "name": "account.getUniqueGiftChatThemes",
@@ -1041,7 +1041,7 @@
   "used_by": "A: messenger/DownloadController.java:1068; I: State/ManagedAutodownloadSettingsUpdates.swift:42; D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Android и iOS отправляют настройки; сейчас 400 и настройка на сервере не сохраняется."
+  "why": "Сделано задачей 084 (ADR 0052): сохраняется по аккаунту; пресеты account.getAutoDownloadSettings от этого не меняются — клиенты заменяют ими свои базовые пресеты."
  },
  {
   "name": "account.saveRingtone",
@@ -1050,7 +1050,7 @@
   "used_by": "A: ui/NotificationsSoundActivity.java:330, messenger/MediaDataController.java:8814; I: Peers/NotificationSoundList.swift:274; D: api/api_toggling_media.cpp:136; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа мелодий."
+  "why": "Сделано задачей 084 (ADR 0052) для MP3-документов; документ другого формата из чата (голосовое) не конвертируется — RINGTONE_INVALID."
  },
  {
   "name": "account.toggleConnectedBotPaused",
@@ -1122,7 +1122,7 @@
   "used_by": "A: ui/PeerColorActivity.java:1971; I: AccountData/UpdateAccountPeerName.swift:85; D: boxes/peers/edit_peer_color_box.cpp:573; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Функция Premium, открыта всем (ADR 0041). По задаче 071 строка видна в клиентах, а сервер её не обслуживает."
+  "why": "Сделано задачей 084 (ADR 0052): цвет имени и профиля с узором, updateUser устройствам и тем, кто видит аккаунт. Коллекционные цвета — COLOR_INVALID (подарков нет)."
  },
  {
   "name": "account.updateConnectedBot",
@@ -1140,7 +1140,7 @@
   "used_by": "A: messenger/MessagesController.java:2579, ui/bots/SetupEmojiStatusSheet.java:141; I: AccountData/TelegramEngineAccountData.swift:19; D: data/data_emoji_statuses.cpp:535; W: lib/appManagers/appUsersManager.ts:1624",
   "decision": "implement",
   "priority": "normal",
-  "why": "Функция Premium, ADR 0041. Вход скрыт патчами задачи 071; вернуть вместе с реализацией."
+  "why": "Сделано задачей 084 (ADR 0052): статус с сроком, updateUserEmojiStatus устройствам и тем, кто видит аккаунт, список недавних. Коллекционные — COLLECTIBLE_INVALID."
  },
  {
   "name": "account.updateWebBrowserSettings",
@@ -1158,7 +1158,7 @@
   "used_by": "A: messenger/ringtone/RingtoneUploader.java:39; I: Peers/NotificationSoundList.swift:313; D: api/api_ringtones.cpp:109; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа мелодий."
+  "why": "Сделано задачей 084 (ADR 0052): MP3 и Ogg, Ogg конвертируется в MP3, загрузка сразу сохраняет мелодию."
  },
  {
   "name": "auth.finishPasskeyLogin",
@@ -1185,7 +1185,7 @@
   "used_by": "A: messenger/MessagesController.java:23611; I: Peers/ContactToken.swift:23; D: info/profile/info_profile_qr_link.cpp:197; W: lib/appManagers/appUsersManager.ts:441",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают все четыре клиента."
+  "why": "Сделано задачей 084 (ADR 0052): ссылка pluma.chat/contact/<токен> на 5 минут."
  },
  {
   "name": "contacts.importContactToken",
@@ -1194,7 +1194,7 @@
   "used_by": "A: ui/LaunchActivity.java:4006; I: Peers/ContactToken.swift:7; D: window/window_session_controller_contact.cpp:28; W: lib/appManagers/appUsersManager.ts:455",
   "decision": "implement",
   "priority": "normal",
-  "why": "Пара к exportContactToken."
+  "why": "Сделано задачей 084 (ADR 0052): отдаёт пользователя по живому токену, в контакты не добавляет."
  },
  {
   "name": "contacts.updateContactNote",
@@ -1203,7 +1203,7 @@
   "used_by": "A: ui/ProfileActivity.java:16247 (TL_updateContactNote); I: Contacts/UpdateContactName.swift:38; D: info/profile/info_profile_actions.cpp:792; W: lib/appManagers/appProfileManager.ts:1910",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают все четыре клиента."
+  "why": "Сделано задачей 084 (ADR 0052): заметка в userFull.note, также из contacts.addContact."
  },
  {
   "name": "help.getDeepLinkInfo",
@@ -1221,7 +1221,7 @@
   "used_by": "A: messenger/ContactsController.java:357; I, D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Без ответа Android подставляет https://telegram.org/dl (ContactsController.java:378). Нужна ссылка на загрузку Pluma."
+  "why": "Сделано задачей 084: отдаёт адрес сайта, Android подставляет его в свою строку приглашения."
  },
  {
   "name": "upload.getWebFile",
@@ -1239,7 +1239,7 @@
   "used_by": "A: ui/ContactAddActivity.java:483; I: Peers/SuggestBirthday.swift:18; D: core/local_url_handlers.cpp:1057; W: lib/appManagers/appProfileManager.ts:1895",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают все четыре клиента."
+  "why": "Сделано задачей 084 (ADR 0052): служебное сообщение messageActionSuggestBirthday."
  },
  {
   "name": "bots.allowSendMessage",
@@ -1320,7 +1320,7 @@
   "used_by": "android ui/MessageAuthorView.java:90; ios Peers/SearchPeers.swift:202; tdesktop history/view/history_view_context_menu.cpp:1590; tweb lib/appManagers/appChatsManager.ts:556",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента вызывают. В брифе 078."
+  "why": "Сделано задачей 084 (ADR 0055): кто из админов ответил от имени канала в монофоруме; только для админов личных сообщений."
  },
  {
   "name": "channels.reorderUsernames",
@@ -1527,7 +1527,7 @@
   "used_by": "td data/data_session.cpp:1190; an ui/ChatActivity.java:9904; ios ApiUtils/ApiGroupOrChannel.swift:185; web hooks/usePeerTranslation.ts:43",
   "decision": "implement",
   "priority": "normal",
-  "why": "toggleAutotranslation in brief 078."
+  "why": "Сделано задачей 082 (ADR 0050), отдаётся и в min-канале."
  },
  {
   "name": "channel.pinned_msg_id",
@@ -1545,7 +1545,7 @@
   "used_by": "td data/data_session.cpp:779, 1133, 741, 743; an ui/Stories/StoriesController.java:507, ui/ProfileActivity.java:5598, 10847; ios ApiUtils/ApiGroupOrChannel.swift:201, 202; web components/stories/viewer.tsx:2738",
   "decision": "implement",
   "priority": "normal",
-  "why": "With stories."
+  "why": "Сделано задачей 084 (ADR 0054): stories_max_id, stories_hidden, channelFull.stories и stories_pinned_available; stories_hidden_min и stories_unavailable сервер не ставит."
  },
  {
   "name": "channelAdminLogEventActionStartGroupCall, channelAdminLogEventActionDiscardGroupCall, channelAdminLogEventActionParticipantMute, channelAdminLogEventActionParticipantUnmute, channelAdminLogEventActionToggleGroupCallSetting, channelAdminLogEventActionParticipantVolume",
@@ -1563,7 +1563,7 @@
   "used_by": "td history/admin_log/history_admin_log_item.cpp:881; an ui/ChannelAdminLogActivity.java:1659; ios TelegramEngine/Peers/ChannelAdminEventLogs.swift:417",
   "decision": "implement",
   "priority": "normal",
-  "why": "With toggleAntiSpam."
+  "why": "Сделано задачей 082 вместе с toggleAntiSpam."
  },
  {
   "name": "channelAdminLogEventActionToggleAutotranslation",
@@ -1572,7 +1572,7 @@
   "used_by": "td history/admin_log/history_admin_log_item.cpp:888; an messenger/MessageObject.java:3128; ios TelegramEngine/Peers/ChannelAdminEventLogs.swift:485",
   "decision": "implement",
   "priority": "normal",
-  "why": "With toggleAutotranslation."
+  "why": "Сделано задачей 082 вместе с toggleAutotranslation."
  },
  {
   "name": "channelFull.antispam",
@@ -1581,7 +1581,7 @@
   "used_by": "td data/data_channel.cpp:1391; an ui/ChatUsersActivity.java:1066; ios TelegramEngine/Peers/UpdateCachedPeerData.swift:725; web components/sidebarRight/tabs/chatAdministratorsSource.ts:43",
   "decision": "implement",
   "priority": "normal",
-  "why": "toggleAntiSpam in brief 078."
+  "why": "Сделано задачей 082 (ADR 0050)."
  },
  {
   "name": "channelFull.blocked",
@@ -1752,7 +1752,7 @@
   "used_by": "td history/history_item_helpers.cpp:1143; an ui/Cells/ExpiredStoryView.java:38; ios State/UpdatesApiUtils.swift:99",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of stories."
+  "why": "Сделано задачей 084 (ADR 0054): история в сообщении (inputMediaStory), ответ на историю, сообщение об упоминании (via_mention)."
  },
  {
   "name": "messages.channelMessages.offset_id_offset, messages.channelMessages.inexact",
@@ -1779,7 +1779,7 @@
   "used_by": "an messenger/NotificationsSettingsFacade.java:115, messenger/MessagesController.java:12663, 19273; ios State/Sync/UpdateInterpreter+Peers.swift:141; web components/sidebarLeft/tabs/notifications.tsx:168",
   "decision": "implement",
   "priority": "normal",
-  "why": "With stories."
+  "why": "Истории и чёрный список историй (contacts.block с my_stories_from, updatePeerBlocked.blocked_my_stories_from) сделаны задачей 084; уведомления о новых историях и их настройки — нет, отдельная задача."
  },
  {
   "name": "phoneCall.conference_supported, messageActionConferenceCall",
@@ -1842,7 +1842,7 @@
   "used_by": "td data/data_stories.h:175, 176, api/api_updates.cpp:2953; an ui/Stories/StoriesStorage.java:470, ui/Stories/StoriesController.java:2458, messenger/MessagesController.java:19445, 20149; ios State/Sync/UpdateInterpreter+Stories.swift:11; web lib/appManagers/appStoriesManager.ts:149, 83, 153, 155",
   "decision": "implement",
   "priority": "normal",
-  "why": "Free feature, stories.* missing."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "updateUserEmojiStatus",
@@ -1851,7 +1851,7 @@
   "used_by": "td api/api_updates.cpp:2862; an messenger/MessagesController.java:19095; ios State/Sync/UpdateInterpreter.swift:280; web lib/appManagers/appGiftsManager.ts:146",
   "decision": "implement",
   "priority": "normal",
-  "why": "Premium for everyone; account.updateEmojiStatus missing."
+  "why": "Сделано задачей 084 вместе с account.updateEmojiStatus."
  },
  {
   "name": "updateUserPhone",
@@ -2328,7 +2328,7 @@
   "used_by": "A StealthModeAlert.java:164; I Stories.swift:3215; D data_stories.cpp:1081; W appStoriesManager.ts:2452",
   "decision": "implement",
   "priority": "normal",
-  "why": "Premium feature, open to all (ADR 0041)."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.createAlbum",
@@ -2355,7 +2355,7 @@
   "used_by": "A StoriesController.java:2309; I Stories.swift:1872; W appStoriesManager.ts:943",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.exportStoryLink",
@@ -2364,7 +2364,7 @@
   "used_by": "A PeerStoriesView.java:4137; I Stories.swift:2876; D apiwrap.cpp:900; W appStoriesManager.ts:1233",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story menu; link host via ADR 0036."
+  "why": "Сделано задачей 084 (ADR 0054); хост ссылки по ADR 0036, сервис ссылок передаёт /<имя>/s/<id> в приложение."
  },
  {
   "name": "stories.getAlbumStories",
@@ -2391,7 +2391,7 @@
   "used_by": "A StoriesController.java:4731; I AddressNames.swift:652; D giveaway_list_controllers.cpp:255",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story editor; I retries forever on error (retryRequest)."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getPinnedStories",
@@ -2400,7 +2400,7 @@
   "used_by": "A StoriesController.java:3858; I StoryListContext.swift:1586; D data_stories.cpp:1849; W appStoriesManager.ts:1363",
   "decision": "implement",
   "priority": "normal",
-  "why": "Profile tab."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoriesArchive",
@@ -2409,7 +2409,7 @@
   "used_by": "A StoriesController.java:3870; I StoryListContext.swift:1584; D export_api_wrap.cpp:895; W appStoriesManager.ts:1839",
   "decision": "implement",
   "priority": "normal",
-  "why": "Archive screen and data export."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoryReactionsList",
@@ -2418,7 +2418,7 @@
   "used_by": "A SelfStoryViewsPage.java:1239; I EngineStoryViewListContext.swift:687; D data_stories.cpp:1522; W appStoriesManager.ts:2049",
   "decision": "implement",
   "priority": "normal",
-  "why": "Owner's viewers panel."
+  "why": "Сделано задачей 084 (ADR 0054); репосты и пересылки в списке не показаны."
  },
  {
   "name": "stories.reorderAlbums",
@@ -2436,7 +2436,7 @@
   "used_by": "A ReportBottomSheet.java:281; I ReportContent.swift:96; D api_report.cpp:130; W appStoriesManager.ts:2151",
   "decision": "implement",
   "priority": "normal",
-  "why": "Goes to the moderation panel (ADR 0040)."
+  "why": "Сделано задачей 084 (ADR 0054), все три формы: жалоба вида «История» в очереди модерации (ADR 0040)."
  },
  {
   "name": "stories.sendReaction",
@@ -2445,7 +2445,7 @@
   "used_by": "A StoriesController.java:1876; I Stories.swift:3669; D data_stories.cpp:1098; W appStoriesManager.ts:2206",
   "decision": "implement",
   "priority": "normal",
-  "why": "Viewer action."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.togglePeerStoriesHidden",
@@ -2454,7 +2454,7 @@
   "used_by": "A StoriesController.java:368; I Stories.swift:2860; D data_stories.cpp:1322; W appStoriesManager.ts:2389",
   "decision": "implement",
   "priority": "normal",
-  "why": "Context menu of the stories row."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.togglePinned",
@@ -2463,7 +2463,7 @@
   "used_by": "A StoriesController.java:1274; I Stories.swift:2174; D data_stories.cpp:2157; W appStoriesManager.ts:962",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.togglePinnedToTop",
@@ -2472,7 +2472,7 @@
   "used_by": "A StoriesController.java:4184; I Stories.swift:2265; D data_stories.cpp:2260; W appStoriesManager.ts:1024",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.updateAlbum",
@@ -2499,7 +2499,7 @@
   "used_by": "A ContactAddActivity.java:483; I SuggestBirthday.swift:18; D local_url_handlers.cpp:1057; W appProfileManager.ts:1895",
   "decision": "implement",
   "priority": "normal",
-  "why": "All four clients; no payment involved."
+  "why": "Сделано задачей 084 (ADR 0052): служебное сообщение messageActionSuggestBirthday."
  },
  {
   "name": "messages.acceptUrlAuth",
@@ -2580,7 +2580,7 @@
   "used_by": "Android messenger/MessagesController.java:10352; iOS ManagedCloudChatRemoveMessagesOperations.swift:459, :537; Desktop apiwrap.cpp:1598; Web appMessagesManager.ts:7445",
   "decision": "implement",
   "priority": "normal",
-  "why": "Partial. A sub-chat whose peer is a channel is refused (handler line 42, comment says channels are not served, which is outdated), so posts saved from a channel cannot be removed as a sub-chat. parent_peer (channel direct messages) is also refused and needs that feature first."
+  "why": "parent_peer монофорума обслуживается с задачи 084 (ADR 0055): чат подписчика удаляется у всех. Partial. A sub-chat whose peer is a channel is refused (handler line 42, comment says channels are not served, which is outdated), so posts saved from a channel cannot be removed as a sub-chat. parent_peer (channel direct messages) is also refused and needs that feature first."
  },
  {
   "name": "messages.editInlineBotMessage",
@@ -2706,7 +2706,7 @@
   "used_by": "Android messenger/TopicsController.java:544, messenger/MessagesController.java:21488; iOS Sync/SyncResolve.swift:100; Desktop apiwrap.cpp:3005 (without parent_peer for Saved Messages); Web lib/storages/monoforumDialogs.ts:280",
   "decision": "implement",
   "priority": "normal",
-  "why": "Blocked. Desktop calls it for the user's own Saved Messages too, so it is needed even before channel direct messages."
+  "why": "parent_peer монофорума обслуживается с задачи 084 (ADR 0055). Blocked. Desktop calls it for the user's own Saved Messages too, so it is needed even before channel direct messages."
  },
  {
   "name": "messages.hideAllChatJoinRequests",
@@ -2742,7 +2742,7 @@
   "used_by": "Android messenger/MessagesController.java:14609; Desktop data/data_saved_sublist.cpp:660; iOS TelegramEngine/Messages/ReplyThreadHistory.swift:392; Web lib/appManagers/appMessagesManager.ts:10165",
   "decision": "implement",
   "priority": "normal",
-  "why": "Called only for monoforums (parent_peer plus sublist; Android branches on monoForumPeerId). Channel direct messages can be free (channels.updatePaidMessagesPrice has send_paid_messages_stars with broadcast_messages_allowed), so they are not excluded by no-payments. Depends on the monoforum feature, which the server does not have yet (channels.updatePaidMessagesPrice missing; monoforum appears only as proto fields in handlers)."
+  "why": "Сделано задачей 084 (ADR 0055): отметка прочтения чата подписчика в монофоруме, одна на всех админов личных сообщений; подписчику уходит updateReadChannelOutbox, остальным админам updateReadMonoForumInbox."
  },
  {
   "name": "messages.reorderQuickReplies",
@@ -2922,7 +2922,7 @@
   "used_by": "A: ui/SelectAnimatedEmojiDialog.java:1212; I, D, W: нет",
   "decision": "implement",
   "priority": "rare",
-  "why": "Идёт вместе с account.updateEmojiStatus."
+  "why": "Сделано задачей 084 вместе с account.updateEmojiStatus."
  },
  {
   "name": "account.getCollectibleEmojiStatuses",
@@ -2931,7 +2931,7 @@
   "used_by": "I: State/ManagedRecentStickers.swift:334; D: data/data_emoji_statuses.cpp:435; A, W: нет",
   "decision": "implement",
   "priority": "rare",
-  "why": "Клиенты спрашивают сами. Покупок нет, поэтому честный ответ — пустой список, а не ошибка."
+  "why": "Сделано задачей 084: подарков нет, ответ — пустой список."
  },
  {
   "name": "account.getNotifyExceptions",
@@ -2940,7 +2940,7 @@
   "used_by": "A: ui/TopicsFragment.java:2720; I: TelegramEngine/Peers/NotificationExceptionsList.swift:29, ForumChannels.swift:1345; D: data/notify/data_notify_settings.cpp:670; W: есть (tests/notifyExceptions.test.ts:102)",
   "decision": "implement",
   "priority": "rare",
-  "why": "Метод работает; partial дал пустой комментарий TODO. Остаётся один недочёт: флаг compare_sound не применяется (в обработчике только комментарий // compare_sound)."
+  "why": "Сделано задачей 084: категории (пользователи, группы, каналы) и compare_sound по сохранённому звуку. Звук чата (NotificationSound) и настройки историй сервер пока не хранит — это пробел account.updateNotifySettings."
  },
  {
   "name": "account.getWebAuthorizations",
@@ -3188,11 +3188,11 @@
  {
   "name": "channels.createChannel",
   "group": "channels",
-  "feature": "Создание канала или группы: не работают ветки импорта истории и группы с геоточкой",
+  "feature": "Создание канала или группы: не работает ветка импорта истории (геогрупп нет, ADR 0050)",
   "used_by": "android messenger/MessagesController.java:15131 (for_import там же :15134); ios Peers/ChannelCreation.swift:50 (импорт: ShareExtensionContext.swift:1076,1312); tdesktop boxes/add_contact_box.cpp:852; tweb lib/appManagers/appChatsManager.ts:687. Handler: app/bff/channels/internal/core/channels.createChannel_handler.go:51",
   "decision": "implement",
   "priority": "rare",
-  "why": "Обычное создание работает. for_import нужен вместе с messages.initHistoryImport (missing) для импорта чатов. Ветка geo_point идёт по решению channels.editLocation."
+  "why": "Обычное создание работает. for_import нужен вместе с messages.initHistoryImport (missing) для импорта чатов. Ветка geo_point отвечает CHANNELS_ADMIN_LOCATED_TOO_MUCH: геогрупп нет (ADR 0050)."
  },
  {
   "name": "channels.updatePaidMessagesPrice",
@@ -3201,7 +3201,7 @@
   "used_by": "ios State/PaidMessages.swift:176; tdesktop boxes/peers/edit_peer_info_box.cpp:330; tweb lib/appManagers/appChatsManager.ts:463; android не вызывает",
   "decision": "implement",
   "priority": "rare",
-  "why": "Флаг broadcast_messages_allowed включает сообщения каналу и не требует денег (при цене 0); цена больше нуля отклоняется — платежей нет. Зависит от диалогов сообщений каналу: в серверном коде поддержка linked_monoforum не найдена, объём уточнить."
+  "why": "Сделано задачей 084 (ADR 0055): broadcast_messages_allowed включает и выключает личные сообщения канала, первый раз создаётся монофорум; цена в звёздах не принимается (STARS_AMOUNT_INVALID), в супергруппе метод отвечает CHAT_NOT_MODIFIED."
  },
  {
   "name": "stats.getStoryPublicForwards",
@@ -3255,7 +3255,7 @@
   "used_by": "td export/data/export_data_types.cpp:2695; an ui/ChatActivity.java:28650; ios ApiUtils/ApiGroupOrChannel.swift:142; web lib/appManagers/appChatsManager.ts:464",
   "decision": "implement",
   "priority": "rare",
-  "why": "Free without a price."
+  "why": "Сделано задачей 084 (ADR 0055): отдаётся у канала, пока личные сообщения включены."
  },
  {
   "name": "channel.gigagroup",
@@ -3271,9 +3271,9 @@
   "group": "fields",
   "feature": "Location-based group",
   "used_by": "an ui/ChatEditActivity.java:876, ui/CallLogActivity.java:635; td data/data_channel.cpp:1392, history/admin_log/history_admin_log_item.cpp:853; ios ApiUtils/ApiGroupOrChannel.swift:158",
-  "decision": "implement",
-  "priority": "rare",
-  "why": "Free, but niche."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "ADR 0050: геогрупп нет, поля не отдаются, событие не пишется; без can_set_location Android не показывает пункт «Адрес»."
  },
  {
   "name": "channel.linked_community_id, user.linked_community_id, chatAdminRights.manage_linked_peers, chatBannedRights.manage_linked_peers",
@@ -3291,7 +3291,7 @@
   "used_by": "td export/data/export_data_types.cpp:826, 2113; an ui/DialogsActivity.java:8062; ios ApiUtils/ApiGroupOrChannel.swift:188, 263; web components/wrappers/getPeerTitleText.ts:25",
   "decision": "implement",
   "priority": "rare",
-  "why": "Same feature."
+  "why": "Сделано задачей 084 (ADR 0055): монофорум — отдельная супергруппа; обе стороны называют друг друга, пока личные сообщения включены."
  },
  {
   "name": "channel.scam, channel.fake, chatInvite.scam, chatInvite.fake",
@@ -3381,7 +3381,7 @@
   "used_by": "td history/history_streamed_drafts.cpp:78; an ui/ChatActivity.java:13171; ios ApiUtils/StoreMessage_Telegram.swift:1107; web components/chat/contextMenu.ts:1151",
   "decision": "implement",
   "priority": "rare",
-  "why": "Free form has no price; goes with channel direct messages."
+  "why": "Не сделано в задаче 084 (ADR 0055, п. 10): отправка с suggested_post в монофорум отвечает ERR_ENTERPRISE_IS_BLOCKED, вне монофорума — SUGGESTED_POST_PEER_INVALID. Бесплатная форма возможна, идёт вместе с messages.toggleSuggestedPostApproval."
  },
  {
   "name": "message.via_business_bot_id",
@@ -3417,7 +3417,7 @@
   "used_by": "td history/history_item.cpp:7718; an ui/ChatActivity.java:26347; ios ApiUtils/TelegramMediaAction.swift:311",
   "decision": "implement",
   "priority": "rare",
-  "why": "Free suggested posts."
+  "why": "Не сделано в задаче 084 (ADR 0055, п. 10): идёт вместе с messages.toggleSuggestedPostApproval."
  },
  {
   "name": "messageFwdHeader.imported",
@@ -3534,7 +3534,7 @@
   "used_by": "td api/api_updates.cpp:2625; an messenger/MessagesController.java:18837; ios State/Sync/UpdateInterpreter+ReadStates.swift:57, 85, UpdateInterpreter+Messages.swift:238, 302; web lib/storages/monoforumDialogs.ts:502",
   "decision": "implement",
   "priority": "rare",
-  "why": "Read by clients, needed once monoforum and saved sub-chats are full."
+  "why": "Частично с задачи 084 (ADR 0055): updateDraftMessage и updateDialogUnreadMark несут saved_peer_id для чатов монофорума; updateMessageReactions и updateChannelReadMessagesContents — пока нет."
  },
  {
   "name": "updateGeoLiveViewed",
@@ -3579,7 +3579,7 @@
   "used_by": "td api/api_updates.cpp:2622, 2635; an messenger/MessagesController.java:18832, 18843; ios State/Sync/UpdateInterpreter.swift:246, 248; web lib/appManagers/appMessagesManager.ts:921, 922",
   "decision": "implement",
   "priority": "rare",
-  "why": "With channel direct messages."
+  "why": "Сделано задачей 084 (ADR 0055): уходят админам личных сообщений пушем без seq; отметки восстанавливаются из messages.getSavedDialogs."
  },
  {
   "name": "updateRecentEmojiStatuses, updateRecentReactions, updateSavedRingtones",
@@ -3912,7 +3912,7 @@
   "used_by": "Android ui/ChatActivity.java:32552; Desktop api/api_transcribes.cpp:46; iOS TelegramEngine/Messages/Transcription.swift:138; Web lib/appManagers/appMessagesManager.ts:3210",
   "decision": "implement",
   "priority": "rare",
-  "why": "Comes with transcribeAudio (task 027, owner decision 2026-10-30 to connect speech recognition). Store the rating against the transcription."
+  "why": "Сделан задачей 090 (ADR 0056): оценка хранится у запроса расшифровки и считается по моделям в transcribe_ratings_total."
  },
  {
   "name": "messages.receivedMessages",
@@ -4011,7 +4011,7 @@
   "used_by": "Android messenger/MessagesController.java:25076; Desktop api/api_suggest_post.cpp:48; iOS TelegramEngine/Messages/TelegramEngineMessages.swift:2182; Web lib/storages/monoforumDialogs.ts:487",
   "decision": "implement",
   "priority": "rare",
-  "why": "suggestedPost has an optional price, so a free suggested post is possible; the paid variant stays out by no-payments. Depends on channel direct messages (monoforum)."
+  "why": "Не сделано в задаче 084: монофорум есть (ADR 0055), но одобрение должно публиковать пост в канал, в том числе отложенно, — отдельная задача. Бесплатный вариант возможен, платный — нет (платежей нет)."
  },
  {
   "name": "messages.uploadImportedMedia",
@@ -4063,27 +4063,27 @@
   "group": "channels",
   "feature": "Переключатель агрессивного антиспама в настройках группы",
   "used_by": "android ui/ChatUsersActivity.java:1071 (строка :538, порог telegramAntispamGroupSizeMin :1066); ios Peers/AntiSpam.swift:10; tdesktop menu/menu_antispam_validator.cpp:107",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "Сам флаг прост, но переключатель без работающего детектора спама был бы поддельным (запрет на фиктивную функцию в CLAUDE.md). Вопрос владельцу: делать свой детектор или скрыть настройку. В брифе 078."
+  "why": "Сделано задачей 082 (ADR 0050): свой антиспам на правилах (pkg/antispam), удаляет спам от служебного аккаунта telegram_antispam_user_id и пишет это в «Недавние действия», как ждут клиенты. Порог включения 10 участников вместо 100 у Telegram — на подтверждение владельцу."
  },
  {
   "name": "channels.toggleAutotranslation",
   "group": "channels",
   "feature": "Автоперевод постов канала",
   "used_by": "android ui/ChatEditActivity.java:1002; ios Peers/AutoTranslate.swift:10; tdesktop boxes/peers/edit_peer_info_box.cpp:2927",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "Настройка имеет смысл только при работающем messages.translateText (missing), а тому нужен поставщик перевода: выбор и деньги за владельцем. В брифе 078."
+  "why": "Флаг канала сделан задачей 082 (ADR 0050): переключатель виден во всех клиентах и без метода ломал сохранение карточки канала в tdesktop. Сам перевод — задача 027 (messages.translateText), поставщик — решение владельца."
  },
  {
   "name": "updateTranscribedAudio",
   "group": "fields",
   "feature": "Voice to text",
   "used_by": "td api/api_transcribes.h:52; an messenger/MessagesController.java:19797; ios State/Sync/UpdateInterpreter.swift:254; web lib/appManagers/appMessagesManager.ts:959",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "Premium feature open to all by ADR 0041, but needs a speech model; owner's call."
+  "why": "Сделан задачей 090 (ADR 0056): ровно одно окончательное обновление тому, кому ответили pending, на все его устройства; частичный текст не шлётся."
  },
  {
   "name": "upload.getWebFile",
@@ -4234,18 +4234,18 @@
   "group": "channels",
   "feature": "Адрес группы на карте",
   "used_by": "android ui/LocationActivity.java:946 (строка настроек показывается по info.can_set_location, ui/ChatEditActivity.java:876); ios, tdesktop, tweb не вызывают",
-  "decision": "unclear",
-  "priority": "rare",
-  "why": "Вызывает только Android и только если сервер прислал can_set_location; в текущих исходниках нет экрана «Люди рядом», contacts.getLocated заблокирован. Нужно решить, существуют ли геогруппы как функция; в Telegram сейчас не проверено."
+  "decision": "not_needed",
+  "priority": "none",
+  "why": "ADR 0050: геогрупп нет — «Люди рядом» удалены из клиентов (Android 11.1.1, коммит 3d718c8d), создать геогруппу нельзя ни в одном закреплённом клиенте, can_set_location сервер не ставит. Метод отвечает MEGAGROUP_GEO_REQUIRED после проверок канала и прав."
  },
  {
   "name": "channels.reportAntiSpamFalsePositive",
   "group": "channels",
   "feature": "Сообщить, что антиспам удалил сообщение зря",
   "used_by": "android ui/ChannelAdminLogActivity.java:2297; ios Peers/AntiSpam.swift:22; tdesktop menu/menu_antispam_validator.cpp:185",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "rare",
-  "why": "Идёт за channels.toggleAntiSpam; без детектора спама сообщать не о чем."
+  "why": "Сделано задачей 082 (ADR 0050): сообщение не восстанавливается (клиенты пишут, что жалобу рассмотрят модераторы), отправитель исключается из проверки в этой группе, жалоба уходит в очередь модерации (вид 6)."
  },
  {
   "name": "channel.in_news",
@@ -4623,7 +4623,7 @@
   "used_by": "W: только обёртка lib/appManagers/appUsersManager.ts:1431, её никто не вызывает; A, I, D: нет",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Фактически никто не вызывает."
+  "why": "ADR 0050: «Люди рядом» удалены из клиентов (Android 11.1.1, коммит 3d718c8d), ни один закреплённый клиент не вызывает. Отвечает ERR_ENTERPRISE_IS_BLOCKED, геоточка не сохраняется и не пишется в лог."
  },
  {
   "name": "contacts.importNoPaidMessagesToken",
@@ -4641,7 +4641,7 @@
   "used_by": "none found (A, I, D, W)",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Ни один клиент не вызывает."
+  "why": "Ни один клиент не вызывает; обслуживается заодно с stories.togglePeerStoriesHidden (задача 084)."
  },
  {
   "name": "help.editUserInfo",
@@ -4776,7 +4776,7 @@
   "used_by": "none found (A, I, D, W)",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Ни один клиент не вызывает."
+  "why": "Ни один клиент не вызывает; обслуживается заодно с stories.getPeerMaxIDs (задача 084)."
  },
  {
   "name": "users.setSecureValueErrors",
@@ -6243,7 +6243,7 @@
   "used_by": "none found",
   "decision": "not_needed",
   "priority": "none",
-  "why": "No client calls it."
+  "why": "Ни один клиент не вызывает; обслуживается заодно с stories.getPeerMaxIDs (задача 084)."
  },
  {
   "name": "users.setSecureValueErrors",

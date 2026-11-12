@@ -72,12 +72,16 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		ParticipantsCount:   mtproto.MakeFlagsInt32(ch.GetParticipantsCount()),
 		ChatPhoto:           ch.GetPhoto(),
 		BotInfo:             []*mtproto.BotInfo{},
-		CanViewParticipants: ch.GetMegagroup() && !ch.GetParticipantsHidden() || admin,
+		CanViewParticipants: !ch.GetMonoforum() && (ch.GetMegagroup() && !ch.GetParticipantsHidden() || admin),
 		ParticipantsHidden:  ch.GetParticipantsHidden(),
 		CanSetUsername:      creator,
 		CanDeleteChannel:    creator,
 		HiddenPrehistory:    ch.GetHiddenPrehistory(),
-		Pts:                 ch.GetPts(),
+		// The antispam of the group (task 082): the clients show the
+		// switch by it and add the antispam account to the admins of the
+		// recent actions' filter.
+		Antispam: ch.GetMegagroup() && ch.GetAntispam(),
+		Pts:      ch.GetPts(),
 		// The reactions the members may use (task 044); a channel that never
 		// chose has the standard ones.
 		AvailableReactions_FLAGCHATREACTIONS: availableReactions(ch),
@@ -195,6 +199,13 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		return nil, err
 	}
 	full.HasScheduled = mtproto.FromBool(hasScheduled)
+	// The stories of the channel (task 084, ADR 0054): those in the feeds,
+	// which whoever reads the channel may open, and whether its profile
+	// has stories.
+	if full.Stories, full.StoriesPinnedAvailable, err = c.svcCtx.Stories.ChannelStories(c.ctx, ch.GetId(), c.MD.UserId, int32(time.Now().Unix())); err != nil {
+		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+		return nil, err
+	}
 	if admin {
 		invites, err := c.svcCtx.Chat.ChatGetExportedChatInvites(c.ctx, &chatpb.TLChatGetExportedChatInvites{ChatId: ch.GetId(), AdminId: c.MD.UserId, Limit: 50})
 		if err != nil {
@@ -229,6 +240,13 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	}
 	if as := full.DefaultSendAs.GetChannelId(); as != 0 && as != ch.GetId() && !slices.Contains(others, as) {
 		others = append(others, as)
+	}
+	// The other side of the channel's direct messages (task 084): the
+	// clients link a channel and its monoforum from the chats of one answer,
+	// and tdesktop asks the full channel for a side it does not have yet
+	// (data_session.cpp:1388-1421).
+	if linked := ch.GetLinkedMonoforumId(); linked != 0 && (ch.GetMonoforum() || ch.GetBroadcastMessagesAllowed()) && !slices.Contains(others, linked) {
+		others = append(others, linked)
 	}
 	if len(others) > 0 {
 		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: others})

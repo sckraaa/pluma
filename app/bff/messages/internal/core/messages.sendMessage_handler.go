@@ -130,40 +130,26 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	if peer.IsSelfUser(c.MD.UserId) {
 		outMessage.SavedPeerId = peer.ToPeer()
 	}
+	// The sublist of a monoforum, and a post suggested through one.
+	if sp := sublistPeer(c.MD.UserId, peer, in.GetReplyTo()); sp != nil {
+		outMessage.SavedPeerId = sp
+	}
+	if err := withSuggestedPost(outMessage, peer, in.GetSuggestedPost()); err != nil {
+		c.Logger.Errorf("%s - error: %v", "messages.sendMessage", err)
+		return nil, err
+	}
 
 	// Fix ReplyToMsgId
 	if outMessage.ReplyTo, err = c.makeReplyHeader(peer, in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
 		c.Logger.Errorf("messages.sendMessage - error: %v", err)
 		return nil, err
 	}
-	if in.GetReplyToMsgId() == nil && in.GetReplyTo() != nil {
-		replyTo := in.GetReplyTo()
-		switch in.ReplyTo.PredicateName {
-		case mtproto.Predicate_inputReplyToStory:
-			// TODO:
-			var (
-				rPeer  *mtproto.PeerUtil
-				userId int64
-			)
-
-			if replyTo.GetUserId() != nil {
-				rPeer = mtproto.FromInputUser(c.MD.UserId, replyTo.GetUserId())
-				userId = rPeer.PeerId
-			} else if replyTo.GetPeer() != nil {
-				rPeer = mtproto.FromInputPeer2(c.MD.UserId, replyTo.GetPeer())
-				if rPeer.IsUser() {
-					userId = peer.PeerId
-				}
-			}
-
-			if rPeer != nil {
-				outMessage.ReplyTo = mtproto.MakeTLMessageReplyStoryHeader(&mtproto.MessageReplyHeader{
-					UserId:  userId,
-					Peer:    rPeer.ToPeer(),
-					StoryId: replyTo.GetStoryId(),
-				}).To_MessageReplyHeader()
-			}
-		}
+	// A reply to a story (task 084).
+	if story, err := c.storyReplyHeader(in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
+		c.Logger.Errorf("messages.sendMessage - error: %v", err)
+		return nil, err
+	} else if story != nil {
+		outMessage.ReplyTo = story
 	}
 
 	//outMessage, _ = c.fixMessageEntities(c.MD.UserId, peer, in.NoWebpage, outMessage, func() bool {
@@ -202,7 +188,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() {
-			c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer, in.GetReplyTo().GetTopMsgId().GetValue())
+			c.clearSentDraft(ctx, peer, in.GetReplyTo())
 		})
 	}
 

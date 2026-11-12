@@ -28,7 +28,8 @@ import (
 // The account's messages of the dialog with reactions it has not seen,
 // newest first, paged as the history (task 053); of a channel with biz
 // channel.getUnreadReactions, top_msg_id narrowing it to a topic (task 067).
-// Saved dialogs of monoforums do not exist here.
+// saved_peer_id, a sublist of a monoforum, does not narrow it yet (ADR 0055,
+// p. 10): the whole monoforum is answered.
 func (c *CatalogCore) MessagesGetUnreadReactions(in *mtproto.TLMessagesGetUnreadReactions) (*mtproto.Messages_Messages, error) {
 	if p := mtproto.FromInputPeer2(c.MD.UserId, in.Peer); p.PeerType == mtproto.PEER_CHANNEL {
 		return c.channelUnreadReactions(in, p.PeerId)

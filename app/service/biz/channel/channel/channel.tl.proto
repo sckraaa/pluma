@@ -117,6 +117,10 @@ enum TLConstructor {
   CRC32_channel_leaveHidden = -858110575;
   // pluma: task 080
   CRC32_channel_setUserHidden = -1975507290;
+  // pluma: task 082
+  CRC32_channel_antispamDelete = 593076387;
+  // pluma: task 082
+  CRC32_channel_antispamFalsePositive = -784462129;
   // pluma: task 060
   CRC32_channel_toggleForum = 1073186003;
   // pluma: task 060
@@ -138,11 +142,11 @@ enum TLConstructor {
   // pluma: task 060
   CRC32_channel_searchTopic = -2126242873;
   // pluma: task 066
-  CRC32_channel_searchCount = 622787338;
+  CRC32_channel_searchCount = 1725563007;
   // pluma: task 066
-  CRC32_channel_searchCalendar = -16614681;
+  CRC32_channel_searchCalendar = -881531843;
   // pluma: task 066
-  CRC32_channel_searchPositions = -1144250748;
+  CRC32_channel_searchPositions = 394696236;
   // pluma: task 066
   CRC32_channel_searchAcross = -1564360787;
   // pluma: task 060
@@ -178,7 +182,7 @@ enum TLConstructor {
   // pluma: task 043
   CRC32_channel_readMessageContents = 2055458774;
   // pluma: task 043
-  CRC32_channel_search = 471620827;
+  CRC32_channel_search = -1813317393;
   // pluma: task 042
   CRC32_channel_editCreator = 860909233;
   // pluma: task 042
@@ -213,6 +217,41 @@ enum TLConstructor {
   CRC32_channel_getInactiveChannels = -744665876;
   // pluma: task 078
   CRC32_channel_setMainProfileTab = 1898100990;
+  // pluma: task 083
+  CRC32_importedReaction = -306155649;
+  // pluma: task 083
+  CRC32_importedMessage = 1442050088;
+  // pluma: task 083
+  CRC32_channelImport = -1936460276;
+  // pluma: task 083
+  CRC32_channel_importCreate = -1439133700;
+  // pluma: task 083
+  CRC32_channel_importMessages = 1028134963;
+  // pluma: task 083
+  CRC32_channel_importFinish = 1309891041;
+  // pluma: task 083
+  CRC32_channel_importGetState = -126708870;
+  // pluma: task 083
+  CRC32_channel_importAbort = -668800565;
+
+  // pluma: task 084
+  CRC32_channel_updateDirectMessages = -53957882;
+  // pluma: task 084
+  CRC32_channel_getSublists = -877162024;
+  // pluma: task 084
+  CRC32_channel_getSublistHistory = 639656389;
+  // pluma: task 084
+  CRC32_channel_readSublist = 1308469250;
+  // pluma: task 084
+  CRC32_channel_deleteSublistHistory = 208930703;
+  // pluma: task 084
+  CRC32_channel_getMessageAuthor = 1887421600;
+  // pluma: task 084
+  CRC32_channel_markSublistUnread = -1931311559;
+  // pluma: task 084
+  CRC32_channel_getSublistUnreadMarks = 2008484025;
+  // pluma: task 084
+  CRC32_channel_getMessageSublists = -614132788;
 }
 
 
@@ -281,6 +320,26 @@ message ImmutableChannel {
     // pluma: task 080: flags.17, a supergroup turned into a broadcast group
     // (channels.convertToGigagroup): only its admins write.
     bool gigagroup = 48;
+    // pluma: task 082: the antispam of a supergroup is on
+    // (channels.toggleAntiSpam, channelFull.antispam).
+    bool antispam = 49;
+    // pluma: task 082: flags2.15, a broadcast channel translated for all
+    // (channels.toggleAutotranslation, channel.autotranslation).
+    bool autotranslation = 50;
+    // pluma: task 084: the direct messages of a channel (ADR 0055).
+    // flags2.17: the supergroup that holds them (channel.monoforum).
+    bool monoforum = 51;
+    // flags2.16: the broadcast channel takes them now
+    // (channel.broadcast_messages_allowed).
+    bool broadcast_messages_allowed = 52;
+    // The other side, kept while the direct messages are off: the channel
+    // of a monoforum, the monoforum of a channel (channel.linked_monoforum_id
+    // names it only while they are on).
+    int64 linked_monoforum_id = 53;
+    // pluma: task 084: the newest story of the channel that is in the feeds
+    // (channel.stories_max_id), 0 for none; read from the stories' tables
+    // with the channel (ADR 0054).
+    int32 stories_max_id = 54;
 }
 
 message TL_immutableChannel {
@@ -312,6 +371,9 @@ message ImmutableChannelParticipant {
     // pluma: task 080, the row of a ghost (ADR 0048): a member left out of
     // what the other members are shown.
     bool hidden = 17;
+    // pluma: task 084: the user moved the stories of the channel to the
+    // archive row (channel.stories_hidden; stories.togglePeerStoriesHidden).
+    bool stories_hidden = 18;
 }
 
 message TL_immutableChannelParticipant {
@@ -335,6 +397,90 @@ message TL_mutableChannel {
 
 
 
+
+
+// ImportedReaction <--
+//  + TL_importedReaction
+//
+// pluma: importedReaction user_id:long reaction:string date:long = ImportedReaction;
+// A reaction of an imported message: who set it, the reaction's key
+// (pkg/reactions.Key) and when.
+// (task 083)
+message ImportedReaction {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    int64 user_id = 3;
+    string reaction = 4;
+    int64 date = 5;
+}
+
+message TL_importedReaction {
+    ImportedReaction data2 = 1;
+}
+
+
+// ImportedMessage <--
+//  + TL_importedMessage
+//
+// pluma: importedMessage seq:long source_id:long skip_reason:string sender_id:long message:Message reply_to_source_id:long reactions:Vector<ImportedReaction> mentioned:Vector<long> poll_id:long poll_voter_id:long poll_chosen:Vector<int> = ImportedMessage;
+// A record of an export on its way into a channel (ADR 0051): seq its place
+// in the export, source_id its id there. skip_reason says why it is not
+// imported; otherwise message is the message without its id and peer, from
+// sender_id, replying to the record reply_to_source_id (0: to none), with
+// its reactions and the users it mentions. poll_id is the id of the poll a
+// new poll in it gets; poll_voter_id chose the answers poll_chosen (their
+// indexes).
+// (task 083)
+message ImportedMessage {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    int64 seq = 3;
+    int64 source_id = 4;
+    string skip_reason = 5;
+    int64 sender_id = 6;
+    mtproto.Message message = 7;
+    int64 reply_to_source_id = 8;
+    repeated ImportedReaction reactions = 9;
+    repeated int64 mentioned = 10;
+    int64 poll_id = 11;
+    int64 poll_voter_id = 12;
+    repeated int32 poll_chosen = 13;
+}
+
+message TL_importedMessage {
+    ImportedMessage data2 = 1;
+}
+
+
+// ChannelImport <--
+//  + TL_channelImport
+//
+// pluma: channelImport id:long source_type:string source_chat_id:long channel_id:long creator_id:long state:int next_seq:long last_source_id:long top_message:int messages:long skipped:long mapping:string date:long = ChannelImport;
+// An import of a group (channel_imports): state 0 running, 1 finished,
+// 2 aborted; next_seq the record the next batch starts at, last_source_id
+// the id in the export of the last record journaled.
+// (task 083)
+message ChannelImport {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    int64 id = 3;
+    string source_type = 4;
+    int64 source_chat_id = 5;
+    int64 channel_id = 6;
+    int64 creator_id = 7;
+    int32 state = 8;
+    int64 next_seq = 9;
+    int64 last_source_id = 10;
+    int32 top_message = 11;
+    int64 messages = 12;
+    int64 skipped = 13;
+    string mapping = 14;
+    int64 date = 15;
+}
+
+message TL_channelImport {
+    ChannelImport data2 = 1;
+}
 
 
 //--------------------------------------------------------------------------------------------
@@ -741,7 +887,7 @@ message TL_channel_editCreator {
 }
 
 //--------------------------------------------------------------------------------------------
-// pluma: channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// pluma: channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int saved_peer_id:long = messages.Messages;
 // The messages of the channel that self_id may see and that match: the text q,
 // the author from_id, the kind media_type (MEDIA_*, -1 any, MEDIA_PINNED the
 // pinned), the dates; paged as channel.getHistory, newest first (task 043).
@@ -760,6 +906,7 @@ message TL_channel_search {
   int32 limit = 12;
   int32 max_id = 13;
   int32 min_id = 14;
+  int64 saved_peer_id = 15;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1192,6 +1339,31 @@ message TL_channel_setUserHidden {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.antispamDelete user_id:long channel_id:long id:Vector<int> rule:int = Bool;
+// The antispam deletes the messages id of user_id in the supergroup
+// channel_id, which broke rule (pkg/antispam), as the antispam account; in
+// user_id's box, and again without harm. (task 082)
+message TL_channel_antispamDelete {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int64 channel_id = 4;
+  repeated int32 id = 5;
+  int32 rule = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.antispamFalsePositive self_id:long channel_id:long msg_id:int = Bool;
+// self_id, an admin of the supergroup, reports that the antispam deleted
+// msg_id wrongly (channels.reportAntiSpamFalsePositive): false for a
+// message it did not delete. (task 082)
+message TL_channel_antispamFalsePositive {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 msg_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
 // pluma: channel.toggleForum self_id:long perm_auth_key_id:long channel_id:long enabled:Bool tabs:Bool = Updates;
 // self_id turns the channel's forum on or off (channels.toggleForum); tabs: the tabbed layout.
 // (task 060)
@@ -1399,7 +1571,7 @@ message TL_channel_setChatTheme {
 }
 
 //--------------------------------------------------------------------------------------------
-// pluma: channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int = int;
+// pluma: channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int saved_peer_id:long = int;
 // How many messages of a kind (msgsearch) self_id sees in the channel, or
 // in the thread or topic top_msg_id when it is not 0.
 // (task 066)
@@ -1409,10 +1581,11 @@ message TL_channel_searchCount {
   int64 channel_id = 4;
   int32 top_msg_id = 5;
   int32 media_type = 6;
+  int64 saved_peer_id = 7;
 }
 
 //--------------------------------------------------------------------------------------------
-// pluma: channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int = messages.SearchResultsCalendar;
+// pluma: channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int saved_peer_id:long = messages.SearchResultsCalendar;
 // The days of the messages of a kind of the channel (messages.getSearchResultsCalendar).
 // (task 066)
 message TL_channel_searchCalendar {
@@ -1422,10 +1595,11 @@ message TL_channel_searchCalendar {
   int32 media_type = 5;
   int32 offset_id = 6;
   int32 offset_date = 7;
+  int64 saved_peer_id = 8;
 }
 
 //--------------------------------------------------------------------------------------------
-// pluma: channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int = messages.SearchResultsPositions;
+// pluma: channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int saved_peer_id:long = messages.SearchResultsPositions;
 // Sparse positions of the messages of a kind of the channel (messages.getSearchResultsPositions).
 // (task 066)
 message TL_channel_searchPositions {
@@ -1435,6 +1609,7 @@ message TL_channel_searchPositions {
   int32 media_type = 5;
   int32 offset_id = 6;
   int32 limit = 7;
+  int64 saved_peer_id = 8;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1547,6 +1722,135 @@ message TL_channel_setBlocked {
 }
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.updateDirectMessages self_id:long perm_auth_key_id:long channel_id:long enabled:Bool = Updates;
+// self_id switches the direct messages of the broadcast channel channel_id on or
+// off (channels.updatePaidMessagesPrice with broadcast_messages_allowed): the
+// first time makes its monoforum; the channel gets the service message.
+// (task 084)
+message TL_channel_updateDirectMessages {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  mtproto.Bool enabled = 6;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getSublists self_id:long channel_id:long ids:Vector<long> offset_id:int limit:int = messages.SavedDialogs;
+// The chats of subscribers with the channel in the monoforum channel_id, as
+// an admin of its direct messages lists them (messages.getSavedDialogs with
+// parent_peer): a page below the sublist whose last message is offset_id, or
+// the sublists of ids alone. Dialogs and their last messages; chats and users
+// are the caller's to add.
+// (task 084)
+message TL_channel_getSublists {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  repeated int64 ids = 5;
+  int32 offset_id = 6;
+  int32 limit = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getSublistHistory self_id:long channel_id:long peer_id:long offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// A page of the sublist peer_id of the monoforum (messages.getSavedHistory
+// with parent_peer), paged as channel.getHistory.
+// (task 084)
+message TL_channel_getSublistHistory {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int64 peer_id = 5;
+  int32 offset_id = 6;
+  int32 offset_date = 7;
+  int32 add_offset = 8;
+  int32 limit = 9;
+  int32 max_id = 10;
+  int32 min_id = 11;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.readSublist self_id:long perm_auth_key_id:long channel_id:long peer_id:long max_id:int = Bool;
+// An admin of the direct messages read the sublist peer_id up to max_id
+// (messages.readSavedHistory): the mark is one for all the admins.
+// (task 084)
+message TL_channel_readSublist {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 peer_id = 6;
+  int32 max_id = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.deleteSublistHistory self_id:long perm_auth_key_id:long channel_id:long peer_id:long max_id:int min_date:int max_date:int = messages.AffectedHistory;
+// An admin deletes the messages of the sublist peer_id, for everyone
+// (messages.deleteSavedHistory with parent_peer), a portion at a time.
+// (task 084)
+message TL_channel_deleteSublistHistory {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 peer_id = 6;
+  int32 max_id = 7;
+  int32 min_date = 8;
+  int32 max_date = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getMessageAuthor self_id:long channel_id:long id:int = Int64;
+// Which admin wrote the message id of the monoforum as the channel
+// (channels.getMessageAuthor).
+// (task 084)
+message TL_channel_getMessageAuthor {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+  int32 id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.markSublistUnread self_id:long perm_auth_key_id:long channel_id:long peer_id:long unread:Bool = Bool;
+// The unread mark of the sublist peer_id (messages.markDialogUnread with
+// parent_peer); false when nothing changed.
+// (task 084)
+message TL_channel_markSublistUnread {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 perm_auth_key_id = 4;
+  int64 channel_id = 5;
+  int64 peer_id = 6;
+  mtproto.Bool unread = 7;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getSublistUnreadMarks self_id:long channel_id:long = Vector<long>;
+// The sublists of the monoforum marked unread (messages.getDialogUnreadMarks
+// with parent_peer).
+// (task 084)
+message TL_channel_getSublistUnreadMarks {
+  TLConstructor constructor = 1;
+  int64 self_id = 3;
+  int64 channel_id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.getMessageSublists channel_id:long id:Vector<int> = Vector<long>;
+// The sublists the messages id of the monoforum channel_id are in, in the
+// order of id, deleted ones too; 0 for none. Sync and the notifications
+// service tell by it which subscriber an update that names messages by id is
+// for.
+// (task 084)
+message TL_channel_getMessageSublists {
+  TLConstructor constructor = 1;
+  int64 channel_id = 3;
+  repeated int32 id = 4;
+}
+
+//--------------------------------------------------------------------------------------------
 // Vector api result type
 // pluma: task 039
 message Vector_Long {
@@ -1577,6 +1881,61 @@ message Vector_MutableChannel {
     repeated MutableChannel datas = 1;
 }
 
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importCreate creator_id:long source_type:string source_chat_id:long title:string about:string mapping:string first:ImportedMessage = ChannelImport;
+// Starts the import of the chat source_chat_id of an export into a new
+// supergroup of creator_id, without members, with first as its message 1;
+// for an import that runs already it adds to its mapping and returns it
+// (task 083, ADR 0051).
+message TL_channel_importCreate {
+  TLConstructor constructor = 1;
+  int64 creator_id = 3;
+  string source_type = 4;
+  int64 source_chat_id = 5;
+  string title = 6;
+  string about = 7;
+  string mapping = 8;
+  ImportedMessage first = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importMessages import_id:long first_seq:long messages:Vector<ImportedMessage> = ChannelImport;
+// Writes the next records of an import in one transaction; first_seq must
+// be the import's next_seq (IMPORT_OUT_OF_ORDER).
+message TL_channel_importMessages {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+  int64 first_seq = 4;
+  repeated ImportedMessage messages = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importFinish import_id:long = ChannelImport;
+// Ends an import: the creator becomes a member with everything read.
+message TL_channel_importFinish {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importGetState import_id:long source_type:string source_chat_id:long = ChannelImport;
+// The import import_id, or with 0 the one of the chat that is not aborted
+// (IMPORT_NOT_FOUND).
+message TL_channel_importGetState {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+  string source_type = 4;
+  int64 source_chat_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importAbort import_id:long = ChannelImport;
+// Aborts an import that is not finished: its channel is deleted.
+message TL_channel_importAbort {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+}
 
 //--------------------------------------------------------------------------------------------
 // rpc
@@ -1670,6 +2029,10 @@ service RPCChannel {
   rpc channel_leaveHidden(TL_channel_leaveHidden) returns (mtproto.Bool) {}
   // pluma: task 080
   rpc channel_setUserHidden(TL_channel_setUserHidden) returns (mtproto.Int32) {}
+  // pluma: task 082
+  rpc channel_antispamDelete(TL_channel_antispamDelete) returns (mtproto.Bool) {}
+  // pluma: task 082
+  rpc channel_antispamFalsePositive(TL_channel_antispamFalsePositive) returns (mtproto.Bool) {}
   // pluma: task 060
   rpc channel_toggleForum(TL_channel_toggleForum) returns (mtproto.Updates) {}
   // pluma: task 060
@@ -1766,4 +2129,33 @@ service RPCChannel {
   rpc channel_getInactiveChannels(TL_channel_getInactiveChannels) returns (mtproto.messages_InactiveChats) {}
   // pluma: task 078
   rpc channel_setMainProfileTab(TL_channel_setMainProfileTab) returns (mtproto.Bool) {}
+  // pluma: task 083
+  rpc channel_importCreate(TL_channel_importCreate) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importMessages(TL_channel_importMessages) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importFinish(TL_channel_importFinish) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importGetState(TL_channel_importGetState) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importAbort(TL_channel_importAbort) returns (ChannelImport) {}
+
+  // pluma: task 084
+  rpc channel_updateDirectMessages(TL_channel_updateDirectMessages) returns (mtproto.Updates) {}
+  // pluma: task 084
+  rpc channel_getSublists(TL_channel_getSublists) returns (mtproto.messages_SavedDialogs) {}
+  // pluma: task 084
+  rpc channel_getSublistHistory(TL_channel_getSublistHistory) returns (mtproto.messages_Messages) {}
+  // pluma: task 084
+  rpc channel_readSublist(TL_channel_readSublist) returns (mtproto.Bool) {}
+  // pluma: task 084
+  rpc channel_deleteSublistHistory(TL_channel_deleteSublistHistory) returns (mtproto.messages_AffectedHistory) {}
+  // pluma: task 084
+  rpc channel_getMessageAuthor(TL_channel_getMessageAuthor) returns (mtproto.Int64) {}
+  // pluma: task 084
+  rpc channel_markSublistUnread(TL_channel_markSublistUnread) returns (mtproto.Bool) {}
+  // pluma: task 084
+  rpc channel_getSublistUnreadMarks(TL_channel_getSublistUnreadMarks) returns (Vector_Long) {}
+  // pluma: task 084
+  rpc channel_getMessageSublists(TL_channel_getMessageSublists) returns (Vector_Long) {}
 }

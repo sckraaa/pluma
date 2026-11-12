@@ -70,4 +70,14 @@ type ChannelsDO struct {
 	MainTab int32 `db:"main_tab" json:"main_tab"`
 	// A supergroup turned into a broadcast group (channels.convertToGigagroup).
 	Gigagroup bool `db:"gigagroup" json:"gigagroup"`
+	// The antispam of a supergroup is on (channels.toggleAntiSpam).
+	Antispam bool `db:"antispam" json:"antispam"`
+	// A broadcast channel translated for all (channels.toggleAutotranslation).
+	Autotranslation bool `db:"autotranslation" json:"autotranslation"`
+	// The direct messages of a channel (task 084, ADR 0055): the channel
+	// takes them, the row is the supergroup that holds them, and the other
+	// side of the pair.
+	BroadcastMessagesAllowed bool  `db:"broadcast_messages_allowed" json:"broadcast_messages_allowed"`
+	Monoforum                bool  `db:"monoforum" json:"monoforum"`
+	LinkedMonoforumId        int64 `db:"linked_monoforum_id" json:"linked_monoforum_id"`
 }

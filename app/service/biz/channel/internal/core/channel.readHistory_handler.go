@@ -31,7 +31,7 @@ import (
 // updateReadChannelInbox with seq.
 func (c *ChannelCore) ChannelReadHistory(in *channel.TLChannelReadHistory) (*mtproto.Bool, error) {
 	if _, err := c.svcCtx.Dao.RunBox(c.ctx, in.SelfId, func(b *userbox.Box) error {
-		return c.svcCtx.Dao.Read(b, in.ChannelId, in.MaxId)
+		return c.svcCtx.Dao.Read(b, in.ChannelId, in.PermAuthKeyId, in.MaxId)
 	}); err != nil {
 		return nil, c.membershipError("channel.readHistory", err)
 	}
