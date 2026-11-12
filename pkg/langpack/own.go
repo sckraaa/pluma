@@ -36,14 +36,44 @@ import (
 //go:embed own.json
 var ownJSON []byte
 
-var ownStrings = mustLoadOwn(ownJSON)
+// Telegram's strings Pluma words differently: keys of Telegram's packs whose
+// text is not a matter of the name (Rebrand) but of the meaning. Each import
+// of their pack takes the text from here, in the language imported, instead of
+// Telegram's; a key the snapshot lacks is added. The first ones: the status
+// line of a support account, "service account" instead of "support".
+//
+// override.json has the shape of own.json; a key is in one of the two files.
+//
+//go:embed override.json
+var overrideJSON []byte
 
-func mustLoadOwn(data []byte) map[string]map[string]map[string]string {
-	own, err := loadOwn(data)
+var ownStrings, overrideStrings = mustLoadOwn(ownJSON, overrideJSON)
+
+func mustLoadOwn(own, override []byte) (o, r map[string]map[string]map[string]string) {
+	o, err := loadOwn(own)
 	if err != nil {
 		panic(err)
 	}
-	return own
+	if r, err = loadOwn(override); err != nil {
+		panic(fmt.Errorf("override.json: %w", err))
+	}
+	if err = disjoint(o, r); err != nil {
+		panic(err)
+	}
+	return o, r
+}
+
+// disjoint fails when a key of a pack is both an own string and a replaced
+// one.
+func disjoint(own, override map[string]map[string]map[string]string) error {
+	for pack, keys := range override {
+		for key := range keys {
+			if _, ok := own[pack][key]; ok {
+				return fmt.Errorf("langpack: %s/%s is in own.json and in override.json", pack, key)
+			}
+		}
+	}
+	return nil
 }
 
 func loadOwn(data []byte) (map[string]map[string]map[string]string, error) {
@@ -72,7 +102,19 @@ func loadOwn(data []byte) (map[string]map[string]map[string]string, error) {
 // ownFor returns Pluma's own strings of pack in lang, sorted by key, and the
 // keys that fell back to English.
 func ownFor(pack, lang string) (strs []String, missing []string) {
-	keys := ownStrings[pack]
+	return textsFor(ownStrings, pack, lang)
+}
+
+// overridesFor returns the strings that replace Telegram's in pack and lang,
+// sorted by key, and the keys that fell back to English.
+func overridesFor(pack, lang string) (strs []String, missing []string) {
+	return textsFor(overrideStrings, pack, lang)
+}
+
+// textsFor returns the strings of pack in set for lang: the language's text,
+// the base language's ("pt" for "pt-br") or the English one.
+func textsFor(set map[string]map[string]map[string]string, pack, lang string) (strs []String, missing []string) {
+	keys := set[pack]
 	names := make([]string, 0, len(keys))
 	for k := range keys {
 		names = append(names, k)

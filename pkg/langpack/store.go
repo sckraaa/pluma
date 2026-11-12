@@ -347,8 +347,9 @@ type ImportResult struct {
 	// replacement: key -> the words (Leftovers). Keys kept on purpose
 	// (keepKeys) are not listed.
 	Leftovers map[string][]string
-	// OwnMissing are Pluma's own strings (own.go) without a text in this
-	// language: they got the English one.
+	// OwnMissing are Pluma's own strings and the ones that replace
+	// Telegram's (own.go) without a text in this language: they got the
+	// English one.
 	OwnMissing []string
 }
 
@@ -377,21 +378,30 @@ func (s *Store) Import(ctx context.Context, snap *Snapshot) (*ImportResult, erro
 			res.Leftovers[up.Key] = words
 		}
 	}
+	inSnapshot := make(map[string]int, len(snap.Strings))
+	for i := range snap.Strings {
+		inSnapshot[snap.Strings[i].Key] = i
+	}
 	// Pluma's own strings join every import of their pack, as they are.
 	own, missing := ownFor(pack, lang)
-	if len(own) > 0 {
-		inSnapshot := make(map[string]bool, len(snap.Strings))
-		for i := range snap.Strings {
-			inSnapshot[snap.Strings[i].Key] = true
+	for i := range own {
+		if _, ok := inSnapshot[own[i].Key]; ok {
+			return nil, fmt.Errorf("langpack: %s/%s: Telegram has the key %q of Pluma's own strings", pack, lang, own[i].Key)
 		}
-		for i := range own {
-			if inSnapshot[own[i].Key] {
-				return nil, fmt.Errorf("langpack: %s/%s: Telegram has the key %q of Pluma's own strings", pack, lang, own[i].Key)
-			}
-			incoming = append(incoming, pendingString{s: &own[i], upstream: &own[i]})
-		}
-		res.OwnMissing = missing
+		incoming = append(incoming, pendingString{s: &own[i], upstream: &own[i]})
 	}
+	// The strings Pluma words differently take the place of Telegram's
+	// (which stays stored as the upstream text) or join the pack.
+	override, overrideMissing := overridesFor(pack, lang)
+	for i := range override {
+		if at, ok := inSnapshot[override[i].Key]; ok {
+			incoming[at].s = &override[i]
+			delete(res.Leftovers, override[i].Key)
+			continue
+		}
+		incoming = append(incoming, pendingString{s: &override[i], upstream: &override[i]})
+	}
+	res.OwnMissing = append(missing, overrideMissing...)
 
 	err := s.db.Transact(ctx, func(tx *sqlx.Tx) error {
 		// The language row serializes imports of the same pack and language:
