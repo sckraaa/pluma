@@ -46,6 +46,30 @@ func (s *Service) AccountUpdatePasswordSettings(ctx context.Context, request *mt
 	return c.AccountUpdatePasswordSettings(request)
 }
 
+// AccountConfirmPasswordEmail
+// account.confirmPasswordEmail#8fdf1920 code:string = Bool;
+func (s *Service) AccountConfirmPasswordEmail(ctx context.Context, request *mtproto.TLAccountConfirmPasswordEmail) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.confirmPasswordEmail - metadata: {%s}", c.MD)
+	return c.AccountConfirmPasswordEmail(request)
+}
+
+// AccountResendPasswordEmail
+// account.resendPasswordEmail#7a7f2a15 = Bool;
+func (s *Service) AccountResendPasswordEmail(ctx context.Context, request *mtproto.TLAccountResendPasswordEmail) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.resendPasswordEmail - metadata: {%s}", c.MD)
+	return c.AccountResendPasswordEmail(request)
+}
+
+// AccountCancelPasswordEmail
+// account.cancelPasswordEmail#c1cbd5b6 = Bool;
+func (s *Service) AccountCancelPasswordEmail(ctx context.Context, request *mtproto.TLAccountCancelPasswordEmail) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.cancelPasswordEmail - metadata: {%s}", c.MD)
+	return c.AccountCancelPasswordEmail(request)
+}
+
 // AccountDeclinePasswordReset
 // account.declinePasswordReset#4c9409f6 = Bool;
 func (s *Service) AccountDeclinePasswordReset(ctx context.Context, request *mtproto.TLAccountDeclinePasswordReset) (*mtproto.Bool, error) {

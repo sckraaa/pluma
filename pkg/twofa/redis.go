@@ -33,6 +33,7 @@ import (
 //	twofa_srp_<srp_id>          hash {user_id, b, B, fp}: one SRP check, SRPTTL, taken once
 //	twofa_new_algo_<user_id>    hex(salt1 prefix | salt2) of new_algo, NewAlgoTTL from the last account.getPassword
 //	twofa_login_<perm key id>   hash {user_id, phone}: a login waiting for the password, LoginTTL
+//	twofa_email_code_<purpose>_<user_id>  a code of the recovery email (emailcode.go)
 //
 // fp is the fingerprint of the password the srp_id was issued for.
 const (

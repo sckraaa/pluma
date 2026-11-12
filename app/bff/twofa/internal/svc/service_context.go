@@ -22,6 +22,8 @@ import (
 	authsession_client "github.com/teamgram/teamgram-server/app/service/authsession/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type ServiceContext struct {
@@ -33,9 +35,11 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	tf := twofa.MustNewService(c.Mysql, c.KV)
+	logx.Must(tf.EnableMail(c.Mail, c.CodeHmacKey))
 	return &ServiceContext{
 		Config:      c,
-		Twofa:       twofa.MustNewService(c.Mysql, c.KV),
+		Twofa:       tf,
 		User:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		Authsession: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
 		Msg:         msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),

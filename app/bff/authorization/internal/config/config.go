@@ -22,15 +22,19 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/mail"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
-	KV                kv.KvConf
-	Mysql             sqlx.Config // phone allowlist, 2FA passwords
-	LoginCode         logincode.Config
+	KV        kv.KvConf
+	Mysql     sqlx.Config // phone allowlist, 2FA passwords
+	LoginCode logincode.Config
+	// Mail sends the codes of the recovery email of the cloud password
+	// (task 091, ADR 0058), keyed by LoginCode.HmacKey; off without a key.
+	Mail              mail.Config
 	UserClient        zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
 	ChatClient        zrpc.RpcClientConf

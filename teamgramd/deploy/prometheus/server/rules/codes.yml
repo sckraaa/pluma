@@ -33,3 +33,29 @@ groups:
         labels: {severity: warning}
         annotations:
           summary: "Imported contacts are not being removed from the account"
+
+  # The recovery email of the cloud password (task 091, ADR 0058, p. 12,
+  # docs/ops/email.md): the emails with its codes that bff hands to Resend.
+  # Without MAIL_API_KEY nothing is sent and none of these fire.
+  - name: password_email
+    rules:
+      - alert: PasswordEmailSenderFailing
+        expr: sum(increase(password_email_send_total{result=~"retryable|permanent"}[15m])) > 2
+        labels: {severity: warning}
+        annotations:
+          summary: "Resend does not take the emails of the recovery email"
+          description: "Recovery codes do not reach users; they get FLOOD_WAIT_60. Lines 'twofa: ... was not sent' in the log of bff; docs/ops/email.md"
+
+      - alert: PasswordEmailSenderRejected
+        expr: sum(increase(password_email_send_total{result="permanent"}[1h])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Resend refuses the emails of the recovery email"
+          description: "A revoked key, an unverified domain or the month's quota used up: the code of the error is in the log of bff. docs/ops/email.md"
+
+      - alert: PasswordEmailBruteForce
+        expr: sum(increase(password_email_code_total{result="invalid"}[1h])) > 20
+        labels: {severity: warning}
+        annotations:
+          summary: "Many wrong codes of the recovery email"
+          description: "Someone may be guessing recovery codes; 'possible brute force' in the log of bff names the user. docs/ops/email.md"

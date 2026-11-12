@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/teamgram/proto/mtproto"
@@ -30,11 +31,23 @@ import (
 
 // Password returns account.password of userId: whether a password is set
 // and, if it is, its algorithm, hint and a fresh srp_id with srp_B for one
-// check; the algorithms for a new password; and the pending reset.
+// check; the algorithms for a new password; the pending reset; and, with
+// mail on, whether a recovery email is set (has_recovery) and the pattern
+// of the one waiting for its code (email_unconfirmed_pattern, which iOS
+// needs to show the code screen: TwoStepVerification.swift:210-212).
+// A first password waiting for its recovery email is not one yet: the
+// answer has no password and the pattern of the address, the state the
+// clients show as "not set, an email waits" (iOS TwoStepVerification.swift:
+// 8-10, 20-24; Web K tabs.ts:1164). login_email_pattern is never set: Pluma
+// has no login email.
 func (s *Service) Password(ctx context.Context, userId int64) (*mtproto.Account_Password, error) {
-	p, err := s.get(ctx, userId)
+	row, err := s.row(ctx, userId)
 	if err != nil {
 		return nil, err
+	}
+	p := row
+	if p != nil && p.AwaitsEmail {
+		p = nil
 	}
 	fresh, err := s.randomBytes(newSalt1PrefixLen + salt2Len)
 	if err != nil {
@@ -54,7 +67,7 @@ func (s *Service) Password(ctx context.Context, userId int64) (*mtproto.Account_
 	}
 
 	r := &mtproto.Account_Password{
-		HasRecovery:     false,
+		HasRecovery:     p != nil && s.mail != nil && p.Email != "",
 		HasSecureValues: false,
 		HasPassword:     p != nil,
 		NewAlgo:         makeAlgo(salts[:newSalt1PrefixLen], salts[newSalt1PrefixLen:]),
@@ -78,6 +91,9 @@ func (s *Service) Password(ctx context.Context, userId int64) (*mtproto.Account_
 		if p.PendingResetDate != 0 {
 			r.PendingResetDate = wrapperspb.Int32(int32(p.PendingResetDate))
 		}
+	}
+	if row != nil && s.mail != nil && row.EmailUnconfirmed != "" {
+		r.EmailUnconfirmedPattern = wrapperspb.String(emailPattern(row.EmailUnconfirmed))
 	}
 	return mtproto.MakeTLAccountPassword(r).To_Account_Password(), nil
 }
@@ -225,12 +241,24 @@ func passwordEmpty(in *mtproto.InputCheckPasswordSRP) bool {
 }
 
 // Settings returns account.passwordSettings of userId after checking its
-// password: there is no recovery email and no Telegram Passport.
+// password: the confirmed recovery email, whole, which only the owner of the
+// password sees; there is no Telegram Passport.
 func (s *Service) Settings(ctx context.Context, userId, authKeyId int64, in *mtproto.InputCheckPasswordSRP) (*mtproto.Account_PasswordSettings, error) {
-	if err := s.Check(ctx, userId, authKeyId, in); err != nil {
+	p, err := s.get(ctx, userId)
+	if err != nil {
 		return nil, err
 	}
-	return mtproto.MakeTLAccountPasswordSettings(&mtproto.Account_PasswordSettings{}).To_Account_PasswordSettings(), nil
+	if p == nil {
+		return nil, ErrNoPassword
+	}
+	if err = s.check(ctx, p, authKeyId, in); err != nil {
+		return nil, err
+	}
+	r := &mtproto.Account_PasswordSettings{}
+	if s.mail != nil && p.Email != "" {
+		r.Email = wrapperspb.String(p.Email)
+	}
+	return mtproto.MakeTLAccountPasswordSettings(r).To_Account_PasswordSettings(), nil
 }
 
 // Update applies account.updatePasswordSettings of userId: the current
@@ -239,32 +267,75 @@ func (s *Service) Settings(ctx context.Context, userId, authKeyId int64, in *mtp
 // it, with passwordKdfAlgoUnknown (Android, tdesktop) or with the new_algo
 // of account.getPassword (Web K); Telegram accepts both.
 //
-// A recovery email cannot be set: there is no mail on the server. An empty
-// one (what clients send when the user skips it) is ignored, any other is
-// EMAIL_INVALID, the answer that lets the user skip it. Telegram Passport
-// settings are ignored.
+// The recovery email (flags.1, ADR 0058, p. 4) is written with the password,
+// in the same statement:
 //
-// Every new setting is checked before the password, so a request refused
-// for them does not use up its srp_id.
+//   - an empty one removes both the confirmed and the waiting address (the
+//     client's "skip");
+//   - the confirmed one keeps it and drops a waiting one;
+//   - another one waits for its code, which is sent, and the answer is
+//     EMAIL_UNCONFIRMED_6 with everything else of the request applied, as
+//     the clients expect (Android TwoStepVerificationSetupActivity.java:
+//     1985-1997, iOS TwoStepVerification.swift:202-213, tdesktop
+//     api_cloud_password.cpp:244-252), even when the email did not go out:
+//     "send again" repeats it;
+//   - without mail on the server, or without a password left, an address
+//     is EMAIL_INVALID.
+//
+// A first password given with an address is not in force until the address
+// is confirmed (Store.AwaitsEmail): the clients keep "no password" on the
+// code screen and give the setup up from there with no password to check,
+// an empty email and no new_algo (Android TwoStepVerificationSetupActivity.
+// java:1529-1562, 1809, 1837-1839, 1874; iOS TwoStepVerificationUnlock
+// Controller.swift:774, SetupTwoStepVerificationControllerNode.swift:342),
+// which removes that password. Until then a new first password replaces it.
+//
+// Every write is conditional on the row read at the start: a change made
+// meanwhile answers SRP_PASSWORD_CHANGED, and the client reads
+// account.getPassword again.
+//
+// Telegram Passport settings are ignored. Every new setting is checked
+// before the password, so a request refused for them does not use up its
+// srp_id.
 func (s *Service) Update(ctx context.Context, userId, authKeyId int64, in *mtproto.InputCheckPasswordSRP, settings *mtproto.Account_PasswordInputSettings) error {
-	p, err := s.get(ctx, userId)
+	return s.UpdateIn(ctx, userId, authKeyId, "", in, settings)
+}
+
+// UpdateIn is Update with lang, the language of the session, for the email
+// with the code.
+func (s *Service) UpdateIn(ctx context.Context, userId, authKeyId int64, lang string, in *mtproto.InputCheckPasswordSRP, settings *mtproto.Account_PasswordInputSettings) error {
+	row, err := s.row(ctx, userId)
 	if err != nil {
 		return err
+	}
+	p := row // in force
+	if p != nil && p.AwaitsEmail {
+		p = nil
 	}
 	if settings == nil {
 		return mtproto.ErrNewSettingsInvalid
 	}
-	if email := settings.GetEmail(); email != nil && strings.TrimSpace(email.GetValue()) != "" {
-		logx.WithContext(ctx).Infof("twofa: user %d: a recovery email is not supported", userId)
-		return mtproto.ErrEmailInvalid
+	address, emailGiven, err := s.newEmail(ctx, userId, settings)
+	if err != nil {
+		return err
 	}
 
 	algo := settings.GetNewAlgo()
-	var next *Password
+	var (
+		next    *Password
+		removes bool
+	)
 	switch {
 	case algo == nil:
 		// No change of the password (an email or Passport change only).
 		if p == nil {
+			switch {
+			case address != "":
+				return mtproto.ErrEmailInvalid
+			case emailGiven && row != nil:
+				// The setup of a first password is given up.
+				return s.dropAwaiting(ctx, row)
+			}
 			return mtproto.ErrNewSettingsEmpty
 		}
 	case algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoUnknown && len(settings.GetNewPasswordHash()) != 0:
@@ -272,14 +343,22 @@ func (s *Service) Update(ctx context.Context, userId, authKeyId int64, in *mtpro
 	case algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoUnknown,
 		algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoModPow && len(settings.GetNewPasswordHash()) == 0:
 		if p == nil {
+			if row != nil && address == "" {
+				return s.dropAwaiting(ctx, row)
+			}
 			return mtproto.ErrNewSettingsEmpty
 		}
+		removes = true
 	case algo.GetPredicateName() == mtproto.Predicate_passwordKdfAlgoModPow:
 		if next, err = s.newPassword(ctx, userId, algo, settings); err != nil {
 			return err
 		}
 	default:
 		return mtproto.ErrNewSettingsInvalid
+	}
+	if removes && address != "" {
+		// A recovery email needs a password.
+		return mtproto.ErrEmailInvalid
 	}
 
 	if p != nil {
@@ -288,23 +367,145 @@ func (s *Service) Update(ctx context.Context, userId, authKeyId int64, in *mtpro
 		}
 	}
 
+	was := row.emails() // stored, with the code of its waiting address
+	prev := p.emails()  // of the password in force
+	emails := prev
+	if emailGiven {
+		emails = emailsAfter(prev, address)
+	}
 	switch {
-	case algo == nil:
-		return nil
-	case next == nil:
-		if _, err = s.store.Delete(ctx, userId); err != nil {
+	case removes:
+		removed, err := s.store.RemoveIf(ctx, p)
+		if err != nil {
 			return errInternal(ctx, "remove the password of user "+formatKeyId(userId), err)
 		}
+		if !removed {
+			logx.WithContext(ctx).Infof("twofa: user %d: the password settings changed meanwhile", userId)
+			return mtproto.ErrSrpPasswordChanged
+		}
+		s.dropCodes(ctx, userId)
 		logx.WithContext(ctx).Infof("twofa: user %d removed the password", userId)
-	default:
-		if err = s.store.Put(ctx, next); err != nil {
+	case next != nil:
+		next.Email, next.EmailUnconfirmed, next.EmailSetAt = emails.Email, emails.Unconfirmed, emailSetAt(p, emails, s.now())
+		next.AwaitsEmail = p == nil && emails.Unconfirmed != ""
+		replaced, err := s.store.Replace(ctx, row, next)
+		if err != nil {
 			return errInternal(ctx, "set the password of user "+formatKeyId(userId), err)
 		}
-		logx.WithContext(ctx).Infof("twofa: user %d set a password (had one: %v)", userId, p != nil)
+		if !replaced {
+			logx.WithContext(ctx).Infof("twofa: user %d: the password settings changed meanwhile", userId)
+			return mtproto.ErrSrpPasswordChanged
+		}
+		if next.AwaitsEmail {
+			logx.WithContext(ctx).Infof("twofa: user %d set a first password: in force once its recovery email is confirmed", userId)
+		} else {
+			logx.WithContext(ctx).Infof("twofa: user %d set a password (had one: %v)", userId, p != nil)
+		}
+	case emails != prev:
+		swapped, err := s.store.SwapEmail(ctx, userId, p.SetAt, prev, emails, emailSetAt(p, emails, s.now()))
+		if err != nil {
+			return errInternal(ctx, "set the recovery email of user "+formatKeyId(userId), err)
+		}
+		if !swapped {
+			// The password or its email changed under the request: the
+			// client reads account.getPassword again.
+			logx.WithContext(ctx).Infof("twofa: user %d: the password settings changed meanwhile", userId)
+			return mtproto.ErrSrpPasswordChanged
+		}
 	}
-	// The next password gets new salts.
-	s.dropNewAlgo(ctx, userId)
+	if algo != nil {
+		// The next password gets new salts.
+		s.dropNewAlgo(ctx, userId)
+	}
+	if removes {
+		return nil
+	}
+	if emails.Unconfirmed != was.Unconfirmed {
+		s.dropCode(ctx, PurposeSetup, userId)
+	}
+	if !emailGiven {
+		return nil
+	}
+	confirmed, waiting := emails.Email != "", emails.Unconfirmed != ""
+	logx.WithContext(ctx).Infof("twofa: user %d: recovery email confirmed %v, waiting %v", userId, confirmed, waiting)
+	if emails.Unconfirmed == "" {
+		return nil
+	}
+	// The settings are applied whatever happens to the email: the answer
+	// is EMAIL_UNCONFIRMED_6, and account.resendPasswordEmail sends it again.
+	if err = s.sendCode(ctx, emailRequest{
+		purpose: PurposeSetup, userId: userId, authKeyId: authKeyId, address: emails.Unconfirmed, lang: lang,
+	}); err != nil {
+		logx.WithContext(ctx).Infof("twofa: user %d: the confirmation email waits for a resend: %v", userId, err)
+	}
+	return mtproto.NewErrEmailUnconfirmedX(EmailCodeLength)
+}
+
+// dropAwaiting removes row, a first password waiting for its recovery
+// email, and the code of the address: the setup is given up. If the row
+// changed meanwhile the answer is SRP_PASSWORD_CHANGED.
+func (s *Service) dropAwaiting(ctx context.Context, row *Password) error {
+	removed, err := s.store.RemoveIf(ctx, row)
+	if err != nil {
+		return errInternal(ctx, "remove the waiting password of user "+formatKeyId(row.UserId), err)
+	}
+	if !removed {
+		logx.WithContext(ctx).Infof("twofa: user %d: the password settings changed meanwhile", row.UserId)
+		return mtproto.ErrSrpPasswordChanged
+	}
+	s.dropCode(ctx, PurposeSetup, row.UserId)
+	logx.WithContext(ctx).Infof("twofa: user %d gave up the first password waiting for its recovery email", row.UserId)
 	return nil
+}
+
+// newEmail is the recovery email of settings: given is false without
+// flags.1; an empty address removes the email. An address is
+// EMAIL_INVALID if it is not a bare address or there is no mail on the
+// server.
+func (s *Service) newEmail(ctx context.Context, userId int64, settings *mtproto.Account_PasswordInputSettings) (address string, given bool, err error) {
+	email := settings.GetEmail()
+	if email == nil {
+		return "", false, nil
+	}
+	raw := strings.TrimSpace(email.GetValue())
+	if raw == "" {
+		return "", true, nil
+	}
+	if s.mail == nil {
+		logx.WithContext(ctx).Infof("twofa: user %d: a recovery email without mail on the server", userId)
+		return "", false, mtproto.ErrEmailInvalid
+	}
+	address, ok := normalizeEmail(raw)
+	if !ok {
+		logx.WithContext(ctx).Infof("twofa: user %d: a recovery email that is not an address", userId)
+		return "", false, mtproto.ErrEmailInvalid
+	}
+	return address, true, nil
+}
+
+// emailsAfter is the recovery email after address (normalized; empty: none)
+// is given for one with prev.
+func emailsAfter(prev Emails, address string) Emails {
+	switch address {
+	case "":
+		return Emails{}
+	case prev.Email:
+		return Emails{Email: prev.Email}
+	default:
+		return Emails{Email: prev.Email, Unconfirmed: address}
+	}
+}
+
+// emailSetAt is email_set_at for emails replacing those of p.
+func emailSetAt(p *Password, emails Emails, now time.Time) int64 {
+	switch {
+	case emails.Email == "":
+		return 0
+	case p != nil && p.Email == emails.Email:
+		return p.EmailSetAt
+	default:
+		return now.Unix()
+	}
 }
 
 // newPassword checks a new password of userId: new_algo must be the one

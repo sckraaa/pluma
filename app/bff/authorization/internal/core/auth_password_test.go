@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/svc"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/model"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/newlogin"
+	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	syncpb "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
@@ -22,6 +24,7 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/mail"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 
@@ -398,24 +401,156 @@ func TestPasswordRemovedWhileWaiting(t *testing.T) {
 	}
 }
 
-func TestRecoveryIsNotAvailable(t *testing.T) {
+// mailCodes is the mail provider of the tests: it keeps the codes.
+type mailCodes struct {
+	mu    sync.Mutex
+	codes []string
+}
+
+var mailCodeLine = regexp.MustCompile(`(?m)^(\d{6})$`)
+
+func (m *mailCodes) Send(_ context.Context, msg mail.Message) (string, error) {
+	c := mailCodeLine.FindStringSubmatch(msg.Text)
+	if c == nil {
+		return "", &mail.Error{Code: "no_code"}
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.codes = append(m.codes, c[1])
+	return "id", nil
+}
+
+func (m *mailCodes) last(t *testing.T) string {
+	t.Helper()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if len(m.codes) == 0 {
+		t.Fatal("no email")
+	}
+	return m.codes[len(m.codes)-1]
+}
+
+// msgPushes is the msg service of the tests: the messages of the service
+// notifications account go to pushes.
+type msgPushes struct {
+	msg_client.MsgClient
+	p *pushes
+}
+
+func (m msgPushes) MsgPushUserMessage(ctx context.Context, in *msgpb.TLMsgPushUserMessage) (*mtproto.Bool, error) {
+	return m.p.MsgPushUserMessage(ctx, in)
+}
+
+// The recovery of the password by email (task 091, ADR 0058): without mail
+// or a recovery email it is not available; with them a login waiting for
+// the password recovers it and logs in, and the account is told.
+func TestPasswordRecovery(t *testing.T) {
 	e := newPasswordEnv(t)
-	c := e.core(pwKey, 0)
-	if _, err := c.AuthRequestPasswordRecovery(&mtproto.TLAuthRequestPasswordRecovery{}); rpcErrorMessage(err) != "PASSWORD_RECOVERY_NA" {
-		t.Fatalf("auth.requestPasswordRecovery: %v", err)
+	e.svcCtx.Dao.MsgClient = msgPushes{p: e.pushes}
+
+	// A key with no login and no waiting one.
+	stranger := e.core(pwKey, 0)
+	if _, err := stranger.AuthRequestPasswordRecovery(&mtproto.TLAuthRequestPasswordRecovery{}); rpcErrorMessage(err) != "AUTH_KEY_UNREGISTERED" {
+		t.Fatalf("auth.requestPasswordRecovery of a stranger: %v", err)
 	}
-	if _, err := c.AuthRecoverPassword(&mtproto.TLAuthRecoverPassword{Code: "123456"}); rpcErrorMessage(err) != "PASSWORD_RECOVERY_NA" {
-		t.Fatalf("auth.recoverPassword: %v", err)
+	if _, err := stranger.AuthCheckRecoveryPassword(&mtproto.TLAuthCheckRecoveryPassword{Code: "123456"}); rpcErrorMessage(err) != "AUTH_KEY_UNREGISTERED" {
+		t.Fatalf("auth.checkRecoveryPassword of a stranger: %v", err)
 	}
-	if _, err := c.AuthCheckRecoveryPassword(&mtproto.TLAuthCheckRecoveryPassword{Code: "123456"}); rpcErrorMessage(err) != "PASSWORD_RECOVERY_NA" {
-		t.Fatalf("auth.checkRecoveryPassword: %v", err)
+	if _, err := stranger.AuthRecoverPassword(&mtproto.TLAuthRecoverPassword{Code: "123456"}); rpcErrorMessage(err) != "AUTH_KEY_UNREGISTERED" {
+		t.Fatalf("auth.recoverPassword of a stranger: %v", err)
 	}
-	if _, err := c.AccountResetPassword(&mtproto.TLAccountResetPassword{}); rpcErrorMessage(err) != "AUTH_KEY_UNREGISTERED" {
+	if _, err := stranger.AccountResetPassword(&mtproto.TLAccountResetPassword{}); rpcErrorMessage(err) != "AUTH_KEY_UNREGISTERED" {
 		t.Fatalf("account.resetPassword without a user: %v", err)
 	}
+
+	// No mail on the server: not available, the reset is.
 	e.setPassword(t, pwUserId, "secret")
-	r, err := e.core(pwKey, pwUserId).AccountResetPassword(&mtproto.TLAccountResetPassword{})
+	if _, _, err := e.signIn(t, pwKey, pwPhone, pwUserId); rpcErrorMessage(err) != "SESSION_PASSWORD_NEEDED" {
+		t.Fatalf("auth.signIn: %v", err)
+	}
+	c := e.core(pwKey, 0)
+	if _, err := c.AuthRequestPasswordRecovery(&mtproto.TLAuthRequestPasswordRecovery{}); rpcErrorMessage(err) != "PASSWORD_RECOVERY_NA" {
+		t.Fatalf("auth.requestPasswordRecovery without mail: %v", err)
+	}
+	if _, err := c.AuthRecoverPassword(&mtproto.TLAuthRecoverPassword{Code: "123456"}); rpcErrorMessage(err) != "PASSWORD_RECOVERY_EXPIRED" {
+		t.Fatalf("auth.recoverPassword without mail: %v", err)
+	}
+	r, err := e.core(pwKey+1, pwUserId).AccountResetPassword(&mtproto.TLAccountResetPassword{})
 	if err != nil || r.GetPredicateName() != mtproto.Predicate_account_resetPasswordRequestedWait {
 		t.Fatalf("account.resetPassword: %v %v", r, err)
+	}
+
+	// Mail on and a confirmed recovery email.
+	sender := &mailCodes{}
+	if err = e.twofa.SetMailSender(sender, strings.Repeat("k", 32), 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = c.AuthRequestPasswordRecovery(&mtproto.TLAuthRequestPasswordRecovery{}); rpcErrorMessage(err) != "PASSWORD_RECOVERY_NA" {
+		t.Fatalf("auth.requestPasswordRecovery without a recovery email: %v", err)
+	}
+	only := mtproto.MakeTLAccountPasswordInputSettings(&mtproto.Account_PasswordInputSettings{
+		Email: wrapperspb.String("owner@example.com"),
+	}).To_Account_PasswordInputSettings()
+	if err = e.twofa.Update(e.ctx, pwUserId, pwKey+1, e.proof(t, pwUserId, "secret"), only); !twofa.EmailUnconfirmed(err) {
+		t.Fatalf("set the recovery email: %v", err)
+	}
+	if err = e.twofa.ConfirmEmail(e.ctx, pwUserId, pwKey+1, sender.last(t)); err != nil {
+		t.Fatal(err)
+	}
+
+	recovery, err := c.AuthRequestPasswordRecovery(&mtproto.TLAuthRequestPasswordRecovery{})
+	if err != nil || recovery.GetEmailPattern() != "ow***@example.com" {
+		t.Fatalf("auth.requestPasswordRecovery: %v %v", recovery, err)
+	}
+	code := sender.last(t)
+	wrong := "000000"
+	if code == wrong {
+		wrong = "111111"
+	}
+	if _, err = c.AuthCheckRecoveryPassword(&mtproto.TLAuthCheckRecoveryPassword{Code: wrong}); rpcErrorMessage(err) != "CODE_INVALID" {
+		t.Fatalf("a wrong code: %v", err)
+	}
+	if ok, err := c.AuthCheckRecoveryPassword(&mtproto.TLAuthCheckRecoveryPassword{Code: code}); err != nil || !mtproto.FromBool(ok) {
+		t.Fatalf("auth.checkRecoveryPassword: %v %v", ok, err)
+	}
+	if e.bound.of(pwKey) != 0 {
+		t.Fatal("the key is bound before the recovery")
+	}
+
+	// A ban that came meanwhile stops the login, and keeps the code.
+	e.svcCtx.Moderation = bannedPhone(pwPhone)
+	if _, err = c.AuthRecoverPassword(&mtproto.TLAuthRecoverPassword{Code: code}); rpcErrorMessage(err) != "PHONE_NUMBER_BANNED" {
+		t.Fatalf("a banned phone: %v", err)
+	}
+	e.svcCtx.Moderation = noBans{}
+	if _, _, err = e.signIn(t, pwKey, pwPhone, pwUserId); rpcErrorMessage(err) != "SESSION_PASSWORD_NEEDED" {
+		t.Fatalf("auth.signIn again: %v", err)
+	}
+
+	// Without new settings: the password goes and the key logs in.
+	auth, err := c.AuthRecoverPassword(&mtproto.TLAuthRecoverPassword{Code: code})
+	if err != nil || auth.GetUser().GetId() != pwUserId {
+		t.Fatalf("auth.recoverPassword: %v %v", auth, err)
+	}
+	if e.bound.of(pwKey) != pwUserId {
+		t.Fatalf("the key is bound to %d", e.bound.of(pwKey))
+	}
+	if l, _ := e.twofa.WaitingLogin(e.ctx, pwKey); l != nil {
+		t.Fatalf("the login still waits: %v", l)
+	}
+	if has, _ := e.twofa.HasPassword(e.ctx, pwUserId); has {
+		t.Fatal("the password is still there")
+	}
+	e.pushes.mu.Lock()
+	defer e.pushes.mu.Unlock()
+	found := false
+	for i, text := range e.pushes.texts {
+		if strings.HasPrefix(text, "Cloud password reset.") && e.pushes.users[i] == pwUserId &&
+			strings.Contains(text, "Device: Pluma Web") && strings.Contains(text, "Prague, Czechia") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no message about the recovery: %q", e.pushes.texts)
 	}
 }

@@ -328,6 +328,10 @@ var optionalVars = map[string]bool{
 	"STT_MODEL":    true,
 	"STT_LANGUAGE": true,
 	"STT_TIMEOUT":  true,
+	// The mail of the recovery email of the cloud password (task 091):
+	// off when the key is empty.
+	"MAIL_API_KEY": true,
+	"MAIL_FROM":    true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

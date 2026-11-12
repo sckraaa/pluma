@@ -23,6 +23,7 @@ import (
 	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
+	"github.com/teamgram/teamgram-server/pkg/mail"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/transcribe"
 	"github.com/zeromicro/go-zero/core/stores/kv"
@@ -62,6 +63,10 @@ type Config struct {
 	// (task 090, docs/ops/transcription.md); transcription is off without
 	// a URL.
 	Transcribe transcribe.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Mail sends the codes of the recovery email of the cloud password
+	// (task 091, ADR 0058, docs/ops/email.md); the recovery email is off
+	// without a key.
+	Mail mail.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 // SyncClientConf is where bff's pushes go: rows of mq_outbox for Topic in

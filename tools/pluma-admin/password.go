@@ -36,7 +36,8 @@ type passwordConfig struct {
 }
 
 // passwordCommand runs password reset (task 008): it removes the 2FA
-// password of an account whose owner forgot it and cannot reset it from a
+// password of an account, with its recovery email (task 091), whose owner
+// forgot it and can neither recover it by email nor reset it from a
 // logged-in session (account.resetPassword). The administrator establishes
 // who asks outside the server first: whoever has the login code then logs
 // in without a password.
@@ -72,7 +73,7 @@ func passwordCommand(args []string, configFile string, stdout io.Writer) error {
 		return err
 	}
 	if removed {
-		fmt.Fprintf(stdout, "+%s (user %d): the 2FA password is removed. The user logs in with a login code only.\n", phone, userId)
+		fmt.Fprintf(stdout, "+%s (user %d): the 2FA password is removed, with its recovery email. The user logs in with a login code only.\n", phone, userId)
 	} else {
 		fmt.Fprintf(stdout, "+%s (user %d) has no 2FA password.\n", phone, userId)
 	}

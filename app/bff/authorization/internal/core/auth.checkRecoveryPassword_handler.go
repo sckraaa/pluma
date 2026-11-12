@@ -25,8 +25,19 @@ import (
 // AuthCheckRecoveryPassword
 // auth.checkRecoveryPassword#d36bf79 code:string = Bool;
 //
-// No recovery code is ever sent (auth.requestPasswordRecovery):
-// PASSWORD_RECOVERY_NA.
+// Tells whether code is the live recovery code (pkg/twofa,
+// Service.CheckRecovery) without using it up: CODE_EMPTY, CODE_INVALID,
+// PASSWORD_RECOVERY_EXPIRED, FLOOD_WAIT_X. Android goes on only on
+// boolTrue (TwoStepVerificationSetupActivity.java:1487-1514).
 func (c *AuthorizationCore) AuthCheckRecoveryPassword(in *mtproto.TLAuthCheckRecoveryPassword) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrPasswordRecoveryNa
+	userId, _, _, err := c.recoveryUser()
+	if err != nil {
+		c.Logger.Errorf("auth.checkRecoveryPassword - %v", err)
+		return nil, err
+	}
+	if err = c.svcCtx.Twofa.CheckRecovery(c.ctx, userId, c.MD.PermAuthKeyId, in.GetCode()); err != nil {
+		c.Logger.Errorf("auth.checkRecoveryPassword - user %d: %v", userId, err)
+		return nil, err
+	}
+	return mtproto.BoolTrue, nil
 }

@@ -17,6 +17,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/mail"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -26,6 +27,11 @@ type Config struct {
 	zrpc.RpcServerConf
 	KV    kv.KvConf   // SRP sessions, new_algo salts, logins waiting for the password, limits
 	Mysql sqlx.Config // user_passwords
+	// The recovery email (task 091, ADR 0058): the mail provider (off
+	// without a key) and the key of the HMAC of its codes,
+	// LOGIN_CODE_HMAC_KEY.
+	Mail        mail.Config
+	CodeHmacKey string
 	// The message of the service notifications account on a change of the
 	// password (task 022): the account's name, the session's device and
 	// place, the message itself.

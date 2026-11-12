@@ -240,6 +240,7 @@ func (s *Server) Initialize() error {
 					KV:                c.KV,
 					Mysql:             c.Mysql,
 					LoginCode:         c.LoginCode,
+					Mail:              c.Mail,
 					UserClient:        c.BizServiceClient,
 					AuthsessionClient: c.AuthSessionClient,
 					ChatClient:        c.BizServiceClient,
@@ -576,13 +577,16 @@ func (s *Server) Initialize() error {
 				},
 				nil))
 
-		// twofa_helper: the 2FA password and its settings (task 008).
+		// twofa_helper: the 2FA password and its settings (task 008), with
+		// the recovery email (task 091).
 		mtproto.RegisterRPCTwoFaServer(
 			grpcServer,
 			twofa_helper.New(twofa_helper.Config{
 				RpcServerConf:     c.RpcServerConf,
 				KV:                c.KV,
 				Mysql:             c.Mysql,
+				Mail:              c.Mail,
+				CodeHmacKey:       c.LoginCode.HmacKey,
 				UserClient:        c.BizServiceClient,
 				AuthsessionClient: c.AuthSessionClient,
 				MsgClient:         c.MsgClient,

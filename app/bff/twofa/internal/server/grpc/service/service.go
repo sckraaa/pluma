@@ -20,8 +20,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/twofa/internal/svc"
 )
 
-// Service serves mtproto.RPCTwoFa: the password and its settings (task 008).
-// The recovery email methods are not served (not_served.go).
+// Service serves mtproto.RPCTwoFa: the password and its settings (task 008)
+// with the recovery email (task 091).
 type Service struct {
 	mtproto.UnimplementedRPCTwoFaServer
 	svcCtx *svc.ServiceContext
