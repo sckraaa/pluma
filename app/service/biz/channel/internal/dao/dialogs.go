@@ -18,10 +18,12 @@ package dao
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
 )
@@ -40,6 +42,9 @@ type channelDialogRow struct {
 	Forum          bool  `db:"forum"`
 	ViewAsMessages bool  `db:"view_forum_as_messages"`
 	TtlPeriod      int32 `db:"ttl_period"`
+	// The channel is a monoforum of this broadcast channel (task 084).
+	Monoforum bool  `db:"monoforum"`
+	LinkedId  int64 `db:"linked_monoforum_id"`
 }
 
 // unreadQuery counts what selfId has not read of the channel above read, its
@@ -71,7 +76,8 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 	for _, id := range dedupe(idList) {
 		var rows []channelDialogRow
 		if err := d.Mysql.QueryRowsPartial(ctx, &rows,
-			"SELECT c.id, c.pts, c.top_message, g.read_inbox_max_id, COALESCE(p.available_min_id, 0) AS available_min_id, c.forum, g.view_forum_as_messages, c.ttl_period"+
+			"SELECT c.id, c.pts, c.top_message, g.read_inbox_max_id, COALESCE(p.available_min_id, 0) AS available_min_id, c.forum, g.view_forum_as_messages, c.ttl_period,"+
+				" c.monoforum, c.linked_monoforum_id"+
 				" FROM channels c JOIN dialogs g ON g.user_id = ? AND g.peer_type = ? AND g.peer_id = c.id AND g.deleted = 0"+
 				" LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = g.user_id"+
 				" WHERE c.id = ? AND c.deleted = 0",
@@ -82,6 +88,23 @@ func (d *Dao) ChannelDialogs(ctx context.Context, selfId int64, idList []int64) 
 			continue
 		}
 		r := rows[0]
+		if r.Monoforum {
+			// The dialog of a monoforum is counted from its sublists, for
+			// one who still may open it (task 084).
+			m, err := monoforum.MemberOf(monoforum.OnDB(ctx, d.Mysql.DB), r.LinkedId, selfId, time.Now().Unix())
+			if err != nil {
+				return nil, err
+			}
+			if !m.Access {
+				continue
+			}
+			dialog, err := d.monoforumDialog(ctx, selfId, id, r, m.Admin)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, dialog)
+			continue
+		}
 		var unread, mentions, outbox, reactions []int32
 		query, args := unreadQuery(selfId, id, r.Forum, r.ReadInboxMaxId, r.AvailableMinId)
 		if err := d.Mysql.QueryRowsPartial(ctx, &unread, query, args...); err != nil {
@@ -143,6 +166,16 @@ type topMessageRow struct {
 func (d *Dao) TopMessages(ctx context.Context, selfId int64, idList []int64) ([]*mtproto.Message, error) {
 	out := make([]*mtproto.Message, 0, len(idList))
 	for _, id := range dedupe(idList) {
+		top, isMonoforum, err := d.monoforumTop(ctx, selfId, id)
+		if err != nil {
+			return nil, fmt.Errorf("channel: top message of monoforum %d: %w", id, err)
+		}
+		if isMonoforum {
+			if top != nil {
+				out = append(out, top)
+			}
+			continue
+		}
 		var rows []topMessageRow
 		if err := d.Mysql.QueryRowsPartial(ctx, &rows,
 			"SELECT m.channel_id, m.id, m.sender_user_id, m.message_data, m.views, m.forwards, COALESCE(p.available_min_id, 0) AS available_min_id,"+

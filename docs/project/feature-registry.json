@@ -825,7 +825,7 @@
   "used_by": "Android messenger/SavedMessagesController.java:221, messenger/TopicsController.java:96; iOS ForumChannels.swift:765; Desktop data/data_saved_messages.cpp:308; Web appMessagesManager.ts:6307, lib/storages/monoforumDialogs.ts:243",
   "decision": "implement",
   "priority": "core",
-  "why": "Partial: the channels callback is an empty TODO (handler line 106), so channels are absent from chats. parent_peer (layer 233 #1e91fc99) is not read at all; it needs channel direct messages."
+  "why": "parent_peer монофорума обслуживается с задачи 084 (ADR 0055): список чатов подписчиков как monoForumDialog. Partial: the channels callback is an empty TODO (handler line 106), so channels are absent from chats. parent_peer (layer 233 #1e91fc99) is not read at all; it needs channel direct messages."
  },
  {
   "name": "messages.saveRecentSticker",
@@ -1320,7 +1320,7 @@
   "used_by": "android ui/MessageAuthorView.java:90; ios Peers/SearchPeers.swift:202; tdesktop history/view/history_view_context_menu.cpp:1590; tweb lib/appManagers/appChatsManager.ts:556",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента вызывают. В брифе 078."
+  "why": "Сделано задачей 084 (ADR 0055): кто из админов ответил от имени канала в монофоруме; только для админов личных сообщений."
  },
  {
   "name": "channels.reorderUsernames",
@@ -2580,7 +2580,7 @@
   "used_by": "Android messenger/MessagesController.java:10352; iOS ManagedCloudChatRemoveMessagesOperations.swift:459, :537; Desktop apiwrap.cpp:1598; Web appMessagesManager.ts:7445",
   "decision": "implement",
   "priority": "normal",
-  "why": "Partial. A sub-chat whose peer is a channel is refused (handler line 42, comment says channels are not served, which is outdated), so posts saved from a channel cannot be removed as a sub-chat. parent_peer (channel direct messages) is also refused and needs that feature first."
+  "why": "parent_peer монофорума обслуживается с задачи 084 (ADR 0055): чат подписчика удаляется у всех. Partial. A sub-chat whose peer is a channel is refused (handler line 42, comment says channels are not served, which is outdated), so posts saved from a channel cannot be removed as a sub-chat. parent_peer (channel direct messages) is also refused and needs that feature first."
  },
  {
   "name": "messages.editInlineBotMessage",
@@ -2706,7 +2706,7 @@
   "used_by": "Android messenger/TopicsController.java:544, messenger/MessagesController.java:21488; iOS Sync/SyncResolve.swift:100; Desktop apiwrap.cpp:3005 (without parent_peer for Saved Messages); Web lib/storages/monoforumDialogs.ts:280",
   "decision": "implement",
   "priority": "normal",
-  "why": "Blocked. Desktop calls it for the user's own Saved Messages too, so it is needed even before channel direct messages."
+  "why": "parent_peer монофорума обслуживается с задачи 084 (ADR 0055). Blocked. Desktop calls it for the user's own Saved Messages too, so it is needed even before channel direct messages."
  },
  {
   "name": "messages.hideAllChatJoinRequests",
@@ -2742,7 +2742,7 @@
   "used_by": "Android messenger/MessagesController.java:14609; Desktop data/data_saved_sublist.cpp:660; iOS TelegramEngine/Messages/ReplyThreadHistory.swift:392; Web lib/appManagers/appMessagesManager.ts:10165",
   "decision": "implement",
   "priority": "normal",
-  "why": "Called only for monoforums (parent_peer plus sublist; Android branches on monoForumPeerId). Channel direct messages can be free (channels.updatePaidMessagesPrice has send_paid_messages_stars with broadcast_messages_allowed), so they are not excluded by no-payments. Depends on the monoforum feature, which the server does not have yet (channels.updatePaidMessagesPrice missing; monoforum appears only as proto fields in handlers)."
+  "why": "Сделано задачей 084 (ADR 0055): отметка прочтения чата подписчика в монофоруме, одна на всех админов личных сообщений; подписчику уходит updateReadChannelOutbox, остальным админам updateReadMonoForumInbox."
  },
  {
   "name": "messages.reorderQuickReplies",
@@ -3201,7 +3201,7 @@
   "used_by": "ios State/PaidMessages.swift:176; tdesktop boxes/peers/edit_peer_info_box.cpp:330; tweb lib/appManagers/appChatsManager.ts:463; android не вызывает",
   "decision": "implement",
   "priority": "rare",
-  "why": "Флаг broadcast_messages_allowed включает сообщения каналу и не требует денег (при цене 0); цена больше нуля отклоняется — платежей нет. Зависит от диалогов сообщений каналу: в серверном коде поддержка linked_monoforum не найдена, объём уточнить."
+  "why": "Сделано задачей 084 (ADR 0055): broadcast_messages_allowed включает и выключает личные сообщения канала, первый раз создаётся монофорум; цена в звёздах не принимается (STARS_AMOUNT_INVALID), в супергруппе метод отвечает CHAT_NOT_MODIFIED."
  },
  {
   "name": "stats.getStoryPublicForwards",
@@ -3255,7 +3255,7 @@
   "used_by": "td export/data/export_data_types.cpp:2695; an ui/ChatActivity.java:28650; ios ApiUtils/ApiGroupOrChannel.swift:142; web lib/appManagers/appChatsManager.ts:464",
   "decision": "implement",
   "priority": "rare",
-  "why": "Free without a price."
+  "why": "Сделано задачей 084 (ADR 0055): отдаётся у канала, пока личные сообщения включены."
  },
  {
   "name": "channel.gigagroup",
@@ -3291,7 +3291,7 @@
   "used_by": "td export/data/export_data_types.cpp:826, 2113; an ui/DialogsActivity.java:8062; ios ApiUtils/ApiGroupOrChannel.swift:188, 263; web components/wrappers/getPeerTitleText.ts:25",
   "decision": "implement",
   "priority": "rare",
-  "why": "Same feature."
+  "why": "Сделано задачей 084 (ADR 0055): монофорум — отдельная супергруппа; обе стороны называют друг друга, пока личные сообщения включены."
  },
  {
   "name": "channel.scam, channel.fake, chatInvite.scam, chatInvite.fake",
@@ -3381,7 +3381,7 @@
   "used_by": "td history/history_streamed_drafts.cpp:78; an ui/ChatActivity.java:13171; ios ApiUtils/StoreMessage_Telegram.swift:1107; web components/chat/contextMenu.ts:1151",
   "decision": "implement",
   "priority": "rare",
-  "why": "Free form has no price; goes with channel direct messages."
+  "why": "Не сделано в задаче 084 (ADR 0055, п. 10): отправка с suggested_post в монофорум отвечает ERR_ENTERPRISE_IS_BLOCKED, вне монофорума — SUGGESTED_POST_PEER_INVALID. Бесплатная форма возможна, идёт вместе с messages.toggleSuggestedPostApproval."
  },
  {
   "name": "message.via_business_bot_id",
@@ -3417,7 +3417,7 @@
   "used_by": "td history/history_item.cpp:7718; an ui/ChatActivity.java:26347; ios ApiUtils/TelegramMediaAction.swift:311",
   "decision": "implement",
   "priority": "rare",
-  "why": "Free suggested posts."
+  "why": "Не сделано в задаче 084 (ADR 0055, п. 10): идёт вместе с messages.toggleSuggestedPostApproval."
  },
  {
   "name": "messageFwdHeader.imported",
@@ -3534,7 +3534,7 @@
   "used_by": "td api/api_updates.cpp:2625; an messenger/MessagesController.java:18837; ios State/Sync/UpdateInterpreter+ReadStates.swift:57, 85, UpdateInterpreter+Messages.swift:238, 302; web lib/storages/monoforumDialogs.ts:502",
   "decision": "implement",
   "priority": "rare",
-  "why": "Read by clients, needed once monoforum and saved sub-chats are full."
+  "why": "Частично с задачи 084 (ADR 0055): updateDraftMessage и updateDialogUnreadMark несут saved_peer_id для чатов монофорума; updateMessageReactions и updateChannelReadMessagesContents — пока нет."
  },
  {
   "name": "updateGeoLiveViewed",
@@ -3579,7 +3579,7 @@
   "used_by": "td api/api_updates.cpp:2622, 2635; an messenger/MessagesController.java:18832, 18843; ios State/Sync/UpdateInterpreter.swift:246, 248; web lib/appManagers/appMessagesManager.ts:921, 922",
   "decision": "implement",
   "priority": "rare",
-  "why": "With channel direct messages."
+  "why": "Сделано задачей 084 (ADR 0055): уходят админам личных сообщений пушем без seq; отметки восстанавливаются из messages.getSavedDialogs."
  },
  {
   "name": "updateRecentEmojiStatuses, updateRecentReactions, updateSavedRingtones",
@@ -4011,7 +4011,7 @@
   "used_by": "Android messenger/MessagesController.java:25076; Desktop api/api_suggest_post.cpp:48; iOS TelegramEngine/Messages/TelegramEngineMessages.swift:2182; Web lib/storages/monoforumDialogs.ts:487",
   "decision": "implement",
   "priority": "rare",
-  "why": "suggestedPost has an optional price, so a free suggested post is possible; the paid variant stays out by no-payments. Depends on channel direct messages (monoforum)."
+  "why": "Не сделано в задаче 084: монофорум есть (ADR 0055), но одобрение должно публиковать пост в канал, в том числе отложенно, — отдельная задача. Бесплатный вариант возможен, платный — нет (платежей нет)."
  },
  {
   "name": "messages.uploadImportedMedia",

@@ -155,6 +155,9 @@ func (m *ImmutableChannel) ToChat(p *ImmutableChannelParticipant, now int32) *mt
 	if p != nil && p.kicked(now) {
 		return m.forbidden(p)
 	}
+	if m.GetMonoforum() {
+		return m.monoforumChat(p)
+	}
 	member := p != nil && p.Member()
 	// The owner who left still sees a private channel, as left: it may come
 	// back by itself (task 078, Join) until its next owner takes it.
@@ -194,6 +197,41 @@ func (m *ImmutableChannel) ToChat(p *ImmutableChannelParticipant, now int32) *mt
 	}
 	return mtproto.MakeTLChannel(c).To_Chat()
 }
+
+// monoforumChat is the monoforum of a channel's direct messages (task 084,
+// ADR 0055) for a viewer whose participant is p, which the service makes of
+// what the viewer is in the channel (pkg/monoforum): channelForbidden for
+// one who may not open it, the supergroup otherwise, never left (nobody
+// joins a monoforum: core.telegram.org/api/monoforum). An admin of the
+// direct messages gets the admin rights it has in the channel, by which the
+// server lets it delete and pin here; the clients read who manages the
+// sublists from the channel itself.
+func (m *ImmutableChannel) monoforumChat(p *ImmutableChannelParticipant) *mtproto.Chat {
+	if p == nil || !p.Member() {
+		return m.forbidden(nil)
+	}
+	c := m.base()
+	c.AccessHash_FLAGINT64 = wrapperspb.Int64(m.GetAccessHash())
+	c.Date = int32(m.GetDate())
+	// A subscriber writes in its chat and does nothing else to the
+	// monoforum: the server lets only the admins pin (msg PinChannel), and
+	// there is no info to change and nobody to invite. With nothing banned
+	// by default the clients would offer it all to a subscriber: tdesktop
+	// canPinMessages and canEditInformation of a supergroup are the default
+	// restrictions (data_peer.cpp:669-682, 1748-1790; data_channel.cpp:
+	// 794-797), Android canPinMessages too (ChatObject.java:1918-1947,
+	// 2287-2288). The admins are let by their admin rights, which the
+	// clients check first.
+	c.DefaultBannedRights = bannedRights(m.GetDefaultBannedRights()|monoforumBanned, 0)
+	if p.GetRole() == RoleAdmin {
+		c.AdminRights = mtproto.AdminRights(p.GetAdminRights()).ToChatAdminRights()
+	}
+	return mtproto.MakeTLChannel(c).To_Chat()
+}
+
+// monoforumBanned are the default banned rights of a monoforum, what no
+// subscriber does there (monoforumChat).
+const monoforumBanned = mtproto.BANNED_PIN_MESSAGES | mtproto.BANNED_CHANGE_INFO | mtproto.BANNED_INVITE_USERS
 
 // ToInvitedChat is the channel as shown to viewerId through a link of a
 // shared folder (task 064, chatlists.checkChatlistInvite): a private channel
@@ -276,6 +314,17 @@ func (m *ImmutableChannel) base() *mtproto.Chat {
 		Color_FLAGPEERCOLOR: m.GetColor(),
 		ProfileColor:        m.GetProfileColor(),
 		EmojiStatus:         m.GetEmojiStatus(),
+		// The direct messages of a channel (task 084): what the row is,
+		// which a min channel carries with its other kinds.
+		Monoforum: m.GetMonoforum(),
+	}
+	// The two sides name each other only while the direct messages are on:
+	// tdesktop reads a monoforum without the link as switched off
+	// (data_channel.cpp:369-390), and Android offers to write to a channel
+	// with broadcast_messages_allowed and the link (ChatActivity.java:28650).
+	if m.GetBroadcastMessagesAllowed() && m.GetLinkedMonoforumId() != 0 {
+		c.BroadcastMessagesAllowed = !m.GetMonoforum()
+		c.LinkedMonoforumId = wrapperspb.Int64(m.GetLinkedMonoforumId())
 	}
 	if m.Public() {
 		c.Username = wrapperspb.String(m.GetUsername())
@@ -298,6 +347,7 @@ func (m *ImmutableChannel) forbidden(p *ImmutableChannelParticipant) *mtproto.Ch
 		Title:            m.GetTitle(),
 		Broadcast:        m.GetBroadcast(),
 		Megagroup:        m.GetMegagroup(),
+		Monoforum:        m.GetMonoforum(),
 	}
 	if u := p.GetUntilDate(); p != nil && u != 0 && u != math.MaxInt32 {
 		c.UntilDate = wrapperspb.Int32(u)

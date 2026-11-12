@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 )
 
@@ -30,9 +31,13 @@ import (
 // the account's own ones ("My notes") for itself, with the users and the
 // chats, channels among them, the messages name.
 func (c *SavedMessageDialogsCore) MessagesGetSavedHistory(in *mtproto.TLMessagesGetSavedHistory) (*mtproto.Messages_Messages, error) {
-	if err := c.checkParentPeer(in.GetParentPeer()); err != nil {
+	monoforumId, err := c.parentMonoforum(in.GetParentPeer())
+	if err != nil {
 		c.Logger.Errorf("messages.getSavedHistory - error: %v", err)
 		return nil, err
+	}
+	if monoforumId != 0 {
+		return c.getSublistHistory(monoforumId, in)
 	}
 	peer, err := c.savedPeer(in.GetPeer())
 	if err != nil {
@@ -94,4 +99,42 @@ func (c *SavedMessageDialogsCore) MessagesGetSavedHistory(in *mtproto.TLMessages
 		Users:    users,
 		Chats:    chats,
 	}).To_Messages_Messages(), nil
+}
+
+// getSublistHistory is messages.getSavedHistory of a monoforum (task 084):
+// a page of the sublist of the subscriber peer, messages.channelMessages
+// with the monoforum's pts as messages.getHistory of it answers, for an
+// admin of the channel's direct messages. The clients read a sublist with
+// it (tdesktop data_saved_sublist.cpp, Android
+// MessagesController.java:11598-11610).
+func (c *SavedMessageDialogsCore) getSublistHistory(monoforumId int64, in *mtproto.TLMessagesGetSavedHistory) (*mtproto.Messages_Messages, error) {
+	peerId, err := c.sublistPeer(in.GetPeer())
+	if err != nil {
+		c.Logger.Errorf("messages.getSavedHistory - error: %v", err)
+		return nil, err
+	}
+	r, err := c.svcCtx.Dao.Channel.ChannelGetSublistHistory(c.ctx, &channelpb.TLChannelGetSublistHistory{
+		SelfId:     c.MD.UserId,
+		ChannelId:  monoforumId,
+		PeerId:     peerId,
+		OffsetId:   in.GetOffsetId(),
+		OffsetDate: in.GetOffsetDate(),
+		AddOffset:  in.GetAddOffset(),
+		Limit:      in.GetLimit(),
+		MaxId:      in.GetMaxId(),
+		MinId:      in.GetMinId(),
+	})
+	if err != nil {
+		c.Logger.Errorf("messages.getSavedHistory - sublist %d of %d: %v", peerId, monoforumId, err)
+		return nil, err
+	}
+	h := mtproto.NewIDListHelper()
+	h.AppendChannels(monoforumId)
+	h.AppendUsers(peerId)
+	h.PickByMessages(r.GetMessages()...)
+	if r.Users, r.Chats, err = c.peers(h); err != nil {
+		c.Logger.Errorf("messages.getSavedHistory - sublist %d of %d: %v", peerId, monoforumId, err)
+		return nil, err
+	}
+	return r, nil
 }

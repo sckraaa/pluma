@@ -126,6 +126,8 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 		end = rows[len(rows)-1].Pts
 	}
 	f := newChannelFold(in.SelfId, v.AvailableMinId, end)
+	updates := make([]*mtproto.Update, 0, len(rows))
+	var named []int32
 	for _, r := range rows {
 		u := new(mtproto.Update)
 		if err = jsonx.UnmarshalFromString(r.UpdateData, u); err != nil {
@@ -134,6 +136,20 @@ func (c *ChannelCore) ChannelGetChannelDifference(in *channel.TLChannelGetChanne
 			c.Logger.Errorf("channel.getChannelDifference - row %d of channel %d: %v", r.Pts, in.ChannelId, err)
 			return nil, mtproto.ErrInternalServerError
 		}
+		updates = append(updates, u)
+		named = append(named, idsNamed(u)...)
+	}
+	if v.Sublist != 0 {
+		// A subscriber of a monoforum gets its own sublist alone (task
+		// 084): the pts of the others' updates pass with nothing to show.
+		mine, err := c.svcCtx.Dao.InSublist(c.ctx, in.ChannelId, v.Sublist, named)
+		if err != nil {
+			c.Logger.Errorf("channel.getChannelDifference - sublist of %d in channel %d: %v", in.SelfId, in.ChannelId, err)
+			return nil, err
+		}
+		f.setSublist(v.Sublist, mine)
+	}
+	for _, u := range updates {
 		f.add(u)
 	}
 	own, err := c.svcCtx.Dao.OwnRandomIds(c.ctx, in.SelfId, in.ChannelId, f.viewedIds())

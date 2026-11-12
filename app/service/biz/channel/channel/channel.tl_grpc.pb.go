@@ -136,6 +136,15 @@ const (
 	RPCChannel_ChannelImportFinish_FullMethodName                     = "/channel.RPCChannel/channel_importFinish"
 	RPCChannel_ChannelImportGetState_FullMethodName                   = "/channel.RPCChannel/channel_importGetState"
 	RPCChannel_ChannelImportAbort_FullMethodName                      = "/channel.RPCChannel/channel_importAbort"
+	RPCChannel_ChannelUpdateDirectMessages_FullMethodName             = "/channel.RPCChannel/channel_updateDirectMessages"
+	RPCChannel_ChannelGetSublists_FullMethodName                      = "/channel.RPCChannel/channel_getSublists"
+	RPCChannel_ChannelGetSublistHistory_FullMethodName                = "/channel.RPCChannel/channel_getSublistHistory"
+	RPCChannel_ChannelReadSublist_FullMethodName                      = "/channel.RPCChannel/channel_readSublist"
+	RPCChannel_ChannelDeleteSublistHistory_FullMethodName             = "/channel.RPCChannel/channel_deleteSublistHistory"
+	RPCChannel_ChannelGetMessageAuthor_FullMethodName                 = "/channel.RPCChannel/channel_getMessageAuthor"
+	RPCChannel_ChannelMarkSublistUnread_FullMethodName                = "/channel.RPCChannel/channel_markSublistUnread"
+	RPCChannel_ChannelGetSublistUnreadMarks_FullMethodName            = "/channel.RPCChannel/channel_getSublistUnreadMarks"
+	RPCChannel_ChannelGetMessageSublists_FullMethodName               = "/channel.RPCChannel/channel_getMessageSublists"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -340,6 +349,24 @@ type RPCChannelClient interface {
 	ChannelImportGetState(ctx context.Context, in *TLChannelImportGetState, opts ...grpc.CallOption) (*ChannelImport, error)
 	// pluma: task 083
 	ChannelImportAbort(ctx context.Context, in *TLChannelImportAbort, opts ...grpc.CallOption) (*ChannelImport, error)
+	// pluma: task 084
+	ChannelUpdateDirectMessages(ctx context.Context, in *TLChannelUpdateDirectMessages, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 084
+	ChannelGetSublists(ctx context.Context, in *TLChannelGetSublists, opts ...grpc.CallOption) (*mtproto.Messages_SavedDialogs, error)
+	// pluma: task 084
+	ChannelGetSublistHistory(ctx context.Context, in *TLChannelGetSublistHistory, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error)
+	// pluma: task 084
+	ChannelReadSublist(ctx context.Context, in *TLChannelReadSublist, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 084
+	ChannelDeleteSublistHistory(ctx context.Context, in *TLChannelDeleteSublistHistory, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 084
+	ChannelGetMessageAuthor(ctx context.Context, in *TLChannelGetMessageAuthor, opts ...grpc.CallOption) (*mtproto.Int64, error)
+	// pluma: task 084
+	ChannelMarkSublistUnread(ctx context.Context, in *TLChannelMarkSublistUnread, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 084
+	ChannelGetSublistUnreadMarks(ctx context.Context, in *TLChannelGetSublistUnreadMarks, opts ...grpc.CallOption) (*Vector_Long, error)
+	// pluma: task 084
+	ChannelGetMessageSublists(ctx context.Context, in *TLChannelGetMessageSublists, opts ...grpc.CallOption) (*Vector_Long, error)
 }
 
 type rPCChannelClient struct {
@@ -1350,6 +1377,96 @@ func (c *rPCChannelClient) ChannelImportAbort(ctx context.Context, in *TLChannel
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelUpdateDirectMessages(ctx context.Context, in *TLChannelUpdateDirectMessages, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelUpdateDirectMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetSublists(ctx context.Context, in *TLChannelGetSublists, opts ...grpc.CallOption) (*mtproto.Messages_SavedDialogs, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_SavedDialogs)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetSublists_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetSublistHistory(ctx context.Context, in *TLChannelGetSublistHistory, opts ...grpc.CallOption) (*mtproto.Messages_Messages, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_Messages)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetSublistHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelReadSublist(ctx context.Context, in *TLChannelReadSublist, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelReadSublist_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelDeleteSublistHistory(ctx context.Context, in *TLChannelDeleteSublistHistory, opts ...grpc.CallOption) (*mtproto.Messages_AffectedHistory, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Messages_AffectedHistory)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelDeleteSublistHistory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetMessageAuthor(ctx context.Context, in *TLChannelGetMessageAuthor, opts ...grpc.CallOption) (*mtproto.Int64, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Int64)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetMessageAuthor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelMarkSublistUnread(ctx context.Context, in *TLChannelMarkSublistUnread, opts ...grpc.CallOption) (*mtproto.Bool, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Bool)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelMarkSublistUnread_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetSublistUnreadMarks(ctx context.Context, in *TLChannelGetSublistUnreadMarks, opts ...grpc.CallOption) (*Vector_Long, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Long)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetSublistUnreadMarks_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelGetMessageSublists(ctx context.Context, in *TLChannelGetMessageSublists, opts ...grpc.CallOption) (*Vector_Long, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Vector_Long)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelGetMessageSublists_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -1552,6 +1669,24 @@ type RPCChannelServer interface {
 	ChannelImportGetState(context.Context, *TLChannelImportGetState) (*ChannelImport, error)
 	// pluma: task 083
 	ChannelImportAbort(context.Context, *TLChannelImportAbort) (*ChannelImport, error)
+	// pluma: task 084
+	ChannelUpdateDirectMessages(context.Context, *TLChannelUpdateDirectMessages) (*mtproto.Updates, error)
+	// pluma: task 084
+	ChannelGetSublists(context.Context, *TLChannelGetSublists) (*mtproto.Messages_SavedDialogs, error)
+	// pluma: task 084
+	ChannelGetSublistHistory(context.Context, *TLChannelGetSublistHistory) (*mtproto.Messages_Messages, error)
+	// pluma: task 084
+	ChannelReadSublist(context.Context, *TLChannelReadSublist) (*mtproto.Bool, error)
+	// pluma: task 084
+	ChannelDeleteSublistHistory(context.Context, *TLChannelDeleteSublistHistory) (*mtproto.Messages_AffectedHistory, error)
+	// pluma: task 084
+	ChannelGetMessageAuthor(context.Context, *TLChannelGetMessageAuthor) (*mtproto.Int64, error)
+	// pluma: task 084
+	ChannelMarkSublistUnread(context.Context, *TLChannelMarkSublistUnread) (*mtproto.Bool, error)
+	// pluma: task 084
+	ChannelGetSublistUnreadMarks(context.Context, *TLChannelGetSublistUnreadMarks) (*Vector_Long, error)
+	// pluma: task 084
+	ChannelGetMessageSublists(context.Context, *TLChannelGetMessageSublists) (*Vector_Long, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -1860,6 +1995,33 @@ func (UnimplementedRPCChannelServer) ChannelImportGetState(context.Context, *TLC
 }
 func (UnimplementedRPCChannelServer) ChannelImportAbort(context.Context, *TLChannelImportAbort) (*ChannelImport, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelImportAbort not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelUpdateDirectMessages(context.Context, *TLChannelUpdateDirectMessages) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelUpdateDirectMessages not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetSublists(context.Context, *TLChannelGetSublists) (*mtproto.Messages_SavedDialogs, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetSublists not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetSublistHistory(context.Context, *TLChannelGetSublistHistory) (*mtproto.Messages_Messages, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetSublistHistory not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelReadSublist(context.Context, *TLChannelReadSublist) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelReadSublist not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelDeleteSublistHistory(context.Context, *TLChannelDeleteSublistHistory) (*mtproto.Messages_AffectedHistory, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelDeleteSublistHistory not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetMessageAuthor(context.Context, *TLChannelGetMessageAuthor) (*mtproto.Int64, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetMessageAuthor not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelMarkSublistUnread(context.Context, *TLChannelMarkSublistUnread) (*mtproto.Bool, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelMarkSublistUnread not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetSublistUnreadMarks(context.Context, *TLChannelGetSublistUnreadMarks) (*Vector_Long, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetSublistUnreadMarks not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelGetMessageSublists(context.Context, *TLChannelGetMessageSublists) (*Vector_Long, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelGetMessageSublists not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -3681,6 +3843,168 @@ func _RPCChannel_ChannelImportAbort_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelUpdateDirectMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelUpdateDirectMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelUpdateDirectMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelUpdateDirectMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelUpdateDirectMessages(ctx, req.(*TLChannelUpdateDirectMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetSublists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetSublists)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetSublists(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetSublists_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetSublists(ctx, req.(*TLChannelGetSublists))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetSublistHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetSublistHistory)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetSublistHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetSublistHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetSublistHistory(ctx, req.(*TLChannelGetSublistHistory))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelReadSublist_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelReadSublist)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelReadSublist(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelReadSublist_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelReadSublist(ctx, req.(*TLChannelReadSublist))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelDeleteSublistHistory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelDeleteSublistHistory)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelDeleteSublistHistory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelDeleteSublistHistory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelDeleteSublistHistory(ctx, req.(*TLChannelDeleteSublistHistory))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetMessageAuthor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetMessageAuthor)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetMessageAuthor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetMessageAuthor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetMessageAuthor(ctx, req.(*TLChannelGetMessageAuthor))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelMarkSublistUnread_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelMarkSublistUnread)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelMarkSublistUnread(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelMarkSublistUnread_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelMarkSublistUnread(ctx, req.(*TLChannelMarkSublistUnread))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetSublistUnreadMarks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetSublistUnreadMarks)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetSublistUnreadMarks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetSublistUnreadMarks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetSublistUnreadMarks(ctx, req.(*TLChannelGetSublistUnreadMarks))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelGetMessageSublists_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelGetMessageSublists)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelGetMessageSublists(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelGetMessageSublists_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelGetMessageSublists(ctx, req.(*TLChannelGetMessageSublists))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -4087,6 +4411,42 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_importAbort",
 			Handler:    _RPCChannel_ChannelImportAbort_Handler,
+		},
+		{
+			MethodName: "channel_updateDirectMessages",
+			Handler:    _RPCChannel_ChannelUpdateDirectMessages_Handler,
+		},
+		{
+			MethodName: "channel_getSublists",
+			Handler:    _RPCChannel_ChannelGetSublists_Handler,
+		},
+		{
+			MethodName: "channel_getSublistHistory",
+			Handler:    _RPCChannel_ChannelGetSublistHistory_Handler,
+		},
+		{
+			MethodName: "channel_readSublist",
+			Handler:    _RPCChannel_ChannelReadSublist_Handler,
+		},
+		{
+			MethodName: "channel_deleteSublistHistory",
+			Handler:    _RPCChannel_ChannelDeleteSublistHistory_Handler,
+		},
+		{
+			MethodName: "channel_getMessageAuthor",
+			Handler:    _RPCChannel_ChannelGetMessageAuthor_Handler,
+		},
+		{
+			MethodName: "channel_markSublistUnread",
+			Handler:    _RPCChannel_ChannelMarkSublistUnread_Handler,
+		},
+		{
+			MethodName: "channel_getSublistUnreadMarks",
+			Handler:    _RPCChannel_ChannelGetSublistUnreadMarks_Handler,
+		},
+		{
+			MethodName: "channel_getMessageSublists",
+			Handler:    _RPCChannel_ChannelGetMessageSublists_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

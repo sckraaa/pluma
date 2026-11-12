@@ -158,10 +158,39 @@ func (d *Channels) Recipients(ctx context.Context, ev *core.ChannelEvent) ([]*co
 	if err != nil {
 		return nil, err
 	}
+	// A monoforum (task 084): a subscriber is notified of its own sublist
+	// alone, as sync pushes it (sync.pushChannelUpdates). The notification
+	// names the channel, whose name and photo the monoforum carries.
+	monoforum := mc.GetChannel().GetMonoforum()
+	sublists := map[int32]int64{}
+	if monoforum {
+		if ids := channelpb.NamedIds(ev.Updates.GetUpdates()); len(ids) > 0 {
+			peers, err := d.Channel.ChannelGetMessageSublists(ctx, &channelpb.TLChannelGetMessageSublists{ChannelId: ev.ChannelId, Id: ids})
+			if err != nil {
+				return nil, err
+			}
+			for i, peer := range peers.GetDatas() {
+				if i < len(ids) {
+					sublists[ids[i]] = peer
+				}
+			}
+		}
+	}
 	now := int32(time.Now().Unix())
 	out := make([]*core.Event, 0, len(recipients))
 	for _, id := range recipients {
 		updates := proto.Clone(ev.Updates).(*mtproto.Updates)
+		if monoforum {
+			p, _ := mc.GetParticipant(id)
+			if !p.Member() {
+				continue
+			}
+			if !channelpb.SublistAdmin(p) {
+				if updates.Updates = channelpb.SublistView(updates.GetUpdates(), id, sublists); len(updates.Updates) == 0 {
+					continue
+				}
+			}
+		}
 		mentioned := slices.Contains(ev.Mentioned, id)
 		for _, u := range updates.GetUpdates() {
 			if m := u.GetMessage_MESSAGE(); m != nil && mentioned {

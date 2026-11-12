@@ -83,7 +83,7 @@ func (c *ChannelCore) ChannelGetMessages(in *channel.TLChannelGetMessages) (*cha
 }
 
 // ChannelSearch
-// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int saved_peer_id:long = messages.Messages;
 //
 // messages.channelMessages, as channel.getHistory answers, of the messages
 // that match (dao.Search), with the count of all that match: the clients'
@@ -91,6 +91,7 @@ func (c *ChannelCore) ChannelGetMessages(in *channel.TLChannelGetMessages) (*cha
 func (c *ChannelCore) ChannelSearch(in *channel.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	r, err := c.search(in.SelfId, in.ChannelId, dao.SearchQuery{
 		Q: in.Q, FromId: in.FromId, MediaType: in.MediaType, MinDate: in.MinDate, MaxDate: in.MaxDate,
+		Sublist: in.SavedPeerId,
 	}, in.OffsetId, in.AddOffset, in.Limit, in.MaxId, in.MinId)
 	if err != nil {
 		c.Logger.Errorf("channel.search - error: %v", err)

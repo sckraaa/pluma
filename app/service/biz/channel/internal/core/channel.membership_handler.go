@@ -73,10 +73,18 @@ func (c *ChannelCore) ChannelJoinChannel(in *channel.TLChannelJoinChannel) (*mtp
 // channel.leaveChannel self_id:long perm_auth_key_id:long channel_id:long = Updates;
 //
 // self_id leaves the channel, as joining (ChannelJoinChannel) in reverse;
-// the dialog goes. The answer holds updateChannel and the channel as it is
+// the dialog goes. A monoforum, which nobody joins, only leaves the dialogs
+// (leaveMonoforum). The answer holds updateChannel and the channel as it is
 // now to self_id (left, or channelForbidden for a private one): Android
 // drops the dialog on it (MessagesController.java:20153-20154).
 func (c *ChannelCore) ChannelLeaveChannel(in *channel.TLChannelLeaveChannel) (*mtproto.Updates, error) {
+	mc, err := c.svcCtx.Dao.GetMutableChannel(c.ctx, in.ChannelId, []int64{in.SelfId})
+	if err != nil {
+		return nil, c.membershipError("channel.leaveChannel", err)
+	}
+	if mc.GetChannel().GetMonoforum() {
+		return c.leaveMonoforum(in.SelfId, mc)
+	}
 	change, view, err := c.membership(in.SelfId, in.ChannelId, func(b *userbox.Box) (*dao.ChannelChange, error) {
 		return c.svcCtx.Dao.Leave(b, in.ChannelId)
 	}, in.PermAuthKeyId)
@@ -84,6 +92,33 @@ func (c *ChannelCore) ChannelLeaveChannel(in *channel.TLChannelLeaveChannel) (*m
 		return nil, c.membershipError("channel.leaveChannel", err)
 	}
 	return membershipAnswer(change, view), nil
+}
+
+// leaveMonoforum is channel.leaveChannel of the monoforum mc, which selfId
+// is in only as long as it may open it (ADR 0055, p. 2): the chat with the
+// channel leaves selfId's dialogs (dao.HideMonoforum), and selfId stays what
+// it was in it. The answer holds no updateChannel: tdesktop, which has
+// already removed the dialog, would load it back for a channel it is still
+// in (api_updates.cpp:2537-2558). USER_NOT_PARTICIPANT for one who may not
+// open the monoforum, as for one not in a channel.
+func (c *ChannelCore) leaveMonoforum(selfId int64, mc *channel.MutableChannel) (*mtproto.Updates, error) {
+	me, _ := mc.GetParticipant(selfId)
+	if !me.Member() {
+		return nil, mtproto.ErrUserNotParticipant
+	}
+	channelId := mc.GetChannel().GetId()
+	if _, err := c.svcCtx.Dao.RunBox(c.ctx, selfId, func(b *userbox.Box) error {
+		return c.svcCtx.Dao.HideMonoforum(b, channelId)
+	}); err != nil {
+		return nil, c.membershipError("channel.leaveChannel", err)
+	}
+	now := time.Now().Unix()
+	return mtproto.MakeTLUpdates(&mtproto.Updates{
+		Updates: []*mtproto.Update{},
+		Users:   []*mtproto.User{},
+		Chats:   []*mtproto.Chat{mc.ToChat(selfId, int32(now))},
+		Date:    int32(now),
+	}).To_Updates(), nil
 }
 
 // ChannelJoinHidden

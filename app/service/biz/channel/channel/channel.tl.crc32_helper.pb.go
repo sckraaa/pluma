@@ -137,11 +137,11 @@ const (
 	// pluma: task 060
 	CRC32_channel_searchTopic TLConstructor = -2126242873 // 0x81441bc7
 	// pluma: task 066
-	CRC32_channel_searchCount TLConstructor = 622787338 // 0x251efb0a
+	CRC32_channel_searchCount TLConstructor = 1725563007 // 0x66da007f
 	// pluma: task 066
-	CRC32_channel_searchCalendar TLConstructor = -16614681 // 0xff027ae7
+	CRC32_channel_searchCalendar TLConstructor = -881531843 // 0xcb74e43d
 	// pluma: task 066
-	CRC32_channel_searchPositions TLConstructor = -1144250748 // 0xbbcc1e84
+	CRC32_channel_searchPositions TLConstructor = 394696236 // 0x1786962c
 	// pluma: task 066
 	CRC32_channel_searchAcross TLConstructor = -1564360787 // 0xa2c1bfad
 	// pluma: task 060
@@ -177,7 +177,7 @@ const (
 	// pluma: task 043
 	CRC32_channel_readMessageContents TLConstructor = 2055458774 // 0x7a83cfd6
 	// pluma: task 043
-	CRC32_channel_search TLConstructor = 471620827 // 0x1c1c5cdb
+	CRC32_channel_search TLConstructor = -1813317393 // 0x93eaf8ef
 	// pluma: task 042
 	CRC32_channel_editCreator TLConstructor = 860909233 // 0x33506eb1
 	// pluma: task 042
@@ -214,4 +214,23 @@ const (
 	CRC32_channel_importGetState TLConstructor = -126708870 // 0xf872937a
 	// pluma: task 083
 	CRC32_channel_importAbort TLConstructor = -668800565 // 0xd822e9cb
+
+	// pluma: task 084
+	CRC32_channel_updateDirectMessages TLConstructor = -53957882 // 0xfcc8ab06
+	// pluma: task 084
+	CRC32_channel_getSublists TLConstructor = -877162024 // 0xcbb791d8
+	// pluma: task 084
+	CRC32_channel_getSublistHistory TLConstructor = 639656389 // 0x262061c5
+	// pluma: task 084
+	CRC32_channel_readSublist TLConstructor = 1308469250 // 0x4dfda802
+	// pluma: task 084
+	CRC32_channel_deleteSublistHistory TLConstructor = 208930703 // 0x0c74078f
+	// pluma: task 084
+	CRC32_channel_getMessageAuthor TLConstructor = 1887421600 // 0x707fc4a0
+	// pluma: task 084
+	CRC32_channel_markSublistUnread TLConstructor = -1931311559 // 0x8ce28639
+	// pluma: task 084
+	CRC32_channel_getSublistUnreadMarks TLConstructor = 2008484025 // 0x77b708b9
+	// pluma: task 084
+	CRC32_channel_getMessageSublists TLConstructor = -614132788 // 0xdb6513cc
 )

@@ -43,13 +43,25 @@ func (c *InboxCore) InboxChannelInvitedToInbox(in *inbox.TLInboxChannelInvitedTo
 	if err != nil {
 		return err
 	}
-	view := mc.ToChat(in.UserId, int32(time.Now().Unix()))
+	now := int32(time.Now().Unix())
+	chats := []*mtproto.Chat{mc.ToChat(in.UserId, now)}
+	if linked := mc.GetChannel().GetLinkedMonoforumId(); mc.GetChannel().GetMonoforum() && linked != 0 {
+		// A monoforum comes with its channel (task 084): the clients read
+		// from the channel what the user is in the monoforum.
+		broadcast, err := c.svcCtx.Dao.ChannelClient.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: linked, Id: []int64{in.UserId}})
+		if err != nil && !errors.Is(err, mtproto.ErrChannelInvalid) {
+			return err
+		}
+		if err == nil {
+			chats = append(chats, broadcast.ToChat(in.UserId, now))
+		}
+	}
 	return c.apply(in.UserId, peer, func(b *userbox.Box) (bool, error) {
 		member, err := c.svcCtx.Dao.InvitedToChannel(b, in.ChannelId)
 		if err != nil || !member {
 			return true, err
 		}
 		u := mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: peer.PeerId}).To_Update()
-		return true, c.svcCtx.Dao.EmitSeqUpdate(b, u, nil, []*mtproto.Chat{view})
+		return true, c.svcCtx.Dao.EmitSeqUpdate(b, u, nil, chats)
 	})
 }

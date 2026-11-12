@@ -392,7 +392,9 @@ const RepliersMax = 3
 // thread it starts or is in, even with the message or the start of the
 // thread deleted, whose replies stay. MSG_ID_INVALID for a post without a
 // copy (comments off, Android answers it with ChannelPostDeleted,
-// ChatActivity.java:35593) or a message that never was.
+// ChatActivity.java:35593) or a message that never was, and for any message
+// of a monoforum (task 084): its messages start no threads here, and a
+// thread would be read across the sublists.
 func (d *Dao) ThreadOf(ctx context.Context, channelId int64, msgId int32) (*Thread, error) {
 	var posts []struct {
 		GroupId        int64 `db:"group_id"`
@@ -409,13 +411,14 @@ func (d *Dao) ThreadOf(ctx context.Context, channelId int64, msgId int32) (*Thre
 		var tops []struct {
 			TopId     int32 `db:"top_id"`
 			Broadcast bool  `db:"broadcast"`
+			Monoforum bool  `db:"monoforum"`
 		}
 		if err := d.Mysql.QueryRowsPartial(ctx, &tops,
-			"SELECT IF(m.reply_top_id <> 0, m.reply_top_id, m.id) AS top_id, c.broadcast FROM channel_messages m JOIN channels c ON c.id = m.channel_id WHERE m.channel_id = ? AND m.id = ?",
+			"SELECT IF(m.reply_top_id <> 0, m.reply_top_id, m.id) AS top_id, c.broadcast, c.monoforum FROM channel_messages m JOIN channels c ON c.id = m.channel_id WHERE m.channel_id = ? AND m.id = ?",
 			channelId, msgId); err != nil {
 			return nil, err
 		}
-		if len(tops) == 0 || tops[0].Broadcast {
+		if len(tops) == 0 || tops[0].Broadcast || tops[0].Monoforum {
 			return nil, mtproto.ErrMsgIdInvalid
 		}
 		t.GroupId, t.TopId = channelId, tops[0].TopId

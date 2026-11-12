@@ -130,6 +130,14 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	if peer.IsSelfUser(c.MD.UserId) {
 		outMessage.SavedPeerId = peer.ToPeer()
 	}
+	// The sublist of a monoforum, and a post suggested through one.
+	if sp := sublistPeer(c.MD.UserId, peer, in.GetReplyTo()); sp != nil {
+		outMessage.SavedPeerId = sp
+	}
+	if err := withSuggestedPost(outMessage, peer, in.GetSuggestedPost()); err != nil {
+		c.Logger.Errorf("%s - error: %v", "messages.sendMessage", err)
+		return nil, err
+	}
 
 	// Fix ReplyToMsgId
 	if outMessage.ReplyTo, err = c.makeReplyHeader(peer, in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
@@ -202,7 +210,7 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() {
-			c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer, in.GetReplyTo().GetTopMsgId().GetValue())
+			c.clearSentDraft(ctx, peer, in.GetReplyTo())
 		})
 	}
 

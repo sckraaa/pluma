@@ -48,7 +48,10 @@ type participantRow struct {
 //     gone); its messages stay as rows, unread;
 //   - every member leaves, so that it counts against no limit and gets no
 //     more pushes; the creator's dialog goes;
-//   - its username is freed and its invite links revoked;
+//   - its username is freed and its invite links revoked, and the monoforum
+//     of its direct messages is deleted with it: it leaves the dialogs of
+//     all who have it, b's owner's here, the others' by
+//     inbox.channelDeletedToInbox;
 //   - each other member gets inbox.channelDeletedToInbox, which drops the
 //     dialog and journals updateChannel in that member's own box.
 //
@@ -87,6 +90,47 @@ func (d *Dao) DeleteChannel(b *userbox.Box, channelId int64) ([]int64, error) {
 		channelId); err != nil {
 		return nil, err
 	}
+	// The monoforum of its direct messages goes with it (task 084): nobody
+	// may open it without the channel, and it leaves the dialogs. Its id is
+	// above the channel's, which keeps the order of the row locks.
+	var monos []struct {
+		Id         int64  `db:"id"`
+		AccessHash int64  `db:"access_hash"`
+		Title      string `db:"title"`
+	}
+	if err = b.Tx().QueryRowsPartial(&monos,
+		"SELECT m.id, m.access_hash, c.title FROM channels m JOIN channels c ON c.id = m.linked_monoforum_id"+
+			" WHERE m.monoforum = 1 AND m.linked_monoforum_id = ? AND m.id > ? AND m.deleted = 0 FOR UPDATE", channelId, channelId); err != nil {
+		return nil, err
+	}
+	for _, mono := range monos {
+		if _, err = b.Tx().Exec("UPDATE channels SET deleted = 1, version = version + 1 WHERE id = ?", mono.Id); err != nil {
+			return nil, err
+		}
+		// Those who have the chat with the channel in their dialogs, the
+		// admins and the subscribers alike, whether in the channel or not,
+		// drop it as the members drop the channel: nobody is in a
+		// monoforum, so its dialogs are its only readers. b's owner drops
+		// its own here, its devices get updateChannel with the monoforum
+		// as channelForbidden; the others by inbox.channelDeletedToInbox.
+		var holders []int64
+		if err = b.Tx().QueryRowsPartial(&holders,
+			"SELECT user_id FROM dialogs WHERE peer_type = ? AND peer_id = ? AND deleted = 0", mtproto.PEER_CHANNEL, mono.Id); err != nil {
+			return nil, err
+		}
+		for _, id := range holders {
+			if id != b.UserId() {
+				err = d.emitChannelDeleted(b, id, mono.Id)
+			} else {
+				err = d.dropOwnDialog(b, &channel.ImmutableChannel{
+					Id: mono.Id, AccessHash: mono.AccessHash, Title: mono.Title, Megagroup: true, Monoforum: true, Deleted: true,
+				})
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	// Every member leaves, a restricted one too; one kicked stays kicked.
 	if _, err = b.Tx().Exec("UPDATE channel_participants SET state = ?, role = 0, admin_rights = 0, `rank` = '', banned_rights = 0, until_date = 0"+
 		" WHERE channel_id = ? AND state <> ?",
@@ -106,12 +150,33 @@ func (d *Dao) DeleteChannel(b *userbox.Box, channelId int64) ([]int64, error) {
 	InvalidateDialog(b, channelId)
 
 	for _, id := range others {
-		ev := &inbox.TLInboxChannelDeletedToInbox{UserId: id, FromId: b.UserId(), ChannelId: channelId}
-		data, err := jsonx.Marshal(ev)
-		if err != nil {
+		if err = d.emitChannelDeleted(b, id, channelId); err != nil {
 			return nil, err
 		}
-		b.Emit(userbox.Event{Topic: d.Topics.Inbox, Recipient: id, Method: string(proto.MessageName(ev)), Data: data})
 	}
 	return others, nil
+}
+
+// dropOwnDialog drops b's owner's dialog of the deleted channel ch and
+// journals updateChannel with seq for its devices, ch as it sees it now.
+func (d *Dao) dropOwnDialog(b *userbox.Box, ch *channel.ImmutableChannel) error {
+	if _, err := b.Tx().Exec("UPDATE dialogs SET deleted = 1 WHERE user_id = ? AND peer_type = ? AND peer_id = ?",
+		b.UserId(), mtproto.PEER_CHANNEL, ch.GetId()); err != nil {
+		return err
+	}
+	InvalidateDialog(b, ch.GetId())
+	u := mtproto.MakeTLUpdateChannel(&mtproto.Update{ChannelId: ch.GetId()}).To_Update()
+	return d.EmitSeqUpdate(b, u, nil, []*mtproto.Chat{ch.ToChat(nil, int32(b.Date()))})
+}
+
+// emitChannelDeleted adds inbox.channelDeletedToInbox of channelId for
+// userId: its own box drops the dialog and journals updateChannel.
+func (d *Dao) emitChannelDeleted(b *userbox.Box, userId, channelId int64) error {
+	ev := &inbox.TLInboxChannelDeletedToInbox{UserId: userId, FromId: b.UserId(), ChannelId: channelId}
+	data, err := jsonx.Marshal(ev)
+	if err != nil {
+		return err
+	}
+	b.Emit(userbox.Event{Topic: d.Topics.Inbox, Recipient: userId, Method: string(proto.MessageName(ev)), Data: data})
+	return nil
 }

@@ -40,11 +40,13 @@ import (
 
 // ChannelReactions is a message's reactions after a change.
 type ChannelReactions struct {
-	Rows      []reactions.Row
-	AuthorId  int64
-	TopicId   int32 // the topic of a forum, 0 for General and elsewhere
-	Broadcast bool
-	Changed   bool
+	Rows     []reactions.Row
+	AuthorId int64
+	TopicId  int32 // the topic of a forum, 0 for General and elsewhere
+	// SavedPeerId is the sublist of a message of a monoforum, 0 elsewhere.
+	SavedPeerId int64
+	Broadcast   bool
+	Changed     bool
 }
 
 // SetChannelReactions makes keys, in this order, b's owner's reactions to
@@ -57,6 +59,9 @@ type ChannelReactions struct {
 func (d *Dao) SetChannelReactions(b *userbox.Box, channelId int64, msgId int32, keys []string, big bool) (*ChannelReactions, error) {
 	_, s, err := openChannel(b, channelId)
 	if err != nil {
+		return nil, err
+	}
+	if err = s.inSight(b, channelId, msgId); err != nil {
 		return nil, err
 	}
 	if !s.ch.Broadcast && s.p.Role == channelperm.RoleMember {
@@ -74,17 +79,20 @@ func (d *Dao) SetChannelReactions(b *userbox.Box, channelId int64, msgId int32, 
 	var msgs []struct {
 		SenderUserId int64 `db:"sender_user_id"`
 		TopicId      int32 `db:"topic_id"`
+		SavedPeerId  int64 `db:"saved_peer_id"`
 		Service      bool  `db:"service"`
 	}
 	if err = b.Tx().QueryRowsPartial(&msgs,
-		"SELECT sender_user_id, topic_id, JSON_UNQUOTE(JSON_EXTRACT(message_data, '$.predicate_name')) <> ? AS service FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE",
+		"SELECT sender_user_id, topic_id, saved_peer_id, JSON_UNQUOTE(JSON_EXTRACT(message_data, '$.predicate_name')) <> ? AS service FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE",
 		mtproto.Predicate_message, channelId, msgId); err != nil {
 		return nil, err
 	}
 	if len(msgs) == 0 || msgs[0].Service {
 		return nil, mtproto.ErrMessageIdInvalid
 	}
-	out := &ChannelReactions{Broadcast: s.ch.Broadcast, TopicId: msgs[0].TopicId}
+	// In a monoforum the reactions are counts, as in a broadcast channel
+	// (task 084): who reacted would name the admin behind the channel.
+	out := &ChannelReactions{Broadcast: s.ch.Broadcast || s.monoforum, TopicId: msgs[0].TopicId, SavedPeerId: msgs[0].SavedPeerId}
 	if !s.ch.Broadcast {
 		out.AuthorId = msgs[0].SenderUserId
 	}
@@ -194,6 +202,11 @@ func ChannelReactionsUpdate(viewer, channelId int64, msgId int32, r *ChannelReac
 	}).To_Update()
 	if r.TopicId != 0 {
 		u.TopMsgId_FLAGINT32 = wrapperspb.Int32(r.TopicId)
+	}
+	// The sublist of a monoforum, by which Android counts an admin's unread
+	// reactions per sublist (MessagesController.java:19658-19670).
+	if r.SavedPeerId != 0 {
+		u.SavedPeerId = mtproto.MakePeerUser(r.SavedPeerId)
 	}
 	return u
 }

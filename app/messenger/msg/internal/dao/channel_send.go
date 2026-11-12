@@ -29,11 +29,13 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -68,6 +70,8 @@ type senderRow struct {
 	Forum               bool   `db:"forum"`
 	Antispam            bool   `db:"antispam"`
 	Joined              int64  `db:"joined"`
+	Monoforum           bool   `db:"monoforum"`
+	LinkedMonoforumId   int64  `db:"linked_monoforum_id"`
 }
 
 // sender is b's owner as a participant of a channel, for channelperm.
@@ -97,6 +101,14 @@ type sender struct {
 	// owner joined it.
 	antispam bool
 	joined   int64
+	// monoforum: the channel holds the direct messages of the broadcast
+	// channel broadcastId (task 084, ADR 0055). sublistAdmin: the owner
+	// manages them and writes as the channel to any sublist; anyone else
+	// writes to its own. directOff: they are switched off, nobody writes.
+	monoforum    bool
+	sublistAdmin bool
+	directOff    bool
+	broadcastId  int64
 }
 
 // anonymous tells whether the owner is an admin of the supergroup with the
@@ -146,7 +158,8 @@ func (s *sender) sendAs(b *userbox.Box, channelId int64, as *mtproto.Peer) (int6
 func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 	var rows []senderRow
 	if err := b.Tx().QueryRowsPartial(&rows,
-		"SELECT c.broadcast, c.gigagroup, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, c.antispam, COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
+		"SELECT c.broadcast, c.gigagroup, c.deleted, c.blocked, c.default_banned_rights, c.signatures, c.signature_profiles, c.slowmode_seconds, c.forum, c.antispam, c.monoforum, c.linked_monoforum_id,"+
+			" COALESCE(p.role, 0) AS role, COALESCE(p.state, ?) AS state,"+
 			" COALESCE(p.admin_rights, 0) AS admin_rights, COALESCE(p.banned_rights, 0) AS banned_rights, COALESCE(p.until_date, 0) AS until_date, COALESCE(p.`date`, 0) AS joined,"+
 			" COALESCE(p.last_send_date, 0) AS last_send_date, COALESCE(p.`rank`, '') AS `rank`"+
 			" FROM channels c LEFT JOIN channel_participants p ON p.channel_id = c.id AND p.user_id = ? WHERE c.id = ?",
@@ -157,6 +170,9 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 		return nil, mtproto.ErrChannelInvalid
 	}
 	r := rows[0]
+	if r.Monoforum {
+		return monoforumSender(b, channelId, r)
+	}
 	if r.State != channelperm.StateIn {
 		if r.State == channelperm.StateKicked {
 			return nil, mtproto.ErrChannelPrivate
@@ -191,6 +207,171 @@ func channelSender(b *userbox.Box, channelId int64) (*sender, error) {
 		p: channelperm.Participant{Role: r.Role, State: r.State, AdminRights: r.AdminRights,
 			BannedRights: r.BannedRights, UntilDate: r.UntilDate},
 	}, nil
+}
+
+// monoforumSender is b's owner in the monoforum channelId, whose row is r:
+// nobody is a participant of it, and what the owner is follows from the
+// broadcast channel (pkg/monoforum). An admin of the direct messages is an
+// admin here with its rights of the channel; anyone else who sees the
+// channel is a member with nothing forbidden. CHANNEL_PRIVATE without
+// access.
+func monoforumSender(b *userbox.Box, channelId int64, r senderRow) (*sender, error) {
+	side, err := monoforum.SideOf(b.Tx(), channelId)
+	if err != nil {
+		return nil, err
+	}
+	m, err := monoforum.MemberOf(b.Tx(), r.LinkedMonoforumId, b.UserId(), b.Date())
+	if err != nil {
+		return nil, err
+	}
+	if !m.Access {
+		return nil, mtproto.ErrChannelPrivate
+	}
+	s := &sender{
+		ch:          channelperm.Channel{Blocked: r.Blocked},
+		p:           channelperm.Participant{Role: channelperm.RoleMember, State: channelperm.StateIn},
+		monoforum:   true,
+		directOff:   !side.Enabled,
+		broadcastId: r.LinkedMonoforumId,
+	}
+	if m.Admin {
+		s.sublistAdmin = true
+		s.p.Role, s.p.AdminRights = channelperm.RoleAdmin, m.AdminRights
+	}
+	return s, nil
+}
+
+// inSight checks that b's owner sees message id of the channel it acts on:
+// in a monoforum a subscriber sees its own sublist alone (task 084).
+// MESSAGE_ID_INVALID otherwise, as for a message that does not exist.
+func (s *sender) inSight(b *userbox.Box, channelId int64, id int32) error {
+	if !s.monoforum || s.sublistAdmin {
+		return nil
+	}
+	var peers []int64
+	if err := b.Tx().QueryRowsPartial(&peers, "SELECT saved_peer_id FROM channel_messages WHERE channel_id = ? AND id = ?", channelId, id); err != nil {
+		return err
+	}
+	if len(peers) == 0 || peers[0] != b.UserId() {
+		return mtproto.ErrMessageIdInvalid
+	}
+	return nil
+}
+
+// errReplyToMonoforumPeerInvalid: the sublist an admin writes to does not
+// exist (core.telegram.org/method/messages.sendMessage, 400).
+var errReplyToMonoforumPeerInvalid = status.Error(mtproto.ErrBadRequest, "REPLY_TO_MONOFORUM_PEER_INVALID")
+
+// errSuggestedPostPeerInvalid: "You cannot send suggested posts to
+// non-monoforum peers" (core.telegram.org/method/messages.sendMessage, 400).
+var errSuggestedPostPeerInvalid = status.Error(mtproto.ErrBadRequest, "SUGGESTED_POST_PEER_INVALID")
+
+// errChannelMonoforumUnsupported: "Monoforums do not support this feature"
+// (core.telegram.org/method/messages.sendMessage, 400).
+var errChannelMonoforumUnsupported = status.Error(mtproto.ErrBadRequest, "CHANNEL_MONOFORUM_UNSUPPORTED")
+
+// routeToSublist puts m, which b's owner sends to the monoforum channelId,
+// in its sublist and writes it as the two sides read it
+// (core.telegram.org/api/monoforum):
+//   - a subscriber writes to its own sublist, as itself;
+//   - an admin of the direct messages writes to the sublist it names
+//     (reply_to.monoforum_peer_id, carried in saved_peer_id by bff), or to
+//     that of the message it replies to, as the channel: send_as is the
+//     channel whatever was asked. REPLY_TO_MONOFORUM_PEER_INVALID for a
+//     sublist that does not exist: the channel answers those who wrote to
+//     it, it starts no chats.
+//
+// A reply stays only to a message of the same sublist, and starts no
+// thread. Polls and checklists are not sent here (the clients offer none:
+// Android ChatObject.java:2217-2220, tdesktop data_peer.cpp:691-700), and a
+// suggested post is not served. It returns the sublist.
+func routeToSublist(b *userbox.Box, channelId int64, s *sender, m *mtproto.Message) (int64, error) {
+	if s.directOff {
+		return 0, mtproto.ErrChatWriteForbidden
+	}
+	if m.GetMedia().GetPoll() != nil || m.GetMedia().GetPredicateName() == mtproto.Predicate_messageMediaToDo {
+		return 0, errChannelMonoforumUnsupported
+	}
+	if m.GetSuggestedPost() != nil {
+		return 0, mtproto.ErrEnterpriseIsBlocked
+	}
+	var repliedPeer int64
+	replied := m.GetReplyTo().GetReplyToMsgId()
+	if replied != 0 {
+		var rows []int64
+		if err := b.Tx().QueryRowsPartial(&rows,
+			"SELECT saved_peer_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0", channelId, replied); err != nil {
+			return 0, err
+		}
+		if len(rows) > 0 {
+			repliedPeer = rows[0]
+		}
+	}
+	peer := b.UserId()
+	if s.sublistAdmin {
+		if peer = m.GetSavedPeerId().GetUserId(); peer == 0 {
+			peer = repliedPeer
+		}
+		if peer == 0 {
+			return 0, errReplyToMonoforumPeerInvalid
+		}
+		if _, ok, err := monoforum.Sublist(b.Tx(), channelId, peer); err != nil {
+			return 0, err
+		} else if !ok {
+			return 0, errReplyToMonoforumPeerInvalid
+		}
+		m.FromId = mtproto.MakePeerChannel(s.broadcastId)
+	} else {
+		m.FromId = mtproto.MakePeerUser(b.UserId())
+	}
+	m.SavedPeerId = mtproto.MakePeerUser(peer)
+	m.PostAuthor, m.FromRank = nil, nil
+	switch {
+	case m.GetReplyTo() == nil:
+	case replied != 0 && repliedPeer == peer:
+		m.ReplyTo.ReplyToTopId = nil
+		m.ReplyTo.ForumTopic = false
+	case replyStandsAlone(m.GetReplyTo()):
+		m.ReplyTo.ReplyToTopId = nil
+	default:
+		m.ReplyTo = nil
+	}
+	return peer, nil
+}
+
+// showToSublistSides brings the monoforum into the dialogs of those who
+// read the sublist peer and have no dialog with it: the admins of the
+// direct messages, whom its first message reaches, and a subscriber who
+// removed the chat and is answered. Each writes its dialog in its own box
+// (inbox.channelInvitedToInbox).
+func (d *Dao) showToSublistSides(b *userbox.Box, channelId int64, s *sender, peer int64) error {
+	ids, err := monoforum.Recipients(b.Tx(), s.broadcastId, []int64{peer}, b.Date())
+	if err != nil {
+		return err
+	}
+	ids = slices.DeleteFunc(ids, func(id int64) bool { return id == b.UserId() })
+	if len(ids) == 0 {
+		return nil
+	}
+	args := []any{mtproto.PEER_CHANNEL, channelId}
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	var have []int64
+	if err = b.Tx().QueryRowsPartial(&have,
+		"SELECT user_id FROM dialogs WHERE peer_type = ? AND peer_id = ? AND deleted = 0 AND user_id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
+		args...); err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if slices.Contains(have, id) {
+			continue
+		}
+		if err = d.EmitInbox(b, &inbox.TLInboxChannelInvitedToInbox{UserId: id, FromId: b.UserId(), ChannelId: channelId}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // discussionGuest tells whether b's owner, not in the supergroup channelId,
@@ -420,12 +601,21 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		return nil, nil, nil, err
 	}
 	var lastTopic int32
+	var sublists []int64
 	for _, o := range outgoing {
 		var sendAs int64
 		m := proto.Clone(o.Message).(*mtproto.Message)
 		// from_scheduled is the sender's alone, pushed by flagFromScheduled;
 		// the one copy of the message does not hold it.
 		m.FromScheduled = false
+		if !s.monoforum {
+			// Only a message of a monoforum is in a sublist, and a post is
+			// suggested only through one.
+			m.SavedPeerId = nil
+			if m.GetSuggestedPost() != nil {
+				return nil, nil, nil, errSuggestedPostPeerInvalid
+			}
+		}
 		if err = checkSend(s, m, b.Date()); err != nil {
 			return nil, nil, nil, err
 		}
@@ -461,6 +651,10 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			if s.signatures && s.signatureProfiles {
 				m.FromId = mtproto.MakePeerUser(b.UserId())
 			}
+		} else if s.monoforum {
+			// Who it is from follows from the sublist (routeToSublist):
+			// a send_as is ignored (core.telegram.org/api/monoforum).
+			m.FromId = nil
 		} else {
 			if sendAs, err = s.sendAs(b, channelId, o.Message.GetFromId()); err != nil {
 				return nil, nil, nil, err
@@ -507,7 +701,19 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		// A reply is in the thread of the message replied to: the thread
 		// that message is in, or the one it starts (task 048).
 		var top, topicId int32
-		if s.forum {
+		var sublist int64
+		if s.monoforum {
+			// A message of a monoforum is in a sublist (task 084): no
+			// thread, and nobody is mentioned, as the sublist is read by
+			// its subscriber and the channel's admins alone.
+			if sublist, err = routeToSublist(b, channelId, s, m); err != nil {
+				return nil, nil, nil, err
+			}
+			if s.sublistAdmin {
+				sendAs = s.broadcastId
+			}
+			who = nil
+		} else if s.forum {
 			var replied int64
 			if topicId, replied, err = routeToTopic(b, channelId, s, m, b.Date()); err != nil {
 				return nil, nil, nil, err
@@ -580,9 +786,17 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, send_as_id, random_id, pts, message_filter_type, message_data, message, reply_top_id, topic_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			channelId, m.Id, b.UserId(), sendAs, o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, channelbox.TopicColumn(topicId), b.Date()); err != nil {
+		if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, send_as_id, random_id, pts, message_filter_type, message_data, message, reply_top_id, topic_id, saved_peer_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			channelId, m.Id, b.UserId(), sendAs, o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, channelbox.TopicColumn(topicId), sublist, b.Date()); err != nil {
 			return nil, nil, nil, err
+		}
+		if s.monoforum {
+			if err = monoforum.Moved(b.Tx(), channelId, sublist, m.Id, false, s.sublistAdmin, b.Date()); err != nil {
+				return nil, nil, nil, err
+			}
+			if !slices.Contains(sublists, sublist) {
+				sublists = append(sublists, sublist)
+			}
 		}
 		for _, id := range who {
 			if id == b.UserId() {
@@ -626,7 +840,12 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 	if err = d.mentionedGhostsJoin(b, channelId, mentioned, sent[0].Message.Id-1); err != nil {
 		return nil, nil, nil, err
 	}
-	if !s.ch.Broadcast {
+	for _, peer := range sublists {
+		if err = d.showToSublistSides(b, channelId, s, peer); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+	if !s.ch.Broadcast && !s.monoforum {
 		if err = d.antispamCheck(b, channelId, s, sent); err != nil {
 			return nil, nil, nil, err
 		}
@@ -887,6 +1106,13 @@ func (d *Dao) EmitChannelPush(b *userbox.Box, channelId, permAuthKeyId int64, se
 // after, before this event, stays unread. It tells whether the owner is in
 // the channel.
 func (d *Dao) InvitedToChannel(b *userbox.Box, channelId int64) (bool, error) {
+	side, err := monoforum.SideOf(b.Tx(), channelId)
+	if err != nil {
+		return false, err
+	}
+	if side.Monoforum {
+		return shownMonoforum(b, channelId, side)
+	}
 	var rows []struct {
 		Top  int32 `db:"top_message"`
 		Read int32 `db:"read_max"`
@@ -901,6 +1127,24 @@ func (d *Dao) InvitedToChannel(b *userbox.Box, channelId int64) (bool, error) {
 		return false, nil
 	}
 	return true, showChannelDialog(b, channelId, rows[0].Top, min(rows[0].Read, rows[0].Top))
+}
+
+// shownMonoforum shows the monoforum in the dialogs of b's owner when it
+// may open it (task 084): an admin of the direct messages a sublist has a
+// new message for, a subscriber the channel answered. Nobody is in a
+// monoforum, so there is no moment of joining to read up to: an admin's
+// unread is counted from the sublists, and a subscriber keeps the mark its
+// dialog had. It tells whether the owner may open it.
+func shownMonoforum(b *userbox.Box, channelId int64, side monoforum.Side) (bool, error) {
+	m, err := monoforum.MemberOf(b.Tx(), side.LinkedId, b.UserId(), b.Date())
+	if err != nil || !m.Access {
+		return false, err
+	}
+	var top []int32
+	if err = b.Tx().QueryRowsPartial(&top, "SELECT top_message FROM channels WHERE id = ? AND deleted = 0", channelId); err != nil || len(top) == 0 {
+		return false, err
+	}
+	return true, showChannelDialog(b, channelId, top[0], 0)
 }
 
 // JoinedHidden shows the channel in the dialogs of b's owner, a ghost that

@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -31,9 +32,10 @@ import (
 // Sets the unread mark of a dialog. Every device of the account, this one
 // included, gets updateDialogUnreadMark with seq: the dialog service pushes
 // it in the transaction of the change (ADR 0020), with the peer resolved
-// here. parent_peer names a monoforum (a channel's direct messages), and
-// Pluma has no channels; saved_peer_id of the update, the topic of a
-// monoforum, is never set.
+// here. With parent_peer, a monoforum (a channel's direct messages, task
+// 084), peer is one of its sublists: the mark is the admins' of the direct
+// messages, who get updateDialogUnreadMark with saved_peer_id
+// (core.telegram.org/api/monoforum); false when it was as asked.
 func (c *DialogsCore) MessagesMarkDialogUnread(in *mtproto.TLMessagesMarkDialogUnread) (*mtproto.Bool, error) {
 	var (
 		peer *mtproto.PeerUtil
@@ -45,9 +47,25 @@ func (c *DialogsCore) MessagesMarkDialogUnread(in *mtproto.TLMessagesMarkDialogU
 		return nil, err
 	}
 	if in.GetParentPeer() != nil {
-		err := mtproto.ErrPeerIdInvalid
-		c.Logger.Errorf("messages.markDialogUnread - parent peer %s: %v", in.GetParentPeer().GetPredicateName(), err)
-		return nil, err
+		parent := mtproto.FromInputPeer2(c.MD.UserId, in.GetParentPeer())
+		sublist := mtproto.FromInputPeer2(c.MD.UserId, in.GetPeer().GetPeer())
+		if parent.PeerType != mtproto.PEER_CHANNEL || in.GetPeer().GetPredicateName() != mtproto.Predicate_inputDialogPeer || sublist.PeerType != mtproto.PEER_USER {
+			err := mtproto.ErrPeerIdInvalid
+			c.Logger.Errorf("messages.markDialogUnread - parent peer %s: %v", in.GetParentPeer().GetPredicateName(), err)
+			return nil, err
+		}
+		changed, err := c.svcCtx.Dao.Channel.ChannelMarkSublistUnread(c.ctx, &channelpb.TLChannelMarkSublistUnread{
+			SelfId:        c.MD.UserId,
+			PermAuthKeyId: c.MD.PermAuthKeyId,
+			ChannelId:     parent.PeerId,
+			PeerId:        sublist.PeerId,
+			Unread:        mtproto.ToBool(in.GetUnread()),
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.markDialogUnread - sublist %d of %d: %v", sublist.PeerId, parent.PeerId, err)
+			return nil, err
+		}
+		return changed, nil
 	}
 
 	switch in.Peer.GetPredicateName() {

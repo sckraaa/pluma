@@ -421,6 +421,9 @@ func (s *Server) Initialize() error {
 		// (task 082); the translation of texts is not served yet (task 027).
 		mtproto.RegisterRPCAntiSpamServer(grpcServer, channels)
 		mtproto.RegisterRPCTranslationServer(grpcServer, channels)
+		// The direct messages of a channel are switched by a method of the
+		// paid messages (task 084); the payments themselves are not served.
+		mtproto.RegisterRPCPaidMessageServer(grpcServer, channels)
 
 		// stories_helper: the stories (none yet, the list answers so).
 		mtproto.RegisterRPCStoriesServer(
@@ -456,6 +459,7 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 				ChatClient:    c.BizServiceClient,
 				ChannelClient: c.BizServiceClient,
+				Mysql:         c.Mysql,
 			}, nil))
 
 		// autodownload_helper

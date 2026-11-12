@@ -213,6 +213,25 @@ const (
 	Predicate_channel_importGetState = "channel_importGetState"
 	// pluma: task 083
 	Predicate_channel_importAbort = "channel_importAbort"
+
+	// pluma: task 084
+	Predicate_channel_updateDirectMessages = "channel_updateDirectMessages"
+	// pluma: task 084
+	Predicate_channel_getSublists = "channel_getSublists"
+	// pluma: task 084
+	Predicate_channel_getSublistHistory = "channel_getSublistHistory"
+	// pluma: task 084
+	Predicate_channel_readSublist = "channel_readSublist"
+	// pluma: task 084
+	Predicate_channel_deleteSublistHistory = "channel_deleteSublistHistory"
+	// pluma: task 084
+	Predicate_channel_getMessageAuthor = "channel_getMessageAuthor"
+	// pluma: task 084
+	Predicate_channel_markSublistUnread = "channel_markSublistUnread"
+	// pluma: task 084
+	Predicate_channel_getSublistUnreadMarks = "channel_getSublistUnreadMarks"
+	// pluma: task 084
+	Predicate_channel_getMessageSublists = "channel_getMessageSublists"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -467,15 +486,15 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 
 	},
 	Predicate_channel_searchCount: { // pluma: task 066
-		0: 622787338, // 0x251efb0a
+		0: 1725563007, // 0x66da007f
 
 	},
 	Predicate_channel_searchCalendar: { // pluma: task 066
-		0: -16614681, // 0xff027ae7
+		0: -881531843, // 0xcb74e43d
 
 	},
 	Predicate_channel_searchPositions: { // pluma: task 066
-		0: -1144250748, // 0xbbcc1e84
+		0: 394696236, // 0x1786962c
 
 	},
 	Predicate_channel_searchAcross: { // pluma: task 066
@@ -547,7 +566,7 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 
 	},
 	Predicate_channel_search: { // pluma: task 043
-		0: 471620827, // 0x1c1c5cdb
+		0: -1813317393, // 0x93eaf8ef
 
 	},
 	Predicate_channel_editCreator: { // pluma: task 042
@@ -611,6 +630,33 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	Predicate_channel_importAbort: { // pluma: task 083
 		0: -668800565, // 0xd822e9cb
 	},
+	Predicate_channel_updateDirectMessages: { // pluma: task 084
+		0: -53957882, // 0xfcc8ab06
+	},
+	Predicate_channel_getSublists: { // pluma: task 084
+		0: -877162024, // 0xcbb791d8
+	},
+	Predicate_channel_getSublistHistory: { // pluma: task 084
+		0: 639656389, // 0x262061c5
+	},
+	Predicate_channel_readSublist: { // pluma: task 084
+		0: 1308469250, // 0x4dfda802
+	},
+	Predicate_channel_deleteSublistHistory: { // pluma: task 084
+		0: 208930703, // 0x0c74078f
+	},
+	Predicate_channel_getMessageAuthor: { // pluma: task 084
+		0: 1887421600, // 0x707fc4a0
+	},
+	Predicate_channel_markSublistUnread: { // pluma: task 084
+		0: -1931311559, // 0x8ce28639
+	},
+	Predicate_channel_getSublistUnreadMarks: { // pluma: task 084
+		0: 2008484025, // 0x77b708b9
+	},
+	Predicate_channel_getMessageSublists: { // pluma: task 084
+		0: -614132788, // 0xdb6513cc
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -667,7 +713,7 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-521821973:  Predicate_channel_readMentions,                     // 0xe0e5a0eb pluma: task 043
 	1865304106:  Predicate_channel_getUnreadMentions,                // 0x6f2e482a pluma: task 043
 	2055458774:  Predicate_channel_readMessageContents,              // 0x7a83cfd6 pluma: task 043
-	471620827:   Predicate_channel_search,                           // 0x1c1c5cdb pluma: task 043
+	-1813317393: Predicate_channel_search,                           // 0x93eaf8ef pluma: task 043
 	860909233:   Predicate_channel_editCreator,                      // 0x33506eb1 pluma: task 042
 	1274612374:  Predicate_channel_editAdmin,                        // 0x4bf90a96 pluma: task 042
 	-1457424068: Predicate_channel_editBanned,                       // 0xa921793c pluma: task 042
@@ -703,9 +749,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-553446363:  Predicate_channel_getForumTopics,                   // 0xdf031425 pluma: task 060
 	1892057379:  Predicate_channel_getForumTopicsByID,               // 0x70c68123 pluma: task 060
 	-2126242873: Predicate_channel_searchTopic,                      // 0x81441bc7 pluma: task 060
-	622787338:   Predicate_channel_searchCount,                      // 0x251efb0a pluma: task 066
-	-16614681:   Predicate_channel_searchCalendar,                   // 0xff027ae7 pluma: task 066
-	-1144250748: Predicate_channel_searchPositions,                  // 0xbbcc1e84 pluma: task 066
+	1725563007:  Predicate_channel_searchCount,                      // 0x66da007f pluma: task 066
+	-881531843:  Predicate_channel_searchCalendar,                   // 0xcb74e43d pluma: task 066
+	394696236:   Predicate_channel_searchPositions,                  // 0x1786962c pluma: task 066
 	-1564360787: Predicate_channel_searchAcross,                     // 0xa2c1bfad pluma: task 066
 	-701570663:  Predicate_channel_readTopicMentions,                // 0xd62ee199 pluma: task 060
 	-1405087645: Predicate_channel_unpinAllTopicMessages,            // 0xac401063 pluma: task 060
@@ -723,6 +769,16 @@ var clazzIdNameRegisters2 = map[int32]string{
 	1309891041:  Predicate_channel_importFinish,                     // 0x4e1359e1 pluma: task 083
 	-126708870:  Predicate_channel_importGetState,                   // 0xf872937a pluma: task 083
 	-668800565:  Predicate_channel_importAbort,                      // 0xd822e9cb pluma: task 083
+
+	-53957882:   Predicate_channel_updateDirectMessages,  // 0xfcc8ab06 pluma: task 084
+	-877162024:  Predicate_channel_getSublists,           // 0xcbb791d8 pluma: task 084
+	639656389:   Predicate_channel_getSublistHistory,     // 0x262061c5 pluma: task 084
+	1308469250:  Predicate_channel_readSublist,           // 0x4dfda802 pluma: task 084
+	208930703:   Predicate_channel_deleteSublistHistory,  // 0x0c74078f pluma: task 084
+	1887421600:  Predicate_channel_getMessageAuthor,      // 0x707fc4a0 pluma: task 084
+	-1931311559: Predicate_channel_markSublistUnread,     // 0x8ce28639 pluma: task 084
+	2008484025:  Predicate_channel_getSublistUnreadMarks, // 0x77b708b9 pluma: task 084
+	-614132788:  Predicate_channel_getMessageSublists,    // 0xdb6513cc pluma: task 084
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

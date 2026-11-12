@@ -556,6 +556,71 @@ var clazzIdRegisters2 = map[int32]func() mtproto.TLObject{
 			Constructor: -668800565,
 		}
 	},
+	1725563007: func() mtproto.TLObject { // 0x66da007f pluma: task 066
+		return &TLChannelSearchCount{
+			Constructor: 1725563007,
+		}
+	},
+	-881531843: func() mtproto.TLObject { // 0xcb74e43d pluma: task 066
+		return &TLChannelSearchCalendar{
+			Constructor: -881531843,
+		}
+	},
+	394696236: func() mtproto.TLObject { // 0x1786962c pluma: task 066
+		return &TLChannelSearchPositions{
+			Constructor: 394696236,
+		}
+	},
+	-1813317393: func() mtproto.TLObject { // 0x93eaf8ef pluma: task 043
+		return &TLChannelSearch{
+			Constructor: -1813317393,
+		}
+	},
+	-53957882: func() mtproto.TLObject { // 0xfcc8ab06 pluma: task 084
+		return &TLChannelUpdateDirectMessages{
+			Constructor: -53957882,
+		}
+	},
+	-877162024: func() mtproto.TLObject { // 0xcbb791d8 pluma: task 084
+		return &TLChannelGetSublists{
+			Constructor: -877162024,
+		}
+	},
+	639656389: func() mtproto.TLObject { // 0x262061c5 pluma: task 084
+		return &TLChannelGetSublistHistory{
+			Constructor: 639656389,
+		}
+	},
+	1308469250: func() mtproto.TLObject { // 0x4dfda802 pluma: task 084
+		return &TLChannelReadSublist{
+			Constructor: 1308469250,
+		}
+	},
+	208930703: func() mtproto.TLObject { // 0x0c74078f pluma: task 084
+		return &TLChannelDeleteSublistHistory{
+			Constructor: 208930703,
+		}
+	},
+	1887421600: func() mtproto.TLObject { // 0x707fc4a0 pluma: task 084
+		return &TLChannelGetMessageAuthor{
+			Constructor: 1887421600,
+		}
+	},
+	-1931311559: func() mtproto.TLObject { // 0x8ce28639 pluma: task 084
+		return &TLChannelMarkSublistUnread{
+			Constructor: -1931311559,
+		}
+	},
+	2008484025: func() mtproto.TLObject { // 0x77b708b9 pluma: task 084
+		return &TLChannelGetSublistUnreadMarks{
+			Constructor: 2008484025,
+		}
+	},
+	-614132788: func() mtproto.TLObject { // 0xdb6513cc pluma: task 084
+		return &TLChannelGetMessageSublists{
+			Constructor: -614132788,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) mtproto.TLObject {
@@ -2470,8 +2535,8 @@ func (m *TLChannelEditCreator) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *TLChannelSearch) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	switch uint32(m.Constructor) {
-	case 0x1c1c5cdb:
-		x.UInt(0x1c1c5cdb)
+	case 0x93eaf8ef:
+		x.UInt(0x93eaf8ef)
 
 		// no flags
 
@@ -2487,6 +2552,7 @@ func (m *TLChannelSearch) Encode(x *mtproto.EncodeBuf, layer int32) error {
 		x.Int(m.GetLimit())
 		x.Int(m.GetMaxId())
 		x.Int(m.GetMinId())
+		x.Long(m.GetSavedPeerId())
 
 	default:
 		// log.Errorf("")
@@ -2501,7 +2567,7 @@ func (m *TLChannelSearch) CalcByteSize(layer int32) int {
 
 func (m *TLChannelSearch) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
-	case 0x1c1c5cdb:
+	case 0x93eaf8ef:
 
 		// not has flags
 
@@ -2517,6 +2583,7 @@ func (m *TLChannelSearch) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.Limit = dBuf.Int()
 		m.MaxId = dBuf.Int()
 		m.MinId = dBuf.Int()
+		m.SavedPeerId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:
@@ -4671,8 +4738,8 @@ func (m *TLChannelSetChatTheme) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *TLChannelSearchCount) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	switch uint32(m.Constructor) {
-	case 0x251efb0a:
-		x.UInt(0x251efb0a)
+	case 0x66da007f:
+		x.UInt(0x66da007f)
 
 		// no flags
 
@@ -4680,6 +4747,7 @@ func (m *TLChannelSearchCount) Encode(x *mtproto.EncodeBuf, layer int32) error {
 		x.Long(m.GetChannelId())
 		x.Int(m.GetTopMsgId())
 		x.Int(m.GetMediaType())
+		x.Long(m.GetSavedPeerId())
 
 	default:
 		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
@@ -4694,7 +4762,7 @@ func (m *TLChannelSearchCount) CalcByteSize(layer int32) int {
 
 func (m *TLChannelSearchCount) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
-	case 0x251efb0a:
+	case 0x66da007f:
 
 		// not has flags
 
@@ -4702,6 +4770,7 @@ func (m *TLChannelSearchCount) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.ChannelId = dBuf.Long()
 		m.TopMsgId = dBuf.Int()
 		m.MediaType = dBuf.Int()
+		m.SavedPeerId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:
@@ -4714,8 +4783,8 @@ func (m *TLChannelSearchCount) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *TLChannelSearchCalendar) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	switch uint32(m.Constructor) {
-	case 0xff027ae7:
-		x.UInt(0xff027ae7)
+	case 0xcb74e43d:
+		x.UInt(0xcb74e43d)
 
 		// no flags
 
@@ -4724,6 +4793,7 @@ func (m *TLChannelSearchCalendar) Encode(x *mtproto.EncodeBuf, layer int32) erro
 		x.Int(m.GetMediaType())
 		x.Int(m.GetOffsetId())
 		x.Int(m.GetOffsetDate())
+		x.Long(m.GetSavedPeerId())
 
 	default:
 		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
@@ -4738,7 +4808,7 @@ func (m *TLChannelSearchCalendar) CalcByteSize(layer int32) int {
 
 func (m *TLChannelSearchCalendar) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
-	case 0xff027ae7:
+	case 0xcb74e43d:
 
 		// not has flags
 
@@ -4747,6 +4817,7 @@ func (m *TLChannelSearchCalendar) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.MediaType = dBuf.Int()
 		m.OffsetId = dBuf.Int()
 		m.OffsetDate = dBuf.Int()
+		m.SavedPeerId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:
@@ -4759,8 +4830,8 @@ func (m *TLChannelSearchCalendar) Decode(dBuf *mtproto.DecodeBuf) error {
 
 func (m *TLChannelSearchPositions) Encode(x *mtproto.EncodeBuf, layer int32) error {
 	switch uint32(m.Constructor) {
-	case 0xbbcc1e84:
-		x.UInt(0xbbcc1e84)
+	case 0x1786962c:
+		x.UInt(0x1786962c)
 
 		// no flags
 
@@ -4769,6 +4840,7 @@ func (m *TLChannelSearchPositions) Encode(x *mtproto.EncodeBuf, layer int32) err
 		x.Int(m.GetMediaType())
 		x.Int(m.GetOffsetId())
 		x.Int(m.GetLimit())
+		x.Long(m.GetSavedPeerId())
 
 	default:
 		return fmt.Errorf("invalid constructor: %x", uint32(m.Constructor))
@@ -4783,7 +4855,7 @@ func (m *TLChannelSearchPositions) CalcByteSize(layer int32) int {
 
 func (m *TLChannelSearchPositions) Decode(dBuf *mtproto.DecodeBuf) error {
 	switch uint32(m.Constructor) {
-	case 0xbbcc1e84:
+	case 0x1786962c:
 
 		// not has flags
 
@@ -4792,6 +4864,7 @@ func (m *TLChannelSearchPositions) Decode(dBuf *mtproto.DecodeBuf) error {
 		m.MediaType = dBuf.Int()
 		m.OffsetId = dBuf.Int()
 		m.Limit = dBuf.Int()
+		m.SavedPeerId = dBuf.Long()
 		return dBuf.GetError()
 
 	default:
@@ -6441,6 +6514,434 @@ func (m *TLChannelImportAbort) Decode(dBuf *mtproto.DecodeBuf) error {
 		// not has flags
 
 		m.ImportId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelUpdateDirectMessages) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xfcc8ab06:
+		x.UInt(0xfcc8ab06)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		if err := m.GetEnabled().Encode(x, layer); err != nil {
+			return err
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelUpdateDirectMessages) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelUpdateDirectMessages) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xfcc8ab06:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m4 := &mtproto.Bool{}
+		if err := m4.Decode(dBuf); err != nil {
+			return err
+		}
+		m.Enabled = m4
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelGetSublists) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xcbb791d8:
+		x.UInt(0xcbb791d8)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetIds())))
+		for _, v := range m.GetIds() {
+			x.Long(v)
+		}
+
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetLimit())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetSublists) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetSublists) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xcbb791d8:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		c3 := dBuf.Int()
+		if c3 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 3, c3)
+		}
+		l3 := dBuf.Int()
+		if vectorTooLong(dBuf, l3) {
+			return fmt.Errorf("invalid vector length: %d", l3)
+		}
+		v3 := make([]int64, l3)
+		for i := int32(0); i < l3; i++ {
+			v3[i] = dBuf.Long()
+		}
+		m.Ids = v3
+		m.OffsetId = dBuf.Int()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelGetSublistHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x262061c5:
+		x.UInt(0x262061c5)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetOffsetId())
+		x.Int(m.GetOffsetDate())
+		x.Int(m.GetAddOffset())
+		x.Int(m.GetLimit())
+		x.Int(m.GetMaxId())
+		x.Int(m.GetMinId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetSublistHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetSublistHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x262061c5:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.PeerId = dBuf.Long()
+		m.OffsetId = dBuf.Int()
+		m.OffsetDate = dBuf.Int()
+		m.AddOffset = dBuf.Int()
+		m.Limit = dBuf.Int()
+		m.MaxId = dBuf.Int()
+		m.MinId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelReadSublist) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x4dfda802:
+		x.UInt(0x4dfda802)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMaxId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelReadSublist) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelReadSublist) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x4dfda802:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.PeerId = dBuf.Long()
+		m.MaxId = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelDeleteSublistHistory) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x0c74078f:
+		x.UInt(0x0c74078f)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetPeerId())
+		x.Int(m.GetMaxId())
+		x.Int(m.GetMinDate())
+		x.Int(m.GetMaxDate())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelDeleteSublistHistory) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelDeleteSublistHistory) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x0c74078f:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.PeerId = dBuf.Long()
+		m.MaxId = dBuf.Int()
+		m.MinDate = dBuf.Int()
+		m.MaxDate = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelGetMessageAuthor) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x707fc4a0:
+		x.UInt(0x707fc4a0)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+		x.Int(m.GetId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetMessageAuthor) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetMessageAuthor) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x707fc4a0:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.Id = dBuf.Int()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelMarkSublistUnread) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x8ce28639:
+		x.UInt(0x8ce28639)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetPermAuthKeyId())
+		x.Long(m.GetChannelId())
+		x.Long(m.GetPeerId())
+		if err := m.GetUnread().Encode(x, layer); err != nil {
+			return err
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelMarkSublistUnread) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelMarkSublistUnread) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x8ce28639:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.PermAuthKeyId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		m.PeerId = dBuf.Long()
+		m5 := &mtproto.Bool{}
+		if err := m5.Decode(dBuf); err != nil {
+			return err
+		}
+		m.Unread = m5
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelGetSublistUnreadMarks) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x77b708b9:
+		x.UInt(0x77b708b9)
+
+		// no flags
+
+		x.Long(m.GetSelfId())
+		x.Long(m.GetChannelId())
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetSublistUnreadMarks) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetSublistUnreadMarks) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x77b708b9:
+
+		// not has flags
+
+		m.SelfId = dBuf.Long()
+		m.ChannelId = dBuf.Long()
+		return dBuf.GetError()
+
+	default:
+		// log.Errorf("")
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLChannelGetMessageSublists) Encode(x *mtproto.EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0xdb6513cc:
+		x.UInt(0xdb6513cc)
+
+		// no flags
+
+		x.Long(m.GetChannelId())
+
+		x.Int(int32(mtproto.CRC32_vector))
+		x.Int(int32(len(m.GetId())))
+		for _, v := range m.GetId() {
+			x.Int(v)
+		}
+
+	default:
+		// log.Errorf("")
+	}
+
+	return nil
+}
+
+func (m *TLChannelGetMessageSublists) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLChannelGetMessageSublists) Decode(dBuf *mtproto.DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0xdb6513cc:
+
+		// not has flags
+
+		m.ChannelId = dBuf.Long()
+		c2 := dBuf.Int()
+		if c2 != int32(mtproto.CRC32_vector) {
+			return fmt.Errorf("invalid mtproto.CRC32_vector, c%d: %d", 2, c2)
+		}
+		l2 := dBuf.Int()
+		if vectorTooLong(dBuf, l2) {
+			return fmt.Errorf("invalid vector length: %d", l2)
+		}
+		v2 := make([]int32, l2)
+		for i := int32(0); i < l2; i++ {
+			v2[i] = dBuf.Int()
+		}
+		m.Id = v2
 		return dBuf.GetError()
 
 	default:

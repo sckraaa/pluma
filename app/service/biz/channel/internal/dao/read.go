@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/readmarks"
 	"slices"
 	"strings"
@@ -64,8 +65,16 @@ type readRow struct {
 // AccountStateManagementUtils.swift:4725-4764). In a supergroup the authors
 // of the messages read get updateReadChannelOutbox by push. A read that
 // moves nothing writes nothing. CHANNEL_PRIVATE when the owner has no
-// dialog with the channel (not in it).
-func (d *Dao) Read(b *userbox.Box, channelId int64, maxId int32) error {
+// dialog with the channel (not in it). permAuthKeyId is the device that
+// read. A monoforum is read by its own rules (readMonoforum, task 084).
+func (d *Dao) Read(b *userbox.Box, channelId, permAuthKeyId int64, maxId int32) error {
+	side, err := monoforum.SideOf(b.Tx(), channelId)
+	if err != nil {
+		return err
+	}
+	if side.Monoforum {
+		return d.readMonoforum(b, channelId, side, permAuthKeyId, maxId)
+	}
 	r, err := readerRow(b, channelId)
 	if err != nil {
 		return err
@@ -210,8 +219,23 @@ func (d *Dao) ReadReactions(b *userbox.Box, channelId int64, topicId int32) erro
 }
 
 // readerIn checks that b's owner is in the channel with its dialog, locked:
-// CHANNEL_PRIVATE otherwise.
+// CHANNEL_PRIVATE otherwise. A monoforum has no participants: who may open
+// it is in (pkg/monoforum).
 func readerIn(b *userbox.Box, channelId int64) error {
+	side, err := monoforum.SideOf(b.Tx(), channelId)
+	if err != nil {
+		return err
+	}
+	if side.Monoforum {
+		m, err := monoforum.MemberOf(b.Tx(), side.LinkedId, b.UserId(), b.Date())
+		if err != nil {
+			return err
+		}
+		if !m.Access {
+			return mtproto.ErrChannelPrivate
+		}
+		return nil
+	}
 	var in []int32
 	if err := b.Tx().QueryRowsPartial(&in,
 		"SELECT g.top_message FROM dialogs g JOIN channels c ON c.id = g.peer_id AND c.deleted = 0"+

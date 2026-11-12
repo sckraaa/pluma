@@ -50,12 +50,12 @@ func (c *MessagesCore) MessagesGetSearchCounters(in *mtproto.TLMessagesGetSearch
 
 func (c *MessagesCore) searchCount(in *mtproto.TLMessagesGetSearchCounters, peer *mtproto.PeerUtil, kind int32) (int32, error) {
 	if peer.IsChannel() {
-		// Saved dialogs are of the account's own Saved Messages only.
-		if in.SavedPeerId != nil {
+		sublist, ok := c.channelSublist(in.SavedPeerId)
+		if !ok {
 			return 0, nil
 		}
 		n, err := c.svcCtx.Dao.Channel.ChannelSearchCount(c.ctx, &channelpb.TLChannelSearchCount{
-			SelfId: c.MD.UserId, ChannelId: peer.PeerId, TopMsgId: in.GetTopMsgId().GetValue(), MediaType: kind,
+			SelfId: c.MD.UserId, ChannelId: peer.PeerId, TopMsgId: in.GetTopMsgId().GetValue(), MediaType: kind, SavedPeerId: sublist,
 		})
 		if err != nil {
 			return 0, err

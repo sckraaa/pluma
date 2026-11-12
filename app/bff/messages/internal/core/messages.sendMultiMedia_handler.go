@@ -163,6 +163,10 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 		if peer.IsSelfUser(c.MD.UserId) {
 			outMessage.SavedPeerId = peer.ToPeer()
 		}
+		// The sublist of a monoforum.
+		if sp := sublistPeer(c.MD.UserId, peer, in.GetReplyTo()); sp != nil {
+			outMessage.SavedPeerId = sp
+		}
 
 		// Fix ReplyToMsgId
 		if replyTo != nil {
@@ -232,7 +236,7 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() {
-			c.doClearDraft(ctx, c.MD.UserId, c.MD.PermAuthKeyId, peer, in.GetReplyTo().GetTopMsgId().GetValue())
+			c.clearSentDraft(ctx, peer, in.GetReplyTo())
 		})
 	}
 

@@ -231,6 +231,11 @@ func (c *MsgCore) editChannelMessage(fromUserId, fromAuthKeyId, channelId int64,
 func (c *MsgCore) sentChats(userId, channelId int64, mc *channelpb.MutableChannel, h *mtproto.IDListHelper) ([]*mtproto.Chat, error) {
 	chats := []*mtproto.Chat{mc.ToChat(userId, int32(time.Now().Unix()))}
 	others := slices.DeleteFunc(slices.Clone(h.ChannelIdList), func(id int64) bool { return id == channelId })
+	// The channel of a monoforum goes with it (task 084): the clients read
+	// from it what the user is in the monoforum.
+	if linked := mc.GetChannel().GetLinkedMonoforumId(); mc.GetChannel().GetMonoforum() && linked != 0 && !slices.Contains(others, linked) {
+		others = append(others, linked)
+	}
 	if len(others) == 0 {
 		return chats, nil
 	}

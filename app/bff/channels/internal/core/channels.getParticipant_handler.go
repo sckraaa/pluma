@@ -29,11 +29,12 @@ import (
 // One member's row (tasks 038, 041): iOS asks for its own with the full
 // channel (UpdateCachedPeerData.swift:657-680) and after joining
 // (JoinChannel.swift:70-81). Anyone who may read a supergroup may ask
-// about any member; in a channel only its admins ask about others
-// (CHAT_ADMIN_REQUIRED). One not in the channel (never joined or left) is
-// USER_NOT_PARTICIPANT, and so is one kicked to all but admins, and a
-// ghost's hidden row to all but itself and the admins who see it
-// restricted; a restricted member is channelParticipantBanned to admins.
+// about any member; in a channel and in its direct messages only the
+// admins ask about others (CHAT_ADMIN_REQUIRED). One not in the channel
+// (never joined or left) is USER_NOT_PARTICIPANT, and so is one kicked to
+// all but admins, and a ghost's hidden row to all but itself and the
+// admins who see it restricted; a restricted member is
+// channelParticipantBanned to admins.
 func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipant) (*mtproto.Channels_ChannelParticipant, error) {
 	peer := mtproto.FromInputPeer2(c.MD.UserId, in.Participant)
 	if peer.PeerType == mtproto.PEER_SELF {
@@ -52,7 +53,11 @@ func (c *ChannelsCore) ChannelsGetParticipant(in *mtproto.TLChannelsGetParticipa
 			return nil, err
 		}
 		me, _ := mc.GetParticipant(c.MD.UserId)
-		if mc.GetChannel().GetBroadcast() && (!me.Member() || me.GetRole() == channelpb.RoleMember) {
+		// The direct messages of a channel (ADR 0055) show the subscriber
+		// the channel alone: who answers as the channel, and who else
+		// writes to it, are for the admins of the direct messages.
+		ch := mc.GetChannel()
+		if (ch.GetBroadcast() || ch.GetMonoforum()) && (!me.Member() || me.GetRole() == channelpb.RoleMember) {
 			return nil, mtproto.ErrChatAdminRequired
 		}
 		if mc, err = c.svcCtx.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{
