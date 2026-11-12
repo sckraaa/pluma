@@ -672,7 +672,7 @@
   "used_by": "A StoriesController.java:4535; I Stories.swift:2040",
   "decision": "implement",
   "priority": "core",
-  "why": "Called before the story editor; limits are Premium level (ADR 0041)."
+  "why": "Сделано задачей 084 (ADR 0054), все три формы; лимиты премиальные (ADR 0041)."
  },
  {
   "name": "stories.deleteStories",
@@ -681,7 +681,7 @@
   "used_by": "A StoriesController.java:1198; I Stories.swift:2083; D data_stories.cpp:2129; W appStoriesManager.ts:840",
   "decision": "implement",
   "priority": "core",
-  "why": "Basic management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getAllReadPeerStories",
@@ -690,7 +690,7 @@
   "used_by": "A StoriesController.java:200; I Stories.swift:3111; D data_stories.cpp:2343; W appStoriesManager.ts:1080",
   "decision": "implement",
   "priority": "core",
-  "why": "Drives the unread ring."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getPeerMaxIDs",
@@ -699,7 +699,7 @@
   "used_by": "A UserListPoller.java:52; I AccountViewTracker.swift:1476; W appStoriesManager.ts:1141",
   "decision": "implement",
   "priority": "core",
-  "why": "Polled while lists are on screen."
+  "why": "Сделано задачей 084 (ADR 0054), обе формы."
  },
  {
   "name": "stories.getPeerStories",
@@ -708,7 +708,7 @@
   "used_by": "A LaunchActivity.java:9327; I StoryListContext.swift:2966; D data_stories.cpp:341; W appStoriesManager.ts:1101",
   "decision": "implement",
   "priority": "core",
-  "why": "Main read path."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoriesByID",
@@ -717,7 +717,7 @@
   "used_by": "A LaunchActivity.java:9200; I Stories.swift:2509; D apiwrap.cpp:2924; W appStoriesManager.ts:863",
   "decision": "implement",
   "priority": "core",
-  "why": "Main read path."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoriesViews",
@@ -726,7 +726,7 @@
   "used_by": "A ViewsForPeerStoriesRequester.java:94; I Stories.swift:2805; D data_stories.cpp:1676; W appStoriesManager.ts:2122",
   "decision": "implement",
   "priority": "core",
-  "why": "Shown on own stories."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoryViewsList",
@@ -735,7 +735,7 @@
   "used_by": "A SelfStoryViewsPage.java:1315; I EngineStoryViewListContext.swift:460; D data_stories.cpp:1596; W appStoriesManager.ts:2006",
   "decision": "implement",
   "priority": "core",
-  "why": "Viewers list; Premium feature, open to all."
+  "why": "Сделано задачей 084 (ADR 0054); зрители хранятся, пока есть история; репосты и пересылки в списке не показаны."
  },
  {
   "name": "stories.incrementStoryViews",
@@ -744,7 +744,7 @@
   "used_by": "A StoriesController.java:3773; I Stories.swift:2126; D data_stories.cpp:1466; W appStoriesManager.ts:1988",
   "decision": "implement",
   "priority": "core",
-  "why": "Viewer counts."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.readStories",
@@ -753,7 +753,7 @@
   "used_by": "A StoriesController.java:1345; I ManagedSynchronizeViewStoriesOperations.swift:125; D data_stories.cpp:1405; W appStoriesManager.ts:1978",
   "decision": "implement",
   "priority": "core",
-  "why": "Read state."
+  "why": "Сделано задачей 084 (ADR 0054); этим же методом считаются просмотры историй из ленты."
  },
  {
   "name": "stories.sendStory",
@@ -762,7 +762,7 @@
   "used_by": "A StoriesController.java:2373; I Stories.swift:1442",
   "decision": "implement",
   "priority": "core",
-  "why": "Stories are a core Telegram feature; now off by stories_posting=disabled."
+  "why": "Сделано задачей 084 (ADR 0054): фото и видео, области, подпись, приватность, срок, профиль, запрет пересылки, репост, музыка; альбомы — отдельно."
  },
  {
   "name": "messages.deleteParticipantReaction",
@@ -1545,7 +1545,7 @@
   "used_by": "td data/data_session.cpp:779, 1133, 741, 743; an ui/Stories/StoriesController.java:507, ui/ProfileActivity.java:5598, 10847; ios ApiUtils/ApiGroupOrChannel.swift:201, 202; web components/stories/viewer.tsx:2738",
   "decision": "implement",
   "priority": "normal",
-  "why": "With stories."
+  "why": "Сделано задачей 084 (ADR 0054): stories_max_id, stories_hidden, channelFull.stories и stories_pinned_available; stories_hidden_min и stories_unavailable сервер не ставит."
  },
  {
   "name": "channelAdminLogEventActionStartGroupCall, channelAdminLogEventActionDiscardGroupCall, channelAdminLogEventActionParticipantMute, channelAdminLogEventActionParticipantUnmute, channelAdminLogEventActionToggleGroupCallSetting, channelAdminLogEventActionParticipantVolume",
@@ -1752,7 +1752,7 @@
   "used_by": "td history/history_item_helpers.cpp:1143; an ui/Cells/ExpiredStoryView.java:38; ios State/UpdatesApiUtils.swift:99",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of stories."
+  "why": "Сделано задачей 084 (ADR 0054): история в сообщении (inputMediaStory), ответ на историю, сообщение об упоминании (via_mention)."
  },
  {
   "name": "messages.channelMessages.offset_id_offset, messages.channelMessages.inexact",
@@ -1779,7 +1779,7 @@
   "used_by": "an messenger/NotificationsSettingsFacade.java:115, messenger/MessagesController.java:12663, 19273; ios State/Sync/UpdateInterpreter+Peers.swift:141; web components/sidebarLeft/tabs/notifications.tsx:168",
   "decision": "implement",
   "priority": "normal",
-  "why": "With stories."
+  "why": "Истории и чёрный список историй (contacts.block с my_stories_from, updatePeerBlocked.blocked_my_stories_from) сделаны задачей 084; уведомления о новых историях и их настройки — нет, отдельная задача."
  },
  {
   "name": "phoneCall.conference_supported, messageActionConferenceCall",
@@ -1842,7 +1842,7 @@
   "used_by": "td data/data_stories.h:175, 176, api/api_updates.cpp:2953; an ui/Stories/StoriesStorage.java:470, ui/Stories/StoriesController.java:2458, messenger/MessagesController.java:19445, 20149; ios State/Sync/UpdateInterpreter+Stories.swift:11; web lib/appManagers/appStoriesManager.ts:149, 83, 153, 155",
   "decision": "implement",
   "priority": "normal",
-  "why": "Free feature, stories.* missing."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "updateUserEmojiStatus",
@@ -2328,7 +2328,7 @@
   "used_by": "A StealthModeAlert.java:164; I Stories.swift:3215; D data_stories.cpp:1081; W appStoriesManager.ts:2452",
   "decision": "implement",
   "priority": "normal",
-  "why": "Premium feature, open to all (ADR 0041)."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.createAlbum",
@@ -2355,7 +2355,7 @@
   "used_by": "A StoriesController.java:2309; I Stories.swift:1872; W appStoriesManager.ts:943",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.exportStoryLink",
@@ -2364,7 +2364,7 @@
   "used_by": "A PeerStoriesView.java:4137; I Stories.swift:2876; D apiwrap.cpp:900; W appStoriesManager.ts:1233",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story menu; link host via ADR 0036."
+  "why": "Сделано задачей 084 (ADR 0054); хост ссылки по ADR 0036, сервис ссылок передаёт /<имя>/s/<id> в приложение."
  },
  {
   "name": "stories.getAlbumStories",
@@ -2391,7 +2391,7 @@
   "used_by": "A StoriesController.java:4731; I AddressNames.swift:652; D giveaway_list_controllers.cpp:255",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story editor; I retries forever on error (retryRequest)."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getPinnedStories",
@@ -2400,7 +2400,7 @@
   "used_by": "A StoriesController.java:3858; I StoryListContext.swift:1586; D data_stories.cpp:1849; W appStoriesManager.ts:1363",
   "decision": "implement",
   "priority": "normal",
-  "why": "Profile tab."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoriesArchive",
@@ -2409,7 +2409,7 @@
   "used_by": "A StoriesController.java:3870; I StoryListContext.swift:1584; D export_api_wrap.cpp:895; W appStoriesManager.ts:1839",
   "decision": "implement",
   "priority": "normal",
-  "why": "Archive screen and data export."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.getStoryReactionsList",
@@ -2418,7 +2418,7 @@
   "used_by": "A SelfStoryViewsPage.java:1239; I EngineStoryViewListContext.swift:687; D data_stories.cpp:1522; W appStoriesManager.ts:2049",
   "decision": "implement",
   "priority": "normal",
-  "why": "Owner's viewers panel."
+  "why": "Сделано задачей 084 (ADR 0054); репосты и пересылки в списке не показаны."
  },
  {
   "name": "stories.reorderAlbums",
@@ -2436,7 +2436,7 @@
   "used_by": "A ReportBottomSheet.java:281; I ReportContent.swift:96; D api_report.cpp:130; W appStoriesManager.ts:2151",
   "decision": "implement",
   "priority": "normal",
-  "why": "Goes to the moderation panel (ADR 0040)."
+  "why": "Сделано задачей 084 (ADR 0054), все три формы: жалоба вида «История» в очереди модерации (ADR 0040)."
  },
  {
   "name": "stories.sendReaction",
@@ -2445,7 +2445,7 @@
   "used_by": "A StoriesController.java:1876; I Stories.swift:3669; D data_stories.cpp:1098; W appStoriesManager.ts:2206",
   "decision": "implement",
   "priority": "normal",
-  "why": "Viewer action."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.togglePeerStoriesHidden",
@@ -2454,7 +2454,7 @@
   "used_by": "A StoriesController.java:368; I Stories.swift:2860; D data_stories.cpp:1322; W appStoriesManager.ts:2389",
   "decision": "implement",
   "priority": "normal",
-  "why": "Context menu of the stories row."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.togglePinned",
@@ -2463,7 +2463,7 @@
   "used_by": "A StoriesController.java:1274; I Stories.swift:2174; D data_stories.cpp:2157; W appStoriesManager.ts:962",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.togglePinnedToTop",
@@ -2472,7 +2472,7 @@
   "used_by": "A StoriesController.java:4184; I Stories.swift:2265; D data_stories.cpp:2260; W appStoriesManager.ts:1024",
   "decision": "implement",
   "priority": "normal",
-  "why": "Story management."
+  "why": "Сделано задачей 084 (ADR 0054)."
  },
  {
   "name": "stories.updateAlbum",
@@ -4641,7 +4641,7 @@
   "used_by": "none found (A, I, D, W)",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Ни один клиент не вызывает."
+  "why": "Ни один клиент не вызывает; обслуживается заодно с stories.togglePeerStoriesHidden (задача 084)."
  },
  {
   "name": "help.editUserInfo",
@@ -4776,7 +4776,7 @@
   "used_by": "none found (A, I, D, W)",
   "decision": "not_needed",
   "priority": "none",
-  "why": "Ни один клиент не вызывает."
+  "why": "Ни один клиент не вызывает; обслуживается заодно с stories.getPeerMaxIDs (задача 084)."
  },
  {
   "name": "users.setSecureValueErrors",
@@ -6243,7 +6243,7 @@
   "used_by": "none found",
   "decision": "not_needed",
   "priority": "none",
-  "why": "No client calls it."
+  "why": "Ни один клиент не вызывает; обслуживается заодно с stories.getPeerMaxIDs (задача 084)."
  },
  {
   "name": "users.setSecureValueErrors",
