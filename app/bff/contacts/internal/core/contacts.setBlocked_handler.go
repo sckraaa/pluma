@@ -28,9 +28,20 @@ import (
 // maxBlocked bounds the blocklist read to replace it.
 const maxBlocked = 10000
 
-// errStoriesUnavailable answers the story blocklist: Pluma has no stories
-// (users are stories_unavailable), so there is no list to edit.
+// errStoriesUnavailable answers the blocklist of stories where the stories
+// are not served (no StoriesBlocklist).
 var errStoriesUnavailable = status.Error(mtproto.ErrBadRequest, "STORIES_UNAVAILABLE")
+
+// storiesBlocked is contacts.block (blocked) and contacts.unblock with
+// my_stories_from: the blocklist of stories, which the stories serve
+// (Android StoriesController.java:4483-4513 sends them from the list of
+// viewers of a story; iOS BlockedPeers.swift:42-50).
+func (c *ContactsCore) storiesBlocked(peer *mtproto.InputPeer, blocked bool) error {
+	if c.svcCtx.Stories == nil {
+		return errStoriesUnavailable
+	}
+	return c.svcCtx.Stories.SetStoriesBlocked(c.ctx, c.MD.UserId, peer, blocked)
+}
 
 // ContactsSetBlocked
 // contacts.setBlocked#94c65c76 flags:# my_stories_from:flags.0?true id:Vector<InputPeer> limit:int = Bool;
@@ -40,10 +51,20 @@ var errStoriesUnavailable = status.Error(mtproto.ErrBadRequest, "STORIES_UNAVAIL
 // in it are unblocked, the new ones blocked, and every device of the user
 // gets updatePeerBlocked with seq for each, as from contacts.block and
 // contacts.unblock. Only users can be blocked, as with contacts.block.
+// With my_stories_from it replaces the blocklist of stories the same way
+// (Android StoryPrivacyBottomSheet.java:944-951 saves the "hide my
+// stories from" list so).
 func (c *ContactsCore) ContactsSetBlocked(in *mtproto.TLContactsSetBlocked) (*mtproto.Bool, error) {
 	if in.GetMyStoriesFrom() {
-		c.Logger.Errorf("contacts.setBlocked - error: %v", errStoriesUnavailable)
-		return nil, errStoriesUnavailable
+		err := errStoriesUnavailable
+		if c.svcCtx.Stories != nil {
+			err = c.svcCtx.Stories.ReplaceStoriesBlocked(c.ctx, c.MD.UserId, in.GetId(), in.GetLimit())
+		}
+		if err != nil {
+			c.Logger.Errorf("contacts.setBlocked - error: %v", err)
+			return nil, err
+		}
+		return mtproto.BoolTrue, nil
 	}
 	if in.GetLimit() < 0 {
 		err := mtproto.ErrLimitInvalid

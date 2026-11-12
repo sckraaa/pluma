@@ -27,3 +27,18 @@ import (
 type ContactsPlugin interface {
 	GetChannelListByIdList(ctx context.Context, selfId int64, id ...int64) []*mtproto.Chat
 }
+
+// StoriesBlocklist is the blocklist of stories of a user (task 084): the
+// users it hides its stories from, apart from its main blocklist. The
+// methods of contacts with my_stories_from read and change it. The errors
+// are the ones the client is answered.
+type StoriesBlocklist interface {
+	// SetStoriesBlocked puts peer on the list of userId (blocked) or takes
+	// it off.
+	SetStoriesBlocked(ctx context.Context, userId int64, peer *mtproto.InputPeer, blocked bool) error
+	// GetStoriesBlocked is a page of the list of userId.
+	GetStoriesBlocked(ctx context.Context, userId int64, offset, limit int32) (*mtproto.Contacts_Blocked, error)
+	// ReplaceStoriesBlocked makes the list of userId the first limit of
+	// peers.
+	ReplaceStoriesBlocked(ctx context.Context, userId int64, peers []*mtproto.InputPeer, limit int32) error
+}

@@ -136,34 +136,12 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 		c.Logger.Errorf("messages.sendMessage - error: %v", err)
 		return nil, err
 	}
-	if in.GetReplyToMsgId() == nil && in.GetReplyTo() != nil {
-		replyTo := in.GetReplyTo()
-		switch in.ReplyTo.PredicateName {
-		case mtproto.Predicate_inputReplyToStory:
-			// TODO:
-			var (
-				rPeer  *mtproto.PeerUtil
-				userId int64
-			)
-
-			if replyTo.GetUserId() != nil {
-				rPeer = mtproto.FromInputUser(c.MD.UserId, replyTo.GetUserId())
-				userId = rPeer.PeerId
-			} else if replyTo.GetPeer() != nil {
-				rPeer = mtproto.FromInputPeer2(c.MD.UserId, replyTo.GetPeer())
-				if rPeer.IsUser() {
-					userId = peer.PeerId
-				}
-			}
-
-			if rPeer != nil {
-				outMessage.ReplyTo = mtproto.MakeTLMessageReplyStoryHeader(&mtproto.MessageReplyHeader{
-					UserId:  userId,
-					Peer:    rPeer.ToPeer(),
-					StoryId: replyTo.GetStoryId(),
-				}).To_MessageReplyHeader()
-			}
-		}
+	// A reply to a story (task 084).
+	if story, err := c.storyReplyHeader(in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
+		c.Logger.Errorf("messages.sendMessage - error: %v", err)
+		return nil, err
+	} else if story != nil {
+		outMessage.ReplyTo = story
 	}
 
 	//outMessage, _ = c.fixMessageEntities(c.MD.UserId, peer, in.NoWebpage, outMessage, func() bool {

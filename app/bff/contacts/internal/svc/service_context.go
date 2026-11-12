@@ -28,6 +28,9 @@ type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
 	Plugin plugin.ContactsPlugin
+	// Stories is the blocklist of stories (task 084); nil where the
+	// stories are not served.
+	Stories plugin.StoriesBlocklist
 }
 
 func NewServiceContext(c config.Config, plugin plugin.ContactsPlugin) *ServiceContext {

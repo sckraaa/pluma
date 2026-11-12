@@ -539,8 +539,12 @@ type ImmutableChannel struct {
 	// pluma: task 082: flags2.15, a broadcast channel translated for all
 	// (channels.toggleAutotranslation, channel.autotranslation).
 	Autotranslation bool `protobuf:"varint,50,opt,name=autotranslation,proto3" json:"autotranslation,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// pluma: task 084: the newest story of the channel that is in the feeds
+	// (channel.stories_max_id), 0 for none; read from the stories' tables
+	// with the channel (ADR 0054).
+	StoriesMaxId  int32 `protobuf:"varint,51,opt,name=stories_max_id,json=storiesMaxId,proto3" json:"stories_max_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ImmutableChannel) Reset() {
@@ -895,6 +899,13 @@ func (x *ImmutableChannel) GetAutotranslation() bool {
 	return false
 }
 
+func (x *ImmutableChannel) GetStoriesMaxId() int32 {
+	if x != nil {
+		return x.StoriesMaxId
+	}
+	return 0
+}
+
 type TLImmutableChannel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Data2         *ImmutableChannel      `protobuf:"bytes,1,opt,name=data2,proto3" json:"data2,omitempty"`
@@ -962,7 +973,10 @@ type ImmutableChannelParticipant struct {
 	LastSendDate int64 `protobuf:"varint,16,opt,name=last_send_date,json=lastSendDate,proto3" json:"last_send_date,omitempty"`
 	// pluma: task 080, the row of a ghost (ADR 0048): a member left out of
 	// what the other members are shown.
-	Hidden        bool `protobuf:"varint,17,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	Hidden bool `protobuf:"varint,17,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	// pluma: task 084: the user moved the stories of the channel to the
+	// archive row (channel.stories_hidden; stories.togglePeerStoriesHidden).
+	StoriesHidden bool `protobuf:"varint,18,opt,name=stories_hidden,json=storiesHidden,proto3" json:"stories_hidden,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1112,6 +1126,13 @@ func (x *ImmutableChannelParticipant) GetLastSendDate() int64 {
 func (x *ImmutableChannelParticipant) GetHidden() bool {
 	if x != nil {
 		return x.Hidden
+	}
+	return false
+}
+
+func (x *ImmutableChannelParticipant) GetStoriesHidden() bool {
+	if x != nil {
+		return x.StoriesHidden
 	}
 	return false
 }
@@ -9627,7 +9648,7 @@ var File_channel_tl_proto protoreflect.FileDescriptor
 
 const file_channel_tl_proto_rawDesc = "" +
 	"\n" +
-	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xaf\r\n" +
+	"\x10channel.tl.proto\x12\achannel\x1a\x1aschema.tl.core_types.proto\x1a\x14schema.tl.sync.proto\"\xd5\r\n" +
 	"\x10ImmutableChannel\x12%\n" +
 	"\x0epredicate_name\x18\x01 \x01(\tR\rpredicateName\x128\n" +
 	"\vconstructor\x18\x02 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x1c\n" +
@@ -9683,9 +9704,10 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\bmain_tab\x18/ \x01(\x05R\amainTab\x12\x1c\n" +
 	"\tgigagroup\x180 \x01(\bR\tgigagroup\x12\x1a\n" +
 	"\bantispam\x181 \x01(\bR\bantispam\x12(\n" +
-	"\x0fautotranslation\x182 \x01(\bR\x0fautotranslation\"F\n" +
+	"\x0fautotranslation\x182 \x01(\bR\x0fautotranslation\x12$\n" +
+	"\x0estories_max_id\x183 \x01(\x05R\fstoriesMaxId\"F\n" +
 	"\x13TL_immutableChannel\x12/\n" +
-	"\x05data2\x18\x01 \x01(\v2\x19.channel.ImmutableChannelR\x05data2\"\xbd\x04\n" +
+	"\x05data2\x18\x01 \x01(\v2\x19.channel.ImmutableChannelR\x05data2\"\xe4\x04\n" +
 	"\x1bImmutableChannelParticipant\x12%\n" +
 	"\x0epredicate_name\x18\x01 \x01(\tR\rpredicateName\x128\n" +
 	"\vconstructor\x18\x02 \x01(\x0e2\x16.channel.TLConstructorR\vconstructor\x12\x1d\n" +
@@ -9707,7 +9729,8 @@ const file_channel_tl_proto_rawDesc = "" +
 	"\x10available_min_id\x18\x0e \x01(\x05R\x0eavailableMinId\x12\x12\n" +
 	"\x04date\x18\x0f \x01(\x03R\x04date\x12$\n" +
 	"\x0elast_send_date\x18\x10 \x01(\x03R\flastSendDate\x12\x16\n" +
-	"\x06hidden\x18\x11 \x01(\bR\x06hidden\"\\\n" +
+	"\x06hidden\x18\x11 \x01(\bR\x06hidden\x12%\n" +
+	"\x0estories_hidden\x18\x12 \x01(\bR\rstoriesHidden\"\\\n" +
 	"\x1eTL_immutableChannelParticipant\x12:\n" +
 	"\x05data2\x18\x01 \x01(\v2$.channel.ImmutableChannelParticipantR\x05data2\"\xf0\x01\n" +
 	"\x0eMutableChannel\x12%\n" +

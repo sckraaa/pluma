@@ -44,6 +44,10 @@ const (
 	// a message that was no spam (channels.reportAntiSpamFalsePositive,
 	// task 082); the target is the message's sender.
 	KindAntispamFalsePositive int8 = 6
+	// KindStory: stories.report (task 084). The peer is the owner of the
+	// stories, a user or a channel, and the messages of the snapshot are
+	// the stories: their ids, captions and media.
+	KindStory int8 = 7
 )
 
 // Statuses of a report.

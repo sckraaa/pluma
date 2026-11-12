@@ -199,6 +199,13 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		return nil, err
 	}
 	full.HasScheduled = mtproto.FromBool(hasScheduled)
+	// The stories of the channel (task 084, ADR 0054): those in the feeds,
+	// which whoever reads the channel may open, and whether its profile
+	// has stories.
+	if full.Stories, full.StoriesPinnedAvailable, err = c.svcCtx.Stories.ChannelStories(c.ctx, ch.GetId(), c.MD.UserId, int32(time.Now().Unix())); err != nil {
+		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+		return nil, err
+	}
 	if admin {
 		invites, err := c.svcCtx.Chat.ChatGetExportedChatInvites(c.ctx, &chatpb.TLChatGetExportedChatInvites{ChatId: ch.GetId(), AdminId: c.MD.UserId, Limit: 50})
 		if err != nil {

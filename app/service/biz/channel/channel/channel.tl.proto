@@ -291,6 +291,10 @@ message ImmutableChannel {
     // pluma: task 082: flags2.15, a broadcast channel translated for all
     // (channels.toggleAutotranslation, channel.autotranslation).
     bool autotranslation = 50;
+    // pluma: task 084: the newest story of the channel that is in the feeds
+    // (channel.stories_max_id), 0 for none; read from the stories' tables
+    // with the channel (ADR 0054).
+    int32 stories_max_id = 51;
 }
 
 message TL_immutableChannel {
@@ -322,6 +326,9 @@ message ImmutableChannelParticipant {
     // pluma: task 080, the row of a ghost (ADR 0048): a member left out of
     // what the other members are shown.
     bool hidden = 17;
+    // pluma: task 084: the user moved the stories of the channel to the
+    // archive row (channel.stories_hidden; stories.togglePeerStoriesHidden).
+    bool stories_hidden = 18;
 }
 
 message TL_immutableChannelParticipant {

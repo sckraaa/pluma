@@ -21,6 +21,8 @@ type (
 	Config = config.Config
 )
 
-func New(c Config, plugin plugin.MessagesPlugin) *service.Service {
-	return service.New(svc.NewServiceContext(c, plugin))
+// New returns the messages.* methods; stories answers for the stories a
+// message shares or replies to (nil: none are served).
+func New(c Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *service.Service {
+	return service.New(svc.NewServiceContext(c, plugin, stories))
 }

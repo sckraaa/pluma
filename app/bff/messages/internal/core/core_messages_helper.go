@@ -276,8 +276,14 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 		}
 	case mtproto.Predicate_inputMediaStory:
 		// inputMediaStory#89fdd778 peer:InputPeer id:int = InputMedia;
-
-		messageMedia = mtproto.MakeTLMessageMediaUnsupported(nil).To_MessageMedia()
+		//
+		// pluma: a story shared to a chat (task 084). The message names
+		// the story and carries no copy of it: each reader is shown what
+		// the story lets it see, which the clients ask by its id (Android
+		// StoriesStorage.java:559-641, fillMessagesWithStories).
+		if messageMedia, err = c.storyMedia(media); err != nil {
+			return
+		}
 	case mtproto.Predicate_inputMediaWebPage:
 		// inputMediaWebPage#c21b8849 flags:# force_large_media:flags.0?true force_small_media:flags.1?true optional:flags.2?true url:string = InputMedia;
 		//

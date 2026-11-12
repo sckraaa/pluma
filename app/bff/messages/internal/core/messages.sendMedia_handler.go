@@ -122,6 +122,13 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		c.Logger.Errorf("messages.sendMedia - error: %v", err)
 		return nil, err
 	}
+	// A reply to a story (task 084).
+	if story, err := c.storyReplyHeader(in.GetReplyToMsgId(), in.GetReplyTo()); err != nil {
+		c.Logger.Errorf("messages.sendMedia - error: %v", err)
+		return nil, err
+	} else if story != nil {
+		outMessage.ReplyTo = story
+	}
 
 	if linkChatId > 0 {
 		outMessage.Replies = mtproto.MakeTLMessageReplies(&mtproto.MessageReplies{
@@ -179,6 +186,7 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 
 	c.attachPollReply(rUpdate)
 	c.addRecentStickers(in.Media, outMessage.Media)
+	c.storyShared(in.Media, in.RandomId)
 
 	if in.ClearDraft {
 		ctx := contextx.ValueOnlyFrom(c.ctx)

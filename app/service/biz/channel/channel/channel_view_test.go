@@ -424,3 +424,26 @@ func TestToChatBlocked(t *testing.T) {
 		t.Error("unblocked channel is restricted")
 	}
 }
+
+// The stories of a channel in its object (task 084): the newest one in the
+// feeds, the same for every viewer, in both forms of stories_max_id, and
+// stories_hidden of the viewer's own row. A channel without stories in the
+// feeds carries no stories_max_id and says stories_unavailable.
+func TestToChatStories(t *testing.T) {
+	ch := testChannel("news")
+	ch.StoriesMaxId = 5
+	p := participant(RoleMember, StateIn, 0, 0, 0)
+	p.StoriesHidden = true
+	got := ch.ToChat(p, viewNow)
+	if got.GetStoriesMaxId_FLAGRECENTSTORY().GetMaxId().GetValue() != 5 || got.GetStoriesMaxId_FLAGINT32().GetValue() != 5 || !got.GetStoriesHidden() || got.GetStoriesUnavailable() {
+		t.Errorf("a member who hid the stories: %v / %v, hidden %v", got.GetStoriesMaxId_FLAGRECENTSTORY(), got.GetStoriesMaxId_FLAGINT32(), got.GetStoriesHidden())
+	}
+	// One who never joined the public channel sees the stories too.
+	if got = ch.ToChat(nil, viewNow); got.GetStoriesMaxId_FLAGRECENTSTORY().GetMaxId().GetValue() != 5 || got.GetStoriesHidden() {
+		t.Errorf("a stranger: %v, hidden %v", got.GetStoriesMaxId_FLAGRECENTSTORY(), got.GetStoriesHidden())
+	}
+	ch.StoriesMaxId = 0
+	if got = ch.ToChat(participant(RoleMember, StateIn, 0, 0, 0), viewNow); got.GetStoriesMaxId_FLAGRECENTSTORY() != nil || got.GetStoriesMaxId_FLAGINT32() != nil || !got.GetStoriesUnavailable() {
+		t.Errorf("no stories: %v / %v, unavailable %v", got.GetStoriesMaxId_FLAGRECENTSTORY(), got.GetStoriesMaxId_FLAGINT32(), got.GetStoriesUnavailable())
+	}
+}

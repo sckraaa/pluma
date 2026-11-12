@@ -56,9 +56,12 @@ type ServiceContext struct {
 	SendAs *sendas.Store
 	// StickerLists keeps the recent stickers (task 079).
 	StickerLists StickerLists
+	// Stories answers for the stories a message shares or replies to
+	// (task 084); nil when the stories are not served.
+	Stories plugin.StoryPlugin
 }
 
-func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
+func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *ServiceContext {
 	d := dao.New(c)
 	db := sqlx.NewMySQL(&c.Mysql)
 	if err := outbox.Register(outbox.Topics{Push: []string{c.SyncClient.Topic}}); err != nil {
@@ -72,6 +75,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceCo
 		Config:       c,
 		Dao:          d,
 		Plugin:       plugin,
+		Stories:      stories,
 		Reactions:    db,
 		Search:       db,
 		SendAs:       sendas.New(db),

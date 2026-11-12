@@ -572,7 +572,7 @@ async function peerPage(kind, id) {
 }
 
 // Reports.
-const reportKinds = { 1: 'Сообщение', 2: 'Профиль или чат', 3: 'Фото профиля', 4: 'Спам', 5: 'Спам в канале', 6: 'Ложное срабатывание антиспама' };
+const reportKinds = { 1: 'Сообщение', 2: 'Профиль или чат', 3: 'Фото профиля', 4: 'Спам', 5: 'Спам в канале', 6: 'Ложное срабатывание антиспама', 7: 'История' };
 const reasons = { spam: 'спам', violence: 'насилие', pornography: 'порнография', child_abuse: 'насилие над детьми', copyright: 'авторские права', illegal_drugs: 'наркотики', personal_details: 'личные данные', fake: 'фейк', geo_irrelevant: 'не по геопозиции', not_spam: 'не спам', other: 'другое' };
 const actionLabels = { dismiss: 'Отклонено', delete: 'Удалено', restrict: 'Ограничен', ban: 'Заблокирован' };
 function reportsPage(decided) {

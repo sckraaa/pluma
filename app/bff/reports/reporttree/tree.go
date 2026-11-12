@@ -13,7 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+// Package reporttree is the tree a report walks: messages.report of the
+// reports module and stories.report of the stories module.
+package reporttree
 
 import (
 	"strings"
@@ -22,7 +24,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/servicetext"
 )
 
-// The tree of messages.report. The clients show what the server sends and
+// The tree of messages.report and of stories.report. The clients show what the server sends and
 // send back the option of the chosen entry (core.telegram.org/method/
 // messages.report; Android ReportBottomSheet.submitOption, tdesktop
 // api_report.cpp): an empty option asks for the root.
@@ -66,12 +68,14 @@ func isReason(key string) bool {
 	return false
 }
 
-func commentOptional(key string) bool {
+// CommentOptional tells whether a report of the reason may go without a
+// comment.
+func CommentOptional(key string) bool {
 	return key != "other"
 }
 
-// chooseOption is the root of the tree in the language of the session.
-func chooseOption(langCode string) *mtproto.ReportResult {
+// ChooseOption is the root of the tree in the language of the session.
+func ChooseOption(langCode string) *mtproto.ReportResult {
 	lang := servicetext.LangOf(langCode)
 	options := make([]*mtproto.MessageReportOption, len(reasons))
 	for i, r := range reasons {
@@ -86,9 +90,9 @@ func chooseOption(langCode string) *mtproto.ReportResult {
 	}).To_ReportResult()
 }
 
-// stepOf reads the option of a messages.report call. reason is empty for
+// StepOf reads the option of a messages.report call. reason is empty for
 // the root; final tells the report is complete.
-func stepOf(option []byte) (reason string, final bool, err error) {
+func StepOf(option []byte) (reason string, final bool, err error) {
 	if len(option) == 0 {
 		return "", false, nil
 	}
@@ -105,16 +109,16 @@ func stepOf(option []byte) (reason string, final bool, err error) {
 	return key, false, nil
 }
 
-// addComment is the answer to a chosen reason.
-func addComment(reason string) *mtproto.ReportResult {
+// AddComment is the answer to a chosen reason.
+func AddComment(reason string) *mtproto.ReportResult {
 	return mtproto.MakeTLReportResultAddComment(&mtproto.ReportResult{
-		Optional: commentOptional(reason),
+		Optional: CommentOptional(reason),
 		Option:   []byte(reason + commentSuffix),
 	}).To_ReportResult()
 }
 
-// reasonOf is the key of a ReportReason of the older methods.
-func reasonOf(r *mtproto.ReportReason) string {
+// ReasonOf is the key of a ReportReason of the older methods.
+func ReasonOf(r *mtproto.ReportReason) string {
 	switch r.GetPredicateName() {
 	case mtproto.Predicate_inputReportReasonSpam:
 		return "spam"

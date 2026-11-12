@@ -48,6 +48,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/phoneallowlist"
+	"github.com/teamgram/teamgram-server/pkg/stories"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
@@ -95,6 +96,7 @@ func main() {
 		Channel:     channels,
 		Authsession: auth,
 		Sync:        sync_client.MustNewSyncOutboxClient(sync_client.OutboxConf{DSN: c.Mysql.DSN, Topic: c.SyncClient.Topic}),
+		Stories:     stories.NewStore(db),
 	}
 	boxDB, err := openOutboxDB(&c)
 	if err != nil {
