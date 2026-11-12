@@ -24,14 +24,16 @@
 ## Контракт (главное; подробно — ADR 0060)
 - **Вход.** `phone.joinGroupCall` обязан нести `public_key` и `block`.
   - На пустой цепочке — нулевой блок (высота 0, в составе только вызывающий; `TD/calls/group/calls_group_call.cpp:1633-1650`).
-  - Иначе — блок на `height+1`, где состав = прежний минус старая запись вызывающего плюс он с новым ключом (`TDE Call.cpp:600-608`).
-  - Ответ — `updateGroupCall`, `updateGroupCallConnection`, свой участник и `updateGroupCallChainBlocks` подцепочки 0, который кончается блоком входа (`calls_group_call.cpp:1797-1806`).
+  - Иначе — блок на `height+1`, где состав = прежний минус старая запись вызывающего плюс он с ключом из запроса (`TDE Call.cpp:600-608`).
+  - Тот же пользователь с **тем же** ключом — замена, принимается: так iOS восстанавливает транспорт (`IOS PresentationGroupCall.swift:1909-1916, 2050-2077, 3020-3023`). Ключ, который в этом звонке был у другого `user_id`, — `BLOCK_INVALID` (ADR 0060 §2).
+  - Ответ — `updateGroupCall`, `updateGroupCallConnection`, свой участник и **обе** подцепочки: `updateGroupCallChainBlocks{0, [блок входа], next_offset = его высота + 1}` и `updateGroupCallChainBlocks{1, [], next_offset = broadcast_count}`. Без любой из них iOS считает вход неудачным (`IOS TelegramCore/Sources/TelegramEngine/Calls/GroupCalls.swift:922-944`); tdesktop применяет их как первые блоки (`calls_group_call.cpp:1806-1816`).
+  - Нет права войти — `GROUPCALL_FORBIDDEN`. Клиенты обрабатывают его как отказ без повторов: tdesktop — `lng_confcall_not_accessible` (`calls_group_call.cpp:1863-1886`), iOS — общая ошибка (`GroupCalls.swift:704-750`), Android — «Error occurred» с кодом (`VoIPService.java:2185-2190`, `GroupCallActivity.java:1332-1352`), Web K — без своего текста (ADR 0060 §2).
 - **Магия +1.** Каждый отдаваемый блок — с первым int32 + 1 (`TDE Blockchain.cpp:742-760`).
 - **`getGroupCallChainBlocks(call, sub_chain_id, offset, limit)`:**
   - `offset` — высота (в подцепочке 1 — сквозной номер), `-1` — последний блок;
   - `next_offset` — индекс после последнего;
   - не участник получает только последний блок (`GC`).
-- **`deleteConferenceCallParticipants(only_left|kick, ids, block)`** — состав минус ровно `ids`. Первый блок принимается, повторы получают `CONF_WRITE_CHAIN_INVALID`. Удалённый получает `GROUPCALL_FORBIDDEN`.
+- **`deleteConferenceCallParticipants(only_left|kick, ids, block)`** — состав минус ровно `ids`. Первый блок принимается, повторы получают `CONF_WRITE_CHAIN_INVALID`. Блок удаления рассылается и удалённому. Удалённый получает `GROUPCALL_FORBIDDEN` на запись; на чтение — только последний блок, без ошибки (`GC`). Ошибку опроса Android и iOS отбрасывают (`ConferenceCall.java:578-590`; `GroupCalls.swift:3418-3422`), поэтому удалённый возвращается по своему правилу самовосстановления (ошибка tde2e 300 или отставание), ADR 0060 §5.
 - **`sendConferenceCallBroadcast(call, block)`** — commit и reveal по правилам `TDE Call.cpp:96-245`.
 - **Ошибки:**
   - `CONF_WRITE_CHAIN_INVALID` — высота или хэш устарели;
@@ -40,6 +42,8 @@
   - `GROUPCALL_PARTICIPANTS_TOO_MUCH` (100);
   - `JOIN_AS_PEER_INVALID` на `join_as` ≠ сам.
 - **RTMP:** `rtmp_stream` при создании отклоняется; `"stream":true`, `rtmp_stream`, `stream_dc_id` не выдаются никогда.
+- **Запись:** `toggleGroupCallRecord` — `ErrEnterpriseIsBlocked`; пункт записи скрыт во всех клиентах (места — ADR 0060 §4).
+- **Отчёт `PlumaE2EStatus` v1 и правило самовосстановления** — один контракт для всех клиентов и сервера, ADR 0060 §5: поля, приращения с прошлого отчёта, пределы (эпох ≤ 15, неизвестных ≤ 8, отправителей ≤ 100, 16 КиБ), раз в 5 с; повторный вход с новым ключом при залипшей ошибке, отставании > 12 с, `GROUPCALL_FORBIDDEN` записи или когда за 15 с не расшифрован никто; не больше 3 за 5 мин, задержки 0/2/5 с плюс 0–1 с случайно.
 
 ## Порядок работ
 1. **Исходники** (на Mac, без сборки).
@@ -123,7 +127,7 @@
 2. **Удаление ушедших для звонков чатов.** Логика «participants with access / stale» в `TD/data/data_group_call.cpp:71-96` — и для `GroupCallOrigin::Group`. `trackParticipantsWithAccess` (`:806-820`) — через `lookupReal()` вместо `_sharedCall`.
 3. **Эмодзи в списке участников:** `conference()` → `e2e()` (`TD/calls/group/calls_group_members.cpp:553, 1768, 1840`).
 4. **«Войти от имени»** скрыт в сквозных звонках.
-5. **Счётчики и отчёт.**
+5. **Счётчики и отчёт** (схема — ADR 0060 §5 v1; в ветке `version`, `blockHash`, `pollHeights`, `userId`, `decrypted`, `replayed`, `lastDecryptedMsAgo`, итоги вместо приращений — привести; самовосстановление: добавить отставание > 12 с, «за 15 с не расшифрован никто» и задержки).
    - Счётчики расшифровки в `TD/tde2e/tde2e_api.cpp:78-106`, сейчас ошибки там выбрасываются (`:91-100`).
    - Отчёт `PlumaE2EStatus` по каналу данных: tgcalls `GroupInstanceCustomImpl.cpp` рядом с `ReceiverVideoConstraints` (`:2777, 2833`).
 6. **Удаление RTMP:**
@@ -133,6 +137,7 @@
    - `TD/calls/group/calls_group_settings.cpp:702-786`;
    - разбор `stream`/`rtmp_stream_*` (`calls_group_call.cpp:116-121`), `f_rtmp_stream` (`:1309`);
    - живые истории (`TD/data/data_stories.cpp:92`, `TD/media/view/media_view_video_stream.cpp`) — после решения 4.
+7. **Запись скрыта:** `TD/calls/group/calls_group_menu.cpp:510-512` (`addEditRecording`), ADR 0060 §4.
 
 Сообщения в звонке (`:2451-2484`, `calls_group_messages.cpp:132, 173`) не трогать: сервер их не обслуживает.
 
@@ -141,13 +146,14 @@
    - `keyPair: generateKeyPair()` вместо `nil` при `isConference: false` (`IOS/TelegramCallsUI/Sources/PresentationCallManager.swift:917, 1101`).
    - `e2eContext` создаётся и для звонка, созданного внутри (`createGroupCall`, `IOS/TelegramCallsUI/Sources/PresentationGroupCall.swift:922-942, 3219`), после ответа.
 2. **«Войти от имени»** скрыт; блок и контекст — от `account.peerId` (`:927, 2054`).
-3. **Самовосстановление:** на `ConferenceCallE2EContext.isFailed` (`IOS/TelegramCore/Sources/State/ConferenceCallE2EContext.swift:176-178, 217-219`) — повторный вход, не больше 3 за 5 мин.
-4. **Счётчики и отчёт:** `ios/third-party/td/TdBinding/Sources/TdBinding.mm:337-348` и tgcalls `c1de0882` (канал данных).
+3. **Самовосстановление** по правилу ADR 0060 §5: на `ConferenceCallE2EContext.isFailed` (`IOS/TelegramCore/Sources/State/ConferenceCallE2EContext.swift:176-178, 217-219`) — повторный вход с новым ключом (есть в ветке); добавить отставание > 12 с (`next_offset` из опроса), условие «за 15 с не расшифрован никто» и задержки.
+4. **Счётчики и отчёт:** `ios/third-party/td/TdBinding/Sources/TdBinding.mm:337-348` и tgcalls `c1de0882` (канал данных). Схема — ADR 0060 §5 v1: в ветке сейчас `height0`, `epochs`, `encryptFailures`, `replayed`, `other`, итоги вместо приращений, до 128 отправителей — привести.
 5. **Удаление RTMP:**
    - `IOS/TelegramUI/Components/PeerInfo/PeerInfoScreen/Sources/PeerInfoScreenCallActions.swift:73-78, 330-352`;
    - `IOS/PeerInfoUI/CreateExternalMediaStreamScreen` — вход;
    - `IOS/TelegramCallsUI/Sources/Components/MediaStreamComponent.swift:605-614`;
    - живые истории `IOS/TelegramUI/Components/ShareWithPeersScreen/Sources/LiveStreamSettingsScreen.swift:142, 194, 248` — после решения 4.
+6. **Запись скрыта:** `IOS/TelegramCallsUI/Sources/VideoChatScreenMoreMenu.swift:379-470`, ADR 0060 §4.
 
 **Android (`pluma-android`, `7be672ea`):**
 1. **Сквозной режим звонков чатов.**
@@ -155,9 +161,9 @@
    - Разделить `isConference()` (`:308`) на крипто- и UI-признак и разобрать ~45 проверок `conference != null`.
 2. **Эмодзи** в `GroupCallActivity` (`:1453, 4933-4936`) — по крипто-признаку.
 3. **Самовосстановление.**
-   - Ошибка блока (`ConferenceCall.java:423-425`) → повторный вход.
+   - По правилу ADR 0060 §5. Ошибка блока (`ConferenceCall.java:423-425`) и отставание > 12 с → повторный вход (есть в ветке); добавить условие «за 15 с не расшифрован никто» и задержки.
    - Ошибка записи в цепочку не завершает звонок (`VoIPService.java:2711`): перечитать последний блок и повторить.
-4. **Счётчики и отчёт:** `jni/voip/org_telegram_messenger_voip_Instance.cpp:504-519` и tgcalls `545f5ae5` (канал данных).
+4. **Счётчики и отчёт:** `jni/voip/org_telegram_messenger_voip_Instance.cpp:504-519` и tgcalls `545f5ae5` (канал данных). Схема — ADR 0060 §5 v1: в ветке нет `seq`, `offset0`, `decryptEpochs`, `encrypted`, `broadcasts` вместо `offset1`, `lastBlock` — привести.
 5. **«Войти от имени»** скрыт.
 6. **Удаление RTMP:**
    - `AND/ui/Components/CreateGroupCallBottomSheet.java:84, 238-239, 261`;
@@ -165,12 +171,13 @@
    - `isRtmpStream` в `JoinCallAlert.java:129`, `VoIPService.java:2049, 2243, 2348`;
    - режим частей трансляции `VoIPService.java:3086-3136`;
    - живые истории `AND/ui/Stories/recorder/StoryPrivacyBottomSheet.java:557-565`, `StoryRecorder.java:3351` — после решения 4.
+7. **Запись скрыта:** `recordItem`, `AND/ui/GroupCallActivity.java:1693-1710`, ADR 0060 §4.
 
 **Web (`pluma-web`, `aa74832e`):**
 1. **Сквозной режим звонков чатов.** Вход через `joinConferenceCommon` с `inputGroupCall(id, access_hash)` и `chatId` (`TWEB/lib/calls/groupCallsController.ts:803-1057`, место для формы с id — `:1031-1038`).
 2. **Разделить `isConference`** (`TWEB/lib/calls/groupCallInstance.ts:2177-2179`) на шифрование и UI. Simulcast (`groupCallConnectionInstance.ts:227`) и меню (`groupCallsController.ts:591, 672, 687`) — по UI-признаку.
 3. **Браузер без `RTCRtpScriptTransform`** (`TWEB/environment/conferenceCallSupport.ts`): понятное сообщение вместо входа (решение 5).
-4. **Счётчики и отчёт** в трансформере `TWEB/lib/calls/e2e/*` и канале данных.
+4. **Счётчики и отчёт** в трансформере `TWEB/lib/calls/e2e/*` и канале данных. Схема — ADR 0060 §5 v1: в ветке `lastBlockHash`, высоты эпох вместо хэшей, `failure`, `alreadyProcessed`, `otherErrors`, `encryptErrors`, `broadcastOffset`, итоги вместо приращений — привести.
 5. **«Войти от имени»** скрыт.
 6. **Удаление RTMP:**
    - `TWEB/components/chat/topbar.ts:987-993`;
@@ -178,6 +185,8 @@
    - `TWEB/components/mediaViewer/rtmp.ts`;
    - `TWEB/lib/calls/rtmpCallsController.ts`;
    - распознавание в `appGroupCallsManager.ts:556-565, 731` и `components/peerProfile.tsx:1474-1480`.
+7. **Самовосстановление** по ADR 0060 §5: сбой tde2e, кроме `NOT_PARTICIPANT`, сейчас завершает звонок (`TWEB/lib/calls/groupCallInstance.ts:446-468`) — заменить повторным входом с новым ключом, с пределом 3 за 5 мин и задержками; отставание > 12 с и «за 15 с не расшифрован никто».
+8. **Запись:** в звонке чата пункта нет; запись есть только в просмотрщике RTMP (`TWEB/components/mediaViewer/rtmp.ts:159`), который уходит с RTMP.
 
 **Проверки патчей:**
 - `verify_*` на каждое место (старого текста нет, нового ровно столько, сколько нужно);
@@ -230,7 +239,8 @@
 - `TestGroupCallE2ELeaveRemoval`:
   - третий уходит;
   - двое шлют `only_left`, принимается один;
-  - ушедший получает `GROUPCALL_FORBIDDEN`;
+  - ушедший получает блок удаления рассылкой, `GROUPCALL_FORBIDDEN` на запись и только последний блок на чтение;
+  - тот же пользователь входит снова с тем же ключом — принято; другой пользователь с этим ключом — `BLOCK_INVALID`;
   - оставшиеся меняют ключ и слышат друг друга.
 - `TestGroupCallE2EEmoji`: commit и reveal трёх участников; хэши эмодзи равны.
 - `TestGroupCallE2EChannelListener`: слушатель канала входит в цепочку и расшифровывает звук выступающего.
