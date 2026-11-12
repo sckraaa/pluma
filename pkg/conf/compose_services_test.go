@@ -318,6 +318,13 @@ var optionalVars = map[string]bool{
 	// The quality parameters of calls (task 077): the Pluma profile when
 	// empty.
 	"CALLS_QUALITY": true,
+	// The speech engine of voice transcription (task 090): transcription
+	// is off when the URL is empty.
+	"STT_URL":      true,
+	"STT_TOKEN":    true,
+	"STT_MODEL":    true,
+	"STT_LANGUAGE": true,
+	"STT_TIMEOUT":  true,
 	// The panel's access to the releases service (task 072): off when empty.
 	"RELEASES_ADMIN_TOKEN": true,
 }

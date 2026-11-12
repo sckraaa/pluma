@@ -57,6 +57,7 @@ import (
 	stargifts_helper "github.com/teamgram/teamgram-server/app/bff/stargifts"
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
+	transcription_helper "github.com/teamgram/teamgram-server/app/bff/transcription"
 	twofa_helper "github.com/teamgram/teamgram-server/app/bff/twofa"
 	updates_helper "github.com/teamgram/teamgram-server/app/bff/updates"
 	userchannelprofileshelper "github.com/teamgram/teamgram-server/app/bff/userchannelprofiles"
@@ -81,6 +82,8 @@ var configFile = flag.String("f", "etc/bff.yaml", "the config file")
 type Server struct {
 	grpcSrv *zrpc.RpcServer
 	calls   *voipcalls_helper.Sweeper // ends the abandoned calls (task 068)
+	// transcription runs the queue of voice transcription (task 090).
+	transcription *transcription_helper.Worker
 }
 
 func New() *Server {
@@ -621,6 +624,20 @@ func (s *Server) Initialize() error {
 			webbrowserhelper.New(webbrowserhelper.Config{
 				RpcServerConf: c.RpcServerConf,
 			}))
+
+		// transcription_helper: the text of voice messages and round
+		// videos (task 090, ADR 0056).
+		transcription, worker := transcription_helper.New(transcription_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			Transcribe:    c.Transcribe,
+			MessageClient: c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			DfsClient:     c.DfsClient,
+			SyncTopic:     c.SyncClient.Topic,
+		})
+		mtproto.RegisterRPCTranscriptionServer(grpcServer, transcription)
+		s.transcription = worker
 	})
 
 	// logx.Must(err)
@@ -637,6 +654,9 @@ func (s *Server) RunLoop() {
 func (s *Server) Destroy() {
 	if s.calls != nil {
 		s.calls.Stop()
+	}
+	if s.transcription != nil {
+		s.transcription.Stop()
 	}
 	s.grpcSrv.Stop()
 }

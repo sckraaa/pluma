@@ -62,6 +62,7 @@ BFFProxyClients:
     "/mtproto.RPCTwoFa": "bff.bff"
     #"/mtproto.RPCSeamless": "bff.bff"
     "/mtproto.RPCVoipCalls": "bff.bff"
+    "/mtproto.RPCTranscription": "bff.bff"
     "/mtproto.RPCChannels": "bff.bff"
     "/mtproto.RPCBoosts": "bff.bff"
     "/mtproto.RPCTakeout": "bff.bff"
