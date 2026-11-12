@@ -7,7 +7,7 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 496, partial 6, blocked 88, notimpl 3, fake 1, missing 336 (ok = 53.3%); with a conformance scenario 9
+    layer 233: 930 methods — ok 513, partial 7, blocked 97, notimpl 3, fake 1, missing 309 (ok = 55.2%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
@@ -27,7 +27,7 @@
 | langpack | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
 | messages | 283 | 198 | 1 | 15 | 2 | 0 | 67 | 3 |
 | payments | 81 | 0 | 1 | 4 | 0 | 0 | 76 | 0 |
-| phone | 45 | 10 | 0 | 0 | 0 | 0 | 35 | 0 |
+| phone | 45 | 27 | 1 | 9 | 0 | 0 | 8 | 0 |
 | photos | 5 | 5 | 0 | 0 | 0 | 0 | 0 | 0 |
 | predefined | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | premium | 5 | 2 | 0 | 3 | 0 | 0 | 0 | 0 |
@@ -873,50 +873,50 @@
 | method | status | scenario | handler |
 |---|---|---|---|
 | `phone.acceptCall` | ok |  | app/bff/voipcalls/internal/core/phone.acceptCall_handler.go:25 |
-| `phone.checkGroupCall` | missing |  |  |
+| `phone.checkGroupCall` | ok |  | app/bff/groupcalls/internal/core/phone.checkGroupCall_handler.go:36 |
 | `phone.confirmCall` | ok |  | app/bff/voipcalls/internal/core/phone.confirmCall_handler.go:26 |
 | `phone.createConferenceCall7D0444BB` | missing |  |  |
 | `phone.createConferenceCallDFC909AB` | missing |  |  |
-| `phone.createGroupCall` | missing |  |  |
+| `phone.createGroupCall` | partial |  | app/bff/groupcalls/internal/core/phone.createGroupCall_handler.go:49 |
 | `phone.declineConferenceCallInvite` | missing |  |  |
 | `phone.deleteConferenceCallParticipants` | missing |  |  |
-| `phone.deleteGroupCallMessages` | missing |  |  |
-| `phone.deleteGroupCallParticipantMessages` | missing |  |  |
+| `phone.deleteGroupCallMessages` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:48 |
+| `phone.deleteGroupCallParticipantMessages` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:52 |
 | `phone.discardCall` | ok |  | app/bff/voipcalls/internal/core/phone.discardCall_handler.go:30 |
-| `phone.discardGroupCall` | missing |  |  |
-| `phone.editGroupCallParticipant` | missing |  |  |
-| `phone.editGroupCallTitle` | missing |  |  |
-| `phone.exportGroupCallInvite` | missing |  |  |
+| `phone.discardGroupCall` | ok |  | app/bff/groupcalls/internal/core/phone.discardGroupCall_handler.go:30 |
+| `phone.editGroupCallParticipant` | ok |  | app/bff/groupcalls/internal/core/phone.editGroupCallParticipant_handler.go:36 |
+| `phone.editGroupCallTitle` | ok |  | app/bff/groupcalls/internal/core/phone.editGroupCallTitle_handler.go:27 |
+| `phone.exportGroupCallInvite` | ok |  | app/bff/groupcalls/internal/core/phone.exportGroupCallInvite_handler.go:49 |
 | `phone.getCallConfig` | ok |  | app/bff/voipcalls/internal/core/phone.getCallConfig_handler.go:25 |
-| `phone.getGroupCall` | missing |  |  |
+| `phone.getGroupCall` | ok |  | app/bff/groupcalls/internal/core/phone.getGroupCall_handler.go:34 |
 | `phone.getGroupCallChainBlocks` | missing |  |  |
-| `phone.getGroupCallJoinAs` | missing |  |  |
-| `phone.getGroupCallStars` | missing |  |  |
-| `phone.getGroupCallStreamChannels` | missing |  |  |
-| `phone.getGroupCallStreamRtmpUrl` | missing |  |  |
-| `phone.getGroupParticipants` | missing |  |  |
+| `phone.getGroupCallJoinAs` | ok |  | app/bff/groupcalls/internal/core/phone.getGroupCallJoinAs_handler.go:28 |
+| `phone.getGroupCallStars` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:56 |
+| `phone.getGroupCallStreamChannels` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:32 |
+| `phone.getGroupCallStreamRtmpUrl` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:36 |
+| `phone.getGroupParticipants` | ok |  | app/bff/groupcalls/internal/core/phone.getGroupParticipants_handler.go:30 |
 | `phone.inviteConferenceCallParticipant` | missing |  |  |
-| `phone.inviteToGroupCall` | missing |  |  |
-| `phone.joinGroupCall` | missing |  |  |
-| `phone.joinGroupCallPresentation` | missing |  |  |
-| `phone.leaveGroupCall` | missing |  |  |
-| `phone.leaveGroupCallPresentation` | missing |  |  |
+| `phone.inviteToGroupCall` | ok |  | app/bff/groupcalls/internal/core/phone.inviteToGroupCall_handler.go:36 |
+| `phone.joinGroupCall` | ok |  | app/bff/groupcalls/internal/core/phone.joinGroupCall_handler.go:39 |
+| `phone.joinGroupCallPresentation` | ok |  | app/bff/groupcalls/internal/core/phone.joinGroupCallPresentation_handler.go:40 |
+| `phone.leaveGroupCall` | ok |  | app/bff/groupcalls/internal/core/phone.leaveGroupCall_handler.go:35 |
+| `phone.leaveGroupCallPresentation` | ok |  | app/bff/groupcalls/internal/core/phone.leaveGroupCallPresentation_handler.go:31 |
 | `phone.receivedCall` | ok |  | app/bff/voipcalls/internal/core/phone.receivedCall_handler.go:26 |
 | `phone.requestCall` | ok |  | app/bff/voipcalls/internal/core/phone.requestCall_handler.go:31 |
 | `phone.saveCallDebug` | ok |  | app/bff/voipcalls/internal/core/phone.saveCallDebug_handler.go:24 |
 | `phone.saveCallLog` | ok |  | app/bff/voipcalls/internal/core/phone.saveCallLog_handler.go:26 |
-| `phone.saveDefaultGroupCallJoinAs` | missing |  |  |
-| `phone.saveDefaultSendAs` | missing |  |  |
+| `phone.saveDefaultGroupCallJoinAs` | ok |  | app/bff/groupcalls/internal/core/phone.saveDefaultGroupCallJoinAs_handler.go:29 |
+| `phone.saveDefaultSendAs` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:60 |
 | `phone.sendConferenceCallBroadcast` | missing |  |  |
 | `phone.sendGroupCallEncryptedMessage` | missing |  |  |
-| `phone.sendGroupCallMessage87893014` | missing |  |  |
-| `phone.sendGroupCallMessageB1D11410` | missing |  |  |
+| `phone.sendGroupCallMessage87893014` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:44 |
+| `phone.sendGroupCallMessageB1D11410` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:40 |
 | `phone.sendSignalingData` | ok |  | app/bff/voipcalls/internal/core/phone.sendSignalingData_handler.go:27 |
 | `phone.setCallRating` | ok |  | app/bff/voipcalls/internal/core/phone.setCallRating_handler.go:26 |
-| `phone.startScheduledGroupCall` | missing |  |  |
-| `phone.toggleGroupCallRecord` | missing |  |  |
-| `phone.toggleGroupCallSettings` | missing |  |  |
-| `phone.toggleGroupCallStartSubscription` | missing |  |  |
+| `phone.startScheduledGroupCall` | ok |  | app/bff/groupcalls/internal/core/phone.startScheduledGroupCall_handler.go:28 |
+| `phone.toggleGroupCallRecord` | blocked |  | app/bff/groupcalls/internal/core/not_served.go:28 |
+| `phone.toggleGroupCallSettings` | ok |  | app/bff/groupcalls/internal/core/phone.toggleGroupCallSettings_handler.go:31 |
+| `phone.toggleGroupCallStartSubscription` | ok |  | app/bff/groupcalls/internal/core/phone.toggleGroupCallStartSubscription_handler.go:27 |
 
 ### photos
 

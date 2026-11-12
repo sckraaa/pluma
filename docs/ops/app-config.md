@@ -41,6 +41,7 @@
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
 | `voip_enable_stun_marking` | `false` | I | Метка STUN Telegram в звонках: нашему coturn она не нужна (`docs/tasks/077-research/network.md`). |
+| `groupcall_video_participants_max` | `30` | A I | Сколько камер одновременно в групповом звонке (задача 093, ADR 0059 §9): столько же отдаёт `groupCall.unmuted_video_limit`, и столько видео пересылает SFU (`Limits.MaxVideos`). Android читает в `MessagesController.java:3172`, по умолчанию 30 (`:1630`); iOS — `PresentationCallManager.swift:200`. |
 | `premium_purchase_blocked` | `true` | A D W | Оплаты нет (ADR 0041): клиенты скрывают покупку Premium. По умолчанию у Android `false`, у tdesktop `true`. |
 | `premium_promo_order` | `["more_upload", "double_limits", "folder_tags", "message_privacy", "profile_badge"]` | A W | Экран Premium показывает только перечисленное. Реализовано: файлы 4 ГБ, лимиты папок и других возможностей (задача 025), теги папок, «только контакты и Premium», значок у имени. |
 | `premium_gift_attach_menu_icon` | `false` | A | Подарка Premium нет. |

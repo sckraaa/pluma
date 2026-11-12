@@ -1,8 +1,8 @@
 {
   "layer": "233",
   "total": 681,
-  "ok": 481,
-  "partial": 5,
+  "ok": 498,
+  "partial": 6,
   "areas": [
     {
       "key": "messages",
@@ -49,8 +49,8 @@
     {
       "key": "groupcalls",
       "total": 32,
-      "ok": 0,
-      "partial": 0
+      "ok": 17,
+      "partial": 1
     },
     {
       "key": "stories",
