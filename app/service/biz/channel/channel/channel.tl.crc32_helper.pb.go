@@ -198,4 +198,20 @@ const (
 	CRC32_channel_getInactiveChannels TLConstructor = -744665876 // 0xd39d4cec
 	// pluma: task 078
 	CRC32_channel_setMainProfileTab TLConstructor = 1898100990 // 0x7122b8fe
+	// pluma: task 083
+	CRC32_importedReaction TLConstructor = -306155649 // 0xedc06f7f
+	// pluma: task 083
+	CRC32_importedMessage TLConstructor = 1442050088 // 0x55f3f028
+	// pluma: task 083
+	CRC32_channelImport TLConstructor = -1936460276 // 0x8c93f60c
+	// pluma: task 083
+	CRC32_channel_importCreate TLConstructor = -1439133700 // 0xaa388ffc
+	// pluma: task 083
+	CRC32_channel_importMessages TLConstructor = 1028134963 // 0x3d481833
+	// pluma: task 083
+	CRC32_channel_importFinish TLConstructor = 1309891041 // 0x4e1359e1
+	// pluma: task 083
+	CRC32_channel_importGetState TLConstructor = -126708870 // 0xf872937a
+	// pluma: task 083
+	CRC32_channel_importAbort TLConstructor = -668800565 // 0xd822e9cb
 )

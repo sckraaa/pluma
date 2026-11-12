@@ -197,6 +197,22 @@ const (
 	Predicate_channel_getInactiveChannels = "channel_getInactiveChannels"
 	// pluma: task 078
 	Predicate_channel_setMainProfileTab = "channel_setMainProfileTab"
+	// pluma: task 083
+	Predicate_importedReaction = "importedReaction"
+	// pluma: task 083
+	Predicate_importedMessage = "importedMessage"
+	// pluma: task 083
+	Predicate_channelImport = "channelImport"
+	// pluma: task 083
+	Predicate_channel_importCreate = "channel_importCreate"
+	// pluma: task 083
+	Predicate_channel_importMessages = "channel_importMessages"
+	// pluma: task 083
+	Predicate_channel_importFinish = "channel_importFinish"
+	// pluma: task 083
+	Predicate_channel_importGetState = "channel_importGetState"
+	// pluma: task 083
+	Predicate_channel_importAbort = "channel_importAbort"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -571,6 +587,30 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 	Predicate_channel_setMainProfileTab: { // pluma: task 078
 		0: 1898100990, // 0x7122b8fe
 	},
+	Predicate_importedReaction: { // pluma: task 083
+		0: -306155649, // 0xedc06f7f
+	},
+	Predicate_importedMessage: { // pluma: task 083
+		0: 1442050088, // 0x55f3f028
+	},
+	Predicate_channelImport: { // pluma: task 083
+		0: -1936460276, // 0x8c93f60c
+	},
+	Predicate_channel_importCreate: { // pluma: task 083
+		0: -1439133700, // 0xaa388ffc
+	},
+	Predicate_channel_importMessages: { // pluma: task 083
+		0: 1028134963, // 0x3d481833
+	},
+	Predicate_channel_importFinish: { // pluma: task 083
+		0: 1309891041, // 0x4e1359e1
+	},
+	Predicate_channel_importGetState: { // pluma: task 083
+		0: -126708870, // 0xf872937a
+	},
+	Predicate_channel_importAbort: { // pluma: task 083
+		0: -668800565, // 0xd822e9cb
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -675,6 +715,14 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-223894021:  Predicate_channel_getFutureCreator,                 // 0xf2a7a5fb pluma: task 078
 	-744665876:  Predicate_channel_getInactiveChannels,              // 0xd39d4cec pluma: task 078
 	1898100990:  Predicate_channel_setMainProfileTab,                // 0x7122b8fe pluma: task 078
+	-306155649:  Predicate_importedReaction,                         // 0xedc06f7f pluma: task 083
+	1442050088:  Predicate_importedMessage,                          // 0x55f3f028 pluma: task 083
+	-1936460276: Predicate_channelImport,                            // 0x8c93f60c pluma: task 083
+	-1439133700: Predicate_channel_importCreate,                     // 0xaa388ffc pluma: task 083
+	1028134963:  Predicate_channel_importMessages,                   // 0x3d481833 pluma: task 083
+	1309891041:  Predicate_channel_importFinish,                     // 0x4e1359e1 pluma: task 083
+	-126708870:  Predicate_channel_importGetState,                   // 0xf872937a pluma: task 083
+	-668800565:  Predicate_channel_importAbort,                      // 0xd822e9cb pluma: task 083
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

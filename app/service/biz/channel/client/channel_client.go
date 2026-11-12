@@ -121,6 +121,11 @@ type ChannelClient interface {
 	ChannelSetUserHidden(ctx context.Context, in *channel.TLChannelSetUserHidden) (*mtproto.Int32, error)
 	ChannelAntispamDelete(ctx context.Context, in *channel.TLChannelAntispamDelete) (*mtproto.Bool, error)
 	ChannelAntispamFalsePositive(ctx context.Context, in *channel.TLChannelAntispamFalsePositive) (*mtproto.Bool, error)
+	ChannelImportCreate(ctx context.Context, in *channel.TLChannelImportCreate) (*channel.ChannelImport, error)
+	ChannelImportMessages(ctx context.Context, in *channel.TLChannelImportMessages) (*channel.ChannelImport, error)
+	ChannelImportFinish(ctx context.Context, in *channel.TLChannelImportFinish) (*channel.ChannelImport, error)
+	ChannelImportGetState(ctx context.Context, in *channel.TLChannelImportGetState) (*channel.ChannelImport, error)
+	ChannelImportAbort(ctx context.Context, in *channel.TLChannelImportAbort) (*channel.ChannelImport, error)
 }
 
 type defaultChannelClient struct {
@@ -1176,4 +1181,59 @@ func (m *defaultChannelClient) ChannelAntispamFalsePositive(ctx context.Context,
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelAntispamFalsePositive(ctx, in)
+}
+
+// ChannelImportCreate
+// channel.importCreate creator_id:long source_type:string source_chat_id:long title:string about:string mapping:string first:ImportedMessage = ChannelImport;
+func (m *defaultChannelClient) ChannelImportCreate(ctx context.Context, in *channel.TLChannelImportCreate) (*channel.ChannelImport, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelImportCreate(ctx, in)
+}
+
+// ChannelImportMessages
+// channel.importMessages import_id:long first_seq:long messages:Vector<ImportedMessage> = ChannelImport;
+func (m *defaultChannelClient) ChannelImportMessages(ctx context.Context, in *channel.TLChannelImportMessages) (*channel.ChannelImport, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelImportMessages(ctx, in)
+}
+
+// ChannelImportFinish
+// channel.importFinish import_id:long = ChannelImport;
+func (m *defaultChannelClient) ChannelImportFinish(ctx context.Context, in *channel.TLChannelImportFinish) (*channel.ChannelImport, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelImportFinish(ctx, in)
+}
+
+// ChannelImportGetState
+// channel.importGetState import_id:long source_type:string source_chat_id:long = ChannelImport;
+func (m *defaultChannelClient) ChannelImportGetState(ctx context.Context, in *channel.TLChannelImportGetState) (*channel.ChannelImport, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelImportGetState(ctx, in)
+}
+
+// ChannelImportAbort
+// channel.importAbort import_id:long = ChannelImport;
+func (m *defaultChannelClient) ChannelImportAbort(ctx context.Context, in *channel.TLChannelImportAbort) (*channel.ChannelImport, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelImportAbort(ctx, in)
 }

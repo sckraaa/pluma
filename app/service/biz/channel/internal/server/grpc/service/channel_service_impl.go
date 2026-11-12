@@ -1353,3 +1353,73 @@ func (s *Service) ChannelAntispamFalsePositive(ctx context.Context, request *cha
 
 	return r, nil
 }
+
+// ChannelImportCreate
+// channel.importCreate creator_id:long source_type:string source_chat_id:long title:string about:string mapping:string first:ImportedMessage = ChannelImport;
+func (s *Service) ChannelImportCreate(ctx context.Context, request *channel.TLChannelImportCreate) (*channel.ChannelImport, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.importCreate - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelImportCreate(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelImportMessages
+// channel.importMessages import_id:long first_seq:long messages:Vector<ImportedMessage> = ChannelImport;
+func (s *Service) ChannelImportMessages(ctx context.Context, request *channel.TLChannelImportMessages) (*channel.ChannelImport, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.importMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelImportMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelImportFinish
+// channel.importFinish import_id:long = ChannelImport;
+func (s *Service) ChannelImportFinish(ctx context.Context, request *channel.TLChannelImportFinish) (*channel.ChannelImport, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.importFinish - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelImportFinish(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelImportGetState
+// channel.importGetState import_id:long source_type:string source_chat_id:long = ChannelImport;
+func (s *Service) ChannelImportGetState(ctx context.Context, request *channel.TLChannelImportGetState) (*channel.ChannelImport, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.importGetState - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelImportGetState(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelImportAbort
+// channel.importAbort import_id:long = ChannelImport;
+func (s *Service) ChannelImportAbort(ctx context.Context, request *channel.TLChannelImportAbort) (*channel.ChannelImport, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.importAbort - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelImportAbort(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
