@@ -10,8 +10,9 @@
 //   - secret: an argument whose value is named like a secret: new_nonce, the
 //     DH exponent a, g_b, auth_key bytes, AES keys and IVs, decrypted
 //     handshake data, login codes and their hashes, passwords and their SRP
-//     values, tokens, email addresses and API keys, or a config section
-//     with credentials (Etcd, Mysql, Redis...);
+//     values, tokens, email addresses and API keys, the ICE credentials,
+//     DTLS fingerprints and keys and the join params of group calls, or a
+//     config section with credentials (Etcd, Mysql, Redis...);
 //   - object: a TL object or data object printed whole: a parameter or local
 //     of a type from the mtproto package or from app/ (requests, updates,
 //     messages, rows), with any verb other than %T, or its String() or
@@ -95,6 +96,13 @@ var secretNames = set(
 	"mail", "apikey", "getapikey", "mailapikey",
 	"token", "gettoken",
 	"pass", "dsn",
+	// group calls (task 093, ADR 0059 §11): the ICE credentials and DTLS
+	// fingerprints of a connection, the JSON of a join and of the SFU's
+	// answer that carry them, and the keys of DTLS and SRTP
+	"ufrag", "getufrag", "pwd", "getpwd",
+	"fingerprints", "getfingerprints",
+	"params", "getparams", "privatekey", "getprivatekey",
+	"keyingmaterial", "masterkey", "mastersalt",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )
@@ -115,6 +123,8 @@ var objectPackages = []string{
 	"github.com/teamgram/proto/mtproto",
 	"github.com/teamgram/proto/mtproto/crypto",
 	"github.com/teamgram/teamgram-server/app/",
+	// the join params of group calls and the SFU's answer (task 093)
+	"github.com/teamgram/teamgram-server/pkg/tgcallsjson",
 }
 
 // localObjectTypes are types, used unqualified in their own package, that

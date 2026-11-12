@@ -1,0 +1,61 @@
+# Group calls (task 093, ADR 0059, docs/ops/group-calls.md). The SFU's
+# metrics are sfu_*, bff's groupcalls_*. Group calls are optional: without
+# an SFU node nothing is created and none of these fire. A node that runs
+# and does not answer is ServiceDown (job ops.sfu, up == 0); one whose
+# container is not running is GroupCallsSFUDown.
+groups:
+  - name: groupcalls
+    rules:
+      # The container of the SFU is not running: Docker's DNS drops the
+      # name "sfu", the ops.sfu target disappears, and there is no up == 0
+      # for ServiceDown. Only while bff has SFU nodes configured.
+      - alert: GroupCallsSFUDown
+        expr: absent(up{job="ops.sfu"}) and on() (max(groupcalls_sfu_configured) > 0)
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "The SFU of group calls is not running"
+          description: "Nobody can join or stay in a group call. docker compose ps sfu; docker compose logs --tail 100 sfu. docs/ops/group-calls.md"
+
+      # bff cannot drive the node: joins fail, the collector cannot see the
+      # rooms, and the participants it does not see leave the calls.
+      - alert: GroupCallsSFUUnreachable
+        expr: sum(increase(groupcalls_sfu_errors_total[5m])) >= 5
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "bff fails to reach the SFU of group calls"
+          description: "docker compose ps sfu; docker compose logs --tail 100 sfu bff; GROUPCALLS_SFU_ENDPOINT and the control certificates. docs/ops/group-calls.md"
+
+      # Clients reach the SFU's ports but do not get through ICE or DTLS:
+      # a wrong SFU_PUBLIC_IPV4, ports closed by a firewall, a NAT in the
+      # way.
+      - alert: GroupCallsConnectFailing
+        expr: |
+          sum(increase(sfu_connect_failures_total[15m])) >= 3
+          and
+          sum(increase(sfu_connect_failures_total[15m]))
+            / clamp_min(sum(increase(sfu_connect_failures_total[15m])) + sum(increase(sfu_ice_pairs_total[15m])), 1) > 0.5
+        labels: {severity: warning}
+        annotations:
+          summary: "Most connections to the SFU of group calls fail"
+          description: "By reason: sum by (reason) (increase(sfu_connect_failures_total[15m])). no_check: nothing reaches the SFU (SFU_PUBLIC_IPV4, published ports, firewall). docs/ops/group-calls.md"
+
+      # The node sends close to its configured upload limit: the videos go
+      # down in quality.
+      - alert: GroupCallsUplinkSaturated
+        expr: sfu_uplink_limit_bps > 0 and sfu_uplink_bps / sfu_uplink_limit_bps > 0.9
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "The SFU sends more than 90% of its upload limit"
+          description: "Receivers get lower video layers. Raise Limits.UplinkMbps if the line allows, or lower the videos at once. docs/ops/group-calls.md"
+
+      # A subscriber of the control stream is too slow: bff misses the
+      # SFU's word on who left; the collector still catches them, later.
+      - alert: GroupCallsEventsDropped
+        expr: sum(increase(sfu_events_dropped_total[15m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "The SFU dropped events of its control stream"
+          description: "bff reads the stream too slowly or hangs. docker compose logs bff | grep groupcalls. docs/ops/group-calls.md"

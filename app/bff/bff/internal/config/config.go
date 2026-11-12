@@ -20,6 +20,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	groupcalls_helper "github.com/teamgram/teamgram-server/app/bff/groupcalls"
 	voipcalls_helper "github.com/teamgram/teamgram-server/app/bff/voipcalls"
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
@@ -47,6 +48,10 @@ type Config struct {
 	// Calls is the media side of one-to-one calls (docs/ops/calls.md); calls
 	// are off without ICE servers.
 	Calls voipcalls_helper.CallsConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// GroupCalls is the media side of group calls: the SFU nodes and the
+	// client certificate of their control API (task 093,
+	// docs/ops/group-calls.md); group calls are off without nodes.
+	GroupCalls groupcalls_helper.GroupCallsConfig `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// ReleasesURL is the site the releases of the client apps are on,
 	// https://pluma.chat (task 054): /dl/ of it serves them. Empty: no
 	// update is offered and the desktop app keeps its own update prefix.

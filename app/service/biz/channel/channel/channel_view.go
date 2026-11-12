@@ -330,6 +330,11 @@ func (m *ImmutableChannel) base() *mtproto.Chat {
 		// The direct messages of a channel (task 084): what the row is,
 		// which a min channel carries with its other kinds.
 		Monoforum: m.GetMonoforum(),
+		// The group call (task 093): a min channel carries it too, since
+		// tdesktop applies both flags from a min channel and clears what is
+		// left out (data_session.cpp:1110-1172).
+		CallActive:   m.GetCallActive(),
+		CallNotEmpty: m.GetCallNotEmpty(),
 	}
 	// The two sides name each other only while the direct messages are on:
 	// tdesktop reads a monoforum without the link as switched off

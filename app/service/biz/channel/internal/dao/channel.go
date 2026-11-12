@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
+	"github.com/teamgram/teamgram-server/pkg/groupcalls"
 	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/stories"
 
@@ -306,10 +307,17 @@ func (d *Dao) getChannels(ctx context.Context, idList []int64) ([]*channel.Immut
 	if err != nil {
 		return nil, fmt.Errorf("stories of channels %v: %w", found, err)
 	}
+	// The group call of each that is not over (task 093, ADR 0059).
+	calls, err := groupcalls.NewStore(d.Mysql.DB).ChatStates(ctx, mtproto.PEER_CHANNEL, found)
+	if err != nil {
+		return nil, fmt.Errorf("calls of channels %v: %w", found, err)
+	}
 	out := make([]*channel.ImmutableChannel, 0, len(byId))
 	for _, id := range idList {
 		if c, ok := byId[id]; ok {
 			c.StoriesMaxId = maxIds[id]
+			st := calls[id]
+			c.CallActive, c.CallNotEmpty, c.Call = st.Active, st.NotEmpty, st.Call
 			out = append(out, c)
 		}
 	}

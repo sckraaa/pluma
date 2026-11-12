@@ -1,5 +1,6 @@
 {
     "voip_enable_stun_marking": false,
+    "groupcall_video_participants_max": 30,
     "premium_purchase_blocked": true,
     "premium_promo_order": ["more_upload", "double_limits", "folder_tags", "message_privacy", "profile_badge"],
     "premium_gift_attach_menu_icon": false,

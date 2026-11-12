@@ -120,6 +120,21 @@ Calls:
   # "stock", then key=value changes (docs/ops/calls.md).
   Quality: "${CALLS_QUALITY}"
 
+# Group calls of chats and channels (task 093, ADR 0059,
+# docs/ops/group-calls.md): the SFU nodes and the client certificate of
+# their control API, which is mutual TLS only. No endpoint: group calls are
+# off. Name is what the calls' table records: it must not change while
+# calls run.
+GroupCalls:
+  Nodes:
+    - Name: main
+      Endpoint: "${GROUPCALLS_SFU_ENDPOINT}"
+  CertFile: /opt/pluma/groupcalls/client.pem
+  KeyFile: /opt/pluma/groupcalls/client-key.pem
+  CAFile: /opt/pluma/groupcalls/server-ca.pem
+  # Cameras on at once in a call; the node's Limits.MaxVideos.
+  VideoLimit: 30
+
 # Voice transcription (task 090, ADR 0056, docs/ops/transcription.md): the
 # speech engine is a service with POST /v1/audio/transcriptions of the OpenAI
 # API, app/ops/stt or any other. No URL: transcription is off. Nothing a

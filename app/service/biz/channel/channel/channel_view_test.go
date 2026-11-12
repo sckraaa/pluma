@@ -447,3 +447,24 @@ func TestToChatStories(t *testing.T) {
 		t.Errorf("no stories: %v / %v, unavailable %v", got.GetStoriesMaxId_FLAGRECENTSTORY(), got.GetStoriesMaxId_FLAGINT32(), got.GetStoriesUnavailable())
 	}
 }
+
+// The group call of a channel in its object (task 093): call_active and
+// call_not_empty for every viewer, a min channel included, since tdesktop
+// clears what a min channel leaves out (data_session.cpp:1110-1172).
+func TestToChatGroupCall(t *testing.T) {
+	ch := testChannel("news")
+	ch.CallActive, ch.CallNotEmpty = true, true
+	for name, got := range map[string]*mtproto.Chat{
+		"member":   ch.ToChat(participant(RoleMember, StateIn, 0, 0, 0), viewNow),
+		"stranger": ch.ToChat(nil, viewNow),
+		"min":      ch.ToMinChat(),
+	} {
+		if !got.GetCallActive() || !got.GetCallNotEmpty() {
+			t.Errorf("%s: call_active %v call_not_empty %v", name, got.GetCallActive(), got.GetCallNotEmpty())
+		}
+	}
+	ch.CallActive, ch.CallNotEmpty = false, false
+	if got := ch.ToChat(nil, viewNow); got.GetCallActive() || got.GetCallNotEmpty() {
+		t.Errorf("no call: %v %v", got.GetCallActive(), got.GetCallNotEmpty())
+	}
+}
