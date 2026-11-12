@@ -58,6 +58,11 @@ type fakeSaved struct {
 	historyPeer   *message.TLMessageGetSavedHistoryMessages
 	deleteRange   *msgpb.TLMsgDeleteHistoryRange
 	channelsAsked []int64
+
+	sublists       *channelpb.TLChannelGetSublists
+	sublistHistory *channelpb.TLChannelGetSublistHistory
+	sublistRead    *channelpb.TLChannelReadSublist
+	sublistDelete  *channelpb.TLChannelDeleteSublistHistory
 }
 
 func (f *fakeSaved) DialogGetSavedDialogs(context.Context, *dialog.TLDialogGetSavedDialogs) (*dialog.SavedDialogList, error) {
@@ -219,26 +224,132 @@ func TestGetSavedDialogsByID(t *testing.T) {
 	}
 }
 
-// parent_peer of a channel names its direct messages, which are not served;
-// the account itself is its own Saved Messages.
+// parent_peer is the account itself, its own Saved Messages, or a channel,
+// the monoforum whose sublists are asked for; any other peer is
+// PARENT_PEER_INVALID.
 func TestSavedParentPeer(t *testing.T) {
-	c := newSavedCore(&fakeSaved{})
-	if _, err := c.MessagesGetSavedDialogsByID(&mtproto.TLMessagesGetSavedDialogsByID{
-		ParentPeer: inputChannel(channelId),
-		Ids:        []*mtproto.InputPeer{inputSelf()},
-	}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
-		t.Errorf("a channel's parent_peer: %v", err)
-	}
+	f := &fakeSaved{}
+	c := newSavedCore(f)
 	if _, err := c.MessagesGetSavedDialogsByID(&mtproto.TLMessagesGetSavedDialogsByID{
 		ParentPeer: inputSelf(),
 		Ids:        []*mtproto.InputPeer{inputSelf()},
 	}); err != nil {
 		t.Errorf("the account's own parent_peer: %v", err)
 	}
+	if _, err := c.MessagesGetSavedDialogs(&mtproto.TLMessagesGetSavedDialogs{
+		ParentPeer: mtproto.MakeTLInputPeerChat(&mtproto.InputPeer{ChatId: 5}).To_InputPeer(),
+	}); !errors.Is(err, errParentPeerInvalid) {
+		t.Errorf("a basic group's parent_peer: %v, want PARENT_PEER_INVALID", err)
+	}
+	if _, err := c.MessagesReadSavedHistory(&mtproto.TLMessagesReadSavedHistory{
+		ParentPeer: inputSelf(), Peer: inputUser(8), MaxId: 3,
+	}); !errors.Is(err, errParentPeerInvalid) {
+		t.Errorf("reading a sub-chat of Saved Messages: %v, want PARENT_PEER_INVALID", err)
+	}
 	if _, err := c.MessagesGetSavedHistory(&mtproto.TLMessagesGetSavedHistory{
 		Peer: mtproto.MakeTLInputPeerEmpty(nil).To_InputPeer(),
 	}); !errors.Is(err, mtproto.ErrPeerIdInvalid) {
 		t.Errorf("the history of no peer: %v", err)
+	}
+}
+
+func inputUser(id int64) *mtproto.InputPeer {
+	return mtproto.MakeTLInputPeerUser(&mtproto.InputPeer{UserId: id, AccessHash: 1}).To_InputPeer()
+}
+
+func (f *fakeSaved) ChannelGetSublists(_ context.Context, in *channelpb.TLChannelGetSublists) (*mtproto.Messages_SavedDialogs, error) {
+	f.sublists = in
+	return mtproto.MakeTLMessagesSavedDialogs(&mtproto.Messages_SavedDialogs{
+		Dialogs: []*mtproto.SavedDialog{mtproto.MakeTLMonoForumDialog(&mtproto.SavedDialog{
+			Peer: mtproto.MakePeerUser(8), TopMessage: 4, UnreadCount: 2,
+		}).To_SavedDialog()},
+		Messages: []*mtproto.Message{mtproto.MakeTLMessage(&mtproto.Message{
+			Id: 4, PeerId: mtproto.MakePeerChannel(in.GetChannelId()), FromId: mtproto.MakePeerUser(8), SavedPeerId: mtproto.MakePeerUser(8),
+		}).To_Message()},
+	}).To_Messages_SavedDialogs(), nil
+}
+
+func (f *fakeSaved) ChannelGetSublistHistory(_ context.Context, in *channelpb.TLChannelGetSublistHistory) (*mtproto.Messages_Messages, error) {
+	f.sublistHistory = in
+	return mtproto.MakeTLMessagesChannelMessages(&mtproto.Messages_Messages{Pts: 9, Count: 1, Messages: []*mtproto.Message{}}).To_Messages_Messages(), nil
+}
+
+func (f *fakeSaved) ChannelReadSublist(_ context.Context, in *channelpb.TLChannelReadSublist) (*mtproto.Bool, error) {
+	f.sublistRead = in
+	return mtproto.BoolTrue, nil
+}
+
+func (f *fakeSaved) ChannelDeleteSublistHistory(_ context.Context, in *channelpb.TLChannelDeleteSublistHistory) (*mtproto.Messages_AffectedHistory, error) {
+	f.sublistDelete = in
+	return mtproto.MakeTLMessagesAffectedHistory(&mtproto.Messages_AffectedHistory{Pts: 12, PtsCount: 2}).To_Messages_AffectedHistory(), nil
+}
+
+// With a channel in parent_peer the methods of the sub-chats work on the
+// sublists of that monoforum, through biz channel: the list as
+// monoForumDialog with the monoforum in chats, the history, the read mark
+// and the deletion of one sublist.
+func TestMonoforumSublists(t *testing.T) {
+	f := &fakeSaved{}
+	c := newSavedCore(f)
+	c.MD.PermAuthKeyId = 77
+
+	r, err := c.MessagesGetSavedDialogs(&mtproto.TLMessagesGetSavedDialogs{
+		ParentPeer: inputChannel(channelId), ExcludePinned: true, OffsetId: 40, Limit: 20,
+		OffsetPeer: mtproto.MakeTLInputPeerEmpty(nil).To_InputPeer(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in := f.sublists; in.GetSelfId() != me || in.GetChannelId() != channelId || in.GetOffsetId() != 40 || in.GetLimit() != 20 || len(in.GetIds()) != 0 {
+		t.Errorf("the list was asked as %v", in)
+	}
+	if len(r.GetDialogs()) != 1 || r.GetDialogs()[0].GetPredicateName() != mtproto.Predicate_monoForumDialog || !hasChannel(r.GetChats(), channelId) {
+		t.Errorf("the list: %v", r)
+	}
+
+	if _, err = c.MessagesGetSavedDialogsByID(&mtproto.TLMessagesGetSavedDialogsByID{
+		ParentPeer: inputChannel(channelId), Ids: []*mtproto.InputPeer{inputUser(8), inputUser(9)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if in := f.sublists; len(in.GetIds()) != 2 || in.GetIds()[0] != 8 || in.GetIds()[1] != 9 {
+		t.Errorf("the sublists were asked as %v", in)
+	}
+	if _, err = c.MessagesGetSavedDialogsByID(&mtproto.TLMessagesGetSavedDialogsByID{
+		ParentPeer: inputChannel(channelId), Ids: []*mtproto.InputPeer{inputChannel(5)},
+	}); !errors.Is(err, mtproto.ErrPeerIdInvalid) {
+		t.Errorf("a sublist of a channel: %v, want PEER_ID_INVALID", err)
+	}
+
+	h, err := c.MessagesGetSavedHistory(&mtproto.TLMessagesGetSavedHistory{
+		ParentPeer: inputChannel(channelId), Peer: inputUser(8), OffsetId: 30, AddOffset: -5, Limit: 10, MaxId: 50, MinId: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in := f.sublistHistory; in.GetChannelId() != channelId || in.GetPeerId() != 8 || in.GetOffsetId() != 30 || in.GetAddOffset() != -5 || in.GetLimit() != 10 || in.GetMaxId() != 50 || in.GetMinId() != 2 {
+		t.Errorf("the history was asked as %v", in)
+	}
+	if h.GetPredicateName() != mtproto.Predicate_messages_channelMessages || h.GetPts() != 9 || !hasChannel(h.GetChats(), channelId) {
+		t.Errorf("the history: %v", h)
+	}
+
+	if _, err = c.MessagesReadSavedHistory(&mtproto.TLMessagesReadSavedHistory{ParentPeer: inputChannel(channelId), Peer: inputUser(8), MaxId: 4}); err != nil {
+		t.Fatal(err)
+	}
+	if in := f.sublistRead; in.GetSelfId() != me || in.GetPermAuthKeyId() != 77 || in.GetChannelId() != channelId || in.GetPeerId() != 8 || in.GetMaxId() != 4 {
+		t.Errorf("the read was asked as %v", in)
+	}
+
+	a, err := c.MessagesDeleteSavedHistory(&mtproto.TLMessagesDeleteSavedHistory{ParentPeer: inputChannel(channelId), Peer: inputUser(8), MaxId: 6})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if in := f.sublistDelete; in.GetChannelId() != channelId || in.GetPeerId() != 8 || in.GetMaxId() != 6 || in.GetPermAuthKeyId() != 77 {
+		t.Errorf("the deletion was asked as %v", in)
+	}
+	if a.GetPts() != 12 || a.GetPtsCount() != 2 || f.deleteRange != nil {
+		t.Errorf("the deletion: %v, own Saved Messages asked: %v", a, f.deleteRange)
 	}
 }
 

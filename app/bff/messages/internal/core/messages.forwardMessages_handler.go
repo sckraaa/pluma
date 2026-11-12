@@ -336,6 +336,14 @@ func (c *MessagesCore) makeForwardMessages(
 			m.GroupedId = nil
 		}
 		m.ReplyTo = forwardTopicHeader(toPeer, request.GetTopMsgId(), request.GetReplyTo())
+		// The sublist of a monoforum an admin forwards to.
+		if sp := sublistPeer(c.MD.UserId, toPeer, request.GetReplyTo()); sp != nil {
+			m.SavedPeerId = sp
+		}
+		if err := withSuggestedPost(m, toPeer, request.GetSuggestedPost()); err != nil {
+			c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+			return nil, err
+		}
 		m.Reactions = nil
 		if m.FwdFrom == nil {
 			// A copy is the sender's own message and has no counters.

@@ -72,7 +72,7 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		ParticipantsCount:   mtproto.MakeFlagsInt32(ch.GetParticipantsCount()),
 		ChatPhoto:           ch.GetPhoto(),
 		BotInfo:             []*mtproto.BotInfo{},
-		CanViewParticipants: ch.GetMegagroup() && !ch.GetParticipantsHidden() || admin,
+		CanViewParticipants: !ch.GetMonoforum() && (ch.GetMegagroup() && !ch.GetParticipantsHidden() || admin),
 		ParticipantsHidden:  ch.GetParticipantsHidden(),
 		CanSetUsername:      creator,
 		CanDeleteChannel:    creator,
@@ -233,6 +233,13 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 	}
 	if as := full.DefaultSendAs.GetChannelId(); as != 0 && as != ch.GetId() && !slices.Contains(others, as) {
 		others = append(others, as)
+	}
+	// The other side of the channel's direct messages (task 084): the
+	// clients link a channel and its monoforum from the chats of one answer,
+	// and tdesktop asks the full channel for a side it does not have yet
+	// (data_session.cpp:1388-1421).
+	if linked := ch.GetLinkedMonoforumId(); linked != 0 && (ch.GetMonoforum() || ch.GetBroadcastMessagesAllowed()) && !slices.Contains(others, linked) {
+		others = append(others, linked)
 	}
 	if len(others) > 0 {
 		l, err := c.svcCtx.Channel.ChannelGetChannelListByIdList(c.ctx, &channelpb.TLChannelGetChannelListByIdList{SelfId: c.MD.UserId, IdList: others})

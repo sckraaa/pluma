@@ -107,6 +107,13 @@ func (c *DialogsCore) channelTyping(channelId int64, in *mtproto.TLMessagesSetTy
 	if !slices.Contains(members.GetDatas(), c.MD.UserId) {
 		return nil
 	}
+	to := members.GetDatas()
+	if mc.GetChannel().GetMonoforum() {
+		if mc, err = c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: channelId, Id: to}); err != nil {
+			return err
+		}
+		to = monoforumTypingTo(mc, c.MD.UserId)
+	}
 	u := mtproto.MakeTLUpdateChannelUserTyping(&mtproto.Update{
 		ChannelId: channelId,
 		FromId:    mtproto.MakePeerUser(c.MD.UserId),
@@ -116,7 +123,7 @@ func (c *DialogsCore) channelTyping(channelId int64, in *mtproto.TLMessagesSetTy
 		u.TopMsgId_FLAGINT32 = top
 	}
 	updates := mtproto.MakeTLUpdateShort(&mtproto.Updates{Update: u, Date: date}).To_Updates()
-	for _, id := range members.GetDatas() {
+	for _, id := range to {
 		if id == c.MD.UserId {
 			continue
 		}
@@ -125,4 +132,26 @@ func (c *DialogsCore) channelTyping(channelId int64, in *mtproto.TLMessagesSetTy
 		}
 	}
 	return nil
+}
+
+// monoforumTypingTo are those who see the typing of userId in the direct
+// messages of a channel (task 084, ADR 0055), mc being the monoforum with
+// the participants of its recipients. A subscriber types to the admins of
+// the direct messages alone: to the other subscribers it is in no chat of
+// theirs. An admin answers as the channel, and its typing would name it to
+// the subscriber; setTyping does not say which sublist it is in either
+// (messages.setTyping of layer 228 has no saved_peer_id), so it goes to
+// nobody. tdesktop does not send it from a sublist at all
+// (history_view_chat_section.cpp:676-679).
+func monoforumTypingTo(mc *channelpb.MutableChannel, userId int64) []int64 {
+	if me, _ := mc.GetParticipant(userId); channelpb.SublistAdmin(me) {
+		return nil
+	}
+	var to []int64
+	for _, p := range mc.GetParticipants() {
+		if p.GetUserId() != userId && channelpb.SublistAdmin(p) {
+			to = append(to, p.GetUserId())
+		}
+	}
+	return to
 }

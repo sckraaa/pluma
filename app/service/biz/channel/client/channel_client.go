@@ -121,6 +121,15 @@ type ChannelClient interface {
 	ChannelSetUserHidden(ctx context.Context, in *channel.TLChannelSetUserHidden) (*mtproto.Int32, error)
 	ChannelAntispamDelete(ctx context.Context, in *channel.TLChannelAntispamDelete) (*mtproto.Bool, error)
 	ChannelAntispamFalsePositive(ctx context.Context, in *channel.TLChannelAntispamFalsePositive) (*mtproto.Bool, error)
+	ChannelUpdateDirectMessages(ctx context.Context, in *channel.TLChannelUpdateDirectMessages) (*mtproto.Updates, error)
+	ChannelGetSublists(ctx context.Context, in *channel.TLChannelGetSublists) (*mtproto.Messages_SavedDialogs, error)
+	ChannelGetSublistHistory(ctx context.Context, in *channel.TLChannelGetSublistHistory) (*mtproto.Messages_Messages, error)
+	ChannelReadSublist(ctx context.Context, in *channel.TLChannelReadSublist) (*mtproto.Bool, error)
+	ChannelDeleteSublistHistory(ctx context.Context, in *channel.TLChannelDeleteSublistHistory) (*mtproto.Messages_AffectedHistory, error)
+	ChannelGetMessageAuthor(ctx context.Context, in *channel.TLChannelGetMessageAuthor) (*mtproto.Int64, error)
+	ChannelMarkSublistUnread(ctx context.Context, in *channel.TLChannelMarkSublistUnread) (*mtproto.Bool, error)
+	ChannelGetSublistUnreadMarks(ctx context.Context, in *channel.TLChannelGetSublistUnreadMarks) (*channel.Vector_Long, error)
+	ChannelGetMessageSublists(ctx context.Context, in *channel.TLChannelGetMessageSublists) (*channel.Vector_Long, error)
 }
 
 type defaultChannelClient struct {
@@ -420,7 +429,7 @@ func (m *defaultChannelClient) ChannelEditCreator(ctx context.Context, in *chann
 }
 
 // ChannelSearch
-// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int saved_peer_id:long = messages.Messages;
 func (m *defaultChannelClient) ChannelSearch(ctx context.Context, in *channel.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	md := metadata.RpcMetadataFromIncoming(ctx)
 	if md != nil {
@@ -915,7 +924,7 @@ func (m *defaultChannelClient) ChannelSetChatTheme(ctx context.Context, in *chan
 }
 
 // ChannelSearchCount
-// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int = int;
+// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int saved_peer_id:long = int;
 func (m *defaultChannelClient) ChannelSearchCount(ctx context.Context, in *channel.TLChannelSearchCount) (*mtproto.Int32, error) {
 	md := metadata.RpcMetadataFromIncoming(ctx)
 	if md != nil {
@@ -926,7 +935,7 @@ func (m *defaultChannelClient) ChannelSearchCount(ctx context.Context, in *chann
 }
 
 // ChannelSearchCalendar
-// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int = messages.SearchResultsCalendar;
+// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int saved_peer_id:long = messages.SearchResultsCalendar;
 func (m *defaultChannelClient) ChannelSearchCalendar(ctx context.Context, in *channel.TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error) {
 	md := metadata.RpcMetadataFromIncoming(ctx)
 	if md != nil {
@@ -937,7 +946,7 @@ func (m *defaultChannelClient) ChannelSearchCalendar(ctx context.Context, in *ch
 }
 
 // ChannelSearchPositions
-// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int = messages.SearchResultsPositions;
+// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int saved_peer_id:long = messages.SearchResultsPositions;
 func (m *defaultChannelClient) ChannelSearchPositions(ctx context.Context, in *channel.TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error) {
 	md := metadata.RpcMetadataFromIncoming(ctx)
 	if md != nil {
@@ -1176,4 +1185,103 @@ func (m *defaultChannelClient) ChannelAntispamFalsePositive(ctx context.Context,
 	}
 	client := channel.NewRPCChannelClient(m.cli.Conn())
 	return client.ChannelAntispamFalsePositive(ctx, in)
+}
+
+// ChannelUpdateDirectMessages
+// channel.updateDirectMessages self_id:long perm_auth_key_id:long channel_id:long enabled:Bool = Updates;
+func (m *defaultChannelClient) ChannelUpdateDirectMessages(ctx context.Context, in *channel.TLChannelUpdateDirectMessages) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelUpdateDirectMessages(ctx, in)
+}
+
+// ChannelGetSublists
+// channel.getSublists self_id:long channel_id:long ids:Vector<long> offset_id:int limit:int = messages.SavedDialogs;
+func (m *defaultChannelClient) ChannelGetSublists(ctx context.Context, in *channel.TLChannelGetSublists) (*mtproto.Messages_SavedDialogs, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetSublists(ctx, in)
+}
+
+// ChannelGetSublistHistory
+// channel.getSublistHistory self_id:long channel_id:long peer_id:long offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (m *defaultChannelClient) ChannelGetSublistHistory(ctx context.Context, in *channel.TLChannelGetSublistHistory) (*mtproto.Messages_Messages, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetSublistHistory(ctx, in)
+}
+
+// ChannelReadSublist
+// channel.readSublist self_id:long perm_auth_key_id:long channel_id:long peer_id:long max_id:int = Bool;
+func (m *defaultChannelClient) ChannelReadSublist(ctx context.Context, in *channel.TLChannelReadSublist) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelReadSublist(ctx, in)
+}
+
+// ChannelDeleteSublistHistory
+// channel.deleteSublistHistory self_id:long perm_auth_key_id:long channel_id:long peer_id:long max_id:int min_date:int max_date:int = messages.AffectedHistory;
+func (m *defaultChannelClient) ChannelDeleteSublistHistory(ctx context.Context, in *channel.TLChannelDeleteSublistHistory) (*mtproto.Messages_AffectedHistory, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelDeleteSublistHistory(ctx, in)
+}
+
+// ChannelGetMessageAuthor
+// channel.getMessageAuthor self_id:long channel_id:long id:int = Int64;
+func (m *defaultChannelClient) ChannelGetMessageAuthor(ctx context.Context, in *channel.TLChannelGetMessageAuthor) (*mtproto.Int64, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetMessageAuthor(ctx, in)
+}
+
+// ChannelMarkSublistUnread
+// channel.markSublistUnread self_id:long perm_auth_key_id:long channel_id:long peer_id:long unread:Bool = Bool;
+func (m *defaultChannelClient) ChannelMarkSublistUnread(ctx context.Context, in *channel.TLChannelMarkSublistUnread) (*mtproto.Bool, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelMarkSublistUnread(ctx, in)
+}
+
+// ChannelGetSublistUnreadMarks
+// channel.getSublistUnreadMarks self_id:long channel_id:long = Vector<long>;
+func (m *defaultChannelClient) ChannelGetSublistUnreadMarks(ctx context.Context, in *channel.TLChannelGetSublistUnreadMarks) (*channel.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetSublistUnreadMarks(ctx, in)
+}
+
+// ChannelGetMessageSublists
+// channel.getMessageSublists channel_id:long id:Vector<int> = Vector<long>;
+func (m *defaultChannelClient) ChannelGetMessageSublists(ctx context.Context, in *channel.TLChannelGetMessageSublists) (*channel.Vector_Long, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := channel.NewRPCChannelClient(m.cli.Conn())
+	return client.ChannelGetMessageSublists(ctx, in)
 }

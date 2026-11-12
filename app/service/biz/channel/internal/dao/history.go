@@ -21,11 +21,13 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelcontents"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/msgsearch"
 	"github.com/teamgram/teamgram-server/pkg/polls"
 	"github.com/teamgram/teamgram-server/pkg/reactions"
@@ -40,9 +42,39 @@ const HistoryMax = 100
 // MemberIds are the users in the channel now: the recipients of its
 // updates.
 func (d *Dao) MemberIds(ctx context.Context, channelId int64) ([]int64, error) {
+	q := monoforum.OnDB(ctx, d.Mysql.DB)
+	side, err := monoforum.SideOf(q, channelId)
+	if err != nil {
+		return nil, err
+	}
+	if side.Monoforum {
+		// Nobody is in a monoforum (task 084): its updates go to the admins
+		// of the channel's direct messages and to the subscribers who have
+		// a sublist, each of whom gets those of its own (channel.SublistView).
+		var peers []int64
+		if err = d.Mysql.QueryRowsPartial(ctx, &peers, "SELECT peer_id FROM channel_monoforum_sublists WHERE channel_id = ? ORDER BY peer_id", channelId); err != nil {
+			return nil, err
+		}
+		return monoforum.Recipients(q, side.LinkedId, peers, time.Now().Unix())
+	}
 	var ids []int64
-	err := d.Mysql.QueryRowsPartial(ctx, &ids, "SELECT user_id FROM channel_participants WHERE channel_id = ? AND state = 0 ORDER BY user_id", channelId)
+	err = d.Mysql.QueryRowsPartial(ctx, &ids, "SELECT user_id FROM channel_participants WHERE channel_id = ? AND state = 0 ORDER BY user_id", channelId)
 	return ids, err
+}
+
+// MessageSublists are the sublists the messages ids of the monoforum are
+// in, in the order of ids, deleted messages too; 0 for a message that never
+// was, and for every message of a channel that is no monoforum.
+func (d *Dao) MessageSublists(ctx context.Context, channelId int64, ids []int32) ([]int64, error) {
+	found, err := monoforum.SublistsOf(monoforum.OnDB(ctx, d.Mysql.DB), channelId, ids)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]int64, len(ids))
+	for i, id := range ids {
+		out[i] = found[id]
+	}
+	return out, nil
 }
 
 // viewer is what bounds what a user sees of a channel: messages from
@@ -53,6 +85,29 @@ type viewer struct {
 	broadcast      bool
 	availableMinId int32
 	joined         int64 // when a member joined (unix time), 0 for anyone else
+	// monoforum: the channel holds the direct messages of a channel (task
+	// 084). sublist is then the one sublist the viewer sees, its own; 0 for
+	// an admin of the direct messages, who sees them all.
+	monoforum bool
+	sublist   int64
+}
+
+// countsOnly tells whether the reactions of the channel's messages are
+// shown as counts, without who reacted: in a broadcast channel, and in a
+// monoforum, where a reaction of an admin would name the admin behind the
+// channel (the clients list nobody there either, tdesktop
+// api_who_reacted.cpp:761-766).
+func (v viewer) countsOnly() bool {
+	return v.broadcast || v.monoforum
+}
+
+// own narrows a query of channel_messages to what the viewer sees of a
+// monoforum: the condition to add, with its arguments.
+func (v viewer) own(column string) (string, []any) {
+	if v.sublist == 0 {
+		return "", nil
+	}
+	return " AND " + column + " = ?", []any{v.sublist}
 }
 
 // viewerOf reads what userId may see of channelId: a member, anyone not
@@ -76,6 +131,18 @@ func (d *Dao) viewerFor(ctx context.Context, userId, channelId int64, forDiffere
 	}
 	p, _ := mc.GetParticipant(userId)
 	broadcast := mc.GetChannel().GetBroadcast()
+	if mc.GetChannel().GetMonoforum() {
+		// The participant is made of what the user is in the channel
+		// (monoforumViewers): none for one without access.
+		if !p.Member() {
+			return viewer{}, nil
+		}
+		v := viewer{canRead: true, member: true, monoforum: true}
+		if p.GetRole() != channel.RoleAdmin {
+			v.sublist = userId
+		}
+		return v, nil
+	}
 	if p.Member() {
 		return viewer{canRead: true, member: true, broadcast: broadcast, availableMinId: p.GetAvailableMinId(), joined: int64(p.GetDate())}, nil
 	}
@@ -145,6 +212,8 @@ type SearchQuery struct {
 	// UnreadReactionsOf keeps the messages of this user with reactions it
 	// has not seen (task 067).
 	UnreadReactionsOf int64
+	// Sublist keeps the messages of this sublist of a monoforum (task 084).
+	Sublist int64
 }
 
 // SearchMax is the most messages of one page of a search
@@ -179,6 +248,9 @@ func (q SearchQuery) pageQuery(selfId, channelId int64) pageQuery {
 	}
 	if q.Topic != 0 {
 		w.And("topic_id = ?", channelbox.TopicColumn(q.Topic))
+	}
+	if q.Sublist != 0 {
+		w.And("saved_peer_id = ?", q.Sublist)
 	}
 	if q.UnreadMentionsOf != 0 {
 		w.And("id IN (SELECT message_id FROM channel_message_mentions WHERE channel_id = ? AND user_id = ? AND `read` = 0)", channelId, q.UnreadMentionsOf)
@@ -226,6 +298,9 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 		upper = maxId
 	}
 	lower := max(minId, v.availableMinId-1)
+	if own, ownArgs := v.own("saved_peer_id"); own != "" {
+		pq = pageQuery{where: pq.where + own, args: append(slices.Clone(pq.args), ownArgs...)}
+	}
 	where := "channel_id = ? AND deleted = 0 AND id > ? AND id < ?" + pq.where
 	args := append([]any{channelId, lower, upper}, pq.args...)
 
@@ -262,7 +337,7 @@ func (d *Dao) page(ctx context.Context, selfId, channelId int64, pq pageQuery, o
 	if err = d.withContents(ctx, channelId, selfId, v.member, rows, messages); err != nil {
 		return nil, 0, err
 	}
-	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
+	if err = d.withReactions(ctx, channelId, selfId, v.countsOnly(), messages); err != nil {
 		return nil, 0, err
 	}
 	if err = polls.AttachMessages(ctx, d.Mysql, selfId, messages...); err != nil {
@@ -291,10 +366,11 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 	for _, id := range ids {
 		args = append(args, id)
 	}
+	own, ownArgs := v.own("saved_peer_id")
 	var rows []messageRow
 	if err = d.Mysql.QueryRowsPartial(ctx, &rows,
-		"SELECT id, sender_user_id, message_data FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id >= ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")",
-		args...); err != nil {
+		"SELECT id, sender_user_id, message_data FROM channel_messages WHERE channel_id = ? AND deleted = 0 AND id >= ? AND id IN (?"+strings.Repeat(", ?", len(ids)-1)+")"+own,
+		append(args, ownArgs...)...); err != nil {
 		return nil, err
 	}
 	slices.SortFunc(rows, func(a, b messageRow) int { return slices.Index(ids, a.Id) - slices.Index(ids, b.Id) })
@@ -305,7 +381,7 @@ func (d *Dao) Messages(ctx context.Context, selfId, channelId int64, ids []int32
 	if err = d.withContents(ctx, channelId, selfId, v.member, rows, messages); err != nil {
 		return nil, err
 	}
-	if err = d.withReactions(ctx, channelId, selfId, v.broadcast, messages); err != nil {
+	if err = d.withReactions(ctx, channelId, selfId, v.countsOnly(), messages); err != nil {
 		return nil, err
 	}
 	if err = polls.AttachMessages(ctx, d.Mysql, selfId, messages...); err != nil {

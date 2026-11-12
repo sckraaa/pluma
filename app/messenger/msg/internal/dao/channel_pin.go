@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/adminlog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
@@ -46,6 +47,7 @@ type pinRow struct {
 	MessageData string `db:"message_data"`
 	Pinned      bool   `db:"pinned"`
 	TopicId     int32  `db:"topic_id"`
+	SavedPeerId int64  `db:"saved_peer_id"`
 }
 
 // PinChannel pins message id of the channel, or unpins it, by b's owner:
@@ -66,9 +68,14 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 	if err = s.can(channelperm.PinMessages, b.Date()); err != nil {
 		return nil, err
 	}
+	if s.monoforum && !s.sublistAdmin {
+		// In a monoforum the admins of the direct messages pin, in the
+		// sublist of the message (core.telegram.org/api/monoforum).
+		return nil, mtproto.ErrChatAdminRequired
+	}
 	var rows []pinRow
 	if err = b.Tx().QueryRowsPartial(&rows,
-		"SELECT message_data, pinned, topic_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", channelId, id); err != nil {
+		"SELECT message_data, pinned, topic_id, saved_peer_id FROM channel_messages WHERE channel_id = ? AND id = ? AND deleted = 0 FOR UPDATE", channelId, id); err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
@@ -126,6 +133,14 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 		service.ReplyTo.ForumTopic = true
 		service.ReplyTo.ReplyToTopId = wrapperspb.Int32(topicId)
 	}
+	var sendAs int64
+	if s.monoforum {
+		// The service message is the channel's, in the sublist of the
+		// message pinned (task 084).
+		sendAs = s.broadcastId
+		service.FromId = mtproto.MakePeerChannel(s.broadcastId)
+		service.SavedPeerId = mtproto.MakePeerUser(rows[0].SavedPeerId)
+	}
 	if err = ch.ApplyTTL(service); err != nil {
 		return nil, err
 	}
@@ -133,9 +148,14 @@ func (d *Dao) PinChannel(b *userbox.Box, channelId int64, id int32, unpin, silen
 	if data, err = jsonx.MarshalToString(service); err != nil {
 		return nil, err
 	}
-	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, random_id, pts, message_filter_type, message_data, topic_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		channelId, service.Id, b.UserId(), randomId, ch.Pts(), mtproto.GetMediaType(service), data, channelbox.TopicColumn(topicId), b.Date()); err != nil {
+	if _, err = b.Tx().Exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, send_as_id, random_id, pts, message_filter_type, message_data, topic_id, saved_peer_id, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		channelId, service.Id, b.UserId(), sendAs, randomId, ch.Pts(), mtproto.GetMediaType(service), data, channelbox.TopicColumn(topicId), rows[0].SavedPeerId, b.Date()); err != nil {
 		return nil, err
+	}
+	if s.monoforum {
+		if err = monoforum.Moved(b.Tx(), channelId, rows[0].SavedPeerId, service.Id, true, true, b.Date()); err != nil {
+			return nil, err
+		}
 	}
 	if s.forum {
 		err = channelbox.ForumMoved(b, channelId, topicId, service.Id)
@@ -163,6 +183,9 @@ func (d *Dao) UnpinAllChannel(b *userbox.Box, channelId int64) (*mtproto.Update,
 	}
 	if err = s.can(channelperm.PinMessages, b.Date()); err != nil {
 		return nil, err
+	}
+	if s.monoforum && !s.sublistAdmin {
+		return nil, mtproto.ErrChatAdminRequired
 	}
 	var rows []struct {
 		Id          int32  `db:"id"`

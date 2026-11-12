@@ -56,6 +56,9 @@ type ServiceContext struct {
 	SendAs *sendas.Store
 	// StickerLists keeps the recent stickers (task 079).
 	StickerLists StickerLists
+	// Sublists is the database of the drafts of the sublists of monoforums
+	// (task 084, pkg/monoforum), which a send with clear_draft clears.
+	Sublists *sqlx.DB
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceContext {
@@ -74,6 +77,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin) *ServiceCo
 		Plugin:       plugin,
 		Reactions:    db,
 		Search:       db,
+		Sublists:     db,
 		SendAs:       sendas.New(db),
 		StickerLists: stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{

@@ -20,13 +20,34 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 )
 
 // MessagesGetDialogUnreadMarks
 // messages.getDialogUnreadMarks#22e24e22 = Vector<DialogPeer>;
 func (c *DialogsCore) MessagesGetDialogUnreadMarks(in *mtproto.TLMessagesGetDialogUnreadMarks) (*mtproto.Vector_DialogPeer, error) {
-	_ = in
+	// The sublists of a monoforum its admins marked unread (task 084;
+	// core.telegram.org/api/monoforum).
+	if in.GetParentPeer() != nil {
+		parent := mtproto.FromInputPeer2(c.MD.UserId, in.GetParentPeer())
+		if parent.PeerType != mtproto.PEER_CHANNEL {
+			return nil, mtproto.ErrPeerIdInvalid
+		}
+		peers, err := c.svcCtx.Dao.Channel.ChannelGetSublistUnreadMarks(c.ctx, &channelpb.TLChannelGetSublistUnreadMarks{
+			SelfId:    c.MD.UserId,
+			ChannelId: parent.PeerId,
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.getDialogUnreadMarks - sublists of %d: %v", parent.PeerId, err)
+			return nil, err
+		}
+		marks := make([]*mtproto.DialogPeer, 0, len(peers.GetDatas()))
+		for _, id := range peers.GetDatas() {
+			marks = append(marks, mtproto.MakeTLDialogPeer(&mtproto.DialogPeer{Peer: mtproto.MakePeerUser(id)}).To_DialogPeer())
+		}
+		return &mtproto.Vector_DialogPeer{Datas: marks}, nil
+	}
 
 	dialogPeerList, err := c.svcCtx.DialogClient.DialogGetDialogUnreadMarkList(
 		c.ctx,

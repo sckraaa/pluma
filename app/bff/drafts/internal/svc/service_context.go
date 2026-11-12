@@ -19,6 +19,7 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/drafts/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/drafts/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/drafts/plugin"
@@ -28,12 +29,19 @@ type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
 	Plugin plugin.DraftsPlugin
+	// Sublists is the database of the drafts of the sublists of monoforums
+	// (task 084, pkg/monoforum); nil when the service has none.
+	Sublists *sqlx.DB
 }
 
 func NewServiceContext(c config.Config, plugin plugin.DraftsPlugin) *ServiceContext {
-	return &ServiceContext{
+	s := &ServiceContext{
 		Config: c,
 		Dao:    dao.New(c),
 		Plugin: plugin,
 	}
+	if c.Mysql.DSN != "" {
+		s.Sublists = sqlx.NewMySQL(&c.Mysql)
+	}
+	return s
 }

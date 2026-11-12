@@ -78,13 +78,22 @@ func (c *DialogsCore) MessagesGetOnlines(in *mtproto.TLMessagesGetOnlines) (*mtp
 }
 
 // shownMembers are members without the hidden ones but the viewer itself
-// (ADR 0048).
+// (ADR 0048), and for a subscriber of the direct messages of a channel the
+// subscriber alone.
 func (c *DialogsCore) shownMembers(peer *mtproto.PeerUtil, members []int64) ([]int64, error) {
 	hidden := map[int64]bool{}
 	if peer.IsChannel() {
 		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: members})
 		if err != nil {
 			return nil, err
+		}
+		if me, _ := mc.GetParticipant(c.MD.UserId); mc.GetChannel().GetMonoforum() && !channelpb.SublistAdmin(me) {
+			// A subscriber of the direct messages of a channel is
+			// alone in its chat with the channel (ADR 0055): who
+			// else writes to it, and who answers, is not its to
+			// count. Android does not poll a monoforum
+			// (MessagesController.java:16588).
+			return []int64{c.MD.UserId}, nil
 		}
 		for _, p := range mc.GetParticipants() {
 			if p.GetHidden() {

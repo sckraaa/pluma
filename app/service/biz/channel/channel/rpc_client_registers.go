@@ -207,6 +207,24 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLChannelGetInactiveChannels": {"/mtproto.RPCChannel/channel_getInactiveChannels", func() interface{} { return new(mtproto.Messages_InactiveChats) }},
 	// pluma: task 078
 	"TLChannelSetMainProfileTab": {"/mtproto.RPCChannel/channel_setMainProfileTab", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 084
+	"TLChannelUpdateDirectMessages": {"/mtproto.RPCChannel/channel_updateDirectMessages", func() interface{} { return new(mtproto.Updates) }},
+	// pluma: task 084
+	"TLChannelGetSublists": {"/mtproto.RPCChannel/channel_getSublists", func() interface{} { return new(mtproto.Messages_SavedDialogs) }},
+	// pluma: task 084
+	"TLChannelGetSublistHistory": {"/mtproto.RPCChannel/channel_getSublistHistory", func() interface{} { return new(mtproto.Messages_Messages) }},
+	// pluma: task 084
+	"TLChannelReadSublist": {"/mtproto.RPCChannel/channel_readSublist", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 084
+	"TLChannelDeleteSublistHistory": {"/mtproto.RPCChannel/channel_deleteSublistHistory", func() interface{} { return new(mtproto.Messages_AffectedHistory) }},
+	// pluma: task 084
+	"TLChannelGetMessageAuthor": {"/mtproto.RPCChannel/channel_getMessageAuthor", func() interface{} { return new(mtproto.Int64) }},
+	// pluma: task 084
+	"TLChannelMarkSublistUnread": {"/mtproto.RPCChannel/channel_markSublistUnread", func() interface{} { return new(mtproto.Bool) }},
+	// pluma: task 084
+	"TLChannelGetSublistUnreadMarks": {"/mtproto.RPCChannel/channel_getSublistUnreadMarks", func() interface{} { return new(Vector_Long) }},
+	// pluma: task 084
+	"TLChannelGetMessageSublists": {"/mtproto.RPCChannel/channel_getMessageSublists", func() interface{} { return new(Vector_Long) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

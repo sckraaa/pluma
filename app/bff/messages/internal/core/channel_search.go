@@ -48,11 +48,12 @@ func (c *MessagesCore) searchChannel(in *mtproto.TLMessagesSearch, channelId int
 			return nil, mtproto.ErrFromPeerInvalid
 		}
 	}
-	if mediaType == msgsearch.KindEmpty && in.Q == "" && fromId == 0 {
-		return nil, mtproto.ErrSearchQueryEmpty
-	}
-	if in.SavedPeerId != nil || len(in.SavedReaction) > 0 {
+	sublist, ok := c.channelSublist(in.SavedPeerId)
+	if !ok || len(in.SavedReaction) > 0 {
 		return emptyMessages(), nil
+	}
+	if mediaType == msgsearch.KindEmpty && in.Q == "" && fromId == 0 && sublist == 0 {
+		return nil, mtproto.ErrSearchQueryEmpty
 	}
 	offsetId := in.OffsetId
 	var (
@@ -85,24 +86,45 @@ func (c *MessagesCore) searchChannel(in *mtproto.TLMessagesSearch, channelId int
 		return c.channelSearchResult(r, channelId, limit)
 	}
 	r, err = c.svcCtx.Dao.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{
-		SelfId:    c.MD.UserId,
-		ChannelId: channelId,
-		Q:         in.Q,
-		FromId:    fromId,
-		MediaType: mediaType,
-		MinDate:   in.MinDate,
-		MaxDate:   in.MaxDate,
-		OffsetId:  offsetId,
-		AddOffset: in.AddOffset,
-		Limit:     pageLimit,
-		MaxId:     in.MaxId,
-		MinId:     in.MinId,
+		SelfId:      c.MD.UserId,
+		ChannelId:   channelId,
+		Q:           in.Q,
+		FromId:      fromId,
+		MediaType:   mediaType,
+		MinDate:     in.MinDate,
+		MaxDate:     in.MaxDate,
+		OffsetId:    offsetId,
+		AddOffset:   in.AddOffset,
+		Limit:       pageLimit,
+		MaxId:       in.MaxId,
+		MinId:       in.MinId,
+		SavedPeerId: sublist,
 	})
 	if err != nil {
 		c.Logger.Errorf("messages.search - error: %v", err)
 		return nil, err
 	}
 	return c.channelSearchResult(r, channelId, limit)
+}
+
+// channelSublist is the sublist of the direct messages of a channel that
+// saved_peer_id names (task 084, ADR 0055): a search, the counters, the
+// calendar and the positions of an admin in one chat with a subscriber
+// (tdesktop asks the shared media of a sublist so,
+// data_search_controller.cpp:182-190). It is a user,
+// the account itself too; 0 for none. ok is false for a peer that names no
+// sublist, where nothing matches. A channel that is no monoforum has no
+// message in a sublist, so a sublist finds nothing there.
+func (c *MessagesCore) channelSublist(saved *mtproto.InputPeer) (int64, bool) {
+	if saved == nil {
+		return 0, true
+	}
+	p := mtproto.FromInputPeer2(c.MD.UserId, saved)
+	switch p.PeerType {
+	case mtproto.PEER_USER, mtproto.PEER_SELF:
+		return p.PeerId, p.PeerId != 0
+	}
+	return 0, false
 }
 
 func (c *MessagesCore) channelSearchResult(r *mtproto.Messages_Messages, channelId int64, limit int32) (*mtproto.Messages_Messages, error) {

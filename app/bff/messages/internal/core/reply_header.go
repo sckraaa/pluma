@@ -23,6 +23,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	"github.com/teamgram/teamgram-server/pkg/replyheader"
 
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -66,6 +67,42 @@ func (c *MessagesCore) makeReplyHeader(peer *mtproto.PeerUtil, replyToMsgId *wra
 		return nil, err
 	}
 	return replyheader.WithTopic(h, peer, replyTo), nil
+}
+
+// errSuggestedPostPeerInvalid: "You cannot send suggested posts to
+// non-monoforum peers" (core.telegram.org/method/messages.sendMessage, 400).
+var errSuggestedPostPeerInvalid = status.Error(mtproto.ErrBadRequest, "SUGGESTED_POST_PEER_INVALID")
+
+// sublistPeer is the sublist of a monoforum a message sent to the channel
+// peer names: reply_to.monoforum_peer_id, of inputReplyToMonoForum or of a
+// reply (core.telegram.org/api/monoforum). It travels to msg as the
+// message's saved_peer_id; msg keeps it only in a monoforum and only from
+// an admin of its direct messages (task 084). nil for none.
+func sublistPeer(selfId int64, peer *mtproto.PeerUtil, replyTo *mtproto.InputReplyTo) *mtproto.Peer {
+	if peer.PeerType != mtproto.PEER_CHANNEL || replyTo.GetMonoforumPeerId() == nil {
+		return nil
+	}
+	switch p := mtproto.FromInputPeer2(selfId, replyTo.GetMonoforumPeerId()); p.PeerType {
+	case mtproto.PEER_SELF:
+		return mtproto.MakePeerUser(selfId)
+	case mtproto.PEER_USER:
+		return mtproto.MakePeerUser(p.PeerId)
+	}
+	return nil
+}
+
+// withSuggestedPost carries the suggested_post of a send with its message,
+// for msg to answer: a post is suggested only through a monoforum, a
+// channel peer (SUGGESTED_POST_PEER_INVALID for any other).
+func withSuggestedPost(m *mtproto.Message, peer *mtproto.PeerUtil, post *mtproto.SuggestedPost) error {
+	if post == nil {
+		return nil
+	}
+	if peer.PeerType != mtproto.PEER_CHANNEL {
+		return errSuggestedPostPeerInvalid
+	}
+	m.SuggestedPost = post
+	return nil
 }
 
 // forwardTopicHeader names the topic of a forward to a channel: top_msg_id

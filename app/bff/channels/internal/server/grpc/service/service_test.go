@@ -94,6 +94,23 @@ func TestNotServed(t *testing.T) {
 	}
 }
 
+// The methods of the payments for messages answer ERR_ENTERPRISE_IS_BLOCKED:
+// of RPCPaidMessage only the switch of a channel's direct messages is
+// served (task 084).
+func TestPaidMessagesNotServed(t *testing.T) {
+	s := New(&svc.ServiceContext{})
+	ctx := context.Background()
+	if _, err := s.AccountGetPaidMessagesRevenue(ctx, &mtproto.TLAccountGetPaidMessagesRevenue{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Errorf("account.getPaidMessagesRevenue: %v", err)
+	}
+	if _, err := s.AccountToggleNoPaidMessagesException(ctx, &mtproto.TLAccountToggleNoPaidMessagesException{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Errorf("account.toggleNoPaidMessagesException: %v", err)
+	}
+	if _, err := s.AccountAddNoPaidMessagesException(ctx, &mtproto.TLAccountAddNoPaidMessagesException{}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Errorf("account.addNoPaidMessagesException: %v", err)
+	}
+}
+
 // Geo groups do not exist (ADR 0050): one is not created and none is listed,
 // with Telegram's answers at a limit of geo groups of 0.
 func TestGeoGroups(t *testing.T) {

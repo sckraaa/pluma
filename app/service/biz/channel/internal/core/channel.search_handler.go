@@ -40,9 +40,9 @@ func (c *ChannelCore) applyTop(channelId int64, top int32, q *dao.SearchQuery) e
 }
 
 // ChannelSearchCount
-// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int = Int32;
+// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int saved_peer_id:long = Int32;
 func (c *ChannelCore) ChannelSearchCount(in *channel.TLChannelSearchCount) (*mtproto.Int32, error) {
-	q := dao.SearchQuery{MediaType: in.MediaType}
+	q := dao.SearchQuery{MediaType: in.MediaType, Sublist: in.SavedPeerId}
 	if in.TopMsgId != 0 {
 		if err := c.applyTop(in.ChannelId, in.TopMsgId, &q); err != nil {
 			c.Logger.Errorf("channel.searchCount - error: %v", err)
@@ -57,9 +57,9 @@ func (c *ChannelCore) ChannelSearchCount(in *channel.TLChannelSearchCount) (*mtp
 }
 
 // ChannelSearchCalendar
-// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int = messages.SearchResultsCalendar;
+// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int saved_peer_id:long = messages.SearchResultsCalendar;
 func (c *ChannelCore) ChannelSearchCalendar(in *channel.TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error) {
-	days, total, err := c.svcCtx.Dao.SearchCalendar(c.ctx, in.SelfId, in.ChannelId, dao.SearchQuery{MediaType: in.MediaType}, in.OffsetId, in.OffsetDate)
+	days, total, err := c.svcCtx.Dao.SearchCalendar(c.ctx, in.SelfId, in.ChannelId, dao.SearchQuery{MediaType: in.MediaType, Sublist: in.SavedPeerId}, in.OffsetId, in.OffsetDate)
 	if err != nil {
 		return nil, c.membershipError("channel.searchCalendar", err)
 	}
@@ -88,9 +88,9 @@ func (c *ChannelCore) ChannelSearchCalendar(in *channel.TLChannelSearchCalendar)
 }
 
 // ChannelSearchPositions
-// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int = messages.SearchResultsPositions;
+// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int saved_peer_id:long = messages.SearchResultsPositions;
 func (c *ChannelCore) ChannelSearchPositions(in *channel.TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error) {
-	positions, total, err := c.svcCtx.Dao.SearchPositions(c.ctx, in.SelfId, in.ChannelId, dao.SearchQuery{MediaType: in.MediaType}, in.OffsetId, in.Limit)
+	positions, total, err := c.svcCtx.Dao.SearchPositions(c.ctx, in.SelfId, in.ChannelId, dao.SearchQuery{MediaType: in.MediaType, Sublist: in.SavedPeerId}, in.OffsetId, in.Limit)
 	if err != nil {
 		return nil, c.membershipError("channel.searchPositions", err)
 	}

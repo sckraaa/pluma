@@ -389,7 +389,7 @@ func (s *Service) ChannelEditCreator(ctx context.Context, request *channel.TLCha
 }
 
 // ChannelSearch
-// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+// channel.search self_id:long channel_id:long q:string from_id:long media_type:int min_date:int max_date:int offset_id:int add_offset:int limit:int max_id:int min_id:int saved_peer_id:long = messages.Messages;
 func (s *Service) ChannelSearch(ctx context.Context, request *channel.TLChannelSearch) (*mtproto.Messages_Messages, error) {
 	c := core.New(ctx, s.svcCtx)
 	c.Logger.Debugf("channel.search - metadata: {%s}", c.MD)
@@ -1019,7 +1019,7 @@ func (s *Service) ChannelSetChatTheme(ctx context.Context, request *channel.TLCh
 }
 
 // ChannelSearchCount
-// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int = int;
+// channel.searchCount self_id:long channel_id:long top_msg_id:int media_type:int saved_peer_id:long = int;
 func (s *Service) ChannelSearchCount(ctx context.Context, request *channel.TLChannelSearchCount) (*mtproto.Int32, error) {
 	c := core.New(ctx, s.svcCtx)
 	c.Logger.Debugf("channel.searchCount - metadata: {%s}", c.MD)
@@ -1033,7 +1033,7 @@ func (s *Service) ChannelSearchCount(ctx context.Context, request *channel.TLCha
 }
 
 // ChannelSearchCalendar
-// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int = messages.SearchResultsCalendar;
+// channel.searchCalendar self_id:long channel_id:long media_type:int offset_id:int offset_date:int saved_peer_id:long = messages.SearchResultsCalendar;
 func (s *Service) ChannelSearchCalendar(ctx context.Context, request *channel.TLChannelSearchCalendar) (*mtproto.Messages_SearchResultsCalendar, error) {
 	c := core.New(ctx, s.svcCtx)
 	c.Logger.Debugf("channel.searchCalendar - metadata: {%s}", c.MD)
@@ -1047,7 +1047,7 @@ func (s *Service) ChannelSearchCalendar(ctx context.Context, request *channel.TL
 }
 
 // ChannelSearchPositions
-// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int = messages.SearchResultsPositions;
+// channel.searchPositions self_id:long channel_id:long media_type:int offset_id:int limit:int saved_peer_id:long = messages.SearchResultsPositions;
 func (s *Service) ChannelSearchPositions(ctx context.Context, request *channel.TLChannelSearchPositions) (*mtproto.Messages_SearchResultsPositions, error) {
 	c := core.New(ctx, s.svcCtx)
 	c.Logger.Debugf("channel.searchPositions - metadata: {%s}", c.MD)
@@ -1347,6 +1347,132 @@ func (s *Service) ChannelAntispamFalsePositive(ctx context.Context, request *cha
 	c.Logger.Debugf("channel.antispamFalsePositive - metadata: {%s}", c.MD)
 
 	r, err := c.ChannelAntispamFalsePositive(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelUpdateDirectMessages
+// channel.updateDirectMessages self_id:long perm_auth_key_id:long channel_id:long enabled:Bool = Updates;
+func (s *Service) ChannelUpdateDirectMessages(ctx context.Context, request *channel.TLChannelUpdateDirectMessages) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.updateDirectMessages - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelUpdateDirectMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetSublists
+// channel.getSublists self_id:long channel_id:long ids:Vector<long> offset_id:int limit:int = messages.SavedDialogs;
+func (s *Service) ChannelGetSublists(ctx context.Context, request *channel.TLChannelGetSublists) (*mtproto.Messages_SavedDialogs, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getSublists - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetSublists(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetSublistHistory
+// channel.getSublistHistory self_id:long channel_id:long peer_id:long offset_id:int offset_date:int add_offset:int limit:int max_id:int min_id:int = messages.Messages;
+func (s *Service) ChannelGetSublistHistory(ctx context.Context, request *channel.TLChannelGetSublistHistory) (*mtproto.Messages_Messages, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getSublistHistory - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetSublistHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelReadSublist
+// channel.readSublist self_id:long perm_auth_key_id:long channel_id:long peer_id:long max_id:int = Bool;
+func (s *Service) ChannelReadSublist(ctx context.Context, request *channel.TLChannelReadSublist) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.readSublist - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelReadSublist(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelDeleteSublistHistory
+// channel.deleteSublistHistory self_id:long perm_auth_key_id:long channel_id:long peer_id:long max_id:int min_date:int max_date:int = messages.AffectedHistory;
+func (s *Service) ChannelDeleteSublistHistory(ctx context.Context, request *channel.TLChannelDeleteSublistHistory) (*mtproto.Messages_AffectedHistory, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.deleteSublistHistory - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelDeleteSublistHistory(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetMessageAuthor
+// channel.getMessageAuthor self_id:long channel_id:long id:int = Int64;
+func (s *Service) ChannelGetMessageAuthor(ctx context.Context, request *channel.TLChannelGetMessageAuthor) (*mtproto.Int64, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getMessageAuthor - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetMessageAuthor(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelMarkSublistUnread
+// channel.markSublistUnread self_id:long perm_auth_key_id:long channel_id:long peer_id:long unread:Bool = Bool;
+func (s *Service) ChannelMarkSublistUnread(ctx context.Context, request *channel.TLChannelMarkSublistUnread) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.markSublistUnread - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelMarkSublistUnread(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetSublistUnreadMarks
+// channel.getSublistUnreadMarks self_id:long channel_id:long = Vector<long>;
+func (s *Service) ChannelGetSublistUnreadMarks(ctx context.Context, request *channel.TLChannelGetSublistUnreadMarks) (*channel.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getSublistUnreadMarks - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetSublistUnreadMarks(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
+// ChannelGetMessageSublists
+// channel.getMessageSublists channel_id:long id:Vector<int> = Vector<long>;
+func (s *Service) ChannelGetMessageSublists(ctx context.Context, request *channel.TLChannelGetMessageSublists) (*channel.Vector_Long, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("channel.getMessageSublists - metadata: {%s}", c.MD)
+
+	r, err := c.ChannelGetMessageSublists(request)
 	if err != nil {
 		return nil, err
 	}

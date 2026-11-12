@@ -18,6 +18,8 @@ package core
 import (
 	"slices"
 
+	"google.golang.org/grpc/status"
+
 	"github.com/teamgram/proto/mtproto"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
@@ -25,20 +27,55 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
-// checkParentPeer accepts no parent_peer, or the account itself: the
-// sub-chats of its own Saved Messages. Any other parent_peer names the
-// direct messages of a channel (a monoforum; Android
-// messenger/MessagesController.java:21488 sends it only for one), and those
-// are not served.
-func (c *SavedMessageDialogsCore) checkParentPeer(parent *mtproto.InputPeer) error {
+// errParentPeerInvalid: "The specified parent_peer is invalid"
+// (core.telegram.org/method/messages.getSavedHistory, 400).
+var errParentPeerInvalid = status.Error(mtproto.ErrBadRequest, "PARENT_PEER_INVALID")
+
+// parentMonoforum reads parent_peer: none, or the account itself, is its
+// own Saved Messages (0); a channel is the monoforum whose sublists are
+// asked for (core.telegram.org/api/monoforum; Android
+// messenger/MessagesController.java:21488 sends it only for one), which biz
+// channel checks to be one. PARENT_PEER_INVALID for any other peer.
+func (c *SavedMessageDialogsCore) parentMonoforum(parent *mtproto.InputPeer) (int64, error) {
 	if parent == nil {
-		return nil
+		return 0, nil
 	}
 	p := mtproto.FromInputPeer2(c.MD.UserId, parent)
-	if p.PeerType == mtproto.PEER_SELF || (p.PeerType == mtproto.PEER_USER && p.PeerId == c.MD.UserId) {
-		return nil
+	switch {
+	case p.PeerType == mtproto.PEER_SELF, p.PeerType == mtproto.PEER_USER && p.PeerId == c.MD.UserId:
+		return 0, nil
+	case p.PeerType == mtproto.PEER_CHANNEL && p.PeerId != 0:
+		return p.PeerId, nil
 	}
-	return mtproto.ErrEnterpriseIsBlocked
+	return 0, errParentPeerInvalid
+}
+
+// sublistPeer is the subscriber a sublist of a monoforum is of, as peer
+// names it: PEER_ID_INVALID for anything but a user.
+func (c *SavedMessageDialogsCore) sublistPeer(in *mtproto.InputPeer) (int64, error) {
+	p := mtproto.FromInputPeer2(c.MD.UserId, in)
+	switch p.PeerType {
+	case mtproto.PEER_SELF:
+		return c.MD.UserId, nil
+	case mtproto.PEER_USER:
+		return p.PeerId, nil
+	}
+	return 0, mtproto.ErrPeerIdInvalid
+}
+
+// fillSublists puts into r the users and the chats its sublists and their
+// messages name, the monoforum among the chats; its channel comes with it
+// (channel.getChannelListByIdList).
+func (c *SavedMessageDialogsCore) fillSublists(r *mtproto.Messages_SavedDialogs, monoforumId int64) error {
+	h := mtproto.NewIDListHelper()
+	h.AppendChannels(monoforumId)
+	for _, d := range r.GetDialogs() {
+		h.PickByPeer(d.GetPeer())
+	}
+	h.PickByMessages(r.GetMessages()...)
+	var err error
+	r.Users, r.Chats, err = c.peers(h)
+	return err
 }
 
 // savedPeer is the peer of a sub-chat of Saved Messages as msg keeps it in
