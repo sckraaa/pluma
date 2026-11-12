@@ -30,6 +30,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/env2"
+	"github.com/teamgram/teamgram-server/pkg/langpack"
 )
 
 // Lang is a language of the texts.
@@ -214,6 +215,30 @@ func (c TwoStepChanged) Text(lang Lang) (string, []*mtproto.MessageEntity) {
 		"time":     date.Format("15:04:05"),
 		"device":   c.Device,
 		"location": c.Location,
+	})
+}
+
+// PasswordRecovered is a recovery of the account's cloud password with a
+// code sent to its recovery email (task 091, ADR 0058, p. 5): every session
+// is told, with the device and place of the session that did it. Telegram's
+// text is not known; the text is Pluma's own, in every language of the
+// clients (pkg/langpack/mail.json), unlike the texts above.
+type PasswordRecovered struct {
+	Name     string    // of the account
+	Date     time.Time // of the recovery
+	Device   string    // of the session that recovered it, as in NewLogin
+	Location string
+}
+
+// Text is the message in langCode, the lang_code of that session.
+func (r PasswordRecovered) Text(langCode string) (string, []*mtproto.MessageEntity) {
+	date := r.Date.UTC()
+	return Render(langpack.MailText("PlumaPasswordRecoveredMessage", langCode), map[string]string{
+		"name":     r.Name,
+		"date":     date.Format("02/01/2006"),
+		"time":     date.Format("15:04:05"),
+		"device":   r.Device,
+		"location": r.Location,
 	})
 }
 

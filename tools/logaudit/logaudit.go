@@ -10,8 +10,8 @@
 //   - secret: an argument whose value is named like a secret: new_nonce, the
 //     DH exponent a, g_b, auth_key bytes, AES keys and IVs, decrypted
 //     handshake data, login codes and their hashes, passwords and their SRP
-//     values, tokens, or a config section with credentials (Etcd, Mysql,
-//     Redis...);
+//     values, tokens, email addresses and API keys, or a config section
+//     with credentials (Etcd, Mysql, Redis...);
 //   - object: a TL object or data object printed whole: a parameter or local
 //     of a type from the mtproto package or from app/ (requests, updates,
 //     messages, rows), with any verb other than %T, or its String() or
@@ -88,6 +88,11 @@ var secretNames = set(
 	"passwordhash", "newpasswordhash", "getnewpasswordhash", "verifier", "getverifier",
 	"geta", "m1", "getm1", "srpb", "getsrpb",
 	"secret", "getsecret", "apnssecret",
+	// the recovery email of the cloud password (ADR 0058, p. 11): the
+	// address, its pattern, the mail settings and the provider's key
+	"email", "getemail", "emailunconfirmed", "getemailunconfirmed",
+	"emailpattern", "getemailpattern", "emailunconfirmedpattern", "getemailunconfirmedpattern",
+	"mail", "apikey", "getapikey", "mailapikey",
 	"token", "gettoken",
 	"pass", "dsn",
 	// config sections that carry credentials, printed whole

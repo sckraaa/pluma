@@ -23,8 +23,9 @@ import (
 // account.getPasswordSettings#9cd4eaf9 password:InputCheckPasswordSRP = account.PasswordSettings;
 //
 // Checks the password of the logged-in user (clients ask for it before
-// they open the 2FA settings) and returns the settings: no recovery email
-// and no Telegram Passport, which Pluma does not have.
+// they open the 2FA settings) and returns the settings: the confirmed
+// recovery email, which only the owner of the password sees; no Telegram
+// Passport, which Pluma does not have.
 func (c *TwoFaCore) AccountGetPasswordSettings(in *mtproto.TLAccountGetPasswordSettings) (*mtproto.Account_PasswordSettings, error) {
 	if c.MD.UserId == 0 {
 		return nil, mtproto.ErrAuthKeyUnregistered

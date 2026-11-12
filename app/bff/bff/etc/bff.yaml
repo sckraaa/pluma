@@ -27,6 +27,18 @@ LoginCode:
   ReviewPhone: "${LOGIN_REVIEW_PHONE}"
   ReviewCode: "${LOGIN_REVIEW_CODE}"
 
+# The recovery email of the cloud password (task 091, ADR 0058,
+# docs/ops/email.md): the codes go out through Resend with a key that may
+# only send from the domain of MAIL_FROM. No key: the recovery email is off
+# (has_recovery is false, a forgotten password is reset after 7 days or by
+# pluma-admin password reset). The codes are HMACs under
+# LOGIN_CODE_HMAC_KEY. DailyLimit caps the emails of the whole server in a
+# UTC day (80 by default, below the 100 of Resend's free plan).
+Mail:
+  Provider: resend
+  ApiKey: "${MAIL_API_KEY}"
+  From: "${MAIL_FROM}"
+
 # Seals the secrets of push devices (pkg/pushdevices, task 009).
 PushSecretEncryptionKey: "${PUSH_SECRET_ENCRYPTION_KEY}"
 

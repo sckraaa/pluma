@@ -7,11 +7,11 @@
 
 ## Summary
 
-    layer 233: 930 methods — ok 493, partial 6, blocked 88, notimpl 3, fake 1, missing 339 (ok = 53.0%); with a conformance scenario 9
+    layer 233: 930 methods — ok 496, partial 6, blocked 88, notimpl 3, fake 1, missing 336 (ok = 53.3%); with a conformance scenario 9
 
 | namespace | total | ok | partial | blocked | notimpl | fake | missing | scenario |
 |---|---|---|---|---|---|---|---|---|
-| account | 132 | 72 | 1 | 28 | 0 | 1 | 30 | 0 |
+| account | 132 | 75 | 1 | 28 | 0 | 1 | 27 | 0 |
 | aicompose | 7 | 0 | 0 | 0 | 0 | 0 | 7 | 0 |
 | auth | 31 | 18 | 0 | 12 | 1 | 0 | 0 | 2 |
 | biz | 1 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
@@ -49,13 +49,13 @@
 |---|---|---|---|
 | `account.acceptAuthorization` | blocked |  | app/bff/passport/internal/core/account.acceptAuthorization_handler.go:27 |
 | `account.addNoPaidMessagesException` | missing |  |  |
-| `account.cancelPasswordEmail` | missing |  |  |
+| `account.cancelPasswordEmail` | ok |  | app/bff/twofa/internal/core/account.cancelPasswordEmail_handler.go:30 |
 | `account.changeAuthorizationSettings` | ok |  | app/bff/authorization/internal/core/account.changeAuthorizationSettings_handler.go:37 |
 | `account.changePhone` | ok |  | app/bff/account/internal/core/account.changePhone_handler.go:29 |
 | `account.checkUsername` | ok |  | app/bff/usernames/internal/core/account.checkUsername_handler.go:30 |
 | `account.clearRecentEmojiStatuses` | ok |  | app/bff/catalog/internal/core/account.clearRecentEmojiStatuses_handler.go:28 |
 | `account.confirmBotConnection` | blocked |  | app/bff/account/internal/core/account.confirmBotConnection_handler.go:26 |
-| `account.confirmPasswordEmail` | missing |  |  |
+| `account.confirmPasswordEmail` | ok |  | app/bff/twofa/internal/core/account.confirmPasswordEmail_handler.go:33 |
 | `account.confirmPhone` | blocked |  | app/bff/account/internal/core/account.confirmPhone_handler.go:27 |
 | `account.createBusinessChatLink` | missing |  |  |
 | `account.createTheme` | ok |  | app/bff/catalog/internal/core/account.createTheme_handler.go:36 |
@@ -95,7 +95,7 @@
 | `account.getPaidMessagesRevenue` | missing |  |  |
 | `account.getPasskeys` | blocked |  | app/bff/passkey/internal/core/account.getPasskeys_handler.go:27 |
 | `account.getPassword` | ok |  | app/bff/twofa/internal/core/account.getPassword_handler.go:29 |
-| `account.getPasswordSettings` | ok |  | app/bff/twofa/internal/core/account.getPasswordSettings_handler.go:28 |
+| `account.getPasswordSettings` | ok |  | app/bff/twofa/internal/core/account.getPasswordSettings_handler.go:29 |
 | `account.getPrivacy` | ok |  | app/bff/privacysettings/internal/core/account.getPrivacy_handler.go:29 |
 | `account.getReactionsNotifySettings` | ok |  | app/bff/notification/internal/core/account.getReactionsNotifySettings_handler.go:33 |
 | `account.getRecentEmojiStatuses` | ok |  | app/bff/catalog/internal/core/account.getRecentEmojiStatuses_handler.go:30 |
@@ -120,7 +120,7 @@
 | `account.reorderUsernames` | missing |  |  |
 | `account.reportPeer` | ok |  | app/bff/reports/internal/core/account.reportPeer_handler.go:25 |
 | `account.reportProfilePhoto` | ok |  | app/bff/reports/internal/core/account.reportProfilePhoto_handler.go:25 |
-| `account.resendPasswordEmail` | missing |  |  |
+| `account.resendPasswordEmail` | ok |  | app/bff/twofa/internal/core/account.resendPasswordEmail_handler.go:29 |
 | `account.resetAuthorization` | ok |  | app/bff/account/internal/core/account.resetAuthorization_handler.go:32 |
 | `account.resetNotifySettings` | ok |  | app/bff/notification/internal/core/account.resetNotifySettings_handler.go:28 |
 | `account.resetPassword` | ok |  | app/bff/authorization/internal/core/account.resetPassword_handler.go:34 |
@@ -165,7 +165,7 @@
 | `account.updateDeviceLocked` | ok |  | app/bff/notification/internal/core/account.updateDeviceLocked_handler.go:31 |
 | `account.updateEmojiStatus` | ok |  | app/bff/catalog/internal/core/account.updateEmojiStatus_handler.go:42 |
 | `account.updateNotifySettings` | partial |  | app/bff/notification/internal/core/account.updateNotifySettings_handler.go:47 |
-| `account.updatePasswordSettings` | ok |  | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:37 |
+| `account.updatePasswordSettings` | ok |  | app/bff/twofa/internal/core/account.updatePasswordSettings_handler.go:40 |
 | `account.updatePersonalChannel` | ok |  | app/bff/userchannelprofiles/internal/core/account.updatePersonalChannel_handler.go:28 |
 | `account.updateProfile` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateProfile_handler.go:30 |
 | `account.updateStatus` | ok |  | app/bff/userchannelprofiles/internal/core/account.updateStatus_handler.go:39 |
@@ -202,7 +202,7 @@
 | `auth.cancelWebTokenAuthorization` | blocked |  | app/bff/authorization/internal/core/auth.cancelWebTokenAuthorization_handler.go:27 |
 | `auth.checkPaidAuth` | blocked |  | app/bff/authorization/internal/core/auth.checkPaidAuth_handler.go:27 |
 | `auth.checkPassword` | ok |  | app/bff/authorization/internal/core/auth.checkPassword_handler.go:44 |
-| `auth.checkRecoveryPassword` | ok |  | app/bff/authorization/internal/core/auth.checkRecoveryPassword_handler.go:30 |
+| `auth.checkRecoveryPassword` | ok |  | app/bff/authorization/internal/core/auth.checkRecoveryPassword_handler.go:32 |
 | `auth.dropTempAuthKeys` | ok |  | app/bff/authorization/internal/core/auth.dropTempAuthKeys_handler.go:32 |
 | `auth.exportAuthorization` | ok |  | app/bff/authorization/internal/core/auth.exportAuthorization_handler.go:30 |
 | `auth.exportLoginToken` | ok |  | app/bff/qrcode/internal/core/auth.exportLoginToken_handler.go:36 |
@@ -216,10 +216,10 @@
 | `auth.initFirebasePnvLogin` | blocked |  | app/bff/authorization/internal/core/auth.initFirebasePnvLogin_handler.go:27 |
 | `auth.initPasskeyLogin` | blocked |  | app/bff/passkey/internal/core/auth.initPasskeyLogin_handler.go:27 |
 | `auth.logOut` | ok |  | app/bff/authorization/internal/core/auth.logOut_handler.go:29 |
-| `auth.recoverPassword` | ok |  | app/bff/authorization/internal/core/auth.recoverPassword_handler.go:30 |
+| `auth.recoverPassword` | ok |  | app/bff/authorization/internal/core/auth.recoverPassword_handler.go:40 |
 | `auth.reportMissingCode` | ok |  | app/bff/authorization/internal/core/auth.reportMissingCode_handler.go:30 |
 | `auth.requestFirebaseSms` | blocked |  | app/bff/authorization/internal/core/auth.requestFirebaseSms_handler.go:27 |
-| `auth.requestPasswordRecovery` | ok |  | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:34 |
+| `auth.requestPasswordRecovery` | ok |  | app/bff/authorization/internal/core/auth.requestPasswordRecovery_handler.go:47 |
 | `auth.resendCode` | ok |  | app/bff/authorization/internal/core/auth.resendCode_handler.go:47 |
 | `auth.resetAuthorizations` | ok |  | app/bff/authorization/internal/core/auth.resetAuthorizations_handler.go:37 |
 | `auth.resetLoginEmail` | blocked |  | app/bff/authorization/internal/core/auth.resetLoginEmail_handler.go:27 |

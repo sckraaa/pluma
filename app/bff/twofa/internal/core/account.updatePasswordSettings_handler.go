@@ -25,30 +25,49 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/authorization/servicetext"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/twofa"
 )
 
 // AccountUpdatePasswordSettings
 // account.updatePasswordSettings#a59b102f password:InputCheckPasswordSRP new_settings:account.PasswordInputSettings = Bool;
 //
-// Sets, changes or removes the password of the logged-in user (pkg/twofa,
-// Service.Update): the current one is checked if set. A recovery email
-// cannot be set (EMAIL_INVALID; an empty one, the client's "skip", is
-// fine): there is no mail on the server.
+// Sets, changes or removes the password of the logged-in user and its
+// recovery email (pkg/twofa, Service.UpdateIn): the current password is
+// checked if set. A new recovery email waits for the code sent to it in
+// the session's language, and the answer is EMAIL_UNCONFIRMED_6 with the
+// rest of the request applied, as the clients expect (ADR 0058, p. 4); a
+// first password given with it comes into force with the email.
 func (c *TwoFaCore) AccountUpdatePasswordSettings(in *mtproto.TLAccountUpdatePasswordSettings) (*mtproto.Bool, error) {
 	if c.MD.UserId == 0 {
 		return nil, mtproto.ErrAuthKeyUnregistered
 	}
-	if err := c.svcCtx.Twofa.Update(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, in.GetPassword(), in.GetNewSettings()); err != nil {
+	err := c.svcCtx.Twofa.UpdateIn(c.ctx, c.MD.UserId, c.MD.PermAuthKeyId, c.MD.GetLangCode(), in.GetPassword(), in.GetNewSettings())
+	waits := twofa.EmailUnconfirmed(err)
+	if err != nil && !waits {
 		c.Logger.Errorf("account.updatePasswordSettings - user %d: %v", c.MD.UserId, err)
 		return nil, err
 	}
 	// Settings with a new_algo that Update took set, changed or removed the
 	// password: the account is told, as Telegram tells it. The change is
 	// made; a message that does not go out is logged, not the call's error.
-	if in.GetNewSettings().GetNewAlgo() != nil {
+	// A first password waiting for its recovery email is not in force yet:
+	// the account is told when the email is confirmed.
+	tell := in.GetNewSettings().GetNewAlgo() != nil
+	if tell && waits {
+		has, hasErr := c.svcCtx.Twofa.HasPassword(c.ctx, c.MD.UserId)
+		if hasErr != nil {
+			c.Logger.Errorf("account.updatePasswordSettings - user %d: %v", c.MD.UserId, hasErr)
+		}
+		tell = has || hasErr != nil
+	}
+	if tell {
 		if err := c.tellPasswordChanged(time.Now()); err != nil {
 			c.Logger.Errorf("account.updatePasswordSettings - user %d: the message on the change: %v", c.MD.UserId, err)
 		}
+	}
+	if waits {
+		c.Logger.Infof("account.updatePasswordSettings - user %d: the recovery email waits for its code", c.MD.UserId)
+		return nil, err
 	}
 	return mtproto.BoolTrue, nil
 }

@@ -32,6 +32,8 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
+
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type ServiceContext struct {
@@ -58,11 +60,13 @@ type PhoneBans interface {
 
 func NewServiceContext(c config.Config, plugin plugin.AuthorizationPlugin) *ServiceContext {
 	d := dao.New(c)
+	tf := twofa.MustNewService(c.Mysql, c.KV)
+	logx.Must(tf.EnableMail(c.Mail, c.LoginCode.HmacKey))
 	return &ServiceContext{
 		Config:      c,
 		Dao:         d,
 		AuthLogic:   logic.NewAuthSignLogic(d, logincode.MustNewService(c.LoginCode, c.Mysql, c.KV)),
-		Twofa:       twofa.MustNewService(c.Mysql, c.KV),
+		Twofa:       tf,
 		Plugin:      plugin,
 		PushDevices: pushdevices.NewMySQLStore(sqlx.NewMySQL(&c.Mysql), nil),
 		NewLogin: newlogin.Notifier{

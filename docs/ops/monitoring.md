@@ -51,3 +51,12 @@
 | `LoginCodesAccountLimited` | Telegram ограничил аккаунт (ожидание или `PEER_FLOOD`) |
 | `LoginCodesSenderUnreachable` | bff не достучался до сервиса |
 | `LoginCodesContactsNotRemoved` | импортированные контакты не удаляются |
+
+## Почта восстановления облачного пароля
+Правила — группа `password_email` в `teamgramd/deploy/prometheus/server/rules/codes.yml`, метрики bff `password_email_send_total{purpose, result}` и `password_email_code_total{purpose, result}` (задача 091, ADR 0058). Без `MAIL_API_KEY` писем нет и ничего не срабатывает. Что делать — `docs/ops/email.md`.
+
+| Алерт | Что значит |
+|---|---|
+| `PasswordEmailSenderFailing` | Resend больше двух раз за 15 минут не принял письмо: коды не доходят, пользователи получают «подождите» |
+| `PasswordEmailSenderRejected` | Resend отказал насовсем: отозван ключ, домен не подтверждён или кончилась месячная квота; код ошибки — в логе bff |
+| `PasswordEmailBruteForce` | больше 20 неверных кодов за час: кто-то подбирает; строка `possible brute force` в логе bff называет пользователя |

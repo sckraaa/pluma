@@ -51,15 +51,17 @@ FCM_CREDENTIALS_FILE=$E2E_DIR/fcm_credentials.json
 PUSH_CONFIG=$E2E_DIR/push.yaml
 FAKEPUSH_URL=http://fakepush:8080
 # The config of bff with the limits of voice transcription set for the tests
-# (task 090): the engine is test/e2e/fakestt.
+# (task 090): the engine is test/e2e/fakestt; and the mail provider of the
+# recovery email (task 091), test/e2e/fakemail.
 BFF_CONFIG=$E2E_DIR/bff.yaml
 FAKESTT_MODEL=e2e-model
+FAKEMAIL_URL=http://fakemail:8080
 
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
-SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt "${TEAMGRAM_SERVICES[@]}")
+SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt fakemail "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
 # (the Go build cache stays in BuildKit, so the next build is quick). The
@@ -72,6 +74,7 @@ export PLUMA_BACKUP_IMAGE=${PLUMA_BACKUP_IMAGE:-pluma-backup:$E2E_PROJECT}
 export E2E_FAKEPUSH_IMAGE=${E2E_FAKEPUSH_IMAGE:-pluma-e2e-fakepush:$E2E_PROJECT}
 export E2E_FAKECODES_IMAGE=${E2E_FAKECODES_IMAGE:-pluma-e2e-fakecodes:$E2E_PROJECT}
 export E2E_FAKESTT_IMAGE=${E2E_FAKESTT_IMAGE:-pluma-e2e-fakestt:$E2E_PROJECT}
+export E2E_FAKEMAIL_IMAGE=${E2E_FAKEMAIL_IMAGE:-pluma-e2e-fakemail:$E2E_PROJECT}
 # A crash must fail the test, not be hidden by a restart.
 export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
 
@@ -140,6 +143,8 @@ LOGIN_CODES_SENDER_TOKEN=$(secret 32)
 STT_URL=http://fakestt:8080
 STT_TOKEN=$(secret 32)
 STT_MODEL=$FAKESTT_MODEL
+MAIL_API_KEY=re_e2e_$(secret 16)
+MAIL_FROM=Pluma <noreply@e2e.pluma.test>
 AUTH_KEY_ENCRYPTION_KEY=$(secret 32)
 PUSH_SECRET_ENCRYPTION_KEY=$(secret 32)
 NTFY_TOPIC=$(secret 16)
@@ -196,13 +201,16 @@ gen_push() {
 # gen_bff writes the config of bff for the stand: a record that fails is
 # given up after the second attempt, so that a test of a failing engine
 # waits one pause (5 s) and not all three, and is tried again 15 s after it
-# failed, not 10 minutes.
+# failed, not 10 minutes. The emails go to fakemail, and the server's day
+# of emails holds every run of the tests.
 gen_bff() {
-	awk '
+	awk -v mail="$FAKEMAIL_URL" '
 		{ print }
 		/^Transcribe:$/ { print "  MaxAttempts: 2"; print "  FailedTTL: 15s" }
+		/^Mail:$/ { print "  Endpoint: " mail; print "  DailyLimit: 10000" }
 	' "$ROOT/teamgramd/etc2/bff.yaml" >"$BFF_CONFIG" || return
-	grep -q '^  MaxAttempts: 2$' "$BFF_CONFIG" && grep -q '^  FailedTTL: 15s$' "$BFF_CONFIG"
+	grep -q '^  MaxAttempts: 2$' "$BFF_CONFIG" && grep -q '^  FailedTTL: 15s$' "$BFF_CONFIG" &&
+		grep -q "^  Endpoint: $FAKEMAIL_URL\$" "$BFF_CONFIG"
 }
 
 cmd_up() {
@@ -291,6 +299,7 @@ cmd_test() {
 			PLUMA_E2E_FAKEPUSH=$(compose port fakepush 8080) \
 			PLUMA_E2E_FAKECODES=$(compose port fakecodes 8080) \
 			PLUMA_E2E_FAKESTT=$(compose port fakestt 8080) \
+			PLUMA_E2E_FAKEMAIL=$(compose port fakemail 8080) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 20m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
@@ -314,7 +323,7 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKEMAIL_IMAGE" >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs

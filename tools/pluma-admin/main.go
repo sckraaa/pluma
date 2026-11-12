@@ -61,9 +61,11 @@
 // discard deletes one event for good. replay and discard print who did
 // what on stderr.
 //
-// password reset removes the 2FA password of an account (task 008) whose
-// owner forgot it and is logged in nowhere to reset it with a week's wait
-// (account.resetPassword). Establish who asks outside the server first.
+// password reset removes the 2FA password of an account (task 008) and its
+// recovery email (task 091) when the owner forgot the password, has no
+// recovery email to recover it with and is logged in nowhere to reset it
+// with a week's wait (account.resetPassword). Establish who asks outside
+// the server first.
 //
 // bot creates and tunes bot accounts (task 070, ADR 0043): create and token
 // print a token, which the server keeps only as a hash, so this is the one
@@ -206,7 +208,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] registration open|list   (who may sign up: every number or the allowlist)
   pluma-admin [-f bff.yaml] panel owner <login>   (the first owner of the moderation panel)
   pluma-admin [-f bff.yaml] panel reset-passkey <login>
-  pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password)
+  pluma-admin [-f bff.yaml] password reset <phone>   (removes the 2FA password and its recovery email)
   pluma-admin [-f bff.yaml] bot create <username> <name...> [-owner <phone>]   (prints the token)
   pluma-admin [-f bff.yaml] bot list
   pluma-admin [-f bff.yaml] bot token <username>   (replaces the token)

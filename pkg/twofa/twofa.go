@@ -33,13 +33,19 @@
 //   - A login of a user with a password waits for it (Login, kept per
 //     permanent auth key for LoginTTL): the key is bound to the user only
 //     after auth.checkPassword.
-//   - There is no mail on the server, so no recovery by email:
-//     has_recovery is false and a recovery email is refused. A logged-in
-//     user resets a forgotten password with account.resetPassword after
-//     ResetWait; for others the administrator removes it
-//     (pluma-admin password reset).
+//   - A password may have a recovery email (task 091, ADR 0058): set with
+//     the password settings, confirmed with a code sent to it, and used to
+//     recover a forgotten password with another code (email.go). Codes are
+//     6 digits, live EmailCodeTTL in Redis as HMACs, burn after
+//     EmailCodeMaxAttempts wrong ones and go out through pkg/mail only
+//     under the limits of emailcode.go. Without a mail provider (EnableMail
+//     with no key) has_recovery is false and a recovery email is refused.
+//     Without a recovery email a logged-in user resets a forgotten password
+//     with account.resetPassword after ResetWait; for others the
+//     administrator removes it (pluma-admin password reset).
 //
-// Nothing secret is logged: no password hash, A, M1, v, b or srp_B.
+// Nothing secret is logged: no password hash, A, M1, v, b or srp_B, no code
+// or its HMAC, no email address.
 package twofa
 
 import (
@@ -108,9 +114,11 @@ type Service struct {
 	store   Store
 	state   *redisState
 	limiter *logincode.Limiter
+	mail    *mailState // nil: no recovery email
 
 	now    func() time.Time
 	random io.Reader
+	sleep  func(context.Context, time.Duration) error
 }
 
 // NewService returns the Service on store, with its short-lived state and
@@ -122,6 +130,7 @@ func NewService(store Store, kv kv.Store) *Service {
 		limiter: logincode.NewLimiter(kv),
 		now:     time.Now,
 		random:  rand.Reader,
+		sleep:   sleepCtx,
 	}
 }
 
@@ -176,28 +185,50 @@ func (s *Service) EndLogin(ctx context.Context, authKeyId int64) {
 	}
 }
 
-// Forget removes everything of userId (the account was deleted).
+// Forget removes everything of userId (the account was deleted), the
+// recovery email with the password.
 func (s *Service) Forget(ctx context.Context, userId int64) error {
 	if _, err := s.store.Delete(ctx, userId); err != nil {
 		logx.WithContext(ctx).Errorf("twofa: forget user %d: %v", userId, err)
 		return mtproto.ErrInternalServerError
 	}
 	s.dropNewAlgo(ctx, userId)
+	s.dropCodes(ctx, userId)
 	return nil
 }
 
-// Remove removes the password of userId (pluma-admin password reset);
-// removed is false if there was none.
+// Remove removes the password of userId and its recovery email
+// (pluma-admin password reset); removed is false if there was none.
 func (s *Service) Remove(ctx context.Context, userId int64) (bool, error) {
 	removed, err := s.store.Delete(ctx, userId)
 	if err != nil {
 		return false, err
 	}
 	s.dropNewAlgo(ctx, userId)
+	s.dropCodes(ctx, userId)
 	return removed, nil
 }
 
+// dropCodes forgets the email codes of userId: they could not match a
+// removed password anyway.
+func (s *Service) dropCodes(ctx context.Context, userId int64) {
+	s.dropCode(ctx, PurposeSetup, userId)
+	s.dropCode(ctx, PurposeRecovery, userId)
+}
+
+// get returns the password of userId in force, or nil: a first password
+// waiting for its recovery email is not one yet.
 func (s *Service) get(ctx context.Context, userId int64) (*Password, error) {
+	p, err := s.row(ctx, userId)
+	if err != nil || p == nil || p.AwaitsEmail {
+		return nil, err
+	}
+	return p, nil
+}
+
+// row returns the stored password of userId, in force or waiting for its
+// recovery email, or nil.
+func (s *Service) row(ctx context.Context, userId int64) (*Password, error) {
 	if userId == 0 {
 		return nil, mtproto.ErrAuthKeyUnregistered
 	}

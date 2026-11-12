@@ -38,16 +38,59 @@ type Password struct {
 	// PendingDeleteDate is when account.deleteAccount without the password
 	// may delete the account (unix seconds); 0 if no deletion is pending.
 	PendingDeleteDate int64 `db:"pending_delete_date"`
+	// Email is the confirmed recovery email (ADR 0058), EmailUnconfirmed
+	// the address waiting for its code; empty if none. They live with the
+	// password: whatever removes it removes them
+	// (migrate-20261116-password-email.sql).
+	Email            string `db:"email"`
+	EmailUnconfirmed string `db:"email_unconfirmed"`
+	// EmailSetAt is when Email was confirmed (unix seconds); 0 without one.
+	EmailSetAt int64 `db:"email_set_at"`
+	// AwaitsEmail marks a first password set with a recovery email: it is
+	// not in force until EmailUnconfirmed is confirmed, and the user has no
+	// password until then (ADR 0058, p. 4).
+	AwaitsEmail bool `db:"awaits_email"`
 }
 
-// Store keeps the passwords. Every change is a single conditional statement,
-// so concurrent requests of one user cannot interleave inside one.
+// Emails are the recovery email of a password: the confirmed address and
+// the one waiting for its code.
+type Emails struct {
+	Email       string
+	Unconfirmed string
+}
+
+func (p *Password) emails() Emails {
+	if p == nil {
+		return Emails{}
+	}
+	return Emails{Email: p.Email, Unconfirmed: p.EmailUnconfirmed}
+}
+
+// Store keeps the passwords. Every change is a single statement. Those of
+// the Service's requests are conditional on the row the request read
+// (Replace, RemoveIf, SwapEmail), so a request never overwrites a change
+// made after its read; Put and Delete are not, for the tools and tests.
 type Store interface {
 	// Get returns the password of userId, or nil if there is none.
 	Get(ctx context.Context, userId int64) (*Password, error)
-	// Put sets the password of p.UserId, replacing any and dropping the
-	// pending reset and deletion.
+	// Put sets the password of p.UserId in force, replacing any and dropping
+	// the pending reset and deletion. The recovery email of a replaced
+	// password stays; a new row has none.
 	Put(ctx context.Context, p *Password) error
+	// Replace sets next, with its recovery email and AwaitsEmail, as the
+	// password of next.UserId and drops the pending reset and deletion, if
+	// the row is still prev: none for a nil prev, otherwise the same
+	// password (set_at, verifier), recovery email and AwaitsEmail.
+	// replaced is false otherwise. next differs from prev.
+	Replace(ctx context.Context, prev, next *Password) (replaced bool, err error)
+	// RemoveIf removes the password of prev.UserId if the row is still prev
+	// (as for Replace); removed is false otherwise.
+	RemoveIf(ctx context.Context, prev *Password) (removed bool, err error)
+	// SwapEmail sets the recovery email of userId's password in force to
+	// next (and email_set_at to emailSetAt) if the password is still the
+	// one set at setAt and its recovery email is still prev; swapped is
+	// false otherwise. prev and next differ.
+	SwapEmail(ctx context.Context, userId, setAt int64, prev, next Emails, emailSetAt int64) (swapped bool, err error)
 	// Delete removes the password of userId; removed is false if there was none.
 	Delete(ctx context.Context, userId int64) (removed bool, err error)
 	// StartReset sets the reset date of userId's password if no reset is
@@ -78,7 +121,8 @@ func NewMySQLStore(db *sqlx.DB) *MySQLStore {
 func (s *MySQLStore) Get(ctx context.Context, userId int64) (*Password, error) {
 	var p Password
 	err := s.db.QueryRowPartial(ctx, &p,
-		"select user_id, salt1, salt2, verifier, hint, set_at, pending_reset_date, pending_delete_date from user_passwords where user_id = ?",
+		"select user_id, salt1, salt2, verifier, hint, set_at, pending_reset_date, pending_delete_date, email, email_unconfirmed, email_set_at, awaits_email"+
+			" from user_passwords where user_id = ?",
 		userId)
 	switch {
 	case errors.Is(err, sqlx.ErrNotFound):
@@ -93,9 +137,48 @@ func (s *MySQLStore) Put(ctx context.Context, p *Password) error {
 	_, err := s.db.Exec(ctx,
 		"insert into user_passwords(user_id, salt1, salt2, verifier, hint, set_at, pending_reset_date, pending_delete_date) values (?, ?, ?, ?, ?, ?, 0, 0)"+
 			" on duplicate key update salt1 = values(salt1), salt2 = values(salt2), verifier = values(verifier), hint = values(hint),"+
-			" set_at = values(set_at), pending_reset_date = 0, pending_delete_date = 0",
+			" set_at = values(set_at), pending_reset_date = 0, pending_delete_date = 0, awaits_email = 0",
 		p.UserId, p.Salt1, p.Salt2, p.Verifier, p.Hint, p.SetAt)
 	return err
+}
+
+// Replace without prev inserts the row only if there is none: the no-op
+// update of an existing one changes no row. With prev it updates the row
+// only if it is still prev; next differs from prev, so the affected rows
+// (changed rows, the driver's default) tell whether the condition held.
+func (s *MySQLStore) Replace(ctx context.Context, prev, next *Password) (bool, error) {
+	if prev == nil {
+		return s.exec(ctx,
+			"insert into user_passwords(user_id, salt1, salt2, verifier, hint, set_at, pending_reset_date, pending_delete_date,"+
+				" email, email_unconfirmed, email_set_at, awaits_email)"+
+				" values (?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?)"+
+				" on duplicate key update user_id = user_id",
+			next.UserId, next.Salt1, next.Salt2, next.Verifier, next.Hint, next.SetAt,
+			next.Email, next.EmailUnconfirmed, next.EmailSetAt, next.AwaitsEmail)
+	}
+	return s.exec(ctx,
+		"update user_passwords set salt1 = ?, salt2 = ?, verifier = ?, hint = ?, set_at = ?, pending_reset_date = 0, pending_delete_date = 0,"+
+			" email = ?, email_unconfirmed = ?, email_set_at = ?, awaits_email = ?"+
+			" where user_id = ? and set_at = ? and verifier = ? and email = ? and email_unconfirmed = ? and awaits_email = ?",
+		next.Salt1, next.Salt2, next.Verifier, next.Hint, next.SetAt,
+		next.Email, next.EmailUnconfirmed, next.EmailSetAt, next.AwaitsEmail,
+		prev.UserId, prev.SetAt, prev.Verifier, prev.Email, prev.EmailUnconfirmed, prev.AwaitsEmail)
+}
+
+func (s *MySQLStore) RemoveIf(ctx context.Context, prev *Password) (bool, error) {
+	return s.exec(ctx,
+		"delete from user_passwords"+
+			" where user_id = ? and set_at = ? and verifier = ? and email = ? and email_unconfirmed = ? and awaits_email = ?",
+		prev.UserId, prev.SetAt, prev.Verifier, prev.Email, prev.EmailUnconfirmed, prev.AwaitsEmail)
+}
+
+// SwapEmail changes the row only if next differs from prev, so the affected
+// rows (changed rows, the driver's default) tell whether the condition held.
+func (s *MySQLStore) SwapEmail(ctx context.Context, userId, setAt int64, prev, next Emails, emailSetAt int64) (bool, error) {
+	return s.exec(ctx,
+		"update user_passwords set email = ?, email_unconfirmed = ?, email_set_at = ?"+
+			" where user_id = ? and set_at = ? and email = ? and email_unconfirmed = ? and awaits_email = 0",
+		next.Email, next.Unconfirmed, emailSetAt, userId, setAt, prev.Email, prev.Unconfirmed)
 }
 
 func (s *MySQLStore) Delete(ctx context.Context, userId int64) (bool, error) {

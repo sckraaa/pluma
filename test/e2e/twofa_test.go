@@ -171,9 +171,14 @@ func TestTwoFa(t *testing.T) {
 		t.Fatalf("account.getPassword without a password: %v", pw)
 	}
 
-	// No mail on the server: a recovery email is refused, skipping it works.
-	if err := updatePassword(ctx, t, alice.c, "", "first secret", "first", "alice@example.com"); !rpcErrorIs(err, "EMAIL_INVALID") {
-		t.Fatalf("a password with a recovery email: %v, want EMAIL_INVALID", err)
+	// A recovery email that is not an address is refused with the rest of
+	// the request; skipping it works (the recovery email itself:
+	// password_email_test.go).
+	if err := updatePassword(ctx, t, alice.c, "", "first secret", "first", "alice at example.com"); !rpcErrorIs(err, "EMAIL_INVALID") {
+		t.Fatalf("a password with a bad recovery email: %v, want EMAIL_INVALID", err)
+	}
+	if getPassword(ctx, t, alice.c).GetHasPassword() {
+		t.Fatal("a password was set with the refused email")
 	}
 	if err := updatePassword(ctx, t, alice.c, "", "first secret", "first", ""); err != nil {
 		t.Fatalf("set the password: %v", err)

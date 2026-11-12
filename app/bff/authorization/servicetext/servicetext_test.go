@@ -202,3 +202,35 @@ func TestTwoStepChanged(t *testing.T) {
 		}
 	}
 }
+
+// The message about a password recovered by email: Pluma's text in the
+// language of the session, rendered in every language of mail.json.
+func TestPasswordRecovered(t *testing.T) {
+	r := PasswordRecovered{
+		Name:     "Anna",
+		Date:     time.Date(2026, 11, 12, 15, 4, 5, 0, time.FixedZone("CET", 3600)),
+		Device:   "Pluma Desktop, 6.3, PC, Windows 11",
+		Location: "Prague, Czechia",
+	}
+	want := "Cloud password reset. Anna, the cloud password of your account was reset with a code sent to your recovery email on 12/11/2026 at 14:04:05 UTC.\n\n" +
+		"Device: Pluma Desktop, 6.3, PC, Windows 11\nLocation: Prague, Czechia\n\n" +
+		"If this wasn't you, end that session in Settings > Devices and set a new password."
+	text, entities := r.Text("en-US")
+	if text != want {
+		t.Fatalf("text %q", text)
+	}
+	if got := bold(t, text, entities); !equal(got, []string{"Cloud password reset.", "Settings > Devices"}) {
+		t.Fatalf("bold %q", got)
+	}
+	ru, _ := r.Text("ru")
+	if !strings.HasPrefix(ru, "Облачный пароль сброшен. Anna,") || !strings.Contains(ru, "12/11/2026 в 14:04:05 UTC") {
+		t.Fatalf("ru %q", ru)
+	}
+	for _, lang := range []string{"ar", "be", "bg", "ca", "cs", "de", "el", "es", "fa", "fi", "fr", "he", "hr", "hu", "id", "it", "kk", "ko",
+		"lt", "ms", "nb", "nl", "pl", "pt-br", "ro", "sk", "sl", "sr", "sv", "tr", "uk", "uz", "vi", "zh-hans", "zh-hant"} {
+		text, entities := r.Text(lang)
+		if text == want || !strings.Contains(text, "Anna") || !strings.Contains(text, "Prague, Czechia") || len(entities) != 2 {
+			t.Errorf("%s: %q %d entities", lang, text, len(entities))
+		}
+	}
+}

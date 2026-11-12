@@ -16,6 +16,7 @@
 package twofa
 
 import (
+	"bytes"
 	"context"
 	"sync"
 )
@@ -51,9 +52,59 @@ func (m *MemStore) Put(_ context.Context, p *Password) error {
 		return m.err
 	}
 	v := *p
-	v.PendingResetDate, v.PendingDeleteDate = 0, 0
+	v.PendingResetDate, v.PendingDeleteDate, v.AwaitsEmail = 0, 0, false
+	old, ok := m.rows[p.UserId]
+	v.Email, v.EmailUnconfirmed, v.EmailSetAt = "", "", 0
+	if ok {
+		v.Email, v.EmailUnconfirmed, v.EmailSetAt = old.Email, old.EmailUnconfirmed, old.EmailSetAt
+	}
 	m.rows[p.UserId] = v
 	return nil
+}
+
+func (m *MemStore) Replace(_ context.Context, prev, next *Password) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.err != nil {
+		return false, m.err
+	}
+	old, ok := m.rows[next.UserId]
+	if prev == nil && ok || prev != nil && (!ok || !sameRow(&old, prev)) {
+		return false, nil
+	}
+	v := *next
+	v.PendingResetDate, v.PendingDeleteDate = 0, 0
+	m.rows[next.UserId] = v
+	return true, nil
+}
+
+func (m *MemStore) RemoveIf(_ context.Context, prev *Password) (bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.err != nil {
+		return false, m.err
+	}
+	old, ok := m.rows[prev.UserId]
+	if !ok || !sameRow(&old, prev) {
+		return false, nil
+	}
+	delete(m.rows, prev.UserId)
+	return true, nil
+}
+
+// sameRow is the condition of Replace and RemoveIf.
+func sameRow(a, b *Password) bool {
+	return a.SetAt == b.SetAt && bytes.Equal(a.Verifier, b.Verifier) && a.emails() == b.emails() && a.AwaitsEmail == b.AwaitsEmail
+}
+
+func (m *MemStore) SwapEmail(_ context.Context, userId, setAt int64, prev, next Emails, emailSetAt int64) (bool, error) {
+	return m.update(userId, func(p *Password) bool {
+		if p.SetAt != setAt || p.AwaitsEmail || p.emails() != prev || prev == next {
+			return false
+		}
+		p.Email, p.EmailUnconfirmed, p.EmailSetAt = next.Email, next.Unconfirmed, emailSetAt
+		return true
+	})
 }
 
 func (m *MemStore) Delete(_ context.Context, userId int64) (bool, error) {
