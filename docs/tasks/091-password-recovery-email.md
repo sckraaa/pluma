@@ -1,6 +1,6 @@
 # 091. Почта восстановления облачного пароля (Resend)
 
-- Статус: в работе (2026-11-12; дизайн готов, кода нет)
+- Статус: done (2026-11-12; замечания независимого чтения исправлены, проверки зелёные)
 - Решение: ADR 0058.
 - Зависит от: 008 (2FA по SRP), 073 (`pkg/logincode`: HMAC, пределы, образец отправителя), 076 / ADR 0046 (37 языков строк).
 - Ветка: `task/091-password-recovery-email`.
@@ -125,7 +125,33 @@
 - Подтверждено владельцем 2026-11-12: другие сессии после восстановления не завершаются, приходит сообщение 777000; письма у Resend в США 30 дней допустимы; отправитель `noreply@pluma.chat` на корневом домене, без `Reply-To`; регион `eu-west-1`.
 1. Срок кода 30 минут; 5 неверных попыток на код; письма не чаще раза в 60 с, 5 в час, 10 в сутки на человека; 80 в сутки на весь сервер.
 2. `cancelPasswordEmail` оставляет уже подтверждённую почту, убирает только ожидающую.
-3. Сбой отправки при восстановлении отвечает `FLOOD_WAIT_60`, а при задании почты — всё равно `EMAIL_UNCONFIRMED_6` (пароль уже сохранён, «отправить снова» повторит).
+3. Сбой отправки при восстановлении отвечает `FLOOD_WAIT_60`, а при задании почты — всё равно `EMAIL_UNCONFIRMED_6` (настройки уже записаны, «отправить снова» повторит).
+4. Первый пароль с почтой не действует до подтверждения почты (вывод из клиентов, документация молчит; ADR 0058, «Клиенты»). Письмо, которое поставщик не принял, возвращает только минутный счётчик.
 
 ## Результат
-_Заполняется по завершении._
+Почта восстановления облачного пароля работает целиком, как в ADR 0058: `account.updatePasswordSettings` с почтой отвечает `EMAIL_UNCONFIRMED_6` (смена действующего пароля применяется сразу, первый пароль вступает в силу с подтверждением почты), письмо с 6-значным кодом уходит через Resend (`pkg/mail`), `account.confirmPasswordEmail`/`resendPasswordEmail`/`cancelPasswordEmail` обслуживаются, `account.getPassword` отдаёт `has_recovery` и `email_unconfirmed_pattern`, `account.getPasswordSettings` — адрес; `auth.requestPasswordRecovery`, `checkRecoveryPassword`, `recoverPassword` работают в вошедшей сессии и при входе после кода телефона (вход через тот же `logIn`, что у `auth.checkPassword`), всем сессиям приходит сообщение 777000, другие сессии не завершаются. Без `MAIL_API_KEY` почта выключена и всё ведёт себя как раньше. Код живёт 30 минут, в Redis только HMAC, 5 неверных вводов сжигают код, код восстановления одноразовый и привязан к паролю; пределы и `FLOOD_WAIT_X` — по разделу 3 ADR.
+
+Что сделано:
+- `pkg/mail` (интерфейс `Sender`, `Message`, `Error{Code, Status, Retryable}`, `Config`, реализация Resend с `User-Agent`, `Idempotency-Key`, тегами и разбором ошибок по таблице Resend).
+- `pkg/twofa`: `email.go` (поток почты), `emailcode.go` (коды, HMAC с меткой `pluma-email-code-v1`, Lua «проверить/забрать», пределы, повторы 0,5 и 1,5 с под сроком 8 с, письмо), `pattern.go` (проверка адреса, шаблон `ab***@домен`); `Store` — `Replace`, `RemoveIf` и `SwapEmail` (одна условная запись по прочитанной строке; ADR раздел 6); `Update` → `UpdateIn` с языком сессии.
+- Миграция `migrate-20261116-password-email.sql` (четыре колонки, с `awaits_email`; идемпотентно).
+- Тексты: `pkg/langpack/mail.json` (7 ключей × 37 языков), `langpack.MailText`, `MailRTL`; сообщение 777000 о сбросе — `servicetext.PasswordRecovered` по ключу `PlumaPasswordRecoveredMessage`.
+- Обработчики bff twofa (три новых, `not_served.go` удалён) и authorization (три переписаны), конфиг `Mail` в bff, twofa, authorization и в `teamgramd/etc`, `teamgramd/etc2`, `app/bff/bff/etc`; `MAIL_API_KEY`, `MAIL_FROM` в `.env.example`, `docker-compose.yaml` (bff и migrate), `pkg/conf`.
+- Метрики `password_email_send_total`, `password_email_code_total`; алерты `PasswordEmailSenderFailing`, `PasswordEmailSenderRejected`, `PasswordEmailBruteForce` (группа `password_email` в `codes.yml`), строки в `docs/ops/monitoring.md`.
+- `tools/logaudit`: имена `email`, `emailunconfirmed`, шаблоны, `mail`, `apikey`, `mailapikey` с тестами.
+- e2e: `test/e2e/fakemail` (как Resend: Bearer, User-Agent, идемпотентность, запланированные ошибки), сервис в стенде, `test/e2e/password_email_test.go` (5 тестов брифа), `TestTwoFa` поправлен под стенд с почтой.
+- Документы: `docs/ops/email.md`, `security-setup.md`, `monitoring.md`, help `pluma-admin`, строки `TESTING-BACKLOG`.
+
+Проверки (CachyOS, 2026-11-12): `go build ./...` — ок; `go vet -tags integration,e2e -unreachable=false` затронутых пакетов и `./test/e2e/...` — ок; `go test ./app/... ./pkg/... ./tools/...` — без падений; `-race` затронутых пакетов — ок; интеграционные `pkg/twofa` (MySQL, Redis: миграция дважды, гонка подтверждений, параллельные `Recover`, сгорание кода, удаление почты с паролем) — ок; e2e на своём стенде (`E2E_PROJECT=mail`): `TestPasswordEmail*`, `TestPasswordRecovery*`, `TestTwoFa*`, `TestNewLogin` — ок, в логах bff нет адресов, стенд снят, образы удалены; `golangci-lint` v2.15.0 по затронутым пакетам — замечаний в изменённых файлах нет (`make lint` целиком на CachyOS не годится: в копии нет git для `new-from-rev`); проверено, что `TestSetUpRecoveryEmail` и `TestRules` падают без изменения. `go run ./tools/apicoverage` — +3 метода (`account.*PasswordEmail`).
+
+Решения, требующие подтверждения: срок кода 30 минут и пределы раздела 3; `cancelPasswordEmail` оставляет подтверждённую почту; сбой отправки — `FLOOD_WAIT_60` при восстановлении и повторной отправке, `EMAIL_UNCONFIRMED_6` при задании почты; при `recoverPassword` с новой почтой она ждёт кода (ответ успешный). Тексты письма и сообщения 777000 на 37 языках — свои, вычитку носителями не проходили. Не проверено: метрика `permanent` в e2e (проверены ответ и отсутствие письма), правила Prometheus через `promtool`.
+
+Исправления по независимому чтению (2026-11-12):
+- **Первая установка пароля с почтой.** Раньше пароль включался сразу, и экран кода первой установки ломался: «Прервать» на Android (`inputCheckPasswordEmpty`, `email = ""`) получал `PASSWORD_HASH_INVALID`, смена адреса на iOS проверяла пустой пароль и показывала неизвестную ошибку. Все три клиента моделируют состояние «пароля нет, почта ждёт» (iOS `TwoStepVerification.swift:8-10, 20-24`, `TwoStepVerificationUnlockController.swift:619-621, 774`; Android `TwoStepVerificationSetupActivity.java:1529-1562, 1809, 1837-1839, 1874`; Web K `tabs.ts:1164`), поэтому теперь первый пароль с адресом хранится с `awaits_email = 1` и вступает в силу только с `account.confirmPasswordEmail` (`set_at` — момент подтверждения). До этого `getPassword` отдаёт `has_password = false` с шаблоном адреса, вход пароль не спрашивает; новый первый пароль заменяет ожидающий; `email = ""` без `new_algo` и `account.cancelPasswordEmail` (tdesktop) удаляют его. Сообщение 777000 о смене уходит при подтверждении, а не при установке. Документация этого не описывает — вывод из клиентов (ADR 0058, «Клиенты», п. 4).
+- **Пределы при сбое отправки.** Возвращается только минутный счётчик пользователя; часовой, суточный, ключевой и общий остаются, так что клиент, повторяющий запрос при падающем поставщике, не исчерпает суточный предел сервера.
+- **Гонки записей.** Все записи запросов условны по прочитанной строке (`Replace`, `RemoveIf`; `PutWithEmail` убран): восстановление, опоздавшее к смене пароля, отвечает `PASSWORD_RECOVERY_EXPIRED` и не затирает новый пароль; смена пароля с почтой не откатывает подтверждение, сделанное между чтением и записью (`SRP_PASSWORD_CHANGED`).
+
+Проверки исправлений (CachyOS): `go build ./...` — ок; `gofmt` — чисто; `go vet -tags integration,e2e -unreachable=false` для `pkg/twofa`, `app/bff/twofa`, `app/bff/authorization`, `test/e2e` — ок; `go test` затронутых пакетов и всех импортёров `pkg/twofa` — ок, `-race` — ок; `go test ./tools/...` — ок; интеграционные `pkg/twofa` с `-race` (MySQL, Redis; `TestMySQLStoreEmail` проверяет условия `Replace`/`RemoveIf`, `awaits_email` и параллельную вставку) — ок; e2e на своём стенде (`E2E_PROJECT=mailfix`): `TestPasswordEmail*` (с новым `TestPasswordEmailFirstSetupCodeScreen` — последовательности Android и iOS), `TestPasswordRecovery*`, `TestTwoFa*` — ок, адресов в логе bff нет, стенд и образы удалены. Новые модульные тесты (`TestFirstPassword*`, `TestFailedSendsStayCounted`, `TestRecoveryLosesToANewerChange`, `TestUpdateLosesToANewerConfirmation`) падают при откате каждого исправления. `make lint` — на сборной ветке.
+
+Минутный предел отправки считается на пользователя, назначение и адрес (ключ — первые 8 байт SHA-256 адреса, сам адрес в Redis не попадает): исправленная на экране кода опечатка в адресе получает письмо сразу, часовой и суточный пределы остаются на пользователя (решение 2026-11-12; поведение Telegram не проверено).
+
