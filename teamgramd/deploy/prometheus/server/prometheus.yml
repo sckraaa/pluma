@@ -24,6 +24,15 @@ scrape_configs:
         port: 9378
         refresh_interval: 60s
 
+  # The optional speech recognition service (docker-compose.stt.yaml, task
+  # 090): by DNS as well.
+  - job_name: ops.stt
+    dns_sd_configs:
+      - names: ["stt"]
+        type: A
+        port: 9379
+        refresh_interval: 60s
+
   - job_name: prometheus
     scrape_interval: 5s  #global catch time
     static_configs:
