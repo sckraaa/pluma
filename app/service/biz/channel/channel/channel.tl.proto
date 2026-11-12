@@ -213,6 +213,22 @@ enum TLConstructor {
   CRC32_channel_getInactiveChannels = -744665876;
   // pluma: task 078
   CRC32_channel_setMainProfileTab = 1898100990;
+  // pluma: task 083
+  CRC32_importedReaction = -306155649;
+  // pluma: task 083
+  CRC32_importedMessage = 1442050088;
+  // pluma: task 083
+  CRC32_channelImport = -1936460276;
+  // pluma: task 083
+  CRC32_channel_importCreate = -1439133700;
+  // pluma: task 083
+  CRC32_channel_importMessages = 1028134963;
+  // pluma: task 083
+  CRC32_channel_importFinish = 1309891041;
+  // pluma: task 083
+  CRC32_channel_importGetState = -126708870;
+  // pluma: task 083
+  CRC32_channel_importAbort = -668800565;
 }
 
 
@@ -335,6 +351,90 @@ message TL_mutableChannel {
 
 
 
+
+
+// ImportedReaction <--
+//  + TL_importedReaction
+//
+// pluma: importedReaction user_id:long reaction:string date:long = ImportedReaction;
+// A reaction of an imported message: who set it, the reaction's key
+// (pkg/reactions.Key) and when.
+// (task 083)
+message ImportedReaction {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    int64 user_id = 3;
+    string reaction = 4;
+    int64 date = 5;
+}
+
+message TL_importedReaction {
+    ImportedReaction data2 = 1;
+}
+
+
+// ImportedMessage <--
+//  + TL_importedMessage
+//
+// pluma: importedMessage seq:long source_id:long skip_reason:string sender_id:long message:Message reply_to_source_id:long reactions:Vector<ImportedReaction> mentioned:Vector<long> poll_id:long poll_voter_id:long poll_chosen:Vector<int> = ImportedMessage;
+// A record of an export on its way into a channel (ADR 0051): seq its place
+// in the export, source_id its id there. skip_reason says why it is not
+// imported; otherwise message is the message without its id and peer, from
+// sender_id, replying to the record reply_to_source_id (0: to none), with
+// its reactions and the users it mentions. poll_id is the id of the poll a
+// new poll in it gets; poll_voter_id chose the answers poll_chosen (their
+// indexes).
+// (task 083)
+message ImportedMessage {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    int64 seq = 3;
+    int64 source_id = 4;
+    string skip_reason = 5;
+    int64 sender_id = 6;
+    mtproto.Message message = 7;
+    int64 reply_to_source_id = 8;
+    repeated ImportedReaction reactions = 9;
+    repeated int64 mentioned = 10;
+    int64 poll_id = 11;
+    int64 poll_voter_id = 12;
+    repeated int32 poll_chosen = 13;
+}
+
+message TL_importedMessage {
+    ImportedMessage data2 = 1;
+}
+
+
+// ChannelImport <--
+//  + TL_channelImport
+//
+// pluma: channelImport id:long source_type:string source_chat_id:long channel_id:long creator_id:long state:int next_seq:long last_source_id:long top_message:int messages:long skipped:long mapping:string date:long = ChannelImport;
+// An import of a group (channel_imports): state 0 running, 1 finished,
+// 2 aborted; next_seq the record the next batch starts at, last_source_id
+// the id in the export of the last record journaled.
+// (task 083)
+message ChannelImport {
+    string predicate_name = 1;
+    TLConstructor  constructor = 2;
+    int64 id = 3;
+    string source_type = 4;
+    int64 source_chat_id = 5;
+    int64 channel_id = 6;
+    int64 creator_id = 7;
+    int32 state = 8;
+    int64 next_seq = 9;
+    int64 last_source_id = 10;
+    int32 top_message = 11;
+    int64 messages = 12;
+    int64 skipped = 13;
+    string mapping = 14;
+    int64 date = 15;
+}
+
+message TL_channelImport {
+    ChannelImport data2 = 1;
+}
 
 
 //--------------------------------------------------------------------------------------------
@@ -1579,6 +1679,61 @@ message Vector_MutableChannel {
 
 
 //--------------------------------------------------------------------------------------------
+// pluma: channel.importCreate creator_id:long source_type:string source_chat_id:long title:string about:string mapping:string first:ImportedMessage = ChannelImport;
+// Starts the import of the chat source_chat_id of an export into a new
+// supergroup of creator_id, without members, with first as its message 1;
+// for an import that runs already it adds to its mapping and returns it
+// (task 083, ADR 0051).
+message TL_channel_importCreate {
+  TLConstructor constructor = 1;
+  int64 creator_id = 3;
+  string source_type = 4;
+  int64 source_chat_id = 5;
+  string title = 6;
+  string about = 7;
+  string mapping = 8;
+  ImportedMessage first = 9;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importMessages import_id:long first_seq:long messages:Vector<ImportedMessage> = ChannelImport;
+// Writes the next records of an import in one transaction; first_seq must
+// be the import's next_seq (IMPORT_OUT_OF_ORDER).
+message TL_channel_importMessages {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+  int64 first_seq = 4;
+  repeated ImportedMessage messages = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importFinish import_id:long = ChannelImport;
+// Ends an import: the creator becomes a member with everything read.
+message TL_channel_importFinish {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importGetState import_id:long source_type:string source_chat_id:long = ChannelImport;
+// The import import_id, or with 0 the one of the chat that is not aborted
+// (IMPORT_NOT_FOUND).
+message TL_channel_importGetState {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+  string source_type = 4;
+  int64 source_chat_id = 5;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: channel.importAbort import_id:long = ChannelImport;
+// Aborts an import that is not finished: its channel is deleted.
+message TL_channel_importAbort {
+  TLConstructor constructor = 1;
+  int64 import_id = 3;
+}
+
+//--------------------------------------------------------------------------------------------
 // rpc
 
 service RPCChannel {
@@ -1766,4 +1921,14 @@ service RPCChannel {
   rpc channel_getInactiveChannels(TL_channel_getInactiveChannels) returns (mtproto.messages_InactiveChats) {}
   // pluma: task 078
   rpc channel_setMainProfileTab(TL_channel_setMainProfileTab) returns (mtproto.Bool) {}
+  // pluma: task 083
+  rpc channel_importCreate(TL_channel_importCreate) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importMessages(TL_channel_importMessages) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importFinish(TL_channel_importFinish) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importGetState(TL_channel_importGetState) returns (ChannelImport) {}
+  // pluma: task 083
+  rpc channel_importAbort(TL_channel_importAbort) returns (ChannelImport) {}
 }

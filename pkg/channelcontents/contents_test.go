@@ -116,12 +116,36 @@ func TestView(t *testing.T) {
 type fakeQuerier struct {
 	queries []string
 	args    [][]any
+	// imported is channels.imported_max_id of the channel.
+	imported int32
 }
 
-func (q *fakeQuerier) QueryRowsPartial(_ context.Context, _ interface{}, query string, args ...interface{}) error {
+func (q *fakeQuerier) QueryRowsPartial(_ context.Context, v interface{}, query string, args ...interface{}) error {
 	q.queries = append(q.queries, query)
 	q.args = append(q.args, args)
+	if out, ok := v.(*[]int32); ok && strings.Contains(query, "imported_max_id") {
+		*out = []int32{q.imported}
+	}
 	return nil
+}
+
+// TestViewImported: the voice and round video messages of the history a
+// group was imported with are played for every member; those after it are
+// unread until played, as in any group.
+func TestViewImported(t *testing.T) {
+	const viewer = int64(7)
+	q := &fakeQuerier{imported: 10}
+	messages := []*mtproto.Message{voice(9), round(10), voice(11)}
+	s, err := Load(context.Background(), q, 5, viewer, messages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range messages {
+		s.View(m, viewer, false, true)
+		if want := m.GetId() > 10; m.GetMediaUnread() != want {
+			t.Errorf("message %d: media_unread %v, want %v", m.GetId(), m.GetMediaUnread(), want)
+		}
+	}
 }
 
 // TestLoadQueries: the plays are read for the consumable messages only,
@@ -132,10 +156,10 @@ func TestLoadQueries(t *testing.T) {
 	if _, err := Load(context.Background(), q, 5, 7, []*mtproto.Message{voice(1), text(2), mtproto.MakeTLMessageEmpty(&mtproto.Message{Id: 3}).To_Message()}); err != nil {
 		t.Fatal(err)
 	}
-	if len(q.queries) != 2 || !strings.Contains(q.queries[0], "channel_contents_read") || !strings.Contains(q.queries[1], "channel_message_mentions") {
+	if len(q.queries) != 3 || !strings.Contains(q.queries[0], "imported_max_id FROM channels") || !strings.Contains(q.queries[1], "channel_contents_read") || !strings.Contains(q.queries[2], "channel_message_mentions") {
 		t.Fatalf("queries %q", q.queries)
 	}
-	if !reflect.DeepEqual(q.args[0], []any{int64(5), int64(7), int32(1)}) || !reflect.DeepEqual(q.args[1], []any{int64(5), int64(7), int32(1), int32(2)}) {
+	if !reflect.DeepEqual(q.args[0], []any{int64(5)}) || !reflect.DeepEqual(q.args[1], []any{int64(5), int64(7), int32(1)}) || !reflect.DeepEqual(q.args[2], []any{int64(5), int64(7), int32(1), int32(2)}) {
 		t.Errorf("args %v", q.args)
 	}
 
@@ -145,7 +169,7 @@ func TestLoadQueries(t *testing.T) {
 	if _, err := LoadAll(context.Background(), q, 5, []*mtproto.Message{voice(1)}); err != nil {
 		t.Fatal(err)
 	}
-	if len(q.queries) != 3 || !strings.Contains(q.queries[1], "sender_user_id FROM channel_messages") || !reflect.DeepEqual(q.args[1], []any{int64(5), int32(1)}) {
+	if len(q.queries) != 4 || !strings.Contains(q.queries[2], "sender_user_id FROM channel_messages") || !reflect.DeepEqual(q.args[2], []any{int64(5), int32(1)}) {
 		t.Errorf("authors: %q %v", q.queries, q.args)
 	}
 

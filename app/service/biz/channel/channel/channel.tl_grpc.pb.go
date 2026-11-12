@@ -129,6 +129,11 @@ const (
 	RPCChannel_ChannelGetFutureCreator_FullMethodName                 = "/channel.RPCChannel/channel_getFutureCreator"
 	RPCChannel_ChannelGetInactiveChannels_FullMethodName              = "/channel.RPCChannel/channel_getInactiveChannels"
 	RPCChannel_ChannelSetMainProfileTab_FullMethodName                = "/channel.RPCChannel/channel_setMainProfileTab"
+	RPCChannel_ChannelImportCreate_FullMethodName                     = "/channel.RPCChannel/channel_importCreate"
+	RPCChannel_ChannelImportMessages_FullMethodName                   = "/channel.RPCChannel/channel_importMessages"
+	RPCChannel_ChannelImportFinish_FullMethodName                     = "/channel.RPCChannel/channel_importFinish"
+	RPCChannel_ChannelImportGetState_FullMethodName                   = "/channel.RPCChannel/channel_importGetState"
+	RPCChannel_ChannelImportAbort_FullMethodName                      = "/channel.RPCChannel/channel_importAbort"
 )
 
 // RPCChannelClient is the client API for RPCChannel service.
@@ -319,6 +324,16 @@ type RPCChannelClient interface {
 	ChannelGetInactiveChannels(ctx context.Context, in *TLChannelGetInactiveChannels, opts ...grpc.CallOption) (*mtproto.Messages_InactiveChats, error)
 	// pluma: task 078
 	ChannelSetMainProfileTab(ctx context.Context, in *TLChannelSetMainProfileTab, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 083
+	ChannelImportCreate(ctx context.Context, in *TLChannelImportCreate, opts ...grpc.CallOption) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportMessages(ctx context.Context, in *TLChannelImportMessages, opts ...grpc.CallOption) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportFinish(ctx context.Context, in *TLChannelImportFinish, opts ...grpc.CallOption) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportGetState(ctx context.Context, in *TLChannelImportGetState, opts ...grpc.CallOption) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportAbort(ctx context.Context, in *TLChannelImportAbort, opts ...grpc.CallOption) (*ChannelImport, error)
 }
 
 type rPCChannelClient struct {
@@ -1259,6 +1274,56 @@ func (c *rPCChannelClient) ChannelSetMainProfileTab(ctx context.Context, in *TLC
 	return out, nil
 }
 
+func (c *rPCChannelClient) ChannelImportCreate(ctx context.Context, in *TLChannelImportCreate, opts ...grpc.CallOption) (*ChannelImport, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChannelImport)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelImportCreate_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelImportMessages(ctx context.Context, in *TLChannelImportMessages, opts ...grpc.CallOption) (*ChannelImport, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChannelImport)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelImportMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelImportFinish(ctx context.Context, in *TLChannelImportFinish, opts ...grpc.CallOption) (*ChannelImport, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChannelImport)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelImportFinish_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelImportGetState(ctx context.Context, in *TLChannelImportGetState, opts ...grpc.CallOption) (*ChannelImport, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChannelImport)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelImportGetState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCChannelClient) ChannelImportAbort(ctx context.Context, in *TLChannelImportAbort, opts ...grpc.CallOption) (*ChannelImport, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChannelImport)
+	err := c.cc.Invoke(ctx, RPCChannel_ChannelImportAbort_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCChannelServer is the server API for RPCChannel service.
 // All implementations should embed UnimplementedRPCChannelServer
 // for forward compatibility.
@@ -1447,6 +1512,16 @@ type RPCChannelServer interface {
 	ChannelGetInactiveChannels(context.Context, *TLChannelGetInactiveChannels) (*mtproto.Messages_InactiveChats, error)
 	// pluma: task 078
 	ChannelSetMainProfileTab(context.Context, *TLChannelSetMainProfileTab) (*mtproto.Bool, error)
+	// pluma: task 083
+	ChannelImportCreate(context.Context, *TLChannelImportCreate) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportMessages(context.Context, *TLChannelImportMessages) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportFinish(context.Context, *TLChannelImportFinish) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportGetState(context.Context, *TLChannelImportGetState) (*ChannelImport, error)
+	// pluma: task 083
+	ChannelImportAbort(context.Context, *TLChannelImportAbort) (*ChannelImport, error)
 }
 
 // UnimplementedRPCChannelServer should be embedded to have
@@ -1734,6 +1809,21 @@ func (UnimplementedRPCChannelServer) ChannelGetInactiveChannels(context.Context,
 }
 func (UnimplementedRPCChannelServer) ChannelSetMainProfileTab(context.Context, *TLChannelSetMainProfileTab) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ChannelSetMainProfileTab not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelImportCreate(context.Context, *TLChannelImportCreate) (*ChannelImport, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelImportCreate not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelImportMessages(context.Context, *TLChannelImportMessages) (*ChannelImport, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelImportMessages not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelImportFinish(context.Context, *TLChannelImportFinish) (*ChannelImport, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelImportFinish not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelImportGetState(context.Context, *TLChannelImportGetState) (*ChannelImport, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelImportGetState not implemented")
+}
+func (UnimplementedRPCChannelServer) ChannelImportAbort(context.Context, *TLChannelImportAbort) (*ChannelImport, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ChannelImportAbort not implemented")
 }
 func (UnimplementedRPCChannelServer) testEmbeddedByValue() {}
 
@@ -3429,6 +3519,96 @@ func _RPCChannel_ChannelSetMainProfileTab_Handler(srv interface{}, ctx context.C
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCChannel_ChannelImportCreate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelImportCreate)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelImportCreate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelImportCreate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelImportCreate(ctx, req.(*TLChannelImportCreate))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelImportMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelImportMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelImportMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelImportMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelImportMessages(ctx, req.(*TLChannelImportMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelImportFinish_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelImportFinish)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelImportFinish(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelImportFinish_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelImportFinish(ctx, req.(*TLChannelImportFinish))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelImportGetState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelImportGetState)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelImportGetState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelImportGetState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelImportGetState(ctx, req.(*TLChannelImportGetState))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCChannel_ChannelImportAbort_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLChannelImportAbort)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCChannelServer).ChannelImportAbort(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCChannel_ChannelImportAbort_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCChannelServer).ChannelImportAbort(ctx, req.(*TLChannelImportAbort))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCChannel_ServiceDesc is the grpc.ServiceDesc for RPCChannel service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -3807,6 +3987,26 @@ var RPCChannel_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "channel_setMainProfileTab",
 			Handler:    _RPCChannel_ChannelSetMainProfileTab_Handler,
+		},
+		{
+			MethodName: "channel_importCreate",
+			Handler:    _RPCChannel_ChannelImportCreate_Handler,
+		},
+		{
+			MethodName: "channel_importMessages",
+			Handler:    _RPCChannel_ChannelImportMessages_Handler,
+		},
+		{
+			MethodName: "channel_importFinish",
+			Handler:    _RPCChannel_ChannelImportFinish_Handler,
+		},
+		{
+			MethodName: "channel_importGetState",
+			Handler:    _RPCChannel_ChannelImportGetState_Handler,
+		},
+		{
+			MethodName: "channel_importAbort",
+			Handler:    _RPCChannel_ChannelImportAbort_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

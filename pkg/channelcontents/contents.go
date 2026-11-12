@@ -36,6 +36,11 @@
 // history_item.cpp:1855) and leaves the others out of its list of unread
 // mentions (history_unread_things.cpp:216). The mentions are the rows of
 // channel_message_mentions.
+//
+// The history a group was imported with (task 083, ADR 0051) is played for
+// everyone, the members who join later too: the export it came from does
+// not tell who played what, and the owner chose that nothing of it is
+// unread. channels.imported_max_id is the last message of that history.
 package channelcontents
 
 import (
@@ -70,6 +75,9 @@ type State struct {
 	// authors wrote the voice and round video messages (LoadAll): a push
 	// comes from whoever changed a message, not always from its author.
 	authors map[int32]int64
+	// imported is the last message of the channel's imported history,
+	// played for everyone; 0 for a channel without one.
+	imported int32
 }
 
 // Load reads the state of messages of channelId for user; user 0 (no one)
@@ -107,6 +115,13 @@ func load(ctx context.Context, q Querier, channelId, user int64, messages []*mtp
 		byUser, userArgs = " AND user_id = ?", []any{user}
 	}
 	if len(consumable) > 0 {
+		var imported []int32
+		if err := q.QueryRowsPartial(ctx, &imported, "SELECT imported_max_id FROM channels WHERE id = ?", channelId); err != nil {
+			return nil, err
+		}
+		if len(imported) > 0 {
+			s.imported = imported[0]
+		}
 		var rows []struct {
 			UserId    int64 `db:"user_id"`
 			MessageId int32 `db:"message_id"`
@@ -159,8 +174,9 @@ func load(ctx context.Context, q Querier, channelId, user int64, messages []*mtp
 // media_unread while that mention is unread, and for a voice or round video
 // message viewer has not played. Viewer's own messages are never unread for
 // it, nor anything for one not in the channel, which cannot read them
-// (channels.readMessageContents: CHANNEL_PRIVATE). A nil s has nothing
-// played and no mentions.
+// (channels.readMessageContents: CHANNEL_PRIVATE), nor a voice or round
+// video message of the history the channel was imported with. A nil s has
+// nothing played and no mentions.
 func (s *State) View(m *mtproto.Message, viewer int64, own, member bool) {
 	if m == nil || m.GetPredicateName() != mtproto.Predicate_message {
 		return
@@ -180,7 +196,7 @@ func (s *State) View(m *mtproto.Message, viewer int64, own, member bool) {
 	if !member {
 		return
 	}
-	m.MediaUnread = unreadMention || Consumable(m) && (s == nil || !s.read[k])
+	m.MediaUnread = unreadMention || Consumable(m) && (s == nil || !s.read[k] && m.GetId() > s.imported)
 }
 
 // Author is who wrote the voice or round video message id (sender_user_id),

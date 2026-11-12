@@ -379,6 +379,26 @@ func (noChannels) ChannelSetMainProfileTab(context.Context, *channelpb.TLChannel
 	return nil, mtproto.ErrChannelInvalid
 }
 
+func (noChannels) ChannelImportCreate(context.Context, *channelpb.TLChannelImportCreate) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportMessages(context.Context, *channelpb.TLChannelImportMessages) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportFinish(context.Context, *channelpb.TLChannelImportFinish) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportGetState(context.Context, *channelpb.TLChannelImportGetState) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
+func (noChannels) ChannelImportAbort(context.Context, *channelpb.TLChannelImportAbort) (*channelpb.ChannelImport, error) {
+	return nil, mtproto.ErrChannelInvalid
+}
+
 func (noChannels) ChannelUpdateColor(context.Context, *channelpb.TLChannelUpdateColor) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrChannelInvalid
 }
