@@ -22,9 +22,14 @@ import (
 )
 
 // ownLanguages are the languages of own.json: the languages of the clients.
+// The file is read again: the integration tests empty ownStrings.
 func ownLanguages() []string {
+	own, err := loadOwn(ownJSON)
+	if err != nil {
+		panic(err)
+	}
 	set := map[string]bool{}
-	for _, keys := range ownStrings {
+	for _, keys := range own {
 		for _, texts := range keys {
 			for lang := range texts {
 				set[lang] = true

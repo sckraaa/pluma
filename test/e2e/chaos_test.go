@@ -89,6 +89,15 @@ func restore(t *testing.T) {
 			fakeSTTAddr = addr
 		}
 	}
+	if fakeMailAddr != "" {
+		out, err = exec.Command(runScript, "compose", "port", "fakemail", "8080").Output()
+		if err != nil {
+			t.Fatalf("fakemail port: %v", err)
+		}
+		if addr := strings.TrimSpace(string(out)); addr != "" {
+			fakeMailAddr = addr
+		}
+	}
 }
 
 // sendOnce sends text with a fixed random_id until the server answers: a
