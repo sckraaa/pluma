@@ -513,8 +513,6 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 		// user.Phone = contact.Phone
 		user.CloseFriend = contact.CloseFriend
 		user.StoriesHidden = contact.StoriesHidden
-		user.StoriesMaxId_FLAGINT32 = m.StoriesMaxId()
-		user.StoriesMaxId_FLAGRECENTSTORY = m.StoriesMaxId_FLAGRECENTSTORY()
 	} else {
 		// reverse contact
 		reverseContact := m.GetReverseContactData(selfUser.Id())
@@ -541,8 +539,8 @@ func (m *ImmutableUser) ToUnsafeUser(selfUser *ImmutableUser) *User {
 	// status
 	user.Status = m.StatusFor(selfUser)
 
-	//// TODO: check stories_unavailable
-	// user.StoriesUnavailable = false
+	// pluma: the newest story the viewer may open (task 084, ADR 0054)
+	m.storiesMaxIdOf(user, selfUser.Id(), selfUser.IsBot())
 
 	return user
 }
@@ -599,8 +597,8 @@ func (m *ImmutableUser) ToSelfUser() *User {
 		LangCode:                     nil,
 		EmojiStatus:                  m.EmojiStatus(),
 		Usernames:                    nil,
-		StoriesMaxId_FLAGINT32:       m.StoriesMaxId(),
-		StoriesMaxId_FLAGRECENTSTORY: m.StoriesMaxId_FLAGRECENTSTORY(),
+		StoriesMaxId_FLAGINT32:       nil,
+		StoriesMaxId_FLAGRECENTSTORY: nil,
 		Color_FLAGPEERCOLOR:          m.Color(),
 		Color:                        m.Color().GetColor(),
 		Color_FLAGINT32:              m.Color().GetColor(),
@@ -622,6 +620,9 @@ func (m *ImmutableUser) ToSelfUser() *User {
 		user.Username = MakeFlagsString(m.Username())
 		user.Usernames = nil
 	}
+
+	// pluma: the account's own newest story in the feeds (task 084)
+	m.storiesMaxIdOf(user, m.Id(), m.IsBot())
 
 	return user
 }
@@ -780,8 +781,6 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 		// user.Phone = reverseContact.Phone
 		user.CloseFriend = reverseContact.CloseFriend
 		user.StoriesHidden = reverseContact.StoriesHidden
-		user.StoriesMaxId_FLAGINT32 = m.StoriesMaxId()
-		user.StoriesMaxId_FLAGRECENTSTORY = m.StoriesMaxId_FLAGRECENTSTORY()
 	}
 
 	// phone (pluma: also to one who keeps the number in its contacts)
@@ -803,8 +802,8 @@ func (m *ImmutableUser) toUser(selfUserId int64, viewer *ImmutableUser) *User {
 		}
 	}
 
-	// TODO: check stories_unavailable
-	// user.StoriesUnavailable = false
+	// pluma: the newest story the viewer may open (task 084, ADR 0054)
+	m.storiesMaxIdOf(user, selfUserId, viewer != nil && viewer.IsBot())
 
 	return user
 }
