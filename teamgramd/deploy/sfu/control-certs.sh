@@ -66,6 +66,7 @@ install -m 0400 "$work/server.pem" "$work/server-key.pem" "$work/client-ca.pem" 
 install -m 0400 "$work/client.pem" "$work/client-key.pem" "$work/server-ca.pem" "$bff_dir/"
 if [ "$(id -u)" = 0 ]; then
 	# The SFU's image runs as nonroot (uid 65532).
-	chown 65532:65532 "$sfu_dir"/server.pem "$sfu_dir"/server-key.pem "$sfu_dir"/client-ca.pem
+	# The folder too: mkdir makes it root-only, and the SFU could not reach its files.
+	chown 65532:65532 "$sfu_dir" "$sfu_dir"/server.pem "$sfu_dir"/server-key.pem "$sfu_dir"/client-ca.pem
 fi
 echo "SFU: $sfu_dir (names: $san); bff: $bff_dir"
