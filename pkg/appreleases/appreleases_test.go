@@ -82,6 +82,16 @@ func TestValidVersion(t *testing.T) {
 	}
 }
 
+// TestCanBeMandatory: only the apps that take an update from
+// help.getAppUpdate have mandatory releases.
+func TestCanBeMandatory(t *testing.T) {
+	for p, want := range map[string]bool{Android: true, IOS: true, MacOS: false, Windows: false, Linux: false, "web": false} {
+		if got := CanBeMandatory(p); got != want {
+			t.Errorf("CanBeMandatory(%q) = %v", p, got)
+		}
+	}
+}
+
 func TestNotes(t *testing.T) {
 	r := &Release{NotesEn: "en", NotesRu: "ru"}
 	if r.Notes("ru") != "ru" || r.Notes("en") != "en" || r.Notes("de") != "en" {

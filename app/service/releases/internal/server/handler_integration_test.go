@@ -377,3 +377,57 @@ func TestAdminRoutes(t *testing.T) {
 		t.Errorf("an unknown platform: %d", code)
 	}
 }
+
+// TestMandatoryUpload: CI makes a release mandatory at its upload, stored
+// with the release; an optional repeat keeps it mandatory, a mandatory
+// repeat of an optional build is refused (422), and a can_not_skip that is
+// neither 1 nor 0, or 1 for a desktop platform, is refused and stores
+// nothing.
+func TestMandatoryUpload(t *testing.T) {
+	h, _, srv := newHandler(t)
+	ctx := context.Background()
+	android := func(flag string) []part {
+		return []part{{name: "platform", body: "android"}, {name: "version", body: "12.9.1.301"}, {name: "build", body: "301"},
+			{name: "can_not_skip", body: flag}, {name: "installer", file: "Pluma-12.9.1.301.apk", body: "PK 301"}}
+	}
+	if code, body := upload(t, srv, token, android("1")...); code != http.StatusOK {
+		t.Fatalf("a mandatory upload: %d %s", code, body)
+	}
+	if rel, err := appreleases.ByBuild(ctx, h.DB, appreleases.Android, 301); err != nil || rel == nil || !rel.CanNotSkip {
+		t.Fatalf("the mandatory release %+v, %v", rel, err)
+	}
+	if code, body := upload(t, srv, token, android("0")...); code != http.StatusConflict {
+		t.Errorf("an optional repeat of a mandatory build: %d %s", code, body)
+	}
+	if rel, err := appreleases.ByBuild(ctx, h.DB, appreleases.Android, 301); err != nil || rel == nil || !rel.CanNotSkip {
+		t.Errorf("after an optional repeat %+v, %v", rel, err)
+	}
+
+	ios := func(build, flag string) []part {
+		return []part{{name: "platform", body: "ios"}, {name: "version", body: "12.9.2"}, {name: "build", body: build},
+			{name: "can_not_skip", body: flag}}
+	}
+	if code, body := upload(t, srv, token, ios("71", "")...); code != http.StatusOK {
+		t.Fatalf("an optional iOS upload: %d %s", code, body)
+	}
+	if code, body := upload(t, srv, token, ios("71", "1")...); code != http.StatusUnprocessableEntity || !strings.Contains(body, "pluma-admin release mandatory") {
+		t.Errorf("a mandatory repeat of an optional build: %d %s", code, body)
+	}
+	if rel, err := appreleases.ByBuild(ctx, h.DB, appreleases.IOS, 71); err != nil || rel == nil || rel.CanNotSkip {
+		t.Errorf("after a refused mandatory repeat %+v, %v", rel, err)
+	}
+	if code, body := upload(t, srv, token, ios("72", "true")...); code != http.StatusBadRequest {
+		t.Errorf("can_not_skip=true: %d %s", code, body)
+	}
+	if rel, err := appreleases.ByBuild(ctx, h.DB, appreleases.IOS, 72); err != nil || rel != nil {
+		t.Errorf("a refused upload stored %+v, %v", rel, err)
+	}
+	if code, body := upload(t, srv, token, part{name: "platform", body: "macos"}, part{name: "version", body: "7.0.9.00301"},
+		part{name: "build", body: "301"}, part{name: "can_not_skip", body: "1"},
+		part{name: "installer", file: "Pluma-7.0.9.00301-macos-universal.zip", body: "zip"}); code != http.StatusBadRequest || !strings.Contains(body, "no mandatory updates") {
+		t.Errorf("a mandatory macOS upload: %d %s", code, body)
+	}
+	if rel, err := appreleases.ByBuild(ctx, h.DB, appreleases.MacOS, 301); err != nil || rel != nil {
+		t.Errorf("a refused macOS upload stored %+v, %v", rel, err)
+	}
+}

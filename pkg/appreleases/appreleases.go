@@ -54,6 +54,14 @@ func Known(p string) bool {
 	return false
 }
 
+// CanBeMandatory tells whether a release of the platform can be mandatory:
+// only the Android and iOS apps take an update from help.getAppUpdate, the
+// one that carries can_not_skip. The desktop app updates itself over HTTP,
+// which has no mandatory updates (docs/ops/releases.md).
+func CanBeMandatory(platform string) bool {
+	return platform == Android || platform == IOS
+}
+
 // The kinds of files of a release.
 const (
 	// KindInstaller is what the site offers for a first install: the APK,
@@ -235,7 +243,21 @@ func ByVersion(ctx context.Context, db *sqlx.DB, platform, version string) (*Rel
 // goes back to the one before, or forward again. It tells whether the
 // platform had the build.
 func SetWithdrawn(ctx context.Context, db *sqlx.DB, platform string, build int32, withdrawn bool) (bool, error) {
-	res, err := db.Exec(ctx, "UPDATE app_releases SET withdrawn = ? WHERE platform = ? AND build = ?", withdrawn, platform, build)
+	return setFlag(ctx, db, "withdrawn", platform, build, withdrawn)
+}
+
+// SetCanNotSkip makes a release mandatory, or optional again (task 095):
+// help.getAppUpdate offers it with can_not_skip, which the apps show as a
+// screen without "Skip" (docs/ops/releases.md says what each does). It
+// tells whether the platform had the build.
+func SetCanNotSkip(ctx context.Context, db *sqlx.DB, platform string, build int32, canNotSkip bool) (bool, error) {
+	return setFlag(ctx, db, "can_not_skip", platform, build, canNotSkip)
+}
+
+// setFlag sets a flag column of the platform's release of build and tells
+// whether the platform had the build.
+func setFlag(ctx context.Context, db *sqlx.DB, column, platform string, build int32, value bool) (bool, error) {
+	res, err := db.Exec(ctx, "UPDATE app_releases SET "+column+" = ? WHERE platform = ? AND build = ?", value, platform, build)
 	if err != nil {
 		return false, err
 	}

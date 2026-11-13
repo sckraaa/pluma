@@ -111,9 +111,10 @@ func (h *Handler) Routes() http.Handler {
 }
 
 // upload takes a release: the form fields platform, version, build,
-// notes_en, notes_ru, can_not_skip ("1") and the files, each a part named
-// installer or update, with ".<arch>" for a desktop file of one processor
-// (installer.arm64), and its file name.
+// notes_en, notes_ru, can_not_skip ("1" makes it mandatory, see
+// canNotSkip) and the files, each a part named installer or update, with
+// ".<arch>" for a desktop file of one processor (installer.arm64), and its
+// file name.
 func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	auth := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 	if subtle.ConstantTimeCompare([]byte(auth), []byte(h.Token)) != 1 {
@@ -183,7 +184,10 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	}
 	rel.Build = int32(build)
 	rel.NotesEn, rel.NotesRu = fields["notes_en"], fields["notes_ru"]
-	rel.CanNotSkip = fields["can_not_skip"] == "1"
+	if rel.CanNotSkip, err = canNotSkip(rel.Platform, fields["can_not_skip"]); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	if err = checkFiles(rel); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -226,6 +230,28 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request) {
 	logx.WithContext(r.Context()).Infof("releases: %s %s (build %d) released, %d files", rel.Platform, rel.Version, rel.Build, len(rel.Files))
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(h.view(rel))
+}
+
+// canNotSkip reads the can_not_skip field of an upload: "1" makes the
+// release mandatory from its first offer, "0" or none leaves it optional.
+// Android keeps the offer of a version it was given and does not look at
+// the answer for that version again (LaunchActivity.java:6153-6155,
+// DrKLO/Telegram 7be672ea), so a release made mandatory only after its
+// upload may stay optional for the apps that checked in between; CI sets
+// the flag here instead (task 095). Any other value is refused rather than
+// taken for optional, and so is "1" for the desktop platforms, whose
+// updater has no mandatory updates.
+func canNotSkip(platform, v string) (bool, error) {
+	switch v {
+	case "", "0":
+		return false, nil
+	case "1":
+		if !appreleases.CanBeMandatory(platform) {
+			return false, errors.New(platform + ": the desktop app has no mandatory updates; only android and ios do")
+		}
+		return true, nil
+	}
+	return false, fmt.Errorf("bad can_not_skip %q: 1 or 0", v)
 }
 
 // checkFiles checks the files of a release: Android one APK; iOS none (the
@@ -312,7 +338,13 @@ func (h *Handler) importAPK(ctx context.Context, rel *appreleases.Release, path 
 // released tells whether rel may be published, 0 when it may.
 //   - 409: the platform has its build already, of the same version and with
 //     the same files. That is CI's repeat when a job runs again, and the
-//     scripts of CI take 409 for one.
+//     scripts of CI take 409 for one. The release keeps its can_not_skip:
+//     an optional repeat does not undo pluma-admin release mandatory.
+//   - 422: that repeat asks for a mandatory release, and the build is
+//     released optional. Taking it for a repeat would leave the release
+//     optional while CI reports it done; the operator makes it mandatory
+//     with pluma-admin, knowing that the Android apps that were offered it
+//     already keep it optional (canNotSkip).
 //   - 422: the platform has its build already with another version or other
 //     files (a run number that started again, a version changed under the
 //     same number): no repeat, and the scripts must fail on it. And a
@@ -329,6 +361,9 @@ func (h *Handler) released(ctx context.Context, rel *appreleases.Release) (int, 
 		return 0, "", err
 	} else if old != nil {
 		if sameRelease(old, rel) {
+			if rel.CanNotSkip && !old.CanNotSkip {
+				return http.StatusUnprocessableEntity, fmt.Sprintf("build %d is released already, optional; pluma-admin release mandatory makes it mandatory", old.Build), nil
+			}
 			return http.StatusConflict, "the build is released already", nil
 		}
 		return http.StatusUnprocessableEntity, fmt.Sprintf("build %d is released already, as version %s with other files", old.Build, old.Version), nil

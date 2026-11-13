@@ -202,3 +202,58 @@ func TestHelpGetAppUpdateFromTheApp(t *testing.T) {
 		}
 	}
 }
+
+// TestHelpGetAppUpdateMandatory: a release the operator makes mandatory
+// (pluma-admin release mandatory, task 095) is offered with can_not_skip
+// to Android and iOS, and without it once it is optional again; setting
+// the state a release has already finds it, a build the platform does not
+// have is not found.
+func TestHelpGetAppUpdateMandatory(t *testing.T) {
+	ctx := context.Background()
+	for _, r := range []*appreleases.Release{
+		{Platform: appreleases.Android, Version: "12.9.1.9", Build: 9, DocumentID: 99, NotesEn: "Android 9", Files: []appreleases.File{}, CreatedAt: time.Now().Unix()},
+		{Platform: appreleases.IOS, Version: "12.9.2", Build: 80, NotesEn: "iOS 80", Files: []appreleases.File{}, CreatedAt: time.Now().Unix()},
+	} {
+		if err := appreleases.Insert(ctx, itDB, r); err != nil {
+			t.Fatal(err)
+		}
+	}
+	apps := []struct {
+		platform   string
+		build      int32
+		apiId      int32
+		appVersion string
+		version    string
+	}{
+		{appreleases.Android, 9, apiIdAndroid, "12.9.1.6 (6979069)", "12.9.1.9"},
+		{appreleases.IOS, 80, apiIdIOS, "12.9.2 (55) adhoc", "12.9.2 (80)"},
+	}
+	ask := func(apiId int32, appVersion, version string) bool {
+		t.Helper()
+		got, err := appUpdateCore(apiId, appVersion, "en").HelpGetAppUpdate(&mtproto.TLHelpGetAppUpdate{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.GetPredicateName() != mtproto.Predicate_help_appUpdate || got.GetVersion() != version {
+			t.Fatalf("%s %q, want help.appUpdate %q", got.GetPredicateName(), got.GetVersion(), version)
+		}
+		return got.GetCanNotSkip()
+	}
+	for _, a := range apps {
+		if ask(a.apiId, a.appVersion, a.version) {
+			t.Errorf("%s: can_not_skip before the operator set it", a.platform)
+		}
+		for _, mandatory := range []bool{true, true, false, false} {
+			found, err := appreleases.SetCanNotSkip(ctx, itDB, a.platform, a.build, mandatory)
+			if err != nil || !found {
+				t.Fatalf("%s build %d mandatory %v: found %v, %v", a.platform, a.build, mandatory, found, err)
+			}
+			if got := ask(a.apiId, a.appVersion, a.version); got != mandatory {
+				t.Errorf("%s mandatory %v: can_not_skip %v", a.platform, mandatory, got)
+			}
+		}
+	}
+	if found, err := appreleases.SetCanNotSkip(ctx, itDB, appreleases.Android, 12345, true); err != nil || found {
+		t.Errorf("a build android does not have: found %v, %v", found, err)
+	}
+}
