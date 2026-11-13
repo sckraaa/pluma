@@ -183,6 +183,12 @@ func TestShippedConfig(t *testing.T) {
 		v.GetValue_FLOAT64() != authsession.AuthorizationAutoconfirmPeriod {
 		t.Errorf("authorization_autoconfirm_period %v, want %d", v, authsession.AuthorizationAutoconfirmPeriod)
 	}
+	// Android asks for an update of the app at most this often (task 095:
+	// a release reaches the apps within an hour; MessagesController.java
+	// :3216-3233, LaunchActivity.java:6134 at 7be672ea).
+	if v := field(t, c, "inapp_update_check_delay"); v.GetPredicateName() != mtproto.Predicate_jsonNumber || v.GetValue_FLOAT64() != 3600 {
+		t.Errorf("inapp_update_check_delay %v, want 3600", v)
+	}
 }
 
 // Every key the server sends is in the table of docs/ops/app-config.md with

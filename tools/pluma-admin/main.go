@@ -30,7 +30,7 @@
 //	pluma-admin [-f bff.yaml] langpack import [-pack <pack>] [-lang <lang>] [-keys] <dir>
 //	pluma-admin [-f bff.yaml] langpack list [-pack <pack>]
 //	pluma-admin [-f bff.yaml] catalog import <dir>
-//	pluma-admin [-f bff.yaml] release list|withdraw|restore [<platform> <build>]
+//	pluma-admin [-f bff.yaml] release list|withdraw|restore|mandatory|optional [<platform> <build>]
 //	pluma-admin [-f bff.yaml] import-chat accounts|map|plan|run|status|abort ...
 //	pluma-admin [-f bff.yaml] calls show <call id>
 //	pluma-admin catalog check <dir>
@@ -233,6 +233,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] catalog import <dir>   (a collection of the catalog from Telegram, task 024)
   pluma-admin [-f bff.yaml] release list           (the current release of each client app, task 054)
   pluma-admin [-f bff.yaml] release withdraw|restore <platform> <build>   (roll a release back, or forward again)
+  pluma-admin [-f bff.yaml] release mandatory|optional android|ios <build>   (the apps offer the release without "Skip", or with it again)
   pluma-admin [-f bff.yaml] import-chat accounts   (the Pluma accounts and their ids)
   pluma-admin [-f bff.yaml] import-chat map -dir <export> [-out <mapping.json>]   (who of a Telegram export is who in Pluma, to fill)
   pluma-admin [-f bff.yaml] import-chat plan -dir <export> [-mapping <file>] [-missing-media=skip]   (what would be imported; writes nothing)

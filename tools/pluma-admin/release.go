@@ -28,12 +28,25 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/conf"
 )
 
-// releaseCommand runs release list, withdraw and restore (task 054,
-// docs/ops/releases.md): the current release of a platform is its latest
-// build not withdrawn, so withdrawing it rolls the site and the apps'
-// update back to the build before.
+// releaseCommand runs release list, withdraw, restore, mandatory and
+// optional (tasks 054 and 095, docs/ops/releases.md): the current release
+// of a platform is its latest build not withdrawn, so withdrawing it rolls
+// the site and the apps' update back to the build before; a mandatory
+// release is offered with can_not_skip.
 func releaseCommand(args []string, configFile string, stdout io.Writer) error {
 	if len(args) < 2 {
+		return errUsage
+	}
+	var platform string
+	var build int32
+	switch args[1] {
+	case "list":
+	case "withdraw", "restore", "mandatory", "optional":
+		var err error
+		if platform, build, err = releaseTarget(args); err != nil {
+			return err
+		}
+	default:
 		return errUsage
 	}
 	var cfg struct{ Mysql sqlx.Config }
@@ -46,45 +59,84 @@ func releaseCommand(args []string, configFile string, stdout io.Writer) error {
 	switch args[1] {
 	case "list":
 		tw := tabwriter.NewWriter(stdout, 0, 4, 2, ' ', 0)
-		fmt.Fprintln(tw, "PLATFORM\tCURRENT VERSION\tBUILD\tRELEASED")
+		fmt.Fprintln(tw, "PLATFORM\tCURRENT VERSION\tBUILD\tMANDATORY\tRELEASED")
 		for _, p := range appreleases.Platforms {
 			rel, err := appreleases.Current(ctx, db, p)
 			if err != nil {
 				return err
 			}
 			if rel == nil {
-				fmt.Fprintf(tw, "%s\t-\t-\t-\n", p)
+				fmt.Fprintf(tw, "%s\t-\t-\t-\t-\n", p)
 				continue
 			}
-			fmt.Fprintf(tw, "%s\t%s\t%d\t%s\n", p, rel.Version, rel.Build, time.Unix(rel.CreatedAt, 0).UTC().Format(time.DateTime+" MST"))
+			fmt.Fprintf(tw, "%s\t%s\t%d\t%s\t%s\n", p, rel.Version, rel.Build, mandatoryColumn(rel),
+				time.Unix(rel.CreatedAt, 0).UTC().Format(time.DateTime+" MST"))
 		}
 		return tw.Flush()
 	case "withdraw", "restore":
-		if len(args) != 4 || !appreleases.Known(args[2]) {
-			return errUsage
-		}
-		build, err := strconv.ParseInt(args[3], 10, 32)
-		if err != nil {
-			return errUsage
-		}
-		found, err := appreleases.SetWithdrawn(ctx, db, args[2], int32(build), args[1] == "withdraw")
+		found, err := appreleases.SetWithdrawn(ctx, db, platform, build, args[1] == "withdraw")
 		if err != nil {
 			return err
 		}
 		if !found {
-			return fmt.Errorf("%s has no build %d", args[2], build)
+			return fmt.Errorf("%s has no build %d", platform, build)
 		}
 		done := map[string]string{"withdraw": "withdrawn", "restore": "restored"}[args[1]]
-		rel, err := appreleases.Current(ctx, db, args[2])
+		rel, err := appreleases.Current(ctx, db, platform)
 		if err != nil {
 			return err
 		}
 		if rel == nil {
-			fmt.Fprintf(stdout, "%s: build %d %s; no release is current now.\n", args[2], build, done)
+			fmt.Fprintf(stdout, "%s: build %d %s; no release is current now.\n", platform, build, done)
 			return nil
 		}
-		fmt.Fprintf(stdout, "%s: build %d %s; current now %s (build %d).\n", args[2], build, done, rel.Version, rel.Build)
+		fmt.Fprintf(stdout, "%s: build %d %s; current now %s (build %d).\n", platform, build, done, rel.Version, rel.Build)
 		return nil
 	}
-	return errUsage
+	found, err := appreleases.SetCanNotSkip(ctx, db, platform, build, args[1] == "mandatory")
+	if err != nil {
+		return err
+	}
+	if !found {
+		return fmt.Errorf("%s has no build %d", platform, build)
+	}
+	fmt.Fprintf(stdout, "%s: build %d is %s now.\n", platform, build, args[1])
+	return nil
+}
+
+// releaseTarget is the platform and build of release withdraw, restore,
+// mandatory and optional. Only the Android and iOS apps take an update
+// from help.getAppUpdate, the one that carries can_not_skip; the desktop
+// app updates itself over HTTP, which has no mandatory updates
+// (docs/ops/releases.md).
+func releaseTarget(args []string) (string, int32, error) {
+	if len(args) != 4 || !appreleases.Known(args[2]) {
+		return "", 0, errUsage
+	}
+	build, err := strconv.ParseInt(args[3], 10, 32)
+	if err != nil {
+		return "", 0, errUsage
+	}
+	if (args[1] == "mandatory" || args[1] == "optional") && !canBeMandatory(args[2]) {
+		return "", 0, fmt.Errorf("%s: the desktop app has no mandatory updates; only android and ios do", args[2])
+	}
+	return args[2], int32(build), nil
+}
+
+// canBeMandatory tells whether the apps of the platform take an update
+// from help.getAppUpdate.
+func canBeMandatory(platform string) bool {
+	return platform == appreleases.Android || platform == appreleases.IOS
+}
+
+// mandatoryColumn is the MANDATORY column of release list: "-" where the
+// apps have no mandatory updates.
+func mandatoryColumn(rel *appreleases.Release) string {
+	switch {
+	case !canBeMandatory(rel.Platform):
+		return "-"
+	case rel.CanNotSkip:
+		return "yes"
+	}
+	return "no"
 }

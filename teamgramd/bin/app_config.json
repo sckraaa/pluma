@@ -120,6 +120,8 @@
     "background_connection": true,
     "keep_alive_service": true,
 
+    "inapp_update_check_delay": 3600,
+
     "url_auth_domains": [],
     "autologin_domains": [],
     "whitelisted_domains": ["pluma.chat"],
