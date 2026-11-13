@@ -80,6 +80,8 @@ services:
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
+      # bff.yaml names the SFU of group calls (task 093); empty: off.
+      GROUPCALLS_SFU_ENDPOINT: ${GROUPCALLS_SFU_ENDPOINT:-}
       # bff.yaml names the speech engine of voice transcription (task 090); empty: off.
       STT_URL: ${STT_URL:-}
       STT_TOKEN: ${STT_TOKEN:-}
@@ -292,6 +294,10 @@ services:
       CALLS_ICE_SERVERS: ${CALLS_ICE_SERVERS:-}
       CALLS_TURN_SECRET: ${CALLS_TURN_SECRET:-}
       CALLS_QUALITY: ${CALLS_QUALITY:-}
+      # The control API of the SFU of group calls (task 093,
+      # docs/ops/group-calls.md); empty: group calls are off.
+      # docker-compose.sfu.yaml sets it for the node it runs.
+      GROUPCALLS_SFU_ENDPOINT: ${GROUPCALLS_SFU_ENDPOINT:-}
       # The speech engine of voice transcription (task 090,
       # docs/ops/transcription.md); no URL: transcription is off.
       STT_URL: ${STT_URL:-}

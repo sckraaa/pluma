@@ -78,6 +78,13 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"email pattern", `func f(p *mtproto.Account_Password) error { return fmt.Errorf("pattern %s", p.GetEmailUnconfirmedPattern()) }`, []string{"secret"}},
 		{"mail api key", `func f(c struct{ Mail struct{ ApiKey, From string } }) { logx.Errorf("key %s, mail %+v", c.Mail.ApiKey, c.Mail) }`, []string{"secret", "secret"}},
 		{"email flag ok", `func f(confirmed bool) { logx.Infof("confirmed %v", confirmed) }`, nil},
+		{"ice credentials", `func f(r struct{ Ufrag, Pwd string }) { logx.Infof("%s %s", r.Ufrag, r.Pwd) }`, []string{"secret", "secret"}},
+		{"join params", `func f(params []byte) error { return fmt.Errorf("join %s", params) }`, []string{"secret"}},
+		{"dtls fingerprints", `func f(r struct{ Fingerprints []string }) { logx.Infof("%v", r.Fingerprints) }`, []string{"secret"}},
+		{"chain block", `func f(in *mtproto.TLPhoneJoinGroupCall) { logx.Infof("join %x key %x", in.GetBlock(), in.GetPublicKey()) }`, []string{"secret", "secret"}},
+		{"chain blocks dump", `func f(blocks [][]byte) error { return fmt.Errorf("blocks %v", blocks) }`, []string{"secret"}},
+		{"status report", `func f(report []byte) { logx.Infof("report %s", report) }`, []string{"secret"}},
+		{"chain height ok", `func f(height int32, callId int64) { logx.Infof("call %d at height %d", callId, height) }`, nil},
 		{"config with credentials", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %+v", c.Etcd) }`, []string{"secret"}},
 		{"config hosts ok", `func f(c struct{ Etcd struct{ Hosts []string; Pass string } }) { logx.Errorf("etcd %v", c.Etcd.Hosts) }`, nil},
 		// not findings

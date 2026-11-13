@@ -39,6 +39,7 @@ import (
 	files_helper "github.com/teamgram/teamgram-server/app/bff/files"
 	folders_helper "github.com/teamgram/teamgram-server/app/bff/folders"
 	gifs_helper "github.com/teamgram/teamgram-server/app/bff/gifs"
+	groupcalls_helper "github.com/teamgram/teamgram-server/app/bff/groupcalls"
 	langpackhelper "github.com/teamgram/teamgram-server/app/bff/langpack"
 	messages_helper "github.com/teamgram/teamgram-server/app/bff/messages"
 	miscellaneous_helper "github.com/teamgram/teamgram-server/app/bff/miscellaneous"
@@ -82,7 +83,10 @@ var configFile = flag.String("f", "etc/bff.yaml", "the config file")
 type Server struct {
 	grpcSrv *zrpc.RpcServer
 	calls   *voipcalls_helper.Sweeper // ends the abandoned calls (task 068)
-	stories *stories_helper.Sweeper   // takes the stories out of the feeds (task 084)
+	// groupCalls is the group calls with their collector and the intake of
+	// the SFU nodes' events (task 093).
+	groupCalls *groupcalls_helper.Module
+	stories    *stories_helper.Sweeper // takes the stories out of the feeds (task 084)
 	// transcription runs the queue of voice transcription (task 090).
 	transcription *transcription_helper.Worker
 }
@@ -139,6 +143,23 @@ func (s *Server) Initialize() error {
 		}
 		mtproto.RegisterRPCVoipCallsServer(grpcServer, voipcalls_helper.New(callsConf))
 		s.calls = voipcalls_helper.StartSweeper(callsConf)
+
+		// groupcalls_helper: phone.* of the group calls of chats and
+		// channels (task 093, ADR 0059) and the chain of their end-to-end
+		// encryption, RPCConferenceCalls (task 094, ADR 0060); the media
+		// are the SFU's.
+		s.groupCalls = groupcalls_helper.New(groupcalls_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			GroupCalls:    c.GroupCalls,
+			UserClient:    c.BizServiceClient,
+			ChatClient:    c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			MsgClient:     c.MsgClient,
+			SyncClient:    syncClient,
+		})
+		mtproto.RegisterRPCGroupCallsServer(grpcServer, s.groupCalls)
+		mtproto.RegisterRPCConferenceCallsServer(grpcServer, s.groupCalls)
 
 		// bots_helper: the methods of bot accounts (task 070, ADR 0043).
 		bots := bots_helper.New(bots_helper.Config{
@@ -685,6 +706,9 @@ func (s *Server) RunLoop() {
 func (s *Server) Destroy() {
 	if s.calls != nil {
 		s.calls.Stop()
+	}
+	if s.groupCalls != nil {
+		s.groupCalls.Stop()
 	}
 	if s.stories != nil {
 		s.stories.Stop()

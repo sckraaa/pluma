@@ -136,7 +136,8 @@ VET_FLAGS := -unreachable=false -tags=integration,e2e
 RACE_PKGS := ./pkg/... ./tools/... ./app/messenger/... \
 	./app/interface/gnetway/... ./app/interface/session/... \
 	./app/service/authsession/... ./app/bff/authorization/... ./app/bff/account/... \
-	./app/service/dfs/internal/ffmpegutil/...
+	./app/service/dfs/internal/ffmpegutil/... \
+	./app/bff/groupcalls/... ./app/service/sfu/...
 
 COVERAGE_OUT := coverage.out
 API_COVERAGE_DOC := docs/project/api-coverage.md

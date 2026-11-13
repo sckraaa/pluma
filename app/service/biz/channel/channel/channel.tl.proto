@@ -340,6 +340,13 @@ message ImmutableChannel {
     // (channel.stories_max_id), 0 for none; read from the stories' tables
     // with the channel (ADR 0054).
     int32 stories_max_id = 54;
+    // pluma: task 093: the group call of the channel that is not over (ADR
+    // 0059), read from the calls' table with the channel: channel.call_active,
+    // channel.call_not_empty (someone is in it) and channelFull.call; nil
+    // call for none.
+    bool call_active = 55;
+    bool call_not_empty = 56;
+    mtproto.InputGroupCall call = 57;
 }
 
 message TL_immutableChannel {

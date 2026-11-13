@@ -67,11 +67,12 @@ ci/lint.sh                                        # shellcheck и actionlint
 6. Литералы кода: при ошибке `CODE_TELEGRAM` разобрать каждый новый «Telegram» — показать пользователю (добавить в `CODE_NAMES`, D-013) или оставить (добавить в `CODE_TELEGRAM` с причиной).
 7. `tg://`: при ошибке счётчиков `SCHEME_FILES` найти новые места `tg://` (D-014). При ошибке `verify_links()` — новые места `t.me` (D-079…D-082): своя ссылка, хост или Telegram-only.
 8. Иконки: `ASSETS` хранит SHA-256 файлов апстрима; изменённая иконка → посмотреть, что поменял апстрим, при нужде перерисовать `brand/svg` и `brand/render.sh` (D-019), обновить хэш.
-9. Темы: значения апстрима в `brand/palette-day.txt` и `palette-night.txt` (D-021, D-022); `NIGHT_THEME_SHA256`; `TELEGRAM_THEMES` и `IDENTITY_THEMES` (D-027); новые ключи палитры, которые окажутся синими, остановят `verify_brand()`.
+9. Темы: значения апстрима в `brand/palette-day.txt` и `palette-night.txt` (D-021, D-022); `NIGHT_THEME_SHA256`; `TELEGRAM_THEMES` и `IDENTITY_THEMES` (D-027); новые ключи палитры, которые окажутся синими, остановят `verify_brand()`; значения Telegram и новые цветные ключи звонков — `CALL_COLORS` и `verify_call_colors()` (D-101).
 10. `Telegram.entitlements` изменился → решить, что приложению можно, и обновить `ci/macos.entitlements` (D-065).
 11. Каталог ассетов macOS: `ci/package.sh` остановит упаковку, если `Assets.car` апстрима держит что-то кроме иконки (D-020).
 12. `centos_env` изменился → `linux-env` соберёт новый образ (2–4 ч); проверить, что `gen_dockerfile.py` по-прежнему читает `DEBUG` и `LTO` (D-059).
 13. Поведение, которое правки обходят (D-048…D-050, D-070, D-029, D-073): прочитать новые версии `suggestion_birthday_contacts.cpp`, `dialogs_top_bar_suggestion.cpp`, `history_widget.cpp` (`refreshSendGiftToggle`), `info_profile_actions.cpp`, `data_peer.cpp` — исправил ли апстрим сам, не изменился ли смысл. Для D-073 — найти новые проверки Premium у тегов (`grep -rn 'TagsForMessages\|reactionsAreTags'`) и решить, закрывают ли они теги.
+13а. Групповые звонки (D-096…D-101): новая проверка `conference()`, новый путь входа, создания, трансляции или записи, новое место звонка живой истории останавливают `verify_group_calls_e2e()` — прочитать место и решить, относится ли оно к криптографии; новый коммит tgcalls — перенести `sendE2EStatus`.
 14. Пройти разделы «Сервер и ключ» и «Идентичность»: новые сетевые запасные пути (DNS-over-HTTPS, Firebase, новые классы), новые места с именами `Telegram.lnk`, `org.telegram.desktop`, GUID.
 15. Собрать dev-сборки трёх систем и проверить на стенде вход, QR (`plm://login?token=`), тёмную и светлую темы, баннер дня рождения.
 
@@ -260,19 +261,19 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Коммит.** `cd537bf` (2026-10-29), задача 017.
 
 ### D-021. Светлая тема по умолчанию (Classic): палитра «графит и шалфей»
-- **Что.** 94 цвета `Telegram/lib_ui/ui/colors.palette` (сабмодуль lib_ui) заменяются по таблице `brand/palette-day.txt` (`ключ: значение апстрима -> значение Pluma`). Например `windowBgActive: #40a7e3 -> #5b7a5e`, `windowFg: #000000 -> #111111`, `windowActiveTextFg: #168acd -> #4f6e52`. Акцент `#5b7a5e`, ссылки `#4f6e52`, исходящие пузыри `#e3eae2`. Остаются цвета типов файлов, тревоги, серые, палитры звонков и Premium, фон чата (узор Telegram, `data/data_wall_paper.cpp`).
+- **Что.** 94 цвета `Telegram/lib_ui/ui/colors.palette` (сабмодуль lib_ui) заменяются по таблице `brand/palette-day.txt` (`ключ: значение апстрима -> значение Pluma`). Например `windowBgActive: #40a7e3 -> #5b7a5e`, `windowFg: #000000 -> #111111`, `windowActiveTextFg: #168acd -> #4f6e52`. Акцент `#5b7a5e`, ссылки `#4f6e52`, исходящие пузыри `#e3eae2`. Остаются цвета типов файлов, тревоги, серые, палитра Premium, фон чата (узор Telegram, `data/data_wall_paper.cpp`). Палитра звонков с задачи 094 — своя, по `CALL_COLORS` (D-101).
 - **Где.** `recolor()`: каждая строка `\nключ: старое;` должна встретиться ровно один раз; старое `-` значит «добавить ключ, которого в апстриме нет».
-- **Проверка.** `verify_brand()`: после разрешения ссылок ни один ключ не синий (`is_blue`: тон 185–240°) и не из `TELEGRAM_BLUES`, кроме `KEPT_BLUE` (`msgFile1*`, `mediaviewFileBlueCornerFg`, `settingsIconBg[45]`, `stickerPanPremium[12]`, `premiumButtonBg1`, `statisticsChart*`, `groupCall*`); `BrandTest.test_palette_tables`, `test_recolor`, `test_load_table_errors`; `test_brand`; `DAMAGE`: `windowBgActive: #40a7e4`, новый ключ `newAccentFg: #3390ec`.
+- **Проверка.** `verify_brand()`: после разрешения ссылок ни один ключ не синий (`is_blue`: тон 185–240°) и не из `TELEGRAM_BLUES`, кроме `KEPT_BLUE` (`msgFile1*`, `mediaviewFileBlueCornerFg`, `settingsIconBg[45]`, `stickerPanPremium[12]`, `premiumButtonBg1`, `statisticsChart*`; до задачи 094 и `groupCall*`, теперь их проверяет `verify_call_colors()`, D-101); `BrandTest.test_palette_tables`, `test_recolor`, `test_load_table_errors`; `test_brand`; `DAMAGE`: `windowBgActive: #40a7e4`, новый ключ `newAccentFg: #3390ec`.
 - **Если апстрим сдвинет.** Изменённое значение → `PatchError` «upstream changed the colour»; новый синий ключ → `verify_brand()`.
 - **7.4.1 (задача 074), сверка.** `colors.palette` в `lib_ui` `42c6f1e8` побайтно совпадает со старым закреплённым; новых ключей нет.
 - **Сверка клиентов (задача 020).** Светлый фон чата — узор Telegram в Android и Desktop, свой в iOS и Web K.
-- **Коммиты.** `736e7fd` (2026-10-29), задача 017; `831289b` (2026-10-31) поправил таблицу под цвета-идентичности.
+- **Коммиты.** `736e7fd` (2026-10-29), задача 017; `831289b` (2026-10-31) поправил таблицу под цвета-идентичности; `d72eedb` (2026-11-12, ветка `task/094-group-calls-e2e`, не влито, не выпущено): `groupCall\w+` убрано из `KEPT_BLUE`, комментарий таблицы отсылает к `CALL_COLORS`, задача 094.
 
 ### D-022. Тёмная тема по умолчанию (Tinted): палитра и zip заново
-- **Что.** `Telegram/Resources/night.tdesktop-theme` — zip из `colors.tdesktop-theme` и `background.png`. Патч проверяет SHA-256 (`NIGHT_THEME_SHA256 = 364fcd72…`), что в zip ровно эти два файла, меняет 207 строк по `brand/palette-night.txt` (одна добавляет ключ: `historyPeerSavedMessagesBg: - -> #7fa082`), применяет цвета-идентичности (D-027) и пишет zip заново детерминированно (дата 1980-01-01, deflate) с фоном 1×1 `#0f110f`.
+- **Что.** `Telegram/Resources/night.tdesktop-theme` — zip из `colors.tdesktop-theme` и `background.png`. Патч проверяет SHA-256 (`NIGHT_THEME_SHA256 = 364fcd72…`), что в zip ровно эти два файла, меняет 207 строк по `brand/palette-night.txt` (на ветке `task/094-group-calls-e2e` — 203: строки `callBg`, `callAnswerBg`, `callAnswerRipple`, `callAnswerBgOuter` перенесены в `CALL_COLORS`, который красит звонки во всех темах, D-101) (одна добавляет ключ: `historyPeerSavedMessagesBg: - -> #7fa082`), применяет цвета-идентичности (D-027) и пишет zip заново детерминированно (дата 1980-01-01, deflate) с фоном 1×1 `#0f110f`.
 - **Проверка.** `verify_brand()` (нет синего, кроме `KEPT_BLUE`); `test_brand` (`windowBg #131513`, `msgOutBg #2c3a2d`); `BrandTest.test_night_theme_is_stable`; `test_changed_binary_files`.
 - **Если апстрим сдвинет.** Любое изменение файла → `PatchError` по SHA-256: сверить таблицу и обновить хэш.
-- **Коммиты.** `736e7fd`, `831289b`, задачи 017 и 020.
+- **Коммиты.** `736e7fd`, `831289b`, задачи 017 и 020; `d72eedb` (2026-11-12, ветка `task/094-group-calls-e2e`, не влито, не выпущено), задача 094.
 
 ### D-023. Плитка Classic в «Настройках чатов» и база выбора акцента
 - **Что.** В `Telegram/SourceFiles/window/themes/window_themes_embedded.cpp` блок `EmbeddedType::Default` (стр. 241): `qColor("eaffdc")` → `"e3eae2"` (дважды) и последний `qColor("40a7e3")` → `qColor("5b7a5e") // pluma: the accent of brand/palette-day.txt`. Точная замена блока `EMBEDDED_CLASSIC`.
@@ -589,6 +590,89 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Не входит.** Частота камеры на Windows и Linux: устройство открывается на 30 кадрах при включении камеры (`VideoCameraCapturer.cpp:21-23, 127-137`), часто до того, как у звонка есть параметры (камера исходящего видеозвонка включается при наборе), а адаптации на этих платформах нет; значение сервера 30 совпадает. Разрешение камеры (1280×720). TURN через TCP/TLS: в `NativeNetworkingImpl` нет `PROTO_TLS`, а проверка сертификата требует решения (в TL только IP, корней ISRG в сборке нет). Переключатель RNNoise для пользователя, ускорение переключения реле. Движок `InstanceV2ReferenceImpl` (10.0.0, 11.0.0) не правится.
 - **Как проверяется.** `verify_call_parameters()`: каждая правка на месте ровно раз и старого текста нет; в `InstanceV2Impl.cpp` один `kCodecParamPTime`, один `audio_jitter_buffer_min_delay_ms`, один `InitFieldTrialsFromString(`, три `->setMaxBitrate(`, один `SetCapturePostProcessing(`, один `bitrate_config`, два `new OutgoingAudioChannel(` (второй — в закомментированном коде апстрима), один `new IncomingV2AudioChannel(`, каждый ключ читается ровно раз; в `calls_call.cpp` один `tgcalls::Descriptor descriptor = {`; в движке по одному `setAdaptationFramerate(`, `SetCallScreenCaptureLimits(`, `ClearCallScreenCaptureLimits(`; в `VideoCaptureInterfaceImpl.cpp` два `adaptVideoSource(`; в `DesktopCaptureSourceHelper.cpp` два `OnCaptureResult(` и один `_scheduler.runDelayed(` — иначе другое место ставит то же значение мимо сервера, `PatchError`. `CallParametersTest`: применение и отказ повторного запуска; `test_defaults_are_upstreams` (умолчание каждого ключа и члена — число апстрима, строка испытаний та же, камера 25 без ключа, экран без пределов; с подменённым умолчанием `audio_ptime_ms` падает — проверено); `test_keys` (ключи — сервера, каждый с диапазоном в комментарии, `audio_ptime_ms` — только значения сервера); `test_screen_limits` (флаг ставят ровно два захватчика экрана, снятие только владельцем, снятие в деструкторе; без правки macOS падает — проверено); изменённый апстрим; проверка; лишнее место; `lf_only`. Порча каждого якоря в `DAMAGE` на настоящем апстриме. Файлы tgcalls добавлены в `SUBMODULE_PATHS`: разреженная выгрузка (`ci/fetch-upstream.sh sparse`) берёт их из сабмодуля на закреплённом коммите. Тестов 122, все проходят (`python3 -I -m unittest discover -s ci -p '*_test.py'` с `./upstream` v7.4.1 и tgcalls `1c236c09`, 2026-11-11).
 - **Не проверено.** Компиляция C++ (tdesktop и tgcalls — CI после пуша) и звонок в клиенте; эффект не замерен.
+
+---
+
+## Групповые звонки (задача 094)
+
+Задача 093 (первый этап групповых звонков) клиент не меняла: патчи клиентов в неё не входили. Все правки ниже — задача 094 и ADR 0060 серверного репозитория: каждый групповой звонок сквозной. Ветка `task/094-group-calls-e2e` pluma-desktop поверх v7.4.1 (`157f5cfc`, tgcalls `1c236c09`), три коммита: `60ed541` (2026-11-12: сквозной звонок, только от себя, без RTMP и живых историй, первый отчёт), `d72eedb` (2026-11-12: отчёт `PlumaE2EStatus` v1 и одно правило повторного входа, без записи, цвета звонков), `92ed8df` (2026-11-13: повторы входа по правилу ADR 0060 §5 от 2026-11-13). Таблицы `GROUP_CALLS_E2E_EDITS`, `GROUP_CALLS_E2E_SPANS`, `GROUP_CALLS_E2E_GUARDS`, `GROUP_CALLS_E2E_SOURCES`, `E2E_REJOIN_RULES`, `E2E_STATUS_FIELDS`, `E2E_STATUS_LIMITS`, `CALL_COLORS`, `CALL_COLORS_EDITS` в `ci/patch.py`; описание — README форка, «Every group call end to end» и «Colours of calls».
+
+Общее «не проверено» для D-096…D-101: компиляция и окно клиента (сборочный хост был выключен), живой звонок с SFU и другими клиентами.
+
+### D-096. Каждый групповой звонок сквозной: звонок чата — криптографией конференции (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** ADR 0060: любой групповой звонок сквозной. Апстрим шифрует только конференции: `conference()` — origin общего звонка или старт конференции (`calls_group_call.cpp:1236-1243`), `public_key`/`block` уходят только при `_e2e` (`:1650-1667`). Звонок группы или канала сохраняет интерфейс и права звонка чата и берёт криптографию конференции (tde2e).
+- **Где** (`calls/group/calls_group_call.{h,cpp}` и др.):
+  - `GroupCall::e2e()` = `conference() || !videoStream()`: шифрование не зависит от того, что сервер говорит о звонке. Флаг `rtmp_stream` и трансляция в ответе на вход не выводят звонок из шифрования (`:2364-2365`, `data_group_call.cpp:519`), а ответ никогда не читается как трансляция.
+  - `initConferenceE2E` — в конструкторе (`:693-698`) и в `startRejoin` (`:1559`); новый ключ в `rejoin(as)`, если старый уже ушёл на сервер (tde2e `Call::create` отвергает использованный ключ, `Call.cpp:608-617`, td `51743df`).
+  - Последний блок запрашивается перед каждым входом (`refreshLastBlockAndJoin`, `:1632-1636`); пустая цепочка → нулевой блок (`tde2e_api.cpp:288-296`).
+  - Удаление ушедших, как у конференции: `data_group_call.cpp:71-96` и для звонка чата; `trackParticipantsWithAccess` через `lookupReal()` (`:806-820`); подписка на `staleParticipantIds` в `subscribeToReal` → `deleteConferenceCallParticipants(only_left)` (`:822-860`).
+  - `data/data_group_call.cpp`, `calls/group/calls_group_members.cpp:553, 1768`: эмодзи ключа над участниками и строки «есть доступ» для звонков чатов. Кнопки «добавить» и «ссылка» (`:1840`) остаются звонка чата.
+- **Повторы входа (`CONF_WRITE_CHAIN_INVALID`, правило ADR 0060 §5 от 2026-11-13).** `joinFail` (`:1863-1872`, апстрим повторяет без конца): последний блок читается заново и вход идёт на нём. Отказы идут к `kE2EChainRetries` (10) только подряд на том же последнем блоке (`_e2eChainBlock`, `_e2eChainRefusedOn`) — цепочка стоит; пока она движется (все входят заново после перезапуска SFU, последний из N проигрывает до N − 1 раз подряд, серверный `TestChainJoinsHerd`), вход повторяется до `kE2EChainAttempts` (100) раз. Затем — общая ошибка входа. Счётчики сбрасываются при успешном входе. Повторный вход транспорта (дубль ssrc, `checkGroupCall`) и эти повторы в предел D-100 не идут. До 2026-11-13 — не больше 10 подряд при любом движении цепочки (`d72eedb`).
+- **Апстрим без правки.** Звонки групп и каналов без шифрования; повторы `CONF_WRITE_CHAIN_INVALID` без предела.
+- **Как проверяется.** `verify_group_calls_e2e()`: правки на месте; `GROUP_CALLS_E2E_GUARDS` — число `conference()`, `e2e()`, `initConferenceE2E();`, `scheduleE2ERejoin(` (7), `startRejoin();` (9) и др. в `calls_group_call.cpp`; константы `E2E_REJOIN_RULES` (в том числе `kE2EChainRetries` 10 и `kE2EChainAttempts` 100). Тесты `GroupCallsE2ETest` (`test_applies`, `test_upstream_changed`), `UpstreamTest.test_group_calls_e2e` (в том числе отказ входа на том же и на новом последнем блоке), `test_group_calls_e2e_changes_nothing_else`, `test_group_calls_e2e_is_verified`, `DAMAGE` всех правок.
+- **Если апстрим сдвинет.** Новая проверка `conference()` в звонке, новый путь входа или создания звонка → `PatchError` с именем файла: прочитать место и решить, относится ли оно к криптографии.
+- **Не проверено.** Шифрование вместе с simulcast.
+- **Коммиты.** `60ed541` (2026-11-12); повторы входа — `d72eedb` (2026-11-12) и `92ed8df` (2026-11-13); задача 094.
+
+### D-097. Только от своего имени (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** tgcalls берёт id отправителя из peer (`calls_group_call.cpp:3310, 3435`); у канала это 0, и ключ не найти. Сервер отвергает `join_as` ≠ сам (ADR 0060).
+- **Где.** `calls/group/calls_choose_join_as.cpp`: `processList` — список из одного пользователя (`:412-437`); запланированный звонок канала создаётся от пользователя, а не от канала (`:343`).
+- **Апстрим без правки.** Выбор «войти от имени» своих каналов.
+- **Как проверяется.** `MTPphone_GetGroupCallJoinAs(` — один раз во всех исходниках; правки — в `verify_group_calls_e2e()`.
+- **Коммит.** `60ed541`, 2026-11-12, задача 094.
+
+### D-098. Нет RTMP и живых историй (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Части трансляции приходят с сервера без шифрования; сервер RTMP и живые истории не обслуживает (ADR 0060 §4).
+- **Где.**
+  - пункт «Stream with…» (`window_peer_menu.cpp:4401-4403, 4428-4433`);
+  - `StartRtmpProcess` и `showStartWithRtmp` (`calls_instance.cpp:191, 376-385`, `.h:41, 97-99, 224`);
+  - URL и ключ трансляции в настройках звонка (`calls_group_settings.cpp:702-786`, блоком);
+  - `calls_group_rtmp.{cpp,h}` убраны из `Telegram/CMakeLists.txt` (файлы остаются, заголовок подключается без использования);
+  - без `f_rtmp_stream` (`:1304-1308`); ответ на вход не разбирается как `stream` (`:112-122`);
+  - живая история (`messageMediaVideoStream`, `data/data_stories.cpp:78-96`) отбрасывается. Это единственное место, где создаётся звонок `GroupCallOrigin::VideoStream`, поэтому `media_view_video_stream.cpp` не правится.
+- **Как проверяется.** `GROUP_CALLS_E2E_SOURCES`: `StartRtmpProcess`, `MTPphone_GetGroupCallStreamRtmpUrl(`, `GroupCallOrigin::VideoStream`, `StartLive`, `f_rtmp_stream` — только в разрешённых файлах; в CMake нет `calls_group_rtmp`.
+- **Если апстрим сдвинет.** Новый путь трансляции или новое место создания звонка живой истории → `PatchError`.
+- **Коммит.** `60ed541`, 2026-11-12, задача 094.
+
+### D-099. Нет записи звонка (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Сервер звонки не записывает (`phone.toggleGroupCallRecord` → `ErrEnterpriseIsBlocked`), меню её не предлагает.
+- **Где.** `calls/group/calls_group_menu.cpp:510-512`: `addEditRecording = false`. Блок кода остаётся и компилируется (иначе предупреждения о неиспользуемых функциях анонимного пространства имён).
+- **Как проверяется.** `GROUP_CALLS_E2E_SOURCES`: `toggleRecording(` и `Box(StartGroupCallRecordingBox` — только в меню; правка — в `verify_group_calls_e2e()`, порча в `DAMAGE`.
+- **Коммит.** `d72eedb`, 2026-11-12, задача 094.
+
+### D-100. Повторный вход по правилам и отчёт `PlumaE2EStatus` v1 (задача 094, ADR 0060 §5)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Повторный вход с новым ключом** (`scheduleE2ERejoin`, `E2E_REJOIN_RULES`):
+  - причины: сбой tde2e (`failures() | take(1)`; ключ считается один раз — `Call` шлёт сбой на каждый блок пачки, `tde2e_api.cpp:458-505`); `GROUPCALL_FORBIDDEN` записи в цепочку и опроса (`:848-853, 1909-1917, 1930-1934`); `checkE2EHealth` раз в 1 с: подцепочка 0 отстаёт от сервера дольше 12 с; 15 с ни одного расшифрованного кадра ни от кого при отказах и текущей цепочке;
+  - не больше 3 за скользящие 5 мин, задержки 0/2/5 с плюс 0–1000 мс; дальше выход с тостом `lng_pluma_group_call_e2e_failed` (английский встроен);
+  - повторные входы транспорта и `GROUPCALL_FORBIDDEN` в `editGroupCallMember` и `inviteToConference` — как в апстриме, вне предела (это членство, не цепочка).
+- **Отчёт.** Каждые 5 с от входа, только основное соединение, по каналу данных tgcalls, пока он открыт: tgcalls `GroupInstanceCustomImpl::sendE2EStatus(std::function<std::string()>)` собирает отчёт только при открытом канале. Поля `E2E_STATUS_FIELDS`/`E2E_STATUS_SENDER_FIELDS` — ровно v1: `seq` с 1 после каждого входа, высота подцепочки 0 и префикс хэша её блока в форме хранения на сервере (магия −1, tde2e `Blockchain.cpp:742-760`), смещения опроса каждой подцепочки, ошибка tde2e, эпохи шифрования, расшифрованные и неизвестные, по отправителю — кадры расшифрованные и отвергнутые по причинам с прошлого отчёта. Пределы `E2E_STATUS_LIMITS` (15/8/100 отправителей/16 КиБ), лишние отправители отбрасываются по наибольшему `lastOkMs`. Ключей, nonce, эмодзи и кадров нет.
+- **Где.** `calls_group_call.cpp` (таймеры `_e2eStatusTimer`, `_e2eCheckTimer`, `_e2eRejoinTimer`); `tde2e/tde2e_api.{h,cpp}`: счётчики в общем колбэке `EncryptDecrypt` (`:78-106`; апстрим ошибки расшифровки выбрасывает, `:91-100`), `EncryptDecrypt::health()/reset()`, `Call::status()`, `Call::laggingSince()`, `StatusReport()`; tgcalls `GroupInstanceCustomImpl`; строка `lng_pluma_group_call_e2e_failed`.
+- **Апстрим без правки.** На сбой tde2e — повторный вход без предела (`:786-789`); отчёта нет.
+- **Как проверяется.** `verify_group_calls_e2e()`: `sendE2EStatus(` 3, `_instance->sendE2EStatus(` 1; поля отчёта; константы `E2E_STATUS_LIMITS` и `E2E_REJOIN_RULES`. Тесты `GroupCallsE2ETest.test_report_is_v1` (против примера ADR), `test_report_fields`, `test_strings`; `UpstreamTest.test_group_calls_e2e`; `DAMAGE` для tgcalls.
+- **Не проверено.** Отчёт на SFU. Повторный вход транспорта с тем же ключом (ADR §5) не сделан: если старый ключ уже ушёл на сервер, берётся новый.
+- **Коммиты.** Первый отчёт и повторный вход при сбое — `60ed541` (2026-11-12, своя схема); v1 и правила ADR — `d72eedb` (2026-11-12); задача 094.
+
+### D-101. Цвета звонков «Шалфей» (задача 094, решение владельца 2026-11-12)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Вариант A «Шалфей», в тех же точках, что три градиента iOS (`CallBackgroundLayer.swift:108-124`): подключение `#3a4a3c #4f6e52 #2c3a2d #5b7a5e`; соединено `#5b7a5e #6f8f72 #4f6e52 #7fa082`; слабый сигнал `#8a5a44 #a86b4c #7a4e3b #b97a55`.
+  - **Личный звонок.** У tdesktop градиентов состояния нет: фон заливается `callBgOpaque` (`calls_panel_background.cpp:62-95`). Теперь рисуется радиальный градиент состояния, он следует смене палитры. Состояние — как в iOS (`PrivateCallScreen.swift:799-812`, `CallControllerNodeV2.swift:484`): до `Established` и после конца — подключение, 0 полосок сигнала — слабый, иначе соединено. Собственные цвета профиля собеседника — как у апстрима.
+  - **Палитра звонков** по смыслу во всех темах: фоны, списки и меню — тёмный шалфей; синий и фиолетовый (заглушён, слушает) — набор подключения или `#9dbb9f`; зелёный (говорит, в эфире) — «соединено» и `#b2ceb4`; красный и розовый (заглушён админом, поднятая рука, запланированный звонок) — слабый сигнал. Ответ, сброс и выход остаются зелёным и красным Classic.
+  - **Громкость участника** (`calls_volume_item.cpp:262-267`): цвета слабого сигнала, затем акцент.
+- **Где.**
+  - `colors.palette` (lib_ui): значения Telegram проверяются; 12 новых ключей `callBg{Connecting,Connected,Weak}1-4`.
+  - Темы, если задают ключ: `night.tdesktop-theme` (четыре строки звонков `callBg`, `callAnswerBg`, `callAnswerRipple`, `callAnswerBgOuter` перенесены из `palette-night.txt` в `CALL_COLORS`, D-022), `day-blue` (ключей звонков нет), `night-green`, `day-custom-base`, `night-custom-base`.
+  - Код: `calls/calls_panel_background.{h,cpp}` (`PanelBackground::State`, `setState`, `StateColors`, подписка на `style::PaletteChanged()`), `calls/calls_panel.cpp` (`rpl::combine(stateValue, signalBarCountValue)`), `calls/group/calls_volume_item.cpp`.
+  - `KEPT_BLUE` больше не исключает `groupCall\w+` (D-021); комментарии `brand/palette-day.txt` и `palette-night.txt` отсылают к `CALL_COLORS`.
+- **Апстрим без правки.** Сплошной тёмно-синий фон личного звонка, синие, зелёные и красные цвета группового звонка Telegram.
+- **Как проверяется.** `verify_call_colors()`: во всех шести темах каждый ключ `CALL_COLORS` равен значению Pluma; остальные ключи звонков (кроме `callArrow*` и `callBar*`) — только белые или серые; ни в одном исходнике или `.style` звонков (`calls/**`, `ui/controls/call_*`, `ui/chat/group_call_*`) нет `TELEGRAM_CALL_COLORS` и заменённых значений Telegram; каждая правка `CALL_COLORS_EDITS` на месте. Тесты `UpstreamTest.test_call_colors`, `test_call_colors_change_nothing_else`, `test_call_colors_are_verified`; `CallColorsTest` (`test_table`, `test_theme_call_colors`, `test_neutral`); `DAMAGE`.
+- **Если апстрим сдвинет.** Изменённое значение звонков в Classic, новый цветной ключ звонков, цвет Telegram в коде звонков → `PatchError`.
+- **На подтверждение владельцу.** Сопоставление промежуточных фонов, списков и меню (`#2c3a2d`, `#36473a`, `#3a4a3c`); зелёный и красный Classic у ответа, сброса и выхода; серые Telegram с лёгкой синевой (`#84888f`, `#91979e`, `#aaabac`) оставлены как серые; радиальный градиент вместо четырёхточечного iOS; контраст белого на центре «соединено» `#7fa082` около 3:1, иконка «заглушён админом» `#b97a55` на `#36473a` около 2,9:1.
+- **Коммит.** `d72eedb`, 2026-11-12, задача 094.
 
 ---
 

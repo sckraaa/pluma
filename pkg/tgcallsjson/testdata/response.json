@@ -1,0 +1,142 @@
+{
+  "transport": {
+    "xmlns": "urn:xmpp:jingle:transports:ice-udp:1",
+    "rtcp-mux": true,
+    "ufrag": "sfu4",
+    "pwd": "abcdefghijklmnopqrstuv0123",
+    "fingerprints": [
+      {
+        "hash": "sha-256",
+        "fingerprint": "00:07:0E:15:1C:23:2A:31:38:3F:46:4D:54:5B:62:69:70:77:7E:85:8C:93:9A:A1:A8:AF:B6:BD:C4:CB:D2:D9",
+        "setup": "active"
+      }
+    ],
+    "candidates": [
+      {
+        "generation": "0",
+        "component": "1",
+        "protocol": "udp",
+        "port": "20600",
+        "ip": "203.0.113.7",
+        "foundation": "1",
+        "id": "c1",
+        "priority": "2130706431",
+        "type": "host",
+        "network": "1"
+      },
+      {
+        "generation": "0",
+        "component": "1",
+        "protocol": "udp",
+        "port": "20600",
+        "ip": "2001:db8::7",
+        "foundation": "2",
+        "id": "c2",
+        "priority": "2130706175",
+        "type": "host",
+        "network": "1"
+      },
+      {
+        "generation": "0",
+        "component": "1",
+        "protocol": "tcp",
+        "port": "20601",
+        "ip": "203.0.113.7",
+        "foundation": "3",
+        "id": "c3",
+        "priority": "1526726655",
+        "type": "host",
+        "network": "1",
+        "tcptype": "passive"
+      }
+    ]
+  },
+  "audio": {
+    "payload-types": [
+      {
+        "id": 111,
+        "name": "opus",
+        "clockrate": 48000,
+        "channels": 2,
+        "parameters": {
+          "minptime": "10",
+          "useinbandfec": "1"
+        },
+        "rtcp-fbs": [
+          {
+            "type": "transport-cc"
+          }
+        ]
+      }
+    ],
+    "rtp-hdrexts": [
+      {
+        "id": 1,
+        "uri": "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
+      },
+      {
+        "id": 2,
+        "uri": "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
+      },
+      {
+        "id": 3,
+        "uri": "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
+      }
+    ]
+  },
+  "video": {
+    "endpoint": "e8f3a1c2",
+    "payload-types": [
+      {
+        "id": 100,
+        "name": "VP8",
+        "clockrate": 90000,
+        "rtcp-fbs": [
+          {
+            "type": "goog-remb"
+          },
+          {
+            "type": "transport-cc"
+          },
+          {
+            "type": "ccm",
+            "subtype": "fir"
+          },
+          {
+            "type": "nack"
+          },
+          {
+            "type": "nack",
+            "subtype": "pli"
+          }
+        ]
+      },
+      {
+        "id": 101,
+        "name": "rtx",
+        "clockrate": 90000,
+        "parameters": {
+          "apt": "100"
+        }
+      }
+    ],
+    "rtp-hdrexts": [
+      {
+        "id": 1,
+        "uri": "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
+      },
+      {
+        "id": 2,
+        "uri": "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
+      },
+      {
+        "id": 3,
+        "uri": "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
+      },
+      {
+        "id": 13,
+        "uri": "urn:3gpp:video-orientation"
+      }
+    ]
+  }
+}

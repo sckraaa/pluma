@@ -83,3 +83,6 @@ StatusClient:
 # Pushes are rows of mq_outbox in the database of Mysql (ADR 0012).
 SyncClient:
   Topic: "Sync-T"
+
+# Group calls (task 093) are off without SFU nodes; GroupCalls in
+# teamgramd/etc/bff.yaml and docs/ops/group-calls.md show how to name one.

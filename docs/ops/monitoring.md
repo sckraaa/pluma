@@ -60,3 +60,14 @@
 | `PasswordEmailSenderFailing` | Resend больше двух раз за 15 минут не принял письмо: коды не доходят, пользователи получают «подождите» |
 | `PasswordEmailSenderRejected` | Resend отказал насовсем: отозван ключ, домен не подтверждён или кончилась месячная квота; код ошибки — в логе bff |
 | `PasswordEmailBruteForce` | больше 20 неверных кодов за час: кто-то подбирает; строка `possible brute force` в логе bff называет пользователя |
+
+## Групповые звонки
+Правила — `teamgramd/deploy/prometheus/server/rules/groupcalls.yml`, цель SFU — `ops.sfu` по DNS (`sfu:20501`): без `docker-compose.sfu.yaml` цели нет и ничего не срабатывает. Если контейнер `sfu` не запущен, имя пропадает из DNS Docker, цели нет и `ServiceDown` молчит — для этого `GroupCallsSFUDown` (только когда у bff настроены узлы SFU, `groupcalls_sfu_configured`). Метрики SFU — `sfu_*`, bff — `groupcalls_*` (задача 093, ADR 0059 §11). Что делать — `docs/ops/group-calls.md`, раздел «Неполадки». Тревоги сквозного шифрования (группа `groupcalls-e2e`, задача 094, ADR 0060 §5) — по `groupcalls_e2e_participants{call, alarm}` (участники звонка в каждом состоянии, время условия уже учтено в bff) и `sfu_e2e_*`; подробности по участнику — `pluma-admin calls show <call>`, раздел «Шифрование звонка» там же. Отчёты и эпохи, которые узел SFU прислал о звонке не со своего узла или об участнике не в звонке, bff отбрасывает и считает в `groupcalls_sfu_foreign_events_total{type}`, отчёты сверх пределов схемы — в `groupcalls_e2e_reports_total{result="refused"}`; тревоги на них нет, рост значит неверно настроенный или чужой узел.
+
+| Алерт | Что значит |
+|---|---|
+| `GroupCallsSFUDown` | контейнер SFU не запущен (цели `ops.sfu` нет): войти в звонок и остаться в нём нельзя |
+| `GroupCallsSFUUnreachable` | bff не достучался до управления SFU: вход в звонки не проходит |
+| `GroupCallsConnectFailing` | больше половины соединений с SFU не проходят ICE или DTLS: адрес, порты, межсетевой экран |
+| `GroupCallsUplinkSaturated` | SFU отдаёт больше 90% заданного лимита отдачи, видео идёт в худшем качестве |
+| `GroupCallsEventsDropped` | bff не успевает читать события SFU; ушедших из звонка выведет сборщик, но позже |

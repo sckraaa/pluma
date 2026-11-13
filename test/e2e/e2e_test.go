@@ -94,39 +94,127 @@ func admin(t *testing.T, args ...string) string {
 
 var loginCodeRe = regexp.MustCompile(`Login code for \+\d+: (\d+)`)
 
-// phonesTaken are the numbers the tests of this run have: a number belongs
-// to one test, so that its login limits (pkg/logincode: 8 codes an hour from
-// one address) are that test's own.
-var (
-	phonesMu    sync.Mutex
-	phonesTaken = map[string]bool{}
-)
+// testAreaCodes are the area codes of the pool: 201..220 but for 211, a
+// service code that is no number, and 212, which test/conformance has.
+// pkg/phonenumber takes 555-0100..0199 in each of them (checked for
+// 201..999 when the pool grew past 201..208).
+var testAreaCodes = []int64{201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 213, 214, 215, 216, 217, 218, 219, 220}
 
-// testPhones returns n phones of 201..204-555-0100..0199,
+// testPhonePool is how many phones testPhones has: 100 in each area code.
+// A full run takes about 420 of them, and a stand kept between runs keeps
+// them (phoneBook): the pool lasts four full runs on one stand.
+var testPhonePool = int64(100 * len(testAreaCodes))
+
+// poolPhone is the i-th phone of the pool: <area code>-555-0100..0199,
 // numbers kept for fiction in the North American plan (NANPA keeps
 // 555-0100..0199 so in every area code; its page was not read when the
 // second area code was added). They never leave the stand: codes come from
-// pluma-admin, not by SMS. No other test of the run gets them.
-func testPhones(t *testing.T, n int) []string {
+// pluma-admin, not by SMS.
+func poolPhone(i int64) string {
+	return fmt.Sprintf("+1%d555%04d", testAreaCodes[i/100], 100+i%100)
+}
+
+// phoneBook hands out the phones of the pool. No number goes to two tests,
+// so that its login limits (pkg/logincode: 8 codes an hour from one
+// address) are one test's own, nor to a test while the stand has an account
+// on it: a stand kept between runs (E2E_KEEP=1, `run.sh test` again) keeps
+// the accounts of the earlier runs, and a test would sign in to one of them
+// with its name and whatever else the earlier test left (another run's Bob
+// signed in as this test's Alice and signed her posts "Bob E2E").
+type phoneBook struct {
+	mu sync.Mutex
+	// taken: the numbers of this run's tests and, read from the stand once,
+	// those with an account; nil until then.
+	taken map[string]bool
+}
+
+// testPhoneBook is the run's.
+var testPhoneBook = &phoneBook{}
+
+// take returns n phones of the pool, each from next until it gives one that
+// is not taken.
+func (b *phoneBook) take(t *testing.T, n int, next func() (string, error)) []string {
 	t.Helper()
-	phonesMu.Lock()
-	defer phonesMu.Unlock()
-	var phones []string
-	if len(phonesTaken)+n > 400 {
-		t.Fatalf("%d more test phones needed, %d of 400 are taken", n, len(phonesTaken))
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.taken == nil {
+		b.taken = map[string]bool{}
+		for _, p := range standPoolPhones(t) {
+			b.taken[p] = true
+		}
 	}
+	if int64(len(b.taken)+n) > testPhonePool {
+		t.Fatalf("%d more test phones needed, %d of %d are taken by this run or by accounts of earlier runs on the stand (test/e2e/run.sh down and up give a fresh one)", n, len(b.taken), testPhonePool)
+	}
+	var phones []string
 	for len(phones) < n {
-		v, err := rand.Int(rand.Reader, big.NewInt(400))
+		p, err := next()
 		if err != nil {
 			t.Fatal(err)
 		}
-		p := fmt.Sprintf("+1%d555%04d", 201+v.Int64()/100, 100+v.Int64()%100)
-		if !phonesTaken[p] {
-			phonesTaken[p] = true
+		if !b.taken[p] {
+			b.taken[p] = true
 			phones = append(phones, p)
 		}
 	}
 	return phones
+}
+
+// standPoolPhones returns the phones of the pool that have an account on the
+// stand, from the stack's MySQL (users.phone holds the digits without +).
+// The password stays in the container's environment.
+func standPoolPhones(t *testing.T) []string {
+	t.Helper()
+	out := stackOut(t, "exec", "-T", "mysql", "sh", "-c",
+		`MYSQL_PWD="$MYSQL_PASSWORD" mysql -N -B -u "$MYSQL_USER" "$MYSQL_DATABASE" -e "SELECT phone FROM users WHERE phone LIKE '1___55501__'"`)
+	pool := make(map[string]bool, testPhonePool)
+	for i := range testPhonePool {
+		pool[poolPhone(i)] = true
+	}
+	var phones []string
+	for _, line := range strings.Fields(out) {
+		if p := "+" + line; pool[p] {
+			phones = append(phones, p)
+		}
+	}
+	return phones
+}
+
+// testPhones returns n phones of the pool that no other test of the run gets
+// and that have no account on the stand yet.
+func testPhones(t *testing.T, n int) []string {
+	t.Helper()
+	return testPhoneBook.take(t, n, func() (string, error) {
+		v, err := rand.Int(rand.Reader, big.NewInt(testPhonePool))
+		if err != nil {
+			return "", err
+		}
+		return poolPhone(v.Int64()), nil
+	})
+}
+
+// TestPhonesOfEarlierRuns: a phone with an account on the stand, as a run
+// on a kept stand leaves it, goes to no test of a later run.
+func TestPhonesOfEarlierRuns(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	earlier := testPhones(t, 1)[0]
+	login(ctx, t, earlier, "Earlier")
+
+	// A later run has a book of its own; its first candidate is the number
+	// of the earlier run, the others are the pool's in order.
+	later := &phoneBook{}
+	var i int64
+	got := later.take(t, 1, func() (string, error) {
+		if i++; i == 1 {
+			return earlier, nil
+		}
+		return poolPhone((i - 2) % testPhonePool), nil
+	})
+	if got[0] == earlier {
+		t.Errorf("a later run got %s, which has the account of an earlier run", earlier)
+	}
 }
 
 func randomID() int64 {

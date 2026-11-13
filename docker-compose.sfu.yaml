@@ -1,0 +1,53 @@
+# The SFU of group calls (app/service/sfu, task 093, ADR 0059,
+# docs/ops/group-calls.md): its own image, beside the core today and
+# movable to another machine by its address alone (ADR 0057 §4). Added to
+# the services command after the other compose files; it turns group calls
+# on in bff as well:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.sfu.yaml up -d sfu bff
+#
+# The control certificates come from teamgramd/deploy/sfu/control-certs.sh:
+# the SFU's in PLUMA_SFU_CERTS, bff's in PLUMA_GROUPCALLS_CERTS.
+#
+# The media ports are published like gnetway's, on Pluma's own IPv4 when it
+# has one: one UDP port for every client and the ICE-TCP port, the only
+# fallback where UDP is blocked (the stock clients have no TURN for group
+# calls). IPv4 only, as teamgram_net has no IPv6. The limits cover 100
+# participants with 30 videos at once (docs/ops/group-calls.md, «Лимиты»);
+# SFU_MEMORY and SFU_CPUS in .env raise them, never an edit of this file.
+services:
+  sfu:
+    mem_limit: ${SFU_MEMORY:-512m}
+    memswap_limit: ${SFU_MEMORY:-512m}
+    cpus: ${SFU_CPUS:-2}
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    build:
+      context: .
+      dockerfile: teamgramd/deploy/sfu/Dockerfile
+    # On a server the image CI built (docs/ops/deployment.md).
+    image: ${PLUMA_SFU_IMAGE:-pluma-sfu:local}
+    restart: unless-stopped
+    # Nothing is written: no media touches a disk.
+    read_only: true
+    environment:
+      SFU_PUBLIC_IPV4: ${SFU_PUBLIC_IPV4:?set SFU_PUBLIC_IPV4 in .env, the address clients reach the SFU at}
+      SFU_UDP_PORT: ${SFU_UDP_PORT:-20600}
+      SFU_TCP_PORT: ${SFU_TCP_PORT:-20601}
+    volumes:
+      - ./teamgramd/deploy/sfu/sfu.yaml:/etc/sfu/sfu.yaml:ro
+      # Files of uid 65532 (the image's nonroot), mode 0400.
+      - ${PLUMA_SFU_CERTS:-/opt/pluma/sfu}:/run/secrets/sfu:ro
+    ports:
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:${SFU_UDP_PORT:-20600}:20600/udp" # media
+      - "${PLUMA_PUBLIC_IPV4:-0.0.0.0}:${SFU_TCP_PORT:-20601}:20601/tcp" # ICE-TCP
+    networks:
+      - teamgram_net
+    stop_grace_period: 15s
+
+  # bff drives the node over its control API: the address and bff's client
+  # certificate.
+  bff:
+    environment:
+      GROUPCALLS_SFU_ENDPOINT: ${GROUPCALLS_SFU_ENDPOINT:-sfu:20500}
+    volumes:
+      - ${PLUMA_GROUPCALLS_CERTS:-/opt/pluma/groupcalls}:/run/secrets/groupcalls:ro

@@ -206,6 +206,10 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err
 	}
+	// The group call of the channel (task 093, ADR 0059).
+	// groupcall_default_join_as stays unset: joining as a channel is not
+	// offered (ADR 0060).
+	full.Call = ch.GetCall()
 	if admin {
 		invites, err := c.svcCtx.Chat.ChatGetExportedChatInvites(c.ctx, &chatpb.TLChatGetExportedChatInvites{ChatId: ch.GetId(), AdminId: c.MD.UserId, Limit: 50})
 		if err != nil {

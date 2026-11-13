@@ -37,9 +37,11 @@ import (
 	user_helper "github.com/teamgram/teamgram-server/app/service/biz/user"
 	"github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/groupcalls"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 	"time"
 
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
@@ -114,7 +116,9 @@ func (s *Server) Initialize() error {
 					MediaClient:   c.MediaClient,
 					Topics:        chat_helper.Topics{Inbox: c.Topics.Inbox, Sync: c.Topics.Sync},
 				},
-				nil,
+				// The group call of a chat (task 093): call_active,
+				// call_not_empty and chatFull.call from the calls' table.
+				groupcalls.NewChatPlugin(sqlx.NewMySQL(&c.Mysql)),
 				userService))
 
 		// channel_helper: reads of channels and their participants (ADR

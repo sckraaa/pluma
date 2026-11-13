@@ -33,6 +33,15 @@ scrape_configs:
         port: 9379
         refresh_interval: 60s
 
+  # The SFU of group calls (docker-compose.sfu.yaml, task 093): by DNS as
+  # well. A node on another machine is added here by its address.
+  - job_name: ops.sfu
+    dns_sd_configs:
+      - names: ["sfu"]
+        type: A
+        port: 20501
+        refresh_interval: 60s
+
   - job_name: prometheus
     scrape_interval: 5s  #global catch time
     static_configs:

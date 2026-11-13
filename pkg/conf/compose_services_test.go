@@ -321,6 +321,9 @@ var optionalVars = map[string]bool{
 	// The quality parameters of calls (task 077): the Pluma profile when
 	// empty.
 	"CALLS_QUALITY": true,
+	// The control API of the SFU of group calls (task 093): group calls
+	// are off when empty.
+	"GROUPCALLS_SFU_ENDPOINT": true,
 	// The speech engine of voice transcription (task 090): transcription
 	// is off when the URL is empty.
 	"STT_URL":      true,

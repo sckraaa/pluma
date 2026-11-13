@@ -1,0 +1,159 @@
+# Group calls (task 093, ADR 0059, docs/ops/group-calls.md). The SFU's
+# metrics are sfu_*, bff's groupcalls_*. Group calls are optional: without
+# an SFU node nothing is created and none of these fire. A node that runs
+# and does not answer is ServiceDown (job ops.sfu, up == 0); one whose
+# container is not running is GroupCallsSFUDown.
+groups:
+  - name: groupcalls
+    rules:
+      # The container of the SFU is not running: Docker's DNS drops the
+      # name "sfu", the ops.sfu target disappears, and there is no up == 0
+      # for ServiceDown. Only while bff has SFU nodes configured.
+      - alert: GroupCallsSFUDown
+        expr: absent(up{job="ops.sfu"}) and on() (max(groupcalls_sfu_configured) > 0)
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "The SFU of group calls is not running"
+          description: "Nobody can join or stay in a group call. docker compose ps sfu; docker compose logs --tail 100 sfu. docs/ops/group-calls.md"
+
+      # bff cannot drive the node: joins fail, the collector cannot see the
+      # rooms, and the participants it does not see leave the calls.
+      - alert: GroupCallsSFUUnreachable
+        expr: sum(increase(groupcalls_sfu_errors_total[5m])) >= 5
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "bff fails to reach the SFU of group calls"
+          description: "docker compose ps sfu; docker compose logs --tail 100 sfu bff; GROUPCALLS_SFU_ENDPOINT and the control certificates. docs/ops/group-calls.md"
+
+      # Clients reach the SFU's ports but do not get through ICE or DTLS:
+      # a wrong SFU_PUBLIC_IPV4, ports closed by a firewall, a NAT in the
+      # way.
+      - alert: GroupCallsConnectFailing
+        expr: |
+          sum(increase(sfu_connect_failures_total[15m])) >= 3
+          and
+          sum(increase(sfu_connect_failures_total[15m]))
+            / clamp_min(sum(increase(sfu_connect_failures_total[15m])) + sum(increase(sfu_ice_pairs_total[15m])), 1) > 0.5
+        labels: {severity: warning}
+        annotations:
+          summary: "Most connections to the SFU of group calls fail"
+          description: "By reason: sum by (reason) (increase(sfu_connect_failures_total[15m])). no_check: nothing reaches the SFU (SFU_PUBLIC_IPV4, published ports, firewall). docs/ops/group-calls.md"
+
+      # The node sends close to its configured upload limit: the videos go
+      # down in quality.
+      - alert: GroupCallsUplinkSaturated
+        expr: sfu_uplink_limit_bps > 0 and sfu_uplink_bps / sfu_uplink_limit_bps > 0.9
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "The SFU sends more than 90% of its upload limit"
+          description: "Receivers get lower video layers. Raise Limits.UplinkMbps if the line allows, or lower the videos at once. docs/ops/group-calls.md"
+
+      # A subscriber of the control stream is too slow: bff misses the
+      # SFU's word on who left; the collector still catches them, later.
+      - alert: GroupCallsEventsDropped
+        expr: sum(increase(sfu_events_dropped_total[15m])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "The SFU dropped events of its control stream"
+          description: "bff reads the stream too slowly or hangs. docker compose logs bff | grep groupcalls. docs/ops/group-calls.md"
+
+  # The end-to-end encryption of the calls (task 094, ADR 0060 §5). bff
+  # counts per call the participants in each alarm, the time each condition
+  # must hold already applied (groupcalls_e2e_participants{call, alarm}); the
+  # details per participant are in pluma-admin calls show <call>. No user is
+  # a label. The clients heal themselves by joining again with a new key; an
+  # alarm that stays means they did not.
+  - name: groupcalls-e2e
+    rules:
+      # Polls sub-chain 0 from below its height, or not at all, for 15 s:
+      # the client hangs or fell behind the chain.
+      - alert: GroupCallsE2EPollBehind
+        expr: max by (call) (groupcalls_e2e_participants{alarm="poll_behind"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "A participant of group call {{ $labels.call }} does not follow its chain"
+          description: "pluma-admin calls show {{ $labels.call }}: poll 0 below the height. docs/ops/group-calls.md"
+
+      # Encrypts its sound without the epoch of the current height 12 s
+      # after the block (an old epoch is forgotten after 10 s).
+      - alert: GroupCallsE2EStaleEpoch
+        expr: max by (call) (groupcalls_e2e_participants{alarm="stale_send_epoch"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "A participant of group call {{ $labels.call }} encrypts with an old key"
+          description: "pluma-admin calls show {{ $labels.call }}: 'sends with' is not the height. Others cannot hear him. docs/ops/group-calls.md"
+
+      # The emoji verification of the height misses a commit or a reveal
+      # 15 s after the block.
+      - alert: GroupCallsE2EVerificationStuck
+        expr: max by (call) (groupcalls_e2e_participants{alarm="verification_stuck"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "The emoji verification of group call {{ $labels.call }} is stuck"
+          description: "pluma-admin calls show {{ $labels.call }}: commit/reveal 'no'. docs/ops/group-calls.md"
+
+      # A receiver gets frames of a sender in an epoch it does not know.
+      - alert: GroupCallsE2EUnknownEpoch
+        expr: max by (call) (groupcalls_e2e_participants{alarm="unknown_epoch"}) > 0
+        for: 10s
+        labels: {severity: warning}
+        annotations:
+          summary: "In group call {{ $labels.call }} a receiver cannot open a sender's key"
+          description: "pluma-admin calls show {{ $labels.call }}: the sender's 'sends with' at the height means the receiver is behind; an old one, the sender. docs/ops/group-calls.md"
+
+      # A client's key failed and it did not join again within 10 s.
+      - alert: GroupCallsE2EKeyFailed
+        expr: max by (call) (groupcalls_e2e_participants{alarm="tde2e_error"}) > 0
+        for: 10s
+        labels: {severity: critical}
+        annotations:
+          summary: "The encryption of a participant of group call {{ $labels.call }} failed"
+          description: "pluma-admin calls show {{ $labels.call }}: the tde2e error code. The client should have joined again. docs/ops/group-calls.md"
+
+      # In the group state of the chain, not in the call, for 30 s: no
+      # client removed him, and every key goes to him too.
+      - alert: GroupCallsE2EStaleMember
+        expr: max by (call) (groupcalls_e2e_participants{alarm="not_in_call"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Group call {{ $labels.call }} has a member of its chain who is not in the call"
+          description: "pluma-admin calls show {{ $labels.call }}: chain yes, call no, while another member of the chain is in the call. The clients remove him with only_left. docs/ops/group-calls.md"
+
+      # More than 3 joins again of one participant in 5 minutes (joins while
+      # in the chain already; the first join is not one): the self-healing
+      # is in a loop.
+      - alert: GroupCallsE2ERejoinLoop
+        expr: max by (call) (groupcalls_e2e_participants{alarm="rejoin_loop"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "A participant of group call {{ $labels.call }} joins again and again"
+          description: "pluma-admin calls show {{ $labels.call }}: rejoins 5m. docs/ops/group-calls.md, «Петля повторных входов»"
+
+      # Frames of a sender reach the others and none decrypts them, 10 s.
+      - alert: GroupCallsE2EUndecryptedSender
+        expr: max by (call) (groupcalls_e2e_participants{alarm="undecrypted_sender"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "Nobody in group call {{ $labels.call }} decrypts one of its senders"
+          description: "pluma-admin calls show {{ $labels.call }}: senders ok 0. docs/ops/group-calls.md"
+
+      # Sound that is not a frame of tde2e: a client that does not encrypt,
+      # or broken packets. Every call is end-to-end encrypted.
+      - alert: GroupCallsE2EUnencryptedAudio
+        expr: sum(increase(sfu_e2e_audio_unparsed_total[5m])) > 50
+        labels: {severity: warning}
+        annotations:
+          summary: "The SFU gets sound that is not encrypted end to end"
+          description: "A client without the encryption of group calls, or broken packets. docs/ops/group-calls.md"
+
+      # Status reports the SFU dropped: a client that breaks the schema
+      # PlumaE2EStatus v1.
+      - alert: GroupCallsE2EReportsDropped
+        expr: sum(increase(sfu_e2e_reports_total{result!="accepted"}[15m])) > 10
+        labels: {severity: warning}
+        annotations:
+          summary: "The SFU drops status reports of the encryption"
+          description: "By reason: sum by (result) (increase(sfu_e2e_reports_total[15m])): size, version, schema, rate, kind. A client of another version of the report. docs/ops/group-calls.md"
