@@ -183,6 +183,16 @@ func (b *Block) VerifySignature(publicKey [32]byte) error {
 	return nil
 }
 
+// Sign sets the signature key of the block to key's public key and signs
+// the block with key, as a client does (Blockchain::build_block,
+// Blockchain.cpp:650-656). The server never signs: only the test client
+// and the tests write blocks.
+func (b *Block) Sign(key ed25519.PrivateKey) {
+	pk := [32]byte(key.Public().(ed25519.PublicKey))
+	b.SignaturePublicKey = &pk
+	copy(b.Signature[:], ed25519.Sign(key, b.signingBytes()))
+}
+
 // signingBytes is what the signature of the block covers.
 func (b *Block) signingBytes() []byte {
 	return b.marshal(true)

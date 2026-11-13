@@ -68,7 +68,7 @@ func TestJoin(t *testing.T) {
 		user    int64
 		key     ed25519.PrivateKey
 		block   func(ch *Chain) []byte
-		used    bool // KeyUsed answers true
+		owner   int64 // KeyOwner answers this user for the key; 0: unknown
 		kind    Kind
 		code    Code
 	}{
@@ -91,8 +91,9 @@ func TestJoin(t *testing.T) {
 			return callBlock(ch, bob, moved, b)
 		}},
 		{name: "rejoin with a new key", members: 2, user: 1, key: alice2, block: func(ch *Chain) []byte { return callBlock(ch, alice2, b, member(1, 3, alice2)) }},
-		{name: "rejoin with the same key", members: 2, user: 1, key: alice, block: func(ch *Chain) []byte { return callBlock(ch, alice, b, a) }, code: CodePolicy},
-		{name: "key used before", members: 1, user: 2, key: bob, used: true, block: func(ch *Chain) []byte { return callBlock(ch, bob, a, b) }, code: CodePolicy},
+		{name: "rejoin with the same key", members: 2, user: 1, key: alice, owner: 1, block: func(ch *Chain) []byte { return callBlock(ch, alice, b, a) }},
+		{name: "rejoin with the own key after removal", members: 1, user: 2, key: bob, owner: 2, block: func(ch *Chain) []byte { return callBlock(ch, bob, a, b) }},
+		{name: "key of another user before", members: 1, user: 2, key: bob, owner: 7, block: func(ch *Chain) []byte { return callBlock(ch, bob, a, b) }, code: CodePolicy},
 		{name: "key of another member", members: 1, user: 2, key: alice, block: func(ch *Chain) []byte { return callBlock(ch, alice, a, member(2, 3, alice)) }, code: CodeInvalidGroupState},
 		{name: "signed by another key", members: 1, user: 2, key: bob, block: func(ch *Chain) []byte { return callBlock(ch, carol, a, b) }, code: CodePolicy},
 		{name: "no signature key", members: 1, user: 2, key: bob, block: func(ch *Chain) []byte {
@@ -129,8 +130,8 @@ func TestJoin(t *testing.T) {
 			ch := joined(t, tt.members)
 			height, hash := ch.Height(), ch.LastHash()
 			j := Join{UserID: tt.user, PublicKey: pubKey(tt.key), Block: tt.block(ch)}
-			if tt.used {
-				j.KeyUsed = func([32]byte) bool { return true }
+			if tt.owner != 0 {
+				j.KeyOwner = func([32]byte) (int64, bool) { return tt.owner, true }
 			}
 			_, err := ch.Join(j)
 			kind := tt.kind

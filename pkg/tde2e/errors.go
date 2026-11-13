@@ -80,6 +80,19 @@ const (
 	CodePolicy Code = 1000
 )
 
+// The codes of a call client (Call.cpp), which the server never answers
+// with: the test client of package peer and the status reports of
+// PlumaE2EStatus name them.
+const (
+	CodeNotParticipant       Code = 300
+	CodeWrongUserID          Code = 301
+	CodeDecryptUnknownEpoch  Code = 400
+	CodeEncryptUnknownEpoch  Code = 401
+	CodeInvalidCallChannelID Code = 600
+	CodeCallFailed           Code = 601
+	CodeCallKeyAlreadyUsed   Code = 602
+)
+
 // codeNames are the names of e2e_errors.h:45-106.
 var codeNames = map[Code]string{
 	CodeUnknown:                   "UNKNOWN_ERROR",
@@ -93,6 +106,10 @@ var codeNames = map[Code]string{
 	CodeNoPermissions:             "INVALID_BLOCK__NO_PERMISSIONS",
 	CodeInvalidGroupState:         "INVALID_BLOCK__INVALID_GROUP_STATE",
 	CodeInvalidSharedSecret:       "INVALID_BLOCK__INVALID_SHARED_SECRET",
+	CodeNotParticipant:            "INVALID_CALL_GROUP_STATE__NOT_PARTICIPANT",
+	CodeWrongUserID:               "INVALID_CALL_GROUP_STATE__WRONG_USER_ID",
+	CodeDecryptUnknownEpoch:       "DECRYPT__UNKNOWN_EPOCH",
+	CodeEncryptUnknownEpoch:       "ENCRYPT__UNKNOWN_EPOCH",
 	CodeBroadcastInFuture:         "INVALID_BROADCAST__IN_FUTURE",
 	CodeBroadcastNotInCommit:      "INVALID_BROADCAST__NOT_IN_COMMIT",
 	CodeBroadcastNotInReveal:      "INVALID_BROADCAST__NOT_IN_REVEAL",
@@ -100,6 +117,9 @@ var codeNames = map[Code]string{
 	CodeBroadcastAlreadyApplied:   "INVALID_BROADCAST__ALREADY_APPLIED",
 	CodeBroadcastInvalidReveal:    "INVALID_BROADCAST__INVALID_REVEAL",
 	CodeBroadcastInvalidBlockHash: "INVALID_BROADCAST__INVALID_BLOCK_HASH",
+	CodeInvalidCallChannelID:      "INVALID_CALL_CHANNEL_ID",
+	CodeCallFailed:                "CALL_FAILED",
+	CodeCallKeyAlreadyUsed:        "CALL_KEY_ALREADY_USED",
 	CodePolicy:                    "SERVER_POLICY",
 }
 

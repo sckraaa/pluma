@@ -83,6 +83,11 @@ func (b *Broadcast) VerifySignature(publicKey [32]byte) error {
 	return nil
 }
 
+// Sign signs the broadcast with key, as a client does (Call.cpp:539, 571).
+func (b *Broadcast) Sign(key ed25519.PrivateKey) {
+	copy(b.Signature[:], ed25519.Sign(key, b.signingBytes()))
+}
+
 func (b *Broadcast) signingBytes() []byte {
 	return b.marshal(true)
 }

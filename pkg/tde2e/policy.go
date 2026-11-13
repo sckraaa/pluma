@@ -48,18 +48,23 @@ type Join struct {
 	UserID    int64
 	PublicKey [32]byte
 	Block     []byte
-	// KeyUsed reports whether the key was in this call's chain before. A
-	// client never reuses a key (Call.cpp:608-617). Nil checks only the
-	// user's current entry; the current state of other users is checked by
-	// the chain (unique public keys).
-	KeyUsed func(publicKey [32]byte) bool
+	// KeyOwner returns the user a key first entered this call's chain with
+	// (ok is false for a key the chain never had). A key belongs to that
+	// user for the life of the call (ADR 0060 §2): the same user may join
+	// with it again, which is how iOS restores its transport
+	// (PresentationGroupCall.swift:1909-1916, 2050-2077), and anyone else is
+	// refused. Nil checks only the current group state, where the chain
+	// keeps the keys unique (Blockchain.cpp:339-351).
+	KeyOwner func(publicKey [32]byte) (userID int64, ok bool)
 }
 
 // Join checks and appends a join block. On the empty chain it is block 0
 // with the caller alone; otherwise the new group state is the old one
-// without the caller's previous entry and with the caller under the new
-// key (Call::create_zero_block and create_self_add_block, Call.cpp:589-606).
-// The block is signed by that key. On error the chain is unchanged.
+// without the caller's previous entry and with the caller under his key
+// (Call::create_zero_block and create_self_add_block, Call.cpp:589-606).
+// The key may be the one the caller had: the old entry leaves the group
+// state with the block (Call.cpp:600-602), so the keys stay unique. The
+// block is signed by that key. On error the chain is unchanged.
 func (c *Chain) Join(j Join) (*Applied, error) {
 	b, err := c.parseNext(j.Block)
 	if err != nil {
@@ -69,11 +74,10 @@ func (c *Chain) Join(j Join) (*Applied, error) {
 	if err != nil {
 		return nil, err
 	}
-	if old, ok := c.st.group.Participant(j.UserID); ok && old.PublicKey == j.PublicKey {
-		return nil, policy("the key was used before in this call")
-	}
-	if j.KeyUsed != nil && j.KeyUsed(j.PublicKey) {
-		return nil, policy("the key was used before in this call")
+	if j.KeyOwner != nil {
+		if owner, ok := j.KeyOwner(j.PublicKey); ok && owner != j.UserID {
+			return nil, policy("the key belongs to another user of this call")
+		}
 	}
 	if self, ok := g.Participant(j.UserID); !ok || self.PublicKey != j.PublicKey {
 		return nil, policy("the joining user with his key is not in the group state")
