@@ -1,7 +1,7 @@
 {
   "layer": "233",
   "total": 681,
-  "ok": 498,
+  "ok": 501,
   "partial": 6,
   "areas": [
     {
@@ -49,7 +49,7 @@
     {
       "key": "groupcalls",
       "total": 32,
-      "ok": 17,
+      "ok": 20,
       "partial": 1
     },
     {
