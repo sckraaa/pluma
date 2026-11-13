@@ -47,7 +47,13 @@
    Наложение само задаёт bff `GROUPCALLS_SFU_ENDPOINT=sfu:20500` и монтирует его сертификат. Без наложения и без `GROUPCALLS_SFU_ENDPOINT` групповые звонки выключены: `phone.createGroupCall` и `phone.joinGroupCall` отвечают `GROUPCALLS_NOT_CONFIGURED`.
 5. **Проверка:** `docker compose logs sfu` — строка о прослушивании портов. В Prometheus цель `ops.sfu` поднята. Звонок в тестовой группе с двух клиентов.
 
-Образ SFU собирается из `teamgramd/deploy/sfu/Dockerfile` на месте (`pluma-sfu:local`) или задаётся `PLUMA_SFU_IMAGE`. CI образ SFU пока не собирает.
+Образ SFU собирает CI (`.github/workflows/images.yml`, `pluma-sfu`), как и остальные образы сервера (`docs/ops/deployment.md`: сервер ничего не собирает). В `.env` — образ того коммита, что работает:
+
+```
+PLUMA_SFU_IMAGE=ghcr.io/sckraaa/pluma-sfu:<коммит>
+```
+
+Без `PLUMA_SFU_IMAGE` наложение собирает образ на месте из `teamgramd/deploy/sfu/Dockerfile` (`pluma-sfu:local`) — так на стенде, не на сервере.
 
 ## Перенос SFU на другую машину
 

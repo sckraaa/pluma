@@ -1,14 +1,15 @@
 # Builds the images a server runs and pushes them to GHCR, tagged with the
 # commit (docs/ops/deployment.md): the teamgram services (Dockerfile),
-# alertpush, backup, iosinstall, codes and stt. A server names the commit it runs in its .env and
-# only pulls; nothing is built on it. linux/amd64 only, the architecture of
-# the server. CI calls it for a push to master once everything has passed; a
-# manual run builds the commit it is started on. The layers are kept in the
-# GitHub Actions cache, each image's apart: TDLib, the long part of
-# pluma-codes, is rebuilt only when its commit changes, and so is the speech
-# model that pluma-stt downloads (the defaults of its Dockerfile: another
-# model is a commit there, docs/ops/transcription.md). A cache that cannot
-# be written costs time, not the image.
+# alertpush, backup, iosinstall, codes, stt and sfu. A server names the
+# commit it runs in its .env and only pulls; nothing is built on it.
+# linux/amd64 only, the architecture of the server. CI calls it for a push
+# to master once everything has passed; a manual run builds the commit it is
+# started on. The layers are kept in the GitHub Actions cache, each image's
+# apart: TDLib, the long part of pluma-codes, is rebuilt only when its commit
+# changes, and so is the speech model that pluma-stt downloads (the defaults
+# of its Dockerfile: another model is a commit there,
+# docs/ops/transcription.md). A cache that cannot be written costs time, not
+# the image.
 name: images
 
 on:
@@ -41,6 +42,8 @@ jobs:
             dockerfile: teamgramd/deploy/codes/Dockerfile
           - name: pluma-stt
             dockerfile: teamgramd/deploy/stt/Dockerfile
+          - name: pluma-sfu
+            dockerfile: teamgramd/deploy/sfu/Dockerfile
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
