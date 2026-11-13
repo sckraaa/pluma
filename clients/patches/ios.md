@@ -72,6 +72,7 @@ ci/lint.sh                                        # shellcheck и actionlint
    - новые предложения Premium-подарков или покупок, которые надо скрыть при `premium_purchase_blocked` (I-053…I-060);
    - новые внешние сервисы Telegram (DNS-over-HTTPS, CloudKit, отражатели звонков) (I-004…I-011).
    - новый коммит сабмодуля tgcalls: правки звонков (I-119) стоят на `InstanceV2Impl.cpp`; если апстрим сменил движок версии 9.0.0 или добавил новый литерал битрейта, перенести правку, а не ослабить `verify_call_parameters`.
+   - групповые звонки (I-122…I-127, ветка `task/094-group-calls-e2e`): новые пути создания группового звонка без ключа, новые места выбора «войти от имени», входа в RTMP, живые истории и запись ловит `verify_group_calls`; новый коммит tgcalls — перенести `sendE2EStatus` в `GroupInstanceCustomImpl` и проверить, что шифрование по-прежнему зависит от колбэка, а не от `isConference`; новый цвет в экранах звонков останавливает `verify_call_colors` — отнести его к набору палитры.
 5. `Make.py` и `BuildConfiguration.py`: ключи `required_keys` (патч пишет ровно их, I-065), опции и конфигурации, на которые опирается `ci/build.sh` (I-064).
 6. Минимальная iOS: App Store Connect требует iOS 15 с апреля 2027 (ITMS-90068). Если новый релиз поднял `minimum_os_version`, предупреждение уходит само; если нет — см. I-084.
 7. После сборки — проверка на симуляторе: вход, список чатов, обе темы, вступление, «Устройства», баннер дня рождения, меню своего сообщения. При установке поверх старой сборки обновлять даты файлов (`find Pluma.app -exec touch {} +`), иначе `simctl install` оставляет старые фреймворки (I-078).
@@ -745,6 +746,92 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Как проверяется.** `verify_call_parameters`: каждая новая строка ровно одна, старой нет; литералов `kCodecParamPTime, 60)`, `setMaxBitrate(32 * 1024)`, `setMaxBitrate(1000 * 1024)`, `audio_jitter_buffer_min_delay_ms = 50;`, `, 25);` не осталось. `CallParametersTest` (5 тестов: пути сабмодуля и вывод `--submodules`; умолчания равны литералам Telegram, кбит/с × 1000; договор сервера — ключи и диапазоны как в `parameters.go`, ptime только 10/20/40/60/120, флаг только JSON bool, дробное число отвергается, `screen_fps`, `screen_max_size_px` и старого `video_camera_fps` нет; применение и отказ повторного патча; оставшийся литерал ловится). `UpstreamTest.test_patch` (умолчания и аргументы на закреплённом коммите; без правки падает — проверено), `test_damage` (3 порчи: ptime 40, камера 1200, 30 кадров в `VideoCaptureInterfaceImpl.cpp`). 12.9.2: 92 теста OK; 13.2: 99 тестов OK; на обеих `configure.sh dev` и `lint.sh` чистые. Разбор ключей собран отдельно (clang++ `-Wall -Wextra`, json11 из tgcalls, без предупреждений) и прогнан на шести JSON: пустой — числа Telegram; профиль Pluma — 20 мс, 16000–48000 бит/с с трайлом, 2 500 000, 4 000 000, старт 600 000, 30 кадров; дробное, строковое, вне диапазона, 0, `audio_min` выше потолка — число Telegram. Сборка Bazel — только в CI; на устройстве не проверялось, звонков с замером не было.
 - **Не сделано.** TURN по TCP/TLS: в TL-типе и в трёх родных клиентах нет флага TLS, нужен общий способ его передать и сертификат вне корней WebRTC (network.md, «TURN over TCP and TLS on 443»). Захват 1080p (уровень H.264 не проверен); `x-google-start-bitrate` для камеры, включённой посреди звонка; движки 10/11 (Reference), 14 (Compat), 18/19 (Pump) — значения Telegram.
 - **История.** 2026-11-11, задача 077 (этап 2).
+
+## Групповые звонки (задача 094)
+
+Задача 093 (первый этап групповых звонков) клиент не меняла: патчи клиентов в неё не входили. Все правки ниже — задача 094 и ADR 0060 серверного репозитория: каждый групповой звонок сквозной, вход без ключа сервер отклоняет. Ветка `task/094-group-calls-e2e` pluma-ios поверх 13.2 (`24638bc6`, tgcalls `c1de0882`), три коммита: `75087be` (2026-11-12: сквозной звонок, только от себя, без RTMP и живых историй, первый отчёт), `41541f4` (2026-11-12: отчёт `PlumaE2EStatus` v1 и одно правило самовосстановления, без записи, цвета звонков), `6f08ea2` (2026-11-13: пределы повторов входа по правилу ADR 0060 §5 от 2026-11-13). Функции `group_call_edits()`, `verify_group_calls`, `verify_call_colors` в `ci/patch.py`; описание — README форка, «Group calls» и «Call colours».
+
+Общее «не проверено» для I-122…I-127: сборка Bazel, симулятор и устройство, живой звонок с SFU и другими клиентами.
+
+### I-122. Сквозное шифрование каждого группового звонка (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Звонок группы или канала сохраняет интерфейс и права звонка чата, а криптографию берёт у конференции: свой ключ, блок цепочки при входе, `ConferenceCallE2EContext` над tde2e, шифрование кадров в tgcalls. `isConference` остаётся `false`: от него зависят интерфейс конференции (`VideoChatScreen.swift:2151-2167, 3165`) и один слой видео (`GroupInstanceCustomImpl.cpp:2963-2966`); шифрование в tgcalls зависит только от колбэка (`:869-870, 1383, 1798-1800, 2009-2011`), поэтому у звонка чата остаются три слоя.
+- **Где** (`group_call_edits()`):
+  - `PresentationCallManager.swift`: `generateKeyPair()` в путях `scheduleGroupCall` и `createGroupCall`; без ключа звонка нет.
+  - `PresentationGroupCall.swift`: `keyPair` и `e2eContext` стали `var`; `plumaMakeE2EContext` — при создании звонка и в `schedule()` (контекст запланированного звонка появляется, когда сервер создал звонок; `e2eEncryptionKeyHash` его ждёт); без контекста кадры не уходят — «мёртвый» контекст шифрования вместо никакого; выбор движка экрана убран: всегда `ScreencastInProcessIPCContext` и `"legacy"`, `ios_use_inprocess_screencast` не читается — у движка расширения шифрования нет (`encryptionContext: nil`, `BroadcastUploadExtension.swift:174`).
+  - `GroupCallScreencast.swift`: то же для экрана, `e2eContext` выставляется позже.
+  - `VideoChatScreen.swift:2549-2556`: эмодзи ключа в любом групповом звонке, как в конференции.
+- **Повторы входа (`CONF_WRITE_CHAIN_INVALID`, правило ADR 0060 §5 от 2026-11-13).** Вход читает последний блок подцепочки 0, строит на нём свой и входит; отказ (высоту занял другой блок) начинает всё заново с нового чтения (`.restart`, `GroupCalls.swift:746-747, 963-966`), как у апстрима, но в пределах: к 10 подряд идёт только отказ, после которого последний блок тот же (цепочка стоит, это не гонка); пока цепочка движется — например, все входят заново после перезапуска SFU и за круг проходит один, — вход продолжается, но не больше 100 попыток (`conference_call_size_limit`). Дальше — ошибка входа, на которой звонок завершается (`PresentationGroupCall.swift:2173-2193`). Счёт свой у каждого входа (`PresentationGroupCall.swift:2093`). Правки в `GroupCalls.swift`: `PlumaChainRetries`, `plumaChainStalledLimit = 10`, `plumaChainJoinsLimit = 100`, проверка после чтения последнего блока, `restartOrMapError`.
+- **Апстрим без правки.** Звонок чата создаётся с `keyPair: nil, isConference: false` (`PresentationCallManager.swift:917, 1101`): без ключа контекста нет (`PresentationGroupCall.swift:922-942`), tgcalls шифрование не получает (`:1872-1878`). Повторы `CONF_WRITE_CHAIN_INVALID` без предела.
+- **Как проверяется.** `verify_group_calls`: у всех трёх вызовов `PresentationGroupCallImpl(` в менеджере есть ключ; нет `else if self.isConference`, `ScreencastEmbeddedIPCContext(`, `if useIPCContext {`. Тесты `GroupCallsTest` (`test_applies`, `test_paths`, `test_one_edit_each`), `UpstreamTest.test_group_calls` (в том числе повторы входа: 10 отказов подряд на том же последнем блоке, 100 входов, ошибка до следующего входа), `test_group_calls_check`, строки `DAMAGE`.
+- **Если апстрим изменит.** Сдвинутый якорь — `PatchError` с файлом; новый путь создания звонка без ключа ловит счётчик вызовов `PresentationGroupCallImpl(`.
+- **Не проверено.** Simulcast вместе с шифрованием.
+- **История.** `75087be` (2026-11-12), повторы входа — `6f08ea2` (2026-11-13); задача 094.
+
+### I-123. «Войти от имени канала» убрано (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Цепочка хранит ключ аккаунта, сервер отклоняет `join_as` ≠ сам (ADR 0060). Групповой звонок — только от себя.
+- **Где.**
+  - `TelegramEngineCalls.swift`: `cachedGroupCallDisplayAsAvailablePeers` → `[]`. Из него берут список все выборы: `TelegramBaseController.swift:211`, `PeerInfoScreen.swift:2491`, `VoiceChatJoinScreen.swift:121`, `VideoChatScreen.swift:1816`.
+  - `PresentationCallManager.swift`: `joinAsPeerId: nil`, даже если вызывающий выбрал канал, в том числе `callJoinAsPeerId` из кэша.
+  - `PresentationGroupCall.swift`: `userId` блока входа — `account.peerId` (`:2053`, как у контекста на `:927`); `reconnect(as:)` к другим не переключает.
+- **Апстрим без правки.** Выбор «войти от имени» своих каналов, выбор запоминается.
+- **Как проверяется.** `verify_group_calls`, `UpstreamTest.test_group_calls_check`, `DAMAGE` (`TelegramEngineCalls.swift`, `PresentationCallManager.swift`).
+- **История.** `75087be`, 2026-11-12, задача 094.
+
+### I-124. Нет RTMP и живых историй (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** RTMP и живые истории — групповые звонки без шифрования, части трансляции приходят с сервера открытыми; сервер их не обслуживает (ADR 0060 §4).
+- **Где.**
+  - `PeerInfoScreenCallActions.swift:330-353`: в меню звонка профиля группы или канала нет «Stream with…».
+  - `MediaStreamComponent.swift:604-617`: в меню трансляции нет ключа трансляции.
+  - `CameraScreen.swift:495-497`: у камеры историй нет живого режима (`canLivestream` больше не включается), поэтому `LiveStreamSettingsScreen` и `beginStoryLivestream` недоступны.
+  - Код экранов RTMP и живых историй остаётся: из интерфейса к нему не ведёт ни один путь.
+- **Как проверяется.** `verify_group_calls`: во всех исходниках нет `strings.ChannelInfo_CreateExternalStream`, `LiveStream_ViewCredentials`, `createExternalStream(`, `canLivestream = true`. `UpstreamTest.test_group_calls_check`, `DAMAGE`.
+- **Остаётся.** Возобновление своей живой истории (`ChatListController.swift:3058-3061, 3196` → `CameraScreen.swift:500-503`) и просмотр (`StoryItemContentComponent.swift:452`, звонок без ключа) срабатывают, только если живая история уже есть на сервере; сервер их не создаёт.
+- **История.** `75087be`, 2026-11-12, задача 094.
+
+### I-125. Нет записи звонка (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Сервер звонки не записывает (`phone.toggleGroupCallRecord` → `ErrEnterpriseIsBlocked`), поэтому начать запись не предлагается ни в меню звонка, ни в меню трансляции.
+- **Где.** `VideoChatScreenMoreMenu.swift:426-493`: ветка «начать запись» убрана (`RECORDING_STARTS`, `replace_block`); пункт «остановить запись» остаётся. `MediaStreamComponent.swift:562-602`: ветка «начать запись» убрана.
+- **Как проверяется.** `verify_group_calls`: во всех исходниках нет `strings.(VoiceChat|LiveStream)_StartRecording` и `setShouldBeRecording(true`. `UpstreamTest.test_group_calls_check`, `DAMAGE`.
+- **Не проверено.** Вид меню; `-warnings-as-errors` после удаления веток.
+- **История.** `41541f4`, 2026-11-12, задача 094.
+
+### I-126. Самовосстановление и отчёт `PlumaE2EStatus` v1 (задача 094, ADR 0060 §5)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Самовосстановление.** У апстрима сбой (`ConferenceCallE2EContext.isFailed`, `:176-178, 217-219`) становится `isFailedEvent` (`GroupCalls.swift:1988-1997`), и звонок завершается (`PresentationGroupCall.swift:2774-2782`). Патч входит заново с новым ключом, как tdesktop на сбой (`calls_group_call.cpp:787-789`): новый ключ, `ConferenceCallE2EContext.reset(keyPair:)` (опросы, таймеры, состояние и `isFailed` сбрасываются; tde2e не принимает ключ второй раз, `Call.cpp:608-617`), затем `requestCall` (`plumaRejoinAfterE2EFailure`). Условия:
+  1. сбой сквозного состояния: блок не применяется или состояние не строится из последнего блока (`TdCall.make == nil`, `addE2EBlocks`);
+  2. подцепочка 0 отстаёт от `next_offset` сервера, и ни один блок не применён дольше 12 с;
+  3. `GROUPCALL_FORBIDDEN` на запись в цепочку → `isFailed` (`GroupCalls.swift`: `.forbidden` в результате удаления участников; рассылка на `GROUPCALL_FORBIDDEN` не повторяется);
+  4. 15 с кадры приходят, цепочка текущая, и ни от кого ничего не расшифровано (`plumaDecryptionStalled`).
+  - Проверки 2 и 4 — раз в секунду в `ConferenceCallE2EContext`.
+  - Не больше 3 входов за 5 мин, задержки 0/2/5 с плюс 0–1 с, одновременно один; после третьего — алерт `Pluma.GroupCall.EncryptionFailed` и выход (английский встроен, остальные языки — из языкового пакета сервера). Повторный вход транспорта сохраняет ключ и в предел не идёт.
+- **Отчёт.** Каждые 5 с, с 5 с после входа, по каналу данных звонка рядом с `ReceiverVideoConstraints` tgcalls. Поля — ровно v1: `colibriClass`, `v`, `seq` (1 после каждого входа), `height` (подцепочка 0, как её применил tde2e; −1 без состояния), `lastBlock` (первые 8 байт SHA-256 этого блока в форме, которую хранит сервер: байты от сервера, магия на 1 меньше локальной, `from_server_to_local`; совпадает с `Block::calc_hash`; `""` без состояния), `offset0`/`offset1` (следующие опрашиваемые блоки), `error` (код ошибки tde2e, из-за которой упал звонок, из сообщения `CallFailed` `"CALL_FAILED: [Error : <code> : …]"`, неизвестный код → 100, 0 — нет), `sendEpochs`, и с прошлого отчёта — `decryptEpochs`, `unknownEpochs` (не больше 15 и 8), `encrypted`, `encryptFailed`, `senders` (по `user`, не больше 100: `user`, `ok`, `unknownEpoch`, `tooOld`, `duplicate`, `failed`, `lastOkMs`, −1 — ничего не расшифровано). Хэши — 16 hex-цифр; отчёт не больше 16 КиБ, первыми уходят отправители, расшифрованные давнее всех. Ключей, nonce, эмодзи и байтов кадров нет.
+  - Путь: `TdBinding.mm/.h` (счётчики за интервал, `plumaTakeStatus`, `plumaHeight`, `plumaDecryptionStalled`) → `ConferenceCallE2EContext.plumaTakeStatusReport` → `sendE2EStatus(takeStatus)` (`GroupCallContext.swift`, `OngoingCallThreadLocalContext.h/.mm`) → tgcalls `GroupInstanceImpl.h`, `GroupInstanceCustomImpl.h/.cpp` (правка tgcalls через `SUBMODULES`). tgcalls забирает отчёт только при открытом канале, поэтому неотправленный отчёт не собирается и его счётчики уходят со следующим; отправляет tgcalls только `PlumaE2EStatus`. Эталонный движок Debug Settings отчётов не шлёт.
+- **Как проверяется.** `verify_group_calls`; `GroupCallsTest`: `test_report_contract`, `test_report_example` (пример ADR), `test_epoch_header`, `test_failure_code`, `test_stalled_decryption`, `test_strings`; `UpstreamTest.test_group_calls` (порядок `reset` → `requestCall`, предел, алерт перед `leave`), `test_group_calls_check`; `DAMAGE`.
+- **Не проверено.** Доходит ли отчёт до SFU и срабатывает ли каждое условие на живом звонке. При `TdCall.make == nil` в отчёте `error` = 0 и `height` = −1: код `call_create` до отчёта не доходит (замыкание `initializeState` возвращает только nil).
+- **История.** Первый отчёт и повторный вход при сбое — `75087be` (2026-11-12, своя схема, без правила 12 с); v1 и одно правило для всех клиентов — `41541f4` (2026-11-12); задача 094.
+
+### I-127. Цвета звонков: палитра «Шалфей» (задача 094, решения владельца 2026-11-12, вариант A, и 2026-11-13)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Фон звонка 1:1** (`CallBackgroundLayer.swift:108-124`): три набора по четыре точки в порядке апстрима:
+  - соединение `568FD6/626ED5/A667D5/7664DA` → `3A4A3C/4F6E52/2C3A2D/5B7A5E`;
+  - соединено `ACBD65/459F8D/53A4D1/3E917A` → `5B7A5E/6F8F72/4F6E52/7FA082`;
+  - слабый сигнал `C0508D/F09536/CE5081/FC7C4C` → `8A5A44/A86B4C/7A4E3B/B97A55`.
+- **Экраны групповых звонков, плашка звонка, панель звонка в чате, кнопки-переключатели и списки — по смыслу:** синие и фиолетовые → «соединение»; зелёные (говорит, микрофон открыт, соединено) → «соединено»; красные, розовые, оранжевые (не может говорить, опоздание, запись) → «слабый сигнал»; акценты на тёмном фоне → `#9DBB9F`/`#B2CEB4`; серые остаются.
+- **Кнопки действий — цвета Telegram** (решение владельца 2026-11-13, как в Android и Desktop), `CALL_BUTTON_COLORS`, каждый цвет только в своём файле и в числе апстрима:
+  - «Завершить» звонка 1:1 `0xFF3B30` — `ContentOverlayButton.swift:118` (кнопку `.end` делает destructive `ButtonGroupView.swift:323-327`);
+  - «Завершить»/«Отклонить» `0xD92326` и «Принять» `0x74DB58` экрана входящего звонка — `CallControllerButton.swift:245-248, 368-371` (`CallControllerButtonsNode.swift:443-452`), старого экрана — `LegacyCallControllerButton.swift:113-118, 204-209`;
+  - «Покинуть» группового звонка `0x330D0B` — `VideoChatActionButtonComponent.swift:216-218`.
+- **Где.** `CALL_COLORS`: 58 цветов, 128 литералов, число каждого закреплено; `CALL_BUTTON_COLORS`: 6 пар «файл — цвет», 14 литералов; `CALL_COLOR_LITERALS`: три цвета дробями в `MediaStreamComponent.swift`. Все исходники `TelegramCallsUI/Sources`, `TelegramUI/Components/Calls` и `TelegramUI/Components/GroupCallHeaderPanelComponent`; все три каталога в `UPSTREAM_PATHS`.
+- **Как проверяется.** `verify_call_colors`: в экранах звонков только цвета Pluma, серые апстрима (`CALL_GREYS`) и цвета кнопок в своих файлах ровно в числе апстрима; нет `UIColor(red:`; литерал `colorSets` — ровно три набора Pluma в своём порядке. Цвет кнопки на фоне, в другом файле или лишний раз в своём файле, перекрашенная кнопка — ошибка. Тесты `CallColorsTest` (в том числе пропавший и лишний цвет кнопки), `UpstreamTest.test_call_colors` (кнопки сохранили цвета, остальное — палитра), `test_call_colors_check` (перестановка наборов, красный Telegram на фоне, в строке состояния и второй раз в файле кнопки, кнопка в шалфее), две строки `DAMAGE`.
+- **Если апстрим изменит.** Появился, исчез или повторился цвет, в том числе цвет кнопки в её файле, — патч останавливается с именем файла; новый цвет отнести к одному из наборов или, если это кнопка действия, к `CALL_BUTTON_COLORS`.
+- **Не проверено.** Вид, в том числе контраст белых значков на `#6F8F72` (около 3,7:1); Lottie и PNG-ассеты звонков (проверка видит только код).
+- **История.** `41541f4`, 2026-11-12, задача 094; кнопки действий в цветах Telegram — 2026-11-13, не закоммичено.
+
+---
 
 ## Уведомления и push
 

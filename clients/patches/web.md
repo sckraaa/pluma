@@ -56,7 +56,9 @@
 10. Цвета:
     - новые места с `color: #fff` на `var(--primary-color)` — добавить в `ON_PRIMARY` (W-036), иначе в тёмной теме белое окажется на светлом шалфее;
     - новые цвета тем в `themeController.ts`;
-    - синий или бирюзовый Telegram в новых местах (на ветке 020 `verify` их ловит).
+    - синий или бирюзовый Telegram в новых местах (на ветке 020 `verify` их ловит);
+    - цвета звонков Telegram в новых местах — `verify_call_colors` (W-082).
+10а. Групповые звонки (W-077…W-082): новый читатель `isConference`/`isE2e`/`.e2e`, путь к списку «войти от имени», к RTMP-плееру, к запуску трансляции или записи, новая причина повторного входа останавливают `verify_e2e_group_calls` — прочитать место и отнести его к интерфейсу или к криптографии.
 11. Баннер дня рождения и строка профиля: поменялась ли логика гейта Premium и подарков (W-043…W-046).
 12. Настройки: не появились ли у апстрима новые строки, ведущие к сервисам Telegram (W-070).
 13. После сборки: `ci/check_bundle.py` (CI делает сам) и `PLUMA_SERVER_DIR=~/teamgram-server e2e/run.sh` на стенде (W-062). Затем глазами в браузере: вход, QR (`plm://login`), светлая и тёмная темы.
@@ -635,6 +637,91 @@
 - **Осталось (сознательно).** Меню отправки «отправить как есть / выключить стиль» появляется только при сохранённом стиле, а сохранить его можно только в редакторе. Ссылки на стиль (`internalLinkProcessor.ts`, `viewTonePopup`) — ошибка сервера. Окно перевода — задача 027.
 - **Не проверено.** `pnpm run typecheck`, сборка vite и браузер (CI после пуша).
 
+
+## Групповые звонки (задача 094)
+
+Задача 093 (первый этап групповых звонков) клиент не меняла: патчи клиентов в неё не входили. Все правки ниже — задача 094 и ADR 0060 серверного репозитория: каждый групповой звонок сквозной. Ветка `task/094-group-calls-e2e` pluma-web (апстрим `aa74832e`), три коммита: `e157343` (2026-11-12: сквозной звонок, без «войти от имени», без RTMP, первый отчёт), `2364310` (2026-11-12: отчёт `PlumaE2EStatus` v1 и самовосстановление, без записи, цвета звонков), `363d655` (2026-11-13: повторы входа по правилу ADR 0060 §5 от 2026-11-13). Функции `e2e_group_calls()`, `verify_e2e_group_calls`, `call_colors()`, `verify_call_colors` в `ci/patch.py`; описание — README форка, «Every group call end to end» и «Calls in sage».
+
+Общее «не проверено» для W-077…W-082: сборка, `pnpm run typecheck` и браузер; живой звонок с SFU и другими клиентами.
+
+### W-077. Каждый групповой звонок сквозной: звонки чатов и каналов путём конференции (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** ADR 0060: видеочат группы или канала шифруется сквозным образом, как конференция Telegram, и сохраняет интерфейс звонка чата: им управляют админы чата, участников приглашают, ссылки выступающих работают, звонок можно завершить для всех и заглушить новых участников. Сквозной путь конференции в Web K уже есть (`lib/calls/e2e/*` — порт tde2e, `joinConferenceCommon`, `groupCallInstance.attachE2e`), но звонок чата шёл через `joinGroupCallInternal` без ключа.
+- **Где** (`E2E_GROUP_CALL_EDITS`):
+  - `lib/calls/groupCallsController.ts`: `joinGroupCall` (`:289-329`) → `joinConference` с `inputGroupCall(id, access_hash)`, чатом и `invite_hash`: ключ из воркера шифрования, блок, добавляющий пользователя в цепочку (`public_key`/`block` у `phone.joinGroupCall`, `appGroupCallsManager.ts:1267-1279`), чтение и применение цепочки, эмодзи, удаление ушедших с `only_left`, шифрование кадров `RTCRtpScriptTransform` основного и экранного соединений. Восстановление и ссылка выступающего — через `recoverConference` (`recoverGroupCall` `:590`, `rejoinWithInviteHash` `:685`, `inviteConferenceParticipant` `:833`, `startTransportLiveness` `:1229, 1572`).
+  - `lib/calls/groupCallInstance.ts:2177-2179`: `isConference` разделён на `isE2e` (криптография) и `isConference` = `isE2e && !chatId` (интерфейс конференции и simulcast, `groupCallConnectionInstance.ts:227`: звонок чата шлёт 3 слоя).
+  - Интерфейс конференции по `isConference`: `components/groupCall/index.tsx:569, 577, 594, 605`, `participants.ts:221, 229, 284`, `call/shareInviteLink.ts:55`, `call/settingsPopup.tsx:83`, вопрос при уходе в другой звонок `lib/appImManager.ts:2410`. Эмодзи (`index.tsx:347`) и класс `is-conference` (`:859`) смотрят на `e2e` — видны и в звонке чата.
+  - **Браузер без `RTCRtpScriptTransform`** кадры зашифровать не может (`environment/conferenceCallSupport.ts:26-30`): `lib/appImManager.ts`, `joinGroupCall` и `joinCallFromLink` показывают тост `ConferenceCall.Unsupported` («Encrypted group calls are not supported in this browser...», строка конференции) и ничего не создают.
+- **Повторы входа (`CONF_WRITE_CHAIN_INVALID`, правило ADR 0060 §5 от 2026-11-13).** Отказ (высоту занял другой вход): последний блок читается заново и вход идёт на нём. К 10 подряд (`maxStillRefusals`) идёт только отказ, после которого прочитанный последний блок — тот, на котором был построен отвергнутый (цепочка стоит, это не гонка); пока цепочка движется — например, все входят заново после перезапуска SFU и за круг проходит один, — вход продолжается, не больше 100 попыток (`maxAttempts`). Дальше — ошибка входа. Вход запоминает блок, на котором построен свой (`joinChainHead` в `groupCallsController.ts`, `chainHead`/`e2eChainHead`), соединение сравнивает (`groupCallConnectionInstance.ts`, `bytesCmp`); вход без `e2eChainHead` движения не видит, и каждый его отказ считается. Эти повторы — часть входа и в предел самовосстановления (W-081) не идут.
+- **Апстрим без правки.** Звонки групп и каналов без шифрования, сквозная только конференция; повторы `CONF_WRITE_CHAIN_INVALID` — 5 попыток при любом движении цепочки (`groupCallConnectionInstance.ts:385, 408`, `maxRetries = 5`).
+- **Как проверяется.** `verify_e2e_group_calls`: правки на месте, нет вызова `joinGroupCallInternal(`; точные счётчики читателей `<x>.e2e`, `.isConference` и `.isE2e` во всех исходниках, кроме `lib/calls/e2e/` — новый читатель останавливает патч; опоры `E2E_GROUP_CALL_RELIES_ON`. `UpstreamTest.test_e2e_group_calls` (в том числе отказ на стоящей и на движущейся цепочке), порча каждой правки и каждого якоря в `DAMAGE`.
+- **Не проверено.** Simulcast с трансформером в Chrome; какие версии браузеров без `RTCRtpScriptTransform`.
+- **Коммиты:** `e157343` (2026-11-12); повторы входа — `363d655` (2026-11-13); задача 094.
+
+### W-078. «Войти от имени канала» убрано (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Участник цепочки — пользователь (блок добавляет `user_id`), поэтому входит только аккаунт (ADR 0060).
+- **Где.** `components/groupCall/joinAs.ts:140-185`: `chooseGroupCallJoinAs` список не запрашивает и возвращает аккаунт (подтверждение для ссылки — как раньше); `components/call/settingsPopup.tsx:92`: список не запрашивается, строки «Display me as…» (`:264`) нет; `groupCallsController.changeGroupCallJoinAs` (`:671`) сквозному звонку отказывает; сквозной вход `join_as` не шлёт.
+- **Апстрим без правки.** Вопрос «Join as...» и «Display me as...» со списком каналов.
+- **Как проверяется.** `getGroupCallJoinAs(` вне комментариев — только определение в `appGroupCallsManager.ts` (`verify_e2e_group_calls`), `test_e2e_group_calls`, `DAMAGE`.
+- **Коммиты:** `e157343`, 2026-11-12, задача 094.
+
+### W-079. Нет RTMP-трансляций; живых историй в Web K нет (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Части трансляции приходят с сервера без шифрования; RTMP сервер не обслуживает (ADR 0060 §4).
+- **Где.**
+  - `environment/liveStreamSupport.ts`: `IS_LIVE_STREAM_SUPPORTED = false` — нет «Stream With…» (`components/chat/topbar.ts:989-993`), плашки трансляции (`topbarPlates.ts:49`), действия в профиле (`peerProfile.tsx:1504`), плеер не настраивается (`appDialogsManager.ts:436`).
+  - `lib/appImManager.ts`: `joinLiveStream` — только тост `Error.AnError`, текущий звонок не покидается; `watchLiveStream` и импорт `openRtmpCallViewer` удалены; `joinCallFromLink` на звонок с `rtmp_stream` даёт ошибку. Кнопка канала для админа остаётся меню с одним пунктом «Start Video Chat» (так апстрим ведёт себя без service worker).
+  - Живых историй в Web K нет: `stories.startLive` и `messageMediaVideoStream` есть только в схеме (`lib/mtproto/schema.ts`, `layer.d.ts`).
+  - Ссылка на трансляцию канала `lib/rtmp/url.ts` по-прежнему правится на `pluma.chat` (раздел ссылок), но пути к ней из интерфейса нет.
+- **Как проверяется.** `verify_e2e_group_calls`: путей к RTMP-плееру (`RTMP_PLAYERS`: `openRtmpCallViewer.ts` 2, `mediaViewer/rtmp.ts` 1) и к запуску трансляции (`RTMP_STARTS`) не больше известных; якоря флага в `topbar.ts`, `topbarPlates.ts`, `peerProfile.tsx`, `appDialogsManager.ts` — в `E2E_GROUP_CALL_RELIES_ON`. `test_e2e_group_calls`, `DAMAGE`.
+- **Коммиты:** `e157343`, 2026-11-12, задача 094.
+
+### W-080. Нет записи звонка (задача 094)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Сервер не обслуживает `phone.toggleGroupCallRecord` (`ErrEnterpriseIsBlocked`), записать сквозной звонок на сервере нельзя.
+- **Где.** `components/mediaViewer/rtmp.ts`: пункты «Start Recording» и «Stop Recording» плеера RTMP и импорт `showRtmpRecordPopup` убраны (апстрим `rtmp.ts:157-175`). В звонке чата у Web K пункта и индикатора записи нет.
+- **Как проверяется.** `verify_e2e_group_calls`: `showRtmpRecordPopup(`, `.startRecording(`, `.stopRecording(` — только в `rtmp/recordPopup.tsx` (2); ключи `Rtmp.MediaViewer.Menu.Start/StopRecording` — только в `lang.ts`. `test_e2e_group_calls`, `DAMAGE`.
+- **Коммиты:** `2364310`, 2026-11-12, задача 094.
+
+### W-081. Отчёт о шифровании `PlumaE2EStatus` v1 и самовосстановление (задача 094, ADR 0060 §5)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Сервер по отчётам видит, у кого ключи разошлись, не имея ключей; клиент сам входит заново с новым ключом. Схема одна для всех клиентов Pluma.
+- **Отчёт.**
+  - **Где:** `lib/calls/groupCallConnectionInstance.ts` (`serializeE2eStatusReport`, таймер), `e2e/encrypt.worker.ts` (счётчики в `processSend`/`processRecv`, `takeE2eReport`), `e2e/encryptWorkerProtocol.ts` (`E2eStatusReport`, `E2eStatusReportFields`), `e2e/encryptWorkerHost.ts`, `e2e/call.ts` (`getEpochHashes`), `groupCallInstance.ts` (`takeE2eStatusReport`).
+  - **Канал и частота:** канал данных основного соединения, пока он открыт; каждые 5 с, первый через 5 с после входа.
+  - **Поля — ровно v1:** `colibriClass`, `v`, `seq` (с 1 на каждый вход), `height` и `lastBlock` подцепочки 0, `offset0`/`offset1` (курсоры подцепочек), `error` (код tde2e залипшей ошибки), `sendEpochs`, `decryptEpochs`, `unknownEpochs`, `encrypted`, `encryptFailed`, по отправителю `user`, `ok`, `unknownEpoch`, `tooOld`, `duplicate`, `failed`, `lastOkMs`. Счётчики кадров и списки эпох — с прошлого отчёта.
+  - **Пределы:** 15/15/8 эпох и 100 отправителей по возрастанию `user`; JSON ≤ 16 КиБ, лишними уходят отправители с наибольшим `lastOkMs`.
+  - **`lastBlock`** — 8 байт SHA-256 блока в локальной форме (`blockchain.ts:100-102`), в которой его хранит сервер. Кадр, называющий нашу эпоху, чей ключ не подошёл, считается `failed`, а не `unknownEpoch` (как tde2e `Call::decrypt`).
+  - Ключа, nonce, эмодзи и кадров нет.
+- **Самовосстановление** (`groupCallsController.ts`, `recoverConference`, `takeE2eRejoinDelay`): повторный вход с новым ключом, когда
+  1. tde2e сломан окончательно → `'e2e-failure'` вместо выхода (апстрим выходил, `groupCallInstance.ts:446-468`; так делает tdesktop, `calls_group_call.cpp:787-790`);
+  2. подцепочка 0 отстаёт от `next_offset` сервера и блок не применяется дольше 12 с → `'chain-behind'`;
+  3. `GROUPCALL_FORBIDDEN` → `*-forbidden` (апстрим);
+  4. 15 с кадры приходят и ни один отправитель не расшифрован при актуальной своей цепочке (`isDecryptStalled`) → `'decrypt-stalled'`; срабатывает и при единственном отправителе.
+  - Не больше 3 за 5 мин на звонок, задержки 0/2/5 с плюс 0–1 с. Четвёртый случай — выход без завершения звонка для всех и тост `PlumaCall.EncryptionFailed` («The encryption of this call keeps failing, so you left it. Join it again.», английский в `lang.ts`; остальные языки — из языкового пакета сервера, раздел `webk` в `pkg/langpack/override.json`, там ключа пока нет).
+  - Не считаются: повторы упавшего транспорта (`sync-unrecoverable-locally`, `TRANSPORT_REJOIN_REASONS`), как у апстрима, и повторы входа на `CONF_WRITE_CHAIN_INVALID` (W-077).
+- **Апстрим без правки.** Отчёта нет; при сбое tde2e — выход из звонка.
+- **Как проверяется.** `verify_e2e_group_calls`: правки и опоры (`RELIES_ON`); набор причин повторного входа совпадает с `E2E_REJOIN_REASONS` ∪ `TRANSPORT_REJOIN_REASONS` — новая причина у апстрима останавливает патч; разметка `isE2eRejoinReason` сверена. `test_e2e_group_calls` (поля, интервал, пределы, приращения, правила, порчи), `DAMAGE`.
+- **Коммиты:** первый отчёт — `e157343` (2026-11-12, своя схема); v1 и самовосстановление — `2364310` (2026-11-12); задача 094.
+
+### W-082. Звонки в палитре «Шалфей» (задача 094, решения владельца 2026-11-12 и 2026-11-13)
+- **Статус.** Ветка `task/094-group-calls-e2e`, не влито, не выпущено (2026-11-13).
+- **Что и зачем.** Вариант A «Шалфей»: фон и цвета звонков — из палитры брифа 017. Telegram iOS рисует фон тремя четырёхточечными градиентами (`CallBackgroundLayer.swift:108-124`), Web K копирует их. Цвета групповых звонков по смыслу: синий и фиолетовый (заглушён, ожидает, рука, соединение) — «соединение»; зелёный (говорит, не заглушён) — «соединён»; красный и оранжевый (заглушён админом) — «слабый сигнал»; тексты — акценты тёмной темы `#9DBB9F` и `#7FA082`, «заглушён админом» — `#B97A55`. Кнопки действий — цвета Telegram (решение 2026-11-13, как в Android и Desktop): «Покинуть» группового звонка — `--gc-button-leave-color: rgba(100, 50, 50, .92)` апстрима (кнопка `color="red"`, `groupCall/index.tsx:664-668`; `_groupCall.scss:139-141`); «Принять» звонка 1:1 — зелёный Telegram `#5CC85E` (кнопка `color="green"`, `call/index.tsx:569-573`; апстрим брал его из `--gc-green-text-color`, `_call.scss:348-350`, который теперь шалфей «говорит»); «Отклонить»/«Завершить» — цвет опасности темы (`_call.scss:344-346`), без правки.
+- **Где** (`CALL_COLOR_EDITS`):
+  - `components/call/index.tsx` `GRADIENT_COLORS` (апстрим `:42-46`): connecting `3a4a3c,4f6e52,2c3a2d,5b7a5e`, active `5b7a5e,6f8f72,4f6e52,7fa082`, weak `8a5a44,a86b4c,7a4e3b,b97a55`.
+  - `scss/base.scss`, переменные `--gc-*` (апстрим `:288-313`): заливки кнопок-переключателей, `green/blue/red`, градиенты микрофона; `--gc-button-leave-color` остаётся апстрима. Тексты состояний в шалфее — новые `--gc-call-green/blue/red-text-color` (`#9DBB9F`, `#7FA082`, `#B97A55`); `--gc-green/blue/red-text-color` в корне остаются цветами Telegram (апстрим `:300-302`, `CALL_TEXT_OUTSIDE`).
+  - **Тексты состояний — только внутри звонков** (`CALL_TEXT_SCOPES`). Те же `--gc-green/blue/red-text-color` читают опросы (верный и неверный ответ, `chat/bubbleParts/pollMessageContent/styles.module.scss:280-349`) и diff-разметка (`_markup.scss:110, 115`): они остаются в цветах Telegram. Шалфей берут только контейнеры звонков: `.popup-group-call` (`_groupCall.scss:10`, класс попапа `groupCall/index.tsx:845`) и `.popup-call` (`_call.scss:13`, `call/index.tsx:829`) задают `--gc-*-text-color: var(--gc-call-*-text-color)`; внутри звонка их читают `_groupCall.scss:243, 247, 311`.
+  - `components/groupCall/index.tsx` `getColorByMutedState` (апстрим `:105-128`): lottie-иконки участников и микрофона берут цвет из корня документа (`customProperties.getProperty`, `helpers/dom/customProperties.ts:43` — `getComputedStyle(document.documentElement)`), а не из контейнера, поэтому читают `gc-call-<цвет>-text-color`; серый `gc-secondary-text-color` — как у апстрима.
+  - `scss/partials/popups/_call.scss` (`CALL_POPUP`): `.call-button-green` — `#5CC85E` вместо `var(--gc-green-text-color)`.
+  - `scss/partials/_chatPinned.scss`, плашка звонка над чатом `.pinned-call` (апстрим `:901-1125`): `@property --pc-c*`, состояния, кнопка микрофона.
+  - `components/topbarWeave.ts` (не используется) и `components/popupSandbox/stories/calls.ts` (фейковая камера песочницы).
+- **Апстрим без правки.** Синие, фиолетовые, зелёные и красные градиенты и `--gc-*` Telegram, кроме цветов кнопок действий.
+- **Как проверяется.** `verify_call_colors`: сначала кнопки (`CALL_BUTTONS`: строка `--gc-button-leave-color` и правило `&-green` — каждая ровно один раз), затем каждая правка на месте; 31 цвет звонков Telegram и 4 rgba-оттенка запрещены во всех исходниках; 6 цветов, общих с остальным клиентом, — в файлах звонков, на плашке и в строках `--gc-*`. Цвета кнопок разрешены только в этих двух текстах: `rgba(100, 50, 50,` или `#5CC85E` в другом месте — ошибка. Тексты состояний: строки `CALL_TEXT_OUTSIDE` в корне `base.scss` — ровно один раз; объявление `--gc-green/blue/red-text-color` вне них и вне `CALL_TEXT_SCOPES` или чтение `gc-call-` вне файлов звонков и `base.scss` — ошибка. `UpstreamTest.test_call_colors` (значения; кнопки в цветах Telegram; корень в цветах Telegram, шалфей в контейнерах звонков, опросы и `_markup.scss` без правки; каждый hex новых текстов, кроме кнопок и корня, из палитры; пятнадцать порч проверки, в том числе цвет кнопки вне кнопки, перекрашенная кнопка, перекрашенный корень, `--gc-call-green-text-color` в опросах и переопределение в `_markup.scss`), порча каждого якоря в `DAMAGE`.
+- **На подтверждение владельцу.** Тексты `#9DBB9F`, `#7FA082`, `#B97A55`; «рука» и «заглушён» в одном наборе; белый текст на плашке `#6F8F72` — около 3,6:1.
+- **Коммиты:** `2364310`, 2026-11-12, задача 094; кнопки действий в цветах Telegram и тексты состояний только внутри звонков — 2026-11-13, не закоммичено.
+
+---
 
 ## Медиа
 
