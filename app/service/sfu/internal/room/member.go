@@ -93,6 +93,9 @@ type Member struct {
 
 	consMu sync.Mutex
 	cons   *tgcallsjson.ReceiverVideoConstraints
+
+	// e2e is what the connection tells of its encryption (e2e.go).
+	e2e e2eState
 }
 
 func newMember(r *Room, participant int64, kind Kind, endpointID string, audioSSRC uint32, layers []tgcallsjson.VideoLayer, muted bool) *Member {
@@ -282,9 +285,14 @@ func (m *Member) OnDataOpen(*transport.Endpoint) {
 	m.room.kickAllocation()
 }
 
-// OnData implements transport.Handler: Colibri messages of the receiver.
+// OnData implements transport.Handler: Colibri messages of the receiver,
+// and the status reports of its encryption.
 func (m *Member) OnData(_ *transport.Endpoint, msg []byte) {
 	class, err := tgcallsjson.ColibriClass(msg)
+	if err == nil && class == tgcallsjson.ClassPlumaE2EStatus {
+		m.onE2EStatus(msg, time.Now())
+		return
+	}
 	if err != nil || class != tgcallsjson.ClassReceiverVideoConstraints {
 		return
 	}

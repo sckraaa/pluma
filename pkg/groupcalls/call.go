@@ -86,6 +86,14 @@ type Call struct {
 	// SfuNode is the SFU node the call's room is on; "" until the first join.
 	SfuNode string
 	Posted  int8
+	// ChainHeight is the height of the last block of sub-chain 0 of the
+	// call's end-to-end encryption, -1 before the first; ChainHash its
+	// hash (ADR 0060 §2).
+	ChainHeight int32
+	ChainHash   [32]byte
+	// BroadcastCount is the broadcasts of sub-chain 1 so far: the index of
+	// the next one.
+	BroadcastCount int32
 }
 
 // Scheduled reports whether the call waits for its start.

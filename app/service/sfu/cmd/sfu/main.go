@@ -88,8 +88,6 @@ func run(c config.Config) error {
 	bus := control.NewBus()
 	rooms, err := room.NewManager(room.Config{
 		Addresses:       addresses,
-		Plaintext:       c.Plaintext,
-		E2E:             c.E2E,
 		MaxParticipants: c.Limits.MaxParticipants,
 		MaxVideos:       c.Limits.MaxVideos,
 		LastN:           c.Limits.LastN,

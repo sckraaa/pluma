@@ -59,8 +59,7 @@ type SFUClient interface {
 	// Connects a participant's connection. NOT_FOUND: no room (create it);
 	// ALREADY_EXISTS: a source is another participant's
 	// (GROUPCALL_SSRC_DUPLICATE_MUCH); INVALID_ARGUMENT: bad params;
-	// RESOURCE_EXHAUSTED: the room is full; FAILED_PRECONDITION: the node
-	// does not take the call's kind.
+	// RESOURCE_EXHAUSTED: the room is full.
 	Join(ctx context.Context, in *JoinRequest, opts ...grpc.CallOption) (*JoinResponse, error)
 	// Disconnects a participant's connection. NOT_FOUND: no such room or
 	// connection.
@@ -173,8 +172,7 @@ type SFUServer interface {
 	// Connects a participant's connection. NOT_FOUND: no room (create it);
 	// ALREADY_EXISTS: a source is another participant's
 	// (GROUPCALL_SSRC_DUPLICATE_MUCH); INVALID_ARGUMENT: bad params;
-	// RESOURCE_EXHAUSTED: the room is full; FAILED_PRECONDITION: the node
-	// does not take the call's kind.
+	// RESOURCE_EXHAUSTED: the room is full.
 	Join(context.Context, *JoinRequest) (*JoinResponse, error)
 	// Disconnects a participant's connection. NOT_FOUND: no such room or
 	// connection.

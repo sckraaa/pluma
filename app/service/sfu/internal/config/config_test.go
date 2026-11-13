@@ -33,7 +33,7 @@ func TestShippedConfigLoads(t *testing.T) {
 	if c.Media.TCPListen == "" || c.Media.TCPListen == ":443" {
 		t.Errorf("ICE-TCP port %q: it must be on and not 443, which Caddy has", c.Media.TCPListen)
 	}
-	if c.ICE.FailedTimeout != 25*time.Second || c.Limits.MaxVideos != 30 || !c.Plaintext || c.E2E {
+	if c.ICE.FailedTimeout != 25*time.Second || c.Limits.MaxVideos != 30 {
 		t.Errorf("%+v", c)
 	}
 	addrs, err := c.Addresses(20600, 20601)
@@ -46,7 +46,6 @@ func TestAddressesAndValidate(t *testing.T) {
 	var c Config
 	c.Control.ListenOn, c.Control.CertFile, c.Control.KeyFile, c.Control.ClientCAFile = ":1", "c", "k", "ca"
 	c.Media.UDPListen = ":20600"
-	c.Plaintext = true
 	if err := c.Validate(); err != nil {
 		t.Fatal(err)
 	}
@@ -68,11 +67,6 @@ func TestAddressesAndValidate(t *testing.T) {
 	bad.Control.ClientCAFile = ""
 	if bad.Validate() == nil {
 		t.Error("control without mutual TLS accepted")
-	}
-	bad = c
-	bad.Plaintext = false
-	if bad.Validate() == nil {
-		t.Error("a node that takes no calls accepted")
 	}
 	bad = c
 	bad.Media.TCPListen = "20601"

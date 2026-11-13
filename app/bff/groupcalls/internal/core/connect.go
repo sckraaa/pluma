@@ -101,7 +101,7 @@ func connect(ctx context.Context, sfu sfuclient.API, st placer, call *groupcalls
 // in between is opened again once.
 func joinRoom(ctx context.Context, sfu sfuclient.API, node string, req *pb.JoinRequest) (*pb.JoinResponse, error) {
 	for attempt := 0; ; attempt++ {
-		if err := sfu.CreateRoom(ctx, node, req.GetCallId(), false); err != nil {
+		if err := sfu.CreateRoom(ctx, node, req.GetCallId()); err != nil {
 			return nil, err
 		}
 		resp, err := sfu.Join(ctx, node, req)

@@ -61,6 +61,9 @@ type GroupCalls struct {
 	AbsentTimeout time.Duration `json:",default=30s"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// RequestTimeout bounds one call of a node's control API.
 	RequestTimeout time.Duration `json:",default=5s"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// ChainKeep: the blocks of the encryption of a call that is over are
+	// deleted this long after its end (ADR 0060 §2).
+	ChainKeep time.Duration `json:",default=1h"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }
 
 type Config struct {

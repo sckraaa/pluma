@@ -145,7 +145,9 @@ func (s *Server) Initialize() error {
 		s.calls = voipcalls_helper.StartSweeper(callsConf)
 
 		// groupcalls_helper: phone.* of the group calls of chats and
-		// channels (task 093, ADR 0059); the media are the SFU's.
+		// channels (task 093, ADR 0059) and the chain of their end-to-end
+		// encryption, RPCConferenceCalls (task 094, ADR 0060); the media
+		// are the SFU's.
 		s.groupCalls = groupcalls_helper.New(groupcalls_helper.Config{
 			RpcServerConf: c.RpcServerConf,
 			Mysql:         c.Mysql,
@@ -157,6 +159,7 @@ func (s *Server) Initialize() error {
 			SyncClient:    syncClient,
 		})
 		mtproto.RegisterRPCGroupCallsServer(grpcServer, s.groupCalls)
+		mtproto.RegisterRPCConferenceCallsServer(grpcServer, s.groupCalls)
 
 		// bots_helper: the methods of bot accounts (task 070, ADR 0043).
 		bots := bots_helper.New(bots_helper.Config{

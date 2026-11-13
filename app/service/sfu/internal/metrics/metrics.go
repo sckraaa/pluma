@@ -120,4 +120,12 @@ var (
 		Name: "sfu_events_dropped_total",
 		Help: "Events not delivered to a slow subscriber of the control stream.",
 	})
+	E2EReports = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "sfu_e2e_reports_total",
+		Help: "PlumaE2EStatus reports of the data channel: accepted, or dropped by reason (size, version, schema, rate, kind).",
+	}, []string{"result"})
+	E2EUnparsedAudio = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "sfu_e2e_audio_unparsed_total",
+		Help: "Sound packets whose payload is not a frame of tde2e: sent unencrypted or broken. Forwarded all the same; the SFU reads no frame.",
+	})
 )

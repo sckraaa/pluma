@@ -63,7 +63,6 @@ type Room struct {
 	mgr      *Manager
 	cfg      *Config
 	id       int64
-	e2e      bool
 	selector *audio.Selector
 
 	mu          sync.Mutex
@@ -81,12 +80,11 @@ type Room struct {
 	closeOnce sync.Once
 }
 
-func newRoom(m *Manager, id int64, e2e bool) *Room {
+func newRoom(m *Manager, id int64) *Room {
 	r := &Room{
 		mgr:          m,
 		cfg:          &m.cfg,
 		id:           id,
-		e2e:          e2e,
 		selector:     audio.NewSelector(m.cfg.LastN, m.cfg.AudioHold),
 		members:      map[memberKey]*Member{},
 		owners:       map[uint32]*Member{},
@@ -106,14 +104,34 @@ func newEndpointID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func (r *Room) join(participant int64, kind Kind, req *tgcallsjson.JoinRequest, muted bool) (*JoinResult, error) {
+// validEndpointID: the id the signalling side chose is a short token of
+// letters, digits, '-' and '_', as the ones made here are.
+func validEndpointID(s string) bool {
+	if len(s) == 0 || len(s) > 64 {
+		return false
+	}
+	for _, c := range s {
+		ok := c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '-' || c == '_'
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// join connects a participant's connection. endpointID is the id the
+// signalling side stored for it; "" makes one.
+func (r *Room) join(participant int64, kind Kind, req *tgcallsjson.JoinRequest, muted bool, endpointID string) (*JoinResult, error) {
 	layers, err := req.VideoLayers()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrBadParams, err)
 	}
-	endpointID, err := newEndpointID()
-	if err != nil {
-		return nil, err
+	if endpointID == "" {
+		if endpointID, err = newEndpointID(); err != nil {
+			return nil, err
+		}
+	} else if !validEndpointID(endpointID) {
+		return nil, fmt.Errorf("%w: endpoint id", ErrBadParams)
 	}
 	fp := req.SHA256Fingerprint()
 	remoteDigest, err := tgcallsjson.DecodeFingerprint(fp.Fingerprint, 32)
@@ -345,7 +363,7 @@ func (r *Room) onClosed(m *Member, reason error) {
 	metrics.ConnectFailures.WithLabelValues(cause).Inc()
 	r.mgr.publish(Event{
 		Type: EventDisconnected, CallID: r.id, Participant: m.participant, Kind: m.kind, Time: time.Now(),
-		Reason: cause,
+		Reason: cause, Source: m.audioSSRC,
 	})
 	r.kickAllocation()
 }
@@ -409,6 +427,9 @@ func (r *Room) run() {
 // among the last speakers. The sound of a participant muted by an admin is
 // dropped here.
 func (r *Room) forwardAudio(sender *Member, pkt *rtp.Packet, now time.Time) {
+	if sender.kind == KindMain {
+		r.observeEpochs(sender, pkt.Payload, now)
+	}
 	if sender.muted.Load() {
 		metrics.MutedDropped.Inc()
 		return

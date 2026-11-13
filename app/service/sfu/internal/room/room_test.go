@@ -91,7 +91,6 @@ func newTestManager(t *testing.T, mutate func(*Config)) (*Manager, *recorder) {
 			{IP: lo, Port: uint16(mux.UDPAddr().Port)},
 			{IP: lo, Port: uint16(mux.TCPAddr().Port), TCP: true},
 		},
-		Plaintext: true,
 		Transport: transport.EndpointConfig{StartTimeout: 10 * time.Second, ConnectTimeout: 10 * time.Second, Renomination: true},
 	}
 	if mutate != nil {
@@ -103,7 +102,7 @@ func newTestManager(t *testing.T, mutate func(*Config)) (*Manager, *recorder) {
 		t.Fatal(err)
 	}
 	t.Cleanup(m.Close)
-	if _, err := m.CreateRoom(callID, false); err != nil {
+	if _, err := m.CreateRoom(callID); err != nil {
 		t.Fatal(err)
 	}
 	return m, rec
@@ -121,7 +120,7 @@ func joinPeer(t *testing.T, m *Manager, participant int64, kind Kind, cfg groupc
 	if err != nil {
 		t.Fatal(err)
 	}
-	res, err := m.Join(callID, participant, kind, params, false)
+	res, err := m.Join(callID, participant, kind, params, false, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -792,13 +791,13 @@ func TestJoinRules(t *testing.T) {
 
 	// Another participant with a source of the first one.
 	params := []byte(`{"ssrc":` + itoa(first.Sources[0]) + `,"ufrag":"abcd","pwd":"abcdefghijklmnopqrstuvwx","fingerprints":[{"hash":"sha-256","setup":"passive","fingerprint":"` + fakeFingerprint() + `"}]}`)
-	if _, err := m.Join(callID, 2, KindMain, params, false); !errors.Is(err, ErrSSRCInUse) {
+	if _, err := m.Join(callID, 2, KindMain, params, false, ""); !errors.Is(err, ErrSSRCInUse) {
 		t.Errorf("duplicate source: %v", err)
 	}
-	if _, err := m.Join(callID, 2, KindMain, []byte(`{"ssrc":1}`), false); !errors.Is(err, ErrBadParams) {
+	if _, err := m.Join(callID, 2, KindMain, []byte(`{"ssrc":1}`), false, ""); !errors.Is(err, ErrBadParams) {
 		t.Errorf("bad params: %v", err)
 	}
-	if _, err := m.Join(7, 2, KindMain, params, false); !errors.Is(err, ErrRoomNotFound) {
+	if _, err := m.Join(7, 2, KindMain, params, false, ""); !errors.Is(err, ErrRoomNotFound) {
 		t.Errorf("no room: %v", err)
 	}
 
@@ -811,7 +810,7 @@ func TestJoinRules(t *testing.T) {
 	_ = res
 
 	joinPeer(t, m, 2, KindMain, groupcallpeer.Config{})
-	if _, err := m.Join(callID, 3, KindMain, mustParams(t), false); !errors.Is(err, ErrRoomFull) {
+	if _, err := m.Join(callID, 3, KindMain, mustParams(t), false, ""); !errors.Is(err, ErrRoomFull) {
 		t.Errorf("third participant: %v", err)
 	}
 	// A screen of a participant in the call does not count.
@@ -843,7 +842,7 @@ func TestRoomRestart(t *testing.T) {
 	if _, err := m.Sources(callID); !errors.Is(err, ErrRoomNotFound) {
 		t.Fatalf("sources after close: %v", err)
 	}
-	if created, err := m.CreateRoom(callID, false); err != nil || !created {
+	if created, err := m.CreateRoom(callID); err != nil || !created {
 		t.Fatalf("recreate: %v %v", created, err)
 	}
 	a, _ := joinPeer(t, m, 1, KindMain, groupcallpeer.Config{})
@@ -854,7 +853,7 @@ func TestRoomRestart(t *testing.T) {
 
 func TestClientThatNeverComes(t *testing.T) {
 	m, rec := newTestManager(t, func(c *Config) { c.Transport.StartTimeout = 300 * time.Millisecond })
-	if _, err := m.Join(callID, 5, KindMain, mustParams(t), false); err != nil {
+	if _, err := m.Join(callID, 5, KindMain, mustParams(t), false, ""); err != nil {
 		t.Fatal(err)
 	}
 	ev := rec.wait(t, 5*time.Second, func(ev Event) bool { return ev.Type == EventDisconnected })
@@ -863,16 +862,6 @@ func TestClientThatNeverComes(t *testing.T) {
 	}
 	if srcs, _ := m.Sources(callID); len(srcs) != 0 {
 		t.Errorf("sources %+v", srcs)
-	}
-}
-
-func TestE2EKinds(t *testing.T) {
-	m, _ := newTestManager(t, nil)
-	if _, err := m.CreateRoom(9, true); !errors.Is(err, ErrE2EMismatch) {
-		t.Errorf("e2e room on a plaintext node: %v", err)
-	}
-	if _, err := m.CreateRoom(callID, true); !errors.Is(err, ErrE2EMismatch) {
-		t.Errorf("e2e reopen of a plaintext room: %v", err)
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/e2emon"
 	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/svc"
 	pb "github.com/teamgram/teamgram-server/app/service/sfu/sfu"
 	"github.com/teamgram/teamgram-server/pkg/groupcalls"
@@ -45,8 +46,10 @@ const (
 // who may no longer see the chat (removed or banned) leaves it, the SFU's
 // mute of each participant is brought back to his word when a SetMuted was
 // lost, a room empty for as long is closed, the rooms of ended calls are
-// closed, and the service messages that were lost are sent again. It holds
-// no state that matters: a restart or a second instance changes nothing.
+// closed, the service messages that were lost are sent again, and the
+// blocks of the encryption of calls over for ChainKeep are deleted. It
+// holds no state that matters: a restart or a second instance changes
+// nothing.
 type Collector struct {
 	svcCtx *svc.ServiceContext
 	cancel context.CancelFunc
@@ -60,7 +63,22 @@ func StartCollector(svcCtx *svc.ServiceContext) *Collector {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Collector{svcCtx: svcCtx, cancel: cancel, empty: map[int64]time.Time{}}
 	metricSFUConfigured.Set(1)
-	s.wg.Add(1)
+	s.wg.Add(2)
+	go func() {
+		// The watch of the encryption (ADR 0060 §5) on its own tick: its
+		// alarms hold for 10 s and more.
+		defer s.wg.Done()
+		t := time.NewTicker(e2emon.TickEvery)
+		defer t.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				svcCtx.E2E.Tick(ctx)
+			}
+		}
+	}()
 	go func() {
 		defer s.wg.Done()
 		t := time.NewTicker(collectTick)
@@ -112,6 +130,9 @@ func (s *Collector) pass(ctx context.Context) {
 	}
 	for _, call := range over {
 		c.closeRoom(call)
+	}
+	if _, err := s.svcCtx.Dao.Store.ClearChains(ctx, time.Now().Add(-s.svcCtx.ChainKeep), collectBatch); err != nil {
+		c.Logger.Errorf("groupcalls: blocks of ended calls: %v", err)
 	}
 	unposted, err := s.svcCtx.Dao.Store.Unposted(ctx, time.Now().Add(-postKeep), collectBatch)
 	if err != nil {

@@ -60,6 +60,7 @@ func (c *GroupCallsCore) PhoneLeaveGroupCall(in *mtproto.TLPhoneLeaveGroupCall) 
 		return c.answer(a, after, nil, nil, true), nil
 	}
 	c.disconnect(after, c.MD.UserId)
+	c.svcCtx.E2E.Left(call.Id, c.MD.UserId)
 	metricLeaves.Inc("self")
 	return c.left(a, call, after, change), nil
 }

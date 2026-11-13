@@ -14,15 +14,16 @@
 // limitations under the License.
 
 // Package core is the phone.* methods of group calls of chats and channels
-// (task 093, ADR 0059). The state is pkg/groupcalls; the media are the
-// SFU's (app/service/sfu), reached through sfuclient. What the clients
-// expect of each step is cited at the step.
+// (task 093, ADR 0059) and of their end-to-end encryption (task 094, ADR
+// 0060; chain.go). The state is pkg/groupcalls; the media are the SFU's
+// (app/service/sfu), reached through sfuclient. What the clients expect of
+// each step is cited at the step.
 //
 // The order of a step is the state, then the SFU, then the updates (ADR
-// 0059 §10), except a join, which connects the SFU first: its answer is
-// what the client needs, and a connection the state then refuses is closed
-// again. A lost update only leaves a gap in the versions, which the
-// clients close by reading the call again.
+// 0059 §10, ADR 0060 §2), a join included: its block and its row are
+// written first, so that a join refused by the chain never touches the
+// connection the participant has. A lost update only leaves a gap in the
+// versions, which the clients close by reading the call again.
 package core
 
 import (

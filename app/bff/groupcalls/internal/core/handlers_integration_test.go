@@ -19,6 +19,7 @@ package core
 
 import (
 	"context"
+	"crypto/ed25519"
 	"errors"
 	"fmt"
 	"os"
@@ -32,6 +33,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/dao"
+	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/e2emon"
 	"github.com/teamgram/teamgram-server/app/bff/groupcalls/internal/svc"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
@@ -41,10 +43,15 @@ import (
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	pb "github.com/teamgram/teamgram-server/app/service/sfu/sfu"
 	"github.com/teamgram/teamgram-server/pkg/groupcalls"
+	"github.com/teamgram/teamgram-server/pkg/tde2e"
+	"github.com/teamgram/teamgram-server/pkg/tde2e/tde2etest"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 
 	"github.com/zeromicro/go-zero/core/logx"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -178,12 +185,15 @@ func newWorld(t *testing.T) *world {
 	sfu := newFakeSFU("main")
 	channel := 1000 + testChannels.Add(1)
 	removed := &atomic.Int64{}
+	store := groupcalls.NewStore(sqlx.NewMySQL(&c))
 	return &world{
 		removed: removed,
 		channel: channel,
 		svcCtx: &svc.ServiceContext{
+			E2E:     e2emon.New(store),
+			Members: svc.NewChainMembers(),
 			Dao: &dao.Dao{
-				Store:         groupcalls.NewStore(sqlx.NewMySQL(&c)),
+				Store:         store,
 				UserClient:    fakeUsers{},
 				ChannelClient: fakeChannels{id: channel, removed: removed},
 				MsgClient:     fakeMsg{r: rec},
@@ -201,6 +211,42 @@ func newWorld(t *testing.T) *world {
 func (w *world) as(userId int64) *GroupCallsCore {
 	ctx := context.Background()
 	return &GroupCallsCore{ctx: ctx, svcCtx: w.svcCtx, Logger: logx.WithContext(ctx), MD: &metadata.RpcMetadata{UserId: userId, PermAuthKeyId: userId * 10}}
+}
+
+// keyOf is the key userId joins with: one per user, so that a join again is
+// with the same key, as iOS does to restore its transport (ADR 0060 §2).
+func keyOf(userId int64) ed25519.PrivateKey { return tde2etest.Key(byte(userId)) }
+
+// sealed fills the key of userId and his join block on top of the chain of
+// the call of req, as a client builds it from the last block.
+func (w *world) sealed(t *testing.T, userId int64, req *mtproto.TLPhoneJoinGroupCall) *mtproto.TLPhoneJoinGroupCall {
+	t.Helper()
+	ch, err := w.svcCtx.Dao.Store.Chain(context.Background(), req.GetCall().GetId())
+	if err != nil {
+		t.Fatalf("the chain of the call: %v", err)
+	}
+	pk := tde2etest.Pub(keyOf(userId))
+	req.PublicKey, req.Block = pk[:], tde2etest.JoinBlock(ch, userId, keyOf(userId))
+	return req
+}
+
+// chainOf is the chain of a call as stored.
+func (w *world) chainOf(t *testing.T, callId int64) *tde2e.Chain {
+	t.Helper()
+	ch, err := w.svcCtx.Dao.Store.Chain(context.Background(), callId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ch
+}
+
+// chainUpdates are the updateGroupCallChainBlocks of u by sub-chain.
+func chainUpdates(u *mtproto.Updates) map[int32]*mtproto.Update {
+	out := map[int32]*mtproto.Update{}
+	for _, up := range updatesOf(u, mtproto.Predicate_updateGroupCallChainBlocks) {
+		out[up.GetSubChainId()] = up
+	}
+	return out
 }
 
 func (w *world) inputChannel() *mtproto.InputPeer {
@@ -288,18 +334,20 @@ func TestGroupCallFlow(t *testing.T) {
 	// Join as a channel is not offered (ADR 0060); end-to-end joins are a
 	// later stage; a stranger to the chat may not join.
 	join := func(userId int64, ssrc uint32, video bool) (*mtproto.Updates, error) {
-		return w.as(userId).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(ssrc, video)})
+		return w.as(userId).PhoneJoinGroupCall(w.sealed(t, userId, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(ssrc, video)}))
 	}
-	if _, err = w.as(1).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: w.inputChannel(), Params: params(100, false)}); !errors.Is(err, mtproto.ErrJoinAsPeerInvalid) {
+	if _, err = w.as(1).PhoneJoinGroupCall(w.sealed(t, 1, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: w.inputChannel(), Params: params(100, false)})); !errors.Is(err, mtproto.ErrJoinAsPeerInvalid) {
 		t.Fatalf("join as a channel: %v", err)
 	}
-	if _, err = w.as(1).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(100, false), PublicKey: make([]byte, 32)}); !errors.Is(err, mtproto.ErrGroupcallInvalid) {
-		t.Fatalf("join with a key: %v", err)
+	// Every call is end-to-end encrypted (ADR 0060): a client without the
+	// key and the block is refused.
+	if _, err = w.as(1).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(100, false)}); !errors.Is(err, mtproto.ErrGroupcallForbidden) {
+		t.Fatalf("join without the encryption: %v", err)
 	}
 	if _, err = join(4, 400, false); !errors.Is(err, mtproto.ErrGroupcallForbidden) {
 		t.Fatalf("a stranger joins: %v", err)
 	}
-	if _, err = w.as(1).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: mtproto.MakeTLDataJSON(&mtproto.DataJSON{Data: "{}"}).To_DataJSON()}); !errors.Is(err, mtproto.ErrDataJsonInvalid) {
+	if _, err = w.as(1).PhoneJoinGroupCall(w.sealed(t, 1, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: mtproto.MakeTLDataJSON(&mtproto.DataJSON{Data: "{}"}).To_DataJSON()})); !errors.Is(err, mtproto.ErrDataJsonInvalid) {
 		t.Fatalf("bad params: %v", err)
 	}
 
@@ -311,6 +359,15 @@ func TestGroupCallFlow(t *testing.T) {
 	}
 	if len(updatesOf(u, mtproto.Predicate_updateGroupCallConnection)) != 1 {
 		t.Fatalf("no connection in %v", u.GetUpdates())
+	}
+	// Both sub-chains: the block of the join, in the server form, with the
+	// height after it, and no broadcast (iOS GroupCalls.swift:922-944).
+	subs := chainUpdates(u)
+	if b := subs[0]; b == nil || len(b.GetBlocks()) != 1 || !tde2e.IsFromServer(b.GetBlocks()[0]) || b.GetNextOffset() != 1 {
+		t.Fatalf("sub-chain 0 of the zero block: %v", b)
+	}
+	if b := subs[1]; b == nil || len(b.GetBlocks()) != 0 || b.GetNextOffset() != 0 {
+		t.Fatalf("sub-chain 1 of the join: %v", b)
 	}
 	if gc = callOf(t, u); gc.GetParticipantsCount() != 1 || gc.GetVersion() != 2 {
 		t.Fatalf("call after the join: %v", gc)
@@ -324,13 +381,16 @@ func TestGroupCallFlow(t *testing.T) {
 		t.Fatalf("member told of the first join: %v", ps)
 	}
 
-	// A source of another is GROUPCALL_SSRC_DUPLICATE_MUCH, and the
-	// connection the SFU took is closed again.
+	// A source of another is GROUPCALL_SSRC_DUPLICATE_MUCH: neither the
+	// block nor a connection is taken.
 	if _, err = join(2, 100, false); !errors.Is(err, mtproto.ErrGroupcallSsrcDuplicateMuch) {
 		t.Fatalf("a taken source: %v", err)
 	}
 	if _, ok := w.sfu.rooms["main"][gc.GetId()][fakeConn{gc.GetId(), 2, 0}]; ok {
-		t.Fatal("the refused connection stays on the SFU")
+		t.Fatal("the refused join is on the SFU")
+	}
+	if h := w.chainOf(t, gc.GetId()).Height(); h != 0 {
+		t.Fatalf("the refused join moved the chain to %d", h)
 	}
 
 	// The second joins with a camera: the first gets the min row with the
@@ -339,16 +399,21 @@ func TestGroupCallFlow(t *testing.T) {
 	if u, err = join(2, 200, true); err != nil {
 		t.Fatal(err)
 	}
-	// The other devices of 2 learn of the join too.
-	if ps := w.rec.taken(2); len(ps) != 1 {
+	// The other devices of 2 learn of the join too, and of its block.
+	if ps := w.rec.taken(2); len(ps) != 2 {
 		t.Fatalf("pushes to the other devices of 2: %v", ps)
 	}
 	if mine, v := rowOf(u, 2); mine.GetVideo().GetEndpoint() == "" || v != 3 {
 		t.Fatalf("own row with a camera %v at %d", mine, v)
 	}
+	// 1 gets the row, then the block of the join
+	// (TestGroupCallChainDeliveryOrder).
 	ps := w.rec.taken(1)
-	if len(ps) != 1 {
+	if len(ps) != 2 {
 		t.Fatalf("pushes to 1: %v", ps)
+	}
+	if b := chainUpdates(ps[1])[0]; b == nil || len(b.GetBlocks()) != 1 || b.GetNextOffset() != 2 {
+		t.Fatalf("the block of the join of 2 sent to 1: %v", ps[1])
 	}
 	other, v := rowOf(ps[0], 2)
 	if other == nil || !other.GetMin() || other.GetSelf() || !other.GetJustJoined() || v != 3 || len(other.GetVideo().GetSourceGroups()) != 4 {
@@ -476,7 +541,7 @@ func TestGroupCallSfuRestart(t *testing.T) {
 	gc := callOf(t, u)
 	call := mtproto.MakeTLInputGroupCall(&mtproto.InputGroupCall{Id: gc.GetId(), AccessHash: gc.GetAccessHash()}).To_InputGroupCall()
 	for _, id := range []int64{1, 2} {
-		if _, err = w.as(id).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(uint32(id*100), false)}); err != nil {
+		if _, err = w.as(id).PhoneJoinGroupCall(w.sealed(t, id, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(uint32(id*100), false)})); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -484,7 +549,8 @@ func TestGroupCallSfuRestart(t *testing.T) {
 	if got, err := w.as(1).PhoneCheckGroupCall(&mtproto.TLPhoneCheckGroupCall{Call: call, Sources: []int32{100}}); err != nil || len(got.GetDatas()) != 0 {
 		t.Fatalf("check after the restart: %v %v", got, err)
 	}
-	u, err = w.as(1).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(101, false)})
+	// The join again is with the same key: the transport is restored.
+	u, err = w.as(1).PhoneJoinGroupCall(w.sealed(t, 1, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(101, false)}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -530,7 +596,7 @@ func TestGroupCallRepairsAndRaces(t *testing.T) {
 		return mtproto.MakeTLInputGroupCall(&mtproto.InputGroupCall{Id: gc.GetId(), AccessHash: gc.GetAccessHash()}).To_InputGroupCall(), gc.GetId()
 	}
 	join := func(call *mtproto.InputGroupCall, userId int64, ssrc uint32) (*mtproto.Updates, error) {
-		return w.as(userId).PhoneJoinGroupCall(&mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(ssrc, false)})
+		return w.as(userId).PhoneJoinGroupCall(w.sealed(t, userId, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(ssrc, false)}))
 	}
 	call, id := create()
 	for _, u := range []int64{1, 2, 3} {
@@ -614,8 +680,9 @@ func TestGroupCallRepairsAndRaces(t *testing.T) {
 		t.Fatal("the room opened by a join that raced the end stays open")
 	}
 
-	// A join connects while the collector closes the room it found empty
-	// and forgets its node: the join places the call on the node again.
+	// A join connects while the collector closes the room it found empty:
+	// the join is in the call already, so the node is not forgotten, and
+	// the join opens the room again.
 	call, id = create()
 	w.sfu.mu.Lock()
 	w.sfu.beforeJoin = func() {
@@ -630,7 +697,7 @@ func TestGroupCallRepairsAndRaces(t *testing.T) {
 	if _, _, err := w.svcCtx.Dao.Store.SetNode(ctx, id, "", "main"); err != nil {
 		t.Fatal(err)
 	}
-	if err := w.sfu.CreateRoom(ctx, "main", id, false); err != nil {
+	if err := w.sfu.CreateRoom(ctx, "main", id); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := join(call, 2, 210); err != nil {
@@ -642,5 +709,371 @@ func TestGroupCallRepairsAndRaces(t *testing.T) {
 	}
 	if _, ok := w.sfu.rooms["main"][id][fakeConn{id, 2, 0}]; !ok {
 		t.Fatal("2 is not in the room")
+	}
+}
+
+// The chain of a call's encryption as the clients drive it (ADR 0060 §2):
+// joins at one height, reads by members and by others, the removal of one
+// who left by the others, what the removed one may still do, a join again
+// with the same key and with another's, a kick, the emoji verification.
+func TestGroupCallChain(t *testing.T) {
+	w := newWorld(t)
+	ctx := context.Background()
+	u, err := w.as(1).PhoneCreateGroupCall(&mtproto.TLPhoneCreateGroupCall{Peer: w.inputChannel(), RandomId: int32(time.Now().UnixNano())})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gc := callOf(t, u)
+	id := gc.GetId()
+	call := mtproto.MakeTLInputGroupCall(&mtproto.InputGroupCall{Id: id, AccessHash: gc.GetAccessHash()}).To_InputGroupCall()
+	joinReq := func(userId int64, ssrc uint32) *mtproto.TLPhoneJoinGroupCall {
+		return w.sealed(t, userId, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(ssrc, false)})
+	}
+	read := func(userId int64, sub, offset, limit int32) *mtproto.Update {
+		t.Helper()
+		r, err := w.as(userId).PhoneGetGroupCallChainBlocks(&mtproto.TLPhoneGetGroupCallChainBlocks{Call: call, SubChainId: sub, Offset: offset, Limit: limit})
+		if err != nil {
+			t.Fatalf("read of %d: %v", userId, err)
+		}
+		ups := updatesOf(r, mtproto.Predicate_updateGroupCallChainBlocks)
+		if len(ups) != 1 {
+			t.Fatalf("read of %d: %v", userId, r)
+		}
+		return ups[0]
+	}
+
+	// Before any block, the last block is none; 2 and 3 build their joins
+	// on the same height: the first is taken, the second is stale.
+	if b := read(2, 0, -1, 1); len(b.GetBlocks()) != 0 || b.GetNextOffset() != 0 {
+		t.Fatalf("the last block of an empty chain: %v", b)
+	}
+	first, second := joinReq(2, 200), joinReq(3, 300)
+	if _, err = w.as(2).PhoneJoinGroupCall(first); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.as(3).PhoneJoinGroupCall(second); !errors.Is(err, errChainInvalid) {
+		t.Fatalf("a join on a taken height: %v", err)
+	}
+	if _, err = w.as(3).PhoneJoinGroupCall(joinReq(3, 300)); err != nil {
+		t.Fatalf("the join again on the last block: %v", err)
+	}
+	if _, err = w.as(1).PhoneJoinGroupCall(joinReq(1, 100)); err != nil {
+		t.Fatal(err)
+	}
+	// A member reads from an offset; next_offset follows the last block.
+	if b := read(2, 0, 1, 50); len(b.GetBlocks()) != 2 || b.GetNextOffset() != 3 {
+		t.Fatalf("blocks 1.. of a member: %d, next %d", len(b.GetBlocks()), b.GetNextOffset())
+	}
+	if b := read(2, 0, 0, 1); len(b.GetBlocks()) != 1 || b.GetNextOffset() != 1 {
+		t.Fatalf("block 0 of a member: %v", b)
+	}
+
+	// The key of 3 is his: 2 may not join with it.
+	stolen := joinReq(2, 201)
+	pk3 := tde2etest.Pub(keyOf(3))
+	stolen.PublicKey = pk3[:]
+	stolen.Block = tde2etest.JoinBlock(w.chainOf(t, id), 2, keyOf(3))
+	if _, err = w.as(2).PhoneJoinGroupCall(stolen); !errors.Is(err, errBlockInvalid) {
+		t.Fatalf("a join with the key of another: %v", err)
+	}
+
+	// 3 leaves the call; a member that is still in the call may not be
+	// removed as one who left, 3 may: of the two removals the first is
+	// taken, the second is stale.
+	if _, err = w.as(3).PhoneLeaveGroupCall(&mtproto.TLPhoneLeaveGroupCall{Call: call, Source: 300}); err != nil {
+		t.Fatal(err)
+	}
+	ch := w.chainOf(t, id)
+	if _, err = w.as(1).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{
+		OnlyLeft: true, Call: call, Ids: []int64{2}, Block: tde2etest.RemoveBlock(ch, keyOf(1), 2),
+	}); !errors.Is(err, errBlockInvalid) {
+		t.Fatalf("only_left of one in the call: %v", err)
+	}
+	by1 := tde2etest.RemoveBlock(ch, keyOf(1), 3)
+	by2 := tde2etest.RemoveBlock(ch, keyOf(2), 3)
+	w.rec.taken(3)
+	r, err := w.as(1).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{OnlyLeft: true, Call: call, Ids: []int64{3}, Block: by1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := chainUpdates(r)[0]; b == nil || len(b.GetBlocks()) != 1 || b.GetNextOffset() != 4 {
+		t.Fatalf("the answer of the removal: %v", r)
+	}
+	if _, err = w.as(2).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{OnlyLeft: true, Call: call, Ids: []int64{3}, Block: by2}); !errors.Is(err, errChainInvalid) {
+		t.Fatalf("the second removal: %v", err)
+	}
+	// The removed one gets his removal, may not write, and reads only the
+	// last block whatever he asks.
+	if ps := w.rec.taken(3); len(ps) != 1 || chainUpdates(ps[0])[0] == nil {
+		t.Fatalf("the removal sent to 3: %v", ps)
+	}
+	if b := read(3, 0, 0, 100); len(b.GetBlocks()) != 1 || b.GetNextOffset() != 4 {
+		t.Fatalf("a read of the removed one: %d blocks, next %d", len(b.GetBlocks()), b.GetNextOffset())
+	}
+	if b := read(3, 1, 0, 100); len(b.GetBlocks()) != 0 {
+		t.Fatalf("sub-chain 1 to the removed one: %v", b)
+	}
+	ch = w.chainOf(t, id)
+	var nonce3 [32]byte
+	if _, err = w.as(3).PhoneSendConferenceCallBroadcast(&mtproto.TLPhoneSendConferenceCallBroadcast{Call: call, Block: tde2etest.Commit(ch, 3, keyOf(3), nonce3)}); !errors.Is(err, mtproto.ErrGroupcallForbidden) {
+		t.Fatalf("a broadcast of the removed one: %v", err)
+	}
+	if _, err = w.as(3).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{OnlyLeft: true, Call: call, Ids: []int64{2}, Block: tde2etest.RemoveBlock(ch, keyOf(3), 2)}); !errors.Is(err, mtproto.ErrGroupcallForbidden) {
+		t.Fatalf("a removal by the removed one: %v", err)
+	}
+
+	// The emoji verification of the height: commits of both, a reveal
+	// before all committed is refused, the reveals; next_offset counts the
+	// broadcasts.
+	n1, n2 := [32]byte{1}, [32]byte{2}
+	send := func(userId int64, block []byte) (*mtproto.Updates, error) {
+		return w.as(userId).PhoneSendConferenceCallBroadcast(&mtproto.TLPhoneSendConferenceCallBroadcast{Call: call, Block: block})
+	}
+	if r, err = send(1, tde2etest.Commit(ch, 1, keyOf(1), n1)); err != nil {
+		t.Fatal(err)
+	}
+	if b := chainUpdates(r)[1]; b == nil || len(b.GetBlocks()) != 1 || b.GetNextOffset() != 1 || !tde2e.IsFromServer(b.GetBlocks()[0]) {
+		t.Fatalf("the answer of a commit: %v", r)
+	}
+	if _, err = send(1, tde2etest.Reveal(ch, 1, keyOf(1), n1)); !errors.Is(err, errBlockInvalid) {
+		t.Fatalf("a reveal before all committed: %v", err)
+	}
+	if _, err = send(1, tde2etest.Commit(ch, 1, keyOf(1), n1)); !errors.Is(err, errBlockInvalid) {
+		t.Fatalf("a second commit: %v", err)
+	}
+	for _, step := range []struct {
+		user  int64
+		block []byte
+	}{{2, tde2etest.Commit(ch, 2, keyOf(2), n2)}, {1, tde2etest.Reveal(ch, 1, keyOf(1), n1)}, {2, tde2etest.Reveal(ch, 2, keyOf(2), n2)}} {
+		if _, err = send(step.user, step.block); err != nil {
+			t.Fatalf("broadcast of %d: %v", step.user, err)
+		}
+	}
+	if b := read(2, 1, 0, 100); len(b.GetBlocks()) != 4 || b.GetNextOffset() != 4 {
+		t.Fatalf("sub-chain 1: %d blocks, next %d", len(b.GetBlocks()), b.GetNextOffset())
+	}
+
+	// 3 joins again with his own key: taken; a join answers sub-chain 1
+	// with the count of broadcasts, which goes on over the heights.
+	if r, err = w.as(3).PhoneJoinGroupCall(joinReq(3, 301)); err != nil {
+		t.Fatalf("a join again with the same key after removal: %v", err)
+	}
+	if b := chainUpdates(r)[1]; b == nil || b.GetNextOffset() != 4 {
+		t.Fatalf("sub-chain 1 in the join: %v", b)
+	}
+	// A broadcast for the height before is answered and not kept.
+	if r, err = send(2, tde2etest.Commit(ch, 2, keyOf(2), n2)); err != nil {
+		t.Fatalf("a broadcast of an earlier height: %v", err)
+	}
+	if b := chainUpdates(r)[1]; b == nil || len(b.GetBlocks()) != 0 || b.GetNextOffset() != 4 {
+		t.Fatalf("the answer of an old broadcast: %v", r)
+	}
+
+	// Only an admin kicks; a kick takes the user out of the call too.
+	ch = w.chainOf(t, id)
+	if _, err = w.as(2).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{Kick: true, Call: call, Ids: []int64{3}, Block: tde2etest.RemoveBlock(ch, keyOf(2), 3)}); !errors.Is(err, mtproto.ErrGroupcallForbidden) {
+		t.Fatalf("a kick by a member: %v", err)
+	}
+	if r, err = w.as(1).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{Kick: true, Call: call, Ids: []int64{3}, Block: tde2etest.RemoveBlock(ch, keyOf(1), 3)}); err != nil {
+		t.Fatal(err)
+	}
+	if row, _ := rowOf(r, 3); row == nil || !row.GetLeft() {
+		t.Fatalf("the kicked one in the answer: %v", r)
+	}
+	if p, err := w.svcCtx.Dao.Store.ParticipantOf(ctx, id, 3); err != nil || p.InCall {
+		t.Fatalf("the kicked one is in the call: %+v %v", p, err)
+	}
+	if _, ok := w.sfu.rooms["main"][id][fakeConn{id, 3, 0}]; ok {
+		t.Fatal("the kicked one stays on the SFU")
+	}
+	if _, err = w.as(1).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{OnlyLeft: true, Kick: true, Call: call, Ids: []int64{2}, Block: tde2etest.RemoveBlock(w.chainOf(t, id), keyOf(1), 2)}); !errors.Is(err, errBlockInvalid) {
+		t.Fatalf("only_left and kick at once: %v", err)
+	}
+
+	// The conferences as a product are not served.
+	if _, err = w.as(1).PhoneCreateConferenceCall7D0444BB(&mtproto.TLPhoneCreateConferenceCall7D0444BB{RandomId: 1}); !errors.Is(err, mtproto.ErrEnterpriseIsBlocked) {
+		t.Fatalf("createConferenceCall: %v", err)
+	}
+
+	// After the end the chain is read no more, and the collector deletes it
+	// once ChainKeep is over.
+	if _, err = w.as(1).PhoneDiscardGroupCall(&mtproto.TLPhoneDiscardGroupCall{Call: call}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = w.as(2).PhoneGetGroupCallChainBlocks(&mtproto.TLPhoneGetGroupCallChainBlocks{Call: call, SubChainId: 0, Offset: -1, Limit: 1}); !errors.Is(err, mtproto.ErrGroupcallAlreadyDiscarded) {
+		t.Fatalf("a read after the end: %v", err)
+	}
+	time.Sleep(1100 * time.Millisecond)
+	w.svcCtx.ChainKeep = time.Nanosecond
+	(&Collector{svcCtx: w.svcCtx, empty: map[int64]time.Time{}}).pass(ctx)
+	after, err := w.svcCtx.Dao.Store.Get(ctx, id)
+	if err != nil || after.ChainHeight != -1 {
+		t.Fatalf("the chain after the collector: %+v %v", after, err)
+	}
+	if left, err := w.svcCtx.Dao.Store.Blocks(ctx, id, 0, 0, 100); err != nil || len(left) != 0 {
+		t.Fatalf("blocks after the collector: %d %v", len(left), err)
+	}
+}
+
+// pushOf is the index of the first push of ps that has an update of
+// predicate, -1 for none.
+func pushOf(ps []*mtproto.Updates, predicate string) int {
+	for i, u := range ps {
+		if len(updatesOf(u, predicate)) > 0 {
+			return i
+		}
+	}
+	return -1
+}
+
+// inOrder fails unless the pushes ps have the participants' rows before the
+// block of the chain (first true) or the other way round.
+func inOrder(t *testing.T, what string, ps []*mtproto.Updates, rowsFirst bool) {
+	t.Helper()
+	rows, chain := pushOf(ps, mtproto.Predicate_updateGroupCallParticipants), pushOf(ps, mtproto.Predicate_updateGroupCallChainBlocks)
+	if rows < 0 || chain < 0 || (rows < chain) != rowsFirst {
+		t.Fatalf("%s: the rows in push %d, the block in push %d of %d", what, rows, chain, len(ps))
+	}
+}
+
+// The order of what a write of the chain sends the others. A join: the
+// joiner's row before his block, so that tdesktop has him among the
+// participants when the block changes the chain (data_group_call.cpp:
+// 85-93, 233-255) and a device of the same user hangs up on its row before
+// the block replaces its key. A join the SFU refused: his leave before the
+// block, so that the removal of the others is taken. A kick: the block
+// before the row, so that the kicked is out of the chain when he leaves the
+// call.
+func TestGroupCallChainDeliveryOrder(t *testing.T) {
+	w := newWorld(t)
+	u, err := w.as(1).PhoneCreateGroupCall(&mtproto.TLPhoneCreateGroupCall{Peer: w.inputChannel(), RandomId: int32(time.Now().UnixNano())})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gc := callOf(t, u)
+	call := mtproto.MakeTLInputGroupCall(&mtproto.InputGroupCall{Id: gc.GetId(), AccessHash: gc.GetAccessHash()}).To_InputGroupCall()
+	joinReq := func(userId int64, ssrc uint32) *mtproto.TLPhoneJoinGroupCall {
+		return w.sealed(t, userId, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(ssrc, false)})
+	}
+	for _, id := range []int64{1, 2} {
+		if _, err = w.as(id).PhoneJoinGroupCall(joinReq(id, uint32(id*100))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w.rec.taken(1)
+	if _, err = w.as(3).PhoneJoinGroupCall(joinReq(3, 300)); err != nil {
+		t.Fatal(err)
+	}
+	inOrder(t, "a join, to another participant", w.rec.taken(1), true)
+
+	// A second device of 3, with its own key.
+	w.rec.taken(3)
+	second := w.as(3)
+	second.MD = &metadata.RpcMetadata{UserId: 3, PermAuthKeyId: 31}
+	key := tde2etest.Key(33)
+	pk := tde2etest.Pub(key)
+	req := &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(301, false), PublicKey: pk[:],
+		Block: tde2etest.JoinBlock(w.chainOf(t, gc.GetId()), 3, key)}
+	if _, err = second.PhoneJoinGroupCall(req); err != nil {
+		t.Fatal(err)
+	}
+	inOrder(t, "a join from another device, to the first", w.rec.taken(3), true)
+
+	// 2 leaves and joins again; the SFU refuses the connection.
+	if _, err = w.as(2).PhoneLeaveGroupCall(&mtproto.TLPhoneLeaveGroupCall{Call: call, Source: 200}); err != nil {
+		t.Fatal(err)
+	}
+	w.rec.taken(1)
+	w.sfu.mu.Lock()
+	w.sfu.joinErr = []error{status.Error(codes.Internal, "x")}
+	w.sfu.mu.Unlock()
+	if _, err = w.as(2).PhoneJoinGroupCall(joinReq(2, 201)); err == nil {
+		t.Fatal("a join the SFU refused")
+	}
+	ps := w.rec.taken(1)
+	inOrder(t, "a join the SFU refused, to another participant", ps, true)
+	if row, _ := rowOf(ps[pushOf(ps, mtproto.Predicate_updateGroupCallParticipants)], 2); row == nil || !row.GetLeft() {
+		t.Fatalf("the row of a join the SFU refused: %v", row)
+	}
+	// The others' removal of him is taken.
+	if _, err = w.as(1).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{
+		OnlyLeft: true, Call: call, Ids: []int64{2}, Block: tde2etest.RemoveBlock(w.chainOf(t, gc.GetId()), keyOf(1), 2),
+	}); err != nil {
+		t.Fatalf("the removal of one the SFU refused: %v", err)
+	}
+
+	w.rec.taken(3)
+	if _, err = w.as(1).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{
+		Kick: true, Call: call, Ids: []int64{3}, Block: tde2etest.RemoveBlock(w.chainOf(t, gc.GetId()), keyOf(1), 3),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	inOrder(t, "a kick, to the kicked", w.rec.taken(3), false)
+
+	// A list of ids no group state can hold is refused before anything.
+	ids := make([]int64, tde2e.MaxParticipants+1)
+	for i := range ids {
+		ids[i] = 3
+	}
+	if _, err = w.as(2).PhoneDeleteConferenceCallParticipants(&mtproto.TLPhoneDeleteConferenceCallParticipants{
+		OnlyLeft: true, Call: call, Ids: ids, Block: tde2etest.RemoveBlock(w.chainOf(t, gc.GetId()), keyOf(1), 3),
+	}); !errors.Is(err, errBlockInvalid) {
+		t.Fatalf("a removal of %d ids: %v", len(ids), err)
+	}
+}
+
+// What an SFU node says of the encryption counts only for a call placed on
+// it and a participant in that call (ADR 0060 §3: a node may stand outside
+// the trusted zone).
+func TestGroupCallEventsOfOtherNodes(t *testing.T) {
+	w := newWorld(t)
+	ctx := context.Background()
+	u, err := w.as(1).PhoneCreateGroupCall(&mtproto.TLPhoneCreateGroupCall{Peer: w.inputChannel(), RandomId: int32(time.Now().UnixNano())})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gc := callOf(t, u)
+	id := gc.GetId()
+	call := mtproto.MakeTLInputGroupCall(&mtproto.InputGroupCall{Id: id, AccessHash: gc.GetAccessHash()}).To_InputGroupCall()
+	for _, uid := range []int64{1, 2} {
+		if _, err = w.as(uid).PhoneJoinGroupCall(w.sealed(t, uid, &mtproto.TLPhoneJoinGroupCall{Call: call, JoinAs: self(), Params: params(uint32(uid*100), false)})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	report := func(callId, userId int64) *pb.Event {
+		return &pb.Event{Type: pb.Event_TYPE_E2E_STATUS, CallId: callId, Participant: userId, Kind: pb.ConnectionKind_CONNECTION_KIND_MAIN,
+			E2EStatus: &pb.E2EStatus{Seq: 1, Height: -1, Offset0: -1, Offset1: -1, Error: 300}}
+	}
+	epochs := func(callId, userId int64) *pb.Event {
+		return &pb.Event{Type: pb.Event_TYPE_SEND_EPOCHS, CallId: callId, Participant: userId, Kind: pb.ConnectionKind_CONNECTION_KIND_MAIN,
+			SendEpochs: []string{"0000000000000000"}}
+	}
+	ev := NewEvents(w.svcCtx)
+	ev.Handle("other", report(id, 2))
+	ev.Handle("other", epochs(id, 2))
+	ev.Handle("main", report(id, 3))
+	ev.Handle("main", report(id+1_000_000_007, 1))
+	ev.Handle("main", report(id, 1))
+	ev.Handle("main", epochs(id, 1))
+	w.svcCtx.E2E.Tick(ctx)
+	diags, err := w.svcCtx.Dao.Store.Diags(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	by := map[int64]*groupcalls.E2EDiag{}
+	for _, d := range diags {
+		by[d.UserId] = d.Diag
+	}
+	if d := by[1]; d == nil || d.Report == nil || d.Report.Error != 300 || len(d.SendEpochs) != 1 {
+		t.Fatalf("the word of the node of the call: %+v", d)
+	}
+	if d := by[2]; d == nil || d.Report != nil || len(d.SendEpochs) != 0 {
+		t.Fatalf("the word of another node: %+v", d)
+	}
+	if by[3] != nil {
+		t.Fatalf("a report of one not in the call: %+v", by[3])
+	}
+	if other, err := w.svcCtx.Dao.Store.Diags(ctx, id+1_000_000_007); err != nil || len(other) != 0 {
+		t.Fatalf("a call made up: %v %v", other, err)
 	}
 }

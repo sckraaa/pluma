@@ -120,6 +120,10 @@ type JoinParams struct {
 	VideoLimit int32
 	// Node is the SFU node the join connected on; "" checks none.
 	Node string
+	// Chain is the participant's key and the block that adds him to the
+	// call's end-to-end encryption (ADR 0060 §2); a join without it is
+	// refused with ErrNoChainBlock.
+	Chain *ChainJoin
 }
 
 // JoinResult is a join done: the call afterwards, the account's row and
@@ -128,12 +132,16 @@ type JoinResult struct {
 	Call    *Call
 	Self    *Participant
 	Changes []Change
+	// Chain is the block of the join, appended with it.
+	Chain *ChainWrite
 }
 
 // Join puts the account into a call as itself, or connects it again: a
 // repeated join (a new connection after a network change or an SFU
-// restart) replaces the source. ErrDiscarded, ErrScheduled, ErrFull or
-// ErrSourceInUse refuse it.
+// restart) replaces the source. Its block goes into the chain of the call
+// in the same transaction. ErrDiscarded, ErrScheduled, ErrNoChainBlock, a
+// *tde2e.Error, ErrFull or ErrSourceInUse refuse it, and then neither the
+// block nor the row is written.
 func (s *Store) Join(ctx context.Context, j JoinParams) (*JoinResult, error) {
 	var res *JoinResult
 	err := s.db.Transact(ctx, func(tx *sqlx.Tx) error {
@@ -159,6 +167,16 @@ func (s *Store) Join(ctx context.Context, j JoinParams) (*JoinResult, error) {
 		default:
 			return ErrMoved
 		}
+		if j.Chain == nil {
+			return ErrNoChainBlock
+		}
+		// The block first: a block on a height another join took is
+		// stale, whatever else the join brings.
+		now := s.now()
+		chain, err := joinChain(ctx, tx, call, j.UserId, j.Chain, now)
+		if err != nil {
+			return err
+		}
 		mine, err := participants(ctx, txq{tx}, "where call_id = ? and peer_type = ? and peer_id = ? for update", j.CallId, mtproto.PEER_USER, j.UserId)
 		if err != nil {
 			return err
@@ -171,7 +189,6 @@ func (s *Store) Join(ctx context.Context, j JoinParams) (*JoinResult, error) {
 		if !already && call.ParticipantsCount >= MaxParticipants {
 			return ErrFull
 		}
-		now := s.now()
 		p := prev
 		if p == nil {
 			p = &Participant{CallId: j.CallId, PeerType: mtproto.PEER_USER, PeerId: j.UserId}
@@ -235,8 +252,9 @@ func (s *Store) Join(ctx context.Context, j JoinParams) (*JoinResult, error) {
 		if _, err = tx.Exec("update group_calls set version = version + 1 where id = ?", j.CallId); err != nil {
 			return err
 		}
-		res = &JoinResult{Self: p, Changes: []Change{{Participant: p, JustJoined: !already, Versioned: true}}}
+		res = &JoinResult{Self: p, Changes: []Change{{Participant: p, JustJoined: !already, Versioned: true}}, Chain: chain}
 		res.Call, err = oneCall(ctx, txq{tx}, "where c.id = ?", j.CallId)
+		chain.Call = res.Call
 		return err
 	})
 	if err != nil {

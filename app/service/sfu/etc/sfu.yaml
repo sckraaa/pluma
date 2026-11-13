@@ -24,10 +24,8 @@ Media:
   PublicIPs:
     - 127.0.0.1
 
-# Group and channel calls are not end-to-end encrypted: this node stands in
-# the trusted zone of the core. Conferences (E2E) come in a later stage.
-Plaintext: true
-E2E: false
+# Every group call is end-to-end encrypted (ADR 0060 §3): the node forwards
+# what it cannot read and may stand on any machine.
 
 Limits:
   MaxParticipants: 100

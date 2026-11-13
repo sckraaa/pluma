@@ -54,17 +54,12 @@ var (
 	ErrSSRCInUse      = errors.New("room: source used by another participant")
 	ErrRoomFull       = errors.New("room: too many participants")
 	ErrNotParticipant = errors.New("room: not in the room")
-	ErrE2EMismatch    = errors.New("room: the node does not take this kind of call")
 )
 
 // Config is the behaviour of the rooms.
 type Config struct {
 	// Addresses are the public addresses clients reach the SFU at.
 	Addresses []tgcallsjson.Address
-	// Plaintext: the node may take calls that are not end-to-end
-	// encrypted (ADR 0059 §3); E2E: it may take conferences.
-	Plaintext bool
-	E2E       bool
 
 	MaxParticipants int
 	// MaxVideos is how many senders' videos are forwarded at once; the
@@ -137,28 +132,20 @@ func NewManager(cfg Config, mux *transport.Mux, cert *transport.Certificate, eve
 	if len(cfg.Addresses) == 0 {
 		return nil, errors.New("room: no public addresses")
 	}
-	if !cfg.Plaintext && !cfg.E2E {
-		return nil, errors.New("room: the node takes no calls (neither plaintext nor e2e)")
-	}
 	metrics.UplinkLimit.Set(cfg.UplinkLimit)
 	return &Manager{cfg: cfg, mux: mux, cert: cert, events: events, rooms: map[int64]*Room{}}, nil
 }
 
 // CreateRoom opens a room for a call; an open room is kept. created
-// reports whether it is new.
-func (m *Manager) CreateRoom(callID int64, e2e bool) (created bool, err error) {
-	if (e2e && !m.cfg.E2E) || (!e2e && !m.cfg.Plaintext) {
-		return false, ErrE2EMismatch
-	}
+// reports whether it is new. Every room is end-to-end encrypted (ADR 0060
+// §3): nothing here reads a frame.
+func (m *Manager) CreateRoom(callID int64) (created bool, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if r, ok := m.rooms[callID]; ok {
-		if r.e2e != e2e {
-			return false, ErrE2EMismatch
-		}
+	if _, ok := m.rooms[callID]; ok {
 		return false, nil
 	}
-	r := newRoom(m, callID, e2e)
+	r := newRoom(m, callID)
 	m.rooms[callID] = r
 	metrics.Rooms.Set(float64(len(m.rooms)))
 	go r.run()
@@ -215,7 +202,7 @@ type JoinResult struct {
 // client's join params. A participant already connected with the kind is
 // replaced: clients join again with new params after a network change or
 // an SFU restart (tdesktop calls_group_call.cpp:3746-3776).
-func (m *Manager) Join(callID, participant int64, kind Kind, params []byte, muted bool) (*JoinResult, error) {
+func (m *Manager) Join(callID, participant int64, kind Kind, params []byte, muted bool, endpoint string) (*JoinResult, error) {
 	req, err := tgcallsjson.ParseJoinRequest(params)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrBadParams, err)
@@ -224,7 +211,7 @@ func (m *Manager) Join(callID, participant int64, kind Kind, params []byte, mute
 	if err != nil {
 		return nil, err
 	}
-	return r.join(participant, kind, req, muted)
+	return r.join(participant, kind, req, muted, endpoint)
 }
 
 // Leave disconnects a participant's connection of the kind.

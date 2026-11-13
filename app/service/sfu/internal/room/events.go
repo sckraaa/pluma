@@ -15,7 +15,11 @@
 
 package room
 
-import "time"
+import (
+	"time"
+
+	"github.com/teamgram/teamgram-server/pkg/tgcallsjson"
+)
 
 // EventType tells what happened.
 type EventType int
@@ -32,6 +36,12 @@ const (
 	// EventVideoLayers: the largest height anyone watches of a sender's
 	// video changed (what SenderVideoConstraints told it).
 	EventVideoLayers
+	// EventE2EStatus: a participant's client sent a status report of its
+	// encryption over the data channel (ADR 0060 §5).
+	EventE2EStatus
+	// EventSendEpochs: the epochs a participant encrypts its sound with,
+	// when they change and every sendEpochsEvery while it sends.
+	EventSendEpochs
 )
 
 // Event is one notice for the signalling side.
@@ -48,14 +58,22 @@ type Event struct {
 	Role        string
 	ConnectTime time.Duration
 
-	// EventDisconnected: the reason.
+	// EventDisconnected: the reason and the sound source of the
+	// connection.
 	Reason string
+	Source uint32
 
 	// EventSpeaking: participant → RFC 6464 level (0 loudest).
 	Levels map[int64]uint8
 
 	// EventVideoLayers: the height the sender is asked to send.
 	IdealHeight int
+
+	// EventE2EStatus: the report, checked against its schema.
+	E2EStatus *tgcallsjson.E2EStatus
+
+	// EventSendEpochs: prefixes of the hashes of the epochs.
+	SendEpochs []string
 }
 
 // Sink takes events. Publish must not block: the media path calls it.

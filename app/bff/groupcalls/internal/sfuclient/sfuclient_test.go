@@ -207,7 +207,7 @@ func TestMutualTLS(t *testing.T) {
 	}
 	defer c.Close()
 	ctx := context.Background()
-	if err = c.CreateRoom(ctx, "main", 1, false); err != nil {
+	if err = c.CreateRoom(ctx, "main", 1); err != nil {
 		t.Fatal(err)
 	}
 	resp, err := c.Join(ctx, "main", &pb.JoinRequest{CallId: 1, Participant: 7})
@@ -246,7 +246,7 @@ func TestMutualTLS(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stray.Close()
-	if err = stray.CreateRoom(ctx, "main", 1, false); err == nil {
+	if err = stray.CreateRoom(ctx, "main", 1); err == nil {
 		t.Fatal("a certificate of the nodes' CA passed for bff's")
 	}
 }

@@ -34,6 +34,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/sfu/internal/metrics"
 	"github.com/teamgram/teamgram-server/app/service/sfu/internal/room"
 	pb "github.com/teamgram/teamgram-server/app/service/sfu/sfu"
+	"github.com/teamgram/teamgram-server/pkg/tgcallsjson"
 )
 
 // eventBuffer is how many events wait for a slow subscriber before new
@@ -123,14 +124,12 @@ func toStatus(err error) error {
 		return status.Error(codes.InvalidArgument, "bad join params")
 	case errors.Is(err, room.ErrRoomFull):
 		return status.Error(codes.ResourceExhausted, "room is full")
-	case errors.Is(err, room.ErrE2EMismatch):
-		return status.Error(codes.FailedPrecondition, "the node does not take this kind of call")
 	}
 	return status.Error(codes.Internal, "internal error")
 }
 
 func (s *Service) CreateRoom(_ context.Context, req *pb.CreateRoomRequest) (*pb.CreateRoomResponse, error) {
-	created, err := s.rooms.CreateRoom(req.GetCallId(), req.GetE2E())
+	created, err := s.rooms.CreateRoom(req.GetCallId())
 	if err != nil {
 		return nil, toStatus(err)
 	}
@@ -146,7 +145,7 @@ func (s *Service) Join(_ context.Context, req *pb.JoinRequest) (*pb.JoinResponse
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.rooms.Join(req.GetCallId(), req.GetParticipant(), kind, req.GetParams(), req.GetMuted())
+	res, err := s.rooms.Join(req.GetCallId(), req.GetParticipant(), kind, req.GetParams(), req.GetMuted(), req.GetEndpoint())
 	if err != nil {
 		return nil, toStatus(err)
 	}
@@ -254,6 +253,8 @@ func toProto(ev room.Event) *pb.Event {
 		ConnectMs:   uint32(ev.ConnectTime.Milliseconds()),
 		Reason:      ev.Reason,
 		IdealHeight: int32(ev.IdealHeight),
+		Source:      ev.Source,
+		SendEpochs:  ev.SendEpochs,
 	}
 	switch ev.Type {
 	case room.EventConnected:
@@ -267,6 +268,29 @@ func toProto(ev room.Event) *pb.Event {
 		}
 	case room.EventVideoLayers:
 		out.Type = pb.Event_TYPE_VIDEO_LAYERS
+	case room.EventE2EStatus:
+		out.Type = pb.Event_TYPE_E2E_STATUS
+		out.E2EStatus = e2eStatusProto(ev.E2EStatus)
+	case room.EventSendEpochs:
+		out.Type = pb.Event_TYPE_SEND_EPOCHS
+	}
+	return out
+}
+
+// e2eStatusProto is a checked report in the form of the control API.
+func e2eStatusProto(s *tgcallsjson.E2EStatus) *pb.E2EStatus {
+	if s == nil {
+		return nil
+	}
+	out := &pb.E2EStatus{
+		Seq: s.Seq, Height: s.Height, LastBlock: s.LastBlock, Offset0: s.Offset0, Offset1: s.Offset1, Error: s.Error,
+		SendEpochs: s.SendEpochs, DecryptEpochs: s.DecryptEpochs, UnknownEpochs: s.UnknownEpochs,
+		Encrypted: s.Encrypted, EncryptFailed: s.EncryptFailed,
+	}
+	for _, e := range s.Senders {
+		out.Senders = append(out.Senders, &pb.E2ESender{
+			User: e.User, Ok: e.OK, UnknownEpoch: e.UnknownEpoch, TooOld: e.TooOld, Duplicate: e.Duplicate, Failed: e.Failed, LastOkMs: e.LastOkMs,
+		})
 	}
 	return out
 }

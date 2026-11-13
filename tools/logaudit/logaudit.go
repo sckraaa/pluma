@@ -103,6 +103,13 @@ var secretNames = set(
 	"fingerprints", "getfingerprints",
 	"params", "getparams", "privatekey", "getprivatekey",
 	"keyingmaterial", "masterkey", "mastersalt",
+	// the end-to-end encryption of group calls (task 094, ADR 0060): the
+	// blocks and broadcasts of a chain (a shared key encrypted for every
+	// participant), a participant's public key, the nonces of the emoji
+	// verification and a status report of a client, never printed whole
+	"block", "getblock", "blocks", "getblocks", "publickey", "getpublickey",
+	"sharedkey", "encryptedsharedkey", "destheaders", "nonce", "noncehash",
+	"e2estatus", "gete2estatus", "report",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )
@@ -123,8 +130,12 @@ var objectPackages = []string{
 	"github.com/teamgram/proto/mtproto",
 	"github.com/teamgram/proto/mtproto/crypto",
 	"github.com/teamgram/teamgram-server/app/",
-	// the join params of group calls and the SFU's answer (task 093)
+	// the join params of group calls and the SFU's answer (task 093), and
+	// the status reports of the encryption (task 094)
 	"github.com/teamgram/teamgram-server/pkg/tgcallsjson",
+	// the blocks and broadcasts of the chain of group calls (task 094)
+	"github.com/teamgram/teamgram-server/pkg/tde2e",
+	"github.com/teamgram/teamgram-server/pkg/groupcalls",
 }
 
 // localObjectTypes are types, used unqualified in their own package, that

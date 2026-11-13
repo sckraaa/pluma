@@ -62,6 +62,12 @@ var (
 		Name:      "reloads_total",
 		Help:      "phone.getGroupCall: the clients read a call again, on joining it or on a gap in its versions.",
 	})
+	metricForeignEvents = metric.NewCounterVec(&metric.CounterVecOpts{
+		Namespace: "groupcalls",
+		Name:      "sfu_foreign_events_total",
+		Help:      "Events of the encryption an SFU node sent of a call it does not host or of one not in the call, dropped, by type.",
+		Labels:    []string{"type"},
+	})
 	metricErrors = metric.NewCounterVec(&metric.CounterVecOpts{
 		Namespace: "groupcalls",
 		Name:      "errors_total",

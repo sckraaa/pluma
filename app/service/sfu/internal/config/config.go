@@ -63,12 +63,6 @@ type Config struct {
 		PublicTCPPort int `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
 	}
 
-	// Plaintext: the node takes group and channel calls, which are not
-	// end-to-end encrypted; it must stand in the trusted zone of the core.
-	// E2E: the node takes end-to-end encrypted conferences (ADR 0059 §3).
-	Plaintext bool `json:",default=true"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
-	E2E       bool `json:",optional"`     //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
-
 	Limits struct {
 		MaxParticipants int `json:",default=100"` //nolint:staticcheck // a go-zero conf option, not encoding/json\'s
 		// MaxVideos: how many senders' videos are forwarded at once.
@@ -132,9 +126,6 @@ func (c *Config) Addresses(udpPort, tcpPort int) ([]tgcallsjson.Address, error) 
 func (c *Config) Validate() error {
 	if c.Control.ListenOn == "" || c.Control.CertFile == "" || c.Control.KeyFile == "" || c.Control.ClientCAFile == "" {
 		return errors.New("config: Control needs ListenOn, CertFile, KeyFile and ClientCAFile: the API is served over mutual TLS only")
-	}
-	if !c.Plaintext && !c.E2E {
-		return errors.New("config: the node takes no calls: set Plaintext or E2E")
 	}
 	if c.Limits.UplinkMbps < 0 || c.Limits.MaxVideos < 0 || c.Limits.LastN < 0 {
 		return errors.New("config: negative limit")

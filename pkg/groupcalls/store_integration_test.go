@@ -19,10 +19,13 @@ package groupcalls
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -30,6 +33,8 @@ import (
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/tde2e"
+	"github.com/teamgram/teamgram-server/pkg/tde2e/tde2etest"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 )
 
@@ -71,20 +76,48 @@ func newCall(t *testing.T, s *Store) *Call {
 }
 
 func join(s *Store, callId, userId int64, source uint32) (*JoinResult, error) {
-	return s.Join(context.Background(), JoinParams{
+	return joinWith(s, JoinParams{
 		CallId: callId, UserId: userId, AuthKeyId: userId + 1, Source: source,
 		State: func(call *Call, prev *Participant) (bool, bool) { return JoinState(call, prev, false, false, false) },
 	})
 }
 
-func TestMigrationTwice(t *testing.T) {
-	path, err := testinfra.SchemaFile("migrate-20261117-group-calls.sql")
-	if err != nil {
-		t.Fatal(err)
+// userKey is the key of a user in the tests: one per user, so that his
+// joins again are with the same key.
+func userKey(userId int64) ed25519.PrivateKey {
+	seed := sha256.Sum256([]byte(strconv.FormatInt(userId, 10)))
+	return ed25519.NewKeyFromSeed(seed[:])
+}
+
+// joinWith joins with the block a client writes: on top of the last block,
+// and again on the new last block when another join took the height.
+func joinWith(s *Store, p JoinParams) (*JoinResult, error) {
+	for attempt := 0; ; attempt++ {
+		ch, err := s.Chain(context.Background(), p.CallId)
+		if err != nil {
+			return nil, err
+		}
+		key := userKey(p.UserId)
+		p.Chain = &ChainJoin{PublicKey: tde2etest.Pub(key), Block: tde2etest.JoinBlock(ch, p.UserId, key)}
+		r, err := s.Join(context.Background(), p)
+		var e *tde2e.Error
+		if errors.As(err, &e) && e.Kind == tde2e.KindStale && attempt < 100 {
+			continue
+		}
+		return r, err
 	}
-	for i := 0; i < 2; i++ {
-		if err = itMySQL.ApplySQLFile(context.Background(), path); err != nil {
-			t.Fatalf("run %d: %v", i+1, err)
+}
+
+func TestMigrationTwice(t *testing.T) {
+	for _, name := range []string{"migrate-20261117-group-calls.sql", "migrate-20261118-group-call-chain.sql"} {
+		path, err := testinfra.SchemaFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i := 0; i < 2; i++ {
+			if err = itMySQL.ApplySQLFile(context.Background(), path); err != nil {
+				t.Fatalf("%s, run %d: %v", name, i+1, err)
+			}
 		}
 	}
 }
@@ -258,7 +291,7 @@ func TestAdminMuteNoScreen(t *testing.T) {
 	if _, _, _, err = s.SetPresentation(ctx, c.Id, a, 16, &Media{Endpoint: "s"}); !errors.Is(err, mtproto.ErrChatAdminRequired) {
 		t.Fatalf("screen without the word: %v", err)
 	}
-	r, err := s.Join(ctx, JoinParams{
+	r, err := joinWith(s, JoinParams{
 		CallId: c.Id, UserId: a, Source: 17, Video: &Media{Endpoint: "v"}, VideoStopped: false,
 		State: func(call *Call, prev *Participant) (bool, bool) { return JoinState(call, prev, false, false, false) },
 	})
@@ -280,7 +313,7 @@ func TestJoinNodeAndForgetEmpty(t *testing.T) {
 		t.Fatalf("forget an empty room: %v %v", done, err)
 	}
 	a := itId()
-	r, err := s.Join(ctx, JoinParams{
+	r, err := joinWith(s, JoinParams{
 		CallId: c.Id, UserId: a, Source: 21, Node: "n1",
 		State: func(call *Call, prev *Participant) (bool, bool) { return JoinState(call, prev, false, false, false) },
 	})
@@ -293,7 +326,7 @@ func TestJoinNodeAndForgetEmpty(t *testing.T) {
 	if got, _ := s.Get(ctx, c.Id); got.SfuNode != "n1" {
 		t.Fatalf("node %q", got.SfuNode)
 	}
-	_, err = s.Join(ctx, JoinParams{
+	_, err = joinWith(s, JoinParams{
 		CallId: c.Id, UserId: itId(), Source: 22, Node: "n2",
 		State: func(call *Call, prev *Participant) (bool, bool) { return JoinState(call, prev, false, false, false) },
 	})

@@ -34,9 +34,10 @@ enum ConnectionKind {
 
 message CreateRoomRequest {
   int64 call_id = 1;
-  // An end-to-end encrypted conference. A node takes only the kinds its
-  // configuration allows (plaintext, e2e).
-  bool e2e = 2;
+  // Every room is end-to-end encrypted (ADR 0060 §3): the SFU forwards
+  // what it cannot read, and any node takes any call.
+  reserved 2;
+  reserved "e2e";
 }
 
 message CreateRoomResponse {
@@ -61,6 +62,10 @@ message JoinRequest {
   bytes params = 4;
   // Muted by an admin: the sound is not forwarded.
   bool muted = 5;
+  // The connection's id in Colibri messages and in
+  // groupCallParticipantVideo.endpoint, which the signalling side stores
+  // before it connects; the SFU makes one when it is empty.
+  string endpoint = 6;
 }
 
 message JoinResponse {
@@ -116,6 +121,35 @@ message SpeakingLevel {
   uint32 level = 2;
 }
 
+// What a receiver counted of one sender since its last report.
+message E2ESender {
+  int64 user = 1;
+  int64 ok = 2;
+  int64 unknown_epoch = 3;
+  int64 too_old = 4;
+  int64 duplicate = 5;
+  int64 failed = 6;
+  // Milliseconds since the last frame of the sender decrypted; -1: none.
+  int64 last_ok_ms = 7;
+}
+
+// A status report PlumaE2EStatus v1 of a client's encryption (ADR 0060 §5),
+// as the SFU checked it: prefixes of hashes and counters, no key.
+message E2EStatus {
+  int64 seq = 1;
+  int32 height = 2;
+  string last_block = 3;
+  int32 offset0 = 4;
+  int32 offset1 = 5;
+  int32 error = 6;
+  repeated string send_epochs = 7;
+  repeated string decrypt_epochs = 8;
+  repeated string unknown_epochs = 9;
+  int64 encrypted = 10;
+  int64 encrypt_failed = 11;
+  repeated E2ESender senders = 12;
+}
+
 message Event {
   enum Type {
     TYPE_UNSPECIFIED = 0;
@@ -127,6 +161,12 @@ message Event {
     TYPE_SPEAKING = 3;
     // The largest height anyone watches of a sender's video changed.
     TYPE_VIDEO_LAYERS = 4;
+    // A status report of a participant's encryption came over the data
+    // channel.
+    TYPE_E2E_STATUS = 5;
+    // The epochs a participant encrypts its sound with: when they change,
+    // and every few seconds while it sends.
+    TYPE_SEND_EPOCHS = 6;
   }
   Type type = 1;
   int64 call_id = 2;
@@ -144,6 +184,13 @@ message Event {
   repeated SpeakingLevel levels = 10;
   // TYPE_VIDEO_LAYERS.
   int32 ideal_height = 11;
+  // TYPE_DISCONNECTED: the sound source of the connection that ended.
+  uint32 source = 12;
+  // TYPE_E2E_STATUS.
+  E2EStatus e2e_status = 13;
+  // TYPE_SEND_EPOCHS: the first 8 bytes in hex of the hashes of the
+  // epochs in the header of the last sound frame (tde2e Call.cpp:363-374).
+  repeated string send_epochs = 14;
 }
 
 service SFU {
@@ -154,8 +201,7 @@ service SFU {
   // Connects a participant's connection. NOT_FOUND: no room (create it);
   // ALREADY_EXISTS: a source is another participant's
   // (GROUPCALL_SSRC_DUPLICATE_MUCH); INVALID_ARGUMENT: bad params;
-  // RESOURCE_EXHAUSTED: the room is full; FAILED_PRECONDITION: the node
-  // does not take the call's kind.
+  // RESOURCE_EXHAUSTED: the room is full.
   rpc Join(JoinRequest) returns (JoinResponse);
   // Disconnects a participant's connection. NOT_FOUND: no such room or
   // connection.

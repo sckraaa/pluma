@@ -47,6 +47,7 @@ func (c *GroupCallsCore) PhoneDiscardGroupCall(in *mtproto.TLPhoneDiscardGroupCa
 		return nil, mtproto.ErrGroupcallAlreadyDiscarded
 	}
 	metricCalls.Inc("discarded")
+	c.svcCtx.Members.Forget(call.Id)
 	var gone []int64
 	for _, p := range left {
 		metricLeaves.Inc("discard")

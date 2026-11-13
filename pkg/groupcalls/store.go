@@ -50,7 +50,8 @@ var (
 	ErrMoved = errors.New("groupcalls: the room is on another node")
 )
 
-// Store is the tables of migrate-20261117-group-calls.sql. A join or a
+// Store is the tables of migrate-20261117-group-calls.sql and
+// migrate-20261118-group-call-chain.sql. A join or a
 // leave locks the row of its call and changes the version by one in the
 // same transaction, so that the versions the clients follow have no gaps
 // and no repeats (ADR 0059 §2); every other change is one statement.
@@ -85,6 +86,9 @@ type callRow struct {
 	SpeakerHash       string       `db:"speaker_hash"`
 	SfuNode           string       `db:"sfu_node"`
 	Posted            int8         `db:"posted"`
+	ChainHeight       int32        `db:"chain_height"`
+	ChainHash         []byte       `db:"chain_hash"`
+	BroadcastCount    int32        `db:"broadcast_count"`
 	ParticipantsCount int32        `db:"participants_count"`
 	VideoCount        int32        `db:"video_count"`
 }
@@ -92,19 +96,21 @@ type callRow struct {
 // callColumns reads a call with the number of its participants and of
 // their cameras: at most MaxParticipants rows each, counted in the same
 // statement, so that the numbers never drift from the rows.
-const callColumns = "c.id, c.access_hash, c.peer_type, c.peer_id, c.creator_id, c.random_id, c.title, c.join_muted, c.version, c.schedule_date, c.`date`, c.start_date, c.end_date, c.duration, c.live, c.listener_hash, c.speaker_hash, c.sfu_node, c.posted," +
+const callColumns = "c.id, c.access_hash, c.peer_type, c.peer_id, c.creator_id, c.random_id, c.title, c.join_muted, c.version, c.schedule_date, c.`date`, c.start_date, c.end_date, c.duration, c.live, c.listener_hash, c.speaker_hash, c.sfu_node, c.posted, c.chain_height, c.chain_hash, c.broadcast_count," +
 	" (select count(*) from group_call_participants p where p.call_id = c.id and p.in_call = 1) as participants_count," +
 	" (select count(*) from group_call_participants p where p.call_id = c.id and p.in_call = 1 and p.video_joined = 1 and p.video_stopped = 0 and p.video <> '') as video_count"
 
 func (r *callRow) call() *Call {
-	return &Call{
+	c := &Call{
 		Id: r.Id, AccessHash: r.AccessHash, PeerType: r.PeerType, PeerId: r.PeerId, CreatorId: r.CreatorId,
 		RandomId: r.RandomId, Title: r.Title, JoinMuted: r.JoinMuted, Version: r.Version,
 		ParticipantsCount: r.ParticipantsCount, VideoCount: r.VideoCount, ScheduleDate: r.ScheduleDate,
 		Date: r.Date, StartDate: r.StartDate, EndDate: r.EndDate, Duration: r.Duration,
 		Discarded: !r.Live.Valid, ListenerHash: r.ListenerHash, SpeakerHash: r.SpeakerHash,
-		SfuNode: r.SfuNode, Posted: r.Posted,
+		SfuNode: r.SfuNode, Posted: r.Posted, ChainHeight: r.ChainHeight, BroadcastCount: r.BroadcastCount,
 	}
+	copy(c.ChainHash[:], r.ChainHash)
+	return c
 }
 
 type querier interface {

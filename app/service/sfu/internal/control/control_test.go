@@ -149,7 +149,6 @@ func startServer(t *testing.T) *fixture {
 	bus := NewBus()
 	rooms, err := room.NewManager(room.Config{
 		Addresses: []tgcallsjson.Address{{IP: netip.MustParseAddr("127.0.0.1"), Port: uint16(mux.UDPAddr().Port)}},
-		Plaintext: true,
 		Transport: transport.EndpointConfig{StartTimeout: 300 * time.Millisecond},
 	}, mux, cert, bus)
 	if err != nil {
@@ -221,9 +220,6 @@ func TestControlAPI(t *testing.T) {
 	}
 	if again, err := c.CreateRoom(ctx, &pb.CreateRoomRequest{CallId: 5}); err != nil || again.GetCreated() {
 		t.Fatalf("create again: %v %v", again, err)
-	}
-	if _, err := c.CreateRoom(ctx, &pb.CreateRoomRequest{CallId: 6, E2E: true}); code(err) != codes.FailedPrecondition {
-		t.Errorf("e2e on a plaintext node: %v", err)
 	}
 
 	params, peer := joinParams(t)

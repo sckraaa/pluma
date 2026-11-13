@@ -60,7 +60,7 @@ type API interface {
 	// is not known to be down, other than skip; a node known to be down
 	// when no other is left.
 	Pick(skip string) (string, error)
-	CreateRoom(ctx context.Context, node string, callID int64, e2e bool) error
+	CreateRoom(ctx context.Context, node string, callID int64) error
 	CloseRoom(ctx context.Context, node string, callID int64) error
 	Join(ctx context.Context, node string, req *pb.JoinRequest) (*pb.JoinResponse, error)
 	Leave(ctx context.Context, node string, callID, participant int64, kind pb.ConnectionKind) error
@@ -201,14 +201,14 @@ func (c *Client) api(name string) (pb.SFUClient, error) {
 	return n.api, nil
 }
 
-func (c *Client) CreateRoom(ctx context.Context, name string, callID int64, e2e bool) error {
+func (c *Client) CreateRoom(ctx context.Context, name string, callID int64) error {
 	api, err := c.api(name)
 	if err != nil {
 		return err
 	}
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
-	_, err = api.CreateRoom(ctx, &pb.CreateRoomRequest{CallId: callID, E2E: e2e})
+	_, err = api.CreateRoom(ctx, &pb.CreateRoomRequest{CallId: callID})
 	return err
 }
 

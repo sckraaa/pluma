@@ -26,8 +26,8 @@ Media:
   PublicUDPPort: ${SFU_UDP_PORT}
   PublicTCPPort: ${SFU_TCP_PORT}
 
-Plaintext: true
-E2E: false
+# Every group call is end-to-end encrypted (ADR 0060 §3): the node forwards
+# what it cannot read and may stand on any machine.
 
 Limits:
   MaxParticipants: 100

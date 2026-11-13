@@ -82,7 +82,7 @@ func (f *fakeSFU) Pick(skip string) (string, error) {
 	return "", sfuclient.ErrNoNode
 }
 
-func (f *fakeSFU) CreateRoom(_ context.Context, node string, callID int64, _ bool) error {
+func (f *fakeSFU) CreateRoom(_ context.Context, node string, callID int64) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.log("create " + node)

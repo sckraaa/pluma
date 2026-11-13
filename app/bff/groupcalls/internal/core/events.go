@@ -17,6 +17,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -71,14 +72,46 @@ func (e *Events) Handle(node string, ev *pb.Event) {
 		c.gone(node, ev)
 	case pb.Event_TYPE_SPEAKING:
 		e.speaking(c, ev)
+	case pb.Event_TYPE_E2E_STATUS:
+		if ev.GetKind() == pb.ConnectionKind_CONNECTION_KIND_MAIN && c.hosts(node, ev) {
+			e.svcCtx.E2E.Report(ev.GetCallId(), ev.GetParticipant(), ev.GetE2EStatus())
+		}
+	case pb.Event_TYPE_SEND_EPOCHS:
+		if ev.GetKind() == pb.ConnectionKind_CONNECTION_KIND_MAIN && c.hosts(node, ev) {
+			e.svcCtx.E2E.SendEpochs(ev.GetCallId(), ev.GetParticipant(), ev.GetSendEpochs())
+		}
 	}
+}
+
+// hosts reports whether node holds the room of the event's call and its
+// participant is in the call. A node may stand on a machine outside the
+// trusted zone (ADR 0060 §3): what it says of the encryption counts only
+// for the calls placed on it, as its word on a connection that ended does
+// (gone), so that it can neither fill the watch with calls it made up nor
+// raise alarms in calls of other nodes.
+func (c *GroupCallsCore) hosts(node string, ev *pb.Event) bool {
+	call, err := c.svcCtx.Dao.Store.Get(c.ctx, ev.GetCallId())
+	if err == nil && !call.Discarded && call.SfuNode == node {
+		var p *groupcalls.Participant
+		if p, err = c.svcCtx.Dao.Store.ParticipantOf(c.ctx, call.Id, ev.GetParticipant()); err == nil && p.InCall {
+			return true
+		}
+	}
+	if err != nil && !errors.Is(err, groupcalls.ErrNotFound) {
+		c.Logger.Errorf("groupcalls: the call of an event of %s: %v", node, err)
+		return false
+	}
+	metricForeignEvents.Inc(ev.GetType().String())
+	return false
 }
 
 // gone takes the participant of a connection that ended out of the call,
 // or its screen. The SFU's word is checked against its room first: a
-// participant who joined again since has a new connection there, and a
-// join connects the SFU before it writes the state, so one the room does
-// not hold with the source of the table has not joined again yet.
+// participant who joined again since has a new connection there. A join
+// writes the state before it connects the SFU, so in between the room
+// holds nothing of a participant who joined again: the leave is then
+// conditional on the source of the connection that ended, which the event
+// names, and a join with a new source is not taken out.
 func (c *GroupCallsCore) gone(node string, ev *pb.Event) {
 	call, err := c.svcCtx.Dao.Store.Get(c.ctx, ev.GetCallId())
 	if err != nil || call.Discarded || call.SfuNode != node {
@@ -102,7 +135,11 @@ func (c *GroupCallsCore) gone(node string, ev *pb.Event) {
 	if err != nil || len(sources) > 0 {
 		return
 	}
-	c.leaveGone(call, p, groupcalls.LeaveCond{Source: p.Source}, "disconnect")
+	source := p.Source
+	if ev.GetSource() != 0 {
+		source = ev.GetSource()
+	}
+	c.leaveGone(call, p, groupcalls.LeaveCond{Source: source}, "disconnect")
 }
 
 // leaveGone takes one who is gone out of the call under cond and tells
@@ -117,6 +154,7 @@ func (c *GroupCallsCore) leaveGone(call *groupcalls.Call, p *groupcalls.Particip
 		return
 	}
 	metricLeaves.Inc(reason)
+	c.svcCtx.E2E.Left(call.Id, p.UserId)
 	c.disconnect(after, p.UserId)
 	a, err := c.loadPeer(call.PeerType, call.PeerId)
 	if err != nil {
