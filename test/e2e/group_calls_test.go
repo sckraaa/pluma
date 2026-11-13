@@ -19,6 +19,8 @@ package e2e
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/sha256"
 	"fmt"
 	"slices"
 	"strings"
@@ -30,6 +32,8 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/groupcallpeer"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
+	"github.com/teamgram/teamgram-server/pkg/tde2e"
+	"github.com/teamgram/teamgram-server/pkg/tde2e/tde2etest"
 	"github.com/teamgram/teamgram-server/pkg/tgcallsjson"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -39,6 +43,9 @@ import (
 // port and the media through the SFU of the stand, with clients of
 // pkg/groupcallpeer, which speak to the SFU as tgcalls does. Every session
 // that waits for pushes asks updates.getState first, as the clients do.
+// Every call is end-to-end encrypted (task 094, ADR 0060): a join carries
+// the participant's key and the block that adds him to the call's chain,
+// built on the last block as tdesktop does (calls_group_call.cpp:1632-1636).
 
 func groupCallInput(u *user, gc *mtproto.GroupCall) *mtproto.InputGroupCall {
 	return &mtproto.InputGroupCall{Constructor: u.c.Constructor(mtproto.Predicate_inputGroupCall), Id: gc.GetId(), AccessHash: gc.GetAccessHash()}
@@ -189,57 +196,64 @@ func joinRequest(u *user, call *mtproto.InputGroupCall, params []byte) *mtproto.
 	}
 }
 
-// joinGroupCall joins u to call with a new client of cfg and connects it to
-// the SFU with the answer, as tgcalls does; the answer has the call, the
-// connection and u's own row (iOS GroupCalls.swift:786-829, Android
-// VoIPService.java:2145-2160).
-func joinGroupCall(ctx context.Context, t *testing.T, u *user, call *mtproto.InputGroupCall, cfg groupcallpeer.Config, edit func(*mtproto.TLPhoneJoinGroupCall)) (*groupcallpeer.Peer, *mtproto.GroupCallParticipant, int32) {
-	t.Helper()
-	p, err := groupcallpeer.New(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(p.Close)
-	params, err := p.JoinParams()
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := joinRequest(u, call, params)
-	req.VideoStopped = cfg.VideoLayers == 0
-	if edit != nil {
-		edit(req)
-	}
-	o, err := u.c.Invoke(ctx, req)
-	if err != nil {
-		t.Fatalf("%s: phone.joinGroupCall: %v", u.self.GetFirstName(), err)
-	}
-	ups := updatesOf(t, "phone.joinGroupCall", o)
-	var conn *mtproto.Update
-	for _, x := range ups.GetUpdates() {
-		if x.GetPredicateName() == mtproto.Predicate_updateGroupCallConnection {
-			conn = x
-		}
-	}
-	gc := groupCallIn(ups)
-	me, v := rowIn(ups, call.GetId(), u.self.GetId())
-	if conn == nil || conn.GetPresentation() || gc.GetId() != call.GetId() || me == nil {
-		t.Fatalf("%s: phone.joinGroupCall answered %v", u.self.GetFirstName(), ups.GetUpdates())
-	}
-	// A join of one still in the call (a join again after the SFU lost
-	// him) is not a new join: just_joined and the next version belong to
-	// a first join only, which the tests check where it is one.
-	if !me.GetSelf() || me.GetMin() || me.GetLeft() || uint32(me.GetSource()) != p.AudioSSRC() || v != gc.GetVersion() {
-		t.Fatalf("%s: own row %v at %d, call version %d", u.self.GetFirstName(), me, v, gc.GetVersion())
-	}
-	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-	if err := p.Connect(cctx, []byte(conn.GetParams().GetData())); err != nil {
-		t.Fatalf("%s: connect to the SFU: %v", u.self.GetFirstName(), err)
-	}
-	return p, me, v
+// e2eKey is a key of u for the joins the tests build by hand, which the
+// server refuses.
+func e2eKey(u *user) ed25519.PrivateKey {
+	seed := sha256.Sum256([]byte(fmt.Sprintf("group call key of %d", u.self.GetId())))
+	return ed25519.NewKeyFromSeed(seed[:])
 }
 
-// hears checks that listener gets the sound of source through the SFU.
+// chainBlocks reads a sub-chain of call as u.
+func chainBlocks(ctx context.Context, t *testing.T, u *user, call *mtproto.InputGroupCall, sub, offset, limit int32) (*mtproto.Update, error) {
+	t.Helper()
+	return chainUpdate(ctx, u, call, sub, offset, limit)
+}
+
+// lastChain is the chain of call as of its last block, as a client builds
+// its state before it joins; nil before the first block.
+func lastChain(ctx context.Context, t *testing.T, u *user, call *mtproto.InputGroupCall) *tde2e.Chain {
+	t.Helper()
+	up, err := chainBlocks(ctx, t, u, call, 0, -1, 1)
+	if err != nil {
+		t.Fatalf("%s: the last block: %v", u.self.GetFirstName(), err)
+	}
+	if len(up.GetBlocks()) == 0 {
+		return nil
+	}
+	local, err := tde2e.ToLocal(up.GetBlocks()[len(up.GetBlocks())-1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	ch, err := tde2e.RestoreChain(local)
+	if err != nil {
+		t.Fatalf("the last block: %v", err)
+	}
+	return ch
+}
+
+// seal sets the key of u and his join block on top of the last block of
+// the call of req.
+func seal(ctx context.Context, t *testing.T, u *user, req *mtproto.TLPhoneJoinGroupCall) {
+	t.Helper()
+	key := e2eKey(u)
+	pub := tde2etest.Pub(key)
+	req.PublicKey, req.Block = pub[:], tde2etest.JoinBlock(lastChain(ctx, t, u, req.GetCall()), u.self.GetId(), key)
+}
+
+// joinGroupCall joins u to call as a patched client with its own new key
+// and connects it to the SFU with the answer, as tgcalls does; the answer
+// has the call, the connection, u's own row (iOS GroupCalls.swift:786-829,
+// Android VoIPService.java:2145-2160) and both sub-chains. The client
+// encrypts what it sends, decrypts what it gets and does in the background
+// what a client does (joinMember).
+func joinGroupCall(ctx context.Context, t *testing.T, u *user, call *mtproto.InputGroupCall, cfg groupcallpeer.Config, edit func(*mtproto.TLPhoneJoinGroupCall)) (*groupcallpeer.Peer, *mtproto.GroupCallParticipant, int32) {
+	t.Helper()
+	m := joinMember(ctx, t, u, call, memberOptions{cfg: cfg, edit: edit})
+	return m.peer(), m.row, m.version
+}
+
+// hears checks that listener gets the sound of source through the SFU and
+// decrypts it: a frame that does not decrypt never reaches the listener.
 func hears(ctx context.Context, t *testing.T, who string, listener *groupcallpeer.Peer, source uint32) {
 	t.Helper()
 	cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -250,6 +264,9 @@ func hears(ctx context.Context, t *testing.T, who string, listener *groupcallpee
 	}
 	if pkt.PayloadType != tgcallsjson.PayloadTypeOpus || pkt.GetExtension(tgcallsjson.ExtAudioLevel) == nil {
 		t.Fatalf("%s: a packet of payload type %d, audio level %v", who, pkt.PayloadType, pkt.GetExtension(tgcallsjson.ExtAudioLevel))
+	}
+	if len(pkt.Payload) != groupcallpeer.AudioFrameSize || pkt.Payload[0] != groupcallpeer.AudioTOC {
+		t.Fatalf("%s: the frame decrypts to %x", who, pkt.Payload)
 	}
 }
 
@@ -750,6 +767,10 @@ func TestGroupCallVideoAndScreen(t *testing.T) {
 	if conn == nil {
 		t.Fatal("phone.joinGroupCallPresentation without the connection of the screen")
 	}
+	// The screen encrypts with Alice's state, as tgcalls' screen instance
+	// is given the same encryption.
+	screen.SetE2E(pa.E2E())
+	roomOf(gc.GetId()).add(screen, alice.self.GetId())
 	wait("the screen connects", func(c context.Context) error { return screen.Connect(c, []byte(conn.GetParams().GetData())) })
 	row, _ := waitRow(ctx, t, bob, gc.GetId(), alice.self.GetId(), "screen", func(p *mtproto.GroupCallParticipant) bool { return p.GetPresentation() != nil })
 	if row.GetPresentation().GetEndpoint() != screen.Endpoint() || screen.Endpoint() == pa.Endpoint() || len(row.GetPresentation().GetSourceGroups()) != 3 {
@@ -841,6 +862,7 @@ func TestGroupCallChannel(t *testing.T) {
 		t.Fatalf("phone.getGroupCallJoinAs: %v", as.GetPeers())
 	}
 	asChannel := joinRequest(alice, aliceCall, mustParams(t))
+	seal(ctx, t, alice, asChannel)
 	asChannel.JoinAs = alicePeer
 	if _, err := alice.c.Invoke(ctx, asChannel); !mtclient.IsRPCError(err, "JOIN_AS_PEER_INVALID") {
 		t.Fatalf("a join as the channel: %v", err)
@@ -1027,21 +1049,24 @@ func TestGroupCallScheduled(t *testing.T) {
 // The SFU restarts: the rooms are gone, phone.checkGroupCall no longer
 // lists the clients' sources, and the clients join again, as tdesktop and
 // iOS do on it (calls_group_call.cpp:3746-3776,
-// PresentationGroupCall.swift:2221-2226), and hear each other again. Not
-// parallel: the SFU is the stand's only one.
+// PresentationGroupCall.swift:2221-2226), with the keys they have: a lost
+// transport is not a failure of the encryption (ADR 0060 §5). They hear
+// each other again. Not parallel: the SFU is the stand's only one.
 func TestGroupCallSFURestart(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
 	defer cancel()
 	us, _, gc := supergroupCall(ctx, t, "Alice", "Bob")
 	alice, bob := us[0], us[1]
 	aliceCall, bobCall := groupCallInput(alice, gc), groupCallInput(bob, gc)
-	pa, _, _ := joinGroupCall(ctx, t, alice, aliceCall, groupcallpeer.Config{}, nil)
-	pb, _, _ := joinGroupCall(ctx, t, bob, bobCall, groupcallpeer.Config{}, nil)
-	speak(ctx, t, pa)
-	hears(ctx, t, "Bob hears Alice", pb, pa.AudioSSRC())
-	if held := checkGroupCall(ctx, t, alice, aliceCall, pa.AudioSSRC()); !slices.Equal(held, []uint32{pa.AudioSSRC()}) {
+	ma := joinMember(ctx, t, alice, aliceCall, memberOptions{})
+	mb := joinMember(ctx, t, bob, bobCall, memberOptions{})
+	speakMember(ctx, t, ma)
+	speakMember(ctx, t, mb)
+	hearsMember(ctx, t, mb, ma)
+	if held := checkGroupCall(ctx, t, alice, aliceCall, ma.peer().AudioSSRC()); !slices.Equal(held, []uint32{ma.peer().AudioSSRC()}) {
 		t.Fatalf("phone.checkGroupCall before the restart: %v", held)
 	}
+	keys := [2][32]byte{ma.e2e().Call().PublicKey(), mb.e2e().Call().PublicKey()}
 
 	// The container goes away and a new one comes, at another address on
 	// the network of the services, as on a crash and a redeploy.
@@ -1051,7 +1076,7 @@ func TestGroupCallSFURestart(t *testing.T) {
 
 	deadline := time.Now().Add(30 * time.Second)
 	for {
-		held := checkGroupCall(ctx, t, alice, aliceCall, pa.AudioSSRC())
+		held := checkGroupCall(ctx, t, alice, aliceCall, ma.peer().AudioSSRC())
 		if len(held) == 0 {
 			break
 		}
@@ -1060,18 +1085,17 @@ func TestGroupCallSFURestart(t *testing.T) {
 		}
 		time.Sleep(time.Second)
 	}
-	pa.Close()
-	pb.Close()
-	pa2, _, _ := joinGroupCall(ctx, t, alice, aliceCall, groupcallpeer.Config{}, nil)
-	pb2, _, _ := joinGroupCall(ctx, t, bob, bobCall, groupcallpeer.Config{}, nil)
-	speak(ctx, t, pa2)
-	speak(ctx, t, pb2)
-	hears(ctx, t, "Bob hears Alice after the restart", pb2, pa2.AudioSSRC())
-	hears(ctx, t, "Alice hears Bob after the restart", pa2, pb2.AudioSSRC())
-	if held := checkGroupCall(ctx, t, bob, bobCall, pb2.AudioSSRC()); !slices.Equal(held, []uint32{pb2.AudioSSRC()}) {
+	ma.reconnect(ctx, t)
+	mb.reconnect(ctx, t)
+	hearsMember(ctx, t, mb, ma)
+	hearsMember(ctx, t, ma, mb)
+	if held := checkGroupCall(ctx, t, bob, bobCall, mb.peer().AudioSSRC()); !slices.Equal(held, []uint32{mb.peer().AudioSSRC()}) {
 		t.Fatalf("phone.checkGroupCall after the join again: %v", held)
 	}
 	if c := getGroupCall(ctx, t, alice, aliceCall).GetCall(); c.GetParticipantsCount() != 2 {
 		t.Fatalf("the call after the restart: %v", c)
+	}
+	if keys != [2][32]byte{ma.e2e().Call().PublicKey(), mb.e2e().Call().PublicKey()} || len(ma.heals())+len(mb.heals()) != 0 {
+		t.Fatalf("the keys changed over the restart: rejoins %v %v", ma.heals(), mb.heals())
 	}
 }
