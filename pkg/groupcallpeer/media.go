@@ -232,3 +232,32 @@ func (v *VideoStream) AwaitIdealHeight(ctx context.Context, height int) error {
 		}
 	}
 }
+
+// StartReports sends the status report of the peer's encryption every
+// ReportEvery over the data channel until ctx ends or the peer closes, the
+// first one period after the call: only a main connection sends them
+// (ADR 0060 §5). A report that does not go out leaves its counts to the
+// next.
+func (p *Peer) StartReports(ctx context.Context) {
+	go func() {
+		tk := time.NewTicker(ReportEvery)
+		defer tk.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-p.ctx.Done():
+				return
+			case <-tk.C:
+				e := p.e2e.Load()
+				if e == nil {
+					continue
+				}
+				r := e.Report()
+				if p.SendData(tgcallsjson.MarshalE2EStatus(r)) == nil {
+					e.Sent(r)
+				}
+			}
+		}
+	}()
+}

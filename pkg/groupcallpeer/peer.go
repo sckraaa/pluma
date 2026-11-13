@@ -39,6 +39,11 @@
 //
 // With PeerConnectionRole the peer takes the controlling ICE role, as a
 // browser's PeerConnection does for Web.
+//
+// With an E2E (SetE2E) the peer is an end-to-end participant: its frames
+// go out encrypted with tde2e, the frames it receives are decrypted and
+// those that do not decrypt are dropped, and StartReports sends the status
+// reports of the encryption (e2e.go).
 package groupcallpeer
 
 import (
@@ -114,6 +119,7 @@ type Peer struct {
 
 	transportSeq atomic.Uint32
 	streams      map[uint32]*outStream
+	e2e          atomic.Pointer[E2E]
 
 	rtpCh  chan *rtp.Packet
 	rtcpCh chan []rtcp.Packet
@@ -237,6 +243,15 @@ func New(cfg Config) (*Peer, error) {
 	}
 	return p, nil
 }
+
+// SetE2E makes the peer encrypt and decrypt its frames with e.
+func (p *Peer) SetE2E(e *E2E) { p.e2e.Store(e) }
+
+// E2E is the encryption of the peer, nil without one.
+func (p *Peer) E2E() *E2E { return p.e2e.Load() }
+
+// Done is closed when the peer closes.
+func (p *Peer) Done() <-chan struct{} { return p.ctx.Done() }
 
 // JoinParams returns the params of phone.joinGroupCall.
 func (p *Peer) JoinParams() ([]byte, error) { return p.req.MarshalJSON() }
@@ -519,6 +534,9 @@ func (p *Peer) handleSRTP(data []byte) {
 	if err := pkt.Unmarshal(plain); err != nil {
 		return
 	}
+	if e := p.e2e.Load(); e != nil && !e.open(pkt) {
+		return
+	}
 	select {
 	case p.rtpCh <- pkt:
 	default:
@@ -555,6 +573,13 @@ func (p *Peer) stamp(pkt *rtp.Packet) error {
 	return pkt.Header.SetExtension(tgcallsjson.ExtAbsSendTime, ast)
 }
 
+// The Opus frame SendAudio sends: a TOC byte of CELT fullband 20 ms and
+// silence after it.
+const (
+	AudioTOC       = 0xfc
+	AudioFrameSize = 80
+)
+
 // SendAudio sends one Opus packet of 120 ms, the ptime of tgcalls
 // (GroupInstanceCustomImpl.cpp:2716), with the level (RFC 6464, 0 loudest)
 // and voice flag in extension 1.
@@ -576,8 +601,13 @@ func (p *Peer) SendAudio(level uint8, voice bool) error {
 	if err := p.stamp(pkt); err != nil {
 		return err
 	}
-	pkt.Payload = make([]byte, 80)
-	pkt.Payload[0] = 0xfc // an Opus TOC byte: CELT fullband 20 ms
+	pkt.Payload = make([]byte, AudioFrameSize)
+	pkt.Payload[0] = AudioTOC
+	if e := p.e2e.Load(); e != nil {
+		if pkt.Payload, err = e.encryptAudio(pkt.Payload, level, voice); err != nil {
+			return err
+		}
+	}
 	return p.WriteRTP(pkt)
 }
 
@@ -619,6 +649,14 @@ func (p *Peer) videoFrame(layer int, keyframe bool) (*rtp.Packet, error) {
 	}
 	for len(payload) < 200 {
 		payload = append(payload, byte(layer))
+	}
+	if e := p.e2e.Load(); e != nil {
+		// The packetizer puts the descriptor before the encrypted frame.
+		frame, err := e.encryptVideo(payload[5:], keyframe)
+		if err != nil {
+			return nil, err
+		}
+		payload = append(payload[:5:5], frame...)
 	}
 	pkt := &rtp.Packet{Header: rtp.Header{
 		Version: 2, Marker: true, PayloadType: tgcallsjson.PayloadTypeVP8, SSRC: ssrc,
