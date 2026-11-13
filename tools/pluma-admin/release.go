@@ -117,23 +117,17 @@ func releaseTarget(args []string) (string, int32, error) {
 	if err != nil {
 		return "", 0, errUsage
 	}
-	if (args[1] == "mandatory" || args[1] == "optional") && !canBeMandatory(args[2]) {
+	if (args[1] == "mandatory" || args[1] == "optional") && !appreleases.CanBeMandatory(args[2]) {
 		return "", 0, fmt.Errorf("%s: the desktop app has no mandatory updates; only android and ios do", args[2])
 	}
 	return args[2], int32(build), nil
-}
-
-// canBeMandatory tells whether the apps of the platform take an update
-// from help.getAppUpdate.
-func canBeMandatory(platform string) bool {
-	return platform == appreleases.Android || platform == appreleases.IOS
 }
 
 // mandatoryColumn is the MANDATORY column of release list: "-" where the
 // apps have no mandatory updates.
 func mandatoryColumn(rel *appreleases.Release) string {
 	switch {
-	case !canBeMandatory(rel.Platform):
+	case !appreleases.CanBeMandatory(rel.Platform):
 		return "-"
 	case rel.CanNotSkip:
 		return "yes"

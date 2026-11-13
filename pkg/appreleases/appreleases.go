@@ -54,6 +54,14 @@ func Known(p string) bool {
 	return false
 }
 
+// CanBeMandatory tells whether a release of the platform can be mandatory:
+// only the Android and iOS apps take an update from help.getAppUpdate, the
+// one that carries can_not_skip. The desktop app updates itself over HTTP,
+// which has no mandatory updates (docs/ops/releases.md).
+func CanBeMandatory(platform string) bool {
+	return platform == Android || platform == IOS
+}
+
 // The kinds of files of a release.
 const (
 	// KindInstaller is what the site offers for a first install: the APK,

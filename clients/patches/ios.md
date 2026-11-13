@@ -925,6 +925,28 @@ ci/lint.sh                                        # shellcheck и actionlint
 - После `install-upload.sh` в job `build-ipa`: `POST <PLUMA_RELEASES_URL>/dl/upload` с `platform=ios`, версией `UPSTREAM_VERSION`, номером `BUILD_NUMBER` и заметками `release/notes.*.txt`, без файлов. 409 — уже записано.
 - Проверка `preflight-sign` перенесена в начало `build-ipa`: одно одобрение `release` вместо двух (решение владельца 1). Там же проверяются оба секрета, `RELEASES_UPLOAD_TOKEN` и `IOSINSTALL_UPLOAD_TOKEN`: без второго приложения получили бы предложение сборки, которой нет на странице установки (`69cf6ea`).
 
+### I-128. Проверка обновления раз в час и при возврате в приложение; экран обязательного выпуска (задача 095)
+
+- **Статус.** Ветка `task/095-update-prompts` pluma-ios, коммит `8453032` (2026-11-13), не влито, не выпущено. Апстрим `release-13.2`, `24638bc69b`.
+- **Что и зачем.** Решение владельца 2026-11-13: новый выпуск на сайте доходит до приложения примерно за час, оператор может сделать выпуск обязательным (`can_not_skip`). Правки в `APP_UPDATE_EDITS`, `patch_app_update()` / `verify_app_update()` в `ci/patch.py`, вид — `replace`:
+  - **раз в час.** `submodules/TelegramCore/Sources/State/AppUpdate.swift:48`: `suspendAwareDelay(12.0 * 60.0 * 60.0, …)` → `1.0 * 60.0 * 60.0`. Задержка считает абсолютное время (`Signal_Timing.swift:35-80`), поэтому после долгой приостановки просроченная проверка уходит через секунды после возврата;
+  - **при возврате в приложение.** Там же проверка запускается заново каждый раз, когда аккаунт становится основным и приложение выходит на передний план (`distinctUntilChanged` / `filter`), и час отсчитывается с этого момента. Сигнал — тот, по которому апстрим держит присутствие в сети (`SharedWakeupManager.swift:1150`, `account.shouldKeepOnlinePresence`); `AccountStateManager.swift` (`:1157`, `:1187`) уже принимает его в `init`, правка сохраняет его полем `shouldKeepOnlinePresence`;
+  - **экран прежнего ответа уходит.** `submodules/TelegramUI/Sources/ApplicationContext.swift:589-600`: апстрим показывает новый экран на каждый новый ответ и никогда не убирает старый, так что экран отозванного или заменённого выпуска (а у обязательного — заблокированное приложение) оставался до перезапуска. Правка хранит показанный контроллер (`currentAppUpdateController`, weak) и закрывает его перед показом экрана нового ответа или при пустом ответе. Тот же ответ ничего не меняет (`AccountStateEventHub.swift:458-465`): ежечасная проверка не показывает пропущенное обновление заново.
+- **Сторож экрана обязательного выпуска** (проверка в `verify_app_update`, `APP_UPDATE_BLOCKING`, `APP_UPDATE_NO_SKIP`). Апстрим сам делает экран непропускаемым, патч это не меняет, но проверяет: `AppUpdate.swift:27` читает `blocking` из бита 0 флагов (`can_not_skip`) ровно один раз; `UpdateInfoController.swift:134` — `appUpdateInfo.blocking ? nil : ItemListNavigationButton(…Update_Skip…)` ровно один раз; в файле экрана нет `enableInteractiveDismiss` (по умолчанию `false`, `ItemListController.swift:176`). Экран — на верхнем уровне, над код-паролем (`PresentationSurfaceLevels.swift:9`, `ApplicationContext.swift:598`).
+- **Апстрим без правки.** Проверка при запуске и раз в 12 часов (`AppUpdate.swift:37-48`, `AccountTaskManager.swift:148`), ключа конфига нет; показанный экран не убирается до перезапуска.
+- **Как проверяется.** `verify_app_update`; `AppUpdateTest`: период, подписка на передний план, поле в `AccountStateManager`, закрытие старого экрана до показа нового, повторный прогон не находит текстов апстрима; `test_a_mandatory_release_cannot_be_skipped` (кнопка «Пропустить» без условия, `enableInteractiveDismiss = true`, `blocking` из другого бита или `false` — патч падает с «can be skipped»). Пути — в `UPSTREAM_PATHS` (тесты на закреплённом апстриме).
+- **Не проверено.** Сборка Bazel и устройство: проверка при возврате из фона, закрытие экрана при смене ответа, экран обязательного выпуска поверх код-пароля.
+
+### I-129. Обязательный выпуск из CI: вход `mandatory` (задача 095)
+
+- **Статус.** Ветка `task/095-update-prompts` pluma-ios поверх `8453032`, не закоммичено (2026-11-13).
+- **Что и зачем.** Флаг обязательности ставится при загрузке выпуска, а не командой после неё: Android не пересматривает версию, которую ему уже предложили (`LaunchActivity.java:6153-6155`, DrKLO/Telegram `7be672ea`), iOS смену флага после загрузки увидел бы при следующей проверке, но обязательный выпуск задаётся одинаково для обеих платформ (`docs/ops/releases.md`, «Обязательный выпуск»).
+- **Где.**
+  - `.github/workflows/ios.yml`: вход `workflow_dispatch` `mandatory` (boolean, по умолчанию `false`); шаг «Offer the build…» передаёт `PLUMA_RELEASE_MANDATORY: ${{ github.event_name == 'workflow_dispatch' && inputs.mandatory }}` — push в `main` всегда загружает необязательный выпуск. Job `check` падает сразу, если `mandatory` отмечен без `ipa` или подписанные сборки не включены (`PLUMA_TEAM_ID` пуст): выпуска не будет.
+  - `ci/release-upload.sh`: `PLUMA_RELEASE_MANDATORY` `true` → `-F can_not_skip=1`, `false` или нет → `can_not_skip=0`, другое значение — ошибка до запроса. Сервер отвечает `422`, если повтор сборки, записанной необязательной, просит обязательную: job падает (`*)`).
+  - README, «Releases».
+- **Как проверяется.** `shellcheck -x ci/*.sh brand/*.sh`, `actionlint` (как в `ci/lint.sh`); неверное значение `PLUMA_RELEASE_MANDATORY` — выход 1 до запроса. Серверная сторона — `TestMandatoryUpload` (`app/service/releases`).
+
 ---
 
 ## Ссылки pluma.chat (задача 026)
