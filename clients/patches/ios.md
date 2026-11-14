@@ -396,6 +396,12 @@ ci/lint.sh                                        # shellcheck и actionlint
 ### I-043. Тема Night: палитра
 - **Что и зачем.** Шалфей `#9DBB9F` там, где был белый или синий (с тёмным текстом `#131513`), ссылки, время и галочки `#B2CEB4`, пузыри `#232623` и `#2C3A2D → #36473A`, фон `#131513`, графитовый фон чата вместо узора. Тёмный текст на акценте.
 - **Где.** `submodules/TelegramPresentationData/Sources/DefaultDarkPresentationTheme.swift`, строки `PALETTE_EDITS` с `DARK_THEME` (около 40 `replace`). Ключевые якоря: `accentColor: UIColor(rgb: 0x3e88f7), backgroundColors: [], …`, ветка `} else if accentColor.rgb == 0x3e88f7 { bubbleColors = [0x0771ff, 0x9047ff, 0xa256bf].reversed()` → `[0x2c3a2d, 0x36473a]`, `if initialAccentColor.lightness > 0.735 {` (перед ним ветка акцента шалфея с текстом `#131513`, `NIGHT_SAGE_TEXT`, I-118), `let defaultPatternWallpaper … defaultDarkWallpaperGradientColors … intensity: -34` → `.color(0x131513)`.
+  - **Исходящий пузырь ночной темы — один цвет `#2c3a2d`** (`NIGHT_ONE_FILL`, 2026-11-14), подсветка `#36473a`. Раньше было два цвета `#2c3a2d → #36473a`, и пузыри временами рисовались квадратными блоками без хвостиков. Причина:
+    - два цвета создают картинку-градиент (`PresentationThemeEssentialGraphics.swift:239-243`);
+    - фон ночной темы у нас — сплошной цвет `.color(0x131513)`, без паттерна, поэтому `hasWallpaper` ложно, и пузырь не маскируется (`ChatMessageBubbleItemNode` `backgroundMaskMode`);
+    - градиент тогда — обрезанный прямоугольник (`ChatMessageBackground.swift:609, 668, 692-730`), которому скругления и хвостик даёт только картинка-«выколотка» цвета фона поверху;
+    - когда слои расходятся, виден голый прямоугольник.
+    У ночной темы Telegram фон с паттерном, поэтому его градиент маскируется. Одноцветный пузырь рисуется обычной картинкой пузыря. Тест — `UpstreamTest.test_patch`.
   - С 13.2 — ночная тема режима без пузырей (`neutralNight`): `submodules/TelegramPresentationData/Sources/MakePresentationTheme.swift`, `neutralNightAccentColor` `0x3e88f7` → `0x9dbb9f`. Кнопка отправки в этом режиме: `ChatTextInputActionButtonsNode.swift`, `bubblelessSendButtonGlassColor` принимала шалфей (насыщенность 0,16 < 0,2) за бесцветный акцент и красила в системный синий; `SEND_GLASS` делает для `0x9dbb9f` исключение, `SEND_GLASS_ICON` даёт значку на шалфее цвет `#131513` вместо белого. Серые пузыри и чёрный фон режима — как в апстриме.
 - **Проверка.** `verify_palette` (`MAKE_THEME` в списке файлов без синих, `SEND_GLASS`, `SEND_GLASS_ICON` на месте), `test_patch`, `test_damage` (2 порчи `DARK_THEME`, `MAKE_THEME`, 2 порчи `SEND_BUTTON`).
 - **Апстрим / официальный.** Белый акцент, синие исходящие, узор; в режиме без пузырей синий `0x3e88f7` и системный синий у кнопки.
@@ -1085,3 +1091,12 @@ ci/lint.sh                                        # shellcheck и actionlint
 - **Статус.** Ветка `task/074-upstream` (2026-11-09). Сборка не запускалась.
 - **Что.** `upstream.env`: Xcode 27.1, Bazel 9.2.0. `ios.yml`, `reference.yml`: `xcode-27` (macOS 27.0.1, Xcode 27.1 по умолчанию, публичный preview; `.github/actionlint.yaml` объявляет метку для actionlint). `Telegram/BUILD`: 9 `provisioning_profile` (убран `spm_build_app`).
 - **Не проверено.** Bazel 9 и `pluma.bazelrc`, `rules_rust` и крейты двух движков на холодной сборке, расход диска (порог `PLUMA_MIN_FREE_GB` 60), `-warnings-as-errors` Xcode 27 на правках вида `if false && …`, новый `exported_symbols_lists` релизных фреймворков. Запись I-093 и I-090: кружок в обеих камерах. Вступление: то, как новый плеер `tlottie` рисует знак с заменой цветов (I-026).
+
+## I-1xx. Обрезка видео сохраняется при отправке из сетки (задача 097, 2026-11-14)
+- **Что и зачем.** Ошибка апстрима 13.2, сообщение пользователя: «укоротила видео, а в канал ушло целиком».
+  - Новый редактор (`ChatMediaEditorScreen`) держит обрезку только в живом редакторе.
+  - В хранилище правок, которое читает отправка, она попадает лишь при отправке из галереи, перелистывании или завершении инструмента (`saveCurrentItemEdits`).
+  - Обрезать → отметить → отправить из сетки — и видео уходит целиком.
+- **Где.** `ChatMediaEditorScreenVideo.swift`, `trackTrimUpdated`: при отпускании ручки (`apply`) вызывается `saveCurrentItemEdits()`, как старая галерея (`TGMediaPickerGalleryVideoItemView.m:1654-1660`). Блоки `TRIM_SAVE_OLD` → `TRIM_SAVE`, `replace`.
+- **Проверка.** `UpstreamTest.test_patch`, повреждение анкера — в таблице поломок. На устройстве не проверено.
+
