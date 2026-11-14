@@ -1,0 +1,13 @@
+# bff at home with the SFU of group calls on the edge (task 096, ADR 0061,
+# docs/ops/home-server.md): the counterpart of docker-compose.sfu.yaml
+# without the SFU itself. bff reaches the node through the tunnel, and the
+# node's certificate names that address (control-certs.sh ... 10.77.0.1).
+# Added to the services command instead of docker-compose.sfu.yaml:
+#
+#   docker compose -f docker-compose.yaml ... -f docker-compose.groupcalls.yaml up -d bff
+services:
+  bff:
+    environment:
+      GROUPCALLS_SFU_ENDPOINT: ${GROUPCALLS_SFU_ENDPOINT:?set GROUPCALLS_SFU_ENDPOINT in .env, the edge's tunnel address and port 20500}
+    volumes:
+      - ${PLUMA_GROUPCALLS_CERTS:-/opt/pluma/groupcalls}:/run/secrets/groupcalls:ro
