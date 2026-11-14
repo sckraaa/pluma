@@ -55,7 +55,7 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
   - Провайдер видит TLS до Cloudflare, VPS не видит запросов DNS вовсе.
   - Новый контейнер берёт этот DNS при создании; уже созданный — только после `--force-recreate`.
 - **`/etc/systemd/networkd.conf.d/10-pluma-tunnel.conf`** (`ManageForeignRoutingPolicyRules=no`, `ManageForeignRoutes=no`) — обязательно. Без него любой `networkctl reload` или перезапуск networkd (в том числе при обновлении системы) удаляет правила туннеля, и ответы клиентам уходят мимо него. Так было 2026-11-14, простой около двух минут.
-- `pluma.slice` из репозитория плюс `/etc/systemd/system/pluma.slice.d/10-home.conf`: `MemoryMax=18G`, `MemoryLow=6G`.
+- `pluma.slice` из репозитория плюс `/etc/systemd/system/pluma.slice.d/10-home.conf`: `MemoryMax=10G`, `MemoryLow=6G` (Pluma занимает около 3,6 ГБ, замер 2026-11-14).
 - **Медиасервер владельца** (Jellyfin, торренты) на том же хосте:
   - `/opt/media`, диск `/srv/media`;
   - `media.slice` до 12 ГБ;
