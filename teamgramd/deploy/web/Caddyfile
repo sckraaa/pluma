@@ -6,6 +6,14 @@
 # releases under /pluma-site (PLUMA_SITE_DIR on the host), the live one behind the
 # relative symlink /pluma-site/current.
 
+# Certificates from Let's Encrypt only, with no fallback to another CA: the
+# names' CAA records admit this CA and this server's ACME account alone
+# (task 096, docs/ops/home-server.md), so that whoever holds the public
+# address on the way in cannot have a certificate issued for them.
+{
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
 {$PLUMA_WEB_DOMAIN} {
 	handle /apiws {
 		reverse_proxy gnetway:11444 {

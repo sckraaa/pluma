@@ -145,7 +145,9 @@ func sendAudio(t *testing.T, p *groupcallpeer.Peer, level uint8) {
 			case <-ctx.Done():
 				return
 			case <-tk.C:
-				_ = p.SendAudio(level, true)
+				// Clients encrypt every frame; the SFU forwards
+				// nothing else (audioFrame).
+				_ = p.SendAudioPayload(level, true, frame(0xab))
 			}
 		}
 	}()

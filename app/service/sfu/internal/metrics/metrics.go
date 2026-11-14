@@ -126,6 +126,6 @@ var (
 	}, []string{"result"})
 	E2EUnparsedAudio = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "sfu_e2e_audio_unparsed_total",
-		Help: "Sound packets whose payload is not a frame of tde2e: sent unencrypted or broken. Forwarded all the same; the SFU reads no frame.",
+		Help: "Sound packets whose payload is not a frame of tde2e: sent unencrypted or broken. Dropped: no group call carries unencrypted sound.",
 	})
 )

@@ -17,11 +17,18 @@ package room
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pion/rtp"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/teamgram/teamgram-server/app/service/sfu/internal/metrics"
+	"github.com/teamgram/teamgram-server/pkg/groupcallpeer"
 )
 
 // frame builds a sound frame as tde2e encrypts it (Call.cpp:360-399): no
@@ -71,19 +78,21 @@ func TestObserveEpochs(t *testing.T) {
 	r := &Room{mgr: &Manager{events: rec}, id: 7}
 	m := &Member{room: r, participant: 3, kind: KindMain}
 	now := time.Now()
-	r.observeEpochs(m, frame(0xab), now)
+	if !r.audioFrame(m, frame(0xab), now) {
+		t.Fatal("a frame of tde2e not let through")
+	}
 	ev := rec.wait(t, time.Second, func(ev Event) bool { return ev.Type == EventSendEpochs })
 	if ev.Participant != 3 || ev.CallID != 7 || !slices.Equal(ev.SendEpochs, []string{"abababababababab"}) {
 		t.Fatalf("%+v", ev)
 	}
 	// The same epochs again are told only after sendEpochsEvery; new ones
 	// at once.
-	r.observeEpochs(m, frame(0xab), now.Add(time.Second))
-	r.observeEpochs(m, frame(0xab, 0xcd), now.Add(2*time.Second))
+	r.audioFrame(m, frame(0xab), now.Add(time.Second))
+	r.audioFrame(m, frame(0xab, 0xcd), now.Add(2*time.Second))
 	if ev = rec.wait(t, time.Second, func(Event) bool { return true }); len(ev.SendEpochs) != 2 {
 		t.Fatalf("the change of epochs: %+v", ev)
 	}
-	r.observeEpochs(m, frame(0xab, 0xcd), now.Add(2*time.Second+sendEpochsEvery))
+	r.audioFrame(m, frame(0xab, 0xcd), now.Add(2*time.Second+sendEpochsEvery))
 	if ev = rec.wait(t, time.Second, func(Event) bool { return true }); len(ev.SendEpochs) != 2 {
 		t.Fatalf("the epochs again: %+v", ev)
 	}
@@ -92,6 +101,61 @@ func TestObserveEpochs(t *testing.T) {
 		t.Fatalf("an extra event %+v", ev)
 	default:
 	}
+}
+
+// TestUnencryptedAudioDropped: the SFU forwards sound only as frames of
+// tde2e. Plain Opus is dropped and counted; a packet with no payload
+// (padding) carries nothing and goes on.
+func TestUnencryptedAudioDropped(t *testing.T) {
+	r := &Room{mgr: &Manager{events: newRecorder()}, id: 7}
+	m := &Member{room: r, participant: 3, kind: KindMain}
+	before := testutil.ToFloat64(metrics.E2EUnparsedAudio)
+	if r.audioFrame(m, []byte{groupcallpeer.AudioTOC, 0, 0, 0, 0, 0, 0, 0, 0}, time.Now()) {
+		t.Fatal("plain Opus let through")
+	}
+	if got := testutil.ToFloat64(metrics.E2EUnparsedAudio) - before; got != 1 {
+		t.Fatalf("unparsed counted %v", got)
+	}
+	if !r.audioFrame(m, nil, time.Now()) {
+		t.Fatal("padding dropped")
+	}
+	screen := &Member{room: r, participant: 3, kind: KindPresentation}
+	if r.audioFrame(screen, []byte{groupcallpeer.AudioTOC, 0, 0, 0, 0, 0, 0, 0, 0}, time.Now()) {
+		t.Fatal("plain sound of a screen let through")
+	}
+	if !r.audioFrame(screen, frame(0xab), time.Now()) {
+		t.Fatal("a frame of a screen dropped")
+	}
+
+	// Through the SFU: the listener gets the frames, never the plain sound.
+	mgr, _ := newTestManager(t, nil)
+	a, _ := joinPeer(t, mgr, 1, KindMain, groupcallpeer.Config{})
+	b, _ := joinPeer(t, mgr, 2, KindMain, groupcallpeer.Config{})
+	// One sender at a time: a Peer numbers its packets unguarded. Frames
+	// and plain sound in turn, from one goroutine.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		tk := time.NewTicker(20 * time.Millisecond)
+		defer tk.Stop()
+		for n := 0; ; n++ {
+			select {
+			case <-ctx.Done():
+				return
+			case <-tk.C:
+				if n%2 == 0 {
+					_ = a.SendAudioPayload(20, true, frame(0xab))
+				} else {
+					_ = a.SendAudio(10, true)
+				}
+			}
+		}
+	}()
+	awaitRTP(t, b, 5*time.Second, bySSRC(a.AudioSSRC()))
+	plain := func(pkt *rtp.Packet) bool {
+		return pkt.SSRC == a.AudioSSRC() && len(pkt.Payload) == groupcallpeer.AudioFrameSize && pkt.Payload[0] == groupcallpeer.AudioTOC
+	}
+	noRTP(t, b, time.Second, plain)
 }
 
 const statusReport = `{"colibriClass":"PlumaE2EStatus","v":1,"seq":1,"height":0,"lastBlock":"0123456789abcdef","offset0":1,"offset1":0,"error":0,` +

@@ -1,0 +1,108 @@
+# The edge on the VPS once Pluma runs at home (task 096, ADR 0061,
+# docs/ops/home-server.md). Only what cannot run at home and sees no
+# content: the SFU of group calls and the TURN of 1:1 calls (both end-to-end
+# encrypted), and a relay to the operator's own sites that stay on the VPS.
+# The rest of the VPS is the pipe of teamgramd/deploy/edge: Pluma's public
+# address forwarded home over WireGuard.
+#
+# A project of its own, with nothing of docker-compose.yaml:
+#
+#   docker compose -p pluma-edge -f docker-compose.edge.yaml up -d
+#
+# It joins the network the core left on the VPS (pluma_teamgram_net, whose
+# outgoing traffic leaves from Pluma's address by
+# docker-compose.public-ip.yaml), where the operator's site containers are.
+# The control and metrics ports are published on the tunnel's address only:
+# home reaches them through WireGuard, nothing else does.
+services:
+  sfu:
+    mem_limit: ${SFU_MEMORY:-512m}
+    memswap_limit: ${SFU_MEMORY:-512m}
+    cpus: ${SFU_CPUS:-2}
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    image: ${PLUMA_SFU_IMAGE:?set PLUMA_SFU_IMAGE in .env}
+    restart: unless-stopped
+    read_only: true
+    environment:
+      SFU_PUBLIC_IPV4: ${PLUMA_PUBLIC_IPV4:?set PLUMA_PUBLIC_IPV4 in .env, the address of Pluma}
+      SFU_UDP_PORT: ${SFU_UDP_PORT:-20600}
+      SFU_TCP_PORT: ${SFU_TCP_PORT:-20601}
+    volumes:
+      - ./teamgramd/deploy/sfu/sfu.yaml:/etc/sfu/sfu.yaml:ro
+      - ${PLUMA_SFU_CERTS:-/opt/pluma/sfu}:/run/secrets/sfu:ro
+    ports:
+      - "${PLUMA_PUBLIC_IPV4}:${SFU_UDP_PORT:-20600}:20600/udp" # media
+      - "${PLUMA_PUBLIC_IPV4}:${SFU_TCP_PORT:-20601}:20601/tcp" # ICE-TCP
+      - "${EDGE_TUNNEL_IPV4:-10.77.0.1}:20500:20500/tcp" # control, bff at home
+      - "${EDGE_TUNNEL_IPV4:-10.77.0.1}:20501:20501/tcp" # metrics, Prometheus at home
+    networks:
+      - teamgram_net
+    stop_grace_period: 15s
+
+  # As docker-compose.turn.yaml: the network of the host, Pluma's address.
+  turn:
+    mem_limit: 256m
+    memswap_limit: 256m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    image: coturn/coturn:4.18.0@sha256:bbefd3e1fdfdc0d58770fe01b581fd8b00d9f3a5580d00acb77cf719a6bc78e3
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./teamgramd/deploy/turn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+      - --listening-ip=${PLUMA_PUBLIC_IPV4}
+      - --relay-ip=${PLUMA_PUBLIC_IPV4}
+      - --external-ip=${PLUMA_PUBLIC_IPV4}
+      - --static-auth-secret=${CALLS_TURN_SECRET:?set CALLS_TURN_SECRET in .env, the same as at home}
+    stop_grace_period: 10s
+
+  # Host metrics of the VPS for Prometheus at home: its disk, memory and
+  # network are part of the service now.
+  node-exporter:
+    mem_limit: 64m
+    memswap_limit: 64m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    image: prom/node-exporter:v1.12.1@sha256:1b4e4438faca4dd7e001dd445d161a4a2091b0fededa84093b3a8dfeae1f1be0
+    restart: unless-stopped
+    read_only: true
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - --path.procfs=/host/proc
+      - --path.sysfs=/host/sys
+      - --path.rootfs=/rootfs
+    ports:
+      - "${EDGE_TUNNEL_IPV4:-10.77.0.1}:9100:9100/tcp"
+    networks:
+      - teamgram_net
+
+  # The operator's sites on the VPS that the home Caddy serves
+  # (PLUMA_CADDY_SITES_DIR there): TLS ends at home like the rest of the
+  # address, and the request comes back here to the site's container.
+  # EDGE_SITE_RELAY is host:port on teamgram_net. Started only with the
+  # profile (COMPOSE_PROFILES=sites in .env): a VPS without such sites
+  # does not run it.
+  site-relay:
+    profiles: ["sites"]
+    mem_limit: 32m
+    memswap_limit: 32m
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    image: alpine/socat:1.8.0.3@sha256:beb4a68d9e4fe6b0f21ea774a0fde6c31f580dde6368939ed70100c5385b015e
+    restart: unless-stopped
+    read_only: true
+    command:
+      - TCP-LISTEN:3000,fork,reuseaddr
+      - TCP:${EDGE_SITE_RELAY:?set EDGE_SITE_RELAY in .env, host:port of the site container}
+    ports:
+      - "${EDGE_TUNNEL_IPV4:-10.77.0.1}:3000:3000/tcp"
+    networks:
+      - teamgram_net
+
+networks:
+  teamgram_net:
+    name: pluma_teamgram_net
+    external: true

@@ -141,13 +141,14 @@ groups:
           description: "pluma-admin calls show {{ $labels.call }}: senders ok 0. docs/ops/group-calls.md"
 
       # Sound that is not a frame of tde2e: a client that does not encrypt,
-      # or broken packets. Every call is end-to-end encrypted.
+      # or broken packets. Every call is end-to-end encrypted; the SFU drops
+      # such sound, so the sender is not heard.
       - alert: GroupCallsE2EUnencryptedAudio
         expr: sum(increase(sfu_e2e_audio_unparsed_total[5m])) > 50
         labels: {severity: warning}
         annotations:
           summary: "The SFU gets sound that is not encrypted end to end"
-          description: "A client without the encryption of group calls, or broken packets. docs/ops/group-calls.md"
+          description: "A client without the encryption of group calls, or broken packets; the SFU drops them and the sender is not heard. docs/ops/group-calls.md"
 
       # Status reports the SFU dropped: a client that breaks the schema
       # PlumaE2EStatus v1.

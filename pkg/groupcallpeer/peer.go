@@ -584,6 +584,21 @@ const (
 // (GroupInstanceCustomImpl.cpp:2716), with the level (RFC 6464, 0 loudest)
 // and voice flag in extension 1.
 func (p *Peer) SendAudio(level uint8, voice bool) error {
+	payload := make([]byte, AudioFrameSize)
+	payload[0] = AudioTOC
+	if e := p.e2e.Load(); e != nil {
+		var err error
+		if payload, err = e.encryptAudio(payload, level, voice); err != nil {
+			return err
+		}
+	}
+	return p.SendAudioPayload(level, voice, payload)
+}
+
+// SendAudioPayload sends a sound packet with the payload as given, as
+// SendAudio does after its encryption: for the tests of the SFU, which
+// tell frames of tde2e from other sound without any key.
+func (p *Peer) SendAudioPayload(level uint8, voice bool, payload []byte) error {
 	st := p.streams[p.req.SSRC]
 	pkt := &rtp.Packet{Header: rtp.Header{
 		Version: 2, PayloadType: tgcallsjson.PayloadTypeOpus, SSRC: p.req.SSRC,
@@ -601,13 +616,7 @@ func (p *Peer) SendAudio(level uint8, voice bool) error {
 	if err := p.stamp(pkt); err != nil {
 		return err
 	}
-	pkt.Payload = make([]byte, AudioFrameSize)
-	pkt.Payload[0] = AudioTOC
-	if e := p.e2e.Load(); e != nil {
-		if pkt.Payload, err = e.encryptAudio(pkt.Payload, level, voice); err != nil {
-			return err
-		}
-	}
+	pkt.Payload = payload
 	return p.WriteRTP(pkt)
 }
 

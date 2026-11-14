@@ -262,6 +262,9 @@ services:
     volumes:
       - ./teamgramd/deploy/prometheus/server/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./teamgramd/deploy/prometheus/server/rules:/etc/prometheus/rules:ro
+      # Targets on other machines, files of this host (task 096): the edge's
+      # SFU and node-exporter. An empty folder is no target.
+      - ${PLUMA_PROMETHEUS_TARGETS:-/opt/pluma/prometheus-targets}:/etc/prometheus/targets:ro
       - prometheus_data:/prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
