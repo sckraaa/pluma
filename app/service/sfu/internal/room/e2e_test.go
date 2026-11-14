@@ -131,22 +131,27 @@ func TestUnencryptedAudioDropped(t *testing.T) {
 	mgr, _ := newTestManager(t, nil)
 	a, _ := joinPeer(t, mgr, 1, KindMain, groupcallpeer.Config{})
 	b, _ := joinPeer(t, mgr, 2, KindMain, groupcallpeer.Config{})
-	sendAudio(t, a, 20)
-	awaitRTP(t, b, 5*time.Second, bySSRC(a.AudioSSRC()))
+	// One sender at a time: a Peer numbers its packets unguarded. Frames
+	// and plain sound in turn, from one goroutine.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
 		tk := time.NewTicker(20 * time.Millisecond)
 		defer tk.Stop()
-		for {
+		for n := 0; ; n++ {
 			select {
 			case <-ctx.Done():
 				return
 			case <-tk.C:
-				_ = a.SendAudio(10, true)
+				if n%2 == 0 {
+					_ = a.SendAudioPayload(20, true, frame(0xab))
+				} else {
+					_ = a.SendAudio(10, true)
+				}
 			}
 		}
 	}()
+	awaitRTP(t, b, 5*time.Second, bySSRC(a.AudioSSRC()))
 	plain := func(pkt *rtp.Packet) bool {
 		return pkt.SSRC == a.AudioSSRC() && len(pkt.Payload) == groupcallpeer.AudioFrameSize && pkt.Payload[0] == groupcallpeer.AudioTOC
 	}
