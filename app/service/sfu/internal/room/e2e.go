@@ -28,7 +28,7 @@ import (
 )
 
 // Every room is end-to-end encrypted (ADR 0060 §3): the SFU forwards frames
-// it cannot read. What it may read is what the format leaves open, and that
+// it cannot read, and drops sound that is not such a frame (audioFrame). What it may read is what the format leaves open, and that
 // is what the diagnostics of the encryption use (§5): the hashes of the
 // epochs in the head of a sound frame, and the status reports the clients
 // send over the data channel. Neither tells a key.
@@ -97,14 +97,29 @@ type e2eState struct {
 	lastReport time.Time
 }
 
-// observeEpochs publishes the epochs of a sender's sound frame when they
-// differ from the last ones or sendEpochsEvery has passed.
-func (r *Room) observeEpochs(sender *Member, payload []byte, now time.Time) {
+// audioFrame tells whether a sender's sound packet may go on: a frame of
+// tde2e, or a packet with no payload (padding, which carries nothing). Any
+// other payload is sound sent unencrypted or broken, and the SFU drops it:
+// no group call carries sound that is not end-to-end encrypted (task 096).
+// The epochs of a main connection's frames are published by observeEpochs.
+func (r *Room) audioFrame(sender *Member, payload []byte, now time.Time) bool {
+	if len(payload) == 0 {
+		return true
+	}
 	headerA, err := frameEpochs(payload)
 	if err != nil {
 		metrics.E2EUnparsedAudio.Inc()
-		return
+		return false
 	}
+	if sender.kind == KindMain {
+		r.observeEpochs(sender, headerA, now)
+	}
+	return true
+}
+
+// observeEpochs publishes the epochs of a sender's frame (its header_a)
+// when they differ from the last ones or sendEpochsEvery has passed.
+func (r *Room) observeEpochs(sender *Member, headerA []byte, now time.Time) {
 	st := &sender.e2e
 	st.mu.Lock()
 	if bytes.Equal(st.headerA, headerA) && now.Sub(st.published) < sendEpochsEvery {

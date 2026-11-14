@@ -424,11 +424,11 @@ func (r *Room) run() {
 // --- media ---
 
 // forwardAudio sends a sender's sound to every other participant if it is
-// among the last speakers. The sound of a participant muted by an admin is
-// dropped here.
+// among the last speakers. Sound that is not a frame of tde2e and the sound
+// of a participant muted by an admin are dropped here.
 func (r *Room) forwardAudio(sender *Member, pkt *rtp.Packet, now time.Time) {
-	if sender.kind == KindMain {
-		r.observeEpochs(sender, pkt.Payload, now)
+	if !r.audioFrame(sender, pkt.Payload, now) {
+		return
 	}
 	if sender.muted.Load() {
 		metrics.MutedDropped.Inc()
