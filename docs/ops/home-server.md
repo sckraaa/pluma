@@ -104,6 +104,9 @@ cd /opt/pluma-edge && docker compose -p pluma-edge -f docker-compose.edge.yaml u
   0 issue "letsencrypt.org; accounturi=https://acme-v02.api.letsencrypt.org/acme/acct/3996877102; validationmethods=http-01,tls-alpn-01"
   ```
   Тот, у кого адрес на входе (VPS, хостер), не выпустит сертификат на эти имена ни у другого CA, ни под другим аккаунтом.
+  - `pluma.chat` — в Cloudflare. Universal SSL выключен: с ним Cloudflare сам добавляет скрытые записи CAA для своих CA. Зона без проксирования, поэтому Universal SSL не нужен.
+  - `sckra.dev` — в Spaceship; значение там без пробелов после `;` (с пробелами Spaceship его не принимает).
+  - Проверено 2026-11-14: `dig CAA` показывает только эти записи; `www.pluma.chat` и `sckra.dev` перевыпущены с ними.
 - **Если аккаунт пропадёт** (новый `caddy_data`): Caddy создаст новый, выпуск упрётся в CAA. Сначала поменять `accounturi` в записях на новый URL из `caddy/acme/acme-v02.api.letsencrypt.org-directory/users/default/default.json`, поле `location`.
 
 ## Переключение

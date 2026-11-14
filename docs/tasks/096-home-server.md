@@ -89,7 +89,10 @@
   - причина закрыта: `networkd.conf.d/10-pluma-tunnel.conf`, проверено повторным `networkctl reload`.
 
 ## Дальше
-1. **Записи CAA** в Cloudflare у `pluma.chat` и `sckra.dev` (владелец), затем проверка `dig CAA`: нет ли рядом записей Cloudflare для других CA (Universal SSL).
+1. **Записи CAA — сделано (2026-11-14):**
+   - `pluma.chat` в Cloudflare, Universal SSL выключен; `sckra.dev` в Spaceship;
+   - `dig CAA` через 1.1.1.1 и 8.8.8.8 видит только наши записи;
+   - `www.pluma.chat` и `sckra.dev` перевыпущены с ними.
 2. **Удалить том Hetzner** в консоли (владелец). Проверить, нет ли у VPS снимков или бэкапов Hetzner со старыми данными.
 3. **Tailscale дома для панели:** `PANEL_ORIGIN` — имя `pluma-admin` в tailnet. Узел на VPS переименовать, домашний назвать `pluma-admin`. Нужен вход владельца.
 4. **Слить ветку и выкатить обычным деплоем.** Дома изменённые файлы ветки лежат поверх `1a136d68`: перед деплоем `git checkout -- .` и удалить `docker-compose.groupcalls.yaml`.
