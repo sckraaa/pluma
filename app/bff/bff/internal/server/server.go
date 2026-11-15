@@ -192,6 +192,8 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				MessageClient: c.BizServiceClient,
 				ChannelClient: c.BizServiceClient,
+				ChatClient:    c.BizServiceClient,
+				MediaClient:   c.MediaClient,
 			}))
 
 		// secretchats_helper: secret chats (task 069).

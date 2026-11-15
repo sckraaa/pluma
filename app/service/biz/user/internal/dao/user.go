@@ -233,6 +233,13 @@ func (d *Dao) GetImmutableUser(ctx context.Context, id int64, privacy bool, cont
 }
 
 func (d *Dao) DeleteUser(ctx context.Context, id int64, phoneNumber string, reason string) bool {
+	// What the user reported of reading and listening goes with the
+	// account (task 098); first, so that a failure leaves the account to
+	// be deleted again rather than rows of a deleted one.
+	if err := d.ReadMetrics.DeleteUser(ctx, id); err != nil {
+		logx.WithContext(ctx).Errorf("DeleteUser - read metrics of user %d: %v", id, err)
+		return false
+	}
 	_, _, err := d.CachedConn.Exec(
 		ctx,
 		func(ctx context.Context, conn *sqlx.DB) (int64, int64, error) {

@@ -47,11 +47,20 @@ func (c *MessagesCore) MessagesGetMessages(in *mtproto.TLMessagesGetMessages) (*
 		case mtproto.Predicate_inputMessageReplyTo:
 			replyTo = append(replyTo, id.Id)
 		case mtproto.Predicate_inputMessagePinned:
-			// TODO: not impl
+			// "Pinned message" (core.telegram.org/constructor/
+			// inputMessagePinned) is of a chat, and this method names
+			// none: it adds nothing. channels.getMessages, which names
+			// the channel, answers it. None of the four clients sends it
+			// (only their schema files have it); what Telegram answers
+			// here is not verified.
 		case mtproto.Predicate_inputMessageCallbackQuery:
-			// TODO: not impl
+			// Not served, adds nothing: it is "used by bots for fetching
+			// information about the message that originated a callback
+			// query" (core.telegram.org/constructor/
+			// inputMessageCallbackQuery), and the server keeps no record
+			// from a query to the message of its button (bots
+			// BeginCallback keeps only query_id -> bot_id).
 		default:
-			// client not use: inputMessageReplyTo, inputMessagePinned
 			err := mtproto.ErrInputConstructorInvalid
 			c.Logger.Errorf("messages.getMessages - error: %v", err)
 			return nil, err

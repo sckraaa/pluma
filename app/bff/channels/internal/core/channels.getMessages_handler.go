@@ -16,6 +16,7 @@
 package core
 
 import (
+	"slices"
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
@@ -32,8 +33,10 @@ const getMessagesMax = 200
 //
 // The messages of the channel asked by id (task 039): the clients fill
 // replies and holes with it (iOS AccountStateManagementUtils.swift:2870,
-// 2906); a missing one is left out. Ids only: replies to and pins of other
-// messages come with 043.
+// 2906); a missing one is left out. inputMessagePinned is the channel's
+// newest pinned message, the one channelFull.pinned_msg_id shows
+// (channels.getFullChannel), and nothing when none is pinned; no client
+// sends it (bots do). inputMessageReplyTo is not served yet.
 func (c *ChannelsCore) ChannelsGetMessages(in *mtproto.TLChannelsGetMessages) (*mtproto.Messages_Messages, error) {
 	mc, err := c.mutableChannel(in.Channel)
 	if err != nil {
@@ -43,12 +46,26 @@ func (c *ChannelsCore) ChannelsGetMessages(in *mtproto.TLChannelsGetMessages) (*
 		return nil, mtproto.ErrLimitInvalid
 	}
 	ids := make([]int32, 0, len(in.Id_VECTORINPUTMESSAGE))
+	pinned := false
 	for _, it := range in.Id_VECTORINPUTMESSAGE {
-		if it.GetPredicateName() == mtproto.Predicate_inputMessageID {
+		switch it.GetPredicateName() {
+		case mtproto.Predicate_inputMessageID:
 			ids = append(ids, it.GetId())
+		case mtproto.Predicate_inputMessagePinned:
+			pinned = true
 		}
 	}
 	ids = append(ids, in.Id_VECTORINT32...)
+	if pinned {
+		id, err := c.newestPinned(mc.GetChannel().GetId())
+		if err != nil {
+			c.Logger.Errorf("channels.getMessages - error: %v", err)
+			return nil, err
+		}
+		if id != 0 && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
 	messages, err := c.svcCtx.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: c.MD.UserId, ChannelId: mc.GetChannel().GetId(), Id: ids})
 	if err != nil {
 		c.Logger.Errorf("channels.getMessages - error: %v", err)
@@ -73,4 +90,20 @@ func (c *ChannelsCore) ChannelsGetMessages(in *mtproto.TLChannelsGetMessages) (*
 		Chats:    []*mtproto.Chat{mc.ToChat(c.MD.UserId, int32(time.Now().Unix()))},
 		Users:    users.GetUserListByIdList(c.MD.UserId, h.UserIdList...),
 	}).To_Messages_Messages(), nil
+}
+
+// newestPinned is the id of the newest message pinned in the channel as the
+// user sees it, 0 for none: the query of channels.getFullChannel's
+// pinned_msg_id (task 043).
+func (c *ChannelsCore) newestPinned(channelId int64) (int32, error) {
+	pinned, err := c.svcCtx.Channel.ChannelSearch(c.ctx, &channelpb.TLChannelSearch{
+		SelfId: c.MD.UserId, ChannelId: channelId, MediaType: mtproto.MEDIA_PINNED, Limit: 1,
+	})
+	if err != nil {
+		return 0, err
+	}
+	if m := pinned.GetMessages(); len(m) > 0 {
+		return m[0].GetId(), nil
+	}
+	return 0, nil
 }

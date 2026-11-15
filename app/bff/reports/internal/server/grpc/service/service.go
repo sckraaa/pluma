@@ -89,14 +89,18 @@ func (s *Service) MessagesReportEncryptedSpam(ctx context.Context, request *mtpr
 	return c.MessagesReportEncryptedSpam(request)
 }
 
-// MessagesReportReadMetrics is not served.
+// MessagesReportReadMetrics
 // messages.reportReadMetrics#4067c5e6 peer:InputPeer metrics:Vector<InputMessageReadMetric> = Bool;
 func (s *Service) MessagesReportReadMetrics(ctx context.Context, request *mtproto.TLMessagesReportReadMetrics) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.reportReadMetrics - metadata: {%s}", c.MD)
+	return c.MessagesReportReadMetrics(request)
 }
 
-// MessagesReportMusicListen is not served.
+// MessagesReportMusicListen
 // messages.reportMusicListen#ddbcd819 id:InputDocument listened_duration:int = Bool;
 func (s *Service) MessagesReportMusicListen(ctx context.Context, request *mtproto.TLMessagesReportMusicListen) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.reportMusicListen - metadata: {%s}", c.MD)
+	return c.MessagesReportMusicListen(request)
 }
