@@ -13894,6 +13894,11 @@ var clazzIdRegisters2 = map[int32]func() TLObject{
 			Constructor: 1063567478,
 		}
 	},
+	1631726152: func() TLObject { // 0x61422a48 pluma: the request of Android, decoded only
+		return &TLMessagesReportReaction{
+			Constructor: 1631726152,
+		}
+	},
 	-1149164102: func() TLObject { // 0xbb8125ba
 		return &TLMessagesGetTopReactions{
 			Constructor: -1149164102,

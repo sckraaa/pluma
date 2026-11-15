@@ -3498,4 +3498,5 @@ const (
 	CRC32_messages_transcribeAudioFile                                TLConstructor = 120401655   // 0x72d2ef7
 	CRC32_messages_getTranscriptionLangs                              TLConstructor = -1167271510 // 0xba6cd9aa
 	CRC32_channels_toggleForum_a2952b54                               TLConstructor = -1567282348 // 0xa2952b54
+	CRC32_messages_reportReaction_61422a48                            TLConstructor = 1631726152  // 0x61422a48 pluma: the request of Android, decoded only
 )
