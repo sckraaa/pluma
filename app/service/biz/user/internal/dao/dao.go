@@ -30,6 +30,7 @@ import (
 	idgen_client "github.com/teamgram/teamgram-server/app/service/idgen/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
+	"github.com/teamgram/teamgram-server/pkg/readmetrics"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -48,6 +49,9 @@ type Dao struct {
 	Ids IdGenerator
 	// Topics of the events.
 	Topics config.Topics
+	// ReadMetrics holds the read metrics and the music listens a deleted
+	// account leaves (pkg/readmetrics, task 098).
+	ReadMetrics *readmetrics.Store
 }
 
 // IdGenerator issues snowflake ids (idgen).
@@ -73,6 +77,7 @@ func New(c config.Config) *Dao {
 		BoxDB:       boxDB,
 		Ids:         &ids,
 		Topics:      c.Topics,
+		ReadMetrics: readmetrics.New(db),
 	}
 }
 
