@@ -319599,11 +319599,56 @@ func (m *TLMessagesReportReaction) Decode(dBuf *DecodeBuf) error {
 		m.ReactionPeer = m3
 
 		return dBuf.GetError()
+	case 0x61422a48:
+		// pluma: messages.reportReaction#61422a48 peer:InputPeer id:int
+		// user_id:InputUser, the request Android still sends
+		// (TMessagesProj/.../tgnet/TLRPC.java, TL_messages_reportReaction).
+		// The user becomes the reaction_peer of the current constructor.
+		m1 := &InputPeer{}
+		if err := m1.Decode(dBuf); err != nil && dBuf.GetError() == nil {
+			dBuf.SetError(err)
+		}
+		m.Peer = m1
+
+		m.Id = dBuf.Int()
+
+		u := &InputUser{}
+		if err := u.Decode(dBuf); err != nil && dBuf.GetError() == nil {
+			dBuf.SetError(err)
+		}
+		if dBuf.GetError() != nil {
+			return dBuf.GetError()
+		}
+		m.ReactionPeer = inputPeerOfInputUser(u)
+		return nil
 
 	default:
 		// log.Errorf("")
 	}
 	return dBuf.GetError()
+}
+
+// inputPeerOfInputUser is the InputPeer that names the same user as u.
+// pluma: for requests of older layers that name a user by InputUser.
+func inputPeerOfInputUser(u *InputUser) *InputPeer {
+	switch u.GetPredicateName() {
+	case Predicate_inputUserSelf:
+		return MakeTLInputPeerSelf(&InputPeer{Constructor: CRC32_inputPeerSelf}).To_InputPeer()
+	case Predicate_inputUser:
+		return MakeTLInputPeerUser(&InputPeer{
+			Constructor: CRC32_inputPeerUser,
+			UserId:      u.GetUserId(),
+			AccessHash:  u.GetAccessHash(),
+		}).To_InputPeer()
+	case Predicate_inputUserFromMessage:
+		return MakeTLInputPeerUserFromMessage(&InputPeer{
+			Constructor: CRC32_inputPeerUserFromMessage,
+			Peer:        u.GetPeer(),
+			MsgId:       u.GetMsgId(),
+			UserId:      u.GetUserId(),
+		}).To_InputPeer()
+	}
+	return MakeTLInputPeerEmpty(&InputPeer{Constructor: CRC32_inputPeerEmpty}).To_InputPeer()
 }
 
 // TLMessagesGetTopReactions
