@@ -46,10 +46,10 @@
       "value": "gif"
     },
     "venue_search_username": {
-      "value": "foursquare"
+      "value": "places"
     },
     "img_search_username": {
-      "value": "bing"
+      "value": "pic"
     },
     "static_maps_provider": {
       "value": "telegram"

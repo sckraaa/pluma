@@ -34,6 +34,8 @@ import (
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
+	"github.com/teamgram/teamgram-server/pkg/langpack"
 
 	"google.golang.org/grpc/status"
 )
@@ -440,6 +442,20 @@ func httpsURL(u string) bool {
 	return strings.HasPrefix(u, "https://") && len(u) > len("https://") && utf8.RuneCountInString(u) <= maxMenuURL
 }
 
+// builtinDescription is the description viewer sees: the texts of viewer's
+// language first, then, for a built-in inline bot (pkg/inlinebots), its
+// description in viewer's language from the server's own texts, then the
+// default language's description.
+func builtinDescription(botId int64, description string, texts Texts, lang string) string {
+	if texts.Description != nil {
+		return *texts.Description
+	}
+	if b, ok := inlinebots.ByID(botId); ok {
+		return langpack.InlineBotText(b.About, lang)
+	}
+	return description
+}
+
 // BotInfo is the info of the bot as viewer sees it, for userFull.bot_info and
 // the bot_info of a full chat (core.telegram.org/api/bots/commands).
 func (s *Store) BotInfo(ctx context.Context, botId int64, v Viewer) (*mtproto.BotInfo, error) {
@@ -451,9 +467,7 @@ func (s *Store) BotInfo(ctx context.Context, botId int64, v Viewer) (*mtproto.Bo
 	if err != nil {
 		return nil, err
 	}
-	if texts.Description != nil {
-		description = *texts.Description
-	}
+	description = builtinDescription(botId, description, texts, v.Lang)
 	commands, err := s.resolveCommands(ctx, botId, v)
 	if err != nil {
 		return nil, err

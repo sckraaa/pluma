@@ -34,24 +34,17 @@ import (
 // user sees it (task 044); one that is gone resolves to nothing. referer
 // (the referral program) has no meaning here.
 func (c *UsernamesCore) ContactsResolveUsername(in *mtproto.TLContactsResolveUsername) (*mtproto.Contacts_ResolvedPeer, error) {
-	var (
-		peer *mtproto.PeerUtil
-	)
-
-	id := userpb.GetBotIdByName(in.GetUsername())
-	if id > 0 {
-		peer = mtproto.MakeUserPeerUtil(id)
-	} else {
-		rName, err := c.svcCtx.Dao.UserClient.UserResolveUsername(c.ctx, &userpb.TLUserResolveUsername{
-			Username: in.GetUsername(),
-		})
-		if err != nil {
-			c.Logger.Errorf("contacts.resolveUsername - reply: {%v}", err)
-			return nil, err
-		}
-
-		peer = mtproto.FromPeer(rName)
+	// Only the username table names peers: the built-in inline bots
+	// (pkg/inlinebots) have their rows there like any account, and a person
+	// or a channel may have any other name, "music" or "youtube" too.
+	rName, err := c.svcCtx.Dao.UserClient.UserResolveUsername(c.ctx, &userpb.TLUserResolveUsername{
+		Username: in.GetUsername(),
+	})
+	if err != nil {
+		c.Logger.Errorf("contacts.resolveUsername - reply: {%v}", err)
+		return nil, err
 	}
+	peer := mtproto.FromPeer(rName)
 
 	resolvedPeer := mtproto.MakeTLContactsResolvedPeer(&mtproto.Contacts_ResolvedPeer{
 		Peer:  peer.ToPeer(),

@@ -34,28 +34,33 @@ import (
 //go:embed mail.json
 var mailJSON []byte
 
-var mailTexts = mustLoadMail(mailJSON)
+var mailTexts = mustLoadTexts("mail.json", mailJSON)
 
-func mustLoadMail(data []byte) map[string]map[string]string {
-	m, err := loadMail(data)
+// mustLoadTexts is loadTexts of a file embedded in the binary: a bad one is
+// a bug of the build.
+func mustLoadTexts(name string, data []byte) map[string]map[string]string {
+	m, err := loadTexts(name, data)
 	if err != nil {
 		panic(err)
 	}
 	return m
 }
 
-func loadMail(data []byte) (map[string]map[string]string, error) {
+// loadTexts reads a file of the server's own texts, name for the errors:
+// {key: {lang_code: value}}, every key with "en", every language code in
+// its canonical form and every text non-empty.
+func loadTexts(name string, data []byte) (map[string]map[string]string, error) {
 	var m map[string]map[string]string
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, fmt.Errorf("langpack: mail.json: %w", err)
+		return nil, fmt.Errorf("langpack: %s: %w", name, err)
 	}
 	for key, texts := range m {
 		if key == "" || texts["en"] == "" {
-			return nil, fmt.Errorf("langpack: mail.json: %q has no English text", key)
+			return nil, fmt.Errorf("langpack: %s: %q has no English text", name, key)
 		}
 		for lang, v := range texts {
 			if CanonicalLangCode(lang) != lang || v == "" {
-				return nil, fmt.Errorf("langpack: mail.json: %s: bad language %q or empty text", key, lang)
+				return nil, fmt.Errorf("langpack: %s: %s: bad language %q or empty text", name, key, lang)
 			}
 		}
 	}
@@ -75,6 +80,8 @@ func MailText(key, lang string) string {
 	return pick(texts, lang)
 }
 
+// pick returns the text of lang out of a key's texts by language, by the
+// fallbacks MailText describes.
 func pick(texts map[string]string, lang string) string {
 	lang = CanonicalLangCode(lang)
 	if v, ok := texts[lang]; ok {

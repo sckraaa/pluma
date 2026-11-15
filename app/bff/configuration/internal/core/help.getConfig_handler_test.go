@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/svc"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -154,5 +155,28 @@ func TestHelpGetConfigAutoupdatePrefix(t *testing.T) {
 	}
 	if v := got.GetAutoupdateUrlPrefix().GetValue(); v != "https://pluma.example/dl/desktop" {
 		t.Errorf("autoupdate_url_prefix %q", v)
+	}
+}
+
+// TestHelpGetConfigInlineBots: the three search bots are always named, by the
+// usernames of the built-in bots (ADR 0062, p. 2). Android has no picture
+// search bot without img_search_username (MessagesController.java:5691).
+func TestHelpGetConfigInlineBots(t *testing.T) {
+	c := newGetConfigCore(t, &fakeLangpacks{}, "android", "en")
+	got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for field, f := range map[string]struct {
+		v    interface{ GetValue() string }
+		want string
+	}{
+		"gif_search_username":   {got.GetGifSearchUsername(), inlinebots.Gif.Username},
+		"img_search_username":   {got.GetImgSearchUsername(), inlinebots.Pic.Username},
+		"venue_search_username": {got.GetVenueSearchUsername(), inlinebots.Places.Username},
+	} {
+		if f.v.GetValue() != f.want {
+			t.Errorf("%s = %v, want %q", field, f.v, f.want)
+		}
 	}
 }
