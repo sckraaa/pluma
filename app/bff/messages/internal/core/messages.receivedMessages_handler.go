@@ -24,11 +24,24 @@ import (
 
 // MessagesReceivedMessages
 // messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
+//
+// "Confirms receipt of messages by a client, cancels PUSH-notification
+// sending"; the answer is the messages "for which PUSH-notifications were
+// cancelled" (core.telegram.org/method/messages.receivedMessages,
+// constructor/receivedNotifyMessage). The server holds no push back to
+// cancel: a push goes out at once to the devices without a live session
+// and to none with one (app/messenger/push/internal/core/core.go:233-248),
+// so the list of cancelled ones is always empty, and that is the answer.
+// Only Web K calls it, on each new highest message id, and does not read
+// the answer (lib/appManagers/appMessagesManager.ts:13421-13435).
 func (c *MessagesCore) MessagesReceivedMessages(in *mtproto.TLMessagesReceivedMessages) (*mtproto.Vector_ReceivedNotifyMessage, error) {
-	// TODO: not impl
-	rValueList := &mtproto.Vector_ReceivedNotifyMessage{
-		Datas: []*mtproto.ReceivedNotifyMessage{},
+	if c.MD.GetIsBot() {
+		return nil, mtproto.ErrBotMethodInvalid
 	}
-
-	return rValueList, nil
+	if in.GetMaxId() < 0 {
+		return nil, mtproto.ErrMsgIdInvalid
+	}
+	return &mtproto.Vector_ReceivedNotifyMessage{
+		Datas: []*mtproto.ReceivedNotifyMessage{},
+	}, nil
 }
