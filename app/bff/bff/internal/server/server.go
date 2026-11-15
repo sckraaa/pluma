@@ -544,7 +544,7 @@ func (s *Server) Initialize() error {
 			SyncClient:              syncClient,
 			Mysql:                   c.Mysql,
 			PushSecretEncryptionKey: c.PushSecretEncryptionKey,
-		}, nil)
+		})
 		mtproto.RegisterRPCNotificationServer(grpcServer, notificationService)
 		mtproto.RegisterRPCGatewayVerificationMessagesServer(grpcServer, notificationService)
 		mtproto.RegisterRPCReactionNotificationServer(grpcServer, notificationService)

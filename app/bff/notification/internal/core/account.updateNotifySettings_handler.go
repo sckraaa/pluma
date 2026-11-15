@@ -112,20 +112,13 @@ func (c *NotificationCore) AccountUpdateNotifySettings(in *mtproto.TLAccountUpda
 
 		peerChat = peerChat2.ToUnsafeChat(c.MD.UserId)
 	case mtproto.PEER_CHANNEL:
-		if c.svcCtx.Plugin != nil {
-			peerChannel, err = c.svcCtx.Plugin.GetChannelById(c.ctx, c.MD.UserId, peer.PeerId)
-			if err != nil {
-				c.Logger.Errorf("account.updateNotifySettings - error: %v", err)
-				return nil, err
-			} else if peerChannel.GetPredicateName() == mtproto.Predicate_channelForbidden {
-				err = mtproto.ErrChannelPrivate
-				c.Logger.Errorf("account.updateNotifySettings - error: %v", err)
-				return nil, err
-			}
-		} else {
-			c.Logger.Errorf("account.updateNotifySettings blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-			return nil, mtproto.ErrEnterpriseIsBlocked
+		// A channel and a supergroup alike: clients mute them with
+		// inputNotifyPeer{inputPeerChannel} (Android
+		// NotificationsController.java:6120, tdesktop apiwrap.cpp:2126).
+		peerChannel, err = c.channelOf(peer)
+		if err != nil {
+			c.Logger.Errorf("account.updateNotifySettings - error: %v", err)
+			return nil, err
 		}
 	default:
 		err = mtproto.ErrPeerIdInvalid

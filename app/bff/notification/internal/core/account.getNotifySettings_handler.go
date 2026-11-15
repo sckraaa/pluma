@@ -90,18 +90,31 @@ func (c *NotificationCore) forumOf(in *mtproto.InputNotifyPeer) (int64, error) {
 	if peer.PeerType != mtproto.PEER_CHANNEL {
 		return 0, mtproto.ErrPeerIdInvalid
 	}
+	if _, err := c.channelOf(peer); err != nil {
+		return 0, err
+	}
+	return peer.PeerId, nil
+}
+
+// channelOf is the channel or supergroup of peer (PEER_CHANNEL) as the
+// account sees it, one it may read: an access_hash that is not the
+// channel's is PEER_ID_INVALID, a channel the account cannot access
+// (channelForbidden: private and not joined, kicked, deleted) is
+// CHANNEL_PRIVATE.
+func (c *NotificationCore) channelOf(peer *mtproto.PeerUtil) (*mtproto.Chat, error) {
 	channel, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{
 		ChannelId: peer.PeerId,
 		Id:        []int64{c.MD.UserId},
 	})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if channel.GetChannel().GetAccessHash() != peer.AccessHash {
-		return 0, mtproto.ErrPeerIdInvalid
+		return nil, mtproto.ErrPeerIdInvalid
 	}
-	if channel.ToChat(c.MD.UserId, int32(time.Now().Unix())).GetPredicateName() == mtproto.Predicate_channelForbidden {
-		return 0, mtproto.ErrChannelPrivate
+	chat := channel.ToChat(c.MD.UserId, int32(time.Now().Unix()))
+	if chat.GetPredicateName() == mtproto.Predicate_channelForbidden {
+		return nil, mtproto.ErrChannelPrivate
 	}
-	return peer.PeerId, nil
+	return chat, nil
 }
