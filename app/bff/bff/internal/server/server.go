@@ -177,6 +177,9 @@ func (s *Server) Initialize() error {
 		})
 		mtproto.RegisterRPCBotsServer(grpcServer, bots)
 		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)
+		// pluma: task 098. The attachment menu and the dice game.
+		mtproto.RegisterRPCBotMenuServer(grpcServer, bots)
+		mtproto.RegisterRPCGamesServer(grpcServer, bots)
 		mtproto.RegisterRPCInlineBotServer(grpcServer, bots)
 		mtproto.RegisterRPCDeepLinksServer(grpcServer, bots)
 
@@ -544,7 +547,7 @@ func (s *Server) Initialize() error {
 			SyncClient:              syncClient,
 			Mysql:                   c.Mysql,
 			PushSecretEncryptionKey: c.PushSecretEncryptionKey,
-		}, nil)
+		})
 		mtproto.RegisterRPCNotificationServer(grpcServer, notificationService)
 		mtproto.RegisterRPCGatewayVerificationMessagesServer(grpcServer, notificationService)
 		mtproto.RegisterRPCReactionNotificationServer(grpcServer, notificationService)
@@ -671,10 +674,13 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 			}))
 
+		// webbrowserhelper: the in-app browser settings (task 098).
 		mtproto.RegisterRPCWebBrowserServer(
 			grpcServer,
 			webbrowserhelper.New(webbrowserhelper.Config{
 				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				SyncClient:    syncClient,
 			}))
 
 		// transcription_helper: the text of voice messages and round

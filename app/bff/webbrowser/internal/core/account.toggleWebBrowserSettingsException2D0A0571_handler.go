@@ -23,9 +23,21 @@ import (
 
 // AccountToggleWebBrowserSettingsException2D0A0571
 // account.toggleWebBrowserSettingsException#2d0a0571 flags:# delete:flags.1?true open_external_browser:flags.0?Bool url:string = Bool;
+//
+// The constructor before #60ed4229, with the same meaning; none of the
+// clients we build sends it. The answer has no updates, so every device of
+// the account, this one too, gets updateWebBrowserException by push.
 func (c *WebBrowserCore) AccountToggleWebBrowserSettingsException2D0A0571(in *mtproto.TLAccountToggleWebBrowserSettingsException2D0A0571) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.toggleWebBrowserSettingsException2D0A0571 blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("account.toggleWebBrowserSettingsException#2d0a0571 - error: %v", err)
+		return nil, err
+	}
+	update, err := c.toggle(in.GetDelete(), in.GetOpenExternalBrowser(), in.GetUrl())
+	if err != nil {
+		c.Logger.Errorf("account.toggleWebBrowserSettingsException#2d0a0571 - error: %v", err)
+		return nil, err
+	}
+	c.pushAll("account.toggleWebBrowserSettingsException#2d0a0571", mtproto.MakeUpdatesByUpdates(update))
+	return mtproto.BoolTrue, nil
 }

@@ -22,7 +22,6 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/notification/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/notification/internal/dao"
-	"github.com/teamgram/teamgram-server/app/bff/notification/plugin"
 	"github.com/teamgram/teamgram-server/pkg/pushdevices"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -31,18 +30,16 @@ import (
 type ServiceContext struct {
 	Config config.Config
 	*dao.Dao
-	Plugin plugin.NotificationPlugin
 	// PushDevices are the devices of account.registerDevice (task 009).
 	PushDevices pushdevices.Store
 }
 
-func NewServiceContext(c config.Config, plugin plugin.NotificationPlugin) *ServiceContext {
+func NewServiceContext(c config.Config) *ServiceContext {
 	sealer, err := pushdevices.NewSealer(c.PushSecretEncryptionKey)
 	logx.Must(err)
 	return &ServiceContext{
 		Config:      c,
 		Dao:         dao.New(c),
-		Plugin:      plugin,
 		PushDevices: pushdevices.NewMySQLStore(sqlx.NewMySQL(&c.Mysql), sealer),
 	}
 }
