@@ -196,6 +196,11 @@ func (r *Runner) deleteStories(ctx context.Context, report *moderation.Report, s
 // messages stay: a report accuses others, and a spam report keeps the last
 // messages of both sides only as the evidence.
 func idsToDelete(report *moderation.Report, snapshot *moderation.Snapshot) []int32 {
+	// The message of a reaction report is not the target's. Decide
+	// refuses that deletion; this is the second guard behind it.
+	if report.Kind == moderation.KindReaction {
+		return nil
+	}
 	ids := make([]int32, 0, len(snapshot.Messages))
 	for _, m := range snapshot.Messages {
 		if m.FromId != report.ReporterUserId {

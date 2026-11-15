@@ -42,6 +42,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/catalog/usersets"
 	"github.com/teamgram/teamgram-server/pkg/emojistatus"
+	"github.com/teamgram/teamgram-server/pkg/moderation"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/ringtones/saved"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
@@ -162,6 +163,13 @@ type Ringtones interface {
 	Unsave(ctx context.Context, userID, documentID int64) error
 }
 
+// Reports is the moderation queue (moderation.DAO): the reports of
+// reactions (task 098).
+type Reports interface {
+	ReportsSince(ctx context.Context, reporter, since int64) (int, error)
+	AddReport(ctx context.Context, r *moderation.Report, ids []int32, snapshot *moderation.Snapshot) error
+}
+
 type ServiceContext struct {
 	Config    config.Config
 	Catalog   Catalog
@@ -179,6 +187,7 @@ type ServiceContext struct {
 	Chat      chat_client.ChatClient
 	Channel   channel_client.ChannelClient
 	Reactions *sqlx.DB // message_reactions, saved_reaction_tags, user_reaction_settings: reads and the default reaction
+	Reports   Reports  // the reports of reactions (task 098)
 
 	// Wallpapers and themes (task 065).
 	Dialog     dialog_client.DialogClient
@@ -220,6 +229,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Chat:      chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		Channel:   channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		Reactions: sqlx.NewMySQL(&c.Mysql),
+		Reports:   moderation.New(sqlx.NewMySQL(&c.Mysql)),
 
 		Dialog:     dialog_client.NewDialogClient(rpcx.GetCachedRpcClient(c.DialogClient)),
 		Appearance: appearance.NewStore(sqlx.NewMySQL(&c.Mysql), boxDB, c.SyncTopic),

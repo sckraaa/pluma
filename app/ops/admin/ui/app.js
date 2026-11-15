@@ -572,8 +572,12 @@ async function peerPage(kind, id) {
 }
 
 // Reports.
-const reportKinds = { 1: 'Сообщение', 2: 'Профиль или чат', 3: 'Фото профиля', 4: 'Спам', 5: 'Спам в канале', 6: 'Ложное срабатывание антиспама', 7: 'История' };
-const reasons = { spam: 'спам', violence: 'насилие', pornography: 'порнография', child_abuse: 'насилие над детьми', copyright: 'авторские права', illegal_drugs: 'наркотики', personal_details: 'личные данные', fake: 'фейк', geo_irrelevant: 'не по геопозиции', not_spam: 'не спам', other: 'другое' };
+const reportKinds = { 1: 'Сообщение', 2: 'Профиль или чат', 3: 'Фото профиля', 4: 'Спам', 5: 'Спам в канале', 6: 'Ложное срабатывание антиспама', 7: 'История', 8: 'Реакция' };
+const reasons = { spam: 'спам', violence: 'насилие', pornography: 'порнография', child_abuse: 'насилие над детьми', copyright: 'авторские права', illegal_drugs: 'наркотики', personal_details: 'личные данные', fake: 'фейк', geo_irrelevant: 'не по геопозиции', not_spam: 'не спам', reaction: 'реакция', other: 'другое' };
+// reactionText shows the reactions of a reaction report: keys of
+// pkg/reactions ("e" and the emoticon, "c" and a custom emoji's document id),
+// joined by commas.
+const reactionText = (keys) => keys.split(',').map((k) => (k[0] === 'e' ? k.slice(1) : k[0] === 'c' ? `эмодзи ${k.slice(1)}` : k)).join(' ');
 const actionLabels = { dismiss: 'Отклонено', delete: 'Удалено', restrict: 'Ограничен', ban: 'Заблокирован' };
 function reportsPage(decided) {
   const seg = el('div', { className: 'segmented' },
@@ -607,6 +611,7 @@ async function reportPage(id) {
       r.target_user_id ? el('dt', { textContent: 'На кого' }) : null,
       r.target_user_id ? el('dd', {}, el('a', { href: `#users/${r.target_user_id}`, textContent: who(r.target_user_id) })) : null,
       snapshot.peer_title ? el('dt', { textContent: 'Чат' }) : null, snapshot.peer_title ? el('dd', { textContent: snapshot.peer_title }) : null,
+      snapshot.reaction ? el('dt', { textContent: 'Реакция' }) : null, snapshot.reaction ? el('dd', { textContent: reactionText(snapshot.reaction) }) : null,
       r.comment ? el('dt', { textContent: 'Комментарий' }) : null, r.comment ? el('dd', { textContent: r.comment }) : null));
     const blocks = [info];
     if (restriction) {
@@ -637,7 +642,7 @@ async function reportPage(id) {
         el('div', { className: 'field' }, el('span', { className: 'muted small', textContent: 'Срок (для ограничения и блокировки)' }), picker.node),
         el('div', { className: 'actions' },
           btn('Отклонить', '', () => decide('dismiss')),
-          btn('Удалить сообщение', 'danger', () => decide('delete')),
+          r.kind === 8 ? null : btn('Удалить сообщение', 'danger', () => decide('delete')),
           btn('Ограничить', 'danger', () => decide('restrict')),
           btn('Заблокировать', 'danger', () => decide('ban')))));
     }

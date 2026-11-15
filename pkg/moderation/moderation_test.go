@@ -73,6 +73,26 @@ func TestDedupKey(t *testing.T) {
 	}
 }
 
+func TestDedupKeyOfReaction(t *testing.T) {
+	r := &Report{ReporterUserId: 1, Kind: KindReaction, PeerType: 4, PeerId: 3, TargetUserId: 10, Reason: "reaction"}
+	k := dedupKey(r, []int32{7})
+	if k != dedupKey(r, []int32{7}) {
+		t.Error("the same report must have the same key")
+	}
+	other := *r
+	other.TargetUserId = 11
+	if k == dedupKey(&other, []int32{7}) {
+		t.Error("the reaction of another user to the message must be another report")
+	}
+	// Other kinds keep their keys: open reports stored before match them.
+	m := &Report{ReporterUserId: 1, Kind: KindMessage, PeerType: 4, PeerId: 3, Reason: "spam"}
+	n := *m
+	n.TargetUserId = 11
+	if dedupKey(m, []int32{7}) != dedupKey(&n, []int32{7}) {
+		t.Error("the key of a message report changed with its target")
+	}
+}
+
 func TestTruncateComment(t *testing.T) {
 	long := strings.Repeat("я", MaxCommentChars+5)
 	if got := TruncateComment(long); len([]rune(got)) != MaxCommentChars {

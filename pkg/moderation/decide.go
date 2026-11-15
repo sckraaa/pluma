@@ -180,6 +180,11 @@ func (d *DAO) Decide(ctx context.Context, dn Decision) error {
 		}
 		switch dn.Action {
 		case ActionDelete:
+			// The message of a reaction report is someone else's: the
+			// report accuses the user who reacted.
+			if r.Kind == KindReaction {
+				return ErrNothingToDelete
+			}
 			snapshot, err := r.Snapshot()
 			if err != nil {
 				return err
