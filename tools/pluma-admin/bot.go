@@ -34,6 +34,7 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/conf"
+	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/moderation/effects"
 
 	"github.com/zeromicro/go-zero/zrpc"
@@ -76,7 +77,7 @@ func botCommand(args []string, configFile string, stdout io.Writer) error {
 		if len(args) != 3 {
 			return errUsage
 		}
-		id, err := botByUsername(ctx, store, args[2])
+		id, err := editableBot(ctx, store, args[2])
 		if err != nil {
 			return err
 		}
@@ -110,6 +111,30 @@ func botByUsername(ctx context.Context, store *botstore.Store, username string) 
 		return 0, fmt.Errorf("no bot %s", username)
 	}
 	return id, nil
+}
+
+// errBuiltinBot is token and set for a bot of pkg/inlinebots: the server
+// answers for it and its account is z_pluma-inline-bots.sql's (ADR 0062).
+var errBuiltinBot = errors.New("built-in bot, managed by the server")
+
+// editableBot is botByUsername for the commands that change a bot: a
+// built-in bot is refused.
+func editableBot(ctx context.Context, store *botstore.Store, username string) (int64, error) {
+	id, err := botByUsername(ctx, store, username)
+	if err != nil {
+		return 0, err
+	}
+	if err = checkEditable(id); err != nil {
+		return 0, fmt.Errorf("%s: %w", username, err)
+	}
+	return id, nil
+}
+
+func checkEditable(id int64) error {
+	if inlinebots.IsBuiltin(id) {
+		return errBuiltinBot
+	}
+	return nil
 }
 
 func listBots(ctx context.Context, store *botstore.Store, stdout io.Writer) error {
@@ -189,7 +214,7 @@ func setBot(ctx context.Context, c botConfig, store *botstore.Store, args []stri
 	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 {
 		return errUsage
 	}
-	id, err := botByUsername(ctx, store, args[0])
+	id, err := editableBot(ctx, store, args[0])
 	if err != nil {
 		return err
 	}

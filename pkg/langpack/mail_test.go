@@ -130,7 +130,7 @@ func TestMailRejects(t *testing.T) {
 		"empty text":   `{"K": {"en": "x", "ru": ""}}`,
 		"bad language": `{"K": {"en": "x", "pt_BR": "y"}}`,
 	} {
-		if _, err := loadMail([]byte(data)); err == nil {
+		if _, err := loadTexts("mail.json", []byte(data)); err == nil {
 			t.Errorf("%s: loaded", name)
 		}
 	}
