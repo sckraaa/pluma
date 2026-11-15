@@ -110,6 +110,7 @@ BFFProxyClients:
     #"/mtproto.RPCProxyData": "bff.bff"
     #"/mtproto.RPCStatistics": "bff.bff"
     "/mtproto.RPCAccount": "bff.bff"
+    "/mtproto.RPCWebBrowser": "bff.bff"
     "/mtproto.RPCPhotos": "bff.bff"
     "/mtproto.RPCUsernames": "bff.bff"
     "/mtproto.RPCSavedMessageDialogs": "bff.bff"

@@ -19,13 +19,32 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/webbrowser"
 )
 
 // AccountGetWebBrowserSettings
 // account.getWebBrowserSettings#56655768 hash:long = account.WebBrowserSettings;
+//
+// iOS asks on start and every hour with the hash of its copy
+// (TelegramCore/Sources/State/ManagedWebBrowserSettingsUpdates.swift:7-15,
+// Settings/AccountWebBrowserSettings.swift:133-140), and repeats the
+// request after any error without end
+// (TelegramCore/Sources/Network/Network.swift:1513-1525); Android keeps a
+// copy it reads again every hour (MessagesController.java:25392-25419).
+// The same hash: account.webBrowserSettingsNotModified.
 func (c *WebBrowserCore) AccountGetWebBrowserSettings(in *mtproto.TLAccountGetWebBrowserSettings) (*mtproto.Account_WebBrowserSettings, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.getWebBrowserSettings blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("account.getWebBrowserSettings - error: %v", err)
+		return nil, err
+	}
+	s, err := c.svcCtx.Store.Get(c.ctx, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("account.getWebBrowserSettings - error: %v", err)
+		return nil, err
+	}
+	if in.GetHash() == webbrowser.Hash(s) {
+		return mtproto.MakeTLAccountWebBrowserSettingsNotModified(nil).To_Account_WebBrowserSettings(), nil
+	}
+	return settingsOf(s), nil
 }

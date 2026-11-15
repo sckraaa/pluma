@@ -18,9 +18,15 @@
 package config
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
 type Config struct {
 	zrpc.RpcServerConf
+	// pluma: task 098. Mysql keeps the settings (pkg/webbrowser);
+	// SyncClient carries their changes to the account's other devices.
+	Mysql      sqlx.Config
+	SyncClient sync_client.OutboxConf
 }

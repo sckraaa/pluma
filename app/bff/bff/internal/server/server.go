@@ -671,10 +671,13 @@ func (s *Server) Initialize() error {
 				RpcServerConf: c.RpcServerConf,
 			}))
 
+		// webbrowserhelper: the in-app browser settings (task 098).
 		mtproto.RegisterRPCWebBrowserServer(
 			grpcServer,
 			webbrowserhelper.New(webbrowserhelper.Config{
 				RpcServerConf: c.RpcServerConf,
+				Mysql:         c.Mysql,
+				SyncClient:    syncClient,
 			}))
 
 		// transcription_helper: the text of voice messages and round

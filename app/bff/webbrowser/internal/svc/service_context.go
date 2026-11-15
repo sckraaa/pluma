@@ -18,15 +18,23 @@
 package svc
 
 import (
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/webbrowser/internal/config"
+	"github.com/teamgram/teamgram-server/app/bff/webbrowser/internal/dao"
+	"github.com/teamgram/teamgram-server/pkg/webbrowser"
 )
 
 type ServiceContext struct {
 	Config config.Config
+	*dao.Dao
+	// Store keeps the in-app browser settings (task 098).
+	Store webbrowser.Store
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config: c,
+		Dao:    dao.New(c),
+		Store:  webbrowser.NewMySQLStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

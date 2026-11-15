@@ -19,13 +19,42 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/webbrowser"
 )
 
 // AccountDeleteWebBrowserSettingsExceptions
 // account.deleteWebBrowserSettingsExceptions#86a0765d = account.WebBrowserSettings;
+//
+// Both lists are emptied, the flags stay. Android takes the answer as its
+// copy (MessagesController.java:25491-25506); the other devices get an
+// updateWebBrowserException{delete} for each domain removed, in one push.
 func (c *WebBrowserCore) AccountDeleteWebBrowserSettingsExceptions(in *mtproto.TLAccountDeleteWebBrowserSettingsExceptions) (*mtproto.Account_WebBrowserSettings, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.deleteWebBrowserSettingsExceptions blocked, License key from https://teamgram.net required to unlock enterprise features.")
-
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	if c.MD.IsBot {
+		err := mtproto.ErrBotMethodInvalid
+		c.Logger.Errorf("account.deleteWebBrowserSettingsExceptions - error: %v", err)
+		return nil, err
+	}
+	removed, err := c.svcCtx.Store.DeleteAllExceptions(c.ctx, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("account.deleteWebBrowserSettingsExceptions - error: %v", err)
+		return nil, err
+	}
+	s, err := c.svcCtx.Store.Get(c.ctx, c.MD.UserId)
+	if err != nil {
+		c.Logger.Errorf("account.deleteWebBrowserSettingsExceptions - error: %v", err)
+		return nil, err
+	}
+	var updates []*mtproto.Update
+	for _, list := range []struct {
+		exceptions []webbrowser.Exception
+		external   *mtproto.Bool
+	}{{removed.External, mtproto.BoolTrue}, {removed.InApp, mtproto.BoolFalse}} {
+		for _, e := range list.exceptions {
+			updates = append(updates, exceptionUpdate(true, list.external, e))
+		}
+	}
+	if len(updates) > 0 {
+		c.pushOthers("account.deleteWebBrowserSettingsExceptions", mtproto.MakeUpdatesByUpdates(updates...))
+	}
+	return settingsOf(s), nil
 }
