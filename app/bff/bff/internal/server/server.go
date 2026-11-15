@@ -177,6 +177,9 @@ func (s *Server) Initialize() error {
 		})
 		mtproto.RegisterRPCBotsServer(grpcServer, bots)
 		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)
+		// pluma: task 098. The attachment menu and the dice game.
+		mtproto.RegisterRPCBotMenuServer(grpcServer, bots)
+		mtproto.RegisterRPCGamesServer(grpcServer, bots)
 		mtproto.RegisterRPCInlineBotServer(grpcServer, bots)
 		mtproto.RegisterRPCDeepLinksServer(grpcServer, bots)
 

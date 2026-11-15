@@ -23,8 +23,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
 )
 
-// Service is the gRPC server of RPCBots, RPCBotMenuButton, RPCInlineBot and
-// RPCDeepLinks.
+// Service is the gRPC server of RPCBots, RPCBotMenuButton, RPCInlineBot,
+// RPCDeepLinks, RPCBotMenu and RPCGames.
 type Service struct {
 	svcCtx *svc.ServiceContext
 }
