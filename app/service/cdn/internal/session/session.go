@@ -315,18 +315,17 @@ func (s *Server) container(m *in, containerID int64, body []byte) error {
 
 // message processes one message (not a container).
 func (s *Server) message(m *in, msgID int64, seqNo int32, body []byte) error {
-	old, seen, running := m.sess.receive(msgID)
+	old, _, running := m.sess.receive(msgID)
 	switch {
 	case old:
 		return s.badMsg(m, msgID, seqNo, 20)
 	case running:
 		// Sent again while it is served: the answer is on its way.
 		return nil
-	case seen:
-		// Sent again after it was answered: the answer may have been lost
-		// with a connection, and the node keeps none, so it is served
-		// again. Every request of the node only reads.
 	}
+	// A message sent again after it was answered is served again: the
+	// answer may have been lost with a connection, and the node keeps none.
+	// Every request of the node only reads.
 	return s.body(m, msgID, body, 0)
 }
 

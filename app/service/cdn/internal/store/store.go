@@ -210,7 +210,7 @@ func (s *Store) scan(order map[string]indexRecord) error {
 		if err != nil || len(token) != cdn.TokenSize || filepath.Base(filepath.Dir(path)) != name[:2] {
 			// Not a file of this store: left alone, not served.
 			logx.Errorf("cdn store: skipping a foreign file under %s", filesDir)
-			return nil
+			return nil //nolint:nilerr // a name that is no token is skipped, not a failure of the walk
 		}
 		info, err := d.Info()
 		if err != nil {

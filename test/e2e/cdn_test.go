@@ -571,7 +571,7 @@ func notLogged(t *testing.T, secrets map[string][]byte) {
 		for _, form := range []string{
 			hex.EncodeToString(secret), strings.ToUpper(hex.EncodeToString(secret)),
 			base64.RawStdEncoding.EncodeToString(secret), base64.RawURLEncoding.EncodeToString(secret),
-			strings.Trim(fmt.Sprint(secret), "[]"),
+			strings.Trim(fmt.Sprintf("%d", secret), "[]"),
 		} {
 			if strings.Contains(logs, form) {
 				t.Errorf("the logs of bff or the node hold the %s of a file", name)

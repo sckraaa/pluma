@@ -261,7 +261,7 @@ func (p *Pusher) send(ctx context.Context, c *Claim) (string, bool, error) {
 		if int64(len(b)) != want {
 			return pushShortRead, true, fmt.Errorf("%d bytes at %d, want %d", len(b), off, want)
 		}
-		hasher.Write(b)
+		_, _ = hasher.Write(b) // never fails
 		enc.XORKeyStream(b, b)
 		cipherSum.Write(b)
 		if err = p.limiter.WaitN(pctx, len(b)); err != nil {

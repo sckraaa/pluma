@@ -186,7 +186,8 @@ func (m *MemStore) Claim(_ context.Context, dcId int32, lease time.Duration, now
 	}
 	var next *Replica
 	for _, r := range m.replicas {
-		if r.DcId != dcId || !(r.State == StateQueued && r.NextTryAt <= now || r.State == StatePushing && r.LeaseUntil <= now) {
+		due := r.State == StateQueued && r.NextTryAt <= now || r.State == StatePushing && r.LeaseUntil <= now
+		if r.DcId != dcId || !due {
 			continue
 		}
 		if next == nil || r.Priority > next.Priority || r.Priority == next.Priority && r.FileRowId < next.FileRowId {
