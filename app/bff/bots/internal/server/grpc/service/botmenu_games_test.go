@@ -24,9 +24,9 @@ import (
 )
 
 // The service is the server of both RPCBotMenu and RPCGames, and the
-// methods it does not serve answer ERR_ENTERPRISE_IS_BLOCKED, a 400, not
-// gRPC's Unimplemented, which the session proxy turns into a 500 that
-// tgnet retries.
+// methods it does not serve (the games, until task 106 serves them) answer
+// ERR_ENTERPRISE_IS_BLOCKED, a 400, not gRPC's Unimplemented, which the
+// session proxy turns into a 500 that tgnet retries.
 func TestBotMenuAndGamesNotServed(t *testing.T) {
 	var (
 		_ mtproto.RPCBotMenuServer = (*Service)(nil)
@@ -35,14 +35,6 @@ func TestBotMenuAndGamesNotServed(t *testing.T) {
 	s := New(&svc.ServiceContext{})
 	ctx := context.Background()
 	for name, call := range map[string]func() error{
-		"getAttachMenuBot": func() error {
-			_, err := s.MessagesGetAttachMenuBot(ctx, &mtproto.TLMessagesGetAttachMenuBot{})
-			return err
-		},
-		"toggleBotInAttachMenu": func() error {
-			_, err := s.MessagesToggleBotInAttachMenu(ctx, &mtproto.TLMessagesToggleBotInAttachMenu{})
-			return err
-		},
 		"setGameScore": func() error {
 			_, err := s.MessagesSetGameScore(ctx, &mtproto.TLMessagesSetGameScore{})
 			return err

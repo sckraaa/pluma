@@ -283,6 +283,12 @@ func (b *Box) result() *Result {
 // id, the whole list, a shortcut or messages gone; tdesktop applies each
 // as a replacement (data/business/data_shortcut_messages.cpp,
 // ShortcutMessages::apply and append).
+// The attachment menu (task 106) is "load the list again": tdesktop asks
+// for it (api/api_updates.cpp:2322-2324), Android
+// (messenger/MessagesController.java:20719-20720) and Web
+// (lib/appManagers/appAttachMenuBotsManager.ts:68-71) too, so a repeat
+// changes nothing; iOS reads it (State/Sync/UpdateInterpreter.swift:378-379)
+// but replays nothing (State/Sync/StateReplay.swift:526-529).
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateBotCallbackQuery,
@@ -334,7 +340,8 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateNewQuickReply,
 		mtproto.Predicate_updateDeleteQuickReply,
 		mtproto.Predicate_updateQuickReplyMessage,
-		mtproto.Predicate_updateDeleteQuickReplyMessages:
+		mtproto.Predicate_updateDeleteQuickReplyMessages,
+		mtproto.Predicate_updateAttachMenuBots:
 		return true
 	}
 	return false
