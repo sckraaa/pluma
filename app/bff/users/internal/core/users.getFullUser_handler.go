@@ -32,6 +32,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/premium"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 
 	"github.com/zeromicro/go-zero/core/mr"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -184,6 +185,14 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 			c.Logger.Errorf("users.getFullUser - error: %v", err)
 			return nil, err
 		}
+	}
+	// Whether I hid the translation bar of the chat with the user
+	// (messages.togglePeerTranslations, task 101): the clients read it from
+	// here (Android TranslateController.java:204-216, tdesktop
+	// data/data_user.cpp:992).
+	if userFull.TranslationsDisabled, err = c.translationsDisabled(peerId); err != nil {
+		c.Logger.Errorf("users.getFullUser - error: %v", err)
+		return nil, err
 	}
 	if user.CheckPrivacyFor(mtproto.SAVED_MUSIC, me) {
 		userFull.SavedMusic = user.GetUser().GetSavedMusic()
@@ -346,6 +355,18 @@ func (c *UsersCore) UsersGetFullUser(in *mtproto.TLUsersGetFullUser) (*mtproto.U
 		Chats:    chats,
 		Users:    []*mtproto.User{unsafeUser},
 	}).To_Users_UserFull(), nil
+}
+
+// translationsDisabled tells whether the caller hid the translation bar
+// of its chat with userId; its own id is Saved Messages, which
+// togglePeerTranslations keeps under the same peer.
+func (c *UsersCore) translationsDisabled(userId int64) (bool, error) {
+	peer := translate.TranslationPeer{Type: mtproto.PEER_USER, Id: userId}
+	disabled, err := c.svcCtx.Translations.TranslationsDisabled(c.ctx, c.MD.UserId, peer)
+	if err != nil {
+		return false, err
+	}
+	return disabled[peer], nil
 }
 
 // fillBotInfo sets userFull.bot_info, what the chat with the bot shows as the

@@ -16,6 +16,9 @@
 package svc
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/channels/internal/config"
@@ -30,8 +33,16 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/channelsets"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
 	"github.com/teamgram/teamgram-server/pkg/stories"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
+
+// PeerTranslations reads the chats whose translation bar their reader hid
+// with messages.togglePeerTranslations (task 101): *translate.Store.
+type PeerTranslations interface {
+	TranslationsDisabled(ctx context.Context, userId int64, peers ...translate.TranslationPeer) (map[translate.TranslationPeer]bool, error)
+}
 
 type ServiceContext struct {
 	Bots    *botstore.Store // bot_info of the full channel (task 070)
@@ -52,9 +63,15 @@ type ServiceContext struct {
 	SendAs *sendas.Store
 	// Stories reads the stories of channelFull (task 084).
 	Stories *stories.Store
+	// Translations gives channelFull.translations_disabled (task 101).
+	Translations PeerTranslations
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	db, err := userbox.Open(c.Mysql.DSN)
+	if err != nil {
+		panic(fmt.Errorf("channels: %w", err))
+	}
 	return &ServiceContext{
 		Config:  c,
 		Channel: channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
@@ -69,5 +86,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		Sets:    channelsets.New(sqlx.NewMySQL(&c.Mysql)),
 		SendAs:  sendas.New(sqlx.NewMySQL(&c.Mysql)),
 		Stories: stories.NewStore(sqlx.NewMySQL(&c.Mysql)),
+
+		Translations: translate.NewStore(db),
 	}
 }
