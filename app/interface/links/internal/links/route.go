@@ -55,6 +55,10 @@ const (
 	KindLogin
 	KindContact
 	KindChannelPreview
+	// KindBusinessChat is a business chat link, m/<slug> (task 105, ADR
+	// 0067 item 5): the chat with its owner with a text in the input
+	// field, tg://message?slug=<slug> (core.telegram.org/api/links).
+	KindBusinessChat
 )
 
 // Link is a parsed link: its kind, what it names (a username, a hash, a set
@@ -157,6 +161,8 @@ func Parse(path string, q url.Values) Link {
 		return Link{Kind: KindLogin, Subject: parts[1], App: "login?code=" + parts[1]}
 	case head == "contact" && len(parts) > 1 && slugRe.MatchString(parts[1]):
 		return Link{Kind: KindContact, Subject: parts[1], App: "contact?token=" + parts[1]}
+	case head == "m" && len(parts) > 1 && slugRe.MatchString(parts[1]):
+		return Link{Kind: KindBusinessChat, Subject: parts[1], App: "message?slug=" + parts[1]}
 	case head == "bg" && len(parts) > 1:
 		return background(parts[1], q)
 	case usernameRe.MatchString(head) && !userpb.ReservedUsername(head):

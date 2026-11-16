@@ -123,6 +123,9 @@ var secretNames = set(
 	// the business location of an account (task 105, ADR 0067): its street
 	// address
 	"address", "getaddress",
+	// the slug of a business chat link (task 105, ADR 0067): the only
+	// secret of the link
+	"slug", "getslug",
 	// the bot platform (task 106, ADR 0068): the initData of a mini app
 	// and its address, the keys of a bot and the server's keys, a site's
 	// client secret, the ID tokens, authorization codes and requests of the

@@ -51,6 +51,9 @@ const pageCSP = "default-src 'self'; img-src 'self' data:; style-src 'self'; scr
 type Avatars interface {
 	// AvatarId is the id of that photo, 0 when there is none.
 	AvatarId(ctx context.Context, username string) (int64, error)
+	// ChatLinkAvatarId is the id of that photo of the owner of the
+	// business chat link of the slug, 0 when there is none.
+	ChatLinkAvatarId(ctx context.Context, slug string) (int64, error)
 	// AvatarFile is the photo of the id as JPEG, nil when it has no size
 	// to show.
 	AvatarFile(ctx context.Context, id int64) ([]byte, error)
@@ -173,12 +176,27 @@ func (h *Handler) asset(w http.ResponseWriter, r *http.Request, name string) {
 // photo hidden since. The URL of the page's own photo (v = its id) is
 // cached for good; any other is asked again each time, and its ETag (the
 // photo's id) answers 304 while the photo is the same.
-func (h *Handler) avatar(ctx context.Context, w http.ResponseWriter, r *http.Request, username string) {
-	if !usernameRe.MatchString(username) || h.Avatars == nil {
+//
+// /_l/avatar/m/<slug> is the photo of the owner of a business chat link,
+// who may have no username.
+func (h *Handler) avatar(ctx context.Context, w http.ResponseWriter, r *http.Request, name string) {
+	if h.Avatars == nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
-	id, err := h.Avatars.AvatarId(ctx, username)
+	var (
+		id  int64
+		err error
+	)
+	switch slug, ok := strings.CutPrefix(name, "m/"); {
+	case ok && slugRe.MatchString(slug):
+		id, err = h.Avatars.ChatLinkAvatarId(ctx, slug)
+	case usernameRe.MatchString(name):
+		id, err = h.Avatars.AvatarId(ctx, name)
+	default:
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		logx.WithContext(ctx).Errorf("links: an avatar: %v", err)
 		http.Error(w, "temporarily unavailable", http.StatusServiceUnavailable)

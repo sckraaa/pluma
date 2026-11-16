@@ -98,6 +98,12 @@ services:
       - "127.0.0.1:${E2E_GATEWAY_PORT:-}:10443"
       - "127.0.0.1:${E2E_GATEWAY_WS_PORT:-}:11443"
 
+  # The pages of pluma.chat links (task 026): the tests read a page on an
+  # ephemeral loopback port (PLUMA_E2E_LINKS).
+  links:
+    ports:
+      - "127.0.0.1::9096"
+
   # APNs and FCM of the tests (test/e2e/fakepush): the push service sends
   # there, the tests read what came on an ephemeral loopback port.
   fakepush:

@@ -34,6 +34,7 @@ type Config struct {
 	// BizServiceClient reads users and channels, DfsClient their photos.
 	BizServiceClient zrpc.RpcClientConf
 	DfsClient        zrpc.RpcClientConf
-	// Mysql holds the sticker sets of the catalog.
+	// Mysql holds the sticker sets of the catalog and the business chat
+	// links (pkg/business).
 	Mysql sqlx.Config
 }

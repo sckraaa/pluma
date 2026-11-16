@@ -19,7 +19,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-// The methods of Telegram Business not served yet (task 105, parts 2-8):
+// The methods of Telegram Business not served yet (task 105, parts 3-8):
 // each answers ERR_ENTERPRISE_IS_BLOCKED (400), which the clients do not
 // retry, never an internal error (500), which Android's and Web K's
 // transports retry without end. A method moves to its own handler file
@@ -32,31 +32,6 @@ func (c *BusinessCore) AccountUpdateBusinessGreetingMessage(in *mtproto.TLAccoun
 
 // AccountUpdateBusinessAwayMessage is not served yet: account.updateBusinessAwayMessage#a26a7fa5.
 func (c *BusinessCore) AccountUpdateBusinessAwayMessage(in *mtproto.TLAccountUpdateBusinessAwayMessage) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountCreateBusinessChatLink is not served yet: account.createBusinessChatLink#8851e68e.
-func (c *BusinessCore) AccountCreateBusinessChatLink(in *mtproto.TLAccountCreateBusinessChatLink) (*mtproto.BusinessChatLink, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountEditBusinessChatLink is not served yet: account.editBusinessChatLink#8c3410af.
-func (c *BusinessCore) AccountEditBusinessChatLink(in *mtproto.TLAccountEditBusinessChatLink) (*mtproto.BusinessChatLink, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountDeleteBusinessChatLink is not served yet: account.deleteBusinessChatLink#60073674.
-func (c *BusinessCore) AccountDeleteBusinessChatLink(in *mtproto.TLAccountDeleteBusinessChatLink) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountGetBusinessChatLinks is not served yet: account.getBusinessChatLinks#6f70dde1.
-func (c *BusinessCore) AccountGetBusinessChatLinks(in *mtproto.TLAccountGetBusinessChatLinks) (*mtproto.Account_BusinessChatLinks, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountResolveBusinessChatLink is not served yet: account.resolveBusinessChatLink#5492e5ee.
-func (c *BusinessCore) AccountResolveBusinessChatLink(in *mtproto.TLAccountResolveBusinessChatLink) (*mtproto.Account_ResolvedBusinessChatLinks, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
