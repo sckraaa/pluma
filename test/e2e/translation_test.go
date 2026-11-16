@@ -396,10 +396,11 @@ func TestTranslateTextBatch(t *testing.T) {
 		t.Fatalf("the engine was asked %d times for 2×19 texts", seen.Calls)
 	}
 
-	// The longest message is taken whole.
-	long := strings.Repeat("abc ", 1024)
+	// The longest message is taken whole; it is of this run, so that the
+	// engine translates it on a stand that ran the test before.
+	long := n + " " + strings.Repeat("abc ", 1024)
 	out, err := translateTexts(ctx, u, []*mtproto.TextWithEntities{plainText(u, long[:4096])}, "en")
-	if err != nil || len(out) != 1 || !strings.HasPrefix(out[0].GetText(), "[en] ABC ABC") {
+	if err != nil || len(out) != 1 || !strings.HasPrefix(out[0].GetText(), "[en] "+n+" ABC ABC") {
 		t.Fatalf("4096 characters: %v, %v", out, err)
 	}
 
