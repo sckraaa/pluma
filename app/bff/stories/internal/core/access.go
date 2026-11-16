@@ -169,6 +169,37 @@ func (v *peerView) manages() bool {
 	return v.admin(mtproto.ADMIN_POST_STORIES | mtproto.ADMIN_EDIT_STORIES | mtproto.ADMIN_DELETE_STORIES)
 }
 
+// editsAlbums: the caller arranges the albums of the peer: the account its
+// own, and in a channel its creator and the admins with edit_stories, as
+// Android offers it (canEditStoryAlbums, StoriesController.java:4765-4778).
+func (v *peerView) editsAlbums() bool {
+	if v.peer.IsUser() {
+		return v.own
+	}
+	return v.admin(mtproto.ADMIN_EDIT_STORIES)
+}
+
+// albumEditor resolves the peer of a request that changes its albums and
+// checks that the caller may (editsAlbums). A bot has no albums to change;
+// another user's are PEER_ID_INVALID, a channel's without the right
+// CHAT_ADMIN_REQUIRED.
+func (c *StoriesCore) albumEditor(peer *mtproto.InputPeer) (*peerView, error) {
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
+	v, err := c.view(peer)
+	if err != nil {
+		return nil, err
+	}
+	if !v.editsAlbums() {
+		if v.peer.IsUser() {
+			return nil, mtproto.ErrPeerIdInvalid
+		}
+		return nil, mtproto.ErrChatAdminRequired
+	}
+	return v, nil
+}
+
 // visible keeps the stories of list the caller may open: all of its own
 // and of a channel it reads, and of another user those whose rules let it
 // in. A user who blocked the caller, or hides its stories from it, shows

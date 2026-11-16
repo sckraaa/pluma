@@ -40,7 +40,43 @@ var (
 	// errUserPublicMissing: a link of a story needs the public username of
 	// its owner; the name of Telegram's error for it was not read.
 	errUserPublicMissing = status.Error(mtproto.ErrBadRequest, "USER_PUBLIC_MISSING")
+
+	// The errors of the albums (task 104, ADR 0069, p. 6).
+	//
+	// errAlbumsTooMany: the peer has stories.MaxAlbums albums. tdesktop
+	// reads it by name and shows the window of the limit
+	// (info_stories_albums.cpp:86-94).
+	errAlbumsTooMany = status.Error(mtproto.ErrBadRequest, "ALBUMS_TOO_MANY")
+	// errAlbumIdInvalid: the peer has no such album. The name was not read
+	// in any source; the clients show any other error as it is.
+	errAlbumIdInvalid = status.Error(mtproto.ErrBadRequest, "ALBUM_ID_INVALID")
+	// errAlbumTitleInvalid: the title is empty or longer than
+	// stories.MaxAlbumTitle once trimmed. The name was not read in any
+	// source.
+	errAlbumTitleInvalid = status.Error(mtproto.ErrBadRequest, "ALBUM_TITLE_INVALID")
+	// errAlbumStoriesTooMany: the album would hold more than
+	// stories.MaxAlbumStories stories. The name was not read in any
+	// source.
+	errAlbumStoriesTooMany = status.Error(mtproto.ErrBadRequest, "ALBUM_STORIES_TOO_MANY")
 )
+
+// albumError turns an error of the albums of pkg/stories into the error
+// the clients read.
+func albumError(err error) error {
+	switch {
+	case errors.Is(err, stories.ErrAlbumsTooMany):
+		return errAlbumsTooMany
+	case errors.Is(err, stories.ErrAlbumInvalid):
+		return errAlbumIdInvalid
+	case errors.Is(err, stories.ErrAlbumTitleInvalid):
+		return errAlbumTitleInvalid
+	case errors.Is(err, stories.ErrAlbumFull):
+		return errAlbumStoriesTooMany
+	case errors.Is(err, stories.ErrStoryInvalid):
+		return errStoryIdInvalid
+	}
+	return err
+}
 
 // limitError turns a limit of pkg/stories into the error the clients read.
 func limitError(err error) error {

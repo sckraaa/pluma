@@ -27,8 +27,12 @@ import (
 // channel. The answer carries updateStoryID with the id of the request's
 // random_id and updateStory with the story: Android takes the story from
 // updateStory and falls back to the id (StoriesController.java:2434-2462).
-// A repeated request answers the story stored the first time. Albums are
-// not served: the story is posted and joins none.
+// A repeated request answers the story stored the first time. The story
+// joins the albums it names that exist and have room; the others are
+// passed over rather than refusing the story and its upload (ADR 0069,
+// p. 6), and so are all of them when the caller may not arrange the
+// albums of the peer (editsAlbums). Its storyItem.albums are in the answer
+// and in what the other devices and the viewers get.
 func (c *StoriesCore) StoriesSendStory(in *mtproto.TLStoriesSendStory) (*mtproto.Updates, error) {
 	v, err := c.poster(in.Peer)
 	if err != nil {
@@ -55,6 +59,12 @@ func (c *StoriesCore) StoriesSendStory(in *mtproto.TLStoriesSendStory) (*mtproto
 		Pinned:     in.Pinned,
 		Noforwards: in.Noforwards,
 		Caption:    in.GetCaption().GetValue(),
+	}
+	if len(in.Albums) > stories.MaxAlbums {
+		return nil, mtproto.ErrLimitInvalid
+	}
+	if v.editsAlbums() {
+		st.Albums = in.Albums
 	}
 	if in.GetPeriod() != nil {
 		if !stories.ValidPeriod(in.GetPeriod().GetValue()) {

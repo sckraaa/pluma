@@ -2337,7 +2337,7 @@
   "used_by": "A StoriesController.java:5079; I StoryListContext.swift:700; D data_stories.cpp:1925; W appStoriesManager.ts:1495",
   "decision": "implement",
   "priority": "normal",
-  "why": "Albums on the profile."
+  "why": "Сделано задачей 104 (ADR 0069)."
  },
  {
   "name": "stories.deleteAlbum",
@@ -2346,7 +2346,7 @@
   "used_by": "A StoriesController.java:5132; I StoryListContext.swift:773; D data_stories.cpp:1979; W appStoriesManager.ts:1817",
   "decision": "implement",
   "priority": "normal",
-  "why": "Albums."
+  "why": "Сделано задачей 104 (ADR 0069)."
  },
  {
   "name": "stories.editStory",
@@ -2373,7 +2373,7 @@
   "used_by": "A StoriesController.java:3851; I StoryListContext.swift:1581; D data_stories.cpp:1854; W appStoriesManager.ts:1441",
   "decision": "implement",
   "priority": "normal",
-  "why": "Albums."
+  "why": "Сделано задачей 104 (ADR 0069)."
  },
  {
   "name": "stories.getAlbums",
@@ -2382,7 +2382,7 @@
   "used_by": "A StoriesController.java:1627; I StoryListContext.swift:1587; D data_stories.cpp:1891; W appStoriesManager.ts:1311",
   "decision": "implement",
   "priority": "normal",
-  "why": "Albums."
+  "why": "Сделано задачей 104 (ADR 0069)."
  },
  {
   "name": "stories.getChatsToSend",
@@ -2427,7 +2427,7 @@
   "used_by": "A StoriesController.java:5246; I StoryListContext.swift:844; D info_stories_inner_widget.cpp:1138; W appStoriesManager.ts:1787",
   "decision": "implement",
   "priority": "normal",
-  "why": "Albums."
+  "why": "Сделано задачей 104 (ADR 0069)."
  },
  {
   "name": "stories.report",
@@ -2481,7 +2481,7 @@
   "used_by": "A StoriesController.java:4201; I StoryListContext.swift:761; D info_stories_inner_widget.cpp:163; W appStoriesManager.ts:1602",
   "decision": "implement",
   "priority": "normal",
-  "why": "Albums."
+  "why": "Сделано задачей 104 (ADR 0069)."
  },
  {
   "name": "upload.getFile",
