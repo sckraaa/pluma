@@ -105,20 +105,27 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		},
 		d.MediaClient,
 	)
+	// The providers of the built-in bots by kind (task 099): @gif has the
+	// GIFs popular within the server (part D) until it has a search (part
+	// G); @pic searches pictures with SearXNG (part E) when SearxngURL names
+	// one, and answers with empty lists otherwise.
+	providers := map[inlinebots.Kind]inline.Provider{
+		inlinebots.KindGif: inline.NewLocal(inline.NewGifCounts(db), d.MediaClient, d.KV),
+	}
+	if c.InlineBots.SearxngURL != "" {
+		pictures, err := inline.NewSearxng(c.InlineBots.SearxngURL, d.KV)
+		logx.Must(err)
+		providers[inlinebots.KindPhoto] = pictures
+	}
 	return &ServiceContext{
-		Config:     c,
-		Dao:        d,
-		InlineBots: health,
-		// The providers of the built-in bots by kind (task 099): @gif has
-		// the GIFs popular within the server (part D) until it has a
-		// search (part G); @pic searches pictures (part E).
-		InlineProviders: map[inlinebots.Kind]inline.Provider{
-			inlinebots.KindGif: inline.NewLocal(inline.NewGifCounts(db), d.MediaClient, d.KV),
-		},
-		InlineMedia: importer,
-		GifSends:    gifSends{media},
-		Limiter:     logincode.NewLimiter(d.KV),
-		WebFileKey:  key,
+		Config:          c,
+		Dao:             d,
+		InlineBots:      health,
+		InlineProviders: providers,
+		InlineMedia:     importer,
+		GifSends:        gifSends{media},
+		Limiter:         logincode.NewLimiter(d.KV),
+		WebFileKey:      key,
 	}
 }
 
