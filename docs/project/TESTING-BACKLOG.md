@@ -947,3 +947,15 @@
 - [ ] Удалить ярлык (Android, iOS, Desktop): пропадает на втором устройстве; создать ярлык с тем же именем снова — получается.
 - [ ] Добавить в один ярлык 20 сообщений: 21-е не добавляется, клиент показывает ошибку и не падает.
 - [ ] Ярлыки `hello` и `away` (из экранов «Приветствие» и «Нет на месте») видны в общем списке быстрых ответов.
+
+## 106 — Платформа ботов (часть B: настройка ботов в `pluma-admin`)
+Команды работают сразу после слияния; то, что клиенты увидят приложения, меню вложений и игры, зависит от частей C–I (до них проверяются только команды и данные).
+- [ ] На сервере после выкладки: `bot webapp-key` печатает 64 hex-символа; без `WEBAPP_SIGNING_KEY` — понятная ошибка, а не пустая строка.
+- [ ] `bot set <бот> -domain Shop.Example.com` → `bot login show <бот>` показывает `shop.example.com`; тот же домен второму боту — ошибка «belongs to another bot»; `-domain https://shop.example.com/` — ошибка про формат; `-domain off` убирает.
+- [ ] `bot set <бот> -main-app https://…`: в Android и iOS в профиле бота появляется кнопка «Открыть приложение» (после повторного открытия профиля); `-main-app off` её убирает.
+- [ ] `bot app add <бот> shop -title … -url https://… -photo shop.png -animation a.mp4` (файлы сначала `docker compose cp` в `bff`): печатает версию и ссылку `https://pluma.chat/<бот>/shop`; `bot app list` показывает приложение; `bot app edit … -title …` поднимает версию, остальные поля прежние; `-photo` с MP4 или текстом — ошибка до загрузки.
+- [ ] `bot attach set <бот> -name Shop -url https://… -icon default_static=icon.svg -icon android_animated=icon.tgs -color android_animated:light_icon=#3390ec`; `bot attach show` показывает значки и цвет; SVG вместо TGS для `*_animated` (и наоборот) — ошибка; после частей E–D1: значок в меню скрепки Android, iOS, Desktop, Web выглядит правильно (Desktop — белым по маске SVG).
+- [ ] `bot attach rm <бот>` — в Android ссылка `startattach` больше не предлагает добавить бота (после перечитывания профиля бота).
+- [ ] `bot game add <бот> race -title Race -photo race.jpg`: печатает ссылку `https://pluma.chat/<бот>?game=race`; `bot game rm` и снова `add` — тот же id игры (видно в выводе).
+- [ ] `bot login set <бот> -redirect https://site/cb -origin https://site`: секрет печатается один раз; `bot login show` секрета не показывает; `bot login edit … -origin off` секрет не меняет; повторный `set` — новый секрет.
+- [ ] Любая из новых команд для `gif` или `pic` — ответ `built-in bot, managed by the server`, в базе ничего не меняется.
