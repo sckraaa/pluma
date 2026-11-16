@@ -189,7 +189,7 @@ func (s *stub) static(w http.ResponseWriter, r *http.Request) {
 // noise in the upper rows, a plain color below.
 func mapImage(seq, width, height int) ([]byte, error) {
 	img := image.NewNRGBA(image.Rect(0, 0, width, height))
-	rng := rand.New(rand.NewPCG(uint64(seq), 0x6d617073))
+	rng := rand.New(rand.NewPCG(uint64(seq), 0x6d617073)) //nolint:gosec // the same noise for the same request
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			c := color.NRGBA{R: 0xe8, G: 0xe4, B: 0xd8, A: 0xff}
