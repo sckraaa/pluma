@@ -561,14 +561,16 @@ func TestCdnDownload(t *testing.T) {
 }
 
 // notLogged fails the test if the logs of bff or the node hold one of
-// secrets in hex, base64 or as Go prints a byte slice.
+// secrets in hex, base64 or as Go prints a byte slice. The unpadded
+// base64 forms are searched for, since each padded form contains its
+// unpadded one.
 func notLogged(t *testing.T, secrets map[string][]byte) {
 	t.Helper()
 	logs := stackOut(t, "logs", "--no-color", "bff", "cdn")
 	for name, secret := range secrets {
 		for _, form := range []string{
 			hex.EncodeToString(secret), strings.ToUpper(hex.EncodeToString(secret)),
-			base64.StdEncoding.EncodeToString(secret), base64.RawURLEncoding.EncodeToString(secret),
+			base64.RawStdEncoding.EncodeToString(secret), base64.RawURLEncoding.EncodeToString(secret),
 			strings.Trim(fmt.Sprint(secret), "[]"),
 		} {
 			if strings.Contains(logs, form) {
