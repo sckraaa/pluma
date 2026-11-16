@@ -153,6 +153,8 @@ enum TLConstructor {
   CRC32_user_getTopicNotifyExceptions = -852948814;
   // pluma: task 080
   CRC32_user_setGhost = 2145706849;
+  // pluma: task 104
+  CRC32_user_editUsernames = -864359738;
 }
 
 // BotInfoData <--
@@ -653,6 +655,22 @@ message TL_user_setGhost {
   TLConstructor constructor = 1;
   int64 user_id = 3;
   mtproto.Bool ghost = 4;
+}
+
+//--------------------------------------------------------------------------------------------
+// pluma: user.editUsernames user_id:long action:int username:string active:Bool order:Vector<string> = Bool;
+// The usernames of the account beside its editable one (task 104), by
+// action (UsernamesToggle, UsernamesReorder): username and active for a
+// toggle, order for a reorder. The change and updateUserName with seq to
+// the account's devices and to those who see it are one box transaction
+// of the account. True when something changed.
+message TL_user_editUsernames {
+  TLConstructor constructor = 1;
+  int64 user_id = 3;
+  int32 action = 4;
+  string username = 5;
+  mtproto.Bool active = 6;
+  repeated string order = 7;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1397,4 +1415,6 @@ service RPCUser {
   rpc user_getTopicNotifyExceptions(TL_user_getTopicNotifyExceptions) returns (mtproto.Updates) {}
   // pluma: task 080
   rpc user_setGhost(TL_user_setGhost) returns (mtproto.Bool) {}
+  // pluma: task 104
+  rpc user_editUsernames(TL_user_editUsernames) returns (mtproto.Bool) {}
 }

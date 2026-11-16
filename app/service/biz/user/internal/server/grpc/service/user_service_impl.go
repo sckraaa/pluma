@@ -1599,3 +1599,17 @@ func (s *Service) UserSetGhost(ctx context.Context, request *user.TLUserSetGhost
 
 	return r, nil
 }
+
+// UserEditUsernames
+// user.editUsernames user_id:long action:int username:string active:Bool order:Vector<string> = Bool;
+func (s *Service) UserEditUsernames(ctx context.Context, request *user.TLUserEditUsernames) (*mtproto.Bool, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("user.editUsernames - metadata: {%s}", c.MD)
+
+	r, err := c.UserEditUsernames(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}

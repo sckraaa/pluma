@@ -148,4 +148,6 @@ const (
 	CRC32_user_getTopicNotifyExceptions TLConstructor = -852948814 // 0xcd2908b2
 	// pluma: task 080
 	CRC32_user_setGhost TLConstructor = 2145706849 // 0x7fe4e361
+	// pluma: task 104
+	CRC32_user_editUsernames TLConstructor = -864359738 // 0xcc7aeac6
 )

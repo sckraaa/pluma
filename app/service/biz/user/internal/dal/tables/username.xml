@@ -92,6 +92,8 @@
                 username
             WHERE
                 peer_type = 2 AND peer_id = :peer_id
+            ORDER BY
+                order2, id
         </sql>
     </operation>
 

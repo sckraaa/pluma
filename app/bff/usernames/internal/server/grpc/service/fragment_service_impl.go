@@ -22,18 +22,25 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/usernames/internal/core"
 )
 
-// mtproto.RPCFragment: the usernames beside the editable one (task 078).
-// Those of channels are served; those of accounts and bots not yet, and
-// answer ERR_ENTERPRISE_IS_BLOCKED (400), which the clients do not retry.
+// mtproto.RPCFragment: the usernames beside the editable one (tasks 078
+// and 104). Those of channels and accounts are served; those of bots not
+// yet, and answer ERR_ENTERPRISE_IS_BLOCKED (400), which the clients do not
+// retry.
 
-// AccountReorderUsernames is not served: account.reorderUsernames#ef500eab order:Vector<string> = Bool;
+// AccountReorderUsernames
+// account.reorderUsernames#ef500eab order:Vector<string> = Bool;
 func (s *Service) AccountReorderUsernames(ctx context.Context, request *mtproto.TLAccountReorderUsernames) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.reorderUsernames - metadata: {%s}", c.MD)
+	return c.AccountReorderUsernames(request)
 }
 
-// AccountToggleUsername is not served: account.toggleUsername#58d6b376 username:string active:Bool = Bool;
+// AccountToggleUsername
+// account.toggleUsername#58d6b376 username:string active:Bool = Bool;
 func (s *Service) AccountToggleUsername(ctx context.Context, request *mtproto.TLAccountToggleUsername) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("account.toggleUsername - metadata: {%s}", c.MD)
+	return c.AccountToggleUsername(request)
 }
 
 // ChannelsReorderUsernames

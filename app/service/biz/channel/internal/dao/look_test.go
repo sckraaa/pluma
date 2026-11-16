@@ -15,41 +15,33 @@
 
 package dao
 
-import "testing"
+import (
+	"errors"
+	"testing"
 
-// An order of usernames lists each shown one once, without case, and no
-// hidden one; it places each shown one at its index.
-func TestUsernamesOrder(t *testing.T) {
-	rows := []usernameRow{
-		{Id: 1, Username: "Main", Editable: true, Active: true},
-		{Id: 2, Username: "hidden"},
-		{Id: 3, Username: "extra", Active: true},
-	}
+	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/peernames"
+)
+
+// The usernames of a channel answer as in task 078: an order that is not
+// every shown username once is USERNAME_INVALID and the order they have
+// CHAT_NOT_MODIFIED (core.telegram.org/method/channels.reorderUsernames),
+// unlike account.reorderUsernames.
+func TestChannelUsernamesError(t *testing.T) {
+	other := errors.New("db down")
 	for _, c := range []struct {
-		order []string
-		ok    bool
-		at    map[int64]int
+		err, want error
 	}{
-		{[]string{"extra", "main"}, true, map[int64]int{3: 0, 1: 1}},
-		{[]string{"MAIN", "Extra"}, true, map[int64]int{1: 0, 3: 1}},
-		{[]string{"main"}, false, nil},
-		{[]string{"main", "extra", "hidden"}, false, nil},
-		{[]string{"main", "main"}, false, nil},
-		{[]string{"main", "extra", "extra"}, false, nil},
-		{nil, false, nil},
+		{peernames.ErrNotFound, mtproto.ErrUsernameInvalid},
+		{peernames.ErrEditable, mtproto.ErrUsernameInvalid},
+		{peernames.ErrSame, mtproto.ErrUsernameNotModified},
+		{peernames.ErrTooMany, mtproto.ErrUsernamesActiveTooMuch},
+		{peernames.ErrBadOrder, mtproto.ErrUsernameInvalid},
+		{peernames.ErrSameOrder, mtproto.ErrChatNotModified},
+		{other, other},
 	} {
-		at, ok := usernamesOrder(rows, c.order)
-		if ok != c.ok {
-			t.Errorf("%v: ok %v, want %v", c.order, ok, c.ok)
-			continue
+		if got := channelUsernamesError(c.err); !errors.Is(got, c.want) {
+			t.Errorf("%v: %v, want %v", c.err, got, c.want)
 		}
-		for id, i := range c.at {
-			if at[id] != i {
-				t.Errorf("%v: row %d at %d, want %d", c.order, id, at[id], i)
-			}
-		}
-	}
-	if names := activeNames(rows); len(names) != 2 || names[0] != "Main" || names[1] != "extra" {
-		t.Errorf("shown: %v", names)
 	}
 }

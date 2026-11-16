@@ -443,7 +443,7 @@ func (dao *UsernameDAO) SelectListByUserId(ctx context.Context, peerId int64) (r
 		query  string
 		values []dataobject.UsernameDO
 	)
-	query = "select peer_type, peer_id, username, editable, active, order2 from username where peer_type = 2 and peer_id = ?"
+	query = "select peer_type, peer_id, username, editable, active, order2 from username where peer_type = 2 and peer_id = ? order by order2, id"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, peerId)
 
@@ -464,7 +464,7 @@ func (dao *UsernameDAO) SelectListByUserIdWithCB(ctx context.Context, peerId int
 		query  string
 		values []dataobject.UsernameDO
 	)
-	query = "select peer_type, peer_id, username, editable, active, order2 from username where peer_type = 2 and peer_id = ?"
+	query = "select peer_type, peer_id, username, editable, active, order2 from username where peer_type = 2 and peer_id = ? order by order2, id"
 
 	err = dao.db.QueryRowsPartial(ctx, &values, query, peerId)
 
