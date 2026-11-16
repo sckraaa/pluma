@@ -122,11 +122,15 @@ func TestBusinessBotActions(t *testing.T) {
 		return u.GetMessage_MESSAGE().GetMessage() == "do you deliver"
 	})
 
-	// The answer with a button.
+	// The answer with a button, in the shape of the bot's layer 233 (a
+	// keyboardButtonCallback of layer 228 has no constructor there).
 	markup := mtproto.MakeTLReplyInlineMarkup(&mtproto.ReplyMarkup{
-		Rows: []*mtproto.KeyboardButtonRow{mtproto.MakeTLKeyboardButtonRow(&mtproto.KeyboardButtonRow{
-			Buttons: []*mtproto.KeyboardButton{mtproto.MakeTLKeyboardButtonCallback(&mtproto.KeyboardButton{Text: "Order", Data: []byte("order")}).To_KeyboardButton()},
-		}).To_KeyboardButtonRow()},
+		Rows_VECTORKEYBOARDINLINEBUTTONROW: []*mtproto.KeyboardInlineButtonRow{mtproto.MakeTLKeyboardInlineButtonRow(&mtproto.KeyboardInlineButtonRow{
+			Buttons: []*mtproto.KeyboardInlineButton{mtproto.MakeTLKeyboardInlineButton(&mtproto.KeyboardInlineButton{
+				Text: "Order",
+				Type: mtproto.MakeTLInlineButtonTypeCallback(&mtproto.InlineButtonType{Data: []byte("order")}).To_InlineButtonType(),
+			}).To_KeyboardInlineButton()},
+		}).To_KeyboardInlineButtonRow()},
 	}).To_ReplyMarkup()
 	o, err := send("yes, we do", markup)
 	if err != nil {
