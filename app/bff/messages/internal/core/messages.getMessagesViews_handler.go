@@ -20,10 +20,10 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 )
 
 /*
@@ -132,9 +132,8 @@ func (c *MessagesCore) MessagesGetMessagesViews(in *mtproto.TLMessagesGetMessage
 		// forwarded from a channel"; the clients keep the views of a
 		// forward, Android SendMessagesHelper.java:2428-2431).
 		boxMsgList.Walk(func(idx int, v *mtproto.MessageBox) {
-			fwdFrom := v.Message.GetFwdFrom()
-			channelId, post := fwdFrom.GetFromId().GetChannelId(), fwdFrom.GetChannelPost().GetValue()
-			if channelId == 0 || post == 0 {
+			channelId, post, ok := postOrigin(v.Message)
+			if !ok {
 				return
 			}
 			channelIds[channelId] = append(channelIds[channelId], post)
@@ -148,24 +147,16 @@ func (c *MessagesCore) MessagesGetMessagesViews(in *mtproto.TLMessagesGetMessage
 	}
 
 	// A channel the account may not read shows nothing: an empty one, as
-	// channelMessagesViews gives for an id it may not see.
-	posts := make(map[int64]map[int32]*mtproto.Message, len(channelIds))
-	for channelId, ids := range channelIds {
-		if mtproto.FromBool(in.GetIncrement()) {
-			if _, err := c.svcCtx.Dao.Channel.ChannelIncrementMessageViews(c.ctx, &channelpb.TLChannelIncrementMessageViews{SelfId: c.MD.UserId, ChannelId: channelId, Id: ids}); err != nil {
-				c.Logger.Infof("messages.getMessagesViews - channel %d: %v", channelId, err)
-			}
-		}
-		messages, err := c.svcCtx.Dao.Channel.ChannelGetMessages(c.ctx, &channelpb.TLChannelGetMessages{SelfId: c.MD.UserId, ChannelId: channelId, Id: ids})
-		if err != nil {
-			c.Logger.Infof("messages.getMessagesViews - channel %d: %v", channelId, err)
-			continue
-		}
-		byId := make(map[int32]*mtproto.Message, len(messages.GetDatas()))
-		for _, m := range messages.GetDatas() {
-			byId[m.GetId()] = m
-		}
-		posts[channelId] = byId
+	// channelMessagesViews gives for an id it may not see. The view counts
+	// from a private chat, or from a group (task 103).
+	source := channelstats.ViewPrivate
+	if peer.PeerType == mtproto.PEER_CHAT {
+		source = channelstats.ViewGroup
+	}
+	posts, err := c.originalPosts(channelIds, source, mtproto.FromBool(in.GetIncrement()))
+	if err != nil {
+		c.Logger.Errorf("messages.getMessagesViews - error: %v", err)
+		return nil, err
 	}
 
 	rViews := mtproto.MakeTLMessagesMessageViews(&mtproto.Messages_MessageViews{

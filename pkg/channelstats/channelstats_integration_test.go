@@ -64,8 +64,9 @@ func channelMessage(t *testing.T, db *sql.DB, m *mtproto.Message, deleted bool) 
 
 // TestMigration: the migration makes the tables and the indexes, records
 // since when each kind of events is collected, fills the index of public
-// forwards from the forwarded posts already stored (not the automatic copies
-// in discussion groups, nor deleted messages, nor forwards from users) and
+// forwards from the forwarded posts and the shared stories of channels
+// already stored (not the automatic copies in discussion groups, nor deleted
+// messages, nor forwards from users, nor stories of users) and
 // runs again without changing anything.
 func TestMigration(t *testing.T) {
 	ctx := context.Background()
@@ -105,6 +106,15 @@ func TestMigration(t *testing.T) {
 	}), true)
 	channelMessage(t, db, fwd(other, 3, 1400, &mtproto.MessageFwdHeader{FromId: mtproto.MakePeerUser(42), Date: 900}), false)
 	channelMessage(t, db, mtproto.MakeTLMessage(&mtproto.Message{Id: 4, PeerId: mtproto.MakePeerChannel(other), Date: 1500, Message: "x"}).To_Message(), false)
+	// A story of the channel shared into another, and a story of a user.
+	story := func(id, date int32, peer *mtproto.Peer, storyId int32) *mtproto.Message {
+		return mtproto.MakeTLMessage(&mtproto.Message{
+			Id: id, PeerId: mtproto.MakePeerChannel(other), Date: date,
+			Media: mtproto.MakeTLMessageMediaStory(&mtproto.MessageMedia{Peer: peer, Id: storyId}).To_MessageMedia(),
+		}).To_Message()
+	}
+	channelMessage(t, db, story(5, 1600, mtproto.MakePeerChannel(source), 3), false)
+	channelMessage(t, db, story(6, 1700, mtproto.MakePeerUser(42), 4), false)
 
 	path, err := testinfra.SchemaFile(statsMigration)
 	if err != nil {
@@ -119,6 +129,7 @@ func TestMigration(t *testing.T) {
 		Date           int64
 	}
 	want := []forward{
+		{2, mtproto.PEER_CHANNEL, source, 3, other, 5, 1600},
 		{1, mtproto.PEER_CHANNEL, source, 7, other, 1, 1000},
 		{1, mtproto.PEER_CHANNEL, source, 8, group, 1, 1100},
 	}

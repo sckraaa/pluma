@@ -791,6 +791,11 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 			channelId, m.Id, b.UserId(), sendAs, o.RandomId, ch.Pts(), mtproto.GetMediaType(m), data, m.GetMessage(), top, channelbox.TopicColumn(topicId), sublist, b.Date()); err != nil {
 			return nil, nil, nil, err
 		}
+		if !s.monoforum {
+			if err = recordPublicForward(b, channelId, m); err != nil {
+				return nil, nil, nil, err
+			}
+		}
 		if s.monoforum {
 			if err = monoforum.Moved(b.Tx(), channelId, sublist, m.Id, false, s.sublistAdmin, b.Date()); err != nil {
 				return nil, nil, nil, err
@@ -1002,6 +1007,29 @@ func linkedGroup(b *userbox.Box, channelId int64) (int64, error) {
 		return 0, nil
 	}
 	return linked[0], nil
+}
+
+// recordPublicForward records the message m just written to the channel or
+// supergroup channelId when it is a forward of a post of a broadcast
+// channel, or shares a story of a channel, for the list of the public
+// forwards of the post or the story (task 103, stats.getMessagePublicForwards
+// and stats.getStoryPublicForwards). Whether the channel is public is read
+// when they are listed, as its name comes and goes. A post forwarded has
+// fwd_from with its channel and channel_post (messages.forwardMessages); the
+// automatic copy in the discussion group is written by postCopy, not here.
+// A sublist of a monoforum is never public, and the caller leaves it out.
+func recordPublicForward(b *userbox.Box, channelId int64, m *mtproto.Message) error {
+	fwd := m.GetFwdFrom()
+	if from, post := fwd.GetFromId().GetChannelId(), fwd.GetChannelPost().GetValue(); from != 0 && post != 0 {
+		return channelstats.PublicForward(b.Tx(), channelstats.ForwardPost, mtproto.PEER_CHANNEL, from, post, channelId, m.Id, b.Date())
+	}
+	media := m.GetMedia()
+	if media.GetPredicateName() == mtproto.Predicate_messageMediaStory && !media.GetViaMention() {
+		if from := media.GetPeer().GetChannelId(); from != 0 && media.GetId() != 0 {
+			return channelstats.PublicForward(b.Tx(), channelstats.ForwardStory, mtproto.PEER_CHANNEL, from, media.GetId(), channelId, m.Id, b.Date())
+		}
+	}
+	return nil
 }
 
 // postCopy writes the copy of post m of channelId into its discussion

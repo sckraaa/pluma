@@ -557,7 +557,7 @@ func (s *Service) ChannelSetAvailableReactions(ctx context.Context, request *cha
 }
 
 // ChannelIncrementMessageViews
-// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> = Bool;
+// channel.incrementMessageViews self_id:long channel_id:long id:Vector<int> source:int = Bool;
 func (s *Service) ChannelIncrementMessageViews(ctx context.Context, request *channel.TLChannelIncrementMessageViews) (*mtproto.Bool, error) {
 	c := core.New(ctx, s.svcCtx)
 	c.Logger.Debugf("channel.incrementMessageViews - metadata: {%s}", c.MD)

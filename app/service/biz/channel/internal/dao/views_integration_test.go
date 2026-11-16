@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	sync_ "github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/internal/config"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/testinfra"
 
@@ -103,7 +104,7 @@ func TestViewsOncePerUser(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				errs <- f.d.IncrementViews(ctx, u, id, []int32{2, 1, 1})
+				errs <- f.d.IncrementViews(ctx, u, id, []int32{2, 1, 1}, channelstats.ViewSubscriber)
 			}()
 		}
 	}
@@ -111,7 +112,7 @@ func TestViewsOncePerUser(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errs <- f.d.IncrementViews(ctx, author, id, []int32{1, 2})
+			errs <- f.d.IncrementViews(ctx, author, id, []int32{1, 2}, channelstats.ViewSubscriber)
 		}()
 	}
 	wg.Wait()
@@ -134,7 +135,7 @@ func TestViewsOncePerUser(t *testing.T) {
 		t.Errorf("the author has %d rows", rows)
 	}
 
-	if err := f.d.IncrementViews(ctx, users[0], id, []int32{1}); err != nil {
+	if err := f.d.IncrementViews(ctx, users[0], id, []int32{1}, channelstats.ViewSubscriber); err != nil {
 		t.Fatal(err)
 	}
 	if v, _ := f.counters(id, 1); v != viewers+1 {
@@ -163,10 +164,10 @@ func TestViewsOnlyPostsTheyMaySee(t *testing.T) {
 	f.post(id, author, 2)
 	f.exec("UPDATE channel_messages SET deleted = 1 WHERE channel_id = ? AND id = 2", id)
 
-	if err := f.d.IncrementViews(ctx, stranger, id, []int32{1}); !errors.Is(err, mtproto.ErrChannelPrivate) {
+	if err := f.d.IncrementViews(ctx, stranger, id, []int32{1}, channelstats.ViewSubscriber); !errors.Is(err, mtproto.ErrChannelPrivate) {
 		t.Errorf("one out of the channel: %v, want CHANNEL_PRIVATE", err)
 	}
-	if err := f.d.IncrementViews(ctx, member, id, []int32{1, 2, 99}); err != nil {
+	if err := f.d.IncrementViews(ctx, member, id, []int32{1, 2, 99}, channelstats.ViewSubscriber); err != nil {
 		t.Fatal(err)
 	}
 	if v, _ := f.counters(id, 1); v != 2 {
@@ -183,7 +184,7 @@ func TestViewsOnlyPostsTheyMaySee(t *testing.T) {
 		t.Fatal(err)
 	}
 	f.exec("INSERT INTO channel_messages (channel_id, id, sender_user_id, pts, message_data, date2) VALUES (?, 3, ?, 3, ?, 0)", id, author, service)
-	if err = f.d.IncrementViews(ctx, member, id, []int32{3}); err != nil {
+	if err = f.d.IncrementViews(ctx, member, id, []int32{3}, channelstats.ViewSubscriber); err != nil {
 		t.Fatal(err)
 	}
 	if v, _ := f.counters(id, 3); v != 1 {
@@ -194,7 +195,7 @@ func TestViewsOnlyPostsTheyMaySee(t *testing.T) {
 	f.post(id, author, 4)
 	f.join(id, late)
 	f.exec("UPDATE channel_participants SET available_min_id = 4 WHERE channel_id = ? AND user_id = ?", id, late)
-	if err = f.d.IncrementViews(ctx, late, id, []int32{1, 4}); err != nil {
+	if err = f.d.IncrementViews(ctx, late, id, []int32{1, 4}, channelstats.ViewSubscriber); err != nil {
 		t.Fatal(err)
 	}
 	if v, _ := f.counters(id, 1); v != 2 {
@@ -207,7 +208,7 @@ func TestViewsOnlyPostsTheyMaySee(t *testing.T) {
 	group := f.create(author, true)
 	f.join(group, member)
 	f.post(group, author, 1)
-	if err := f.d.IncrementViews(ctx, member, group, []int32{1}); err != nil {
+	if err := f.d.IncrementViews(ctx, member, group, []int32{1}, channelstats.ViewSubscriber); err != nil {
 		t.Fatal(err)
 	}
 	if v, _ := f.counters(group, 1); v != 1 {
