@@ -493,7 +493,7 @@ func TestInlineGifTrending(t *testing.T) {
 	}
 	waitUpdate(ctx, t, ann, mtproto.Predicate_updateNewMessage, func(u *mtproto.Update) bool {
 		got := u.GetMessage_MESSAGE()
-		return got.GetMedia().GetDocument().GetId() == popular.GetId() && got.GetFromId().GetUserId() == dan.self.GetId() && got.GetViaBotId() == nil
+		return got.GetMedia().GetDocument().GetId() == popular.GetId() && !got.GetOut() && got.GetPeerId().GetUserId() == dan.self.GetId() && got.GetViaBotId() == nil
 	})
 	if n := gifSends(t, popular.GetId()); n != "1" {
 		t.Errorf("sends of the GIF counted: %s, want 1", n)
