@@ -1,0 +1,44 @@
+# Configuration of a CDN node (task 102, ADR 0065). The image's own copy;
+# in Docker teamgramd/deploy/cdn/cdn.yaml is mounted over it, filled from
+# the environment. docs/ops/cdn.md describes the ports, the volume and the
+# control certificates.
+Log:
+  ServiceName: cdn
+  Mode: console
+  Level: info
+
+# The CDN DC the node serves, as dc_options names it at the home.
+DcId: 201
+
+MTProto:
+  # The client port. Only connections made with Secret are accepted: the
+  # DC's address in dc_options carries it, so that Android tries no other
+  # port on the address (ADR 0065 §5).
+  ListenOn: 0.0.0.0:8443
+  # "dd" and 32 hex digits, public, not a key; required: the node does
+  # not start without it (CDN_SECRET in teamgramd/deploy/cdn/cdn.yaml).
+  Secret: ""
+  MaxAuthKeys: 20000
+  MaxConnsPerIP: 32
+  KeyExchangesPerIPMinute: 300
+  MaxInFlight: 16
+  IdleTimeout: 5m
+
+Store:
+  # Files, their index, the node's RSA key (rsa.key) and the traffic count.
+  DataDir: /var/lib/cdn
+  # The disk the files may fill.
+  CacheBytes: 10737418240
+  IdleTTL: 720h
+  # Below this much free space the node refuses files and the home takes
+  # it out of redirects.
+  DiskReserveBytes: 2147483648
+
+Control:
+  # The gRPC control API of the home, served over mutual TLS only.
+  ListenOn: 0.0.0.0:20510
+  CertFile: /opt/cdn/control/server.pem
+  KeyFile: /opt/cdn/control/server-key.pem
+  ClientCAFile: /opt/cdn/control/client-ca.pem
+
+MetricsListenOn: 0.0.0.0:20511
