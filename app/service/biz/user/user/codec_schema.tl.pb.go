@@ -4600,6 +4600,10 @@ func (m *TLUserUpdateBotData) Encode(x *mtproto.EncodeBuf, layer int32) error {
 		if m.GetBotHasMainApp() != nil {
 			flags |= 1 << 13
 		}
+		// user.bot_business (task 105): the bit of the user's flags2.
+		if m.GetBotBusiness() != nil {
+			flags |= 1 << 11
+		}
 
 		x.UInt(flags)
 
@@ -4627,6 +4631,10 @@ func (m *TLUserUpdateBotData) Encode(x *mtproto.EncodeBuf, layer int32) error {
 
 		if m.GetBotHasMainApp() != nil {
 			m.GetBotHasMainApp().Encode(x, layer)
+		}
+
+		if m.GetBotBusiness() != nil {
+			m.GetBotBusiness().Encode(x, layer)
 		}
 
 	default:
@@ -4677,6 +4685,11 @@ func (m *TLUserUpdateBotData) Decode(dBuf *mtproto.DecodeBuf) error {
 			m8 := &mtproto.Bool{}
 			m8.Decode(dBuf)
 			m.BotHasMainApp = m8
+		}
+		if (flags & (1 << 11)) != 0 {
+			m9 := &mtproto.Bool{}
+			m9.Decode(dBuf)
+			m.BotBusiness = m9
 		}
 		return dBuf.GetError()
 

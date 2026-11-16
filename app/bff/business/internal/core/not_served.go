@@ -45,27 +45,7 @@ func (c *BusinessCore) MessagesDeleteQuickReplyMessages(in *mtproto.TLMessagesDe
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// AccountUpdateConnectedBot is not served yet: account.updateConnectedBot#66a08c7e.
-func (c *BusinessCore) AccountUpdateConnectedBot(in *mtproto.TLAccountUpdateConnectedBot) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountGetConnectedBots is not served yet: account.getConnectedBots#4ea4c80f.
-func (c *BusinessCore) AccountGetConnectedBots(in *mtproto.TLAccountGetConnectedBots) (*mtproto.Account_ConnectedBots, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // AccountGetBotBusinessConnection is not served yet: account.getBotBusinessConnection#76a86270.
 func (c *BusinessCore) AccountGetBotBusinessConnection(in *mtproto.TLAccountGetBotBusinessConnection) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountToggleConnectedBotPaused is not served yet: account.toggleConnectedBotPaused#646e1097.
-func (c *BusinessCore) AccountToggleConnectedBotPaused(in *mtproto.TLAccountToggleConnectedBotPaused) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// AccountDisablePeerConnectedBot is not served yet: account.disablePeerConnectedBot#5e437ed9.
-func (c *BusinessCore) AccountDisablePeerConnectedBot(in *mtproto.TLAccountDisablePeerConnectedBot) (*mtproto.Bool, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }

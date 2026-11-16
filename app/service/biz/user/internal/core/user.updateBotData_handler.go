@@ -26,7 +26,7 @@ import (
 )
 
 // UserUpdateBotData
-// user.updateBotData flags:# user_id:long bot_chat_history:flags.15?Bool bot_nochats:flags.16?Bool bot_inline_geo:flags.21?Bool bot_attach_menu:flags.27?Bool bot_inline_placeholder:flags.19?string = Bool;
+// user.updateBotData flags:# user_id:long bot_chat_history:flags.15?Bool bot_nochats:flags.16?Bool bot_inline_geo:flags.21?Bool bot_attach_menu:flags.27?Bool bot_inline_placeholder:flags.19?string bot_has_main_app:flags.13?Bool bot_business:flags.11?Bool = Bool;
 //
 // A call with no field only raises bot_info_version, which tells clients to
 // fetch the bot's info again (core.telegram.org/api/bots/commands). The
@@ -48,6 +48,7 @@ func (c *UserCore) UserUpdateBotData(in *user.TLUserUpdateBotData) (*mtproto.Boo
 	flag("bot_inline_geo", in.GetBotInlineGeo())
 	flag("bot_attach_menu", in.GetBotAttachMenu())
 	flag("bot_has_main_app", in.GetBotHasMainApp())
+	flag("bot_business", in.GetBotBusiness())
 	if p := in.GetBotInlinePlaceholder(); p != nil {
 		sets = append(sets, "bot_inline_placeholder = ?")
 		args = append(args, p.GetValue())

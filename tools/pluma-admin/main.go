@@ -20,7 +20,7 @@
 //	pluma-admin [-f bff.yaml] bot create <username> <name...> [-owner <phone>]
 //	pluma-admin [-f bff.yaml] bot list
 //	pluma-admin [-f bff.yaml] bot token <username>
-//	pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off] [-domain <host>|off] [-main-app <url>|off]
+//	pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off] [-domain <host>|off] [-main-app <url>|off] [-business on|off]
 //	pluma-admin [-f bff.yaml] bot app list <username>
 //	pluma-admin [-f bff.yaml] bot app add|edit <username> <short name> [-title <t>] [-url <url>] [-photo <image>] [-description <d>] [-animation <mp4>|off] [-write-access on|off]
 //	pluma-admin [-f bff.yaml] bot app rm <username> <short name>
@@ -239,7 +239,7 @@ const usage = `Usage:
   pluma-admin [-f bff.yaml] bot create <username> <name...> [-owner <phone>]   (prints the token)
   pluma-admin [-f bff.yaml] bot list
   pluma-admin [-f bff.yaml] bot token <username>   (replaces the token)
-  pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off] [-domain <host>|off] [-main-app <url>|off]
+  pluma-admin [-f bff.yaml] bot set <username> [-privacy on|off] [-groups on|off] [-inline <placeholder>] [-inline-geo on|off] [-domain <host>|off] [-main-app <url>|off] [-business on|off]
   pluma-admin [-f bff.yaml] bot app list <username>   (direct link mini apps, docs/ops/bots.md)
   pluma-admin [-f bff.yaml] bot app add|edit <username> <short name> [-title <t>] [-url <url>] [-photo <image>] [-description <d>] [-animation <mp4>|off] [-write-access on|off]
   pluma-admin [-f bff.yaml] bot app rm <username> <short name>

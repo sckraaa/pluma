@@ -25,6 +25,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -240,10 +241,12 @@ type fakeUpload struct {
 	size       int
 }
 
-// fakeBotServices records the uploads and the calls to biz.
+// fakeBotServices records the uploads, the calls to biz and the bots
+// disconnected from Business accounts.
 type fakeBotServices struct {
-	uploads []fakeUpload
-	updates []*userpb.TLUserUpdateBotData
+	uploads      []fakeUpload
+	updates      []*userpb.TLUserUpdateBotData
+	disconnected []int64
 }
 
 func (s *fakeBotServices) UploadPhoto(_ context.Context, image []byte, name string) (int64, error) {
@@ -259,6 +262,11 @@ func (s *fakeBotServices) UploadDocument(_ context.Context, file []byte, name, m
 func (s *fakeBotServices) UpdateBotData(_ context.Context, in *userpb.TLUserUpdateBotData) error {
 	s.updates = append(s.updates, in)
 	return nil
+}
+
+func (s *fakeBotServices) DisconnectBusiness(_ context.Context, botId int64) (int, error) {
+	s.disconnected = append(s.disconnected, botId)
+	return 2, nil
 }
 
 // testFiles writes the files the commands read: a PNG picture, SVG and TGS
@@ -422,6 +430,39 @@ func TestSetBotDomainAndMainApp(t *testing.T) {
 	}
 	if st.mainApp != "" || st.domain != "" || len(svc.updates) != 2 || mtproto.FromBool(svc.updates[1].GetBotHasMainApp()) {
 		t.Errorf("after off: main app %q, domain %q, updates %v", st.mainApp, st.domain, svc.updates)
+	}
+}
+
+// -business turns user.bot_business on and off; off disconnects the bot
+// from the accounts it serves, after the flag.
+func TestSetBotBusiness(t *testing.T) {
+	ctx := context.Background()
+	st, svc := newFakePlatform(), &fakeBotServices{}
+	var out bytes.Buffer
+	if err := setBot(ctx, st, svc, []string{"shopbot", "-business", "on"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(svc.updates) != 1 || !mtproto.FromBool(svc.updates[0].GetBotBusiness()) || len(svc.disconnected) != 0 {
+		t.Fatalf("on: updates %v, disconnected %v", svc.updates, svc.disconnected)
+	}
+	if err := setBot(ctx, st, svc, []string{"shopbot", "-business", "off"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if len(svc.updates) != 2 || svc.updates[1].GetBotBusiness() == nil || mtproto.FromBool(svc.updates[1].GetBotBusiness()) ||
+		!slices.Equal(svc.disconnected, []int64{testBotId}) {
+		t.Fatalf("off: updates %v, disconnected %v", svc.updates, svc.disconnected)
+	}
+	if !strings.Contains(out.String(), "disconnected from 2 accounts") {
+		t.Errorf("output %q", out.String())
+	}
+	if err := setBot(ctx, st, svc, []string{"shopbot", "-business", "maybe"}, &out); err == nil {
+		t.Error("-business maybe is taken")
+	}
+	if err := setBot(ctx, st, svc, []string{"shopbot", "-privacy", "on"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	if svc.updates[2].GetBotBusiness() != nil || len(svc.disconnected) != 1 {
+		t.Errorf("another flag touched the business mode: %v, %v", svc.updates[2], svc.disconnected)
 	}
 }
 

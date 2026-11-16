@@ -412,6 +412,7 @@ func (s *Server) Initialize() error {
 				MessageClient: c.BizServiceClient,
 				ChannelClient: c.BizServiceClient,
 				MsgClient:     c.MsgClient,
+				Mysql:         c.Mysql,
 			}, nil))
 
 		// folders_helper: the folders of chats and their tags.

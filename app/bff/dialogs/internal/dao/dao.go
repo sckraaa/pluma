@@ -20,6 +20,7 @@ package dao
 
 import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/dialogs/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
@@ -29,6 +30,7 @@ import (
 	message_client "github.com/teamgram/teamgram-server/app/service/biz/message/client"
 	updates_client "github.com/teamgram/teamgram-server/app/service/biz/updates/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
+	"github.com/teamgram/teamgram-server/pkg/business"
 )
 
 type Dao struct {
@@ -40,6 +42,8 @@ type Dao struct {
 	message_client.MessageClient
 	Channel channel_client.ChannelClient
 	msg_client.MsgClient
+	// Business gives the bar of the connected bot of a chat (task 105).
+	Business *business.Store
 }
 
 func New(c config.Config) *Dao {
@@ -52,5 +56,6 @@ func New(c config.Config) *Dao {
 		ChatClient:    chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		Channel:       channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
 		MsgClient:     msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
+		Business:      business.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

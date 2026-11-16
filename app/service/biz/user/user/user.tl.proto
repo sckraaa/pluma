@@ -784,6 +784,7 @@ message TL_user_updateBotData {
   mtproto.Bool bot_attach_menu = 7;
   google.protobuf.StringValue bot_inline_placeholder = 8;
   mtproto.Bool bot_has_main_app = 9;
+  mtproto.Bool bot_business = 10;
 }
 
 //--------------------------------------------------------------------------------------------
