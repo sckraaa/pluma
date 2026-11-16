@@ -19,13 +19,24 @@
 package svc
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/chats/internal/dao"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/channelsets"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 	"github.com/teamgram/teamgram-server/pkg/twofa"
+	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
+
+// PeerTranslations reads the chats whose translation bar their reader hid
+// with messages.togglePeerTranslations (task 101): *translate.Store.
+type PeerTranslations interface {
+	TranslationsDisabled(ctx context.Context, userId int64, peers ...translate.TranslationPeer) (map[translate.TranslationPeer]bool, error)
+}
 
 type ServiceContext struct {
 	Bots   *botstore.Store
@@ -34,14 +45,22 @@ type ServiceContext struct {
 	Twofa *twofa.Service
 	// Sets are the sticker and emoji sets of supergroups (task 078).
 	Sets *channelsets.Store
+	// Translations gives chatFull.translations_disabled (task 101).
+	Translations PeerTranslations
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
+	db, err := userbox.Open(c.Mysql.DSN)
+	if err != nil {
+		panic(fmt.Errorf("chats: %w", err))
+	}
 	return &ServiceContext{
 		Config: c,
 		Dao:    dao.New(c),
 		Twofa:  twofa.MustNewService(c.Mysql, c.KV),
 		Sets:   channelsets.New(sqlx.NewMySQL(&c.Mysql)),
 		Bots:   botstore.New(sqlx.NewMySQL(&c.Mysql)),
+
+		Translations: translate.NewStore(db),
 	}
 }

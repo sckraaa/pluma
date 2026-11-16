@@ -26,6 +26,7 @@ import (
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -206,6 +207,14 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
 		return nil, err
 	}
+	// Whether I hid the translation bar of the channel
+	// (messages.togglePeerTranslations, task 101): the clients read it from
+	// here (Android TranslateController.java:204-216, tdesktop
+	// data/data_channel.cpp:1525).
+	if full.TranslationsDisabled, err = c.translationsDisabled(ch.GetId()); err != nil {
+		c.Logger.Errorf("channels.getFullChannel - error: %v", err)
+		return nil, err
+	}
 	// The group call of the channel (task 093, ADR 0059).
 	// groupcall_default_join_as stays unset: joining as a channel is not
 	// offered (ADR 0060).
@@ -265,6 +274,17 @@ func (c *ChannelsCore) ChannelsGetFullChannel(in *mtproto.TLChannelsGetFullChann
 		Chats:    chats,
 		Users:    users.GetUserListByIdList(c.MD.UserId, ids...),
 	}).To_Messages_ChatFull(), nil
+}
+
+// translationsDisabled tells whether the caller hid the translation bar
+// of channelId.
+func (c *ChannelsCore) translationsDisabled(channelId int64) (bool, error) {
+	peer := translate.TranslationPeer{Type: mtproto.PEER_CHANNEL, Id: channelId}
+	disabled, err := c.svcCtx.Translations.TranslationsDisabled(c.ctx, c.MD.UserId, peer)
+	if err != nil {
+		return false, err
+	}
+	return disabled[peer], nil
 }
 
 // availableReactions are the reactions of the channel: the standard ones

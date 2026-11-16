@@ -25,6 +25,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/translate"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -92,6 +93,18 @@ func (c *ChatsCore) MessagesGetFullChat(in *mtproto.TLMessagesGetFullChat) (*mtp
 		AvailableReactions_FLAGVECTORSTRING:  chat.GetChat().GetAvailableReactions(),
 		AvailableReactions_FLAGCHATREACTIONS: chat.AvailableReactions(),
 	}).To_ChatFull()
+
+	// Whether I hid the translation bar of the group
+	// (messages.togglePeerTranslations, task 101): the clients read it from
+	// here (Android TranslateController.java:204-216, tdesktop
+	// data/data_chat.cpp:527).
+	peer := translate.TranslationPeer{Type: mtproto.PEER_CHAT, Id: chat.Id()}
+	disabled, err := c.svcCtx.Translations.TranslationsDisabled(c.ctx, c.MD.UserId, peer)
+	if err != nil {
+		c.Logger.Errorf("messages.getFullChat - error: %v", err)
+		return nil, err
+	}
+	chatFull.TranslationsDisabled = disabled[peer]
 
 	var (
 		idList []int64
