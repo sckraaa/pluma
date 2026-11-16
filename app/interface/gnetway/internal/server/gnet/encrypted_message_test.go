@@ -360,7 +360,7 @@ func TestHttpHandshakeStateGoneStillAnswered(t *testing.T) {
 		tc.onResPQ(parseUnencrypted(t, body))
 
 		// The worker computes the step while the state is dropped.
-		h.postAsync(c, tc.reqDHParams(false), func() { h.s.httpHandshakes.drop(tc.nonce) })
+		h.postAsync(c, tc.reqDHParams(false), func() { h.s.httpHandshakes.Drop(tc.nonce) })
 		status, body := h.response(c, 2)
 		if status != "HTTP/1.1 200 OK" {
 			t.Fatalf("DH step answered %q", status)

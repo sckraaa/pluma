@@ -10,9 +10,10 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
-	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	httpcodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/http"
 	wscodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/ws"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/codec"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 
 	gobwasws "github.com/gobwas/ws"
 	"github.com/panjf2000/gnet/v2"
@@ -84,7 +85,7 @@ func TestHandshakeCompletes(t *testing.T) {
 					t.Fatalf("key type %d, want %d", k.AuthKeyType, wantType)
 				}
 				// dh_gen_ok ends the handshake.
-				if n := c.ctx.(*connContext).handshakes.states.len(); n != 0 {
+				if n := c.ctx.(*connContext).handshakes.states.Len(); n != 0 {
 					t.Fatalf("%d handshakes left", n)
 				}
 			})
@@ -106,7 +107,7 @@ func TestHandshakeOutOfOrder(t *testing.T) {
 	}{
 		{"set_client_DH_params first", func(h *testHarness, c *fakeConn, tc *testClient) []byte {
 			tc.serverNonce = crypto.GenerateNonce(16)
-			tc.g, tc.dhPrime, tc.gA = 3, gBigIntDH2048P, gBigIntDH2048G
+			tc.g, tc.dhPrime, tc.gA = 3, handshake.DHPrime(), handshake.DHGenerator()
 			return tc.setClientDHParams()
 		}},
 		{"req_DH_params first", func(h *testHarness, c *fakeConn, tc *testClient) []byte {
@@ -117,7 +118,7 @@ func TestHandshakeOutOfOrder(t *testing.T) {
 			h.sendFrame(c, tc.reqPqMulti())
 			tc.onResPQ(h.lastUnencrypted(c))
 			// nonce and server_nonce are right, new_nonce is unknown to the server.
-			tc.g, tc.dhPrime, tc.gA = 3, gBigIntDH2048P, gBigIntDH2048G
+			tc.g, tc.dhPrime, tc.gA = 3, handshake.DHPrime(), handshake.DHGenerator()
 			return tc.setClientDHParams()
 		}},
 		{"req_DH_params with a wrong server_nonce", func(h *testHarness, c *fakeConn, tc *testClient) []byte {
@@ -450,67 +451,6 @@ func TestKeyQueryPerConnection(t *testing.T) {
 	})
 }
 
-func TestHandshakeStore(t *testing.T) {
-	st := func(i byte) HandshakeStateCtx {
-		return HandshakeStateCtx{State: STATE_pq_res, Nonce: bytes.Repeat([]byte{i}, 16), ServerNonce: []byte{i}}
-	}
-
-	t.Run("bounded, oldest first", func(t *testing.T) {
-		hs := newHandshakeStore(3, 0)
-		for i := byte(0); i < 10; i++ {
-			hs.put(st(i), testNow)
-		}
-		if hs.len() != 3 {
-			t.Fatalf("len %d", hs.len())
-		}
-		if _, ok := hs.get(st(6).Nonce, testNow); ok {
-			t.Fatal("old state kept")
-		}
-		if _, ok := hs.get(st(9).Nonce, testNow); !ok {
-			t.Fatal("new state dropped")
-		}
-	})
-
-	t.Run("expires", func(t *testing.T) {
-		hs := newHandshakeStore(10, 60)
-		hs.put(st(1), testNow)
-		if _, err := hs.begin(st(1).Nonce, st(1).ServerNonce, STATE_pq_res, STATE_DH_params, testNow+60); err == nil {
-			t.Fatal("expired state used")
-		}
-		if hs.len() != 0 {
-			t.Fatal("expired state kept")
-		}
-	})
-
-	t.Run("transitions", func(t *testing.T) {
-		hs := newHandshakeStore(10, 0)
-		hs.put(st(1), testNow)
-		n, sn := st(1).Nonce, st(1).ServerNonce
-		if _, err := hs.begin(n, []byte{9}, STATE_pq_res, STATE_DH_params, testNow); err == nil {
-			t.Fatal("wrong server_nonce accepted")
-		}
-		if _, err := hs.begin(n, sn, STATE_DH_params_res, STATE_dh_gen, testNow); err == nil {
-			t.Fatal("wrong state accepted")
-		}
-		snap, err := hs.begin(n, sn, STATE_pq_res, STATE_DH_params, testNow)
-		if err != nil || snap.State != STATE_DH_params {
-			t.Fatalf("begin: %v %v", snap.State, err)
-		}
-		if _, err := hs.begin(n, sn, STATE_pq_res, STATE_DH_params, testNow); err == nil {
-			t.Fatal("the same step started twice")
-		}
-		// A new req_pq with the nonce restarts it: the step's result is dropped.
-		hs.put(st(1), testNow)
-		if hs.finish(n, STATE_DH_params, testNow, func(*HandshakeStateCtx) bool { return true }) {
-			t.Fatal("finished a restarted handshake")
-		}
-		got, _ := hs.get(n, testNow)
-		if got.NewNonce != nil || got.State != STATE_pq_res {
-			t.Fatal("state changed")
-		}
-	})
-}
-
 // TestHttpHandshakeFloodKeepsAuthKeys: req_pq over HTTP is kept apart from
 // the auth key cache and bounded.
 func TestHttpHandshakeFloodKeepsAuthKeys(t *testing.T) {
@@ -528,7 +468,7 @@ func TestHttpHandshakeFloodKeepsAuthKeys(t *testing.T) {
 		tc := newTestClient(t, &h.key.PublicKey)
 		h.do(func() { h.s.onHttpHandshake(ctx, c, tc.reqPqMulti()) })
 	}
-	if n := h.s.httpHandshakes.len(); n != maxHttpHandshakes {
+	if n := h.s.httpHandshakes.Len(); n != maxHttpHandshakes {
 		t.Fatalf("%d HTTP handshakes kept", n)
 	}
 	if h.s.GetAuthKey(testPermKeyId) == nil {
@@ -677,7 +617,7 @@ func FuzzHandshakeMessage(f *testing.F) {
 		h.sendFrame(c, tc.reqPqMulti())
 		h.sendFrame(c, frame)
 		h.do(func() {
-			if n := c.ctx.(*connContext).handshakes.states.len(); n > maxConnHandshakes {
+			if n := c.ctx.(*connContext).handshakes.states.Len(); n > maxConnHandshakes {
 				t.Fatalf("%d handshakes", n)
 			}
 		})
@@ -727,7 +667,7 @@ func TestWebsocketFramesAcrossMessages(t *testing.T) {
 	cut := len(stream) - 10 // the third frame continues in the next message
 
 	send(wsMessage(stream[:cut]))
-	if n := ctx.handshakes.states.len(); n != 2 {
+	if n := ctx.handshakes.states.Len(); n != 2 {
 		t.Fatalf("%d frames processed from the first message, want 2", n)
 	}
 	// The abridged codec has consumed the length byte of the third frame.
@@ -735,7 +675,7 @@ func TestWebsocketFramesAcrossMessages(t *testing.T) {
 		t.Fatalf("%d bytes kept", n)
 	}
 	send(wsMessage(stream[cut:]))
-	if n := ctx.handshakes.states.len(); n != 3 {
+	if n := ctx.handshakes.states.Len(); n != 3 {
 		t.Fatalf("%d frames processed, want 3", n)
 	}
 	if n := ctx.wsCodec.Conn.InboundBuffered(); n != 0 {

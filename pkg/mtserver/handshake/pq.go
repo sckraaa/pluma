@@ -1,4 +1,4 @@
-package gnet
+package handshake
 
 import (
 	"crypto/rand"
@@ -26,8 +26,8 @@ const (
 	pqSize = 8
 )
 
-// newPQ returns a random pq and its factors p < q.
-func newPQ() (pq, p, q uint64) {
+// NewPQ returns a random pq and its factors p < q.
+func NewPQ() (pq, p, q uint64) {
 	var r pqRandom
 	p = r.prime()
 	q = r.prime()
@@ -119,8 +119,8 @@ func powMod32(a, e, n uint64) uint64 {
 	return r
 }
 
-// putPQ encodes pq as resPQ carries it.
-func putPQ(pq uint64) string {
+// PutPQ encodes pq as resPQ carries it.
+func PutPQ(pq uint64) string {
 	var b [pqSize]byte
 	binary.BigEndian.PutUint64(b[:], pq)
 	return string(b[:])

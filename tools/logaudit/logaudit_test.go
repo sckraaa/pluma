@@ -37,6 +37,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -51,6 +52,8 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
 		{"new_nonce", `func f(ctx *HandshakeStateCtx) { logx.Infof("n: %x", ctx.NewNonce) }`, []string{"secret"}},
 		{"dh a", `func f(ctx *HandshakeStateCtx) { logx.Debugf("a: %v", ctx.A) }`, []string{"secret"}},
+		{"shared handshake key", `func f(k *handshake.DHGenKey) { logx.Infof("key: %v", k) }`, []string{"object"}},
+		{"shared handshake result", `func f(r *ReqDHParamsResult) { logx.Infof("res: %+v", r) }`, []string{"object"}},
 		{"g_b", `func f(in *mtproto.Client_DHInnerData) { logx.Infof("g_b: %s", in.GetGB()) }`, []string{"secret"}},
 		{"inner data", `func f(in *mtproto.TLClient_DHInnerData) { logx.Infof("inner: %#v", in.String()) }`, []string{"object"}},
 		// audit #9: key material in errors and packet dumps

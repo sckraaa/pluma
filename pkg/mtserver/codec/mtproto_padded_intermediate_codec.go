@@ -31,6 +31,17 @@ type PaddedIntermediateCodec struct {
 	*AesCTR128Crypto
 	state     int
 	packetLen uint32
+	// arbitraryLength accepts packets whose length is not a multiple of 4:
+	// the length counts the random padding, which the official clients do
+	// not round (tdesktop VersionD::finalizePacket adds 0-15 bytes,
+	// Telegram/SourceFiles/mtproto/connection_tcp.cpp:195-208; Android adds
+	// 0-256 bytes to unencrypted and 0-15 to encrypted packets and reads
+	// any length back, TMessagesProj/jni/tgnet/Connection.cpp:216, 485-491).
+	// The packet then ends with the padding: an unencrypted message is
+	// followed by up to 256 bytes, an encrypted one by up to 15. It is set
+	// for connections made with a secret (secret.go), where every client
+	// speaks this transport; the gateway keeps the stricter check.
+	arbitraryLength bool
 }
 
 func newMTProtoPaddedIntermediateCodec(crypto *AesCTR128Crypto) *PaddedIntermediateCodec {
@@ -54,9 +65,18 @@ func (c *PaddedIntermediateCodec) Encode(conn CodecWriter, msg interface{}) ([]b
 		return nil, err
 	}
 
-	paddingLen := rand2.Int() % 16
+	// The length counts the padding: the clients read that many bytes as
+	// the packet (tdesktop VersionD::readPacket, connection_tcp.cpp:210-229;
+	// Android Connection::onReceivedData). A transport error or quick ack
+	// (4 bytes) goes without padding: tdesktop takes a packet of fewer than
+	// 12 bytes for one (TcpConnection::parsePacket, connection_tcp.cpp:394-410),
+	// Android one of at most 56 (ConnectionsManager.cpp:834).
+	paddingLen := 0
+	if len(rawMsg.Payload) > 4 {
+		paddingLen = rand2.Int() % 16
+	}
 	buf := make([]byte, 4+len(rawMsg.Payload)+paddingLen)
-	binary.LittleEndian.PutUint32(buf, uint32(len(rawMsg.Payload)))
+	binary.LittleEndian.PutUint32(buf, uint32(len(rawMsg.Payload)+paddingLen))
 	copy(buf[4:], rawMsg.Payload)
 	if paddingLen > 0 {
 		_, _ = rand.Read(buf[4+len(rawMsg.Payload):])
@@ -96,7 +116,7 @@ func (c *PaddedIntermediateCodec) Decode(conn CodecReader) (bool, []byte, error)
 
 	needAck = c.packetLen>>31 == 1
 	n = int(c.packetLen & 0x7fffffff)
-	if n <= 0 || n%4 != 0 {
+	if n <= 0 || (!c.arbitraryLength && n%4 != 0) {
 		return false, nil, ErrProtoBadLength
 	}
 	if n > MAX_MTPRORO_FRAME_SIZE {

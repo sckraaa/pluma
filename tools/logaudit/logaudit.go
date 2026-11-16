@@ -139,11 +139,14 @@ var objectPackages = []string{
 	// the blocks and broadcasts of the chain of group calls (task 094)
 	"github.com/teamgram/teamgram-server/pkg/tde2e",
 	"github.com/teamgram/teamgram-server/pkg/groupcalls",
+	// the MTProto server code shared by the gateway and the CDN node
+	// (task 102): handshake state, computed keys and transport codecs
+	"github.com/teamgram/teamgram-server/pkg/mtserver/",
 }
 
 // localObjectTypes are types, used unqualified in their own package, that
 // hold handshake secrets or auth keys.
-var localObjectTypes = set("HandshakeStateCtx", "reqDHParamsResult", "dhGenKey", "authKeyUtil", "handshakeEntry", "AuthKey", "AuthKeyInfo")
+var localObjectTypes = set("HandshakeStateCtx", "reqDHParamsResult", "dhGenKey", "ReqDHParamsResult", "DHGenKey", "authKeyUtil", "handshakeEntry", "AuthKey", "AuthKeyInfo")
 
 // safeTypes are types of objectPackages that hold no user data.
 var safeTypes = set("RpcMetadata", "PeerUtil", "InputPeer", "Peer", "InputUser", "InputDialogPeer", "Bool", "Int32", "Int64", "Vector_Long", "Storage_FileType")
