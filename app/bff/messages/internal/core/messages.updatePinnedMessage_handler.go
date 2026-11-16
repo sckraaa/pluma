@@ -21,11 +21,20 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/business"
 )
 
 // MessagesUpdatePinnedMessage
 // messages.updatePinnedMessage#d2aaf7ec flags:# silent:flags.0?true unpin:flags.1?true pm_oneside:flags.2?true peer:InputPeer id:int = Updates;
+//
+// A connected business bot pins and unpins for its account in the chats it
+// may reply in (task 105).
 func (c *MessagesCore) MessagesUpdatePinnedMessage(in *mtproto.TLMessagesUpdatePinnedMessage) (*mtproto.Updates, error) {
+	if _, err := c.businessAct(business.MethodUpdatePinnedMessage, in.Peer); err != nil {
+		c.Logger.Errorf("messages.updatePinnedMessage - business connection: %v", err)
+		return nil, err
+	}
+
 	var (
 		peer     = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 		rUpdates *mtproto.Updates
@@ -53,5 +62,5 @@ func (c *MessagesCore) MessagesUpdatePinnedMessage(in *mtproto.TLMessagesUpdateP
 		return nil, err
 	}
 
-	return rUpdates, nil
+	return c.businessReply(rUpdates)
 }

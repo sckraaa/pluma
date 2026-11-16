@@ -35,6 +35,7 @@ import (
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/outbox"
 	"github.com/teamgram/teamgram-server/pkg/sendas"
@@ -82,6 +83,9 @@ type Dao struct {
 	// UserSeq journals the updates with seq of a user's own state, such as
 	// updateAttachMenuBots, and pushes them to the user's sessions.
 	UserSeq SeqPusher
+	// Business finds the connected bot of Telegram Business whose message
+	// a button is pressed in (task 105).
+	Business *business.Store
 
 	waitsMu sync.Mutex
 	waits   map[int64]int // requests of a user waiting for bots (EnterWait)
@@ -111,6 +115,7 @@ func New(c config.Config) *Dao {
 		SendAs:        sendas.New(db),
 		StickerLists:  stickerlists.NewStore(db, boxDB, c.SyncClient.Topic),
 		UserSeq:       BoxPush{DB: boxDB, Topic: c.SyncClient.Topic},
+		Business:      business.NewStore(db),
 		db:            db,
 		boxDB:         boxDB,
 		syncTopic:     c.SyncClient.Topic,

@@ -21,11 +21,20 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/business"
 )
 
 // MessagesReadHistory
 // messages.readHistory#e306d3a peer:InputPeer max_id:int = messages.AffectedMessages;
+//
+// A connected business bot with read_messages marks the chat read for its
+// account (task 105); the answer is the account's, as for deleteMessages.
 func (c *MessagesCore) MessagesReadHistory(in *mtproto.TLMessagesReadHistory) (*mtproto.Messages_AffectedMessages, error) {
+	if _, err := c.businessAct(business.MethodReadHistory, in.Peer); err != nil {
+		c.Logger.Errorf("messages.readHistory - business connection: %v", err)
+		return nil, err
+	}
+
 	var (
 		peer  = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 		maxId = in.MaxId

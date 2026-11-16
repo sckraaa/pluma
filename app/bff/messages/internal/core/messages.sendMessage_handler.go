@@ -23,6 +23,7 @@ import (
 
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/business"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/threading"
@@ -31,6 +32,16 @@ import (
 // MessagesSendMessage
 // messages.sendMessage#d9d75a4 flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true noforwards:flags.14?true peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.10?int send_as:flags.13?InputPeer = Updates;
 func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*mtproto.Updates, error) {
+	// A connected business bot writes for its account (task 105).
+	if _, err := c.businessAct(business.MethodSendMessage, in.Peer); err != nil {
+		c.Logger.Errorf("messages.sendMessage - business connection: %v", err)
+		return nil, err
+	}
+	if err := c.businessSend(in.ScheduleDate, in.GetQuickReplyShortcut(), in.GetSendAs()); err != nil {
+		c.Logger.Errorf("messages.sendMessage - business connection: %v", err)
+		return nil, err
+	}
+
 	var (
 		peer = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 	)
@@ -131,6 +142,8 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 		Factcheck:            nil,
 	}).To_Message()
 
+	c.businessMessage(outMessage)
+
 	// Fix SavedPeerId
 	if peer.IsSelfUser(c.MD.UserId) {
 		outMessage.SavedPeerId = peer.ToPeer()
@@ -202,12 +215,13 @@ func (c *MessagesCore) MessagesSendMessage(in *mtproto.TLMessagesSendMessage) (*
 	}
 	c.invalidateSentLoginCodes(in.Message)
 
-	if in.ClearDraft {
+	// The draft is the account's, not the bot's: a bot's send leaves it.
+	if in.ClearDraft && c.business == nil {
 		ctx := contextx.ValueOnlyFrom(c.ctx)
 		threading.GoSafe(func() {
 			c.clearSentDraft(ctx, peer, in.GetReplyTo())
 		})
 	}
 
-	return rUpdate, nil
+	return c.businessReply(rUpdate)
 }

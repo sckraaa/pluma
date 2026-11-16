@@ -115,6 +115,7 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"inline query point", `func f(in *mtproto.Update) { logx.Errorf("near %v", in.GetGeo()) }`, []string{"secret"}},
 		{"business address", `func f(in *mtproto.TLAccountUpdateBusinessLocation, address string) { logx.Infof("%v %s", in.GetAddress(), address) }`, []string{"secret", "secret"}},
 		{"chat link slug", `func f(in *mtproto.TLAccountResolveBusinessChatLink, slug string) { logx.Errorf("%s %s", in.GetSlug(), slug) }`, []string{"secret", "secret"}},
+		{"business connection", `func f(in *mtproto.TLInvokeWithBusinessConnection, md *metadata.RpcMetadata, connectionId string) { logx.Infof("%s %s %s", in.GetConnectionId(), md.GetBusinessConnectionId(), connectionId) }`, []string{"secret", "secret", "secret"}},
 		{"geo zoom ok", `func f(in *mtproto.InputWebFileLocation) { logx.Infof("zoom %d, %dx%d", in.GetZoom(), in.GetW(), in.GetH()) }`, nil},
 		// not findings
 		{"error", `func f(err error) { logx.Errorf("request: %v", err) }`, nil},

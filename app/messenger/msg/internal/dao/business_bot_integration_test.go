@@ -30,6 +30,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/qtsqueue"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // What the connected bot of Telegram Business is told of the chats it
@@ -196,5 +197,69 @@ func TestBusinessBotOffline(t *testing.T) {
 	var n int
 	if err := itCheck.QueryRow("SELECT COUNT(*) FROM qts_updates WHERE user_id = ?", bot).Scan(&n); err != nil || n != 0 {
 		t.Fatalf("queued for a bot signed in nowhere: %d, %v", n, err)
+	}
+}
+
+// A message the connected bot sends for its account (task 105, part 8)
+// keeps via_business_bot_id in the account's box, which its updates and
+// the bot's updateBotNewBusinessMessage show; the other side's copy is the
+// account's message without it.
+func TestBusinessBotSentMessageCopies(t *testing.T) {
+	w := newWorld(t, boxDSN(""), 0)
+	owner, peer, bot := newUser(), newUser(), newUser()
+	w.users.mu.Lock()
+	w.users.bots[bot] = true
+	w.users.mu.Unlock()
+	w.connectBot(owner, bot)
+	w.signIn(bot, bot*10)
+
+	m := textMessage(owner, mtproto.MakePeerUser(peer), "sent by the bot")
+	m.ViaBusinessBotId = wrapperspb.Int64(bot)
+	r, err := w.rpc.MsgSendMessageV2(context.Background(), &msg.TLMsgSendMessageV2{
+		// The request of the bot runs with the bot's key, which is none of
+		// the account's devices.
+		UserId: owner, AuthKeyId: bot * 10, PeerType: mtproto.PEER_USER, PeerId: peer, Message: []*msg.OutboxMessage{outbox(m)},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.pub.drain()
+	for _, u := range r.GetUpdates() {
+		if u.GetPredicateName() == mtproto.Predicate_updateNewMessage && u.GetMessage_MESSAGE().GetViaBusinessBotId().GetValue() != bot {
+			t.Fatalf("the account's answer without the bot: %v", u.GetMessage_MESSAGE())
+		}
+	}
+	via := func(rows []messageRow) (bool, int) {
+		t.Helper()
+		var data struct {
+			ViaBusinessBotId *struct {
+				Value int64 `json:"value"`
+			} `json:"via_business_bot_id"`
+		}
+		for _, row := range rows {
+			if row.Text != "sent by the bot" {
+				continue
+			}
+			if err := jsonx.UnmarshalFromString(row.Data, &data); err != nil {
+				t.Fatal(err)
+			}
+			return data.ViaBusinessBotId != nil && data.ViaBusinessBotId.Value == bot, 1
+		}
+		return false, 0
+	}
+	if has, n := via(w.messages(owner)); n != 1 || !has {
+		t.Fatalf("the account's copy: found %d, via the bot %v", n, has)
+	}
+	if has, n := via(w.messages(peer)); n != 1 || has {
+		t.Fatalf("the other side's copy: found %d, via the bot %v", n, has)
+	}
+	var found bool
+	for _, row := range w.qtsQueue(bot, bot*10) {
+		if mm := row.update.GetMessage_MESSAGE(); mm.GetMessage() == "sent by the bot" {
+			found = mm.GetViaBusinessBotId().GetValue() == bot
+		}
+	}
+	if !found {
+		t.Fatalf("the bot is not told of its message with via_business_bot_id: %v", w.qtsQueue(bot, bot*10))
 	}
 }

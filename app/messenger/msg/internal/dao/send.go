@@ -234,6 +234,11 @@ func (d *Dao) ReceiveIncoming(b *userbox.Box, fromId int64, peerType int32, peer
 		case mtproto.PEER_USER:
 			message.FromId = nil
 			message.PeerId = mtproto.MakePeerUser(fromId)
+			// The bot of a business connection that sent the message is
+			// the sender's to know: the recipient sees the account's
+			// message (task 105, decisions to confirm, 5; not verified
+			// what Telegram shows the other side).
+			message.ViaBusinessBotId = nil
 		}
 		if !message.MediaUnread {
 			message.MediaUnread = mtproto.CheckHasMediaUnread(message)

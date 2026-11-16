@@ -26,6 +26,7 @@ import (
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
 	"github.com/teamgram/teamgram-server/pkg/botgames"
+	"github.com/teamgram/teamgram-server/pkg/business"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -34,6 +35,30 @@ import (
 // MessagesEditMessage
 // messages.editMessage#48f71778 flags:# no_webpage:flags.1?true peer:InputPeer id:int message:flags.11?string media:flags.14?InputMedia reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> schedule_date:flags.15?int = Updates;
 func (c *MessagesCore) MessagesEditMessage(in *mtproto.TLMessagesEditMessage) (*mtproto.Updates, error) {
+	// A connected business bot edits what it sent for its account (task
+	// 105): a message of the chat, not a waiting one or one of a shortcut.
+	if act, err := c.businessAct(business.MethodEditMessage, in.Peer); err != nil {
+		c.Logger.Errorf("messages.editMessage - business connection: %v", err)
+		return nil, err
+	} else if act != nil {
+		if in.ScheduleDate != nil || in.GetQuickReplyShortcutId() != nil {
+			return nil, mtproto.ErrBotAccessForbidden
+		}
+		if err = c.businessEditable(in.Id); err != nil {
+			c.Logger.Errorf("messages.editMessage - business connection: %v", err)
+			return nil, err
+		}
+		r, err := c.editMessage(in)
+		if err != nil {
+			return nil, err
+		}
+		return c.businessReply(r)
+	}
+	return c.editMessage(in)
+}
+
+// editMessage is messages.editMessage of the account c runs as.
+func (c *MessagesCore) editMessage(in *mtproto.TLMessagesEditMessage) (*mtproto.Updates, error) {
 	var (
 		peer         = mtproto.FromInputPeer2(c.MD.UserId, in.Peer)
 		editMessages *message.Vector_MessageBox

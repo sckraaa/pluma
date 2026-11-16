@@ -299,9 +299,13 @@ func (b *Box) result() *Result {
 // updateInlineBotWidgetQuery, task 106) is a bot's query as a press of a
 // button is: the bot answers it once by its id, and it means nothing once
 // the request has stopped waiting, so it is a query update too.
+// updateBusinessBotCallbackQuery (task 105) is the press of a button of a
+// message a connected business bot sent for its account: a press as
+// updateBotCallbackQuery is, "without qts" (api.tl:461), a query update.
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateBotCallbackQuery,
+		mtproto.Predicate_updateBusinessBotCallbackQuery,
 		mtproto.Predicate_updateInlineBotCallbackQuery,
 		mtproto.Predicate_updateBotInlineQuery,
 		mtproto.Predicate_updateNotifySettings,
@@ -373,7 +377,7 @@ const QueryUpdateTTL = 60
 const queryUpdateTypes = "'" + mtproto.Predicate_updateBotCallbackQuery + "', '" +
 	mtproto.Predicate_updateInlineBotCallbackQuery + "', '" + mtproto.Predicate_updateBotInlineQuery + "', '" +
 	mtproto.Predicate_updateWebViewResultSent + "', '" + mtproto.Predicate_updateBotWidgetQuery + "', '" +
-	mtproto.Predicate_updateInlineBotWidgetQuery + "'"
+	mtproto.Predicate_updateInlineBotWidgetQuery + "', '" + mtproto.Predicate_updateBusinessBotCallbackQuery + "'"
 
 // LiveSeqRows is the condition on user_seq_updates of the rows still worth
 // giving at the time passed as its argument (NotExpiredSince).

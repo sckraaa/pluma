@@ -33,7 +33,10 @@ func (c *MessagesCore) botMarkup(markup *mtproto.ReplyMarkup, game bool) (*mtpro
 	if markup == nil {
 		return nil, nil
 	}
-	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: c.MD.UserId})
+	// The bot of a business connection writes the keyboard of the
+	// account's message (task 105).
+	self := c.markupBot()
+	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: self})
 	if err != nil {
 		return nil, err
 	}
@@ -41,9 +44,9 @@ func (c *MessagesCore) botMarkup(markup *mtproto.ReplyMarkup, game bool) (*mtpro
 		return nil, nil
 	}
 	return botmarkup.Normalize(markup, botmarkup.Env{
-		Self: c.MD.UserId,
+		Self: self,
 		ResolveUser: func(in *mtproto.InputUser) int64 {
-			u := mtproto.FromInputUser(c.MD.UserId, in)
+			u := mtproto.FromInputUser(self, in)
 			if !u.IsUser() {
 				return 0
 			}
