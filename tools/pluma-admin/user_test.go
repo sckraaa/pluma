@@ -165,6 +165,8 @@ func TestLoadsUserConfig(t *testing.T) {
 	t.Setenv("TRANSLATE_TOKEN", "")
 	t.Setenv("TRANSLATE_MODEL", "")
 	t.Setenv("TRANSLATE_PROFILE", "")
+	t.Setenv("TRANSLATE_SLOTS", "")
+	t.Setenv("TRANSLATE_CTX", "")
 	t.Setenv("MAIL_API_KEY", "")
 	t.Setenv("MAIL_FROM", "")
 	t.Setenv("WEBFILE_HMAC_KEY", "")
