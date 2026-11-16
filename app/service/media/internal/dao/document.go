@@ -289,14 +289,26 @@ func (m *Dao) GetDocumentListByIdList(ctx context.Context, idList []int64) []*mt
 	return append(documentList, missDocumentList...)
 }
 
-func (m *Dao) SaveDocumentV2(ctx context.Context, fileName string, document *mtproto.Document) {
-	var (
-		aStr string
-	)
+// attributesJSON is documents.attributes of attrs. The column is JSON NOT
+// NULL: a document without attributes (an Ogg file that is no voice
+// message and has no file name, dfs.uploadDocumentFileV2) is an empty
+// array, never "", which MySQL refuses.
+func attributesJSON(attrs []*mtproto.DocumentAttribute) (string, error) {
+	if len(attrs) == 0 {
+		return "[]", nil
+	}
+	b, err := jsonx.Marshal(attrs)
+	if err != nil {
+		return "", err
+	}
+	return hack.String(b), nil
+}
 
-	if document.GetAttributes() != nil {
-		aBuf, _ := jsonx.Marshal(document.GetAttributes())
-		aStr = hack.String(aBuf)
+func (m *Dao) SaveDocumentV2(ctx context.Context, fileName string, document *mtproto.Document) {
+	aStr, err := attributesJSON(document.GetAttributes())
+	if err != nil {
+		logx.WithContext(ctx).Errorf("SaveDocumentV2(%d) - attributes: %v", document.GetId(), err)
+		return
 	}
 
 	data := &dataobject.DocumentsDO{
@@ -338,13 +350,9 @@ func (m *Dao) ImportDocument(ctx context.Context, fileName string, document *mtp
 	if old != nil {
 		return ErrDocumentExists
 	}
-	attributes := "[]"
-	if len(document.GetAttributes()) > 0 {
-		b, err := jsonx.Marshal(document.GetAttributes())
-		if err != nil {
-			return err
-		}
-		attributes = hack.String(b)
+	attributes, err := attributesJSON(document.GetAttributes())
+	if err != nil {
+		return err
 	}
 	do := &dataobject.DocumentsDO{
 		DocumentId:       document.GetId(),
