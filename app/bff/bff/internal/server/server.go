@@ -60,6 +60,7 @@ import (
 	stories_helper "github.com/teamgram/teamgram-server/app/bff/stories"
 	tos_helper "github.com/teamgram/teamgram-server/app/bff/tos"
 	transcription_helper "github.com/teamgram/teamgram-server/app/bff/transcription"
+	translation_helper "github.com/teamgram/teamgram-server/app/bff/translation"
 	twofa_helper "github.com/teamgram/teamgram-server/app/bff/twofa"
 	updates_helper "github.com/teamgram/teamgram-server/app/bff/updates"
 	userchannelprofileshelper "github.com/teamgram/teamgram-server/app/bff/userchannelprofiles"
@@ -91,6 +92,9 @@ type Server struct {
 	stories    *stories_helper.Sweeper // takes the stories out of the feeds (task 084)
 	// transcription runs the queue of voice transcription (task 090).
 	transcription *transcription_helper.Worker
+	// translation runs the queue of the translation engine and the sweep
+	// of its cache (task 101).
+	translation *translation_helper.Background
 }
 
 func New() *Server {
@@ -476,10 +480,10 @@ func (s *Server) Initialize() error {
 		mtproto.RegisterRPCMessageThreadsServer(grpcServer, channels)
 		// The forums and topics of supergroups (task 060).
 		mtproto.RegisterRPCForumsServer(grpcServer, channels)
-		// The antispam of supergroups and the autotranslation of channels
-		// (task 082); the translation of texts is not served yet (task 027).
+		// The antispam of supergroups (task 082). The autotranslation of
+		// channels is served here too, but its gRPC service is the
+		// translation's (translation_helper below).
 		mtproto.RegisterRPCAntiSpamServer(grpcServer, channels)
-		mtproto.RegisterRPCTranslationServer(grpcServer, channels)
 		// The direct messages of a channel are switched by a method of the
 		// paid messages (task 084); the payments themselves are not served.
 		mtproto.RegisterRPCPaidMessageServer(grpcServer, channels)
@@ -729,6 +733,25 @@ func (s *Server) Initialize() error {
 		})
 		mtproto.RegisterRPCTranscriptionServer(grpcServer, transcription)
 		s.transcription = worker
+
+		// translation_helper: the translation of messages with a model of
+		// our own (task 101, ADR 0064), and channels.toggleAutotranslation
+		// of the channels area, which shares its gRPC service. The form
+		// "translate" of messages.composeMessageWithAI is served; the AI
+		// editor (aicompose.*) answers ERR_ENTERPRISE_IS_BLOCKED.
+		translation, translationBackground := translation_helper.New(translation_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			KV:            c.KV,
+			Translate:     c.Translate,
+			MessageClient: c.BizServiceClient,
+			ChannelClient: c.BizServiceClient,
+			DialogClient:  c.BizServiceClient,
+			UserClient:    c.BizServiceClient,
+		}, channels)
+		mtproto.RegisterRPCTranslationServer(grpcServer, translation)
+		mtproto.RegisterRPCAiComposeToneServer(grpcServer, translation)
+		s.translation = translationBackground
 	})
 
 	// logx.Must(err)
@@ -754,6 +777,9 @@ func (s *Server) Destroy() {
 	}
 	if s.transcription != nil {
 		s.transcription.Stop()
+	}
+	if s.translation != nil {
+		s.translation.Stop()
 	}
 	s.grpcSrv.Stop()
 }

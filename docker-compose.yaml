@@ -88,6 +88,11 @@ services:
       STT_MODEL: ${STT_MODEL:-}
       STT_LANGUAGE: ${STT_LANGUAGE:-}
       STT_TIMEOUT: ${STT_TIMEOUT:-}
+      # bff.yaml names the translation engine of messages (task 101); empty: off.
+      TRANSLATE_URL: ${TRANSLATE_URL:-}
+      TRANSLATE_TOKEN: ${TRANSLATE_TOKEN:-}
+      TRANSLATE_MODEL: ${TRANSLATE_MODEL:-}
+      TRANSLATE_PROFILE: ${TRANSLATE_PROFILE:-}
       # bff.yaml names the mail of the recovery email (task 091); empty: off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-}
@@ -315,6 +320,12 @@ services:
       STT_MODEL: ${STT_MODEL:-}
       STT_LANGUAGE: ${STT_LANGUAGE:-}
       STT_TIMEOUT: ${STT_TIMEOUT:-}
+      # The translation engine of messages (task 101,
+      # docs/ops/translation.md); no URL: the translation is off.
+      TRANSLATE_URL: ${TRANSLATE_URL:-}
+      TRANSLATE_TOKEN: ${TRANSLATE_TOKEN:-}
+      TRANSLATE_MODEL: ${TRANSLATE_MODEL:-}
+      TRANSLATE_PROFILE: ${TRANSLATE_PROFILE:-}
       # The mail of the recovery email of the cloud password (task 091,
       # docs/ops/email.md); no key: the recovery email is off.
       MAIL_API_KEY: ${MAIL_API_KEY:-}

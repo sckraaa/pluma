@@ -331,6 +331,12 @@ var optionalVars = map[string]bool{
 	"STT_MODEL":    true,
 	"STT_LANGUAGE": true,
 	"STT_TIMEOUT":  true,
+	// The translation engine of messages (task 101): the translation is
+	// off when the URL is empty.
+	"TRANSLATE_URL":     true,
+	"TRANSLATE_TOKEN":   true,
+	"TRANSLATE_MODEL":   true,
+	"TRANSLATE_PROFILE": true,
 	// The mail of the recovery email of the cloud password (task 091):
 	// off when the key is empty.
 	"MAIL_API_KEY": true,

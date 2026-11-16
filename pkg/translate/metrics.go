@@ -101,6 +101,7 @@ const (
 	ResultCanceled = "canceled" // the caller went away
 	ResultInvalid  = "invalid"  // refused by the checks of the request
 	ResultOff      = "off"      // no engine is configured
+	ResultInternal = "internal" // the texts could not be read: FLOOD_WAIT_X
 )
 
 // Sources of an item, the label source of translate_items_total.
@@ -122,7 +123,8 @@ const (
 )
 
 // CountRequest counts an answer of method that the scheduler did not
-// count: the refusals of the handler (ResultInvalid, ResultOff).
+// count: the refusals of the handler (ResultInvalid, ResultOff,
+// ResultInternal).
 func CountRequest(method, result string) { metricRequests.Inc(method, result) }
 
 // SetCacheRows publishes the number of rows of translation_cache.

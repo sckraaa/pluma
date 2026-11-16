@@ -16,6 +16,7 @@
 package translate
 
 import (
+	"context"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
@@ -172,6 +173,17 @@ func TestTranslationPeerCheck(t *testing.T) {
 	} {
 		if err := p.check(); err == nil {
 			t.Errorf("%+v is accepted", p)
+		}
+	}
+}
+
+// A translation without a known markup is refused before the database:
+// the column would hold a value no reader understands.
+func TestPutTranslationMarkup(t *testing.T) {
+	s := NewStore(nil)
+	for _, m := range []Markup{0, 3} {
+		if err := s.PutTranslation(context.Background(), CacheKey(keySource()), "ru", "m", &CachedTranslation{Text: "x", Markup: m}); err == nil {
+			t.Errorf("markup %d accepted", m)
 		}
 	}
 }
