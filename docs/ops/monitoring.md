@@ -104,3 +104,10 @@
 | `InlineProviderFailing` | у бота за 15 минут больше половины запросов кончились ошибкой (и их не меньше трёх). Пользователи видят «ничего не найдено». У `@pic` обычно SearXNG не работает или все движки картинок блокируют адрес |
 | `InlineBotMisconfigured` | учётная запись бота расходится с реестром, обычно его имя занято. Бот отвечает `BOT_INLINE_DISABLED`, вкладка GIF пуста, если это `@gif` |
 | `InlineImportBudgetSpent` | дневной бюджет импорта медиа кончился до 18:00 UTC: новые картинки не импортируются до 00:00 UTC |
+
+## Telegram Business
+Правила — группа `business` в `teamgramd/deploy/prometheus/server/rules/business.yml`, метрики msg `business_autoreply_total{kind, result}`, `business_bot_updates_total{kind}` и bff `business_chatlink_resolve_total{result}` (задача 105, ADR 0067). Серии `business_autoreply_total` msg заводит нулевыми при старте (иначе первый сбой не попал бы в `increase`); пока никто не включил автоответ, они остаются нулём и ничего не срабатывает. Что делать — `docs/ops/business.md`, раздел «Метрики и алерт».
+
+| Алерт | Что значит |
+|---|---|
+| `BusinessAutoReplyFailing` | больше 10 % автоответов за 15 минут брошены после 10 попыток: собеседники не получили приветствие или «нет на месте»; причина — в логе msg |
