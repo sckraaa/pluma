@@ -56,6 +56,11 @@ var reservedUsernames = map[string]bool{
 	"contact": true, "giftcode": true, "invoice": true, "joinchat": true,
 	"login": true, "proxy": true, "setlanguage": true, "share": true,
 	"socks": true, "newbot": true,
+	// The logins of sites through oauth.pluma.chat: pluma.chat/oauth?startapp=
+	// and tg://resolve?domain=oauth&startapp= (core.telegram.org/api/links;
+	// tdesktop core/local_url_handlers.cpp:707-717 takes the username oauth
+	// for that login, task 106).
+	"oauth": true,
 }
 
 // ReservedUsername tells whether username, in any case, is a path of the

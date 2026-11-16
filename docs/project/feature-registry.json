@@ -2508,7 +2508,7 @@
   "used_by": "Android ui/OAuthSheet.java:418, ui/ChatActivity.java:36994; iOS RequestMessageActionCallback.swift:370; Desktop boxes/url_auth_box.cpp:394; Web appSeamlessLoginManager.ts:44",
   "decision": "implement",
   "priority": "normal",
-  "why": "All four clients call it. Task 106, part C: login buttons and url_auth_domains links, writes web_authorizations and, with write_allowed, bot_write_allowed and messageActionBotAllowed. OAuth logins come with part I1."
+  "why": "All four clients call it. Task 106, part C: login buttons and url_auth_domains links, writes web_authorizations and, with write_allowed, bot_write_allowed and messageActionBotAllowed. Task 106, part I1: a login request of oauth.pluma.chat is accepted with its right match_code, records the site with the visitor's browser and answers without an address."
  },
  {
   "name": "messages.checkHistoryImport",
@@ -2535,7 +2535,7 @@
   "used_by": "Android ui/OAuthSheet.java:557; iOS RequestMessageActionCallback.swift:399; Desktop boxes/url_auth_box.cpp:914; Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of the same login confirmation flow as acceptUrlAuth."
+  "why": "Task 106, part I1: the match codes of a login request of oauth.pluma.chat (match_codes_first); three wrong codes end the request."
  },
  {
   "name": "messages.clearRecentStickers",
@@ -2553,7 +2553,7 @@
   "used_by": "Android ui/OAuthSheet.java:402, :584; iOS RequestMessageActionCallback.swift:338; Desktop boxes/url_auth_box.cpp:389; Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of the same login confirmation flow as acceptUrlAuth."
+  "why": "Task 106, part I1: a login request of oauth.pluma.chat turns declined; a login button keeps no state, boolTrue."
  },
  {
   "name": "messages.deleteQuickReplyMessages",
@@ -2787,7 +2787,7 @@
   "used_by": "Android ui/WearAuthSheet.java:407; Desktop boxes/url_auth_box.cpp:76; iOS TelegramEngine/Messages/RequestMessageActionCallback.swift:280; Web lib/appManagers/appSeamlessLoginManager.ts:18",
   "decision": "implement",
   "priority": "normal",
-  "why": "keyboardButtonUrlAuth is a bot feature with no payment. Task 106, part C: login buttons and url_auth_domains links; the bot's login domain is set with pluma-admin bot set -domain (ADR 0043). in_app_origin (OAuth) comes with part I1."
+  "why": "keyboardButtonUrlAuth is a bot feature with no payment. Task 106, part C: login buttons and url_auth_domains links; the bot's login domain is set with pluma-admin bot set -domain (ADR 0043). Part I1: links of login requests of oauth.pluma.chat in every client form, with the visitor and four match codes; in_app_origin only from an origin of the bot's login client."
  },
  {
   "name": "messages.requestWebView",

@@ -23,18 +23,17 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/svc"
 )
 
-// The service is the server of RPCSeamless; declining a login and checking
-// a match code, which belong to the logins of sites through
-// oauth.pluma.chat, answer ERR_ENTERPRISE_IS_BLOCKED, a 400, until they are
-// served.
-func TestSeamlessNotServed(t *testing.T) {
+// The service is the server of RPCSeamless and serves declining a login and
+// checking a match code: a login button keeps no state to decline, and only
+// a login request of oauth.pluma.chat has match codes.
+func TestSeamlessServed(t *testing.T) {
 	var _ mtproto.RPCSeamlessServer = (*Service)(nil)
 	s := New(&svc.ServiceContext{})
 	ctx := context.Background()
-	if _, err := s.MessagesDeclineUrlAuth(ctx, &mtproto.TLMessagesDeclineUrlAuth{}); err != mtproto.ErrEnterpriseIsBlocked {
-		t.Errorf("declineUrlAuth: %v", err)
+	if ok, err := s.MessagesDeclineUrlAuth(ctx, &mtproto.TLMessagesDeclineUrlAuth{Url: "https://site.example/login"}); err != nil || !mtproto.FromBool(ok) {
+		t.Errorf("declineUrlAuth: %v, %v", ok, err)
 	}
-	if _, err := s.MessagesCheckUrlAuthMatchCode(ctx, &mtproto.TLMessagesCheckUrlAuthMatchCode{}); err != mtproto.ErrEnterpriseIsBlocked {
+	if _, err := s.MessagesCheckUrlAuthMatchCode(ctx, &mtproto.TLMessagesCheckUrlAuthMatchCode{Url: "https://site.example/login", MatchCode: "x"}); err != mtproto.ErrUrlInvalid {
 		t.Errorf("checkUrlAuthMatchCode: %v", err)
 	}
 }

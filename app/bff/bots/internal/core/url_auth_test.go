@@ -17,29 +17,11 @@ package core
 
 import (
 	"errors"
-	"net/url"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/dao"
 )
-
-// The fields of a login go after the site's own query, replace the fields of
-// the same names there, and keep the fragment.
-func TestLoginLink(t *testing.T) {
-	fields := url.Values{"id": {"10"}, "auth_date": {"1700000000"}, "hash": {"ab"}}
-	for _, c := range []struct{ link, want string }{
-		{"https://site.example/login", "https://site.example/login?auth_date=1700000000&hash=ab&id=10"},
-		{"https://site.example/login?next=%2Fhome&x=1", "https://site.example/login?next=%2Fhome&x=1&auth_date=1700000000&hash=ab&id=10"},
-		{"https://site.example/login?id=7&hash=zz&keep=1#top", "https://site.example/login?keep=1&auth_date=1700000000&hash=ab&id=10#top"},
-		{"https://site.example/login?", "https://site.example/login?auth_date=1700000000&hash=ab&id=10"},
-	} {
-		got, err := loginLink(c.link, fields)
-		if err != nil || got != c.want {
-			t.Errorf("%s: %q, %v, want %q", c.link, got, err, c.want)
-		}
-	}
-}
 
 func TestClientIP(t *testing.T) {
 	for addr, want := range map[string]string{

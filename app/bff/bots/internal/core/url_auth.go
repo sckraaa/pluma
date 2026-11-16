@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/botkeys"
 	"github.com/teamgram/teamgram-server/pkg/botmarkup"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
+	"github.com/teamgram/teamgram-server/pkg/urlauth"
 	"github.com/teamgram/teamgram-server/pkg/webappdata"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -201,37 +202,6 @@ func (c *BotsCore) withLoginKey(t *urlAuthTarget) (*urlAuthTarget, error) {
 	return t, nil
 }
 
-// loginFields are the fields of a login the site gets; a field of the same
-// name already in the query of its address is replaced.
-var loginFields = map[string]bool{
-	"id": true, "first_name": true, "last_name": true, "username": true, "photo_url": true, "auth_date": true, "hash": true,
-}
-
-// loginLink returns link with the fields of a login added to its query, in
-// the order the site's own fields come in, after them. The fragment stays.
-func loginLink(link string, fields url.Values) (string, error) {
-	u, err := url.Parse(link)
-	if err != nil {
-		return "", err
-	}
-	kept := make([]string, 0, 4)
-	if u.RawQuery != "" {
-		for _, pair := range strings.Split(u.RawQuery, "&") {
-			key, _, _ := strings.Cut(pair, "=")
-			if name, err := url.QueryUnescape(key); err == nil && loginFields[name] {
-				continue
-			}
-			if pair != "" {
-				kept = append(kept, pair)
-			}
-		}
-	}
-	kept = append(kept, fields.Encode())
-	u.RawQuery = strings.Join(kept, "&")
-	u.ForceQuery = false
-	return u.String(), nil
-}
-
 // signedLink is the address of t with the data of c's user, signed with the
 // login key of the bot (core.telegram.org/widgets/login-legacy). photo_url
 // is the public photo of a user with a username (ADR 0036 p. 4).
@@ -254,7 +224,7 @@ func (c *BotsCore) signedLink(t *urlAuthTarget) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return loginLink(t.link, fields)
+	return urlauth.LoginLink(t.link, fields)
 }
 
 // accepted is urlAuthResultAccepted with the address to open.

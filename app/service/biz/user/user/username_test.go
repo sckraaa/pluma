@@ -20,7 +20,7 @@ import "testing"
 // TestReservedUsername: the paths of the link host are no usernames, in any
 // case; ordinary names are.
 func TestReservedUsername(t *testing.T) {
-	for _, name := range []string{"android", "Android", "IPHONE", "joinchat", "addstickers", "proxy", "share"} {
+	for _, name := range []string{"android", "Android", "IPHONE", "joinchat", "addstickers", "proxy", "share", "oauth", "OAuth"} {
 		if !ReservedUsername(name) {
 			t.Errorf("%s is free", name)
 		}
