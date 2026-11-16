@@ -344,6 +344,14 @@ var optionalVars = map[string]bool{
 	// The key of the web file proxy (task 099, ADR 0062): inline bots'
 	// thumbnails go out unsigned, fetched by clients, when empty.
 	"WEBFILE_HMAC_KEY": true,
+	// The maps service of the map previews of geo points (task 100): maps
+	// are off when the URL is empty, the rest take their defaults.
+	"MAPS_URL":                 true,
+	"MAPS_STYLES":              true,
+	"MAPS_TIMEOUT":             true,
+	"MAPS_CONCURRENCY":         true,
+	"MAPS_CACHE_TTL":           true,
+	"MAPS_PER_USER_PER_MINUTE": true,
 	// The built-in inline bots (task 099, ADR 0062): @pic answers with
 	// empty lists without SearXNG; the import budget is 1 GiB when empty.
 	"SEARXNG_URL":               true,

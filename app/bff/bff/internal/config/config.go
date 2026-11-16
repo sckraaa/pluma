@@ -27,6 +27,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/iosupdate"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
 	"github.com/teamgram/teamgram-server/pkg/mail"
+	"github.com/teamgram/teamgram-server/pkg/staticmap"
 	"github.com/teamgram/teamgram-server/pkg/tgbot"
 	"github.com/teamgram/teamgram-server/pkg/transcribe"
 	"github.com/teamgram/teamgram-server/pkg/translate"
@@ -86,6 +87,10 @@ type Config struct {
 	// by bots (signing) and files (checking), and the cache of the files
 	// fetched. No key: the addresses are not proxied.
 	WebFile webfile.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Maps renders the map previews of geo points that clients ask for
+	// with upload.getWebFile (task 100, ADR 0063, docs/ops/maps.md): the
+	// maps service at home and the limits; maps are off without a URL.
+	Maps staticmap.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// InlineBots is the built-in inline bots @gif and @pic (task 099, ADR
 	// 0062, docs/ops/inline-bots.md): the providers that answer their
 	// queries and the daily budget of the media they import into dfs.

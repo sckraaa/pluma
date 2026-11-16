@@ -63,6 +63,21 @@ Translate:
 WebFile:
   HMACKey: "${WEBFILE_HMAC_KEY}"
 
+# The map previews of geo points (task 100, ADR 0063, docs/ops/maps.md),
+# which Android, Desktop and Web K ask for with upload.getWebFile: rendered
+# by the maps service of docker-compose.maps.yaml (MAPS_URL,
+# http://maps:8080 in Docker) and kept in the Redis of KV. No URL: maps are
+# off and such a request is LOCATION_INVALID. Empty settings take their
+# defaults: the styles ru,en (one per language of the labels), 10s for a
+# render, 4 renders at once, 6h in the cache, 60 new maps a minute per user.
+Maps:
+  URL: "${MAPS_URL}"
+  Styles: "${MAPS_STYLES}"
+  Timeout: "${MAPS_TIMEOUT}"
+  Concurrency: "${MAPS_CONCURRENCY}"
+  CacheTTL: "${MAPS_CACHE_TTL}"
+  PerUserPerMinute: "${MAPS_PER_USER_PER_MINUTE}"
+
 # The built-in inline bots @gif and @pic (task 099, ADR 0062,
 # docs/ops/inline-bots.md). @pic searches pictures with the SearXNG of
 # SEARXNG_URL (http://searxng:8080 in Docker; empty: @pic answers with empty

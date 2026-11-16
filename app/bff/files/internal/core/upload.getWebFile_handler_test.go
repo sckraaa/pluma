@@ -16,15 +16,23 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"image"
+	"image/png"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/svc"
+	"github.com/teamgram/teamgram-server/pkg/staticmap"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/core/stores/cache"
+	"github.com/zeromicro/go-zero/core/stores/kv"
+	"github.com/zeromicro/go-zero/core/stores/redis"
 )
 
 func webFileCore(t *testing.T, c webfile.Config) *FilesCore {
@@ -70,5 +78,52 @@ func TestUploadGetWebFile(t *testing.T) {
 		if !errors.Is(err, tc.want) {
 			t.Errorf("%s: %v, want %v", tc.name, err, tc.want)
 		}
+	}
+}
+
+// styleRenderer draws blank maps and records the styles it is asked for.
+type styleRenderer struct{ styles []string }
+
+func (r *styleRenderer) Render(_ context.Context, style string, p staticmap.Params) ([]byte, error) {
+	r.styles = append(r.styles, style)
+	var b bytes.Buffer
+	err := png.Encode(&b, image.NewGray(image.Rect(0, 0, p.PixelWidth(), p.PixelHeight())))
+	return b.Bytes(), err
+}
+
+// With the maps on, upload.getWebFile serves a map for the session that
+// asks: the labels in the language of its connection.
+func TestUploadGetWebFileMap(t *testing.T) {
+	mr := miniredis.RunT(t)
+	store := kv.NewStore(kv.KvConf{cache.NodeConf{
+		RedisConf: redis.RedisConf{Host: mr.Addr(), Type: redis.NodeType, DisableIdentity: true},
+		Weight:    100,
+	}})
+	r := &styleRenderer{}
+	maps, err := staticmap.NewService(staticmap.Config{URL: "http://maps:8080"}, store, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := webFileCore(t, webfile.Config{})
+	c.svcCtx.WebFiles.Register(mtproto.Predicate_inputWebFileGeoPointLocation, svc.NewGeoSource(maps))
+	c.MD.LangCode = "ru"
+
+	f, err := c.UploadGetWebFile(&mtproto.TLUploadGetWebFile{
+		Location: mtproto.MakeTLInputWebFileGeoPointLocation(&mtproto.InputWebFileLocation{
+			GeoPoint: mtproto.MakeTLInputGeoPoint(&mtproto.InputGeoPoint{Lat: 52.5, Long: 13.4}).To_InputGeoPoint(),
+			W:        100, H: 100, Zoom: 15, Scale: 2,
+		}).To_InputWebFileLocation(),
+		Offset: 0,
+		Limit:  1 << 20,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(f.GetBytes()))
+	if err != nil || cfg.Width != 200 || cfg.Height != 200 || f.GetMimeType() != "image/png" || int(f.GetSize2()) != len(f.GetBytes()) {
+		t.Errorf("a map of %d×%d (%v), type %q, size %d of %d bytes", cfg.Width, cfg.Height, err, f.GetMimeType(), f.GetSize2(), len(f.GetBytes()))
+	}
+	if len(r.styles) != 1 || r.styles[0] != "ru" {
+		t.Errorf("styles %q, want [ru]", r.styles)
 	}
 }

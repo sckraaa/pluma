@@ -345,6 +345,8 @@ func (s *Server) Initialize() error {
 				UserClient:    c.BizServiceClient,
 				MediaClient:   c.MediaClient,
 				WebFile:       c.WebFile,
+				KV:            c.KV,
+				Maps:          c.Maps,
 			}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil)) // the thumbnails of the sets users make (task 084)
 
 		// passport_helper
