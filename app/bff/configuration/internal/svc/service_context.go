@@ -51,7 +51,8 @@ type ServiceContext struct {
 	// handlers clone it before filling the per-request fields.
 	ClientConfig *mtproto.TLConfig
 	// AppConfig is app_config.json with url_auth_domains, the login
-	// domains of bots, from the database (task 106).
+	// domains of bots, from the database (task 106), and the translation
+	// switched off without an engine (task 101).
 	AppConfig *appconfig.Live
 	// IOSUpdate asks the install service what an Ad Hoc build of the iPhone
 	// app can update to from the app (task 085); nil when that is off.
@@ -64,6 +65,11 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	logx.Must(err)
 	appConfig, err := appconfig.Load(appConfigFile)
 	logx.Must(err)
+	if !c.Translate.Enabled() {
+		// No engine: the clients must not offer what would be refused
+		// (ADR 0064, section 9).
+		appConfig = appConfig.WithoutTranslation()
+	}
 	logx.Must(c.IOSUpdate.Check())
 	var iosUpdate *iosupdate.Checker
 	if c.IOSUpdate.Enabled() {

@@ -40,7 +40,9 @@ type AppConfig struct {
 	Config *mtproto.JSONValue // a jsonObject, keys in the order of the file
 	Hash   int32
 
-	compact []byte // the file without insignificant whitespace
+	// compact is what the hash is of: the file without insignificant
+	// whitespace, and the keys set over it at the start (withStrings).
+	compact []byte
 }
 
 // Load reads and parses the file.
@@ -132,6 +134,67 @@ func (c *AppConfig) WithURLAuthDomains(domains []string) *AppConfig {
 		Config:  mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: values}).To_JSONValue(),
 		Hash:    hashOf(c.compact, []byte("\n"+urlAuthDomainsKey+"="+strings.Join(domains, ","))),
 		compact: c.compact,
+	}
+}
+
+// The switches of the translation of messages (task 101, ADR 0064, section
+// 9). "enabled" shows the translate button and the translation bar of a
+// chat; "disabled" hides them. A client without the key decides by itself:
+// Android takes "enabled" (MessagesController.java:1741-1742 at 7be672ea)
+// and would ask a server without an engine, iOS takes "disabled"
+// (AccountContext/Sources/AccountContext.swift:2254-2255 at 24638bc69b),
+// Web K translates only on "enabled" (hooks/usePeerTranslation.ts:27 at
+// aa74832e). tdesktop does not read them (lang/translate_provider.cpp:34-45
+// at v7.4.1).
+const (
+	translationsManualKey = "translations_manual_enabled"
+	translationsAutoKey   = "translations_auto_enabled"
+	translationsDisabled  = "disabled"
+)
+
+// WithoutTranslation returns the config with both switches of translation
+// set to "disabled", added when the file lacks them, and a hash of its own:
+// the config of a server with no translation engine, whatever the file says
+// (ADR 0064, section 9). The other keys keep their order and values.
+func (c *AppConfig) WithoutTranslation() *AppConfig {
+	return c.withStrings([]stringKey{
+		{translationsManualKey, translationsDisabled},
+		{translationsAutoKey, translationsDisabled},
+	})
+}
+
+// stringKey is a key of the config and the string it is set to.
+type stringKey struct{ key, value string }
+
+// withStrings returns the config with each key set to its string, in place
+// when the key is there and at the end otherwise. The hash covers the file
+// and the keys set, so the clients that cached the config of the file take
+// this one, and a later change of the config (WithURLAuthDomains) still
+// counts what is set here.
+func (c *AppConfig) withStrings(set []stringKey) *AppConfig {
+	values := make([]*mtproto.JSONObjectValue, 0, len(c.Config.GetValue_VECTORJSONOBJECTVALUE())+len(set))
+	values = append(values, c.Config.GetValue_VECTORJSONOBJECTVALUE()...)
+	compact := append([]byte(nil), c.compact...)
+	for _, s := range set {
+		value := mtproto.MakeTLJsonObjectValue(&mtproto.JSONObjectValue{
+			Key:   s.key,
+			Value: mtproto.MakeTLJsonString(&mtproto.JSONValue{Value_STRING: s.value}).To_JSONValue(),
+		}).To_JSONObjectValue()
+		replaced := false
+		for i, v := range values {
+			if v.GetKey() == s.key {
+				values[i], replaced = value, true
+			}
+		}
+		if !replaced {
+			values = append(values, value)
+		}
+		compact = append(compact, "\n"+s.key+"="+s.value...)
+	}
+	return &AppConfig{
+		Config:  mtproto.MakeTLJsonObject(&mtproto.JSONValue{Value_VECTORJSONOBJECTVALUE: values}).To_JSONValue(),
+		Hash:    hashOf(compact),
+		compact: compact,
 	}
 }
 

@@ -246,6 +246,7 @@ func (s *Server) Initialize() error {
 			MediaClient:       c.MediaClient,
 			ReleasesURL:       c.ReleasesURL,
 			IOSUpdate:         c.IOSUpdate,
+			Translate:         c.Translate,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

@@ -116,8 +116,9 @@
     "stories_albums_limit": 100,
     "stories_album_stories_limit": 1000,
 
-    "translations_manual_enabled": "disabled",
-    "translations_auto_enabled": "disabled",
+    "translations_manual_enabled": "enabled",
+    "translations_auto_enabled": "enabled",
+
     "rich_message_posting": "disabled",
     "transcribe_audio_trial_weekly_number": 0,
     "settings_display_passkeys": false,

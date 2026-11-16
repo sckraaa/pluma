@@ -190,12 +190,19 @@
 | `stories_albums_limit` | `100` | A I | Альбомов историй у пользователя или канала (задача 104, ADR 0069); сервер отвечает `ALBUMS_TOO_MANY`. Значение Telegram не прочитано. |
 | `stories_album_stories_limit` | `1000` | A I | Историй в одном альбоме (у iOS по умолчанию 1000, у Android 100); сервер отвечает `ALBUM_STORIES_TOO_MANY`. |
 
+## Перевод сообщений
+
+Перевод делает своя модель (задача 101, ADR 0064, `docs/ops/translation.md`). В файле оба ключа — `"enabled"`; не `"system"` и не `"alternative"`: с ними клиенты отправляют текст с устройства в Google или Apple. **Без движка** (`TRANSLATE_URL` пуст) bff при старте отдаёт оба ключа `"disabled"`, что бы ни было в файле, и `hash` у такого конфига свой: клиенты забирают его при следующем запросе и прячут кнопки. После включения или выключения движка нужен перезапуск bff.
+
+| Ключ | Значение | Читают | Почему |
+|---|---|---|---|
+| `translations_manual_enabled` | `"enabled"` | A I W | Кнопка «Перевести» у сообщения; на iOS — экран перевода (`messages.composeMessageWithAI`). Без ключа Android считает `"enabled"`, iOS — `"disabled"`. tdesktop ключи не читает: без движка он получает ошибку. |
+| `translations_auto_enabled` | `"enabled"` | A I W | Панель перевода всего чата (Premium, у Pluma он у всех — ADR 0041). |
+
 ## Выключатели того, чего на сервере нет
 
 | Ключ | Значение | Читают | Почему |
 |---|---|---|---|
-| `translations_manual_enabled` | `"disabled"` | A W | Перевода нет (`messages.translateText`). У Android по умолчанию `"enabled"`. |
-| `translations_auto_enabled` | `"disabled"` | A W | Перевода нет. |
 | `rich_message_posting` | `"disabled"` | A D | Расширенного форматирования нет. У клиентов по умолчанию `"premium"`. |
 | `transcribe_audio_trial_weekly_number` | `0` | A D | Пробных расшифровок нет: расшифровка голосовых открыта всем без счётчика (задача 090, ADR 0056, `docs/ops/transcription.md`). Ключа `transcribe_audio_trial_cooldown_until` тоже нет: он блокирует кнопку на iOS. |
 | `settings_display_passkeys` | `false` | A D W | Входа по passkey нет. Отладочные сборки Android по умолчанию его показывают. |
