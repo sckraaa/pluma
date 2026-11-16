@@ -38,6 +38,13 @@ StatusClient:
     Hosts:
       - etcd:2379
     Key: service.status
+BizServiceClient:
+  # Only reads (user.getImmutableUser), as msg -> biz (ADR 0012, p. 9).
+  Timeout: 5000
+  Etcd:
+    Hosts:
+      - etcd:2379
+    Key: service.biz_service
 GatewayClient:
   Etcd:
     Hosts:

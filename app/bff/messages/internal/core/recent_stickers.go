@@ -57,7 +57,10 @@ func attachedStickers(in *mtproto.InputMedia) []*mtproto.InputDocument {
 // server's when its hash differs (processLoadedRecentDocuments,
 // specialSetReceived): the list keeps the sticker only if the server adds
 // it. The message is sent by then, so a failure here is logged, not
-// answered: the sticker is only missing from the list.
+// answered: the sticker is only missing from the list. A bot has no recent
+// stickers (messages.getRecentStickers is for users only), and a connected
+// business bot's sticker is not one the account chose: the request is the
+// bot's (IsBot) while it runs as the account.
 func (c *MessagesCore) addRecentStickers(in *mtproto.InputMedia, media *mtproto.MessageMedia) {
 	if c.MD.IsBot {
 		return

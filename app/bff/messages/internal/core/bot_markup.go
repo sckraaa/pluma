@@ -34,15 +34,12 @@ func (c *MessagesCore) botMarkup(markup *mtproto.ReplyMarkup, game bool) (*mtpro
 		return nil, nil
 	}
 	// The bot of a business connection writes the keyboard of the
-	// account's message (task 105).
-	self := c.markupBot()
-	me, err := c.svcCtx.Dao.UserClient.UserGetImmutableUser(c.ctx, &userpb.TLUserGetImmutableUser{Id: self})
-	if err != nil {
-		return nil, err
-	}
-	if !me.IsBot() {
+	// account's message (task 105): the request stays the bot's (IsBot)
+	// while it runs as the account.
+	if !c.MD.IsBot {
 		return nil, nil
 	}
+	self := c.markupBot()
 	return botmarkup.Normalize(markup, botmarkup.Env{
 		Self: self,
 		ResolveUser: func(in *mtproto.InputUser) int64 {

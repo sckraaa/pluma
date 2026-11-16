@@ -25,6 +25,11 @@ import (
 // The form of the layers before recentStory: the ids themselves, 0 for a
 // peer without a story the caller may open.
 func (c *StoriesCore) StoriesGetPeerMaxIDs535983C3(in *mtproto.TLStoriesGetPeerMaxIDs535983C3) (*mtproto.Vector_Int, error) {
+	// "Only users can use this method" (core.telegram.org/method/
+	// stories.getPeerMaxIDs).
+	if c.MD.IsBot {
+		return nil, mtproto.ErrBotMethodInvalid
+	}
 	ids, err := c.peerMaxIds(in.Id)
 	if err != nil {
 		c.Logger.Errorf("stories.getPeerMaxIDs#535983c3 - error: %v", err)
