@@ -558,8 +558,8 @@ func TestPlatformOnMySQL(t *testing.T) {
 		if err != nil || w.Id == 0 || w.Period != DefaultWidgetPeriod || w.PublicHash != WidgetDataHash(`{"n":1}`) {
 			t.Fatalf("create: %+v, %v", w, err)
 		}
-		if _, err = s.CreateWidget(ctx, Widget{BotId: bot, Payload: []byte{1}, Width: 0, Height: 1}, 10); !errors.Is(err, mtproto.ErrMediaInvalid) {
-			t.Errorf("zero width: %v", err)
+		if _, err = s.CreateWidget(ctx, Widget{BotId: bot, Payload: []byte{1}, Width: -1, Height: 1}, 10); !errors.Is(err, mtproto.ErrMediaInvalid) {
+			t.Errorf("negative width: %v", err)
 		}
 		if _, err = s.CreateWidget(ctx, Widget{BotId: bot, Payload: []byte{1}, Width: 1, Height: 1, PublicData: string(make([]byte, MaxWidgetData+1))}, 10); !errors.Is(err, mtproto.ErrDataTooLong) {
 			t.Errorf("long data: %v", err)

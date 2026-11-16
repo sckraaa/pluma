@@ -20,6 +20,7 @@ import (
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	mediapb "github.com/teamgram/teamgram-server/app/service/media/media"
 	"github.com/teamgram/teamgram-server/pkg/botgames"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 	"github.com/teamgram/teamgram-server/pkg/mediaerr"
 	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/phonenumber"
@@ -238,6 +239,13 @@ func (c *MessagesCore) makeMediaByInputMedia(media *mtproto.InputMedia) (message
 		// pluma: a game is a message of its own, which messages.sendMedia
 		// makes with gameSend (task 106); not an album item, an edit or
 		// any other media.
+		err = mtproto.ErrMediaInvalid
+	case mtproto.Predicate_inputMediaWidget, mtproto.Predicate_inputMediaWidgetId:
+		// pluma: a bot's widget is a message of its own, which
+		// messages.sendMedia makes with makeWidgetMedia (task 106): not an
+		// album item or the media of an edit, since the HTML of a widget
+		// never changes after the send (Android
+		// jni/twidget/widget-sandbox/docs/tgw-format.md).
 		err = mtproto.ErrMediaInvalid
 	case mtproto.Predicate_inputMediaInvoice:
 		// inputMediaInvoice#d9799874 flags:# title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string provider_data:DataJSON start_param:flags.1?string = InputMedia;
@@ -605,4 +613,39 @@ func (c *MessagesCore) isBotUser(ctx context.Context, userId int64) (bool, error
 		return false, err
 	}
 	return u.IsBot() && !u.Deleted(), nil
+}
+
+// makeWidgetMedia makes the widget a bot sends with messages.sendMedia
+// (inputMediaWidget, inputMediaWidgetId; task 106, ADR 0068 p. 8). A bot
+// sends widgets "to its private chat with a user and to the basic groups
+// and supergroups it is a member of"; channels "are not among them", nor
+// are users' messages (INPUT_MEDIA_WIDGET_NOT_ALLOWED; Android
+// jni/twidget/widget-sandbox/docs/tgw-format.md, "Who may send, and where
+// it may go"). The right to send it in a group is the right to send photos
+// (pkg/channelperm), which msg checks with the send.
+func (c *MessagesCore) makeWidgetMedia(peer *mtproto.PeerUtil, in *mtproto.InputMedia) (*mtproto.MessageMedia, error) {
+	widget, _ := botwidgets.FromInputMedia(in)
+	if !c.MD.IsBot {
+		return nil, mtproto.ErrInputMediaWidgetNotAllowed
+	}
+	where := botwidgets.Group
+	switch peer.PeerType {
+	case mtproto.PEER_USER:
+		if peer.PeerId == c.MD.UserId {
+			return nil, mtproto.ErrInputMediaWidgetNotAllowed
+		}
+		where = botwidgets.PrivateWithBot
+	case mtproto.PEER_CHAT:
+	case mtproto.PEER_CHANNEL:
+		mc, err := c.svcCtx.Dao.Channel.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: peer.PeerId, Id: []int64{c.MD.UserId}})
+		if err != nil {
+			return nil, err
+		}
+		if mc.GetChannel().GetBroadcast() || mc.GetChannel().GetMonoforum() {
+			return nil, mtproto.ErrInputMediaWidgetNotAllowed
+		}
+	default:
+		return nil, mtproto.ErrPeerIdInvalid
+	}
+	return botwidgets.Media(c.ctx, c.svcCtx.Widgets, c.MD.UserId, widget, where, int32(time.Now().Unix()))
 }

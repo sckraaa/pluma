@@ -6,6 +6,8 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 
 	"github.com/zeromicro/go-zero/core/jsonx"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // applyEdit returns the stored message with the editable parts of edit:
@@ -67,6 +69,7 @@ func (d *Dao) editRowWith(b *userbox.Box, row *dataobject.MessagesDO, change fun
 	if err != nil {
 		return nil, nil, err
 	}
+	before := proto.Clone(stored).(*mtproto.Message)
 	message := change(stored)
 	data, err := jsonx.Marshal(message)
 	if err != nil {
@@ -88,7 +91,10 @@ func (d *Dao) editRowWith(b *userbox.Box, row *dataobject.MessagesDO, change fun
 	if err != nil {
 		return nil, nil, err
 	}
-	update := mtproto.MakeTLUpdateEditMessage(&mtproto.Update{Message_MESSAGE: shown}).To_Update()
+	update := widgetDataUpdate(b.UserId(), row, before, message)
+	if update == nil {
+		update = mtproto.MakeTLUpdateEditMessage(&mtproto.Update{Message_MESSAGE: shown}).To_Update()
+	}
 	b.AddPtsUpdate(update, 1)
 	box := boxOfRow(row, shown)
 	box.MessageFilterType = filterType
@@ -125,4 +131,50 @@ func (d *Dao) EditIncoming(b *userbox.Box, dialogMessageId int64, edit *mtproto.
 	}
 	_, update, err := d.editRow(b, &rows[0], edit)
 	return update, err
+}
+
+// widgetDataUpdate is the update of an edit that changed only the state of
+// the widget of a message (messageMediaWidget: public_data with its hash,
+// chat_data), as a bot writes it (messages.editMessageWidgetData, task
+// 106): updateMessageWidgetData of the copy of owner, with the fields that
+// changed. Telegram sends it so in private chats and basic groups, "as
+// updateEditMessage does" in the owner's pts, without the "edited" mark
+// (Android jni/twidget/widget-sandbox/docs/tgw-format.md, "The bot's edits
+// of the state"); the clients apply it by the chat as the owner sees it and
+// the id in its box (tdesktop tgw/tgw_state.cpp ApplyStateUpdate, Android
+// MessagesController.getUpdateType). nil for any other edit.
+func widgetDataUpdate(owner int64, row *dataobject.MessagesDO, before, after *mtproto.Message) *mtproto.Update {
+	old, cur := before.GetMedia(), after.GetMedia()
+	if old.GetPredicateName() != mtproto.Predicate_messageMediaWidget || cur.GetPredicateName() != mtproto.Predicate_messageMediaWidget {
+		return nil
+	}
+	// The edit is of the state alone when the message with the old state
+	// is the message as it was.
+	same := proto.Clone(after).(*mtproto.Message)
+	same.Media.PublicData, same.Media.PublicDataHash, same.Media.ChatData = old.GetPublicData(), old.GetPublicDataHash(), old.GetChatData()
+	if !proto.Equal(same, before) {
+		return nil
+	}
+	u := &mtproto.Update{MsgId_INT32: row.UserMessageBoxId}
+	did := mtproto.DialogID{A: row.DialogId1, B: row.DialogId2}
+	if did.A == -int64(mtproto.PEER_CHAT) {
+		u.Peer_PEER = mtproto.MakePeerChat(did.B)
+	} else {
+		u.Peer_PEER = mtproto.MakePeerUser(mtproto.GetPeerIdByDialogId(owner, did))
+	}
+	changed := false
+	if !proto.Equal(old.GetPublicData(), cur.GetPublicData()) || !proto.Equal(old.GetPublicDataHash(), cur.GetPublicDataHash()) {
+		// The flag carries both: a state cleared is an empty string.
+		u.PublicData = wrapperspb.String(cur.GetPublicData().GetValue())
+		u.PublicDataHash = wrapperspb.Int64(cur.GetPublicDataHash().GetValue())
+		changed = true
+	}
+	if !proto.Equal(old.GetChatData(), cur.GetChatData()) {
+		u.ChatData = wrapperspb.String(cur.GetChatData().GetValue())
+		changed = true
+	}
+	if !changed {
+		return nil
+	}
+	return mtproto.MakeTLUpdateMessageWidgetData(u).To_Update()
 }

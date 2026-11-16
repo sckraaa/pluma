@@ -295,6 +295,10 @@ func (b *Box) result() *Result {
 // api/api_updates.cpp:2326, iOS State/Sync/UpdateInterpreter+Bots.swift:64-65):
 // a repeat closes nothing more. It means nothing once the web view would
 // have expired, so it is a query update (queryUpdateTypes).
+// The request of a widget to its bot (updateBotWidgetQuery,
+// updateInlineBotWidgetQuery, task 106) is a bot's query as a press of a
+// button is: the bot answers it once by its id, and it means nothing once
+// the request has stopped waiting, so it is a query update too.
 func SeqUpdate(predicate string) bool {
 	switch predicate {
 	case mtproto.Predicate_updateBotCallbackQuery,
@@ -348,7 +352,9 @@ func SeqUpdate(predicate string) bool {
 		mtproto.Predicate_updateQuickReplyMessage,
 		mtproto.Predicate_updateDeleteQuickReplyMessages,
 		mtproto.Predicate_updateAttachMenuBots,
-		mtproto.Predicate_updateWebViewResultSent:
+		mtproto.Predicate_updateWebViewResultSent,
+		mtproto.Predicate_updateBotWidgetQuery,
+		mtproto.Predicate_updateInlineBotWidgetQuery:
 		return true
 	}
 	return false
@@ -366,7 +372,8 @@ const QueryUpdateTTL = 60
 
 const queryUpdateTypes = "'" + mtproto.Predicate_updateBotCallbackQuery + "', '" +
 	mtproto.Predicate_updateInlineBotCallbackQuery + "', '" + mtproto.Predicate_updateBotInlineQuery + "', '" +
-	mtproto.Predicate_updateWebViewResultSent + "'"
+	mtproto.Predicate_updateWebViewResultSent + "', '" + mtproto.Predicate_updateBotWidgetQuery + "', '" +
+	mtproto.Predicate_updateInlineBotWidgetQuery + "'"
 
 // LiveSeqRows is the condition on user_seq_updates of the rows still worth
 // giving at the time passed as its argument (NotExpiredSince).
@@ -396,7 +403,8 @@ func commonBoxUpdate(t int32) bool {
 		mtproto.PTS_UPDATE_READ_MESSAGE_CONENTS,
 		mtproto.PTS_UPDATE_EDIT_MESSAGE,
 		mtproto.PTS_UPDATE_FOLDER_PEERS,
-		mtproto.PTS_UPDATE_PINNED_MESSAGES:
+		mtproto.PTS_UPDATE_PINNED_MESSAGES,
+		mtproto.PTS_UPDATE_MESSAGE_WIDGET_DATA:
 		return true
 	}
 	return false

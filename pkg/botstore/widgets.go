@@ -41,7 +41,9 @@ const (
 	MaxWidgetPayload = MaxWidgetHTML + 1024
 	// MaxWidgetData is the public data and the chat data.
 	MaxWidgetData = 4 << 10
-	// MaxWidgetSide is the width and the height.
+	// MaxWidgetSide bounds the width and the height, the size anchors of
+	// the widget in CSS px; 0 is "auto" (Android
+	// jni/twidget/widget-sandbox/docs/tgw-format.md, "Size anchors").
 	MaxWidgetSide = 4096
 	// The period clients wait between reads of the public data
 	// (widgetPublicData.period): 30 s unless the bot sets it, as Android
@@ -108,11 +110,11 @@ func validWidgetPeriod(period int32) error {
 
 // CreateWidget stores a new shared widget of w.BotId with a random id and
 // returns it as stored. A payload that is empty or over MaxWidgetPayload
-// and a side out of 1..MaxWidgetSide are MEDIA_INVALID, public data over
+// and a side out of 0..MaxWidgetSide are MEDIA_INVALID, public data over
 // MaxWidgetData DATA_TOO_LONG.
 func (s *Store) CreateWidget(ctx context.Context, w Widget, now int32) (Widget, error) {
 	if len(w.Payload) == 0 || len(w.Payload) > MaxWidgetPayload ||
-		w.Width < 1 || w.Width > MaxWidgetSide || w.Height < 1 || w.Height > MaxWidgetSide {
+		w.Width < 0 || w.Width > MaxWidgetSide || w.Height < 0 || w.Height > MaxWidgetSide {
 		return Widget{}, mtproto.ErrMediaInvalid
 	}
 	if err := validWidgetData(w.PublicData); err != nil {

@@ -31,6 +31,8 @@ func TestRunsAside(t *testing.T) {
 		{&mtproto.TLMessagesGetBotCallbackAnswer{}, true},
 		{&mtproto.TLMessagesGetInlineBotResults{}, true},
 		{&mtproto.TLUploadGetWebFile{}, true},
+		{&mtproto.TLMessagesGetBotWidgetQueryAnswer{}, true},
+		{&mtproto.TLMessagesGetWidgetPublicData{}, false},
 		{&mtproto.TLUploadGetFile{}, false},
 		{&mtproto.TLMessagesSendMessage{}, false},
 		{&mtproto.TLMessagesSendInlineBotResult{}, false},

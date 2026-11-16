@@ -24,6 +24,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
 	"github.com/teamgram/teamgram-server/pkg/botgames"
+	"github.com/teamgram/teamgram-server/pkg/botwidgets"
 
 	"github.com/zeromicro/go-zero/core/contextx"
 	"github.com/zeromicro/go-zero/core/threading"
@@ -176,6 +177,13 @@ func (c *MessagesCore) MessagesSendMedia(in *mtproto.TLMessagesSendMedia) (*mtpr
 		outMessage.Media = game.media
 		if game.viaBot != 0 {
 			outMessage.ViaBotId = wrapperspb.Int64(game.viaBot)
+		}
+	} else if _, widget := botwidgets.FromInputMedia(in.Media); widget {
+		// A bot's widget (task 106), made last: a shared one is an object
+		// from here on.
+		if outMessage.Media, err = c.makeWidgetMedia(peer, in.Media); err != nil {
+			c.Logger.Errorf("messages.sendMedia - widget: %v", err)
+			return nil, err
 		}
 	} else if outMessage.Media, err = c.makeMediaByInputMedia(in.Media); err != nil {
 		c.Logger.Errorf("messages.sendMedia - error: %v", err)
