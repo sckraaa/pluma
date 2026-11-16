@@ -24,8 +24,7 @@ import (
 
 // RPCBotMenu and RPCGames (task 098): the attachment menu and the games of
 // the bots platform (task 106) and the dice game, which is never available.
-// Their other methods keep the 400 the session proxy answered without a
-// route: tgnet retries a 500.
+// Every method of both is served here.
 
 // MessagesGetAttachMenuBots
 // messages.getAttachMenuBots#16fcc2cb hash:long = AttachMenuBots;
@@ -75,14 +74,18 @@ func (s *Service) MessagesGetGameHighScores(ctx context.Context, request *mtprot
 	return c.MessagesGetGameHighScores(request)
 }
 
-// MessagesSetInlineGameScore is not served yet: the scores of games sent
-// via a bot come with the edits of inline messages (task 106, part G2).
+// MessagesSetInlineGameScore
+// messages.setInlineGameScore#15ad9f64 flags:# edit_message:flags.0?true force:flags.1?true id:InputBotInlineMessageID user_id:InputUser score:int = Bool;
 func (s *Service) MessagesSetInlineGameScore(ctx context.Context, request *mtproto.TLMessagesSetInlineGameScore) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.setInlineGameScore - metadata: {%s}", c.MD)
+	return c.MessagesSetInlineGameScore(request)
 }
 
-// MessagesGetInlineGameHighScores is not served yet, see
-// MessagesSetInlineGameScore.
+// MessagesGetInlineGameHighScores
+// messages.getInlineGameHighScores#f635e1b id:InputBotInlineMessageID user_id:InputUser = messages.HighScores;
 func (s *Service) MessagesGetInlineGameHighScores(ctx context.Context, request *mtproto.TLMessagesGetInlineGameHighScores) (*mtproto.Messages_HighScores, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getInlineGameHighScores - metadata: {%s}", c.MD)
+	return c.MessagesGetInlineGameHighScores(request)
 }

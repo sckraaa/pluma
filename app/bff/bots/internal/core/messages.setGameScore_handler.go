@@ -16,11 +16,7 @@
 package core
 
 import (
-	"errors"
-	"time"
-
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/pkg/botstore"
 )
 
 // MessagesSetGameScore
@@ -63,39 +59,8 @@ func (c *BotsCore) MessagesSetGameScore(in *mtproto.TLMessagesSetGameScore) (*mt
 	if err != nil {
 		return nil, err
 	}
-	if m.peer.IsUser() && m.peer.PeerId != playerId {
-		return nil, mtproto.ErrUserIdInvalid
-	}
-	if err = c.playerInChat(m, playerId); err != nil {
-		if !errors.Is(err, mtproto.ErrUserIdInvalid) {
-			c.Logger.Errorf("messages.setGameScore - error: %v", err)
-		}
+	if err = c.setScore("messages.setGameScore", m, in.Id, playerId, in.Score, in.Force, in.EditMessage); err != nil {
 		return nil, err
-	}
-	chat, err := botstore.ScoreChatOf(c.MD.UserId, m.peer.PeerType, m.peer.PeerId)
-	if err != nil {
-		return nil, mtproto.ErrPeerIdInvalid
-	}
-	var reply *scoreReply
-	if in.EditMessage {
-		if reply, err = c.gameScoreReply(m, in.Id, playerId); err != nil {
-			c.Logger.Errorf("messages.setGameScore - error: %v", err)
-			return nil, err
-		}
-	}
-
-	if err = c.svcCtx.Bots.SetScore(c.ctx, m.game.Id, chat, playerId, in.Score, in.Force, int32(time.Now().Unix())); err != nil {
-		if !errors.Is(err, mtproto.ErrBotScoreNotModified) && !errors.Is(err, mtproto.ErrScoreInvalid) {
-			c.Logger.Errorf("messages.setGameScore - error: %v", err)
-			return nil, mtproto.ErrInternalServerError
-		}
-		return nil, err
-	}
-	if reply != nil {
-		if err = c.postScore(reply, playerId, m.game.Id, in.Score, scoreRandomId(chat, in.Id, m.game.Id, playerId, in.Score)); err != nil {
-			c.Logger.Errorf("messages.setGameScore - the score's message: %v", err)
-			return nil, err
-		}
 	}
 	return mtproto.MakeEmptyUpdates(), nil
 }

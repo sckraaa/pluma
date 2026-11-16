@@ -270,7 +270,94 @@ func TestGames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("messages.sendInlineBotResult of the game: %v", err)
 	}
-	if m := sentMessage(t, o); m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaGame || m.GetViaBotId().GetValue() != botId || !playButton(m) {
-		t.Fatalf("the game sent inline: %v", m)
+	inlineGame := sentMessage(t, o)
+	if inlineGame.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaGame || inlineGame.GetViaBotId().GetValue() != botId || !playButton(inlineGame) {
+		t.Fatalf("the game sent inline: %v", inlineGame)
+	}
+
+	// The press of the inline game names it by its inline message id, by
+	// which the bot sets and reads the score and edits the message.
+	go func() {
+		_, err := alice.c.Invoke(ctx, &mtproto.TLMessagesGetBotCallbackAnswer{
+			Constructor: alice.c.Constructor(mtproto.Predicate_messages_getBotCallbackAnswer),
+			Game:        true, Peer: toBot, MsgId: inlineGame.GetId(),
+		})
+		press <- err
+	}()
+	var inlineId *mtproto.InputBotInlineMessageID
+	waitUpdate(ctx, t, bot, mtproto.Predicate_updateInlineBotCallbackQuery, func(u *mtproto.Update) bool {
+		if u.GetGameShortName().GetValue() != "jump" {
+			return false
+		}
+		queryId, inlineId = u.GetQueryId_INT64(), u.GetMsgId_FLAGINPUTBOTINLINEMESSAGEID()
+		return true
+	})
+	if _, err = bot.c.Invoke(ctx, &mtproto.TLMessagesSetBotCallbackAnswer{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_setBotCallbackAnswer),
+		QueryId:     queryId, Url: wrapperspb.String("https://games.example/jump"),
+	}); err != nil {
+		t.Fatalf("messages.setBotCallbackAnswer of the inline game: %v", err)
+	}
+	if err = <-press; err != nil {
+		t.Fatalf("the press of the inline game: %v", err)
+	}
+	if _, err = bot.c.Invoke(ctx, &mtproto.TLMessagesSetInlineGameScore{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_setInlineGameScore),
+		EditMessage: true, Id: inlineId, UserId: inputUserOfPeer(bot.c, toAlice), Score: 200,
+	}); err != nil {
+		t.Fatalf("messages.setInlineGameScore: %v", err)
+	}
+	waitUpdate(ctx, t, alice, mtproto.Predicate_updateNewMessage, func(u *mtproto.Update) bool {
+		m := u.GetMessage_MESSAGE()
+		a := m.GetAction()
+		return a.GetPredicateName() == mtproto.Predicate_messageActionGameScore && a.GetScore() == 200 &&
+			m.GetFromId().GetUserId() == alice.self.GetId() && m.GetReplyTo().GetReplyToMsgId_FLAGINT32().GetValue() == inlineGame.GetId()
+	})
+	o, err = bot.c.Invoke(ctx, &mtproto.TLMessagesGetInlineGameHighScores{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_getInlineGameHighScores),
+		Id:          inlineId, UserId: inputUserOfPeer(bot.c, toAlice),
+	})
+	if err != nil {
+		t.Fatalf("messages.getInlineGameHighScores: %v", err)
+	}
+	table = o.(interface {
+		To_Messages_HighScores() *mtproto.Messages_HighScores
+	}).To_Messages_HighScores()
+	// The private chat of Alice and the bot holds both games: one table.
+	if s := table.GetScores(); len(s) != 1 || s[0].GetUserId() != alice.self.GetId() || s[0].GetScore() != 200 {
+		t.Fatalf("the inline game's table: %v", table)
+	}
+
+	// The bot adds a row to the keyboard of the inline game; the game's
+	// button stays first.
+	rules := &mtproto.ReplyMarkup{
+		Constructor: bot.c.Constructor(mtproto.Predicate_replyInlineMarkup),
+		Rows: []*mtproto.KeyboardButtonRow{
+			{Constructor: bot.c.Constructor(mtproto.Predicate_keyboardButtonRow), Buttons: []*mtproto.KeyboardButton{
+				{Constructor: bot.c.Constructor(mtproto.Predicate_keyboardButtonGame), Text: "Play"},
+			}},
+			{Constructor: bot.c.Constructor(mtproto.Predicate_keyboardButtonRow), Buttons: []*mtproto.KeyboardButton{
+				{Constructor: bot.c.Constructor(mtproto.Predicate_keyboardButtonUrl), Text: "Rules", Url: "https://games.example/rules"},
+			}},
+		},
+	}
+	editInline := func() error {
+		_, err := bot.c.Invoke(ctx, &mtproto.TLMessagesEditInlineBotMessage{
+			Constructor: bot.c.Constructor(mtproto.Predicate_messages_editInlineBotMessage),
+			Id:          inlineId, ReplyMarkup: rules,
+		})
+		return err
+	}
+	if err = editInline(); err != nil {
+		t.Fatalf("messages.editInlineBotMessage: %v", err)
+	}
+	waitUpdate(ctx, t, alice, mtproto.Predicate_updateEditMessage, func(u *mtproto.Update) bool {
+		m := u.GetMessage_MESSAGE()
+		rows := m.GetReplyMarkup().GetRows()
+		return m.GetId() == inlineGame.GetId() && m.GetEditDate() != nil && playButton(m) && len(rows) == 2 &&
+			rows[1].GetButtons()[0].GetUrl() == "https://games.example/rules"
+	})
+	if err = editInline(); !strings.Contains(fmt.Sprint(err), "MESSAGE_NOT_MODIFIED") {
+		t.Fatalf("the same edit again: %v", err)
 	}
 }

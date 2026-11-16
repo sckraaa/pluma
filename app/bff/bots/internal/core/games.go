@@ -89,8 +89,13 @@ func (c *BotsCore) inlineGame(ref dao.GameRef) (*mtproto.Game, error) {
 	return tl, nil
 }
 
-// gameMessage is a message with a game as c's account sees it.
+// gameMessage is a message with a game as the user of its box sees it.
 type gameMessage struct {
+	// owner is the user whose box holds the message and peer the chat as
+	// owner names it: the bot of setGameScore (findGameMessage), the sender
+	// of an inline message (findInlineGameMessage). A channel's message is
+	// the channel's own, owner its author.
+	owner   int64
 	peer    *mtproto.PeerUtil
 	message *mtproto.Message
 	game    *botstore.Game
@@ -102,7 +107,7 @@ type gameMessage struct {
 // account does not have or one without a game.
 func (c *BotsCore) findGameMessage(in *mtproto.InputPeer, msgId int32) (*gameMessage, error) {
 	peer := c.chatPeer(in)
-	m := &gameMessage{peer: peer}
+	m := &gameMessage{owner: c.MD.UserId, peer: peer}
 	switch {
 	case peer.IsUser(), peer.IsChat():
 		box, err := c.svcCtx.MessageGetUserMessage(c.ctx, &message.TLMessageGetUserMessage{UserId: c.MD.UserId, Id: msgId})
@@ -128,20 +133,29 @@ func (c *BotsCore) findGameMessage(in *mtproto.InputPeer, msgId int32) (*gameMes
 	default:
 		return nil, mtproto.ErrPeerIdInvalid
 	}
+	if err := c.withGame(m, msgId); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+// withGame finds the game of m's message; MESSAGE_ID_INVALID for a message
+// without one or with a game removed since.
+func (c *BotsCore) withGame(m *gameMessage, msgId int32) error {
 	media := m.message.GetMedia()
 	if media.GetPredicateName() != mtproto.Predicate_messageMediaGame {
-		return nil, mtproto.ErrMessageIdInvalid
+		return mtproto.ErrMessageIdInvalid
 	}
 	game, err := c.svcCtx.Bots.GameOf(c.ctx, media.GetGame().GetId())
 	if err != nil {
 		c.Logger.Errorf("game of message %d: %v", msgId, err)
-		return nil, mtproto.ErrInternalServerError
+		return mtproto.ErrInternalServerError
 	}
 	if game == nil {
-		return nil, mtproto.ErrMessageIdInvalid
+		return mtproto.ErrMessageIdInvalid
 	}
 	m.game = game
-	return m, nil
+	return nil
 }
 
 // player is the user a score is of: a user, not a bot, that exists;
@@ -227,16 +241,19 @@ func (c *BotsCore) gameScoreReply(m *gameMessage, msgId int32, playerId int64) (
 	out := &scoreReply{}
 	replyTo := msgId
 	switch {
+	case m.peer.IsUser() && playerId == m.owner:
+		// The sender of an inline message plays in its own chat.
+		out.peer = mtproto.MakeUserPeerUtil(m.peer.PeerId)
 	case m.peer.IsUser():
-		out.peer = mtproto.MakeUserPeerUtil(c.MD.UserId)
+		out.peer = mtproto.MakeUserPeerUtil(m.owner)
 	case m.peer.IsChat():
 		out.peer = mtproto.MakeChatPeerUtil(m.peer.PeerId)
 	default:
 		out.peer = mtproto.MakeChannelPeerUtil(m.peer.PeerId)
 	}
-	if !m.peer.IsChannel() {
+	if !m.peer.IsChannel() && playerId != m.owner {
 		// The ids of private chats and groups are of each box.
-		box, err := c.svcCtx.MessageGetPeerUserMessage(c.ctx, &message.TLMessageGetPeerUserMessage{UserId: c.MD.UserId, PeerUserId: playerId, MsgId: msgId})
+		box, err := c.svcCtx.MessageGetPeerUserMessage(c.ctx, &message.TLMessageGetPeerUserMessage{UserId: m.owner, PeerUserId: playerId, MsgId: msgId})
 		switch {
 		case errors.Is(err, mtproto.ErrMsgIdInvalid), errors.Is(err, mtproto.ErrMessageIdInvalid):
 			return out, nil
@@ -298,4 +315,50 @@ func (c *BotsCore) postScore(r *scoreReply, playerId, gameId int64, score int32,
 		return nil
 	}
 	return err
+}
+
+// setScore sets the score of the player in the chat of the game message m,
+// msgId in its owner's box (in the channel for a channel's), and with edit
+// posts the player's messageActionGameScore there. The player of a private
+// chat is one of its users, of a group or a supergroup its member
+// (playerInChat); USER_ID_INVALID otherwise. The score is stored first: it
+// matters more, and a repeat of the call posts the same message once
+// (scoreRandomId).
+func (c *BotsCore) setScore(method string, m *gameMessage, msgId int32, playerId int64, score int32, force, edit bool) error {
+	if m.peer.IsUser() && playerId != m.peer.PeerId && playerId != m.owner {
+		return mtproto.ErrUserIdInvalid
+	}
+	err := c.playerInChat(m, playerId)
+	if err != nil {
+		if !errors.Is(err, mtproto.ErrUserIdInvalid) {
+			c.Logger.Errorf("%s - error: %v", method, err)
+		}
+		return err
+	}
+	chat, err := botstore.ScoreChatOf(m.owner, m.peer.PeerType, m.peer.PeerId)
+	if err != nil {
+		return mtproto.ErrPeerIdInvalid
+	}
+	var reply *scoreReply
+	if edit {
+		if reply, err = c.gameScoreReply(m, msgId, playerId); err != nil {
+			c.Logger.Errorf("%s - error: %v", method, err)
+			return err
+		}
+	}
+
+	if err = c.svcCtx.Bots.SetScore(c.ctx, m.game.Id, chat, playerId, score, force, int32(time.Now().Unix())); err != nil {
+		if !errors.Is(err, mtproto.ErrBotScoreNotModified) && !errors.Is(err, mtproto.ErrScoreInvalid) {
+			c.Logger.Errorf("%s - error: %v", method, err)
+			return mtproto.ErrInternalServerError
+		}
+		return err
+	}
+	if reply != nil {
+		if err = c.postScore(reply, playerId, m.game.Id, score, scoreRandomId(chat, msgId, m.game.Id, playerId, score)); err != nil {
+			c.Logger.Errorf("%s - the score's message: %v", method, err)
+			return err
+		}
+	}
+	return nil
 }
