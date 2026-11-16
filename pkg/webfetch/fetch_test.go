@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -128,5 +129,48 @@ func TestFetchRefusesInternalAddresses(t *testing.T) {
 		if _, err := c.Fetch(context.Background(), mustURL(t, link), "image/*", 1<<20); err == nil {
 			t.Errorf("%s fetched", link)
 		}
+	}
+}
+
+// A host of AllowHosts is fetched from although it is internal, as the
+// test stand's sites are; every other internal host stays refused, a
+// redirect from the allowed one to another included.
+func TestFetchAllowHosts(t *testing.T) {
+	var internal *httptest.Server
+	internal = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/a.jpg":
+			w.Header().Set("Content-Type", "image/jpeg")
+			_, _ = w.Write([]byte("jpeg"))
+		case "/away":
+			// The same server under a name that is not allowed.
+			_, port, _ := net.SplitHostPort(internal.Listener.Addr().String())
+			http.Redirect(w, r, "http://localhost:"+port+"/a.jpg", http.StatusFound)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer internal.Close()
+	host, port, err := net.SplitHostPort(internal.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	c := New(Options{Timeout: 2 * time.Second, MaxRedirects: 2, AllowHosts: []string{" " + strings.ToUpper(host) + ". "}})
+	body, err := c.Fetch(context.Background(), mustURL(t, internal.URL+"/a.jpg"), "image/*", 1<<20)
+	if err != nil || string(body.Bytes) != "jpeg" {
+		t.Fatalf("an allowed host: %q, %v", body.Bytes, err)
+	}
+	if _, err = c.Fetch(context.Background(), mustURL(t, internal.URL+"/away"), "image/*", 1<<20); !errors.Is(err, ErrNotPublic) {
+		t.Errorf("a redirect to a host not allowed: %v", err)
+	}
+	for _, link := range []string{"http://localhost:" + port + "/a.jpg", "http://10.1.2.3/a.jpg", "ftp://" + host + "/a.jpg", "http://u:p@" + host + ":" + port + "/a.jpg"} {
+		if _, err := c.Fetch(context.Background(), mustURL(t, link), "image/*", 1<<20); err == nil {
+			t.Errorf("%s fetched", link)
+		}
+	}
+
+	if _, err = New(Options{Timeout: 2 * time.Second}).Fetch(context.Background(), mustURL(t, internal.URL+"/a.jpg"), "image/*", 1<<20); !errors.Is(err, ErrNotPublic) {
+		t.Errorf("without AllowHosts: %v", err)
 	}
 }

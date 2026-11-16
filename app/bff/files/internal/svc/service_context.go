@@ -56,7 +56,7 @@ type ServiceContext struct {
 }
 
 func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *ServiceContext {
-	webFiles, err := webfile.New(c.WebFile)
+	webFiles, err := webfile.New(c.WebFile, c.WebFetch)
 	logx.Must(err)
 	maps, err := newMaps(c)
 	logx.Must(err)

@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/svc"
 	"github.com/teamgram/teamgram-server/pkg/staticmap"
+	"github.com/teamgram/teamgram-server/pkg/webfetch"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/cache"
@@ -37,7 +38,7 @@ import (
 
 func webFileCore(t *testing.T, c webfile.Config) *FilesCore {
 	t.Helper()
-	s, err := webfile.New(c)
+	s, err := webfile.New(c, webfetch.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

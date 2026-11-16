@@ -52,12 +52,29 @@ type Options struct {
 	Timeout time.Duration
 	// MaxRedirects is the most redirects a fetch follows.
 	MaxRedirects int
+	// AllowHosts are hosts fetched from although they are not public
+	// (Config.AllowHosts): the test stand's own sites. Production sets none.
+	AllowHosts []string
 }
 
-// Client fetches from public addresses only.
+// Config is WebFetch of bff.yaml: what the server's fetches of inline
+// bots' media and of upload.getWebFile may reach beyond the public
+// internet.
+type Config struct {
+	// AllowHosts are names, or addresses, of hosts on the network of the
+	// services that are fetched from as if they were public: only the end
+	// to end test stand sets it (test/e2e/run.sh: test/e2e/fakeinline plays
+	// the sites of the web there). A production config never has it: it
+	// opens the internal network to the addresses users and bots name.
+	AllowHosts []string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+}
+
+// Client fetches from public addresses only, and from the hosts of
+// Options.AllowHosts.
 type Client struct {
 	client    *http.Client
 	userAgent string
+	allow     map[string]bool
 }
 
 // New returns a Client.
@@ -65,6 +82,27 @@ func New(o Options) *Client {
 	dial := o.Dial
 	if dial == nil {
 		dial = PublicDial
+	}
+	allow := make(map[string]bool, len(o.AllowHosts))
+	for _, h := range o.AllowHosts {
+		if h = hostKey(h); h != "" {
+			allow[h] = true
+		}
+	}
+	if len(allow) > 0 {
+		// The transport dials the host the link names, before it is
+		// resolved: an allowed one is dialled without the check of
+		// PublicDial, every other one with it.
+		checked, plain := dial, o.Dial
+		if plain == nil {
+			plain = (&net.Dialer{Timeout: 5 * time.Second}).DialContext
+		}
+		dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+			if host, _, err := net.SplitHostPort(address); err == nil && allow[hostKey(host)] {
+				return plain(ctx, network, address)
+			}
+			return checked(ctx, network, address)
+		}
 	}
 	transport := &http.Transport{
 		Proxy:                  nil, // never through a proxy, which would dial for us
@@ -77,25 +115,50 @@ func New(o Options) *Client {
 		IdleConnTimeout:        30 * time.Second,
 	}
 	maxRedirects := o.MaxRedirects
-	return &Client{
+	c := &Client{
 		userAgent: o.UserAgent,
-		client: &http.Client{
-			Transport: transport,
-			Timeout:   o.Timeout,
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				if len(via) >= maxRedirects {
-					return errors.New("webfetch: too many redirects")
-				}
-				return Fetchable(req.URL)
-			},
+		allow:     allow,
+	}
+	c.client = &http.Client{
+		Transport: transport,
+		Timeout:   o.Timeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRedirects {
+				return errors.New("webfetch: too many redirects")
+			}
+			return c.fetchable(req.URL)
 		},
 	}
+	return c
+}
+
+// fetchable is Fetchable, but for a host of AllowHosts, which needs only
+// the scheme and no user info.
+func (c *Client) fetchable(u *url.URL) error {
+	if !c.allow[hostKey(u.Hostname())] {
+		return Fetchable(u)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("webfetch: scheme %q", u.Scheme)
+	}
+	if u.User != nil {
+		return errors.New("webfetch: user info in the link")
+	}
+	return nil
+}
+
+// hostKey is a host name or address as AllowHosts compares it: in lower
+// case, without the dot of a fully qualified name or the brackets of an
+// IPv6 address.
+func hostKey(h string) string {
+	h = strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(h), "["), "]")
+	return strings.TrimSuffix(strings.ToLower(h), ".")
 }
 
 // Get requests u and returns the answer if it is 200 OK; the caller closes
 // its body.
 func (c *Client) Get(ctx context.Context, u *url.URL, accept string) (*http.Response, error) {
-	if err := Fetchable(u); err != nil {
+	if err := c.fetchable(u); err != nil {
 		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)

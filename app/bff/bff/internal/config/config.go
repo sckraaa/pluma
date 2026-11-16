@@ -34,6 +34,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/transcribe"
 	"github.com/teamgram/teamgram-server/pkg/translate"
 	"github.com/teamgram/teamgram-server/pkg/webappdata"
+	"github.com/teamgram/teamgram-server/pkg/webfetch"
 	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -95,6 +96,11 @@ type Config struct {
 	// by bots (signing) and files (checking), and the cache of the files
 	// fetched. No key: the addresses are not proxied.
 	WebFile webfile.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// WebFetch is what the fetches of upload.getWebFile and of the media
+	// the built-in inline bots import may reach beyond the public
+	// internet. Only the test stand sets it (AllowHosts: its fakeinline,
+	// test/e2e/run.sh); the configs of a server never do.
+	WebFetch webfetch.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// Maps renders the map previews of geo points that clients ask for
 	// with upload.getWebFile (task 100, ADR 0063, docs/ops/maps.md): the
 	// maps service at home and the limits; maps are off without a URL.

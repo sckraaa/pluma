@@ -125,7 +125,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	importer := inlinemedia.NewImporter(
 		media,
 		inlinemedia.NewBudget(d.KV, dailyBytes),
-		inlinemedia.NewFetcher(),
+		inlinemedia.NewFetcher(c.WebFetch),
 		webfetch.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,
