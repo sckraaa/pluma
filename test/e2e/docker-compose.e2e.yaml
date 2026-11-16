@@ -150,6 +150,25 @@ services:
       - teamgram_net
     restart: "no"
 
+  # The translation engine of messages (test/e2e/faketranslate, task 101):
+  # bff sends it the prompts of the model as to the translate service of
+  # docker-compose.translate.yaml (TRANSLATE_URL in the env file of
+  # run.sh); the tests plan its answers and count the requests on an
+  # ephemeral loopback port.
+  faketranslate:
+    build:
+      context: .
+      dockerfile: test/e2e/faketranslate/Dockerfile
+    image: ${E2E_FAKETRANSLATE_IMAGE:-pluma-e2e-faketranslate:local}
+    environment:
+      TRANSLATE_API_TOKEN: ${TRANSLATE_TOKEN:?run test/e2e/run.sh up}
+      TRANSLATE_MODEL: ${TRANSLATE_MODEL:?run test/e2e/run.sh up}
+    ports:
+      - "127.0.0.1::8080"
+    networks:
+      - teamgram_net
+    restart: "no"
+
   # The mail provider of the recovery email (test/e2e/fakemail): bff sends
   # it emails as to Resend; the tests plan its errors and read the codes on
   # an ephemeral loopback port.
@@ -200,12 +219,15 @@ services:
     restart: "no"
 
   bff:
-    # The config with the limits of transcription, the mail provider of the
-    # tests and the hosts of fakeinline, written by run.sh.
+    # The config with the limits of transcription and the waits of
+    # translation, the mail provider of the tests and the hosts of
+    # fakeinline, written by run.sh.
     volumes:
       - ${E2E_BFF_CONFIG:?run test/e2e/run.sh up}:/app/etc2/bff.yaml:ro
     depends_on:
       fakestt:
+        condition: service_started
+      faketranslate:
         condition: service_started
       fakemail:
         condition: service_started

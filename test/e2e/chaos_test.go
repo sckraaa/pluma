@@ -90,6 +90,15 @@ func restore(t *testing.T) {
 			fakeSTTAddr = addr
 		}
 	}
+	if fakeTranslateAddr != "" {
+		addr, err := fakeTranslatePort()
+		if err != nil {
+			t.Fatalf("faketranslate port: %v", err)
+		}
+		if addr != "" {
+			fakeTranslateAddr = addr
+		}
+	}
 	if fakeMailAddr != "" {
 		out, err = exec.Command(runScript, "compose", "port", "fakemail", "8080").Output()
 		if err != nil {
