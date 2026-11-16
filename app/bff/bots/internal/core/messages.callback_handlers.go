@@ -18,6 +18,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"hash/fnv"
 	"strings"
 	"time"
@@ -28,6 +29,7 @@ import (
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
 	"github.com/teamgram/teamgram-server/app/service/biz/message/message"
+	"github.com/teamgram/teamgram-server/pkg/business"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -42,6 +44,16 @@ type pressed struct {
 	botId   int64
 	inline  bool  // sent via the bot: the update names it by inline message id
 	botMsg  int32 // the id of the message in the bot's box
+	// business is the message of a connected business bot (task 105),
+	// nil for any other.
+	business *businessPress
+}
+
+// businessPress is a press in a message a connected business bot sent for
+// its account: the connection and the message as the account has it.
+type businessPress struct {
+	connection *business.Connection
+	message    *mtproto.Message
 }
 
 // pressedMessage finds the message of the press and its bot. It is the
@@ -67,6 +79,13 @@ func (c *BotsCore) pressedMessage(peer *mtproto.PeerUtil, msgId int32) (*pressed
 			p.botId, p.inline = via.GetValue(), true
 		} else if peer.IsUser() {
 			p.botId = peer.PeerId
+			biz, err := c.businessPressed(peer, msgId, box.GetMessage())
+			if err != nil {
+				return nil, err
+			}
+			if biz != nil {
+				p.botId, p.business = biz.connection.BotID, biz
+			}
 		} else {
 			p.botId = p.message.GetFromId().GetUserId()
 		}
@@ -89,6 +108,46 @@ func (c *BotsCore) pressedMessage(peer *mtproto.PeerUtil, msgId int32) (*pressed
 		return nil, mtproto.ErrPeerIdInvalid
 	}
 	return p, nil
+}
+
+// businessPressed finds whether the message of a press in the private chat
+// with peer, m being the presser's copy of message msgId, is one a
+// connected business bot sent for its account (task 105): the account's
+// copy has via_business_bot_id, and the bot is still the account's
+// connected bot. Its presses go to the bot as
+// updateBusinessBotCallbackQuery ("pressing a callback button in a message
+// sent by the bot will emit an updateBusinessBotCallbackQuery",
+// core.telegram.org/api/bots/connected-business-bots). The other side's
+// copy has no via_business_bot_id (msg ReceiveIncoming), so it is read
+// from the account's box; the account pressing in its own message has it
+// at hand. nil for any other message; DATA_INVALID when that bot is no
+// longer the account's connected bot, so the press goes to no bot.
+func (c *BotsCore) businessPressed(peer *mtproto.PeerUtil, msgId int32, m *mtproto.Message) (*businessPress, error) {
+	owner, ownerMsg := c.MD.UserId, m
+	if !m.GetOut() {
+		box, err := c.svcCtx.MessageGetPeerUserMessage(c.ctx, &message.TLMessageGetPeerUserMessage{UserId: c.MD.UserId, PeerUserId: peer.PeerId, MsgId: msgId})
+		if errors.Is(err, mtproto.ErrMsgIdInvalid) {
+			return nil, nil
+		}
+		if err != nil {
+			c.Logger.Errorf("messages.getBotCallbackAnswer - error: %v", err)
+			return nil, mtproto.ErrInternalServerError
+		}
+		owner, ownerMsg = peer.PeerId, box.GetMessage()
+	}
+	via := ownerMsg.GetViaBusinessBotId()
+	if via == nil || !ownerMsg.GetOut() {
+		return nil, nil
+	}
+	conn, err := c.svcCtx.Business.Connection(c.ctx, owner)
+	if err != nil {
+		c.Logger.Errorf("messages.getBotCallbackAnswer - error: %v", err)
+		return nil, mtproto.ErrInternalServerError
+	}
+	if conn == nil || conn.BotID != via.GetValue() {
+		return nil, mtproto.ErrDataInvalid
+	}
+	return &businessPress{connection: conn, message: ownerMsg}, nil
 }
 
 // hasCallback tells whether the inline keyboard of m has the button.
@@ -158,6 +217,11 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 		// The press of a game has no data: an empty key of the cache, which
 		// no button with data has (botmarkup: 1 to 64 bytes).
 		data = nil
+		// updateBusinessBotCallbackQuery has no game_short_name: a
+		// connected bot sends no game for its account.
+		if p.business != nil {
+			return nil, mtproto.ErrDataInvalid
+		}
 		if gameShortName, err = c.pressedGame(p); err != nil {
 			return nil, err
 		}
@@ -192,7 +256,14 @@ func (c *BotsCore) MessagesGetBotCallbackAnswer(in *mtproto.TLMessagesGetBotCall
 	if err != nil {
 		return nil, err
 	}
-	users, err := c.usersFor(p.botId, c.MD.UserId)
+	userIds := []int64{c.MD.UserId}
+	if p.business != nil {
+		// The account and those its message names, as the bot sees them.
+		h := mtproto.NewIDListHelper(c.MD.UserId, p.business.connection.UserID)
+		h.PickByMessage(p.business.message)
+		userIds = h.UserIdList
+	}
+	users, err := c.usersFor(p.botId, userIds...)
 	if err != nil {
 		return nil, err
 	}
@@ -225,6 +296,19 @@ func (c *BotsCore) callbackUpdate(queryId int64, p *pressed, msgId int32, data [
 	var game *wrapperspb.StringValue
 	if gameShortName != "" {
 		game = wrapperspb.String(gameShortName)
+	}
+	if p.business != nil {
+		// The message as the account has it, as the bot gets every message
+		// of the connection (updateBotNewBusinessMessage); reply_to_message
+		// is left out (flags.2).
+		return mtproto.MakeTLUpdateBusinessBotCallbackQuery(&mtproto.Update{
+			QueryId_INT64:      queryId,
+			UserId:             c.MD.UserId,
+			ConnectionId:       p.business.connection.ConnectionID,
+			Message_MESSAGE:    p.business.message,
+			ChatInstance_INT64: instance,
+			Data_FLAGBYTES:     data,
+		}).To_Update(), nil, nil
 	}
 	if p.inline {
 		return mtproto.MakeTLUpdateInlineBotCallbackQuery(&mtproto.Update{

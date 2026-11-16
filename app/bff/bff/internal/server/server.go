@@ -714,6 +714,7 @@ func (s *Server) Initialize() error {
 				SyncClient:    syncClient,
 				KV:            c.KV,
 				ChannelClient: c.BizServiceClient,
+				Mysql:         c.Mysql,
 			}))
 
 		mtproto.RegisterRPCPasskeyServer(

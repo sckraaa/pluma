@@ -30,6 +30,7 @@ import (
 	"github.com/teamgram/teamgram-server/pkg/botgames"
 	"github.com/teamgram/teamgram-server/pkg/botstore"
 	"github.com/teamgram/teamgram-server/pkg/botwidgets"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/catalog/stickerlists"
 	"github.com/teamgram/teamgram-server/pkg/logincode"
@@ -100,6 +101,10 @@ type ServiceContext struct {
 	// Widgets keeps the shared widgets of bots that inputMediaWidget makes
 	// and inputMediaWidgetId names (task 106).
 	Widgets botwidgets.Store
+
+	// Business checks what a connected bot of Telegram Business does for
+	// its account through its connection (task 105).
+	Business *business.Store
 }
 
 func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories plugin.StoryPlugin) *ServiceContext {
@@ -132,6 +137,7 @@ func NewServiceContext(c config.Config, plugin plugin.MessagesPlugin, stories pl
 		LoginDomains: bots,
 		Games:        bots,
 		Widgets:      bots,
+		Business:     business.NewStore(db),
 		WebPages: webpage.NewService(db, webpage.RPCPhotos{
 			Dfs:   dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
 			Media: d.MediaClient,

@@ -21,11 +21,27 @@ package core
 import (
 	"github.com/teamgram/proto/mtproto"
 	msgpb "github.com/teamgram/teamgram-server/app/messenger/msg/msg/msg"
+	"github.com/teamgram/teamgram-server/pkg/business"
 )
 
 // MessagesDeleteMessages
 // messages.deleteMessages#e58e95d2 flags:# revoke:flags.0?true id:Vector<int> = messages.AffectedMessages;
+//
+// A connected business bot deletes, for its account, the messages it sent
+// and those the account received in the chats it serves, as its rights
+// allow (task 105, business.Store.CheckDelete); revoke is as the
+// account's. The answer is the account's: the bot learns how many
+// messages went (pts_count); what Telegram answers the bot here is not
+// published.
 func (c *MessagesCore) MessagesDeleteMessages(in *mtproto.TLMessagesDeleteMessages) (*mtproto.Messages_AffectedMessages, error) {
+	if _, err := c.businessAct(business.MethodDeleteMessages, nil); err != nil {
+		c.Logger.Errorf("messages.deleteMessages - business connection: %v", err)
+		return nil, err
+	}
+	if err := c.businessDeletable(in.Id); err != nil {
+		c.Logger.Errorf("messages.deleteMessages - business connection: %v", err)
+		return nil, err
+	}
 	// TODO(@benqi): Check message service.
 	affectedMessages, err := c.svcCtx.Dao.MsgClient.MsgDeleteMessages(c.ctx, &msgpb.TLMsgDeleteMessages{
 		UserId:    c.MD.UserId,

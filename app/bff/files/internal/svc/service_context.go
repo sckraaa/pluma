@@ -26,6 +26,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/files/plugin"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
 	"github.com/teamgram/teamgram-server/pkg/cdn"
 	"github.com/teamgram/teamgram-server/pkg/staticmap"
@@ -53,6 +54,9 @@ type ServiceContext struct {
 	CDN *cdn.Home
 	// cdn runs the pusher and the prober of the CDN; nil when it is off.
 	cdn *cdn.Runtime
+	// Business checks the uploads of a connected bot of Telegram Business
+	// for a chat of its account (task 105).
+	Business *business.Store
 }
 
 func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *ServiceContext {
@@ -66,12 +70,14 @@ func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2
 	d := dao.New(c)
 	runtime, err := startCDN(c, d)
 	logx.Must(err)
+	db := sqlx.NewMySQL(&c.Mysql)
 	s := &ServiceContext{
 		Config:   c,
 		Dao:      d,
 		Plugin1:  plugin1,
 		Plugin2:  plugin2,
-		Attached: attached.NewStore(sqlx.NewMySQL(&c.Mysql)),
+		Attached: attached.NewStore(db),
+		Business: business.NewStore(db),
 		WebFiles: webFiles,
 		Maps:     maps,
 		cdn:      runtime,

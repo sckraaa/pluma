@@ -20,12 +20,14 @@ package dao
 
 import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/userchannelprofiles/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
+	"github.com/teamgram/teamgram-server/pkg/business"
 )
 
 type Dao struct {
@@ -35,6 +37,9 @@ type Dao struct {
 	msg_client.MsgClient
 	// Channel changes channels (task 078).
 	Channel channel_client.ChannelClient
+	// Business checks what a connected bot of Telegram Business does for
+	// its account (task 105).
+	Business *business.Store
 }
 
 func New(c config.Config) *Dao {
@@ -44,5 +49,6 @@ func New(c config.Config) *Dao {
 		SyncClient:  sync_client.MustNewSyncOutboxClient(c.SyncClient),
 		MsgClient:   msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
 		Channel:     channel_client.NewChannelClient(rpcx.GetCachedRpcClient(c.ChannelClient)),
+		Business:    business.NewStore(sqlx.NewMySQL(&c.Mysql)),
 	}
 }

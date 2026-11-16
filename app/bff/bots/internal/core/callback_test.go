@@ -105,6 +105,13 @@ func (u *userMessages) MessageGetUserMessage(_ context.Context, _ *message.TLMes
 	return u.box, nil
 }
 
+// MessageGetPeerUserMessage answers the look-up of the other side's copy
+// of a press in a private chat (a message of a connected business bot,
+// task 105): a copy without via_business_bot_id, a bot's own message.
+func (u *userMessages) MessageGetPeerUserMessage(_ context.Context, _ *message.TLMessageGetPeerUserMessage) (*mtproto.MessageBox, error) {
+	return &mtproto.MessageBox{Message: &mtproto.Message{Out: true}}, nil
+}
+
 // copyIn is a copy in the box of owner of a message from sender, which the
 // sender addressed to peer: an incoming copy has the owner as its peer.
 func copyIn(sender int64, peerType int32, peerId int64) *mtproto.MessageBox {

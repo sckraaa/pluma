@@ -126,6 +126,9 @@ var secretNames = set(
 	// the slug of a business chat link (task 105, ADR 0067): the only
 	// secret of the link
 	"slug", "getslug",
+	// the connection of a connected business bot (task 105, ADR 0067):
+	// whoever has it acts for the account through the bot
+	"connectionid", "getconnectionid", "businessconnectionid", "getbusinessconnectionid",
 	// the bot platform (task 106, ADR 0068): the initData of a mini app
 	// and its address, the keys of a bot and the server's keys, a site's
 	// client secret, the ID tokens, authorization codes and requests of the

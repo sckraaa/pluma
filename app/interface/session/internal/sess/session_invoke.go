@@ -50,9 +50,16 @@ var (
 // depth and allocation budget the query's decoding continues
 // (mtproto.DecodeBuf.NewNestedDecodeBuf), so the decoder limits hold for the
 // whole chain.
+//
+// businessConnectionId is the connection_id of the invokeWithBusinessConnection
+// the query is wrapped in, "" for none: a connected business bot acting for
+// the account of the connection (task 105, ADR 0067). It holds for the
+// wrappers inside it too.
 type invokeChain struct {
 	level  int
 	parent *mtproto.DecodeBuf
+
+	businessConnectionId string
 }
 
 // decodeQuery decodes the query of a wrapper found at k.
@@ -76,7 +83,7 @@ func (k invokeChain) decodeQuery(query []byte) (mtproto.TLObject, invokeChain, e
 	if obj == nil {
 		return nil, k, errInvokeNoQuery
 	}
-	return obj, invokeChain{level: k.level + 1, parent: dBuf}, nil
+	return obj, invokeChain{level: k.level + 1, parent: dBuf, businessConnectionId: k.businessConnectionId}, nil
 }
 
 // decodeInvokeQuery decodes the query of the wrapper method received as
@@ -232,7 +239,10 @@ func (c *session) onInvokeWithMessagesRange(ctx context.Context, gatewayId, clie
 		return
 	}
 
-	c.onRpcRequest(ctx, gatewayId, clientIp, msgId, query, newTakeoutMetadata(0, request.GetRange()))
+	c.onRpcRequestIn(ctx, gatewayId, clientIp, msgId, query, rpcWrappers{
+		takeout:              newTakeoutMetadata(0, request.GetRange()),
+		businessConnectionId: chain.businessConnectionId,
+	})
 }
 
 func (c *session) onInvokeWithTakeout(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithTakeout, chain invokeChain) {
@@ -261,7 +271,10 @@ func (c *session) onInvokeWithTakeout(ctx context.Context, gatewayId, clientIp s
 		return
 	}
 
-	c.onRpcRequest(ctx, gatewayId, clientIp, msgId, query, takeout)
+	c.onRpcRequestIn(ctx, gatewayId, clientIp, msgId, query, rpcWrappers{
+		takeout:              takeout,
+		businessConnectionId: chain.businessConnectionId,
+	})
 }
 
 func (c *session) onInvokeWithBusinessConnection(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithBusinessConnection, chain invokeChain) {
@@ -276,8 +289,42 @@ func (c *session) onInvokeWithBusinessConnection(ctx context.Context, gatewayId,
 	if !ok {
 		return
 	}
+	// The query runs for the account of the connection once bff has checked
+	// the bot, its connection and its rights (pkg/business, Act). An empty
+	// connection_id would read there as no connection at all, and the bot
+	// would act as itself.
+	if request.GetConnectionId() == "" {
+		c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, mtproto.NewRpcError(mtproto.ErrBusinessConnectionInvalid))
+		msgId.state = RECEIVED | RESPONSE_GENERATED
+		return
+	}
+	next.businessConnectionId = request.GetConnectionId()
 
 	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
+}
+
+// businessConnectionMethod tells whether a connected business bot may call
+// query through invokeWithBusinessConnection: the methods of
+// core.telegram.org/api/bots/connected-business-bots that Pluma serves
+// (task 105). The gifts, stars and stories of the list are not (ADR 0067),
+// and messages.uploadMedia takes its connection as business_connection_id,
+// "not by wrapping it". Any other query is BUSINESS_CONNECTION_NOT_ALLOWED,
+// "the method can't be used over a business connection", before it reaches
+// a service that would run it as the bot.
+func businessConnectionMethod(query mtproto.TLObject) bool {
+	switch query.(type) {
+	case *mtproto.TLAccountUpdateProfile,
+		*mtproto.TLMessagesDeleteMessages,
+		*mtproto.TLMessagesEditMessage,
+		*mtproto.TLMessagesReadHistory,
+		*mtproto.TLMessagesSendMedia,
+		*mtproto.TLMessagesSendMessage,
+		*mtproto.TLMessagesSendMultiMedia,
+		*mtproto.TLMessagesSetTyping,
+		*mtproto.TLMessagesUpdatePinnedMessage:
+		return true
+	}
+	return false
 }
 
 func (c *session) onInvokeWithGooglePlayIntegrity(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, request *mtproto.TLInvokeWithGooglePlayIntegrity, chain invokeChain) {
@@ -348,7 +395,21 @@ func (c *session) onInitConnection(ctx context.Context, gatewayId, clientIp stri
 	c.processMsg(ctx, gatewayId, clientIp, msgId, query, next)
 }
 
+// rpcWrappers is what the invoke* wrappers around a query add to its
+// metadata.
+type rpcWrappers struct {
+	takeout              *rpcmetadata.Takeout
+	businessConnectionId string
+}
+
+// onRpcRequest handles query, wrapped in invokeWithTakeout or
+// invokeWithMessagesRange when takeout is set.
 func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, query mtproto.TLObject, takeout *rpcmetadata.Takeout) bool {
+	return c.onRpcRequestIn(ctx, gatewayId, clientIp, msgId, query, rpcWrappers{takeout: takeout})
+}
+
+// onRpcRequestIn handles query in the wrappers w.
+func (c *session) onRpcRequestIn(ctx context.Context, gatewayId, clientIp string, msgId *inboxMsg, query mtproto.TLObject, w rpcWrappers) bool {
 	logx.WithContext(ctx).Infof("onRpcRequest - request data: {sess: %s, gatewayId: %s, msg_id: %d, seq_no: %d, request: {%s}}",
 		c,
 		gatewayId,
@@ -358,6 +419,15 @@ func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, 
 
 	if c.sessList.cb.unboundTempKey && !checkRpcWithUnboundTempKey(query) {
 		c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, mtproto.NewRpcError(mtproto.ErrAuthKeyPermEmpty))
+		msgId.state = RECEIVED | RESPONSE_GENERATED
+		return false
+	}
+
+	// Refused before the switch below, which acts on some queries itself
+	// (updates.getState makes this the main updates session and stops its
+	// pushes until the answer): a refused query must change nothing.
+	if w.businessConnectionId != "" && !businessConnectionMethod(query) {
+		c.sendRpcResultToQueue(ctx, gatewayId, msgId.msgId, mtproto.NewRpcError(mtproto.ErrBusinessConnectionNotAllowed))
 		msgId.state = RECEIVED | RESPONSE_GENERATED
 		return false
 	}
@@ -461,7 +531,9 @@ func (c *session) onRpcRequest(ctx context.Context, gatewayId, clientIp string, 
 			clientIp:  clientIp,
 			reqMsgId:  msgId.msgId,
 			reqMsg:    query,
-			takeout:   takeout,
+			takeout:   w.takeout,
+
+			businessConnectionId: w.businessConnectionId,
 		})
 
 	return true

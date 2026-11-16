@@ -753,6 +753,8 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 						PermAuthKeyId: m.permAuthKeyId(),
 						LangCode:      m.LangCode(),
 						Takeout:       request.takeout,
+
+						BusinessConnectionId: request.businessConnectionId,
 					}
 					if runsAside(request.reqMsg) {
 						m.startAside(request, md)
