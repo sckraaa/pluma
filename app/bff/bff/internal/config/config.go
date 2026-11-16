@@ -99,6 +99,12 @@ type Config struct {
 	// CDN_NODE_CONTROL the CDN is off: no redirects, no pushes, an empty
 	// help.getCdnConfig.
 	Cdn cdn.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Dc1Addresses are the addresses of DC 1 that help.getConfig gives in
+	// dc_options (PLUMA_DC1_ADDRESSES, task 102, ADR 0065 p. 7,
+	// docs/ops/clients.md): ip:port separated by commas, the port built
+	// into the client apps first. Required with the CDN; empty: no DC 1 in
+	// dc_options.
+	Dc1Addresses string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 	// InlineBots is the built-in inline bots @gif and @pic (task 099, ADR
 	// 0062, docs/ops/inline-bots.md): the providers that answer their
 	// queries and the daily budget of the media they import into dfs.

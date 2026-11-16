@@ -126,6 +126,7 @@ services:
       CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
       CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
       CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
+      PLUMA_DC1_ADDRESSES: ${PLUMA_DC1_ADDRESSES:-}
 
   # Prepares Garage for dfs (pkg/garage) and exits: node layout, the dfs
   # key, the buckets. Idempotent; dfs starts only after it succeeded.
@@ -386,6 +387,7 @@ services:
       CDN_PUSH_CONCURRENCY: ${CDN_PUSH_CONCURRENCY:-}
       CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:-}
       CDN_REUPLOAD_WAIT: ${CDN_REUPLOAD_WAIT:-}
+      PLUMA_DC1_ADDRESSES: ${PLUMA_DC1_ADDRESSES:-}
     stop_grace_period: 30s
     depends_on:
       sync:

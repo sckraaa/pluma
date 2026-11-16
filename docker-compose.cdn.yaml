@@ -12,5 +12,6 @@ services:
       CDN_DC_ADDRESS: ${CDN_DC_ADDRESS:?set CDN_DC_ADDRESS in .env, the public ip:port of the node}
       CDN_DC_SECRET: ${CDN_DC_SECRET:?set CDN_DC_SECRET in .env, dd and 32 hex digits, the node's CDN_SECRET}
       CDN_MONTHLY_EGRESS_LIMIT_GB: ${CDN_MONTHLY_EGRESS_LIMIT_GB:?set CDN_MONTHLY_EGRESS_LIMIT_GB in .env, below the traffic of the VPS plan}
+      PLUMA_DC1_ADDRESSES: ${PLUMA_DC1_ADDRESSES:?set PLUMA_DC1_ADDRESSES in .env, the ip:port of DC 1 in dc_options, the built-in port first}
     volumes:
       - ${PLUMA_CDN_CERTS:-/opt/pluma/cdn}:/run/secrets/cdn:ro

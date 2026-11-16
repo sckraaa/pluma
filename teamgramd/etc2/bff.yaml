@@ -253,6 +253,14 @@ Cdn:
   MonthlyEgressLimitGB: "${CDN_MONTHLY_EGRESS_LIMIT_GB}"
   ReuploadWait: "${CDN_REUPLOAD_WAIT}"
 
+# dc_options of help.getConfig (task 102, ADR 0065 p. 7, docs/ops/clients.md):
+# the addresses of DC 1, ip:port separated by commas, the port built into the
+# client apps first (195.201.252.126:10443,195.201.252.126:5222). The clients
+# follow them instead of the address built into them. Required with the CDN,
+# whose DC the Cdn block adds: bff does not start with the CDN and without
+# them. Empty with the CDN off: dc_options is empty.
+Dc1Addresses: "${PLUMA_DC1_ADDRESSES}"
+
 # Voice transcription (task 090, ADR 0056, docs/ops/transcription.md): the
 # speech engine is a service with POST /v1/audio/transcriptions of the OpenAI
 # API, app/ops/stt or any other. No URL: transcription is off. Nothing a
