@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/mtclient"
 
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
@@ -50,7 +51,8 @@ func TestWidgets(t *testing.T) {
 	alice := login(ctx, t, phone, "Alice")
 	getState(ctx, t, alice)
 	username := fmt.Sprintf("e2e%dbot", randomID()&0xffffff)
-	bot := botLoggedIn(ctx, t, phone, username)
+	// A widget is media of layer 233 (inputMediaWidget).
+	bot := botLoggedInAtLayer(ctx, t, phone, username, mtclient.DefaultLayer)
 	getState(ctx, t, bot)
 
 	toBot := resolveBot(ctx, t, alice, username)
@@ -257,7 +259,8 @@ func TestWidgetsInGroupAndInline(t *testing.T) {
 	getState(ctx, t, alice)
 	getState(ctx, t, bob)
 	username := fmt.Sprintf("e2e%dbot", randomID()&0xffffff)
-	bot := botLoggedIn(ctx, t, phones[0], username)
+	// A widget is media of layer 233 (inputMediaWidget).
+	bot := botLoggedInAtLayer(ctx, t, phones[0], username, mtclient.DefaultLayer)
 	getState(ctx, t, bot)
 
 	chatId := createChat(ctx, t, alice, "board", bob)
