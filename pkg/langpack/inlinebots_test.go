@@ -25,7 +25,7 @@ import (
 
 // Every bot of the registry has its description in each of the 37 languages
 // of own.json, within the limit of a bot's description, with the bot's
-// username, and @places with the attribution of OpenStreetMap's data.
+// username.
 func TestInlineBotTextsHaveEveryLanguage(t *testing.T) {
 	langs := ownLanguages()
 	if len(langs) != 37 {
@@ -52,15 +52,13 @@ func TestInlineBotTextsHaveEveryLanguage(t *testing.T) {
 				t.Errorf("%s %s: %d characters", b.About, lang, utf8.RuneCountInString(v))
 			case !strings.Contains(v, "@"+b.Username):
 				t.Errorf("%s %s does not name @%s: %q", b.About, lang, b.Username, v)
-			case b.Kind == inlinebots.KindVenue && !strings.Contains(v, "© OpenStreetMap contributors"):
-				t.Errorf("%s %s has no attribution of OpenStreetMap: %q", b.About, lang, v)
 			}
 		}
 	}
 }
 
 func TestInlineBotTextFallsBack(t *testing.T) {
-	key := inlinebots.Places.About
+	key := inlinebots.Pic.About
 	texts := inlineBotTexts[key]
 	for lang, want := range map[string]string{
 		"ru":    texts["ru"],

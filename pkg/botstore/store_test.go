@@ -159,15 +159,15 @@ func TestHttpsURL(t *testing.T) {
 // server's texts; texts stored for the language come first, and another bot
 // keeps the default description.
 func TestBuiltinDescription(t *testing.T) {
-	places := inlinebots.Places
+	pic := inlinebots.Pic
 	own := "own"
-	if got, want := builtinDescription(places.Id, "", Texts{}, "ru"), langpack.InlineBotText(places.About, "ru"); got != want || got == "" {
+	if got, want := builtinDescription(pic.Id, "", Texts{}, "ru"), langpack.InlineBotText(pic.About, "ru"); got != want || got == "" {
 		t.Errorf("ru: %q, want %q", got, want)
 	}
-	if got, want := builtinDescription(places.Id, "", Texts{}, "ar"), langpack.InlineBotText(places.About, "ar"); got != want || got == builtinDescription(places.Id, "", Texts{}, "en") {
+	if got, want := builtinDescription(pic.Id, "", Texts{}, "ar"), langpack.InlineBotText(pic.About, "ar"); got != want || got == builtinDescription(pic.Id, "", Texts{}, "en") {
 		t.Errorf("ar: %q, want %q", got, want)
 	}
-	if got := builtinDescription(places.Id, "", Texts{Description: &own}, "ru"); got != own {
+	if got := builtinDescription(pic.Id, "", Texts{Description: &own}, "ru"); got != own {
 		t.Errorf("stored texts: %q", got)
 	}
 	if got := builtinDescription(136907713, "default", Texts{}, "ru"); got != "default" {

@@ -612,14 +612,15 @@
 - [ ] Поделиться геопозицией «пока не выключу» и через сутки открыть карту чата третьим участником — метка на месте.
 - [ ] После выката миграции `migrate-20261119-geo-live-filter.sql`: живая геопозиция, отправленная до выката и ещё идущая, видна на карте чата.
 
-## 099 — Встроенные боты @gif, @pic, @places (часть A: реестр, учётные записи, конфигурация)
-- [ ] До выката: `SELECT username, peer_type, peer_id FROM username WHERE username IN ('gif','pic','places');` — у людей и каналов этих имён нет; после миграции все три принадлежат 1000101–1000103, в логе bff `bots` нет строк `inlinebots: @… is not served`, метрика `inline_bot_misconfigured` равна 0 для всех трёх.
-- [ ] Android, iOS, Desktop, Web: набрать `@gif `, `@pic `, `@places ` в поле ввода — бот находится, виден плейсхолдер `🔍` (ответы ботов появятся после частей C–F).
-- [ ] Открыть профиль `@gif`, `@pic`, `@places` в каждом клиенте: имя `GIF`/`Pic`/`Places`, это бот; описание (пустой чат с ботом, «Что умеет этот бот?») на языке клиента — проверить русский, английский и арабский; у `@places` в описании есть «© OpenStreetMap contributors».
+## 099 — Встроенные боты @gif и @pic (часть A: реестр, учётные записи, конфигурация)
+- [ ] До выката: `SELECT username, peer_type, peer_id FROM username WHERE username IN ('gif','pic');` — у людей и каналов этих имён нет; после миграции оба принадлежат 1000101 и 1000102, в логе bff `bots` нет строк `inlinebots: @… is not served`, метрика `inline_bot_misconfigured` равна 0 для обоих; аккаунта 1000103 и имени `places` у ботов нет.
+- [ ] Android, iOS, Desktop, Web: набрать `@gif ` и `@pic ` в поле ввода — бот находится, виден плейсхолдер `🔍` (ответы ботов появятся после частей C–E).
+- [ ] Открыть профиль `@gif` и `@pic` в каждом клиенте: имя `GIF`/`Pic`, это бот; описание (пустой чат с ботом, «Что умеет этот бот?») на языке клиента — проверить русский, английский и арабский.
 - [ ] Android: вложение → галерея → значок поиска картинок есть (бот картинок больше не пропадает из-за отсутствия `img_search_username`).
 - [ ] Android, iOS, Desktop: во вкладке GIF нет эмодзи-категорий (пустой `gif_search_emojies`), вкладка открывается без ошибок.
 - [ ] Пользователь или канал с именем `music` (или `youtube`, `sticker`) находится поиском и по ссылке `pluma.chat/music`; имя `foursquare`, если его никто не занял, — «не найдено», а не пустой профиль.
-- [ ] `pluma-admin bot token gif` и `pluma-admin bot set places -inline-geo off` отвечают «built-in bot, managed by the server»; `pluma-admin bot list` показывает все три.
+- [ ] `pluma-admin bot token gif` и `pluma-admin bot set pic -inline-geo on` отвечают «built-in bot, managed by the server»; `pluma-admin bot list` показывает оба.
+- [ ] iOS: история → стикер геопозиции → поиск места работает как до задачи 099 (бота мест нет, `stories_venue_search_username` в app config не задан); Android и iOS: вложение → геопозиция → поиск адреса работает как раньше.
 
 ## 099 — Встроенные боты @gif и @pic (часть B: `upload.getWebFile`, прокси миниатюр)
 - [ ] Перед проверкой в `.env` задан `WEBFILE_HMAC_KEY` (`openssl rand -base64 32`), bff перезапущен; в логе bff нет ошибки `webfile: the key must be at least 32 bytes`.

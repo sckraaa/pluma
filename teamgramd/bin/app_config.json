@@ -39,7 +39,6 @@
     "telegram_antispam_user_id": "1000001",
     "telegram_antispam_group_size_min": 10,
 
-    "stories_venue_search_username": "places",
     "gif_search_emojies": [],
 
     "dialog_filters_enabled": true,

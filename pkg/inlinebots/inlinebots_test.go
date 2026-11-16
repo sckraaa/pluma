@@ -27,21 +27,21 @@ import (
 )
 
 func TestByID(t *testing.T) {
-	for _, want := range []Bot{Gif, Pic, Places} {
+	if len(All()) != 2 {
+		t.Errorf("registry of %d bots, want @gif and @pic", len(All()))
+	}
+	for _, want := range []Bot{Gif, Pic} {
 		got, ok := ByID(want.Id)
 		if !ok || got != want || !IsBuiltin(want.Id) {
 			t.Errorf("%d: %+v %v", want.Id, got, ok)
 		}
 	}
-	for _, id := range []int64{0, 1000001, 1000104, 101, 136907713} {
+	for _, id := range []int64{0, 1000001, 1000103, 101, 136907713} {
 		if _, ok := ByID(id); ok || IsBuiltin(id) {
 			t.Errorf("%d is a built-in bot", id)
 		}
 	}
-	if !Places.Geo || Gif.Geo || Pic.Geo {
-		t.Error("only @places asks for the location")
-	}
-	if Gif.Kind.String() != "gif" || Pic.Kind.String() != "photo" || Places.Kind.String() != "venue" {
+	if Gif.Kind.String() != "gif" || Pic.Kind.String() != "photo" {
 		t.Error("kinds")
 	}
 	if Placeholder() == "" {
@@ -63,9 +63,10 @@ func repoFile(t *testing.T, parts ...string) []byte {
 	return b
 }
 
-// The clients take the usernames from help.getConfig and the app config;
-// they must be the registry's (Android MessagesController.java:5688-5693,
-// iOS AccountContext.swift:2039-2042).
+// The clients take the usernames from help.getConfig; they must be the
+// registry's (Android MessagesController.java:5688-5693). The server has no
+// places bot (task 099): venue_search_username keeps its upstream value and
+// the app config has no stories_venue_search_username.
 func TestUsernamesOfTheConfigs(t *testing.T) {
 	var config struct {
 		Data2 map[string]json.RawMessage `json:"data2"`
@@ -73,7 +74,7 @@ func TestUsernamesOfTheConfigs(t *testing.T) {
 	if err := json.Unmarshal(repoFile(t, "teamgramd", "bin", "config.json"), &config); err != nil {
 		t.Fatal(err)
 	}
-	for field, b := range map[string]Bot{"gif_search_username": Gif, "img_search_username": Pic, "venue_search_username": Places} {
+	for field, b := range map[string]Bot{"gif_search_username": Gif, "img_search_username": Pic} {
 		var v struct{ Value string }
 		if err := json.Unmarshal(config.Data2[field], &v); err != nil || v.Value != b.Username {
 			t.Errorf("config.json %s = %q (%v), want %q", field, v.Value, err, b.Username)
@@ -83,9 +84,12 @@ func TestUsernamesOfTheConfigs(t *testing.T) {
 	if err := json.Unmarshal(repoFile(t, "teamgramd", "bin", "app_config.json"), &app); err != nil {
 		t.Fatal(err)
 	}
-	var venue string
-	if err := json.Unmarshal(app["stories_venue_search_username"], &venue); err != nil || venue != Places.Username {
-		t.Errorf("app_config.json stories_venue_search_username = %q (%v)", venue, err)
+	var venue struct{ Value string }
+	if err := json.Unmarshal(config.Data2["venue_search_username"], &venue); err != nil || venue.Value != "foursquare" {
+		t.Errorf("config.json venue_search_username = %q (%v), want foursquare", venue.Value, err)
+	}
+	if v, ok := app["stories_venue_search_username"]; ok {
+		t.Errorf("app_config.json stories_venue_search_username = %s, want none", v)
 	}
 	// No text search behind @gif yet: no emoji categories (ADR 0062, p. 2).
 	var emojies []string
@@ -106,8 +110,8 @@ func TestAccountsFile(t *testing.T) {
 			t.Errorf("@%s is not guarded by its username", b.Username)
 		}
 	}
-	if !strings.Contains(sql, "IF(id = "+itoa(Places.Id)+", 1, 0)") {
-		t.Error("bot_inline_geo of @places")
+	if strings.Contains(sql, "places") || strings.Contains(sql, "1000103") {
+		t.Error("an account of @places")
 	}
 }
 
@@ -119,7 +123,7 @@ func itoa(id int64) string {
 func goodAccount(b Bot) account {
 	return account{
 		user:     &userRow{Id: b.Id, IsBot: true},
-		bot:      &botRow{BotId: b.Id, Placeholder: Placeholder(), Geo: b.Geo},
+		bot:      &botRow{BotId: b.Id, Placeholder: Placeholder()},
 		username: &usernameRow{Username: b.Username, PeerType: peerUser, PeerId: b.Id},
 	}
 }
@@ -130,7 +134,7 @@ func TestCheckAccount(t *testing.T) {
 			t.Errorf("@%s: %v", b.Username, err)
 		}
 	}
-	b := Places
+	b := Pic
 	for name, change := range map[string]func(a *account){
 		"no username":           func(a *account) { a.username = nil },
 		"username of a person":  func(a *account) { a.username.PeerId = 136907800 },
@@ -141,18 +145,13 @@ func TestCheckAccount(t *testing.T) {
 		"account deleted":       func(a *account) { a.user.Deleted = true },
 		"no bots row":           func(a *account) { a.bot = nil },
 		"no placeholder":        func(a *account) { a.bot.Placeholder = "" },
-		"no location":           func(a *account) { a.bot.Geo = false },
+		"asks for the location": func(a *account) { a.bot.Geo = true },
 	} {
 		a := goodAccount(b)
 		change(&a)
 		if err := b.check(a); err == nil {
 			t.Errorf("%s: in order", name)
 		}
-	}
-	a := goodAccount(Gif)
-	a.bot.Geo = true
-	if Gif.check(a) == nil {
-		t.Error("@gif asking for the location: in order")
 	}
 }
 
@@ -202,25 +201,25 @@ func TestHealth(t *testing.T) {
 	for _, b := range All() {
 		db.accounts[b.Id] = goodAccount(b)
 	}
-	// The username of @places is a person's, in other letters.
-	db.accounts[Places.Id] = account{
-		user:     db.accounts[Places.Id].user,
-		bot:      db.accounts[Places.Id].bot,
-		username: &usernameRow{Username: "PLACES", PeerType: peerUser, PeerId: 136907800},
+	// The username of @pic is a person's, in other letters.
+	db.accounts[Pic.Id] = account{
+		user:     db.accounts[Pic.Id].user,
+		bot:      db.accounts[Pic.Id].bot,
+		username: &usernameRow{Username: "PIC", PeerType: peerUser, PeerId: 136907800},
 	}
 	if err := h.Check(ctx, db); !errors.Is(err, ErrMisconfigured) {
 		t.Fatalf("check: %v", err)
 	}
-	if !h.Usable(Gif.Id) || !h.Usable(Pic.Id) || h.Usable(Places.Id) || h.Verified() {
-		t.Fatalf("gif %v, pic %v, places %v, verified %v", h.Usable(Gif.Id), h.Usable(Pic.Id), h.Usable(Places.Id), h.Verified())
+	if !h.Usable(Gif.Id) || h.Usable(Pic.Id) || h.Verified() {
+		t.Fatalf("gif %v, pic %v, verified %v", h.Usable(Gif.Id), h.Usable(Pic.Id), h.Verified())
 	}
 	// A database that fails later keeps what the last check found.
 	if err := h.Check(ctx, &fakeDB{err: down}); !errors.Is(err, down) || !h.Usable(Gif.Id) {
 		t.Fatalf("database down later: %v, served %v", err, h.Usable(Gif.Id))
 	}
 	// Repaired: all served.
-	db.accounts[Places.Id] = goodAccount(Places)
-	if err := h.Check(ctx, db); err != nil || !h.Usable(Places.Id) || !h.Verified() {
-		t.Fatalf("repaired: %v, places %v, verified %v", err, h.Usable(Places.Id), h.Verified())
+	db.accounts[Pic.Id] = goodAccount(Pic)
+	if err := h.Check(ctx, db); err != nil || !h.Usable(Pic.Id) || !h.Verified() {
+		t.Fatalf("repaired: %v, pic %v, verified %v", err, h.Usable(Pic.Id), h.Verified())
 	}
 }
