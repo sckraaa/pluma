@@ -4731,7 +4731,7 @@
   "used_by": "A: messenger/FileLoadOperation.java:2451; I: Network/MultipartFetch.swift:423; D: storage/download_manager_mtproto.cpp:520; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Задача 102 (ADR 0065): обслуживает узел cdn (app/service/cdn). На DC 1 — FILE_TOKEN_INVALID, клиент возвращается к upload.getFile (Android FileLoadOperation.java:2583-2589, tdesktop download_manager_mtproto.cpp:958-980)."
+  "why": "Узел MTProto задачи 102 снят (задача 107, ADR 0071), DC Pluma метод не обслуживают: FILE_TOKEN_INVALID, клиент возвращается к upload.getFile (Android FileLoadOperation.java:2583-2589, tdesktop download_manager_mtproto.cpp:958-980)."
  },
  {
   "name": "upload.getCdnFileHashes",
@@ -6207,7 +6207,7 @@
   "used_by": "A FileLoadOperation.java:2451; I FetchV2.swift:909; D download_manager_mtproto.cpp:520",
   "decision": "implement",
   "priority": "normal",
-  "why": "Задача 102 (ADR 0065): обслуживает узел cdn (app/service/cdn). На DC 1 — FILE_TOKEN_INVALID, клиент возвращается к upload.getFile (Android FileLoadOperation.java:2583-2589, tdesktop download_manager_mtproto.cpp:958-980)."
+  "why": "Узел MTProto задачи 102 снят (задача 107, ADR 0071), DC Pluma метод не обслуживают: FILE_TOKEN_INVALID, клиент возвращается к upload.getFile (Android FileLoadOperation.java:2583-2589, tdesktop download_manager_mtproto.cpp:958-980)."
  },
  {
   "name": "upload.getCdnFileHashes",

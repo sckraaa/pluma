@@ -186,7 +186,6 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("CDN_PUSH_CONCURRENCY", "")
 	t.Setenv("CDN_MONTHLY_EGRESS_LIMIT_GB", "")
 	t.Setenv("CDN_REUPLOAD_WAIT", "")
-	t.Setenv("PLUMA_DC1_ADDRESSES", "")
 	t.Setenv("SEARXNG_URL", "")
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")

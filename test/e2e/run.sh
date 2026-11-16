@@ -22,8 +22,7 @@
 #   E2E_KEEP=1   `all` leaves the stack running after the tests
 #   E2E_GOTEST_FLAGS  extra flags for go test (e.g. -run TestX)
 #   E2E_GATEWAY_PORT  the host port of the gateway's TCP transport on
-#                127.0.0.1 (default: a free one run.sh picks; DC 1 of
-#                dc_options names it)
+#                127.0.0.1 (default: an ephemeral one)
 #   E2E_GATEWAY_WS_PORT  the same for its WebSocket transport
 #   E2E_SERVER_KEY    a server private key to use instead of a new one, e.g.
 #                the development key of the client repositories: their
@@ -33,20 +32,6 @@
 #                Google instead of test/e2e/fakepush (a phone or an emulator
 #                with Google Play services gets the notifications)
 #   E2E_APNS_KEY, E2E_APNS_KEY_ID, E2E_APNS_TEAM_ID  the same for APNs
-#   E2E_CDN      on: the CDN node of task 102 runs, bff redirects large
-#                files to it and dc_options name DC 1 and the node; off: no
-#                node, no redirects, dc_options only with E2E_DC1_ADDRESSES,
-#                the tests of the CDN are skipped. Default: on, but off with
-#                E2E_SERVER_KEY (a stand for development clients, which
-#                follow dc_options and cannot reach the node's address)
-#   E2E_DC1_ADDRESSES  DC 1 in dc_options (default 127.0.0.1 and the
-#                gateway's port), e.g. 10.0.2.2:10443 for an emulator or
-#                ADDR:10443 for `lan`: the clients follow it
-#   E2E_CDN_ADDRESS  ip:port of the CDN node in dc_options (default: its
-#                address on the network of the services, which only this
-#                machine reaches), e.g. ADDR:8443 for a client on another
-#                device: the node then has a fixed loopback port and `lan`
-#                relays ADDR:8443 to it, as it does for the gateway
 #
 # The secrets (passwords, the server RSA key) are generated for one run and
 # deleted by `down`; they are never written anywhere git tracks.
@@ -90,41 +75,12 @@ FAKEINLINE_URL=http://$FAKEINLINE_HOST:8080
 SFU_CERTS=$E2E_DIR/sfu
 GROUPCALLS_CERTS=$E2E_DIR/groupcalls
 
-# The CDN node of large files (task 102): its certificates of the control
-# API and bff's, as SFU_CERTS and GROUPCALLS_CERTS.
-CDN_NODE_CERTS=$E2E_DIR/cdn
-CDN_BFF_CERTS=$E2E_DIR/cdn-bff
-CDN_DC_ID=201
-if [[ -n ${E2E_SERVER_KEY:-} ]]; then
-	E2E_CDN=${E2E_CDN:-off}
-else
-	E2E_CDN=${E2E_CDN:-on}
-fi
-case $E2E_CDN in
-on | off) ;;
-*)
-	echo "run.sh: E2E_CDN is on or off, not $E2E_CDN" >&2
-	exit 2
-	;;
-esac
-# A stand that is up keeps what it was started with.
-if [[ -f $ENV_FILE ]]; then
-	if grep -q '^CDN_NODE_CONTROL=' "$ENV_FILE"; then
-		E2E_CDN=on
-	else
-		E2E_CDN=off
-	fi
-fi
-
 # Teamgram services (docker-compose.yaml) and the infrastructure the tests
 # need; everything else in docker-compose-env.yaml (Elasticsearch, Kibana,
 # filebeat, go-stash, metrics) is not started.
 TEAMGRAM_SERVICES=(idgen status authsession dfs media biz msg sync push bff session gnetway links)
 # Services of their own images that must not exit during the run either.
 OWN_SERVICES=(sfu)
-if [[ $E2E_CDN == on ]]; then
-	OWN_SERVICES+=(cdn)
-fi
 SERVICES=(mysql redis kafka kafka-init etcd garage jaeger migrate storage-init fakepush fakecodes fakestt faketranslate fakemail fakemaps fakeinline "${OWN_SERVICES[@]}" "${TEAMGRAM_SERVICES[@]}")
 
 # One image for all teamgram services, removed by `down` unless E2E_KEEP_IMAGE=1
@@ -143,7 +99,6 @@ export E2E_FAKEMAIL_IMAGE=${E2E_FAKEMAIL_IMAGE:-pluma-e2e-fakemail:$E2E_PROJECT}
 export E2E_FAKEMAPS_IMAGE=${E2E_FAKEMAPS_IMAGE:-pluma-e2e-fakemaps:$E2E_PROJECT}
 export E2E_FAKEINLINE_IMAGE=${E2E_FAKEINLINE_IMAGE:-pluma-e2e-fakeinline:$E2E_PROJECT}
 export PLUMA_SFU_IMAGE=${PLUMA_SFU_IMAGE:-pluma-e2e-sfu:$E2E_PROJECT}
-export PLUMA_CDN_IMAGE=${PLUMA_CDN_IMAGE:-pluma-e2e-cdn:$E2E_PROJECT}
 # A crash must fail the test, not be hidden by a restart.
 export TEAMGRAM_RESTART=${TEAMGRAM_RESTART:-no}
 
@@ -187,23 +142,8 @@ gen_secrets() {
 		log "openssl made no OAuth signing key"
 		return 1
 	}
-	# The gateway's port first: one given by E2E_GATEWAY_PORT is kept.
-	local sfu_port gateway_port=${E2E_GATEWAY_PORT:-}
-	if [[ -z $gateway_port ]]; then
-		gateway_port=$(free_port) || return
-	fi
+	local sfu_port
 	sfu_port=$(free_port) || return
-	while [[ $sfu_port == "$gateway_port" ]]; do
-		sfu_port=$(free_port) || return
-	done
-	# The CDN node's loopback port, fixed when `lan` relays to it.
-	local cdn_port=
-	if [[ -n ${E2E_CDN_ADDRESS:-} ]]; then
-		cdn_port=$(free_port) || return
-		while [[ $cdn_port == "$gateway_port" || $cdn_port == "$sfu_port" ]]; do
-			cdn_port=$(free_port) || return
-		done
-	fi
 	local fp keytool=(-out "$KEY_FILE")
 	if [[ -n ${E2E_SERVER_KEY:-} ]]; then
 		install -m 600 "$E2E_SERVER_KEY" "$KEY_FILE" || return
@@ -270,64 +210,8 @@ SFU_UDP_PORT=$sfu_port
 SFU_TCP_PORT=$sfu_port
 PLUMA_SFU_CERTS=$SFU_CERTS
 PLUMA_GROUPCALLS_CERTS=$GROUPCALLS_CERTS
-E2E_GATEWAY_PORT=$gateway_port
-PLUMA_CDN_NODE_CERTS=$CDN_NODE_CERTS
-PLUMA_CDN_CERTS=$CDN_BFF_CERTS
 EOF
-		if [[ $E2E_CDN == on ]]; then
-			# The CDN of the stand: bff drives the node, dc_options name
-			# DC 1 at the gateway and the node with its secret (public, as
-			# in production). CDN_DC_ADDRESS comes once the node runs
-			# (cdn_address), unless E2E_CDN_ADDRESS gives it.
-			cat >>"$ENV_FILE" <<EOF
-CDN_NODE_CONTROL=cdn:20510
-CDN_DC_ID=$CDN_DC_ID
-CDN_DC_SECRET=dd$(secret 16)
-CDN_MONTHLY_EGRESS_LIMIT_GB=1000
-PLUMA_DC1_ADDRESSES=${E2E_DC1_ADDRESSES:-127.0.0.1:$gateway_port}
-EOF
-			if [[ -n ${E2E_CDN_ADDRESS:-} ]]; then
-				# The node stays on loopback, like the gateway: `lan`
-				# relays E2E_CDN_ADDRESS to it while it runs. Docker in a
-				# VM (colima) cannot publish on the host's own addresses.
-				printf 'CDN_DC_ADDRESS=%s\nCDN_E2E_PUBLISH=127.0.0.1:%s:8443\n' "$E2E_CDN_ADDRESS" "$cdn_port" >>"$ENV_FILE"
-			fi
-		elif [[ -n ${E2E_DC1_ADDRESSES:-} ]]; then
-			echo "PLUMA_DC1_ADDRESSES=$E2E_DC1_ADDRESSES" >>"$ENV_FILE"
-		fi
 	)
-}
-
-# env_value prints the value of name in the env file of the run.
-env_value() {
-	sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1
-}
-
-# cdn_address starts the CDN node and makes sure CDN_DC_ADDRESS of the env
-# file is where bff reaches it: the node's address on the network of the
-# services, which Docker gives when the node starts. The first run writes
-# it; a later up or wait on the same stand checks that the node kept it,
-# since bff and the clients were told it.
-cdn_address() {
-	[[ $E2E_CDN == on ]] || return 0
-	compose up --detach --wait --wait-timeout 120 cdn || return
-	# An address given by E2E_CDN_ADDRESS is relayed to the node by `lan`.
-	[[ -z $(env_value CDN_E2E_PUBLISH) ]] || return 0
-	local id ip addr
-	id=$(compose ps --quiet cdn) || return
-	ip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$id") || return
-	if [[ ! $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-		log "the CDN node has no single IPv4 address on the network of the services: '$ip'"
-		return 1
-	fi
-	addr=$(env_value CDN_DC_ADDRESS)
-	if [[ -z $addr ]]; then
-		(umask 077 && echo "CDN_DC_ADDRESS=$ip:8443" >>"$ENV_FILE") || return
-		log "CDN node at $ip:8443"
-	elif [[ $addr != "$ip:8443" ]]; then
-		log "the CDN node is at $ip:8443 now, bff was given $addr; run down and up"
-		return 1
-	fi
 }
 
 # free_port prints a port free for both UDP and TCP on this machine. The
@@ -351,7 +235,7 @@ free_port() {
 			return
 		fi
 	done
-	log "no free port for the SFU or the gateway"
+	log "no free port for the SFU"
 	return 1
 }
 
@@ -365,19 +249,6 @@ gen_sfu() {
 	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
 	"$ROOT/teamgramd/deploy/sfu/control-certs.sh" "$SFU_CERTS" "$GROUPCALLS_CERTS" >/dev/null || return
 	chmod 0755 "$SFU_CERTS" && chmod 0444 "$SFU_CERTS"/*.pem
-}
-
-# gen_cdn issues the certificates of the CDN node's control API for the run,
-# as gen_sfu: the node's image runs as nonroot too. Made with the CDN off as
-# well, since bff mounts their folder either way. The tests reach the
-# control API on a loopback port with bff's certificate and the name "cdn".
-gen_cdn() {
-	if [[ -f $CDN_NODE_CERTS/server.pem && -f $CDN_BFF_CERTS/client.pem ]]; then
-		return
-	fi
-	rm -rf "$CDN_NODE_CERTS" "$CDN_BFF_CERTS"
-	"$ROOT/teamgramd/deploy/cdn/control-certs.sh" "$CDN_NODE_CERTS" "$CDN_BFF_CERTS" >/dev/null || return
-	chmod 0755 "$CDN_NODE_CERTS" && chmod 0444 "$CDN_NODE_CERTS"/*.pem
 }
 
 # gen_push writes the provider keys and the config of the push service:
@@ -440,10 +311,8 @@ cmd_up() {
 	gen_push || return
 	gen_bff || return
 	gen_sfu || return
-	gen_cdn || return
 	log "building the teamgram image"
 	compose build idgen || return
-	cdn_address || return
 	log "starting ${SERVICES[*]}"
 	compose up --detach --wait --wait-timeout 300 "${SERVICES[@]}" || return
 	wait_consumers || return
@@ -513,14 +382,6 @@ gateway_addr() {
 	compose port gnetway 10443
 }
 
-# cdn_port prints where this machine reaches a port of the CDN node, and
-# nothing with the CDN off.
-cdn_port() {
-	if [[ $E2E_CDN == on ]]; then
-		compose port cdn "$1"
-	fi
-}
-
 cmd_test() {
 	local addr
 	addr=$(gateway_addr) || return
@@ -538,11 +399,6 @@ cmd_test() {
 			PLUMA_E2E_FAKEINLINE=$(compose port fakeinline 8080) \
 			PLUMA_E2E_LINKS=$(compose port links 9096) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
-			PLUMA_E2E_DC1_ADDRESSES=$(env_value PLUMA_DC1_ADDRESSES) \
-			PLUMA_E2E_CDN_DC_ADDRESS=$(env_value CDN_DC_ADDRESS) \
-			PLUMA_E2E_CDN_ADDR=$(cdn_port 8443) \
-			PLUMA_E2E_CDN_CONTROL=$(cdn_port 20510) \
-			PLUMA_E2E_CDN_CERTS=$CDN_BFF_CERTS \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 20m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...
 	) || return
@@ -565,10 +421,10 @@ cmd_down() {
 		compose down --volumes --remove-orphans --timeout 60 || true
 	fi
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
-		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$PLUMA_SFU_IMAGE" "$PLUMA_CDN_IMAGE" >/dev/null 2>&1 || true
+		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKETRANSLATE_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$E2E_FAKEINLINE_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
 	fi
 	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
-	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS" "$CDN_NODE_CERTS" "$CDN_BFF_CERTS"
+	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
 }
 
@@ -595,7 +451,7 @@ up) cmd_up ;;
 wait)
 	# After a chaos step: start whatever was stopped and wait until the
 	# stack serves again (healthchecks, consumer groups own their partitions).
-	cdn_address && compose up --detach --wait --wait-timeout 300 "${SERVICES[@]}" && wait_consumers
+	compose up --detach --wait --wait-timeout 300 "${SERVICES[@]}" && wait_consumers
 	;;
 test) cmd_test ;;
 logs) cmd_logs ;;
@@ -609,10 +465,7 @@ lan)
 	# A phone on the same network as this machine: its development build
 	# dials ADDR:10443 (the dev_address input of the client's workflow,
 	# docs/ops/clients.md), and test/e2e/lanforward relays that to the
-	# gateway's loopback port; with E2E_CDN_ADDRESS, it relays that address
-	# to the CDN node's loopback port too. The stand is open to the network
-	# meanwhile, and only then: bff finds the node unreachable at its
-	# address otherwise and serves files from home.
+	# gateway's loopback port. The stand is open to the network meanwhile.
 	gateway=$(compose port gnetway 10443)
 	if [ -z "$gateway" ]; then
 		echo "run.sh: the stand is not running (test/e2e/run.sh up)" >&2
@@ -630,19 +483,15 @@ lan)
 		echo "run.sh: no address of this machine found; pass one: test/e2e/run.sh lan ADDR" >&2
 		exit 1
 	fi
-	relays=(-listen "$addr:10443" -to "$gateway")
-	if [[ $E2E_CDN == on && -n $(env_value CDN_E2E_PUBLISH) ]]; then
-		relays+=(-listen "$(env_value CDN_DC_ADDRESS)" -to "$(compose port cdn 8443)")
-	fi
 	echo "run.sh: a development build for $addr reaches the stand while this runs (dev_address=$addr)"
-	cd "$ROOT" && exec go run ./test/e2e/lanforward "${relays[@]}"
+	cd "$ROOT" && exec go run ./test/e2e/lanforward -listen "$addr:10443" -to "$gateway"
 	;;
 compose)
 	shift
 	compose "$@"
 	;;
 *)
-	sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+	sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
 	exit 2
 	;;
 esac

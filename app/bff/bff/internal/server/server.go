@@ -254,8 +254,6 @@ func (s *Server) Initialize() error {
 			ReleasesURL:       c.ReleasesURL,
 			IOSUpdate:         c.IOSUpdate,
 			Translate:         c.Translate,
-			Dc1Addresses:      c.Dc1Addresses,
-			Cdn:               c.Cdn,
 		})
 		mtproto.RegisterRPCConfigurationServer(grpcServer, configuration)
 		mtproto.RegisterRPCPromoDataServer(grpcServer, configuration)

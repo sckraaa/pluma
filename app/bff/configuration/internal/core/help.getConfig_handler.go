@@ -47,9 +47,6 @@ func (c *ConfigurationCore) HelpGetConfig(in *mtproto.TLHelpGetConfig) (*mtproto
 	now := int32(time.Now().Unix())
 	rValue.SetDate(now)
 	rValue.SetExpires(now + expiresTimeout)
-	// The DCs of the server (task 102, ADR 0065 p. 7): DC 1 and the CDN
-	// DC from the configuration, or none.
-	rValue.SetDcOptions(c.svcCtx.DcOptions)
 	c.setLangPack(rValue)
 	c.setDefaultReaction(rValue)
 	// Where the desktop app looks for its updates (task 054): tdesktop

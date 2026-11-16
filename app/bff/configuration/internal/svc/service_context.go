@@ -19,7 +19,6 @@
 package svc
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -51,9 +50,6 @@ type ServiceContext struct {
 	// ClientConfig is config.json, the base of every help.getConfig answer;
 	// handlers clone it before filling the per-request fields.
 	ClientConfig *mtproto.TLConfig
-	// DcOptions is dc_options of help.getConfig, from PLUMA_DC1_ADDRESSES
-	// and the CDN (config.Config.DcOptions); shared, never changed.
-	DcOptions []*mtproto.DcOption
 	// AppConfig is app_config.json with url_auth_domains, the login
 	// domains of bots, from the database (task 106), and the translation
 	// switched off without an engine (task 101).
@@ -66,12 +62,6 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	clientConfig, err := LoadClientConfig(clientConfigFile)
-	logx.Must(err)
-	if len(clientConfig.GetDcOptions()) > 0 {
-		// One place for the addresses the clients follow (task 102).
-		logx.Must(errors.New(clientConfigFile + ": dc_options must stay empty; the DCs are PLUMA_DC1_ADDRESSES and the Cdn block of bff.yaml"))
-	}
-	dcOptions, err := c.DcOptions()
 	logx.Must(err)
 	appConfig, err := appconfig.Load(appConfigFile)
 	logx.Must(err)
@@ -89,7 +79,6 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	return &ServiceContext{
 		Config:       c,
 		ClientConfig: clientConfig,
-		DcOptions:    dcOptions,
 		AppConfig:    appconfig.NewLive(appConfig, botstore.New(d.DB()).LoginDomains, loginDomainsEvery),
 		IOSUpdate:    iosUpdate,
 		Dao:          d,

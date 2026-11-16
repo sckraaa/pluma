@@ -44,15 +44,8 @@ type Config struct {
 	PublicKey *rsa.PublicKey
 	// Layer is the API layer of invokeWithLayer (default DefaultLayer).
 	Layer int32
-	// DC is sent in the key exchange (default 2), and in the header of the
-	// obfuscated transport.
+	// DC is sent in the key exchange (default 2).
 	DC int32
-	// Obfuscated connects with the obfuscated transport instead of the
-	// intermediate one; Secret, as dcOption.secret carries it (0xdd and 16
-	// bytes), connects with it and implies Obfuscated. A CDN DC is reached
-	// so: its dcOption has a secret (ADR 0065).
-	Obfuscated bool
-	Secret     []byte
 
 	// initConnection parameters; empty ones get defaults describing this
 	// client.
@@ -164,7 +157,7 @@ func DialNewKey(ctx context.Context, cfg Config, opts KeyOptions) (*Client, erro
 	if cfg.PublicKey == nil {
 		return nil, errors.New("mtclient: Config.PublicKey is required")
 	}
-	t, err := dialTransport(ctx, cfg)
+	t, err := DialIntermediate(ctx, cfg.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -180,26 +173,11 @@ func DialNewKey(ctx context.Context, cfg Config, opts KeyOptions) (*Client, erro
 // (e.g. a second connection of the same device). It does not send
 // initConnection.
 func DialKey(ctx context.Context, cfg Config, key *AuthKey) (*Client, error) {
-	t, err := dialTransport(ctx, cfg)
+	t, err := DialIntermediate(ctx, cfg.Addr)
 	if err != nil {
 		return nil, err
 	}
 	return New(t, key, cfg), nil
-}
-
-// dialTransport connects to cfg.Addr with the transport cfg asks for.
-func dialTransport(ctx context.Context, cfg Config) (Transport, error) {
-	if !cfg.Obfuscated && len(cfg.Secret) == 0 {
-		return DialIntermediate(ctx, cfg.Addr)
-	}
-	dc := cfg.DC
-	if dc == 0 {
-		dc = 2
-	}
-	if dc < -1<<15 || dc >= 1<<15 {
-		return nil, fmt.Errorf("mtclient: DC %d does not fit the obfuscated header", dc)
-	}
-	return DialObfuscated(ctx, cfg.Addr, cfg.Secret, int16(dc))
 }
 
 // New starts a session with key over t, which the client owns from now on.

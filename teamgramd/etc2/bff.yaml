@@ -230,15 +230,12 @@ GroupCalls:
 # 1 MiB and more that a ready copy of is on the node on the edge are
 # redirected there (upload.fileCdnRedirect); the node holds only their
 # cipher. bff pushes the copies and checks the node over its control API,
-# which is mutual TLS only (teamgramd/deploy/cdn/control-certs.sh). No
-# CDN_NODE_CONTROL: the CDN is off. CDN_DC_ID (201 when empty),
-# CDN_DC_ADDRESS (ip:port) and CDN_DC_SECRET ("dd" and 32 hex digits) are
-# those of the CDN DC in dc_options; CDN_MONTHLY_EGRESS_LIMIT_GB is required
-# with the node, below the traffic of the VPS plan. Empty limits take their
-# defaults: CDN_MIN_FILE_SIZE 1 MiB, CDN_PUSH_RATE_MBIT 20,
-# CDN_PUSH_CONCURRENCY 1, CDN_REUPLOAD_WAIT 10s.
-# The overlay docker-compose.cdn.yaml mounts the certificates
-# (PLUMA_CDN_CERTS, /opt/pluma/cdn on the host).
+# which is mutual TLS only. No CDN_NODE_CONTROL: the CDN is off, and it
+# stays off: the node is not part of the deployment (task 107, ADR 0071),
+# whose HTTPS CDN replaces this block. CDN_DC_ID (201 when empty),
+# CDN_DC_ADDRESS (ip:port) and CDN_DC_SECRET ("dd" and 32 hex digits) name
+# the node's DC. Empty limits take their defaults: CDN_MIN_FILE_SIZE 1 MiB,
+# CDN_PUSH_RATE_MBIT 20, CDN_PUSH_CONCURRENCY 1, CDN_REUPLOAD_WAIT 10s.
 Cdn:
   NodeControl: "${CDN_NODE_CONTROL}"
   CertFile: /run/secrets/cdn/client.pem
@@ -252,14 +249,6 @@ Cdn:
   PushConcurrency: "${CDN_PUSH_CONCURRENCY}"
   MonthlyEgressLimitGB: "${CDN_MONTHLY_EGRESS_LIMIT_GB}"
   ReuploadWait: "${CDN_REUPLOAD_WAIT}"
-
-# dc_options of help.getConfig (task 102, ADR 0065 p. 7, docs/ops/clients.md):
-# the addresses of DC 1, ip:port separated by commas, the port built into the
-# client apps first (195.201.252.126:10443,195.201.252.126:5222). The clients
-# follow them instead of the address built into them. Required with the CDN,
-# whose DC the Cdn block adds: bff does not start with the CDN and without
-# them. Empty with the CDN off: dc_options is empty.
-Dc1Addresses: "${PLUMA_DC1_ADDRESSES}"
 
 # Voice transcription (task 090, ADR 0056, docs/ops/transcription.md): the
 # speech engine is a service with POST /v1/audio/transcriptions of the OpenAI

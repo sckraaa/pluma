@@ -16,22 +16,16 @@
 package core
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/rpc/metadata"
-	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/config"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/configuration/internal/svc"
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
-	"github.com/teamgram/teamgram-server/pkg/cdn"
 	"github.com/teamgram/teamgram-server/pkg/inlinebots"
 	"github.com/teamgram/teamgram-server/pkg/langpack"
 
@@ -206,101 +200,17 @@ func TestHelpGetConfigWebFileDC(t *testing.T) {
 	}
 }
 
-// TestHelpGetConfigDcOptions: dc_options carries DC 1 and the CDN DC of the
-// configuration as the clients read them off the wire (task 102, ADR 0065
-// p. 7), and nothing without a configuration. The flags word is what
-// tdesktop (mtproto_dc_options.cpp:677-697) and Android
-// (ConnectionsManager.cpp:3450-3482) choose the endpoints by.
-func TestHelpGetConfigDcOptions(t *testing.T) {
-	raw := make([]byte, 16)
-	if _, err := rand.Read(raw); err != nil {
-		t.Fatal(err)
-	}
-	cfg := config.Config{
-		Dc1Addresses: "203.0.113.10:10443,203.0.113.10:5222",
-		Cdn: cdn.Config{
-			NodeControl:          "10.77.0.1:20510",
-			CertFile:             "client.pem",
-			KeyFile:              "client-key.pem",
-			CAFile:               "server-ca.pem",
-			DcAddress:            "203.0.113.10:8443",
-			DcSecret:             "dd" + hex.EncodeToString(raw),
-			MonthlyEgressLimitGB: "1000",
-		},
-	}
-	options, err := cfg.DcOptions()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	c := newGetConfigCore(t, &fakeLangpacks{}, "android", "en")
+// TestHelpGetConfigNoDcOptions: dc_options stays empty, so every client keeps
+// the address built into it. A non-empty list replaces the DCs of tdesktop
+// (mtproto/mtproto_config.cpp:285-289), which only ignores an empty one;
+// the server has a single DC and no CDN DC (ADR 0071).
+func TestHelpGetConfigNoDcOptions(t *testing.T) {
+	c := newGetConfigCore(t, &fakeLangpacks{}, "tdesktop", "en")
 	got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if n := len(got.GetDcOptions()); n != 0 {
-		t.Fatalf("without a configuration: %d dc_options", n)
-	}
-
-	c.svcCtx.DcOptions = options
-	if got, err = c.HelpGetConfig(&mtproto.TLHelpGetConfig{}); err != nil {
-		t.Fatal(err)
-	}
-	const (
-		flagTcpoOnly = 1 << 2
-		flagCdn      = 1 << 3
-		flagStatic   = 1 << 4
-		flagSecret   = 1 << 10
-	)
-	want := []struct {
-		id    int32
-		ip    string
-		port  int32
-		flags uint32
-	}{
-		{1, "203.0.113.10", 10443, flagStatic},
-		{1, "203.0.113.10", 5222, flagStatic},
-		{cdn.DefaultDcId, "203.0.113.10", 8443, flagCdn | flagTcpoOnly | flagSecret},
-	}
-	if len(got.GetDcOptions()) != len(want) {
-		t.Fatalf("%d dc_options, want %d", len(got.GetDcOptions()), len(want))
-	}
-	for i, w := range want {
-		x := mtproto.NewEncodeBuf(64)
-		if err := mtproto.MakeTLDcOption(got.GetDcOptions()[i]).Encode(x, 233); err != nil {
-			t.Fatalf("dc_options[%d]: %v", i, err)
-		}
-		b := x.GetBuf()
-		if flags := binary.LittleEndian.Uint32(b[4:8]); flags != w.flags {
-			t.Errorf("dc_options[%d]: flags %#x, want %#x", i, flags, w.flags)
-		}
-		d := mtproto.NewDecodeBuf(b)
-		o, ok := d.Object().(*mtproto.TLDcOption)
-		if !ok || d.GetError() != nil {
-			t.Fatalf("dc_options[%d] does not decode: %v", i, d.GetError())
-		}
-		if o.GetId() != w.id || o.GetIpAddress() != w.ip || o.GetPort() != w.port {
-			t.Errorf("dc_options[%d]: DC %d at %s:%d, want DC %d at %s:%d", i, o.GetId(), o.GetIpAddress(), o.GetPort(), w.id, w.ip, w.port)
-		}
-		// The CDN DC's secret as tdesktop (DcOptions::ValidateSecret,
-		// mtproto_dc_options.cpp:134-140) and Android (Connection.cpp:463)
-		// take a padded-transport one: 0xdd and 16 bytes.
-		if w.flags&flagSecret != 0 && !bytes.Equal(o.GetSecret(), append([]byte{0xdd}, raw...)) {
-			t.Errorf("dc_options[%d]: secret %x", i, o.GetSecret())
-		}
-	}
-	// config.json stays without dc_options: they are not written into the
-	// base config.
-	if n := len(c.svcCtx.ClientConfig.GetDcOptions()); n != 0 {
-		t.Errorf("the base config got %d dc_options", n)
-	}
-}
-
-// TestDeployedConfigHasNoDcOptions: the DCs come only from the
-// configuration of bff; the service refuses a config.json that has some.
-func TestDeployedConfigHasNoDcOptions(t *testing.T) {
-	c := newGetConfigCore(t, &fakeLangpacks{}, "android", "en")
-	if n := len(c.svcCtx.ClientConfig.GetDcOptions()); n != 0 {
-		t.Fatalf("teamgramd/bin/config.json has %d dc_options", n)
+		t.Fatalf("help.getConfig has %d dc_options, want none", n)
 	}
 }
