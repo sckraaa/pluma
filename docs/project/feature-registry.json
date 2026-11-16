@@ -6,7 +6,7 @@
   "used_by": "A: messenger/NotificationsController.java:6120; I: TelegramCore/Sources/State/ManagedPendingPeerNotificationSettings.swift:166; D: apiwrap.cpp:2126; W: вызывается из менеджера уведомлений (tests/notifyExceptions.test.ts:143)",
   "decision": "implement",
   "priority": "core",
-  "why": "Настоящий пробел, а не артефакт матрицы. Ветка PEER_CHANNEL (account.updateNotifySettings_handler.go:115-129) требует svcCtx.Plugin, а реализации NotificationPlugin.GetChannelById в репозитории нет (только интерфейс и вызов; app/bff/notification/internal/server/server.go:49 передаёт nil). По коду inputNotifyPeer на канал или супергруппу отвечает ERR_ENTERPRISE_IS_BLOCKED. Вывод сделан чтением кода, на стенде не запускалось. Относится к закрытию групп."
+  "why": "Настоящий пробел, а не артефакт матрицы. Ветка PEER_CHANNEL (account.updateNotifySettings_handler.go:115-129) требует svcCtx.Plugin, а реализации NotificationPlugin.GetChannelById в репозитории нет (только интерфейс и вызов; app/bff/notification/internal/server/server.go:49 передаёт nil). По коду inputNotifyPeer на канал или супергруппу отвечает ERR_ENTERPRISE_IS_BLOCKED. Вывод сделан чтением кода, на стенде не запускалось. Относится к закрытию групп. Сделано задачей 098."
  },
  {
   "name": "channels.deactivateAllUsernames",
@@ -879,7 +879,7 @@
   "used_by": "A: ui/Business/BusinessLinksController.java:171; I: SyncCore/SyncCore_CachedUserData.swift:2016; D: api/api_chat_links.cpp:63; W: lib/appManagers/appBusinessManager.ts:340",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.deleteBusinessChatLink",
@@ -888,7 +888,7 @@
   "used_by": "A: ui/Business/BusinessLinksController.java:201; I: SyncCore/SyncCore_CachedUserData.swift:2081; D: api/api_chat_links.cpp:110; W: appBusinessManager (tests/businessLinksIntroAds.test.ts:193)",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.deletePasskey",
@@ -906,7 +906,7 @@
   "used_by": "A: messenger/MessagesController.java:25500; I: Settings/AccountWebBrowserSettings.swift:224; D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа настроек браузера."
+  "why": "Группа настроек браузера. Сделано задачей 098."
  },
  {
   "name": "account.disablePeerConnectedBot",
@@ -924,7 +924,7 @@
   "used_by": "A: ui/Business/BusinessLinksController.java:277; I: SyncCore/SyncCore_CachedUserData.swift:2056; D: api/api_chat_links.cpp:82; W: appBusinessManager (tests/businessLinksIntroAds.test.ts:133)",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.finishTakeoutSession",
@@ -942,7 +942,7 @@
   "used_by": "A: ui/Business/BusinessLinksController.java:145; I: SyncCore/SyncCore_CachedUserData.swift:2101; D: api/api_chat_links.cpp:132; W: lib/appManagers/appBusinessManager.ts:319",
   "decision": "implement",
   "priority": "normal",
-  "why": "Business входит в Premium, а он открыт всем (ADR 0041). Вход в Business на iOS сейчас скрыт патчем I-109 (задача 071); его надо вернуть вместе с реализацией."
+  "why": "Business входит в Premium, а он открыт всем (ADR 0041). Вход в Business на iOS сейчас скрыт патчем I-109 (задача 071); его надо вернуть вместе с реализацией. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.getConnectedBots",
@@ -987,7 +987,7 @@
   "used_by": "A: messenger/MessagesController.java:25511; I: Settings/AccountWebBrowserSettings.swift:110; D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Вызывают Android и iOS, запрета нет."
+  "why": "Вызывают Android и iOS, запрета нет. Сделано задачей 098."
  },
  {
   "name": "account.initPasskeyRegistration",
@@ -1014,7 +1014,7 @@
   "used_by": "I: Authorization.swift:1428, вызов TelegramUI/Sources/ChatController.swift:7957; A, D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Защита: iOS при снимке экрана в чате 777000 отправляет видимые коды. Коды типа App приходят в этот чат (app/bff/authorization/internal/logic/auth_logic.go:117)."
+  "why": "Защита: iOS при снимке экрана в чате 777000 отправляет видимые коды. Коды типа App приходят в этот чат (app/bff/authorization/internal/logic/auth_logic.go:117). Сделано задачей 098."
  },
  {
   "name": "account.registerPasskey",
@@ -1032,7 +1032,7 @@
   "used_by": "A: ui/LaunchActivity.java:5564; I: TelegramEngine/Peers/TelegramEnginePeers.swift:1851; D: window/window_session_controller.cpp:543; W: lib/appManagers/appBusinessManager.ts:413",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.saveAutoDownloadSettings",
@@ -1077,7 +1077,7 @@
   "used_by": "A: ui/Business/AwayMessagesActivity.java:197; I: Messages/QuickReplyMessages.swift:1031; D: data/business/data_business_info.cpp:184; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.updateBusinessGreetingMessage",
@@ -1086,7 +1086,7 @@
   "used_by": "A: ui/Business/GreetMessagesActivity.java:176; I: Messages/QuickReplyMessages.swift:973; D: data/business/data_business_info.cpp:228; W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.updateBusinessIntro",
@@ -1095,7 +1095,7 @@
   "used_by": "A: ui/Business/BusinessIntroActivity.java:439; I: Messages/QuickReplyMessages.swift:1064; D: data/business/data_business_info.cpp:107; W: lib/appManagers/appBusinessManager.ts:281",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.updateBusinessLocation",
@@ -1104,7 +1104,7 @@
   "used_by": "A: ui/Business/LocationActivity.java:382, ui/ProfileActivity.java:16366; I: AccountData/TelegramEngineAccountData.swift:238; D: data/business/data_business_info.cpp:143; W: lib/appManagers/appBusinessManager.ts:243",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.updateBusinessWorkHours",
@@ -1113,7 +1113,7 @@
   "used_by": "A: ui/Business/OpeningHoursActivity.java:380, ui/ProfileActivity.java:16338; I: AccountData/TelegramEngineAccountData.swift:205; D: data/business/data_business_info.cpp:82; W: lib/appManagers/appBusinessManager.ts:220",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа Business, ADR 0041."
+  "why": "Группа Business, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "account.updateColor",
@@ -1149,7 +1149,7 @@
   "used_by": "A: messenger/MessagesController.java:25652; I: Settings/AccountWebBrowserSettings.swift:148; D, W: нет",
   "decision": "implement",
   "priority": "normal",
-  "why": "Группа настроек браузера."
+  "why": "Группа настроек браузера. Сделано задачей 098."
  },
  {
   "name": "account.uploadRingtone",
@@ -1392,7 +1392,7 @@
   "used_by": "android ui/StatisticActivity.java:283; ios Statistics/PeerStatistics.swift:316; tdesktop api/api_statistics.cpp:216; tweb lib/appManagers/appStatisticsManager.ts:53",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента; экран появляется по can_view_stats, который сервер пока не отдаёт. Нужно копить показатели по дням — отдельная задача."
+  "why": "Все четыре клиента; экран появляется по can_view_stats, который сервер пока не отдаёт. Нужно копить показатели по дням — отдельная задача. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getMegagroupStats",
@@ -1401,7 +1401,7 @@
   "used_by": "android ui/StatisticActivity.java:279; ios Statistics/PeerStatistics.swift:830,833; tdesktop api/api_statistics.cpp:228; tweb lib/appManagers/appStatisticsManager.ts:88",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента; общая задача статистики. Относится к «группы полностью», в брифе 078 пока не указан."
+  "why": "Все четыре клиента; общая задача статистики. Относится к «группы полностью», в брифе 078 пока не указан. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getMessagePublicForwards",
@@ -1419,7 +1419,7 @@
   "used_by": "android ui/MessageStatisticActivity.java:721; ios Statistics/MessageStatistics.swift:72; tdesktop api/api_statistics.cpp:525; tweb lib/appManagers/appStatisticsManager.ts:136",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента; общая задача статистики."
+  "why": "Все четыре клиента; общая задача статистики. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getPollStats",
@@ -1428,7 +1428,7 @@
   "used_by": "ios Statistics/PollStatistics.swift:51; tdesktop api/api_polls.cpp:523; tweb lib/appManagers/appStatisticsManager.ts:159; android не вызывает",
   "decision": "implement",
   "priority": "normal",
-  "why": "Три клиента; общая задача статистики."
+  "why": "Три клиента; общая задача статистики. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.loadAsyncGraph",
@@ -1437,7 +1437,7 @@
   "used_by": "android ui/StatisticActivity.java:1671,2370, ui/MessageStatisticActivity.java:755,880; ios Statistics/PeerStatistics.swift:355,358; tdesktop api/api_statistics.cpp:253; tweb lib/appManagers/appStatisticsManager.ts:76",
   "decision": "implement",
   "priority": "normal",
-  "why": "Все четыре клиента; нужен, если графики отдаются отложенно (statsGraphAsync)."
+  "why": "Все четыре клиента; нужен, если графики отдаются отложенно (statsGraphAsync). Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stickers.addStickerToSet",
@@ -2202,7 +2202,7 @@
   "used_by": "A StatisticActivity.java:283; I PeerStatistics.swift:316; D api_statistics.cpp:216; W appStatisticsManager.ts:53",
   "decision": "implement",
   "priority": "normal",
-  "why": "One to one with Telegram; no boost gate (ADR 0041)."
+  "why": "One to one with Telegram; no boost gate (ADR 0041). Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getMegagroupStats",
@@ -2211,7 +2211,7 @@
   "used_by": "A StatisticActivity.java:279; I PeerStatistics.swift:830; D api_statistics.cpp:228; W appStatisticsManager.ts:88",
   "decision": "implement",
   "priority": "normal",
-  "why": "Statistics."
+  "why": "Statistics. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getMessagePublicForwards",
@@ -2229,7 +2229,7 @@
   "used_by": "A MessageStatisticActivity.java:721; I MessageStatistics.swift:72; D api_statistics.cpp:525; W appStatisticsManager.ts:136",
   "decision": "implement",
   "priority": "normal",
-  "why": "Statistics."
+  "why": "Statistics. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.loadAsyncGraph",
@@ -2238,7 +2238,7 @@
   "used_by": "A StatisticActivity.java:1671; I PeerStatistics.swift:355; D api_statistics.cpp:253; W appStatisticsManager.ts:76",
   "decision": "implement",
   "priority": "normal",
-  "why": "Statistics."
+  "why": "Statistics. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stickers.addStickerToSet",
@@ -2562,7 +2562,7 @@
   "used_by": "Android messenger/MessagesController.java:9448; iOS ManagedCloudChatRemoveMessagesOperations.swift:172; Desktop data/data_histories.cpp:1040; Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Quick replies are a Premium Business feature, open to everyone under ADR 0041."
+  "why": "Quick replies are a Premium Business feature, open to everyone under ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "messages.deleteQuickReplyShortcut",
@@ -2571,7 +2571,7 @@
   "used_by": "Android ui/Business/QuickRepliesController.java:461; iOS ManagedCloudChatRemoveMessagesOperations.swift:427; Desktop data/business/data_shortcut_messages.cpp:589; Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Quick replies, ADR 0041."
+  "why": "Quick replies, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "messages.deleteSavedHistory",
@@ -2589,7 +2589,7 @@
   "used_by": "no official client: only the class in Android tgnet/TLRPC.java:54651; called by bot libraries",
   "decision": "implement",
   "priority": "normal",
-  "why": "Bots are MTProto accounts and inline mode is served (task 070), and the server already hands out inputBotInlineMessageID (messages.callback_handlers.go:203). Without this a bot cannot act on that id."
+  "why": "Bots are MTProto accounts and inline mode is served (task 070), and the server already hands out inputBotInlineMessageID (messages.callback_handlers.go:203). Without this a bot cannot act on that id. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.editQuickReplyShortcut",
@@ -2598,7 +2598,7 @@
   "used_by": "Android ui/Business/QuickRepliesController.java:436; iOS QuickReplyMessages.swift:314; Desktop data/business/data_shortcut_messages.cpp:561; Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Quick replies, ADR 0041."
+  "why": "Quick replies, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "messages.getAttachMenuBot",
@@ -2607,7 +2607,7 @@
   "used_by": "Android ui/LaunchActivity.java:4475, :5849; iOS AttachMenuBots.swift:545; Desktop inline_bots/bot_attach_web_view.cpp:2761; Web appAttachMenuBotsManager.ts:144",
   "decision": "implement",
   "priority": "normal",
-  "why": "Called by all four clients. Part of mini apps, with requestWebView, toggleBotInAttachMenu and others (missing)."
+  "why": "Called by all four clients. Part of mini apps, with requestWebView, toggleBotInAttachMenu and others (missing). Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.getAttachMenuBots",
@@ -2616,7 +2616,7 @@
   "used_by": "Android messenger/MediaDataController.java:568; iOS AttachMenuBots.swift:290; Desktop inline_bots/bot_attach_web_view.cpp:2698; Web appAttachMenuBotsManager.ts:123",
   "decision": "implement",
   "priority": "normal",
-  "why": "Called by all four clients, as for getAttachMenuBot."
+  "why": "Called by all four clients, as for getAttachMenuBot. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.getAttachedStickers",
@@ -2670,7 +2670,7 @@
   "used_by": "Android ui/Business/QuickRepliesController.java:203; iOS QuickReplyMessages.swift:142; Desktop data/business/data_shortcut_messages.cpp:466; Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Quick replies, ADR 0041."
+  "why": "Quick replies, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "messages.getQuickReplyMessages",
@@ -2679,7 +2679,7 @@
   "used_by": "Android ui/Business/QuickRepliesController.java:796, messenger/MessagesController.java:11580; iOS HistoryViewStateValidation.swift:736, AccountViewTracker.swift:84; Desktop apiwrap.cpp:2951; Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Quick replies, ADR 0041."
+  "why": "Quick replies, ADR 0041. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "messages.getRecentLocations",
@@ -2688,7 +2688,7 @@
   "used_by": "Android ui/LocationActivity.java:2603, messenger/LocationController.java:909; iOS Holes.swift:827; Desktop and Web none",
   "decision": "implement",
   "priority": "normal",
-  "why": "Both mobile clients use it for live location; currently blocked."
+  "why": "Both mobile clients use it for live location; currently blocked. Сделано задачей 098."
  },
  {
   "name": "messages.getRichMessage",
@@ -2751,7 +2751,7 @@
   "used_by": "Android ui/Business/QuickRepliesController.java:420; iOS TelegramEngine/Messages/QuickReplyMessages.swift:352. Desktop and Web: none found",
   "decision": "implement",
   "priority": "normal",
-  "why": "Quick replies are a Premium Business feature, open to everyone by ADR 0041. Part of the quick replies set (getQuickReplies, getQuickReplyMessages, editQuickReplyShortcut, deleteQuickReplyShortcut, deleteQuickReplyMessages are also missing)."
+  "why": "Quick replies are a Premium Business feature, open to everyone by ADR 0041. Part of the quick replies set (getQuickReplies, getQuickReplyMessages, editQuickReplyShortcut, deleteQuickReplyShortcut, deleteQuickReplyMessages are also missing). Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "messages.requestAppWebView",
@@ -2859,7 +2859,7 @@
   "used_by": "Android ui/ChatActivity.java:7353; Desktop apiwrap.cpp:4487; iOS TelegramEngine/Messages/QuickReplyMessages.swift:393. Web: none found",
   "decision": "implement",
   "priority": "normal",
-  "why": "Business feature open to everyone by ADR 0041; the point of the quick replies set."
+  "why": "Business feature open to everyone by ADR 0041; the point of the quick replies set. Сделано задачей 105 (ADR 0067)."
  },
  {
   "name": "messages.sendScreenshotNotification",
@@ -2904,7 +2904,7 @@
   "used_by": "Android ui/DialogsActivity.java:13410; Desktop inline_bots/bot_attach_web_view.cpp:2976; iOS TelegramEngine/Messages/AttachMenuBots.swift:402; Web lib/appManagers/appAttachMenuBotsManager.ts:262",
   "decision": "implement",
   "priority": "normal",
-  "why": "Part of mini apps; with getAttachMenuBot and getAttachMenuBots (missing)."
+  "why": "Part of mini apps; with getAttachMenuBot and getAttachMenuBots (missing). Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.togglePeerTranslations",
@@ -2958,7 +2958,7 @@
   "used_by": "A: ui/SessionsActivity.java:553; I: Privacy/RecentWebSessions.swift:54; D: api/api_websites.cpp:96; W: lib/appManagers/appSeamlessLoginManager.ts:63",
   "decision": "implement",
   "priority": "rare",
-  "why": "Группа входа на сайты, см. account.getWebAuthorizations."
+  "why": "Группа входа на сайты, см. account.getWebAuthorizations. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "account.resetWebAuthorizations",
@@ -2967,7 +2967,7 @@
   "used_by": "A: ui/SessionsActivity.java:428; I: Privacy/RecentWebSessions.swift:69; D: api/api_websites.cpp:101; W: lib/appManagers/appSeamlessLoginManager.ts:69",
   "decision": "implement",
   "priority": "rare",
-  "why": "Группа входа на сайты, см. account.getWebAuthorizations."
+  "why": "Группа входа на сайты, см. account.getWebAuthorizations. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "auth.reportMissingCode",
@@ -3210,7 +3210,7 @@
   "used_by": "android ui/MessageStatisticActivity.java:614; ios Statistics/StoryStatistics.swift:268; tdesktop api/api_statistics.cpp:372; tweb lib/appManagers/appStatisticsManager.ts:202",
   "decision": "implement",
   "priority": "rare",
-  "why": "Все четыре клиента; после историй (39 из 44 stories.* missing)."
+  "why": "Все четыре клиента; после историй (39 из 44 stories.* missing). Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getStoryStats",
@@ -3219,7 +3219,7 @@
   "used_by": "android ui/MessageStatisticActivity.java:716; ios Statistics/StoryStatistics.swift:57; tdesktop api/api_statistics.cpp:512; tweb lib/appManagers/appStatisticsManager.ts:178",
   "decision": "implement",
   "priority": "rare",
-  "why": "Все четыре клиента; после историй."
+  "why": "Все четыре клиента; после историй. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stickers.changeSticker",
@@ -3732,7 +3732,7 @@
   "used_by": "I PollStatistics.swift:51; D api_polls.cpp:523; W appStatisticsManager.ts:159",
   "decision": "implement",
   "priority": "rare",
-  "why": "Statistics."
+  "why": "Statistics. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getStoryPublicForwards",
@@ -3741,7 +3741,7 @@
   "used_by": "A MessageStatisticActivity.java:614; I StoryStatistics.swift:268; D api_statistics.cpp:372; W appStatisticsManager.ts:202",
   "decision": "implement",
   "priority": "rare",
-  "why": "After stories."
+  "why": "After stories. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stats.getStoryStats",
@@ -3750,7 +3750,7 @@
   "used_by": "A MessageStatisticActivity.java:716; I StoryStatistics.swift:57; D api_statistics.cpp:512; W appStatisticsManager.ts:178",
   "decision": "implement",
   "priority": "rare",
-  "why": "After stories."
+  "why": "After stories. Сделано задачей 103 (ADR 0066)."
  },
  {
   "name": "stories.searchPosts",
@@ -3795,7 +3795,7 @@
   "used_by": "no official client: only Android tgnet/TLRPC.java:55046; bot-side",
   "decision": "implement",
   "priority": "rare",
-  "why": "Bot half of message widgets (messageMediaWidget, layer 233). Only together with widgets as a whole; wallet query types stay out (no TON)."
+  "why": "Bot half of message widgets (messageMediaWidget, layer 233). Only together with widgets as a whole; wallet query types stay out (no TON). Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.editMessageWidgetData",
@@ -3804,7 +3804,7 @@
   "used_by": "no official client: only Android tgnet/TLRPC.java:55015; bot-side",
   "decision": "implement",
   "priority": "rare",
-  "why": "Bot half of message widgets."
+  "why": "Bot half of message widgets. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.editWidgetData",
@@ -3813,7 +3813,7 @@
   "used_by": "no official client: only Android tgnet/TLRPC.java:55075; Web mentions it in the sandbox mock lib/widgetSandbox/mockBot.ts:467; bot-side",
   "decision": "implement",
   "priority": "rare",
-  "why": "Bot half of message widgets."
+  "why": "Bot half of message widgets. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.getBotWidgetQueryAnswer",
@@ -3822,7 +3822,7 @@
   "used_by": "Android utils/twidget/WidgetMedia.java:946; iOS WidgetQueries.swift:99; Desktop tgw/tgw_bridge.cpp:138; Web appWidgetsManager.ts:410",
   "decision": "implement",
   "priority": "rare",
-  "why": "All four clients call it, but only for a message with a widget, and the server does not accept inputMediaWidget yet. Implement with widgets as a whole, without wallet query types (no TON)."
+  "why": "All four clients call it, but only for a message with a widget, and the server does not accept inputMediaWidget yet. Implement with widgets as a whole, without wallet query types (no TON). Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.getEmojiGameInfo",
@@ -3831,7 +3831,7 @@
   "used_by": "Android messenger/MessagesController.java:25349, messenger/SendMessagesHelper.java:8199; iOS ManagedEmojiGameUpdates.swift:80; Desktop chat_helpers/stickers_dice_pack.cpp:156; Web none",
   "decision": "implement",
   "priority": "rare",
-  "why": "The game itself is out: stakes are in TON (messages.emojiGameOutcome stake_ton_amount), and there is no TON wallet. iOS polls this method, so the honest answer is always messages.emojiGameUnavailable, which all three clients handle."
+  "why": "The game itself is out: stakes are in TON (messages.emojiGameOutcome stake_ton_amount), and there is no TON wallet. iOS polls this method, so the honest answer is always messages.emojiGameUnavailable, which all three clients handle. Сделано задачей 098."
  },
  {
   "name": "messages.getFactCheck",
@@ -3849,7 +3849,7 @@
   "used_by": "Web appGamesManager.ts:78 only; Android has only the class, tgnet/TLRPC.java:55376",
   "decision": "implement",
   "priority": "rare",
-  "why": "Part of bot games, with messages.setGameScore (missing). Not excluded by owner decisions; only one client reads it."
+  "why": "Part of bot games, with messages.setGameScore (missing). Not excluded by owner decisions; only one client reads it. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.getInlineGameHighScores",
@@ -3858,7 +3858,7 @@
   "used_by": "no official client: only Android tgnet/TLRPC.java:55395; bot-side",
   "decision": "implement",
   "priority": "rare",
-  "why": "Bot half of games with inline messages, together with setInlineGameScore."
+  "why": "Bot half of games with inline messages, together with setInlineGameScore. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.getMessages",
@@ -3867,7 +3867,7 @@
   "used_by": "Android ui/Stars/StarsIntroActivity.java:5933; Desktop apiwrap.cpp:717; Web appMessagesManager.ts:14935; the two unserved branches, inputMessagePinned and inputMessageCallbackQuery: no use in any of the four clients",
   "decision": "implement",
   "priority": "rare",
-  "why": "Partial: the main path works. The two branches are silently dropped (handler TODOs). Clients do not send them, but bot libraries can, and dropping without an error is not acceptable. Serve them."
+  "why": "Partial: the main path works. The two branches are silently dropped (handler TODOs). Clients do not send them, but bot libraries can, and dropping without an error is not acceptable. Serve them. Сделано задачей 098."
  },
  {
   "name": "messages.getShareThemeBackdrops",
@@ -3894,7 +3894,7 @@
   "used_by": "Android utils/twidget/WidgetMedia.java:1080; iOS tests WidgetPublicDataPollingTests.swift:37; Desktop tgw/tgw_state.cpp:152; Web appWidgetsManager.ts:490",
   "decision": "implement",
   "priority": "rare",
-  "why": "Clients poll it only for a message with a widget, so it comes with widgets as a whole."
+  "why": "Clients poll it only for a message with a widget, so it comes with widgets as a whole. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.initHistoryImport",
@@ -3921,7 +3921,7 @@
   "used_by": "Web lib/appManagers/appMessagesManager.ts:13433 (reply ignored). Android, Desktop, iOS: none found",
   "decision": "implement",
   "priority": "rare",
-  "why": "Currently a TODO stub returning an empty vector, harmless because the only caller ignores the reply. Stub marks are not allowed; needs a deliberate implementation: return the confirmed ids and, if the push path defers notifications, cancel them. The semantics of cancelling pushes are from memory, unverified; read core.telegram.org first."
+  "why": "Currently a TODO stub returning an empty vector, harmless because the only caller ignores the reply. Stub marks are not allowed; needs a deliberate implementation: return the confirmed ids and, if the push path defers notifications, cancel them. The semantics of cancelling pushes are from memory, unverified; read core.telegram.org first. Сделано задачей 098."
  },
  {
   "name": "messages.reportReaction",
@@ -3930,7 +3930,7 @@
   "used_by": "Android ui/ProfileActivity.java:4396; Desktop api/api_report.cpp:203; iOS TelegramEngine/Peers/ReportPeer.swift:205; Web lib/appManagers/appReactionsManager.ts:539",
   "decision": "implement",
   "priority": "rare",
-  "why": "Moderation entry visible in all four clients. Should land in the same reports queue as the other report methods (app/bff/reports)."
+  "why": "Moderation entry visible in all four clients. Should land in the same reports queue as the other report methods (app/bff/reports). Сделано задачей 098."
  },
  {
   "name": "messages.requestChatJoinWebView",
@@ -3966,7 +3966,7 @@
   "used_by": "none found as a call (bot-side). Counterpart getBotWidgetQueryAnswer: Android utils/twidget/WidgetMedia.java:946; Desktop tgw/tgw_bridge.cpp:138; iOS TelegramEngine/Messages/WidgetQueries.swift:99; Web lib/appManagers/appWidgetsManager",
   "decision": "implement",
   "priority": "rare",
-  "why": "Message widgets (messageMediaWidget) are rendered by all four clients and are not a payment feature; only the optional with_wallet path is TON and stays out. Do it with the widgets feature."
+  "why": "Message widgets (messageMediaWidget) are rendered by all four clients and are not a payment feature; only the optional with_wallet path is TON and stays out. Do it with the widgets feature. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.setGameScore",
@@ -3975,7 +3975,7 @@
   "used_by": "Web lib/appManagers/appGamesManager.ts:56 (wrapper only, no caller found in Web UI); others none found; normally bot-side",
   "decision": "implement",
   "priority": "rare",
-  "why": "Games are a bot feature without payment. Goes with getGameHighScores (missing) and messageMediaGame."
+  "why": "Games are a bot feature without payment. Goes with getGameHighScores (missing) and messageMediaGame. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.setInlineGameScore",
@@ -3984,7 +3984,7 @@
   "used_by": "none found (bot-side)",
   "decision": "implement",
   "priority": "rare",
-  "why": "Pair of setGameScore; bots are MTProto accounts (ADR 0043) and inline mode is already served. Without it, inline games have no scores."
+  "why": "Pair of setGameScore; bots are MTProto accounts (ADR 0043) and inline mode is already served. Without it, inline games have no scores. Сделано задачей 106 (ADR 0068)."
  },
  {
   "name": "messages.setShareTheme",
@@ -4090,9 +4090,9 @@
   "group": "media",
   "feature": "Map previews of location messages, bot web images",
   "used_by": "A FileLoadOperation.java:2459; I Download.swift:180; D download_manager_mtproto.cpp:531; W apiFileManager.ts:445",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "normal",
-  "why": "D builds map previews through inputWebFileGeoPointLocation (download_manager_mtproto.cpp:544). Needs a map tile source: the owner's choice."
+  "why": "Задача 099 (ADR 0062, п. 5): подписанный прокси миниатюр инлайн-ботов (pkg/webfile). Задача 100 (ADR 0063): превью карт inputWebFileGeoPointLocation рисует свой сервис maps дома; источник данных и регион выбрал владелец (2026-11-15)."
  },
  {
   "name": "account.acceptAuthorization",
@@ -4369,18 +4369,18 @@
   "group": "messages-b",
   "feature": "Nothing visible: the client reports how long a track was listened to",
   "used_by": "Android messenger/MediaController.java:7615; Desktop media/player/media_player_listen_tracker.cpp:79; iOS TelegramEngine/Messages/TelegramEngineMessages.swift:2026; Web lib/appManagers/appMessagesManager.ts:15749",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "rare",
-  "why": "All four clients send it, so no-client-calls does not apply, and no owner decision covers telemetry. No method in the schema reads this data back; failures are ignored except FILE_REFERENCE_ on Desktop, Android passes a null callback. Owner choice: accept with true and keep nothing, or collect it. Recommended: accept and keep nothing."
+  "why": "Задача 098, часть D: проверяются и хранятся не чаще раза в минуту на человека и документ (pkg/readmetrics) — решение владельца 2026-11-15."
  },
  {
   "name": "messages.reportReadMetrics",
   "group": "messages-b",
   "feature": "Nothing visible: the client reports how long posts were on screen",
   "used_by": "Android ui/Components/chat/ChatActivityMessageMetricsView.java:109; Desktop api/api_read_metrics.cpp:59; iOS TelegramEngine/Messages/TelegramEngineMessages.swift:2002; Web lib/appManagers/appMessagesManager.ts:15791",
-  "decision": "unclear",
+  "decision": "implement",
   "priority": "rare",
-  "why": "Sent by all four clients while reading chats (Android: any dialog id below zero; Desktop: History and Replies), no gate found in app config. Errors are ignored (Desktop fail handler only finishes, Web catch is empty). Only an input type exists in the schema, nothing reads it back. Owner choice on telemetry: accept with true and keep nothing, or collect. Recommended: accept and keep nothing, since it is frequent traffic answered with an error today."
+  "why": "Задача 098, часть D: проверяются и хранятся (pkg/readmetrics, migrate-20261119-read-metrics.sql) — решение владельца 2026-11-15; ошибки клиентам больше не уходят."
  },
  {
   "name": "(scope and legend)",
