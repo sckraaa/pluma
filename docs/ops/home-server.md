@@ -68,6 +68,12 @@ docker run --rm --network <сеть 172.20.0.0/16> alpine wget -qO- https://ifco
   - `GROUPCALLS_SFU_ENDPOINT=10.77.0.1:20500`;
   - нет `TURN_PUBLIC_IPV4` и `SFU_PUBLIC_IPV4`: они нужны только краю.
 - Цели Prometheus на краю: `/opt/pluma/prometheus-targets/sfu.json` и `node.json`, например `[{"targets":["10.77.0.1:20501"]}]`.
+- **Карты в геопозициях** (задача 100, ADR 0063, `docs/ops/maps.md`):
+  - сервис `maps` (tileserver-gl) — только дома, на краю его нет; образ `pluma-maps:local` собирается здесь же (`… -f docker-compose.maps.yaml build maps`);
+  - данные — `/opt/pluma-maps` (root, 0755, файлы 0644): `pluma-<дата>.pmtiles` около 103 ГБ и ссылка `pluma.pmtiles`; на время обновления — ещё столько же. Диск общий с медиасервером: `df -h /opt` перед вырезкой;
+  - вырезка (`extract.sh`) держит около 10 ГБ памяти вне `pluma.slice`: перед ней `free -g`; при занятом медиасервере резать на другой машине и переключаться `--use`;
+  - с `MAPS_URL=http://maps:8080` в `.env` любая команда compose, пересоздающая bff, включает `-f docker-compose.maps.yaml` (сеть `maps_net`): `docker compose -f docker-compose.yaml -f docker-compose.public-ip.yaml -f docker-compose.maps.yaml up -d maps bff`. То же — в `pluma-deploy.sh`, иначе выкладка пересоздаст bff без карт;
+  - `MAPS_COMPOSE` для `extract.sh` и `check.sh` — эта же команда.
 - Сайты владельца: `/srv/pluma-caddy-sites/*.caddy`. В `sckra.dev.caddy` upstream — `10.77.0.1:3000`, это `site-relay` края.
 
 ## VPS: край

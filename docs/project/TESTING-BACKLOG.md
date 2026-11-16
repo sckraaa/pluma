@@ -1262,3 +1262,16 @@
 - [ ] После включения: Grafana → «Pluma overview» → строка «Translation» — после нескольких переводов в клиенте видны запросы, элементы `engine` и `cache`, время движка, очередь и `engine up` = 1.
 - [ ] Остановить `translate` (`docker compose … -f docker-compose.translate.yaml stop translate`) и попробовать перевести в клиенте: через 10 минут приходит пуш тревоги `TranslateEngineDown`; после `up -d translate` перевод снова работает без перезапуска bff, тревога гаснет.
 - [ ] Откат: `TRANSLATE_URL=` и перезапуск bff — после перезапуска клиентов кнопки «Перевести» нет на Android, iOS и Web; вернуть адрес — кнопка снова есть.
+
+## 100 — Карты: статические превью геопозиций со своего сервера (часть 6: эксплуатация, алерты, документы)
+Проверять дома при выкладке по `docs/ops/maps.md` (раздел «Первый запуск») и после неё.
+- [ ] Перед вырезкой: `df -h /opt` — свободно не меньше 115 ГБ, `free -g` — доступно не меньше 12 ГБ; `extract.sh --dry-run` печатает объём около 103 ГБ и не пишет ничего в `/opt/pluma-maps`.
+- [ ] После `extract.sh`: `ls -l /opt/pluma-maps` — `pluma.pmtiles` ссылка на `pluma-<дата>.pmtiles` с правами 0644, каталог root 0755; `check.sh` печатает четыре строки `ok`.
+- [ ] `docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' pluma-bff-1` — есть `pluma_maps_net`; `docker port pluma-maps-1` — пусто (порт не опубликован); `docker exec pluma-maps-1 node -e "fetch('https://example.com').then(()=>console.log('open'),()=>console.log('closed'))"` печатает `closed` (у карт нет выхода наружу).
+- [ ] Обычная выкладка ядра (`pluma-deploy.sh`) после включения карт: bff остаётся в `pluma_maps_net`, новая геопозиция на Android сразу показывает карту.
+- [ ] `docker compose … -f docker-compose.maps.yaml stop maps`, отправить 3–4 новые геопозиции и подождать 15 минут: на телефон приходит алерт `MapsRendererDown`; после `up -d maps` и новой геопозиции — «Resolved».
+- [ ] В Grafana → Explore → Prometheus: `sum by (result) (increase(webmap_render_total[1h]))` — после просмотра чатов с геопозициями растёт `ok`; `histogram_quantile(0.95, sum by (le) (rate(webmap_render_seconds_bucket[1h])))` — меньше секунды.
+- [ ] `docker stats --no-stream pluma-maps-1` в простое — около 300 МиБ; при пролистывании чата с десятком геопозиций на Desktop при 300 % — не выше 2,5 ГиБ, `OOMKilled` у контейнера `false`; `systemctl status pluma.slice` — Memory меньше 10 ГБ.
+- [ ] Лог `maps` (`docker logs --tail 50 pluma-maps-1`) и лог bff в Grafana за время проверок — нет координат, размеров карт и URL вида `/styles/…/static/…`.
+- [ ] Android: интерактивная карта при отправке геопозиции (Google Maps SDK с ключом Telegram) — отображается или серая; записать результат (вне задачи 100, решает, нужен ли патч клиента).
+- [ ] iPhone после включения карт: геопозиция, место и трансляция в чате показываются картой MapKit, как раньше; в метриках bff `webmap_render_total` не растёт от просмотра с iPhone.
