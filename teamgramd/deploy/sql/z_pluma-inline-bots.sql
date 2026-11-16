@@ -1,14 +1,14 @@
 -- The accounts of the inline bots the server answers for itself (task 099,
--- ADR 0062): @gif (1000101), @pic (1000102) and @places (1000103), the
--- registry of pkg/inlinebots. The clients find them by the usernames of
--- help.getConfig and the app config (teamgramd/bin/config.json,
--- app_config.json). This file sorts after z_init.sql. Safe to run again.
+-- ADR 0062): @gif (1000101) and @pic (1000102), the registry of
+-- pkg/inlinebots. The clients find them by the usernames of help.getConfig
+-- (teamgramd/bin/config.json). This file sorts after z_init.sql. Safe to run
+-- again.
 --
 -- Each bot is a bot account (user_type 3, is_bot 1, as botstore.Create makes
 -- one) with a service number outside the format of real ones, as 42001 of
 -- the antispam account; no client sees it (a bot's phone is hidden). Its
 -- username row, and a bots row with the placeholder of the inline mode, no
--- chats (bot_nochats) and the location for @places (bot_inline_geo).
+-- chats (bot_nochats) and no request for the location (bot_inline_geo).
 --
 -- An account is made only while its username is free or already its own: if
 -- a person or a channel has taken the name, nothing of that bot is written,
@@ -32,13 +32,9 @@ INSERT IGNORE INTO users (id, user_type, access_hash, first_name, username, phon
 SELECT 1000102, 3, 4718041268057259926, 'Pic', 'pic', '42102', '', 1, 548, '2026-11-15 00:00:00', '2026-11-15 00:00:00' FROM DUAL
 WHERE NOT EXISTS (SELECT 1 FROM username WHERE username = 'pic' AND NOT (peer_type = 2 AND peer_id = 1000102));
 
-INSERT IGNORE INTO users (id, user_type, access_hash, first_name, username, phone, country_code, is_bot, account_days_ttl, created_at, updated_at)
-SELECT 1000103, 3, 6103605347193196726, 'Places', 'places', '42103', '', 1, 548, '2026-11-15 00:00:00', '2026-11-15 00:00:00' FROM DUAL
-WHERE NOT EXISTS (SELECT 1 FROM username WHERE username = 'places' AND NOT (peer_type = 2 AND peer_id = 1000103));
-
 INSERT IGNORE INTO username (username, peer_type, peer_id)
-SELECT username, 2, id FROM users WHERE id IN (1000101, 1000102, 1000103) AND is_bot = 1;
+SELECT username, 2, id FROM users WHERE id IN (1000101, 1000102) AND is_bot = 1;
 
 INSERT IGNORE INTO bots (bot_id, creator_user_id, token, bot_nochats, bot_inline_geo, bot_inline_placeholder)
-SELECT id, 0, CONCAT('builtin:', id), 1, IF(id = 1000103, 1, 0), CONVERT(X'F09F948D' USING utf8mb4)
-FROM users WHERE id IN (1000101, 1000102, 1000103) AND is_bot = 1;
+SELECT id, 0, CONCAT('builtin:', id), 1, 0, CONVERT(X'F09F948D' USING utf8mb4)
+FROM users WHERE id IN (1000101, 1000102) AND is_bot = 1;

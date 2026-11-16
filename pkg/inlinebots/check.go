@@ -72,7 +72,8 @@ type usernameRow struct {
 
 // check tells how the account differs from the registry's bot, nil when it
 // does not: the username is the bot's, the account is a bot that is not
-// deleted, and its bots row has a placeholder and the bot's bot_inline_geo.
+// deleted, and its bots row has a placeholder and does not ask for the
+// user's location (bot_inline_geo): no bot of the registry answers by it.
 func (b Bot) check(a account) error {
 	switch u := a.username; {
 	case u == nil:
@@ -95,8 +96,8 @@ func (b Bot) check(a account) error {
 		return fmt.Errorf("no bots row of %d", b.Id)
 	case r.Placeholder == "":
 		return fmt.Errorf("bot %d has no inline placeholder", b.Id)
-	case r.Geo != b.Geo:
-		return fmt.Errorf("bot %d has bot_inline_geo %v, want %v", b.Id, r.Geo, b.Geo)
+	case r.Geo:
+		return fmt.Errorf("bot %d asks for the location (bot_inline_geo)", b.Id)
 	}
 	return nil
 }

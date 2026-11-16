@@ -158,9 +158,11 @@ func TestHelpGetConfigAutoupdatePrefix(t *testing.T) {
 	}
 }
 
-// TestHelpGetConfigInlineBots: the three search bots are always named, by the
-// usernames of the built-in bots (ADR 0062, p. 2). Android has no picture
-// search bot without img_search_username (MessagesController.java:5691).
+// TestHelpGetConfigInlineBots: the GIF and picture search bots are always
+// named, by the usernames of the built-in bots (ADR 0062, p. 2). Android has
+// no picture search bot without img_search_username
+// (MessagesController.java:5691). The server has no places bot (task 099):
+// venue_search_username keeps its upstream value.
 func TestHelpGetConfigInlineBots(t *testing.T) {
 	c := newGetConfigCore(t, &fakeLangpacks{}, "android", "en")
 	got, err := c.HelpGetConfig(&mtproto.TLHelpGetConfig{})
@@ -173,7 +175,7 @@ func TestHelpGetConfigInlineBots(t *testing.T) {
 	}{
 		"gif_search_username":   {got.GetGifSearchUsername(), inlinebots.Gif.Username},
 		"img_search_username":   {got.GetImgSearchUsername(), inlinebots.Pic.Username},
-		"venue_search_username": {got.GetVenueSearchUsername(), inlinebots.Places.Username},
+		"venue_search_username": {got.GetVenueSearchUsername(), "foursquare"},
 	} {
 		if f.v.GetValue() != f.want {
 			t.Errorf("%s = %v, want %q", field, f.v, f.want)

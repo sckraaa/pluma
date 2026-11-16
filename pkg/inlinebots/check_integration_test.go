@@ -58,20 +58,20 @@ func TestInlineBotAccountsOnMySQL(t *testing.T) {
 		return n[0]
 	}
 	accounts := func() int64 {
-		return count("SELECT COUNT(*) FROM users WHERE id BETWEEN 1000101 AND 1000103") +
-			count("SELECT COUNT(*) FROM username WHERE peer_id BETWEEN 1000101 AND 1000103") +
-			count("SELECT COUNT(*) FROM bots WHERE bot_id BETWEEN 1000101 AND 1000103")
+		return count("SELECT COUNT(*) FROM users WHERE id BETWEEN 1000101 AND 1000102") +
+			count("SELECT COUNT(*) FROM username WHERE peer_id BETWEEN 1000101 AND 1000102") +
+			count("SELECT COUNT(*) FROM bots WHERE bot_id BETWEEN 1000101 AND 1000102")
 	}
 
 	// The schema ran the file once; once more changes nothing.
-	if got := accounts(); got != 9 {
-		t.Fatalf("after the schema: %d rows, want 9", got)
+	if got := accounts(); got != 6 {
+		t.Fatalf("after the schema: %d rows, want 6", got)
 	}
 	if err = mysql.ApplySQLFile(ctx, file); err != nil {
 		t.Fatal(err)
 	}
-	if got := accounts(); got != 9 {
-		t.Fatalf("after a second run: %d rows, want 9", got)
+	if got := accounts(); got != 6 {
+		t.Fatalf("after a second run: %d rows, want 6", got)
 	}
 	health := inlinebots.NewHealth()
 	if err = health.Check(ctx, db); err != nil {
@@ -93,48 +93,48 @@ func TestInlineBotAccountsOnMySQL(t *testing.T) {
 	// The store finds the bots by name, no token signs in as them, and
 	// their description is the server's in the viewer's language.
 	store := botstore.New(db)
-	if id, err := store.ByUsername(ctx, "places"); err != nil || id != inlinebots.Places.Id {
-		t.Errorf("places: %d, %v", id, err)
+	if id, err := store.ByUsername(ctx, "pic"); err != nil || id != inlinebots.Pic.Id {
+		t.Errorf("pic: %d, %v", id, err)
 	}
 	for _, token := range []string{"1000101:", "1000101:builtin", "builtin:1000101"} {
 		if id, err := store.BotIdOfToken(ctx, token); err != nil || id != 0 {
 			t.Errorf("token %q: %d, %v", token, id, err)
 		}
 	}
-	info, err := store.BotInfo(ctx, inlinebots.Places.Id, botstore.Viewer{UserId: 9, PeerType: mtproto.PEER_USER, PeerId: 9, Lang: "ru"})
-	if err != nil || info.GetDescription_STRING() != langpack.InlineBotText(inlinebots.Places.About, "ru") {
+	info, err := store.BotInfo(ctx, inlinebots.Pic.Id, botstore.Viewer{UserId: 9, PeerType: mtproto.PEER_USER, PeerId: 9, Lang: "ru"})
+	if err != nil || info.GetDescription_STRING() != langpack.InlineBotText(inlinebots.Pic.About, "ru") {
 		t.Errorf("bot info: %q, %v", info.GetDescription_STRING(), err)
 	}
 
-	// A person has "places" (in other letters: the names compare without
-	// case) before the file runs: no account of @places, the others stay.
-	if _, err = db.Exec(ctx, "DELETE FROM bots WHERE bot_id = 1000103"); err != nil {
+	// A person has "pic" (in other letters: the names compare without
+	// case) before the file runs: no account of @pic, the other stays.
+	if _, err = db.Exec(ctx, "DELETE FROM bots WHERE bot_id = 1000102"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec(ctx, "DELETE FROM username WHERE peer_id = 1000103"); err != nil {
+	if _, err = db.Exec(ctx, "DELETE FROM username WHERE peer_id = 1000102"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec(ctx, "DELETE FROM users WHERE id = 1000103"); err != nil {
+	if _, err = db.Exec(ctx, "DELETE FROM users WHERE id = 1000102"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec(ctx, "INSERT INTO username (username, peer_type, peer_id) VALUES ('Places', 2, 136907999)"); err != nil {
+	if _, err = db.Exec(ctx, "INSERT INTO username (username, peer_type, peer_id) VALUES ('Pic', 2, 136907999)"); err != nil {
 		t.Fatal(err)
 	}
 	if err = mysql.ApplySQLFile(ctx, file); err != nil {
 		t.Fatal(err)
 	}
-	if n := count("SELECT COUNT(*) FROM users WHERE id = 1000103") + count("SELECT COUNT(*) FROM bots WHERE bot_id = 1000103"); n != 0 {
-		t.Errorf("@places made over a taken username: %d rows", n)
+	if n := count("SELECT COUNT(*) FROM users WHERE id = 1000102") + count("SELECT COUNT(*) FROM bots WHERE bot_id = 1000102"); n != 0 {
+		t.Errorf("@pic made over a taken username: %d rows", n)
 	}
 	if err = health.Check(ctx, db); !errors.Is(err, inlinebots.ErrMisconfigured) {
 		t.Fatalf("check over a taken username: %v", err)
 	}
-	if health.Usable(inlinebots.Places.Id) || !health.Usable(inlinebots.Gif.Id) || !health.Usable(inlinebots.Pic.Id) || health.Verified() {
-		t.Errorf("places %v, gif %v, pic %v, verified %v",
-			health.Usable(inlinebots.Places.Id), health.Usable(inlinebots.Gif.Id), health.Usable(inlinebots.Pic.Id), health.Verified())
+	if health.Usable(inlinebots.Pic.Id) || !health.Usable(inlinebots.Gif.Id) || health.Verified() {
+		t.Errorf("pic %v, gif %v, verified %v",
+			health.Usable(inlinebots.Pic.Id), health.Usable(inlinebots.Gif.Id), health.Verified())
 	}
 
-	// The operator frees the name and runs the file: @places is served
+	// The operator frees the name and runs the file: @pic is served
 	// again at the next check.
 	if _, err = db.Exec(ctx, "DELETE FROM username WHERE peer_id = 136907999"); err != nil {
 		t.Fatal(err)
@@ -142,7 +142,7 @@ func TestInlineBotAccountsOnMySQL(t *testing.T) {
 	if err = mysql.ApplySQLFile(ctx, file); err != nil {
 		t.Fatal(err)
 	}
-	if err = health.Check(ctx, db); err != nil || !health.Usable(inlinebots.Places.Id) {
-		t.Errorf("after the repair: %v, served %v", err, health.Usable(inlinebots.Places.Id))
+	if err = health.Check(ctx, db); err != nil || !health.Usable(inlinebots.Pic.Id) {
+		t.Errorf("after the repair: %v, served %v", err, health.Usable(inlinebots.Pic.Id))
 	}
 }

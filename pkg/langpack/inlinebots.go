@@ -22,9 +22,8 @@ import (
 
 // The descriptions of the built-in inline bots (task 099, ADR 0062, p. 6),
 // bot_info.description in the language of a session: what each bot does
-// and where its results come from (the attribution of OpenStreetMap's data
-// for @places, ODbL). They are in every language of own.json (the test holds
-// them to it). The keys are inlinebots.Bot.About.
+// and where its results come from. They are in every language of own.json
+// (the test holds them to it). The keys are inlinebots.Bot.About.
 //
 // inlinebots.json has mail.json's shape: {key: {lang_code: value}}.
 //

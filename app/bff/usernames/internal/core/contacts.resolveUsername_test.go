@@ -90,13 +90,13 @@ func TestResolveUsernameByTable(t *testing.T) {
 			"music":   mtproto.MakePeerUser(musician),
 			"youtube": mtproto.MakePeerChannel(channel),
 			"gif":     mtproto.MakePeerUser(inlinebots.Gif.Id),
-			"places":  mtproto.MakePeerUser(inlinebots.Places.Id),
+			"pic":     mtproto.MakePeerUser(inlinebots.Pic.Id),
 		},
 		users: map[int64]*mtproto.UserData{
-			self:                 userData(self, "Me", ""),
-			musician:             userData(musician, "Musician", "music"),
-			inlinebots.Gif.Id:    userData(inlinebots.Gif.Id, "GIF", "gif"),
-			inlinebots.Places.Id: userData(inlinebots.Places.Id, "Places", "places"),
+			self:              userData(self, "Me", ""),
+			musician:          userData(musician, "Musician", "music"),
+			inlinebots.Gif.Id: userData(inlinebots.Gif.Id, "GIF", "gif"),
+			inlinebots.Pic.Id: userData(inlinebots.Pic.Id, "Pic", "pic"),
 		},
 	}
 	ctx := context.Background()
@@ -110,7 +110,7 @@ func TestResolveUsernameByTable(t *testing.T) {
 		return c.ContactsResolveUsername(&mtproto.TLContactsResolveUsername{Username: username})
 	}
 
-	for username, want := range map[string]int64{"music": musician, "gif": inlinebots.Gif.Id, "places": inlinebots.Places.Id} {
+	for username, want := range map[string]int64{"music": musician, "gif": inlinebots.Gif.Id, "pic": inlinebots.Pic.Id} {
 		r, err := resolve(username)
 		if err != nil {
 			t.Fatalf("%s: %v", username, err)

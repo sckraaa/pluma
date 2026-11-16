@@ -14,12 +14,11 @@
 // limitations under the License.
 
 // Package inlinebots is the registry of the inline bots the server answers
-// for itself (task 099, ADR 0062): @gif, @pic and @places. They have no
-// token and no bot process; their accounts come from
+// for itself (task 099, ADR 0062): @gif and @pic. They have no token and no
+// bot process; their accounts come from
 // teamgramd/deploy/sql/z_pluma-inline-bots.sql, and the clients find them by
-// the usernames of help.getConfig (gif_search_username, img_search_username,
-// venue_search_username in teamgramd/bin/config.json) and of the app config
-// (stories_venue_search_username).
+// the usernames of help.getConfig (gif_search_username and
+// img_search_username in teamgramd/bin/config.json).
 package inlinebots
 
 // Kind is what a bot of the registry answers with.
@@ -30,8 +29,6 @@ const (
 	KindGif Kind = iota + 1
 	// KindPhoto: pictures, botInlineMediaResult with a photo.
 	KindPhoto
-	// KindVenue: places, botInlineResult with botInlineMessageMediaVenue.
-	KindVenue
 )
 
 // String is the name of the kind, as metrics label it.
@@ -41,8 +38,6 @@ func (k Kind) String() string {
 		return "gif"
 	case KindPhoto:
 		return "photo"
-	case KindVenue:
-		return "venue"
 	}
 	return "unknown"
 }
@@ -52,10 +47,6 @@ type Bot struct {
 	Id       int64
 	Username string
 	Kind     Kind
-	// Geo: the bot asks for the location of the user (bot_inline_geo);
-	// Android then sends geo_point with the query
-	// (MentionsAdapter.java:583-596, 924-926).
-	Geo bool
 	// About is the key of the bot's description in
 	// pkg/langpack/inlinebots.json.
 	About string
@@ -65,9 +56,8 @@ type Bot struct {
 // antispam account is 1000001, pkg/antispam); the ids of users start at
 // 136907713 (AUTO_INCREMENT of users in 1_teamgram.sql).
 var (
-	Gif    = Bot{Id: 1000101, Username: "gif", Kind: KindGif, About: "PlumaInlineGifAbout"}
-	Pic    = Bot{Id: 1000102, Username: "pic", Kind: KindPhoto, About: "PlumaInlinePicAbout"}
-	Places = Bot{Id: 1000103, Username: "places", Kind: KindVenue, Geo: true, About: "PlumaInlinePlacesAbout"}
+	Gif = Bot{Id: 1000101, Username: "gif", Kind: KindGif, About: "PlumaInlineGifAbout"}
+	Pic = Bot{Id: 1000102, Username: "pic", Kind: KindPhoto, About: "PlumaInlinePicAbout"}
 )
 
 // placeholder is the bot_inline_placeholder of every bot: a symbol, not a
@@ -78,7 +68,7 @@ const placeholder = "🔍"
 
 // All returns the bots of the registry.
 func All() []Bot {
-	return []Bot{Gif, Pic, Places}
+	return []Bot{Gif, Pic}
 }
 
 // ByID returns the bot of the registry with the id.
