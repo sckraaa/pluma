@@ -174,3 +174,40 @@ func TestSpoilerPhoto(t *testing.T) {
 		t.Errorf("a photo under a spoiler: %+v", p)
 	}
 }
+
+type fakeChatLinks map[string]int64
+
+func (f fakeChatLinks) ChatLinkOwner(_ context.Context, slug string) (int64, error) {
+	return f[slug], nil
+}
+
+// TestChatLinkOwner: the owner of a business chat link is shown as the
+// page of a username shows a user, its privacy applied; a link of a
+// deleted account, an unknown slug and one no link could have are nobody.
+func TestChatLinkOwner(t *testing.T) {
+	s := newFake()
+	s.ChatLinks = fakeChatLinks{"OpenUserLink0001": 1, "ClosedLink000002": 2, "GoneUserLink0003": 3}
+	ctx := context.Background()
+	p, err := s.ChatLinkOwner(ctx, "OpenUserLink0001")
+	if err != nil || p == nil || p.Name != "Open User" || p.About != "hello" || p.PhotoId != 11 {
+		t.Fatalf("open user: %+v, %v", p, err)
+	}
+	if id, _ := s.ChatLinkAvatarId(ctx, "OpenUserLink0001"); id != 11 {
+		t.Errorf("open user's photo: %d", id)
+	}
+	p, err = s.ChatLinkOwner(ctx, "ClosedLink000002")
+	if err != nil || p == nil || p.About != "" || p.PhotoId != 22 {
+		t.Fatalf("closed user: %+v, %v", p, err)
+	}
+	if id, _ := s.ChatLinkAvatarId(ctx, "ClosedLink000002"); id != 22 {
+		t.Errorf("closed user's photo: %d, want the public one", id)
+	}
+	for _, slug := range []string{"GoneUserLink0003", "Unknown123456789", "short", "OpenUserLink000!"} {
+		if p, err := s.ChatLinkOwner(ctx, slug); err != nil || p != nil {
+			t.Errorf("%s: %+v, %v", slug, p, err)
+		}
+		if id, err := s.ChatLinkAvatarId(ctx, slug); err != nil || id != 0 {
+			t.Errorf("%s: photo %d, %v", slug, id, err)
+		}
+	}
+}

@@ -37,6 +37,11 @@ var served = map[string]bool{
 	"AccountUpdateBusinessWorkHours": true,
 	"AccountUpdateBusinessLocation":  true,
 	"AccountUpdateBusinessIntro":     true,
+	"AccountCreateBusinessChatLink":  true,
+	"AccountEditBusinessChatLink":    true,
+	"AccountDeleteBusinessChatLink":  true,
+	"AccountGetBusinessChatLinks":    true,
+	"AccountResolveBusinessChatLink": true,
 }
 
 // The services of Business the session routes to bff (session.yaml): one
@@ -179,6 +184,89 @@ func TestProfileRefused(t *testing.T) {
 			_, err := s.AccountUpdateBusinessIntro(user, intro("", strings.Repeat("b", 71), nil))
 			return err
 		}, mtproto.ErrDescriptionInvalid},
+	} {
+		if err := c.call(); !errors.Is(err, c.want) {
+			t.Errorf("%s: %v, want %v", c.name, err, c.want)
+		}
+	}
+}
+
+func chatLink(message, title string, entities ...*mtproto.MessageEntity) *mtproto.InputBusinessChatLink {
+	l := &mtproto.InputBusinessChatLink{Message: message, Entities: entities}
+	if title != "" {
+		l.Title = wrapperspb.String(title)
+	}
+	return mtproto.MakeTLInputBusinessChatLink(l).To_InputBusinessChatLink()
+}
+
+// The requests of the chat links refused before they read or write
+// anything: a bot, a slug no link could have, a text or a title over the
+// limits.
+func TestChatLinksRefused(t *testing.T) {
+	s := New(&svc.ServiceContext{})
+	user := callerCtx(t, 1, false)
+	bot := callerCtx(t, 2, true)
+	bold := func(offset, length int32) *mtproto.MessageEntity {
+		return mtproto.MakeTLMessageEntityBold(&mtproto.MessageEntity{Offset: offset, Length: length}).To_MessageEntity()
+	}
+	const slug = "AbCdEfGh12345678"
+	for _, c := range []struct {
+		name string
+		call func() error
+		want error
+	}{
+		{"create by a bot", func() error {
+			_, err := s.AccountCreateBusinessChatLink(bot, &mtproto.TLAccountCreateBusinessChatLink{Link: chatLink("hi", "")})
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+		{"list of a bot", func() error {
+			_, err := s.AccountGetBusinessChatLinks(bot, &mtproto.TLAccountGetBusinessChatLinks{})
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+		{"4097 units of text", func() error {
+			_, err := s.AccountCreateBusinessChatLink(user, &mtproto.TLAccountCreateBusinessChatLink{Link: chatLink(strings.Repeat("a", 4097), "")})
+			return err
+		}, mtproto.ErrMessageTooLong},
+		{"2049 emoji of text, 4098 units", func() error {
+			_, err := s.AccountCreateBusinessChatLink(user, &mtproto.TLAccountCreateBusinessChatLink{Link: chatLink(strings.Repeat("\U0001F600", 2049), "")})
+			return err
+		}, mtproto.ErrMessageTooLong},
+		{"33 units of title", func() error {
+			_, err := s.AccountCreateBusinessChatLink(user, &mtproto.TLAccountCreateBusinessChatLink{Link: chatLink("hi", strings.Repeat("t", 33))})
+			return err
+		}, mtproto.ErrTitleInvalid},
+		{"more entities than units", func() error {
+			_, err := s.AccountCreateBusinessChatLink(user, &mtproto.TLAccountCreateBusinessChatLink{Link: chatLink("hi", "", bold(0, 1), bold(1, 1), bold(0, 2))})
+			return err
+		}, mtproto.ErrEntitiesTooLong},
+		{"edit of an empty slug", func() error {
+			_, err := s.AccountEditBusinessChatLink(user, &mtproto.TLAccountEditBusinessChatLink{Slug: "https://pluma.chat/m/", Link: chatLink("hi", "")})
+			return err
+		}, mtproto.ErrChatlinkSlugEmpty},
+		{"edit of a malformed slug", func() error {
+			_, err := s.AccountEditBusinessChatLink(user, &mtproto.TLAccountEditBusinessChatLink{Slug: "short", Link: chatLink("hi", "")})
+			return err
+		}, mtproto.ErrChatlinkSlugExpired},
+		{"edit with a long title", func() error {
+			_, err := s.AccountEditBusinessChatLink(user, &mtproto.TLAccountEditBusinessChatLink{Slug: slug, Link: chatLink("hi", strings.Repeat("t", 33))})
+			return err
+		}, mtproto.ErrTitleInvalid},
+		{"delete by a bot", func() error {
+			_, err := s.AccountDeleteBusinessChatLink(bot, &mtproto.TLAccountDeleteBusinessChatLink{Slug: slug})
+			return err
+		}, mtproto.ErrBotMethodInvalid},
+		{"delete of an empty slug", func() error {
+			_, err := s.AccountDeleteBusinessChatLink(user, &mtproto.TLAccountDeleteBusinessChatLink{Slug: " "})
+			return err
+		}, mtproto.ErrChatlinkSlugEmpty},
+		{"resolve of an empty slug", func() error {
+			_, err := s.AccountResolveBusinessChatLink(user, &mtproto.TLAccountResolveBusinessChatLink{Slug: ""})
+			return err
+		}, mtproto.ErrChatlinkSlugEmpty},
+		{"resolve of a slug with a bad character", func() error {
+			_, err := s.AccountResolveBusinessChatLink(user, &mtproto.TLAccountResolveBusinessChatLink{Slug: "AbCdEfGh1234567-"})
+			return err
+		}, mtproto.ErrChatlinkSlugExpired},
 	} {
 		if err := c.call(); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, err, c.want)

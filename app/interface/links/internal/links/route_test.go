@@ -60,6 +60,8 @@ func TestParse(t *testing.T) {
 		{"/login/12345", KindLogin, "login?code=12345"},
 		{"/contact/abcdef", KindContact, "contact?token=abcdef"},
 		{"/s/telegram", KindChannelPreview, "resolve?domain=telegram"},
+		{"/m/AbCdEfGh12345678", KindBusinessChat, "message?slug=AbCdEfGh12345678"},
+		{"/m/AbCdEfGh12345678/", KindBusinessChat, "message?slug=AbCdEfGh12345678"},
 	} {
 		u, err := url.Parse(c.link)
 		if err != nil {
@@ -74,6 +76,7 @@ func TestParse(t *testing.T) {
 	for _, link := range []string{
 		"/", "/abc", "/abc!def", "/c/1234", "/addstickers/", "/proxy?server=1.2.3.4&port=443&secret=00",
 		"/share/zzz?url=x", "/setlanguage", "/msg/url?url=x", "/giftcode/aaaa", "/$aaaa",
+		"/m", "/m/", "/m/a!b",
 	} {
 		u, _ := url.Parse(link)
 		if l := Parse(u.Path, u.Query()); l.Kind != KindNone {

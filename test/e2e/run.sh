@@ -356,6 +356,7 @@ cmd_test() {
 			PLUMA_E2E_FAKECODES=$(compose port fakecodes 8080) \
 			PLUMA_E2E_FAKESTT=$(compose port fakestt 8080) \
 			PLUMA_E2E_FAKEMAIL=$(compose port fakemail 8080) \
+			PLUMA_E2E_LINKS=$(compose port links 9096) \
 			PLUMA_E2E_SERVER_KEY=$KEY_FILE \
 			PLUMA_E2E_RUN="$ROOT/test/e2e/run.sh" \
 			go test -tags e2e -count=1 -timeout 20m -v ${E2E_GOTEST_FLAGS:-} ./test/e2e/... ./test/conformance/...

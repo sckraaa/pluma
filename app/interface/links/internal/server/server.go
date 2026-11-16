@@ -29,6 +29,7 @@ import (
 	channel_client "github.com/teamgram/teamgram-server/app/service/biz/channel/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	dfs_client "github.com/teamgram/teamgram-server/app/service/dfs/client"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
 	"github.com/teamgram/teamgram-server/pkg/conf"
 	"github.com/teamgram/teamgram-server/pkg/env2"
@@ -58,11 +59,13 @@ func (s *Server) Initialize() error {
 
 	biz := rpcx.GetCachedRpcClient(c.BizServiceClient)
 	channels := channel_client.NewChannelClient(biz)
+	db := sqlx.NewMySQL(&c.Mysql)
 	source := &data.Source{
-		User:    user_client.NewUserClient(biz),
-		Channel: channels,
-		Dfs:     dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
-		Sets:    catalog.NewStore(sqlx.NewMySQL(&c.Mysql)),
+		User:      user_client.NewUserClient(biz),
+		Channel:   channels,
+		Dfs:       dfs_client.NewDfsClient(rpcx.GetCachedRpcClient(c.DfsClient)),
+		Sets:      catalog.NewStore(db),
+		ChatLinks: business.NewStore(db),
 	}
 	b := &links.Builder{
 		Site:   strings.TrimRight(c.SiteURL, "/"),

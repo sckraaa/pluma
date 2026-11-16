@@ -24,6 +24,7 @@ import (
 	channelpb "github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
+	"github.com/teamgram/teamgram-server/pkg/business"
 	"github.com/teamgram/teamgram-server/pkg/catalog"
 
 	"google.golang.org/grpc/status"
@@ -48,6 +49,11 @@ type (
 	Sets interface {
 		SetByShortName(ctx context.Context, name string) (*catalog.Set, error)
 	}
+	// ChatLinks gives the owner of a business chat link (pkg/business),
+	// 0 for none.
+	ChatLinks interface {
+		ChatLinkOwner(ctx context.Context, slug string) (int64, error)
+	}
 )
 
 // Source is the links.Resolver and links.Avatars of the services.
@@ -56,6 +62,8 @@ type Source struct {
 	Channel ChannelClient
 	Dfs     DfsClient
 	Sets    Sets
+	// ChatLinks: the pages of the business chat links (m/<slug>).
+	ChatLinks ChatLinks
 }
 
 // anybody is the visitor of a page: no account, no contact of anybody.
@@ -91,13 +99,9 @@ func (s *Source) resolve(ctx context.Context, username string) (*owner, error) {
 	p := mtproto.FromPeer(peer)
 	switch p.PeerType {
 	case mtproto.PEER_USER:
-		users, err := s.User.UserGetMutableUsersV2(ctx, &userpb.TLUserGetMutableUsersV2{Id: []int64{p.PeerId}, Privacy: true, HasTo: true, To: []int64{p.PeerId}})
-		if err != nil {
+		u, err := s.user(ctx, p.PeerId)
+		if err != nil || u == nil {
 			return nil, err
-		}
-		u, ok := users.GetImmutableUser(p.PeerId)
-		if !ok || u.Deleted() {
-			return nil, nil
 		}
 		return &owner{user: u}, nil
 	case mtproto.PEER_CHANNEL:
@@ -114,6 +118,52 @@ func (s *Source) resolve(ctx context.Context, username string) (*owner, error) {
 		return &owner{channel: mc}, nil
 	}
 	return nil, nil
+}
+
+// user is the user of id with its privacy rules, nil when it is no more.
+func (s *Source) user(ctx context.Context, id int64) (*mtproto.ImmutableUser, error) {
+	users, err := s.User.UserGetMutableUsersV2(ctx, &userpb.TLUserGetMutableUsersV2{Id: []int64{id}, Privacy: true, HasTo: true, To: []int64{id}})
+	if err != nil {
+		return nil, err
+	}
+	u, ok := users.GetImmutableUser(id)
+	if !ok || u.Deleted() {
+		return nil, nil
+	}
+	return u, nil
+}
+
+// chatLinkOwner is the user who owns the business chat link of slug, nil
+// for none: a slug no link could have is not looked up.
+func (s *Source) chatLinkOwner(ctx context.Context, slug string) (*mtproto.ImmutableUser, error) {
+	if s.ChatLinks == nil || !business.ValidSlug(slug) {
+		return nil, nil
+	}
+	id, err := s.ChatLinks.ChatLinkOwner(ctx, slug)
+	if err != nil || id == 0 {
+		return nil, err
+	}
+	return s.user(ctx, id)
+}
+
+// ChatLinkOwner implements links.Resolver: the owner of a business chat
+// link as anybody sees it, as the page of a username shows a user.
+func (s *Source) ChatLinkOwner(ctx context.Context, slug string) (*links.Peer, error) {
+	u, err := s.chatLinkOwner(ctx, slug)
+	if err != nil || u == nil {
+		return nil, err
+	}
+	return userPeer(u), nil
+}
+
+// ChatLinkAvatarId implements links.Avatars: the photo of the owner of a
+// business chat link that anybody may see.
+func (s *Source) ChatLinkAvatarId(ctx context.Context, slug string) (int64, error) {
+	u, err := s.chatLinkOwner(ctx, slug)
+	if err != nil || u == nil {
+		return 0, err
+	}
+	return userPhoto(u), nil
 }
 
 // Peer implements links.Resolver.
@@ -136,7 +186,15 @@ func (s *Source) Peer(ctx context.Context, username string) (*links.Peer, error)
 		}
 		return p, nil
 	}
-	u := o.user
+	p := userPeer(o.user)
+	if p.Username == "" {
+		p.Username = username
+	}
+	return p, nil
+}
+
+// userPeer is what anybody may see of u.
+func userPeer(u *mtproto.ImmutableUser) *links.Peer {
 	p := &links.Peer{
 		Kind:      links.PeerUser,
 		Username:  u.Username(),
@@ -147,13 +205,10 @@ func (s *Source) Peer(ctx context.Context, username string) (*links.Peer, error)
 	if u.IsBot() {
 		p.Kind = links.PeerBot
 	}
-	if p.Username == "" {
-		p.Username = username
-	}
 	if u.IsBot() || visible(u, mtproto.ABOUT) {
 		p.About = u.User.GetAbout().GetValue()
 	}
-	return p, nil
+	return p
 }
 
 // userPhoto is the photo of u anybody sees: the main one if its privacy
