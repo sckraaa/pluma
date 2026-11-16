@@ -29,7 +29,7 @@ package handshake
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // MTProto's key exchange is defined over SHA-1
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/binary"
@@ -741,9 +741,9 @@ func calcNewNonceHash(newNonce, authKey []byte, b byte) []byte {
 	var buf [73]byte
 	copy(buf[:32], newNonce)
 	buf[32] = b
-	sha1D := sha1.Sum(authKey)
+	sha1D := sha1.Sum(authKey) //nolint:gosec // MTProto: auth_key_aux_hash is taken from SHA1(auth_key)
 	copy(buf[33:53], sha1D[:])
-	sha1E := sha1.Sum(buf[:41]) // 32 + 1 + 8 = 41 (total - 12 when using first 53 bytes)
+	sha1E := sha1.Sum(buf[:41]) //nolint:gosec // MTProto new_nonce_hash: SHA1 of new_nonce, the byte and auth_key_aux_hash, 32 + 1 + 8 = 41 bytes
 	copy(buf[53:], sha1E[:])
 	result := make([]byte, 16)
 	copy(result, buf[73-16:])

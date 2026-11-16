@@ -24,7 +24,7 @@ import (
 
 var (
 	// TODO(@benqi): 直接指定了dh2048_p和dh2048_g!!!
-	// andriod client 指定的good prime
+	// Android client 指定的good prime
 	//
 	// static const char *goodPrime = "
 	//

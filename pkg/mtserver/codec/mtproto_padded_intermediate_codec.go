@@ -73,7 +73,7 @@ func (c *PaddedIntermediateCodec) Encode(conn CodecWriter, msg interface{}) ([]b
 	// Android one of at most 56 (ConnectionsManager.cpp:834).
 	paddingLen := 0
 	if len(rawMsg.Payload) > 4 {
-		paddingLen = rand2.Int() % 16
+		paddingLen = rand2.Int() % 16 //nolint:gosec // the length of transport padding, not a secret
 	}
 	buf := make([]byte, 4+len(rawMsg.Payload)+paddingLen)
 	binary.LittleEndian.PutUint32(buf, uint32(len(rawMsg.Payload)+paddingLen))
