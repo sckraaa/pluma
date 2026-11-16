@@ -354,8 +354,9 @@ func (s *Server) Initialize() error {
 			}))
 
 		// files_helper
-		// The CDN of large files (task 102) runs its pusher and prober
-		// beside the methods.
+		// The HTTPS CDN of large files (task 107) runs its origin, the
+		// preparation of the files and the checks of the deliveries beside
+		// the methods; Destroy stops them.
 		s.files = files_helper.New(files_helper.Config{
 			RpcServerConf: c.RpcServerConf,
 			Mysql:         c.Mysql,

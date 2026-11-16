@@ -1320,6 +1320,18 @@
 - [ ] После этих запросов в `docker logs` контейнера `web` нет ни значения заголовка, ни hex из пути, ни `md5=`; порт 20480 на хосте не слушается (`ss -ltn | grep 20480` пусто).
 - [ ] Вернуть `PLUMA_CDN_ORIGIN_DOMAIN` пустым и пересоздать `web`: имя больше не обслуживается, остальные сайты работают.
 
+### Часть A2: источник, подготовка, здоровье, бюджет
+Проверять после включения выдачи 201 (`CDN_GCORE_BASE_URL`, `CDN_GCORE_TOKEN_KEY`, `CDN_ORIGIN_AUTH` заданы, деплой).
+- [ ] В логе bff при старте строка `files: HTTPS CDN on: 1 deliveries, origin at 0.0.0.0:20480`, нет строки про `http:// BaseURL`; в Prometheus `pluma_cdn_dev_http{dc="201"}` = 0, `pluma_cdn_usage_limit_bytes{dc="201"}` = 8e11.
+- [ ] Не позже чем через минуту после старта `pluma_cdn_delivery_healthy{dc="201"}` = 1; в MySQL `SELECT dc_id, healthy_until, unhealthy_reason FROM cdn_deliveries` — `healthy_until` впереди текущего времени примерно на 3 минуты и сдвигается каждую минуту, причина пустая.
+- [ ] Отправить в группу документ 5 МБ и открыть его на патченном клиенте: `pluma_cdn_prepare_total{result="ok"}` вырос на 1, `pluma_cdn_queue{state="ready"}` вырос; у строки файла в `cdn_files` поле `hashes` не пустое.
+- [ ] Открыть тот же файл через CDN: растут `pluma_cdn_origin_requests_total{code="206"}` (или `200`) и `pluma_cdn_origin_bytes_total`; второй пользователь открывает его же — `pluma_cdn_origin_bytes_total` почти не растёт (Gcore отдаёт из кэша).
+- [ ] В логе bff строки `cdn origin: GET 206, <N> bytes` без пути, hex, `md5=` и значения `X-Pluma-Origin-Auth`.
+- [ ] Через минуту после загрузок `SELECT * FROM cdn_delivery_usage` — строка `201` текущего месяца (UTC), `origin_bytes` равен приросту `pluma_cdn_origin_bytes_total`, `edge_bytes_est` растёт после редиректов (когда часть B на месте); те же числа в `pluma_cdn_usage_bytes{dc="201"}`.
+- [ ] Временно выключить Secure Token в портале Gcore: не позже чем через 2 минуты `unhealthy_reason` = `token_off`, `pluma_cdn_delivery_healthy{dc="201"}` = 0, в логе bff `cdn: delivery 201 (<хост>) is out: token_off`; включить обратно — через минуту снова здоров и строка `is healthy`.
+- [ ] Перезапустить bff во время загрузки большого файла: bff останавливается не дольше чем за ~10 с, клиент докачивает (из дома или после повтора через CDN); после старта подготовка файлов продолжается (`pluma_cdn_queue{state="queued"}` уходит в 0).
+- [ ] Порт источника на хост не опубликован: `ss -ltn | grep 20480` на хосте пусто, Caddy достаёт его по сети compose.
+
 ## 108 — Сессия отмечает запросы ботов (`RpcMetadata.IsBot`)
 Нужен тестовый бот из `pluma-admin bot create` со своим процессом (например, на Telethon), вошедший токеном, и бизнес-аккаунт с этим ботом в «Telegram Business → Чат-боты».
 - [ ] После выката нового `session` бот отвечает в личке на текст, на нажатие кнопки под своим сообщением и в инлайн-режиме (`@бот запрос` в чате с другим человеком) на Android, iOS, Desktop и Web.
