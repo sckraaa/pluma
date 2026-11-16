@@ -311,3 +311,60 @@ func TestEncodeNeverPartial(t *testing.T) {
 		t.Fatal("no error for a nested object without a constructor")
 	}
 }
+
+// A stored request-peer button is the whole answer of
+// bots.getRequestedWebViewButton: from layer 229 it goes out as keyboardButton
+// with buttonTypeRequestPeer, which the clients read, and as it is before.
+func TestLoneButtonByLayer(t *testing.T) {
+	stored := mtproto.MakeTLKeyboardButtonRequestPeer(&mtproto.KeyboardButton{
+		Text:          "Pick",
+		ButtonId:      4,
+		MaxQuantity:   2,
+		NameRequested: true,
+		PeerType:      mtproto.MakeTLRequestPeerTypeUser(&mtproto.RequestPeerType{}).To_RequestPeerType(),
+	}).To_KeyboardButton()
+	decode := func(b []byte) *mtproto.KeyboardButton {
+		t.Helper()
+		x := mtproto.NewDecodeBuf(b)
+		k := &mtproto.KeyboardButton{}
+		if err := k.Decode(x); err != nil || x.GetError() != nil || x.GetOffset() != len(b) {
+			t.Fatalf("decode: %v %v", err, x.GetError())
+		}
+		return k
+	}
+
+	b, err := EncodeFor(stored, 233)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GetPredicateName() != mtproto.Predicate_keyboardButtonRequestPeer {
+		t.Fatal("the stored button was changed")
+	}
+	got := decode(b)
+	typ := got.GetType()
+	if got.GetPredicateName() != mtproto.Predicate_keyboardButton || got.GetText() != "Pick" ||
+		typ.GetPredicateName() != mtproto.Predicate_buttonTypeRequestPeer || typ.GetButtonId() != 4 || typ.GetMaxQuantity() != 2 ||
+		typ.GetPeerType().GetPredicateName() != mtproto.Predicate_requestPeerTypeUser {
+		t.Fatalf("layer 233: %v", got)
+	}
+
+	b, err = EncodeFor(stored, 228)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got = decode(b); got.GetPredicateName() != mtproto.Predicate_keyboardButtonRequestPeer || got.GetButtonId() != 4 || got.GetNameRequested() {
+		t.Fatalf("layer 228: %v", got)
+	}
+
+	// The typed form a bot of layer 233 sends comes back to the stored one.
+	in := mtproto.MakeTLKeyboardButton(&mtproto.KeyboardButton{
+		Text: "Pick",
+		Type: mtproto.MakeTLInputButtonTypeRequestPeer(&mtproto.ButtonType{
+			ButtonId: 4, MaxQuantity: 1, PhotoRequested: true,
+			PeerType: mtproto.MakeTLRequestPeerTypeBroadcast(&mtproto.RequestPeerType{}).To_RequestPeerType(),
+		}).To_ButtonType(),
+	}).To_KeyboardButton()
+	if c := CanonicalButton(in); c.GetPredicateName() != mtproto.Predicate_inputKeyboardButtonRequestPeer || !c.GetPhotoRequested() || c.GetButtonId() != 4 {
+		t.Fatalf("canonical: %v", c)
+	}
+}

@@ -109,16 +109,20 @@ func (s *Service) MessagesSendWebViewData(ctx context.Context, request *mtproto.
 	return c.MessagesSendWebViewData(request)
 }
 
-// BotsRequestWebViewButton prepares a button for a mini app (task 106,
-// part F).
+// BotsRequestWebViewButton
+// bots.requestWebViewButton#31a2a35e user_id:InputUser button:KeyboardButton = bots.RequestedButton;
 func (s *Service) BotsRequestWebViewButton(ctx context.Context, request *mtproto.TLBotsRequestWebViewButton) (*mtproto.Bots_RequestedButton, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("bots.requestWebViewButton - metadata: {%s}", c.MD)
+	return c.BotsRequestWebViewButton(request)
 }
 
-// BotsGetRequestedWebViewButton returns a prepared button (task 106,
-// part F).
+// BotsGetRequestedWebViewButton
+// bots.getRequestedWebViewButton#bf25b7f3 bot:InputUser webapp_req_id:string = KeyboardButton;
 func (s *Service) BotsGetRequestedWebViewButton(ctx context.Context, request *mtproto.TLBotsGetRequestedWebViewButton) (*mtproto.KeyboardButton, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("bots.getRequestedWebViewButton - metadata: {%s}", c.MD)
+	return c.BotsGetRequestedWebViewButton(request)
 }
 
 // MessagesRequestChatJoinWebView belongs to the bots that screen join

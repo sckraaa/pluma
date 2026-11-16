@@ -226,6 +226,19 @@ func convert(m protoreflect.Message, layer int32) bool {
 		proto.Reset(v)
 		mtproto.MakeTLMessageActionEmpty(v)
 		return representable(mtproto.Predicate_messageActionEmpty, layer)
+	case *mtproto.KeyboardButton:
+		// A button outside a markup, the answer of
+		// bots.getRequestedWebViewButton: the stored keyboardButton* has no
+		// constructor from layer 229 on, where it is keyboardButton with a
+		// ButtonType (Android BotWebViewContainer.java:3029-3030 and tdesktop
+		// bot_attach_web_view.cpp:2160-2164 read the type).
+		if layer < layerInlineButtons {
+			return false
+		}
+		typed := canonicalToTypedButton(v)
+		proto.Reset(v)
+		proto.Merge(v, typed)
+		return representable(v.GetPredicateName(), layer)
 	case *mtproto.MessageEntity:
 		offset, length := v.GetOffset(), v.GetLength()
 		proto.Reset(v)
