@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package webpage
+package webfetch
 
 import (
 	"errors"
@@ -23,10 +23,12 @@ import (
 	"net/url"
 	"strings"
 	"syscall"
+	"time"
 )
 
-// The server fetches pages users name in their messages: it must never
-// reach the networks it sits in (the services, the cloud's metadata
+// The server fetches what users name (the pages of their links, the files
+// of inline bots, ADR 0027 and ADR 0062): it must never reach the networks
+// it sits in (the services, the cloud's metadata
 // endpoint, the operator's LAN). An address is checked when it is dialled,
 // after DNS, so a name that resolves, or later re-resolves, to an internal
 // address is refused too (DNS rebinding); a link that names an internal
@@ -34,7 +36,7 @@ import (
 // a preview (messageMediaEmpty, observed 2026-11-02 for http://192.168.0.1).
 
 // ErrNotPublic is the error of an address outside the public internet.
-var ErrNotPublic = errors.New("webpage: not a public address")
+var ErrNotPublic = errors.New("webfetch: not a public address")
 
 // notPublic lists the ranges that are not the public internet beyond what
 // netip's predicates cover (IANA special-purpose registries).
@@ -71,6 +73,9 @@ func publicAddr(a netip.Addr) bool {
 	return true
 }
 
+// PublicDial connects to public addresses only (dialControl).
+var PublicDial = (&net.Dialer{Timeout: 5 * time.Second, Control: dialControl}).DialContext
+
 // dialControl refuses a connection to an address that is not public. It
 // runs for every address the dialer tries, after the name is resolved.
 func dialControl(_, address string, _ syscall.RawConn) error {
@@ -88,18 +93,18 @@ func dialControl(_, address string, _ syscall.RawConn) error {
 	return nil
 }
 
-// fetchable checks a link before any request: http or https, a host, no
+// Fetchable checks a link before any request: http or https, a host, no
 // user info, and a host that is not an internal address or name.
-func fetchable(u *url.URL) error {
+func Fetchable(u *url.URL) error {
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("webpage: scheme %q", u.Scheme)
+		return fmt.Errorf("webfetch: scheme %q", u.Scheme)
 	}
 	if u.User != nil {
-		return errors.New("webpage: user info in the link")
+		return errors.New("webfetch: user info in the link")
 	}
 	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
 	if host == "" {
-		return errors.New("webpage: no host")
+		return errors.New("webfetch: no host")
 	}
 	if a, err := netip.ParseAddr(host); err == nil {
 		if !publicAddr(a) {

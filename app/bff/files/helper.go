@@ -25,6 +25,9 @@ type (
 func init() {
 	zrpc.DontLogContentForMethod("/mtproto.RPCFiles/upload_saveFilePart")
 	zrpc.DontLogContentForMethod("/mtproto.RPCFiles/upload_saveBigFilePart")
+	// The location of a web file carries an address or a point on the map
+	// (ADR 0062, p. 5).
+	zrpc.DontLogContentForMethod("/mtproto.RPCFiles/upload_getWebFile")
 
 	zrpc.DontLogClientContentForMethod("/dfs.RPCDfs/dfs_writeFilePartData")
 	zrpc.DontLogClientContentForMethod("/dfs.RPCDfs/dfs_downloadFile")

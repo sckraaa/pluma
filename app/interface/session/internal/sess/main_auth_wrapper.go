@@ -110,7 +110,7 @@ type MainAuthWrapper struct {
 	sessionDataChan      chan interface{} // receive from client
 	rpcDataChan          chan interface{}
 	rpcQueue             *queue2.SyncQueue
-	botWaits             sync.WaitGroup // requests waiting for a bot's answer (waitsForBot)
+	asideRuns            sync.WaitGroup // requests run aside the queue of the key (runsAside)
 	finish               sync.WaitGroup
 	running              *syncx.AtomicBool
 	onlineExpired        int64
@@ -727,7 +727,7 @@ func (m *MainAuthWrapper) runLoop() {
 
 func (m *MainAuthWrapper) rpcRunLoop() {
 	defer func() {
-		m.botWaits.Wait()
+		m.asideRuns.Wait()
 		m.finish.Done()
 		close(m.rpcDataChan)
 	}()
@@ -754,8 +754,8 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 						LangCode:      m.LangCode(),
 						Takeout:       request.takeout,
 					}
-					if waitsForBot(request.reqMsg) {
-						m.startBotWait(request, md)
+					if runsAside(request.reqMsg) {
+						m.startAside(request, md)
 						continue
 					}
 					doRpcRequest(request.ctx, m.cb.Dao, md, request)
@@ -766,23 +766,25 @@ func (m *MainAuthWrapper) rpcRunLoop() {
 	}
 }
 
-// waitsForBot tells the requests that wait up to seconds for a bot's answer
-// (task 070, app/bff/bots): they must not hold up the requests of the key
-// behind them.
-func waitsForBot(req mtproto.TLObject) bool {
+// runsAside tells the requests that may take seconds for a reason outside
+// the server and so must not hold up the requests of the key behind them:
+// those waiting for a bot's answer (task 070, app/bff/bots), and
+// upload.getWebFile, which may fetch the file from another host first
+// (ADR 0062, p. 5).
+func runsAside(req mtproto.TLObject) bool {
 	switch req.(type) {
-	case *mtproto.TLMessagesGetBotCallbackAnswer, *mtproto.TLMessagesGetInlineBotResults:
+	case *mtproto.TLMessagesGetBotCallbackAnswer, *mtproto.TLMessagesGetInlineBotResults, *mtproto.TLUploadGetWebFile:
 		return true
 	}
 	return false
 }
 
-// startBotWait runs a request that waits for a bot on its own goroutine. It
-// answers through rpcDataChan, unless the wrapper has stopped by then.
-func (m *MainAuthWrapper) startBotWait(request *rpcApiMessage, md *metadata.RpcMetadata) {
-	m.botWaits.Add(1)
+// startAside runs a request on its own goroutine. It answers through
+// rpcDataChan, unless the wrapper has stopped by then.
+func (m *MainAuthWrapper) startAside(request *rpcApiMessage, md *metadata.RpcMetadata) {
+	m.asideRuns.Add(1)
 	threading.GoSafe(func() {
-		defer m.botWaits.Done()
+		defer m.asideRuns.Done()
 		doRpcRequest(request.ctx, m.cb.Dao, md, request)
 		select {
 		case m.rpcDataChan <- request:

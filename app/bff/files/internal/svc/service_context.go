@@ -24,6 +24,8 @@ import (
 	"github.com/teamgram/teamgram-server/app/bff/files/internal/dao"
 	"github.com/teamgram/teamgram-server/app/bff/files/plugin"
 	"github.com/teamgram/teamgram-server/pkg/catalog/attached"
+	"github.com/teamgram/teamgram-server/pkg/webfile"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 type ServiceContext struct {
@@ -34,14 +36,20 @@ type ServiceContext struct {
 	// Attached keeps the stickers put on uploaded photos and videos (task
 	// 084); nil: none are kept.
 	Attached *attached.Store
+	// WebFiles serves upload.getWebFile (ADR 0062, p. 5); the maps of task
+	// 100 register their source on it.
+	WebFiles *webfile.Server
 }
 
 func NewServiceContext(c config.Config, plugin1 plugin.ThumbFilesPlugin, plugin2 plugin.StreamFilesPlugin) *ServiceContext {
+	webFiles, err := webfile.New(c.WebFile)
+	logx.Must(err)
 	return &ServiceContext{
 		Config:   c,
 		Dao:      dao.New(c),
 		Plugin1:  plugin1,
 		Plugin2:  plugin2,
 		Attached: attached.NewStore(sqlx.NewMySQL(&c.Mysql)),
+		WebFiles: webFiles,
 	}
 }

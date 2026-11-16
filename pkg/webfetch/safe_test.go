@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package webpage
+package webfetch
 
 import (
 	"context"
@@ -87,8 +87,8 @@ func TestFetchable(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", tc.link, err)
 		}
-		if err := fetchable(u); (err == nil) != tc.ok {
-			t.Errorf("fetchable(%s) = %v, want ok %v", tc.link, err, tc.ok)
+		if err := Fetchable(u); (err == nil) != tc.ok {
+			t.Errorf("Fetchable(%s) = %v, want ok %v", tc.link, err, tc.ok)
 		}
 	}
 }
@@ -99,7 +99,7 @@ func TestPublicDialRefusesInternalAddresses(t *testing.T) {
 		t.Error("the internal server was reached")
 	}))
 	defer srv.Close()
-	conn, err := publicDial(context.Background(), "tcp", srv.Listener.Addr().String())
+	conn, err := PublicDial(context.Background(), "tcp", srv.Listener.Addr().String())
 	if err == nil {
 		conn.Close()
 		t.Fatal("dialled a loopback address")

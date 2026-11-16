@@ -174,6 +174,7 @@ func (s *Server) Initialize() error {
 			DialogClient:  c.BizServiceClient,
 			MediaClient:   c.MediaClient,
 			MsgClient:     c.MsgClient,
+			WebFileKey:    c.WebFile.HMACKey,
 		})
 		mtproto.RegisterRPCBotsServer(grpcServer, bots)
 		mtproto.RegisterRPCBotMenuButtonServer(grpcServer, bots)
@@ -331,6 +332,7 @@ func (s *Server) Initialize() error {
 				DfsClient:     c.DfsClient,
 				UserClient:    c.BizServiceClient,
 				MediaClient:   c.MediaClient,
+				WebFile:       c.WebFile,
 			}, catalog_helper.SetThumbFiles(c.Mysql, c.MediaClient), nil)) // the thumbnails of the sets users make (task 084)
 
 		// passport_helper

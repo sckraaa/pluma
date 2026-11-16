@@ -38,4 +38,8 @@ type Config struct {
 	DialogClient  zrpc.RpcClientConf
 	MediaClient   zrpc.RpcClientConf
 	MsgClient     zrpc.RpcClientConf
+	// WebFileKey signs the addresses of the thumbnails and content of
+	// inline results, WEBFILE_HMAC_KEY (pkg/webfile, ADR 0062, p. 5); the
+	// files service fetches only what it signs. Empty: webDocumentNoProxy.
+	WebFileKey string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

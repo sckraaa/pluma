@@ -24,8 +24,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
+
+	"github.com/teamgram/teamgram-server/pkg/webfetch"
 )
 
 // Limits of a fetch: a page is read up to its body, at most maxPage bytes;
@@ -44,62 +45,28 @@ const (
 	userAgent = "Mozilla/5.0 (compatible; PlumaBot/1.0; +https://pluma.chat) like TwitterBot"
 )
 
-// errNoPage is a page that is no HTML document or not there (404, 500).
+// errNoPage is a page that is no HTML document.
 var errNoPage = errors.New("webpage: no page")
 
-// fetcher fetches pages and pictures from the public internet only.
+// fetcher fetches pages and pictures from the public internet only
+// (pkg/webfetch).
 type fetcher struct {
-	client *http.Client
+	client *webfetch.Client
 }
 
-// publicDial connects to public addresses only (dialControl).
-var publicDial = (&net.Dialer{Timeout: 5 * time.Second, Control: dialControl}).DialContext
-
-// newFetcher returns a fetcher that connects with dial: publicDial but in
-// tests, which serve the pages themselves.
+// newFetcher returns a fetcher that connects with dial: webfetch.PublicDial
+// but in tests, which serve the pages themselves.
 func newFetcher(dial func(ctx context.Context, network, address string) (net.Conn, error)) *fetcher {
-	transport := &http.Transport{
-		Proxy:                  nil, // never through a proxy, which would dial for us
-		DialContext:            dial,
-		ForceAttemptHTTP2:      true,
-		TLSHandshakeTimeout:    5 * time.Second,
-		ResponseHeaderTimeout:  8 * time.Second,
-		MaxResponseHeaderBytes: 64 << 10,
-		MaxIdleConns:           16,
-		IdleConnTimeout:        30 * time.Second,
-	}
-	return &fetcher{client: &http.Client{
-		Transport: transport,
-		Timeout:   fetchTimeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= maxRedirects {
-				return errors.New("webpage: too many redirects")
-			}
-			return fetchable(req.URL)
-		},
-	}}
+	return &fetcher{client: webfetch.New(webfetch.Options{
+		Dial:         dial,
+		UserAgent:    userAgent,
+		Timeout:      fetchTimeout,
+		MaxRedirects: maxRedirects,
+	})}
 }
 
 func (f *fetcher) get(ctx context.Context, u *url.URL, accept string) (*http.Response, error) {
-	if err := fetchable(u); err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("User-Agent", userAgent)
-	req.Header.Set("Accept", accept)
-	req.Header.Set("Accept-Language", "en-US,en;q=0.8")
-	resp, err := f.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("%w: HTTP %d", errNoPage, resp.StatusCode)
-	}
-	return resp, nil
+	return f.client.Get(ctx, u, accept)
 }
 
 // page fetches u and reads its head; it returns the address it ended at
@@ -124,23 +91,5 @@ func (f *fetcher) page(ctx context.Context, u *url.URL) (*url.URL, Meta, error) 
 
 // image fetches a picture, at most maxImage bytes.
 func (f *fetcher) image(ctx context.Context, u *url.URL) ([]byte, error) {
-	resp, err := f.get(ctx, u, "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if ct := resp.Header.Get("Content-Type"); ct != "" && !strings.HasPrefix(ct, "image/") {
-		return nil, fmt.Errorf("webpage: picture of type %s", ct)
-	}
-	if resp.ContentLength > maxImage {
-		return nil, fmt.Errorf("webpage: picture of %d bytes", resp.ContentLength)
-	}
-	b, err := io.ReadAll(io.LimitReader(resp.Body, maxImage+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(b) > maxImage {
-		return nil, errors.New("webpage: picture over the limit")
-	}
-	return b, nil
+	return f.client.Image(ctx, u, "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8", maxImage)
 }

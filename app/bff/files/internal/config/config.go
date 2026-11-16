@@ -20,6 +20,7 @@ package config
 
 import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/teamgram-server/pkg/webfile"
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
@@ -29,4 +30,7 @@ type Config struct {
 	DfsClient   zrpc.RpcClientConf
 	UserClient  zrpc.RpcClientConf
 	MediaClient zrpc.RpcClientConf
+	// WebFile is upload.getWebFile (ADR 0062, p. 5): the key of the
+	// addresses it proxies and the cache of the files it fetched.
+	WebFile webfile.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

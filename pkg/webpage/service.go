@@ -31,6 +31,7 @@ import (
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/pkg/webfetch"
 	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/sync/singleflight"
 )
@@ -78,7 +79,7 @@ type Service struct {
 func NewService(db *sqlx.DB, photos Photos) *Service {
 	return &Service{
 		store:  NewStore(db),
-		fetch:  newFetcher(publicDial),
+		fetch:  newFetcher(webfetch.PublicDial),
 		photos: photos,
 		now:    time.Now,
 		logger: logx.WithContext(context.Background()),
