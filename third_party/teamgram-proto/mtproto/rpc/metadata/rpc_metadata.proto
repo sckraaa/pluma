@@ -58,4 +58,10 @@ message RpcMetadata {
 
   // lang_code
   string lang_code = 23;
+
+  // pluma: the connection_id of invokeWithBusinessConnection the query came
+  // in: a connected business bot acting for the account of the connection
+  // (core.telegram.org/api/bots/connected-business-bots). Empty for a query
+  // without the wrapper.
+  string business_connection_id = 24;
 }
