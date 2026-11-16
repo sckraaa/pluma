@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:build e2e
+
 package e2e
 
 import (
@@ -359,5 +361,173 @@ func TestGames(t *testing.T) {
 	})
 	if err = editInline(); !strings.Contains(fmt.Sprint(err), "MESSAGE_NOT_MODIFIED") {
 		t.Fatalf("the same edit again: %v", err)
+	}
+}
+
+// TestGamesInGroup: a game in a basic group (task 106, ADR 0068 p. 7;
+// core.telegram.org/bots/api#setgamescore). Its keyboard keeps the game's
+// button first, and a game button anywhere else or without a game is
+// refused. Each member's score is posted from that member in answer to the
+// member's own copy of the game; the table is of the group, ordered by
+// score, and any member reads it. force lowers a score without a message;
+// a negative score, a player outside the group and a score set by a user
+// are refused.
+func TestGamesInGroup(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	phones := testPhones(t, 3)
+	alice := login(ctx, t, phones[0], "Alice")
+	bob := login(ctx, t, phones[1], "Bob")
+	carol := login(ctx, t, phones[2], "Carol")
+	getState(ctx, t, alice)
+	getState(ctx, t, bob)
+	username := fmt.Sprintf("e2e%dbot", randomID()&0xffffff)
+	bot := botLoggedIn(ctx, t, phones[0], username)
+	getState(ctx, t, bot)
+
+	picture := filepath.Join(t.TempDir(), "race.png")
+	if err := os.WriteFile(picture, gamePicture(t), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dest := fmt.Sprintf("/tmp/game-%d.png", uint64(randomID()))
+	stack(t, "cp", picture, "bff:"+dest)
+	defer stack(t, "exec", "-T", "bff", "rm", "-f", dest)
+	admin(t, "bot", "game", "add", username, "race", "-title", "Race", "-photo", dest)
+
+	chatId := createChat(ctx, t, alice, "racers", bob)
+	toBot := resolveBot(ctx, t, alice, username)
+	if _, err := alice.c.Invoke(ctx, &mtproto.TLMessagesAddChatUserCBC6D107{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_addChatUserCBC6D107),
+		ChatId:      chatId, UserId: inputUserOfPeer(alice.c, toBot), FwdLimit: 50,
+	}); err != nil {
+		t.Fatalf("messages.addChatUser of the bot: %v", err)
+	}
+	group := chatPeer(bot, chatId)
+	row := func(buttons ...*mtproto.KeyboardButton) *mtproto.KeyboardButtonRow {
+		return &mtproto.KeyboardButtonRow{Constructor: bot.c.Constructor(mtproto.Predicate_keyboardButtonRow), Buttons: buttons}
+	}
+	playBtn := &mtproto.KeyboardButton{Constructor: bot.c.Constructor(mtproto.Predicate_keyboardButtonGame), Text: "Race!"}
+	rulesBtn := &mtproto.KeyboardButton{Constructor: bot.c.Constructor(mtproto.Predicate_keyboardButtonUrl), Text: "Rules", Url: "https://games.example/rules"}
+	markup := func(rows ...*mtproto.KeyboardButtonRow) *mtproto.ReplyMarkup {
+		return &mtproto.ReplyMarkup{Constructor: bot.c.Constructor(mtproto.Predicate_replyInlineMarkup), Rows: rows}
+	}
+	game := &mtproto.InputMedia{
+		Constructor: bot.c.Constructor(mtproto.Predicate_inputMediaGame),
+		Id_INPUTGAME: &mtproto.InputGame{
+			Constructor: bot.c.Constructor(mtproto.Predicate_inputGameShortName),
+			BotId:       &mtproto.InputUser{Constructor: bot.c.Constructor(mtproto.Predicate_inputUserSelf)},
+			ShortName:   "race",
+		},
+	}
+	sendGame := func(m *mtproto.ReplyMarkup) (mtproto.TLObject, error) {
+		return bot.c.Invoke(ctx, &mtproto.TLMessagesSendMedia{
+			Constructor: bot.c.Constructor(mtproto.Predicate_messages_sendMedia),
+			Peer:        group, Media: game, RandomId: randomID(), ReplyMarkup: m,
+		})
+	}
+
+	// The game's button: first in the first row of a game, nowhere else.
+	if _, err := bot.c.Invoke(ctx, &mtproto.TLMessagesSendMessage{
+		Constructor: bot.c.Constructor(mtproto.Predicate_messages_sendMessage),
+		Peer:        group, Message: "no game here", RandomId: randomID(), ReplyMarkup: markup(row(playBtn)),
+	}); !strings.Contains(fmt.Sprint(err), "BUTTON_TYPE_INVALID") {
+		t.Fatalf("a game button without a game: %v", err)
+	}
+	if _, err := sendGame(markup(row(rulesBtn), row(playBtn))); !strings.Contains(fmt.Sprint(err), "BUTTON_TYPE_INVALID") {
+		t.Fatalf("a game button in the second row: %v", err)
+	}
+	o, err := sendGame(markup(row(playBtn), row(rulesBtn)))
+	if err != nil {
+		t.Fatalf("messages.sendMedia of the game to the group: %v", err)
+	}
+	botMsgId := sentMessage(t, o).GetId()
+	gameCopy := func(u *user) int32 {
+		var id int32
+		waitUpdate(ctx, t, u, mtproto.Predicate_updateNewMessage, func(up *mtproto.Update) bool {
+			m := up.GetMessage_MESSAGE()
+			if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaGame || m.GetPeerId().GetChatId() != chatId {
+				return false
+			}
+			rows := m.GetReplyMarkup().GetRows()
+			if !playButton(m) || len(rows) != 2 || rows[1].GetButtons()[0].GetUrl() != "https://games.example/rules" {
+				t.Fatalf("the game in the group: %v", m)
+			}
+			id = m.GetId()
+			return true
+		})
+		return id
+	}
+	aliceMsgId, bobMsgId := gameCopy(alice), gameCopy(bob)
+
+	setScore := func(c *user, player *user, score int32, force, edit bool) error {
+		_, err := c.c.Invoke(ctx, &mtproto.TLMessagesSetGameScore{
+			Constructor: c.c.Constructor(mtproto.Predicate_messages_setGameScore),
+			EditMessage: edit, Force: force, Peer: group, Id: botMsgId,
+			UserId: &mtproto.InputUser{Constructor: c.c.Constructor(mtproto.Predicate_inputUser), UserId: player.self.GetId(), AccessHash: player.self.GetAccessHash().GetValue()},
+			Score:  score,
+		})
+		return err
+	}
+	scored := func(u *user, player *user, score int32, replyTo int32) {
+		t.Helper()
+		waitUpdate(ctx, t, u, mtproto.Predicate_updateNewMessage, func(up *mtproto.Update) bool {
+			m := up.GetMessage_MESSAGE()
+			a := m.GetAction()
+			return a.GetPredicateName() == mtproto.Predicate_messageActionGameScore && a.GetScore() == score &&
+				m.GetFromId().GetUserId() == player.self.GetId() && m.GetPeerId().GetChatId() == chatId &&
+				m.GetReplyTo().GetReplyToMsgId_FLAGINT32().GetValue() == replyTo
+		})
+	}
+	if err = setScore(bot, alice, 30, false, true); err != nil {
+		t.Fatalf("messages.setGameScore of Alice: %v", err)
+	}
+	scored(bob, alice, 30, bobMsgId)
+	if err = setScore(bot, bob, 20, false, true); err != nil {
+		t.Fatalf("messages.setGameScore of Bob: %v", err)
+	}
+	scored(alice, bob, 20, aliceMsgId)
+
+	table := func(u *user, msgId int32) []*mtproto.HighScore {
+		t.Helper()
+		o, err := u.c.Invoke(ctx, &mtproto.TLMessagesGetGameHighScores{
+			Constructor: u.c.Constructor(mtproto.Predicate_messages_getGameHighScores),
+			Peer:        chatPeer(u, chatId), Id: msgId,
+			UserId: &mtproto.InputUser{Constructor: u.c.Constructor(mtproto.Predicate_inputUserSelf)},
+		})
+		if err != nil {
+			t.Fatalf("messages.getGameHighScores: %v", err)
+		}
+		return o.(interface {
+			To_Messages_HighScores() *mtproto.Messages_HighScores
+		}).To_Messages_HighScores().GetScores()
+	}
+	// A member reads the table of the group by the member's own copy
+	// (Web K appGamesManager.ts:72-89).
+	if s := table(bob, bobMsgId); len(s) != 2 || s[0].GetUserId() != alice.self.GetId() || s[0].GetPos() != 1 || s[0].GetScore() != 30 ||
+		s[1].GetUserId() != bob.self.GetId() || s[1].GetPos() != 2 || s[1].GetScore() != 20 {
+		t.Fatalf("the group's table: %v", s)
+	}
+
+	// force sets a lower score, without a message.
+	if err = setScore(bot, alice, 10, true, false); err != nil {
+		t.Fatalf("a forced lower score: %v", err)
+	}
+	if s := table(alice, aliceMsgId); len(s) != 2 || s[0].GetUserId() != bob.self.GetId() || s[1].GetUserId() != alice.self.GetId() || s[1].GetScore() != 10 {
+		t.Fatalf("the table after the forced score: %v", s)
+	}
+
+	if err = setScore(bot, alice, -1, true, false); !strings.Contains(fmt.Sprint(err), "SCORE_INVALID") {
+		t.Errorf("a negative score: %v", err)
+	}
+	if err = setScore(bot, carol, 5, false, false); !strings.Contains(fmt.Sprint(err), "USER_ID_INVALID") {
+		t.Errorf("a player outside the group: %v", err)
+	}
+	if _, err = alice.c.Invoke(ctx, &mtproto.TLMessagesSetGameScore{
+		Constructor: alice.c.Constructor(mtproto.Predicate_messages_setGameScore),
+		Peer:        chatPeer(alice, chatId), Id: aliceMsgId,
+		UserId: &mtproto.InputUser{Constructor: alice.c.Constructor(mtproto.Predicate_inputUserSelf)}, Score: 99,
+	}); !strings.Contains(fmt.Sprint(err), "USER_BOT_REQUIRED") {
+		t.Errorf("a score set by a user: %v", err)
 	}
 }
