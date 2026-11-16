@@ -2266,6 +2266,63 @@ var (
 	ErrWidgetQueryTypeUnsupported = status.Error(ErrBadRequest, "WIDGET_QUERY_TYPE_UNSUPPORTED")
 )
 
+// pluma: the errors of widgets in bot messages (task 106, ADR 0068 p. 8),
+// by the names of Telegram's server as the official clients' widget
+// framework lists them (Android jni/twidget/widget-sandbox/docs/tgw-format.md,
+// "Sending and delivery" and "The widget's state and requests"). Of them
+// the clients read WIDGET_RESPONSE_TIMEOUT: a request that timed out
+// (Android utils/twidget/WidgetMedia.java:919, tdesktop tgw/tgw_bridge.cpp:63).
+// Telegram's codes are not published: 400 here, as BOT_RESPONSE_TIMEOUT.
+var (
+	// ErrInputMediaWidgetTooLarge
+	// | 400 | INPUT_MEDIA_WIDGET_TOO_LARGE | The HTML of the widget or its compressed form is too large. |
+	ErrInputMediaWidgetTooLarge = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_TOO_LARGE")
+
+	// ErrInputMediaWidgetHtmlInvalid
+	// | 400 | INPUT_MEDIA_WIDGET_HTML_INVALID | The HTML of the widget is not text. |
+	ErrInputMediaWidgetHtmlInvalid = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_HTML_INVALID")
+
+	// ErrInputMediaWidgetNotAllowed
+	// | 400 | INPUT_MEDIA_WIDGET_NOT_ALLOWED | The sender may not send a widget to this chat. |
+	ErrInputMediaWidgetNotAllowed = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_NOT_ALLOWED")
+
+	// ErrInputMediaWidgetDataTooLarge
+	// | 400 | INPUT_MEDIA_WIDGET_DATA_TOO_LARGE | The chat data or the public data of the widget is too large. |
+	ErrInputMediaWidgetDataTooLarge = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_DATA_TOO_LARGE")
+
+	// ErrInputMediaWidgetDataInvalid
+	// | 400 | INPUT_MEDIA_WIDGET_DATA_INVALID | The chat data or the public data of the widget is not text. |
+	ErrInputMediaWidgetDataInvalid = status.Error(ErrBadRequest, "INPUT_MEDIA_WIDGET_DATA_INVALID")
+
+	// ErrWidgetDataTooLarge
+	// | 400 | WIDGET_DATA_TOO_LARGE | The edited data of the widget is too large. |
+	ErrWidgetDataTooLarge = status.Error(ErrBadRequest, "WIDGET_DATA_TOO_LARGE")
+
+	// ErrWidgetDataInvalid
+	// | 400 | WIDGET_DATA_INVALID | The edited data or the answer of the widget is not text. |
+	ErrWidgetDataInvalid = status.Error(ErrBadRequest, "WIDGET_DATA_INVALID")
+
+	// ErrWidgetResultTooLarge
+	// | 400 | WIDGET_RESULT_TOO_LARGE | The answer to the widget's request is too large. |
+	ErrWidgetResultTooLarge = status.Error(ErrBadRequest, "WIDGET_RESULT_TOO_LARGE")
+
+	// ErrWidgetQueryDataInvalid
+	// | 400 | WIDGET_QUERY_DATA_INVALID | The data of the widget's request is empty or too long. |
+	ErrWidgetQueryDataInvalid = status.Error(ErrBadRequest, "WIDGET_QUERY_DATA_INVALID")
+
+	// ErrWidgetQueryNotAllowed
+	// | 400 | WIDGET_QUERY_NOT_ALLOWED | The widget of this message may not send requests. |
+	ErrWidgetQueryNotAllowed = status.Error(ErrBadRequest, "WIDGET_QUERY_NOT_ALLOWED")
+
+	// ErrWidgetResponseTimeout
+	// | 400 | WIDGET_RESPONSE_TIMEOUT | The bot did not answer the widget's request in time. |
+	ErrWidgetResponseTimeout = status.Error(ErrBadRequest, "WIDGET_RESPONSE_TIMEOUT")
+
+	// ErrWidgetIdInvalid
+	// | 400 | WIDGET_ID_INVALID | The widget_id is unknown or of another bot. |
+	ErrWidgetIdInvalid = status.Error(ErrBadRequest, "WIDGET_ID_INVALID")
+)
+
 // 401 UNAUTHORIZED
 var (
 	// ErrSessionPasswordNeeded
