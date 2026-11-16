@@ -19,6 +19,8 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/bots/internal/inline"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
+	"github.com/teamgram/teamgram-server/pkg/botkeys"
+	"github.com/teamgram/teamgram-server/pkg/webappdata"
 
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
@@ -49,4 +51,16 @@ type Config struct {
 	// inline results, WEBFILE_HMAC_KEY (pkg/webfile, ADR 0062, p. 5); the
 	// files service fetches only what it signs. Empty: webDocumentNoProxy.
 	WebFileKey string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// WebApp is the mini apps of bots (task 106, ADR 0068): the
+	// tgWebAppVersion by platform and WEBAPP_SIGNING_KEY, the Ed25519 key of
+	// the signature of initData.
+	WebApp webappdata.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// BotSecrets is BOT_SECRET_ENCRYPTION_KEY, under which the keys of bots
+	// are sealed (pkg/botkeys); without it the mini apps and the login of
+	// bots are off.
+	BotSecrets botkeys.Config `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
+	// Avatars is the address the public photo of a user with a username is
+	// under, the username appended: photo_url of initData and of a login
+	// (ADR 0036, p. 4). Empty: no photo_url.
+	Avatars string `json:",optional"` //nolint:staticcheck // a go-zero conf option, not encoding/json's
 }

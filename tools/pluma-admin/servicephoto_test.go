@@ -162,6 +162,8 @@ func TestServicePhotoConfig(t *testing.T) {
 	t.Setenv("MAIL_API_KEY", "")
 	t.Setenv("MAIL_FROM", "")
 	t.Setenv("WEBFILE_HMAC_KEY", "")
+	t.Setenv("BOT_SECRET_ENCRYPTION_KEY", "")
+	t.Setenv("WEBAPP_SIGNING_KEY", "")
 	t.Setenv("SEARXNG_URL", "")
 	t.Setenv("INLINE_IMPORT_DAILY_BYTES", "")
 	t.Setenv("GROUPCALLS_SFU_ENDPOINT", "")

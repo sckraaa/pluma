@@ -48,6 +48,12 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		body string
 		want []string
 	}{
+		// the bot platform (task 106)
+		{"init data", `func f(initData string) { logx.Infof("open %s", initData) }`, []string{"secret"}},
+		{"web app key", `func f(webAppKey []byte) error { return fmt.Errorf("key %x", webAppKey) }`, []string{"secret"}},
+		{"match code", `func f(in *mtproto.TLMessagesAcceptUrlAuth) { logx.Infof("code %s", in.GetMatchCode()) }`, []string{"secret"}},
+		{"client secret", `func f(clientSecret string) { logx.Errorf("client %q", clientSecret) }`, []string{"secret"}},
+		{"bot id ok", `func f(botId int64) { logx.Infof("bot %d", botId) }`, nil},
 		// audit #8: handshake secrets
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
 		{"new_nonce", `func f(ctx *HandshakeStateCtx) { logx.Infof("n: %x", ctx.NewNonce) }`, []string{"secret"}},

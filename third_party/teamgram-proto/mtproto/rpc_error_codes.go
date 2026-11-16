@@ -2194,6 +2194,63 @@ var (
 	ErrBotAccessForbidden = status.Error(ErrBadRequest, "BOT_ACCESS_FORBIDDEN")
 )
 
+// pluma: the errors of the bot platform (task 106, ADR 0068): login on
+// sites, mini apps, prepared buttons and widgets. URL_EXPIRED and
+// OAUTH_REQUEST_INVALID are on core.telegram.org/method/messages.requestUrlAuth
+// (OAUTH_REQUEST_INVALID with code 500 there, sent here with 400: Android
+// sends the request of an OAuth link without RequestFlagFailOnServerErrors,
+// ui/LinkManager.java:1350, and tgnet resends such a request on every 500,
+// jni/tgnet/ConnectionsManager.cpp:1372-1374, so a 500 would never reach
+// its error toast); BOT_WEBVIEW_DISABLED and
+// THEME_PARAMS_INVALID on /method/messages.requestWebView;
+// WEBAPP_REQ_ID_INVALID and BOT_ID_INVALID on
+// /method/bots.getRequestedWebViewButton. WIDGET_QUERY_TYPE_UNSUPPORTED is
+// the text the Android app gives a widget query it does not support itself
+// (org/telegram/utils/twidget/WidgetMedia.java:942). PLATFORM_INVALID,
+// PEER_TYPES_INVALID and BUTTON_ID_INVALID are not published by Telegram:
+// their names are this server's.
+var (
+	// ErrUrlExpired
+	// | 400 | URL_EXPIRED | The specified OAuth request has expired. |
+	ErrUrlExpired = status.Error(ErrBadRequest, "URL_EXPIRED")
+
+	// ErrOauthRequestInvalid
+	// | 400 | OAUTH_REQUEST_INVALID | The specified OAuth request is invalid. |
+	ErrOauthRequestInvalid = status.Error(ErrBadRequest, "OAUTH_REQUEST_INVALID")
+
+	// ErrBotWebviewDisabled
+	// | 400 | BOT_WEBVIEW_DISABLED | A webview cannot be opened in the specified conditions. |
+	ErrBotWebviewDisabled = status.Error(ErrBadRequest, "BOT_WEBVIEW_DISABLED")
+
+	// ErrThemeParamsInvalid
+	// | 400 | THEME_PARAMS_INVALID | The specified theme_params field is invalid. |
+	ErrThemeParamsInvalid = status.Error(ErrBadRequest, "THEME_PARAMS_INVALID")
+
+	// ErrPlatformInvalid
+	// | 400 | PLATFORM_INVALID | The platform of a web view is not 0 to 64 letters, digits and _. |
+	ErrPlatformInvalid = status.Error(ErrBadRequest, "PLATFORM_INVALID")
+
+	// ErrPeerTypesInvalid
+	// | 400 | PEER_TYPES_INVALID | The requested peer types are invalid. |
+	ErrPeerTypesInvalid = status.Error(ErrBadRequest, "PEER_TYPES_INVALID")
+
+	// ErrButtonIdInvalid
+	// | 400 | BUTTON_ID_INVALID | The specified button ID is invalid. |
+	ErrButtonIdInvalid = status.Error(ErrBadRequest, "BUTTON_ID_INVALID")
+
+	// ErrWebappReqIdInvalid
+	// | 400 | WEBAPP_REQ_ID_INVALID | The specified webapp_req_id is invalid. |
+	ErrWebappReqIdInvalid = status.Error(ErrBadRequest, "WEBAPP_REQ_ID_INVALID")
+
+	// ErrBotIdInvalid
+	// | 400 | BOT_ID_INVALID | The specified bot ID is invalid. |
+	ErrBotIdInvalid = status.Error(ErrBadRequest, "BOT_ID_INVALID")
+
+	// ErrWidgetQueryTypeUnsupported
+	// | 400 | WIDGET_QUERY_TYPE_UNSUPPORTED | The widget query type is not supported. |
+	ErrWidgetQueryTypeUnsupported = status.Error(ErrBadRequest, "WIDGET_QUERY_TYPE_UNSUPPORTED")
+)
+
 // 401 UNAUTHORIZED
 var (
 	// ErrSessionPasswordNeeded
