@@ -28,6 +28,7 @@ import (
 	autodownload_helper "github.com/teamgram/teamgram-server/app/bff/autodownload"
 	"github.com/teamgram/teamgram-server/app/bff/bff/internal/config"
 	bots_helper "github.com/teamgram/teamgram-server/app/bff/bots"
+	business_helper "github.com/teamgram/teamgram-server/app/bff/business"
 	catalog_helper "github.com/teamgram/teamgram-server/app/bff/catalog"
 	channels_helper "github.com/teamgram/teamgram-server/app/bff/channels"
 	chatinvites_helper "github.com/teamgram/teamgram-server/app/bff/chatinvites"
@@ -683,6 +684,24 @@ func (s *Server) Initialize() error {
 			passkeyhelper.New(passkeyhelper.Config{
 				RpcServerConf: c.RpcServerConf,
 			}))
+
+		// business_helper: Telegram Business for every account (task 105,
+		// ADR 0067); the methods not served yet answer
+		// ERR_ENTERPRISE_IS_BLOCKED.
+		business := business_helper.New(business_helper.Config{
+			RpcServerConf: c.RpcServerConf,
+			Mysql:         c.Mysql,
+			UserClient:    c.BizServiceClient,
+			MediaClient:   c.MediaClient,
+			SyncClient:    syncClient,
+		})
+		mtproto.RegisterRPCBusinessOpeningHoursServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessLocationServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessGreetingServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessIntroServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessChatLinksServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessQuickReplyServer(grpcServer, business)
+		mtproto.RegisterRPCBusinessConnectedBotsServer(grpcServer, business)
 
 		// webbrowserhelper: the in-app browser settings (task 098).
 		mtproto.RegisterRPCWebBrowserServer(

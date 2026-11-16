@@ -120,6 +120,9 @@ var secretNames = set(
 	// the point and the address of a web file. "query" itself names the SQL
 	// of many logs, so the text is caught by its own names.
 	"inlinequery", "getinlinequery", "geo", "getgeo", "webfileurl",
+	// the business location of an account (task 105, ADR 0067): its street
+	// address
+	"address", "getaddress",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )
