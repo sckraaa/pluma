@@ -28,6 +28,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/dialog/dialog"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/ghost"
 	"github.com/teamgram/teamgram-server/pkg/monoforum"
 	"github.com/teamgram/teamgram-server/pkg/polls"
@@ -848,6 +849,13 @@ func (d *Dao) SendChannel(b *userbox.Box, channelId int64, outgoing []Outgoing, 
 	if !s.ch.Broadcast && !s.monoforum {
 		if err = d.antispamCheck(b, channelId, s, sent); err != nil {
 			return nil, nil, nil, err
+		}
+		// A member who writes to the supergroup is one of its viewers of
+		// the day (task 103); a guest of a discussion group is no member.
+		if !s.guest {
+			if err = channelstats.Reader(b.Tx(), channelId, b.UserId(), b.Date()); err != nil {
+				return nil, nil, nil, err
+			}
 		}
 	}
 	if disc != nil && len(disc.Copies) > 0 {

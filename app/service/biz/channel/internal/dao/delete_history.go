@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/teamgram-server/app/service/biz/channel/channel"
 	"github.com/teamgram/teamgram-server/pkg/channelbox"
 	"github.com/teamgram/teamgram-server/pkg/channelperm"
+	"github.com/teamgram/teamgram-server/pkg/channelstats"
 	"github.com/teamgram/teamgram-server/pkg/userbox"
 )
 
@@ -241,6 +242,13 @@ func (d *Dao) DeleteParticipantHistory(b *userbox.Box, channelId, userId int64) 
 	del, err := deleteRows(b, ch, channelId, slices.DeleteFunc(ids, func(id int32) bool { return slices.Contains(roots, id) }))
 	if err != nil {
 		return nil, err
+	}
+	// Another's messages deleted count among the admin's actions, as by
+	// channels.deleteMessages (Delete).
+	if userId != b.UserId() {
+		if err = channelstats.AdminAction(b.Tx(), channelId, b.UserId(), b.Date(), channelstats.Deleted, len(del.Ids)); err != nil {
+			return nil, err
+		}
 	}
 	var left []int32
 	if err = b.Tx().QueryRowsPartial(&left,
