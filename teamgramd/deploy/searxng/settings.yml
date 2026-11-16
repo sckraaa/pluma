@@ -1,0 +1,51 @@
+# The SearXNG that @pic searches pictures with (task 099, ADR 0062,
+# docs/ops/inline-bots.md). Only bff calls it, on the network of the
+# services, with GET /search?categories=images&format=json
+# (app/bff/bots/internal/inline/searxng.go); no person opens it.
+#
+# Everything not set here is SearXNG's own default (use_default_settings),
+# the engines included: the image engines enabled by default answer
+# categories=images. An engine that blocks the home address (a CAPTCHA, 403)
+# is suspended by SearXNG itself for a while and the others answer; when
+# none does, @pic answers with empty lists and the alert InlineProviderFailing
+# fires. Engines are switched here (engines: - name: ... disabled: ...),
+# never in the container.
+use_default_settings: true
+
+general:
+  instance_name: "Pluma"
+  # The statistics page of the engines; nobody reads it.
+  enable_metrics: false
+
+search:
+  # Moderate: the same as bff asks for (safesearch=1).
+  safe_search: 1
+  # The suggestions of the HTML form, which nobody uses: no requests to the
+  # suggestion service.
+  autocomplete: ""
+  # Only the JSON API: the HTML pages and the other formats answer 403.
+  formats:
+    - json
+
+server:
+  # secret_key comes from SEARXNG_SECRET (docker-compose.search.yaml):
+  # SearXNG refuses to start with the default one.
+  #
+  # The limiter and the bot detection are for public instances; bff is the
+  # only client and limits its users itself (60 queries a minute).
+  limiter: false
+  public_instance: false
+  # The pictures are fetched by bff from their hosts (pkg/webfetch), never
+  # through SearXNG.
+  image_proxy: false
+  method: "GET"
+
+outgoing:
+  # An engine has 3 s to answer; a slow one is left out of the page. bff
+  # waits 6 s for the whole answer.
+  request_timeout: 3.0
+  max_request_timeout: 5.0
+
+valkey:
+  # No Valkey: only the limiter needs it.
+  url: false
