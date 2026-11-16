@@ -1,0 +1,22 @@
+/* The page of a login request on oauth.pluma.chat (task 106): the card of
+   the links pages (/_l/page.css) with the QR code of the request and the
+   match code the user picks in the app. The code stays dark on white in
+   both themes: that is what a camera reads. */
+.oauth .qr {
+  display: block;
+  width: 232px;
+  margin: 24px auto 0;
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1px solid var(--rule);
+}
+.oauth .qr svg { display: block; width: 100%; height: auto; }
+.oauth .match { margin-top: 18px; font-weight: 560; }
+.oauth .match-code {
+  display: block;
+  margin-top: 6px;
+  font-size: 44px;
+  line-height: 1.2;
+}
+[hidden] { display: none !important; }

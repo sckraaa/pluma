@@ -43,6 +43,8 @@ E2E_DIR=${E2E_DIR:-$ROOT/.e2e}
 E2E_PROJECT=${E2E_PROJECT:-pluma-e2e}
 ENV_FILE=$E2E_DIR/env
 KEY_FILE=$E2E_DIR/server_pkcs1.key
+# The RSA key of the ID tokens of oauth.pluma.chat (task 106), throwaway.
+OAUTH_KEY_FILE=$E2E_DIR/oauth_signing_key.pem
 LOG_DIR=$E2E_DIR/logs
 # Push providers of the stand (task 009): throwaway keys and the config of
 # the push service pointing at test/e2e/fakepush, or the real keys.
@@ -115,15 +117,19 @@ secret() { openssl rand -hex "$1"; }
 
 # gen_secrets writes the env file and the server RSA key for this run.
 gen_secrets() {
-	if [[ -f $ENV_FILE && -f $KEY_FILE ]]; then
+	if [[ -f $ENV_FILE && -f $KEY_FILE && -f $OAUTH_KEY_FILE ]]; then
 		if [[ -n ${E2E_SERVER_KEY:-} ]] && ! cmp -s "$E2E_SERVER_KEY" "$KEY_FILE"; then
 			log "E2E_SERVER_KEY is not the key of the existing stand; run down first"
 			return 1
 		fi
 		return
 	fi
-	rm -f "$ENV_FILE" "$KEY_FILE"
+	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE"
 	mkdir -p "$E2E_DIR" && chmod 700 "$E2E_DIR" || return
+	(umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$OAUTH_KEY_FILE" 2>/dev/null) || {
+		log "openssl made no OAuth signing key"
+		return 1
+	}
 	local sfu_port
 	sfu_port=$(free_port) || return
 	local fp keytool=(-out "$KEY_FILE")
@@ -175,6 +181,7 @@ BACKUP_S3_SECRET_ACCESS_KEY=unused
 MAXMIND_ACCOUNT_ID=unused
 MAXMIND_LICENSE_KEY=unused
 SERVER_RSA_KEY_FILE=$KEY_FILE
+OAUTH_SIGNING_KEY_FILE=$OAUTH_KEY_FILE
 APNS_KEY_ID=${E2E_APNS_KEY_ID:-E2EKEY0001}
 APNS_TEAM_ID=${E2E_APNS_TEAM_ID:-E2ETEAM001}
 APNS_KEY_FILE=$APNS_KEY_FILE
@@ -388,7 +395,7 @@ cmd_down() {
 	if [[ ${E2E_KEEP_IMAGE:-} != 1 ]]; then
 		docker image rm "$TEAMGRAM_IMAGE" "$PLUMA_BACKUP_IMAGE" "$E2E_FAKEPUSH_IMAGE" "$E2E_FAKECODES_IMAGE" "$E2E_FAKESTT_IMAGE" "$E2E_FAKEMAIL_IMAGE" "$E2E_FAKEMAPS_IMAGE" "$PLUMA_SFU_IMAGE" >/dev/null 2>&1 || true
 	fi
-	rm -f "$ENV_FILE" "$KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
+	rm -f "$ENV_FILE" "$KEY_FILE" "$OAUTH_KEY_FILE" "$APNS_KEY_FILE" "$FCM_CREDENTIALS_FILE" "$PUSH_CONFIG" "$BFF_CONFIG"
 	rm -rf "$SFU_CERTS" "$GROUPCALLS_CERTS"
 	rmdir "$E2E_DIR" 2>/dev/null || true # kept while it holds logs
 }

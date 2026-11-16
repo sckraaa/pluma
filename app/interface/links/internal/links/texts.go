@@ -17,6 +17,7 @@ package links
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 )
 
@@ -98,6 +99,33 @@ var texts = map[string]map[string]string{
 		"chatlink_title":    "Pluma: Chat with {0}",
 		"chatlink_none":     "Pluma: Chat",
 		"chatlink_desc":     "If you have <strong>Pluma</strong>, you can open this chat right away.",
+
+		// The login on a site through oauth.pluma.chat (task 106): the card of
+		// the link that opens a request in the app, and the page of the
+		// request on the provider's host. Plain texts: the provider's page
+		// escapes them.
+		"oauth_link_title":        "Pluma: Log In",
+		"oauth_link_desc":         "A site asks you to log in with <strong>Pluma</strong>. Open the app to confirm or decline.",
+		"oauth_link_button":       "Open in Pluma",
+		"oauth_page_title":        "Pluma: Log in to {0}",
+		"oauth_heading":           "Log in to {0}",
+		"oauth_bot":               "The site’s bot: {0}",
+		"oauth_scan":              "Scan the code with the camera of a phone that has Pluma, or open Pluma on this device.",
+		"oauth_button":            "Open Pluma",
+		"oauth_match":             "In Pluma, choose this emoji:",
+		"oauth_waiting":           "Waiting for your answer in Pluma…",
+		"oauth_done":              "Done. Returning to the site…",
+		"oauth_expired":           "This login request has expired.",
+		"oauth_retry":             "Try again",
+		"oauth_declined":          "You declined the login in Pluma.",
+		"oauth_back":              "Back to the site",
+		"oauth_error_title":       "Pluma: Login",
+		"oauth_error_heading":     "Cannot log in",
+		"oauth_error_client":      "The site is not set up to log in with Pluma, or it sent you to a wrong address.",
+		"oauth_error_unavailable": "Logging in to this site with Pluma is unavailable now.",
+		"oauth_error_busy":        "Too many login attempts. Try again in a minute.",
+		"oauth_error_server":      "Something went wrong. Try again later.",
+
 		"preview_title":     "{0} – Pluma",
 		"preview_join":      "Join",
 		"preview_search":    "Search",
@@ -188,6 +216,29 @@ var texts = map[string]map[string]string{
 		"chatlink_title":    "Pluma: чат — {0}",
 		"chatlink_none":     "Pluma: чат",
 		"chatlink_desc":     "Если у вас есть <strong>Pluma</strong>, вы можете открыть этот чат прямо сейчас.",
+
+		"oauth_link_title":        "Pluma: вход",
+		"oauth_link_desc":         "Сайт просит войти с помощью <strong>Pluma</strong>. Откройте приложение, чтобы подтвердить или отказаться.",
+		"oauth_link_button":       "Открыть в Pluma",
+		"oauth_page_title":        "Pluma: вход на {0}",
+		"oauth_heading":           "Вход на {0}",
+		"oauth_bot":               "Бот сайта: {0}",
+		"oauth_scan":              "Отсканируйте код камерой телефона, на котором есть Pluma, или откройте Pluma на этом устройстве.",
+		"oauth_button":            "Открыть Pluma",
+		"oauth_match":             "В Pluma выберите этот эмодзи:",
+		"oauth_waiting":           "Ждём вашего ответа в Pluma…",
+		"oauth_done":              "Готово. Возвращаемся на сайт…",
+		"oauth_expired":           "Время этого запроса на вход истекло.",
+		"oauth_retry":             "Попробовать снова",
+		"oauth_declined":          "Вы отказались от входа в Pluma.",
+		"oauth_back":              "Вернуться на сайт",
+		"oauth_error_title":       "Pluma: вход",
+		"oauth_error_heading":     "Войти не получится",
+		"oauth_error_client":      "Сайт не настроен для входа через Pluma или отправил вас по неверному адресу.",
+		"oauth_error_unavailable": "Вход на этот сайт через Pluma сейчас недоступен.",
+		"oauth_error_busy":        "Слишком много попыток входа. Попробуйте через минуту.",
+		"oauth_error_server":      "Что-то пошло не так. Попробуйте позже.",
+
 		"preview_title":     "{0} – Pluma",
 		"preview_join":      "Вступить",
 		"preview_search":    "Поиск",
@@ -204,6 +255,18 @@ var texts = map[string]map[string]string{
 		"default_desc":      "Pluma — мессенджер, который принадлежит тем, кто им пользуется.",
 	},
 }
+
+// SiteTexts gives the texts of the site to the pages of other packages:
+// the provider of oauth.pluma.chat (task 106) shows its page in the
+// language and with the texts of these pages (ADR 0036).
+type SiteTexts struct{}
+
+// Lang is the language of the site the visitor of r prefers, en or ru.
+func (SiteTexts) Lang(r *http.Request) string { return visitorOf(r).Lang }
+
+// Text is the text of key in lang with args, English for a key lang does
+// not have.
+func (SiteTexts) Text(lang, key string, args ...string) string { return text(lang, key, args...) }
 
 // text is the text of key in lang with args.
 func text(lang, key string, args ...string) string {

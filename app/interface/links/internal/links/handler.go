@@ -20,6 +20,7 @@ import (
 	"context"
 	"embed"
 	"html/template"
+	"net"
 	"net/http"
 	"path"
 	"strconv"
@@ -67,7 +68,30 @@ type Handler struct {
 	Preview *Previews
 	// Timeout bounds the data of one page.
 	Timeout time.Duration
-	tmpl    *template.Template
+	// OAuth serves the requests for OAuthHost, oauth.pluma.chat (task 106),
+	// but the files and avatars of the site (/_l/), which its page uses;
+	// nil when the provider is off.
+	OAuth     http.Handler
+	OAuthHost string
+	tmpl      *template.Template
+}
+
+// Wordmark is the logo of the pages' header, an SVG.
+func Wordmark() (template.HTML, error) {
+	b, err := assetFS.ReadFile("assets/wordmark.svg")
+	if err != nil {
+		return "", err
+	}
+	return template.HTML(b), nil //nolint:gosec // an embedded file of our own
+}
+
+// requestHost is the host r names, without a port, in lower case.
+func requestHost(r *http.Request) string {
+	host := r.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return strings.ToLower(host)
 }
 
 // NewHandler returns the handler of b's pages.
@@ -96,6 +120,10 @@ func NewHandler(b *Builder, avatars Avatars, preview *Previews) (*Handler, error
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if h.OAuth != nil && h.OAuthHost != "" && requestHost(r) == h.OAuthHost && !strings.HasPrefix(r.URL.Path, "/_l/") {
+		h.OAuth.ServeHTTP(w, r)
+		return
+	}
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.Header().Set("Allow", "GET, HEAD")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

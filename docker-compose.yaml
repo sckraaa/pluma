@@ -418,12 +418,23 @@ services:
       <<: *health
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9096"]
     environment:
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      <<: *db-env
+      # links.yaml opens the login keys of bots with it for the login on
+      # sites (task 106); empty: that format of the login is off.
+      BOT_SECRET_ENCRYPTION_KEY: ${BOT_SECRET_ENCRYPTION_KEY:-}
+    secrets:
+      # Mounted read-only at /run/secrets/oauth_signing_key.pem
+      # (teamgramd/etc2/links.yaml): the keys of the ID tokens of
+      # oauth.pluma.chat; an empty file turns the provider off.
+      - source: oauth_signing_key
+        target: oauth_signing_key.pem
     stop_grace_period: 15s
     depends_on:
       biz:
         condition: service_healthy
       dfs:
+        condition: service_healthy
+      authsession:
         condition: service_healthy
 
   gnetway:
@@ -473,6 +484,10 @@ secrets:
   fcm_credentials:
     # Host path of the FCM service account key (JSON, mode 0600, never in git); an empty file turns FCM off.
     file: ${FCM_CREDENTIALS_FILE:-./secrets/fcm_credentials.json}
+  oauth_signing_key:
+    # Host path of the RSA keys of the ID tokens of oauth.pluma.chat (PEM, mode 0600, never in git;
+    # docs/ops/bots.md); an empty file turns the login on sites through it off.
+    file: ${OAUTH_SIGNING_KEY_FILE:-./secrets/oauth_signing_key.pem}
 
 networks:
   teamgram_net:

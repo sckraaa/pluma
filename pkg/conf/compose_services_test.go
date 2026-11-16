@@ -186,11 +186,17 @@ func TestComposeServices(t *testing.T) {
 			if len(s.Ports) > 0 || fmt.Sprint(secretSources(s.Secrets)) != "[apns_key fcm_credentials]" {
 				t.Errorf("push publishes ports %v or gets secrets %v; want only apns_key and fcm_credentials", s.Ports, s.Secrets)
 			}
+		case name == "links":
+			// The keys of the ID tokens of oauth.pluma.chat (task 106), and
+			// nothing else; its port is Caddy's, inside the network.
+			if len(s.Ports) > 0 || fmt.Sprint(secretSources(s.Secrets)) != "[oauth_signing_key]" {
+				t.Errorf("links publishes ports %v or gets secrets %v; want only oauth_signing_key", s.Ports, s.Secrets)
+			}
 		case name == "releases" && loopbackOnly(s.Ports) && len(s.Secrets) == 0:
 			// The panel runs on the host and reaches it on the loopback
 			// address (task 072).
 		case len(s.Ports) > 0 || len(s.Secrets) > 0:
-			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway and push may", name, s.Ports, s.Secrets)
+			t.Errorf("%s publishes ports %v or gets secrets %v: only gnetway, push and links may", name, s.Ports, s.Secrets)
 		}
 	}
 }

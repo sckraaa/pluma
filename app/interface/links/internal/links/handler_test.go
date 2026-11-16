@@ -238,6 +238,46 @@ func TestPages(t *testing.T) {
 
 	_, body = get(t, h, "/plumanews", map[string]string{"User-Agent": "Mozilla/5.0 (Linux; Android 14)"})
 	mustContain(t, "Android", body, `href="plm:resolve?domain=plumanews"`, `href="https://pluma.chat/android"`)
+
+	// The link of a site's login request (task 106): the app only, the
+	// web client takes no such link.
+	_, body = get(t, h, "/oauth?startapp=AbCdEfGhIjKlMnOp_-123456", en)
+	mustContain(t, "oauth", body, "Pluma: Log In", "Open in Pluma", "noindex",
+		`href="plm://resolve?domain=oauth&amp;startapp=AbCdEfGhIjKlMnOp_-123456"`)
+	if strings.Contains(body, "web.pluma.chat") {
+		t.Error("the login link offers the web client")
+	}
+	_, body = get(t, h, "/oauth?startapp=AbCdEfGhIjKlMnOp_-123456", ru)
+	mustContain(t, "oauth, Russian", body, "Pluma: вход", "Открыть в Pluma")
+}
+
+// TestOAuthHost: the provider's host goes to the provider but for the
+// site's files and avatars, which its page uses; the site's own host never
+// does.
+func TestOAuthHost(t *testing.T) {
+	h, _ := newTestHandler(t)
+	h.OAuth = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+	})
+	h.OAuthHost = "oauth.pluma.chat"
+	for _, c := range []struct {
+		method, host, path string
+		want               int
+	}{
+		{http.MethodGet, "oauth.pluma.chat", "/auth", http.StatusTeapot},
+		{http.MethodPost, "OAuth.Pluma.Chat:443", "/token", http.StatusTeapot},
+		{http.MethodGet, "oauth.pluma.chat", "/_l/page.css", http.StatusOK},
+		{http.MethodGet, "pluma.chat", "/auth", http.StatusFound},
+		{http.MethodPost, "pluma.chat", "/token", http.StatusMethodNotAllowed},
+	} {
+		r := httptest.NewRequest(c.method, c.path, nil)
+		r.Host = c.host
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code != c.want {
+			t.Errorf("%s %s%s: %d, want %d", c.method, c.host, c.path, w.Code, c.want)
+		}
+	}
 }
 
 // TestNoLink: what is no link goes to the site's home, as t.me's go to

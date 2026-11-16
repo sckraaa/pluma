@@ -22,6 +22,9 @@ services:
     environment:
       PLUMA_WEB_DOMAIN: ${PLUMA_WEB_DOMAIN:?set PLUMA_WEB_DOMAIN in .env, the name of the web client}
       PLUMA_SITE_DOMAINS: ${PLUMA_SITE_DOMAINS:?set PLUMA_SITE_DOMAINS in .env, the other names of the site}
+      # The provider of the login on sites (task 106): its DNS record points
+      # here as the site's does.
+      PLUMA_OAUTH_DOMAIN: ${PLUMA_OAUTH_DOMAIN:-oauth.pluma.chat}
     volumes:
       - ./teamgramd/deploy/web/Caddyfile:/etc/caddy/Caddyfile:ro
       # The landing page of PLUMA_SITE_DOMAINS: the dist/ of pluma-site,
