@@ -58,10 +58,11 @@ services:
     # A full run writes more spans than the production limit is sized for.
     mem_limit: 1g
     memswap_limit: 1g
-    # Spans are kept in memory: the production setup stores them in
-    # Elasticsearch, which tests do not start.
+    # Spans are kept in memory, the newest traces only, as in production
+    # (docker-compose-env.yaml): with no bound a full run outgrew even 1 GB.
     environment: !override
       - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=10000
     depends_on: !reset []
     restart: "no"
 
