@@ -259,7 +259,7 @@ CREATE TABLE IF NOT EXISTS `translation_notices` (
 - **4.** Очередь движка в ограниченном числе слотов. Сообщение, которого ждёт человек, идёт раньше пачек чатов. Ожидание — до 25 с для пачки и 45 с для одного текста, дальше `FLOOD_WAIT`, а перевод всё равно ложится в кэш. Пределы на человека, здоровье движка, метрики.
 - **5.** Область bff `translation`: `messages.translateText`, `togglePeerTranslations`, перевод в `composeMessageWithAI`. `translateRichMessage` отказывает, тона ИИ-редактора отвечают `ERR_ENTERPRISE_IS_BLOCKED`.
 - **6.** `translations_disabled` в `getFullUser`, `getFullChat`, `getFullChannel`.
-- **7.** Ключи `translations_manual_enabled` и `translations_auto_enabled` следуют за `TRANSLATE_URL`. Журнальный аудит запрещает писать в журнал текст, запрос к модели и ответ, а после сводной проверки ещё и `text` и `GetText` (`ac97b35dc`).
+- **7.** Ключи `translations_manual_enabled` и `translations_auto_enabled` следуют за `TRANSLATE_URL`. Журнальный аудит запрещает писать в журнал текст, запрос к модели и ответ, а также `text` и `GetText` (`ac97b35dc`).
 - **8.** Патч iOS I-130: на экране перевода нет переключателя «эмодзи» (ветка `task/101-ios-emojify` в pluma-ios).
 - **9.** Стенд `faketranslate`, сквозные и интеграционные тесты.
 - **10.** Образ в CI, тревоги, панель, `docs/ops/translation.md`, `.env.example`.
