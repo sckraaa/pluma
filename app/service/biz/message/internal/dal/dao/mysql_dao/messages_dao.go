@@ -1497,7 +1497,7 @@ func (dao *MessagesDAO) UpdateEditMessage(ctx context.Context, messageData strin
 		query   string
 		rResult sql.Result
 	)
-	query = strings.Replace("update __TABLE__ set message_data = ?, message = ?, message_filter_type = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId), -1)
+	query = strings.ReplaceAll("update __TABLE__ set message_data = ?, message = ?, message_filter_type = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId))
 
 	rResult, err = dao.db.Exec(ctx, query, messageData, message, messageFilterType, userId, userMessageBoxId)
 
@@ -1521,7 +1521,7 @@ func (dao *MessagesDAO) UpdateEditMessageTx(tx *sqlx.Tx, messageData string, mes
 		query   string
 		rResult sql.Result
 	)
-	query = strings.Replace("update __TABLE__ set message_data = ?, message = ?, message_filter_type = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId), -1)
+	query = strings.ReplaceAll("update __TABLE__ set message_data = ?, message = ?, message_filter_type = ? where user_id = ? and user_message_box_id = ?", "__TABLE__", dao.CalcTableName(userId))
 
 	rResult, err = tx.Exec(query, messageData, message, messageFilterType, userId, userMessageBoxId)
 
