@@ -2246,6 +2246,21 @@ var (
 	// | 400 | BOT_ID_INVALID | The specified bot ID is invalid. |
 	ErrBotIdInvalid = status.Error(ErrBadRequest, "BOT_ID_INVALID")
 
+	// ErrButtonInvalid
+	// | 400 | BUTTON_INVALID | The specified button is invalid. |
+	// (core.telegram.org/method/bots.requestWebViewButton)
+	ErrButtonInvalid = status.Error(ErrBadRequest, "BUTTON_INVALID")
+
+	// ErrIdInvalid
+	// | 400 | ID_INVALID | The passed ID is invalid. |
+	// (core.telegram.org/method/messages.getPreparedInlineMessage)
+	ErrIdInvalid = status.Error(ErrBadRequest, "ID_INVALID")
+
+	// ErrIdExpired
+	// | 400 | ID_EXPIRED | The passed prepared inline message ID has expired. |
+	// (core.telegram.org/method/messages.getPreparedInlineMessage)
+	ErrIdExpired = status.Error(ErrBadRequest, "ID_EXPIRED")
+
 	// ErrWidgetQueryTypeUnsupported
 	// | 400 | WIDGET_QUERY_TYPE_UNSUPPORTED | The widget query type is not supported. |
 	ErrWidgetQueryTypeUnsupported = status.Error(ErrBadRequest, "WIDGET_QUERY_TYPE_UNSUPPORTED")

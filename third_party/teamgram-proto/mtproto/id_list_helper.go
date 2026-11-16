@@ -165,6 +165,13 @@ func (m *IDListHelper) PickByMessageAction(action *MessageAction) {
 	case Predicate_messageActionInviteToGroupCall:
 		// messageActionInviteToGroupCall#76b9f11a call:InputGroupCall users:Vector<int> = MessageAction;
 		m.AppendUsers(action.Users...)
+	case Predicate_messageActionRequestedPeer:
+		// pluma: the peers a user shared with a bot (task 106),
+		// messageActionRequestedPeer#31518e9b button_id:int peers:Vector<Peer>:
+		// the user's copy names them, and the clients draw their names.
+		for _, p := range action.GetPeers_VECTORPEER() {
+			m.PickByPeer(p)
+		}
 	case Predicate_messageActionNewCreatorPending, Predicate_messageActionChangeCreator:
 		// pluma: the next owner of a supergroup whose owner left (task 078):
 		// messageActionNewCreatorPending#b07ed085 new_creator_id:long,
