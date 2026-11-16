@@ -143,8 +143,13 @@ func TestHYMTAnswer(t *testing.T) {
 		{"<target>Привет <s1>мир</s1></target>", true, "Привет <s1>мир</s1>", false},
 		{"\n<target> Привет</target>\nlater", true, " Привет", false},
 		{"<target>Привет", true, "Привет", false}, // the stop word left out
-		{"Привет", true, "", true},
-		{"", true, "", true},
+		// The model often leaves <target> out (docs/ops/translation.md,
+		// "Замер"); the markup checks the tags.
+		{" Привет <s1>мир</s1>\n", true, "Привет <s1>мир</s1>", false},
+		{"Привет <s1>мир</s1></target>", true, "Привет <s1>мир</s1>", false},
+		{"<source>Hello <s1>world</s1></source>", true, "", true},
+		{"<target><source>Hello</source></target>", true, "", true},
+		{"", true, "", false},
 	}
 	for _, c := range cases {
 		got, err := p.Answer(c.answer, c.tagged)
