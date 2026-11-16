@@ -215,12 +215,43 @@ func TestServiceFloodWait(t *testing.T) {
 	}
 }
 
+// downKV is a Redis that fails every command the service sends; calls
+// counts them. It stands for a failing miniredis where requests fail at
+// once: go-zero v1.10.3 formats the error window of an open breaker without
+// its lock (core/breaker/breaker.go, errorWindow.String reads count before
+// Lock; v1.11.0 takes the lock first), which the race detector reports.
+type downKV struct {
+	kv.Store
+	calls atomic.Int64
+}
+
+var errRedisDown = errors.New("ERR down")
+
+func (d *downKV) GetCtx(context.Context, string) (string, error) {
+	d.calls.Add(1)
+	return "", errRedisDown
+}
+
+func (d *downKV) SetexCtx(context.Context, string, string, int) error {
+	d.calls.Add(1)
+	return errRedisDown
+}
+
+func (d *downKV) EvalCtx(context.Context, string, string, ...any) (any, error) {
+	d.calls.Add(1)
+	return nil, errRedisDown
+}
+
 func TestServiceCollapsesEqualRequests(t *testing.T) {
 	r := &fakeRenderer{release: make(chan struct{})}
-	s, mr := testService(t, Config{}, r)
 	// Without Redis nothing is cached: only the shared render keeps the
 	// ten requests to one.
-	mr.SetError("ERR down")
+	down := &downKV{}
+	s, err := NewService(Config{URL: "http://maps:8080"}, down, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.now = func() time.Time { return testClock }
 	loc := geoLocation(55.755814, 37.617635, 277, 195, 15, 2)
 
 	const n = 10
@@ -254,6 +285,10 @@ func TestServiceCollapsesEqualRequests(t *testing.T) {
 	}
 	if c := r.calls.Load(); c != 1 {
 		t.Fatalf("renders = %d, want 1", c)
+	}
+	// Every request looked up the cache and counted its render.
+	if c := down.calls.Load(); c < 2*n {
+		t.Fatalf("Redis commands = %d, want at least %d", c, 2*n)
 	}
 }
 
