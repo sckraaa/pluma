@@ -6493,9 +6493,9 @@
   "group": "messages-a",
   "feature": "Checking a quick reply shortcut name is free",
   "used_by": "none found: only the class in Android tgnet/TLRPC.java:69592; no call in iOS, Desktop, Web",
-  "decision": "not_needed",
-  "priority": "none",
-  "why": "No client calls it; clients check names locally."
+  "decision": "implement",
+  "priority": "normal",
+  "why": "No client calls it; clients check names locally. Served with the rest of the quick replies (task 105): boolTrue when a message can be added to the shortcut named so."
  },
  {
   "name": "messages.clickSponsoredMessage",

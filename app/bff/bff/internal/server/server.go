@@ -711,6 +711,7 @@ func (s *Server) Initialize() error {
 			UserClient:    c.BizServiceClient,
 			MediaClient:   c.MediaClient,
 			SyncClient:    syncClient,
+			MsgClient:     c.MsgClient,
 		})
 		mtproto.RegisterRPCBusinessOpeningHoursServer(grpcServer, business)
 		mtproto.RegisterRPCBusinessLocationServer(grpcServer, business)

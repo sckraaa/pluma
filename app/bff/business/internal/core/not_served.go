@@ -35,36 +35,6 @@ func (c *BusinessCore) AccountUpdateBusinessAwayMessage(in *mtproto.TLAccountUpd
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesGetQuickReplies is not served yet: messages.getQuickReplies#d483f2a8.
-func (c *BusinessCore) MessagesGetQuickReplies(in *mtproto.TLMessagesGetQuickReplies) (*mtproto.Messages_QuickReplies, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// MessagesReorderQuickReplies is not served yet: messages.reorderQuickReplies#60331907.
-func (c *BusinessCore) MessagesReorderQuickReplies(in *mtproto.TLMessagesReorderQuickReplies) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// MessagesCheckQuickReplyShortcut is not served yet: messages.checkQuickReplyShortcut#f1d0fbd3.
-func (c *BusinessCore) MessagesCheckQuickReplyShortcut(in *mtproto.TLMessagesCheckQuickReplyShortcut) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// MessagesEditQuickReplyShortcut is not served yet: messages.editQuickReplyShortcut#5c003cef.
-func (c *BusinessCore) MessagesEditQuickReplyShortcut(in *mtproto.TLMessagesEditQuickReplyShortcut) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// MessagesDeleteQuickReplyShortcut is not served yet: messages.deleteQuickReplyShortcut#3cc04740.
-func (c *BusinessCore) MessagesDeleteQuickReplyShortcut(in *mtproto.TLMessagesDeleteQuickReplyShortcut) (*mtproto.Bool, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// MessagesGetQuickReplyMessages is not served yet: messages.getQuickReplyMessages#94a495c3.
-func (c *BusinessCore) MessagesGetQuickReplyMessages(in *mtproto.TLMessagesGetQuickReplyMessages) (*mtproto.Messages_Messages, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // MessagesSendQuickReplyMessages is not served yet: messages.sendQuickReplyMessages#6c750de1.
 func (c *BusinessCore) MessagesSendQuickReplyMessages(in *mtproto.TLMessagesSendQuickReplyMessages) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked

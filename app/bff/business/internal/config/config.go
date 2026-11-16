@@ -30,4 +30,7 @@ type Config struct {
 	UserClient  zrpc.RpcClientConf
 	MediaClient zrpc.RpcClientConf
 	SyncClient  sync_client.OutboxConf
+	// MsgClient keeps the quick replies (service msg): their messages are
+	// made and sent as other messages are.
+	MsgClient zrpc.RpcClientConf
 }

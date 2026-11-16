@@ -80,6 +80,11 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 		schedule_date	flags.10?int	Scheduled message date for scheduled messages
 	*/
 
+	// An album for a quick reply shortcut (task 105).
+	if err = c.checkQuickReplySend(peer, in.GetQuickReplyShortcut(), in.ScheduleDate); err != nil {
+		c.Logger.Errorf("messages.sendMultiMedia - error: %v", err)
+		return nil, err
+	}
 	groupedId, err := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
 	if err != nil {
 		return nil, err
@@ -211,6 +216,24 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 		}).To_OutboxMessage())
 	}
 
+	// A code in a caption of the album (task 098).
+	captions := make([]string, 0, len(in.MultiMedia))
+	for _, media := range in.MultiMedia {
+		captions = append(captions, media.GetMessage())
+	}
+	if shortcut := in.GetQuickReplyShortcut(); shortcut != nil {
+		rUpdate, err := c.addQuickReplyMessages(shortcut, outboxMultiMedia)
+		if err != nil {
+			c.Logger.Errorf("messages.sendMultiMedia - quick reply: %v", err)
+			return nil, err
+		}
+		c.invalidateSentLoginCodes(captions...)
+		for i, media := range in.MultiMedia {
+			c.addRecentStickers(media.GetMedia(), sentMedia[i])
+		}
+		return rUpdate, nil
+	}
+
 	rUpdate, err := c.svcCtx.Dao.MsgClient.MsgSendMessageV2(
 		c.ctx,
 		&msgpb.TLMsgSendMessageV2{
@@ -224,11 +247,6 @@ func (c *MessagesCore) MessagesSendMultiMedia(in *mtproto.TLMessagesSendMultiMed
 	if err != nil {
 		c.Logger.Errorf("messages.sendMedia#c8f16791 - error: %v", err)
 		return nil, err
-	}
-	// A code in a caption of the album (task 098).
-	captions := make([]string, 0, len(in.MultiMedia))
-	for _, media := range in.MultiMedia {
-		captions = append(captions, media.GetMessage())
 	}
 	c.invalidateSentLoginCodes(captions...)
 	// The stickers of an album are recent ones as those of messages.sendMedia
