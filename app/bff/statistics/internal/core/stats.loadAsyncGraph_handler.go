@@ -65,7 +65,12 @@ func (c *StatisticsCore) StatsLoadAsyncGraph(in *mtproto.TLStatsLoadAsyncGraph) 
 		if tok.Object <= 0 || tok.Object > int64(^uint32(0)>>1) {
 			return nil, mtproto.ErrGraphInvalidReload
 		}
-		if t, err = c.postTarget(c.ctx, t.channelId, t.members, int32(tok.Object)); err != nil {
+		if spec.story {
+			t, err = c.storyTarget(c.ctx, t.channelId, t.broadcast, t.members, int32(tok.Object))
+		} else {
+			t, err = c.postTarget(c.ctx, t.channelId, t.members, int32(tok.Object))
+		}
+		if err != nil {
 			return nil, err
 		}
 	}

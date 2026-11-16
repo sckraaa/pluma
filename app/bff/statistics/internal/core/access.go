@@ -70,8 +70,8 @@ func (c *StatisticsCore) mutableChannel(id int64) (*channelpb.MutableChannel, er
 	return c.svcCtx.Channels.ChannelGetMutableChannel(c.ctx, &channelpb.TLChannelGetMutableChannel{ChannelId: id, Id: []int64{c.MD.GetUserId()}})
 }
 
-// mayView checks the viewer's access to the statistics of mc.
-func (c *StatisticsCore) mayView(mc *channelpb.MutableChannel, kind int) error {
+// readable checks that the viewer may read mc: CHANNEL_PRIVATE when not.
+func (c *StatisticsCore) readable(mc *channelpb.MutableChannel) error {
 	ch := mc.GetChannel()
 	me := c.MD.GetUserId()
 	p, _ := mc.GetParticipant(me)
@@ -83,6 +83,16 @@ func (c *StatisticsCore) mayView(mc *channelpb.MutableChannel, kind int) error {
 	if !p.Member() && !(ch.Public() && mc.ToChat(me, int32(c.now)).GetPredicateName() == mtproto.Predicate_channel) {
 		return mtproto.ErrChannelPrivate
 	}
+	return nil
+}
+
+// mayView checks the viewer's access to the statistics of mc.
+func (c *StatisticsCore) mayView(mc *channelpb.MutableChannel, kind int) error {
+	if err := c.readable(mc); err != nil {
+		return err
+	}
+	ch := mc.GetChannel()
+	p, _ := mc.GetParticipant(c.MD.GetUserId())
 	switch {
 	case kind == broadcastOnly && !ch.GetBroadcast():
 		return mtproto.ErrBroadcastRequired
