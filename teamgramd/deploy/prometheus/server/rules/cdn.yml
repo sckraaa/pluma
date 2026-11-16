@@ -1,0 +1,75 @@
+# The CDN of large files (task 102, ADR 0065, docs/ops/cdn.md). bff at
+# home publishes pluma_cdn_redirects_total, _push_total, _queue,
+# _node_healthy, _node_egress_bytes and _node_egress_limit_bytes
+# (pkg/cdn/metrics.go) only while the CDN is on (CDN_NODE_CONTROL); the
+# node on the edge publishes the rest (app/service/cdn/internal/metrics),
+# scraped as job ops.cdn from PLUMA_PROMETHEUS_TARGETS/cdn*.json. With the
+# CDN off none of these fire. A node that is out costs the home's upload,
+# not the downloads: clients get the files from home as before, so every
+# alert here is a warning.
+groups:
+  - name: cdn
+    rules:
+      # bff has taken the node out of the redirects for 10 minutes: it does
+      # not answer its control API or its public port, its key differs
+      # between the two, its disk is short, or the month's traffic is spent.
+      # The reason is in MySQL (cdn_nodes.unhealthy_reason).
+      - alert: CdnNodeUnhealthy
+        expr: max by (dc) (pluma_cdn_node_healthy) == 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "CDN node {{ $labels.dc }} is out of the redirects; large files come from home"
+          description: "select dc_id, unhealthy_reason, healthy_until from cdn_nodes; docker compose logs --tail 100 bff | grep 'cdn: node'; on the edge docker compose -p pluma-edge ps cdn. docs/ops/cdn.md, «Неполадки»"
+
+      # The pushes fail: more than half of those that ended in the last 30
+      # minutes (at least three), or copies newly failed for good after
+      # MaxPushAttempts or at once (larger than the node's cache). A push
+      # that ended with the pusher stopping or losing its lease is not an
+      # outcome of its own: it is claimed again.
+      - alert: CdnPushFailing
+        expr: |
+          (
+            sum(increase(pluma_cdn_push_total{result!~"ok|interrupted|lease_lost"}[30m])) >= 3
+            and
+            sum(increase(pluma_cdn_push_total{result!~"ok|interrupted|lease_lost"}[30m]))
+              / clamp_min(sum(increase(pluma_cdn_push_total{result!~"interrupted|lease_lost"}[30m])), 1) > 0.5
+          )
+          or
+          (max(pluma_cdn_queue{state="failed"}) > max(pluma_cdn_queue{state="failed"} offset 1h))
+        labels: {severity: warning}
+        annotations:
+          summary: "Pushes of files to the CDN node fail"
+          description: "By reason: sum by (result) (increase(pluma_cdn_push_total[1h])); failed copies: select last_error, count(*) from cdn_replicas where state = 4 group by last_error. docs/ops/cdn.md, «Неполадки»"
+
+      # The node sent 80% of CDN_MONTHLY_EGRESS_LIMIT_GB this month (UTC); at
+      # 100% bff takes it out until the 1st.
+      - alert: CdnEgressBudget
+        expr: max by (dc) (pluma_cdn_node_egress_bytes) / max by (dc) (pluma_cdn_node_egress_limit_bytes > 0) > 0.8
+        labels: {severity: warning}
+        annotations:
+          summary: "CDN node {{ $labels.dc }} sent {{ $value | humanizePercentage }} of its monthly traffic budget"
+          description: "At the limit large files come from home until the 1st (UTC). Check the traffic of the VPS plan in the Hetzner console before raising CDN_MONTHLY_EGRESS_LIMIT_GB. docs/ops/cdn.md, «Трафик и диск»"
+
+      # Files pushed less than a day ago are dropped to make room for new
+      # ones: CDN_CACHE_BYTES is too small for what is watched, and each such
+      # file goes up from home again. The bound is matched in both of its
+      # spellings, as the node writes it (86400) and as a float (86400.0).
+      - alert: CdnEvictionChurn
+        expr: sum(increase(pluma_cdn_capacity_eviction_age_seconds_bucket{le=~"86400|86400.0"}[6h])) >= 3
+        labels: {severity: warning}
+        annotations:
+          summary: "The CDN node drops files younger than a day to make room"
+          description: "pluma_cdn_cache_bytes against pluma_cdn_cache_cap_bytes and pluma_cdn_disk_free_bytes; raise CDN_CACHE_BYTES if the disk of the VPS allows. docs/ops/cdn.md, «Трафик и диск»"
+
+      # No metrics of the node for 5 minutes while bff has the CDN on: the
+      # container is not running, the tunnel is down, or the target file
+      # PLUMA_PROMETHEUS_TARGETS/cdn.json is missing (then there is no
+      # up == 0 for ServiceDown either).
+      - alert: CdnNodeDown
+        expr: absent(up{job="ops.cdn"} == 1) and on() count(pluma_cdn_node_healthy) > 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "No metrics from the CDN node for 5 minutes"
+          description: "On the edge: docker compose -p pluma-edge ps cdn; docker compose -p pluma-edge logs --tail 100 cdn. At home: wg show pluma; cat /opt/pluma/prometheus-targets/cdn.json. docs/ops/cdn.md, «Неполадки»"

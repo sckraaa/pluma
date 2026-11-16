@@ -45,6 +45,15 @@ scrape_configs:
     file_sd_configs:
       - files: ["/etc/prometheus/targets/sfu*.json"]
 
+  # The CDN node of large files (task 102, docs/ops/cdn.md): it runs only on
+  # the edge, so only from a target file of this host,
+  # PLUMA_PROMETHEUS_TARGETS/cdn*.json, the node's metrics port on the
+  # tunnel (10.77.0.1:20511). No file: no target, and nothing of
+  # rules/cdn.yml fires while bff has the CDN off.
+  - job_name: ops.cdn
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/cdn*.json"]
+
   - job_name: prometheus
     scrape_interval: 5s  #global catch time
     static_configs:

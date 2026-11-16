@@ -11,8 +11,9 @@
 //     DH exponent a, g_b, auth_key bytes, AES keys and IVs, decrypted
 //     handshake data, login codes and their hashes, passwords and their SRP
 //     values, tokens, email addresses and API keys, the ICE credentials,
-//     DTLS fingerprints and keys and the join params of group calls, or a
-//     config section with credentials (Etcd, Mysql, Redis...);
+//     DTLS fingerprints and keys and the join params of group calls, the
+//     tokens, keys and hashes of CDN files, or a config section with
+//     credentials (Etcd, Mysql, Redis...);
 //   - object: a TL object or data object printed whole: a parameter or local
 //     of a type from the mtproto package or from app/ (requests, updates,
 //     messages, rows), with any verb other than %T, or its String() or
@@ -146,6 +147,14 @@ var secretNames = set(
 	// the statistics of channels (task 103, ADR 0066): the zoom tokens of
 	// the graphs, never printed whole, and the key that signs them
 	"statstoken", "zoomtoken", "getzoomtoken", "tokenkey", "gettokenkey",
+	// the CDN of large files (task 102, ADR 0065): a file's token, the
+	// request_token of a reupload and the keys that sign it, the AES key
+	// and IV of a file (with them the node's cipher is the file), its
+	// secrets together, and the hashes of its plaintext
+	"filetoken", "getfiletoken", "requesttoken", "getrequesttoken",
+	"rtkey", "getrtkey", "rtkeyprev", "getrtkeyprev",
+	"getencryptionkey", "encryptioniv", "getencryptioniv", "secrets",
+	"hashes", "gethashes", "filehashes", "getfilehashes",
 	// config sections that carry credentials, printed whole
 	"etcd", "mysql", "redis", "kv", "cache", "minio", "kafka", "rpcserverconf", "rpcclientconf",
 )

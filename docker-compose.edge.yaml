@@ -1,7 +1,8 @@
 # The edge on the VPS once Pluma runs at home (task 096, ADR 0061,
 # docs/ops/home-server.md). Only what cannot run at home and sees no
 # content: the SFU of group calls and the TURN of 1:1 calls (both end-to-end
-# encrypted), and a relay to the operator's own sites that stay on the VPS.
+# encrypted), the CDN node of large files (their cipher without the keys,
+# ADR 0065), and a relay to the operator's own sites that stay on the VPS.
 # The rest of the VPS is the pipe of teamgramd/deploy/edge: Pluma's public
 # address forwarded home over WireGuard.
 #
@@ -58,6 +59,49 @@ services:
       - --static-auth-secret=${CALLS_TURN_SECRET:?set CALLS_TURN_SECRET in .env, the same as at home}
     stop_grace_period: 10s
 
+  # The CDN node of large files (app/service/cdn, task 102, ADR 0065,
+  # docs/ops/cdn.md): clients download the cipher of large files from it on
+  # Pluma's address, at CDN_PORT, a port forward.sh does not send home;
+  # bff at home pushes the files and checks the node through the tunnel.
+  # Started only with the profile (COMPOSE_PROFILES=cdn in .env, with
+  # "sites" if that one runs too). Compose interpolates the services of
+  # every profile, so the node's variables are not ":?" here, or an edge
+  # without the node could not start at all: with the profile, compose
+  # refuses an empty PLUMA_CDN_IMAGE, and the node refuses to start without
+  # CDN_SECRET ("dd" and 32 hex digits, the CDN_DC_SECRET of the home) or
+  # CDN_CACHE_BYTES (at most the free space of PLUMA_CDN_DATA less 5 GB),
+  # naming them. Its own network: it makes no connections, and a process
+  # that takes MTProto from the internet has no way to the containers of
+  # teamgram_net. The files, the node's RSA key and its traffic count of
+  # the month live in PLUMA_CDN_DATA, owned by uid 65532 (the image's
+  # nonroot).
+  cdn:
+    profiles: ["cdn"]
+    mem_limit: ${CDN_MEMORY:-256m}
+    memswap_limit: ${CDN_MEMORY:-256m}
+    cpus: ${CDN_CPUS:-1}
+    cgroup_parent: ${PLUMA_CGROUP_PARENT:-}
+    image: ${PLUMA_CDN_IMAGE:-}
+    restart: unless-stopped
+    read_only: true
+    environment:
+      CDN_DC_ID: ${CDN_DC_ID:-201}
+      CDN_SECRET: ${CDN_SECRET:-}
+      CDN_CACHE_BYTES: ${CDN_CACHE_BYTES:-}
+      CDN_IDLE_TTL: ${CDN_IDLE_TTL:-720h}
+    volumes:
+      - ./teamgramd/deploy/cdn/cdn.yaml:/etc/cdn/cdn.yaml:ro
+      - ${PLUMA_CDN_CERTS:-/opt/pluma-edge/cdn}:/run/secrets/cdn:ro
+      - ${PLUMA_CDN_DATA:-/opt/pluma-edge/cdn-data}:/var/lib/cdn
+    ports:
+      - "${PLUMA_PUBLIC_IPV4}:${CDN_PORT:-8443}:8443/tcp" # clients, MTProto
+      - "${EDGE_TUNNEL_IPV4:-10.77.0.1}:20510:20510/tcp" # control, bff at home
+      - "${EDGE_TUNNEL_IPV4:-10.77.0.1}:20511:20511/tcp" # metrics, Prometheus at home
+    networks:
+      - cdn_net
+    # Long enough for the index and the traffic count to be written.
+    stop_grace_period: 15s
+
   # Host metrics of the VPS for Prometheus at home: its disk, memory and
   # network are part of the service now.
   node-exporter:
@@ -106,3 +150,4 @@ networks:
   teamgram_net:
     name: pluma_teamgram_net
     external: true
+  cdn_net: {}

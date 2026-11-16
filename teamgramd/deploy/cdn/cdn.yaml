@@ -1,5 +1,6 @@
 # A CDN node in Docker (task 102, ADR 0065, docs/ops/cdn.md). Mounted over
-# the image's own configuration; every ${VAR} must be set.
+# the image's own configuration; every variable below must be set (a
+# reference is expanded in comments too, so none is written here).
 #
 #   CDN_DC_ID        the CDN DC, as CDN_DC_ID at the home (201)
 #   CDN_SECRET       "dd" and 32 hex digits, as CDN_DC_SECRET at the home

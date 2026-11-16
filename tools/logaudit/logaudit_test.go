@@ -65,6 +65,13 @@ type HandshakeStateCtx struct{ NewNonce, A []byte }
 		{"zoom token", `func f(g *mtproto.StatsGraph, statsToken string) { logx.Infof("%s %s", g.GetZoomToken(), statsToken) }`, []string{"secret", "secret"}},
 		{"stats token key", `func f(c struct{ Stats struct{ ThisDc int32; TokenKey string } }) error { return fmt.Errorf("dc %d key %s", c.Stats.ThisDc, c.Stats.TokenKey) }`, []string{"secret"}},
 		{"stats channel ok", `func f(channelId int64, method string) { logx.Infof("%s of %d", method, channelId) }`, nil},
+		// the CDN of large files (task 102)
+		{"cdn file token", `func f(in *mtproto.TLUploadGetCdnFile, fileToken []byte) { logx.Infof("%x %x", in.GetFileToken(), fileToken) }`, []string{"secret", "secret"}},
+		{"cdn request token", `func f(in *mtproto.TLUploadReuploadCdnFile) error { return fmt.Errorf("bad %x", in.RequestToken) }`, []string{"secret"}},
+		{"cdn file key", `func f(r *mtproto.TLUploadFileCdnRedirect, aesKey []byte) { logx.Errorf("%x %x %x", r.GetEncryptionKey(), r.GetEncryptionIv(), aesKey) }`, []string{"secret", "secret", "secret"}},
+		{"cdn request token keys", `func f(n struct{ RtKey, RtKeyPrev []byte }) { logx.Infof("%x %x", n.RtKey, n.RtKeyPrev) }`, []string{"secret", "secret"}},
+		{"cdn file secrets and hashes", `func f(f struct{ Secrets struct{ Key []byte }; Hashes []byte }) error { return fmt.Errorf("%v %x", f.Secrets, f.Hashes) }`, []string{"secret", "secret"}},
+		{"cdn file row and size ok", `func f(rowId, size int64, dcId int32) { logx.Infof("file row %d (%d bytes) on %d", rowId, size, dcId) }`, nil},
 		// audit #8: handshake secrets
 		{"handshake state", `func f(ctx *HandshakeStateCtx) { logx.Infof("state: %s", ctx) }`, []string{"object"}},
 		{"new_nonce", `func f(ctx *HandshakeStateCtx) { logx.Infof("n: %x", ctx.NewNonce) }`, []string{"secret"}},
