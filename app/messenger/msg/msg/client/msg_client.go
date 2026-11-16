@@ -62,6 +62,9 @@ type MsgClient interface {
 	MsgEditQuickReplyShortcut(ctx context.Context, in *msg.TLMsgEditQuickReplyShortcut) (*mtproto.Bool, error)
 	MsgReorderQuickReplies(ctx context.Context, in *msg.TLMsgReorderQuickReplies) (*mtproto.Bool, error)
 	MsgDeleteQuickReplyShortcut(ctx context.Context, in *msg.TLMsgDeleteQuickReplyShortcut) (*mtproto.Bool, error)
+	MsgEditQuickReplyMessage(ctx context.Context, in *msg.TLMsgEditQuickReplyMessage) (*mtproto.Updates, error)
+	MsgDeleteQuickReplyMessages(ctx context.Context, in *msg.TLMsgDeleteQuickReplyMessages) (*mtproto.Updates, error)
+	MsgSendQuickReplyMessages(ctx context.Context, in *msg.TLMsgSendQuickReplyMessages) (*mtproto.Updates, error)
 }
 
 type defaultMsgClient struct {
@@ -501,4 +504,37 @@ func (m *defaultMsgClient) MsgDeleteQuickReplyShortcut(ctx context.Context, in *
 	}
 	client := msg.NewRPCMsgClient(m.cli.Conn())
 	return client.MsgDeleteQuickReplyShortcut(ctx, in)
+}
+
+// MsgEditQuickReplyMessage
+// msg.editQuickReplyMessage user_id:long auth_key_id:long shortcut_id:int message:OutboxMessage = Updates;
+func (m *defaultMsgClient) MsgEditQuickReplyMessage(ctx context.Context, in *msg.TLMsgEditQuickReplyMessage) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgEditQuickReplyMessage(ctx, in)
+}
+
+// MsgDeleteQuickReplyMessages
+// msg.deleteQuickReplyMessages user_id:long auth_key_id:long shortcut_id:int id:Vector<int> = Updates;
+func (m *defaultMsgClient) MsgDeleteQuickReplyMessages(ctx context.Context, in *msg.TLMsgDeleteQuickReplyMessages) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgDeleteQuickReplyMessages(ctx, in)
+}
+
+// MsgSendQuickReplyMessages
+// msg.sendQuickReplyMessages user_id:long auth_key_id:long peer_id:long shortcut_id:int id:Vector<int> random_id:Vector<long> = Updates;
+func (m *defaultMsgClient) MsgSendQuickReplyMessages(ctx context.Context, in *msg.TLMsgSendQuickReplyMessages) (*mtproto.Updates, error) {
+	md := metadata.RpcMetadataFromIncoming(ctx)
+	if md != nil {
+		ctx, _ = metadata.RpcMetadataToOutgoing(ctx, md)
+	}
+	client := msg.NewRPCMsgClient(m.cli.Conn())
+	return client.MsgSendQuickReplyMessages(ctx, in)
 }

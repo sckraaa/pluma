@@ -70,6 +70,12 @@ const (
 	Predicate_msg_reorderQuickReplies = "msg_reorderQuickReplies"
 	// pluma: task 105
 	Predicate_msg_deleteQuickReplyShortcut = "msg_deleteQuickReplyShortcut"
+	// pluma: task 105
+	Predicate_msg_editQuickReplyMessage = "msg_editQuickReplyMessage"
+	// pluma: task 105
+	Predicate_msg_deleteQuickReplyMessages = "msg_deleteQuickReplyMessages"
+	// pluma: task 105
+	Predicate_msg_sendQuickReplyMessages = "msg_sendQuickReplyMessages"
 )
 
 var clazzNameRegisters2 = map[string]map[int]int32{
@@ -220,6 +226,18 @@ var clazzNameRegisters2 = map[string]map[int]int32{
 		0: -1549977524, // 0xa39d384c
 
 	},
+	Predicate_msg_editQuickReplyMessage: { // pluma: task 105
+		0: 514595667, // 0x1eac1b53
+
+	},
+	Predicate_msg_deleteQuickReplyMessages: { // pluma: task 105
+		0: -811849787, // 0xcf9c27c5
+
+	},
+	Predicate_msg_sendQuickReplyMessages: { // pluma: task 105
+		0: -1719038159, // 0x99898f31
+
+	},
 }
 
 var clazzIdNameRegisters2 = map[int32]string{
@@ -261,6 +279,9 @@ var clazzIdNameRegisters2 = map[int32]string{
 	-881831873:  Predicate_msg_editQuickReplyShortcut,     // 0xcb70503f pluma: task 105
 	166649548:   Predicate_msg_reorderQuickReplies,        // 0x9eedecc pluma: task 105
 	-1549977524: Predicate_msg_deleteQuickReplyShortcut,   // 0xa39d384c pluma: task 105
+	514595667:   Predicate_msg_editQuickReplyMessage,      // 0x1eac1b53 pluma: task 105
+	-811849787:  Predicate_msg_deleteQuickReplyMessages,   // 0xcf9c27c5 pluma: task 105
+	-1719038159: Predicate_msg_sendQuickReplyMessages,     // 0x99898f31 pluma: task 105
 }
 
 func GetClazzID(clazzName string, layer int) int32 {

@@ -68,6 +68,9 @@ const (
 	RPCMsg_MsgEditQuickReplyShortcut_FullMethodName     = "/msg.RPCMsg/msg_editQuickReplyShortcut"
 	RPCMsg_MsgReorderQuickReplies_FullMethodName        = "/msg.RPCMsg/msg_reorderQuickReplies"
 	RPCMsg_MsgDeleteQuickReplyShortcut_FullMethodName   = "/msg.RPCMsg/msg_deleteQuickReplyShortcut"
+	RPCMsg_MsgEditQuickReplyMessage_FullMethodName      = "/msg.RPCMsg/msg_editQuickReplyMessage"
+	RPCMsg_MsgDeleteQuickReplyMessages_FullMethodName   = "/msg.RPCMsg/msg_deleteQuickReplyMessages"
+	RPCMsg_MsgSendQuickReplyMessages_FullMethodName     = "/msg.RPCMsg/msg_sendQuickReplyMessages"
 )
 
 // RPCMsgClient is the client API for RPCMsg service.
@@ -139,6 +142,12 @@ type RPCMsgClient interface {
 	MsgReorderQuickReplies(ctx context.Context, in *TLMsgReorderQuickReplies, opts ...grpc.CallOption) (*mtproto.Bool, error)
 	// pluma: task 105
 	MsgDeleteQuickReplyShortcut(ctx context.Context, in *TLMsgDeleteQuickReplyShortcut, opts ...grpc.CallOption) (*mtproto.Bool, error)
+	// pluma: task 105
+	MsgEditQuickReplyMessage(ctx context.Context, in *TLMsgEditQuickReplyMessage, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 105
+	MsgDeleteQuickReplyMessages(ctx context.Context, in *TLMsgDeleteQuickReplyMessages, opts ...grpc.CallOption) (*mtproto.Updates, error)
+	// pluma: task 105
+	MsgSendQuickReplyMessages(ctx context.Context, in *TLMsgSendQuickReplyMessages, opts ...grpc.CallOption) (*mtproto.Updates, error)
 }
 
 type rPCMsgClient struct {
@@ -539,6 +548,36 @@ func (c *rPCMsgClient) MsgDeleteQuickReplyShortcut(ctx context.Context, in *TLMs
 	return out, nil
 }
 
+func (c *rPCMsgClient) MsgEditQuickReplyMessage(ctx context.Context, in *TLMsgEditQuickReplyMessage, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgEditQuickReplyMessage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgDeleteQuickReplyMessages(ctx context.Context, in *TLMsgDeleteQuickReplyMessages, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgDeleteQuickReplyMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCMsgClient) MsgSendQuickReplyMessages(ctx context.Context, in *TLMsgSendQuickReplyMessages, opts ...grpc.CallOption) (*mtproto.Updates, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(mtproto.Updates)
+	err := c.cc.Invoke(ctx, RPCMsg_MsgSendQuickReplyMessages_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RPCMsgServer is the server API for RPCMsg service.
 // All implementations should embed UnimplementedRPCMsgServer
 // for forward compatibility.
@@ -608,6 +647,12 @@ type RPCMsgServer interface {
 	MsgReorderQuickReplies(context.Context, *TLMsgReorderQuickReplies) (*mtproto.Bool, error)
 	// pluma: task 105
 	MsgDeleteQuickReplyShortcut(context.Context, *TLMsgDeleteQuickReplyShortcut) (*mtproto.Bool, error)
+	// pluma: task 105
+	MsgEditQuickReplyMessage(context.Context, *TLMsgEditQuickReplyMessage) (*mtproto.Updates, error)
+	// pluma: task 105
+	MsgDeleteQuickReplyMessages(context.Context, *TLMsgDeleteQuickReplyMessages) (*mtproto.Updates, error)
+	// pluma: task 105
+	MsgSendQuickReplyMessages(context.Context, *TLMsgSendQuickReplyMessages) (*mtproto.Updates, error)
 }
 
 // UnimplementedRPCMsgServer should be embedded to have
@@ -733,6 +778,15 @@ func (UnimplementedRPCMsgServer) MsgReorderQuickReplies(context.Context, *TLMsgR
 }
 func (UnimplementedRPCMsgServer) MsgDeleteQuickReplyShortcut(context.Context, *TLMsgDeleteQuickReplyShortcut) (*mtproto.Bool, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method MsgDeleteQuickReplyShortcut not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgEditQuickReplyMessage(context.Context, *TLMsgEditQuickReplyMessage) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgEditQuickReplyMessage not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgDeleteQuickReplyMessages(context.Context, *TLMsgDeleteQuickReplyMessages) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgDeleteQuickReplyMessages not implemented")
+}
+func (UnimplementedRPCMsgServer) MsgSendQuickReplyMessages(context.Context, *TLMsgSendQuickReplyMessages) (*mtproto.Updates, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MsgSendQuickReplyMessages not implemented")
 }
 func (UnimplementedRPCMsgServer) testEmbeddedByValue() {}
 
@@ -1456,6 +1510,60 @@ func _RPCMsg_MsgDeleteQuickReplyShortcut_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RPCMsg_MsgEditQuickReplyMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgEditQuickReplyMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgEditQuickReplyMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgEditQuickReplyMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgEditQuickReplyMessage(ctx, req.(*TLMsgEditQuickReplyMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgDeleteQuickReplyMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgDeleteQuickReplyMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgDeleteQuickReplyMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgDeleteQuickReplyMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgDeleteQuickReplyMessages(ctx, req.(*TLMsgDeleteQuickReplyMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCMsg_MsgSendQuickReplyMessages_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLMsgSendQuickReplyMessages)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCMsgServer).MsgSendQuickReplyMessages(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RPCMsg_MsgSendQuickReplyMessages_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCMsgServer).MsgSendQuickReplyMessages(ctx, req.(*TLMsgSendQuickReplyMessages))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RPCMsg_ServiceDesc is the grpc.ServiceDesc for RPCMsg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1618,6 +1726,18 @@ var RPCMsg_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "msg_deleteQuickReplyShortcut",
 			Handler:    _RPCMsg_MsgDeleteQuickReplyShortcut_Handler,
+		},
+		{
+			MethodName: "msg_editQuickReplyMessage",
+			Handler:    _RPCMsg_MsgEditQuickReplyMessage_Handler,
+		},
+		{
+			MethodName: "msg_deleteQuickReplyMessages",
+			Handler:    _RPCMsg_MsgDeleteQuickReplyMessages_Handler,
+		},
+		{
+			MethodName: "msg_sendQuickReplyMessages",
+			Handler:    _RPCMsg_MsgSendQuickReplyMessages_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

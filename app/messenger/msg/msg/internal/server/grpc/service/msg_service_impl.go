@@ -563,3 +563,45 @@ func (s *Service) MsgDeleteQuickReplyShortcut(ctx context.Context, request *msg.
 
 	return r, err
 }
+
+// MsgEditQuickReplyMessage
+// msg.editQuickReplyMessage user_id:long auth_key_id:long shortcut_id:int message:OutboxMessage = Updates;
+func (s *Service) MsgEditQuickReplyMessage(ctx context.Context, request *msg.TLMsgEditQuickReplyMessage) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.editQuickReplyMessage - metadata: {%s}", c.MD)
+
+	r, err := c.MsgEditQuickReplyMessage(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgDeleteQuickReplyMessages
+// msg.deleteQuickReplyMessages user_id:long auth_key_id:long shortcut_id:int id:Vector<int> = Updates;
+func (s *Service) MsgDeleteQuickReplyMessages(ctx context.Context, request *msg.TLMsgDeleteQuickReplyMessages) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.deleteQuickReplyMessages - metadata: {%s}", c.MD)
+
+	r, err := c.MsgDeleteQuickReplyMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+// MsgSendQuickReplyMessages
+// msg.sendQuickReplyMessages user_id:long auth_key_id:long peer_id:long shortcut_id:int id:Vector<int> random_id:Vector<long> = Updates;
+func (s *Service) MsgSendQuickReplyMessages(ctx context.Context, request *msg.TLMsgSendQuickReplyMessages) (*mtproto.Updates, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("msg.sendQuickReplyMessages - metadata: {%s}", c.MD)
+
+	r, err := c.MsgSendQuickReplyMessages(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}

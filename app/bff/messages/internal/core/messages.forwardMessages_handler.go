@@ -92,6 +92,19 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 		return nil, err
 	}
 
+	// Forwards kept in a quick reply shortcut (task 105): iOS forwards into
+	// one (PendingMessageManager.swift:1378), to the account itself. They
+	// are forwards into no chat: not saved from anywhere, as Saved
+	// Messages would mark them.
+	shortcut := in.GetQuickReplyShortcut()
+	if err = c.checkQuickReplySend(toPeer, shortcut, in.ScheduleDate); err != nil {
+		c.Logger.Errorf("messages.forwardMessages - error: %v", err)
+		return nil, err
+	}
+	if shortcut != nil {
+		saved = false
+	}
+
 	// The peer the forwards come from (send_as, task 079).
 	from, err := c.sendFrom(toPeer, in.GetSendAs())
 	if err != nil {
@@ -103,6 +116,24 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 	if err != nil {
 		c.Logger.Errorf("messages.forwardMessages#708e0195 - error: %v", err)
 		return nil, err
+	}
+
+	// A login code of a forwarded text (task 098): the texts as they were
+	// forwarded; a caption drop_media_captions removed was not sent.
+	texts := make([]string, 0, len(fwdOutboxList))
+	for _, m := range fwdOutboxList {
+		texts = append(texts, m.GetMessage().GetMessage())
+	}
+	if shortcut != nil {
+		// Nothing reaches a chat: the forwards of a channel's posts are not
+		// counted.
+		rUpdates, err = c.addQuickReplyMessages(shortcut, fwdOutboxList)
+		if err != nil {
+			c.Logger.Errorf("messages.forwardMessages - quick reply: %v", err)
+			return nil, err
+		}
+		c.invalidateSentLoginCodes(texts...)
+		return rUpdates, nil
 	}
 
 	rUpdates, err = c.svcCtx.Dao.MsgClient.MsgSendMessageV2(
@@ -125,12 +156,7 @@ func (c *MessagesCore) MessagesForwardMessages(in *mtproto.TLMessagesForwardMess
 	}
 	c.attachPollReply(rUpdates)
 	// A forwarded message of the service notifications account with a
-	// login code, or any other text with one (task 098): the texts as they
-	// were forwarded; a caption drop_media_captions removed was not sent.
-	texts := make([]string, 0, len(fwdOutboxList))
-	for _, m := range fwdOutboxList {
-		texts = append(texts, m.GetMessage().GetMessage())
-	}
+	// login code, or any other text with one (task 098).
 	c.invalidateSentLoginCodes(texts...)
 
 	if fromPeer.PeerType == mtproto.PEER_CHANNEL {

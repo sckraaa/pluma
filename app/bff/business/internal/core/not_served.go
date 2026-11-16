@@ -35,16 +35,6 @@ func (c *BusinessCore) AccountUpdateBusinessAwayMessage(in *mtproto.TLAccountUpd
 	return nil, mtproto.ErrEnterpriseIsBlocked
 }
 
-// MessagesSendQuickReplyMessages is not served yet: messages.sendQuickReplyMessages#6c750de1.
-func (c *BusinessCore) MessagesSendQuickReplyMessages(in *mtproto.TLMessagesSendQuickReplyMessages) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
-// MessagesDeleteQuickReplyMessages is not served yet: messages.deleteQuickReplyMessages#e105e910.
-func (c *BusinessCore) MessagesDeleteQuickReplyMessages(in *mtproto.TLMessagesDeleteQuickReplyMessages) (*mtproto.Updates, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
-}
-
 // AccountGetBotBusinessConnection is not served yet: account.getBotBusinessConnection#76a86270.
 func (c *BusinessCore) AccountGetBotBusinessConnection(in *mtproto.TLAccountGetBotBusinessConnection) (*mtproto.Updates, error) {
 	return nil, mtproto.ErrEnterpriseIsBlocked
