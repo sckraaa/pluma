@@ -67,9 +67,36 @@ func sentMessage(t *testing.T, o mtproto.TLObject) *mtproto.Message {
 // playButton tells whether the message's keyboard starts with the game's
 // button.
 func playButton(m *mtproto.Message) bool {
+	if m.GetReplyMarkup().GetPredicateName() != mtproto.Predicate_replyInlineMarkup {
+		return false
+	}
+	// A client of layer 229 and later gets the buttons with a type
+	// (pkg/layercompat); the bots of these tests are of layer 228.
+	if rows := m.GetReplyMarkup().GetRows_VECTORKEYBOARDINLINEBUTTONROW(); len(rows) > 0 {
+		return len(rows[0].GetButtons()) > 0 && rows[0].GetButtons()[0].GetType().GetPredicateName() == mtproto.Predicate_inlineButtonTypeGame
+	}
 	rows := m.GetReplyMarkup().GetRows()
-	return m.GetReplyMarkup().GetPredicateName() == mtproto.Predicate_replyInlineMarkup && len(rows) > 0 &&
-		len(rows[0].GetButtons()) > 0 && rows[0].GetButtons()[0].GetPredicateName() == mtproto.Predicate_keyboardButtonGame
+	return len(rows) > 0 && len(rows[0].GetButtons()) > 0 && rows[0].GetButtons()[0].GetPredicateName() == mtproto.Predicate_keyboardButtonGame
+}
+
+// buttonURLs are the addresses of the first buttons of the rows of m's
+// inline keyboard, "" for a button with none, in either shape (playButton).
+func buttonURLs(m *mtproto.Message) []string {
+	var out []string
+	if rows := m.GetReplyMarkup().GetRows_VECTORKEYBOARDINLINEBUTTONROW(); len(rows) > 0 {
+		for _, r := range rows {
+			if len(r.GetButtons()) > 0 {
+				out = append(out, r.GetButtons()[0].GetType().GetUrl())
+			}
+		}
+		return out
+	}
+	for _, r := range m.GetReplyMarkup().GetRows() {
+		if len(r.GetButtons()) > 0 {
+			out = append(out, r.GetButtons()[0].GetUrl())
+		}
+	}
+	return out
 }
 
 // TestGames: the administrator gives a bot a game (task 106, ADR 0068
@@ -355,9 +382,9 @@ func TestGames(t *testing.T) {
 	}
 	waitUpdate(ctx, t, alice, mtproto.Predicate_updateEditMessage, func(u *mtproto.Update) bool {
 		m := u.GetMessage_MESSAGE()
-		rows := m.GetReplyMarkup().GetRows()
-		return m.GetId() == inlineGame.GetId() && m.GetEditDate() != nil && playButton(m) && len(rows) == 2 &&
-			rows[1].GetButtons()[0].GetUrl() == "https://games.example/rules"
+		urls := buttonURLs(m)
+		return m.GetId() == inlineGame.GetId() && m.GetEditDate() != nil && playButton(m) && len(urls) == 2 &&
+			urls[1] == "https://games.example/rules"
 	})
 	if err = editInline(); !strings.Contains(fmt.Sprint(err), "MESSAGE_NOT_MODIFIED") {
 		t.Fatalf("the same edit again: %v", err)
@@ -449,8 +476,8 @@ func TestGamesInGroup(t *testing.T) {
 			if m.GetMedia().GetPredicateName() != mtproto.Predicate_messageMediaGame || m.GetPeerId().GetChatId() != chatId {
 				return false
 			}
-			rows := m.GetReplyMarkup().GetRows()
-			if !playButton(m) || len(rows) != 2 || rows[1].GetButtons()[0].GetUrl() != "https://games.example/rules" {
+			urls := buttonURLs(m)
+			if !playButton(m) || len(urls) != 2 || urls[1] != "https://games.example/rules" {
 				t.Fatalf("the game in the group: %v", m)
 			}
 			id = m.GetId()
