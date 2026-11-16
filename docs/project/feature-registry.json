@@ -3759,7 +3759,7 @@
   "used_by": "A StoriesController.java:3138; I StoryListContext.swift:2532; W appStoriesManager.ts:1862",
   "decision": "implement",
   "priority": "rare",
-  "why": "Hashtag and location tap."
+  "why": "Сделано задачей 104 (ADR 0069)."
  },
  {
   "name": "stories.startLive",

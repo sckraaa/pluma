@@ -317,3 +317,11 @@ func (s *Service) StoriesGetAlbumStories(ctx context.Context, request *mtproto.T
 	c.Logger.Debugf("stories.getAlbumStories - metadata: {%s}", c.MD)
 	return c.StoriesGetAlbumStories(request)
 }
+
+// StoriesSearchPosts
+// stories.searchPosts#d1810907 flags:# hashtag:flags.0?string area:flags.1?MediaArea peer:flags.2?InputPeer offset:string limit:int = stories.FoundStories;
+func (s *Service) StoriesSearchPosts(ctx context.Context, request *mtproto.TLStoriesSearchPosts) (*mtproto.Stories_FoundStories, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stories.searchPosts - metadata: {%s}", c.MD)
+	return c.StoriesSearchPosts(request)
+}
