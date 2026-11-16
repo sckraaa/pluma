@@ -58,6 +58,13 @@ var (
 	// stories.MaxAlbumStories stories. The name was not read in any
 	// source.
 	errAlbumStoriesTooMany = status.Error(mtproto.ErrBadRequest, "ALBUM_STORIES_TOO_MANY")
+
+	// errHashtagInvalid: the hashtag of stories.searchPosts is not one tag
+	// (empty, too long, or with characters a tag does not have). The name
+	// is in the method's error list on core.telegram.org
+	// (method/stories.searchPosts, read for ADR 0069); no client reads it
+	// by name.
+	errHashtagInvalid = status.Error(mtproto.ErrBadRequest, "HASHTAG_INVALID")
 )
 
 // albumError turns an error of the albums of pkg/stories into the error
