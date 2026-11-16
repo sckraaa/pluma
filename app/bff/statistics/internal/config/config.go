@@ -32,7 +32,10 @@ type Config struct {
 	// ChannelClient reads the channel and the viewer's participant row (the
 	// rights of the statistics).
 	ChannelClient zrpc.RpcClientConf
-	Stats         StatsConfig
+	// UserClient reads the users the statistics name as the viewer sees
+	// them.
+	UserClient zrpc.RpcClientConf
+	Stats      StatsConfig
 }
 
 // StatsConfig is the statistics of channels and groups (task 103, ADR

@@ -52,10 +52,10 @@ func (s *Service) StatsGetMessageStats(ctx context.Context, request *mtproto.TLS
 	return c.StatsGetMessageStats(request)
 }
 
-// StatsGetMegagroupStats: the statistics of supergroups are not served
-// yet (task 103).
-func (s *Service) StatsGetMegagroupStats(context.Context, *mtproto.TLStatsGetMegagroupStats) (*mtproto.Stats_MegagroupStats, error) {
-	return nil, mtproto.ErrEnterpriseIsBlocked
+func (s *Service) StatsGetMegagroupStats(ctx context.Context, request *mtproto.TLStatsGetMegagroupStats) (*mtproto.Stats_MegagroupStats, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("stats.getMegagroupStats - metadata: {%s}", c.MD)
+	return c.StatsGetMegagroupStats(request)
 }
 
 // StatsGetMessagePublicForwards5F150144: the public forwards of posts are
