@@ -1,4 +1,4 @@
-package gnet
+package handshake
 
 import (
 	"crypto/rand"
@@ -56,7 +56,7 @@ func TestIsPrime32(t *testing.T) {
 func TestNewPQ(t *testing.T) {
 	seen := make(map[uint64]bool)
 	for i := 0; i < 1000; i++ {
-		pq, p, q := newPQ()
+		pq, p, q := NewPQ()
 		if p >= q || p*q != pq {
 			t.Fatalf("pq %d, p %d, q %d", pq, p, q)
 		}
@@ -74,17 +74,17 @@ func TestNewPQ(t *testing.T) {
 		}
 		seen[pq] = true
 
-		if s := putPQ(pq); len(s) != pqSize || s[0] == 0 {
+		if s := PutPQ(pq); len(s) != pqSize || s[0] == 0 {
 			t.Fatalf("pq encoded as %x", s)
 		}
-		if v, ok := parsePQNumber(putPQ(pq)); !ok || v != pq {
+		if v, ok := parsePQNumber(PutPQ(pq)); !ok || v != pq {
 			t.Fatalf("pq %d parsed as %d", pq, v)
 		}
 	}
 }
 
 func TestHandshakeStateFactors(t *testing.T) {
-	pq, p, q := newPQ()
+	pq, p, q := NewPQ()
 	st := HandshakeStateCtx{Pq: pq, P: p, Q: q}
 	be := func(v uint64, n int) string {
 		b := binary.BigEndian.AppendUint64(nil, v)
@@ -92,7 +92,7 @@ func TestHandshakeStateFactors(t *testing.T) {
 	}
 	minimal := func(v uint64) string { return string(new(big.Int).SetUint64(v).Bytes()) }
 
-	if !st.hasPQ(putPQ(pq)) || st.hasPQ(putPQ(pq+2)) || st.hasPQ("") || st.hasPQ("\x00"+putPQ(pq)) {
+	if !st.hasPQ(PutPQ(pq)) || st.hasPQ(PutPQ(pq+2)) || st.hasPQ("") || st.hasPQ("\x00"+PutPQ(pq)) {
 		t.Fatal("hasPQ")
 	}
 	for _, c := range []struct {
@@ -121,6 +121,6 @@ func TestHandshakeStateFactors(t *testing.T) {
 
 func BenchmarkNewPQ(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		newPQ()
+		NewPQ()
 	}
 }

@@ -27,7 +27,10 @@ type ObfuscatedCodec struct {
 	dc int16
 }
 
-func newMTProtoObfuscatedCodec(d, e *crypto.AesCTR128Encrypt, protocolType uint32, dc int16) *ObfuscatedCodec {
+// newMTProtoObfuscatedCodec wraps the transport protocolType in the
+// obfuscation ciphers. withSecret marks a connection made with a secret,
+// whose padded intermediate packets may have any length.
+func newMTProtoObfuscatedCodec(d, e *crypto.AesCTR128Encrypt, protocolType uint32, dc int16, withSecret bool) *ObfuscatedCodec {
 	codec := new(ObfuscatedCodec)
 	codec.dc = dc
 
@@ -37,8 +40,16 @@ func newMTProtoObfuscatedCodec(d, e *crypto.AesCTR128Encrypt, protocolType uint3
 	case INTERMEDIATE_FLAG:
 		codec.Codec = newMTProtoIntermediateCodec(newAesCTR128Crypto(d, e))
 	case PADDED_INTERMEDIATE_FLAG:
-		codec.Codec = newMTProtoPaddedIntermediateCodec(newAesCTR128Crypto(d, e))
+		padded := newMTProtoPaddedIntermediateCodec(newAesCTR128Crypto(d, e))
+		padded.arbitraryLength = withSecret
+		codec.Codec = padded
 	}
 
 	return codec
+}
+
+// DcId returns the dc id the client put in the header: the DC it means to
+// reach, negative for a media connection.
+func (c *ObfuscatedCodec) DcId() int16 {
+	return c.dc
 }

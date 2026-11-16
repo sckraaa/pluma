@@ -283,13 +283,24 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 	// decrypt_iv_ : 32 ~ 47 (temp)
 	//
 
-	if len(rData) < 64 {
+	if len(rData) < obfuscatedHeaderSize {
 		logx.Debugf("conn(%s) peek bytes length %d < 64", conn, len(rData))
 		return nil, ErrUnexpectedEOF
 	}
 
-	obfuscatedBuf := rData[:64]
+	return createObfuscatedCodec(conn, rData[:obfuscatedHeaderSize], nil)
+}
 
+// obfuscatedHeaderSize is the length of the random header that opens an
+// obfuscated connection.
+const obfuscatedHeaderSize = 64
+
+// createObfuscatedCodec parses the header of an obfuscated connection
+// (https://core.telegram.org/mtproto/mtproto-transports#transport-obfuscation),
+// decrypting it in place, and consumes it from conn. With a secret the keys
+// are SHA256(key + secret) and only the padded intermediate transport is
+// accepted (secret.go); without one the keys are used as they are.
+func createObfuscatedCodec(conn CodecReader, obfuscatedBuf []byte, secret []byte) (Codec, error) {
 	var (
 		tmp [64]byte
 	)
@@ -299,12 +310,12 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 		tmp[i] = obfuscatedBuf[55-i]
 	}
 
-	e, err := crypto.NewAesCTR128Encrypt(tmp[:32], tmp[32:48])
+	e, err := crypto.NewAesCTR128Encrypt(obfuscationKey(tmp[:32], secret), tmp[32:48])
 	if err != nil {
 		return nil, fmt.Errorf("%w: create decrypt crypto failed", ErrProtoDecrypt)
 	}
 
-	d, err := crypto.NewAesCTR128Encrypt(obfuscatedBuf[8:40], obfuscatedBuf[40:56])
+	d, err := crypto.NewAesCTR128Encrypt(obfuscationKey(obfuscatedBuf[8:40], secret), obfuscatedBuf[40:56])
 	if err != nil {
 		return nil, fmt.Errorf("%w: create encrypt crypto failed", ErrProtoDecrypt)
 	}
@@ -312,9 +323,7 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 	d.Encrypt(obfuscatedBuf)
 
 	protocolType := binary.BigEndian.Uint32(obfuscatedBuf[56:])
-	if protocolType != ABRIDGED_INT32_FLAG &&
-		protocolType != INTERMEDIATE_FLAG &&
-		protocolType != PADDED_INTERMEDIATE_FLAG {
+	if !obfuscatedProtocolAllowed(protocolType, secret != nil) {
 		// Only the decrypted tag: the rest of the buffer holds the obfuscation
 		// keys and the client's first message.
 		return nil, fmt.Errorf("%w: conn(%s) mtproto buf[56:60] invalid, received: %08x",
@@ -323,7 +332,11 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 			protocolType)
 	}
 
-	dcId := int16(binary.BigEndian.Uint16(obfuscatedBuf[60:]))
+	// The clients write the dc id little-endian (Android
+	// Connection.cpp:551-552; tdesktop qToUnaligned in
+	// connection_tcp.cpp:487 on little-endian machines; iOS memcpy of an
+	// int16_t, MTTcpConnection.m:1289).
+	dcId := int16(binary.LittleEndian.Uint16(obfuscatedBuf[60:]))
 	if dcId == 0 {
 		return nil, fmt.Errorf("%w: invalid dc id: %d", ErrProtoBadMagic, dcId)
 	}
@@ -332,10 +345,21 @@ func CreateMTProtoCodec(conn CodecReader) (Codec, error) {
 	//	c.remoteIp = ip.IntToIP(firstInt)
 	//}
 
-	_, _ = conn.Discard(64)
+	_, _ = conn.Discard(obfuscatedHeaderSize)
 
 	logx.Infof("conn(%s) mtproto obfuscated version, {protocol_type: %d, dc_id: %d}", conn, protocolType, dcId)
-	return newMTProtoObfuscatedCodec(d, e, protocolType, dcId), nil
+	return newMTProtoObfuscatedCodec(d, e, protocolType, dcId, secret != nil), nil
+}
+
+// obfuscatedProtocolAllowed reports whether an obfuscated connection may
+// carry the transport tagged protocolType.
+func obfuscatedProtocolAllowed(protocolType uint32, withSecret bool) bool {
+	if withSecret {
+		return protocolType == PADDED_INTERMEDIATE_FLAG
+	}
+	return protocolType == ABRIDGED_INT32_FLAG ||
+		protocolType == INTERMEDIATE_FLAG ||
+		protocolType == PADDED_INTERMEDIATE_FLAG
 }
 
 // CreateMyProtoCodec parses the custom ntproto obfuscated header.
@@ -412,5 +436,5 @@ func CreateMyProtoCodec(conn CodecReader) (Codec, error) {
 	_, _ = conn.Discard(64)
 
 	logx.Infof("conn(%s) mtproto obfuscated version, {protocol_type: %d, dc_id: %d}", conn, protocolType, dcId)
-	return newMTProtoObfuscatedCodec(d, e, protocolType, dcId), nil
+	return newMTProtoObfuscatedCodec(d, e, protocolType, dcId, false), nil
 }

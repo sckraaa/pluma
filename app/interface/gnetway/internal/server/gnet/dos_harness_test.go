@@ -2,6 +2,7 @@ package gnet
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -20,8 +21,9 @@ import (
 	"github.com/teamgram/marmota/pkg/cache"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/proto/mtproto/crypto"
-	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	"github.com/teamgram/teamgram-server/pkg/mtclient"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/codec"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/panjf2000/gnet/v2"
@@ -144,7 +146,7 @@ func newTestHarness(t testing.TB) *testHarness {
 		Fingerprint: serverkey.Fingerprint(&testRSAKey.PublicKey),
 	}
 	h := &testHarness{t: t, key: testRSAKey, conns: map[int64]*fakeConn{}}
-	hs, err := newHandshake([]*serverkey.Key{key})
+	hs, err := handshake.New([]*serverkey.Key{key})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,10 +156,11 @@ func newTestHarness(t testing.TB) *testHarness {
 		cache:          cache.NewLRUCache(10 << 20),
 		authSessionMgr: NewAuthSessionManager(),
 		timeoutWheel:   newTimeoutWheel(),
-		httpHandshakes: newHandshakeStore(maxHttpHandshakes, httpHandshakeTTL),
+		httpHandshakes: handshake.NewStore(maxHttpHandshakes, httpHandshakeTTL),
 	}
 	s.cachedNow.Store(testNow)
-	s.saveAuthKey = func(st *HandshakeStateCtx, k *mtproto.AuthKeyInfo) error {
+	s.saveAuthKey = func(_ context.Context, key *handshake.AuthKey, _ int32) error {
+		k := mtproto.NewAuthKeyInfo(key.AuthKeyId, key.AuthKey, key.AuthKeyType)
 		h.mu.Lock() // called from the pool
 		defer h.mu.Unlock()
 		if h.refuse != nil {

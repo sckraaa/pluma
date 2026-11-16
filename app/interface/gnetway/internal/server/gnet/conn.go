@@ -7,42 +7,17 @@
 package gnet
 
 import (
-	"fmt"
-
-	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	httpcodec "github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/http"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/ws"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/codec"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
-type HandshakeStateCtx struct {
-	State         int32  `json:"state,omitempty"`
-	ResState      int32  `json:"res_state,omitempty"`
-	Nonce         []byte `json:"nonce,omitempty"`
-	ServerNonce   []byte `json:"server_nonce,omitempty"`
-	NewNonce      []byte `json:"new_nonce,omitempty"`
-	A             []byte `json:"a,omitempty"`
-	HandshakeType int    `json:"handshake_type"`
-	ExpiresIn     int32  `json:"expires_in,omitempty"`
-
-	// Pq of resPQ and its factors P < Q, which req_DH_params must repeat.
-	Pq uint64 `json:"pq,omitempty"`
-	P  uint64 `json:"p,omitempty"`
-	Q  uint64 `json:"q,omitempty"`
-	// RetryId is the retry_id client_DH_inner_data must carry: 0 at the
-	// first attempt, after dh_gen_retry the auth_key_aux_hash of the key
-	// that collided.
-	RetryId int64 `json:"retry_id,omitempty"`
-}
-
-// Format prints the state without NewNonce and A: with them anyone reading
-// a log could recompute the auth key (audit finding #8). It applies to every
-// verb, so neither %v nor %+v nor %#v can print them.
-func (m HandshakeStateCtx) Format(f fmt.State, _ rune) {
-	fmt.Fprintf(f, "{state: %d, res_state: %d, handshake_type: %d, expires_in: %d}",
-		m.State, m.ResState, m.HandshakeType, m.ExpiresIn)
-}
+// HandshakeStateCtx is the state of a key exchange in progress
+// (pkg/mtserver/handshake).
+type HandshakeStateCtx = handshake.HandshakeStateCtx
 
 type connContext struct {
 	codec     codec.Codec

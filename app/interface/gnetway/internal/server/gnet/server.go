@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"github.com/teamgram/marmota/pkg/cache"
-	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
-	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/server/gnet/codec"
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/svc"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/codec"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 	"github.com/teamgram/teamgram-server/pkg/serverkey"
 
 	"github.com/panjf2000/gnet/v2"
@@ -45,7 +45,7 @@ type Server struct {
 	pool           *goroutine.Pool
 	cache          *cache.LRUCache
 	c              *config.Config
-	handshake      *handshake
+	handshake      *handshake.Server
 	authSessionMgr *authSessionManager
 	svcCtx         *svc.ServiceContext
 	tickNumber     int64
@@ -54,10 +54,10 @@ type Server struct {
 
 	// httpHandshakes keeps handshakes over the HTTP transport, apart from
 	// the auth key cache so that unauthenticated requests cannot evict keys.
-	httpHandshakes *handshakeStore
+	httpHandshakes *handshake.Store
 	// saveAuthKey stores a key created by a handshake (saveAuthKeyInfo);
 	// errAuthKeyIdTaken when another key has its auth_key_id.
-	saveAuthKey func(st *HandshakeStateCtx, key *mtproto.AuthKeyInfo) error
+	saveAuthKey func(ctx context.Context, key *handshake.AuthKey, expiresIn int32) error
 	// queryKey reads an auth key from authsession (fetchAuthKey); known is
 	// the copy the gateway had, if any.
 	queryKey func(authKeyId int64, known *authKeyUtil) (*authKeyUtil, error)
@@ -84,14 +84,14 @@ func New(svcCtx *svc.ServiceContext, c config.Config, keys []*serverkey.Key) (*S
 		err error
 	)
 
-	s.handshake, err = newHandshake(keys)
+	s.handshake, err = handshake.New(keys)
 	if err != nil {
 		return nil, err
 	}
 
 	s.authSessionMgr = NewAuthSessionManager()
 	s.timeoutWheel = newTimeoutWheel()
-	s.httpHandshakes = newHandshakeStore(maxHttpHandshakes, httpHandshakeTTL)
+	s.httpHandshakes = handshake.NewStore(maxHttpHandshakes, httpHandshakeTTL)
 	s.saveAuthKey = s.saveAuthKeyInfo
 	s.queryKey = s.fetchAuthKey
 	s.limits = newIPLimits(c.Gnetway.MaxConnsPerIP, c.Gnetway.KeyExchangesPerIPMinute)

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/teamgram/teamgram-server/app/interface/gnetway/internal/config"
+	"github.com/teamgram/teamgram-server/pkg/mtserver/handshake"
 	"github.com/teamgram/teamgram-server/pkg/serverkey"
 )
 
@@ -87,21 +88,21 @@ func TestLoadRSAKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := newHandshake(keys)
+	h, err := handshake.New(keys)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, k := range []*rsa.PrivateKey{k1, k2} {
 		fp := int64(serverkey.Fingerprint(&k.PublicKey))
 		found := false
-		for _, v := range h.keyFingerprints {
+		for _, v := range h.Fingerprints() {
 			found = found || v == fp
 		}
 		if !found {
-			t.Fatalf("fingerprint %d not advertised: %v", fp, h.keyFingerprints)
+			t.Fatalf("fingerprint %d not advertised: %v", fp, h.Fingerprints())
 		}
 
-		cryptor := h.getKey(fp)
+		cryptor := h.Cryptor(fp)
 		if cryptor == nil {
 			t.Fatalf("no cryptor for fingerprint %d", fp)
 		}
@@ -111,7 +112,7 @@ func TestLoadRSAKeys(t *testing.T) {
 			t.Fatalf("cryptor for %d decrypts with the wrong key", fp)
 		}
 	}
-	if h.getKey(12345) != nil {
+	if h.Cryptor(12345) != nil {
 		t.Fatal("unknown fingerprint must not resolve to a key")
 	}
 }
